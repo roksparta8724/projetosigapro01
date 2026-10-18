@@ -22,6 +22,15 @@ describe("finance municipal guide ledger", () => {
     expect(finance).toContain("Controle por processo");
   });
 
+  it("keeps the Habite-se finance action readable on the dark premium surface", () => {
+    expect(finance).toContain('data-finance-habite-se-action="true"');
+    expect(finance).toContain("sig-force-dark-action");
+    expect(finance).toContain("bg-cyan-800");
+    expect(finance).toContain("!text-white");
+    expect(finance).toContain("[&_*]:!text-white");
+    expect(finance).toContain("Abrir e emitir Guia de Habite-se");
+  });
+
   it("keeps the issued-guide section as a municipal historical ledger", () => {
     expect(finance).toContain('title="Guias emitidas"');
     expect(finance).toContain("Todas as guias vinculadas aos processos municipais");
