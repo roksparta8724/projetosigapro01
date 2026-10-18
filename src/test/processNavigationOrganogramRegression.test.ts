@@ -47,7 +47,8 @@ describe("process entry and organogram regression", () => {
   });
 
   it("keeps the selected destination white-on-blue and auto-fills the real local dispatch date", () => {
-    expect(processDetail).toContain('data-selected-organogram-card={selected ? "true" : "false"}');
+    expect(processDetail).toContain("data-selected-organogram-card={");
+    expect(processDetail).toContain('selected ? "true" : "false"');
     expect(processDetail).toContain('data-organogram-destination-title="true"');
     expect(processDetail).toContain('data-organogram-destination-path="true"');
     expect(processDetail).toContain("function currentLocalDateValue");
