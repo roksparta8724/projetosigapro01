@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
+import { useLivePlatformRefresh } from "@/hooks/useLivePlatformRefresh";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import {
   isInternalRole,
@@ -35,8 +36,9 @@ function isFinalProcess(process: ProcessRecord) {
 export function MunicipalProcessRegistryPage() {
   const { session } = usePlatformSession();
   const { municipality, scopeId } = useMunicipality();
-  const { processes: allProcesses } = usePlatformData();
+  const { processes: allProcesses, refreshRemoteStore } = usePlatformData();
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
+  useLivePlatformRefresh(refreshRemoteStore, { intervalMs: 8000 });
 
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<RegistryFilter>("todos");
