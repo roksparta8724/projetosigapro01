@@ -11,6 +11,8 @@ describe("Habite-se independent workflow", () => {
   const protocolDraft = read("src/lib/protocolDraft.ts");
   const processDetail = read("src/pages/saas/ProcessDetailPage.tsx");
   const finance = read("src/pages/saas/FinanceDeskPage.tsx");
+  const financeDesk = finance;
+  const financeProtocols = read("src/pages/saas/FinanceProtocolsPage.tsx");
   const store = read("src/hooks/usePlatformData.tsx");
   const panel = read("src/components/platform/OccupancyPermitProcessPanel.tsx");
   const externalDrafts = read("src/pages/saas/ExternalDraftsPage.tsx");
@@ -112,6 +114,14 @@ describe("Habite-se independent workflow", () => {
     expect(panel).toContain('label: "Financeiro"');
     expect(panel).toContain("Vistoria concluída — seguir para o Financeiro");
     expect(panel).toContain("não reutiliza a guia de aprovação/Alvará");
+  });
+
+  it("surfaces Habite-se requests to the Financeiro before the guide exists", () => {
+    expect(financeDesk).toContain('data-finance-habite-se-pending-queue="true"');
+    expect(financeDesk).toContain("Habite-se aguardando emissão pelo Financeiro");
+    expect(financeDesk).toContain("Abrir e emitir Guia de Habite-se");
+    expect(financeProtocols).toContain('if (kind === "habite_se") return "Guia de Habite-se"');
+    expect(financeProtocols).toContain('if (kind === "habite_se") return "Emissão e baixa: Financeiro"');
   });
 
   it("keeps Habite-se finance separated and inserts Financeiro after inspection", () => {
