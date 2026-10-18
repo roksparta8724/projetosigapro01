@@ -832,13 +832,15 @@ export function ProtocolarProjetoPage({
       // Sempre mescla com o estado mais recente. Nunca usa a closure antiga de
       // "files", que podia apagar um upload concluído em outro card.
       const persistedFiles = { ...filesRef.current, [label]: persistedSelected };
-      const saved = saveProtocolDraft(session.id, effectiveScopeId, {
-        draftNumber,
-        entryMode: draftEntryMode,
-        form,
-        files: toStoredUploadedFiles(persistedFiles),
-        updatedAt: new Date().toISOString(),
-      });
+      const saved = remotePreProtocolNumber
+        ? true
+        : saveProtocolDraft(session.id, effectiveScopeId, {
+            draftNumber,
+            entryMode: draftEntryMode,
+            form,
+            files: toStoredUploadedFiles(persistedFiles),
+            updatedAt: new Date().toISOString(),
+          });
 
       if (!saved) {
         throw new Error("Não foi possível atualizar o rascunho neste navegador.");
@@ -853,16 +855,27 @@ export function ProtocolarProjetoPage({
 
       replaceFiles(persistedFiles);
 
-      await Promise.allSettled(
-        removedStoredFiles.map((removed) =>
-          deleteFileFromStorage({
-            bucket: "process-documents",
-            objectKey: removed.storagePath!,
-          }),
-        ),
-      );
+      // Em um pré-protocolo remoto o banco ainda aponta para o arquivo anterior
+      // até o usuário confirmar "Salvar alterações". Mantemos esse objeto no R2
+      // até a gravação oficial para nunca deixar o rascunho com referência quebrada.
+      if (!remotePreProtocolNumber) {
+        await Promise.allSettled(
+          removedStoredFiles.map((removed) =>
+            deleteFileFromStorage({
+              bucket: "process-documents",
+              objectKey: removed.storagePath!,
+            }),
+          ),
+        );
+      }
 
-      if (persistedSelected.length > 0) {
+      if (remotePreProtocolNumber) {
+        setStatus(
+          persistedSelected.length > 0
+            ? `Documento "${persistedSelected[0].fileName}" preparado. Clique em "Salvar alterações do rascunho" para atualizar o pré-protocolo.`
+            : `Documento removido da edição. Clique em "Salvar alterações do rascunho" para confirmar.`,
+        );
+      } else if (persistedSelected.length > 0) {
         setStatus(
           previous.length > 0
             ? `Documento substituído com sucesso por "${persistedSelected[0].fileName}". O rascunho já foi atualizado.`
