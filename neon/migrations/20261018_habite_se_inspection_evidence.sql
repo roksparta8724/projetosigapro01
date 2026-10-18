@@ -360,7 +360,7 @@ begin
   end if;
 
   if jsonb_typeof(coalesce(_checklist,'{}'::jsonb)) <> 'object'
-     or jsonb_object_length(coalesce(_checklist,'{}'::jsonb)) < 8 then
+     or (select count(*) from jsonb_object_keys(coalesce(_checklist,'{}'::jsonb))) < 8 then
     raise exception 'Conclua todos os itens do checklist da vistoria.';
   end if;
 
