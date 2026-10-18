@@ -155,7 +155,7 @@ export function OccupancyPermitProcessPanel({
       current: financeStage && !habiteSePaid && !finalStatus,
     },
     {
-      label: "Decisão e emissão",
+      label: "Decisão / emissão",
       detail: finalStatus
         ? "Decisão final registrada"
         : habiteSePaid
