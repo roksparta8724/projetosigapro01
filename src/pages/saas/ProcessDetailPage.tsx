@@ -3718,9 +3718,6 @@ export function ProcessDetailPage() {
                 process={process}
                 session={session}
                 externalView={isExternalProcessViewer}
-                canRequestPayment={canRequestHabiteSeFinance}
-                paymentRequestBusy={processActionBusy === "request-habite-se-finance"}
-                onRequestPayment={() => void handleRequestHabiteSeFinance()}
                 onProcessRefresh={() => refreshRemoteStore()}
               />
             ) : (
