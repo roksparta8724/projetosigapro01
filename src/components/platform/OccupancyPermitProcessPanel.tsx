@@ -3,18 +3,24 @@ import {
   Building2,
   CheckCircle2,
   ClipboardCheck,
+  Eye,
   FileCheck2,
   Landmark,
+  Printer,
+  ReceiptText,
   Route,
   ShieldCheck,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { HabiteSeInspectionPanel } from "@/components/platform/HabiteSeInspectionPanel";
+import { HabiteSePermitPanel } from "@/components/platform/HabiteSePermitPanel";
 import {
   type ProcessRecord,
   type SessionUser,
+  formatCurrency,
   formatOfficialProcessNumber,
 } from "@/lib/platform";
 
@@ -33,13 +39,19 @@ export function OccupancyPermitProcessPanel({
   externalView = false,
   session,
   dataReady = true,
+  municipalityName,
   onProcessRefresh,
+  onViewHabiteSeGuide,
+  onPrintHabiteSeGuide,
 }: {
   process: ProcessRecord;
   externalView?: boolean;
   session: SessionUser;
   dataReady?: boolean;
+  municipalityName?: string | null;
   onProcessRefresh?: () => Promise<void> | void;
+  onViewHabiteSeGuide?: () => void;
+  onPrintHabiteSeGuide?: () => void;
 }) {
   const required = process.documents.filter((item) => item.required);
   const uploaded = required.filter((item) => item.uploaded);
@@ -105,7 +117,11 @@ export function OccupancyPermitProcessPanel({
         /guia.*habite|habite.*guia/i.test(dispatch.subject) &&
         ["aguardando", "respondido", "concluido"].includes(dispatch.status),
     );
-  const decisionStage = habiteSePaid || finalStatus;
+  const permitStage =
+    habiteSePaid ||
+    /alvara.*habite|emissao.*habite|elaboracao.*habite/.test(normalizedFolder);
+  const directorStage =
+    /diretoria|assinatura.*diretor/.test(normalizedFolder) || finalStatus;
 
   const stages = [
     {
@@ -139,7 +155,7 @@ export function OccupancyPermitProcessPanel({
         : financeStage
           ? "Vistoria concluída e encaminhada"
           : "Etapa prevista após a análise, conforme procedimento municipal",
-      done: financeStage || decisionStage,
+      done: financeStage || permitStage,
       current: inspectionStage && !financeStage,
     },
     {
@@ -155,14 +171,32 @@ export function OccupancyPermitProcessPanel({
       current: financeStage && !habiteSePaid && !finalStatus,
     },
     {
-      label: "Decisão / emissão",
+      label: "Alvará de Habite-se",
       detail: finalStatus
-        ? "Decisão final registrada"
+        ? "Alvará emitido"
         : habiteSePaid
-          ? "Pagamento confirmado — disponível para decisão / emissão"
-          : "Aguardando vistoria e etapa financeira",
+          ? "Pagamento confirmado — Analista elabora e assina"
+          : "Aguardando pagamento",
+      done: directorStage || finalStatus,
+      current: permitStage && !directorStage && !finalStatus,
+    },
+    {
+      label: "Assinatura da Diretoria",
+      detail: finalStatus
+        ? "Assinatura final concluída"
+        : directorStage
+          ? "Aguardando assinatura final"
+          : "Após assinatura do Analista",
       done: finalStatus,
-      current: decisionStage && !finalStatus,
+      current: directorStage && !finalStatus,
+    },
+    {
+      label: "Concluído",
+      detail: finalStatus
+        ? "Alvará de Habite-se emitido e processo finalizado"
+        : "Finaliza após a assinatura da Diretoria",
+      done: finalStatus,
+      current: false,
     },
   ];
 
@@ -264,7 +298,7 @@ export function OccupancyPermitProcessPanel({
           </p>
         </CardHeader>
         <CardContent className="p-5">
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-8">
             {stages.map((stage, index) => (
               <div
                 key={stage.label}
@@ -326,11 +360,73 @@ export function OccupancyPermitProcessPanel({
         </CardContent>
       </Card>
 
+      {!externalView && habiteSeGuide ? (
+        <Card
+          data-habite-se-guide-analyst="true"
+          className="overflow-hidden rounded-[24px] border-sky-200 bg-white shadow-sm dark:border-sky-500/30 dark:bg-slate-900"
+        >
+          <CardHeader className="border-b border-sky-100 bg-sky-50/70 dark:border-sky-500/20 dark:bg-sky-950/25">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <div className="flex items-center gap-2">
+                  <ReceiptText className="h-5 w-5 text-sky-700 dark:text-sky-300" />
+                  <CardTitle className="text-slate-950 dark:text-white">
+                    Guia de Habite-se vinculada ao processo
+                  </CardTitle>
+                </div>
+                <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
+                  O Analista mantém acesso à guia emitida pelo Financeiro para conferir valor, situação e documento durante todo o fluxo.
+                </p>
+              </div>
+              <Badge
+                variant="outline"
+                className={
+                  habiteSePaid
+                    ? "w-fit border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-500/40 dark:bg-emerald-950/30 dark:text-emerald-200"
+                    : "w-fit border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-500/40 dark:bg-amber-950/30 dark:text-amber-200"
+                }
+              >
+                {habiteSePaid ? "Pagamento confirmado" : "Aguardando pagamento"}
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent className="p-5">
+            <div className="grid gap-3 sm:grid-cols-3">
+              <InfoBox label="Guia" value={habiteSeGuide.code} />
+              <InfoBox label="Valor" value={formatCurrency(habiteSeGuide.amount)} />
+              <InfoBox label="Vencimento" value={habiteSeGuide.dueDate || "Não informado"} />
+            </div>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {onViewHabiteSeGuide ? (
+                <Button type="button" variant="outline" className="rounded-full" onClick={onViewHabiteSeGuide}>
+                  <Eye className="mr-2 h-4 w-4" />
+                  Visualizar guia
+                </Button>
+              ) : null}
+              {onPrintHabiteSeGuide ? (
+                <Button type="button" variant="outline" className="rounded-full" onClick={onPrintHabiteSeGuide}>
+                  <Printer className="mr-2 h-4 w-4" />
+                  Imprimir
+                </Button>
+              ) : null}
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
+
       <HabiteSeInspectionPanel
         process={process}
         session={session}
         externalView={externalView}
         dataReady={dataReady}
+        onProcessRefresh={onProcessRefresh}
+      />
+
+      <HabiteSePermitPanel
+        process={process}
+        session={session}
+        externalView={externalView}
+        municipalityName={municipalityName}
         onProcessRefresh={onProcessRefresh}
       />
 
