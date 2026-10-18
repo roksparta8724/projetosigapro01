@@ -50,6 +50,8 @@ import {
   formatCurrency,
   formatOfficialProcessNumber,
   formatOfficialProcessTitle,
+  getOfficialProcessSequence,
+  getPaymentGuideDisplayReference,
   getProcessPaymentGuides,
   getVisibleProcessesByScope,
   resolveSessionOperationalArea,
@@ -390,21 +392,41 @@ export function FinanceDeskPage() {
     [dispatchRows],
   );
 
-  const issuedGuideRows = useMemo(
-    () =>
-      [...controlGuides].sort((a, b) => {
-        const aIssued = a.guide.issuedAt ? new Date(a.guide.issuedAt).getTime() : 0;
-        const bIssued = b.guide.issuedAt ? new Date(b.guide.issuedAt).getTime() : 0;
-        if (aIssued !== bIssued) return bIssued - aIssued;
+  const issuedGuideRows = useMemo(() => {
+    const guideOrder: Record<PaymentGuideKind, number> = {
+      protocolo: 0,
+      iss_obra: 1,
+      habite_se: 2,
+      aprovacao_final: 3,
+    };
 
-        const aDue = a.guide.dueDate || "";
-        const bDue = b.guide.dueDate || "";
-        if (aDue !== bDue) return bDue.localeCompare(aDue);
+    return [...controlGuides].sort((a, b) => {
+      const aSequence = getOfficialProcessSequence(a.process);
+      const bSequence = getOfficialProcessSequence(b.process);
 
-        return a.guide.code.localeCompare(b.guide.code);
-      }),
-    [controlGuides],
-  );
+      // Processo oficial sempre fica no livro sequencial; pré-protocolo ainda
+      // não pago fica separado no fim e nunca ocupa posição da sequência PM.
+      if (Boolean(aSequence) !== Boolean(bSequence)) {
+        return aSequence ? -1 : 1;
+      }
+
+      if (aSequence && bSequence) {
+        if (aSequence.year !== bSequence.year) return bSequence.year - aSequence.year;
+        if (aSequence.number !== bSequence.number) {
+          return bSequence.number - aSequence.number;
+        }
+
+        const kindDelta = guideOrder[a.guide.kind] - guideOrder[b.guide.kind];
+        if (kindDelta !== 0) return kindDelta;
+      }
+
+      const aIssued = a.guide.issuedAt ? new Date(a.guide.issuedAt).getTime() : 0;
+      const bIssued = b.guide.issuedAt ? new Date(b.guide.issuedAt).getTime() : 0;
+      if (aIssued !== bIssued) return bIssued - aIssued;
+
+      return a.guide.code.localeCompare(b.guide.code, "pt-BR", { numeric: true });
+    });
+  }, [controlGuides]);
 
   const feeTable: MunicipalFeeTable = {
     id: `fee-table-${scopeId ?? "platform"}`,
@@ -800,8 +822,16 @@ export function FinanceDeskPage() {
                 </div>
               ) : (
                 <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_8px_24px_rgba(15,23,42,0.04)] dark:border-slate-700 dark:bg-slate-950/45">
-                  <div className="hidden min-h-9 grid-cols-[42px_minmax(190px,1.15fr)_minmax(170px,1fr)_110px_110px_minmax(170px,1fr)_100px_34px] items-center gap-3 border-b border-slate-200 bg-slate-50/90 px-3 text-[9px] font-black uppercase tracking-[0.1em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/80 dark:text-slate-400 lg:grid">
-                    <span>#</span>
+                  <div className="border-b border-sky-100 bg-sky-50/70 px-4 py-3 dark:border-sky-500/20 dark:bg-sky-950/20">
+                    <p className="text-xs font-bold text-sky-900 dark:text-sky-100">
+                      Ordem oficial dos processos
+                    </p>
+                    <p className="mt-1 text-[11px] leading-5 text-sky-700 dark:text-sky-300">
+                      A sequência municipal nasce somente após a compensação da guia inicial. Pré-protocolos ainda não pagos aparecem como PRE e não consomem número de processo.
+                    </p>
+                  </div>
+                  <div className="hidden min-h-9 grid-cols-[54px_minmax(220px,1.2fr)_minmax(170px,1fr)_110px_110px_minmax(170px,1fr)_100px_34px] items-center gap-3 border-b border-slate-200 bg-slate-50/90 px-3 text-[9px] font-black uppercase tracking-[0.1em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/80 dark:text-slate-400 lg:grid">
+                    <span>Seq.</span>
                     <span>Guia</span>
                     <span>Processo</span>
                     <span>Emissão</span>
@@ -812,29 +842,52 @@ export function FinanceDeskPage() {
                   </div>
 
                   <div className="divide-y divide-slate-100 dark:divide-slate-800">
-                    {issuedGuideRows.map(({ process, guide }, index) => {
+                    {issuedGuideRows.map(({ process, guide }) => {
                       const isProtocolGuide = guide.kind === "protocolo";
                       const issuedLabel = guide.issuedAt
                         ? new Date(guide.issuedAt).toLocaleDateString("pt-BR")
                         : "Não informada";
+                      const sequence = getOfficialProcessSequence(process);
+                      const sequenceLabel = sequence
+                        ? String(sequence.number).padStart(2, "0")
+                        : "PRE";
+                      const displayGuideCode = getPaymentGuideDisplayReference(
+                        process,
+                        guide,
+                      );
+                      const keepsOriginalPreprotocolCode =
+                        isProtocolGuide &&
+                        Boolean(guide.officialProcessReference) &&
+                        guide.officialProcessReference !== guide.code;
 
                       return (
                         <Link
                           key={`${process.id}-${guide.kind}-${guide.code}`}
                           to={`${buildProcessPath(process, "financeiro")}&guia=${encodeURIComponent(guide.code)}#guia-selecionada`}
-                          className="group grid min-h-[58px] grid-cols-[34px_minmax(0,1fr)_30px] items-center gap-2 px-3 py-2.5 transition hover:bg-sky-50/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-500 dark:hover:bg-sky-950/20 lg:grid-cols-[42px_minmax(190px,1.15fr)_minmax(170px,1fr)_110px_110px_minmax(170px,1fr)_100px_34px] lg:gap-3"
+                          className="group grid min-h-[62px] grid-cols-[42px_minmax(0,1fr)_30px] items-center gap-2 px-3 py-2.5 transition hover:bg-sky-50/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-500 dark:hover:bg-sky-950/20 lg:grid-cols-[54px_minmax(220px,1.2fr)_minmax(170px,1fr)_110px_110px_minmax(170px,1fr)_100px_34px] lg:gap-3"
                         >
-                          <span className="inline-flex h-6 w-6 items-center justify-center rounded-lg bg-slate-950 text-[9px] font-black tracking-[0.04em] text-white dark:bg-white dark:text-slate-950">
-                            {String(index + 1).padStart(2, "0")}
+                          <span
+                            className={
+                              sequence
+                                ? "inline-flex h-7 min-w-7 items-center justify-center rounded-lg bg-slate-950 px-1 text-[9px] font-black tracking-[0.04em] text-white dark:bg-white dark:text-slate-950"
+                                : "inline-flex h-7 min-w-9 items-center justify-center rounded-lg border border-amber-300 bg-amber-50 px-1.5 text-[8px] font-black tracking-[0.04em] text-amber-800 dark:border-amber-500/40 dark:bg-amber-950/30 dark:text-amber-200"
+                            }
+                            title={
+                              sequence
+                                ? `Sequência oficial do processo: ${formatOfficialProcessNumber(process.protocol)}`
+                                : "Pré-protocolo: ainda não possui sequência oficial"
+                            }
+                          >
+                            {sequenceLabel}
                           </span>
 
                           <div className="min-w-0">
                             <div className="flex min-w-0 items-center gap-2">
                               <span
                                 className="truncate text-xs font-black text-slate-950 group-hover:text-sky-800 dark:text-white dark:group-hover:text-sky-300"
-                                title={guide.code}
+                                title={displayGuideCode}
                               >
-                                {guide.code}
+                                {displayGuideCode}
                               </span>
                               <Badge
                                 variant="outline"
@@ -850,6 +903,14 @@ export function FinanceDeskPage() {
                             <p className="mt-0.5 truncate text-[10px] font-medium text-slate-500 dark:text-slate-400" title={guide.label}>
                               {guide.label}
                             </p>
+                            {keepsOriginalPreprotocolCode ? (
+                              <p
+                                className="mt-0.5 truncate text-[9px] font-semibold text-slate-400 dark:text-slate-500"
+                                title={guide.code}
+                              >
+                                Guia paga no pré-protocolo: {guide.code}
+                              </p>
+                            ) : null}
 
                             <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-slate-500 dark:text-slate-400 lg:hidden">
                               <span>{formatOfficialProcessNumber(process.protocol)}</span>
