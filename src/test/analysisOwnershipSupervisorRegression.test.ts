@@ -65,20 +65,29 @@ describe("analysis ownership and director supervision", () => {
   });
 
 
-  it("lets only the originally assigned analyst rectify the signed sheet after the process leaves Analysis", () => {
-    const financeStageProcess = {
+  it("lets only the originally assigned analyst rectify the Habite-se analysis after the workflow advances", () => {
+    const habiteSePermitStageProcess = {
       ...ownedProcess,
-      status: "pagamento_pendente",
+      type: "Habite-se",
+      status: "analise_tecnica",
       processControl: {
-        currentFolder: "Financeiro",
+        currentFolder: "Emissão do Alvará de Habite-se",
       },
     } as ProcessRecord;
 
     expect(
-      canEditAssignedAnalysisArtifact(analystA, financeStageProcess, municipalityId),
+      canEditAssignedAnalysisArtifact(
+        analystA,
+        habiteSePermitStageProcess,
+        municipalityId,
+      ),
     ).toBe(true);
     expect(
-      canEditAssignedAnalysisArtifact(analystB, financeStageProcess, municipalityId),
+      canEditAssignedAnalysisArtifact(
+        analystB,
+        habiteSePermitStageProcess,
+        municipalityId,
+      ),
     ).toBe(false);
   });
 
