@@ -2091,11 +2091,64 @@ export async function confirmRemotePreprotocolPayment(processId: string) {
   };
 }
 
+export interface RemoteExternalPreprotocolDraft {
+  processId: string;
+  preProtocolNumber: string;
+  payload: Record<string, unknown>;
+  guide: {
+    id: string;
+    number: string;
+    amount: number;
+    dueDate: string;
+    status: string;
+    paid: boolean;
+  };
+}
+
+export async function getRemoteExternalPreprotocolDraft(
+  preProtocolNumber: string,
+): Promise<RemoteExternalPreprotocolDraft> {
+  if (!db) {
+    throw new Error("Banco oficial indisponível.");
+  }
+
+  const reference = String(preProtocolNumber || "").trim();
+  if (!reference) {
+    throw new Error("Pré-protocolo não informado.");
+  }
+
+  const { data, error } = await db.rpc("get_external_preprotocol_draft_v1", {
+    _pre_protocol_number: reference,
+  });
+
+  if (error) {
+    throw new Error(formatDatabaseError(error));
+  }
+
+  const row = (data ?? {}) as Record<string, any>;
+  const guide = (row.guide ?? {}) as Record<string, any>;
+
+  return {
+    processId: String(row.process_id ?? ""),
+    preProtocolNumber: String(row.pre_protocol_number ?? reference),
+    payload: (row.payload ?? {}) as Record<string, unknown>,
+    guide: {
+      id: String(guide.id ?? ""),
+      number: String(guide.number ?? ""),
+      amount: Number(guide.amount ?? 0),
+      dueDate: guide.due_date ? String(guide.due_date) : "",
+      status: String(guide.status ?? "pendente"),
+      paid: Boolean(guide.paid),
+    },
+  };
+}
+
 export async function createRemoteExternalProcessV2(
   input: CreateProcessInput & {
     guidePrefix?: string;
     protocolPrefix?: string;
     requestedProtocolNumber?: string | null;
+    draftForm?: Record<string, unknown> | null;
   },
 ) {
   if (!db) {
@@ -2138,6 +2191,7 @@ export async function createRemoteExternalProcessV2(
     amount: primaryGuide?.amount ?? input.remote?.amount ?? undefined,
     guideNumber: primaryGuide?.code ?? input.remote?.guideNumber ?? undefined,
     guidePrefix: input.guidePrefix || "DAM",
+    draftForm: input.draftForm ?? null,
     documents: input.documents.map((document) => ({
       label: document.label,
       required: document.required,
@@ -2169,7 +2223,7 @@ export async function createRemoteExternalProcessV2(
     }
   }
 
-  const { data, error } = await db.rpc("create_external_process_v2", {
+  const { data, error } = await db.rpc("create_external_process_v4", {
     _tenant_id: scopeId,
     _payload: payload,
     _protocol_prefix: input.protocolPrefix || "PM",
