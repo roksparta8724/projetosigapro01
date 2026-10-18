@@ -448,7 +448,7 @@ export function HabiteSeInspectionPanel({
               Imóvel
             </p>
             <p className="mt-2 text-sm font-black text-slate-950 dark:text-white">
-              {process.property.address || "Endereço não informado"}
+              {process.address || "Endereço não informado"}
             </p>
           </div>
           <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-700 dark:bg-slate-950/35">
