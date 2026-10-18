@@ -3052,22 +3052,12 @@ export function canEditAssignedAnalysisArtifact(
 
   if (session.role === "master_admin" || session.role === "master_ops") return true;
   if (session.role !== "analista" && session.role !== "prefeitura_supervisor") return false;
-  if (!canAccessMunicipalArea(session, "analise")) return false;
 
   const effectiveScopeId = scopeId || getOperationalScopeId(session);
   if (!effectiveScopeId || !matchesOperationalScope(effectiveScopeId, process)) {
     return false;
   }
 
-  if (canEditProcessAnalysis(session, process, effectiveScopeId)) return true;
-
-  const assignedProfileId = process.analysis?.assignedProfileId?.trim();
-  if (assignedProfileId) {
-    const sessionIsAssignedAnalyst = assignedProfileId === session.id;
-    return sessionIsAssignedAnalyst;
-  }
-
-  // Compatibilidade com processos antigos que possuem apenas o nome do analista.
   const normalizeIdentity = (value: string | null | undefined) =>
     String(value || "")
       .normalize("NFD")
@@ -3075,10 +3065,29 @@ export function canEditAssignedAnalysisArtifact(
       .trim()
       .toLocaleLowerCase("pt-BR");
 
+  const assignedProfileId = process.analysis?.assignedProfileId?.trim();
   const assignedName = normalizeIdentity(process.analysis?.assignedTo);
   const sessionName = normalizeIdentity(session.name);
+  const isAssignedAnalyst =
+    session.role === "analista" &&
+    (
+      (assignedProfileId && assignedProfileId === session.id) ||
+      (!assignedProfileId && assignedName && sessionName && assignedName === sessionName)
+    );
 
-  return Boolean(assignedName && sessionName && assignedName === sessionName);
+  // A autoria técnica prevalece sobre a pasta atual do workflow. O Habite-se
+  // pode ter avançado para Vistoria/Financeiro/Alvará, mas o analista que
+  // produziu a ficha continua apto a retificá-la, com nova assinatura/versionamento.
+  if (isAssignedAnalyst) return true;
+
+  if (!canAccessMunicipalArea(session, "analise")) return false;
+  if (canEditProcessAnalysis(session, process, effectiveScopeId)) return true;
+
+  if (session.role === "prefeitura_supervisor") {
+    return canSuperviseProcessAnalysis(session, process);
+  }
+
+  return false;
 }
 
 export function getVisibleProcesses(session: SessionUser, records: ProcessRecord[] = processRecords) {
