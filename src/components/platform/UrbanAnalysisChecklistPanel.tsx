@@ -924,7 +924,7 @@ export function UrbanAnalysisChecklistPanel({
         setWithdrawalDate(
           snapshot.withdrawal.withdrawn_at
             ? snapshot.withdrawal.withdrawn_at.slice(0, 10)
-            : withdrawalDate,
+            : automaticWithdrawalDate,
         );
       }
       setNotice("");
