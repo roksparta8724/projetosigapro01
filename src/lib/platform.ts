@@ -611,6 +611,8 @@ export interface PaymentGuideEntry {
   kind: PaymentGuideKind;
   label: string;
   code: string;
+  /** Referência sequencial do processo após a oficialização. O código original da guia permanece imutável. */
+  officialProcessReference?: string;
   amount: number;
   status: "pendente" | "compensada";
   dueDate: string;
@@ -1147,6 +1149,31 @@ export function calculateApprovalGuideAmount(
   return calculateApprovalGuideBreakdown(area, usage, standard, settings).totalAmount;
 }
 
+
+export function getOfficialProcessSequence(process: Pick<ProcessRecord, "protocol" | "isOfficial">) {
+  if (process.isOfficial === false) return null;
+  const match = String(process.protocol || "").match(/^[A-Z0-9]+-(\d{4})-(\d+)$/i);
+  if (!match) return null;
+  return {
+    year: Number(match[1]),
+    number: Number(match[2]),
+    rawNumber: match[2],
+  };
+}
+
+export function getPaymentGuideDisplayReference(
+  process: Pick<ProcessRecord, "isOfficial">,
+  guide: Pick<PaymentGuideEntry, "kind" | "code" | "officialProcessReference">,
+) {
+  if (
+    guide.kind === "protocolo" &&
+    process.isOfficial !== false &&
+    guide.officialProcessReference?.trim()
+  ) {
+    return guide.officialProcessReference.trim();
+  }
+  return guide.code;
+}
 
 export function getProcessPaymentGuides(process: ProcessRecord, settings?: TenantSettings | null): PaymentGuideEntry[] {
   const persistedGuides = process.payment.guides ?? [];
