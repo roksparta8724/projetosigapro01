@@ -155,6 +155,30 @@ function compactEvidenceHash(hash?: string) {
   return `${value.slice(0, 18)}...${value.slice(-12)}`;
 }
 
+function currentMunicipalDateValue() {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+
+  const values = Object.fromEntries(
+    parts
+      .filter((part) => part.type !== "literal")
+      .map((part) => [part.type, part.value]),
+  );
+
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
+function formatMunicipalDate(value?: string | null) {
+  const normalized = String(value || "").slice(0, 10);
+  const [year, month, day] = normalized.split("-");
+  if (!year || !month || !day) return "";
+  return `${day}/${month}/${year}`;
+}
+
 
 function stableSignatureStringify(value: unknown): string {
   if (value === undefined) return "null";
@@ -397,7 +421,7 @@ export function UrbanAnalysisChecklistPanel({
   const [directorRequestBusy, setDirectorRequestBusy] = useState(false);
   const [withdrawalRecord, setWithdrawalRecord] = useState<ArtifactWithdrawalRecord | null>(null);
   const [withdrawalName, setWithdrawalName] = useState("");
-  const [withdrawalDate, setWithdrawalDate] = useState("");
+  const [withdrawalDate, setWithdrawalDate] = useState(() => currentMunicipalDateValue());
   const [withdrawalBusy, setWithdrawalBusy] = useState(false);
   const [withdrawalSaveConfirmed, setWithdrawalSaveConfirmed] = useState(false);
   const resolvedMunicipalityLogoUrl = useMemo(
@@ -522,7 +546,7 @@ export function UrbanAnalysisChecklistPanel({
         if (!record) {
           setWithdrawalRecord(null);
           setWithdrawalName("");
-          setWithdrawalDate("");
+          setWithdrawalDate(currentMunicipalDateValue());
           return;
         }
 
@@ -539,6 +563,19 @@ export function UrbanAnalysisChecklistPanel({
       active = false;
     };
   }, [process.id]);
+
+  useEffect(() => {
+    if (withdrawalRecord) return;
+
+    const syncAutomaticWithdrawalDate = () => {
+      setWithdrawalDate(currentMunicipalDateValue());
+    };
+
+    syncAutomaticWithdrawalDate();
+    const timer = window.setInterval(syncAutomaticWithdrawalDate, 60_000);
+
+    return () => window.clearInterval(timer);
+  }, [withdrawalRecord]);
 
   const counts = useMemo(() => {
     const values = TEMPLATE.map((item) => state.items[item.id]?.status ?? "");
@@ -866,12 +903,10 @@ export function UrbanAnalysisChecklistPanel({
       setNotice("Informe o nome de quem retirou o documento em mãos.");
       return;
     }
-    if (!withdrawalDate) {
-      setWithdrawalSaveConfirmed(false);
-      setNotice("Informe a data da retirada.");
-      return;
-    }
+    const automaticWithdrawalDate =
+      withdrawalRecord?.withdrawn_at?.slice(0, 10) || currentMunicipalDateValue();
 
+    setWithdrawalDate(automaticWithdrawalDate);
     setWithdrawalSaveConfirmed(false);
     setWithdrawalBusy(true);
     try {
@@ -880,7 +915,6 @@ export function UrbanAnalysisChecklistPanel({
         artifactKey: ANALYSIS_ARTIFACT_KEY,
         artifactHash: state.technicalSignature?.evidenceHash || "",
         withdrawnByName: withdrawalName.trim(),
-        withdrawnAt: withdrawalDate,
       });
       setWithdrawalRecord(snapshot.withdrawal);
       if (snapshot.withdrawal) {
@@ -2385,7 +2419,7 @@ export function UrbanAnalysisChecklistPanel({
                   Registro de entrega física
                 </p>
                 <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
-                  O Analista Técnico registra o nome de quem retirou o documento e a data da retirada. Este registro não altera nem invalida as assinaturas eletrônicas.
+                  O Analista Técnico informa apenas quem retirou o documento. A data é registrada automaticamente pelo sistema no momento da entrega física e não altera nem invalida as assinaturas eletrônicas.
                 </p>
               </div>
               {withdrawalMatchesCurrentVersion ? (
@@ -2413,18 +2447,21 @@ export function UrbanAnalysisChecklistPanel({
                 />
               </div>
               <div>
-                <label className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-400">
-                  Data da retirada
-                </label>
+                <div className="flex items-center justify-between gap-2">
+                  <label className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-400">
+                    Data da retirada
+                  </label>
+                  <span className="rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-[0.08em] text-sky-700 dark:border-sky-500/30 dark:bg-sky-950/30 dark:text-sky-300">
+                    Automática
+                  </span>
+                </div>
                 <Input
-                  type="date"
-                  value={withdrawalDate}
-                  onChange={(event) => {
-                    setWithdrawalDate(event.target.value);
-                    setWithdrawalSaveConfirmed(false);
-                  }}
-                  className="sigapro-date-input mt-2 h-10 rounded-xl !border-slate-300 !bg-white !text-slate-950 caret-sky-600 selection:!bg-sky-700 selection:!text-white [color-scheme:light] [&::-webkit-datetime-edit]:!text-slate-950 [&::-webkit-datetime-edit-day-field:focus]:!bg-sky-800 [&::-webkit-datetime-edit-day-field:focus]:!text-white [&::-webkit-datetime-edit-month-field:focus]:!bg-sky-800 [&::-webkit-datetime-edit-month-field:focus]:!text-white [&::-webkit-datetime-edit-year-field:focus]:!bg-sky-800 [&::-webkit-datetime-edit-year-field:focus]:!text-white [&::-webkit-calendar-picker-indicator]:opacity-80 focus:!border-sky-700 focus:!bg-sky-700 focus:!text-white focus:caret-white focus:[color-scheme:dark] focus:[&::-webkit-datetime-edit]:!text-white focus:[&::-webkit-datetime-edit-fields-wrapper]:!text-white focus:[&::-webkit-datetime-edit-text]:!text-white focus:[&::-webkit-datetime-edit-day-field]:!text-white focus:[&::-webkit-datetime-edit-month-field]:!text-white focus:[&::-webkit-datetime-edit-year-field]:!text-white focus:[&::-webkit-calendar-picker-indicator]:invert focus-visible:!ring-2 focus-visible:!ring-sky-500/25 dark:!border-slate-600 dark:!bg-slate-950 dark:!text-white dark:[color-scheme:dark] dark:[&::-webkit-datetime-edit]:!text-white"
-                  disabled={!canRecordWithdrawal || withdrawalBusy}
+                  type="text"
+                  value={formatMunicipalDate(withdrawalDate)}
+                  readOnly
+                  aria-readonly="true"
+                  tabIndex={-1}
+                  className="mt-2 h-10 rounded-xl !border-slate-300 !bg-slate-100 !font-semibold !text-slate-800 focus-visible:!ring-0 dark:!border-slate-600 dark:!bg-slate-900 dark:!text-slate-100"
                 />
               </div>
               {canSignTechnical ? (
@@ -2432,7 +2469,7 @@ export function UrbanAnalysisChecklistPanel({
                   type="button"
                   variant="outline"
                   className="h-10 rounded-xl border-sky-300 bg-white font-semibold text-sky-800 hover:bg-sky-50 dark:border-sky-500/40 dark:bg-slate-900 dark:text-sky-200"
-                  disabled={!canRecordWithdrawal || withdrawalBusy || !withdrawalName.trim() || !withdrawalDate}
+                  disabled={!canRecordWithdrawal || withdrawalBusy || !withdrawalName.trim()}
                   onClick={() => void saveWithdrawalRecord()}
                 >
                   {withdrawalBusy ? (
@@ -2450,7 +2487,7 @@ export function UrbanAnalysisChecklistPanel({
             </div>
 
             <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
-              O registro pode ser preenchido pelo Analista Técnico no momento da entrega física e permanece separado das assinaturas eletrônicas.
+              O Analista Técnico informa somente o nome de quem recebeu o documento. A data oficial é preenchida automaticamente e permanece separada das assinaturas eletrônicas.
             </p>
           </div>
 
