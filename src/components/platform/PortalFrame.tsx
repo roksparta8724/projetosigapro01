@@ -499,12 +499,9 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
     .map((item) => {
       if ("internalOnly" in item && item.internalOnly && !isInternalRole(session.role)) return null;
 
-      const isExternalRole =
-        session.role === "profissional_externo" ||
-        session.role === "property_owner" ||
-        session.role === "proprietario_consulta";
+      const isExternalProfessional = isExternalProfessionalRole(session.role);
 
-      if (item.to.startsWith("/externo") && !isExternalRole) return null;
+      if (item.to.startsWith("/externo") && !isExternalProfessional) return null;
 
       // Cadastro institucional e organograma completo são exclusivos da administração.
       if (
