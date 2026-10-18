@@ -18,6 +18,9 @@ describe("Habite-se independent workflow", () => {
   const externalDrafts = read("src/pages/saas/ExternalDraftsPage.tsx");
   const financeMigration = read("neon/migrations/20261018_habite_se_finance_after_inspection.sql");
   const autoAdvanceMigration = read("neon/migrations/20261018_habite_se_auto_advance_to_inspection.sql");
+  const inspectionPanel = read("src/components/platform/HabiteSeInspectionPanel.tsx");
+  const inspectionClient = read("src/integrations/backend/habiteSeInspectionClient.ts");
+  const inspectionMigration = read("neon/migrations/20261018_habite_se_inspection_evidence.sql");
 
   it("opens Habite-se through its own route and new process mode", () => {
     expect(app).toContain('path="/externo/habite-se"');
@@ -113,8 +116,25 @@ describe("Habite-se independent workflow", () => {
     expect(panel).toContain("Workflow do Habite-se");
     expect(panel).toContain("Vistoria / conferência");
     expect(panel).toContain('label: "Financeiro"');
-    expect(panel).toContain("Vistoria concluída — seguir para o Financeiro");
+    expect(panel).toContain("Vistoria / conferência em andamento");
+    expect(panel).toContain("Termo de Vistoria abaixo");
     expect(panel).toContain("não reutiliza a guia de aprovação/Alvará");
+  });
+
+  it("uses an institutional inspection term with photographic evidence before Financeiro", () => {
+    expect(panel).toContain("<HabiteSeInspectionPanel");
+    expect(inspectionPanel).toContain("Termo de Vistoria / Conferência — Habite-se");
+    expect(inspectionPanel).toContain("Checklist técnico da vistoria");
+    expect(inspectionPanel).toContain("Evidências fotográficas da vistoria");
+    expect(inspectionPanel).toContain("Concluir conforme e encaminhar ao Financeiro");
+    expect(inspectionPanel).toContain("Concluir com pendências");
+    expect(inspectionPanel).toContain("Dispensar evidência fotográfica nesta vistoria");
+    expect(inspectionClient).toContain("uploadHabiteSeInspectionPhoto");
+    expect(inspectionClient).toContain("completeHabiteSeInspection");
+    expect(inspectionMigration).toContain("process_habite_se_inspection_photos");
+    expect(inspectionMigration).toContain("Anexe ao menos 3 evidências fotográficas");
+    expect(inspectionMigration).toContain("request_habite_se_payment_guide_v1");
+    expect(inspectionMigration).toContain("Pendências da vistoria do Habite-se");
   });
 
   it("surfaces Habite-se requests to the Financeiro before the guide exists", () => {
@@ -142,7 +162,7 @@ describe("Habite-se independent workflow", () => {
     expect(platform).toContain('"habite_se"');
     expect(processDetail).toContain("Financeiro do protocolo de Habite-se");
     expect(processDetail).toContain("Guia de Pagamento do Habite-se");
-    expect(processDetail).toContain("handleRequestHabiteSeFinance");
+    expect(processDetail).not.toContain("handleRequestHabiteSeFinance");
     expect(processDetail).toContain("handleIssueHabiteSeGuide");
     expect(processDetail).toContain("handleConfirmHabiteSePayment");
     expect(processDetail).toContain('"Vistoria / conferência",\n        "Financeiro",\n        "Decisão / emissão"');
