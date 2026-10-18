@@ -843,13 +843,45 @@ export function ProcessDetailPage() {
     recoverableDocumentsFingerprint,
   ]);
 
-  // A listagem do processo não carrega PDFs/imagens reais em segundo plano.
-  // O acesso assinado é gerado somente na rota dedicada de visualização/análise.
-  // Isso elimina reloads de iframe quando o processo recebe atualizações.
   useEffect(() => {
+    let cancelled = false;
     setDocumentAccessUrls({});
     setDocumentAccessErrors({});
-  }, [process?.id]);
+
+    if (!process?.id || isExternalProcessViewer) {
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    const bucket =
+      (import.meta.env.VITE_R2_BUCKET_DOCUMENTOS as string | undefined) ||
+      "sigapro-documentos";
+
+    const candidates = process.documents.filter(
+      (document) => document.uploaded && Boolean(document.filePath),
+    );
+
+    void Promise.allSettled(
+      candidates.map(async (document) => {
+        try {
+          const url = await getSignedUrlForObjectStrict({
+            bucket,
+            objectKey: document.filePath!,
+            expiresIn: 21600,
+          });
+          if (cancelled || !url) return;
+          cacheDocumentWorkspaceAccessUrl(process.id, document.id, url);
+        } catch {
+          // Pré-aquecimento silencioso: a rota dedicada possui fallback próprio.
+        }
+      }),
+    );
+
+    return () => {
+      cancelled = true;
+    };
+  }, [process?.id, recoverableDocumentsFingerprint, isExternalProcessViewer]);
 
   if (!process) {
     if (platformDataLoading || !dataReadyForCurrentUser) {
@@ -2003,7 +2035,7 @@ export function ProcessDetailPage() {
       "Visibilidade de tramitação atualizada.",
     );
   };
-  const openDocumentWorkspace = async (documentId: string, forceAnalysis = false) => {
+  const openDocumentWorkspace = (documentId: string, forceAnalysis = false) => {
     const selectedDocument = process.documents.find((item) => item.id === documentId);
     if (!selectedDocument || openingDocumentId) return;
 
@@ -2016,13 +2048,13 @@ export function ProcessDetailPage() {
     setOpeningDocumentId(documentId);
     setProcessActionStatus("");
 
-    // Reserva a guia de forma síncrona para não cair no bloqueador de pop-up,
-    // mas mantém o usuário na tela atual até o arquivo real estar pronto.
+    // Abre diretamente a rota real da mesa documental. Não existe mais
+    // about:blank, shell, skeleton ou página de preparação entre o clique e o PDF.
     const existingWorkspace = documentWorkspaceWindowRef.current;
     const openedTab =
       existingWorkspace && !existingWorkspace.closed
         ? existingWorkspace
-        : window.open("about:blank", "sigapro-document-workspace");
+        : window.open(workspaceUrl, "sigapro-document-workspace");
 
     if (!openedTab) {
       setProcessActionStatus(
@@ -2033,49 +2065,14 @@ export function ProcessDetailPage() {
     }
 
     documentWorkspaceWindowRef.current = openedTab;
-    try {
-      openedTab.opener = null;
-      try {
-        openedTab.document.documentElement.style.background = "#2b3037";
-        openedTab.document.body.style.margin = "0";
-        openedTab.document.body.style.background = "#2b3037";
-      } catch {
-        // A guia reservada pode negar escrita em alguns navegadores; seguimos sem tela intermediária.
-      }
-      openedTab.blur();
-      window.focus();
 
-      let prefetchedAccessUrl = selectedDocument.previewUrl || "";
-      if (selectedDocument.filePath) {
-        const bucket =
-          (import.meta.env.VITE_R2_BUCKET_DOCUMENTOS as string | undefined) ||
-          "sigapro-documentos";
-        prefetchedAccessUrl = await getSignedUrlForObjectStrict({
-          bucket,
-          objectKey: selectedDocument.filePath,
-          expiresIn: 21600,
-        });
-      }
-
-      if (prefetchedAccessUrl) {
-        cacheDocumentWorkspaceAccessUrl(
-          process.id,
-          selectedDocument.id,
-          prefetchedAccessUrl,
-        );
-      }
-
+    if (existingWorkspace && !existingWorkspace.closed) {
       openedTab.location.replace(workspaceUrl);
-      openedTab.focus();
-    } catch (error) {
-      // Se a pré-assinatura falhar, a rota dedicada ainda tenta resolver o
-      // acesso por conta própria. Não exibimos tela falsa/skeleton no meio.
-      console.warn("[SIGAPRO][Documento] Pré-abertura indisponível.", error);
-      openedTab.location.replace(workspaceUrl);
-      openedTab.focus();
-    } finally {
-      window.setTimeout(() => setOpeningDocumentId(""), 180);
     }
+
+    openedTab.opener = null;
+    openedTab.focus();
+    window.setTimeout(() => setOpeningDocumentId(""), 180);
   };
 
   const openViewer = (documentId: string) => void openDocumentWorkspace(documentId, false);
