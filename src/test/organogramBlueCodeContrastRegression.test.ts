@@ -41,7 +41,7 @@ describe("organogram institutional blue code contrast", () => {
     expect(processDetail).toContain('data-organogram-code="true"');
     expect(processDetail).toContain('data-organogram-code-surface="blue"');
     expect(processDetail).toContain('data-organogram-code-text="true"');
-    expect(processDetail).toContain('className="block whitespace-nowrap text-[10px] font-extrabold');
+    expect(processDetail).toContain("sig-dispatch-code-text block whitespace-nowrap text-[10px] font-extrabold");
   });
 
   it("uses the premium institutional blue only on the selected destination surface", () => {
