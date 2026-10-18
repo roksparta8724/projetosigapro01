@@ -17,6 +17,7 @@ import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { useDocumentMarkerAssignments } from "@/hooks/useDocumentMarkerAssignments";
+import { consumeDocumentWorkspaceAccessUrl } from "@/lib/documentWorkspaceAccess";
 import { getSignedUrlForObjectStrict } from "@/integrations/r2/client";
 import {
   canAnalyzeProcessDocument,
@@ -52,10 +53,12 @@ export function DocumentViewerPage() {
     documentAccessUrl?: string;
     returnTo?: string;
   };
-  const prefetchedDocumentAccessUrl =
-    typeof routeState.documentAccessUrl === "string"
-      ? routeState.documentAccessUrl
-      : "";
+  const [prefetchedDocumentAccessUrl] = useState(() => {
+    if (typeof routeState.documentAccessUrl === "string" && routeState.documentAccessUrl) {
+      return routeState.documentAccessUrl;
+    }
+    return consumeDocumentWorkspaceAccessUrl(processId, documentId);
+  });
   const {
     processes,
     loading: platformDataLoading,
@@ -396,17 +399,11 @@ export function DocumentViewerPage() {
                 </div>
               </div>
             ) : !accessUrl ? (
-              <div className="flex h-full items-center justify-center bg-[#d7dde5] p-6">
-                <div className="h-[88%] w-[min(760px,86%)] rounded-[10px] border border-slate-300 bg-white shadow-[0_24px_60px_rgba(15,23,42,0.16)]">
-                  <div className="mx-auto mt-16 w-[62%] space-y-4">
-                    <div className="h-3 w-2/3 animate-pulse rounded-full bg-slate-200" />
-                    <div className="h-2.5 w-full animate-pulse rounded-full bg-slate-100" />
-                    <div className="h-2.5 w-11/12 animate-pulse rounded-full bg-slate-100" />
-                    <div className="h-2.5 w-5/6 animate-pulse rounded-full bg-slate-100" />
-                    <div className="mt-8 h-32 animate-pulse rounded-xl bg-slate-50" />
-                  </div>
-                </div>
-              </div>
+              <div
+                data-document-loading-surface="silent"
+                className="h-full bg-[#2b3037]"
+                aria-hidden="true"
+              />
             ) : isImage ? (
               <div className="h-full w-full overflow-auto bg-[#d7dde5] p-5">
                 <img
