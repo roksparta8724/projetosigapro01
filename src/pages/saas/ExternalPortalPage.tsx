@@ -34,7 +34,13 @@ export function ExternalPortalPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { session } = usePlatformSession();
-  const { processes: allProcesses, getInstitutionSettings } = usePlatformData();
+  const {
+    processes: allProcesses,
+    getInstitutionSettings,
+    loading,
+    dataError,
+    refreshRemoteStore,
+  } = usePlatformData();
   const { municipality, scopeId, institutionSettingsCompat } = useMunicipality();
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
   const processes = getVisibleProcessesByScope(session, effectiveScopeId, allProcesses);
@@ -56,13 +62,36 @@ export function ExternalPortalPage() {
   ).length;
   const activeProcesses = Math.max(processes.length - concludedProcesses, 0);
 
-  const recentActivity = useMemo(
-    () =>
-      [...processes]
-        .sort((a, b) => new Date(b.auditTrail[0]?.at ?? b.timeline[0]?.at ?? 0).getTime() - new Date(a.auditTrail[0]?.at ?? a.timeline[0]?.at ?? 0).getTime())
-        .slice(0, 3),
-    [processes],
-  );
+  const recentActivity = useMemo(() => {
+    const parseActivityMoment = (value: string | undefined) => {
+      if (!value) return 0;
+      const normalized = value.trim();
+      const br = normalized.match(
+        /^(\d{2})\/(\d{2})\/(\d{4})(?:,|\s)+(\d{2}):(\d{2})(?::(\d{2}))?/,
+      );
+      if (br) {
+        return new Date(
+          Number(br[3]),
+          Number(br[2]) - 1,
+          Number(br[1]),
+          Number(br[4]),
+          Number(br[5]),
+          Number(br[6] || 0),
+        ).getTime();
+      }
+
+      const parsed = new Date(normalized).getTime();
+      return Number.isFinite(parsed) ? parsed : 0;
+    };
+
+    return [...processes]
+      .sort(
+        (a, b) =>
+          parseActivityMoment(b.auditTrail?.[0]?.at ?? b.timeline?.[0]?.at) -
+          parseActivityMoment(a.auditTrail?.[0]?.at ?? a.timeline?.[0]?.at),
+      )
+      .slice(0, 3);
+  }, [processes]);
 
   const paymentGuides = useMemo(
     () =>
@@ -116,6 +145,41 @@ export function ExternalPortalPage() {
             if (target) navigate(target.route);
           }}
         />
+
+        {dataError ? (
+          <div className="rounded-[18px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="font-bold">Não foi possível atualizar o painel agora.</p>
+                <p className="mt-1 text-xs text-rose-700">
+                  Seus processos continuam preservados. A sincronização pode ser refeita sem perder dados.
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-full border-rose-200 bg-white text-rose-800 hover:bg-rose-100"
+                onClick={() => void refreshRemoteStore()}
+              >
+                Tentar novamente
+              </Button>
+            </div>
+          </div>
+        ) : null}
+
+        {loading && allProcesses.length === 0 ? (
+          <div
+            className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"
+            aria-label="Carregando dashboard do profissional"
+          >
+            {Array.from({ length: 4 }).map((_, index) => (
+              <div
+                key={index}
+                className="h-[112px] animate-pulse rounded-[22px] border border-slate-200 bg-white/90 shadow-sm"
+              />
+            ))}
+          </div>
+        ) : null}
 
         <StatsCards>
           <MetricCard title="Em andamento" value={String(activeProcesses)} helper="Protocolos ativos" icon={Waypoints} tone="blue" />
