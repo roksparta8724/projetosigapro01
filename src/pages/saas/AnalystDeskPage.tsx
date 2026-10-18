@@ -151,8 +151,8 @@ export function AnalystDeskPage() {
     if (!effectiveScopeId) return;
     try {
       await refreshRemoteStoreRef.current();
-      setLiveSyncAt(new Date().toISOString());
-      setLiveSyncError("");
+      setLiveSyncAt((current) => current || new Date().toISOString());
+      setLiveSyncError((current) => (current ? "" : current));
     } catch (error) {
       setLiveSyncError(
         error instanceof Error ? error.message : "Não foi possível atualizar a fila técnica.",
