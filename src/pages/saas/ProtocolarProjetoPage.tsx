@@ -1605,14 +1605,19 @@ export function ProtocolarProjetoPage({
                 <Button
                   type="submit"
                   className="rounded-full bg-slate-950 hover:bg-slate-900 dark:bg-sky-500 dark:text-slate-950 dark:hover:bg-sky-400"
+                  data-protocol-required-documents-locked={
+                    missingRequired.length > 0 ? "true" : "false"
+                  }
                   disabled={
                     submitting ||
                     hasPendingDocumentUpload ||
-                    (isHabiteSeMode && missingRequired.length > 0)
+                    missingRequired.length > 0
                   }
                   title={
-                    isHabiteSeMode && missingRequired.length > 0
-                      ? "Anexe todos os documentos obrigatórios antes de protocolar o Habite-se."
+                    missingRequired.length > 0
+                      ? isHabiteSeMode
+                        ? "Anexe todos os documentos obrigatórios antes de protocolar o Habite-se."
+                        : "Anexe todos os documentos obrigatórios antes de gerar o protocolo."
                       : undefined
                   }
                 >
