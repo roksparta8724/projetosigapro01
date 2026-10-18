@@ -51,6 +51,17 @@ describe("organogram institutional blue code contrast", () => {
     expect(css).toContain("border-color:rgba(79,183,218,.72) !important");
   });
 
+
+  it("forces every dispatch acronym white and selected-card copy/icons light", () => {
+    expect(css).toContain("DISPATCH ORGANOGRAM CONTRAST AUTHORITY V12");
+    expect(css).toContain('[data-organogram-code-text="true"]');
+    expect(css).toContain("text-shadow:none !important");
+    expect(css).toContain('[data-selected-organogram-card="true"]');
+    expect(css).toContain("color:#f8fbff !important");
+    expect(css).toContain("stroke:#f2fbff !important");
+    expect(css).toContain("color:#ffffff !important");
+  });
+
   it("keeps compact organogram paths on the same crisp white acronym treatment", () => {
     expect(bar).toContain('data-organogram-code="true"');
     expect(bar).toContain('data-organogram-code-text="true"');
