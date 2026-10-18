@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+  getRoleLandingPath,
   getVisibleProcessesByScope,
   type ProcessRecord,
   type SessionUser,
@@ -70,6 +71,13 @@ describe("external professional dashboard", () => {
     expect(portal).toContain('if (item.to === "/dashboard")');
     expect(portal).toContain('to: "/externo", label: "Dashboard"');
     expect(portal).toContain('children: (item.children ?? []).filter((child) => child.to !== "/externo")');
+  });
+
+  it("keeps legacy professional role aliases inside the same external workspace", () => {
+    expect(getRoleLandingPath("profissional_externo")).toBe("/externo/controle");
+    expect(getRoleLandingPath("professional_external")).toBe("/externo/controle");
+    expect(getRoleLandingPath("professional")).toBe("/externo/controle");
+    expect(portal).toContain("isExternalProfessionalRole(session.role)");
   });
 
   it("counts only requirements and payment guides actually released to the professional", () => {
