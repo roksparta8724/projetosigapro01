@@ -45,10 +45,12 @@ import {
   createDraftNumber,
   defaultProtocolDraftForm,
   clearProtocolDraft,
+  inferProtocolDraftEntryMode,
   readProtocolDraft,
   restoreUploadedFiles,
   saveProtocolDraft,
   toStoredUploadedFiles,
+  type ProtocolDraftEntryMode,
   type ProtocolDraftForm,
 } from "@/lib/protocolDraft";
 
@@ -143,6 +145,10 @@ export function ProtocolarProjetoPage({
   const navigate = useNavigate();
   const location = useLocation();
   const isHabiteSeMode = mode === "habite-se";
+  const draftEntryMode: ProtocolDraftEntryMode = isHabiteSeMode
+    ? "habite-se"
+    : "projeto";
+  const draftStorageFolder = isHabiteSeMode ? "habite-se" : "protocolos";
   const { session } = usePlatformSession();
   const planEntitlements = usePlanEntitlements();
   const { municipality, scopeId, institutionSettingsCompat } = useMunicipality();
@@ -189,7 +195,9 @@ export function ProtocolarProjetoPage({
     filesRef.current = next;
     setFiles(next);
   };
-  const [draftNumber, setDraftNumber] = useState(createDraftNumber());
+  const [draftNumber, setDraftNumber] = useState(() =>
+    createDraftNumber(draftEntryMode),
+  );
   const [form, setForm] = useState<ProtocolDraftForm>({
     ...defaultProtocolDraftForm,
     tipo: isHabiteSeMode ? "Habite-se" : defaultProtocolDraftForm.tipo,
@@ -218,12 +226,39 @@ export function ProtocolarProjetoPage({
       };
     }
 
-    const draft = resumeDraftNumber
+    const requestedDraft = resumeDraftNumber
       ? readProtocolDraft(
           session.id,
           effectiveScopeId,
           session.tenantId,
           resumeDraftNumber,
+        )
+      : null;
+
+    if (requestedDraft) {
+      const requestedMode = inferProtocolDraftEntryMode(requestedDraft);
+      if (requestedMode !== draftEntryMode) {
+        const correctRoute =
+          requestedMode === "habite-se"
+            ? "/externo/habite-se"
+            : "/externo/protocolar";
+        navigate(
+          `${correctRoute}?rascunho=${encodeURIComponent(requestedDraft.draftNumber)}`,
+          { replace: true },
+        );
+        return () => {
+          cancelled = true;
+        };
+      }
+    }
+
+    const draft = requestedDraft
+      ? readProtocolDraft(
+          session.id,
+          effectiveScopeId,
+          session.tenantId,
+          resumeDraftNumber,
+          draftEntryMode,
         )
       : null;
 
@@ -270,7 +305,7 @@ export function ProtocolarProjetoPage({
 
     // /externo/protocolar é sempre uma nova abertura. Rascunhos só são
     // carregados quando o profissional escolhe "Continuar rascunho".
-    setDraftNumber(createDraftNumber());
+    setDraftNumber(createDraftNumber(draftEntryMode));
     replaceFiles({});
     setForm({
       ...defaultProtocolDraftForm,
@@ -297,6 +332,8 @@ export function ProtocolarProjetoPage({
     session.id,
     session.tenantId,
     isHabiteSeMode,
+    draftEntryMode,
+    navigate,
   ]);
 
   // Dados do perfil podem chegar depois do primeiro paint. Preenche apenas
@@ -471,7 +508,7 @@ export function ProtocolarProjetoPage({
               tenantId: effectiveScopeId,
               userId: session.id,
               file: item.file,
-              folder: "protocolos",
+              folder: draftStorageFolder,
             });
 
             return {
@@ -492,6 +529,7 @@ export function ProtocolarProjetoPage({
     const persistedFiles = Object.fromEntries(persistedEntries) as Record<string, UploadedFileItem[]>;
     const saved = saveProtocolDraft(session.id, effectiveScopeId, {
       draftNumber,
+      entryMode: draftEntryMode,
       form,
       files: toStoredUploadedFiles(persistedFiles),
       updatedAt: new Date().toISOString(),
@@ -559,7 +597,7 @@ export function ProtocolarProjetoPage({
             tenantId: effectiveScopeId,
             userId: session.id,
             file: item.file,
-            folder: "protocolos",
+            folder: draftStorageFolder,
           });
           newlyUploadedPaths.push(uploaded.path);
 
@@ -668,6 +706,7 @@ export function ProtocolarProjetoPage({
         error instanceof Error ? error.message : "Não foi possível salvar o rascunho completo.";
       saveProtocolDraft(session.id, effectiveScopeId, {
         draftNumber,
+        entryMode: draftEntryMode,
         form,
         files: toStoredUploadedFiles(filesRef.current),
         updatedAt: new Date().toISOString(),
@@ -682,7 +721,11 @@ export function ProtocolarProjetoPage({
     event.preventDefault();
 
     if (uploadBusyRef.current) {
-      setStatus("Aguarde o documento atual terminar de ser salvo antes de protocolar o projeto.");
+      setStatus(
+        isHabiteSeMode
+          ? "Aguarde o documento atual terminar de ser salvo antes de protocolar o Habite-se."
+          : "Aguarde o documento atual terminar de ser salvo antes de protocolar o projeto.",
+      );
       return;
     }
 
@@ -848,7 +891,7 @@ export function ProtocolarProjetoPage({
               tenantId: effectiveScopeId,
               userId: session.id,
               file: originalFile,
-              folder: "protocolos",
+              folder: draftStorageFolder,
             });
 
             uploadedObjectKeys.push(uploaded.path);
