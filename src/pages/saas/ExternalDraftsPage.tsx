@@ -13,11 +13,6 @@ import { externalTabs, getExternalTabByPath } from "@/lib/externalTabs";
 import { inferProtocolDraftEntryMode, listProtocolDrafts } from "@/lib/protocolDraft";
 import { formatCurrency, getVisibleProcessesByScope } from "@/lib/platform";
 
-function reservedOfficialProtocol(preProtocol: string) {
-  const normalized = String(preProtocol || "").trim();
-  return normalized.startsWith("PRE-") ? normalized.slice(4) : normalized;
-}
-
 export function ExternalDraftsPage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -48,7 +43,7 @@ export function ExternalDraftsPage() {
         <PageIntro
           eyebrow="Controle de processos"
           title="Rascunhos"
-          description="Aqui ficam os rascunhos e os pré-protocolos já enviados que ainda aguardam pagamento. Habite-se e Projeto continuam em fluxos próprios, usando a mesma sequência municipal de protocolo."
+          description="Aqui ficam os rascunhos e as aberturas com guia inicial pendente. Nenhum número oficial de processo é consumido antes do pagamento; a sequência municipal nasce somente após a compensação."
           icon={FilePenLine}
           actions={
             <div className="flex flex-wrap gap-2">
@@ -141,7 +136,6 @@ export function ExternalDraftsPage() {
             <>
               {provisionalProcesses.map((process) => {
                 const preProtocol = process.preProtocol || process.protocol;
-                const reservedProtocol = reservedOfficialProtocol(preProtocol);
                 const isHabiteSe = String(process.type || "")
                   .normalize("NFD")
                   .replace(/[\u0300-\u036f]/g, "")
@@ -180,11 +174,10 @@ export function ExternalDraftsPage() {
                               {process.title}
                             </p>
                             <p className="mt-1 text-sm font-semibold text-slate-700 dark:text-slate-200">
-                              Pré-protocolo {preProtocol}
+                              Referência temporária: {preProtocol}
                             </p>
-                            <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
-                              Sequência municipal reservada: <strong className="text-slate-700 dark:text-slate-200">{reservedProtocol}</strong>.
-                              Após a compensação, este mesmo número será oficializado, sem gerar outra sequência.
+                            <p className="mt-1 max-w-2xl text-xs leading-5 text-slate-500 dark:text-slate-400">
+                              Ainda não existe número de processo municipal. Esta abertura continua editável enquanto a guia estiver pendente; a numeração oficial será gerada automaticamente somente após a compensação.
                             </p>
                           </div>
                         </div>
@@ -220,9 +213,24 @@ export function ExternalDraftsPage() {
                       </div>
 
                       <div className="flex items-center border-t border-sky-100 p-5 dark:border-sky-500/20 lg:border-t-0">
-                        <Button asChild className="w-full rounded-full bg-sky-700 px-5 font-bold !text-white shadow-[0_10px_24px_rgba(3,105,161,0.22)] hover:bg-sky-800 [&_*]:!text-white">
-                          <Link to={paymentRoute}>Pagar e continuar</Link>
-                        </Button>
+                        <div className="grid w-full gap-2">
+                          <Button
+                            asChild
+                            data-preprotocol-edit-action="true"
+                            className="rounded-full bg-sky-700 px-5 font-bold !text-white shadow-[0_10px_24px_rgba(3,105,161,0.22)] hover:bg-sky-800 [&_*]:!text-white"
+                          >
+                            <Link
+                              to={`${isHabiteSe ? "/externo/habite-se" : "/externo/protocolar"}?preprotocolo=${encodeURIComponent(
+                                preProtocol,
+                              )}`}
+                            >
+                              Editar rascunho
+                            </Link>
+                          </Button>
+                          <Button asChild variant="outline" className="rounded-full font-semibold">
+                            <Link to={paymentRoute}>Ver guia e pagar</Link>
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   </article>
