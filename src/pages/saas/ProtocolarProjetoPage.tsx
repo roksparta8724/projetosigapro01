@@ -1061,14 +1061,13 @@ export function ProtocolarProjetoPage({
           ? `Rascunho salvo com sucesso. ${persistedCount} documento(s) ficaram preservados.`
           : "Rascunho salvo com sucesso.",
       );
-      // Mantém o profissional no formulário após salvar. Ele decide quando
-      // deseja sair ou prosseguir para a emissão da guia.
-      if (!resumeDraftNumber) {
-        const baseRoute = isHabiteSeMode ? "/externo/habite-se" : "/externo/protocolar";
-        navigate(
-          `${baseRoute}?rascunho=${encodeURIComponent(draftNumber)}`,
-          { replace: true },
-        );
+      // Mantém exatamente a mesma tela, posição de rolagem e campos após
+      // salvar. Apenas registra o identificador do rascunho na URL sem disparar
+      // uma navegação/remontagem da página.
+      if (!resumeDraftNumber && typeof window !== "undefined") {
+        const url = new URL(window.location.href);
+        url.searchParams.set("rascunho", draftNumber);
+        window.history.replaceState(window.history.state, "", url);
       }
     } catch (error) {
       const message =
