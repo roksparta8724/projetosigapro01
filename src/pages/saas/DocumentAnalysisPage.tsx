@@ -27,6 +27,7 @@ import { MarkerSelector } from "@/components/platform/MarkerSelector";
 import { DocumentWorkspaceBoot } from "@/components/platform/DocumentWorkspaceBoot";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
+import { useLivePlatformRefresh } from "@/hooks/useLivePlatformRefresh";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { useDocumentMarkerAssignments } from "@/hooks/useDocumentMarkerAssignments";
 import { getSignedUrlForObjectStrict } from "@/integrations/r2/client";
@@ -75,12 +76,15 @@ export function DocumentAnalysisPage() {
   const documentMarkers = useDocumentMarkerAssignments();
   const {
     processes,
+    refreshRemoteStore,
     loading: platformDataLoading,
     dataReadyForCurrentUser,
     addDocumentAnnotation,
     reviewProcessDocument,
     createRequirement,
   } = usePlatformData();
+  useLivePlatformRefresh(refreshRemoteStore, { intervalMs: 5000 });
+
   const process = resolveProcessRoute(processes, processId);
   const document = process?.documents.find((item) => item.id === documentId);
   const documentMarkerTags =
