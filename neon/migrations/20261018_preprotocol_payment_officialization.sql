@@ -616,7 +616,7 @@ begin
     'is_official', false
   );
 end;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.confirm_process_payment_guide(_process_id uuid, _guide_kind text)
@@ -779,7 +779,7 @@ BEGIN
     'audit',to_jsonb(_audit)
   );
 END;
-$function$
+$function$;
 
 
 grant execute on function public.next_tenant_preprotocol_number(uuid,text,integer) to authenticated;
