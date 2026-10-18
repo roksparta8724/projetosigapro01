@@ -21,6 +21,8 @@ import {
   formatCurrency,
   formatOfficialProcessNumber,
   formatOfficialProcessTitle,
+  getOfficialProcessSequence,
+  getPaymentGuideDisplayReference,
   getExternallyVisibleProcessPaymentGuides,
   getGuideObservation,
   getGuideReference,
@@ -227,19 +229,35 @@ export function ExternalPaymentsPage() {
     };
   }, [refreshRemoteStore]);
 
-  const guides = useMemo(
-    () =>
-      processes.flatMap((process) =>
-        getExternallyVisibleProcessPaymentGuides(process, tenantSettings)
-          
-          .map((guide) => ({
-            process,
-            guide,
-            status: getGuideStatus(guide),
-          })),
-      ),
-    [processes, tenantSettings],
-  );
+  const guides = useMemo(() => {
+    const entries = processes.flatMap((process) =>
+      getExternallyVisibleProcessPaymentGuides(process, tenantSettings).map((guide) => ({
+        process,
+        guide,
+        status: getGuideStatus(guide),
+      })),
+    );
+
+    return entries.sort((a, b) => {
+      const aSequence = getOfficialProcessSequence(a.process);
+      const bSequence = getOfficialProcessSequence(b.process);
+
+      if (Boolean(aSequence) !== Boolean(bSequence)) {
+        return aSequence ? -1 : 1;
+      }
+
+      if (aSequence && bSequence) {
+        if (aSequence.year !== bSequence.year) return bSequence.year - aSequence.year;
+        if (aSequence.number !== bSequence.number) {
+          return bSequence.number - aSequence.number;
+        }
+      }
+
+      const aIssued = a.guide.issuedAt ? new Date(a.guide.issuedAt).getTime() : 0;
+      const bIssued = b.guide.issuedAt ? new Date(b.guide.issuedAt).getTime() : 0;
+      return bIssued - aIssued;
+    });
+  }, [processes, tenantSettings]);
 
   const filteredGuides = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -250,7 +268,8 @@ export function ExternalPaymentsPage() {
         item.process.protocol.toLowerCase().includes(term) ||
         String(item.process.preProtocol || "").toLowerCase().includes(term) ||
         item.process.title.toLowerCase().includes(term) ||
-        item.guide.code.toLowerCase().includes(term);
+        item.guide.code.toLowerCase().includes(term) ||
+        String(item.guide.officialProcessReference || "").toLowerCase().includes(term);
       return matchesStatus && matchesSearch;
     });
   }, [guides, search, statusFilter]);
@@ -385,7 +404,15 @@ export function ExternalPaymentsPage() {
                         <p className="mt-1 truncate text-[13px] text-slate-500">{process.type}</p>
                       </div>
                       <div className="min-w-0">
-                        <p className="text-[14px] font-semibold text-slate-900">{guide.code}</p>
+                        <p className="text-[14px] font-semibold text-slate-900">
+                          {getPaymentGuideDisplayReference(process, guide)}
+                        </p>
+                        {guide.officialProcessReference &&
+                        guide.officialProcessReference !== guide.code ? (
+                          <p className="mt-1 truncate text-[11px] font-medium text-slate-400" title={guide.code}>
+                            Guia original paga no pré-protocolo: {guide.code}
+                          </p>
+                        ) : null}
                         <p className="mt-1 text-[13px] text-slate-500">{formatCurrency(guide.amount)}</p>
                       </div>
                       <div className="min-w-0">
