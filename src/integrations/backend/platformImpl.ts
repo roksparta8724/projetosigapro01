@@ -1333,7 +1333,7 @@ export async function loadRemotePlatformStore() {
       : "";
     const guideRows = guidesByProcess.get(process.id) ?? [];
     const operationalGuideRows = guideRows.filter((item) =>
-      ["protocolo", "iss_obra", "aprovacao_final", "initial_protocol", "final_approval"].includes(
+      ["protocolo", "iss_obra", "aprovacao_final", "habite_se", "initial_protocol", "final_approval"].includes(
         String(item.guide_kind ?? ""),
       ),
     );
@@ -1601,18 +1601,22 @@ export async function loadRemotePlatformStore() {
           const kind =
             guide.guide_kind === "iss_obra"
               ? "iss_obra"
-              : guide.guide_kind === "aprovacao_final" || guide.guide_kind === "final_approval"
-                ? "aprovacao_final"
-                : "protocolo";
+              : guide.guide_kind === "habite_se"
+                ? "habite_se"
+                : guide.guide_kind === "aprovacao_final" || guide.guide_kind === "final_approval"
+                  ? "aprovacao_final"
+                  : "protocolo";
 
           return {
             kind,
             label:
               kind === "iss_obra"
                 ? "Guia de Recolhimento de ISSQN da Obra"
-                : kind === "aprovacao_final"
-                  ? "Guia de Pagamento - Aprovação / Alvará"
-                  : "Guia de Recolhimento de Protocolo",
+                : kind === "habite_se"
+                  ? "Guia de Pagamento do Habite-se"
+                  : kind === "aprovacao_final"
+                    ? "Guia de Pagamento - Aprovação / Alvará"
+                    : "Guia de Recolhimento de Protocolo",
             code: String(guide.guide_number ?? ""),
             amount: Number(guide.amount ?? 0),
             status:
@@ -2603,6 +2607,24 @@ export async function shareRemoteIssProjectGuide(processId: string) {
   return data as { process_id: string; guide_number: string; already_shared?: boolean };
 }
 
+export async function requestRemoteHabiteSePaymentGuide(processId: string) {
+  return callProcessRpc("request_habite_se_payment_guide_v1", {
+    _process_id: processId,
+  });
+}
+
+export async function issueRemoteHabiteSePaymentGuide(input: {
+  processId: string;
+  amount: number;
+  dueDate?: string | null;
+}) {
+  return callProcessRpc("issue_habite_se_payment_guide_v1", {
+    _process_id: input.processId,
+    _amount: input.amount,
+    _due_date: input.dueDate || null,
+  });
+}
+
 export async function requestRemoteConstructionPaymentGuide(processId: string) {
   return callProcessRpc("request_construction_payment_guide_v1", {
     _process_id: processId,
@@ -2638,7 +2660,7 @@ export async function issueRemoteProcessPaymentGuide(input: {
 
 export async function confirmRemoteProcessPaymentGuide(input: {
   processId: string;
-  guideKind: "protocolo" | "iss_obra" | "aprovacao_final";
+  guideKind: "protocolo" | "iss_obra" | "aprovacao_final" | "habite_se";
 }) {
   if (!db) throw new Error("Banco oficial indisponível.");
 
@@ -2658,7 +2680,7 @@ export async function confirmRemoteProcessPaymentGuide(input: {
 
 export async function reissueRemoteProcessPaymentGuide(input: {
   processId: string;
-  guideKind: "protocolo" | "iss_obra" | "aprovacao_final";
+  guideKind: "protocolo" | "iss_obra" | "aprovacao_final" | "habite_se";
   dueDate?: string | null;
 }) {
   if (!db) throw new Error("Banco oficial indisponível.");
