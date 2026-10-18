@@ -236,9 +236,7 @@ export function ExternalDraftsPage() {
               );
               const entryMode = inferProtocolDraftEntryMode(draft);
               const isHabiteSeDraft = entryMode === "habite-se";
-              const resumeRoute = isHabiteSeDraft
-                ? "/externo/habite-se"
-                : "/externo/protocolar";
+              const resumeRoute = isHabiteSeDraft ? "/externo/habite-se" : "/externo/protocolar";
               const draftTitle =
                 draft.form.titulo?.trim() ||
                 (isHabiteSeDraft
