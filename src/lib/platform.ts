@@ -3033,6 +3033,51 @@ export function canAnalyzeProcessDocument(
   return canEditProcessAnalysis(session, process, scopeId);
 }
 
+/**
+ * A ficha técnica assinada continua pertencendo ao analista que realizou a
+ * análise, mesmo quando o processo já avançou para Vistoria ou Financeiro.
+ * Isso permite retificação auditada sem devolver artificialmente o processo
+ * para a fila de análise nem liberar edição técnica para qualquer servidor.
+ */
+export function canEditAssignedAnalysisArtifact(
+  session: SessionUser,
+  process: ProcessRecord,
+  scopeId?: string | null,
+) {
+  if (session.accountStatus === "blocked" || session.accountStatus === "inactive") {
+    return false;
+  }
+
+  if (session.role === "master_admin" || session.role === "master_ops") return true;
+  if (session.role !== "analista" && session.role !== "prefeitura_supervisor") return false;
+  if (!canAccessMunicipalArea(session, "analise")) return false;
+
+  const effectiveScopeId = scopeId || getOperationalScopeId(session);
+  if (!effectiveScopeId || !matchesOperationalScope(effectiveScopeId, process)) {
+    return false;
+  }
+
+  if (canEditProcessAnalysis(session, process, effectiveScopeId)) return true;
+
+  const assignedProfileId = process.analysis?.assignedProfileId?.trim();
+  if (assignedProfileId) {
+    return assignedProfileId === session.id;
+  }
+
+  // Compatibilidade com processos antigos que possuem apenas o nome do analista.
+  const normalizeIdentity = (value: string | null | undefined) =>
+    String(value || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .trim()
+      .toLocaleLowerCase("pt-BR");
+
+  const assignedName = normalizeIdentity(process.analysis?.assignedTo);
+  const sessionName = normalizeIdentity(session.name);
+
+  return Boolean(assignedName && sessionName && assignedName === sessionName);
+}
+
 export function getVisibleProcesses(session: SessionUser, records: ProcessRecord[] = processRecords) {
   return records.filter((process) => canAccessProcess(session, process));
 }
