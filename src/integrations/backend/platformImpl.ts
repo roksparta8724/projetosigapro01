@@ -2618,12 +2618,12 @@ export async function requestRemoteHabiteSePaymentGuide(processId: string) {
 
 export async function issueRemoteHabiteSePaymentGuide(input: {
   processId: string;
-  amount: number;
+  constructionStandard: string;
   dueDate?: string | null;
 }) {
-  return callProcessRpc("issue_habite_se_payment_guide_v1", {
+  return callProcessRpc("issue_habite_se_payment_guide_v2", {
     _process_id: input.processId,
-    _amount: input.amount,
+    _construction_standard: input.constructionStandard.trim(),
     _due_date: input.dueDate || null,
   });
 }
