@@ -1322,10 +1322,12 @@ function getStyles() {
         background: #ffffff !important;
       }
 
-      /* Mantém a guia inteira em A4 com respiro institucional. O box conserva
-         a malha original e somente a apresentação impressa é reduzida. */
+      /* Mantém a guia inteira em A4 com respiro institucional real.
+         A largura compensada preserva a malha e centraliza o documento após o zoom. */
       .dam-root {
-        zoom: 0.94;
+        zoom: 0.90;
+        width: 111.111%;
+        transform-origin: top center;
       }
 
       .print-hide {
