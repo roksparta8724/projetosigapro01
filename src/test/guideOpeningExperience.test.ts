@@ -33,7 +33,9 @@ describe("guide opening experience", () => {
     const guide = read("src/components/GuiaRecolhimentoOficial.tsx");
 
     expect(guide).toContain(".dam-root {");
-    expect(guide).toContain("zoom: 0.94;");
+    expect(guide).toContain("zoom: 0.90;");
+    expect(guide).toContain("width: 111.111%;");
+    expect(guide).toContain("transform-origin: top center;");
     expect(guide).toContain("@media print");
   });
 });
