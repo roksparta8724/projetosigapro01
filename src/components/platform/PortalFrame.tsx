@@ -871,7 +871,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
   const processShortcutPath =
     isMasterUser
       ? "/dashboard/processos"
-      : session.role === "profissional_externo"
+      : isExternalProfessionalRole(session.role)
         ? "/externo/controle"
         : session.role === "proprietario_consulta" || session.role === "property_owner"
           ? "/proprietario"
