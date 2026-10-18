@@ -65,9 +65,30 @@ export type ArtifactWithdrawalRecord = {
   artifact_hash: string;
   withdrawn_by_name: string;
   withdrawn_at: string;
+  withdrawn_at_exact?: string | null;
   recorded_by_profile_id?: string | null;
   recorded_at?: string | null;
   updated_at?: string | null;
+};
+
+export type ArtifactVersionHistoryEntry = {
+  id: string;
+  artifact_type: string;
+  artifact_key: string;
+  artifact_version: number;
+  artifact_hash: string;
+  verification_code: string;
+  completed_at: string;
+  payload: Record<string, unknown>;
+  signers: Array<{
+    profile_id?: string | null;
+    name?: string | null;
+    role?: string | null;
+    title?: string | null;
+    slot?: string | null;
+    signed_at?: string | null;
+    status?: string | null;
+  }>;
 };
 
 export type ArtifactWithdrawalSnapshot = {
@@ -302,6 +323,35 @@ export async function requestProcessArtifactSignature(input: {
 }
 
 
+export async function getProcessArtifactVersionHistory(
+  processId: string,
+  artifactKey: string,
+): Promise<ArtifactVersionHistoryEntry[]> {
+  const { data, error } = await backendClient.rpc(
+    "get_process_artifact_version_history_v1",
+    {
+      _process_id: processId,
+      _artifact_key: artifactKey,
+    },
+  );
+
+  if (error) {
+    throw new ArtifactSignatureError(
+      normalizeApiError(error) || "Não foi possível carregar o histórico de versões assinadas.",
+      {
+        stage: "history",
+        code: "ARTIFACT_HISTORY_READ_FAILED",
+      },
+    );
+  }
+
+  const raw = data && typeof data === "object" ? (data as Record<string, unknown>) : {};
+  return Array.isArray(raw.versions)
+    ? (raw.versions as ArtifactVersionHistoryEntry[])
+    : [];
+}
+
+
 export async function getProcessArtifactWithdrawal(
   processId: string,
   artifactKey: string,
@@ -309,7 +359,7 @@ export async function getProcessArtifactWithdrawal(
   const { data, error } = await backendClient
     .from("process_artifact_withdrawals")
     .select(
-      "id,artifact_hash,withdrawn_by_name,withdrawn_at,recorded_by_profile_id,recorded_at,updated_at",
+      "id,artifact_hash,withdrawn_by_name,withdrawn_at,withdrawn_at_exact,recorded_by_profile_id,recorded_at,updated_at",
     )
     .eq("process_id", processId)
     .eq("artifact_key", artifactKey)
@@ -349,7 +399,7 @@ export async function saveProcessArtifactWithdrawal(input: {
     .from("process_artifact_withdrawals")
     .upsert(row, { onConflict: "process_id,artifact_key" })
     .select(
-      "id,artifact_hash,withdrawn_by_name,withdrawn_at,recorded_by_profile_id,recorded_at,updated_at",
+      "id,artifact_hash,withdrawn_by_name,withdrawn_at,withdrawn_at_exact,recorded_by_profile_id,recorded_at,updated_at",
     )
     .single();
 
