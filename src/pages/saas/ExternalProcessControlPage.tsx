@@ -145,6 +145,10 @@ export function ExternalProcessControlPage() {
       return;
     }
 
+    if (typeof refreshRemoteStore !== "function") {
+      return;
+    }
+
     recoveryAttemptedRef.current = true;
     void refreshRemoteStore().catch((error) => {
       console.warn("[SIGAPRO][Externo] Falha na tentativa automática de recuperar a carteira.", error);
