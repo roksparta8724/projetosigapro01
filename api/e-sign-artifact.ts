@@ -368,6 +368,21 @@ export default async function handler(req: ApiReq, res: Res) {
     }
 
     if (
+      artifactType === "habite_se_permit" &&
+      !["analise_tecnica", "diretoria"].includes(signerSlot)
+    ) {
+      fail(
+        res,
+        403,
+        "authorization",
+        "HABITE_SE_PERMIT_SIGNER_NOT_ALLOWED",
+        null,
+        "No Alvará de Habite-se, a versão é assinada pelo Analista Técnico e finalizada pela Diretoria.",
+      );
+      return;
+    }
+
+    if (
       artifactType === "construction_permit" &&
       !["diretoria", "secretaria"].includes(signerSlot)
     ) {
@@ -390,6 +405,33 @@ export default async function handler(req: ApiReq, res: Res) {
     if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
       fail(res, 400, "request", "ARTIFACT_INVALID", null, "Conteúdo da ficha inválido para assinatura.");
       return;
+    }
+
+    if (artifactType === "habite_se_permit" && signerSlot === "diretoria") {
+      const permitResult = await callDataApiRpc<{
+        permit?: { status?: string } | null;
+      }>(
+        bearer,
+        "get_habite_se_permit_v1",
+        { _process_id: processId },
+      );
+
+      const permitState = permitResult.payload?.permit;
+      if (
+        !permitResult.ok ||
+        !permitState ||
+        permitState.status !== "aguardando_diretor"
+      ) {
+        fail(
+          res,
+          409,
+          "authorization",
+          "HABITE_SE_DIRECTOR_REQUEST_REQUIRED",
+          permitResult.error,
+          "O Analista Técnico precisa assinar e encaminhar o Alvará de Habite-se à Diretoria antes desta assinatura.",
+        );
+        return;
+      }
     }
 
     if (artifactType === "construction_permit" && signerSlot === "diretoria") {
