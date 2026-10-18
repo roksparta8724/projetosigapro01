@@ -152,7 +152,10 @@ export function PublicSignatureVerificationPage() {
                 <p className="text-[11px] font-black uppercase tracking-[0.18em] text-sky-100">
                   SIGAPRO Municipal
                 </p>
-                <h1 className="mt-1 text-2xl font-black tracking-tight">
+                <h1
+                  data-public-verification-heading="true"
+                  className="mt-1 text-2xl font-black tracking-tight !text-white"
+                >
                   Verificação de assinatura eletrônica
                 </h1>
                 <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-200">
