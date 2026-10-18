@@ -1322,6 +1322,12 @@ function getStyles() {
         background: #ffffff !important;
       }
 
+      /* Mantém a guia inteira em A4 com respiro institucional. O box conserva
+         a malha original e somente a apresentação impressa é reduzida. */
+      .dam-root {
+        zoom: 0.94;
+      }
+
       .print-hide {
         display: none !important;
       }
