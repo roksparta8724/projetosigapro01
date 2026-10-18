@@ -1,4 +1,17 @@
 -- SIGAPRO — etapa financeira própria do Habite-se após vistoria/conferência.
+alter table public.payment_guides
+  add column if not exists requested_by_profile_id uuid,
+  add column if not exists requested_by_name text,
+  add column if not exists requested_at timestamptz,
+  add column if not exists issued_by_profile_id uuid,
+  add column if not exists issued_by_name text,
+  add column if not exists owner_name_snapshot text,
+  add column if not exists owner_document_snapshot text,
+  add column if not exists professional_name_snapshot text,
+  add column if not exists area_m2_snapshot numeric,
+  add column if not exists usage_snapshot text,
+  add column if not exists construction_standard_snapshot text;
+
 
 alter table public.payment_guides
   drop constraint if exists payment_guides_guide_kind_check;
