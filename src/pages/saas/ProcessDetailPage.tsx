@@ -28,7 +28,10 @@ import { MunicipalOrganogramBar } from "@/components/platform/MunicipalOrganogra
 import { UrbanAnalysisChecklistPanel } from "@/components/platform/UrbanAnalysisChecklistPanel";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { useLivePlatformRefresh } from "@/hooks/useLivePlatformRefresh";
-import { prepareGuideInstitutionalLogo } from "@/lib/guideAssets";
+import {
+  getRenderedMunicipalityLogoDataUrl,
+  prepareGuideInstitutionalLogo,
+} from "@/lib/guideAssets";
 import { cacheDocumentWorkspaceAccessUrl } from "@/lib/documentWorkspaceAccess";
 import {
   ensureMercadoPagoGuideCharge,
@@ -589,9 +592,17 @@ export function ProcessDetailPage() {
         const logoPromise = prepareGuideInstitutionalLogo(
           prewarmStableGuideLogoUrl,
           prewarmGuideLogoUrl,
-          prewarmTenantSettings?.logoUrl,
+          prewarmTenantSettings?.headerLogoUrl,
           prewarmTenantSettings?.brasaoUrl,
-        ).catch(() => prewarmGuideLogoUrl || "");
+          prewarmTenantSettings?.logoUrl,
+        ).catch(
+          () =>
+            getRenderedMunicipalityLogoDataUrl() ||
+            prewarmTenantSettings?.brasaoUrl ||
+            prewarmTenantSettings?.headerLogoUrl ||
+            prewarmGuideLogoUrl ||
+            "",
+        );
 
         const preparedCharges: Record<string, MercadoPagoGuideCharge> = {};
 
@@ -1729,11 +1740,16 @@ export function ProcessDetailPage() {
       providerInstitution && providerInstitution.toLowerCase() !== "boleto"
         ? providerInstitution
         : banking.bankName || "Mercado Pago";
+    const renderedGuideLogoUrl = getRenderedMunicipalityLogoDataUrl();
     const embeddedGuideLogoUrl =
       preparedGuideLogoUrl ||
-      guideLogoUrl ||
-      tenantSettings?.logoUrl ||
+      renderedGuideLogoUrl ||
+      tenantSettings?.headerLogoUrl ||
       tenantSettings?.brasaoUrl ||
+      guideHeaderBranding.logoUrl ||
+      ("fallbackLogoUrl" in guideHeaderBranding ? guideHeaderBranding.fallbackLogoUrl : "") ||
+      stableGuideLogoUrl ||
+      tenantSettings?.logoUrl ||
       "";
 
     const rawIssuedBy = String(selectedGuide.issuedBy || "").trim();
