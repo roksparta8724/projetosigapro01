@@ -1264,7 +1264,9 @@ export function isProcessPaymentGuideSharedExternally(
     guide.kind === "aprovacao_final"
   ) return true;
 
-  if (guide.kind === "habite_se" && guide.status === "compensada") return true;\n\n  const guideCode = guide.code?.trim();
+  if (guide.kind === "habite_se" && guide.status === "compensada") return true;
+
+  const guideCode = guide.code?.trim();
   if (!guideCode) return false;
 
   return (process.messages ?? []).some(
