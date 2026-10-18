@@ -1361,9 +1361,16 @@ export async function loadRemotePlatformStore() {
     const creatorProfile =
       (process.created_by_profile_id ? profileById.get(process.created_by_profile_id) : undefined) ??
       (process.created_by ? profileByUser.get(process.created_by) : undefined);
+    const ownerProfile =
+      owner?.profile_id ? profileById.get(owner.profile_id) : undefined;
     const externalLeadProfile =
       (externalLead?.profile_id ? profileById.get(externalLead.profile_id) : undefined) ??
-      (externalLead?.user_id ? profileByUser.get(externalLead.user_id) : undefined);
+      (externalLead?.user_id ? profileByUser.get(externalLead.user_id) : undefined) ??
+      (
+        process.created_by_profile_id
+          ? profileById.get(process.created_by_profile_id)
+          : undefined
+      );
 
     return {
       id: process.id,
@@ -1380,7 +1387,7 @@ export async function loadRemotePlatformStore() {
         constructionPermit?.status === "signed"
           ? "deferido"
           : process.status,
-      ownerName: owner?.display_name ?? "Nao informado",
+      ownerName: ownerProfile?.full_name ?? owner?.display_name ?? "Nao informado",
       ownerDocument:
         ownerPrivate?.document_number ??
         owner?.document_masked ??
@@ -1388,9 +1395,16 @@ export async function loadRemotePlatformStore() {
       ownerIdentityDocument: ownerPrivate?.identity_document_number ?? "",
       ownerPhone: ownerPrivate?.phone ?? "",
       ownerEmail: ownerPrivate?.email ?? "",
-      technicalLead: externalLead?.display_name ?? creatorProfile?.full_name ?? "Nao informado",
+      technicalLead:
+        externalLeadProfile?.full_name ??
+        creatorProfile?.full_name ??
+        externalLead?.display_name ??
+        "Nao informado",
       ownerProfileId: owner?.profile_id ?? undefined,
-      technicalProfileId: externalLead?.profile_id ?? undefined,
+      technicalProfileId:
+        externalLead?.profile_id ??
+        process.created_by_profile_id ??
+        undefined,
       createdBy: (isNeonBackend ? process.created_by_profile_id : null) ?? process.created_by,
       createdByProfileId: process.created_by_profile_id ?? undefined,
       createdByUserId: process.created_by ?? creatorProfile?.user_id ?? undefined,
