@@ -605,7 +605,7 @@ export interface TenantSettings {
 export type InstitutionSettings = TenantSettings;
 export type InstitutionScopedSettings = InstitutionSettings & { institutionId?: string };
 
-export type PaymentGuideKind = "protocolo" | "iss_obra" | "aprovacao_final";
+export type PaymentGuideKind = "protocolo" | "iss_obra" | "aprovacao_final" | "habite_se";
 
 export interface PaymentGuideEntry {
   kind: PaymentGuideKind;
@@ -933,6 +933,8 @@ export function getGuideLabel(kind: PaymentGuideKind) {
       return "Guia de ISSQN / Projeto";
     case "aprovacao_final":
       return "Guia de Pagamento - Aprovação / Alvará";
+    case "habite_se":
+      return "Guia de Pagamento do Habite-se";
   }
 }
 
@@ -944,6 +946,8 @@ export function getGuideReference(kind: PaymentGuideKind) {
       return "ISSQN / Projeto calculado pela metragem e pelo uso da edificação";
     case "aprovacao_final":
       return "Aprovação do projeto e emissão do Alvará; Habite-se possui protocolo próprio";
+    case "habite_se":
+      return "Taxa municipal do Habite-se após vistoria / conferência";
   }
 }
 
@@ -955,6 +959,8 @@ export function getGuideObservation(kind: PaymentGuideKind) {
       return "Documento de arrecadação municipal de ISSQN / Projeto, calculado pela metragem e pelo uso da edificação conforme a tabela oficial da Prefeitura.";
     case "aprovacao_final":
       return "Guia de aprovação do projeto e Alvará. A taxa de licença considera área, tipo de obra, padrão de acabamento e alíquota municipal. Habite-se é um protocolo separado.";
+    case "habite_se":
+      return "Guia própria do processo de Habite-se, emitida pelo Financeiro depois da vistoria / conferência e antes da decisão / emissão.";
   }
 }
 
