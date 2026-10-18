@@ -32,6 +32,10 @@ vi.mock("@/hooks/usePlatformData", () => ({
   usePlatformData: () => ({
     processes: [],
     getInstitutionSettings: () => null,
+    loading: false,
+    dataError: null,
+    dataReadyForCurrentUser: true,
+    refreshRemoteStore: vi.fn().mockResolvedValue(undefined),
   }),
 }));
 
@@ -51,6 +55,11 @@ describe("ExternalProcessControlPage", () => {
     expect(screen.getByText("Com exigências")).toBeInTheDocument();
     expect(screen.getByText("Aguardando pagamento")).toBeInTheDocument();
     expect(screen.getByText("Concluídos")).toBeInTheDocument();
-    expect(screen.getByText("Nenhum processo encontrado")).toBeInTheDocument();
+    expect(screen.getByText("Nenhum processo protocolado")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Quando houver um protocolo oficial vinculado ao seu perfil, ele aparecerá aqui.",
+      ),
+    ).toBeInTheDocument();
   });
 });
