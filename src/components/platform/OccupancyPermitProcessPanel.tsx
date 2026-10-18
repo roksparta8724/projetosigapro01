@@ -40,6 +40,12 @@ export function OccupancyPermitProcessPanel({
   session,
   dataReady = true,
   municipalityName,
+  municipalityLogoUrl,
+  municipalityAddress,
+  municipalityPhone,
+  municipalityEmail,
+  secretariat,
+  directorate,
   onProcessRefresh,
   onViewHabiteSeGuide,
   onPrintHabiteSeGuide,
@@ -49,6 +55,12 @@ export function OccupancyPermitProcessPanel({
   session: SessionUser;
   dataReady?: boolean;
   municipalityName?: string | null;
+  municipalityLogoUrl?: string | null;
+  municipalityAddress?: string | null;
+  municipalityPhone?: string | null;
+  municipalityEmail?: string | null;
+  secretariat?: string | null;
+  directorate?: string | null;
   onProcessRefresh?: () => Promise<void> | void;
   onViewHabiteSeGuide?: () => void;
   onPrintHabiteSeGuide?: () => void;
@@ -427,6 +439,12 @@ export function OccupancyPermitProcessPanel({
         session={session}
         externalView={externalView}
         municipalityName={municipalityName}
+        municipalityLogoUrl={municipalityLogoUrl}
+        municipalityAddress={municipalityAddress}
+        municipalityPhone={municipalityPhone}
+        municipalityEmail={municipalityEmail}
+        secretariat={secretariat}
+        directorate={directorate}
         onProcessRefresh={onProcessRefresh}
       />
 
