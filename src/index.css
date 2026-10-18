@@ -10579,3 +10579,26 @@ html body #root [data-organogram-code-surface="blue"] [data-organogram-code-text
   background: rgba(255,255,255,.18) !important;
 }
 /* ===== END ORGANOGRAM BLUE ACRONYM ROOT FIX V3 ===== */
+
+
+/* ===== ORGANOGRAM SVG GLYPH WHITE LOCK V4 — 2026-10-18 =====
+   Acronyms on institutional blue badges own an SVG fill rather than inherited text color.
+   This bypasses global typography/theme repainting and keeps ADM/PROT/URB/ANU/FISC/FIN/TRIB/IPTU white. */
+html body #root [data-organogram-code-surface="blue"] [data-organogram-code-glyph="true"] text,
+html body #root [data-organogram-code="true"] [data-organogram-code-glyph="true"] text,
+html body #root [data-organogram-level-badge="true"] [data-organogram-code-glyph="true"] text {
+  fill: #ffffff !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  stroke: rgba(0,0,0,.16) !important;
+  paint-order: stroke !important;
+  opacity: 1 !important;
+  filter: none !important;
+  mix-blend-mode: normal !important;
+}
+html body #root [data-organogram-code-glyph="true"] {
+  color: #ffffff !important;
+  overflow: visible !important;
+  opacity: 1 !important;
+}
+/* ===== END ORGANOGRAM SVG GLYPH WHITE LOCK V4 ===== */
