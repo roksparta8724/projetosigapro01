@@ -1255,13 +1255,13 @@ export function isProcessPaymentGuideSharedExternally(
   process: ProcessRecord,
   guide: PaymentGuideEntry,
 ) {
-  // Protocolo e aprovação/Alvará são cobranças dirigidas ao interessado e
-  // ficam disponíveis assim que oficialmente emitidas. O ISSQN / Projeto
-  // preserva a liberação manual já existente no workflow municipal.
+  // Protocolo e aprovação/Alvará comum são cobranças dirigidas ao interessado
+  // e ficam disponíveis assim que oficialmente emitidas. ISSQN / Projeto e
+  // Habite-se exigem liberação explícita da unidade responsável para preservar
+  // a cadeia de conferência e a prova de envio ao profissional externo.
   if (
     guide.kind === "protocolo" ||
-    guide.kind === "aprovacao_final" ||
-    guide.kind === "habite_se"
+    guide.kind === "aprovacao_final"
   ) return true;
 
   const guideCode = guide.code?.trim();
