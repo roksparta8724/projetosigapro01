@@ -1510,17 +1510,27 @@ export function ProtocolarProjetoPage({
                               <p className="mt-2 break-words text-[15px] leading-6 text-slate-600 dark:text-slate-300">{item.description}</p>
                             </div>
 
-                            <span
-                              className={`rounded-full px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.14em] ${
-                                itemStatus === "enviado"
-                                  ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-200"
-                                  : itemStatus === "pendente"
-                                    ? "bg-amber-50 text-amber-700 dark:bg-amber-400/10 dark:text-amber-200"
-                                    : "bg-slate-100 text-slate-500 dark:bg-white/[0.06] dark:text-slate-300"
-                              }`}
-                            >
-                              {itemStatus === "enviado" ? "Enviado" : itemStatus === "pendente" ? "Pendente" : "Não enviado"}
-                            </span>
+                            <div className="flex flex-wrap items-center justify-end gap-2">
+                              {item.required ? (
+                                <span
+                                  data-required-document="true"
+                                  className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-amber-800 dark:border-amber-500/30 dark:bg-amber-400/10 dark:text-amber-200"
+                                >
+                                  Obrigatório
+                                </span>
+                              ) : null}
+                              <span
+                                className={`rounded-full px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.14em] ${
+                                  itemStatus === "enviado"
+                                    ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-200"
+                                    : itemStatus === "pendente"
+                                      ? "bg-amber-50 text-amber-700 dark:bg-amber-400/10 dark:text-amber-200"
+                                      : "bg-slate-100 text-slate-500 dark:bg-white/[0.06] dark:text-slate-300"
+                                }`}
+                              >
+                                {itemStatus === "enviado" ? "Enviado" : itemStatus === "pendente" ? "Pendente" : "Não enviado"}
+                              </span>
+                            </div>
                           </div>
 
                           <FileDropZone
