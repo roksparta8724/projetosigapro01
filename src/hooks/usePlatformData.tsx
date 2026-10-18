@@ -64,6 +64,7 @@ import {
   createRemoteOwnerRequestByProtocol,
   createRemoteExternalProcessV2,
   issueRemoteProcessPaymentGuide,
+  issueRemoteHabiteSePaymentGuide,
   loadRemotePlatformStore,
   linkExistingMunicipalStaff,
   manageRemoteUserAccess,
@@ -193,6 +194,7 @@ interface PlatformDataState {
   reassignProcessAnalysis: (input: { processId: string; targetProfileId: string; reason: string }) => Promise<void>;
   reopenProcess: (input: { processId: string; actor: string; reason: string }) => Promise<void>;
   requestConstructionPaymentGuide: (processId: string, actor: string) => Promise<void>;
+  requestHabiteSePaymentGuide: (processId: string, actor: string) => Promise<void>;
   updateIssProjectGuideData: (input: {
     processId: string;
     areaM2: number;
@@ -207,7 +209,8 @@ interface PlatformDataState {
   }) => Promise<void>;
   shareIssProjectGuide: (processId: string) => Promise<void>;
   issuePaymentGuide: (processId: string, actor: string, guideKind: "iss_obra" | "aprovacao_final") => Promise<void>;
-  markGuideAsPaid: (processId: string, actor: string, guideKind?: "protocolo" | "iss_obra" | "aprovacao_final") => Promise<void>;
+  issueHabiteSePaymentGuide: (input: { processId: string; actor: string; amount: number; dueDate?: string | null }) => Promise<void>;
+  markGuideAsPaid: (processId: string, actor: string, guideKind?: "protocolo" | "iss_obra" | "aprovacao_final" | "habite_se") => Promise<void>;
   appendProcessDocuments: (
     processId: string,
     documents: ProcessDocument[],
@@ -241,7 +244,7 @@ interface PlatformDataState {
   setProcessOnHold: (input: { processIds: string[]; actor: string; onHold: boolean; reason?: string }) => Promise<void>;
   setProcessTransitVisibility: (input: { processId: string; actor: string; visibility: ProcessTransitVisibility }) => Promise<void>;
   sendProcessMessage: (input: { processId: string; senderName: string; senderRole: string; audience: "interno" | "externo" | "misto"; recipientName?: string; message: string }) => Promise<void>;
-  reissuePaymentGuide: (processId: string, actor: string, guideKind?: "protocolo" | "iss_obra" | "aprovacao_final") => Promise<void>;
+  reissuePaymentGuide: (processId: string, actor: string, guideKind?: "protocolo" | "iss_obra" | "aprovacao_final" | "habite_se") => Promise<void>;
 }
 
 interface PlatformStore {
@@ -2096,6 +2099,20 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         await reopenRemoteProcess(processId, normalized);
         await refreshRemoteStore();
       },
+      requestHabiteSePaymentGuide: async (processId, actor) => {
+        if (!hasBackendEnv) {
+          throw new Error("O banco oficial está indisponível para encaminhar o Habite-se ao Financeiro.");
+        }
+
+        const process = store.processes.find((item) => item.id === processId);
+        if (!process) throw new Error("Processo não encontrado.");
+        if (!isOccupancyPermitProcessType(process.type)) {
+          throw new Error("Este encaminhamento é exclusivo do processo de Habite-se.");
+        }
+
+        await requestRemoteHabiteSePaymentGuide(processId);
+        await refreshRemoteStore();
+      },
       requestConstructionPaymentGuide: async (processId, actor) => {
         if (!hasBackendEnv) {
           throw new Error("O banco oficial está indisponível para encaminhar o ISSQN / Projeto ao Financeiro.");
@@ -2177,6 +2194,29 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         }
 
         await shareRemoteIssProjectGuide(processId);
+        await refreshRemoteStore();
+      },
+      issueHabiteSePaymentGuide: async ({ processId, actor, amount, dueDate }) => {
+        if (!hasBackendEnv) {
+          throw new Error("O banco oficial está indisponível para emitir a guia do Habite-se.");
+        }
+
+        const process = store.processes.find((item) => item.id === processId);
+        if (!process) throw new Error("Processo não encontrado.");
+        if (!isOccupancyPermitProcessType(process.type)) {
+          throw new Error("A Guia de Habite-se só pode ser emitida dentro de um processo de Habite-se.");
+        }
+
+        const normalizedAmount = Number(amount);
+        if (!Number.isFinite(normalizedAmount) || normalizedAmount <= 0) {
+          throw new Error("Informe um valor válido para a taxa de Habite-se.");
+        }
+
+        await issueRemoteHabiteSePaymentGuide({
+          processId,
+          amount: normalizedAmount,
+          dueDate: dueDate || null,
+        });
         await refreshRemoteStore();
       },
       issuePaymentGuide: async (processId, actor, guideKind) => {
