@@ -887,6 +887,26 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
   }, [authenticatedUserId, store]);
 
   useEffect(() => {
+    if (
+      !authenticatedUserId ||
+      !remoteContextUserId ||
+      authenticatedUserId === remoteContextUserId
+    ) {
+      return;
+    }
+
+    // Marcadores são preferências pessoais. Ao trocar de conta, nunca preserve
+    // nem por um frame os marcadores carregados do usuário anterior enquanto o
+    // store remoto da nova sessão é revalidado.
+    setStore((current) => ({
+      ...current,
+      processes: current.processes.map((process) =>
+        process.tags?.length ? { ...process, tags: [] } : process,
+      ),
+    }));
+  }, [authenticatedUserId, remoteContextUserId]);
+
+  useEffect(() => {
     let active = true;
 
     const bootstrap = async () => {
