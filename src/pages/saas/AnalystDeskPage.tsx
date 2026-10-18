@@ -12,10 +12,13 @@
   Send,
   Stamp,
   TimerReset,
+  RefreshCw,
+  UserCheck,
+  UserPlus,
   Users2,
   Workflow,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { AlertCard } from "@/components/platform/AlertCard";
 import { InternalTabs } from "@/components/platform/InternalTabs";
@@ -35,6 +38,7 @@ import { StatCard } from "@/components/platform/StatCard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   buildProcessPath,
   canAnalyzeProcessDocument,
@@ -103,14 +107,22 @@ export function AnalystDeskPage() {
   const { municipality, scopeId } = useMunicipality();
   const {
     processes: allProcesses,
+    sessionUsers,
+    refreshRemoteStore,
     updateProcessStatus,
     startProcessAnalysis,
+    assignProcessAnalysis,
     dispatchProcess,
     createRequirement,
     documentTemplates,
     getInstitutionSettings,
   } = usePlatformData();
-  const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
+  const effectiveScopeId =
+    session.municipalityId ??
+    session.tenantId ??
+    municipality?.id ??
+    scopeId ??
+    null;
   const tenantSettings = getInstitutionSettings(effectiveScopeId ?? session.tenantId);
   const [searchParams] = useSearchParams();
   const [search, setSearch] = useState("");
@@ -119,12 +131,48 @@ export function AnalystDeskPage() {
   );
   const [actionBusy, setActionBusy] = useState("");
   const [actionStatus, setActionStatus] = useState("");
+  const [assignmentTargets, setAssignmentTargets] = useState<Record<string, string>>({});
+  const [liveSyncAt, setLiveSyncAt] = useState("");
+  const [liveSyncError, setLiveSyncError] = useState("");
   const currentUnit =
     session.role === "analista"
       ? session.department || session.title || URBAN_ANALYSIS_DEPARTMENT
       : URBAN_ANALYSIS_DEPARTMENT;
 
   const departmentProcesses = getVisibleProcessesByScope(session, effectiveScopeId, allProcesses);
+
+  const refreshAnalysisDesk = useCallback(async () => {
+    if (!effectiveScopeId) return;
+    try {
+      await refreshRemoteStore();
+      setLiveSyncAt(new Date().toISOString());
+      setLiveSyncError("");
+    } catch (error) {
+      setLiveSyncError(
+        error instanceof Error ? error.message : "Não foi possível atualizar a fila técnica.",
+      );
+    }
+  }, [effectiveScopeId, refreshRemoteStore]);
+
+  useEffect(() => {
+    let disposed = false;
+    const sync = () => {
+      if (disposed || document.visibilityState !== "visible") return;
+      void refreshAnalysisDesk();
+    };
+
+    sync();
+    const timer = window.setInterval(sync, 5000);
+    window.addEventListener("focus", sync);
+    document.addEventListener("visibilitychange", sync);
+
+    return () => {
+      disposed = true;
+      window.clearInterval(timer);
+      window.removeEventListener("focus", sync);
+      document.removeEventListener("visibilitychange", sync);
+    };
+  }, [refreshAnalysisDesk]);
 
   // A fila operacional continua restrita ao setor atual, mas o registro da Análise
   // mantém os processos que já passaram pela mesa técnica, mesmo depois do envio
@@ -203,7 +251,12 @@ export function AnalystDeskPage() {
   const analysisTrackedProcesses = processes.filter(
     (item) => Boolean(item.analysis?.startedAt || item.analysis?.assignedTo || item.analysis?.assignedProfileId),
   );
-  const processRegistry = [...analysisTrackedProcesses]
+  const analysisRegistryProcesses = processes.filter(
+    (item) =>
+      analysisActiveStatuses.includes(item.status as (typeof analysisActiveStatuses)[number]) ||
+      Boolean(item.analysis?.startedAt || item.analysis?.assignedTo || item.analysis?.assignedProfileId),
+  );
+  const processRegistry = [...analysisRegistryProcesses]
     .filter((item) =>
       showArchived
         ? archivedProcessIds.includes(item.id)
@@ -232,6 +285,48 @@ export function AnalystDeskPage() {
         return a.sla.hoursRemaining - b.sla.hoursRemaining;
       }),
     [analysisWorkItems],
+  );
+
+  const unassignedAnalysis = queue.filter(
+    (process) => !process.analysis?.assignedProfileId && !process.analysis?.assignedTo,
+  );
+  const myAnalyses = queue.filter(
+    (process) =>
+      process.analysis?.assignedProfileId === session.id ||
+      (!process.analysis?.assignedProfileId && process.analysis?.assignedTo === session.name),
+  );
+  const teamAssignedAnalysis = queue.filter(
+    (process) =>
+      Boolean(process.analysis?.assignedProfileId || process.analysis?.assignedTo) &&
+      !myAnalyses.some((mine) => mine.id === process.id),
+  );
+
+  const analysisTeam = useMemo(
+    () =>
+      sessionUsers
+        .filter(
+          (user) =>
+            user.accountStatus === "active" &&
+            user.role === "analista" &&
+            matchesOperationalScope(effectiveScopeId, user),
+        )
+        .sort((a, b) => a.name.localeCompare(b.name, "pt-BR")),
+    [effectiveScopeId, sessionUsers],
+  );
+
+  const analysisTeamLoad = useMemo(
+    () =>
+      analysisTeam
+        .map((analyst) => ({
+          analyst,
+          active: queue.filter(
+            (process) =>
+              process.analysis?.assignedProfileId === analyst.id ||
+              (!process.analysis?.assignedProfileId && process.analysis?.assignedTo === analyst.name),
+          ).length,
+        }))
+        .sort((a, b) => a.active - b.active || a.analyst.name.localeCompare(b.analyst.name, "pt-BR")),
+    [analysisTeam, queue],
   );
 
   const urgentProtocols = queue.slice(0, 5);
@@ -343,7 +438,31 @@ export function AnalystDeskPage() {
     }
   };
 
-  const handleStartAnalysis = async (process: ProcessRecord) => {
+  const handleAssignAnalysis = async (process: ProcessRecord) => {
+    const suggestedProfileId = analysisTeamLoad[0]?.analyst.id || "";
+    const targetProfileId = assignmentTargets[process.id] || suggestedProfileId;
+    if (!targetProfileId) {
+      setActionStatus("Nenhum analista ativo está disponível para receber este processo.");
+      return;
+    }
+
+    const analyst = analysisTeam.find((item) => item.id === targetProfileId);
+    const ok = await runAnalystAction(
+      `assign-${process.id}`,
+      `Processo distribuído para ${analyst?.name || "o analista selecionado"}. A análise técnica só começa quando ele assumir o processo.`,
+      () => assignProcessAnalysis({ processId: process.id, targetProfileId }),
+    );
+
+    if (ok) {
+      setAssignmentTargets((current) => {
+        const next = { ...current };
+        delete next[process.id];
+        return next;
+      });
+    }
+  };
+
+    const handleStartAnalysis = async (process: ProcessRecord) => {
     if (
       session.role === "prefeitura_supervisor" &&
       canAccessMunicipalArea(session, "analise")
@@ -400,7 +519,13 @@ export function AnalystDeskPage() {
           const issSatisfied = !issStageEnabled || issGuide?.status === "compensada";
           const finalFeeEnabled = tenantSettings?.finalApprovalFeeEnabled !== false;
           const analysisStarted = Boolean(process.analysis?.startedAt);
-          const currentAnalyst = process.analysis?.assignedTo || "Aguardando início";
+          const currentAnalyst = process.analysis?.assignedTo || "Sem responsável";
+          const hasAssignedAnalyst = Boolean(
+            process.analysis?.assignedProfileId || process.analysis?.assignedTo,
+          );
+          const assignedToCurrentSession =
+            process.analysis?.assignedProfileId === session.id ||
+            (!process.analysis?.assignedProfileId && process.analysis?.assignedTo === session.name);
           const canEditAnalysis = canAnalyzeProcessDocument(session, process, effectiveScopeId);
           const isSupervisorView =
             session.role === "prefeitura_supervisor" &&
@@ -440,6 +565,22 @@ export function AnalystDeskPage() {
                     <Badge className={`rounded-full border ${getPriorityBadge(process)}`}>
                       {getPriorityLabel(process)}
                     </Badge>
+                    {!hasAssignedAnalyst ? (
+                      <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-800">
+                        <UserPlus className="mr-1 h-3.5 w-3.5" />
+                        Aguardando analista
+                      </Badge>
+                    ) : assignedToCurrentSession ? (
+                      <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-800">
+                        <UserCheck className="mr-1 h-3.5 w-3.5" />
+                        Minha análise
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="border-sky-200 bg-sky-50 text-sky-800">
+                        <UserCheck className="mr-1 h-3.5 w-3.5" />
+                        {analysisStarted ? "Em análise" : "Distribuído"} · {currentAnalyst}
+                      </Badge>
+                    )}
                     {process.triage.status !== "concluido" ? (
                       <Badge variant="outline" className="border-sky-200 bg-sky-50 text-sky-700">
                         Triagem
@@ -534,7 +675,7 @@ export function AnalystDeskPage() {
                         : "Processo protegido: acompanhamento em leitura"
                       : isSupervisorView
                         ? "Aguardando distribuição para um analista"
-                        : "Clique em Iniciar análise para assumir"}
+                        : "Clique em Assumir análise para reservar este processo somente para você"}
                   </p>
                 </div>
                 <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
@@ -584,6 +725,36 @@ export function AnalystDeskPage() {
               </div>
 
               <div className="mx-5 mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+                {isSupervisorView && !hasAssignedAnalyst ? (
+                  <>
+                    <Select
+                      value={assignmentTargets[process.id] || analysisTeamLoad[0]?.analyst.id || ""}
+                      onValueChange={(value) =>
+                        setAssignmentTargets((current) => ({ ...current, [process.id]: value }))
+                      }
+                    >
+                      <SelectTrigger className="h-11 w-full rounded-full border-slate-300 bg-white sm:w-[260px]">
+                        <SelectValue placeholder="Selecionar analista" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {analysisTeamLoad.map(({ analyst, active }) => (
+                          <SelectItem key={analyst.id} value={analyst.id}>
+                            {analyst.name} · {active} ativo(s)
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      type="button"
+                      className="h-11 w-full rounded-full bg-sky-700 text-white hover:bg-sky-800 sm:w-auto"
+                      disabled={Boolean(actionBusy) || analysisTeamLoad.length === 0}
+                      onClick={() => void handleAssignAnalysis(process)}
+                    >
+                      <UserPlus className="mr-2 h-4 w-4" />
+                      {actionBusy === `assign-${process.id}` ? "Distribuindo..." : "Distribuir análise"}
+                    </Button>
+                  </>
+                ) : null}
                 <Button
                   type="button"
                   variant={analysisStarted ? "default" : "outline"}
@@ -599,7 +770,11 @@ export function AnalystDeskPage() {
                         ? canEditAnalysis
                           ? "Continuar análise"
                           : "Abrir em leitura"
-                        : "Iniciar análise"}
+                        : hasAssignedAnalyst
+                          ? assignedToCurrentSession
+                            ? "Iniciar minha análise"
+                            : "Abrir em leitura"
+                          : "Assumir análise"}
                 </Button>
                 <Button
                   type="button"
@@ -933,7 +1108,95 @@ export function AnalystDeskPage() {
         )}
 
         {section === "fila" && (
-          <TableCard
+          <>
+            <div
+              data-analysis-distribution-manager="true"
+              className="mb-4 overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-[0_12px_32px_rgba(15,23,42,0.06)]"
+            >
+              <div className="flex flex-col gap-3 border-b border-slate-100 bg-[linear-gradient(135deg,#f8fbff_0%,#eef7fc_100%)] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <Users2 className="h-5 w-5 text-sky-700" />
+                    <h2 className="text-sm font-extrabold text-slate-950">Gerenciador de distribuição da Análise</h2>
+                  </div>
+                  <p className="mt-1 text-xs leading-5 text-slate-500">
+                    Um processo sem responsável fica na fila comum. Ao ser assumido ou distribuído, o banco trava a responsabilidade para evitar dois analistas executarem o mesmo trabalho.
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className={`inline-flex items-center rounded-full border px-3 py-1.5 text-[10px] font-bold ${
+                    liveSyncError
+                      ? "border-amber-200 bg-amber-50 text-amber-800"
+                      : "border-emerald-200 bg-emerald-50 text-emerald-800"
+                  }`}>
+                    <span className={`mr-2 h-2 w-2 rounded-full ${liveSyncError ? "bg-amber-500" : "bg-emerald-500"}`} />
+                    {liveSyncError
+                      ? "Sincronização pendente"
+                      : liveSyncAt
+                        ? `Atualizado ${new Date(liveSyncAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}`
+                        : "Sincronização ativa"}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-9 rounded-full"
+                    onClick={() => void refreshAnalysisDesk()}
+                  >
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    Atualizar agora
+                  </Button>
+                </div>
+              </div>
+
+              <div className="grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-4">
+                <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4">
+                  <p className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-amber-700">Aguardando distribuição</p>
+                  <p className="mt-2 text-2xl font-black text-slate-950">{unassignedAnalysis.length}</p>
+                  <p className="mt-1 text-xs text-slate-600">Novos processos ainda sem analista responsável.</p>
+                </div>
+                <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4">
+                  <p className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-emerald-700">Minhas análises</p>
+                  <p className="mt-2 text-2xl font-black text-slate-950">{myAnalyses.length}</p>
+                  <p className="mt-1 text-xs text-slate-600">Processos reservados para o usuário atual.</p>
+                </div>
+                <div className="rounded-2xl border border-sky-200 bg-sky-50/70 p-4">
+                  <p className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-sky-700">Equipe em andamento</p>
+                  <p className="mt-2 text-2xl font-black text-slate-950">{teamAssignedAnalysis.length}</p>
+                  <p className="mt-1 text-xs text-slate-600">Responsabilidades de outros analistas, protegidas contra edição duplicada.</p>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
+                  <p className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-slate-600">Equipe disponível</p>
+                  <p className="mt-2 text-2xl font-black text-slate-950">{analysisTeam.length}</p>
+                  <p className="mt-1 text-xs text-slate-600">
+                    {analysisTeamLoad[0]
+                      ? `Menor carga: ${analysisTeamLoad[0].analyst.name} (${analysisTeamLoad[0].active})`
+                      : "Nenhum analista ativo cadastrado."}
+                  </p>
+                </div>
+              </div>
+
+              {analysisTeamLoad.length > 0 ? (
+                <div className="border-t border-slate-100 px-4 py-3">
+                  <div className="flex flex-wrap gap-2">
+                    {analysisTeamLoad.map(({ analyst, active }) => (
+                      <span
+                        key={analyst.id}
+                        className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-700 shadow-sm"
+                      >
+                        <UserCheck className="mr-1.5 h-3.5 w-3.5 text-sky-700" />
+                        {analyst.name}
+                        <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-black text-slate-600">
+                          {active}
+                        </span>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+
+            <TableCard
             title="Processos da Análise"
             description="Lista completa dos processos que passaram pela Análise Urbanística, inclusive os já encaminhados ou concluídos."
             icon={ListTodo}
@@ -971,6 +1234,7 @@ export function AnalystDeskPage() {
           >
             {renderProcessRegistry()}
           </TableCard>
+          </>
         )}
 
         {section === "pendencias" && (
