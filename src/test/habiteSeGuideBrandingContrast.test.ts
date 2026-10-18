@@ -8,6 +8,7 @@ const read = (path: string) =>
 describe("Habite-se guide branding and status contrast", () => {
   const detail = read("src/pages/saas/ProcessDetailPage.tsx");
   const assets = read("src/lib/guideAssets.ts");
+  const guide = read("src/components/GuiaRecolhimentoOficial.tsx");
   const permit = read("src/components/platform/HabiteSePermitPanel.tsx");
   const css = read("src/index.css");
 
@@ -23,6 +24,12 @@ describe("Habite-se guide branding and status contrast", () => {
     expect(detail).toContain("tenantSettings?.headerLogoUrl ||");
     expect(detail).toContain("tenantSettings?.brasaoUrl ||");
     expect(detail).toContain("logoUrl: embeddedGuideLogoUrl");
+    expect(detail).toContain("reserveGuiaRecolhimentoOficialWindow");
+    expect(detail).toContain("await prepareGuideInstitutionalLogo(");
+    expect(detail).toContain("reservedGuideWindow");
+    expect(guide).toContain("export function reserveGuiaRecolhimentoOficialWindow");
+    expect(guide).toContain("reservedWindow && !reservedWindow.closed");
+    expect(guide).toContain("popup.location.replace(previewUrl)");
   });
 
   it("hard-locks the Habite-se status badge to readable light text on saturated backgrounds", () => {
