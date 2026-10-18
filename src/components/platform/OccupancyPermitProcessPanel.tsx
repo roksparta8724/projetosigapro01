@@ -341,31 +341,23 @@ export function OccupancyPermitProcessPanel({
             ))}
           </div>
 
-          {!externalView ? (
-            <div className="mt-4 space-y-3">
-              {inspectionStage && !financeStage ? (
-                <div
-                  data-habite-se-inspection-gate="true"
-                  className="rounded-2xl border border-sky-200 bg-sky-50/80 p-4 dark:border-sky-500/30 dark:bg-sky-950/25"
-                >
-                  <div className="flex items-start gap-3">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-700 text-white">
-                      <ClipboardCheck className="h-5 w-5" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-bold text-slate-950 dark:text-white">
-                        Vistoria / conferência em andamento
-                      </p>
-                      <p className="mt-1 text-xs leading-5 text-slate-600 dark:text-slate-300">
-                        O encaminhamento ao Financeiro ocorre somente pela conclusão do Termo de Vistoria abaixo. Assim o processo não avança sem checklist, identificação do fiscal e evidências registradas.
-                      </p>
-                    </div>
-                  </div>
+          {!externalView && inspectionStage && !financeStage ? (
+            <div
+              data-habite-se-inspection-gate="true"
+              className="mt-4 rounded-2xl border border-sky-200 bg-sky-50/80 p-4 dark:border-sky-500/30 dark:bg-sky-950/25"
+            >
+              <div className="flex items-start gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-700 text-white">
+                  <ClipboardCheck className="h-5 w-5" />
                 </div>
-              ) : null}
-
-              <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4 text-sm leading-6 text-amber-950 dark:border-amber-500/30 dark:bg-amber-950/25 dark:text-amber-100">
-                Vistoria, Financeiro e decisão só aparecem como concluídos quando houver registro real no processo. O sistema não avança essas etapas artificialmente.
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-bold text-slate-950 dark:text-white">
+                    Vistoria / conferência em andamento
+                  </p>
+                  <p className="mt-1 text-xs leading-5 text-slate-600 dark:text-slate-300">
+                    A conclusão do Termo de Vistoria libera o encaminhamento formal do processo para a etapa financeira.
+                  </p>
+                </div>
               </div>
             </div>
           ) : null}
@@ -468,6 +460,27 @@ export function OccupancyPermitProcessPanel({
           />
         </CardContent>
       </Card>
+
+      {!externalView ? (
+        <div
+          data-habite-se-governance-note="true"
+          className="flex flex-col gap-3 rounded-[20px] border border-slate-200 bg-slate-50/70 px-5 py-4 text-slate-600 shadow-[0_8px_24px_rgba(15,23,42,0.04)] dark:border-slate-700 dark:bg-slate-950/35 dark:text-slate-300 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <div className="flex items-start gap-3">
+            <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
+              <ShieldCheck className="h-4 w-4" />
+            </div>
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.12em] text-slate-700 dark:text-slate-200">
+                Integridade processual
+              </p>
+              <p className="mt-1 max-w-4xl text-xs leading-5">
+                As movimentações deste Habite-se são registradas por etapa, responsável e data, preservando a rastreabilidade administrativa do processo.
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
