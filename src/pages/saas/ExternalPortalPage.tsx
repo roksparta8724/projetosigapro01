@@ -44,6 +44,9 @@ export function ExternalPortalPage() {
   const { municipality, scopeId, institutionSettingsCompat } = useMunicipality();
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
   const visibleRecords = getVisibleProcessesByScope(session, effectiveScopeId, allProcesses);
+  const provisionalProcesses = visibleRecords.filter(
+    (process) => process.isOfficial === false,
+  );
   const processes = visibleRecords.filter((process) => process.isOfficial !== false);
   const tenantSettings = institutionSettingsCompat ?? getInstitutionSettings(effectiveScopeId ?? session.tenantId);
   const activeTab = getExternalTabByPath(location.pathname);
@@ -61,7 +64,9 @@ export function ExternalPortalPage() {
   const concludedProcesses = processes.filter((process) =>
     ["deferido", "indeferido", "arquivado"].includes(process.status),
   ).length;
-  const activeProcesses = Math.max(processes.length - concludedProcesses, 0);
+  const activeProcesses =
+    Math.max(processes.length - concludedProcesses, 0) +
+    provisionalProcesses.length;
 
   const recentActivity = useMemo(() => {
     const parseActivityMoment = (value: string | undefined) => {
