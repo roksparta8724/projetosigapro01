@@ -10255,3 +10255,147 @@ html body [data-sidebar-surface="dark"]
   opacity:1 !important;
 }
 /* ===== END SIDEBAR ACTIVE CHILD WHITE MASK READABILITY V4 ===== */
+
+
+/* ===== PROCESS DOCUMENT WORKSPACE THEME CONTRACT V1 — 2026-10-18 =====
+   Scope: only the Documents tab inside an opened process.
+   Uses SIGAPRO's real data-layout-mode instead of Tailwind dark: so the
+   document workspace cannot flash or retain a white body in inverse themes. */
+
+html body [data-layout-mode="default"] .sig-main-shell
+.sig-process-detail-premium [data-process-document-workspace="true"] {
+  background: linear-gradient(180deg,#ffffff 0%,#f7fbff 100%) !important;
+  border-color: #d4e1ec !important;
+  box-shadow: 0 18px 48px rgba(15,23,42,.085) !important;
+}
+
+html body [data-layout-mode="default"] .sig-main-shell
+.sig-process-detail-premium [data-process-document-content="true"] {
+  background:
+    radial-gradient(circle at 6% 0%,rgba(14,165,233,.045),transparent 34%),
+    linear-gradient(180deg,#fbfdff 0%,#f5f9fd 100%) !important;
+  color: #0f172a !important;
+}
+
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+.sig-process-detail-premium [data-process-document-workspace="true"] {
+  background: linear-gradient(180deg,#0b1f31 0%,#071522 100%) !important;
+  border-color: #294a64 !important;
+  box-shadow:
+    0 20px 54px rgba(0,0,0,.34),
+    inset 0 1px 0 rgba(255,255,255,.035) !important;
+}
+
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+.sig-process-detail-premium [data-process-document-content="true"] {
+  background:
+    radial-gradient(circle at 8% 0%,rgba(14,165,233,.11),transparent 36%),
+    linear-gradient(180deg,#0a1b2a 0%,#081521 100%) !important;
+  color: #f8fbff !important;
+}
+
+/* Alertas do painel documental seguem o tema, sem faixas brancas/lavadas. */
+html body [data-layout-mode="default"] .sig-main-shell
+.sig-process-detail-premium [data-process-document-alert="pending"] {
+  background: linear-gradient(180deg,#fffaf0 0%,#fff4d6 100%) !important;
+  border-color: #f4d38a !important;
+  color: #7c4a03 !important;
+  -webkit-text-fill-color: #7c4a03 !important;
+  box-shadow: 0 8px 20px rgba(146,96,8,.07) !important;
+}
+html body [data-layout-mode="default"] .sig-main-shell
+.sig-process-detail-premium [data-process-document-alert="info"] {
+  background: linear-gradient(180deg,#f4fbff 0%,#e9f6fd 100%) !important;
+  border-color: #b9dff1 !important;
+  color: #075985 !important;
+  -webkit-text-fill-color: #075985 !important;
+}
+
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+.sig-process-detail-premium [data-process-document-alert="pending"] {
+  background: linear-gradient(180deg,#4a3309 0%,#332304 100%) !important;
+  border-color: #8f650f !important;
+  color: #fde9aa !important;
+  -webkit-text-fill-color: #fde9aa !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.035) !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+.sig-process-detail-premium [data-process-document-alert="info"] {
+  background: linear-gradient(180deg,#0b3650 0%,#08263a 100%) !important;
+  border-color: #17658c !important;
+  color: #d9f3ff !important;
+  -webkit-text-fill-color: #d9f3ff !important;
+}
+
+/* Estado vazio e tiras de revisão também obedecem ao workspace, não html.dark. */
+html body [data-layout-mode="default"] .sig-main-shell
+.sig-process-detail-premium [data-process-document-empty="true"],
+html body [data-layout-mode="default"] .sig-main-shell
+.sig-process-detail-premium [data-process-document-review-strip="true"] {
+  background: rgba(255,255,255,.90) !important;
+  border-color: #d7e2ec !important;
+  color: #0f172a !important;
+}
+html body [data-layout-mode="default"] .sig-main-shell
+.sig-process-detail-premium [data-process-document-empty="true"] :is(p,span,strong),
+html body [data-layout-mode="default"] .sig-main-shell
+.sig-process-detail-premium [data-process-document-review-strip="true"] :is(p,span,strong) {
+  color: #203147 !important;
+  -webkit-text-fill-color: #203147 !important;
+}
+html body [data-layout-mode="default"] .sig-main-shell
+.sig-process-detail-premium [data-process-document-empty="true"] :is(.text-slate-500,.text-slate-400),
+html body [data-layout-mode="default"] .sig-main-shell
+.sig-process-detail-premium [data-process-document-review-strip="true"] :is(.text-slate-500,.text-slate-400) {
+  color: #607286 !important;
+  -webkit-text-fill-color: #607286 !important;
+}
+
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+.sig-process-detail-premium [data-process-document-empty="true"],
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+.sig-process-detail-premium [data-process-document-review-strip="true"] {
+  background: linear-gradient(180deg,#10283e 0%,#0b1d2e 100%) !important;
+  border-color: #31516d !important;
+  color: #f8fbff !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.035) !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+.sig-process-detail-premium [data-process-document-empty="true"] :is(p,span,strong),
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+.sig-process-detail-premium [data-process-document-review-strip="true"] :is(p,span,strong) {
+  color: #eef7ff !important;
+  -webkit-text-fill-color: #eef7ff !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+.sig-process-detail-premium [data-process-document-empty="true"] :is(.text-slate-500,.text-slate-400),
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+.sig-process-detail-premium [data-process-document-review-strip="true"] :is(.text-slate-500,.text-slate-400) {
+  color: #bfd0df !important;
+  -webkit-text-fill-color: #bfd0df !important;
+}
+
+/* Pendência/upload e apontamentos: remove light islands in inverse-main. */
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+.sig-process-detail-premium [data-pending-document-card="true"] {
+  background: linear-gradient(180deg,#473109 0%,#2f2105 100%) !important;
+  border-color: #8b6415 !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+.sig-process-detail-premium [data-pending-document-card="true"] :is(p,span,strong,label) {
+  color: #f9e6aa !important;
+  -webkit-text-fill-color: #f9e6aa !important;
+}
+
+/* Pills internos de documento ficam sofisticados e coerentes no tema escuro. */
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+.sig-process-detail-premium [data-process-document-card="true"] :is(
+  .bg-white\/80,.bg-white\/70
+) {
+  background: rgba(8,24,38,.72) !important;
+  border-color: #35536d !important;
+  color: #dce9f5 !important;
+  -webkit-text-fill-color: #dce9f5 !important;
+}
+
+/* ===== END PROCESS DOCUMENT WORKSPACE THEME CONTRACT V1 ===== */
