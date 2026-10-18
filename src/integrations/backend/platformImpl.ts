@@ -2419,6 +2419,16 @@ export async function reviewRemoteProcessDocument(documentId: string, status: "a
   });
 }
 
+export async function reopenRemoteProcessDocumentAnalysis(input: {
+  documentId: string;
+  reason: string;
+}) {
+  return callProcessRpc("reopen_process_document_analysis_v1", {
+    _document_id: input.documentId,
+    _reason: input.reason,
+  });
+}
+
 export async function annotateRemoteProcessDocument(input: {
   documentId: string;
   kind: "text" | "highlight";
