@@ -1,6 +1,7 @@
 import { ChevronRight, Network } from "lucide-react";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { OrganogramAcronymGlyph } from "@/components/platform/OrganogramAcronymGlyph";
 import { useMunicipalOrganogram } from "@/hooks/useMunicipalOrganogram";
 
 function normalizeHint(value: string | null | undefined) {
@@ -132,10 +133,9 @@ export function MunicipalOrganogramBar({
                     <span
                       data-organogram-code="true"
                       data-contrast-surface="dark"
-                      style={{ color: "#ffffff", WebkitTextFillColor: "#ffffff" }}
-                      className="sig-organogram-code-badge sig-dark-chip inline-flex min-w-[30px] items-center justify-center rounded-md border border-white/15 bg-white/10 px-1.5 py-0.5 text-[9px] font-extrabold tracking-[0.08em] !text-white shadow-sm"
+                      className="sig-organogram-code-badge sig-dark-chip inline-flex min-w-[34px] items-center justify-center rounded-md border border-white/15 bg-white/10 px-1 py-0.5 shadow-sm"
                     >
-                      {department.code.trim()}
+                      <OrganogramAcronymGlyph code={department.code.trim()} className="h-4 w-9" />
                     </span>
                   ) : null}
                   <span className="truncate !text-white">{department.name}</span>
@@ -159,12 +159,11 @@ export function MunicipalOrganogramBar({
                   )}
                 >
                   <span
-                      data-organogram-code="true"
-                      data-contrast-surface="dark"
-                      style={{ color: "#ffffff", WebkitTextFillColor: "#ffffff" }}
-                      className="sig-organogram-code-badge sig-dark-chip inline-flex min-w-[30px] items-center justify-center rounded-md border border-white/15 bg-white/10 px-1.5 py-0.5 text-[9px] font-extrabold tracking-[0.08em] !text-white shadow-sm"
-                    >
-                    {department.code}
+                    data-organogram-code="true"
+                    data-contrast-surface="dark"
+                    className="sig-organogram-code-badge sig-dark-chip inline-flex min-w-[34px] items-center justify-center rounded-md border border-white/15 bg-white/10 px-1 py-0.5 shadow-sm"
+                  >
+                    <OrganogramAcronymGlyph code={department.code} className="h-4 w-9" />
                   </span>
                   <span className="truncate !text-white">{department.name}</span>
                 </span>
@@ -193,10 +192,9 @@ export function MunicipalOrganogramBar({
                     <span
                       data-organogram-code="true"
                       data-contrast-surface="dark"
-                      style={{ color: "#ffffff", WebkitTextFillColor: "#ffffff" }}
-                      className="sig-organogram-code-badge sig-dark-chip inline-flex min-w-[30px] items-center justify-center rounded-md border border-white/15 bg-white/10 px-1.5 py-0.5 text-[9px] font-extrabold tracking-[0.08em] !text-white shadow-sm"
+                      className="sig-organogram-code-badge sig-dark-chip inline-flex min-w-[34px] items-center justify-center rounded-md border border-white/15 bg-white/10 px-1 py-0.5 shadow-sm"
                     >
-                      {department.code.trim()}
+                      <OrganogramAcronymGlyph code={department.code.trim()} className="h-4 w-9" />
                     </span>
                   ) : null}
                   {department.name}
