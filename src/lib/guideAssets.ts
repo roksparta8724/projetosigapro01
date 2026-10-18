@@ -101,6 +101,17 @@ function imageElementToDataUrl(img: HTMLImageElement) {
   }
 }
 
+export function getRenderedMunicipalityLogoDataUrl() {
+  const renderedImages = renderedMunicipalityLogoElements();
+
+  for (const image of renderedImages) {
+    const embedded = imageElementToDataUrl(image);
+    if (embedded) return embedded;
+  }
+
+  return "";
+}
+
 async function prepareStrictGuideImageSource(
   value: string | null | undefined,
   timeoutMs = 7000,
@@ -158,11 +169,11 @@ export async function prepareGuideInstitutionalLogo(
     if (prepared) return prepared;
   }
 
+  const renderedSnapshot = getRenderedMunicipalityLogoDataUrl();
+  if (renderedSnapshot) return renderedSnapshot;
+
   const renderedImages = renderedMunicipalityLogoElements();
   for (const image of renderedImages) {
-    const embedded = imageElementToDataUrl(image);
-    if (embedded) return embedded;
-
     const prepared = await prepareStrictGuideImageSource(
       image.currentSrc || image.src,
     );
