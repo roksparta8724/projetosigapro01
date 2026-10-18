@@ -7,8 +7,8 @@ const read = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8"
 const draftsPage = read("src/pages/saas/ExternalDraftsPage.tsx");
 const controlPage = read("src/pages/saas/ExternalProcessControlPage.tsx");
 const dashboard = read("src/pages/saas/ExternalPortalPage.tsx");
-const sequenceMigration = read(
-  "neon/migrations/20261018_single_protocol_sequence_reservation.sql",
+const finalSequenceMigration = read(
+  "neon/migrations/20261018_zz_protocol_sequence_after_payment_final.sql",
 );
 
 describe("external in-progress preprotocols", () => {
@@ -22,12 +22,15 @@ describe("external in-progress preprotocols", () => {
     expect(draftsPage).toContain("/externo/pagamentos?preprotocolo=");
   });
 
-  it("shows the reserved municipal sequence without pretending the unpaid item is official", () => {
+  it("shows only a provisional reference before payment and never reserves the municipal PM sequence", () => {
     expect(draftsPage).toContain("Referência temporária:");
     expect(draftsPage).toContain("Ainda não existe número de processo municipal");
     expect(draftsPage).toContain("a numeração oficial será gerada automaticamente somente após a compensação");
-    expect(sequenceMigration).toContain("return 'PRE-'||_official_reserved");
-    expect(sequenceMigration).toContain("reserved_sequence");
+    expect(finalSequenceMigration).toContain("O pré-protocolo NÃO toca no contador oficial PM");
+    expect(finalSequenceMigration).toContain("gen_random_uuid()");
+    expect(finalSequenceMigration).toContain("_official_protocol := public.next_tenant_protocol_number");
+    expect(finalSequenceMigration).toContain("somente depois da compensacao da guia inicial");
+    expect(finalSequenceMigration).not.toContain("return 'PRE-'||_official_reserved");
   });
 
   it("counts unpaid preprotocols in Em andamento across control and dashboard", () => {
