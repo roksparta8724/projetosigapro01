@@ -1,6 +1,6 @@
 -- SIGAPRO — Termo de Vistoria / Conferência do Habite-se com evidência fotográfica.
 -- Referência operacional: inspeção estruturada, trilha de auditoria e fotos privadas no R2.
--- A exigência fotográfica é regra interna do workflow SIGAPRO e pode ser dispensada com justificativa auditável.
+-- A evidência fotográfica é suportada e auditável, mas não é requisito universal para concluir a vistoria.
 
 create table if not exists public.process_habite_se_inspections (
   id uuid primary key default gen_random_uuid(),
@@ -387,15 +387,12 @@ begin
   from public.process_habite_se_inspection_photos p
   where p.inspection_id=_inspection.id;
 
-  if not coalesce(_photo_evidence_waived,false) then
-    if _result_normalized='conforme' and _photo_count < 3 then
-      raise exception 'Anexe ao menos 3 evidências fotográficas da vistoria ou registre uma justificativa formal de dispensa.';
-    end if;
-    if _result_normalized='pendencias' and _photo_count < 1 then
-      raise exception 'Anexe ao menos uma foto da pendência constatada ou registre uma justificativa formal de dispensa.';
-    end if;
-  elsif _waiver_reason is null or length(_waiver_reason) < 15 then
-    raise exception 'A dispensa de evidência fotográfica exige justificativa formal.';
+  -- Fotos são evidência complementar e permanecem vinculadas ao processo,
+  -- mas não bloqueiam a conclusão da vistoria. Quando o fiscal optar por
+  -- justificar formalmente a ausência de fotos, a justificativa precisa ser útil.
+  if coalesce(_photo_evidence_waived,false)
+     and (_waiver_reason is null or length(_waiver_reason) < 15) then
+    raise exception 'A justificativa para ausência de evidência fotográfica deve ter pelo menos 15 caracteres.';
   end if;
 
   if _result_normalized='conforme' and _pending_items > 0 then
