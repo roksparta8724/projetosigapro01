@@ -22,6 +22,10 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import type { ProcessRecord, SessionUser } from "@/lib/platform";
 import {
+  openHabiteSePermitPdf,
+  reserveHabiteSePermitPdfWindow,
+} from "@/lib/habiteSePermitPdf";
+import {
   getProcessArtifactSignatureRequest,
   getProcessArtifactSignatures,
   requestProcessArtifactSignature,
@@ -120,12 +124,24 @@ export function HabiteSePermitPanel({
   session,
   externalView = false,
   municipalityName = "Prefeitura Municipal",
+  municipalityLogoUrl,
+  municipalityAddress,
+  municipalityPhone,
+  municipalityEmail,
+  secretariat,
+  directorate,
   onProcessRefresh,
 }: {
   process: ProcessRecord;
   session: SessionUser;
   externalView?: boolean;
   municipalityName?: string | null;
+  municipalityLogoUrl?: string | null;
+  municipalityAddress?: string | null;
+  municipalityPhone?: string | null;
+  municipalityEmail?: string | null;
+  secretariat?: string | null;
+  directorate?: string | null;
   onProcessRefresh?: () => Promise<void> | void;
 }) {
   const habiteSeGuide = process.payment.guides?.find((guide) => guide.kind === "habite_se");
@@ -312,41 +328,85 @@ export function HabiteSePermitPanel({
     }
   };
 
-  const openOfficialDocument = (autoPrint = false) => {
+  const openOfficialDocument = async (autoPrint = false) => {
     if (!permit) return;
-    const windowRef = window.open("", "_blank");
-    if (!windowRef) {
-      setNotice("O navegador bloqueou a abertura do Alvará. Permita pop-ups e tente novamente.");
+
+    const reservedWindow = reserveHabiteSePermitPdfWindow({
+      permit,
+      process,
+    });
+    if (!reservedWindow) {
+      setNotice(
+        "O navegador bloqueou a abertura do PDF. Libere pop-ups para o SIGAPRO e tente novamente.",
+      );
       return;
     }
 
-    const analyst = signatureState.signers.find((item) => item.slot === "analise_tecnica");
-    const director = signatureState.signers.find((item) => item.slot === "diretoria");
-    const statusText = permit.status === "emitido" ? "EMITIDO" : permit.status === "aguardando_diretor" ? "AGUARDANDO DIRETORIA" : "RASCUNHO";
-    windowRef.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(permit.permitNumber)}</title>
-      <style>
-        body{font-family:Arial,sans-serif;color:#142033;margin:0;background:#eef3f8}.sheet{width:190mm;min-height:267mm;margin:10mm auto;background:#fff;padding:14mm;box-sizing:border-box;border:1px solid #d8e2ec}.head{text-align:center;border-bottom:3px solid #154d72;padding-bottom:14px}.eyebrow{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:#5b6b7b}.title{font-size:25px;font-weight:800;margin:8px 0;color:#123f61}.number{font-size:13px;font-weight:700}.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:18px}.box{border:1px solid #dbe4ec;border-radius:9px;padding:10px}.label{font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:#68788a;font-weight:700}.value{font-size:12px;font-weight:700;margin-top:5px}.section{margin-top:16px;border:1px solid #dbe4ec;border-radius:9px;padding:12px}.section h3{font-size:11px;text-transform:uppercase;letter-spacing:.08em;margin:0 0 8px;color:#24516e}.text{font-size:12px;line-height:1.55;white-space:pre-wrap}.signatures{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:28px}.sig{border-top:1px solid #68788a;padding-top:8px;font-size:11px;text-align:center}.status{display:inline-block;margin-top:9px;padding:5px 10px;border:1px solid #8ab7d2;border-radius:999px;font-size:9px;font-weight:800;letter-spacing:.1em}.foot{margin-top:26px;font-size:9px;color:#657486;border-top:1px solid #e1e8ee;padding-top:10px}@media print{body{background:#fff}.sheet{border:0;margin:0;width:auto;min-height:auto;padding:8mm}}
-      </style></head><body><main class="sheet"><header class="head"><div class="eyebrow">${escapeHtml(municipalityName)}</div><div class="title">ALVARÁ DE HABITE-SE</div><div class="number">${escapeHtml(permit.permitNumber)}</div><div class="status">${statusText}</div></header>
-      <div class="grid">
-        <div class="box"><div class="label">Processo</div><div class="value">${escapeHtml(process.protocol)}</div></div>
-        <div class="box"><div class="label">Modalidade</div><div class="value">${escapeHtml(permit.formData.modality)}</div></div>
-        <div class="box"><div class="label">Proprietário</div><div class="value">${escapeHtml(process.ownerName)}</div></div>
-        <div class="box"><div class="label">Responsável técnico</div><div class="value">${escapeHtml(process.technicalLead)}</div></div>
-        <div class="box"><div class="label">Imóvel</div><div class="value">${escapeHtml(process.address)}</div></div>
-        <div class="box"><div class="label">Área / uso</div><div class="value">${escapeHtml(Number(process.property.area||0).toLocaleString("pt-BR"))} m² • ${escapeHtml(process.property.usage)}</div></div>
-        <div class="box"><div class="label">Processo de origem</div><div class="value">${escapeHtml(permit.formData.sourceProcess || "Não informado")}</div></div>
-        <div class="box"><div class="label">Alvará de origem</div><div class="value">${escapeHtml(permit.formData.sourcePermit || "Não informado")}</div></div>
-      </div>
-      <section class="section"><h3>Certificação municipal</h3><div class="text">Após análise documental, vistoria/conferência e confirmação do recolhimento da taxa de Habite-se, fica certificado o atendimento das condições registradas neste processo para ocupação do imóvel descrito acima.</div></section>
-      <section class="section"><h3>Condições / ressalvas</h3><div class="text">${escapeHtml(permit.formData.conditions || "Sem ressalvas registradas.")}</div></section>
-      <section class="section"><h3>Observações do Analista Técnico</h3><div class="text">${escapeHtml(permit.formData.observations || "Sem observações complementares.")}</div></section>
-      <div class="signatures">
-        <div class="sig"><strong>${escapeHtml(analyst?.name || permit.analystName || "Analista Técnico")}</strong><br>Analista Técnico<br>${escapeHtml(formatDateTime(analyst?.signed_at))}</div>
-        <div class="sig"><strong>${escapeHtml(director?.name || permit.directorName || "Diretoria")}</strong><br>Diretoria<br>${escapeHtml(formatDateTime(director?.signed_at || permit.issuedAt))}</div>
-      </div>
-      <footer class="foot">Código de verificação: ${escapeHtml(signatureState.block?.verification_code || "Aguardando assinatura final")} • Documento eletrônico vinculado ao processo ${escapeHtml(process.protocol)}.</footer>
-      </main>${autoPrint ? '<script>window.addEventListener("load",()=>window.print())<\/script>' : ""}</body></html>`);
-    windowRef.document.close();
+    const pdfBusyKey = autoPrint ? "print-pdf" : "preview-pdf";
+    setBusy(pdfBusyKey);
+    setNotice("");
+
+    try {
+      await openHabiteSePermitPdf(
+        {
+          permit,
+          process,
+          municipalityName: municipalityName || "Prefeitura Municipal",
+          municipalityLogoUrl,
+          municipalityAddress,
+          municipalityPhone,
+          municipalityEmail,
+          secretariat,
+          directorate,
+          analystSignature: analystSigner
+            ? {
+                name: analystSigner.name,
+                role: analystSigner.role,
+                title: analystSigner.title,
+                registration: analystSigner.registration,
+                signedAt: analystSigner.signed_at,
+              }
+            : null,
+          directorSignature: directorSigner
+            ? {
+                name: directorSigner.name,
+                role: directorSigner.role,
+                title: directorSigner.title,
+                registration: directorSigner.registration,
+                signedAt: directorSigner.signed_at,
+              }
+            : null,
+          verificationCode: signatureMatchesCurrent
+            ? signatureState.block?.verification_code
+            : null,
+          evidenceHash: signatureMatchesCurrent
+            ? signatureState.block?.artifact_hash
+            : null,
+        },
+        reservedWindow,
+      );
+
+      if (autoPrint) {
+        window.setTimeout(() => {
+          try {
+            if (!reservedWindow.closed) {
+              reservedWindow.focus();
+              reservedWindow.print();
+            }
+          } catch {
+            // O visualizador nativo continua aberto para impressão manual.
+          }
+        }, 900);
+      }
+    } catch (error) {
+      setNotice(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível abrir o PDF oficial do Alvará de Habite-se.",
+      );
+    } finally {
+      setBusy("");
+    }
   };
 
   if (!paymentConfirmed && !permit) {
@@ -371,45 +431,62 @@ export function HabiteSePermitPanel({
 
   return (
     <>
-      <Card data-habite-se-permit-panel="true" className="overflow-hidden rounded-[24px] border-sky-200 bg-white shadow-[0_16px_40px_rgba(15,23,42,0.08)] dark:border-sky-500/30 dark:bg-slate-900">
-        <CardHeader className="border-b border-sky-100 bg-[linear-gradient(135deg,#f8fbff_0%,#edf8ff_100%)] dark:border-sky-500/20 dark:bg-[linear-gradient(135deg,#0c2032_0%,#103650_100%)]">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-            <div>
-              <div className="flex items-center gap-2">
-                <FileBadge2 className="h-5 w-5 text-sky-700 dark:text-sky-300" />
-                <CardTitle className="text-slate-950 dark:text-white">Alvará de Habite-se</CardTitle>
+      <Card data-habite-se-permit-panel="true" className="overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-[0_16px_42px_rgba(15,23,42,0.08)] dark:border-slate-700 dark:bg-slate-900">
+        <CardHeader
+          data-force-card-contrast="dark"
+          data-premium-process-dark-header="habite-se-permit"
+          className="border-b border-white/10 bg-[linear-gradient(135deg,#06192b_0%,#0a4166_52%,#0879a8_100%)] px-5 py-5 text-white shadow-[0_14px_34px_rgba(3,38,65,0.18)] dark:border-slate-700"
+        >
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex min-w-0 items-start gap-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/20 bg-sky-400/15 !text-white shadow-inner">
+                <FileBadge2 className="h-6 w-6 !text-white" />
               </div>
-              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-300">
-                Documento final deste processo. O Analista elabora e assina a versão; a Diretoria realiza a assinatura final, que conclui automaticamente o processo.
-              </p>
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] !text-sky-100">
+                  Licenciamento de ocupação
+                </p>
+                <CardTitle className="mt-1 text-xl font-bold !text-white">
+                  Alvará de Habite-se
+                </CardTitle>
+                <p className="mt-1 max-w-3xl text-sm leading-6 !text-slate-200">
+                  Documento final do Habite-se, preparado pelo Analista Técnico após vistoria e pagamento, com assinatura conclusiva da Diretoria.
+                </p>
+              </div>
             </div>
-            <Badge variant="outline" className={
-              permit?.status === "emitido"
-                ? "w-fit border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-500/40 dark:bg-emerald-950/30 dark:text-emerald-200"
+            <Badge
+              className={
+                permit?.status === "emitido"
+                  ? "w-fit rounded-full border border-emerald-200/40 bg-emerald-500/20 px-3 py-1.5 !text-emerald-50"
+                  : permit?.status === "aguardando_diretor"
+                    ? "w-fit rounded-full border border-violet-200/40 bg-violet-500/20 px-3 py-1.5 !text-violet-50"
+                    : "w-fit rounded-full border border-sky-200/35 bg-[#083a59] px-3 py-1.5 !text-white"
+              }
+            >
+              {permit?.status === "emitido"
+                ? "Emitido e finalizado"
                 : permit?.status === "aguardando_diretor"
-                  ? "w-fit border-violet-300 bg-violet-50 text-violet-800 dark:border-violet-500/40 dark:bg-violet-950/30 dark:text-violet-200"
-                  : "w-fit border-sky-300 bg-white text-sky-800 dark:border-sky-500/40 dark:bg-sky-950/30 dark:text-sky-200"
-            }>
-              {permit?.status === "emitido" ? "Emitido e finalizado" : permit?.status === "aguardando_diretor" ? "Aguardando Diretoria" : "Em elaboração"}
+                  ? "Aguardando Diretoria"
+                  : "Em elaboração"}
             </Badge>
           </div>
         </CardHeader>
 
         <CardContent className="space-y-5 p-5">
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-950/40">
+            <div className="rounded-[18px] border border-slate-200 bg-[linear-gradient(145deg,#ffffff_0%,#f8fafc_100%)] p-4 shadow-[0_8px_20px_rgba(15,23,42,0.04)] dark:border-slate-700 dark:bg-[linear-gradient(145deg,#0f172a_0%,#111827_100%)]">
               <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-500">Número</p>
               <p className="mt-2 font-black text-slate-950 dark:text-white">{permit?.permitNumber || "Gerado ao salvar"}</p>
             </div>
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-950/40">
+            <div className="rounded-[18px] border border-slate-200 bg-[linear-gradient(145deg,#ffffff_0%,#f8fafc_100%)] p-4 shadow-[0_8px_20px_rgba(15,23,42,0.04)] dark:border-slate-700 dark:bg-[linear-gradient(145deg,#0f172a_0%,#111827_100%)]">
               <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-500">Área certificada</p>
               <p className="mt-2 font-black text-slate-950 dark:text-white">{Number(process.property.area || 0).toLocaleString("pt-BR")} m²</p>
             </div>
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-950/40">
+            <div className="rounded-[18px] border border-slate-200 bg-[linear-gradient(145deg,#ffffff_0%,#f8fafc_100%)] p-4 shadow-[0_8px_20px_rgba(15,23,42,0.04)] dark:border-slate-700 dark:bg-[linear-gradient(145deg,#0f172a_0%,#111827_100%)]">
               <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-500">Analista responsável</p>
               <p className="mt-2 font-black text-slate-950 dark:text-white">{permit?.analystName || process.analysis?.assignedTo || "Aguardando"}</p>
             </div>
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-950/40">
+            <div className="rounded-[18px] border border-slate-200 bg-[linear-gradient(145deg,#ffffff_0%,#f8fafc_100%)] p-4 shadow-[0_8px_20px_rgba(15,23,42,0.04)] dark:border-slate-700 dark:bg-[linear-gradient(145deg,#0f172a_0%,#111827_100%)]">
               <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-500">Diretoria</p>
               <p className="mt-2 font-black text-slate-950 dark:text-white">{permit?.directorName || (directorRequestPending ? "Assinatura pendente" : "Aguardando encaminhamento")}</p>
             </div>
@@ -511,13 +588,33 @@ export function HabiteSePermitPanel({
 
             {permit ? (
               <>
-                <Button type="button" variant="outline" className="rounded-full" onClick={() => openOfficialDocument(false)}>
-                  <FileCheck2 className="mr-2 h-4 w-4" />
-                  Visualizar Alvará
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="rounded-full"
+                  disabled={busy === "preview-pdf" || busy === "print-pdf"}
+                  onClick={() => void openOfficialDocument(false)}
+                >
+                  {busy === "preview-pdf" ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <FileCheck2 className="mr-2 h-4 w-4" />
+                  )}
+                  {busy === "preview-pdf" ? "Gerando PDF..." : "Abrir PDF oficial"}
                 </Button>
-                <Button type="button" variant="outline" className="rounded-full" onClick={() => openOfficialDocument(true)}>
-                  <Printer className="mr-2 h-4 w-4" />
-                  Imprimir
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="rounded-full"
+                  disabled={busy === "preview-pdf" || busy === "print-pdf"}
+                  onClick={() => void openOfficialDocument(true)}
+                >
+                  {busy === "print-pdf" ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Printer className="mr-2 h-4 w-4" />
+                  )}
+                  {busy === "print-pdf" ? "Preparando impressão..." : "Imprimir"}
                 </Button>
               </>
             ) : null}
