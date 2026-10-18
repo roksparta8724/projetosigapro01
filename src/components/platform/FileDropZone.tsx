@@ -44,6 +44,13 @@ function canPreview(mimeType: string) {
   return mimeType.startsWith("image/") || mimeType === "application/pdf";
 }
 
+function buildPdfPreviewUrl(url: string) {
+  const raw = String(url || "").trim();
+  if (!raw) return "";
+  const clean = raw.split("#")[0];
+  return `${clean}#page=1&toolbar=0&navpanes=0&scrollbar=0&view=FitH`;
+}
+
 export function FileDropZone({
   title,
   description,
@@ -258,36 +265,67 @@ export function FileDropZone({
               </div>
 
               {allowPreview ? (
-                <div className="mt-4 h-56 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 sm:h-72 dark:border-white/12 dark:bg-slate-900/50">
+                <div
+                  data-file-preview="true"
+                  className="mt-4 overflow-hidden rounded-[20px] border border-slate-200 bg-white shadow-[0_10px_28px_rgba(15,23,42,0.06)] dark:border-white/12 dark:bg-slate-950"
+                >
                   {file.previewUrl ? (
                     file.mimeType === "application/pdf" ? (
-                      <div className="flex h-full w-full flex-col items-center justify-center px-6 text-center">
-                        <FileText className="h-10 w-10 text-sky-600 dark:text-sky-200" />
-                        <p className="mt-3 max-w-full truncate text-sm font-semibold text-slate-900 dark:text-white">
-                          {file.fileName}
-                        </p>
-                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                          PDF pronto para visualização sem carregar dentro do card.
-                        </p>
-                        <a
-                          href={file.previewUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="mt-4 inline-flex min-h-[40px] items-center justify-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-colors duration-150 hover:border-sky-200 hover:bg-sky-50 hover:text-sky-700 dark:border-white/12 dark:bg-white/[0.04] dark:text-slate-100 dark:hover:bg-white/[0.08]"
-                        >
-                          Abrir PDF em nova guia
-                        </a>
-                      </div>
+                      <>
+                        <div className="flex min-w-0 items-center justify-between gap-3 border-b border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbfe_100%)] px-4 py-3 dark:border-white/10 dark:bg-slate-900">
+                          <div className="min-w-0">
+                            <p className="text-[10px] font-black uppercase tracking-[0.12em] text-sky-700 dark:text-sky-300">
+                              Pré-visualização do documento anexado
+                            </p>
+                            <p className="mt-1 truncate text-xs font-semibold text-slate-700 dark:text-slate-200">
+                              {file.fileName}
+                            </p>
+                          </div>
+                          <span className="shrink-0 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.12em] text-slate-600 dark:border-white/10 dark:bg-white/[0.05] dark:text-slate-200">
+                            PDF
+                          </span>
+                        </div>
+
+                        <div className="relative h-72 overflow-hidden bg-[#eef2f6] sm:h-[360px] dark:bg-slate-900">
+                          <iframe
+                            src={buildPdfPreviewUrl(file.previewUrl)}
+                            title={`Pré-visualização de ${file.fileName}`}
+                            className="pointer-events-none h-full w-full border-0 bg-white"
+                            loading="eager"
+                          />
+                          <div
+                            aria-hidden="true"
+                            className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-white/90 to-transparent dark:from-slate-950/75"
+                          />
+                        </div>
+
+                        <div className="flex flex-col gap-3 border-t border-slate-200 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between dark:border-white/10 dark:bg-slate-950">
+                          <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">
+                            Confira o documento anexado aqui. Para leitura completa, abra o PDF.
+                          </p>
+                          <a
+                            href={file.previewUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex min-h-[40px] shrink-0 items-center justify-center rounded-full border border-sky-200 bg-sky-50 px-4 py-2 text-sm font-bold text-sky-800 shadow-sm transition-colors duration-150 hover:border-sky-300 hover:bg-sky-100 dark:border-sky-400/25 dark:bg-sky-400/10 dark:text-sky-200 dark:hover:bg-sky-400/15"
+                          >
+                            <FileText className="mr-2 h-4 w-4" />
+                            Abrir PDF em nova guia
+                          </a>
+                        </div>
+                      </>
                     ) : (
-                      <img
-                        src={file.previewUrl}
-                        alt={file.fileName}
-                        className="h-full w-full object-contain"
-                        decoding="async"
-                      />
+                      <div className="bg-slate-50 p-3 dark:bg-slate-900/60">
+                        <img
+                          src={file.previewUrl}
+                          alt={file.fileName}
+                          className="mx-auto max-h-[420px] w-full rounded-xl bg-white object-contain shadow-sm"
+                          decoding="async"
+                        />
+                      </div>
                     )
                   ) : (
-                    <div className="flex h-full w-full items-center justify-center px-4 text-center text-sm text-slate-500 dark:text-slate-400">
+                    <div className="flex h-56 w-full items-center justify-center px-4 text-center text-sm text-slate-500 dark:text-slate-400">
                       Pré-visualização indisponível para este arquivo.
                     </div>
                   )}
