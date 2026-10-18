@@ -74,10 +74,27 @@ describe("external professional dashboard", () => {
   });
 
   it("keeps legacy professional role aliases inside the same external workspace", () => {
-    expect(getRoleLandingPath("profissional_externo")).toBe("/externo/controle");
-    expect(getRoleLandingPath("professional_external")).toBe("/externo/controle");
-    expect(getRoleLandingPath("professional")).toBe("/externo/controle");
+    expect(getRoleLandingPath("profissional_externo")).toBe("/externo");
+    expect(getRoleLandingPath("professional_external")).toBe("/externo");
+    expect(getRoleLandingPath("professional")).toBe("/externo");
     expect(portal).toContain("isExternalProfessionalRole(session.role)");
+  });
+
+  it("redirects stale generic dashboard URLs into the dedicated professional modules", () => {
+    expect(dashboard).toContain("return <Navigate to={externalTarget} replace />");
+    expect(dashboard).toContain('location.pathname.startsWith("/dashboard/processos")');
+    expect(dashboard).toContain('location.pathname.startsWith("/dashboard/financeiro")');
+    expect(dashboard).toContain('"/externo/controle"');
+    expect(dashboard).toContain('"/externo/pagamentos"');
+  });
+
+  it("keeps the dashboard usable while remote data is loading or temporarily unavailable", () => {
+    expect(externalDashboard).toContain("loading");
+    expect(externalDashboard).toContain("dataError");
+    expect(externalDashboard).toContain("refreshRemoteStore");
+    expect(externalDashboard).toContain("Carregando dashboard do profissional");
+    expect(externalDashboard).toContain("Tentar novamente");
+    expect(externalDashboard).toContain("parseActivityMoment");
   });
 
   it("counts only requirements and payment guides actually released to the professional", () => {
