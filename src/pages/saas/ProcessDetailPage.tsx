@@ -4670,7 +4670,7 @@ export function ProcessDetailPage() {
                                                 color: "#ffffff",
                                                 WebkitTextFillColor: "#ffffff",
                                               }}
-                                              className={`inline-flex h-8 min-w-[44px] shrink-0 items-center justify-center rounded-[10px] border px-2 text-[9px] font-black tracking-[0.10em] shadow-sm ${
+                                              className={`sig-organogram-code-badge inline-flex h-8 min-w-[44px] shrink-0 items-center justify-center rounded-[10px] border px-2 text-[9px] font-black tracking-[0.10em] shadow-sm ${
                                                 selected
                                                   ? "border-white/20 bg-white/15 !text-white"
                                                   : isCurrentUnit
