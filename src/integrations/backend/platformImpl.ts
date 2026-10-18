@@ -483,7 +483,29 @@ export async function loadRemotePlatformStore() {
   const tolerateLegacyMissing = (error: unknown, relation: string) =>
     !isNeonBackend && isMissingRelationError(error, relation) ? null : error;
 
-  const errors = [
+  // Processos são o núcleo operacional. Se o SELECT REST falhar ou voltar vazio
+  // por uma inconsistência transitória de schema/cache, consulta a RPC canônica
+  // escopada pelo mesmo has_process_access usado nas políticas do banco.
+  let processRows = [...(processesResult.data ?? [])] as any[];
+  let processLoadError: unknown = processesResult.error ?? null;
+
+  if (isNeonBackend && (processLoadError || processRows.length === 0)) {
+    const fallback = await db.rpc("list_visible_processes_v1");
+    if (!fallback.error) {
+      processRows = [...(fallback.data ?? [])] as any[];
+      processLoadError = null;
+    } else if (processLoadError) {
+      console.error("[SIGAPRO][Processos] SELECT e fallback RPC falharam.", {
+        selectError: processLoadError,
+        rpcError: fallback.error,
+      });
+      processLoadError = fallback.error;
+    } else {
+      console.warn("[SIGAPRO][Processos] Fallback RPC indisponível, mantendo resultado vazio.", fallback.error);
+    }
+  }
+
+  const nonCriticalErrors = [
     profilesResult.error,
     membershipsResult.error,
     tolerateLegacyMissing(tenantsResult.error, "public.tenants"),
@@ -494,7 +516,6 @@ export async function loadRemotePlatformStore() {
     tolerateLegacyMissing(municipalitySettingsResult.error, "public.municipality_settings"),
     rolesResult.error,
     departmentsResult.error,
-    processesResult.error,
     propertiesResult.error,
     guidesResult.error,
     partiesResult.error,
@@ -514,12 +535,19 @@ export async function loadRemotePlatformStore() {
     tolerateLegacyMissing(planAssignmentsResult.error, "public.client_plan_assignments"),
   ].filter(Boolean);
 
+  if (nonCriticalErrors.length > 0) {
+    console.warn(
+      "[SIGAPRO][Bootstrap] Dados auxiliares parcialmente indisponíveis; processos continuam preservados.",
+      nonCriticalErrors,
+    );
+  }
+
   if (lastAccessResult.error) {
     console.warn("[SIGAPRO][Access] Telemetria de último acesso indisponível; login segue normalmente.", lastAccessResult.error);
   }
 
-  if (errors.length > 0) {
-    throw errors[0];
+  if (processLoadError) {
+    throw processLoadError;
   }
 
   // O Data API municipal nao precisa de SELECT direto na tabela interna de
@@ -529,7 +557,7 @@ export async function loadRemotePlatformStore() {
   // todo o store oficial nem faz o fluxo visual regredir.
   const constructionPermitRows = [...(constructionPermitsResult.data ?? [])] as any[];
   if (isNeonBackend) {
-    const visibleProcessIds = (processesResult.data ?? [])
+    const visibleProcessIds = processRows
       .filter((process) => Boolean(process.officialized_at))
       .map((process) => String(process.id ?? "").trim())
       .filter(Boolean);
@@ -1291,7 +1319,7 @@ export async function loadRemotePlatformStore() {
     });
   }
 
-  const processes: ProcessRecord[] = (processesResult.data ?? []).map((process) => {
+  const processes: ProcessRecord[] = processRows.map((process) => {
     const property = propertyById.get(process.property_id);
     const constructionPermit = constructionPermitByProcess.get(String(process.id));
     const constructionPermitStage = constructionPermit
