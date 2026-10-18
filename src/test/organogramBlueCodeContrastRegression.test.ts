@@ -13,24 +13,29 @@ const processDetail = readFileSync(
 );
 
 describe("organogram institutional blue code contrast", () => {
-  it("renders acronym badges as institutional blue with explicit white copy", () => {
+  it("renders acronym badges as institutional blue with a dedicated white glyph node", () => {
     expect(chart).toContain('data-organogram-level-badge="true"');
-    expect(chart).toContain("sig-organogram-blue-code");
-    expect(chart).toContain("!text-white");
+    expect(chart).toContain('data-organogram-code-surface="blue"');
+    expect(chart).toContain('data-organogram-code-text="true"');
+    expect(chart).toContain('WebkitTextFillColor: "#ffffff"');
     expect(chart).toContain("#075985");
   });
 
-  it("prevents later theme rules from turning blue badge text dark", () => {
-    expect(css).toContain("ORGANOGRAM BLUE CODE CONTRAST GUARD V1");
-    expect(css).toContain('[data-organogram-code="true"]');
-    expect(css).toContain('[data-organogram-level-badge="true"]');
-    expect(css).toContain("color:#ffffff !important");
-    expect(css).toContain("-webkit-text-fill-color:#ffffff !important");
+  it("prevents any theme/card rule from repainting the acronym glyph dark", () => {
+    expect(css).toContain("ORGANOGRAM BLUE ACRONYM ROOT FIX V3");
+    expect(css).toContain('[data-organogram-code-surface="blue"]');
+    expect(css).toContain('[data-organogram-code-text="true"]');
+    expect(css).toContain("color: #ffffff !important");
+    expect(css).toContain("-webkit-text-fill-color: #ffffff !important");
   });
 
-  it("keeps dispatch organogram acronym badges white inside blue cards", () => {
+  it("keeps dispatch organogram acronym badges white inside the blue destination cards", () => {
     expect(processDetail).toContain('data-organogram-code="true"');
-    expect(processDetail).toContain('style={{ color: "#ffffff", WebkitTextFillColor: "#ffffff" }}');
-    expect(processDetail).toContain("bg-[linear-gradient(135deg,#075985_0%,#0f78b8_100%)]");
+    expect(processDetail).toContain('data-organogram-code-surface="blue"');
+    expect(processDetail).toContain('data-organogram-code-text="true"');
+    expect(processDetail).toContain('WebkitTextFillColor: "#ffffff"');
+    expect(processDetail).toContain(
+      "bg-[linear-gradient(135deg,#075985_0%,#0f78b8_100%)]",
+    );
   });
 });
