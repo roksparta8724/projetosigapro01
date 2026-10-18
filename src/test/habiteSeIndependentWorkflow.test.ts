@@ -137,6 +137,12 @@ describe("Habite-se independent workflow", () => {
     expect(inspectionMigration).toContain("Pendências da vistoria do Habite-se");
   });
 
+  it("locks the inspection term after the process leaves Fiscalização", () => {
+    expect(inspectionMigration).toContain("_folder ~ '(fiscal|vistoria|inspec|conferencia)'");
+    expect(inspectionMigration).not.toContain("fiscal|vistoria|inspec|conferencia|financ|decis|emiss");
+    expect(inspectionPanel).toContain("const readOnly = externalView || !canManage");
+  });
+
   it("surfaces Habite-se requests to the Financeiro before the guide exists", () => {
     expect(financeDesk).toContain('data-finance-habite-se-pending-queue="true"');
     expect(financeDesk).toContain("Habite-se aguardando emissão pelo Financeiro");
