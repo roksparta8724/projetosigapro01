@@ -20,6 +20,7 @@ describe("public signature QR verification", () => {
     expect(app).toContain('path="/verificar-assinatura"');
     expect(app).toContain('pathname.startsWith("/v/")');
     expect(app).toContain('pathname === "/verificar-assinatura"');
+    expect(app).toContain("isPublicVerificationRoute ? \"100\" : \"85\"");
   });
 
   it("verifies the printed code against the official database without exposing sensitive evidence", () => {
