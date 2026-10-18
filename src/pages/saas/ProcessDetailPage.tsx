@@ -286,7 +286,6 @@ export function ProcessDetailPage() {
     markGuideAsPaid,
     appendProcessDocuments,
     requestConstructionPaymentGuide,
-    requestHabiteSePaymentGuide,
     updateIssProjectGuideData,
     reviseIssProjectGuide,
     shareIssProjectGuide,
@@ -1931,29 +1930,6 @@ export function ProcessDetailPage() {
         { replace: true },
       );
     }
-  };
-
-  const canRequestHabiteSeFinance =
-    isHabiteSeProcess &&
-    !isExternalProcessViewer &&
-    (isMasterOperator || isInternalRole(session.role)) &&
-    /fiscal|vistoria|inspec|conferencia/.test(normalizedCurrentFolder) &&
-    !habiteSeGuide &&
-    !habiteSeGuideRequest;
-
-  const handleRequestHabiteSeFinance = () => {
-    if (!canRequestHabiteSeFinance) {
-      setProcessActionStatus(
-        "O Habite-se só pode seguir ao Financeiro depois da vistoria / conferência e sem guia já emitida.",
-      );
-      return;
-    }
-
-    void runProcessAction(
-      "request-habite-se-finance",
-      () => requestHabiteSePaymentGuide(process.id, session.name),
-      "Vistoria concluída. O Habite-se foi encaminhado ao Financeiro para emissão da guia própria.",
-    );
   };
 
   const handleIssueHabiteSeGuide = () => {
