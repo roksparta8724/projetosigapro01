@@ -1829,6 +1829,7 @@ export function UrbanAnalysisChecklistPanel({
         author: municipalityName || "Prefeitura Municipal",
         creator: "SIGAPRO Municipal",
       });
+      doc.setDisplayMode("fullwidth", "continuous", "UseNone");
 
       const pdfBlob = doc.output("blob");
       const pdfFile = new File([pdfBlob], fileName, { type: "application/pdf" });
