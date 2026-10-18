@@ -63,20 +63,35 @@ declare
   _role text := lower(coalesce(public.current_role_code(),''));
   _profile_municipality uuid;
   _process_municipality uuid;
+  _actor_area text := '';
   _folder text;
 begin
   if public.is_master() then return true; end if;
   if _profile_id is null then return false; end if;
-
-  if _role not in ('fiscal','prefeitura_supervisor') then
-    return false;
-  end if;
 
   select p.municipality_id into _profile_municipality
   from public.profiles p
   where p.id=_profile_id
     and p.deleted_at is null
     and p.account_status='active';
+
+  _actor_area := lower(
+    translate(
+      coalesce(public.profile_operational_area(_profile_id),''),
+      'ÁÀÂÃÉÈÊÍÌÎÓÒÔÕÚÙÛÇáàâãéèêíìîóòôõúùûç',
+      'AAAAEEEIIIOOOOUUUCaaaaeeeiiioooouuuc'
+    )
+  );
+
+  if not (
+    _role in ('fiscal','prefeitura_supervisor')
+    or (
+      _role in ('analista','analyst','setor_intersetorial')
+      and _actor_area ~ '(fiscal|vistoria|inspec|conferencia)'
+    )
+  ) then
+    return false;
+  end if;
 
   select coalesce(pr.municipality_id,pr.tenant_id),
          lower(
