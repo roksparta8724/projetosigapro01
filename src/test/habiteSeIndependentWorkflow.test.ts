@@ -22,6 +22,8 @@ describe("Habite-se independent workflow", () => {
   const inspectionClient = read("src/integrations/backend/habiteSeInspectionClient.ts");
   const databaseClient = read("src/integrations/backend/databaseClient.ts");
   const inspectionMigration = read("neon/migrations/20261018_habite_se_inspection_evidence.sql");
+  const completionMigration = read("neon/migrations/20261018_habite_se_completion_workflow.sql");
+  const permitPanel = read("src/components/platform/HabiteSePermitPanel.tsx");
 
   it("opens Habite-se through its own route and new process mode", () => {
     expect(app).toContain('path="/externo/habite-se"');
@@ -208,13 +210,56 @@ describe("Habite-se independent workflow", () => {
     expect(processDetail).toContain("handleConfirmHabiteSePayment");
     const inspectionStageIndex = panel.indexOf('label: "Vistoria / conferência"');
     const financeStageIndex = panel.indexOf('label: "Financeiro"');
-    const decisionStageIndex = panel.indexOf('label: "Decisão / emissão"');
+    const permitStageIndex = panel.indexOf('label: "Alvará de Habite-se"');
+    const directorStageIndex = panel.indexOf('label: "Assinatura da Diretoria"');
+    const completedStageIndex = panel.indexOf('label: "Concluído"');
     expect(inspectionStageIndex).toBeGreaterThanOrEqual(0);
     expect(financeStageIndex).toBeGreaterThan(inspectionStageIndex);
-    expect(decisionStageIndex).toBeGreaterThan(financeStageIndex);
+    expect(permitStageIndex).toBeGreaterThan(financeStageIndex);
+    expect(directorStageIndex).toBeGreaterThan(permitStageIndex);
+    expect(completedStageIndex).toBeGreaterThan(directorStageIndex);
     expect(financeMigration).toContain("request_habite_se_payment_guide_v1");
     expect(financeMigration).toContain("issue_habite_se_payment_guide_v1");
     expect(financeMigration).toContain("'habite_se'");
     expect(financeMigration).toContain("Decisão / emissão do Habite-se");
+  });
+
+  it("keeps the Habite-se guide visible to the analyst throughout the municipal workflow", () => {
+    expect(panel).toContain('data-habite-se-guide-analyst="true"');
+    expect(panel).toContain("Guia de Habite-se vinculada ao processo");
+    expect(panel).toContain("O Analista mantém acesso à guia emitida pelo Financeiro");
+    expect(processDetail).toContain('onViewHabiteSeGuide=');
+    expect(processDetail).toContain('printGuide("habite_se", false');
+    expect(processDetail).toContain('printGuide("habite_se", true');
+  });
+
+  it("requires Financeiro to release the Habite-se guide to the responsible external professional", () => {
+    expect(processDetail).toContain("handleSendHabiteSeGuideToProfessional");
+    expect(processDetail).toContain("Enviar ao profissional responsável");
+    expect(processDetail).toContain("habiteSeGuideSentExternally");
+    expect(store).toContain("shareHabiteSePaymentGuide");
+    expect(completionMigration).toContain("share_habite_se_payment_guide_v1");
+    expect(completionMigration).toContain("Somente o Setor Financeiro pode enviar a Guia de Habite-se ao profissional");
+    expect(completionMigration).toContain("process_parties");
+    expect(completionMigration).toContain("profissional_externo");
+    expect(completionMigration).toContain("Envie a Guia de Habite-se ao profissional responsável antes de confirmar o pagamento.");
+  });
+
+  it("returns paid Habite-se to the analyst, creates the permit, and only the director signature finalizes the process", () => {
+    expect(panel).toContain("<HabiteSePermitPanel");
+    expect(permitPanel).toContain("Alvará de Habite-se");
+    expect(permitPanel).toContain("saveHabiteSePermit");
+    expect(permitPanel).toContain("Assinar e encaminhar à Diretoria");
+    expect(permitPanel).toContain("Assinar como Diretor e finalizar");
+    expect(permitPanel).toContain('artifactType: ARTIFACT_TYPE');
+    expect(permitPanel).toContain('signerSlot: passwordDialog === "analyst" ? "analise_tecnica" : "diretoria"');
+    expect(permitPanel).toContain("finalizeHabiteSePermit");
+    expect(completionMigration).toContain("process_habite_se_permits");
+    expect(completionMigration).toContain("save_habite_se_permit_v1");
+    expect(completionMigration).toContain("set_habite_se_permit_awaiting_director_v1");
+    expect(completionMigration).toContain("finalize_habite_se_permit_v1");
+    expect(completionMigration).toContain("Emissão do Alvará de Habite-se");
+    expect(completionMigration).toContain("Alvará de Habite-se emitido e assinado pela Diretoria");
+    expect(completionMigration).toContain("status='deferido'::public.process_status");
   });
 });
