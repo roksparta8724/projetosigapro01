@@ -12,7 +12,6 @@ import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { MarkerSelector } from "@/components/platform/MarkerSelector";
-import { DocumentWorkspaceBoot } from "@/components/platform/DocumentWorkspaceBoot";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
@@ -224,12 +223,12 @@ export function DocumentViewerPage() {
   ]);
 
   if (replaceAnalystViewerWithAnalysis) {
-    return <DocumentWorkspaceBoot mode="analysis" />;
+    return null;
   }
 
   if (!process || !document) {
     if (platformDataLoading || !dataReadyForCurrentUser) {
-      return <DocumentWorkspaceBoot mode="viewer" />;
+      return null;
     }
 
     return (
