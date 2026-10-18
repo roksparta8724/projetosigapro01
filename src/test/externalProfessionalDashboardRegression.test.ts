@@ -9,7 +9,7 @@ import {
 } from "@/lib/platform";
 
 const read = (path: string) =>
-  readFileSync(resolve(process.cwd(), path), "utf8");
+  readFileSync(resolve(process.cwd(), path), "utf8").replace(/\r\n/g, "\n");
 
 const dashboard = read("src/pages/saas/DashboardHomePage.tsx");
 const externalDashboard = read("src/pages/saas/ExternalPortalPage.tsx");
