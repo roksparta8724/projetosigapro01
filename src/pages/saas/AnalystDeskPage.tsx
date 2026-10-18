@@ -455,7 +455,7 @@ export function AnalystDeskPage() {
     const analyst = analysisTeam.find((item) => item.id === targetProfileId);
     const ok = await runAnalystAction(
       `assign-${process.id}`,
-      `Processo distribuído para ${analyst?.name || "o analista selecionado"}. A análise técnica só começa quando ele assumir o processo.`,
+      `Processo distribuído para ${analyst?.name || "o analista selecionado"}. A atribuição organiza carga e SLA; a equipe da Análise continua podendo colaborar tecnicamente no processo.`,
       () => assignProcessAnalysis({ processId: process.id, targetProfileId }),
     );
 
@@ -687,7 +687,7 @@ export function AnalystDeskPage() {
                         : "Processo protegido: acompanhamento em leitura"
                       : isSupervisorView
                         ? "Aguardando distribuição para um analista"
-                        : "Clique em Assumir análise para reservar este processo somente para você"}
+                        : "Clique em Assumir análise para registrar o responsável de referência; a equipe da Análise continua com acesso técnico"}
                   </p>
                 </div>
                 <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
@@ -781,11 +781,11 @@ export function AnalystDeskPage() {
                       : analysisStarted
                         ? canEditAnalysis
                           ? "Continuar análise"
-                          : "Abrir em leitura"
+                          : "Abrir análise"
                         : hasAssignedAnalyst
                           ? assignedToCurrentSession
                             ? "Iniciar minha análise"
-                            : "Abrir em leitura"
+                            : "Abrir análise"
                           : "Assumir análise"}
                 </Button>
                 <Button
@@ -1132,7 +1132,7 @@ export function AnalystDeskPage() {
                     <h2 className="text-sm font-extrabold text-slate-950">Gerenciador de distribuição da Análise</h2>
                   </div>
                   <p className="mt-1 text-xs leading-5 text-slate-500">
-                    Um processo sem responsável fica na fila comum. Ao ser assumido ou distribuído, o banco trava a responsabilidade para evitar dois analistas executarem o mesmo trabalho.
+                    Um processo sem responsável fica na fila comum. A atribuição define o responsável de referência para carga, SLA e auditoria, sem bloquear a colaboração técnica dos demais analistas da unidade.
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
@@ -1175,7 +1175,7 @@ export function AnalystDeskPage() {
                 <div className="rounded-2xl border border-sky-200 bg-sky-50/70 p-4">
                   <p className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-sky-700">Equipe em andamento</p>
                   <p className="mt-2 text-2xl font-black text-slate-950">{teamAssignedAnalysis.length}</p>
-                  <p className="mt-1 text-xs text-slate-600">Responsabilidades de outros analistas, protegidas contra edição duplicada.</p>
+                  <p className="mt-1 text-xs text-slate-600">Processos com responsável de referência; a equipe técnica da Análise pode colaborar quando necessário.</p>
                 </div>
                 <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
                   <p className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-slate-600">Equipe disponível</p>
