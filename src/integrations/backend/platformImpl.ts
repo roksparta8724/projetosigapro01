@@ -530,6 +530,7 @@ export async function loadRemotePlatformStore() {
   const constructionPermitRows = [...(constructionPermitsResult.data ?? [])] as any[];
   if (isNeonBackend) {
     const visibleProcessIds = (processesResult.data ?? [])
+      .filter((process) => Boolean(process.officialized_at))
       .map((process) => String(process.id ?? "").trim())
       .filter(Boolean);
 
