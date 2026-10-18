@@ -132,6 +132,7 @@ export function MunicipalOrganogramBar({
                     <span
                       data-organogram-code="true"
                       data-contrast-surface="dark"
+                      style={{ color: "#ffffff", WebkitTextFillColor: "#ffffff" }}
                       className="sig-dark-chip inline-flex min-w-[30px] items-center justify-center rounded-md border border-white/15 bg-white/10 px-1.5 py-0.5 text-[9px] font-extrabold tracking-[0.08em] !text-white shadow-sm"
                     >
                       {department.code.trim()}
@@ -160,6 +161,7 @@ export function MunicipalOrganogramBar({
                   <span
                       data-organogram-code="true"
                       data-contrast-surface="dark"
+                      style={{ color: "#ffffff", WebkitTextFillColor: "#ffffff" }}
                       className="sig-dark-chip inline-flex min-w-[30px] items-center justify-center rounded-md border border-white/15 bg-white/10 px-1.5 py-0.5 text-[9px] font-extrabold tracking-[0.08em] !text-white shadow-sm"
                     >
                     {department.code}
@@ -191,6 +193,7 @@ export function MunicipalOrganogramBar({
                     <span
                       data-organogram-code="true"
                       data-contrast-surface="dark"
+                      style={{ color: "#ffffff", WebkitTextFillColor: "#ffffff" }}
                       className="sig-dark-chip inline-flex min-w-[30px] items-center justify-center rounded-md border border-white/15 bg-white/10 px-1.5 py-0.5 text-[9px] font-extrabold tracking-[0.08em] !text-white shadow-sm"
                     >
                       {department.code.trim()}
