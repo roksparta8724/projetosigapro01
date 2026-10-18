@@ -302,25 +302,9 @@ describe("Habite-se independent workflow", () => {
     expect(permitAutofillMigration).toContain("Sem ressalvas registradas.");
     expect(permitAutofillMigration).toContain("where hp.status<>'emitido'");
     expect(permitAutofillMigration).toContain("'HAB-'||");
-    expect(permitAutofillMigration).toContain("substring(prepared.protocol_number from '([0-9]+)
-    expect(panel).toContain("<HabiteSePermitPanel");
-    expect(permitPanel).toContain("Alvará de Habite-se");
-    expect(permitPanel).toContain("saveHabiteSePermit");
-    expect(permitPanel).toContain("Assinar e encaminhar à Diretoria");
-    expect(permitPanel).toContain("Assinar como Diretor e finalizar");
-    expect(permitPanel).toContain('artifactType: ARTIFACT_TYPE');
-    expect(permitPanel).toContain('signerSlot: passwordDialog === "analyst" ? "analise_tecnica" : "diretoria"');
-    expect(permitPanel).toContain("finalizeHabiteSePermit");
-    expect(completionMigration).toContain("process_habite_se_permits");
-    expect(completionMigration).toContain("save_habite_se_permit_v1");
-    expect(completionMigration).toContain("set_habite_se_permit_awaiting_director_v1");
-    expect(completionMigration).toContain("finalize_habite_se_permit_v1");
-    expect(completionMigration).toContain("Emissão do Alvará de Habite-se");
-    expect(completionMigration).toContain("Alvará de Habite-se emitido e assinado pela Diretoria");
-    expect(completionMigration).toContain("status='deferido'::public.process_status");
-  });
-});
-)");
+    expect(permitAutofillMigration).toContain(
+      "substring(prepared.protocol_number from '([0-9]+)$')",
+    );
   });
 
   it("returns paid Habite-se to the analyst, creates the permit, and only the director signature finalizes the process", () => {
@@ -330,7 +314,9 @@ describe("Habite-se independent workflow", () => {
     expect(permitPanel).toContain("Assinar e encaminhar à Diretoria");
     expect(permitPanel).toContain("Assinar como Diretor e finalizar");
     expect(permitPanel).toContain('artifactType: ARTIFACT_TYPE');
-    expect(permitPanel).toContain('signerSlot: passwordDialog === "analyst" ? "analise_tecnica" : "diretoria"');
+    expect(permitPanel).toContain(
+      'signerSlot: passwordDialog === "analyst" ? "analise_tecnica" : "diretoria"',
+    );
     expect(permitPanel).toContain("finalizeHabiteSePermit");
     expect(completionMigration).toContain("process_habite_se_permits");
     expect(completionMigration).toContain("save_habite_se_permit_v1");
