@@ -1150,6 +1150,53 @@ export function calculateApprovalGuideAmount(
 }
 
 
+export interface HabiteSeGuideBreakdown {
+  areaM2: number;
+  usage: string;
+  standard: string;
+  baseValueM2: number;
+  aliquotPercent: number;
+  unitFee: number;
+  totalAmount: number;
+  profile?: MunicipalApprovalRateProfile | null;
+}
+
+/**
+ * Taxa própria do Habite-se.
+ *
+ * Regra municipal utilizada pelo workflow:
+ *   área do imóvel × valor de referência do m² (uso + acabamento) × alíquota.
+ *
+ * A tabela de referência já cadastrada para aprovação/Alvará é a mesma tabela
+ * oficial de tipos de acabamento do Habite-se. Diferentemente do Alvará, aqui
+ * NÃO entra taxa fixa de emissão.
+ */
+export function calculateHabiteSeGuideBreakdown(
+  area: number,
+  usage: string | null | undefined,
+  standard: string | null | undefined,
+  settings?: TenantSettings | null,
+): HabiteSeGuideBreakdown {
+  const profile = resolveApprovalRateProfile(usage, standard, settings);
+  const areaM2 = Math.max(0, Number(area || 0));
+  const baseValueM2 = Math.max(0, Number(profile?.rate ?? 0));
+  const aliquotPercent = Math.max(0, Number(settings?.approvalAliquotPercent ?? 5));
+  const unitFee = Number((baseValueM2 * (aliquotPercent / 100)).toFixed(4));
+  const totalAmount = Number((areaM2 * unitFee).toFixed(2));
+
+  return {
+    areaM2,
+    usage: usage ?? "",
+    standard: standard ?? "",
+    baseValueM2,
+    aliquotPercent,
+    unitFee,
+    totalAmount,
+    profile,
+  };
+}
+
+
 export function getOfficialProcessSequence(process: Pick<ProcessRecord, "protocol" | "isOfficial">) {
   if (process.isOfficial === false) return null;
   const match = String(process.protocol || "").match(/^[A-Z0-9]+-(\d{4})-(\d+)$/i);
