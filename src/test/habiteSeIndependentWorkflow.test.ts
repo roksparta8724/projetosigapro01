@@ -131,6 +131,10 @@ describe("Habite-se independent workflow", () => {
     expect(inspectionClient).toContain("for (let attempt = 0; attempt < 8; attempt += 1)");
     expect(inspectionClient).toContain("databaseErrorMessage");
     expect(inspectionClient).toContain("callInspectionRpc");
+    expect(inspectionClient).toContain("neonDataApiUrl");
+    expect(inspectionClient).toContain("body: JSON.stringify(args)");
+    expect(inspectionClient).toContain("PGRST202");
+    expect(inspectionClient).toContain("for (let attempt = 0; attempt < 5; attempt += 1)");
   });
 
   it("uses an institutional inspection term with photographic evidence before Financeiro", () => {
@@ -183,7 +187,12 @@ describe("Habite-se independent workflow", () => {
     expect(processDetail).not.toContain("handleRequestHabiteSeFinance");
     expect(processDetail).toContain("handleIssueHabiteSeGuide");
     expect(processDetail).toContain("handleConfirmHabiteSePayment");
-    expect(processDetail).toContain('"Vistoria / conferência",\n        "Financeiro",\n        "Decisão / emissão"');
+    const inspectionStageIndex = panel.indexOf('label: "Vistoria / conferência"');
+    const financeStageIndex = panel.indexOf('label: "Financeiro"');
+    const decisionStageIndex = panel.indexOf('label: "Decisão / emissão"');
+    expect(inspectionStageIndex).toBeGreaterThanOrEqual(0);
+    expect(financeStageIndex).toBeGreaterThan(inspectionStageIndex);
+    expect(decisionStageIndex).toBeGreaterThan(financeStageIndex);
     expect(financeMigration).toContain("request_habite_se_payment_guide_v1");
     expect(financeMigration).toContain("issue_habite_se_payment_guide_v1");
     expect(financeMigration).toContain("'habite_se'");
