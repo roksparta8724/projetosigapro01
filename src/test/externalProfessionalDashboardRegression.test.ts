@@ -14,6 +14,7 @@ const read = (path: string) =>
 const dashboard = read("src/pages/saas/DashboardHomePage.tsx");
 const externalDashboard = read("src/pages/saas/ExternalPortalPage.tsx");
 const portal = read("src/components/platform/PortalFrame.tsx");
+const sidebar = read("src/components/platform/AppSidebar.tsx");
 
 const professional = {
   id: "profile-professional",
@@ -87,6 +88,17 @@ describe("external professional dashboard", () => {
     expect(dashboard).toContain("Acompanhamento da sua carteira");
     expect(dashboard).toContain('navigate("/externo/controle")');
     expect(dashboard).toContain('navigate("/externo/pagamentos")');
+  });
+
+  it("opens the external Dashboard on the first Processos page and keeps Dashboard selected in the general menu", () => {
+    expect(dashboard).toContain('isExternal\n            ? "processos"');
+    expect(dashboard).toContain('isExternal && location.pathname === "/dashboard"');
+    expect(dashboard).toContain('? "/dashboard/processos"');
+    expect(dashboard.indexOf('label: "Processos"')).toBeLessThan(
+      dashboard.indexOf('label: "Visão geral"'),
+    );
+    expect(sidebar).toContain('if (route === "/dashboard")');
+    expect(sidebar).toContain('pathname.startsWith("/dashboard/")');
   });
 
   it("keeps the dashboard usable while remote data is loading or temporarily unavailable", () => {
