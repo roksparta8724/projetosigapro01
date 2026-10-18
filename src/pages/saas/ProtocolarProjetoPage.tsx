@@ -7,7 +7,10 @@ import {
   FilePlus2,
   FileStack,
   Landmark,
+  Link2,
+  Loader2,
   LogOut,
+  Sparkles,
   ShieldCheck,
   UploadCloud,
   UserSquare2,
@@ -36,7 +39,9 @@ import {
 } from "@/integrations/backend/platform";
 import { deleteFileFromStorage, uploadFileToStorage } from "@/integrations/r2/storage";
 import { hasBackendEnv } from "@/integrations/backend/databaseClient";
+import { getOfficialConstructionPermit } from "@/integrations/permits/constructionPermitClient";
 import {
+  formatOfficialProcessNumber,
   getChecklistTemplate,
   isOccupancyPermitProcessType,
   matchesOperationalScope,
@@ -216,6 +221,25 @@ export function ProtocolarProjetoPage({
       ).length,
     [scopedProcesses],
   );
+  const habiteSeSourceProcesses = useMemo(
+    () =>
+      scopedProcesses
+        .filter((process) => {
+          if (process.isOfficial === false || process.status === "arquivado") return false;
+          if (isOccupancyPermitProcessType(process.type)) return false;
+          const email = String(session.email || "").toLocaleLowerCase("pt-BR");
+          return (
+            process.createdByProfileId === session.id ||
+            process.professionalProfileId === session.id ||
+            process.createdBy === session.id ||
+            process.professionalUserId === session.id ||
+            String(process.createdByEmail || "").toLocaleLowerCase("pt-BR") === email ||
+            String(process.professionalEmail || "").toLocaleLowerCase("pt-BR") === email
+          );
+        })
+        .sort((a, b) => String(b.officializedAt || "").localeCompare(String(a.officializedAt || ""))),
+    [scopedProcesses, session.email, session.id],
+  );
   const knownStorageBytes = useMemo(
     () =>
       scopedProcesses.reduce(
@@ -264,6 +288,9 @@ export function ProtocolarProjetoPage({
   const isResumingDraft = Boolean(resumeDraftNumber || remotePreProtocolNumber);
   const remoteHydratedRef = useRef("");
   const [remoteDraftLoading, setRemoteDraftLoading] = useState(false);
+  const [sourceProcessId, setSourceProcessId] = useState("");
+  const [sourceProcessLoading, setSourceProcessLoading] = useState(false);
+  const [sourcePermitLabel, setSourcePermitLabel] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -729,6 +756,71 @@ export function ProtocolarProjetoPage({
 
   const findFilesForLabel = (label: string) =>
     getFilesForDocumentLabel(files, label);
+
+  const linkHabiteSeSourceProcess = async (processId: string) => {
+    setSourceProcessId(processId);
+    setSourcePermitLabel("");
+    if (!processId) return;
+
+    const source = habiteSeSourceProcesses.find((process) => process.id === processId);
+    if (!source) {
+      setStatus("O processo selecionado não está disponível para este perfil.");
+      return;
+    }
+
+    setSourceProcessLoading(true);
+    setStatus("Conferindo o Alvará oficial do processo selecionado...");
+    try {
+      const permit = await getOfficialConstructionPermit(source.id);
+      if (!permit || permit.status !== "emitido" || !permit.permitNumber) {
+        throw new Error("Este processo ainda não possui Alvará oficial emitido e assinado.");
+      }
+
+      const permitData = permit.formData;
+      setForm((current) => ({
+        ...current,
+        processoAprovacao: formatOfficialProcessNumber(source.protocol),
+        numeroAlvara: permit.permitNumber,
+        titulo: current.titulo || `Habite-se - ${source.title}`,
+        endereco: permitData?.propertyAddress || source.address || current.endereco,
+        iptu:
+          permitData?.propertyRegistration ||
+          source.property.iptu ||
+          current.iptu,
+        matricula:
+          permitData?.propertyRegistryNumber ||
+          source.property.registration ||
+          current.matricula,
+        lote: permitData?.lot || source.property.lot || current.lote,
+        quadra: permitData?.block || source.property.block || current.quadra,
+        area: permitData?.areaM2 || String(source.property.area || current.area || ""),
+        uso: permitData?.usage || source.property.usage || current.uso,
+        tipoEdificacao: source.property.buildingType || current.tipoEdificacao,
+        tipoObra: "Conclusão da obra",
+        padraoConstrutivo: "",
+        proprietario: permitData?.ownerName || source.ownerName || current.proprietario,
+        documento: permitData?.ownerDocument || source.ownerDocument || current.documento,
+        proprietarioRg: source.ownerIdentityDocument || current.proprietarioRg,
+        proprietarioTelefone: source.ownerPhone || current.proprietarioTelefone,
+        proprietarioEmail: source.ownerEmail || current.proprietarioEmail,
+        profissional: permitData?.technicalLead || source.technicalLead || current.profissional,
+        registro: permitData?.technicalRegistration || current.registro,
+      }));
+      setSourcePermitLabel(`${formatOfficialProcessNumber(source.protocol)} • ${permit.permitNumber}`);
+      setStatus(
+        `Processo vinculado com sucesso. O Alvará ${permit.permitNumber} e os dados oficiais do imóvel foram preenchidos automaticamente.`,
+      );
+    } catch (error) {
+      setSourceProcessId("");
+      setStatus(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível carregar o Alvará do processo selecionado.",
+      );
+    } finally {
+      setSourceProcessLoading(false);
+    }
+  };
 
   const persistDraft = async () => {
     if (!effectiveScopeId) {
@@ -1516,6 +1608,60 @@ export function ProtocolarProjetoPage({
               <div className="rounded-2xl border border-sky-200 bg-sky-50/70 p-4 text-sm leading-6 text-sky-950 dark:border-sky-400/25 dark:bg-sky-400/10 dark:text-sky-100">
                 Este pedido não continua o processo de aprovação. O sistema criará um novo protocolo de Habite-se, com checklist, análise, exigências, histórico e decisão próprios.
               </div>
+              <div
+                data-habite-se-source-process-picker="true"
+                className="rounded-[20px] border border-sky-200 bg-[linear-gradient(135deg,#f8fcff_0%,#eef8ff_100%)] p-4 shadow-[0_10px_26px_rgba(14,116,144,0.08)] dark:border-sky-500/30 dark:bg-[linear-gradient(135deg,#10283c_0%,#0b1f31_100%)]"
+              >
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-end">
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="h-4 w-4 text-sky-700 dark:text-sky-300" />
+                      <Label className="font-bold text-slate-950 dark:text-white">
+                        Puxar processo já aprovado no SIGAPRO
+                      </Label>
+                    </div>
+                    <Select
+                      value={sourceProcessId}
+                      onValueChange={(value) => void linkHabiteSeSourceProcess(value)}
+                      disabled={sourceProcessLoading}
+                    >
+                      <SelectTrigger className="h-11 bg-white dark:bg-slate-950">
+                        <SelectValue placeholder={
+                          habiteSeSourceProcesses.length > 0
+                            ? "Selecione um processo com Alvará emitido"
+                            : "Nenhum processo próprio disponível"
+                        } />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {habiteSeSourceProcesses.map((process) => (
+                          <SelectItem key={process.id} value={process.id}>
+                            {formatOfficialProcessNumber(process.protocol)} — {process.title}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs leading-5 text-slate-600 dark:text-slate-300">
+                      Ao selecionar, o SIGAPRO confere o Alvará oficial e preenche automaticamente processo de origem, Alvará, proprietário, imóvel, área e responsável técnico.
+                    </p>
+                  </div>
+                  <div className="flex min-h-11 min-w-[220px] items-center rounded-xl border border-sky-100 bg-white px-3 text-xs font-semibold text-slate-700 dark:border-sky-500/20 dark:bg-slate-950 dark:text-slate-200">
+                    {sourceProcessLoading ? (
+                      <span className="inline-flex items-center gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin text-sky-600" />
+                        Conferindo Alvará...
+                      </span>
+                    ) : sourcePermitLabel ? (
+                      <span className="inline-flex items-center gap-2">
+                        <Link2 className="h-4 w-4 text-emerald-600" />
+                        {sourcePermitLabel}
+                      </span>
+                    ) : (
+                      <span>Vínculo opcional, com validação oficial</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label>Processo de aprovação / regularização de origem *</Label>
