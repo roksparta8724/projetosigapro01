@@ -72,6 +72,34 @@ function normalizeLabel(value: string) {
     .toLowerCase();
 }
 
+function getFilesForDocumentLabel(
+  fileMap: Record<string, UploadedFileItem[]>,
+  label: string,
+) {
+  const normalized = normalizeLabel(label);
+  return (
+    Object.entries(fileMap).find(
+      ([key]) => normalizeLabel(key) === normalized,
+    )?.[1] ?? []
+  );
+}
+
+function replaceFilesForDocumentLabel(
+  fileMap: Record<string, UploadedFileItem[]>,
+  label: string,
+  items: UploadedFileItem[],
+) {
+  const normalized = normalizeLabel(label);
+  const next = Object.fromEntries(
+    Object.entries(fileMap).filter(
+      ([key]) => normalizeLabel(key) !== normalized,
+    ),
+  ) as Record<string, UploadedFileItem[]>;
+
+  if (items.length > 0) next[label] = items;
+  return next;
+}
+
 function describeDocument(label: string): Omit<UploadDocumentItem, "label" | "required"> {
   const normalized = normalizeLabel(label);
 
@@ -638,7 +666,10 @@ export function ProtocolarProjetoPage({
   );
 
   const missingRequired = useMemo(
-    () => requiredDocuments.filter((item) => (files[item.label]?.length ?? 0) === 0),
+    () =>
+      requiredDocuments.filter(
+        (item) => getFilesForDocumentLabel(files, item.label).length === 0,
+      ),
     [files, requiredDocuments],
   );
 
@@ -697,7 +728,7 @@ export function ProtocolarProjetoPage({
   };
 
   const findFilesForLabel = (label: string) =>
-    Object.entries(files).find(([key]) => normalizeLabel(key) === normalizeLabel(label))?.[1] ?? [];
+    getFilesForDocumentLabel(files, label);
 
   const persistDraft = async () => {
     if (!effectiveScopeId) {
@@ -762,12 +793,12 @@ export function ProtocolarProjetoPage({
 
   const handleDocumentFilesSelected = async (label: string, selected: UploadedFileItem[]) => {
     const currentFiles = filesRef.current;
-    const previous = currentFiles[label] ?? [];
+    const previous = getFilesForDocumentLabel(currentFiles, label);
 
     // Em uma abertura nova não há persistência remota imediata. A alteração é
     // síncrona e sempre parte do estado mais atual para não perder outro anexo.
     if (!isResumingDraft) {
-      replaceFiles({ ...filesRef.current, [label]: selected });
+      replaceFiles(replaceFilesForDocumentLabel(filesRef.current, label, selected));
       setStatus("");
       return;
     }
@@ -787,7 +818,7 @@ export function ProtocolarProjetoPage({
     // preview local e a mesma geometria. Na exclusão mantemos o card antigo
     // até a confirmação para evitar sumir e reaparecer em caso de falha.
     if (selected.length > 0) {
-      replaceFiles({ ...filesRef.current, [label]: selected });
+      replaceFiles(replaceFilesForDocumentLabel(filesRef.current, label, selected));
     }
 
     try {
@@ -831,7 +862,11 @@ export function ProtocolarProjetoPage({
 
       // Sempre mescla com o estado mais recente. Nunca usa a closure antiga de
       // "files", que podia apagar um upload concluído em outro card.
-      const persistedFiles = { ...filesRef.current, [label]: persistedSelected };
+      const persistedFiles = replaceFilesForDocumentLabel(
+        filesRef.current,
+        label,
+        persistedSelected,
+      );
       const saved = remotePreProtocolNumber
         ? true
         : saveProtocolDraft(session.id, effectiveScopeId, {
@@ -887,7 +922,9 @@ export function ProtocolarProjetoPage({
     } catch (error) {
       // Rollback visual em uma única troca estável. O arquivo anterior não é
       // removido do R2 antes de o novo estado estar confirmado.
-      replaceFiles({ ...filesRef.current, [label]: previous });
+      replaceFiles(
+        replaceFilesForDocumentLabel(filesRef.current, label, previous),
+      );
 
       await Promise.allSettled(
         newlyUploadedPaths.map((objectKey) =>
@@ -1736,8 +1773,13 @@ export function ProtocolarProjetoPage({
 
                 <div className="grid gap-4 xl:grid-cols-2">
                   {documents.map((item) => {
+                      const itemFiles = getFilesForDocumentLabel(files, item.label);
                       const itemStatus =
-                        (files[item.label]?.length ?? 0) > 0 ? "enviado" : item.required ? "pendente" : "nao_enviado";
+                        itemFiles.length > 0
+                          ? "enviado"
+                          : item.required
+                            ? "pendente"
+                            : "nao_enviado";
 
                       return (
                         <div
@@ -1795,7 +1837,7 @@ export function ProtocolarProjetoPage({
                               submitting ||
                               (hasPendingDocumentUpload && !uploadingLabels[item.label])
                             }
-                            files={files[item.label] ?? []}
+                            files={itemFiles}
                             onFilesSelected={(selected) => handleDocumentFilesSelected(item.label, selected)}
                           />
                         </div>
