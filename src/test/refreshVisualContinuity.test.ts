@@ -12,6 +12,8 @@ describe("F5, logout and topbar visual continuity", () => {
   const planEntitlements = readFileSync(resolve(process.cwd(), "src/hooks/usePlanEntitlements.ts"), "utf8");
   const processDetail = readFileSync(resolve(process.cwd(), "src/pages/saas/ProcessDetailPage.tsx"), "utf8");
   const urbanChecklist = readFileSync(resolve(process.cwd(), "src/components/platform/UrbanAnalysisChecklistPanel.tsx"), "utf8");
+  const habiteInspection = readFileSync(resolve(process.cwd(), "src/components/platform/HabiteSeInspectionPanel.tsx"), "utf8");
+  const habitePermit = readFileSync(resolve(process.cwd(), "src/components/platform/HabiteSePermitPanel.tsx"), "utf8");
   const viteConfig = readFileSync(resolve(process.cwd(), "vite.config.ts"), "utf8");
   const css = readFileSync(resolve(process.cwd(), "src/index.css"), "utf8");
 
@@ -124,6 +126,22 @@ describe("F5, logout and topbar visual continuity", () => {
     expect(urbanChecklist).toContain("readInitialChecklistState(key, process, session)");
     expect(urbanChecklist).toContain("useState<AnalysisChecklistState>(() =>");
     expect(urbanChecklist).not.toContain("useState<AnalysisChecklistState>(() => makeInitialState(process, session))");
+  });
+
+  it("hydrates Habite-se inspection from a visual cache before the first paint", () => {
+    expect(habiteInspection).toContain("readInspectionVisualCache(process.id, session.id)");
+    expect(habiteInspection).toContain("initialVisual?.inspection ?? null");
+    expect(habiteInspection).toContain("initialVisual?.checklist ?? emptyChecklist()");
+    expect(habiteInspection).toContain("Boolean(initialVisual)");
+    expect(habiteInspection).toContain("writeInspectionVisualCache");
+  });
+
+  it("hydrates the Habite-se permit from a visual cache before async revalidation", () => {
+    expect(habitePermit).toContain("readPermitVisualCache(process.id, session.id)");
+    expect(habitePermit).toContain("initialVisual?.permit ?? null");
+    expect(habitePermit).toContain("initialVisual?.form ?? initialForm(process)");
+    expect(habitePermit).toContain("initialVisual?.signatureState");
+    expect(habitePermit).toContain("writePermitVisualCache");
   });
 
   it("persists process tab authorization per user and process across F5", () => {
