@@ -18,7 +18,7 @@
   Users2,
   Workflow,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { AlertCard } from "@/components/platform/AlertCard";
 import { InternalTabs } from "@/components/platform/InternalTabs";
@@ -141,10 +141,16 @@ export function AnalystDeskPage() {
 
   const departmentProcesses = getVisibleProcessesByScope(session, effectiveScopeId, allProcesses);
 
+  const refreshRemoteStoreRef = useRef(refreshRemoteStore);
+
+  useEffect(() => {
+    refreshRemoteStoreRef.current = refreshRemoteStore;
+  }, [refreshRemoteStore]);
+
   const refreshAnalysisDesk = useCallback(async () => {
     if (!effectiveScopeId) return;
     try {
-      await refreshRemoteStore();
+      await refreshRemoteStoreRef.current();
       setLiveSyncAt(new Date().toISOString());
       setLiveSyncError("");
     } catch (error) {
@@ -152,7 +158,7 @@ export function AnalystDeskPage() {
         error instanceof Error ? error.message : "Não foi possível atualizar a fila técnica.",
       );
     }
-  }, [effectiveScopeId, refreshRemoteStore]);
+  }, [effectiveScopeId]);
 
   useEffect(() => {
     let disposed = false;
