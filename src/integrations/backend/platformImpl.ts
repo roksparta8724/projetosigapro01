@@ -1609,7 +1609,7 @@ export async function loadRemotePlatformStore() {
                 ? "compensada"
                 : "pendente",
             dueDate: guide.due_date ? new Date(guide.due_date).toLocaleDateString("pt-BR") : "",
-            issuedAt: guide.last_reissued_at ?? guide.created_at ?? undefined,
+            issuedAt: guide.created_at ?? undefined,
             paidAt: guide.paid_at ?? undefined,
             expiresAt: undefined,
             requestedBy: guide.requested_by_name ? String(guide.requested_by_name) : undefined,
@@ -2100,8 +2100,12 @@ export interface RemoteExternalPreprotocolDraft {
     number: string;
     amount: number;
     dueDate: string;
+    issuedAt: string;
     status: string;
     paid: boolean;
+    originalDueDate?: string;
+    reissueCount: number;
+    lastReissuedAt?: string;
   };
 }
 
@@ -2137,8 +2141,16 @@ export async function getRemoteExternalPreprotocolDraft(
       number: String(guide.number ?? ""),
       amount: Number(guide.amount ?? 0),
       dueDate: guide.due_date ? String(guide.due_date) : "",
+      issuedAt: guide.issued_at ? String(guide.issued_at) : "",
       status: String(guide.status ?? "pendente"),
       paid: Boolean(guide.paid),
+      originalDueDate: guide.original_due_date
+        ? String(guide.original_due_date)
+        : undefined,
+      reissueCount: Number(guide.reissue_count || 0),
+      lastReissuedAt: guide.last_reissued_at
+        ? String(guide.last_reissued_at)
+        : undefined,
     },
   };
 }
@@ -2246,6 +2258,8 @@ export async function createRemoteExternalProcessV2(
     reconciled?: boolean;
     existing?: boolean;
     draft_updated?: boolean;
+    guide_id?: string;
+    guide_created_at?: string;
   };
 }
 
