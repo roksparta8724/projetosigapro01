@@ -10399,3 +10399,45 @@ html body [data-layout-mode="inverse-main"] .sig-main-shell
 }
 
 /* ===== END PROCESS DOCUMENT WORKSPACE THEME CONTRACT V1 ===== */
+
+
+/* ===== PROTOCOL PRIMARY ACTION CONTRAST LOCK V1 =====
+   Visual-only. Keeps protocol/rascunho primary actions dark with light text
+   in every workspace theme. No workflow/status/database behavior is changed. */
+html body .sig-main-shell [data-protocol-primary-action="true"],
+html body .sig-main-shell .sig-protocol-primary-action {
+  background: linear-gradient(135deg,#071827 0%,#0b2f4a 54%,#0b5f86 100%) !important;
+  border: 1px solid rgba(56,189,248,.22) !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  text-shadow: 0 1px 0 rgba(0,0,0,.16);
+  box-shadow:
+    0 10px 24px rgba(15,23,42,.18),
+    inset 0 1px 0 rgba(255,255,255,.08) !important;
+  opacity: 1 !important;
+}
+
+html body .sig-main-shell [data-protocol-primary-action="true"] :is(span,strong,p,svg),
+html body .sig-main-shell .sig-protocol-primary-action :is(span,strong,p,svg) {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  stroke: currentColor !important;
+  opacity: 1 !important;
+}
+
+html body .sig-main-shell [data-protocol-primary-action="true"]:hover:not(:disabled),
+html body .sig-main-shell .sig-protocol-primary-action:hover:not(:disabled) {
+  background: linear-gradient(135deg,#092039 0%,#0d3b5c 54%,#0d719e 100%) !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+html body .sig-main-shell [data-protocol-primary-action="true"]:disabled,
+html body .sig-main-shell .sig-protocol-primary-action:disabled {
+  background: linear-gradient(135deg,#15283a 0%,#1b3b55 100%) !important;
+  color: rgba(255,255,255,.82) !important;
+  -webkit-text-fill-color: rgba(255,255,255,.82) !important;
+  opacity: .72 !important;
+  cursor: not-allowed;
+}
+/* ===== END PROTOCOL PRIMARY ACTION CONTRAST LOCK V1 ===== */
