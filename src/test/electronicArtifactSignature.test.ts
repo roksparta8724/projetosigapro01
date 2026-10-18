@@ -109,6 +109,14 @@ describe("official electronic signatures", () => {
     expect(migrationV2).not.toContain("select secret_value");
   });
 
+  it("opens the official PDF in a reserved native viewer tab at a readable institutional zoom", () => {
+    expect(checklist).toContain('window.open("about:blank", "_blank")');
+    expect(checklist).toContain("reservedPdfWindow.location.replace(viewerUrl)");
+    expect(checklist).toContain("#page=1&zoom=125&toolbar=1&navpanes=0&scrollbar=1");
+    expect(checklist).toContain('creator: "SIGAPRO Municipal"');
+    expect(checklist).not.toContain("doc.save(fileName)");
+  });
+
   it("generates the municipal analysis PDF in exactly two pages with the crest and signature evidence", () => {
     expect(checklist).toContain("resolveMunicipalityLogoUrl");
     expect(checklist).toContain("loadPdfImageDataUrl");
