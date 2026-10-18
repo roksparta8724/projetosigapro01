@@ -34,6 +34,18 @@ describe("process entry and organogram regression", () => {
     expect(analyst).toContain('searchParams.get("secao") === "fila"');
   });
 
+  it("keeps the dispatch organogram hierarchical, grouped and selectable without flattening the Prefeitura structure", () => {
+    expect(processDetail).toContain('data-dispatch-organogram-hierarchy="true"');
+    expect(processDetail).toContain('data-organogram-branch="true"');
+    expect(processDetail).toContain("candidate.parentDepartmentId === parentId");
+    expect(processDetail).toContain("collectChildren(child.id, depth + 1)");
+    expect(processDetail).toContain('data-organogram-depth={depth}');
+    expect(processDetail).toContain('data-current-organogram-unit=');
+    expect(processDetail).toContain("Origem atual");
+    expect(processDetail).toContain("Estrutura institucional");
+    expect(processDetail).toContain("unidades oficiais");
+  });
+
   it("keeps the selected destination white-on-blue and auto-fills the real local dispatch date", () => {
     expect(processDetail).toContain('data-selected-organogram-card={selected ? "true" : "false"}');
     expect(processDetail).toContain('data-organogram-destination-title="true"');
