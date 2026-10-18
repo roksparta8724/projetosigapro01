@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
   canAccessMunicipalArea,
   canAnalyzeProcessDocument,
+  canEditAssignedAnalysisArtifact,
   canSuperviseProcessAnalysis,
   hasActiveAnalysisSupervisorIntervention,
   type ProcessRecord,
@@ -63,6 +64,24 @@ describe("analysis ownership and director supervision", () => {
     expect(canAnalyzeProcessDocument(analystB, ownedProcess, municipalityId)).toBe(true);
   });
 
+
+  it("lets only the originally assigned analyst rectify the signed sheet after the process leaves Analysis", () => {
+    const financeStageProcess = {
+      ...ownedProcess,
+      status: "pagamento_pendente",
+      processControl: {
+        currentFolder: "Financeiro",
+      },
+    } as ProcessRecord;
+
+    expect(
+      canEditAssignedAnalysisArtifact(analystA, financeStageProcess, municipalityId),
+    ).toBe(true);
+    expect(
+      canEditAssignedAnalysisArtifact(analystB, financeStageProcess, municipalityId),
+    ).toBe(false);
+  });
+
   it("scopes the Urbanism director to Analysis instead of giving global municipal access", () => {
     expect(canAccessMunicipalArea(urbanismDirector, "analise")).toBe(true);
     expect(canAccessMunicipalArea(urbanismDirector, "financeiro")).toBe(false);
@@ -110,7 +129,8 @@ describe("analysis ownership and director supervision", () => {
     );
 
     expect(detail).toContain("<AnalysisSupervisorControl");
-    expect(detail).toContain("readOnly={!canReviewDocuments}");
+    expect(detail).toContain("canEditAssignedAnalysisArtifact");
+    expect(detail).toContain("readOnly={!canEditAnalysisChecklist}");
     expect(checklist).toContain("Modo acompanhamento");
     expect(checklist).toContain("<fieldset disabled={readOnly}");
     expect(migration).toContain("can_write_process_analysis");
