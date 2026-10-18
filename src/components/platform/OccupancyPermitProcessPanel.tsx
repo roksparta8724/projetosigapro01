@@ -7,8 +7,10 @@ import {
   Landmark,
   Route,
   ShieldCheck,
+  Wallet,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { type ProcessRecord, formatOfficialProcessNumber } from "@/lib/platform";
@@ -26,9 +28,15 @@ function extractNoteValue(notes: string | undefined, label: string) {
 export function OccupancyPermitProcessPanel({
   process,
   externalView = false,
+  canRequestPayment = false,
+  paymentRequestBusy = false,
+  onRequestPayment,
 }: {
   process: ProcessRecord;
   externalView?: boolean;
+  canRequestPayment?: boolean;
+  paymentRequestBusy?: boolean;
+  onRequestPayment?: () => void;
 }) {
   const required = process.documents.filter((item) => item.required);
   const uploaded = required.filter((item) => item.uploaded);
@@ -41,6 +49,10 @@ export function OccupancyPermitProcessPanel({
   const protocolGuide = process.payment.guides?.find(
     (guide) => guide.kind === "protocolo",
   );
+  const habiteSeGuide = process.payment.guides?.find(
+    (guide) => guide.kind === "habite_se",
+  );
+  const habiteSePaid = habiteSeGuide?.status === "compensada";
   const protocolPaid =
     protocolGuide?.status === "compensada" ||
     process.payment.status === "compensada";
@@ -82,6 +94,15 @@ export function OccupancyPermitProcessPanel({
   const analysisStage =
     /analise|urban|obra|engenharia/.test(normalizedFolder) ||
     Boolean(process.analysis?.startedAt || process.analysis?.assignedTo);
+  const financeStage =
+    /financ|tesour|arrecad/.test(normalizedFolder) ||
+    Boolean(habiteSeGuide) ||
+    process.dispatches.some(
+      (dispatch) =>
+        /guia.*habite|habite.*guia/i.test(dispatch.subject) &&
+        ["aguardando", "respondido", "concluido"].includes(dispatch.status),
+    );
+  const decisionStage = habiteSePaid || finalStatus;
 
   const stages = [
     {
@@ -112,17 +133,33 @@ export function OccupancyPermitProcessPanel({
       label: "Vistoria / conferência",
       detail: inspectionStage
         ? "Etapa registrada no fluxo atual"
-        : "Etapa prevista após a análise, conforme procedimento municipal",
-      done: inspectionStage && finalStatus,
-      current: inspectionStage && !finalStatus,
+        : financeStage
+          ? "Vistoria concluída e encaminhada"
+          : "Etapa prevista após a análise, conforme procedimento municipal",
+      done: financeStage || decisionStage,
+      current: inspectionStage && !financeStage,
+    },
+    {
+      label: "Financeiro",
+      detail: habiteSeGuide
+        ? habiteSeGuide.status === "compensada"
+          ? `Guia ${habiteSeGuide.code} compensada`
+          : `Guia ${habiteSeGuide.code} aguardando pagamento`
+        : financeStage
+          ? "Aguardando emissão da Guia de Habite-se"
+          : "Etapa posterior à vistoria / conferência",
+      done: habiteSePaid || finalStatus,
+      current: financeStage && !habiteSePaid && !finalStatus,
     },
     {
       label: "Decisão e emissão",
       detail: finalStatus
         ? "Decisão final registrada"
-        : "Aguardando etapas anteriores",
+        : habiteSePaid
+          ? "Pagamento confirmado — disponível para decisão / emissão"
+          : "Aguardando vistoria e etapa financeira",
       done: finalStatus,
-      current: false,
+      current: decisionStage && !finalStatus,
     },
   ];
 
@@ -224,7 +261,7 @@ export function OccupancyPermitProcessPanel({
           </p>
         </CardHeader>
         <CardContent className="p-5">
-          <div className="grid gap-3 xl:grid-cols-5">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
             {stages.map((stage, index) => (
               <div
                 key={stage.label}
@@ -256,10 +293,40 @@ export function OccupancyPermitProcessPanel({
           </div>
 
           {!externalView ? (
-            <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50/70 p-4 text-sm leading-6 text-amber-950 dark:border-amber-500/30 dark:bg-amber-950/25 dark:text-amber-100">
-              A vistoria e a decisão só aparecem como concluídas quando houver
-              registro real no processo. O sistema não avança essas etapas
-              artificialmente.
+            <div className="mt-4 space-y-3">
+              {canRequestPayment && !financeStage ? (
+                <div
+                  data-habite-se-finance-handoff="true"
+                  className="rounded-2xl border border-sky-200 bg-sky-50/80 p-4 dark:border-sky-500/30 dark:bg-sky-950/25"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-700 text-white">
+                      <Wallet className="h-5 w-5" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-bold text-slate-950 dark:text-white">
+                        Vistoria concluída — seguir para o Financeiro
+                      </p>
+                      <p className="mt-1 text-xs leading-5 text-slate-600 dark:text-slate-300">
+                        O próximo passo oficial é o Financeiro emitir a Guia de Habite-se. O encaminhamento fica auditado e a emissão passa a aparecer na fila financeira da Prefeitura.
+                      </p>
+                      <Button
+                        type="button"
+                        className="mt-3 w-full rounded-xl bg-[linear-gradient(135deg,#075985_0%,#0284c7_100%)] font-bold !text-white hover:brightness-105 [&_*]:!text-white sm:w-auto"
+                        disabled={paymentRequestBusy}
+                        onClick={onRequestPayment}
+                      >
+                        <Wallet className="mr-2 h-4 w-4" />
+                        {paymentRequestBusy ? "Encaminhando..." : "Encaminhar ao Financeiro"}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4 text-sm leading-6 text-amber-950 dark:border-amber-500/30 dark:bg-amber-950/25 dark:text-amber-100">
+                Vistoria, Financeiro e decisão só aparecem como concluídos quando houver registro real no processo. O sistema não avança essas etapas artificialmente.
+              </div>
             </div>
           ) : null}
         </CardContent>
