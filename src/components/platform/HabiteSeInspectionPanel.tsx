@@ -585,14 +585,17 @@ export function HabiteSeInspectionPanel({
               {STATUS_META.map((option) => (
                 <span
                   key={`legend-${option.value}`}
+                  data-habite-se-inspection-legend-chip="true"
+                  data-status={option.value}
+                  data-contrast-surface="dark"
                   className={cn(
-                    "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-[10px] font-extrabold leading-none shadow-sm",
+                    "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-[10px] font-extrabold leading-none !text-white shadow-sm",
                     option.legendClasses,
                   )}
                 >
-                  <span>{option.short}</span>
-                  <span>=</span>
-                  <span>{option.label}</span>
+                  <span className="!text-white">{option.short}</span>
+                  <span className="!text-white">=</span>
+                  <span className="!text-white">{option.label}</span>
                 </span>
               ))}
             </div>
