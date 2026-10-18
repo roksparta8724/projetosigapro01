@@ -2035,6 +2035,13 @@ export function ProcessDetailPage() {
     documentWorkspaceWindowRef.current = openedTab;
     try {
       openedTab.opener = null;
+      try {
+        openedTab.document.documentElement.style.background = "#2b3037";
+        openedTab.document.body.style.margin = "0";
+        openedTab.document.body.style.background = "#2b3037";
+      } catch {
+        // A guia reservada pode negar escrita em alguns navegadores; seguimos sem tela intermediária.
+      }
       openedTab.blur();
       window.focus();
 
