@@ -22,6 +22,9 @@ describe("Habite-se independent workflow", () => {
   const inspectionClient = read("src/integrations/backend/habiteSeInspectionClient.ts");
   const databaseClient = read("src/integrations/backend/databaseClient.ts");
   const inspectionMigration = read("neon/migrations/20261018_habite_se_inspection_evidence.sql");
+  const inspectionOwnershipMigration = read("neon/migrations/20261018_habite_se_autofill_and_checklist_ownership.sql");
+  const permitClient = read("src/integrations/permits/habiteSePermitClient.ts");
+  const backend = read("src/integrations/backend/platformImpl.ts");
   const completionMigration = read("neon/migrations/20261018_habite_se_completion_workflow.sql");
   const permitPanel = read("src/components/platform/HabiteSePermitPanel.tsx");
   const permitPdf = read("src/lib/habiteSePermitPdf.ts");
@@ -172,13 +175,28 @@ describe("Habite-se independent workflow", () => {
     expect(inspectionPanel).toContain('[item.key]: selected ? "" : option.value');
   });
 
-  it("locks the inspection term after the process leaves Fiscalização", () => {
-    expect(inspectionMigration).toContain("'analista'");
-    expect(inspectionMigration).toContain("'prefeitura_supervisor'");
-    expect(inspectionMigration).toContain("'setor_intersetorial'");
-    expect(inspectionMigration).toContain("_folder ~ '(fiscal|vistoria|inspec|conferencia)'");
-    expect(inspectionMigration).not.toContain("fiscal|vistoria|inspec|conferencia|financ|decis|emiss");
+  it("restricts Habite-se checklist editing to the current assigned analyst or the Directorate", () => {
+    expect(inspectionOwnershipMigration).toContain("analysis_assigned_to_profile_id=_profile_id");
+    expect(inspectionOwnershipMigration).toContain("_role='prefeitura_supervisor'");
+    expect(inspectionOwnershipMigration).toContain("return false;");
+    expect(inspectionOwnershipMigration).toContain("Somente o Analista responsável atual ou a Diretoria");
     expect(inspectionPanel).toContain("const readOnly = externalView || !canManage");
+    expect(inspectionPanel).toContain('data-habite-se-inspection-ownership="true"');
+    expect(inspectionPanel).toContain("o Analista anterior perde a edição");
+    expect(inspectionPanel).toContain("Salvar retificação do checklist");
+  });
+
+  it("auto-fills the Habite-se Alvara from the official protocol payload and inspection", () => {
+    expect(backend).toContain("process.preprotocol_payload.notes");
+    expect(inspectionOwnershipMigration).toContain("modalidadeHabiteSe");
+    expect(inspectionOwnershipMigration).toContain("processoAprovacao");
+    expect(inspectionOwnershipMigration).toContain("numeroAlvara");
+    expect(inspectionOwnershipMigration).toContain("dataConclusaoObra");
+    expect(inspectionOwnershipMigration).toContain("Sem ressalvas registradas.");
+    expect(permitClient).toContain("defaults: mapForm(raw.defaults)");
+    expect(permitPanel).toContain("mergeAutomaticPermitForm");
+    expect(permitPanel).toContain("Dados recuperados automaticamente do processo");
+    expect(permitPanel).toContain("Preenchimento automático");
   });
 
   it("surfaces Habite-se requests to the Financeiro before the guide exists", () => {
