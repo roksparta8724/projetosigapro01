@@ -72,7 +72,11 @@ export function MunicipalProcessRegistryPage() {
   const municipalityProcesses = useMemo(
     () =>
       allProcesses
-        .filter((process) => matchesOperationalScope(effectiveScopeId, process))
+        .filter(
+          (process) =>
+            process.isOfficial !== false &&
+            matchesOperationalScope(effectiveScopeId, process),
+        )
         .sort((a, b) => {
           const aDate = Date.parse(a.timeline?.[0]?.at || a.analysis?.startedAt || "1970-01-01");
           const bDate = Date.parse(b.timeline?.[0]?.at || b.analysis?.startedAt || "1970-01-01");
