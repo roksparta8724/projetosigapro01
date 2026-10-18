@@ -853,6 +853,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
     authenticatedMunicipalityId,
     authenticatedRole,
     authenticatedUserId,
+    authenticatedProfileId,
     loading: authLoading,
   } = useAuthGateway();
   const initialStateRef = useRef<ReturnType<typeof getInitialPlatformStoreState> | null>(null);
@@ -874,17 +875,30 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
   const expectsRemoteStore = Boolean(hasBackendEnv && (!localDev || allowRemoteInLocal));
 
   useEffect(() => {
-    if (!authenticatedUserId) return;
+    const warmIdentity = authenticatedProfileId || authenticatedUserId;
+    if (!warmIdentity) return;
 
     const hasVisibleData =
       store.sessionUsers.length > 0 ||
       store.tenants.length > 0 ||
       store.processes.length > 0;
 
-    if (hasVisibleData) {
-      syncWarmPlatformStore(store, authenticatedUserId);
+    // Nunca grave o store da conta anterior no cache da conta que acabou de
+    // autenticar. Só aquece o cache depois que o bootstrap remoto confirmou
+    // que o contexto pertence ao usuário atual.
+    const contextConfirmed =
+      !expectsRemoteStore || remoteContextUserId === authenticatedUserId;
+
+    if (hasVisibleData && contextConfirmed) {
+      syncWarmPlatformStore(store, warmIdentity);
     }
-  }, [authenticatedUserId, store]);
+  }, [
+    authenticatedProfileId,
+    authenticatedUserId,
+    expectsRemoteStore,
+    remoteContextUserId,
+    store,
+  ]);
 
   useEffect(() => {
     if (
@@ -895,14 +909,18 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
       return;
     }
 
-    // Marcadores são preferências pessoais. Ao trocar de conta, nunca preserve
-    // nem por um frame os marcadores carregados do usuário anterior enquanto o
-    // store remoto da nova sessão é revalidado.
+    // Troca de conta é uma fronteira de segurança. Não reutilize processos,
+    // rascunhos operacionais, vínculos ou marcadores do usuário anterior nem
+    // por um frame. O shell/branding permanece estável enquanto o store da
+    // nova conta é carregado.
+    setLoading(true);
+    setDataError(null);
     setStore((current) => ({
       ...current,
-      processes: current.processes.map((process) =>
-        process.tags?.length ? { ...process, tags: [] } : process,
-      ),
+      processes: [],
+      ownerRequests: [],
+      ownerLinks: [],
+      ownerMessages: [],
     }));
   }, [authenticatedUserId, remoteContextUserId]);
 
@@ -964,9 +982,9 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         return;
       }
 
-      // Mantém a UI com o último estado visual válido, mas nunca carrega
-      // um erro da conta anterior para a autenticação atual.
-      setLoading(false);
+      // Revalidação real da conta atual. Mantém apenas o shell visual;
+      // dados operacionais da sessão anterior já foram isolados acima.
+      setLoading(true);
       if (lastFetchedUserId.current !== authenticatedUserId) {
         setDataError(null);
       }
