@@ -4552,6 +4552,7 @@ export function ProcessDetailPage() {
                                 <div className="flex min-w-0 items-start gap-3">
                                   <span
                                     data-organogram-code="true"
+                                    style={{ color: "#ffffff", WebkitTextFillColor: "#ffffff" }}
                                     className={`inline-flex h-9 min-w-[48px] shrink-0 items-center justify-center rounded-xl border px-2 text-[10px] font-black tracking-[0.10em] shadow-sm ${
                                       selected
                                         ? "border-white/20 bg-white/15 !text-white"
