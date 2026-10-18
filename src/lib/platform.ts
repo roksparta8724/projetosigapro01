@@ -2662,7 +2662,7 @@ export function isProcessOwnedBySessionDepartment(session: SessionUser, process:
     return userDepartment === "analise";
   }
 
-  const issuedIssGuide = process.payment.guides?.find(
+  const issuedIssGuide = process.payment?.guides?.find(
     (guide) => guide.kind === "iss_obra" && guide.status !== "compensada",
   );
   const holdsPrivateIssInAnalysis =
