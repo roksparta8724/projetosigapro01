@@ -3324,6 +3324,25 @@ export async function endRemoteAnalysisSupervisorIntervention(processId: string)
   return data;
 }
 
+export async function assignRemoteProcessAnalysis(input: {
+  processId: string;
+  targetProfileId: string;
+}) {
+  if (!db) throw new Error("Conexão com o banco indisponível.");
+  const { data, error } = await db.rpc("assign_process_analysis", {
+    _process_id: input.processId,
+    _target_profile_id: input.targetProfileId,
+  });
+  if (error) throw new Error(error.message || "Não foi possível distribuir a análise.");
+  return data as {
+    process_id: string;
+    assigned_profile_id: string;
+    assigned_to: string;
+    status: string;
+    existing?: boolean;
+  };
+}
+
 export async function reassignRemoteProcessAnalysis(input: {
   processId: string;
   targetProfileId: string;
