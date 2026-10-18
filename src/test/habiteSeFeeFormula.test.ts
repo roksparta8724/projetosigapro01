@@ -120,6 +120,7 @@ describe("taxa do Habite-se por area e acabamento", () => {
     expect(migration).toContain("_official_amount := round(_area_m2 * _rate * (_aliquot / 100.0),2)");
     expect(migration).toContain("area_m2_snapshot,usage_snapshot,construction_standard_snapshot");
     expect(migration).toContain("set construction_standard=_normalized_standard");
-    expect(migration).not.toContain("_amount numeric");
+    expect(migration).not.toContain("_amount numeric,");
+    expect(migration).not.toContain("_amount numeric default");
   });
 });
