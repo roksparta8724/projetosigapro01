@@ -89,13 +89,14 @@ function formatDate(value?: string) {
 
 function guideResponsibility(kind: PaymentGuideKind) {
   if (kind === "protocolo") return "Baixa operacional: Protocolo";
-  if (kind === "iss_obra") return "Controle e baixa: Financeiro";
+  if (kind === "habite_se") return "Emissão e baixa: Financeiro";
   return "Controle e baixa: Financeiro";
 }
 
 function guideKindLabel(kind: PaymentGuideKind) {
   if (kind === "protocolo") return "Taxa de protocolo";
   if (kind === "iss_obra") return "ISSQN / Projeto";
+  if (kind === "habite_se") return "Habite-se";
   return "Aprovação / Alvará";
 }
 
