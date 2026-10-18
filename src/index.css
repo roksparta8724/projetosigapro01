@@ -10819,3 +10819,90 @@ html body #root .sig-main-shell .sig-process-detail-premium
 }
 /* ===== END DISPATCH ORGANOGRAM PREMIUM CONTRAST V13 ===== */
 
+/* ===== DISPATCH ORGANOGRAM SEMANTIC CONTRAST V14 — 2026-10-18 =====
+   Dispatch-only contract: light cards use dark copy; the selected blue card
+   is declared a dark contrast surface and therefore uses light copy/icons. */
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-dispatch-organogram="true"]
+.sig-dispatch-destination-card[data-selected="false"] {
+  background:#ffffff !important;
+  border-color:#d6e2ec !important;
+  color:#0f172a !important;
+  -webkit-text-fill-color:#0f172a !important;
+}
+
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-dispatch-organogram="true"]
+.sig-dispatch-destination-card[data-selected="false"] .sig-dispatch-title {
+  color:#0f172a !important;
+  -webkit-text-fill-color:#0f172a !important;
+}
+
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-dispatch-organogram="true"]
+.sig-dispatch-destination-card[data-selected="false"] .sig-dispatch-path {
+  color:#64748b !important;
+  -webkit-text-fill-color:#64748b !important;
+}
+
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-dispatch-organogram="true"]
+.sig-dispatch-destination-card[data-selected="false"] > div > svg {
+  color:#334155 !important;
+  stroke:#334155 !important;
+}
+
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-dispatch-organogram="true"]
+.sig-dispatch-destination-card[data-selected="true"][data-contrast-surface="dark"] {
+  background:linear-gradient(135deg,#075c86 0%,#087ba6 52%,#0893bc 100%) !important;
+  border-color:#55c7e8 !important;
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+}
+
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-dispatch-organogram="true"]
+.sig-dispatch-destination-card[data-selected="true"][data-contrast-surface="dark"]
+:is(.sig-dispatch-title,.sig-dispatch-code-text,.sig-dispatch-selected-label) {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  opacity:1 !important;
+}
+
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-dispatch-organogram="true"]
+.sig-dispatch-destination-card[data-selected="true"][data-contrast-surface="dark"]
+.sig-dispatch-path {
+  color:#e7f7ff !important;
+  -webkit-text-fill-color:#e7f7ff !important;
+  opacity:1 !important;
+}
+
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-dispatch-organogram="true"]
+.sig-dispatch-destination-card[data-selected="true"][data-contrast-surface="dark"]
+:is(.sig-dispatch-selected-icon,.sig-dispatch-selected-icon svg,.sig-dispatch-selected-icon svg *) {
+  color:#ffffff !important;
+  stroke:#ffffff !important;
+  opacity:1 !important;
+}
+
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-dispatch-organogram="true"] .sig-dispatch-code-badge[data-contrast-surface="dark"] {
+  background:linear-gradient(135deg,#075985 0%,#0b7aa4 100%) !important;
+  border-color:rgba(125,211,252,.68) !important;
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+}
+
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-dispatch-organogram="true"] .sig-dispatch-code-badge[data-contrast-surface="dark"]
+.sig-dispatch-code-text {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  opacity:1 !important;
+  text-shadow:none !important;
+}
+/* ===== END DISPATCH ORGANOGRAM SEMANTIC CONTRAST V14 ===== */
+
