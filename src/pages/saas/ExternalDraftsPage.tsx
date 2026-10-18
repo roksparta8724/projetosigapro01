@@ -63,16 +63,21 @@ export function ExternalDraftsPage() {
             </Link>
           </Button>
           <Button asChild data-control-subnav-active="true" className="rounded-xl bg-slate-950 !text-white hover:bg-slate-900 [&_*]:!text-white">
-            <Link to="/externo/controle/rascunhos">
+            <Link to="/externo/controle/em-andamento">
               <FilePenLine className="mr-2 h-4 w-4" />
-              Rascunhos
+              Em andamento
+              {drafts.length > 0 ? (
+                <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-300 px-1.5 text-[10px] font-black !text-slate-950">
+                  {drafts.length}
+                </span>
+              ) : null}
             </Link>
           </Button>
         </div>
 
         <SectionPanel
-          title="Rascunhos separados por serviço"
-          description="Projeto continua em Protocolar Projeto; Habite-se continua exclusivamente no fluxo próprio de Habite-se."
+          title="Processos em andamento"
+          description="Continue exatamente de onde parou. Projeto e Habite-se permanecem separados e cada rascunho retorna ao fluxo correto."
           contentClassName="space-y-4"
         >
           {drafts.length === 0 ? (
@@ -81,10 +86,10 @@ export function ExternalDraftsPage() {
                 <FilePenLine className="h-5 w-5" />
               </div>
               <p className="mt-4 text-base font-semibold text-slate-900 dark:text-white">
-                Nenhum rascunho salvo
+                Nenhum processo em andamento
               </p>
               <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-slate-600 dark:text-slate-300">
-                Inicie um novo protocolo e use “Salvar rascunho” quando quiser continuar em outro momento.
+                Quando você salvar um protocolo antes de concluir, ele aparecerá aqui para continuar depois sem perder os dados.
               </p>
               <Button asChild data-draft-dark-action="true" className="mt-5 rounded-full bg-slate-950 !text-white hover:bg-slate-900 [&_*]:!text-white">
                 <Link to="/externo/protocolar">Criar novo protocolo</Link>
