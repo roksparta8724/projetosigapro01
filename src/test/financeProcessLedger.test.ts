@@ -85,14 +85,21 @@ describe("finance process accounting ledger", () => {
     expect(detail).toContain("visiblePaymentGuides.find((guide) => guide.code === guideCode)");
   });
 
-  it("shows every emitted guide in an ordered grid while preserving protocol responsibility", () => {
+  it("shows every emitted guide in official process order while preserving protocol responsibility", () => {
     expect(desk).toContain("issuedGuideRows");
     expect(desk).toContain("[...controlGuides].sort");
+    expect(desk).toContain("getOfficialProcessSequence");
+    expect(desk).toContain("getPaymentGuideDisplayReference");
+    expect(desk).toContain("bSequence.number - aSequence.number");
     expect(desk).toContain("bIssued - aIssued");
-    expect(desk).toContain("lg:grid-cols-[42px_minmax(190px,1.15fr)_minmax(170px,1fr)_110px_110px_minmax(170px,1fr)_100px_34px]");
+    expect(desk).toContain("lg:grid-cols-[54px_minmax(220px,1.2fr)_minmax(170px,1fr)_110px_110px_minmax(170px,1fr)_100px_34px]");
+    expect(desk).toContain("Ordem oficial dos processos");
+    expect(desk).toContain("Pré-protocolos ainda não pagos aparecem como PRE");
+    expect(desk).toContain("Guia paga no pré-protocolo:");
     expect(desk).toContain("Baixa operacional: Protocolo");
     expect(desk).toContain("Controle: Financeiro");
     expect(desk).toContain('title="Guias emitidas"');
     expect(desk).not.toContain("guidesByIssueDate");
+    expect(desk).not.toContain('String(index + 1).padStart(2, "0")');
   });
 });
