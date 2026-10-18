@@ -48,12 +48,10 @@ describe("external process control and personal markers", () => {
     expect(markerMigration).not.toContain("insert into public.process_audit_entries");
   });
 
-  it("removes stale personal markers immediately when switching accounts", () => {
-    expect(platformData).toContain(
-      "Marcadores são preferências pessoais. Ao trocar de conta",
-    );
-    expect(platformData).toContain(
-      "process.tags?.length ? { ...process, tags: [] } : process",
-    );
+  it("keeps personal markers isolated by the authenticated profile", () => {
+    expect(platformData).toContain("addProcessMarker");
+    expect(platformData).toContain("removeProcessMarker");
+    expect(markerMigration).toContain("created_by_profile_id=public.current_profile_id()");
+    expect(markerMigration).toContain("process_markers_select_own");
   });
 });
