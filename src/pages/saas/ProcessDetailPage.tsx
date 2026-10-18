@@ -3830,6 +3830,20 @@ export function ProcessDetailPage() {
                 session={session}
                 externalView={isExternalProcessViewer}
                 municipalityName={municipalityName || tenant?.name || "Prefeitura Municipal"}
+                municipalityLogoUrl={
+                  tenantSettings?.brasaoUrl ||
+                  tenantSettings?.headerLogoUrl ||
+                  tenantSettings?.logoUrl ||
+                  ""
+                }
+                municipalityAddress={tenantSettings?.endereco || ""}
+                municipalityPhone={tenantSettings?.telefone || ""}
+                municipalityEmail={tenantSettings?.email || ""}
+                secretariat={tenantSettings?.secretariaResponsavel}
+                directorate={
+                  tenantSettings?.diretoriaResponsavel ||
+                  "Divisão de Análise e Aprovação de Projetos - DAAP"
+                }
                 dataReady={
                   dataReadyForCurrentUser &&
                   !platformDataLoading &&
