@@ -33,17 +33,11 @@ function extractNoteValue(notes: string | undefined, label: string) {
 export function OccupancyPermitProcessPanel({
   process,
   externalView = false,
-  canRequestPayment = false,
-  paymentRequestBusy = false,
-  onRequestPayment,
   session,
   onProcessRefresh,
 }: {
   process: ProcessRecord;
   externalView?: boolean;
-  canRequestPayment?: boolean;
-  paymentRequestBusy?: boolean;
-  onRequestPayment?: () => void;
   session: SessionUser;
   onProcessRefresh?: () => Promise<void> | void;
 }) {
@@ -303,31 +297,22 @@ export function OccupancyPermitProcessPanel({
 
           {!externalView ? (
             <div className="mt-4 space-y-3">
-              {canRequestPayment && !financeStage ? (
+              {inspectionStage && !financeStage ? (
                 <div
-                  data-habite-se-finance-handoff="true"
+                  data-habite-se-inspection-gate="true"
                   className="rounded-2xl border border-sky-200 bg-sky-50/80 p-4 dark:border-sky-500/30 dark:bg-sky-950/25"
                 >
                   <div className="flex items-start gap-3">
                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-700 text-white">
-                      <Wallet className="h-5 w-5" />
+                      <ClipboardCheck className="h-5 w-5" />
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-bold text-slate-950 dark:text-white">
-                        Vistoria concluída — seguir para o Financeiro
+                        Vistoria / conferência em andamento
                       </p>
                       <p className="mt-1 text-xs leading-5 text-slate-600 dark:text-slate-300">
-                        O próximo passo oficial é o Financeiro emitir a Guia de Habite-se. O encaminhamento fica auditado e a emissão passa a aparecer na fila financeira da Prefeitura.
+                        O encaminhamento ao Financeiro ocorre somente pela conclusão do Termo de Vistoria abaixo. Assim o processo não avança sem checklist, identificação do fiscal e evidências registradas.
                       </p>
-                      <Button
-                        type="button"
-                        className="mt-3 w-full rounded-xl bg-[linear-gradient(135deg,#075985_0%,#0284c7_100%)] font-bold !text-white hover:brightness-105 [&_*]:!text-white sm:w-auto"
-                        disabled={paymentRequestBusy}
-                        onClick={onRequestPayment}
-                      >
-                        <Wallet className="mr-2 h-4 w-4" />
-                        {paymentRequestBusy ? "Encaminhando..." : "Encaminhar ao Financeiro"}
-                      </Button>
                     </div>
                   </div>
                 </div>
