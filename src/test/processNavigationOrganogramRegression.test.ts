@@ -39,6 +39,12 @@ describe("process entry and organogram regression", () => {
     expect(processDetail).toContain('data-organogram-destination-title="true"');
     expect(processDetail).toContain('data-organogram-destination-path="true"');
     expect(processDetail).toContain("function currentLocalDateValue");
+    expect(processDetail).toContain("now.getFullYear()");
+    expect(processDetail).toContain("now.getMonth() + 1");
+    expect(processDetail).toContain("now.getDate()");
+    expect(processDetail.indexOf("function currentLocalDateValue")).toBeLessThan(
+      processDetail.indexOf("export function ProcessDetailPage"),
+    );
     expect(processDetail).toContain('useState(() => currentLocalDateValue())');
     expect(processDetail).toContain('aria-label="Data do encaminhamento"');
     expect(processDetail).toContain("setDispatchDueDate(currentLocalDateValue())");
