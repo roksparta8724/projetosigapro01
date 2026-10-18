@@ -182,7 +182,7 @@ declare
   _folder text;
 begin
   if not public.can_manage_habite_se_inspection_v1(_process_id) then
-    raise exception 'Somente a Fiscalização responsável pode registrar a vistoria do Habite-se.';
+    raise exception 'Somente servidor municipal autorizado pode registrar a vistoria do Habite-se.';
   end if;
 
   select * into _process from public.processes where id=_process_id for update;
@@ -355,7 +355,7 @@ declare
   _finance jsonb := '{}'::jsonb;
 begin
   if not public.can_manage_habite_se_inspection_v1(_process_id) then
-    raise exception 'Somente a Fiscalização responsável pode concluir a vistoria do Habite-se.';
+    raise exception 'Somente servidor municipal autorizado pode concluir a vistoria do Habite-se.';
   end if;
 
   if _result_normalized not in ('conforme','pendencias') then
