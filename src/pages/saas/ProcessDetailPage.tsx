@@ -871,9 +871,23 @@ export function ProcessDetailPage() {
             expiresIn: 21600,
           });
           if (cancelled || !url) return;
+          setDocumentAccessUrls((current) =>
+            current[document.id] === url
+              ? current
+              : { ...current, [document.id]: url },
+          );
           cacheDocumentWorkspaceAccessUrl(process.id, document.id, url);
-        } catch {
-          // Pré-aquecimento silencioso: a rota dedicada possui fallback próprio.
+        } catch (error) {
+          if (!cancelled) {
+            setDocumentAccessErrors((current) => ({
+              ...current,
+              [document.id]:
+                error instanceof Error
+                  ? error.message
+                  : "Não foi possível preparar o acesso seguro ao documento.",
+            }));
+          }
+          // A rota dedicada ainda possui fallback próprio.
         }
       }),
     );
@@ -2047,6 +2061,18 @@ export function ProcessDetailPage() {
 
     setOpeningDocumentId(documentId);
     setProcessActionStatus("");
+
+    const warmedAccessUrl =
+      documentAccessUrls[selectedDocument.id] ||
+      selectedDocument.previewUrl ||
+      "";
+    if (warmedAccessUrl) {
+      cacheDocumentWorkspaceAccessUrl(
+        process.id,
+        selectedDocument.id,
+        warmedAccessUrl,
+      );
+    }
 
     // Abre diretamente a rota real da mesa documental. Não existe mais
     // about:blank, shell, skeleton ou página de preparação entre o clique e o PDF.
