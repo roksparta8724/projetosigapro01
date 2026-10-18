@@ -44,7 +44,10 @@ describe("ExternalProcessControlPage", () => {
     );
 
     expect(screen.getAllByText("Controle de processos").length).toBeGreaterThan(0);
-    expect(screen.getByText("Em andamento")).toBeInTheDocument();
+    expect(screen.getAllByText("Em andamento").length).toBeGreaterThanOrEqual(2);
+    expect(
+      screen.getByRole("link", { name: /Em andamento/i }),
+    ).toHaveAttribute("href", "/externo/controle/em-andamento");
     expect(screen.getByText("Com exigências")).toBeInTheDocument();
     expect(screen.getByText("Aguardando pagamento")).toBeInTheDocument();
     expect(screen.getByText("Concluídos")).toBeInTheDocument();
