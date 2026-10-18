@@ -132,7 +132,7 @@ export function FinanceProtocolsPage() {
 
   // O Financeiro enxerga todos os protocolos ativos do município.
   // A responsabilidade operacional de cada guia continua respeitada:
-  // a taxa inicial pertence ao Protocolo; ISSQN e aprovação/Alvará pertencem ao Financeiro.
+  // a taxa inicial pertence ao Protocolo; ISSQN, Habite-se e aprovação/Alvará pertencem ao Financeiro.
   const scopedProcesses = useMemo(
     () =>
       allProcesses.filter((process) =>
