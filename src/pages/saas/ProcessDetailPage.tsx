@@ -774,6 +774,16 @@ export function ProcessDetailPage() {
     session.role !== "prefeitura_admin" &&
     (isInternalRole(session.role) || session.role === "profissional_externo" || session.role === "proprietario_consulta");
 
+  const recoverableDocumentsFingerprint = process.documents
+    .map((document) =>
+      [
+        document.id,
+        document.uploaded ? "1" : "0",
+        document.filePath || "",
+      ].join(":"),
+    )
+    .join("|");
+
   useEffect(() => {
     let cancelled = false;
 
@@ -824,7 +834,12 @@ export function ProcessDetailPage() {
     return () => {
       cancelled = true;
     };
-  }, [activeTab, canRecoverStoredDocuments, process]);
+  }, [
+    activeTab,
+    canRecoverStoredDocuments,
+    process.id,
+    recoverableDocumentsFingerprint,
+  ]);
 
   // A listagem do processo não carrega PDFs/imagens reais em segundo plano.
   // O acesso assinado é gerado somente na rota dedicada de visualização/análise.
