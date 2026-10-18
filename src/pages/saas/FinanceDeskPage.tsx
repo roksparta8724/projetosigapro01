@@ -859,6 +859,9 @@ export function FinanceDeskPage() {
                         isProtocolGuide &&
                         Boolean(guide.officialProcessReference) &&
                         guide.officialProcessReference !== guide.code;
+                      const processDisplayLabel = sequence
+                        ? formatOfficialProcessNumber(process.protocol)
+                        : `Pré-protocolo ${process.preProtocol || process.protocol}`;
 
                       return (
                         <Link
@@ -913,7 +916,7 @@ export function FinanceDeskPage() {
                             ) : null}
 
                             <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-slate-500 dark:text-slate-400 lg:hidden">
-                              <span>{formatOfficialProcessNumber(process.protocol)}</span>
+                              <span>{processDisplayLabel}</span>
                               <span>Emissão: {issuedLabel}</span>
                               <span>Venc.: {guide.dueDate || "Não informado"}</span>
                               <span>{formatCurrency(guide.amount)}</span>
@@ -922,7 +925,7 @@ export function FinanceDeskPage() {
 
                           <div className="hidden min-w-0 lg:block">
                             <p className="truncate text-xs font-bold text-slate-800 dark:text-slate-100">
-                              {formatOfficialProcessNumber(process.protocol)}
+                              {processDisplayLabel}
                             </p>
                             <p className="mt-0.5 truncate text-[10px] text-slate-500 dark:text-slate-400" title={process.ownerName}>
                               {process.ownerName}
