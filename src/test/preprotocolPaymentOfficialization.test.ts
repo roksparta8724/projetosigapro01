@@ -14,6 +14,9 @@ const hardeningMigration = read(
 const queueMigration = read(
   "neon/migrations/20261018_preprotocol_protocol_desk.sql",
 );
+const sharedSequenceMigration = read(
+  "neon/migrations/20261018_habite_se_shared_protocol_sequence_guard.sql",
+);
 const notificationMigration = read(
   "neon/migrations/20261018_preprotocol_external_payment_notification.sql",
 );
@@ -23,6 +26,8 @@ const controlPage = read("src/pages/saas/ExternalProcessControlPage.tsx");
 const historyPage = read("src/pages/saas/ExternalHistoryPage.tsx");
 const dashboardPage = read("src/pages/saas/ExternalPortalPage.tsx");
 const protocolDesk = read("src/pages/saas/ProtocolDeskPage.tsx");
+const municipalRegistry = read("src/pages/saas/MunicipalProcessRegistryPage.tsx");
+const dashboardHome = read("src/pages/saas/DashboardHomePage.tsx");
 const platformImpl = read("src/integrations/backend/platformImpl.ts");
 
 describe("payment-first pre-protocol officialization", () => {
@@ -46,6 +51,35 @@ describe("payment-first pre-protocol officialization", () => {
     expect(lifecycleMigration).toContain(
       "officialized_by_payment_guide_id",
     );
+  });
+
+  it("shares the same official PM sequence between project and Habite-se only after payment", () => {
+    expect(sharedSequenceMigration).toContain(
+      "Habite-se usa a MESMA sequencia oficial dos demais protocolos",
+    );
+    expect(sharedSequenceMigration).toContain(
+      "alter column officialized_at drop default",
+    );
+    expect(sharedSequenceMigration).toContain(
+      "next_tenant_preprotocol_number",
+    );
+    expect(sharedSequenceMigration).toContain(
+      "next_tenant_protocol_number",
+    );
+    expect(sharedSequenceMigration).toContain(
+      "Este contador so e consumido depois do pagamento",
+    );
+    expect(sharedSequenceMigration).toContain(
+      "O processo municipal so pode ser criado depois da confirmacao do pagamento",
+    );
+  });
+
+  it("keeps unpaid Habite-se out of Prefeitura dashboards and the municipal process registry", () => {
+    expect(municipalRegistry).toContain("process.isOfficial !== false");
+    expect(dashboardHome).toContain(
+      "processes.filter((process) => process.isOfficial !== false)",
+    );
+    expect(dashboardHome).toContain("officialProcesses");
   });
 
   it("keeps provisional submissions out of municipal process access and notifications", () => {
