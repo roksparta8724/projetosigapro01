@@ -65,6 +65,22 @@ describe("analysis ownership and director supervision", () => {
   });
 
 
+  it("transfers edit authority immediately when the Directorate reassigns the analysis", () => {
+    const reassignedProcess = {
+      ...ownedProcess,
+      analysis: {
+        ...ownedProcess.analysis,
+        assignedTo: analystB.name,
+        assignedProfileId: analystB.id,
+      },
+    } as ProcessRecord;
+
+    expect(canAnalyzeProcessDocument(analystA, reassignedProcess, municipalityId)).toBe(false);
+    expect(canAnalyzeProcessDocument(analystB, reassignedProcess, municipalityId)).toBe(true);
+    expect(canEditAssignedAnalysisArtifact(analystA, reassignedProcess, municipalityId)).toBe(false);
+    expect(canEditAssignedAnalysisArtifact(analystB, reassignedProcess, municipalityId)).toBe(true);
+  });
+
   it("lets only the originally assigned analyst rectify the Habite-se analysis after the workflow advances", () => {
     const habiteSePermitStageProcess = {
       ...ownedProcess,
