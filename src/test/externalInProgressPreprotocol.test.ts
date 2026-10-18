@@ -18,14 +18,14 @@ describe("external in-progress preprotocols", () => {
     expect(draftsPage).toContain('process.isOfficial === false');
     expect(draftsPage).toContain('data-external-in-progress-preprotocol="true"');
     expect(draftsPage).toContain("Aguardando pagamento");
-    expect(draftsPage).toContain("Pagar e continuar");
+    expect(draftsPage).toContain("Ver guia e pagar");
     expect(draftsPage).toContain("/externo/pagamentos?preprotocolo=");
   });
 
   it("shows the reserved municipal sequence without pretending the unpaid item is official", () => {
-    expect(draftsPage).toContain("Sequência municipal reservada");
-    expect(draftsPage).toContain("Após a compensação, este mesmo número será oficializado");
-    expect(draftsPage).toContain("reservedOfficialProtocol");
+    expect(draftsPage).toContain("Referência temporária:");
+    expect(draftsPage).toContain("Ainda não existe número de processo municipal");
+    expect(draftsPage).toContain("a numeração oficial será gerada automaticamente somente após a compensação");
     expect(sequenceMigration).toContain("return 'PRE-'||_official_reserved");
     expect(sequenceMigration).toContain("reserved_sequence");
   });
