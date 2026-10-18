@@ -3715,6 +3715,9 @@ export function ProcessDetailPage() {
               <OccupancyPermitProcessPanel
                 process={process}
                 externalView={isExternalProcessViewer}
+                canRequestPayment={canRequestHabiteSeFinance}
+                paymentRequestBusy={processActionBusy === "request-habite-se-finance"}
+                onRequestPayment={() => void handleRequestHabiteSeFinance()}
               />
             ) : (
             <>
