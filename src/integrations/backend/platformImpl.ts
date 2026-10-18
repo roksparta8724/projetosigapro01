@@ -1618,6 +1618,9 @@ export async function loadRemotePlatformStore() {
                     ? "Guia de Pagamento - Aprovação / Alvará"
                     : "Guia de Recolhimento de Protocolo",
             code: String(guide.guide_number ?? ""),
+            officialProcessReference: guide.official_process_reference
+              ? String(guide.official_process_reference)
+              : undefined,
             amount: Number(guide.amount ?? 0),
             status:
               guide.status === "compensada" ||
