@@ -46,7 +46,7 @@ declare
   _profile_municipality uuid;
 begin
   if public.is_master() then return true; end if;
-  if _profile_id is null or _role not in ('analista','analyst','prefeitura_supervisor') then
+  if _profile_id is null or _role not in ('analista','analyst') then
     return false;
   end if;
 
@@ -233,6 +233,8 @@ begin
     and b.artifact_type='habite_se_permit'
     and b.artifact_key='habite-se-permit'
     and b.status='concluido'
+    and b.artifact_payload->>'permitNumber'=_permit.permit_number
+    and coalesce(b.artifact_payload->'formData','{}'::jsonb)=coalesce(_permit.form_data,'{}'::jsonb)
     and exists(
       select 1 from public.signatures s
       where s.signature_block_id=b.id
@@ -318,6 +320,8 @@ begin
     and b.artifact_type='habite_se_permit'
     and b.artifact_key='habite-se-permit'
     and b.status='concluido'
+    and b.artifact_payload->>'permitNumber'=_permit.permit_number
+    and coalesce(b.artifact_payload->'formData','{}'::jsonb)=coalesce(_permit.form_data,'{}'::jsonb)
     and exists(
       select 1 from public.signatures s
       where s.signature_block_id=b.id
