@@ -28,4 +28,12 @@ describe("guide opening experience", () => {
     expect(processPage).not.toContain("showGuiaRecolhimentoError");
     expect(processPage).not.toContain("reserveGuiaRecolhimentoWindow");
   });
+
+  it("prints the DAM at a controlled A4 visual scale instead of oversized content", () => {
+    const guide = read("src/components/GuiaRecolhimentoOficial.tsx");
+
+    expect(guide).toContain(".dam-root {");
+    expect(guide).toContain("zoom: 0.94;");
+    expect(guide).toContain("@media print");
+  });
 });
