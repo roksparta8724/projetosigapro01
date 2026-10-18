@@ -6,6 +6,7 @@ on:
       - main
       - neon-first-migration-20261008
       - workbench-sigapro-polish-no-deploy-20261009
+      - workbench/logo-preview-premium-no-deploy-20261016
   pull_request:
     branches:
       - main
