@@ -25,6 +25,9 @@ describe("pre-protocol draft state protection", () => {
     expect(migration).toContain("_existing_payload");
     expect(migration).toContain("_merged_draft_form");
     expect(migration).toContain("_merged_payload");
+    expect(migration).toContain("_incoming_payload");
+    expect(migration).toContain("_incoming_draft_form");
+    expect(migration).toContain("value <> '\"\"'::jsonb");
     expect(migration).toContain(
       "Só toca nos documentos quando o cliente enviou explicitamente o snapshot",
     );
@@ -46,6 +49,9 @@ describe("pre-protocol draft state protection", () => {
     expect(migration).toContain("new.amount is distinct from old.amount");
     expect(migration).toContain("new.due_date is distinct from old.due_date");
     expect(migration).toContain("new.created_at is distinct from old.created_at");
+    expect(migration).not.toContain(
+      "area_m2=coalesce(nullif(_merged_payload->>'area','')::numeric,area_m2),\n      updated_at=clock_timestamp()",
+    );
     expect(platformImpl).toContain("issuedAt: guide.created_at ?? undefined");
     expect(platformImpl).not.toContain(
       "issuedAt: guide.last_reissued_at ?? guide.created_at",
@@ -60,5 +66,6 @@ describe("pre-protocol draft state protection", () => {
     expect(migration).toContain("insert into public.payment_guides");
     expect(migration).toContain("previous_guide");
     expect(migration).toContain("new_guide");
+    expect(migration).toContain("_base_number||'-R'||_next_revision::text");
   });
 });
