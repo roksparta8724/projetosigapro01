@@ -84,6 +84,13 @@ function officialMunicipalityLabel(value: string | null | undefined) {
   return label ? "Prefeitura de " + label : "Prefeitura municipal";
 }
 
+function currentLocalDateValue(now = new Date()) {
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 function formatBytes(bytes: number) {
   if (!Number.isFinite(bytes) || bytes <= 0) return "tamanho não informado";
   if (bytes < 1024) return `${bytes} B`;
