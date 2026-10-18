@@ -30,7 +30,9 @@ export function ExternalHistoryPage() {
   const { processes: allProcesses } = usePlatformData();
   const { municipality, scopeId } = useMunicipality();
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
-  const processes = getVisibleProcessesByScope(session, effectiveScopeId, allProcesses);
+  const processes = getVisibleProcessesByScope(session, effectiveScopeId, allProcesses).filter(
+    (process) => process.isOfficial !== false,
+  );
 
   const [search, setSearch] = useState("");
   const [periodFilter, setPeriodFilter] = useState("todos");
