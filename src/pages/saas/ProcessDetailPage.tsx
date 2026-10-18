@@ -286,10 +286,12 @@ export function ProcessDetailPage() {
     markGuideAsPaid,
     appendProcessDocuments,
     requestConstructionPaymentGuide,
+    requestHabiteSePaymentGuide,
     updateIssProjectGuideData,
     reviseIssProjectGuide,
     shareIssProjectGuide,
     issuePaymentGuide,
+    issueHabiteSePaymentGuide,
     beginAnalysisSupervisorIntervention,
     endAnalysisSupervisorIntervention,
     reassignProcessAnalysis,
@@ -524,6 +526,7 @@ export function ProcessDetailPage() {
   const [constructionAreaInput, setConstructionAreaInput] = useState("");
   const [constructionUsageInput, setConstructionUsageInput] = useState("");
   const [workTypeInput, setWorkTypeInput] = useState("");
+  const [habiteSeFeeAmountInput, setHabiteSeFeeAmountInput] = useState("");
   const [isEditingIssuedIssGuide, setIsEditingIssuedIssGuide] = useState(false);
   const viewerAreaRef = useRef<HTMLDivElement | null>(null);
   const documentWorkspaceWindowRef = useRef<Window | null>(null);
