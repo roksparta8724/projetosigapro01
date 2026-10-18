@@ -10933,3 +10933,34 @@ html body .sig-main-shell [data-habite-se-status-badge="true"][data-status="emit
   border-color: rgba(209, 250, 229, 0.72) !important;
 }
 /* ===== END HABITE-SE FINAL STATUS CONTRAST LOCK ===== */
+
+
+/* ===== HABITE-SE INSPECTION LEGEND CONTRAST LOCK — 2026-10-18 ===== */
+html body #root .sig-main-shell [data-habite-se-inspection-legend-chip="true"],
+html body #root .sig-main-shell [data-habite-se-inspection-legend-chip="true"] * {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  opacity: 1 !important;
+  text-shadow: none !important;
+  filter: none !important;
+  mix-blend-mode: normal !important;
+}
+
+html body #root .sig-main-shell
+[data-habite-se-inspection-legend-chip="true"][data-status="conforme"] {
+  background: #059669 !important;
+  border-color: #047857 !important;
+}
+
+html body #root .sig-main-shell
+[data-habite-se-inspection-legend-chip="true"][data-status="pendencia"] {
+  background: #d97706 !important;
+  border-color: #b45309 !important;
+}
+
+html body #root .sig-main-shell
+[data-habite-se-inspection-legend-chip="true"][data-status="nao_aplica"] {
+  background: #475569 !important;
+  border-color: #334155 !important;
+}
+/* ===== END HABITE-SE INSPECTION LEGEND CONTRAST LOCK ===== */
