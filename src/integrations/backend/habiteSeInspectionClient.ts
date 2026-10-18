@@ -441,5 +441,9 @@ export async function completeHabiteSeInspection(input: {
     _photo_evidence_waived: input.photoEvidenceWaived,
     _photo_waiver_reason: input.photoWaiverReason || null,
   });
-  return asRecord(data);
+  const payload = asRecord(data);
+  return {
+    ...payload,
+    inspection: mapInspection(payload.inspection),
+  };
 }
