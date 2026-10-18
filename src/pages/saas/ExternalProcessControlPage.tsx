@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Activity, AlertTriangle, Calendar, Clock3, CreditCard, Eye, FileBarChart2, FileCheck, FilePenLine, FileText, Filter, FolderKanban, ListChecks, Search, TrendingUp, Workflow, X } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
@@ -113,8 +113,16 @@ export function ExternalProcessControlPage() {
   const location = useLocation();
   const { session } = usePlatformSession();
   const { municipality, scopeId, institutionSettingsCompat } = useMunicipality();
-  const { processes: allProcesses, getInstitutionSettings } = usePlatformData();
+  const {
+    processes: allProcesses,
+    getInstitutionSettings,
+    loading: platformLoading,
+    dataError,
+    dataReadyForCurrentUser,
+    refreshRemoteStore,
+  } = usePlatformData();
 
+  const recoveryAttemptedRef = useRef(false);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("todos");
   const [stageFilter, setStageFilter] = useState("todos");
@@ -126,6 +134,22 @@ export function ExternalProcessControlPage() {
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
   const tenantSettings = institutionSettingsCompat ?? getInstitutionSettings(effectiveScopeId);
   const savedDrafts = listProtocolDrafts(session.id, effectiveScopeId, session.tenantId);
+
+  useEffect(() => {
+    if (
+      platformLoading ||
+      recoveryAttemptedRef.current ||
+      allProcesses.length > 0 ||
+      session.id === "unknown"
+    ) {
+      return;
+    }
+
+    recoveryAttemptedRef.current = true;
+    void refreshRemoteStore().catch((error) => {
+      console.warn("[SIGAPRO][Externo] Falha na tentativa automática de recuperar a carteira.", error);
+    });
+  }, [allProcesses.length, platformLoading, refreshRemoteStore, session.id]);
 
   const processes = getVisibleProcessesByScope(session, effectiveScopeId, allProcesses).filter(
     (process) => process.isOfficial !== false,
@@ -556,14 +580,57 @@ export function ExternalProcessControlPage() {
               })}
 
               {filteredProcesses.length === 0 ? (
-                <div className="sig-dark-panel rounded-[12px] border border-dashed border-slate-300 p-8 text-center">
-                  <p className="text-[18px] font-semibold leading-7 text-slate-900">Nenhum processo encontrado</p>
-                  <p className="mt-2 text-[15px] leading-7 text-slate-600">
-                    Você ainda não possui protocolos com os filtros selecionados.
-                  </p>
-                  <Button asChild className="mt-4 rounded-full bg-slate-950 hover:bg-slate-900">
-                    <Link to="/externo/protocolar">Novo protocolo</Link>
-                  </Button>
+                <div className="sig-dark-panel rounded-[18px] border border-dashed border-slate-300 p-8 text-center">
+                  {platformLoading || !dataReadyForCurrentUser ? (
+                    <>
+                      <p className="text-[18px] font-semibold leading-7 text-slate-900">
+                        Carregando seus processos
+                      </p>
+                      <p className="mt-2 text-[15px] leading-7 text-slate-600">
+                        A carteira oficial está sendo sincronizada com o banco municipal.
+                      </p>
+                    </>
+                  ) : dataError && allProcesses.length === 0 ? (
+                    <>
+                      <p className="text-[18px] font-semibold leading-7 text-slate-900">
+                        Reconectando sua carteira oficial
+                      </p>
+                      <p className="mt-2 text-[15px] leading-7 text-slate-600">
+                        Seus processos não foram apagados. A leitura oficial será refeita sem alterar o fluxo, os documentos ou os pagamentos.
+                      </p>
+                      <Button
+                        type="button"
+                        className="mt-4 rounded-full bg-slate-950 px-5 text-white hover:bg-slate-900"
+                        onClick={() => {
+                          recoveryAttemptedRef.current = true;
+                          void refreshRemoteStore().catch(() => undefined);
+                        }}
+                      >
+                        Tentar novamente
+                      </Button>
+                    </>
+                  ) : processes.length > 0 ? (
+                    <>
+                      <p className="text-[18px] font-semibold leading-7 text-slate-900">
+                        Nenhum processo corresponde aos filtros
+                      </p>
+                      <p className="mt-2 text-[15px] leading-7 text-slate-600">
+                        Limpe ou altere os filtros para visualizar seus protocolos.
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-[18px] font-semibold leading-7 text-slate-900">
+                        Nenhum processo protocolado
+                      </p>
+                      <p className="mt-2 text-[15px] leading-7 text-slate-600">
+                        Quando houver um protocolo oficial vinculado ao seu perfil, ele aparecerá aqui.
+                      </p>
+                      <Button asChild className="mt-4 rounded-full bg-slate-950 hover:bg-slate-900">
+                        <Link to="/externo/protocolar">Novo protocolo</Link>
+                      </Button>
+                    </>
+                  )}
                 </div>
               ) : null}
             </SectionPanel>
