@@ -1427,7 +1427,12 @@ export async function loadRemotePlatformStore() {
         serializeMarker(String(marker.label ?? "Marcador"), String(marker.color ?? "#2563eb")),
       ),
       address: property?.address ?? "Endereco nao informado",
-      notes: "",
+      notes:
+        process.preprotocol_payload &&
+        typeof process.preprotocol_payload === "object" &&
+        typeof process.preprotocol_payload.notes === "string"
+          ? process.preprotocol_payload.notes
+          : "",
       property: {
         registration: property?.registry_code ?? "",
         iptu: property?.iptu_code ?? "",
