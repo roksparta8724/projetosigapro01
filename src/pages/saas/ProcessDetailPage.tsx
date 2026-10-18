@@ -1636,9 +1636,12 @@ export function ProcessDetailPage() {
     key: string,
     action: () => Promise<void>,
     successMessage: string,
+    options?: { allowMunicipalAdmin?: boolean },
   ) => {
-    if (session.role === "prefeitura_admin") {
-      setProcessActionStatus("O Administrador da Prefeitura possui acesso administrativo e de consulta, sem permissão para alterar o fluxo dos processos.");
+    if (session.role === "prefeitura_admin" && !options?.allowMunicipalAdmin) {
+      setProcessActionStatus(
+        "Esta ação operacional pertence ao setor responsável. O Administrador da Prefeitura mantém governança do processo e pode executar o encaminhamento institucional quando necessário.",
+      );
       return false;
     }
     setProcessActionBusy(key);
@@ -1938,7 +1941,8 @@ export function ProcessDetailPage() {
           dueDate: dispatchDueDate,
           visibility: dispatchVisibility,
         }),
-      "Despacho registrado no processo.",
+      `Processo encaminhado com sucesso para ${selectedDestination.name}. A nova unidade já recebeu o trâmite no fluxo oficial.`,
+      { allowMunicipalAdmin: true },
     );
     if (ok) {
       setDispatchTo("");
@@ -2250,9 +2254,9 @@ export function ProcessDetailPage() {
       />
       {session.role === "prefeitura_admin" ? (
         <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900 dark:border-sky-500/30 dark:bg-sky-950/30 dark:text-sky-200">
-          <p className="font-semibold">Modo administrativo — consulta somente</p>
+          <p className="font-semibold">Governança administrativa da Prefeitura</p>
           <p className="mt-1 leading-6">
-            O Administrador da Prefeitura pode acompanhar o processo, mas não pode aprovar documentos, emitir ou baixar guias, criar exigências, despachar, alterar a tramitação ou executar ações dos setores operacionais.
+            O Administrador acompanha todo o processo e pode realizar o encaminhamento institucional pelo organograma. Aprovação técnica, baixa financeira e demais atos especializados continuam restritos aos setores competentes.
           </p>
         </div>
       ) : null}
@@ -4768,13 +4772,33 @@ export function ProcessDetailPage() {
                       <Button
                         type="submit"
                         data-premium-dark-action="true"
-                        className="min-h-11 rounded-xl bg-[linear-gradient(135deg,#075985_0%,#0284c7_100%)] px-5 font-bold !text-white shadow-[0_10px_22px_rgba(7,89,133,0.22)] hover:brightness-105 [&_*]:!text-white"
-                        disabled={!dispatchTo || !dispatchSubject.trim() || !dispatchDueDate || organizationDestinations.length === 0}
+                        className="min-h-11 rounded-xl bg-[linear-gradient(135deg,#075985_0%,#0284c7_100%)] px-5 font-bold !text-white shadow-[0_10px_22px_rgba(7,89,133,0.22)] hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-65 [&_*]:!text-white"
+                        disabled={
+                          processActionBusy === "dispatch" ||
+                          !dispatchTo ||
+                          !dispatchSubject.trim() ||
+                          !dispatchDueDate ||
+                          organizationDestinations.length === 0
+                        }
                       >
                         <Workflow className="mr-2 h-4 w-4" />
-                        Encaminhar
+                        {processActionBusy === "dispatch" ? "Encaminhando..." : "Encaminhar"}
                       </Button>
                     </div>
+
+                    {processActionStatus &&
+                    /encaminh|despach|destino|organograma|tramita/i.test(processActionStatus) ? (
+                      <div
+                        data-dispatch-feedback="true"
+                        className={`mt-3 rounded-xl border px-3 py-2.5 text-sm font-semibold ${
+                          /não|erro|falha|sem acesso|obrigat|pendente/i.test(processActionStatus)
+                            ? "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/30 dark:bg-rose-950/30 dark:text-rose-200"
+                            : "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-950/30 dark:text-emerald-200"
+                        }`}
+                      >
+                        {processActionStatus}
+                      </div>
+                    ) : null}
                   </div>
                 </form>
               ) : null}
