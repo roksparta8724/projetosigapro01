@@ -151,9 +151,18 @@ export function ExternalProcessControlPage() {
     });
   }, [allProcesses.length, platformLoading, refreshRemoteStore, session.id]);
 
-  const processes = getVisibleProcessesByScope(session, effectiveScopeId, allProcesses).filter(
+  const visibleRecords = getVisibleProcessesByScope(
+    session,
+    effectiveScopeId,
+    allProcesses,
+  );
+  const provisionalProcesses = visibleRecords.filter(
+    (process) => process.isOfficial === false,
+  );
+  const processes = visibleRecords.filter(
     (process) => process.isOfficial !== false,
   );
+  const inProgressCount = savedDrafts.length + provisionalProcesses.length;
   const filteredProcesses = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
     const periodDays = Number(periodFilter);
@@ -278,9 +287,9 @@ export function ExternalProcessControlPage() {
             <Link to="/externo/controle/em-andamento">
               <FilePenLine className="mr-2 h-4 w-4" />
               Em andamento
-              {savedDrafts.length > 0 ? (
+              {inProgressCount > 0 ? (
                 <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-100 px-1.5 text-[10px] font-bold text-amber-800 dark:bg-amber-400/20 dark:text-amber-200">
-                  {savedDrafts.length}
+                  {inProgressCount}
                 </span>
               ) : null}
             </Link>
