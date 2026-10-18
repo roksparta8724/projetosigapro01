@@ -20,6 +20,7 @@ describe("Habite-se independent workflow", () => {
   const autoAdvanceMigration = read("neon/migrations/20261018_habite_se_auto_advance_to_inspection.sql");
   const inspectionPanel = read("src/components/platform/HabiteSeInspectionPanel.tsx");
   const inspectionClient = read("src/integrations/backend/habiteSeInspectionClient.ts");
+  const databaseClient = read("src/integrations/backend/databaseClient.ts");
   const inspectionMigration = read("neon/migrations/20261018_habite_se_inspection_evidence.sql");
 
   it("opens Habite-se through its own route and new process mode", () => {
@@ -131,6 +132,7 @@ describe("Habite-se independent workflow", () => {
     expect(inspectionClient).toContain("for (let attempt = 0; attempt < 8; attempt += 1)");
     expect(inspectionClient).toContain("databaseErrorMessage");
     expect(inspectionClient).toContain("callInspectionRpc");
+    expect(databaseClient).toContain("export const neonDataApiUrl = NEON_DATA_API_URL");
     expect(inspectionClient).toContain("neonDataApiUrl");
     expect(inspectionClient).toContain("body: JSON.stringify(args)");
     expect(inspectionClient).toContain("PGRST202");
@@ -154,6 +156,9 @@ describe("Habite-se independent workflow", () => {
   });
 
   it("locks the inspection term after the process leaves Fiscalização", () => {
+    expect(inspectionMigration).toContain("'analista'");
+    expect(inspectionMigration).toContain("'prefeitura_supervisor'");
+    expect(inspectionMigration).toContain("'setor_intersetorial'");
     expect(inspectionMigration).toContain("_folder ~ '(fiscal|vistoria|inspec|conferencia)'");
     expect(inspectionMigration).not.toContain("fiscal|vistoria|inspec|conferencia|financ|decis|emiss");
     expect(inspectionPanel).toContain("const readOnly = externalView || !canManage");
