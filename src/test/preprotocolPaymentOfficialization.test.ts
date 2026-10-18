@@ -17,14 +17,18 @@ const queueMigration = read(
 const sharedSequenceMigration = read(
   "neon/migrations/20261018_habite_se_shared_protocol_sequence_guard.sql",
 );
-const singleSequenceReservationMigration = read(
-  "neon/migrations/20261018_single_protocol_sequence_reservation.sql",
+const trueDraftMigration = read(
+  "neon/migrations/20261018_preprotocol_true_draft_flow.sql",
+);
+const draftRecoveryMigration = read(
+  "neon/migrations/20261018_preprotocol_draft_recovery_refinement.sql",
 );
 const notificationMigration = read(
   "neon/migrations/20261018_preprotocol_external_payment_notification.sql",
 );
 const protocolPage = read("src/pages/saas/ProtocolarProjetoPage.tsx");
 const paymentsPage = read("src/pages/saas/ExternalPaymentsPage.tsx");
+const draftsPage = read("src/pages/saas/ExternalDraftsPage.tsx");
 const controlPage = read("src/pages/saas/ExternalProcessControlPage.tsx");
 const historyPage = read("src/pages/saas/ExternalHistoryPage.tsx");
 const dashboardPage = read("src/pages/saas/ExternalPortalPage.tsx");
@@ -34,15 +38,14 @@ const dashboardHome = read("src/pages/saas/DashboardHomePage.tsx");
 const platformImpl = read("src/integrations/backend/platformImpl.ts");
 
 describe("payment-first pre-protocol officialization", () => {
-  it("reserves the next municipal sequence number before payment without making the item official", () => {
-    expect(singleSequenceReservationMigration).toContain(
-      "uma única sequência municipal para Projeto, Habite-se e demais protocolos",
+  it("keeps the unpaid pre-protocol outside the official municipal sequence", () => {
+    expect(trueDraftMigration).toContain(
+      "A sequência oficial só é consumida após a compensação da guia inicial",
     );
-    expect(singleSequenceReservationMigration).toContain(
-      "_official_reserved := public.next_tenant_protocol_number",
-    );
-    expect(singleSequenceReservationMigration).toContain(
-      "return 'PRE-'||_official_reserved",
+    expect(trueDraftMigration).toContain("gen_random_uuid()");
+    expect(trueDraftMigration).toContain("'PRE-' || _normalized_prefix");
+    expect(trueDraftMigration).toContain(
+      "A numeração oficial nasce somente agora, depois do pagamento",
     );
     expect(lifecycleMigration).toContain("'pagamento_pendente'");
     expect(lifecycleMigration).toContain("'Portal Externo'");
@@ -63,24 +66,18 @@ describe("payment-first pre-protocol officialization", () => {
     );
   });
 
-  it("keeps project and Habite-se on one PM sequence and officializes the reserved number after payment", () => {
+  it("keeps project and Habite-se on one official PM sequence generated only after payment", () => {
     expect(sharedSequenceMigration).toContain(
       "Habite-se usa a MESMA sequencia oficial dos demais protocolos",
     );
-    expect(singleSequenceReservationMigration).toContain(
-      "_official_protocol := regexp_replace",
+    expect(trueDraftMigration).toContain(
+      "_official_protocol := public.next_tenant_protocol_number",
     );
-    expect(singleSequenceReservationMigration).toContain(
-      "'^PRE-'",
+    expect(trueDraftMigration).toContain(
+      "sem reservar numeracao antes da compensacao",
     );
-    expect(singleSequenceReservationMigration).toContain(
-      "sem gerar outra sequência",
-    );
-    expect(singleSequenceReservationMigration).toContain(
-      "delete from public.tenant_protocol_counters",
-    );
-    expect(singleSequenceReservationMigration).toContain(
-      "where prefix like 'PRE%'",
+    expect(trueDraftMigration).toContain(
+      "Libera do contador oficial somente reservas que nunca viraram processo",
     );
   });
 
@@ -104,13 +101,27 @@ describe("payment-first pre-protocol officialization", () => {
     );
   });
 
-  it("polls payment state and never opens a provisional item as a process", () => {
+  it("polls payment state and keeps a provisional item editable without opening it as an official process", () => {
     expect(paymentsPage).toContain("setInterval(refresh, 8000)");
     expect(paymentsPage).toContain("process.isOfficial === false");
-    expect(paymentsPage).toContain("Aguardando pagamento");
+    expect(paymentsPage).toContain('data-preprotocol-edit-action="true"');
+    expect(paymentsPage).toContain('data-preprotocol-guide-action="true"');
+    expect(paymentsPage).toContain("Visualizar guia");
+    expect(draftsPage).toContain("Editar rascunho");
+    expect(draftsPage).toContain("Ainda não existe número de processo municipal");
     expect(controlPage).toContain("process.isOfficial !== false");
     expect(historyPage).toContain("process.isOfficial !== false");
     expect(dashboardPage).toContain("process.isOfficial !== false");
+  });
+
+  it("recovers and updates the same remote draft while the guide is unpaid", () => {
+    expect(platformImpl).toContain("create_external_process_v4");
+    expect(platformImpl).toContain("getRemoteExternalPreprotocolDraft");
+    expect(protocolPage).toContain("remotePreProtocolNumber");
+    expect(protocolPage).toContain("Salvar alterações do rascunho");
+    expect(protocolPage).toContain("requestedProtocolNumber: remotePreProtocolNumber || null");
+    expect(draftRecoveryMigration).toContain("get_external_preprotocol_draft_v1");
+    expect(draftRecoveryMigration).toContain("update_external_preprotocol_draft_v1");
   });
 
   it("gives Protocolo a dedicated payment queue without exposing provisional rows as processes", () => {
