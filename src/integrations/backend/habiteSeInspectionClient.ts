@@ -1,4 +1,4 @@
-import { backendClient } from "@/integrations/backend/databaseClient";
+import { backendClient, neonDataApiUrl } from "@/integrations/backend/databaseClient";
 import {
   deleteFile,
   getSignedUrlForObjectStrict,
@@ -66,18 +66,39 @@ function dbOrThrow() {
 }
 
 function databaseErrorMessage(error: unknown) {
+  if (typeof error === "string" && error.trim()) return error.trim();
   if (error instanceof Error) return error.message;
   if (!error || typeof error !== "object") return "Erro desconhecido do banco oficial.";
 
   const record = error as Record<string, unknown>;
+  const nested =
+    record.error && typeof record.error === "object"
+      ? databaseErrorMessage(record.error)
+      : "";
   const parts = [
     typeof record.message === "string" ? record.message : "",
     typeof record.details === "string" ? record.details : "",
     typeof record.hint === "string" ? record.hint : "",
     typeof record.code === "string" ? record.code : "",
+    nested,
   ].filter(Boolean);
 
   return parts.join(" | ") || "Erro desconhecido do banco oficial.";
+}
+
+function isInspectionSchemaCacheError(value: unknown) {
+  const message = databaseErrorMessage(value);
+  return /PGRST20[245]|schema cache|could not find the function|could not find the table/i.test(
+    message,
+  );
+}
+
+function normalizeInspectionDatabaseError(value: unknown) {
+  const message = databaseErrorMessage(value);
+  if (isInspectionSchemaCacheError(message)) {
+    return "O serviço de dados da vistoria ainda não reconheceu a atualização do banco. O SIGAPRO tentou sincronizar automaticamente; atualize a página uma vez e tente novamente. Código técnico: PGRST202.";
+  }
+  return message;
 }
 
 async function ensureAuthenticatedDatabaseSession() {
@@ -86,13 +107,22 @@ async function ensureAuthenticatedDatabaseSession() {
   for (let attempt = 0; attempt < 8; attempt += 1) {
     const result = await db.auth?.getSession?.();
     const session = result?.data?.session ?? null;
+    const token =
+      session?.access_token ||
+      session?.accessToken ||
+      session?.token ||
+      "";
 
     if (session) {
-      return db;
+      return {
+        db,
+        session,
+        token: String(token || "").trim(),
+      };
     }
 
     if (attempt < 7) {
-      await new Promise((resolve) => window.setTimeout(resolve, 180));
+      await new Promise((resolve) => globalThis.setTimeout(resolve, 180));
     }
   }
 
@@ -101,17 +131,85 @@ async function ensureAuthenticatedDatabaseSession() {
   );
 }
 
+async function readInspectionApiPayload(response: Response) {
+  const raw = await response.text();
+  if (!raw) return null;
+
+  try {
+    return JSON.parse(raw) as unknown;
+  } catch {
+    return raw;
+  }
+}
+
 async function callInspectionRpc<T = unknown>(
   fn: string,
   args: Record<string, unknown>,
 ): Promise<T> {
-  const db = await ensureAuthenticatedDatabaseSession();
-  const { data, error } = await db.rpc(fn, args);
+  const { db, token } = await ensureAuthenticatedDatabaseSession();
 
-  if (error) {
-    throw new Error(databaseErrorMessage(error));
+  // No Neon, enviamos o RPC diretamente para a Data API com JSON explícito.
+  // Isso evita qualquer adaptação do SDK que possa descartar argumentos e
+  // transformar a chamada em uma função "sem parâmetros" (PGRST202).
+  if (neonDataApiUrl && token) {
+    let lastError: unknown = null;
+
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      try {
+        const response = await fetch(
+          `${neonDataApiUrl}/rpc/${encodeURIComponent(fn)}`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Accept: "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            cache: "no-store",
+            body: JSON.stringify(args),
+          },
+        );
+        const payload = await readInspectionApiPayload(response);
+
+        if (response.ok) {
+          return payload as T;
+        }
+
+        lastError = payload;
+        if (isInspectionSchemaCacheError(payload) && attempt < 4) {
+          await new Promise((resolve) =>
+            globalThis.setTimeout(resolve, 350 * (attempt + 1)),
+          );
+          continue;
+        }
+
+        throw new Error(normalizeInspectionDatabaseError(payload));
+      } catch (error) {
+        lastError = error;
+        if (isInspectionSchemaCacheError(error) && attempt < 4) {
+          await new Promise((resolve) =>
+            globalThis.setTimeout(resolve, 350 * (attempt + 1)),
+          );
+          continue;
+        }
+        if (error instanceof TypeError && attempt < 2) {
+          await new Promise((resolve) =>
+            globalThis.setTimeout(resolve, 300 * (attempt + 1)),
+          );
+          continue;
+        }
+        throw error;
+      }
+    }
+
+    throw new Error(normalizeInspectionDatabaseError(lastError));
   }
 
+  // Compatibilidade do rollback Supabase/ambientes antigos.
+  const { data, error } = await db.rpc(fn, args);
+  if (error) {
+    throw new Error(normalizeInspectionDatabaseError(error));
+  }
   return data as T;
 }
 
@@ -196,8 +294,13 @@ async function resolvePhotoUrl(objectKey: string) {
 export async function getHabiteSeInspection(
   processId: string,
 ): Promise<HabiteSeInspectionSnapshot> {
+  const normalizedProcessId = processId.trim();
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(normalizedProcessId)) {
+    throw new Error("Processo inválido para carregar o termo de vistoria.");
+  }
+
   const data = await callInspectionRpc("get_habite_se_inspection_v1", {
-    _process_id: processId,
+    _process_id: normalizedProcessId,
   });
 
   const payload = asRecord(data);
