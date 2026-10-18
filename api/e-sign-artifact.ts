@@ -407,6 +407,29 @@ export default async function handler(req: ApiReq, res: Res) {
       return;
     }
 
+    if (
+      artifactType === "urban_analysis_checklist" &&
+      signerSlot === "analise_tecnica"
+    ) {
+      const ownershipResult = await callDataApiRpc<boolean>(
+        bearer,
+        "can_write_process_analysis",
+        { _process_id: processId },
+      );
+
+      if (!ownershipResult.ok || ownershipResult.payload !== true) {
+        fail(
+          res,
+          403,
+          "authorization",
+          "ANALYSIS_ASSIGNEE_REQUIRED",
+          ownershipResult.error,
+          "Somente o Analista Técnico atualmente responsável pode assinar esta versão da análise.",
+        );
+        return;
+      }
+    }
+
     if (artifactType === "habite_se_permit" && signerSlot === "analise_tecnica") {
       const permitResult = await callDataApiRpc<{
         permit?: { status?: string } | null;
