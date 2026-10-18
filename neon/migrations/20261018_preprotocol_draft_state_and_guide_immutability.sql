@@ -266,9 +266,10 @@ begin
 
   _existing_payload := coalesce(_process.preprotocol_payload,'{}'::jsonb);
 
-  -- Campos vazios enviados por uma renderização parcial nunca podem apagar
-  -- informações já persistidas no rascunho. Arrays/objetos continuam sendo
-  -- aceitos normalmente (inclusive documents=[] quando a remoção é explícita).
+  -- Uma renderizacao parcial pode enviar campos vazios enquanto dados antigos
+  -- ainda estao sendo hidratados. Esses vazios nunca podem apagar o rascunho.
+  -- Arrays/objetos continuam aceitos normalmente, inclusive documents=[] para
+  -- uma remocao explicitamente confirmada pelo usuario.
   select coalesce(jsonb_object_agg(key,value),'{}'::jsonb)
     into _incoming_payload
   from jsonb_each(coalesce(_payload,'{}'::jsonb))
@@ -721,161 +722,7 @@ begin
       coalesce(max(coalesce(g.reissue_count,0)),0)+1,
       regexp_replace(
         coalesce((array_agg(g.guide_number order by g.created_at asc))[1],'GUIA'),
-        '(-R[0-9]+)+
-
-    -- O original continua intacto; muda apenas o estado operacional para vencida.
-    update public.payment_guides
-    set status='vencida'
-    where id=_guide.id;
-
-    insert into public.payment_guides(
-      tenant_id,municipality_id,process_id,property_id,
-      guide_number,municipal_registration,amount,due_date,
-      status,paid,guide_kind,original_due_date,reissue_count,last_reissued_at
-    )
-    values(
-      _tenant_id,coalesce(_municipality_id,_tenant_id),_process_id,_property_id,
-      _new_number,_guide.municipal_registration,_guide.amount,_due,
-      'pendente',false,'protocolo',
-      coalesce(_guide.original_due_date,_guide.due_date::date),
-      _next_revision,clock_timestamp()
-    )
-    returning * into _new_guide;
-
-    update public.processes
-    set status='pagamento_pendente',
-        updated_at=clock_timestamp()
-    where id=_process_id;
-
-    insert into public.process_audit_entries(
-      tenant_id,process_id,actor_user_id,actor_profile_id,category,
-      title,detail,visible_to_external,municipality_id
-    )
-    values(
-      _tenant_id,_process_id,_legacy_user_id,_profile_id,'financeiro',
-      'Nova guia emitida apos vencimento',
-      'A guia original '||coalesce(_guide.guide_number,'')||
-        ' foi preservada. Nova guia '||coalesce(_new_guide.guide_number,'')||
-        ' emitida em '||to_char(_new_guide.created_at,'DD/MM/YYYY HH24:MI:SS')||
-        ' com vencimento em '||to_char(_due,'DD/MM/YYYY')||'.',
-      true,coalesce(_municipality_id,_tenant_id)
-    );
-
-    return jsonb_build_object(
-      'process_id',_process_id,
-      'guide',to_jsonb(_new_guide),
-      'previous_guide',to_jsonb(_guide),
-      'new_guide',true
-    );
-  end if;
-
-  -- Demais guias mantêm o comportamento existente para não alterar fluxos
-  -- financeiros que possuem revisão própria.
-  update public.payment_guides
-  set original_due_date=coalesce(original_due_date,due_date),
-      due_date=_due,
-      status='pendente',
-      reissue_count=coalesce(reissue_count,0)+1,
-      last_reissued_at=clock_timestamp()
-  where id=_guide.id
-  returning * into _new_guide;
-
-  update public.processes
-  set status='pagamento_pendente',
-      updated_at=clock_timestamp()
-  where id=_process_id;
-
-  insert into public.process_audit_entries(
-    tenant_id,process_id,actor_user_id,actor_profile_id,category,
-    title,detail,visible_to_external,municipality_id
-  )
-  values(
-    _tenant_id,_process_id,_legacy_user_id,_profile_id,'financeiro',
-    'Guia reemitida',
-    'Segunda via #'||_new_guide.reissue_count::text||
-      ' da guia '||coalesce(_new_guide.guide_number,'')||
-      ' emitida com vencimento em '||to_char(_due,'DD/MM/YYYY')||'.',
-    true,coalesce(_municipality_id,_tenant_id)
-  );
-
-  return jsonb_build_object(
-    'process_id',_process_id,
-    'guide',to_jsonb(_new_guide),
-    'new_guide',false
-  );
-end;
-$function$;
-
--- Recuperação de pré-protocolos legados: cria snapshot do que já existe sem
--- alterar documentos, guia, datas ou numeração.
-update public.processes p
-set preprotocol_payload =
-  jsonb_build_object(
-    'title',p.title,
-    'type',p.process_type,
-    'address',coalesce(prop.address,''),
-    'iptu',coalesce(prop.iptu_code,''),
-    'registration',coalesce(prop.registry_code,''),
-    'lot',coalesce(prop.lot,''),
-    'block',coalesce(prop.block,''),
-    'area',coalesce(prop.area_m2::text,''),
-    'usage',coalesce(prop.usage_type,''),
-    'buildingType',coalesce(prop.building_type,''),
-    'workType',coalesce(prop.work_type,''),
-    'constructionStandard',coalesce(prop.construction_standard,''),
-    'draftForm',jsonb_build_object(
-      'titulo',p.title,
-      'tipo',p.process_type,
-      'endereco',coalesce(prop.address,''),
-      'iptu',coalesce(prop.iptu_code,''),
-      'matricula',coalesce(prop.registry_code,''),
-      'lote',coalesce(prop.lot,''),
-      'quadra',coalesce(prop.block,''),
-      'area',coalesce(prop.area_m2::text,''),
-      'uso',coalesce(prop.usage_type,''),
-      'tipoEdificacao',coalesce(prop.building_type,''),
-      'tipoObra',coalesce(prop.work_type,''),
-      'padraoConstrutivo',coalesce(prop.construction_standard,''),
-      'modalidadeHabiteSe',case when lower(p.process_type) like '%parcial%' then 'parcial' else 'integral' end
-    ),
-    'documents',coalesce((
-      select jsonb_agg(
-        jsonb_build_object(
-          'id',d.id,
-          'label',d.title,
-          'required',d.is_required,
-          'signed',false,
-          'version',d.version,
-          'source',d.source,
-          'fileName',d.file_name,
-          'filePath',d.file_path,
-          'mimeType',d.mime_type,
-          'sizeLabel',d.size_label,
-          'fileSizeBytes',d.file_size_bytes,
-          'reviewStatus',coalesce(d.review_status,'pendente'),
-          'annotations',coalesce(d.annotations,'[]'::jsonb)
-        )
-        order by d.created_at,d.id
-      )
-      from public.process_documents d
-      where d.process_id=p.id
-        and d.source='profissional'
-        and coalesce(d.is_valid,true)=true
-    ),'[]'::jsonb)
-  )
-from public.properties prop
-where p.property_id=prop.id
-  and p.officialized_at is null
-  and p.pre_protocol_number is not null
-  and p.preprotocol_payload is null;
-
-grant execute on function public.get_external_preprotocol_draft_v1(text) to authenticated;
-grant execute on function public.update_external_preprotocol_draft_v1(uuid,jsonb) to authenticated;
-grant execute on function public.create_external_process_v4(uuid,jsonb,text,text) to authenticated;
-grant execute on function public.reissue_process_payment_guide(uuid,text,date) to authenticated;
-
-notify pgrst,'reload schema';
-,
+        '(-R[0-9]+)+$',
         ''
       )
       into _next_revision,_base_number
