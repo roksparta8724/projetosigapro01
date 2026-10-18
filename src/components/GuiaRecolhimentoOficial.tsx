@@ -2034,18 +2034,51 @@ export function buildGuiaRecolhimentoOficialHtml(
 </html>`;
 }
 
+export function reserveGuiaRecolhimentoOficialWindow(title = "Guia de recolhimento") {
+  const popup = window.open("about:blank", "_blank");
+  if (!popup) return null;
+
+  try {
+    popup.document.title = title;
+    popup.document.body.innerHTML = `
+      <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#eef3f8;font-family:Segoe UI,Arial,sans-serif;color:#0f3557">
+        <div style="padding:24px 28px;border:1px solid #d7e0e8;border-radius:14px;background:#fff;box-shadow:0 14px 34px rgba(15,53,87,.12);font-weight:700">
+          Preparando guia oficial...
+        </div>
+      </div>
+    `;
+  } catch {
+    // A janela reservada continua válida mesmo se o navegador limitar o acesso inicial.
+  }
+
+  popup.focus();
+  return popup;
+}
+
 export function openGuiaRecolhimentoOficialWindow(
   props: GuiaRecolhimentoOficialProps,
   options?: { title?: string; autoPrint?: boolean },
+  reservedWindow?: Window | null,
 ) {
   const html = buildGuiaRecolhimentoOficialHtml(props, options);
   const blob = new Blob([html], { type: "text/html;charset=utf-8" });
   const previewUrl = URL.createObjectURL(blob);
-  const popup = window.open(previewUrl, "_blank");
+  const popup =
+    reservedWindow && !reservedWindow.closed
+      ? reservedWindow
+      : window.open(previewUrl, "_blank");
 
   if (!popup) {
     URL.revokeObjectURL(previewUrl);
     return null;
+  }
+
+  if (reservedWindow && !reservedWindow.closed) {
+    try {
+      popup.location.replace(previewUrl);
+    } catch {
+      popup.location.href = previewUrl;
+    }
   }
 
   popup.focus();
