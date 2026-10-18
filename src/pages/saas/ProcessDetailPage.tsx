@@ -1182,6 +1182,24 @@ export function ProcessDetailPage() {
     .replace(/[\u0300-\u036f]/g, "")
     .toLocaleLowerCase("pt-BR");
 
+  const initialUrbanAnalysisDestination = organizationDepartments.find(
+    (department) =>
+      department.code?.trim().toUpperCase() === "ANU" ||
+      /an[aá]lise urban[ií]stica/i.test(department.name),
+  );
+  const requiresInitialUrbanAnalysisDispatch =
+    isOccupancyPermitProcessType(process.type) &&
+    process.status === "triagem" &&
+    /protocolo|triagem|administr/.test(normalizedCurrentFolder);
+
+  useEffect(() => {
+    if (!requiresInitialUrbanAnalysisDispatch || !initialUrbanAnalysisDestination?.id) return;
+    setDispatchTo(initialUrbanAnalysisDestination.id);
+    setDispatchSubject((current) =>
+      current.trim() ? current : "Encaminhamento para análise urbanística",
+    );
+  }, [initialUrbanAnalysisDestination?.id, requiresInitialUrbanAnalysisDispatch]);
+
   const isFinalProcessStatus = ["deferido", "indeferido", "arquivado"].includes(process.status);
   const constructionPaymentCompensated =
     issuedConstructionGuide?.status === "compensada";
@@ -1925,6 +1943,16 @@ export function ProcessDetailPage() {
     );
     if (!selectedDestination) {
       setProcessActionStatus("Selecione o destino diretamente no organograma municipal.");
+      return;
+    }
+
+    if (
+      requiresInitialUrbanAnalysisDispatch &&
+      selectedDestination.id !== initialUrbanAnalysisDestination?.id
+    ) {
+      setProcessActionStatus(
+        "Nesta etapa, o Habite-se deve sair do Protocolo diretamente para a Análise Urbanística.",
+      );
       return;
     }
 
@@ -4619,6 +4647,10 @@ export function ProcessDetailPage() {
                                     const isCurrentUnit =
                                       department.name === currentFolder ||
                                       hierarchyLabel === currentOrganizationPath;
+                                    const isInitialAnalysisTarget =
+                                      department.id === initialUrbanAnalysisDestination?.id;
+                                    const routeRestricted =
+                                      requiresInitialUrbanAnalysisDispatch && !isInitialAnalysisTarget;
 
                                     return (
                                       <div
@@ -4653,7 +4685,7 @@ export function ProcessDetailPage() {
                                             isCurrentUnit ? "true" : "false"
                                           }
                                           data-contrast-surface={selected ? "dark" : undefined}
-                                          disabled={isCurrentUnit}
+                                          disabled={isCurrentUnit || routeRestricted}
                                           onClick={() => setDispatchTo(department.id)}
                                           className={`sig-dispatch-destination-card group relative w-full min-w-0 rounded-[15px] border px-3 py-2.5 text-left transition-all duration-200 ${
                                             selected
@@ -4665,7 +4697,9 @@ export function ProcessDetailPage() {
                                           title={
                                             isCurrentUnit
                                               ? `Unidade atual: ${getOrganizationPath(department.name)}`
-                                              : getOrganizationPath(department.name)
+                                              : routeRestricted
+                                                ? "Fluxo inicial do Habite-se: encaminhe para Análise Urbanística."
+                                                : getOrganizationPath(department.name)
                                           }
                                         >
                                           <div className="flex min-w-0 items-center gap-2.5">
@@ -4756,6 +4790,11 @@ export function ProcessDetailPage() {
                         <SelectContent>
                           {organizationDestinations
                             .filter((department) => department.name !== currentFolder)
+                            .filter(
+                              (department) =>
+                                !requiresInitialUrbanAnalysisDispatch ||
+                                department.id === initialUrbanAnalysisDestination?.id,
+                            )
                             .map((department) => (
                               <SelectItem key={department.id} value={department.id}>
                                 {getOrganizationPath(department.name)}
