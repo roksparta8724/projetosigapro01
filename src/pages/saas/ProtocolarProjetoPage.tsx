@@ -1268,21 +1268,37 @@ export function ProtocolarProjetoPage({
   return (
     <PortalFrame
       eyebrow={isHabiteSeMode ? "Novo protocolo independente" : "Novo protocolo"}
-      title={isHabiteSeMode ? "Solicitar Habite-se" : "Protocolar projeto"}
+      title={
+        remotePreProtocolNumber
+          ? (isHabiteSeMode ? "Editar rascunho do Habite-se" : "Editar rascunho do projeto")
+          : (isHabiteSeMode ? "Solicitar Habite-se" : "Protocolar projeto")
+      }
     >
       <PageShell>
         <form className="sig-page-shell space-y-5" onSubmit={handleSubmit}>
           <PageHero
-            eyebrow={isHabiteSeMode ? "Abertura de Habite-se" : "Abertura de novo protocolo"}
+            eyebrow={
+              remotePreProtocolNumber
+                ? "Pré-protocolo com guia pendente"
+                : (isHabiteSeMode ? "Abertura de Habite-se" : "Abertura de novo protocolo")
+            }
             title={
               isHabiteSeMode
-                ? "Abra o Habite-se como um novo processo, separado da aprovação do projeto"
-                : "Cadastre o projeto, envie os documentos e conclua o protocolo em uma única jornada"
+                ? (remotePreProtocolNumber
+                    ? "Revise o Habite-se antes do pagamento da guia inicial"
+                    : "Abra o Habite-se como um novo processo, separado da aprovação do projeto")
+                : (remotePreProtocolNumber
+                    ? "Revise o rascunho antes do pagamento da guia inicial"
+                    : "Cadastre o projeto, envie os documentos e conclua o protocolo em uma única jornada")
             }
             description={
               isHabiteSeMode
-                ? "Informe o processo de aprovação e o Alvará que deram origem à obra, anexe os documentos e gere o pré-protocolo com a guia inicial. O processo municipal e a numeração oficial só são criados após a confirmação do pagamento."
-                : "Preencha e confira seus dados, imóvel e documentos. O envio gera apenas o pré-protocolo e a guia inicial; o processo entra na Prefeitura somente depois da compensação do pagamento."
+                ? (remotePreProtocolNumber
+                    ? "Esta abertura ainda é um rascunho com guia pendente. Você pode corrigir dados e documentos; o número oficial do processo só será criado após a compensação."
+                    : "Informe o processo de aprovação e o Alvará que deram origem à obra, anexe os documentos e gere o pré-protocolo com a guia inicial. O processo municipal e a numeração oficial só são criados após a confirmação do pagamento.")
+                : (remotePreProtocolNumber
+                    ? "Esta abertura continua editável enquanto a guia estiver pendente. Nenhuma sequência oficial será consumida antes do pagamento."
+                    : "Preencha e confira seus dados, imóvel e documentos. O envio gera apenas o pré-protocolo e a guia inicial; o processo entra na Prefeitura somente depois da compensação do pagamento.")
             }
             icon={FilePlus2}
             actions={
@@ -1775,7 +1791,11 @@ export function ProtocolarProjetoPage({
 
           <SectionCard
             title="Ações finais"
-            description="Salve o rascunho para continuar depois ou conclua o protocolo quando tudo estiver validado."
+            description={
+              remotePreProtocolNumber
+                ? "Salve as alterações deste pré-protocolo antes de pagar. Ele continua editável e ainda não possui número oficial de processo."
+                : "Salve o rascunho para continuar depois ou gere a abertura com a guia inicial quando tudo estiver validado."
+            }
             icon={ShieldCheck}
             contentClassName="flex flex-col gap-3 md:flex-row md:items-center md:justify-between"
           >
@@ -1803,15 +1823,22 @@ export function ProtocolarProjetoPage({
             </div>
 
             <div className="flex flex-col gap-3 md:flex-row">
-              <Button
-                type="button"
-                variant="outline"
-                className="rounded-full"
-                onClick={() => void handleSaveDraft()}
-                disabled={savingDraft || submitting || hasPendingDocumentUpload}
-              >
-                {savingDraft ? "Salvando rascunho..." : "Salvar rascunho"}
-              </Button>
+              {!remotePreProtocolNumber ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="rounded-full"
+                  onClick={() => void handleSaveDraft()}
+                  disabled={
+                    savingDraft ||
+                    submitting ||
+                    remoteDraftLoading ||
+                    hasPendingDocumentUpload
+                  }
+                >
+                  {savingDraft ? "Salvando rascunho..." : "Salvar rascunho"}
+                </Button>
+              ) : null}
               <div className="flex flex-col items-end gap-2">
                 {isHabiteSeMode && missingRequired.length > 0 ? (
                   <p
@@ -1829,6 +1856,7 @@ export function ProtocolarProjetoPage({
                   }
                   disabled={
                     submitting ||
+                    remoteDraftLoading ||
                     hasPendingDocumentUpload ||
                     missingRequired.length > 0
                   }
@@ -1840,9 +1868,15 @@ export function ProtocolarProjetoPage({
                       : undefined
                   }
                 >
-                  {submitting
-                    ? (isHabiteSeMode ? "Protocolando Habite-se..." : "Protocolando projeto...")
-                    : (isHabiteSeMode ? "Protocolar Habite-se" : "Protocolar projeto")}
+                  {remoteDraftLoading
+                    ? "Carregando rascunho..."
+                    : submitting
+                      ? (remotePreProtocolNumber
+                          ? "Salvando alterações..."
+                          : (isHabiteSeMode ? "Gerando pré-protocolo..." : "Gerando pré-protocolo..."))
+                      : remotePreProtocolNumber
+                        ? "Salvar alterações do rascunho"
+                        : (isHabiteSeMode ? "Gerar guia e pré-protocolo" : "Gerar guia e pré-protocolo")}
                 </Button>
               </div>
             </div>
