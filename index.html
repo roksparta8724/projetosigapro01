@@ -47,10 +47,10 @@
         var authPaths = ["/acesso", "/criar-conta", "/recuperar-senha"];
         var isFullDocumentRoute =
           /\/processos\/[^/]+\/documentos\/[^/]+\/(visualizar|analisar)$/.test(path);
-        var initialBackground = isFullDocumentRoute ? "#dfe5ec" : "#f5f7fb";
+        var initialBackground = isFullDocumentRoute ? "#2b3037" : "#f5f7fb";
 
         if (isFullDocumentRoute) {
-          initialBackground = "#dfe5ec";
+          initialBackground = "#2b3037";
         } else if (publicPaths.indexOf(path) >= 0 || path.indexOf("/cliente/") === 0) {
           initialBackground = "#f5f7fb";
         } else if (authPaths.indexOf(path) >= 0) {
