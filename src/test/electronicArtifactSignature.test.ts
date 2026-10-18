@@ -33,6 +33,13 @@ describe("official electronic signatures", () => {
     resolve(process.cwd(), "neon/migrations/20261016_analysis_withdrawal_direct_table.sql"),
     "utf8",
   );
+  const withdrawalRevisionMigration = readFileSync(
+    resolve(
+      process.cwd(),
+      "neon/migrations/20261018_analysis_revision_history_and_withdrawal_time.sql",
+    ),
+    "utf8",
+  );
 
   it("never signs the technical checklist only in localStorage", () => {
     expect(checklist).toContain("signProcessArtifactWithPassword");
@@ -169,9 +176,10 @@ describe("official electronic signatures", () => {
     expect(checklist).toContain("2ª assinatura");
     expect(checklist).not.toContain("Conferência do Fiscal de Obras");
     expect(checklist).not.toContain("Assinar conferência fiscal");
-    expect(checklist).toContain("Retirada em mãos");
-    expect(checklist).toContain("Retirada em mãos por");
-    expect(checklist).toContain("Data da retirada");
+    expect(checklist).toContain("Entrega física do documento");
+    expect(checklist).toContain("Retirado por");
+    expect(checklist).toContain("Data e hora da retirada");
+    expect(checklist).not.toContain("Retirada em mãos por");
     expect(checklist).toContain("saveProcessArtifactWithdrawal");
     expect(checklist).toContain("withdrawalMatchesCurrentVersion");
   });
@@ -224,12 +232,27 @@ describe("official electronic signatures", () => {
     expect(checklist).not.toContain("PDF oficial gerado em 2 páginas");
   });
 
-  it("keeps the withdrawal date automatic and non-editable", () => {
-    expect(checklist).toContain("currentMunicipalDateValue");
-    expect(checklist).toContain("formatMunicipalDate(withdrawalDate)");
+  it("keeps the withdrawal date and time automatic and non-editable", () => {
+    expect(checklist).toContain('timeZone: "America/Sao_Paulo"');
+    expect(checklist).toContain("formatMunicipalDateTime(withdrawalDateTime)");
     expect(checklist).toContain('aria-readonly="true"');
     expect(checklist).toContain('tabIndex={-1}');
     expect(checklist).toContain("Automática");
+    expect(client).toContain("withdrawn_at_exact");
+    expect(withdrawalRevisionMigration).toContain("withdrawn_at_exact timestamptz");
+    expect(withdrawalRevisionMigration).toContain("new.withdrawn_at_exact := _official_timestamp");
+  });
+
+  it("keeps every signed rectification as an immutable version with audit history", () => {
+    expect(checklist).toContain('data-analysis-revision-history="true"');
+    expect(checklist).toContain("Histórico de versões");
+    expect(checklist).toContain("Retificações e assinaturas da análise");
+    expect(checklist).toContain("summarizeSignedRevision");
+    expect(checklist).toContain("getProcessArtifactVersionHistory");
+    expect(client).toContain("get_process_artifact_version_history_v1");
+    expect(withdrawalRevisionMigration).toContain("get_process_artifact_version_history_v1");
+    expect(withdrawalRevisionMigration).toContain("artifact_version");
+    expect(withdrawalRevisionMigration).toContain("signed_at");
   });
 
   it("binds director signing to a formal pending request for the exact signed artifact", () => {
