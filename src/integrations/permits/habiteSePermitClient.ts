@@ -54,6 +54,10 @@ const EMPTY_FORM: HabiteSePermitFormData = {
   completionDate: "",
 };
 
+function mapForm(value?: Partial<HabiteSePermitFormData> | null): HabiteSePermitFormData {
+  return { ...EMPTY_FORM, ...(value ?? {}) };
+}
+
 function errorMessage(error: unknown, fallback: string) {
   if (error instanceof Error && error.message) return error.message;
   if (error && typeof error === "object") {
@@ -80,7 +84,7 @@ function mapPermit(row?: PermitRpcRow | null): HabiteSePermitRecord | null {
         : row.status === "aguardando_diretor"
           ? "aguardando_diretor"
           : "rascunho",
-    formData: { ...EMPTY_FORM, ...rawForm },
+    formData: mapForm(rawForm),
     analystProfileId: row.analyst_profile_id ?? null,
     analystName: row.analyst_name ?? null,
     directorProfileId: row.director_profile_id ?? null,
@@ -99,9 +103,14 @@ export async function getHabiteSePermit(processId: string) {
   if (error) {
     throw new Error(errorMessage(error, "Não foi possível carregar o Alvará de Habite-se."));
   }
-  const raw = (data ?? {}) as { permit?: PermitRpcRow | null; can_manage?: boolean };
+  const raw = (data ?? {}) as {
+    permit?: PermitRpcRow | null;
+    defaults?: Partial<HabiteSePermitFormData> | null;
+    can_manage?: boolean;
+  };
   return {
     permit: mapPermit(raw.permit),
+    defaults: mapForm(raw.defaults),
     canManage: Boolean(raw.can_manage),
   };
 }
