@@ -30,6 +30,9 @@ type SidebarInnerProps = {
 };
 
 function isRouteActive(pathname: string, route: string) {
+  if (route === "/dashboard") {
+    return pathname === "/dashboard" || pathname.startsWith("/dashboard/");
+  }
   return pathname === route;
 }
 
