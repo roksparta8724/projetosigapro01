@@ -127,7 +127,9 @@ export function ExternalProcessControlPage() {
   const tenantSettings = institutionSettingsCompat ?? getInstitutionSettings(effectiveScopeId);
   const savedDrafts = listProtocolDrafts(session.id, effectiveScopeId, session.tenantId);
 
-  const processes = getVisibleProcessesByScope(session, effectiveScopeId, allProcesses);
+  const processes = getVisibleProcessesByScope(session, effectiveScopeId, allProcesses).filter(
+    (process) => process.isOfficial !== false,
+  );
   const filteredProcesses = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
     const periodDays = Number(periodFilter);
