@@ -27,6 +27,7 @@ import { MarkerSelector } from "@/components/platform/MarkerSelector";
 import { MunicipalOrganogramBar } from "@/components/platform/MunicipalOrganogramBar";
 import { UrbanAnalysisChecklistPanel } from "@/components/platform/UrbanAnalysisChecklistPanel";
 import { usePlatformData } from "@/hooks/usePlatformData";
+import { useLivePlatformRefresh } from "@/hooks/useLivePlatformRefresh";
 import { prepareGuideInstitutionalLogo } from "@/lib/guideAssets";
 import {
   ensureMercadoPagoGuideCharge,
@@ -266,6 +267,7 @@ export function ProcessDetailPage() {
   } = useMunicipality();
   const {
     processes,
+    refreshRemoteStore,
     institutions,
     sessionUsers,
     loading: platformDataLoading,
@@ -290,6 +292,8 @@ export function ProcessDetailPage() {
     endAnalysisSupervisorIntervention,
     reassignProcessAnalysis,
   } = usePlatformData();
+  useLivePlatformRefresh(refreshRemoteStore, { intervalMs: 5000 });
+
   const liveProcess = resolveProcessRoute(processes, processId);
   const [cachedProcessVisual, setCachedProcessVisual] = useState<ProcessRecord | undefined>(() =>
     readCachedProcessVisual(session.id, processId),
