@@ -14,6 +14,7 @@ describe("Habite-se independent workflow", () => {
   const store = read("src/hooks/usePlatformData.tsx");
   const panel = read("src/components/platform/OccupancyPermitProcessPanel.tsx");
   const externalDrafts = read("src/pages/saas/ExternalDraftsPage.tsx");
+  const financeMigration = read("neon/migrations/20261018_habite_se_finance_after_inspection.sql");
 
   it("opens Habite-se through its own route and new process mode", () => {
     expect(app).toContain('path="/externo/habite-se"');
@@ -108,16 +109,22 @@ describe("Habite-se independent workflow", () => {
     expect(panel).toContain("Processo independente de Habite-se");
     expect(panel).toContain("Workflow do Habite-se");
     expect(panel).toContain("Vistoria / conferência");
+    expect(panel).toContain('label: "Financeiro"');
+    expect(panel).toContain("Vistoria concluída — seguir para o Financeiro");
     expect(panel).toContain("não reutiliza a guia de aprovação/Alvará");
   });
 
-  it("keeps Habite-se finance separated from approval project finance", () => {
+  it("keeps Habite-se finance separated and inserts Financeiro after inspection", () => {
+    expect(platform).toContain('"habite_se"');
     expect(processDetail).toContain("Financeiro do protocolo de Habite-se");
-    expect(processDetail).toContain(
-      "Não herda ISSQN, taxa de aprovação",
-    );
-    expect(processDetail).toContain(
-      "Qualquer taxa específica de Habite-se será configurada no workflow próprio",
-    );
+    expect(processDetail).toContain("Guia de Pagamento do Habite-se");
+    expect(processDetail).toContain("handleRequestHabiteSeFinance");
+    expect(processDetail).toContain("handleIssueHabiteSeGuide");
+    expect(processDetail).toContain("handleConfirmHabiteSePayment");
+    expect(processDetail).toContain('"Vistoria / conferência",\n        "Financeiro",\n        "Decisão / emissão"');
+    expect(financeMigration).toContain("request_habite_se_payment_guide_v1");
+    expect(financeMigration).toContain("issue_habite_se_payment_guide_v1");
+    expect(financeMigration).toContain("'habite_se'");
+    expect(financeMigration).toContain("Decisão / emissão do Habite-se");
   });
 });
