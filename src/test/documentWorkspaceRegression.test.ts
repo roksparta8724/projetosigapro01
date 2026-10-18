@@ -28,8 +28,9 @@ describe("document workspace continuity", () => {
     expect(html).toContain('var isFullDocumentRoute =');
     expect(html).toContain('initialBackground = isFullDocumentRoute ? "#dfe5ec"');
     expect(html).not.toContain('data-sigapro-document-preboot="true"');
-    expect(permission).toContain("<DocumentWorkspaceBoot");
-    expect(permission).toContain('mode={documentRoute[1] === "analisar" ? "analysis" : "viewer"}');
+    expect(permission).toContain('data-document-route-preboot="silent"');
+    expect(permission).toContain('className="min-h-screen bg-[#2b3037]"');
+    expect(permission).not.toContain("<DocumentWorkspaceBoot");
   });
 
   it("keeps the real viewer mounted as the data and signed URL resolve", () => {
