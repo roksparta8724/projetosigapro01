@@ -28,6 +28,7 @@ import {
   formatOfficialProcessNumber,
   formatOfficialProcessTitle,
   getExternallyVisibleProcessPaymentGuides,
+  getPaymentGuideDisplayReference,
   getVisibleProcessesByScope,
   parseMarker,
   statusLabel,
@@ -553,8 +554,11 @@ export function ExternalProcessControlPage() {
                                           {compensated ? "Compensado" : "Pendente"}
                                         </span>
                                         {guide.code ? (
-                                          <span className="truncate text-[9px] font-semibold text-slate-400" title={guide.code}>
-                                            {guide.code}
+                                          <span
+                                            className="truncate text-[9px] font-semibold text-slate-400"
+                                            title={getPaymentGuideDisplayReference(process, guide)}
+                                          >
+                                            {getPaymentGuideDisplayReference(process, guide)}
                                           </span>
                                         ) : null}
                                       </div>
