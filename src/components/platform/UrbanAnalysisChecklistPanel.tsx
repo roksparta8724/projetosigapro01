@@ -997,6 +997,21 @@ export function UrbanAnalysisChecklistPanel({
 
   const generatePdf = async () => {
     if (pdfBusy) return;
+
+    const reservedPdfWindow = window.open("about:blank", "_blank");
+    if (reservedPdfWindow) {
+      reservedPdfWindow.opener = null;
+      try {
+        reservedPdfWindow.document.title = "Preparando PDF oficial…";
+        reservedPdfWindow.document.body.style.margin = "0";
+        reservedPdfWindow.document.body.style.background = "#111827";
+        reservedPdfWindow.document.body.innerHTML =
+          '<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;color:#e5e7eb;font:600 14px Inter,system-ui,sans-serif">Preparando PDF oficial…</div>';
+      } catch {
+        // A aba já foi reservada; a navegação para o PDF continuará normalmente.
+      }
+    }
+
     setPdfBusy(true);
 
     try {
@@ -1808,9 +1823,41 @@ export function UrbanAnalysisChecklistPanel({
       drawFooter(2);
 
       const fileName = `analise-${normalizeFilePart(process.protocol)}.pdf`;
-      doc.save(fileName);
+      doc.setProperties({
+        title: `Ficha Oficial de Análise - ${formatOfficialProcessNumber(process.protocol)}`,
+        subject: "Ficha Oficial de Análise de Processo",
+        author: municipalityName || "Prefeitura Municipal",
+        creator: "SIGAPRO Municipal",
+      });
+
+      const pdfBlob = doc.output("blob");
+      const pdfFile = new File([pdfBlob], fileName, { type: "application/pdf" });
+      const pdfUrl = URL.createObjectURL(pdfFile);
+      const viewerUrl = `${pdfUrl}#page=1&zoom=125&toolbar=1&navpanes=0&scrollbar=1`;
+
+      if (reservedPdfWindow && !reservedPdfWindow.closed) {
+        reservedPdfWindow.location.replace(viewerUrl);
+      } else {
+        const opened = window.open(viewerUrl, "_blank");
+        if (opened) {
+          opened.opener = null;
+        } else {
+          const fallback = document.createElement("a");
+          fallback.href = pdfUrl;
+          fallback.download = fileName;
+          fallback.rel = "noreferrer";
+          document.body.appendChild(fallback);
+          fallback.click();
+          fallback.remove();
+        }
+      }
+
+      window.setTimeout(() => URL.revokeObjectURL(pdfUrl), 5 * 60_000);
       setNotice("Registrado");
     } catch (error) {
+      if (reservedPdfWindow && !reservedPdfWindow.closed) {
+        reservedPdfWindow.close();
+      }
       console.error("[SIGAPRO][PDF] Falha ao gerar ficha oficial.", error);
       setNotice(
         error instanceof Error
