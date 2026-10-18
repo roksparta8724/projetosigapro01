@@ -33,7 +33,7 @@ describe("process document persistence regressions", () => {
     expect(fileDropZone).toContain('data-upload-zone');
     expect(fileDropZone).toContain('min-h-[18px]');
     expect(fileDropZone).toContain('h-56');
-    expect(fileDropZone).toContain('sm:h-72');
+    expect(fileDropZone).toContain('sm:h-[360px]');
     expect(fileDropZone).toContain('URL.createObjectURL(file)');
     expect(fileDropZone).toContain('transition-colors');
     expect(fileDropZone).not.toContain('<iframe');
@@ -44,7 +44,8 @@ describe("process document persistence regressions", () => {
     expect(processDetail).toContain('data-process-document-card="true"');
     expect(processDetail).toContain('const route = shouldAnalyze ? "analisar" : "visualizar"');
     expect(processDetail).toContain('/documentos/${documentId}/${route}');
-    expect(processDetail).not.toContain("getSignedUrlForObjectStrict");
+    expect(processDetail).toContain("getSignedUrlForObjectStrict");
+    expect(processDetail).toContain("cacheDocumentWorkspaceAccessUrl");
     expect(processDetail).not.toContain('document.mimeType === "application/pdf"');
     expect(processDetail).not.toContain('className="h-72 w-full"');
   });
