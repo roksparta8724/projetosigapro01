@@ -8,6 +8,7 @@ import {
   Building2,
   FileDown,
   FileText,
+  History,
   PenLine,
   Route,
   Save,
@@ -35,11 +36,13 @@ import {
   ArtifactSignatureError,
   getProcessArtifactSignatureRequest,
   getProcessArtifactSignatures,
+  getProcessArtifactVersionHistory,
   getProcessArtifactWithdrawal,
   requestProcessArtifactSignature,
   saveProcessArtifactWithdrawal,
   signProcessArtifactWithPassword,
   type ArtifactSignatureRequestSnapshot,
+  type ArtifactVersionHistoryEntry,
   type ArtifactWithdrawalRecord,
   type ArtifactSignerSlot,
 } from "@/integrations/esign/artifactClient";
@@ -177,6 +180,73 @@ function formatMunicipalDate(value?: string | null) {
   const [year, month, day] = normalized.split("-");
   if (!year || !month || !day) return "";
   return `${day}/${month}/${year}`;
+}
+
+
+function formatMunicipalDateTime(value?: string | null) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) {
+    const dateOnly = formatMunicipalDate(raw);
+    return dateOnly ? `${dateOnly} • horário não registrado` : "";
+  }
+  return new Intl.DateTimeFormat("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(parsed);
+}
+
+function summarizeSignedRevision(
+  current: Record<string, unknown>,
+  previous?: Record<string, unknown> | null,
+) {
+  if (!previous) return "Versão inicial assinada da análise técnica.";
+
+  const changes: string[] = [];
+  const fields: Array<[string, string]> = [
+    ["analysisDate", "data da análise"],
+    ["sheetNumber", "folha / revisão"],
+    ["routing", "encaminhamento"],
+    ["routingOther", "destino complementar"],
+    ["conclusion", "conclusão / observações"],
+    ["communiquePages", "referência do Comunique-se"],
+  ];
+
+  fields.forEach(([key, label]) => {
+    if (stableSignatureStringify(current[key]) !== stableSignatureStringify(previous[key])) {
+      changes.push(label);
+    }
+  });
+
+  const currentItems =
+    current.items && typeof current.items === "object"
+      ? (current.items as Record<string, unknown>)
+      : {};
+  const previousItems =
+    previous.items && typeof previous.items === "object"
+      ? (previous.items as Record<string, unknown>)
+      : {};
+  const itemIds = new Set([...Object.keys(currentItems), ...Object.keys(previousItems)]);
+  const changedItems = [...itemIds].filter(
+    (id) =>
+      stableSignatureStringify(currentItems[id]) !==
+      stableSignatureStringify(previousItems[id]),
+  ).length;
+
+  if (changedItems > 0) {
+    changes.push(
+      `${changedItems} item${changedItems === 1 ? "" : "s"} do checklist`,
+    );
+  }
+
+  return changes.length > 0
+    ? `Retificação: ${changes.join(", ")}.`
+    : "Nova assinatura da mesma composição técnica, sem alteração material identificada.";
 }
 
 
@@ -421,7 +491,8 @@ export function UrbanAnalysisChecklistPanel({
   const [directorRequestBusy, setDirectorRequestBusy] = useState(false);
   const [withdrawalRecord, setWithdrawalRecord] = useState<ArtifactWithdrawalRecord | null>(null);
   const [withdrawalName, setWithdrawalName] = useState("");
-  const [withdrawalDate, setWithdrawalDate] = useState(() => currentMunicipalDateValue());
+  const [withdrawalDateTime, setWithdrawalDateTime] = useState(() => new Date().toISOString());
+  const [revisionHistory, setRevisionHistory] = useState<ArtifactVersionHistoryEntry[]>([]);
   const [withdrawalBusy, setWithdrawalBusy] = useState(false);
   const [withdrawalSaveConfirmed, setWithdrawalSaveConfirmed] = useState(false);
   const resolvedMunicipalityLogoUrl = useMemo(
@@ -517,6 +588,23 @@ export function UrbanAnalysisChecklistPanel({
   useEffect(() => {
     let active = true;
 
+    void getProcessArtifactVersionHistory(process.id, ANALYSIS_ARTIFACT_KEY)
+      .then((versions) => {
+        if (active) setRevisionHistory(versions);
+      })
+      .catch((error) => {
+        if (!active) return;
+        console.error("[SIGAPRO][Histórico] Falha ao carregar versões assinadas.", error);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [process.id, state.technicalSignature?.evidenceHash, state.directorSignature?.signedAt]);
+
+  useEffect(() => {
+    let active = true;
+
     void getProcessArtifactSignatureRequest(
       process.id,
       ANALYSIS_ARTIFACT_KEY,
@@ -546,13 +634,17 @@ export function UrbanAnalysisChecklistPanel({
         if (!record) {
           setWithdrawalRecord(null);
           setWithdrawalName("");
-          setWithdrawalDate(currentMunicipalDateValue());
+          setWithdrawalDateTime(new Date().toISOString());
           return;
         }
 
         setWithdrawalRecord(record);
         setWithdrawalName(record.withdrawn_by_name || "");
-        setWithdrawalDate(record.withdrawn_at ? record.withdrawn_at.slice(0, 10) : "");
+        setWithdrawalDateTime(
+          record.withdrawn_at_exact ||
+          record.recorded_at ||
+          (record.withdrawn_at ? `${record.withdrawn_at}T12:00:00-03:00` : new Date().toISOString()),
+        );
       })
       .catch((error) => {
         if (!active) return;
@@ -567,12 +659,12 @@ export function UrbanAnalysisChecklistPanel({
   useEffect(() => {
     if (withdrawalRecord) return;
 
-    const syncAutomaticWithdrawalDate = () => {
-      setWithdrawalDate(currentMunicipalDateValue());
+    const syncAutomaticWithdrawalMoment = () => {
+      setWithdrawalDateTime(new Date().toISOString());
     };
 
-    syncAutomaticWithdrawalDate();
-    const timer = window.setInterval(syncAutomaticWithdrawalDate, 60_000);
+    syncAutomaticWithdrawalMoment();
+    const timer = window.setInterval(syncAutomaticWithdrawalMoment, 60_000);
 
     return () => window.clearInterval(timer);
   }, [withdrawalRecord]);
@@ -820,6 +912,9 @@ export function UrbanAnalysisChecklistPanel({
             };
 
       persistState(next);
+      setRevisionHistory(
+        await getProcessArtifactVersionHistory(process.id, ANALYSIS_ARTIFACT_KEY),
+      );
       setSignaturePassword("");
       setSignatureStage("idle");
       setSignatureDialog(null);
@@ -895,7 +990,7 @@ export function UrbanAnalysisChecklistPanel({
   const saveWithdrawalRecord = async () => {
     if (!canRecordWithdrawal) {
       setWithdrawalSaveConfirmed(false);
-      setNotice("Somente o Analista Técnico responsável pode registrar a retirada em mãos.");
+      setNotice("Somente o Analista Técnico responsável pode registrar a retirada física.");
       return;
     }
     if (!withdrawalName.trim()) {
@@ -903,10 +998,11 @@ export function UrbanAnalysisChecklistPanel({
       setNotice("Informe o nome de quem retirou o documento em mãos.");
       return;
     }
-    const automaticWithdrawalDate =
-      withdrawalRecord?.withdrawn_at?.slice(0, 10) || currentMunicipalDateValue();
-
-    setWithdrawalDate(automaticWithdrawalDate);
+    setWithdrawalDateTime(
+      withdrawalRecord?.withdrawn_at_exact ||
+      withdrawalRecord?.recorded_at ||
+      new Date().toISOString(),
+    );
     setWithdrawalSaveConfirmed(false);
     setWithdrawalBusy(true);
     try {
@@ -921,10 +1017,10 @@ export function UrbanAnalysisChecklistPanel({
         setWithdrawalName(
           snapshot.withdrawal.withdrawn_by_name || withdrawalName.trim(),
         );
-        setWithdrawalDate(
-          snapshot.withdrawal.withdrawn_at
-            ? snapshot.withdrawal.withdrawn_at.slice(0, 10)
-            : automaticWithdrawalDate,
+        setWithdrawalDateTime(
+          snapshot.withdrawal.withdrawn_at_exact ||
+          snapshot.withdrawal.recorded_at ||
+          withdrawalDateTime,
         );
       }
       setNotice("");
@@ -933,7 +1029,7 @@ export function UrbanAnalysisChecklistPanel({
       setNotice(
         error instanceof Error
           ? error.message
-          : "Não foi possível registrar a retirada em mãos.",
+          : "Não foi possível registrar a retirada física.",
       );
     } finally {
       setWithdrawalBusy(false);
@@ -2420,10 +2516,10 @@ export function UrbanAnalysisChecklistPanel({
             <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
-                  Retirada em mãos
+                  Entrega física do documento
                 </p>
                 <p className="mt-1 text-sm font-bold text-slate-950 dark:text-white">
-                  Registro de entrega física
+                  Retirado por
                 </p>
                 <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
                   O Analista Técnico informa apenas quem retirou o documento. A data é registrada automaticamente pelo sistema no momento da entrega física e não altera nem invalida as assinaturas eletrônicas.
@@ -2440,7 +2536,7 @@ export function UrbanAnalysisChecklistPanel({
             <div className="mt-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_180px] md:items-end">
               <div>
                 <label className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-400">
-                  Retirada em mãos por
+                  Retirado por
                 </label>
                 <Input
                   value={withdrawalName}
@@ -2456,7 +2552,7 @@ export function UrbanAnalysisChecklistPanel({
               <div>
                 <div className="flex items-center justify-between gap-2">
                   <label className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-400">
-                    Data da retirada
+                    Data e hora da retirada
                   </label>
                   <span className="rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-[0.08em] text-sky-700 dark:border-sky-500/30 dark:bg-sky-950/30 dark:text-sky-300">
                     Automática
@@ -2464,7 +2560,7 @@ export function UrbanAnalysisChecklistPanel({
                 </div>
                 <Input
                   type="text"
-                  value={formatMunicipalDate(withdrawalDate)}
+                  value={formatMunicipalDateTime(withdrawalDateTime)}
                   readOnly
                   aria-readonly="true"
                   tabIndex={-1}
@@ -2489,14 +2585,93 @@ export function UrbanAnalysisChecklistPanel({
                 {withdrawalBusy
                   ? "Confirmando retirada..."
                   : withdrawalMatchesCurrentVersion
-                    ? "Confirmar atualização da retirada"
-                    : "Confirmar retirada em mãos"}
+                    ? "Confirmar retificação da retirada"
+                    : "Confirmar registro da retirada"}
               </Button>
             ) : null}
 
             <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
-              O Analista Técnico informa somente o nome de quem recebeu o documento. A data oficial é preenchida automaticamente e permanece separada das assinaturas eletrônicas.
+              O Analista Técnico informa somente o nome de quem retirou o documento. Data e hora são registradas automaticamente pelo servidor e permanecem separadas das assinaturas eletrônicas.
             </p>
+          </div>
+
+          <div
+            data-analysis-revision-history="true"
+            className="mt-5 overflow-hidden rounded-[20px] border border-slate-200 bg-white shadow-[0_10px_26px_rgba(15,23,42,0.05)] dark:border-slate-700 dark:bg-slate-900"
+          >
+            <div className="flex items-start justify-between gap-3 border-b border-slate-200 bg-slate-50/80 px-4 py-4 dark:border-slate-700 dark:bg-slate-950/45">
+              <div className="flex items-start gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-sky-700 text-white">
+                  <History className="h-4.5 w-4.5" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+                    Histórico de versões
+                  </p>
+                  <p className="mt-1 text-sm font-bold text-slate-950 dark:text-white">
+                    Retificações e assinaturas da análise
+                  </p>
+                  <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
+                    Nenhuma versão assinada é apagada. Cada nova assinatura após uma alteração gera uma nova versão com data, hora, responsável e resumo das mudanças.
+                  </p>
+                </div>
+              </div>
+              <span className="shrink-0 rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-[10px] font-bold text-sky-800 dark:border-sky-500/30 dark:bg-sky-950/30 dark:text-sky-200">
+                {revisionHistory.length} versão(ões)
+              </span>
+            </div>
+
+            {revisionHistory.length === 0 ? (
+              <div className="px-4 py-5 text-sm text-slate-500 dark:text-slate-400">
+                O histórico será iniciado na primeira assinatura eletrônica da análise.
+              </div>
+            ) : (
+              <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                {revisionHistory.map((version, index) => {
+                  const olderVersion = revisionHistory[index + 1];
+                  const analystSigner = version.signers.find(
+                    (signer) => signer.slot === "analise_tecnica",
+                  );
+                  const directorSigner = version.signers.find(
+                    (signer) => signer.slot === "diretoria",
+                  );
+                  return (
+                    <div key={version.id} className="grid gap-3 px-4 py-4 lg:grid-cols-[110px_minmax(0,1fr)_auto] lg:items-start">
+                      <div>
+                        <span className="inline-flex rounded-full border border-slate-300 bg-slate-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.08em] text-slate-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200">
+                          Versão {version.artifact_version}
+                        </span>
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold text-slate-950 dark:text-white">
+                          {summarizeSignedRevision(
+                            version.payload || {},
+                            olderVersion?.payload || null,
+                          )}
+                        </p>
+                        <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
+                          Analista: {analystSigner?.name || "Não identificado"}
+                          {directorSigner?.name ? ` • Diretoria: ${directorSigner.name}` : " • Diretoria: ainda não assinou esta versão"}
+                        </p>
+                        <p className="mt-1 font-mono text-[10px] text-slate-400 dark:text-slate-500">
+                          Código {version.verification_code || "—"} • SHA-256 {compactEvidenceHash(version.artifact_hash)}
+                        </p>
+                      </div>
+                      <div className="text-left lg:text-right">
+                        <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">
+                          Assinada em
+                        </p>
+                        <p className="mt-1 text-xs font-bold text-slate-700 dark:text-slate-200">
+                          {formatMunicipalDateTime(
+                            analystSigner?.signed_at || version.completed_at,
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-4 dark:border-slate-700">
