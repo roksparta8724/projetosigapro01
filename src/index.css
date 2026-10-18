@@ -10549,3 +10549,33 @@ html body #root .sig-organogram-code-badge {
   text-shadow: 0 1px 1px rgba(0,0,0,.16) !important;
 }
 /* ===== END ORGANOGRAM ACRONYM ABSOLUTE CONTRAST GUARD V2 ===== */
+
+
+/* ===== ORGANOGRAM BLUE ACRONYM ROOT FIX V3 — 2026-10-18 =====
+   The acronym glyph itself owns the foreground. This prevents generic card/theme
+   typography rules from repainting ADM/PROT/URB/ANU/FISC/FIN/TRIB/IPTU dark. */
+html body #root [data-organogram-code-surface="blue"] {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  forced-color-adjust: none !important;
+  isolation: isolate;
+}
+
+html body #root [data-organogram-code-surface="blue"] [data-organogram-code-text="true"] {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  caret-color: #ffffff !important;
+  text-decoration-color: #ffffff !important;
+  opacity: 1 !important;
+  font-weight: 900 !important;
+  text-shadow: 0 1px 1px rgba(0,0,0,.18) !important;
+  mix-blend-mode: normal !important;
+  filter: none !important;
+}
+
+html body #root [data-organogram-code-surface="blue"] [data-organogram-code-text="true"]::selection {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  background: rgba(255,255,255,.18) !important;
+}
+/* ===== END ORGANOGRAM BLUE ACRONYM ROOT FIX V3 ===== */
