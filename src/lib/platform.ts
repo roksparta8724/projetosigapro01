@@ -769,6 +769,11 @@ export interface ProcessRecord {
   municipalityId?: string | null;
   protocol: string;
   externalProtocol: string;
+  /** Número temporário usado somente antes da confirmação da guia inicial. */
+  preProtocol?: string;
+  /** false = pré-protocolo; true = processo municipal já oficializado. */
+  isOfficial?: boolean;
+  officializedAt?: string;
   title: string;
   type: string;
   status: ProcessStatus;
