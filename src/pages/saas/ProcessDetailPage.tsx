@@ -4168,9 +4168,153 @@ export function ProcessDetailPage() {
                   A guia inicial deste protocolo ainda não foi localizada no banco oficial.
                 </div>
               )}
-              <div className="rounded-2xl border border-sky-200 bg-sky-50/70 p-4 text-sm leading-6 text-sky-950 dark:border-sky-500/30 dark:bg-sky-950/25 dark:text-sky-100">
-                Qualquer taxa específica de Habite-se será configurada no workflow próprio deste serviço.
-                Ela nunca será calculada pela tabela de aprovação/Alvará.
+              <div
+                data-habite-se-payment-card="true"
+                className="overflow-hidden rounded-[20px] border border-sky-200 bg-white shadow-[0_12px_28px_rgba(14,116,144,0.08)] dark:border-sky-500/30 dark:bg-slate-900"
+              >
+                <div className="border-b border-sky-100 bg-[linear-gradient(135deg,#f8fbff_0%,#edf8ff_100%)] p-4 dark:border-sky-500/20 dark:bg-[linear-gradient(135deg,#0e2234_0%,#0f3048_100%)]">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <p className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-sky-700 dark:text-sky-300">
+                        Após vistoria / conferência
+                      </p>
+                      <p className="mt-1 text-base font-black text-slate-950 dark:text-white">
+                        Guia de Pagamento do Habite-se
+                      </p>
+                      <p className="mt-1 text-xs leading-5 text-slate-600 dark:text-slate-300">
+                        Esta é uma cobrança própria do Habite-se. Não reutiliza ISSQN nem a taxa de aprovação/Alvará do processo de origem.
+                      </p>
+                    </div>
+                    <Badge
+                      variant="outline"
+                      className={
+                        habiteSeGuide?.status === "compensada"
+                          ? "w-fit rounded-full border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-500/40 dark:bg-emerald-950/35 dark:text-emerald-300"
+                          : habiteSeGuide
+                            ? "w-fit rounded-full border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-500/40 dark:bg-amber-950/35 dark:text-amber-300"
+                            : habiteSeGuideRequest || /financ/.test(normalizedCurrentFolder)
+                              ? "w-fit rounded-full border-sky-300 bg-sky-50 text-sky-800 dark:border-sky-500/40 dark:bg-sky-950/35 dark:text-sky-300"
+                              : "w-fit rounded-full border-slate-300 bg-slate-50 text-slate-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
+                      }
+                    >
+                      {habiteSeGuide?.status === "compensada"
+                        ? "Pagamento confirmado"
+                        : habiteSeGuide
+                          ? "Aguardando pagamento"
+                          : habiteSeGuideRequest || /financ/.test(normalizedCurrentFolder)
+                            ? "Aguardando emissão"
+                            : "Aguardando vistoria"}
+                    </Badge>
+                  </div>
+                </div>
+
+                <div className="p-4">
+                  {habiteSeGuide ? (
+                    <div className="space-y-4">
+                      <div className="grid gap-3 sm:grid-cols-3">
+                        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-950/45">
+                          <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">Guia</p>
+                          <p className="mt-2 text-sm font-black text-slate-950 dark:text-white">{habiteSeGuide.code}</p>
+                        </div>
+                        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-950/45">
+                          <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">Valor</p>
+                          <p className="mt-2 text-lg font-black text-slate-950 dark:text-white">{formatCurrency(habiteSeGuide.amount)}</p>
+                        </div>
+                        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-950/45">
+                          <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">Vencimento</p>
+                          <p className="mt-2 text-sm font-black text-slate-950 dark:text-white">{habiteSeGuide.dueDate || "Não informado"}</p>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="rounded-full"
+                          disabled={Boolean(guideBillingBusyKey)}
+                          onClick={() => void printGuide("habite_se", false, habiteSeGuide.code)}
+                        >
+                          <Eye className="mr-2 h-4 w-4" />
+                          Visualizar guia
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="rounded-full"
+                          disabled={Boolean(guideBillingBusyKey)}
+                          onClick={() => void printGuide("habite_se", true, habiteSeGuide.code)}
+                        >
+                          <Printer className="mr-2 h-4 w-4" />
+                          Imprimir
+                        </Button>
+                        {canFinanceOperate && habiteSeGuide.status !== "compensada" ? (
+                          <Button
+                            type="button"
+                            className="rounded-full bg-emerald-700 font-bold !text-white hover:bg-emerald-600 [&_*]:!text-white"
+                            disabled={processActionBusy === "confirm-habite-se-payment"}
+                            onClick={() => void handleConfirmHabiteSePayment()}
+                          >
+                            <CheckCircle2 className="mr-2 h-4 w-4" />
+                            {processActionBusy === "confirm-habite-se-payment"
+                              ? "Confirmando..."
+                              : "Confirmar pagamento"}
+                          </Button>
+                        ) : null}
+                      </div>
+
+                      {habiteSeGuide.status === "compensada" ? (
+                        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold leading-6 text-emerald-900 dark:border-emerald-500/30 dark:bg-emerald-950/25 dark:text-emerald-200">
+                          Pagamento compensado. O processo está liberado para a etapa de Decisão / emissão do Habite-se.
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : habiteSeGuideRequest || /financ/.test(normalizedCurrentFolder) ? (
+                    canFinanceOperate ? (
+                      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+                        <div>
+                          <label className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">
+                            Valor oficial da taxa de Habite-se
+                          </label>
+                          <div className="relative mt-2">
+                            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-500">
+                              R$
+                            </span>
+                            <Input
+                              type="text"
+                              inputMode="decimal"
+                              value={habiteSeFeeAmountInput}
+                              onChange={(event) => setHabiteSeFeeAmountInput(event.target.value)}
+                              placeholder="0,00"
+                              className="h-11 rounded-xl border-slate-300 bg-white pl-10 font-bold text-slate-950 dark:border-slate-600 dark:bg-slate-950 dark:text-white"
+                            />
+                          </div>
+                          <p className="mt-2 text-xs leading-5 text-slate-500 dark:text-slate-400">
+                            O Financeiro informa o valor oficial quando a Prefeitura ainda não possui uma taxa fixa configurada no sistema. A emissão fica registrada em auditoria.
+                          </p>
+                        </div>
+                        <Button
+                          type="button"
+                          className="h-11 rounded-xl bg-[linear-gradient(135deg,#075985_0%,#0284c7_100%)] px-5 font-bold !text-white shadow-[0_10px_24px_rgba(7,89,133,0.20)] hover:brightness-105 [&_*]:!text-white"
+                          disabled={processActionBusy === "issue-habite-se-guide" || !habiteSeFeeAmountInput.trim()}
+                          onClick={() => void handleIssueHabiteSeGuide()}
+                        >
+                          <ReceiptText className="mr-2 h-4 w-4" />
+                          {processActionBusy === "issue-habite-se-guide"
+                            ? "Emitindo..."
+                            : "Gerar Guia de Habite-se"}
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm leading-6 text-sky-950 dark:border-sky-500/30 dark:bg-sky-950/25 dark:text-sky-100">
+                        A vistoria foi concluída e o processo está com o Financeiro para emissão da Guia de Habite-se.
+                      </div>
+                    )
+                  ) : (
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-600 dark:border-slate-700 dark:bg-slate-950/45 dark:text-slate-300">
+                      A Guia de Habite-se fica disponível somente depois que a Vistoria / conferência concluir a etapa e encaminhar formalmente o processo ao Financeiro.
+                    </div>
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>
