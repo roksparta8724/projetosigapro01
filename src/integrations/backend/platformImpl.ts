@@ -105,6 +105,16 @@ function formatDatabaseError(error: unknown) {
     "hint" in error && typeof error.hint === "string" ? error.hint : "";
   const code =
     "code" in error && typeof error.code === "string" ? error.code : "";
+
+  const normalized = `${message} ${details} ${hint} ${code}`.toLowerCase();
+  if (
+    code === "PGRST202" ||
+    (normalized.includes("could not find the function") &&
+      normalized.includes("schema cache"))
+  ) {
+    return "A rotina municipal ainda não estava disponível no banco oficial. Atualize a página e tente novamente. Se persistir, a equipe técnica deve sincronizar o schema do banco.";
+  }
+
   const parts = [message, details, hint, code].filter(Boolean);
   return parts.length > 0 ? parts.join(" | ") : "Erro desconhecido do banco oficial.";
 }
