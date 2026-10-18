@@ -57,6 +57,7 @@ import {
   calculateIssGuideAmount,
   canAccessMunicipalArea,
   canAnalyzeProcessDocument,
+  canEditAssignedAnalysisArtifact,
   canTrackProcess,
   isProcessOwnedBySessionDepartment,
   formatCurrency,
@@ -1022,6 +1023,9 @@ export function ProcessDetailPage() {
   const canReviewDocuments =
     !isExternalProcessViewer &&
     canAnalyzeProcessDocument(session, process, effectiveScopeId);
+  const canEditAnalysisChecklist =
+    !isExternalProcessViewer &&
+    canEditAssignedAnalysisArtifact(session, process, effectiveScopeId);
   const canUseMunicipalChecklist =
     !isExternalProcessViewer &&
     !isProtocolTrackingOnly &&
@@ -3435,7 +3439,7 @@ export function ProcessDetailPage() {
               <UrbanAnalysisChecklistPanel
                 process={process}
                 session={session}
-                readOnly={!canReviewDocuments}
+                readOnly={!canEditAnalysisChecklist}
                 municipalityId={effectiveScopeId || process.tenantId}
                 municipalityName={municipalityName || tenant?.name || "Prefeitura Municipal"}
                 municipalityLogoUrl={
