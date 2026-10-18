@@ -67,7 +67,7 @@ import { usePlanEntitlements } from "@/hooks/usePlanEntitlements";
 import { getPublicAssetUrl } from "@/lib/assetUrl";
 import { formatDisplayText, humanizeRoleLabel } from "@/lib/displayText";
 import { buildProcessPath, can, canAccessMunicipalArea,
-  getRoleLandingPath, desktopThemePresets, getVisibleProcessesByScope, isInternalRole, mobileThemePresets, parseMarker, roleLabels, type Permission } from "@/lib/platform";
+  getRoleLandingPath, desktopThemePresets, getVisibleProcessesByScope, isExternalProfessionalRole, isInternalRole, mobileThemePresets, parseMarker, roleLabels, type Permission } from "@/lib/platform";
 import type { PlanModuleName } from "@/lib/planEntitlements";
 import { AppSidebar } from "@/components/platform/AppSidebar";
 import { InstitutionalLogo } from "@/components/platform/InstitutionalLogo";
@@ -551,6 +551,20 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
     if ((session.role === "master_admin" || session.role === "master_ops") && item.to === "/configuracoes") {
       return [];
     }
+
+    if (isExternalProfessionalRole(session.role)) {
+      if (item.to === "/dashboard") {
+        return [{ ...item, to: "/externo", label: "Dashboard" }];
+      }
+
+      if (item.to === "/externo/controle") {
+        return [{
+          ...item,
+          children: (item.children ?? []).filter((child) => child.to !== "/externo"),
+        }];
+      }
+    }
+
     return [item];
   });
 
