@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Calendar, CreditCard, Search } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
@@ -36,7 +36,11 @@ export function ExternalPaymentsPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { session } = usePlatformSession();
-  const { processes: allProcesses, getInstitutionSettings } = usePlatformData();
+  const {
+    processes: allProcesses,
+    getInstitutionSettings,
+    refreshRemoteStore,
+  } = usePlatformData();
   const { municipality, scopeId, institutionSettingsCompat } = useMunicipality();
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
   const tenantSettings = institutionSettingsCompat ?? getInstitutionSettings(effectiveScopeId);
@@ -45,6 +49,27 @@ export function ExternalPaymentsPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("todos");
   const activeTab = getExternalTabByPath(location.pathname);
+
+  // Enquanto existe guia inicial pendente, a tela acompanha o banco oficial.
+  // Assim a confirmação de pagamento transforma o pré-protocolo em processo
+  // sem exigir F5 e sem risco de a interface ficar com estado antigo.
+  useEffect(() => {
+    const refresh = () => {
+      if (document.visibilityState === "visible") {
+        void refreshRemoteStore();
+      }
+    };
+
+    const timer = window.setInterval(refresh, 8000);
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, [refreshRemoteStore]);
 
   const guides = useMemo(
     () =>
@@ -67,6 +92,7 @@ export function ExternalPaymentsPage() {
       const matchesSearch =
         !term ||
         item.process.protocol.toLowerCase().includes(term) ||
+        String(item.process.preProtocol || "").toLowerCase().includes(term) ||
         item.process.title.toLowerCase().includes(term) ||
         item.guide.code.toLowerCase().includes(term);
       return matchesStatus && matchesSearch;
@@ -142,7 +168,7 @@ export function ExternalPaymentsPage() {
               contentClassName="space-y-4"
             >
               <div className="hidden rounded-[12px] border border-[#E5E7EB] bg-[#F8FAFC] px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 2xl:grid 2xl:grid-cols-[1.1fr_1fr_0.8fr_0.8fr_0.8fr_0.6fr] 2xl:gap-3">
-                <span>Protocolo</span>
+                <span>Pré-protocolo / Processo</span>
                 <span>Projeto</span>
                 <span>Guia</span>
                 <span>Vencimento</span>
@@ -154,8 +180,16 @@ export function ExternalPaymentsPage() {
                 <div key={`${process.id}-${guide.code}`} className="sig-dark-panel rounded-[12px] border border-[#E5E7EB] p-4 shadow-sm">
                   <div className="grid gap-4 2xl:grid-cols-[1.1fr_1fr_0.8fr_0.8fr_0.8fr_0.6fr] 2xl:items-center">
                     <div className="min-w-0">
-                      <p className="truncate text-[15px] font-semibold text-slate-950">{formatOfficialProcessNumber(process.protocol)}</p>
-                      <p className="mt-1 truncate text-[13px] text-slate-500">{formatOfficialProcessTitle({ title: process.title, type: process.type })}</p>
+                      <p className="truncate text-[15px] font-semibold text-slate-950">
+                        {process.isOfficial === false
+                          ? process.preProtocol || process.protocol
+                          : formatOfficialProcessNumber(process.protocol)}
+                      </p>
+                      <p className="mt-1 truncate text-[13px] text-slate-500">
+                        {process.isOfficial === false
+                          ? "Pré-protocolo — o processo municipal será criado após a compensação"
+                          : formatOfficialProcessTitle({ title: process.title, type: process.type })}
+                      </p>
                     </div>
                     <div className="min-w-0">
                       <p className="truncate text-[14px] font-semibold text-slate-900">{formatOfficialProcessTitle({ title: process.title, type: process.type })}</p>
@@ -184,9 +218,18 @@ export function ExternalPaymentsPage() {
                       </Badge>
                     </div>
                     <div className="flex justify-start 2xl:justify-end">
-                      <Button asChild variant="outline" className="rounded-full text-[13px]">
-                        <Link to={buildProcessPath(process, "financeiro")}>Ver detalhes</Link>
-                      </Button>
+                      {process.isOfficial === false ? (
+                        <Badge
+                          variant="outline"
+                          className="rounded-full border-sky-200 bg-sky-50 px-3 py-2 text-[12px] font-semibold text-sky-800"
+                        >
+                          Aguardando pagamento
+                        </Badge>
+                      ) : (
+                        <Button asChild variant="outline" className="rounded-full text-[13px]">
+                          <Link to={buildProcessPath(process, "financeiro")}>Ver processo</Link>
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -213,7 +256,11 @@ export function ExternalPaymentsPage() {
                   .slice(0, 3)
                   .map((item) => (
                     <div key={`side-${item.process.id}-${item.guide.code}`} className="sig-dark-panel rounded-[10px] border border-[#E5E7EB] p-4 text-sm">
-                      <p className="text-sm font-semibold text-slate-900">{formatOfficialProcessNumber(item.process.protocol)}</p>
+                      <p className="text-sm font-semibold text-slate-900">
+                        {item.process.isOfficial === false
+                          ? item.process.preProtocol || item.process.protocol
+                          : formatOfficialProcessNumber(item.process.protocol)}
+                      </p>
                       <p className="mt-1 text-sm text-slate-600">{formatCurrency(item.guide.amount)}</p>
                       <p className="mt-2 text-xs uppercase tracking-[0.14em] text-amber-600 dark:text-amber-400">
                         {item.status === "vencida" ? "Vencida" : "Pendente"}
