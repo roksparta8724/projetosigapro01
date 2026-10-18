@@ -7,6 +7,10 @@ const chart = readFileSync(
   "utf8",
 );
 const css = readFileSync(resolve(process.cwd(), "src/index.css"), "utf8");
+const processDetail = readFileSync(
+  resolve(process.cwd(), "src/pages/saas/ProcessDetailPage.tsx"),
+  "utf8",
+);
 
 describe("organogram institutional blue code contrast", () => {
   it("renders acronym badges as institutional blue with explicit white copy", () => {
@@ -22,5 +26,11 @@ describe("organogram institutional blue code contrast", () => {
     expect(css).toContain('[data-organogram-level-badge="true"]');
     expect(css).toContain("color:#ffffff !important");
     expect(css).toContain("-webkit-text-fill-color:#ffffff !important");
+  });
+
+  it("keeps dispatch organogram acronym badges white inside blue cards", () => {
+    expect(processDetail).toContain('data-organogram-code="true"');
+    expect(processDetail).toContain('style={{ color: "#ffffff", WebkitTextFillColor: "#ffffff" }}');
+    expect(processDetail).toContain("bg-[linear-gradient(135deg,#075985_0%,#0f78b8_100%)]");
   });
 });
