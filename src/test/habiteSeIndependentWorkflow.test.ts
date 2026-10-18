@@ -68,7 +68,8 @@ describe("Habite-se independent workflow", () => {
     const migration = read("neon/migrations/20261018_habite_se_submission_preflight.sql");
 
     expect(protocolPage).toContain('data-habite-se-document-lock="true"');
-    expect(protocolPage).toContain("(isHabiteSeMode && missingRequired.length > 0)");
+    expect(protocolPage).toContain('data-protocol-required-documents-locked=');
+    expect(protocolPage).toContain("missingRequired.length > 0");
     expect(protocolPage).toContain("Faltam documentos obrigatórios:");
     expect(backend).toContain("validate_habite_se_submission_v1");
     expect(backend).toContain("isOccupancyPermitProcessType(input.type)");
