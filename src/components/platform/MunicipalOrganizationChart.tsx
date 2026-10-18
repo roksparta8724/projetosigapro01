@@ -141,7 +141,7 @@ function UnitNode({
                 data-organogram-level-badge="true"
                 data-contrast-surface="dark"
                 style={{ color: "#ffffff", WebkitTextFillColor: "#ffffff" }}
-                className="sig-organogram-blue-code inline-flex min-w-11 items-center justify-center rounded-lg border border-sky-400/45 bg-[linear-gradient(135deg,#075985_0%,#0b6f9f_100%)] px-2 py-1 text-[10px] font-black tracking-[0.12em] !text-white shadow-[0_5px_14px_rgba(3,55,84,0.22)]"
+                className="sig-organogram-code-badge sig-organogram-blue-code inline-flex min-w-11 items-center justify-center rounded-lg border border-sky-400/45 bg-[linear-gradient(135deg,#075985_0%,#0b6f9f_100%)] px-2 py-1 text-[10px] font-black tracking-[0.12em] !text-white shadow-[0_5px_14px_rgba(3,55,84,0.22)]"
                 title={identity.label}
               >
                 {identity.short}
@@ -259,7 +259,7 @@ export function MunicipalOrganizationChart({
                 data-organogram-level-badge="true"
                 data-contrast-surface="dark"
                 data-unit-type={type}
-                className="sig-organogram-blue-code rounded-lg border border-sky-400/45 bg-[linear-gradient(135deg,#075985_0%,#0b6f9f_100%)] px-2 py-1 text-[9px] font-black tracking-[0.1em] !text-white shadow-[0_5px_14px_rgba(3,55,84,0.20)]"
+                className="sig-organogram-code-badge sig-organogram-blue-code rounded-lg border border-sky-400/45 bg-[linear-gradient(135deg,#075985_0%,#0b6f9f_100%)] px-2 py-1 text-[9px] font-black tracking-[0.1em] !text-white shadow-[0_5px_14px_rgba(3,55,84,0.20)]"
                 title={identity.label}
               >
                 {identity.short}
