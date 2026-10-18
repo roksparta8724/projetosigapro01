@@ -4519,85 +4519,215 @@ export function ProcessDetailPage() {
                             Organograma para despacho
                           </p>
                           <p className="mt-1 text-xs leading-5 text-slate-600 dark:text-slate-300">
-                            Escolha visualmente a unidade de destino. A sigla, o nome e a hierarquia oficial ficam sempre visíveis.
+                            Selecione o destino pela hierarquia oficial da Prefeitura. Unidades superiores e subordinadas permanecem agrupadas e clicáveis.
                           </p>
                         </div>
                         <span className="inline-flex h-8 items-center rounded-full border border-sky-200 bg-sky-50 px-3 text-[10px] font-bold text-sky-800 shadow-sm dark:border-sky-500/30 dark:bg-sky-950/60 dark:text-sky-100">
-                          {organizationDestinations.length} unidade(s)
+                          {organizationDestinations.length} unidades oficiais
                         </span>
                       </div>
 
-                      <div data-dispatch-organogram-grid="true" className="grid gap-2.5 p-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                      <div
+                        data-dispatch-organogram-grid="true"
+                        data-dispatch-organogram-hierarchy="true"
+                        className="grid gap-3 p-3 lg:grid-cols-2 2xl:grid-cols-3"
+                      >
                         {organizationDestinations
-                          .filter((department) => department.name !== currentFolder)
-                          .map((department) => {
-                            const selected = dispatchTo === department.id;
-                            const hierarchy = getOrganizationPathRecords(department.name);
-                            const hierarchyLabel = hierarchy.map((item) => item.name).join(" › ");
+                          .filter(
+                            (department) =>
+                              !department.parentDepartmentId ||
+                              !organizationDestinations.some(
+                                (candidate) => candidate.id === department.parentDepartmentId,
+                              ),
+                          )
+                          .sort(
+                            (a, b) =>
+                              a.sortOrder - b.sortOrder ||
+                              a.name.localeCompare(b.name, "pt-BR"),
+                          )
+                          .map((rootDepartment) => {
+                            const branch: Array<{
+                              department: (typeof organizationDestinations)[number];
+                              depth: number;
+                            }> = [];
+
+                            const collectChildren = (
+                              parentId: string,
+                              depth: number,
+                            ): void => {
+                              organizationDestinations
+                                .filter(
+                                  (candidate) =>
+                                    candidate.parentDepartmentId === parentId,
+                                )
+                                .sort(
+                                  (a, b) =>
+                                    a.sortOrder - b.sortOrder ||
+                                    a.name.localeCompare(b.name, "pt-BR"),
+                                )
+                                .forEach((child) => {
+                                  branch.push({ department: child, depth });
+                                  collectChildren(child.id, depth + 1);
+                                });
+                            };
+
+                            collectChildren(rootDepartment.id, 1);
+
+                            const branchRows = [
+                              { department: rootDepartment, depth: 0 },
+                              ...branch,
+                            ];
+
                             return (
-                              <button
-                                key={`org-destination-${department.id}`}
-                                type="button"
-                                data-organogram-destination="true"
-                                data-selected={selected ? "true" : "false"}
-                                data-selected-organogram-card={selected ? "true" : "false"}
-                                onClick={() => setDispatchTo(department.id)}
-                                className={`group relative min-w-0 rounded-[18px] border p-3 text-left transition-all duration-200 ${
-                                  selected
-                                    ? "border-sky-500 bg-[linear-gradient(135deg,#0b3554_0%,#075985_58%,#0f78b8_100%)] shadow-[0_12px_28px_rgba(7,89,133,0.28)] ring-2 ring-sky-200/70 dark:ring-sky-500/25"
-                                    : "border-slate-200 bg-white shadow-[0_7px_18px_rgba(15,23,42,0.055)] hover:-translate-y-px hover:border-sky-300 hover:bg-sky-50/70 hover:shadow-[0_12px_26px_rgba(15,23,42,0.09)] dark:border-slate-700 dark:bg-slate-900 dark:hover:border-sky-500/50 dark:hover:bg-sky-950/30"
-                                }`}
-                                title={getOrganizationPath(department.name)}
+                              <section
+                                key={`org-branch-${rootDepartment.id}`}
+                                data-organogram-branch="true"
+                                className="overflow-hidden rounded-[20px] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbfe_100%)] shadow-[0_9px_24px_rgba(15,23,42,0.06)] dark:border-slate-700 dark:bg-[linear-gradient(180deg,#101f31_0%,#0b1725_100%)]"
                               >
-                                <div className="flex min-w-0 items-start gap-3">
-                                  <span
-                                    data-organogram-code="true"
-                                    style={{ color: "#ffffff", WebkitTextFillColor: "#ffffff" }}
-                                    className={`inline-flex h-9 min-w-[48px] shrink-0 items-center justify-center rounded-xl border px-2 text-[10px] font-black tracking-[0.10em] shadow-sm ${
-                                      selected
-                                        ? "border-white/20 bg-white/15 !text-white"
-                                        : "border-sky-200 bg-[linear-gradient(135deg,#075985_0%,#0f78b8_100%)] !text-white dark:border-sky-500/30"
-                                    }`}
-                                  >
-                                    {department.code?.trim() || "UNID"}
-                                  </span>
-
-                                  <span className="min-w-0 flex-1">
-                                    <span
-                                      data-organogram-destination-title="true"
-                                      className={`block truncate text-[12px] font-extrabold ${
-                                        selected
-                                          ? "!text-white"
-                                          : "text-slate-950 dark:text-white"
-                                      }`}
-                                    >
-                                      {department.name}
+                                <div className="border-b border-slate-100 bg-slate-50/80 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-900/70">
+                                  <div className="flex items-center justify-between gap-3">
+                                    <div className="min-w-0">
+                                      <p className="text-[9px] font-extrabold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+                                        Estrutura institucional
+                                      </p>
+                                      <p className="mt-0.5 truncate text-[11px] font-bold text-slate-800 dark:text-slate-100">
+                                        {getOrganizationPath(rootDepartment.name)}
+                                      </p>
+                                    </div>
+                                    <span className="inline-flex min-w-7 items-center justify-center rounded-full border border-slate-200 bg-white px-2 py-1 text-[9px] font-bold text-slate-600 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200">
+                                      {branchRows.length}
                                     </span>
-                                    <span
-                                      data-organogram-destination-path="true"
-                                      className={`mt-1 block truncate text-[10px] leading-4 ${
-                                        selected
-                                          ? "!text-white/90"
-                                          : "text-slate-500 dark:text-slate-400"
-                                      }`}
-                                    >
-                                      {hierarchyLabel || department.name}
-                                    </span>
-                                  </span>
-
-                                  {selected ? (
-                                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/15 text-white shadow-sm">
-                                      <CheckCircle2 className="h-4 w-4 !text-white" />
-                                    </span>
-                                  ) : null}
+                                  </div>
                                 </div>
 
-                                {selected ? (
-                                  <span className="mt-3 inline-flex rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[9px] font-extrabold uppercase tracking-[0.12em] !text-white">
-                                    Destino selecionado
-                                  </span>
-                                ) : null}
-                              </button>
+                                <div className="space-y-2 p-2.5">
+                                  {branchRows.map(({ department, depth }) => {
+                                    const selected = dispatchTo === department.id;
+                                    const hierarchy =
+                                      getOrganizationPathRecords(department.name);
+                                    const hierarchyLabel = hierarchy
+                                      .map((item) =>
+                                        item.code?.trim()
+                                          ? `${item.code.trim()} — ${item.name}`
+                                          : item.name,
+                                      )
+                                      .join(" › ");
+                                    const isCurrentUnit =
+                                      department.name === currentFolder ||
+                                      hierarchyLabel === currentOrganizationPath;
+
+                                    return (
+                                      <div
+                                        key={`org-destination-row-${department.id}`}
+                                        className="relative"
+                                        style={{
+                                          marginLeft: `${Math.min(depth, 3) * 18}px`,
+                                        }}
+                                      >
+                                        {depth > 0 ? (
+                                          <>
+                                            <span
+                                              aria-hidden="true"
+                                              className="absolute -left-[11px] top-0 h-1/2 w-px bg-slate-200 dark:bg-slate-700"
+                                            />
+                                            <span
+                                              aria-hidden="true"
+                                              className="absolute -left-[11px] top-1/2 h-px w-[9px] bg-slate-200 dark:bg-slate-700"
+                                            />
+                                          </>
+                                        ) : null}
+
+                                        <button
+                                          type="button"
+                                          data-organogram-destination="true"
+                                          data-organogram-depth={depth}
+                                          data-selected={selected ? "true" : "false"}
+                                          data-selected-organogram-card={
+                                            selected ? "true" : "false"
+                                          }
+                                          data-current-organogram-unit={
+                                            isCurrentUnit ? "true" : "false"
+                                          }
+                                          disabled={isCurrentUnit}
+                                          onClick={() => setDispatchTo(department.id)}
+                                          className={`group relative w-full min-w-0 rounded-[15px] border px-3 py-2.5 text-left transition-all duration-200 ${
+                                            selected
+                                              ? "border-sky-500 bg-[linear-gradient(135deg,#0b3554_0%,#075985_58%,#0f78b8_100%)] shadow-[0_10px_24px_rgba(7,89,133,0.25)] ring-2 ring-sky-200/70 dark:ring-sky-500/25"
+                                              : isCurrentUnit
+                                                ? "cursor-default border-emerald-200 bg-emerald-50/85 shadow-[0_5px_14px_rgba(16,185,129,0.07)] dark:border-emerald-500/30 dark:bg-emerald-950/20"
+                                                : "border-slate-200 bg-white shadow-[0_5px_14px_rgba(15,23,42,0.05)] hover:-translate-y-px hover:border-sky-300 hover:bg-sky-50/70 hover:shadow-[0_10px_22px_rgba(15,23,42,0.08)] dark:border-slate-700 dark:bg-slate-900 dark:hover:border-sky-500/50 dark:hover:bg-sky-950/30"
+                                          }`}
+                                          title={
+                                            isCurrentUnit
+                                              ? `Unidade atual: ${getOrganizationPath(department.name)}`
+                                              : getOrganizationPath(department.name)
+                                          }
+                                        >
+                                          <div className="flex min-w-0 items-center gap-2.5">
+                                            <span
+                                              data-organogram-code="true"
+                                              style={{
+                                                color: "#ffffff",
+                                                WebkitTextFillColor: "#ffffff",
+                                              }}
+                                              className={`inline-flex h-8 min-w-[44px] shrink-0 items-center justify-center rounded-[10px] border px-2 text-[9px] font-black tracking-[0.10em] shadow-sm ${
+                                                selected
+                                                  ? "border-white/20 bg-white/15 !text-white"
+                                                  : isCurrentUnit
+                                                    ? "border-emerald-400/30 bg-[linear-gradient(135deg,#047857_0%,#059669_100%)] !text-white"
+                                                    : "border-sky-200 bg-[linear-gradient(135deg,#075985_0%,#0f78b8_100%)] !text-white dark:border-sky-500/30"
+                                              }`}
+                                            >
+                                              {department.code?.trim() || "UNID"}
+                                            </span>
+
+                                            <span className="min-w-0 flex-1">
+                                              <span
+                                                data-organogram-destination-title="true"
+                                                className={`block truncate text-[12px] font-extrabold ${
+                                                  selected
+                                                    ? "!text-white"
+                                                    : "text-slate-950 dark:text-white"
+                                                }`}
+                                              >
+                                                {department.name}
+                                              </span>
+                                              <span
+                                                data-organogram-destination-path="true"
+                                                className={`mt-0.5 block truncate text-[9px] leading-4 ${
+                                                  selected
+                                                    ? "!text-white/90"
+                                                    : "text-slate-500 dark:text-slate-400"
+                                                }`}
+                                              >
+                                                {hierarchyLabel || department.name}
+                                              </span>
+                                            </span>
+
+                                            {isCurrentUnit ? (
+                                              <span className="shrink-0 rounded-full border border-emerald-200 bg-emerald-100 px-2 py-1 text-[8px] font-extrabold uppercase tracking-[0.08em] text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-950/50 dark:text-emerald-200">
+                                                Origem atual
+                                              </span>
+                                            ) : selected ? (
+                                              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/15 text-white shadow-sm">
+                                                <CheckCircle2 className="h-4 w-4 !text-white" />
+                                              </span>
+                                            ) : (
+                                              <ArrowRightLeft className="h-3.5 w-3.5 shrink-0 text-slate-300 transition group-hover:text-sky-600 dark:text-slate-600 dark:group-hover:text-sky-300" />
+                                            )}
+                                          </div>
+
+                                          {selected ? (
+                                            <span className="mt-2 inline-flex rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[8px] font-extrabold uppercase tracking-[0.12em] !text-white">
+                                              Destino selecionado
+                                            </span>
+                                          ) : null}
+                                        </button>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </section>
                             );
                           })}
                       </div>
