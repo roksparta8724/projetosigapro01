@@ -50,6 +50,7 @@ import { NotFoundPage } from "@/pages/saas/NotFoundPage";
 import { ClientePortalPage } from "@/pages/saas/ClientePortalPage";
 import { MasterPlansPage } from "@/pages/saas/MasterPlansPage";
 import { PublicPlansPage } from "@/pages/saas/PublicPlansPage";
+import { PublicSignatureVerificationPage } from "@/pages/saas/PublicSignatureVerificationPage";
 import { AiAssistantPage } from "@/pages/saas/AiAssistantPage";
 
 const App = () => {
@@ -91,13 +92,17 @@ const AppRoutes = () => {
       pathname === "/" ||
       pathname === "/inicio" ||
       pathname === "/apresentacao";
+    const isPublicVerificationRoute =
+      pathname.startsWith("/v/") ||
+      pathname === "/verificar-assinatura";
     const isFullDocumentRoute =
       /\/processos\/[^/]+\/documentos\/[^/]+\/(visualizar|analisar)$/.test(pathname);
 
-    const zoom = isLandingRoute || isFullDocumentRoute ? "1" : "0.85";
+    const zoom = isLandingRoute || isFullDocumentRoute || isPublicVerificationRoute ? "1" : "0.85";
     document.documentElement.style.zoom = zoom;
     document.body.style.zoom = "1";
-    document.documentElement.dataset.pageZoom = isLandingRoute ? "100" : "85";
+    document.documentElement.dataset.pageZoom =
+      isLandingRoute || isPublicVerificationRoute ? "100" : "85";
 
     return () => {
       document.documentElement.style.zoom = "";
@@ -111,6 +116,8 @@ const AppRoutes = () => {
     pathname === "/acesso" ||
     pathname === "/criar-conta" ||
     pathname === "/recuperar-senha" ||
+    pathname.startsWith("/v/") ||
+    pathname === "/verificar-assinatura" ||
     pathname.startsWith("/cliente/");
   const canPromoteBootstrapScreen =
     bootstrap.isReady &&
@@ -132,6 +139,8 @@ const AppRoutes = () => {
         />
         <Route path="/cliente/:tenantSlug" element={<ClientePortalPage />} />
         <Route path="/planos-publicos" element={<PublicPlansPage />} />
+        <Route path="/verificar-assinatura" element={<PublicSignatureVerificationPage />} />
+        <Route path="/v/:codigo" element={<PublicSignatureVerificationPage />} />
         <Route path="/acesso" element={<AcessoPage />} />
         <Route path="/criar-conta" element={<CriarContaPage />} />
         <Route path="/recuperar-senha" element={<RecuperarSenhaPage />} />
