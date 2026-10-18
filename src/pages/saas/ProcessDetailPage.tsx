@@ -2581,7 +2581,10 @@ export function ProcessDetailPage() {
           )}
 
           {activeTab === "documentos" && (
-          <Card className={`${cardShell} overflow-hidden border-slate-200 bg-white shadow-[0_18px_48px_rgba(15,23,42,0.08)]`}>
+          <Card
+            data-process-document-workspace="true"
+            className={`${cardShell} overflow-hidden border-slate-200 bg-white shadow-[0_18px_48px_rgba(15,23,42,0.08)]`}
+          >
             <CardHeader id="sig-process-document-command-center" data-process-command-center="true" data-force-card-contrast="dark" data-premium-inverse-surface="true" data-premium-process-dark-header="documents" data-process-dark-header="true" data-surface-tone="dark" data-surface="fixed-dark" className="sig-process-dark-surface-v9 sig-premium-command-surface border-b border-slate-700/40 bg-[linear-gradient(135deg,#071525_0%,#123a58_58%,#1f6489_100%)] px-5 py-5 !text-white shadow-inner md:px-6 [&_h1]:!text-white [&_h2]:!text-white [&_h3]:!text-white [&_p]:!text-white [&_span]:!text-white [&_svg]:!text-white">
               <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
                 <div className="flex min-w-0 items-start gap-4">
@@ -2715,16 +2718,25 @@ export function ProcessDetailPage() {
               </div>
             </CardHeader>
 
-            <CardContent className="space-y-4 bg-[linear-gradient(180deg,#fbfdff_0%,#f7fafc_100%)] p-5 dark:bg-[linear-gradient(180deg,#0f172a_0%,#111827_100%)] md:p-6">
+            <CardContent
+              data-process-document-content="true"
+              className="space-y-4 p-5 md:p-6"
+            >
               {(!canUploadProcessDocuments && pendingExternalDocumentCount > 0) || recoverableStatus ? (
                 <div className="grid gap-2 lg:grid-cols-2">
                   {!canUploadProcessDocuments && pendingExternalDocumentCount > 0 ? (
-                    <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800">
+                    <div
+                      data-process-document-alert="pending"
+                      className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800"
+                    >
                       {pendingExternalDocumentCount} item(ns) ainda aguardam envio do profissional.
                     </div>
                   ) : <div />}
                   {canRecoverStoredDocuments && recoverableStatus ? (
-                    <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm font-medium text-sky-800">
+                    <div
+                      data-process-document-alert="info"
+                      className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm font-medium text-sky-800"
+                    >
                       {recoverableStatus}
                     </div>
                   ) : null}
@@ -2795,7 +2807,10 @@ export function ProcessDetailPage() {
               ) : null}
 
               {!canUploadProcessDocuments && visibleDocumentRows.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
+                <div
+                  data-process-document-empty="true"
+                  className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center"
+                >
                   <FileStack className="mx-auto h-8 w-8 text-slate-400" />
                   <p className="mt-3 font-semibold text-slate-900">
                     Nenhum documento foi enviado pelo profissional até o momento.
@@ -3059,7 +3074,10 @@ export function ProcessDetailPage() {
                     ) : null}
 
                     {canReviewDocuments && document.uploaded ? (
-                      <div className="mt-4 flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200/80 bg-white/80 px-4 py-3 dark:border-slate-700/80 dark:bg-slate-950/55">
+                      <div
+                        data-process-document-review-strip="true"
+                        className="mt-4 flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200/80 bg-white/80 px-4 py-3"
+                      >
                         <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${
                           isApproved
                             ? "bg-emerald-50 text-emerald-700"
