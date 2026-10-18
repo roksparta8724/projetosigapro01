@@ -54,12 +54,14 @@ describe("direct PDF workspace opening", () => {
 
     expect(detail).toContain("getSignedUrlForObjectStrict");
     expect(detail).toContain("cacheDocumentWorkspaceAccessUrl");
-    expect(detail).toContain('window.open("about:blank", "sigapro-document-workspace")');
-    expect(detail).toContain('openedTab.document.body.style.background = "#2b3037"');
-    expect(analysis).toContain("consumeDocumentWorkspaceAccessUrl");
+    expect(detail).toContain('window.open(workspaceUrl, "sigapro-document-workspace")');
+        expect(analysis).toContain("consumeDocumentWorkspaceAccessUrl");
     expect(viewer).toContain("consumeDocumentWorkspaceAccessUrl");
     expect(analysis).toContain('data-document-loading-surface="silent"');
     expect(viewer).toContain('data-document-loading-surface="silent"');
+    expect(analysis).not.toContain("DocumentWorkspaceBoot");
+    expect(viewer).not.toContain("DocumentWorkspaceBoot");
+    expect(detail).not.toContain('window.open("about:blank", "sigapro-document-workspace")');
     expect(analysis).not.toContain("animate-pulse rounded-full bg-slate-200");
     expect(viewer).not.toContain("animate-pulse rounded-full bg-slate-200");
     expect(handoff).toContain("DOCUMENT_WORKSPACE_ACCESS_TTL_MS");
@@ -131,12 +133,11 @@ describe("annotation draft and professional handoff", () => {
     expect(viewer).not.toContain('target="_blank"');
     expect(viewer).not.toContain("Abrir original");
     expect((detail.match(/window\.open\(/g) || []).length).toBe(1);
-    expect(detail).toContain('window.open("about:blank", "sigapro-document-workspace")');
+    expect(detail).toContain('window.open(workspaceUrl, "sigapro-document-workspace")');
     expect(detail).toContain("cacheDocumentWorkspaceAccessUrl");
     expect(detail).toContain("getSignedUrlForObjectStrict");
     expect(detail).toContain("openedTab.opener = null");
-    expect(detail).toContain("openedTab.blur()");
-    expect(detail).toContain("openedTab.focus()");
+        expect(detail).toContain("openedTab.focus()");
   });
 });
 
@@ -167,7 +168,7 @@ describe("analyst PDF markup entry", () => {
     expect(detail).toContain("openDocumentWorkspace");
     expect(detail).toContain('const route = shouldAnalyze ? "analisar" : "visualizar"');
     expect(detail).toContain('const query = shouldAnalyze ? "?ferramenta=highlight" : ""');
-    expect(detail).toContain('window.open("about:blank", "sigapro-document-workspace")');
+    expect(detail).toContain('window.open(workspaceUrl, "sigapro-document-workspace")');
   });
 
   it("renders Nitro-like numbered highlights and visible text callouts on the PDF", () => {
