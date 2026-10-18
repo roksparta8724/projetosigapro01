@@ -154,8 +154,8 @@ describe("dispatch organogram destination cards", () => {
     expect(detail).toContain("getPathRecords: getOrganizationPathRecords");
     expect(detail).toContain("hierarchyLabel");
     expect(detail).toContain("Destino selecionado");
-    expect(detail).toContain("h-9 min-w-[48px]");
-    expect(detail).toContain("sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4");
+    expect(detail).toContain("h-8 min-w-[44px]");
+    expect(detail).toContain("lg:grid-cols-2 2xl:grid-cols-3");
     expect(detail).not.toContain('max-w-[310px] truncate">{getOrganizationPath(department.name)}');
   });
 });
