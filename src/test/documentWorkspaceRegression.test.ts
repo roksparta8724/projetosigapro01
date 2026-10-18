@@ -44,6 +44,23 @@ describe("document workspace continuity", () => {
   });
 });
 
+describe("direct PDF workspace opening", () => {
+  it("prefetches the signed URL and removes the fake white-sheet loading stage", () => {
+    const analysis = read("src/pages/saas/DocumentAnalysisPage.tsx");
+    const detail = read("src/pages/saas/ProcessDetailPage.tsx");
+    const handoff = read("src/lib/documentWorkspaceAccess.ts");
+
+    expect(detail).toContain("getSignedUrlForObjectStrict");
+    expect(detail).toContain("cacheDocumentWorkspaceAccessUrl");
+    expect(analysis).toContain("consumeDocumentWorkspaceAccessUrl");
+    expect(analysis).toContain('data-document-loading-surface="silent"');
+    expect(analysis).not.toContain("animate-pulse rounded-full bg-slate-200");
+    expect(handoff).toContain("DOCUMENT_WORKSPACE_ACCESS_TTL_MS");
+    expect(handoff).toContain("window.localStorage.removeItem(key)");
+  });
+});
+
+
 describe("premium PDF analysis workspace", () => {
   it("uses an editor-style toolbar, annotation rail and technical inspector", () => {
     const analysis = read("src/pages/saas/DocumentAnalysisPage.tsx");
@@ -107,8 +124,11 @@ describe("annotation draft and professional handoff", () => {
     expect(viewer).not.toContain('target="_blank"');
     expect(viewer).not.toContain("Abrir original");
     expect((detail.match(/window\.open\(/g) || []).length).toBe(1);
-    expect(detail).toContain('window.open("", "sigapro-document-workspace")');
+    expect(detail).toContain('window.open("about:blank", "sigapro-document-workspace")');
+    expect(detail).toContain("cacheDocumentWorkspaceAccessUrl");
+    expect(detail).toContain("getSignedUrlForObjectStrict");
     expect(detail).toContain("openedTab.opener = null");
+    expect(detail).toContain("openedTab.blur()");
     expect(detail).toContain("openedTab.focus()");
   });
 });
@@ -140,7 +160,7 @@ describe("analyst PDF markup entry", () => {
     expect(detail).toContain("openDocumentWorkspace");
     expect(detail).toContain('const route = shouldAnalyze ? "analisar" : "visualizar"');
     expect(detail).toContain('const query = shouldAnalyze ? "?ferramenta=highlight" : ""');
-    expect(detail).toContain('window.open("", "sigapro-document-workspace")');
+    expect(detail).toContain('window.open("about:blank", "sigapro-document-workspace")');
   });
 
   it("renders Nitro-like numbered highlights and visible text callouts on the PDF", () => {
@@ -158,17 +178,16 @@ describe("analyst PDF markup entry", () => {
 
 
 describe("canonical analyst markup access", () => {
-  it("keeps the assigned analyst authorized after the process advances to another queue", () => {
+  it("keeps technical document work shared across the Analysis unit while the process is in Analysis", () => {
     const platform = read("src/lib/platform.ts");
 
     expect(platform).toContain("export function canAnalyzeProcessDocument");
     expect(platform).toContain('if (session.role === "prefeitura_admin") return false');
-    expect(platform).toContain('if (session.role !== "analista") return false');
     expect(platform).toContain('canAccessMunicipalArea(session, "analise")');
-    expect(platform).toContain("process.analysis?.assignedProfileId");
-    expect(platform).toContain("return assignedProfileId === session.id");
-    expect(platform).toContain("process.analysis?.assignedTo");
-    expect(platform).toContain("return canAccessProcess(session, process, processScopeId)");
+    expect(platform).toContain("isProcessOwnedBySessionDepartment(session, process)");
+    expect(platform).toContain('if (session.role === "analista")');
+    expect(platform).toContain("return worksInAnalysis");
+    expect(platform).not.toContain("return assignedProfileId === session.id");
   });
 
   it("derives document scope from the process before transient UI municipality state", () => {
