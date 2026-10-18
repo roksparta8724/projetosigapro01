@@ -74,12 +74,27 @@ export function ProcessIdentityPanel({
         <div className="sig-pid-grid">
           <DetailField label="Nome completo" value={dataOrPending(process.ownerName)} warning={!process.ownerName.trim()} />
           <DetailField label="CPF / CNPJ" value={visibleDocument} warning={canViewFullIdentity && !hasFullDocument} />
-          <DetailField label="Situação do documento" value={canViewFullIdentity ? (
-            hasFullDocument ? "Formato conferido · titularidade não verificada" :
-            ownerDocumentStatus === "incompleto" ? "Cadastro incompleto" :
-            ownerDocumentStatus === "ausente" ? "Não informado" : "Formato inválido"
-          ) : "Consulta interna"} warning={canViewFullIdentity && !hasFullDocument} />
-          <DetailField label="Contato do titular" value={canViewFullIdentity ? dataOrPending(linkedOwner?.email || linkedOwner?.phone) : "Consulta interna"} />
+          <DetailField
+            label="RG / documento de identidade"
+            value={
+              canViewFullIdentity
+                ? dataOrPending(process.ownerIdentityDocument || linkedOwner?.rg)
+                : "Consulta interna"
+            }
+          />
+          <DetailField
+            label="Contato do titular"
+            value={
+              canViewFullIdentity
+                ? dataOrPending(
+                    process.ownerEmail ||
+                      process.ownerPhone ||
+                      linkedOwner?.email ||
+                      linkedOwner?.phone,
+                  )
+                : "Consulta interna"
+            }
+          />
         </div>
       </div>
 
@@ -104,6 +119,7 @@ export function ProcessIdentityPanel({
           <DetailField label="Lote / Quadra" value={dataOrPending([process.property.lot, process.property.block].filter(Boolean).join(" / "))} />
           <DetailField label="Área declarada" value={process.property.area > 0 ? process.property.area.toLocaleString("pt-BR", { maximumFractionDigits: 2 }) + " m²" : "Não informada"} warning={!(process.property.area > 0)} />
           <DetailField label="Uso da edificação" value={dataOrPending(process.property.usage)} warning={!process.property.usage.trim()} />
+          <DetailField label="Tipo da edificação" value={dataOrPending(process.property.buildingType)} />
           <DetailField label="Natureza da obra" value={dataOrPending(process.property.workType)} />
           <DetailField label="Padrão construtivo" value={constructionStandardLabel} />
         </div>
