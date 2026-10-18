@@ -33,7 +33,6 @@ import { createRemoteExternalProcessV2, registerRemoteExternalAccount } from "@/
 import { deleteFileFromStorage, uploadFileToStorage } from "@/integrations/r2/storage";
 import { hasBackendEnv } from "@/integrations/backend/databaseClient";
 import {
-  buildProcessPath,
   getChecklistTemplate,
   isOccupancyPermitProcessType,
   matchesOperationalScope,
@@ -179,7 +178,10 @@ export function ProtocolarProjetoPage({
     [effectiveScopeId, processes],
   );
   const activeProcessCount = useMemo(
-    () => scopedProcesses.filter((process) => process.status !== "arquivado").length,
+    () =>
+      scopedProcesses.filter(
+        (process) => process.isOfficial !== false && process.status !== "arquivado",
+      ).length,
     [scopedProcesses],
   );
   const knownStorageBytes = useMemo(
@@ -882,6 +884,7 @@ export function ProtocolarProjetoPage({
       | {
           processId: string;
           protocol: string;
+          preProtocol: string;
           guideNumber: string;
           dueDate: string;
           amount: number;
@@ -992,7 +995,7 @@ export function ProtocolarProjetoPage({
 
           if (Number(syncResult.synced || 0) !== documents.length) {
             throw new Error(
-              `O protocolo foi criado, mas apenas ${syncResult.synced || 0} de ${documents.length} documento(s) foram confirmados no banco oficial.`,
+              `O pré-protocolo foi criado, mas apenas ${syncResult.synced || 0} de ${documents.length} documento(s) foram confirmados no banco oficial.`,
             );
           }
         }
@@ -1002,6 +1005,7 @@ export function ProtocolarProjetoPage({
         remoteSeed = {
           processId: remoteProcess.process_id,
           protocol: remoteProcess.protocol_number,
+          preProtocol: remoteProcess.pre_protocol_number || remoteProcess.protocol_number,
           guideNumber: remoteProcess.guide_number,
           dueDate: new Date(remoteProcess.due_date).toLocaleDateString("pt-BR"),
           amount: Number(remoteProcess.amount ?? 35.24),
@@ -1012,7 +1016,7 @@ export function ProtocolarProjetoPage({
         const message =
           remoteError instanceof Error
             ? remoteError.message
-            : "Não foi possível gravar o protocolo no banco oficial.";
+            : "Não foi possível gravar o pré-protocolo no banco oficial.";
         console.error("[ProtocolarProjeto] Falha na persistência remota", remoteError);
 
         if (uploadedObjectKeys.length > 0) {
@@ -1023,20 +1027,20 @@ export function ProtocolarProjetoPage({
 
         setStatus(
           uploadedObjectKeys.length > 0
-            ? `Não foi possível concluir o protocolo: ${message}. Os arquivos enviados foram preservados no armazenamento e poderão ser recuperados sem novo upload.`
-            : `Não foi possível concluir o protocolo: ${message}`,
+            ? `Não foi possível concluir o pré-protocolo: ${message}. Os arquivos enviados foram preservados no armazenamento e poderão ser recuperados sem novo upload.`
+            : `Não foi possível concluir o pré-protocolo: ${message}`,
         );
         setSubmitting(false);
         return;
       }
     } else {
-      setStatus("O banco oficial está indisponível. O protocolo não foi criado para evitar divergência de dados.");
+      setStatus("O banco oficial está indisponível. O pré-protocolo não foi criado para evitar divergência de dados.");
       setSubmitting(false);
       return;
     }
 
     if (!remoteSeed) {
-      setStatus("O protocolo não recebeu confirmação do banco oficial. Nenhuma guia foi emitida.");
+      setStatus("O pré-protocolo não recebeu confirmação do banco oficial. Nenhuma guia foi emitida.");
       setSubmitting(false);
       return;
     }
@@ -1048,12 +1052,15 @@ export function ProtocolarProjetoPage({
     try {
       await refreshRemoteStore();
     } catch (refreshError) {
-      console.warn("[ProtocolarProjeto] Protocolo criado, mas a atualização imediata da tela falhou.", refreshError);
+      console.warn("[ProtocolarProjeto] Pré-protocolo criado, mas a atualização imediata da tela falhou.", refreshError);
     } finally {
       setSubmitting(false);
     }
 
-    navigate(buildProcessPath({ id: remoteSeed.processId, protocol: remoteSeed.protocol }));
+    navigate(
+      `/externo/pagamentos?preprotocolo=${encodeURIComponent(remoteSeed.preProtocol)}`,
+      { replace: true },
+    );
   };
 
   return (
@@ -1072,8 +1079,8 @@ export function ProtocolarProjetoPage({
             }
             description={
               isHabiteSeMode
-                ? "Informe o processo de aprovação e o Alvará que deram origem à obra, anexe os documentos de conclusão e gere um novo número de protocolo. Nenhuma etapa financeira ou documental do processo de aprovação é reaproveitada automaticamente."
-                : "Preencha e confira seus próprios dados profissionais, os dados do proprietário, o imóvel e os documentos. Nada é tratado como dado interno da Prefeitura nesta abertura."
+                ? "Informe o processo de aprovação e o Alvará que deram origem à obra, anexe os documentos e gere o pré-protocolo com a guia inicial. O processo municipal e a numeração oficial só são criados após a confirmação do pagamento."
+                : "Preencha e confira seus dados, imóvel e documentos. O envio gera apenas o pré-protocolo e a guia inicial; o processo entra na Prefeitura somente depois da compensação do pagamento."
             }
             icon={FilePlus2}
             actions={
