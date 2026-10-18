@@ -477,7 +477,7 @@ export function ProcessDetailPage() {
   const [requirementResponse, setRequirementResponse] = useState<Record<string, string>>({});
   const [dispatchTo, setDispatchTo] = useState("");
   const [dispatchSubject, setDispatchSubject] = useState("");
-  const [dispatchDueDate, setDispatchDueDate] = useState("");
+  const [dispatchDueDate, setDispatchDueDate] = useState(() => currentLocalDateValue());
   const [dispatchVisibility, setDispatchVisibility] = useState<"interno" | "externo" | "misto">("interno");
   type ProcessTab = "resumo" | "imovel" | "documentos" | "analise" | "financeiro" | "alvara" | "historico";
   const [activeTab, setActiveTab] = useState<ProcessTab>(() => {
@@ -514,6 +514,22 @@ export function ProcessDetailPage() {
   const [isEditingIssuedIssGuide, setIsEditingIssuedIssGuide] = useState(false);
   const viewerAreaRef = useRef<HTMLDivElement | null>(null);
   const documentWorkspaceWindowRef = useRef<Window | null>(null);
+
+  useEffect(() => {
+    let lastAutomaticDate = currentLocalDateValue();
+    setDispatchDueDate((current) => current || lastAutomaticDate);
+
+    const timer = window.setInterval(() => {
+      const nextAutomaticDate = currentLocalDateValue();
+      if (nextAutomaticDate === lastAutomaticDate) return;
+      setDispatchDueDate((current) =>
+        !current || current === lastAutomaticDate ? nextAutomaticDate : current,
+      );
+      lastAutomaticDate = nextAutomaticDate;
+    }, 60_000);
+
+    return () => window.clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -1919,7 +1935,7 @@ export function ProcessDetailPage() {
     if (ok) {
       setDispatchTo("");
       setDispatchSubject("");
-      setDispatchDueDate("");
+      setDispatchDueDate(currentLocalDateValue());
       setDispatchVisibility("interno");
     }
   };
@@ -4517,6 +4533,7 @@ export function ProcessDetailPage() {
                                 type="button"
                                 data-organogram-destination="true"
                                 data-selected={selected ? "true" : "false"}
+                                data-selected-organogram-card={selected ? "true" : "false"}
                                 onClick={() => setDispatchTo(department.id)}
                                 className={`group relative min-w-0 rounded-[18px] border p-3 text-left transition-all duration-200 ${
                                   selected
@@ -4539,6 +4556,7 @@ export function ProcessDetailPage() {
 
                                   <span className="min-w-0 flex-1">
                                     <span
+                                      data-organogram-destination-title="true"
                                       className={`block truncate text-[12px] font-extrabold ${
                                         selected
                                           ? "!text-white"
@@ -4548,9 +4566,10 @@ export function ProcessDetailPage() {
                                       {department.name}
                                     </span>
                                     <span
+                                      data-organogram-destination-path="true"
                                       className={`mt-1 block truncate text-[10px] leading-4 ${
                                         selected
-                                          ? "!text-sky-100"
+                                          ? "!text-white/90"
                                           : "text-slate-500 dark:text-slate-400"
                                       }`}
                                     >
@@ -4603,7 +4622,9 @@ export function ProcessDetailPage() {
                         type="date"
                         value={dispatchDueDate}
                         onChange={(event) => setDispatchDueDate(event.target.value)}
-                        className="min-h-11 rounded-xl bg-white dark:bg-slate-950"
+                        aria-label="Data do encaminhamento"
+                        title="Data preenchida automaticamente com o dia atual"
+                        className="min-h-11 rounded-xl bg-white font-semibold text-slate-800 dark:bg-slate-950 dark:text-slate-100"
                       />
 
                       <Button
