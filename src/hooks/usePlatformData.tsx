@@ -52,6 +52,7 @@ import { useAuthGateway } from "@/hooks/useAuthGateway";
 import {
   acknowledgeRemoteProcessDispatch,
   annotateRemoteProcessDocument,
+  assignRemoteProcessAnalysis,
   appendRemoteProcessDocuments,
   beginRemoteAnalysisSupervisorIntervention,
   completeRemoteProcessDispatch,
@@ -187,6 +188,7 @@ interface PlatformDataState {
   startProcessAnalysis: (processId: string) => Promise<void>;
   beginAnalysisSupervisorIntervention: (input: { processId: string; reason: string; minutes?: number }) => Promise<void>;
   endAnalysisSupervisorIntervention: (processId: string) => Promise<void>;
+  assignProcessAnalysis: (input: { processId: string; targetProfileId: string }) => Promise<void>;
   reassignProcessAnalysis: (input: { processId: string; targetProfileId: string; reason: string }) => Promise<void>;
   reopenProcess: (input: { processId: string; actor: string; reason: string }) => Promise<void>;
   requestConstructionPaymentGuide: (processId: string, actor: string) => Promise<void>;
@@ -1995,6 +1997,11 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
       endAnalysisSupervisorIntervention: async (processId) => {
         if (!hasBackendEnv) throw new Error("Banco oficial indisponível para encerrar intervenção.");
         await endRemoteAnalysisSupervisorIntervention(processId);
+        await refreshRemoteStore();
+      },
+      assignProcessAnalysis: async ({ processId, targetProfileId }) => {
+        if (!hasBackendEnv) throw new Error("Banco oficial indisponível para distribuir análise.");
+        await assignRemoteProcessAnalysis({ processId, targetProfileId });
         await refreshRemoteStore();
       },
       reassignProcessAnalysis: async ({ processId, targetProfileId, reason }) => {
