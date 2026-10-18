@@ -10441,3 +10441,44 @@ html body .sig-main-shell .sig-protocol-primary-action:disabled {
   cursor: not-allowed;
 }
 /* ===== END PROTOCOL PRIMARY ACTION CONTRAST LOCK V1 ===== */
+
+
+/* ===== DISPATCH ORGANOGRAM SELECTED CARD V11 =====
+   Final visual authority for the selected municipal destination.
+   Blue surface always uses white typography in both themes. */
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-dispatch-organogram="true"]
+[data-organogram-destination="true"][data-selected-organogram-card="true"] {
+  background:linear-gradient(135deg,#075985 0%,#0876a7 58%,#0b8fc4 100%) !important;
+  border-color:#38bdf8 !important;
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  box-shadow:
+    0 0 0 3px rgba(56,189,248,.20),
+    0 12px 28px rgba(3,105,161,.26) !important;
+}
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-dispatch-organogram="true"]
+[data-organogram-destination="true"][data-selected-organogram-card="true"]
+:is([data-organogram-destination-title="true"],[data-organogram-destination-path="true"],span,strong,small) {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  opacity:1 !important;
+}
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-dispatch-organogram="true"]
+[data-organogram-destination="true"][data-selected-organogram-card="true"]
+[data-organogram-code="true"] {
+  background:rgba(3,47,72,.54) !important;
+  border-color:rgba(255,255,255,.30) !important;
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+}
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-dispatch-organogram="true"]
+[data-organogram-destination="true"][data-selected-organogram-card="true"]
+:is(svg,svg *) {
+  color:#ffffff !important;
+  stroke:#ffffff !important;
+}
+/* ===== END DISPATCH ORGANOGRAM SELECTED CARD V11 ===== */
