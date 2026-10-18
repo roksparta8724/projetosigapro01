@@ -212,7 +212,9 @@ export function HabiteSeInspectionPanel({
     /financ|decis|emiss|conclus/.test(normalizedFolder) ||
     ["deferido", "indeferido", "arquivado"].includes(process.status);
 
-  const readOnly = externalView || !canManage || (!inspectionStage && !inspection);
+  const readOnly = externalView || !canManage;
+  const isPostInspectionRevision =
+    Boolean(inspection?.completedAt) && !inspectionStage;
   const classifiedCount = INSPECTION_ITEMS.filter(
     (item) => Boolean(checklist[item.key]),
   ).length;
@@ -272,7 +274,7 @@ export function HabiteSeInspectionPanel({
   }, [process.id, dataReady]);
 
   const persistDraft = async (options?: { silent?: boolean }) => {
-    if (!canManage || !inspectionStage) return inspection;
+    if (!canManage) return inspection;
 
     setBusy("save");
     if (!options?.silent) setNotice("");
@@ -300,7 +302,7 @@ export function HabiteSeInspectionPanel({
   };
 
   const handlePhotoUpload = async (files: FileList | null) => {
-    if (!files?.length || !canManage || !inspectionStage || !municipalityId) return;
+    if (!files?.length || !canManage || !municipalityId) return;
 
     setBusy("photo");
     setNotice("");
@@ -342,7 +344,7 @@ export function HabiteSeInspectionPanel({
   };
 
   const handleRemovePhoto = async (photo: HabiteSeInspectionPhoto) => {
-    if (!canManage || !inspectionStage) return;
+    if (!canManage) return;
     setBusy(`remove-photo:${photo.id}`);
     setNotice("");
     try {
@@ -393,7 +395,6 @@ export function HabiteSeInspectionPanel({
       if (response.inspection) {
         setInspection(response.inspection);
       }
-      setCanManage(false);
       setNotice(
         result === "conforme"
           ? "Vistoria concluída como conforme. O processo foi encaminhado automaticamente ao Financeiro."
@@ -523,6 +524,23 @@ export function HabiteSeInspectionPanel({
             </p>
           </div>
         </div>
+
+        {!externalView ? (
+          <div
+            data-habite-se-inspection-ownership="true"
+            className={cn(
+              "rounded-2xl border px-4 py-3 text-xs leading-5",
+              canManage
+                ? "border-sky-200 bg-sky-50 text-sky-900 dark:border-sky-500/30 dark:bg-sky-950/25 dark:text-sky-100"
+                : "border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-950/35 dark:text-slate-300",
+            )}
+          >
+            <span className="font-black">
+              {canManage ? "Edição autorizada." : "Modo somente leitura."}
+            </span>{" "}
+            O checklist pertence ao Analista atualmente responsável pelo processo e à Diretoria. Quando a análise é reatribuída, o Analista anterior perde a edição e o novo responsável passa a ter o direito automaticamente.
+          </div>
+        ) : null}
 
         <div
           data-habite-se-inspection-checklist="true"
@@ -881,11 +899,23 @@ export function HabiteSeInspectionPanel({
         ) : null}
 
         {!readOnly ? (
-          <div className="grid gap-3 lg:grid-cols-[auto_minmax(0,1fr)] lg:items-center">
+          <div
+            className={cn(
+              "grid gap-3",
+              inspectionStage
+                ? "lg:grid-cols-[auto_minmax(0,1fr)] lg:items-center"
+                : "lg:grid-cols-[minmax(0,1fr)]",
+            )}
+          >
             <Button
               type="button"
-              variant="outline"
-              className="h-11 rounded-xl border-slate-300 bg-white font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200"
+              variant={isPostInspectionRevision ? "default" : "outline"}
+              className={cn(
+                "h-11 rounded-xl font-bold",
+                isPostInspectionRevision
+                  ? "bg-sky-700 !text-white hover:bg-sky-800 [&_*]:!text-white"
+                  : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200",
+              )}
               disabled={Boolean(busy)}
               onClick={() => void persistDraft()}
             >
@@ -894,34 +924,42 @@ export function HabiteSeInspectionPanel({
               ) : (
                 <Save className="mr-2 h-4 w-4" />
               )}
-              Salvar rascunho da vistoria
+              {isPostInspectionRevision
+                ? "Salvar retificação do checklist"
+                : "Salvar rascunho da vistoria"}
             </Button>
 
-            <Button
-              type="button"
-              data-habite-se-inspection-complete="true"
-              className={cn(
-                "h-11 rounded-xl font-bold !text-white shadow-[0_10px_24px_rgba(15,23,42,0.12)] [&_*]:!text-white",
-                pendingCount > 0
-                  ? "bg-[linear-gradient(135deg,#92400e_0%,#c25b12_100%)] hover:brightness-105"
-                  : "bg-[linear-gradient(135deg,#065f46_0%,#059669_100%)] hover:brightness-105",
-              )}
-              disabled={Boolean(busy) || !allClassified}
-              onClick={() => void handleComplete()}
-            >
-              {busy === "complete" ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : pendingCount > 0 ? (
-                <AlertTriangle className="mr-2 h-4 w-4" />
-              ) : (
-                <CheckCircle2 className="mr-2 h-4 w-4" />
-              )}
-              {busy === "complete"
-                ? "Concluindo vistoria..."
-                : pendingCount > 0
-                  ? "Concluir com pendências"
-                  : "Concluir conforme e encaminhar ao Financeiro"}
-            </Button>
+            {inspectionStage ? (
+              <Button
+                type="button"
+                data-habite-se-inspection-complete="true"
+                className={cn(
+                  "h-11 rounded-xl font-bold !text-white shadow-[0_10px_24px_rgba(15,23,42,0.12)] [&_*]:!text-white",
+                  pendingCount > 0
+                    ? "bg-[linear-gradient(135deg,#92400e_0%,#c25b12_100%)] hover:brightness-105"
+                    : "bg-[linear-gradient(135deg,#065f46_0%,#059669_100%)] hover:brightness-105",
+                )}
+                disabled={Boolean(busy) || !allClassified}
+                onClick={() => void handleComplete()}
+              >
+                {busy === "complete" ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : pendingCount > 0 ? (
+                  <AlertTriangle className="mr-2 h-4 w-4" />
+                ) : (
+                  <CheckCircle2 className="mr-2 h-4 w-4" />
+                )}
+                {busy === "complete"
+                  ? "Concluindo vistoria..."
+                  : pendingCount > 0
+                    ? "Concluir com pendências"
+                    : "Concluir conforme e encaminhar ao Financeiro"}
+              </Button>
+            ) : (
+              <div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-xs font-semibold leading-5 text-sky-900 dark:border-sky-500/30 dark:bg-sky-950/25 dark:text-sky-100">
+                Retificação posterior à vistoria: o responsável, a data/hora e o resultado formal originais são preservados; a alteração fica registrada na auditoria.
+              </div>
+            )}
           </div>
         ) : inspection?.completedAt ? (
           <div
