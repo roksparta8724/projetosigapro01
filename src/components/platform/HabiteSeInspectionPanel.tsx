@@ -486,11 +486,11 @@ export function HabiteSeInspectionPanel({
             <div className="flex items-center gap-2 text-slate-500">
               <UserRound className="h-4 w-4" />
               <p className="text-[10px] font-extrabold uppercase tracking-[0.12em]">
-                Fiscal responsável
+                Responsável pela vistoria
               </p>
             </div>
             <p className="mt-2 text-sm font-black text-slate-950 dark:text-white">
-              {inspection?.inspectorName || (canManage ? session.name : "Aguardando registro")}
+              {inspection?.inspectorName || (canManage ? session.name : "Aguardando início da vistoria")}
             </p>
           </div>
           <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-700 dark:bg-slate-950/35">
