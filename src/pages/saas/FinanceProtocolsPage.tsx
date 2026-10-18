@@ -96,7 +96,7 @@ function guideResponsibility(kind: PaymentGuideKind) {
 function guideKindLabel(kind: PaymentGuideKind) {
   if (kind === "protocolo") return "Taxa de protocolo";
   if (kind === "iss_obra") return "ISSQN / Projeto";
-  if (kind === "habite_se") return "Habite-se";
+  if (kind === "habite_se") return "Guia de Habite-se";
   return "Aprovação / Alvará";
 }
 
