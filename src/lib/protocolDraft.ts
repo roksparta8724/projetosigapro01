@@ -9,10 +9,14 @@ export interface ProtocolDraftForm {
   matricula: string;
   proprietario: string;
   documento: string;
+  proprietarioRg: string;
+  proprietarioTelefone: string;
+  proprietarioEmail: string;
   lote: string;
   quadra: string;
   area: string;
   uso: string;
+  tipoEdificacao: string;
   tipoObra: string;
   padraoConstrutivo: string;
   processoAprovacao: string;
@@ -62,10 +66,14 @@ export const defaultProtocolDraftForm: ProtocolDraftForm = {
   matricula: "",
   proprietario: "",
   documento: "",
+  proprietarioRg: "",
+  proprietarioTelefone: "",
+  proprietarioEmail: "",
   lote: "",
   quadra: "",
   area: "",
   uso: "",
+  tipoEdificacao: "",
   tipoObra: "",
   padraoConstrutivo: "medio",
   processoAprovacao: "",
