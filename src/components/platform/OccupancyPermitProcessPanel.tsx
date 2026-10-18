@@ -32,11 +32,13 @@ export function OccupancyPermitProcessPanel({
   process,
   externalView = false,
   session,
+  dataReady = true,
   onProcessRefresh,
 }: {
   process: ProcessRecord;
   externalView?: boolean;
   session: SessionUser;
+  dataReady?: boolean;
   onProcessRefresh?: () => Promise<void> | void;
 }) {
   const required = process.documents.filter((item) => item.required);
@@ -328,6 +330,7 @@ export function OccupancyPermitProcessPanel({
         process={process}
         session={session}
         externalView={externalView}
+        dataReady={dataReady}
         onProcessRefresh={onProcessRefresh}
       />
 
