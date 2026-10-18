@@ -68,6 +68,7 @@ import {
   loadRemotePlatformStore,
   linkExistingMunicipalStaff,
   manageRemoteUserAccess,
+  requestRemoteHabiteSePaymentGuide,
   reissueRemoteProcessPaymentGuide,
   reviseRemoteIssProjectGuide,
   removeRemoteProcessMarkerByLabel,
