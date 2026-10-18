@@ -11,7 +11,9 @@ const read = (path: string) =>
   readFileSync(resolve(process.cwd(), path), "utf8");
 
 const backend = read("src/integrations/backend/platformImpl.ts");
+const dataHook = read("src/hooks/usePlatformData.tsx");
 const page = read("src/pages/saas/ExternalProcessControlPage.tsx");
+const dashboard = read("src/pages/saas/ExternalPortalPage.tsx");
 const migration = read(
   "neon/migrations/20261018_external_process_visibility_recovery.sql",
 );
@@ -82,5 +84,27 @@ describe("external process portfolio recovery", () => {
     expect(page).toContain("Seus processos não foram apagados");
     expect(page).toContain("refreshRemoteStore");
     expect(page).toContain("recoveryAttemptedRef");
+  });
+
+  it("never copies the previous account store into the next professional session", () => {
+    expect(dataHook).toContain("authenticatedProfileId || authenticatedUserId");
+    expect(dataHook).toContain("remoteContextUserId === authenticatedUserId");
+    expect(dataHook).toContain("processes: []");
+    expect(dataHook).toContain("ownerRequests: []");
+    expect(dataHook).toContain("ownerLinks: []");
+    expect(dataHook).toContain("ownerMessages: []");
+    expect(dataHook).toContain("setLoading(true)");
+  });
+
+  it("revalidates the official portfolio when the current user context is stale or unexpectedly empty", () => {
+    expect(page).toContain("!dataReadyForCurrentUser");
+    expect(page).toContain("visibleRecords.length === 0");
+    expect(page).toContain("refreshRemoteStore");
+    expect(page).not.toContain("allProcesses.length > 0");
+
+    expect(dashboard).toContain("portfolioRecoveryAttemptedRef");
+    expect(dashboard).toContain("dataReadyForCurrentUser");
+    expect(dashboard).toContain("visibleRecords.length === 0");
+    expect(dashboard).toContain("refreshRemoteStore");
   });
 });
