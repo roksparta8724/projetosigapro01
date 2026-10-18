@@ -33,7 +33,7 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
-import { formatOfficialProcessNumber, formatOfficialProcessTitle, getProcessPaymentGuides, matchesOperationalScope, normalizeOwnerDocument, type ProcessRecord, type ProcessStatus, type SessionUser } from "@/lib/platform";
+import { formatOfficialProcessNumber, formatOfficialProcessTitle, getProcessPaymentGuides, getVisibleProcessesByScope, isExternalProfessionalRole, matchesOperationalScope, normalizeOwnerDocument, type ProcessRecord, type ProcessStatus, type SessionUser } from "@/lib/platform";
 
 const statusLabels: Record<ProcessStatus, string> = {
   rascunho: "Rascunho",
@@ -368,7 +368,9 @@ export function DashboardHomePage() {
   const { processes, institutions, sessionUsers, getInstitutionSettings, getUserProfile } = usePlatformData();
   const { municipality, scopeId } = useMunicipality();
   const isMaster = session.role === "master_admin" || session.role === "master_ops";
-  const isExternal = session.role === "profissional_externo" || session.role === "proprietario_consulta" || session.role === "property_owner";
+  const isExternalProfessional = isExternalProfessionalRole(session.role);
+  const isOwner = session.role === "proprietario_consulta" || session.role === "property_owner";
+  const isExternal = isExternalProfessional || isOwner;
   const isFinance = session.role === "financeiro";
   const isAnalyst = session.role === "analista" || session.role === "setor_intersetorial";
 
@@ -381,10 +383,31 @@ export function DashboardHomePage() {
     [processes, activeInstitutionId],
   );
 
-  const externalProcesses = useMemo(
-    () => (ownerDocument ? processes.filter((process) => normalizeOwnerDocument(process.ownerDocument) === ownerDocument) : []),
-    [processes, ownerDocument],
+  const professionalProcesses = useMemo(
+    () =>
+      isExternalProfessional
+        ? getVisibleProcessesByScope(session, activeInstitutionId, processes)
+        : [],
+    [activeInstitutionId, isExternalProfessional, processes, session],
   );
+
+  const ownerProcesses = useMemo(
+    () =>
+      isOwner
+        ? processes.filter((process) => {
+            if (process.ownerProfileId && process.ownerProfileId === session.id) return true;
+            return Boolean(
+              ownerDocument &&
+                normalizeOwnerDocument(process.ownerDocument) === ownerDocument,
+            );
+          })
+        : [],
+    [isOwner, ownerDocument, processes, session.id],
+  );
+
+  const externalProcesses = isExternalProfessional
+    ? professionalProcesses
+    : ownerProcesses;
 
   const scopedUsers = useMemo(
     () => (isMaster ? sessionUsers : sessionUsers.filter((user) => user.tenantId === activeInstitutionId)),
@@ -606,7 +629,7 @@ export function DashboardHomePage() {
       ]
     : isExternal
       ? [
-          { title: "Meus protocolos", value: `${externalProcesses.length}`, helper: "Protocolos associados ao seu CPF/CNPJ.", icon: FileText, tone: "blue" as const },
+          { title: "Meus protocolos", value: `${externalProcesses.length}`, helper: isExternalProfessional ? "Protocolos vinculados ao seu perfil profissional." : "Protocolos vinculados ao seu cadastro.", icon: FileText, tone: "blue" as const },
           { title: "Pendencias", value: `${openRequirements}`, helper: "Exigencias aguardando retorno.", icon: AlertTriangle, tone: "rose" as const },
           { title: "Pagamentos pendentes", value: `${pendingPayments}`, helper: "Guias aguardando compensacao.", icon: Wallet, tone: "amber" as const },
           { title: "Protocolos concluidos", value: `${completedCount}`, helper: "Processos finalizados no historico.", icon: CheckCircle2, tone: "emerald" as const },
