@@ -7,6 +7,7 @@ const analyst = readFileSync(resolve(root, "src/pages/saas/AnalystDeskPage.tsx")
 const processDetail = readFileSync(resolve(root, "src/pages/saas/ProcessDetailPage.tsx"), "utf8");
 const portal = readFileSync(resolve(root, "src/components/platform/PortalFrame.tsx"), "utf8");
 const permission = readFileSync(resolve(root, "src/components/platform/PermissionRoute.tsx"), "utf8");
+const css = readFileSync(resolve(root, "src/index.css"), "utf8");
 
 describe("process entry and organogram regression", () => {
   it("restores premium analysis cards while keeping both direct process links", () => {
@@ -32,4 +33,18 @@ describe("process entry and organogram regression", () => {
     expect(portal).toContain('"/prefeitura/analise?secao=fila"');
     expect(analyst).toContain('searchParams.get("secao") === "fila"');
   });
+
+  it("keeps the selected destination white-on-blue and auto-fills the real local dispatch date", () => {
+    expect(processDetail).toContain('data-selected-organogram-card={selected ? "true" : "false"}');
+    expect(processDetail).toContain('data-organogram-destination-title="true"');
+    expect(processDetail).toContain('data-organogram-destination-path="true"');
+    expect(processDetail).toContain("function currentLocalDateValue");
+    expect(processDetail).toContain('useState(() => currentLocalDateValue())');
+    expect(processDetail).toContain('aria-label="Data do encaminhamento"');
+    expect(processDetail).toContain("setDispatchDueDate(currentLocalDateValue())");
+    expect(css).toContain("DISPATCH ORGANOGRAM SELECTED CARD V11");
+    expect(css).toContain('data-selected-organogram-card="true"');
+    expect(css).toContain("color:#ffffff !important");
+  });
+
 });
