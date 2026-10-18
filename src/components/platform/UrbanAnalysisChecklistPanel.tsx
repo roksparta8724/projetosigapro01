@@ -38,11 +38,13 @@ import {
   getProcessArtifactSignatures,
   getProcessArtifactVersionHistory,
   getProcessArtifactWithdrawal,
+  getProcessArtifactWithdrawalHistory,
   requestProcessArtifactSignature,
   saveProcessArtifactWithdrawal,
   signProcessArtifactWithPassword,
   type ArtifactSignatureRequestSnapshot,
   type ArtifactVersionHistoryEntry,
+  type ArtifactWithdrawalEvent,
   type ArtifactWithdrawalRecord,
   type ArtifactSignerSlot,
 } from "@/integrations/esign/artifactClient";
@@ -490,6 +492,7 @@ export function UrbanAnalysisChecklistPanel({
   });
   const [directorRequestBusy, setDirectorRequestBusy] = useState(false);
   const [withdrawalRecord, setWithdrawalRecord] = useState<ArtifactWithdrawalRecord | null>(null);
+  const [withdrawalHistory, setWithdrawalHistory] = useState<ArtifactWithdrawalEvent[]>([]);
   const [withdrawalName, setWithdrawalName] = useState("");
   const [withdrawalDateTime, setWithdrawalDateTime] = useState(() => new Date().toISOString());
   const [revisionHistory, setRevisionHistory] = useState<ArtifactVersionHistoryEntry[]>([]);
@@ -626,29 +629,22 @@ export function UrbanAnalysisChecklistPanel({
   useEffect(() => {
     let active = true;
 
-    void getProcessArtifactWithdrawal(process.id, ANALYSIS_ARTIFACT_KEY)
-      .then((snapshot) => {
+    void Promise.all([
+      getProcessArtifactWithdrawal(process.id, ANALYSIS_ARTIFACT_KEY),
+      getProcessArtifactWithdrawalHistory(process.id, ANALYSIS_ARTIFACT_KEY),
+    ])
+      .then(([snapshot, history]) => {
         if (!active) return;
-        const record = snapshot.withdrawal;
-
-        if (!record) {
-          setWithdrawalRecord(null);
-          setWithdrawalName("");
-          setWithdrawalDateTime(new Date().toISOString());
-          return;
-        }
-
-        setWithdrawalRecord(record);
-        setWithdrawalName(record.withdrawn_by_name || "");
-        setWithdrawalDateTime(
-          record.withdrawn_at_exact ||
-          record.recorded_at ||
-          (record.withdrawn_at ? `${record.withdrawn_at}T12:00:00-03:00` : new Date().toISOString()),
-        );
+        setWithdrawalRecord(snapshot.withdrawal);
+        setWithdrawalHistory(history);
+        // O formulário é sempre de um novo registro. Nunca reaproveita o nome
+        // da última pessoa que retirou o documento.
+        setWithdrawalName("");
+        setWithdrawalDateTime(new Date().toISOString());
       })
       .catch((error) => {
         if (!active) return;
-        console.error("[SIGAPRO][Retirada] Falha ao carregar registro de retirada.", error);
+        console.error("[SIGAPRO][Retirada] Falha ao carregar histórico de retirada.", error);
       });
 
     return () => {
@@ -657,8 +653,6 @@ export function UrbanAnalysisChecklistPanel({
   }, [process.id]);
 
   useEffect(() => {
-    if (withdrawalRecord) return;
-
     const syncAutomaticWithdrawalMoment = () => {
       setWithdrawalDateTime(new Date().toISOString());
     };
@@ -667,7 +661,7 @@ export function UrbanAnalysisChecklistPanel({
     const timer = window.setInterval(syncAutomaticWithdrawalMoment, 60_000);
 
     return () => window.clearInterval(timer);
-  }, [withdrawalRecord]);
+  }, [process.id]);
 
   const counts = useMemo(() => {
     const values = TEMPLATE.map((item) => state.items[item.id]?.status ?? "");
@@ -713,6 +707,7 @@ export function UrbanAnalysisChecklistPanel({
   const isFullySigned = technicalOfficial && directorOfficial;
   const withdrawalMatchesCurrentVersion = Boolean(withdrawalRecord);
   const canRecordWithdrawal =
+    !readOnly &&
     ["master_admin", "master_ops", "prefeitura_admin", "prefeitura_supervisor", "analista", "analyst"].includes(session.role);
 
   const invalidateSignature = (next: AnalysisChecklistState) => ({
@@ -995,14 +990,10 @@ export function UrbanAnalysisChecklistPanel({
     }
     if (!withdrawalName.trim()) {
       setWithdrawalSaveConfirmed(false);
-      setNotice("Informe o nome de quem retirou o documento em mãos.");
+      setNotice("Informe o nome completo de quem retirou o documento.");
       return;
     }
-    setWithdrawalDateTime(
-      withdrawalRecord?.withdrawn_at_exact ||
-      withdrawalRecord?.recorded_at ||
-      new Date().toISOString(),
-    );
+    setWithdrawalDateTime(new Date().toISOString());
     setWithdrawalSaveConfirmed(false);
     setWithdrawalBusy(true);
     try {
@@ -1013,16 +1004,11 @@ export function UrbanAnalysisChecklistPanel({
         withdrawnByName: withdrawalName.trim(),
       });
       setWithdrawalRecord(snapshot.withdrawal);
-      if (snapshot.withdrawal) {
-        setWithdrawalName(
-          snapshot.withdrawal.withdrawn_by_name || withdrawalName.trim(),
-        );
-        setWithdrawalDateTime(
-          snapshot.withdrawal.withdrawn_at_exact ||
-          snapshot.withdrawal.recorded_at ||
-          withdrawalDateTime,
-        );
-      }
+      setWithdrawalHistory(
+        await getProcessArtifactWithdrawalHistory(process.id, ANALYSIS_ARTIFACT_KEY),
+      );
+      setWithdrawalName("");
+      setWithdrawalDateTime(new Date().toISOString());
       setNotice("");
       setWithdrawalSaveConfirmed(true);
     } catch (error) {
@@ -2510,88 +2496,146 @@ export function UrbanAnalysisChecklistPanel({
 
           <div
             data-analysis-withdrawal-card="true"
-            className="mt-5 rounded-[20px] border border-slate-200 bg-white p-4 shadow-[0_10px_26px_rgba(15,23,42,0.05)] dark:border-slate-700 dark:bg-slate-900"
+            className="mt-5 overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-[0_14px_34px_rgba(15,23,42,0.06)] dark:border-slate-700 dark:bg-slate-900"
           >
-            <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
-                  Entrega física do documento
+            <div className="border-b border-slate-200 bg-[linear-gradient(135deg,#f8fbff_0%,#eef8ff_100%)] px-5 py-4 dark:border-slate-700 dark:bg-[linear-gradient(135deg,#0b1f31_0%,#0d3148_100%)]">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.14em] text-sky-700 dark:text-sky-300">
+                    Entrega física do documento
+                  </p>
+                  <p className="mt-1 text-base font-black text-slate-950 dark:text-white">
+                    Histórico de retiradas
+                  </p>
+                  <p className="mt-1 max-w-3xl text-xs leading-5 text-slate-600 dark:text-slate-300">
+                    Os registros anteriores permanecem visíveis e imutáveis. Para uma nova retirada, informe somente o nome; data e hora são gravadas pelo servidor.
+                  </p>
+                </div>
+                <span className="inline-flex w-fit shrink-0 items-center gap-1.5 rounded-full border border-sky-200 bg-white px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.08em] text-sky-800 shadow-sm dark:border-sky-500/30 dark:bg-slate-950 dark:text-sky-200">
+                  <History className="h-3.5 w-3.5" />
+                  {withdrawalHistory.length} registro(s)
+                </span>
+              </div>
+            </div>
+
+            <div data-analysis-withdrawal-history="true" className="border-b border-slate-200 dark:border-slate-700">
+              {withdrawalHistory.length === 0 ? (
+                <div className="px-5 py-5 text-sm text-slate-500 dark:text-slate-400">
+                  Nenhuma retirada física registrada até o momento.
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {withdrawalHistory.map((entry, index) => (
+                    <div
+                      key={entry.id}
+                      className="grid gap-3 px-5 py-4 md:grid-cols-[44px_minmax(0,1fr)_190px] md:items-center"
+                    >
+                      <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-sky-200 bg-sky-50 text-sm font-black text-sky-800 dark:border-sky-500/30 dark:bg-sky-950/30 dark:text-sky-200">
+                        {withdrawalHistory.length - index}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-black text-slate-950 dark:text-white">
+                          {entry.withdrawn_by_name}
+                        </p>
+                        <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
+                          <span>
+                            {entry.event_kind === "retificacao"
+                              ? "Registro posterior / retificação"
+                              : "Retirada registrada"}
+                          </span>
+                          {entry.recorded_by_name ? (
+                            <>
+                              <span aria-hidden="true">•</span>
+                              <span>Registrado por {entry.recorded_by_name}</span>
+                            </>
+                          ) : null}
+                        </div>
+                      </div>
+                      <div className="md:text-right">
+                        <p className="text-[9px] font-black uppercase tracking-[0.10em] text-slate-400">
+                          Data e hora
+                        </p>
+                        <p className="mt-1 text-xs font-black text-slate-800 dark:text-slate-100">
+                          {formatMunicipalDateTime(entry.withdrawn_at_exact)}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="p-5">
+              <div className="mb-4">
+                <p className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+                  Registrar nova retirada
                 </p>
                 <p className="mt-1 text-sm font-bold text-slate-950 dark:text-white">
                   Retirado por
                 </p>
-                <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
-                  O Analista Técnico informa apenas quem retirou o documento. A data é registrada automaticamente pelo sistema no momento da entrega física e não altera nem invalida as assinaturas eletrônicas.
-                </p>
               </div>
-              {withdrawalMatchesCurrentVersion ? (
-                <span className="inline-flex w-fit items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.08em] text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-950/30 dark:text-emerald-300">
-                  <CheckCircle2 className="h-3.5 w-3.5" />
-                  Retirada registrada
-                </span>
+
+              <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_200px] md:items-end">
+                <div>
+                  <label className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-400">
+                    Nome completo
+                  </label>
+                  <Input
+                    value={withdrawalName}
+                    onChange={(event) => {
+                      setWithdrawalName(event.target.value);
+                      setWithdrawalSaveConfirmed(false);
+                    }}
+                    placeholder="Digite o nome de quem retirou"
+                    autoComplete="off"
+                    className="mt-2 h-11 rounded-xl !border-slate-300 !bg-white !font-semibold !text-slate-950 caret-sky-600 selection:!bg-sky-700 selection:!text-white placeholder:!text-slate-400 focus-visible:!border-sky-500 focus-visible:!ring-2 focus-visible:!ring-sky-500/20 dark:!border-slate-600 dark:!bg-slate-950 dark:!text-white dark:placeholder:!text-slate-500"
+                    disabled={!canRecordWithdrawal || withdrawalBusy}
+                  />
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between gap-2">
+                    <label className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-400">
+                      Data e hora
+                    </label>
+                    <span className="rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-[0.08em] text-sky-700 dark:border-sky-500/30 dark:bg-sky-950/30 dark:text-sky-300">
+                      Automática
+                    </span>
+                  </div>
+                  <Input
+                    type="text"
+                    value={formatMunicipalDateTime(withdrawalDateTime)}
+                    readOnly
+                    aria-readonly="true"
+                    tabIndex={-1}
+                    className="mt-2 h-11 rounded-xl !border-slate-300 !bg-slate-100 !font-semibold !text-slate-800 focus-visible:!ring-0 dark:!border-slate-600 dark:!bg-slate-900 dark:!text-slate-100"
+                  />
+                </div>
+              </div>
+
+              {canRecordWithdrawal ? (
+                <Button
+                  type="button"
+                  data-analysis-withdrawal-confirm="true"
+                  className="mt-4 h-11 w-full rounded-xl border border-sky-500 bg-[linear-gradient(135deg,#082f49_0%,#075985_55%,#0f78b8_100%)] font-bold !text-white shadow-[0_9px_22px_rgba(7,89,133,0.22)] hover:brightness-110 [&_*]:!text-white"
+                  disabled={withdrawalBusy || !withdrawalName.trim()}
+                  onClick={() => void saveWithdrawalRecord()}
+                >
+                  {withdrawalBusy ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <CheckCircle2 className="mr-2 h-4 w-4" />
+                  )}
+                  {withdrawalBusy ? "Registrando retirada..." : "Registrar retirada física"}
+                </Button>
+              ) : null}
+
+              {withdrawalSaveConfirmed ? (
+                <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs font-semibold text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-950/30 dark:text-emerald-200">
+                  Retirada registrada com data e hora oficiais. O campo foi limpo para evitar reutilização acidental do nome.
+                </div>
               ) : null}
             </div>
-
-            <div className="mt-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_180px] md:items-end">
-              <div>
-                <label className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-400">
-                  Retirado por
-                </label>
-                <Input
-                  value={withdrawalName}
-                  onChange={(event) => {
-                    setWithdrawalName(event.target.value);
-                    setWithdrawalSaveConfirmed(false);
-                  }}
-                  placeholder="Nome completo de quem retirou"
-                  className="mt-2 h-10 rounded-xl !border-slate-300 !bg-white !text-slate-950 caret-sky-600 selection:!bg-sky-700 selection:!text-white placeholder:!text-slate-400 focus-visible:!border-sky-500 focus-visible:!ring-2 focus-visible:!ring-sky-500/20 dark:!border-slate-600 dark:!bg-slate-950 dark:!text-white dark:placeholder:!text-slate-500"
-                  disabled={!canRecordWithdrawal || withdrawalBusy}
-                />
-              </div>
-              <div>
-                <div className="flex items-center justify-between gap-2">
-                  <label className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-400">
-                    Data e hora da retirada
-                  </label>
-                  <span className="rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-[0.08em] text-sky-700 dark:border-sky-500/30 dark:bg-sky-950/30 dark:text-sky-300">
-                    Automática
-                  </span>
-                </div>
-                <Input
-                  type="text"
-                  value={formatMunicipalDateTime(withdrawalDateTime)}
-                  readOnly
-                  aria-readonly="true"
-                  tabIndex={-1}
-                  className="mt-2 h-10 rounded-xl !border-slate-300 !bg-slate-100 !font-semibold !text-slate-800 focus-visible:!ring-0 dark:!border-slate-600 dark:!bg-slate-900 dark:!text-slate-100"
-                />
-              </div>
-            </div>
-
-            {canRecordWithdrawal ? (
-              <Button
-                type="button"
-                data-analysis-withdrawal-confirm="true"
-                className="mt-3 h-11 w-full rounded-xl border border-sky-500 bg-[linear-gradient(135deg,#082f49_0%,#075985_55%,#0f78b8_100%)] font-bold !text-white shadow-[0_9px_22px_rgba(7,89,133,0.22)] hover:brightness-110 [&_*]:!text-white"
-                disabled={withdrawalBusy || !withdrawalName.trim()}
-                onClick={() => void saveWithdrawalRecord()}
-              >
-                {withdrawalBusy ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <CheckCircle2 className="mr-2 h-4 w-4" />
-                )}
-                {withdrawalBusy
-                  ? "Confirmando retirada..."
-                  : withdrawalMatchesCurrentVersion
-                    ? "Confirmar retificação da retirada"
-                    : "Confirmar registro da retirada"}
-              </Button>
-            ) : null}
-
-            <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
-              O Analista Técnico informa somente o nome de quem retirou o documento. Data e hora são registradas automaticamente pelo servidor e permanecem separadas das assinaturas eletrônicas.
-            </p>
           </div>
 
           <div
