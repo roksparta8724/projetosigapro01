@@ -65,6 +65,7 @@ import {
 } from "@/lib/govtech";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
+import { useLivePlatformRefresh } from "@/hooks/useLivePlatformRefresh";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 
 type FinanceSection =
@@ -81,12 +82,14 @@ export function FinanceDeskPage() {
   const { municipality, scopeId, institutionSettingsCompat, municipalityId } = useMunicipality();
   const {
     processes: allProcesses,
+    refreshRemoteStore,
     getInstitutionSettings,
     saveInstitutionSettings,
     issuePaymentGuide,
     markGuideAsPaid,
   } = usePlatformData();
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
+  useLivePlatformRefresh(refreshRemoteStore, { intervalMs: 8000 });
   const processes = getVisibleProcessesByScope(session, effectiveScopeId, allProcesses);
   const financeLedgerProcesses = useMemo(
     () =>
