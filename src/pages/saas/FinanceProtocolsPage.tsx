@@ -39,6 +39,7 @@ import {
   formatOfficialProcessTitle,
   getGuideObservation,
   getGuideReference,
+  getPaymentGuideDisplayReference,
   getProcessPaymentGuides,
   matchesOperationalScope,
   statusLabel,
@@ -807,8 +808,14 @@ export function FinanceProtocolsPage() {
                                             ) : null}
                                           </div>
                                           <p className="mt-1 font-mono text-[11px] text-slate-500 dark:text-slate-400">
-                                            {guide.code}
+                                            {getPaymentGuideDisplayReference(process, guide)}
                                           </p>
+                                          {guide.officialProcessReference &&
+                                          guide.officialProcessReference !== guide.code ? (
+                                            <p className="mt-1 text-[10px] text-slate-400 dark:text-slate-500">
+                                              Origem: {guide.code}
+                                            </p>
+                                          ) : null}
                                           <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
                                             {guideResponsibility(guide.kind)}
                                           </p>
