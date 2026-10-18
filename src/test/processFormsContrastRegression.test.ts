@@ -47,6 +47,16 @@ describe("process forms and worksheet contrast", () => {
     expect(checklist).toContain('data-force-card-contrast="adaptive"');
     expect(checklist).toContain('data-workspace-surface="adaptive"');
   });
+  it("keeps protocol primary actions dark with readable light text in every theme", () => {
+    const protocol = read("src/pages/saas/ProtocolarProjetoPage.tsx");
+    const css = read("src/index.css");
+
+    expect(protocol).toContain('data-protocol-primary-action="true"');
+    expect(protocol).toContain("sig-protocol-primary-action");
+    expect(css).toContain("PROTOCOL PRIMARY ACTION CONTRAST LOCK V1");
+    expect(css).toContain('-webkit-text-fill-color: #ffffff !important');
+    expect(css).toContain('[data-protocol-primary-action="true"]:disabled');
+  });
 });
 
 
