@@ -127,6 +127,16 @@ begin
   where p.id=_profile_id
   limit 1;
 
+  -- Ao concluir a vistoria, encerra o despacho de entrada da etapa anterior.
+  -- Isso preserva a regra de apenas um despacho operacional ativo por processo
+  -- e evita colisão ao criar o novo encaminhamento para o Financeiro.
+  update public.interdepartmental_dispatches
+     set status='concluido',
+         completed_at=coalesce(completed_at,clock_timestamp()),
+         assigned_to=coalesce(assigned_to,_actor_name)
+   where process_id=_process_id
+     and status in ('aguardando','respondido');
+
   insert into public.interdepartmental_dispatches(
     tenant_id,municipality_id,process_id,from_department,to_department,
     subject,due_at,status,visibility,priority,created_by,created_by_profile_id,created_at
