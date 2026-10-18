@@ -243,6 +243,8 @@ describe("Habite-se independent workflow", () => {
     expect(completionMigration).toContain("process_parties");
     expect(completionMigration).toContain("profissional_externo");
     expect(completionMigration).toContain("Envie a Guia de Habite-se ao profissional responsável antes de confirmar o pagamento.");
+    expect(completionMigration).toContain("WHEN 'aprovacao_final' THEN 'analise_tecnica'::public.process_status");
+    expect(completionMigration).toContain("Alvará aguardando emissão e assinatura");
   });
 
   it("returns paid Habite-se to the analyst, creates the permit, and only the director signature finalizes the process", () => {
