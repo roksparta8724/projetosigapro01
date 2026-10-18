@@ -53,6 +53,7 @@ import {
   buildProcessPath,
   buildProcessRouteKey,
   calculateApprovalGuideBreakdown,
+  calculateHabiteSeGuideBreakdown,
   calculateIssGuideAmount,
   canAccessMunicipalArea,
   canAnalyzeProcessDocument,
@@ -100,6 +101,24 @@ function formatBytes(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+
+function normalizeMunicipalFeeLabel(value: string | null | undefined) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLocaleLowerCase("pt-BR");
+}
+
+function constructionStandardDisplayLabel(value: string | null | undefined) {
+  const normalized = normalizeMunicipalFeeLabel(value);
+  if (normalized === "luxo") return "Luxo";
+  if (normalized === "primeira") return "Primeira";
+  if (normalized === "medio") return "Médio";
+  if (normalized === "economico") return "Econômico";
+  return String(value || "Não informado");
 }
 
 function inferMimeType(fileName: string) {
@@ -526,7 +545,7 @@ export function ProcessDetailPage() {
   const [constructionAreaInput, setConstructionAreaInput] = useState("");
   const [constructionUsageInput, setConstructionUsageInput] = useState("");
   const [workTypeInput, setWorkTypeInput] = useState("");
-  const [habiteSeFeeAmountInput, setHabiteSeFeeAmountInput] = useState("");
+  const [habiteSeConstructionStandardInput, setHabiteSeConstructionStandardInput] = useState("");
   const [isEditingIssuedIssGuide, setIsEditingIssuedIssGuide] = useState(false);
   const viewerAreaRef = useRef<HTMLDivElement | null>(null);
   const documentWorkspaceWindowRef = useRef<Window | null>(null);
@@ -645,8 +664,15 @@ export function ProcessDetailPage() {
     setConstructionAreaInput(process.property.area > 0 ? String(process.property.area) : "");
     setConstructionUsageInput(process.property.usage || "");
     setWorkTypeInput(process.property.workType || "");
+    setHabiteSeConstructionStandardInput(process.property.constructionStandard || "");
     setIsEditingIssuedIssGuide(false);
-  }, [process?.id, process?.property.area, process?.property.usage, process?.property.workType]);
+  }, [
+    process?.id,
+    process?.property.area,
+    process?.property.usage,
+    process?.property.workType,
+    process?.property.constructionStandard,
+  ]);
 
   const ownsCurrentProcessStage =
     !!process && isProcessOwnedBySessionDepartment(session, process);
@@ -1158,6 +1184,29 @@ export function ProcessDetailPage() {
     process.property.constructionStandard,
     tenantSettings,
   );
+  const habiteSeStandardOrder = ["luxo", "primeira", "medio", "economico"];
+  const habiteSeFinishOptions = (tenantSettings?.approvalRateProfiles ?? [])
+    .filter(
+      (profile) =>
+        normalizeMunicipalFeeLabel(profile.usage) ===
+          normalizeMunicipalFeeLabel(process.property.usage) &&
+        Number(profile.rate) > 0,
+    )
+    .sort((left, right) => {
+      const leftIndex = habiteSeStandardOrder.indexOf(
+        normalizeMunicipalFeeLabel(left.standard),
+      );
+      const rightIndex = habiteSeStandardOrder.indexOf(
+        normalizeMunicipalFeeLabel(right.standard),
+      );
+      return (leftIndex < 0 ? 99 : leftIndex) - (rightIndex < 0 ? 99 : rightIndex);
+    });
+  const habiteSeGuidePreview = calculateHabiteSeGuideBreakdown(
+    process.property.area,
+    process.property.usage,
+    habiteSeConstructionStandardInput,
+    tenantSettings,
+  );
   const displayGuide = requestedPaymentGuide ?? approvalGuide ?? constructionGuide ?? protocolGuide;
 
   const getDocumentReviewVisual = (document: typeof process.documents[number]) => {
@@ -1563,9 +1612,21 @@ export function ProcessDetailPage() {
             tenantSettings,
           )
         : null;
+    const habiteSeBreakdown =
+      selectedGuide.kind === "habite_se"
+        ? calculateHabiteSeGuideBreakdown(
+            selectedGuide.areaM2 ?? process.property.area,
+            selectedGuide.usage || process.property.usage,
+            selectedGuide.constructionStandard || process.property.constructionStandard,
+            tenantSettings,
+          )
+        : null;
     const canItemizeApproval =
       Boolean(approvalBreakdown) &&
       Math.abs(Number(approvalBreakdown?.totalAmount ?? 0) - Number(selectedGuide.amount || 0)) < 0.02;
+    const canItemizeHabiteSe =
+      Boolean(habiteSeBreakdown?.profile) &&
+      Math.abs(Number(habiteSeBreakdown?.totalAmount ?? 0) - Number(selectedGuide.amount || 0)) < 0.02;
     const guideItems: GuiaRecolhimentoOficialProps["itens"] =
       selectedGuide.kind === "aprovacao_final" && approvalBreakdown && canItemizeApproval
         ? [
@@ -1597,20 +1658,40 @@ export function ProcessDetailPage() {
               total: approvalBreakdown.licenseAmount,
             },
           ]
-        : [
-            {
-              ano: year,
-              divida: selectedGuide.label,
-              tabela: tenantSettings?.guiaPrefixo || "DAM",
-              sb: "",
-              pc: "",
-              principal: selectedGuide.amount,
-              multa: 0,
-              juros: 0,
-              correcao: 0,
-              total: selectedGuide.amount,
-            },
-          ];
+        : selectedGuide.kind === "habite_se" && habiteSeBreakdown && canItemizeHabiteSe
+          ? [
+              {
+                ano: year,
+                divida: `Habite-se • ${selectedGuide.usage || process.property.usage || "Construção"} • ${constructionStandardDisplayLabel(
+                  selectedGuide.constructionStandard || process.property.constructionStandard,
+                )}`,
+                tabela: `R$ ${habiteSeBreakdown.baseValueM2.toLocaleString("pt-BR", {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}/m² × ${habiteSeBreakdown.aliquotPercent.toLocaleString("pt-BR")}%`,
+                sb: "",
+                pc: "",
+                principal: habiteSeBreakdown.totalAmount,
+                multa: 0,
+                juros: 0,
+                correcao: 0,
+                total: habiteSeBreakdown.totalAmount,
+              },
+            ]
+          : [
+              {
+                ano: year,
+                divida: selectedGuide.label,
+                tabela: tenantSettings?.guiaPrefixo || "DAM",
+                sb: "",
+                pc: "",
+                principal: selectedGuide.amount,
+                multa: 0,
+                juros: 0,
+                correcao: 0,
+                total: selectedGuide.amount,
+              },
+            ];
 
     const banking = resolveGuideBankingData({
       settings: tenantSettings,
@@ -1948,14 +2029,32 @@ export function ProcessDetailPage() {
       setProcessActionStatus("A Guia de Habite-se já foi emitida para este processo.");
       return;
     }
+    if (process.property.area <= 0) {
+      setProcessActionStatus(
+        "A área do imóvel não está informada no cadastro do processo. Corrija a ficha antes de emitir a guia.",
+      );
+      return;
+    }
+    if (!process.property.usage?.trim()) {
+      setProcessActionStatus(
+        "O tipo de construção/uso não está informado no cadastro do processo.",
+      );
+      return;
+    }
 
-    const rawAmount = String(habiteSeFeeAmountInput).trim();
-    const normalizedAmount = rawAmount.includes(",")
-      ? rawAmount.split(".").join("").replace(",", ".")
-      : rawAmount;
-    const amount = Number(normalizedAmount);
-    if (!Number.isFinite(amount) || amount <= 0) {
-      setProcessActionStatus("Informe o valor oficial da taxa de Habite-se antes da emissão.");
+    const selectedStandard = habiteSeConstructionStandardInput.trim();
+    if (!selectedStandard) {
+      setProcessActionStatus("Selecione o tipo de acabamento para calcular a taxa do Habite-se.");
+      return;
+    }
+    if (
+      !habiteSeGuidePreview.profile ||
+      habiteSeGuidePreview.baseValueM2 <= 0 ||
+      habiteSeGuidePreview.totalAmount <= 0
+    ) {
+      setProcessActionStatus(
+        "A tabela oficial não possui valor para este tipo de construção e acabamento.",
+      );
       return;
     }
 
@@ -1964,10 +2063,13 @@ export function ProcessDetailPage() {
       () =>
         issueHabiteSePaymentGuide({
           processId: process.id,
-          actor: session.name,
-          amount,
+          constructionStandard: selectedStandard,
         }),
-      "Guia de Habite-se emitida pelo Financeiro e vinculada ao processo.",
+      `Guia de Habite-se emitida pelo cálculo oficial: ${process.property.area.toLocaleString(
+        "pt-BR",
+      )} m² × ${formatCurrency(habiteSeGuidePreview.baseValueM2)}/m² × ${habiteSeGuidePreview.aliquotPercent.toLocaleString(
+        "pt-BR",
+      )}% = ${formatCurrency(habiteSeGuidePreview.totalAmount)}.`,
     );
   };
 
@@ -4217,6 +4319,24 @@ export function ProcessDetailPage() {
                         </div>
                       </div>
 
+                      {habiteSeGuide.areaM2 && habiteSeGuide.constructionStandard ? (
+                        <div className="rounded-2xl border border-sky-200 bg-sky-50/80 p-4 dark:border-sky-500/30 dark:bg-sky-950/25">
+                          <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div>
+                              <p className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-sky-700 dark:text-sky-300">
+                                Cálculo oficial registrado
+                              </p>
+                              <p className="mt-1 text-sm font-bold text-slate-950 dark:text-white">
+                                {habiteSeGuide.areaM2.toLocaleString("pt-BR")} m² • {habiteSeGuide.usage || process.property.usage || "Uso não informado"} • {constructionStandardDisplayLabel(habiteSeGuide.constructionStandard)}
+                              </p>
+                            </div>
+                            <Badge variant="outline" className="border-sky-300 bg-white text-sky-800 dark:border-sky-500/40 dark:bg-slate-950 dark:text-sky-200">
+                              Área e acabamento congelados na emissão
+                            </Badge>
+                          </div>
+                        </div>
+                      ) : null}
+
                       <div className="flex flex-wrap gap-2">
                         <Button
                           type="button"
@@ -4261,39 +4381,146 @@ export function ProcessDetailPage() {
                     </div>
                   ) : habiteSeGuideRequest || /financ/.test(normalizedCurrentFolder) ? (
                     canFinanceOperate ? (
-                      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
-                        <div>
-                          <label className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">
-                            Valor oficial da taxa de Habite-se
-                          </label>
-                          <div className="relative mt-2">
-                            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-500">
-                              R$
-                            </span>
-                            <Input
-                              type="text"
-                              inputMode="decimal"
-                              value={habiteSeFeeAmountInput}
-                              onChange={(event) => setHabiteSeFeeAmountInput(event.target.value)}
-                              placeholder="0,00"
-                              className="h-11 rounded-xl border-slate-300 bg-white pl-10 font-bold text-slate-950 dark:border-slate-600 dark:bg-slate-950 dark:text-white"
-                            />
+                      <div className="space-y-4">
+                        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                          <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-700 dark:bg-slate-950/45">
+                            <p className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">
+                              Área do imóvel
+                            </p>
+                            <p className="mt-2 text-xl font-black text-slate-950 dark:text-white">
+                              {process.property.area > 0
+                                ? `${process.property.area.toLocaleString("pt-BR")} m²`
+                                : "Não informada"}
+                            </p>
+                            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                              Automática do cadastro do protocolo
+                            </p>
                           </div>
-                          <p className="mt-2 text-xs leading-5 text-slate-500 dark:text-slate-400">
-                            O Financeiro informa o valor oficial quando a Prefeitura ainda não possui uma taxa fixa configurada no sistema. A emissão fica registrada em auditoria.
-                          </p>
+
+                          <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-700 dark:bg-slate-950/45">
+                            <p className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">
+                              Tipo de construção
+                            </p>
+                            <p className="mt-2 text-xl font-black text-slate-950 dark:text-white">
+                              {process.property.usage || "Não informado"}
+                            </p>
+                            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                              Herdado das avaliações anteriores
+                            </p>
+                          </div>
+
+                          <div className="rounded-2xl border border-sky-200 bg-sky-50/80 p-4 dark:border-sky-500/30 dark:bg-sky-950/25">
+                            <label
+                              htmlFor="habite-se-acabamento"
+                              className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-sky-700 dark:text-sky-300"
+                            >
+                              Tipo de acabamento
+                            </label>
+                            <Select
+                              value={habiteSeConstructionStandardInput}
+                              onValueChange={setHabiteSeConstructionStandardInput}
+                            >
+                              <SelectTrigger
+                                id="habite-se-acabamento"
+                                className="mt-2 h-11 rounded-xl border-sky-300 bg-white font-bold text-slate-950 dark:border-sky-500/40 dark:bg-slate-950 dark:text-white"
+                              >
+                                <SelectValue placeholder="Selecione o acabamento" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {habiteSeFinishOptions.map((profile) => (
+                                  <SelectItem key={profile.id} value={profile.standard}>
+                                    {constructionStandardDisplayLabel(profile.standard)} — {formatCurrency(profile.rate)}/m²
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <p className="mt-1 text-xs text-sky-700/80 dark:text-sky-200/80">
+                              Você escolhe apenas o acabamento
+                            </p>
+                          </div>
+
+                          <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-700 dark:bg-slate-950/45">
+                            <p className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">
+                              Alíquota do Habite-se
+                            </p>
+                            <p className="mt-2 text-xl font-black text-slate-950 dark:text-white">
+                              {habiteSeGuidePreview.aliquotPercent.toLocaleString("pt-BR")}%
+                            </p>
+                            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                              Configuração municipal oficial
+                            </p>
+                          </div>
                         </div>
-                        <Button
-                          type="button"
-                          className="h-11 rounded-xl bg-[linear-gradient(135deg,#075985_0%,#0284c7_100%)] px-5 font-bold !text-white shadow-[0_10px_24px_rgba(7,89,133,0.20)] hover:brightness-105 [&_*]:!text-white"
-                          disabled={processActionBusy === "issue-habite-se-guide" || !habiteSeFeeAmountInput.trim()}
-                          onClick={() => void handleIssueHabiteSeGuide()}
-                        >
-                          <ReceiptText className="mr-2 h-4 w-4" />
-                          {processActionBusy === "issue-habite-se-guide"
-                            ? "Emitindo..."
-                            : "Gerar Guia de Habite-se"}
-                        </Button>
+
+                        <div className="rounded-[18px] border border-sky-200 bg-[linear-gradient(135deg,rgba(240,249,255,0.96),rgba(248,250,252,0.98))] p-4 shadow-[0_10px_28px_rgba(2,132,199,0.08)] dark:border-sky-500/30 dark:bg-[linear-gradient(135deg,rgba(8,47,73,0.42),rgba(15,23,42,0.72))]">
+                          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                            <div>
+                              <p className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-sky-700 dark:text-sky-300">
+                                Memória de cálculo
+                              </p>
+                              {habiteSeGuidePreview.profile ? (
+                                <>
+                                  <p className="mt-2 text-sm font-bold text-slate-800 dark:text-slate-100">
+                                    {habiteSeGuidePreview.areaM2.toLocaleString("pt-BR")} m² × {formatCurrency(habiteSeGuidePreview.baseValueM2)}/m² × {habiteSeGuidePreview.aliquotPercent.toLocaleString("pt-BR")}%
+                                  </p>
+                                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                                    {process.property.usage} • {constructionStandardDisplayLabel(habiteSeConstructionStandardInput)} • referência oficial de acabamento
+                                  </p>
+                                </>
+                              ) : (
+                                <p className="mt-2 text-sm font-semibold text-slate-600 dark:text-slate-300">
+                                  Selecione um acabamento disponível para calcular automaticamente.
+                                </p>
+                              )}
+                            </div>
+                            <div className="min-w-[210px] rounded-2xl border border-sky-200 bg-white px-5 py-3 text-right dark:border-sky-500/30 dark:bg-slate-950">
+                              <p className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+                                Taxa calculada
+                              </p>
+                              <p className="mt-1 text-2xl font-black text-sky-800 dark:text-sky-200">
+                                {habiteSeGuidePreview.totalAmount > 0
+                                  ? formatCurrency(habiteSeGuidePreview.totalAmount)
+                                  : "R$ 0,00"}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {process.property.area <= 0 || !process.property.usage?.trim() ? (
+                          <div className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm font-semibold leading-6 text-amber-950 dark:border-amber-500/40 dark:bg-amber-950/30 dark:text-amber-100">
+                            A área e o tipo de construção precisam estar preenchidos no cadastro do processo. Esses dados não são digitados novamente no Financeiro.
+                          </div>
+                        ) : habiteSeFinishOptions.length === 0 ? (
+                          <div className="rounded-2xl border border-rose-300 bg-rose-50 p-4 text-sm font-semibold leading-6 text-rose-900 dark:border-rose-500/40 dark:bg-rose-950/30 dark:text-rose-100">
+                            A tabela municipal não possui acabamento configurado para “{process.property.usage}”. A guia permanece bloqueada até a configuração oficial ser corrigida.
+                          </div>
+                        ) : null}
+
+                        <div className="flex flex-col gap-3 border-t border-slate-200 pt-4 sm:flex-row sm:items-center sm:justify-between dark:border-slate-700">
+                          <p className="max-w-3xl text-xs leading-5 text-slate-500 dark:text-slate-400">
+                            A tela mostra a prévia, mas o valor final é recalculado no banco usando a área oficial do imóvel, o acabamento selecionado, a tabela municipal e a alíquota. O cálculo e os dados usados ficam congelados na guia e registrados em auditoria.
+                          </p>
+                          <Button
+                            type="button"
+                            className="h-11 shrink-0 rounded-xl bg-[linear-gradient(135deg,#075985_0%,#0284c7_100%)] px-5 font-bold !text-white shadow-[0_10px_24px_rgba(7,89,133,0.20)] hover:brightness-105 [&_*]:!text-white"
+                            disabled={
+                              processActionBusy === "issue-habite-se-guide" ||
+                              process.property.area <= 0 ||
+                              !process.property.usage?.trim() ||
+                              !habiteSeConstructionStandardInput.trim() ||
+                              !habiteSeGuidePreview.profile ||
+                              habiteSeGuidePreview.totalAmount <= 0
+                            }
+                            onClick={() => void handleIssueHabiteSeGuide()}
+                          >
+                            <ReceiptText className="mr-2 h-4 w-4" />
+                            {processActionBusy === "issue-habite-se-guide"
+                              ? "Emitindo..."
+                              : habiteSeGuidePreview.totalAmount > 0
+                                ? `Gerar guia • ${formatCurrency(habiteSeGuidePreview.totalAmount)}`
+                                : "Gerar Guia de Habite-se"}
+                          </Button>
+                        </div>
                       </div>
                     ) : (
                       <div className="rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm leading-6 text-sky-950 dark:border-sky-500/30 dark:bg-sky-950/25 dark:text-sky-100">
