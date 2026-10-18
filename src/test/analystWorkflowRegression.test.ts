@@ -30,7 +30,7 @@ describe("urban analysis workflow regressions", () => {
 
   it("prevents financial or fiscal advancement before analysis starts and required files are present", () => {
     expect(analystDesk).toContain(
-      "disabled={Boolean(actionBusy) || !analysisStarted || pendingRequirements.length > 0 || missingRequiredDocuments > 0}",
+      "disabled={Boolean(actionBusy) || !canEditAnalysis || !analysisStarted || pendingRequirements.length > 0 || missingRequiredDocuments > 0}",
     );
     expect(analystDesk).toContain("Responsável pela análise");
     expect(analystDesk).toContain("Continuar análise");
