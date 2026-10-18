@@ -611,12 +611,43 @@ export function DashboardHomePage() {
 
   const heroActions = (
     <div className="flex flex-wrap gap-2">
-      <Button type="button" variant="outline" className="rounded-full" onClick={() => navigate("/dashboard/processos")}>
-        Ver processos
-      </Button>
-      <Button type="button" className="rounded-full bg-slate-950 hover:bg-slate-900 dark:bg-sky-500 dark:text-slate-950 dark:hover:bg-sky-400" onClick={() => navigate("/dashboard/operacional")}>
-        Abrir leitura operacional
-      </Button>
+      {isExternalProfessional ? (
+        <>
+          <Button
+            type="button"
+            variant="outline"
+            className="rounded-full"
+            onClick={() => navigate("/externo/controle")}
+          >
+            Controle de processos
+          </Button>
+          <Button
+            type="button"
+            className="rounded-full bg-slate-950 hover:bg-slate-900 dark:bg-sky-500 dark:text-slate-950 dark:hover:bg-sky-400"
+            onClick={() => navigate("/externo/pagamentos")}
+          >
+            Pagamentos
+          </Button>
+        </>
+      ) : (
+        <>
+          <Button
+            type="button"
+            variant="outline"
+            className="rounded-full"
+            onClick={() => navigate("/dashboard/processos")}
+          >
+            Ver processos
+          </Button>
+          <Button
+            type="button"
+            className="rounded-full bg-slate-950 hover:bg-slate-900 dark:bg-sky-500 dark:text-slate-950 dark:hover:bg-sky-400"
+            onClick={() => navigate("/dashboard/operacional")}
+          >
+            Abrir leitura operacional
+          </Button>
+        </>
+      )}
     </div>
   );
 
