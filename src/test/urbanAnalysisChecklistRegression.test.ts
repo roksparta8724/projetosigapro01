@@ -63,20 +63,27 @@ describe("urban analysis checklist", () => {
 });
 
 
-describe("automatic physical withdrawal date", () => {
-  it("uses the municipal clock automatically and does not ask the analyst to type a date", () => {
+describe("automatic physical withdrawal date and time", () => {
+  it("uses the municipal clock automatically and does not ask the analyst to type a date or time", () => {
     const panel = read("src/components/platform/UrbanAnalysisChecklistPanel.tsx");
     const client = read("src/integrations/esign/artifactClient.ts");
     const migration = read("neon/migrations/20261018_withdrawal_automatic_date.sql");
+    const revisionMigration = read(
+      "neon/migrations/20261018_analysis_revision_history_and_withdrawal_time.sql",
+    );
 
-    expect(panel).toContain("currentMunicipalDateValue");
     expect(panel).toContain('timeZone: "America/Sao_Paulo"');
+    expect(panel).toContain("formatMunicipalDateTime(withdrawalDateTime)");
+    expect(panel).toContain("Data e hora da retirada");
     expect(panel).toContain("Automática");
     expect(panel).toContain('aria-readonly="true"');
     expect(panel).not.toContain('type="date"\n                  value={withdrawalDate}');
     expect(client).not.toContain("withdrawnAt: string");
+    expect(client).toContain("withdrawn_at_exact");
     expect(migration).toContain("new.withdrawn_at := _official_date");
     expect(migration).toContain("new.withdrawn_at := old.withdrawn_at");
+    expect(revisionMigration).toContain("new.withdrawn_at_exact := _official_timestamp");
+    expect(revisionMigration).toContain("DD/MM/YYYY HH24:MI");
   });
 });
 
@@ -88,9 +95,27 @@ describe("physical withdrawal confirmation", () => {
     expect(panel).toContain('data-analysis-withdrawal-card="true"');
     expect(panel).toContain('data-analysis-withdrawal-confirm="true"');
     expect(panel).toContain("canRecordWithdrawal ? (");
-    expect(panel).toContain("Confirmar retirada em mãos");
-    expect(panel).toContain("Confirmar atualização da retirada");
+    expect(panel).toContain("Confirmar registro da retirada");
+    expect(panel).toContain("Confirmar retificação da retirada");
+    expect(panel).toContain("Retirado por");
+    expect(panel).not.toContain("Retirada em mãos por");
     expect(panel).not.toContain("{canSignTechnical ? (\n                <Button\n                  type=\"button\"\n                  variant=\"outline\"");
+  });
+});
+
+
+describe("signed analysis rectification history", () => {
+  it("shows every signed version with date, time, signer and modification summary", () => {
+    const panel = read("src/components/platform/UrbanAnalysisChecklistPanel.tsx");
+    const client = read("src/integrations/esign/artifactClient.ts");
+
+    expect(panel).toContain('data-analysis-revision-history="true"');
+    expect(panel).toContain("Histórico de versões");
+    expect(panel).toContain("Retificações e assinaturas da análise");
+    expect(panel).toContain("summarizeSignedRevision");
+    expect(panel).toContain("Assinada em");
+    expect(panel).toContain("getProcessArtifactVersionHistory");
+    expect(client).toContain("get_process_artifact_version_history_v1");
   });
 });
 
