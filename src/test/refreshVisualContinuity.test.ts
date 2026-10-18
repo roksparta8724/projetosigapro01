@@ -83,6 +83,15 @@ describe("F5, logout and topbar visual continuity", () => {
     expect(processDetail).toContain("const process = liveProcess ?? cachedProcessVisual");
   });
 
+  it("keeps the Habite-se tab mounted while process permissions revalidate on F5", () => {
+    expect(processDetail).toContain("const stableProtocolTrackingOnly");
+    expect(processDetail).toContain("dataReadyForCurrentUser && !platformDataLoading");
+    expect(processDetail).toContain("stableProtocolTrackingOnly && preferredTab");
+    expect(processDetail).toContain("stableProtocolTrackingOnly && requested");
+    expect(processDetail).toContain("if (!stableProtocolTrackingOnly) return");
+    expect(processDetail).toContain("dataReadyForCurrentUser &&\n                  session.id !== \"unknown\"");
+  });
+
   it("keeps the current Analysis tab visible while the same session revalidates", () => {
     expect(processDetail).toContain("requestedTabForContinuity");
     expect(processDetail).toContain("analysisTabVisible");
