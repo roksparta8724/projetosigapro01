@@ -50,6 +50,14 @@ describe("F5, logout and topbar visual continuity", () => {
     expect(html).toContain("initialAppZoom");
   });
 
+  it("seeds refresh continuity before React renders so Habite-se never disappears on F5", () => {
+    expect(main).toContain("persistRefreshContinuity();\n\nbootApplication();");
+    expect(main.indexOf("persistRefreshContinuity();\n\nbootApplication();")).toBeGreaterThan(-1);
+    expect(main.indexOf("persistRefreshContinuity();\n\nbootApplication();")).toBeLessThan(
+      main.lastIndexOf("bootApplication();") + 1,
+    );
+  });
+
   it("treats same-user warm store as visually ready during F5 revalidation", () => {
     expect(platformData).toContain('source: "warm" as const');
     expect(platformData).toContain("contextUserId: warmStore.userId");
