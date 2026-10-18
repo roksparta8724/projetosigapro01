@@ -2245,6 +2245,7 @@ export async function createRemoteExternalProcessV2(
     amount: number;
     reconciled?: boolean;
     existing?: boolean;
+    draft_updated?: boolean;
   };
 }
 
