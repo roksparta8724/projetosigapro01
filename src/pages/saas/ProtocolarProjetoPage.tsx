@@ -29,7 +29,11 @@ import { usePlatformData } from "@/hooks/usePlatformData";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { usePlanEntitlements } from "@/hooks/usePlanEntitlements";
-import { createRemoteExternalProcessV2, registerRemoteExternalAccount } from "@/integrations/backend/platform";
+import {
+  createRemoteExternalProcessV2,
+  getRemoteExternalPreprotocolDraft,
+  registerRemoteExternalAccount,
+} from "@/integrations/backend/platform";
 import { deleteFileFromStorage, uploadFileToStorage } from "@/integrations/r2/storage";
 import { hasBackendEnv } from "@/integrations/backend/databaseClient";
 import {
@@ -226,8 +230,12 @@ export function ProtocolarProjetoPage({
     telefone: profilePhone,
     email: profileEmail || session.email,
   });
-  const resumeDraftNumber = new URLSearchParams(location.search).get("rascunho");
-  const isResumingDraft = Boolean(resumeDraftNumber);
+  const searchParams = new URLSearchParams(location.search);
+  const resumeDraftNumber = searchParams.get("rascunho");
+  const remotePreProtocolNumber = searchParams.get("preprotocolo");
+  const isResumingDraft = Boolean(resumeDraftNumber || remotePreProtocolNumber);
+  const remoteHydratedRef = useRef("");
+  const [remoteDraftLoading, setRemoteDraftLoading] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -236,6 +244,197 @@ export function ProtocolarProjetoPage({
     // usuário nunca seleciona arquivos em um contexto que será reiniciado
     // alguns instantes depois quando a Prefeitura terminar de carregar.
     if (!effectiveScopeId) {
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    if (
+      remotePreProtocolNumber &&
+      remoteHydratedRef.current !== remotePreProtocolNumber
+    ) {
+      remoteHydratedRef.current = remotePreProtocolNumber;
+      setRemoteDraftLoading(true);
+      setStatus("Carregando o rascunho vinculado à guia inicial...");
+
+      void getRemoteExternalPreprotocolDraft(remotePreProtocolNumber)
+        .then((remoteDraft) => {
+          if (cancelled) return;
+
+          const payload = remoteDraft.payload ?? {};
+          const remoteType = String(payload.type || "");
+          const remoteMode: ProtocolDraftEntryMode =
+            isOccupancyPermitProcessType(remoteType) ? "habite-se" : "projeto";
+
+          if (remoteMode !== draftEntryMode) {
+            const correctRoute =
+              remoteMode === "habite-se"
+                ? "/externo/habite-se"
+                : "/externo/protocolar";
+            navigate(
+              `${correctRoute}?preprotocolo=${encodeURIComponent(
+                remoteDraft.preProtocolNumber,
+              )}`,
+              { replace: true },
+            );
+            return;
+          }
+
+          const storedForm =
+            payload.draftForm && typeof payload.draftForm === "object"
+              ? (payload.draftForm as Partial<ProtocolDraftForm>)
+              : {};
+
+          setDraftNumber(remoteDraft.preProtocolNumber);
+          setForm({
+            ...defaultProtocolDraftForm,
+            ...storedForm,
+            tipo: isHabiteSeMode
+              ? (storedForm.modalidadeHabiteSe === "parcial"
+                  ? "Carta de Habite-se Parcial"
+                  : "Habite-se")
+              : String(storedForm.tipo || payload.type || ""),
+            tipoObra: isHabiteSeMode
+              ? "Conclusão da obra"
+              : String(storedForm.tipoObra || payload.workType || ""),
+            padraoConstrutivo: isHabiteSeMode
+              ? ""
+              : String(
+                  storedForm.padraoConstrutivo ||
+                    payload.constructionStandard ||
+                    "",
+                ),
+            titulo: String(storedForm.titulo || payload.title || ""),
+            endereco: String(storedForm.endereco || payload.address || ""),
+            iptu: String(storedForm.iptu || payload.iptu || ""),
+            matricula: String(
+              storedForm.matricula || payload.registration || "",
+            ),
+            lote: String(storedForm.lote || payload.lot || ""),
+            quadra: String(storedForm.quadra || payload.block || ""),
+            area: String(storedForm.area || payload.area || ""),
+            uso: String(storedForm.uso || payload.usage || ""),
+            tipoEdificacao: String(
+              storedForm.tipoEdificacao || payload.buildingType || "",
+            ),
+            proprietario: String(
+              storedForm.proprietario || payload.ownerName || "",
+            ),
+            documento: String(
+              storedForm.documento || payload.ownerDocument || "",
+            ),
+            proprietarioRg: String(
+              storedForm.proprietarioRg ||
+                payload.ownerIdentityDocument ||
+                "",
+            ),
+            proprietarioTelefone: String(
+              storedForm.proprietarioTelefone || payload.ownerPhone || "",
+            ),
+            proprietarioEmail: String(
+              storedForm.proprietarioEmail || payload.ownerEmail || "",
+            ),
+            profissional: String(
+              storedForm.profissional ||
+                payload.technicalLead ||
+                profileFullName ||
+                session.name,
+            ),
+            profissionalDocumento: String(
+              storedForm.profissionalDocumento ||
+                payload.professionalDocument ||
+                profile?.cpfCnpj ||
+                "",
+            ),
+            tipoProfissional: String(
+              storedForm.tipoProfissional ||
+                payload.professionalType ||
+                profile?.professionalType ||
+                "",
+            ),
+            empresaProfissional: String(
+              storedForm.empresaProfissional ||
+                payload.professionalCompany ||
+                profile?.companyName ||
+                "",
+            ),
+            registro: String(
+              storedForm.registro ||
+                payload.professionalRegistration ||
+                profileRegistrationNumber ||
+                "",
+            ),
+            telefone: String(
+              storedForm.telefone ||
+                payload.professionalPhone ||
+                profilePhone ||
+                "",
+            ),
+            email: String(
+              storedForm.email ||
+                payload.professionalEmail ||
+                profileEmail ||
+                session.email,
+            ),
+          });
+
+          const payloadDocuments = Array.isArray(payload.documents)
+            ? payload.documents
+            : [];
+          const storedFiles = payloadDocuments.reduce<
+            Record<string, Array<{
+              id: string;
+              fileName: string;
+              mimeType: string;
+              sizeLabel: string;
+              storagePath?: string;
+              fileSizeBytes?: number;
+            }>>
+          >((acc, rawDocument, index) => {
+            const document = rawDocument as Record<string, unknown>;
+            const label = String(document.label || "Documento");
+            const fileName = String(document.fileName || label);
+            const item = {
+              id: String(document.id || `remote-${index}`),
+              fileName,
+              mimeType: String(
+                document.mimeType || "application/octet-stream",
+              ),
+              sizeLabel: String(document.sizeLabel || "arquivo salvo"),
+              storagePath: document.filePath
+                ? String(document.filePath)
+                : undefined,
+              fileSizeBytes: Number(document.fileSizeBytes || 0) || undefined,
+            };
+            (acc[label] ||= []).push(item);
+            return acc;
+          }, {});
+
+          const shell = storedFiles as Parameters<
+            typeof restoreUploadedFiles
+          >[0];
+          replaceFiles(shell as Record<string, UploadedFileItem[]>);
+          void restoreUploadedFiles(shell).then((restored) => {
+            if (!cancelled) replaceFiles(restored);
+          });
+
+          setStatus(
+            `Rascunho carregado. A guia ${remoteDraft.guide.number || "inicial"} continua pendente; você pode ajustar os dados antes do pagamento.`,
+          );
+        })
+        .catch((error) => {
+          if (cancelled) return;
+          remoteHydratedRef.current = "";
+          setStatus(
+            error instanceof Error
+              ? error.message
+              : "Não foi possível abrir o rascunho do pré-protocolo.",
+          );
+        })
+        .finally(() => {
+          if (!cancelled) setRemoteDraftLoading(false);
+        });
+
       return () => {
         cancelled = true;
       };
@@ -343,6 +542,7 @@ export function ProtocolarProjetoPage({
     };
   }, [
     effectiveScopeId,
+    remotePreProtocolNumber,
     resumeDraftNumber,
     session.id,
     session.tenantId,
@@ -977,6 +1177,8 @@ export function ProtocolarProjetoPage({
           documents,
           guidePrefix: tenantSettings?.guiaPrefixo || "DAM",
           protocolPrefix: tenantSettings?.protocoloPrefixo || "PM",
+          requestedProtocolNumber: remotePreProtocolNumber || null,
+          draftForm: form as unknown as Record<string, unknown>,
           remote: {
             processId: "",
             protocol: "",
@@ -986,7 +1188,7 @@ export function ProtocolarProjetoPage({
           },
         });
 
-        if (documents.length > 0) {
+        if (documents.length > 0 && !remoteProcess.draft_updated) {
           const syncResult = await appendProcessDocuments(
             remoteProcess.process_id,
             documents,
@@ -1045,7 +1247,7 @@ export function ProtocolarProjetoPage({
       return;
     }
 
-    if (isResumingDraft) {
+    if (resumeDraftNumber) {
       clearProtocolDraft(session.id, effectiveScopeId, session.tenantId, draftNumber);
     }
 
