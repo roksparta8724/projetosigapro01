@@ -10567,8 +10567,11 @@ html body #root [data-organogram-code-surface="blue"] [data-organogram-code-text
   caret-color: #ffffff !important;
   text-decoration-color: #ffffff !important;
   opacity: 1 !important;
-  font-weight: 900 !important;
-  text-shadow: 0 1px 1px rgba(0,0,0,.18) !important;
+  font-weight: 800 !important;
+  text-shadow: none !important;
+  -webkit-font-smoothing: antialiased !important;
+  -moz-osx-font-smoothing: grayscale !important;
+  text-rendering: optimizeLegibility !important;
   mix-blend-mode: normal !important;
   filter: none !important;
 }
