@@ -3061,7 +3061,8 @@ export function canEditAssignedAnalysisArtifact(
 
   const assignedProfileId = process.analysis?.assignedProfileId?.trim();
   if (assignedProfileId) {
-    return assignedProfileId === session.id;
+    const sessionIsAssignedAnalyst = assignedProfileId === session.id;
+    return sessionIsAssignedAnalyst;
   }
 
   // Compatibilidade com processos antigos que possuem apenas o nome do analista.
