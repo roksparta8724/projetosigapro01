@@ -13,6 +13,7 @@ describe("Habite-se independent workflow", () => {
   const finance = read("src/pages/saas/FinanceDeskPage.tsx");
   const store = read("src/hooks/usePlatformData.tsx");
   const panel = read("src/components/platform/OccupancyPermitProcessPanel.tsx");
+  const externalDrafts = read("src/pages/saas/ExternalDraftsPage.tsx");
 
   it("opens Habite-se through its own route and new process mode", () => {
     expect(app).toContain('path="/externo/habite-se"');
@@ -35,6 +36,14 @@ describe("Habite-se independent workflow", () => {
     expect(protocolPage).toContain('const draftStorageFolder = isHabiteSeMode ? "habite-se" : "protocolos"');
     expect(protocolPage).toContain('requestedMode === "habite-se"');
     expect(protocolPage).toContain('"/externo/habite-se"');
+  });
+
+  it("resumes each draft from the correct external service", () => {
+    expect(externalDrafts).toContain("inferProtocolDraftEntryMode(draft)");
+    expect(externalDrafts).toContain('isHabiteSeDraft ? "/externo/habite-se"');
+    expect(externalDrafts).toContain('"Continuar Habite-se"');
+    expect(externalDrafts).toContain('"Continuar projeto"');
+    expect(externalDrafts).toContain("Habite-se independente");
   });
 
   it("requires an explicit link to the prior approval and permit", () => {
