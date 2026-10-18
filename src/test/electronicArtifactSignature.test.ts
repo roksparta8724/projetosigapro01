@@ -47,6 +47,13 @@ describe("official electronic signatures", () => {
     ),
     "utf8",
   );
+  const strictOwnershipMigration = readFileSync(
+    resolve(
+      process.cwd(),
+      "neon/migrations/20261018_analysis_strict_assignment_ownership.sql",
+    ),
+    "utf8",
+  );
 
   it("never signs the technical checklist only in localStorage", () => {
     expect(checklist).toContain("signProcessArtifactWithPassword");
@@ -82,11 +89,16 @@ describe("official electronic signatures", () => {
     expect(client).not.toContain("throw new Error(payload.error ||");
   });
 
-  it("enforces analyst-and-director-only signing for the municipal analysis checklist", () => {
+  it("enforces assigned-analyst and director signing for the municipal analysis checklist", () => {
     expect(api).toContain("SIGNER_SLOT_NOT_ALLOWED_FOR_ARTIFACT");
     expect(api).toContain('artifactType === "urban_analysis_checklist"');
     expect(api).toContain('"analise_tecnica", "diretoria"');
     expect(api).toContain("somente o Analista Técnico e a Diretoria podem assinar");
+    expect(api).toContain("ANALYSIS_ASSIGNEE_REQUIRED");
+    expect(api).toContain('"can_write_process_analysis"');
+    expect(strictOwnershipMigration).toContain("analysis_assigned_to_profile_id=_actor");
+    expect(strictOwnershipMigration).toContain("Somente o Analista responsável atual");
+    expect(strictOwnershipMigration).toContain("public.can_write_process_analysis(_process_id)");
   });
 
   it("returns a precise stage and code for every critical server failure", () => {
