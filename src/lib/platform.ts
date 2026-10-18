@@ -3048,6 +3048,7 @@ export function statusTone(status: ProcessStatus) {
       return "bg-emerald-100 text-emerald-800 border-emerald-200";
     case "indeferido":
       return "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20";
+    case "distribuicao":
     case "analise_tecnica":
     case "despacho_intersetorial":
       return "bg-sky-100 text-sky-800 border-sky-200";
@@ -3062,6 +3063,7 @@ export function statusTone(status: ProcessStatus) {
 
 export function statusLabel(status: ProcessStatus) {
   const labels: Partial<Record<ProcessStatus, string>> = {
+    distribuicao: "Aguardando distribuição",
     analise_tecnica: "Análise Urbanística",
     despacho_intersetorial: "Despacho intersetorial",
     pagamento_pendente: "Pagamento pendente",
