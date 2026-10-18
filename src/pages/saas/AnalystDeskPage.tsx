@@ -468,7 +468,7 @@ export function AnalystDeskPage() {
     }
   };
 
-    const handleStartAnalysis = async (process: ProcessRecord) => {
+  const handleStartAnalysis = async (process: ProcessRecord) => {
     if (
       session.role === "prefeitura_supervisor" &&
       canAccessMunicipalArea(session, "analise")
@@ -477,7 +477,13 @@ export function AnalystDeskPage() {
       return;
     }
 
-    if (process.analysis?.startedAt) {
+    const assignedProfileId = String(process.analysis?.assignedProfileId || "").trim();
+    const assignedName = String(process.analysis?.assignedTo || "").trim();
+    const assignedToAnotherAnalyst =
+      (assignedProfileId && assignedProfileId !== session.id) ||
+      (!assignedProfileId && assignedName && assignedName !== session.name);
+
+    if (process.analysis?.startedAt || assignedToAnotherAnalyst) {
       navigate(buildProcessPath(process, "analise"));
       return;
     }
@@ -786,7 +792,7 @@ export function AnalystDeskPage() {
                   type="button"
                   variant="outline"
                   className="sig-dark-action-btn h-11 w-full rounded-full text-slate-50 sm:w-auto"
-                  disabled={Boolean(actionBusy) || !canEditAnalysis}
+                  disabled={Boolean(actionBusy) || !canEditAnalysis || !analysisStarted}
                   onClick={() =>
                     void runAnalystAction(
                       `requirement-${process.id}`,
