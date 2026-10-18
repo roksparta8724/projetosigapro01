@@ -790,7 +790,7 @@ export async function loadRemotePlatformStore() {
   const mappedTenantsFromLegacy: Tenant[] = tenantRows.map((tenant) => {
     const branding = brandingByTenant.get(tenant.id);
     const tenantMemberships = (membershipsResult.data ?? []).filter((item) => item.tenant_id === tenant.id);
-    const tenantProcesses = (processesResult.data ?? []).filter((item) => item.tenant_id === tenant.id);
+    const tenantProcesses = processRows.filter((item) => item.tenant_id === tenant.id);
 
     return {
       id: tenant.id,
@@ -927,7 +927,7 @@ export async function loadRemotePlatformStore() {
     const municipalityName = resolveMunicipalityName(municipality);
     const municipalityCity = resolveMunicipalityCity(municipality, general);
     const municipalityProfiles = (profilesResult.data ?? []).filter((item) => item.municipality_id === municipality.id && !item.deleted_at);
-    const municipalityProcesses = (processesResult.data ?? []).filter(
+    const municipalityProcesses = processRows.filter(
       (item) => (item.municipality_id ?? item.tenant_id) === municipality.id,
     );
     const activeModules =
