@@ -628,16 +628,15 @@ export function HabiteSeInspectionPanel({
                     {STATUS_META.map((option) => {
                       const selected = itemStatus === option.value;
                       return (
-                        <Button
+                        <button
                           key={option.value}
                           type="button"
-                          variant="outline"
-                          size="sm"
                           data-inspection-status={option.value}
                           data-selected={selected ? "true" : "false"}
+                          data-contrast-surface={selected ? "dark" : undefined}
                           aria-pressed={selected}
                           className={cn(
-                            "relative h-10 min-w-[92px] rounded-xl border px-3 text-[11px] font-black transition-all",
+                            "relative inline-flex h-10 min-w-[92px] items-center justify-center rounded-xl border px-3 text-[11px] font-black transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-60",
                             selected
                               ? option.selectedClasses
                               : "border-slate-300 bg-white text-slate-600 hover:border-slate-400 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800",
@@ -651,10 +650,10 @@ export function HabiteSeInspectionPanel({
                           }
                         >
                           <span className="inline-flex items-center gap-1.5">
-                            {selected ? <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" /> : null}
-                            <span>{option.label}</span>
+                            {selected ? <CheckCircle2 className="h-3.5 w-3.5 !text-white" aria-hidden="true" /> : null}
+                            <span className={selected ? "!text-white" : undefined}>{option.label}</span>
                           </span>
-                        </Button>
+                        </button>
                       );
                     })}
                   </div>
