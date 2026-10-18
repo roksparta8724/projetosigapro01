@@ -39,7 +39,7 @@ describe("construction permit workflow", () => {
   });
 
   it("offers the two director signature paths before PDF completion", () => {
-    expect(panel).toContain("Enviar ao Diretor para assinar eletronicamente");
+    expect(panel).toContain("Solicitar assinatura eletrônica do Diretor");
     expect(panel).toContain("Gerar PDF do Alvará para assinatura à caneta");
     expect(panel).toContain("requestOfficialPermitDirectorSignature");
     expect(panel).toContain("markOfficialPermitForManualSignature");
@@ -61,7 +61,7 @@ describe("construction permit workflow", () => {
     expect(panel).toContain("Abrir verificação pública");
     expect(pdf).toContain("createQrCodeDataUrl");
     expect(pdf).toContain("buildPublicSignatureVerificationUrl");
-    expect(pdf).toContain("VERIFICAR AUTENTICIDADE");
+    expect(pdf).toContain("QR DA ASSINATURA");
     expect(app).toContain('path="/verificar-assinatura"');
     expect(verificationPage).toContain("verify_process_artifact_signature_public_v1");
     expect(verificationMigration).toContain("security definer");
