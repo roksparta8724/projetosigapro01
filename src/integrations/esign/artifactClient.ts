@@ -337,14 +337,12 @@ export async function saveProcessArtifactWithdrawal(input: {
   artifactKey: string;
   artifactHash?: string;
   withdrawnByName: string;
-  withdrawnAt: string;
 }): Promise<ArtifactWithdrawalSnapshot & { ok?: boolean }> {
   const row = {
     process_id: input.processId,
     artifact_key: input.artifactKey,
     artifact_hash: input.artifactHash || null,
     withdrawn_by_name: input.withdrawnByName,
-    withdrawn_at: input.withdrawnAt,
   };
 
   const { data, error } = await backendClient
