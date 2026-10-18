@@ -312,6 +312,7 @@ export function ProcessDetailPage() {
     shareIssProjectGuide,
     issuePaymentGuide,
     issueHabiteSePaymentGuide,
+    shareHabiteSePaymentGuide,
     beginAnalysisSupervisorIntervention,
     endAnalysisSupervisorIntervention,
     reassignProcessAnalysis,
@@ -995,6 +996,9 @@ export function ProcessDetailPage() {
   const issuedConstructionGuide = paymentGuides.find((guide) => guide.kind === "iss_obra");
   const approvalGuide = paymentGuides.find((guide) => guide.kind === "aprovacao_final");
   const habiteSeGuide = paymentGuides.find((guide) => guide.kind === "habite_se");
+  const habiteSeGuideSentExternally = habiteSeGuide
+    ? isProcessPaymentGuideSharedExternally(process, habiteSeGuide)
+    : false;
   const permitReachedIssuanceStage =
     Boolean(constructionPermit) &&
     constructionPermit?.status !== "rascunho";
@@ -2077,17 +2081,37 @@ export function ProcessDetailPage() {
     );
   };
 
+  const handleSendHabiteSeGuideToProfessional = () => {
+    if (!habiteSeGuide || habiteSeGuideSentExternally) return;
+    if (!canFinanceOperate) {
+      setProcessActionStatus("Somente o Setor Financeiro pode enviar a Guia de Habite-se ao profissional responsável.");
+      return;
+    }
+
+    void runProcessAction(
+      "send-habite-se-guide",
+      () => shareHabiteSePaymentGuide(process.id),
+      "Guia de Habite-se enviada ao profissional externo responsável pelo projeto e registrada na auditoria.",
+    );
+  };
+
   const handleConfirmHabiteSePayment = async () => {
     if (!habiteSeGuide || habiteSeGuide.status === "compensada") return;
     if (!canFinanceOperate) {
       setProcessActionStatus("Somente o Setor Financeiro pode confirmar o pagamento da Guia de Habite-se.");
       return;
     }
+    if (!habiteSeGuideSentExternally) {
+      setProcessActionStatus(
+        "Envie primeiro a Guia de Habite-se ao profissional responsável. A confirmação do pagamento fica bloqueada até o envio ser registrado.",
+      );
+      return;
+    }
 
     await runProcessAction(
       "confirm-habite-se-payment",
       () => markGuideAsPaid(process.id, session.name, "habite_se"),
-      "Pagamento da Guia de Habite-se confirmado. O processo seguiu para Decisão / emissão.",
+      "Pagamento da Guia de Habite-se confirmado. O processo retornou ao Analista para emissão do Alvará de Habite-se.",
     );
   };
 
@@ -3807,6 +3831,16 @@ export function ProcessDetailPage() {
                   session.id !== "unknown"
                 }
                 onProcessRefresh={() => refreshRemoteStore()}
+                onViewHabiteSeGuide={
+                  habiteSeGuide
+                    ? () => void printGuide("habite_se", false, habiteSeGuide.code)
+                    : undefined
+                }
+                onPrintHabiteSeGuide={
+                  habiteSeGuide
+                    ? () => void printGuide("habite_se", true, habiteSeGuide.code)
+                    : undefined
+                }
               />
             ) : (
             <>
@@ -4362,11 +4396,36 @@ export function ProcessDetailPage() {
                           <Printer className="mr-2 h-4 w-4" />
                           Imprimir
                         </Button>
+                        {canFinanceOperate && habiteSeGuide.status !== "compensada" && !habiteSeGuideSentExternally ? (
+                          <Button
+                            type="button"
+                            className="rounded-full bg-sky-700 font-bold !text-white hover:bg-sky-600 [&_*]:!text-white"
+                            disabled={processActionBusy === "send-habite-se-guide"}
+                            onClick={handleSendHabiteSeGuideToProfessional}
+                          >
+                            <MessageSquareMore className="mr-2 h-4 w-4" />
+                            {processActionBusy === "send-habite-se-guide"
+                              ? "Enviando..."
+                              : "Enviar ao profissional responsável"}
+                          </Button>
+                        ) : null}
+                        {habiteSeGuideSentExternally ? (
+                          <Badge
+                            variant="outline"
+                            className="rounded-full border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-500/40 dark:bg-emerald-950/35 dark:text-emerald-200"
+                          >
+                            <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
+                            Enviada ao profissional
+                          </Badge>
+                        ) : null}
                         {canFinanceOperate && habiteSeGuide.status !== "compensada" ? (
                           <Button
                             type="button"
                             className="rounded-full bg-emerald-700 font-bold !text-white hover:bg-emerald-600 [&_*]:!text-white"
-                            disabled={processActionBusy === "confirm-habite-se-payment"}
+                            disabled={
+                              processActionBusy === "confirm-habite-se-payment" ||
+                              !habiteSeGuideSentExternally
+                            }
                             onClick={() => void handleConfirmHabiteSePayment()}
                           >
                             <CheckCircle2 className="mr-2 h-4 w-4" />
@@ -4379,7 +4438,7 @@ export function ProcessDetailPage() {
 
                       {habiteSeGuide.status === "compensada" ? (
                         <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold leading-6 text-emerald-900 dark:border-emerald-500/30 dark:bg-emerald-950/25 dark:text-emerald-200">
-                          Pagamento compensado. O processo está liberado para a etapa de Decisão / emissão do Habite-se.
+                          Pagamento compensado. O processo retornou à Análise Urbanística para elaboração do Alvará de Habite-se e posterior assinatura da Diretoria.
                         </div>
                       ) : null}
                     </div>
