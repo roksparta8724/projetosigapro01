@@ -165,11 +165,13 @@ export function HabiteSeInspectionPanel({
   process,
   session,
   externalView = false,
+  dataReady = true,
   onProcessRefresh,
 }: {
   process: ProcessRecord;
   session: SessionUser;
   externalView?: boolean;
+  dataReady?: boolean;
   onProcessRefresh?: () => Promise<void> | void;
 }) {
   const [inspection, setInspection] = useState<HabiteSeInspectionRecord | null>(null);
@@ -215,7 +217,7 @@ export function HabiteSeInspectionPanel({
     process.municipalityId || process.tenantId || session.municipalityId || session.tenantId || "";
 
   const loadInspection = async () => {
-    if (!process.id) return;
+    if (!process.id || !dataReady) return;
     setBusy((current) => current || "load");
     setLoadError("");
     try {
@@ -246,11 +248,17 @@ export function HabiteSeInspectionPanel({
   };
 
   useEffect(() => {
+    if (!dataReady) {
+      setLoaded(false);
+      setLoadError("");
+      return;
+    }
+
     void loadInspection();
     // O processo é revalidado em tempo real em outro nível; não recarregamos o
     // formulário a cada heartbeat para não apagar o que o fiscal está digitando.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [process.id]);
+  }, [process.id, dataReady]);
 
   const persistDraft = async (options?: { silent?: boolean }) => {
     if (!canManage || !inspectionStage) return inspection;
@@ -421,10 +429,12 @@ export function HabiteSeInspectionPanel({
       </CardHeader>
 
       <CardContent className="space-y-5 p-5">
-        {!loaded && busy === "load" ? (
+        {!dataReady || (!loaded && busy === "load") ? (
           <div className="flex min-h-24 items-center justify-center text-sm text-slate-500">
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            Carregando termo oficial da vistoria...
+            {!dataReady
+              ? "Validando sessão segura da Fiscalização..."
+              : "Carregando termo oficial da vistoria..."}
           </div>
         ) : null}
 
