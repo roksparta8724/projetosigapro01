@@ -291,6 +291,7 @@ export function ProtocolarProjetoPage({
   const [sourceProcessId, setSourceProcessId] = useState("");
   const [sourceProcessLoading, setSourceProcessLoading] = useState(false);
   const [sourcePermitLabel, setSourcePermitLabel] = useState("");
+  const remoteDraftActionRef = useRef<"save" | "payment">("payment");
 
   useEffect(() => {
     let cancelled = false;
@@ -1060,7 +1061,15 @@ export function ProtocolarProjetoPage({
           ? `Rascunho salvo com sucesso. ${persistedCount} documento(s) ficaram preservados.`
           : "Rascunho salvo com sucesso.",
       );
-      navigate("/externo/controle/rascunhos");
+      // Mantém o profissional no formulário após salvar. Ele decide quando
+      // deseja sair ou prosseguir para a emissão da guia.
+      if (!resumeDraftNumber) {
+        const baseRoute = isHabiteSeMode ? "/externo/habite-se" : "/externo/protocolar";
+        navigate(
+          `${baseRoute}?rascunho=${encodeURIComponent(draftNumber)}`,
+          { replace: true },
+        );
+      }
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Não foi possível salvar o rascunho completo.";
@@ -1079,6 +1088,9 @@ export function ProtocolarProjetoPage({
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
+    const remoteDraftAction = remotePreProtocolNumber
+      ? remoteDraftActionRef.current
+      : "payment";
 
     if (uploadBusyRef.current) {
       setStatus(
@@ -1417,6 +1429,15 @@ export function ProtocolarProjetoPage({
       setSubmitting(false);
     }
 
+    if (remotePreProtocolNumber && remoteDraftAction === "save") {
+      remoteDraftActionRef.current = "payment";
+      setStatus(
+        `Rascunho salvo com sucesso. A guia ${remoteSeed.guideNumber || "inicial"} permanece vinculada e você pode continuar editando ou prosseguir para o pagamento quando estiver pronto.`,
+      );
+      return;
+    }
+
+    remoteDraftActionRef.current = "payment";
     navigate(
       `/externo/pagamentos?preprotocolo=${encodeURIComponent(remoteSeed.preProtocol)}`,
       { replace: true },
@@ -2010,7 +2031,7 @@ export function ProtocolarProjetoPage({
             title="Ações finais"
             description={
               remotePreProtocolNumber
-                ? "Salve as alterações deste pré-protocolo antes de pagar. Ele continua editável e ainda não possui número oficial de processo."
+                ? "Salve sem sair da tela. Quando estiver tudo conferido, use Prosseguir para pagamento para abrir a guia inicial; o número oficial continua reservado somente após a compensação."
                 : "Salve o rascunho para continuar depois ou gere a abertura com a guia inicial quando tudo estiver validado."
             }
             icon={ShieldCheck}
@@ -2067,40 +2088,80 @@ export function ProtocolarProjetoPage({
                       : `O pré-protocolo só será liberado quando todos os documentos obrigatórios estiverem anexados. Pendentes: ${missingRequired.map((item) => item.label).join(", ")}.`}
                   </p>
                 ) : null}
-                <Button
-                  type="submit"
-                  className="rounded-full bg-slate-950 hover:bg-slate-900 dark:bg-sky-500 dark:text-slate-950 dark:hover:bg-sky-400"
-                  data-protocol-required-documents-locked={
-                    !remotePreProtocolNumber && missingRequired.length > 0
-                      ? "true"
-                      : "false"
-                  }
-                  disabled={
-                    submitting ||
-                    remoteDraftLoading ||
-                    hasPendingDocumentUpload ||
-                    (!remotePreProtocolNumber && missingRequired.length > 0)
-                  }
-                  title={
-                    !remotePreProtocolNumber && missingRequired.length > 0
-                      ? isHabiteSeMode
-                        ? "Anexe todos os documentos obrigatórios antes de gerar o pré-protocolo do Habite-se."
-                        : "Anexe todos os documentos obrigatórios antes de gerar o pré-protocolo."
-                      : remotePreProtocolNumber
-                        ? "Salva as alterações sem consumir numeração oficial; o pagamento continuará sujeito às validações obrigatórias."
+                {remotePreProtocolNumber ? (
+                  <div className="flex flex-wrap justify-end gap-2">
+                    <Button
+                      type="submit"
+                      variant="outline"
+                      className="rounded-full"
+                      data-remote-draft-action="save"
+                      disabled={
+                        submitting ||
+                        remoteDraftLoading ||
+                        hasPendingDocumentUpload
+                      }
+                      onClick={() => {
+                        remoteDraftActionRef.current = "save";
+                      }}
+                      title="Salva os dados e documentos sem sair desta tela."
+                    >
+                      {submitting && remoteDraftActionRef.current === "save"
+                        ? "Salvando alterações..."
+                        : "Salvar alterações"}
+                    </Button>
+
+                    <Button
+                      type="submit"
+                      className="rounded-full bg-slate-950 px-5 font-bold text-white shadow-[0_10px_24px_rgba(15,23,42,0.16)] hover:bg-slate-900 dark:bg-sky-400 dark:text-slate-950 dark:hover:bg-sky-300"
+                      data-remote-draft-action="payment"
+                      disabled={
+                        submitting ||
+                        remoteDraftLoading ||
+                        hasPendingDocumentUpload ||
+                        missingRequired.length > 0
+                      }
+                      onClick={() => {
+                        remoteDraftActionRef.current = "payment";
+                      }}
+                      title={
+                        missingRequired.length > 0
+                          ? `Anexe todos os documentos obrigatórios antes de prosseguir para o pagamento: ${missingRequired.map((item) => item.label).join(", ")}.`
+                          : "Salva a última versão do rascunho e abre a guia de pagamento."
+                      }
+                    >
+                      {submitting && remoteDraftActionRef.current === "payment"
+                        ? "Preparando pagamento..."
+                        : "Prosseguir para pagamento"}
+                    </Button>
+                  </div>
+                ) : (
+                  <Button
+                    type="submit"
+                    className="rounded-full bg-slate-950 hover:bg-slate-900 dark:bg-sky-500 dark:text-slate-950 dark:hover:bg-sky-400"
+                    data-protocol-required-documents-locked={
+                      missingRequired.length > 0 ? "true" : "false"
+                    }
+                    disabled={
+                      submitting ||
+                      remoteDraftLoading ||
+                      hasPendingDocumentUpload ||
+                      missingRequired.length > 0
+                    }
+                    title={
+                      missingRequired.length > 0
+                        ? isHabiteSeMode
+                          ? "Anexe todos os documentos obrigatórios antes de gerar o pré-protocolo do Habite-se."
+                          : "Anexe todos os documentos obrigatórios antes de gerar o pré-protocolo."
                         : undefined
-                  }
-                >
-                  {remoteDraftLoading
-                    ? "Carregando rascunho..."
-                    : submitting
-                      ? (remotePreProtocolNumber
-                          ? "Salvando alterações..."
-                          : (isHabiteSeMode ? "Gerando pré-protocolo..." : "Gerando pré-protocolo..."))
-                      : remotePreProtocolNumber
-                        ? "Salvar alterações do rascunho"
-                        : (isHabiteSeMode ? "Gerar guia e pré-protocolo" : "Gerar guia e pré-protocolo")}
-                </Button>
+                    }
+                  >
+                    {remoteDraftLoading
+                      ? "Carregando rascunho..."
+                      : submitting
+                        ? "Gerando pré-protocolo..."
+                        : "Gerar guia e pré-protocolo"}
+                  </Button>
+                )}
               </div>
             </div>
           </SectionCard>
