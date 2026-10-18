@@ -45,6 +45,25 @@ describe("document workspace continuity", () => {
   });
 });
 
+describe("audited document reanalysis", () => {
+  it("lets the Analysis unit reopen an approved document without erasing audit history", () => {
+    const analysis = read("src/pages/saas/DocumentAnalysisPage.tsx");
+    const data = read("src/hooks/usePlatformData.tsx");
+    const backend = read("src/integrations/backend/platformImpl.ts");
+    const migration = read("neon/migrations/20261018_document_analysis_reopen.sql");
+
+    expect(analysis).toContain("Reabrir para nova análise");
+    expect(analysis).toContain("Confirmar reabertura");
+    expect(analysis).toContain("reopenProcessDocumentAnalysis");
+    expect(data).toContain("reopenProcessDocumentAnalysis");
+    expect(backend).toContain("reopen_process_document_analysis_v1");
+    expect(migration).toContain("Análise documental reaberta");
+    expect(migration).toContain("review_status='pendente'");
+    expect(migration).toContain("Motivo:");
+  });
+});
+
+
 describe("direct PDF workspace opening", () => {
   it("prefetches the signed URL and removes the fake white-sheet loading stage", () => {
     const analysis = read("src/pages/saas/DocumentAnalysisPage.tsx");
