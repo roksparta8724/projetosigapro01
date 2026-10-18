@@ -266,7 +266,7 @@ export function ExternalPaymentsPage() {
         <PageIntro
           eyebrow="Pagamentos"
           title="Guias e pendências financeiras"
-          description="Acompanhe guias emitidas, status de compensação e vencimentos."
+          description="Acompanhe as guias emitidas, abra a cobrança oficial e ajuste o rascunho antes do pagamento quando a abertura ainda não possuir número municipal."
           icon={CreditCard}
           actions={
             <Button asChild variant="outline" className="rounded-full">
@@ -329,7 +329,7 @@ export function ExternalPaymentsPage() {
                 </div>
               ) : null}
 
-              <div className="hidden rounded-[12px] border border-[#E5E7EB] bg-[#F8FAFC] px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 2xl:grid 2xl:grid-cols-[1.1fr_1fr_0.8fr_0.8fr_0.8fr_0.6fr] 2xl:gap-3">
+              <div className="hidden rounded-[12px] border border-[#E5E7EB] bg-[#F8FAFC] px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 2xl:grid 2xl:grid-cols-[1.15fr_1fr_0.85fr_0.75fr_0.7fr_1.25fr] 2xl:gap-3">
                 <span>Pré-protocolo / Processo</span>
                 <span>Projeto</span>
                 <span>Guia</span>
@@ -340,7 +340,7 @@ export function ExternalPaymentsPage() {
 
               {filteredGuides.map(({ process, guide, status }) => (
                 <div key={`${process.id}-${guide.code}`} className="sig-dark-panel rounded-[12px] border border-[#E5E7EB] p-4 shadow-sm">
-                  <div className="grid gap-4 2xl:grid-cols-[1.1fr_1fr_0.8fr_0.8fr_0.8fr_0.6fr] 2xl:items-center">
+                  <div className="grid gap-4 2xl:grid-cols-[1.15fr_1fr_0.85fr_0.75fr_0.7fr_1.25fr] 2xl:items-center">
                     <div className="min-w-0">
                       <p className="truncate text-[15px] font-semibold text-slate-950">
                         {process.isOfficial === false
