@@ -2575,6 +2575,7 @@ export function getRoleLandingPath(role: UserRole | string | null | undefined) {
     case "fiscal":
       return "/prefeitura/analise";
     case "profissional_externo":
+    case "professional_external":
     case "professional":
     case "profissional":
       return "/externo/controle";
