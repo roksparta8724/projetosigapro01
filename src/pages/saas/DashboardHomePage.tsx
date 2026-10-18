@@ -517,15 +517,28 @@ export function DashboardHomePage() {
         ? "usuarios"
         : location.pathname.startsWith("/dashboard/operacional")
           ? "operacional"
-          : "visao-geral";
+          : isExternal
+            ? "processos"
+            : "visao-geral";
 
-  const tabs = [
-    { value: "/dashboard", label: "Visao geral", helper: "Resumo executivo" },
-    { value: "/dashboard/processos", label: "Processos", helper: "Fluxo e distribuicao" },
-    { value: "/dashboard/financeiro", label: "Financeiro", helper: "Guias e compensacoes" },
-    ...(!isExternal ? [{ value: "/dashboard/operacional", label: "Operacional", helper: "SLA e prioridades" }] : []),
-    ...((isMaster || (!isExternal && !isFinance)) ? [{ value: "/dashboard/usuarios", label: "Usuarios", helper: "Governanca e acessos" }] : []),
-  ];
+  const tabs = isExternal
+    ? [
+        { value: "/dashboard/processos", label: "Processos", helper: "Fluxo e distribuição" },
+        { value: "/dashboard/financeiro", label: "Financeiro", helper: "Guias e compensações" },
+        { value: "/dashboard", label: "Visão geral", helper: "Resumo executivo" },
+      ]
+    : [
+        { value: "/dashboard", label: "Visão geral", helper: "Resumo executivo" },
+        { value: "/dashboard/processos", label: "Processos", helper: "Fluxo e distribuição" },
+        { value: "/dashboard/financeiro", label: "Financeiro", helper: "Guias e compensações" },
+        ...(!isExternal ? [{ value: "/dashboard/operacional", label: "Operacional", helper: "SLA e prioridades" }] : []),
+        ...((isMaster || (!isExternal && !isFinance)) ? [{ value: "/dashboard/usuarios", label: "Usuários", helper: "Governança e acessos" }] : []),
+      ];
+
+  const activeDashboardTab =
+    isExternal && location.pathname === "/dashboard"
+      ? "/dashboard/processos"
+      : tabs.find((tab) => tab.value === location.pathname)?.value ?? "/dashboard";
 
   const headlineTitle = isMaster
     ? "Dashboard executivo da plataforma"
@@ -1024,7 +1037,7 @@ export function DashboardHomePage() {
 
         <InternalTabs
           items={tabs}
-          value={tabs.find((tab) => tab.value === location.pathname)?.value ?? "/dashboard"}
+          value={activeDashboardTab}
           onChange={(value) => navigate(value)}
         />
 
