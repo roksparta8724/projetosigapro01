@@ -63,6 +63,19 @@ describe("Habite-se independent workflow", () => {
     expect(platform).toContain("Planta destacando a etapa concluída");
   });
 
+  it("blocks Habite-se protocol until every mandatory document is persisted", () => {
+    const backend = read("src/integrations/backend/platformImpl.ts");
+    const migration = read("neon/migrations/20261018_habite_se_submission_preflight.sql");
+
+    expect(protocolPage).toContain('data-habite-se-document-lock="true"');
+    expect(protocolPage).toContain("(isHabiteSeMode && missingRequired.length > 0)");
+    expect(protocolPage).toContain("Faltam documentos obrigatórios:");
+    expect(backend).toContain("validate_habite_se_submission_v1");
+    expect(backend).toContain("isOccupancyPermitProcessType(input.type)");
+    expect(migration).toContain("Habite-se não pode ser protocolado");
+    expect(migration).toContain("Termo de conclusão da obra pelo responsável técnico");
+  });
+
   it("blocks approval and ISS guides inside a Habite-se process", () => {
     expect(platform).toContain("isOccupancyPermitProcessType");
     expect(store).toContain("isOccupancyPermitProcessType(process.type)");
