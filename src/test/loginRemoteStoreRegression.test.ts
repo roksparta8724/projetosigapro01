@@ -28,4 +28,13 @@ describe("login remote-store regression", () => {
     expect(platformData).toContain("remoteContextUserId === authenticatedUserId");
     expect(platformData).toContain('source === "remote"');
   });
+  it("does not show the global blocking-data banner when usable scoped data is already loaded", () => {
+    const portal = read("src/components/platform/PortalFrame.tsx");
+
+    expect(portal).toContain("hasUsableScopedData");
+    expect(portal).toContain('source !== "remote"');
+    expect(portal).toContain('source !== "warm"');
+    expect(portal).toContain("!hasUsableScopedData");
+  });
+
 });
