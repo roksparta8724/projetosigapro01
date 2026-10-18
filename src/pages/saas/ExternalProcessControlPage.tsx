@@ -135,31 +135,42 @@ export function ExternalProcessControlPage() {
   const tenantSettings = institutionSettingsCompat ?? getInstitutionSettings(effectiveScopeId);
   const savedDrafts = listProtocolDrafts(session.id, effectiveScopeId, session.tenantId);
 
-  useEffect(() => {
-    if (
-      platformLoading ||
-      recoveryAttemptedRef.current ||
-      allProcesses.length > 0 ||
-      session.id === "unknown"
-    ) {
-      return;
-    }
-
-    if (typeof refreshRemoteStore !== "function") {
-      return;
-    }
-
-    recoveryAttemptedRef.current = true;
-    void refreshRemoteStore().catch((error) => {
-      console.warn("[SIGAPRO][Externo] Falha na tentativa automática de recuperar a carteira.", error);
-    });
-  }, [allProcesses.length, platformLoading, refreshRemoteStore, session.id]);
-
   const visibleRecords = getVisibleProcessesByScope(
     session,
     effectiveScopeId,
     allProcesses,
   );
+
+  useEffect(() => {
+    if (
+      platformLoading ||
+      recoveryAttemptedRef.current ||
+      session.id === "unknown" ||
+      typeof refreshRemoteStore !== "function"
+    ) {
+      return;
+    }
+
+    // Se o store ainda pertence à conta anterior, ou se o banco já terminou
+    // de carregar mas nenhum processo vinculado ao profissional apareceu,
+    // força uma única revalidação oficial. Nunca cria/migra processo aqui.
+    const needsRecovery =
+      !dataReadyForCurrentUser ||
+      (dataReadyForCurrentUser && visibleRecords.length === 0);
+
+    if (!needsRecovery) return;
+
+    recoveryAttemptedRef.current = true;
+    void refreshRemoteStore().catch((error) => {
+      console.warn("[SIGAPRO][Externo] Falha na tentativa automática de recuperar a carteira.", error);
+    });
+  }, [
+    dataReadyForCurrentUser,
+    platformLoading,
+    refreshRemoteStore,
+    session.id,
+    visibleRecords.length,
+  ]);
   const provisionalProcesses = visibleRecords.filter(
     (process) => process.isOfficial === false,
   );
