@@ -23,6 +23,9 @@ const trueDraftMigration = read(
 const draftRecoveryMigration = read(
   "neon/migrations/20261018_preprotocol_draft_recovery_refinement.sql",
 );
+const officializationGuardMigration = read(
+  "neon/migrations/20261018_preprotocol_required_documents_officialization_guard.sql",
+);
 const notificationMigration = read(
   "neon/migrations/20261018_preprotocol_external_payment_notification.sql",
 );
@@ -122,6 +125,18 @@ describe("payment-first pre-protocol officialization", () => {
     expect(protocolPage).toContain("requestedProtocolNumber: remotePreProtocolNumber || null");
     expect(draftRecoveryMigration).toContain("get_external_preprotocol_draft_v1");
     expect(draftRecoveryMigration).toContain("update_external_preprotocol_draft_v1");
+  });
+
+  it("revalidates mandatory Habite-se documents in the database before creating the official process", () => {
+    expect(officializationGuardMigration).toContain(
+      "validate_habite_se_submission_v1",
+    );
+    expect(officializationGuardMigration).toContain(
+      "Revise e salve o rascunho do Habite-se antes do pagamento",
+    );
+    expect(protocolPage).toContain(
+      "o pagamento não poderá transformar esta abertura em processo",
+    );
   });
 
   it("gives Protocolo a dedicated payment queue without exposing provisional rows as processes", () => {
