@@ -542,8 +542,7 @@ begin
     _guide_prefix := coalesce(nullif(_guide_prefix,''),'DAM');
 
     update public.payment_guides
-    set guide_number=_guide_prefix||'-PRE-'||regexp_replace(_new_ref,'^PRE-[^-]+-',''),
-        updated_at=clock_timestamp()
+    set guide_number=_guide_prefix||'-PRE-'||regexp_replace(_new_ref,'^PRE-[^-]+-','')
     where process_id=_row.id
       and guide_kind='protocolo'
       and not coalesce(paid,false);
