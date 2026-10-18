@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import {
   Activity,
   AlertTriangle,
@@ -985,6 +985,17 @@ export function DashboardHomePage() {
     if (section === "operacional") return renderOperational();
     return renderOverview();
   };
+
+  if (isExternalProfessional) {
+    const externalTarget =
+      location.pathname.startsWith("/dashboard/processos")
+        ? "/externo/controle"
+        : location.pathname.startsWith("/dashboard/financeiro")
+          ? "/externo/pagamentos"
+          : "/externo";
+
+    return <Navigate to={externalTarget} replace />;
+  }
 
   return (
     <PortalFrame eyebrow="DASHBOARD" title="Resumo institucional">
