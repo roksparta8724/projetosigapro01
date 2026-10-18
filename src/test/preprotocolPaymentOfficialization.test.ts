@@ -32,6 +32,9 @@ const notificationMigration = read(
 const actorGuardMigration = read(
   "neon/migrations/20261018_current_legacy_user_fk_guard.sql",
 );
+const sequenceReferenceMigration = read(
+  "neon/migrations/20261018_protocol_sequence_after_payment_reference.sql",
+);
 const protocolPage = read("src/pages/saas/ProtocolarProjetoPage.tsx");
 const paymentsPage = read("src/pages/saas/ExternalPaymentsPage.tsx");
 const draftsPage = read("src/pages/saas/ExternalDraftsPage.tsx");
@@ -59,6 +62,14 @@ describe("payment-first pre-protocol officialization", () => {
     expect(protocolPage).toContain(
       "o processo entra na Prefeitura somente depois da compensação do pagamento",
     );
+  });
+
+  it("keeps the pre-protocol outside the PM counter and binds the paid guide to the official sequence afterwards", () => {
+    expect(sequenceReferenceMigration).toContain("O pré-protocolo NÃO toca no contador oficial PM");
+    expect(sequenceReferenceMigration).toContain("official_process_reference");
+    expect(sequenceReferenceMigration).toContain("_official_protocol := public.next_tenant_protocol_number");
+    expect(sequenceReferenceMigration).toContain("official_guide_reference");
+    expect(sequenceReferenceMigration).toContain("Não altera guide_number");
   });
 
   it("serializes official numbering atomically when the initial guide is paid", () => {
