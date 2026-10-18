@@ -393,7 +393,7 @@ const AppRoutes = () => {
           }
         />
         <Route
-          path="/externo/controle/rascunhos"
+          path="/externo/controle/em-andamento"
           element={
             <PermissionRoute permission="submit_processes">
               <PlanModuleRoute module="Acesso externo">
@@ -401,6 +401,10 @@ const AppRoutes = () => {
               </PlanModuleRoute>
             </PermissionRoute>
           }
+        />
+        <Route
+          path="/externo/controle/rascunhos"
+          element={<Navigate to="/externo/controle/em-andamento" replace />}
         />
         <Route
           path="/externo/pagamentos"
