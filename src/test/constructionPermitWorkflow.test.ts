@@ -34,7 +34,7 @@ describe("construction permit workflow", () => {
 
   it("keeps the two signing paths visible while the form scrolls", () => {
     expect(panel).toContain("sticky bottom-0");
-    expect(panel).toContain("Enviar ao Diretor para assinar eletronicamente");
+    expect(panel).toContain("Solicitar assinatura eletrônica do Diretor");
     expect(panel).toContain("Gerar PDF do Alvará para assinatura à caneta");
   });
 
@@ -56,9 +56,9 @@ describe("construction permit workflow", () => {
     expect(panel).toContain('artifactType: "construction_permit"');
     expect(panel).toContain('artifactKey: "construction-permit"');
     expect(panel).toContain('type="password"');
-    expect(panel).toContain("QRCodeSVG");
+    expect(panel).toContain("SignatureVerificationQr");
     expect(panel).toContain("directorVerificationUrl");
-    expect(panel).toContain("Abrir verificação");
+    expect(panel).toContain("Abrir verificação pública");
     expect(pdf).toContain("createQrCodeDataUrl");
     expect(pdf).toContain("buildPublicSignatureVerificationUrl");
     expect(pdf).toContain("VERIFICAR AUTENTICIDADE");
