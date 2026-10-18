@@ -91,6 +91,17 @@ export type ArtifactVersionHistoryEntry = {
   }>;
 };
 
+export type ArtifactWithdrawalEvent = {
+  id: string;
+  artifact_hash?: string | null;
+  withdrawn_by_name: string;
+  withdrawn_at_exact: string;
+  recorded_by_profile_id?: string | null;
+  recorded_by_name?: string | null;
+  event_kind: "registro" | "retificacao" | "registro_inicial" | string;
+  created_at?: string | null;
+};
+
 export type ArtifactWithdrawalSnapshot = {
   withdrawal: ArtifactWithdrawalRecord | null;
 };
@@ -348,6 +359,35 @@ export async function getProcessArtifactVersionHistory(
   const raw = data && typeof data === "object" ? (data as Record<string, unknown>) : {};
   return Array.isArray(raw.versions)
     ? (raw.versions as ArtifactVersionHistoryEntry[])
+    : [];
+}
+
+
+export async function getProcessArtifactWithdrawalHistory(
+  processId: string,
+  artifactKey: string,
+): Promise<ArtifactWithdrawalEvent[]> {
+  const { data, error } = await backendClient.rpc(
+    "get_process_artifact_withdrawal_history_v1",
+    {
+      _process_id: processId,
+      _artifact_key: artifactKey,
+    },
+  );
+
+  if (error) {
+    throw new ArtifactSignatureError(
+      normalizeApiError(error) || "Não foi possível carregar o histórico de retirada física.",
+      {
+        stage: "withdrawal",
+        code: "WITHDRAWAL_HISTORY_READ_FAILED",
+      },
+    );
+  }
+
+  const raw = data && typeof data === "object" ? (data as Record<string, unknown>) : {};
+  return Array.isArray(raw.events)
+    ? (raw.events as ArtifactWithdrawalEvent[])
     : [];
 }
 
