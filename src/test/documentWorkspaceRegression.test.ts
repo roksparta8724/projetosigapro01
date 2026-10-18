@@ -47,14 +47,20 @@ describe("document workspace continuity", () => {
 describe("direct PDF workspace opening", () => {
   it("prefetches the signed URL and removes the fake white-sheet loading stage", () => {
     const analysis = read("src/pages/saas/DocumentAnalysisPage.tsx");
+    const viewer = read("src/pages/saas/DocumentViewerPage.tsx");
     const detail = read("src/pages/saas/ProcessDetailPage.tsx");
     const handoff = read("src/lib/documentWorkspaceAccess.ts");
 
     expect(detail).toContain("getSignedUrlForObjectStrict");
     expect(detail).toContain("cacheDocumentWorkspaceAccessUrl");
+    expect(detail).toContain('window.open("about:blank", "sigapro-document-workspace")');
+    expect(detail).toContain('openedTab.document.body.style.background = "#2b3037"');
     expect(analysis).toContain("consumeDocumentWorkspaceAccessUrl");
+    expect(viewer).toContain("consumeDocumentWorkspaceAccessUrl");
     expect(analysis).toContain('data-document-loading-surface="silent"');
+    expect(viewer).toContain('data-document-loading-surface="silent"');
     expect(analysis).not.toContain("animate-pulse rounded-full bg-slate-200");
+    expect(viewer).not.toContain("animate-pulse rounded-full bg-slate-200");
     expect(handoff).toContain("DOCUMENT_WORKSPACE_ACCESS_TTL_MS");
     expect(handoff).toContain("window.localStorage.removeItem(key)");
   });
