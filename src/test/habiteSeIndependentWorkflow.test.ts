@@ -24,6 +24,7 @@ describe("Habite-se independent workflow", () => {
   const inspectionMigration = read("neon/migrations/20261018_habite_se_inspection_evidence.sql");
   const completionMigration = read("neon/migrations/20261018_habite_se_completion_workflow.sql");
   const permitPanel = read("src/components/platform/HabiteSePermitPanel.tsx");
+  const permitPdf = read("src/lib/habiteSePermitPdf.ts");
 
   it("opens Habite-se through its own route and new process mode", () => {
     expect(app).toContain('path="/externo/habite-se"');
@@ -245,6 +246,32 @@ describe("Habite-se independent workflow", () => {
     expect(completionMigration).toContain("Envie a Guia de Habite-se ao profissional responsável antes de confirmar o pagamento.");
     expect(completionMigration).toContain("WHEN 'aprovacao_final' THEN 'analise_tecnica'::public.process_status");
     expect(completionMigration).toContain("Alvará aguardando emissão e assinatura");
+  });
+
+  it("renders the Habite-se permit with the same premium institutional PDF standard used by the municipal Alvara", () => {
+    expect(permitPanel).toContain("openHabiteSePermitPdf");
+    expect(permitPanel).toContain("reserveHabiteSePermitPdfWindow");
+    expect(permitPanel).toContain("Abrir PDF oficial");
+    expect(permitPanel).toContain('data-premium-process-dark-header="habite-se-permit"');
+    expect(permitPdf).toContain("new jsPDF");
+    expect(permitPdf).toContain("ALVARÁ DE HABITE-SE");
+    expect(permitPdf).toContain("Identificação do processo e do imóvel");
+    expect(permitPdf).toContain("Responsabilidade técnica");
+    expect(permitPdf).toContain("VALIDAÇÃO ELETRÔNICA DO DOCUMENTO");
+    expect(permitPdf).toContain("Código de verificação");
+    expect(permitPdf).toContain("SHA-256");
+    expect(permitPdf).toContain("createQrCodeDataUrl");
+    expect(permitPdf).toContain("Brasao-campo-limpo-paulista2.png");
+    expect(permitPdf).toContain('creator: "SIGAPRO Municipal"');
+    expect(permitPdf).toContain("opened.location.replace(url)");
+    expect(permitPanel).not.toContain("windowRef.document.write");
+  });
+
+  it("keeps the responsible Habite-se analyst editable after the workflow advances", () => {
+    expect(processDetail).toContain("canEditAssignedAnalysis");
+    expect(processDetail).toContain("isHabiteSeProcess && canEditAssignedAnalysis");
+    expect(processDetail).toContain("const canEditAnalysisChecklist = canEditAssignedAnalysis");
+    expect(processDetail).toContain("(canAnalysisOperate || canEditAssignedAnalysis)");
   });
 
   it("returns paid Habite-se to the analyst, creates the permit, and only the director signature finalizes the process", () => {
