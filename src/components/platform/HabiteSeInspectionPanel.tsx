@@ -371,6 +371,10 @@ export function HabiteSeInspectionPanel({
       setNotice("Descreva as pendências encontradas antes de concluir.");
       return;
     }
+    if (photoEvidenceWaived && photoWaiverReason.trim().length < 15) {
+      setNotice("A justificativa para ausência de fotos deve ter pelo menos 15 caracteres.");
+      return;
+    }
 
     setBusy("complete");
     setNotice("");
@@ -676,9 +680,9 @@ export function HabiteSeInspectionPanel({
                 </p>
               </div>
               <p className="mt-1 max-w-3xl text-xs leading-5 text-slate-600 dark:text-slate-300">
-                Registre fachada/identificação, implantação e condições observadas. Para conclusão
-                conforme, o SIGAPRO exige ao menos 3 fotos, salvo dispensa formal justificada.
-                Pendências devem possuir evidência sempre que tecnicamente possível.
+                Registre fachada/identificação, implantação e condições observadas quando a evidência
+                contribuir para a comprovação da vistoria. As fotos ficam vinculadas ao processo, mas
+                não bloqueiam a conclusão do termo quando o fiscal registrar o checklist e o resultado.
               </p>
             </div>
             <Badge
@@ -827,17 +831,17 @@ export function HabiteSeInspectionPanel({
                     htmlFor={`waive-photo-${process.id}`}
                     className="text-sm font-bold text-slate-900 dark:text-white"
                   >
-                    Dispensar evidência fotográfica nesta vistoria
+                    Justificar vistoria sem evidência fotográfica
                   </label>
                   <p className="mt-1 text-xs leading-5 text-slate-500">
-                    Use somente quando houver impedimento técnico ou administrativo. A justificativa
-                    ficará registrada em auditoria.
+                    Opcional. Use quando for importante registrar formalmente por que não houve foto;
+                    a justificativa ficará vinculada ao termo e à auditoria.
                   </p>
                   {photoEvidenceWaived ? (
                     <Textarea
                       value={photoWaiverReason}
                       onChange={(event) => setPhotoWaiverReason(event.target.value)}
-                      placeholder="Justifique formalmente a dispensa de fotos..."
+                      placeholder="Explique por que a vistoria foi concluída sem evidência fotográfica..."
                       className="mt-3 min-h-[84px] rounded-xl bg-white text-slate-950 dark:bg-slate-950 dark:text-white"
                     />
                   ) : null}
@@ -964,7 +968,11 @@ export function HabiteSeInspectionPanel({
               </span>
             </div>
             <p className="mt-2 text-sm font-black text-slate-950 dark:text-white">
-              {photoEvidenceWaived ? "Dispensadas com justificativa" : `${photos.length} foto(s)`}
+              {photos.length > 0
+                ? `${photos.length} foto(s) vinculada(s)`
+                : photoEvidenceWaived
+                  ? "Sem fotos • justificativa registrada"
+                  : "Sem fotos • não bloqueia a conclusão"}
             </p>
           </div>
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-950/35">
