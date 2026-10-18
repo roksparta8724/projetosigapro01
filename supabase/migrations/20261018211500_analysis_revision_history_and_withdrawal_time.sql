@@ -7,12 +7,8 @@ begin;
 alter table public.process_artifact_withdrawals
   add column if not exists withdrawn_at_exact timestamptz;
 
-update public.process_artifact_withdrawals
-set withdrawn_at_exact = coalesce(
-  recorded_at,
-  withdrawn_at::timestamp at time zone 'America/Sao_Paulo'
-)
-where withdrawn_at_exact is null;
+-- Registros anteriores continuam usando recorded_at como fallback de horário.
+-- Novas retiradas recebem withdrawn_at_exact diretamente do servidor.
 
 create or replace function private.prepare_process_artifact_withdrawal_v1()
 returns trigger
