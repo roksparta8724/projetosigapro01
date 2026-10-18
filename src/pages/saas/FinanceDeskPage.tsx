@@ -707,8 +707,15 @@ export function FinanceDeskPage() {
                               </p>
                             </div>
 
-                            <Button asChild className="shrink-0 rounded-full bg-cyan-700 px-5 font-bold text-white hover:bg-cyan-800">
-                              <Link to={buildProcessPath(process, "financeiro")}>
+                            <Button
+                              asChild
+                              data-finance-habite-se-action="true"
+                              className="sig-force-dark-action shrink-0 rounded-full border border-cyan-600 bg-cyan-800 px-5 font-bold !text-white shadow-[0_8px_20px_rgba(8,145,178,0.18)] hover:bg-cyan-700 [&_*]:!text-white"
+                            >
+                              <Link
+                                to={buildProcessPath(process, "financeiro")}
+                                className="!text-white"
+                              >
                                 Abrir e emitir Guia de Habite-se
                               </Link>
                             </Button>
