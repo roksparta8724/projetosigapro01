@@ -378,23 +378,31 @@ export function DashboardHomePage() {
   const profile = getUserProfile(session.id, session.email);
   const ownerDocument = normalizeOwnerDocument(profile?.cpfCnpj || "");
 
+  const officialProcesses = useMemo(
+    () => processes.filter((process) => process.isOfficial !== false),
+    [processes],
+  );
+
   const tenantProcesses = useMemo(
-    () => processes.filter((process) => matchesOperationalScope(activeInstitutionId, process)),
-    [processes, activeInstitutionId],
+    () =>
+      officialProcesses.filter((process) =>
+        matchesOperationalScope(activeInstitutionId, process),
+      ),
+    [officialProcesses, activeInstitutionId],
   );
 
   const professionalProcesses = useMemo(
     () =>
       isExternalProfessional
-        ? getVisibleProcessesByScope(session, activeInstitutionId, processes)
+        ? getVisibleProcessesByScope(session, activeInstitutionId, officialProcesses)
         : [],
-    [activeInstitutionId, isExternalProfessional, processes, session],
+    [activeInstitutionId, isExternalProfessional, officialProcesses, session],
   );
 
   const ownerProcesses = useMemo(
     () =>
       isOwner
-        ? processes.filter((process) => {
+        ? officialProcesses.filter((process) => {
             if (process.ownerProfileId && process.ownerProfileId === session.id) return true;
             return Boolean(
               ownerDocument &&
@@ -402,7 +410,7 @@ export function DashboardHomePage() {
             );
           })
         : [],
-    [isOwner, ownerDocument, processes, session.id],
+    [isOwner, ownerDocument, officialProcesses, session.id],
   );
 
   const externalProcesses = isExternalProfessional
@@ -414,7 +422,11 @@ export function DashboardHomePage() {
     [isMaster, sessionUsers, activeInstitutionId],
   );
 
-  const displayProcesses = isMaster ? processes : isExternal ? externalProcesses : tenantProcesses;
+  const displayProcesses = isMaster
+    ? officialProcesses
+    : isExternal
+      ? externalProcesses
+      : tenantProcesses;
   const institutionName =
     municipality?.name || institutions.find((institution) => institution.id === activeInstitutionId)?.name || "SIGAPRO";
 
