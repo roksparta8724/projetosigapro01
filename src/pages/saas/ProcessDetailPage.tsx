@@ -3825,6 +3825,7 @@ export function ProcessDetailPage() {
                 process={process}
                 session={session}
                 externalView={isExternalProcessViewer}
+                municipalityName={municipalityName || tenant?.name || "Prefeitura Municipal"}
                 dataReady={
                   dataReadyForCurrentUser &&
                   !platformDataLoading &&
