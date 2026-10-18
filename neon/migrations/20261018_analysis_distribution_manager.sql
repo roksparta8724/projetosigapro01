@@ -360,6 +360,21 @@ begin
     false,clock_timestamp(),_process.municipality_id,_actor
   );
 
+  perform public.enqueue_notification_v1(
+    _target.id,
+    'Nova análise atribuída',
+    coalesce(nullif(btrim(_process.protocol_number),''),'Processo')||
+      ' foi distribuído para você. Abra a fila da Análise para iniciar o trabalho técnico.',
+    'tramite',
+    _process_id,
+    '/processos/'||_process_id::text,
+    'analise',
+    'normal',
+    _actor,
+    'analysis:assigned:'||_process_id::text,
+    jsonb_build_object('assigned_to',_target_name,'stage','distribuicao')
+  );
+
   return jsonb_build_object(
     'process_id',_process_id,
     'assigned_profile_id',_target.id,
