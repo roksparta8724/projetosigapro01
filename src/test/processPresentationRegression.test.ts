@@ -145,7 +145,7 @@ describe("external process primary action hierarchy", () => {
 
     expect(flowIndex).toBeGreaterThanOrEqual(0);
     expect(openIndex).toBeGreaterThan(flowIndex);
-    expect(external).toContain("h-16 w-full");
+    expect(external).toContain("sig-primary-process-action h-11 min-w-[190px]");
     expect(external).toContain("sig-primary-process-action");
     expect(external).toContain("!text-white");
   });
@@ -354,7 +354,7 @@ describe("process analysis premium contrast contract v7", () => {
     expect(detail).toContain('data-dispatch-panel="true"');
     expect(detail).toContain('data-dispatch-organogram="true"');
     expect(detail).toContain('data-dispatch-organogram-grid="true"');
-    expect(detail).toContain("sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4");
+    expect(detail).toContain("lg:grid-cols-2 2xl:grid-cols-3");
     expect(detail).toContain('data-organogram-destination="true"');
     expect(detail).toContain('data-premium-dark-action="true"');
   });
