@@ -4666,19 +4666,27 @@ export function ProcessDetailPage() {
                                           <div className="flex min-w-0 items-center gap-2.5">
                                             <span
                                               data-organogram-code="true"
-                                              style={{
-                                                color: "#ffffff",
-                                                WebkitTextFillColor: "#ffffff",
-                                              }}
+                                              data-organogram-code-surface="blue"
                                               className={`sig-organogram-code-badge inline-flex h-8 min-w-[44px] shrink-0 items-center justify-center rounded-[10px] border px-2 text-[9px] font-black tracking-[0.10em] shadow-sm ${
                                                 selected
-                                                  ? "border-white/20 bg-white/15 !text-white"
+                                                  ? "border-white/20 bg-white/15"
                                                   : isCurrentUnit
-                                                    ? "border-emerald-400/30 bg-[linear-gradient(135deg,#047857_0%,#059669_100%)] !text-white"
-                                                    : "border-sky-200 bg-[linear-gradient(135deg,#075985_0%,#0f78b8_100%)] !text-white dark:border-sky-500/30"
+                                                    ? "border-emerald-400/30 bg-[linear-gradient(135deg,#047857_0%,#059669_100%)]"
+                                                    : "border-sky-200 bg-[linear-gradient(135deg,#075985_0%,#0f78b8_100%)] dark:border-sky-500/30"
                                               }`}
                                             >
-                                              {department.code?.trim() || "UNID"}
+                                              <strong
+                                                data-organogram-code-text="true"
+                                                style={{
+                                                  color: "#ffffff",
+                                                  WebkitTextFillColor: "#ffffff",
+                                                  opacity: 1,
+                                                  fontWeight: 900,
+                                                }}
+                                                className="block !text-white"
+                                              >
+                                                {department.code?.trim() || "UNID"}
+                                              </strong>
                                             </span>
 
                                             <span className="min-w-0 flex-1">
