@@ -1192,14 +1192,6 @@ export function ProcessDetailPage() {
     process.status === "triagem" &&
     /protocolo|triagem|administr/.test(normalizedCurrentFolder);
 
-  useEffect(() => {
-    if (!requiresInitialUrbanAnalysisDispatch || !initialUrbanAnalysisDestination?.id) return;
-    setDispatchTo(initialUrbanAnalysisDestination.id);
-    setDispatchSubject((current) =>
-      current.trim() ? current : "Encaminhamento para análise urbanística",
-    );
-  }, [initialUrbanAnalysisDestination?.id, requiresInitialUrbanAnalysisDispatch]);
-
   const isFinalProcessStatus = ["deferido", "indeferido", "arquivado"].includes(process.status);
   const constructionPaymentCompensated =
     issuedConstructionGuide?.status === "compensada";
