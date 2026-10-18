@@ -15,6 +15,12 @@ describe("public signature QR verification", () => {
     expect(verificationUrl).toContain('/v/${encodeURIComponent(code)}');
   });
 
+  it("keeps the public verification heading readable on the dark institutional header", () => {
+    expect(verificationPage).toContain('data-public-verification-heading="true"');
+    expect(verificationPage).toContain("!text-white");
+    expect(verificationPage).toContain("Verificação de assinatura eletrônica");
+  });
+
   it("keeps the QR route public and outside authenticated municipal routes", () => {
     expect(app).toContain('path="/v/:codigo"');
     expect(app).toContain('path="/verificar-assinatura"');
