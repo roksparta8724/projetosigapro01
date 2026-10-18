@@ -59,6 +59,13 @@ describe("F5, logout and topbar visual continuity", () => {
     expect(planEntitlements).toContain("explicitIdentityMismatch");
   });
 
+  it("does not show the blocking official-data outage banner when current-user data is already usable", () => {
+    expect(portal).toContain("dataReadyForCurrentUser");
+    expect(portal).toContain("showBlockingOfficialDataError");
+    expect(portal).toContain("dataError && !loading && !dataReadyForCurrentUser");
+    expect(portal).toContain("{showBlockingOfficialDataError ? (");
+  });
+
   it("keeps the last verified process model available during a hard refresh", () => {
     expect(processDetail).toContain("sigapro.process-view.v1:");
     expect(processDetail).toContain("readCachedProcessVisual");
