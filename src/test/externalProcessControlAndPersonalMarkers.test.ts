@@ -45,7 +45,7 @@ describe("external process control and personal markers", () => {
     expect(markerMigration).toContain(
       "Este marcador pertence a outro usuário.",
     );
-    expect(markerMigration).not.toContain("'Marcador atualizado'");
+    expect(markerMigration).not.toContain("insert into public.process_audit_entries");
   });
 
   it("removes stale personal markers immediately when switching accounts", () => {
