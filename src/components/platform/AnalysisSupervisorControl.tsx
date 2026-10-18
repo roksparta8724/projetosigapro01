@@ -89,8 +89,8 @@ export function AnalysisSupervisorControl({
           </div>
           <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-700">
             Responsável técnico: <strong>{process.analysis?.assignedTo || "Ainda não atribuído"}</strong>.
-            A Diretoria pode acompanhar toda a análise e assinar os documentos de sua competência.
-            Alterações técnicas de processo alheio ficam bloqueadas até uma intervenção formal ou redistribuição.
+            Somente o Analista atualmente responsável e a Diretoria podem modificar a análise.
+            Ao redistribuir, o Analista anterior perde a edição imediatamente e o novo responsável assume a titularidade técnica.
           </p>
           {interventionActive ? (
             <p className="mt-2 flex items-center gap-2 text-xs font-semibold text-amber-900">
