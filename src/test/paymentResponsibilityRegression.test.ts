@@ -10,7 +10,7 @@ describe("payment responsibility boundaries", () => {
     const detail = read("src/pages/saas/ProcessDetailPage.tsx");
 
     expect(protocol).toContain('markGuideAsPaid(process.id, session.name, "protocolo")');
-    expect(protocol).toContain("Responsabilidade do Protocolo");
+    expect(protocol).toContain("Confirmar pagamento recebido");
     expect(detail).not.toContain("handleConfirmProtocolPayment");
     expect(detail).not.toContain("confirm-protocol-payment");
   });
