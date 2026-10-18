@@ -2111,7 +2111,8 @@ export function ProtocolarProjetoPage({
 
                     <Button
                       type="submit"
-                      className="rounded-full bg-slate-950 px-5 font-bold text-white shadow-[0_10px_24px_rgba(15,23,42,0.16)] hover:bg-slate-900 dark:bg-sky-400 dark:text-slate-950 dark:hover:bg-sky-300"
+                      data-protocol-primary-action="true"
+                      className="sig-protocol-primary-action rounded-full px-5 font-bold shadow-[0_10px_24px_rgba(15,23,42,0.16)]"
                       data-remote-draft-action="payment"
                       disabled={
                         submitting ||
@@ -2136,7 +2137,8 @@ export function ProtocolarProjetoPage({
                 ) : (
                   <Button
                     type="submit"
-                    className="rounded-full bg-slate-950 hover:bg-slate-900 dark:bg-sky-500 dark:text-slate-950 dark:hover:bg-sky-400"
+                    data-protocol-primary-action="true"
+                    className="sig-protocol-primary-action rounded-full font-bold"
                     data-protocol-required-documents-locked={
                       missingRequired.length > 0 ? "true" : "false"
                     }
