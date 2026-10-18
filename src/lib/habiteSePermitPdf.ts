@@ -487,8 +487,8 @@ export async function buildHabiteSePermitPdfBlob({
     y,
     contentWidth,
     18,
-    "Condições / ressalvas",
-    permit.formData.conditions || "Sem ressalvas registradas.",
+    "Condições, ressalvas e condicionantes",
+    permit.formData.conditions || "Sem ressalvas ou condicionantes pendentes registradas no processo para a emissão deste Alvará de Habite-se.",
   );
   y += 20;
 
@@ -498,8 +498,8 @@ export async function buildHabiteSePermitPdfBlob({
     y,
     contentWidth,
     18,
-    "Observações do Analista Técnico",
-    permit.formData.observations || "Sem observações complementares.",
+    "Parecer técnico conclusivo",
+    permit.formData.observations || "Com base na documentação técnica, no projeto aprovado e nos registros de vistoria constantes do processo, a edificação encontra-se concluída e apta à ocupação para o uso declarado, observadas as condições do licenciamento e as normas técnicas aplicáveis.",
   );
   y += 21;
 
