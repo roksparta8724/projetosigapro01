@@ -1342,6 +1342,9 @@ export async function loadRemotePlatformStore() {
       municipalityId: process.municipality_id ?? process.tenant_id,
       protocol: process.protocol_number,
       externalProtocol: process.external_protocol_number ?? process.protocol_number,
+      preProtocol: process.pre_protocol_number ?? undefined,
+      isOfficial: Boolean(process.officialized_at),
+      officializedAt: process.officialized_at ?? undefined,
       title: process.title,
       type: process.process_type,
       status:
@@ -2078,8 +2081,11 @@ export async function createRemoteExternalProcessV2(
   }
 
   return data as {
+    /** Backing id do pré-protocolo. Só vira processo municipal após o pagamento. */
     process_id: string;
     protocol_number: string;
+    pre_protocol_number?: string;
+    is_official?: boolean;
     guide_number: string;
     due_date: string;
     amount: number;
