@@ -82,16 +82,23 @@ function databaseErrorMessage(error: unknown) {
 
 async function ensureAuthenticatedDatabaseSession() {
   const db = dbOrThrow();
-  const result = await db.auth?.getSession?.();
-  const session = result?.data?.session ?? null;
 
-  if (!session) {
-    throw new Error(
-      "A sessão do banco ainda está sendo restaurada. Atualize a página após o login terminar.",
-    );
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    const result = await db.auth?.getSession?.();
+    const session = result?.data?.session ?? null;
+
+    if (session) {
+      return db;
+    }
+
+    if (attempt < 7) {
+      await new Promise((resolve) => window.setTimeout(resolve, 180));
+    }
   }
 
-  return db;
+  throw new Error(
+    "A sessão segura da Prefeitura não foi restaurada. Saia e entre novamente somente se o aviso persistir após atualizar a página.",
+  );
 }
 
 async function callInspectionRpc<T = unknown>(
