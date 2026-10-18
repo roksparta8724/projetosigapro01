@@ -10906,3 +10906,30 @@ html body #root .sig-main-shell .sig-process-detail-premium
 }
 /* ===== END DISPATCH ORGANOGRAM SEMANTIC CONTRAST V14 ===== */
 
+
+
+/* ===== HABITE-SE FINAL STATUS CONTRAST LOCK — 2026-10-18 ===== */
+html body .sig-main-shell [data-habite-se-status-badge="true"],
+html body .sig-main-shell [data-habite-se-status-badge="true"] * {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  opacity: 1 !important;
+  filter: none !important;
+  mix-blend-mode: normal !important;
+}
+
+html body .sig-main-shell [data-habite-se-status-badge="true"][data-status="rascunho"] {
+  background: #075985 !important;
+  border-color: rgba(224, 242, 254, 0.72) !important;
+}
+
+html body .sig-main-shell [data-habite-se-status-badge="true"][data-status="aguardando_diretor"] {
+  background: #6d28d9 !important;
+  border-color: rgba(237, 233, 254, 0.72) !important;
+}
+
+html body .sig-main-shell [data-habite-se-status-badge="true"][data-status="emitido"] {
+  background: #047857 !important;
+  border-color: rgba(209, 250, 229, 0.72) !important;
+}
+/* ===== END HABITE-SE FINAL STATUS CONTRAST LOCK ===== */
