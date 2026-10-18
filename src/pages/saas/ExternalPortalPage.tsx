@@ -6,7 +6,6 @@ import {
   FileCheck2,
   FilePlus2,
   FolderKanban,
-  History,
   LineChart,
   Waypoints,
 } from "lucide-react";
@@ -20,7 +19,6 @@ import { PortalFrame } from "@/components/platform/PortalFrame";
 import { SectionPanel } from "@/components/platform/SectionPanel";
 import {
   buildProcessPath,
-  formatCurrency,
   formatOfficialProcessNumber,
   formatOfficialProcessTitle,
   getExternallyVisibleProcessPaymentGuides,
@@ -36,20 +34,26 @@ export function ExternalPortalPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { session } = usePlatformSession();
-  const { processes: allProcesses, getInstitutionSettings, getUserProfile } = usePlatformData();
+  const { processes: allProcesses, getInstitutionSettings } = usePlatformData();
   const { municipality, scopeId, institutionSettingsCompat } = useMunicipality();
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
   const processes = getVisibleProcessesByScope(session, effectiveScopeId, allProcesses);
   const tenantSettings = institutionSettingsCompat ?? getInstitutionSettings(effectiveScopeId ?? session.tenantId);
-  const profile = getUserProfile(session.id, session.email);
   const activeTab = getExternalTabByPath(location.pathname);
 
   const pendingRequirements = processes.reduce(
-    (count, process) => count + (process.requirements ?? []).filter((item) => item.status === "aberta" || item.status === "respondida").length,
+    (count, process) =>
+      count +
+      (process.requirements ?? []).filter(
+        (item) =>
+          item.visibility !== "interno" &&
+          (item.status === "aberta" || item.status === "respondida"),
+      ).length,
     0,
   );
-  const pendingPayments = processes.filter((process) => process.payment?.status === "pendente").length;
-  const concludedProcesses = processes.filter((process) => ["deferido", "indeferido", "arquivado"].includes(process.status)).length;
+  const concludedProcesses = processes.filter((process) =>
+    ["deferido", "indeferido", "arquivado"].includes(process.status),
+  ).length;
   const activeProcesses = Math.max(processes.length - concludedProcesses, 0);
 
   const recentActivity = useMemo(
@@ -67,7 +71,10 @@ export function ExternalPortalPage() {
       ),
     [processes, tenantSettings],
   );
-  const pendingGuides = paymentGuides.filter((item) => item.guide.status !== "compensada");
+  const pendingGuides = paymentGuides.filter(
+    (item) => item.guide.status !== "compensada",
+  );
+  const pendingPayments = pendingGuides.length;
 
   return (
     <PortalFrame eyebrow="Acesso Externo" title="Painel do profissional">
