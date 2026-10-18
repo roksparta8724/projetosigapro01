@@ -1276,7 +1276,18 @@ export function ProcessDetailPage() {
   let currentFlowIndex = 0;
   if (isHabiteSeProcess) {
     if (isFinalProcessStatus) {
+      currentFlowIndex = 6;
+    } else if (
+      habiteSeGuide?.status === "compensada" ||
+      /decis[aã]o|emiss[aã]o do habite/.test(normalizedCurrentFolder)
+    ) {
       currentFlowIndex = 5;
+    } else if (
+      Boolean(habiteSeGuide) ||
+      Boolean(habiteSeGuideRequest) ||
+      /financ|tesour|arrecad/.test(normalizedCurrentFolder)
+    ) {
+      currentFlowIndex = 4;
     } else if (/fiscal|vistoria|inspec|conferencia/.test(normalizedCurrentFolder)) {
       currentFlowIndex = 3;
     } else if (
@@ -1328,6 +1339,7 @@ export function ProcessDetailPage() {
         "Pagamento inicial",
         "Análise documental",
         "Vistoria / conferência",
+        "Financeiro",
         "Decisão / emissão",
         "Conclusão",
       ]
