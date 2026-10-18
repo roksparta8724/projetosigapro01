@@ -75,6 +75,18 @@ describe("organogram institutional blue code contrast", () => {
     expect(css).toContain("color:#e6f8ff !important");
   });
 
+  it("declares the selected dispatch card as a dark contrast surface and keeps light cards dark-on-light", () => {
+    expect(processDetail).toContain('data-contrast-surface={selected ? "dark" : undefined}');
+    expect(processDetail).toContain('data-contrast-surface="dark"');
+    expect(processDetail).toContain('data-ui="badge"');
+    expect(css).toContain("DISPATCH ORGANOGRAM SEMANTIC CONTRAST V14");
+    expect(css).toContain('.sig-dispatch-destination-card[data-selected="false"]');
+    expect(css).toContain('.sig-dispatch-destination-card[data-selected="true"][data-contrast-surface="dark"]');
+    expect(css).toContain("color:#0f172a !important");
+    expect(css).toContain("color:#ffffff !important");
+    expect(css).toContain("color:#e7f7ff !important");
+  });
+
   it("keeps compact organogram paths on the same crisp white acronym treatment", () => {
     expect(bar).toContain('data-organogram-code="true"');
     expect(bar).toContain('data-organogram-code-text="true"');
