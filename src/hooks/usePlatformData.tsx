@@ -1716,7 +1716,43 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
               )
             : [nextUser, ...current.sessionUsers];
 
-          return { ...current, userProfiles, sessionUsers };
+          // O perfil é cadastro vivo; o processo mantém seu histórico/auditoria,
+          // mas qualquer tela aberta deve refletir imediatamente os dados atuais
+          // quando existe vínculo inequívoco pelo profile_id.
+          const processes = current.processes.map((process) => {
+            const isTechnicalProfile =
+              process.technicalProfileId === persistedProfile.userId ||
+              process.professionalProfileId === persistedProfile.userId ||
+              (
+                process.createdByProfileId === persistedProfile.userId &&
+                process.createdByRole === "profissional_externo"
+              );
+            const isOwnerProfile = process.ownerProfileId === persistedProfile.userId;
+
+            if (!isTechnicalProfile && !isOwnerProfile) return process;
+
+            return {
+              ...process,
+              ...(isTechnicalProfile
+                ? {
+                    technicalLead: persistedProfile.fullName,
+                    professionalEmail: persistedProfile.email,
+                  }
+                : {}),
+              ...(isOwnerProfile
+                ? {
+                    ownerName: persistedProfile.fullName,
+                    ownerEmail: persistedProfile.email,
+                    ownerPhone: persistedProfile.phone,
+                    ownerDocument: persistedProfile.cpfCnpj || process.ownerDocument,
+                    ownerIdentityDocument:
+                      persistedProfile.rg || process.ownerIdentityDocument,
+                  }
+                : {}),
+            };
+          });
+
+          return { ...current, userProfiles, sessionUsers, processes };
         });
 
         syncProfileVisualCache(persistedProfile);
