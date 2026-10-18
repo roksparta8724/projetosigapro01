@@ -223,11 +223,14 @@ describe("official electronic signatures", () => {
     expect(withdrawalDirectMigration).toContain("trg_audit_process_artifact_withdrawal_v1");
   });
 
-  it("prints pickup from DB or current form and keeps success feedback to only Registrado", () => {
+  it("prints pickup from DB or current form with exact time and keeps success feedback to only Registrado", () => {
     expect(checklist).toContain("pdfWithdrawalRecord?.withdrawn_by_name?.trim()");
     expect(checklist).toContain("withdrawalName.trim()");
-    expect(checklist).toContain("pdfWithdrawalRecord?.withdrawn_at?.slice(0, 10)");
-    expect(checklist).toContain("withdrawalDate");
+    expect(checklist).toContain("pdfWithdrawalRecord?.withdrawn_at_exact");
+    expect(checklist).toContain("pdfWithdrawalRecord?.recorded_at");
+    expect(checklist).toContain("withdrawalDateTime");
+    expect(checklist).toContain("Data e hora:");
+    expect(checklist).toContain("Retirado por:");
     expect(checklist).toContain('setNotice("Registrado")');
     expect(checklist).not.toContain("PDF oficial gerado em 2 páginas");
   });
