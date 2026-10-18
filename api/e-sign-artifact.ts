@@ -407,6 +407,33 @@ export default async function handler(req: ApiReq, res: Res) {
       return;
     }
 
+    if (artifactType === "habite_se_permit" && signerSlot === "analise_tecnica") {
+      const permitResult = await callDataApiRpc<{
+        permit?: { status?: string } | null;
+        can_manage?: boolean;
+      }>(
+        bearer,
+        "get_habite_se_permit_v1",
+        { _process_id: processId },
+      );
+
+      if (
+        !permitResult.ok ||
+        !permitResult.payload?.permit ||
+        permitResult.payload.can_manage !== true
+      ) {
+        fail(
+          res,
+          403,
+          "authorization",
+          "HABITE_SE_ANALYST_OWNERSHIP_REQUIRED",
+          permitResult.error,
+          "Somente o Analista Técnico responsável pode assinar esta versão do Alvará de Habite-se.",
+        );
+        return;
+      }
+    }
+
     if (artifactType === "habite_se_permit" && signerSlot === "diretoria") {
       const permitResult = await callDataApiRpc<{
         permit?: { status?: string } | null;
