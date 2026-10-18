@@ -39,8 +39,11 @@ export interface StoredUploadedFileItem {
   fileSizeBytes?: number;
 }
 
+export type ProtocolDraftEntryMode = "projeto" | "habite-se";
+
 export interface ProtocolDraftPayload {
   draftNumber: string;
+  entryMode?: ProtocolDraftEntryMode;
   form: ProtocolDraftForm;
   files: Record<string, StoredUploadedFileItem[]>;
   updatedAt: string;
@@ -89,6 +92,38 @@ function buildLegacyDraftStorageKey(sessionId: string, tenantId: string | null) 
 
 function buildDraftCollectionKey(sessionId: string, scopeId: string | null) {
   return `${COLLECTION_PREFIX}:${scopeId || "sem-tenant"}:${sessionId}`;
+}
+
+export function inferProtocolDraftEntryMode(
+  payload: Pick<ProtocolDraftPayload, "draftNumber" | "entryMode" | "form">,
+): ProtocolDraftEntryMode {
+  if (payload.entryMode === "habite-se" || payload.entryMode === "projeto") {
+    return payload.entryMode;
+  }
+
+  const type = String(payload.form?.tipo || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase("pt-BR");
+
+  if (
+    payload.draftNumber?.startsWith("HAB-") ||
+    type.includes("habite-se") ||
+    type.includes("habite se") ||
+    Boolean(payload.form?.processoAprovacao?.trim()) ||
+    Boolean(payload.form?.numeroAlvara?.trim())
+  ) {
+    return "habite-se";
+  }
+
+  return "projeto";
+}
+
+function normalizeDraft(payload: ProtocolDraftPayload): ProtocolDraftPayload {
+  return {
+    ...payload,
+    entryMode: inferProtocolDraftEntryMode(payload),
+  };
 }
 
 function isValidDraft(payload: ProtocolDraftPayload) {
@@ -143,7 +178,9 @@ function writeDraftCollection(
   }
 }
 
-export function createDraftNumber() {
+export function createDraftNumber(
+  entryMode: ProtocolDraftEntryMode = "projeto",
+) {
   const now = new Date();
   const y = now.getFullYear();
   const m = `${now.getMonth() + 1}`.padStart(2, "0");
@@ -151,7 +188,8 @@ export function createDraftNumber() {
   const h = `${now.getHours()}`.padStart(2, "0");
   const min = `${now.getMinutes()}`.padStart(2, "0");
   const sec = `${now.getSeconds()}`.padStart(2, "0");
-  return `PRE-${y}${m}${d}-${h}${min}${sec}`;
+  const prefix = entryMode === "habite-se" ? "HAB" : "PRE";
+  return `${prefix}-${y}${m}${d}-${h}${min}${sec}`;
 }
 
 export function listProtocolDrafts(
@@ -169,7 +207,7 @@ export function listProtocolDrafts(
     if (rawCollection) {
       const parsed = JSON.parse(rawCollection);
       if (Array.isArray(parsed)) {
-        drafts = parsed as ProtocolDraftPayload[];
+        drafts = (parsed as ProtocolDraftPayload[]).map(normalizeDraft);
       }
     }
   } catch {
@@ -189,7 +227,9 @@ export function listProtocolDrafts(
     if (!rawLegacy) continue;
 
     try {
-      const legacyDraft = JSON.parse(rawLegacy) as ProtocolDraftPayload;
+      const legacyDraft = normalizeDraft(
+        JSON.parse(rawLegacy) as ProtocolDraftPayload,
+      );
       if (
         legacyDraft?.draftNumber &&
         isValidDraft(legacyDraft) &&
@@ -204,6 +244,7 @@ export function listProtocolDrafts(
 
   const validDrafts = drafts
     .filter((draft) => draft?.draftNumber && isValidDraft(draft))
+    .map(normalizeDraft)
     .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt));
 
   if (validDrafts.length !== drafts.length || legacyKeys.some((key) => window.localStorage.getItem(key))) {
@@ -220,10 +261,19 @@ export function readProtocolDraft(
   scopeId: string | null,
   legacyTenantId?: string | null,
   draftNumber?: string | null,
+  expectedEntryMode?: ProtocolDraftEntryMode,
 ) {
   const drafts = listProtocolDrafts(sessionId, scopeId, legacyTenantId);
-  if (!draftNumber) return drafts[0] ?? null;
-  return drafts.find((draft) => draft.draftNumber === draftNumber) ?? null;
+  const matchingDrafts = expectedEntryMode
+    ? drafts.filter(
+        (draft) => inferProtocolDraftEntryMode(draft) === expectedEntryMode,
+      )
+    : drafts;
+
+  if (!draftNumber) return matchingDrafts[0] ?? null;
+  return (
+    matchingDrafts.find((draft) => draft.draftNumber === draftNumber) ?? null
+  );
 }
 
 export function saveProtocolDraft(
@@ -234,9 +284,12 @@ export function saveProtocolDraft(
   if (typeof window === "undefined") return false;
 
   const drafts = listProtocolDrafts(sessionId, scopeId);
+  const normalizedPayload = normalizeDraft(payload);
   const next = [
-    payload,
-    ...drafts.filter((draft) => draft.draftNumber !== payload.draftNumber),
+    normalizedPayload,
+    ...drafts.filter(
+      (draft) => draft.draftNumber !== normalizedPayload.draftNumber,
+    ),
   ];
 
   return writeDraftCollection(sessionId, scopeId, next);
@@ -336,6 +389,14 @@ export async function restoreUploadedFiles(
   return Object.fromEntries(entries);
 }
 
-export function getProtocolFlowBasePath(pathname: string) {
-  return pathname.startsWith("/externo") ? "/externo/protocolar" : "/prefeitura/protocolos/novo";
+export function getProtocolFlowBasePath(
+  pathname: string,
+  entryMode: ProtocolDraftEntryMode = "projeto",
+) {
+  if (pathname.startsWith("/externo")) {
+    return entryMode === "habite-se"
+      ? "/externo/habite-se"
+      : "/externo/protocolar";
+  }
+  return "/prefeitura/protocolos/novo";
 }
