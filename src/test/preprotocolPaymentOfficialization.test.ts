@@ -17,6 +17,9 @@ const queueMigration = read(
 const sharedSequenceMigration = read(
   "neon/migrations/20261018_habite_se_shared_protocol_sequence_guard.sql",
 );
+const singleSequenceReservationMigration = read(
+  "neon/migrations/20261018_single_protocol_sequence_reservation.sql",
+);
 const notificationMigration = read(
   "neon/migrations/20261018_preprotocol_external_payment_notification.sql",
 );
@@ -31,11 +34,18 @@ const dashboardHome = read("src/pages/saas/DashboardHomePage.tsx");
 const platformImpl = read("src/integrations/backend/platformImpl.ts");
 
 describe("payment-first pre-protocol officialization", () => {
-  it("does not allocate an official municipal process number before payment", () => {
-    expect(lifecycleMigration).toContain("next_tenant_preprotocol_number");
+  it("reserves the next municipal sequence number before payment without making the item official", () => {
+    expect(singleSequenceReservationMigration).toContain(
+      "uma única sequência municipal para Projeto, Habite-se e demais protocolos",
+    );
+    expect(singleSequenceReservationMigration).toContain(
+      "_official_reserved := public.next_tenant_protocol_number",
+    );
+    expect(singleSequenceReservationMigration).toContain(
+      "return 'PRE-'||_official_reserved",
+    );
     expect(lifecycleMigration).toContain("'pagamento_pendente'");
     expect(lifecycleMigration).toContain("'Portal Externo'");
-    expect(lifecycleMigration).toContain("officialized_at");
     expect(protocolPage).toContain("/externo/pagamentos?preprotocolo=");
     expect(protocolPage).toContain(
       "o processo entra na Prefeitura somente depois da compensação do pagamento",
@@ -53,24 +63,24 @@ describe("payment-first pre-protocol officialization", () => {
     );
   });
 
-  it("shares the same official PM sequence between project and Habite-se only after payment", () => {
+  it("keeps project and Habite-se on one PM sequence and officializes the reserved number after payment", () => {
     expect(sharedSequenceMigration).toContain(
       "Habite-se usa a MESMA sequencia oficial dos demais protocolos",
     );
-    expect(sharedSequenceMigration).toContain(
-      "alter column officialized_at drop default",
+    expect(singleSequenceReservationMigration).toContain(
+      "_official_protocol := regexp_replace",
     );
-    expect(sharedSequenceMigration).toContain(
-      "next_tenant_preprotocol_number",
+    expect(singleSequenceReservationMigration).toContain(
+      "'^PRE-'",
     );
-    expect(sharedSequenceMigration).toContain(
-      "next_tenant_protocol_number",
+    expect(singleSequenceReservationMigration).toContain(
+      "sem gerar outra sequência",
     );
-    expect(sharedSequenceMigration).toContain(
-      "Este contador so e consumido depois do pagamento",
+    expect(singleSequenceReservationMigration).toContain(
+      "delete from public.tenant_protocol_counters",
     );
-    expect(sharedSequenceMigration).toContain(
-      "O processo municipal so pode ser criado depois da confirmacao do pagamento",
+    expect(singleSequenceReservationMigration).toContain(
+      "where prefix like 'PRE%'",
     );
   });
 
