@@ -1924,27 +1924,26 @@ export function UrbanAnalysisChecklistPanel({
       doc.setTextColor(...slate);
       doc.setFont("helvetica", "bold");
       doc.setFontSize(5.2);
-      doc.text("RETIRADA EM MÃOS", margin + 4, withdrawalY + 4);
+      doc.text("ENTREGA FÍSICA DO DOCUMENTO", margin + 4, withdrawalY + 4);
       doc.setFont("helvetica", "normal");
       doc.setTextColor(...muted);
       doc.setFontSize(5.1);
       const pdfWithdrawalName =
         pdfWithdrawalRecord?.withdrawn_by_name?.trim() ||
         withdrawalName.trim();
-      const pdfWithdrawalDateSource =
-        pdfWithdrawalRecord?.withdrawn_at?.slice(0, 10) ||
-        withdrawalDate;
-      const pdfWithdrawalDate = pdfWithdrawalDateSource
-        ? pdfWithdrawalDateSource.split("-").reverse().join("/")
-        : "";
+      const pdfWithdrawalMoment =
+        pdfWithdrawalRecord?.withdrawn_at_exact ||
+        pdfWithdrawalRecord?.recorded_at ||
+        withdrawalDateTime;
+      const pdfWithdrawalDateTime = formatMunicipalDateTime(pdfWithdrawalMoment);
 
       doc.text(
-        `Retirada por: ${pdfWithdrawalName || "____________________________________________"}`,
+        `Retirado por: ${pdfWithdrawalName || "____________________________________________"}`,
         margin + 4,
         withdrawalY + 7.8,
       );
       doc.text(
-        `Data: ${pdfWithdrawalDate || "____/____/________"}`,
+        `Data e hora: ${pdfWithdrawalDateTime || "____/____/________ __:__"}`,
         pageW - margin - 4,
         withdrawalY + 7.8,
         { align: "right" },
