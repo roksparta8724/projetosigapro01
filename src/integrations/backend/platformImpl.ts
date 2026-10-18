@@ -409,6 +409,7 @@ export async function loadRemotePlatformStore() {
     propertiesResult,
     guidesResult,
     partiesResult,
+    privatePartyDataResult,
     documentsResult,
     requirementsResult,
     auditResult,
@@ -450,6 +451,9 @@ export async function loadRemotePlatformStore() {
       ? db.from("payment_guides").select("*").not("process_id", "is", null).order("created_at", { ascending: false })
       : db.from("payment_guides").select("*").order("created_at", { ascending: false }),
     db.from("process_parties").select("*"),
+    isNeonBackend
+      ? db.rpc("list_visible_process_party_private_data_v1")
+      : Promise.resolve({ data: [], error: null }),
     db.from("process_documents").select("*").order("created_at", { ascending: false }),
     db.from("process_requirements").select("*").order("created_at", { ascending: false }),
     db.from("process_audit_entries").select("*").order("created_at", { ascending: false }),
@@ -493,6 +497,7 @@ export async function loadRemotePlatformStore() {
     propertiesResult.error,
     guidesResult.error,
     partiesResult.error,
+    privatePartyDataResult.error,
     documentsResult.error,
     requirementsResult.error,
     auditResult.error,
@@ -603,6 +608,11 @@ export async function loadRemotePlatformStore() {
   );
   const guidesByProcess = new Map<string, DatabaseRow[]>();
   const partiesByProcess = new Map<string, DatabaseRow[]>();
+  const privatePartyDataByPartyId = new Map<string, DatabaseRow>(
+    (privatePartyDataResult.data ?? []).map(
+      (item: DatabaseRow) => [String(item.party_id ?? ""), item] as const,
+    ),
+  );
   const docsByProcess = new Map<string, DatabaseRow[]>();
   const requirementsByProcess = new Map<string, DatabaseRow[]>();
   const auditByProcess = new Map<string, DatabaseRow[]>();
@@ -1312,6 +1322,12 @@ export async function loadRemotePlatformStore() {
     const markers = markersByProcess.get(process.id) ?? [];
     const owner = parties.find((party) => party.party_type === "proprietario");
     const externalLead = parties.find((party) => party.party_type === "profissional_externo");
+    const ownerPrivate = owner?.id
+      ? privatePartyDataByPartyId.get(String(owner.id))
+      : undefined;
+    const externalLeadPrivate = externalLead?.id
+      ? privatePartyDataByPartyId.get(String(externalLead.id))
+      : undefined;
     const creatorProfile =
       (process.created_by_profile_id ? profileById.get(process.created_by_profile_id) : undefined) ??
       (process.created_by ? profileByUser.get(process.created_by) : undefined);
@@ -1332,7 +1348,13 @@ export async function loadRemotePlatformStore() {
           ? "deferido"
           : process.status,
       ownerName: owner?.display_name ?? "Nao informado",
-      ownerDocument: owner?.document_masked ?? "***",
+      ownerDocument:
+        ownerPrivate?.document_number ??
+        owner?.document_masked ??
+        "***",
+      ownerIdentityDocument: ownerPrivate?.identity_document_number ?? "",
+      ownerPhone: ownerPrivate?.phone ?? "",
+      ownerEmail: ownerPrivate?.email ?? "",
       technicalLead: externalLead?.display_name ?? creatorProfile?.full_name ?? "Nao informado",
       ownerProfileId: owner?.profile_id ?? undefined,
       technicalProfileId: externalLead?.profile_id ?? undefined,
@@ -1356,6 +1378,7 @@ export async function loadRemotePlatformStore() {
         block: property?.block ?? "",
         area: Number(property?.area_m2 ?? 0),
         usage: property?.usage_type ?? "",
+        buildingType: property?.building_type ?? "",
         workType: property?.work_type ?? "",
         constructionStandard: property?.construction_standard ?? "",
       },
@@ -1992,10 +2015,14 @@ export async function createRemoteExternalProcessV2(
     block: input.property.block || null,
     area: input.property.area || null,
     usage: input.property.usage || null,
+    buildingType: input.property.buildingType || null,
     workType: input.property.workType || null,
     constructionStandard: input.property.constructionStandard || null,
     ownerName: input.ownerName,
     ownerDocument: input.ownerDocument,
+    ownerIdentityDocument: input.ownerIdentityDocument || null,
+    ownerPhone: input.ownerPhone || null,
+    ownerEmail: input.ownerEmail || null,
     technicalLead: input.technicalLead,
     professionalDocument: input.professionalDocument || null,
     professionalRegistration: input.professionalRegistration || null,
