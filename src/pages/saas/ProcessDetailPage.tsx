@@ -3694,6 +3694,11 @@ export function ProcessDetailPage() {
                 process={process}
                 session={session}
                 externalView={isExternalProcessViewer}
+                dataReady={
+                  dataReadyForCurrentUser &&
+                  !platformDataLoading &&
+                  session.id !== "unknown"
+                }
                 onProcessRefresh={() => refreshRemoteStore()}
               />
             ) : (
