@@ -360,6 +360,84 @@ function mergeRecordsByTenantId<T extends { tenantId: string }>(
   return Array.from(merged.values());
 }
 
+function stableRecordKey(value: unknown, index: number) {
+  if (!value || typeof value !== "object") return `index:${index}`;
+  const record = value as Record<string, unknown>;
+  const key =
+    record.id ??
+    record.tenantId ??
+    record.userId ??
+    record.projectId ??
+    record.slug ??
+    record.code;
+  return key === null || key === undefined || String(key).trim() === ""
+    ? `index:${index}`
+    : String(key);
+}
+
+function jsonEquivalent(left: unknown, right: unknown) {
+  if (left === right) return true;
+  try {
+    return JSON.stringify(left) === JSON.stringify(right);
+  } catch {
+    return false;
+  }
+}
+
+function reuseStableArray<T>(current: T[], incoming: T[]): T[] {
+  if (current === incoming) return current;
+  if (current.length !== incoming.length) {
+    const currentByKey = new Map(
+      current.map((item, index) => [stableRecordKey(item, index), item] as const),
+    );
+    return incoming.map((item, index) => {
+      const previous = currentByKey.get(stableRecordKey(item, index));
+      return previous && jsonEquivalent(previous, item) ? previous : item;
+    });
+  }
+
+  const currentByKey = new Map(
+    current.map((item, index) => [stableRecordKey(item, index), item] as const),
+  );
+
+  let changed = false;
+  const stabilized = incoming.map((item, index) => {
+    const previous = currentByKey.get(stableRecordKey(item, index));
+    if (previous && jsonEquivalent(previous, item)) return previous;
+    changed = true;
+    return item;
+  });
+
+  // A mesma carga remota não deve substituir o store inteiro nem reanimar a UI.
+  // A ordem do backend não é uma mudança visual quando os registros são idênticos.
+  if (!changed && currentByKey.size === incoming.length) return current;
+  return stabilized;
+}
+
+function stabilizePlatformStore(current: PlatformStore, incoming: PlatformStore): PlatformStore {
+  const next: PlatformStore = {
+    tenants: reuseStableArray(current.tenants, incoming.tenants),
+    tenantSettings: reuseStableArray(current.tenantSettings, incoming.tenantSettings),
+    sessionUsers: reuseStableArray(current.sessionUsers, incoming.sessionUsers),
+    userProfiles: reuseStableArray(current.userProfiles, incoming.userProfiles),
+    ownerRequests: reuseStableArray(current.ownerRequests, incoming.ownerRequests),
+    ownerLinks: reuseStableArray(current.ownerLinks, incoming.ownerLinks),
+    ownerMessages: reuseStableArray(current.ownerMessages, incoming.ownerMessages),
+    processes: reuseStableArray(current.processes, incoming.processes),
+    plans: reuseStableArray(current.plans, incoming.plans),
+    planAssignments: reuseStableArray(current.planAssignments, incoming.planAssignments),
+    cmsSections: reuseStableArray(current.cmsSections, incoming.cmsSections),
+    checklistTemplates: reuseStableArray(current.checklistTemplates, incoming.checklistTemplates),
+    documentTemplates: reuseStableArray(current.documentTemplates, incoming.documentTemplates),
+  };
+
+  const unchanged = (Object.keys(next) as Array<keyof PlatformStore>).every(
+    (key) => next[key] === current[key],
+  );
+
+  return unchanged ? current : next;
+}
+
 function findUserProfile(profiles: UserProfile[], userId: string | null | undefined, email?: string | null | undefined) {
   const id = userId && userId !== "unknown" ? userId : "";
   if (id) {
@@ -1205,7 +1283,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         authenticatedEmail,
       );
       if (activeProfile?.avatarUrl) syncProfileVisualCache(activeProfile);
-      setStore(sanitized);
+      setStore((current) => stabilizePlatformStore(current, sanitized));
       syncWarmPlatformStore(sanitized, authenticatedUserId);
       syncStore(sanitized);
       setSource("remote");
@@ -1222,10 +1300,9 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
     }
   };
 
-  // Não atualize o store inteiro em focus/visibility: esse padrão substituía
-  // simultaneamente processos, plano, tema e permissões, causando cards,
-  // cores e abas piscarem. Dados remotos são atualizados por bootstrap e
-  // pelas operações que realmente modificam o processo.
+  // Revalidações periódicas/focus podem consultar o backend, mas nunca devem
+  // substituir referências idênticas do store. stabilizePlatformStore preserva
+  // cada slice/registro sem mudança e elimina o pisca-pisca causado por polling.
 
   const updateStore = (updater: (current: PlatformStore) => PlatformStore) => {
     setStore((current) => {
