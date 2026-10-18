@@ -71,6 +71,7 @@ import {
   reviseRemoteIssProjectGuide,
   removeRemoteProcessMarkerByLabel,
   reopenRemoteProcess,
+  reopenRemoteProcessDocumentAnalysis,
   respondRemoteOwnerRequest,
   respondRemoteProcessRequirement,
   reassignRemoteProcessAnalysis,
@@ -213,6 +214,7 @@ interface PlatformDataState {
     actor: string,
   ) => Promise<{ process_id: string; synced: number; inserted: number; updated: number; stored: number }>;
   reviewProcessDocument: (processId: string, documentId: string, status: "aprovado" | "rejeitado", actor: string) => Promise<void>;
+  reopenProcessDocumentAnalysis: (input: { processId: string; documentId: string; reason: string }) => Promise<void>;
   addDocumentAnnotation: (
     processId: string,
     documentId: string,
@@ -2263,6 +2265,18 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         if (!hasBackendEnv) throw new Error("Banco oficial indisponível para revisar documento.");
 
         await reviewRemoteProcessDocument(documentId, status);
+        await refreshRemoteStore();
+      },
+      reopenProcessDocumentAnalysis: async ({ processId, documentId, reason }) => {
+        if (!hasBackendEnv) throw new Error("Banco oficial indisponível para reabrir a análise documental.");
+
+        const normalizedReason = reason.trim();
+        if (!normalizedReason) throw new Error("Informe o motivo da reabertura.");
+
+        await reopenRemoteProcessDocumentAnalysis({
+          documentId,
+          reason: normalizedReason,
+        });
         await refreshRemoteStore();
       },
       addDocumentAnnotation: async (processId, documentId, annotation) => {
