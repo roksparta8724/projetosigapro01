@@ -1,4 +1,4 @@
-import { Clock3, FilePenLine, FilePlus2, FolderKanban, Paperclip } from "lucide-react";
+import { Building2, Clock3, FilePenLine, FilePlus2, FolderKanban, Paperclip } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { InternalTabs } from "@/components/platform/InternalTabs";
@@ -9,7 +9,7 @@ import { SectionPanel } from "@/components/platform/SectionPanel";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { externalTabs, getExternalTabByPath } from "@/lib/externalTabs";
-import { listProtocolDrafts } from "@/lib/protocolDraft";
+import { inferProtocolDraftEntryMode, listProtocolDrafts } from "@/lib/protocolDraft";
 
 export function ExternalDraftsPage() {
   const navigate = useNavigate();
@@ -26,15 +26,23 @@ export function ExternalDraftsPage() {
         <PageIntro
           eyebrow="Controle de processos"
           title="Rascunhos"
-          description="Projetos ainda não protocolados ficam separados dos processos oficiais. Retome somente quando quiser continuar a abertura."
+          description="Rascunhos de projeto e de Habite-se ficam separados por serviço e só entram no fluxo oficial depois da protocolização."
           icon={FilePenLine}
           actions={
-            <Button asChild data-draft-dark-action="true" className="rounded-full bg-slate-950 !text-white hover:bg-slate-900 [&_*]:!text-white">
-              <Link to="/externo/protocolar">
-                <FilePlus2 className="mr-2 h-4 w-4" />
-                Novo protocolo
-              </Link>
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button asChild data-draft-dark-action="true" className="rounded-full bg-slate-950 !text-white hover:bg-slate-900 [&_*]:!text-white">
+                <Link to="/externo/protocolar">
+                  <FilePlus2 className="mr-2 h-4 w-4" />
+                  Novo projeto
+                </Link>
+              </Button>
+              <Button asChild variant="outline" className="rounded-full">
+                <Link to="/externo/habite-se">
+                  <Building2 className="mr-2 h-4 w-4" />
+                  Solicitar Habite-se
+                </Link>
+              </Button>
+            </div>
           }
         />
 
@@ -63,8 +71,8 @@ export function ExternalDraftsPage() {
         </div>
 
         <SectionPanel
-          title="Projetos salvos para continuar depois"
-          description="Rascunhos não entram no fluxo da Prefeitura até você concluir e protocolar."
+          title="Rascunhos separados por serviço"
+          description="Projeto continua em Protocolar Projeto; Habite-se continua exclusivamente no fluxo próprio de Habite-se."
           contentClassName="space-y-4"
         >
           {drafts.length === 0 ? (
@@ -88,6 +96,16 @@ export function ExternalDraftsPage() {
                 (total, items) => total + items.length,
                 0,
               );
+              const entryMode = inferProtocolDraftEntryMode(draft);
+              const isHabiteSeDraft = entryMode === "habite-se";
+              const resumeRoute = isHabiteSeDraft
+                ? "/externo/habite-se"
+                : "/externo/protocolar";
+              const draftTitle =
+                draft.form.titulo?.trim() ||
+                (isHabiteSeDraft
+                  ? `Habite-se - ${draft.form.endereco?.trim() || "imóvel não informado"}`
+                  : "Projeto sem título");
 
               return (
                 <article
@@ -101,11 +119,22 @@ export function ExternalDraftsPage() {
                           <FilePenLine className="h-5 w-5" />
                         </div>
                         <div className="min-w-0">
-                          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">
-                            Rascunho
-                          </p>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                              Rascunho
+                            </p>
+                            <span
+                              className={
+                                isHabiteSeDraft
+                                  ? "rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] text-sky-800"
+                                  : "rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] text-slate-700"
+                              }
+                            >
+                              {isHabiteSeDraft ? "Habite-se independente" : "Projeto"}
+                            </span>
+                          </div>
                           <p className="mt-1 truncate text-lg font-bold text-slate-950 dark:text-white">
-                            {draft.form.titulo?.trim() || "Projeto sem título"}
+                            {draftTitle}
                           </p>
                           <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
                             {draft.draftNumber}
@@ -143,8 +172,8 @@ export function ExternalDraftsPage() {
 
                     <div className="flex items-center border-t border-slate-200 p-5 dark:border-slate-700 lg:border-t-0">
                       <Button asChild data-draft-dark-action="true" className="w-full rounded-full bg-slate-950 px-5 !text-white hover:bg-slate-900 [&_*]:!text-white">
-                        <Link to={`/externo/protocolar?rascunho=${encodeURIComponent(draft.draftNumber)}`}>
-                          Continuar rascunho
+                        <Link to={`${resumeRoute}?rascunho=${encodeURIComponent(draft.draftNumber)}`}>
+                          {isHabiteSeDraft ? "Continuar Habite-se" : "Continuar projeto"}
                         </Link>
                       </Button>
                     </div>
