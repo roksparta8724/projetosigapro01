@@ -29,6 +29,7 @@ import { UrbanAnalysisChecklistPanel } from "@/components/platform/UrbanAnalysis
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { useLivePlatformRefresh } from "@/hooks/useLivePlatformRefresh";
 import { prepareGuideInstitutionalLogo } from "@/lib/guideAssets";
+import { cacheDocumentWorkspaceAccessUrl } from "@/lib/documentWorkspaceAccess";
 import {
   ensureMercadoPagoGuideCharge,
   type MercadoPagoGuideCharge,
@@ -43,6 +44,7 @@ import { useConstructionPermit } from "@/hooks/useConstructionPermit";
 import { useMunicipalOrganogram } from "@/hooks/useMunicipalOrganogram";
 import {
   getMunicipalityLogoOpenUrl,
+  getSignedUrlForObjectStrict,
   listRecoverableProcessFiles,
   type RecoverableProcessFile,
 } from "@/integrations/r2/client";
@@ -2001,7 +2003,7 @@ export function ProcessDetailPage() {
       "Visibilidade de tramitação atualizada.",
     );
   };
-  const openDocumentWorkspace = (documentId: string, forceAnalysis = false) => {
+  const openDocumentWorkspace = async (documentId: string, forceAnalysis = false) => {
     const selectedDocument = process.documents.find((item) => item.id === documentId);
     if (!selectedDocument || openingDocumentId) return;
 
@@ -2014,13 +2016,13 @@ export function ProcessDetailPage() {
     setOpeningDocumentId(documentId);
     setProcessActionStatus("");
 
-    // Reutiliza sempre a MESMA guia de trabalho documental.
-    // Isso elimina a duplicação de abas mesmo em clique duplo ou troca de documento.
+    // Reserva a guia de forma síncrona para não cair no bloqueador de pop-up,
+    // mas mantém o usuário na tela atual até o arquivo real estar pronto.
     const existingWorkspace = documentWorkspaceWindowRef.current;
     const openedTab =
       existingWorkspace && !existingWorkspace.closed
         ? existingWorkspace
-        : window.open("", "sigapro-document-workspace");
+        : window.open("about:blank", "sigapro-document-workspace");
 
     if (!openedTab) {
       setProcessActionStatus(
@@ -2033,6 +2035,35 @@ export function ProcessDetailPage() {
     documentWorkspaceWindowRef.current = openedTab;
     try {
       openedTab.opener = null;
+      openedTab.blur();
+      window.focus();
+
+      let prefetchedAccessUrl = selectedDocument.previewUrl || "";
+      if (selectedDocument.filePath) {
+        const bucket =
+          (import.meta.env.VITE_R2_BUCKET_DOCUMENTOS as string | undefined) ||
+          "sigapro-documentos";
+        prefetchedAccessUrl = await getSignedUrlForObjectStrict({
+          bucket,
+          objectKey: selectedDocument.filePath,
+          expiresIn: 21600,
+        });
+      }
+
+      if (prefetchedAccessUrl) {
+        cacheDocumentWorkspaceAccessUrl(
+          process.id,
+          selectedDocument.id,
+          prefetchedAccessUrl,
+        );
+      }
+
+      openedTab.location.replace(workspaceUrl);
+      openedTab.focus();
+    } catch (error) {
+      // Se a pré-assinatura falhar, a rota dedicada ainda tenta resolver o
+      // acesso por conta própria. Não exibimos tela falsa/skeleton no meio.
+      console.warn("[SIGAPRO][Documento] Pré-abertura indisponível.", error);
       openedTab.location.replace(workspaceUrl);
       openedTab.focus();
     } finally {
