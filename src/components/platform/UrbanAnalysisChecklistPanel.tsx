@@ -1866,7 +1866,7 @@ export function UrbanAnalysisChecklistPanel({
       doc.setDisplayMode(
         "fullwidth",
         "continuous",
-        "UseNone" as Parameters<typeof doc.setDisplayMode>[2],
+        "UseNone" as unknown as Parameters<typeof doc.setDisplayMode>[2],
       );
 
       const pdfBlob = doc.output("blob");
