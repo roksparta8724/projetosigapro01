@@ -115,7 +115,7 @@ describe("physical withdrawal confirmation", () => {
     expect(panel).toContain('data-analysis-withdrawal-confirm="true"');
     expect(panel).toContain("canRecordWithdrawal ? (");
     expect(panel).toContain("Registrar retirada física");
-    expect(panel).toContain("Confirmar retificação da retirada");
+    expect(panel).toContain("Registrar nova retirada");
     expect(panel).toContain("Retirado por");
     expect(panel).not.toContain("Retirada em mãos por");
     expect(panel).not.toContain("{canSignTechnical ? (\n                <Button\n                  type=\"button\"\n                  variant=\"outline\"");
