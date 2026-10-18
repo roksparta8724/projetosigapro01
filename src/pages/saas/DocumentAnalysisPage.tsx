@@ -11,6 +11,7 @@ import {
   Maximize2,
   Save,
   Send,
+  RotateCcw,
   Undo2,
   XCircle,
   ZoomIn,
@@ -83,6 +84,7 @@ export function DocumentAnalysisPage() {
     dataReadyForCurrentUser,
     addDocumentAnnotation,
     reviewProcessDocument,
+    reopenProcessDocumentAnalysis,
     createRequirement,
   } = usePlatformData();
   useLivePlatformRefresh(refreshRemoteStore, { intervalMs: 5000 });
@@ -116,6 +118,8 @@ export function DocumentAnalysisPage() {
     session.tenantId ??
     null;
   const [accessUrl, setAccessUrl] = useState(prefetchedDocumentAccessUrl);
+  const [showReopenAnalysis, setShowReopenAnalysis] = useState(false);
+  const [reopenReason, setReopenReason] = useState("");
   const [accessError, setAccessError] = useState("");
   const [tool, setTool] = useState<AnalysisTool>(() => {
     const requested = searchParams.get("ferramenta");
@@ -434,6 +438,40 @@ export function DocumentAnalysisPage() {
         error instanceof Error
           ? error.message
           : "Não foi possível registrar a aprovação.",
+      );
+    } finally {
+      setBusy("");
+    }
+  };
+
+  const reopenApprovedDocument = async () => {
+    if (!process || !document) return;
+
+    const normalizedReason = reopenReason.trim();
+    if (!normalizedReason) {
+      setStatus("Informe o motivo da reabertura para manter a auditoria do processo.");
+      return;
+    }
+
+    setBusy("reopen-analysis");
+    setStatus("");
+    try {
+      await reopenProcessDocumentAnalysis({
+        processId: process.id,
+        documentId: document.id,
+        reason: normalizedReason,
+      });
+      setLocalReviewStatus("pendente");
+      setShowReopenAnalysis(false);
+      setReopenReason("");
+      setStatus(
+        "Análise reaberta com auditoria. A aprovação anterior foi preservada no histórico e o documento voltou para nova conferência.",
+      );
+    } catch (error) {
+      setStatus(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível reabrir a análise deste documento.",
       );
     } finally {
       setBusy("");
@@ -1270,18 +1308,80 @@ export function DocumentAnalysisPage() {
               </p>
 
               {localReviewStatus === "aprovado" ? (
-                <div className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white">
-                      <CheckCircle2 className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <p className="font-semibold text-emerald-900">Documento aprovado</p>
-                      <p className="mt-1 text-xs leading-5 text-emerald-700">
-                        A decisão foi registrada no processo.
-                      </p>
+                <div className="mt-3 space-y-3">
+                  <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white">
+                        <CheckCircle2 className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-emerald-900">Documento aprovado</p>
+                        <p className="mt-1 text-xs leading-5 text-emerald-700">
+                          A decisão foi registrada no processo.
+                        </p>
+                      </div>
                     </div>
                   </div>
+
+                  {!showReopenAnalysis ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-11 w-full rounded-xl border-amber-300 bg-amber-50 font-bold text-amber-900 hover:bg-amber-100"
+                      disabled={busy === "reopen-analysis"}
+                      onClick={() => {
+                        setShowReopenAnalysis(true);
+                        setStatus("");
+                      }}
+                    >
+                      <RotateCcw className="mr-2 h-4 w-4" />
+                      Reabrir para nova análise
+                    </Button>
+                  ) : (
+                    <div
+                      data-document-reanalysis-card="true"
+                      className="rounded-2xl border border-amber-300 bg-amber-50/80 p-4"
+                    >
+                      <p className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-amber-800">
+                        Reabertura auditada
+                      </p>
+                      <p className="mt-1 text-sm font-bold text-slate-950">
+                        Corrigir uma aprovação registrada por engano
+                      </p>
+                      <p className="mt-1 text-xs leading-5 text-slate-600">
+                        A aprovação anterior não será apagada. O sistema registra quem reabriu, o motivo e devolve o documento para “Pendente”, permitindo uma nova análise.
+                      </p>
+                      <Textarea
+                        value={reopenReason}
+                        onChange={(event) => setReopenReason(event.target.value)}
+                        placeholder="Informe o motivo da reabertura..."
+                        className="mt-3 min-h-[92px] rounded-xl border-amber-200 bg-white text-slate-950 placeholder:text-slate-400"
+                      />
+                      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="rounded-xl border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                          disabled={busy === "reopen-analysis"}
+                          onClick={() => {
+                            setShowReopenAnalysis(false);
+                            setReopenReason("");
+                          }}
+                        >
+                          Cancelar
+                        </Button>
+                        <Button
+                          type="button"
+                          className="rounded-xl bg-[#92400e] font-bold !text-white hover:bg-[#78350f] [&_*]:!text-white"
+                          disabled={busy === "reopen-analysis" || !reopenReason.trim()}
+                          onClick={() => void reopenApprovedDocument()}
+                        >
+                          <RotateCcw className="mr-2 h-4 w-4" />
+                          {busy === "reopen-analysis" ? "Reabrindo..." : "Confirmar reabertura"}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <Button
