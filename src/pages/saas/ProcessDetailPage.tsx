@@ -65,6 +65,7 @@ import {
   formatProfessionalProcessType,
   getGuideObservation,
   getGuideReference,
+  getPaymentGuideDisplayReference,
   getProcessPaymentGuides,
   resolveProcessRoute,
   getExternallyVisibleProcessPaymentGuides,
