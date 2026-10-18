@@ -24,7 +24,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { MarkerSelector } from "@/components/platform/MarkerSelector";
-import { DocumentWorkspaceBoot } from "@/components/platform/DocumentWorkspaceBoot";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { useLivePlatformRefresh } from "@/hooks/useLivePlatformRefresh";
@@ -537,7 +536,7 @@ export function DocumentAnalysisPage() {
 
   if (!process || !document) {
     if (platformDataLoading || !dataReadyForCurrentUser) {
-      return <DocumentWorkspaceBoot mode="analysis" />;
+      return null;
     }
 
     return (
@@ -555,7 +554,7 @@ export function DocumentAnalysisPage() {
 
   if (!canUseAnalysis) {
     if (platformDataLoading || !dataReadyForCurrentUser || session.id === "unknown") {
-      return <DocumentWorkspaceBoot mode="analysis" />;
+      return null;
     }
 
     return (
