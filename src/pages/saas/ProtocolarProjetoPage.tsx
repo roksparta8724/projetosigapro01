@@ -1263,17 +1263,22 @@ export function ProtocolarProjetoPage({
           }
         }
 
-        const issuedAt = new Date().toISOString();
+        const issuedAt =
+          remoteProcess.guide_created_at ||
+          (remotePreProtocolNumber
+            ? undefined
+            : new Date().toISOString());
 
         remoteSeed = {
           processId: remoteProcess.process_id,
           protocol: remoteProcess.protocol_number,
-          preProtocol: remoteProcess.pre_protocol_number || remoteProcess.protocol_number,
+          preProtocol:
+            remoteProcess.pre_protocol_number || remoteProcess.protocol_number,
           guideNumber: remoteProcess.guide_number,
           dueDate: new Date(remoteProcess.due_date).toLocaleDateString("pt-BR"),
           amount: Number(remoteProcess.amount ?? 35.24),
-          issuedAt,
-          expiresAt: new Date(new Date(issuedAt).getTime() + 60 * 60 * 1000).toISOString(),
+          issuedAt: issuedAt || "",
+          expiresAt: "",
         };
       } catch (remoteError) {
         const message =
