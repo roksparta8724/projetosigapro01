@@ -550,10 +550,8 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
     }
 
     if (isExternalProfessionalRole(session.role)) {
-      if (item.to === "/dashboard") {
-        return [{ ...item, to: "/externo", label: "Dashboard" }];
-      }
-
+      // Dashboard do profissional é /dashboard. O portal /externo continua
+      // existindo como área operacional, mas nunca substitui a home executiva.
       if (item.to === "/externo/controle") {
         return [{
           ...item,
