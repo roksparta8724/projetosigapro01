@@ -1933,6 +1933,79 @@ export function ProcessDetailPage() {
     }
   };
 
+  const canRequestHabiteSeFinance =
+    isHabiteSeProcess &&
+    !isExternalProcessViewer &&
+    (isMasterOperator || isInternalRole(session.role)) &&
+    /fiscal|vistoria|inspec|conferencia/.test(normalizedCurrentFolder) &&
+    !habiteSeGuide &&
+    !habiteSeGuideRequest;
+
+  const handleRequestHabiteSeFinance = () => {
+    if (!canRequestHabiteSeFinance) {
+      setProcessActionStatus(
+        "O Habite-se só pode seguir ao Financeiro depois da vistoria / conferência e sem guia já emitida.",
+      );
+      return;
+    }
+
+    void runProcessAction(
+      "request-habite-se-finance",
+      () => requestHabiteSePaymentGuide(process.id, session.name),
+      "Vistoria concluída. O Habite-se foi encaminhado ao Financeiro para emissão da guia própria.",
+    );
+  };
+
+  const handleIssueHabiteSeGuide = () => {
+    if (!canFinanceOperate) {
+      setProcessActionStatus("Somente o Setor Financeiro pode emitir a Guia de Habite-se.");
+      return;
+    }
+    if (!habiteSeGuideRequest && !/financ/.test(normalizedCurrentFolder)) {
+      setProcessActionStatus(
+        "A vistoria / conferência ainda não encaminhou este Habite-se ao Financeiro.",
+      );
+      return;
+    }
+    if (habiteSeGuide) {
+      setProcessActionStatus("A Guia de Habite-se já foi emitida para este processo.");
+      return;
+    }
+
+    const amount = Number(
+      String(habiteSeFeeAmountInput).replace(/./g, "").replace(",", "."),
+    );
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setProcessActionStatus("Informe o valor oficial da taxa de Habite-se antes da emissão.");
+      return;
+    }
+
+    void runProcessAction(
+      "issue-habite-se-guide",
+      () =>
+        issueHabiteSePaymentGuide({
+          processId: process.id,
+          actor: session.name,
+          amount,
+        }),
+      "Guia de Habite-se emitida pelo Financeiro e vinculada ao processo.",
+    );
+  };
+
+  const handleConfirmHabiteSePayment = async () => {
+    if (!habiteSeGuide || habiteSeGuide.status === "compensada") return;
+    if (!canFinanceOperate) {
+      setProcessActionStatus("Somente o Setor Financeiro pode confirmar o pagamento da Guia de Habite-se.");
+      return;
+    }
+
+    await runProcessAction(
+      "confirm-habite-se-payment",
+      () => markGuideAsPaid(process.id, session.name, "habite_se"),
+      "Pagamento da Guia de Habite-se confirmado. O processo seguiu para Decisão / emissão.",
+    );
+  };
+
   const handleReviseConstructionGuide = async () => {
     if (!constructionGuide || !canManageIssuedIssGuide) return;
     const input = getConstructionGuideInput();
