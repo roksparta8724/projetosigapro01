@@ -119,6 +119,31 @@ function initialForm(process: ProcessRecord): HabiteSePermitFormData {
   };
 }
 
+function mergeAutomaticPermitForm(
+  process: ProcessRecord,
+  defaults?: Partial<HabiteSePermitFormData> | null,
+  saved?: Partial<HabiteSePermitFormData> | null,
+): HabiteSePermitFormData {
+  const automatic = {
+    ...initialForm(process),
+    ...(defaults ?? {}),
+  };
+
+  const choose = (savedValue: unknown, automaticValue: unknown) => {
+    const normalizedSaved = String(savedValue ?? "").trim();
+    return normalizedSaved || String(automaticValue ?? "");
+  };
+
+  return {
+    modality: choose(saved?.modality, automatic.modality),
+    sourceProcess: choose(saved?.sourceProcess, automatic.sourceProcess),
+    sourcePermit: choose(saved?.sourcePermit, automatic.sourcePermit),
+    completionDate: choose(saved?.completionDate, automatic.completionDate),
+    conditions: choose(saved?.conditions, automatic.conditions),
+    observations: choose(saved?.observations, automatic.observations),
+  };
+}
+
 export function HabiteSePermitPanel({
   process,
   session,
@@ -167,7 +192,13 @@ export function HabiteSePermitPanel({
     const snapshot = await getHabiteSePermit(process.id);
     setPermit(snapshot.permit);
     setCanManage(snapshot.canManage);
-    if (snapshot.permit) setForm(snapshot.permit.formData);
+    setForm(
+      mergeAutomaticPermitForm(
+        process,
+        snapshot.defaults,
+        snapshot.permit?.formData,
+      ),
+    );
 
     const signatures = await getProcessArtifactSignatures(process.id, ARTIFACT_KEY);
     setSignatureState(signatures);
@@ -192,7 +223,13 @@ export function HabiteSePermitPanel({
         if (!active) return;
         setPermit(snapshot.permit);
         setCanManage(snapshot.canManage);
-        if (snapshot.permit) setForm(snapshot.permit.formData);
+        setForm(
+          mergeAutomaticPermitForm(
+            process,
+            snapshot.defaults,
+            snapshot.permit?.formData,
+          ),
+        );
         setSignatureState(signatures);
         setDirectorRequestPending(request.request?.status === "pending");
       })
@@ -493,7 +530,21 @@ export function HabiteSePermitPanel({
           </div>
 
           {!externalView && canManage && permit?.status !== "emitido" ? (
-            <div className="grid gap-4 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700 dark:bg-slate-950/35 lg:grid-cols-2">
+            <div className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700 dark:bg-slate-950/35">
+              <div className="flex flex-col gap-2 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 dark:border-sky-500/30 dark:bg-sky-950/25 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-xs font-black text-sky-950 dark:text-sky-100">
+                    Dados recuperados automaticamente do processo
+                  </p>
+                  <p className="mt-1 text-[11px] leading-5 text-sky-800 dark:text-sky-200">
+                    Modalidade, conclusão da obra, processo de origem e Alvará de origem são reaproveitados do protocolo oficial, como no Alvará de Construção.
+                  </p>
+                </div>
+                <Badge variant="outline" className="w-fit shrink-0 rounded-full border-sky-300 bg-white text-sky-800 dark:border-sky-500/40 dark:bg-slate-900 dark:text-sky-200">
+                  Preenchimento automático
+                </Badge>
+              </div>
+              <div className="grid gap-4 lg:grid-cols-2">
               <div>
                 <label className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-500">Modalidade</label>
                 <Input value={form.modality} onChange={(event) => setForm((current) => ({ ...current, modality: event.target.value }))} className="mt-2 bg-white dark:bg-slate-950" />
@@ -517,6 +568,7 @@ export function HabiteSePermitPanel({
               <div className="lg:col-span-2">
                 <label className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-500">Observações do Analista Técnico</label>
                 <Textarea value={form.observations} onChange={(event) => setForm((current) => ({ ...current, observations: event.target.value }))} className="mt-2 min-h-28 bg-white dark:bg-slate-950" placeholder="Registre somente observações técnicas pertinentes ao Habite-se." />
+              </div>
               </div>
             </div>
           ) : null}
