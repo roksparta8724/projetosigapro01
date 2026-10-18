@@ -698,6 +698,16 @@ export function ProcessDetailPage() {
     session.role !== "master_admin" &&
     session.role !== "master_ops";
 
+  // Durante F5 com store quente, o processo real já está disponível pelo cache
+  // visual, mas permissões/departamento ainda podem estar revalidando. Não deixe
+  // esse intervalo transitório trocar a aba atual (ex.: Habite-se -> Histórico).
+  // A mesma regra já protege a Análise: a tela real permanece montada enquanto
+  // a autorização é confirmada em segundo plano.
+  const stableProtocolTrackingOnly =
+    dataReadyForCurrentUser && !platformDataLoading
+      ? isProtocolTrackingOnly
+      : false;
+
   useEffect(() => {
     if (!processId || openedProcessRef.current === processId) return;
     openedProcessRef.current = processId;
@@ -705,21 +715,21 @@ export function ProcessDetailPage() {
     const preferredTab: ProcessTab = requested && ["resumo", "imovel", "documentos", "analise", "financeiro", "alvara", "historico"].includes(requested)
       ? requested as ProcessTab
       : "imovel";
-    setActiveTab(isProtocolTrackingOnly && preferredTab !== "resumo" ? "historico" : preferredTab);
-  }, [isProtocolTrackingOnly, processId, location.search]);
+    setActiveTab(stableProtocolTrackingOnly && preferredTab !== "resumo" ? "historico" : preferredTab);
+  }, [stableProtocolTrackingOnly, processId, location.search]);
 
   useEffect(() => {
     if (!processId) return;
     const requested = new URLSearchParams(location.search).get("aba");
     if (!requested || !["resumo", "imovel", "documentos", "analise", "financeiro", "alvara", "historico"].includes(requested)) return;
-    setActiveTab(isProtocolTrackingOnly && requested !== "resumo" ? "historico" : requested as ProcessTab);
-  }, [location.search, isProtocolTrackingOnly, processId]);
+    setActiveTab(stableProtocolTrackingOnly && requested !== "resumo" ? "historico" : requested as ProcessTab);
+  }, [location.search, stableProtocolTrackingOnly, processId]);
 
   useEffect(() => {
-    if (!isProtocolTrackingOnly) return;
+    if (!stableProtocolTrackingOnly) return;
     if (activeTab === "historico" || activeTab === "resumo") return;
     setActiveTab("historico");
-  }, [activeTab, isProtocolTrackingOnly]);
+  }, [activeTab, stableProtocolTrackingOnly]);
 
   useEffect(() => {
     if (!process || !processId) return;
@@ -3899,7 +3909,6 @@ export function ProcessDetailPage() {
                 }
                 dataReady={
                   dataReadyForCurrentUser &&
-                  !platformDataLoading &&
                   session.id !== "unknown"
                 }
                 onProcessRefresh={() => refreshRemoteStore()}
