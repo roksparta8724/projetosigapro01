@@ -16,7 +16,7 @@ describe("premium process card contrast contract", () => {
     expect(css).toContain("background-color: #ffffff !important");
     expect(css).toContain('background-color: #0d1d2e !important');
 
-    const contractStart = css.lastIndexOf("PROCESS CARD CONTRAST CONTRACT V4");
+    const contractStart = css.indexOf("PROCESS CARD CONTRAST CONTRACT V4");
     const contractEnd = css.indexOf("END PROCESS CARD CONTRAST CONTRACT V4", contractStart);
     const contract = css.slice(contractStart, contractEnd);
     expect(contract).toContain(".sig-main-shell");
