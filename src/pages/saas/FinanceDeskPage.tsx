@@ -389,7 +389,7 @@ export function FinanceDeskPage() {
     code: "financeiro-geral",
     label: "Tabela Financeira Municipal",
     description:
-      "Consolida protocolo, ISSQN / Projeto e a guia de aprovação/Alvará. Habite-se possui protocolo próprio e não integra este fluxo.",
+      "Consolida protocolo, ISSQN / Projeto, aprovação/Alvará e a Guia própria do Habite-se quando o processo chega ao Financeiro após a vistoria.",
     currency: "BRL",
     active: true,
   };
@@ -518,7 +518,7 @@ export function FinanceDeskPage() {
               <StatCard
                 label="Total lançado"
                 value={formatCurrency(controlIssuedValue)}
-                description="Taxa de protocolo, ISSQN e taxas finais"
+                description="Taxa de protocolo, ISSQN, aprovação/Alvará e Habite-se"
                 icon={ReceiptText}
                 tone="default"
                 valueClassName="text-xl md:text-2xl"
@@ -1021,7 +1021,7 @@ export function FinanceDeskPage() {
             sampleUsage={sampleProcess?.property.usage ?? "Residencial"}
             sampleStandard={sampleProcess?.property.constructionStandard ?? "medio"}
             title="Tabelas e regras financeiras"
-            subtitle="Taxas de protocolo, ISSQN e guia de aprovação/Alvará por tipo de obra e padrão de acabamento."
+            subtitle="Taxas de protocolo, ISSQN e aprovação/Alvará; a Guia de Habite-se entra no Financeiro pelo workflow próprio após a vistoria."
             values={{
               taxaProtocolo: tenantSettings?.taxaProtocolo ?? 35.24,
               taxaIssPorMetroQuadrado: tenantSettings?.taxaIssPorMetroQuadrado ?? 0,
