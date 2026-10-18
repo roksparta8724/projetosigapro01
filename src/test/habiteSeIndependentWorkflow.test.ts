@@ -146,11 +146,12 @@ describe("Habite-se independent workflow", () => {
     expect(inspectionPanel).toContain("Evidências fotográficas da vistoria");
     expect(inspectionPanel).toContain("Concluir conforme e encaminhar ao Financeiro");
     expect(inspectionPanel).toContain("Concluir com pendências");
-    expect(inspectionPanel).toContain("Dispensar evidência fotográfica nesta vistoria");
+    expect(inspectionPanel).toContain("Justificar vistoria sem evidência fotográfica");
     expect(inspectionClient).toContain("uploadHabiteSeInspectionPhoto");
     expect(inspectionClient).toContain("completeHabiteSeInspection");
     expect(inspectionMigration).toContain("process_habite_se_inspection_photos");
-    expect(inspectionMigration).toContain("Anexe ao menos 3 evidências fotográficas");
+    expect(inspectionMigration).toContain("Fotos são evidência complementar");
+    expect(inspectionMigration).not.toContain("Anexe ao menos 3 evidências fotográficas");
     expect(inspectionMigration).toContain("request_habite_se_payment_guide_v1");
     expect(inspectionMigration).toContain("Pendências da vistoria do Habite-se");
   });
