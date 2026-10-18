@@ -99,25 +99,36 @@ const PHOTO_CATEGORIES: Array<{
 const STATUS_META: Array<{
   value: Exclude<HabiteSeInspectionChecklistStatus, "">;
   label: string;
-  classes: string;
+  short: string;
+  selectedClasses: string;
+  legendClasses: string;
 }> = [
   {
     value: "conforme",
     label: "Conforme",
-    classes:
-      "border-emerald-300 bg-emerald-50 text-emerald-900 hover:bg-emerald-100 dark:border-emerald-500/40 dark:bg-emerald-950/35 dark:text-emerald-200",
+    short: "C",
+    selectedClasses:
+      "border-emerald-800 bg-emerald-600 !text-white shadow-[0_0_0_3px_rgba(16,185,129,0.22),0_8px_18px_rgba(5,150,105,0.24)] ring-1 ring-emerald-300 [&_*]:!text-white",
+    legendClasses:
+      "border-emerald-700 bg-emerald-600 !text-white [&_*]:!text-white",
   },
   {
     value: "pendencia",
     label: "Pendência",
-    classes:
-      "border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100 dark:border-amber-500/40 dark:bg-amber-950/35 dark:text-amber-200",
+    short: "P",
+    selectedClasses:
+      "border-amber-800 bg-amber-600 !text-white shadow-[0_0_0_3px_rgba(245,158,11,0.20),0_8px_18px_rgba(217,119,6,0.24)] ring-1 ring-amber-300 [&_*]:!text-white",
+    legendClasses:
+      "border-amber-700 bg-amber-600 !text-white [&_*]:!text-white",
   },
   {
     value: "nao_aplica",
-    label: "N/A",
-    classes:
-      "border-slate-300 bg-slate-50 text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200",
+    label: "Não se aplica",
+    short: "N/A",
+    selectedClasses:
+      "border-slate-800 bg-slate-700 !text-white shadow-[0_0_0_3px_rgba(100,116,139,0.20),0_8px_18px_rgba(51,65,85,0.24)] ring-1 ring-slate-400 [&_*]:!text-white",
+    legendClasses:
+      "border-slate-700 bg-slate-700 !text-white [&_*]:!text-white",
   },
 ];
 
@@ -506,9 +517,12 @@ export function HabiteSeInspectionPanel({
           </div>
         </div>
 
-        <div className="overflow-hidden rounded-[20px] border border-slate-200 dark:border-slate-700">
-          <div className="border-b border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-950/40">
-            <div className="flex items-center justify-between gap-3">
+        <div
+          data-habite-se-inspection-checklist="true"
+          className="overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-[0_12px_30px_rgba(15,23,42,0.06)] dark:border-slate-700 dark:bg-slate-900"
+        >
+          <div className="border-b border-slate-200 bg-slate-50/80 px-4 py-4 dark:border-slate-700 dark:bg-slate-950/45">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <p className="text-sm font-black text-slate-950 dark:text-white">
                   Checklist técnico da vistoria
@@ -520,12 +534,12 @@ export function HabiteSeInspectionPanel({
               <Badge
                 variant="outline"
                 className={cn(
-                  "rounded-full font-bold",
+                  "w-fit rounded-full px-3 py-1 font-bold",
                   allClassified
                     ? pendingCount > 0
-                      ? "border-amber-300 bg-amber-50 text-amber-900"
-                      : "border-emerald-300 bg-emerald-50 text-emerald-800"
-                    : "border-slate-300 bg-white text-slate-600",
+                      ? "border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-500/40 dark:bg-amber-950/30 dark:text-amber-200"
+                      : "border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-500/40 dark:bg-emerald-950/30 dark:text-emerald-200"
+                    : "border-slate-300 bg-white text-slate-600 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-300",
                 )}
               >
                 {allClassified
@@ -535,55 +549,118 @@ export function HabiteSeInspectionPanel({
                   : "Em preenchimento"}
               </Badge>
             </div>
+
+            <div
+              data-habite-se-inspection-legend="true"
+              className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 dark:border-slate-700 dark:bg-slate-900"
+            >
+              <span className="text-[11px] font-extrabold text-slate-700 dark:text-slate-200">
+                Legenda:
+              </span>
+              {STATUS_META.map((option) => (
+                <span
+                  key={`legend-${option.value}`}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-[10px] font-extrabold leading-none shadow-sm",
+                    option.legendClasses,
+                  )}
+                >
+                  <span>{option.short}</span>
+                  <span>=</span>
+                  <span>{option.label}</span>
+                </span>
+              ))}
+            </div>
+
+            <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-200/80 dark:bg-slate-800">
+              <div
+                className="h-full rounded-full bg-[linear-gradient(90deg,#38bdf8_0%,#34d399_100%)] transition-[width] duration-300"
+                style={{
+                  width: `${Math.round((classifiedCount / INSPECTION_ITEMS.length) * 100)}%`,
+                }}
+              />
+            </div>
           </div>
 
           <div className="divide-y divide-slate-100 dark:divide-slate-800">
-            {INSPECTION_ITEMS.map((item, index) => (
-              <div
-                key={item.key}
-                className="grid gap-3 px-4 py-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center"
-              >
-                <div className="min-w-0">
-                  <div className="flex items-start gap-3">
-                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-[11px] font-black text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
-                      {index + 1}
-                    </span>
-                    <div>
-                      <p className="text-sm font-bold text-slate-950 dark:text-white">{item.title}</p>
-                      <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">{item.detail}</p>
+            {INSPECTION_ITEMS.map((item, index) => {
+              const itemStatus = checklist[item.key];
+              return (
+                <div
+                  key={item.key}
+                  data-habite-se-inspection-row="true"
+                  data-checklist-value={itemStatus || "pendente"}
+                  className={cn(
+                    "grid gap-3 px-4 py-4 transition-all duration-200 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center",
+                    itemStatus === "conforme"
+                      ? "bg-emerald-50/35 dark:bg-emerald-950/10"
+                      : itemStatus === "pendencia"
+                        ? "bg-amber-50/50 dark:bg-amber-950/12"
+                        : itemStatus === "nao_aplica"
+                          ? "bg-slate-50/80 dark:bg-slate-800/25"
+                          : "bg-white hover:bg-slate-50/70 dark:bg-slate-900 dark:hover:bg-slate-800/35",
+                  )}
+                >
+                  <div className="min-w-0">
+                    <div className="flex items-start gap-3">
+                      <span
+                        className={cn(
+                          "flex h-8 min-w-8 shrink-0 items-center justify-center rounded-xl border text-[11px] font-black transition-all",
+                          itemStatus === "conforme"
+                            ? "border-emerald-700 bg-emerald-600 !text-white shadow-sm"
+                            : itemStatus === "pendencia"
+                              ? "border-amber-700 bg-amber-600 !text-white shadow-sm"
+                              : itemStatus === "nao_aplica"
+                                ? "border-slate-700 bg-slate-700 !text-white shadow-sm"
+                                : "border-slate-200 bg-slate-50 text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300",
+                        )}
+                      >
+                        {index + 1}
+                      </span>
+                      <div>
+                        <p className="text-sm font-bold text-slate-950 dark:text-white">{item.title}</p>
+                        <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">{item.detail}</p>
+                      </div>
                     </div>
                   </div>
+
+                  <div className="grid grid-cols-3 gap-2">
+                    {STATUS_META.map((option) => {
+                      const selected = itemStatus === option.value;
+                      return (
+                        <Button
+                          key={option.value}
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          data-inspection-status={option.value}
+                          data-selected={selected ? "true" : "false"}
+                          aria-pressed={selected}
+                          className={cn(
+                            "relative h-10 min-w-[92px] rounded-xl border px-3 text-[11px] font-black transition-all",
+                            selected
+                              ? option.selectedClasses
+                              : "border-slate-300 bg-white text-slate-600 hover:border-slate-400 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800",
+                          )}
+                          disabled={readOnly || busy === "complete"}
+                          onClick={() =>
+                            setChecklist((current) => ({
+                              ...current,
+                              [item.key]: selected ? "" : option.value,
+                            }))
+                          }
+                        >
+                          <span className="inline-flex items-center gap-1.5">
+                            {selected ? <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" /> : null}
+                            <span>{option.label}</span>
+                          </span>
+                        </Button>
+                      );
+                    })}
+                  </div>
                 </div>
-                <div className="grid grid-cols-3 gap-2">
-                  {STATUS_META.map((option) => {
-                    const selected = checklist[item.key] === option.value;
-                    return (
-                      <Button
-                        key={option.value}
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className={cn(
-                          "rounded-full px-3 text-[11px] font-bold",
-                          selected
-                            ? option.classes
-                            : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400",
-                        )}
-                        disabled={readOnly || busy === "complete"}
-                        onClick={() =>
-                          setChecklist((current) => ({
-                            ...current,
-                            [item.key]: option.value,
-                          }))
-                        }
-                      >
-                        {option.label}
-                      </Button>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
