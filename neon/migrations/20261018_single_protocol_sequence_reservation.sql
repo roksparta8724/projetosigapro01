@@ -1,6 +1,7 @@
 -- SIGAPRO — uma única sequência municipal para Projeto, Habite-se e demais protocolos.
 -- O pré-protocolo reserva o próximo número da MESMA sequência PM, mas continua
--- não-oficial até a compensação da guia. Ex.: PRE-PM-2026-00003 -> PM-2026-00003.
+-- não-oficial até a compensação da guia. Ex.: PRE-PM-2026-00003 -> PM-2026-00003,
+-- sem gerar outra sequência municipal no momento da oficialização.
 
 create or replace function public.next_tenant_preprotocol_number(
   _tenant_id uuid,
@@ -209,7 +210,7 @@ begin
     _process.tenant_id,_process.id,public.current_legacy_user_id(),public.current_profile_id(),
     'processo_oficializado','pagamento_pendente','triagem',
     'Pagamento confirmado. O número reservado '||_official_protocol||
-      ' foi oficializado sem criar nova sequência.',
+      ' foi oficializado sem gerar outra sequência municipal.',
     true,_municipality
   );
 
