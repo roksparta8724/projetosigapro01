@@ -162,6 +162,29 @@ export function FinanceDeskPage() {
           ["aguardando", "respondido"].includes(dispatch.status) &&
           /financ/i.test(dispatch.to),
       );
+  const pendingHabiteSeGuideProcesses = processes.filter((process) => {
+    if (!isOccupancyPermitProcessType(process.type)) return false;
+    const hasGuide = getProcessPaymentGuides(process, tenantSettings).some(
+      (guide) => guide.kind === "habite_se",
+    );
+    const hasFinanceRequest = process.dispatches.some(
+      (dispatch) =>
+        /guia.*habite|habite.*guia/i.test(dispatch.subject) &&
+        ["aguardando", "respondido"].includes(dispatch.status) &&
+        /financ/i.test(dispatch.to),
+    );
+    return hasFinanceRequest && !hasGuide;
+  });
+
+  const getPendingHabiteSeGuideRequest = (processId: string) =>
+    processes
+      .find((process) => process.id === processId)
+      ?.dispatches.find(
+        (dispatch) =>
+          /guia.*habite|habite.*guia/i.test(dispatch.subject) &&
+          ["aguardando", "respondido"].includes(dispatch.status) &&
+          /financ/i.test(dispatch.to),
+      );
   const handleManualPaymentConfirmation = async (
     processId: string,
     guideKind: PaymentGuideKind,
@@ -635,6 +658,65 @@ export function FinanceDeskPage() {
                     : "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/40 dark:bg-rose-950/30 dark:text-rose-300"
                 }`}>
                   {constructionGuideStatus}
+                </div>
+              ) : null}
+
+              {pendingHabiteSeGuideProcesses.length > 0 ? (
+                <div
+                  data-finance-habite-se-pending-queue="true"
+                  className="rounded-2xl border border-cyan-200 bg-cyan-50/70 p-4 dark:border-cyan-500/30 dark:bg-cyan-950/20"
+                >
+                  <div className="mb-4">
+                    <p className="text-sm font-semibold text-slate-950 dark:text-slate-100">
+                      Habite-se aguardando emissão pelo Financeiro
+                    </p>
+                    <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
+                      Vistorias concluídas e encaminhadas formalmente para geração da Guia de Habite-se antes da decisão / emissão.
+                    </p>
+                  </div>
+
+                  <div className="space-y-3">
+                    {pendingHabiteSeGuideProcesses.map((process) => {
+                      const request = getPendingHabiteSeGuideRequest(process.id);
+                      return (
+                        <div
+                          key={`${process.id}:habite-se-guide-request`}
+                          data-process-premium-card="true"
+                          data-surface="adaptive-card"
+                          className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-950/40"
+                        >
+                          <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+                            <div className="min-w-0">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <p className="text-sm font-semibold text-slate-950 dark:text-slate-100">
+                                  {formatOfficialProcessNumber(process.protocol)}
+                                </p>
+                                <Badge variant="outline" className="rounded-full border-cyan-200 bg-cyan-50 text-cyan-800 dark:border-cyan-500/40 dark:bg-cyan-950/40 dark:text-cyan-300">
+                                  Habite-se
+                                </Badge>
+                              </div>
+                              <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">
+                                {process.ownerName} • {process.technicalLead}
+                              </p>
+                              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                                Vistoria concluída • área declarada {Number(process.property.area || 0).toFixed(2)} m²
+                              </p>
+                              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                                Encaminhado por {request?.requestedBy || request?.assignedTo || "servidor responsável"}
+                                {request?.createdAt ? ` • ${request.createdAt}` : ""}
+                              </p>
+                            </div>
+
+                            <Button asChild className="shrink-0 rounded-full bg-cyan-700 px-5 font-bold text-white hover:bg-cyan-800">
+                              <Link to={buildProcessPath(process, "financeiro")}>
+                                Abrir e emitir Guia de Habite-se
+                              </Link>
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               ) : null}
 
