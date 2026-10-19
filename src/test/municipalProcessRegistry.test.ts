@@ -45,7 +45,7 @@ describe("municipal process registry", () => {
     expect(registry).toContain("process.tags?.[0]");
     expect(registry).not.toContain("MarkerSelector");
     expect(analyst).not.toContain("CompactProcessRegistry");
-    expect(analyst).toContain("O número sublinhado");
+    expect(analyst).toContain("Selecione um card para consultar os detalhes operacionais.");
     expect(analyst).toContain("Abrir processo");
   });
 

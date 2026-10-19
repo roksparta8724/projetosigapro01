@@ -49,6 +49,7 @@ import {
 import { backendClient, hasBackendEnv } from "@/integrations/backend/databaseClient";
 import { isNeonBackend } from "@/integrations/backend/config";
 import { buildMunicipalityPortalUrl } from "@/lib/publicDomain";
+import { readCachedProfileAvatar, writeCachedProfileAvatar } from "@/lib/profileAvatarCache";
 import { useAuthGateway } from "@/hooks/useAuthGateway";
 import {
   acknowledgeRemoteProcessDispatch,
@@ -773,13 +774,44 @@ function clearWarmPlatformStores() {
 
 function readProfileVisualCache(): UserProfile | null {
   if (typeof window === "undefined") return null;
+
+  const currentSession = readCachedPlatformSession();
+  const persistent = readCachedProfileAvatar(currentSession?.id, currentSession?.email);
+  if (persistent) {
+    return {
+      userId: persistent.userId,
+      fullName: persistent.fullName || currentSession?.name || "",
+      email: persistent.email || currentSession?.email || "",
+      phone: "",
+      cpfCnpj: "",
+      rg: "",
+      birthDate: "",
+      professionalType: "",
+      registrationNumber: "",
+      companyName: "",
+      addressLine: "",
+      addressNumber: "",
+      addressComplement: "",
+      neighborhood: "",
+      city: "",
+      state: "",
+      zipCode: "",
+      avatarUrl: persistent.avatarUrl,
+      avatarStorageRef: persistent.avatarStorageRef,
+      avatarScale: persistent.avatarScale,
+      avatarOffsetX: persistent.avatarOffsetX,
+      avatarOffsetY: persistent.avatarOffsetY,
+      useAvatarInHeader: true,
+      bio: "",
+    };
+  }
+
   try {
     const raw = window.sessionStorage.getItem(PROFILE_VISUAL_CACHE_KEY);
     if (!raw) return null;
     const cached = JSON.parse(raw) as Partial<UserProfile> & { cachedAt?: number };
     if (!cached.userId || !cached.avatarUrl) return null;
 
-    const currentSession = readCachedPlatformSession();
     const sameIdentity =
       currentSession?.id === cached.userId ||
       (currentSession?.email && normalizeEmail(currentSession.email) === normalizeEmail(cached.email));
@@ -817,7 +849,14 @@ function readProfileVisualCache(): UserProfile | null {
 }
 
 function syncProfileVisualCache(profile: UserProfile) {
-  if (typeof window === "undefined" || !profile.userId || !profile.avatarUrl) return;
+  if (typeof window === "undefined" || !profile.userId) return;
+
+  writeCachedProfileAvatar(profile);
+  if (!profile.avatarUrl) {
+    window.sessionStorage.removeItem(PROFILE_VISUAL_CACHE_KEY);
+    return;
+  }
+
   window.sessionStorage.setItem(
     PROFILE_VISUAL_CACHE_KEY,
     JSON.stringify({
@@ -1191,7 +1230,25 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         }
 
         if (!active) return;
-        const cachedVisualProfile = readProfileVisualCache();
+        const authoritativeProfile = findUserProfile(
+          sanitized.userProfiles,
+          authenticatedProfileId || authenticatedUserId,
+          authenticatedEmail,
+        );
+        const authoritativeAvatarRemoved = Boolean(
+          authoritativeProfile &&
+          !authoritativeProfile.avatarUrl?.trim() &&
+          !authoritativeProfile.avatarStorageRef?.trim(),
+        );
+        if (authoritativeAvatarRemoved && authoritativeProfile) {
+          // O banco oficial é soberano: uma remoção real da foto nunca pode ser
+          // "ressuscitada" pelo cache visual usado apenas para estabilizar o F5.
+          syncProfileVisualCache(authoritativeProfile);
+        }
+
+        const cachedVisualProfile = authoritativeAvatarRemoved
+          ? null
+          : readProfileVisualCache();
         if (cachedVisualProfile) {
           sanitized = {
             ...sanitized,
@@ -1200,10 +1257,10 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         }
         const activeProfile = findUserProfile(
           sanitized.userProfiles,
-          authenticatedUserId,
+          authenticatedProfileId || authenticatedUserId,
           authenticatedEmail,
         );
-        if (activeProfile?.avatarUrl) syncProfileVisualCache(activeProfile);
+        if (activeProfile) syncProfileVisualCache(activeProfile);
         setStore(sanitized);
         syncWarmPlatformStore(sanitized, authenticatedUserId);
         syncStore(sanitized);
@@ -1267,7 +1324,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
     return () => {
       active = false;
     };
-  }, [authenticatedUserId, authLoading]);
+  }, [authenticatedProfileId, authenticatedUserId, authLoading]);
 
   const refreshRemoteStore = async (focusProcessRouteKey?: string | null) => {
     if (!authenticatedUserId || !hasBackendEnv) {
@@ -1279,7 +1336,23 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
     try {
       const remote = await loadRemotePlatformStoreWithRetry(focusProcessRouteKey);
       let sanitized = buildSanitizedStore(remote, false);
-      const cachedVisualProfile = readProfileVisualCache();
+      const authoritativeProfile = findUserProfile(
+        sanitized.userProfiles,
+        authenticatedProfileId || authenticatedUserId,
+        authenticatedEmail,
+      );
+      const authoritativeAvatarRemoved = Boolean(
+        authoritativeProfile &&
+        !authoritativeProfile.avatarUrl?.trim() &&
+        !authoritativeProfile.avatarStorageRef?.trim(),
+      );
+      if (authoritativeAvatarRemoved && authoritativeProfile) {
+        syncProfileVisualCache(authoritativeProfile);
+      }
+
+      const cachedVisualProfile = authoritativeAvatarRemoved
+        ? null
+        : readProfileVisualCache();
       if (cachedVisualProfile) {
         sanitized = {
           ...sanitized,
@@ -1288,10 +1361,10 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
       }
       const activeProfile = findUserProfile(
         sanitized.userProfiles,
-        authenticatedUserId,
+        authenticatedProfileId || authenticatedUserId,
         authenticatedEmail,
       );
-      if (activeProfile?.avatarUrl) syncProfileVisualCache(activeProfile);
+      if (activeProfile) syncProfileVisualCache(activeProfile);
       setStore((current) => stabilizePlatformStore(current, sanitized));
       syncWarmPlatformStore(sanitized, authenticatedUserId);
       syncStore(sanitized);

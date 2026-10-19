@@ -1142,10 +1142,10 @@ export function UrbanAnalysisChecklistPanel({
         if (latestWithdrawal.withdrawal) {
           setWithdrawalRecord(latestWithdrawal.withdrawal);
           setWithdrawalName(latestWithdrawal.withdrawal.withdrawn_by_name || "");
-          setWithdrawalDate(
-            latestWithdrawal.withdrawal.withdrawn_at
-              ? latestWithdrawal.withdrawal.withdrawn_at.slice(0, 10)
-              : "",
+          setWithdrawalDateTime(
+            latestWithdrawal.withdrawal.withdrawn_at ||
+              latestWithdrawal.withdrawal.recorded_at ||
+              new Date().toISOString(),
           );
         }
       } catch (error) {

@@ -37,7 +37,7 @@ describe("live process identity and operational freshness", () => {
     expect(liveRefresh).toContain("document.visibilityState");
     expect(liveRefresh).toContain('window.addEventListener("focus"');
     expect(liveRefresh).toContain('document.addEventListener("visibilitychange"');
-    expect(processDetail).toContain("useLivePlatformRefresh(refreshRemoteStore, { intervalMs: 5000 })");
+    expect(processDetail).toContain("useLivePlatformRefresh(refreshCurrentProcessStore, { intervalMs: 1800 })");
     expect(documentAnalysis).toContain("useLivePlatformRefresh(refreshRemoteStore, { intervalMs: 5000 })");
     expect(financeDesk).toContain("useLivePlatformRefresh(refreshRemoteStore, { intervalMs: 8000 })");
     expect(registry).toContain("useLivePlatformRefresh(refreshRemoteStore, { intervalMs: 8000 })");
@@ -63,6 +63,8 @@ describe("live process identity and operational freshness", () => {
   });
 
   it("keeps the live process authoritative over the visual continuity cache", () => {
-    expect(processDetail).toContain("const process = liveProcess ?? cachedProcessVisual");
+    expect(processDetail).toContain("const baseProcess = liveProcess ?? cachedProcessVisual");
+    expect(processDetail).toContain("const process = useMemo(() =>");
+    expect(processDetail).toContain("directProcessState.status");
   });
 });

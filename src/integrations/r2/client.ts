@@ -104,11 +104,11 @@ export function getLegacyProfileAvatarOpenUrl(sourceUrl: string | null | undefin
     return raw;
   }
 
-  // Avatar legado deve sempre usar a API do MESMO host da aplicação.
-  // Em produção, VITE_R2_API_BASE pode apontar para outro host/ambiente e não
-  // deve participar da renderização do perfil. O rewrite do Vercel encaminha
-  // esta rota internamente para a função consolidada /api/r2.
-  return `/api/profile-avatar-open?source=${encodeURIComponent(raw)}`;
+  // O bucket legado "avatars" é público. Para a primeira pintura do perfil
+  // usamos a própria URL pública, evitando uma função serverless no caminho
+  // crítico do F5. UserAvatar mantém /api/profile-avatar-open como fallback
+  // caso a origem legada fique temporariamente indisponível.
+  return raw;
 }
 
 export function getMunicipalityLogoOpenUrl(objectKey: string | null | undefined) {

@@ -203,7 +203,7 @@ describe("F5, logout and topbar visual continuity", () => {
   it("hydrates the Habite-se permit from a visual cache before async revalidation", () => {
     expect(habitePermit).toContain("readPermitVisualCache(process.id, session.id)");
     expect(habitePermit).toContain("initialVisual?.permit ?? null");
-    expect(habitePermit).toContain("initialVisual?.form ?? initialForm(process)");
+    expect(habitePermit).toContain("mergeAutomaticPermitForm(process, null, initialVisual?.form)");
     expect(habitePermit).toContain("initialVisual?.signatureState");
     expect(habitePermit).toContain("writePermitVisualCache");
   });

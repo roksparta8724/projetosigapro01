@@ -81,6 +81,42 @@
 
         document.documentElement.style.setProperty("--sig-initial-bg", initialBackground);
 
+        // Em uma rota interna já autenticada, preserve também a faixa visual do
+        // topbar enquanto o bundle React executa. Isto não é um loading/shell:
+        // é apenas o fundo do documento vazio, evitando um flash totalmente
+        // branco entre F5 e o primeiro commit real da aplicação.
+        try {
+          var cachedSessionRaw = window.localStorage.getItem("sigapro.platform.session.v1");
+          var cachedSession = cachedSessionRaw ? JSON.parse(cachedSessionRaw) : null;
+          var isInternalRoute =
+            publicPaths.indexOf(path) < 0 &&
+            authPaths.indexOf(path) < 0 &&
+            path.indexOf("/cliente/") !== 0;
+          if (
+            isInternalRoute &&
+            cachedSession &&
+            cachedSession.id &&
+            cachedSession.id !== "unknown" &&
+            cachedSession.accountStatus !== "blocked" &&
+            cachedSession.accountStatus !== "inactive"
+          ) {
+            var rawEffectiveThemeForBoot = window.localStorage.getItem("sigapro.effective-theme.v2");
+            var effectiveThemeForBoot = rawEffectiveThemeForBoot
+              ? JSON.parse(rawEffectiveThemeForBoot)
+              : null;
+            var initialTopbar =
+              effectiveThemeForBoot &&
+              typeof effectiveThemeForBoot.primary === "string" &&
+              effectiveThemeForBoot.primary.trim()
+                ? effectiveThemeForBoot.primary.trim()
+                : "#0b3147";
+            document.documentElement.style.setProperty("--sig-initial-topbar", initialTopbar);
+            document.documentElement.setAttribute("data-sigapro-cached-internal", "true");
+          }
+        } catch (error) {
+          // Continuidade visual é opcional; nunca bloquear a aplicação.
+        }
+
         var initialAppZoom =
           publicPaths.indexOf(path) >= 0 || isFullDocumentRoute ? "1" : "0.85";
 
@@ -120,6 +156,17 @@
       #root {
         min-height: 100vh;
         min-height: 100dvh;
+      }
+
+      html[data-sigapro-initial-render="true"][data-sigapro-cached-internal="true"] #root:empty {
+        background:
+          linear-gradient(
+            to bottom,
+            var(--sig-initial-topbar, #0b3147) 0,
+            var(--sig-initial-topbar, #0b3147) 72px,
+            var(--sig-initial-bg, #f5f7fb) 72px,
+            var(--sig-initial-bg, #f5f7fb) 100%
+          );
       }
 
       html[data-sigapro-initial-render="true"] *,

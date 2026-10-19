@@ -1,5 +1,6 @@
-const CACHE_VERSION = "sigapro-enterprise-v3";
+const CACHE_VERSION = "sigapro-enterprise-v4";
 const ASSET_CACHE = `${CACHE_VERSION}:assets`;
+const AVATAR_CACHE = `${CACHE_VERSION}:avatars`;
 
 self.addEventListener("install", (event) => {
   event.waitUntil(self.skipWaiting());
@@ -12,7 +13,7 @@ self.addEventListener("activate", (event) => {
       .then((keys) =>
         Promise.all(
           keys
-            .filter((key) => key.startsWith("sigapro-enterprise-") && key !== ASSET_CACHE)
+            .filter((key) => key.startsWith("sigapro-enterprise-") && key !== ASSET_CACHE && key !== AVATAR_CACHE)
             .map((key) => caches.delete(key)),
         ),
       )
@@ -47,5 +48,10 @@ self.addEventListener("fetch", (event) => {
 
   if (url.pathname.startsWith("/assets/")) {
     event.respondWith(cacheFirst(request, ASSET_CACHE));
+    return;
+  }
+
+  if (url.pathname === "/api/profile-avatar-open") {
+    event.respondWith(cacheFirst(request, AVATAR_CACHE));
   }
 });

@@ -8,7 +8,7 @@ describe("Neon bootstrap protected relations", () => {
     "utf8",
   );
 
-  const start = source.indexOf("export async function loadRemotePlatformStore()");
+  const start = source.indexOf("export async function loadRemotePlatformStore(");
   const end = source.indexOf("\nexport ", start + 10);
   const bootstrap = source.slice(start, end > start ? end : undefined);
 

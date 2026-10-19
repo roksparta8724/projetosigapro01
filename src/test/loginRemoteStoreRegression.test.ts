@@ -15,8 +15,8 @@ describe("login remote-store regression", () => {
 
     expect(start).toBeGreaterThanOrEqual(0);
     expect(end).toBeGreaterThan(start);
-    expect(retryBlock).toContain("return await loadRemotePlatformStore();");
-    expect(retryBlock).not.toContain("return await loadRemotePlatformStoreWithRetry();");
+    expect(retryBlock).toContain("return await loadRemotePlatformStore(focusProcessRouteKey);");
+    expect(retryBlock).not.toContain("return await loadRemotePlatformStoreWithRetry(focusProcessRouteKey);");
   });
 
   it("only releases the access redirect after the current authenticated user has synchronized remote data", () => {
