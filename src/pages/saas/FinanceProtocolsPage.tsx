@@ -337,13 +337,18 @@ export function FinanceProtocolsPage() {
     );
 
     const persistedIssuedAt = String(match.guide.issuedAt || "").trim();
-    if (!persistedIssuedAt) {
+    const persistedIssuedOn =
+      String(match.guide.issuedOn || "").trim() ||
+      (/^\d{4}-\d{2}-\d{2}/.test(persistedIssuedAt)
+        ? persistedIssuedAt.slice(0, 10)
+        : "");
+    if (!persistedIssuedAt || !persistedIssuedOn) {
       setFinancialStatus(
         "A guia oficial não possui data de emissão persistida. O documento foi bloqueado para impedir que a data de hoje substitua a emissão original.",
       );
       return;
     }
-    const persistedIssueYear = new Date(persistedIssuedAt).getFullYear().toString();
+    const persistedIssueYear = persistedIssuedOn.slice(0, 4);
 
     const openedGuide = openGuiaRecolhimentoOficialWindow(
       {
@@ -371,7 +376,7 @@ export function FinanceProtocolsPage() {
         guia: {
           numeroGuia: match.guide.code,
           exercicio: persistedIssueYear,
-          dataDocumento: persistedIssuedAt,
+          dataDocumento: persistedIssuedOn,
           vencimento: match.guide.dueDate,
           funcionarioResponsavel: session.name,
           referencia: getGuideReference(match.guide.kind),
