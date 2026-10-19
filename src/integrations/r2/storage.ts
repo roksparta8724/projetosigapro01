@@ -77,7 +77,7 @@ export async function uploadFileToStorage(input: {
   return {
     path: uploaded.objectKey,
     publicUrl: uploaded.publicUrl,
-    persistentRef: uploaded.publicUrl || `r2:${uploaded.objectKey}`,
+    persistentRef: input.bucket === "profile-assets" ? `r2:${uploaded.objectKey}` : uploaded.publicUrl || `r2:${uploaded.objectKey}`,
   };
 }
 
