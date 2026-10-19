@@ -1819,13 +1819,16 @@ export function ProcessDetailPage() {
     if (!selectedGuide) return;
 
     const issuedAt = String(selectedGuide.issuedAt || "").trim();
-    if (!issuedAt) {
+    const issuedOn =
+      String(selectedGuide.issuedOn || "").trim() ||
+      (/^\d{4}-\d{2}-\d{2}/.test(issuedAt) ? issuedAt.slice(0, 10) : "");
+    if (!issuedAt || !issuedOn) {
       setProcessActionStatus(
         "A guia oficial não possui data de emissão persistida. Para preservar a integridade do documento, o sistema não substituirá essa data pela data de hoje.",
       );
       return;
     }
-    const year = new Date(issuedAt).getFullYear().toString();
+    const year = issuedOn.slice(0, 4);
     const approvalBreakdown =
       selectedGuide.kind === "aprovacao_final"
         ? calculateApprovalGuideBreakdown(
@@ -2002,7 +2005,7 @@ export function ProcessDetailPage() {
       guia: {
         numeroGuia: selectedGuide.code,
         exercicio: year,
-        dataDocumento: issuedAt,
+        dataDocumento: issuedOn,
         vencimento: selectedGuide.dueDate,
         observacao: getGuideObservation(selectedGuide.kind),
         funcionarioResponsavel: issuedByDisplay,
