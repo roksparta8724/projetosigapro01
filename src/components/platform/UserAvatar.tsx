@@ -146,6 +146,40 @@ export function UserAvatar({
     };
     preload.onerror = () => {
       if (cancelled) return;
+
+      const alternate = alternateLegacyAvatarUrl(imageUrl);
+      if (
+        alternate &&
+        alternate !== imageUrl &&
+        !attemptedRecoveryRef.current.has(alternate)
+      ) {
+        attemptedRecoveryRef.current.add(imageUrl);
+        attemptedRecoveryRef.current.add(alternate);
+
+        const recovery = new Image();
+        recovery.decoding = "async";
+        recovery.onload = async () => {
+          try {
+            await recovery.decode();
+          } catch {
+            // onload já confirmou a imagem.
+          }
+          if (cancelled) return;
+          setNaturalSize({
+            width: recovery.naturalWidth || 1,
+            height: recovery.naturalHeight || 1,
+          });
+          setRecoveryImageUrl(alternate);
+          setStableImageUrl(alternate);
+          setFailedImageUrl("");
+        };
+        recovery.onerror = () => {
+          if (!cancelled && !stableImageUrl) setFailedImageUrl(imageUrl);
+        };
+        recovery.src = alternate;
+        return;
+      }
+
       if (!stableImageUrl) setFailedImageUrl(imageUrl);
     };
     preload.src = imageUrl;
