@@ -333,6 +333,7 @@ export function ProcessDetailPage() {
     endAnalysisSupervisorIntervention,
     reassignProcessAnalysis,
     updateProcessStatus,
+    reopenProcess,
   } = usePlatformData();
   useLivePlatformRefresh(refreshRemoteStore, { intervalMs: 2500 });
 
@@ -4075,6 +4076,16 @@ export function ProcessDetailPage() {
                       "Alvará de Habite-se emitido com assinatura eletrônica válida da Diretoria. Processo concluído administrativamente pelo responsável autorizado e encaminhado ao histórico, preservando rastreabilidade, documentos, assinaturas e movimentações.",
                   });
                   await refreshRemoteStore();
+                  window.dispatchEvent(new Event("sigapro:data-changed"));
+                }}
+                onReopenProcess={async (reason) => {
+                  await reopenProcess({
+                    processId: process.id,
+                    actor: session.name,
+                    reason,
+                  });
+                  await refreshRemoteStore();
+                  window.dispatchEvent(new Event("sigapro:data-changed"));
                 }}
                 onViewHabiteSeGuide={
                   habiteSeGuide
