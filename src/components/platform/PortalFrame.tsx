@@ -66,6 +66,7 @@ import { useUserMenuPreferences, type MenuPreferenceKey } from "@/hooks/useUserM
 import { usePlanEntitlements } from "@/hooks/usePlanEntitlements";
 import { getPublicAssetUrl } from "@/lib/assetUrl";
 import { formatDisplayText, humanizeRoleLabel } from "@/lib/displayText";
+import { readCachedProfileAvatar } from "@/lib/profileAvatarCache";
 import { buildProcessPath, can, canAccessMunicipalArea,
   getRoleLandingPath, desktopThemePresets, getVisibleProcessesByScope, isExternalProfessionalRole, isInternalRole, mobileThemePresets, parseMarker, roleLabels, type Permission } from "@/lib/platform";
 import type { PlanModuleName } from "@/lib/planEntitlements";
@@ -741,23 +742,40 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
     return Array.from(groups.entries());
   }, [filteredSearchItems]);
 
-  const fullUserName = userProfile?.fullName?.trim() || session.name || "Usuário institucional";
+  const cachedTopbarAvatar = useMemo(
+    () => readCachedProfileAvatar(session.id, session.email),
+    [session.email, session.id],
+  );
+  const fullUserName =
+    userProfile?.fullName?.trim() ||
+    cachedTopbarAvatar?.fullName?.trim() ||
+    session.name ||
+    "Usuário institucional";
   const displayUserName = formatDisplayText(fullUserName, "name", {
     fallback: "Usuário institucional",
     maxLength: 34,
   });
-  const topbarAvatarImageUrl = userProfile
-    ? (userProfile.avatarUrl?.trim() || "")
-    : null;
+  const topbarAvatarImageUrl =
+    userProfile?.avatarUrl?.trim() ||
+    cachedTopbarAvatar?.avatarUrl?.trim() ||
+    "";
   const topbarAvatarCrop = useMemo(() => {
     if (!topbarAvatarImageUrl) return undefined;
     return {
-      scale: Number(userProfile?.avatarScale ?? 1),
-      offsetX: Number(userProfile?.avatarOffsetX ?? 0),
-      offsetY: Number(userProfile?.avatarOffsetY ?? 0),
+      scale: Number(userProfile?.avatarScale ?? cachedTopbarAvatar?.avatarScale ?? 1),
+      offsetX: Number(userProfile?.avatarOffsetX ?? cachedTopbarAvatar?.avatarOffsetX ?? 0),
+      offsetY: Number(userProfile?.avatarOffsetY ?? cachedTopbarAvatar?.avatarOffsetY ?? 0),
       editorSize: 320,
     };
-  }, [topbarAvatarImageUrl, userProfile?.avatarOffsetX, userProfile?.avatarOffsetY, userProfile?.avatarScale]);
+  }, [
+    cachedTopbarAvatar?.avatarOffsetX,
+    cachedTopbarAvatar?.avatarOffsetY,
+    cachedTopbarAvatar?.avatarScale,
+    topbarAvatarImageUrl,
+    userProfile?.avatarOffsetX,
+    userProfile?.avatarOffsetY,
+    userProfile?.avatarScale,
+  ]);
   const roleLabel = humanizeRoleLabel(userProfile?.professionalType?.trim() || roleLabels[session.role], "Usuário");
   const displaySessionEmail = formatDisplayText(session.email, "email", {
     fallback: "E-mail não informado",
