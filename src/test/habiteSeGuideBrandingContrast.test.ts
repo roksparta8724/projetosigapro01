@@ -47,6 +47,16 @@ describe("Habite-se guide branding and status contrast", () => {
     expect(permitPdf).toContain('"Diretoria responsável",');
   });
 
+  it("matches the Construction Permit request-signature workflow without amateur warning banners", () => {
+    expect(permit).toContain('data-request-director-signature="true"');
+    expect(permit).toContain("Solicitar assinatura eletrônica do Diretor");
+    expect(permit).toContain('data-habite-se-director-request="pending"');
+    expect(permit).toContain("Solicitação enviada à Diretoria");
+    expect(permit).toContain("setHabiteSePermitAwaitingDirector(process.id)");
+    expect(permit).not.toContain("Esta versão foi retificada após a última assinatura");
+    expect(permit).not.toContain("Salvar e encaminhar à Diretoria");
+  });
+
   it("hard-locks the Habite-se status badge to readable light text on saturated backgrounds", () => {
     expect(permit).toContain('data-habite-se-status-badge="true"');
     expect(permit).toContain('data-status={permit?.status || "rascunho"}');
