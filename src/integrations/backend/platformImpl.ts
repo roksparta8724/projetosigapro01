@@ -3205,9 +3205,9 @@ export async function saveRemoteProfile(profile: UserProfile) {
       !Number.isFinite(persistedScale) ||
       !Number.isFinite(persistedOffsetX) ||
       !Number.isFinite(persistedOffsetY) ||
-      Math.abs(persistedScale - Number(profile.avatarScale ?? 1)) > 0.001 ||
-      Math.abs(persistedOffsetX - Number(profile.avatarOffsetX ?? 0)) > 0.001 ||
-      Math.abs(persistedOffsetY - Number(profile.avatarOffsetY ?? 0)) > 0.001
+      Math.abs(persistedScale - Number(profile.avatarScale ?? 1)) > 0.01 ||
+      Math.abs(persistedOffsetX - Number(profile.avatarOffsetX ?? 0)) > 0.25 ||
+      Math.abs(persistedOffsetY - Number(profile.avatarOffsetY ?? 0)) > 0.25
     ) {
       throw new Error("O banco não confirmou o enquadramento da foto. Tente salvar novamente.");
     }
