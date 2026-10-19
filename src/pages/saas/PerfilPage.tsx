@@ -1116,13 +1116,16 @@ export function PerfilPage() {
   ] as const;
 
   const statusIsError = /não foi possível|falha|erro|permission denied|indisponível|inválid/i.test(status);
+  const statusIsDraft = /ainda não foi salva|preparada|alterado|pré-visualização|clique em .*salvar/i.test(status);
   const statusMessage = status ? (
     <div
       className={cn(
         "rounded-2xl border px-4 py-3 text-sm",
         statusIsError
           ? "border-rose-200 bg-rose-50 text-rose-700"
-          : "border-emerald-100 bg-emerald-50 text-emerald-700",
+          : statusIsDraft
+            ? "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-500/30 dark:bg-amber-950/25 dark:text-amber-200"
+            : "border-emerald-100 bg-emerald-50 text-emerald-700",
       )}
     >
       {status}
@@ -1492,8 +1495,24 @@ export function PerfilPage() {
                     />
                     <div className="space-y-4 rounded-[24px] border border-slate-200 bg-[linear-gradient(180deg,#f8fbff_0%,#eef4fb_100%)] p-5">
                       <div>
-                        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">Preview final</p>
-                        <p className="mt-1 text-sm leading-6 text-slate-500">Veja como a foto vai aparecer no perfil e no topo da plataforma.</p>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">Preview final</p>
+                          <span
+                            className={cn(
+                              "rounded-full border px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-[0.12em]",
+                              avatarDraftDirty
+                                ? "border-amber-300 bg-amber-100 text-amber-900"
+                                : "border-emerald-200 bg-emerald-50 text-emerald-700",
+                            )}
+                          >
+                            {avatarDraftDirty ? "Prévia não salva" : "Foto salva"}
+                          </span>
+                        </div>
+                        <p className="mt-1 text-sm leading-6 text-slate-500">
+                          {avatarDraftDirty
+                            ? "Esta imagem existe somente nesta prévia. Ela só será enviada ao R2 e gravada no banco quando você clicar em Salvar ajustes da foto."
+                            : "Esta é a foto confirmada no perfil. O enquadramento salvo é o que será usado nas telas autorizadas."}
+                        </p>
                       </div>
                       <div className="flex items-center gap-4 rounded-[24px] border border-white/80 bg-white/90 p-4 shadow-[0_10px_25px_rgba(15,23,42,0.08)]">
                         <UserAvatar
