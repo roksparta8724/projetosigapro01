@@ -3185,18 +3185,44 @@ export async function saveRemoteProfile(profile: UserProfile) {
       throw new Error("O banco não confirmou a atualização do perfil.");
     }
 
-    const row = data as Record<string, unknown>;
-    const profileId = String(row.profile_id || profile.userId || "");
+    const rpcRow = data as Record<string, unknown>;
+    const profileId = String(rpcRow.profile_id || profile.userId || "");
     if (!profileId) {
       throw new Error("Perfil Neon autenticado nao encontrado.");
     }
 
-    const storedAvatar = String(row.avatar_url || profile.avatarStorageRef || profile.avatarUrl || "");
+    // A resposta da RPC pode variar conforme a versão implantada. Para nunca
+    // transformar o payload enviado em uma falsa confirmação, fazemos uma
+    // leitura autoritativa do registro após a escrita e só então devolvemos
+    // sucesso ao formulário.
+    const { data: confirmedRows, error: confirmError } = await db
+      .from("profiles")
+      .select(
+        "id,full_name,email,phone,cpf_cnpj,rg,birth_date,professional_type,registration_number,company_name,address_line,address_number,address_complement,neighborhood,city,state,zip_code,avatar_url,avatar_scale,avatar_offset_x,avatar_offset_y,use_avatar_in_header,bio",
+      )
+      .eq("id", profileId)
+      .limit(1);
+
+    if (confirmError) {
+      throw new Error(
+        confirmError.message ||
+          "O perfil foi enviado, mas o banco não confirmou a leitura após a gravação.",
+      );
+    }
+
+    const row = (confirmedRows ?? [])[0] as Record<string, unknown> | undefined;
+    if (!row) {
+      throw new Error(
+        "O perfil foi enviado, mas o banco não devolveu o registro persistido para confirmação.",
+      );
+    }
+
+    const storedAvatar = String(row.avatar_url ?? "");
 
     return {
       userId: profileId,
-      fullName: String(row.full_name ?? profile.fullName ?? ""),
-      email: String(row.email ?? profile.email ?? ""),
+      fullName: String(row.full_name ?? ""),
+      email: String(row.email ?? ""),
       phone: String(row.phone ?? ""),
       cpfCnpj: String(row.cpf_cnpj ?? ""),
       rg: String(row.rg ?? ""),
