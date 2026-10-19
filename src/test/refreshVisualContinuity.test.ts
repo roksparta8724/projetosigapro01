@@ -14,6 +14,7 @@ describe("F5, logout and topbar visual continuity", () => {
   const urbanChecklist = readFileSync(resolve(process.cwd(), "src/components/platform/UrbanAnalysisChecklistPanel.tsx"), "utf8");
   const habiteInspection = readFileSync(resolve(process.cwd(), "src/components/platform/HabiteSeInspectionPanel.tsx"), "utf8");
   const habitePermit = readFileSync(resolve(process.cwd(), "src/components/platform/HabiteSePermitPanel.tsx"), "utf8");
+  const stableStatusMigration = readFileSync(resolve(process.cwd(), "supabase/migrations/20261019025000_habite_se_completion_via_stable_status_rpc.sql"), "utf8");
   const viteConfig = readFileSync(resolve(process.cwd(), "vite.config.ts"), "utf8");
   const css = readFileSync(resolve(process.cwd(), "src/index.css"), "utf8");
 
@@ -126,6 +127,19 @@ describe("F5, logout and topbar visual continuity", () => {
     expect(urbanChecklist).toContain("readInitialChecklistState(key, process, session)");
     expect(urbanChecklist).toContain("useState<AnalysisChecklistState>(() =>");
     expect(urbanChecklist).not.toContain("useState<AnalysisChecklistState>(() => makeInitialState(process, session))");
+  });
+
+  it("keeps the current process live even when it leaves the active store after archive", () => {
+    expect(processDetail).toContain('.from("processes")');
+    expect(processDetail).toContain('"id,status,current_department,current_queue,sla_stage,process_checkpoint,archived_at,updated_at"');
+    expect(processDetail).toContain("setDirectProcessState");
+    expect(processDetail).toContain("setCachedProcessVisual");
+    expect(processDetail).toContain("window.setInterval(() => void syncExactProcess(), 1500)");
+  });
+
+  it("treats repeated status commands as idempotent instead of surfacing P0001", () => {
+    expect(stableStatusMigration).toContain("'already_current',true");
+    expect(stableStatusMigration).not.toContain("raise exception 'Processo ja esta neste status'");
   });
 
   it("hydrates Habite-se inspection from a visual cache before the first paint", () => {
