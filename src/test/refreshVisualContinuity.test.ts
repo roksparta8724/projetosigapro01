@@ -144,6 +144,12 @@ describe("F5, logout and topbar visual continuity", () => {
     expect(processDetail).toContain("baseProcess?.id");
   });
 
+  it("renders the same canonical analyst name whenever the assigned profile id is the same", () => {
+    expect(analystDesk).toContain("resolveAssignedAnalystName");
+    expect(analystDesk).toContain("sessionUsers.find((user) => user.id === profileId)");
+    expect(analystDesk).toContain("const currentAnalyst = resolveAssignedAnalystName(process)");
+  });
+
   it("keeps concluded processes visible and archives only per profile", () => {
     expect(processDetail).toContain('status: "deferido"');
     expect(analystDesk).toContain('"concluidos"');
