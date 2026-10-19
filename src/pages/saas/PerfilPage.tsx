@@ -1021,9 +1021,11 @@ export function PerfilPage() {
       const resolvedFullName = form.fullName.trim() || profile?.fullName || session.name || "Usuário autenticado";
       const resolvedEmail = normalizeProfileEmail(form.email || profile?.email || authenticatedEmail || session.email);
 
-      const showPhotoInHeader = Boolean(avatarUrl) && !avatarHeaderChoiceTouchedRef.current
-        ? true
-        : Boolean(avatarUrl) && form.useAvatarInHeader;
+      const showPhotoInHeader = Boolean(avatarUrl) && (
+        section === "foto-identidade" && !avatarHeaderChoiceTouchedRef.current
+          ? true
+          : form.useAvatarInHeader
+      );
       const nextProfile: UserProfile = {
         userId,
         fullName: resolvedFullName,
@@ -1050,6 +1052,21 @@ export function PerfilPage() {
         useAvatarInHeader: showPhotoInHeader,
         bio: form.bio,
       };
+
+      // Ajustar a foto não deve sobrescrever endereço, documentos ou dados
+      // profissionais que possam ter sido atualizados em outra tela.
+      if (section === "foto-identidade" && profile) {
+        Object.assign(nextProfile, {
+          ...profile,
+          userId,
+          avatarUrl,
+          avatarStorageRef,
+          avatarScale,
+          avatarOffsetX,
+          avatarOffsetY,
+          useAvatarInHeader: showPhotoInHeader,
+        });
+      }
 
       const savedProfile = await saveUserProfile(nextProfile);
       const savedAvatarUrl = savedProfile.avatarUrl || avatarUrl;
