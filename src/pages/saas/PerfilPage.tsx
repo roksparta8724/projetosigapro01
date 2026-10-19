@@ -888,7 +888,7 @@ export function PerfilPage() {
         avatarScale: form.avatarScale,
         avatarOffsetX: form.avatarOffsetX,
         avatarOffsetY: form.avatarOffsetY,
-        useAvatarInHeader: form.useAvatarInHeader,
+        useAvatarInHeader,
         bio: form.bio,
       }),
       email: accountForm.nextEmail.trim().toLowerCase(),
@@ -928,7 +928,10 @@ export function PerfilPage() {
     setAccountStatus(result.message || "Senha atualizada com sucesso.");
   };
 
-  const handleSubmit = async (event: FormEvent, avatarOverride?: UploadedFileItem[]) => {
+  const handleSubmit = async (
+    event: FormEvent,
+    options?: { commitAvatar?: boolean; avatarOverride?: UploadedFileItem[] },
+  ) => {
     event.preventDefault();
     setSaving(true);
     setStatus("");
@@ -941,19 +944,44 @@ export function PerfilPage() {
         return;
       }
 
-      const effectiveAvatarFiles = avatarOverride ?? avatarFiles;
-      const avatarUploadFile = effectiveAvatarFiles[0]?.file;
+      const commitAvatar = options?.commitAvatar === true;
+      const effectiveAvatarFiles = options?.avatarOverride ?? avatarFiles;
+      const avatarUploadFile = commitAvatar ? effectiveAvatarFiles[0]?.file : undefined;
       const avatarRemovalRequested =
-        avatarDraftDirty && effectiveAvatarFiles.length === 0;
-      let avatarUrl = avatarRemovalRequested
-        ? ""
-        : effectiveAvatarFiles[0]?.previewUrl ?? form.avatarUrl;
-      let avatarStorageRef = avatarRemovalRequested
-        ? ""
-        : profile?.avatarStorageRef || profile?.avatarUrl || form.avatarUrl;
-      let avatarScale = avatarOverride?.[0]?.file ? 1 : form.avatarScale;
-      let avatarOffsetX = avatarOverride?.[0]?.file ? 0 : form.avatarOffsetX;
-      let avatarOffsetY = avatarOverride?.[0]?.file ? 0 : form.avatarOffsetY;
+        commitAvatar && avatarDraftDirty && effectiveAvatarFiles.length === 0;
+
+      const persistedAvatarStorageRef =
+        profile?.avatarStorageRef || profile?.avatarUrl || "";
+      const persistedAvatarUrl = profile?.avatarUrl || form.avatarUrl || "";
+
+      let avatarUrl = commitAvatar
+        ? avatarRemovalRequested
+          ? ""
+          : effectiveAvatarFiles[0]?.previewUrl ?? form.avatarUrl
+        : persistedAvatarUrl;
+      let avatarStorageRef = commitAvatar
+        ? avatarRemovalRequested
+          ? ""
+          : persistedAvatarStorageRef || form.avatarUrl
+        : persistedAvatarStorageRef;
+      let avatarScale = commitAvatar
+        ? options?.avatarOverride?.[0]?.file
+          ? 1
+          : form.avatarScale
+        : profile?.avatarScale ?? form.avatarScale;
+      let avatarOffsetX = commitAvatar
+        ? options?.avatarOverride?.[0]?.file
+          ? 0
+          : form.avatarOffsetX
+        : profile?.avatarOffsetX ?? form.avatarOffsetX;
+      let avatarOffsetY = commitAvatar
+        ? options?.avatarOverride?.[0]?.file
+          ? 0
+          : form.avatarOffsetY
+        : profile?.avatarOffsetY ?? form.avatarOffsetY;
+      const useAvatarInHeader = commitAvatar
+        ? form.useAvatarInHeader
+        : profile?.useAvatarInHeader ?? form.useAvatarInHeader;
 
       if (avatarUploadFile) {
         try {
@@ -1019,36 +1047,48 @@ export function PerfilPage() {
       const savedAvatarUrl = avatarRemovalRequested
         ? ""
         : savedProfile.avatarUrl || avatarUrl;
-      setAvatarDraftDirty(false);
-      if (savedAvatarUrl) {
-        setAvatarFiles([
-          {
-            id: `avatar-saved-${crypto.randomUUID()}`,
-            fileName: "foto-perfil",
-            mimeType: "image/*",
-            sizeLabel: "imagem salva",
-            previewUrl: savedAvatarUrl,
-          },
-        ]);
-      } else {
-        setAvatarFiles([]);
+
+      if (commitAvatar) {
+        setAvatarDraftDirty(false);
+        if (savedAvatarUrl) {
+          setAvatarFiles([
+            {
+              id: `avatar-saved-${crypto.randomUUID()}`,
+              fileName: "foto-perfil",
+              mimeType: "image/*",
+              sizeLabel: "imagem salva",
+              previewUrl: savedAvatarUrl,
+            },
+          ]);
+        } else {
+          setAvatarFiles([]);
+        }
       }
+
       setForm((current) => ({
         ...current,
         fullName: resolvedFullName,
         email: resolvedEmail,
-        avatarUrl: savedAvatarUrl,
-        avatarScale: savedProfile.avatarScale ?? avatarScale,
-        avatarOffsetX: savedProfile.avatarOffsetX ?? avatarOffsetX,
-        avatarOffsetY: savedProfile.avatarOffsetY ?? avatarOffsetY,
-        useAvatarInHeader: savedProfile.useAvatarInHeader ?? current.useAvatarInHeader,
+        ...(commitAvatar
+          ? {
+              avatarUrl: savedAvatarUrl,
+              avatarScale: savedProfile.avatarScale ?? avatarScale,
+              avatarOffsetX: savedProfile.avatarOffsetX ?? avatarOffsetX,
+              avatarOffsetY: savedProfile.avatarOffsetY ?? avatarOffsetY,
+              useAvatarInHeader:
+                savedProfile.useAvatarInHeader ?? current.useAvatarInHeader,
+            }
+          : {}),
       }));
+
       setStatus(
-        avatarRemovalRequested
-          ? "Foto removida e alteração confirmada no banco oficial."
-          : avatarUploadFile
-            ? "Foto salva e confirmada no banco oficial."
-            : "Ajustes do perfil salvos e confirmados no banco oficial.",
+        commitAvatar
+          ? avatarRemovalRequested
+            ? "Foto removida e alteração confirmada no banco oficial."
+            : avatarUploadFile
+              ? "Foto salva e confirmada no banco oficial."
+              : "Ajustes da foto confirmados no banco oficial."
+          : "Perfil atualizado com sucesso no banco oficial.",
       );
     } catch (error) {
       setStatus(
@@ -1591,7 +1631,9 @@ export function PerfilPage() {
 
               {statusMessage}
 
-              <Button type="button" className="sig-force-dark-action h-11 rounded-2xl bg-slate-950 px-6 !text-white hover:bg-slate-900" onClick={(event) => void handleSubmit(event as unknown as FormEvent)} disabled={saving}>
+              <Button type="button" className="sig-force-dark-action h-11 rounded-2xl bg-slate-950 px-6 !text-white hover:bg-slate-900" onClick={(event) =>
+                  void handleSubmit(event as unknown as FormEvent, { commitAvatar: true })
+                } disabled={saving}>
                 {saving ? "Salvando..." : "Salvar ajustes da foto"}
               </Button>
 
