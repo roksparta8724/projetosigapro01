@@ -12,7 +12,8 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "quality": "npm run typecheck && npm test && npm run build"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1024.0",
