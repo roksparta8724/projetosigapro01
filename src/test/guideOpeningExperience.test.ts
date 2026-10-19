@@ -7,6 +7,14 @@ function read(path: string) {
 }
 
 describe("guide opening experience", () => {
+  it("never creates a fresh provider charge while viewing a compensated historical guide", () => {
+    expect(processDetail).toContain('if (guide.status === "compensada") continue;');
+    expect(processDetail).toContain('const historicalPaidGuide = selectedGuide.status === "compensada"');
+    expect(processDetail).toContain("historicalPaidGuide\n      ? null");
+    expect(processDetail).toContain("Documento histórico quitado; data de emissão e baixa preservadas");
+  });
+
+
   it("never exposes an intermediary preparation document", () => {
     const guide = read("src/components/GuiaRecolhimentoOficial.tsx");
 
