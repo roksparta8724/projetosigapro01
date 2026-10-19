@@ -1104,8 +1104,18 @@ export function PerfilPage() {
         if (avatarUploadFile && savedAvatarUrl) {
           const readable = await new Promise<boolean>((resolve) => {
             const image = new Image();
-            image.onload = () => resolve(true);
-            image.onerror = () => resolve(false);
+            let settled = false;
+            const timeout = window.setTimeout(() => finish(false), 12000);
+            function finish(result: boolean) {
+              if (settled) return;
+              settled = true;
+              window.clearTimeout(timeout);
+              image.onload = null;
+              image.onerror = null;
+              resolve(result);
+            }
+            image.onload = () => finish(true);
+            image.onerror = () => finish(false);
             image.src = savedAvatarUrl;
           });
           setStatus(
