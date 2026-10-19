@@ -29,6 +29,21 @@ describe("guide opening experience", () => {
     expect(processPage).not.toContain("reserveGuiaRecolhimentoWindow");
   });
 
+  it("keeps the official guide immutable after issue and persists provider banking data", () => {
+    const processPage = read("src/pages/saas/ProcessDetailPage.tsx");
+    const mercadoApi = read("api/mercadopago.ts");
+    const migration = read("supabase/migrations/20261019134500_persist_payment_guide_provider_charge.sql");
+
+    expect(processPage).toContain('const issuedAt = String(selectedGuide.issuedAt || "").trim()');
+    expect(processPage).not.toContain("selectedGuide.issuedAt || new Date().toISOString()");
+    expect(processPage).toContain("não substituirá essa data pela data de hoje");
+    expect(mercadoApi).toContain("persist_payment_guide_provider_charge_v1");
+    expect(migration).toContain("provider_charge_saved_at");
+    expect(migration).toContain("digitable_line");
+    expect(migration).toContain("barcode");
+    expect(migration).toContain("bank_reference");
+  });
+
   it("prints the DAM at a controlled A4 visual scale instead of oversized content", () => {
     const guide = read("src/components/GuiaRecolhimentoOficial.tsx");
 
