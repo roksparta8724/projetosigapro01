@@ -98,7 +98,8 @@ describe("profile and branding persistence regressions", () => {
   it("persists private R2 avatars after confirmation and preserves edits across F5", () => {
     expect(storage).toContain('input.bucket === "profile-assets" ? `r2:${uploaded.objectKey}`');
     expect(backend).toContain("PROFILE_ASSET_REF_PREFIX");
-    expect(backend).toContain("getSignedUrlForObjectStrict");
+    expect(backend).toContain("/api/profile-avatar-open?objectKey=");
+    expect(backend).not.toContain("getSignedUrlForObjectStrict");
     expect(backend).toContain("savedAvatarValue");
     expect(backend).toContain("requestedR2Ref");
     expect(profilePage).toContain("avatarDraftDirty");
