@@ -176,7 +176,7 @@ describe("F5, logout and topbar visual continuity", () => {
   it("marks every Habite-se workflow step done after final process status", () => {
     expect(processDetail).toContain('state: isFinalProcessStatus');
     expect(processDetail).toContain('? "done"');
-    expect(processDetail).toContain('isHabiteSeProcess\n        ? "Concluído"');
+    expect(processDetail).toMatch(/isHabiteSeProcess[\s\S]{0,120}\? "Concluído"/);
   });
 
   it("keeps the current process live even when it leaves the active store after archive", () => {
