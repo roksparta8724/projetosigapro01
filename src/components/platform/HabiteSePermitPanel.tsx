@@ -553,6 +553,33 @@ export function HabiteSePermitPanel({
     }
   };
 
+  const completeProcess = async () => {
+    if (!directorSigned || !permit || permit.status !== "emitido") {
+      setNotice("O processo só pode ser concluído depois da assinatura válida da Diretoria.");
+      return;
+    }
+    if (!canCloseProcess || !onCompleteProcess) {
+      setNotice("Sua conta não possui atribuição para concluir administrativamente este processo.");
+      return;
+    }
+
+    setBusy("complete-process");
+    setNotice("");
+    try {
+      await onCompleteProcess();
+      await onProcessRefresh?.();
+      setNotice("");
+    } catch (error) {
+      setNotice(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível concluir administrativamente o processo.",
+      );
+    } finally {
+      setBusy("");
+    }
+  };
+
   const openOfficialDocument = async (autoPrint = false) => {
     if (!permit) return;
 
@@ -842,21 +869,97 @@ export function HabiteSePermitPanel({
           ) : null}
 
           {directorSigned ? (
-            <div
-              data-habite-se-director-request="signed"
-              className="rounded-[20px] border border-emerald-200 bg-emerald-50 px-5 py-4 dark:border-emerald-500/30 dark:bg-emerald-950/25"
-            >
-              <div className="flex items-center gap-3">
-                <ShieldCheck className="h-5 w-5 text-emerald-700 dark:text-emerald-300" />
-                <div>
-                  <p className="text-sm font-bold text-emerald-950 dark:text-emerald-100">
-                    Assinatura da Diretoria validada
-                  </p>
-                  <p className="mt-1 text-xs leading-5 text-emerald-800 dark:text-emerald-200">
-                    ${directorSigner?.name || "Diretor responsável"} • ${formatDateTime(directorSigner?.signed_at)}
-                  </p>
+            <div className="space-y-3">
+              <div
+                data-habite-se-director-request="signed"
+                className="rounded-[20px] border border-emerald-200 bg-emerald-50 px-5 py-4 dark:border-emerald-500/30 dark:bg-emerald-950/25"
+              >
+                <div className="flex items-center gap-3">
+                  <ShieldCheck className="h-5 w-5 text-emerald-700 dark:text-emerald-300" />
+                  <div>
+                    <p className="text-sm font-bold text-emerald-950 dark:text-emerald-100">
+                      Assinatura obrigatória da Diretoria validada
+                    </p>
+                    <p className="mt-1 text-xs leading-5 text-emerald-800 dark:text-emerald-200">
+                      ${directorSigner?.name || "Diretor responsável"} • ${formatDateTime(directorSigner?.signed_at || permit?.issuedAt)}
+                    </p>
+                  </div>
                 </div>
               </div>
+
+              {!secretarySigned ? (
+                <div
+                  data-habite-se-secretary-signature="optional"
+                  className="rounded-[20px] border border-sky-200 bg-[linear-gradient(135deg,#f8fbff_0%,#eff8ff_100%)] p-5 dark:border-sky-500/30 dark:bg-[linear-gradient(135deg,#0d2032_0%,#10283d_100%)]"
+                >
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-[0.12em] text-sky-700 dark:text-sky-300">
+                        Assinatura complementar opcional
+                      </p>
+                      <p className="mt-1 text-sm font-bold text-slate-950 dark:text-white">
+                        Secretaria responsável
+                      </p>
+                      <p className="mt-1 max-w-3xl text-xs leading-5 text-slate-600 dark:text-slate-300">
+                        A assinatura da Secretaria não é requisito para a validade ou conclusão do Habite-se. Solicite apenas nos casos em que a autoridade competente desejar subscrição complementar.
+                      </p>
+                      {secretaryRequestPending ? (
+                        <p className="mt-2 text-xs font-bold text-sky-800 dark:text-sky-200">
+                          Solicitação enviada. A Secretaria pode assinar com a própria conta e senha.
+                        </p>
+                      ) : null}
+                    </div>
+
+                    <div className="flex flex-wrap gap-2">
+                      {!secretaryRequestPending && canCloseProcess ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="rounded-full border-sky-300 text-sky-800 dark:border-sky-500/40 dark:text-sky-200"
+                          disabled={Boolean(busy)}
+                          onClick={() => void requestSecretarySignature()}
+                        >
+                          {busy === "request-secretary" ? (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          ) : (
+                            <Send className="mr-2 h-4 w-4" />
+                          )}
+                          Solicitar assinatura do Secretário
+                        </Button>
+                      ) : null}
+
+                      {secretaryRequestPending && isSecretary ? (
+                        <Button
+                          type="button"
+                          className="rounded-full bg-sky-700 font-bold !text-white hover:bg-sky-600"
+                          disabled={Boolean(busy)}
+                          onClick={() => openSignature("secretary")}
+                        >
+                          <Signature className="mr-2 h-4 w-4" />
+                          Assinar como Secretário
+                        </Button>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div
+                  data-habite-se-secretary-signature="signed"
+                  className="rounded-[20px] border border-emerald-200 bg-emerald-50 px-5 py-4 dark:border-emerald-500/30 dark:bg-emerald-950/25"
+                >
+                  <div className="flex items-center gap-3">
+                    <BadgeCheck className="h-5 w-5 text-emerald-700 dark:text-emerald-300" />
+                    <div>
+                      <p className="text-sm font-bold text-emerald-950 dark:text-emerald-100">
+                        Assinatura complementar da Secretaria validada
+                      </p>
+                      <p className="mt-1 text-xs leading-5 text-emerald-800 dark:text-emerald-200">
+                        ${secretarySigner?.name || "Secretário responsável"} • ${formatDateTime(secretarySigner?.signed_at)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           ) : null}
 
@@ -916,31 +1019,63 @@ export function HabiteSePermitPanel({
           </div>
 
           {permit?.status === "emitido" ? (
-            <div className="rounded-2xl border border-emerald-300 bg-emerald-50 p-4 dark:border-emerald-500/40 dark:bg-emerald-950/25">
-              <div className="flex items-start gap-3">
-                <BadgeCheck className="mt-0.5 h-6 w-6 text-emerald-700 dark:text-emerald-300" />
-                <div>
-                  <p className="font-black text-emerald-950 dark:text-emerald-100">Processo de Habite-se finalizado</p>
-                  <p className="mt-1 text-sm leading-6 text-emerald-800 dark:text-emerald-200">
-                    O Alvará {permit.permitNumber} foi assinado pela Diretoria em {formatDateTime(permit.issuedAt)}. A conclusão e o código de verificação permanecem vinculados ao histórico oficial do processo.
-                  </p>
+            <div className="rounded-[22px] border border-slate-200 bg-[linear-gradient(135deg,#ffffff_0%,#f8fafc_100%)] p-5 shadow-sm dark:border-slate-700 dark:bg-[linear-gradient(135deg,#111827_0%,#0f172a_100%)]">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+                    <CheckCircle2 className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-black text-slate-950 dark:text-white">
+                      Pronto para conclusão administrativa
+                    </p>
+                    <p className="mt-1 max-w-3xl text-xs leading-5 text-slate-600 dark:text-slate-300">
+                      O Alvará {permit.permitNumber} já possui a assinatura obrigatória da Diretoria. A assinatura da Secretaria é complementar e opcional. Ao concluir, o processo registra a decisão final, fecha o fluxo ativo e permanece disponível no histórico e para consulta.
+                    </p>
+                  </div>
                 </div>
+
+                {!externalView && canCloseProcess && process.status !== "arquivado" ? (
+                  <Button
+                    type="button"
+                    className="shrink-0 rounded-full bg-emerald-700 px-5 font-bold !text-white hover:bg-emerald-600 [&_*]:!text-white"
+                    disabled={Boolean(busy)}
+                    onClick={() => void completeProcess()}
+                  >
+                    {busy === "complete-process" ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <CheckCircle2 className="mr-2 h-4 w-4" />
+                    )}
+                    {secretaryRequestPending && !secretarySigned
+                      ? "Concluir sem assinatura complementar"
+                      : "Concluir processo com êxito"}
+                  </Button>
+                ) : process.status === "arquivado" ? (
+                  <Badge className="w-fit rounded-full border border-emerald-200 bg-emerald-100 px-3 py-1.5 font-bold text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-950/40 dark:text-emerald-200">
+                    Processo concluído e arquivado
+                  </Badge>
+                ) : null}
               </div>
             </div>
           ) : null}
         </CardContent>
       </Card>
 
-      <Dialog open={Boolean(passwordDialog && permit?.status !== "emitido" && !directorSigned)} onOpenChange={(open) => !open && !busy && setPasswordDialog(null)}>
+      <Dialog open={Boolean(passwordDialog)} onOpenChange={(open) => !open && !busy && setPasswordDialog(null)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-lg font-bold">
-              Assinatura final da Diretoria
+              {passwordDialog === "secretary"
+                ? "Assinatura complementar da Secretaria"
+                : "Assinatura final da Diretoria"}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <p className="text-sm leading-6 text-slate-600 dark:text-slate-300">
-              Confirme sua senha de acesso. A assinatura eletrônica do Diretor será vinculada exatamente a esta versão do Alvará de Habite-se e concluirá a emissão.
+              {passwordDialog === "secretary"
+                ? "Confirme sua senha de acesso. Esta assinatura é complementar e não altera o caráter conclusivo da assinatura já realizada pela Diretoria."
+                : "Confirme sua senha de acesso. A assinatura eletrônica do Diretor será vinculada exatamente a esta versão do Alvará de Habite-se e concluirá a emissão."}
             </p>
             <Input type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Senha de acesso" />
             <Button type="button" className="w-full bg-sky-700 font-bold !text-white hover:bg-sky-600" disabled={!password || Boolean(busy)} onClick={() => void confirmSignature()}>
