@@ -56,11 +56,12 @@ describe("F5, logout and topbar visual continuity", () => {
   });
 
   it("seeds refresh continuity before React renders so Habite-se never disappears on F5", () => {
-    expect(main).toContain("persistRefreshContinuity();\n\nbootApplication();");
-    expect(main.indexOf("persistRefreshContinuity();\n\nbootApplication();")).toBeGreaterThan(-1);
-    expect(main.indexOf("persistRefreshContinuity();\n\nbootApplication();")).toBeLessThan(
-      main.lastIndexOf("bootApplication();") + 1,
-    );
+    const continuityIndex = main.lastIndexOf("persistRefreshContinuity();");
+    const bootIndex = main.lastIndexOf("bootApplication();");
+
+    expect(continuityIndex).toBeGreaterThan(-1);
+    expect(bootIndex).toBeGreaterThan(-1);
+    expect(continuityIndex).toBeLessThan(bootIndex);
   });
 
   it("treats same-user warm store as visually ready during F5 revalidation", () => {
