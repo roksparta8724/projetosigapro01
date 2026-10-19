@@ -9,6 +9,7 @@ describe("municipal staff account and avatar recovery regressions", () => {
   const dataHook = read("src/hooks/usePlatformData.tsx");
   const backend = read("src/integrations/backend/platformImpl.ts");
   const avatar = read("src/components/platform/UserAvatar.tsx");
+  const profilePage = read("src/pages/saas/PerfilPage.tsx");
   const r2Client = read("src/integrations/r2/client.ts");
   const r2Storage = read("src/integrations/r2/storage.ts");
   const r2Router = read("api/r2.ts");
@@ -82,6 +83,25 @@ describe("municipal staff account and avatar recovery regressions", () => {
     expect(appBootstrap).toContain("void markCurrentProfileAccess()");
     expect(appBootstrap).toContain("void loadMunicipalityBundleById(municipalityId)");
     expect(appBootstrap).not.toContain("const currentSession = (await backendClient.auth.getSession()).data.session");
+  });
+
+  it("keeps a selected avatar as preview-only until the explicit save action", () => {
+    expect(profilePage).toContain("Pré-visualização pronta. A foto ainda não foi salva");
+    expect(profilePage).toContain('data-avatar-save-state="pending"');
+    expect(profilePage).toContain("disabled={saving || !avatarDraftDirty}");
+    expect(profilePage).toContain("Salvar foto no perfil");
+  });
+
+  it("only reports avatar success after the backend confirms the stable storage reference", () => {
+    expect(profilePage).toContain("expectedAvatarStorageRef");
+    expect(profilePage).toContain("persistedAvatarStorageRef");
+    expect(profilePage).toContain("persistedAvatarStorageRef !== expectedAvatarStorageRef");
+    expect(profilePage).toContain("Foto confirmada e gravada permanentemente no banco oficial.");
+  });
+
+  it("clears the persistent avatar reference when the user explicitly removes the photo", () => {
+    expect(profilePage).toContain("const removingAvatar =");
+    expect(profilePage).toContain('removingAvatar\n        ? ""');
   });
 
   it("persists profile avatars by stable R2 reference instead of a public URL", () => {
