@@ -90,7 +90,9 @@ describe("municipal bank and payment guide flow", () => {
   it("does not open a guide before Mercado Pago returns complete bank data", () => {
     expect(finance).toContain("if (!banking.barcode || !banking.digitableLine)");
     expect(processDetail).toContain("if (banking.barcode && banking.digitableLine) continue;");
-    expect(processDetail).toContain("if (!barcode || !digitableLine)");
+    expect(processDetail).toContain("historicalPaidGuide");
+    expect(processDetail).toContain("digitableLine");
+    expect(processDetail).toContain("barcode");
     expect(mercadoPagoGuide).toContain("!payload.digitableLine?.trim()");
     expect(mercadoPagoGuide).toContain("!payload.barcodeContent?.trim()");
   });
@@ -101,7 +103,9 @@ describe("municipal bank and payment guide flow", () => {
     expect(finance).toContain("embeddedGuideLogoUrl");
     expect(processDetail).toContain("embeddedGuideLogoUrl");
     expect(finance).toContain("if (!barcode || !digitableLine)");
-    expect(processDetail).toContain("if (!barcode || !digitableLine)");
+    expect(processDetail).toContain("historicalPaidGuide");
+    expect(processDetail).toContain("digitableLine");
+    expect(processDetail).toContain("barcode");
     expect(mercadoPagoGuide).toContain("!payload.digitableLine?.trim() || !payload.barcodeContent?.trim()");
     expect(finance).toContain("A DAM foi bloqueada para não emitir uma guia inválida");
     expect(processDetail).toContain("A guia ainda está sendo preparada.");
@@ -113,7 +117,7 @@ describe("municipal bank and payment guide flow", () => {
     expect(guide).toContain("Homologação Mercado Pago");
     expect(guide).toContain("PIX cadastrado pode ser real");
     expect(finance).toContain("pixPayload: banking.pixPayload");
-    expect(processDetail).toContain("pixPayload: banking.pixPayload");
+    expect(processDetail).toContain("pixPayload: historicalPaidGuide ? undefined : banking.pixPayload");
   });
 
   it("keeps the official guide premium and print-safe", () => {
@@ -151,7 +155,9 @@ describe("municipal bank and payment guide flow", () => {
     expect(finance).toContain("if (!banking.barcode || !banking.digitableLine)");
     expect(processDetail).toContain("if (banking.barcode && banking.digitableLine) continue;");
     expect(finance).toContain("if (!barcode || !digitableLine)");
-    expect(processDetail).toContain("if (!barcode || !digitableLine)");
+    expect(processDetail).toContain("historicalPaidGuide");
+    expect(processDetail).toContain("digitableLine");
+    expect(processDetail).toContain("barcode");
     expect(finance).not.toContain('match.guide.status !== "compensada" &&');
     expect(processDetail).not.toContain('selectedGuide.status !== "compensada" &&');
   });
@@ -173,8 +179,8 @@ describe("municipal bank and payment guide flow", () => {
     expect(processDetail).toContain("guideCode: guide.code");
     expect(processDetail).toContain("amount: guide.amount");
     expect(processDetail).toContain('description: `${guide.label} · ${process.protocol}`');
-    expect(processDetail).toContain('codigoBarras: barcode');
-    expect(processDetail).toContain('linhaDigitavel: digitableLine');
+    expect(processDetail).toContain('codigoBarras: historicalPaidGuide ? undefined : barcode');
+    expect(processDetail).toContain('linhaDigitavel: historicalPaidGuide ? undefined : digitableLine');
     expect(mercadoPagoServer).toContain("normalizeGuideCode");
     expect(mercadoPagoServer).toContain("external_reference: externalReference");
   });
@@ -184,7 +190,7 @@ describe("municipal bank and payment guide flow", () => {
     expect(guide).toContain("PIX cadastrado pode ser real");
     expect(guide).not.toContain("PIX real oculto durante a homologação");
     expect(finance).toContain("pixPayload: banking.pixPayload");
-    expect(processDetail).toContain("pixPayload: banking.pixPayload");
+    expect(processDetail).toContain("pixPayload: historicalPaidGuide ? undefined : banking.pixPayload");
     expect(guide).toContain("VALIDAÇÃO ELETRÔNICA PELO PROVEDOR DE PAGAMENTO");
     expect(guide).toContain("Tesouraria / baixa manual");
   });
