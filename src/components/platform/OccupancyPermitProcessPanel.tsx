@@ -428,8 +428,6 @@ export function OccupancyPermitProcessPanel({
         externalView={externalView}
         dataReady={dataReady}
         onProcessRefresh={onProcessRefresh}
-        onCompleteProcess={onCompleteProcess}
-        onReopenProcess={onReopenProcess}
       />
 
       <HabiteSePermitPanel
@@ -445,6 +443,7 @@ export function OccupancyPermitProcessPanel({
         directorate={directorate}
         onProcessRefresh={onProcessRefresh}
         onCompleteProcess={onCompleteProcess}
+        onReopenProcess={onReopenProcess}
       />
 
       <Card className="rounded-[24px] border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
