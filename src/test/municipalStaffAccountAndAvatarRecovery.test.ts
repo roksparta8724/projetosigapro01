@@ -99,6 +99,13 @@ describe("municipal staff account and avatar recovery regressions", () => {
     expect(profilePage).toContain("profile?.useAvatarInHeader ?? form.useAvatarInHeader");
   });
 
+  it("requires avatar_url to be explicitly returned by the database RPC", () => {
+    expect(backend).toContain('Object.prototype.hasOwnProperty.call(row, "avatar_url")');
+    expect(backend).toContain("O banco não confirmou o campo persistente da foto do perfil.");
+    expect(backend).toContain('const storedAvatar = String(row.avatar_url ?? "")');
+    expect(backend).not.toContain("row.avatar_url || profile.avatarStorageRef || profile.avatarUrl");
+  });
+
   it("only reports avatar success after the backend confirms the persistent R2 reference", () => {
     expect(profilePage).toContain("const persistedAvatarRef");
     expect(profilePage).toContain("persistedAvatarRef !== String(avatarStorageRef || \"\").trim()");
