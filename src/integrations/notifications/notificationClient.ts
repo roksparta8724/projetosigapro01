@@ -119,6 +119,21 @@ export async function markMyNotificationRead(
   return Boolean(data);
 }
 
+export async function deleteMyNotifications(notificationIds?: string[]) {
+  const ids = (notificationIds ?? []).filter(Boolean);
+  const { data, error } = await backendClient.rpc("delete_my_notifications_v1", {
+    _notification_ids: ids.length > 0 ? ids : null,
+  });
+
+  if (error) {
+    throw new Error(
+      messageFromError(error, "Não foi possível excluir as notificações selecionadas."),
+    );
+  }
+
+  return Number(data || 0);
+}
+
 export async function markAllMyNotificationsRead() {
   const { data, error } = await backendClient.rpc(
     "mark_all_my_notifications_read_v1",
