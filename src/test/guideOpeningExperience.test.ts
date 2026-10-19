@@ -38,6 +38,15 @@ describe("guide opening experience", () => {
     expect(external).toContain("historicalPaid: historicalPaidGuide");
   });
 
+  it("preserves historical issue dates and legacy confirmations without a fabricated payment date", () => {
+    const seal = read("neon/migrations/20261019152000_payment_guide_historical_seal.sql");
+    expect(seal).toContain("new.created_at is distinct from old.created_at");
+    expect(seal).toContain("old.paid_at is not null and new.paid_at is distinct from old.paid_at");
+    expect(seal).toContain("coalesce(old.paid,false) and not coalesce(new.paid,false)");
+    expect(seal).toContain("Um registro legado pode estar");
+    expect(seal).not.toContain("coalesce(new.paid,false) is distinct from true");
+  });
+
   it("never exposes an intermediary preparation document", () => {
     const guide = read("src/components/GuiaRecolhimentoOficial.tsx");
 
