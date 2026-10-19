@@ -16,6 +16,7 @@ describe("F5, logout and topbar visual continuity", () => {
   const habiteInspection = readFileSync(resolve(process.cwd(), "src/components/platform/HabiteSeInspectionPanel.tsx"), "utf8");
   const habitePermit = readFileSync(resolve(process.cwd(), "src/components/platform/HabiteSePermitPanel.tsx"), "utf8");
   const stableStatusMigration = readFileSync(resolve(process.cwd(), "supabase/migrations/20261019025000_habite_se_completion_via_stable_status_rpc.sql"), "utf8");
+  const assigneeIntegrityMigration = readFileSync(resolve(process.cwd(), "supabase/migrations/20261019035500_fix_analysis_assignee_profile_integrity.sql"), "utf8");
   const viteConfig = readFileSync(resolve(process.cwd(), "vite.config.ts"), "utf8");
   const css = readFileSync(resolve(process.cwd(), "src/index.css"), "utf8");
 
@@ -142,6 +143,12 @@ describe("F5, logout and topbar visual continuity", () => {
     expect(processDetail).toContain('query.eq("protocol_number", routeKey)');
     expect(processDetail).toContain('query.eq("id", resolvedProcessId)');
     expect(processDetail).toContain("baseProcess?.id");
+  });
+
+  it("prevents analysis ownership from pointing to non-analyst profiles", () => {
+    expect(assigneeIntegrityMigration).toContain("role='analista'");
+    expect(assigneeIntegrityMigration).toContain("trg_guard_process_analysis_assignee");
+    expect(assigneeIntegrityMigration).toContain("new.analysis_assigned_to :=");
   });
 
   it("renders the same canonical analyst name whenever the assigned profile id is the same", () => {
