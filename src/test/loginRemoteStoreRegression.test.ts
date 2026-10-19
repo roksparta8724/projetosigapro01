@@ -15,7 +15,7 @@ describe("login remote-store regression", () => {
 
     expect(start).toBeGreaterThanOrEqual(0);
     expect(end).toBeGreaterThan(start);
-    expect(retryBlock).toContain("return await loadRemotePlatformStore();");
+    expect(retryBlock).toContain("return await loadRemotePlatformStore(focusProcessRouteKey);");
     expect(retryBlock).not.toContain("return await loadRemotePlatformStoreWithRetry();");
   });
 
