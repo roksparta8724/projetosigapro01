@@ -1950,13 +1950,19 @@ export function ProcessDetailPage() {
     const digitableLine = providerCharge?.digitableLine || banking.digitableLine;
     const barcode = providerCharge?.barcodeContent || banking.barcode;
 
-    if (!barcode || !digitableLine) {
+    if ((!barcode || !digitableLine) && selectedGuide.status !== "compensada") {
       setProcessActionStatus(
         guidePreparationError
           ? `A guia não foi aberta porque os dados bancários ainda não estão válidos: ${guidePreparationError}`
           : "A guia ainda está sendo preparada. Aguarde a conclusão dos dados bancários antes de abrir.",
       );
       return;
+    }
+
+    if ((!barcode || !digitableLine) && selectedGuide.status === "compensada") {
+      setProcessActionStatus(
+        "Cópia histórica aberta com a emissão e a baixa originais. Esta guia antiga não possui linha digitável/código de barras persistidos e o SIGAPRO não criará uma nova cobrança para substituí-los.",
+      );
     }
 
     const providerInstitution = providerCharge?.financialInstitution?.trim() || "";
