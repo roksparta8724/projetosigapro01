@@ -336,6 +336,15 @@ export function FinanceProtocolsPage() {
       tenantSettings?.brasaoUrl,
     );
 
+    const persistedIssuedAt = String(match.guide.issuedAt || "").trim();
+    if (!persistedIssuedAt) {
+      setFinancialStatus(
+        "A guia oficial não possui data de emissão persistida. O documento foi bloqueado para impedir que a data de hoje substitua a emissão original.",
+      );
+      return;
+    }
+    const persistedIssueYear = new Date(persistedIssuedAt).getFullYear().toString();
+
     const openedGuide = openGuiaRecolhimentoOficialWindow(
       {
         prefeitura: {
@@ -361,12 +370,8 @@ export function FinanceProtocolsPage() {
         },
         guia: {
           numeroGuia: match.guide.code,
-          exercicio: new Date(
-            match.guide.issuedAt || Date.now(),
-          )
-            .getFullYear()
-            .toString(),
-          dataDocumento: match.guide.issuedAt || new Date().toISOString(),
+          exercicio: persistedIssueYear,
+          dataDocumento: persistedIssuedAt,
           vencimento: match.guide.dueDate,
           funcionarioResponsavel: session.name,
           referencia: getGuideReference(match.guide.kind),
@@ -396,11 +401,7 @@ export function FinanceProtocolsPage() {
         },
         itens: [
           {
-            ano: new Date(
-              match.guide.issuedAt || Date.now(),
-            )
-              .getFullYear()
-              .toString(),
+            ano: persistedIssueYear,
             divida: match.guide.label,
             tabela: tenantSettings?.guiaPrefixo || "DAM",
             sb: "",
