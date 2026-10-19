@@ -199,6 +199,13 @@ describe("municipal staff account and avatar recovery regressions", () => {
     expect(avatarCache).toContain('startsWith("r2:") ? SIGNED_R2_AVATAR_MAX_AGE_MS : MAX_AGE_MS');
   });
 
+  it("does not reuse expired signed R2 avatars from session cache after F5", () => {
+    expect(dataHook).toContain('String(cached.avatarStorageRef || "").startsWith("r2:")');
+    expect(dataHook).toContain("5 * 60 * 60 * 1000");
+    expect(dataHook).toContain("window.sessionStorage.removeItem(PROFILE_VISUAL_CACHE_KEY)");
+    expect(dataHook).toContain("Date.now() - cached.cachedAt > maxCacheAgeMs");
+  });
+
   it("caches same-origin R2 avatars in the service worker for repeat F5", () => {
     expect(serviceWorker).toContain('CACHE_VERSION = "sigapro-enterprise-v5"');
     expect(serviceWorker).toContain("AVATAR_CACHE");
