@@ -942,9 +942,17 @@ export function PerfilPage() {
       }
 
       const effectiveAvatarFiles = avatarOverride ?? avatarFiles;
-      let avatarUrl = effectiveAvatarFiles[0]?.previewUrl ?? form.avatarUrl;
-      let avatarStorageRef = profile?.avatarStorageRef || profile?.avatarUrl || form.avatarUrl;
-      let avatarUploadFile = effectiveAvatarFiles[0]?.file;
+      const removingAvatar =
+        avatarDraftDirty &&
+        effectiveAvatarFiles.length === 0 &&
+        !form.avatarUrl.trim();
+      let avatarUrl = removingAvatar
+        ? ""
+        : effectiveAvatarFiles[0]?.previewUrl ?? form.avatarUrl;
+      let avatarStorageRef = removingAvatar
+        ? ""
+        : profile?.avatarStorageRef || profile?.avatarUrl || form.avatarUrl;
+      let avatarUploadFile = removingAvatar ? undefined : effectiveAvatarFiles[0]?.file;
       let avatarScale = avatarOverride?.[0]?.file ? 1 : form.avatarScale;
       let avatarOffsetX = avatarOverride?.[0]?.file ? 0 : form.avatarOffsetX;
       let avatarOffsetY = avatarOverride?.[0]?.file ? 0 : form.avatarOffsetY;
@@ -997,7 +1005,7 @@ export function PerfilPage() {
       };
 
       const savedProfile = await saveUserProfile(nextProfile);
-      const savedAvatarUrl = savedProfile.avatarUrl || avatarUrl;
+      const savedAvatarUrl = savedProfile.avatarUrl || "";
       setAvatarDraftDirty(false);
       if (savedAvatarUrl) {
         setAvatarFiles([
