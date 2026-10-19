@@ -1076,7 +1076,7 @@ export function PerfilPage() {
 
       const savedProfile = await saveUserProfile(nextProfile);
       const savedAvatarUrl = savedProfile.avatarUrl || avatarUrl;
-      const avatarReadConfirmed = !avatarUploadFile || await confirmSavedAvatarReadable(savedAvatarUrl);
+      const avatarReadConfirmed = !savedAvatarUrl || !savedAvatarUrl.startsWith("/api/profile-avatar-open?objectKey=") || await confirmSavedAvatarReadable(savedAvatarUrl);
       if (avatarReadConfirmed) setAvatarDraftDirty(false);
       if (savedAvatarUrl) {
         setAvatarFiles([
