@@ -6,6 +6,7 @@ import path from "path";
 import { componentTagger } from "lovable-tagger";
 import { checkMercadoPagoConnection, createMercadoPagoGuideBoleto, getMercadoPagoGuideBoletoStatus } from "./server/mercadopago";
 import paymentConnectionHandler from "./api/payment-connection";
+import handleProfileAvatarOpen from "./server/api/profile-avatar-open";
 import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand, HeadBucketCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
@@ -375,59 +376,11 @@ function createR2DevApiPlugin(): Plugin {
         }
 
         if (req.url.startsWith("/api/profile-avatar-open") && req.method === "GET") {
-          try {
-            const requestUrl = new URL(req.url, "http://localhost:8080");
-            const sourceRaw = requestUrl.searchParams.get("source") || "";
-            const source = new URL(sourceRaw);
-            const allowedHost = /(^|\.)supabase\.co$/i.test(source.hostname);
-            const allowedPath = source.pathname.startsWith("/storage/v1/object/public/avatars/");
-
-            if (source.protocol !== "https:" || !allowedHost || !allowedPath) {
-              res.statusCode = 400;
-              res.setHeader("Content-Type", "application/json; charset=utf-8");
-              res.end(JSON.stringify({ error: "Origem de avatar inválida." }));
-              return;
-            }
-
-            const controller = new AbortController();
-            const timeout = setTimeout(() => controller.abort(), 12000);
-            const response = await fetch(source.toString(), {
-              method: "GET",
-              redirect: "follow",
-              signal: controller.signal,
-              headers: { Accept: "image/*" },
-            });
-            clearTimeout(timeout);
-
-            const contentType = response.headers.get("content-type") || "";
-            if (!response.ok || !contentType.toLowerCase().startsWith("image/")) {
-              res.statusCode = response.status === 404 ? 404 : 502;
-              res.setHeader("Content-Type", "application/json; charset=utf-8");
-              res.end(JSON.stringify({ error: "Foto de perfil legada indisponível." }));
-              return;
-            }
-
-            const bytes = Buffer.from(await response.arrayBuffer());
-            if (bytes.length > 10 * 1024 * 1024) {
-              res.statusCode = 413;
-              res.setHeader("Content-Type", "application/json; charset=utf-8");
-              res.end(JSON.stringify({ error: "Foto de perfil muito grande." }));
-              return;
-            }
-
-            res.statusCode = 200;
-            res.setHeader("Content-Type", contentType);
-            res.setHeader("Cache-Control", "private, max-age=3600");
-            res.end(bytes);
-            return;
-          } catch (error) {
-            res.statusCode = 502;
-            res.setHeader("Content-Type", "application/json; charset=utf-8");
-            res.end(JSON.stringify({
-              error: error instanceof Error ? error.message : "Não foi possível recuperar a foto de perfil.",
-            }));
-            return;
-          }
+          // Mesma implementação do Vercel: suporta objectKey R2 e source legado.
+          // O handler antigo do localhost somente aceitava "source" e devolvia
+          // 502 para a foto recém-gravada no Neon, causando sumiço após F5.
+          await handleProfileAvatarOpen(req, res);
+          return;
         }
 
         if (req.method !== "POST") {
