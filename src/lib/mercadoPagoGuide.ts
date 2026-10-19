@@ -25,6 +25,10 @@ export type MercadoPagoGuideChargeInput = {
   amount: number;
   dueDate?: string;
   description?: string;
+  /** Cobrança já persistida no banco oficial da guia. */
+  existingCharge?: Partial<MercadoPagoGuideCharge>;
+  /** Nunca criar outra cobrança quando a guia já representa um fato histórico. */
+  allowCreate?: boolean;
 };
 
 function cacheKey(input: MercadoPagoGuideChargeInput) {
@@ -113,12 +117,47 @@ async function refreshMercadoPagoGuideCharge(
   }
 }
 
+function hasCompleteBankingData(charge?: Partial<MercadoPagoGuideCharge> | null) {
+  const lineDigits = String(charge?.digitableLine || "").replace(/\D/g, "");
+  const barcodeDigits = String(charge?.barcodeContent || "").replace(/\D/g, "");
+  const validLine = lineDigits.length === 47 || lineDigits.length === 48;
+  const validBarcode =
+    barcodeDigits.length >= 40 &&
+    barcodeDigits.length <= 48 &&
+    barcodeDigits.length % 2 === 0;
+  return Boolean(charge?.ok !== false && validLine && validBarcode);
+}
+
 export async function ensureMercadoPagoGuideCharge(
   input: MercadoPagoGuideChargeInput,
 ): Promise<MercadoPagoGuideCharge> {
+  const persisted = input.existingCharge;
+  if (hasCompleteBankingData(persisted)) {
+    return { ok: true, environment: persisted?.environment || "test", ...persisted } as MercadoPagoGuideCharge;
+  }
+
+  if (persisted?.orderId) {
+    const refreshed = await refreshMercadoPagoGuideCharge(
+      input,
+      {
+        ok: true,
+        environment: persisted.environment || "test",
+        ...persisted,
+      } as MercadoPagoGuideCharge,
+    );
+    if (hasCompleteBankingData(refreshed)) return refreshed;
+    if (input.allowCreate === false) return refreshed;
+  }
+
   const cached = readCachedCharge(input);
   if (cached) {
     return await refreshMercadoPagoGuideCharge(input, cached);
+  }
+
+  if (input.allowCreate === false) {
+    throw new Error(
+      "A guia histórica não possui dados bancários persistidos suficientes. O sistema não criará uma nova cobrança para substituir o documento original.",
+    );
   }
 
   let authorization = "";
