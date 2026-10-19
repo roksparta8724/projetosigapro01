@@ -1676,7 +1676,7 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
         amount: Number(primaryGuide?.amount ?? 0),
         status:
           primaryGuide?.status === "compensada" ||
-          primaryGuide?.status === "confirmed" ||
+          (primaryGuide?.status === "confirmed" && (primaryGuide.paid === true || primaryGuide.paid_at != null)) ||
           primaryGuide?.status === "paid" ||
           primaryGuide?.paid === true
             ? "compensada"
@@ -1711,7 +1711,7 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
             amount: Number(guide.amount ?? 0),
             status:
               guide.status === "compensada" ||
-              guide.status === "confirmed" ||
+              (guide.status === "confirmed" && (guide.paid === true || guide.paid_at != null)) ||
               guide.status === "paid" ||
               guide.paid === true
                 ? "compensada"
