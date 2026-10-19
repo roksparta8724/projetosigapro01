@@ -211,6 +211,7 @@ export function PerfilPage() {
   const [accountStatus, setAccountStatus] = useState("");
   const [saving, setSaving] = useState(false);
   const [avatarFiles, setAvatarFiles] = useState<UploadedFileItem[]>([]);
+  const [avatarDraftDirty, setAvatarDraftDirty] = useState(false);
   const [section, setSection] = useState<ProfileSection>("visao-geral");
   const avatarObjectUrlRef = useRef<string | null>(null);
   const avatarFrameDirtyRef = useRef(false);
@@ -438,7 +439,9 @@ export function PerfilPage() {
 
   useEffect(() => {
     if (!profile) return;
-    setForm({
+
+    setForm((current) => ({
+      ...current,
       fullName: profile.fullName,
       email: profile.email,
       phone: profile.phone,
@@ -455,13 +458,20 @@ export function PerfilPage() {
       city: profile.city,
       state: profile.state,
       zipCode: profile.zipCode,
-      avatarUrl: profile.avatarUrl,
-      avatarScale: profile.avatarScale ?? 1,
-      avatarOffsetX: profile.avatarOffsetX ?? 0,
-      avatarOffsetY: profile.avatarOffsetY ?? 0,
-      useAvatarInHeader: profile.useAvatarInHeader ?? false,
+      ...(avatarDraftDirty
+        ? {}
+        : {
+            avatarUrl: profile.avatarUrl,
+            avatarScale: profile.avatarScale ?? 1,
+            avatarOffsetX: profile.avatarOffsetX ?? 0,
+            avatarOffsetY: profile.avatarOffsetY ?? 0,
+            useAvatarInHeader: profile.useAvatarInHeader ?? false,
+          }),
       bio: profile.bio,
-    });
+    }));
+
+    if (avatarDraftDirty) return;
+
     if (profile.avatarUrl) {
       setAvatarFiles([
         {
@@ -472,8 +482,10 @@ export function PerfilPage() {
           previewUrl: profile.avatarUrl,
         },
       ]);
+    } else {
+      setAvatarFiles([]);
     }
-  }, [profile]);
+  }, [avatarDraftDirty, profile]);
 
   useEffect(() => {
     setDraftMasterHeaderConfig({
@@ -514,6 +526,8 @@ export function PerfilPage() {
     const nextFile = files[0];
     if (!nextFile) {
       setAvatarFiles([]);
+      setAvatarDraftDirty(true);
+      setStatus("Remoção da foto preparada. Clique em “Salvar ajustes da foto” para confirmar.");
       setForm((current) => ({
         ...current,
         avatarUrl: "",
@@ -535,20 +549,20 @@ export function PerfilPage() {
     }
 
     const selectedFiles = files.slice(0, 1);
-    setStatus(nextFile.file ? "Salvando foto automaticamente..." : "");
     setAvatarFiles(selectedFiles);
+    setAvatarDraftDirty(Boolean(nextFile.file));
+    if (nextFile.file) setForm((current) => ({ ...current, useAvatarInHeader: true }));
+    setStatus(
+      nextFile.file
+        ? "Pré-visualização pronta. A foto ainda não foi salva; clique em “Salvar ajustes da foto”."
+        : "",
+    );
     setForm((current) => ({
       ...current,
-      avatarScale: 1,
-      avatarOffsetX: 0,
-      avatarOffsetY: 0,
+      avatarScale: nextFile.file ? 1 : current.avatarScale,
+      avatarOffsetX: nextFile.file ? 0 : current.avatarOffsetX,
+      avatarOffsetY: nextFile.file ? 0 : current.avatarOffsetY,
     }));
-
-    if (nextFile.file) {
-      window.setTimeout(() => {
-        void handleSubmit({ preventDefault: () => {} } as FormEvent, selectedFiles);
-      }, 0);
-    }
   };
 
   useEffect(() => {
@@ -603,7 +617,7 @@ export function PerfilPage() {
   };
 
   useEffect(() => {
-    if (!avatarFrameDirtyRef.current || !profile?.avatarUrl) return;
+    if (!avatarFrameDirtyRef.current || avatarDraftDirty || !profile?.avatarUrl) return;
 
     if (avatarFrameSaveTimerRef.current) {
       window.clearTimeout(avatarFrameSaveTimerRef.current);
@@ -651,6 +665,7 @@ export function PerfilPage() {
     form.avatarOffsetY,
     form.avatarScale,
     form.useAvatarInHeader,
+    avatarDraftDirty,
     profile,
     saveUserProfile,
   ]);
@@ -947,7 +962,7 @@ export function PerfilPage() {
         avatarScale: form.avatarScale,
         avatarOffsetX: form.avatarOffsetX,
         avatarOffsetY: form.avatarOffsetY,
-        useAvatarInHeader: form.useAvatarInHeader,
+        useAvatarInHeader: avatarUploadFile ? true : form.useAvatarInHeader,
         bio: form.bio,
       }),
       email: accountForm.nextEmail.trim().toLowerCase(),
@@ -1001,8 +1016,12 @@ export function PerfilPage() {
       }
 
       const effectiveAvatarFiles = avatarOverride ?? avatarFiles;
-      let avatarUrl = effectiveAvatarFiles[0]?.previewUrl ?? form.avatarUrl;
-      let avatarStorageRef = profile?.avatarStorageRef || profile?.avatarUrl || form.avatarUrl;
+      let avatarUrl = avatarDraftDirty && effectiveAvatarFiles.length === 0
+        ? ""
+        : effectiveAvatarFiles[0]?.previewUrl ?? form.avatarUrl;
+      let avatarStorageRef = avatarDraftDirty && effectiveAvatarFiles.length === 0
+        ? ""
+        : profile?.avatarStorageRef || profile?.avatarUrl || form.avatarUrl;
       let avatarUploadFile = effectiveAvatarFiles[0]?.file;
       let avatarScale = avatarOverride?.[0]?.file ? 1 : form.avatarScale;
       let avatarOffsetX = avatarOverride?.[0]?.file ? 0 : form.avatarOffsetX;
@@ -1058,6 +1077,7 @@ export function PerfilPage() {
       const savedProfile = await saveUserProfile(nextProfile);
       const savedAvatarUrl = savedProfile.avatarUrl || avatarUrl;
       const avatarReadConfirmed = !avatarUploadFile || await confirmSavedAvatarReadable(savedAvatarUrl);
+      if (avatarReadConfirmed) setAvatarDraftDirty(false);
       if (savedAvatarUrl) {
         setAvatarFiles([
           {
@@ -1068,6 +1088,8 @@ export function PerfilPage() {
             previewUrl: savedAvatarUrl,
           },
         ]);
+      } else {
+        setAvatarFiles([]);
       }
       setForm((current) => ({
         ...current,
