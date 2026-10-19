@@ -40,7 +40,8 @@ describe("Habite-se guide branding and status contrast", () => {
   it("keeps the Habite-se signature workflow exclusive to the municipal Director", () => {
     expect(permit).toContain("userCanSignPermitAsDirector(session)");
     expect(permit).toContain("requestDirectorSignature");
-    expect(permit).toContain('signerSlot: "diretoria"');
+    expect(permit).toContain('const slot = signingSecretary ? "secretaria" : "diretoria"');
+    expect(permit).toContain("signerSlot: slot");
     expect(permit).toContain("setHabiteSePermitAwaitingDirector(process.id)");
     expect(permit).toContain("finalizeHabiteSePermit(process.id)");
     expect(permit).not.toContain('openSignature("analyst")');
