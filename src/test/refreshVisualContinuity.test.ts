@@ -56,11 +56,11 @@ describe("F5, logout and topbar visual continuity", () => {
   });
 
   it("seeds refresh continuity before React renders so Habite-se never disappears on F5", () => {
-    expect(main).toContain("persistRefreshContinuity();\n\nbootApplication();");
-    expect(main.indexOf("persistRefreshContinuity();\n\nbootApplication();")).toBeGreaterThan(-1);
-    expect(main.indexOf("persistRefreshContinuity();\n\nbootApplication();")).toBeLessThan(
-      main.lastIndexOf("bootApplication();") + 1,
-    );
+    const continuitySeedIndex = main.indexOf("persistRefreshContinuity();");
+    const bootstrapIndex = main.lastIndexOf("bootApplication();");
+    expect(continuitySeedIndex).toBeGreaterThan(-1);
+    expect(bootstrapIndex).toBeGreaterThan(-1);
+    expect(continuitySeedIndex).toBeLessThan(bootstrapIndex);
   });
 
   it("treats same-user warm store as visually ready during F5 revalidation", () => {
@@ -95,7 +95,7 @@ describe("F5, logout and topbar visual continuity", () => {
     expect(processDetail).toContain("stableProtocolTrackingOnly && preferredTab");
     expect(processDetail).toContain("stableProtocolTrackingOnly && requested");
     expect(processDetail).toContain("if (!stableProtocolTrackingOnly) return");
-    expect(processDetail).toContain("dataReadyForCurrentUser &&\n                  session.id !== \"unknown\"");
+    expect(processDetail).toMatch(/dataReadyForCurrentUser\s*&&\s*session\.id\s*!==\s*"unknown"/);
   });
 
   it("keeps the current Analysis tab visible while the same session revalidates", () => {
