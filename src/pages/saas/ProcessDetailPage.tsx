@@ -665,9 +665,12 @@ export function ProcessDetailPage() {
         guide.code,
         guide.amount,
         guide.dueDate,
+        guide.status,
+        guide.paidAt || "",
         guide.barcode || "",
         guide.digitableLine || "",
         guide.bankReference || "",
+        guide.bankPaymentId || "",
       ].join(":"),
     )
     .join("|");
@@ -793,12 +796,30 @@ export function ProcessDetailPage() {
 
           if (banking.barcode && banking.digitableLine) continue;
 
+          // Uma guia compensada é documento histórico. Nunca gerar outra cobrança
+          // durante F5, login ou simples abertura da tela. Se os dados bancários
+          // antigos não foram persistidos, mantemos o registro contábil original
+          // e não fabricamos um boleto novo.
+          if (guide.status === "compensada") continue;
+
           preparedCharges[guide.code] = await ensureMercadoPagoGuideCharge({
             municipalityId: effectiveScopeId,
             guideCode: guide.code,
             amount: guide.amount,
             dueDate: guide.dueDate,
             description: `${guide.label} · ${process.protocol}`,
+            existingCharge: {
+              ok: true,
+              environment: guide.providerEnvironment || "test",
+              orderId: guide.bankReference,
+              paymentId: guide.bankPaymentId,
+              status: guide.bankStatus,
+              statusDetail: guide.bankStatusDetail,
+              authenticatedAt: guide.bankAuthenticatedAt,
+              barcodeContent: guide.barcode,
+              digitableLine: guide.digitableLine,
+            },
+            allowCreate: !guide.bankReference,
           });
         }
 
