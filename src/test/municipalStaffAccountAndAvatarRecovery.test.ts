@@ -118,8 +118,9 @@ describe("municipal staff account and avatar recovery regressions", () => {
 
   it("does not announce the avatar is visible until its stored image loads", () => {
     expect(profilePage).toContain("const readable = await new Promise<boolean>");
-    expect(profilePage).toContain("image.onload = () => resolve(true)");
-    expect(profilePage).toContain("image.onerror = () => resolve(false)");
+    expect(profilePage).toContain("image.onload = () => finish(true)");
+    expect(profilePage).toContain("window.setTimeout(() => finish(false), 12000)");
+    expect(profilePage).toContain("image.onerror = () => finish(false)");
     expect(profilePage).toContain("Foto gravada no banco oficial e carregada com sucesso.");
     expect(profilePage).toContain("A referência da foto foi gravada no banco, mas a imagem não pôde ser carregada");
   });
