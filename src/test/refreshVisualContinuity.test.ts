@@ -11,6 +11,7 @@ describe("F5, logout and topbar visual continuity", () => {
   const platformData = readFileSync(resolve(process.cwd(), "src/hooks/usePlatformData.tsx"), "utf8");
   const planEntitlements = readFileSync(resolve(process.cwd(), "src/hooks/usePlanEntitlements.ts"), "utf8");
   const processDetail = readFileSync(resolve(process.cwd(), "src/pages/saas/ProcessDetailPage.tsx"), "utf8");
+  const analystDesk = readFileSync(resolve(process.cwd(), "src/pages/saas/AnalystDeskPage.tsx"), "utf8");
   const urbanChecklist = readFileSync(resolve(process.cwd(), "src/components/platform/UrbanAnalysisChecklistPanel.tsx"), "utf8");
   const habiteInspection = readFileSync(resolve(process.cwd(), "src/components/platform/HabiteSeInspectionPanel.tsx"), "utf8");
   const habitePermit = readFileSync(resolve(process.cwd(), "src/components/platform/HabiteSePermitPanel.tsx"), "utf8");
@@ -141,6 +142,14 @@ describe("F5, logout and topbar visual continuity", () => {
     expect(processDetail).toContain('query.eq("protocol_number", routeKey)');
     expect(processDetail).toContain('query.eq("id", resolvedProcessId)');
     expect(processDetail).toContain("baseProcess?.id");
+  });
+
+  it("keeps concluded processes visible and archives only per profile", () => {
+    expect(processDetail).toContain('status: "deferido"');
+    expect(analystDesk).toContain('"concluidos"');
+    expect(analystDesk).toContain('"profile_process_archives"');
+    expect(analystDesk).toContain("Arquivar da minha lista");
+    expect(analystDesk).toContain("Processos concluídos");
   });
 
   it("marks every Habite-se workflow step done after final process status", () => {
