@@ -510,7 +510,7 @@ export default async function handler(req: ApiReq, res: Res) {
           "authorization",
           "HABITE_SE_DIRECTOR_REQUEST_REQUIRED",
           permitResult.error,
-          "O Analista Técnico precisa assinar e encaminhar o Alvará de Habite-se à Diretoria antes desta assinatura.",
+          "O Alvará de Habite-se precisa estar formalmente encaminhado à Diretoria antes desta assinatura.",
         );
         return;
       }
