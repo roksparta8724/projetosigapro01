@@ -58,10 +58,12 @@ import {
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
+import { backendClient } from "@/integrations/backend/databaseClient";
 
 type AnalystSection =
   | "visao-geral"
   | "fila"
+  | "concluidos"
   | "pendencias"
   | "correcoes"
   | "historico"
@@ -204,14 +206,49 @@ export function AnalystDeskPage() {
   const [expandedProcessId, setExpandedProcessId] = useState<string | null>(null);
 
   useEffect(() => {
-    try {
-      const stored = window.localStorage.getItem(archiveStorageKey);
-      const parsed = stored ? JSON.parse(stored) : [];
-      setArchivedProcessIds(Array.isArray(parsed) ? parsed.filter((value) => typeof value === "string") : []);
-    } catch {
-      setArchivedProcessIds([]);
-    }
-  }, [archiveStorageKey]);
+    let disposed = false;
+
+    const hydratePersonalArchive = async () => {
+      let cached: string[] = [];
+      try {
+        const stored = window.localStorage.getItem(archiveStorageKey);
+        const parsed = stored ? JSON.parse(stored) : [];
+        cached = Array.isArray(parsed)
+          ? parsed.filter((value) => typeof value === "string")
+          : [];
+        if (!disposed) setArchivedProcessIds(cached);
+      } catch {
+        cached = [];
+      }
+
+      const { data, error } = await backendClient
+        .from("profile_process_archives")
+        .select("process_id")
+        .eq("profile_id", session.id);
+
+      if (disposed || error) return;
+
+      const official = Array.from(
+        new Set(
+          (data ?? [])
+            .map((row) => String(row.process_id || ""))
+            .filter(Boolean),
+        ),
+      );
+
+      setArchivedProcessIds(official);
+      try {
+        window.localStorage.setItem(archiveStorageKey, JSON.stringify(official));
+      } catch {
+        // O banco permanece como fonte oficial mesmo quando o cache local está indisponível.
+      }
+    };
+
+    void hydratePersonalArchive();
+    return () => {
+      disposed = true;
+    };
+  }, [archiveStorageKey, session.id]);
 
   useEffect(() => {
     const requested = searchParams.get("secao");
@@ -220,14 +257,52 @@ export function AnalystDeskPage() {
     }
   }, [searchParams]);
 
-  const setProcessArchived = (processId: string, archived: boolean) => {
-    setArchivedProcessIds((current) => {
-      const next = archived
-        ? Array.from(new Set([...current, processId]))
-        : current.filter((id) => id !== processId);
+  const setProcessArchived = async (processId: string, archived: boolean) => {
+    const previous = archivedProcessIds;
+    const next = archived
+      ? Array.from(new Set([...previous, processId]))
+      : previous.filter((id) => id !== processId);
+
+    setArchivedProcessIds(next);
+    try {
       window.localStorage.setItem(archiveStorageKey, JSON.stringify(next));
-      return next;
-    });
+    } catch {
+      // Cache local opcional.
+    }
+
+    const result = archived
+      ? await backendClient
+          .from("profile_process_archives")
+          .upsert(
+            { profile_id: session.id, process_id: processId },
+            { onConflict: "profile_id,process_id" },
+          )
+      : await backendClient
+          .from("profile_process_archives")
+          .delete()
+          .eq("profile_id", session.id)
+          .eq("process_id", processId);
+
+    if (result.error) {
+      setArchivedProcessIds(previous);
+      try {
+        window.localStorage.setItem(archiveStorageKey, JSON.stringify(previous));
+      } catch {
+        // Cache local opcional.
+      }
+      setActionStatus(
+        archived
+          ? "Não foi possível arquivar este processo somente para o seu perfil."
+          : "Não foi possível restaurar este processo na sua lista.",
+      );
+      return;
+    }
+
+    setActionStatus(
+      archived
+        ? "Processo arquivado somente na sua visualização. Ele continua disponível para os demais perfis e no registro geral."
+        : "Processo restaurado na sua visualização.",
+    );
   };
 
   const requirementsOpen = activeProcesses.reduce(
@@ -244,7 +319,8 @@ export function AnalystDeskPage() {
     "despacho_intersetorial",
   ] as const;
   const inReview = activeProcesses.filter((item) => item.status === "analise_tecnica");
-  const completed = processes.filter((item) => item.status === "deferido");
+  const completed = processes.filter((item) => ["deferido", "arquivado"].includes(item.status));
+  const visibleCompleted = completed.filter((item) => !archivedProcessIds.includes(item.id));
   const correctionQueue = activeProcesses.filter(
     (item) => item.status === "reapresentacao" || item.status === "exigencia",
   );
@@ -502,6 +578,7 @@ export function AnalystDeskPage() {
   const navItems = [
     { value: "visao-geral", label: "Resumo", helper: "Prioridades da mesa técnica" },
     { value: "fila", label: "Processos da análise", helper: "Ativos, encaminhados e concluídos" },
+    { value: "concluidos", label: "Concluídos", helper: `${visibleCompleted.length} processo(s) finalizado(s)` },
     { value: "pendencias", label: "Pendências", helper: "Bloqueios e inconsistências" },
     { value: "correcoes", label: "Correções solicitadas", helper: "Retornos e reapresentação" },
     { value: "historico", label: "Histórico técnico", helper: "Comentários, decisões e movimentos" },
@@ -641,7 +718,7 @@ export function AnalystDeskPage() {
                       size="icon"
                       className="h-10 w-10 rounded-xl border-slate-200 bg-white text-slate-600 shadow-[0_4px_12px_rgba(15,23,42,0.05)] hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
                       onClick={() =>
-                        setProcessArchived(
+                        void setProcessArchived(
                           process.id,
                           !archivedProcessIds.includes(process.id),
                         )
@@ -1269,6 +1346,31 @@ export function AnalystDeskPage() {
             {renderProcessRegistry()}
           </TableCard>
           </>
+        )}
+
+        {section === "concluidos" && (
+          <TableCard
+            title="Processos concluídos"
+            description="Processos finalizados permanecem disponíveis para consulta, histórico e eventual reabertura. Arquivar remove somente da sua visualização pessoal."
+            icon={CheckCircle2}
+            actions={
+              <div className="relative w-full max-w-xl">
+                <Search className="sig-search-icon sig-analysis-search-icon pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2" />
+                <Input
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="Buscar concluído por processo, proprietário, endereço ou IPTU"
+                  className="h-11 rounded-[14px] border-slate-200 bg-white pl-11 shadow-[0_4px_14px_rgba(15,23,42,0.04)] dark:border-slate-700 dark:bg-slate-900"
+                />
+              </div>
+            }
+          >
+            {renderQueue(
+              visibleCompleted.filter(filterBySearch),
+              "Nenhum processo concluído encontrado.",
+              true,
+            )}
+          </TableCard>
         )}
 
         {section === "pendencias" && (
