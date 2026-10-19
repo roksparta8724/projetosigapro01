@@ -1,6 +1,6 @@
 import { databaseClient as db, neonAuthUrl } from "@/integrations/backend/databaseClient";
 import { isNeonBackend } from "@/integrations/backend/config";
-import { getLegacyProfileAvatarOpenUrl, getSignedUrlForObjectStrict, uploadFile } from "@/integrations/r2/client";
+import { getLegacyProfileAvatarOpenUrl, uploadFile } from "@/integrations/r2/client";
 import { buildMunicipalityPortalUrl } from "@/lib/publicDomain";
 import {
   buildProcessDocuments,
@@ -48,17 +48,11 @@ async function resolveStoredProfileAvatar(value: string | null | undefined) {
 
   if (!objectKey) return raw;
 
-  const bucket =
-    (import.meta.env.VITE_R2_BUCKET_LOGOS as string | undefined) || "sigapro-logos";
-  try {
-    return await getSignedUrlForObjectStrict({ bucket, objectKey });
-  } catch (error) {
-    console.warn("[SIGAPRO][ProfileAvatar] Falha ao resolver avatar privado do R2.", {
-      objectKey,
-      error,
-    });
-    return "";
-  }
+  // Fotos de perfil são renderizadas por uma rota same-origin estável.
+  // Isso elimina dependência de URL assinada, CORS, hostname R2 e diferenças
+  // entre localhost e produção. A função serverless valida que a chave pertence
+  // exclusivamente à pasta municipal profiles/avatars.
+  return `/api/profile-avatar-open?objectKey=${encodeURIComponent(objectKey)}`;
 }
 
 function isMissingRelationError(error: unknown, relationName: string) {
