@@ -83,7 +83,8 @@ describe("F5, logout and topbar visual continuity", () => {
     expect(processDetail).toContain("sigapro.process-view.v1:");
     expect(processDetail).toContain("readCachedProcessVisual");
     expect(processDetail).toContain("writeCachedProcessVisual");
-    expect(processDetail).toContain("const process = liveProcess ?? cachedProcessVisual");
+    expect(processDetail).toContain("const baseProcess = liveProcess ?? cachedProcessVisual");
+    expect(processDetail).toContain("const process = useMemo(() =>");
   });
 
   it("keeps the Habite-se tab mounted while process permissions revalidate on F5", () => {
@@ -127,6 +128,19 @@ describe("F5, logout and topbar visual continuity", () => {
     expect(urbanChecklist).toContain("readInitialChecklistState(key, process, session)");
     expect(urbanChecklist).toContain("useState<AnalysisChecklistState>(() =>");
     expect(urbanChecklist).not.toContain("useState<AnalysisChecklistState>(() => makeInitialState(process, session))");
+  });
+
+  it("never dereferences documents or requirement types before the process model exists", () => {
+    expect(processDetail).toContain('const canAttachToRequirement = (item: ProcessRecord["requirements"][number])');
+    expect(processDetail).toContain('const recoverableDocumentsFingerprint = (process?.documents ?? [])');
+    expect(processDetail).not.toContain('const recoverableDocumentsFingerprint = process.documents');
+  });
+
+  it("rehydrates an archived detail route by protocol or UUID instead of querying protocol text as a UUID", () => {
+    expect(processDetail).toContain("refreshRemoteStore(processId ?? null)");
+    expect(processDetail).toContain('query.eq("protocol_number", routeKey)');
+    expect(processDetail).toContain('query.eq("id", resolvedProcessId)');
+    expect(processDetail).toContain("baseProcess?.id");
   });
 
   it("keeps the current process live even when it leaves the active store after archive", () => {
