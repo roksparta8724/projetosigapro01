@@ -1148,7 +1148,24 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
                 throw new Error("Esta conta não está vinculada à Prefeitura deste subdomínio.");
               }
             } else if (nextProfile?.municipalityId) {
-              nextBundle = await loadMunicipalityBundleById(nextProfile.municipalityId);
+              // No domínio principal, a identidade/município já foram validados
+              // por get_current_profile_context. O bundle institucional não deve
+              // bloquear a entrada; carregamos em segundo plano e atualizamos a UI
+              // assim que chegar.
+              const municipalityId = nextProfile.municipalityId;
+              void loadMunicipalityBundleById(municipalityId)
+                .then((bundle) => {
+                  if (bundle?.municipality?.id === municipalityId) {
+                    setMunicipalityBundle(bundle);
+                    lastStableRef.current = {
+                      ...lastStableRef.current,
+                      municipalityBundle: bundle,
+                    };
+                  }
+                })
+                .catch((bundleError) => {
+                  console.warn("[Bootstrap] Bundle municipal pós-login indisponível.", bundleError);
+                });
             }
           }
 
