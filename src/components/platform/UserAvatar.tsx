@@ -222,7 +222,7 @@ export function UserAvatar({
       <span
         aria-hidden="true"
         className={cn(
-          "sig-user-avatar-fallback absolute inset-0 flex h-full w-full items-center justify-center rounded-full bg-[linear-gradient(180deg,#f8fbff_0%,#e8eef5_100%)] font-extrabold uppercase tracking-[-0.03em] text-[#17324a] select-none dark:bg-[linear-gradient(180deg,#cbd5e1_0%,#94a3b8_100%)] dark:text-[#0f172a]",
+          "sig-user-avatar-fallback absolute inset-0 flex h-full w-full items-center justify-center rounded-full bg-[linear-gradient(180deg,#f8fbff_0%,#e8eef5_100%)] font-extrabold uppercase tracking-[-0.03em] !text-[#0f172a] select-none dark:bg-[linear-gradient(180deg,#cbd5e1_0%,#94a3b8_100%)] dark:!text-[#0f172a]",
           fallbackClassName,
         )}
       >
@@ -234,7 +234,7 @@ export function UserAvatar({
           alt={name || "Usuario"}
           decoding="async"
           className={cn(
-            "sig-user-avatar-image absolute inset-0 block h-full w-full max-w-none bg-white object-cover object-center",
+            "sig-user-avatar-image absolute inset-0 block h-full w-full max-w-none bg-transparent object-cover object-center",
             imageClassName,
           )}
           style={resolvedImageStyle}
