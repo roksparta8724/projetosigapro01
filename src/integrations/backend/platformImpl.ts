@@ -1497,7 +1497,12 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
         notes: process.triage_notes ?? undefined,
       },
       analysis: {
-        assignedTo: process.analysis_assigned_to ?? undefined,
+        assignedTo:
+          (process.analysis_assigned_to_profile_id
+            ? profileById.get(String(process.analysis_assigned_to_profile_id))?.full_name
+            : undefined) ??
+          process.analysis_assigned_to ??
+          undefined,
         assignedProfileId: process.analysis_assigned_to_profile_id ?? undefined,
         startedAt: process.analysis_started_at ?? undefined,
         supervisorOverrideProfileId: process.analysis_override_profile_id ?? undefined,
