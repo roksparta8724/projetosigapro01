@@ -16,6 +16,7 @@ describe("municipal staff account and avatar recovery regressions", () => {
   const appBootstrap = read("src/hooks/useAppBootstrap.tsx");
   const avatarCache = read("src/lib/profileAvatarCache.ts");
   const portalFrame = read("src/components/platform/PortalFrame.tsx");
+  const profilePage = read("src/pages/saas/PerfilPage.tsx");
   const serviceWorker = read("public/sigapro-sw.js");
   const indexHtml = read("index.html");
   const viteConfig = read("vite.config.ts");
@@ -121,6 +122,23 @@ describe("municipal staff account and avatar recovery regressions", () => {
     expect(backend).toContain('bucket: "profile-assets"');
     expect(backend).toContain("expiresIn: 21600");
     expect(backend).toContain("/api/profile-avatar-open?objectKey=");
+  });
+
+  it("does not present a newly selected photo as already persisted", () => {
+    expect(profilePage).toContain("Prévia não salva");
+    expect(profilePage).toContain("Ela só será enviada ao R2 e gravada no banco quando você clicar");
+    expect(profilePage).toContain("avatarDraftDirty");
+  });
+
+  it("confirms avatar save only when the database echoes the exact stored reference", () => {
+    expect(backend).toContain("expectedAvatar");
+    expect(backend).toContain("storedAvatar !== expectedAvatar");
+    expect(backend).toContain("O banco não confirmou a referência exata da foto enviada");
+  });
+
+  it("avoids the bright white fallback circle in dark topbars", () => {
+    expect(portalFrame).toContain("dark:!bg-[linear-gradient(180deg,#94a3b8_0%,#64748b_100%)]");
+    expect(portalFrame).toContain("dark:!text-[#0b1220]");
   });
 
   it("serves current R2 profile photos through the same-origin avatar route", () => {
