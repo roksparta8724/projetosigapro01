@@ -137,23 +137,25 @@ export function useNotifications(options?: {
 
   const deleteNotifications = useCallback(
     async (notificationIds?: string[]) => {
-      const ids = (notificationIds ?? []).filter(Boolean);
-      if (ids.length > 0) {
-        setNotifications((current) => current.filter((item) => !ids.includes(item.id)));
-      } else {
-        setNotifications([]);
-      }
+      const requestedIds = (notificationIds ?? []).filter(Boolean);
+      const ids =
+        requestedIds.length > 0
+          ? requestedIds
+          : notifications.map((item) => item.id);
+
+      if (ids.length === 0) return 0;
 
       try {
-        await deleteMyNotifications(ids);
+        const deleted = await deleteMyNotifications(ids);
         await refresh();
         emitNotificationsChanged();
+        return deleted;
       } catch (deleteError) {
         await refresh();
         throw deleteError;
       }
     },
-    [refresh],
+    [notifications, refresh],
   );
 
   const unreadNotifications = useMemo(
