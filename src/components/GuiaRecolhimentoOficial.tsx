@@ -1532,7 +1532,7 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
                   <div className="dam-mini-cell">
                     <div className="dam-mini-label">Exercicio</div>
                     <div className="dam-mini-value">
-                      {guia.exercicio || new Date().getFullYear()}
+                      {guia.exercicio || guia.dataDocumento?.slice(0, 4) || "—"}
                     </div>
                   </div>
                 </div>
