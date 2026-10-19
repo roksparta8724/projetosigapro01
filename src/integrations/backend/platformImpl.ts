@@ -1,6 +1,6 @@
 import { databaseClient as db, neonAuthUrl } from "@/integrations/backend/databaseClient";
 import { isNeonBackend } from "@/integrations/backend/config";
-import { getLegacyProfileAvatarOpenUrl, uploadFile } from "@/integrations/r2/client";
+import { getLegacyProfileAvatarOpenUrl, getObjectKeyFromPublicUrl, uploadFile } from "@/integrations/r2/client";
 import { buildMunicipalityPortalUrl } from "@/lib/publicDomain";
 import {
   buildProcessDocuments,
@@ -38,13 +38,24 @@ async function resolveStoredProfileAvatar(value: string | null | undefined) {
     return getLegacyProfileAvatarOpenUrl(raw);
   }
 
-  if (/^(https?:|data:|blob:)/i.test(raw)) return raw;
+  if (/^(data:|blob:)/i.test(raw)) return raw;
+
+  const objectKeyFromUrl = /^https?:/i.test(raw)
+    ? getObjectKeyFromPublicUrl(raw)
+    : "";
+  const isProfileObjectKey = /^municipalities\/[0-9a-f-]+\/profiles\/avatars\//i.test(
+    objectKeyFromUrl,
+  );
+
+  if (/^https?:/i.test(raw) && !isProfileObjectKey) return raw;
 
   const objectKey = raw.startsWith(PROFILE_ASSET_REF_PREFIX)
     ? raw.slice(PROFILE_ASSET_REF_PREFIX.length)
     : raw.startsWith("municipalities/")
       ? raw
-      : "";
+      : isProfileObjectKey
+        ? objectKeyFromUrl
+        : "";
 
   if (!objectKey) return raw;
 
