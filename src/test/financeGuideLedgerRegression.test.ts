@@ -14,7 +14,8 @@ describe("finance municipal guide ledger", () => {
 
   it("never substitutes today's date for an already-issued payment guide", () => {
     expect(protocols).toContain("persistedIssuedAt");
-    expect(protocols).toContain("dataDocumento: persistedIssuedAt");
+    expect(protocols).toContain("persistedIssuedOn");
+    expect(protocols).toContain("dataDocumento: persistedIssuedOn");
     expect(protocols).toContain("exercicio: persistedIssueYear");
     expect(protocols).not.toContain("dataDocumento: match.guide.issuedAt || new Date().toISOString()");
     expect(protocols).not.toContain("match.guide.issuedAt || Date.now()");
