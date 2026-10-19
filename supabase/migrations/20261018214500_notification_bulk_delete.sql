@@ -50,3 +50,7 @@ end;
 $function$;
 
 grant execute on function public.delete_my_notification_v1(uuid) to authenticated;
+
+
+-- Força o Data API/PostgREST a reconhecer imediatamente as novas RPCs.
+notify pgrst, 'reload schema';
