@@ -88,8 +88,9 @@ export function ExternalPaymentsPage() {
         municipalityCity: municipality?.city,
       });
 
+      const historicalPaidGuide = guide.status === "compensada";
       const charge =
-        banking.barcode && banking.digitableLine
+        historicalPaidGuide || (banking.barcode && banking.digitableLine)
           ? null
           : await ensureMercadoPagoGuideCharge({
               municipalityId: effectiveScopeId,
@@ -99,10 +100,14 @@ export function ExternalPaymentsPage() {
               description: `${guide.label} · ${process.preProtocol || process.title}`,
             });
 
-      const barcode = charge?.barcodeContent || banking.barcode;
-      const digitableLine = charge?.digitableLine || banking.digitableLine;
+      const barcode = historicalPaidGuide
+        ? undefined
+        : charge?.barcodeContent || banking.barcode;
+      const digitableLine = historicalPaidGuide
+        ? undefined
+        : charge?.digitableLine || banking.digitableLine;
 
-      if (!barcode || !digitableLine) {
+      if (!historicalPaidGuide && (!barcode || !digitableLine)) {
         throw new Error(
           "A cobrança ainda não retornou código de barras e linha digitável válidos.",
         );
@@ -155,25 +160,32 @@ export function ExternalPaymentsPage() {
           exercicio: year,
           dataDocumento: issuedAt,
           vencimento: guide.dueDate,
-          observacao: getGuideObservation(guide.kind),
+          observacao: historicalPaidGuide
+            ? `${getGuideObservation(guide.kind)} Documento histórico quitado; data de emissão e baixa preservadas conforme o registro original.`
+            : getGuideObservation(guide.kind),
           proprietario: guide.ownerName || process.ownerName,
           profissionalResponsavel:
             guide.professionalName || process.technicalLead,
           codigoBarras: barcode,
           linhaDigitavel: digitableLine,
-          pixPayload: banking.pixPayload,
+          pixPayload: historicalPaidGuide ? undefined : banking.pixPayload,
+          historicalPaid: historicalPaidGuide,
           bankName:
             charge?.financialInstitution ||
             banking.bankName ||
             "Mercado Pago",
           bankAgreement: banking.bankAgreement,
-          bankInstructions: banking.bankInstructions,
+          bankInstructions: historicalPaidGuide
+            ? "DOCUMENTO QUITADO. Não efetue novo pagamento. Via histórica preservada para consulta."
+            : banking.bankInstructions,
           bankReference: charge?.orderId || guide.bankReference,
           bankPaymentId: charge?.paymentId || guide.bankPaymentId,
           bankStatus: charge?.status || guide.bankStatus,
           bankStatusDetail: charge?.statusDetail || guide.bankStatusDetail,
           bankAuthenticatedAt:
-            charge?.authenticatedAt || guide.bankAuthenticatedAt,
+            charge?.authenticatedAt ||
+            guide.bankAuthenticatedAt ||
+            (historicalPaidGuide ? guide.paidAt : undefined),
           bankEnvironment: charge?.environment || guide.providerEnvironment,
           paymentProvider:
             guide.paymentProvider ||
