@@ -1,4 +1,4 @@
-﻿import { FormEvent, MouseEvent, useEffect, useMemo, useRef, useState } from "react";
+﻿import { FormEvent, MouseEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, ArrowRightLeft, Building2, CheckCircle2, Clock3, Download, Eye, FileBadge2, FileCheck2, FileKey2, FileStack, Landmark, LogOut, Maximize2, MessageSquareMore, PencilLine, Printer, ReceiptText, Route, ShieldAlert, Signature, UserRound, Wallet, Workflow, ZoomIn, ZoomOut } from "lucide-react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
@@ -335,7 +335,11 @@ export function ProcessDetailPage() {
     updateProcessStatus,
     reopenProcess,
   } = usePlatformData();
-  useLivePlatformRefresh(refreshRemoteStore, { intervalMs: 2500 });
+  const refreshCurrentProcessStore = useCallback(
+    () => refreshRemoteStore(processId ?? null),
+    [processId, refreshRemoteStore],
+  );
+  useLivePlatformRefresh(refreshCurrentProcessStore, { intervalMs: 2500 });
 
   const liveProcess = resolveProcessRoute(processes, processId);
   const [cachedProcessVisual, setCachedProcessVisual] = useState<ProcessRecord | undefined>(() =>
@@ -419,13 +423,30 @@ export function ProcessDetailPage() {
 
       inFlight = true;
       try {
-        const { data, error } = await backendClient
+        let routeKey = processId.trim();
+        try {
+          routeKey = decodeURIComponent(routeKey);
+        } catch {
+          // Mantém a rota original quando não estiver codificada.
+        }
+
+        const resolvedProcessId =
+          baseProcess?.id ||
+          (/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(routeKey)
+            ? routeKey
+            : "");
+
+        let query = backendClient
           .from("processes")
           .select(
             "id,status,current_department,current_queue,sla_stage,process_checkpoint,archived_at,updated_at",
-          )
-          .eq("id", processId)
-          .limit(1);
+          );
+
+        query = resolvedProcessId
+          ? query.eq("id", resolvedProcessId)
+          : query.eq("protocol_number", routeKey);
+
+        const { data, error } = await query.limit(1);
 
         if (error || disposed) return;
         const row = Array.isArray(data) ? data[0] : data;
@@ -512,7 +533,7 @@ export function ProcessDetailPage() {
       window.removeEventListener("sigapro:data-changed", syncExactProcess as EventListener);
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [liveProcess, processId, session.id]);
+  }, [baseProcess?.id, liveProcess, processId, session.id]);
 
   const effectiveScopeId =
     process?.municipalityId ??
@@ -4075,7 +4096,7 @@ export function ProcessDetailPage() {
                     detail:
                       "Alvará de Habite-se emitido com assinatura eletrônica válida da Diretoria. Processo concluído administrativamente pelo responsável autorizado e encaminhado ao histórico, preservando rastreabilidade, documentos, assinaturas e movimentações.",
                   });
-                  await refreshRemoteStore();
+                  await refreshRemoteStore(process.id);
                   window.dispatchEvent(new Event("sigapro:data-changed"));
                 }}
                 onReopenProcess={async (reason) => {
@@ -4084,7 +4105,7 @@ export function ProcessDetailPage() {
                     actor: session.name,
                     reason,
                   });
-                  await refreshRemoteStore();
+                  await refreshRemoteStore(process.id);
                   window.dispatchEvent(new Event("sigapro:data-changed"));
                 }}
                 onViewHabiteSeGuide={
