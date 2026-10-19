@@ -399,7 +399,54 @@ function municipalityResultData(value: unknown): DatabaseRow[] {
   return Array.isArray(value) ? (value as DatabaseRow[]) : [];
 }
 
-export async function loadRemotePlatformStore() {
+async function loadProcessRowsForStore(focusProcessRouteKey?: string | null) {
+  if (!db) {
+    throw new Error("Banco oficial indisponível.");
+  }
+
+  const activeResult = await db
+    .from("processes")
+    .select("*")
+    .is("archived_at", null)
+    .order("created_at", { ascending: false });
+
+  if (!focusProcessRouteKey) {
+    return activeResult;
+  }
+
+  let routeKey = focusProcessRouteKey.trim();
+  try {
+    routeKey = decodeURIComponent(routeKey);
+  } catch {
+    // Mantém a chave original quando a rota não estiver percent-encoded.
+  }
+
+  if (!routeKey) {
+    return activeResult;
+  }
+
+  const uuid = normalizeUuid(routeKey);
+  const focusQuery = db.from("processes").select("*");
+  const focusResult = uuid
+    ? await focusQuery.eq("id", uuid).limit(1)
+    : await focusQuery.eq("protocol_number", routeKey).limit(1);
+
+  if (activeResult.error) return activeResult;
+  if (focusResult.error) return focusResult;
+
+  const merged = [...(activeResult.data ?? [])] as DatabaseRow[];
+  const seen = new Set(merged.map((item) => String(item.id ?? "")));
+  for (const item of focusResult.data ?? []) {
+    const id = String(item.id ?? "");
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    merged.unshift(item as DatabaseRow);
+  }
+
+  return { data: merged, error: null };
+}
+
+export async function loadRemotePlatformStore(focusProcessRouteKey?: string | null) {
   if (!db) {
     throw new Error("Banco oficial indisponível.");
   }
@@ -452,7 +499,7 @@ export async function loadRemotePlatformStore() {
     db.from("tenant_memberships").select("*").eq("is_active", true).is("deleted_at", null),
     db.from("roles").select("*"),
     db.from("departments").select("*"),
-    db.from("processes").select("*").is("archived_at", null).order("created_at", { ascending: false }),
+    loadProcessRowsForStore(focusProcessRouteKey),
     // A tabela interna do Alvará é RPC-only no Neon. Não faça SELECT
     // direto no bootstrap global, porque o papel authenticated não possui
     // permissão por desenho de segurança.
