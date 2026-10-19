@@ -1646,11 +1646,11 @@ export function PerfilPage() {
                         <div className="flex items-center justify-between gap-3">
                           <div className="min-w-0">
                             <p id="profile-preview-topbar-title" className="text-xs font-semibold uppercase tracking-[0.18em]">Topbar</p>
-                            <p id="profile-preview-topbar-copy" className="mt-1 text-sm">Leitura compacta do avatar institucional.</p>
+                            <p id="profile-preview-topbar-copy" className="mt-1 text-sm">{form.useAvatarInHeader ? "Foto ativada no cabeçalho." : "Foto desativada: o topo mostra as iniciais."}</p>
                           </div>
                           <UserAvatar
                             name={form.fullName || session.name}
-                            imageUrl={avatarPreviewUrl}
+                            imageUrl={form.useAvatarInHeader ? avatarPreviewUrl : ""}
                             size="md"
                             className="border-white/20 bg-white/10"
                             crop={avatarPreviewCrop}
@@ -1669,7 +1669,7 @@ export function PerfilPage() {
                   <div className="mt-4 flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
                     <div className="pr-4">
                       <p className="text-sm font-semibold text-slate-950">Exibir foto no cabeçalho</p>
-                      <p className="mt-1 text-sm text-slate-500">Ative para mostrar a foto junto da identificação.</p>
+                      <p className="mt-1 text-sm text-slate-500">Quando desativada, o topo mostra apenas as iniciais. A foto aparece no cabeçalho quando esta opção está ativada e salva.</p>
                     </div>
                     <Switch checked={form.useAvatarInHeader} onCheckedChange={updateAvatarHeaderVisibility} />
                   </div>
