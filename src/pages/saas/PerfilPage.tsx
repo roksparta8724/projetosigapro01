@@ -888,7 +888,7 @@ export function PerfilPage() {
         avatarScale: form.avatarScale,
         avatarOffsetX: form.avatarOffsetX,
         avatarOffsetY: form.avatarOffsetY,
-        useAvatarInHeader,
+        useAvatarInHeader: form.useAvatarInHeader,
         bio: form.bio,
       }),
       email: accountForm.nextEmail.trim().toLowerCase(),
@@ -1026,7 +1026,7 @@ export function PerfilPage() {
         avatarScale,
         avatarOffsetX,
         avatarOffsetY,
-        useAvatarInHeader: form.useAvatarInHeader,
+        useAvatarInHeader,
         bio: form.bio,
       };
 
