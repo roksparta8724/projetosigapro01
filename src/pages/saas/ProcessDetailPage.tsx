@@ -1929,10 +1929,16 @@ export function ProcessDetailPage() {
     const providerCharge = historicalPaidGuide
       ? null
       : preparedGuideCharges[selectedGuide.code] ?? null;
-    const digitableLine =
-      banking.digitableLine || providerCharge?.digitableLine || "";
-    const barcode =
-      banking.barcode || providerCharge?.barcodeContent || "";
+    const digitableLine = historicalPaidGuide
+      ? banking.digitableLine
+      : providerCharge
+        ? providerCharge.digitableLine
+        : banking.digitableLine;
+    const barcode = historicalPaidGuide
+      ? banking.barcode
+      : providerCharge
+        ? providerCharge.barcodeContent
+        : banking.barcode;
 
     if (!historicalPaidGuide && (!barcode || !digitableLine)) {
       setProcessActionStatus(
