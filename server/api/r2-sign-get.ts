@@ -118,7 +118,7 @@ export default async function handler(req: Req, res: Res) {
     const envOk = Boolean(endpoints.length && accessKeyId && secretAccessKey);
 
     console.log("[ProdAudit][R2Sign] env", {
-      hasEndpoint: Boolean(endpoint),
+      hasEndpoint: Boolean(endpoints.length),
       hasAccessKeyId: Boolean(accessKeyId),
       hasSecret: Boolean(secretAccessKey),
       accessKeyLength: accessKeyId.length,
