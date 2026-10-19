@@ -404,14 +404,8 @@ function writeBootstrapSnapshot(snapshot: BootstrapSnapshot | null) {
 async function loadProfileByUserId(userId: string): Promise<AppBootstrapProfile | null> {
   if (!backendClient) return null;
 
-  let profileId: string | null = null;
-  let record: any = null;
-
   if (isNeonBackend) {
-    // Após signIn o token Neon pode levar alguns milissegundos para ficar
-    // disponível no Data API. Não transformar esse atraso transitório em
-    // "conta sem perfil", especialmente em contas Master migradas.
-    const retryDelays = [0, 120, 300, 650];
+    const retryDelays = [0, 80, 180, 350];
     let lastProfileError: unknown = null;
 
     for (const delayMs of retryDelays) {
@@ -419,74 +413,67 @@ async function loadProfileByUserId(userId: string): Promise<AppBootstrapProfile 
         await new Promise((resolve) => window.setTimeout(resolve, delayMs));
       }
 
-      const profileIdResult = await backendClient.rpc("current_profile_id");
-      if (profileIdResult.error) {
-        lastProfileError = profileIdResult.error;
+      const contextResult = await backendClient.rpc("get_current_profile_context");
+      if (contextResult.error) {
+        lastProfileError = contextResult.error;
         continue;
       }
 
-      profileId = typeof profileIdResult.data === "string"
-        ? profileIdResult.data
-        : profileIdResult.data?.id ?? profileIdResult.data?.profile_id ?? null;
-
+      const ctx = contextResult.data as Record<string, unknown> | null;
+      const profileId = String(ctx?.profile_id || "").trim();
       if (!profileId) continue;
 
-      const profileResult = await backendClient
-        .from("profiles")
-        .select("id, role, municipality_id, email, full_name, account_status")
-        .eq("id", profileId)
-        .limit(1)
-        .maybeSingle();
-
-      if (profileResult.error) {
-        lastProfileError = profileResult.error;
-        profileId = null;
-        continue;
-      }
-
-      record = profileResult.data ?? null;
-      if (record) break;
-      profileId = null;
+      return {
+        userId: profileId,
+        role: String(ctx?.role || ctx?.profile_role || "").trim() || null,
+        municipalityId: String(ctx?.municipality_id || ctx?.tenant_id || "").trim() || null,
+        accessLevel:
+          Number(ctx?.access_level) === 3
+            ? 3
+            : Number(ctx?.access_level) === 2
+              ? 2
+              : Number(ctx?.access_level) === 1
+                ? 1
+                : null,
+        accountStatus: String(ctx?.account_status || "").trim() || null,
+        email: String(ctx?.email || ctx?.profile_email || "").trim() || null,
+        fullName: String(ctx?.full_name || "").trim() || null,
+      };
     }
 
-    if (!profileId || !record) {
-      console.warn("[Bootstrap][Profile] Neon Auth sem profile ativo após tentativas de resolução", {
-        userId,
-        error: lastProfileError,
-      });
-      return null;
-    }
-  } else {
-    const profileResult = await backendClient
-      .from("profiles")
-      .select("user_id, role, municipality_id, email, full_name, account_status")
-      .eq("user_id", userId)
-      .limit(2);
-
-    if (profileResult.error) {
-      console.warn("[Bootstrap][Profile] Falha ao carregar profile", { error: profileResult.error });
-      return null;
-    }
-    if (profileResult.data && profileResult.data.length > 1) {
-      console.error("[Bootstrap][Profile] Multiplos profiles para o mesmo user_id", { userId });
-    }
-    record = profileResult.data?.[0] ?? null;
+    console.warn("[Bootstrap][Profile] Neon Auth sem profile ativo após tentativas de resolução", {
+      userId,
+      error: lastProfileError,
+    });
+    return null;
   }
 
-  const membershipQuery = backendClient
+  const profileResult = await backendClient
+    .from("profiles")
+    .select("user_id, role, municipality_id, email, full_name, account_status")
+    .eq("user_id", userId)
+    .limit(2);
+
+  if (profileResult.error) {
+    console.warn("[Bootstrap][Profile] Falha ao carregar profile", { error: profileResult.error });
+    return null;
+  }
+  if (profileResult.data && profileResult.data.length > 1) {
+    console.error("[Bootstrap][Profile] Multiplos profiles para o mesmo user_id", { userId });
+  }
+
+  const record = profileResult.data?.[0] ?? null;
+
+  const membershipResult = await backendClient
     .from("tenant_memberships")
     .select("tenant_id, role_id, level_name, is_active, deleted_at")
     .is("deleted_at", null)
-    .eq("is_active", true);
-
-  const membershipResult = isNeonBackend
-    ? await membershipQuery.eq("profile_id", profileId)
-    : await membershipQuery.eq("user_id", userId);
+    .eq("is_active", true)
+    .eq("user_id", userId);
 
   if (membershipResult.error) {
     console.warn("[Bootstrap][Membership] Falha ao carregar memberships", {
       userId,
-      profileId,
       error: membershipResult.error,
     });
   }
@@ -499,13 +486,7 @@ async function loadProfileByUserId(userId: string): Promise<AppBootstrapProfile 
 
   if (roleIds.length > 0) {
     const rolesResult = await backendClient.from("roles").select("id, code").in("id", roleIds);
-    if (rolesResult.error) {
-      console.warn("[Bootstrap][Membership] Falha ao resolver roles do vínculo", {
-        userId,
-        profileId,
-        error: rolesResult.error,
-      });
-    } else {
+    if (!rolesResult.error) {
       const rolesById = new Map((rolesResult.data ?? []).map((item: any) => [item.id, item.code]));
       const rankedMembership = memberships
         .map((item: any) => ({
@@ -533,12 +514,12 @@ async function loadProfileByUserId(userId: string): Promise<AppBootstrapProfile 
   }
 
   if (!record && !roleCodeFromMembership && !municipalityIdFromMembership) {
-    console.warn("[Bootstrap][Profile] Nenhum profile encontrado", { userId, profileId });
+    console.warn("[Bootstrap][Profile] Nenhum profile encontrado", { userId });
     return null;
   }
 
   return {
-    userId: (isNeonBackend ? profileId : userId) ?? userId,
+    userId,
     role: record?.role ?? roleCodeFromMembership,
     municipalityId: record?.municipality_id ?? municipalityIdFromMembership ?? null,
     accessLevel: accessLevelFromMembership,
@@ -1095,27 +1076,33 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
         setError(null);
         setStage("bootstrapping_auth");
         try {
-          // Uma sessão anterior corrompida/expirada nunca deve impedir um novo login.
-          // O logout prévio é apenas limpeza local; se falhar, seguimos com a autenticação nova.
-          try {
-            const currentSession = (await backendClient.auth.getSession()).data.session ?? null;
-            if (currentSession?.user) {
-              const { error: signOutError } = isNeonBackend
-                ? await backendClient.auth.signOut()
-                : await backendClient.auth.signOut({ scope: "local" });
-              if (signOutError) {
-                console.warn("[Bootstrap] Falha ao limpar sessão anterior antes do login; continuando", signOutError);
-              }
-            }
-          } catch (sessionCleanupError) {
-            console.warn("[Bootstrap] Sessão anterior inválida; continuando com novo login", sessionCleanupError);
-          }
           clearIdentity();
 
-          const { data, error: signInError } = await backendClient.auth.signInWithPassword({
+          let signInResult = await backendClient.auth.signInWithPassword({
             email: normalized,
             password,
           });
+
+          if (
+            signInResult.error &&
+            /session|refresh|token|jwt/i.test(signInResult.error.message || "")
+          ) {
+            try {
+              if (isNeonBackend) {
+                await backendClient.auth.signOut();
+              } else {
+                await backendClient.auth.signOut({ scope: "local" });
+              }
+            } catch {
+              // A autenticação seguinte continua sendo a fonte de verdade.
+            }
+            signInResult = await backendClient.auth.signInWithPassword({
+              email: normalized,
+              password,
+            });
+          }
+
+          const { data, error: signInError } = signInResult;
           if (signInError || !data.user) {
             const rawMessage = signInError?.message || "Falha ao autenticar.";
             const translatedMessage = /invalid email or password/i.test(rawMessage)
@@ -1136,7 +1123,7 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
             );
           }
 
-          await markCurrentProfileAccess();
+          void markCurrentProfileAccess();
           const nextScopeType: "platform" | "municipality" | "external" =
             mappedRole === "master_admin" || mappedRole === "master_ops"
               ? "platform"
