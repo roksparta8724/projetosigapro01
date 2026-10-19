@@ -10,8 +10,8 @@ describe("guide opening experience", () => {
   it("uses barcode and digitable line from the same provider charge for unpaid guides", () => {
     expect(processDetail).toContain("providerCharge\n        ? providerCharge.digitableLine");
     expect(processDetail).toContain("providerCharge\n        ? providerCharge.barcodeContent");
-    expect(processDetail).toContain("historicalPaidGuide\n      ? banking.digitableLine");
-    expect(processDetail).toContain("historicalPaidGuide\n      ? banking.barcode");
+    expect(processDetail).toContain("codigoBarras: historicalPaidGuide ? undefined : barcode");
+    expect(processDetail).toContain("linhaDigitavel: historicalPaidGuide ? undefined : digitableLine");
   });
 
   it("never creates a fresh provider charge while viewing a compensated historical guide", () => {
@@ -21,6 +21,21 @@ describe("guide opening experience", () => {
     expect(processDetail).toContain("Documento histórico quitado; data de emissão e baixa preservadas");
   });
 
+
+  it("renders a compensated guide as a non-payable historical receipt", () => {
+    const guide = read("src/components/GuiaRecolhimentoOficial.tsx");
+    const external = read("src/pages/saas/ExternalPaymentsPage.tsx");
+
+    expect(processDetail).toContain("pixPayload: historicalPaidGuide ? undefined : banking.pixPayload");
+    expect(processDetail).toContain("historicalPaid: historicalPaidGuide");
+    expect(guide).toContain("Pagamento já compensado — meios de pagamento desativados nesta via histórica.");
+    expect(guide).toContain("DOCUMENTO QUITADO. Não efetue novo pagamento.");
+    expect(guide).toContain("Desativada — guia já compensada.");
+    expect(external).toContain('const historicalPaidGuide = guide.status === "compensada"');
+    expect(external).toContain("historicalPaidGuide || (banking.barcode && banking.digitableLine)");
+    expect(external).toContain("pixPayload: historicalPaidGuide ? undefined : banking.pixPayload");
+    expect(external).toContain("historicalPaid: historicalPaidGuide");
+  });
 
   it("never exposes an intermediary preparation document", () => {
     const guide = read("src/components/GuiaRecolhimentoOficial.tsx");
