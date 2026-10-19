@@ -228,11 +228,11 @@ export function AnalystDeskPage() {
 
       if (disposed || error) return;
 
-      const official = Array.from(
-        new Set(
+      const official: string[] = Array.from(
+        new Set<string>(
           (data ?? [])
-            .map((row) => String(row.process_id || ""))
-            .filter(Boolean),
+            .map((row: { process_id?: unknown }) => String(row.process_id || ""))
+            .filter((value: string) => Boolean(value)),
         ),
       );
 
