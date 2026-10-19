@@ -6,7 +6,7 @@
  * usando S3 presigned GET URL via @aws-sdk/s3-request-presigner.
  */
 
-import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { GetObjectCommand, HeadObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { resolveMunicipalDocumentTarget } from "../municipal-storage";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
@@ -112,10 +112,10 @@ export default async function handler(req: Req, res: Res) {
   }
 
   try {
-    const endpoint = resolveR2Endpoint();
+    const endpoints = getR2EndpointCandidates();
     const accessKeyId = readEnv("R2_ACCESS_KEY_ID");
     const secretAccessKey = readEnv("R2_SECRET_ACCESS_KEY");
-    const envOk = Boolean(endpoint && accessKeyId && secretAccessKey);
+    const envOk = Boolean(endpoints.length && accessKeyId && secretAccessKey);
 
     console.log("[ProdAudit][R2Sign] env", {
       hasEndpoint: Boolean(endpoint),
@@ -179,23 +179,49 @@ export default async function handler(req: Req, res: Res) {
       throw new Error("Variáveis R2 ausentes no ambiente.");
     }
 
-    const client = new S3Client({
-      region: "auto",
-      endpoint,
-      credentials: {
-        accessKeyId,
-        secretAccessKey,
-      },
-    });
+    let signedUrl = "";
+    let lastError: unknown = null;
 
-    const signedUrl = await getSignedUrl(
-      client,
-      new GetObjectCommand({
-        Bucket: bucket,
-        Key: objectKey,
-      }),
-      { expiresIn: ttl },
-    );
+    for (const endpoint of endpoints) {
+      const client = new S3Client({
+        region: "auto",
+        endpoint,
+        credentials: {
+          accessKeyId,
+          secretAccessKey,
+        },
+      });
+
+      try {
+        // O upload já possui fallback entre endpoints. A leitura precisa localizar
+        // fisicamente o MESMO objeto antes de assinar, ou uma URL válida pode
+        // apontar para a conta errada e retornar 404 somente em produção.
+        await client.send(
+          new HeadObjectCommand({
+            Bucket: bucket,
+            Key: objectKey,
+          }),
+        );
+
+        signedUrl = await getSignedUrl(
+          client,
+          new GetObjectCommand({
+            Bucket: bucket,
+            Key: objectKey,
+          }),
+          { expiresIn: ttl },
+        );
+        break;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+
+    if (!signedUrl) {
+      throw lastError instanceof Error
+        ? lastError
+        : new Error("Objeto não encontrado no armazenamento R2 configurado.");
+    }
 
     json(res, 200, { signedUrl, bucket: requestedBucket, resolvedBucket: bucket, objectKey, storageProvider: "sigapro_r2" });
   } catch (error) {
