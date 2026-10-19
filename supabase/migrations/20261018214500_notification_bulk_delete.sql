@@ -23,7 +23,6 @@ begin
   from public.profiles p
   where p.user_id = _auth_user_id
     and p.deleted_at is null
-  order by p.updated_at desc nulls last, p.created_at desc nulls last
   limit 1;
 
   delete from public.notifications n
