@@ -384,13 +384,7 @@ export function HabiteSePermitPanel({
       setPermit(saved);
       setForm(saved.formData);
       await onProcessRefresh?.();
-      setNotice(
-        signatureMatchesCurrent
-          ? "Rascunho salvo."
-          : signatureState.block
-            ? "Retificação salva. A assinatura anterior permanece no histórico e esta nova versão precisa ser assinada novamente."
-            : "Rascunho do Alvará de Habite-se salvo no banco oficial.",
-      );
+      setNotice("");
       return saved;
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Não foi possível salvar o Alvará.");
@@ -400,7 +394,7 @@ export function HabiteSePermitPanel({
     }
   };
 
-  const saveAndForwardToDirector = async () => {
+  const requestDirectorSignature = async () => {
     if (!paymentConfirmed) {
       setNotice("O pagamento da Guia de Habite-se precisa estar confirmado antes do encaminhamento à Diretoria.");
       return;
@@ -410,7 +404,7 @@ export function HabiteSePermitPanel({
       return;
     }
 
-    setBusy("forward-director");
+    setBusy("request-director");
     setNotice("");
     try {
       const saved = await saveHabiteSePermit({
@@ -423,7 +417,7 @@ export function HabiteSePermitPanel({
       setForm(waiting.formData);
       setDirectorRequestPending(true);
       setSignatureState({ block: null, signers: [] });
-      setNotice("Alvará de Habite-se salvo e encaminhado à Diretoria. A assinatura eletrônica final é exclusiva do Diretor responsável.");
+      setNotice("");
       await onProcessRefresh?.();
       await refresh();
     } catch (error) {
@@ -479,7 +473,7 @@ export function HabiteSePermitPanel({
       setDirectorRequestPending(false);
       setPasswordDialog(null);
       setPassword("");
-      setNotice("Assinatura eletrônica da Diretoria concluída. O Alvará de Habite-se foi emitido e finalizado com êxito.");
+      setNotice("");
       await onProcessRefresh?.();
       await refresh();
     } catch (error) {
@@ -713,43 +707,80 @@ export function HabiteSePermitPanel({
             </div>
           ) : null}
 
-          {permit && signatureState.block && !signatureMatchesCurrent && permit.status !== "emitido" ? (
-            <div className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm font-semibold leading-6 text-amber-950 dark:border-amber-500/40 dark:bg-amber-950/30 dark:text-amber-100">
-              Esta versão foi retificada após a última assinatura. A assinatura anterior permanece preservada no histórico, mas a versão atual precisa ser novamente encaminhada e assinada pelo Diretor responsável.
+          {!externalView && canManage && permit?.status !== "emitido" && permit?.status !== "aguardando_diretor" ? (
+            <div
+              data-habite-se-director-request="ready"
+              className="rounded-[20px] border border-violet-200 bg-[linear-gradient(135deg,#faf8ff_0%,#f3f0ff_100%)] p-5 shadow-sm dark:border-violet-500/30 dark:bg-[linear-gradient(135deg,#17132a_0%,#111827_100%)]"
+            >
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div className="flex min-w-0 items-start gap-3">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-violet-700 text-white shadow-sm">
+                    <Signature className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-black text-slate-950 dark:text-white">
+                      Assinatura eletrônica da Diretoria
+                    </p>
+                    <p className="mt-1 max-w-3xl text-xs leading-5 text-slate-600 dark:text-slate-300">
+                      Finalize a elaboração e envie esta versão para a fila oficial da Diretoria. O Diretor acessará o processo com a própria conta e confirmará a assinatura com a própria senha.
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  data-request-director-signature="true"
+                  className="rounded-full bg-violet-700 px-5 font-bold !text-white hover:bg-violet-600 [&_*]:!text-white"
+                  disabled={Boolean(busy)}
+                  onClick={() => void requestDirectorSignature()}
+                >
+                  {busy === "request-director" ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Send className="mr-2 h-4 w-4" />
+                  )}
+                  Solicitar assinatura eletrônica do Diretor
+                </Button>
+              </div>
             </div>
           ) : null}
 
-          <div className="grid gap-3 md:grid-cols-[1fr_1.2fr]">
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-950/35">
-              <div className="flex items-start gap-3">
-                <UserRound className="mt-0.5 h-5 w-5 text-sky-700 dark:text-sky-300" />
+          {permit?.status === "aguardando_diretor" && !directorSigned ? (
+            <div
+              data-habite-se-director-request="pending"
+              className="rounded-[20px] border border-violet-200 bg-violet-50 px-5 py-4 dark:border-violet-500/30 dark:bg-violet-950/25"
+            >
+              <div className="flex items-center gap-3">
+                <Send className="h-5 w-5 text-violet-700 dark:text-violet-300" />
                 <div>
-                  <p className="text-sm font-bold text-slate-950 dark:text-white">Elaboração técnica</p>
-                  <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
-                    O Analista responsável elabora, revisa e encaminha o documento. Não há assinatura do Analista no Alvará de Habite-se.
+                  <p className="text-sm font-bold text-violet-950 dark:text-violet-100">
+                    Solicitação enviada à Diretoria
+                  </p>
+                  <p className="mt-1 text-xs leading-5 text-violet-800 dark:text-violet-200">
+                    O Alvará está na fila de assinatura. O Diretor responsável deve abrir este processo e confirmar eletronicamente com a própria senha.
                   </p>
                 </div>
               </div>
             </div>
-            <div className={
-              "rounded-2xl border p-4 " +
-              (directorSigned ? "border-emerald-300 bg-emerald-50 dark:border-emerald-500/40 dark:bg-emerald-950/25" : permit?.status === "aguardando_diretor" ? "border-violet-300 bg-violet-50 dark:border-violet-500/40 dark:bg-violet-950/25" : "border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-950/35")
-            }>
-              <div className="flex items-start gap-3">
-                <Building2 className="mt-0.5 h-5 w-5 text-violet-700 dark:text-violet-300" />
+          ) : null}
+
+          {directorSigned ? (
+            <div
+              data-habite-se-director-request="signed"
+              className="rounded-[20px] border border-emerald-200 bg-emerald-50 px-5 py-4 dark:border-emerald-500/30 dark:bg-emerald-950/25"
+            >
+              <div className="flex items-center gap-3">
+                <ShieldCheck className="h-5 w-5 text-emerald-700 dark:text-emerald-300" />
                 <div>
-                  <p className="text-sm font-bold text-slate-950 dark:text-white">Assinatura eletrônica da Diretoria</p>
-                  <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
-                    {directorSigned
-                      ? `${directorSigner?.name} • ${formatDateTime(directorSigner?.signed_at)}`
-                      : permit?.status === "aguardando_diretor"
-                        ? "Documento encaminhado e aguardando assinatura exclusiva do Diretor responsável."
-                        : "Disponível após o Analista concluir a elaboração e encaminhar à Diretoria."}
+                  <p className="text-sm font-bold text-emerald-950 dark:text-emerald-100">
+                    Assinatura da Diretoria validada
+                  </p>
+                  <p className="mt-1 text-xs leading-5 text-emerald-800 dark:text-emerald-200">
+                    ${directorSigner?.name || "Diretor responsável"} • ${formatDateTime(directorSigner?.signed_at)}
                   </p>
                 </div>
               </div>
             </div>
-          </div>
+          ) : null}
 
           {notice ? (
             <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm font-semibold text-sky-900 dark:border-sky-500/30 dark:bg-sky-950/25 dark:text-sky-100">
@@ -762,13 +793,6 @@ export function HabiteSePermitPanel({
               <Button type="button" variant="outline" className="rounded-full" disabled={Boolean(busy)} onClick={() => void saveDraft()}>
                 {busy === "save" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                 Salvar / retificar Alvará
-              </Button>
-            ) : null}
-
-            {!externalView && canManage && permit?.status !== "emitido" && permit?.status !== "aguardando_diretor" ? (
-              <Button type="button" className="rounded-full bg-sky-700 font-bold !text-white hover:bg-sky-600 [&_*]:!text-white" disabled={Boolean(busy)} onClick={() => void saveAndForwardToDirector()}>
-                {busy === "forward-director" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
-                Salvar e encaminhar à Diretoria
               </Button>
             ) : null}
 
@@ -832,8 +856,8 @@ export function HabiteSePermitPanel({
       <Dialog open={Boolean(passwordDialog)} onOpenChange={(open) => !open && !busy && setPasswordDialog(null)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>
-              "Assinatura final da Diretoria"
+            <DialogTitle className="text-lg font-bold">
+              Assinatura final da Diretoria
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
