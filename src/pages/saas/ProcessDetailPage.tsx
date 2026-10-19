@@ -45,6 +45,7 @@ import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { usePlanEntitlements } from "@/hooks/usePlanEntitlements";
 import { useDocumentMarkerAssignments } from "@/hooks/useDocumentMarkerAssignments";
 import { useConstructionPermit } from "@/hooks/useConstructionPermit";
+import { backendClient } from "@/integrations/backend/databaseClient";
 import { useMunicipalOrganogram } from "@/hooks/useMunicipalOrganogram";
 import {
   getMunicipalityLogoOpenUrl,
@@ -165,6 +166,17 @@ function buildDocumentPreview(documentLabel: string, fileName: string | undefine
 
   return `data:text/html;charset=utf-8,${encodeURIComponent(html)}`;
 }
+
+type DirectProcessState = {
+  id: string;
+  status: ProcessRecord["status"];
+  currentDepartment: string;
+  currentQueue: string;
+  slaStage: string;
+  checkpoint: string;
+  archivedAt: string | null;
+  updatedAt: string | null;
+};
 
 type CachedProcessTabAccess = {
   sessionId: string;
@@ -328,7 +340,33 @@ export function ProcessDetailPage() {
   const [cachedProcessVisual, setCachedProcessVisual] = useState<ProcessRecord | undefined>(() =>
     readCachedProcessVisual(session.id, processId),
   );
-  const process = liveProcess ?? cachedProcessVisual;
+  const [directProcessState, setDirectProcessState] = useState<DirectProcessState | null>(null);
+  const baseProcess = liveProcess ?? cachedProcessVisual;
+  const process = useMemo(() => {
+    if (!baseProcess || !directProcessState || directProcessState.id !== baseProcess.id) {
+      return baseProcess;
+    }
+
+    return {
+      ...baseProcess,
+      status: directProcessState.status,
+      sla: {
+        ...baseProcess.sla,
+        currentStage: directProcessState.slaStage || baseProcess.sla.currentStage,
+      },
+      processControl: {
+        ...baseProcess.processControl,
+        currentFolder:
+          directProcessState.currentDepartment ||
+          directProcessState.currentQueue ||
+          baseProcess.processControl?.currentFolder ||
+          "",
+        checkpoint:
+          directProcessState.checkpoint ||
+          baseProcess.processControl?.checkpoint,
+      },
+    };
+  }, [baseProcess, directProcessState]);
 
   useEffect(() => {
     if (!processId || !session.id || session.id === "unknown") return;
@@ -360,6 +398,120 @@ export function ProcessDetailPage() {
       setCachedProcessVisual(cached);
     }
   }, [cachedProcessVisual?.id, liveProcess, processId, session.id]);
+
+  useEffect(() => {
+    if (!processId || !session.id || session.id === "unknown" || typeof window === "undefined") {
+      return;
+    }
+
+    let disposed = false;
+    let inFlight = false;
+
+    const syncExactProcess = async () => {
+      if (
+        disposed ||
+        inFlight ||
+        (typeof document !== "undefined" && document.visibilityState !== "visible")
+      ) {
+        return;
+      }
+
+      inFlight = true;
+      try {
+        const { data, error } = await backendClient
+          .from("processes")
+          .select(
+            "id,status,current_department,current_queue,sla_stage,process_checkpoint,archived_at,updated_at",
+          )
+          .eq("id", processId)
+          .limit(1);
+
+        if (error || disposed) return;
+        const row = Array.isArray(data) ? data[0] : data;
+        if (!row?.id) return;
+
+        const nextState: DirectProcessState = {
+          id: String(row.id),
+          status: row.status as ProcessRecord["status"],
+          currentDepartment: String(row.current_department || ""),
+          currentQueue: String(row.current_queue || ""),
+          slaStage: String(row.sla_stage || ""),
+          checkpoint: String(row.process_checkpoint || ""),
+          archivedAt: row.archived_at ? String(row.archived_at) : null,
+          updatedAt: row.updated_at ? String(row.updated_at) : null,
+        };
+
+        setDirectProcessState((current) => {
+          if (
+            current &&
+            current.id === nextState.id &&
+            current.status === nextState.status &&
+            current.currentDepartment === nextState.currentDepartment &&
+            current.currentQueue === nextState.currentQueue &&
+            current.slaStage === nextState.slaStage &&
+            current.checkpoint === nextState.checkpoint &&
+            current.archivedAt === nextState.archivedAt &&
+            current.updatedAt === nextState.updatedAt
+          ) {
+            return current;
+          }
+          return nextState;
+        });
+
+        setCachedProcessVisual((current) => {
+          const source = liveProcess ?? current;
+          if (!source || source.id !== nextState.id) return current;
+
+          const patched: ProcessRecord = {
+            ...source,
+            status: nextState.status,
+            sla: {
+              ...source.sla,
+              currentStage: nextState.slaStage || source.sla.currentStage,
+            },
+            processControl: {
+              ...source.processControl,
+              currentFolder:
+                nextState.currentDepartment ||
+                nextState.currentQueue ||
+                source.processControl?.currentFolder ||
+                "",
+              checkpoint:
+                nextState.checkpoint ||
+                source.processControl?.checkpoint,
+            },
+          };
+
+          writeCachedProcessVisual(session.id, processId, patched);
+          return patched;
+        });
+      } finally {
+        inFlight = false;
+      }
+    };
+
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void syncExactProcess();
+    };
+
+    void syncExactProcess();
+    const timer = window.setInterval(() => void syncExactProcess(), 1500);
+    window.addEventListener("focus", syncExactProcess);
+    window.addEventListener("pageshow", syncExactProcess);
+    window.addEventListener("online", syncExactProcess);
+    window.addEventListener("sigapro:data-changed", syncExactProcess as EventListener);
+    document.addEventListener("visibilitychange", onVisible);
+
+    return () => {
+      disposed = true;
+      window.clearInterval(timer);
+      window.removeEventListener("focus", syncExactProcess);
+      window.removeEventListener("pageshow", syncExactProcess);
+      window.removeEventListener("online", syncExactProcess);
+      window.removeEventListener("sigapro:data-changed", syncExactProcess as EventListener);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [liveProcess, processId, session.id]);
 
   const effectiveScopeId =
     process?.municipalityId ??
