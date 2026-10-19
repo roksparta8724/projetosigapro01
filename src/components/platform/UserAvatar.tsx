@@ -214,7 +214,7 @@ export function UserAvatar({
     <Avatar
       className={cn(
         sizeClasses[size],
-        "sig-user-avatar-root relative aspect-square shrink-0 overflow-hidden rounded-full border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#eef4f9_100%)] shadow-[0_8px_20px_rgba(15,42,68,0.10)]",
+        "sig-user-avatar-root relative aspect-square shrink-0 overflow-hidden rounded-full border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#eef4f9_100%)] shadow-[0_8px_20px_rgba(15,42,68,0.10)] dark:border-slate-500/80 dark:bg-slate-400",
         className,
       )}
       title={title || name || "Usuario"}
@@ -222,7 +222,7 @@ export function UserAvatar({
       <span
         aria-hidden="true"
         className={cn(
-          "sig-user-avatar-fallback absolute inset-0 flex h-full w-full items-center justify-center rounded-full bg-[linear-gradient(180deg,#f8fbff_0%,#e8eef5_100%)] font-extrabold uppercase tracking-[-0.03em] text-[#17324a] select-none",
+          "sig-user-avatar-fallback absolute inset-0 flex h-full w-full items-center justify-center rounded-full bg-[linear-gradient(180deg,#f8fbff_0%,#e8eef5_100%)] font-extrabold uppercase tracking-[-0.03em] text-[#17324a] select-none dark:bg-[linear-gradient(180deg,#cbd5e1_0%,#94a3b8_100%)] dark:text-[#0f172a]",
           fallbackClassName,
         )}
       >
