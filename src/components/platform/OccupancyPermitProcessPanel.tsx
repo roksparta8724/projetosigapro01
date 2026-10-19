@@ -47,6 +47,7 @@ export function OccupancyPermitProcessPanel({
   secretariat,
   directorate,
   onProcessRefresh,
+  onCompleteProcess,
   onViewHabiteSeGuide,
   onPrintHabiteSeGuide,
 }: {
@@ -62,6 +63,7 @@ export function OccupancyPermitProcessPanel({
   secretariat?: string | null;
   directorate?: string | null;
   onProcessRefresh?: () => Promise<void> | void;
+  onCompleteProcess?: () => Promise<void> | void;
   onViewHabiteSeGuide?: () => void;
   onPrintHabiteSeGuide?: () => void;
 }) {
@@ -424,6 +426,7 @@ export function OccupancyPermitProcessPanel({
         externalView={externalView}
         dataReady={dataReady}
         onProcessRefresh={onProcessRefresh}
+        onCompleteProcess={onCompleteProcess}
       />
 
       <HabiteSePermitPanel
