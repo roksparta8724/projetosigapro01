@@ -1449,7 +1449,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                     crop={topbarAvatarCrop}
                     size="sm"
                     className="sig-topbar-user-avatar"
-                    fallbackClassName="sig-topbar-user-avatar-fallback !bg-[linear-gradient(180deg,#ffffff_0%,#e7edf3_100%)] !text-black"
+                    fallbackClassName="sig-topbar-user-avatar-fallback !bg-[linear-gradient(180deg,#dbe4ee_0%,#aebccc_100%)] !text-[#0f172a] dark:!bg-[linear-gradient(180deg,#94a3b8_0%,#64748b_100%)] dark:!text-[#0b1220]"
                   />
                   <ChevronDown className="h-3 w-3 text-white/80" />
                 </button>
@@ -2081,7 +2081,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                       crop={topbarAvatarCrop}
                       size="md"
                       className="sig-topbar-user-avatar"
-                      fallbackClassName="sig-topbar-user-avatar-fallback !bg-[linear-gradient(180deg,#ffffff_0%,#e7edf3_100%)] !text-black"
+                      fallbackClassName="sig-topbar-user-avatar-fallback !bg-[linear-gradient(180deg,#dbe4ee_0%,#aebccc_100%)] !text-[#0f172a] dark:!bg-[linear-gradient(180deg,#94a3b8_0%,#64748b_100%)] dark:!text-[#0b1220]"
                     />
                     <ChevronDown className={cn("h-3.5 w-3.5", darkTopbar ? "text-white/75" : "text-slate-700/75")} />
                   </button>
@@ -2118,7 +2118,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                             "sig-topbar-user-avatar !text-black ring-4 shadow-[0_18px_38px_rgba(15,23,42,0.16)]",
                             darkTopbar ? "border-white/18 ring-white/8" : "border-white ring-slate-100",
                           )}
-                          fallbackClassName="sig-topbar-user-avatar-fallback !bg-[linear-gradient(180deg,#ffffff_0%,#e7edf3_100%)] !text-black"
+                          fallbackClassName="sig-topbar-user-avatar-fallback !bg-[linear-gradient(180deg,#dbe4ee_0%,#aebccc_100%)] !text-[#0f172a] dark:!bg-[linear-gradient(180deg,#94a3b8_0%,#64748b_100%)] dark:!text-[#0b1220]"
                         />
                         <span className={cn("absolute bottom-0.5 right-0.5 h-3 w-3 rounded-full border-2", darkTopbar ? "border-[#0d2237] bg-emerald-300" : "border-white bg-emerald-500")} />
                       </div>
