@@ -4,7 +4,7 @@ import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3
 type Req = import("http").IncomingMessage & { method?: string };
 type Res = import("http").ServerResponse;
 
-const MAX_AVATAR_BYTES = 10 * 1024 * 1024;
+const MAX_AVATAR_BYTES = 12 * 1024 * 1024;
 
 function readEnv(key: string) {
   const raw = process.env[key];
