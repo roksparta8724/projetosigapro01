@@ -11,6 +11,11 @@ describe("saved institutional logo zoom on header and footer", () => {
     expect(getInstitutionBranding(both,"Logo","header")).toMatchObject({logoScale:1.8,logoOffsetX:12,logoOffsetY:-5});
     expect(getInstitutionBranding(both,"Logo","footer")).toMatchObject({logoScale:2.2,logoOffsetX:-7,logoOffsetY:9});
   });
+  it("renders saved crop in municipal header and footer as well as master", () => {
+    const component = readFileSync(resolve(process.cwd(), "src/components/platform/InstitutionalLogo.tsx"), "utf8");
+    expect(component).toContain('variant === "header" || variant === "footer" || variant === "preview"');
+    expect(component).toContain('style={showCrop ? { transform:');
+  });
   it("never resets master header/footer crop to identity for preframed PNG", () => {
     const hook = readFileSync(resolve(process.cwd(),"src/hooks/useInstitutionBranding.ts"),"utf8");
     expect(hook).not.toContain('headerLogoFileName.endsWith("-enquadrado.png")');
