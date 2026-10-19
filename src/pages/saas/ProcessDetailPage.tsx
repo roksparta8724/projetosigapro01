@@ -339,7 +339,7 @@ export function ProcessDetailPage() {
     () => refreshRemoteStore(processId ?? null),
     [processId, refreshRemoteStore],
   );
-  useLivePlatformRefresh(refreshCurrentProcessStore, { intervalMs: 2500 });
+  useLivePlatformRefresh(refreshCurrentProcessStore, { intervalMs: 1800 });
 
   const liveProcess = resolveProcessRoute(processes, processId);
   const [cachedProcessVisual, setCachedProcessVisual] = useState<ProcessRecord | undefined>(() =>
@@ -5226,32 +5226,69 @@ export function ProcessDetailPage() {
                     Veja por onde o processo passou, quando foi encaminhado e onde está agora.
                   </p>
                 </div>
-                <div className="inline-flex items-center gap-2 rounded-full border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-800">
-                  <span className="h-2 w-2 rounded-full bg-sky-600" />
-                  Em andamento
+                <div
+                  data-process-live-state={process.status}
+                  className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold ${
+                    isFinalProcessStatus
+                      ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                      : "border-sky-200 bg-sky-50 text-sky-800"
+                  }`}
+                >
+                  <span
+                    className={`h-2 w-2 rounded-full ${
+                      isFinalProcessStatus ? "bg-emerald-600" : "bg-sky-600"
+                    }`}
+                  />
+                  {isFinalProcessStatus ? "Concluído" : "Em andamento"}
                 </div>
               </div>
             </CardHeader>
 
             <CardContent className="space-y-6 pt-5">
-              <div className="rounded-2xl border border-sky-200 bg-gradient-to-r from-sky-50 to-white p-5">
+              <div
+                className={`rounded-2xl border bg-gradient-to-r p-5 ${
+                  isFinalProcessStatus
+                    ? "border-emerald-200 from-emerald-50 to-white"
+                    : "border-sky-200 from-sky-50 to-white"
+                }`}
+              >
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div className="min-w-0">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-sky-700">
-                      Onde está agora
+                    <p
+                      className={`text-[11px] font-semibold uppercase tracking-[0.16em] ${
+                        isFinalProcessStatus ? "text-emerald-700" : "text-sky-700"
+                      }`}
+                    >
+                      {isFinalProcessStatus ? "Situação atual" : "Onde está agora"}
                     </p>
                     <p className="mt-2 text-base font-bold text-slate-950">
-                      {currentOrganizationPath}
+                      {isFinalProcessStatus ? "Processo concluído" : currentOrganizationPath}
                     </p>
                     <p className="mt-1 text-sm text-slate-600">
-                      {holdsIssuedIssInsideUrbanism ? "Análise Urbanística em andamento" : statusLabel(process.status)}
-                      {/analise|urban|obra|engenharia/.test(normalizedCurrentFolder) && process.analysis?.assignedTo
+                      {isFinalProcessStatus
+                        ? process.processControl?.checkpoint || `Situação final: ${statusLabel(process.status)}`
+                        : holdsIssuedIssInsideUrbanism
+                          ? "Análise Urbanística em andamento"
+                          : statusLabel(process.status)}
+                      {!isFinalProcessStatus &&
+                      /analise|urban|obra|engenharia/.test(normalizedCurrentFolder) &&
+                      process.analysis?.assignedTo
                         ? ` • Responsável: ${process.analysis.assignedTo}`
                         : ""}
                     </p>
                   </div>
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-sky-200 bg-white text-sky-700">
-                    <Building2 className="h-5 w-5" />
+                  <div
+                    className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border bg-white ${
+                      isFinalProcessStatus
+                        ? "border-emerald-200 text-emerald-700"
+                        : "border-sky-200 text-sky-700"
+                    }`}
+                  >
+                    {isFinalProcessStatus ? (
+                      <CheckCircle2 className="h-5 w-5" />
+                    ) : (
+                      <Building2 className="h-5 w-5" />
+                    )}
                   </div>
                 </div>
               </div>
@@ -5317,21 +5354,22 @@ export function ProcessDetailPage() {
                 {hasTransitHistory ? (
                   transitSteps.map((dispatch, index) => {
                     const isLast = index === transitSteps.length - 1;
+                    const isCurrentTransit = isLast && !isFinalProcessStatus;
                     return (
                       <div key={dispatch.id} className="relative flex gap-4 pb-5">
                         <div className={`z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-4 border-white shadow-sm ${
-                          isLast ? "bg-sky-700 text-white" : "bg-slate-200 text-slate-700"
+                          isCurrentTransit ? "bg-sky-700 text-white" : "bg-emerald-600 text-white"
                         }`}>
-                          {isLast ? <Building2 className="h-4 w-4" /> : <ArrowRightLeft className="h-4 w-4" />}
+                          {isCurrentTransit ? <Building2 className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
                         </div>
 
                         <div className={`min-w-0 flex-1 rounded-2xl border p-4 ${
-                          isLast ? "border-sky-200 bg-sky-50/70" : "border-slate-200 bg-white"
+                          isCurrentTransit ? "border-sky-200 bg-sky-50/70" : "border-slate-200 bg-white"
                         }`}>
                           <div className="flex flex-wrap items-start justify-between gap-3">
                             <div className="min-w-0">
                               <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
-                                {isLast ? "Unidade atual" : "Encaminhado para"}
+                                {isCurrentTransit ? "Unidade atual" : "Encaminhado para"}
                               </p>
                               <p className="mt-1 font-semibold text-slate-950">
                                 {getOrganizationPath(dispatch.to)}
@@ -5354,12 +5392,12 @@ export function ProcessDetailPage() {
                               <Badge
                                 variant="outline"
                                 className={`rounded-full ${
-                                  isLast
+                                  isCurrentTransit
                                     ? "border-sky-200 bg-white text-sky-800"
-                                    : "border-slate-200 bg-slate-50 text-slate-600"
+                                    : "border-emerald-200 bg-emerald-50 text-emerald-700"
                                 }`}
                               >
-                                {isLast ? "Atual" : "Concluído"}
+                                {isCurrentTransit ? "Atual" : "Concluído"}
                               </Badge>
                             </div>
                           </div>
@@ -5373,23 +5411,57 @@ export function ProcessDetailPage() {
                       <Building2 className="h-4 w-4" />
                     </div>
                     <div className="min-w-0 flex-1 rounded-2xl border border-sky-200 bg-sky-50/70 p-4">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-sky-700">
-                        Unidade atual
+                      <p className={`text-[11px] font-semibold uppercase tracking-[0.14em] ${
+                        isFinalProcessStatus ? "text-emerald-700" : "text-sky-700"
+                      }`}>
+                        {isFinalProcessStatus ? "Etapa final" : "Unidade atual"}
                       </p>
                       <p className="mt-1 font-semibold text-slate-950">
-                        {currentOrganizationPath}
+                        {isFinalProcessStatus ? "Processo concluído" : currentOrganizationPath}
                       </p>
                       <p className="mt-2 text-sm text-slate-600">
-                        {showAnalysisMilestone && /financ/.test(normalizedCurrentFolder)
-                          ? "Encaminhado ao Financeiro após a conclusão da etapa técnica e emissão da Guia de ISSQN / Projeto."
-                          : "A unidade atual é a última etapa registrada para este processo."}
+                        {isFinalProcessStatus
+                          ? process.processControl?.checkpoint || "A conclusão administrativa foi registrada no processo."
+                          : showAnalysisMilestone && /financ/.test(normalizedCurrentFolder)
+                            ? "Encaminhado ao Financeiro após a conclusão da etapa técnica e emissão da Guia de ISSQN / Projeto."
+                            : "A unidade atual é a última etapa registrada para este processo."}
                       </p>
                     </div>
                   </div>
                 )}
               </div>
 
-              {isInternalRole(session.role) && ownsCurrentProcessStage && !isProtocolTrackingOnly ? (
+                            {isFinalProcessStatus ? (
+                <div data-process-final-milestone="true" className="relative mt-1 flex gap-4">
+                  <div className="z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-4 border-white bg-emerald-600 text-white shadow-sm">
+                    <CheckCircle2 className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0 flex-1 rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700">
+                          Conclusão
+                        </p>
+                        <p className="mt-1 font-semibold text-slate-950">
+                          {isHabiteSeProcess ? "Habite-se concluído" : "Processo concluído"}
+                        </p>
+                        <p className="mt-1 text-sm text-slate-600">
+                          {process.processControl?.checkpoint ||
+                            "A decisão final foi registrada e permanece preservada no histórico oficial."}
+                        </p>
+                      </div>
+                      <Badge
+                        variant="outline"
+                        className="rounded-full border-emerald-200 bg-white text-emerald-800"
+                      >
+                        {statusLabel(process.status)}
+                      </Badge>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+
+{isInternalRole(session.role) && ownsCurrentProcessStage && !isProtocolTrackingOnly ? (
                 <form
                   id="despacho"
                   data-dispatch-panel="true"
