@@ -440,6 +440,16 @@ export function HabiteSePermitPanel({
   const effectiveDirectorName =
     directorSigner?.name || permit?.directorName || null;
 
+  useEffect(() => {
+    if (
+      canCloseProcess &&
+      onCompleteProcess &&
+      notice === "Sua conta não possui atribuição para concluir administrativamente este processo."
+    ) {
+      setNotice("");
+    }
+  }, [canCloseProcess, notice, onCompleteProcess]);
+
   const saveDraft = async () => {
     if (!paymentConfirmed) {
       setNotice("O pagamento da Guia de Habite-se precisa estar confirmado antes da elaboração do Alvará.");
