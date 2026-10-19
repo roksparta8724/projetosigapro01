@@ -334,6 +334,42 @@ export async function requestProcessArtifactSignature(input: {
 }
 
 
+export async function requestHabiteSeSecretarySignature(input: {
+  processId: string;
+  artifactKey: string;
+  artifactHash: string;
+}): Promise<ArtifactSignatureRequestSnapshot & { ok?: boolean }> {
+  const { data, error } = await backendClient.rpc(
+    "request_habite_se_secretary_signature_v1",
+    {
+      _process_id: input.processId,
+      _artifact_key: input.artifactKey,
+      _artifact_hash: input.artifactHash,
+    },
+  );
+
+  if (error) {
+    throw new ArtifactSignatureError(
+      normalizeApiError(error) ||
+        "Não foi possível solicitar a assinatura complementar da Secretaria.",
+      {
+        stage: "request",
+        code: "HABITE_SE_SECRETARY_SIGNATURE_REQUEST_FAILED",
+      },
+    );
+  }
+
+  const raw = (data ?? {}) as Partial<
+    ArtifactSignatureRequestSnapshot & { ok?: boolean }
+  >;
+
+  return {
+    ok: raw.ok,
+    request: raw.request ?? null,
+    candidate_count: Number(raw.candidate_count ?? 0),
+  };
+}
+
 export async function getProcessArtifactVersionHistory(
   processId: string,
   artifactKey: string,
