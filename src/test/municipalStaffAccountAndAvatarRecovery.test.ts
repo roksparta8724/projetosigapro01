@@ -92,6 +92,13 @@ describe("municipal staff account and avatar recovery regressions", () => {
     expect(profilePage).toContain("statusIsDraft");
   });
 
+  it("only commits an avatar draft from the dedicated save action", () => {
+    expect(profilePage).toContain("const commitAvatar = options?.commitAvatar === true");
+    expect(profilePage).toContain("const avatarUploadFile = commitAvatar");
+    expect(profilePage).toContain("{ commitAvatar: true }");
+    expect(profilePage).toContain("profile?.useAvatarInHeader ?? form.useAvatarInHeader");
+  });
+
   it("only reports avatar success after the backend confirms the persistent R2 reference", () => {
     expect(profilePage).toContain("const persistedAvatarRef");
     expect(profilePage).toContain("persistedAvatarRef !== String(avatarStorageRef || \"\").trim()");
