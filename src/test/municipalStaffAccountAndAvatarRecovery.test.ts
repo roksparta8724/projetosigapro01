@@ -85,6 +85,15 @@ describe("municipal staff account and avatar recovery regressions", () => {
     expect(appBootstrap).not.toContain("const currentSession = (await backendClient.auth.getSession()).data.session");
   });
 
+  it("keeps avatar upload/removal isolated from personal and professional form saves", () => {
+    expect(profilePage).toContain("const saveAvatar = options.saveAvatar === true");
+    expect(profilePage).toContain("const avatarUploadFile = saveAvatar");
+    expect(profilePage).toContain("if (saveAvatar) {");
+    expect(profilePage).toContain("Dados pessoais salvos com sucesso no banco oficial.");
+    expect(profilePage).toContain("Dados profissionais salvos com sucesso no banco oficial.");
+    expect(profilePage).toContain("{ saveAvatar: true }");
+  });
+
   it("keeps a selected avatar as preview-only until the explicit save action", () => {
     expect(profilePage).toContain("Pré-visualização pronta. A foto ainda não foi salva");
     expect(profilePage).toContain('data-avatar-save-state="pending"');
