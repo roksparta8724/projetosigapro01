@@ -64,7 +64,12 @@ begin
   end if;
 
   if _from_status=_to_status then
-    raise exception 'Processo ja esta neste status';
+    return jsonb_build_object(
+      'process_id',_process_id,
+      'from_status',_from_status::text,
+      'to_status',_to_status::text,
+      'already_current',true
+    );
   end if;
 
   if _to_status='arquivado'::public.process_status
