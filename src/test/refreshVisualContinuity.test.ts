@@ -96,7 +96,7 @@ describe("F5, logout and topbar visual continuity", () => {
     expect(processDetail).toContain("stableProtocolTrackingOnly && preferredTab");
     expect(processDetail).toContain("stableProtocolTrackingOnly && requested");
     expect(processDetail).toContain("if (!stableProtocolTrackingOnly) return");
-    expect(processDetail).toContain("dataReadyForCurrentUser &&\n                  session.id !== \"unknown\"");
+    expect(processDetail).toMatch(/dataReadyForCurrentUser\s*&&\s*session\.id\s*!==\s*"unknown"/);
   });
 
   it("keeps the current Analysis tab visible while the same session revalidates", () => {
