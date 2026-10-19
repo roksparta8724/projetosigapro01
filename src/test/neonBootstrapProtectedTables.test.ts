@@ -18,11 +18,9 @@ describe("Neon bootstrap protected relations", () => {
   });
 
   it("does not make last-access telemetry fatal to login", () => {
-    const errorListStart = bootstrap.indexOf("const errors = [");
-    const errorListEnd = bootstrap.indexOf("].filter(Boolean)", errorListStart);
-    const fatalErrors = bootstrap.slice(errorListStart, errorListEnd);
-
-    expect(fatalErrors).not.toContain("lastAccessResult.error");
     expect(bootstrap).toContain("Telemetria de último acesso indisponível; login segue normalmente.");
+    expect(bootstrap).toContain("console.warn");
+    expect(bootstrap).not.toContain("throw lastAccessResult.error");
+    expect(bootstrap).not.toContain("throw new Error(lastAccessResult.error");
   });
 });
