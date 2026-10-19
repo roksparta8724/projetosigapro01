@@ -320,6 +320,7 @@ export function ProcessDetailPage() {
     beginAnalysisSupervisorIntervention,
     endAnalysisSupervisorIntervention,
     reassignProcessAnalysis,
+    updateProcessStatus,
   } = usePlatformData();
   useLivePlatformRefresh(refreshRemoteStore, { intervalMs: 5000 });
 
@@ -3912,6 +3913,17 @@ export function ProcessDetailPage() {
                   session.id !== "unknown"
                 }
                 onProcessRefresh={() => refreshRemoteStore()}
+                onCompleteProcess={async () => {
+                  await updateProcessStatus({
+                    processId: process.id,
+                    status: "arquivado",
+                    actor: session.name,
+                    title: "Processo de Habite-se concluído",
+                    detail:
+                      "Alvará de Habite-se emitido com assinatura eletrônica válida da Diretoria. Processo concluído administrativamente e encaminhado ao histórico, preservando rastreabilidade, documentos, assinaturas e movimentações.",
+                  });
+                  await refreshRemoteStore();
+                }}
                 onViewHabiteSeGuide={
                   habiteSeGuide
                     ? () => void printGuide("habite_se", false, habiteSeGuide.code)
