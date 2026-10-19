@@ -23,6 +23,7 @@ export type HabiteSePermitPdfInput = {
   secretariat?: string | null;
   directorate?: string | null;
   directorSignature?: HabiteSePermitPdfSignature | null;
+  secretarySignature?: HabiteSePermitPdfSignature | null;
   verificationCode?: string | null;
   evidenceHash?: string | null;
 };
@@ -280,6 +281,7 @@ export async function buildHabiteSePermitPdfBlob({
   secretariat,
   directorate,
   directorSignature,
+  secretarySignature,
   verificationCode,
   evidenceHash,
 }: HabiteSePermitPdfInput) {
@@ -501,15 +503,37 @@ export async function buildHabiteSePermitPdfBlob({
   );
   y += 21;
 
-  drawSignatureBox(
-    pdf,
-    margin,
-    y,
-    contentWidth,
-    "Diretoria responsável",
-    directorSignature,
-    verificationCode,
-  );
+  if (secretarySignature?.signedAt) {
+    const signatureWidth = (contentWidth - gap) / 2;
+    drawSignatureBox(
+      pdf,
+      margin,
+      y,
+      signatureWidth,
+      "Diretoria responsável",
+      directorSignature,
+      verificationCode,
+    );
+    drawSignatureBox(
+      pdf,
+      margin + signatureWidth + gap,
+      y,
+      signatureWidth,
+      "Secretaria responsável",
+      secretarySignature,
+      verificationCode,
+    );
+  } else {
+    drawSignatureBox(
+      pdf,
+      margin,
+      y,
+      contentWidth,
+      "Diretoria responsável",
+      directorSignature,
+      verificationCode,
+    );
+  }
   y += 27;
 
   const verificationUrl =
