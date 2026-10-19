@@ -3191,7 +3191,12 @@ export async function saveRemoteProfile(profile: UserProfile) {
       throw new Error("Perfil Neon autenticado nao encontrado.");
     }
 
-    const storedAvatar = String(row.avatar_url || profile.avatarStorageRef || profile.avatarUrl || "");
+    if (!Object.prototype.hasOwnProperty.call(row, "avatar_url")) {
+      throw new Error(
+        "O banco não confirmou o campo persistente da foto do perfil.",
+      );
+    }
+    const storedAvatar = String(row.avatar_url ?? "");
 
     return {
       userId: profileId,
