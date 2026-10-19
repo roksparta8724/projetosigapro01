@@ -513,7 +513,7 @@ export function AnalystDeskPage() {
     emptyMessage = "Nenhum processo encontrado com os filtros atuais.",
     allowArchiveAction = false,
   ) => (
-    <div className="space-y-4">
+    <div className="space-y-3.5">
       {items.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-sm leading-6 text-slate-600">
           {emptyMessage}
@@ -550,10 +550,10 @@ export function AnalystDeskPage() {
               data-process-premium-card="true"
               data-surface="adaptive-card"
               data-expanded={isExpanded ? "true" : "false"}
-              className={`overflow-hidden rounded-[20px] border bg-white transition-[border-color,box-shadow] duration-200 ${
+              className={`relative overflow-hidden rounded-[22px] border bg-[linear-gradient(180deg,#ffffff_0%,#fbfdff_100%)] transition-[border-color,box-shadow,transform] duration-200 dark:bg-[linear-gradient(180deg,#0f172a_0%,#111827_100%)] ${
                 isExpanded
-                  ? "border-sky-300 shadow-[0_14px_34px_rgba(7,89,133,0.10)]"
-                  : "border-slate-200 shadow-[0_7px_20px_rgba(15,23,42,0.05)] hover:border-sky-200 hover:shadow-[0_10px_26px_rgba(15,23,42,0.08)]"
+                  ? "border-sky-300 shadow-[0_18px_42px_rgba(7,89,133,0.12)]"
+                  : "border-slate-200 shadow-[0_8px_24px_rgba(15,23,42,0.055)] hover:-translate-y-px hover:border-sky-200 hover:shadow-[0_16px_36px_rgba(15,23,42,0.09)] dark:border-slate-700"
               }`}
               onClick={(event) => {
                 const target = event.target as HTMLElement;
@@ -561,12 +561,24 @@ export function AnalystDeskPage() {
                 setExpandedProcessId((current) => (current === process.id ? null : process.id));
               }}
             >
-              <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3.5 sm:px-5">
-                <div className="min-w-[min(100%,240px)] flex-1">
+              <div
+                aria-hidden="true"
+                className={`absolute inset-y-0 left-0 w-1 ${
+                  isExpanded
+                    ? "bg-sky-600"
+                    : process.sla.breached
+                      ? "bg-rose-500"
+                      : process.sla.hoursRemaining <= 12
+                        ? "bg-amber-500"
+                        : "bg-slate-300 dark:bg-slate-600"
+                }`}
+              />
+              <div className="flex flex-wrap items-center justify-between gap-4 px-5 py-4 sm:px-6">
+                <div className="min-w-[min(100%,280px)] flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <Link
                       to={buildProcessPath(process, "analise")}
-                      className="sig-fit-title inline-flex text-base font-semibold leading-6 text-[#075985] underline decoration-sky-300/70 underline-offset-[3px] hover:text-[#0369a1] hover:decoration-sky-600 dark:text-sky-300"
+                      className="sig-fit-title inline-flex text-[15px] font-extrabold leading-6 tracking-[-0.01em] text-[#075985] underline decoration-sky-300/70 underline-offset-[3px] hover:text-[#0369a1] hover:decoration-sky-600 dark:text-sky-300"
                       title={`Abrir ${formatOfficialProcessNumber(process.protocol)}`}
                     >
                       {formatOfficialProcessNumber(process.protocol)}
@@ -601,20 +613,20 @@ export function AnalystDeskPage() {
                   </div>
 
                   <p
-                    className="mt-1.5 line-clamp-1 text-sm font-semibold text-slate-900"
+                    className="mt-2 line-clamp-1 text-[13px] font-bold tracking-[-0.005em] text-slate-900 dark:text-slate-100"
                     title={formatOfficialProcessTitle({ title: process.title, type: process.type })}
                   >
                     {formatOfficialProcessTitle({ title: process.title, type: process.type })}
                   </p>
                   <p
-                    className="sig-fit-copy mt-0.5 line-clamp-1 text-xs leading-5 text-slate-500"
+                    className="sig-fit-copy mt-1 line-clamp-1 text-[11px] leading-5 text-slate-500 dark:text-slate-400"
                     title={`${process.address} • IPTU ${process.property.iptu} • Matrícula ${process.property.registration}`}
                   >
                     {process.address} • IPTU {process.property.iptu} • Matrícula {process.property.registration}
                   </p>
                 </div>
 
-                <div className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
+                <div data-analysis-process-actions="true" className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
                   <MarkerSelector
                     processId={process.id}
                     tags={process.tags}
@@ -627,7 +639,7 @@ export function AnalystDeskPage() {
                       type="button"
                       variant="outline"
                       size="icon"
-                      className="h-9 w-9 rounded-xl border-slate-200 bg-white text-slate-600 shadow-sm hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+                      className="h-10 w-10 rounded-xl border-slate-200 bg-white text-slate-600 shadow-[0_4px_12px_rgba(15,23,42,0.05)] hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
                       onClick={() =>
                         setProcessArchived(
                           process.id,
@@ -651,7 +663,7 @@ export function AnalystDeskPage() {
                     type="button"
                     variant="outline"
                     size="sm"
-                    className={`h-9 rounded-xl border-slate-200 bg-white px-3 text-[11px] font-bold text-slate-700 shadow-sm hover:border-sky-300 hover:bg-sky-50 hover:text-sky-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 ${
+                    className={`h-10 rounded-xl border-slate-200 bg-white px-4 text-[11px] font-bold text-slate-700 shadow-[0_4px_12px_rgba(15,23,42,0.05)] hover:border-sky-300 hover:bg-sky-50 hover:text-sky-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 ${
                       isExpanded ? "border-sky-300 bg-sky-50 text-sky-800" : ""
                     }`}
                     onClick={() =>
@@ -673,8 +685,8 @@ export function AnalystDeskPage() {
               </div>
 
               {isExpanded ? (
-                <div id={`analysis-process-details-${process.id}`}>
-              <div className="sig-responsive-data-grid mx-5 mt-2">
+                <div id={`analysis-process-details-${process.id}`} className="border-t border-slate-100 bg-slate-50/35 pb-1 dark:border-slate-700 dark:bg-slate-950/15">
+              <div className="sig-responsive-data-grid mx-5 mt-4">
                 <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
                   <p className="sig-label">Responsável pela análise</p>
                   <p className="sig-fit-title mt-2 text-sm font-semibold leading-6 text-slate-950" title={currentAnalyst}>
@@ -927,8 +939,18 @@ export function AnalystDeskPage() {
 
   const renderProcessRegistry = () => (
     <div className="space-y-3">
-      <div className="flex min-h-8 items-center rounded-xl border border-sky-200 bg-sky-50/70 px-3 py-1.5 text-[11px] font-medium text-sky-900 dark:border-sky-500/30 dark:bg-sky-950/25 dark:text-sky-200">
-        Clique em um card para expandir somente o processo que deseja analisar. O número sublinhado e o botão “Abrir processo” continuam abrindo o processo oficial.
+      <div className="flex items-start gap-3 rounded-[16px] border border-sky-200/80 bg-[linear-gradient(135deg,#f7fbff_0%,#eef8ff_100%)] px-4 py-3 shadow-[0_4px_14px_rgba(14,116,181,0.05)] dark:border-sky-500/25 dark:bg-[linear-gradient(135deg,#0c2131_0%,#0b2538_100%)]">
+        <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-sky-700 text-white shadow-sm">
+          <Workflow className="h-4 w-4" />
+        </div>
+        <div>
+          <p className="text-[11px] font-extrabold uppercase tracking-[0.08em] text-sky-900 dark:text-sky-100">
+            Navegação da fila técnica
+          </p>
+          <p className="mt-0.5 text-[11px] leading-5 text-sky-800/90 dark:text-sky-200/90">
+            Selecione um card para consultar os detalhes operacionais. O número do processo e a ação “Abrir processo” acessam diretamente o registro oficial.
+          </p>
+        </div>
       </div>
 
       {renderQueue(
@@ -1220,13 +1242,13 @@ export function AnalystDeskPage() {
                     value={search}
                     onChange={(event) => setSearch(event.target.value)}
                     placeholder="Buscar processo, proprietário, endereço, IPTU ou analista"
-                    className="h-11 rounded-2xl border-slate-200 pl-11"
+                    className="h-11 rounded-[14px] border-slate-200 bg-white pl-11 shadow-[0_4px_14px_rgba(15,23,42,0.04)] focus-visible:border-sky-300 focus-visible:ring-sky-100 dark:border-slate-700 dark:bg-slate-900"
                   />
                 </div>
                 <Button
                   type="button"
                   variant="outline"
-                  className="h-11 shrink-0 rounded-full"
+                  className="h-11 shrink-0 rounded-[14px] border-slate-200 bg-white px-4 font-semibold text-slate-700 shadow-[0_4px_14px_rgba(15,23,42,0.04)] hover:border-sky-200 hover:bg-sky-50 hover:text-sky-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
                   onClick={() => setShowArchived((current) => !current)}
                 >
                   {showArchived ? (
