@@ -287,9 +287,12 @@ export function FinanceProtocolsPage() {
     const billingKey = `${processId}:${guideKind}:mercadopago`;
     let providerCharge: Awaited<ReturnType<typeof ensureMercadoPagoGuideCharge>> | null = null;
 
-    if (!banking.barcode || !banking.digitableLine) {
+    if (
+      (!banking.barcode || !banking.digitableLine) &&
+      match.guide.status !== "compensada"
+    ) {
       setGuideBillingBusyKey(billingKey);
-      setFinancialStatus("Gerando cobrança Mercado Pago para esta guia...");
+      setFinancialStatus("Carregando a cobrança oficial vinculada a esta guia...");
       try {
         providerCharge = await ensureMercadoPagoGuideCharge({
           municipalityId: effectiveScopeId,
@@ -297,15 +300,27 @@ export function FinanceProtocolsPage() {
           amount: match.guide.amount,
           dueDate: match.guide.dueDate,
           description: `${guideKindLabel(match.guide.kind)} · ${match.process.protocol}`,
+          existingCharge: {
+            ok: true,
+            environment: match.guide.providerEnvironment || "test",
+            orderId: match.guide.bankReference,
+            paymentId: match.guide.bankPaymentId,
+            status: match.guide.bankStatus,
+            statusDetail: match.guide.bankStatusDetail,
+            authenticatedAt: match.guide.bankAuthenticatedAt,
+            barcodeContent: match.guide.barcode,
+            digitableLine: match.guide.digitableLine,
+          },
+          allowCreate: !match.guide.bankReference,
         });
         setFinancialStatus(
-          "Cobrança Mercado Pago vinculada à própria guia do SIGAPRO. Linha digitável e código de barras foram incorporados à DAM.",
+          "Cobrança oficial vinculada à própria guia do SIGAPRO carregada com sucesso.",
         );
       } catch (error) {
         const message =
           error instanceof Error
-            ? `Não foi possível obter a cobrança Mercado Pago desta guia: ${error.message}`
-            : "Não foi possível obter a cobrança Mercado Pago desta guia.";
+            ? `Não foi possível obter a cobrança oficial desta guia: ${error.message}`
+            : "Não foi possível obter a cobrança oficial desta guia.";
         setFinancialStatus(message);
         return;
       } finally {
@@ -317,11 +332,17 @@ export function FinanceProtocolsPage() {
       providerCharge?.digitableLine || banking.digitableLine;
     const barcode =
       providerCharge?.barcodeContent || banking.barcode;
-    if (!barcode || !digitableLine) {
+    if ((!barcode || !digitableLine) && match.guide.status !== "compensada") {
       const message =
         "A cobrança bancária não retornou linha digitável e código de barras completos. A DAM foi bloqueada para não emitir uma guia inválida.";
       setFinancialStatus(message);
       return;
+    }
+
+    if ((!barcode || !digitableLine) && match.guide.status === "compensada") {
+      setFinancialStatus(
+        "Cópia histórica: emissão e pagamento originais preservados. Como os dados bancários desta guia antiga não foram persistidos, o SIGAPRO não criará outro boleto para substituí-los.",
+      );
     }
 
     const providerInstitution = providerCharge?.financialInstitution?.trim() || "";
