@@ -116,6 +116,13 @@ describe("municipal staff account and avatar recovery regressions", () => {
     expect(avatar).not.toContain("sig-user-avatar-image absolute inset-0 block h-full w-full max-w-none bg-white");
   });
 
+  it("resolves persisted R2 avatars through the same logical bucket used by upload", () => {
+    expect(backend).toContain("getSignedUrlForObjectStrict");
+    expect(backend).toContain('bucket: "profile-assets"');
+    expect(backend).toContain("expiresIn: 21600");
+    expect(backend).toContain("/api/profile-avatar-open?objectKey=");
+  });
+
   it("serves current R2 profile photos through the same-origin avatar route", () => {
     expect(backend).toContain('/api/profile-avatar-open?objectKey=');
     expect(backend).not.toContain("getSignedUrlForObjectStrict({ bucket, objectKey })");
