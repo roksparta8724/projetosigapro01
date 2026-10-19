@@ -41,6 +41,10 @@ export function resolveBackendMode(input?: {
   // Official domains can never be redirected to Supabase by a stale env var.
   if (isNeonProductionHostname(resolvedHostname)) return "neon";
 
+  // Vercel previews are allowed to run only against an explicitly configured
+  // Neon homologation environment. Never permit a legacy Supabase fallback.
+  if (resolvedHostname.endsWith(".vercel.app")) return "neon";
+
   if (configured === "supabase") return "supabase";
   if (configured === "neon") return "neon";
 
