@@ -192,10 +192,9 @@ export function PerfilPage() {
   const [accountStatus, setAccountStatus] = useState("");
   const [saving, setSaving] = useState(false);
   const [avatarFiles, setAvatarFiles] = useState<UploadedFileItem[]>([]);
+  const [avatarDraftDirty, setAvatarDraftDirty] = useState(false);
   const [section, setSection] = useState<ProfileSection>("visao-geral");
   const avatarObjectUrlRef = useRef<string | null>(null);
-  const avatarFrameDirtyRef = useRef(false);
-  const avatarFrameSaveTimerRef = useRef<number | null>(null);
   const lastCepLookupRef = useRef("");
   const [masterBranding, setMasterBranding] = useState(() => loadMasterBranding());
   const [platformBranding, setPlatformBranding] = useState<Awaited<ReturnType<typeof loadPlatformBranding>> | null>(null);
@@ -419,7 +418,9 @@ export function PerfilPage() {
 
   useEffect(() => {
     if (!profile) return;
-    setForm({
+
+    setForm((current) => ({
+      ...current,
       fullName: profile.fullName,
       email: profile.email,
       phone: profile.phone,
@@ -436,13 +437,20 @@ export function PerfilPage() {
       city: profile.city,
       state: profile.state,
       zipCode: profile.zipCode,
-      avatarUrl: profile.avatarUrl,
-      avatarScale: profile.avatarScale ?? 1,
-      avatarOffsetX: profile.avatarOffsetX ?? 0,
-      avatarOffsetY: profile.avatarOffsetY ?? 0,
-      useAvatarInHeader: profile.useAvatarInHeader ?? false,
+      ...(avatarDraftDirty
+        ? {}
+        : {
+            avatarUrl: profile.avatarUrl,
+            avatarScale: profile.avatarScale ?? 1,
+            avatarOffsetX: profile.avatarOffsetX ?? 0,
+            avatarOffsetY: profile.avatarOffsetY ?? 0,
+            useAvatarInHeader: profile.useAvatarInHeader ?? false,
+          }),
       bio: profile.bio,
-    });
+    }));
+
+    if (avatarDraftDirty) return;
+
     if (profile.avatarUrl) {
       setAvatarFiles([
         {
@@ -453,8 +461,10 @@ export function PerfilPage() {
           previewUrl: profile.avatarUrl,
         },
       ]);
+    } else {
+      setAvatarFiles([]);
     }
-  }, [profile]);
+  }, [avatarDraftDirty, profile]);
 
   useEffect(() => {
     setDraftMasterHeaderConfig({
@@ -495,6 +505,8 @@ export function PerfilPage() {
     const nextFile = files[0];
     if (!nextFile) {
       setAvatarFiles([]);
+      setAvatarDraftDirty(true);
+      setStatus("Remoção da foto preparada. Clique em “Salvar ajustes da foto” para confirmar.");
       setForm((current) => ({
         ...current,
         avatarUrl: "",
@@ -516,20 +528,19 @@ export function PerfilPage() {
     }
 
     const selectedFiles = files.slice(0, 1);
-    setStatus(nextFile.file ? "Salvando foto automaticamente..." : "");
     setAvatarFiles(selectedFiles);
+    setAvatarDraftDirty(Boolean(nextFile.file));
+    setStatus(
+      nextFile.file
+        ? "Pré-visualização pronta. A foto ainda não foi salva; clique em “Salvar ajustes da foto”."
+        : "",
+    );
     setForm((current) => ({
       ...current,
-      avatarScale: 1,
-      avatarOffsetX: 0,
-      avatarOffsetY: 0,
+      avatarScale: nextFile.file ? 1 : current.avatarScale,
+      avatarOffsetX: nextFile.file ? 0 : current.avatarOffsetX,
+      avatarOffsetY: nextFile.file ? 0 : current.avatarOffsetY,
     }));
-
-    if (nextFile.file) {
-      window.setTimeout(() => {
-        void handleSubmit({ preventDefault: () => {} } as FormEvent, selectedFiles);
-      }, 0);
-    }
   };
 
   useEffect(() => {
@@ -569,7 +580,8 @@ export function PerfilPage() {
   }, [form.zipCode]);
 
   const updateAvatarFrame = ({ scale, offsetX, offsetY }: { scale: number; offsetX: number; offsetY: number }) => {
-    avatarFrameDirtyRef.current = true;
+    setAvatarDraftDirty(true);
+    setStatus("Enquadramento alterado. Clique em “Salvar ajustes da foto” para confirmar.");
     setForm((current) => ({
       ...current,
       avatarScale: scale,
@@ -579,62 +591,10 @@ export function PerfilPage() {
   };
 
   const updateAvatarHeaderVisibility = (checked: boolean) => {
-    avatarFrameDirtyRef.current = true;
+    setAvatarDraftDirty(true);
+    setStatus("Preferência alterada. Clique em “Salvar ajustes da foto” para confirmar.");
     setForm((current) => ({ ...current, useAvatarInHeader: checked }));
   };
-
-  useEffect(() => {
-    if (!avatarFrameDirtyRef.current || !profile?.avatarUrl) return;
-
-    if (avatarFrameSaveTimerRef.current) {
-      window.clearTimeout(avatarFrameSaveTimerRef.current);
-    }
-
-    avatarFrameSaveTimerRef.current = window.setTimeout(() => {
-      void (async () => {
-        avatarFrameDirtyRef.current = false;
-        setStatus("Salvando enquadramento automaticamente...");
-        try {
-          const savedProfile = await saveUserProfile({
-            ...profile,
-            avatarScale: form.avatarScale,
-            avatarOffsetX: form.avatarOffsetX,
-            avatarOffsetY: form.avatarOffsetY,
-            useAvatarInHeader: form.useAvatarInHeader,
-          });
-          setForm((current) => ({
-            ...current,
-            avatarUrl: savedProfile.avatarUrl || current.avatarUrl,
-            avatarScale: savedProfile.avatarScale ?? current.avatarScale,
-            avatarOffsetX: savedProfile.avatarOffsetX ?? current.avatarOffsetX,
-            avatarOffsetY: savedProfile.avatarOffsetY ?? current.avatarOffsetY,
-            useAvatarInHeader: savedProfile.useAvatarInHeader ?? current.useAvatarInHeader,
-          }));
-          setStatus("Enquadramento salvo automaticamente.");
-        } catch (error) {
-          avatarFrameDirtyRef.current = true;
-          setStatus(
-            error instanceof Error
-              ? `Não foi possível salvar o enquadramento: ${error.message}`
-              : "Não foi possível salvar o enquadramento.",
-          );
-        }
-      })();
-    }, 700);
-
-    return () => {
-      if (avatarFrameSaveTimerRef.current) {
-        window.clearTimeout(avatarFrameSaveTimerRef.current);
-      }
-    };
-  }, [
-    form.avatarOffsetX,
-    form.avatarOffsetY,
-    form.avatarScale,
-    form.useAvatarInHeader,
-    profile,
-    saveUserProfile,
-  ]);
 
   const setAccountField = (field: keyof typeof accountForm, value: string) => {
     setAccountForm((current) => ({ ...current, [field]: value }));
@@ -1038,6 +998,7 @@ export function PerfilPage() {
 
       const savedProfile = await saveUserProfile(nextProfile);
       const savedAvatarUrl = savedProfile.avatarUrl || avatarUrl;
+      setAvatarDraftDirty(false);
       if (savedAvatarUrl) {
         setAvatarFiles([
           {
@@ -1058,7 +1019,7 @@ export function PerfilPage() {
         avatarOffsetX: savedProfile.avatarOffsetX ?? avatarOffsetX,
         avatarOffsetY: savedProfile.avatarOffsetY ?? avatarOffsetY,
       }));
-      setStatus((current) => current || "Perfil atualizado com sucesso.");
+      setStatus("Perfil e foto salvos com sucesso no banco oficial.");
     } catch (error) {
       setStatus(
         error instanceof Error
