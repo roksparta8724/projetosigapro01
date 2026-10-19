@@ -63,6 +63,7 @@ type GuiaData = {
   bankStatusDetail?: string;
   bankAuthenticatedAt?: string;
   paymentProvider?: "mercado_pago" | "bank_direct" | "manual";
+  historicalPaid?: boolean;
   valorDocumento?: number;
   descontos?: number;
   outrosAcrescimos?: number;
@@ -1456,6 +1457,7 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
   const valorCobrado =
     guia.valorCobrado ?? totalDocumento - descontos + outrosAcrescimos;
   const bankAuth = bankAuthenticationLabel(guia);
+  const historicalPaid = guia.historicalPaid === true;
 
   const prefeituraEndereco = [
     prefeitura.endereco,
@@ -1855,7 +1857,16 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
                   value={formatCurrency(valorCobrado)}
                 />
 
-                {guia.pixPayload ? (
+                {historicalPaid ? (
+                  <div className="dam-qr-wrap">
+                    <div className="dam-qrcode-label">Documento quitado</div>
+                    <div className="dam-qrcode-box">
+                      <span className="dam-qrcode-fallback">
+                        Pagamento já compensado — meios de pagamento desativados nesta via histórica.
+                      </span>
+                    </div>
+                  </div>
+                ) : guia.pixPayload ? (
                   <div className="dam-qr-wrap">
                     <div className="dam-qrcode-label">PIX — QR Code e Copia e Cola</div>
                     {guia.bankEnvironment === "test" ? (
@@ -1890,14 +1901,22 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
             <div className="dam-bottom-section">
               <div className="dam-bottom-label">Linha Digitável</div>
               <div className="dam-digitable-value">
-                {formatDigitableLine(guia.linhaDigitavel)}
+                {historicalPaid
+                  ? "Desativada — guia já compensada."
+                  : formatDigitableLine(guia.linhaDigitavel)}
               </div>
             </div>
 
             <div className="dam-bottom-section">
               <div className="dam-bottom-label">Código de Barras</div>
               <div className="dam-barcode-box">
-                <ProviderBarcode value={guia.codigoBarras} />
+                {historicalPaid ? (
+                  <span className="dam-barcode-fallback">
+                    Código de barras desativado após a compensação.
+                  </span>
+                ) : (
+                  <ProviderBarcode value={guia.codigoBarras} />
+                )}
               </div>
             </div>
 
@@ -1905,10 +1924,12 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
               <div className="dam-footer-left">
                 <div className="dam-bottom-label">Instruções de pagamento</div>
                 <div className="dam-footer-note">
-                  {guia.bankInstructions ||
-                    (guia.linhaDigitavel || guia.pixPayload || guia.qrCodePixUrl
-                      ? "Efetue o pagamento pelo canal oficial indicado pela Prefeitura. Após a compensação, o recolhimento poderá ser conferido na tramitação administrativa."
-                      : "Não há linha digitável nem PIX oficial nesta via. Solicite à Tesouraria o meio de arrecadação válido antes de efetuar o pagamento.")}
+                  {historicalPaid
+                    ? "DOCUMENTO QUITADO. Não efetue novo pagamento. Esta via preserva a emissão e a baixa originais para consulta e auditoria."
+                    : guia.bankInstructions ||
+                      (guia.linhaDigitavel || guia.pixPayload || guia.qrCodePixUrl
+                        ? "Efetue o pagamento pelo canal oficial indicado pela Prefeitura. Após a compensação, o recolhimento poderá ser conferido na tramitação administrativa."
+                        : "Não há linha digitável nem PIX oficial nesta via. Solicite à Tesouraria o meio de arrecadação válido antes de efetuar o pagamento.")}
                 </div>
               </div>
               <div className="dam-footer-right">
