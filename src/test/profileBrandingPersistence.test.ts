@@ -74,7 +74,7 @@ describe("profile and branding persistence regressions", () => {
     expect(css).toContain(".sig-image-frame-stage");
     expect(profilePage).toContain('fitMode="cover"');
     expect(profilePage).toContain("preenche todo o círculo");
-    expect(profilePage).toContain("Enquadramento salvo automaticamente.");
+    expect(profilePage).toContain("Salvar ajustes da foto");
     expect(profilePage).toContain("updateAvatarHeaderVisibility");
     expect(profilePage).toContain("border-rose-200 bg-rose-50 text-rose-700");
   });
