@@ -46,6 +46,7 @@ export function NotificationsPage() {
   const [view, setView] = useState<NotificationView>("visao-geral");
   const [selectedNotificationIds, setSelectedNotificationIds] = useState<string[]>([]);
   const [notificationBulkBusy, setNotificationBulkBusy] = useState<"" | "read" | "delete">("");
+  const [notificationBulkError, setNotificationBulkError] = useState("");
   const [masterSupportTitle, setMasterSupportTitle] = useState("");
   const [masterSupportMessage, setMasterSupportMessage] = useState("");
   const [masterSupportBusy, setMasterSupportBusy] = useState(false);
@@ -221,9 +222,20 @@ export function NotificationsPage() {
   const deleteSelectedNotifications = async () => {
     if (selectedNotificationIds.length === 0 || notificationBulkBusy) return;
     setNotificationBulkBusy("delete");
+    setNotificationBulkError("");
     try {
-      await deleteNotifications(selectedNotificationIds);
+      if (allNotificationsSelected) {
+        await deleteNotifications();
+      } else {
+        await deleteNotifications(selectedNotificationIds);
+      }
       setSelectedNotificationIds([]);
+    } catch (error) {
+      setNotificationBulkError(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível apagar as notificações selecionadas.",
+      );
     } finally {
       setNotificationBulkBusy("");
     }
@@ -232,9 +244,16 @@ export function NotificationsPage() {
   const deleteAllNotifications = async () => {
     if (officialNotifications.length === 0 || notificationBulkBusy) return;
     setNotificationBulkBusy("delete");
+    setNotificationBulkError("");
     try {
       await deleteNotifications();
       setSelectedNotificationIds([]);
+    } catch (error) {
+      setNotificationBulkError(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível apagar todas as notificações.",
+      );
     } finally {
       setNotificationBulkBusy("");
     }
@@ -575,20 +594,22 @@ export function NotificationsPage() {
                         onClick={() => void deleteSelectedNotifications()}
                       >
                         <Trash2 className="mr-2 h-4 w-4" />
-                        Apagar selecionadas
+                        {allNotificationsSelected
+                          ? "Apagar todas selecionadas"
+                          : `Apagar selecionadas (${selectedNotificationIds.length})`}
                       </button>
                     </>
-                  ) : null}
-
-                  <button
-                    type="button"
-                    className="inline-flex h-9 items-center justify-center rounded-full border border-rose-200 bg-white px-3 text-xs font-semibold text-rose-700 hover:bg-rose-50"
-                    disabled={Boolean(notificationBulkBusy)}
-                    onClick={() => void deleteAllNotifications()}
-                  >
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    Apagar todas
-                  </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="inline-flex h-9 items-center justify-center rounded-full border border-rose-200 bg-white px-3 text-xs font-semibold text-rose-700 hover:bg-rose-50"
+                      disabled={Boolean(notificationBulkBusy)}
+                      onClick={() => void deleteAllNotifications()}
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Apagar todas
+                    </button>
+                  )}
                 </div>
               ) : null
             }
@@ -596,6 +617,11 @@ export function NotificationsPage() {
             {notificationsError ? (
               <div className="mb-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
                 {notificationsError}
+              </div>
+            ) : null}
+            {notificationBulkError ? (
+              <div className="mb-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
+                {notificationBulkError}
               </div>
             ) : null}
             {notificationsLoading && officialNotificationItems.length === 0 ? (
