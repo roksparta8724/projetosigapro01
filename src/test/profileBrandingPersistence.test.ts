@@ -95,13 +95,18 @@ describe("profile and branding persistence regressions", () => {
     expect(userAvatar).toContain("const resolvedImageUrl = recoveryImageUrl || stableImageUrl || imageUrl ||");
   });
 
-  it("keeps private R2 avatars persistent across F5 and autosaves new photos", () => {
-    expect(storage).toContain('persistentRef: uploaded.publicUrl || `r2:${uploaded.objectKey}`');
+  it("persists private R2 avatars after confirmation and preserves edits across F5", () => {
+    expect(storage).toContain('input.bucket === "profile-assets" ? `r2:${uploaded.objectKey}`');
     expect(backend).toContain("PROFILE_ASSET_REF_PREFIX");
-    expect(backend).toContain("resolveStoredProfileAvatar");
-    expect(backend).toContain("avatarStorageRef");
-    expect(profilePage).toContain("Salvando foto automaticamente...");
+    expect(backend).toContain("getSignedUrlForObjectStrict");
+    expect(backend).toContain("savedAvatarValue");
+    expect(backend).toContain("requestedR2Ref");
+    expect(profilePage).toContain("avatarDraftDirty");
+    expect(profilePage).toContain("Pré-visualização pronta.");
+    expect(profilePage).not.toContain("Salvando foto automaticamente...");
+    expect(profilePage).toContain("confirmSavedAvatarReadable(savedAvatarUrl)");
     expect(profilePage).toContain("uploaded.persistentRef");
-    expect(profilePage).not.toContain("Configure a URL publica do R2 antes de salvar a foto.");
+    expect(dataHook).toContain("readCachedProfileAvatar");
+    expect(dataHook).toContain("writeCachedProfileAvatar");
   });
 });
