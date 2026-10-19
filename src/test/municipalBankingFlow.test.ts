@@ -88,7 +88,8 @@ describe("municipal bank and payment guide flow", () => {
   });
 
   it("does not open a guide before Mercado Pago returns complete bank data", () => {
-    expect(finance).toContain("if (!banking.barcode || !banking.digitableLine)");
+    expect(finance).toContain("!banking.barcode || !banking.digitableLine");
+    expect(finance).toContain('match.guide.status !== "compensada"');
     expect(processDetail).toContain("if (banking.barcode && banking.digitableLine) continue;");
     expect(processDetail).toContain('selectedGuide.status !== "compensada"');
     expect(mercadoPagoGuide).toContain("!payload.digitableLine?.trim()");
