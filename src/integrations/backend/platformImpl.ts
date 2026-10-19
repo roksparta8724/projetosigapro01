@@ -3186,7 +3186,31 @@ export async function saveRemoteProfile(profile: UserProfile) {
         String(savedAvatarValue || "").trim() !== requestedR2Ref) {
       throw new Error("O banco não confirmou a gravação permanente da foto de perfil. Tente novamente.");
     }
-    const storedAvatar = String(savedAvatarValue || profile.avatarStorageRef || profile.avatarUrl || "");
+    const storedAvatar = String(savedAvatarValue || "").trim();
+    const expectsRemoval = !String(profile.avatarStorageRef || "").trim() &&
+      !String(profile.avatarUrl || "").trim();
+    if (expectsRemoval && storedAvatar) {
+      throw new Error("O banco não confirmou a remoção da foto. A imagem anterior foi preservada.");
+    }
+    // Uma atualização de preferência só é sucesso se a RPC confirmar o
+    // mesmo estado. Antes, false era usado silenciosamente quando o campo
+    // não era devolvido, simulando sucesso sem alterar o cabeçalho.
+    if (Boolean(row.use_avatar_in_header ?? false) !== Boolean(profile.useAvatarInHeader)) {
+      throw new Error("O banco não confirmou a exibição da foto no cabeçalho. O ajuste não foi salvo.");
+    }
+    const persistedScale = Number(row.avatar_scale);
+    const persistedOffsetX = Number(row.avatar_offset_x);
+    const persistedOffsetY = Number(row.avatar_offset_y);
+    if (
+      !Number.isFinite(persistedScale) ||
+      !Number.isFinite(persistedOffsetX) ||
+      !Number.isFinite(persistedOffsetY) ||
+      Math.abs(persistedScale - Number(profile.avatarScale ?? 1)) > 0.001 ||
+      Math.abs(persistedOffsetX - Number(profile.avatarOffsetX ?? 0)) > 0.001 ||
+      Math.abs(persistedOffsetY - Number(profile.avatarOffsetY ?? 0)) > 0.001
+    ) {
+      throw new Error("O banco não confirmou o enquadramento da foto. Tente salvar novamente.");
+    }
 
     return {
       userId: profileId,
