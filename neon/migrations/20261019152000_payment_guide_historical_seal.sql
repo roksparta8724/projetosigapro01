@@ -37,11 +37,6 @@ begin
       raise exception 'A baixa de uma guia compensada nao pode ser desfeita';
     end if;
 
-    if lower(coalesce(old.status,'')) in ('compensada','confirmed','paid','pago','confirmado')
-       and lower(coalesce(new.status,'')) not in ('compensada','confirmed','paid','pago','confirmado') then
-      raise exception 'O status financeiro de uma guia compensada nao pode retroceder';
-    end if;
-
     if old.paid_at is not null and new.paid_at is distinct from old.paid_at then
       raise exception 'A data original de pagamento da guia e imutavel';
     end if;
