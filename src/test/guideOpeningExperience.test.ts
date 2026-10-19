@@ -47,6 +47,14 @@ describe("guide opening experience", () => {
     expect(seal).not.toContain("coalesce(new.paid,false) is distinct from true");
   });
 
+  it("does not count legacy confirmed guides without paid evidence as compensated", () => {
+    const backend = read("src/integrations/backend/platformImpl.ts");
+    expect(backend).toContain('(primaryGuide?.status === "confirmed" && (primaryGuide.paid === true || primaryGuide.paid_at != null))');
+    expect(backend).toContain('(guide.status === "confirmed" && (guide.paid === true || guide.paid_at != null))');
+    expect(backend).not.toContain('primaryGuide?.status === "confirmed" ||');
+    expect(backend).not.toContain('guide.status === "confirmed" ||');
+  });
+
   it("never exposes an intermediary preparation document", () => {
     const guide = read("src/components/GuiaRecolhimentoOficial.tsx");
 
