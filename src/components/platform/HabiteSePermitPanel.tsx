@@ -366,7 +366,7 @@ export function HabiteSePermitPanel({
   const directorSigner = signatureMatchesCurrent
     ? signatureState.signers.find((item) => item.slot === "diretoria")
     : undefined;
-  const directorSigned = Boolean(directorSigner);
+  const directorSigned = Boolean(directorSigner) || permit?.status === "emitido";
 
   const saveDraft = async () => {
     if (!paymentConfirmed) {
@@ -470,6 +470,7 @@ export function HabiteSePermitPanel({
       setSignatureState(signatures);
       const finalized = await finalizeHabiteSePermit(process.id);
       setPermit(finalized.permit);
+      setSignatureState(signatures);
       setDirectorRequestPending(false);
       setPasswordDialog(null);
       setPassword("");
@@ -853,7 +854,7 @@ export function HabiteSePermitPanel({
         </CardContent>
       </Card>
 
-      <Dialog open={Boolean(passwordDialog)} onOpenChange={(open) => !open && !busy && setPasswordDialog(null)}>
+      <Dialog open={Boolean(passwordDialog && permit?.status !== "emitido" && !directorSigned)} onOpenChange={(open) => !open && !busy && setPasswordDialog(null)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-lg font-bold">
