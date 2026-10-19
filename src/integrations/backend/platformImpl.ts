@@ -3193,7 +3193,13 @@ export async function saveRemoteProfile(profile: UserProfile) {
       throw new Error("Perfil Neon autenticado nao encontrado.");
     }
 
-    const storedAvatar = String(row.avatar_url || profile.avatarStorageRef || profile.avatarUrl || "");
+    const storedAvatar = String(row.avatar_url || "");
+    const expectedAvatar = String(profile.avatarStorageRef || profile.avatarUrl || "").trim();
+    if (expectedAvatar && storedAvatar !== expectedAvatar) {
+      throw new Error(
+        "O banco não confirmou a referência exata da foto enviada. A operação foi interrompida para evitar uma confirmação falsa de salvamento.",
+      );
+    }
 
     return {
       userId: profileId,
