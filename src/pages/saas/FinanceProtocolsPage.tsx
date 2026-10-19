@@ -83,8 +83,11 @@ function isOpenMunicipalProcess(process: ProcessRecord) {
 
 function formatDate(value?: string) {
   if (!value) return "Não informado";
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return value;
+  const raw = String(value).trim();
+  const civilDate = raw.match(/^(\d{4})-(\d{2})-(\d{2})(?:$|T|\s)/);
+  if (civilDate) return `${civilDate[3]}/${civilDate[2]}/${civilDate[1]}`;
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) return raw;
   return parsed.toLocaleDateString("pt-BR");
 }
 
