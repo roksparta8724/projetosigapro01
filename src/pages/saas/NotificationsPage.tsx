@@ -1,4 +1,4 @@
-import { AlertCircle, BellRing, CheckCheck, MessageSquareMore, Send, Signature, Wallet } from "lucide-react";
+import { AlertCircle, BellRing, CheckCheck, MessageSquareMore, Send, Signature, Trash2, Wallet } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -41,8 +41,11 @@ export function NotificationsPage() {
     error: notificationsError,
     markRead,
     markAllRead,
+    deleteNotifications,
   } = useNotifications({ includeItems: true, limit: 150, pollMs: 10000 });
   const [view, setView] = useState<NotificationView>("visao-geral");
+  const [selectedNotificationIds, setSelectedNotificationIds] = useState<string[]>([]);
+  const [notificationBulkBusy, setNotificationBulkBusy] = useState<"" | "read" | "delete">("");
   const [masterSupportTitle, setMasterSupportTitle] = useState("");
   const [masterSupportMessage, setMasterSupportMessage] = useState("");
   const [masterSupportBusy, setMasterSupportBusy] = useState(false);
@@ -180,6 +183,63 @@ export function NotificationsPage() {
     [processes],
   );
 
+  const selectableNotificationIds = useMemo(
+    () => officialNotifications.map((item) => item.id),
+    [officialNotifications],
+  );
+  const allNotificationsSelected =
+    selectableNotificationIds.length > 0 &&
+    selectableNotificationIds.every((id) => selectedNotificationIds.includes(id));
+
+  const toggleNotificationSelection = (notificationId: string) => {
+    setSelectedNotificationIds((current) =>
+      current.includes(notificationId)
+        ? current.filter((id) => id !== notificationId)
+        : [...current, notificationId],
+    );
+  };
+
+  const toggleAllNotifications = () => {
+    setSelectedNotificationIds(
+      allNotificationsSelected ? [] : selectableNotificationIds,
+    );
+  };
+
+  const markSelectedNotificationsRead = async () => {
+    if (selectedNotificationIds.length === 0 || notificationBulkBusy) return;
+    setNotificationBulkBusy("read");
+    try {
+      await Promise.all(
+        selectedNotificationIds.map((id) => markRead(id, true)),
+      );
+      setSelectedNotificationIds([]);
+    } finally {
+      setNotificationBulkBusy("");
+    }
+  };
+
+  const deleteSelectedNotifications = async () => {
+    if (selectedNotificationIds.length === 0 || notificationBulkBusy) return;
+    setNotificationBulkBusy("delete");
+    try {
+      await deleteNotifications(selectedNotificationIds);
+      setSelectedNotificationIds([]);
+    } finally {
+      setNotificationBulkBusy("");
+    }
+  };
+
+  const deleteAllNotifications = async () => {
+    if (officialNotifications.length === 0 || notificationBulkBusy) return;
+    setNotificationBulkBusy("delete");
+    try {
+      await deleteNotifications();
+      setSelectedNotificationIds([]);
+    } finally {
+      setNotificationBulkBusy("");
+    }
+  };
+
   const officialNotificationItems = useMemo<ActivityItem[]>(
     () =>
       officialNotifications.map((notification) => {
@@ -213,7 +273,17 @@ export function NotificationsPage() {
           badge: notification.isRead ? notification.category : "Nova",
           icon,
           action: (
-            <div className="flex flex-col gap-2 sm:flex-row">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <label className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-full border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50">
+                <input
+                  type="checkbox"
+                  checked={selectedNotificationIds.includes(notification.id)}
+                  onChange={() => toggleNotificationSelection(notification.id)}
+                  className="h-4 w-4 rounded border-slate-300"
+                  aria-label={`Selecionar notificação ${notification.title}`}
+                />
+                Selecionar
+              </label>
               {!notification.isRead ? (
                 <button
                   type="button"
@@ -238,7 +308,7 @@ export function NotificationsPage() {
           ),
         };
       }),
-    [markRead, officialNotifications, processById],
+    [markRead, officialNotifications, processById, selectedNotificationIds],
   );
 
   const operationalItems = useMemo(
@@ -458,15 +528,68 @@ export function NotificationsPage() {
             description="Avisos oficiais destinados ao seu perfil, com leitura individual e atualização automática."
             icon={BellRing}
             actions={
-              unreadCount > 0 ? (
-                <button
-                  type="button"
-                  className="inline-flex h-9 items-center justify-center rounded-full border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-                  onClick={() => void markAllRead()}
-                >
-                  <CheckCheck className="mr-2 h-4 w-4" />
-                  Marcar todas como lidas
-                </button>
+              officialNotifications.length > 0 ? (
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    className="inline-flex h-9 items-center justify-center rounded-full border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                    onClick={toggleAllNotifications}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={allNotificationsSelected}
+                      readOnly
+                      className="mr-2 h-4 w-4 rounded border-slate-300"
+                      aria-hidden="true"
+                    />
+                    {allNotificationsSelected ? "Desmarcar todas" : "Selecionar todas"}
+                  </button>
+
+                  {unreadCount > 0 ? (
+                    <button
+                      type="button"
+                      className="inline-flex h-9 items-center justify-center rounded-full border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                      disabled={Boolean(notificationBulkBusy)}
+                      onClick={() => void markAllRead()}
+                    >
+                      <CheckCheck className="mr-2 h-4 w-4" />
+                      Marcar todas como lidas
+                    </button>
+                  ) : null}
+
+                  {selectedNotificationIds.length > 0 ? (
+                    <>
+                      <button
+                        type="button"
+                        className="inline-flex h-9 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 px-3 text-xs font-semibold text-emerald-800 hover:bg-emerald-100"
+                        disabled={Boolean(notificationBulkBusy)}
+                        onClick={() => void markSelectedNotificationsRead()}
+                      >
+                        <CheckCheck className="mr-2 h-4 w-4" />
+                        Marcar selecionadas como lidas
+                      </button>
+                      <button
+                        type="button"
+                        className="inline-flex h-9 items-center justify-center rounded-full border border-rose-200 bg-rose-50 px-3 text-xs font-semibold text-rose-700 hover:bg-rose-100"
+                        disabled={Boolean(notificationBulkBusy)}
+                        onClick={() => void deleteSelectedNotifications()}
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Apagar selecionadas
+                      </button>
+                    </>
+                  ) : null}
+
+                  <button
+                    type="button"
+                    className="inline-flex h-9 items-center justify-center rounded-full border border-rose-200 bg-white px-3 text-xs font-semibold text-rose-700 hover:bg-rose-50"
+                    disabled={Boolean(notificationBulkBusy)}
+                    onClick={() => void deleteAllNotifications()}
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Apagar todas
+                  </button>
+                </div>
               ) : null
             }
           >
