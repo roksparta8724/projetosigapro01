@@ -118,7 +118,7 @@ describe("municipal staff account and avatar recovery regressions", () => {
 
   it("clears the persistent avatar reference when the user explicitly removes the photo", () => {
     expect(profilePage).toContain("const removingAvatar =");
-    expect(profilePage).toContain('removingAvatar\n        ? ""');
+    expect(profilePage).toMatch(/removingAvatar\s*\?\s*""/);
   });
 
   it("persists profile avatars by stable R2 reference instead of a public URL", () => {
