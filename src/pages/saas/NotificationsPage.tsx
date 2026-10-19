@@ -224,11 +224,7 @@ export function NotificationsPage() {
     setNotificationBulkBusy("delete");
     setNotificationBulkError("");
     try {
-      if (allNotificationsSelected) {
-        await deleteNotifications();
-      } else {
-        await deleteNotifications(selectedNotificationIds);
-      }
+      await deleteNotifications(selectedNotificationIds);
       setSelectedNotificationIds([]);
     } catch (error) {
       setNotificationBulkError(
