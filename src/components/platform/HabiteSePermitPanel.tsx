@@ -262,6 +262,7 @@ export function HabiteSePermitPanel({
   const [lifecycleStatus, setLifecycleStatus] = useState<ProcessRecord["status"]>(process.status);
   const [reopenDialogOpen, setReopenDialogOpen] = useState(false);
   const [reopenReason, setReopenReason] = useState("");
+  const lifecycleCompleted = ["deferido", "arquivado"].includes(lifecycleStatus);
 
   useEffect(() => {
     setLifecycleStatus(process.status);
@@ -702,7 +703,7 @@ export function HabiteSePermitPanel({
     setNotice("");
     try {
       await onCompleteProcess();
-      setLifecycleStatus("arquivado");
+      setLifecycleStatus("deferido");
       window.dispatchEvent(new Event("sigapro:data-changed"));
       await onProcessRefresh?.();
       setNotice("");
@@ -1190,7 +1191,7 @@ export function HabiteSePermitPanel({
             <div
               data-habite-se-completion-state={lifecycleStatus}
               className={
-                lifecycleStatus === "arquivado"
+                lifecycleCompleted
                   ? "rounded-[22px] border border-emerald-200 bg-[linear-gradient(135deg,#f4fff9_0%,#ecfdf5_100%)] p-5 shadow-sm dark:border-emerald-500/30 dark:bg-[linear-gradient(135deg,#0d251c_0%,#10291f_100%)]"
                   : "rounded-[22px] border border-slate-200 bg-[linear-gradient(135deg,#ffffff_0%,#f8fafc_100%)] p-5 shadow-sm dark:border-slate-700 dark:bg-[linear-gradient(135deg,#111827_0%,#0f172a_100%)]"
               }
@@ -1202,14 +1203,14 @@ export function HabiteSePermitPanel({
                   </div>
                   <div>
                     <p className="text-sm font-black text-slate-950 dark:text-white">
-                      {lifecycleStatus === "arquivado"
+                      {lifecycleCompleted
                         ? "Processo concluído com êxito"
                         : lifecycleStatus === "reapresentacao"
                           ? "Processo reaberto para reapresentação"
                           : "Pronto para conclusão administrativa"}
                     </p>
                     <p className="mt-1 max-w-3xl text-xs leading-5 text-slate-600 dark:text-slate-300">
-                      {lifecycleStatus === "arquivado"
+                      {lifecycleCompleted
                         ? `O Alvará ${permit.permitNumber} permanece emitido e assinado pela Diretoria. O fluxo administrativo foi encerrado e preservado no histórico oficial.`
                         : lifecycleStatus === "reapresentacao"
                           ? "O processo foi reaberto administrativamente. A reabertura e o motivo permanecem registrados no histórico e na auditoria."
@@ -1220,7 +1221,7 @@ export function HabiteSePermitPanel({
 
                 {!externalView && canCloseProcess ? (
                   <div className="flex flex-wrap items-center gap-2">
-                    {lifecycleStatus === "arquivado" ? (
+                    {lifecycleCompleted ? (
                       <>
                         <Button
                           type="button"
@@ -1268,7 +1269,7 @@ export function HabiteSePermitPanel({
                       </Button>
                     )}
                   </div>
-                ) : lifecycleStatus === "arquivado" ? (
+                ) : lifecycleCompleted ? (
                   <Badge className="w-fit rounded-full border border-emerald-200 bg-emerald-100 px-3 py-1.5 font-bold text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-950/40 dark:text-emerald-200">
                     Processo concluído e arquivado
                   </Badge>
