@@ -88,8 +88,13 @@ function formatCurrency(value?: number) {
 
 function formatDateBR(value?: string) {
   if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
+  const raw = String(value).trim();
+  const civilDate = raw.match(/^(\d{4})-(\d{2})-(\d{2})(?:$|T|\s)/);
+  if (civilDate) {
+    return `${civilDate[3]}/${civilDate[2]}/${civilDate[1]}`;
+  }
+  const date = new Date(raw);
+  if (Number.isNaN(date.getTime())) return raw;
   return date.toLocaleDateString("pt-BR");
 }
 
