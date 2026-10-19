@@ -90,7 +90,7 @@ describe("municipal bank and payment guide flow", () => {
   it("does not open a guide before Mercado Pago returns complete bank data", () => {
     expect(finance).toContain("if (!banking.barcode || !banking.digitableLine)");
     expect(processDetail).toContain("if (banking.barcode && banking.digitableLine) continue;");
-    expect(processDetail).toContain("if (!barcode || !digitableLine)");
+    expect(processDetail).toContain('selectedGuide.status !== "compensada"');
     expect(mercadoPagoGuide).toContain("!payload.digitableLine?.trim()");
     expect(mercadoPagoGuide).toContain("!payload.barcodeContent?.trim()");
   });
@@ -100,8 +100,8 @@ describe("municipal bank and payment guide flow", () => {
     expect(guideAssets).toContain("readAsDataURL");
     expect(finance).toContain("embeddedGuideLogoUrl");
     expect(processDetail).toContain("embeddedGuideLogoUrl");
-    expect(finance).toContain("if (!barcode || !digitableLine)");
-    expect(processDetail).toContain("if (!barcode || !digitableLine)");
+    expect(finance).toContain('match.guide.status !== "compensada"');
+    expect(processDetail).toContain('selectedGuide.status !== "compensada"');
     expect(mercadoPagoGuide).toContain("!payload.digitableLine?.trim() || !payload.barcodeContent?.trim()");
     expect(finance).toContain("A DAM foi bloqueada para não emitir uma guia inválida");
     expect(processDetail).toContain("A guia ainda está sendo preparada.");
@@ -147,13 +147,13 @@ describe("municipal bank and payment guide flow", () => {
     expect(mercadoPagoServer).toContain("/v1/orders/");
   });
 
-  it("requests provider banking data whenever the DAM has no barcode or digitable line", () => {
-    expect(finance).toContain("if (!banking.barcode || !banking.digitableLine)");
+  it("requests provider banking data only for unpaid DAMs and never recreates a compensated boleto", () => {
+    expect(finance).toContain("!banking.barcode || !banking.digitableLine");
+    expect(finance).toContain('match.guide.status !== "compensada"');
     expect(processDetail).toContain("if (banking.barcode && banking.digitableLine) continue;");
-    expect(finance).toContain("if (!barcode || !digitableLine)");
-    expect(processDetail).toContain("if (!barcode || !digitableLine)");
-    expect(finance).not.toContain('match.guide.status !== "compensada" &&');
-    expect(processDetail).not.toContain('selectedGuide.status !== "compensada" &&');
+    expect(processDetail).toContain('if (guide.status === "compensada") continue;');
+    expect(finance).toContain("allowCreate: !match.guide.bankReference");
+    expect(processDetail).toContain("allowCreate: !guide.bankReference");
   });
 
   it("prepares auditable bank authentication and Neon persistence", () => {
