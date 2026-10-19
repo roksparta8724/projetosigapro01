@@ -12,6 +12,7 @@ describe("Habite-se guide branding and status contrast", () => {
   const permit = read("src/components/platform/HabiteSePermitPanel.tsx");
   const permitPdf = read("src/lib/habiteSePermitPdf.ts");
   const css = read("src/index.css");
+  const notificationClient = read("src/integrations/notifications/notificationClient.ts");
 
   it("keeps the municipality logo available even when a Habite-se guide is opened immediately after issuance", () => {
     expect(assets).toContain("export function getRenderedMunicipalityLogoDataUrl");
@@ -55,6 +56,12 @@ describe("Habite-se guide branding and status contrast", () => {
     expect(permit).toContain("setHabiteSePermitAwaitingDirector(process.id)");
     expect(permit).not.toContain("Esta versão foi retificada após a última assinatura");
     expect(permit).not.toContain("Salvar e encaminhar à Diretoria");
+  });
+
+  it("uses the scalar notification delete RPC to avoid Data API overload ambiguity", () => {
+    expect(notificationClient).toContain('delete_my_notification_v1');
+    expect(notificationClient).toContain('_notification_id: notificationId');
+    expect(notificationClient).not.toContain('delete_my_notifications_v1", {');
   });
 
   it("hard-locks the Habite-se status badge to readable light text on saturated backgrounds", () => {
