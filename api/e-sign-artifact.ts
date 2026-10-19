@@ -369,7 +369,7 @@ export default async function handler(req: ApiReq, res: Res) {
 
     if (
       artifactType === "habite_se_permit" &&
-      !["analise_tecnica", "diretoria"].includes(signerSlot)
+      !["diretoria", "secretaria"].includes(signerSlot)
     ) {
       fail(
         res,
@@ -377,7 +377,7 @@ export default async function handler(req: ApiReq, res: Res) {
         "authorization",
         "HABITE_SE_PERMIT_SIGNER_NOT_ALLOWED",
         null,
-        "No Alvará de Habite-se, a versão é assinada pelo Analista Técnico e finalizada pela Diretoria.",
+        "No Alvará de Habite-se, a assinatura obrigatória é da Diretoria; a Secretaria pode assinar de forma complementar e opcional.",
       );
       return;
     }
@@ -430,28 +430,60 @@ export default async function handler(req: ApiReq, res: Res) {
       }
     }
 
-    if (artifactType === "habite_se_permit" && signerSlot === "analise_tecnica") {
-      const permitResult = await callDataApiRpc<{
-        permit?: { status?: string } | null;
-        can_manage?: boolean;
+    if (artifactType === "habite_se_permit" && signerSlot === "secretaria") {
+      const signatureState = await callDataApiRpc<{
+        signers?: Array<{ slot?: string; status?: string }>;
       }>(
         bearer,
-        "get_habite_se_permit_v1",
-        { _process_id: processId },
+        "get_process_artifact_signatures_v1",
+        {
+          _process_id: processId,
+          _artifact_key: artifactKey,
+        },
       );
 
+      const directorSigned = Boolean(
+        signatureState.ok &&
+        signatureState.payload?.signers?.some(
+          (item) => item.slot === "diretoria" && item.status === "concluido",
+        ),
+      );
+
+      const secretaryRequest = await callDataApiRpc<{
+        request?: { status?: string } | null;
+      }>(
+        bearer,
+        "get_process_artifact_signature_request_v1",
+        {
+          _process_id: processId,
+          _artifact_key: artifactKey,
+          _signer_slot: "secretaria",
+        },
+      );
+
+      if (!directorSigned) {
+        fail(
+          res,
+          409,
+          "authorization",
+          "HABITE_SE_DIRECTOR_SIGNATURE_REQUIRED",
+          signatureState.error,
+          "A assinatura complementar da Secretaria só pode ocorrer após a assinatura da Diretoria.",
+        );
+        return;
+      }
+
       if (
-        !permitResult.ok ||
-        !permitResult.payload?.permit ||
-        permitResult.payload.can_manage !== true
+        !secretaryRequest.ok ||
+        secretaryRequest.payload?.request?.status !== "pending"
       ) {
         fail(
           res,
-          403,
+          409,
           "authorization",
-          "HABITE_SE_ANALYST_OWNERSHIP_REQUIRED",
-          permitResult.error,
-          "Somente o Analista Técnico responsável pode assinar esta versão do Alvará de Habite-se.",
+          "HABITE_SE_SECRETARY_REQUEST_REQUIRED",
+          secretaryRequest.error,
+          "A assinatura complementar da Secretaria precisa ser solicitada formalmente antes da assinatura.",
         );
         return;
       }
