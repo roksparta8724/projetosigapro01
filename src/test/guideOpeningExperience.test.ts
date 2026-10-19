@@ -7,6 +7,7 @@ function read(path: string) {
 }
 
 describe("guide opening experience", () => {
+  const processDetail = read("src/pages/saas/ProcessDetailPage.tsx");
   it("uses barcode and digitable line from the same provider charge for unpaid guides", () => {
     expect(processDetail).toContain("providerCharge\n        ? providerCharge.digitableLine");
     expect(processDetail).toContain("providerCharge\n        ? providerCharge.barcodeContent");
