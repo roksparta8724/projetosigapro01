@@ -459,6 +459,8 @@ export function PerfilPage() {
           mimeType: "image/*",
           sizeLabel: "imagem salva",
           previewUrl: profile.avatarUrl,
+          storagePath: profile.avatarStorageRef || profile.avatarUrl || undefined,
+          persistentRef: profile.avatarStorageRef || undefined,
         },
       ]);
     } else {
@@ -942,8 +944,14 @@ export function PerfilPage() {
       }
 
       const effectiveAvatarFiles = avatarOverride ?? avatarFiles;
+      const removingAvatar =
+        avatarDraftDirty &&
+        effectiveAvatarFiles.length === 0 &&
+        !String(form.avatarUrl || "").trim();
       let avatarUrl = effectiveAvatarFiles[0]?.previewUrl ?? form.avatarUrl;
-      let avatarStorageRef = profile?.avatarStorageRef || profile?.avatarUrl || form.avatarUrl;
+      let avatarStorageRef = removingAvatar
+        ? ""
+        : profile?.avatarStorageRef || profile?.avatarUrl || form.avatarUrl;
       let avatarUploadFile = effectiveAvatarFiles[0]?.file;
       let avatarScale = avatarOverride?.[0]?.file ? 1 : form.avatarScale;
       let avatarOffsetX = avatarOverride?.[0]?.file ? 0 : form.avatarOffsetX;
@@ -996,8 +1004,28 @@ export function PerfilPage() {
         bio: form.bio,
       };
 
+      const expectedAvatarStorageRef = String(avatarStorageRef || "").trim();
       const savedProfile = await saveUserProfile(nextProfile);
-      const savedAvatarUrl = savedProfile.avatarUrl || avatarUrl;
+      const persistedAvatarStorageRef = String(savedProfile.avatarStorageRef || "").trim();
+
+      if (avatarUploadFile && persistedAvatarStorageRef !== expectedAvatarStorageRef) {
+        throw new Error(
+          "A imagem foi enviada, mas o banco não confirmou a referência permanente da foto. Nenhum sucesso foi exibido para evitar um falso salvamento.",
+        );
+      }
+      if (removingAvatar && persistedAvatarStorageRef) {
+        throw new Error(
+          "A remoção da foto não foi confirmada pelo banco oficial. O perfil anterior foi preservado.",
+        );
+      }
+
+      const savedAvatarUrl = String(savedProfile.avatarUrl || "").trim();
+      if (avatarUploadFile && !savedAvatarUrl) {
+        throw new Error(
+          "A referência da foto foi gravada, mas a leitura permanente ainda não pôde ser confirmada. Tente novamente antes de sair desta página.",
+        );
+      }
+
       setAvatarDraftDirty(false);
       if (savedAvatarUrl) {
         setAvatarFiles([
@@ -1007,8 +1035,12 @@ export function PerfilPage() {
             mimeType: "image/*",
             sizeLabel: "imagem salva",
             previewUrl: savedAvatarUrl,
+            storagePath: persistedAvatarStorageRef || expectedAvatarStorageRef || undefined,
+            persistentRef: persistedAvatarStorageRef || expectedAvatarStorageRef || undefined,
           },
         ]);
+      } else {
+        setAvatarFiles([]);
       }
       setForm((current) => ({
         ...current,
@@ -1018,8 +1050,13 @@ export function PerfilPage() {
         avatarScale: savedProfile.avatarScale ?? avatarScale,
         avatarOffsetX: savedProfile.avatarOffsetX ?? avatarOffsetX,
         avatarOffsetY: savedProfile.avatarOffsetY ?? avatarOffsetY,
+        useAvatarInHeader: savedProfile.useAvatarInHeader ?? current.useAvatarInHeader,
       }));
-      setStatus("Perfil e foto salvos com sucesso no banco oficial.");
+      setStatus(
+        savedAvatarUrl
+          ? "Foto confirmada e gravada permanentemente no banco oficial."
+          : "Foto removida e alteração confirmada no banco oficial.",
+      );
     } catch (error) {
       setStatus(
         error instanceof Error
@@ -1545,10 +1582,31 @@ export function PerfilPage() {
                 </div>
               ) : null}
 
+              {avatarDraftDirty ? (
+                <div
+                  data-avatar-save-state="pending"
+                  className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-200"
+                >
+                  Pré-visualização local — esta alteração ainda não foi gravada. Clique em “Salvar foto no perfil” para confirmar.
+                </div>
+              ) : avatarFiles[0]?.storagePath ? (
+                <div
+                  data-avatar-save-state="persisted"
+                  className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800 dark:border-emerald-400/30 dark:bg-emerald-400/10 dark:text-emerald-200"
+                >
+                  Foto gravada permanentemente no perfil.
+                </div>
+              ) : null}
+
               {statusMessage}
 
-              <Button type="button" className="sig-force-dark-action h-11 rounded-2xl bg-slate-950 px-6 !text-white hover:bg-slate-900" onClick={(event) => void handleSubmit(event as unknown as FormEvent)} disabled={saving}>
-                {saving ? "Salvando..." : "Salvar ajustes da foto"}
+              <Button
+                type="button"
+                className="sig-force-dark-action h-11 rounded-2xl bg-slate-950 px-6 !text-white hover:bg-slate-900"
+                onClick={(event) => void handleSubmit(event as unknown as FormEvent)}
+                disabled={saving || !avatarDraftDirty}
+              >
+                {saving ? "Salvando e confirmando..." : "Salvar foto no perfil"}
               </Button>
 
               {isMasterRole ? (
