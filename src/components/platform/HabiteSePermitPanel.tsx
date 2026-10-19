@@ -8,6 +8,7 @@ import {
   FileCheck2,
   Loader2,
   Printer,
+  RotateCcw,
   Save,
   Send,
   ShieldCheck,
@@ -20,6 +21,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { backendClient } from "@/integrations/backend/databaseClient";
 import type { ProcessRecord, SessionUser } from "@/lib/platform";
 import { userCanSignPermitAsDirector, userCanSignPermitAsSecretary } from "@/lib/constructionPermit";
 import {
@@ -216,6 +218,7 @@ export function HabiteSePermitPanel({
   directorate,
   onProcessRefresh,
   onCompleteProcess,
+  onReopenProcess,
 }: {
   process: ProcessRecord;
   session: SessionUser;
@@ -229,6 +232,7 @@ export function HabiteSePermitPanel({
   directorate?: string | null;
   onProcessRefresh?: () => Promise<void> | void;
   onCompleteProcess?: () => Promise<void> | void;
+  onReopenProcess?: (reason: string) => Promise<void> | void;
 }) {
   const habiteSeGuide = process.payment.guides?.find((guide) => guide.kind === "habite_se");
   const paymentConfirmed = habiteSeGuide?.status === "compensada";
@@ -255,6 +259,69 @@ export function HabiteSePermitPanel({
   const [passwordDialog, setPasswordDialog] = useState<"director" | "secretary" | null>(null);
   const [secretaryRequestPending, setSecretaryRequestPending] = useState(false);
   const [password, setPassword] = useState("");
+  const [lifecycleStatus, setLifecycleStatus] = useState<ProcessRecord["status"]>(process.status);
+  const [reopenDialogOpen, setReopenDialogOpen] = useState(false);
+  const [reopenReason, setReopenReason] = useState("");
+
+  useEffect(() => {
+    setLifecycleStatus(process.status);
+  }, [process.status]);
+
+  useEffect(() => {
+    if (!process.id || typeof window === "undefined") return;
+
+    let disposed = false;
+    let inFlight = false;
+
+    const syncLifecycle = async () => {
+      if (
+        disposed ||
+        inFlight ||
+        (typeof document !== "undefined" && document.visibilityState !== "visible")
+      ) {
+        return;
+      }
+
+      inFlight = true;
+      try {
+        const { data, error } = await backendClient
+          .from("processes")
+          .select("id,status,updated_at")
+          .eq("id", process.id)
+          .limit(1);
+
+        if (error || disposed) return;
+        const row = Array.isArray(data) ? data[0] : data;
+        if (row?.status) {
+          setLifecycleStatus(row.status as ProcessRecord["status"]);
+        }
+      } finally {
+        inFlight = false;
+      }
+    };
+
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void syncLifecycle();
+    };
+
+    void syncLifecycle();
+    const timer = window.setInterval(() => void syncLifecycle(), 1200);
+    window.addEventListener("focus", syncLifecycle);
+    window.addEventListener("pageshow", syncLifecycle);
+    window.addEventListener("online", syncLifecycle);
+    window.addEventListener("sigapro:data-changed", syncLifecycle as EventListener);
+    document.addEventListener("visibilitychange", onVisible);
+
+    return () => {
+      disposed = true;
+      window.clearInterval(timer);
+      window.removeEventListener("focus", syncLifecycle);
+      window.removeEventListener("pageshow", syncLifecycle);
+      window.removeEventListener("online", syncLifecycle);
+      window.removeEventListener("sigapro:data-changed", syncLifecycle as EventListener);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [process.id]);
 
   const isDirector = userCanSignPermitAsDirector(session);
   const isSecretary = userCanSignPermitAsSecretary(session);
@@ -635,6 +702,8 @@ export function HabiteSePermitPanel({
     setNotice("");
     try {
       await onCompleteProcess();
+      setLifecycleStatus("arquivado");
+      window.dispatchEvent(new Event("sigapro:data-changed"));
       await onProcessRefresh?.();
       setNotice("");
     } catch (error) {
@@ -642,6 +711,37 @@ export function HabiteSePermitPanel({
         error instanceof Error
           ? error.message
           : "Não foi possível concluir administrativamente o processo.",
+      );
+    } finally {
+      setBusy("");
+    }
+  };
+
+  const reopenCompletedProcess = async () => {
+    const reason = reopenReason.trim();
+    if (!reason) {
+      setNotice("Informe o motivo da reabertura para manter a rastreabilidade administrativa.");
+      return;
+    }
+    if (!canCloseProcess || !onReopenProcess) {
+      setNotice("Sua conta não possui atribuição para reabrir este processo.");
+      return;
+    }
+
+    setBusy("reopen-process");
+    setNotice("");
+    try {
+      await onReopenProcess(reason);
+      setLifecycleStatus("reapresentacao");
+      setReopenDialogOpen(false);
+      setReopenReason("");
+      window.dispatchEvent(new Event("sigapro:data-changed"));
+      await onProcessRefresh?.();
+    } catch (error) {
+      setNotice(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível reabrir administrativamente o processo.",
       );
     } finally {
       setBusy("");
@@ -1087,7 +1187,14 @@ export function HabiteSePermitPanel({
           </div>
 
           {effectivePermitStatus === "emitido" ? (
-            <div className="rounded-[22px] border border-slate-200 bg-[linear-gradient(135deg,#ffffff_0%,#f8fafc_100%)] p-5 shadow-sm dark:border-slate-700 dark:bg-[linear-gradient(135deg,#111827_0%,#0f172a_100%)]">
+            <div
+              data-habite-se-completion-state={lifecycleStatus}
+              className={
+                lifecycleStatus === "arquivado"
+                  ? "rounded-[22px] border border-emerald-200 bg-[linear-gradient(135deg,#f4fff9_0%,#ecfdf5_100%)] p-5 shadow-sm dark:border-emerald-500/30 dark:bg-[linear-gradient(135deg,#0d251c_0%,#10291f_100%)]"
+                  : "rounded-[22px] border border-slate-200 bg-[linear-gradient(135deg,#ffffff_0%,#f8fafc_100%)] p-5 shadow-sm dark:border-slate-700 dark:bg-[linear-gradient(135deg,#111827_0%,#0f172a_100%)]"
+              }
+            >
               <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div className="flex items-start gap-3">
                   <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
@@ -1095,31 +1202,73 @@ export function HabiteSePermitPanel({
                   </div>
                   <div>
                     <p className="text-sm font-black text-slate-950 dark:text-white">
-                      Pronto para conclusão administrativa
+                      {lifecycleStatus === "arquivado"
+                        ? "Processo concluído com êxito"
+                        : lifecycleStatus === "reapresentacao"
+                          ? "Processo reaberto para reapresentação"
+                          : "Pronto para conclusão administrativa"}
                     </p>
                     <p className="mt-1 max-w-3xl text-xs leading-5 text-slate-600 dark:text-slate-300">
-                      O Alvará {permit.permitNumber} já possui a assinatura obrigatória da Diretoria. A assinatura da Secretaria é complementar e opcional. Ao concluir, o processo registra a decisão final, fecha o fluxo ativo e permanece disponível no histórico e para consulta.
+                      {lifecycleStatus === "arquivado"
+                        ? `O Alvará ${permit.permitNumber} permanece emitido e assinado pela Diretoria. O fluxo administrativo foi encerrado e preservado no histórico oficial.`
+                        : lifecycleStatus === "reapresentacao"
+                          ? "O processo foi reaberto administrativamente. A reabertura e o motivo permanecem registrados no histórico e na auditoria."
+                          : `O Alvará ${permit.permitNumber} já possui a assinatura obrigatória da Diretoria. A assinatura da Secretaria é complementar e opcional. Ao concluir, o processo registra a decisão final e fecha o fluxo ativo.`}
                     </p>
                   </div>
                 </div>
 
-                {!externalView && canCloseProcess && process.status !== "arquivado" ? (
-                  <Button
-                    type="button"
-                    className="shrink-0 rounded-full bg-emerald-700 px-5 font-bold !text-white hover:bg-emerald-600 [&_*]:!text-white"
-                    disabled={Boolean(busy)}
-                    onClick={() => void completeProcess()}
-                  >
-                    {busy === "complete-process" ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                {!externalView && canCloseProcess ? (
+                  <div className="flex flex-wrap items-center gap-2">
+                    {lifecycleStatus === "arquivado" ? (
+                      <>
+                        <Button
+                          type="button"
+                          className="shrink-0 rounded-full bg-emerald-700 px-5 font-bold !text-white hover:bg-emerald-700 [&_*]:!text-white"
+                          disabled
+                        >
+                          <CheckCircle2 className="mr-2 h-4 w-4" />
+                          Concluído
+                        </Button>
+                        {onReopenProcess ? (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="shrink-0 rounded-full border-amber-300 bg-white px-5 font-bold text-amber-800 hover:bg-amber-50 dark:border-amber-500/40 dark:bg-slate-900 dark:text-amber-200"
+                            disabled={Boolean(busy)}
+                            onClick={() => {
+                              setNotice("");
+                              setReopenDialogOpen(true);
+                            }}
+                          >
+                            <RotateCcw className="mr-2 h-4 w-4" />
+                            Reabrir processo
+                          </Button>
+                        ) : null}
+                      </>
+                    ) : lifecycleStatus === "reapresentacao" ? (
+                      <Badge className="w-fit rounded-full border border-sky-200 bg-sky-100 px-3 py-1.5 font-bold text-sky-800 dark:border-sky-500/30 dark:bg-sky-950/40 dark:text-sky-200">
+                        Processo reaberto
+                      </Badge>
                     ) : (
-                      <CheckCircle2 className="mr-2 h-4 w-4" />
+                      <Button
+                        type="button"
+                        className="shrink-0 rounded-full bg-emerald-700 px-5 font-bold !text-white hover:bg-emerald-600 [&_*]:!text-white"
+                        disabled={Boolean(busy)}
+                        onClick={() => void completeProcess()}
+                      >
+                        {busy === "complete-process" ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <CheckCircle2 className="mr-2 h-4 w-4" />
+                        )}
+                        {secretaryRequestPending && !secretarySigned
+                          ? "Concluir sem assinatura complementar"
+                          : "Concluir processo com êxito"}
+                      </Button>
                     )}
-                    {secretaryRequestPending && !secretarySigned
-                      ? "Concluir sem assinatura complementar"
-                      : "Concluir processo com êxito"}
-                  </Button>
-                ) : process.status === "arquivado" ? (
+                  </div>
+                ) : lifecycleStatus === "arquivado" ? (
                   <Badge className="w-fit rounded-full border border-emerald-200 bg-emerald-100 px-3 py-1.5 font-bold text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-950/40 dark:text-emerald-200">
                     Processo concluído e arquivado
                   </Badge>
@@ -1129,6 +1278,52 @@ export function HabiteSePermitPanel({
           ) : null}
         </CardContent>
       </Card>
+
+      <Dialog open={reopenDialogOpen} onOpenChange={(open) => !busy && setReopenDialogOpen(open)}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold">Reabrir processo de Habite-se</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm leading-6 text-slate-600 dark:text-slate-300">
+              A reabertura retorna o processo ao fluxo ativo de reapresentação sem invalidar automaticamente o Alvará já emitido. O motivo, responsável, data e movimentação ficam registrados na auditoria.
+            </p>
+            <Textarea
+              value={reopenReason}
+              onChange={(event) => setReopenReason(event.target.value)}
+              className="min-h-28"
+              placeholder="Informe o motivo administrativo da reabertura..."
+            />
+            <div className="flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-full"
+                disabled={Boolean(busy)}
+                onClick={() => {
+                  setReopenDialogOpen(false);
+                  setReopenReason("");
+                }}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="button"
+                className="rounded-full bg-amber-600 font-bold !text-white hover:bg-amber-500"
+                disabled={!reopenReason.trim() || Boolean(busy)}
+                onClick={() => void reopenCompletedProcess()}
+              >
+                {busy === "reopen-process" ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <RotateCcw className="mr-2 h-4 w-4" />
+                )}
+                Confirmar reabertura
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={Boolean(passwordDialog)} onOpenChange={(open) => !open && !busy && setPasswordDialog(null)}>
         <DialogContent className="sm:max-w-md">
