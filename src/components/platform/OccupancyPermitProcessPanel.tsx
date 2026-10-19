@@ -428,8 +428,6 @@ export function OccupancyPermitProcessPanel({
         externalView={externalView}
         dataReady={dataReady}
         onProcessRefresh={onProcessRefresh}
-        onCompleteProcess={onCompleteProcess}
-        onReopenProcess={onReopenProcess}
       />
 
       <HabiteSePermitPanel
