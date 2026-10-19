@@ -930,10 +930,18 @@ export function PerfilPage() {
     setAccountStatus(result.message || "Senha atualizada com sucesso.");
   };
 
-  const handleSubmit = async (event: FormEvent, avatarOverride?: UploadedFileItem[]) => {
+  const handleSubmit = async (
+    event: FormEvent,
+    options: {
+      saveAvatar?: boolean;
+      successMessage?: string;
+    } = {},
+  ) => {
     event.preventDefault();
     setSaving(true);
     setStatus("");
+
+    const saveAvatar = options.saveAvatar === true;
 
     try {
       const stableSessionUserId = session.id && session.id !== "unknown" ? session.id : "";
@@ -943,19 +951,40 @@ export function PerfilPage() {
         return;
       }
 
-      const effectiveAvatarFiles = avatarOverride ?? avatarFiles;
+      const persistedAvatarUrl = String(profile?.avatarUrl || "").trim();
+      const persistedAvatarStorageRef = String(
+        profile?.avatarStorageRef || profile?.avatarUrl || "",
+      ).trim();
+
+      const effectiveAvatarFiles = saveAvatar ? avatarFiles : [];
       const removingAvatar =
+        saveAvatar &&
         avatarDraftDirty &&
         effectiveAvatarFiles.length === 0 &&
         !String(form.avatarUrl || "").trim();
-      let avatarUrl = effectiveAvatarFiles[0]?.previewUrl ?? form.avatarUrl;
-      let avatarStorageRef = removingAvatar
-        ? ""
-        : profile?.avatarStorageRef || profile?.avatarUrl || form.avatarUrl;
-      let avatarUploadFile = effectiveAvatarFiles[0]?.file;
-      let avatarScale = avatarOverride?.[0]?.file ? 1 : form.avatarScale;
-      let avatarOffsetX = avatarOverride?.[0]?.file ? 0 : form.avatarOffsetX;
-      let avatarOffsetY = avatarOverride?.[0]?.file ? 0 : form.avatarOffsetY;
+
+      let avatarUrl = saveAvatar
+        ? effectiveAvatarFiles[0]?.previewUrl ?? form.avatarUrl
+        : persistedAvatarUrl;
+      let avatarStorageRef = saveAvatar
+        ? removingAvatar
+          ? ""
+          : persistedAvatarStorageRef || form.avatarUrl
+        : persistedAvatarStorageRef;
+
+      const avatarUploadFile = saveAvatar ? effectiveAvatarFiles[0]?.file : undefined;
+      const avatarScale = saveAvatar
+        ? form.avatarScale
+        : profile?.avatarScale ?? form.avatarScale;
+      const avatarOffsetX = saveAvatar
+        ? form.avatarOffsetX
+        : profile?.avatarOffsetX ?? form.avatarOffsetX;
+      const avatarOffsetY = saveAvatar
+        ? form.avatarOffsetY
+        : profile?.avatarOffsetY ?? form.avatarOffsetY;
+      const useAvatarInHeader = saveAvatar
+        ? form.useAvatarInHeader
+        : profile?.useAvatarInHeader ?? form.useAvatarInHeader;
 
       if (avatarUploadFile) {
         try {
@@ -967,15 +996,24 @@ export function PerfilPage() {
             folder: "avatars",
           });
           avatarStorageRef = uploaded.persistentRef;
-          avatarUrl = uploaded.publicUrl || effectiveAvatarFiles[0]?.previewUrl || form.avatarUrl;
+          avatarUrl =
+            uploaded.publicUrl ||
+            effectiveAvatarFiles[0]?.previewUrl ||
+            form.avatarUrl;
         } catch (error) {
           setStatus(error instanceof Error ? error.message : "Falha ao enviar a foto para o R2.");
           return;
         }
       }
 
-      const resolvedFullName = form.fullName.trim() || profile?.fullName || session.name || "Usuário autenticado";
-      const resolvedEmail = normalizeProfileEmail(form.email || profile?.email || authenticatedEmail || session.email);
+      const resolvedFullName =
+        form.fullName.trim() ||
+        profile?.fullName ||
+        session.name ||
+        "Usuário autenticado";
+      const resolvedEmail = normalizeProfileEmail(
+        form.email || profile?.email || authenticatedEmail || session.email,
+      );
 
       const nextProfile: UserProfile = {
         userId,
@@ -1000,63 +1038,82 @@ export function PerfilPage() {
         avatarScale,
         avatarOffsetX,
         avatarOffsetY,
-        useAvatarInHeader: form.useAvatarInHeader,
+        useAvatarInHeader,
         bio: form.bio,
       };
 
       const expectedAvatarStorageRef = String(avatarStorageRef || "").trim();
       const savedProfile = await saveUserProfile(nextProfile);
-      const persistedAvatarStorageRef = String(savedProfile.avatarStorageRef || "").trim();
 
-      if (avatarUploadFile && persistedAvatarStorageRef !== expectedAvatarStorageRef) {
-        throw new Error(
-          "A imagem foi enviada, mas o banco não confirmou a referência permanente da foto. Nenhum sucesso foi exibido para evitar um falso salvamento.",
-        );
-      }
-      if (removingAvatar && persistedAvatarStorageRef) {
-        throw new Error(
-          "A remoção da foto não foi confirmada pelo banco oficial. O perfil anterior foi preservado.",
-        );
-      }
+      if (saveAvatar) {
+        const confirmedAvatarStorageRef = String(
+          savedProfile.avatarStorageRef || "",
+        ).trim();
 
-      const savedAvatarUrl = String(savedProfile.avatarUrl || "").trim();
-      if (avatarUploadFile && !savedAvatarUrl) {
-        throw new Error(
-          "A referência da foto foi gravada, mas a leitura permanente ainda não pôde ser confirmada. Tente novamente antes de sair desta página.",
-        );
-      }
+        if (avatarUploadFile && confirmedAvatarStorageRef !== expectedAvatarStorageRef) {
+          throw new Error(
+            "A imagem foi enviada, mas o banco não confirmou a referência permanente da foto. Nenhum sucesso foi exibido para evitar um falso salvamento.",
+          );
+        }
+        if (removingAvatar && confirmedAvatarStorageRef) {
+          throw new Error(
+            "A remoção da foto não foi confirmada pelo banco oficial. O perfil anterior foi preservado.",
+          );
+        }
 
-      setAvatarDraftDirty(false);
-      if (savedAvatarUrl) {
-        setAvatarFiles([
-          {
-            id: `avatar-saved-${crypto.randomUUID()}`,
-            fileName: "foto-perfil",
-            mimeType: "image/*",
-            sizeLabel: "imagem salva",
-            previewUrl: savedAvatarUrl,
-            storagePath: persistedAvatarStorageRef || expectedAvatarStorageRef || undefined,
-            persistentRef: persistedAvatarStorageRef || expectedAvatarStorageRef || undefined,
-          },
-        ]);
+        const savedAvatarUrl = String(savedProfile.avatarUrl || "").trim();
+        if (avatarUploadFile && !savedAvatarUrl) {
+          throw new Error(
+            "A referência da foto foi gravada, mas a leitura permanente ainda não pôde ser confirmada. Tente novamente antes de sair desta página.",
+          );
+        }
+
+        setAvatarDraftDirty(false);
+        if (savedAvatarUrl) {
+          setAvatarFiles([
+            {
+              id: `avatar-saved-${crypto.randomUUID()}`,
+              fileName: "foto-perfil",
+              mimeType: "image/*",
+              sizeLabel: "imagem salva",
+              previewUrl: savedAvatarUrl,
+              storagePath:
+                confirmedAvatarStorageRef || expectedAvatarStorageRef || undefined,
+              persistentRef:
+                confirmedAvatarStorageRef || expectedAvatarStorageRef || undefined,
+            },
+          ]);
+        } else {
+          setAvatarFiles([]);
+        }
+
+        setForm((current) => ({
+          ...current,
+          fullName: resolvedFullName,
+          email: resolvedEmail,
+          avatarUrl: savedAvatarUrl,
+          avatarScale: savedProfile.avatarScale ?? avatarScale,
+          avatarOffsetX: savedProfile.avatarOffsetX ?? avatarOffsetX,
+          avatarOffsetY: savedProfile.avatarOffsetY ?? avatarOffsetY,
+          useAvatarInHeader:
+            savedProfile.useAvatarInHeader ?? current.useAvatarInHeader,
+        }));
+
+        setStatus(
+          savedAvatarUrl
+            ? "Foto confirmada e gravada permanentemente no banco oficial."
+            : "Foto removida e alteração confirmada no banco oficial.",
+        );
       } else {
-        setAvatarFiles([]);
+        // Salvar dados pessoais/profissionais nunca confirma, envia ou remove
+        // uma prévia de avatar pendente.
+        setForm((current) => ({
+          ...current,
+          fullName: resolvedFullName,
+          email: resolvedEmail,
+        }));
+        setStatus(options.successMessage || "Dados do perfil salvos com sucesso no banco oficial.");
       }
-      setForm((current) => ({
-        ...current,
-        fullName: resolvedFullName,
-        email: resolvedEmail,
-        avatarUrl: savedAvatarUrl,
-        avatarScale: savedProfile.avatarScale ?? avatarScale,
-        avatarOffsetX: savedProfile.avatarOffsetX ?? avatarOffsetX,
-        avatarOffsetY: savedProfile.avatarOffsetY ?? avatarOffsetY,
-        useAvatarInHeader: savedProfile.useAvatarInHeader ?? current.useAvatarInHeader,
-      }));
-      setStatus(
-        savedAvatarUrl
-          ? "Foto confirmada e gravada permanentemente no banco oficial."
-          : "Foto removida e alteração confirmada no banco oficial.",
-      );
     } catch (error) {
       setStatus(
         error instanceof Error
@@ -1407,7 +1464,7 @@ export function PerfilPage() {
 
         {section === "dados-pessoais" ? (
           <SectionCard title="Dados pessoais" description="Identificação, contato e endereço do usuário." icon={UserRound}>
-            <form className="space-y-5" onSubmit={handleSubmit}>
+            <form className="space-y-5" onSubmit={(event) => void handleSubmit(event, { successMessage: "Dados pessoais salvos com sucesso no banco oficial." })}>
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label>Nome completo</Label>
@@ -1603,7 +1660,7 @@ export function PerfilPage() {
               <Button
                 type="button"
                 className="sig-force-dark-action h-11 rounded-2xl bg-slate-950 px-6 !text-white hover:bg-slate-900"
-                onClick={(event) => void handleSubmit(event as unknown as FormEvent)}
+                onClick={(event) => void handleSubmit(event as unknown as FormEvent, { saveAvatar: true })}
                 disabled={saving || !avatarDraftDirty}
               >
                 {saving ? "Salvando e confirmando..." : "Salvar foto no perfil"}
@@ -1779,7 +1836,7 @@ export function PerfilPage() {
 
         {section === "dados-profissionais" ? (
           <SectionCard title="Dados profissionais" description="Registro, atuação e apresentação profissional do usuário." icon={IdCard}>
-            <form className="space-y-5" onSubmit={handleSubmit}>
+            <form className="space-y-5" onSubmit={(event) => void handleSubmit(event, { successMessage: "Dados profissionais salvos com sucesso no banco oficial." })}>
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label>Tipo profissional</Label>
