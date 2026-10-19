@@ -746,7 +746,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
     fallback: "Usuário institucional",
     maxLength: 34,
   });
-  const topbarAvatarImageUrl = userProfile
+  const topbarAvatarImageUrl = userProfile?.useAvatarInHeader
     ? (userProfile.avatarUrl?.trim() || "")
     : null;
   const topbarAvatarCrop = useMemo(() => {
