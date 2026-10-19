@@ -10,6 +10,7 @@ describe("municipal staff account and avatar recovery regressions", () => {
   const backend = read("src/integrations/backend/platformImpl.ts");
   const avatar = read("src/components/platform/UserAvatar.tsx");
   const r2Client = read("src/integrations/r2/client.ts");
+  const r2Storage = read("src/integrations/r2/storage.ts");
   const r2Router = read("api/r2.ts");
   const legacyAvatar = read("server/api/profile-avatar-open.ts");
   const appBootstrap = read("src/hooks/useAppBootstrap.tsx");
@@ -80,6 +81,23 @@ describe("municipal staff account and avatar recovery regressions", () => {
     expect(appBootstrap).toContain("void markCurrentProfileAccess()");
     expect(appBootstrap).toContain("void loadMunicipalityBundleById(municipalityId)");
     expect(appBootstrap).not.toContain("const currentSession = (await backendClient.auth.getSession()).data.session");
+  });
+
+  it("persists profile avatars by stable R2 reference instead of a public URL", () => {
+    expect(r2Storage).toContain('input.bucket === "profile-assets"');
+    expect(r2Storage).toContain('`r2:${uploaded.objectKey}`');
+    expect(r2Storage).not.toContain('persistentRef: uploaded.publicUrl || `r2:${uploaded.objectKey}`');
+  });
+
+  it("re-opens already persisted R2 public avatar URLs through the same-origin route", () => {
+    expect(backend).toContain("getObjectKeyFromPublicUrl");
+    expect(backend).toContain("isProfileObjectKey");
+    expect(backend).toContain('/api/profile-avatar-open?objectKey=');
+  });
+
+  it("uses a non-white premium fallback with dark initials in dark mode", () => {
+    expect(avatar).toContain("dark:bg-[linear-gradient(180deg,#cbd5e1_0%,#94a3b8_100%)]");
+    expect(avatar).toContain("dark:text-[#0f172a]");
   });
 
   it("serves current R2 profile photos through the same-origin avatar route", () => {
