@@ -119,19 +119,32 @@ export async function markMyNotificationRead(
   return Boolean(data);
 }
 
-export async function deleteMyNotifications(notificationIds?: string[]) {
-  const ids = (notificationIds ?? []).filter(Boolean);
-  const { data, error } = await backendClient.rpc("delete_my_notifications_v1", {
-    _notification_ids: ids.length > 0 ? ids : null,
-  });
+export async function deleteMyNotifications(notificationIds: string[]) {
+  const ids = Array.from(new Set((notificationIds ?? []).filter(Boolean)));
+  if (ids.length === 0) return 0;
 
-  if (error) {
+  let deleted = 0;
+  for (const notificationId of ids) {
+    const { data, error } = await backendClient.rpc("delete_my_notification_v1", {
+      _notification_id: notificationId,
+    });
+
+    if (error) {
+      throw new Error(
+        messageFromError(error, "Não foi possível excluir uma das notificações selecionadas."),
+      );
+    }
+
+    if (Boolean(data)) deleted += 1;
+  }
+
+  if (deleted !== ids.length) {
     throw new Error(
-      messageFromError(error, "Não foi possível excluir as notificações selecionadas."),
+      "Algumas notificações não puderam ser excluídas. A lista foi sincronizada novamente com o banco.",
     );
   }
 
-  return Number(data || 0);
+  return deleted;
 }
 
 export async function markAllMyNotificationsRead() {
