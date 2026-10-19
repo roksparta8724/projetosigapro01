@@ -1,4 +1,4 @@
-const CACHE_VERSION = "sigapro-enterprise-v4";
+const CACHE_VERSION = "sigapro-enterprise-v5";
 const ASSET_CACHE = `${CACHE_VERSION}:assets`;
 const AVATAR_CACHE = `${CACHE_VERSION}:avatars`;
 
