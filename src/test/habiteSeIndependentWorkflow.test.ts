@@ -125,7 +125,7 @@ describe("Habite-se independent workflow", () => {
     expect(panel).toContain("Vistoria / conferência");
     expect(panel).toContain('label: "Financeiro"');
     expect(panel).toContain("Vistoria / conferência em andamento");
-    expect(panel).toContain("Termo de Vistoria abaixo");
+    expect(panel).toContain("A conclusão do Termo de Vistoria libera o encaminhamento formal");
     expect(panel).toContain("não reutiliza a guia de aprovação/Alvará");
   });
 
@@ -311,11 +311,11 @@ describe("Habite-se independent workflow", () => {
     expect(panel).toContain("<HabiteSePermitPanel");
     expect(permitPanel).toContain("Alvará de Habite-se");
     expect(permitPanel).toContain("saveHabiteSePermit");
-    expect(permitPanel).toContain("Assinar e encaminhar à Diretoria");
+    expect(permitPanel).toContain("Solicitar assinatura eletrônica do Diretor");
     expect(permitPanel).toContain("Assinar como Diretor e finalizar");
     expect(permitPanel).toContain('artifactType: ARTIFACT_TYPE');
     expect(permitPanel).toContain(
-      'signerSlot: passwordDialog === "analyst" ? "analise_tecnica" : "diretoria"',
+      'const slot = signingSecretary ? "secretaria" : "diretoria";',
     );
     expect(permitPanel).toContain("finalizeHabiteSePermit");
     expect(completionMigration).toContain("process_habite_se_permits");
