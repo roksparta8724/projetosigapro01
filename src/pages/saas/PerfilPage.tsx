@@ -1098,8 +1098,8 @@ export function PerfilPage() {
       }
       setForm((current) => ({
         ...current,
-        fullName: resolvedFullName,
-        email: resolvedEmail,
+        fullName: savedProfile.fullName || resolvedFullName,
+        email: savedProfile.email || resolvedEmail,
         avatarUrl: avatarReadConfirmed ? savedAvatarUrl : current.avatarUrl,
         avatarScale: savedProfile.avatarScale ?? avatarScale,
         avatarOffsetX: savedProfile.avatarOffsetX ?? avatarOffsetX,
@@ -1108,9 +1108,11 @@ export function PerfilPage() {
       }));
       setStatus(
         avatarReadConfirmed
-          ? savedAvatarUrl
-            ? "Foto, enquadramento e exibição confirmados no perfil institucional."
-            : "Perfil atualizado. Nenhuma foto de perfil está cadastrada."
+          ? section === "foto-identidade"
+            ? savedAvatarUrl
+              ? "Foto, enquadramento e exibição confirmados no perfil institucional."
+              : "Preferências salvas. Nenhuma foto de perfil está cadastrada."
+            : "Dados do perfil confirmados no banco institucional."
           : "A foto foi registrada no perfil, mas o servidor não confirmou sua leitura após o upload. Não foi possível validar a exibição após F5.",
       );
     } catch (error) {
