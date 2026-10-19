@@ -21,6 +21,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import type { ProcessRecord, SessionUser } from "@/lib/platform";
+import { userCanSignPermitAsDirector } from "@/lib/constructionPermit";
 import {
   openHabiteSePermitPdf,
   reserveHabiteSePermitPdfWindow,
@@ -28,7 +29,6 @@ import {
 import {
   getProcessArtifactSignatureRequest,
   getProcessArtifactSignatures,
-  requestProcessArtifactSignature,
   signProcessArtifactWithPassword,
   type ArtifactSignatureSnapshot,
 } from "@/integrations/esign/artifactClient";
@@ -249,12 +249,10 @@ export function HabiteSePermitPanel({
   );
   const [busy, setBusy] = useState("");
   const [notice, setNotice] = useState("");
-  const [passwordDialog, setPasswordDialog] = useState<"analyst" | "director" | null>(null);
+  const [passwordDialog, setPasswordDialog] = useState<"director" | null>(null);
   const [password, setPassword] = useState("");
 
-  const isDirector =
-    ["master_admin", "master_ops", "prefeitura_admin", "prefeitura_supervisor"].includes(session.role) &&
-    /diretor|diretora/i.test(session.title || "");
+  const isDirector = userCanSignPermitAsDirector(session);
 
   const refresh = async () => {
     const snapshot = await getHabiteSePermit(process.id);
@@ -276,7 +274,7 @@ export function HabiteSePermitPanel({
       ARTIFACT_KEY,
       "diretoria",
     );
-    const nextDirectorRequestPending = request.request?.status === "pending";
+    const nextDirectorRequestPending = request.request?.status === "pending" || snapshot.permit?.status === "aguardando_diretor";
     setDirectorRequestPending(nextDirectorRequestPending);
     writePermitVisualCache({
       processId: process.id,
@@ -313,7 +311,7 @@ export function HabiteSePermitPanel({
           ),
         );
         setSignatureState(signatures);
-        const nextDirectorRequestPending = request.request?.status === "pending";
+        const nextDirectorRequestPending = request.request?.status === "pending" || snapshot.permit?.status === "aguardando_diretor";
         setDirectorRequestPending(nextDirectorRequestPending);
         writePermitVisualCache({
           processId: process.id,
@@ -365,13 +363,9 @@ export function HabiteSePermitPanel({
   const signatureMatchesCurrent =
     Boolean(currentPayload && signedPayload) &&
     stableStringify(currentPayload) === stableStringify(signedPayload);
-  const analystSigner = signatureMatchesCurrent
-    ? signatureState.signers.find((item) => item.slot === "analise_tecnica")
-    : undefined;
   const directorSigner = signatureMatchesCurrent
     ? signatureState.signers.find((item) => item.slot === "diretoria")
     : undefined;
-  const analystSigned = Boolean(analystSigner);
   const directorSigned = Boolean(directorSigner);
 
   const saveDraft = async () => {
@@ -406,76 +400,91 @@ export function HabiteSePermitPanel({
     }
   };
 
-  const openSignature = (kind: "analyst" | "director") => {
-    if (kind === "analyst" && (!permit || !canManage)) {
-      setNotice("Salve o Alvará de Habite-se antes de assinar.");
+  const saveAndForwardToDirector = async () => {
+    if (!paymentConfirmed) {
+      setNotice("O pagamento da Guia de Habite-se precisa estar confirmado antes do encaminhamento à Diretoria.");
       return;
     }
-    if (kind === "director" && (!isDirector || permit?.status !== "aguardando_diretor")) {
-      setNotice("O documento ainda não está formalmente encaminhado para assinatura da Diretoria.");
+    if (!canManage) {
+      setNotice("Somente o responsável pela elaboração pode encaminhar este Alvará à Diretoria.");
+      return;
+    }
+
+    setBusy("forward-director");
+    setNotice("");
+    try {
+      const saved = await saveHabiteSePermit({
+        processId: process.id,
+        permitNumber: permit?.permitNumber,
+        formData: form,
+      });
+      const waiting = await setHabiteSePermitAwaitingDirector(process.id);
+      setPermit(waiting);
+      setForm(waiting.formData);
+      setDirectorRequestPending(true);
+      setSignatureState({ block: null, signers: [] });
+      setNotice("Alvará de Habite-se salvo e encaminhado à Diretoria. A assinatura eletrônica final é exclusiva do Diretor responsável.");
+      await onProcessRefresh?.();
+      await refresh();
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Não foi possível encaminhar o Alvará à Diretoria.");
+    } finally {
+      setBusy("");
+    }
+  };
+
+  const openSignature = () => {
+    if (!isDirector) {
+      setNotice("Somente o Diretor responsável pode assinar eletronicamente o Alvará de Habite-se.");
+      return;
+    }
+    if (!permit || permit.status !== "aguardando_diretor") {
+      setNotice("O Alvará ainda não foi formalmente encaminhado para assinatura da Diretoria.");
       return;
     }
     setPassword("");
-    setPasswordDialog(kind);
+    setPasswordDialog("director");
   };
 
   const confirmSignature = async () => {
     if (!passwordDialog || !password.trim() || !permit) return;
-    setBusy(passwordDialog === "analyst" ? "sign-analyst" : "sign-director");
+    if (!isDirector || permit.status !== "aguardando_diretor") {
+      setNotice("A assinatura eletrônica deste Alvará é exclusiva do Diretor responsável e exige encaminhamento prévio.");
+      return;
+    }
+
+    setBusy("sign-director");
     setNotice("");
     try {
-      const payload =
-        passwordDialog === "director" && signatureState.block?.payload
-          ? signatureState.block.payload
-          : buildPermitPayload(process, permit);
+      const payload = buildPermitPayload(process, { ...permit, formData: form });
 
       await signProcessArtifactWithPassword({
         processId: process.id,
         artifactType: ARTIFACT_TYPE,
         artifactKey: ARTIFACT_KEY,
-        signerSlot: passwordDialog === "analyst" ? "analise_tecnica" : "diretoria",
+        signerSlot: "diretoria",
         password,
         payload,
       });
 
-      let signatures = await getProcessArtifactSignatures(process.id, ARTIFACT_KEY);
-      setSignatureState(signatures);
-
-      if (passwordDialog === "analyst") {
-        const technical = signatures.signers.find((item) => item.slot === "analise_tecnica");
-        const artifactHash = signatures.block?.artifact_hash || "";
-        if (!technical || !artifactHash) {
-          throw new Error("A assinatura do Analista não foi confirmada integralmente no banco.");
-        }
-        await requestProcessArtifactSignature({
-          processId: process.id,
-          artifactKey: ARTIFACT_KEY,
-          artifactHash,
-          signerSlot: "diretoria",
-        });
-        const waiting = await setHabiteSePermitAwaitingDirector(process.id);
-        setPermit(waiting);
-        setDirectorRequestPending(true);
-        setNotice("Alvará assinado pelo Analista Técnico e encaminhado à Diretoria para assinatura final.");
-      } else {
-        signatures = await getProcessArtifactSignatures(process.id, ARTIFACT_KEY);
-        setSignatureState(signatures);
-        const director = signatures.signers.find((item) => item.slot === "diretoria");
-        if (!director) {
-          throw new Error("A assinatura da Diretoria não foi confirmada integralmente no banco.");
-        }
-        const finalized = await finalizeHabiteSePermit(process.id);
-        setPermit(finalized.permit);
-        setDirectorRequestPending(false);
-        setNotice("Alvará de Habite-se assinado pela Diretoria. Processo finalizado com êxito.");
+      const signatures = await getProcessArtifactSignatures(process.id, ARTIFACT_KEY);
+      const director = signatures.signers.find((item) => item.slot === "diretoria");
+      if (!signatures.block || !director) {
+        throw new Error("A assinatura da Diretoria foi enviada, mas ainda não pôde ser confirmada no banco oficial.");
       }
 
+      setSignatureState(signatures);
+      const finalized = await finalizeHabiteSePermit(process.id);
+      setPermit(finalized.permit);
+      setDirectorRequestPending(false);
       setPasswordDialog(null);
       setPassword("");
+      setNotice("Assinatura eletrônica da Diretoria concluída. O Alvará de Habite-se foi emitido e finalizado com êxito.");
       await onProcessRefresh?.();
       await refresh();
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : "Não foi possível concluir a assinatura.");
+      setPassword("");
+      setNotice(error instanceof Error ? error.message : "Não foi possível concluir a assinatura da Diretoria.");
     } finally {
       setBusy("");
     }
@@ -511,15 +520,6 @@ export function HabiteSePermitPanel({
           municipalityEmail,
           secretariat,
           directorate,
-          analystSignature: analystSigner
-            ? {
-                name: analystSigner.name,
-                role: analystSigner.role,
-                title: analystSigner.title,
-                registration: analystSigner.registration,
-                signedAt: analystSigner.signed_at,
-              }
-            : null,
           directorSignature: directorSigner
             ? {
                 name: directorSigner.name,
@@ -715,35 +715,36 @@ export function HabiteSePermitPanel({
 
           {permit && signatureState.block && !signatureMatchesCurrent && permit.status !== "emitido" ? (
             <div className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm font-semibold leading-6 text-amber-950 dark:border-amber-500/40 dark:bg-amber-950/30 dark:text-amber-100">
-              Esta versão foi retificada após a última assinatura. A assinatura anterior continua preservada no histórico, mas a versão atual precisa ser assinada novamente pelo Analista antes de retornar à Diretoria.
+              Esta versão foi retificada após a última assinatura. A assinatura anterior permanece preservada no histórico, mas a versão atual precisa ser novamente encaminhada e assinada pelo Diretor responsável.
             </div>
           ) : null}
 
-          <div className="grid gap-3 md:grid-cols-2">
-            <div className={
-              "rounded-2xl border p-4 " +
-              (analystSigned ? "border-emerald-300 bg-emerald-50 dark:border-emerald-500/40 dark:bg-emerald-950/25" : "border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-950/35")
-            }>
+          <div className="grid gap-3 md:grid-cols-[1fr_1.2fr]">
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-950/35">
               <div className="flex items-start gap-3">
                 <UserRound className="mt-0.5 h-5 w-5 text-sky-700 dark:text-sky-300" />
                 <div>
-                  <p className="text-sm font-bold text-slate-950 dark:text-white">Assinatura do Analista Técnico</p>
-                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                    {analystSigned ? `${analystSigner?.name} • ${formatDateTime(analystSigner?.signed_at)}` : "Obrigatória antes do encaminhamento à Diretoria."}
+                  <p className="text-sm font-bold text-slate-950 dark:text-white">Elaboração técnica</p>
+                  <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
+                    O Analista responsável elabora, revisa e encaminha o documento. Não há assinatura do Analista no Alvará de Habite-se.
                   </p>
                 </div>
               </div>
             </div>
             <div className={
               "rounded-2xl border p-4 " +
-              (directorSigned ? "border-emerald-300 bg-emerald-50 dark:border-emerald-500/40 dark:bg-emerald-950/25" : "border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-950/35")
+              (directorSigned ? "border-emerald-300 bg-emerald-50 dark:border-emerald-500/40 dark:bg-emerald-950/25" : permit?.status === "aguardando_diretor" ? "border-violet-300 bg-violet-50 dark:border-violet-500/40 dark:bg-violet-950/25" : "border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-950/35")
             }>
               <div className="flex items-start gap-3">
                 <Building2 className="mt-0.5 h-5 w-5 text-violet-700 dark:text-violet-300" />
                 <div>
-                  <p className="text-sm font-bold text-slate-950 dark:text-white">Assinatura final da Diretoria</p>
-                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                    {directorSigned ? `${directorSigner?.name} • ${formatDateTime(directorSigner?.signed_at)}` : permit?.status === "aguardando_diretor" ? "Solicitação formal enviada à Diretoria." : "Disponível após a assinatura do Analista."}
+                  <p className="text-sm font-bold text-slate-950 dark:text-white">Assinatura eletrônica da Diretoria</p>
+                  <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
+                    {directorSigned
+                      ? `${directorSigner?.name} • ${formatDateTime(directorSigner?.signed_at)}`
+                      : permit?.status === "aguardando_diretor"
+                        ? "Documento encaminhado e aguardando assinatura exclusiva do Diretor responsável."
+                        : "Disponível após o Analista concluir a elaboração e encaminhar à Diretoria."}
                   </p>
                 </div>
               </div>
@@ -764,15 +765,15 @@ export function HabiteSePermitPanel({
               </Button>
             ) : null}
 
-            {!externalView && canManage && permit && permit.status !== "emitido" && !analystSigned ? (
-              <Button type="button" className="rounded-full bg-sky-700 font-bold !text-white hover:bg-sky-600 [&_*]:!text-white" disabled={Boolean(busy)} onClick={() => openSignature("analyst")}>
-                <Signature className="mr-2 h-4 w-4" />
-                Assinar e encaminhar à Diretoria
+            {!externalView && canManage && permit?.status !== "emitido" && permit?.status !== "aguardando_diretor" ? (
+              <Button type="button" className="rounded-full bg-sky-700 font-bold !text-white hover:bg-sky-600 [&_*]:!text-white" disabled={Boolean(busy)} onClick={() => void saveAndForwardToDirector()}>
+                {busy === "forward-director" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                Salvar e encaminhar à Diretoria
               </Button>
             ) : null}
 
             {!externalView && isDirector && permit?.status === "aguardando_diretor" && !directorSigned ? (
-              <Button type="button" className="rounded-full bg-violet-700 font-bold !text-white hover:bg-violet-600 [&_*]:!text-white" disabled={Boolean(busy)} onClick={() => openSignature("director")}>
+              <Button type="button" className="rounded-full bg-violet-700 font-bold !text-white hover:bg-violet-600 [&_*]:!text-white" disabled={Boolean(busy)} onClick={openSignature}>
                 <ShieldCheck className="mr-2 h-4 w-4" />
                 Assinar como Diretor e finalizar
               </Button>
@@ -832,12 +833,12 @@ export function HabiteSePermitPanel({
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>
-              {passwordDialog === "director" ? "Assinatura final da Diretoria" : "Assinatura do Analista Técnico"}
+              "Assinatura final da Diretoria"
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <p className="text-sm leading-6 text-slate-600 dark:text-slate-300">
-              Confirme sua senha de acesso. A assinatura eletrônica será vinculada exatamente a esta versão do Alvará de Habite-se.
+              Confirme sua senha de acesso. A assinatura eletrônica do Diretor será vinculada exatamente a esta versão do Alvará de Habite-se e concluirá a emissão.
             </p>
             <Input type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Senha de acesso" />
             <Button type="button" className="w-full bg-sky-700 font-bold !text-white hover:bg-sky-600" disabled={!password || Boolean(busy)} onClick={() => void confirmSignature()}>
