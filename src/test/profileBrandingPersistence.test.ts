@@ -73,7 +73,7 @@ describe("profile and branding persistence regressions", () => {
     expect(css).toContain(".sig-image-frame-stage");
     expect(profilePage).toContain('fitMode="cover"');
     expect(profilePage).toContain("preenche todo o círculo");
-    expect(profilePage).toContain("Enquadramento salvo automaticamente.");
+    expect(profilePage).toContain("Enquadramento alterado. Clique em “Salvar ajustes da foto” para confirmar.");
     expect(profilePage).toContain("updateAvatarHeaderVisibility");
     expect(profilePage).toContain("border-rose-200 bg-rose-50 text-rose-700");
   });
@@ -95,13 +95,15 @@ describe("profile and branding persistence regressions", () => {
     expect(userAvatar).toContain("const resolvedImageUrl = recoveryImageUrl || stableImageUrl || imageUrl ||");
   });
 
-  it("keeps private R2 avatars persistent across F5 and autosaves new photos", () => {
+  it("keeps private R2 avatars persistent across F5 and saves new photos only on explicit confirmation", () => {
     expect(storage).toContain('input.bucket === "profile-assets"');
     expect(storage).toContain('`r2:${uploaded.objectKey}`');
     expect(backend).toContain("PROFILE_ASSET_REF_PREFIX");
     expect(backend).toContain("resolveStoredProfileAvatar");
     expect(backend).toContain("avatarStorageRef");
-    expect(profilePage).toContain("Salvando foto automaticamente...");
+    expect(profilePage).toContain("A foto ainda não foi salva; clique em “Salvar ajustes da foto”.");
+    expect(profilePage).not.toContain("Salvando foto automaticamente...");
+    expect(profilePage).not.toContain("void handleSubmit({ preventDefault: () => {} } as FormEvent, selectedFiles)");
     expect(profilePage).toContain("uploaded.persistentRef");
     expect(profilePage).not.toContain("Configure a URL publica do R2 antes de salvar a foto.");
   });
