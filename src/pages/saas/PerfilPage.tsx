@@ -1099,11 +1099,27 @@ export function PerfilPage() {
             savedProfile.useAvatarInHeader ?? current.useAvatarInHeader,
         }));
 
-        setStatus(
-          savedAvatarUrl
-            ? "Foto confirmada e gravada permanentemente no banco oficial."
-            : "Foto removida e alteração confirmada no banco oficial.",
-        );
+        // O banco confirma a referência; a imagem precisa de validação visual
+        // independente, pois uma URL assinada pode existir e falhar no R2.
+        if (avatarUploadFile && savedAvatarUrl) {
+          const readable = await new Promise<boolean>((resolve) => {
+            const image = new Image();
+            image.onload = () => resolve(true);
+            image.onerror = () => resolve(false);
+            image.src = savedAvatarUrl;
+          });
+          setStatus(
+            readable
+              ? "Foto gravada no banco oficial e carregada com sucesso."
+              : "A referência da foto foi gravada no banco, mas a imagem não pôde ser carregada do armazenamento. Verifique a conexão e tente atualizar a página.",
+          );
+        } else {
+          setStatus(
+            savedAvatarUrl
+              ? "Foto confirmada e gravada permanentemente no banco oficial."
+              : "Foto removida e alteração confirmada no banco oficial.",
+          );
+        }
       } else {
         // Salvar dados pessoais/profissionais nunca confirma, envia ou remove
         // uma prévia de avatar pendente.
