@@ -98,7 +98,7 @@ describe("municipal staff account and avatar recovery regressions", () => {
 
   it("uses a non-white premium fallback with dark initials in dark mode", () => {
     expect(avatar).toContain("dark:bg-[linear-gradient(180deg,#cbd5e1_0%,#94a3b8_100%)]");
-    expect(avatar).toContain("dark:text-[#0f172a]");
+    expect(avatar).toContain("dark:!text-[#0f172a]");
   });
 
   it("serves persisted R2 profile avatars in localhost exactly like production", () => {
