@@ -189,7 +189,7 @@ export function OccupancyPermitProcessPanel({
       detail: finalStatus
         ? "Alvará emitido"
         : habiteSePaid
-          ? "Pagamento confirmado — Analista elabora e assina"
+          ? "Pagamento confirmado — Analista elabora e encaminha"
           : "Aguardando pagamento",
       done: directorStage || finalStatus,
       current: permitStage && !directorStage && !finalStatus,
@@ -200,15 +200,15 @@ export function OccupancyPermitProcessPanel({
         ? "Assinatura final concluída"
         : directorStage
           ? "Aguardando assinatura final"
-          : "Após assinatura do Analista",
+          : "Após emissão do Alvará pela Diretoria",
       done: finalStatus,
       current: directorStage && !finalStatus,
     },
     {
       label: "Concluído",
       detail: finalStatus
-        ? "Alvará de Habite-se emitido e processo finalizado"
-        : "Finaliza após a assinatura da Diretoria",
+        ? "Alvará emitido, conclusão registrada e processo arquivado"
+        : "Após a assinatura da Diretoria, conclua administrativamente o processo",
       done: finalStatus,
       current: false,
     },
