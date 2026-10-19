@@ -977,7 +977,7 @@ export function PerfilPage() {
         avatarScale: form.avatarScale,
         avatarOffsetX: form.avatarOffsetX,
         avatarOffsetY: form.avatarOffsetY,
-        useAvatarInHeader: avatarUploadFile ? true : form.useAvatarInHeader,
+        useAvatarInHeader: form.useAvatarInHeader,
         bio: form.bio,
       }),
       email: accountForm.nextEmail.trim().toLowerCase(),
