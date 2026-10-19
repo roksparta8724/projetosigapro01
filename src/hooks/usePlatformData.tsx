@@ -1242,7 +1242,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
           authenticatedProfileId || authenticatedUserId,
           authenticatedEmail,
         );
-        if (activeProfile?.avatarUrl) syncProfileVisualCache(activeProfile);
+        if (activeProfile) syncProfileVisualCache(activeProfile);
         setStore(sanitized);
         syncWarmPlatformStore(sanitized, authenticatedUserId);
         syncStore(sanitized);
@@ -1330,7 +1330,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         authenticatedProfileId || authenticatedUserId,
         authenticatedEmail,
       );
-      if (activeProfile?.avatarUrl) syncProfileVisualCache(activeProfile);
+      if (activeProfile) syncProfileVisualCache(activeProfile);
       setStore((current) => stabilizePlatformStore(current, sanitized));
       syncWarmPlatformStore(sanitized, authenticatedUserId);
       syncStore(sanitized);
