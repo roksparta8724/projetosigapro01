@@ -39,18 +39,19 @@ function getR2EndpointCandidates() {
   return Array.from(new Set(candidates.filter(Boolean)));
 }
 
-function resolveR2Client() {
-  const endpoint = getR2EndpointCandidates()[0] || "";
+function resolveR2Clients() {
   const accessKeyId = readEnv("R2_ACCESS_KEY_ID");
   const secretAccessKey = readEnv("R2_SECRET_ACCESS_KEY");
+  if (!accessKeyId || !secretAccessKey) return [];
 
-  if (!endpoint || !accessKeyId || !secretAccessKey) return null;
-
-  return new S3Client({
-    region: "auto",
-    endpoint,
-    credentials: { accessKeyId, secretAccessKey },
-  });
+  return getR2EndpointCandidates().map(
+    (endpoint) =>
+      new S3Client({
+        region: "auto",
+        endpoint,
+        credentials: { accessKeyId, secretAccessKey },
+      }),
+  );
 }
 
 function parseAvatarRequest(req: Req) {
@@ -116,6 +117,20 @@ function json(res: Res, status: number, body: unknown) {
   res.end(JSON.stringify(body));
 }
 
+async function streamAvatarFromAnyClient(
+  clients: S3Client[],
+  bucket: string,
+  objectKey: string,
+  res: Res,
+) {
+  for (const client of clients) {
+    if (await streamCachedAvatar(client, bucket, objectKey, res)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 async function streamCachedAvatar(
   client: S3Client,
   bucket: string,
@@ -176,16 +191,16 @@ export default async function handler(req: Req, res: Res) {
     return;
   }
 
-  const client = resolveR2Client();
+  const clients = resolveR2Clients();
   const bucket = readEnv("R2_BUCKET_LOGOS") || "sigapro-logos";
 
   if (request.kind === "r2") {
-    if (!client) {
+    if (!clients.length) {
       json(res, 503, { error: "Armazenamento de fotos indisponível." });
       return;
     }
 
-    if (await streamCachedAvatar(client, bucket, request.objectKey, res)) {
+    if (await streamAvatarFromAnyClient(clients, bucket, request.objectKey, res)) {
       return;
     }
 
@@ -196,7 +211,7 @@ export default async function handler(req: Req, res: Res) {
   const source = request.source;
   const cacheKey = getCacheKey(source);
 
-  if (client && (await streamCachedAvatar(client, bucket, cacheKey, res))) {
+  if (clients.length && (await streamAvatarFromAnyClient(clients, bucket, cacheKey, res))) {
     return;
   }
 
@@ -237,21 +252,30 @@ export default async function handler(req: Req, res: Res) {
       return;
     }
 
-    if (client) {
-      try {
-        await client.send(
-          new PutObjectCommand({
-            Bucket: bucket,
-            Key: cacheKey,
-            Body: bytes,
-            ContentType: contentType,
-            CacheControl: "private, max-age=21600",
-          }),
-        );
-      } catch (error) {
+    if (clients.length) {
+      let cached = false;
+      let lastCacheError: unknown = null;
+      for (const client of clients) {
+        try {
+          await client.send(
+            new PutObjectCommand({
+              Bucket: bucket,
+              Key: cacheKey,
+              Body: bytes,
+              ContentType: contentType,
+              CacheControl: "private, max-age=21600",
+            }),
+          );
+          cached = true;
+          break;
+        } catch (error) {
+          lastCacheError = error;
+        }
+      }
+      if (!cached && lastCacheError) {
         console.warn("[SIGAPRO][AvatarLegacy] Não foi possível cachear a foto no R2.", {
           cacheKey,
-          error,
+          error: lastCacheError,
         });
       }
     }
