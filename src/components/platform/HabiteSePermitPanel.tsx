@@ -346,6 +346,58 @@ export function HabiteSePermitPanel({
   }, [paymentConfirmed, process.id, process.status]);
 
   useEffect(() => {
+    if (
+      (!paymentConfirmed && !["deferido", "arquivado"].includes(process.status)) ||
+      typeof window === "undefined"
+    ) {
+      return;
+    }
+
+    let disposed = false;
+    let inFlight = false;
+
+    const syncNow = async () => {
+      if (
+        disposed ||
+        inFlight ||
+        (typeof document !== "undefined" && document.visibilityState !== "visible")
+      ) {
+        return;
+      }
+
+      inFlight = true;
+      try {
+        await refresh();
+      } catch {
+        // Revalidação silenciosa: a leitura oficial será tentada novamente
+        // no próximo pulso, foco da janela ou retorno de visibilidade.
+      } finally {
+        inFlight = false;
+      }
+    };
+
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") void syncNow();
+    };
+
+    void syncNow();
+    const timer = window.setInterval(() => void syncNow(), 2500);
+    window.addEventListener("focus", syncNow);
+    window.addEventListener("pageshow", syncNow);
+    window.addEventListener("online", syncNow);
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      disposed = true;
+      window.clearInterval(timer);
+      window.removeEventListener("focus", syncNow);
+      window.removeEventListener("pageshow", syncNow);
+      window.removeEventListener("online", syncNow);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, [paymentConfirmed, process.id, process.status, session.id]);
+
+  useEffect(() => {
     if (!process.id || !session.id || session.id === "unknown") return;
     writePermitVisualCache({
       processId: process.id,
@@ -381,6 +433,9 @@ export function HabiteSePermitPanel({
     : undefined;
   const directorSigned = Boolean(directorSigner) || permit?.status === "emitido";
   const secretarySigned = Boolean(secretarySigner);
+  const effectivePermitStatus = directorSigned ? "emitido" : permit?.status || "rascunho";
+  const effectiveDirectorName =
+    directorSigner?.name || permit?.directorName || null;
 
   const saveDraft = async () => {
     if (!paymentConfirmed) {
@@ -554,7 +609,7 @@ export function HabiteSePermitPanel({
   };
 
   const completeProcess = async () => {
-    if (!directorSigned || !permit || permit.status !== "emitido") {
+    if (!directorSigned || !permit) {
       setNotice("O processo só pode ser concluído depois da assinatura válida da Diretoria.");
       return;
     }
@@ -708,19 +763,19 @@ export function HabiteSePermitPanel({
             </div>
             <Badge
               data-habite-se-status-badge="true"
-              data-status={permit?.status || "rascunho"}
+              data-status={effectivePermitStatus}
               className={
-                permit?.status === "emitido"
+                effectivePermitStatus === "emitido"
                   ? "w-fit rounded-full border border-emerald-200/50 bg-emerald-600 px-3.5 py-1.5 text-[11px] font-black tracking-[0.02em] !text-white shadow-[0_7px_18px_rgba(5,150,105,0.24)] [&_*]:!text-white"
-                  : permit?.status === "aguardando_diretor"
+                  : effectivePermitStatus === "aguardando_diretor"
                     ? "w-fit rounded-full border border-violet-200/50 bg-violet-700 px-3.5 py-1.5 text-[11px] font-black tracking-[0.02em] !text-white shadow-[0_7px_18px_rgba(109,40,217,0.24)] [&_*]:!text-white"
                     : "w-fit rounded-full border border-sky-100/70 bg-[#075985] px-3.5 py-1.5 text-[11px] font-black tracking-[0.02em] !text-white shadow-[0_7px_18px_rgba(3,37,65,0.32)] [&_*]:!text-white"
               }
             >
               <span className="!text-white">
-                {permit?.status === "emitido"
-                  ? "Emitido e finalizado"
-                  : permit?.status === "aguardando_diretor"
+                {effectivePermitStatus === "emitido"
+                  ? "Emitido pela Diretoria"
+                  : effectivePermitStatus === "aguardando_diretor"
                     ? "Aguardando Diretoria"
                     : "Em elaboração"}
               </span>
@@ -744,11 +799,11 @@ export function HabiteSePermitPanel({
             </div>
             <div className="rounded-[18px] border border-slate-200 bg-[linear-gradient(145deg,#ffffff_0%,#f8fafc_100%)] p-4 shadow-[0_8px_20px_rgba(15,23,42,0.04)] dark:border-slate-700 dark:bg-[linear-gradient(145deg,#0f172a_0%,#111827_100%)]">
               <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-500">Diretoria</p>
-              <p className="mt-2 font-black text-slate-950 dark:text-white">{permit?.directorName || (directorRequestPending ? "Assinatura pendente" : "Aguardando encaminhamento")}</p>
+              <p className="mt-2 font-black text-slate-950 dark:text-white">{effectiveDirectorName || (directorRequestPending ? "Assinatura pendente" : "Aguardando encaminhamento")}</p>
             </div>
           </div>
 
-          {!externalView && canManage && permit?.status !== "emitido" ? (
+          {!externalView && canManage && effectivePermitStatus !== "emitido" ? (
             <div className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700 dark:bg-slate-950/35">
               <div className="flex flex-col gap-2 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 dark:border-sky-500/30 dark:bg-sky-950/25 sm:flex-row sm:items-center sm:justify-between">
                 <div>
@@ -849,7 +904,7 @@ export function HabiteSePermitPanel({
             </div>
           ) : null}
 
-          {permit?.status === "aguardando_diretor" && !directorSigned ? (
+          {effectivePermitStatus === "aguardando_diretor" && !directorSigned ? (
             <div
               data-habite-se-director-request="pending"
               className="rounded-[20px] border border-violet-200 bg-violet-50 px-5 py-4 dark:border-violet-500/30 dark:bg-violet-950/25"
@@ -977,7 +1032,7 @@ export function HabiteSePermitPanel({
               </Button>
             ) : null}
 
-            {!externalView && isDirector && permit?.status === "aguardando_diretor" && !directorSigned ? (
+            {!externalView && isDirector && effectivePermitStatus === "aguardando_diretor" && !directorSigned ? (
               <Button type="button" className="rounded-full bg-violet-700 font-bold !text-white hover:bg-violet-600 [&_*]:!text-white" disabled={Boolean(busy)} onClick={() => openSignature("director")}>
                 <ShieldCheck className="mr-2 h-4 w-4" />
                 Assinar como Diretor e finalizar
@@ -1018,7 +1073,7 @@ export function HabiteSePermitPanel({
             ) : null}
           </div>
 
-          {permit?.status === "emitido" ? (
+          {effectivePermitStatus === "emitido" ? (
             <div className="rounded-[22px] border border-slate-200 bg-[linear-gradient(135deg,#ffffff_0%,#f8fafc_100%)] p-5 shadow-sm dark:border-slate-700 dark:bg-[linear-gradient(135deg,#111827_0%,#0f172a_100%)]">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div className="flex items-start gap-3">
