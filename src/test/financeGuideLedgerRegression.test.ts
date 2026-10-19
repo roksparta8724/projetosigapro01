@@ -11,6 +11,10 @@ describe("finance municipal guide ledger", () => {
     resolve(process.cwd(), "src/pages/saas/FinanceProtocolsPage.tsx"),
     "utf8",
   );
+  const externalPayments = readFileSync(
+    resolve(process.cwd(), "src/pages/saas/ExternalPaymentsPage.tsx"),
+    "utf8",
+  );
 
   it("never substitutes today's date for an already-issued payment guide", () => {
     expect(protocols).toContain("persistedIssuedAt");
@@ -18,6 +22,14 @@ describe("finance municipal guide ledger", () => {
     expect(protocols).toContain("exercicio: persistedIssueYear");
     expect(protocols).not.toContain("dataDocumento: match.guide.issuedAt || new Date().toISOString()");
     expect(protocols).not.toContain("match.guide.issuedAt || Date.now()");
+  });
+
+  it("never invents today's issuance date in the external payment portal", () => {
+    expect(externalPayments).toContain('const issuedAt = String(guide.issuedAt || "").trim()');
+    expect(externalPayments).toContain("dataDocumento: issuedAt");
+    expect(externalPayments).toContain("const year = issuedDate.getFullYear().toString()");
+    expect(externalPayments).not.toContain("guide.issuedAt || new Date().toISOString()");
+    expect(externalPayments).not.toContain("new Date(issuedAt).getFullYear() || new Date().getFullYear()");
   });
 
   it("keeps issued guides visible after a process leaves the Financeiro queue", () => {
