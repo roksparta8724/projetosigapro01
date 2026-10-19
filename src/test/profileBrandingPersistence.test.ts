@@ -96,6 +96,17 @@ describe("profile and branding persistence regressions", () => {
     expect(userAvatar).toContain("const resolvedImageUrl = recoveryImageUrl || stableImageUrl || imageUrl ||");
   });
 
+  it("serializes avatar saves and keeps the pending file when R2 image verification fails", () => {
+    expect(profilePage).toContain("avatarFrameSaveInFlightRef");
+    expect(profilePage).toContain("if (avatarFrameSaveInFlightRef.current) await avatarFrameSaveInFlightRef.current");
+    expect(profilePage).toContain("if (saving) return");
+    expect(profilePage).toContain("const avatarReadConfirmed = !avatarUploadFile || await confirmSavedAvatarReadable(savedAvatarUrl)");
+    expect(profilePage).toContain("if (avatarFrameEditVersionRef.current === editVersion)");
+    expect(profilePage).toContain("} else if (!savedAvatarUrl) {");
+    expect(profilePage).toContain('imageUrl={form.useAvatarInHeader ? avatarPreviewUrl : ""}');
+    expect(portalFrame).toContain("const topbarAvatarImageUrl = userProfile?.useAvatarInHeader");
+  });
+
   it("persists private R2 avatars after confirmation and preserves edits across F5", () => {
     expect(storage).toContain('input.bucket === "profile-assets" ? `r2:${uploaded.objectKey}`');
     expect(backend).toContain("PROFILE_ASSET_REF_PREFIX");
