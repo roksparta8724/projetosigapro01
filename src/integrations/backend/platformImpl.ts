@@ -40,12 +40,14 @@ async function resolveStoredProfileAvatar(value: string | null | undefined) {
 
   if (/^(data:|blob:)/i.test(raw)) return raw;
 
-  const objectKeyFromUrl = /^https?:/i.test(raw)
-    ? getObjectKeyFromPublicUrl(raw)
-    : "";
-  const isProfileObjectKey = /^municipalities\/[0-9a-f-]+\/profiles\/avatars\//i.test(
-    objectKeyFromUrl,
-  );
+  // Algumas fotos antigas foram gravadas com URL pública de R2 contendo
+  // o nome do bucket antes de "municipalities". Recuperar a chave real
+  // permite reabrir essas imagens sem exigir novo upload do servidor.
+  const publicPath = /^https?:/i.test(raw) ? getObjectKeyFromPublicUrl(raw) : "";
+  const objectKeyFromUrl = publicPath.match(
+    /(?:^|\/)(municipalities\/[0-9a-f-]+\/profiles\/avatars\/[a-zA-Z0-9_-]+\/[a-zA-Z0-9._-]+)$/i,
+  )?.[1] || "";
+  const isProfileObjectKey = Boolean(objectKeyFromUrl);
 
   if (/^https?:/i.test(raw) && !isProfileObjectKey) return raw;
 
