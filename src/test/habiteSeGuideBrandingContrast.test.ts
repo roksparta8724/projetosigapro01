@@ -61,9 +61,15 @@ describe("Habite-se guide branding and status contrast", () => {
     expect(permit).not.toContain("Salvar e encaminhar à Diretoria");
   });
 
-  it("uses the scalar notification delete RPC to avoid Data API overload ambiguity", () => {
-    expect(notificationClient).toContain('delete_my_notification_v1');
-    expect(notificationClient).toContain('_notification_id: notificationId');
+  it("deletes selected notification ids through the current database contract and checks partial failures", () => {
+    expect(notificationClient).toContain("export async function deleteMyNotifications(notificationIds: string[])");
+    expect(notificationClient).toContain("new Set((notificationIds ?? []).filter(Boolean))");
+    expect(notificationClient).toContain('.from("notifications")');
+    expect(notificationClient).toContain(".delete()");
+    expect(notificationClient).toContain('.in("id", ids)');
+    expect(notificationClient).toContain('.select("id")');
+    expect(notificationClient).toContain("if (deleted !== ids.length)");
+    expect(notificationClient).toContain("Foram excluídas");
     expect(notificationClient).not.toContain('delete_my_notifications_v1", {');
   });
 
