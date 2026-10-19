@@ -13,7 +13,7 @@ self.addEventListener("activate", (event) => {
       .then((keys) =>
         Promise.all(
           keys
-            .filter((key) => key.startsWith("sigapro-enterprise-") && key !== ASSET_CACHE)
+            .filter((key) => key.startsWith("sigapro-enterprise-") && key !== ASSET_CACHE && key !== AVATAR_CACHE)
             .map((key) => caches.delete(key)),
         ),
       )
