@@ -74,6 +74,7 @@ describe("municipal staff account and avatar recovery regressions", () => {
     expect(appBootstrap).toContain('backendClient.rpc("get_current_profile_context")');
     expect(appBootstrap).toContain("const retryDelays = [0, 80, 180, 350]");
     expect(appBootstrap).toContain("void markCurrentProfileAccess()");
+    expect(appBootstrap).toContain("void loadMunicipalityBundleById(municipalityId)");
     expect(appBootstrap).not.toContain("const currentSession = (await backendClient.auth.getSession()).data.session");
   });
 
