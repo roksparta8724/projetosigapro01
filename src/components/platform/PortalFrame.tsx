@@ -1398,12 +1398,17 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                 type="button"
                 onClick={() => navigate("/notificacoes")}
                 className={cn(
-                  "relative inline-flex h-[38px] w-[38px] items-center justify-center rounded-[14px] transition duration-200 hover:-translate-y-[1px]",
+                  "relative inline-flex h-[38px] w-[38px] items-center justify-center rounded-[14px] p-0 leading-none transition duration-200 hover:-translate-y-[1px]",
                   topbarIconButton,
                 )}
                 aria-label={`Notificações (${notificationCount})`}
               >
-                <Bell className="h-[18px] w-[18px] text-white/92" />
+                <span
+                  aria-hidden="true"
+                  className="pointer-events-none absolute inset-0 flex items-center justify-center"
+                >
+                  <Bell className="block h-[18px] w-[18px] -translate-y-[0.5px] text-white/92" />
+                </span>
                 {notificationCount > 0 ? (
                   <span className="sig-topbar-notification-badge absolute right-[2px] top-[2px] inline-flex min-h-[16px] min-w-[16px] items-center justify-center rounded-full px-1 text-[9px] font-bold leading-none">
                     {notificationCount > 99 ? "99+" : notificationCount}
@@ -1565,14 +1570,19 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                   type="button"
                   onClick={() => navigate("/notificacoes")}
                   className={cn(
-                    "sig-topbar-notification-button relative",
+                    "sig-topbar-notification-button relative p-0 leading-none",
                     topbarUtilityButtonClass,
                     topbarIconButton,
                   )}
                   aria-label={`Notificações (${notificationCount})`}
                   title="Notificações"
                 >
-                  <Bell className={topbarUtilityIconClass} aria-hidden="true" />
+                  <span
+                    aria-hidden="true"
+                    className="pointer-events-none absolute inset-0 flex items-center justify-center"
+                  >
+                    <Bell className="block h-[18px] w-[18px] -translate-y-[0.5px] text-white/92" />
+                  </span>
                   {notificationCount > 0 ? (
                     <span className="sig-topbar-notification-badge absolute right-[3px] top-[3px] inline-flex min-h-[16px] min-w-[16px] items-center justify-center rounded-full px-1 text-[9px] font-bold leading-none">
                       {notificationCount > 99 ? "99+" : notificationCount}
