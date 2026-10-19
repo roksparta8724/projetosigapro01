@@ -21,7 +21,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import type { ProcessRecord, SessionUser } from "@/lib/platform";
-import { userCanSignPermitAsDirector } from "@/lib/constructionPermit";
+import { userCanSignPermitAsDirector, userCanSignPermitAsSecretary } from "@/lib/constructionPermit";
 import {
   openHabiteSePermitPdf,
   reserveHabiteSePermitPdfWindow,
@@ -29,6 +29,7 @@ import {
 import {
   getProcessArtifactSignatureRequest,
   getProcessArtifactSignatures,
+  requestHabiteSeSecretarySignature,
   signProcessArtifactWithPassword,
   type ArtifactSignatureSnapshot,
 } from "@/integrations/esign/artifactClient";
@@ -214,6 +215,7 @@ export function HabiteSePermitPanel({
   secretariat,
   directorate,
   onProcessRefresh,
+  onCompleteProcess,
 }: {
   process: ProcessRecord;
   session: SessionUser;
@@ -226,6 +228,7 @@ export function HabiteSePermitPanel({
   secretariat?: string | null;
   directorate?: string | null;
   onProcessRefresh?: () => Promise<void> | void;
+  onCompleteProcess?: () => Promise<void> | void;
 }) {
   const habiteSeGuide = process.payment.guides?.find((guide) => guide.kind === "habite_se");
   const paymentConfirmed = habiteSeGuide?.status === "compensada";
@@ -249,10 +252,13 @@ export function HabiteSePermitPanel({
   );
   const [busy, setBusy] = useState("");
   const [notice, setNotice] = useState("");
-  const [passwordDialog, setPasswordDialog] = useState<"director" | null>(null);
+  const [passwordDialog, setPasswordDialog] = useState<"director" | "secretary" | null>(null);
+  const [secretaryRequestPending, setSecretaryRequestPending] = useState(false);
   const [password, setPassword] = useState("");
 
   const isDirector = userCanSignPermitAsDirector(session);
+  const isSecretary = userCanSignPermitAsSecretary(session);
+  const canCloseProcess = isDirector || ["prefeitura_admin", "prefeitura_supervisor", "master_admin", "master_ops"].includes(session.role);
 
   const refresh = async () => {
     const snapshot = await getHabiteSePermit(process.id);
@@ -269,13 +275,15 @@ export function HabiteSePermitPanel({
     const signatures = await getProcessArtifactSignatures(process.id, ARTIFACT_KEY);
     setSignatureState(signatures);
 
-    const request = await getProcessArtifactSignatureRequest(
-      process.id,
-      ARTIFACT_KEY,
-      "diretoria",
-    );
-    const nextDirectorRequestPending = request.request?.status === "pending" || snapshot.permit?.status === "aguardando_diretor";
+    const [directorRequest, secretaryRequest] = await Promise.all([
+      getProcessArtifactSignatureRequest(process.id, ARTIFACT_KEY, "diretoria"),
+      getProcessArtifactSignatureRequest(process.id, ARTIFACT_KEY, "secretaria"),
+    ]);
+    const nextDirectorRequestPending =
+      directorRequest.request?.status === "pending" ||
+      snapshot.permit?.status === "aguardando_diretor";
     setDirectorRequestPending(nextDirectorRequestPending);
+    setSecretaryRequestPending(secretaryRequest.request?.status === "pending");
     writePermitVisualCache({
       processId: process.id,
       sessionId: session.id,
@@ -298,8 +306,9 @@ export function HabiteSePermitPanel({
       getHabiteSePermit(process.id),
       getProcessArtifactSignatures(process.id, ARTIFACT_KEY),
       getProcessArtifactSignatureRequest(process.id, ARTIFACT_KEY, "diretoria"),
+      getProcessArtifactSignatureRequest(process.id, ARTIFACT_KEY, "secretaria"),
     ])
-      .then(([snapshot, signatures, request]) => {
+      .then(([snapshot, signatures, request, secretaryRequest]) => {
         if (!active) return;
         setPermit(snapshot.permit);
         setCanManage(snapshot.canManage);
@@ -313,6 +322,7 @@ export function HabiteSePermitPanel({
         setSignatureState(signatures);
         const nextDirectorRequestPending = request.request?.status === "pending" || snapshot.permit?.status === "aguardando_diretor";
         setDirectorRequestPending(nextDirectorRequestPending);
+        setSecretaryRequestPending(secretaryRequest.request?.status === "pending");
         writePermitVisualCache({
           processId: process.id,
           sessionId: session.id,
@@ -366,7 +376,11 @@ export function HabiteSePermitPanel({
   const directorSigner = signatureMatchesCurrent
     ? signatureState.signers.find((item) => item.slot === "diretoria")
     : undefined;
+  const secretarySigner = signatureMatchesCurrent
+    ? signatureState.signers.find((item) => item.slot === "secretaria")
+    : undefined;
   const directorSigned = Boolean(directorSigner) || permit?.status === "emitido";
+  const secretarySigned = Boolean(secretarySigner);
 
   const saveDraft = async () => {
     if (!paymentConfirmed) {
@@ -427,51 +441,105 @@ export function HabiteSePermitPanel({
     }
   };
 
-  const openSignature = () => {
-    if (!isDirector) {
-      setNotice("Somente o Diretor responsável pode assinar eletronicamente o Alvará de Habite-se.");
+  const requestSecretarySignature = async () => {
+    if (!directorSigned || !signatureState.block?.artifact_hash) {
+      setNotice("A assinatura complementar da Secretaria só pode ser solicitada depois da assinatura da Diretoria.");
       return;
     }
-    if (!permit || permit.status !== "aguardando_diretor") {
-      setNotice("O Alvará ainda não foi formalmente encaminhado para assinatura da Diretoria.");
+    if (!canCloseProcess) {
+      setNotice("Somente a Diretoria ou a administração pode solicitar a assinatura complementar da Secretaria.");
       return;
+    }
+
+    setBusy("request-secretary");
+    setNotice("");
+    try {
+      await requestHabiteSeSecretarySignature({
+        processId: process.id,
+        artifactKey: ARTIFACT_KEY,
+        artifactHash: signatureState.block.artifact_hash,
+      });
+      setSecretaryRequestPending(true);
+      await onProcessRefresh?.();
+      await refresh();
+    } catch (error) {
+      setNotice(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível solicitar a assinatura complementar da Secretaria.",
+      );
+    } finally {
+      setBusy("");
+    }
+  };
+
+  const openSignature = (kind: "director" | "secretary") => {
+    if (kind === "director") {
+      if (!isDirector) {
+        setNotice("Somente o Diretor responsável pode assinar eletronicamente o Alvará de Habite-se.");
+        return;
+      }
+      if (!permit || permit.status !== "aguardando_diretor") {
+        setNotice("O Alvará ainda não foi formalmente encaminhado para assinatura da Diretoria.");
+        return;
+      }
+    } else {
+      if (!isSecretary) {
+        setNotice("Somente um perfil de Secretário(a) pode registrar a assinatura complementar.");
+        return;
+      }
+      if (!directorSigned || !secretaryRequestPending || secretarySigned) {
+        setNotice("A assinatura complementar da Secretaria precisa estar formalmente solicitada e ainda pendente.");
+        return;
+      }
     }
     setPassword("");
-    setPasswordDialog("director");
+    setPasswordDialog(kind);
   };
 
   const confirmSignature = async () => {
     if (!passwordDialog || !password.trim() || !permit) return;
-    if (!isDirector || permit.status !== "aguardando_diretor") {
-      setNotice("A assinatura eletrônica deste Alvará é exclusiva do Diretor responsável e exige encaminhamento prévio.");
+
+    const signingSecretary = passwordDialog === "secretary";
+    if (signingSecretary) {
+      if (!isSecretary || !directorSigned || !secretaryRequestPending || secretarySigned) {
+        setNotice("A assinatura complementar da Secretaria não está disponível para esta conta ou para esta versão.");
+        return;
+      }
+    } else if (!isDirector || permit.status !== "aguardando_diretor") {
+      setNotice("A assinatura eletrônica da Diretoria exige encaminhamento prévio e perfil autorizado.");
       return;
     }
 
-    setBusy("sign-director");
+    setBusy(signingSecretary ? "sign-secretary" : "sign-director");
     setNotice("");
     try {
       const payload = buildPermitPayload(process, { ...permit, formData: form });
+      const slot = signingSecretary ? "secretaria" : "diretoria";
 
       await signProcessArtifactWithPassword({
         processId: process.id,
         artifactType: ARTIFACT_TYPE,
         artifactKey: ARTIFACT_KEY,
-        signerSlot: "diretoria",
+        signerSlot: slot,
         password,
         payload,
       });
 
       const signatures = await getProcessArtifactSignatures(process.id, ARTIFACT_KEY);
-      const director = signatures.signers.find((item) => item.slot === "diretoria");
-      if (!signatures.block || !director) {
-        throw new Error("A assinatura da Diretoria foi enviada, mas ainda não pôde ser confirmada no banco oficial.");
+      const signer = signatures.signers.find((item) => item.slot === slot);
+      if (!signatures.block || !signer) {
+        throw new Error("A assinatura foi enviada, mas ainda não pôde ser confirmada no banco oficial.");
       }
 
       setSignatureState(signatures);
-      const finalized = await finalizeHabiteSePermit(process.id);
-      setPermit(finalized.permit);
-      setSignatureState(signatures);
-      setDirectorRequestPending(false);
+      if (signingSecretary) {
+        setSecretaryRequestPending(false);
+      } else {
+        const finalized = await finalizeHabiteSePermit(process.id);
+        setPermit(finalized.permit);
+        setDirectorRequestPending(false);
+      }
       setPasswordDialog(null);
       setPassword("");
       setNotice("");
@@ -479,7 +547,7 @@ export function HabiteSePermitPanel({
       await refresh();
     } catch (error) {
       setPassword("");
-      setNotice(error instanceof Error ? error.message : "Não foi possível concluir a assinatura da Diretoria.");
+      setNotice(error instanceof Error ? error.message : "Não foi possível concluir a assinatura eletrônica.");
     } finally {
       setBusy("");
     }
@@ -522,6 +590,15 @@ export function HabiteSePermitPanel({
                 title: directorSigner.title,
                 registration: directorSigner.registration,
                 signedAt: directorSigner.signed_at,
+              }
+            : null,
+          secretarySignature: secretarySigner
+            ? {
+                name: secretarySigner.name,
+                role: secretarySigner.role,
+                title: secretarySigner.title,
+                registration: secretarySigner.registration,
+                signedAt: secretarySigner.signed_at,
               }
             : null,
           verificationCode: signatureMatchesCurrent
@@ -798,7 +875,7 @@ export function HabiteSePermitPanel({
             ) : null}
 
             {!externalView && isDirector && permit?.status === "aguardando_diretor" && !directorSigned ? (
-              <Button type="button" className="rounded-full bg-violet-700 font-bold !text-white hover:bg-violet-600 [&_*]:!text-white" disabled={Boolean(busy)} onClick={openSignature}>
+              <Button type="button" className="rounded-full bg-violet-700 font-bold !text-white hover:bg-violet-600 [&_*]:!text-white" disabled={Boolean(busy)} onClick={() => openSignature("director")}>
                 <ShieldCheck className="mr-2 h-4 w-4" />
                 Assinar como Diretor e finalizar
               </Button>
