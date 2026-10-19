@@ -152,6 +152,14 @@ describe("F5, logout and topbar visual continuity", () => {
     expect(analystDesk).toContain("Processos concluídos");
   });
 
+  it("keeps the Acompanhamento tab synchronized with the official final state", () => {
+    expect(processDetail).toContain('data-process-live-state={process.status}');
+    expect(processDetail).toContain('isFinalProcessStatus ? "Concluído" : "Em andamento"');
+    expect(processDetail).toContain('data-process-final-milestone="true"');
+    expect(processDetail).toContain("Processo concluído");
+    expect(processDetail).toContain("intervalMs: 1800");
+  });
+
   it("marks every Habite-se workflow step done after final process status", () => {
     expect(processDetail).toContain('state: isFinalProcessStatus');
     expect(processDetail).toContain('? "done"');
