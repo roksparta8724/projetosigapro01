@@ -231,6 +231,8 @@ export function PerfilPage() {
   const avatarObjectUrlRef = useRef<string | null>(null);
   const avatarFrameDirtyRef = useRef(false);
   const avatarFrameSaveTimerRef = useRef<number | null>(null);
+  const avatarFrameSaveInFlightRef = useRef<Promise<void> | null>(null);
+  const avatarFrameEditVersionRef = useRef(0);
   const lastCepLookupRef = useRef("");
   const [masterBranding, setMasterBranding] = useState(() => loadMasterBranding());
   const [platformBranding, setPlatformBranding] = useState<Awaited<ReturnType<typeof loadPlatformBranding>> | null>(null);
@@ -617,6 +619,7 @@ export function PerfilPage() {
   }, [form.zipCode]);
 
   const updateAvatarFrame = ({ scale, offsetX, offsetY }: { scale: number; offsetX: number; offsetY: number }) => {
+    avatarFrameEditVersionRef.current += 1;
     avatarFrameDirtyRef.current = true;
     setForm((current) => ({
       ...current,
@@ -627,38 +630,46 @@ export function PerfilPage() {
   };
 
   const updateAvatarHeaderVisibility = (checked: boolean) => {
+    avatarFrameEditVersionRef.current += 1;
     avatarFrameDirtyRef.current = true;
     setForm((current) => ({ ...current, useAvatarInHeader: checked }));
   };
 
   useEffect(() => {
-    if (!avatarFrameDirtyRef.current || avatarDraftDirty || !profile?.avatarUrl) return;
+    if (!avatarFrameDirtyRef.current || avatarDraftDirty || saving || !profile?.avatarUrl) return;
 
     if (avatarFrameSaveTimerRef.current) {
       window.clearTimeout(avatarFrameSaveTimerRef.current);
     }
 
     avatarFrameSaveTimerRef.current = window.setTimeout(() => {
-      void (async () => {
-        avatarFrameDirtyRef.current = false;
-        setStatus("Salvando enquadramento automaticamente...");
+      const editVersion = avatarFrameEditVersionRef.current;
+      const saveRequest = { ...profile,
+        avatarScale: form.avatarScale,
+        avatarOffsetX: form.avatarOffsetX,
+        avatarOffsetY: form.avatarOffsetY,
+        useAvatarInHeader: form.useAvatarInHeader,
+      };
+      avatarFrameDirtyRef.current = false;
+      setStatus("Salvando enquadramento automaticamente...");
+      const previous = avatarFrameSaveInFlightRef.current;
+      const write = (async () => {
         try {
-          const savedProfile = await saveUserProfile({
-            ...profile,
-            avatarScale: form.avatarScale,
-            avatarOffsetX: form.avatarOffsetX,
-            avatarOffsetY: form.avatarOffsetY,
-            useAvatarInHeader: form.useAvatarInHeader,
-          });
-          setForm((current) => ({
-            ...current,
-            avatarUrl: savedProfile.avatarUrl || current.avatarUrl,
-            avatarScale: savedProfile.avatarScale ?? current.avatarScale,
-            avatarOffsetX: savedProfile.avatarOffsetX ?? current.avatarOffsetX,
-            avatarOffsetY: savedProfile.avatarOffsetY ?? current.avatarOffsetY,
-            useAvatarInHeader: savedProfile.useAvatarInHeader ?? current.useAvatarInHeader,
-          }));
-          setStatus("Enquadramento salvo automaticamente.");
+          // Não executar duas atualizações do mesmo perfil em paralelo.
+          if (previous) await previous;
+          const savedProfile = await saveUserProfile(saveRequest);
+          // Nunca sobrescrever ajustes posteriores com resposta de gravação antiga.
+          if (avatarFrameEditVersionRef.current === editVersion) {
+            setForm((current) => ({
+              ...current,
+              avatarUrl: savedProfile.avatarUrl || current.avatarUrl,
+              avatarScale: savedProfile.avatarScale ?? current.avatarScale,
+              avatarOffsetX: savedProfile.avatarOffsetX ?? current.avatarOffsetX,
+              avatarOffsetY: savedProfile.avatarOffsetY ?? current.avatarOffsetY,
+              useAvatarInHeader: savedProfile.useAvatarInHeader ?? current.useAvatarInHeader,
+            }));
+            setStatus("Enquadramento salvo no banco oficial.");
+          }
         } catch (error) {
           avatarFrameDirtyRef.current = true;
           setStatus(
@@ -668,6 +679,10 @@ export function PerfilPage() {
           );
         }
       })();
+      avatarFrameSaveInFlightRef.current = write;
+      void write.finally(() => {
+        if (avatarFrameSaveInFlightRef.current === write) avatarFrameSaveInFlightRef.current = null;
+      });
     }, 700);
 
     return () => {
@@ -681,6 +696,7 @@ export function PerfilPage() {
     form.avatarScale,
     form.useAvatarInHeader,
     avatarDraftDirty,
+    saving,
     profile,
     saveUserProfile,
   ]);
@@ -1019,10 +1035,19 @@ export function PerfilPage() {
 
   const handleSubmit = async (event: FormEvent, avatarOverride?: UploadedFileItem[]) => {
     event.preventDefault();
+    if (saving) return;
+    const editVersion = avatarFrameEditVersionRef.current;
+    // O salvamento da foto deve acontecer depois de qualquer gravação de
+    // enquadramento iniciada antes. Cancelar timers evita overwrite atrasado.
+    if (avatarFrameSaveTimerRef.current) {
+      window.clearTimeout(avatarFrameSaveTimerRef.current);
+      avatarFrameSaveTimerRef.current = null;
+    }
     setSaving(true);
     setStatus("");
 
     try {
+      if (avatarFrameSaveInFlightRef.current) await avatarFrameSaveInFlightRef.current;
       const stableSessionUserId = session.id && session.id !== "unknown" ? session.id : "";
       const userId = profileUserId || stableSessionUserId || authenticatedUserId || "";
       if (!userId || userId === "unknown") {
@@ -1091,8 +1116,14 @@ export function PerfilPage() {
 
       const savedProfile = await saveUserProfile(nextProfile);
       const savedAvatarUrl = savedProfile.avatarUrl || avatarUrl;
-      const avatarReadConfirmed = !savedAvatarUrl || !savedAvatarUrl.startsWith("/api/profile-avatar-open?objectKey=") || await confirmSavedAvatarReadable(savedAvatarUrl);
-      if (avatarReadConfirmed) setAvatarDraftDirty(false);
+      // Novo upload só é sucesso quando a imagem gravada volta a abrir, sem
+      // usar blob local como prova. Alterações apenas do enquadramento não
+      // precisam repetir a consulta da imagem.
+      const avatarReadConfirmed = !avatarUploadFile || await confirmSavedAvatarReadable(savedAvatarUrl);
+      if (avatarReadConfirmed) {
+        setAvatarDraftDirty(false);
+        if (avatarFrameEditVersionRef.current === editVersion) avatarFrameDirtyRef.current = false;
+      }
       if (savedAvatarUrl && avatarReadConfirmed) {
         setAvatarFiles([
           {
@@ -1103,7 +1134,7 @@ export function PerfilPage() {
             previewUrl: savedAvatarUrl,
           },
         ]);
-      } else {
+      } else if (!savedAvatarUrl) {
         setAvatarFiles([]);
       }
       setForm((current) => ({
