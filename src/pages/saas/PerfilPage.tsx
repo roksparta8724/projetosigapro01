@@ -942,9 +942,15 @@ export function PerfilPage() {
       }
 
       const effectiveAvatarFiles = avatarOverride ?? avatarFiles;
-      let avatarUrl = effectiveAvatarFiles[0]?.previewUrl ?? form.avatarUrl;
-      let avatarStorageRef = profile?.avatarStorageRef || profile?.avatarUrl || form.avatarUrl;
-      let avatarUploadFile = effectiveAvatarFiles[0]?.file;
+      const avatarUploadFile = effectiveAvatarFiles[0]?.file;
+      const avatarRemovalRequested =
+        avatarDraftDirty && effectiveAvatarFiles.length === 0;
+      let avatarUrl = avatarRemovalRequested
+        ? ""
+        : effectiveAvatarFiles[0]?.previewUrl ?? form.avatarUrl;
+      let avatarStorageRef = avatarRemovalRequested
+        ? ""
+        : profile?.avatarStorageRef || profile?.avatarUrl || form.avatarUrl;
       let avatarScale = avatarOverride?.[0]?.file ? 1 : form.avatarScale;
       let avatarOffsetX = avatarOverride?.[0]?.file ? 0 : form.avatarOffsetX;
       let avatarOffsetY = avatarOverride?.[0]?.file ? 0 : form.avatarOffsetY;
@@ -997,7 +1003,22 @@ export function PerfilPage() {
       };
 
       const savedProfile = await saveUserProfile(nextProfile);
-      const savedAvatarUrl = savedProfile.avatarUrl || avatarUrl;
+
+      const persistedAvatarRef = String(savedProfile.avatarStorageRef || "").trim();
+      if (avatarUploadFile && persistedAvatarRef !== String(avatarStorageRef || "").trim()) {
+        throw new Error(
+          "O arquivo foi enviado, mas o banco não confirmou a referência permanente da foto. Nenhum sucesso foi exibido para evitar uma falsa gravação.",
+        );
+      }
+      if (avatarRemovalRequested && persistedAvatarRef) {
+        throw new Error(
+          "O banco não confirmou a remoção da foto. A alteração não foi considerada concluída.",
+        );
+      }
+
+      const savedAvatarUrl = avatarRemovalRequested
+        ? ""
+        : savedProfile.avatarUrl || avatarUrl;
       setAvatarDraftDirty(false);
       if (savedAvatarUrl) {
         setAvatarFiles([
@@ -1009,6 +1030,8 @@ export function PerfilPage() {
             previewUrl: savedAvatarUrl,
           },
         ]);
+      } else {
+        setAvatarFiles([]);
       }
       setForm((current) => ({
         ...current,
@@ -1018,8 +1041,15 @@ export function PerfilPage() {
         avatarScale: savedProfile.avatarScale ?? avatarScale,
         avatarOffsetX: savedProfile.avatarOffsetX ?? avatarOffsetX,
         avatarOffsetY: savedProfile.avatarOffsetY ?? avatarOffsetY,
+        useAvatarInHeader: savedProfile.useAvatarInHeader ?? current.useAvatarInHeader,
       }));
-      setStatus("Perfil e foto salvos com sucesso no banco oficial.");
+      setStatus(
+        avatarRemovalRequested
+          ? "Foto removida e alteração confirmada no banco oficial."
+          : avatarUploadFile
+            ? "Foto salva e confirmada no banco oficial."
+            : "Ajustes do perfil salvos e confirmados no banco oficial.",
+      );
     } catch (error) {
       setStatus(
         error instanceof Error
@@ -1116,13 +1146,19 @@ export function PerfilPage() {
   ] as const;
 
   const statusIsError = /não foi possível|falha|erro|permission denied|indisponível|inválid/i.test(status);
+  const statusIsDraft =
+    /pré-visualização|ainda não foi salva|preparada|enquadramento alterado|preferência alterada/i.test(
+      status,
+    );
   const statusMessage = status ? (
     <div
       className={cn(
         "rounded-2xl border px-4 py-3 text-sm",
         statusIsError
-          ? "border-rose-200 bg-rose-50 text-rose-700"
-          : "border-emerald-100 bg-emerald-50 text-emerald-700",
+          ? "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/30 dark:bg-rose-950/30 dark:text-rose-200"
+          : statusIsDraft
+            ? "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-500/30 dark:bg-amber-950/30 dark:text-amber-200"
+            : "border-emerald-100 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-950/30 dark:text-emerald-200",
       )}
     >
       {status}
@@ -1470,7 +1506,15 @@ export function PerfilPage() {
               />
 
               {avatarFiles[0]?.previewUrl ? (
-                <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+                  {avatarDraftDirty && avatarFiles[0]?.file ? (
+                    <div
+                      data-avatar-draft-state="unsaved"
+                      className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800 dark:border-amber-500/30 dark:bg-amber-950/30 dark:text-amber-200"
+                    >
+                      Prévia local — esta foto ainda não está salva. A gravação permanente só acontece após clicar em “Salvar ajustes da foto” e receber a confirmação do banco.
+                    </div>
+                  ) : null}
                   <div className="mb-4">
                     <p className="text-base font-semibold text-slate-950">Enquadramento</p>
                     <p className="mt-1 text-sm text-slate-500">O preview final é circular e 1:1. A imagem preenche todo o círculo, como em foto de perfil de rede social, sem faixas vazias nem deformação.</p>
