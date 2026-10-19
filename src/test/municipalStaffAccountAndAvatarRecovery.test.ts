@@ -13,6 +13,10 @@ describe("municipal staff account and avatar recovery regressions", () => {
   const r2Router = read("api/r2.ts");
   const legacyAvatar = read("server/api/profile-avatar-open.ts");
   const appBootstrap = read("src/hooks/useAppBootstrap.tsx");
+  const avatarCache = read("src/lib/profileAvatarCache.ts");
+  const portalFrame = read("src/components/platform/PortalFrame.tsx");
+  const serviceWorker = read("public/sigapro-sw.js");
+  const indexHtml = read("index.html");
   const vite = read("vite.config.ts");
   const migration = read("neon/migrations/20261017_municipal_admin_create_staff_accounts.sql");
 
@@ -86,18 +90,39 @@ describe("municipal staff account and avatar recovery regressions", () => {
     expect(legacyAvatar).toContain("Foto de perfil não encontrada.");
   });
 
-  it("keeps production avatar recovery on the same origin and falls back both ways", () => {
-    expect(r2Client).toContain('return \`/api/profile-avatar-open?source=\${encodeURIComponent(raw)}\`;');
-    expect(r2Client).not.toContain("return isLocalBrowser ? route : buildApiUrl(route)");
+  it("uses the public legacy avatar directly and keeps a same-origin fallback", () => {
+    expect(r2Client).toContain("return raw;");
     expect(avatar).toContain("alternateLegacyAvatarUrl");
     expect(avatar).toContain("recoveryImageUrl");
     expect(avatar).toContain('current.pathname === "/api/profile-avatar-open"');
     expect(avatar).toContain('current.pathname.startsWith("/storage/v1/object/public/avatars/")');
+    expect(avatar).toContain("const recovery = new Image()");
+  });
+
+  it("hydrates the topbar avatar from an identity-bound persistent cache on F5", () => {
+    expect(avatarCache).toContain('const PREFIX = "sigapro.profile-avatar.v2:"');
+    expect(avatarCache).toContain("requestedEmail !== cachedEmail");
+    expect(portalFrame).toContain("readCachedProfileAvatar(session.id, session.email)");
+    expect(portalFrame).toContain("cachedTopbarAvatar?.avatarUrl");
+    expect(dataHook).toContain("writeCachedProfileAvatar(profile)");
+  });
+
+  it("caches same-origin R2 avatars in the service worker for repeat F5", () => {
+    expect(serviceWorker).toContain('CACHE_VERSION = "sigapro-enterprise-v4"');
+    expect(serviceWorker).toContain("AVATAR_CACHE");
+    expect(serviceWorker).toContain('url.pathname === "/api/profile-avatar-open"');
+    expect(serviceWorker).toContain("cacheFirst(request, AVATAR_CACHE)");
+  });
+
+  it("avoids a fully blank white document during authenticated internal refresh", () => {
+    expect(indexHtml).toContain("data-sigapro-cached-internal");
+    expect(indexHtml).toContain("--sig-initial-topbar");
+    expect(indexHtml).toContain("#root:empty");
   });
 
   it("recovers old Supabase avatars and caches them in the current R2 storage", () => {
     expect(backend).toContain("getLegacyProfileAvatarOpenUrl");
-    expect(r2Client).toContain("/api/profile-avatar-open?source=");
+    expect(avatar).toContain("/api/profile-avatar-open?source=");
     expect(r2Router).toContain('action === "profile-avatar-open"');
     expect(legacyAvatar).toContain("legacy-profile-avatars/");
     expect(legacyAvatar).toContain("PutObjectCommand");
