@@ -169,6 +169,25 @@ type ProfileSection =
   | "vinculos"
   | "historico";
 
+// Uma gravação RPC só confirma o registro; a foto precisa poder ser LIDA
+// pelo mesmo endpoint que a página e o cabeçalho usarão após o F5.
+async function confirmSavedAvatarReadable(url: string): Promise<boolean> {
+  if (!url.startsWith("/api/profile-avatar-open?objectKey=")) return false;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      const response = await fetch(url, { cache: "no-store" });
+      const contentType = response.headers.get("content-type") || "";
+      const readable = response.ok && contentType.toLowerCase().startsWith("image/");
+      void response.body?.cancel().catch(() => undefined);
+      if (readable) return true;
+    } catch {
+      // Falha transitória de rede/R2: repetir antes de sinalizar o problema.
+    }
+    if (attempt < 2) await new Promise<void>((resolve) => window.setTimeout(resolve, 250 * (attempt + 1)));
+  }
+  return false;
+}
+
 export function PerfilPage() {
   const { session } = usePlatformSession();
   const { municipality, scopeId, name: municipalityName, tenantSettingsCompat } = useMunicipality();
@@ -1038,6 +1057,7 @@ export function PerfilPage() {
 
       const savedProfile = await saveUserProfile(nextProfile);
       const savedAvatarUrl = savedProfile.avatarUrl || avatarUrl;
+      const avatarReadConfirmed = !avatarUploadFile || await confirmSavedAvatarReadable(savedAvatarUrl);
       if (savedAvatarUrl) {
         setAvatarFiles([
           {
@@ -1058,7 +1078,11 @@ export function PerfilPage() {
         avatarOffsetX: savedProfile.avatarOffsetX ?? avatarOffsetX,
         avatarOffsetY: savedProfile.avatarOffsetY ?? avatarOffsetY,
       }));
-      setStatus((current) => current || "Perfil atualizado com sucesso.");
+      setStatus(
+        avatarReadConfirmed
+          ? "Perfil atualizado com sucesso."
+          : "A foto foi registrada no perfil, mas o servidor não confirmou sua leitura após o upload. Não foi possível validar a exibição após F5.",
+      );
     } catch (error) {
       setStatus(
         error instanceof Error
