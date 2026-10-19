@@ -1,5 +1,5 @@
--- SIGAPRO: exclusão segura de notificações pelo próprio destinatário.
--- Permite apagar selecionadas ou todas, sempre limitado ao usuário autenticado.
+-- SIGAPRO: exclusão segura das próprias notificações.
+-- Compatível com o modelo atual do Neon/Data API: ownership por profile_id/current_profile_id().
 
 create or replace function public.delete_my_notifications_v1(
   _notification_ids uuid[] default null
@@ -7,39 +7,25 @@ create or replace function public.delete_my_notifications_v1(
 returns integer
 language plpgsql
 security definer
-set search_path = public
-as $$
+set search_path to 'pg_catalog', 'public'
+set row_security to 'off'
+as $function$
 declare
-  _auth_user_id uuid := auth.uid();
-  _profile_id uuid;
-  _deleted integer := 0;
+  _count integer;
 begin
-  if _auth_user_id is null then
-    raise exception 'Sessão inválida.';
-  end if;
-
-  select p.id
-    into _profile_id
-  from public.profiles p
-  where p.user_id = _auth_user_id
-    and p.deleted_at is null
-  limit 1;
-
   delete from public.notifications n
-  where (
-      n.user_id = _auth_user_id
-      or (_profile_id is not null and n.profile_id = _profile_id)
-    )
+  where n.profile_id = public.current_profile_id()
     and (
       _notification_ids is null
       or cardinality(_notification_ids) = 0
       or n.id = any(_notification_ids)
     );
 
-  get diagnostics _deleted = row_count;
-  return _deleted;
+  get diagnostics _count = row_count;
+  return _count;
 end;
-$$;
+$function$;
 
 revoke all on function public.delete_my_notifications_v1(uuid[]) from public;
+revoke all on function public.delete_my_notifications_v1(uuid[]) from anonymous;
 grant execute on function public.delete_my_notifications_v1(uuid[]) to authenticated;
