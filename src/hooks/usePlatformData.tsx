@@ -1319,7 +1319,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
     return () => {
       active = false;
     };
-  }, [authenticatedUserId, authLoading]);
+  }, [authenticatedProfileId, authenticatedUserId, authLoading]);
 
   const refreshRemoteStore = async (focusProcessRouteKey?: string | null) => {
     if (!authenticatedUserId || !hasBackendEnv) {
