@@ -104,7 +104,7 @@ describe("municipal staff account and avatar recovery regressions", () => {
   it("only reports avatar success after the backend confirms the stable storage reference", () => {
     expect(profilePage).toContain("expectedAvatarStorageRef");
     expect(profilePage).toContain("persistedAvatarStorageRef");
-    expect(profilePage).toContain("persistedAvatarStorageRef !== expectedAvatarStorageRef");
+    expect(profilePage).toContain("confirmedAvatarStorageRef !== expectedAvatarStorageRef");
     expect(profilePage).toContain("Foto confirmada e gravada permanentemente no banco oficial.");
   });
 
