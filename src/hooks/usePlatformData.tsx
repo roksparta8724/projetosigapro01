@@ -109,7 +109,7 @@ interface PlatformDataState {
   loading: boolean;
   dataError: string | null;
   dataReadyForCurrentUser: boolean;
-  refreshRemoteStore: () => Promise<void>;
+  refreshRemoteStore: (focusProcessRouteKey?: string | null) => Promise<void>;
   tenants: Tenant[];
   institutions: Institution[];
   tenantSettings: InstitutionSettings[];
@@ -913,12 +913,12 @@ function isAuthError(error: unknown) {
   return status === 401 || status === 403;
 }
 
-async function loadRemotePlatformStoreWithRetry(maxAttempts = 3) {
+async function loadRemotePlatformStoreWithRetry(focusProcessRouteKey?: string | null, maxAttempts = 3) {
   let lastError: unknown = null;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
-      return await loadRemotePlatformStore();
+      return await loadRemotePlatformStore(focusProcessRouteKey);
     } catch (error) {
       lastError = error;
       if (isAuthError(error) || attempt >= maxAttempts) {
@@ -1078,7 +1078,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         setDataError(null);
       }
       try {
-        let remote = await loadRemotePlatformStoreWithRetry();
+        let remote = await loadRemotePlatformStoreWithRetry(null);
         let sanitized = buildSanitizedStore(remote, false);
 
         const legacyStore = initialStateRef.current?.legacyStore ?? null;
@@ -1269,7 +1269,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
     };
   }, [authenticatedUserId, authLoading]);
 
-  const refreshRemoteStore = async () => {
+  const refreshRemoteStore = async (focusProcessRouteKey?: string | null) => {
     if (!authenticatedUserId || !hasBackendEnv) {
       const error = new Error("Sessão ou banco oficial indisponível para atualizar os dados.");
       setDataError(error.message);
@@ -1277,7 +1277,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
     }
 
     try {
-      const remote = await loadRemotePlatformStoreWithRetry();
+      const remote = await loadRemotePlatformStoreWithRetry(focusProcessRouteKey);
       let sanitized = buildSanitizedStore(remote, false);
       const cachedVisualProfile = readProfileVisualCache();
       if (cachedVisualProfile) {
