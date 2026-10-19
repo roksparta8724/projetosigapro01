@@ -7,6 +7,13 @@ function read(path: string) {
 }
 
 describe("guide opening experience", () => {
+  it("uses barcode and digitable line from the same provider charge for unpaid guides", () => {
+    expect(processDetail).toContain("providerCharge\n        ? providerCharge.digitableLine");
+    expect(processDetail).toContain("providerCharge\n        ? providerCharge.barcodeContent");
+    expect(processDetail).toContain("historicalPaidGuide\n      ? banking.digitableLine");
+    expect(processDetail).toContain("historicalPaidGuide\n      ? banking.barcode");
+  });
+
   it("never creates a fresh provider charge while viewing a compensated historical guide", () => {
     expect(processDetail).toContain('if (guide.status === "compensada") continue;');
     expect(processDetail).toContain('const historicalPaidGuide = selectedGuide.status === "compensada"');
