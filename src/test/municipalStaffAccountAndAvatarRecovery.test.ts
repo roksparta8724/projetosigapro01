@@ -18,6 +18,7 @@ describe("municipal staff account and avatar recovery regressions", () => {
   const portalFrame = read("src/components/platform/PortalFrame.tsx");
   const serviceWorker = read("public/sigapro-sw.js");
   const indexHtml = read("index.html");
+  const viteConfig = read("vite.config.ts");
   const vite = read("vite.config.ts");
   const migration = read("neon/migrations/20261017_municipal_admin_create_staff_accounts.sql");
 
@@ -97,7 +98,22 @@ describe("municipal staff account and avatar recovery regressions", () => {
 
   it("uses a non-white premium fallback with dark initials in dark mode", () => {
     expect(avatar).toContain("dark:bg-[linear-gradient(180deg,#cbd5e1_0%,#94a3b8_100%)]");
-    expect(avatar).toContain("dark:text-[#0f172a]");
+    expect(avatar).toContain("dark:!text-[#0f172a]");
+  });
+
+  it("serves persisted R2 profile avatars in localhost exactly like production", () => {
+    expect(viteConfig).toContain('req.url.startsWith("/api/profile-avatar-open")');
+    expect(viteConfig).toContain('requestUrl.searchParams.get("objectKey")');
+    expect(viteConfig).toContain('Bucket: readEnvValue("R2_BUCKET_LOGOS")');
+    expect(viteConfig).toContain('new GetObjectCommand({');
+    expect(viteConfig).toContain("profiles\\/avatars");
+  });
+
+  it("keeps dark initials visible while a profile image is loading or fails", () => {
+    expect(avatar).toContain("!text-[#0f172a]");
+    expect(avatar).toContain("dark:!text-[#0f172a]");
+    expect(avatar).toContain("bg-transparent object-cover object-center");
+    expect(avatar).not.toContain("sig-user-avatar-image absolute inset-0 block h-full w-full max-w-none bg-white");
   });
 
   it("serves current R2 profile photos through the same-origin avatar route", () => {
