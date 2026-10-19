@@ -92,7 +92,7 @@ describe("profile and branding persistence regressions", () => {
     expect(userAvatar).toContain("1200");
     expect(imageFrameEditor).toContain("Stale-while-revalidate visual");
     expect(imageFrameEditor).not.toContain("setNaturalSize({ width: 0, height: 0 })");
-    expect(userAvatar).toContain("const resolvedImageUrl = stableImageUrl || imageUrl ||");
+    expect(userAvatar).toContain("const resolvedImageUrl = recoveryImageUrl || stableImageUrl || imageUrl ||");
   });
 
   it("keeps private R2 avatars persistent across F5 and autosaves new photos", () => {
