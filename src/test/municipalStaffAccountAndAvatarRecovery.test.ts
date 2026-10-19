@@ -101,6 +101,14 @@ describe("municipal staff account and avatar recovery regressions", () => {
     expect(profilePage).toContain("Salvar foto no perfil");
   });
 
+  it("refetches the persisted profile after the Neon update instead of trusting the submitted avatar fallback", () => {
+    expect(backend).toContain('const { data: confirmedRows, error: confirmError } = await db');
+    expect(backend).toContain('.from("profiles")');
+    expect(backend).toContain('.eq("id", profileId)');
+    expect(backend).toContain('const storedAvatar = String(row.avatar_url ?? "")');
+    expect(backend).not.toContain('row.avatar_url || profile.avatarStorageRef || profile.avatarUrl');
+  });
+
   it("only reports avatar success after the backend confirms the stable storage reference", () => {
     expect(profilePage).toContain("expectedAvatarStorageRef");
     expect(profilePage).toContain("persistedAvatarStorageRef");
