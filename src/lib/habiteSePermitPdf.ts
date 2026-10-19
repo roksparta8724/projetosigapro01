@@ -22,7 +22,6 @@ export type HabiteSePermitPdfInput = {
   municipalityEmail?: string | null;
   secretariat?: string | null;
   directorate?: string | null;
-  analystSignature?: HabiteSePermitPdfSignature | null;
   directorSignature?: HabiteSePermitPdfSignature | null;
   verificationCode?: string | null;
   evidenceHash?: string | null;
@@ -280,7 +279,6 @@ export async function buildHabiteSePermitPdfBlob({
   municipalityEmail,
   secretariat,
   directorate,
-  analystSignature,
   directorSignature,
   verificationCode,
   evidenceHash,
@@ -503,21 +501,11 @@ export async function buildHabiteSePermitPdfBlob({
   );
   y += 21;
 
-  const signatureWidth = (contentWidth - gap) / 2;
   drawSignatureBox(
     pdf,
     margin,
     y,
-    signatureWidth,
-    "Analista Técnico",
-    analystSignature,
-    verificationCode,
-  );
-  drawSignatureBox(
-    pdf,
-    margin + signatureWidth + gap,
-    y,
-    signatureWidth,
+    contentWidth,
     "Diretoria responsável",
     directorSignature,
     verificationCode,
