@@ -978,12 +978,12 @@ export function ProcessDetailPage() {
         session.role === "analista"
       )
     );
-  const canAttachToRequirement = (item: typeof process.requirements[number]) =>
+  const canAttachToRequirement = (item: ProcessRecord["requirements"][number]) =>
     item.status === "aberta" &&
     session.role !== "prefeitura_admin" &&
     (isInternalRole(session.role) || session.role === "profissional_externo" || session.role === "proprietario_consulta");
 
-  const recoverableDocumentsFingerprint = process.documents
+  const recoverableDocumentsFingerprint = (process?.documents ?? [])
     .map((document) =>
       [
         document.id,
@@ -1046,7 +1046,7 @@ export function ProcessDetailPage() {
   }, [
     activeTab,
     canRecoverStoredDocuments,
-    process.id,
+    process?.id,
     recoverableDocumentsFingerprint,
   ]);
 
