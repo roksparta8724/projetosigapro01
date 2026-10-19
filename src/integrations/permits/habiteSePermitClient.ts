@@ -148,6 +148,35 @@ export async function setHabiteSePermitAwaitingDirector(processId: string) {
   return permit;
 }
 
+export async function completeHabiteSeProcess(processId: string) {
+  const { data, error } = await backendClient.rpc("complete_habite_se_process_v1", {
+    _process_id: processId,
+  });
+  if (error) {
+    throw new Error(
+      errorMessage(error, "Não foi possível concluir administrativamente o processo de Habite-se."),
+    );
+  }
+
+  const raw = (data ?? {}) as {
+    ok?: boolean;
+    already_completed?: boolean;
+    process_id?: string;
+    status?: string;
+  };
+
+  if (!raw.ok) {
+    throw new Error("O banco não confirmou a conclusão administrativa do processo.");
+  }
+
+  return {
+    ok: true,
+    alreadyCompleted: Boolean(raw.already_completed),
+    processId: String(raw.process_id || processId),
+    status: String(raw.status || "arquivado"),
+  };
+}
+
 export async function finalizeHabiteSePermit(processId: string) {
   const { data, error } = await backendClient.rpc("finalize_habite_se_permit_v1", {
     _process_id: processId,
