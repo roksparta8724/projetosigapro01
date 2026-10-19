@@ -116,6 +116,14 @@ describe("municipal staff account and avatar recovery regressions", () => {
     expect(profilePage).toContain("Foto confirmada e gravada permanentemente no banco oficial.");
   });
 
+  it("does not announce the avatar is visible until its stored image loads", () => {
+    expect(profilePage).toContain("const readable = await new Promise<boolean>");
+    expect(profilePage).toContain("image.onload = () => resolve(true)");
+    expect(profilePage).toContain("image.onerror = () => resolve(false)");
+    expect(profilePage).toContain("Foto gravada no banco oficial e carregada com sucesso.");
+    expect(profilePage).toContain("A referência da foto foi gravada no banco, mas a imagem não pôde ser carregada");
+  });
+
   it("clears the persistent avatar reference when the user explicitly removes the photo", () => {
     expect(profilePage).toContain("const removingAvatar =");
     expect(profilePage).toMatch(/removingAvatar\s*\?\s*""/);
