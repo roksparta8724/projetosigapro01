@@ -383,6 +383,18 @@ export function AnalystDeskPage() {
       !myAnalyses.some((mine) => mine.id === process.id),
   );
 
+  const resolveAssignedAnalystName = useCallback(
+    (process: ProcessRecord) => {
+      const profileId = process.analysis?.assignedProfileId;
+      if (profileId) {
+        const profile = sessionUsers.find((user) => user.id === profileId);
+        if (profile?.name) return profile.name;
+      }
+      return process.analysis?.assignedTo || "Sem responsável";
+    },
+    [sessionUsers],
+  );
+
   const analysisTeam = useMemo(
     () =>
       sessionUsers
@@ -608,7 +620,7 @@ export function AnalystDeskPage() {
           const issSatisfied = !issStageEnabled || issGuide?.status === "compensada";
           const finalFeeEnabled = tenantSettings?.finalApprovalFeeEnabled !== false;
           const analysisStarted = Boolean(process.analysis?.startedAt);
-          const currentAnalyst = process.analysis?.assignedTo || "Sem responsável";
+          const currentAnalyst = resolveAssignedAnalystName(process);
           const hasAssignedAnalyst = Boolean(
             process.analysis?.assignedProfileId || process.analysis?.assignedTo,
           );
