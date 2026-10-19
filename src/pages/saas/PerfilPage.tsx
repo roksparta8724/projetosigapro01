@@ -1003,6 +1003,7 @@ export function PerfilPage() {
 
       if (avatarUploadFile) {
         try {
+          setStatus("Enviando a foto ao armazenamento institucional R2...");
           const uploaded = await uploadFileToStorage({
             bucket: "profile-assets",
             tenantId: activeInstitutionId,
@@ -1068,11 +1069,13 @@ export function PerfilPage() {
         });
       }
 
+      setStatus("Confirmando foto e preferências no banco Neon...");
       const savedProfile = await saveUserProfile(nextProfile);
       const savedAvatarUrl = savedProfile.avatarUrl || avatarUrl;
       // Novo upload só é sucesso quando a imagem gravada volta a abrir, sem
       // usar blob local como prova. Alterações apenas do enquadramento não
       // precisam repetir a consulta da imagem.
+      if (savedAvatarUrl && section === "foto-identidade") setStatus("Verificando a leitura da foto salva...");
       const avatarReadConfirmed = !savedAvatarUrl ||
         (!(avatarUploadFile || section === "foto-identidade") || await confirmSavedAvatarReadable(savedAvatarUrl));
       if (avatarReadConfirmed) {
@@ -1205,7 +1208,7 @@ export function PerfilPage() {
     { label: "Gerenciar conta e senha", value: "conta-seguranca" },
   ] as const;
 
-  const statusIsError = /não foi possível|falha|erro|permission denied|indisponível|inválid/i.test(status);
+  const statusIsError = /não foi possível|não confirmou|não foi validada|não foi salva|falha|erro|permission denied|indisponível|inválid/i.test(status);
   const statusMessage = status ? (
     <div
       className={cn(
