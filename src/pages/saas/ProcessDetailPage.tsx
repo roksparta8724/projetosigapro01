@@ -4098,11 +4098,11 @@ export function ProcessDetailPage() {
                 onCompleteProcess={async () => {
                   await updateProcessStatus({
                     processId: process.id,
-                    status: "arquivado",
+                    status: "deferido",
                     actor: session.name,
                     title: "Processo de Habite-se concluído",
                     detail:
-                      "Alvará de Habite-se emitido com assinatura eletrônica válida da Diretoria. Processo concluído administrativamente pelo responsável autorizado e encaminhado ao histórico, preservando rastreabilidade, documentos, assinaturas e movimentações.",
+                      "Alvará de Habite-se emitido com assinatura eletrônica válida da Diretoria. Processo concluído administrativamente pelo responsável autorizado, permanecendo visível na pasta de concluídos e no histórico oficial.",
                   });
                   await refreshRemoteStore(process.id);
                   window.dispatchEvent(new Event("sigapro:data-changed"));
