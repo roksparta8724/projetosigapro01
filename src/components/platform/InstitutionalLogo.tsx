@@ -255,9 +255,10 @@ export function InstitutionalLogo({
   const frameRatio = frameSize / 160;
   const offsetX = (branding.logoOffsetX || 0) * frameRatio;
   const offsetY = (branding.logoOffsetY || 0) * frameRatio;
+  // Enquadramento é propriedade da variante, não do tipo de conta.
+  // O zoom salvo para cabeçalho e rodapé deve valer também na Prefeitura.
   const showCrop =
-    isMaster &&
-    (variant === "header" || variant === "footer" || variant === "preview");
+    variant === "header" || variant === "footer" || variant === "preview";
 
   useEffect(() => {
     // Troca de arquivo, renovacao de URL assinada ou mudanca de contexto deve
