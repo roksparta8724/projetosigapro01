@@ -8,6 +8,7 @@ const config = readFileSync(resolve(process.cwd(), "src/pages/saas/Configuracoes
 const dataHook = readFileSync(resolve(process.cwd(), "src/hooks/usePlatformData.tsx"), "utf8");
 const backend = readFileSync(resolve(process.cwd(), "src/integrations/backend/platformImpl.ts"), "utf8");
 const profilePage = readFileSync(resolve(process.cwd(), "src/pages/saas/PerfilPage.tsx"), "utf8");
+const portalFrame = readFileSync(resolve(process.cwd(), "src/components/platform/PortalFrame.tsx"), "utf8");
 const storage = readFileSync(resolve(process.cwd(), "src/integrations/r2/storage.ts"), "utf8");
 const userAvatar = readFileSync(resolve(process.cwd(), "src/components/platform/UserAvatar.tsx"), "utf8");
 const imageFrameEditor = readFileSync(resolve(process.cwd(), "src/components/platform/ImageFrameEditor.tsx"), "utf8");
@@ -103,6 +104,8 @@ describe("profile and branding persistence regressions", () => {
     expect(backend).toContain("savedAvatarValue");
     expect(backend).toContain("requestedR2Ref");
     expect(profilePage).toContain("avatarDraftDirty");
+    expect(profilePage).toContain("useAvatarInHeader: avatarUploadFile ? true : form.useAvatarInHeader");
+    expect(portalFrame).toContain("const topbarAvatarImageUrl = userProfile?.useAvatarInHeader");
     expect(profilePage).toContain("Pré-visualização pronta.");
     expect(profilePage).not.toContain("Salvando foto automaticamente...");
     expect(profilePage).toContain("confirmSavedAvatarReadable(savedAvatarUrl)");
