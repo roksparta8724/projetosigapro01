@@ -12,6 +12,8 @@ export type CachedProfileAvatar = {
 
 const PREFIX = "sigapro.profile-avatar.v2:";
 const MAX_AGE_MS = 1000 * 60 * 60 * 24 * 30;
+// URLs assinadas pelo R2 expiram em 6h. Não reutilizar uma URL perto do vencimento.
+const SIGNED_R2_AVATAR_MAX_AGE_MS = 1000 * 60 * 60 * 5;
 
 function normalizeEmail(value: string | null | undefined) {
   return String(value || "").trim().toLowerCase();
@@ -43,7 +45,7 @@ export function readCachedProfileAvatar(
       cached.userId !== id ||
       !cached.avatarUrl ||
       typeof cached.cachedAt !== "number" ||
-      Date.now() - cached.cachedAt > MAX_AGE_MS
+      Date.now() - cached.cachedAt > (String(cached.avatarStorageRef || "").startsWith("r2:") ? SIGNED_R2_AVATAR_MAX_AGE_MS : MAX_AGE_MS)
     ) {
       window.localStorage.removeItem(keyForUser(id));
       return null;
