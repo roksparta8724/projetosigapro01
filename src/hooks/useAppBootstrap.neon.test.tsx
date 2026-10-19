@@ -49,7 +49,8 @@ const neonMock = vi.hoisted(() => {
       }),
     },
     rpc: vi.fn(async (name: string) => {
-      if (name === "current_profile_id") return { data: profileId, error: null };
+      if (name === "get_current_profile_context") return { data: { profile_id: profileId, role: "prefeitura_admin", municipality_id: municipalityId, account_status: "active", email: authUser.email, full_name: "Prefeitura Admin", access_level: 3 }, error: null };
+      if (name === "mark_current_profile_access") return { data: true, error: null };
       throw new Error(`Unexpected RPC: ${name}`);
     }),
     from: vi.fn((table: string) => {
@@ -173,7 +174,7 @@ describe("AppBootstrapProvider Neon-first login", () => {
     vi.clearAllMocks();
   });
 
-  it("resolves the authenticated Neon subject through current_profile_id", async () => {
+  it("resolves the authenticated Neon subject through get_current_profile_context", async () => {
     render(
       <AppBootstrapProvider>
         <Probe />
@@ -187,17 +188,18 @@ describe("AppBootstrapProvider Neon-first login", () => {
     expect(screen.getByTestId("role")).toHaveTextContent("prefeitura_admin");
     expect(screen.getByTestId("profile-role")).toHaveTextContent("prefeitura_admin");
     expect(screen.getByTestId("profile-id")).toHaveTextContent(neonMock.profileId);
-    expect(neonMock.client.rpc).toHaveBeenCalledWith("current_profile_id");
+    expect(neonMock.client.rpc).toHaveBeenCalledWith("get_current_profile_context");
   });
-  it("retries current_profile_id when Neon auth propagation is transient", async () => {
+  it("retries get_current_profile_context when Neon auth propagation is transient", async () => {
     let profileRpcAttempt = 0;
     neonMock.client.rpc.mockImplementation(async (name: string) => {
-      if (name !== "current_profile_id") throw new Error(`Unexpected RPC: ${name}`);
+      if (name === "mark_current_profile_access") return { data: true, error: null };
+      if (name !== "get_current_profile_context") throw new Error(`Unexpected RPC: ${name}`);
       profileRpcAttempt += 1;
       if (profileRpcAttempt === 1) {
         return { data: null, error: null };
       }
-      return { data: neonMock.profileId, error: null };
+      return { data: { profile_id: neonMock.profileId, role: "prefeitura_admin", municipality_id: neonMock.municipalityId, account_status: "active", email: neonMock.authUser.email, access_level: 3 }, error: null };
     });
 
     render(
