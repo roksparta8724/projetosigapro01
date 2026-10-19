@@ -104,7 +104,8 @@ describe("profile and branding persistence regressions", () => {
     expect(backend).toContain("savedAvatarValue");
     expect(backend).toContain("requestedR2Ref");
     expect(profilePage).toContain("avatarDraftDirty");
-    expect(profilePage).toContain("useAvatarInHeader: avatarUploadFile ? true : form.useAvatarInHeader");
+    expect(profilePage).toContain("if (nextFile.file) setForm((current) => ({ ...current, useAvatarInHeader: true }))");
+    expect(profilePage).toContain("useAvatarInHeader: form.useAvatarInHeader");
     expect(portalFrame).toContain("const topbarAvatarImageUrl = userProfile?.useAvatarInHeader");
     expect(profilePage).toContain("Pré-visualização pronta.");
     expect(profilePage).not.toContain("Salvando foto automaticamente...");
