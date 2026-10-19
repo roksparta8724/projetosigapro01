@@ -12,16 +12,35 @@ const isLocalNeonRuntime =
   typeof window !== "undefined" &&
   ["localhost", "127.0.0.1"].includes(window.location.hostname.toLowerCase());
 
+// Vercel previews must never silently fall back to the official Neon database.
+// Homologation requires two explicit isolated endpoints configured for Preview.
+// Production and localhost retain their existing validated behavior.
+const isVercelPreviewRuntime =
+  typeof window !== "undefined" &&
+  window.location.hostname.toLowerCase().endsWith(".vercel.app");
+
+const configuredAuthUrl = String(import.meta.env.VITE_NEON_AUTH_URL || "").trim();
+const configuredDataApiUrl = String(import.meta.env.VITE_NEON_DATA_API_URL || "").trim();
+
+const previewEndpointsConfigured =
+  Boolean(configuredAuthUrl && configuredDataApiUrl) &&
+  configuredAuthUrl.replace(/\/+$/, "") !== VALIDATED_NEON_AUTH_URL &&
+  configuredDataApiUrl.replace(/\/+$/, "") !== VALIDATED_NEON_DATA_API_URL;
+
 const NEON_AUTH_URL = String(
   isNeonProduction || isLocalNeonRuntime
     ? VALIDATED_NEON_AUTH_URL
-    : import.meta.env.VITE_NEON_AUTH_URL || (isNeonPreview ? VALIDATED_NEON_AUTH_URL : ""),
+    : isVercelPreviewRuntime
+      ? (previewEndpointsConfigured ? configuredAuthUrl : "")
+      : configuredAuthUrl || (isNeonPreview ? VALIDATED_NEON_AUTH_URL : ""),
 ).replace(/\/+$/, "");
 
 const NEON_DATA_API_URL = String(
   isNeonProduction || isLocalNeonRuntime
     ? VALIDATED_NEON_DATA_API_URL
-    : import.meta.env.VITE_NEON_DATA_API_URL || (isNeonPreview ? VALIDATED_NEON_DATA_API_URL : ""),
+    : isVercelPreviewRuntime
+      ? (previewEndpointsConfigured ? configuredDataApiUrl : "")
+      : configuredDataApiUrl || (isNeonPreview ? VALIDATED_NEON_DATA_API_URL : ""),
 ).replace(/\/+$/, "");
 
 export const neonAuthUrl = NEON_AUTH_URL;

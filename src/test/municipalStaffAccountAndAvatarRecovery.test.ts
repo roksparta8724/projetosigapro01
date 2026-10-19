@@ -9,6 +9,7 @@ describe("municipal staff account and avatar recovery regressions", () => {
   const dataHook = read("src/hooks/usePlatformData.tsx");
   const backend = read("src/integrations/backend/platformImpl.ts");
   const avatar = read("src/components/platform/UserAvatar.tsx");
+  const profilePage = read("src/pages/saas/PerfilPage.tsx");
   const r2Client = read("src/integrations/r2/client.ts");
   const r2Storage = read("src/integrations/r2/storage.ts");
   const r2Router = read("api/r2.ts");
@@ -84,6 +85,51 @@ describe("municipal staff account and avatar recovery regressions", () => {
     expect(appBootstrap).not.toContain("const currentSession = (await backendClient.auth.getSession()).data.session");
   });
 
+  it("keeps avatar upload/removal isolated from personal and professional form saves", () => {
+    expect(profilePage).toContain("const saveAvatar = options.saveAvatar === true");
+    expect(profilePage).toContain("const avatarUploadFile = saveAvatar");
+    expect(profilePage).toContain("if (saveAvatar) {");
+    expect(profilePage).toContain("Dados pessoais salvos com sucesso no banco oficial.");
+    expect(profilePage).toContain("Dados profissionais salvos com sucesso no banco oficial.");
+    expect(profilePage).toContain("{ saveAvatar: true }");
+  });
+
+  it("keeps a selected avatar as preview-only until the explicit save action", () => {
+    expect(profilePage).toContain("Pré-visualização pronta. A foto ainda não foi salva");
+    expect(profilePage).toContain('data-avatar-save-state="pending"');
+    expect(profilePage).toContain("disabled={saving || !avatarDraftDirty}");
+    expect(profilePage).toContain("Salvar foto no perfil");
+  });
+
+  it("refetches the persisted profile after the Neon update instead of trusting the submitted avatar fallback", () => {
+    expect(backend).toContain('const { data: confirmedRows, error: confirmError } = await db');
+    expect(backend).toContain('.from("profiles")');
+    expect(backend).toContain('.eq("id", profileId)');
+    expect(backend).toContain('const storedAvatar = String(row.avatar_url ?? "")');
+    expect(backend).not.toContain('row.avatar_url || profile.avatarStorageRef || profile.avatarUrl');
+  });
+
+  it("only reports avatar success after the backend confirms the stable storage reference", () => {
+    expect(profilePage).toContain("expectedAvatarStorageRef");
+    expect(profilePage).toContain("persistedAvatarStorageRef");
+    expect(profilePage).toContain("confirmedAvatarStorageRef !== expectedAvatarStorageRef");
+    expect(profilePage).toContain("Foto confirmada e gravada permanentemente no banco oficial.");
+  });
+
+  it("does not announce the avatar is visible until its stored image loads", () => {
+    expect(profilePage).toContain("const readable = await new Promise<boolean>");
+    expect(profilePage).toContain("image.onload = () => finish(true)");
+    expect(profilePage).toContain("window.setTimeout(() => finish(false), 12000)");
+    expect(profilePage).toContain("image.onerror = () => finish(false)");
+    expect(profilePage).toContain("Foto gravada no banco oficial e carregada com sucesso.");
+    expect(profilePage).toContain("A referência da foto foi gravada no banco, mas a imagem não pôde ser carregada");
+  });
+
+  it("clears the persistent avatar reference when the user explicitly removes the photo", () => {
+    expect(profilePage).toContain("const removingAvatar =");
+    expect(profilePage).toMatch(/removingAvatar\s*\?\s*""/);
+  });
+
   it("persists profile avatars by stable R2 reference instead of a public URL", () => {
     expect(r2Storage).toContain('input.bucket === "profile-assets"');
     expect(r2Storage).toContain('`r2:${uploaded.objectKey}`');
@@ -146,6 +192,18 @@ describe("municipal staff account and avatar recovery regressions", () => {
     expect(portalFrame).toContain("readCachedProfileAvatar(session.id, session.email)");
     expect(portalFrame).toContain("cachedTopbarAvatar?.avatarUrl");
     expect(dataHook).toContain("writeCachedProfileAvatar(profile)");
+  });
+
+  it("expires cached signed R2 avatar URLs before their six-hour signature expires", () => {
+    expect(avatarCache).toContain("SIGNED_R2_AVATAR_MAX_AGE_MS");
+    expect(avatarCache).toContain('startsWith("r2:") ? SIGNED_R2_AVATAR_MAX_AGE_MS : MAX_AGE_MS');
+  });
+
+  it("does not reuse expired signed R2 avatars from session cache after F5", () => {
+    expect(dataHook).toContain('String(cached.avatarStorageRef || "").startsWith("r2:")');
+    expect(dataHook).toContain("5 * 60 * 60 * 1000");
+    expect(dataHook).toContain("window.sessionStorage.removeItem(PROFILE_VISUAL_CACHE_KEY)");
+    expect(dataHook).toContain("Date.now() - cached.cachedAt > maxCacheAgeMs");
   });
 
   it("caches same-origin R2 avatars in the service worker for repeat F5", () => {

@@ -791,6 +791,9 @@ export function ProcessDetailPage() {
               prewarmTenantSettings?.pixMerchantCity || prewarmTenant?.city,
           });
 
+          // Guia compensada é documento histórico. Abrir a tela, trocar de dia
+          // ou pressionar F5 jamais pode gerar uma nova cobrança para ela.
+          if (guide.status === "compensada") continue;
           if (banking.barcode && banking.digitableLine) continue;
 
           preparedCharges[guide.code] = await ensureMercadoPagoGuideCharge({
@@ -1922,11 +1925,22 @@ export function ProcessDetailPage() {
       municipalityName: municipalityName || tenant?.name,
       municipalityCity: tenantSettings?.pixMerchantCity || tenant?.city,
     });
-    const providerCharge = preparedGuideCharges[selectedGuide.code] ?? null;
-    const digitableLine = providerCharge?.digitableLine || banking.digitableLine;
-    const barcode = providerCharge?.barcodeContent || banking.barcode;
+    const historicalPaidGuide = selectedGuide.status === "compensada";
+    const providerCharge = historicalPaidGuide
+      ? null
+      : preparedGuideCharges[selectedGuide.code] ?? null;
+    const digitableLine = historicalPaidGuide
+      ? banking.digitableLine
+      : providerCharge
+        ? providerCharge.digitableLine
+        : banking.digitableLine;
+    const barcode = historicalPaidGuide
+      ? banking.barcode
+      : providerCharge
+        ? providerCharge.barcodeContent
+        : banking.barcode;
 
-    if (!barcode || !digitableLine) {
+    if (!historicalPaidGuide && (!barcode || !digitableLine)) {
       setProcessActionStatus(
         guidePreparationError
           ? `A guia não foi aberta porque os dados bancários ainda não estão válidos: ${guidePreparationError}`
@@ -2004,7 +2018,9 @@ export function ProcessDetailPage() {
         exercicio: year,
         dataDocumento: issuedAt,
         vencimento: selectedGuide.dueDate,
-        observacao: getGuideObservation(selectedGuide.kind),
+        observacao: historicalPaidGuide
+          ? `${getGuideObservation(selectedGuide.kind)} Documento histórico quitado; data de emissão e baixa preservadas conforme o registro original.`
+          : getGuideObservation(selectedGuide.kind),
         funcionarioResponsavel: issuedByDisplay,
         proprietario: selectedGuide.ownerName || process.ownerName,
         profissionalResponsavel: selectedGuide.professionalName || process.technicalLead,
@@ -2022,15 +2038,18 @@ export function ProcessDetailPage() {
           selectedGuide.kind === "iss_obra"
             ? process.property.workType || workTypeInput || undefined
             : selectedGuide.constructionStandard || constructionStandardLabel,
-        codigoBarras: barcode,
-        linhaDigitavel: digitableLine,
+        codigoBarras: historicalPaidGuide ? undefined : barcode,
+        linhaDigitavel: historicalPaidGuide ? undefined : digitableLine,
         qrCodePixUrl: "",
-        pixPayload: banking.pixPayload,
+        pixPayload: historicalPaidGuide ? undefined : banking.pixPayload,
+        historicalPaid: historicalPaidGuide,
         bankName: providerName,
         bankEnvironment:
           providerCharge?.environment || selectedGuide.providerEnvironment,
         bankAgreement: banking.bankAgreement,
-        bankInstructions: banking.bankInstructions,
+        bankInstructions: historicalPaidGuide
+          ? "DOCUMENTO QUITADO. Não efetue novo pagamento. Via histórica preservada para consulta."
+          : banking.bankInstructions,
         bankReference: providerCharge?.orderId || selectedGuide.bankReference,
         bankPaymentId: providerCharge?.paymentId || selectedGuide.bankPaymentId,
         bankStatus: providerCharge?.status || selectedGuide.bankStatus,
@@ -2042,8 +2061,9 @@ export function ProcessDetailPage() {
           (selectedGuide.status === "compensada" ? selectedGuide.paidAt : undefined),
         paymentProvider:
           selectedGuide.paymentProvider ||
-          tenantSettings?.paymentProvider ||
-          "mercado_pago",
+          (historicalPaidGuide && !selectedGuide.bankReference
+            ? "manual"
+            : tenantSettings?.paymentProvider || "mercado_pago"),
         valorDocumento: selectedGuide.amount,
         descontos: 0,
         outrosAcrescimos: 0,

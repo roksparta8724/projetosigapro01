@@ -812,6 +812,21 @@ function readProfileVisualCache(): UserProfile | null {
     const cached = JSON.parse(raw) as Partial<UserProfile> & { cachedAt?: number };
     if (!cached.userId || !cached.avatarUrl) return null;
 
+    // O cache de sessão não pode ressuscitar uma URL R2 assinada já expirada.
+    // O cache persistente usa a mesma janela de cinco horas; após esse período,
+    // o perfil deve obter uma URL nova na leitura autoritativa do Neon.
+    const r2SignedReference = String(cached.avatarStorageRef || "").startsWith("r2:");
+    const maxCacheAgeMs = r2SignedReference ? 5 * 60 * 60 * 1000 : 30 * 24 * 60 * 60 * 1000;
+    if (
+      !Number.isFinite(cached.cachedAt) ||
+      typeof cached.cachedAt !== "number" ||
+      Date.now() - cached.cachedAt > maxCacheAgeMs ||
+      cached.cachedAt > Date.now() + 60 * 1000
+    ) {
+      window.sessionStorage.removeItem(PROFILE_VISUAL_CACHE_KEY);
+      return null;
+    }
+
     const sameIdentity =
       currentSession?.id === cached.userId ||
       (currentSession?.email && normalizeEmail(currentSession.email) === normalizeEmail(cached.email));

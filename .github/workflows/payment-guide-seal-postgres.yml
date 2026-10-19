@@ -1,0 +1,39 @@
+name: Payment Guide Seal PostgreSQL Integration
+on:
+  push:
+    branches:
+      - fix/immutable-guides-avatar-save-20261019
+    paths:
+      - 'neon/tests/payment_guide_historical_seal.sql'
+      - 'neon/migrations/20261019152000_payment_guide_historical_seal.sql'
+      - '.github/workflows/payment-guide-seal-postgres.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  postgres-historical-guide-test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: test-only
+          POSTGRES_USER: postgres
+          POSTGRES_DB: sigapro_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d sigapro_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: test-only
+      PGDATABASE: sigapro_test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate real PostgreSQL historical payment-guide protection
+        run: psql -X -v ON_ERROR_STOP=1 -f neon/tests/payment_guide_historical_seal.sql

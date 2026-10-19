@@ -26,8 +26,10 @@ describe("profile and branding persistence regressions", () => {
 
   it("keeps municipal header, footer and preview logos whole while preserving master framing", () => {
     expect(logo).toContain("const showCrop =");
-    expect(logo).toContain("isMaster &&");
-    expect(logo).toContain('(variant === "header" || variant === "footer" || variant === "preview")');
+    expect(logo).toContain('variant === "header" || variant === "footer" || variant === "preview"');
+    expect(logo).toContain('style={showCrop ? { transform:');
+    // Prefeituras também precisam receber o zoom salvo no banco.
+    expect(logo).not.toContain('isMaster &&\n    (variant === "header" || variant === "footer" || variant === "preview")');
     expect(logo).toContain("const configuredScale = Number.isFinite(branding.logoScale)");
     expect(logo).toContain("Math.max(0.35, Math.min(5, configuredScale))");
     expect(logo).toContain("Math.max(1, Math.min(5, configuredScale))");

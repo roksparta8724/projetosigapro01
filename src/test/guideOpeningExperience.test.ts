@@ -7,6 +7,54 @@ function read(path: string) {
 }
 
 describe("guide opening experience", () => {
+  const processDetail = read("src/pages/saas/ProcessDetailPage.tsx");
+  it("uses barcode and digitable line from the same provider charge for unpaid guides", () => {
+    expect(processDetail).toContain("providerCharge\n        ? providerCharge.digitableLine");
+    expect(processDetail).toContain("providerCharge\n        ? providerCharge.barcodeContent");
+    expect(processDetail).toContain("codigoBarras: historicalPaidGuide ? undefined : barcode");
+    expect(processDetail).toContain("linhaDigitavel: historicalPaidGuide ? undefined : digitableLine");
+  });
+
+  it("never creates a fresh provider charge while viewing a compensated historical guide", () => {
+    expect(processDetail).toContain('if (guide.status === "compensada") continue;');
+    expect(processDetail).toContain('const historicalPaidGuide = selectedGuide.status === "compensada"');
+    expect(processDetail).toContain("historicalPaidGuide\n      ? null");
+    expect(processDetail).toContain("Documento histórico quitado; data de emissão e baixa preservadas");
+  });
+
+
+  it("renders a compensated guide as a non-payable historical receipt", () => {
+    const guide = read("src/components/GuiaRecolhimentoOficial.tsx");
+    const external = read("src/pages/saas/ExternalPaymentsPage.tsx");
+
+    expect(processDetail).toContain("pixPayload: historicalPaidGuide ? undefined : banking.pixPayload");
+    expect(processDetail).toContain("historicalPaid: historicalPaidGuide");
+    expect(guide).toContain("Pagamento já compensado — meios de pagamento desativados nesta via histórica.");
+    expect(guide).toContain("DOCUMENTO QUITADO. Não efetue novo pagamento.");
+    expect(guide).toContain("Desativada — guia já compensada.");
+    expect(external).toContain('const historicalPaidGuide = guide.status === "compensada"');
+    expect(external).toContain("historicalPaidGuide || (banking.barcode && banking.digitableLine)");
+    expect(external).toContain("pixPayload: historicalPaidGuide ? undefined : banking.pixPayload");
+    expect(external).toContain("historicalPaid: historicalPaidGuide");
+  });
+
+  it("preserves historical issue dates and legacy confirmations without a fabricated payment date", () => {
+    const seal = read("neon/migrations/20261019152000_payment_guide_historical_seal.sql");
+    expect(seal).toContain("new.created_at is distinct from old.created_at");
+    expect(seal).toContain("old.paid_at is not null and new.paid_at is distinct from old.paid_at");
+    expect(seal).toContain("coalesce(old.paid,false) and not coalesce(new.paid,false)");
+    expect(seal).toContain("Um registro legado pode estar");
+    expect(seal).not.toContain("coalesce(new.paid,false) is distinct from true");
+  });
+
+  it("does not count legacy confirmed guides without paid evidence as compensated", () => {
+    const backend = read("src/integrations/backend/platformImpl.ts");
+    expect(backend).toContain('(primaryGuide?.status === "confirmed" && (primaryGuide.paid === true || primaryGuide.paid_at != null))');
+    expect(backend).toContain('(guide.status === "confirmed" && (guide.paid === true || guide.paid_at != null))');
+    expect(backend).not.toContain('primaryGuide?.status === "confirmed" ||');
+    expect(backend).not.toContain('guide.status === "confirmed" ||');
+  });
+
   it("never exposes an intermediary preparation document", () => {
     const guide = read("src/components/GuiaRecolhimentoOficial.tsx");
 

@@ -134,6 +134,9 @@ export function AnalystDeskPage() {
   const [actionBusy, setActionBusy] = useState("");
   const [actionStatus, setActionStatus] = useState("");
   const [assignmentTargets, setAssignmentTargets] = useState<Record<string, string>>({});
+  const [dispatchFor, setDispatchFor] = useState<string | null>(null);
+  const [dispatchDestination, setDispatchDestination] = useState("Diretoria de Urbanismo");
+  const [dispatchNote, setDispatchNote] = useState("");
   const [liveSyncAt, setLiveSyncAt] = useState("");
   const [liveSyncError, setLiveSyncError] = useState("");
   const currentUnit =
@@ -532,6 +535,32 @@ export function AnalystDeskPage() {
     }
   };
 
+  const saveTechnicalDispatch = async (process: ProcessRecord) => {
+    const note = dispatchNote.trim();
+    if (!note) {
+      setActionStatus("Escreva o conteúdo do despacho antes de salvar.");
+      return;
+    }
+    const ok = await runAnalystAction(
+      `technical-dispatch-${process.id}`,
+      "Despacho registrado no histórico oficial do processo.",
+      () => dispatchProcess({
+        processId: process.id,
+        actor: session.name,
+        from: "Análise Urbanística",
+        to: dispatchDestination,
+        subject: note,
+        dueDate: isoDateAfterDays(3),
+        visibility: "interno",
+      }),
+    );
+    if (ok) {
+      setDispatchFor(null);
+      setDispatchNote("");
+      await refreshAnalysisDesk();
+    }
+  };
+
   const handleAssignAnalysis = async (process: ProcessRecord) => {
     const suggestedProfileId = analysisTeamLoad[0]?.analyst.id || "";
     const targetProfileId = assignmentTargets[process.id] || suggestedProfileId;
@@ -679,12 +708,12 @@ export function AnalystDeskPage() {
                       {getPriorityLabel(process)}
                     </Badge>
                     {!hasAssignedAnalyst ? (
-                      <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-800">
+                      <Badge variant="outline" className="border-amber-400/35 bg-amber-400/15 text-amber-100">
                         <UserPlus className="mr-1 h-3.5 w-3.5" />
                         Aguardando analista
                       </Badge>
                     ) : assignedToCurrentSession ? (
-                      <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-800">
+                      <Badge variant="outline" className="border-emerald-400/30 bg-emerald-400/15 text-emerald-100">
                         <UserCheck className="mr-1 h-3.5 w-3.5" />
                         Minha análise
                       </Badge>
@@ -694,6 +723,13 @@ export function AnalystDeskPage() {
                         {analysisStarted ? "Em análise" : "Distribuído"} · {currentAnalyst}
                       </Badge>
                     )}
+                    <MarkerSelector
+                      processId={process.id}
+                      tags={process.tags}
+                      actor={session.name}
+                      subjectLabel="processo"
+                      triggerClassName="h-9"
+                    />
                     {process.triage.status !== "concluido" ? (
                       <Badge variant="outline" className="border-sky-200 bg-sky-50 text-sky-700">
                         Triagem
@@ -716,13 +752,18 @@ export function AnalystDeskPage() {
                 </div>
 
                 <div data-analysis-process-actions="true" className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
-                  <MarkerSelector
-                    processId={process.id}
-                    tags={process.tags}
-                    actor={session.name}
-                    subjectLabel="processo"
-                    triggerClassName="h-9"
-                  />
+                  {canEditAnalysis && analysisStarted ? (
+                    <Button type="button" size="sm" variant="outline"
+                      className="h-10 rounded-xl border-sky-400/25 bg-sky-400/10 px-3 text-xs font-semibold text-sky-100 hover:bg-sky-400/20"
+                      onClick={() => {
+                        setDispatchFor((current) => current === process.id ? null : process.id);
+                        setDispatchNote("");
+                      }}
+                    >
+                      <Send className="mr-1.5 h-4 w-4" /> Encaminhar / despachar
+                    </Button>
+                  ) : null}
+
                   {allowArchiveAction ? (
                     <Button
                       type="button"
@@ -773,10 +814,43 @@ export function AnalystDeskPage() {
                 </div>
               </div>
 
+              {process.dispatches.length > 0 ? (
+                <div className="mx-5 mb-3 rounded-xl border border-sky-400/20 bg-sky-400/5 px-4 py-3 text-xs text-slate-200">
+                  <p className="font-bold text-sky-200">Último despacho / encaminhamento</p>
+                  <p className="mt-1 whitespace-pre-wrap leading-5">{process.dispatches[process.dispatches.length - 1].subject}</p>
+                  <p className="mt-1 text-slate-300">Destino: {process.dispatches[process.dispatches.length - 1].to}</p>
+                  <p className="mt-1 text-slate-300">Despachado por: <span className="font-semibold text-white">{process.dispatches[process.dispatches.length - 1].requestedBy || "Autor não identificado no registro"}</span></p>
+                </div>
+              ) : null}
+              {dispatchFor === process.id ? (
+                <div className="mx-5 mb-3 space-y-3 rounded-xl border border-white/15 bg-[#0c2235] p-4">
+                  <p className="text-xs font-bold text-white">Registrar despacho ou encaminhamento interno</p>
+                  <label className="block text-xs text-slate-200">Destino
+                    <select value={dispatchDestination} onChange={(event) => setDispatchDestination(event.target.value)}
+                      className="mt-1 block w-full rounded-lg border border-white/20 bg-[#0b1b2d] p-2 text-white">
+                      <option value="Diretoria de Urbanismo">Diretoria de Urbanismo</option>
+                      <option value="Setor de IPTU / Fiscal">Setor de IPTU / Fiscal</option>
+                      <option value="Financeiro">Financeiro</option>
+                      <option value="Protocolo">Protocolo</option>
+                    </select>
+                  </label>
+                  <label className="block text-xs text-slate-200">Texto do despacho
+                    <textarea value={dispatchNote} onChange={(event) => setDispatchNote(event.target.value)}
+                      rows={3} maxLength={4000} placeholder="Descreva o encaminhamento ou despacho..."
+                      className="mt-1 block w-full rounded-lg border border-white/20 bg-[#0b1b2d] p-3 text-sm text-white placeholder:text-slate-400" />
+                  </label>
+                  <p className="text-xs text-slate-300">Despachado por: <strong className="text-white">{session.name}</strong></p>
+                  <div className="flex justify-end gap-2">
+                    <Button type="button" variant="outline" onClick={() => setDispatchFor(null)}>Cancelar</Button>
+                    <Button type="button" disabled={Boolean(actionBusy) || !dispatchNote.trim()}
+                      onClick={() => void saveTechnicalDispatch(process)}>Registrar no processo</Button>
+                  </div>
+                </div>
+              ) : null}
               {isExpanded ? (
                 <div id={`analysis-process-details-${process.id}`} className="border-t border-slate-100 bg-slate-50/35 pb-1 dark:border-slate-700 dark:bg-slate-950/15">
               <div className="sig-responsive-data-grid mx-5 mt-4">
-                <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
+                <div className="rounded-2xl border border-white/15 bg-white/5 p-4">
                   <p className="sig-label">Responsável pela análise</p>
                   <p className="sig-fit-title mt-2 text-sm font-semibold leading-6 text-slate-950" title={currentAnalyst}>
                     {currentAnalyst}
@@ -791,19 +865,19 @@ export function AnalystDeskPage() {
                         : "Clique em Assumir análise para registrar o responsável de referência; a equipe da Análise continua com acesso técnico"}
                   </p>
                 </div>
-                <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
+                <div className="rounded-2xl border border-white/15 bg-white/5 p-4">
                   <p className="sig-label">Etapa atual</p>
                   <p className="sig-fit-title mt-2 text-sm font-semibold leading-6 text-slate-950" title={process.sla.currentStage}>
                     {process.sla.currentStage}
                   </p>
                   <p className="mt-1 text-xs text-slate-500">Status operacional</p>
                 </div>
-                <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
+                <div className="rounded-2xl border border-white/15 bg-white/5 p-4">
                   <p className="sig-label">Prazo</p>
                   <p className="mt-2 text-sm font-semibold text-slate-950">{process.sla.dueDate}</p>
                   <p className="mt-1 text-xs text-slate-500">{process.sla.hoursRemaining}h restantes</p>
                 </div>
-                <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
+                <div className="rounded-2xl border border-white/15 bg-white/5 p-4">
                   <p className="sig-label">Pendências</p>
                   <p className="mt-2 text-sm font-semibold text-slate-950">{pendingRequirements.length}</p>
                   <p className="mt-1 sig-fit-copy text-xs text-slate-500" title={pendingRequirements[0]?.title || "Sem exigências abertas"}>
@@ -1028,15 +1102,15 @@ export function AnalystDeskPage() {
 
   const renderProcessRegistry = () => (
     <div className="space-y-3">
-      <div className="flex items-start gap-3 rounded-[16px] border border-sky-200/80 bg-[linear-gradient(135deg,#f7fbff_0%,#eef8ff_100%)] px-4 py-3 shadow-[0_4px_14px_rgba(14,116,181,0.05)] dark:border-sky-500/25 dark:bg-[linear-gradient(135deg,#0c2131_0%,#0b2538_100%)]">
+      <div className="flex items-start gap-3 rounded-[16px] border border-sky-400/25 bg-[linear-gradient(135deg,#0c2131_0%,#0b2538_100%)] px-4 py-3 shadow-[0_4px_14px_rgba(14,116,181,0.05)] dark:border-sky-500/25 dark:bg-[linear-gradient(135deg,#0c2131_0%,#0b2538_100%)]">
         <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-sky-700 text-white shadow-sm">
           <Workflow className="h-4 w-4" />
         </div>
         <div>
-          <p className="text-[11px] font-extrabold uppercase tracking-[0.08em] text-sky-900 dark:text-sky-100">
+          <p className="text-[11px] font-extrabold uppercase tracking-[0.08em] text-sky-100">
             Navegação da fila técnica
           </p>
-          <p className="mt-0.5 text-[11px] leading-5 text-sky-800/90 dark:text-sky-200/90">
+          <p className="mt-0.5 text-[11px] leading-5 text-sky-200/90">
             Selecione um card para consultar os detalhes operacionais. O número do processo e a ação “Abrir processo” acessam diretamente o registro oficial.
           </p>
         </div>
@@ -1234,23 +1308,23 @@ export function AnalystDeskPage() {
           <>
             <div
               data-analysis-distribution-manager="true"
-              className="mb-4 overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-[0_12px_32px_rgba(15,23,42,0.06)]"
+              className="mb-4 overflow-hidden rounded-[22px] border border-white/15 bg-[linear-gradient(180deg,#102637_0%,#0b1c2e_100%)] shadow-[0_12px_32px_rgba(0,0,0,0.22)]"
             >
-              <div className="flex flex-col gap-3 border-b border-slate-100 bg-[linear-gradient(135deg,#f8fbff_0%,#eef7fc_100%)] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-col gap-3 border-b border-white/10 bg-[linear-gradient(135deg,#132d42_0%,#102438_100%)] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <div className="flex items-center gap-2">
-                    <Users2 className="h-5 w-5 text-sky-700" />
-                    <h2 className="text-sm font-extrabold text-slate-950">Gerenciador de distribuição da Análise</h2>
+                    <Users2 className="h-5 w-5 text-sky-300" />
+                    <h2 className="text-sm font-extrabold text-white">Gerenciador de distribuição da Análise</h2>
                   </div>
-                  <p className="mt-1 text-xs leading-5 text-slate-500">
+                  <p className="mt-1 text-xs leading-5 text-slate-300">
                     Um processo sem responsável fica na fila comum. A atribuição define o responsável de referência para carga, SLA e auditoria, sem bloquear a colaboração técnica dos demais analistas da unidade.
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   <span className={`inline-flex items-center rounded-full border px-3 py-1.5 text-[10px] font-bold ${
                     liveSyncError
-                      ? "border-amber-200 bg-amber-50 text-amber-800"
-                      : "border-emerald-200 bg-emerald-50 text-emerald-800"
+                      ? "border-amber-400/35 bg-amber-400/15 text-amber-100"
+                      : "border-emerald-400/30 bg-emerald-400/15 text-emerald-100"
                   }`}>
                     <span className={`mr-2 h-2 w-2 rounded-full ${liveSyncError ? "bg-amber-500" : "bg-emerald-500"}`} />
                     {liveSyncError
@@ -1273,25 +1347,25 @@ export function AnalystDeskPage() {
               </div>
 
               <div className="grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-4">
-                <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4">
-                  <p className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-amber-700">Aguardando distribuição</p>
-                  <p className="mt-2 text-2xl font-black text-slate-950">{unassignedAnalysis.length}</p>
-                  <p className="mt-1 text-xs text-slate-600">Novos processos ainda sem analista responsável.</p>
+                <div className="rounded-2xl border border-amber-400/25 bg-amber-400/10 p-4">
+                  <p className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-amber-200">Aguardando distribuição</p>
+                  <p className="mt-2 text-2xl font-black text-white">{unassignedAnalysis.length}</p>
+                  <p className="mt-1 text-xs text-slate-300">Novos processos ainda sem analista responsável.</p>
                 </div>
-                <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4">
-                  <p className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-emerald-700">Minhas análises</p>
-                  <p className="mt-2 text-2xl font-black text-slate-950">{myAnalyses.length}</p>
-                  <p className="mt-1 text-xs text-slate-600">Processos reservados para o usuário atual.</p>
+                <div className="rounded-2xl border border-emerald-400/25 bg-emerald-400/10 p-4">
+                  <p className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-emerald-200">Minhas análises</p>
+                  <p className="mt-2 text-2xl font-black text-white">{myAnalyses.length}</p>
+                  <p className="mt-1 text-xs text-slate-300">Processos reservados para o usuário atual.</p>
                 </div>
-                <div className="rounded-2xl border border-sky-200 bg-sky-50/70 p-4">
-                  <p className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-sky-700">Equipe em andamento</p>
-                  <p className="mt-2 text-2xl font-black text-slate-950">{teamAssignedAnalysis.length}</p>
-                  <p className="mt-1 text-xs text-slate-600">Processos com responsável de referência; a equipe técnica da Análise pode colaborar quando necessário.</p>
+                <div className="rounded-2xl border border-sky-400/25 bg-sky-400/10 p-4">
+                  <p className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-sky-200">Equipe em andamento</p>
+                  <p className="mt-2 text-2xl font-black text-white">{teamAssignedAnalysis.length}</p>
+                  <p className="mt-1 text-xs text-slate-300">Processos com responsável de referência; a equipe técnica da Análise pode colaborar quando necessário.</p>
                 </div>
-                <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
-                  <p className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-slate-600">Equipe disponível</p>
-                  <p className="mt-2 text-2xl font-black text-slate-950">{analysisTeam.length}</p>
-                  <p className="mt-1 text-xs text-slate-600">
+                <div className="rounded-2xl border border-white/15 bg-white/5 p-4">
+                  <p className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-slate-200">Equipe disponível</p>
+                  <p className="mt-2 text-2xl font-black text-white">{analysisTeam.length}</p>
+                  <p className="mt-1 text-xs text-slate-300">
                     {analysisTeamLoad[0]
                       ? `Menor carga: ${analysisTeamLoad[0].analyst.name} (${analysisTeamLoad[0].active})`
                       : "Nenhum analista ativo cadastrado."}
@@ -1300,16 +1374,16 @@ export function AnalystDeskPage() {
               </div>
 
               {analysisTeamLoad.length > 0 ? (
-                <div className="border-t border-slate-100 px-4 py-3">
+                <div className="border-t border-white/10 px-4 py-3">
                   <div className="flex flex-wrap gap-2">
                     {analysisTeamLoad.map(({ analyst, active }) => (
                       <span
                         key={analyst.id}
-                        className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-700 shadow-sm"
+                        className="inline-flex items-center rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-[11px] font-semibold text-slate-100 shadow-sm"
                       >
                         <UserCheck className="mr-1.5 h-3.5 w-3.5 text-sky-700" />
                         {analyst.name}
-                        <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-black text-slate-600">
+                        <span className="ml-2 rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-black text-slate-100">
                           {active}
                         </span>
                       </span>

@@ -460,9 +460,6 @@ export function useInstitutionBranding(tenantId?: string | null) {
       return {
         ...masterBranding,
         logoUrl: resolvedMasterHeaderLogoUrl || masterBranding.logoUrl,
-        ...(platformBranding?.headerLogoFileName.endsWith("-enquadrado.png")
-          ? { logoScale: 1, logoOffsetX: 0, logoOffsetY: 0 }
-          : {}),
       };
     }
     const base = getInstitutionBranding(
@@ -545,9 +542,6 @@ export function useInstitutionBranding(tenantId?: string | null) {
       return {
         ...masterBranding,
         logoUrl: resolvedMasterFooterLogoUrl || masterBranding.logoUrl,
-        ...(platformBranding?.footerLogoFileName.endsWith("-enquadrado.png")
-          ? { logoScale: 1, logoOffsetX: 0, logoOffsetY: 0 }
-          : {}),
       };
     }
     const base = getInstitutionBranding(

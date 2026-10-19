@@ -35,3 +35,32 @@ jobs:
 
       - name: Production build
         run: npm run build
+
+  guide-seal-postgres:
+    name: Historical guides in isolated PostgreSQL 16
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: temporary-test-password
+          POSTGRES_DB: sigapro_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d sigapro_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: temporary-test-password
+      PGDATABASE: sigapro_ci
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test historical guide trigger against PostgreSQL
+        run: psql -X -v ON_ERROR_STOP=1 -f neon/tests/payment_guide_historical_seal.sql
