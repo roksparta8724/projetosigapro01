@@ -24,8 +24,8 @@ const configuredDataApiUrl = String(import.meta.env.VITE_NEON_DATA_API_URL || ""
 
 const previewEndpointsConfigured =
   Boolean(configuredAuthUrl && configuredDataApiUrl) &&
-  configuredAuthUrl.replace(/\\/+$/, "") !== VALIDATED_NEON_AUTH_URL &&
-  configuredDataApiUrl.replace(/\\/+$/, "") !== VALIDATED_NEON_DATA_API_URL;
+  configuredAuthUrl.replace(/\/+$/, "") !== VALIDATED_NEON_AUTH_URL &&
+  configuredDataApiUrl.replace(/\/+$/, "") !== VALIDATED_NEON_DATA_API_URL;
 
 const NEON_AUTH_URL = String(
   isNeonProduction || isLocalNeonRuntime
@@ -33,7 +33,7 @@ const NEON_AUTH_URL = String(
     : isVercelPreviewRuntime
       ? (previewEndpointsConfigured ? configuredAuthUrl : "")
       : configuredAuthUrl || (isNeonPreview ? VALIDATED_NEON_AUTH_URL : ""),
-).replace(/\\/+$/, "");
+).replace(/\/+$/, "");
 
 const NEON_DATA_API_URL = String(
   isNeonProduction || isLocalNeonRuntime
@@ -41,7 +41,7 @@ const NEON_DATA_API_URL = String(
     : isVercelPreviewRuntime
       ? (previewEndpointsConfigured ? configuredDataApiUrl : "")
       : configuredDataApiUrl || (isNeonPreview ? VALIDATED_NEON_DATA_API_URL : ""),
-).replace(/\\/+$/, "");
+).replace(/\/+$/, "");
 
 export const neonAuthUrl = NEON_AUTH_URL;
 export const neonDataApiUrl = NEON_DATA_API_URL;
