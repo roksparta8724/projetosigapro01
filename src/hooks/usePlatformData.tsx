@@ -1230,7 +1230,25 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         }
 
         if (!active) return;
-        const cachedVisualProfile = readProfileVisualCache();
+        const authoritativeProfile = findUserProfile(
+          sanitized.userProfiles,
+          authenticatedProfileId || authenticatedUserId,
+          authenticatedEmail,
+        );
+        const authoritativeAvatarRemoved = Boolean(
+          authoritativeProfile &&
+          !authoritativeProfile.avatarUrl?.trim() &&
+          !authoritativeProfile.avatarStorageRef?.trim(),
+        );
+        if (authoritativeAvatarRemoved && authoritativeProfile) {
+          // O banco oficial é soberano: uma remoção real da foto nunca pode ser
+          // "ressuscitada" pelo cache visual usado apenas para estabilizar o F5.
+          syncProfileVisualCache(authoritativeProfile);
+        }
+
+        const cachedVisualProfile = authoritativeAvatarRemoved
+          ? null
+          : readProfileVisualCache();
         if (cachedVisualProfile) {
           sanitized = {
             ...sanitized,
@@ -1318,7 +1336,23 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
     try {
       const remote = await loadRemotePlatformStoreWithRetry(focusProcessRouteKey);
       let sanitized = buildSanitizedStore(remote, false);
-      const cachedVisualProfile = readProfileVisualCache();
+      const authoritativeProfile = findUserProfile(
+        sanitized.userProfiles,
+        authenticatedProfileId || authenticatedUserId,
+        authenticatedEmail,
+      );
+      const authoritativeAvatarRemoved = Boolean(
+        authoritativeProfile &&
+        !authoritativeProfile.avatarUrl?.trim() &&
+        !authoritativeProfile.avatarStorageRef?.trim(),
+      );
+      if (authoritativeAvatarRemoved && authoritativeProfile) {
+        syncProfileVisualCache(authoritativeProfile);
+      }
+
+      const cachedVisualProfile = authoritativeAvatarRemoved
+        ? null
+        : readProfileVisualCache();
       if (cachedVisualProfile) {
         sanitized = {
           ...sanitized,
