@@ -88,18 +88,22 @@ export function useNotifications(options?: {
 
   const markRead = useCallback(
     async (notificationId: string, read = true) => {
+      let unreadDelta = 0;
       setNotifications((current) =>
-        current.map((item) =>
-          item.id === notificationId
-            ? {
-                ...item,
-                isRead: read,
-                readAt: read ? new Date().toISOString() : undefined,
-              }
-            : item,
-        ),
+        current.map((item) => {
+          if (item.id !== notificationId) return item;
+          if (!item.isRead && read) unreadDelta = -1;
+          if (item.isRead && !read) unreadDelta = 1;
+          return {
+            ...item,
+            isRead: read,
+            readAt: read ? new Date().toISOString() : undefined,
+          };
+        }),
       );
-      setUnreadCount((current) => Math.max(0, current + (read ? -1 : 1)));
+      if (unreadDelta !== 0) {
+        setUnreadCount((current) => Math.max(0, current + unreadDelta));
+      }
 
       try {
         await markMyNotificationRead(notificationId, read);
