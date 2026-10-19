@@ -10,6 +10,7 @@ describe("Habite-se guide branding and status contrast", () => {
   const assets = read("src/lib/guideAssets.ts");
   const guide = read("src/components/GuiaRecolhimentoOficial.tsx");
   const permit = read("src/components/platform/HabiteSePermitPanel.tsx");
+  const permitPdf = read("src/lib/habiteSePermitPdf.ts");
   const css = read("src/index.css");
 
   it("keeps the municipality logo available even when a Habite-se guide is opened immediately after issuance", () => {
@@ -30,6 +31,20 @@ describe("Habite-se guide branding and status contrast", () => {
     expect(guide).toContain("export function reserveGuiaRecolhimentoOficialWindow");
     expect(guide).toContain("reservedWindow && !reservedWindow.closed");
     expect(guide).toContain("popup.location.replace(previewUrl)");
+  });
+
+  it("keeps the Habite-se signature workflow exclusive to the municipal Director", () => {
+    expect(permit).toContain("userCanSignPermitAsDirector(session)");
+    expect(permit).toContain("saveAndForwardToDirector");
+    expect(permit).toContain('signerSlot: "diretoria"');
+    expect(permit).toContain("setHabiteSePermitAwaitingDirector(process.id)");
+    expect(permit).toContain("finalizeHabiteSePermit(process.id)");
+    expect(permit).not.toContain('openSignature("analyst")');
+    expect(permit).not.toContain('signerSlot: passwordDialog === "analyst"');
+    expect(permit).not.toContain("Assinatura do Analista Técnico");
+    expect(permitPdf).not.toContain("analystSignature?:");
+    expect(permitPdf).not.toContain('"Analista Técnico",');
+    expect(permitPdf).toContain('"Diretoria responsável",');
   });
 
   it("hard-locks the Habite-se status badge to readable light text on saturated backgrounds", () => {
