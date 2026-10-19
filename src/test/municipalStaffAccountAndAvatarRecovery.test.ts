@@ -10,6 +10,8 @@ describe("municipal staff account and avatar recovery regressions", () => {
   const backend = read("src/integrations/backend/platformImpl.ts");
   const avatar = read("src/components/platform/UserAvatar.tsx");
   const r2Client = read("src/integrations/r2/client.ts");
+  const avatarStorage = read("src/integrations/r2/storage.ts");
+  const profilePage = read("src/pages/saas/PerfilPage.tsx");
   const r2Router = read("api/r2.ts");
   const legacyAvatar = read("server/api/profile-avatar-open.ts");
   const appBootstrap = read("src/hooks/useAppBootstrap.tsx");
@@ -93,6 +95,27 @@ describe("municipal staff account and avatar recovery regressions", () => {
     expect(avatar).toContain("recoveryImageUrl");
     expect(avatar).toContain('current.pathname === "/api/profile-avatar-open"');
     expect(avatar).toContain('current.pathname.startsWith("/storage/v1/object/public/avatars/")');
+  });
+
+
+  it("opens stored R2 profile photos through the same handler on localhost and production", () => {
+    expect(vite).toContain('import handleProfileAvatarOpen from "./server/api/profile-avatar-open"');
+    expect(vite).toContain('req.url.startsWith("/api/profile-avatar-open")');
+    expect(vite).toContain("await handleProfileAvatarOpen(req, res)");
+    expect(legacyAvatar).toContain('request.kind === "r2"');
+    expect(legacyAvatar).toContain("request.objectKey");
+    expect(legacyAvatar).toContain('readEnv("R2_BUCKET_LOGOS")');
+    expect(legacyAvatar).toContain("const MAX_AVATAR_BYTES = 12 * 1024 * 1024");
+    expect(backend).toContain('/api/profile-avatar-open?objectKey=');
+  });
+
+  it("persists permanent R2 avatar keys and confirms their image response before success", () => {
+    expect(avatarStorage).toContain('input.bucket === "profile-assets" ? `r2:${uploaded.objectKey}`');
+    expect(profilePage).toContain("confirmSavedAvatarReadable(savedAvatarUrl)");
+    expect(profilePage).toContain('response.headers.get("content-type")');
+    expect(profilePage).toContain("avatarReadConfirmed");
+    expect(profilePage).toContain("não confirmou sua leitura após o upload");
+    expect(avatar).toContain("recoveryImageUrl");
   });
 
   it("recovers old Supabase avatars and caches them in the current R2 storage", () => {
