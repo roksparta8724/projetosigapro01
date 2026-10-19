@@ -1,6 +1,6 @@
 import { databaseClient as db, neonAuthUrl } from "@/integrations/backend/databaseClient";
 import { isNeonBackend } from "@/integrations/backend/config";
-import { getLegacyProfileAvatarOpenUrl, getObjectKeyFromPublicUrl, uploadFile } from "@/integrations/r2/client";
+import { getLegacyProfileAvatarOpenUrl, getObjectKeyFromPublicUrl, getSignedUrlForObjectStrict, uploadFile } from "@/integrations/r2/client";
 import { buildMunicipalityPortalUrl } from "@/lib/publicDomain";
 import {
   buildProcessDocuments,
@@ -59,10 +59,25 @@ async function resolveStoredProfileAvatar(value: string | null | undefined) {
 
   if (!objectKey) return raw;
 
-  // Fotos de perfil são renderizadas por uma rota same-origin estável.
-  // Isso elimina dependência de URL assinada, CORS, hostname R2 e diferenças
-  // entre localhost e produção. A função serverless valida que a chave pertence
-  // exclusivamente à pasta municipal profiles/avatars.
+  // Em produção, a leitura autenticada pelo endpoint de sign-get conhece o
+  // bucket lógico "profile-assets" e gera a URL diretamente do mesmo objeto que
+  // foi gravado no upload. Isso evita divergência entre localhost e produção.
+  // Se o assinador estiver temporariamente indisponível, mantemos a rota
+  // same-origin como fallback visual sem perder a referência persistida.
+  try {
+    const signedUrl = await getSignedUrlForObjectStrict({
+      bucket: "profile-assets",
+      objectKey,
+      expiresIn: 21600,
+    });
+    if (signedUrl) return signedUrl;
+  } catch (error) {
+    console.warn("[SIGAPRO][ProfileAvatar] Falha ao assinar leitura do avatar; usando fallback same-origin.", {
+      objectKey,
+      error,
+    });
+  }
+
   return `/api/profile-avatar-open?objectKey=${encodeURIComponent(objectKey)}`;
 }
 
