@@ -2038,15 +2038,18 @@ export function ProcessDetailPage() {
           selectedGuide.kind === "iss_obra"
             ? process.property.workType || workTypeInput || undefined
             : selectedGuide.constructionStandard || constructionStandardLabel,
-        codigoBarras: barcode,
-        linhaDigitavel: digitableLine,
+        codigoBarras: historicalPaidGuide ? undefined : barcode,
+        linhaDigitavel: historicalPaidGuide ? undefined : digitableLine,
         qrCodePixUrl: "",
-        pixPayload: banking.pixPayload,
+        pixPayload: historicalPaidGuide ? undefined : banking.pixPayload,
+        historicalPaid: historicalPaidGuide,
         bankName: providerName,
         bankEnvironment:
           providerCharge?.environment || selectedGuide.providerEnvironment,
         bankAgreement: banking.bankAgreement,
-        bankInstructions: banking.bankInstructions,
+        bankInstructions: historicalPaidGuide
+          ? "DOCUMENTO QUITADO. Não efetue novo pagamento. Via histórica preservada para consulta."
+          : banking.bankInstructions,
         bankReference: providerCharge?.orderId || selectedGuide.bankReference,
         bankPaymentId: providerCharge?.paymentId || selectedGuide.bankPaymentId,
         bankStatus: providerCharge?.status || selectedGuide.bankStatus,
