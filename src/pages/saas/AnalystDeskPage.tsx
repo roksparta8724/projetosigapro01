@@ -819,6 +819,7 @@ export function AnalystDeskPage() {
                   <p className="font-bold text-sky-200">Último despacho / encaminhamento</p>
                   <p className="mt-1 whitespace-pre-wrap leading-5">{process.dispatches[process.dispatches.length - 1].subject}</p>
                   <p className="mt-1 text-slate-300">Destino: {process.dispatches[process.dispatches.length - 1].to}</p>
+                  <p className="mt-1 text-slate-300">Despachado por: <span className="font-semibold text-white">{process.dispatches[process.dispatches.length - 1].requestedBy || "Autor não identificado no registro"}</span></p>
                 </div>
               ) : null}
               {dispatchFor === process.id ? (
