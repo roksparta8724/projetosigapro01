@@ -1155,7 +1155,20 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
                 throw new Error("Esta conta não está vinculada à Prefeitura deste subdomínio.");
               }
             } else if (nextProfile?.municipalityId) {
-              nextBundle = await loadMunicipalityBundleById(nextProfile.municipalityId);
+              const municipalityId = nextProfile.municipalityId;
+              void loadMunicipalityBundleById(municipalityId)
+                .then((bundle) => {
+                  if (bundle?.municipality?.id === municipalityId) {
+                    setMunicipalityBundle(bundle);
+                    lastStableRef.current = {
+                      ...lastStableRef.current,
+                      municipalityBundle: bundle,
+                    };
+                  }
+                })
+                .catch((bundleError) => {
+                  console.warn("[Bootstrap] Bundle municipal pós-login indisponível.", bundleError);
+                });
             }
           }
 
