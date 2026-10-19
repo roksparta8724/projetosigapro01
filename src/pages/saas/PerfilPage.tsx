@@ -172,19 +172,34 @@ type ProfileSection =
 // Uma gravação RPC só confirma o registro; a foto precisa poder ser LIDA
 // pelo mesmo endpoint que a página e o cabeçalho usarão após o F5.
 async function confirmSavedAvatarReadable(url: string): Promise<boolean> {
-  if (!url.startsWith("/api/profile-avatar-open?objectKey=")) return false;
+  // Um avatar recém-salvo pode ser aberto por URL R2 assinada (HTTPS) ou
+  // pela rota protegida same-origin. fetch() de imagens cross-origin pode
+  // falhar por CORS mesmo quando a imagem é exibível; Image testa a leitura real.
+  if (!/^https:\/\//i.test(url) && !url.startsWith("/api/profile-avatar-open?objectKey=")) {
+    return false;
+  }
+
   for (let attempt = 0; attempt < 3; attempt += 1) {
-    try {
-      const response = await fetch(url, { cache: "no-store" });
-      const contentType = response.headers.get("content-type") || "";
-      const readable = response.ok && contentType.toLowerCase().startsWith("image/");
-      void response.body?.cancel().catch(() => undefined);
-      if (readable) return true;
-    } catch {
-      // Falha transitória de rede/R2: repetir antes de sinalizar o problema.
-    }
+    const readable = await new Promise<boolean>((resolve) => {
+      const image = new Image();
+      let finished = false;
+      const complete = (ok: boolean) => {
+        if (finished) return;
+        finished = true;
+        window.clearTimeout(timeout);
+        image.onload = null;
+        image.onerror = null;
+        resolve(ok);
+      };
+      const timeout = window.setTimeout(() => complete(false), 8000);
+      image.onload = () => complete(image.naturalWidth > 0 && image.naturalHeight > 0);
+      image.onerror = () => complete(false);
+      image.src = url;
+    });
+    if (readable) return true;
     if (attempt < 2) await new Promise<void>((resolve) => window.setTimeout(resolve, 250 * (attempt + 1)));
   }
+
   return false;
 }
 
@@ -1078,7 +1093,7 @@ export function PerfilPage() {
       const savedAvatarUrl = savedProfile.avatarUrl || avatarUrl;
       const avatarReadConfirmed = !savedAvatarUrl || !savedAvatarUrl.startsWith("/api/profile-avatar-open?objectKey=") || await confirmSavedAvatarReadable(savedAvatarUrl);
       if (avatarReadConfirmed) setAvatarDraftDirty(false);
-      if (savedAvatarUrl) {
+      if (savedAvatarUrl && avatarReadConfirmed) {
         setAvatarFiles([
           {
             id: `avatar-saved-${crypto.randomUUID()}`,
