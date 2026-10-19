@@ -96,7 +96,8 @@ describe("profile and branding persistence regressions", () => {
   });
 
   it("keeps private R2 avatars persistent across F5 and autosaves new photos", () => {
-    expect(storage).toContain('persistentRef: uploaded.publicUrl || `r2:${uploaded.objectKey}`');
+    expect(storage).toContain('input.bucket === "profile-assets"');
+    expect(storage).toContain('`r2:${uploaded.objectKey}`');
     expect(backend).toContain("PROFILE_ASSET_REF_PREFIX");
     expect(backend).toContain("resolveStoredProfileAvatar");
     expect(backend).toContain("avatarStorageRef");

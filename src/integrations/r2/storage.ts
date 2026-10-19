@@ -77,7 +77,13 @@ export async function uploadFileToStorage(input: {
   return {
     path: uploaded.objectKey,
     publicUrl: uploaded.publicUrl,
-    persistentRef: uploaded.publicUrl || `r2:${uploaded.objectKey}`,
+    // Foto de perfil precisa sobreviver a F5, troca de domínio e bucket privado.
+    // Persistimos sempre a referência estável do objeto; a URL pública fica
+    // restrita ao preview da sessão atual.
+    persistentRef:
+      input.bucket === "profile-assets"
+        ? `r2:${uploaded.objectKey}`
+        : uploaded.publicUrl || `r2:${uploaded.objectKey}`,
   };
 }
 

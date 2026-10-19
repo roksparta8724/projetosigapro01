@@ -1562,7 +1562,7 @@ export function PerfilPage() {
                             size="md"
                             className="border-white/20 bg-white/10"
                             crop={avatarPreviewCrop}
-                            fallbackClassName="!bg-[linear-gradient(180deg,#ffffff_0%,#dde7f1_100%)] !text-[#17324a]"
+                            fallbackClassName="!bg-[linear-gradient(180deg,#cbd5e1_0%,#94a3b8_100%)] !text-[#0f172a]"
                           />
                         </div>
                       </div>
