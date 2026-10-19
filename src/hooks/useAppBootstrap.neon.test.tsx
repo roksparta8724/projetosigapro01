@@ -49,7 +49,25 @@ const neonMock = vi.hoisted(() => {
       }),
     },
     rpc: vi.fn(async (name: string) => {
-      if (name === "current_profile_id") return { data: profileId, error: null };
+      if (name === "get_current_profile_context") {
+        return {
+          data: {
+            profile_id: profileId,
+            legacy_user_id: authUser.id,
+            email: authUser.email,
+            profile_email: authUser.email,
+            full_name: "Prefeitura Admin",
+            role: "prefeitura_admin",
+            profile_role: "prefeitura_admin",
+            municipality_id: municipalityId,
+            tenant_id: municipalityId,
+            access_level: 3,
+            account_status: "active",
+          },
+          error: null,
+        };
+      }
+      if (name === "mark_current_profile_access") return { data: true, error: null };
       throw new Error(`Unexpected RPC: ${name}`);
     }),
     from: vi.fn((table: string) => {
@@ -173,7 +191,7 @@ describe("AppBootstrapProvider Neon-first login", () => {
     vi.clearAllMocks();
   });
 
-  it("resolves the authenticated Neon subject through current_profile_id", async () => {
+  it("resolves the authenticated Neon subject through get_current_profile_context", async () => {
     render(
       <AppBootstrapProvider>
         <Probe />
@@ -187,17 +205,33 @@ describe("AppBootstrapProvider Neon-first login", () => {
     expect(screen.getByTestId("role")).toHaveTextContent("prefeitura_admin");
     expect(screen.getByTestId("profile-role")).toHaveTextContent("prefeitura_admin");
     expect(screen.getByTestId("profile-id")).toHaveTextContent(neonMock.profileId);
-    expect(neonMock.client.rpc).toHaveBeenCalledWith("current_profile_id");
+    expect(neonMock.client.rpc).toHaveBeenCalledWith("get_current_profile_context");
   });
-  it("retries current_profile_id when Neon auth propagation is transient", async () => {
+  it("retries get_current_profile_context when Neon auth propagation is transient", async () => {
     let profileRpcAttempt = 0;
     neonMock.client.rpc.mockImplementation(async (name: string) => {
-      if (name !== "current_profile_id") throw new Error(`Unexpected RPC: ${name}`);
+      if (name === "mark_current_profile_access") return { data: true, error: null };
+      if (name !== "get_current_profile_context") throw new Error(`Unexpected RPC: ${name}`);
       profileRpcAttempt += 1;
       if (profileRpcAttempt === 1) {
         return { data: null, error: null };
       }
-      return { data: neonMock.profileId, error: null };
+      return {
+        data: {
+          profile_id: neonMock.profileId,
+          legacy_user_id: neonMock.authUser.id,
+          email: neonMock.authUser.email,
+          profile_email: neonMock.authUser.email,
+          full_name: "Prefeitura Admin",
+          role: "prefeitura_admin",
+          profile_role: "prefeitura_admin",
+          municipality_id: neonMock.municipalityId,
+          tenant_id: neonMock.municipalityId,
+          access_level: 3,
+          account_status: "active",
+        },
+        error: null,
+      };
     });
 
     render(
@@ -213,13 +247,16 @@ describe("AppBootstrapProvider Neon-first login", () => {
     expect(profileRpcAttempt).toBeGreaterThanOrEqual(2);
   });
 
-  it("does not block a fresh Neon login when stale-session cleanup fails", async () => {
-    neonMock.client.auth.getSession.mockResolvedValueOnce({
-      data: { session: { user: neonMock.authUser } },
-    });
-    neonMock.client.auth.signOut.mockResolvedValueOnce({
-      error: new Error("stale session cleanup failed"),
-    });
+  it("retries a fresh Neon login only when the first authentication fails with a session/token error", async () => {
+    neonMock.client.auth.signInWithPassword
+      .mockResolvedValueOnce({
+        data: { user: null, session: null },
+        error: new Error("invalid refresh token"),
+      })
+      .mockResolvedValueOnce({
+        data: { user: neonMock.authUser, session: { user: neonMock.authUser } },
+        error: null,
+      });
 
     render(
       <AppBootstrapProvider>
@@ -231,7 +268,8 @@ describe("AppBootstrapProvider Neon-first login", () => {
 
     expect(await screen.findByText("signed-in", {}, { timeout: 3000 })).toBeInTheDocument();
     expect(screen.getByTestId("role")).toHaveTextContent("prefeitura_admin");
-    expect(neonMock.client.auth.signInWithPassword).toHaveBeenCalled();
+    expect(neonMock.client.auth.signOut).toHaveBeenCalledTimes(1);
+    expect(neonMock.client.auth.signInWithPassword).toHaveBeenCalledTimes(2);
   });
 
   it("preserves a stable authenticated session through a transient SIGNED_OUT event", async () => {
