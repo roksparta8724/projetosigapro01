@@ -23,6 +23,38 @@ const sizeClasses: Record<UserAvatarSize, string> = {
   xl: "h-20 w-20 text-xl",
 };
 
+function alternateLegacyAvatarUrl(value: string) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+
+  try {
+    const current = new URL(
+      raw,
+      typeof window !== "undefined" ? window.location.origin : "https://sigapro.local",
+    );
+
+    if (current.pathname === "/api/profile-avatar-open") {
+      const source = current.searchParams.get("source") || "";
+      if (/^https:\/\/[^/]+\.supabase\.co\/storage\/v1\/object\/public\/avatars\//i.test(source)) {
+        return source;
+      }
+      return "";
+    }
+
+    if (
+      current.protocol === "https:" &&
+      /(^|\.)supabase\.co$/i.test(current.hostname) &&
+      current.pathname.startsWith("/storage/v1/object/public/avatars/")
+    ) {
+      return `/api/profile-avatar-open?source=${encodeURIComponent(current.toString())}`;
+    }
+  } catch {
+    return "";
+  }
+
+  return "";
+}
+
 function userInitials(name?: string | null) {
   const clean = String(name || "")
     .trim()
@@ -54,7 +86,14 @@ export function UserAvatar({
   const [failedImageUrl, setFailedImageUrl] = useState("");
   const [stableImageUrl, setStableImageUrl] = useState(imageUrl ?? "");
   const [naturalSize, setNaturalSize] = useState({ width: 0, height: 0 });
+  const [recoveryImageUrl, setRecoveryImageUrl] = useState("");
+  const attemptedRecoveryRef = useRef(new Set<string>());
   const emptyClearTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    attemptedRecoveryRef.current.clear();
+    setRecoveryImageUrl("");
+  }, [imageUrl]);
 
   useEffect(() => {
     if (emptyClearTimerRef.current) {
@@ -124,7 +163,7 @@ export function UserAvatar({
     };
   }, []);
 
-  const resolvedImageUrl = stableImageUrl || imageUrl || "";
+  const resolvedImageUrl = recoveryImageUrl || stableImageUrl || imageUrl || "";
   const showImage = Boolean(resolvedImageUrl) && failedImageUrl !== resolvedImageUrl;
   const initials = userInitials(name);
   const sizePixels: Record<UserAvatarSize, number> = { sm: 32, md: 40, lg: 56, xl: 80 };
@@ -172,7 +211,22 @@ export function UserAvatar({
               setNaturalSize({ width: nextWidth, height: nextHeight });
             }
           }}
-          onError={() => setFailedImageUrl(resolvedImageUrl)}
+          onError={() => {
+            const alternate = alternateLegacyAvatarUrl(resolvedImageUrl);
+            if (
+              alternate &&
+              alternate !== resolvedImageUrl &&
+              !attemptedRecoveryRef.current.has(alternate)
+            ) {
+              attemptedRecoveryRef.current.add(resolvedImageUrl);
+              attemptedRecoveryRef.current.add(alternate);
+              setFailedImageUrl("");
+              setRecoveryImageUrl(alternate);
+              return;
+            }
+
+            setFailedImageUrl(resolvedImageUrl);
+          }}
         />
       ) : null}
     </Avatar>

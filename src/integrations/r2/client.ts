@@ -104,14 +104,11 @@ export function getLegacyProfileAvatarOpenUrl(sourceUrl: string | null | undefin
     return raw;
   }
 
-  const route = `/api/profile-avatar-open?source=${encodeURIComponent(raw)}`;
-  const isLocalBrowser =
-    typeof window !== "undefined" &&
-    ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname);
-
-  // No VS Code/local usamos sempre o middleware Vite atualizado. Em produção,
-  // respeitamos VITE_R2_API_BASE quando existir.
-  return isLocalBrowser ? route : buildApiUrl(route);
+  // Avatar legado deve sempre usar a API do MESMO host da aplicação.
+  // Em produção, VITE_R2_API_BASE pode apontar para outro host/ambiente e não
+  // deve participar da renderização do perfil. O rewrite do Vercel encaminha
+  // esta rota internamente para a função consolidada /api/r2.
+  return `/api/profile-avatar-open?source=${encodeURIComponent(raw)}`;
 }
 
 export function getMunicipalityLogoOpenUrl(objectKey: string | null | undefined) {

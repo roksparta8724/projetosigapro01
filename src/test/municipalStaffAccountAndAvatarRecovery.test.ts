@@ -62,6 +62,15 @@ describe("municipal staff account and avatar recovery regressions", () => {
     expect(admin).toContain('navigate("/configuracoes?secao=branding")');
   });
 
+  it("keeps production avatar recovery on the same origin and falls back both ways", () => {
+    expect(r2Client).toContain('return \`/api/profile-avatar-open?source=\${encodeURIComponent(raw)}\`;');
+    expect(r2Client).not.toContain("return isLocalBrowser ? route : buildApiUrl(route)");
+    expect(avatar).toContain("alternateLegacyAvatarUrl");
+    expect(avatar).toContain("recoveryImageUrl");
+    expect(avatar).toContain('current.pathname === "/api/profile-avatar-open"');
+    expect(avatar).toContain('current.pathname.startsWith("/storage/v1/object/public/avatars/")');
+  });
+
   it("recovers old Supabase avatars and caches them in the current R2 storage", () => {
     expect(backend).toContain("getLegacyProfileAvatarOpenUrl");
     expect(r2Client).toContain("/api/profile-avatar-open?source=");
