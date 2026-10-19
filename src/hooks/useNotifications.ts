@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import {
+  deleteMyNotifications,
   getMyUnreadNotificationCount,
   listMyNotifications,
   markAllMyNotificationsRead,
@@ -130,6 +131,27 @@ export function useNotifications(options?: {
     }
   }, [refresh]);
 
+  const deleteNotifications = useCallback(
+    async (notificationIds?: string[]) => {
+      const ids = (notificationIds ?? []).filter(Boolean);
+      if (ids.length > 0) {
+        setNotifications((current) => current.filter((item) => !ids.includes(item.id)));
+      } else {
+        setNotifications([]);
+      }
+
+      try {
+        await deleteMyNotifications(ids);
+        await refresh();
+        emitNotificationsChanged();
+      } catch (deleteError) {
+        await refresh();
+        throw deleteError;
+      }
+    },
+    [refresh],
+  );
+
   const unreadNotifications = useMemo(
     () => notifications.filter((item) => !item.isRead),
     [notifications],
@@ -144,5 +166,6 @@ export function useNotifications(options?: {
     refresh,
     markRead,
     markAllRead,
+    deleteNotifications,
   };
 }
