@@ -96,15 +96,20 @@ describe("profile and branding persistence regressions", () => {
     expect(userAvatar).toContain("const resolvedImageUrl = recoveryImageUrl || stableImageUrl || imageUrl ||");
   });
 
-  it("serializes avatar saves and keeps the pending file when R2 image verification fails", () => {
-    expect(profilePage).toContain("avatarFrameSaveInFlightRef");
-    expect(profilePage).toContain("if (avatarFrameSaveInFlightRef.current) await avatarFrameSaveInFlightRef.current");
+  it("saves avatar, crop and topbar preference together without competing autosave requests", () => {
+    expect(profilePage).toContain("setAvatarDraftDirty(true)");
+    expect(profilePage).toContain("avatarDraftDirty || avatarFrameDirtyRef.current || saving");
+    expect(profilePage).toContain("Ajustes da foto e do cabeçalho são confirmados juntos");
+    expect(profilePage).not.toContain("avatarFrameSaveInFlightRef");
     expect(profilePage).toContain("if (saving) return");
-    expect(profilePage).toContain("const avatarReadConfirmed = !avatarUploadFile || await confirmSavedAvatarReadable(savedAvatarUrl)");
-    expect(profilePage).toContain("if (avatarFrameEditVersionRef.current === editVersion)");
+    expect(profilePage).toContain("section === \"foto-identidade\" && !avatarHeaderChoiceTouchedRef.current");
+    expect(profilePage).toContain("const avatarReadConfirmed = !savedAvatarUrl ||");
+    expect(profilePage).toContain("await confirmSavedAvatarReadable(savedAvatarUrl)");
     expect(profilePage).toContain("} else if (!savedAvatarUrl) {");
     expect(profilePage).toContain('imageUrl={form.useAvatarInHeader ? avatarPreviewUrl : ""}');
     expect(portalFrame).toContain("const topbarAvatarImageUrl = userProfile?.useAvatarInHeader");
+    expect(backend).toContain("O banco não confirmou a exibição da foto no cabeçalho");
+    expect(backend).toContain("O banco não confirmou o enquadramento da foto");
   });
 
   it("persists private R2 avatars after confirmation and preserves edits across F5", () => {
