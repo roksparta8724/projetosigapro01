@@ -62,7 +62,7 @@ describe("commercial plan enforcement", () => {
   });
 
   it("validates tenant scope and storage quota before writing to R2", () => {
-    const uploadApi = read("api/r2-upload.ts");
+    const uploadApi = read("server/api/r2-upload.ts");
     expect(uploadApi).toContain('callDataApiRpc(req, "has_tenant_access"');
     expect(uploadApi).toContain('capability =');
     expect(uploadApi).toContain('"storage_bytes"');

@@ -15,7 +15,12 @@ function extractStaticClassNames(source: string) {
 }
 
 const root = resolve(process.cwd(), "src");
-const files = walk(root).filter((file) => /\.(tsx|ts)$/.test(file) && !file.includes("/test/"));
+const files = walk(root).filter((file) => {
+  if (!/\.(tsx|ts)$/.test(file)) return false;
+  const relativePath = relative(root, file);
+  const segments = relativePath.split(/[\\/]+/);
+  return !segments.includes("test");
+});
 
 describe("project-wide foreground/background contrast audit", () => {
   it("contains no direct same-element light-on-light or dark-on-dark utility combinations", () => {

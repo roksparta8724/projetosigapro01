@@ -11,7 +11,12 @@ describe("F5, logout and topbar visual continuity", () => {
   const platformData = readFileSync(resolve(process.cwd(), "src/hooks/usePlatformData.tsx"), "utf8");
   const planEntitlements = readFileSync(resolve(process.cwd(), "src/hooks/usePlanEntitlements.ts"), "utf8");
   const processDetail = readFileSync(resolve(process.cwd(), "src/pages/saas/ProcessDetailPage.tsx"), "utf8");
+  const analystDesk = readFileSync(resolve(process.cwd(), "src/pages/saas/AnalystDeskPage.tsx"), "utf8");
   const urbanChecklist = readFileSync(resolve(process.cwd(), "src/components/platform/UrbanAnalysisChecklistPanel.tsx"), "utf8");
+  const habiteInspection = readFileSync(resolve(process.cwd(), "src/components/platform/HabiteSeInspectionPanel.tsx"), "utf8");
+  const habitePermit = readFileSync(resolve(process.cwd(), "src/components/platform/HabiteSePermitPanel.tsx"), "utf8");
+  const stableStatusMigration = readFileSync(resolve(process.cwd(), "supabase/migrations/20261019025000_habite_se_completion_via_stable_status_rpc.sql"), "utf8");
+  const assigneeIntegrityMigration = readFileSync(resolve(process.cwd(), "supabase/migrations/20261019035500_fix_analysis_assignee_profile_integrity.sql"), "utf8");
   const viteConfig = readFileSync(resolve(process.cwd(), "vite.config.ts"), "utf8");
   const css = readFileSync(resolve(process.cwd(), "src/index.css"), "utf8");
 
@@ -40,14 +45,22 @@ describe("F5, logout and topbar visual continuity", () => {
   });
 
   it("locks background and zoom before first paint and never clears zoom on teardown", () => {
-    expect(html).toContain('window.localStorage.getItem("sigapro.last-page-background.v1")');
-    expect(html).toContain('window.localStorage.getItem("sigapro-layout-theme")');
-    expect(html).toContain('window.localStorage.getItem("sigapro.effective-theme.v1")');
+    expect(html).toContain('window.localStorage.getItem("sigapro.last-page-background.v2")');
+    expect(html).toContain('window.localStorage.getItem("sigapro-layout-theme.v2")');
+    expect(html).toContain('window.localStorage.getItem("sigapro.effective-theme.v2")');
     expect(html).toContain('document.documentElement.style.setProperty("--sig-initial-bg", initialBackground)');
     expect(html).toContain("document.documentElement.style.zoom = initialAppZoom");
     expect(html).toContain('document.documentElement.setAttribute(');
     expect(html).toContain('"data-page-zoom"');
     expect(html).toContain("initialAppZoom");
+  });
+
+  it("seeds refresh continuity before React renders so Habite-se never disappears on F5", () => {
+    expect(main).toContain("persistRefreshContinuity();\n\nbootApplication();");
+    expect(main.indexOf("persistRefreshContinuity();\n\nbootApplication();")).toBeGreaterThan(-1);
+    expect(main.indexOf("persistRefreshContinuity();\n\nbootApplication();")).toBeLessThan(
+      main.lastIndexOf("bootApplication();") + 1,
+    );
   });
 
   it("treats same-user warm store as visually ready during F5 revalidation", () => {
@@ -59,11 +72,30 @@ describe("F5, logout and topbar visual continuity", () => {
     expect(planEntitlements).toContain("explicitIdentityMismatch");
   });
 
+  it("does not show the blocking official-data outage banner when current-user data is already usable", () => {
+    expect(portal).toContain("dataReadyForCurrentUser");
+    expect(portal).toContain("showBlockingOfficialDataError");
+    expect(portal).toContain("dataError &&");
+    expect(portal).toContain("!loading &&");
+    expect(portal).toContain("!dataReadyForCurrentUser &&");
+    expect(portal).toContain("{showBlockingOfficialDataError ? (");
+  });
+
   it("keeps the last verified process model available during a hard refresh", () => {
     expect(processDetail).toContain("sigapro.process-view.v1:");
     expect(processDetail).toContain("readCachedProcessVisual");
     expect(processDetail).toContain("writeCachedProcessVisual");
-    expect(processDetail).toContain("const process = liveProcess ?? cachedProcessVisual");
+    expect(processDetail).toContain("const baseProcess = liveProcess ?? cachedProcessVisual");
+    expect(processDetail).toContain("const process = useMemo(() =>");
+  });
+
+  it("keeps the Habite-se tab mounted while process permissions revalidate on F5", () => {
+    expect(processDetail).toContain("const stableProtocolTrackingOnly");
+    expect(processDetail).toContain("dataReadyForCurrentUser && !platformDataLoading");
+    expect(processDetail).toContain("stableProtocolTrackingOnly && preferredTab");
+    expect(processDetail).toContain("stableProtocolTrackingOnly && requested");
+    expect(processDetail).toContain("if (!stableProtocolTrackingOnly) return");
+    expect(processDetail).toContain("dataReadyForCurrentUser &&\n                  session.id !== \"unknown\"");
   });
 
   it("keeps the current Analysis tab visible while the same session revalidates", () => {
@@ -75,15 +107,105 @@ describe("F5, logout and topbar visual continuity", () => {
 
   it("persists the effective municipal theme so refresh cannot flash another palette", () => {
     expect(portal).toContain("readEffectiveThemeCache");
-    expect(portal).toContain('"sigapro.effective-theme.v1"');
+    expect(portal).toContain('"sigapro.effective-theme.v2"');
     expect(portal).toContain("stableMunicipalityTheme");
     expect(portal).toContain("municipalityLoading ? effectiveThemeCache?.background");
+  });
+
+  it("never paints mobile and desktop topbar logos together during F5", () => {
+    expect(portal).toContain("isDesktopTopbarViewport");
+    expect(portal).toContain('window.matchMedia("(min-width: 1024px)")');
+    expect(portal).toContain('data-topbar-brand-viewport="mobile"');
+    expect(portal).toContain('data-topbar-viewport="desktop"');
+    expect(portal).toContain('display: isDesktopTopbarViewport ? "none" : undefined');
+    expect(portal).toContain('display: isDesktopTopbarViewport ? undefined : "none"');
+  });
+
+  it("compensates the 85 percent app zoom so the footer logo cannot jump into the initial viewport", () => {
+    expect(portal).toContain('data-refresh-layout-stable={focusMode ? "false" : "true"}');
+    expect(portal).toContain('minHeight: "117.6470588235vh"');
   });
 
   it("hydrates analysis checklist synchronously before first paint", () => {
     expect(urbanChecklist).toContain("readInitialChecklistState(key, process, session)");
     expect(urbanChecklist).toContain("useState<AnalysisChecklistState>(() =>");
     expect(urbanChecklist).not.toContain("useState<AnalysisChecklistState>(() => makeInitialState(process, session))");
+  });
+
+  it("never dereferences documents or requirement types before the process model exists", () => {
+    expect(processDetail).toContain('const canAttachToRequirement = (item: ProcessRecord["requirements"][number])');
+    expect(processDetail).toContain('const recoverableDocumentsFingerprint = (process?.documents ?? [])');
+    expect(processDetail).not.toContain('const recoverableDocumentsFingerprint = process.documents');
+  });
+
+  it("rehydrates an archived detail route by protocol or UUID instead of querying protocol text as a UUID", () => {
+    expect(processDetail).toContain("refreshRemoteStore(processId ?? null)");
+    expect(processDetail).toContain('query.eq("protocol_number", routeKey)');
+    expect(processDetail).toContain('query.eq("id", resolvedProcessId)');
+    expect(processDetail).toContain("baseProcess?.id");
+  });
+
+  it("prevents analysis ownership from pointing to non-analyst profiles", () => {
+    expect(assigneeIntegrityMigration).toContain("role='analista'");
+    expect(assigneeIntegrityMigration).toContain("trg_guard_process_analysis_assignee");
+    expect(assigneeIntegrityMigration).toContain("new.analysis_assigned_to :=");
+  });
+
+  it("renders the same canonical analyst name whenever the assigned profile id is the same", () => {
+    expect(analystDesk).toContain("resolveAssignedAnalystName");
+    expect(analystDesk).toContain("sessionUsers.find((user) => user.id === profileId)");
+    expect(analystDesk).toContain("const currentAnalyst = resolveAssignedAnalystName(process)");
+  });
+
+  it("keeps concluded processes visible and archives only per profile", () => {
+    expect(processDetail).toContain('status: "deferido"');
+    expect(analystDesk).toContain('"concluidos"');
+    expect(analystDesk).toContain('"profile_process_archives"');
+    expect(analystDesk).toContain("Arquivar da minha lista");
+    expect(analystDesk).toContain("Processos concluídos");
+  });
+
+  it("keeps the Acompanhamento tab synchronized with the official final state", () => {
+    expect(processDetail).toContain('data-process-live-state={process.status}');
+    expect(processDetail).toContain('isFinalProcessStatus ? "Concluído" : "Em andamento"');
+    expect(processDetail).toContain('data-process-final-milestone="true"');
+    expect(processDetail).toContain("Processo concluído");
+    expect(processDetail).toContain("intervalMs: 1800");
+  });
+
+  it("marks every Habite-se workflow step done after final process status", () => {
+    expect(processDetail).toContain('state: isFinalProcessStatus');
+    expect(processDetail).toContain('? "done"');
+    expect(processDetail).toContain('isHabiteSeProcess\n        ? "Concluído"');
+  });
+
+  it("keeps the current process live even when it leaves the active store after archive", () => {
+    expect(processDetail).toContain('.from("processes")');
+    expect(processDetail).toContain('"id,status,current_department,current_queue,sla_stage,process_checkpoint,archived_at,updated_at"');
+    expect(processDetail).toContain("setDirectProcessState");
+    expect(processDetail).toContain("setCachedProcessVisual");
+    expect(processDetail).toContain("window.setInterval(() => void syncExactProcess(), 1500)");
+  });
+
+  it("treats repeated status commands as idempotent instead of surfacing P0001", () => {
+    expect(stableStatusMigration).toContain("'already_current',true");
+    expect(stableStatusMigration).not.toContain("raise exception 'Processo ja esta neste status'");
+  });
+
+  it("hydrates Habite-se inspection from a visual cache before the first paint", () => {
+    expect(habiteInspection).toContain("readInspectionVisualCache(process.id, session.id)");
+    expect(habiteInspection).toContain("initialVisual?.inspection ?? null");
+    expect(habiteInspection).toContain("initialVisual?.checklist ?? emptyChecklist()");
+    expect(habiteInspection).toContain("Boolean(initialVisual)");
+    expect(habiteInspection).toContain("writeInspectionVisualCache");
+  });
+
+  it("hydrates the Habite-se permit from a visual cache before async revalidation", () => {
+    expect(habitePermit).toContain("readPermitVisualCache(process.id, session.id)");
+    expect(habitePermit).toContain("initialVisual?.permit ?? null");
+    expect(habitePermit).toContain("initialVisual?.form ?? initialForm(process)");
+    expect(habitePermit).toContain("initialVisual?.signatureState");
+    expect(habitePermit).toContain("writePermitVisualCache");
   });
 
   it("persists process tab authorization per user and process across F5", () => {

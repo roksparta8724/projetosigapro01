@@ -10,7 +10,7 @@ describe("payment responsibility boundaries", () => {
     const detail = read("src/pages/saas/ProcessDetailPage.tsx");
 
     expect(protocol).toContain('markGuideAsPaid(process.id, session.name, "protocolo")');
-    expect(protocol).toContain("Responsabilidade do Protocolo");
+    expect(protocol).toContain("Confirmar pagamento recebido");
     expect(detail).not.toContain("handleConfirmProtocolPayment");
     expect(detail).not.toContain("confirm-protocol-payment");
   });
@@ -25,10 +25,12 @@ describe("payment responsibility boundaries", () => {
     expect(detail).toContain("Somente o Setor Financeiro pode confirmar");
   });
 
-  it("keeps the Finance list free from the initial protocol guide", () => {
+  it("keeps protocol guides visible for financial audit without transferring operational responsibility", () => {
     const finance = read("src/pages/saas/FinanceProtocolsPage.tsx");
 
-    expect(finance).toContain('.filter((guide) => guide.kind !== "protocolo")');
-    expect(finance).toContain("A guia inicial pertence ao Protocolo.");
+    expect(finance).toContain('if (kind === "protocolo") return "Baixa operacional: Protocolo"');
+    expect(finance).toContain('const isProtocolGuide = guide.kind === "protocolo"');
+    expect(finance).toContain("!isProtocolGuide");
+    expect(finance).toContain("O Financeiro enxerga todos os protocolos ativos do município.");
   });
 });

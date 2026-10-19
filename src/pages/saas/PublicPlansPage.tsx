@@ -192,11 +192,11 @@ export function PublicPlansPage() {
                 </div>
               </div>
               <div className="mt-6 grid gap-3">
-                {[
+                {([
                   ["Planos ativos", String(plans.length), CreditCard],
                   ["Módulos configuráveis", "6+", Layers3],
                   ["Governança multi-tenant", "Isolada", ShieldCheck],
-                ].map(([label, value, Icon]) => (
+                ] as Array<[string, string, typeof CreditCard]>).map(([label, value, Icon]) => (
                   <div key={label as string} className="flex items-center justify-between gap-4 rounded-[22px] border border-white/10 bg-white/[0.06] p-4">
                     <div className="flex min-w-0 items-center gap-3">
                       <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-sky-400/12 text-sky-200">

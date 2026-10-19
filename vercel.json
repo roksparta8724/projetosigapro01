@@ -12,6 +12,26 @@
   ],
   "rewrites": [
     {
+      "source": "/api/health",
+      "destination": "/api/storage-connection?action=health"
+    },
+    {
+      "source": "/api/payment-connection",
+      "destination": "/api/mercadopago?action=payment-connection"
+    },
+    {
+      "source": "/api/mercadopago/health",
+      "destination": "/api/mercadopago?action=health"
+    },
+    {
+      "source": "/api/mercadopago/guide-boleto",
+      "destination": "/api/mercadopago?action=guide-boleto"
+    },
+    {
+      "source": "/api/mercadopago/guide-status",
+      "destination": "/api/mercadopago?action=guide-status"
+    },
+    {
       "source": "/api/r2-upload",
       "destination": "/api/r2?action=upload"
     },
@@ -32,6 +52,10 @@
       "destination": "/api/r2?action=master-logo-source"
     },
     {
+      "source": "/api/profile-avatar-open",
+      "destination": "/api/r2?action=profile-avatar-open"
+    },
+    {
       "source": "/api/(.*)",
       "destination": "/api/$1"
     },
@@ -42,8 +66,9 @@
   ],
   "git": {
     "deploymentEnabled": {
-      "*": false,
-      "main": true
+      "workbench-sigapro-polish-no-deploy-20261009": false,
+      "fix/analise-premium-cadastro-20261013": false,
+      "workbench/logo-preview-premium-no-deploy-20261016": false
     }
   }
 }

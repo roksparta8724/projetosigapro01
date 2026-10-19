@@ -9,6 +9,9 @@ describe("municipal branding runtime resilience", () => {
   const branding = read("src/hooks/useInstitutionBranding.ts");
   const settings = read("src/pages/saas/ConfiguracoesPage.tsx");
   const logo = read("src/components/platform/InstitutionalLogo.tsx");
+  const portal = read("src/components/platform/PortalFrame.tsx");
+  const editor = read("src/components/platform/ImageFrameEditor.tsx");
+  const upload = read("src/components/platform/FileDropZone.tsx");
   const surface = read("src/styles/surface-polarity.css");
 
   it("builds the browser favicon from a persistent object key instead of trusting an expired signed URL", () => {
@@ -28,17 +31,17 @@ describe("municipal branding runtime resilience", () => {
     expect(branding).toContain("getSignedUrlForObjectStrict");
     expect(branding).toContain("isUsableBrandingUrl(base.logoUrl)");
     expect(branding).toContain("municipalityLogoFallback");
-    expect(branding).toContain("base.brasaoUrl");
+    expect(branding).toContain("institutionSettings?.brasaoUrl");
   });
 
   it("keeps the municipal logo selected in the working environment ahead of the generic tenant logo", () => {
     const headerBlock = branding.slice(
-      branding.indexOf("const resolvedTenantHeaderLogo ="),
-      branding.indexOf("if (resolvedTenantHeaderLogo)", branding.indexOf("const resolvedTenantHeaderLogo =")),
+      branding.indexOf("const primaryHeaderLogo ="),
+      branding.indexOf("if (primaryHeaderLogo)", branding.indexOf("const primaryHeaderLogo =")),
     );
     const footerBlock = branding.slice(
-      branding.indexOf("const resolvedTenantFooterLogo ="),
-      branding.indexOf("if (resolvedTenantFooterLogo)", branding.indexOf("const resolvedTenantFooterLogo =")),
+      branding.indexOf("const primaryFooterLogo ="),
+      branding.indexOf("if (primaryFooterLogo)", branding.indexOf("const primaryFooterLogo =")),
     );
 
     expect(headerBlock.indexOf("resolvedTenantHeaderLogoUrl")).toBeLessThan(
@@ -60,7 +63,7 @@ describe("municipal branding runtime resilience", () => {
     expect(branding).toContain("resolvedTenantHeaderLogoUrl");
     expect(branding).toContain("resolvedTenantFooterLogoUrl");
     expect(branding).toContain("institutionalFallback");
-    expect(branding).toContain("base.brasaoUrl");
+    expect(branding).toContain("institutionSettings?.brasaoUrl");
     expect(branding).toContain("municipalityLogoFallback");
     expect(branding).not.toContain("hasPersistedHeaderIdentity");
     expect(branding).not.toContain("hasPersistedFooterIdentity");
@@ -75,19 +78,98 @@ describe("municipal branding runtime resilience", () => {
     expect(logo).toContain("secondaryUrl");
   });
 
-  it("uses a premium uncropped frame for the municipal logo without stale session cache", () => {
-    expect(logo).toContain('LOGO_SESSION_CACHE_KEY = "sigapro.institutional-logo.v2"');
+  it("keeps the exact configured municipal logo across F5 instead of flashing the crest-only fallback", () => {
+    expect(branding).toContain('TENANT_LOGO_CACHE_PREFIX = "sigapro.municipality-logo.v3"');
+    expect(branding).toContain("readTenantLogoCache");
+    expect(branding).toContain("writeTenantLogoCache");
+    expect(branding).toContain("synchronousHeaderUrl");
+    expect(branding).toContain("synchronousFooterUrl");
+    expect(branding).toContain("primaryHeaderLogo");
+    expect(branding).toContain("primaryFooterLogo");
+    expect(settings).toContain("getMunicipalityLogoOpenUrl");
+    expect(settings).toContain('persistentRef.startsWith("r2:")');
+    expect(settings).toContain('bucket === "institutional-branding"');
+    expect(settings).toContain("getMunicipalityLogoOpenUrl(uploaded.path)");
+    expect(settings).not.toContain("domínio público dos ativos institucionais não está configurado");
+    expect(settings).toContain("Brasão oficial salvo com sucesso no cadastro desta Prefeitura");
+  });
+
+  it("never flashes the SIGAPRO platform logo inside a municipal logo frame during F5", () => {
+    expect(logo).toContain('contextScope?: "auto" | "master" | "municipality"');
+    expect(logo).toContain('contextScope === "municipality"');
+    expect(logo).toContain("sameAssetResource(requestedCandidate, SIGAPRO_OFFICIAL_LOGO)");
+    expect(logo).toContain("cachedAtMountAllowed");
+    expect(logo).toContain("loadedSourceAllowed");
+    expect(logo).toContain("loadedSource.context === context");
+    expect(logo).toContain("const pendingUrl =");
+    expect(portal).toContain('contextScope={isMasterUser ? "master" : "municipality"}');
+    expect(logo).toContain("setFailedSources([])");
+    expect(logo).toContain("[context, requestedUrl, secondaryUrl]");
+  });
+
+  it("never replays a coat-of-arms fallback over a configured municipal logo during refresh", () => {
+    expect(logo).toContain("O cache é isolado por Prefeitura + variante");
+    expect(logo).toContain("loadedSource.context === context");
+    expect(logo).toContain("pendingIsAuthoritative");
+    expect(logo).toContain("Não pré-carregue nem");
+    expect(logo).toContain("isAuthoritativeCurrentLogo");
+    expect(logo).toContain("Só a imagem configurada entra no cache municipal");
+    expect(logo).toContain('parsed.pathname.endsWith("/api/municipality-logo-open")');
+    expect(logo).toContain('parsed.searchParams.get("objectKey")');
+  });
+
+  it("uses a premium uncropped frame with same-context session continuity", () => {
+    expect(logo).toContain('LOGO_SESSION_CACHE_KEY = "sigapro.institutional-logo.v3"');
     expect(logo).toContain("data-logo-variant={variant}");
     expect(surface).toContain("MUNICIPAL LOGO PREMIUM STAGE V17");
     expect(surface).toContain("object-fit:contain !important");
-    expect(surface).toContain("transform:none !important");
+    expect(surface).toContain("transform-origin:center center !important");
+    expect(logo).toContain("Math.max(1, Math.min(5, configuredScale))");
+    expect(settings).toContain("minScale={1}");
   });
 
-  it("edits exactly the runtime-resolved municipal logo in the frame editor", () => {
-    expect(settings).toContain("draftHeaderLogoFiles[0]?.previewUrl ??");
-    expect(settings).toContain("headerBranding.logoUrl ??");
-    expect(settings).toContain("draftFooterLogoFiles[0]?.previewUrl ??");
-    expect(settings).toContain("footerBranding.logoUrl ??");
+  it("uses one resilient source for live preview and frame editor", () => {
+    expect(settings).toContain("firstRenderablePreviewUrl");
+    expect(settings).toContain("const previewHeaderLogoUrl =");
+    expect(settings).toContain("const previewFooterLogoUrl =");
+    expect(settings).toContain("const previewHeaderDisplayUrl =");
+    expect(settings).toContain("const previewFooterDisplayUrl =");
+    expect(settings).toContain('data-municipal-logo-live-preview="header"');
+    expect(settings).toContain('data-municipal-logo-live-preview="footer"');
+    expect(settings).toContain("imageUrl={previewHeaderDisplayUrl}");
+    expect(settings).toContain("imageUrl={previewFooterDisplayUrl}");
+    expect(settings).toContain("headerBranding.fallbackLogoUrl");
+    expect(settings).toContain("footerBranding.fallbackLogoUrl");
+    expect(settings).toContain("Math.max(1, draftHeaderLogoConfig.scale)");
+    expect(settings).toContain("Math.max(1, draftFooterLogoConfig.scale)");
+  });
+
+  it("keeps preview changes isolated from the page chrome and accepts the stable same-origin logo proxy", () => {
+    expect(settings).toContain('data-config-brand-panel="header"');
+    expect(settings).toContain('data-config-brand-panel="footer"');
+    expect(settings).toContain('<PageShell>');
+    expect(settings).toContain('className="rounded-[30px] p-5 md:p-6 lg:p-7"');
+    expect(editor).toContain('normalized.startsWith("/")');
+    expect(surface).not.toContain("CONFIGURACOES MUNICIPAIS PREMIUM V19");
+    expect(surface).toContain("ENQUADRAMENTO INSTITUCIONAL EXATO V20");
+    expect(surface).toContain("CONTRASTE DO PREVIEW INSTITUCIONAL V21");
+  });
+
+  it("keeps the whole crest visible at 1x with one square geometry in preview and editor", () => {
+    expect(settings).toContain('width: 188, minWidth: 188, maxWidth: 188, height: 188');
+    expect(settings).toContain('viewportClassName="!h-[188px] !w-[188px]"');
+    expect(settings).toContain("draftHeaderLogoConfig.scale <= 1.001 ? 0 : draftHeaderLogoConfig.offsetX");
+    expect(settings).toContain("draftFooterLogoConfig.scale <= 1.001 ? 0 : draftFooterLogoConfig.offsetX");
+    expect(settings).toContain("setDraftHeaderLogoConfig({ scale: 1, offsetX: 0, offsetY: 0 })");
+    expect(settings).toContain("setDraftFooterLogoConfig({ scale: 1, offsetX: 0, offsetY: 0 })");
+    expect(settings.match(/allowPreview=\{false\}/g)?.length).toBeGreaterThanOrEqual(2);
+    expect(settings.match(/preparePreviewUrl/g)?.length).toBeGreaterThanOrEqual(2);
+    expect(upload).toContain("preparePreviewUrl?: boolean");
+    expect(upload).toContain("(!allowPreview && !preparePreviewUrl)");
+    expect(editor).toContain('data-image-frame-viewport="true"');
+    expect(surface).toContain("width:188px !important");
+    expect(surface).toContain("height:188px !important");
+    expect(surface).not.toContain("max-width:1540px !important");
   });
 
   it("does not reuse an expired persisted logo merely because a URL string exists", () => {

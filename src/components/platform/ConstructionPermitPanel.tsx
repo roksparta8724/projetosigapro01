@@ -19,6 +19,7 @@ import {
   Signature,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { SignatureVerificationQr } from "@/components/platform/SignatureVerificationQr";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -46,7 +47,7 @@ import {
   type ConstructionPermitFormData,
   type ConstructionPermitRecord,
 } from "@/lib/constructionPermit";
-import { openConstructionPermitPdf } from "@/lib/constructionPermitPdf";
+import { openConstructionPermitPdf, reserveConstructionPermitPdfWindow } from "@/lib/constructionPermitPdf";
 import {
   ArtifactSignatureError,
   getProcessArtifactSignatures,
@@ -59,6 +60,7 @@ import {
   saveOfficialConstructionPermitDraft,
 } from "@/integrations/permits/constructionPermitClient";
 import type { ProcessRecord, SessionUser, UserProfile } from "@/lib/platform";
+import { buildPublicSignatureVerificationUrl } from "@/lib/signatureVerification";
 
 type ConstructionPermitPanelProps = {
   process: ProcessRecord;
@@ -101,7 +103,7 @@ function permitStatusLabel(record: ConstructionPermitRecord | null) {
   );
   if (directorOfficial) return "Alvará emitido";
   if (record.signatureMode === "manual" || record.status === "assinatura_manual") {
-    return "Preparado para assinatura à caneta";
+    return "Preparado para assinatura";
   }
   if (
     record.signatureMode === "electronic" ||
@@ -309,10 +311,20 @@ export function ConstructionPermitPanel({
     permit?.directorSignature?.official &&
     permit?.directorSignature?.verificationCode,
   );
+  const directorVerificationUrl = directorOfficial
+    ? buildPublicSignatureVerificationUrl(
+        permit?.directorSignature?.verificationCode,
+      )
+    : "";
   const secretaryOfficial = Boolean(
     permit?.secretarySignature?.official &&
     permit?.secretarySignature?.verificationCode,
   );
+  const secretaryVerificationUrl = secretaryOfficial
+    ? buildPublicSignatureVerificationUrl(
+        permit?.secretarySignature?.verificationCode,
+      )
+    : "";
   const directorRequestPending =
     permit?.status === "aguardando_diretor" &&
     permit?.signatureMode === "electronic";
@@ -386,24 +398,36 @@ export function ConstructionPermitPanel({
     }));
   };
 
-  const openPdf = (
+  const openPdf = async (
     record: ConstructionPermitRecord | null = permit,
     manualSignature = manualSignatureSelected,
+    reservedWindow?: Window | null,
   ) => {
     if (!record) return;
-    void openConstructionPermitPdf({
-      permit: record,
-      process,
-      municipalityName,
-      municipalityLogoUrl,
-      municipalityAddress,
-      municipalityPhone,
-      municipalityEmail,
-      secretariat,
-      directorate,
-      technicalProfile,
-      manualSignature,
-    });
+    try {
+      await openConstructionPermitPdf(
+        {
+          permit: record,
+          process,
+          municipalityName,
+          municipalityLogoUrl,
+          municipalityAddress,
+          municipalityPhone,
+          municipalityEmail,
+          secretariat,
+          directorate,
+          technicalProfile,
+          manualSignature,
+        },
+        reservedWindow,
+      );
+    } catch (error) {
+      setStatus(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível abrir o PDF oficial do Alvará.",
+      );
+    }
   };
 
   const openPermitForm = () => {
@@ -526,7 +550,7 @@ export function ConstructionPermitPanel({
       setPermit(next);
       if (closeAfterSave) setFillOpen(false);
       setStatus(
-        "Alvará salvo no banco oficial. Escolha assinatura eletrônica da Diretoria ou PDF para assinatura à caneta.",
+        "Alvará salvo no banco oficial. Escolha assinatura eletrônica da Diretoria ou PDF para assinatura manual.",
       );
       return next;
     } catch (error) {
@@ -542,13 +566,6 @@ export function ConstructionPermitPanel({
   };
 
   const requestDirectorSignature = async () => {
-    if (directors.length === 0) {
-      setStatus(
-        "Não existe um perfil interno ativo identificado como Diretor(a) da área de Urbanismo/Obras. Cadastre ou ajuste o cargo no organograma antes de solicitar a assinatura eletrônica.",
-      );
-      return;
-    }
-
     if (!permitReadyForSignature) {
       setStatus(
         "Conclua a análise documental e confirme a compensação de todas as guias financeiras exigidas antes de solicitar a assinatura da Diretoria.",
@@ -561,7 +578,9 @@ export function ConstructionPermitPanel({
       const saved = await savePermitForm(false, false);
       if (!saved) return;
 
-      const official = await requestOfficialPermitDirectorSignature(process.id);
+      const requestResult =
+        await requestOfficialPermitDirectorSignature(process.id);
+      const official = requestResult.permit;
       const next: ConstructionPermitRecord = {
         ...saved,
         ...official,
@@ -574,7 +593,9 @@ export function ConstructionPermitPanel({
       setPermit(next);
       setFillOpen(false);
       setStatus(
-        "Solicitação enviada à Diretoria. O Diretor pode abrir este processo e assinar eletronicamente com a própria senha.",
+        requestResult.directorName
+          ? `Solicitação enviada com sucesso para ${requestResult.directorName}. O Alvará entrou na fila da Diretoria para assinatura eletrônica com a própria senha.`
+          : "Solicitação enviada com sucesso. O Alvará entrou na fila da Diretoria para assinatura eletrônica. O Diretor deve confirmar a assinatura com a própria senha.",
       );
     } catch (error) {
       setStatus(
@@ -591,6 +612,29 @@ export function ConstructionPermitPanel({
     if (!permitReadyForSignature) {
       setStatus(
         "Conclua a análise documental e confirme a compensação de todas as guias financeiras exigidas antes de gerar o Alvará para assinatura manual.",
+      );
+      return;
+    }
+
+    // Reserva a guia no clique do usuário ANTES das operações assíncronas.
+    // Assim o navegador não bloqueia a abertura quando o banco terminar de salvar.
+    const previewRecord =
+      permit ??
+      createConstructionPermitDraft(process, municipalityId, {
+        ...formData,
+        technicalRegistration:
+          formData.technicalRegistration ||
+          technicalProfile?.registrationNumber ||
+          "",
+      });
+    const reservedPdfWindow = reserveConstructionPermitPdfWindow({
+      permit: previewRecord,
+      process,
+    });
+
+    if (!reservedPdfWindow) {
+      setStatus(
+        "O navegador bloqueou a abertura do PDF. Libere pop-ups para o SIGAPRO e tente novamente.",
       );
       return;
     }
@@ -612,11 +656,12 @@ export function ConstructionPermitPanel({
       writeLocalConstructionPermit(next);
       setPermit(next);
       setFillOpen(false);
-      setStatus(
-        "PDF preparado para assinatura à caneta pela Diretoria.",
-      );
-      openPdf(next, true);
+      // Sucesso de preparação não deve piscar uma mensagem antes de trocar para
+      // o visualizador nativo. Somente erros permanecem visíveis na tela.
+      setStatus("");
+      await openPdf(next, true, reservedPdfWindow);
     } catch (error) {
+      if (!reservedPdfWindow.closed) reservedPdfWindow.close();
       setStatus(
         error instanceof Error
           ? error.message
@@ -832,7 +877,7 @@ export function ConstructionPermitPanel({
                 </div>
                 <Button
                   type="button"
-                  onClick={openPdf}
+                  onClick={() => openPdf()}
                   className="rounded-full bg-emerald-700 px-5 text-white hover:bg-emerald-800"
                 >
                   <FileDown className="mr-2 h-4 w-4" />
@@ -970,7 +1015,8 @@ export function ConstructionPermitPanel({
                   </div>
                   <Button
                     type="button"
-                    className="h-11 shrink-0 rounded-xl bg-[linear-gradient(135deg,#075985_0%,#0f78b8_100%)] px-5 font-bold !text-white shadow-[0_10px_24px_rgba(14,116,181,0.22)] hover:brightness-105 [&_*]:!text-white"
+                    data-premium-action="strong"
+                    className="sig-premium-primary-action h-11 shrink-0 rounded-xl px-5 font-bold"
                     disabled={!canStartDraft}
                     onClick={preparePermit}
                   >
@@ -1016,8 +1062,8 @@ export function ConstructionPermitPanel({
                   <div
                     className={
                       directorOfficial
-                        ? "rounded-[20px] border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-500/30 dark:bg-emerald-950/30"
-                        : "rounded-[20px] border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-950/35"
+                        ? "sig-permit-signature-card rounded-[20px] border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-500/30 dark:bg-emerald-950/30"
+                        : "sig-permit-signature-card rounded-[20px] border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-950/35"
                     }
                   >
                     <div className="flex items-center gap-3">
@@ -1033,18 +1079,59 @@ export function ConstructionPermitPanel({
                             ? `${permit.directorSignature.name} • ${new Date(
                                 permit.directorSignature.signedAt,
                               ).toLocaleString("pt-BR")}`
-                            : manualSignatureSelected
-                              ? "PDF preparado para assinatura à caneta"
-                              : directorRequestPending
-                                ? "Solicitação eletrônica enviada à Diretoria"
+                            : directorRequestPending
+                              ? "Solicitação eletrônica enviada pelo Analista à Diretoria"
+                              : manualSignatureSelected
+                                ? "PDF manual preparado — assinatura eletrônica ainda pode ser solicitada pelo Analista"
                                 : permitReadyForSignature
-                                  ? "Escolha assinatura eletrônica ou assinatura à caneta"
+                                  ? "Aguardando o Analista solicitar a assinatura do Diretor"
                                   : "Disponível após a conclusão das etapas obrigatórias"}
                         </p>
                         {permit.directorSignature?.verificationCode ? (
-                          <p className="mt-1 font-mono text-[10px] font-semibold text-emerald-700 dark:text-emerald-300">
-                            Código: {permit.directorSignature.verificationCode}
-                          </p>
+                          <div
+                            data-director-electronic-signature-evidence="true"
+                            data-premium-signature-evidence="true"
+                            className="sig-electronic-signature-evidence mt-3 grid gap-4 rounded-[18px] border border-emerald-200 bg-white/95 p-4 shadow-[0_12px_28px_rgba(15,23,42,0.08)] sm:grid-cols-[auto_minmax(0,1fr)] dark:border-emerald-500/30 dark:bg-slate-950/55"
+                          >
+                            {directorVerificationUrl ? (
+                              <div
+                                data-director-signature-qr="true"
+                                className="shrink-0"
+                              >
+                                <SignatureVerificationQr
+                                  verificationUrl={directorVerificationUrl}
+                                  alt="QR Code da assinatura eletrônica da Diretoria"
+                                  className="sig-director-signature-qr"
+                                />
+                              </div>
+                            ) : null}
+                            <div className="min-w-0">
+                              <p className="text-[10px] font-black uppercase tracking-[0.1em] text-emerald-700 dark:text-emerald-300">
+                                Assinatura eletrônica verificada
+                              </p>
+                              <p className="mt-1 font-mono text-[10px] font-semibold text-emerald-700 dark:text-emerald-300">
+                                Código: {permit.directorSignature.verificationCode}
+                              </p>
+                              {permit.directorSignature.evidenceHash ? (
+                                <p className="mt-1 break-all font-mono text-[9px] leading-4 text-slate-500 dark:text-slate-400">
+                                  SHA-256: {permit.directorSignature.evidenceHash}
+                                </p>
+                              ) : null}
+                              <p className="mt-2 text-xs leading-5 text-slate-600 dark:text-slate-300">
+                                O QR Code faz parte do bloco da assinatura eletrônica e abre a confirmação pública do código e da integridade do Alvará.
+                              </p>
+                              {directorVerificationUrl ? (
+                                <a
+                                  href={directorVerificationUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="mt-2 inline-flex text-xs font-bold text-sky-700 underline underline-offset-2 hover:text-sky-900 dark:text-sky-300 dark:hover:text-sky-100"
+                                >
+                                  Abrir verificação pública
+                                </a>
+                              ) : null}
+                            </div>
+                          </div>
                         ) : null}
                       </div>
                     </div>
@@ -1053,7 +1140,8 @@ export function ConstructionPermitPanel({
                     userCanSignPermitAsDirector(session) ? (
                       <Button
                         type="button"
-                        className="mt-4 rounded-full bg-violet-700 px-5 text-white hover:bg-violet-800"
+                        data-premium-action="strong"
+                        className="sig-premium-primary-action mt-4 rounded-full px-5 font-bold"
                         disabled={!canSignDirector}
                         onClick={signAsDirector}
                       >
@@ -1070,7 +1158,7 @@ export function ConstructionPermitPanel({
                         onClick={() => openPdf(permit, true)}
                       >
                         <Printer className="mr-2 h-4 w-4" />
-                        Abrir PDF para assinatura à caneta
+                        Abrir PDF do Alvará
                       </Button>
                     ) : null}
 
@@ -1088,7 +1176,7 @@ export function ConstructionPermitPanel({
                   </div>
 
                   {secretaryOfficial ? (
-                    <div className="rounded-[20px] border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-500/30 dark:bg-emerald-950/30">
+                    <div className="sig-permit-signature-card rounded-[20px] border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-500/30 dark:bg-emerald-950/30">
                       <div className="flex items-center gap-3">
                         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300">
                           <BadgeCheck className="h-5 w-5" />
@@ -1103,9 +1191,41 @@ export function ConstructionPermitPanel({
                             ).toLocaleString("pt-BR")}
                           </p>
                           {permit.secretarySignature?.verificationCode ? (
-                            <p className="mt-1 font-mono text-[10px] font-semibold text-emerald-700 dark:text-emerald-300">
-                              Código: {permit.secretarySignature?.verificationCode}
-                            </p>
+                            <div
+                              data-premium-signature-evidence="true"
+                              className="sig-electronic-signature-evidence mt-3 grid gap-4 rounded-[18px] border border-emerald-200 bg-white/95 p-4 shadow-[0_12px_28px_rgba(15,23,42,0.08)] sm:grid-cols-[auto_minmax(0,1fr)]"
+                            >
+                              {secretaryVerificationUrl ? (
+                                <SignatureVerificationQr
+                                  verificationUrl={secretaryVerificationUrl}
+                                  alt="QR Code da assinatura eletrônica da Secretaria"
+                                  className="sig-secretary-signature-qr"
+                                />
+                              ) : null}
+                              <div className="min-w-0">
+                                <p className="text-[10px] font-black uppercase tracking-[0.1em] text-emerald-700 dark:text-emerald-300">
+                                  Assinatura eletrônica verificada
+                                </p>
+                                <p className="mt-1 font-mono text-[10px] font-semibold text-emerald-700 dark:text-emerald-300">
+                                  Código: {permit.secretarySignature.verificationCode}
+                                </p>
+                                {permit.secretarySignature.evidenceHash ? (
+                                  <p className="mt-1 break-all font-mono text-[9px] leading-4 text-slate-500 dark:text-slate-400">
+                                    SHA-256: {permit.secretarySignature.evidenceHash}
+                                  </p>
+                                ) : null}
+                                {secretaryVerificationUrl ? (
+                                  <a
+                                    href={secretaryVerificationUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="mt-2 inline-flex text-xs font-bold text-sky-700 underline underline-offset-2 hover:text-sky-900 dark:text-sky-300 dark:hover:text-sky-100"
+                                  >
+                                    Abrir verificação pública
+                                  </a>
+                                ) : null}
+                              </div>
+                            </div>
                           ) : null}
                         </div>
                       </div>
@@ -1116,8 +1236,7 @@ export function ConstructionPermitPanel({
                 {canStartDraft &&
                 permitReadyForSignature &&
                 !directorOfficial &&
-                !directorRequestPending &&
-                !manualSignatureSelected ? (
+                !directorRequestPending ? (
                   <div className="rounded-[20px] border border-sky-200 bg-[linear-gradient(145deg,#f8fbff_0%,#eef8ff_100%)] p-5 shadow-sm dark:border-sky-500/30 dark:bg-[linear-gradient(145deg,#0d2032_0%,#10283d_100%)]">
                     <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
                       <div>
@@ -1125,22 +1244,32 @@ export function ConstructionPermitPanel({
                           Assinatura do Alvará
                         </p>
                         <p className="mt-1 text-sm font-bold text-slate-950 dark:text-white">
-                          Escolha como a Diretoria vai assinar
+                          O Analista solicita a assinatura do Diretor
                         </p>
                         <p className="mt-1 max-w-3xl text-xs leading-5 text-slate-600 dark:text-slate-300">
-                          Envie para assinatura eletrônica com senha ou gere o PDF para o Diretor assinar à caneta.
+                          Fluxo oficial: o Analista responsável encaminha o Alvará ao Diretor, que entra com a própria conta, confirma com a própria senha e assina eletronicamente. O PDF manual fica apenas como alternativa excepcional.
                         </p>
-                        {directors.length === 0 ? (
-                          <p className="mt-2 text-xs font-semibold text-amber-700 dark:text-amber-300">
-                            Assinatura eletrônica indisponível: nenhum perfil ativo está cadastrado como Diretor(a) de Urbanismo/Obras. A opção de assinatura à caneta continua disponível.
+                        {manualSignatureSelected ? (
+                          <p className="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold leading-5 text-amber-800 dark:border-amber-500/30 dark:bg-amber-950/25 dark:text-amber-200">
+                            Um PDF manual já foi preparado, mas o Analista ainda pode mudar para assinatura eletrônica. Ao solicitar abaixo, o modo manual é cancelado e o Alvará passa para a fila da Diretoria.
                           </p>
                         ) : null}
+                        {directors.length > 0 ? (
+                          <p className="mt-2 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+                            Diretoria identificada: {directors.map((director) => director.name).join(", ")}.
+                          </p>
+                        ) : (
+                          <p className="mt-2 text-xs font-semibold text-sky-700 dark:text-sky-300">
+                            A Diretoria será validada diretamente no banco oficial ao enviar. O botão permanece disponível mesmo enquanto a lista de usuários termina de sincronizar.
+                          </p>
+                        )}
                       </div>
                       <div className="flex flex-col gap-2 sm:flex-row">
                         <Button
                           type="button"
-                          variant="outline"
-                          className="rounded-full border-violet-300 bg-violet-50 px-5 font-bold text-violet-800 hover:bg-violet-100 dark:border-violet-500/40 dark:bg-violet-950/30 dark:text-violet-200"
+                          data-request-director-signature="true"
+                          data-premium-action="strong"
+                          className="sig-premium-primary-action rounded-full px-5 font-bold"
                           disabled={Boolean(workflowBusy)}
                           onClick={() => void requestDirectorSignature()}
                         >
@@ -1149,11 +1278,12 @@ export function ConstructionPermitPanel({
                           ) : (
                             <Send className="mr-2 h-4 w-4" />
                           )}
-                          Enviar ao Diretor para assinar eletronicamente
+                          Solicitar assinatura eletrônica do Diretor
                         </Button>
                         <Button
                           type="button"
-                          className="rounded-full bg-sky-700 px-5 font-bold text-white hover:bg-sky-800"
+                          variant="outline"
+                          className="rounded-full border-slate-300 bg-white px-5 font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200"
                           disabled={Boolean(workflowBusy)}
                           onClick={() => void generateManualSignaturePdf()}
                         >
@@ -1162,7 +1292,7 @@ export function ConstructionPermitPanel({
                           ) : (
                             <Printer className="mr-2 h-4 w-4" />
                           )}
-                          Gerar PDF para assinatura à caneta
+                          Gerar PDF do Alvará para assinatura à caneta
                         </Button>
                       </div>
                     </div>
@@ -1201,8 +1331,9 @@ export function ConstructionPermitPanel({
                       </div>
                       <Button
                         type="button"
-                        onClick={openPdf}
-                        className="rounded-full bg-emerald-700 px-5 text-white hover:bg-emerald-800"
+                        onClick={() => openPdf()}
+                        data-premium-action="strong"
+                        className="sig-premium-primary-action rounded-full px-5 font-bold"
                       >
                         <FileDown className="mr-2 h-4 w-4" />
                         Abrir PDF final
@@ -1228,7 +1359,7 @@ export function ConstructionPermitPanel({
                         {permitFormTitle(formData.workType || process.property.workType || process.type)}
                       </DialogTitle>
                       <DialogDescription className="mt-1 max-w-3xl !text-slate-200">
-                        Revise os dados e escolha a forma de assinatura da Diretoria: enviar para assinatura eletrônica com senha ou gerar o PDF para assinatura à caneta. A assinatura do Secretário é opcional e só aparece no Alvará quando ele realmente assinar eletronicamente.
+                        Revise os dados e escolha a forma de assinatura da Diretoria: enviar para assinatura eletrônica com senha ou gerar o PDF para assinatura manual. A assinatura do Secretário é opcional e só aparece no Alvará quando ele realmente assinar eletronicamente.
                       </DialogDescription>
                     </div>
                   </div>
@@ -1485,7 +1616,7 @@ export function ConstructionPermitPanel({
                         type="button"
                         variant="outline"
                         className="rounded-full border-violet-300 bg-violet-50 px-5 font-bold text-violet-800 hover:bg-violet-100 dark:border-violet-500/40 dark:bg-violet-950/30 dark:text-violet-200"
-                        disabled={!permitReadyForSignature || directors.length === 0 || Boolean(workflowBusy)}
+                        disabled={!permitReadyForSignature || Boolean(workflowBusy)}
                         onClick={() => void requestDirectorSignature()}
                       >
                         {workflowBusy === "request" ? (
@@ -1493,7 +1624,7 @@ export function ConstructionPermitPanel({
                         ) : (
                           <Send className="mr-2 h-4 w-4" />
                         )}
-                        Enviar ao Diretor para assinar eletronicamente
+                        Solicitar assinatura eletrônica do Diretor
                       </Button>
 
                       <Button
@@ -1507,7 +1638,7 @@ export function ConstructionPermitPanel({
                         ) : (
                           <Printer className="mr-2 h-4 w-4" />
                         )}
-                        Gerar PDF para assinatura à caneta
+                        Gerar PDF do Alvará para assinatura à caneta
                       </Button>
                     </div>
                   </div>

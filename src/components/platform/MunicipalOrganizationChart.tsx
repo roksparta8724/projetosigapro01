@@ -1,6 +1,7 @@
 import { Building2, Network } from "lucide-react";
 import type { MunicipalDepartmentRecord } from "@/integrations/backend/platform";
 import { cn } from "@/lib/utils";
+import { OrganogramAcronymGlyph } from "@/components/platform/OrganogramAcronymGlyph";
 
 const STOP_WORDS = new Set(["de", "da", "do", "das", "dos", "e", "para", "por", "em", "na", "no"]);
 
@@ -108,14 +109,14 @@ function UnitNode({
       className={cn(
         "relative overflow-hidden border transition-shadow",
         isRoot
-          ? "rounded-[26px] border-slate-200 bg-white shadow-[0_14px_34px_rgba(15,23,42,0.07)]"
-          : "rounded-[18px] border-slate-200 bg-white shadow-[0_6px_18px_rgba(15,23,42,0.04)]",
+          ? "rounded-[26px] border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbfe_100%)] shadow-[0_14px_34px_rgba(15,23,42,0.07)] dark:border-slate-700 dark:bg-[linear-gradient(180deg,#12283a_0%,#0b1927_100%)]"
+          : "rounded-[18px] border-slate-200 bg-white shadow-[0_6px_18px_rgba(15,23,42,0.04)] dark:border-slate-700 dark:bg-slate-900/80",
       )}
     >
       <div
         className={cn(
           "absolute inset-y-0 left-0",
-          isRoot ? "w-1.5 bg-slate-900" : "w-1 bg-slate-300",
+          isRoot ? "w-1.5 bg-[linear-gradient(180deg,#0b5f8a_0%,#14b8a6_100%)]" : "w-1 bg-slate-300 dark:bg-slate-600",
         )}
         aria-hidden="true"
       />
@@ -139,17 +140,16 @@ function UnitNode({
             <div className="flex flex-wrap items-center gap-2">
               <span
                 data-organogram-level-badge="true"
-                className={cn(
-                  "inline-flex min-w-11 items-center justify-center rounded-lg border px-2 py-1 text-[10px] font-black tracking-[0.12em]",
-                  identity.tone,
-                )}
+                data-organogram-code-surface="blue"
+                data-contrast-surface="dark"
+                className="sig-organogram-code-badge sig-organogram-blue-code inline-flex min-w-11 items-center justify-center rounded-lg border border-sky-400/45 bg-[linear-gradient(135deg,#075985_0%,#0b6f9f_100%)] px-2 py-1 text-[10px] font-black tracking-[0.12em] shadow-[0_5px_14px_rgba(3,55,84,0.22)]"
                 title={identity.label}
               >
-                {identity.short}
+                <OrganogramAcronymGlyph code={identity.short} className="h-4 w-10" />
               </span>
               <span
                 data-organogram-level-label="true"
-                className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500"
+                className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-300"
               >
                 {identity.label}
               </span>
@@ -158,7 +158,7 @@ function UnitNode({
             <p
               data-organogram-acronym="true"
               className={cn(
-                "mt-2 font-black tracking-[-0.02em] text-slate-950",
+                "mt-2 font-black tracking-[-0.02em] text-slate-950 dark:text-white",
                 isRoot ? "text-[22px] leading-7" : "text-[16px] leading-6",
               )}
               title={department.name}
@@ -168,7 +168,7 @@ function UnitNode({
             <p
               data-organogram-name="true"
               className={cn(
-                "mt-0.5 truncate text-slate-500",
+                "mt-0.5 truncate text-slate-500 dark:text-slate-300",
                 isRoot ? "text-xs" : "text-[11px]",
               )}
               title={department.name}
@@ -182,7 +182,7 @@ function UnitNode({
               type="button"
               data-organogram-edit="true"
               onClick={() => onEdit(department)}
-              className="inline-flex h-9 shrink-0 items-center rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
+              className="inline-flex h-9 shrink-0 items-center rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-800 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:border-sky-500 dark:hover:bg-slate-700"
             >
               Editar
             </button>
@@ -194,7 +194,7 @@ function UnitNode({
             data-organogram-children="true"
             className={cn(
               "mt-4 space-y-2.5 border-l",
-              isRoot ? "ml-5 border-slate-300 pl-4" : "ml-4 border-slate-200 pl-3",
+              isRoot ? "ml-5 border-sky-200 pl-4 dark:border-sky-800" : "ml-4 border-slate-200 pl-3 dark:border-slate-700",
             )}
           >
             {children.map((child) => (
@@ -239,12 +239,12 @@ export function MunicipalOrganizationChart({
   }
 
   return (
-    <div data-municipal-organogram="true">
+    <div data-municipal-organogram="true" data-premium-organogram="true">
       <div
         data-organogram-toolbar="true"
-        className="mb-4 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 sm:flex-row sm:items-center sm:justify-between"
+        className="mb-4 flex flex-col gap-3 rounded-[20px] border border-slate-200 bg-[linear-gradient(180deg,#fbfdff_0%,#f3f8fc_100%)] p-4 shadow-[0_8px_20px_rgba(15,23,42,0.04)] sm:flex-row sm:items-center sm:justify-between dark:border-slate-700 dark:bg-[linear-gradient(180deg,#10263a_0%,#0b1927_100%)]"
       >
-        <div className="flex items-center gap-2 text-sm text-slate-700">
+        <div className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-200">
           <Network className="h-4 w-4 text-sky-700" />
           <span>
             Hierarquia institucional por siglas, níveis e unidades oficiais da Prefeitura.
@@ -257,14 +257,25 @@ export function MunicipalOrganizationChart({
               <span
                 key={type}
                 data-organogram-legend="true"
+                data-organogram-level-badge="true"
+                data-organogram-code-surface="blue"
+                data-contrast-surface="dark"
                 data-unit-type={type}
-                className={cn(
-                  "rounded-lg border px-2 py-1 text-[9px] font-black tracking-[0.1em]",
-                  identity.tone,
-                )}
+                className="sig-organogram-code-badge sig-organogram-blue-code rounded-lg border border-sky-400/45 bg-[linear-gradient(135deg,#075985_0%,#0b6f9f_100%)] px-2 py-1 text-[9px] font-black tracking-[0.1em] shadow-[0_5px_14px_rgba(3,55,84,0.20)]"
                 title={identity.label}
               >
-                {identity.short}
+                <strong
+                  data-organogram-code-text="true"
+                  style={{
+                    color: "#ffffff",
+                    WebkitTextFillColor: "#ffffff",
+                    opacity: 1,
+                    fontWeight: 900,
+                  }}
+                  className="block !text-white"
+                >
+                  {identity.short}
+                </strong>
               </span>
             );
           })}

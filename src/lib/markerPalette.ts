@@ -31,7 +31,7 @@ export const MARKER_COLOR_OPTIONS = MARKER_COLOR_PALETTE.map((entry) => ({
   bg: entry.bg,
   border: entry.border,
   text: entry.text,
-})) as const;
+}));
 
 const LEGACY_MARKER_COLOR_ALIASES: Record<string, string> = {
   "#3b82f6": "blue",

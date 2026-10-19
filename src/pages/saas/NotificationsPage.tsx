@@ -1,6 +1,9 @@
-import { AlertCircle, BellRing, MessageSquareMore, Send, Wallet } from "lucide-react";
+import { AlertCircle, BellRing, CheckCheck, MessageSquareMore, Send, Signature, Trash2, Wallet } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { ActivityList, type ActivityItem } from "@/components/platform/ActivityList";
 import { EmptyState, EmptyStateAction } from "@/components/platform/EmptyState";
 import { InternalTabs } from "@/components/platform/InternalTabs";
@@ -17,10 +20,13 @@ import { QuickActionsCard } from "@/components/platform/QuickActionsCard";
 import { SectionCard } from "@/components/platform/SectionCard";
 import { SummaryCard } from "@/components/platform/SummaryCard";
 import { TableContainer } from "@/components/platform/TableContainer";
-import { formatOfficialProcessNumber, getProcessPaymentGuides, getVisibleProcessesByScope } from "@/lib/platform";
+import {
+  buildProcessPath, formatOfficialProcessNumber, getProcessPaymentGuides, getVisibleProcessesByScope } from "@/lib/platform";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
+import { useNotifications } from "@/hooks/useNotifications";
+import { sendMasterSupportNotification } from "@/integrations/notifications/notificationClient";
 
 type NotificationView = "visao-geral" | "notificacoes" | "mensagens" | "tramites" | "pendencias";
 
@@ -28,8 +34,51 @@ export function NotificationsPage() {
   const { session } = usePlatformSession();
   const { municipality, scopeId, tenantSettingsCompat } = useMunicipality();
   const { processes: allProcesses } = usePlatformData();
+  const {
+    notifications: officialNotifications,
+    unreadCount,
+    loading: notificationsLoading,
+    error: notificationsError,
+    markRead,
+    markAllRead,
+    deleteNotifications,
+  } = useNotifications({ includeItems: true, limit: 150, pollMs: 10000 });
   const [view, setView] = useState<NotificationView>("visao-geral");
+  const [selectedNotificationIds, setSelectedNotificationIds] = useState<string[]>([]);
+  const [notificationBulkBusy, setNotificationBulkBusy] = useState<"" | "read" | "delete">("");
+  const [notificationBulkError, setNotificationBulkError] = useState("");
+  const [masterSupportTitle, setMasterSupportTitle] = useState("");
+  const [masterSupportMessage, setMasterSupportMessage] = useState("");
+  const [masterSupportBusy, setMasterSupportBusy] = useState(false);
+  const [masterSupportStatus, setMasterSupportStatus] = useState("");
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
+
+  const handleMasterSupport = async () => {
+    const title = masterSupportTitle.trim();
+    const message = masterSupportMessage.trim();
+    if (!title || !message || masterSupportBusy) return;
+
+    setMasterSupportBusy(true);
+    setMasterSupportStatus("");
+    try {
+      const recipients = await sendMasterSupportNotification({ title, message });
+      setMasterSupportTitle("");
+      setMasterSupportMessage("");
+      setMasterSupportStatus(
+        recipients > 0
+          ? `Aviso enviado ao Master com sucesso (${recipients} destinatário(s)).`
+          : "Nenhuma conta Master ativa recebeu o aviso.",
+      );
+    } catch (error) {
+      setMasterSupportStatus(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível enviar o aviso ao Master.",
+      );
+    } finally {
+      setMasterSupportBusy(false);
+    }
+  };
 
   const processes = useMemo(
     () => getVisibleProcessesByScope(session, effectiveScopeId, allProcesses),
@@ -48,7 +97,7 @@ export function NotificationsPage() {
           icon: MessageSquareMore,
           action: (
             <Link
-              to={`/processos/${process.id}`}
+              to={buildProcessPath(process)}
               className="sig-dark-action-btn inline-flex rounded-full px-3 py-1.5 text-xs font-medium text-slate-50"
             >
               Abrir
@@ -71,7 +120,7 @@ export function NotificationsPage() {
           icon: Send,
           action: (
             <Link
-              to={`/processos/${process.id}`}
+              to={buildProcessPath(process)}
               className="sig-dark-action-btn inline-flex rounded-full px-3 py-1.5 text-xs font-medium text-slate-50"
             >
               Ver fluxo
@@ -96,7 +145,7 @@ export function NotificationsPage() {
             icon: AlertCircle,
             action: (
               <Link
-                to={`/processos/${process.id}`}
+                to={buildProcessPath(process)}
                 className="sig-dark-action-btn inline-flex rounded-full px-3 py-1.5 text-xs font-medium text-slate-50"
               >
                 Tratar
@@ -119,7 +168,7 @@ export function NotificationsPage() {
           icon: Wallet,
           action: (
             <Link
-              to={`/processos/${process.id}`}
+              to={buildProcessPath(process)}
               className="sig-dark-action-btn inline-flex rounded-full px-3 py-1.5 text-xs font-medium text-slate-50"
             >
               Abrir
@@ -130,9 +179,161 @@ export function NotificationsPage() {
     [processes, tenantSettingsCompat],
   );
 
-  const notificationItems = useMemo(
+  const processById = useMemo(
+    () => new Map(processes.map((process) => [process.id, process] as const)),
+    [processes],
+  );
+
+  const selectableNotificationIds = useMemo(
+    () => officialNotifications.map((item) => item.id),
+    [officialNotifications],
+  );
+  const allNotificationsSelected =
+    selectableNotificationIds.length > 0 &&
+    selectableNotificationIds.every((id) => selectedNotificationIds.includes(id));
+
+  const toggleNotificationSelection = (notificationId: string) => {
+    setSelectedNotificationIds((current) =>
+      current.includes(notificationId)
+        ? current.filter((id) => id !== notificationId)
+        : [...current, notificationId],
+    );
+  };
+
+  const toggleAllNotifications = () => {
+    setSelectedNotificationIds(
+      allNotificationsSelected ? [] : selectableNotificationIds,
+    );
+  };
+
+  const markSelectedNotificationsRead = async () => {
+    if (selectedNotificationIds.length === 0 || notificationBulkBusy) return;
+    setNotificationBulkBusy("read");
+    try {
+      await Promise.all(
+        selectedNotificationIds.map((id) => markRead(id, true)),
+      );
+      setSelectedNotificationIds([]);
+    } finally {
+      setNotificationBulkBusy("");
+    }
+  };
+
+  const deleteSelectedNotifications = async () => {
+    if (selectedNotificationIds.length === 0 || notificationBulkBusy) return;
+    setNotificationBulkBusy("delete");
+    setNotificationBulkError("");
+    try {
+      await deleteNotifications(selectedNotificationIds);
+      setSelectedNotificationIds([]);
+    } catch (error) {
+      setNotificationBulkError(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível apagar as notificações selecionadas.",
+      );
+    } finally {
+      setNotificationBulkBusy("");
+    }
+  };
+
+  const deleteAllNotifications = async () => {
+    if (officialNotifications.length === 0 || notificationBulkBusy) return;
+    setNotificationBulkBusy("delete");
+    setNotificationBulkError("");
+    try {
+      await deleteNotifications();
+      setSelectedNotificationIds([]);
+    } catch (error) {
+      setNotificationBulkError(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível apagar todas as notificações.",
+      );
+    } finally {
+      setNotificationBulkBusy("");
+    }
+  };
+
+  const officialNotificationItems = useMemo<ActivityItem[]>(
+    () =>
+      officialNotifications.map((notification) => {
+        const linkedProcess = notification.processId
+          ? processById.get(notification.processId)
+          : undefined;
+        const target =
+          notification.actionUrl ||
+          (linkedProcess ? buildProcessPath(linkedProcess) : "");
+
+        const icon =
+          notification.type === "assinatura"
+            ? Signature
+            : notification.type === "financeiro"
+              ? Wallet
+              : notification.type === "exigencia"
+                ? AlertCircle
+                : notification.type === "mensagem"
+                  ? MessageSquareMore
+                  : notification.type === "tramite"
+                    ? Send
+                    : BellRing;
+
+        return {
+          id: `official-${notification.id}`,
+          title: notification.title,
+          description: notification.message,
+          meta: `${notification.isRead ? "Lida" : "Nova"} · ${new Date(
+            notification.createdAt,
+          ).toLocaleString("pt-BR")}`,
+          badge: notification.isRead ? notification.category : "Nova",
+          icon,
+          action: (
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <label className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-full border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50">
+                <input
+                  type="checkbox"
+                  checked={selectedNotificationIds.includes(notification.id)}
+                  onChange={() => toggleNotificationSelection(notification.id)}
+                  className="h-4 w-4 rounded border-slate-300"
+                  aria-label={`Selecionar notificação ${notification.title}`}
+                />
+                Selecionar
+              </label>
+              {!notification.isRead ? (
+                <button
+                  type="button"
+                  className="inline-flex h-9 items-center justify-center rounded-full border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                  onClick={() => void markRead(notification.id)}
+                >
+                  Marcar lida
+                </button>
+              ) : null}
+              {target ? (
+                <Link
+                  to={target}
+                  onClick={() => {
+                    if (!notification.isRead) void markRead(notification.id);
+                  }}
+                  className="sig-dark-action-btn inline-flex h-9 items-center justify-center rounded-full px-3 text-xs font-medium text-slate-50"
+                >
+                  Abrir
+                </Link>
+              ) : null}
+            </div>
+          ),
+        };
+      }),
+    [markRead, officialNotifications, processById, selectedNotificationIds],
+  );
+
+  const operationalItems = useMemo(
     () => [...messageItems, ...dispatchItems, ...requirementItems, ...financeItems],
     [dispatchItems, financeItems, messageItems, requirementItems],
+  );
+
+  const notificationItems = useMemo(
+    () => [...officialNotificationItems, ...operationalItems],
+    [officialNotificationItems, operationalItems],
   );
 
   const tabs = [
@@ -143,7 +344,7 @@ export function NotificationsPage() {
     { value: "pendencias", label: "Pendências", helper: "Exigências e atenção" },
   ] as const;
 
-  const mainFeed = notificationItems.slice(0, 8);
+  const mainFeed = notificationItems.slice(0, 10);
   const recentMessages = messageItems.slice(0, 4);
   const pendingAttention = requirementItems.slice(0, 4);
 
@@ -178,7 +379,7 @@ export function NotificationsPage() {
           <SummaryCard
             title="Total monitorado"
             value={String(notificationItems.length)}
-            helper="Eventos visíveis no escopo atual"
+            helper={unreadCount > 0 ? `${unreadCount} notificação(ões) não lida(s)` : "Nenhuma notificação não lida"}
             icon={BellRing}
             tone="blue"
           />
@@ -264,6 +465,46 @@ export function NotificationsPage() {
                 ]}
               />
 
+              {session.role === "prefeitura_admin" ? (
+                <SectionCard
+                  title="Suporte ao Master"
+                  description="Canal administrativo. O Master não recebe notificações operacionais da Prefeitura; somente avisos enviados aqui."
+                  icon={BellRing}
+                >
+                  <div className="space-y-3">
+                    <Input
+                      value={masterSupportTitle}
+                      onChange={(event) => setMasterSupportTitle(event.target.value)}
+                      placeholder="Assunto do aviso"
+                      className="h-10 rounded-xl"
+                    />
+                    <Textarea
+                      value={masterSupportMessage}
+                      onChange={(event) => setMasterSupportMessage(event.target.value)}
+                      placeholder="Descreva o que precisa da equipe Master"
+                      className="min-h-[96px] rounded-xl"
+                    />
+                    <Button
+                      type="button"
+                      className="w-full rounded-xl"
+                      disabled={
+                        masterSupportBusy ||
+                        !masterSupportTitle.trim() ||
+                        !masterSupportMessage.trim()
+                      }
+                      onClick={() => void handleMasterSupport()}
+                    >
+                      {masterSupportBusy ? "Enviando..." : "Enviar aviso ao Master"}
+                    </Button>
+                    {masterSupportStatus ? (
+                      <p className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-700">
+                        {masterSupportStatus}
+                      </p>
+                    ) : null}
+                  </div>
+                </SectionCard>
+              ) : null}
+
               <SectionCard
                 title="Resumo operacional"
                 description="Leitura curta para saber onde agir primeiro."
@@ -298,14 +539,97 @@ export function NotificationsPage() {
 
         {view === "notificacoes" ? (
           <TableContainer
-            title="Central consolidada"
-            description="Leitura única de notificações, mensagens, trâmites e financeiro."
+            title="Notificações direcionadas"
+            description="Avisos oficiais destinados ao seu perfil, com leitura individual e atualização automática."
             icon={BellRing}
+            actions={
+              officialNotifications.length > 0 ? (
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    className="inline-flex h-9 items-center justify-center rounded-full border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                    onClick={toggleAllNotifications}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={allNotificationsSelected}
+                      readOnly
+                      className="mr-2 h-4 w-4 rounded border-slate-300"
+                      aria-hidden="true"
+                    />
+                    {allNotificationsSelected ? "Desmarcar todas" : "Selecionar todas"}
+                  </button>
+
+                  {unreadCount > 0 ? (
+                    <button
+                      type="button"
+                      className="inline-flex h-9 items-center justify-center rounded-full border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                      disabled={Boolean(notificationBulkBusy)}
+                      onClick={() => void markAllRead()}
+                    >
+                      <CheckCheck className="mr-2 h-4 w-4" />
+                      Marcar todas como lidas
+                    </button>
+                  ) : null}
+
+                  {selectedNotificationIds.length > 0 ? (
+                    <>
+                      <button
+                        type="button"
+                        className="inline-flex h-9 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 px-3 text-xs font-semibold text-emerald-800 hover:bg-emerald-100"
+                        disabled={Boolean(notificationBulkBusy)}
+                        onClick={() => void markSelectedNotificationsRead()}
+                      >
+                        <CheckCheck className="mr-2 h-4 w-4" />
+                        Marcar selecionadas como lidas
+                      </button>
+                      <button
+                        type="button"
+                        className="inline-flex h-9 items-center justify-center rounded-full border border-rose-200 bg-rose-50 px-3 text-xs font-semibold text-rose-700 hover:bg-rose-100"
+                        disabled={Boolean(notificationBulkBusy)}
+                        onClick={() => void deleteSelectedNotifications()}
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        {allNotificationsSelected
+                          ? "Apagar todas selecionadas"
+                          : `Apagar selecionadas (${selectedNotificationIds.length})`}
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      className="inline-flex h-9 items-center justify-center rounded-full border border-rose-200 bg-white px-3 text-xs font-semibold text-rose-700 hover:bg-rose-50"
+                      disabled={Boolean(notificationBulkBusy)}
+                      onClick={() => void deleteAllNotifications()}
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Apagar todas
+                    </button>
+                  )}
+                </div>
+              ) : null
+            }
           >
-            {renderFeed(
-              notificationItems,
-              "Nenhuma notificação encontrada",
-              "O ambiente ainda não gerou eventos visíveis para este perfil.",
+            {notificationsError ? (
+              <div className="mb-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
+                {notificationsError}
+              </div>
+            ) : null}
+            {notificationBulkError ? (
+              <div className="mb-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
+                {notificationBulkError}
+              </div>
+            ) : null}
+            {notificationsLoading && officialNotificationItems.length === 0 ? (
+              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-600">
+                Atualizando notificações...
+              </div>
+            ) : (
+              renderFeed(
+                officialNotificationItems,
+                "Nenhuma notificação direcionada",
+                "Quando uma ação exigir sua atenção, ela aparecerá aqui automaticamente.",
+              )
             )}
           </TableContainer>
         ) : null}

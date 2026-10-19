@@ -17,7 +17,7 @@ import {
   Store,
   Archive,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,6 +38,7 @@ import { StatCard } from "@/components/platform/StatCard";
 import { TableCard } from "@/components/platform/TableCard";
 import { UserAvatar } from "@/components/platform/UserAvatar";
 import {
+  buildProcessPath,
   isExternalProfessionalProcess,
   isProcessOwnedBySessionDepartment,
   formatCurrency,
@@ -55,6 +56,11 @@ import { usePlatformData } from "@/hooks/usePlatformData";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { useMarkerPresets } from "@/hooks/useMarkerPresets";
+import {
+  confirmRemotePreprotocolPayment,
+  listRemotePendingPreprotocolPayments,
+  type PendingPreprotocolPayment,
+} from "@/integrations/backend/platform";
 
 type ProtocolSection =
   | "visao-geral"
@@ -93,6 +99,7 @@ export function ProtocolDeskPage() {
     updateProcessTriage,
     dispatchProcess,
     getUserProfile,
+    refreshRemoteStore,
   } = usePlatformData();
   const { municipality, scopeId, institutionSettingsCompat } = useMunicipality();
   // Para funcionário municipal, a Prefeitura vinculada à conta é a fonte
@@ -119,7 +126,10 @@ export function ProtocolDeskPage() {
   const processes = useMemo(
     () =>
       allProcesses.filter(
-        (item) => Boolean(effectiveScopeId) && matchesOperationalScope(effectiveScopeId, item),
+        (item) =>
+          item.isOfficial !== false &&
+          Boolean(effectiveScopeId) &&
+          matchesOperationalScope(effectiveScopeId, item),
       ),
     [allProcesses, effectiveScopeId],
   );
@@ -161,6 +171,53 @@ export function ProtocolDeskPage() {
   const [protocolActionBusy, setProtocolActionBusy] = useState("");
   const [markerFilter, setMarkerFilter] = useState("todos");
   const [section, setSection] = useState<ProtocolSection>("visao-geral");
+  const [pendingPreprotocolPayments, setPendingPreprotocolPayments] = useState<
+    PendingPreprotocolPayment[]
+  >([]);
+  const [preprotocolPaymentsLoading, setPreprotocolPaymentsLoading] = useState(false);
+  const [preprotocolPaymentsError, setPreprotocolPaymentsError] = useState("");
+
+  const refreshPreprotocolPayments = useCallback(async () => {
+    if (!effectiveScopeId) {
+      setPendingPreprotocolPayments([]);
+      return;
+    }
+
+    setPreprotocolPaymentsLoading(true);
+    try {
+      const items = await listRemotePendingPreprotocolPayments();
+      setPendingPreprotocolPayments(items);
+      setPreprotocolPaymentsError("");
+    } catch (error) {
+      setPreprotocolPaymentsError(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível atualizar os pré-protocolos aguardando pagamento.",
+      );
+    } finally {
+      setPreprotocolPaymentsLoading(false);
+    }
+  }, [effectiveScopeId]);
+
+  useEffect(() => {
+    void refreshPreprotocolPayments();
+
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") {
+        void refreshPreprotocolPayments();
+      }
+    };
+
+    const timer = window.setInterval(refreshWhenVisible, 8000);
+    window.addEventListener("focus", refreshWhenVisible);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", refreshWhenVisible);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
+  }, [refreshPreprotocolPayments]);
 
   const protocolMarkerLinks = useMemo(
     () =>
@@ -590,7 +647,7 @@ export function ProtocolDeskPage() {
                     </button>
 
                     <Button asChild className="h-9 shrink-0 rounded-xl bg-[linear-gradient(135deg,#0b5e93_0%,#0f78b8_100%)] px-4 font-semibold !text-white shadow-[0_8px_20px_rgba(14,116,181,0.22)] hover:brightness-105 [&_*]:!text-white">
-                      <Link to={`/processos/${process.id}`}>Abrir protocolo</Link>
+                      <Link to={buildProcessPath(process)}>Abrir protocolo</Link>
                     </Button>
                   </div>
 
@@ -703,13 +760,43 @@ export function ProtocolDeskPage() {
       setProtocolActionStatus(
         status === "em_triagem"
           ? `Triagem iniciada para ${formatOfficialProcessNumber(process.protocol)}.`
-          : `Triagem concluída. O protocolo agora aguarda a confirmação da guia inicial.`,
+          : `Triagem concluída. Como a guia inicial já está compensada, o processo está pronto para despacho ao Urbanismo.`,
       );
     } catch (error) {
       setProtocolActionStatus(
         error instanceof Error
           ? `Não foi possível atualizar a triagem: ${error.message}`
           : "Não foi possível atualizar a triagem no banco oficial.",
+      );
+    } finally {
+      setProtocolActionBusy("");
+    }
+  };
+
+  const handleConfirmPreprotocolPayment = async (
+    item: PendingPreprotocolPayment,
+  ) => {
+    const busyKey = `preprotocol-payment-${item.processId}`;
+    setProtocolActionBusy(busyKey);
+    setProtocolActionStatus("");
+
+    try {
+      const result = await confirmRemotePreprotocolPayment(item.processId);
+      await Promise.allSettled([
+        refreshRemoteStore(),
+        refreshPreprotocolPayments(),
+      ]);
+
+      setProtocolActionStatus(
+        `Pagamento confirmado. O pré-protocolo ${item.preProtocolNumber} virou o processo ${formatOfficialProcessNumber(
+          result.protocol_number,
+        )} e entrou na Triagem de Protocolo.`,
+      );
+    } catch (error) {
+      setProtocolActionStatus(
+        error instanceof Error
+          ? `Não foi possível confirmar o pagamento do pré-protocolo: ${error.message}`
+          : "Não foi possível confirmar o pagamento do pré-protocolo.",
       );
     } finally {
       setProtocolActionBusy("");
@@ -991,7 +1078,7 @@ export function ProtocolDeskPage() {
                               </p>
                             </div>
                             <Button asChild variant="outline" className="shrink-0 rounded-full">
-                              <Link to={`/processos/${process.id}`}>Abrir protocolo</Link>
+                              <Link to={buildProcessPath(process)}>Abrir protocolo</Link>
                             </Button>
                           </div>
                         );
@@ -1279,90 +1366,189 @@ export function ProtocolDeskPage() {
           <PageMainGrid>
             <PageMainContent>
               <TableCard
-                title="Conferência de pagamento do protocolo"
-                description="A baixa da guia inicial é responsabilidade do Protocolo. Ao confirmar, o processo é encaminhado automaticamente para Análise Urbanística."
+                title="Pré-protocolos aguardando pagamento"
+                description="Antes da compensação existe somente o pré-protocolo e a guia inicial. Ao confirmar o pagamento, o SIGAPRO atribui o número oficial de forma atômica e abre o processo na Triagem de Protocolo."
                 icon={CircleDollarSign}
               >
                 <div className="space-y-4">
-                  {pendingProtocolPayments.length === 0 ? (
-                    <div className="rounded-2xl border border-dashed border-emerald-200 bg-emerald-50 p-5 text-sm text-emerald-800">
-                      Nenhum pagamento de protocolo aguardando conferência.
+                  {preprotocolPaymentsError ? (
+                    <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-800">
+                      {preprotocolPaymentsError}
                     </div>
-                  ) : (
-                    pendingProtocolPayments.map((process) => {
-                      const guide = getProcessPaymentGuides(process, tenantSettings).find(
-                        (item) => item.kind === "protocolo",
-                      );
-                      return (
-                        <div key={process.id} className="rounded-[22px] border border-slate-200 bg-white p-5 shadow-sm">
-                          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                            <div className="min-w-0">
-                              <div className="flex flex-wrap items-center gap-2">
-                                <p className="font-semibold text-slate-950">
-                                  {formatOfficialProcessNumber(process.protocol)}
-                                </p>
-                                <Badge variant="outline" className="rounded-full border-amber-200 bg-amber-50 text-amber-700">
-                                  Pagamento pendente
-                                </Badge>
-                              </div>
-                              <p className="mt-1 text-sm text-slate-600">
-                                {formatOfficialProcessTitle({ title: process.title, type: process.type })}
-                              </p>
-                              <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-sm text-slate-600">
-                                <span>Guia: <strong className="text-slate-900">{guide?.code || "Não emitida"}</strong></span>
-                                <span>Valor: <strong className="text-slate-900">{formatCurrency(guide?.amount || 0)}</strong></span>
-                                <span>Vencimento: <strong className="text-slate-900">{guide?.dueDate || "-"}</strong></span>
-                              </div>
-                            </div>
-                            <div className="flex flex-wrap gap-2">
-                              <Button asChild variant="outline" className="rounded-full">
-                                <Link to={`/processos/${process.id}?aba=documentos`}>Revisar triagem</Link>
-                              </Button>
-                              {process.triage.status === "concluido" ? (
-                                <Button
-                                  type="button"
-                                  className="rounded-full bg-emerald-700 px-5 text-white hover:bg-emerald-800"
-                                  disabled={protocolActionBusy === `payment-${process.id}`}
-                                  onClick={() => void handleConfirmProtocolPayment(process)}
-                                >
-                                  {protocolActionBusy === `payment-${process.id}`
-                                    ? "Confirmando..."
-                                    : "Confirmar pagamento"}
-                                </Button>
-                              ) : (
-                                <Button asChild variant="outline" className="rounded-full">
-                                  <Link to={`/processos/${process.id}?aba=documentos`}>Concluir triagem primeiro</Link>
-                                </Button>
-                              )}
-                            </div>
+                  ) : null}
+
+                  {preprotocolPaymentsLoading &&
+                  pendingPreprotocolPayments.length === 0 &&
+                  pendingProtocolPayments.length === 0 ? (
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 text-sm text-slate-600">
+                      Atualizando a fila de pagamentos...
+                    </div>
+                  ) : null}
+
+                  {pendingPreprotocolPayments.map((item) => (
+                    <div
+                      key={item.processId}
+                      className="rounded-[22px] border border-sky-200 bg-[linear-gradient(180deg,#ffffff_0%,#f5fbff_100%)] p-5 shadow-[0_12px_28px_rgba(15,23,42,0.07)] dark:border-sky-500/25 dark:bg-[linear-gradient(180deg,#12273a_0%,#0d1d2c_100%)]"
+                    >
+                      <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="font-semibold text-slate-950 dark:text-white">
+                              {item.preProtocolNumber}
+                            </p>
+                            <Badge
+                              variant="outline"
+                              className="rounded-full border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200"
+                            >
+                              Pré-protocolo · pagamento pendente
+                            </Badge>
+                          </div>
+                          <p className="mt-1 text-sm font-semibold text-slate-700 dark:text-slate-200">
+                            {item.title}
+                          </p>
+                          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                            Enviado por {item.submitterName}. Ainda não existe número de processo municipal.
+                          </p>
+                          <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-sm text-slate-600 dark:text-slate-300">
+                            <span>
+                              Guia:{" "}
+                              <strong className="text-slate-900 dark:text-white">
+                                {item.guideNumber || "Não emitida"}
+                              </strong>
+                            </span>
+                            <span>
+                              Valor:{" "}
+                              <strong className="text-slate-900 dark:text-white">
+                                {formatCurrency(item.amount)}
+                              </strong>
+                            </span>
+                            <span>
+                              Vencimento:{" "}
+                              <strong className="text-slate-900 dark:text-white">
+                                {item.dueDate
+                                  ? new Date(item.dueDate).toLocaleDateString("pt-BR")
+                                  : "-"}
+                              </strong>
+                            </span>
                           </div>
                         </div>
-                      );
-                    })
-                  )}
+
+                        <Button
+                          type="button"
+                          className="rounded-full bg-emerald-700 px-5 font-bold text-white hover:bg-emerald-800"
+                          disabled={
+                            protocolActionBusy ===
+                            `preprotocol-payment-${item.processId}`
+                          }
+                          onClick={() => void handleConfirmPreprotocolPayment(item)}
+                        >
+                          {protocolActionBusy ===
+                          `preprotocol-payment-${item.processId}`
+                            ? "Confirmando..."
+                            : "Confirmar pagamento e criar processo"}
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+
+                  {pendingProtocolPayments.length > 0 ? (
+                    <div className="pt-2">
+                      <p className="mb-3 text-xs font-bold uppercase tracking-[0.12em] text-slate-500">
+                        Registros anteriores à nova regra
+                      </p>
+                      <div className="space-y-3">
+                        {pendingProtocolPayments.map((process) => {
+                          const guide = getProcessPaymentGuides(
+                            process,
+                            tenantSettings,
+                          ).find((item) => item.kind === "protocolo");
+
+                          return (
+                            <div
+                              key={process.id}
+                              className="rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900"
+                            >
+                              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                                <div className="min-w-0">
+                                  <p className="font-semibold text-slate-950 dark:text-white">
+                                    {formatOfficialProcessNumber(process.protocol)}
+                                  </p>
+                                  <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+                                    Fluxo legado preservado · Guia {guide?.code || "não emitida"} ·{" "}
+                                    {formatCurrency(guide?.amount || 0)}
+                                  </p>
+                                </div>
+                                {process.triage.status === "concluido" ? (
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    className="rounded-full"
+                                    disabled={
+                                      protocolActionBusy === `payment-${process.id}`
+                                    }
+                                    onClick={() =>
+                                      void handleConfirmProtocolPayment(process)
+                                    }
+                                  >
+                                    {protocolActionBusy === `payment-${process.id}`
+                                      ? "Confirmando..."
+                                      : "Confirmar fluxo legado"}
+                                  </Button>
+                                ) : (
+                                  <Button asChild variant="outline" className="rounded-full">
+                                    <Link to={buildProcessPath(process, "documentos")}>
+                                      Concluir triagem
+                                    </Link>
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {!preprotocolPaymentsLoading &&
+                  pendingPreprotocolPayments.length === 0 &&
+                  pendingProtocolPayments.length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-emerald-200 bg-emerald-50 p-5 text-sm text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200">
+                      Nenhum pré-protocolo aguardando confirmação de pagamento.
+                    </div>
+                  ) : null}
                 </div>
               </TableCard>
             </PageMainContent>
+
             <PageSideContent>
               <SectionCard
-                title="Responsabilidade do Protocolo"
-                description="A guia inicial não depende do Financeiro para avançar o processo."
+                title="Regra de oficialização"
+                description="O número do processo nasce somente após a compensação da guia inicial."
               >
                 <div className="space-y-3">
                   <AlertCard
-                    title="Aguardando baixa"
-                    description={`${pendingProtocolPayments.length} guia(s) de protocolo aguardam conferência.`}
-                    tone={pendingProtocolPayments.length > 0 ? "warning" : "success"}
+                    title="Aguardando pagamento"
+                    description={`${
+                      pendingPreprotocolPayments.length +
+                      pendingProtocolPayments.length
+                    } guia(s) inicial(is) aguardam confirmação.`}
+                    tone={
+                      pendingPreprotocolPayments.length +
+                        pendingProtocolPayments.length >
+                      0
+                        ? "warning"
+                        : "success"
+                    }
                     icon={CircleDollarSign}
                   />
                   <AlertCard
-                    title="Já confirmados"
-                    description={`${confirmedProtocolPayments.length} pagamento(s) de protocolo já foram confirmados.`}
+                    title="Processos oficializados"
+                    description={`${confirmedProtocolPayments.length} processo(s) possuem pagamento inicial compensado.`}
                     tone="success"
                     icon={CheckCircle2}
                   />
-                  <div className="rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm leading-6 text-sky-900">
-                    Depois da baixa, o processo sai da fila do Protocolo e segue para {URBAN_ANALYSIS_DEPARTMENT}.
+                  <div className="rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm leading-6 text-sky-900 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-100">
+                    A confirmação é transacional: o banco serializa a numeração por Prefeitura, ano e prefixo. Depois da baixa, o processo entra em Triagem de Protocolo; somente após a conferência documental fica pronto para despacho ao Urbanismo.
                   </div>
                 </div>
               </SectionCard>

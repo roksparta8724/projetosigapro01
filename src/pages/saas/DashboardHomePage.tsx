@@ -33,7 +33,7 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
-import { formatOfficialProcessNumber, formatOfficialProcessTitle, getProcessPaymentGuides, matchesOperationalScope, normalizeOwnerDocument, type ProcessRecord, type ProcessStatus, type SessionUser } from "@/lib/platform";
+import { formatOfficialProcessNumber, formatOfficialProcessTitle, getProcessPaymentGuides, getVisibleProcessesByScope, isExternalProfessionalRole, matchesOperationalScope, normalizeOwnerDocument, type ProcessRecord, type ProcessStatus, type SessionUser } from "@/lib/platform";
 
 const statusLabels: Record<ProcessStatus, string> = {
   rascunho: "Rascunho",
@@ -258,7 +258,10 @@ function ExecutiveSignal({
   };
 
   return (
-    <div className="rounded-[22px] border border-slate-200/80 bg-white p-5 shadow-[0_10px_24px_rgba(15,23,42,0.06)] dark:border-white/12 dark:bg-white/[0.04]">
+    <div
+      data-premium-surface="metric"
+      className="rounded-[22px] border border-slate-200/80 bg-white p-5 shadow-[0_10px_24px_rgba(15,23,42,0.06)] dark:border-white/12 dark:bg-white/[0.04]"
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-[11px] uppercase tracking-[0.14em] text-slate-500 dark:text-slate-300">{label}</p>
@@ -365,7 +368,9 @@ export function DashboardHomePage() {
   const { processes, institutions, sessionUsers, getInstitutionSettings, getUserProfile } = usePlatformData();
   const { municipality, scopeId } = useMunicipality();
   const isMaster = session.role === "master_admin" || session.role === "master_ops";
-  const isExternal = session.role === "profissional_externo" || session.role === "proprietario_consulta" || session.role === "property_owner";
+  const isExternalProfessional = isExternalProfessionalRole(session.role);
+  const isOwner = session.role === "proprietario_consulta" || session.role === "property_owner";
+  const isExternal = isExternalProfessional || isOwner;
   const isFinance = session.role === "financeiro";
   const isAnalyst = session.role === "analista" || session.role === "setor_intersetorial";
 
@@ -373,22 +378,55 @@ export function DashboardHomePage() {
   const profile = getUserProfile(session.id, session.email);
   const ownerDocument = normalizeOwnerDocument(profile?.cpfCnpj || "");
 
-  const tenantProcesses = useMemo(
-    () => processes.filter((process) => matchesOperationalScope(activeInstitutionId, process)),
-    [processes, activeInstitutionId],
+  const officialProcesses = useMemo(
+    () => processes.filter((process) => process.isOfficial !== false),
+    [processes],
   );
 
-  const externalProcesses = useMemo(
-    () => (ownerDocument ? processes.filter((process) => normalizeOwnerDocument(process.ownerDocument) === ownerDocument) : []),
-    [processes, ownerDocument],
+  const tenantProcesses = useMemo(
+    () =>
+      officialProcesses.filter((process) =>
+        matchesOperationalScope(activeInstitutionId, process),
+      ),
+    [officialProcesses, activeInstitutionId],
   );
+
+  const professionalProcesses = useMemo(
+    () =>
+      isExternalProfessional
+        ? getVisibleProcessesByScope(session, activeInstitutionId, officialProcesses)
+        : [],
+    [activeInstitutionId, isExternalProfessional, officialProcesses, session],
+  );
+
+  const ownerProcesses = useMemo(
+    () =>
+      isOwner
+        ? officialProcesses.filter((process) => {
+            if (process.ownerProfileId && process.ownerProfileId === session.id) return true;
+            return Boolean(
+              ownerDocument &&
+                normalizeOwnerDocument(process.ownerDocument) === ownerDocument,
+            );
+          })
+        : [],
+    [isOwner, ownerDocument, officialProcesses, session.id],
+  );
+
+  const externalProcesses = isExternalProfessional
+    ? professionalProcesses
+    : ownerProcesses;
 
   const scopedUsers = useMemo(
     () => (isMaster ? sessionUsers : sessionUsers.filter((user) => user.tenantId === activeInstitutionId)),
     [isMaster, sessionUsers, activeInstitutionId],
   );
 
-  const displayProcesses = isMaster ? processes : isExternal ? externalProcesses : tenantProcesses;
+  const displayProcesses = isMaster
+    ? officialProcesses
+    : isExternal
+      ? externalProcesses
+      : tenantProcesses;
   const institutionName =
     municipality?.name || institutions.find((institution) => institution.id === activeInstitutionId)?.name || "SIGAPRO";
 
@@ -491,15 +529,28 @@ export function DashboardHomePage() {
         ? "usuarios"
         : location.pathname.startsWith("/dashboard/operacional")
           ? "operacional"
-          : "visao-geral";
+          : isExternal
+            ? "processos"
+            : "visao-geral";
 
-  const tabs = [
-    { value: "/dashboard", label: "Visao geral", helper: "Resumo executivo" },
-    { value: "/dashboard/processos", label: "Processos", helper: "Fluxo e distribuicao" },
-    { value: "/dashboard/financeiro", label: "Financeiro", helper: "Guias e compensacoes" },
-    ...(!isExternal ? [{ value: "/dashboard/operacional", label: "Operacional", helper: "SLA e prioridades" }] : []),
-    ...((isMaster || (!isExternal && !isFinance)) ? [{ value: "/dashboard/usuarios", label: "Usuarios", helper: "Governanca e acessos" }] : []),
-  ];
+  const tabs = isExternal
+    ? [
+        { value: "/dashboard/processos", label: "Processos", helper: "Fluxo e distribuição" },
+        { value: "/dashboard/financeiro", label: "Financeiro", helper: "Guias e compensações" },
+        { value: "/dashboard", label: "Visão geral", helper: "Resumo executivo" },
+      ]
+    : [
+        { value: "/dashboard", label: "Visão geral", helper: "Resumo executivo" },
+        { value: "/dashboard/processos", label: "Processos", helper: "Fluxo e distribuição" },
+        { value: "/dashboard/financeiro", label: "Financeiro", helper: "Guias e compensações" },
+        ...(!isExternal ? [{ value: "/dashboard/operacional", label: "Operacional", helper: "SLA e prioridades" }] : []),
+        ...((isMaster || (!isExternal && !isFinance)) ? [{ value: "/dashboard/usuarios", label: "Usuários", helper: "Governança e acessos" }] : []),
+      ];
+
+  const activeDashboardTab =
+    isExternal && location.pathname === "/dashboard"
+      ? "/dashboard/processos"
+      : tabs.find((tab) => tab.value === location.pathname)?.value ?? "/dashboard";
 
   const headlineTitle = isMaster
     ? "Dashboard executivo da plataforma"
@@ -585,12 +636,43 @@ export function DashboardHomePage() {
 
   const heroActions = (
     <div className="flex flex-wrap gap-2">
-      <Button type="button" variant="outline" className="rounded-full" onClick={() => navigate("/dashboard/processos")}>
-        Ver processos
-      </Button>
-      <Button type="button" className="rounded-full bg-slate-950 hover:bg-slate-900 dark:bg-sky-500 dark:text-slate-950 dark:hover:bg-sky-400" onClick={() => navigate("/dashboard/operacional")}>
-        Abrir leitura operacional
-      </Button>
+      {isExternalProfessional ? (
+        <>
+          <Button
+            type="button"
+            variant="outline"
+            className="rounded-full"
+            onClick={() => navigate("/externo/controle")}
+          >
+            Controle de processos
+          </Button>
+          <Button
+            type="button"
+            className="rounded-full bg-slate-950 hover:bg-slate-900 dark:bg-sky-500 dark:text-slate-950 dark:hover:bg-sky-400"
+            onClick={() => navigate("/externo/pagamentos")}
+          >
+            Pagamentos
+          </Button>
+        </>
+      ) : (
+        <>
+          <Button
+            type="button"
+            variant="outline"
+            className="rounded-full"
+            onClick={() => navigate("/dashboard/processos")}
+          >
+            Ver processos
+          </Button>
+          <Button
+            type="button"
+            className="rounded-full bg-slate-950 hover:bg-slate-900 dark:bg-sky-500 dark:text-slate-950 dark:hover:bg-sky-400"
+            onClick={() => navigate("/dashboard/operacional")}
+          >
+            Abrir leitura operacional
+          </Button>
+        </>
+      )}
     </div>
   );
 
@@ -603,7 +685,7 @@ export function DashboardHomePage() {
       ]
     : isExternal
       ? [
-          { title: "Meus protocolos", value: `${externalProcesses.length}`, helper: "Protocolos associados ao seu CPF/CNPJ.", icon: FileText, tone: "blue" as const },
+          { title: "Meus protocolos", value: `${externalProcesses.length}`, helper: isExternalProfessional ? "Protocolos vinculados ao seu perfil profissional." : "Protocolos vinculados ao seu cadastro.", icon: FileText, tone: "blue" as const },
           { title: "Pendencias", value: `${openRequirements}`, helper: "Exigencias aguardando retorno.", icon: AlertTriangle, tone: "rose" as const },
           { title: "Pagamentos pendentes", value: `${pendingPayments}`, helper: "Guias aguardando compensacao.", icon: Wallet, tone: "amber" as const },
           { title: "Protocolos concluidos", value: `${completedCount}`, helper: "Processos finalizados no historico.", icon: CheckCircle2, tone: "emerald" as const },
@@ -967,7 +1049,7 @@ export function DashboardHomePage() {
 
         <InternalTabs
           items={tabs}
-          value={tabs.find((tab) => tab.value === location.pathname)?.value ?? "/dashboard"}
+          value={activeDashboardTab}
           onChange={(value) => navigate(value)}
         />
 

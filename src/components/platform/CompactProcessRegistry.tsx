@@ -12,6 +12,7 @@ import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
+  buildProcessPath,
   formatOfficialProcessNumber,
   formatOfficialProcessTitle,
   parseMarker,
@@ -92,7 +93,7 @@ export function CompactProcessRegistry({
           const archived = archivedProcessIds.includes(process.id);
           const flow = currentFlowLabel(process);
           const analyst = process.analysis?.assignedTo || process.technicalLead || "Não atribuído";
-          const detailPath = `/processos/${process.id}${detailPathSuffix}`;
+          const detailPath = `${buildProcessPath(process)}${detailPathSuffix}`;
 
           return (
             <div
@@ -223,7 +224,7 @@ export function CompactProcessRegistry({
                     className="h-7 w-7 rounded-lg text-sky-700 hover:bg-sky-100 hover:text-sky-900 dark:text-sky-300 dark:hover:bg-sky-950/40"
                     title="Despachar processo"
                   >
-                    <Link to={`/processos/${process.id}?aba=historico#despacho`}>
+                    <Link to={`${buildProcessPath(process, "historico")}#despacho`}>
                       <Send className="h-3.5 w-3.5" />
                     </Link>
                   </Button>
@@ -237,7 +238,7 @@ export function CompactProcessRegistry({
                   className="h-7 w-7 rounded-lg"
                   title="Ver histórico"
                 >
-                  <Link to={`/processos/${process.id}?aba=historico`}>
+                  <Link to={buildProcessPath(process, "historico")}>
                     <History className="h-3.5 w-3.5" />
                   </Link>
                 </Button>

@@ -120,6 +120,23 @@ function buildFallbackTenantSettings(tenantId: string): TenantSettings {
     guiaPrefixo: "DAM",
     chavePix: "",
     beneficiarioArrecadacao: "",
+    pixEnabled: true,
+    pixKeyType: "cnpj",
+    pixMerchantCity: "",
+    bankCode: "",
+    bankName: "",
+    bankAgency: "",
+    bankAgencyDigit: "",
+    bankAccount: "",
+    bankAccountDigit: "",
+    bankBeneficiaryDocument: "",
+    bankCollectionMode: "manual",
+    bankAgreementCode: "",
+    bankWallet: "",
+    bankInstructions: "",
+    paymentProvider: "mercado_pago",
+    paymentProviderEnvironment: "test",
+    paymentAuthenticationMode: "automatic",
     taxaProtocolo: 35.24,
     taxaIssPorMetroQuadrado: 0,
     issRateProfiles: defaultIssRateProfiles,
@@ -239,7 +256,7 @@ export function buildTenantSettingsFromMunicipality(
     footerLogoUrl,
     headerLogoObjectKey: hasVariantLogo ? branding?.headerLogoObjectKey || "" : branding?.logoObjectKey || "",
     footerLogoObjectKey: hasVariantLogo ? branding?.footerLogoObjectKey || "" : branding?.logoObjectKey || "",
-    logoStorageProvider: branding?.logoStorageProvider || "",
+    logoStorageProvider: branding?.logoStorageProvider === "r2" || branding?.logoStorageProvider === "supabase" ? branding.logoStorageProvider : undefined,
     logoBucket: branding?.logoBucket || "",
     logoObjectKey: branding?.logoObjectKey || "",
     logoFileName: branding?.logoFileName || "",
@@ -272,6 +289,79 @@ export function buildTenantSettingsFromMunicipality(
       (typeof general.settlement_beneficiary === "string" &&
         general.settlement_beneficiary) ||
       base.beneficiarioArrecadacao,
+    pixEnabled:
+      typeof general.pix_enabled === "boolean"
+        ? general.pix_enabled
+        : base.pixEnabled ?? true,
+    pixKeyType:
+      typeof general.pix_key_type === "string" &&
+      ["cpf", "cnpj", "email", "phone", "random"].includes(general.pix_key_type)
+        ? (general.pix_key_type as TenantSettings["pixKeyType"])
+        : base.pixKeyType ?? "cnpj",
+    pixMerchantCity:
+      (typeof general.pix_merchant_city === "string" && general.pix_merchant_city) ||
+      base.pixMerchantCity ||
+      "",
+    bankCode:
+      (typeof general.bank_code === "string" && general.bank_code) ||
+      base.bankCode ||
+      "",
+    bankName:
+      (typeof general.bank_name === "string" && general.bank_name) ||
+      base.bankName ||
+      "",
+    bankAgency:
+      (typeof general.bank_agency === "string" && general.bank_agency) ||
+      base.bankAgency ||
+      "",
+    bankAgencyDigit:
+      (typeof general.bank_agency_digit === "string" && general.bank_agency_digit) ||
+      base.bankAgencyDigit ||
+      "",
+    bankAccount:
+      (typeof general.bank_account === "string" && general.bank_account) ||
+      base.bankAccount ||
+      "",
+    bankAccountDigit:
+      (typeof general.bank_account_digit === "string" && general.bank_account_digit) ||
+      base.bankAccountDigit ||
+      "",
+    bankBeneficiaryDocument:
+      (typeof general.bank_beneficiary_document === "string" && general.bank_beneficiary_document) ||
+      base.bankBeneficiaryDocument ||
+      "",
+    bankCollectionMode:
+      typeof general.bank_collection_mode === "string" &&
+      ["manual", "agreement", "api"].includes(general.bank_collection_mode)
+        ? (general.bank_collection_mode as TenantSettings["bankCollectionMode"])
+        : base.bankCollectionMode ?? "manual",
+    bankAgreementCode:
+      (typeof general.bank_agreement_code === "string" && general.bank_agreement_code) ||
+      base.bankAgreementCode ||
+      "",
+    bankWallet:
+      (typeof general.bank_wallet === "string" && general.bank_wallet) ||
+      base.bankWallet ||
+      "",
+    bankInstructions:
+      (typeof general.bank_instructions === "string" && general.bank_instructions) ||
+      base.bankInstructions ||
+      "",
+    paymentProvider:
+      typeof general.payment_provider === "string" &&
+      ["mercado_pago", "bank_direct", "manual"].includes(general.payment_provider)
+        ? (general.payment_provider as TenantSettings["paymentProvider"])
+        : base.paymentProvider ?? "mercado_pago",
+    paymentProviderEnvironment:
+      typeof general.payment_provider_environment === "string" &&
+      ["test", "production"].includes(general.payment_provider_environment)
+        ? (general.payment_provider_environment as TenantSettings["paymentProviderEnvironment"])
+        : base.paymentProviderEnvironment ?? "test",
+    paymentAuthenticationMode:
+      typeof general.payment_authentication_mode === "string" &&
+      ["automatic", "manual"].includes(general.payment_authentication_mode)
+        ? (general.payment_authentication_mode as TenantSettings["paymentAuthenticationMode"])
+        : base.paymentAuthenticationMode ?? "automatic",
     taxaProtocolo:
       typeof general.taxa_protocolo === "number"
         ? general.taxa_protocolo
@@ -414,11 +504,12 @@ export function buildTenantFromMunicipalityBundle(
       (typeof general.plan === "string" && general.plan) ||
       fallbackTenant?.plan ||
       "Plano institucional",
-    userCount: fallbackTenant?.userCount || 0,
-    activeProcessCount: fallbackTenant?.activeProcessCount || 0,
-    monthlyRevenue:
+    activeModules: fallbackTenant?.activeModules || [],
+    users: fallbackTenant?.users || 0,
+    processes: fallbackTenant?.processes || 0,
+    revenue:
       (typeof general.monthly_fee === "number" && general.monthly_fee) ||
-      fallbackTenant?.monthlyRevenue ||
+      fallbackTenant?.revenue ||
       0,
     subdomain:
       municipality?.subdomain || fallbackTenant?.subdomain || "",

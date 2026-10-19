@@ -735,6 +735,85 @@ html body #root [data-layout-mode="default"] .sig-main-shell .sig-process-detail
 
 
 /* ==========================================================================
+   TOPBAR BRAND PREMIUM V18 — 2026-10-17
+   Keeps the SIGAPRO product mark readable even on the 75% internal workspace.
+   ========================================================================== */
+html body #root .sig-app-frame .sig-premium-topbar .sig-topbar-brand-logo {
+  width:62px !important;
+  height:62px !important;
+  flex:0 0 62px !important;
+  overflow:visible !important;
+}
+
+html body #root .sig-app-frame .sig-premium-topbar .sig-topbar-brand-badge {
+  width:60px !important;
+  height:60px !important;
+  padding:3px !important;
+  border-radius:19px !important;
+  background:linear-gradient(180deg,#ffffff 0%,#f7fbff 100%) !important;
+  border:1px solid rgba(255,255,255,.58) !important;
+  box-shadow:
+    0 10px 26px rgba(2,6,23,.20),
+    0 1px 0 rgba(255,255,255,.95) inset !important;
+}
+
+html body #root .sig-app-frame .sig-premium-topbar .sig-topbar-brand-image {
+  display:block !important;
+  width:100% !important;
+  height:100% !important;
+  max-width:none !important;
+  max-height:none !important;
+  object-fit:contain !important;
+  object-position:center !important;
+  transform:none !important;
+  filter:none !important;
+}
+
+html body #root .sig-app-frame .sig-premium-topbar .sig-topbar-brand-title {
+  font-size:15.5px !important;
+  line-height:1 !important;
+  font-weight:800 !important;
+  letter-spacing:.145em !important;
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  text-shadow:0 1px 2px rgba(2,6,23,.18) !important;
+}
+
+html body #root .sig-app-frame .sig-premium-topbar .sig-topbar-brand-subtitle {
+  margin-top:5px !important;
+  font-size:12.5px !important;
+  line-height:1.28 !important;
+  font-weight:500 !important;
+  color:rgba(235,244,252,.88) !important;
+  -webkit-text-fill-color:rgba(235,244,252,.88) !important;
+}
+
+@media (max-width:1023px) {
+  html body #root .sig-app-frame .sig-premium-topbar .sig-topbar-brand-logo {
+    width:50px !important;
+    height:50px !important;
+    flex-basis:50px !important;
+  }
+
+  html body #root .sig-app-frame .sig-premium-topbar .sig-topbar-brand-badge {
+    width:48px !important;
+    height:48px !important;
+    padding:2px !important;
+    border-radius:16px !important;
+  }
+
+  html body #root .sig-app-frame .sig-premium-topbar .sig-topbar-brand-title {
+    font-size:13px !important;
+  }
+
+  html body #root .sig-app-frame .sig-premium-topbar .sig-topbar-brand-subtitle {
+    font-size:11px !important;
+  }
+}
+/* TOPBAR BRAND PREMIUM V18 END */
+
+
+/* ==========================================================================
    PROCESS DETAIL VISIBILITY LOCK V14 — AUTHORITATIVE FINAL OVERRIDE
    This file is imported AFTER index.css. Scope is only the opened process.
    Topbar/sidebar/footer/theme controls are intentionally untouched.
@@ -1917,7 +1996,7 @@ html body #root .sig-app-frame .sig-institution-logo-surface[data-logo-context="
 html body #root .sig-app-frame .sig-institution-logo-surface[data-logo-context="municipality"][data-logo-variant="header"],
 html body #root .sig-app-frame .sig-institution-logo-surface[data-logo-context="municipality"][data-logo-variant="footer"],
 html body #root .sig-app-frame .sig-institution-logo-surface[data-logo-context="municipality"][data-logo-variant="preview"] {
-  padding:8px 10px !important;
+  padding:5px 7px !important;
   border-radius:20px !important;
 }
 
@@ -1947,7 +2026,7 @@ html body #root .sig-app-frame .sig-institution-logo-surface[data-logo-context="
   max-height:100% !important;
   object-fit:contain !important;
   object-position:center !important;
-  transform:none !important;
+  transform-origin:center center !important;
   opacity:1 !important;
   filter:none !important;
   mix-blend-mode:normal !important;
@@ -2014,3 +2093,154 @@ html body #root .sig-app-frame .sig-main-shell
   border-color:#1e293b !important;
 }
 /* ANALISE / FICHA TECNICA — LEGENDA CRISP V17 END */
+
+
+
+
+
+
+
+
+/* ==========================================================================
+   ENQUADRAMENTO INSTITUCIONAL EXATO V20 — 2026-10-17
+   Preview e editor compartilham a mesma geometria do logo real. Nenhuma regra
+   global pode transformar o brasao em faixa horizontal ou esticar o frame.
+   ========================================================================== */
+html body #root .sig-app-frame [data-config-brand-panel] .sig-config-logo-frame {
+  padding:0 !important;
+  display:flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  flex-grow:0 !important;
+  flex-shrink:0 !important;
+  align-self:center !important;
+  overflow:hidden !important;
+  box-sizing:border-box !important;
+  background:#ffffff !important;
+}
+
+html body #root .sig-app-frame [data-config-brand-panel] .sig-config-logo-frame-header,
+html body #root .sig-app-frame [data-config-brand-panel] .sig-config-logo-frame-footer {
+  width:188px !important;
+  min-width:188px !important;
+  max-width:188px !important;
+  height:188px !important;
+  min-height:188px !important;
+  max-height:188px !important;
+  flex-basis:188px !important;
+}
+
+html body #root .sig-app-frame [data-config-brand-panel] .sig-config-logo-frame > img {
+  display:block !important;
+  width:100% !important;
+  height:100% !important;
+  max-width:100% !important;
+  max-height:100% !important;
+  object-fit:contain !important;
+  object-position:center center !important;
+  margin:0 !important;
+}
+
+html body #root .sig-app-frame [data-config-brand-panel] .sig-config-logo-editor [data-image-frame-shape="rounded"] {
+  width:max-content !important;
+  max-width:100% !important;
+  margin-inline:auto !important;
+  padding:10px !important;
+  border-radius:24px !important;
+}
+
+html body #root .sig-app-frame [data-config-brand-panel] .sig-config-logo-editor-header [data-image-frame-viewport="true"],
+html body #root .sig-app-frame [data-config-brand-panel] .sig-config-logo-editor-footer [data-image-frame-viewport="true"] {
+  width:188px !important;
+  min-width:188px !important;
+  max-width:188px !important;
+  height:188px !important;
+  min-height:188px !important;
+  max-height:188px !important;
+  aspect-ratio:1 / 1 !important;
+  border-radius:20px !important;
+}
+
+html body #root .sig-app-frame [data-config-brand-panel] .sig-config-logo-editor [data-image-frame-viewport="true"] img {
+  max-width:none !important;
+  max-height:none !important;
+  image-rendering:auto !important;
+}
+
+html body #root .sig-app-frame [data-config-brand-panel] .sig-config-live-preview {
+  width:100% !important;
+  max-width:720px !important;
+  min-width:0 !important;
+  margin-inline:0 !important;
+}
+
+html body #root .sig-app-frame [data-config-brand-panel] [data-institutional-header-preview="true"],
+html body #root .sig-app-frame [data-config-brand-panel] [data-institutional-footer-preview="true"] {
+  height:auto !important;
+  min-height:0 !important;
+  max-height:none !important;
+}
+
+@media (max-width:639px) {
+  html body #root .sig-app-frame [data-config-brand-panel] .sig-config-logo-frame-header,
+  html body #root .sig-app-frame [data-config-brand-panel] .sig-config-logo-frame-footer,
+  html body #root .sig-app-frame [data-config-brand-panel] .sig-config-logo-editor-header [data-image-frame-viewport="true"],
+  html body #root .sig-app-frame [data-config-brand-panel] .sig-config-logo-editor-footer [data-image-frame-viewport="true"] {
+    width:160px !important;
+    min-width:160px !important;
+    max-width:160px !important;
+    height:160px !important;
+    min-height:160px !important;
+    max-height:160px !important;
+    flex-basis:160px !important;
+  }
+}
+/* ENQUADRAMENTO INSTITUCIONAL EXATO V20 END */
+
+/* CONTRASTE DO PREVIEW INSTITUCIONAL V21 */
+html body #root .sig-app-frame
+:is([data-institutional-header-preview="true"],[data-institutional-footer-preview="true"])
+[data-preview-copy="strong"] {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  opacity:1 !important;
+  text-shadow:none !important;
+}
+
+html body #root .sig-app-frame
+:is([data-institutional-header-preview="true"],[data-institutional-footer-preview="true"])
+[data-preview-copy="muted"] {
+  color:#e8f1f8 !important;
+  -webkit-text-fill-color:#e8f1f8 !important;
+  opacity:.86 !important;
+  text-shadow:none !important;
+}
+
+html body #root .sig-app-frame
+:is([data-institutional-header-preview="true"],[data-institutional-footer-preview="true"])
+[data-preview-copy="subtle"] {
+  color:#c8d7e4 !important;
+  -webkit-text-fill-color:#c8d7e4 !important;
+  opacity:.78 !important;
+  text-shadow:none !important;
+}
+
+html body #root .sig-app-frame
+:is([data-institutional-header-preview="true"],[data-institutional-footer-preview="true"])
+#cadastro-preview-usuario {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  opacity:1 !important;
+}
+
+html body #root .sig-app-frame
+:is([data-institutional-header-preview="true"],[data-institutional-footer-preview="true"])
+.sig-config-logo-frame {
+  background:#ffffff !important;
+  border-color:rgba(226,232,240,.96) !important;
+  box-shadow:
+    0 16px 34px rgba(2,6,23,.22),
+    inset 0 1px 0 rgba(255,255,255,1) !important;
+}
+/* CONTRASTE DO PREVIEW INSTITUCIONAL V21 END */
+

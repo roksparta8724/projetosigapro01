@@ -1,7 +1,6 @@
 import { LockKeyhole } from "lucide-react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { DocumentWorkspaceBoot } from "@/components/platform/DocumentWorkspaceBoot";
 import { Card, CardContent } from "@/components/ui/card";
 import { useAuthGateway } from "@/hooks/useAuthGateway";
 import { useAppBootstrap } from "@/hooks/useAppBootstrap";
@@ -58,9 +57,14 @@ export function PermissionRoute({
       /\/processos\/[^/]+\/documentos\/[^/]+\/(visualizar|analisar)$/.exec(location.pathname);
 
     if (documentRoute) {
+      // Cold start da guia documental: mantenha somente o canvas neutro.
+      // A tela falsa de carregamento foi removida para que o usuário passe
+      // diretamente do processo para o PDF real quando a sessão terminar de validar.
       return (
-        <DocumentWorkspaceBoot
-          mode={documentRoute[1] === "analisar" ? "analysis" : "viewer"}
+        <div
+          data-document-route-preboot="silent"
+          className="min-h-screen bg-[#2b3037]"
+          aria-hidden="true"
         />
       );
     }

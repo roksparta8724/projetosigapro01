@@ -1,12 +1,13 @@
 ﻿/* eslint-disable react-hooks/exhaustive-deps */
 import { FormEvent, useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import { useRef } from "react";
-import { ArrowLeft, Bell, Building2, Calculator, Flag, Image as ImageIcon, Landmark, Link2, MonitorCog, Palette, ReceiptText, ScrollText, ShieldPlus, Wallet } from "lucide-react";
+import { ArrowLeft, Bell, Building2, Calculator, CheckCircle2, Flag, Image as ImageIcon, Landmark, Link2, MonitorCog, Palette, ReceiptText, RefreshCw, ScrollText, ShieldPlus, Wallet } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { FileDropZone, type UploadedFileItem } from "@/components/platform/FileDropZone";
 import { ImageFrameEditor } from "@/components/platform/ImageFrameEditor";
 import { InstitutionalLogo } from "@/components/platform/InstitutionalLogo";
 import { MunicipalStorageSettings } from "@/components/platform/MunicipalStorageSettings";
+import { MunicipalPaymentSettings } from "@/components/platform/MunicipalPaymentSettings";
 import { InternalTabs } from "@/components/platform/InternalTabs";
 import { PageHeader } from "@/components/platform/PageHeader";
 import { PortalFrame } from "@/components/platform/PortalFrame";
@@ -44,8 +45,8 @@ import {
   uploadPlatformBrandingAsset,
   upsertRemoteInstitution,
 } from "@/integrations/backend/platform";
-import { getInstitutionBranding, updateInstitutionBranding, type InstitutionalLogoConfigVariant } from "@/lib/institutionBranding";
-import { getObjectKeyFromPublicUrl, getPublicUrl, getSignedUrlForObject, getSignedUrlForObjectStrict } from "@/integrations/r2/client";
+import { updateInstitutionBranding, type InstitutionalLogoConfigVariant } from "@/lib/institutionBranding";
+import { getMunicipalityLogoOpenUrl, getObjectKeyFromPublicUrl, getPublicUrl, getSignedUrlForObject, getSignedUrlForObjectStrict } from "@/integrations/r2/client";
 import { uploadFileToStorage } from "@/integrations/r2/storage";
 import {
   getMasterInstitutionBranding,
@@ -55,23 +56,36 @@ import {
 } from "@/lib/masterBranding";
 import { buildTenantFromMunicipalityBundle, buildTenantSettingsFromMunicipality } from "@/lib/municipality";
 import { buildMunicipalityPortalUrl } from "@/lib/publicDomain";
+import { validateMunicipalPixKey } from "@/lib/paymentCollection";
 import { formatCep, lookupCepAddress } from "@/lib/cep";
 import { can, desktopThemePresets, mobileThemePresets, type TenantSettings } from "@/lib/platform";
 
 function imageFiles(url: string, label: string): UploadedFileItem[] {
-  return url
-    ? [
-        {
-          id: `${label}-${encodeURIComponent(url)}`,
-          fileName: label,
-          mimeType: "image/*",
-          sizeLabel: "imagem salva",
-          previewUrl: url,
-          persistentRef: url,
-          storagePath: getObjectKeyFromPublicUrl(url) || "remote",
-        },
-      ]
-    : [];
+  const persistentRef = String(url || "").trim();
+  if (!persistentRef) return [];
+
+  const r2ObjectKey = persistentRef.startsWith("r2:")
+    ? persistentRef.slice(3).trim().replace(/^\/+/, "")
+    : "";
+  const storagePath =
+    r2ObjectKey ||
+    getObjectKeyFromPublicUrl(persistentRef) ||
+    "remote";
+  const previewUrl = r2ObjectKey
+    ? getMunicipalityLogoOpenUrl(r2ObjectKey)
+    : persistentRef;
+
+  return [
+    {
+      id: `${label}-${encodeURIComponent(persistentRef)}`,
+      fileName: label,
+      mimeType: "image/*",
+      sizeLabel: "imagem salva",
+      previewUrl,
+      persistentRef,
+      storagePath,
+    },
+  ];
 }
 
 function resolveBrandingErrorMessage(error: unknown, fallback: string) {
@@ -121,11 +135,23 @@ function sameFileList(a: UploadedFileItem[], b: UploadedFileItem[]) {
 
 function isRenderablePreviewUrl(value?: string | null) {
   if (!value) return false;
+  const normalized = value.trim();
+  if (!normalized || normalized.startsWith("r2:")) return false;
   return (
-    value.startsWith("http") ||
-    value.startsWith("data:") ||
-    value.startsWith("blob:")
+    /^https?:\/\//i.test(normalized) ||
+    normalized.startsWith("//") ||
+    normalized.startsWith("/") ||
+    normalized.startsWith("./") ||
+    normalized.startsWith("../") ||
+    normalized.startsWith("data:") ||
+    normalized.startsWith("blob:")
   );
+}
+
+function firstRenderablePreviewUrl(...values: Array<string | null | undefined>) {
+  return values
+    .map((value) => String(value || "").trim())
+    .find((value) => isRenderablePreviewUrl(value)) || "";
 }
 
 function storedInstitutionalDocument(
@@ -156,6 +182,16 @@ function storedInstitutionalDocument(
     },
   ];
 }
+
+type MercadoPagoHealth = {
+  ok: boolean;
+  configured: boolean;
+  environment: "test" | "production";
+  boletoAvailable: boolean;
+  pixAvailable: boolean;
+  availableMethods?: Array<{ id: string; name: string; type: string }>;
+  error?: string;
+};
 
 export function ConfiguracoesPage() {
   const navigate = useNavigate();
@@ -350,7 +386,7 @@ export function ConfiguracoesPage() {
       if (devSlug) {
         const normalizedDevSlug = normalizeSubdomainInput(devSlug);
         const bySlug = availableInstitutions.find(
-          (item) => normalizeSubdomainInput(item.subdomain || item.slug || "") === normalizedDevSlug,
+          (item) => normalizeSubdomainInput(item.subdomain || "") === normalizedDevSlug,
         );
         if (bySlug?.id && isUuid(bySlug.id)) {
           console.log("[SIGAPRO] Branding: municipio por VITE_DEV_MUNICIPALITY_SLUG", {
@@ -379,7 +415,7 @@ export function ConfiguracoesPage() {
     const normalizedName = tenantForm.name.trim().toLowerCase();
     const fallbackByList =
       availableInstitutions.find((item) => {
-        const sub = normalizeSubdomainInput(item.subdomain || item.slug || "");
+        const sub = normalizeSubdomainInput(item.subdomain || "");
         const name = (item.name || "").trim().toLowerCase();
         return (normalizedSubdomain && sub === normalizedSubdomain) || (normalizedName && name === normalizedName);
       }) ?? (availableInstitutions.length === 1 ? availableInstitutions[0] : null);
@@ -588,6 +624,23 @@ export function ConfiguracoesPage() {
     guiaPrefixo: settings?.guiaPrefixo ?? "",
     chavePix: settings?.chavePix ?? "",
     beneficiarioArrecadacao: settings?.beneficiarioArrecadacao ?? "",
+    pixEnabled: settings?.pixEnabled ?? true,
+    pixKeyType: settings?.pixKeyType ?? "cnpj",
+    pixMerchantCity: settings?.pixMerchantCity ?? tenantForm.city ?? "",
+    bankCode: settings?.bankCode ?? "",
+    bankName: settings?.bankName ?? "",
+    bankAgency: settings?.bankAgency ?? "",
+    bankAgencyDigit: settings?.bankAgencyDigit ?? "",
+    bankAccount: settings?.bankAccount ?? "",
+    bankAccountDigit: settings?.bankAccountDigit ?? "",
+    bankBeneficiaryDocument: settings?.bankBeneficiaryDocument ?? settings?.cnpj ?? "",
+    bankCollectionMode: settings?.bankCollectionMode ?? "manual",
+    bankAgreementCode: settings?.bankAgreementCode ?? "",
+    bankWallet: settings?.bankWallet ?? "",
+    bankInstructions: settings?.bankInstructions ?? "",
+    paymentProvider: settings?.paymentProvider ?? "mercado_pago",
+    paymentProviderEnvironment: settings?.paymentProviderEnvironment ?? "test",
+    paymentAuthenticationMode: settings?.paymentAuthenticationMode ?? "automatic",
     taxaProtocolo: settings?.taxaProtocolo ?? 35.24,
     taxaIssPorMetroQuadrado: settings?.taxaIssPorMetroQuadrado ?? 0,
     taxaAprovacaoFinal: settings?.taxaAprovacaoFinal ?? 0,
@@ -653,12 +706,112 @@ export function ConfiguracoesPage() {
     | "institutional"
     | "communication"
     | "protocol"
+    | "collection"
     | "team"
     | "account"
     | "advanced"
     | "storage"
     | "platform"
-  >("overview");
+  >(() => {
+    if (typeof window === "undefined") return "overview";
+    const requested = new URLSearchParams(window.location.search).get("secao");
+    const allowed = new Set([
+      "overview",
+      "branding",
+      "institutional",
+      "communication",
+      "protocol",
+      "collection",
+      "team",
+      "account",
+      "advanced",
+      "storage",
+      "platform",
+    ]);
+    return allowed.has(String(requested || ""))
+      ? (requested as
+          | "overview"
+          | "branding"
+          | "institutional"
+          | "communication"
+          | "protocol"
+          | "collection"
+          | "team"
+          | "account"
+          | "advanced"
+          | "storage"
+          | "platform")
+      : "overview";
+  });
+  const isPlatformSettingsView = String(activeSettingsView) === "platform";
+  const [mercadoPagoHealth, setMercadoPagoHealth] = useState<MercadoPagoHealth | null>(null);
+  const [mercadoPagoChecking, setMercadoPagoChecking] = useState(false);
+
+  const checkMercadoPagoConnection = async () => {
+    setMercadoPagoChecking(true);
+    try {
+      let authorization = "";
+      try {
+        const sessionResult = await backendClient?.auth?.getSession?.();
+        const authSession = sessionResult?.data?.session ?? null;
+        authorization =
+          authSession?.access_token ||
+          authSession?.accessToken ||
+          authSession?.token ||
+          "";
+      } catch {
+        authorization = "";
+      }
+
+      const paymentMunicipalityId =
+        selectedTenantId || scopeId || session.tenantId || "";
+      const healthUrl = paymentMunicipalityId
+        ? `/api/mercadopago/health?municipalityId=${encodeURIComponent(paymentMunicipalityId)}`
+        : "/api/mercadopago/health";
+
+      const response = await fetch(healthUrl, {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+          ...(authorization ? { Authorization: `Bearer ${authorization}` } : {}),
+        },
+        cache: "no-store",
+      });
+      const payload = (await response.json().catch(() => null)) as MercadoPagoHealth | null;
+      if (!payload) {
+        throw new Error(`Resposta inválida do endpoint Mercado Pago (HTTP ${response.status}).`);
+      }
+      setMercadoPagoHealth(payload);
+    } catch (error) {
+      setMercadoPagoHealth({
+        ok: false,
+        configured: false,
+        environment: "test",
+        boletoAvailable: false,
+        pixAvailable: false,
+        error: error instanceof Error ? error.message : "Falha ao consultar o Mercado Pago.",
+      });
+    } finally {
+      setMercadoPagoChecking(false);
+    }
+  };
+
+  useEffect(() => {
+    setMercadoPagoHealth(null);
+  }, [selectedTenantId, scopeId, session.tenantId]);
+
+  useEffect(() => {
+    if (activeSettingsView !== "collection") return;
+    if (mercadoPagoHealth || mercadoPagoChecking) return;
+    void checkMercadoPagoConnection();
+  }, [
+    activeSettingsView,
+    mercadoPagoHealth,
+    mercadoPagoChecking,
+    selectedTenantId,
+    scopeId,
+    session.tenantId,
+  ]);
 
   const [logoFiles, setLogoFiles] = useState<UploadedFileItem[]>(imageFiles(settings?.logoUrl ?? "", "logo"));
   const [draftLogoFiles, setDraftLogoFiles] = useState<UploadedFileItem[]>(imageFiles(settings?.logoUrl ?? "", "logo"));
@@ -765,12 +918,12 @@ export function ConfiguracoesPage() {
     });
   }, [draftLogoFiles]);
   const [draftHeaderLogoConfig, setDraftHeaderLogoConfig] = useState({
-    scale: settings?.headerLogoScale ?? settings?.logoScale ?? 1,
+    scale: Math.max(1, settings?.headerLogoScale ?? settings?.logoScale ?? 1),
     offsetX: settings?.headerLogoOffsetX ?? settings?.logoOffsetX ?? 0,
     offsetY: settings?.headerLogoOffsetY ?? settings?.logoOffsetY ?? 0,
   });
   const [draftFooterLogoConfig, setDraftFooterLogoConfig] = useState({
-    scale: settings?.footerLogoScale ?? settings?.logoScale ?? 1,
+    scale: Math.max(1, settings?.footerLogoScale ?? settings?.logoScale ?? 1),
     offsetX: settings?.footerLogoOffsetX ?? settings?.logoOffsetX ?? 0,
     offsetY: settings?.footerLogoOffsetY ?? settings?.logoOffsetY ?? 0,
   });
@@ -914,6 +1067,23 @@ export function ConfiguracoesPage() {
       guiaPrefixo: nextSettings?.guiaPrefixo ?? "",
       chavePix: nextSettings?.chavePix ?? "",
       beneficiarioArrecadacao: nextSettings?.beneficiarioArrecadacao ?? "",
+      pixEnabled: nextSettings?.pixEnabled ?? true,
+      pixKeyType: nextSettings?.pixKeyType ?? "cnpj",
+      pixMerchantCity: nextSettings?.pixMerchantCity ?? nextTenant?.city ?? "",
+      bankCode: nextSettings?.bankCode ?? "",
+      bankName: nextSettings?.bankName ?? "",
+      bankAgency: nextSettings?.bankAgency ?? "",
+      bankAgencyDigit: nextSettings?.bankAgencyDigit ?? "",
+      bankAccount: nextSettings?.bankAccount ?? "",
+      bankAccountDigit: nextSettings?.bankAccountDigit ?? "",
+      bankBeneficiaryDocument: nextSettings?.bankBeneficiaryDocument ?? nextSettings?.cnpj ?? "",
+      bankCollectionMode: nextSettings?.bankCollectionMode ?? "manual",
+      bankAgreementCode: nextSettings?.bankAgreementCode ?? "",
+      bankWallet: nextSettings?.bankWallet ?? "",
+      bankInstructions: nextSettings?.bankInstructions ?? "",
+      paymentProvider: nextSettings?.paymentProvider ?? "mercado_pago",
+      paymentProviderEnvironment: nextSettings?.paymentProviderEnvironment ?? "test",
+      paymentAuthenticationMode: nextSettings?.paymentAuthenticationMode ?? "automatic",
       taxaProtocolo: nextSettings?.taxaProtocolo ?? 35.24,
       taxaIssPorMetroQuadrado: nextSettings?.taxaIssPorMetroQuadrado ?? 0,
       taxaAprovacaoFinal: nextSettings?.taxaAprovacaoFinal ?? 0,
@@ -927,13 +1097,37 @@ export function ConfiguracoesPage() {
     const nextLogoFiles = imageFiles(nextSettings?.logoUrl ?? "", "logo");
     setLogoFiles((current) => (sameFileList(current, nextLogoFiles) ? current : nextLogoFiles));
     setDraftLogoFiles((current) => (sameFileList(current, nextLogoFiles) ? current : nextLogoFiles));
-    const nextHeaderFiles = imageFiles(nextSettings?.headerLogoUrl || nextSettings?.logoUrl || "", "header-logo");
-    const nextFooterFiles = imageFiles(nextSettings?.footerLogoUrl || nextSettings?.logoUrl || "", "footer-logo");
-    setDraftHeaderLogoFiles((current) => (sameFileList(current, nextHeaderFiles) ? current : nextHeaderFiles));
-    setDraftFooterLogoFiles((current) => (sameFileList(current, nextFooterFiles) ? current : nextFooterFiles));
+    const nextHeaderFiles = imageFiles(
+      firstRenderablePreviewUrl(
+        headerBranding.logoUrl,
+        nextSettings?.headerLogoUrl,
+        nextSettings?.logoUrl,
+        nextSettings?.brasaoUrl,
+      ),
+      "header-logo",
+    );
+    const nextFooterFiles = imageFiles(
+      firstRenderablePreviewUrl(
+        footerBranding.logoUrl,
+        nextSettings?.footerLogoUrl,
+        nextSettings?.logoUrl,
+        nextSettings?.brasaoUrl,
+      ),
+      "footer-logo",
+    );
+    setDraftHeaderLogoFiles((current) => {
+      if (current[0]?.file) return current;
+      if (!nextHeaderFiles.length && current.length) return current;
+      return sameFileList(current, nextHeaderFiles) ? current : nextHeaderFiles;
+    });
+    setDraftFooterLogoFiles((current) => {
+      if (current[0]?.file) return current;
+      if (!nextFooterFiles.length && current.length) return current;
+      return sameFileList(current, nextFooterFiles) ? current : nextFooterFiles;
+    });
 
     const nextHeaderConfig = {
-      scale: nextSettings?.headerLogoScale ?? nextSettings?.logoScale ?? 1,
+      scale: Math.max(1, nextSettings?.headerLogoScale ?? nextSettings?.logoScale ?? 1),
       offsetX: nextSettings?.headerLogoOffsetX ?? nextSettings?.logoOffsetX ?? 0,
       offsetY: nextSettings?.headerLogoOffsetY ?? nextSettings?.logoOffsetY ?? 0,
     };
@@ -942,7 +1136,7 @@ export function ConfiguracoesPage() {
     );
 
     const nextFooterConfig = {
-      scale: nextSettings?.footerLogoScale ?? nextSettings?.logoScale ?? 1,
+      scale: Math.max(1, nextSettings?.footerLogoScale ?? nextSettings?.logoScale ?? 1),
       offsetX: nextSettings?.footerLogoOffsetX ?? nextSettings?.logoOffsetX ?? 0,
       offsetY: nextSettings?.footerLogoOffsetY ?? nextSettings?.logoOffsetY ?? 0,
     };
@@ -989,7 +1183,7 @@ export function ConfiguracoesPage() {
       sameFileList(current, nextZoneamentoFiles) ? current : nextZoneamentoFiles,
     );
     setLeisFiles((current) => (sameFileList(current, nextLeisFiles) ? current : nextLeisFiles));
-  }, [availableInstitutions, selectedTenantId]);
+  }, [availableInstitutions, selectedTenantId, headerBranding.logoUrl, footerBranding.logoUrl]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1056,7 +1250,7 @@ export function ConfiguracoesPage() {
     setTenantForm((current) => ({ ...current, [field]: value }));
   };
 
-  const setSettingsField = (field: keyof typeof settingsForm, value: string | number) => {
+  const setSettingsField = (field: keyof typeof settingsForm, value: string | number | boolean) => {
     setSettingsForm((current) => ({ ...current, [field]: value }));
   };
 
@@ -1902,7 +2096,6 @@ export function ConfiguracoesPage() {
           ...(settings ?? settingsForm),
           ...settingsForm,
           tenantId: savedTenant.id,
-          institutionId: savedTenant.id,
           logoUrl,
           brasaoUrl: brasaoFiles[0]?.previewUrl ?? settings?.brasaoUrl ?? "",
           bandeiraUrl:
@@ -2136,12 +2329,12 @@ export function ConfiguracoesPage() {
         logoOffsetY: nextSettings.logoOffsetY ?? 0,
       }));
       setDraftHeaderLogoConfig({
-        scale: nextSettings.headerLogoScale ?? nextSettings.logoScale ?? 1,
+        scale: Math.max(1, nextSettings.headerLogoScale ?? nextSettings.logoScale ?? 1),
         offsetX: nextSettings.headerLogoOffsetX ?? nextSettings.logoOffsetX ?? 0,
         offsetY: nextSettings.headerLogoOffsetY ?? nextSettings.logoOffsetY ?? 0,
       });
       setDraftFooterLogoConfig({
-        scale: nextSettings.footerLogoScale ?? nextSettings.logoScale ?? 1,
+        scale: Math.max(1, nextSettings.footerLogoScale ?? nextSettings.logoScale ?? 1),
         offsetX: nextSettings.footerLogoOffsetX ?? nextSettings.logoOffsetX ?? 0,
         offsetY: nextSettings.footerLogoOffsetY ?? nextSettings.logoOffsetY ?? 0,
       });
@@ -2212,24 +2405,22 @@ export function ConfiguracoesPage() {
       folder,
     });
 
-    if (bucket === "institutional-branding" && !uploaded.publicUrl) {
-      throw new Error(
-        `O arquivo "${item.fileName}" foi enviado, mas o domínio público dos ativos institucionais não está configurado.`,
-      );
-    }
-
     const previewBucket =
       bucket === "process-documents"
         ? "process-documents"
         : "institutional-branding";
 
+    // Branding municipal não depende de domínio público nem de URL assinada
+    // temporária. A rota estável lê o objeto privado do R2 pelo object key.
     const previewUrl =
       uploaded.publicUrl ||
-      (await getSignedUrlForObjectStrict({
-        bucket: previewBucket,
-        objectKey: uploaded.path,
-        expiresIn: 21600,
-      }));
+      (bucket === "institutional-branding"
+        ? getMunicipalityLogoOpenUrl(uploaded.path)
+        : await getSignedUrlForObjectStrict({
+            bucket: previewBucket,
+            objectKey: uploaded.path,
+            expiresIn: 21600,
+          }));
 
     return [
       {
@@ -2326,7 +2517,12 @@ export function ConfiguracoesPage() {
       const nextSettings: TenantSettings = {
         ...baseSettings,
         tenantId: savedTenantId,
-        brasaoUrl: nextBrasaoFiles[0]?.persistentRef ?? nextBrasaoFiles[0]?.previewUrl ?? "",
+        brasaoUrl:
+          nextBrasaoFiles[0]?.persistentRef ??
+          (nextBrasaoFiles[0]?.storagePath && nextBrasaoFiles[0].storagePath !== "remote"
+            ? `r2:${nextBrasaoFiles[0].storagePath}`
+            : nextBrasaoFiles[0]?.previewUrl) ??
+          "",
         bandeiraUrl: nextBandeiraFiles[0]?.persistentRef ?? nextBandeiraFiles[0]?.previewUrl ?? "",
         imagemHeroUrl: nextHeroFiles[0]?.persistentRef ?? nextHeroFiles[0]?.previewUrl ?? "",
         planoDiretorArquivoNome: nextPlanoDiretorFiles[0]?.fileName ?? "",
@@ -2372,7 +2568,9 @@ export function ConfiguracoesPage() {
       setLeisFiles(nextLeisFiles);
 
       setInstitutionalAssetsStatus(
-        "Arquivos institucionais salvos com sucesso. Plano Diretor, Uso e Ocupação do Solo, Zoneamento e Leis Complementares estão vinculados ao módulo Legislação.",
+        nextBrasaoFiles[0]
+          ? "Brasão oficial salvo com sucesso no cadastro desta Prefeitura. Os demais arquivos institucionais também foram vinculados às áreas correspondentes."
+          : "Arquivos institucionais salvos com sucesso. Plano Diretor, Uso e Ocupação do Solo, Zoneamento e Leis Complementares estão vinculados ao módulo Legislação.",
       );
     } catch (error) {
       setInstitutionalAssetsStatus(
@@ -2392,6 +2590,7 @@ export function ConfiguracoesPage() {
     const normalizedSubdomain = normalizeSubdomainInput(
       tenantForm.subdomain || tenantForm.name || tenantForm.city,
     );
+    let normalizedPixKeyForSave = settingsForm.chavePix.trim();
     if (!tenantForm.name.trim()) {
       setStatus("Informe o nome institucional antes de salvar.");
       return;
@@ -2407,6 +2606,46 @@ export function ConfiguracoesPage() {
     if (!normalizedSubdomain) {
       setStatus("Informe um subdomínio válido (somente o nome, sem .sigapromunicipal.com.br).");
       return;
+    }
+    if (activeSettingsView === "collection") {
+      if (!settingsForm.beneficiarioArrecadacao.trim()) {
+        setStatus("Informe o beneficiário oficial da arrecadação.");
+        return;
+      }
+      if (settingsForm.pixEnabled && !settingsForm.chavePix.trim()) {
+        setStatus("Informe a chave PIX ou desative o PIX para esta Prefeitura.");
+        return;
+      }
+      if (settingsForm.pixEnabled && !settingsForm.pixMerchantCity.trim()) {
+        setStatus("Informe a cidade do recebedor usada no QR Code PIX.");
+        return;
+      }
+      if (settingsForm.pixEnabled) {
+        const pixValidation = validateMunicipalPixKey(
+          settingsForm.chavePix,
+          settingsForm.pixKeyType,
+        );
+        if (!pixValidation.valid) {
+          setStatus(pixValidation.message);
+          return;
+        }
+        normalizedPixKeyForSave = pixValidation.normalized;
+        if (pixValidation.normalized !== settingsForm.chavePix) {
+          setSettingsField("chavePix", pixValidation.normalized);
+        }
+      }
+      if (settingsForm.bankCode && !/^\d{3}$/.test(settingsForm.bankCode.trim())) {
+        setStatus("O código COMPE do banco deve conter exatamente 3 dígitos.");
+        return;
+      }
+      if (settingsForm.bankCollectionMode !== "manual" && (!settingsForm.bankCode.trim() || !settingsForm.bankName.trim())) {
+        setStatus("Informe o código e o nome do banco arrecadador para usar convênio ou API bancária.");
+        return;
+      }
+      if (settingsForm.bankCollectionMode === "agreement" && !settingsForm.bankAgreementCode.trim()) {
+        setStatus("Informe o número do convênio de arrecadação fornecido pelo banco.");
+        return;
+      }
     }
     if (tenantForm.subdomain !== normalizedSubdomain) {
       setTenantField("subdomain", normalizedSubdomain);
@@ -2424,6 +2663,7 @@ export function ConfiguracoesPage() {
       tenantId: savedTenantId,
       ...settings,
       ...settingsForm,
+      chavePix: normalizedPixKeyForSave,
       logoUrl,
       brasaoUrl: brasaoFiles[0]?.persistentRef ?? brasaoFiles[0]?.previewUrl ?? "",
       bandeiraUrl: bandeiraFiles[0]?.persistentRef ?? bandeiraFiles[0]?.previewUrl ?? "",
@@ -2629,129 +2869,64 @@ export function ConfiguracoesPage() {
     </SectionCard>
   );
 
-  const previewSettingsBase = {
-    tenantId: selectedTenantId || tenant?.id || "",
-    cnpj: settingsForm.cnpj,
-    cep: settingsForm.cep,
-    endereco: settingsForm.endereco,
-    telefone: settingsForm.telefone,
-    email: settingsForm.email,
-    site: settingsForm.site,
-    secretariaResponsavel: settingsForm.secretariaResponsavel,
-    secretariaTelefone: settingsForm.secretariaTelefone,
-    secretariaEmail: settingsForm.secretariaEmail,
-    diretoriaResponsavel: settingsForm.diretoriaResponsavel,
-    diretoriaTelefone: settingsForm.diretoriaTelefone,
-    diretoriaEmail: settingsForm.diretoriaEmail,
-    departmentOwnership: {
-      protocolo: {
-        secretaria: settingsForm.protocoloSecretaria.trim(),
-        diretoria: settingsForm.protocoloDiretoria.trim(),
-      },
-      analise: {
-        secretaria: settingsForm.analiseSecretaria.trim(),
-        diretoria: settingsForm.analiseDiretoria.trim(),
-      },
-      financeiro: {
-        secretaria: settingsForm.financeiroSecretaria.trim(),
-        diretoria: settingsForm.financeiroDiretoria.trim(),
-      },
-      acesso_externo: {
-        secretaria: settingsForm.acessoExternoSecretaria.trim(),
-        diretoria: settingsForm.acessoExternoDiretoria.trim(),
-      },
-    },
-    footerContactSource: settingsForm.footerContactSource,
-    horarioAtendimento: settingsForm.horarioAtendimento,
-    brasaoUrl: brasaoFiles[0]?.previewUrl ?? settings?.brasaoUrl ?? "",
-    bandeiraUrl: bandeiraFiles[0]?.previewUrl ?? settings?.bandeiraUrl ?? "",
-    logoUrl: logoRemovalRequested === "header" ? "" : draftHeaderLogoFiles[0]?.previewUrl ?? settings?.logoUrl ?? "",
-    headerLogoUrl: logoRemovalRequested === "header" ? "" : draftHeaderLogoFiles[0]?.previewUrl ?? settings?.headerLogoUrl ?? "",
-    footerLogoUrl: logoRemovalRequested === "footer" ? "" : draftFooterLogoFiles[0]?.previewUrl ?? settings?.footerLogoUrl ?? "",
-    imagemHeroUrl: heroFiles[0]?.previewUrl ?? settings?.imagemHeroUrl ?? "",
-    resumoPlanoDiretor: settingsForm.resumoPlanoDiretor,
-    resumoUsoSolo: settingsForm.resumoUsoSolo,
-    leisComplementares: settingsForm.leisComplementares,
-    linkPortalCliente: settingsForm.linkPortalCliente,
-    protocoloPrefixo: settingsForm.protocoloPrefixo,
-    guiaPrefixo: settingsForm.guiaPrefixo,
-    chavePix: settingsForm.chavePix,
-    beneficiarioArrecadacao: settingsForm.beneficiarioArrecadacao,
-    taxaProtocolo: settingsForm.taxaProtocolo,
-    taxaIssPorMetroQuadrado: settingsForm.taxaIssPorMetroQuadrado,
-    issRateProfiles: settings?.issRateProfiles,
-    taxaAprovacaoFinal: settingsForm.taxaAprovacaoFinal,
-    registroProfissionalObrigatorio: settingsForm.registroProfissionalObrigatorio,
-    contractNumber: settings?.contractNumber ?? "",
-    contractStart: settings?.contractStart ?? "",
-    contractEnd: settings?.contractEnd ?? "",
-    monthlyFee: settings?.monthlyFee ?? 0,
-    setupFee: settings?.setupFee ?? 0,
-    signatureMode: settings?.signatureMode ?? "eletronica",
-    clientDeliveryLink: settings?.clientDeliveryLink ?? "",
-    logoScale: headerBranding.logoScale,
-    logoOffsetX: headerBranding.logoOffsetX,
-    logoOffsetY: headerBranding.logoOffsetY,
-    headerLogoScale: headerBranding.logoScale,
-    headerLogoOffsetX: headerBranding.logoOffsetX,
-    headerLogoOffsetY: headerBranding.logoOffsetY,
-    footerLogoScale: footerBranding.logoScale,
-    footerLogoOffsetX: footerBranding.logoOffsetX,
-    footerLogoOffsetY: footerBranding.logoOffsetY,
-    logoAlt: settings?.logoAlt ?? "",
-    logoUpdatedAt: settings?.logoUpdatedAt ?? "",
-    logoUpdatedBy: settings?.logoUpdatedBy ?? "",
-    logoFrameMode: headerBranding.logoFrameMode,
-    logoFitMode: headerBranding.logoFitMode,
-    headerLogoFrameMode: headerBranding.logoFrameMode,
-    headerLogoFitMode: headerBranding.logoFitMode,
-    footerLogoFrameMode: footerBranding.logoFrameMode,
-    footerLogoFitMode: footerBranding.logoFitMode,
-    planoDiretorArquivoNome: planoDiretorFiles[0]?.fileName ?? settings?.planoDiretorArquivoNome ?? "",
-    planoDiretorArquivoUrl: planoDiretorFiles[0]?.previewUrl ?? settings?.planoDiretorArquivoUrl ?? "",
-    usoSoloArquivoNome: usoSoloFiles[0]?.fileName ?? settings?.usoSoloArquivoNome ?? "",
-    usoSoloArquivoUrl: usoSoloFiles[0]?.previewUrl ?? settings?.usoSoloArquivoUrl ?? "",
-    zoneamentoArquivoNome: zoneamentoFiles[0]?.fileName ?? settings?.zoneamentoArquivoNome ?? "",
-    zoneamentoArquivoUrl: zoneamentoFiles[0]?.previewUrl ?? settings?.zoneamentoArquivoUrl ?? "",
-    leisArquivoNome: leisFiles[0]?.fileName ?? settings?.leisArquivoNome ?? "",
-    leisArquivoUrl: leisFiles[0]?.previewUrl ?? settings?.leisArquivoUrl ?? "",
-  };
+  const previewHeaderLogoUrl =
+    logoRemovalRequested === "header"
+      ? ""
+      : firstRenderablePreviewUrl(
+          draftHeaderLogoFiles[0]?.file ? draftHeaderLogoFiles[0]?.previewUrl : "",
+          headerBranding.logoUrl,
+          draftHeaderLogoFiles[0]?.previewUrl,
+          settings?.headerLogoUrl,
+          settings?.logoUrl,
+          brasaoFiles[0]?.previewUrl,
+          settings?.brasaoUrl,
+        );
 
-  const previewHeaderBranding = getInstitutionBranding(
-    updateInstitutionBranding(
-      previewSettingsBase,
-      {
-        logoUrl: logoRemovalRequested === "header" ? "" : draftHeaderLogoFiles[0]?.previewUrl ?? settings?.headerLogoUrl ?? settings?.logoUrl ?? "",
-        logoScale: draftHeaderLogoConfig.scale,
-        logoOffsetX: draftHeaderLogoConfig.offsetX,
-        logoOffsetY: draftHeaderLogoConfig.offsetY,
-        logoAlt: tenantForm.name ? `Logo institucional de ${tenantForm.name}` : headerBranding.logoAlt,
-        logoFrameMode: "soft-square",
-        logoFitMode: "contain",
-      },
-      "header",
-    ),
-    tenantForm.name || tenant?.name || "Logo institucional",
-    "header",
-  );
+  const previewFooterLogoUrl =
+    logoRemovalRequested === "footer"
+      ? ""
+      : firstRenderablePreviewUrl(
+          draftFooterLogoFiles[0]?.file ? draftFooterLogoFiles[0]?.previewUrl : "",
+          footerBranding.logoUrl,
+          draftFooterLogoFiles[0]?.previewUrl,
+          settings?.footerLogoUrl,
+          settings?.logoUrl,
+          brasaoFiles[0]?.previewUrl,
+          settings?.brasaoUrl,
+        );
 
-  const previewFooterBranding = getInstitutionBranding(
-    updateInstitutionBranding(
-      previewSettingsBase,
-      {
-        logoUrl: logoRemovalRequested === "footer" ? "" : draftFooterLogoFiles[0]?.previewUrl ?? settings?.footerLogoUrl ?? settings?.logoUrl ?? "",
-        logoScale: draftFooterLogoConfig.scale,
-        logoOffsetX: draftFooterLogoConfig.offsetX,
-        logoOffsetY: draftFooterLogoConfig.offsetY,
-        logoAlt: tenantForm.name ? `Logo institucional de ${tenantForm.name}` : footerBranding.logoAlt,
-        logoFrameMode: "soft-square",
-        logoFitMode: "contain",
-      },
-      "footer",
-    ),
-    tenantForm.name || tenant?.name || "Logo institucional",
-    "footer",
+  const previewHeaderFallbackUrl = firstRenderablePreviewUrl(
+    headerBranding.fallbackLogoUrl,
+    brasaoFiles[0]?.previewUrl,
+    settings?.brasaoUrl,
   );
+  const previewFooterFallbackUrl = firstRenderablePreviewUrl(
+    footerBranding.fallbackLogoUrl,
+    brasaoFiles[0]?.previewUrl,
+    settings?.brasaoUrl,
+  );
+  const [failedHeaderPreviewUrl, setFailedHeaderPreviewUrl] = useState("");
+  const [failedFooterPreviewUrl, setFailedFooterPreviewUrl] = useState("");
+  const previewHeaderDisplayUrl =
+    previewHeaderLogoUrl && failedHeaderPreviewUrl === previewHeaderLogoUrl
+      ? previewHeaderFallbackUrl
+      : previewHeaderLogoUrl;
+  const previewFooterDisplayUrl =
+    previewFooterLogoUrl && failedFooterPreviewUrl === previewFooterLogoUrl
+      ? previewFooterFallbackUrl
+      : previewFooterLogoUrl;
+
+  useEffect(() => {
+    if (failedHeaderPreviewUrl && failedHeaderPreviewUrl !== previewHeaderLogoUrl) {
+      setFailedHeaderPreviewUrl("");
+    }
+  }, [failedHeaderPreviewUrl, previewHeaderLogoUrl]);
+
+  useEffect(() => {
+    if (failedFooterPreviewUrl && failedFooterPreviewUrl !== previewFooterLogoUrl) {
+      setFailedFooterPreviewUrl("");
+    }
+  }, [failedFooterPreviewUrl, previewFooterLogoUrl]);
 
   const headerLogoStatusIsSuccess = /sucesso/i.test(headerLogoStatus);
   const footerLogoStatusIsSuccess = /sucesso/i.test(footerLogoStatus);
@@ -2934,6 +3109,12 @@ export function ConfiguracoesPage() {
             description: "Organize prefixos, numeração oficial e parâmetros financeiros do fluxo DAM.",
             icon: ScrollText,
           }
+        : activeSettingsView === "collection"
+          ? {
+              title: "Arrecadação e banco",
+              description: "Configure PIX, beneficiário, banco arrecadador e os dados do convênio usados nas guias municipais.",
+              icon: Wallet,
+            }
         : activeSettingsView === "team"
           ? {
               title: "Equipe responsável",
@@ -2975,6 +3156,7 @@ export function ConfiguracoesPage() {
           { value: "institutional", label: "Dados institucionais", helper: "Prefeitura e cadastro" },
           { value: "communication", label: "Comunicação oficial", helper: "Canais e contato público" },
           { value: "protocol", label: "Protocolo e prefixos", helper: "Numeração e DAM" },
+          { value: "collection", label: "Arrecadação e banco", helper: "PIX, convênio e cobrança" },
           { value: "team", label: "Equipe responsável", helper: "Secretaria e diretoria" },
           { value: "account", label: "Preferências", helper: "Conta e alertas" },
           { value: "advanced", label: "Parâmetros avançados", helper: "Regras e base local" },
@@ -3006,7 +3188,7 @@ export function ConfiguracoesPage() {
           </PageMainContent>
         </PageMainGrid>
       ) : null}
-      {canManageTenantSettings && (activeSettingsView === "branding" || activeSettingsView === "institutional" || activeSettingsView === "communication" || activeSettingsView === "protocol" || activeSettingsView === "team" || activeSettingsView === "advanced") ? <PageMainGrid className="mt-4 grid-cols-1 xl:grid-cols-1">
+      {canManageTenantSettings && (activeSettingsView === "branding" || activeSettingsView === "institutional" || activeSettingsView === "communication" || activeSettingsView === "protocol" || activeSettingsView === "collection" || activeSettingsView === "team" || activeSettingsView === "advanced") ? <PageMainGrid className="mt-4 grid-cols-1 xl:grid-cols-1">
         {activeSettingsView === "branding" ? <PageMainContent className="w-full">
         <SectionCard title="Identidade visual" description="Organize prefeitura, paleta e ativos institucionais com leitura objetiva." icon={Building2} contentClassName="space-y-5" headerClassName="gap-2 pb-3">
             {session.tenantId === null ? (
@@ -3073,6 +3255,23 @@ export function ConfiguracoesPage() {
                       guiaPrefixo: "",
                       chavePix: "",
                       beneficiarioArrecadacao: "",
+                      pixEnabled: true,
+                      pixKeyType: "cnpj",
+                      pixMerchantCity: "",
+                      bankCode: "",
+                      bankName: "",
+                      bankAgency: "",
+                      bankAgencyDigit: "",
+                      bankAccount: "",
+                      bankAccountDigit: "",
+                      bankBeneficiaryDocument: "",
+                      bankCollectionMode: "manual",
+                      bankAgreementCode: "",
+                      bankWallet: "",
+                      bankInstructions: "",
+                      paymentProvider: "mercado_pago",
+                      paymentProviderEnvironment: "test",
+                      paymentAuthenticationMode: "automatic",
                       taxaProtocolo: 35.24,
                       taxaIssPorMetroQuadrado: 0,
                       taxaAprovacaoFinal: 0,
@@ -3164,43 +3363,78 @@ export function ConfiguracoesPage() {
 
             {(!isMasterRole || availableInstitutions.some((item) => item.id === selectedTenantId)) ? (
             <div className="grid gap-4">
-              <div className="rounded-[24px] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f6f9fc_100%)] p-5">
+              <div data-config-brand-panel="header" className="rounded-[24px] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f6f9fc_100%)] p-5">
                 <div className="flex items-center gap-2 text-slate-950">
                   <ImageIcon className="h-4 w-4" />
-                  <p className="text-sm text-slate-900">Logo do cabecalho</p>
+                  <p className="text-sm text-slate-900">Logo do cabeçalho</p>
                 </div>
                 <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">Ajuste o enquadramento do banner principal no frame institucional.</p>
                 <div className="mt-4 grid gap-5 xl:grid-cols-[minmax(440px,1.22fr)_minmax(300px,0.78fr)] 2xl:grid-cols-[minmax(520px,1.22fr)_minmax(320px,0.8fr)]">
                   <div
                     data-institutional-header-preview="true"
-                    className="overflow-hidden rounded-[30px] p-6 shadow-[0_24px_52px_rgba(15,42,68,0.16)]"
+                    className="sig-config-live-preview relative self-start overflow-hidden rounded-[28px] border border-white/[0.16] p-4 shadow-[0_22px_48px_rgba(15,42,68,0.20)] ring-1 ring-black/5 md:p-5"
                     style={{ background: `linear-gradient(135deg, ${tenantForm.primaryColor} 0%, ${darken(tenantForm.primaryColor, -6)} 58%, ${darken(tenantForm.primaryColor, -10)} 100%)` }}
                   >
-                    <div className="sig-fixed-dark-surface rounded-[22px] px-5 pb-4 pt-4 text-white" style={{ background: `linear-gradient(90deg, ${darken(tenantForm.primaryColor, 28)} 0%, ${darken(tenantForm.primaryColor, 18)} 46%, ${darken(tenantForm.primaryColor, 10)} 100%)` }}>
-                      <p id="cadastro-preview-visual" className="sig-dark-preview-title text-[10px] uppercase tracking-[0.12em]">Visual institucional</p>
-                      <p id="cadastro-preview-cabecalho" className="mt-2 text-sm leading-6 md:text-[15px]">Cabecalho institucional</p>
-                    </div>
-                    <div className="mt-5 grid min-w-0 gap-4 lg:grid-cols-[200px_minmax(0,1fr)] lg:items-center xl:grid-cols-[220px_minmax(0,1fr)]">
-                      <InstitutionalLogo
-                        branding={previewHeaderBranding}
-                        fallbackLabel={tenantForm.name || "Prefeitura"}
-                        variant="header"
-                        className="mx-auto shrink-0 lg:mx-0"
-                      />
-                      <div className="min-w-0 flex-1 text-white">
-                        <p id="cadastro-preview-prefeitura" className="sig-dark-preview-title text-balance break-words text-[15px] font-semibold leading-tight md:text-[17px] xl:text-[18px]">
-                          {tenantForm.name || "Prefeitura"}
-                        </p>
-                        <p
-                          id="cadastro-preview-secretaria"
-                          className="mt-3 max-w-[30ch] text-sm font-normal leading-6 md:text-sm"
+                    <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_12%,rgba(255,255,255,0.13),transparent_34%),linear-gradient(180deg,rgba(255,255,255,0.04),transparent_48%)]" />
+                    <div className="relative">
+                      <div className="flex items-center justify-between gap-4 border-b border-white/10 pb-4">
+                        <div className="min-w-0">
+                          <p data-preview-copy="muted" id="cadastro-preview-visual" className="sig-dark-preview-title text-[10px] font-semibold uppercase tracking-[0.14em] text-white/70">
+                            Prévia institucional
+                          </p>
+                          <p data-preview-copy="strong" id="cadastro-preview-cabecalho" className="mt-1 text-[15px] font-semibold leading-5 text-white">
+                            Cabeçalho da Prefeitura
+                          </p>
+                        </div>
+                        <span className="shrink-0 rounded-full border border-emerald-200/20 bg-emerald-300/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-emerald-50">
+                          Prévia ao vivo
+                        </span>
+                      </div>
+
+                      <div className="mt-4 flex min-h-[158px] flex-col gap-5 rounded-[22px] border border-white/10 bg-slate-950/10 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] sm:flex-row sm:items-center md:p-5">
+                        <div
+                          data-municipal-logo-live-preview="header"
+                          className="sig-config-logo-frame sig-config-logo-frame-header relative mx-auto flex shrink-0 items-center justify-center overflow-hidden rounded-[22px] border border-slate-200/90 bg-white p-0 shadow-[0_16px_34px_rgba(2,6,23,0.18),inset_0_1px_0_rgba(255,255,255,0.98)] sm:mx-0"
+                          style={{ width: 188, minWidth: 188, maxWidth: 188, height: 188, flex: "0 0 188px" }}
                         >
-                          {settingsForm.secretariaResponsavel || "Secretaria responsável"}
-                        </p>
-                        <div className="mt-4 inline-flex max-w-full rounded-full border border-white/12 bg-white/10 px-4 py-2 text-sm font-normal leading-5 text-white shadow-[0_12px_26px_rgba(2,6,23,0.16)]" style={{ color: "#ffffff", WebkitTextFillColor: "#ffffff" }}>
-                          <span id="cadastro-preview-usuario" className="truncate">
-                            {session.name} - {session.role === "prefeitura_admin" ? "Administrador da Prefeitura" : "Usuário vinculado"}
-                          </span>
+                          {previewHeaderDisplayUrl ? (
+                            <img
+                              key={previewHeaderDisplayUrl}
+                              src={previewHeaderDisplayUrl}
+                              alt={tenantForm.name ? `Logo institucional de ${tenantForm.name}` : "Logo institucional"}
+                              className="block h-full w-full select-none object-contain object-center"
+                              style={{
+                                transform: `translate(${draftHeaderLogoConfig.scale <= 1.001 ? 0 : draftHeaderLogoConfig.offsetX}px, ${draftHeaderLogoConfig.scale <= 1.001 ? 0 : draftHeaderLogoConfig.offsetY}px) scale(${Math.max(1, draftHeaderLogoConfig.scale)})`,
+                                transformOrigin: "center center",
+                              }}
+                              loading="eager"
+                              decoding="sync"
+                              onError={() => setFailedHeaderPreviewUrl(previewHeaderLogoUrl)}
+                            />
+                          ) : (
+                            <div className="flex flex-col items-center justify-center gap-2 text-slate-400">
+                              <Building2 className="h-8 w-8" />
+                              <span className="text-[10px] font-bold uppercase tracking-[0.12em]">Prefeitura</span>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="min-w-0 flex-1 py-1 text-white">
+                          <p data-preview-copy="strong" id="cadastro-preview-prefeitura" className="sig-dark-preview-title text-balance break-words text-[19px] font-bold leading-[1.16] tracking-[-0.015em] text-white xl:text-[21px]">
+                            {tenantForm.name || "Prefeitura"}
+                          </p>
+                          <p
+                            data-preview-copy="muted" id="cadastro-preview-secretaria"
+                            className="mt-3 max-w-[38ch] text-[13px] font-medium leading-5 text-white/[0.82]"
+                          >
+                            {settingsForm.secretariaResponsavel || "Secretaria responsável"}
+                          </p>
+                          <div className="mt-5 inline-flex max-w-full items-center gap-2 rounded-full border border-white/[0.14] bg-white/10 px-4 py-2 text-[12px] font-semibold leading-5 text-white shadow-[0_10px_24px_rgba(2,6,23,0.14)]">
+                            <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-300 shadow-[0_0_0_3px_rgba(110,231,183,0.12)]" />
+                            <span id="cadastro-preview-usuario" className="truncate">
+                              {session.name} · {session.role === "prefeitura_admin" ? "Administrador da Prefeitura" : "Usuário vinculado"}
+                            </span>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -3211,33 +3445,32 @@ export function ConfiguracoesPage() {
                       description="A marca completa será centralizada no card, sem recorte."
                       accept="image/png,image/jpeg,image/webp,image/svg+xml"
                       multiple={false}
-                      allowPreview
+                      allowPreview={false}
+                      preparePreviewUrl
                       files={draftHeaderLogoFiles}
                       onFilesSelected={(files) => {
                         setDraftHeaderLogoFiles(files);
                         setLogoRemovalRequested(files.length ? null : "header");
+                        if (files.length) {
+                          setDraftHeaderLogoConfig({ scale: 1, offsetX: 0, offsetY: 0 });
+                        }
                       }}
                     />
                     <ImageFrameEditor
-                      imageUrl={
-                        draftHeaderLogoFiles[0]?.previewUrl ??
-                        headerBranding.logoUrl ??
-                        settings?.headerLogoUrl ??
-                        settings?.logoUrl ??
-                        ""
-                      }
+                      imageUrl={previewHeaderDisplayUrl}
                       scale={draftHeaderLogoConfig.scale}
                       offsetX={draftHeaderLogoConfig.offsetX}
                       offsetY={draftHeaderLogoConfig.offsetY}
                       onChange={setDraftHeaderLogoConfig}
                       label="Ajuste do logo do cabeçalho"
-                      hint="Use o zoom e arraste a marca para definir exatamente como ela deve aparecer no cabeçalho."
+                      hint="Em 1.00x o brasão aparece inteiro e centralizado. Aumente o zoom somente se quiser aproximar."
                       fitMode="contain"
-                      minScale={0.35}
+                      minScale={1}
                       maxScale={5}
                       zoomStep={0.1}
-                      frameClassName="justify-start"
-                      viewportClassName="h-[170px] w-[220px]"
+                      frameClassName="justify-center"
+                      wrapperClassName="sig-config-logo-editor sig-config-logo-editor-header"
+                      viewportClassName="!h-[188px] !w-[188px]"
                     />
                     <div className="flex flex-wrap gap-3">
                       <Button type="button" variant="outline" className="rounded-2xl text-red-600" onClick={() => { setDraftHeaderLogoFiles([]); setLogoRemovalRequested("header"); }}>
@@ -3270,19 +3503,77 @@ export function ConfiguracoesPage() {
                 </div>
               </div>
 
-              <div className="rounded-[24px] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f6f9fc_100%)] p-5">
+              <div data-config-brand-panel="footer" className="rounded-[24px] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f6f9fc_100%)] p-5">
                 <div className="flex items-center gap-2 text-slate-950">
                   <ImageIcon className="h-4 w-4" />
-                  <p className="text-sm text-slate-900">Logo do rodape</p>
+                  <p className="text-sm text-slate-900">Logo do rodapé</p>
                 </div>
-                <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">Ajuste um enquadramento proprio para o rodape sem afetar o cabecalho.</p>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">Ajuste um enquadramento próprio para o rodapé sem afetar o cabeçalho.</p>
                 <div className="mt-4 grid gap-5 xl:grid-cols-[minmax(320px,0.9fr)_minmax(0,1.1fr)]">
                   <div
-                    className="rounded-[28px] p-5 shadow-sm"
+                    data-institutional-footer-preview="true"
+                    className="sig-config-live-preview relative self-start overflow-hidden rounded-[28px] border border-white/[0.16] p-4 shadow-[0_20px_44px_rgba(15,42,68,0.18)] ring-1 ring-black/5 md:p-5"
                     style={{ background: `linear-gradient(135deg, ${darken(tenantForm.primaryColor, 2)} 0%, ${tenantForm.primaryColor} 48%, ${darken(tenantForm.primaryColor, 10)} 100%)` }}
                   >
-                    <div className="flex items-center justify-center py-3">
-                      <InstitutionalLogo branding={previewFooterBranding} fallbackLabel={tenantForm.name || "Prefeitura"} variant="footer" />
+                    <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.10),transparent_42%)]" />
+                    <div className="relative">
+                      <div className="flex items-center justify-between gap-3 border-b border-white/10 pb-3">
+                        <div>
+                          <p data-preview-copy="muted" className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/[0.65]">Prévia institucional</p>
+                          <p data-preview-copy="strong" className="mt-1 text-sm font-semibold text-white">Rodapé da Prefeitura</p>
+                        </div>
+                        <span className="rounded-full border border-white/[0.12] bg-white/[0.08] px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-white/80">
+                          Rodapé
+                        </span>
+                      </div>
+                      <div className="mt-4 flex min-h-[158px] flex-col gap-5 rounded-[22px] border border-white/10 bg-slate-950/10 p-4 sm:flex-row sm:items-center md:p-5">
+                        <div
+                          data-municipal-logo-live-preview="footer"
+                          className="sig-config-logo-frame sig-config-logo-frame-footer relative mx-auto flex shrink-0 items-center justify-center overflow-hidden rounded-[22px] border border-slate-200/90 bg-white p-0 shadow-[0_14px_30px_rgba(2,6,23,0.17),inset_0_1px_0_rgba(255,255,255,0.98)] sm:mx-0"
+                          style={{ width: 188, minWidth: 188, maxWidth: 188, height: 188, flex: "0 0 188px" }}
+                        >
+                          {previewFooterDisplayUrl ? (
+                            <img
+                              key={previewFooterDisplayUrl}
+                              src={previewFooterDisplayUrl}
+                              alt={tenantForm.name ? `Logo de rodapé de ${tenantForm.name}` : "Logo institucional"}
+                              className="block h-full w-full select-none object-contain object-center"
+                              style={{
+                                transform: `translate(${draftFooterLogoConfig.scale <= 1.001 ? 0 : draftFooterLogoConfig.offsetX}px, ${draftFooterLogoConfig.scale <= 1.001 ? 0 : draftFooterLogoConfig.offsetY}px) scale(${Math.max(1, draftFooterLogoConfig.scale)})`,
+                                transformOrigin: "center center",
+                              }}
+                              loading="eager"
+                              decoding="sync"
+                              onError={() => setFailedFooterPreviewUrl(previewFooterLogoUrl)}
+                            />
+                          ) : (
+                            <div className="flex flex-col items-center justify-center gap-2 text-slate-400">
+                              <Building2 className="h-8 w-8" />
+                              <span className="text-[10px] font-bold uppercase tracking-[0.12em]">Prefeitura</span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1 text-white">
+                          <p data-preview-copy="muted" className="text-[10px] font-bold uppercase tracking-[0.13em] text-white/60">Secretaria</p>
+                          <p data-preview-copy="strong" className="mt-1.5 line-clamp-2 text-[14px] font-semibold leading-5 text-white">
+                            {settingsForm.secretariaResponsavel || "Secretaria responsável"}
+                          </p>
+                          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                            <div className="rounded-[14px] border border-white/10 bg-white/[0.06] px-3 py-2.5">
+                              <p data-preview-copy="subtle" className="text-[9px] font-bold uppercase tracking-[0.12em] text-white/55">Município</p>
+                              <p data-preview-copy="muted" className="mt-1 truncate text-[11px] font-medium text-white/90">
+                                {tenantForm.city || tenantForm.name || "Prefeitura"}{tenantForm.state ? ` / ${tenantForm.state}` : ""}
+                              </p>
+                            </div>
+                            <div className="rounded-[14px] border border-white/10 bg-white/[0.06] px-3 py-2.5">
+                              <p data-preview-copy="subtle" className="text-[9px] font-bold uppercase tracking-[0.12em] text-white/55">Contato</p>
+                              <p data-preview-copy="muted" className="mt-1 truncate text-[11px] font-medium text-white/90">
+                                {settingsForm.telefone || settingsForm.email || "Contato institucional"}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                   <div className="space-y-3">
@@ -3291,33 +3582,32 @@ export function ConfiguracoesPage() {
                       description="A marca completa será centralizada no card, sem recorte."
                       accept="image/png,image/jpeg,image/webp,image/svg+xml"
                       multiple={false}
-                      allowPreview
+                      allowPreview={false}
+                      preparePreviewUrl
                       files={draftFooterLogoFiles}
                       onFilesSelected={(files) => {
                         setDraftFooterLogoFiles(files);
                         setLogoRemovalRequested(files.length ? null : "footer");
+                        if (files.length) {
+                          setDraftFooterLogoConfig({ scale: 1, offsetX: 0, offsetY: 0 });
+                        }
                       }}
                     />
                     <ImageFrameEditor
-                      imageUrl={
-                        draftFooterLogoFiles[0]?.previewUrl ??
-                        footerBranding.logoUrl ??
-                        settings?.footerLogoUrl ??
-                        settings?.logoUrl ??
-                        ""
-                      }
+                      imageUrl={previewFooterDisplayUrl}
                       scale={draftFooterLogoConfig.scale}
                       offsetX={draftFooterLogoConfig.offsetX}
                       offsetY={draftFooterLogoConfig.offsetY}
                       onChange={setDraftFooterLogoConfig}
                       label="Ajuste do logo do rodapé"
-                      hint="Aproxime, afaste e arraste o logo para definir o enquadramento do rodapé sem alterar o cabeçalho."
+                      hint="Em 1.00x o brasão aparece inteiro e centralizado. O rodapé pode ter um ajuste independente."
                       fitMode="contain"
-                      minScale={0.35}
+                      minScale={1}
                       maxScale={5}
                       zoomStep={0.1}
-                      frameClassName="justify-start"
-                      viewportClassName="h-[170px] w-[220px]"
+                      frameClassName="justify-center"
+                      wrapperClassName="sig-config-logo-editor sig-config-logo-editor-footer"
+                      viewportClassName="!h-[188px] !w-[188px]"
                     />
                     <div className="flex flex-wrap gap-3">
                       <Button
@@ -3502,7 +3792,7 @@ export function ConfiguracoesPage() {
             )}
         </SectionCard>
         </PageMainContent> : null}
-        {activeSettingsView === "platform" && isMasterRole ? (
+        {isPlatformSettingsView && isMasterRole ? (
           <PageMainContent className="w-full">
             <SectionCard
               title="Administração da plataforma"
@@ -3546,7 +3836,7 @@ export function ConfiguracoesPage() {
                           <p className="mt-3 max-w-[30ch] break-words text-sm font-normal leading-6 md:text-sm" style={{ color: masterAccentColor }}>
                             Plataforma institucional
                           </p>
-                          <div className="mt-4 inline-flex max-w-full rounded-full border border-white/12 bg-white/10 px-4 py-2 text-sm font-normal leading-5 text-white shadow-[0_12px_26px_rgba(2,6,23,0.16)]">
+                          <div className="mt-4 inline-flex max-w-full rounded-full border border-white/[0.12] bg-white/10 px-4 py-2 text-sm font-normal leading-5 text-white shadow-[0_12px_26px_rgba(2,6,23,0.16)]">
                             <span className="sig-dark-preview-copy truncate">Ambiente Master</span>
                           </div>
                         </div>
@@ -3698,7 +3988,7 @@ export function ConfiguracoesPage() {
           </PageMainContent>
         ) : null}
 
-        {(activeSettingsView === "institutional" || activeSettingsView === "communication" || activeSettingsView === "protocol" || activeSettingsView === "team" || activeSettingsView === "advanced") ? <PageSideContent className="w-full">
+        {(activeSettingsView === "institutional" || activeSettingsView === "communication" || activeSettingsView === "protocol" || activeSettingsView === "collection" || activeSettingsView === "team" || activeSettingsView === "advanced") ? <PageSideContent className="w-full">
         <SectionCard title={settingsSectionMeta.title} description={settingsSectionMeta.description} icon={settingsSectionMeta.icon} headerClassName="gap-2 pb-3" actions={<Button type="button" variant="outline" className="rounded-full" onClick={() => navigate(-1)}><ArrowLeft className="mr-2 h-4 w-4" />Voltar</Button>}>
             <form className="space-y-4" onSubmit={handleSubmit}>
               {activeSettingsView === "institutional" ? (
@@ -3957,19 +4247,368 @@ export function ConfiguracoesPage() {
                 </>
               ) : null}
 
-              {activeSettingsView === "communication" ? (
+              {activeSettingsView === "collection" ? (
                 <>
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label>Chave Pix</Label>
-                  <Input value={settingsForm.chavePix} onChange={(event) => setSettingsField("chavePix", event.target.value)} />
-                </div>
-                <div className="space-y-2">
-                <Label>Beneficiário da Arrecadação</Label>
-                  <Input value={settingsForm.beneficiarioArrecadacao} onChange={(event) => setSettingsField("beneficiarioArrecadacao", event.target.value)} />
-                </div>
-              </div>
+                  <div className="grid gap-4 lg:grid-cols-3">
+                    <div className={`rounded-2xl border p-4 ${
+                      settingsForm.pixEnabled && settingsForm.chavePix.trim() && settingsForm.beneficiarioArrecadacao.trim()
+                        ? "border-emerald-200 bg-emerald-50/80"
+                        : "border-amber-200 bg-amber-50/80"
+                    }`}>
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="sig-label">PIX municipal</p>
+                        <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.1em] ${
+                          settingsForm.pixEnabled && settingsForm.chavePix.trim() && settingsForm.beneficiarioArrecadacao.trim()
+                            ? "bg-emerald-600 text-white"
+                            : "bg-amber-500 text-white"
+                        }`}>
+                          {settingsForm.pixEnabled && settingsForm.chavePix.trim() && settingsForm.beneficiarioArrecadacao.trim()
+                            ? "Pronto"
+                            : "Pendente"}
+                        </span>
+                      </div>
+                      <p className="mt-2 text-sm font-semibold text-slate-900">
+                        {settingsForm.pixEnabled ? "QR Code e Copia e Cola" : "PIX desativado"}
+                      </p>
+                      <p className="mt-1 text-xs leading-5 text-slate-600">
+                        O SIGAPRO gera o BR Code com valor e identificação da guia.
+                      </p>
+                    </div>
 
+                    <div className={`rounded-2xl border p-4 ${
+                      mercadoPagoHealth?.ok
+                        ? "border-sky-200 bg-sky-50/80"
+                        : mercadoPagoHealth?.configured
+                          ? "border-rose-200 bg-rose-50/80"
+                          : "border-slate-200 bg-slate-50/80"
+                    }`}>
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="sig-label">Provedor de cobrança</p>
+                        {mercadoPagoHealth?.ok ? (
+                          <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                        ) : (
+                          <Landmark className="h-4 w-4 text-sky-700" />
+                        )}
+                      </div>
+                      <p className="mt-2 text-sm font-semibold text-slate-900">
+                        {mercadoPagoChecking
+                          ? "Verificando Mercado Pago..."
+                          : mercadoPagoHealth?.ok
+                            ? "Mercado Pago conectado"
+                            : mercadoPagoHealth?.configured
+                              ? "Mercado Pago com erro"
+                              : "Mercado Pago não conectado"}
+                      </p>
+                      <p className="mt-1 text-xs leading-5 text-slate-600">
+                        {mercadoPagoHealth?.ok
+                          ? `Ambiente ${mercadoPagoHealth.environment === "test" ? "de teste" : "de produção"} · credencial validada`
+                          : mercadoPagoHealth?.error || "Clique em testar conexão após configurar o Access Token no servidor."}
+                      </p>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="mt-3 h-8 rounded-xl bg-white"
+                        disabled={mercadoPagoChecking}
+                        onClick={() => void checkMercadoPagoConnection()}
+                      >
+                        <RefreshCw className={`mr-2 h-3.5 w-3.5 ${mercadoPagoChecking ? "animate-spin" : ""}`} />
+                        {mercadoPagoChecking ? "Testando..." : "Testar conexão"}
+                      </Button>
+                    </div>
+
+                    <div className={`rounded-2xl border p-4 ${
+                      mercadoPagoHealth?.ok && mercadoPagoHealth.boletoAvailable
+                        ? "border-violet-200 bg-violet-50/80"
+                        : "border-amber-200 bg-amber-50/80"
+                    }`}>
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="sig-label">Boleto / código de barras</p>
+                        <ReceiptText className="h-4 w-4 text-violet-700" />
+                      </div>
+                      <p className="mt-2 text-sm font-semibold text-slate-900">
+                        {mercadoPagoChecking
+                          ? "Consultando meios de pagamento..."
+                          : mercadoPagoHealth?.ok && mercadoPagoHealth.boletoAvailable
+                            ? "Boleto disponível no Mercado Pago"
+                            : mercadoPagoHealth?.ok
+                              ? "Boleto não retornado nesta credencial"
+                              : "Aguardando conexão com o provedor"}
+                      </p>
+                      <p className="mt-1 text-xs leading-5 text-slate-600">
+                        {mercadoPagoHealth?.ok
+                          ? mercadoPagoHealth.boletoAvailable
+                            ? "Ao abrir uma guia sem dados bancários, o SIGAPRO solicita a cobrança ao Mercado Pago e incorpora a linha digitável e o código de barras na própria DAM."
+                            : `PIX: ${mercadoPagoHealth.pixAvailable ? "disponível" : "não retornado"} · Boleto: não retornado`
+                          : "O código de barras será usado somente quando vier da cobrança oficial do Mercado Pago."}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="rounded-[22px] border border-slate-200 bg-slate-50/70 p-5">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <p className="text-sm font-semibold text-slate-950">PIX da Prefeitura</p>
+                        <p className="mt-1 text-xs leading-5 text-slate-500">
+                          Configure a chave oficial usada nas guias. Nenhuma chave é criada automaticamente.
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-3 rounded-full border border-slate-200 bg-white px-4 py-2">
+                        <span className="text-xs font-semibold text-slate-700">Habilitar PIX</span>
+                        <Switch
+                          checked={settingsForm.pixEnabled}
+                          onCheckedChange={(checked) => setSettingsField("pixEnabled", checked)}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="mt-5 grid gap-4 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label>Beneficiário oficial</Label>
+                        <Input
+                          value={settingsForm.beneficiarioArrecadacao}
+                          onChange={(event) => setSettingsField("beneficiarioArrecadacao", event.target.value)}
+                          placeholder="Prefeitura Municipal de ..."
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>CNPJ/CPF do beneficiário</Label>
+                        <Input
+                          value={settingsForm.bankBeneficiaryDocument}
+                          onChange={(event) => setSettingsField("bankBeneficiaryDocument", event.target.value)}
+                          placeholder="Documento da conta arrecadadora"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="mt-4 grid gap-4 md:grid-cols-[minmax(160px,0.55fr)_minmax(0,1.45fr)]">
+                      <div className="space-y-2">
+                        <Label>Tipo da chave PIX</Label>
+                        <Select
+                          value={settingsForm.pixKeyType}
+                          onValueChange={(value) => setSettingsField("pixKeyType", value as "cpf" | "cnpj" | "email" | "phone" | "random")}
+                        >
+                          <SelectTrigger className="h-11 rounded-xl bg-white">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="cnpj">CNPJ</SelectItem>
+                            <SelectItem value="cpf">CPF</SelectItem>
+                            <SelectItem value="email">E-mail</SelectItem>
+                            <SelectItem value="phone">Telefone</SelectItem>
+                            <SelectItem value="random">Chave aleatória</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Chave PIX</Label>
+                        <Input
+                          value={settingsForm.chavePix}
+                          onChange={(event) => setSettingsField("chavePix", event.target.value)}
+                          disabled={!settingsForm.pixEnabled}
+                          placeholder="Chave registrada para a Prefeitura"
+                        />
+                        <p className="text-xs leading-5 text-slate-500">
+                          {settingsForm.pixKeyType === "phone"
+                            ? "Informe telefone com DDD; o SIGAPRO normaliza para +55."
+                            : settingsForm.pixKeyType === "random"
+                              ? "Use a chave aleatória UUID fornecida pelo banco/PSP."
+                              : `Formato selecionado: ${settingsForm.pixKeyType.toUpperCase()}.`}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 grid gap-4 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label>Cidade do recebedor no PIX</Label>
+                        <Input
+                          value={settingsForm.pixMerchantCity}
+                          onChange={(event) => setSettingsField("pixMerchantCity", event.target.value)}
+                          disabled={!settingsForm.pixEnabled}
+                          placeholder={tenantForm.city || "Campo Limpo Paulista"}
+                        />
+                      </div>
+                      <div className="rounded-xl border border-emerald-200 bg-emerald-50/80 px-4 py-3 text-xs leading-5 text-emerald-800">
+                        O QR Code é gerado com o valor exato da guia e TXID vinculado ao número da cobrança. A chave precisa existir e estar ativa no PSP/banco da Prefeitura.
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-[22px] border border-slate-200 bg-white p-5">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-950">Provedor e autenticação da arrecadação</p>
+                      <p className="mt-1 text-xs leading-5 text-slate-500">
+                        Esta configuração é individual por Prefeitura. Credenciais secretas permanecem somente no servidor.
+                      </p>
+                    </div>
+                    <div className="mt-5 grid gap-4 md:grid-cols-3">
+                      <div className="space-y-2">
+                        <Label>Provedor de cobrança</Label>
+                        <Select
+                          value={settingsForm.paymentProvider}
+                          onValueChange={(value) => setSettingsField("paymentProvider", value as "mercado_pago" | "bank_direct" | "manual")}
+                        >
+                          <SelectTrigger className="h-11 rounded-xl">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="mercado_pago">Mercado Pago</SelectItem>
+                            <SelectItem value="bank_direct">Banco / convênio direto</SelectItem>
+                            <SelectItem value="manual">PIX / baixa manual</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Ambiente do provedor</Label>
+                        <Select
+                          value={settingsForm.paymentProviderEnvironment}
+                          onValueChange={(value) => setSettingsField("paymentProviderEnvironment", value as "test" | "production")}
+                        >
+                          <SelectTrigger className="h-11 rounded-xl">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="test">Homologação / teste</SelectItem>
+                            <SelectItem value="production">Produção</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Autenticação da baixa</Label>
+                        <Select
+                          value={settingsForm.paymentAuthenticationMode}
+                          onValueChange={(value) => setSettingsField("paymentAuthenticationMode", value as "automatic" | "manual")}
+                        >
+                          <SelectTrigger className="h-11 rounded-xl">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="automatic">Automática por webhook/API</SelectItem>
+                            <SelectItem value="manual">Manual pela Tesouraria</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs leading-5 text-slate-600">
+                      <strong>Autenticação bancária:</strong> em modo automático, a guia mostra a situação retornada pelo provedor e, após a compensação, registra referência, pagamento e data/hora. A autenticação mecânica permanece reservada ao atendimento presencial/Tesouraria.
+                    </div>
+                  </div>
+
+                  {mercadoPagoHealth?.ok && settingsForm.paymentProvider === "mercado_pago" ? (
+                    <div className="rounded-[18px] border border-sky-200 bg-sky-50/70 px-4 py-3 text-xs leading-5 text-sky-900">
+                      <strong>Mercado Pago conectado em ambiente {mercadoPagoHealth.environment === "test" ? "de teste" : "de produção"}.</strong>{" "}
+                      Para o teste via Mercado Pago, os campos de banco/convênio abaixo não são obrigatórios; eles ficam disponíveis para uma futura integração bancária direta.
+                    </div>
+                  ) : null}
+
+                  {(selectedTenantId || scopeId || session.tenantId) ? (
+                    <MunicipalPaymentSettings
+                      municipalityId={(selectedTenantId || scopeId || session.tenantId) as string}
+                      municipalityName={activeInstitution?.name || municipality?.name || tenantForm.name || ""}
+                    />
+                  ) : (
+                    <div className="rounded-[22px] border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900">
+                      Selecione uma Prefeitura para configurar as credenciais seguras do provedor de pagamento.
+                    </div>
+                  )}
+
+                  <div className="rounded-[22px] border border-slate-200 bg-white p-5">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-950">Banco arrecadador e convênio <span className="font-normal text-slate-500">(opcional para integração direta)</span></p>
+                      <p className="mt-1 text-xs leading-5 text-slate-500">
+                        Cadastre os dados fornecidos pela Tesouraria ou pelo banco. Credenciais, tokens e certificados de API nunca devem ser gravados nesta tela.
+                      </p>
+                    </div>
+
+                    <div className="mt-5 grid gap-4 md:grid-cols-[minmax(160px,0.5fr)_minmax(0,1.5fr)]">
+                      <div className="space-y-2">
+                        <Label>Código COMPE</Label>
+                        <Input
+                          inputMode="numeric"
+                          maxLength={3}
+                          value={settingsForm.bankCode}
+                          onChange={(event) => setSettingsField("bankCode", event.target.value.replace(/\D/g, "").slice(0, 3))}
+                          placeholder="001"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Nome do banco</Label>
+                        <Input
+                          value={settingsForm.bankName}
+                          onChange={(event) => setSettingsField("bankName", event.target.value)}
+                          placeholder="Banco arrecadador"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="mt-4 grid gap-4 md:grid-cols-4">
+                      <div className="space-y-2">
+                        <Label>Agência</Label>
+                        <Input value={settingsForm.bankAgency} onChange={(event) => setSettingsField("bankAgency", event.target.value)} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Dígito agência</Label>
+                        <Input value={settingsForm.bankAgencyDigit} onChange={(event) => setSettingsField("bankAgencyDigit", event.target.value)} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Conta</Label>
+                        <Input value={settingsForm.bankAccount} onChange={(event) => setSettingsField("bankAccount", event.target.value)} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Dígito conta</Label>
+                        <Input value={settingsForm.bankAccountDigit} onChange={(event) => setSettingsField("bankAccountDigit", event.target.value)} />
+                      </div>
+                    </div>
+
+                    <div className="mt-4 grid gap-4 md:grid-cols-3">
+                      <div className="space-y-2">
+                        <Label>Modo de arrecadação bancária</Label>
+                        <Select
+                          value={settingsForm.bankCollectionMode}
+                          onValueChange={(value) => setSettingsField("bankCollectionMode", value as "manual" | "agreement" | "api")}
+                        >
+                          <SelectTrigger className="h-11 rounded-xl">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="manual">PIX / baixa municipal</SelectItem>
+                            <SelectItem value="agreement">Convênio bancário</SelectItem>
+                            <SelectItem value="api">API bancária</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Número do convênio</Label>
+                        <Input
+                          value={settingsForm.bankAgreementCode}
+                          onChange={(event) => setSettingsField("bankAgreementCode", event.target.value)}
+                          placeholder="Fornecido pelo banco"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Carteira / modalidade</Label>
+                        <Input
+                          value={settingsForm.bankWallet}
+                          onChange={(event) => setSettingsField("bankWallet", event.target.value)}
+                          placeholder="Quando aplicável"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="mt-4 space-y-2">
+                      <Label>Instruções bancárias para a guia</Label>
+                      <Textarea
+                        rows={3}
+                        value={settingsForm.bankInstructions}
+                        onChange={(event) => setSettingsField("bankInstructions", event.target.value)}
+                        placeholder="Ex.: pagável até o vencimento nos canais oficiais indicados pela Prefeitura."
+                      />
+                    </div>
+
+                    <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50/80 px-4 py-3 text-xs leading-5 text-amber-900">
+                      <strong>Código de barras bancário:</strong> o SIGAPRO não inventa números de cobrança. Para imprimir código de barras e linha digitável válidos, o banco deve fornecer o padrão do convênio ou uma API que retorne a cobrança registrada. O sistema ficará pronto para consumir esses dados sem alterar o fluxo da guia.
+                    </div>
+                  </div>
                 </>
               ) : null}
 
@@ -4005,7 +4644,7 @@ export function ConfiguracoesPage() {
               ) : null}
 
               <Button type="submit" className="h-12 w-full rounded-2xl bg-slate-950 !text-white hover:bg-slate-900">
-                Atualizar perfil da prefeitura
+                {activeSettingsView === "collection" ? "Salvar arrecadação e banco" : "Atualizar perfil da prefeitura"}
               </Button>
             </form>
 

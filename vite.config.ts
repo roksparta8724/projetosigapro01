@@ -4,6 +4,8 @@ import { defineConfig, loadEnv, type Plugin } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
+import { checkMercadoPagoConnection, createMercadoPagoGuideBoleto, getMercadoPagoGuideBoletoStatus } from "./server/mercadopago";
+import paymentConnectionHandler from "./api/payment-connection";
 import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand, HeadBucketCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
@@ -59,6 +61,17 @@ function getR2EndpointCandidates() {
 
 function resolveR2Endpoint() {
   return getR2EndpointCandidates()[0] || "";
+}
+
+function resolveRequestedR2Bucket(value: unknown) {
+  if (typeof value !== "string") return "";
+  const logos = readEnvValue("R2_BUCKET_LOGOS");
+  const documents = readEnvValue("R2_BUCKET_DOCUMENTOS");
+
+  if (value === "process-documents") return documents;
+  if (value === "institutional-branding" || value === "profile-assets") return logos;
+  if (value === documents || value === logos) return value;
+  return "";
 }
 
 function isR2CredentialError(error: unknown) {
@@ -249,6 +262,48 @@ function createR2DevApiPlugin(): Plugin {
           return;
         }
 
+        if (req.url.startsWith("/api/mercadopago/health") && req.method === "GET") {
+          const requestUrl = new URL(req.url, "http://localhost:8080");
+          const municipalityId = requestUrl.searchParams.get("municipalityId");
+          const result = await checkMercadoPagoConnection(req, municipalityId);
+          res.statusCode = result.ok ? 200 : result.configured ? 502 : 503;
+          res.setHeader("Content-Type", "application/json; charset=utf-8");
+          res.setHeader("Cache-Control", "no-store");
+          res.end(JSON.stringify(result));
+          return;
+        }
+
+        if (req.url.startsWith("/api/mercadopago/guide-boleto") && req.method === "POST") {
+          const body = await readJsonBody(req);
+          const result = await createMercadoPagoGuideBoleto({
+            municipalityId: body.municipalityId ? String(body.municipalityId) : undefined,
+            guideCode: String(body.guideCode || ""),
+            amount: Number(body.amount || 0),
+            dueDate: body.dueDate ? String(body.dueDate) : undefined,
+            description: body.description ? String(body.description) : undefined,
+          }, req);
+          res.statusCode = result.ok ? 201 : 400;
+          res.setHeader("Content-Type", "application/json; charset=utf-8");
+          res.setHeader("Cache-Control", "no-store");
+          res.end(JSON.stringify(result));
+          return;
+        }
+
+        if (req.url.startsWith("/api/mercadopago/guide-status") && req.method === "POST") {
+          const body = await readJsonBody(req);
+          const result = await getMercadoPagoGuideBoletoStatus({
+            municipalityId: body.municipalityId ? String(body.municipalityId) : undefined,
+            orderId: String(body.orderId || ""),
+            guideCode: String(body.guideCode || ""),
+            amount: Number(body.amount || 0),
+          }, req);
+          res.statusCode = result.ok ? 200 : 400;
+          res.setHeader("Content-Type", "application/json; charset=utf-8");
+          res.setHeader("Cache-Control", "no-store");
+          res.end(JSON.stringify(result));
+          return;
+        }
+
         if (req.url.startsWith("/api/e-sign-artifact") && req.method === "POST") {
           // Em localhost, assinatura SEMPRE usa o endpoint oficial do SIGAPRO.
           // Isso elimina divergência de secret, banco, Neon Auth ou função antiga
@@ -319,6 +374,62 @@ function createR2DevApiPlugin(): Plugin {
           return;
         }
 
+        if (req.url.startsWith("/api/profile-avatar-open") && req.method === "GET") {
+          try {
+            const requestUrl = new URL(req.url, "http://localhost:8080");
+            const sourceRaw = requestUrl.searchParams.get("source") || "";
+            const source = new URL(sourceRaw);
+            const allowedHost = /(^|\.)supabase\.co$/i.test(source.hostname);
+            const allowedPath = source.pathname.startsWith("/storage/v1/object/public/avatars/");
+
+            if (source.protocol !== "https:" || !allowedHost || !allowedPath) {
+              res.statusCode = 400;
+              res.setHeader("Content-Type", "application/json; charset=utf-8");
+              res.end(JSON.stringify({ error: "Origem de avatar inválida." }));
+              return;
+            }
+
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 12000);
+            const response = await fetch(source.toString(), {
+              method: "GET",
+              redirect: "follow",
+              signal: controller.signal,
+              headers: { Accept: "image/*" },
+            });
+            clearTimeout(timeout);
+
+            const contentType = response.headers.get("content-type") || "";
+            if (!response.ok || !contentType.toLowerCase().startsWith("image/")) {
+              res.statusCode = response.status === 404 ? 404 : 502;
+              res.setHeader("Content-Type", "application/json; charset=utf-8");
+              res.end(JSON.stringify({ error: "Foto de perfil legada indisponível." }));
+              return;
+            }
+
+            const bytes = Buffer.from(await response.arrayBuffer());
+            if (bytes.length > 10 * 1024 * 1024) {
+              res.statusCode = 413;
+              res.setHeader("Content-Type", "application/json; charset=utf-8");
+              res.end(JSON.stringify({ error: "Foto de perfil muito grande." }));
+              return;
+            }
+
+            res.statusCode = 200;
+            res.setHeader("Content-Type", contentType);
+            res.setHeader("Cache-Control", "private, max-age=3600");
+            res.end(bytes);
+            return;
+          } catch (error) {
+            res.statusCode = 502;
+            res.setHeader("Content-Type", "application/json; charset=utf-8");
+            res.end(JSON.stringify({
+              error: error instanceof Error ? error.message : "Não foi possível recuperar a foto de perfil.",
+            }));
+            return;
+          }
+        }
+
         if (req.method !== "POST") {
           res.statusCode = 405;
           res.setHeader("Content-Type", "application/json");
@@ -340,14 +451,11 @@ function createR2DevApiPlugin(): Plugin {
 
           if (req.url.startsWith("/api/r2-upload")) {
             console.log("[SIGAPRO][R2] rota local /api/r2-upload acionada");
-            const { bucket, objectKey, contentType, base64, fileName } = body ?? {};
+            const { objectKey, contentType, base64, fileName } = body ?? {};
+            const requestedBucket = body?.bucket;
+            const bucket = resolveRequestedR2Bucket(requestedBucket);
 
-            const allowedBuckets = new Set([
-              readEnvValue("R2_BUCKET_LOGOS"),
-              readEnvValue("R2_BUCKET_DOCUMENTOS"),
-            ]);
-
-            if (!bucket || !allowedBuckets.has(bucket)) {
+            if (!bucket) {
               res.statusCode = 400;
               res.setHeader("Content-Type", "application/json");
               res.end(JSON.stringify({ error: "Bucket inválido." }));
@@ -409,13 +517,11 @@ function createR2DevApiPlugin(): Plugin {
 
           if (req.url.startsWith("/api/r2-delete")) {
             console.log("[SIGAPRO][R2] rota local /api/r2-delete acionada");
-            const { bucket, objectKey } = body ?? {};
-            const allowedBuckets = new Set([
-              readEnvValue("R2_BUCKET_LOGOS"),
-              readEnvValue("R2_BUCKET_DOCUMENTOS"),
-            ]);
+            const { objectKey } = body ?? {};
+            const requestedBucket = body?.bucket;
+            const bucket = resolveRequestedR2Bucket(requestedBucket);
 
-            if (!bucket || !allowedBuckets.has(bucket)) {
+            if (!bucket) {
               res.statusCode = 400;
               res.setHeader("Content-Type", "application/json");
               res.end(JSON.stringify({ error: "Bucket inválido." }));
@@ -444,13 +550,11 @@ function createR2DevApiPlugin(): Plugin {
 
           if (req.url.startsWith("/api/r2-presign")) {
             console.log("[SIGAPRO][R2] rota local /api/r2-presign acionada");
-            const { bucket, objectKey, contentType } = body ?? {};
-            const allowedBuckets = new Set([
-              readEnvValue("R2_BUCKET_LOGOS"),
-              readEnvValue("R2_BUCKET_DOCUMENTOS"),
-            ]);
+            const { objectKey, contentType } = body ?? {};
+            const requestedBucket = body?.bucket;
+            const bucket = resolveRequestedR2Bucket(requestedBucket);
 
-            if (!bucket || !allowedBuckets.has(bucket)) {
+            if (!bucket) {
               res.statusCode = 400;
               res.setHeader("Content-Type", "application/json");
               res.end(JSON.stringify({ error: "Bucket inválido." }));
@@ -497,13 +601,11 @@ function createR2DevApiPlugin(): Plugin {
 
           if (req.url.startsWith("/api/r2-sign-get")) {
             console.log("[SIGAPRO][R2] rota local /api/r2-sign-get acionada");
-            const { bucket, objectKey, expiresIn } = body ?? {};
-            const allowedBuckets = new Set([
-              readEnvValue("R2_BUCKET_LOGOS"),
-              readEnvValue("R2_BUCKET_DOCUMENTOS"),
-            ]);
+            const { objectKey, expiresIn } = body ?? {};
+            const requestedBucket = body?.bucket;
+            const bucket = resolveRequestedR2Bucket(requestedBucket);
 
-            if (!bucket || !allowedBuckets.has(bucket)) {
+            if (!bucket) {
               res.statusCode = 400;
               res.setHeader("Content-Type", "application/json");
               res.end(JSON.stringify({ error: "Bucket inválido." }));

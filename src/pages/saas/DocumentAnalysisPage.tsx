@@ -11,6 +11,7 @@ import {
   Maximize2,
   Save,
   Send,
+  RotateCcw,
   Undo2,
   XCircle,
   ZoomIn,
@@ -24,16 +25,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { MarkerSelector } from "@/components/platform/MarkerSelector";
-import { DocumentWorkspaceBoot } from "@/components/platform/DocumentWorkspaceBoot";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
+import { useLivePlatformRefresh } from "@/hooks/useLivePlatformRefresh";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { useDocumentMarkerAssignments } from "@/hooks/useDocumentMarkerAssignments";
+import { consumeDocumentWorkspaceAccessUrl } from "@/lib/documentWorkspaceAccess";
 import { getSignedUrlForObjectStrict } from "@/integrations/r2/client";
 import {
   canAnalyzeProcessDocument,
   formatOfficialProcessNumber,
-  getProcessById,
+  resolveProcessRoute,
 } from "@/lib/platform";
 
 type AnalysisTool = "navigate" | "highlight" | "text";
@@ -61,45 +63,51 @@ export function DocumentAnalysisPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
+  const { processId, documentId } = useParams();
   const routeState = (location.state ?? {}) as {
     documentAccessUrl?: string;
     returnTo?: string;
   };
-  const prefetchedDocumentAccessUrl =
-    typeof routeState.documentAccessUrl === "string"
-      ? routeState.documentAccessUrl
-      : "";
-  const { processId, documentId } = useParams();
+  const [prefetchedDocumentAccessUrl] = useState(() => {
+    if (typeof routeState.documentAccessUrl === "string" && routeState.documentAccessUrl) {
+      return routeState.documentAccessUrl;
+    }
+    return consumeDocumentWorkspaceAccessUrl(processId, documentId);
+  });
   const { session } = usePlatformSession();
   const { municipality, scopeId } = useMunicipality();
   const documentMarkers = useDocumentMarkerAssignments();
   const {
     processes,
+    refreshRemoteStore,
     loading: platformDataLoading,
     dataReadyForCurrentUser,
     addDocumentAnnotation,
     reviewProcessDocument,
+    reopenProcessDocumentAnalysis,
     createRequirement,
   } = usePlatformData();
-  const process = processId ? getProcessById(processId, processes) : undefined;
+  useLivePlatformRefresh(refreshRemoteStore, { intervalMs: 5000 });
+
+  const process = resolveProcessRoute(processes, processId);
   const document = process?.documents.find((item) => item.id === documentId);
   const documentMarkerTags =
     process && document ? documentMarkers.getTags(process.id, document.id) : [];
 
   useEffect(() => {
-    const previousTitle = document.title;
+    const previousTitle = window.document.title;
     const fileLabel =
       document?.fileName?.trim() ||
       document?.label?.trim() ||
       "Documento técnico";
     const protocol = process?.protocol?.trim() || "";
 
-    document.title = protocol
+    window.document.title = protocol
       ? `Análise • ${fileLabel} • ${protocol} • SIGAPRO`
       : `Análise • ${fileLabel} • SIGAPRO`;
 
     return () => {
-      document.title = previousTitle;
+      window.document.title = previousTitle;
     };
   }, [document?.fileName, document?.label, process?.protocol]);
   const effectiveScopeId =
@@ -110,6 +118,8 @@ export function DocumentAnalysisPage() {
     session.tenantId ??
     null;
   const [accessUrl, setAccessUrl] = useState(prefetchedDocumentAccessUrl);
+  const [showReopenAnalysis, setShowReopenAnalysis] = useState(false);
+  const [reopenReason, setReopenReason] = useState("");
   const [accessError, setAccessError] = useState("");
   const [tool, setTool] = useState<AnalysisTool>(() => {
     const requested = searchParams.get("ferramenta");
@@ -434,6 +444,40 @@ export function DocumentAnalysisPage() {
     }
   };
 
+  const reopenApprovedDocument = async () => {
+    if (!process || !document) return;
+
+    const normalizedReason = reopenReason.trim();
+    if (!normalizedReason) {
+      setStatus("Informe o motivo da reabertura para manter a auditoria do processo.");
+      return;
+    }
+
+    setBusy("reopen-analysis");
+    setStatus("");
+    try {
+      await reopenProcessDocumentAnalysis({
+        processId: process.id,
+        documentId: document.id,
+        reason: normalizedReason,
+      });
+      setLocalReviewStatus("pendente");
+      setShowReopenAnalysis(false);
+      setReopenReason("");
+      setStatus(
+        "Análise reaberta com auditoria. A aprovação anterior foi preservada no histórico e o documento voltou para nova conferência.",
+      );
+    } catch (error) {
+      setStatus(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível reabrir a análise deste documento.",
+      );
+    } finally {
+      setBusy("");
+    }
+  };
+
   const sendDraftToProfessional = async () => {
     if (!process || !document) return;
     if (draftAnnotations.length === 0) {
@@ -530,7 +574,7 @@ export function DocumentAnalysisPage() {
 
   if (!process || !document) {
     if (platformDataLoading || !dataReadyForCurrentUser) {
-      return <DocumentWorkspaceBoot mode="analysis" />;
+      return null;
     }
 
     return (
@@ -548,7 +592,7 @@ export function DocumentAnalysisPage() {
 
   if (!canUseAnalysis) {
     if (platformDataLoading || !dataReadyForCurrentUser || session.id === "unknown") {
-      return <DocumentWorkspaceBoot mode="analysis" />;
+      return null;
     }
 
     return (
@@ -908,24 +952,20 @@ export function DocumentAnalysisPage() {
               ) : null}
 
               {!accessUrl ? (
-                <div className="flex min-h-[calc(100vh-164px)] items-center justify-center bg-[#d8dee6] p-6">
-                  {accessError ? (
+                accessError ? (
+                  <div className="flex min-h-[calc(100vh-164px)] items-center justify-center bg-[#2f343b] p-6">
                     <div className="max-w-xl rounded-[24px] border border-rose-200 bg-white p-6 text-center shadow-xl">
                       <p className="font-semibold text-slate-950">Não foi possível abrir o arquivo.</p>
                       <p className="mt-2 text-sm leading-6 text-slate-500">{accessError}</p>
                     </div>
-                  ) : (
-                    <div className="h-[82vh] max-h-[980px] min-h-[620px] w-[min(780px,86%)] rounded-[10px] border border-slate-300 bg-white shadow-[0_24px_60px_rgba(15,23,42,0.16)]">
-                      <div className="mx-auto mt-16 w-[62%] space-y-4">
-                        <div className="h-3 w-2/3 animate-pulse rounded-full bg-slate-200" />
-                        <div className="h-2.5 w-full animate-pulse rounded-full bg-slate-100" />
-                        <div className="h-2.5 w-11/12 animate-pulse rounded-full bg-slate-100" />
-                        <div className="h-2.5 w-5/6 animate-pulse rounded-full bg-slate-100" />
-                        <div className="mt-8 h-32 animate-pulse rounded-xl bg-slate-50" />
-                      </div>
-                    </div>
-                  )}
-                </div>
+                  </div>
+                ) : (
+                  <div
+                    data-document-loading-surface="silent"
+                    className="min-h-[calc(100vh-164px)] bg-[#2f343b]"
+                    aria-hidden="true"
+                  />
+                )
               ) : isPdf ? (
                 <iframe
                   key={previewUrl}
@@ -1268,18 +1308,80 @@ export function DocumentAnalysisPage() {
               </p>
 
               {localReviewStatus === "aprovado" ? (
-                <div className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white">
-                      <CheckCircle2 className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <p className="font-semibold text-emerald-900">Documento aprovado</p>
-                      <p className="mt-1 text-xs leading-5 text-emerald-700">
-                        A decisão foi registrada no processo.
-                      </p>
+                <div className="mt-3 space-y-3">
+                  <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white">
+                        <CheckCircle2 className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-emerald-900">Documento aprovado</p>
+                        <p className="mt-1 text-xs leading-5 text-emerald-700">
+                          A decisão foi registrada no processo.
+                        </p>
+                      </div>
                     </div>
                   </div>
+
+                  {!showReopenAnalysis ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-11 w-full rounded-xl border-amber-300 bg-amber-50 font-bold text-amber-900 hover:bg-amber-100"
+                      disabled={busy === "reopen-analysis"}
+                      onClick={() => {
+                        setShowReopenAnalysis(true);
+                        setStatus("");
+                      }}
+                    >
+                      <RotateCcw className="mr-2 h-4 w-4" />
+                      Reabrir para nova análise
+                    </Button>
+                  ) : (
+                    <div
+                      data-document-reanalysis-card="true"
+                      className="rounded-2xl border border-amber-300 bg-amber-50/80 p-4"
+                    >
+                      <p className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-amber-800">
+                        Reabertura auditada
+                      </p>
+                      <p className="mt-1 text-sm font-bold text-slate-950">
+                        Corrigir uma aprovação registrada por engano
+                      </p>
+                      <p className="mt-1 text-xs leading-5 text-slate-600">
+                        A aprovação anterior não será apagada. O sistema registra quem reabriu, o motivo e devolve o documento para “Pendente”, permitindo uma nova análise.
+                      </p>
+                      <Textarea
+                        value={reopenReason}
+                        onChange={(event) => setReopenReason(event.target.value)}
+                        placeholder="Informe o motivo da reabertura..."
+                        className="mt-3 min-h-[92px] rounded-xl border-amber-200 bg-white text-slate-950 placeholder:text-slate-400"
+                      />
+                      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="rounded-xl border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                          disabled={busy === "reopen-analysis"}
+                          onClick={() => {
+                            setShowReopenAnalysis(false);
+                            setReopenReason("");
+                          }}
+                        >
+                          Cancelar
+                        </Button>
+                        <Button
+                          type="button"
+                          className="rounded-xl bg-[#92400e] font-bold !text-white hover:bg-[#78350f] [&_*]:!text-white"
+                          disabled={busy === "reopen-analysis" || !reopenReason.trim()}
+                          onClick={() => void reopenApprovedDocument()}
+                        >
+                          <RotateCcw className="mr-2 h-4 w-4" />
+                          {busy === "reopen-analysis" ? "Reabrindo..." : "Confirmar reabertura"}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <Button

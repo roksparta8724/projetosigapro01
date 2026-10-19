@@ -9,6 +9,11 @@ import {
   testMunicipalStorageConnection,
 } from "../server/municipal-storage";
 
+function readEnv(key: string) {
+  const raw = process.env[key];
+  return raw ? String(raw).replace(/^['"]|['"]$/g, "").trim() : "";
+}
+
 type Req = import("http").IncomingMessage & { method?: string; body?: unknown };
 type Res = import("http").ServerResponse;
 
@@ -64,6 +69,28 @@ async function rpcOrThrow<T>(
 
 export default async function handler(req: Req, res: Res) {
   setCors(res);
+
+  const requestUrl = new URL(req.url || "/api/storage-connection", "https://sigapro.local");
+  const actionFromQuery = requestUrl.searchParams.get("action") || "";
+
+  if (req.method === "GET" && actionFromQuery === "health") {
+    json(res, 200, {
+      ok: true,
+      env: {
+        hasNeonAuthUrl: Boolean(readEnv("VITE_NEON_AUTH_URL")),
+        hasNeonDataApiUrl: Boolean(readEnv("VITE_NEON_DATA_API_URL")),
+        hasR2Endpoint: Boolean(readEnv("R2_ENDPOINT")),
+        hasR2AccessKeyId: Boolean(readEnv("R2_ACCESS_KEY_ID")),
+        hasR2Secret: Boolean(readEnv("R2_SECRET_ACCESS_KEY")),
+        hasR2BucketLogos: Boolean(readEnv("R2_BUCKET_LOGOS")),
+        hasR2BucketDocs: Boolean(readEnv("R2_BUCKET_DOCUMENTOS")),
+        hasOpenAiApiKey: Boolean(readEnv("OPENAI_API_KEY")),
+      },
+      timestamp: new Date().toISOString(),
+    });
+    return;
+  }
+
   if (req.method === "OPTIONS") {
     res.statusCode = 204;
     res.end();

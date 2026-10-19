@@ -1,5 +1,4 @@
-import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
-import { UserRound } from "@/components/platform/PremiumIcons";
+import { type CSSProperties, useEffect, useRef, useState } from "react";
 import { Avatar } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 
@@ -24,12 +23,21 @@ const sizeClasses: Record<UserAvatarSize, string> = {
   xl: "h-20 w-20 text-xl",
 };
 
-function getInitials(name?: string | null) {
-  const safe = name?.trim();
-  if (!safe) return "";
-  const parts = safe.split(/\s+/).filter(Boolean);
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return `${parts[0][0] || ""}${parts[parts.length - 1][0] || ""}`.toUpperCase();
+function userInitials(name?: string | null) {
+  const clean = String(name || "")
+    .trim()
+    .replace(/\s+/g, " ");
+  if (!clean) return "?";
+
+  const parts = clean.split(" ").filter(Boolean);
+  if (parts.length === 1) {
+    const compact = parts[0].replace(/[^\p{L}\p{N}]/gu, "");
+    return compact.slice(0, 2).toLocaleUpperCase("pt-BR") || "?";
+  }
+
+  const first = parts[0].replace(/[^\p{L}\p{N}]/gu, "").charAt(0);
+  const last = parts[parts.length - 1].replace(/[^\p{L}\p{N}]/gu, "").charAt(0);
+  return `${first}${last}`.toLocaleUpperCase("pt-BR") || "?";
 }
 
 export function UserAvatar({
@@ -116,9 +124,9 @@ export function UserAvatar({
     };
   }, []);
 
-  const initials = useMemo(() => getInitials(name), [name]);
   const resolvedImageUrl = stableImageUrl || imageUrl || "";
   const showImage = Boolean(resolvedImageUrl) && failedImageUrl !== resolvedImageUrl;
+  const initials = userInitials(name);
   const sizePixels: Record<UserAvatarSize, number> = { sm: 32, md: 40, lg: 56, xl: 80 };
   const diameter = sizePixels[size];
   const cropRatio = crop ? diameter / Math.max(crop.editorSize ?? 320, 1) : 1;
@@ -140,19 +148,12 @@ export function UserAvatar({
     >
       <span
         aria-hidden="true"
-        style={{ color: "#0f172a" }}
         className={cn(
-          "sig-user-avatar-fallback absolute inset-0 flex h-full w-full items-center justify-center rounded-full bg-[linear-gradient(180deg,#f8fbff_0%,#dbe6f1_100%)] font-semibold !text-[#0f172a]",
+          "sig-user-avatar-fallback absolute inset-0 flex h-full w-full items-center justify-center rounded-full bg-[linear-gradient(180deg,#f8fbff_0%,#e8eef5_100%)] font-extrabold uppercase tracking-[-0.03em] text-[#17324a] select-none",
           fallbackClassName,
         )}
       >
-        {initials ? (
-          <strong className="sig-user-avatar-initials block leading-none !text-[#0f172a]" style={{ color: "#0f172a" }}>
-            {initials}
-          </strong>
-        ) : (
-          <UserRound className="sig-user-avatar-icon h-[52%] w-[52%] !text-[#334155]" style={{ color: "#334155" }} />
-        )}
+        {initials}
       </span>
       {showImage ? (
         <img

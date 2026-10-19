@@ -132,9 +132,15 @@ export function MunicipalOrganogramBar({
                     <span
                       data-organogram-code="true"
                       data-contrast-surface="dark"
-                      className="sig-dark-chip inline-flex min-w-[30px] items-center justify-center rounded-md border border-white/15 bg-white/10 px-1.5 py-0.5 text-[9px] font-extrabold tracking-[0.08em] !text-white shadow-sm"
+                      className="sig-organogram-code-badge sig-dark-chip inline-flex min-w-[34px] items-center justify-center rounded-md border border-white/15 bg-white/10 px-1 py-0.5 shadow-sm"
                     >
-                      {department.code.trim()}
+                      <span
+                        data-organogram-code-text="true"
+                        style={{ color: "#ffffff", WebkitTextFillColor: "#ffffff", textShadow: "none" }}
+                        className="block whitespace-nowrap text-[10px] font-extrabold leading-none tracking-[0.055em] !text-white"
+                      >
+                        {department.code.trim()}
+                      </span>
                     </span>
                   ) : null}
                   <span className="truncate !text-white">{department.name}</span>
@@ -158,11 +164,17 @@ export function MunicipalOrganogramBar({
                   )}
                 >
                   <span
-                      data-organogram-code="true"
-                      data-contrast-surface="dark"
-                      className="sig-dark-chip inline-flex min-w-[30px] items-center justify-center rounded-md border border-white/15 bg-white/10 px-1.5 py-0.5 text-[9px] font-extrabold tracking-[0.08em] !text-white shadow-sm"
+                    data-organogram-code="true"
+                    data-contrast-surface="dark"
+                    className="sig-organogram-code-badge sig-dark-chip inline-flex min-w-[34px] items-center justify-center rounded-md border border-white/15 bg-white/10 px-1 py-0.5 shadow-sm"
+                  >
+                    <span
+                      data-organogram-code-text="true"
+                      style={{ color: "#ffffff", WebkitTextFillColor: "#ffffff", textShadow: "none" }}
+                      className="block whitespace-nowrap text-[10px] font-extrabold leading-none tracking-[0.055em] !text-white"
                     >
-                    {department.code}
+                      {department.code}
+                    </span>
                   </span>
                   <span className="truncate !text-white">{department.name}</span>
                 </span>
@@ -191,9 +203,15 @@ export function MunicipalOrganogramBar({
                     <span
                       data-organogram-code="true"
                       data-contrast-surface="dark"
-                      className="sig-dark-chip inline-flex min-w-[30px] items-center justify-center rounded-md border border-white/15 bg-white/10 px-1.5 py-0.5 text-[9px] font-extrabold tracking-[0.08em] !text-white shadow-sm"
+                      className="sig-organogram-code-badge sig-dark-chip inline-flex min-w-[34px] items-center justify-center rounded-md border border-white/15 bg-white/10 px-1 py-0.5 shadow-sm"
                     >
-                      {department.code.trim()}
+                      <span
+                        data-organogram-code-text="true"
+                        style={{ color: "#ffffff", WebkitTextFillColor: "#ffffff", textShadow: "none" }}
+                        className="block whitespace-nowrap text-[10px] font-extrabold leading-none tracking-[0.055em] !text-white"
+                      >
+                        {department.code.trim()}
+                      </span>
                     </span>
                   ) : null}
                   {department.name}

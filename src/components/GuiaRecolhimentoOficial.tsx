@@ -1,6 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import * as React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { QRCodeSVG } from "qrcode.react";
 
 type PrefeituraData = {
   nome: string;
@@ -51,6 +52,17 @@ type GuiaData = {
   codigoBarras?: string;
   linhaDigitavel?: string;
   qrCodePixUrl?: string;
+  pixPayload?: string;
+  bankName?: string;
+  bankAgreement?: string;
+  bankInstructions?: string;
+  bankReference?: string;
+  bankPaymentId?: string;
+  bankEnvironment?: "test" | "production";
+  bankStatus?: string;
+  bankStatusDetail?: string;
+  bankAuthenticatedAt?: string;
+  paymentProvider?: "mercado_pago" | "bank_direct" | "manual";
   valorDocumento?: number;
   descontos?: number;
   outrosAcrescimos?: number;
@@ -86,26 +98,204 @@ function sumValues(items: TaxaItem[], field: keyof TaxaItem) {
 }
 
 function formatDigitableLine(value?: string) {
-  const raw = (value || "").replace(/\s+/g, "");
-  if (!raw) return "Sem linha digitável oficial — consulte a Prefeitura.";
-  return raw.match(/.{1,5}/g)?.join(" ") ?? raw;
+  const digits = (value || "").replace(/\D/g, "");
+  if (!digits) return "Sem linha digitável oficial — consulte a Prefeitura.";
+
+  if (digits.length === 47) {
+    return [
+      `${digits.slice(0, 5)}.${digits.slice(5, 10)}`,
+      `${digits.slice(10, 15)}.${digits.slice(15, 21)}`,
+      `${digits.slice(21, 26)}.${digits.slice(26, 32)}`,
+      digits.slice(32, 33),
+      digits.slice(33),
+    ].join(" ");
+  }
+
+  if (digits.length === 48) {
+    return [
+      digits.slice(0, 12),
+      digits.slice(12, 24),
+      digits.slice(24, 36),
+      digits.slice(36, 48),
+    ].join(" ");
+  }
+
+  return "Linha digitável inválida — solicite uma cobrança oficial ao banco.";
 }
 
-function renderBarcodeVisual(code?: string) {
+const I25_PATTERNS: Record<string, string> = {
+  "0": "nnwwn",
+  "1": "wnnnw",
+  "2": "nwnnw",
+  "3": "wwnnn",
+  "4": "nnwnw",
+  "5": "wnwnn",
+  "6": "nwwnn",
+  "7": "nnnww",
+  "8": "wnnwn",
+  "9": "nwnwn",
+};
+
+function normalizeOfficialBarcode(code?: string) {
   const digits = (code || "").replace(/\D/g, "");
-  if (!digits) return "Código bancário não informado pela Prefeitura.";
-  return digits
-    .slice(0, 44)
-    .split("")
-    .map((digit) => {
-      const value = Number(digit);
-      if (Number.isNaN(value)) return "|";
-      if (value <= 2) return "||";
-      if (value <= 5) return "|||";
-      if (value <= 7) return "||||";
-      return "|||||";
-    })
-    .join(" ");
+  // O código vem do provedor/banco. Não calculamos ou completamos dígitos.
+  // I25 exige quantidade par; aceitamos o conteúdo oficial retornado entre
+  // 40 e 48 dígitos para acomodar os provedores homologados.
+  return digits.length >= 40 && digits.length <= 48 && digits.length % 2 === 0
+    ? digits
+    : "";
+}
+
+function Interleaved2of5Barcode({ value }: { value?: string }) {
+  const digits = normalizeOfficialBarcode(value);
+  if (!digits) {
+    return (
+      <span className="dam-barcode-fallback">
+        Código bancário ainda não fornecido pelo convênio/API da Prefeitura.
+      </span>
+    );
+  }
+
+  const narrow = 1;
+  const wide = 3;
+  const quiet = 10;
+  let x = quiet;
+  const bars: Array<{ x: number; width: number }> = [];
+
+  const addBar = (width: number) => {
+    bars.push({ x, width });
+    x += width;
+  };
+  const addSpace = (width: number) => {
+    x += width;
+  };
+  const unit = (token: string) => (token === "w" ? wide : narrow);
+
+  addBar(narrow);
+  addSpace(narrow);
+  addBar(narrow);
+  addSpace(narrow);
+
+  for (let pairIndex = 0; pairIndex < digits.length; pairIndex += 2) {
+    const barsPattern = I25_PATTERNS[digits[pairIndex]];
+    const spacesPattern = I25_PATTERNS[digits[pairIndex + 1]];
+    for (let index = 0; index < 5; index += 1) {
+      addBar(unit(barsPattern[index]));
+      addSpace(unit(spacesPattern[index]));
+    }
+  }
+
+  addBar(wide);
+  addSpace(narrow);
+  addBar(narrow);
+  const totalWidth = x + quiet;
+
+  return (
+    <svg
+      className="dam-barcode-svg"
+      viewBox={`0 0 ${totalWidth} 50`}
+      preserveAspectRatio="none"
+      role="img"
+      aria-label="Código de barras bancário"
+    >
+      {bars.map((bar, index) => (
+        <rect key={index} x={bar.x} y="2" width={bar.width} height="42" fill="#000000" />
+      ))}
+    </svg>
+  );
+}
+
+function ProviderBarcode({ value }: { value?: string }) {
+  const digits = normalizeOfficialBarcode(value);
+  if (!digits) {
+    return (
+      <span className="dam-barcode-fallback">
+        Código bancário ainda não fornecido pelo convênio/API da Prefeitura.
+      </span>
+    );
+  }
+
+  return (
+    <div className="dam-barcode-render">
+      <Interleaved2of5Barcode value={digits} />
+      <div className="dam-barcode-digits">{digits}</div>
+    </div>
+  );
+}
+
+function formatDateTimeBR(value?: string) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString("pt-BR");
+}
+
+function bankAuthenticationLabel(guia: GuiaData) {
+  const status = String(guia.bankStatus || "").toLowerCase();
+  const detail = String(guia.bankStatusDetail || "").toLowerCase();
+  const paid =
+    (status === "processed" && detail === "accredited") ||
+    Boolean(guia.bankAuthenticatedAt);
+
+  if (guia.bankEnvironment === "test") {
+    return {
+      tone: "test",
+      title: "HOMOLOGAÇÃO",
+      lines: [
+        detail === "waiting_payment"
+          ? "Aguardando pagamento no ambiente de teste"
+          : status
+            ? `Status: ${status}${detail ? ` / ${detail}` : ""}`
+            : "Cobrança de teste registrada",
+        guia.bankPaymentId ? `Payment: ${guia.bankPaymentId}` : "",
+        guia.bankReference ? `Order: ${guia.bankReference}` : "",
+      ].filter(Boolean),
+    };
+  }
+
+  if (paid) {
+    return {
+      tone: "paid",
+      title: "PAGAMENTO COMPENSADO",
+      lines: [
+        guia.bankAuthenticatedAt
+          ? `Confirmado em ${formatDateTimeBR(guia.bankAuthenticatedAt)}`
+          : "Confirmação recebida do provedor",
+        guia.bankPaymentId ? `Payment: ${guia.bankPaymentId}` : "",
+        guia.bankReference ? `Order: ${guia.bankReference}` : "",
+      ].filter(Boolean),
+    };
+  }
+
+  if (detail === "waiting_payment" || status === "action_required") {
+    return {
+      tone: "pending",
+      title: "AGUARDANDO COMPENSAÇÃO",
+      lines: [
+        "Cobrança registrada no provedor",
+        guia.bankPaymentId ? `Payment: ${guia.bankPaymentId}` : "",
+        guia.bankReference ? `Order: ${guia.bankReference}` : "",
+      ].filter(Boolean),
+    };
+  }
+
+  if (guia.bankReference || guia.bankPaymentId) {
+    return {
+      tone: "pending",
+      title: "COBRANÇA REGISTRADA",
+      lines: [
+        status ? `Status: ${status}${detail ? ` / ${detail}` : ""}` : "",
+        guia.bankPaymentId ? `Payment: ${guia.bankPaymentId}` : "",
+        guia.bankReference ? `Order: ${guia.bankReference}` : "",
+      ].filter(Boolean),
+    };
+  }
+
+  return {
+    tone: "manual",
+    title: "AGUARDANDO AUTENTICAÇÃO",
+    lines: ["A baixa será registrada pelo provedor ou pela Tesouraria."],
+  };
 }
 
 function getStyles() {
@@ -118,12 +308,12 @@ function getStyles() {
     html, body {
       margin: 0;
       padding: 0;
-      background: #ffffff;
+      background: #eef3f8;
     }
 
     body {
-      font-family: Arial, Helvetica, sans-serif;
-      color: #111827;
+      font-family: "Segoe UI", Arial, Helvetica, sans-serif;
+      color: #0f172a;
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
       text-rendering: geometricPrecision;
@@ -136,19 +326,23 @@ function getStyles() {
     }
 
     .dam-toolbar {
+      width: 200mm;
+      margin: 4mm auto 2.5mm;
       display: flex;
       justify-content: flex-end;
-      margin: 0 0 2mm 0;
     }
 
     .dam-print-button {
-      border: 1px solid #000000;
-      background: #ffffff;
-      color: #000000;
+      border: 0;
+      border-radius: 9px;
+      background: #0f3557;
+      color: #ffffff;
       font-size: 11px;
+      font-weight: 700;
       line-height: 1;
-      padding: 6px 10px;
+      padding: 9px 14px;
       cursor: pointer;
+      box-shadow: 0 6px 16px rgba(15, 53, 87, 0.18);
     }
 
     .dam-sheet {
@@ -156,12 +350,15 @@ function getStyles() {
       height: 286.5mm;
       max-height: 286.5mm;
       min-height: 286.5mm;
-      margin: 0 auto;
+      margin: 0 auto 5mm;
       overflow: hidden;
-      border: 1px solid #111827;
+      border: 1px solid #d7e0e8;
+      border-top: 4px solid #0f3557;
+      border-radius: 3mm;
       background: #ffffff;
-      padding: 2.8mm;
+      padding: 3.2mm;
       box-sizing: border-box;
+      box-shadow: 0 14px 34px rgba(15, 53, 87, 0.12);
     }
 
     .dam-stack {
@@ -172,7 +369,9 @@ function getStyles() {
     }
 
     .dam-block {
-      border: 1px solid #000000;
+      border: 1px solid #9fb0c1;
+      border-radius: 1.8mm;
+      overflow: hidden;
     }
 
     .dam-block-top {
@@ -180,16 +379,17 @@ function getStyles() {
     }
 
     .dam-block-bottom {
-      flex: 1 1 auto;
+      flex: 0 0 auto;
       display: flex;
       flex-direction: column;
     }
 
     .dam-header {
       display: grid;
-      grid-template-columns: 74px 1fr 92px;
-      border-bottom: 1px solid #000000;
+      grid-template-columns: 82px 1fr 118px;
+      border-bottom: 1px solid #b7c5d2;
       align-items: stretch;
+      background: linear-gradient(90deg, #f8fbfd 0%, #ffffff 58%, #f5f9fc 100%);
     }
 
     .dam-logo-box,
@@ -198,35 +398,41 @@ function getStyles() {
     }
 
     .dam-logo-box {
-      height: 56px;
-      border-right: 1px solid #000000;
+      height: 64px;
+      border-right: 1px solid #b7c5d2;
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 4px;
+      padding: 5px;
+      background: #ffffff;
     }
 
     .dam-logo {
-      max-width: 54px;
-      max-height: 48px;
+      max-width: 62px;
+      max-height: 54px;
       object-fit: contain;
       display: block;
     }
 
     .dam-logo-fallback {
-      width: 32px;
-      height: 32px;
-      border: 1px solid #000000;
+      width: 42px;
+      height: 42px;
+      border: 1px solid #c5d1dc;
+      border-radius: 12px;
+      background: #f4f8fb;
+      color: #0f3557;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 6px;
+      font-size: 8px;
+      font-weight: 800;
+      letter-spacing: .08em;
       line-height: 1;
     }
 
     .dam-header-center {
-      height: 56px;
-      padding: 4px 7px;
+      height: 64px;
+      padding: 5px 9px;
       text-align: left;
       display: flex;
       flex-direction: column;
@@ -236,16 +442,18 @@ function getStyles() {
     }
 
     .dam-municipality-name {
-      font-size: 10px;
-      line-height: 1;
-      font-weight: 700;
+      font-size: 11.2px;
+      line-height: 1.05;
+      font-weight: 800;
+      color: #0f3557;
       text-transform: uppercase;
       letter-spacing: 0.02em;
     }
 
     .dam-header-line {
-      font-size: 7px;
-      line-height: 1;
+      font-size: 6.8px;
+      line-height: 1.15;
+      color: #334155;
       text-transform: uppercase;
     }
 
@@ -254,7 +462,7 @@ function getStyles() {
     }
 
     .dam-header-right {
-      border-left: 1px solid #000000;
+      border-left: 1px solid #b7c5d2;
       display: grid;
       grid-template-rows: 16px 1fr;
     }
@@ -300,21 +508,47 @@ function getStyles() {
     }
 
     .dam-title {
-      border-bottom: 1px solid #000000;
-      padding: 3px 0 2px;
+      border-bottom: 1px solid #0a2944;
+      padding: 5px 8px 4px;
       text-align: center;
-      font-size: 10.5px;
+      font-size: 11px;
       line-height: 1;
-      font-weight: 700;
+      font-weight: 800;
+      color: #ffffff;
+      background: #0f3557;
       text-transform: uppercase;
-      letter-spacing: 0.08em;
+      letter-spacing: 0.09em;
+    }
+
+    .dam-homologation-band {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      border-bottom: 1px solid #d97706;
+      padding: 4px 8px;
+      background: #fff7ed;
+      color: #9a3412;
+      font-size: 7px;
+      line-height: 1.1;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+    }
+
+    .dam-homologation-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 999px;
+      background: #ea580c;
+      flex: 0 0 auto;
     }
 
     .dam-subtitle-band {
       display: grid;
       grid-template-columns: 1fr 54mm;
-      border-bottom: 1px solid #000000;
-      background: #fafafa;
+      border-bottom: 1px solid #b7c5d2;
+      background: #edf4f8;
     }
 
     .dam-subtitle-main,
@@ -357,11 +591,13 @@ function getStyles() {
     }
 
     .dam-field-label {
-      border-bottom: 1px solid #000000;
+      border-bottom: 1px solid #c8d3dd;
       padding: 2px 3px 1px;
-      font-size: 7px;
+      font-size: 6.5px;
       line-height: 1;
-      font-weight: 700;
+      font-weight: 800;
+      color: #475569;
+      background: #f4f7fa;
       text-transform: uppercase;
     }
 
@@ -457,10 +693,11 @@ function getStyles() {
 
     .dam-table th {
       font-size: 6.5px;
-      font-weight: 700;
+      font-weight: 800;
+      color: #173b59;
       text-transform: uppercase;
       letter-spacing: 0.06em;
-      background: #fafafa;
+      background: #eaf1f6;
     }
 
     .align-right {
@@ -494,19 +731,23 @@ function getStyles() {
     }
 
     .dam-total-label {
-      font-size: 7px;
+      font-size: 7.2px;
       line-height: 1;
-      font-weight: 700;
+      font-weight: 800;
+      color: #ffffff;
+      background: #0f3557;
       text-transform: uppercase;
       letter-spacing: 0.06em;
     }
 
     .dam-total-value {
-      border-left: 1px solid #000000;
+      border-left: 1px solid #0a2944;
       text-align: right;
-      font-size: 9.5px;
+      font-size: 10px;
       line-height: 1;
-      font-weight: 700;
+      font-weight: 800;
+      color: #ffffff;
+      background: #0f3557;
     }
 
     .dam-responsible-row {
@@ -593,15 +834,19 @@ function getStyles() {
     }
 
     .dam-tear-line {
-      margin: 0.9mm 0;
-      border-top: 1px dashed #000000;
+      margin: 1.2mm 0;
+      border-top: 1px dashed #91a4b7;
     }
 
     .dam-receipt-header {
       display: grid;
-      grid-template-columns: 64px minmax(0, 1fr) 116px;
+      /* Malha institucional única: logo, conteúdo e bloco financeiro alinham
+         exatamente com as colunas do corpo da guia. */
+      grid-template-columns: 22mm minmax(0, 1fr) 58mm;
+      min-height: 19mm;
       border-bottom: 1px solid #000000;
       align-items: stretch;
+      background: #f8fbfd;
     }
 
     .dam-receipt-logo {
@@ -609,85 +854,110 @@ function getStyles() {
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 4px;
+      padding: 1.5mm;
       box-sizing: border-box;
+      background: #ffffff;
     }
 
     .dam-receipt-logo img {
-      max-width: 44px;
-      max-height: 40px;
+      width: 17mm;
+      height: 14mm;
+      max-width: 17mm;
+      max-height: 14mm;
       object-fit: contain;
+      display: block;
     }
 
     .dam-receipt-center {
       text-align: left;
-      padding: 3px 6px;
+      padding: 2.1mm 2.5mm;
       box-sizing: border-box;
       display: flex;
       flex-direction: column;
       justify-content: center;
+      min-width: 0;
     }
 
     .dam-receipt-title {
-      font-size: 8px;
-      line-height: 1;
-      font-weight: 700;
+      font-size: 8.6px;
+      line-height: 1.06;
+      font-weight: 800;
+      color: #0f3557;
       text-transform: uppercase;
-      letter-spacing: 0.04em;
+      letter-spacing: 0.035em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .dam-receipt-subline {
-      margin-top: 1px;
-      font-size: 6px;
-      line-height: 1;
+      margin-top: 1.2px;
+      font-size: 6.15px;
+      line-height: 1.12;
+      color: #172033;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .dam-receipt-right {
       border-left: 1px solid #000000;
       min-width: 0;
       overflow: hidden;
+      background: #ffffff;
     }
 
     .dam-receipt-right .dam-receipt-row {
-      grid-template-columns: 50px minmax(0, 1fr);
+      grid-template-columns: 22mm minmax(0, 1fr);
+      min-height: 9.5mm;
     }
 
     .dam-receipt-right .dam-receipt-row-label {
-      padding: 3px 4px;
-      font-size: 6px;
-      line-height: 1.15;
-      white-space: normal;
-      overflow-wrap: anywhere;
-    }
-
-    .dam-receipt-right .dam-receipt-row-value {
-      padding: 3px 4px;
-      font-size: 7.5px;
-      line-height: 1.15;
-      font-weight: 700;
+      padding: 1.7mm 1.4mm;
+      font-size: 5.75px;
+      line-height: 1;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: clip;
       display: flex;
       align-items: center;
+    }
+
+    .dam-receipt-right .dam-receipt-row-value {
+      padding: 1.7mm 1.6mm;
+      font-size: 6.5px;
+      line-height: 1;
+      font-weight: 800;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      word-break: normal;
+      overflow-wrap: normal;
+      display: flex;
+      align-items: center;
       justify-content: flex-start;
       min-width: 0;
+      color: #111827;
     }
 
     .dam-receipt-body {
       display: grid;
-      grid-template-columns: 1fr 64mm;
-      flex: 1 1 auto;
-      min-height: 72mm;
+      grid-template-columns: minmax(0, 1fr) 58mm;
+      flex: 0 0 auto;
+      min-height: 42mm;
+      background: #ffffff;
     }
 
     .dam-receipt-left {
       border-right: 1px solid #000000;
+      min-width: 0;
     }
 
     .dam-receipt-row {
       display: grid;
-      grid-template-columns: 66px minmax(0, 1fr);
+      /* Mesmos 22 mm usados na coluna do logo para manter a grade vertical
+         perfeitamente alinhada da primeira à última linha. */
+      grid-template-columns: 22mm minmax(0, 1fr);
       border-bottom: 1px solid #000000;
       min-width: 0;
     }
@@ -698,21 +968,27 @@ function getStyles() {
 
     .dam-receipt-row-label {
       border-right: 1px solid #000000;
-      padding: 2px 3px;
-      font-size: 7px;
-      line-height: 1;
+      padding: 2px 4px;
+      font-size: 6.4px;
+      line-height: 1.05;
       font-weight: 700;
       text-transform: uppercase;
       box-sizing: border-box;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      display: flex;
+      align-items: center;
     }
 
     .dam-receipt-row-value {
       padding: 2.5px 4px;
-      font-size: 8px;
-      line-height: 1.2;
+      font-size: 7.7px;
+      line-height: 1.16;
       box-sizing: border-box;
       min-width: 0;
-      overflow-wrap: anywhere;
+      overflow-wrap: normal;
+      word-break: normal;
     }
 
     .dam-note {
@@ -736,7 +1012,7 @@ function getStyles() {
     }
 
     .dam-auth-value {
-      min-height: 18mm;
+      min-height: 7mm;
       font-size: 6.5px;
       line-height: 1.1;
       margin-top: 1px;
@@ -767,11 +1043,53 @@ function getStyles() {
       box-sizing: border-box;
     }
 
-    .dam-qrcode-box img {
-      width: 18px;
-      height: 18px;
+    .dam-qrcode-box img,
+    .dam-qrcode-box svg {
+      width: 60px;
+      height: 60px;
       object-fit: contain;
       display: block;
+      background: #ffffff;
+    }
+
+    .dam-pix-test-warning {
+      margin-top: 2px;
+      border: 1px solid #f0b45d;
+      border-radius: 3px;
+      background: #fff7ed;
+      color: #9a3412;
+      padding: 2px 3px;
+      font-size: 5.2px;
+      line-height: 1.15;
+      font-weight: 800;
+      text-align: center;
+      text-transform: uppercase;
+    }
+
+    .dam-pix-copy-label {
+      margin-top: 2px;
+      font-size: 5.4px;
+      line-height: 1;
+      font-weight: 800;
+      color: #475569;
+      text-transform: uppercase;
+    }
+
+    .dam-pix-copy {
+      margin-top: 2px;
+      max-height: 29px;
+      overflow: hidden;
+      border: 1px solid #d4dee7;
+      border-radius: 3px;
+      background: #f8fafc;
+      padding: 2px 3px;
+      box-sizing: border-box;
+      font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+      font-size: 4.9px;
+      line-height: 1.18;
+      font-weight: 600;
+      word-break: break-all;
+      color: #0f172a;
     }
 
     .dam-qrcode-fallback {
@@ -781,24 +1099,28 @@ function getStyles() {
     }
 
     .dam-bottom-section {
-      border-top: 1px solid #000000;
-      padding: 3px 4px;
+      border-top: 1px solid #b7c5d2;
+      padding: 4px 5px;
       box-sizing: border-box;
-      min-height: 11mm;
-      background: #fcfcfc;
+      min-height: 12mm;
+      background: #f7fafc;
     }
 
     .dam-digitable-value {
-      margin-top: 1px;
-      font-size: 7.5px;
-      line-height: 1;
-      letter-spacing: 0.02em;
+      margin-top: 3px;
+      font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+      font-size: 9.4px;
+      line-height: 1.15;
+      font-weight: 800;
+      letter-spacing: 0.035em;
+      color: #0f172a;
     }
 
     .dam-barcode-box {
-      margin-top: 2px;
-      height: 14mm;
-      border: 1px solid #000000;
+      margin-top: 3px;
+      height: 19mm;
+      border: 1px solid #8da1b5;
+      background: #ffffff;
       display: flex;
       align-items: flex-end;
       justify-content: center;
@@ -807,20 +1129,63 @@ function getStyles() {
       box-sizing: border-box;
     }
 
-    .dam-barcode-text {
+    .dam-barcode-render {
       width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      justify-content: flex-end;
+      gap: 1px;
+    }
+
+    .dam-barcode-svg {
+      display: block;
+      width: 100%;
+      height: 49px;
+      flex: 1 1 auto;
+    }
+
+    .dam-barcode-digits {
+      flex: 0 0 auto;
       text-align: center;
-      font-size: 13px;
+      font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+      font-size: 6.2px;
       line-height: 1;
-      letter-spacing: 0.5px;
+      letter-spacing: 0.055em;
+      font-weight: 700;
+      color: #111827;
       white-space: nowrap;
+    }
+
+    .dam-barcode-fallback {
+      width: 100%;
+      padding: 0 8px;
+      text-align: center;
+      font-size: 6px;
+      line-height: 1.2;
+      text-transform: uppercase;
+      color: #374151;
+    }
+
+    .dam-barcode-digits {
+      margin-top: 2px;
+      text-align: center;
+      font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+      font-size: 6.3px;
+      line-height: 1.1;
+      font-weight: 700;
+      letter-spacing: .055em;
+      color: #334155;
+      word-break: break-all;
     }
 
     .dam-footer-area {
       display: grid;
       grid-template-columns: 1fr 54mm;
-      border-top: 1px solid #000000;
-      min-height: 19mm;
+      border-top: 1px solid #b7c5d2;
+      min-height: 14mm;
+      background: #fbfcfe;
     }
 
     .dam-footer-left,
@@ -855,20 +1220,53 @@ function getStyles() {
     .dam-auth-box {
       min-height: 15mm;
       margin-top: 2px;
-      border: 1px solid #000000;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      border: 1px solid #aebdca;
+      background: #f8fafc;
+      padding: 4px;
+      box-sizing: border-box;
       font-size: 6.5px;
+    }
+
+    .dam-bank-auth-title {
+      font-size: 7px;
+      line-height: 1.1;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      color: #0f3557;
       text-transform: uppercase;
+    }
+
+    .dam-bank-auth-line {
+      margin-top: 2px;
+      font-size: 5.7px;
+      line-height: 1.25;
+      color: #334155;
+      overflow-wrap: anywhere;
+      text-transform: none;
+    }
+
+    .dam-bank-auth[data-tone="paid"] {
+      border-color: #86c89b;
+      background: #f0fbf3;
+    }
+
+    .dam-bank-auth[data-tone="test"] {
+      border-color: #d4b768;
+      background: #fff9e8;
+    }
+
+    .dam-bank-auth[data-tone="pending"] {
+      border-color: #9db8d1;
+      background: #f3f8fc;
     }
 
     .dam-final-area {
       display: grid;
       grid-template-columns: 1fr 54mm;
-      border-top: 1px solid #000000;
-      flex: 1 1 auto;
-      min-height: 42mm;
+      border-top: 1px solid #b7c5d2;
+      flex: 0 0 auto;
+      min-height: 19mm;
+      background: #f8fbfd;
     }
 
     .dam-final-left,
@@ -889,18 +1287,23 @@ function getStyles() {
 
     .dam-final-box {
       margin-top: 3px;
-      border: 1px solid #000000;
-      min-height: 28mm;
+      border: 1px solid #c0ccd7;
+      min-height: 11mm;
       padding: 3px 4px;
       box-sizing: border-box;
-      font-size: 6.5px;
-      line-height: 1.2;
+      font-size: 6.2px;
+      line-height: 1.3;
+      background: #ffffff;
+    }
+
+    .dam-final-box > div + div {
+      margin-top: 1.5px;
     }
 
     .dam-final-right-box {
       margin-top: 3px;
-      border: 1px solid #000000;
-      min-height: 28mm;
+      border: 1px solid #c0ccd7;
+      min-height: 11mm;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -919,6 +1322,14 @@ function getStyles() {
         background: #ffffff !important;
       }
 
+      /* Mantém a guia inteira em A4 com respiro institucional real.
+         A largura compensada preserva a malha e centraliza o documento após o zoom. */
+      .dam-root {
+        zoom: 0.90;
+        width: 111.111%;
+        transform-origin: top center;
+      }
+
       .print-hide {
         display: none !important;
       }
@@ -930,8 +1341,26 @@ function getStyles() {
       }
 
       .dam-sheet {
+        margin: 0 auto !important;
         border-color: #000000 !important;
+        border-radius: 0 !important;
         box-shadow: none !important;
+      }
+
+      .dam-homologation-band {
+        background: #fff7ed !important;
+        color: #9a3412 !important;
+        border-color: #d97706 !important;
+        print-color-adjust: exact !important;
+        -webkit-print-color-adjust: exact !important;
+      }
+
+      .dam-barcode-svg,
+      .dam-barcode-svg rect {
+        fill: #000000 !important;
+        color: #000000 !important;
+        print-color-adjust: exact !important;
+        -webkit-print-color-adjust: exact !important;
       }
 
       .dam-receipt-right,
@@ -1026,6 +1455,7 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
   const outrosAcrescimos = Number(guia.outrosAcrescimos || 0);
   const valorCobrado =
     guia.valorCobrado ?? totalDocumento - descontos + outrosAcrescimos;
+  const bankAuth = bankAuthenticationLabel(guia);
 
   const prefeituraEndereco = [
     prefeitura.endereco,
@@ -1037,6 +1467,8 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
     .join(" - ");
 
   const visibleItens = itens.slice(0, 8);
+  const resolvedMunicipalityLogo =
+    String(prefeitura.logoUrl || "").trim();
 
   return (
     <div ref={ref} className={`dam-root ${className}`}>
@@ -1045,7 +1477,7 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
       <div className="dam-toolbar print-hide">
         <button
           type="button"
-          onClick={() => window.print()}
+          data-dam-print-button="true"
           className="dam-print-button"
         >
           Imprimir / Salvar PDF
@@ -1057,14 +1489,14 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
           <div className="dam-block dam-block-top">
             <div className="dam-header">
               <div className="dam-logo-box">
-                {prefeitura.logoUrl ? (
+                {resolvedMunicipalityLogo ? (
                   <img
-                    src={prefeitura.logoUrl}
+                    src={resolvedMunicipalityLogo}
                     alt="Logo da Prefeitura"
                     className="dam-logo"
                   />
                 ) : (
-                  <div className="dam-logo-fallback">LOGO</div>
+                  <div className="dam-logo-fallback">PM</div>
                 )}
               </div>
 
@@ -1089,7 +1521,7 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
                 </div>
                 <div className="dam-header-right-grid">
                   <div className="dam-mini-cell">
-                    <div className="dam-mini-label">No Guia</div>
+                    <div className="dam-mini-label">Nº Guia</div>
                     <div className="dam-mini-value">{guia.numeroGuia}</div>
                   </div>
                   <div className="dam-mini-cell">
@@ -1103,6 +1535,13 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
             </div>
 
             <div className="dam-title">{guideMeta.title}</div>
+
+            {guia.bankEnvironment === "test" ? (
+              <div className="dam-homologation-band">
+                <span className="dam-homologation-dot" />
+                Homologação Mercado Pago — documento de teste — não efetuar pagamento
+              </div>
+            ) : null}
 
             <div className="dam-subtitle-band">
               <div className="dam-subtitle-main">
@@ -1120,7 +1559,7 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
 
             <div className="dam-fields-grid">
               <FormCell
-                label="No do Cadastro"
+                label="Nº do Cadastro"
                 value={contribuinte.numeroCadastro}
                 spanClass="span-6"
               />
@@ -1276,12 +1715,13 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
             </div>
 
             <div className="dam-warning-row">
-              ** VALIDO SOMENTE COM AUTENTICACAO MECANICA ** ** NAO RECEBER APOS O
-              VENCIMENTO **
+              {guia.paymentProvider === "mercado_pago"
+                ? "** VALIDAÇÃO ELETRÔNICA PELO PROVEDOR DE PAGAMENTO ** ** NÃO RECEBER APÓS O VENCIMENTO **"
+                : "** VÁLIDO SOMENTE COM AUTENTICAÇÃO / BAIXA OFICIAL ** ** NÃO RECEBER APÓS O VENCIMENTO **"}
             </div>
 
             <div className="dam-observation-row">
-              <div className="dam-observation-label">Observacao</div>
+              <div className="dam-observation-label">Observação</div>
               <div className="dam-observation-value">
                 {guia.observacao || " "}
               </div>
@@ -1308,11 +1748,11 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
           <div className="dam-block dam-block-bottom">
             <div className="dam-receipt-header">
               <div className="dam-receipt-logo">
-                {prefeitura.logoUrl ? (
-                  <img src={prefeitura.logoUrl} alt="Logo da Prefeitura" />
+                {resolvedMunicipalityLogo ? (
+                  <img src={resolvedMunicipalityLogo} alt="Logo da Prefeitura" />
                 ) : (
                   <div className="dam-logo-fallback" style={{ width: 18, height: 18 }}>
-                    LOGO
+                    PM
                   </div>
                 )}
               </div>
@@ -1339,32 +1779,52 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
                   label="Vencimento"
                   value={formatDateBR(guia.vencimento)}
                 />
-                <ReceiptRow label="No Guia" value={guia.numeroGuia} />
+                <ReceiptRow label="Nº Guia" value={guia.numeroGuia} />
               </div>
             </div>
 
             <div className="dam-receipt-body">
               <div className="dam-receipt-left">
                 <ReceiptRow
-                  label="No do Cadastro"
+                  label="Nº do Cadastro"
                   value={contribuinte.numeroCadastro}
                 />
                 <ReceiptRow label="CNPJ/CPF" value={contribuinte.cpfCnpj} />
                 <ReceiptRow
-                  label="Data Emissao"
+                  label="Data Emissão"
                   value={formatDateBR(guia.dataDocumento)}
                 />
                 <ReceiptRow label="Pagador" value={contribuinte.nome} />
                 <ReceiptRow label="Endereço" value={contribuinte.endereco} />
 
                 <div className="dam-note">
-                  Pagável em bancos conveniados. Não receber após o vencimento.
+                  <div>
+                    {guia.bankName
+                      ? `Provedor de cobrança: ${guia.bankName}${guia.bankAgreement ? ` • Convênio ${guia.bankAgreement}` : ""}. Não receber após o vencimento.`
+                      : "Pagamento pelos canais oficiais indicados pela Prefeitura. Não receber após o vencimento."}
+                  </div>
+                  {guia.bankReference || guia.bankPaymentId ? (
+                    <div style={{ marginTop: 2, fontSize: "5.5px", color: "#475569" }}>
+                      {[guia.bankReference ? `Order: ${guia.bankReference}` : "", guia.bankPaymentId ? `Payment: ${guia.bankPaymentId}` : ""]
+                        .filter(Boolean)
+                        .join(" • ")}
+                    </div>
+                  ) : null}
                 </div>
 
                 <div className="dam-auth">
-                  <div className="dam-auth-label">Autenticacao Mecanica</div>
+                  <div className="dam-auth-label">
+                    {guia.paymentProvider === "mercado_pago" ? "Validação eletrônica" : "Autenticação / baixa"}
+                  </div>
                   <div className="dam-auth-value">
-                    {guia.autenticacaoMecanica || ""}
+                    {guia.paymentProvider === "mercado_pago" ? (
+                      <>
+                        {bankAuth.title}
+                        {guia.bankPaymentId ? <> • Payment {guia.bankPaymentId}</> : null}
+                      </>
+                    ) : (
+                      guia.autenticacaoMecanica || "Aguardando baixa oficial"
+                    )}
                   </div>
                 </div>
               </div>
@@ -1395,18 +1855,32 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
                   value={formatCurrency(valorCobrado)}
                 />
 
-                {guia.qrCodePixUrl ? (
+                {guia.pixPayload ? (
                   <div className="dam-qr-wrap">
-                    <div className="dam-qrcode-label">PIX opcional</div>
+                    <div className="dam-qrcode-label">PIX — QR Code e Copia e Cola</div>
+                    {guia.bankEnvironment === "test" ? (
+                      <div className="dam-pix-test-warning">
+                        PIX cadastrado pode ser real — não efetuar pagamento durante a homologação.
+                      </div>
+                    ) : null}
+                    <div className="dam-qrcode-box">
+                      <QRCodeSVG value={guia.pixPayload} size={64} level="M" />
+                    </div>
+                    <div className="dam-pix-copy-label">PIX Copia e Cola</div>
+                    <div className="dam-pix-copy">{guia.pixPayload}</div>
+                  </div>
+                ) : guia.qrCodePixUrl ? (
+                  <div className="dam-qr-wrap">
+                    <div className="dam-qrcode-label">PIX — QR Code oficial</div>
                     <div className="dam-qrcode-box">
                       <img src={guia.qrCodePixUrl} alt="QR Code PIX" />
                     </div>
                   </div>
                 ) : (
                   <div className="dam-qr-wrap">
-                    <div className="dam-qrcode-label">Canal complementar</div>
+                    <div className="dam-qrcode-label">PIX</div>
                     <div className="dam-qrcode-box">
-                      <span className="dam-qrcode-fallback">Consulte a Prefeitura para obter o meio de pagamento oficial.</span>
+                      <span className="dam-qrcode-fallback">PIX não configurado para esta Prefeitura.</span>
                     </div>
                   </div>
                 )}
@@ -1414,18 +1888,16 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
             </div>
 
             <div className="dam-bottom-section">
-              <div className="dam-bottom-label">Linha Digitavel</div>
+              <div className="dam-bottom-label">Linha Digitável</div>
               <div className="dam-digitable-value">
                 {formatDigitableLine(guia.linhaDigitavel)}
               </div>
             </div>
 
             <div className="dam-bottom-section">
-              <div className="dam-bottom-label">Codigo de Barras</div>
+              <div className="dam-bottom-label">Código de Barras</div>
               <div className="dam-barcode-box">
-                <div className="dam-barcode-text">
-                  {renderBarcodeVisual(guia.codigoBarras)}
-                </div>
+                <ProviderBarcode value={guia.codigoBarras} />
               </div>
             </div>
 
@@ -1433,34 +1905,46 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
               <div className="dam-footer-left">
                 <div className="dam-bottom-label">Instruções de pagamento</div>
                 <div className="dam-footer-note">
-                  {guia.linhaDigitavel || guia.qrCodePixUrl
-                    ? "Efetue o pagamento pelo canal oficial indicado pela Prefeitura. Após a compensação, o recolhimento poderá ser conferido na tramitação administrativa."
-                    : "Não há linha digitável nem PIX oficial nesta via. Solicite à Tesouraria o meio de arrecadação válido antes de efetuar o pagamento."}
+                  {guia.bankInstructions ||
+                    (guia.linhaDigitavel || guia.pixPayload || guia.qrCodePixUrl
+                      ? "Efetue o pagamento pelo canal oficial indicado pela Prefeitura. Após a compensação, o recolhimento poderá ser conferido na tramitação administrativa."
+                      : "Não há linha digitável nem PIX oficial nesta via. Solicite à Tesouraria o meio de arrecadação válido antes de efetuar o pagamento.")}
                 </div>
               </div>
               <div className="dam-footer-right">
                 <div className="dam-bottom-label">Autenticação bancária</div>
-                <div className="dam-auth-box">
-                  {guia.autenticacaoMecanica || "Espaço reservado"}
+                <div className="dam-auth-box dam-bank-auth" data-tone={bankAuth.tone}>
+                  <div className="dam-bank-auth-title">{bankAuth.title}</div>
+                  {bankAuth.lines.map((line) => (
+                    <div key={line} className="dam-bank-auth-line">{line}</div>
+                  ))}
                 </div>
               </div>
             </div>
 
             <div className="dam-final-area">
               <div className="dam-final-left">
-                <div className="dam-bottom-label">Instruções de lançamento</div>
+                <div className="dam-bottom-label">Controle e conciliação da arrecadação</div>
                 <div className="dam-final-text">
-                  Documento de cobrança registrado e vinculado ao processo administrativo. O pagamento depende de meio oficial de arrecadação, observando as normas e o vencimento da Prefeitura.
+                  Guia vinculada ao processo administrativo e ao provedor oficial de cobrança.
                 </div>
                 <div className="dam-final-box">
-                  Uso interno da Prefeitura: conferência do recolhimento, registro da compensação, despacho da tesouraria
-                  e validação para prosseguimento do processo.
+                  <div><strong>Provedor:</strong> {guia.bankName || "Arrecadação municipal"}</div>
+                  <div><strong>Situação:</strong> {bankAuth.title}</div>
+                  {guia.bankReference ? <div><strong>Order:</strong> {guia.bankReference}</div> : null}
+                  {guia.bankPaymentId ? <div><strong>Payment:</strong> {guia.bankPaymentId}</div> : null}
+                  {guia.bankAuthenticatedAt ? (
+                    <div><strong>Compensação:</strong> {formatDateTimeBR(guia.bankAuthenticatedAt)}</div>
+                  ) : null}
                 </div>
               </div>
               <div className="dam-final-right">
-                <div className="dam-bottom-label">Autenticação mecânica</div>
+                <div className="dam-bottom-label">Tesouraria / baixa manual</div>
                 <div className="dam-final-right-box">
-                  {guia.autenticacaoMecanica || "Espaço reservado"}
+                  {guia.autenticacaoMecanica ||
+                    (guia.paymentProvider === "mercado_pago"
+                      ? "Dispensada após confirmação eletrônica do provedor."
+                      : "Carimbo, assinatura, data e identificação do agente arrecadador.")}
                 </div>
               </div>
             </div>
@@ -1471,11 +1955,36 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
   );
 });
 
+function toAbsoluteGuideAssetUrl(value?: string) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  try {
+    const base =
+      typeof window !== "undefined" && window.location?.origin
+        ? window.location.origin
+        : "https://sigapromunicipal.com.br";
+    return new URL(raw, base).toString();
+  } catch {
+    return raw;
+  }
+}
+
 export function buildGuiaRecolhimentoOficialHtml(
   props: GuiaRecolhimentoOficialProps,
   options?: { title?: string; autoPrint?: boolean },
 ) {
-  const markup = renderToStaticMarkup(<GuiaRecolhimentoOficial {...props} />);
+  const normalizedProps: GuiaRecolhimentoOficialProps = {
+    ...props,
+    prefeitura: {
+      ...props.prefeitura,
+      logoUrl: toAbsoluteGuideAssetUrl(props.prefeitura.logoUrl),
+    },
+    guia: {
+      ...props.guia,
+      qrCodePixUrl: toAbsoluteGuideAssetUrl(props.guia.qrCodePixUrl),
+    },
+  };
+  const markup = renderToStaticMarkup(<GuiaRecolhimentoOficial {...normalizedProps} />);
   const title = options?.title || props.guia.numeroGuia;
   const autoPrint = options?.autoPrint ?? true;
 
@@ -1488,25 +1997,91 @@ export function buildGuiaRecolhimentoOficialHtml(
   </head>
   <body>
     ${markup}
-    ${autoPrint ? "<script>window.addEventListener('load', function () { window.print(); }, { once: true });</script>" : ""}
+    <script>
+      (function () {
+        function bindDamPrint() {
+          var buttons = document.querySelectorAll('[data-dam-print-button="true"]');
+          buttons.forEach(function (button) {
+            button.addEventListener('click', function () {
+              window.focus();
+              window.print();
+            });
+          });
+        }
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', bindDamPrint, { once: true });
+        } else {
+          bindDamPrint();
+        }
+      })();
+    </script>
+    ${autoPrint ? `<script>
+      window.addEventListener('load', function () {
+        var images = Array.prototype.slice.call(document.images || []);
+        var pending = images.map(function (img) {
+          if (img.complete) return Promise.resolve();
+          return new Promise(function (resolve) {
+            img.addEventListener('load', resolve, { once: true });
+            img.addEventListener('error', resolve, { once: true });
+          });
+        });
+        Promise.all(pending).then(function () {
+          window.setTimeout(function () { window.print(); }, 180);
+        });
+      }, { once: true });
+    </script>` : ""}
   </body>
 </html>`;
+}
+
+export function reserveGuiaRecolhimentoOficialWindow(title = "Guia de recolhimento") {
+  const popup = window.open("about:blank", "_blank");
+  if (!popup) return null;
+
+  try {
+    popup.document.title = title;
+    popup.document.body.innerHTML = `
+      <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#eef3f8;font-family:Segoe UI,Arial,sans-serif;color:#0f3557">
+        <div style="padding:24px 28px;border:1px solid #d7e0e8;border-radius:14px;background:#fff;box-shadow:0 14px 34px rgba(15,53,87,.12);font-weight:700">
+          Preparando guia oficial...
+        </div>
+      </div>
+    `;
+  } catch {
+    // A janela reservada continua válida mesmo se o navegador limitar o acesso inicial.
+  }
+
+  popup.focus();
+  return popup;
 }
 
 export function openGuiaRecolhimentoOficialWindow(
   props: GuiaRecolhimentoOficialProps,
   options?: { title?: string; autoPrint?: boolean },
+  reservedWindow?: Window | null,
 ) {
   const html = buildGuiaRecolhimentoOficialHtml(props, options);
   const blob = new Blob([html], { type: "text/html;charset=utf-8" });
   const previewUrl = URL.createObjectURL(blob);
-  const popup = window.open(previewUrl, "_blank");
+  const popup =
+    reservedWindow && !reservedWindow.closed
+      ? reservedWindow
+      : window.open(previewUrl, "_blank");
+
   if (!popup) {
     URL.revokeObjectURL(previewUrl);
-    return;
+    return null;
   }
+
+  if (reservedWindow && !reservedWindow.closed) {
+    try {
+      popup.location.replace(previewUrl);
+    } catch {
+      popup.location.href = previewUrl;
+    }
+  }
+
   popup.focus();
   window.setTimeout(() => URL.revokeObjectURL(previewUrl), 60_000);
+  return popup;
 }
-
-

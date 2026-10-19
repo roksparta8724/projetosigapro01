@@ -57,7 +57,7 @@ describe("municipal admin operational boundary", () => {
 
 describe("professional process workspace", () => {
   it("lands the professional directly on the process list", () => {
-    expect(getRoleLandingPath("profissional_externo")).toBe("/externo/controle");
+    expect(getRoleLandingPath("profissional_externo")).toBe("/dashboard");
 
     const tabs = readFileSync(resolve(process.cwd(), "src/lib/externalTabs.ts"), "utf8");
     expect(tabs).toContain('{ value: "controle", label: "Processos"');
@@ -69,7 +69,7 @@ describe("professional process workspace", () => {
     expect(detail).toContain("processBelongsToExternalProfessional(session, process)");
     expect(detail).toContain("isUrbanAnalysisViewer");
     expect(detail).toContain("canViewFullIdentity={canViewCompleteCadastro}");
-    expect(detail).toContain("Modo administrativo — consulta somente");
+    expect(detail).toContain("Governança administrativa da Prefeitura");
   });
 
   it("shows released finance information inside the professional process", () => {

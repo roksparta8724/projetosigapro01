@@ -8,7 +8,7 @@ const fileDropZone = readFileSync(resolve(process.cwd(), "src/components/platfor
 const documentViewer = readFileSync(resolve(process.cwd(), "src/pages/saas/DocumentViewerPage.tsx"), "utf8");
 const dataHook = readFileSync(resolve(process.cwd(), "src/hooks/usePlatformData.tsx"), "utf8");
 const r2Client = readFileSync(resolve(process.cwd(), "src/integrations/r2/client.ts"), "utf8");
-const recoveryApi = readFileSync(resolve(process.cwd(), "api/r2-list-user-files.ts"), "utf8");
+const recoveryApi = readFileSync(resolve(process.cwd(), "server/api/r2-list-user-files.ts"), "utf8");
 const migration = readFileSync(
   resolve(process.cwd(), "supabase/migrations/20261011161000_sync_process_documents.sql"),
   "utf8",
@@ -33,17 +33,21 @@ describe("process document persistence regressions", () => {
     expect(fileDropZone).toContain('data-upload-zone');
     expect(fileDropZone).toContain('min-h-[18px]');
     expect(fileDropZone).toContain('h-56');
-    expect(fileDropZone).toContain('sm:h-72');
+    expect(fileDropZone).toContain('sm:h-[360px]');
     expect(fileDropZone).toContain('URL.createObjectURL(file)');
     expect(fileDropZone).toContain('transition-colors');
-    expect(fileDropZone).not.toContain('<iframe');
+    expect(fileDropZone).toContain('<iframe');
+    expect(fileDropZone).toContain('className="pointer-events-none h-full w-full border-0 bg-white"');
+    expect(fileDropZone).toContain("buildPdfPreviewUrl(file.previewUrl)");
     expect(fileDropZone).toContain('Abrir PDF em nova guia');
   });
 
   it("never embeds live PDF viewers inside process document cards", () => {
     expect(processDetail).toContain('data-process-document-card="true"');
-    expect(processDetail).toContain("/visualizar");
-    expect(processDetail).not.toContain("getSignedUrlForObjectStrict");
+    expect(processDetail).toContain('const route = shouldAnalyze ? "analisar" : "visualizar"');
+    expect(processDetail).toContain('/documentos/${documentId}/${route}');
+    expect(processDetail).toContain("getSignedUrlForObjectStrict");
+    expect(processDetail).toContain("cacheDocumentWorkspaceAccessUrl");
     expect(processDetail).not.toContain('document.mimeType === "application/pdf"');
     expect(processDetail).not.toContain('className="h-72 w-full"');
   });
@@ -52,7 +56,7 @@ describe("process document persistence regressions", () => {
     expect(documentViewer).not.toContain("}, [allowed, document]);");
     expect(documentViewer).toContain("document?.filePath");
     expect(documentViewer).toContain("document?.previewUrl");
-    expect(documentViewer).toContain('className="h-full w-full border-0 bg-white"');
+    expect(documentViewer).toContain('className="h-full w-full border-0 bg-[#2b3037]"');
   });
 
   it("requires a real R2 file path and idempotently links it in the official process", () => {
@@ -78,7 +82,8 @@ describe("process document persistence regressions", () => {
     expect(r2Client).toContain("listRecoverableProcessFiles");
     expect(processDetail).toContain("Buscar uploads anteriores");
     expect(processDetail).toContain("handleRecoverStoredDocument");
-    expect(processDetail).toContain("Esta área é somente para análise. Os arquivos exibidos abaixo foram anexados pelo profissional responsável.");
+    expect(processDetail).toContain("O analista não anexa documentos em nome do profissional.");
+    expect(processDetail).toContain("eles aparecerão automaticamente aqui para análise.");
     expect(processDetail).toContain('const canUploadProcessDocuments = session.role === "profissional_externo"');
   });
 

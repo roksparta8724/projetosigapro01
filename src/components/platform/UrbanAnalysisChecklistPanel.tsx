@@ -8,6 +8,7 @@ import {
   Building2,
   FileDown,
   FileText,
+  History,
   PenLine,
   Route,
   Save,
@@ -28,15 +29,22 @@ import {
   type SessionUser,
 } from "@/lib/platform";
 import { cn } from "@/lib/utils";
+import { SignatureVerificationQr } from "@/components/platform/SignatureVerificationQr";
+import { createQrCodeDataUrl } from "@/lib/qrCode";
+import { buildPublicSignatureVerificationUrl } from "@/lib/signatureVerification";
 import {
   ArtifactSignatureError,
   getProcessArtifactSignatureRequest,
   getProcessArtifactSignatures,
+  getProcessArtifactVersionHistory,
   getProcessArtifactWithdrawal,
+  getProcessArtifactWithdrawalHistory,
   requestProcessArtifactSignature,
   saveProcessArtifactWithdrawal,
   signProcessArtifactWithPassword,
   type ArtifactSignatureRequestSnapshot,
+  type ArtifactVersionHistoryEntry,
+  type ArtifactWithdrawalEvent,
   type ArtifactWithdrawalRecord,
   type ArtifactSignerSlot,
 } from "@/integrations/esign/artifactClient";
@@ -152,6 +160,97 @@ function compactEvidenceHash(hash?: string) {
   return `${value.slice(0, 18)}...${value.slice(-12)}`;
 }
 
+function currentMunicipalDateValue() {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+
+  const values = Object.fromEntries(
+    parts
+      .filter((part) => part.type !== "literal")
+      .map((part) => [part.type, part.value]),
+  );
+
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
+function formatMunicipalDate(value?: string | null) {
+  const normalized = String(value || "").slice(0, 10);
+  const [year, month, day] = normalized.split("-");
+  if (!year || !month || !day) return "";
+  return `${day}/${month}/${year}`;
+}
+
+
+function formatMunicipalDateTime(value?: string | null) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) {
+    const dateOnly = formatMunicipalDate(raw);
+    return dateOnly ? `${dateOnly} • horário não registrado` : "";
+  }
+  return new Intl.DateTimeFormat("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(parsed);
+}
+
+function summarizeSignedRevision(
+  current: Record<string, unknown>,
+  previous?: Record<string, unknown> | null,
+) {
+  if (!previous) return "Versão inicial assinada da análise técnica.";
+
+  const changes: string[] = [];
+  const fields: Array<[string, string]> = [
+    ["analysisDate", "data da análise"],
+    ["sheetNumber", "folha / revisão"],
+    ["routing", "encaminhamento"],
+    ["routingOther", "destino complementar"],
+    ["conclusion", "conclusão / observações"],
+    ["communiquePages", "referência do Comunique-se"],
+  ];
+
+  fields.forEach(([key, label]) => {
+    if (stableSignatureStringify(current[key]) !== stableSignatureStringify(previous[key])) {
+      changes.push(label);
+    }
+  });
+
+  const currentItems =
+    current.items && typeof current.items === "object"
+      ? (current.items as Record<string, unknown>)
+      : {};
+  const previousItems =
+    previous.items && typeof previous.items === "object"
+      ? (previous.items as Record<string, unknown>)
+      : {};
+  const itemIds = new Set([...Object.keys(currentItems), ...Object.keys(previousItems)]);
+  const changedItems = [...itemIds].filter(
+    (id) =>
+      stableSignatureStringify(currentItems[id]) !==
+      stableSignatureStringify(previousItems[id]),
+  ).length;
+
+  if (changedItems > 0) {
+    changes.push(
+      `${changedItems} item${changedItems === 1 ? "" : "s"} do checklist`,
+    );
+  }
+
+  return changes.length > 0
+    ? `Retificação: ${changes.join(", ")}.`
+    : "Nova assinatura da mesma composição técnica, sem alteração material identificada.";
+}
+
 
 function stableSignatureStringify(value: unknown): string {
   if (value === undefined) return "null";
@@ -197,6 +296,7 @@ type UrbanAnalysisChecklistPanelProps = {
   municipalityEmail?: string | null;
   departmentLabel?: string | null;
   organogramTrail?: Array<{ code: string; name: string }>;
+  readOnly?: boolean;
 };
 
 const STATUS_META: Record<Exclude<ChecklistStatus, "">, { label: string; short: string; classes: string }> = {
@@ -373,6 +473,7 @@ export function UrbanAnalysisChecklistPanel({
   municipalityEmail,
   departmentLabel,
   organogramTrail = [],
+  readOnly = false,
 }: UrbanAnalysisChecklistPanelProps) {
   const key = storageKey(municipalityId, process.id);
   const [state, setState] = useState<AnalysisChecklistState>(() =>
@@ -391,8 +492,10 @@ export function UrbanAnalysisChecklistPanel({
   });
   const [directorRequestBusy, setDirectorRequestBusy] = useState(false);
   const [withdrawalRecord, setWithdrawalRecord] = useState<ArtifactWithdrawalRecord | null>(null);
+  const [withdrawalHistory, setWithdrawalHistory] = useState<ArtifactWithdrawalEvent[]>([]);
   const [withdrawalName, setWithdrawalName] = useState("");
-  const [withdrawalDate, setWithdrawalDate] = useState("");
+  const [withdrawalDateTime, setWithdrawalDateTime] = useState(() => new Date().toISOString());
+  const [revisionHistory, setRevisionHistory] = useState<ArtifactVersionHistoryEntry[]>([]);
   const [withdrawalBusy, setWithdrawalBusy] = useState(false);
   const [withdrawalSaveConfirmed, setWithdrawalSaveConfirmed] = useState(false);
   const resolvedMunicipalityLogoUrl = useMemo(
@@ -488,6 +591,23 @@ export function UrbanAnalysisChecklistPanel({
   useEffect(() => {
     let active = true;
 
+    void getProcessArtifactVersionHistory(process.id, ANALYSIS_ARTIFACT_KEY)
+      .then((versions) => {
+        if (active) setRevisionHistory(versions);
+      })
+      .catch((error) => {
+        if (!active) return;
+        console.error("[SIGAPRO][Histórico] Falha ao carregar versões assinadas.", error);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [process.id, state.technicalSignature?.evidenceHash, state.directorSignature?.signedAt]);
+
+  useEffect(() => {
+    let active = true;
+
     void getProcessArtifactSignatureRequest(
       process.id,
       ANALYSIS_ARTIFACT_KEY,
@@ -509,30 +629,38 @@ export function UrbanAnalysisChecklistPanel({
   useEffect(() => {
     let active = true;
 
-    void getProcessArtifactWithdrawal(process.id, ANALYSIS_ARTIFACT_KEY)
-      .then((snapshot) => {
+    void Promise.all([
+      getProcessArtifactWithdrawal(process.id, ANALYSIS_ARTIFACT_KEY),
+      getProcessArtifactWithdrawalHistory(process.id, ANALYSIS_ARTIFACT_KEY),
+    ])
+      .then(([snapshot, history]) => {
         if (!active) return;
-        const record = snapshot.withdrawal;
-
-        if (!record) {
-          setWithdrawalRecord(null);
-          setWithdrawalName("");
-          setWithdrawalDate("");
-          return;
-        }
-
-        setWithdrawalRecord(record);
-        setWithdrawalName(record.withdrawn_by_name || "");
-        setWithdrawalDate(record.withdrawn_at ? record.withdrawn_at.slice(0, 10) : "");
+        setWithdrawalRecord(snapshot.withdrawal);
+        setWithdrawalHistory(history);
+        // O formulário é sempre de um novo registro. Nunca reaproveita o nome
+        // da última pessoa que retirou o documento.
+        setWithdrawalName("");
+        setWithdrawalDateTime(new Date().toISOString());
       })
       .catch((error) => {
         if (!active) return;
-        console.error("[SIGAPRO][Retirada] Falha ao carregar registro de retirada.", error);
+        console.error("[SIGAPRO][Retirada] Falha ao carregar histórico de retirada.", error);
       });
 
     return () => {
       active = false;
     };
+  }, [process.id]);
+
+  useEffect(() => {
+    const syncAutomaticWithdrawalMoment = () => {
+      setWithdrawalDateTime(new Date().toISOString());
+    };
+
+    syncAutomaticWithdrawalMoment();
+    const timer = window.setInterval(syncAutomaticWithdrawalMoment, 60_000);
+
+    return () => window.clearInterval(timer);
   }, [process.id]);
 
   const counts = useMemo(() => {
@@ -551,7 +679,8 @@ export function UrbanAnalysisChecklistPanel({
   const pendingCorrectionCount = counts.ap + counts.c;
 
   const canSignTechnical =
-    ["master_admin", "master_ops", "prefeitura_admin", "prefeitura_supervisor", "analista", "analyst"].includes(session.role);
+    !readOnly &&
+    ["master_admin", "master_ops", "analista", "analyst"].includes(session.role);
   const isDirectorProfile =
     /diretor|diretora|director/i.test(session.role || "") ||
     /diretor|diretora/i.test(session.title || "");
@@ -572,11 +701,13 @@ export function UrbanAnalysisChecklistPanel({
     directorRequestMatchesCurrentVersion &&
     directorRequest.request?.status === "pending";
   const canRequestDirector =
+    !readOnly &&
     technicalOfficial &&
-    ["master_admin", "master_ops", "prefeitura_admin", "prefeitura_supervisor", "analista", "analyst"].includes(session.role);
+    ["master_admin", "master_ops", "analista", "analyst"].includes(session.role);
   const isFullySigned = technicalOfficial && directorOfficial;
   const withdrawalMatchesCurrentVersion = Boolean(withdrawalRecord);
   const canRecordWithdrawal =
+    !readOnly &&
     ["master_admin", "master_ops", "prefeitura_admin", "prefeitura_supervisor", "analista", "analyst"].includes(session.role);
 
   const invalidateSignature = (next: AnalysisChecklistState) => ({
@@ -588,6 +719,10 @@ export function UrbanAnalysisChecklistPanel({
   });
 
   const updateItem = (itemId: string, patch: Partial<ChecklistItemState>) => {
+    if (readOnly) {
+      setNotice("Modo acompanhamento: a ficha pertence ao analista responsável. Para alterar, a Diretoria deve iniciar uma intervenção auditada.");
+      return;
+    }
     setState((current) =>
       invalidateSignature({
         ...current,
@@ -608,6 +743,10 @@ export function UrbanAnalysisChecklistPanel({
   };
 
   const saveDraft = () => {
+    if (readOnly) {
+      setNotice("Modo acompanhamento: alterações técnicas estão bloqueadas para proteger a autoria da análise.");
+      return;
+    }
     const now = new Date().toISOString();
     const next = { ...state, savedAt: now };
     persistState(next);
@@ -768,6 +907,9 @@ export function UrbanAnalysisChecklistPanel({
             };
 
       persistState(next);
+      setRevisionHistory(
+        await getProcessArtifactVersionHistory(process.id, ANALYSIS_ARTIFACT_KEY),
+      );
       setSignaturePassword("");
       setSignatureStage("idle");
       setSignatureDialog(null);
@@ -843,20 +985,15 @@ export function UrbanAnalysisChecklistPanel({
   const saveWithdrawalRecord = async () => {
     if (!canRecordWithdrawal) {
       setWithdrawalSaveConfirmed(false);
-      setNotice("Somente o Analista Técnico responsável pode registrar a retirada em mãos.");
+      setNotice("Somente o Analista Técnico responsável pode registrar a retirada física.");
       return;
     }
     if (!withdrawalName.trim()) {
       setWithdrawalSaveConfirmed(false);
-      setNotice("Informe o nome de quem retirou o documento em mãos.");
+      setNotice("Informe o nome completo de quem retirou o documento.");
       return;
     }
-    if (!withdrawalDate) {
-      setWithdrawalSaveConfirmed(false);
-      setNotice("Informe a data da retirada.");
-      return;
-    }
-
+    setWithdrawalDateTime(new Date().toISOString());
     setWithdrawalSaveConfirmed(false);
     setWithdrawalBusy(true);
     try {
@@ -865,26 +1002,20 @@ export function UrbanAnalysisChecklistPanel({
         artifactKey: ANALYSIS_ARTIFACT_KEY,
         artifactHash: state.technicalSignature?.evidenceHash || "",
         withdrawnByName: withdrawalName.trim(),
-        withdrawnAt: withdrawalDate,
       });
       setWithdrawalRecord(snapshot.withdrawal);
-      if (snapshot.withdrawal) {
-        setWithdrawalName(
-          snapshot.withdrawal.withdrawn_by_name || withdrawalName.trim(),
-        );
-        setWithdrawalDate(
-          snapshot.withdrawal.withdrawn_at
-            ? snapshot.withdrawal.withdrawn_at.slice(0, 10)
-            : withdrawalDate,
-        );
-      }
+      setWithdrawalHistory(
+        await getProcessArtifactWithdrawalHistory(process.id, ANALYSIS_ARTIFACT_KEY),
+      );
+      setWithdrawalName("");
+      setWithdrawalDateTime(new Date().toISOString());
       setNotice("");
       setWithdrawalSaveConfirmed(true);
     } catch (error) {
       setNotice(
         error instanceof Error
           ? error.message
-          : "Não foi possível registrar a retirada em mãos.",
+          : "Não foi possível registrar a retirada física.",
       );
     } finally {
       setWithdrawalBusy(false);
@@ -902,7 +1033,10 @@ export function UrbanAnalysisChecklistPanel({
     if (!official || !signature) return null;
 
     return (
-      <div className="mt-4 overflow-hidden rounded-2xl border border-emerald-200 bg-white shadow-[0_10px_28px_rgba(5,150,105,0.10)] dark:border-emerald-500/30 dark:bg-slate-950">
+      <div
+        data-premium-signature-evidence="true"
+        className="sig-electronic-signature-evidence mt-4 overflow-hidden rounded-[22px] border border-emerald-200 bg-white shadow-[0_14px_34px_rgba(5,150,105,0.10)] dark:border-emerald-500/30 dark:bg-slate-950"
+      >
         <div className="flex items-center gap-3 border-b border-emerald-100 bg-[linear-gradient(135deg,#ecfdf5_0%,#f8fffc_100%)] px-4 py-3 dark:border-emerald-500/20 dark:bg-none dark:bg-emerald-950/25">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-[0_8px_18px_rgba(5,150,105,0.25)]">
             <ShieldCheck className="h-5 w-5" />
@@ -917,8 +1051,8 @@ export function UrbanAnalysisChecklistPanel({
           </div>
         </div>
 
-        <div className="grid gap-3 px-4 py-4 text-xs sm:grid-cols-2">
-          <div className="sm:col-span-2">
+        <div className="grid gap-3 px-4 py-4 text-xs sm:grid-cols-[minmax(0,1fr)_auto]">
+          <div className="min-w-0">
             <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-400">
               Documento assinado eletronicamente por
             </p>
@@ -932,7 +1066,21 @@ export function UrbanAnalysisChecklistPanel({
             </p>
           </div>
 
-          <div className="rounded-xl bg-slate-50 px-3 py-2.5 dark:bg-slate-900">
+          {signature.verificationCode ? (
+            <div
+              data-analysis-signature-qr="true"
+              className="row-span-3 self-start"
+            >
+              <SignatureVerificationQr
+                verificationUrl={buildPublicSignatureVerificationUrl(
+                  signature.verificationCode,
+                )}
+                alt={`QR Code de verificação da assinatura eletrônica - ${label}`}
+              />
+            </div>
+          ) : null}
+
+          <div className="min-w-0 rounded-xl bg-slate-50 px-3 py-2.5 dark:bg-slate-900">
             <p className="text-[9px] font-bold uppercase tracking-[0.1em] text-slate-400">
               Data e hora
             </p>
@@ -941,7 +1089,7 @@ export function UrbanAnalysisChecklistPanel({
             </p>
           </div>
 
-          <div className="rounded-xl bg-emerald-50 px-3 py-2.5 dark:bg-emerald-950/25">
+          <div className="min-w-0 rounded-xl bg-emerald-50 px-3 py-2.5 dark:bg-emerald-950/25">
             <p className="text-[9px] font-bold uppercase tracking-[0.1em] text-emerald-600 dark:text-emerald-300">
               Código de verificação
             </p>
@@ -950,7 +1098,7 @@ export function UrbanAnalysisChecklistPanel({
             </p>
           </div>
 
-          <div className="sm:col-span-2 rounded-xl border border-slate-200 px-3 py-2.5 dark:border-slate-700">
+          <div className="min-w-0 rounded-xl border border-slate-200 px-3 py-2.5 dark:border-slate-700">
             <p className="text-[9px] font-bold uppercase tracking-[0.1em] text-slate-400">
               Integridade SHA-256
             </p>
@@ -965,6 +1113,21 @@ export function UrbanAnalysisChecklistPanel({
 
   const generatePdf = async () => {
     if (pdfBusy) return;
+
+    const reservedPdfWindow = window.open("about:blank", "_blank");
+    if (reservedPdfWindow) {
+      reservedPdfWindow.opener = null;
+      try {
+        reservedPdfWindow.document.title = "Preparando PDF oficial…";
+        reservedPdfWindow.document.body.style.margin = "0";
+        reservedPdfWindow.document.body.style.background = "#111827";
+        reservedPdfWindow.document.body.innerHTML =
+          '<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;color:#e5e7eb;font:600 14px Inter,system-ui,sans-serif">Preparando PDF oficial…</div>';
+      } catch {
+        // A aba já foi reservada; a navegação para o PDF continuará normalmente.
+      }
+    }
+
     setPdfBusy(true);
 
     try {
@@ -1008,6 +1171,21 @@ export function UrbanAnalysisChecklistPanel({
       const logoDataUrl =
         (await loadPdfImageDataUrl(resolvedMunicipalityLogoUrl)) ||
         (await loadPdfImageDataUrl(CAMPO_LIMPO_BRASAO_FALLBACK));
+
+      const technicalVerificationUrl =
+        technicalOfficial && state.technicalSignature?.verificationCode
+          ? buildPublicSignatureVerificationUrl(state.technicalSignature.verificationCode)
+          : "";
+      const directorVerificationUrl =
+        directorOfficial && state.directorSignature?.verificationCode
+          ? buildPublicSignatureVerificationUrl(state.directorSignature.verificationCode)
+          : "";
+      const technicalSignatureQrDataUrl = technicalVerificationUrl
+        ? createQrCodeDataUrl(technicalVerificationUrl, 320)
+        : "";
+      const directorSignatureQrDataUrl = directorVerificationUrl
+        ? createQrCodeDataUrl(directorVerificationUrl, 320)
+        : "";
 
       const rawProtocol = process.protocol?.trim() || "Não informado";
       const protocolLabel = /^processo\b/i.test(rawProtocol)
@@ -1311,7 +1489,7 @@ export function UrbanAnalysisChecklistPanel({
             ? ([250, 252, 254] as const)
             : ([255, 255, 255] as const);
 
-        doc.setFillColor(...rowFill);
+        doc.setFillColor(rowFill[0], rowFill[1], rowFill[2]);
         doc.rect(margin, y, contentW, rowH, "F");
 
         doc.setDrawColor(214, 223, 232);
@@ -1365,7 +1543,7 @@ export function UrbanAnalysisChecklistPanel({
                   : status === "C"
                     ? amber
                     : ([71, 85, 105] as const);
-            doc.setFillColor(...fill);
+            doc.setFillColor(fill[0], fill[1], fill[2]);
             doc.roundedRect(
               x + width / 2 - 2.15,
               y + rowH / 2 - 2.15,
@@ -1447,8 +1625,11 @@ export function UrbanAnalysisChecklistPanel({
         signature: ChecklistSignature | null | undefined,
         official: boolean,
         requested = false,
+        verificationQrDataUrl = "",
       ) => {
         const h = 39;
+        const qrSize = official && verificationQrDataUrl ? 18.5 : 0;
+        const textWidth = official && verificationQrDataUrl ? w - 34 : w - 10;
         if (official && signature) {
           doc.setFillColor(240, 253, 250);
           doc.setDrawColor(167, 243, 208);
@@ -1473,7 +1654,7 @@ export function UrbanAnalysisChecklistPanel({
           doc.setFontSize(6.4);
           doc.setTextColor(...slate);
           doc.text(
-            doc.splitTextToSize(signature.name || "Usuário", w - 10).slice(0, 1),
+            doc.splitTextToSize(signature.name || "Usuário", textWidth).slice(0, 1),
             x + 5,
             y + 19.4,
           );
@@ -1487,7 +1668,7 @@ export function UrbanAnalysisChecklistPanel({
             .filter(Boolean)
             .join(" - ");
           doc.text(
-            doc.splitTextToSize(titleLine || "Função registrada no SIGAPRO", w - 10).slice(0, 1),
+            doc.splitTextToSize(titleLine || "Função registrada no SIGAPRO", textWidth).slice(0, 1),
             x + 5,
             y + 23.6,
           );
@@ -1514,6 +1695,20 @@ export function UrbanAnalysisChecklistPanel({
             x + 5,
             y + 35.6,
           );
+
+          if (verificationQrDataUrl && qrSize > 0) {
+            const qrX = x + w - qrSize - 3.3;
+            const qrY = y + 11.2;
+            doc.setFillColor(255, 255, 255);
+            doc.setDrawColor(167, 243, 208);
+            doc.roundedRect(qrX - 1.2, qrY - 1.2, qrSize + 2.4, qrSize + 5.6, 1.6, 1.6, "FD");
+            doc.addImage(verificationQrDataUrl, "PNG", qrX, qrY, qrSize, qrSize, undefined, "FAST");
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(3.2);
+            doc.setTextColor(...emerald);
+            doc.text("QR DA ASSINATURA", qrX + qrSize / 2, qrY + qrSize + 2.1, { align: "center" });
+            doc.text("ELETRÔNICA", qrX + qrSize / 2, qrY + qrSize + 3.9, { align: "center" });
+          }
         } else {
           doc.setFillColor(248, 250, 252);
           doc.setDrawColor(...line);
@@ -1561,9 +1756,9 @@ export function UrbanAnalysisChecklistPanel({
         false,
       );
       const page1Engineering =
-        page1Split.fit.length > 0 ? page1Split.fit : ENGINEERING_ITEMS.slice(0, 20);
+        page1Split.fit.length > 0 ? page1Split.fit : ENGINEERING_ITEMS.slice(0, 1);
       const page2Engineering =
-        page1Split.fit.length > 0 ? page1Split.rest : ENGINEERING_ITEMS.slice(20);
+        page1Split.fit.length > 0 ? page1Split.rest : ENGINEERING_ITEMS.slice(1);
 
       drawHeader(1);
       drawProcessSummary(47);
@@ -1643,10 +1838,10 @@ export function UrbanAnalysisChecklistPanel({
 
       metrics.forEach(([label, value, fill, border, textColor], index) => {
         const x = margin + 4 + index * 31;
-        doc.setFillColor(...fill);
-        doc.setDrawColor(...border);
+        doc.setFillColor(fill[0], fill[1], fill[2]);
+        doc.setDrawColor(border[0], border[1], border[2]);
         doc.roundedRect(x, resultY + 8, 28, 8, 2, 2, "FD");
-        doc.setTextColor(...textColor);
+        doc.setTextColor(textColor[0], textColor[1], textColor[2]);
         doc.setFont("helvetica", "bold");
         doc.setFontSize(4.4);
         doc.text(label, x + 3, resultY + 11.2);
@@ -1694,6 +1889,8 @@ export function UrbanAnalysisChecklistPanel({
         "Análise técnica",
         state.technicalSignature,
         technicalOfficial,
+        false,
+        technicalSignatureQrDataUrl,
       );
       drawSignatureCard(
         margin + signatureCardW + signatureGap,
@@ -1703,6 +1900,7 @@ export function UrbanAnalysisChecklistPanel({
         state.directorSignature,
         directorOfficial,
         directorRequestPending,
+        directorSignatureQrDataUrl,
       );
 
       const withdrawalY = signatureY + 41;
@@ -1712,27 +1910,26 @@ export function UrbanAnalysisChecklistPanel({
       doc.setTextColor(...slate);
       doc.setFont("helvetica", "bold");
       doc.setFontSize(5.2);
-      doc.text("RETIRADA EM MÃOS", margin + 4, withdrawalY + 4);
+      doc.text("ENTREGA FÍSICA DO DOCUMENTO", margin + 4, withdrawalY + 4);
       doc.setFont("helvetica", "normal");
       doc.setTextColor(...muted);
       doc.setFontSize(5.1);
       const pdfWithdrawalName =
         pdfWithdrawalRecord?.withdrawn_by_name?.trim() ||
         withdrawalName.trim();
-      const pdfWithdrawalDateSource =
-        pdfWithdrawalRecord?.withdrawn_at?.slice(0, 10) ||
-        withdrawalDate;
-      const pdfWithdrawalDate = pdfWithdrawalDateSource
-        ? pdfWithdrawalDateSource.split("-").reverse().join("/")
-        : "";
+      const pdfWithdrawalMoment =
+        pdfWithdrawalRecord?.withdrawn_at_exact ||
+        pdfWithdrawalRecord?.recorded_at ||
+        withdrawalDateTime;
+      const pdfWithdrawalDateTime = formatMunicipalDateTime(pdfWithdrawalMoment);
 
       doc.text(
-        `Retirada por: ${pdfWithdrawalName || "____________________________________________"}`,
+        `Retirado por: ${pdfWithdrawalName || "____________________________________________"}`,
         margin + 4,
         withdrawalY + 7.8,
       );
       doc.text(
-        `Data: ${pdfWithdrawalDate || "____/____/________"}`,
+        `Data e hora: ${pdfWithdrawalDateTime || "____/____/________ __:__"}`,
         pageW - margin - 4,
         withdrawalY + 7.8,
         { align: "right" },
@@ -1741,9 +1938,46 @@ export function UrbanAnalysisChecklistPanel({
       drawFooter(2);
 
       const fileName = `analise-${normalizeFilePart(process.protocol)}.pdf`;
-      doc.save(fileName);
+      doc.setProperties({
+        title: `Ficha Oficial de Análise - ${formatOfficialProcessNumber(process.protocol)}`,
+        subject: "Ficha Oficial de Análise de Processo",
+        author: municipalityName || "Prefeitura Municipal",
+        creator: "SIGAPRO Municipal",
+      });
+      doc.setDisplayMode(
+        "fullwidth",
+        "continuous",
+        "UseNone" as unknown as Parameters<typeof doc.setDisplayMode>[2],
+      );
+
+      const pdfBlob = doc.output("blob");
+      const pdfFile = new File([pdfBlob], fileName, { type: "application/pdf" });
+      const pdfUrl = URL.createObjectURL(pdfFile);
+      const viewerUrl = `${pdfUrl}#page=1&zoom=125&toolbar=1&navpanes=0&scrollbar=1`;
+
+      if (reservedPdfWindow && !reservedPdfWindow.closed) {
+        reservedPdfWindow.location.replace(viewerUrl);
+      } else {
+        const opened = window.open(viewerUrl, "_blank");
+        if (opened) {
+          opened.opener = null;
+        } else {
+          const fallback = document.createElement("a");
+          fallback.href = pdfUrl;
+          fallback.download = fileName;
+          fallback.rel = "noreferrer";
+          document.body.appendChild(fallback);
+          fallback.click();
+          fallback.remove();
+        }
+      }
+
+      window.setTimeout(() => URL.revokeObjectURL(pdfUrl), 5 * 60_000);
       setNotice("Registrado");
     } catch (error) {
+      if (reservedPdfWindow && !reservedPdfWindow.closed) {
+        reservedPdfWindow.close();
+      }
       console.error("[SIGAPRO][PDF] Falha ao gerar ficha oficial.", error);
       setNotice(
         error instanceof Error
@@ -1951,6 +2185,13 @@ export function UrbanAnalysisChecklistPanel({
           </div>
         </section>
 
+        {readOnly ? (
+          <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm font-semibold leading-6 text-sky-900 dark:border-sky-500/30 dark:bg-sky-950/25 dark:text-sky-200">
+            Modo acompanhamento: a análise permanece em leitura. O responsável técnico continua sendo {process.analysis?.assignedTo || "o analista designado"}. A assinatura da Diretoria continua disponível quando solicitada.
+          </div>
+        ) : null}
+
+        <fieldset disabled={readOnly} className="contents">
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <div data-analysis-mini-card="true" data-analysis-crisp-card="true" data-force-card-contrast="adaptive" className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
             <p className="sig-analysis-crisp-label text-[11px] font-extrabold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-300">Processo</p>
@@ -2068,6 +2309,8 @@ export function UrbanAnalysisChecklistPanel({
             </div>
           </div>
         </section>
+
+        </fieldset>
 
         <section data-force-card-contrast="adaptive" className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-[0_14px_34px_rgba(15,23,42,0.06)] dark:border-slate-700 dark:bg-slate-900">
           <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
@@ -2251,83 +2494,227 @@ export function UrbanAnalysisChecklistPanel({
             </div>
           </div>
 
-          <div className="mt-5 rounded-[20px] border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700 dark:bg-slate-950/40">
-            <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
-                  Retirada em mãos
-                </p>
-                <p className="mt-1 text-sm font-bold text-slate-950 dark:text-white">
-                  Registro de entrega física
-                </p>
-                <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
-                  O Analista Técnico registra o nome de quem retirou o documento e a data da retirada. Este registro não altera nem invalida as assinaturas eletrônicas.
-                </p>
-              </div>
-              {withdrawalMatchesCurrentVersion ? (
-                <span className="inline-flex w-fit items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.08em] text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-950/30 dark:text-emerald-300">
-                  <CheckCircle2 className="h-3.5 w-3.5" />
-                  Retirada registrada
+          <div
+            data-analysis-withdrawal-card="true"
+            className="mt-5 overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-[0_14px_34px_rgba(15,23,42,0.06)] dark:border-slate-700 dark:bg-slate-900"
+          >
+            <div className="border-b border-slate-200 bg-[linear-gradient(135deg,#f8fbff_0%,#eef8ff_100%)] px-5 py-4 dark:border-slate-700 dark:bg-[linear-gradient(135deg,#0b1f31_0%,#0d3148_100%)]">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.14em] text-sky-700 dark:text-sky-300">
+                    Entrega física do documento
+                  </p>
+                  <p className="mt-1 text-base font-black text-slate-950 dark:text-white">
+                    Histórico de retiradas
+                  </p>
+                  <p className="mt-1 max-w-3xl text-xs leading-5 text-slate-600 dark:text-slate-300">
+                    Os registros anteriores permanecem visíveis e imutáveis. Para uma nova retirada, informe somente o nome; data e hora são gravadas pelo servidor.
+                  </p>
+                </div>
+                <span className="inline-flex w-fit shrink-0 items-center gap-1.5 rounded-full border border-sky-200 bg-white px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.08em] text-sky-800 shadow-sm dark:border-sky-500/30 dark:bg-slate-950 dark:text-sky-200">
+                  <History className="h-3.5 w-3.5" />
+                  {withdrawalHistory.length} registro(s)
                 </span>
-              ) : null}
+              </div>
             </div>
 
-            <div className="mt-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_180px_auto] md:items-end">
-              <div>
-                <label className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-400">
-                  Retirada em mãos por
-                </label>
-                <Input
-                  value={withdrawalName}
-                  onChange={(event) => {
-                    setWithdrawalName(event.target.value);
-                    setWithdrawalSaveConfirmed(false);
-                  }}
-                  placeholder="Nome completo de quem retirou"
-                  className="mt-2 h-10 rounded-xl !border-slate-300 !bg-white !text-slate-950 caret-sky-600 selection:!bg-sky-700 selection:!text-white placeholder:!text-slate-400 focus-visible:!border-sky-500 focus-visible:!ring-2 focus-visible:!ring-sky-500/20 dark:!border-slate-600 dark:!bg-slate-950 dark:!text-white dark:placeholder:!text-slate-500"
-                  disabled={!canRecordWithdrawal || withdrawalBusy}
-                />
+            <div data-analysis-withdrawal-history="true" className="border-b border-slate-200 dark:border-slate-700">
+              {withdrawalHistory.length === 0 ? (
+                <div className="px-5 py-5 text-sm text-slate-500 dark:text-slate-400">
+                  Nenhuma retirada física registrada até o momento.
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {withdrawalHistory.map((entry, index) => (
+                    <div
+                      key={entry.id}
+                      className="grid gap-3 px-5 py-4 md:grid-cols-[44px_minmax(0,1fr)_190px] md:items-center"
+                    >
+                      <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-sky-200 bg-sky-50 text-sm font-black text-sky-800 dark:border-sky-500/30 dark:bg-sky-950/30 dark:text-sky-200">
+                        {withdrawalHistory.length - index}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-black text-slate-950 dark:text-white">
+                          {entry.withdrawn_by_name}
+                        </p>
+                        <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
+                          <span>
+                            {entry.event_kind === "retificacao"
+                              ? "Registro posterior / retificação"
+                              : "Retirada registrada"}
+                          </span>
+                          {entry.recorded_by_name ? (
+                            <>
+                              <span aria-hidden="true">•</span>
+                              <span>Registrado por {entry.recorded_by_name}</span>
+                            </>
+                          ) : null}
+                        </div>
+                      </div>
+                      <div className="md:text-right">
+                        <p className="text-[9px] font-black uppercase tracking-[0.10em] text-slate-400">
+                          Data e hora
+                        </p>
+                        <p className="mt-1 text-xs font-black text-slate-800 dark:text-slate-100">
+                          {formatMunicipalDateTime(entry.withdrawn_at_exact)}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="p-5">
+              <div className="mb-4">
+                <p className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+                  Registrar nova retirada
+                </p>
+                <p className="mt-1 text-sm font-bold text-slate-950 dark:text-white">
+                  Retirado por
+                </p>
               </div>
-              <div>
-                <label className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-400">
-                  Data da retirada
-                </label>
-                <Input
-                  type="date"
-                  value={withdrawalDate}
-                  onChange={(event) => {
-                    setWithdrawalDate(event.target.value);
-                    setWithdrawalSaveConfirmed(false);
-                  }}
-                  className="sigapro-date-input mt-2 h-10 rounded-xl !border-slate-300 !bg-white !text-slate-950 caret-sky-600 selection:!bg-sky-700 selection:!text-white [color-scheme:light] [&::-webkit-datetime-edit]:!text-slate-950 [&::-webkit-datetime-edit-day-field:focus]:!bg-sky-800 [&::-webkit-datetime-edit-day-field:focus]:!text-white [&::-webkit-datetime-edit-month-field:focus]:!bg-sky-800 [&::-webkit-datetime-edit-month-field:focus]:!text-white [&::-webkit-datetime-edit-year-field:focus]:!bg-sky-800 [&::-webkit-datetime-edit-year-field:focus]:!text-white [&::-webkit-calendar-picker-indicator]:opacity-80 focus:!border-sky-700 focus:!bg-sky-700 focus:!text-white focus:caret-white focus:[color-scheme:dark] focus:[&::-webkit-datetime-edit]:!text-white focus:[&::-webkit-datetime-edit-fields-wrapper]:!text-white focus:[&::-webkit-datetime-edit-text]:!text-white focus:[&::-webkit-datetime-edit-day-field]:!text-white focus:[&::-webkit-datetime-edit-month-field]:!text-white focus:[&::-webkit-datetime-edit-year-field]:!text-white focus:[&::-webkit-calendar-picker-indicator]:invert focus-visible:!ring-2 focus-visible:!ring-sky-500/25 dark:!border-slate-600 dark:!bg-slate-950 dark:!text-white dark:[color-scheme:dark] dark:[&::-webkit-datetime-edit]:!text-white"
-                  disabled={!canRecordWithdrawal || withdrawalBusy}
-                />
+
+              <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_200px] md:items-end">
+                <div>
+                  <label className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-400">
+                    Nome completo
+                  </label>
+                  <Input
+                    value={withdrawalName}
+                    onChange={(event) => {
+                      setWithdrawalName(event.target.value);
+                      setWithdrawalSaveConfirmed(false);
+                    }}
+                    placeholder="Digite o nome de quem retirou"
+                    autoComplete="off"
+                    className="mt-2 h-11 rounded-xl !border-slate-300 !bg-white !font-semibold !text-slate-950 caret-sky-600 selection:!bg-sky-700 selection:!text-white placeholder:!text-slate-400 focus-visible:!border-sky-500 focus-visible:!ring-2 focus-visible:!ring-sky-500/20 dark:!border-slate-600 dark:!bg-slate-950 dark:!text-white dark:placeholder:!text-slate-500"
+                    disabled={!canRecordWithdrawal || withdrawalBusy}
+                  />
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between gap-2">
+                    <label className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-400">
+                      Data e hora
+                    </label>
+                    <span className="rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-[0.08em] text-sky-700 dark:border-sky-500/30 dark:bg-sky-950/30 dark:text-sky-300">
+                      Automática
+                    </span>
+                  </div>
+                  <Input
+                    type="text"
+                    value={formatMunicipalDateTime(withdrawalDateTime)}
+                    readOnly
+                    aria-readonly="true"
+                    tabIndex={-1}
+                    className="mt-2 h-11 rounded-xl !border-slate-300 !bg-slate-100 !font-semibold !text-slate-800 focus-visible:!ring-0 dark:!border-slate-600 dark:!bg-slate-900 dark:!text-slate-100"
+                  />
+                </div>
               </div>
-              {canSignTechnical ? (
+
+              {canRecordWithdrawal ? (
                 <Button
                   type="button"
-                  variant="outline"
-                  className="h-10 rounded-xl border-sky-300 bg-white font-semibold text-sky-800 hover:bg-sky-50 dark:border-sky-500/40 dark:bg-slate-900 dark:text-sky-200"
-                  disabled={!canRecordWithdrawal || withdrawalBusy || !withdrawalName.trim() || !withdrawalDate}
+                  data-analysis-withdrawal-confirm="true"
+                  className="mt-4 h-11 w-full rounded-xl border border-sky-500 bg-[linear-gradient(135deg,#082f49_0%,#075985_55%,#0f78b8_100%)] font-bold !text-white shadow-[0_9px_22px_rgba(7,89,133,0.22)] hover:brightness-110 [&_*]:!text-white"
+                  disabled={withdrawalBusy || !withdrawalName.trim()}
                   onClick={() => void saveWithdrawalRecord()}
                 >
                   {withdrawalBusy ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   ) : (
-                    <Save className="mr-2 h-4 w-4" />
+                    <CheckCircle2 className="mr-2 h-4 w-4" />
                   )}
-                  {withdrawalBusy
-                    ? "Registrando..."
-                    : withdrawalMatchesCurrentVersion
-                      ? "Atualizar retirada"
-                      : "Registrar retirada"}
+                  {withdrawalBusy ? "Registrando retirada..." : "Registrar retirada física"}
                 </Button>
               ) : null}
+
+              {withdrawalSaveConfirmed ? (
+                <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs font-semibold text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-950/30 dark:text-emerald-200">
+                  Retirada registrada com data e hora oficiais. O campo foi limpo para evitar reutilização acidental do nome.
+                </div>
+              ) : null}
+            </div>
+          </div>
+
+          <div
+            data-analysis-revision-history="true"
+            className="mt-5 overflow-hidden rounded-[20px] border border-slate-200 bg-white shadow-[0_10px_26px_rgba(15,23,42,0.05)] dark:border-slate-700 dark:bg-slate-900"
+          >
+            <div className="flex items-start justify-between gap-3 border-b border-slate-200 bg-slate-50/80 px-4 py-4 dark:border-slate-700 dark:bg-slate-950/45">
+              <div className="flex items-start gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-sky-700 text-white">
+                  <History className="h-4.5 w-4.5" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+                    Histórico de versões
+                  </p>
+                  <p className="mt-1 text-sm font-bold text-slate-950 dark:text-white">
+                    Retificações e assinaturas da análise
+                  </p>
+                  <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
+                    Nenhuma versão assinada é apagada. Cada nova assinatura após uma alteração gera uma nova versão com data, hora, responsável e resumo das mudanças.
+                  </p>
+                </div>
+              </div>
+              <span className="shrink-0 rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-[10px] font-bold text-sky-800 dark:border-sky-500/30 dark:bg-sky-950/30 dark:text-sky-200">
+                {revisionHistory.length} versão(ões)
+              </span>
             </div>
 
-            <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
-              O registro pode ser preenchido pelo Analista Técnico no momento da entrega física e permanece separado das assinaturas eletrônicas.
-            </p>
+            {revisionHistory.length === 0 ? (
+              <div className="px-4 py-5 text-sm text-slate-500 dark:text-slate-400">
+                O histórico será iniciado na primeira assinatura eletrônica da análise.
+              </div>
+            ) : (
+              <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                {revisionHistory.map((version, index) => {
+                  const olderVersion = revisionHistory[index + 1];
+                  const analystSigner = version.signers.find(
+                    (signer) => signer.slot === "analise_tecnica",
+                  );
+                  const directorSigner = version.signers.find(
+                    (signer) => signer.slot === "diretoria",
+                  );
+                  return (
+                    <div key={version.id} className="grid gap-3 px-4 py-4 lg:grid-cols-[110px_minmax(0,1fr)_auto] lg:items-start">
+                      <div>
+                        <span className="inline-flex rounded-full border border-slate-300 bg-slate-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.08em] text-slate-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200">
+                          Versão {version.artifact_version}
+                        </span>
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold text-slate-950 dark:text-white">
+                          {summarizeSignedRevision(
+                            version.payload || {},
+                            olderVersion?.payload || null,
+                          )}
+                        </p>
+                        <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
+                          Analista: {analystSigner?.name || "Não identificado"}
+                          {directorSigner?.name ? ` • Diretoria: ${directorSigner.name}` : " • Diretoria: ainda não assinou esta versão"}
+                        </p>
+                        <p className="mt-1 font-mono text-[10px] text-slate-400 dark:text-slate-500">
+                          Código {version.verification_code || "—"} • SHA-256 {compactEvidenceHash(version.artifact_hash)}
+                        </p>
+                      </div>
+                      <div className="text-left lg:text-right">
+                        <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">
+                          Assinada em
+                        </p>
+                        <p className="mt-1 text-xs font-bold text-slate-700 dark:text-slate-200">
+                          {formatMunicipalDateTime(
+                            analystSigner?.signed_at || version.completed_at,
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-4 dark:border-slate-700">

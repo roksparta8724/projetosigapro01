@@ -7,7 +7,10 @@ import {
   FilePlus2,
   FileStack,
   Landmark,
+  Link2,
+  Loader2,
   LogOut,
+  Sparkles,
   ShieldCheck,
   UploadCloud,
   UserSquare2,
@@ -29,19 +32,33 @@ import { usePlatformData } from "@/hooks/usePlatformData";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { usePlanEntitlements } from "@/hooks/usePlanEntitlements";
-import { createRemoteExternalProcessV2, registerRemoteExternalAccount } from "@/integrations/backend/platform";
+import {
+  createRemoteExternalProcessV2,
+  getRemoteExternalPreprotocolDraft,
+  registerRemoteExternalAccount,
+} from "@/integrations/backend/platform";
 import { deleteFileFromStorage, uploadFileToStorage } from "@/integrations/r2/storage";
 import { hasBackendEnv } from "@/integrations/backend/databaseClient";
-import { getChecklistTemplate, isOccupancyPermitProcessType, matchesOperationalScope, processTypeCatalog, workTypeCatalog } from "@/lib/platform";
+import { getOfficialConstructionPermit } from "@/integrations/permits/constructionPermitClient";
+import {
+  formatOfficialProcessNumber,
+  getChecklistTemplate,
+  isOccupancyPermitProcessType,
+  matchesOperationalScope,
+  processTypeCatalog,
+  workTypeCatalog,
+} from "@/lib/platform";
 import { externalTabs, getExternalTabByPath } from "@/lib/externalTabs";
 import {
   createDraftNumber,
   defaultProtocolDraftForm,
   clearProtocolDraft,
+  inferProtocolDraftEntryMode,
   readProtocolDraft,
   restoreUploadedFiles,
   saveProtocolDraft,
   toStoredUploadedFiles,
+  type ProtocolDraftEntryMode,
   type ProtocolDraftForm,
 } from "@/lib/protocolDraft";
 
@@ -58,6 +75,34 @@ function normalizeLabel(value: string) {
     .replace(/[\u0300-\u036f]/g, "")
     .trim()
     .toLowerCase();
+}
+
+function getFilesForDocumentLabel(
+  fileMap: Record<string, UploadedFileItem[]>,
+  label: string,
+) {
+  const normalized = normalizeLabel(label);
+  return (
+    Object.entries(fileMap).find(
+      ([key]) => normalizeLabel(key) === normalized,
+    )?.[1] ?? []
+  );
+}
+
+function replaceFilesForDocumentLabel(
+  fileMap: Record<string, UploadedFileItem[]>,
+  label: string,
+  items: UploadedFileItem[],
+) {
+  const normalized = normalizeLabel(label);
+  const next = Object.fromEntries(
+    Object.entries(fileMap).filter(
+      ([key]) => normalizeLabel(key) !== normalized,
+    ),
+  ) as Record<string, UploadedFileItem[]>;
+
+  if (items.length > 0) next[label] = items;
+  return next;
 }
 
 function describeDocument(label: string): Omit<UploadDocumentItem, "label" | "required"> {
@@ -103,6 +148,19 @@ const groupMeta = {
   complementares: { title: "Documentos complementares", icon: ShieldCheck },
 } as const;
 
+const buildingTypeCatalog = [
+  "Casa térrea",
+  "Sobrado",
+  "Edifício residencial",
+  "Edifício comercial",
+  "Edifício misto",
+  "Condomínio residencial",
+  "Galpão",
+  "Industrial",
+  "Institucional",
+  "Outro",
+] as const;
+
 function SoftInfoCard({
   label,
   value,
@@ -136,6 +194,10 @@ export function ProtocolarProjetoPage({
   const navigate = useNavigate();
   const location = useLocation();
   const isHabiteSeMode = mode === "habite-se";
+  const draftEntryMode: ProtocolDraftEntryMode = isHabiteSeMode
+    ? "habite-se"
+    : "projeto";
+  const draftStorageFolder = isHabiteSeMode ? "habite-se" : "protocolos";
   const { session } = usePlatformSession();
   const planEntitlements = usePlanEntitlements();
   const { municipality, scopeId, institutionSettingsCompat } = useMunicipality();
@@ -153,8 +215,30 @@ export function ProtocolarProjetoPage({
     [effectiveScopeId, processes],
   );
   const activeProcessCount = useMemo(
-    () => scopedProcesses.filter((process) => process.status !== "arquivado").length,
+    () =>
+      scopedProcesses.filter(
+        (process) => process.isOfficial !== false && process.status !== "arquivado",
+      ).length,
     [scopedProcesses],
+  );
+  const habiteSeSourceProcesses = useMemo(
+    () =>
+      scopedProcesses
+        .filter((process) => {
+          if (process.isOfficial === false || process.status === "arquivado") return false;
+          if (isOccupancyPermitProcessType(process.type)) return false;
+          const email = String(session.email || "").toLocaleLowerCase("pt-BR");
+          return (
+            process.createdByProfileId === session.id ||
+            process.professionalProfileId === session.id ||
+            process.createdBy === session.id ||
+            process.professionalUserId === session.id ||
+            String(process.createdByEmail || "").toLocaleLowerCase("pt-BR") === email ||
+            String(process.professionalEmail || "").toLocaleLowerCase("pt-BR") === email
+          );
+        })
+        .sort((a, b) => String(b.officializedAt || "").localeCompare(String(a.officializedAt || ""))),
+    [scopedProcesses, session.email, session.id],
   );
   const knownStorageBytes = useMemo(
     () =>
@@ -182,7 +266,9 @@ export function ProtocolarProjetoPage({
     filesRef.current = next;
     setFiles(next);
   };
-  const [draftNumber, setDraftNumber] = useState(createDraftNumber());
+  const [draftNumber, setDraftNumber] = useState(() =>
+    createDraftNumber(draftEntryMode),
+  );
   const [form, setForm] = useState<ProtocolDraftForm>({
     ...defaultProtocolDraftForm,
     tipo: isHabiteSeMode ? "Habite-se" : defaultProtocolDraftForm.tipo,
@@ -196,8 +282,16 @@ export function ProtocolarProjetoPage({
     telefone: profilePhone,
     email: profileEmail || session.email,
   });
-  const resumeDraftNumber = new URLSearchParams(location.search).get("rascunho");
-  const isResumingDraft = Boolean(resumeDraftNumber);
+  const searchParams = new URLSearchParams(location.search);
+  const resumeDraftNumber = searchParams.get("rascunho");
+  const remotePreProtocolNumber = searchParams.get("preprotocolo");
+  const isResumingDraft = Boolean(resumeDraftNumber || remotePreProtocolNumber);
+  const remoteHydratedRef = useRef("");
+  const [remoteDraftLoading, setRemoteDraftLoading] = useState(false);
+  const [sourceProcessId, setSourceProcessId] = useState("");
+  const [sourceProcessLoading, setSourceProcessLoading] = useState(false);
+  const [sourcePermitLabel, setSourcePermitLabel] = useState("");
+  const remoteDraftActionRef = useRef<"save" | "payment">("payment");
 
   useEffect(() => {
     let cancelled = false;
@@ -211,12 +305,230 @@ export function ProtocolarProjetoPage({
       };
     }
 
-    const draft = resumeDraftNumber
+    if (
+      remotePreProtocolNumber &&
+      remoteHydratedRef.current !== remotePreProtocolNumber
+    ) {
+      remoteHydratedRef.current = remotePreProtocolNumber;
+      setRemoteDraftLoading(true);
+      setStatus("Carregando o rascunho vinculado à guia inicial...");
+
+      void getRemoteExternalPreprotocolDraft(remotePreProtocolNumber)
+        .then((remoteDraft) => {
+          if (cancelled) return;
+
+          const payload = remoteDraft.payload ?? {};
+          const remoteType = String(payload.type || "");
+          const remoteMode: ProtocolDraftEntryMode =
+            isOccupancyPermitProcessType(remoteType) ? "habite-se" : "projeto";
+
+          if (remoteMode !== draftEntryMode) {
+            const correctRoute =
+              remoteMode === "habite-se"
+                ? "/externo/habite-se"
+                : "/externo/protocolar";
+            navigate(
+              `${correctRoute}?preprotocolo=${encodeURIComponent(
+                remoteDraft.preProtocolNumber,
+              )}`,
+              { replace: true },
+            );
+            return;
+          }
+
+          const storedForm =
+            payload.draftForm && typeof payload.draftForm === "object"
+              ? (payload.draftForm as Partial<ProtocolDraftForm>)
+              : {};
+
+          setDraftNumber(remoteDraft.preProtocolNumber);
+          setForm({
+            ...defaultProtocolDraftForm,
+            ...storedForm,
+            tipo: isHabiteSeMode
+              ? (storedForm.modalidadeHabiteSe === "parcial"
+                  ? "Carta de Habite-se Parcial"
+                  : "Habite-se")
+              : String(storedForm.tipo || payload.type || ""),
+            tipoObra: isHabiteSeMode
+              ? "Conclusão da obra"
+              : String(storedForm.tipoObra || payload.workType || ""),
+            padraoConstrutivo: isHabiteSeMode
+              ? ""
+              : String(
+                  storedForm.padraoConstrutivo ||
+                    payload.constructionStandard ||
+                    "",
+                ),
+            titulo: String(storedForm.titulo || payload.title || ""),
+            endereco: String(storedForm.endereco || payload.address || ""),
+            iptu: String(storedForm.iptu || payload.iptu || ""),
+            matricula: String(
+              storedForm.matricula || payload.registration || "",
+            ),
+            lote: String(storedForm.lote || payload.lot || ""),
+            quadra: String(storedForm.quadra || payload.block || ""),
+            area: String(storedForm.area || payload.area || ""),
+            uso: String(storedForm.uso || payload.usage || ""),
+            tipoEdificacao: String(
+              storedForm.tipoEdificacao || payload.buildingType || "",
+            ),
+            proprietario: String(
+              storedForm.proprietario || payload.ownerName || "",
+            ),
+            documento: String(
+              storedForm.documento || payload.ownerDocument || "",
+            ),
+            proprietarioRg: String(
+              storedForm.proprietarioRg ||
+                payload.ownerIdentityDocument ||
+                "",
+            ),
+            proprietarioTelefone: String(
+              storedForm.proprietarioTelefone || payload.ownerPhone || "",
+            ),
+            proprietarioEmail: String(
+              storedForm.proprietarioEmail || payload.ownerEmail || "",
+            ),
+            profissional: String(
+              storedForm.profissional ||
+                payload.technicalLead ||
+                profileFullName ||
+                session.name,
+            ),
+            profissionalDocumento: String(
+              storedForm.profissionalDocumento ||
+                payload.professionalDocument ||
+                profile?.cpfCnpj ||
+                "",
+            ),
+            tipoProfissional: String(
+              storedForm.tipoProfissional ||
+                payload.professionalType ||
+                profile?.professionalType ||
+                "",
+            ),
+            empresaProfissional: String(
+              storedForm.empresaProfissional ||
+                payload.professionalCompany ||
+                profile?.companyName ||
+                "",
+            ),
+            registro: String(
+              storedForm.registro ||
+                payload.professionalRegistration ||
+                profileRegistrationNumber ||
+                "",
+            ),
+            telefone: String(
+              storedForm.telefone ||
+                payload.professionalPhone ||
+                profilePhone ||
+                "",
+            ),
+            email: String(
+              storedForm.email ||
+                payload.professionalEmail ||
+                profileEmail ||
+                session.email,
+            ),
+          });
+
+          const payloadDocuments = Array.isArray(payload.documents)
+            ? payload.documents
+            : [];
+          const storedFiles = payloadDocuments.reduce<
+            Record<string, Array<{
+              id: string;
+              fileName: string;
+              mimeType: string;
+              sizeLabel: string;
+              storagePath?: string;
+              fileSizeBytes?: number;
+            }>>
+          >((acc, rawDocument, index) => {
+            const document = rawDocument as Record<string, unknown>;
+            const label = String(document.label || "Documento");
+            const fileName = String(document.fileName || label);
+            const item = {
+              id: String(document.id || `remote-${index}`),
+              fileName,
+              mimeType: String(
+                document.mimeType || "application/octet-stream",
+              ),
+              sizeLabel: String(document.sizeLabel || "arquivo salvo"),
+              storagePath: document.filePath
+                ? String(document.filePath)
+                : undefined,
+              fileSizeBytes: Number(document.fileSizeBytes || 0) || undefined,
+            };
+            (acc[label] ||= []).push(item);
+            return acc;
+          }, {});
+
+          const shell = storedFiles as Parameters<
+            typeof restoreUploadedFiles
+          >[0];
+          replaceFiles(shell as Record<string, UploadedFileItem[]>);
+          void restoreUploadedFiles(shell).then((restored) => {
+            if (!cancelled) replaceFiles(restored);
+          });
+
+          setStatus(
+            `Rascunho carregado. A guia ${remoteDraft.guide.number || "inicial"} continua pendente; você pode ajustar os dados antes do pagamento.`,
+          );
+        })
+        .catch((error) => {
+          if (cancelled) return;
+          remoteHydratedRef.current = "";
+          setStatus(
+            error instanceof Error
+              ? error.message
+              : "Não foi possível abrir o rascunho do pré-protocolo.",
+          );
+        })
+        .finally(() => {
+          if (!cancelled) setRemoteDraftLoading(false);
+        });
+
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    const requestedDraft = resumeDraftNumber
       ? readProtocolDraft(
           session.id,
           effectiveScopeId,
           session.tenantId,
           resumeDraftNumber,
+        )
+      : null;
+
+    if (requestedDraft) {
+      const requestedMode = inferProtocolDraftEntryMode(requestedDraft);
+      if (requestedMode !== draftEntryMode) {
+        const correctRoute =
+          requestedMode === "habite-se"
+            ? "/externo/habite-se"
+            : "/externo/protocolar";
+        navigate(
+          `${correctRoute}?rascunho=${encodeURIComponent(requestedDraft.draftNumber)}`,
+          { replace: true },
+        );
+        return () => {
+          cancelled = true;
+        };
+      }
+    }
+
+    const draft = requestedDraft
+      ? readProtocolDraft(
+          session.id,
+          effectiveScopeId,
+          session.tenantId,
+          resumeDraftNumber,
+          draftEntryMode,
         )
       : null;
 
@@ -263,7 +575,7 @@ export function ProtocolarProjetoPage({
 
     // /externo/protocolar é sempre uma nova abertura. Rascunhos só são
     // carregados quando o profissional escolhe "Continuar rascunho".
-    setDraftNumber(createDraftNumber());
+    setDraftNumber(createDraftNumber(draftEntryMode));
     replaceFiles({});
     setForm({
       ...defaultProtocolDraftForm,
@@ -286,10 +598,13 @@ export function ProtocolarProjetoPage({
     };
   }, [
     effectiveScopeId,
+    remotePreProtocolNumber,
     resumeDraftNumber,
     session.id,
     session.tenantId,
     isHabiteSeMode,
+    draftEntryMode,
+    navigate,
   ]);
 
   // Dados do perfil podem chegar depois do primeiro paint. Preenche apenas
@@ -379,7 +694,10 @@ export function ProtocolarProjetoPage({
   );
 
   const missingRequired = useMemo(
-    () => requiredDocuments.filter((item) => (files[item.label]?.length ?? 0) === 0),
+    () =>
+      requiredDocuments.filter(
+        (item) => getFilesForDocumentLabel(files, item.label).length === 0,
+      ),
     [files, requiredDocuments],
   );
 
@@ -403,6 +721,7 @@ export function ProtocolarProjetoPage({
             { label: "Projeto", value: form.titulo || "Não preenchido" },
             { label: "Tipo de processo", value: form.tipo || "Não preenchido" },
             { label: "Natureza da obra", value: form.tipoObra || "Não preenchido" },
+            { label: "Tipo da edificação", value: form.tipoEdificacao || "Não preenchido" },
             { label: "Responsável técnico", value: form.profissional || "Não preenchido" },
             { label: "Proprietário", value: form.proprietario || "Não preenchido" },
             { label: "Imóvel", value: form.endereco || "Não preenchido" },
@@ -415,6 +734,7 @@ export function ProtocolarProjetoPage({
       form.processoAprovacao,
       form.profissional,
       form.proprietario,
+      form.tipoEdificacao,
       form.tipoObra,
       form.titulo,
       form.tipo,
@@ -436,7 +756,72 @@ export function ProtocolarProjetoPage({
   };
 
   const findFilesForLabel = (label: string) =>
-    Object.entries(files).find(([key]) => normalizeLabel(key) === normalizeLabel(label))?.[1] ?? [];
+    getFilesForDocumentLabel(files, label);
+
+  const linkHabiteSeSourceProcess = async (processId: string) => {
+    setSourceProcessId(processId);
+    setSourcePermitLabel("");
+    if (!processId) return;
+
+    const source = habiteSeSourceProcesses.find((process) => process.id === processId);
+    if (!source) {
+      setStatus("O processo selecionado não está disponível para este perfil.");
+      return;
+    }
+
+    setSourceProcessLoading(true);
+    setStatus("Conferindo o Alvará oficial do processo selecionado...");
+    try {
+      const permit = await getOfficialConstructionPermit(source.id);
+      if (!permit || permit.status !== "emitido" || !permit.permitNumber) {
+        throw new Error("Este processo ainda não possui Alvará oficial emitido e assinado.");
+      }
+
+      const permitData = permit.formData;
+      setForm((current) => ({
+        ...current,
+        processoAprovacao: formatOfficialProcessNumber(source.protocol),
+        numeroAlvara: permit.permitNumber,
+        titulo: current.titulo || `Habite-se - ${source.title}`,
+        endereco: permitData?.propertyAddress || source.address || current.endereco,
+        iptu:
+          permitData?.propertyRegistration ||
+          source.property.iptu ||
+          current.iptu,
+        matricula:
+          permitData?.propertyRegistryNumber ||
+          source.property.registration ||
+          current.matricula,
+        lote: permitData?.lot || source.property.lot || current.lote,
+        quadra: permitData?.block || source.property.block || current.quadra,
+        area: permitData?.areaM2 || String(source.property.area || current.area || ""),
+        uso: permitData?.usage || source.property.usage || current.uso,
+        tipoEdificacao: source.property.buildingType || current.tipoEdificacao,
+        tipoObra: "Conclusão da obra",
+        padraoConstrutivo: "",
+        proprietario: permitData?.ownerName || source.ownerName || current.proprietario,
+        documento: permitData?.ownerDocument || source.ownerDocument || current.documento,
+        proprietarioRg: source.ownerIdentityDocument || current.proprietarioRg,
+        proprietarioTelefone: source.ownerPhone || current.proprietarioTelefone,
+        proprietarioEmail: source.ownerEmail || current.proprietarioEmail,
+        profissional: permitData?.technicalLead || source.technicalLead || current.profissional,
+        registro: permitData?.technicalRegistration || current.registro,
+      }));
+      setSourcePermitLabel(`${formatOfficialProcessNumber(source.protocol)} • ${permit.permitNumber}`);
+      setStatus(
+        `Processo vinculado com sucesso. O Alvará ${permit.permitNumber} e os dados oficiais do imóvel foram preenchidos automaticamente.`,
+      );
+    } catch (error) {
+      setSourceProcessId("");
+      setStatus(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível carregar o Alvará do processo selecionado.",
+      );
+    } finally {
+      setSourceProcessLoading(false);
+    }
+  };
 
   const persistDraft = async () => {
     if (!effectiveScopeId) {
@@ -464,7 +849,7 @@ export function ProtocolarProjetoPage({
               tenantId: effectiveScopeId,
               userId: session.id,
               file: item.file,
-              folder: "protocolos",
+              folder: draftStorageFolder,
             });
 
             return {
@@ -485,6 +870,7 @@ export function ProtocolarProjetoPage({
     const persistedFiles = Object.fromEntries(persistedEntries) as Record<string, UploadedFileItem[]>;
     const saved = saveProtocolDraft(session.id, effectiveScopeId, {
       draftNumber,
+      entryMode: draftEntryMode,
       form,
       files: toStoredUploadedFiles(persistedFiles),
       updatedAt: new Date().toISOString(),
@@ -500,12 +886,12 @@ export function ProtocolarProjetoPage({
 
   const handleDocumentFilesSelected = async (label: string, selected: UploadedFileItem[]) => {
     const currentFiles = filesRef.current;
-    const previous = currentFiles[label] ?? [];
+    const previous = getFilesForDocumentLabel(currentFiles, label);
 
     // Em uma abertura nova não há persistência remota imediata. A alteração é
     // síncrona e sempre parte do estado mais atual para não perder outro anexo.
     if (!isResumingDraft) {
-      replaceFiles({ ...filesRef.current, [label]: selected });
+      replaceFiles(replaceFilesForDocumentLabel(filesRef.current, label, selected));
       setStatus("");
       return;
     }
@@ -525,7 +911,7 @@ export function ProtocolarProjetoPage({
     // preview local e a mesma geometria. Na exclusão mantemos o card antigo
     // até a confirmação para evitar sumir e reaparecer em caso de falha.
     if (selected.length > 0) {
-      replaceFiles({ ...filesRef.current, [label]: selected });
+      replaceFiles(replaceFilesForDocumentLabel(filesRef.current, label, selected));
     }
 
     try {
@@ -552,7 +938,7 @@ export function ProtocolarProjetoPage({
             tenantId: effectiveScopeId,
             userId: session.id,
             file: item.file,
-            folder: "protocolos",
+            folder: draftStorageFolder,
           });
           newlyUploadedPaths.push(uploaded.path);
 
@@ -569,13 +955,20 @@ export function ProtocolarProjetoPage({
 
       // Sempre mescla com o estado mais recente. Nunca usa a closure antiga de
       // "files", que podia apagar um upload concluído em outro card.
-      const persistedFiles = { ...filesRef.current, [label]: persistedSelected };
-      const saved = saveProtocolDraft(session.id, effectiveScopeId, {
-        draftNumber,
-        form,
-        files: toStoredUploadedFiles(persistedFiles),
-        updatedAt: new Date().toISOString(),
-      });
+      const persistedFiles = replaceFilesForDocumentLabel(
+        filesRef.current,
+        label,
+        persistedSelected,
+      );
+      const saved = remotePreProtocolNumber
+        ? true
+        : saveProtocolDraft(session.id, effectiveScopeId, {
+            draftNumber,
+            entryMode: draftEntryMode,
+            form,
+            files: toStoredUploadedFiles(persistedFiles),
+            updatedAt: new Date().toISOString(),
+          });
 
       if (!saved) {
         throw new Error("Não foi possível atualizar o rascunho neste navegador.");
@@ -590,16 +983,27 @@ export function ProtocolarProjetoPage({
 
       replaceFiles(persistedFiles);
 
-      await Promise.allSettled(
-        removedStoredFiles.map((removed) =>
-          deleteFileFromStorage({
-            bucket: "process-documents",
-            objectKey: removed.storagePath!,
-          }),
-        ),
-      );
+      // Em um pré-protocolo remoto o banco ainda aponta para o arquivo anterior
+      // até o usuário confirmar "Salvar alterações". Mantemos esse objeto no R2
+      // até a gravação oficial para nunca deixar o rascunho com referência quebrada.
+      if (!remotePreProtocolNumber) {
+        await Promise.allSettled(
+          removedStoredFiles.map((removed) =>
+            deleteFileFromStorage({
+              bucket: "process-documents",
+              objectKey: removed.storagePath!,
+            }),
+          ),
+        );
+      }
 
-      if (persistedSelected.length > 0) {
+      if (remotePreProtocolNumber) {
+        setStatus(
+          persistedSelected.length > 0
+            ? `Documento "${persistedSelected[0].fileName}" preparado. Clique em "Salvar alterações do rascunho" para atualizar o pré-protocolo.`
+            : `Documento removido da edição. Clique em "Salvar alterações do rascunho" para confirmar.`,
+        );
+      } else if (persistedSelected.length > 0) {
         setStatus(
           previous.length > 0
             ? `Documento substituído com sucesso por "${persistedSelected[0].fileName}". O rascunho já foi atualizado.`
@@ -611,7 +1015,9 @@ export function ProtocolarProjetoPage({
     } catch (error) {
       // Rollback visual em uma única troca estável. O arquivo anterior não é
       // removido do R2 antes de o novo estado estar confirmado.
-      replaceFiles({ ...filesRef.current, [label]: previous });
+      replaceFiles(
+        replaceFilesForDocumentLabel(filesRef.current, label, previous),
+      );
 
       await Promise.allSettled(
         newlyUploadedPaths.map((objectKey) =>
@@ -655,12 +1061,20 @@ export function ProtocolarProjetoPage({
           ? `Rascunho salvo com sucesso. ${persistedCount} documento(s) ficaram preservados.`
           : "Rascunho salvo com sucesso.",
       );
-      navigate("/externo/controle/rascunhos");
+      // Mantém exatamente a mesma tela, posição de rolagem e campos após
+      // salvar. Apenas registra o identificador do rascunho na URL sem disparar
+      // uma navegação/remontagem da página.
+      if (!resumeDraftNumber && typeof window !== "undefined") {
+        const url = new URL(window.location.href);
+        url.searchParams.set("rascunho", draftNumber);
+        window.history.replaceState(window.history.state, "", url);
+      }
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Não foi possível salvar o rascunho completo.";
       saveProtocolDraft(session.id, effectiveScopeId, {
         draftNumber,
+        entryMode: draftEntryMode,
         form,
         files: toStoredUploadedFiles(filesRef.current),
         updatedAt: new Date().toISOString(),
@@ -673,9 +1087,16 @@ export function ProtocolarProjetoPage({
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
+    const remoteDraftAction = remotePreProtocolNumber
+      ? remoteDraftActionRef.current
+      : "payment";
 
     if (uploadBusyRef.current) {
-      setStatus("Aguarde o documento atual terminar de ser salvo antes de protocolar o projeto.");
+      setStatus(
+        isHabiteSeMode
+          ? "Aguarde o documento atual terminar de ser salvo antes de protocolar o Habite-se."
+          : "Aguarde o documento atual terminar de ser salvo antes de protocolar o projeto.",
+      );
       return;
     }
 
@@ -709,17 +1130,24 @@ export function ProtocolarProjetoPage({
     }
 
     if (
-      !form.profissional.trim() ||
-      !form.profissionalDocumento.trim() ||
-      !form.email.trim() ||
-      !form.proprietario.trim() ||
-      !form.documento.trim()
+      !remotePreProtocolNumber &&
+      (
+        !form.profissional.trim() ||
+        !form.profissionalDocumento.trim() ||
+        !form.email.trim() ||
+        !form.proprietario.trim() ||
+        !form.documento.trim()
+      )
     ) {
       setStatus("Preencha os dados do profissional responsável e do proprietário antes de continuar.");
       return;
     }
 
-    if (tenantSettings?.registroProfissionalObrigatorio && !form.registro.trim()) {
+    if (
+      !remotePreProtocolNumber &&
+      tenantSettings?.registroProfissionalObrigatorio &&
+      !form.registro.trim()
+    ) {
       setStatus("Informe o registro profissional exigido pela Prefeitura.");
       return;
     }
@@ -731,7 +1159,7 @@ export function ProtocolarProjetoPage({
       return;
     }
 
-    if (isHabiteSeMode) {
+    if (isHabiteSeMode && !remotePreProtocolNumber) {
       if (
         !form.processoAprovacao.trim() ||
         !form.numeroAlvara.trim() ||
@@ -745,12 +1173,16 @@ export function ProtocolarProjetoPage({
         );
         return;
       }
-    } else if (!form.titulo || !form.tipo || !form.tipoObra || !form.endereco || !form.iptu || !form.matricula) {
+    } else if (
+      !isHabiteSeMode &&
+      !remotePreProtocolNumber &&
+      (!form.titulo || !form.tipo || !form.tipoObra || !form.endereco || !form.iptu || !form.matricula)
+    ) {
       setStatus("Preencha os dados obrigatórios do projeto, incluindo a natureza da obra e os dados do imóvel.");
       return;
     }
 
-    if (missingRequired.length > 0) {
+    if (!remotePreProtocolNumber && missingRequired.length > 0) {
       setStatus(`Faltam documentos obrigatórios: ${missingRequired.map((item) => item.label).join(", ")}.`);
       return;
     }
@@ -760,7 +1192,7 @@ export function ProtocolarProjetoPage({
       return selected.length > 0 && selected.some((file) => !file.file && !file.storagePath);
     });
 
-    if (session.role === "profissional_externo") {
+    if (session.role === "profissional_externo" && !remotePreProtocolNumber) {
       try {
         await registerRemoteExternalAccount({
           tenantId: effectiveScopeId,
@@ -816,6 +1248,7 @@ export function ProtocolarProjetoPage({
       | {
           processId: string;
           protocol: string;
+          preProtocol: string;
           guideNumber: string;
           dueDate: string;
           amount: number;
@@ -841,7 +1274,7 @@ export function ProtocolarProjetoPage({
               tenantId: effectiveScopeId,
               userId: session.id,
               file: originalFile,
-              folder: "protocolos",
+              folder: draftStorageFolder,
             });
 
             uploadedObjectKeys.push(uploaded.path);
@@ -871,6 +1304,9 @@ export function ProtocolarProjetoPage({
           address: form.endereco,
           ownerName: form.proprietario,
           ownerDocument: form.documento,
+          ownerIdentityDocument: form.proprietarioRg,
+          ownerPhone: form.proprietarioTelefone,
+          ownerEmail: form.proprietarioEmail,
           technicalLead: form.profissional,
           professionalDocument: form.profissionalDocumento,
           professionalRegistration: form.registro,
@@ -898,12 +1334,15 @@ export function ProtocolarProjetoPage({
             block: form.quadra,
             area: Number(form.area || 0),
             usage: form.uso,
+            buildingType: form.tipoEdificacao,
             workType: isHabiteSeMode ? "Conclusão da obra" : form.tipoObra,
             constructionStandard: isHabiteSeMode ? "" : form.padraoConstrutivo,
           },
           documents,
           guidePrefix: tenantSettings?.guiaPrefixo || "DAM",
           protocolPrefix: tenantSettings?.protocoloPrefixo || "PM",
+          requestedProtocolNumber: remotePreProtocolNumber || null,
+          draftForm: form as unknown as Record<string, unknown>,
           remote: {
             processId: "",
             protocol: "",
@@ -913,7 +1352,7 @@ export function ProtocolarProjetoPage({
           },
         });
 
-        if (documents.length > 0) {
+        if (documents.length > 0 && !remoteProcess.draft_updated) {
           const syncResult = await appendProcessDocuments(
             remoteProcess.process_id,
             documents,
@@ -922,27 +1361,33 @@ export function ProtocolarProjetoPage({
 
           if (Number(syncResult.synced || 0) !== documents.length) {
             throw new Error(
-              `O protocolo foi criado, mas apenas ${syncResult.synced || 0} de ${documents.length} documento(s) foram confirmados no banco oficial.`,
+              `O pré-protocolo foi criado, mas apenas ${syncResult.synced || 0} de ${documents.length} documento(s) foram confirmados no banco oficial.`,
             );
           }
         }
 
-        const issuedAt = new Date().toISOString();
+        const issuedAt =
+          remoteProcess.guide_created_at ||
+          (remotePreProtocolNumber
+            ? undefined
+            : new Date().toISOString());
 
         remoteSeed = {
           processId: remoteProcess.process_id,
           protocol: remoteProcess.protocol_number,
+          preProtocol:
+            remoteProcess.pre_protocol_number || remoteProcess.protocol_number,
           guideNumber: remoteProcess.guide_number,
           dueDate: new Date(remoteProcess.due_date).toLocaleDateString("pt-BR"),
           amount: Number(remoteProcess.amount ?? 35.24),
-          issuedAt,
-          expiresAt: new Date(new Date(issuedAt).getTime() + 60 * 60 * 1000).toISOString(),
+          issuedAt: issuedAt || "",
+          expiresAt: "",
         };
       } catch (remoteError) {
         const message =
           remoteError instanceof Error
             ? remoteError.message
-            : "Não foi possível gravar o protocolo no banco oficial.";
+            : "Não foi possível gravar o pré-protocolo no banco oficial.";
         console.error("[ProtocolarProjeto] Falha na persistência remota", remoteError);
 
         if (uploadedObjectKeys.length > 0) {
@@ -953,57 +1398,85 @@ export function ProtocolarProjetoPage({
 
         setStatus(
           uploadedObjectKeys.length > 0
-            ? `Não foi possível concluir o protocolo: ${message}. Os arquivos enviados foram preservados no armazenamento e poderão ser recuperados sem novo upload.`
-            : `Não foi possível concluir o protocolo: ${message}`,
+            ? `Não foi possível concluir o pré-protocolo: ${message}. Os arquivos enviados foram preservados no armazenamento e poderão ser recuperados sem novo upload.`
+            : `Não foi possível concluir o pré-protocolo: ${message}`,
         );
         setSubmitting(false);
         return;
       }
     } else {
-      setStatus("O banco oficial está indisponível. O protocolo não foi criado para evitar divergência de dados.");
+      setStatus("O banco oficial está indisponível. O pré-protocolo não foi criado para evitar divergência de dados.");
       setSubmitting(false);
       return;
     }
 
     if (!remoteSeed) {
-      setStatus("O protocolo não recebeu confirmação do banco oficial. Nenhuma guia foi emitida.");
+      setStatus("O pré-protocolo não recebeu confirmação do banco oficial. Nenhuma guia foi emitida.");
       setSubmitting(false);
       return;
     }
 
-    if (isResumingDraft) {
+    if (resumeDraftNumber) {
       clearProtocolDraft(session.id, effectiveScopeId, session.tenantId, draftNumber);
     }
 
     try {
       await refreshRemoteStore();
     } catch (refreshError) {
-      console.warn("[ProtocolarProjeto] Protocolo criado, mas a atualização imediata da tela falhou.", refreshError);
+      console.warn("[ProtocolarProjeto] Pré-protocolo criado, mas a atualização imediata da tela falhou.", refreshError);
     } finally {
       setSubmitting(false);
     }
 
-    navigate(`/processos/${remoteSeed.processId}`);
+    if (remotePreProtocolNumber && remoteDraftAction === "save") {
+      remoteDraftActionRef.current = "payment";
+      setStatus(
+        `Rascunho salvo com sucesso. A guia ${remoteSeed.guideNumber || "inicial"} permanece vinculada e você pode continuar editando ou prosseguir para o pagamento quando estiver pronto.`,
+      );
+      return;
+    }
+
+    remoteDraftActionRef.current = "payment";
+    navigate(
+      `/externo/pagamentos?preprotocolo=${encodeURIComponent(remoteSeed.preProtocol)}`,
+      { replace: true },
+    );
   };
 
   return (
     <PortalFrame
       eyebrow={isHabiteSeMode ? "Novo protocolo independente" : "Novo protocolo"}
-      title={isHabiteSeMode ? "Solicitar Habite-se" : "Protocolar projeto"}
+      title={
+        remotePreProtocolNumber
+          ? (isHabiteSeMode ? "Editar rascunho do Habite-se" : "Editar rascunho do projeto")
+          : (isHabiteSeMode ? "Solicitar Habite-se" : "Protocolar projeto")
+      }
     >
       <PageShell>
         <form className="sig-page-shell space-y-5" onSubmit={handleSubmit}>
           <PageHero
-            eyebrow={isHabiteSeMode ? "Abertura de Habite-se" : "Abertura de novo protocolo"}
+            eyebrow={
+              remotePreProtocolNumber
+                ? "Pré-protocolo com guia pendente"
+                : (isHabiteSeMode ? "Abertura de Habite-se" : "Abertura de novo protocolo")
+            }
             title={
               isHabiteSeMode
-                ? "Abra o Habite-se como um novo processo, separado da aprovação do projeto"
-                : "Cadastre o projeto, envie os documentos e conclua o protocolo em uma única jornada"
+                ? (remotePreProtocolNumber
+                    ? "Revise o Habite-se antes do pagamento da guia inicial"
+                    : "Abra o Habite-se como um novo processo, separado da aprovação do projeto")
+                : (remotePreProtocolNumber
+                    ? "Revise o rascunho antes do pagamento da guia inicial"
+                    : "Cadastre o projeto, envie os documentos e conclua o protocolo em uma única jornada")
             }
             description={
               isHabiteSeMode
-                ? "Informe o processo de aprovação e o Alvará que deram origem à obra, anexe os documentos de conclusão e gere um novo número de protocolo. Nenhuma etapa financeira ou documental do processo de aprovação é reaproveitada automaticamente."
-                : "Preencha e confira seus próprios dados profissionais, os dados do proprietário, o imóvel e os documentos. Nada é tratado como dado interno da Prefeitura nesta abertura."
+                ? (remotePreProtocolNumber
+                    ? "Esta abertura ainda é um rascunho com guia pendente. Você pode corrigir dados e documentos; o número oficial do processo só será criado após a compensação."
+                    : "Informe o processo de aprovação e o Alvará que deram origem à obra, anexe os documentos e gere o pré-protocolo com a guia inicial. O processo municipal e a numeração oficial só são criados após a confirmação do pagamento.")
+                : (remotePreProtocolNumber
+                    ? "Esta abertura continua editável enquanto a guia estiver pendente. Nenhuma sequência oficial será consumida antes do pagamento."
+                    : "Preencha e confira seus dados, imóvel e documentos. O envio gera apenas o pré-protocolo e a guia inicial; o processo entra na Prefeitura somente depois da compensação do pagamento.")
             }
             icon={FilePlus2}
             actions={
@@ -1101,9 +1574,9 @@ export function ProtocolarProjetoPage({
 
           <SectionCard
             title="Dados do proprietário"
-            description="Informe os dados do proprietário vinculados a este protocolo."
+            description="Cadastro cadastral do titular usado na conferência municipal. CPF/CNPJ identifica fiscalmente; RG/RNE é um documento de identidade separado."
             icon={UserSquare2}
-            contentClassName="grid gap-4 md:grid-cols-2"
+            contentClassName="grid gap-4 md:grid-cols-2 xl:grid-cols-3"
           >
             <div className="space-y-2">
               <Label>Nome do proprietário *</Label>
@@ -1111,7 +1584,37 @@ export function ProtocolarProjetoPage({
             </div>
             <div className="space-y-2">
               <Label>CPF ou CNPJ do proprietário *</Label>
-              <Input value={form.documento} onChange={(event) => setField("documento", event.target.value)} />
+              <Input
+                value={form.documento}
+                onChange={(event) => setField("documento", event.target.value)}
+                placeholder="CPF para pessoa física ou CNPJ para pessoa jurídica"
+                inputMode="numeric"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>RG / RNE / documento de identidade</Label>
+              <Input
+                value={form.proprietarioRg}
+                onChange={(event) => setField("proprietarioRg", event.target.value)}
+                placeholder="Ex.: RG 12.345.678-9"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Telefone do proprietário</Label>
+              <Input
+                value={form.proprietarioTelefone}
+                onChange={(event) => setField("proprietarioTelefone", event.target.value)}
+                placeholder="(11) 99999-9999"
+              />
+            </div>
+            <div className="space-y-2 md:col-span-2 xl:col-span-2">
+              <Label>E-mail do proprietário</Label>
+              <Input
+                type="email"
+                value={form.proprietarioEmail}
+                onChange={(event) => setField("proprietarioEmail", event.target.value)}
+                placeholder="titular@exemplo.com"
+              />
             </div>
           </SectionCard>
 
@@ -1125,6 +1628,60 @@ export function ProtocolarProjetoPage({
               <div className="rounded-2xl border border-sky-200 bg-sky-50/70 p-4 text-sm leading-6 text-sky-950 dark:border-sky-400/25 dark:bg-sky-400/10 dark:text-sky-100">
                 Este pedido não continua o processo de aprovação. O sistema criará um novo protocolo de Habite-se, com checklist, análise, exigências, histórico e decisão próprios.
               </div>
+              <div
+                data-habite-se-source-process-picker="true"
+                className="rounded-[20px] border border-sky-200 bg-[linear-gradient(135deg,#f8fcff_0%,#eef8ff_100%)] p-4 shadow-[0_10px_26px_rgba(14,116,144,0.08)] dark:border-sky-500/30 dark:bg-[linear-gradient(135deg,#10283c_0%,#0b1f31_100%)]"
+              >
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-end">
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="h-4 w-4 text-sky-700 dark:text-sky-300" />
+                      <Label className="font-bold text-slate-950 dark:text-white">
+                        Puxar processo já aprovado no SIGAPRO
+                      </Label>
+                    </div>
+                    <Select
+                      value={sourceProcessId}
+                      onValueChange={(value) => void linkHabiteSeSourceProcess(value)}
+                      disabled={sourceProcessLoading}
+                    >
+                      <SelectTrigger className="h-11 bg-white dark:bg-slate-950">
+                        <SelectValue placeholder={
+                          habiteSeSourceProcesses.length > 0
+                            ? "Selecione um processo com Alvará emitido"
+                            : "Nenhum processo próprio disponível"
+                        } />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {habiteSeSourceProcesses.map((process) => (
+                          <SelectItem key={process.id} value={process.id}>
+                            {formatOfficialProcessNumber(process.protocol)} — {process.title}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs leading-5 text-slate-600 dark:text-slate-300">
+                      Ao selecionar, o SIGAPRO confere o Alvará oficial e preenche automaticamente processo de origem, Alvará, proprietário, imóvel, área e responsável técnico.
+                    </p>
+                  </div>
+                  <div className="flex min-h-11 min-w-[220px] items-center rounded-xl border border-sky-100 bg-white px-3 text-xs font-semibold text-slate-700 dark:border-sky-500/20 dark:bg-slate-950 dark:text-slate-200">
+                    {sourceProcessLoading ? (
+                      <span className="inline-flex items-center gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin text-sky-600" />
+                        Conferindo Alvará...
+                      </span>
+                    ) : sourcePermitLabel ? (
+                      <span className="inline-flex items-center gap-2">
+                        <Link2 className="h-4 w-4 text-emerald-600" />
+                        {sourcePermitLabel}
+                      </span>
+                    ) : (
+                      <span>Vínculo opcional, com validação oficial</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label>Processo de aprovação / regularização de origem *</Label>
@@ -1239,7 +1796,24 @@ export function ProtocolarProjetoPage({
                   placeholder="Ex.: Residencial, Comercial, Industrial"
                 />
                 <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">
-                  Usado no cálculo da guia de ISSQN / Projeto conforme a tabela da Prefeitura.
+                  Define a finalidade de uso e continua sendo a referência do cálculo municipal.
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label>Tipo da edificação</Label>
+                <Input
+                  list="sigapro-building-types"
+                  value={form.tipoEdificacao}
+                  onChange={(event) => setField("tipoEdificacao", event.target.value)}
+                  placeholder="Ex.: Casa térrea, Sobrado, Galpão"
+                />
+                <datalist id="sigapro-building-types">
+                  {buildingTypeCatalog.map((type) => (
+                    <option key={type} value={type} />
+                  ))}
+                </datalist>
+                <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">
+                  Classifica a tipologia física da edificação, separada do uso e da natureza da obra.
                 </p>
               </div>
             </div>
@@ -1370,8 +1944,13 @@ export function ProtocolarProjetoPage({
 
                 <div className="grid gap-4 xl:grid-cols-2">
                   {documents.map((item) => {
+                      const itemFiles = getFilesForDocumentLabel(files, item.label);
                       const itemStatus =
-                        (files[item.label]?.length ?? 0) > 0 ? "enviado" : item.required ? "pendente" : "nao_enviado";
+                        itemFiles.length > 0
+                          ? "enviado"
+                          : item.required
+                            ? "pendente"
+                            : "nao_enviado";
 
                       return (
                         <div
@@ -1393,17 +1972,27 @@ export function ProtocolarProjetoPage({
                               <p className="mt-2 break-words text-[15px] leading-6 text-slate-600 dark:text-slate-300">{item.description}</p>
                             </div>
 
-                            <span
-                              className={`rounded-full px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.14em] ${
-                                itemStatus === "enviado"
-                                  ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-200"
-                                  : itemStatus === "pendente"
-                                    ? "bg-amber-50 text-amber-700 dark:bg-amber-400/10 dark:text-amber-200"
-                                    : "bg-slate-100 text-slate-500 dark:bg-white/[0.06] dark:text-slate-300"
-                              }`}
-                            >
-                              {itemStatus === "enviado" ? "Enviado" : itemStatus === "pendente" ? "Pendente" : "Não enviado"}
-                            </span>
+                            <div className="flex flex-wrap items-center justify-end gap-2">
+                              {item.required ? (
+                                <span
+                                  data-required-document="true"
+                                  className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-amber-800 dark:border-amber-500/30 dark:bg-amber-400/10 dark:text-amber-200"
+                                >
+                                  Obrigatório
+                                </span>
+                              ) : null}
+                              <span
+                                className={`rounded-full px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.14em] ${
+                                  itemStatus === "enviado"
+                                    ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-200"
+                                    : itemStatus === "pendente"
+                                      ? "bg-amber-50 text-amber-700 dark:bg-amber-400/10 dark:text-amber-200"
+                                      : "bg-slate-100 text-slate-500 dark:bg-white/[0.06] dark:text-slate-300"
+                                }`}
+                              >
+                                {itemStatus === "enviado" ? "Enviado" : itemStatus === "pendente" ? "Pendente" : "Não enviado"}
+                              </span>
+                            </div>
                           </div>
 
                           <FileDropZone
@@ -1419,7 +2008,7 @@ export function ProtocolarProjetoPage({
                               submitting ||
                               (hasPendingDocumentUpload && !uploadingLabels[item.label])
                             }
-                            files={files[item.label] ?? []}
+                            files={itemFiles}
                             onFilesSelected={(selected) => handleDocumentFilesSelected(item.label, selected)}
                           />
                         </div>
@@ -1439,7 +2028,11 @@ export function ProtocolarProjetoPage({
 
           <SectionCard
             title="Ações finais"
-            description="Salve o rascunho para continuar depois ou conclua o protocolo quando tudo estiver validado."
+            description={
+              remotePreProtocolNumber
+                ? "Salve sem sair da tela. Quando estiver tudo conferido, use Prosseguir para pagamento para abrir a guia inicial; o número oficial continua reservado somente após a compensação."
+                : "Salve o rascunho para continuar depois ou gere a abertura com a guia inicial quando tudo estiver validado."
+            }
             icon={ShieldCheck}
             contentClassName="flex flex-col gap-3 md:flex-row md:items-center md:justify-between"
           >
@@ -1467,20 +2060,110 @@ export function ProtocolarProjetoPage({
             </div>
 
             <div className="flex flex-col gap-3 md:flex-row">
-              <Button
-                type="button"
-                variant="outline"
-                className="rounded-full"
-                onClick={() => void handleSaveDraft()}
-                disabled={savingDraft || submitting || hasPendingDocumentUpload}
-              >
-                {savingDraft ? "Salvando rascunho..." : "Salvar rascunho"}
-              </Button>
-              <Button type="submit" className="rounded-full bg-slate-950 hover:bg-slate-900 dark:bg-sky-500 dark:text-slate-950 dark:hover:bg-sky-400" disabled={submitting || hasPendingDocumentUpload}>
-                {submitting
-                  ? (isHabiteSeMode ? "Protocolando Habite-se..." : "Protocolando projeto...")
-                  : (isHabiteSeMode ? "Protocolar Habite-se" : "Protocolar projeto")}
-              </Button>
+              {!remotePreProtocolNumber ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="rounded-full"
+                  onClick={() => void handleSaveDraft()}
+                  disabled={
+                    savingDraft ||
+                    submitting ||
+                    remoteDraftLoading ||
+                    hasPendingDocumentUpload
+                  }
+                >
+                  {savingDraft ? "Salvando rascunho..." : "Salvar rascunho"}
+                </Button>
+              ) : null}
+              <div className="flex flex-col items-end gap-2">
+                {isHabiteSeMode && missingRequired.length > 0 ? (
+                  <p
+                    data-habite-se-document-lock="true"
+                    className="max-w-[520px] text-right text-xs font-semibold leading-5 text-amber-700 dark:text-amber-300"
+                  >
+                    {remotePreProtocolNumber
+                      ? `Você pode salvar o rascunho agora, mas o pagamento não poderá transformar esta abertura em processo enquanto faltarem: ${missingRequired.map((item) => item.label).join(", ")}.`
+                      : `O pré-protocolo só será liberado quando todos os documentos obrigatórios estiverem anexados. Pendentes: ${missingRequired.map((item) => item.label).join(", ")}.`}
+                  </p>
+                ) : null}
+                {remotePreProtocolNumber ? (
+                  <div className="flex flex-wrap justify-end gap-2">
+                    <Button
+                      type="submit"
+                      variant="outline"
+                      className="rounded-full"
+                      data-remote-draft-action="save"
+                      disabled={
+                        submitting ||
+                        remoteDraftLoading ||
+                        hasPendingDocumentUpload
+                      }
+                      onClick={() => {
+                        remoteDraftActionRef.current = "save";
+                      }}
+                      title="Salva os dados e documentos sem sair desta tela."
+                    >
+                      {submitting && remoteDraftActionRef.current === "save"
+                        ? "Salvando alterações..."
+                        : "Salvar alterações"}
+                    </Button>
+
+                    <Button
+                      type="submit"
+                      data-protocol-primary-action="true"
+                      className="sig-protocol-primary-action rounded-full px-5 font-bold shadow-[0_10px_24px_rgba(15,23,42,0.16)]"
+                      data-remote-draft-action="payment"
+                      disabled={
+                        submitting ||
+                        remoteDraftLoading ||
+                        hasPendingDocumentUpload ||
+                        missingRequired.length > 0
+                      }
+                      onClick={() => {
+                        remoteDraftActionRef.current = "payment";
+                      }}
+                      title={
+                        missingRequired.length > 0
+                          ? `Anexe todos os documentos obrigatórios antes de prosseguir para o pagamento: ${missingRequired.map((item) => item.label).join(", ")}.`
+                          : "Salva a última versão do rascunho e abre a guia de pagamento."
+                      }
+                    >
+                      {submitting && remoteDraftActionRef.current === "payment"
+                        ? "Preparando pagamento..."
+                        : "Prosseguir para pagamento"}
+                    </Button>
+                  </div>
+                ) : (
+                  <Button
+                    type="submit"
+                    data-protocol-primary-action="true"
+                    className="sig-protocol-primary-action rounded-full font-bold"
+                    data-protocol-required-documents-locked={
+                      missingRequired.length > 0 ? "true" : "false"
+                    }
+                    disabled={
+                      submitting ||
+                      remoteDraftLoading ||
+                      hasPendingDocumentUpload ||
+                      missingRequired.length > 0
+                    }
+                    title={
+                      missingRequired.length > 0
+                        ? isHabiteSeMode
+                          ? "Anexe todos os documentos obrigatórios antes de gerar o pré-protocolo do Habite-se."
+                          : "Anexe todos os documentos obrigatórios antes de gerar o pré-protocolo."
+                        : undefined
+                    }
+                  >
+                    {remoteDraftLoading
+                      ? "Carregando rascunho..."
+                      : submitting
+                        ? "Gerando pré-protocolo..."
+                        : "Gerar guia e pré-protocolo"}
+                  </Button>
+                )}
+              </div>
             </div>
           </SectionCard>
         </form>

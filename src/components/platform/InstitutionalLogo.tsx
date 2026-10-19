@@ -10,10 +10,11 @@ interface InstitutionalLogoProps {
   variant?: "header" | "footer" | "preview" | "compact" | "login";
   className?: string;
   viewportClassName?: string;
+  contextScope?: "auto" | "master" | "municipality";
 }
 
 const SIGAPRO_OFFICIAL_LOGO = getPublicAssetUrl("sigapro-logo.png");
-const LOGO_SESSION_CACHE_KEY = "sigapro.institutional-logo.v2";
+const LOGO_SESSION_CACHE_KEY = "sigapro.institutional-logo.v3";
 
 const variantClasses = {
   header: "h-[112px] w-[188px] p-0 lg:h-[120px] lg:w-[204px]",
@@ -47,10 +48,26 @@ function assetIdentity(url: string) {
   const value = url.trim();
   if (!value) return "";
   try {
-    const parsed = new URL(value, window.location.origin);
+    const parsed = new URL(
+      value,
+      typeof window !== "undefined"
+        ? window.location.origin
+        : "https://sigapromunicipal.com.br",
+    );
+
+    // Na rota estável do brasão/logo municipal, o objectKey identifica o
+    // arquivo. Remover toda a query faria logos de Prefeituras diferentes
+    // parecerem o mesmo recurso durante F5.
+    if (parsed.pathname.endsWith("/api/municipality-logo-open")) {
+      const objectKey = parsed.searchParams.get("objectKey") || "";
+      return `${parsed.origin}${parsed.pathname}?objectKey=${objectKey}`;
+    }
+
+    // Em URL assinada do R2, a query muda apenas autenticação/expiração.
+    // A identidade visual continua sendo origin + pathname.
     return `${parsed.origin}${parsed.pathname}`;
   } catch {
-    return value.split("?")[0].split("#")[0];
+    return value.split("#")[0];
   }
 }
 
@@ -76,13 +93,31 @@ export function InstitutionalLogo({
   variant = "header",
   className,
   viewportClassName,
+  contextScope = "auto",
 }: InstitutionalLogoProps) {
   const [failedSources, setFailedSources] = useState<string[]>([]);
   const [fallbackReady, setFallbackReady] = useState(false);
-  const isMaster = branding.tenantId === "master";
-  const context = `${variant}:${branding.tenantId}`;
-  const requestedUrl = resolveAssetUrl(branding.logoUrl);
-  const municipalFallbackUrl = resolveAssetUrl(branding.fallbackLogoUrl);
+  const isMaster =
+    contextScope === "master"
+      ? true
+      : contextScope === "municipality"
+        ? false
+        : branding.tenantId === "master";
+  const context = `${contextScope}:${variant}:${branding.tenantId}`;
+
+  const requestedCandidate = resolveAssetUrl(branding.logoUrl);
+  const municipalFallbackCandidate = resolveAssetUrl(branding.fallbackLogoUrl);
+
+  // A superfície municipal nunca pode reutilizar o logo da plataforma,
+  // nem por um frame durante bootstrap, F5 ou renovação de URL assinada.
+  const requestedUrl =
+    !isMaster && sameAssetResource(requestedCandidate, SIGAPRO_OFFICIAL_LOGO)
+      ? ""
+      : requestedCandidate;
+  const municipalFallbackUrl =
+    !isMaster && sameAssetResource(municipalFallbackCandidate, SIGAPRO_OFFICIAL_LOGO)
+      ? ""
+      : municipalFallbackCandidate;
   const primaryUrl = requestedUrl || (isMaster ? SIGAPRO_OFFICIAL_LOGO : municipalFallbackUrl);
   const secondaryUrl = isMaster
     ? SIGAPRO_OFFICIAL_LOGO
@@ -95,43 +130,142 @@ export function InstitutionalLogo({
       : ""
     : primaryUrl;
 
+  const cachedAtMount = readSessionLogo(context);
+  // O cache é isolado por Prefeitura + variante. Uma imagem já validada nesse
+  // mesmo contexto permanece como frame estável enquanto uma nova identidade é
+  // pré-carregada. Isso evita trocar o logo por um arquivo novo/quebrado antes
+  // de o navegador confirmar que ele realmente carregou.
+  const cachedAtMountAllowed =
+    isMaster ||
+    !sameAssetResource(cachedAtMount, SIGAPRO_OFFICIAL_LOGO);
+
   const [loadedSource, setLoadedSource] = useState(() => ({
     context,
-    url: readSessionLogo(context) || imageUrl,
+    url: cachedAtMount && cachedAtMountAllowed ? cachedAtMount : imageUrl,
   }));
+
+  const loadedSourceAllowed =
+    isMaster ||
+    !sameAssetResource(loadedSource.url, SIGAPRO_OFFICIAL_LOGO);
 
   const stableLoadedUrl =
     loadedSource.context === context &&
     loadedSource.url &&
+    loadedSourceAllowed &&
     !failedSources.includes(loadedSource.url)
       ? loadedSource.url
       : "";
 
   const cachedContextUrl = readSessionLogo(context);
+  const cachedAllowed =
+    isMaster ||
+    !sameAssetResource(cachedContextUrl, SIGAPRO_OFFICIAL_LOGO);
   const safeCachedUrl =
-    cachedContextUrl && !failedSources.includes(cachedContextUrl)
+    cachedContextUrl &&
+    cachedAllowed &&
+    !failedSources.includes(cachedContextUrl)
       ? cachedContextUrl
       : "";
 
   // Stale-while-revalidate visual:
-  // 1) mantém a última imagem já válida;
-  // 2) em um F5 reutiliza imediatamente a imagem da sessão;
-  // 3) nunca cobre uma imagem válida com skeleton/opacity-0;
-  // 4) uma URL nova só substitui a anterior depois de carregar.
+  // 1) mantém a última imagem já válida do MESMO contexto municipal;
+  // 2) em F5/hidratação reutiliza imediatamente a imagem validada da sessão;
+  // 3) uma URL nova é pré-carregada de forma invisível e só substitui a atual
+  //    depois de disparar onLoad;
+  // 4) troca de tenant muda o contexto e impede reutilização entre Prefeituras;
+  // 5) uma superfície municipal nunca aceita o logo SIGAPRO como cache/fallback.
   const displayUrl = stableLoadedUrl || safeCachedUrl || imageUrl;
   const pendingUrl =
     imageUrl &&
-    imageUrl !== displayUrl &&
-    !sameAssetResource(imageUrl, displayUrl)
+    imageUrl !== displayUrl
       ? imageUrl
       : "";
 
-  const scale = Number.isFinite(branding.logoScale) ? Math.max(0.35, Math.min(5, branding.logoScale)) : 1;
+  // Pré-carregamento fora do DOM.
+  // Antes existia uma segunda <img aria-hidden> dentro do cartão do logo.
+  // As regras globais premium do logo usam !important em width/height/opacity
+  // e conseguiam tornar essa imagem de pré-carga visível por um frame durante
+  // navegação/F5. O navegador então mostrava o brasão gigante sobre a página.
+  // Um Image() desacoplado do DOM mantém o stale-while-revalidate sem permitir
+  // que qualquer CSS de layout atinja o recurso pendente.
+  useEffect(() => {
+    if (!pendingUrl || typeof window === "undefined") return;
+
+    const pendingIsAuthoritative =
+      isMaster ||
+      Boolean(
+        requestedUrl &&
+        sameAssetResource(pendingUrl, requestedUrl),
+      );
+
+    // Se o branding oficial ainda está hidratando e o pendingUrl é somente o
+    // brasão de fallback, mantenha o último logo estável. Não pré-carregue nem
+    // promova esse fallback para a tela.
+    if (!pendingIsAuthoritative) return;
+
+    let active = true;
+    let settled = false;
+    const probe = new window.Image();
+
+    const markLoaded = () => {
+      if (!active || settled) return;
+      settled = true;
+      if (
+        isMaster ||
+        !sameAssetResource(pendingUrl, SIGAPRO_OFFICIAL_LOGO)
+      ) {
+        writeSessionLogo(context, pendingUrl);
+        setLoadedSource({ context, url: pendingUrl });
+      }
+    };
+
+    const markFailed = () => {
+      if (!active || settled) return;
+      settled = true;
+      setFailedSources((current) =>
+        current.includes(pendingUrl) ? current : [...current, pendingUrl],
+      );
+    };
+
+    probe.decoding = "sync";
+    probe.onload = markLoaded;
+    probe.onerror = markFailed;
+    probe.src = pendingUrl;
+
+    // Recursos presentes no memory cache podem já estar completos no mesmo tick.
+    if (probe.complete && probe.naturalWidth > 0) {
+      window.queueMicrotask(markLoaded);
+    }
+
+    return () => {
+      active = false;
+      probe.onload = null;
+      probe.onerror = null;
+    };
+  }, [context, isMaster, pendingUrl, requestedUrl]);
+
+  const configuredScale = Number.isFinite(branding.logoScale) ? branding.logoScale : 1;
+  // Em logo municipal com object-fit contain, escala abaixo de 1 apenas cria
+  // uma margem vazia excessiva. Valores legados menores que 1 sao normalizados
+  // visualmente para 1; o editor continua podendo ampliar e reposicionar.
+  const scale = isMaster
+    ? Math.max(0.35, Math.min(5, configuredScale))
+    : Math.max(1, Math.min(5, configuredScale));
   const frameSize = variant === "header" ? 128 : 144;
   const frameRatio = frameSize / 160;
   const offsetX = (branding.logoOffsetX || 0) * frameRatio;
   const offsetY = (branding.logoOffsetY || 0) * frameRatio;
-  const showCrop = isMaster && (variant === "header" || variant === "footer" || variant === "preview");
+  const showCrop =
+    isMaster &&
+    (variant === "header" || variant === "footer" || variant === "preview");
+
+  useEffect(() => {
+    // Troca de arquivo, renovacao de URL assinada ou mudanca de contexto deve
+    // limpar falhas antigas. Um erro transitório nao pode prender o logo no
+    // fallback depois que a fonte oficial ja esta disponivel.
+    setFailedSources([]);
+    setFallbackReady(false);
+  }, [context, requestedUrl, secondaryUrl]);
 
   useEffect(() => {
     if (displayUrl) {
@@ -166,7 +300,7 @@ export function InstitutionalLogo({
       }}
     >
       <div
-        className={cn("flex h-full min-h-0 w-full min-w-0 items-center justify-center overflow-hidden", viewportClassName)}
+        className={cn("relative flex h-full min-h-0 w-full min-w-0 items-center justify-center overflow-hidden", viewportClassName)}
         style={isMaster ? undefined : { background: "#ffffff", backgroundColor: "#ffffff", opacity: 1 }}
       >
         <div
@@ -200,32 +334,30 @@ export function InstitutionalLogo({
               style={showCrop ? { transform: `translate(${offsetX}px, ${offsetY}px) scale(${scale})`, transformOrigin: "center center" } : undefined}
               loading="eager"
               decoding="sync"
-              fetchPriority="high"
               onLoad={() => {
                 setLoadedSource({ context, url: displayUrl });
-                writeSessionLogo(context, displayUrl);
+                const isAuthoritativeCurrentLogo =
+                  isMaster ||
+                  Boolean(
+                    requestedUrl &&
+                    sameAssetResource(displayUrl, requestedUrl),
+                  );
+                if (
+                  isAuthoritativeCurrentLogo &&
+                  (isMaster ||
+                    !sameAssetResource(displayUrl, SIGAPRO_OFFICIAL_LOGO))
+                ) {
+                  // Só a imagem configurada entra no cache municipal. O brasão
+                  // de fallback nunca substitui a identidade oficial usada no
+                  // último frame estável.
+                  writeSessionLogo(context, displayUrl);
+                }
               }}
               onError={() => setFailedSources((current) => current.includes(displayUrl) ? current : [...current, displayUrl])}
             />
           ) : null}
         </div>
 
-        {pendingUrl ? (
-          <img
-            src={pendingUrl}
-            alt=""
-            aria-hidden="true"
-            className="pointer-events-none absolute h-px w-px opacity-0"
-            loading="eager"
-            decoding="sync"
-            fetchPriority="high"
-            onLoad={() => {
-              writeSessionLogo(context, pendingUrl);
-              setLoadedSource({ context, url: pendingUrl });
-            }}
-            onError={() => setFailedSources((current) => current.includes(pendingUrl) ? current : [...current, pendingUrl])}
-          />
-        ) : null}
       </div>
     </div>
   );

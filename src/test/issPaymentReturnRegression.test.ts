@@ -24,9 +24,9 @@ describe("ISS payment return workflow", () => {
   it("keeps paid processes in the Finance registry for audit history", () => {
     const finance = read("src/pages/saas/FinanceProtocolsPage.tsx");
 
-    expect(finance).toContain("O Financeiro precisa manter o livro de registro");
+    expect(finance).toContain("O Financeiro enxerga todos os protocolos ativos do município.");
     expect(finance).toContain("matchesOperationalScope");
-    expect(finance).toContain("permanece registrado no histórico financeiro");
+    expect(finance).toContain("retornou automaticamente à Análise Urbanística e permanece no controle financeiro");
   });
 
   it("versions an atomic database guard for the final deployment", () => {

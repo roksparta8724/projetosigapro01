@@ -65,9 +65,41 @@ export type ArtifactWithdrawalRecord = {
   artifact_hash: string;
   withdrawn_by_name: string;
   withdrawn_at: string;
+  withdrawn_at_exact?: string | null;
   recorded_by_profile_id?: string | null;
   recorded_at?: string | null;
   updated_at?: string | null;
+};
+
+export type ArtifactVersionHistoryEntry = {
+  id: string;
+  artifact_type: string;
+  artifact_key: string;
+  artifact_version: number;
+  artifact_hash: string;
+  verification_code: string;
+  completed_at: string;
+  payload: Record<string, unknown>;
+  signers: Array<{
+    profile_id?: string | null;
+    name?: string | null;
+    role?: string | null;
+    title?: string | null;
+    slot?: string | null;
+    signed_at?: string | null;
+    status?: string | null;
+  }>;
+};
+
+export type ArtifactWithdrawalEvent = {
+  id: string;
+  artifact_hash?: string | null;
+  withdrawn_by_name: string;
+  withdrawn_at_exact: string;
+  recorded_by_profile_id?: string | null;
+  recorded_by_name?: string | null;
+  event_kind: "registro" | "retificacao" | "registro_inicial" | string;
+  created_at?: string | null;
 };
 
 export type ArtifactWithdrawalSnapshot = {
@@ -302,6 +334,100 @@ export async function requestProcessArtifactSignature(input: {
 }
 
 
+export async function requestHabiteSeSecretarySignature(input: {
+  processId: string;
+  artifactKey: string;
+  artifactHash: string;
+}): Promise<ArtifactSignatureRequestSnapshot & { ok?: boolean }> {
+  const { data, error } = await backendClient.rpc(
+    "request_habite_se_secretary_signature_v1",
+    {
+      _process_id: input.processId,
+      _artifact_key: input.artifactKey,
+      _artifact_hash: input.artifactHash,
+    },
+  );
+
+  if (error) {
+    throw new ArtifactSignatureError(
+      normalizeApiError(error) ||
+        "Não foi possível solicitar a assinatura complementar da Secretaria.",
+      {
+        stage: "request",
+        code: "HABITE_SE_SECRETARY_SIGNATURE_REQUEST_FAILED",
+      },
+    );
+  }
+
+  const raw = (data ?? {}) as Partial<
+    ArtifactSignatureRequestSnapshot & { ok?: boolean }
+  >;
+
+  return {
+    ok: raw.ok,
+    request: raw.request ?? null,
+    candidate_count: Number(raw.candidate_count ?? 0),
+  };
+}
+
+export async function getProcessArtifactVersionHistory(
+  processId: string,
+  artifactKey: string,
+): Promise<ArtifactVersionHistoryEntry[]> {
+  const { data, error } = await backendClient.rpc(
+    "get_process_artifact_version_history_v1",
+    {
+      _process_id: processId,
+      _artifact_key: artifactKey,
+    },
+  );
+
+  if (error) {
+    throw new ArtifactSignatureError(
+      normalizeApiError(error) || "Não foi possível carregar o histórico de versões assinadas.",
+      {
+        stage: "history",
+        code: "ARTIFACT_HISTORY_READ_FAILED",
+      },
+    );
+  }
+
+  const raw = data && typeof data === "object" ? (data as Record<string, unknown>) : {};
+  return Array.isArray(raw.versions)
+    ? (raw.versions as ArtifactVersionHistoryEntry[])
+    : [];
+}
+
+
+export async function getProcessArtifactWithdrawalHistory(
+  processId: string,
+  artifactKey: string,
+): Promise<ArtifactWithdrawalEvent[]> {
+  const { data, error } = await backendClient.rpc(
+    "get_process_artifact_withdrawal_history_v1",
+    {
+      _process_id: processId,
+      _artifact_key: artifactKey,
+    },
+  );
+
+  if (error) {
+    throw new ArtifactSignatureError(
+      normalizeApiError(error) || "Não foi possível carregar o histórico de retirada física.",
+      {
+        stage: "withdrawal",
+        code: "WITHDRAWAL_HISTORY_READ_FAILED",
+      },
+    );
+  }
+
+  const raw = data && typeof data === "object" ? (data as Record<string, unknown>) : {};
+  return Array.isArray(raw.events)
+    ? (raw.events as ArtifactWithdrawalEvent[])
+    : [];
+}
+
+
 export async function getProcessArtifactWithdrawal(
   processId: string,
   artifactKey: string,
@@ -309,7 +435,7 @@ export async function getProcessArtifactWithdrawal(
   const { data, error } = await backendClient
     .from("process_artifact_withdrawals")
     .select(
-      "id,artifact_hash,withdrawn_by_name,withdrawn_at,recorded_by_profile_id,recorded_at,updated_at",
+      "id,artifact_hash,withdrawn_by_name,withdrawn_at,withdrawn_at_exact,recorded_by_profile_id,recorded_at,updated_at",
     )
     .eq("process_id", processId)
     .eq("artifact_key", artifactKey)
@@ -319,7 +445,7 @@ export async function getProcessArtifactWithdrawal(
 
   if (error) {
     throw new ArtifactSignatureError(
-      normalizeWithdrawalError(error, "Não foi possível carregar a retirada em mãos."),
+      normalizeWithdrawalError(error, "Não foi possível carregar o registro de entrega física."),
       {
         stage: "withdrawal",
         code: "WITHDRAWAL_READ_FAILED",
@@ -337,27 +463,25 @@ export async function saveProcessArtifactWithdrawal(input: {
   artifactKey: string;
   artifactHash?: string;
   withdrawnByName: string;
-  withdrawnAt: string;
 }): Promise<ArtifactWithdrawalSnapshot & { ok?: boolean }> {
   const row = {
     process_id: input.processId,
     artifact_key: input.artifactKey,
     artifact_hash: input.artifactHash || null,
     withdrawn_by_name: input.withdrawnByName,
-    withdrawn_at: input.withdrawnAt,
   };
 
   const { data, error } = await backendClient
     .from("process_artifact_withdrawals")
     .upsert(row, { onConflict: "process_id,artifact_key" })
     .select(
-      "id,artifact_hash,withdrawn_by_name,withdrawn_at,recorded_by_profile_id,recorded_at,updated_at",
+      "id,artifact_hash,withdrawn_by_name,withdrawn_at,withdrawn_at_exact,recorded_by_profile_id,recorded_at,updated_at",
     )
     .single();
 
   if (error) {
     throw new ArtifactSignatureError(
-      normalizeWithdrawalError(error, "Não foi possível registrar a retirada em mãos."),
+      normalizeWithdrawalError(error, "Não foi possível registrar a entrega física."),
       {
         stage: "withdrawal",
         code: "WITHDRAWAL_SAVE_FAILED",

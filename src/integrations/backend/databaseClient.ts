@@ -24,6 +24,9 @@ const NEON_DATA_API_URL = String(
     : import.meta.env.VITE_NEON_DATA_API_URL || (isNeonPreview ? VALIDATED_NEON_DATA_API_URL : ""),
 ).replace(/\/+$/, "");
 
+export const neonAuthUrl = NEON_AUTH_URL;
+export const neonDataApiUrl = NEON_DATA_API_URL;
+
 export const hasNeonBackendEnv = Boolean(
   NEON_AUTH_URL &&
   NEON_DATA_API_URL &&

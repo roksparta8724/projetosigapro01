@@ -30,7 +30,9 @@ export function ExternalHistoryPage() {
   const { processes: allProcesses } = usePlatformData();
   const { municipality, scopeId } = useMunicipality();
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
-  const processes = getVisibleProcessesByScope(session, effectiveScopeId, allProcesses);
+  const processes = getVisibleProcessesByScope(session, effectiveScopeId, allProcesses).filter(
+    (process) => process.isOfficial !== false,
+  );
 
   const [search, setSearch] = useState("");
   const [periodFilter, setPeriodFilter] = useState("todos");
@@ -97,7 +99,7 @@ export function ExternalHistoryPage() {
           <MetricCard title="Atividades registradas" value={String(activityCount)} helper="Eventos no histórico" icon={History} tone="blue" />
           <MetricCard title="Últimos 7 dias" value={String(lastWeek)} helper="Atualizações recentes" icon={Calendar} tone="emerald" />
           <MetricCard title="Protocolos ativos" value={String(activeProcesses)} helper="Acompanhamentos" icon={Calendar} tone="amber" />
-          <MetricCard title="Aba atual" value={activeTabLabel} helper="Histórico externo" icon={History} tone="slate" />
+          <MetricCard title="Aba atual" value={activeTabLabel} helper="Histórico externo" icon={History} tone="default" />
         </StatsCards>
 
         <MainGrid>

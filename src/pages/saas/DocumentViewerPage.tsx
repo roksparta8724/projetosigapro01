@@ -12,17 +12,18 @@ import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { MarkerSelector } from "@/components/platform/MarkerSelector";
-import { DocumentWorkspaceBoot } from "@/components/platform/DocumentWorkspaceBoot";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { useDocumentMarkerAssignments } from "@/hooks/useDocumentMarkerAssignments";
+import { consumeDocumentWorkspaceAccessUrl } from "@/lib/documentWorkspaceAccess";
 import { getSignedUrlForObjectStrict } from "@/integrations/r2/client";
 import {
   canAnalyzeProcessDocument,
   canAccessProcess,
+  buildProcessPath,
   formatOfficialProcessNumber,
-  getProcessById,
+  resolveProcessRoute,
 } from "@/lib/platform";
 
 function inferMimeType(fileName?: string, mimeType?: string) {
@@ -51,10 +52,12 @@ export function DocumentViewerPage() {
     documentAccessUrl?: string;
     returnTo?: string;
   };
-  const prefetchedDocumentAccessUrl =
-    typeof routeState.documentAccessUrl === "string"
-      ? routeState.documentAccessUrl
-      : "";
+  const [prefetchedDocumentAccessUrl] = useState(() => {
+    if (typeof routeState.documentAccessUrl === "string" && routeState.documentAccessUrl) {
+      return routeState.documentAccessUrl;
+    }
+    return consumeDocumentWorkspaceAccessUrl(processId, documentId);
+  });
   const {
     processes,
     loading: platformDataLoading,
@@ -64,7 +67,7 @@ export function DocumentViewerPage() {
   const { municipality, scopeId } = useMunicipality();
   const documentMarkers = useDocumentMarkerAssignments();
   const process = useMemo(
-    () => (processId ? getProcessById(processId, processes) : undefined),
+    () => resolveProcessRoute(processes, processId),
     [processId, processes],
   );
   const effectiveScopeId =
@@ -84,19 +87,19 @@ export function DocumentViewerPage() {
     process && document ? documentMarkers.getTags(process.id, document.id) : [];
 
   useEffect(() => {
-    const previousTitle = document.title;
+    const previousTitle = window.document.title;
     const fileLabel =
       document?.fileName?.trim() ||
       document?.label?.trim() ||
       "Documento técnico";
     const protocol = process?.protocol?.trim() || "";
 
-    document.title = protocol
+    window.document.title = protocol
       ? `${fileLabel} • ${protocol} • SIGAPRO`
       : `${fileLabel} • SIGAPRO`;
 
     return () => {
-      document.title = previousTitle;
+      window.document.title = previousTitle;
     };
   }, [document?.fileName, document?.label, process?.protocol]);
 
@@ -118,13 +121,13 @@ export function DocumentViewerPage() {
     if (!process || !document || !canAnalyzeDocument) return;
     const query = tool ? `?ferramenta=${tool}` : "";
     navigate(
-      `/processos/${process.id}/documentos/${document.id}/analisar${query}`,
+      `${buildProcessPath(process)}/documentos/${document.id}/analisar${query}`,
       {
         state: {
           documentAccessUrl: accessUrl || prefetchedDocumentAccessUrl,
           returnTo:
             routeState.returnTo ||
-            `/processos/${process.id}?aba=documentos`,
+            buildProcessPath(process, "documentos"),
         },
       },
     );
@@ -135,14 +138,14 @@ export function DocumentViewerPage() {
   useEffect(() => {
     if (!replaceAnalystViewerWithAnalysis || !process || !document) return;
     navigate(
-      `/processos/${process.id}/documentos/${document.id}/analisar?ferramenta=highlight`,
+      `${buildProcessPath(process)}/documentos/${document.id}/analisar?ferramenta=highlight`,
       {
         replace: true,
         state: {
           documentAccessUrl: accessUrl || prefetchedDocumentAccessUrl,
           returnTo:
             routeState.returnTo ||
-            `/processos/${process.id}?aba=documentos`,
+            buildProcessPath(process, "documentos"),
         },
       },
     );
@@ -220,12 +223,12 @@ export function DocumentViewerPage() {
   ]);
 
   if (replaceAnalystViewerWithAnalysis) {
-    return <DocumentWorkspaceBoot mode="analysis" />;
+    return null;
   }
 
   if (!process || !document) {
     if (platformDataLoading || !dataReadyForCurrentUser) {
-      return <DocumentWorkspaceBoot mode="viewer" />;
+      return null;
     }
 
     return (
@@ -395,17 +398,11 @@ export function DocumentViewerPage() {
                 </div>
               </div>
             ) : !accessUrl ? (
-              <div className="flex h-full items-center justify-center bg-[#d7dde5] p-6">
-                <div className="h-[88%] w-[min(760px,86%)] rounded-[10px] border border-slate-300 bg-white shadow-[0_24px_60px_rgba(15,23,42,0.16)]">
-                  <div className="mx-auto mt-16 w-[62%] space-y-4">
-                    <div className="h-3 w-2/3 animate-pulse rounded-full bg-slate-200" />
-                    <div className="h-2.5 w-full animate-pulse rounded-full bg-slate-100" />
-                    <div className="h-2.5 w-11/12 animate-pulse rounded-full bg-slate-100" />
-                    <div className="h-2.5 w-5/6 animate-pulse rounded-full bg-slate-100" />
-                    <div className="mt-8 h-32 animate-pulse rounded-xl bg-slate-50" />
-                  </div>
-                </div>
-              </div>
+              <div
+                data-document-loading-surface="silent"
+                className="h-full bg-[#2b3037]"
+                aria-hidden="true"
+              />
             ) : isImage ? (
               <div className="h-full w-full overflow-auto bg-[#d7dde5] p-5">
                 <img

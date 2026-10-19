@@ -202,9 +202,19 @@ export function getMunicipalDirectorCandidates(
       .replace(/[\u0300-\u036f]/g, "")
       .toLocaleLowerCase("pt-BR");
 
+    const urbanismAuthority =
+      /urban|obra|planejamento|projeto|habitacao|licenciamento|aprovacao/.test(
+        department,
+      );
+
+    // O vínculo municipal pode chegar ao front antes do cargo descritivo
+    // ("Diretor") terminar de hidratar. O role prefeitura_supervisor +
+    // departamento de Urbanismo já representa a autoridade da Diretoria e
+    // impede o falso "nenhum Diretor cadastrado" visto logo após o cadastro.
     return (
-      /\bdiretor(?:a)?\b/.test(position) &&
-      /urban|obra|planejamento|projeto|habitacao/.test(department)
+      urbanismAuthority &&
+      (/\bdiretor(?:a)?\b/.test(position) ||
+        user.role === "prefeitura_supervisor")
     );
   });
 }
@@ -214,15 +224,30 @@ export function userCanSignPermitAsAnalyst(
   process: ProcessRecord,
 ) {
   if (user.role === "master_admin" || user.role === "master_ops") return true;
-  if (user.role !== "analista" && user.role !== "prefeitura_supervisor") return false;
 
-  if (!process.analysis?.assignedProfileId && !process.analysis?.assignedTo) {
-    return true;
-  }
-  return (
-    process.analysis?.assignedProfileId === user.id ||
-    process.analysis?.assignedTo === user.name
-  );
+  // O Alvará é preparado pelo Analista Técnico responsável pelo processo.
+  // A Diretoria supervisiona e assina, mas não assume silenciosamente a autoria
+  // do preenchimento nem dispara a própria solicitação de assinatura.
+  if (user.role !== "analista") return false;
+
+  const assignedProfileId = String(process.analysis?.assignedProfileId || "").trim();
+  if (assignedProfileId) return assignedProfileId === user.id;
+
+  const normalize = (value: string | null | undefined) =>
+    String(value || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .trim()
+      .toLocaleLowerCase("pt-BR")
+      .replace(/\s+/g, " ");
+
+  const assignedName = normalize(process.analysis?.assignedTo);
+  const analystName = normalize(user.name);
+
+  // Processo sem responsável precisa ser formalmente assumido antes de preparar
+  // o Alvará; isso evita dois analistas trabalhando no mesmo documento final.
+  if (!assignedName) return false;
+  return Boolean(analystName && assignedName === analystName);
 }
 
 export function userCanSignPermitAsDirector(user: SessionUser) {
@@ -235,9 +260,15 @@ export function userCanSignPermitAsDirector(user: SessionUser) {
     .replace(/[\u0300-\u036f]/g, "")
     .toLocaleLowerCase("pt-BR");
 
+  const urbanismAuthority =
+    /urban|obra|planejamento|projeto|habitacao|licenciamento|aprovacao/.test(
+      department,
+    );
+
   return (
-    /\bdiretor(?:a)?\b/.test(position) &&
-    /urban|obra|planejamento|projeto|habitacao/.test(department)
+    urbanismAuthority &&
+    (/\bdiretor(?:a)?\b/.test(position) ||
+      user.role === "prefeitura_supervisor")
   );
 }
 
@@ -250,6 +281,24 @@ export function userCanSignPermitAsSecretary(user: SessionUser) {
   return /\bsecretari[oa]\b/.test(position);
 }
 
+function resolveAuthorityRoleLabel(
+  user: SessionUser,
+  fallback: string,
+) {
+  const title = String(user.title || "").trim();
+  const profile = String(user.profileLabel || "").trim();
+
+  const normalize = (value: string) =>
+    value
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .trim()
+      .toLocaleLowerCase("pt-BR");
+
+  if (title && profile && normalize(title) === normalize(profile)) return title;
+  return title || profile || fallback;
+}
+
 export function signConstructionPermitAsAnalyst(
   record: ConstructionPermitRecord,
   user: SessionUser,
@@ -260,7 +309,7 @@ export function signConstructionPermitAsAnalyst(
     analystSignature: {
       profileId: user.id,
       name: user.name,
-      role: user.title || user.profileLabel || "Analista técnico",
+      role: resolveAuthorityRoleLabel(user, "Analista técnico"),
       signedAt: now,
     },
     status: record.directorSignature ? "emitido" : "aguardando_diretor",
@@ -281,7 +330,7 @@ export function signConstructionPermitAsDirector(
     directorSignature: {
       profileId: user.id,
       name: user.name,
-      role: user.title || user.profileLabel || "Diretor",
+      role: resolveAuthorityRoleLabel(user, "Diretor"),
       signedAt: now,
     },
     status: "emitido",

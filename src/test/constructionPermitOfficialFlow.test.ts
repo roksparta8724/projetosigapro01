@@ -19,21 +19,38 @@ describe("official construction permit workflow", () => {
     resolve(process.cwd(), "api/e-sign-artifact.ts"),
     "utf8",
   );
+  const ownershipMigration = readFileSync(
+    resolve(
+      process.cwd(),
+      "neon/migrations/20261017_construction_permit_analysis_owner_lock.sql",
+    ),
+    "utf8",
+  );
 
   it("generates the permit PDF from the official fill modal after choosing a signing path", () => {
-    expect(panel).toContain("Enviar ao Diretor para assinar eletronicamente");
-    expect(panel).toContain("Gerar PDF para assinatura à caneta");
+    expect(panel).toContain("Solicitar assinatura eletrônica do Diretor");
+    expect(panel).toContain("Gerar PDF do Alvará para assinatura à caneta");
     expect(panel).toContain("municipalityLogoUrl");
     expect(panel).toContain("municipalityAddress");
     expect(panel).toContain("municipalityPhone");
     expect(panel).toContain("municipalityEmail");
   });
 
-  it("keeps the signing actions visible and routes only to an eligible director", () => {
+  it("keeps the signing actions visible and lets the database validate the eligible director", () => {
     expect(panel).toContain("sticky bottom-0");
-    expect(panel).toContain("directors.length === 0");
-    expect(panel).toContain("nenhum perfil ativo está cadastrado como Diretor(a)");
-    expect(panel).toContain("Gerar PDF para assinatura à caneta");
+    expect(panel).toContain('data-request-director-signature="true"');
+    expect(panel).toContain("A Diretoria será validada diretamente no banco oficial ao enviar");
+    expect(panel).toContain("Gerar PDF do Alvará para assinatura à caneta");
+    expect(panel).not.toContain("disabled={directors.length === 0");
+    expect(panel).not.toContain("Assinatura eletrônica indisponível: nenhum perfil ativo");
+  });
+
+  it("keeps electronic Director request available even after a manual PDF was prepared", () => {
+    expect(panel).toContain("O Analista solicita a assinatura do Diretor");
+    expect(panel).toContain("Um PDF manual já foi preparado");
+    expect(panel).toContain("data-request-director-signature=\"true\"");
+    expect(panel).toContain("Solicitação enviada com sucesso");
+    expect(panel).not.toContain("!manualSignatureSelected ? (");
   });
 
   it("uses director as the only required municipal signer", () => {
@@ -44,6 +61,16 @@ describe("official construction permit workflow", () => {
     expect(permitPdf).toContain("ALVARÁ MUNICIPAL EMITIDO");
     expect(signatureApi).toContain("PERMIT_DIRECTOR_REQUEST_REQUIRED");
     expect(signatureApi).toContain("PERMIT_DIRECTOR_SIGNATURE_REQUIRED");
+  });
+
+  it("keeps permit authorship with the assigned analyst and makes the director signature-only", () => {
+    expect(permitLib).toContain('if (user.role !== "analista") return false');
+    expect(permitLib).toContain("assignedProfileId");
+    expect(ownershipMigration).toContain("guard_construction_permit_analysis_owner");
+    expect(ownershipMigration).toContain("Somente o Analista Técnico responsável");
+    expect(ownershipMigration).toContain("artifact_type='construction_permit'");
+    expect(ownershipMigration).toContain("s.signer_slot='diretoria'");
+    expect(ownershipMigration).toContain("old.status='signed'");
   });
 
   it("keeps secretary optional and only shows the secretary block when a secretary actually signs", () => {
@@ -65,6 +92,17 @@ describe("official construction permit workflow", () => {
     expect(permitPdf).toContain("VALIDAÇÃO MUNICIPAL");
     expect(permitPdf).toContain("Código:");
     expect(permitPdf).toContain("SHA-256:");
+  });
+
+  it("embeds a scannable QR in the director electronic-signature block on screen and in the official PDF", () => {
+    expect(panel).toContain('data-director-electronic-signature-evidence="true"');
+    expect(panel).toContain('data-director-signature-qr="true"');
+    expect(panel).toContain("QR Code da assinatura eletrônica da Diretoria");
+    expect(panel).toContain("permit.directorSignature.evidenceHash");
+    expect(permitPdf).toContain('pdf.text("QR DA ASSINATURA"');
+    expect(permitPdf).toContain('pdf.text("ELETRÔNICA"');
+    expect(permitPdf).toContain("verificationQrDataUrl");
+    expect(permitPdf).toContain("createQrCodeDataUrl(publicVerificationUrl)");
   });
 
   it("keeps signature workflow instructions out of the official PDF", () => {

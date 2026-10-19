@@ -99,7 +99,11 @@ export async function saveOfficialConstructionPermitDraft(input: {
 
 export async function requestOfficialPermitDirectorSignature(
   processId: string,
-): Promise<ConstructionPermitRecord> {
+): Promise<{
+  permit: ConstructionPermitRecord;
+  directorName: string;
+  directorCount: number;
+}> {
   const { data, error } = await backendClient.rpc(
     "request_construction_permit_director_signature_v1",
     { _process_id: processId },
@@ -114,10 +118,19 @@ export async function requestOfficialPermitDirectorSignature(
     );
   }
 
-  const raw = (data ?? {}) as { permit?: PermitRpcRow | null };
+  const raw = (data ?? {}) as {
+    permit?: PermitRpcRow | null;
+    director_name?: string | null;
+    director_count?: number | null;
+  };
   const permit = mapPermit(raw.permit);
   if (!permit) throw new Error("O banco não retornou a solicitação da Diretoria.");
-  return permit;
+
+  return {
+    permit,
+    directorName: String(raw.director_name || "").trim(),
+    directorCount: Number(raw.director_count || 0),
+  };
 }
 
 export async function markOfficialPermitForManualSignature(

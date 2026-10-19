@@ -312,7 +312,7 @@ export function LandingDemoModal({ open, onOpenChange }: LandingDemoModalProps) 
                 </div>
 
                 <ChartContainer config={demoChartConfig} className="mt-5 w-full min-w-0" ratio={2.05} minHeight={240} maxHeight={320}>
-                  <BarChart data={operationalBars} margin={{ top: 12, right: 8, left: 0, bottom: 0 }}>
+                  <BarChart data={[...operationalBars]} margin={{ top: 12, right: 8, left: 0, bottom: 0 }}>
                     <CartesianGrid vertical={false} strokeDasharray="3 3" />
                     <XAxis dataKey="name" tickLine={false} axisLine={false} tickMargin={10} />
                     <YAxis tickLine={false} axisLine={false} />
@@ -340,7 +340,7 @@ export function LandingDemoModal({ open, onOpenChange }: LandingDemoModalProps) 
                 <div className="mt-5 grid gap-5 [grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr))] xl:[grid-template-columns:180px_minmax(0,1fr)] xl:items-center">
                   <ChartContainer config={demoChartConfig} className="mx-auto w-full max-w-[220px]" ratio={1} minHeight={180} maxHeight={220}>
                     <PieChart>
-                      <Pie data={statusDistribution} dataKey="value" nameKey="name" innerRadius="54%" outerRadius="86%" paddingAngle={4}>
+                      <Pie data={[...statusDistribution]} dataKey="value" nameKey="name" innerRadius="54%" outerRadius="86%" paddingAngle={4}>
                         {statusDistribution.map((entry) => (
                           <Cell key={entry.name} fill={entry.fill} />
                         ))}

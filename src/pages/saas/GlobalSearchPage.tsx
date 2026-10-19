@@ -7,7 +7,13 @@ import { Card } from "@/components/ui/card";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { useMunicipality } from "@/hooks/useMunicipality";
-import { can, formatOfficialProcessNumber, formatOfficialProcessTitle, matchesOperationalScope } from "@/lib/platform";
+import {
+  buildProcessPath,
+  can,
+  formatOfficialProcessNumber,
+  formatOfficialProcessTitle,
+  matchesOperationalScope,
+} from "@/lib/platform";
 
 export function GlobalSearchPage() {
   const [params] = useSearchParams();
@@ -32,13 +38,14 @@ export function GlobalSearchPage() {
       const haystack = [
         process.protocol,
         process.title,
-        process.requesterName,
         process.ownerName,
         process.technicalLead,
         process.status,
-        process.property?.address,
-        process.property?.city,
-        process.property?.neighborhood,
+        process.address,
+        process.property?.registration,
+        process.property?.iptu,
+        process.property?.lot,
+        process.property?.block,
       ]
         .filter(Boolean)
         .join(" ")
@@ -158,7 +165,7 @@ export function GlobalSearchPage() {
                   <p className="text-xs text-slate-500">{formatOfficialProcessTitle({ title: exactProcess.title, type: exactProcess.type })}</p>
                 </div>
                 <Button asChild className="h-9 rounded-full text-xs">
-                  <Link to={`/processos/${exactProcess.id}`}>Abrir protocolo</Link>
+                  <Link to={buildProcessPath(exactProcess)}>Abrir protocolo</Link>
                 </Button>
               </div>
             ) : null}
@@ -173,7 +180,7 @@ export function GlobalSearchPage() {
                     <p className="text-xs text-slate-500">{formatOfficialProcessTitle({ title: process.title, type: process.type })}</p>
                   </div>
                   <Button asChild variant="outline" className="h-9 rounded-full text-xs">
-                    <Link to={`/processos/${process.id}`}>
+                    <Link to={buildProcessPath(process)}>
                       Abrir protocolo
                       <ExternalLink className="ml-2 h-3.5 w-3.5" />
                     </Link>

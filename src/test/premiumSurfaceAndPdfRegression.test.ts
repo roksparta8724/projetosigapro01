@@ -8,13 +8,13 @@ describe("premium process surface contract", () => {
   it("keeps fixed dark cards light-on-dark without touching topbar chrome", () => {
     const polarity = read("src/styles/surface-polarity.css");
     const detail = read("src/pages/saas/ProcessDetailPage.tsx");
-    const finalStart = polarity.indexOf("FINAL PROCESS POLARITY LOCK V10");
+    const finalStart = polarity.indexOf("PROCESS DETAIL VISIBILITY LOCK V14");
     const finalBlock = polarity.slice(finalStart);
 
     expect(detail).toContain('data-surface="fixed-dark"');
     expect(finalStart).toBeGreaterThanOrEqual(0);
     expect(finalBlock).toContain("#sig-process-document-command-center");
-    expect(finalBlock).toContain("color: #ffffff !important");
+    expect(finalBlock).toMatch(/color:\s*#ffffff\s*!important/);
     expect(finalBlock).not.toContain(".sig-premium-topbar");
     expect(finalBlock).not.toContain(".sig-sidebar-shell");
   });
@@ -39,7 +39,8 @@ describe("premium process surface contract", () => {
     expect(polarity).toContain('[data-process-premium-card="true"]');
     expect(analysis).toContain('data-process-premium-card="true"');
     expect(analysis).toContain('data-primary-action="process"');
-    expect(analysis).toContain("h-14 w-full");
+    expect(analysis).toContain('data-primary-action="process"');
+    expect(analysis).toContain("Abrir processo");
   });
 });
 

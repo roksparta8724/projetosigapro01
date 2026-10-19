@@ -33,11 +33,13 @@ import { PortalFrame } from "@/components/platform/PortalFrame";
 import { SectionCard } from "@/components/platform/SectionCard";
 import { StatCard } from "@/components/platform/StatCard";
 import {
+  buildProcessPath,
   formatCurrency,
   formatOfficialProcessNumber,
   formatOfficialProcessTitle,
   getGuideObservation,
   getGuideReference,
+  getPaymentGuideDisplayReference,
   getProcessPaymentGuides,
   matchesOperationalScope,
   statusLabel,
@@ -46,7 +48,12 @@ import {
   type PaymentGuideKind,
   type ProcessRecord,
 } from "@/lib/platform";
+import { prepareGuideInstitutionalLogo } from "@/lib/guideAssets";
+import { ensureMercadoPagoGuideCharge } from "@/lib/mercadoPagoGuide";
+import { resolveGuideBankingData } from "@/lib/paymentCollection";
 import { useMunicipality } from "@/hooks/useMunicipality";
+import { useInstitutionBranding } from "@/hooks/useInstitutionBranding";
+import { getMunicipalityLogoOpenUrl } from "@/integrations/r2/client";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 
@@ -74,11 +81,6 @@ function isOpenMunicipalProcess(process: ProcessRecord) {
   return !CLOSED_PROCESS_STATUSES.has(process.status);
 }
 
-function buildBarcodeValue(protocol: string, guideNumber: string, amount: number) {
-  const base = `${protocol.replace(/\D/g, "")}${guideNumber.replace(/\D/g, "")}${Math.round(amount * 100)}`;
-  return base.padEnd(44, "7").slice(0, 44);
-}
-
 function formatDate(value?: string) {
   if (!value) return "Não informado";
   const parsed = new Date(value);
@@ -88,31 +90,50 @@ function formatDate(value?: string) {
 
 function guideResponsibility(kind: PaymentGuideKind) {
   if (kind === "protocolo") return "Baixa operacional: Protocolo";
-  if (kind === "iss_obra") return "Controle e baixa: Financeiro";
+  if (kind === "habite_se") return "Emissão e baixa: Financeiro";
   return "Controle e baixa: Financeiro";
 }
 
 function guideKindLabel(kind: PaymentGuideKind) {
   if (kind === "protocolo") return "Taxa de protocolo";
   if (kind === "iss_obra") return "ISSQN / Projeto";
+  if (kind === "habite_se") return "Guia de Habite-se";
   return "Aprovação / Alvará";
 }
 
 export function FinanceProtocolsPage() {
   const { session } = usePlatformSession();
   const [searchParams] = useSearchParams();
-  const { municipality, scopeId, institutionSettingsCompat, name: municipalityName } =
-    useMunicipality();
+  const {
+    municipality,
+    branding: municipalityBranding,
+    scopeId,
+    institutionSettingsCompat,
+    name: municipalityName,
+  } = useMunicipality();
   const { processes: allProcesses, markGuideAsPaid, getInstitutionSettings } =
     usePlatformData();
 
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
   const tenantSettings =
     institutionSettingsCompat ?? getInstitutionSettings(effectiveScopeId);
+  const { headerBranding: guideHeaderBranding } = useInstitutionBranding(effectiveScopeId);
+  const stableGuideLogoUrl = getMunicipalityLogoOpenUrl(
+    municipalityBranding?.headerLogoObjectKey ||
+      municipalityBranding?.logoObjectKey ||
+      "",
+  );
+  const guideLogoUrl =
+    stableGuideLogoUrl ||
+    guideHeaderBranding.logoUrl ||
+    ("fallbackLogoUrl" in guideHeaderBranding ? guideHeaderBranding.fallbackLogoUrl : "") ||
+    tenantSettings?.logoUrl ||
+    tenantSettings?.brasaoUrl ||
+    "";
 
   // O Financeiro enxerga todos os protocolos ativos do município.
   // A responsabilidade operacional de cada guia continua respeitada:
-  // a taxa inicial pertence ao Protocolo; ISSQN e aprovação/Alvará pertencem ao Financeiro.
+  // a taxa inicial pertence ao Protocolo; ISSQN, Habite-se e aprovação/Alvará pertencem ao Financeiro.
   const scopedProcesses = useMemo(
     () =>
       allProcesses.filter((process) =>
@@ -169,6 +190,7 @@ export function FinanceProtocolsPage() {
       : "",
   );
   const [financialBusyKey, setFinancialBusyKey] = useState("");
+  const [guideBillingBusyKey, setGuideBillingBusyKey] = useState("");
   const [view, setView] = useState<FinanceView>("abertos");
   const [search, setSearch] = useState("");
   const [expandedProcessId, setExpandedProcessId] = useState<string | null>(null);
@@ -244,7 +266,7 @@ export function FinanceProtocolsPage() {
     }
   };
 
-  const openGuide = (
+  const openGuide = async (
     processId: string,
     guideKind: PaymentGuideKind,
     autoPrint = true,
@@ -255,13 +277,66 @@ export function FinanceProtocolsPage() {
     );
     if (!match) return;
 
-    const barcode = buildBarcodeValue(
-      match.process.protocol,
-      match.guide.code,
-      match.guide.amount,
+    const banking = resolveGuideBankingData({
+      settings: tenantSettings,
+      guide: match.guide,
+      municipalityName,
+      municipalityCity: tenantSettings?.pixMerchantCity,
+    });
+
+    const billingKey = `${processId}:${guideKind}:mercadopago`;
+    let providerCharge: Awaited<ReturnType<typeof ensureMercadoPagoGuideCharge>> | null = null;
+
+    if (!banking.barcode || !banking.digitableLine) {
+      setGuideBillingBusyKey(billingKey);
+      setFinancialStatus("Gerando cobrança Mercado Pago para esta guia...");
+      try {
+        providerCharge = await ensureMercadoPagoGuideCharge({
+          municipalityId: effectiveScopeId,
+          guideCode: match.guide.code,
+          amount: match.guide.amount,
+          dueDate: match.guide.dueDate,
+          description: `${guideKindLabel(match.guide.kind)} · ${match.process.protocol}`,
+        });
+        setFinancialStatus(
+          "Cobrança Mercado Pago vinculada à própria guia do SIGAPRO. Linha digitável e código de barras foram incorporados à DAM.",
+        );
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? `Não foi possível obter a cobrança Mercado Pago desta guia: ${error.message}`
+            : "Não foi possível obter a cobrança Mercado Pago desta guia.";
+        setFinancialStatus(message);
+        return;
+      } finally {
+        setGuideBillingBusyKey("");
+      }
+    }
+
+    const digitableLine =
+      providerCharge?.digitableLine || banking.digitableLine;
+    const barcode =
+      providerCharge?.barcodeContent || banking.barcode;
+    if (!barcode || !digitableLine) {
+      const message =
+        "A cobrança bancária não retornou linha digitável e código de barras completos. A DAM foi bloqueada para não emitir uma guia inválida.";
+      setFinancialStatus(message);
+      return;
+    }
+
+    const providerInstitution = providerCharge?.financialInstitution?.trim() || "";
+    const providerName =
+      providerInstitution && providerInstitution.toLowerCase() !== "boleto"
+        ? providerInstitution
+        : banking.bankName || "Mercado Pago";
+    const embeddedGuideLogoUrl = await prepareGuideInstitutionalLogo(
+      stableGuideLogoUrl,
+      guideLogoUrl,
+      tenantSettings?.logoUrl,
+      tenantSettings?.brasaoUrl,
     );
 
-    openGuiaRecolhimentoOficialWindow(
+    const openedGuide = openGuiaRecolhimentoOficialWindow(
       {
         prefeitura: {
           nome:
@@ -274,7 +349,7 @@ export function FinanceProtocolsPage() {
           cidade: "",
           uf: "",
           telefone: tenantSettings?.telefone || "",
-          logoUrl: tenantSettings?.logoUrl || tenantSettings?.brasaoUrl || "",
+          logoUrl: embeddedGuideLogoUrl,
           cadastroTitulo: "Cadastro Eventual",
         },
         contribuinte: {
@@ -300,9 +375,23 @@ export function FinanceProtocolsPage() {
           descontos: 0,
           outrosAcrescimos: 0,
           valorCobrado: match.guide.amount,
-          linhaDigitavel: barcode,
+          linhaDigitavel: digitableLine,
           codigoBarras: barcode,
           qrCodePixUrl: "",
+          pixPayload: banking.pixPayload,
+          bankName: providerName,
+          bankEnvironment: providerCharge?.environment,
+          bankAgreement: banking.bankAgreement,
+          bankInstructions: banking.bankInstructions,
+          bankReference: providerCharge?.orderId || match?.guide?.bankReference,
+          bankPaymentId: providerCharge?.paymentId || match?.guide?.bankPaymentId,
+          bankStatus: providerCharge?.status || match?.guide?.bankStatus,
+          bankStatusDetail: providerCharge?.statusDetail || match?.guide?.bankStatusDetail,
+          bankAuthenticatedAt:
+            providerCharge?.authenticatedAt ||
+            match?.guide?.bankAuthenticatedAt ||
+            (match?.guide?.status === "compensada" ? match?.guide?.paidAt : undefined),
+          paymentProvider: tenantSettings?.paymentProvider || "mercado_pago",
           autenticacaoMecanica: "",
         },
         itens: [
@@ -329,6 +418,12 @@ export function FinanceProtocolsPage() {
         autoPrint,
       },
     );
+
+    if (!openedGuide) {
+      setFinancialStatus(
+        "O navegador bloqueou a abertura da guia. Permita pop-ups para o localhost e tente novamente.",
+      );
+    }
   };
 
   return (
@@ -576,7 +671,7 @@ export function FinanceProtocolsPage() {
                                 variant="outline"
                                 className="h-9 rounded-full border-slate-300 bg-white font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
                               >
-                                <Link to={`/processos/${process.id}?aba=financeiro`}>
+                                <Link to={buildProcessPath(process, "financeiro")}>
                                   Abrir processo
                                 </Link>
                               </Button>
@@ -673,14 +768,19 @@ export function FinanceProtocolsPage() {
                             ) : (
                               <div className="space-y-3">
                                 {guides.map((guide) => {
-                                  const pixPayload = `PIX|${tenantSettings?.beneficiarioArrecadacao || "Prefeitura"}|${tenantSettings?.chavePix || "nao-configurado"}|${guide.code}|${process.protocol}|${guide.amount.toFixed(2).replace(".", ",")}`;
+                                  const pixPayload = resolveGuideBankingData({
+                                    settings: tenantSettings,
+                                    guide,
+                                    municipalityName,
+                                    municipalityCity: tenantSettings?.pixMerchantCity,
+                                  }).pixPayload;
                                   const isProtocolGuide = guide.kind === "protocolo";
                                   const busyKey = `${process.id}:${guide.kind}`;
 
                                   return (
                                     <div
                                       key={`${process.id}:${guide.kind}:${guide.code}`}
-                                      className="rounded-[18px] border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-950/60"
+                                      className="sig-finance-guide-card rounded-[18px] border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-950/60"
                                     >
                                       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_150px_150px_auto] xl:items-center">
                                         <div className="min-w-0">
@@ -708,8 +808,14 @@ export function FinanceProtocolsPage() {
                                             ) : null}
                                           </div>
                                           <p className="mt-1 font-mono text-[11px] text-slate-500 dark:text-slate-400">
-                                            {guide.code}
+                                            {getPaymentGuideDisplayReference(process, guide)}
                                           </p>
+                                          {guide.officialProcessReference &&
+                                          guide.officialProcessReference !== guide.code ? (
+                                            <p className="mt-1 text-[10px] text-slate-400 dark:text-slate-500">
+                                              Origem: {guide.code}
+                                            </p>
+                                          ) : null}
                                           <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
                                             {guideResponsibility(guide.kind)}
                                           </p>
@@ -741,11 +847,12 @@ export function FinanceProtocolsPage() {
                                             size="sm"
                                             className="rounded-full"
                                             onClick={() =>
-                                              openGuide(process.id, guide.kind, false)
+                                              void openGuide(process.id, guide.kind, false)
                                             }
+                                            disabled={guideBillingBusyKey === busyKey + ":mercadopago"}
                                           >
                                             <Eye className="mr-1.5 h-3.5 w-3.5" />
-                                            Preview
+                                            {guideBillingBusyKey === busyKey + ":mercadopago" ? "Gerando..." : "Preview"}
                                           </Button>
                                           <Button
                                             type="button"
@@ -753,11 +860,12 @@ export function FinanceProtocolsPage() {
                                             size="sm"
                                             className="rounded-full"
                                             onClick={() =>
-                                              openGuide(process.id, guide.kind, true)
+                                              void openGuide(process.id, guide.kind, true)
                                             }
+                                            disabled={guideBillingBusyKey === busyKey + ":mercadopago"}
                                           >
                                             <Printer className="mr-1.5 h-3.5 w-3.5" />
-                                            DAM
+                                            {guideBillingBusyKey === busyKey + ":mercadopago" ? "Gerando..." : "DAM"}
                                           </Button>
                                           {guide.status === "pendente" &&
                                           !isProtocolGuide ? (
@@ -782,15 +890,15 @@ export function FinanceProtocolsPage() {
                                       </div>
 
                                       <div className="mt-3 grid gap-2 md:grid-cols-[minmax(0,1fr)_auto]">
-                                        <div className="min-w-0 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-900/60">
+                                        <div className="sig-finance-pix-surface min-w-0 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-900/60">
                                           <p className="text-[9px] font-bold uppercase tracking-[0.1em] text-slate-400">
                                             PIX copia e cola
                                           </p>
                                           <p
-                                            className="mt-1 overflow-x-auto whitespace-nowrap font-mono text-[10px] leading-5 text-slate-600 dark:text-slate-300"
-                                            title={pixPayload}
+                                            className="sig-finance-pix-code mt-1 overflow-x-auto whitespace-nowrap font-mono text-[10px] leading-5 text-slate-600 dark:text-slate-300"
+                                            title={pixPayload || "PIX não configurado"}
                                           >
-                                            {pixPayload}
+                                            {pixPayload || "PIX não configurado para esta Prefeitura"}
                                           </p>
                                         </div>
                                         <Button
@@ -799,13 +907,14 @@ export function FinanceProtocolsPage() {
                                           size="sm"
                                           className="h-full min-h-10 rounded-xl"
                                           onClick={() => copyPixPayload(pixPayload)}
+                                          disabled={!pixPayload}
                                         >
                                           <Copy className="h-4 w-4" />
                                           <span className="sr-only">Copiar PIX</span>
                                         </Button>
                                       </div>
 
-                                      {copiedPayload === pixPayload ? (
+                                      {pixPayload && copiedPayload === pixPayload ? (
                                         <p className="mt-2 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
                                           Código copiado.
                                         </p>

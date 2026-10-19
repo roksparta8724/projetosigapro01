@@ -45,19 +45,21 @@ describe("municipal organization chart", () => {
   it("shows the institutional organogram by department acronym without user names", () => {
     expect(tenantAdmin).toContain("MunicipalOrganizationChart");
     expect(orgChart).toContain("getDepartmentAcronym");
-    expect(orgChart).toContain("O organograma não exibe nomes de servidores ou usuários.");
+    expect(orgChart).toContain("Hierarquia institucional por siglas, níveis e unidades oficiais da Prefeitura.");
     expect(orgChart).not.toContain("user.name");
   });
 
   it("exposes a read-only organogram to every internal municipal user", () => {
-    expect(orgPage).toContain("isInternalRole");
-    expect(orgPage).toContain("listRemoteMunicipalDepartments");
-    expect(portalFrame).toContain('to: "/prefeitura/organograma"');
-    expect(portalFrame).toContain("internalOnly: true");
+    expect(orgPage).toContain("useMunicipalOrganogram");
+    expect(orgPage).toContain('session.role === "prefeitura_admin"');
+    expect(portalFrame).toContain('"/prefeitura/organograma"');
+    expect(portalFrame).toContain("showMunicipalOrganogramShortcut");
   });
 
-  it("reads departments through a scoped RPC instead of direct table access", () => {
-    expect(backend).toContain('db.rpc("list_municipal_departments_v1"');
+  it("reads departments through scoped public/internal RPCs instead of direct table access", () => {
+    expect(backend).toContain('db.rpc("list_public_municipal_departments_v1"');
+    expect(backend).toContain('db.rpc("list_internal_municipal_departments_v1"');
+    expect(backend).not.toContain('db.rpc("list_municipal_departments_v1"');
   });
 
   it("persists parent hierarchy and municipality scope in the database", () => {

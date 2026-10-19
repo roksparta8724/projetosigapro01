@@ -9748,3 +9748,1219 @@ html body .sig-main-shell .sig-protocol-marker[data-protocol-marker-active="fals
   background: rgba(255,255,255,0.82);
   color: #475569;
 }
+
+
+/* ===== SIGAPRO INSTITUTIONAL PREMIUM VISUAL CONTRACT V1 — 2026-10-17 =====
+   Visual-only layer. It does not alter routes, workflow, permissions, database
+   state or process status. The contract follows the rendered surface:
+   light surface => dark typography; dark surface => light typography. */
+
+/* Core cards — clearer hierarchy, stronger borders and readable copy. */
+html body [data-layout-mode="default"] .sig-main-shell :is(
+  [data-premium-surface="header"],
+  [data-premium-surface="section"],
+  [data-premium-surface="metric"]
+) {
+  background: linear-gradient(180deg,#ffffff 0%,#f8fbfe 100%) !important;
+  border-color: #d6e1ec !important;
+  color: #0b1726 !important;
+  box-shadow:
+    0 14px 34px rgba(15,23,42,.075),
+    inset 0 1px 0 rgba(255,255,255,.98) !important;
+}
+
+html body [data-layout-mode="default"] .sig-main-shell :is(
+  [data-premium-surface="header"],
+  [data-premium-surface="section"],
+  [data-premium-surface="metric"]
+) :is(.sig-page-title,.sig-section-title,.sig-metric-value,h1,h2,h3,h4,strong) {
+  color: #0a1625 !important;
+  -webkit-text-fill-color: #0a1625 !important;
+}
+
+html body [data-layout-mode="default"] .sig-main-shell :is(
+  [data-premium-surface="header"],
+  [data-premium-surface="section"],
+  [data-premium-surface="metric"]
+) :is(.sig-subtitle,.sig-metric-title,.sig-metric-helper,.text-slate-600,.text-slate-500,.text-slate-400) {
+  color: #4b5e73 !important;
+  -webkit-text-fill-color: #4b5e73 !important;
+  opacity: 1 !important;
+}
+
+html body [data-layout-mode="inverse-main"] .sig-main-shell :is(
+  [data-premium-surface="header"],
+  [data-premium-surface="section"],
+  [data-premium-surface="metric"]
+) {
+  background: linear-gradient(180deg,#10273d 0%,#0a1928 100%) !important;
+  border-color: #31506b !important;
+  color: #f8fbff !important;
+  box-shadow:
+    0 18px 42px rgba(0,0,0,.28),
+    inset 0 1px 0 rgba(255,255,255,.055) !important;
+}
+
+html body [data-layout-mode="inverse-main"] .sig-main-shell :is(
+  [data-premium-surface="header"],
+  [data-premium-surface="section"],
+  [data-premium-surface="metric"]
+) :is(.sig-page-title,.sig-section-title,.sig-metric-value,h1,h2,h3,h4,strong) {
+  color: #f8fbff !important;
+  -webkit-text-fill-color: #f8fbff !important;
+}
+
+html body [data-layout-mode="inverse-main"] .sig-main-shell :is(
+  [data-premium-surface="header"],
+  [data-premium-surface="section"],
+  [data-premium-surface="metric"]
+) :is(.sig-subtitle,.sig-metric-title,.sig-metric-helper,.text-slate-600,.text-slate-500,.text-slate-400) {
+  color: #cbd9e7 !important;
+  -webkit-text-fill-color: #cbd9e7 !important;
+  opacity: 1 !important;
+}
+
+/* Internal navigation: saturated institutional blue in light mode; inverse
+   premium light selection in dark workspace so contrast can never collapse. */
+html body [data-layout-mode="default"] .sig-main-shell
+[data-premium-nav-active="true"] {
+  background: linear-gradient(135deg,#083b61 0%,#0b628f 54%,#0b7eae 100%) !important;
+  border-color: rgba(125,211,252,.48) !important;
+  color: #ffffff !important;
+  box-shadow:
+    0 12px 26px rgba(6,42,68,.24),
+    inset 0 1px 0 rgba(255,255,255,.10) !important;
+}
+html body [data-layout-mode="default"] .sig-main-shell
+[data-premium-nav-active="true"] :is(span,p,strong,small,svg) {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  stroke: currentColor !important;
+  opacity: 1 !important;
+}
+html body [data-layout-mode="default"] .sig-main-shell
+[data-premium-nav-active="true"] .sig-nav-item-helper {
+  color: #d9f1ff !important;
+  -webkit-text-fill-color: #d9f1ff !important;
+}
+
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+[data-premium-nav-active="true"] {
+  background: linear-gradient(180deg,#f8fcff 0%,#e8f5fd 100%) !important;
+  border-color: #9dd8f2 !important;
+  color: #08263d !important;
+  box-shadow:
+    0 14px 30px rgba(0,0,0,.22),
+    inset 0 1px 0 rgba(255,255,255,1) !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+[data-premium-nav-active="true"] :is(span,p,strong,small,svg) {
+  color: #08263d !important;
+  -webkit-text-fill-color: #08263d !important;
+  stroke: currentColor !important;
+  opacity: 1 !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+[data-premium-nav-active="true"] .sig-nav-item-helper {
+  color: #34536a !important;
+  -webkit-text-fill-color: #34536a !important;
+}
+
+/* Sidebar: never allow gray-on-blue institutional navigation. */
+html body .sig-sidebar-shell[data-sidebar-surface="dark"]
+.sig-sidebar-item[data-sidebar-active="false"] .sig-sidebar-label > span,
+html body .sig-sidebar-shell[data-sidebar-surface="dark"]
+.sig-sidebar-subitem:not([aria-current="page"]) {
+  color: #e2edf8 !important;
+  -webkit-text-fill-color: #e2edf8 !important;
+  opacity: 1 !important;
+}
+html body .sig-sidebar-shell[data-sidebar-surface="dark"]
+.sig-sidebar-item[data-sidebar-active="false"] .sig-sidebar-icon,
+html body .sig-sidebar-shell[data-sidebar-surface="dark"]
+.sig-sidebar-item[data-sidebar-active="false"] svg {
+  color: #eaf5ff !important;
+  stroke: currentColor !important;
+  opacity: 1 !important;
+}
+
+/* Premium primary actions used in licensing/permit workflows.
+   The theme inversion is deliberate and visual only. */
+html body [data-layout-mode="default"] .sig-main-shell
+:is([data-premium-action="strong"],.sig-premium-primary-action) {
+  background: linear-gradient(135deg,#071c30 0%,#0b456a 54%,#0877a6 100%) !important;
+  border: 1px solid rgba(14,116,144,.42) !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  box-shadow:
+    0 11px 25px rgba(7,54,85,.24),
+    inset 0 1px 0 rgba(255,255,255,.10) !important;
+}
+html body [data-layout-mode="default"] .sig-main-shell
+:is([data-premium-action="strong"],.sig-premium-primary-action):hover {
+  background: linear-gradient(135deg,#09243c 0%,#0d527d 54%,#0a88b9 100%) !important;
+  filter: brightness(1.03);
+}
+html body [data-layout-mode="default"] .sig-main-shell
+:is([data-premium-action="strong"],.sig-premium-primary-action) :is(span,p,strong,svg) {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  stroke: currentColor !important;
+  opacity: 1 !important;
+}
+
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+:is([data-premium-action="strong"],.sig-premium-primary-action) {
+  background: linear-gradient(180deg,#ffffff 0%,#eaf5fb 100%) !important;
+  border: 1px solid #a7d5e8 !important;
+  color: #08263d !important;
+  -webkit-text-fill-color: #08263d !important;
+  box-shadow:
+    0 12px 26px rgba(0,0,0,.25),
+    inset 0 1px 0 rgba(255,255,255,1) !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+:is([data-premium-action="strong"],.sig-premium-primary-action):hover {
+  background: linear-gradient(180deg,#f5fbff 0%,#dff1f9 100%) !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+:is([data-premium-action="strong"],.sig-premium-primary-action) :is(span,p,strong,svg) {
+  color: #08263d !important;
+  -webkit-text-fill-color: #08263d !important;
+  stroke: currentColor !important;
+  opacity: 1 !important;
+}
+
+/* Electronic signature evidence: official, calm and readable. */
+html body [data-layout-mode="default"] .sig-main-shell
+[data-premium-signature-evidence="true"] {
+  background:
+    radial-gradient(circle at 0 0,rgba(16,185,129,.08),transparent 36%),
+    linear-gradient(180deg,#ffffff 0%,#f7fcfa 100%) !important;
+  border-color: #b7ead7 !important;
+  color: #0f172a !important;
+}
+html body [data-layout-mode="default"] .sig-main-shell
+[data-premium-signature-evidence="true"] :is(.text-slate-600,.text-slate-500,.text-slate-400) {
+  color: #526579 !important;
+  -webkit-text-fill-color: #526579 !important;
+}
+
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+[data-premium-signature-evidence="true"] {
+  background:
+    radial-gradient(circle at 0 0,rgba(16,185,129,.12),transparent 38%),
+    linear-gradient(180deg,#102b35 0%,#0b1e2a 100%) !important;
+  border-color: #2b665e !important;
+  color: #f3fbf8 !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+[data-premium-signature-evidence="true"] :is(
+  p,span,strong,small,.text-slate-950,.text-slate-900,.text-slate-800,.text-slate-700
+) {
+  color: #f3fbf8 !important;
+  -webkit-text-fill-color: #f3fbf8 !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+[data-premium-signature-evidence="true"] :is(.text-slate-600,.text-slate-500,.text-slate-400) {
+  color: #c3d8dc !important;
+  -webkit-text-fill-color: #c3d8dc !important;
+}
+
+/* QR remains on a pure-white scan field in every theme for reliability,
+   but uses institutional navy instead of visually harsh black. */
+html body .sig-main-shell [data-premium-qr="true"],
+html body .sig-main-shell .sig-premium-qr {
+  background: #ffffff !important;
+  border-color: #c7e3ef !important;
+  color: #0b4f71 !important;
+  -webkit-text-fill-color: #0b4f71 !important;
+  box-shadow:
+    0 8px 22px rgba(15,23,42,.10),
+    inset 0 0 0 1px rgba(255,255,255,.94) !important;
+}
+html body .sig-main-shell [data-premium-qr="true"] svg,
+html body .sig-main-shell .sig-premium-qr svg {
+  display: block;
+  border-radius: 10px;
+  background: #ffffff !important;
+  filter: none !important;
+  opacity: 1 !important;
+}
+html body .sig-main-shell [data-premium-qr="true"] span,
+html body .sig-main-shell .sig-premium-qr span {
+  color: #075985 !important;
+  -webkit-text-fill-color: #075985 !important;
+}
+
+/* Permit signature cards follow the actual workspace rather than html.dark. */
+html body [data-layout-mode="default"] .sig-main-shell .sig-permit-signature-card {
+  color: #0b1726 !important;
+  box-shadow: 0 12px 30px rgba(15,23,42,.07) !important;
+}
+html body [data-layout-mode="default"] .sig-main-shell .sig-permit-signature-card :is(
+  .text-slate-950,.text-slate-900,.text-slate-800
+) {
+  color: #0b1726 !important;
+  -webkit-text-fill-color: #0b1726 !important;
+}
+html body [data-layout-mode="default"] .sig-main-shell .sig-permit-signature-card :is(
+  .text-slate-600,.text-slate-500,.text-slate-400
+) {
+  color: #536579 !important;
+  -webkit-text-fill-color: #536579 !important;
+}
+
+html body [data-layout-mode="inverse-main"] .sig-main-shell .sig-permit-signature-card {
+  background: linear-gradient(180deg,#102b35 0%,#0b1f2b 100%) !important;
+  border-color: #2f675f !important;
+  color: #f4fbf9 !important;
+  box-shadow: 0 14px 34px rgba(0,0,0,.24) !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell .sig-permit-signature-card :is(
+  p,span,strong,small,.text-slate-950,.text-slate-900,.text-slate-800,.text-slate-700
+) {
+  color: #f4fbf9 !important;
+  -webkit-text-fill-color: #f4fbf9 !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell .sig-permit-signature-card :is(
+  .text-slate-600,.text-slate-500,.text-slate-400
+) {
+  color: #c6d9dc !important;
+  -webkit-text-fill-color: #c6d9dc !important;
+}
+
+/* Dark command headers: strengthen copy without touching nested light controls. */
+html body .sig-main-shell [data-force-card-contrast="dark"] > :is(h1,h2,h3,h4,h5,h6,p,span,strong,small,label),
+html body .sig-main-shell [data-force-card-contrast="dark"] > *:not(button):not(a) > :is(h1,h2,h3,h4,h5,h6,p,span,strong,small,label) {
+  color: #f8fbff !important;
+  -webkit-text-fill-color: #f8fbff !important;
+  opacity: 1 !important;
+}
+
+/* ===== END SIGAPRO INSTITUTIONAL PREMIUM VISUAL CONTRACT V1 ===== */
+
+
+/* Premium contrast refinements for responsive sidebar and card icons. */
+html body [data-sidebar-surface="dark"]
+.sig-sidebar-item[data-sidebar-active="false"] .sig-sidebar-label > span,
+html body [data-sidebar-surface="dark"] .sig-sidebar-subitem {
+  color: #e2edf8 !important;
+  -webkit-text-fill-color: #e2edf8 !important;
+  opacity: 1 !important;
+}
+html body [data-sidebar-surface="dark"]
+.sig-sidebar-item[data-sidebar-active="false"] .sig-sidebar-icon,
+html body [data-sidebar-surface="dark"]
+.sig-sidebar-item[data-sidebar-active="false"] svg {
+  color: #eaf5ff !important;
+  stroke: currentColor !important;
+  opacity: 1 !important;
+}
+
+html body [data-layout-mode="default"] .sig-main-shell
+[data-premium-surface] :is(.sig-header-icon,.sig-section-icon) {
+  background: linear-gradient(180deg,#ffffff 0%,#eff6fb 100%) !important;
+  border-color: #cbdbe8 !important;
+  color: #0b6b9c !important;
+  box-shadow: 0 8px 18px rgba(15,23,42,.065) !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+[data-premium-surface] :is(.sig-header-icon,.sig-section-icon) {
+  background: rgba(255,255,255,.08) !important;
+  border-color: rgba(186,230,253,.18) !important;
+  color: #bae6fd !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.06) !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+[data-premium-surface] :is(.sig-header-icon,.sig-section-icon) svg {
+  color: #bae6fd !important;
+  stroke: currentColor !important;
+}
+
+
+/* ===== SIGNATURE QR + TOPBAR INITIALS FINAL V2 — 2026-10-17 ===== */
+html body .sig-topbar-user-avatar-fallback {
+  color:#000000 !important;
+  -webkit-text-fill-color:#000000 !important;
+  font-weight:800 !important;
+}
+
+html body .sig-main-shell :is([data-premium-qr="true"],.sig-sei-like-qr) {
+  width:136px !important;
+  background:#ffffff !important;
+  border:1px solid #d7dee7 !important;
+  color:#111111 !important;
+  -webkit-text-fill-color:#111111 !important;
+  box-shadow:0 8px 20px rgba(15,23,42,.08) !important;
+}
+html body .sig-main-shell :is([data-premium-qr="true"],.sig-sei-like-qr) svg {
+  display:block !important;
+  width:112px !important;
+  height:112px !important;
+  background:#ffffff !important;
+  border-radius:4px !important;
+  filter:none !important;
+  opacity:1 !important;
+  shape-rendering:crispEdges;
+}
+html body .sig-main-shell :is([data-premium-qr="true"],.sig-sei-like-qr) span {
+  color:#111111 !important;
+  -webkit-text-fill-color:#111111 !important;
+  background:transparent !important;
+  border:0 !important;
+  box-shadow:none !important;
+  font-weight:800 !important;
+}
+
+/* Landing product preview: no gray-on-blue. */
+html body [data-landing-product-header="true"] :is(p,span) {
+  opacity:1 !important;
+}
+html body [data-landing-product-header="true"] > div p:first-of-type {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+}
+/* ===== END SIGNATURE QR + TOPBAR INITIALS FINAL V2 ===== */
+
+
+/* ===== SIGNATURE QR RASTER QUALITY LOCK V3 — 2026-10-17 =====
+   SEI-style verification: black modules, pure-white quiet zone and a raster
+   image isolated from every SVG/fill/stroke rule in the application theme. */
+html body .sig-main-shell .sig-sei-verification-qr {
+  width:146px !important;
+  min-width:146px !important;
+  background:#ffffff !important;
+  border:1px solid #cfd8e3 !important;
+  color:#111827 !important;
+  -webkit-text-fill-color:#111827 !important;
+  box-shadow:
+    0 8px 20px rgba(15,23,42,.10),
+    inset 0 1px 0 rgba(255,255,255,1) !important;
+  text-decoration:none !important;
+}
+
+html body .sig-main-shell .sig-sei-verification-qr-frame {
+  width:126px !important;
+  height:126px !important;
+  background:#ffffff !important;
+  border:1px solid #cbd5e1 !important;
+  box-shadow:inset 0 0 0 4px #ffffff !important;
+  overflow:hidden !important;
+}
+
+html body .sig-main-shell img.sig-sei-verification-qr-image {
+  display:block !important;
+  width:112px !important;
+  height:112px !important;
+  max-width:none !important;
+  min-width:112px !important;
+  min-height:112px !important;
+  margin:0 !important;
+  padding:0 !important;
+  border:0 !important;
+  border-radius:0 !important;
+  background:#ffffff !important;
+  opacity:1 !important;
+  filter:none !important;
+  mix-blend-mode:normal !important;
+  transform:none !important;
+  object-fit:contain !important;
+  image-rendering:pixelated;
+  image-rendering:crisp-edges;
+}
+
+html body .sig-main-shell .sig-sei-verification-qr-label {
+  color:#111827 !important;
+  -webkit-text-fill-color:#111827 !important;
+  background:#f8fafc !important;
+  border:1px solid #e2e8f0 !important;
+  border-radius:999px !important;
+  padding:4px 8px !important;
+  line-height:1.15 !important;
+  font-weight:800 !important;
+  opacity:1 !important;
+  text-decoration:none !important;
+}
+
+html body .sig-main-shell .sig-sei-verification-qr:hover {
+  border-color:#9fb3c8 !important;
+  box-shadow:
+    0 10px 24px rgba(15,23,42,.13),
+    inset 0 1px 0 rgba(255,255,255,1) !important;
+}
+
+/* Theme inversion must never touch the QR scan field itself. */
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+.sig-sei-verification-qr,
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+.sig-sei-verification-qr-frame,
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+img.sig-sei-verification-qr-image {
+  background:#ffffff !important;
+  color:#111827 !important;
+  -webkit-text-fill-color:#111827 !important;
+  filter:none !important;
+}
+/* ===== END SIGNATURE QR RASTER QUALITY LOCK V3 ===== */
+
+
+/* ===== SIDEBAR ACTIVE CHILD WHITE MASK READABILITY V4 — 2026-10-17 =====
+   Preserve the white active mask exactly as before, but keep the active
+   child label/icon dark and readable. Non-active children remain light on
+   the institutional blue sidebar. */
+html body [data-sidebar-surface="dark"]
+.sig-sidebar-subitem[data-sidebar-active="true"] {
+  background:#ffffff !important;
+  border-color:rgba(255,255,255,.92) !important;
+  color:#0b3553 !important;
+  -webkit-text-fill-color:#0b3553 !important;
+  font-weight:700 !important;
+  opacity:1 !important;
+  box-shadow:
+    0 10px 24px rgba(2,6,23,.20),
+    inset 0 1px 0 rgba(255,255,255,1) !important;
+}
+
+html body [data-sidebar-surface="dark"]
+.sig-sidebar-subitem[data-sidebar-active="true"] :is(span,strong,small,p) {
+  color:#0b3553 !important;
+  -webkit-text-fill-color:#0b3553 !important;
+  opacity:1 !important;
+}
+
+html body [data-sidebar-surface="dark"]
+.sig-sidebar-subitem[data-sidebar-active="true"] svg {
+  color:#0b4f71 !important;
+  stroke:#0b4f71 !important;
+  opacity:1 !important;
+}
+
+html body [data-sidebar-surface="dark"]
+.sig-sidebar-subitem[data-sidebar-active="true"] > span[aria-hidden="true"] {
+  background:#0b4f71 !important;
+}
+
+html body [data-sidebar-surface="dark"]
+.sig-sidebar-subitem[data-sidebar-active="false"] {
+  color:#e7f3fb !important;
+  -webkit-text-fill-color:#e7f3fb !important;
+  opacity:1 !important;
+}
+
+html body [data-sidebar-surface="dark"]
+.sig-sidebar-subitem[data-sidebar-active="false"] svg {
+  color:#d7ebf8 !important;
+  stroke:#d7ebf8 !important;
+  opacity:1 !important;
+}
+/* ===== END SIDEBAR ACTIVE CHILD WHITE MASK READABILITY V4 ===== */
+
+
+/* ===== PROCESS DOCUMENT WORKSPACE THEME CONTRACT V1 — 2026-10-18 =====
+   Scope: only the Documents tab inside an opened process.
+   Uses SIGAPRO's real data-layout-mode instead of Tailwind dark: so the
+   document workspace cannot flash or retain a white body in inverse themes. */
+
+html body [data-layout-mode="default"] .sig-main-shell
+.sig-process-detail-premium [data-process-document-workspace="true"] {
+  background: linear-gradient(180deg,#ffffff 0%,#f7fbff 100%) !important;
+  border-color: #d4e1ec !important;
+  box-shadow: 0 18px 48px rgba(15,23,42,.085) !important;
+}
+
+html body [data-layout-mode="default"] .sig-main-shell
+.sig-process-detail-premium [data-process-document-content="true"] {
+  background:
+    radial-gradient(circle at 6% 0%,rgba(14,165,233,.045),transparent 34%),
+    linear-gradient(180deg,#fbfdff 0%,#f5f9fd 100%) !important;
+  color: #0f172a !important;
+}
+
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+.sig-process-detail-premium [data-process-document-workspace="true"] {
+  background: linear-gradient(180deg,#0b1f31 0%,#071522 100%) !important;
+  border-color: #294a64 !important;
+  box-shadow:
+    0 20px 54px rgba(0,0,0,.34),
+    inset 0 1px 0 rgba(255,255,255,.035) !important;
+}
+
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+.sig-process-detail-premium [data-process-document-content="true"] {
+  background:
+    radial-gradient(circle at 8% 0%,rgba(14,165,233,.11),transparent 36%),
+    linear-gradient(180deg,#0a1b2a 0%,#081521 100%) !important;
+  color: #f8fbff !important;
+}
+
+/* Alertas do painel documental seguem o tema, sem faixas brancas/lavadas. */
+html body [data-layout-mode="default"] .sig-main-shell
+.sig-process-detail-premium [data-process-document-alert="pending"] {
+  background: linear-gradient(180deg,#fffaf0 0%,#fff4d6 100%) !important;
+  border-color: #f4d38a !important;
+  color: #7c4a03 !important;
+  -webkit-text-fill-color: #7c4a03 !important;
+  box-shadow: 0 8px 20px rgba(146,96,8,.07) !important;
+}
+html body [data-layout-mode="default"] .sig-main-shell
+.sig-process-detail-premium [data-process-document-alert="info"] {
+  background: linear-gradient(180deg,#f4fbff 0%,#e9f6fd 100%) !important;
+  border-color: #b9dff1 !important;
+  color: #075985 !important;
+  -webkit-text-fill-color: #075985 !important;
+}
+
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+.sig-process-detail-premium [data-process-document-alert="pending"] {
+  background: linear-gradient(180deg,#4a3309 0%,#332304 100%) !important;
+  border-color: #8f650f !important;
+  color: #fde9aa !important;
+  -webkit-text-fill-color: #fde9aa !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.035) !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+.sig-process-detail-premium [data-process-document-alert="info"] {
+  background: linear-gradient(180deg,#0b3650 0%,#08263a 100%) !important;
+  border-color: #17658c !important;
+  color: #d9f3ff !important;
+  -webkit-text-fill-color: #d9f3ff !important;
+}
+
+/* Estado vazio e tiras de revisão também obedecem ao workspace, não html.dark. */
+html body [data-layout-mode="default"] .sig-main-shell
+.sig-process-detail-premium [data-process-document-empty="true"],
+html body [data-layout-mode="default"] .sig-main-shell
+.sig-process-detail-premium [data-process-document-review-strip="true"] {
+  background: rgba(255,255,255,.90) !important;
+  border-color: #d7e2ec !important;
+  color: #0f172a !important;
+}
+html body [data-layout-mode="default"] .sig-main-shell
+.sig-process-detail-premium [data-process-document-empty="true"] :is(p,span,strong),
+html body [data-layout-mode="default"] .sig-main-shell
+.sig-process-detail-premium [data-process-document-review-strip="true"] :is(p,span,strong) {
+  color: #203147 !important;
+  -webkit-text-fill-color: #203147 !important;
+}
+html body [data-layout-mode="default"] .sig-main-shell
+.sig-process-detail-premium [data-process-document-empty="true"] :is(.text-slate-500,.text-slate-400),
+html body [data-layout-mode="default"] .sig-main-shell
+.sig-process-detail-premium [data-process-document-review-strip="true"] :is(.text-slate-500,.text-slate-400) {
+  color: #607286 !important;
+  -webkit-text-fill-color: #607286 !important;
+}
+
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+.sig-process-detail-premium [data-process-document-empty="true"],
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+.sig-process-detail-premium [data-process-document-review-strip="true"] {
+  background: linear-gradient(180deg,#10283e 0%,#0b1d2e 100%) !important;
+  border-color: #31516d !important;
+  color: #f8fbff !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.035) !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+.sig-process-detail-premium [data-process-document-empty="true"] :is(p,span,strong),
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+.sig-process-detail-premium [data-process-document-review-strip="true"] :is(p,span,strong) {
+  color: #eef7ff !important;
+  -webkit-text-fill-color: #eef7ff !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+.sig-process-detail-premium [data-process-document-empty="true"] :is(.text-slate-500,.text-slate-400),
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+.sig-process-detail-premium [data-process-document-review-strip="true"] :is(.text-slate-500,.text-slate-400) {
+  color: #bfd0df !important;
+  -webkit-text-fill-color: #bfd0df !important;
+}
+
+/* Pendência/upload e apontamentos: remove light islands in inverse-main. */
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+.sig-process-detail-premium [data-pending-document-card="true"] {
+  background: linear-gradient(180deg,#473109 0%,#2f2105 100%) !important;
+  border-color: #8b6415 !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+.sig-process-detail-premium [data-pending-document-card="true"] :is(p,span,strong,label) {
+  color: #f9e6aa !important;
+  -webkit-text-fill-color: #f9e6aa !important;
+}
+
+/* Pills internos de documento ficam sofisticados e coerentes no tema escuro. */
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+.sig-process-detail-premium [data-process-document-card="true"] :is(
+  .bg-white\/80,.bg-white\/70
+) {
+  background: rgba(8,24,38,.72) !important;
+  border-color: #35536d !important;
+  color: #dce9f5 !important;
+  -webkit-text-fill-color: #dce9f5 !important;
+}
+
+/* ===== END PROCESS DOCUMENT WORKSPACE THEME CONTRACT V1 ===== */
+
+
+/* ===== PROTOCOL PRIMARY ACTION CONTRAST LOCK V1 =====
+   Visual-only. Keeps protocol/rascunho primary actions dark with light text
+   in every workspace theme. No workflow/status/database behavior is changed. */
+html body .sig-main-shell [data-protocol-primary-action="true"],
+html body .sig-main-shell .sig-protocol-primary-action {
+  background: linear-gradient(135deg,#071827 0%,#0b2f4a 54%,#0b5f86 100%) !important;
+  border: 1px solid rgba(56,189,248,.22) !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  text-shadow: 0 1px 0 rgba(0,0,0,.16);
+  box-shadow:
+    0 10px 24px rgba(15,23,42,.18),
+    inset 0 1px 0 rgba(255,255,255,.08) !important;
+  opacity: 1 !important;
+}
+
+html body .sig-main-shell [data-protocol-primary-action="true"] :is(span,strong,p,svg),
+html body .sig-main-shell .sig-protocol-primary-action :is(span,strong,p,svg) {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  stroke: currentColor !important;
+  opacity: 1 !important;
+}
+
+html body .sig-main-shell [data-protocol-primary-action="true"]:hover:not(:disabled),
+html body .sig-main-shell .sig-protocol-primary-action:hover:not(:disabled) {
+  background: linear-gradient(135deg,#092039 0%,#0d3b5c 54%,#0d719e 100%) !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+html body .sig-main-shell [data-protocol-primary-action="true"]:disabled,
+html body .sig-main-shell .sig-protocol-primary-action:disabled {
+  background: linear-gradient(135deg,#15283a 0%,#1b3b55 100%) !important;
+  color: rgba(255,255,255,.82) !important;
+  -webkit-text-fill-color: rgba(255,255,255,.82) !important;
+  opacity: .72 !important;
+  cursor: not-allowed;
+}
+/* ===== END PROTOCOL PRIMARY ACTION CONTRAST LOCK V1 ===== */
+
+
+/* ===== DISPATCH ORGANOGRAM SELECTED CARD V11 =====
+   Final visual authority for the selected municipal destination.
+   Blue surface always uses white typography in both themes. */
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-dispatch-organogram="true"]
+[data-organogram-destination="true"][data-selected-organogram-card="true"] {
+  background:
+    linear-gradient(135deg,#0a2238 0%,#0b3f5f 54%,#0b6385 100%) !important;
+  border-color:rgba(79,183,218,.72) !important;
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.10),
+    0 0 0 1px rgba(56,189,248,.08),
+    0 10px 24px rgba(7,46,70,.22) !important;
+}
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-dispatch-organogram="true"]
+[data-organogram-destination="true"][data-selected-organogram-card="true"]
+:is([data-organogram-destination-title="true"],[data-organogram-destination-path="true"],span,strong,small) {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  opacity:1 !important;
+}
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-dispatch-organogram="true"]
+[data-organogram-destination="true"][data-selected-organogram-card="true"]
+[data-organogram-code="true"] {
+  background:linear-gradient(135deg,rgba(3,33,52,.78) 0%,rgba(5,58,83,.72) 100%) !important;
+  border-color:rgba(255,255,255,.24) !important;
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 4px 10px rgba(2,25,39,.16) !important;
+}
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-dispatch-organogram="true"]
+[data-organogram-destination="true"][data-selected-organogram-card="true"]
+:is(svg,svg *) {
+  color:#ffffff !important;
+  stroke:#ffffff !important;
+}
+/* ===== END DISPATCH ORGANOGRAM SELECTED CARD V11 ===== */
+
+
+/* ===== ORGANOGRAM BLUE CODE CONTRAST GUARD V1 ===== */
+html body .sig-main-shell :is(
+  [data-organogram-code="true"],
+  [data-organogram-level-badge="true"],
+  .sig-organogram-blue-code,
+  .sig-dark-chip
+) {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  opacity:1 !important;
+}
+
+html body .sig-main-shell :is(
+  [data-organogram-code="true"],
+  [data-organogram-level-badge="true"],
+  .sig-organogram-blue-code,
+  .sig-dark-chip
+) :is(span,strong,small,p) {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  opacity:1 !important;
+}
+
+html body .sig-main-shell :is(
+  [data-organogram-code="true"],
+  [data-organogram-level-badge="true"],
+  .sig-organogram-blue-code,
+  .sig-dark-chip
+) svg {
+  color:#ffffff !important;
+  stroke:#ffffff !important;
+  opacity:1 !important;
+}
+/* ===== END ORGANOGRAM BLUE CODE CONTRAST GUARD V1 ===== */
+
+
+/* ===== ORGANOGRAM ACRONYM ABSOLUTE CONTRAST GUARD V2 =====
+   Final visual-only guard. Blue acronym chips always use white copy in every theme. */
+html body #root .sig-organogram-code-badge,
+html body #root [data-organogram-code="true"],
+html body #root [data-organogram-level-badge="true"] {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  text-decoration-color: #ffffff !important;
+  opacity: 1 !important;
+  forced-color-adjust: none !important;
+}
+
+html body #root .sig-organogram-code-badge *,
+html body #root [data-organogram-code="true"] *,
+html body #root [data-organogram-level-badge="true"] * {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  opacity: 1 !important;
+}
+
+html body #root .sig-organogram-code-badge {
+  background: linear-gradient(135deg,#075985 0%,#0f78b8 100%) !important;
+  border-color: rgba(125,211,252,.62) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.10),
+    0 5px 14px rgba(3,55,84,.22) !important;
+  text-shadow: 0 1px 1px rgba(0,0,0,.16) !important;
+}
+/* ===== END ORGANOGRAM ACRONYM ABSOLUTE CONTRAST GUARD V2 ===== */
+
+
+/* ===== ORGANOGRAM BLUE ACRONYM ROOT FIX V3 — 2026-10-18 =====
+   The acronym glyph itself owns the foreground. This prevents generic card/theme
+   typography rules from repainting ADM/PROT/URB/ANU/FISC/FIN/TRIB/IPTU dark. */
+html body #root [data-organogram-code-surface="blue"] {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  forced-color-adjust: none !important;
+  isolation: isolate;
+}
+
+html body #root [data-organogram-code-surface="blue"] [data-organogram-code-text="true"] {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  caret-color: #ffffff !important;
+  text-decoration-color: #ffffff !important;
+  opacity: 1 !important;
+  font-weight: 800 !important;
+  text-shadow: none !important;
+  -webkit-font-smoothing: antialiased !important;
+  -moz-osx-font-smoothing: grayscale !important;
+  text-rendering: optimizeLegibility !important;
+  mix-blend-mode: normal !important;
+  filter: none !important;
+}
+
+html body #root [data-organogram-code-surface="blue"] [data-organogram-code-text="true"]::selection {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  background: rgba(255,255,255,.18) !important;
+}
+/* ===== END ORGANOGRAM BLUE ACRONYM ROOT FIX V3 ===== */
+
+
+/* ===== ORGANOGRAM SVG GLYPH WHITE LOCK V4 — 2026-10-18 =====
+   Acronyms on institutional blue badges own an SVG fill rather than inherited text color.
+   This bypasses global typography/theme repainting and keeps ADM/PROT/URB/ANU/FISC/FIN/TRIB/IPTU white. */
+html body #root [data-organogram-code-surface="blue"] [data-organogram-code-glyph="true"] text,
+html body #root [data-organogram-code="true"] [data-organogram-code-glyph="true"] text,
+html body #root [data-organogram-level-badge="true"] [data-organogram-code-glyph="true"] text {
+  fill: #ffffff !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  stroke: rgba(0,0,0,.16) !important;
+  paint-order: stroke !important;
+  opacity: 1 !important;
+  filter: none !important;
+  mix-blend-mode: normal !important;
+}
+html body #root [data-organogram-code-glyph="true"] {
+  color: #ffffff !important;
+  overflow: visible !important;
+  opacity: 1 !important;
+}
+/* ===== END ORGANOGRAM SVG GLYPH WHITE LOCK V4 ===== */
+
+/* ===== DISPATCH ORGANOGRAM CONTRAST AUTHORITY V12 — 2026-10-18 =====
+   Final visual authority for the dispatch hierarchy.
+   Keeps acronym typography unchanged, forces every acronym to white, and makes
+   all copy/icons inside the selected blue mask light and crisp in every theme. */
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-dispatch-organogram="true"]
+[data-organogram-code="true"]
+[data-organogram-code-text="true"] {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  text-decoration-color:#ffffff !important;
+  text-shadow:none !important;
+  opacity:1 !important;
+  mix-blend-mode:normal !important;
+  filter:none !important;
+}
+
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-dispatch-organogram="true"]
+[data-organogram-code="true"] {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+}
+
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-dispatch-organogram="true"]
+[data-organogram-code="true"] :is(span,strong,small) {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  opacity:1 !important;
+  text-shadow:none !important;
+}
+
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-dispatch-organogram="true"]
+[data-organogram-destination="true"][data-selected-organogram-card="true"] {
+  color:#f8fbff !important;
+  -webkit-text-fill-color:#f8fbff !important;
+}
+
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-dispatch-organogram="true"]
+[data-organogram-destination="true"][data-selected-organogram-card="true"]
+:is(
+  [data-organogram-destination-title="true"],
+  [data-organogram-destination-path="true"],
+  [data-organogram-code-text="true"],
+  span,
+  strong,
+  small,
+  p,
+  label
+) {
+  color:#f8fbff !important;
+  -webkit-text-fill-color:#f8fbff !important;
+  text-decoration-color:#f8fbff !important;
+  opacity:1 !important;
+  text-shadow:none !important;
+  filter:none !important;
+  mix-blend-mode:normal !important;
+}
+
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-dispatch-organogram="true"]
+[data-organogram-destination="true"][data-selected-organogram-card="true"]
+[data-organogram-destination-path="true"] {
+  color:#dff4ff !important;
+  -webkit-text-fill-color:#dff4ff !important;
+  opacity:1 !important;
+}
+
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-dispatch-organogram="true"]
+[data-organogram-destination="true"][data-selected-organogram-card="true"]
+:is(svg,svg *) {
+  color:#f2fbff !important;
+  stroke:#f2fbff !important;
+  opacity:1 !important;
+  filter:none !important;
+}
+
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-dispatch-organogram="true"]
+[data-organogram-destination="true"][data-selected-organogram-card="true"]
+[data-organogram-code="true"] {
+  background:linear-gradient(135deg,#063451 0%,#07577a 100%) !important;
+  border-color:rgba(186,230,253,.40) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.10),
+    0 4px 12px rgba(2,27,42,.18) !important;
+}
+
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-dispatch-organogram="true"]
+[data-organogram-destination="true"][data-selected-organogram-card="true"]
+[data-organogram-code="true"] * {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  opacity:1 !important;
+}
+/* ===== END DISPATCH ORGANOGRAM CONTRAST AUTHORITY V12 ===== */
+
+/* ===== DISPATCH ORGANOGRAM PREMIUM CONTRAST V13 — 2026-10-18 =====
+   Scope: ONLY the dispatch organogram. No typography, spacing, hierarchy,
+   global organogram, workflow or data behavior changes. */
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-dispatch-organogram="true"] .sig-dispatch-code-badge {
+  background:linear-gradient(135deg,#075d86 0%,#0a7fa8 100%) !important;
+  border-color:rgba(125,211,252,.72) !important;
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.12),
+    0 4px 12px rgba(3,73,103,.16) !important;
+}
+
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-dispatch-organogram="true"] .sig-dispatch-code-text {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  text-decoration-color:#ffffff !important;
+  text-shadow:none !important;
+  opacity:1 !important;
+  filter:none !important;
+  mix-blend-mode:normal !important;
+}
+
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-dispatch-organogram="true"]
+.sig-dispatch-destination-card[data-selected-organogram-card="true"] {
+  background:linear-gradient(135deg,#075c86 0%,#087ba6 52%,#0893bc 100%) !important;
+  border-color:#55c7e8 !important;
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.14),
+    0 0 0 1px rgba(125,211,252,.12),
+    0 10px 24px rgba(7,79,111,.22) !important;
+}
+
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-dispatch-organogram="true"]
+.sig-dispatch-destination-card[data-selected-organogram-card="true"]
+.sig-dispatch-title {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  opacity:1 !important;
+  text-shadow:none !important;
+}
+
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-dispatch-organogram="true"]
+.sig-dispatch-destination-card[data-selected-organogram-card="true"]
+.sig-dispatch-path {
+  color:#e6f8ff !important;
+  -webkit-text-fill-color:#e6f8ff !important;
+  opacity:1 !important;
+  text-shadow:none !important;
+}
+
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-dispatch-organogram="true"]
+.sig-dispatch-destination-card[data-selected-organogram-card="true"]
+.sig-dispatch-code-badge {
+  background:linear-gradient(135deg,#063d5b 0%,#07587a 100%) !important;
+  border-color:rgba(224,247,255,.42) !important;
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+}
+
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-dispatch-organogram="true"]
+.sig-dispatch-destination-card[data-selected-organogram-card="true"]
+.sig-dispatch-code-text {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  opacity:1 !important;
+}
+
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-dispatch-organogram="true"]
+.sig-dispatch-destination-card[data-selected-organogram-card="true"]
+.sig-dispatch-selected-icon {
+  background:rgba(255,255,255,.16) !important;
+  border-color:rgba(255,255,255,.34) !important;
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+}
+
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-dispatch-organogram="true"]
+.sig-dispatch-destination-card[data-selected-organogram-card="true"]
+.sig-dispatch-selected-icon :is(svg,svg *) {
+  color:#ffffff !important;
+  stroke:#ffffff !important;
+  opacity:1 !important;
+}
+
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-dispatch-organogram="true"]
+.sig-dispatch-destination-card[data-selected-organogram-card="true"]
+.sig-dispatch-selected-label {
+  background:rgba(3,55,79,.32) !important;
+  border-color:rgba(255,255,255,.24) !important;
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  opacity:1 !important;
+}
+/* ===== END DISPATCH ORGANOGRAM PREMIUM CONTRAST V13 ===== */
+
+/* ===== DISPATCH ORGANOGRAM SEMANTIC CONTRAST V14 — 2026-10-18 =====
+   Dispatch-only contract: light cards use dark copy; the selected blue card
+   is declared a dark contrast surface and therefore uses light copy/icons. */
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-dispatch-organogram="true"]
+.sig-dispatch-destination-card[data-selected="false"] {
+  background:#ffffff !important;
+  border-color:#d6e2ec !important;
+  color:#0f172a !important;
+  -webkit-text-fill-color:#0f172a !important;
+}
+
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-dispatch-organogram="true"]
+.sig-dispatch-destination-card[data-selected="false"] .sig-dispatch-title {
+  color:#0f172a !important;
+  -webkit-text-fill-color:#0f172a !important;
+}
+
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-dispatch-organogram="true"]
+.sig-dispatch-destination-card[data-selected="false"] .sig-dispatch-path {
+  color:#64748b !important;
+  -webkit-text-fill-color:#64748b !important;
+}
+
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-dispatch-organogram="true"]
+.sig-dispatch-destination-card[data-selected="false"] > div > svg {
+  color:#334155 !important;
+  stroke:#334155 !important;
+}
+
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-dispatch-organogram="true"]
+.sig-dispatch-destination-card[data-selected="true"][data-contrast-surface="dark"] {
+  background:linear-gradient(135deg,#075c86 0%,#087ba6 52%,#0893bc 100%) !important;
+  border-color:#55c7e8 !important;
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+}
+
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-dispatch-organogram="true"]
+.sig-dispatch-destination-card[data-selected="true"][data-contrast-surface="dark"]
+:is(.sig-dispatch-title,.sig-dispatch-code-text,.sig-dispatch-selected-label) {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  opacity:1 !important;
+}
+
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-dispatch-organogram="true"]
+.sig-dispatch-destination-card[data-selected="true"][data-contrast-surface="dark"]
+.sig-dispatch-path {
+  color:#e7f7ff !important;
+  -webkit-text-fill-color:#e7f7ff !important;
+  opacity:1 !important;
+}
+
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-dispatch-organogram="true"]
+.sig-dispatch-destination-card[data-selected="true"][data-contrast-surface="dark"]
+:is(.sig-dispatch-selected-icon,.sig-dispatch-selected-icon svg,.sig-dispatch-selected-icon svg *) {
+  color:#ffffff !important;
+  stroke:#ffffff !important;
+  opacity:1 !important;
+}
+
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-dispatch-organogram="true"] .sig-dispatch-code-badge[data-contrast-surface="dark"] {
+  background:linear-gradient(135deg,#075985 0%,#0b7aa4 100%) !important;
+  border-color:rgba(125,211,252,.68) !important;
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+}
+
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-dispatch-organogram="true"] .sig-dispatch-code-badge[data-contrast-surface="dark"]
+.sig-dispatch-code-text {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  opacity:1 !important;
+  text-shadow:none !important;
+}
+/* ===== END DISPATCH ORGANOGRAM SEMANTIC CONTRAST V14 ===== */
+
+
+
+/* ===== HABITE-SE FINAL STATUS CONTRAST LOCK — 2026-10-18 ===== */
+html body .sig-main-shell [data-habite-se-status-badge="true"],
+html body .sig-main-shell [data-habite-se-status-badge="true"] * {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  opacity: 1 !important;
+  filter: none !important;
+  mix-blend-mode: normal !important;
+}
+
+html body .sig-main-shell [data-habite-se-status-badge="true"][data-status="rascunho"] {
+  background: #075985 !important;
+  border-color: rgba(224, 242, 254, 0.72) !important;
+}
+
+html body .sig-main-shell [data-habite-se-status-badge="true"][data-status="aguardando_diretor"] {
+  background: #6d28d9 !important;
+  border-color: rgba(237, 233, 254, 0.72) !important;
+}
+
+html body .sig-main-shell [data-habite-se-status-badge="true"][data-status="emitido"] {
+  background: #047857 !important;
+  border-color: rgba(209, 250, 229, 0.72) !important;
+}
+/* ===== END HABITE-SE FINAL STATUS CONTRAST LOCK ===== */
+
+
+/* ===== HABITE-SE INSPECTION LEGEND CONTRAST LOCK — 2026-10-18 ===== */
+html body #root .sig-main-shell [data-habite-se-inspection-legend-chip="true"],
+html body #root .sig-main-shell [data-habite-se-inspection-legend-chip="true"] * {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  opacity: 1 !important;
+  text-shadow: none !important;
+  filter: none !important;
+  mix-blend-mode: normal !important;
+}
+
+html body #root .sig-main-shell
+[data-habite-se-inspection-legend-chip="true"][data-status="conforme"] {
+  background: #059669 !important;
+  border-color: #047857 !important;
+}
+
+html body #root .sig-main-shell
+[data-habite-se-inspection-legend-chip="true"][data-status="pendencia"] {
+  background: #d97706 !important;
+  border-color: #b45309 !important;
+}
+
+html body #root .sig-main-shell
+[data-habite-se-inspection-legend-chip="true"][data-status="nao_aplica"] {
+  background: #475569 !important;
+  border-color: #334155 !important;
+}
+/* ===== END HABITE-SE INSPECTION LEGEND CONTRAST LOCK ===== */

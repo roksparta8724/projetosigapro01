@@ -10,6 +10,11 @@ describe("construction permit workflow", () => {
   const pdf = read("src/lib/constructionPermitPdf.ts");
   const api = read("api/e-sign-artifact.ts");
   const detail = read("src/pages/saas/ProcessDetailPage.tsx");
+  const app = read("src/App.tsx");
+  const verificationPage = read("src/pages/saas/PublicSignatureVerificationPage.tsx");
+  const verificationMigration = read(
+    "neon/migrations/20261017_public_artifact_signature_verification.sql",
+  );
   const migration = read(
     "neon/migrations/20261016_construction_permit_workflow.sql",
   );
@@ -29,13 +34,13 @@ describe("construction permit workflow", () => {
 
   it("keeps the two signing paths visible while the form scrolls", () => {
     expect(panel).toContain("sticky bottom-0");
-    expect(panel).toContain("Enviar ao Diretor para assinar eletronicamente");
-    expect(panel).toContain("Gerar PDF para assinatura à caneta");
+    expect(panel).toContain("Solicitar assinatura eletrônica do Diretor");
+    expect(panel).toContain("Gerar PDF do Alvará para assinatura à caneta");
   });
 
   it("offers the two director signature paths before PDF completion", () => {
-    expect(panel).toContain("Enviar ao Diretor para assinar eletronicamente");
-    expect(panel).toContain("Gerar PDF para assinatura à caneta");
+    expect(panel).toContain("Solicitar assinatura eletrônica do Diretor");
+    expect(panel).toContain("Gerar PDF do Alvará para assinatura à caneta");
     expect(panel).toContain("requestOfficialPermitDirectorSignature");
     expect(panel).toContain("markOfficialPermitForManualSignature");
   });
@@ -46,11 +51,38 @@ describe("construction permit workflow", () => {
     expect(api).toContain("get_construction_permit_v1");
   });
 
+  it("uses password reauthentication and exposes public QR verification after the official signature", () => {
+    expect(panel).toContain("signProcessArtifactWithPassword");
+    expect(panel).toContain('artifactType: "construction_permit"');
+    expect(panel).toContain('artifactKey: "construction-permit"');
+    expect(panel).toContain('type="password"');
+    expect(panel).toContain("SignatureVerificationQr");
+    expect(panel).toContain("directorVerificationUrl");
+    expect(panel).toContain("Abrir verificação pública");
+    expect(pdf).toContain("createQrCodeDataUrl");
+    expect(pdf).toContain("buildPublicSignatureVerificationUrl");
+    expect(pdf).toContain("QR DA ASSINATURA");
+    expect(app).toContain('path="/verificar-assinatura"');
+    expect(verificationPage).toContain("verify_process_artifact_signature_public_v1");
+    expect(verificationMigration).toContain("security definer");
+    expect(verificationMigration).toContain("'artifact_hash'");
+    expect(verificationMigration).toContain("'signers'");
+    expect(verificationMigration).not.toContain("'email'");
+    expect(verificationMigration).not.toContain("'ip_address'");
+  });
+
   it("keeps the secretary optional and only after the director", () => {
     expect(panel).toContain("Assinar também como Secretário");
     expect(api).toContain("PERMIT_DIRECTOR_SIGNATURE_REQUIRED");
     expect(pdf).toContain("const hasSecretary = secretaryOfficial;");
     expect(pdf).not.toContain("secretaryOfficial || showManual");
+  });
+
+  it("opens the native Alvara PDF without a visible preparation screen", () => {
+    expect(pdf).toContain("prepareReservedPdfWindow");
+    expect(pdf).not.toContain("Preparando o PDF oficial do Alvará...");
+    expect(pdf).not.toContain("sigapro-pdf-progress");
+    expect(pdf).toContain("opened.location.replace(url)");
   });
 
   it("generates a premium manual-signature version without printing workflow instructions", () => {

@@ -74,7 +74,7 @@ describe("layout integrity regression", () => {
     expect(detail).toContain("content-start auto-rows-max");
     expect(detail).toContain('activeTab !== "resumo"');
     expect(detail).toContain('const useSplitDetailLayout = false;');
-    expect(detail).toContain('["imovel", "documentos", "analise", "financeiro", "historico"].includes(activeTab)');
+    expect(detail).toContain('["imovel", "documentos", "analise", "financeiro", "alvara", "historico"].includes(activeTab)');
     expect(detail).not.toContain(
       "min-[1560px]:grid-cols-[minmax(0,1.08fr)_minmax(480px,0.92fr)]",
     );
@@ -142,6 +142,6 @@ describe("layout integrity regression", () => {
     expect(protocols).not.toContain("line-clamp-3 break-all");
     expect(protocols).toContain("overflow-x-auto whitespace-nowrap");
     expect(desk).not.toMatch(/\sxl:min-w-\[560px\]/);
-    expect(desk).toContain("2xl:min-w-[560px]");
+    expect(desk).not.toContain("2xl:min-w-[560px]");
   });
 });

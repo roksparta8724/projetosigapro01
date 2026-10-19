@@ -3,15 +3,26 @@ import {
   Building2,
   CheckCircle2,
   ClipboardCheck,
+  Eye,
   FileCheck2,
   Landmark,
+  Printer,
+  ReceiptText,
   Route,
   ShieldCheck,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { type ProcessRecord, formatOfficialProcessNumber } from "@/lib/platform";
+import { HabiteSeInspectionPanel } from "@/components/platform/HabiteSeInspectionPanel";
+import { HabiteSePermitPanel } from "@/components/platform/HabiteSePermitPanel";
+import {
+  type ProcessRecord,
+  type SessionUser,
+  formatCurrency,
+  formatOfficialProcessNumber,
+} from "@/lib/platform";
 
 function extractNoteValue(notes: string | undefined, label: string) {
   const prefix = label.toLocaleLowerCase("pt-BR") + ":";
@@ -26,9 +37,37 @@ function extractNoteValue(notes: string | undefined, label: string) {
 export function OccupancyPermitProcessPanel({
   process,
   externalView = false,
+  session,
+  dataReady = true,
+  municipalityName,
+  municipalityLogoUrl,
+  municipalityAddress,
+  municipalityPhone,
+  municipalityEmail,
+  secretariat,
+  directorate,
+  onProcessRefresh,
+  onCompleteProcess,
+  onReopenProcess,
+  onViewHabiteSeGuide,
+  onPrintHabiteSeGuide,
 }: {
   process: ProcessRecord;
   externalView?: boolean;
+  session: SessionUser;
+  dataReady?: boolean;
+  municipalityName?: string | null;
+  municipalityLogoUrl?: string | null;
+  municipalityAddress?: string | null;
+  municipalityPhone?: string | null;
+  municipalityEmail?: string | null;
+  secretariat?: string | null;
+  directorate?: string | null;
+  onProcessRefresh?: () => Promise<void> | void;
+  onCompleteProcess?: () => Promise<void> | void;
+  onReopenProcess?: (reason: string) => Promise<void> | void;
+  onViewHabiteSeGuide?: () => void;
+  onPrintHabiteSeGuide?: () => void;
 }) {
   const required = process.documents.filter((item) => item.required);
   const uploaded = required.filter((item) => item.uploaded);
@@ -41,6 +80,10 @@ export function OccupancyPermitProcessPanel({
   const protocolGuide = process.payment.guides?.find(
     (guide) => guide.kind === "protocolo",
   );
+  const habiteSeGuide = process.payment.guides?.find(
+    (guide) => guide.kind === "habite_se",
+  );
+  const habiteSePaid = habiteSeGuide?.status === "compensada";
   const protocolPaid =
     protocolGuide?.status === "compensada" ||
     process.payment.status === "compensada";
@@ -82,6 +125,19 @@ export function OccupancyPermitProcessPanel({
   const analysisStage =
     /analise|urban|obra|engenharia/.test(normalizedFolder) ||
     Boolean(process.analysis?.startedAt || process.analysis?.assignedTo);
+  const financeStage =
+    /financ|tesour|arrecad/.test(normalizedFolder) ||
+    Boolean(habiteSeGuide) ||
+    process.dispatches.some(
+      (dispatch) =>
+        /guia.*habite|habite.*guia/i.test(dispatch.subject) &&
+        ["aguardando", "respondido", "concluido"].includes(dispatch.status),
+    );
+  const permitStage =
+    habiteSePaid ||
+    /alvara.*habite|emissao.*habite|elaboracao.*habite/.test(normalizedFolder);
+  const directorStage =
+    /diretoria|assinatura.*diretor/.test(normalizedFolder) || finalStatus;
 
   const stages = [
     {
@@ -112,15 +168,49 @@ export function OccupancyPermitProcessPanel({
       label: "Vistoria / conferência",
       detail: inspectionStage
         ? "Etapa registrada no fluxo atual"
-        : "Etapa prevista após a análise, conforme procedimento municipal",
-      done: inspectionStage && finalStatus,
-      current: inspectionStage && !finalStatus,
+        : financeStage
+          ? "Vistoria concluída e encaminhada"
+          : "Etapa prevista após a análise, conforme procedimento municipal",
+      done: financeStage || permitStage,
+      current: inspectionStage && !financeStage,
     },
     {
-      label: "Decisão e emissão",
+      label: "Financeiro",
+      detail: habiteSeGuide
+        ? habiteSeGuide.status === "compensada"
+          ? `Guia ${habiteSeGuide.code} compensada`
+          : `Guia ${habiteSeGuide.code} aguardando pagamento`
+        : financeStage
+          ? "Aguardando emissão da Guia de Habite-se"
+          : "Etapa posterior à vistoria / conferência",
+      done: habiteSePaid || finalStatus,
+      current: financeStage && !habiteSePaid && !finalStatus,
+    },
+    {
+      label: "Alvará de Habite-se",
       detail: finalStatus
-        ? "Decisão final registrada"
-        : "Aguardando etapas anteriores",
+        ? "Alvará emitido"
+        : habiteSePaid
+          ? "Pagamento confirmado — Analista elabora e encaminha"
+          : "Aguardando pagamento",
+      done: directorStage || finalStatus,
+      current: permitStage && !directorStage && !finalStatus,
+    },
+    {
+      label: "Assinatura da Diretoria",
+      detail: finalStatus
+        ? "Assinatura final concluída"
+        : directorStage
+          ? "Aguardando assinatura final"
+          : "Após emissão do Alvará pela Diretoria",
+      done: finalStatus,
+      current: directorStage && !finalStatus,
+    },
+    {
+      label: "Concluído",
+      detail: finalStatus
+        ? "Alvará emitido, conclusão registrada e processo arquivado"
+        : "Após a assinatura da Diretoria, conclua administrativamente o processo",
       done: finalStatus,
       current: false,
     },
@@ -224,7 +314,7 @@ export function OccupancyPermitProcessPanel({
           </p>
         </CardHeader>
         <CardContent className="p-5">
-          <div className="grid gap-3 xl:grid-cols-5">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-8">
             {stages.map((stage, index) => (
               <div
                 key={stage.label}
@@ -255,15 +345,107 @@ export function OccupancyPermitProcessPanel({
             ))}
           </div>
 
-          {!externalView ? (
-            <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50/70 p-4 text-sm leading-6 text-amber-950 dark:border-amber-500/30 dark:bg-amber-950/25 dark:text-amber-100">
-              A vistoria e a decisão só aparecem como concluídas quando houver
-              registro real no processo. O sistema não avança essas etapas
-              artificialmente.
+          {!externalView && inspectionStage && !financeStage ? (
+            <div
+              data-habite-se-inspection-gate="true"
+              className="mt-4 rounded-2xl border border-sky-200 bg-sky-50/80 p-4 dark:border-sky-500/30 dark:bg-sky-950/25"
+            >
+              <div className="flex items-start gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-700 text-white">
+                  <ClipboardCheck className="h-5 w-5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-bold text-slate-950 dark:text-white">
+                    Vistoria / conferência em andamento
+                  </p>
+                  <p className="mt-1 text-xs leading-5 text-slate-600 dark:text-slate-300">
+                    A conclusão do Termo de Vistoria libera o encaminhamento formal do processo para a etapa financeira.
+                  </p>
+                </div>
+              </div>
             </div>
           ) : null}
         </CardContent>
       </Card>
+
+      {!externalView && habiteSeGuide ? (
+        <Card
+          data-habite-se-guide-analyst="true"
+          className="overflow-hidden rounded-[24px] border-sky-200 bg-white shadow-sm dark:border-sky-500/30 dark:bg-slate-900"
+        >
+          <CardHeader className="border-b border-sky-100 bg-sky-50/70 dark:border-sky-500/20 dark:bg-sky-950/25">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <div className="flex items-center gap-2">
+                  <ReceiptText className="h-5 w-5 text-sky-700 dark:text-sky-300" />
+                  <CardTitle className="text-slate-950 dark:text-white">
+                    Guia de Habite-se vinculada ao processo
+                  </CardTitle>
+                </div>
+                <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
+                  O Analista mantém acesso à guia emitida pelo Financeiro para conferir valor, situação e documento durante todo o fluxo.
+                </p>
+              </div>
+              <Badge
+                variant="outline"
+                className={
+                  habiteSePaid
+                    ? "w-fit border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-500/40 dark:bg-emerald-950/30 dark:text-emerald-200"
+                    : "w-fit border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-500/40 dark:bg-amber-950/30 dark:text-amber-200"
+                }
+              >
+                {habiteSePaid ? "Pagamento confirmado" : "Aguardando pagamento"}
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent className="p-5">
+            <div className="grid gap-3 sm:grid-cols-3">
+              <InfoBox label="Guia" value={habiteSeGuide.code} />
+              <InfoBox label="Valor" value={formatCurrency(habiteSeGuide.amount)} />
+              <InfoBox label="Vencimento" value={habiteSeGuide.dueDate || "Não informado"} />
+            </div>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {onViewHabiteSeGuide ? (
+                <Button type="button" variant="outline" className="rounded-full" onClick={onViewHabiteSeGuide}>
+                  <Eye className="mr-2 h-4 w-4" />
+                  Visualizar guia
+                </Button>
+              ) : null}
+              {onPrintHabiteSeGuide ? (
+                <Button type="button" variant="outline" className="rounded-full" onClick={onPrintHabiteSeGuide}>
+                  <Printer className="mr-2 h-4 w-4" />
+                  Imprimir
+                </Button>
+              ) : null}
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      <HabiteSeInspectionPanel
+        process={process}
+        session={session}
+        externalView={externalView}
+        dataReady={dataReady}
+        onProcessRefresh={onProcessRefresh}
+        onCompleteProcess={onCompleteProcess}
+        onReopenProcess={onReopenProcess}
+      />
+
+      <HabiteSePermitPanel
+        process={process}
+        session={session}
+        externalView={externalView}
+        municipalityName={municipalityName}
+        municipalityLogoUrl={municipalityLogoUrl}
+        municipalityAddress={municipalityAddress}
+        municipalityPhone={municipalityPhone}
+        municipalityEmail={municipalityEmail}
+        secretariat={secretariat}
+        directorate={directorate}
+        onProcessRefresh={onProcessRefresh}
+        onCompleteProcess={onCompleteProcess}
+      />
 
       <Card className="rounded-[24px] border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
         <CardContent className="grid gap-4 p-5 md:grid-cols-3">
@@ -285,6 +467,27 @@ export function OccupancyPermitProcessPanel({
           />
         </CardContent>
       </Card>
+
+      {!externalView ? (
+        <div
+          data-habite-se-governance-note="true"
+          className="flex flex-col gap-3 rounded-[20px] border border-slate-200 bg-slate-50/70 px-5 py-4 text-slate-600 shadow-[0_8px_24px_rgba(15,23,42,0.04)] dark:border-slate-700 dark:bg-slate-950/35 dark:text-slate-300 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <div className="flex items-start gap-3">
+            <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
+              <ShieldCheck className="h-4 w-4" />
+            </div>
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.12em] text-slate-700 dark:text-slate-200">
+                Integridade processual
+              </p>
+              <p className="mt-1 max-w-4xl text-xs leading-5">
+                As movimentações deste Habite-se são registradas por etapa, responsável e data, preservando a rastreabilidade administrativa do processo.
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

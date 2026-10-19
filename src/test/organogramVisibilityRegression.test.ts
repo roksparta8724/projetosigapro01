@@ -5,13 +5,16 @@ import { describe, expect, it } from "vitest";
 const read = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
 
 describe("municipal organogram visibility", () => {
-  it("keeps the official organogram visible on every municipal department page", () => {
+  it("keeps the official organogram reachable on every municipal page without duplicating the full strip", () => {
     const portal = read("src/components/platform/PortalFrame.tsx");
     const bar = read("src/components/platform/MunicipalOrganogramBar.tsx");
 
-    expect(portal).toContain("<MunicipalOrganogramBar");
-    expect(portal).toContain('title="Organograma do departamento"');
-    expect(portal).toContain("departmentOrganogramHint");
+    expect(portal).toContain("showMunicipalOrganogramShortcut");
+    expect(portal).toContain('navigate("/prefeitura/organograma")');
+    expect(portal).toContain('aria-label="Organograma municipal"');
+    expect(portal).toContain('title="Organograma municipal"');
+    expect(portal).not.toContain("<MunicipalOrganogramBar");
+    expect(portal).not.toContain("departmentOrganogramHint");
     expect(bar).toContain('data-municipal-organogram="true"');
     expect(bar).toContain("sig-organogram-card");
     expect(bar).toContain("Ver organograma completo");
@@ -42,7 +45,7 @@ describe("municipal organogram visibility", () => {
     const detail = read("src/pages/saas/ProcessDetailPage.tsx");
 
     expect(hook).toContain('join(" › ")');
-    expect(detail).toContain("department.code.trim()");
+    expect(detail).toContain("department.code?.trim()");
     expect(detail).toContain("getOrganizationPath(department.name)");
   });
 });
@@ -98,14 +101,17 @@ describe("organogram visual contrast", () => {
       resolve(process.cwd(), "src/components/platform/MunicipalOrganogramBar.tsx"),
       "utf8",
     );
-    const css = readFileSync(resolve(process.cwd(), "src/index.css"), "utf8");
+    const polarity = readFileSync(
+      resolve(process.cwd(), "src/styles/surface-polarity.css"),
+      "utf8",
+    );
 
     expect(bar).toContain('data-organogram-code="true"');
     expect(bar).toContain('data-contrast-surface="dark"');
     expect(bar).toContain("sig-dark-chip");
-    expect(css).toContain("SIGAPRO FINAL SURFACE POLARITY LOCK 2026-10-14");
-    expect(css).toContain('[data-municipal-organogram="true"] span[data-organogram-code="true"]');
-    expect(css).toContain("-webkit-text-fill-color: #ffffff !important");
+    expect(polarity).toContain("Surface Polarity Contract V8");
+    expect(polarity).toContain('[data-municipal-organogram="true"] [data-organogram-code="true"]');
+    expect(polarity).toContain("-webkit-text-fill-color: #ffffff !important");
   });
 });
 
@@ -148,8 +154,8 @@ describe("dispatch organogram destination cards", () => {
     expect(detail).toContain("getPathRecords: getOrganizationPathRecords");
     expect(detail).toContain("hierarchyLabel");
     expect(detail).toContain("Destino selecionado");
-    expect(detail).toContain("h-9 min-w-[48px]");
-    expect(detail).toContain("sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4");
+    expect(detail).toContain("h-8 min-w-[44px]");
+    expect(detail).toContain("lg:grid-cols-2 2xl:grid-cols-3");
     expect(detail).not.toContain('max-w-[310px] truncate">{getOrganizationPath(department.name)}');
   });
 });

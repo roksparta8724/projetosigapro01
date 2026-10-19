@@ -1,4 +1,6 @@
 import { jsPDF } from "jspdf";
+import { createQrCodeDataUrl } from "@/lib/qrCode";
+import { buildPublicSignatureVerificationUrl } from "@/lib/signatureVerification";
 import type {
   ConstructionPermitRecord,
   PermitSignature,
@@ -119,7 +121,10 @@ function buildPermitFileName(
   return `${base || "alvara-municipal"}.pdf`;
 }
 
-function writePdfShell(opened: Window, title: string, message: string) {
+function prepareReservedPdfWindow(opened: Window, title: string) {
+  // A guia é reservada de forma síncrona para não cair no bloqueador de pop-up,
+  // mas não exibimos card, texto, spinner ou mensagem intermediária. O usuário
+  // vê apenas o fundo neutro do visualizador até o Blob final substituir a guia.
   opened.document.open();
   opened.document.write(`<!doctype html>
 <html lang="pt-BR">
@@ -128,47 +133,79 @@ function writePdfShell(opened: Window, title: string, message: string) {
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>${escapeHtml(title)}</title>
   <style>
-    html,body{margin:0;width:100%;height:100%;background:#f8fafc;font-family:Arial,sans-serif;color:#0f172a}
-    #sigapro-pdf-shell{width:100%;height:100%;display:flex;flex-direction:column}
-    #sigapro-pdf-status{padding:14px 18px;background:#fff;border-bottom:1px solid #e2e8f0;font-size:13px;font-weight:700}
-    #sigapro-pdf-frame{flex:1;width:100%;border:0;background:#f8fafc}
+    html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#525659}
+  </style>
+</head>
+<body></body>
+</html>`);
+  opened.document.close();
+  opened.document.title = title;
+}
+
+function writePdfError(opened: Window, title: string, message: string) {
+  opened.document.open();
+  opened.document.write(`<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>${escapeHtml(title)}</title>
+  <style>
+    *{box-sizing:border-box}
+    html,body{margin:0;width:100%;height:100%;background:#071b2e;font-family:Arial,sans-serif;color:#fff}
+    body{display:grid;place-items:center}
+    main{width:min(520px,calc(100vw - 40px));padding:28px;border:1px solid rgba(255,255,255,.14);border-radius:24px;background:linear-gradient(145deg,#0a2d49,#0b567e);box-shadow:0 28px 80px rgba(0,0,0,.28)}
+    .brand{font-size:11px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#bae6fd}
+    h1{margin:9px 0 0;font-size:21px;line-height:1.25}
+    p{margin:14px 0 0;font-size:13px;line-height:1.6;color:#e2e8f0}
   </style>
 </head>
 <body>
-  <div id="sigapro-pdf-shell">
-    <div id="sigapro-pdf-status">${escapeHtml(message)}</div>
-    <iframe id="sigapro-pdf-frame" title="${escapeHtml(title)}"></iframe>
-  </div>
+  <main>
+    <div class="brand">SIGAPRO • Documento oficial</div>
+    <h1>${escapeHtml(title)}</h1>
+    <p>${escapeHtml(message)}</p>
+  </main>
 </body>
 </html>`);
   opened.document.close();
   opened.document.title = title;
 }
 
+const imageDataUrlCache = new Map<string, Promise<string | null>>();
+
 async function loadImageDataUrl(url?: string | null) {
   const normalized = String(url || "").trim();
   if (!normalized) return null;
   if (normalized.startsWith("data:image/")) return normalized;
 
-  try {
-    const response = await fetch(normalized, {
-      cache: "force-cache",
-      credentials: "omit",
-    });
-    if (!response.ok) return null;
-    const blob = await response.blob();
-    if (!blob.type.startsWith("image/")) return null;
+  const cached = imageDataUrlCache.get(normalized);
+  if (cached) return cached;
 
-    return await new Promise<string | null>((resolve) => {
-      const reader = new FileReader();
-      reader.onload = () =>
-        resolve(typeof reader.result === "string" ? reader.result : null);
-      reader.onerror = () => resolve(null);
-      reader.readAsDataURL(blob);
-    });
-  } catch {
-    return null;
-  }
+  const request = (async () => {
+    try {
+      const response = await fetch(normalized, {
+        cache: "force-cache",
+        credentials: "omit",
+      });
+      if (!response.ok) return null;
+      const blob = await response.blob();
+      if (!blob.type.startsWith("image/")) return null;
+
+      return await new Promise<string | null>((resolve) => {
+        const reader = new FileReader();
+        reader.onload = () =>
+          resolve(typeof reader.result === "string" ? reader.result : null);
+        reader.onerror = () => resolve(null);
+        reader.readAsDataURL(blob);
+      });
+    } catch {
+      return null;
+    }
+  })();
+
+  imageDataUrlCache.set(normalized, request);
+  return request;
 }
 
 function imageFormat(dataUrl: string) {
@@ -223,8 +260,11 @@ function drawSignature(
   label: string,
   signature?: PermitSignature,
   manual = false,
+  verificationQrDataUrl = "",
 ) {
   const official = Boolean(signature?.official || signature?.verificationCode);
+  const qrReserve = official && verificationQrDataUrl ? 22 : 0;
+  const textWidth = Math.max(34, width - 8 - qrReserve);
   fill(pdf, official ? ([240, 253, 250] as const) : ([250, 252, 254] as const));
   draw(pdf, official ? ([167, 243, 208] as const) : color.line);
   pdf.roundedRect(x, y, width, 26, 2.5, 2.5, "FD");
@@ -246,7 +286,7 @@ function drawSignature(
     pdf.setFont("helvetica", "bold");
     pdf.setFontSize(6.8);
     pdf.text(
-      (pdf.splitTextToSize(signature.name || "Responsável", width - 8) as string[]).slice(0, 1),
+      (pdf.splitTextToSize(signature.name || "Responsável", textWidth) as string[]).slice(0, 1),
       x + 4,
       y + 12.3,
     );
@@ -258,7 +298,7 @@ function drawSignature(
       .filter(Boolean)
       .join(" • ");
     pdf.text(
-      (pdf.splitTextToSize(role || "Autoridade municipal", width - 8) as string[]).slice(0, 1),
+      (pdf.splitTextToSize(role || "Autoridade municipal", textWidth) as string[]).slice(0, 1),
       x + 4,
       y + 15.7,
     );
@@ -275,6 +315,26 @@ function drawSignature(
       pdf.setFontSize(4.25);
       textColor(pdf, color.muted);
       pdf.text(`SHA-256: ${compactHash(signature.evidenceHash)}`, x + 4, y + 24.5);
+    }
+
+    if (verificationQrDataUrl) {
+      const qrSize = 17.2;
+      const qrX = x + width - qrSize - 3.8;
+      const qrY = y + 2.7;
+      fill(pdf, color.white);
+      draw(pdf, [186, 222, 235]);
+      pdf.setLineWidth(0.18);
+      pdf.roundedRect(qrX - 1.15, qrY - 1.15, qrSize + 2.3, qrSize + 5.3, 1.5, 1.5, "FD");
+      pdf.addImage(verificationQrDataUrl, "PNG", qrX, qrY, qrSize, qrSize);
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(3.15);
+      textColor(pdf, color.navy);
+      pdf.text("QR DA ASSINATURA", qrX + qrSize / 2, qrY + qrSize + 2.05, {
+        align: "center",
+      });
+      pdf.text("ELETRÔNICA", qrX + qrSize / 2, qrY + qrSize + 3.85, {
+        align: "center",
+      });
     }
   } else if (manual) {
     draw(pdf, [100, 116, 139]);
@@ -990,6 +1050,19 @@ export async function buildConstructionPermitPdfBlob({
 
   const showManualDirectorLine = manualSignature && !directorOfficial;
   const hasSecretary = secretaryOfficial;
+  const publicVerificationUrl = directorOfficial
+    ? buildPublicSignatureVerificationUrl(permit.directorSignature?.verificationCode)
+    : "";
+  const verificationQrDataUrl = publicVerificationUrl
+    ? createQrCodeDataUrl(publicVerificationUrl)
+    : "";
+  const secretaryVerificationUrl = secretaryOfficial
+    ? buildPublicSignatureVerificationUrl(permit.secretarySignature?.verificationCode)
+    : "";
+  const secretaryVerificationQrDataUrl = secretaryVerificationUrl
+    ? createQrCodeDataUrl(secretaryVerificationUrl)
+    : "";
+
   if (hasSecretary) {
     const half = (contentWidth - gap) / 2;
     drawSignature(
@@ -1000,6 +1073,7 @@ export async function buildConstructionPermitPdfBlob({
       "Diretoria responsável",
       permit.directorSignature,
       showManualDirectorLine,
+      verificationQrDataUrl,
     );
     drawSignature(
       pdf,
@@ -1009,6 +1083,7 @@ export async function buildConstructionPermitPdfBlob({
       "Secretaria municipal",
       permit.secretarySignature,
       false,
+      secretaryVerificationQrDataUrl,
     );
   } else {
     drawSignature(
@@ -1019,6 +1094,7 @@ export async function buildConstructionPermitPdfBlob({
       "Diretoria responsável",
       permit.directorSignature,
       showManualDirectorLine,
+      verificationQrDataUrl,
     );
   }
   y += 28;
@@ -1074,7 +1150,41 @@ export async function buildConstructionPermitPdfBlob({
   return pdf.output("blob");
 }
 
-export async function openConstructionPermitPdf(input: ConstructionPermitPdfInput) {
+export function reserveConstructionPermitPdfWindow(
+  input: Pick<ConstructionPermitPdfInput, "permit" | "process">,
+) {
+  const permitDocumentTitle = buildPermitDocumentTitle(
+    input.permit.formData?.workType ||
+      input.process.property.workType ||
+      input.process.type,
+  );
+  const tabTitle = buildPermitTabTitle(
+    permitDocumentTitle,
+    input.permit.permitNumber,
+    input.process.protocol,
+  );
+
+  // Importante: não usar "noopener" como feature do window.open aqui.
+  // Em Chromium isso pode abrir a aba e devolver null, deixando about:blank
+  // órfão e acionando o antigo fallback de download. Mantemos o handle e
+  // zeramos opener imediatamente depois.
+  const opened = window.open(
+    "about:blank",
+    `sigapro-alvara-${input.process.id}`,
+  );
+
+  if (!opened) return null;
+
+  opened.opener = null;
+  prepareReservedPdfWindow(opened, tabTitle);
+  opened.focus();
+  return opened;
+}
+
+export async function openConstructionPermitPdf(
+  input: ConstructionPermitPdfInput,
+  reservedWindow?: Window | null,
+) {
   const permitDocumentTitle = buildPermitDocumentTitle(
     input.permit.formData?.workType ||
       input.process.property.workType ||
@@ -1091,15 +1201,15 @@ export async function openConstructionPermitPdf(input: ConstructionPermitPdfInpu
     input.process.protocol,
   );
 
-  const opened = window.open(
-    "",
-    `sigapro-alvara-${input.process.id}`,
-    "noopener,noreferrer",
-  );
+  const opened =
+    reservedWindow && !reservedWindow.closed
+      ? reservedWindow
+      : reserveConstructionPermitPdfWindow(input);
 
-  if (opened) {
-    opened.opener = null;
-    writePdfShell(opened, tabTitle, "Gerando PDF oficial do Alvará...");
+  if (!opened) {
+    throw new Error(
+      "O navegador bloqueou a abertura do PDF. Libere pop-ups para o SIGAPRO e tente novamente.",
+    );
   }
 
   try {
@@ -1107,41 +1217,21 @@ export async function openConstructionPermitPdf(input: ConstructionPermitPdfInpu
     const namedBlob = new File([blob], fileName, { type: "application/pdf" });
     const url = URL.createObjectURL(namedBlob);
 
-    if (opened) {
-      opened.document.title = tabTitle;
-      const status = opened.document.getElementById("sigapro-pdf-status");
-      const frame = opened.document.getElementById(
-        "sigapro-pdf-frame",
-      ) as HTMLIFrameElement | null;
+    // Navega a própria guia reservada para o PDF nativo do navegador.
+    // Não cria iframe intermediário e não dispara download automático.
+    opened.location.replace(url);
+    opened.focus();
 
-      if (status) status.remove();
-      if (frame) {
-        frame.src = url;
-        frame.title = tabTitle;
-      } else {
-        writePdfShell(opened, tabTitle, "");
-        const fallbackFrame = opened.document.getElementById(
-          "sigapro-pdf-frame",
-        ) as HTMLIFrameElement | null;
-        if (fallbackFrame) fallbackFrame.src = url;
-      }
-
-      opened.document.title = tabTitle;
-      opened.focus();
-    } else {
-      const fallback = document.createElement("a");
-      fallback.href = url;
-      fallback.download = fileName;
-      fallback.rel = "noopener noreferrer";
-      fallback.click();
-    }
-
-    window.setTimeout(() => URL.revokeObjectURL(url), 5 * 60_000);
+    // Mantém o Blob vivo tempo suficiente para impressão/salvamento pelo viewer.
+    window.setTimeout(() => URL.revokeObjectURL(url), 15 * 60_000);
   } catch (error) {
-    if (opened) {
+    if (!opened.closed) {
       opened.document.title = `Erro • ${tabTitle}`;
-      opened.document.body.innerHTML =
-        '<div style="font-family:Arial,sans-serif;padding:32px;color:#991b1b">Não foi possível gerar o PDF do Alvará.</div>';
+      writePdfError(
+        opened,
+        `Erro • ${tabTitle}`,
+        "Não foi possível gerar o PDF do Alvará. Feche esta guia e tente novamente.",
+      );
     }
     throw error;
   }

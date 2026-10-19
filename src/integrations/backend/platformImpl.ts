@@ -1,9 +1,10 @@
-import { databaseClient as db } from "@/integrations/backend/databaseClient";
+import { databaseClient as db, neonAuthUrl } from "@/integrations/backend/databaseClient";
 import { isNeonBackend } from "@/integrations/backend/config";
-import { getSignedUrlForObjectStrict, uploadFile } from "@/integrations/r2/client";
+import { getLegacyProfileAvatarOpenUrl, getSignedUrlForObjectStrict, uploadFile } from "@/integrations/r2/client";
 import { buildMunicipalityPortalUrl } from "@/lib/publicDomain";
 import {
   buildProcessDocuments,
+  isOccupancyPermitProcessType,
   serializeMarker,
   type ClientPlanAssignment,
   type CreateProcessInput,
@@ -11,7 +12,9 @@ import {
   type OwnerProfessionalMessage,
   type OwnerProjectLink,
   type OwnerProjectRequest,
+  type PaymentGuideEntry,
   type PlanItem,
+  type ProcessDocument,
   type ProcessRecord,
   type SessionUser,
   type Tenant,
@@ -22,9 +25,19 @@ import {
 
 const PROFILE_ASSET_REF_PREFIX = "r2:";
 
+type DatabaseRow = Record<string, any>;
+
 async function resolveStoredProfileAvatar(value: string | null | undefined) {
   const raw = (value ?? "").trim();
   if (!raw) return "";
+
+  // Perfis antigos ainda podem apontar para o bucket público legado do Supabase.
+  // O SIGAPRO agora resolve esses avatares pelo endpoint próprio e faz cache no R2,
+  // evitando depender diretamente do armazenamento antigo no navegador.
+  if (/^https:\/\/[^/]+\.supabase\.co\/storage\/v1\/object\/public\/avatars\//i.test(raw)) {
+    return getLegacyProfileAvatarOpenUrl(raw);
+  }
+
   if (/^(https?:|data:|blob:)/i.test(raw)) return raw;
 
   const objectKey = raw.startsWith(PROFILE_ASSET_REF_PREFIX)
@@ -92,6 +105,16 @@ function formatDatabaseError(error: unknown) {
     "hint" in error && typeof error.hint === "string" ? error.hint : "";
   const code =
     "code" in error && typeof error.code === "string" ? error.code : "";
+
+  const normalized = `${message} ${details} ${hint} ${code}`.toLowerCase();
+  if (
+    code === "PGRST202" ||
+    (normalized.includes("could not find the function") &&
+      normalized.includes("schema cache"))
+  ) {
+    return "A rotina municipal ainda não estava disponível no banco oficial. Atualize a página e tente novamente. Se persistir, a equipe técnica deve sincronizar o schema do banco.";
+  }
+
   const parts = [message, details, hint, code].filter(Boolean);
   return parts.length > 0 ? parts.join(" | ") : "Erro desconhecido do banco oficial.";
 }
@@ -372,11 +395,58 @@ function storedAccessLevel(levelName: string | null | undefined, role: SessionUs
   return level === 1 || level === 2 || level === 3 ? level : roleToAccessLevel(role);
 }
 
-function municipalityResultData(value: unknown[] | null | undefined) {
-  return Array.isArray(value) ? value : [];
+function municipalityResultData(value: unknown): DatabaseRow[] {
+  return Array.isArray(value) ? (value as DatabaseRow[]) : [];
 }
 
-export async function loadRemotePlatformStore() {
+async function loadProcessRowsForStore(focusProcessRouteKey?: string | null) {
+  if (!db) {
+    throw new Error("Banco oficial indisponível.");
+  }
+
+  const activeResult = await db
+    .from("processes")
+    .select("*")
+    .is("archived_at", null)
+    .order("created_at", { ascending: false });
+
+  if (!focusProcessRouteKey) {
+    return activeResult;
+  }
+
+  let routeKey = focusProcessRouteKey.trim();
+  try {
+    routeKey = decodeURIComponent(routeKey);
+  } catch {
+    // Mantém a chave original quando a rota não estiver percent-encoded.
+  }
+
+  if (!routeKey) {
+    return activeResult;
+  }
+
+  const uuid = normalizeUuid(routeKey);
+  const focusQuery = db.from("processes").select("*");
+  const focusResult = uuid
+    ? await focusQuery.eq("id", uuid).limit(1)
+    : await focusQuery.eq("protocol_number", routeKey).limit(1);
+
+  if (activeResult.error) return activeResult;
+  if (focusResult.error) return focusResult;
+
+  const merged = [...(activeResult.data ?? [])] as DatabaseRow[];
+  const seen = new Set(merged.map((item) => String(item.id ?? "")));
+  for (const item of focusResult.data ?? []) {
+    const id = String(item.id ?? "");
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    merged.unshift(item as DatabaseRow);
+  }
+
+  return { data: merged, error: null };
+}
+
+export async function loadRemotePlatformStore(focusProcessRouteKey?: string | null) {
   if (!db) {
     throw new Error("Banco oficial indisponível.");
   }
@@ -397,6 +467,7 @@ export async function loadRemotePlatformStore() {
     propertiesResult,
     guidesResult,
     partiesResult,
+    privatePartyDataResult,
     documentsResult,
     requirementsResult,
     auditResult,
@@ -411,7 +482,7 @@ export async function loadRemotePlatformStore() {
     plansResult,
     planAssignmentsResult,
     lastAccessResult,
-  ] = await Promise.all([
+  ] = (await Promise.all([
     isNeonBackend
       ? Promise.resolve({ data: [], error: null })
       : db.from("tenants").select("*").order("created_at", { ascending: false }),
@@ -428,16 +499,19 @@ export async function loadRemotePlatformStore() {
     db.from("tenant_memberships").select("*").eq("is_active", true).is("deleted_at", null),
     db.from("roles").select("*"),
     db.from("departments").select("*"),
-    db.from("processes").select("*").is("archived_at", null).order("created_at", { ascending: false }),
-    isNeonBackend
-      ? db.from("process_construction_permits")
-          .select("process_id,permit_number,status,signature_mode,updated_at")
-      : Promise.resolve({ data: [], error: null }),
+    loadProcessRowsForStore(focusProcessRouteKey),
+    // A tabela interna do Alvará é RPC-only no Neon. Não faça SELECT
+    // direto no bootstrap global, porque o papel authenticated não possui
+    // permissão por desenho de segurança.
+    Promise.resolve({ data: [], error: null }),
     db.from("properties").select("*"),
     isNeonBackend
       ? db.from("payment_guides").select("*").not("process_id", "is", null).order("created_at", { ascending: false })
       : db.from("payment_guides").select("*").order("created_at", { ascending: false }),
     db.from("process_parties").select("*"),
+    isNeonBackend
+      ? db.rpc("list_visible_process_party_private_data_v1")
+      : Promise.resolve({ data: [], error: null }),
     db.from("process_documents").select("*").order("created_at", { ascending: false }),
     db.from("process_requirements").select("*").order("created_at", { ascending: false }),
     db.from("process_audit_entries").select("*").order("created_at", { ascending: false }),
@@ -454,7 +528,7 @@ export async function loadRemotePlatformStore() {
     isNeonBackend
       ? db.rpc("list_visible_user_last_access")
       : Promise.resolve({ data: [], error: null }),
-  ]);
+  ])) as any[];
 
   if (profilesResult.error) {
     console.warn("SIGAPRO: falha ao carregar profiles.", profilesResult.error);
@@ -466,7 +540,29 @@ export async function loadRemotePlatformStore() {
   const tolerateLegacyMissing = (error: unknown, relation: string) =>
     !isNeonBackend && isMissingRelationError(error, relation) ? null : error;
 
-  const errors = [
+  // Processos são o núcleo operacional. Se o SELECT REST falhar ou voltar vazio
+  // por uma inconsistência transitória de schema/cache, consulta a RPC canônica
+  // escopada pelo mesmo has_process_access usado nas políticas do banco.
+  let processRows = [...(processesResult.data ?? [])] as any[];
+  let processLoadError: unknown = processesResult.error ?? null;
+
+  if (isNeonBackend && (processLoadError || processRows.length === 0)) {
+    const fallback = await db.rpc("list_visible_processes_v1");
+    if (!fallback.error) {
+      processRows = [...(fallback.data ?? [])] as any[];
+      processLoadError = null;
+    } else if (processLoadError) {
+      console.error("[SIGAPRO][Processos] SELECT e fallback RPC falharam.", {
+        selectError: processLoadError,
+        rpcError: fallback.error,
+      });
+      processLoadError = fallback.error;
+    } else {
+      console.warn("[SIGAPRO][Processos] Fallback RPC indisponível, mantendo resultado vazio.", fallback.error);
+    }
+  }
+
+  const nonCriticalErrors = [
     profilesResult.error,
     membershipsResult.error,
     tolerateLegacyMissing(tenantsResult.error, "public.tenants"),
@@ -477,11 +573,10 @@ export async function loadRemotePlatformStore() {
     tolerateLegacyMissing(municipalitySettingsResult.error, "public.municipality_settings"),
     rolesResult.error,
     departmentsResult.error,
-    processesResult.error,
-    constructionPermitsResult.error,
     propertiesResult.error,
     guidesResult.error,
     partiesResult.error,
+    privatePartyDataResult.error,
     documentsResult.error,
     requirementsResult.error,
     auditResult.error,
@@ -495,42 +590,124 @@ export async function loadRemotePlatformStore() {
     tolerateLegacyMissing(ownerMessagesResult.error, "public.owner_professional_messages"),
     tolerateLegacyMissing(plansResult.error, "public.plans"),
     tolerateLegacyMissing(planAssignmentsResult.error, "public.client_plan_assignments"),
-    lastAccessResult.error,
   ].filter(Boolean);
 
-  if (errors.length > 0) {
-    throw errors[0];
+  if (nonCriticalErrors.length > 0) {
+    console.warn(
+      "[SIGAPRO][Bootstrap] Dados auxiliares parcialmente indisponíveis; processos continuam preservados.",
+      nonCriticalErrors,
+    );
   }
 
-  const tenantRows = tenantsResult.data ?? [];
+  if (lastAccessResult.error) {
+    console.warn("[SIGAPRO][Access] Telemetria de último acesso indisponível; login segue normalmente.", lastAccessResult.error);
+  }
+
+  if (processLoadError) {
+    throw processLoadError;
+  }
+
+  // O Data API municipal nao precisa de SELECT direto na tabela interna de
+  // Alvaras. Em ambientes onde essa leitura e bloqueada, usa a RPC oficial
+  // SECURITY DEFINER, que valida o acesso de cada processo antes de retornar
+  // o registro. Assim uma restricao de infraestrutura do Alvara nao derruba
+  // todo o store oficial nem faz o fluxo visual regredir.
+  const constructionPermitRows = [...(constructionPermitsResult.data ?? [])] as any[];
+  if (isNeonBackend) {
+    const visibleProcessIds = processRows
+      .filter((process) => Boolean(process.officialized_at))
+      .map((process) => String(process.id ?? "").trim())
+      .filter(Boolean);
+
+    for (let index = 0; index < visibleProcessIds.length; index += 8) {
+      const batch = visibleProcessIds.slice(index, index + 8);
+      const permits = await Promise.all(
+        batch.map(async (processId) => {
+          const { data, error } = await db.rpc("get_construction_permit_v1", {
+            _process_id: processId,
+          });
+
+          if (error) {
+            console.warn("[SIGAPRO][Alvara] RPC escopada indisponivel para o processo.", {
+              processId,
+              error,
+            });
+            return null;
+          }
+
+          const payload = (data ?? {}) as { permit?: any | null };
+          return payload.permit ?? null;
+        }),
+      );
+
+      constructionPermitRows.push(...permits.filter(Boolean));
+    }
+  }
+
+  const tenantRows = municipalityResultData(tenantsResult.data);
   const municipalityRows = municipalityResultData(municipalitiesResult.data);
-  const brandingByTenant = new Map((brandingResult.data ?? []).map((item) => [item.tenant_id, item]));
-  const settingsByTenant = new Map((settingsResult.data ?? []).map((item) => [item.tenant_id, item]));
-  const brandingByMunicipality = new Map((municipalityBrandingResult.data ?? []).map((item) => [item.municipality_id, item]));
-  const settingsByMunicipality = new Map((municipalitySettingsResult.data ?? []).map((item) => [item.municipality_id, item]));
-  const roleById = new Map((rolesResult.data ?? []).map((item) => [item.id, item]));
-  const departmentById = new Map((departmentsResult.data ?? []).map((item) => [item.id, item]));
-  const profileByUser = new Map((profilesResult.data ?? []).filter((item) => item.user_id).map((item) => [item.user_id, item]));
-  const profileById = new Map((profilesResult.data ?? []).map((item) => [item.id, item]));
-  const lastAccessByProfileId = new Map(
-    (lastAccessResult.data ?? [])
+  const brandingRows = municipalityResultData(brandingResult.data);
+  const settingsRows = municipalityResultData(settingsResult.data);
+  const municipalityBrandingRows = municipalityResultData(municipalityBrandingResult.data);
+  const municipalitySettingsRows = municipalityResultData(municipalitySettingsResult.data);
+  const roleRows = municipalityResultData(rolesResult.data);
+  const departmentRows = municipalityResultData(departmentsResult.data);
+  const profileRows = municipalityResultData(profilesResult.data);
+  const propertyRows = municipalityResultData(propertiesResult.data);
+  const lastAccessRows = municipalityResultData(lastAccessResult.data);
+
+  const brandingByTenant = new Map<string, DatabaseRow>(
+    brandingRows.map((item) => [String(item.tenant_id ?? ""), item] as const),
+  );
+  const settingsByTenant = new Map<string, DatabaseRow>(
+    settingsRows.map((item) => [String(item.tenant_id ?? ""), item] as const),
+  );
+  const brandingByMunicipality = new Map<string, DatabaseRow>(
+    municipalityBrandingRows.map((item) => [String(item.municipality_id ?? ""), item] as const),
+  );
+  const settingsByMunicipality = new Map<string, DatabaseRow>(
+    municipalitySettingsRows.map((item) => [String(item.municipality_id ?? ""), item] as const),
+  );
+  const roleById = new Map<string, DatabaseRow>(
+    roleRows.map((item) => [String(item.id ?? ""), item] as const),
+  );
+  const departmentById = new Map<string, DatabaseRow>(
+    departmentRows.map((item) => [String(item.id ?? ""), item] as const),
+  );
+  const profileByUser = new Map<string, DatabaseRow>(
+    profileRows
+      .filter((item) => item.user_id)
+      .map((item) => [String(item.user_id), item] as const),
+  );
+  const profileById = new Map<string, DatabaseRow>(
+    profileRows.map((item) => [String(item.id ?? ""), item] as const),
+  );
+  const lastAccessByProfileId = new Map<string, string>(
+    lastAccessRows
       .filter((item) => item?.profile_id)
-      .map((item) => [String(item.profile_id), item.last_access_at ? String(item.last_access_at) : ""]),
+      .map((item) => [String(item.profile_id), item.last_access_at ? String(item.last_access_at) : ""] as const),
   );
-  const propertyById = new Map((propertiesResult.data ?? []).map((item) => [item.id, item]));
-  const constructionPermitByProcess = new Map(
-    (constructionPermitsResult.data ?? []).map((item) => [String(item.process_id), item]),
+  const propertyById = new Map<string, DatabaseRow>(
+    propertyRows.map((item) => [String(item.id ?? ""), item] as const),
   );
-  const guidesByProcess = new Map<string, Record<string, unknown>[]>();
-  const partiesByProcess = new Map<string, Record<string, unknown>[]>();
-  const docsByProcess = new Map<string, Record<string, unknown>[]>();
-  const requirementsByProcess = new Map<string, Record<string, unknown>[]>();
-  const auditByProcess = new Map<string, Record<string, unknown>[]>();
-  const reopenByProcess = new Map<string, Record<string, unknown>[]>();
-  const movementsByProcess = new Map<string, Record<string, unknown>[]>();
-  const dispatchesByProcess = new Map<string, Record<string, unknown>[]>();
-  const messagesByProcess = new Map<string, Record<string, unknown>[]>();
-  const markersByProcess = new Map<string, Record<string, unknown>[]>();
+  const constructionPermitByProcess = new Map<string, DatabaseRow>(
+    constructionPermitRows.map((item) => [String(item.process_id), item as DatabaseRow] as const),
+  );
+  const guidesByProcess = new Map<string, DatabaseRow[]>();
+  const partiesByProcess = new Map<string, DatabaseRow[]>();
+  const privatePartyDataByPartyId = new Map<string, DatabaseRow>(
+    (privatePartyDataResult.data ?? []).map(
+      (item: DatabaseRow) => [String(item.party_id ?? ""), item] as const,
+    ),
+  );
+  const docsByProcess = new Map<string, DatabaseRow[]>();
+  const requirementsByProcess = new Map<string, DatabaseRow[]>();
+  const auditByProcess = new Map<string, DatabaseRow[]>();
+  const reopenByProcess = new Map<string, DatabaseRow[]>();
+  const movementsByProcess = new Map<string, DatabaseRow[]>();
+  const dispatchesByProcess = new Map<string, DatabaseRow[]>();
+  const messagesByProcess = new Map<string, DatabaseRow[]>();
+  const markersByProcess = new Map<string, DatabaseRow[]>();
   for (const guide of guidesResult.data ?? []) {
     const list = guidesByProcess.get(guide.process_id) ?? [];
     list.push(guide);
@@ -670,7 +847,7 @@ export async function loadRemotePlatformStore() {
   const mappedTenantsFromLegacy: Tenant[] = tenantRows.map((tenant) => {
     const branding = brandingByTenant.get(tenant.id);
     const tenantMemberships = (membershipsResult.data ?? []).filter((item) => item.tenant_id === tenant.id);
-    const tenantProcesses = (processesResult.data ?? []).filter((item) => item.tenant_id === tenant.id);
+    const tenantProcesses = processRows.filter((item) => item.tenant_id === tenant.id);
 
     return {
       id: tenant.id,
@@ -807,7 +984,7 @@ export async function loadRemotePlatformStore() {
     const municipalityName = resolveMunicipalityName(municipality);
     const municipalityCity = resolveMunicipalityCity(municipality, general);
     const municipalityProfiles = (profilesResult.data ?? []).filter((item) => item.municipality_id === municipality.id && !item.deleted_at);
-    const municipalityProcesses = (processesResult.data ?? []).filter(
+    const municipalityProcesses = processRows.filter(
       (item) => (item.municipality_id ?? item.tenant_id) === municipality.id,
     );
     const activeModules =
@@ -901,6 +1078,44 @@ export async function loadRemotePlatformStore() {
       chavePix: readGeneralOptionalString(general, ["chave_pix", "pix_key"]),
       beneficiarioArrecadacao:
         readGeneralOptionalString(general, ["beneficiario_arrecadacao", "settlement_beneficiary"]) || municipalityName,
+      pixEnabled:
+        typeof general.pix_enabled === "boolean" ? general.pix_enabled : true,
+      pixKeyType:
+        typeof general.pix_key_type === "string" &&
+        ["cpf", "cnpj", "email", "phone", "random"].includes(general.pix_key_type)
+          ? (general.pix_key_type as TenantSettings["pixKeyType"])
+          : "cnpj",
+      pixMerchantCity: readGeneralOptionalString(general, ["pix_merchant_city"]),
+      bankCode: readGeneralOptionalString(general, ["bank_code"]),
+      bankName: readGeneralOptionalString(general, ["bank_name"]),
+      bankAgency: readGeneralOptionalString(general, ["bank_agency"]),
+      bankAgencyDigit: readGeneralOptionalString(general, ["bank_agency_digit"]),
+      bankAccount: readGeneralOptionalString(general, ["bank_account"]),
+      bankAccountDigit: readGeneralOptionalString(general, ["bank_account_digit"]),
+      bankBeneficiaryDocument: readGeneralOptionalString(general, ["bank_beneficiary_document"]),
+      bankCollectionMode:
+        typeof general.bank_collection_mode === "string" &&
+        ["manual", "agreement", "api"].includes(general.bank_collection_mode)
+          ? (general.bank_collection_mode as TenantSettings["bankCollectionMode"])
+          : "manual",
+      bankAgreementCode: readGeneralOptionalString(general, ["bank_agreement_code"]),
+      bankWallet: readGeneralOptionalString(general, ["bank_wallet"]),
+      bankInstructions: readGeneralOptionalString(general, ["bank_instructions"]),
+      paymentProvider:
+        typeof general.payment_provider === "string" &&
+        ["mercado_pago", "bank_direct", "manual"].includes(general.payment_provider)
+          ? (general.payment_provider as TenantSettings["paymentProvider"])
+          : "mercado_pago",
+      paymentProviderEnvironment:
+        typeof general.payment_provider_environment === "string" &&
+        ["test", "production"].includes(general.payment_provider_environment)
+          ? (general.payment_provider_environment as TenantSettings["paymentProviderEnvironment"])
+          : "test",
+      paymentAuthenticationMode:
+        typeof general.payment_authentication_mode === "string" &&
+        ["automatic", "manual"].includes(general.payment_authentication_mode)
+          ? (general.payment_authentication_mode as TenantSettings["paymentAuthenticationMode"])
+          : "automatic",
       contractNumber: typeof general.contract_number === "string" ? general.contract_number : "",
       contractStart: typeof general.contract_start === "string" ? general.contract_start : "",
       contractEnd: typeof general.contract_end === "string" ? general.contract_end : "",
@@ -1161,7 +1376,7 @@ export async function loadRemotePlatformStore() {
     });
   }
 
-  const processes: ProcessRecord[] = (processesResult.data ?? []).map((process) => {
+  const processes: ProcessRecord[] = processRows.map((process) => {
     const property = propertyById.get(process.property_id);
     const constructionPermit = constructionPermitByProcess.get(String(process.id));
     const constructionPermitStage = constructionPermit
@@ -1175,7 +1390,7 @@ export async function loadRemotePlatformStore() {
       : "";
     const guideRows = guidesByProcess.get(process.id) ?? [];
     const operationalGuideRows = guideRows.filter((item) =>
-      ["protocolo", "iss_obra", "aprovacao_final", "initial_protocol", "final_approval"].includes(
+      ["protocolo", "iss_obra", "aprovacao_final", "habite_se", "initial_protocol", "final_approval"].includes(
         String(item.guide_kind ?? ""),
       ),
     );
@@ -1194,12 +1409,25 @@ export async function loadRemotePlatformStore() {
     const markers = markersByProcess.get(process.id) ?? [];
     const owner = parties.find((party) => party.party_type === "proprietario");
     const externalLead = parties.find((party) => party.party_type === "profissional_externo");
+    const ownerPrivate = owner?.id
+      ? privatePartyDataByPartyId.get(String(owner.id))
+      : undefined;
+    const externalLeadPrivate = externalLead?.id
+      ? privatePartyDataByPartyId.get(String(externalLead.id))
+      : undefined;
     const creatorProfile =
       (process.created_by_profile_id ? profileById.get(process.created_by_profile_id) : undefined) ??
       (process.created_by ? profileByUser.get(process.created_by) : undefined);
+    const ownerProfile =
+      owner?.profile_id ? profileById.get(owner.profile_id) : undefined;
     const externalLeadProfile =
       (externalLead?.profile_id ? profileById.get(externalLead.profile_id) : undefined) ??
-      (externalLead?.user_id ? profileByUser.get(externalLead.user_id) : undefined);
+      (externalLead?.user_id ? profileByUser.get(externalLead.user_id) : undefined) ??
+      (
+        process.created_by_profile_id
+          ? profileById.get(process.created_by_profile_id)
+          : undefined
+      );
 
     return {
       id: process.id,
@@ -1207,17 +1435,33 @@ export async function loadRemotePlatformStore() {
       municipalityId: process.municipality_id ?? process.tenant_id,
       protocol: process.protocol_number,
       externalProtocol: process.external_protocol_number ?? process.protocol_number,
+      preProtocol: process.pre_protocol_number ?? undefined,
+      isOfficial: Boolean(process.officialized_at),
+      officializedAt: process.officialized_at ?? undefined,
       title: process.title,
       type: process.process_type,
       status:
         constructionPermit?.status === "signed"
           ? "deferido"
           : process.status,
-      ownerName: owner?.display_name ?? "Nao informado",
-      ownerDocument: owner?.document_masked ?? "***",
-      technicalLead: externalLead?.display_name ?? creatorProfile?.full_name ?? "Nao informado",
+      ownerName: ownerProfile?.full_name ?? owner?.display_name ?? "Nao informado",
+      ownerDocument:
+        ownerPrivate?.document_number ??
+        owner?.document_masked ??
+        "***",
+      ownerIdentityDocument: ownerPrivate?.identity_document_number ?? "",
+      ownerPhone: ownerPrivate?.phone ?? "",
+      ownerEmail: ownerPrivate?.email ?? "",
+      technicalLead:
+        externalLeadProfile?.full_name ??
+        creatorProfile?.full_name ??
+        externalLead?.display_name ??
+        "Nao informado",
       ownerProfileId: owner?.profile_id ?? undefined,
-      technicalProfileId: externalLead?.profile_id ?? undefined,
+      technicalProfileId:
+        externalLead?.profile_id ??
+        process.created_by_profile_id ??
+        undefined,
       createdBy: (isNeonBackend ? process.created_by_profile_id : null) ?? process.created_by,
       createdByProfileId: process.created_by_profile_id ?? undefined,
       createdByUserId: process.created_by ?? creatorProfile?.user_id ?? undefined,
@@ -1230,7 +1474,12 @@ export async function loadRemotePlatformStore() {
         serializeMarker(String(marker.label ?? "Marcador"), String(marker.color ?? "#2563eb")),
       ),
       address: property?.address ?? "Endereco nao informado",
-      notes: "",
+      notes:
+        process.preprotocol_payload &&
+        typeof process.preprotocol_payload === "object" &&
+        typeof process.preprotocol_payload.notes === "string"
+          ? process.preprotocol_payload.notes
+          : "",
       property: {
         registration: property?.registry_code ?? "",
         iptu: property?.iptu_code ?? "",
@@ -1238,6 +1487,7 @@ export async function loadRemotePlatformStore() {
         block: property?.block ?? "",
         area: Number(property?.area_m2 ?? 0),
         usage: property?.usage_type ?? "",
+        buildingType: property?.building_type ?? "",
         workType: property?.work_type ?? "",
         constructionStandard: property?.construction_standard ?? "",
       },
@@ -1247,9 +1497,18 @@ export async function loadRemotePlatformStore() {
         notes: process.triage_notes ?? undefined,
       },
       analysis: {
-        assignedTo: process.analysis_assigned_to ?? undefined,
+        assignedTo:
+          (process.analysis_assigned_to_profile_id
+            ? profileById.get(String(process.analysis_assigned_to_profile_id))?.full_name
+            : undefined) ??
+          process.analysis_assigned_to ??
+          undefined,
         assignedProfileId: process.analysis_assigned_to_profile_id ?? undefined,
         startedAt: process.analysis_started_at ?? undefined,
+        supervisorOverrideProfileId: process.analysis_override_profile_id ?? undefined,
+        supervisorOverrideReason: process.analysis_override_reason ?? undefined,
+        supervisorOverrideStartedAt: process.analysis_override_started_at ?? undefined,
+        supervisorOverrideExpiresAt: process.analysis_override_expires_at ?? undefined,
       },
       checklistType: process.checklist_type ?? process.process_type,
       sla: {
@@ -1409,19 +1668,26 @@ export async function loadRemotePlatformStore() {
           const kind =
             guide.guide_kind === "iss_obra"
               ? "iss_obra"
-              : guide.guide_kind === "aprovacao_final" || guide.guide_kind === "final_approval"
-                ? "aprovacao_final"
-                : "protocolo";
+              : guide.guide_kind === "habite_se"
+                ? "habite_se"
+                : guide.guide_kind === "aprovacao_final" || guide.guide_kind === "final_approval"
+                  ? "aprovacao_final"
+                  : "protocolo";
 
           return {
             kind,
             label:
               kind === "iss_obra"
                 ? "Guia de Recolhimento de ISSQN da Obra"
-                : kind === "aprovacao_final"
-                  ? "Guia de Pagamento - Aprovação / Alvará"
-                  : "Guia de Recolhimento de Protocolo",
+                : kind === "habite_se"
+                  ? "Guia de Pagamento do Habite-se"
+                  : kind === "aprovacao_final"
+                    ? "Guia de Pagamento - Aprovação / Alvará"
+                    : "Guia de Recolhimento de Protocolo",
             code: String(guide.guide_number ?? ""),
+            officialProcessReference: guide.official_process_reference
+              ? String(guide.official_process_reference)
+              : undefined,
             amount: Number(guide.amount ?? 0),
             status:
               guide.status === "compensada" ||
@@ -1431,7 +1697,7 @@ export async function loadRemotePlatformStore() {
                 ? "compensada"
                 : "pendente",
             dueDate: guide.due_date ? new Date(guide.due_date).toLocaleDateString("pt-BR") : "",
-            issuedAt: guide.last_reissued_at ?? guide.created_at ?? undefined,
+            issuedAt: guide.created_at ?? undefined,
             paidAt: guide.paid_at ?? undefined,
             expiresAt: undefined,
             requestedBy: guide.requested_by_name ? String(guide.requested_by_name) : undefined,
@@ -1446,6 +1712,17 @@ export async function loadRemotePlatformStore() {
               ? String(guide.construction_standard_snapshot)
               : undefined,
             revision: Number(guide.reissue_count ?? 0),
+            paymentMethod: guide.payment_method ? String(guide.payment_method) : undefined,
+            pixPayload: guide.pix_code ? String(guide.pix_code) : undefined,
+            barcode: guide.barcode ? String(guide.barcode) : undefined,
+            digitableLine: guide.digitable_line ? String(guide.digitable_line) : undefined,
+            bankReference: guide.bank_reference ? String(guide.bank_reference) : undefined,
+            bankPaymentId: guide.bank_payment_id ? String(guide.bank_payment_id) : undefined,
+            bankStatus: guide.bank_status ? String(guide.bank_status) : undefined,
+            bankStatusDetail: guide.bank_status_detail ? String(guide.bank_status_detail) : undefined,
+            bankAuthenticatedAt: guide.bank_authenticated_at ? String(guide.bank_authenticated_at) : undefined,
+            paymentProvider: guide.payment_provider ? String(guide.payment_provider) as PaymentGuideEntry["paymentProvider"] : undefined,
+            providerEnvironment: guide.provider_environment ? String(guide.provider_environment) as PaymentGuideEntry["providerEnvironment"] : undefined,
           };
         }),
       },
@@ -1831,11 +2108,147 @@ export async function createRemoteOwnerMessage(input: {
   };
 }
 
+
+export interface PendingPreprotocolPayment {
+  processId: string;
+  preProtocolNumber: string;
+  title: string;
+  processType: string;
+  createdAt: string;
+  guideId: string;
+  guideNumber: string;
+  amount: number;
+  dueDate: string;
+  guideStatus: string;
+  submitterName: string;
+}
+
+export async function listRemotePendingPreprotocolPayments(): Promise<
+  PendingPreprotocolPayment[]
+> {
+  if (!db) {
+    throw new Error("Banco oficial indisponível.");
+  }
+
+  const { data, error } = await db.rpc("list_pending_preprotocol_payments_v1");
+  if (error) {
+    throw new Error(formatDatabaseError(error));
+  }
+
+  return ((data ?? []) as Array<Record<string, unknown>>).map((row) => ({
+    processId: String(row.process_id ?? ""),
+    preProtocolNumber: String(row.pre_protocol_number ?? ""),
+    title: String(row.title ?? "Pré-protocolo"),
+    processType: String(row.process_type ?? ""),
+    createdAt: String(row.created_at ?? ""),
+    guideId: String(row.guide_id ?? ""),
+    guideNumber: String(row.guide_number ?? ""),
+    amount: Number(row.amount ?? 0),
+    dueDate: row.due_date ? String(row.due_date) : "",
+    guideStatus: String(row.guide_status ?? "pendente"),
+    submitterName: String(row.submitter_name ?? "Profissional externo"),
+  }));
+}
+
+export async function confirmRemotePreprotocolPayment(processId: string) {
+  if (!db) {
+    throw new Error("Banco oficial indisponível.");
+  }
+
+  const normalizedProcessId = normalizeUuid(processId);
+  if (!normalizedProcessId) {
+    throw new Error("Pré-protocolo inválido para confirmação.");
+  }
+
+  const { data, error } = await db.rpc("confirm_preprotocol_payment_v1", {
+    _process_id: normalizedProcessId,
+  });
+
+  if (error) {
+    throw new Error(formatDatabaseError(error));
+  }
+
+  return data as {
+    ok?: boolean;
+    already_official?: boolean;
+    process_id: string;
+    protocol_number: string;
+    pre_protocol_number?: string;
+    officialized_at?: string;
+    guide_number?: string;
+  };
+}
+
+export interface RemoteExternalPreprotocolDraft {
+  processId: string;
+  preProtocolNumber: string;
+  payload: Record<string, unknown>;
+  guide: {
+    id: string;
+    number: string;
+    amount: number;
+    dueDate: string;
+    issuedAt: string;
+    status: string;
+    paid: boolean;
+    originalDueDate?: string;
+    reissueCount: number;
+    lastReissuedAt?: string;
+  };
+}
+
+export async function getRemoteExternalPreprotocolDraft(
+  preProtocolNumber: string,
+): Promise<RemoteExternalPreprotocolDraft> {
+  if (!db) {
+    throw new Error("Banco oficial indisponível.");
+  }
+
+  const reference = String(preProtocolNumber || "").trim();
+  if (!reference) {
+    throw new Error("Pré-protocolo não informado.");
+  }
+
+  const { data, error } = await db.rpc("get_external_preprotocol_draft_v1", {
+    _pre_protocol_number: reference,
+  });
+
+  if (error) {
+    throw new Error(formatDatabaseError(error));
+  }
+
+  const row = (data ?? {}) as Record<string, any>;
+  const guide = (row.guide ?? {}) as Record<string, any>;
+
+  return {
+    processId: String(row.process_id ?? ""),
+    preProtocolNumber: String(row.pre_protocol_number ?? reference),
+    payload: (row.payload ?? {}) as Record<string, unknown>,
+    guide: {
+      id: String(guide.id ?? ""),
+      number: String(guide.number ?? ""),
+      amount: Number(guide.amount ?? 0),
+      dueDate: guide.due_date ? String(guide.due_date) : "",
+      issuedAt: guide.issued_at ? String(guide.issued_at) : "",
+      status: String(guide.status ?? "pendente"),
+      paid: Boolean(guide.paid),
+      originalDueDate: guide.original_due_date
+        ? String(guide.original_due_date)
+        : undefined,
+      reissueCount: Number(guide.reissue_count || 0),
+      lastReissuedAt: guide.last_reissued_at
+        ? String(guide.last_reissued_at)
+        : undefined,
+    },
+  };
+}
+
 export async function createRemoteExternalProcessV2(
   input: CreateProcessInput & {
     guidePrefix?: string;
     protocolPrefix?: string;
     requestedProtocolNumber?: string | null;
+    draftForm?: Record<string, unknown> | null;
   },
 ) {
   if (!db) {
@@ -1859,10 +2272,14 @@ export async function createRemoteExternalProcessV2(
     block: input.property.block || null,
     area: input.property.area || null,
     usage: input.property.usage || null,
+    buildingType: input.property.buildingType || null,
     workType: input.property.workType || null,
     constructionStandard: input.property.constructionStandard || null,
     ownerName: input.ownerName,
     ownerDocument: input.ownerDocument,
+    ownerIdentityDocument: input.ownerIdentityDocument || null,
+    ownerPhone: input.ownerPhone || null,
+    ownerEmail: input.ownerEmail || null,
     technicalLead: input.technicalLead,
     professionalDocument: input.professionalDocument || null,
     professionalRegistration: input.professionalRegistration || null,
@@ -1874,6 +2291,7 @@ export async function createRemoteExternalProcessV2(
     amount: primaryGuide?.amount ?? input.remote?.amount ?? undefined,
     guideNumber: primaryGuide?.code ?? input.remote?.guideNumber ?? undefined,
     guidePrefix: input.guidePrefix || "DAM",
+    draftForm: input.draftForm ?? null,
     documents: input.documents.map((document) => ({
       label: document.label,
       required: document.required,
@@ -1891,7 +2309,21 @@ export async function createRemoteExternalProcessV2(
     })),
   };
 
-  const { data, error } = await db.rpc("create_external_process_v2", {
+  if (isOccupancyPermitProcessType(input.type)) {
+    const { error: preflightError } = await db.rpc(
+      "validate_habite_se_submission_v1",
+      {
+        _tenant_id: scopeId,
+        _payload: payload,
+      },
+    );
+
+    if (preflightError) {
+      throw new Error(formatDatabaseError(preflightError));
+    }
+  }
+
+  const { data, error } = await db.rpc("create_external_process_v4", {
     _tenant_id: scopeId,
     _payload: payload,
     _protocol_prefix: input.protocolPrefix || "PM",
@@ -1903,13 +2335,19 @@ export async function createRemoteExternalProcessV2(
   }
 
   return data as {
+    /** Backing id do pré-protocolo. Só vira processo municipal após o pagamento. */
     process_id: string;
     protocol_number: string;
+    pre_protocol_number?: string;
+    is_official?: boolean;
     guide_number: string;
     due_date: string;
     amount: number;
     reconciled?: boolean;
     existing?: boolean;
+    draft_updated?: boolean;
+    guide_id?: string;
+    guide_created_at?: string;
   };
 }
 
@@ -1921,7 +2359,7 @@ async function callProcessRpc<T = Record<string, unknown>>(
 ): Promise<T> {
   if (!db) throw new Error("Banco oficial indisponível.");
   const { data, error } = await db.rpc(fn, args);
-  if (error) throw error;
+  if (error) throw new Error(formatDatabaseError(error));
   return data as T;
 }
 
@@ -2052,6 +2490,16 @@ export async function reviewRemoteProcessDocument(documentId: string, status: "a
   return callProcessRpc("review_process_document", {
     _document_id: documentId,
     _status: status,
+  });
+}
+
+export async function reopenRemoteProcessDocumentAnalysis(input: {
+  documentId: string;
+  reason: string;
+}) {
+  return callProcessRpc("reopen_process_document_analysis_v1", {
+    _document_id: input.documentId,
+    _reason: input.reason,
   });
 }
 
@@ -2229,6 +2677,31 @@ export async function shareRemoteIssProjectGuide(processId: string) {
   return data as { process_id: string; guide_number: string; already_shared?: boolean };
 }
 
+export async function requestRemoteHabiteSePaymentGuide(processId: string) {
+  return callProcessRpc("request_habite_se_payment_guide_v1", {
+    _process_id: processId,
+  });
+}
+
+export async function issueRemoteHabiteSePaymentGuide(input: {
+  processId: string;
+  constructionStandard: string;
+  dueDate?: string | null;
+}) {
+  return callProcessRpc("issue_habite_se_payment_guide_v2", {
+    _process_id: input.processId,
+    _construction_standard: input.constructionStandard.trim(),
+    _due_date: input.dueDate || null,
+  });
+}
+
+
+export async function shareRemoteHabiteSePaymentGuide(processId: string) {
+  return callProcessRpc("share_habite_se_payment_guide_v1", {
+    _process_id: processId,
+  });
+}
+
 export async function requestRemoteConstructionPaymentGuide(processId: string) {
   return callProcessRpc("request_construction_payment_guide_v1", {
     _process_id: processId,
@@ -2264,7 +2737,7 @@ export async function issueRemoteProcessPaymentGuide(input: {
 
 export async function confirmRemoteProcessPaymentGuide(input: {
   processId: string;
-  guideKind: "protocolo" | "iss_obra" | "aprovacao_final";
+  guideKind: "protocolo" | "iss_obra" | "aprovacao_final" | "habite_se";
 }) {
   if (!db) throw new Error("Banco oficial indisponível.");
 
@@ -2284,7 +2757,7 @@ export async function confirmRemoteProcessPaymentGuide(input: {
 
 export async function reissueRemoteProcessPaymentGuide(input: {
   processId: string;
-  guideKind: "protocolo" | "iss_obra" | "aprovacao_final";
+  guideKind: "protocolo" | "iss_obra" | "aprovacao_final" | "habite_se";
   dueDate?: string | null;
 }) {
   if (!db) throw new Error("Banco oficial indisponível.");
@@ -2456,18 +2929,21 @@ export type PlatformBrandingRecord = {
 };
 
 function mapPlatformBranding(record: Record<string, unknown>): PlatformBrandingRecord {
+  const readString = (key: string, fallback = "") =>
+    typeof record[key] === "string" ? (record[key] as string) : fallback;
+
   return {
-    platformKey: record.platform_key ?? PLATFORM_BRANDING_KEY,
-    headerLogoUrl: record.header_logo_url ?? "",
-    headerLogoObjectKey: record.header_logo_object_key ?? "",
-    headerLogoFileName: record.header_logo_file_name ?? "",
-    headerLogoMimeType: record.header_logo_mime_type ?? "",
-    footerLogoUrl: record.footer_logo_url ?? "",
-    footerLogoObjectKey: record.footer_logo_object_key ?? "",
-    footerLogoFileName: record.footer_logo_file_name ?? "",
-    footerLogoMimeType: record.footer_logo_mime_type ?? "",
-    logoAlt: record.logo_alt ?? "Logo institucional do SIGAPRO",
-    footerText: record.footer_text ?? "SIGAPRO — Sistema integrado de gestão e aprovação de projetos",
+    platformKey: readString("platform_key", PLATFORM_BRANDING_KEY),
+    headerLogoUrl: readString("header_logo_url"),
+    headerLogoObjectKey: readString("header_logo_object_key"),
+    headerLogoFileName: readString("header_logo_file_name"),
+    headerLogoMimeType: readString("header_logo_mime_type"),
+    footerLogoUrl: readString("footer_logo_url"),
+    footerLogoObjectKey: readString("footer_logo_object_key"),
+    footerLogoFileName: readString("footer_logo_file_name"),
+    footerLogoMimeType: readString("footer_logo_mime_type"),
+    logoAlt: readString("logo_alt", "Logo institucional do SIGAPRO"),
+    footerText: readString("footer_text", "SIGAPRO — Sistema integrado de gestão e aprovação de projetos"),
     headerLogoScale: Number(record.header_logo_scale ?? 1),
     headerLogoOffsetX: Number(record.header_logo_offset_x ?? 0),
     headerLogoOffsetY: Number(record.header_logo_offset_y ?? 0),
@@ -2478,8 +2954,8 @@ function mapPlatformBranding(record: Record<string, unknown>): PlatformBrandingR
     footerLogoOffsetY: Number(record.footer_logo_offset_y ?? 0),
     footerLogoFrameMode: record.footer_logo_frame_mode === "rounded" ? "rounded" : "soft-square",
     footerLogoFitMode: record.footer_logo_fit_mode === "cover" ? "cover" : "contain",
-    updatedAt: record.updated_at ?? "",
-    updatedBy: record.updated_by ?? "",
+    updatedAt: readString("updated_at"),
+    updatedBy: readString("updated_by"),
   };
 }
 
@@ -2926,6 +3402,175 @@ export async function assignRemoteProfileDepartment(input: {
   };
 }
 
+export async function beginRemoteAnalysisSupervisorIntervention(input: {
+  processId: string;
+  reason: string;
+  minutes?: number;
+}) {
+  if (!db) throw new Error("Conexão com o banco indisponível.");
+  const { data, error } = await db.rpc("begin_analysis_supervisor_intervention", {
+    _process_id: input.processId,
+    _reason: input.reason,
+    _minutes: input.minutes ?? 30,
+  });
+  if (error) throw new Error(error.message || "Não foi possível iniciar a intervenção da Diretoria.");
+  return data as {
+    process_id: string;
+    profile_id: string;
+    reason: string;
+    started_at: string;
+    expires_at: string;
+    minutes: number;
+  };
+}
+
+export async function endRemoteAnalysisSupervisorIntervention(processId: string) {
+  if (!db) throw new Error("Conexão com o banco indisponível.");
+  const { data, error } = await db.rpc("end_analysis_supervisor_intervention", {
+    _process_id: processId,
+  });
+  if (error) throw new Error(error.message || "Não foi possível encerrar a intervenção da Diretoria.");
+  return data;
+}
+
+export async function assignRemoteProcessAnalysis(input: {
+  processId: string;
+  targetProfileId: string;
+}) {
+  if (!db) throw new Error("Conexão com o banco indisponível.");
+  const { data, error } = await db.rpc("assign_process_analysis", {
+    _process_id: input.processId,
+    _target_profile_id: input.targetProfileId,
+  });
+  if (error) throw new Error(error.message || "Não foi possível distribuir a análise.");
+  return data as {
+    process_id: string;
+    assigned_profile_id: string;
+    assigned_to: string;
+    status: string;
+    existing?: boolean;
+  };
+}
+
+export async function reassignRemoteProcessAnalysis(input: {
+  processId: string;
+  targetProfileId: string;
+  reason: string;
+}) {
+  if (!db) throw new Error("Conexão com o banco indisponível.");
+  const { data, error } = await db.rpc("reassign_process_analysis", {
+    _process_id: input.processId,
+    _target_profile_id: input.targetProfileId,
+    _reason: input.reason,
+  });
+  if (error) throw new Error(error.message || "Não foi possível redistribuir a análise.");
+  return data as {
+    process_id: string;
+    previous_profile_id?: string | null;
+    assigned_profile_id: string;
+    assigned_to: string;
+  };
+}
+
+
+async function provisionRemoteMunicipalStaffAccount(input: {
+  email: string;
+  municipalityId: string;
+  role: SessionUser["role"];
+  name: string;
+  title: string;
+  accessLevel: 1 | 2 | 3;
+}) {
+  if (!db) throw new Error("Conexão com o banco indisponível.");
+
+  // Esta RPC já existe no Data API há bastante tempo e, por isso, não depende
+  // de atualização de schema cache para o cadastro municipal funcionar.
+  // O corpo SQL foi ampliado para também criar o perfil municipal quando a
+  // identidade Neon Auth já existe.
+  const { data, error } = await db.rpc("link_municipal_user_by_email", {
+    _email: input.email.trim().toLowerCase(),
+    _municipality_id: input.municipalityId,
+    _role_code: input.role,
+    _full_name: input.name.trim(),
+    _title: input.title.trim(),
+    _access_level: input.accessLevel,
+  });
+
+  if (error) {
+    throw new Error(error.message || "Não foi possível criar a conta do servidor.");
+  }
+
+  const saved = data as Record<string, unknown> | null;
+  const access =
+    saved?.access && typeof saved.access === "object"
+      ? (saved.access as Record<string, unknown>)
+      : saved;
+
+  return {
+    ready: Boolean(saved?.ready ?? saved?.linked),
+    reason: saved?.reason ? String(saved.reason) : "",
+    userId: saved?.profile_id
+      ? String(saved.profile_id)
+      : access?.profile_id
+        ? String(access.profile_id)
+        : access?.user_id
+          ? String(access.user_id)
+          : "",
+    email: saved?.email ? String(saved.email) : input.email.trim().toLowerCase(),
+    name: access?.full_name ? String(access.full_name) : input.name.trim(),
+    role: (access?.role ?? input.role) as SessionUser["role"],
+    title: access?.title ? String(access.title) : input.title.trim(),
+    profileLabel: access?.profile_label ? String(access.profile_label) : "",
+    accessLevel: Number(access?.access_level ?? input.accessLevel) as 1 | 2 | 3,
+    accountStatus: (access?.account_status ?? "active") as SessionUser["accountStatus"],
+    userType: access?.user_type ? String(access.user_type) : "Interno",
+    blockedAt: access?.blocked_at ? String(access.blocked_at) : null,
+    blockedBy: access?.blocked_by ? String(access.blocked_by) : null,
+    blockReason: access?.block_reason ? String(access.block_reason) : null,
+  };
+}
+
+async function createDetachedNeonEmailAccount(input: {
+  email: string;
+  name: string;
+  password: string;
+}) {
+  if (!neonAuthUrl) {
+    throw new Error("Serviço Neon Auth indisponível para criar a nova conta.");
+  }
+
+  const response = await fetch(`${neonAuthUrl}/sign-up/email`, {
+    method: "POST",
+    credentials: "omit",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({
+      email: input.email.trim().toLowerCase(),
+      name: input.name.trim(),
+      password: input.password,
+    }),
+  });
+
+  const payload = await response.clone().json().catch(() => null) as
+    | { message?: string; error?: string; code?: string }
+    | null;
+
+  if (response.ok) return;
+
+  const message =
+    payload?.message ||
+    payload?.error ||
+    `Falha ao criar a conta de autenticação (HTTP ${response.status}).`;
+
+  // E-mail já existente não deve trocar senha nem sessão. O passo seguinte
+  // somente confirma/vincula o perfil à Prefeitura atual.
+  if (/already|exists|registered|email.*taken|user.*exist/i.test(message)) return;
+
+  throw new Error(message);
+}
+
 export async function manageRemoteUserAccess(input: {
   userId: string;
   municipalityId: string;
@@ -2982,9 +3627,61 @@ export async function linkExistingMunicipalStaff(input: {
   name: string;
   title: string;
   accessLevel: 1 | 2 | 3;
+  temporaryPassword?: string;
 }) {
   if (!db) throw new Error("Conexão com o banco indisponível.");
+
   const email = input.email.trim().toLowerCase();
+
+  if (isNeonBackend) {
+    let saved = await provisionRemoteMunicipalStaffAccount({
+      email,
+      municipalityId: input.municipalityId,
+      role: input.role,
+      name: input.name,
+      title: input.title,
+      accessLevel: input.accessLevel,
+    });
+
+    if (!saved.ready && saved.reason === "auth_missing") {
+      const temporaryPassword = input.temporaryPassword?.trim() ?? "";
+      if (!temporaryPassword) {
+        throw new Error(
+          "Informe uma senha provisória para criar a conta do servidor.",
+        );
+      }
+
+      await createDetachedNeonEmailAccount({
+        email,
+        name: input.name,
+        password: temporaryPassword,
+      });
+
+      for (const delayMs of [0, 120, 320, 700]) {
+        if (delayMs > 0) {
+          await new Promise((resolve) => setTimeout(resolve, delayMs));
+        }
+        saved = await provisionRemoteMunicipalStaffAccount({
+          email,
+          municipalityId: input.municipalityId,
+          role: input.role,
+          name: input.name,
+          title: input.title,
+          accessLevel: input.accessLevel,
+        });
+        if (saved.ready) break;
+      }
+    }
+
+    if (!saved.ready || !saved.userId) {
+      throw new Error(
+        "A conta de autenticação foi criada, mas o vínculo municipal ainda não foi confirmado. Tente salvar novamente.",
+      );
+    }
+
+    return saved;
+  }
+
   const { data, error } = await db
     .from("profiles")
     .select("id, user_id, municipality_id")
@@ -3260,6 +3957,23 @@ export async function saveRemoteInstitutionSettings(
       chave_pix: settings.chavePix || null,
       settlement_beneficiary: settings.beneficiarioArrecadacao || null,
       beneficiario_arrecadacao: settings.beneficiarioArrecadacao || null,
+      pix_enabled: settings.pixEnabled ?? true,
+      pix_key_type: settings.pixKeyType || "cnpj",
+      pix_merchant_city: settings.pixMerchantCity || null,
+      bank_code: settings.bankCode || null,
+      bank_name: settings.bankName || null,
+      bank_agency: settings.bankAgency || null,
+      bank_agency_digit: settings.bankAgencyDigit || null,
+      bank_account: settings.bankAccount || null,
+      bank_account_digit: settings.bankAccountDigit || null,
+      bank_beneficiary_document: settings.bankBeneficiaryDocument || null,
+      bank_collection_mode: settings.bankCollectionMode || "manual",
+      bank_agreement_code: settings.bankAgreementCode || null,
+      bank_wallet: settings.bankWallet || null,
+      bank_instructions: settings.bankInstructions || null,
+      payment_provider: settings.paymentProvider || "mercado_pago",
+      payment_provider_environment: settings.paymentProviderEnvironment || "test",
+      payment_authentication_mode: settings.paymentAuthenticationMode || "automatic",
       contract_number: settings.contractNumber || null,
       contract_start: settings.contractStart || null,
       contract_end: settings.contractEnd || null,

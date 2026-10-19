@@ -16,7 +16,9 @@ describe("premium process card contrast contract", () => {
     expect(css).toContain("background-color: #ffffff !important");
     expect(css).toContain('background-color: #0d1d2e !important');
 
-    const contract = css.slice(css.lastIndexOf("PROCESS CARD CONTRAST CONTRACT V4"));
+    const contractStart = css.indexOf("PROCESS CARD CONTRAST CONTRACT V4");
+    const contractEnd = css.indexOf("END PROCESS CARD CONTRAST CONTRACT V4", contractStart);
+    const contract = css.slice(contractStart, contractEnd);
     expect(contract).toContain(".sig-main-shell");
     expect(contract).not.toContain(".sig-topbar");
     expect(contract).not.toContain(".sig-sidebar-shell");
@@ -30,10 +32,12 @@ describe("premium process card contrast contract", () => {
 
     expect(detail).toContain('data-force-card-contrast="dark"');
     expect(detail).toContain('data-force-card-contrast="adaptive"');
-    expect(analysis).toContain('<CardHeader data-force-card-contrast="dark"');
+    expect(analysis).toContain('data-force-card-contrast="dark"');
+    expect(analysis).toContain('data-analysis-dark-header="true"');
     expect(analysis).toContain('data-analysis-section="true"');
     expect(analysis).toContain('data-force-card-contrast="adaptive"');
-    expect(permit).toContain('<CardHeader data-force-card-contrast="dark"');
+    expect(permit).toContain('data-force-card-contrast="dark"');
+    expect(permit).toContain('data-permit-dark-header="true"');
     expect(permit).toContain('<DialogHeader data-force-card-contrast="dark"');
   });
 });

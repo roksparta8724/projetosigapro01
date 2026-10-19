@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import deleteHandler from "../../api/r2-delete";
-import uploadHandler from "../../api/r2-upload";
-import signGetHandler from "../../api/r2-sign-get";
+import deleteHandler from "../../server/api/r2-delete";
+import uploadHandler from "../../server/api/r2-upload";
+import signGetHandler from "../../server/api/r2-sign-get";
 
 function makeReq(body: Record<string, unknown> = {}, authorization?: string) {
   return {

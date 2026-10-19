@@ -44,11 +44,14 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
+  buildProcessPath,
   defaultApprovalRateProfiles,
   defaultIssRateProfiles,
   formatCurrency,
   formatOfficialProcessNumber,
   formatOfficialProcessTitle,
+  getOfficialProcessSequence,
+  getPaymentGuideDisplayReference,
   getProcessPaymentGuides,
   getVisibleProcessesByScope,
   resolveSessionOperationalArea,
@@ -57,12 +60,14 @@ import {
   isOccupancyPermitProcessType,
   isIssFeeConfigured,
 } from "@/lib/platform";
+import { collectionModeLabel } from "@/lib/paymentCollection";
 import {
   type MunicipalFeeRule,
   type MunicipalFeeTable,
 } from "@/lib/govtech";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
+import { useLivePlatformRefresh } from "@/hooks/useLivePlatformRefresh";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 
 type FinanceSection =
@@ -79,12 +84,14 @@ export function FinanceDeskPage() {
   const { municipality, scopeId, institutionSettingsCompat, municipalityId } = useMunicipality();
   const {
     processes: allProcesses,
+    refreshRemoteStore,
     getInstitutionSettings,
     saveInstitutionSettings,
     issuePaymentGuide,
     markGuideAsPaid,
   } = usePlatformData();
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
+  useLivePlatformRefresh(refreshRemoteStore, { intervalMs: 8000 });
   const processes = getVisibleProcessesByScope(session, effectiveScopeId, allProcesses);
   const financeLedgerProcesses = useMemo(
     () =>
@@ -154,6 +161,29 @@ export function FinanceDeskPage() {
       ?.dispatches.find(
         (dispatch) =>
           /(issqn|iss|projeto).*guia|guia.*(issqn|iss|projeto)/i.test(dispatch.subject) &&
+          ["aguardando", "respondido"].includes(dispatch.status) &&
+          /financ/i.test(dispatch.to),
+      );
+  const pendingHabiteSeGuideProcesses = processes.filter((process) => {
+    if (!isOccupancyPermitProcessType(process.type)) return false;
+    const hasGuide = getProcessPaymentGuides(process, tenantSettings).some(
+      (guide) => guide.kind === "habite_se",
+    );
+    const hasFinanceRequest = process.dispatches.some(
+      (dispatch) =>
+        /guia.*habite|habite.*guia/i.test(dispatch.subject) &&
+        ["aguardando", "respondido"].includes(dispatch.status) &&
+        /financ/i.test(dispatch.to),
+    );
+    return hasFinanceRequest && !hasGuide;
+  });
+
+  const getPendingHabiteSeGuideRequest = (processId: string) =>
+    processes
+      .find((process) => process.id === processId)
+      ?.dispatches.find(
+        (dispatch) =>
+          /guia.*habite|habite.*guia/i.test(dispatch.subject) &&
           ["aguardando", "respondido"].includes(dispatch.status) &&
           /financ/i.test(dispatch.to),
       );
@@ -362,21 +392,41 @@ export function FinanceDeskPage() {
     [dispatchRows],
   );
 
-  const issuedGuideRows = useMemo(
-    () =>
-      [...controlGuides].sort((a, b) => {
-        const aIssued = a.guide.issuedAt ? new Date(a.guide.issuedAt).getTime() : 0;
-        const bIssued = b.guide.issuedAt ? new Date(b.guide.issuedAt).getTime() : 0;
-        if (aIssued !== bIssued) return bIssued - aIssued;
+  const issuedGuideRows = useMemo(() => {
+    const guideOrder: Record<PaymentGuideKind, number> = {
+      protocolo: 0,
+      iss_obra: 1,
+      habite_se: 2,
+      aprovacao_final: 3,
+    };
 
-        const aDue = a.guide.dueDate || "";
-        const bDue = b.guide.dueDate || "";
-        if (aDue !== bDue) return bDue.localeCompare(aDue);
+    return [...controlGuides].sort((a, b) => {
+      const aSequence = getOfficialProcessSequence(a.process);
+      const bSequence = getOfficialProcessSequence(b.process);
 
-        return a.guide.code.localeCompare(b.guide.code);
-      }),
-    [controlGuides],
-  );
+      // Processo oficial sempre fica no livro sequencial; pré-protocolo ainda
+      // não pago fica separado no fim e nunca ocupa posição da sequência PM.
+      if (Boolean(aSequence) !== Boolean(bSequence)) {
+        return aSequence ? -1 : 1;
+      }
+
+      if (aSequence && bSequence) {
+        if (aSequence.year !== bSequence.year) return bSequence.year - aSequence.year;
+        if (aSequence.number !== bSequence.number) {
+          return bSequence.number - aSequence.number;
+        }
+
+        const kindDelta = guideOrder[a.guide.kind] - guideOrder[b.guide.kind];
+        if (kindDelta !== 0) return kindDelta;
+      }
+
+      const aIssued = a.guide.issuedAt ? new Date(a.guide.issuedAt).getTime() : 0;
+      const bIssued = b.guide.issuedAt ? new Date(b.guide.issuedAt).getTime() : 0;
+      if (aIssued !== bIssued) return bIssued - aIssued;
+
+      return a.guide.code.localeCompare(b.guide.code, "pt-BR", { numeric: true });
+    });
+  }, [controlGuides]);
 
   const feeTable: MunicipalFeeTable = {
     id: `fee-table-${scopeId ?? "platform"}`,
@@ -384,7 +434,7 @@ export function FinanceDeskPage() {
     code: "financeiro-geral",
     label: "Tabela Financeira Municipal",
     description:
-      "Consolida protocolo, ISSQN / Projeto e a guia de aprovação/Alvará. Habite-se possui protocolo próprio e não integra este fluxo.",
+      "Consolida protocolo, ISSQN / Projeto, aprovação/Alvará e a Guia própria do Habite-se quando o processo chega ao Financeiro após a vistoria.",
     currency: "BRL",
     active: true,
   };
@@ -445,13 +495,22 @@ export function FinanceDeskPage() {
   };
 
   const bankProfile = {
-    bankName: "Banco conveniado municipal",
-    settlementMode: tenantSettings?.chavePix ? "PIX e baixa manual" : "Baixa manual e retorno bancário",
-    agreementCode: tenantSettings?.guiaPrefixo || "DAM",
+    bankName:
+      [tenantSettings?.bankCode, tenantSettings?.bankName]
+        .filter(Boolean)
+        .join(" · ") || "Banco arrecadador não configurado",
+    settlementMode: collectionModeLabel(tenantSettings?.bankCollectionMode),
+    agreementCode:
+      tenantSettings?.bankAgreementCode ||
+      (tenantSettings?.bankCollectionMode === "manual" ? "Não se aplica" : "Não configurado"),
     beneficiary:
       tenantSettings?.beneficiarioArrecadacao ||
       tenantSettings?.secretariaResponsavel ||
       "Prefeitura contratante",
+    account:
+      tenantSettings?.bankAgency || tenantSettings?.bankAccount
+        ? `Ag. ${tenantSettings?.bankAgency || "—"}${tenantSettings?.bankAgencyDigit ? `-${tenantSettings.bankAgencyDigit}` : ""} · Conta ${tenantSettings?.bankAccount || "—"}${tenantSettings?.bankAccountDigit ? `-${tenantSettings.bankAccountDigit}` : ""}`
+        : "Agência e conta não informadas",
   };
 
   const navItems = [
@@ -504,7 +563,7 @@ export function FinanceDeskPage() {
               <StatCard
                 label="Total lançado"
                 value={formatCurrency(controlIssuedValue)}
-                description="Taxa de protocolo, ISSQN e taxas finais"
+                description="Taxa de protocolo, ISSQN, aprovação/Alvará e Habite-se"
                 icon={ReceiptText}
                 tone="default"
                 valueClassName="text-xl md:text-2xl"
@@ -559,7 +618,7 @@ export function FinanceDeskPage() {
                             </p>
                           </div>
                           <Button asChild variant="outline" className="shrink-0 rounded-full">
-                            <Link to={`/processos/${process.id}?aba=financeiro`}>Abrir processo</Link>
+                            <Link to={`${buildProcessPath(process, "financeiro")}&guia=${encodeURIComponent(guide.code)}#guia-selecionada`}>Abrir processo</Link>
                           </Button>
                         </div>
                       ))
@@ -624,6 +683,72 @@ export function FinanceDeskPage() {
                 </div>
               ) : null}
 
+              {pendingHabiteSeGuideProcesses.length > 0 ? (
+                <div
+                  data-finance-habite-se-pending-queue="true"
+                  className="rounded-2xl border border-cyan-200 bg-cyan-50/70 p-4 dark:border-cyan-500/30 dark:bg-cyan-950/20"
+                >
+                  <div className="mb-4">
+                    <p className="text-sm font-semibold text-slate-950 dark:text-slate-100">
+                      Habite-se aguardando emissão pelo Financeiro
+                    </p>
+                    <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
+                      Vistorias concluídas e encaminhadas formalmente para geração da Guia de Habite-se antes da decisão / emissão.
+                    </p>
+                  </div>
+
+                  <div className="space-y-3">
+                    {pendingHabiteSeGuideProcesses.map((process) => {
+                      const request = getPendingHabiteSeGuideRequest(process.id);
+                      return (
+                        <div
+                          key={`${process.id}:habite-se-guide-request`}
+                          data-process-premium-card="true"
+                          data-surface="adaptive-card"
+                          className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-950/40"
+                        >
+                          <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+                            <div className="min-w-0">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <p className="text-sm font-semibold text-slate-950 dark:text-slate-100">
+                                  {formatOfficialProcessNumber(process.protocol)}
+                                </p>
+                                <Badge variant="outline" className="rounded-full border-cyan-200 bg-cyan-50 text-cyan-800 dark:border-cyan-500/40 dark:bg-cyan-950/40 dark:text-cyan-300">
+                                  Habite-se
+                                </Badge>
+                              </div>
+                              <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">
+                                {process.ownerName} • {process.technicalLead}
+                              </p>
+                              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                                Vistoria concluída • área declarada {Number(process.property.area || 0).toFixed(2)} m²
+                              </p>
+                              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                                Encaminhado por {request?.requestedBy || request?.assignedTo || "servidor responsável"}
+                                {request?.createdAt ? ` • ${request.createdAt}` : ""}
+                              </p>
+                            </div>
+
+                            <Button
+                              asChild
+                              data-finance-habite-se-action="true"
+                              className="sig-force-dark-action shrink-0 rounded-full border border-cyan-600 bg-cyan-800 px-5 font-bold !text-white shadow-[0_8px_20px_rgba(8,145,178,0.18)] hover:bg-cyan-700 [&_*]:!text-white"
+                            >
+                              <Link
+                                to={buildProcessPath(process, "financeiro")}
+                                className="!text-white"
+                              >
+                                Abrir e emitir Guia de Habite-se
+                              </Link>
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
+
               {financeCanIssueConstructionGuide && pendingConstructionGuideProcesses.length > 0 ? (
                 <div className="rounded-2xl border border-sky-200 bg-sky-50/60 p-4 dark:border-sky-500/30 dark:bg-sky-950/20">
                   <div className="mb-4">
@@ -672,7 +797,7 @@ export function FinanceDeskPage() {
 
                             <div className="flex shrink-0 flex-wrap gap-2">
                               <Button asChild variant="outline" className="rounded-full">
-                                <Link to={`/processos/${process.id}`}>Conferir processo</Link>
+                                <Link to={buildProcessPath(process)}>Conferir processo</Link>
                               </Button>
                               <Button
                                 type="button"
@@ -697,8 +822,16 @@ export function FinanceDeskPage() {
                 </div>
               ) : (
                 <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_8px_24px_rgba(15,23,42,0.04)] dark:border-slate-700 dark:bg-slate-950/45">
-                  <div className="hidden min-h-9 grid-cols-[42px_minmax(190px,1.15fr)_minmax(170px,1fr)_110px_110px_minmax(170px,1fr)_100px_34px] items-center gap-3 border-b border-slate-200 bg-slate-50/90 px-3 text-[9px] font-black uppercase tracking-[0.1em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/80 dark:text-slate-400 lg:grid">
-                    <span>#</span>
+                  <div className="border-b border-sky-100 bg-sky-50/70 px-4 py-3 dark:border-sky-500/20 dark:bg-sky-950/20">
+                    <p className="text-xs font-bold text-sky-900 dark:text-sky-100">
+                      Ordem oficial dos processos
+                    </p>
+                    <p className="mt-1 text-[11px] leading-5 text-sky-700 dark:text-sky-300">
+                      A sequência municipal nasce somente após a compensação da guia inicial. Pré-protocolos ainda não pagos aparecem como PRE e não consomem número de processo.
+                    </p>
+                  </div>
+                  <div className="hidden min-h-9 grid-cols-[54px_minmax(220px,1.2fr)_minmax(170px,1fr)_110px_110px_minmax(170px,1fr)_100px_34px] items-center gap-3 border-b border-slate-200 bg-slate-50/90 px-3 text-[9px] font-black uppercase tracking-[0.1em] text-slate-500 dark:border-slate-800 dark:bg-slate-900/80 dark:text-slate-400 lg:grid">
+                    <span>Seq.</span>
                     <span>Guia</span>
                     <span>Processo</span>
                     <span>Emissão</span>
@@ -709,29 +842,55 @@ export function FinanceDeskPage() {
                   </div>
 
                   <div className="divide-y divide-slate-100 dark:divide-slate-800">
-                    {issuedGuideRows.map(({ process, guide }, index) => {
+                    {issuedGuideRows.map(({ process, guide }) => {
                       const isProtocolGuide = guide.kind === "protocolo";
                       const issuedLabel = guide.issuedAt
                         ? new Date(guide.issuedAt).toLocaleDateString("pt-BR")
                         : "Não informada";
+                      const sequence = getOfficialProcessSequence(process);
+                      const sequenceLabel = sequence
+                        ? String(sequence.number).padStart(2, "0")
+                        : "PRE";
+                      const displayGuideCode = getPaymentGuideDisplayReference(
+                        process,
+                        guide,
+                      );
+                      const keepsOriginalPreprotocolCode =
+                        isProtocolGuide &&
+                        Boolean(guide.officialProcessReference) &&
+                        guide.officialProcessReference !== guide.code;
+                      const processDisplayLabel = sequence
+                        ? formatOfficialProcessNumber(process.protocol)
+                        : `Pré-protocolo ${process.preProtocol || process.protocol}`;
 
                       return (
                         <Link
                           key={`${process.id}-${guide.kind}-${guide.code}`}
-                          to={`/processos/${process.id}?aba=financeiro`}
-                          className="group grid min-h-[58px] grid-cols-[34px_minmax(0,1fr)_30px] items-center gap-2 px-3 py-2.5 transition hover:bg-sky-50/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-500 dark:hover:bg-sky-950/20 lg:grid-cols-[42px_minmax(190px,1.15fr)_minmax(170px,1fr)_110px_110px_minmax(170px,1fr)_100px_34px] lg:gap-3"
+                          to={`${buildProcessPath(process, "financeiro")}&guia=${encodeURIComponent(guide.code)}#guia-selecionada`}
+                          className="group grid min-h-[62px] grid-cols-[42px_minmax(0,1fr)_30px] items-center gap-2 px-3 py-2.5 transition hover:bg-sky-50/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-500 dark:hover:bg-sky-950/20 lg:grid-cols-[54px_minmax(220px,1.2fr)_minmax(170px,1fr)_110px_110px_minmax(170px,1fr)_100px_34px] lg:gap-3"
                         >
-                          <span className="inline-flex h-6 w-6 items-center justify-center rounded-lg bg-slate-950 text-[9px] font-black tracking-[0.04em] text-white dark:bg-white dark:text-slate-950">
-                            {String(index + 1).padStart(2, "0")}
+                          <span
+                            className={
+                              sequence
+                                ? "inline-flex h-7 min-w-7 items-center justify-center rounded-lg bg-slate-950 px-1 text-[9px] font-black tracking-[0.04em] text-white dark:bg-white dark:text-slate-950"
+                                : "inline-flex h-7 min-w-9 items-center justify-center rounded-lg border border-amber-300 bg-amber-50 px-1.5 text-[8px] font-black tracking-[0.04em] text-amber-800 dark:border-amber-500/40 dark:bg-amber-950/30 dark:text-amber-200"
+                            }
+                            title={
+                              sequence
+                                ? `Sequência oficial do processo: ${formatOfficialProcessNumber(process.protocol)}`
+                                : "Pré-protocolo: ainda não possui sequência oficial"
+                            }
+                          >
+                            {sequenceLabel}
                           </span>
 
                           <div className="min-w-0">
                             <div className="flex min-w-0 items-center gap-2">
                               <span
                                 className="truncate text-xs font-black text-slate-950 group-hover:text-sky-800 dark:text-white dark:group-hover:text-sky-300"
-                                title={guide.code}
+                                title={displayGuideCode}
                               >
-                                {guide.code}
+                                {displayGuideCode}
                               </span>
                               <Badge
                                 variant="outline"
@@ -747,9 +906,17 @@ export function FinanceDeskPage() {
                             <p className="mt-0.5 truncate text-[10px] font-medium text-slate-500 dark:text-slate-400" title={guide.label}>
                               {guide.label}
                             </p>
+                            {keepsOriginalPreprotocolCode ? (
+                              <p
+                                className="mt-0.5 truncate text-[9px] font-semibold text-slate-400 dark:text-slate-500"
+                                title={guide.code}
+                              >
+                                Guia paga no pré-protocolo: {guide.code}
+                              </p>
+                            ) : null}
 
                             <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-slate-500 dark:text-slate-400 lg:hidden">
-                              <span>{formatOfficialProcessNumber(process.protocol)}</span>
+                              <span>{processDisplayLabel}</span>
                               <span>Emissão: {issuedLabel}</span>
                               <span>Venc.: {guide.dueDate || "Não informado"}</span>
                               <span>{formatCurrency(guide.amount)}</span>
@@ -758,7 +925,7 @@ export function FinanceDeskPage() {
 
                           <div className="hidden min-w-0 lg:block">
                             <p className="truncate text-xs font-bold text-slate-800 dark:text-slate-100">
-                              {formatOfficialProcessNumber(process.protocol)}
+                              {processDisplayLabel}
                             </p>
                             <p className="mt-0.5 truncate text-[10px] text-slate-500 dark:text-slate-400" title={process.ownerName}>
                               {process.ownerName}
@@ -774,7 +941,7 @@ export function FinanceDeskPage() {
                           </span>
 
                           <span className="hidden truncate text-[10px] font-semibold text-slate-600 dark:text-slate-300 lg:block">
-                            {isProtocolGuide ? "Baixa: Protocolo" : "Controle: Financeiro"}
+                            {isProtocolGuide ? "Baixa operacional: Protocolo" : "Controle: Financeiro"}
                           </span>
 
                           <span className="hidden text-right text-xs font-black text-slate-950 dark:text-white lg:block">
@@ -844,7 +1011,7 @@ export function FinanceDeskPage() {
                               <div className="sig-dark-panel rounded-xl bg-slate-50 px-3 py-2">Vencimento: {guide.dueDate}</div>
                               <div className="sig-dark-panel rounded-xl bg-slate-50 px-3 py-2">Status: Pendente</div>
                               <div className="sig-dark-panel rounded-xl bg-slate-50 px-3 py-2">
-                                <Link to={`/processos/${process.id}`} className="font-medium text-slate-700">
+                                <Link to={buildProcessPath(process)} className="font-medium text-slate-700">
                                   Conferir
                                 </Link>
                               </div>
@@ -932,8 +1099,9 @@ export function FinanceDeskPage() {
                     <p className="mt-2 text-base font-semibold text-slate-950">{bankProfile.bankName}</p>
                     <div className="mt-3 space-y-2 text-sm text-slate-600">
                       <p>Modo: {bankProfile.settlementMode}</p>
-                      <p>Convênio / prefixo: {bankProfile.agreementCode}</p>
+                      <p>Convênio: {bankProfile.agreementCode}</p>
                       <p>Beneficiário: {bankProfile.beneficiary}</p>
+                      <p>{bankProfile.account}</p>
                     </div>
                   </div>
                   <div className="sig-dark-panel rounded-2xl border border-slate-200 bg-white p-5">
@@ -1006,7 +1174,7 @@ export function FinanceDeskPage() {
             sampleUsage={sampleProcess?.property.usage ?? "Residencial"}
             sampleStandard={sampleProcess?.property.constructionStandard ?? "medio"}
             title="Tabelas e regras financeiras"
-            subtitle="Taxas de protocolo, ISSQN e guia de aprovação/Alvará por tipo de obra e padrão de acabamento."
+            subtitle="Taxas de protocolo, ISSQN e aprovação/Alvará; a Guia de Habite-se entra no Financeiro pelo workflow próprio após a vistoria."
             values={{
               taxaProtocolo: tenantSettings?.taxaProtocolo ?? 35.24,
               taxaIssPorMetroQuadrado: tenantSettings?.taxaIssPorMetroQuadrado ?? 0,

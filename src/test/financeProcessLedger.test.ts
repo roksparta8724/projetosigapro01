@@ -11,6 +11,10 @@ describe("finance process accounting ledger", () => {
     resolve(process.cwd(), "src/pages/saas/FinanceDeskPage.tsx"),
     "utf8",
   );
+  const detail = readFileSync(
+    resolve(process.cwd(), "src/pages/saas/ProcessDetailPage.tsx"),
+    "utf8",
+  );
 
   it("keeps every active municipal protocol visible even before a finance guide exists", () => {
     expect(protocols).toContain("scopedProcesses");
@@ -61,14 +65,41 @@ describe("finance process accounting ledger", () => {
     expect(desk).toContain("Protocolos em aberto");
   });
 
-  it("shows every emitted guide in an ordered grid while preserving protocol responsibility", () => {
+  it("keeps the clicked ledger row bound to the exact guide instead of falling back to another guide in the same process", () => {
+    expect(desk).toContain('&guia=${encodeURIComponent(guide.code)}#guia-selecionada');
+    expect(desk).toMatch(
+      /key=\{\`\$\{process\.id\}-\$\{guide\.kind\}-\$\{guide\.code\}\`\}[\s\S]{0,380}to=\{\`\$\{buildProcessPath\(process, "financeiro"\)\}&guia=\$\{encodeURIComponent\(guide\.code\)\}#guia-selecionada\`\}/,
+    );
+    expect(detail).toContain('new URLSearchParams(location.search).get("guia")');
+    expect(detail).toContain("paymentGuides.find((guide) => guide.code === requestedGuideCode)");
+    expect(detail).toContain("const displayGuide = requestedPaymentGuide ?? approvalGuide ?? constructionGuide ?? protocolGuide;");
+    expect(detail).toContain("printGuide(displayGuide.kind, false, displayGuide.code)");
+    expect(detail).toContain("printGuide(displayGuide.kind, true, displayGuide.code)");
+    expect(detail).toContain('id="guia-selecionada"');
+    expect(detail).toContain('data-selected-guide-summary="true"');
+    expect(detail).toContain('data-guide-selected="true"');
+    expect(detail).toContain('data-guide-code={requestedPaymentGuide.code}');
+    expect(detail).toContain("prewarmGuideSignature");
+    expect(detail).toContain("[activeTab, requestedGuideCode, processId, prewarmGuideSignature]");
+    expect(detail).toContain("printGuide(requestedPaymentGuide.kind, false, requestedPaymentGuide.code)");
+    expect(detail).toContain("visiblePaymentGuides.find((guide) => guide.code === guideCode)");
+  });
+
+  it("shows every emitted guide in official process order while preserving protocol responsibility", () => {
     expect(desk).toContain("issuedGuideRows");
     expect(desk).toContain("[...controlGuides].sort");
+    expect(desk).toContain("getOfficialProcessSequence");
+    expect(desk).toContain("getPaymentGuideDisplayReference");
+    expect(desk).toContain("bSequence.number - aSequence.number");
     expect(desk).toContain("bIssued - aIssued");
-    expect(desk).toContain("lg:grid-cols-2 2xl:grid-cols-3");
+    expect(desk).toContain("lg:grid-cols-[54px_minmax(220px,1.2fr)_minmax(170px,1fr)_110px_110px_minmax(170px,1fr)_100px_34px]");
+    expect(desk).toContain("Ordem oficial dos processos");
+    expect(desk).toContain("Pré-protocolos ainda não pagos aparecem como PRE");
+    expect(desk).toContain("Guia paga no pré-protocolo:");
     expect(desk).toContain("Baixa operacional: Protocolo");
     expect(desk).toContain("Controle: Financeiro");
     expect(desk).toContain('title="Guias emitidas"');
     expect(desk).not.toContain("guidesByIssueDate");
+    expect(desk).not.toContain('String(index + 1).padStart(2, "0")');
   });
 });

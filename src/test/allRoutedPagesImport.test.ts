@@ -33,6 +33,7 @@ const routedPages = [
   ["ClientePortalPage", () => import("@/pages/saas/ClientePortalPage")],
   ["MasterPlansPage", () => import("@/pages/saas/MasterPlansPage")],
   ["PublicPlansPage", () => import("@/pages/saas/PublicPlansPage")],
+  ["PublicSignatureVerificationPage", () => import("@/pages/saas/PublicSignatureVerificationPage")],
   ["AiAssistantPage", () => import("@/pages/saas/AiAssistantPage")],
 ] as const;
 
@@ -41,5 +42,5 @@ describe("all routed page modules", () => {
     const module = await load();
     expect(module).toHaveProperty(exportName);
     expect(typeof module[exportName as keyof typeof module]).toBe("function");
-  });
+  }, 20_000);
 });

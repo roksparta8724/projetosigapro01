@@ -188,6 +188,13 @@ window.addEventListener("sigapro-platform-session-updated", () => {
   }
 });
 
+// Registra também a rota corrente ANTES do primeiro render.
+// Isso remove a dependência exclusiva de beforeunload/pagehide no F5:
+// em navegadores que atrasam ou suprimem esses eventos, PermissionRoute e
+// PlanModuleRoute já reconhecem imediatamente a mesma conta + mesma rota.
+// O cache só é criado quando existe uma identidade local ativa e válida.
+persistRefreshContinuity();
+
 bootApplication();
 
 if (import.meta.env.PROD && "serviceWorker" in navigator) {

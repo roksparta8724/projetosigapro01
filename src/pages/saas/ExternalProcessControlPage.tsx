@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Activity, AlertTriangle, Calendar, Clock3, CreditCard, Eye, FileBarChart2, FileCheck, FilePenLine, FileText, Filter, FolderKanban, ListChecks, Search, TrendingUp, Workflow, X } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
@@ -23,10 +23,12 @@ import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { externalTabs, getExternalTabByPath } from "@/lib/externalTabs";
 import { listProtocolDrafts } from "@/lib/protocolDraft";
 import {
+  buildProcessPath,
   formatCurrency,
   formatOfficialProcessNumber,
   formatOfficialProcessTitle,
   getExternallyVisibleProcessPaymentGuides,
+  getPaymentGuideDisplayReference,
   getVisibleProcessesByScope,
   parseMarker,
   statusLabel,
@@ -40,7 +42,7 @@ const statusOptions = [
   { value: "exigencia", label: "Com exigência" },
   { value: "pagamento_pendente", label: "Aguardando pagamento" },
   { value: "pagamento_confirmado", label: "Pagamento confirmado" },
-  { value: "deferido", label: "Deferido" },
+  { value: "deferido", label: "Concluído" },
   { value: "indeferido", label: "Indeferido" },
   { value: "arquivado", label: "Arquivado" },
 ];
@@ -84,13 +86,44 @@ function formatProcessDate(process: unknown): string {
   return parsed.toLocaleDateString("pt-BR");
 }
 
+function externalProcessStatusLabel(status: string) {
+  if (status === "deferido") return "Concluído";
+  return statusLabel(status as Parameters<typeof statusLabel>[0]);
+}
+
+function compactExternalGuideLabel(kind: string) {
+  switch (kind) {
+    case "protocolo":
+      return "Protocolo";
+    case "iss_obra":
+      return "Análise / ISSQN";
+    case "aprovacao_final":
+      return "Aprovação / Alvará";
+    default:
+      return "Pagamento";
+  }
+}
+
+function isGuideCompensated(status: string | null | undefined) {
+  const normalized = String(status || "").trim().toLocaleLowerCase("pt-BR");
+  return ["compensada", "pago", "paid", "confirmed", "confirmado"].includes(normalized);
+}
+
 export function ExternalProcessControlPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { session } = usePlatformSession();
   const { municipality, scopeId, institutionSettingsCompat } = useMunicipality();
-  const { processes: allProcesses, getInstitutionSettings } = usePlatformData();
+  const {
+    processes: allProcesses,
+    getInstitutionSettings,
+    loading: platformLoading,
+    dataError,
+    dataReadyForCurrentUser,
+    refreshRemoteStore,
+  } = usePlatformData();
 
+  const recoveryAttemptedRef = useRef(false);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("todos");
   const [stageFilter, setStageFilter] = useState("todos");
@@ -103,7 +136,49 @@ export function ExternalProcessControlPage() {
   const tenantSettings = institutionSettingsCompat ?? getInstitutionSettings(effectiveScopeId);
   const savedDrafts = listProtocolDrafts(session.id, effectiveScopeId, session.tenantId);
 
-  const processes = getVisibleProcessesByScope(session, effectiveScopeId, allProcesses);
+  const visibleRecords = getVisibleProcessesByScope(
+    session,
+    effectiveScopeId,
+    allProcesses,
+  );
+
+  useEffect(() => {
+    if (
+      platformLoading ||
+      recoveryAttemptedRef.current ||
+      session.id === "unknown" ||
+      typeof refreshRemoteStore !== "function"
+    ) {
+      return;
+    }
+
+    // Se o store ainda pertence à conta anterior, ou se o banco já terminou
+    // de carregar mas nenhum processo vinculado ao profissional apareceu,
+    // força uma única revalidação oficial. Nunca cria/migra processo aqui.
+    const needsRecovery =
+      !dataReadyForCurrentUser ||
+      (dataReadyForCurrentUser && visibleRecords.length === 0);
+
+    if (!needsRecovery) return;
+
+    recoveryAttemptedRef.current = true;
+    void refreshRemoteStore().catch((error) => {
+      console.warn("[SIGAPRO][Externo] Falha na tentativa automática de recuperar a carteira.", error);
+    });
+  }, [
+    dataReadyForCurrentUser,
+    platformLoading,
+    refreshRemoteStore,
+    session.id,
+    visibleRecords.length,
+  ]);
+  const provisionalProcesses = visibleRecords.filter(
+    (process) => process.isOfficial === false,
+  );
+  const processes = visibleRecords.filter(
+    (process) => process.isOfficial !== false,
+  );
+  const inProgressCount = savedDrafts.length + provisionalProcesses.length;
   const filteredProcesses = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
     const periodDays = Number(periodFilter);
@@ -225,12 +300,12 @@ export function ExternalProcessControlPage() {
             Processos protocolados
           </Button>
           <Button asChild variant="ghost" className="rounded-xl">
-            <Link to="/externo/controle/rascunhos">
+            <Link to="/externo/controle/em-andamento">
               <FilePenLine className="mr-2 h-4 w-4" />
-              Rascunhos
-              {savedDrafts.length > 0 ? (
+              Em andamento
+              {inProgressCount > 0 ? (
                 <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-100 px-1.5 text-[10px] font-bold text-amber-800 dark:bg-amber-400/20 dark:text-amber-200">
-                  {savedDrafts.length}
+                  {inProgressCount}
                 </span>
               ) : null}
             </Link>
@@ -349,7 +424,7 @@ export function ExternalProcessControlPage() {
               }
               contentClassName="space-y-4"
             >
-              <div data-process-list-header="true" className="hidden rounded-[18px] border px-6 py-3.5 text-[11px] font-semibold uppercase tracking-[0.15em] shadow-sm 2xl:grid 2xl:grid-cols-[1.35fr_0.88fr_1.12fr_0.92fr_1.18fr] 2xl:gap-0">
+              <div data-process-list-header="true" className="hidden rounded-[18px] border px-6 py-3.5 text-[11px] font-semibold uppercase tracking-[0.15em] shadow-sm 2xl:grid 2xl:grid-cols-[1.28fr_0.78fr_1.02fr_1.28fr_1.08fr] 2xl:gap-0">
                 <span>Processo</span>
                 <span>Status</span>
                 <span>Etapa atual</span>
@@ -359,7 +434,12 @@ export function ExternalProcessControlPage() {
 
               {filteredProcesses.map((process) => {
                 const guides = getExternallyVisibleProcessPaymentGuides(process, tenantSettings);
-                const pendingGuide = guides.find((guide) => guide.status !== "compensada");
+                const displayGuides = ["protocolo", "iss_obra", "aprovacao_final"]
+                  .map((kind) => guides.find((guide) => guide.kind === kind))
+                  .filter((guide): guide is (typeof guides)[number] => Boolean(guide));
+                const hasPendingGuide = displayGuides.some(
+                  (guide) => !isGuideCompensated(guide.status),
+                );
                 const lastUpdateLabel = formatProcessDate(process);
                 const officialNumber = formatOfficialProcessNumber(process.protocol);
                 const officialTitle = formatOfficialProcessTitle({ title: process.title, type: process.type });
@@ -371,7 +451,7 @@ export function ExternalProcessControlPage() {
                     data-process-premium-card="true"
                     className="group overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-[0_12px_32px_rgba(15,23,42,0.07)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_18px_42px_rgba(15,23,42,0.11)] dark:border-slate-700 dark:bg-slate-900 dark:shadow-[0_18px_42px_rgba(0,0,0,0.24)]"
                   >
-                    <div className="grid gap-0 2xl:grid-cols-[1.35fr_0.88fr_1.12fr_0.92fr_1.18fr] 2xl:items-stretch">
+                    <div className="grid gap-0 2xl:grid-cols-[1.28fr_0.78fr_1.02fr_1.28fr_1.08fr] 2xl:items-stretch">
                       <div className="min-w-0 p-5 2xl:border-r 2xl:border-slate-200/80 dark:2xl:border-slate-700/80">
                         <div className="flex items-start gap-4">
                           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-blue-100 bg-blue-50 text-blue-600 shadow-sm dark:border-blue-800/60 dark:bg-blue-950/50 dark:text-blue-300">
@@ -420,7 +500,7 @@ export function ExternalProcessControlPage() {
                               variant="outline"
                               className={`mt-2 rounded-full px-3 py-1 text-[12px] font-semibold capitalize ${statusTone(process.status)}`}
                             >
-                              {statusLabel(process.status)}
+                              {externalProcessStatusLabel(process.status)}
                             </Badge>
                           </div>
                         </div>
@@ -446,17 +526,51 @@ export function ExternalProcessControlPage() {
 
                       <div className="min-w-0 border-t border-slate-200/80 p-5 2xl:border-t-0 2xl:border-r">
                         <div className="flex items-start gap-3">
-                          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${pendingGuide ? "bg-amber-50 text-amber-600 dark:bg-amber-950/50 dark:text-amber-300" : "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-300"}`}>
+                          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${hasPendingGuide ? "bg-amber-50 text-amber-600 dark:bg-amber-950/50 dark:text-amber-300" : "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-300"}`}>
                             <CreditCard className="h-4 w-4" />
                           </div>
-                          <div className="min-w-0">
-                            <p className="text-[11px] font-semibold uppercase tracking-[0.13em] text-slate-400">Pagamento</p>
-                            <p className="mt-2 text-[15px] font-bold leading-5 text-slate-950 dark:text-white">
-                              {pendingGuide ? formatCurrency(pendingGuide.amount) : "Pago"}
-                            </p>
-                            <span className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${pendingGuide ? "bg-amber-50 text-amber-700 ring-1 ring-amber-200 dark:bg-amber-950/50 dark:text-amber-200 dark:ring-amber-800" : "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-200 dark:ring-emerald-800"}`}>
-                              {pendingGuide ? "Aguardando pagamento" : "Compensado"}
-                            </span>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.13em] text-slate-400">Pagamentos</p>
+                            {displayGuides.length > 0 ? (
+                              <div className="mt-2 space-y-2">
+                                {displayGuides.map((guide) => {
+                                  const compensated = isGuideCompensated(guide.status);
+                                  return (
+                                    <div
+                                      key={`${process.id}-payment-${guide.kind}`}
+                                      data-external-payment-guide={guide.kind}
+                                      className="rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2 shadow-[0_3px_10px_rgba(15,23,42,0.035)] dark:border-slate-700 dark:bg-slate-950/35"
+                                    >
+                                      <div className="flex items-center justify-between gap-3">
+                                        <span className="truncate text-[11px] font-bold text-slate-700 dark:text-slate-200">
+                                          {compactExternalGuideLabel(guide.kind)}
+                                        </span>
+                                        <span className="shrink-0 text-[12px] font-extrabold text-slate-950 dark:text-white">
+                                          {formatCurrency(guide.amount)}
+                                        </span>
+                                      </div>
+                                      <div className="mt-1.5 flex items-center justify-between gap-2">
+                                        <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold ${compensated ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-200 dark:ring-emerald-800" : "bg-amber-50 text-amber-700 ring-1 ring-amber-200 dark:bg-amber-950/50 dark:text-amber-200 dark:ring-amber-800"}`}>
+                                          {compensated ? "Compensado" : "Pendente"}
+                                        </span>
+                                        {guide.code ? (
+                                          <span
+                                            className="truncate text-[9px] font-semibold text-slate-400"
+                                            title={getPaymentGuideDisplayReference(process, guide)}
+                                          >
+                                            {getPaymentGuideDisplayReference(process, guide)}
+                                          </span>
+                                        ) : null}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            ) : (
+                              <p className="mt-2 text-[12px] font-semibold text-slate-500 dark:text-slate-400">
+                                Nenhuma guia liberada
+                              </p>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -469,7 +583,7 @@ export function ExternalProcessControlPage() {
                           triggerClassName="h-10 w-full rounded-xl border-slate-200 bg-white text-[12px] font-semibold text-slate-700 shadow-sm hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700"
                         />
                         <Button asChild variant="outline" className="h-10 w-full rounded-xl border-slate-300 bg-white text-[12px] font-semibold text-slate-800 shadow-sm hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700">
-                          <Link to={`/processos/${process.id}?aba=fluxo`}>
+                          <Link to={buildProcessPath(process, "historico")}>
                             <Workflow className="mr-2 h-4 w-4" />
                             Acompanhar fluxo
                           </Link>
@@ -477,13 +591,13 @@ export function ExternalProcessControlPage() {
                       </div>
                     </div>
 
-                    <div className="border-t border-slate-200/80 bg-slate-50/70 px-5 py-4 dark:border-slate-700/80 dark:bg-slate-950/35">
+                    <div className="flex items-center justify-end border-t border-slate-200/80 bg-slate-50/70 px-5 py-3 dark:border-slate-700/80 dark:bg-slate-950/35">
                       <Button
                         asChild
                         data-primary-action="process"
-                        className="sig-primary-process-action h-16 w-full rounded-[20px] px-7 text-[15px] font-extrabold tracking-[0.01em] !text-white transition hover:-translate-y-px hover:brightness-110 [&_*]:!text-white"
+                        className="sig-primary-process-action h-11 min-w-[190px] rounded-[14px] px-5 text-[13px] font-extrabold tracking-[0.01em] !text-white shadow-[0_8px_20px_rgba(7,89,133,0.18)] transition hover:-translate-y-px hover:brightness-105 [&_*]:!text-white"
                       >
-                        <Link to={`/processos/${process.id}`} className="flex w-full items-center justify-center gap-2.5 !text-white">
+                        <Link to={buildProcessPath(process)} className="flex items-center justify-center gap-2 !text-white">
                           <Eye className="h-4 w-4 shrink-0 !text-white" />
                           <span className="!text-white">Abrir processo</span>
                         </Link>
@@ -494,14 +608,57 @@ export function ExternalProcessControlPage() {
               })}
 
               {filteredProcesses.length === 0 ? (
-                <div className="sig-dark-panel rounded-[12px] border border-dashed border-slate-300 p-8 text-center">
-                  <p className="text-[18px] font-semibold leading-7 text-slate-900">Nenhum processo encontrado</p>
-                  <p className="mt-2 text-[15px] leading-7 text-slate-600">
-                    Você ainda não possui protocolos com os filtros selecionados.
-                  </p>
-                  <Button asChild className="mt-4 rounded-full bg-slate-950 hover:bg-slate-900">
-                    <Link to="/externo/protocolar">Novo protocolo</Link>
-                  </Button>
+                <div className="sig-dark-panel rounded-[18px] border border-dashed border-slate-300 p-8 text-center">
+                  {platformLoading || !dataReadyForCurrentUser ? (
+                    <>
+                      <p className="text-[18px] font-semibold leading-7 text-slate-900">
+                        Carregando seus processos
+                      </p>
+                      <p className="mt-2 text-[15px] leading-7 text-slate-600">
+                        A carteira oficial está sendo sincronizada com o banco municipal.
+                      </p>
+                    </>
+                  ) : dataError && allProcesses.length === 0 ? (
+                    <>
+                      <p className="text-[18px] font-semibold leading-7 text-slate-900">
+                        Reconectando sua carteira oficial
+                      </p>
+                      <p className="mt-2 text-[15px] leading-7 text-slate-600">
+                        Seus processos não foram apagados. A leitura oficial será refeita sem alterar o fluxo, os documentos ou os pagamentos.
+                      </p>
+                      <Button
+                        type="button"
+                        className="mt-4 rounded-full bg-slate-950 px-5 text-white hover:bg-slate-900"
+                        onClick={() => {
+                          recoveryAttemptedRef.current = true;
+                          void refreshRemoteStore().catch(() => undefined);
+                        }}
+                      >
+                        Tentar novamente
+                      </Button>
+                    </>
+                  ) : processes.length > 0 ? (
+                    <>
+                      <p className="text-[18px] font-semibold leading-7 text-slate-900">
+                        Nenhum processo corresponde aos filtros
+                      </p>
+                      <p className="mt-2 text-[15px] leading-7 text-slate-600">
+                        Limpe ou altere os filtros para visualizar seus protocolos.
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-[18px] font-semibold leading-7 text-slate-900">
+                        Nenhum processo protocolado
+                      </p>
+                      <p className="mt-2 text-[15px] leading-7 text-slate-600">
+                        Quando houver um protocolo oficial vinculado ao seu perfil, ele aparecerá aqui.
+                      </p>
+                      <Button asChild className="mt-4 rounded-full bg-slate-950 hover:bg-slate-900">
+                        <Link to="/externo/protocolar">Novo protocolo</Link>
+                      </Button>
+                    </>
+                  )}
                 </div>
               ) : null}
             </SectionPanel>
@@ -582,7 +739,7 @@ export function ExternalProcessControlPage() {
                                     <p className="mt-1 line-clamp-2 text-[13px] leading-5 text-slate-600">{formatOfficialProcessTitle({ title: process.title, type: process.type })}</p>
                                   </div>
                                   <Button asChild variant="outline" className="h-9 shrink-0 rounded-xl text-[11px]">
-                                    <Link to={`/processos/${process.id}`} onClick={() => setSummaryOpen(false)}>Abrir</Link>
+                                    <Link to={buildProcessPath(process)} onClick={() => setSummaryOpen(false)}>Abrir</Link>
                                   </Button>
                                 </div>
                               </div>
@@ -619,7 +776,7 @@ export function ExternalProcessControlPage() {
                                   </p>
                                 </div>
                                 <Button asChild variant="outline" className="h-9 shrink-0 rounded-xl text-[11px]">
-                                  <Link to={`/processos/${process.id}?aba=fluxo`} onClick={() => setSummaryOpen(false)}>Ver fluxo</Link>
+                                  <Link to={buildProcessPath(process, "historico")} onClick={() => setSummaryOpen(false)}>Ver fluxo</Link>
                                 </Button>
                               </div>
                             </div>

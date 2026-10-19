@@ -10,11 +10,6 @@ interface ProcessIdentityPanelProps {
   canViewFullIdentity: boolean;
 }
 
-function samePerson(left: string | undefined, right: string | undefined): boolean {
-  const normalize = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase().replace(/\s+/g, " ");
-  return Boolean(left?.trim() && right?.trim() && normalize(left) === normalize(right));
-}
-
 function dataOrPending(value: string | number | null | undefined): string {
   const text = String(value ?? "").trim();
   return text && text !== "0" ? text : "Não informado";
@@ -36,9 +31,11 @@ export function ProcessIdentityPanel({
   constructionStandardLabel,
   canViewFullIdentity,
 }: ProcessIdentityPanelProps) {
-  // Nunca associar cadastros só por nome parecido. Uma vinculação inequívoca é obrigatória.
-  const linkedOwner = samePerson(ownerProfile?.fullName, process.ownerName) ? ownerProfile : undefined;
-  const linkedProfessional = samePerson(technicalProfile?.fullName, process.technicalLead) ? technicalProfile : undefined;
+  // ownerProfile/technicalProfile só chegam aqui quando o processo possui
+  // vínculo explícito por profile_id. Esse ID estável é a fonte correta:
+  // alteração de nome, profissão ou registro no perfil não pode quebrar o vínculo.
+  const linkedOwner = ownerProfile;
+  const linkedProfessional = technicalProfile;
   const ownerDocument = linkedOwner?.cpfCnpj?.trim() || process.ownerDocument || "";
   const ownerDocumentStatus = validateBrazilianTaxId(ownerDocument);
   const hasFullDocument = ownerDocumentStatus === "formato_valido";
@@ -72,21 +69,44 @@ export function ProcessIdentityPanel({
       <div className="sig-pid-section">
         <div className="sig-pid-section-title"><UserRound size={19} aria-hidden="true" /> Proprietário / titular</div>
         <div className="sig-pid-grid">
-          <DetailField label="Nome completo" value={dataOrPending(process.ownerName)} warning={!process.ownerName.trim()} />
+          <DetailField
+            label="Nome completo"
+            value={dataOrPending(linkedOwner?.fullName || process.ownerName)}
+            warning={!(linkedOwner?.fullName || process.ownerName).trim()}
+          />
           <DetailField label="CPF / CNPJ" value={visibleDocument} warning={canViewFullIdentity && !hasFullDocument} />
-          <DetailField label="Situação do documento" value={canViewFullIdentity ? (
-            hasFullDocument ? "Formato conferido · titularidade não verificada" :
-            ownerDocumentStatus === "incompleto" ? "Cadastro incompleto" :
-            ownerDocumentStatus === "ausente" ? "Não informado" : "Formato inválido"
-          ) : "Consulta interna"} warning={canViewFullIdentity && !hasFullDocument} />
-          <DetailField label="Contato do titular" value={canViewFullIdentity ? dataOrPending(linkedOwner?.email || linkedOwner?.phone) : "Consulta interna"} />
+          <DetailField
+            label="RG / documento de identidade"
+            value={
+              canViewFullIdentity
+                ? dataOrPending(process.ownerIdentityDocument || linkedOwner?.rg)
+                : "Consulta interna"
+            }
+          />
+          <DetailField
+            label="Contato do titular"
+            value={
+              canViewFullIdentity
+                ? dataOrPending(
+                    process.ownerEmail ||
+                      process.ownerPhone ||
+                      linkedOwner?.email ||
+                      linkedOwner?.phone,
+                  )
+                : "Consulta interna"
+            }
+          />
         </div>
       </div>
 
       <div className="sig-pid-section">
         <div className="sig-pid-section-title"><Contact size={19} aria-hidden="true" /> Responsável técnico</div>
         <div className="sig-pid-grid">
-          <DetailField label="Nome completo" value={dataOrPending(process.technicalLead)} warning={!process.technicalLead.trim()} />
+          <DetailField
+            label="Nome completo"
+            value={dataOrPending(linkedProfessional?.fullName || process.technicalLead)}
+            warning={!(linkedProfessional?.fullName || process.technicalLead).trim()}
+          />
           <DetailField label="Profissão" value={dataOrPending(linkedProfessional?.professionalType)} />
           <DetailField label="CPF / CNPJ do profissional" value={canViewFullIdentity ? dataOrPending(professionalDocument) : "Acesso restrito à equipe autorizada"} warning={canViewFullIdentity && professionalDocumentStatus !== "formato_valido"} />
           <DetailField label="CREA / CAU / CFT" value={dataOrPending(professionalRegistration)} warning={!professionalRegistration} />
@@ -104,6 +124,7 @@ export function ProcessIdentityPanel({
           <DetailField label="Lote / Quadra" value={dataOrPending([process.property.lot, process.property.block].filter(Boolean).join(" / "))} />
           <DetailField label="Área declarada" value={process.property.area > 0 ? process.property.area.toLocaleString("pt-BR", { maximumFractionDigits: 2 }) + " m²" : "Não informada"} warning={!(process.property.area > 0)} />
           <DetailField label="Uso da edificação" value={dataOrPending(process.property.usage)} warning={!process.property.usage.trim()} />
+          <DetailField label="Tipo da edificação" value={dataOrPending(process.property.buildingType)} />
           <DetailField label="Natureza da obra" value={dataOrPending(process.property.workType)} />
           <DetailField label="Padrão construtivo" value={constructionStandardLabel} />
         </div>

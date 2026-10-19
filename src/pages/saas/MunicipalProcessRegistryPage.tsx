@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
+import { useLivePlatformRefresh } from "@/hooks/useLivePlatformRefresh";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import {
   isInternalRole,
@@ -35,8 +36,9 @@ function isFinalProcess(process: ProcessRecord) {
 export function MunicipalProcessRegistryPage() {
   const { session } = usePlatformSession();
   const { municipality, scopeId } = useMunicipality();
-  const { processes: allProcesses } = usePlatformData();
+  const { processes: allProcesses, refreshRemoteStore } = usePlatformData();
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
+  useLivePlatformRefresh(refreshRemoteStore, { intervalMs: 8000 });
 
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<RegistryFilter>("todos");
@@ -72,7 +74,11 @@ export function MunicipalProcessRegistryPage() {
   const municipalityProcesses = useMemo(
     () =>
       allProcesses
-        .filter((process) => matchesOperationalScope(effectiveScopeId, process))
+        .filter(
+          (process) =>
+            process.isOfficial !== false &&
+            matchesOperationalScope(effectiveScopeId, process),
+        )
         .sort((a, b) => {
           const aDate = Date.parse(a.timeline?.[0]?.at || a.analysis?.startedAt || "1970-01-01");
           const bDate = Date.parse(b.timeline?.[0]?.at || b.analysis?.startedAt || "1970-01-01");

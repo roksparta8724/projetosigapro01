@@ -113,6 +113,57 @@ export function formatOfficialProcessNumber(
   return value;
 }
 
+export function buildProcessRouteKey(
+  protocol: string | null | undefined,
+  fallbackId = "",
+) {
+  const normalized = String(protocol || "")
+    .trim()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[\\/\s]+/g, "-")
+    .replace(/[^A-Za-z0-9._-]/g, "")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+
+  return normalized || String(fallbackId || "").trim();
+}
+
+export function buildProcessPath(
+  process: Pick<ProcessRecord, "id" | "protocol">,
+  tab?: string,
+) {
+  const routeKey = buildProcessRouteKey(process.protocol, process.id);
+  const search = tab ? `?aba=${encodeURIComponent(tab)}` : "";
+  return `/processos/${encodeURIComponent(routeKey)}${search}`;
+}
+
+export function resolveProcessRoute(
+  processes: ProcessRecord[],
+  routeValue: string | null | undefined,
+) {
+  if (!routeValue) return undefined;
+
+  let decoded = routeValue.trim();
+  try {
+    decoded = decodeURIComponent(routeValue).trim();
+  } catch {
+    decoded = routeValue.trim();
+  }
+
+  const byId = getProcessById(decoded, processes);
+  if (byId) return byId;
+
+  const normalized = decoded.toLocaleLowerCase("pt-BR");
+  return processes.find((item) => {
+    const protocol = String(item.protocol || "");
+    return (
+      protocol.toLocaleLowerCase("pt-BR") === normalized ||
+      buildProcessRouteKey(protocol, item.id).toLocaleLowerCase("pt-BR") === normalized
+    );
+  });
+}
+
 export function formatProfessionalProcessType(type?: string | null) {
   const normalized = (type ?? "").trim().toLowerCase();
   if (!normalized) return "Processo administrativo digital";
@@ -258,9 +309,10 @@ export function isSigaproMasterAccount(input: {
   email?: string | null;
   role?: string | null;
 } | string | null | undefined) {
-  if (typeof input === "string" || input == null) {
+  if (typeof input === "string") {
     return normalizeScopedEmail(input) === SIGAPRO_MASTER_EMAIL;
   }
+  if (input == null) return false;
 
   return (
     normalizeScopedEmail(input.email) === SIGAPRO_MASTER_EMAIL ||
@@ -424,6 +476,12 @@ export interface DepartmentOwnershipEntry {
   diretoria: string;
 }
 
+export type MunicipalPixKeyType = "cpf" | "cnpj" | "email" | "phone" | "random";
+export type MunicipalBankCollectionMode = "manual" | "agreement" | "api";
+export type MunicipalPaymentProvider = "mercado_pago" | "bank_direct" | "manual";
+export type MunicipalPaymentProviderEnvironment = "test" | "production";
+export type MunicipalPaymentAuthenticationMode = "automatic" | "manual";
+
 export interface TenantSettings {
   tenantId: string;
   cnpj: string;
@@ -456,6 +514,23 @@ export interface TenantSettings {
   guiaPrefixo: string;
   chavePix: string;
   beneficiarioArrecadacao: string;
+  pixEnabled?: boolean;
+  pixKeyType?: MunicipalPixKeyType;
+  pixMerchantCity?: string;
+  bankCode?: string;
+  bankName?: string;
+  bankAgency?: string;
+  bankAgencyDigit?: string;
+  bankAccount?: string;
+  bankAccountDigit?: string;
+  bankBeneficiaryDocument?: string;
+  bankCollectionMode?: MunicipalBankCollectionMode;
+  bankAgreementCode?: string;
+  bankWallet?: string;
+  bankInstructions?: string;
+  paymentProvider?: MunicipalPaymentProvider;
+  paymentProviderEnvironment?: MunicipalPaymentProviderEnvironment;
+  paymentAuthenticationMode?: MunicipalPaymentAuthenticationMode;
   taxaProtocolo: number;
   taxaIssPorMetroQuadrado: number;
   issRateProfiles?: MunicipalIssRateProfile[];
@@ -530,12 +605,14 @@ export interface TenantSettings {
 export type InstitutionSettings = TenantSettings;
 export type InstitutionScopedSettings = InstitutionSettings & { institutionId?: string };
 
-export type PaymentGuideKind = "protocolo" | "iss_obra" | "aprovacao_final";
+export type PaymentGuideKind = "protocolo" | "iss_obra" | "aprovacao_final" | "habite_se";
 
 export interface PaymentGuideEntry {
   kind: PaymentGuideKind;
   label: string;
   code: string;
+  /** Referência sequencial do processo após a oficialização. O código original da guia permanece imutável. */
+  officialProcessReference?: string;
   amount: number;
   status: "pendente" | "compensada";
   dueDate: string;
@@ -552,6 +629,17 @@ export interface PaymentGuideEntry {
   usage?: string;
   constructionStandard?: string;
   revision?: number;
+  paymentMethod?: string;
+  pixPayload?: string;
+  barcode?: string;
+  digitableLine?: string;
+  bankReference?: string;
+  bankPaymentId?: string;
+  bankStatus?: string;
+  bankStatusDetail?: string;
+  bankAuthenticatedAt?: string;
+  paymentProvider?: MunicipalPaymentProvider;
+  providerEnvironment?: MunicipalPaymentProviderEnvironment;
 }
 
 export interface ProcessDocument {
@@ -578,6 +666,7 @@ export interface ProcessDocument {
   source: "profissional" | "prefeitura" | "integracao";
   fileName?: string;
   filePath?: string;
+  fileHash?: string;
   mimeType?: string;
   sizeLabel?: string;
   fileSizeBytes?: number;
@@ -682,11 +771,19 @@ export interface ProcessRecord {
   municipalityId?: string | null;
   protocol: string;
   externalProtocol: string;
+  /** Número temporário usado somente antes da confirmação da guia inicial. */
+  preProtocol?: string;
+  /** false = pré-protocolo; true = processo municipal já oficializado. */
+  isOfficial?: boolean;
+  officializedAt?: string;
   title: string;
   type: string;
   status: ProcessStatus;
   ownerName: string;
   ownerDocument: string;
+  ownerIdentityDocument?: string;
+  ownerPhone?: string;
+  ownerEmail?: string;
   technicalLead: string;
   /** Referências explícitas da parte processual ao perfil cadastral. */
   ownerProfileId?: string;
@@ -709,6 +806,7 @@ export interface ProcessRecord {
     block: string;
     area: number;
     usage: string;
+    buildingType?: string;
     workType?: string;
     constructionStandard?: string;
   };
@@ -721,6 +819,10 @@ export interface ProcessRecord {
     assignedTo?: string;
     assignedProfileId?: string;
     startedAt?: string;
+    supervisorOverrideProfileId?: string;
+    supervisorOverrideReason?: string;
+    supervisorOverrideStartedAt?: string;
+    supervisorOverrideExpiresAt?: string;
   };
   checklistType: string;
   sla: {
@@ -768,6 +870,7 @@ export interface TenantUserInput {
   role: UserRole;
   title: string;
   accessLevel: 1 | 2 | 3;
+  temporaryPassword?: string;
 }
 
 export type InstitutionUserInput = TenantUserInput & {
@@ -782,6 +885,9 @@ export interface CreateProcessInput {
   address: string;
   ownerName: string;
   ownerDocument: string;
+  ownerIdentityDocument?: string;
+  ownerPhone?: string;
+  ownerEmail?: string;
   technicalLead: string;
   professionalDocument?: string;
   professionalRegistration?: string;
@@ -798,6 +904,7 @@ export interface CreateProcessInput {
     block: string;
     area: number;
     usage: string;
+    buildingType?: string;
     workType?: string;
     constructionStandard?: string;
   };
@@ -828,6 +935,8 @@ export function getGuideLabel(kind: PaymentGuideKind) {
       return "Guia de ISSQN / Projeto";
     case "aprovacao_final":
       return "Guia de Pagamento - Aprovação / Alvará";
+    case "habite_se":
+      return "Guia de Pagamento do Habite-se";
   }
 }
 
@@ -839,6 +948,8 @@ export function getGuideReference(kind: PaymentGuideKind) {
       return "ISSQN / Projeto calculado pela metragem e pelo uso da edificação";
     case "aprovacao_final":
       return "Aprovação do projeto e emissão do Alvará; Habite-se possui protocolo próprio";
+    case "habite_se":
+      return "Taxa municipal do Habite-se após vistoria / conferência";
   }
 }
 
@@ -850,6 +961,8 @@ export function getGuideObservation(kind: PaymentGuideKind) {
       return "Documento de arrecadação municipal de ISSQN / Projeto, calculado pela metragem e pelo uso da edificação conforme a tabela oficial da Prefeitura.";
     case "aprovacao_final":
       return "Guia de aprovação do projeto e Alvará. A taxa de licença considera área, tipo de obra, padrão de acabamento e alíquota municipal. Habite-se é um protocolo separado.";
+    case "habite_se":
+      return "Guia própria do processo de Habite-se, emitida pelo Financeiro depois da vistoria / conferência e antes da decisão / emissão.";
   }
 }
 
@@ -1037,6 +1150,78 @@ export function calculateApprovalGuideAmount(
 }
 
 
+export interface HabiteSeGuideBreakdown {
+  areaM2: number;
+  usage: string;
+  standard: string;
+  baseValueM2: number;
+  aliquotPercent: number;
+  unitFee: number;
+  totalAmount: number;
+  profile?: MunicipalApprovalRateProfile | null;
+}
+
+/**
+ * Taxa própria do Habite-se.
+ *
+ * Regra municipal utilizada pelo workflow:
+ *   área do imóvel × valor de referência do m² (uso + acabamento) × alíquota.
+ *
+ * A tabela de referência já cadastrada para aprovação/Alvará é a mesma tabela
+ * oficial de tipos de acabamento do Habite-se. Diferentemente do Alvará, aqui
+ * NÃO entra taxa fixa de emissão.
+ */
+export function calculateHabiteSeGuideBreakdown(
+  area: number,
+  usage: string | null | undefined,
+  standard: string | null | undefined,
+  settings?: TenantSettings | null,
+): HabiteSeGuideBreakdown {
+  const profile = resolveApprovalRateProfile(usage, standard, settings);
+  const areaM2 = Math.max(0, Number(area || 0));
+  const baseValueM2 = Math.max(0, Number(profile?.rate ?? 0));
+  const aliquotPercent = Math.max(0, Number(settings?.approvalAliquotPercent ?? 5));
+  const unitFee = Number((baseValueM2 * (aliquotPercent / 100)).toFixed(4));
+  const totalAmount = Number((areaM2 * unitFee).toFixed(2));
+
+  return {
+    areaM2,
+    usage: usage ?? "",
+    standard: standard ?? "",
+    baseValueM2,
+    aliquotPercent,
+    unitFee,
+    totalAmount,
+    profile,
+  };
+}
+
+
+export function getOfficialProcessSequence(process: Pick<ProcessRecord, "protocol" | "isOfficial">) {
+  if (process.isOfficial === false) return null;
+  const match = String(process.protocol || "").match(/^[A-Z0-9]+-(\d{4})-(\d+)$/i);
+  if (!match) return null;
+  return {
+    year: Number(match[1]),
+    number: Number(match[2]),
+    rawNumber: match[2],
+  };
+}
+
+export function getPaymentGuideDisplayReference(
+  process: Pick<ProcessRecord, "isOfficial">,
+  guide: Pick<PaymentGuideEntry, "kind" | "code" | "officialProcessReference">,
+) {
+  if (
+    guide.kind === "protocolo" &&
+    process.isOfficial !== false &&
+    guide.officialProcessReference?.trim()
+  ) {
+    return guide.officialProcessReference.trim();
+  }
+  return guide.code;
+}
+
 export function getProcessPaymentGuides(process: ProcessRecord, settings?: TenantSettings | null): PaymentGuideEntry[] {
   const persistedGuides = process.payment.guides ?? [];
 
@@ -1070,10 +1255,16 @@ export function isProcessPaymentGuideSharedExternally(
   process: ProcessRecord,
   guide: PaymentGuideEntry,
 ) {
-  // Protocolo e aprovação/Alvará são cobranças dirigidas ao interessado e
-  // ficam disponíveis assim que oficialmente emitidas. O ISSQN / Projeto
-  // preserva a liberação manual já existente no workflow municipal.
-  if (guide.kind === "protocolo" || guide.kind === "aprovacao_final") return true;
+  // Protocolo e aprovação/Alvará comum são cobranças dirigidas ao interessado
+  // e ficam disponíveis assim que oficialmente emitidas. ISSQN / Projeto e
+  // Habite-se exigem liberação explícita da unidade responsável para preservar
+  // a cadeia de conferência e a prova de envio ao profissional externo.
+  if (
+    guide.kind === "protocolo" ||
+    guide.kind === "aprovacao_final"
+  ) return true;
+
+  if (guide.kind === "habite_se" && guide.status === "compensada") return true;
 
   const guideCode = guide.code?.trim();
   if (!guideCode) return false;
@@ -1275,7 +1466,7 @@ export const sessionUsers: SessionUser[] = [
     userType: "Usuário externo",
     department: "Consulta",
   },
-].map((user) => normalizeSessionUserScope(user));
+].map((user) => normalizeSessionUserScope(user as SessionUser));
 
 export const userProfiles: UserProfile[] = [
   {
@@ -2336,24 +2527,20 @@ export function can(session: SessionUser, permission: Permission) {
     return true;
   }
 
-  // Funcionários internos recebem apenas capacidades operacionais. A pasta/setor
-  // visível é limitada separadamente pelo departamento ao qual estão vinculados.
+  // Funcionários internos recebem capacidades somente dentro da própria pasta.
+  // Isso também protege acesso por URL direta; não basta esconder o item no menu.
   if (isInternalRole(session.role)) {
     if (permission === "manage_tenant_users" || permission === "manage_tenant_branding") return false;
-    if (
-      permission === "manage_own_profile" ||
-      permission === "view_own_processes" ||
-      permission === "manage_protocols" ||
-      permission === "review_processes" ||
-      permission === "manage_financial"
-    ) {
-      return true;
+    if (permission === "manage_own_profile" || permission === "view_own_processes") return true;
+
+    const operationalArea = resolveSessionOperationalArea(session);
+    if (permission === "manage_protocols") return operationalArea === "protocolos";
+    if (permission === "review_processes") return operationalArea === "analise";
+    if (permission === "manage_financial") return operationalArea === "financeiro";
+    if (permission === "manage_fiscal_financial") {
+      return operationalArea === "financeiro" && session.accessLevel >= 2;
     }
-    if (
-      permission === "dispatch_interdepartmental" ||
-      permission === "sign_documents" ||
-      permission === "manage_fiscal_financial"
-    ) {
+    if (permission === "dispatch_interdepartmental" || permission === "sign_documents") {
       return session.accessLevel >= 2;
     }
     return false;
@@ -2476,6 +2663,8 @@ export function getRoleLandingPath(role: UserRole | string | null | undefined) {
       return "/master";
     case "prefeitura_admin":
       return "/prefeitura";
+    case "prefeitura_supervisor":
+      return "/prefeitura/analise";
     case "analista":
       return "/prefeitura/analise";
     case "financeiro":
@@ -2485,9 +2674,10 @@ export function getRoleLandingPath(role: UserRole | string | null | undefined) {
     case "fiscal":
       return "/prefeitura/analise";
     case "profissional_externo":
+    case "professional_external":
     case "professional":
     case "profissional":
-      return "/externo/controle";
+      return "/dashboard";
     case "property_owner":
     case "proprietario_consulta":
       return "/proprietario";
@@ -2497,14 +2687,21 @@ export function getRoleLandingPath(role: UserRole | string | null | undefined) {
 }
 
 export function canAccessMunicipalArea(session: SessionUser, area: MunicipalOperationalArea) {
-  if (
-    session.role === "master_admin" ||
-    session.role === "master_ops" ||
-    session.role === "prefeitura_supervisor"
-  ) {
+  if (session.role === "master_admin" || session.role === "master_ops") {
     return true;
   }
 
+  // Diretor/supervisor é autoridade do seu setor, não um superusuário municipal.
+  // Ex.: Diretor de Urbanismo governa Análise/Fiscalização, mas não recebe
+  // Financeiro ou Protocolo automaticamente.
+  if (session.role === "prefeitura_supervisor") {
+    return resolveSessionOperationalArea(session) === area;
+  }
+
+  // O administrador municipal governa usuários/configurações e pode consultar
+  // processos, mas não recebe uma fila operacional só porque seu departamento
+  // contém "Administração".
+  if (session.role === "prefeitura_admin") return false;
   if (!isInternalRole(session.role)) return false;
 
   const department = resolveSessionOperationalArea(session);
@@ -2512,7 +2709,7 @@ export function canAccessMunicipalArea(session: SessionUser, area: MunicipalOper
 }
 
 export function hasCompensatedIssReturnedToAnalysis(process: ProcessRecord) {
-  const paidIss = process.payment.guides?.some(
+  const paidIss = process.payment?.guides?.some(
     (guide) => guide.kind === "iss_obra" && guide.status === "compensada",
   );
 
@@ -2541,7 +2738,7 @@ export function isProcessOwnedBySessionDepartment(session: SessionUser, process:
     return userDepartment === "analise";
   }
 
-  const issuedIssGuide = process.payment.guides?.find(
+  const issuedIssGuide = process.payment?.guides?.find(
     (guide) => guide.kind === "iss_obra" && guide.status !== "compensada",
   );
   const holdsPrivateIssInAnalysis =
@@ -2753,7 +2950,48 @@ export function canAccessProcess(session: SessionUser, process: ProcessRecord, s
   return false;
 }
 
-export function canAnalyzeProcessDocument(
+export function isAnalysisSupervisor(
+  session: Pick<SessionUser, "role" | "department" | "title">,
+) {
+  return (
+    session.role === "prefeitura_supervisor" &&
+    resolveSessionOperationalArea(session as SessionUser) === "analise"
+  );
+}
+
+export function hasActiveAnalysisSupervisorIntervention(
+  session: Pick<SessionUser, "id">,
+  process: ProcessRecord,
+) {
+  const overrideProfileId = String(process.analysis?.supervisorOverrideProfileId || "").trim();
+  const expiresAt = process.analysis?.supervisorOverrideExpiresAt
+    ? Date.parse(process.analysis.supervisorOverrideExpiresAt)
+    : Number.NaN;
+
+  return Boolean(
+    overrideProfileId &&
+    overrideProfileId === session.id &&
+    Number.isFinite(expiresAt) &&
+    expiresAt > Date.now(),
+  );
+}
+
+export function canSuperviseProcessAnalysis(
+  session: SessionUser,
+  process: ProcessRecord,
+) {
+  if (session.accountStatus === "blocked" || session.accountStatus === "inactive") return false;
+  if (session.role === "master_admin" || session.role === "master_ops") return true;
+  if (!isAnalysisSupervisor(session)) return false;
+
+  const sessionScopeId = getOperationalScopeId(session);
+  return Boolean(
+    sessionScopeId &&
+    matchesOperationalScope(sessionScopeId, process),
+  );
+}
+
+export function canEditProcessAnalysis(
   session: SessionUser,
   process: ProcessRecord,
   scopeId?: string | null,
@@ -2762,55 +3000,112 @@ export function canAnalyzeProcessDocument(
     return false;
   }
 
-  // O Administrador da Prefeitura governa o ambiente, mas não opera a análise técnica.
   if (session.role === "prefeitura_admin") return false;
+  if (session.role === "master_admin" || session.role === "master_ops") return true;
 
-  if (session.role === "master_admin" || session.role === "master_ops") {
-    return true;
-  }
-
-  // Segurança: o vínculo municipal do USUÁRIO precisa coincidir com o processo.
-  // O escopo visual da página nunca concede acesso por conta própria.
-  const sessionScopeId = getOperationalScopeId(session);
+  const sessionScopeId = scopeId || getOperationalScopeId(session);
   if (!sessionScopeId || !matchesOperationalScope(sessionScopeId, process)) {
     return false;
   }
 
-  if (session.role === "prefeitura_supervisor") {
-    return true;
-  }
+  const worksInAnalysis =
+    canAccessMunicipalArea(session, "analise") &&
+    isProcessOwnedBySessionDepartment(session, process);
 
-  if (session.role !== "analista") return false;
-  if (!canAccessMunicipalArea(session, "analise")) return false;
-
-  // A análise documental pertence ao analista designado, não à fila operacional
-  // em que o processo está neste instante. Depois que Urbanismo libera uma guia
-  // e o processo avança para o Financeiro, o analista responsável precisa manter
-  // acesso aos documentos para revisar, apontar correções e acompanhar reenvios.
-  const assignedProfileId = String(process.analysis?.assignedProfileId || "").trim();
-  const normalizeAssignee = (value: string | null | undefined) =>
+  const normalizeIdentity = (value: string | null | undefined) =>
     String(value || "")
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
       .trim()
-      .toLocaleLowerCase("pt-BR")
-      .replace(/\s+/g, " ");
-  const assignedName = normalizeAssignee(process.analysis?.assignedTo);
-  const sessionName = normalizeAssignee(session.name);
+      .toLocaleLowerCase("pt-BR");
 
-  if (assignedProfileId) {
-    return assignedProfileId === session.id;
+  const assignedProfileId = String(process.analysis?.assignedProfileId || "").trim();
+  const assignedName = normalizeIdentity(process.analysis?.assignedTo);
+  const sessionName = normalizeIdentity(session.name);
+  const isAssignedAnalyst =
+    session.role === "analista" &&
+    (
+      (assignedProfileId && assignedProfileId === session.id) ||
+      (!assignedProfileId && assignedName && sessionName && assignedName === sessionName)
+    );
+
+  // A análise tem um responsável técnico por vez. Outro Analista pode acompanhar,
+  // mas não pode editar documentos, checklist, exigências ou despachos até que a
+  // Diretoria faça a redistribuição formal. A troca de responsável revoga o
+  // direito anterior e concede o mesmo direito ao novo Analista imediatamente.
+  if (session.role === "analista") {
+    return worksInAnalysis && isAssignedAnalyst;
   }
 
-  if (assignedName) {
-    return Boolean(sessionName && assignedName === sessionName);
+  if (session.role === "prefeitura_supervisor") {
+    return canSuperviseProcessAnalysis(session, process) && worksInAnalysis;
   }
 
-  // Processos antigos ainda sem analista designado seguem a regra da fila atual.
-  const processScopeId = process.municipalityId ?? process.tenantId ?? scopeId ?? sessionScopeId;
-  return canAccessProcess(session, process, processScopeId);
+  return false;
 }
 
+export function canAnalyzeProcessDocument(
+  session: SessionUser,
+  process: ProcessRecord,
+  scopeId?: string | null,
+) {
+  return canEditProcessAnalysis(session, process, scopeId);
+}
+
+/**
+ * A ficha técnica assinada continua pertencendo ao analista que realizou a
+ * análise, mesmo quando o processo já avançou para Vistoria ou Financeiro.
+ * Isso permite retificação auditada sem devolver artificialmente o processo
+ * para a fila de análise nem liberar edição técnica para qualquer servidor.
+ */
+export function canEditAssignedAnalysisArtifact(
+  session: SessionUser,
+  process: ProcessRecord,
+  scopeId?: string | null,
+) {
+  if (session.accountStatus === "blocked" || session.accountStatus === "inactive") {
+    return false;
+  }
+
+  if (session.role === "master_admin" || session.role === "master_ops") return true;
+  if (session.role !== "analista" && session.role !== "prefeitura_supervisor") return false;
+
+  const effectiveScopeId = scopeId || getOperationalScopeId(session);
+  if (!effectiveScopeId || !matchesOperationalScope(effectiveScopeId, process)) {
+    return false;
+  }
+
+  const normalizeIdentity = (value: string | null | undefined) =>
+    String(value || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .trim()
+      .toLocaleLowerCase("pt-BR");
+
+  const assignedProfileId = process.analysis?.assignedProfileId?.trim();
+  const assignedName = normalizeIdentity(process.analysis?.assignedTo);
+  const sessionName = normalizeIdentity(session.name);
+  const isAssignedAnalyst =
+    session.role === "analista" &&
+    (
+      (assignedProfileId && assignedProfileId === session.id) ||
+      (!assignedProfileId && assignedName && sessionName && assignedName === sessionName)
+    );
+
+  // A autoria técnica prevalece sobre a pasta atual do workflow. O Habite-se
+  // pode ter avançado para Vistoria/Financeiro/Alvará, mas o analista que
+  // produziu a ficha continua apto a retificá-la, com nova assinatura/versionamento.
+  if (isAssignedAnalyst) return true;
+
+  if (!canAccessMunicipalArea(session, "analise")) return false;
+  if (canEditProcessAnalysis(session, process, effectiveScopeId)) return true;
+
+  if (session.role === "prefeitura_supervisor") {
+    return canSuperviseProcessAnalysis(session, process);
+  }
+
+  return false;
+}
 
 export function getVisibleProcesses(session: SessionUser, records: ProcessRecord[] = processRecords) {
   return records.filter((process) => canAccessProcess(session, process));
@@ -2895,6 +3190,7 @@ export function statusTone(status: ProcessStatus) {
       return "bg-emerald-100 text-emerald-800 border-emerald-200";
     case "indeferido":
       return "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20";
+    case "distribuicao":
     case "analise_tecnica":
     case "despacho_intersetorial":
       return "bg-sky-100 text-sky-800 border-sky-200";
@@ -2909,6 +3205,7 @@ export function statusTone(status: ProcessStatus) {
 
 export function statusLabel(status: ProcessStatus) {
   const labels: Partial<Record<ProcessStatus, string>> = {
+    distribuicao: "Aguardando distribuição",
     analise_tecnica: "Análise Urbanística",
     despacho_intersetorial: "Despacho intersetorial",
     pagamento_pendente: "Pagamento pendente",
@@ -2916,7 +3213,7 @@ export function statusLabel(status: ProcessStatus) {
     pendencia_documental: "Pendência documental",
     guia_emitida: "Guia emitida",
   };
-  return labels[status] ?? status.replaceAll("_", " ");
+  return labels[status] ?? status.replace(/_/g, " ");
 }
 
 export function generateProtocol(records: ProcessRecord[]) {

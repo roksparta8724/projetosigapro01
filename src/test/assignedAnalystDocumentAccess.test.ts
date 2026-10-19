@@ -21,12 +21,13 @@ const assignedAnalyst: SessionUser = {
   department: "Urbanismo e Obras",
 };
 
-const financeStageProcess = {
+const analysisStageProcess = {
   id: "process-1",
   tenantId: municipalityId,
   municipalityId,
+  status: "analise_tecnica",
   processControl: {
-    currentFolder: "Financeiro",
+    currentFolder: "Urbanismo e Obras",
   },
   analysis: {
     assignedTo: "Jonatas Rodrigues",
@@ -36,17 +37,17 @@ const financeStageProcess = {
 } as ProcessRecord;
 
 describe("assigned analyst document access", () => {
-  it("keeps the assigned Urbanism analyst in the PDF analysis workspace after the process moves to Financeiro", () => {
+  it("lets the assigned Urbanism analyst work in the shared PDF analysis workspace", () => {
     expect(
       canAnalyzeProcessDocument(
         assignedAnalyst,
-        financeStageProcess,
+        analysisStageProcess,
         municipalityId,
       ),
     ).toBe(true);
   });
 
-  it("does not grant the same document-analysis authority to another analyst", () => {
+  it("blocks another analyst until the process is formally reassigned", () => {
     expect(
       canAnalyzeProcessDocument(
         {
@@ -54,7 +55,7 @@ describe("assigned analyst document access", () => {
           id: "analyst-profile-2",
           name: "Outro Analista",
         },
-        financeStageProcess,
+        analysisStageProcess,
         municipalityId,
       ),
     ).toBe(false);
@@ -70,15 +71,15 @@ describe("assigned analyst document access", () => {
           accessLevel: 3,
           department: "Administração",
         },
-        financeStageProcess,
+        analysisStageProcess,
         municipalityId,
       ),
     ).toBe(false);
   });
 
-  it("supports legacy assigned-name matching only when no profile id exists", () => {
+  it("does not depend on a legacy assigned-name match to grant Analysis-unit access", () => {
     const legacyProcess = {
-      ...financeStageProcess,
+      ...analysisStageProcess,
       analysis: {
         assignedTo: "Jônatas Rodrigues",
         startedAt: "2026-10-13T16:16:22.289Z",

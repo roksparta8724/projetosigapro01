@@ -1112,7 +1112,7 @@ export function PerfilPage() {
     fallback: "Não informada",
     maxLength: 42,
   });
-  const displayInstitutionEmail = formatDisplayText(tenantSettings?.emailContato, "email", {
+  const displayInstitutionEmail = formatDisplayText(tenantSettings?.email, "email", {
     fallback: "Não informado",
     maxLength: 28,
   });
@@ -1930,7 +1930,7 @@ export function PerfilPage() {
               </div>
               <div className="rounded-2xl border border-slate-200 bg-white p-4">
                 <p className="sig-label">Contato institucional</p>
-                <p className="sig-fit-copy mt-2 text-base font-semibold leading-6 text-slate-950" title={tenantSettings?.emailContato || "Não informado"}>
+                <p className="sig-fit-copy mt-2 text-base font-semibold leading-6 text-slate-950" title={tenantSettings?.email || "Não informado"}>
                   {displayInstitutionEmail}
                 </p>
                 <p className="mt-1 text-sm text-slate-500">Canal principal da comunicação oficial.</p>

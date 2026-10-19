@@ -236,11 +236,11 @@ function getPlanTone(plan: PlanItem) {
 
 const escapeHtml = (value: string) =>
   value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 
 const buildCommercialHeadline = (plans: PlanItem[], materialType: CommercialMaterialType, customerName: string) => {
   const audience = customerName.trim() || "sua Prefeitura";
@@ -1636,7 +1636,7 @@ export function MasterPlansPage() {
                         <FileDown className="mr-2 h-4 w-4" />
                         Gerar PDF profissional
                       </Button>
-                      <Button type="button" variant="outline" className="sig-dark-action-btn w-full rounded-full text-slate-50" onClick={handleSaveCommercialMaterial} disabled={!selectedCommercialPlans.length}>
+                      <Button type="button" variant="outline" className="sig-dark-action-btn w-full rounded-full text-slate-50" onClick={() => void handleSaveCommercialMaterial()} disabled={!selectedCommercialPlans.length}>
                         <Sparkles className="mr-2 h-4 w-4 text-sky-200" />
                         Salvar material
                       </Button>

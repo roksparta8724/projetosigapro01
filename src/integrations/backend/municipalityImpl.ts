@@ -67,24 +67,26 @@ function resolveMunicipalityRecordName(record: Record<string, unknown>) {
 // ---------------------------------------------------------------------------
 
 function mapMunicipality(record: Record<string, unknown>): Municipality {
+  const readString = (key: string, fallback = "") =>
+    typeof record[key] === "string" ? (record[key] as string) : fallback;
   const name = resolveMunicipalityRecordName(record);
   return {
-    id: record.id,
+    id: readString("id"),
     name,
     city:
-      (typeof record.city === "string" && record.city.trim()) ||
+      readString("city").trim() ||
       name.replace(/^Prefeitura(?: Municipal)? de\s+/i, "").trim(),
-    state: record.state ?? "",
-    slug: record.slug ?? "",
-    subdomain: record.subdomain ?? "",
-    customDomain: record.custom_domain ?? "",
-    status: record.status ?? "active",
-    secretariatName: record.secretariat_name ?? "",
-    email: record.email ?? record.contact_email ?? "",
-    phone: record.phone ?? record.contact_phone ?? "",
-    address: record.address ?? "",
-    createdAt: record.created_at ?? "",
-    updatedAt: record.updated_at ?? "",
+    state: readString("state"),
+    slug: readString("slug"),
+    subdomain: readString("subdomain"),
+    customDomain: readString("custom_domain"),
+    status: readString("status", "active"),
+    secretariatName: readString("secretariat_name"),
+    email: readString("email") || readString("contact_email"),
+    phone: readString("phone") || readString("contact_phone"),
+    address: readString("address"),
+    createdAt: readString("created_at"),
+    updatedAt: readString("updated_at"),
   };
 }
 
@@ -131,13 +133,16 @@ export function mapMunicipalityBranding(record: Record<string, unknown>): Munici
 }
 
 function mapMunicipalitySettings(record: Record<string, unknown>): MunicipalitySettings {
+  const readString = (key: string, fallback = "") =>
+    typeof record[key] === "string" ? (record[key] as string) : fallback;
+
   return {
-    id: record.id,
-    municipalityId: record.municipality_id,
-    protocolPrefix: record.protocol_prefix ?? "",
-    guidePrefix: record.guide_prefix ?? "",
-    timezone: record.timezone ?? "America/Sao_Paulo",
-    locale: record.locale ?? "pt-BR",
+    id: readString("id"),
+    municipalityId: readString("municipality_id"),
+    protocolPrefix: readString("protocol_prefix"),
+    guidePrefix: readString("guide_prefix"),
+    timezone: readString("timezone", "America/Sao_Paulo"),
+    locale: readString("locale", "pt-BR"),
     requireProfessionalRegistration: Boolean(
       record.require_professional_registration ?? true,
     ),
@@ -147,8 +152,8 @@ function mapMunicipalitySettings(record: Record<string, unknown>): MunicipalityS
       record.general_settings && typeof record.general_settings === "object"
         ? (record.general_settings as Record<string, unknown>)
         : {},
-    createdAt: record.created_at ?? "",
-    updatedAt: record.updated_at ?? "",
+    createdAt: readString("created_at"),
+    updatedAt: readString("updated_at"),
   };
 }
 
@@ -644,6 +649,7 @@ export async function resolveCurrentMunicipality(options: {
       return {
         id: env.id,
         name: env.name || "Prefeitura",
+        city: env.name || "",
         state: "",
         slug: env.slug || "",
         subdomain: env.slug || "",

@@ -1,5 +1,5 @@
-﻿import { FormEvent, MouseEvent, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, ArrowRightLeft, Building2, CheckCircle2, Clock3, Download, Eye, FileBadge2, FileCheck2, FileKey2, FileStack, Landmark, LogOut, Maximize2, MessageSquareMore, PencilLine, Printer, Route, ShieldAlert, Signature, UserRound, Wallet, Workflow, ZoomIn, ZoomOut } from "lucide-react";
+﻿import { FormEvent, MouseEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ArrowLeft, ArrowRightLeft, Building2, CheckCircle2, Clock3, Download, Eye, FileBadge2, FileCheck2, FileKey2, FileStack, Landmark, LogOut, Maximize2, MessageSquareMore, PencilLine, Printer, ReceiptText, Route, ShieldAlert, Signature, UserRound, Wallet, Workflow, ZoomIn, ZoomOut } from "lucide-react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -7,7 +7,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { GuiaRecolhimentoOficialProps, openGuiaRecolhimentoOficialWindow } from "@/components/GuiaRecolhimentoOficial";
+import {
+  type GuiaRecolhimentoOficialProps,
+  openGuiaRecolhimentoOficialWindow,
+  reserveGuiaRecolhimentoOficialWindow,
+} from "@/components/GuiaRecolhimentoOficial";
 import { FileDropZone, type UploadedFileItem } from "@/components/platform/FileDropZone";
 import { PageHero } from "@/components/platform/PageHero";
 import { PageShell, PageStatsRow } from "@/components/platform/PageShell";
@@ -17,28 +21,48 @@ import { StatCard } from "@/components/platform/StatCard";
 import { UserAvatar } from "@/components/platform/UserAvatar";
 import { ProcessIdentityPanel } from "@/components/platform/ProcessIdentityPanel";
 import { AnalysisReadinessPanel } from "@/components/platform/AnalysisReadinessPanel";
+import { AnalysisSupervisorControl } from "@/components/platform/AnalysisSupervisorControl";
 import { ConstructionPermitPanel } from "@/components/platform/ConstructionPermitPanel";
 import { OccupancyPermitProcessPanel } from "@/components/platform/OccupancyPermitProcessPanel";
 import { MarkerSelector } from "@/components/platform/MarkerSelector";
 import { MunicipalOrganogramBar } from "@/components/platform/MunicipalOrganogramBar";
 import { UrbanAnalysisChecklistPanel } from "@/components/platform/UrbanAnalysisChecklistPanel";
 import { usePlatformData } from "@/hooks/usePlatformData";
+import { useLivePlatformRefresh } from "@/hooks/useLivePlatformRefresh";
+import {
+  getRenderedMunicipalityLogoDataUrl,
+  prepareGuideInstitutionalLogo,
+} from "@/lib/guideAssets";
+import { cacheDocumentWorkspaceAccessUrl } from "@/lib/documentWorkspaceAccess";
+import {
+  ensureMercadoPagoGuideCharge,
+  type MercadoPagoGuideCharge,
+} from "@/lib/mercadoPagoGuide";
+import { buildGuidePixPayload, resolveGuideBankingData } from "@/lib/paymentCollection";
 import { useMunicipality } from "@/hooks/useMunicipality";
+import { useInstitutionBranding } from "@/hooks/useInstitutionBranding";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { usePlanEntitlements } from "@/hooks/usePlanEntitlements";
 import { useDocumentMarkerAssignments } from "@/hooks/useDocumentMarkerAssignments";
 import { useConstructionPermit } from "@/hooks/useConstructionPermit";
+import { backendClient } from "@/integrations/backend/databaseClient";
 import { useMunicipalOrganogram } from "@/hooks/useMunicipalOrganogram";
 import {
+  getMunicipalityLogoOpenUrl,
+  getSignedUrlForObjectStrict,
   listRecoverableProcessFiles,
   type RecoverableProcessFile,
 } from "@/integrations/r2/client";
 import { uploadFileToStorage } from "@/integrations/r2/storage";
 import {
+  buildProcessPath,
+  buildProcessRouteKey,
   calculateApprovalGuideBreakdown,
+  calculateHabiteSeGuideBreakdown,
   calculateIssGuideAmount,
   canAccessMunicipalArea,
   canAnalyzeProcessDocument,
+  canEditAssignedAnalysisArtifact,
   canTrackProcess,
   isProcessOwnedBySessionDepartment,
   formatCurrency,
@@ -48,8 +72,9 @@ import {
   formatProfessionalProcessType,
   getGuideObservation,
   getGuideReference,
-  getProcessById,
+  getPaymentGuideDisplayReference,
   getProcessPaymentGuides,
+  resolveProcessRoute,
   getExternallyVisibleProcessPaymentGuides,
   isProcessPaymentGuideSharedExternally,
   isOccupancyPermitProcessType,
@@ -70,6 +95,13 @@ function officialMunicipalityLabel(value: string | null | undefined) {
   return label ? "Prefeitura de " + label : "Prefeitura municipal";
 }
 
+function currentLocalDateValue(now = new Date()) {
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 function formatBytes(bytes: number) {
   if (!Number.isFinite(bytes) || bytes <= 0) return "tamanho não informado";
   if (bytes < 1024) return `${bytes} B`;
@@ -77,27 +109,22 @@ function formatBytes(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function toProcessRouteKey(protocol: string) {
-  return protocol
-    .trim()
+
+function normalizeMunicipalFeeLabel(value: string | null | undefined) {
+  return String(value || "")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[\\/\s]+/g, "-")
-    .replace(/[^A-Za-z0-9._-]/g, "")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "");
+    .trim()
+    .toLocaleLowerCase("pt-BR");
 }
 
-function resolveProcessFromRoute(processes: ProcessRecord[], routeValue?: string) {
-  if (!routeValue) return undefined;
-  const decoded = decodeURIComponent(routeValue).trim();
-  const byId = getProcessById(decoded, processes);
-  if (byId) return byId;
-  const normalized = decoded.toLowerCase();
-  return processes.find((item) => {
-    const protocol = String(item.protocol || "");
-    return protocol.toLowerCase() === normalized || toProcessRouteKey(protocol).toLowerCase() === normalized;
-  });
+function constructionStandardDisplayLabel(value: string | null | undefined) {
+  const normalized = normalizeMunicipalFeeLabel(value);
+  if (normalized === "luxo") return "Luxo";
+  if (normalized === "primeira") return "Primeira";
+  if (normalized === "medio") return "Médio";
+  if (normalized === "economico") return "Econômico";
+  return String(value || "Não informado");
 }
 
 function inferMimeType(fileName: string) {
@@ -140,73 +167,16 @@ function buildDocumentPreview(documentLabel: string, fileName: string | undefine
   return `data:text/html;charset=utf-8,${encodeURIComponent(html)}`;
 }
 
-function buildProtocolGuideHtml(input: {
-  protocol: string;
-  guideCode: string;
-  tenantName: string;
-  secretariat: string;
-  address: string;
-  email: string;
-  phone: string;
-  title: string;
-  ownerName: string;
-  technicalLead: string;
-  amount: number;
-  dueDate: string;
-  pixPayload: string;
-}) {
-  return `
-    <html>
-      <head>
-        <title>${input.guideCode}</title>
-        <style>
-          @page { size: A4 portrait; margin: 10mm; }
-          body { margin: 0; font-family: Arial, sans-serif; background: #eef4fb; color: #0f172a; }
-          .page { width: 190mm; max-width: 190mm; margin: 0 auto; padding: 8mm 0; }
-          .sheet { background: white; border: 1px solid #d8e4f1; border-radius: 18px; overflow: hidden; }
-          .top { background: linear-gradient(135deg,#123a58 0%,#1b4f73 58%,#1e5a80 100%); color: white; padding: 18px 22px; }
-          .title { font-size: 28px; font-weight: 800; }
-          .sub { margin-top: 4px; font-size: 12px; line-height: 1.6; color: #dceaf5; }
-          .row { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; padding: 16px 20px 0; }
-          .box { border: 1px solid #dde7f2; border-radius: 12px; background: #fbfdff; padding: 12px; }
-          .label { font-size: 10px; text-transform: uppercase; letter-spacing: .18em; color: #64748b; }
-          .value { margin-top: 6px; font-size: 14px; font-weight: 700; color: #12253d; }
-          .section { margin: 16px 20px 20px; border: 1px solid #dde7f2; border-radius: 14px; padding: 16px; background: #fbfdff; }
-        </style>
-      </head>
-      <body>
-        <div class="page">
-          <div class="sheet">
-            <div class="top">
-              <div class="title">SIGAPRO - DAM Municipal</div>
-              <div class="sub">${input.tenantName}</div>
-              <div class="sub">${input.secretariat}</div>
-              <div class="sub">${input.phone} • ${input.address}</div>
-              <div class="sub">${input.email}</div>
-            </div>
-            <div class="row">
-              <div class="box"><div class="label">Protocolo</div><div class="value">${input.protocol}</div></div>
-              <div class="box"><div class="label">Guia</div><div class="value">${input.guideCode}</div></div>
-              <div class="box"><div class="label">Valor</div><div class="value">R$ ${input.amount.toFixed(2).replace(".", ",")}</div></div>
-              <div class="box"><div class="label">Vencimento</div><div class="value">${input.dueDate}</div></div>
-            </div>
-            <div class="section">
-              <div class="label">Dados do Projeto</div>
-              <div class="value">${input.title}</div>
-              <div class="sub" style="color:#475569;margin-top:10px;">Proprietário: ${input.ownerName}</div>
-              <div class="sub" style="color:#475569;">Responsável técnico: ${input.technicalLead}</div>
-            </div>
-            <div class="section">
-              <div class="label">Pix Copia e Cola</div>
-              <div class="value" style="font-size:12px;word-break:break-all;">${input.pixPayload}</div>
-            </div>
-          </div>
-        </div>
-        <script>window.print();</script>
-      </body>
-    </html>
-  `;
-}
+type DirectProcessState = {
+  id: string;
+  status: ProcessRecord["status"];
+  currentDepartment: string;
+  currentQueue: string;
+  slaStage: string;
+  checkpoint: string;
+  archivedAt: string | null;
+  updatedAt: string | null;
+};
 
 type CachedProcessTabAccess = {
   sessionId: string;
@@ -323,12 +293,20 @@ export function ProcessDetailPage() {
   const { processId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
+  const requestedGuideCode = new URLSearchParams(location.search).get("guia")?.trim() || "";
   const { session } = usePlatformSession();
   const planEntitlements = usePlanEntitlements();
   const documentMarkers = useDocumentMarkerAssignments();
-  const { municipality, scopeId, institutionSettingsCompat, name: municipalityName } = useMunicipality();
+  const {
+    municipality,
+    branding: municipalityBranding,
+    scopeId,
+    institutionSettingsCompat,
+    name: municipalityName,
+  } = useMunicipality();
   const {
     processes,
+    refreshRemoteStore,
     institutions,
     sessionUsers,
     loading: platformDataLoading,
@@ -349,12 +327,51 @@ export function ProcessDetailPage() {
     reviseIssProjectGuide,
     shareIssProjectGuide,
     issuePaymentGuide,
+    issueHabiteSePaymentGuide,
+    shareHabiteSePaymentGuide,
+    beginAnalysisSupervisorIntervention,
+    endAnalysisSupervisorIntervention,
+    reassignProcessAnalysis,
+    updateProcessStatus,
+    reopenProcess,
   } = usePlatformData();
-  const liveProcess = resolveProcessFromRoute(processes, processId);
+  const refreshCurrentProcessStore = useCallback(
+    () => refreshRemoteStore(processId ?? null),
+    [processId, refreshRemoteStore],
+  );
+  useLivePlatformRefresh(refreshCurrentProcessStore, { intervalMs: 1800 });
+
+  const liveProcess = resolveProcessRoute(processes, processId);
   const [cachedProcessVisual, setCachedProcessVisual] = useState<ProcessRecord | undefined>(() =>
     readCachedProcessVisual(session.id, processId),
   );
-  const process = liveProcess ?? cachedProcessVisual;
+  const [directProcessState, setDirectProcessState] = useState<DirectProcessState | null>(null);
+  const baseProcess = liveProcess ?? cachedProcessVisual;
+  const process = useMemo(() => {
+    if (!baseProcess || !directProcessState || directProcessState.id !== baseProcess.id) {
+      return baseProcess;
+    }
+
+    return {
+      ...baseProcess,
+      status: directProcessState.status,
+      sla: {
+        ...baseProcess.sla,
+        currentStage: directProcessState.slaStage || baseProcess.sla.currentStage,
+      },
+      processControl: {
+        ...baseProcess.processControl,
+        currentFolder:
+          directProcessState.currentDepartment ||
+          directProcessState.currentQueue ||
+          baseProcess.processControl?.currentFolder ||
+          "",
+        checkpoint:
+          directProcessState.checkpoint ||
+          baseProcess.processControl?.checkpoint,
+      },
+    };
+  }, [baseProcess, directProcessState]);
 
   useEffect(() => {
     if (!processId || !session.id || session.id === "unknown") return;
@@ -387,6 +404,137 @@ export function ProcessDetailPage() {
     }
   }, [cachedProcessVisual?.id, liveProcess, processId, session.id]);
 
+  useEffect(() => {
+    if (!processId || !session.id || session.id === "unknown" || typeof window === "undefined") {
+      return;
+    }
+
+    let disposed = false;
+    let inFlight = false;
+
+    const syncExactProcess = async () => {
+      if (
+        disposed ||
+        inFlight ||
+        (typeof document !== "undefined" && document.visibilityState !== "visible")
+      ) {
+        return;
+      }
+
+      inFlight = true;
+      try {
+        let routeKey = processId.trim();
+        try {
+          routeKey = decodeURIComponent(routeKey);
+        } catch {
+          // Mantém a rota original quando não estiver codificada.
+        }
+
+        const resolvedProcessId =
+          baseProcess?.id ||
+          (/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(routeKey)
+            ? routeKey
+            : "");
+
+        let query = backendClient
+          .from("processes")
+          .select(
+            "id,status,current_department,current_queue,sla_stage,process_checkpoint,archived_at,updated_at",
+          );
+
+        query = resolvedProcessId
+          ? query.eq("id", resolvedProcessId)
+          : query.eq("protocol_number", routeKey);
+
+        const { data, error } = await query.limit(1);
+
+        if (error || disposed) return;
+        const row = Array.isArray(data) ? data[0] : data;
+        if (!row?.id) return;
+
+        const nextState: DirectProcessState = {
+          id: String(row.id),
+          status: row.status as ProcessRecord["status"],
+          currentDepartment: String(row.current_department || ""),
+          currentQueue: String(row.current_queue || ""),
+          slaStage: String(row.sla_stage || ""),
+          checkpoint: String(row.process_checkpoint || ""),
+          archivedAt: row.archived_at ? String(row.archived_at) : null,
+          updatedAt: row.updated_at ? String(row.updated_at) : null,
+        };
+
+        setDirectProcessState((current) => {
+          if (
+            current &&
+            current.id === nextState.id &&
+            current.status === nextState.status &&
+            current.currentDepartment === nextState.currentDepartment &&
+            current.currentQueue === nextState.currentQueue &&
+            current.slaStage === nextState.slaStage &&
+            current.checkpoint === nextState.checkpoint &&
+            current.archivedAt === nextState.archivedAt &&
+            current.updatedAt === nextState.updatedAt
+          ) {
+            return current;
+          }
+          return nextState;
+        });
+
+        setCachedProcessVisual((current) => {
+          const source = liveProcess ?? current;
+          if (!source || source.id !== nextState.id) return current;
+
+          const patched: ProcessRecord = {
+            ...source,
+            status: nextState.status,
+            sla: {
+              ...source.sla,
+              currentStage: nextState.slaStage || source.sla.currentStage,
+            },
+            processControl: {
+              ...source.processControl,
+              currentFolder:
+                nextState.currentDepartment ||
+                nextState.currentQueue ||
+                source.processControl?.currentFolder ||
+                "",
+              checkpoint:
+                nextState.checkpoint ||
+                source.processControl?.checkpoint,
+            },
+          };
+
+          writeCachedProcessVisual(session.id, processId, patched);
+          return patched;
+        });
+      } finally {
+        inFlight = false;
+      }
+    };
+
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void syncExactProcess();
+    };
+
+    void syncExactProcess();
+    const timer = window.setInterval(() => void syncExactProcess(), 1500);
+    window.addEventListener("focus", syncExactProcess);
+    window.addEventListener("pageshow", syncExactProcess);
+    window.addEventListener("online", syncExactProcess);
+    window.addEventListener("sigapro:data-changed", syncExactProcess as EventListener);
+    document.addEventListener("visibilitychange", onVisible);
+
+    return () => {
+      disposed = true;
+      window.clearInterval(timer);
+      window.removeEventListener("focus", syncExactProcess);
+      window.removeEventListener("pageshow", syncExactProcess);
+      window.removeEventListener("online", syncExactProcess);
+      window.removeEventListener("sigapro:data-changed", syncExactProcess as EventListener);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [baseProcess?.id, liveProcess, processId, session.id]);
+
   const effectiveScopeId =
     process?.municipalityId ??
     process?.tenantId ??
@@ -394,6 +542,7 @@ export function ProcessDetailPage() {
     scopeId ??
     session.tenantId ??
     null;
+  const { headerBranding: guideHeaderBranding } = useInstitutionBranding(effectiveScopeId);
   const {
     departments: organizationDepartments,
     status: organizationStatus,
@@ -481,6 +630,58 @@ export function ProcessDetailPage() {
     session.role === "profissional_externo" ||
     session.role === "property_owner" ||
     session.role === "proprietario_consulta";
+
+  const prewarmProcessInstitutionId =
+    process?.municipalityId ?? process?.tenantId ?? effectiveScopeId ?? null;
+  const prewarmTenant = process
+    ? institutions.find((item) => item.id === prewarmProcessInstitutionId) ?? null
+    : null;
+  const prewarmTenantSettings = process
+    ? institutionSettingsCompat ?? getInstitutionSettings(prewarmProcessInstitutionId)
+    : undefined;
+  const prewarmStableGuideLogoUrl = getMunicipalityLogoOpenUrl(
+    municipalityBranding?.headerLogoObjectKey ||
+      municipalityBranding?.logoObjectKey ||
+      "",
+  );
+  const prewarmGuideLogoUrl =
+    prewarmStableGuideLogoUrl ||
+    guideHeaderBranding.logoUrl ||
+    ("fallbackLogoUrl" in guideHeaderBranding ? guideHeaderBranding.fallbackLogoUrl : "") ||
+    prewarmTenantSettings?.logoUrl ||
+    prewarmTenantSettings?.brasaoUrl ||
+    "";
+  const prewarmPaymentGuides = process
+    ? getProcessPaymentGuides(process, prewarmTenantSettings)
+    : [];
+  const prewarmVisibleGuides =
+    process && isExternalSession
+      ? getExternallyVisibleProcessPaymentGuides(process, prewarmTenantSettings)
+      : prewarmPaymentGuides;
+  const prewarmGuideSignature = prewarmVisibleGuides
+    .map((guide) =>
+      [
+        guide.kind,
+        guide.code,
+        guide.amount,
+        guide.dueDate,
+        guide.barcode || "",
+        guide.digitableLine || "",
+        guide.bankReference || "",
+      ].join(":"),
+    )
+    .join("|");
+  const prewarmSettingsSignature = [
+    prewarmGuideLogoUrl,
+    prewarmTenantSettings?.paymentProvider || "",
+    prewarmTenantSettings?.paymentProviderEnvironment || "",
+    prewarmTenantSettings?.bankCode || "",
+    prewarmTenantSettings?.bankAgreementCode || "",
+    prewarmTenantSettings?.chavePix || "",
+    prewarmTenantSettings?.pixMerchantCity || "",
+    municipalityName || "",
+    prewarmTenant?.name || "",
+  ].join("|");
   const [message, setMessage] = useState("");
   const [messageAudience, setMessageAudience] = useState<"interno" | "externo" | "misto">("misto");
   const [messageRecipient, setMessageRecipient] = useState("todos");
@@ -491,7 +692,7 @@ export function ProcessDetailPage() {
   const [requirementResponse, setRequirementResponse] = useState<Record<string, string>>({});
   const [dispatchTo, setDispatchTo] = useState("");
   const [dispatchSubject, setDispatchSubject] = useState("");
-  const [dispatchDueDate, setDispatchDueDate] = useState("");
+  const [dispatchDueDate, setDispatchDueDate] = useState(() => currentLocalDateValue());
   const [dispatchVisibility, setDispatchVisibility] = useState<"interno" | "externo" | "misto">("interno");
   type ProcessTab = "resumo" | "imovel" | "documentos" | "analise" | "financeiro" | "alvara" | "historico";
   const [activeTab, setActiveTab] = useState<ProcessTab>(() => {
@@ -516,12 +717,123 @@ export function ProcessDetailPage() {
   const [annotationPoint, setAnnotationPoint] = useState<{ x: number; y: number } | null>(null);
   const [processActionStatus, setProcessActionStatus] = useState("");
   const [processActionBusy, setProcessActionBusy] = useState("");
+  const [supervisorActionStatus, setSupervisorActionStatus] = useState("");
+  const [supervisorActionBusy, setSupervisorActionBusy] = useState(false);
+  const [guideBillingBusyKey, setGuideBillingBusyKey] = useState("");
+  const [preparedGuideCharges, setPreparedGuideCharges] = useState<Record<string, MercadoPagoGuideCharge>>({});
+  const [preparedGuideLogoUrl, setPreparedGuideLogoUrl] = useState("");
+  const [guidePreparationError, setGuidePreparationError] = useState("");
   const [constructionAreaInput, setConstructionAreaInput] = useState("");
   const [constructionUsageInput, setConstructionUsageInput] = useState("");
   const [workTypeInput, setWorkTypeInput] = useState("");
+  const [habiteSeConstructionStandardInput, setHabiteSeConstructionStandardInput] = useState("");
   const [isEditingIssuedIssGuide, setIsEditingIssuedIssGuide] = useState(false);
   const viewerAreaRef = useRef<HTMLDivElement | null>(null);
   const documentWorkspaceWindowRef = useRef<Window | null>(null);
+
+  useEffect(() => {
+    let lastAutomaticDate = currentLocalDateValue();
+    setDispatchDueDate((current) => current || lastAutomaticDate);
+
+    const timer = window.setInterval(() => {
+      const nextAutomaticDate = currentLocalDateValue();
+      if (nextAutomaticDate === lastAutomaticDate) return;
+      setDispatchDueDate((current) =>
+        !current || current === lastAutomaticDate ? nextAutomaticDate : current,
+      );
+      lastAutomaticDate = nextAutomaticDate;
+    }, 60_000);
+
+    return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!process || prewarmVisibleGuides.length === 0) {
+      setPreparedGuideCharges({});
+      setPreparedGuideLogoUrl("");
+      setGuidePreparationError("");
+      setGuideBillingBusyKey("");
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    const prepareGuides = async () => {
+      setGuideBillingBusyKey("preparing-guides");
+      setGuidePreparationError("");
+
+      try {
+        const logoPromise = prepareGuideInstitutionalLogo(
+          prewarmStableGuideLogoUrl,
+          prewarmGuideLogoUrl,
+          prewarmTenantSettings?.headerLogoUrl,
+          prewarmTenantSettings?.brasaoUrl,
+          prewarmTenantSettings?.logoUrl,
+        ).catch(
+          () =>
+            getRenderedMunicipalityLogoDataUrl() ||
+            prewarmTenantSettings?.brasaoUrl ||
+            prewarmTenantSettings?.headerLogoUrl ||
+            prewarmGuideLogoUrl ||
+            "",
+        );
+
+        const preparedCharges: Record<string, MercadoPagoGuideCharge> = {};
+
+        for (const guide of prewarmVisibleGuides) {
+          const banking = resolveGuideBankingData({
+            settings: prewarmTenantSettings,
+            guide,
+            municipalityName: municipalityName || prewarmTenant?.name,
+            municipalityCity:
+              prewarmTenantSettings?.pixMerchantCity || prewarmTenant?.city,
+          });
+
+          if (banking.barcode && banking.digitableLine) continue;
+
+          preparedCharges[guide.code] = await ensureMercadoPagoGuideCharge({
+            municipalityId: effectiveScopeId,
+            guideCode: guide.code,
+            amount: guide.amount,
+            dueDate: guide.dueDate,
+            description: `${guide.label} · ${process.protocol}`,
+          });
+        }
+
+        const embeddedLogo = await logoPromise;
+        if (cancelled) return;
+
+        setPreparedGuideCharges((current) => ({
+          ...current,
+          ...preparedCharges,
+        }));
+        setPreparedGuideLogoUrl(embeddedLogo || prewarmGuideLogoUrl || "");
+      } catch (error) {
+        if (cancelled) return;
+        setGuidePreparationError(
+          error instanceof Error
+            ? error.message
+            : "Não foi possível preparar os dados bancários da guia.",
+        );
+      } finally {
+        if (!cancelled) setGuideBillingBusyKey("");
+      }
+    };
+
+    void prepareGuides();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    effectiveScopeId,
+    prewarmGuideSignature,
+    prewarmSettingsSignature,
+    process?.id,
+    process?.protocol,
+  ]);
   const setProcessTab = (tab: ProcessTab) => {
     if (tab === "analise" && !stableAnalysisAccess) return;
     if (
@@ -531,6 +843,7 @@ export function ProcessDetailPage() {
     ) return;
     const nextParams = new URLSearchParams(location.search);
     nextParams.set("aba", tab);
+    if (tab !== "financeiro") nextParams.delete("guia");
     navigate({ pathname: location.pathname, search: nextParams.toString() }, { replace: true, preventScrollReset: true });
     setActiveTab(tab);
   };
@@ -540,8 +853,15 @@ export function ProcessDetailPage() {
     setConstructionAreaInput(process.property.area > 0 ? String(process.property.area) : "");
     setConstructionUsageInput(process.property.usage || "");
     setWorkTypeInput(process.property.workType || "");
+    setHabiteSeConstructionStandardInput(process.property.constructionStandard || "");
     setIsEditingIssuedIssGuide(false);
-  }, [process?.id, process?.property.area, process?.property.usage, process?.property.workType]);
+  }, [
+    process?.id,
+    process?.property.area,
+    process?.property.usage,
+    process?.property.workType,
+    process?.property.constructionStandard,
+  ]);
 
   const ownsCurrentProcessStage =
     !!process && isProcessOwnedBySessionDepartment(session, process);
@@ -553,6 +873,16 @@ export function ProcessDetailPage() {
     session.role !== "master_admin" &&
     session.role !== "master_ops";
 
+  // Durante F5 com store quente, o processo real já está disponível pelo cache
+  // visual, mas permissões/departamento ainda podem estar revalidando. Não deixe
+  // esse intervalo transitório trocar a aba atual (ex.: Habite-se -> Histórico).
+  // A mesma regra já protege a Análise: a tela real permanece montada enquanto
+  // a autorização é confirmada em segundo plano.
+  const stableProtocolTrackingOnly =
+    dataReadyForCurrentUser && !platformDataLoading
+      ? isProtocolTrackingOnly
+      : false;
+
   useEffect(() => {
     if (!processId || openedProcessRef.current === processId) return;
     openedProcessRef.current = processId;
@@ -560,21 +890,81 @@ export function ProcessDetailPage() {
     const preferredTab: ProcessTab = requested && ["resumo", "imovel", "documentos", "analise", "financeiro", "alvara", "historico"].includes(requested)
       ? requested as ProcessTab
       : "imovel";
-    setActiveTab(isProtocolTrackingOnly && preferredTab !== "resumo" ? "historico" : preferredTab);
-  }, [isProtocolTrackingOnly, processId, location.search]);
+    setActiveTab(stableProtocolTrackingOnly && preferredTab !== "resumo" ? "historico" : preferredTab);
+  }, [stableProtocolTrackingOnly, processId, location.search]);
 
   useEffect(() => {
     if (!processId) return;
     const requested = new URLSearchParams(location.search).get("aba");
     if (!requested || !["resumo", "imovel", "documentos", "analise", "financeiro", "alvara", "historico"].includes(requested)) return;
-    setActiveTab(isProtocolTrackingOnly && requested !== "resumo" ? "historico" : requested as ProcessTab);
-  }, [location.search, isProtocolTrackingOnly, processId]);
+    setActiveTab(stableProtocolTrackingOnly && requested !== "resumo" ? "historico" : requested as ProcessTab);
+  }, [location.search, stableProtocolTrackingOnly, processId]);
 
   useEffect(() => {
-    if (!isProtocolTrackingOnly) return;
+    if (!stableProtocolTrackingOnly) return;
     if (activeTab === "historico" || activeTab === "resumo") return;
     setActiveTab("historico");
-  }, [activeTab, isProtocolTrackingOnly]);
+  }, [activeTab, stableProtocolTrackingOnly]);
+
+  useEffect(() => {
+    if (!process || !processId) return;
+
+    const canonicalRouteKey = buildProcessRouteKey(process.protocol, process.id);
+    if (!canonicalRouteKey) return;
+
+    let currentRouteKey = processId;
+    try {
+      currentRouteKey = decodeURIComponent(processId);
+    } catch {
+      currentRouteKey = processId;
+    }
+
+    if (
+      currentRouteKey.trim().toLocaleLowerCase("pt-BR") ===
+      canonicalRouteKey.toLocaleLowerCase("pt-BR")
+    ) {
+      return;
+    }
+
+    navigate(
+      {
+        pathname: buildProcessPath(process),
+        search: location.search,
+        hash: location.hash,
+      },
+      { replace: true, preventScrollReset: true },
+    );
+  }, [
+    location.hash,
+    location.search,
+    navigate,
+    process?.id,
+    process?.protocol,
+    processId,
+  ]);
+
+  useEffect(() => {
+    if (activeTab !== "financeiro" || !requestedGuideCode) return;
+
+    // Em navegação fria, o primeiro frame pode acontecer antes das guias do
+    // processo chegarem do store. Reexecutamos quando a assinatura das guias
+    // muda e usamos dois frames para garantir que o card exato já foi montado.
+    let outerFrame = 0;
+    let innerFrame = 0;
+    outerFrame = window.requestAnimationFrame(() => {
+      innerFrame = window.requestAnimationFrame(() => {
+        document.getElementById("guia-selecionada")?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      });
+    });
+
+    return () => {
+      window.cancelAnimationFrame(outerFrame);
+      window.cancelAnimationFrame(innerFrame);
+    };
+  }, [activeTab, requestedGuideCode, processId, prewarmGuideSignature]);
 
   useEffect(() => {
     if (activeTab !== "historico" || location.hash !== "#despacho") return;
@@ -609,10 +999,20 @@ export function ProcessDetailPage() {
         session.role === "analista"
       )
     );
-  const canAttachToRequirement = (item: typeof process.requirements[number]) =>
+  const canAttachToRequirement = (item: ProcessRecord["requirements"][number]) =>
     item.status === "aberta" &&
     session.role !== "prefeitura_admin" &&
     (isInternalRole(session.role) || session.role === "profissional_externo" || session.role === "proprietario_consulta");
+
+  const recoverableDocumentsFingerprint = (process?.documents ?? [])
+    .map((document) =>
+      [
+        document.id,
+        document.uploaded ? "1" : "0",
+        document.filePath || "",
+      ].join(":"),
+    )
+    .join("|");
 
   useEffect(() => {
     let cancelled = false;
@@ -664,15 +1064,66 @@ export function ProcessDetailPage() {
     return () => {
       cancelled = true;
     };
-  }, [activeTab, canRecoverStoredDocuments, process]);
+  }, [
+    activeTab,
+    canRecoverStoredDocuments,
+    process?.id,
+    recoverableDocumentsFingerprint,
+  ]);
 
-  // A listagem do processo não carrega PDFs/imagens reais em segundo plano.
-  // O acesso assinado é gerado somente na rota dedicada de visualização/análise.
-  // Isso elimina reloads de iframe quando o processo recebe atualizações.
   useEffect(() => {
+    let cancelled = false;
     setDocumentAccessUrls({});
     setDocumentAccessErrors({});
-  }, [process?.id]);
+
+    if (!process?.id || isExternalSession) {
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    const bucket =
+      (import.meta.env.VITE_R2_BUCKET_DOCUMENTOS as string | undefined) ||
+      "sigapro-documentos";
+
+    const candidates = process.documents.filter(
+      (document) => document.uploaded && Boolean(document.filePath),
+    );
+
+    void Promise.allSettled(
+      candidates.map(async (document) => {
+        try {
+          const url = await getSignedUrlForObjectStrict({
+            bucket,
+            objectKey: document.filePath!,
+            expiresIn: 21600,
+          });
+          if (cancelled || !url) return;
+          setDocumentAccessUrls((current) =>
+            current[document.id] === url
+              ? current
+              : { ...current, [document.id]: url },
+          );
+          cacheDocumentWorkspaceAccessUrl(process.id, document.id, url);
+        } catch (error) {
+          if (!cancelled) {
+            setDocumentAccessErrors((current) => ({
+              ...current,
+              [document.id]:
+                error instanceof Error
+                  ? error.message
+                  : "Não foi possível preparar o acesso seguro ao documento.",
+            }));
+          }
+          // A rota dedicada ainda possui fallback próprio.
+        }
+      }),
+    );
+
+    return () => {
+      cancelled = true;
+    };
+  }, [process?.id, recoverableDocumentsFingerprint, isExternalSession]);
 
   if (!process) {
     if (platformDataLoading || !dataReadyForCurrentUser) {
@@ -718,14 +1169,33 @@ export function ProcessDetailPage() {
   const processInstitutionId = process.municipalityId ?? process.tenantId;
   const tenant = institutions.find((item) => item.id === processInstitutionId) ?? null;
   const tenantSettings = institutionSettingsCompat ?? getInstitutionSettings(processInstitutionId);
+  const stableGuideLogoUrl = getMunicipalityLogoOpenUrl(
+    municipalityBranding?.headerLogoObjectKey ||
+      municipalityBranding?.logoObjectKey ||
+      "",
+  );
+  const guideLogoUrl =
+    stableGuideLogoUrl ||
+    guideHeaderBranding.logoUrl ||
+    ("fallbackLogoUrl" in guideHeaderBranding ? guideHeaderBranding.fallbackLogoUrl : "") ||
+    tenantSettings?.logoUrl ||
+    tenantSettings?.brasaoUrl ||
+    "";
   const isHabiteSeProcess = isOccupancyPermitProcessType(process.type);
   const paymentGuides = getProcessPaymentGuides(process, tenantSettings);
   const isExternalProcessViewer = isExternalSession;
   const visiblePaymentGuides = isExternalProcessViewer
     ? getExternallyVisibleProcessPaymentGuides(process, tenantSettings)
     : paymentGuides;
+  const requestedPaymentGuide = requestedGuideCode
+    ? paymentGuides.find((guide) => guide.code === requestedGuideCode) ?? null
+    : null;
   const issuedConstructionGuide = paymentGuides.find((guide) => guide.kind === "iss_obra");
   const approvalGuide = paymentGuides.find((guide) => guide.kind === "aprovacao_final");
+  const habiteSeGuide = paymentGuides.find((guide) => guide.kind === "habite_se");
+  const habiteSeGuideSentExternally = habiteSeGuide
+    ? isProcessPaymentGuideSharedExternally(process, habiteSeGuide)
+    : false;
   const permitReachedIssuanceStage =
     Boolean(constructionPermit) &&
     constructionPermit?.status !== "rascunho";
@@ -743,16 +1213,85 @@ export function ProcessDetailPage() {
     : false;
   const uploadedCount = process.documents.filter((document) => document.uploaded).length;
   const protocolGuide = visiblePaymentGuides.find((guide) => guide.kind === "protocolo");
-  const pixPayload = `000201|${tenantSettings?.beneficiarioArrecadacao}|${tenantSettings?.chavePix}|${protocolGuide?.code}|${process.protocol}|${process.ownerName}|${protocolGuide?.amount ?? 0}`;
+  const pixPayload = protocolGuide
+    ? buildGuidePixPayload({
+        settings: tenantSettings,
+        guide: protocolGuide,
+        municipalityName: municipalityName || tenant?.name,
+        municipalityCity: tenantSettings?.pixMerchantCity || tenant?.city,
+      })
+    : "";
+  const canEditAssignedAnalysis =
+    !isExternalProcessViewer &&
+    canEditAssignedAnalysisArtifact(session, process, effectiveScopeId);
   const canReviewDocuments =
     !isExternalProcessViewer &&
-    canAnalyzeProcessDocument(session, process, effectiveScopeId);
+    (
+      canAnalyzeProcessDocument(session, process, effectiveScopeId) ||
+      (isHabiteSeProcess && canEditAssignedAnalysis)
+    );
+  const canEditAnalysisChecklist = canEditAssignedAnalysis;
   const canUseMunicipalChecklist =
     !isExternalProcessViewer &&
     !isProtocolTrackingOnly &&
-    canAnalysisOperate &&
+    (canAnalysisOperate || canEditAssignedAnalysis) &&
     matchesOperationalScope(effectiveScopeId, process) &&
     ["master_admin", "master_ops", "prefeitura_supervisor", "analista", "fiscal"].includes(session.role);
+  const isAnalysisSupervisor =
+    session.role === "prefeitura_supervisor" &&
+    canAccessMunicipalArea(session, "analise");
+  const runSupervisorAction = async (
+    action: () => Promise<void>,
+    successMessage: string,
+  ) => {
+    if (supervisorActionBusy) return;
+    setSupervisorActionBusy(true);
+    setSupervisorActionStatus("");
+    try {
+      await action();
+      setSupervisorActionStatus(successMessage);
+    } catch (error) {
+      setSupervisorActionStatus(
+        error instanceof Error
+          ? `Não foi possível concluir: ${error.message}`
+          : "Não foi possível concluir a operação da Diretoria.",
+      );
+    } finally {
+      setSupervisorActionBusy(false);
+    }
+  };
+
+  const handleBeginSupervisorIntervention = async (reason: string) => {
+    await runSupervisorAction(
+      () =>
+        beginAnalysisSupervisorIntervention({
+          processId: process.id,
+          reason,
+          minutes: 30,
+        }),
+      "Intervenção da Diretoria iniciada por 30 minutos. Todas as alterações serão auditadas.",
+    );
+  };
+
+  const handleEndSupervisorIntervention = async () => {
+    await runSupervisorAction(
+      () => endAnalysisSupervisorIntervention(process.id),
+      "Intervenção encerrada. O processo voltou ao modo acompanhamento.",
+    );
+  };
+
+  const handleReassignAnalysis = async (targetProfileId: string, reason: string) => {
+    await runSupervisorAction(
+      () =>
+        reassignProcessAnalysis({
+          processId: process.id,
+          targetProfileId,
+          reason,
+        }),
+      "Análise redistribuída com sucesso e registrada no histórico.",
+    );
+  };
+
   const visibleDocumentRows =
     isProtocolTrackingOnly
       ? []
@@ -803,15 +1342,15 @@ export function ProcessDetailPage() {
   const canManageIssuedIssGuide =
     Boolean(constructionGuide) &&
     constructionGuide?.status !== "compensada" &&
-    (
-      isMasterOperator ||
-      session.role === "prefeitura_supervisor" ||
-      (session.role === "analista" &&
-        (!process.analysis?.assignedTo || process.analysis.assignedTo === session.name))
-    );
+    (isMasterOperator || canReviewDocuments);
   const constructionGuideRequest = process.dispatches.find(
     (dispatch) =>
       /(issqn|iss|projeto).*guia|guia.*(issqn|iss|projeto)/i.test(dispatch.subject) &&
+      ["aguardando", "respondido"].includes(dispatch.status),
+  );
+  const habiteSeGuideRequest = process.dispatches.find(
+    (dispatch) =>
+      /guia.*habite|habite.*guia/i.test(dispatch.subject) &&
       ["aguardando", "respondido"].includes(dispatch.status),
   );
   const constructionGuideIssueAudit = process.auditTrail.find(
@@ -854,7 +1393,30 @@ export function ProcessDetailPage() {
     process.property.constructionStandard,
     tenantSettings,
   );
-  const displayGuide = approvalGuide ?? constructionGuide ?? protocolGuide;
+  const habiteSeStandardOrder = ["luxo", "primeira", "medio", "economico"];
+  const habiteSeFinishOptions = (tenantSettings?.approvalRateProfiles ?? [])
+    .filter(
+      (profile) =>
+        normalizeMunicipalFeeLabel(profile.usage) ===
+          normalizeMunicipalFeeLabel(process.property.usage) &&
+        Number(profile.rate) > 0,
+    )
+    .sort((left, right) => {
+      const leftIndex = habiteSeStandardOrder.indexOf(
+        normalizeMunicipalFeeLabel(left.standard),
+      );
+      const rightIndex = habiteSeStandardOrder.indexOf(
+        normalizeMunicipalFeeLabel(right.standard),
+      );
+      return (leftIndex < 0 ? 99 : leftIndex) - (rightIndex < 0 ? 99 : rightIndex);
+    });
+  const habiteSeGuidePreview = calculateHabiteSeGuideBreakdown(
+    process.property.area,
+    process.property.usage,
+    habiteSeConstructionStandardInput,
+    tenantSettings,
+  );
+  const displayGuide = requestedPaymentGuide ?? approvalGuide ?? constructionGuide ?? protocolGuide;
 
   const getDocumentReviewVisual = (document: typeof process.documents[number]) => {
     if (!document.uploaded) {
@@ -954,6 +1516,16 @@ export function ProcessDetailPage() {
     .replace(/[\u0300-\u036f]/g, "")
     .toLocaleLowerCase("pt-BR");
 
+  const initialUrbanAnalysisDestination = organizationDepartments.find(
+    (department) =>
+      department.code?.trim().toUpperCase() === "ANU" ||
+      /an[aá]lise urban[ií]stica/i.test(department.name),
+  );
+  const requiresInitialUrbanAnalysisDispatch =
+    isOccupancyPermitProcessType(process.type) &&
+    process.status === "triagem" &&
+    /protocolo|triagem|administr/.test(normalizedCurrentFolder);
+
   const isFinalProcessStatus = ["deferido", "indeferido", "arquivado"].includes(process.status);
   const constructionPaymentCompensated =
     issuedConstructionGuide?.status === "compensada";
@@ -962,7 +1534,18 @@ export function ProcessDetailPage() {
   let currentFlowIndex = 0;
   if (isHabiteSeProcess) {
     if (isFinalProcessStatus) {
+      currentFlowIndex = 6;
+    } else if (
+      habiteSeGuide?.status === "compensada" ||
+      /decis[aã]o|emiss[aã]o do habite/.test(normalizedCurrentFolder)
+    ) {
       currentFlowIndex = 5;
+    } else if (
+      Boolean(habiteSeGuide) ||
+      Boolean(habiteSeGuideRequest) ||
+      /financ|tesour|arrecad/.test(normalizedCurrentFolder)
+    ) {
+      currentFlowIndex = 4;
     } else if (/fiscal|vistoria|inspec|conferencia/.test(normalizedCurrentFolder)) {
       currentFlowIndex = 3;
     } else if (
@@ -1014,6 +1597,7 @@ export function ProcessDetailPage() {
         "Pagamento inicial",
         "Análise documental",
         "Vistoria / conferência",
+        "Financeiro",
         "Decisão / emissão",
         "Conclusão",
       ]
@@ -1028,11 +1612,19 @@ export function ProcessDetailPage() {
   const flowSteps = flowLabels.map((label, index) => ({
     key: `municipal-flow-${index}`,
     label,
-    state: index < currentFlowIndex ? "done" : index === currentFlowIndex ? "current" : "pending",
+    state: isFinalProcessStatus
+      ? "done"
+      : index < currentFlowIndex
+        ? "done"
+        : index === currentFlowIndex
+          ? "current"
+          : "pending",
   }));
   const currentFlowStatusLabel =
     isFinalProcessStatus
-      ? statusLabel(process.status)
+      ? isHabiteSeProcess
+        ? "Concluído"
+        : statusLabel(process.status)
       : permitReachedIssuanceStage && !isHabiteSeProcess
         ? "Alvará de Construção"
         : flowLabels[currentFlowIndex] || statusLabel(process.status);
@@ -1214,9 +1806,18 @@ export function ProcessDetailPage() {
   const showSecondaryDetailColumn = ["analise", "financeiro"].includes(activeTab);
   const useSplitDetailLayout = false;
   const cardShell = "sig-process-card min-w-0 rounded-[20px] border border-slate-200 bg-white shadow-[0_14px_34px_rgba(15,23,42,0.08)] dark:border-slate-700 dark:bg-slate-900";
-  const printGuide = (guideKind: PaymentGuideKind = "protocolo", autoPrint = true) => {
-    const selectedGuide = visiblePaymentGuides.find((guide) => guide.kind === guideKind);
+  const printGuide = async (
+    guideKind: PaymentGuideKind = "protocolo",
+    autoPrint = true,
+    guideCode?: string,
+  ) => {
+    const selectedGuide =
+      (guideCode
+        ? visiblePaymentGuides.find((guide) => guide.code === guideCode)
+        : undefined) ||
+      visiblePaymentGuides.find((guide) => guide.kind === guideKind);
     if (!selectedGuide) return;
+
     const issuedAt = selectedGuide.issuedAt || new Date().toISOString();
     const year = new Date(issuedAt).getFullYear().toString();
     const approvalBreakdown =
@@ -1228,9 +1829,21 @@ export function ProcessDetailPage() {
             tenantSettings,
           )
         : null;
+    const habiteSeBreakdown =
+      selectedGuide.kind === "habite_se"
+        ? calculateHabiteSeGuideBreakdown(
+            selectedGuide.areaM2 ?? process.property.area,
+            selectedGuide.usage || process.property.usage,
+            selectedGuide.constructionStandard || process.property.constructionStandard,
+            tenantSettings,
+          )
+        : null;
     const canItemizeApproval =
       Boolean(approvalBreakdown) &&
       Math.abs(Number(approvalBreakdown?.totalAmount ?? 0) - Number(selectedGuide.amount || 0)) < 0.02;
+    const canItemizeHabiteSe =
+      Boolean(habiteSeBreakdown?.profile) &&
+      Math.abs(Number(habiteSeBreakdown?.totalAmount ?? 0) - Number(selectedGuide.amount || 0)) < 0.02;
     const guideItems: GuiaRecolhimentoOficialProps["itens"] =
       selectedGuide.kind === "aprovacao_final" && approvalBreakdown && canItemizeApproval
         ? [
@@ -1262,29 +1875,116 @@ export function ProcessDetailPage() {
               total: approvalBreakdown.licenseAmount,
             },
           ]
-        : [
-            {
-              ano: year,
-              divida: selectedGuide.label,
-              tabela: tenantSettings?.guiaPrefixo || "DAM",
-              sb: "",
-              pc: "",
-              principal: selectedGuide.amount,
-              multa: 0,
-              juros: 0,
-              correcao: 0,
-              total: selectedGuide.amount,
-            },
-          ];
-    // Não construir códigos de barras ou linhas digitáveis artificiais.
-    // Uma DAM só pode mostrar código bancário validado pela integração arrecadadora.
+        : selectedGuide.kind === "habite_se" && habiteSeBreakdown && canItemizeHabiteSe
+          ? [
+              {
+                ano: year,
+                divida: `Habite-se • ${selectedGuide.usage || process.property.usage || "Construção"} • ${constructionStandardDisplayLabel(
+                  selectedGuide.constructionStandard || process.property.constructionStandard,
+                )}`,
+                tabela: `R$ ${habiteSeBreakdown.baseValueM2.toLocaleString("pt-BR", {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}/m² × ${habiteSeBreakdown.aliquotPercent.toLocaleString("pt-BR")}%`,
+                sb: "",
+                pc: "",
+                principal: habiteSeBreakdown.totalAmount,
+                multa: 0,
+                juros: 0,
+                correcao: 0,
+                total: habiteSeBreakdown.totalAmount,
+              },
+            ]
+          : [
+              {
+                ano: year,
+                divida: selectedGuide.label,
+                tabela: tenantSettings?.guiaPrefixo || "DAM",
+                sb: "",
+                pc: "",
+                principal: selectedGuide.amount,
+                multa: 0,
+                juros: 0,
+                correcao: 0,
+                total: selectedGuide.amount,
+              },
+            ];
+
+    const banking = resolveGuideBankingData({
+      settings: tenantSettings,
+      guide: selectedGuide,
+      municipalityName: municipalityName || tenant?.name,
+      municipalityCity: tenantSettings?.pixMerchantCity || tenant?.city,
+    });
+    const providerCharge = preparedGuideCharges[selectedGuide.code] ?? null;
+    const digitableLine = providerCharge?.digitableLine || banking.digitableLine;
+    const barcode = providerCharge?.barcodeContent || banking.barcode;
+
+    if (!barcode || !digitableLine) {
+      setProcessActionStatus(
+        guidePreparationError
+          ? `A guia não foi aberta porque os dados bancários ainda não estão válidos: ${guidePreparationError}`
+          : "A guia ainda está sendo preparada. Aguarde a conclusão dos dados bancários antes de abrir.",
+      );
+      return;
+    }
+
+    const providerInstitution = providerCharge?.financialInstitution?.trim() || "";
+    const providerName =
+      providerInstitution && providerInstitution.toLowerCase() !== "boleto"
+        ? providerInstitution
+        : banking.bankName || "Mercado Pago";
+
+    // Reserva a nova guia ainda dentro do gesto do clique. Assim podemos aguardar
+    // a conversão do brasão/logo para data URL sem transformar a abertura em popup
+    // assíncrono bloqueado pelo navegador.
+    const reservedGuideWindow = reserveGuiaRecolhimentoOficialWindow(
+      `Guia ${selectedGuide.code}`,
+    );
+    if (!reservedGuideWindow) {
+      setProcessActionStatus(
+        "O navegador bloqueou a abertura da guia. Permita pop-ups para o SIGAPRO e tente novamente.",
+      );
+      return;
+    }
+
+    const renderedGuideLogoUrl = getRenderedMunicipalityLogoDataUrl();
+    const directGuideLogoFallback =
+      renderedGuideLogoUrl ||
+      tenantSettings?.headerLogoUrl ||
+      tenantSettings?.brasaoUrl ||
+      guideHeaderBranding.logoUrl ||
+      ("fallbackLogoUrl" in guideHeaderBranding ? guideHeaderBranding.fallbackLogoUrl : "") ||
+      stableGuideLogoUrl ||
+      tenantSettings?.logoUrl ||
+      "";
+
+    let embeddedGuideLogoUrl = preparedGuideLogoUrl || "";
+    if (!embeddedGuideLogoUrl) {
+      embeddedGuideLogoUrl = await prepareGuideInstitutionalLogo(
+        renderedGuideLogoUrl,
+        stableGuideLogoUrl,
+        guideHeaderBranding.logoUrl,
+        "fallbackLogoUrl" in guideHeaderBranding ? guideHeaderBranding.fallbackLogoUrl : "",
+        tenantSettings?.headerLogoUrl,
+        tenantSettings?.brasaoUrl,
+        tenantSettings?.logoUrl,
+      ).catch(() => "");
+    }
+    embeddedGuideLogoUrl = embeddedGuideLogoUrl || directGuideLogoFallback;
+
+    const rawIssuedBy = String(selectedGuide.issuedBy || "").trim();
+    const issuedByLooksLikeId =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(rawIssuedBy);
+    const issuedByDisplay = issuedByLooksLikeId || !rawIssuedBy ? session.name : rawIssuedBy;
+
     const guideDocument: GuiaRecolhimentoOficialProps = {
       prefeitura: {
         nome: municipalityName || tenant?.name || tenantSettings?.beneficiarioArrecadacao || "Prefeitura Municipal",
         secretaria: tenantSettings?.secretariaResponsavel || "Secretaria responsável",
         endereco: tenantSettings?.endereco || "Endereço não configurado",
         telefone: tenantSettings?.telefone || "",
-        logoUrl: tenantSettings?.logoUrl || tenantSettings?.brasaoUrl || "",
+        logoUrl: embeddedGuideLogoUrl,
         cadastroTitulo: "Cadastro Eventual",
       },
       contribuinte: {
@@ -1299,7 +1999,7 @@ export function ProcessDetailPage() {
         dataDocumento: issuedAt,
         vencimento: selectedGuide.dueDate,
         observacao: getGuideObservation(selectedGuide.kind),
-        funcionarioResponsavel: selectedGuide.issuedBy || session.name,
+        funcionarioResponsavel: issuedByDisplay,
         proprietario: selectedGuide.ownerName || process.ownerName,
         profissionalResponsavel: selectedGuide.professionalName || process.technicalLead,
         analistaSolicitante:
@@ -1308,16 +2008,36 @@ export function ProcessDetailPage() {
             : undefined,
         funcionarioEmissor:
           selectedGuide.kind === "iss_obra"
-            ? constructionGuideIssuer || selectedGuide.issuedBy || session.name
-            : selectedGuide.issuedBy,
+            ? constructionGuideIssuer || issuedByDisplay
+            : issuedByDisplay,
         areaObra: selectedGuide.areaM2 ?? process.property.area,
         usoObra: selectedGuide.usage || process.property.usage,
-        padraoConstrutivo: selectedGuide.kind === "iss_obra"
-          ? process.property.workType || workTypeInput || undefined
-          : selectedGuide.constructionStandard || constructionStandardLabel,
-        codigoBarras: "",
-        linhaDigitavel: "",
+        padraoConstrutivo:
+          selectedGuide.kind === "iss_obra"
+            ? process.property.workType || workTypeInput || undefined
+            : selectedGuide.constructionStandard || constructionStandardLabel,
+        codigoBarras: barcode,
+        linhaDigitavel: digitableLine,
         qrCodePixUrl: "",
+        pixPayload: banking.pixPayload,
+        bankName: providerName,
+        bankEnvironment:
+          providerCharge?.environment || selectedGuide.providerEnvironment,
+        bankAgreement: banking.bankAgreement,
+        bankInstructions: banking.bankInstructions,
+        bankReference: providerCharge?.orderId || selectedGuide.bankReference,
+        bankPaymentId: providerCharge?.paymentId || selectedGuide.bankPaymentId,
+        bankStatus: providerCharge?.status || selectedGuide.bankStatus,
+        bankStatusDetail:
+          providerCharge?.statusDetail || selectedGuide.bankStatusDetail,
+        bankAuthenticatedAt:
+          providerCharge?.authenticatedAt ||
+          selectedGuide.bankAuthenticatedAt ||
+          (selectedGuide.status === "compensada" ? selectedGuide.paidAt : undefined),
+        paymentProvider:
+          selectedGuide.paymentProvider ||
+          tenantSettings?.paymentProvider ||
+          "mercado_pago",
         valorDocumento: selectedGuide.amount,
         descontos: 0,
         outrosAcrescimos: 0,
@@ -1327,21 +2047,37 @@ export function ProcessDetailPage() {
       },
       itens: guideItems,
     };
-    openGuiaRecolhimentoOficialWindow(
+
+    const opened = openGuiaRecolhimentoOficialWindow(
       guideDocument,
       {
         title: `Guia ${selectedGuide.code}`,
         autoPrint,
       },
+      reservedGuideWindow,
     );
+
+    if (!opened) {
+      try {
+        reservedGuideWindow.close();
+      } catch {
+        // noop
+      }
+      setProcessActionStatus(
+        "Não foi possível concluir a abertura da guia oficial.",
+      );
+    }
   };
   const runProcessAction = async (
     key: string,
     action: () => Promise<void>,
     successMessage: string,
+    options?: { allowMunicipalAdmin?: boolean },
   ) => {
-    if (session.role === "prefeitura_admin") {
-      setProcessActionStatus("O Administrador da Prefeitura possui acesso administrativo e de consulta, sem permissão para alterar o fluxo dos processos.");
+    if (session.role === "prefeitura_admin" && !options?.allowMunicipalAdmin) {
+      setProcessActionStatus(
+        "Esta ação operacional pertence ao setor responsável. O Administrador da Prefeitura mantém governança do processo e pode executar o encaminhamento institucional quando necessário.",
+      );
       return false;
     }
     setProcessActionBusy(key);
@@ -1536,6 +2272,99 @@ export function ProcessDetailPage() {
     }
   };
 
+  const handleIssueHabiteSeGuide = () => {
+    if (!canFinanceOperate) {
+      setProcessActionStatus("Somente o Setor Financeiro pode emitir a Guia de Habite-se.");
+      return;
+    }
+    if (!habiteSeGuideRequest && !/financ/.test(normalizedCurrentFolder)) {
+      setProcessActionStatus(
+        "A vistoria / conferência ainda não encaminhou este Habite-se ao Financeiro.",
+      );
+      return;
+    }
+    if (habiteSeGuide) {
+      setProcessActionStatus("A Guia de Habite-se já foi emitida para este processo.");
+      return;
+    }
+    if (process.property.area <= 0) {
+      setProcessActionStatus(
+        "A área do imóvel não está informada no cadastro do processo. Corrija a ficha antes de emitir a guia.",
+      );
+      return;
+    }
+    if (!process.property.usage?.trim()) {
+      setProcessActionStatus(
+        "O tipo de construção/uso não está informado no cadastro do processo.",
+      );
+      return;
+    }
+
+    const selectedStandard = habiteSeConstructionStandardInput.trim();
+    if (!selectedStandard) {
+      setProcessActionStatus("Selecione o tipo de acabamento para calcular a taxa do Habite-se.");
+      return;
+    }
+    if (
+      !habiteSeGuidePreview.profile ||
+      habiteSeGuidePreview.baseValueM2 <= 0 ||
+      habiteSeGuidePreview.totalAmount <= 0
+    ) {
+      setProcessActionStatus(
+        "A tabela oficial não possui valor para este tipo de construção e acabamento.",
+      );
+      return;
+    }
+
+    void runProcessAction(
+      "issue-habite-se-guide",
+      () =>
+        issueHabiteSePaymentGuide({
+          processId: process.id,
+          constructionStandard: selectedStandard,
+        }),
+      `Guia de Habite-se emitida pelo cálculo oficial: ${process.property.area.toLocaleString(
+        "pt-BR",
+      )} m² × ${formatCurrency(habiteSeGuidePreview.baseValueM2)}/m² × ${habiteSeGuidePreview.aliquotPercent.toLocaleString(
+        "pt-BR",
+      )}% = ${formatCurrency(habiteSeGuidePreview.totalAmount)}.`,
+    );
+  };
+
+  const handleSendHabiteSeGuideToProfessional = () => {
+    if (!habiteSeGuide || habiteSeGuideSentExternally) return;
+    if (!canFinanceOperate) {
+      setProcessActionStatus("Somente o Setor Financeiro pode enviar a Guia de Habite-se ao profissional responsável.");
+      return;
+    }
+
+    void runProcessAction(
+      "send-habite-se-guide",
+      () => shareHabiteSePaymentGuide(process.id),
+      "Guia de Habite-se enviada ao profissional externo responsável pelo projeto e registrada na auditoria.",
+    );
+  };
+
+  const handleConfirmHabiteSePayment = async () => {
+    if (!habiteSeGuide || habiteSeGuide.status === "compensada") return;
+    if (!canFinanceOperate) {
+      setProcessActionStatus("Somente o Setor Financeiro pode confirmar o pagamento da Guia de Habite-se.");
+      return;
+    }
+    if (!habiteSeGuideSentExternally) {
+      setProcessActionStatus(
+        "Envie primeiro a Guia de Habite-se ao profissional responsável. A confirmação do pagamento fica bloqueada até o envio ser registrado.",
+      );
+      return;
+    }
+
+    await runProcessAction(
+      "confirm-habite-se-payment",
+      () => markGuideAsPaid(process.id, session.name, "habite_se"),
+      "Pagamento da Guia de Habite-se confirmado. O processo retornou ao Analista para emissão do Alvará de Habite-se.",
+    );
+  };
+
   const handleReviseConstructionGuide = async () => {
     if (!constructionGuide || !canManageIssuedIssGuide) return;
     const input = getConstructionGuideInput();
@@ -1629,6 +2458,16 @@ export function ProcessDetailPage() {
       return;
     }
 
+    if (
+      requiresInitialUrbanAnalysisDispatch &&
+      selectedDestination.id !== initialUrbanAnalysisDestination?.id
+    ) {
+      setProcessActionStatus(
+        "Nesta etapa, o Habite-se deve sair do Protocolo diretamente para a Análise Urbanística.",
+      );
+      return;
+    }
+
     const ok = await runProcessAction(
       "dispatch",
       () =>
@@ -1641,12 +2480,13 @@ export function ProcessDetailPage() {
           dueDate: dispatchDueDate,
           visibility: dispatchVisibility,
         }),
-      "Despacho registrado no processo.",
+      `Processo encaminhado com sucesso para ${selectedDestination.name}. A nova unidade já recebeu o trâmite no fluxo oficial.`,
+      { allowMunicipalAdmin: true },
     );
     if (ok) {
       setDispatchTo("");
       setDispatchSubject("");
-      setDispatchDueDate("");
+      setDispatchDueDate(currentLocalDateValue());
       setDispatchVisibility("interno");
     }
   };
@@ -1670,18 +2510,30 @@ export function ProcessDetailPage() {
     const route = shouldAnalyze ? "analisar" : "visualizar";
     const query = shouldAnalyze ? "?ferramenta=highlight" : "";
     const workspaceUrl =
-      `${window.location.origin}/processos/${process.id}/documentos/${documentId}/${route}${query}`;
+      `${window.location.origin}${buildProcessPath(process)}/documentos/${documentId}/${route}${query}`;
 
     setOpeningDocumentId(documentId);
     setProcessActionStatus("");
 
-    // Reutiliza sempre a MESMA guia de trabalho documental.
-    // Isso elimina a duplicação de abas mesmo em clique duplo ou troca de documento.
+    const warmedAccessUrl =
+      documentAccessUrls[selectedDocument.id] ||
+      selectedDocument.previewUrl ||
+      "";
+    if (warmedAccessUrl) {
+      cacheDocumentWorkspaceAccessUrl(
+        process.id,
+        selectedDocument.id,
+        warmedAccessUrl,
+      );
+    }
+
+    // Abre diretamente a rota real da mesa documental. Não existe mais
+    // about:blank, shell, skeleton ou página de preparação entre o clique e o PDF.
     const existingWorkspace = documentWorkspaceWindowRef.current;
     const openedTab =
       existingWorkspace && !existingWorkspace.closed
         ? existingWorkspace
-        : window.open("", "sigapro-document-workspace");
+        : window.open(workspaceUrl, "sigapro-document-workspace");
 
     if (!openedTab) {
       setProcessActionStatus(
@@ -1692,13 +2544,14 @@ export function ProcessDetailPage() {
     }
 
     documentWorkspaceWindowRef.current = openedTab;
-    try {
-      openedTab.opener = null;
+
+    if (existingWorkspace && !existingWorkspace.closed) {
       openedTab.location.replace(workspaceUrl);
-      openedTab.focus();
-    } finally {
-      window.setTimeout(() => setOpeningDocumentId(""), 180);
     }
+
+    openedTab.opener = null;
+    openedTab.focus();
+    window.setTimeout(() => setOpeningDocumentId(""), 180);
   };
 
   const openViewer = (documentId: string) => void openDocumentWorkspace(documentId, false);
@@ -1953,9 +2806,9 @@ export function ProcessDetailPage() {
       />
       {session.role === "prefeitura_admin" ? (
         <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900 dark:border-sky-500/30 dark:bg-sky-950/30 dark:text-sky-200">
-          <p className="font-semibold">Modo administrativo — consulta somente</p>
+          <p className="font-semibold">Governança administrativa da Prefeitura</p>
           <p className="mt-1 leading-6">
-            O Administrador da Prefeitura pode acompanhar o processo, mas não pode aprovar documentos, emitir ou baixar guias, criar exigências, despachar, alterar a tramitação ou executar ações dos setores operacionais.
+            O Administrador acompanha todo o processo e pode realizar o encaminhamento institucional pelo organograma. Aprovação técnica, baixa financeira e demais atos especializados continuam restritos aos setores competentes.
           </p>
         </div>
       ) : null}
@@ -2113,19 +2966,29 @@ export function ProcessDetailPage() {
                   type="button"
                   variant="outline"
                   className="rounded-full"
-                  onClick={() => printGuide(approvalGuide ? "aprovacao_final" : constructionGuide ? "iss_obra" : "protocolo", false)}
+                  disabled={Boolean(guideBillingBusyKey)}
+                  onClick={() => void printGuide(displayGuide.kind, false, displayGuide.code)}
                 >
-                  <Eye className="mr-2 h-4 w-4" />
-                  Visualizar guia
+                  {guideBillingBusyKey ? (
+                                  <Clock3 className="mr-2 h-4 w-4 animate-pulse" />
+                                ) : (
+                                  <Eye className="mr-2 h-4 w-4" />
+                                )}
+                                {guideBillingBusyKey ? "Preparando guia..." : "Visualizar guia"}
                 </Button>
                 <Button
                   type="button"
                   variant="outline"
                   className="rounded-full"
-                  onClick={() => printGuide(approvalGuide ? "aprovacao_final" : constructionGuide ? "iss_obra" : "protocolo", true)}
+                  disabled={Boolean(guideBillingBusyKey)}
+                  onClick={() => void printGuide(displayGuide.kind, true, displayGuide.code)}
                 >
-                  <Printer className="mr-2 h-4 w-4" />
-                  Imprimir guia
+                  {guideBillingBusyKey ? (
+                                  <Clock3 className="mr-2 h-4 w-4 animate-pulse" />
+                                ) : (
+                                  <Printer className="mr-2 h-4 w-4" />
+                                )}
+                                {guideBillingBusyKey ? "Preparando guia..." : "Imprimir guia"}
                 </Button>
               </div>
             ) : null}
@@ -2298,7 +3161,10 @@ export function ProcessDetailPage() {
           )}
 
           {activeTab === "documentos" && (
-          <Card className={`${cardShell} overflow-hidden border-slate-200 bg-white shadow-[0_18px_48px_rgba(15,23,42,0.08)]`}>
+          <Card
+            data-process-document-workspace="true"
+            className={`${cardShell} overflow-hidden border-slate-200 bg-white shadow-[0_18px_48px_rgba(15,23,42,0.08)]`}
+          >
             <CardHeader id="sig-process-document-command-center" data-process-command-center="true" data-force-card-contrast="dark" data-premium-inverse-surface="true" data-premium-process-dark-header="documents" data-process-dark-header="true" data-surface-tone="dark" data-surface="fixed-dark" className="sig-process-dark-surface-v9 sig-premium-command-surface border-b border-slate-700/40 bg-[linear-gradient(135deg,#071525_0%,#123a58_58%,#1f6489_100%)] px-5 py-5 !text-white shadow-inner md:px-6 [&_h1]:!text-white [&_h2]:!text-white [&_h3]:!text-white [&_p]:!text-white [&_span]:!text-white [&_svg]:!text-white">
               <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
                 <div className="flex min-w-0 items-start gap-4">
@@ -2432,16 +3298,25 @@ export function ProcessDetailPage() {
               </div>
             </CardHeader>
 
-            <CardContent className="space-y-4 bg-[linear-gradient(180deg,#fbfdff_0%,#f7fafc_100%)] p-5 dark:bg-[linear-gradient(180deg,#0f172a_0%,#111827_100%)] md:p-6">
+            <CardContent
+              data-process-document-content="true"
+              className="space-y-4 p-5 md:p-6"
+            >
               {(!canUploadProcessDocuments && pendingExternalDocumentCount > 0) || recoverableStatus ? (
                 <div className="grid gap-2 lg:grid-cols-2">
                   {!canUploadProcessDocuments && pendingExternalDocumentCount > 0 ? (
-                    <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800">
+                    <div
+                      data-process-document-alert="pending"
+                      className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800"
+                    >
                       {pendingExternalDocumentCount} item(ns) ainda aguardam envio do profissional.
                     </div>
                   ) : <div />}
                   {canRecoverStoredDocuments && recoverableStatus ? (
-                    <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm font-medium text-sky-800">
+                    <div
+                      data-process-document-alert="info"
+                      className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm font-medium text-sky-800"
+                    >
                       {recoverableStatus}
                     </div>
                   ) : null}
@@ -2512,7 +3387,10 @@ export function ProcessDetailPage() {
               ) : null}
 
               {!canUploadProcessDocuments && visibleDocumentRows.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
+                <div
+                  data-process-document-empty="true"
+                  className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center"
+                >
                   <FileStack className="mx-auto h-8 w-8 text-slate-400" />
                   <p className="mt-3 font-semibold text-slate-900">
                     Nenhum documento foi enviado pelo profissional até o momento.
@@ -2776,7 +3654,10 @@ export function ProcessDetailPage() {
                     ) : null}
 
                     {canReviewDocuments && document.uploaded ? (
-                      <div className="mt-4 flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200/80 bg-white/80 px-4 py-3 dark:border-slate-700/80 dark:bg-slate-950/55">
+                      <div
+                        data-process-document-review-strip="true"
+                        className="mt-4 flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200/80 bg-white/80 px-4 py-3"
+                      >
                         <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${
                           isApproved
                             ? "bg-emerald-50 text-emerald-700"
@@ -2817,9 +3698,22 @@ export function ProcessDetailPage() {
 
           {activeTab === "analise" && canUseMunicipalChecklist && (
             <>
+              {isAnalysisSupervisor ? (
+                <AnalysisSupervisorControl
+                  process={process}
+                  session={session}
+                  users={sessionUsers}
+                  busy={supervisorActionBusy}
+                  status={supervisorActionStatus}
+                  onBeginIntervention={handleBeginSupervisorIntervention}
+                  onEndIntervention={handleEndSupervisorIntervention}
+                  onReassign={handleReassignAnalysis}
+                />
+              ) : null}
               <UrbanAnalysisChecklistPanel
                 process={process}
                 session={session}
+                readOnly={!canEditAnalysisChecklist}
                 municipalityId={effectiveScopeId || process.tenantId}
                 municipalityName={municipalityName || tenant?.name || "Prefeitura Municipal"}
                 municipalityLogoUrl={
@@ -2919,7 +3813,7 @@ export function ProcessDetailPage() {
                       inputMode="decimal"
                       value={constructionAreaInput}
                       onChange={(event) => setConstructionAreaInput(event.target.value)}
-                      disabled={Boolean(constructionGuide) && !isEditingIssuedIssGuide}
+                      disabled={!canReviewDocuments || (Boolean(constructionGuide) && !isEditingIssuedIssGuide)}
                       className="mt-2 h-11 bg-white dark:bg-slate-950"
                       placeholder="Ex.: 250,00"
                     />
@@ -2930,7 +3824,7 @@ export function ProcessDetailPage() {
                     <Select
                       value={constructionUsageInput}
                       onValueChange={setConstructionUsageInput}
-                      disabled={Boolean(constructionGuide) && !isEditingIssuedIssGuide}
+                      disabled={!canReviewDocuments || (Boolean(constructionGuide) && !isEditingIssuedIssGuide)}
                     >
                       <SelectTrigger className="mt-2 h-11 bg-white dark:bg-slate-950">
                         <SelectValue placeholder="Selecione o uso da edificação" />
@@ -2948,7 +3842,7 @@ export function ProcessDetailPage() {
                     <Select
                       value={workTypeInput}
                       onValueChange={setWorkTypeInput}
-                      disabled={Boolean(constructionGuide) && !isEditingIssuedIssGuide}
+                      disabled={!canReviewDocuments || (Boolean(constructionGuide) && !isEditingIssuedIssGuide)}
                     >
                       <SelectTrigger className="mt-2 h-11 bg-white text-slate-950 dark:bg-slate-950 dark:text-slate-100">
                         <SelectValue placeholder="Selecione a natureza da obra" />
@@ -2981,10 +3875,15 @@ export function ProcessDetailPage() {
                         type="button"
                         variant="outline"
                         className="rounded-full"
-                        onClick={() => printGuide("iss_obra", false)}
+                        disabled={Boolean(guideBillingBusyKey)}
+                  onClick={() => void printGuide("iss_obra", false)}
                       >
-                        <Eye className="mr-2 h-4 w-4" />
-                        Visualizar guia
+                        {guideBillingBusyKey ? (
+                                  <Clock3 className="mr-2 h-4 w-4 animate-pulse" />
+                                ) : (
+                                  <Eye className="mr-2 h-4 w-4" />
+                                )}
+                                {guideBillingBusyKey ? "Preparando guia..." : "Visualizar guia"}
                       </Button>
 
                       {canManageIssuedIssGuide ? (
@@ -3174,7 +4073,59 @@ export function ProcessDetailPage() {
             isHabiteSeProcess ? (
               <OccupancyPermitProcessPanel
                 process={process}
+                session={session}
                 externalView={isExternalProcessViewer}
+                municipalityName={municipalityName || tenant?.name || "Prefeitura Municipal"}
+                municipalityLogoUrl={
+                  tenantSettings?.brasaoUrl ||
+                  tenantSettings?.headerLogoUrl ||
+                  tenantSettings?.logoUrl ||
+                  ""
+                }
+                municipalityAddress={tenantSettings?.endereco || ""}
+                municipalityPhone={tenantSettings?.telefone || ""}
+                municipalityEmail={tenantSettings?.email || ""}
+                secretariat={tenantSettings?.secretariaResponsavel}
+                directorate={
+                  tenantSettings?.diretoriaResponsavel ||
+                  "Divisão de Análise e Aprovação de Projetos - DAAP"
+                }
+                dataReady={
+                  dataReadyForCurrentUser &&
+                  session.id !== "unknown"
+                }
+                onProcessRefresh={() => refreshRemoteStore()}
+                onCompleteProcess={async () => {
+                  await updateProcessStatus({
+                    processId: process.id,
+                    status: "deferido",
+                    actor: session.name,
+                    title: "Processo de Habite-se concluído",
+                    detail:
+                      "Alvará de Habite-se emitido com assinatura eletrônica válida da Diretoria. Processo concluído administrativamente pelo responsável autorizado, permanecendo visível na pasta de concluídos e no histórico oficial.",
+                  });
+                  await refreshRemoteStore(process.id);
+                  window.dispatchEvent(new Event("sigapro:data-changed"));
+                }}
+                onReopenProcess={async (reason) => {
+                  await reopenProcess({
+                    processId: process.id,
+                    actor: session.name,
+                    reason,
+                  });
+                  await refreshRemoteStore(process.id);
+                  window.dispatchEvent(new Event("sigapro:data-changed"));
+                }}
+                onViewHabiteSeGuide={
+                  habiteSeGuide
+                    ? () => void printGuide("habite_se", false, habiteSeGuide.code)
+                    : undefined
+                }
+                onPrintHabiteSeGuide={
+                  habiteSeGuide
+                    ? () => void printGuide("habite_se", true, habiteSeGuide.code)
+                    : undefined
+                }
               />
             ) : (
             <>
@@ -3309,19 +4260,29 @@ export function ProcessDetailPage() {
                                 type="button"
                                 variant="outline"
                                 className="rounded-full"
-                                onClick={() => printGuide("aprovacao_final", false)}
+                                disabled={Boolean(guideBillingBusyKey)}
+                  onClick={() => void printGuide("aprovacao_final", false)}
                               >
-                                <Eye className="mr-2 h-4 w-4" />
-                                Visualizar guia
+                                {guideBillingBusyKey ? (
+                                  <Clock3 className="mr-2 h-4 w-4 animate-pulse" />
+                                ) : (
+                                  <Eye className="mr-2 h-4 w-4" />
+                                )}
+                                {guideBillingBusyKey ? "Preparando guia..." : "Visualizar guia"}
                               </Button>
                               <Button
                                 type="button"
                                 variant="outline"
                                 className="rounded-full"
-                                onClick={() => printGuide("aprovacao_final", true)}
+                                disabled={Boolean(guideBillingBusyKey)}
+                  onClick={() => void printGuide("aprovacao_final", true)}
                               >
-                                <Printer className="mr-2 h-4 w-4" />
-                                Imprimir guia
+                                {guideBillingBusyKey ? (
+                                  <Clock3 className="mr-2 h-4 w-4 animate-pulse" />
+                                ) : (
+                                  <Printer className="mr-2 h-4 w-4" />
+                                )}
+                                {guideBillingBusyKey ? "Preparando guia..." : "Imprimir guia"}
                               </Button>
                             </>
                           ) : (
@@ -3423,7 +4384,14 @@ export function ProcessDetailPage() {
                   {visiblePaymentGuides.map((guide) => (
                     <div
                       key={`${guide.kind}-${guide.code}`}
-                      className="rounded-2xl border border-slate-200 bg-slate-50/70 p-5 dark:border-slate-700 dark:bg-slate-900/50"
+                      id={guide.code === requestedGuideCode ? `guia-lancamento-${guide.code}` : undefined}
+                      data-guide-code={guide.code}
+                      data-guide-selected={guide.code === requestedGuideCode ? "true" : "false"}
+                      className={
+                        guide.code === requestedGuideCode
+                          ? "scroll-mt-28 rounded-2xl border-2 border-sky-400 bg-sky-50 p-5 shadow-[0_14px_34px_rgba(14,116,144,0.14)] dark:border-sky-500 dark:bg-sky-950/25"
+                          : "rounded-2xl border border-slate-200 bg-slate-50/70 p-5 dark:border-slate-700 dark:bg-slate-900/50"
+                      }
                     >
                       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                         <div className="min-w-0">
@@ -3440,20 +4408,36 @@ export function ProcessDetailPage() {
                               {guide.status === "compensada" ? "Pago / compensado" : "Em aberto"}
                             </Badge>
                           </div>
-                          <p className="mt-2 text-sm font-medium text-slate-700 dark:text-slate-200">{guide.code}</p>
+                          <p className="mt-2 text-sm font-medium text-slate-700 dark:text-slate-200">
+                            {getPaymentGuideDisplayReference(process, guide)}
+                          </p>
+                          {guide.officialProcessReference &&
+                          guide.officialProcessReference !== guide.code ? (
+                            <p className="mt-1 text-[11px] font-medium text-slate-400 dark:text-slate-500">
+                              Guia original paga no pré-protocolo: {guide.code}
+                            </p>
+                          ) : null}
                           <div className="mt-3 flex flex-wrap gap-x-6 gap-y-2 text-sm text-slate-600 dark:text-slate-300">
                             <span><strong>Valor:</strong> {formatCurrency(guide.amount)}</span>
                             <span><strong>Vencimento:</strong> {guide.dueDate || "Não informado"}</span>
                           </div>
                         </div>
                         <div className="flex flex-wrap gap-2">
-                          <Button type="button" variant="outline" className="rounded-full" onClick={() => printGuide(guide.kind, false)}>
-                            <Eye className="mr-2 h-4 w-4" />
-                            Visualizar
+                          <Button type="button" variant="outline" className="rounded-full" disabled={Boolean(guideBillingBusyKey)} onClick={() => void printGuide(guide.kind, false, guide.code)}>
+                            {guideBillingBusyKey ? (
+                              <Clock3 className="mr-2 h-4 w-4 animate-pulse" />
+                            ) : (
+                              <Eye className="mr-2 h-4 w-4" />
+                            )}
+                            {guideBillingBusyKey ? "Preparando guia..." : "Visualizar"}
                           </Button>
-                          <Button type="button" variant="outline" className="rounded-full" onClick={() => printGuide(guide.kind, true)}>
-                            <Printer className="mr-2 h-4 w-4" />
-                            Imprimir
+                          <Button type="button" variant="outline" className="rounded-full" disabled={Boolean(guideBillingBusyKey)} onClick={() => void printGuide(guide.kind, true, guide.code)}>
+                            {guideBillingBusyKey ? (
+                              <Clock3 className="mr-2 h-4 w-4 animate-pulse" />
+                            ) : (
+                              <Printer className="mr-2 h-4 w-4" />
+                            )}
+                            {guideBillingBusyKey ? "Preparando guia..." : "Imprimir"}
                           </Button>
                         </div>
                       </div>
@@ -3465,6 +4449,71 @@ export function ProcessDetailPage() {
                   Nenhuma cobrança foi liberada para você neste processo.
                 </div>
               )}
+            </CardContent>
+          </Card>
+          )}
+
+          {!isExternalProcessViewer && activeTab === "financeiro" && requestedPaymentGuide && (
+          <Card
+            id="guia-selecionada"
+            data-selected-guide-summary="true"
+            data-guide-selected="true"
+            data-guide-code={requestedPaymentGuide.code}
+            className="sig-process-card min-w-0 rounded-[20px] border-2 border-sky-300 bg-sky-50/60 shadow-[0_16px_38px_rgba(14,116,144,0.12)] dark:border-sky-500/50 dark:bg-sky-950/20"
+          >
+            <CardHeader className="border-b border-sky-200/80 dark:border-sky-700/50">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                <div>
+                  <p className="text-[11px] font-black uppercase tracking-[0.16em] text-sky-700 dark:text-sky-300">
+                    Guia selecionada no Financeiro
+                  </p>
+                  <CardTitle className="mt-1 flex items-center gap-2 text-slate-950 dark:text-slate-100">
+                    <ReceiptText className="h-5 w-5 text-sky-700 dark:text-sky-300" />
+                    {requestedPaymentGuide.code}
+                  </CardTitle>
+                  <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+                    {requestedPaymentGuide.label}
+                  </p>
+                </div>
+                <Badge
+                  variant="outline"
+                  className={
+                    requestedPaymentGuide.status === "compensada"
+                      ? "w-fit rounded-full border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-500/40 dark:bg-emerald-950/35 dark:text-emerald-300"
+                      : "w-fit rounded-full border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-500/40 dark:bg-amber-950/35 dark:text-amber-300"
+                  }
+                >
+                  {requestedPaymentGuide.status === "compensada" ? "Compensada" : "Pendente"}
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-5">
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-900">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">Valor</p>
+                  <p className="mt-1 text-lg font-black text-slate-950 dark:text-white">
+                    {formatCurrency(requestedPaymentGuide.amount)}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-900">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">Vencimento</p>
+                  <p className="mt-1 text-sm font-bold text-slate-800 dark:text-slate-100">
+                    {requestedPaymentGuide.dueDate || "Não informado"}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-900">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="rounded-full"
+                    disabled={Boolean(guideBillingBusyKey)}
+                    onClick={() => void printGuide(requestedPaymentGuide.kind, false, requestedPaymentGuide.code)}
+                  >
+                    <Eye className="mr-2 h-4 w-4" />
+                    Visualizar esta guia
+                  </Button>
+                </div>
+              </div>
             </CardContent>
           </Card>
           )}
@@ -3512,13 +4561,21 @@ export function ProcessDetailPage() {
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    <Button type="button" variant="outline" className="rounded-full" onClick={() => printGuide("protocolo", false)}>
-                      <Eye className="mr-2 h-4 w-4" />
-                      Visualizar
+                    <Button type="button" variant="outline" className="rounded-full" disabled={Boolean(guideBillingBusyKey)} onClick={() => void printGuide("protocolo", false)}>
+                      {guideBillingBusyKey ? (
+                        <Clock3 className="mr-2 h-4 w-4 animate-pulse" />
+                      ) : (
+                        <Eye className="mr-2 h-4 w-4" />
+                      )}
+                      {guideBillingBusyKey ? "Preparando guia..." : "Visualizar"}
                     </Button>
-                    <Button type="button" variant="outline" className="rounded-full" onClick={() => printGuide("protocolo", true)}>
-                      <Printer className="mr-2 h-4 w-4" />
-                      Imprimir
+                    <Button type="button" variant="outline" className="rounded-full" disabled={Boolean(guideBillingBusyKey)} onClick={() => void printGuide("protocolo", true)}>
+                      {guideBillingBusyKey ? (
+                        <Clock3 className="mr-2 h-4 w-4 animate-pulse" />
+                      ) : (
+                        <Printer className="mr-2 h-4 w-4" />
+                      )}
+                      {guideBillingBusyKey ? "Preparando guia..." : "Imprimir"}
                     </Button>
                   </div>
                 </div>
@@ -3527,9 +4584,303 @@ export function ProcessDetailPage() {
                   A guia inicial deste protocolo ainda não foi localizada no banco oficial.
                 </div>
               )}
-              <div className="rounded-2xl border border-sky-200 bg-sky-50/70 p-4 text-sm leading-6 text-sky-950 dark:border-sky-500/30 dark:bg-sky-950/25 dark:text-sky-100">
-                Qualquer taxa específica de Habite-se será configurada no workflow próprio deste serviço.
-                Ela nunca será calculada pela tabela de aprovação/Alvará.
+              <div
+                data-habite-se-payment-card="true"
+                className="overflow-hidden rounded-[20px] border border-sky-200 bg-white shadow-[0_12px_28px_rgba(14,116,144,0.08)] dark:border-sky-500/30 dark:bg-slate-900"
+              >
+                <div className="border-b border-sky-100 bg-[linear-gradient(135deg,#f8fbff_0%,#edf8ff_100%)] p-4 dark:border-sky-500/20 dark:bg-[linear-gradient(135deg,#0e2234_0%,#0f3048_100%)]">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <p className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-sky-700 dark:text-sky-300">
+                        Após vistoria / conferência
+                      </p>
+                      <p className="mt-1 text-base font-black text-slate-950 dark:text-white">
+                        Guia de Pagamento do Habite-se
+                      </p>
+                      <p className="mt-1 text-xs leading-5 text-slate-600 dark:text-slate-300">
+                        Esta é uma cobrança própria do Habite-se. Não reutiliza ISSQN nem a taxa de aprovação/Alvará do processo de origem.
+                      </p>
+                    </div>
+                    <Badge
+                      variant="outline"
+                      className={
+                        habiteSeGuide?.status === "compensada"
+                          ? "w-fit rounded-full border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-500/40 dark:bg-emerald-950/35 dark:text-emerald-300"
+                          : habiteSeGuide
+                            ? "w-fit rounded-full border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-500/40 dark:bg-amber-950/35 dark:text-amber-300"
+                            : habiteSeGuideRequest || /financ/.test(normalizedCurrentFolder)
+                              ? "w-fit rounded-full border-sky-300 bg-sky-50 text-sky-800 dark:border-sky-500/40 dark:bg-sky-950/35 dark:text-sky-300"
+                              : "w-fit rounded-full border-slate-300 bg-slate-50 text-slate-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
+                      }
+                    >
+                      {habiteSeGuide?.status === "compensada"
+                        ? "Pagamento confirmado"
+                        : habiteSeGuide
+                          ? "Aguardando pagamento"
+                          : habiteSeGuideRequest || /financ/.test(normalizedCurrentFolder)
+                            ? "Aguardando emissão"
+                            : "Aguardando vistoria"}
+                    </Badge>
+                  </div>
+                </div>
+
+                <div className="p-4">
+                  {habiteSeGuide ? (
+                    <div className="space-y-4">
+                      <div className="grid gap-3 sm:grid-cols-3">
+                        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-950/45">
+                          <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">Guia</p>
+                          <p className="mt-2 text-sm font-black text-slate-950 dark:text-white">{habiteSeGuide.code}</p>
+                        </div>
+                        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-950/45">
+                          <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">Valor</p>
+                          <p className="mt-2 text-lg font-black text-slate-950 dark:text-white">{formatCurrency(habiteSeGuide.amount)}</p>
+                        </div>
+                        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-950/45">
+                          <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">Vencimento</p>
+                          <p className="mt-2 text-sm font-black text-slate-950 dark:text-white">{habiteSeGuide.dueDate || "Não informado"}</p>
+                        </div>
+                      </div>
+
+                      {habiteSeGuide.areaM2 && habiteSeGuide.constructionStandard ? (
+                        <div className="rounded-2xl border border-sky-200 bg-sky-50/80 p-4 dark:border-sky-500/30 dark:bg-sky-950/25">
+                          <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div>
+                              <p className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-sky-700 dark:text-sky-300">
+                                Cálculo oficial registrado
+                              </p>
+                              <p className="mt-1 text-sm font-bold text-slate-950 dark:text-white">
+                                {habiteSeGuide.areaM2.toLocaleString("pt-BR")} m² • {habiteSeGuide.usage || process.property.usage || "Uso não informado"} • {constructionStandardDisplayLabel(habiteSeGuide.constructionStandard)}
+                              </p>
+                            </div>
+                            <Badge variant="outline" className="border-sky-300 bg-white text-sky-800 dark:border-sky-500/40 dark:bg-slate-950 dark:text-sky-200">
+                              Área e acabamento congelados na emissão
+                            </Badge>
+                          </div>
+                        </div>
+                      ) : null}
+
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="rounded-full"
+                          disabled={Boolean(guideBillingBusyKey)}
+                          onClick={() => void printGuide("habite_se", false, habiteSeGuide.code)}
+                        >
+                          <Eye className="mr-2 h-4 w-4" />
+                          Visualizar guia
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="rounded-full"
+                          disabled={Boolean(guideBillingBusyKey)}
+                          onClick={() => void printGuide("habite_se", true, habiteSeGuide.code)}
+                        >
+                          <Printer className="mr-2 h-4 w-4" />
+                          Imprimir
+                        </Button>
+                        {canFinanceOperate && habiteSeGuide.status !== "compensada" && !habiteSeGuideSentExternally ? (
+                          <Button
+                            type="button"
+                            className="rounded-full bg-sky-700 font-bold !text-white hover:bg-sky-600 [&_*]:!text-white"
+                            disabled={processActionBusy === "send-habite-se-guide"}
+                            onClick={handleSendHabiteSeGuideToProfessional}
+                          >
+                            <MessageSquareMore className="mr-2 h-4 w-4" />
+                            {processActionBusy === "send-habite-se-guide"
+                              ? "Enviando..."
+                              : "Enviar ao profissional responsável"}
+                          </Button>
+                        ) : null}
+                        {habiteSeGuideSentExternally ? (
+                          <Badge
+                            variant="outline"
+                            className="rounded-full border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-500/40 dark:bg-emerald-950/35 dark:text-emerald-200"
+                          >
+                            <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
+                            Enviada ao profissional
+                          </Badge>
+                        ) : null}
+                        {canFinanceOperate && habiteSeGuide.status !== "compensada" ? (
+                          <Button
+                            type="button"
+                            className="rounded-full bg-emerald-700 font-bold !text-white hover:bg-emerald-600 [&_*]:!text-white"
+                            disabled={
+                              processActionBusy === "confirm-habite-se-payment" ||
+                              !habiteSeGuideSentExternally
+                            }
+                            onClick={() => void handleConfirmHabiteSePayment()}
+                          >
+                            <CheckCircle2 className="mr-2 h-4 w-4" />
+                            {processActionBusy === "confirm-habite-se-payment"
+                              ? "Confirmando..."
+                              : "Confirmar pagamento"}
+                          </Button>
+                        ) : null}
+                      </div>
+
+                      {habiteSeGuide.status === "compensada" ? (
+                        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold leading-6 text-emerald-900 dark:border-emerald-500/30 dark:bg-emerald-950/25 dark:text-emerald-200">
+                          Pagamento compensado. O processo retornou à Análise Urbanística para elaboração do Alvará de Habite-se e posterior assinatura da Diretoria.
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : habiteSeGuideRequest || /financ/.test(normalizedCurrentFolder) ? (
+                    canFinanceOperate ? (
+                      <div className="space-y-4">
+                        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                          <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-700 dark:bg-slate-950/45">
+                            <p className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">
+                              Área do imóvel
+                            </p>
+                            <p className="mt-2 text-xl font-black text-slate-950 dark:text-white">
+                              {process.property.area > 0
+                                ? `${process.property.area.toLocaleString("pt-BR")} m²`
+                                : "Não informada"}
+                            </p>
+                            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                              Automática do cadastro do protocolo
+                            </p>
+                          </div>
+
+                          <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-700 dark:bg-slate-950/45">
+                            <p className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">
+                              Tipo de construção
+                            </p>
+                            <p className="mt-2 text-xl font-black text-slate-950 dark:text-white">
+                              {process.property.usage || "Não informado"}
+                            </p>
+                            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                              Herdado das avaliações anteriores
+                            </p>
+                          </div>
+
+                          <div className="rounded-2xl border border-sky-200 bg-sky-50/80 p-4 dark:border-sky-500/30 dark:bg-sky-950/25">
+                            <label
+                              htmlFor="habite-se-acabamento"
+                              className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-sky-700 dark:text-sky-300"
+                            >
+                              Tipo de acabamento
+                            </label>
+                            <Select
+                              value={habiteSeConstructionStandardInput}
+                              onValueChange={setHabiteSeConstructionStandardInput}
+                            >
+                              <SelectTrigger
+                                id="habite-se-acabamento"
+                                className="mt-2 h-11 rounded-xl border-sky-300 bg-white font-bold text-slate-950 dark:border-sky-500/40 dark:bg-slate-950 dark:text-white"
+                              >
+                                <SelectValue placeholder="Selecione o acabamento" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {habiteSeFinishOptions.map((profile) => (
+                                  <SelectItem key={profile.id} value={profile.standard}>
+                                    {constructionStandardDisplayLabel(profile.standard)} — {formatCurrency(profile.rate)}/m²
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <p className="mt-1 text-xs text-sky-700/80 dark:text-sky-200/80">
+                              Você escolhe apenas o acabamento
+                            </p>
+                          </div>
+
+                          <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-700 dark:bg-slate-950/45">
+                            <p className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">
+                              Alíquota do Habite-se
+                            </p>
+                            <p className="mt-2 text-xl font-black text-slate-950 dark:text-white">
+                              {habiteSeGuidePreview.aliquotPercent.toLocaleString("pt-BR")}%
+                            </p>
+                            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                              Configuração municipal oficial
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="rounded-[18px] border border-sky-200 bg-[linear-gradient(135deg,rgba(240,249,255,0.96),rgba(248,250,252,0.98))] p-4 shadow-[0_10px_28px_rgba(2,132,199,0.08)] dark:border-sky-500/30 dark:bg-[linear-gradient(135deg,rgba(8,47,73,0.42),rgba(15,23,42,0.72))]">
+                          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                            <div>
+                              <p className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-sky-700 dark:text-sky-300">
+                                Memória de cálculo
+                              </p>
+                              {habiteSeGuidePreview.profile ? (
+                                <>
+                                  <p className="mt-2 text-sm font-bold text-slate-800 dark:text-slate-100">
+                                    {habiteSeGuidePreview.areaM2.toLocaleString("pt-BR")} m² × {formatCurrency(habiteSeGuidePreview.baseValueM2)}/m² × {habiteSeGuidePreview.aliquotPercent.toLocaleString("pt-BR")}%
+                                  </p>
+                                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                                    {process.property.usage} • {constructionStandardDisplayLabel(habiteSeConstructionStandardInput)} • referência oficial de acabamento
+                                  </p>
+                                </>
+                              ) : (
+                                <p className="mt-2 text-sm font-semibold text-slate-600 dark:text-slate-300">
+                                  Selecione um acabamento disponível para calcular automaticamente.
+                                </p>
+                              )}
+                            </div>
+                            <div className="min-w-[210px] rounded-2xl border border-sky-200 bg-white px-5 py-3 text-right dark:border-sky-500/30 dark:bg-slate-950">
+                              <p className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+                                Taxa calculada
+                              </p>
+                              <p className="mt-1 text-2xl font-black text-sky-800 dark:text-sky-200">
+                                {habiteSeGuidePreview.totalAmount > 0
+                                  ? formatCurrency(habiteSeGuidePreview.totalAmount)
+                                  : "R$ 0,00"}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {process.property.area <= 0 || !process.property.usage?.trim() ? (
+                          <div className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm font-semibold leading-6 text-amber-950 dark:border-amber-500/40 dark:bg-amber-950/30 dark:text-amber-100">
+                            A área e o tipo de construção precisam estar preenchidos no cadastro do processo. Esses dados não são digitados novamente no Financeiro.
+                          </div>
+                        ) : habiteSeFinishOptions.length === 0 ? (
+                          <div className="rounded-2xl border border-rose-300 bg-rose-50 p-4 text-sm font-semibold leading-6 text-rose-900 dark:border-rose-500/40 dark:bg-rose-950/30 dark:text-rose-100">
+                            A tabela municipal não possui acabamento configurado para “{process.property.usage}”. A guia permanece bloqueada até a configuração oficial ser corrigida.
+                          </div>
+                        ) : null}
+
+                        <div className="flex flex-col gap-3 border-t border-slate-200 pt-4 sm:flex-row sm:items-center sm:justify-between dark:border-slate-700">
+                          <p className="max-w-3xl text-xs leading-5 text-slate-500 dark:text-slate-400">
+                            A tela mostra a prévia, mas o valor final é recalculado no banco usando a área oficial do imóvel, o acabamento selecionado, a tabela municipal e a alíquota. O cálculo e os dados usados ficam congelados na guia e registrados em auditoria.
+                          </p>
+                          <Button
+                            type="button"
+                            className="h-11 shrink-0 rounded-xl bg-[linear-gradient(135deg,#075985_0%,#0284c7_100%)] px-5 font-bold !text-white shadow-[0_10px_24px_rgba(7,89,133,0.20)] hover:brightness-105 [&_*]:!text-white"
+                            disabled={
+                              processActionBusy === "issue-habite-se-guide" ||
+                              process.property.area <= 0 ||
+                              !process.property.usage?.trim() ||
+                              !habiteSeConstructionStandardInput.trim() ||
+                              !habiteSeGuidePreview.profile ||
+                              habiteSeGuidePreview.totalAmount <= 0
+                            }
+                            onClick={() => void handleIssueHabiteSeGuide()}
+                          >
+                            <ReceiptText className="mr-2 h-4 w-4" />
+                            {processActionBusy === "issue-habite-se-guide"
+                              ? "Emitindo..."
+                              : habiteSeGuidePreview.totalAmount > 0
+                                ? `Gerar guia • ${formatCurrency(habiteSeGuidePreview.totalAmount)}`
+                                : "Gerar Guia de Habite-se"}
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm leading-6 text-sky-950 dark:border-sky-500/30 dark:bg-sky-950/25 dark:text-sky-100">
+                        A vistoria foi concluída e o processo está com o Financeiro para emissão da Guia de Habite-se.
+                      </div>
+                    )
+                  ) : (
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-600 dark:border-slate-700 dark:bg-slate-950/45 dark:text-slate-300">
+                      A Guia de Habite-se fica disponível somente depois que a Vistoria / conferência concluir a etapa e encaminhar formalmente o processo ao Financeiro.
+                    </div>
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -3611,13 +4962,21 @@ export function ProcessDetailPage() {
                         </p>
                       </div>
                       <div className="flex flex-wrap justify-end gap-2">
-                        <Button type="button" variant="outline" className="rounded-full" onClick={() => printGuide("iss_obra", false)}>
-                          <Eye className="mr-2 h-4 w-4" />
-                          Visualizar guia
+                        <Button type="button" variant="outline" className="rounded-full" disabled={Boolean(guideBillingBusyKey)} onClick={() => void printGuide("iss_obra", false)}>
+                          {guideBillingBusyKey ? (
+                                  <Clock3 className="mr-2 h-4 w-4 animate-pulse" />
+                                ) : (
+                                  <Eye className="mr-2 h-4 w-4" />
+                                )}
+                                {guideBillingBusyKey ? "Preparando guia..." : "Visualizar guia"}
                         </Button>
-                        <Button type="button" variant="outline" className="rounded-full" onClick={() => printGuide("iss_obra", true)}>
-                          <Printer className="mr-2 h-4 w-4" />
-                          Imprimir guia
+                        <Button type="button" variant="outline" className="rounded-full" disabled={Boolean(guideBillingBusyKey)} onClick={() => void printGuide("iss_obra", true)}>
+                          {guideBillingBusyKey ? (
+                                  <Clock3 className="mr-2 h-4 w-4 animate-pulse" />
+                                ) : (
+                                  <Printer className="mr-2 h-4 w-4" />
+                                )}
+                                {guideBillingBusyKey ? "Preparando guia..." : "Imprimir guia"}
                         </Button>
                         {canFinanceConfirmConstructionPayment ? (
                           <Button
@@ -3781,13 +5140,21 @@ export function ProcessDetailPage() {
                       <div className="flex flex-wrap gap-2">
                         {approvalGuide ? (
                           <>
-                            <Button type="button" variant="outline" className="rounded-full" onClick={() => printGuide("aprovacao_final", false)}>
-                              <Eye className="mr-2 h-4 w-4" />
-                              Visualizar guia
+                            <Button type="button" variant="outline" className="rounded-full" disabled={Boolean(guideBillingBusyKey)} onClick={() => void printGuide("aprovacao_final", false)}>
+                              {guideBillingBusyKey ? (
+                                  <Clock3 className="mr-2 h-4 w-4 animate-pulse" />
+                                ) : (
+                                  <Eye className="mr-2 h-4 w-4" />
+                                )}
+                                {guideBillingBusyKey ? "Preparando guia..." : "Visualizar guia"}
                             </Button>
-                            <Button type="button" variant="outline" className="rounded-full" onClick={() => printGuide("aprovacao_final", true)}>
-                              <Printer className="mr-2 h-4 w-4" />
-                              Imprimir guia
+                            <Button type="button" variant="outline" className="rounded-full" disabled={Boolean(guideBillingBusyKey)} onClick={() => void printGuide("aprovacao_final", true)}>
+                              {guideBillingBusyKey ? (
+                                  <Clock3 className="mr-2 h-4 w-4 animate-pulse" />
+                                ) : (
+                                  <Printer className="mr-2 h-4 w-4" />
+                                )}
+                                {guideBillingBusyKey ? "Preparando guia..." : "Imprimir guia"}
                             </Button>
                             {approvalGuide.status !== "compensada" && canFinanceOperate ? (
                               <Button
@@ -3859,32 +5226,69 @@ export function ProcessDetailPage() {
                     Veja por onde o processo passou, quando foi encaminhado e onde está agora.
                   </p>
                 </div>
-                <div className="inline-flex items-center gap-2 rounded-full border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-800">
-                  <span className="h-2 w-2 rounded-full bg-sky-600" />
-                  Em andamento
+                <div
+                  data-process-live-state={process.status}
+                  className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold ${
+                    isFinalProcessStatus
+                      ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                      : "border-sky-200 bg-sky-50 text-sky-800"
+                  }`}
+                >
+                  <span
+                    className={`h-2 w-2 rounded-full ${
+                      isFinalProcessStatus ? "bg-emerald-600" : "bg-sky-600"
+                    }`}
+                  />
+                  {isFinalProcessStatus ? "Concluído" : "Em andamento"}
                 </div>
               </div>
             </CardHeader>
 
             <CardContent className="space-y-6 pt-5">
-              <div className="rounded-2xl border border-sky-200 bg-gradient-to-r from-sky-50 to-white p-5">
+              <div
+                className={`rounded-2xl border bg-gradient-to-r p-5 ${
+                  isFinalProcessStatus
+                    ? "border-emerald-200 from-emerald-50 to-white"
+                    : "border-sky-200 from-sky-50 to-white"
+                }`}
+              >
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div className="min-w-0">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-sky-700">
-                      Onde está agora
+                    <p
+                      className={`text-[11px] font-semibold uppercase tracking-[0.16em] ${
+                        isFinalProcessStatus ? "text-emerald-700" : "text-sky-700"
+                      }`}
+                    >
+                      {isFinalProcessStatus ? "Situação atual" : "Onde está agora"}
                     </p>
                     <p className="mt-2 text-base font-bold text-slate-950">
-                      {currentOrganizationPath}
+                      {isFinalProcessStatus ? "Processo concluído" : currentOrganizationPath}
                     </p>
                     <p className="mt-1 text-sm text-slate-600">
-                      {holdsIssuedIssInsideUrbanism ? "Análise Urbanística em andamento" : statusLabel(process.status)}
-                      {/analise|urban|obra|engenharia/.test(normalizedCurrentFolder) && process.analysis?.assignedTo
+                      {isFinalProcessStatus
+                        ? process.processControl?.checkpoint || `Situação final: ${statusLabel(process.status)}`
+                        : holdsIssuedIssInsideUrbanism
+                          ? "Análise Urbanística em andamento"
+                          : statusLabel(process.status)}
+                      {!isFinalProcessStatus &&
+                      /analise|urban|obra|engenharia/.test(normalizedCurrentFolder) &&
+                      process.analysis?.assignedTo
                         ? ` • Responsável: ${process.analysis.assignedTo}`
                         : ""}
                     </p>
                   </div>
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-sky-200 bg-white text-sky-700">
-                    <Building2 className="h-5 w-5" />
+                  <div
+                    className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border bg-white ${
+                      isFinalProcessStatus
+                        ? "border-emerald-200 text-emerald-700"
+                        : "border-sky-200 text-sky-700"
+                    }`}
+                  >
+                    {isFinalProcessStatus ? (
+                      <CheckCircle2 className="h-5 w-5" />
+                    ) : (
+                      <Building2 className="h-5 w-5" />
+                    )}
                   </div>
                 </div>
               </div>
@@ -3950,21 +5354,22 @@ export function ProcessDetailPage() {
                 {hasTransitHistory ? (
                   transitSteps.map((dispatch, index) => {
                     const isLast = index === transitSteps.length - 1;
+                    const isCurrentTransit = isLast && !isFinalProcessStatus;
                     return (
                       <div key={dispatch.id} className="relative flex gap-4 pb-5">
                         <div className={`z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-4 border-white shadow-sm ${
-                          isLast ? "bg-sky-700 text-white" : "bg-slate-200 text-slate-700"
+                          isCurrentTransit ? "bg-sky-700 text-white" : "bg-emerald-600 text-white"
                         }`}>
-                          {isLast ? <Building2 className="h-4 w-4" /> : <ArrowRightLeft className="h-4 w-4" />}
+                          {isCurrentTransit ? <Building2 className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
                         </div>
 
                         <div className={`min-w-0 flex-1 rounded-2xl border p-4 ${
-                          isLast ? "border-sky-200 bg-sky-50/70" : "border-slate-200 bg-white"
+                          isCurrentTransit ? "border-sky-200 bg-sky-50/70" : "border-slate-200 bg-white"
                         }`}>
                           <div className="flex flex-wrap items-start justify-between gap-3">
                             <div className="min-w-0">
                               <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
-                                {isLast ? "Unidade atual" : "Encaminhado para"}
+                                {isCurrentTransit ? "Unidade atual" : "Encaminhado para"}
                               </p>
                               <p className="mt-1 font-semibold text-slate-950">
                                 {getOrganizationPath(dispatch.to)}
@@ -3987,12 +5392,12 @@ export function ProcessDetailPage() {
                               <Badge
                                 variant="outline"
                                 className={`rounded-full ${
-                                  isLast
+                                  isCurrentTransit
                                     ? "border-sky-200 bg-white text-sky-800"
-                                    : "border-slate-200 bg-slate-50 text-slate-600"
+                                    : "border-emerald-200 bg-emerald-50 text-emerald-700"
                                 }`}
                               >
-                                {isLast ? "Atual" : "Concluído"}
+                                {isCurrentTransit ? "Atual" : "Concluído"}
                               </Badge>
                             </div>
                           </div>
@@ -4006,23 +5411,57 @@ export function ProcessDetailPage() {
                       <Building2 className="h-4 w-4" />
                     </div>
                     <div className="min-w-0 flex-1 rounded-2xl border border-sky-200 bg-sky-50/70 p-4">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-sky-700">
-                        Unidade atual
+                      <p className={`text-[11px] font-semibold uppercase tracking-[0.14em] ${
+                        isFinalProcessStatus ? "text-emerald-700" : "text-sky-700"
+                      }`}>
+                        {isFinalProcessStatus ? "Etapa final" : "Unidade atual"}
                       </p>
                       <p className="mt-1 font-semibold text-slate-950">
-                        {currentOrganizationPath}
+                        {isFinalProcessStatus ? "Processo concluído" : currentOrganizationPath}
                       </p>
                       <p className="mt-2 text-sm text-slate-600">
-                        {showAnalysisMilestone && /financ/.test(normalizedCurrentFolder)
-                          ? "Encaminhado ao Financeiro após a conclusão da etapa técnica e emissão da Guia de ISSQN / Projeto."
-                          : "A unidade atual é a última etapa registrada para este processo."}
+                        {isFinalProcessStatus
+                          ? process.processControl?.checkpoint || "A conclusão administrativa foi registrada no processo."
+                          : showAnalysisMilestone && /financ/.test(normalizedCurrentFolder)
+                            ? "Encaminhado ao Financeiro após a conclusão da etapa técnica e emissão da Guia de ISSQN / Projeto."
+                            : "A unidade atual é a última etapa registrada para este processo."}
                       </p>
                     </div>
                   </div>
                 )}
               </div>
 
-              {isInternalRole(session.role) && ownsCurrentProcessStage && !isProtocolTrackingOnly ? (
+                            {isFinalProcessStatus ? (
+                <div data-process-final-milestone="true" className="relative mt-1 flex gap-4">
+                  <div className="z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-4 border-white bg-emerald-600 text-white shadow-sm">
+                    <CheckCircle2 className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0 flex-1 rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700">
+                          Conclusão
+                        </p>
+                        <p className="mt-1 font-semibold text-slate-950">
+                          {isHabiteSeProcess ? "Habite-se concluído" : "Processo concluído"}
+                        </p>
+                        <p className="mt-1 text-sm text-slate-600">
+                          {process.processControl?.checkpoint ||
+                            "A decisão final foi registrada e permanece preservada no histórico oficial."}
+                        </p>
+                      </div>
+                      <Badge
+                        variant="outline"
+                        className="rounded-full border-emerald-200 bg-white text-emerald-800"
+                      >
+                        {statusLabel(process.status)}
+                      </Badge>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+
+{isInternalRole(session.role) && ownsCurrentProcessStage && !isProtocolTrackingOnly ? (
                 <form
                   id="despacho"
                   data-dispatch-panel="true"
@@ -4063,81 +5502,232 @@ export function ProcessDetailPage() {
                             Organograma para despacho
                           </p>
                           <p className="mt-1 text-xs leading-5 text-slate-600 dark:text-slate-300">
-                            Escolha visualmente a unidade de destino. A sigla, o nome e a hierarquia oficial ficam sempre visíveis.
+                            Selecione o destino pela hierarquia oficial da Prefeitura. Unidades superiores e subordinadas permanecem agrupadas e clicáveis.
                           </p>
                         </div>
                         <span className="inline-flex h-8 items-center rounded-full border border-sky-200 bg-sky-50 px-3 text-[10px] font-bold text-sky-800 shadow-sm dark:border-sky-500/30 dark:bg-sky-950/60 dark:text-sky-100">
-                          {organizationDestinations.length} unidade(s)
+                          {organizationDestinations.length} unidades oficiais
                         </span>
                       </div>
 
-                      <div data-dispatch-organogram-grid="true" className="grid gap-2.5 p-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                      <div
+                        data-dispatch-organogram-grid="true"
+                        data-dispatch-organogram-hierarchy="true"
+                        className="grid gap-3 p-3 lg:grid-cols-2 2xl:grid-cols-3"
+                      >
                         {organizationDestinations
-                          .filter((department) => department.name !== currentFolder)
-                          .map((department) => {
-                            const selected = dispatchTo === department.id;
-                            const hierarchy = getOrganizationPathRecords(department.name);
-                            const hierarchyLabel = hierarchy.map((item) => item.name).join(" › ");
+                          .filter(
+                            (department) =>
+                              !department.parentDepartmentId ||
+                              !organizationDestinations.some(
+                                (candidate) => candidate.id === department.parentDepartmentId,
+                              ),
+                          )
+                          .sort(
+                            (a, b) =>
+                              a.sortOrder - b.sortOrder ||
+                              a.name.localeCompare(b.name, "pt-BR"),
+                          )
+                          .map((rootDepartment) => {
+                            const branch: Array<{
+                              department: (typeof organizationDestinations)[number];
+                              depth: number;
+                            }> = [];
+
+                            const collectChildren = (
+                              parentId: string,
+                              depth: number,
+                            ): void => {
+                              organizationDestinations
+                                .filter(
+                                  (candidate) =>
+                                    candidate.parentDepartmentId === parentId,
+                                )
+                                .sort(
+                                  (a, b) =>
+                                    a.sortOrder - b.sortOrder ||
+                                    a.name.localeCompare(b.name, "pt-BR"),
+                                )
+                                .forEach((child) => {
+                                  branch.push({ department: child, depth });
+                                  collectChildren(child.id, depth + 1);
+                                });
+                            };
+
+                            collectChildren(rootDepartment.id, 1);
+
+                            const branchRows = [
+                              { department: rootDepartment, depth: 0 },
+                              ...branch,
+                            ];
+
                             return (
-                              <button
-                                key={`org-destination-${department.id}`}
-                                type="button"
-                                data-organogram-destination="true"
-                                data-selected={selected ? "true" : "false"}
-                                onClick={() => setDispatchTo(department.id)}
-                                className={`group relative min-w-0 rounded-[18px] border p-3 text-left transition-all duration-200 ${
-                                  selected
-                                    ? "border-sky-500 bg-[linear-gradient(135deg,#0b3554_0%,#075985_58%,#0f78b8_100%)] shadow-[0_12px_28px_rgba(7,89,133,0.28)] ring-2 ring-sky-200/70 dark:ring-sky-500/25"
-                                    : "border-slate-200 bg-white shadow-[0_7px_18px_rgba(15,23,42,0.055)] hover:-translate-y-px hover:border-sky-300 hover:bg-sky-50/70 hover:shadow-[0_12px_26px_rgba(15,23,42,0.09)] dark:border-slate-700 dark:bg-slate-900 dark:hover:border-sky-500/50 dark:hover:bg-sky-950/30"
-                                }`}
-                                title={getOrganizationPath(department.name)}
+                              <section
+                                key={`org-branch-${rootDepartment.id}`}
+                                data-organogram-branch="true"
+                                className="overflow-hidden rounded-[20px] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbfe_100%)] shadow-[0_9px_24px_rgba(15,23,42,0.06)] dark:border-slate-700 dark:bg-[linear-gradient(180deg,#101f31_0%,#0b1725_100%)]"
                               >
-                                <div className="flex min-w-0 items-start gap-3">
-                                  <span
-                                    data-organogram-code="true"
-                                    className={`inline-flex h-9 min-w-[48px] shrink-0 items-center justify-center rounded-xl border px-2 text-[10px] font-black tracking-[0.10em] shadow-sm ${
-                                      selected
-                                        ? "border-white/20 bg-white/15 !text-white"
-                                        : "border-sky-200 bg-[linear-gradient(135deg,#075985_0%,#0f78b8_100%)] !text-white dark:border-sky-500/30"
-                                    }`}
-                                  >
-                                    {department.code?.trim() || "UNID"}
-                                  </span>
-
-                                  <span className="min-w-0 flex-1">
-                                    <span
-                                      className={`block truncate text-[12px] font-extrabold ${
-                                        selected
-                                          ? "!text-white"
-                                          : "text-slate-950 dark:text-white"
-                                      }`}
-                                    >
-                                      {department.name}
+                                <div className="border-b border-slate-100 bg-slate-50/80 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-900/70">
+                                  <div className="flex items-center justify-between gap-3">
+                                    <div className="min-w-0">
+                                      <p className="text-[9px] font-extrabold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+                                        Estrutura institucional
+                                      </p>
+                                      <p className="mt-0.5 truncate text-[11px] font-bold text-slate-800 dark:text-slate-100">
+                                        {getOrganizationPath(rootDepartment.name)}
+                                      </p>
+                                    </div>
+                                    <span className="inline-flex min-w-7 items-center justify-center rounded-full border border-slate-200 bg-white px-2 py-1 text-[9px] font-bold text-slate-600 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200">
+                                      {branchRows.length}
                                     </span>
-                                    <span
-                                      className={`mt-1 block truncate text-[10px] leading-4 ${
-                                        selected
-                                          ? "!text-sky-100"
-                                          : "text-slate-500 dark:text-slate-400"
-                                      }`}
-                                    >
-                                      {hierarchyLabel || department.name}
-                                    </span>
-                                  </span>
-
-                                  {selected ? (
-                                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/15 text-white shadow-sm">
-                                      <CheckCircle2 className="h-4 w-4 !text-white" />
-                                    </span>
-                                  ) : null}
+                                  </div>
                                 </div>
 
-                                {selected ? (
-                                  <span className="mt-3 inline-flex rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[9px] font-extrabold uppercase tracking-[0.12em] !text-white">
-                                    Destino selecionado
-                                  </span>
-                                ) : null}
-                              </button>
+                                <div className="space-y-2 p-2.5">
+                                  {branchRows.map(({ department, depth }) => {
+                                    const selected = dispatchTo === department.id;
+                                    const hierarchy =
+                                      getOrganizationPathRecords(department.name);
+                                    const hierarchyLabel = hierarchy
+                                      .map((item) =>
+                                        item.code?.trim()
+                                          ? `${item.code.trim()} — ${item.name}`
+                                          : item.name,
+                                      )
+                                      .join(" › ");
+                                    const isCurrentUnit =
+                                      department.name === currentFolder ||
+                                      hierarchyLabel === currentOrganizationPath;
+                                    const isInitialAnalysisTarget =
+                                      department.id === initialUrbanAnalysisDestination?.id;
+                                    const routeRestricted =
+                                      requiresInitialUrbanAnalysisDispatch && !isInitialAnalysisTarget;
+
+                                    return (
+                                      <div
+                                        key={`org-destination-row-${department.id}`}
+                                        className="relative"
+                                        style={{
+                                          marginLeft: `${Math.min(depth, 3) * 18}px`,
+                                        }}
+                                      >
+                                        {depth > 0 ? (
+                                          <>
+                                            <span
+                                              aria-hidden="true"
+                                              className="absolute -left-[11px] top-0 h-1/2 w-px bg-slate-200 dark:bg-slate-700"
+                                            />
+                                            <span
+                                              aria-hidden="true"
+                                              className="absolute -left-[11px] top-1/2 h-px w-[9px] bg-slate-200 dark:bg-slate-700"
+                                            />
+                                          </>
+                                        ) : null}
+
+                                        <button
+                                          type="button"
+                                          data-organogram-destination="true"
+                                          data-organogram-depth={depth}
+                                          data-selected={selected ? "true" : "false"}
+                                          data-selected-organogram-card={
+                                            selected ? "true" : "false"
+                                          }
+                                          data-current-organogram-unit={
+                                            isCurrentUnit ? "true" : "false"
+                                          }
+                                          data-contrast-surface={selected ? "dark" : undefined}
+                                          disabled={isCurrentUnit || routeRestricted}
+                                          onClick={() => setDispatchTo(department.id)}
+                                          className={`sig-dispatch-destination-card group relative w-full min-w-0 rounded-[15px] border px-3 py-2.5 text-left transition-all duration-200 ${
+                                            selected
+                                              ? "border-sky-500 bg-[linear-gradient(135deg,#0b3554_0%,#075985_58%,#0f78b8_100%)] shadow-[0_10px_24px_rgba(7,89,133,0.25)] ring-2 ring-sky-200/70 dark:ring-sky-500/25"
+                                              : isCurrentUnit
+                                                ? "cursor-default border-emerald-200 bg-emerald-50/85 shadow-[0_5px_14px_rgba(16,185,129,0.07)] dark:border-emerald-500/30 dark:bg-emerald-950/20"
+                                                : "border-slate-200 bg-white shadow-[0_5px_14px_rgba(15,23,42,0.05)] hover:-translate-y-px hover:border-sky-300 hover:bg-sky-50/70 hover:shadow-[0_10px_22px_rgba(15,23,42,0.08)] dark:border-slate-700 dark:bg-slate-900 dark:hover:border-sky-500/50 dark:hover:bg-sky-950/30"
+                                          }`}
+                                          title={
+                                            isCurrentUnit
+                                              ? `Unidade atual: ${getOrganizationPath(department.name)}`
+                                              : routeRestricted
+                                                ? "Fluxo inicial do Habite-se: encaminhe para Análise Urbanística."
+                                                : getOrganizationPath(department.name)
+                                          }
+                                        >
+                                          <div className="flex min-w-0 items-center gap-2.5">
+                                            <span
+                                              data-organogram-code="true"
+                                              data-organogram-code-surface="blue"
+                                              data-contrast-surface="dark"
+                                              data-ui="badge"
+                                              className={`sig-dispatch-code-badge sig-organogram-code-badge inline-flex h-8 min-w-[44px] shrink-0 items-center justify-center rounded-[10px] border px-2 text-[9px] font-black tracking-[0.10em] shadow-sm ${
+                                                selected
+                                                  ? "border-white/20 bg-white/15"
+                                                  : isCurrentUnit
+                                                    ? "border-emerald-400/30 bg-[linear-gradient(135deg,#047857_0%,#059669_100%)]"
+                                                    : "border-sky-200 bg-[linear-gradient(135deg,#075985_0%,#0f78b8_100%)] dark:border-sky-500/30"
+                                              }`}
+                                            >
+                                              <strong
+                                                data-organogram-code-text="true"
+                                                style={{
+                                                  color: "#ffffff",
+                                                  WebkitTextFillColor: "#ffffff",
+                                                  opacity: 1,
+                                                  fontWeight: 800,
+                                                }}
+                                                className="sig-dispatch-code-text block whitespace-nowrap text-[10px] font-extrabold leading-none tracking-[0.055em] !text-white"
+                                              >
+                                                {department.code?.trim() || "UNID"}
+                                              </strong>
+                                            </span>
+
+                                            <span className="min-w-0 flex-1">
+                                              <span
+                                                data-organogram-destination-title="true"
+                                                className={`sig-dispatch-title block truncate text-[12px] font-extrabold ${
+                                                  selected
+                                                    ? "!text-white"
+                                                    : "text-slate-950 dark:text-white"
+                                                }`}
+                                              >
+                                                {department.name}
+                                              </span>
+                                              <span
+                                                data-organogram-destination-path="true"
+                                                className={`sig-dispatch-path mt-0.5 block truncate text-[9px] leading-4 ${
+                                                  selected
+                                                    ? "!text-white/90"
+                                                    : "text-slate-500 dark:text-slate-400"
+                                                }`}
+                                              >
+                                                {hierarchyLabel || department.name}
+                                              </span>
+                                            </span>
+
+                                            {isCurrentUnit ? (
+                                              <span className="shrink-0 rounded-full border border-emerald-200 bg-emerald-100 px-2 py-1 text-[8px] font-extrabold uppercase tracking-[0.08em] text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-950/50 dark:text-emerald-200">
+                                                Origem atual
+                                              </span>
+                                            ) : selected ? (
+                                              <span className="sig-dispatch-selected-icon flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/15 text-white shadow-sm">
+                                                <CheckCircle2 className="h-4 w-4 !text-white" />
+                                              </span>
+                                            ) : (
+                                              <ArrowRightLeft className="h-3.5 w-3.5 shrink-0 text-slate-300 transition group-hover:text-sky-600 dark:text-slate-600 dark:group-hover:text-sky-300" />
+                                            )}
+                                          </div>
+
+                                          {selected ? (
+                                            <span className="sig-dispatch-selected-label mt-2 inline-flex rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[8px] font-extrabold uppercase tracking-[0.12em] !text-white">
+                                              Destino selecionado
+                                            </span>
+                                          ) : null}
+                                        </button>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </section>
                             );
                           })}
                       </div>
@@ -4151,6 +5741,11 @@ export function ProcessDetailPage() {
                         <SelectContent>
                           {organizationDestinations
                             .filter((department) => department.name !== currentFolder)
+                            .filter(
+                              (department) =>
+                                !requiresInitialUrbanAnalysisDispatch ||
+                                department.id === initialUrbanAnalysisDestination?.id,
+                            )
                             .map((department) => (
                               <SelectItem key={department.id} value={department.id}>
                                 {getOrganizationPath(department.name)}
@@ -4170,19 +5765,41 @@ export function ProcessDetailPage() {
                         type="date"
                         value={dispatchDueDate}
                         onChange={(event) => setDispatchDueDate(event.target.value)}
-                        className="min-h-11 rounded-xl bg-white dark:bg-slate-950"
+                        aria-label="Data do encaminhamento"
+                        title="Data preenchida automaticamente com o dia atual"
+                        className="min-h-11 rounded-xl bg-white font-semibold text-slate-800 dark:bg-slate-950 dark:text-slate-100"
                       />
 
                       <Button
                         type="submit"
                         data-premium-dark-action="true"
-                        className="min-h-11 rounded-xl bg-[linear-gradient(135deg,#075985_0%,#0284c7_100%)] px-5 font-bold !text-white shadow-[0_10px_22px_rgba(7,89,133,0.22)] hover:brightness-105 [&_*]:!text-white"
-                        disabled={!dispatchTo || !dispatchSubject.trim() || !dispatchDueDate || organizationDestinations.length === 0}
+                        className="min-h-11 rounded-xl bg-[linear-gradient(135deg,#075985_0%,#0284c7_100%)] px-5 font-bold !text-white shadow-[0_10px_22px_rgba(7,89,133,0.22)] hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-65 [&_*]:!text-white"
+                        disabled={
+                          processActionBusy === "dispatch" ||
+                          !dispatchTo ||
+                          !dispatchSubject.trim() ||
+                          !dispatchDueDate ||
+                          organizationDestinations.length === 0
+                        }
                       >
                         <Workflow className="mr-2 h-4 w-4" />
-                        Encaminhar
+                        {processActionBusy === "dispatch" ? "Encaminhando..." : "Encaminhar"}
                       </Button>
                     </div>
+
+                    {processActionStatus &&
+                    /encaminh|despach|destino|organograma|tramita/i.test(processActionStatus) ? (
+                      <div
+                        data-dispatch-feedback="true"
+                        className={`mt-3 rounded-xl border px-3 py-2.5 text-sm font-semibold ${
+                          /não|erro|falha|sem acesso|obrigat|pendente/i.test(processActionStatus)
+                            ? "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/30 dark:bg-rose-950/30 dark:text-rose-200"
+                            : "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-950/30 dark:text-emerald-200"
+                        }`}
+                      >
+                        {processActionStatus}
+                      </div>
+                    ) : null}
                   </div>
                 </form>
               ) : null}

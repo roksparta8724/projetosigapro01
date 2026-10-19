@@ -41,8 +41,8 @@ describe("municipal document analysis workflow", () => {
   });
 
   it("opens uploaded documents in a dedicated analysis tab", () => {
-    expect(processDetail).toContain("Abrir para análise");
-    expect(processDetail).toContain('window.open(analysisUrl, "_blank", "noopener,noreferrer")');
+    expect(processDetail).toContain("openDocumentWorkspace");
+    expect(processDetail).toContain('const route = shouldAnalyze ? "analisar" : "visualizar"');
     expect(app).toContain(
       'path="/processos/:processId/documentos/:documentId/analisar"',
     );
@@ -53,7 +53,8 @@ describe("municipal document analysis workflow", () => {
     expect(analysisPage).toContain('"highlight" | "text"');
     expect(analysisPage).toContain("Marca-texto");
     expect(analysisPage).toContain("Texto");
-    expect(analysisPage).toContain("Salvar marcação");
+    expect(analysisPage).toContain("Salvar rascunho");
+    expect(analysisPage).toContain("Enviar apontamentos");
     expect(analysisPage).toContain("addDocumentAnnotation");
     expect(platform).toContain('kind?: "text" | "highlight"');
     expect(platform).toContain("page?: number");

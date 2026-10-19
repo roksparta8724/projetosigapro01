@@ -103,7 +103,7 @@ describe("guia de aprovação e Alvará", () => {
 
     expect(processDetail).toContain("Pagamento da aprovação / Alvará");
     expect(processDetail).toContain("Emitir guia de aprovação / Alvará");
-    expect(processDetail).toContain("Aguardando compensação pelo Financeiro");
+    expect(processDetail).toContain("aguardando compensação pelo Financeiro");
     expect(processDetail).toContain("approvalPaymentRequired={approvalPaymentRequired}");
     expect(processDetail).toContain("approvalPaymentConfirmed={approvalPaymentConfirmed}");
     expect(permitPanel).toContain("financialPrerequisitesConfirmed");

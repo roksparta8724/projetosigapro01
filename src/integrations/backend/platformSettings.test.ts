@@ -73,6 +73,51 @@ describe("municipal settings persistence", () => {
     expect(db.calls.some((call) => call.table === "municipality_branding")).toBe(false);
   });
 
+  it("persists PIX and bank collection configuration inside municipality general settings", async () => {
+    await saveRemoteInstitutionSettings({
+      tenantId: municipalityId,
+      chavePix: "financeiro@campolimpopaulista.sp.gov.br",
+      beneficiarioArrecadacao: "Prefeitura de Campo Limpo Paulista",
+      pixEnabled: true,
+      pixKeyType: "email",
+      pixMerchantCity: "Campo Limpo Paulista",
+      bankCode: "001",
+      bankName: "Banco do Brasil",
+      bankAgency: "1234",
+      bankAgencyDigit: "5",
+      bankAccount: "67890",
+      bankAccountDigit: "1",
+      bankBeneficiaryDocument: "45.780.095/0001-41",
+      bankCollectionMode: "agreement",
+      bankAgreementCode: "1234567",
+      bankWallet: "17",
+      bankInstructions: "Pagamento pelos canais oficiais.",
+    } as TenantSettings, {
+      skipMunicipalityUpdate: true,
+      skipMunicipalityBranding: true,
+    });
+
+    const settingsCall = db.calls.find((call) => call.table === "municipality_settings");
+    expect(settingsCall?.payload.general_settings).toMatchObject({
+      pix_enabled: true,
+      pix_key_type: "email",
+      pix_merchant_city: "Campo Limpo Paulista",
+      pix_key: "financeiro@campolimpopaulista.sp.gov.br",
+      settlement_beneficiary: "Prefeitura de Campo Limpo Paulista",
+      bank_code: "001",
+      bank_name: "Banco do Brasil",
+      bank_agency: "1234",
+      bank_agency_digit: "5",
+      bank_account: "67890",
+      bank_account_digit: "1",
+      bank_beneficiary_document: "45.780.095/0001-41",
+      bank_collection_mode: "agreement",
+      bank_agreement_code: "1234567",
+      bank_wallet: "17",
+      bank_instructions: "Pagamento pelos canais oficiais.",
+    });
+  });
+
   it("does not write settings when the municipality is not found", async () => {
     db.municipalityRow = null;
 
@@ -122,7 +167,7 @@ describe("municipal settings persistence", () => {
         resumo_plano_diretor: "Plano diretor vigente",
         resumo_uso_solo: "Regras de ocupacao",
         leis_complementares: "Normas municipais",
-      } } as MunicipalitySettings,
+      } } as unknown as MunicipalitySettings,
       null,
     );
 

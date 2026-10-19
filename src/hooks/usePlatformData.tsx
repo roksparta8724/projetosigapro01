@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState } from 
 import {
   type AccountStatus,
   buildProcessDocuments,
+  calculateHabiteSeGuideBreakdown,
   checklistTemplates as seedChecklistTemplates,
   cmsSections as seedCmsSections,
   clientPlanAssignments as seedClientPlanAssignments,
@@ -52,7 +53,9 @@ import { useAuthGateway } from "@/hooks/useAuthGateway";
 import {
   acknowledgeRemoteProcessDispatch,
   annotateRemoteProcessDocument,
+  assignRemoteProcessAnalysis,
   appendRemoteProcessDocuments,
+  beginRemoteAnalysisSupervisorIntervention,
   completeRemoteProcessDispatch,
   completeRemoteProcessRequirement,
   confirmRemoteProcessPaymentGuide,
@@ -62,15 +65,20 @@ import {
   createRemoteOwnerRequestByProtocol,
   createRemoteExternalProcessV2,
   issueRemoteProcessPaymentGuide,
+  issueRemoteHabiteSePaymentGuide,
+  shareRemoteHabiteSePaymentGuide,
   loadRemotePlatformStore,
   linkExistingMunicipalStaff,
   manageRemoteUserAccess,
+  requestRemoteHabiteSePaymentGuide,
   reissueRemoteProcessPaymentGuide,
   reviseRemoteIssProjectGuide,
   removeRemoteProcessMarkerByLabel,
   reopenRemoteProcess,
+  reopenRemoteProcessDocumentAnalysis,
   respondRemoteOwnerRequest,
   respondRemoteProcessRequirement,
+  reassignRemoteProcessAnalysis,
   returnRemoteProcessDispatch,
   reviewRemoteProcessDocument,
   saveRemoteClientPlanAssignment,
@@ -78,6 +86,7 @@ import {
   saveRemoteProfile,
   sendRemoteProcessMessage,
   shareRemoteIssProjectGuide,
+  endRemoteAnalysisSupervisorIntervention,
   setRemoteOwnerChatEnabled,
   startRemoteProcessAnalysis,
   setRemoteProcessCheckpoint,
@@ -100,7 +109,7 @@ interface PlatformDataState {
   loading: boolean;
   dataError: string | null;
   dataReadyForCurrentUser: boolean;
-  refreshRemoteStore: () => Promise<void>;
+  refreshRemoteStore: (focusProcessRouteKey?: string | null) => Promise<void>;
   tenants: Tenant[];
   institutions: Institution[];
   tenantSettings: InstitutionSettings[];
@@ -182,8 +191,13 @@ interface PlatformDataState {
     notes?: string;
   }) => Promise<void>;
   startProcessAnalysis: (processId: string) => Promise<void>;
+  beginAnalysisSupervisorIntervention: (input: { processId: string; reason: string; minutes?: number }) => Promise<void>;
+  endAnalysisSupervisorIntervention: (processId: string) => Promise<void>;
+  assignProcessAnalysis: (input: { processId: string; targetProfileId: string }) => Promise<void>;
+  reassignProcessAnalysis: (input: { processId: string; targetProfileId: string; reason: string }) => Promise<void>;
   reopenProcess: (input: { processId: string; actor: string; reason: string }) => Promise<void>;
   requestConstructionPaymentGuide: (processId: string, actor: string) => Promise<void>;
+  requestHabiteSePaymentGuide: (processId: string, actor: string) => Promise<void>;
   updateIssProjectGuideData: (input: {
     processId: string;
     areaM2: number;
@@ -198,13 +212,16 @@ interface PlatformDataState {
   }) => Promise<void>;
   shareIssProjectGuide: (processId: string) => Promise<void>;
   issuePaymentGuide: (processId: string, actor: string, guideKind: "iss_obra" | "aprovacao_final") => Promise<void>;
-  markGuideAsPaid: (processId: string, actor: string, guideKind?: "protocolo" | "iss_obra" | "aprovacao_final") => Promise<void>;
+  issueHabiteSePaymentGuide: (input: { processId: string; constructionStandard: string; dueDate?: string | null }) => Promise<void>;
+  shareHabiteSePaymentGuide: (processId: string) => Promise<void>;
+  markGuideAsPaid: (processId: string, actor: string, guideKind?: "protocolo" | "iss_obra" | "aprovacao_final" | "habite_se") => Promise<void>;
   appendProcessDocuments: (
     processId: string,
     documents: ProcessDocument[],
     actor: string,
   ) => Promise<{ process_id: string; synced: number; inserted: number; updated: number; stored: number }>;
   reviewProcessDocument: (processId: string, documentId: string, status: "aprovado" | "rejeitado", actor: string) => Promise<void>;
+  reopenProcessDocumentAnalysis: (input: { processId: string; documentId: string; reason: string }) => Promise<void>;
   addDocumentAnnotation: (
     processId: string,
     documentId: string,
@@ -231,7 +248,7 @@ interface PlatformDataState {
   setProcessOnHold: (input: { processIds: string[]; actor: string; onHold: boolean; reason?: string }) => Promise<void>;
   setProcessTransitVisibility: (input: { processId: string; actor: string; visibility: ProcessTransitVisibility }) => Promise<void>;
   sendProcessMessage: (input: { processId: string; senderName: string; senderRole: string; audience: "interno" | "externo" | "misto"; recipientName?: string; message: string }) => Promise<void>;
-  reissuePaymentGuide: (processId: string, actor: string, guideKind?: "protocolo" | "iss_obra" | "aprovacao_final") => Promise<void>;
+  reissuePaymentGuide: (processId: string, actor: string, guideKind?: "protocolo" | "iss_obra" | "aprovacao_final" | "habite_se") => Promise<void>;
 }
 
 interface PlatformStore {
@@ -350,6 +367,84 @@ function mergeRecordsByTenantId<T extends { tenantId: string }>(
   });
 
   return Array.from(merged.values());
+}
+
+function stableRecordKey(value: unknown, index: number) {
+  if (!value || typeof value !== "object") return `index:${index}`;
+  const record = value as Record<string, unknown>;
+  const key =
+    record.id ??
+    record.tenantId ??
+    record.userId ??
+    record.projectId ??
+    record.slug ??
+    record.code;
+  return key === null || key === undefined || String(key).trim() === ""
+    ? `index:${index}`
+    : String(key);
+}
+
+function jsonEquivalent(left: unknown, right: unknown) {
+  if (left === right) return true;
+  try {
+    return JSON.stringify(left) === JSON.stringify(right);
+  } catch {
+    return false;
+  }
+}
+
+function reuseStableArray<T>(current: T[], incoming: T[]): T[] {
+  if (current === incoming) return current;
+  if (current.length !== incoming.length) {
+    const currentByKey = new Map(
+      current.map((item, index) => [stableRecordKey(item, index), item] as const),
+    );
+    return incoming.map((item, index) => {
+      const previous = currentByKey.get(stableRecordKey(item, index));
+      return previous && jsonEquivalent(previous, item) ? previous : item;
+    });
+  }
+
+  const currentByKey = new Map(
+    current.map((item, index) => [stableRecordKey(item, index), item] as const),
+  );
+
+  let changed = false;
+  const stabilized = incoming.map((item, index) => {
+    const previous = currentByKey.get(stableRecordKey(item, index));
+    if (previous && jsonEquivalent(previous, item)) return previous;
+    changed = true;
+    return item;
+  });
+
+  // A mesma carga remota não deve substituir o store inteiro nem reanimar a UI.
+  // A ordem do backend não é uma mudança visual quando os registros são idênticos.
+  if (!changed && currentByKey.size === incoming.length) return current;
+  return stabilized;
+}
+
+function stabilizePlatformStore(current: PlatformStore, incoming: PlatformStore): PlatformStore {
+  const next: PlatformStore = {
+    tenants: reuseStableArray(current.tenants, incoming.tenants),
+    tenantSettings: reuseStableArray(current.tenantSettings, incoming.tenantSettings),
+    sessionUsers: reuseStableArray(current.sessionUsers, incoming.sessionUsers),
+    userProfiles: reuseStableArray(current.userProfiles, incoming.userProfiles),
+    ownerRequests: reuseStableArray(current.ownerRequests, incoming.ownerRequests),
+    ownerLinks: reuseStableArray(current.ownerLinks, incoming.ownerLinks),
+    ownerMessages: reuseStableArray(current.ownerMessages, incoming.ownerMessages),
+    processes: reuseStableArray(current.processes, incoming.processes),
+    plans: reuseStableArray(current.plans, incoming.plans),
+    planAssignments: reuseStableArray(current.planAssignments, incoming.planAssignments),
+    cmsSections: reuseStableArray(current.cmsSections, incoming.cmsSections),
+    checklistTemplates: reuseStableArray(current.checklistTemplates, incoming.checklistTemplates),
+    documentTemplates: reuseStableArray(current.documentTemplates, incoming.documentTemplates),
+  };
+
+  const unchanged = (Object.keys(next) as Array<keyof PlatformStore>).every(
+    (key) => next[key] === current[key],
+  );
+
+  return unchanged ? current : next;
 }
 
 function findUserProfile(profiles: UserProfile[], userId: string | null | undefined, email?: string | null | undefined) {
@@ -818,17 +913,20 @@ function isAuthError(error: unknown) {
   return status === 401 || status === 403;
 }
 
-async function loadRemotePlatformStoreWithRetry(maxAttempts = 3) {
+async function loadRemotePlatformStoreWithRetry(focusProcessRouteKey?: string | null, maxAttempts = 3) {
   let lastError: unknown = null;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
-      return await loadRemotePlatformStore();
+      return await loadRemotePlatformStore(focusProcessRouteKey);
     } catch (error) {
       lastError = error;
       if (isAuthError(error) || attempt >= maxAttempts) {
         throw error;
       }
+
+      // Logo após o sign-in o token e o Data API podem levar alguns instantes
+      // para convergir. Retentamos apenas falhas transitórias; 401/403 nunca são mascarados.
       await new Promise((resolve) => window.setTimeout(resolve, 450 * attempt));
     }
   }
@@ -844,6 +942,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
     authenticatedMunicipalityId,
     authenticatedRole,
     authenticatedUserId,
+    authenticatedProfileId,
     loading: authLoading,
   } = useAuthGateway();
   const initialStateRef = useRef<ReturnType<typeof getInitialPlatformStoreState> | null>(null);
@@ -865,17 +964,54 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
   const expectsRemoteStore = Boolean(hasBackendEnv && (!localDev || allowRemoteInLocal));
 
   useEffect(() => {
-    if (!authenticatedUserId) return;
+    const warmIdentity = authenticatedProfileId || authenticatedUserId;
+    if (!warmIdentity) return;
 
     const hasVisibleData =
       store.sessionUsers.length > 0 ||
       store.tenants.length > 0 ||
       store.processes.length > 0;
 
-    if (hasVisibleData) {
-      syncWarmPlatformStore(store, authenticatedUserId);
+    // Nunca grave o store da conta anterior no cache da conta que acabou de
+    // autenticar. Só aquece o cache depois que o bootstrap remoto confirmou
+    // que o contexto pertence ao usuário atual.
+    const contextConfirmed =
+      !expectsRemoteStore || remoteContextUserId === authenticatedUserId;
+
+    if (hasVisibleData && contextConfirmed) {
+      syncWarmPlatformStore(store, warmIdentity);
     }
-  }, [authenticatedUserId, store]);
+  }, [
+    authenticatedProfileId,
+    authenticatedUserId,
+    expectsRemoteStore,
+    remoteContextUserId,
+    store,
+  ]);
+
+  useEffect(() => {
+    if (
+      !authenticatedUserId ||
+      !remoteContextUserId ||
+      authenticatedUserId === remoteContextUserId
+    ) {
+      return;
+    }
+
+    // Troca de conta é uma fronteira de segurança. Não reutilize processos,
+    // rascunhos operacionais, vínculos ou marcadores do usuário anterior nem
+    // por um frame. O shell/branding permanece estável enquanto o store da
+    // nova conta é carregado.
+    setLoading(true);
+    setDataError(null);
+    setStore((current) => ({
+      ...current,
+      processes: [],
+      ownerRequests: [],
+      ownerLinks: [],
+      ownerMessages: [],
+    }));
+  }, [authenticatedUserId, remoteContextUserId]);
 
   useEffect(() => {
     let active = true;
@@ -935,14 +1071,14 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         return;
       }
 
-      // Mantém a UI com o último estado visual válido, mas nunca carrega
-      // um erro da conta anterior para a autenticação atual.
-      setLoading(false);
+      // Revalidação real da conta atual. Mantém apenas o shell visual;
+      // dados operacionais da sessão anterior já foram isolados acima.
+      setLoading(true);
       if (lastFetchedUserId.current !== authenticatedUserId) {
         setDataError(null);
       }
       try {
-        let remote = await loadRemotePlatformStoreWithRetry();
+        let remote = await loadRemotePlatformStoreWithRetry(null);
         let sanitized = buildSanitizedStore(remote, false);
 
         const legacyStore = initialStateRef.current?.legacyStore ?? null;
@@ -1133,7 +1269,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
     };
   }, [authenticatedUserId, authLoading]);
 
-  const refreshRemoteStore = async () => {
+  const refreshRemoteStore = async (focusProcessRouteKey?: string | null) => {
     if (!authenticatedUserId || !hasBackendEnv) {
       const error = new Error("Sessão ou banco oficial indisponível para atualizar os dados.");
       setDataError(error.message);
@@ -1141,7 +1277,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
     }
 
     try {
-      const remote = await loadRemotePlatformStoreWithRetry();
+      const remote = await loadRemotePlatformStoreWithRetry(focusProcessRouteKey);
       let sanitized = buildSanitizedStore(remote, false);
       const cachedVisualProfile = readProfileVisualCache();
       if (cachedVisualProfile) {
@@ -1156,7 +1292,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         authenticatedEmail,
       );
       if (activeProfile?.avatarUrl) syncProfileVisualCache(activeProfile);
-      setStore(sanitized);
+      setStore((current) => stabilizePlatformStore(current, sanitized));
       syncWarmPlatformStore(sanitized, authenticatedUserId);
       syncStore(sanitized);
       setSource("remote");
@@ -1173,10 +1309,9 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
     }
   };
 
-  // Não atualize o store inteiro em focus/visibility: esse padrão substituía
-  // simultaneamente processos, plano, tema e permissões, causando cards,
-  // cores e abas piscarem. Dados remotos são atualizados por bootstrap e
-  // pelas operações que realmente modificam o processo.
+  // Revalidações periódicas/focus podem consultar o backend, mas nunca devem
+  // substituir referências idênticas do store. stabilizePlatformStore preserva
+  // cada slice/registro sem mudança e elimina o pisca-pisca causado por polling.
 
   const updateStore = (updater: (current: PlatformStore) => PlatformStore) => {
     setStore((current) => {
@@ -1222,7 +1357,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
           : [nextTenant, ...current.tenants];
 
         const existingSettings = current.tenantSettings.find((item) => item.tenantId === tenantId);
-        const tenantSettings = existingSettings
+        const tenantSettings: InstitutionSettings[] = existingSettings
           ? current.tenantSettings
           : [
               {
@@ -1687,7 +1822,43 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
               )
             : [nextUser, ...current.sessionUsers];
 
-          return { ...current, userProfiles, sessionUsers };
+          // O perfil é cadastro vivo; o processo mantém seu histórico/auditoria,
+          // mas qualquer tela aberta deve refletir imediatamente os dados atuais
+          // quando existe vínculo inequívoco pelo profile_id.
+          const processes = current.processes.map((process) => {
+            const isTechnicalProfile =
+              process.technicalProfileId === persistedProfile.userId ||
+              process.professionalProfileId === persistedProfile.userId ||
+              (
+                process.createdByProfileId === persistedProfile.userId &&
+                process.createdByRole === "profissional_externo"
+              );
+            const isOwnerProfile = process.ownerProfileId === persistedProfile.userId;
+
+            if (!isTechnicalProfile && !isOwnerProfile) return process;
+
+            return {
+              ...process,
+              ...(isTechnicalProfile
+                ? {
+                    technicalLead: persistedProfile.fullName,
+                    professionalEmail: persistedProfile.email,
+                  }
+                : {}),
+              ...(isOwnerProfile
+                ? {
+                    ownerName: persistedProfile.fullName,
+                    ownerEmail: persistedProfile.email,
+                    ownerPhone: persistedProfile.phone,
+                    ownerDocument: persistedProfile.cpfCnpj || process.ownerDocument,
+                    ownerIdentityDocument:
+                      persistedProfile.rg || process.ownerIdentityDocument,
+                  }
+                : {}),
+            };
+          });
+
+          return { ...current, userProfiles, sessionUsers, processes };
         });
 
         syncProfileVisualCache(persistedProfile);
@@ -1715,6 +1886,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
           name: input.fullName,
           title: input.title,
           accessLevel: input.accessLevel,
+          temporaryPassword: input.temporaryPassword,
         });
         const user: SessionUser = {
           id: saved.userId,
@@ -1903,12 +2075,46 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         await startRemoteProcessAnalysis(processId);
         await refreshRemoteStore();
       },
+      beginAnalysisSupervisorIntervention: async ({ processId, reason, minutes }) => {
+        if (!hasBackendEnv) throw new Error("Banco oficial indisponível para iniciar intervenção.");
+        await beginRemoteAnalysisSupervisorIntervention({ processId, reason, minutes });
+        await refreshRemoteStore();
+      },
+      endAnalysisSupervisorIntervention: async (processId) => {
+        if (!hasBackendEnv) throw new Error("Banco oficial indisponível para encerrar intervenção.");
+        await endRemoteAnalysisSupervisorIntervention(processId);
+        await refreshRemoteStore();
+      },
+      assignProcessAnalysis: async ({ processId, targetProfileId }) => {
+        if (!hasBackendEnv) throw new Error("Banco oficial indisponível para distribuir análise.");
+        await assignRemoteProcessAnalysis({ processId, targetProfileId });
+        await refreshRemoteStore();
+      },
+      reassignProcessAnalysis: async ({ processId, targetProfileId, reason }) => {
+        if (!hasBackendEnv) throw new Error("Banco oficial indisponível para redistribuir análise.");
+        await reassignRemoteProcessAnalysis({ processId, targetProfileId, reason });
+        await refreshRemoteStore();
+      },
       reopenProcess: async ({ processId, actor, reason }) => {
         const normalized = reason.trim();
         if (!normalized) return;
         if (!hasBackendEnv) throw new Error("Banco oficial indisponível para reabrir processo.");
 
         await reopenRemoteProcess(processId, normalized);
+        await refreshRemoteStore();
+      },
+      requestHabiteSePaymentGuide: async (processId, actor) => {
+        if (!hasBackendEnv) {
+          throw new Error("O banco oficial está indisponível para encaminhar o Habite-se ao Financeiro.");
+        }
+
+        const process = store.processes.find((item) => item.id === processId);
+        if (!process) throw new Error("Processo não encontrado.");
+        if (!isOccupancyPermitProcessType(process.type)) {
+          throw new Error("Este encaminhamento é exclusivo do processo de Habite-se.");
+        }
+
+        await requestRemoteHabiteSePaymentGuide(processId);
         await refreshRemoteStore();
       },
       requestConstructionPaymentGuide: async (processId, actor) => {
@@ -1994,6 +2200,51 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         await shareRemoteIssProjectGuide(processId);
         await refreshRemoteStore();
       },
+      issueHabiteSePaymentGuide: async ({ processId, constructionStandard, dueDate }) => {
+        if (!hasBackendEnv) {
+          throw new Error("O banco oficial está indisponível para emitir a guia do Habite-se.");
+        }
+
+        const process = store.processes.find((item) => item.id === processId);
+        if (!process) throw new Error("Processo não encontrado.");
+        if (!isOccupancyPermitProcessType(process.type)) {
+          throw new Error("A Guia de Habite-se só pode ser emitida dentro de um processo de Habite-se.");
+        }
+
+        const normalizedStandard = constructionStandard.trim();
+        if (!normalizedStandard) {
+          throw new Error("Selecione o tipo de acabamento antes de emitir a Guia de Habite-se.");
+        }
+
+        const settings = store.tenantSettings.find(
+          (item) => item.tenantId === (process.municipalityId ?? process.tenantId),
+        );
+        const preview = calculateHabiteSeGuideBreakdown(
+          process.property.area,
+          process.property.usage,
+          normalizedStandard,
+          settings,
+        );
+
+        if (preview.areaM2 <= 0) {
+          throw new Error("A área do imóvel não está informada no cadastro do processo.");
+        }
+        if (!process.property.usage?.trim()) {
+          throw new Error("O tipo de uso/construção não está informado no cadastro do processo.");
+        }
+        if (!preview.profile || preview.baseValueM2 <= 0 || preview.totalAmount <= 0) {
+          throw new Error(
+            "Não existe valor oficial do m² configurado para este tipo de construção e acabamento.",
+          );
+        }
+
+        await issueRemoteHabiteSePaymentGuide({
+          processId,
+          constructionStandard: normalizedStandard,
+          dueDate: dueDate || null,
+        });
+        await refreshRemoteStore();
+      },
       issuePaymentGuide: async (processId, actor, guideKind) => {
         if (!hasBackendEnv) {
           throw new Error("O banco oficial está indisponível para emitir a guia.");
@@ -2037,13 +2288,21 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
               ["aguardando", "respondido"].includes(dispatch.status),
           );
           if (pendingRequest) {
-            await completeRemoteProcessDispatch({
-              dispatchId: pendingRequest.id,
-              unit: "Financeiro",
-            });
+            await completeRemoteProcessDispatch(
+              pendingRequest.id,
+              "Financeiro",
+            );
           }
         }
 
+        await refreshRemoteStore();
+      },
+      shareHabiteSePaymentGuide: async (processId) => {
+        if (!hasBackendEnv) {
+          throw new Error("O banco oficial está indisponível para enviar a Guia de Habite-se.");
+        }
+
+        await shareRemoteHabiteSePaymentGuide(processId);
         await refreshRemoteStore();
       },
       markGuideAsPaid: async (processId, actor, guideKind = "protocolo") => {
@@ -2080,6 +2339,18 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         if (!hasBackendEnv) throw new Error("Banco oficial indisponível para revisar documento.");
 
         await reviewRemoteProcessDocument(documentId, status);
+        await refreshRemoteStore();
+      },
+      reopenProcessDocumentAnalysis: async ({ processId, documentId, reason }) => {
+        if (!hasBackendEnv) throw new Error("Banco oficial indisponível para reabrir a análise documental.");
+
+        const normalizedReason = reason.trim();
+        if (!normalizedReason) throw new Error("Informe o motivo da reabertura.");
+
+        await reopenRemoteProcessDocumentAnalysis({
+          documentId,
+          reason: normalizedReason,
+        });
         await refreshRemoteStore();
       },
       addDocumentAnnotation: async (processId, documentId, annotation) => {

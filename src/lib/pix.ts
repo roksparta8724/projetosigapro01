@@ -81,6 +81,21 @@ export function buildPixPayload(input: PixPayloadInput) {
   return `${payloadWithoutCrc}${crc16Ccitt(payloadWithoutCrc)}`;
 }
 
+export function isValidPixPayload(value: string | null | undefined) {
+  const payload = String(value || "").trim().toUpperCase();
+  if (
+    !payload.startsWith("000201") ||
+    !payload.includes("BR.GOV.BCB.PIX") ||
+    !/6304[0-9A-F]{4}$/.test(payload)
+  ) {
+    return false;
+  }
+
+  const expectedCrc = payload.slice(-4);
+  const payloadWithoutCrc = payload.slice(0, -4);
+  return crc16Ccitt(payloadWithoutCrc) === expectedCrc;
+}
+
 export function isPixConfigured(key: string | null | undefined) {
   const normalized = key?.trim() ?? "";
   return normalized.length > 0 && normalized.length <= 77;

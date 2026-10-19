@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import {
   AlertCircle,
   CheckCircle2,
@@ -6,7 +6,6 @@ import {
   FileCheck2,
   FilePlus2,
   FolderKanban,
-  History,
   LineChart,
   Waypoints,
 } from "lucide-react";
@@ -19,7 +18,7 @@ import { PageIntro } from "@/components/platform/PageIntro";
 import { PortalFrame } from "@/components/platform/PortalFrame";
 import { SectionPanel } from "@/components/platform/SectionPanel";
 import {
-  formatCurrency,
+  buildProcessPath,
   formatOfficialProcessNumber,
   formatOfficialProcessTitle,
   getExternallyVisibleProcessPaymentGuides,
@@ -35,38 +34,116 @@ export function ExternalPortalPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { session } = usePlatformSession();
-  const { processes: allProcesses, getInstitutionSettings, getUserProfile } = usePlatformData();
+  const {
+    processes: allProcesses,
+    getInstitutionSettings,
+    loading,
+    dataError,
+    dataReadyForCurrentUser,
+    refreshRemoteStore,
+  } = usePlatformData();
   const { municipality, scopeId, institutionSettingsCompat } = useMunicipality();
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
-  const processes = getVisibleProcessesByScope(session, effectiveScopeId, allProcesses);
+  const visibleRecords = getVisibleProcessesByScope(session, effectiveScopeId, allProcesses);
+  const portfolioRecoveryAttemptedRef = useRef(false);
+
+  useEffect(() => {
+    if (
+      loading ||
+      portfolioRecoveryAttemptedRef.current ||
+      session.id === "unknown" ||
+      typeof refreshRemoteStore !== "function"
+    ) {
+      return;
+    }
+
+    const needsRecovery =
+      !dataReadyForCurrentUser ||
+      (dataReadyForCurrentUser && visibleRecords.length === 0);
+
+    if (!needsRecovery) return;
+
+    portfolioRecoveryAttemptedRef.current = true;
+    void refreshRemoteStore().catch((error) => {
+      console.warn(
+        "[SIGAPRO][Dashboard externo] Falha na revalidação automática da carteira.",
+        error,
+      );
+    });
+  }, [
+    dataReadyForCurrentUser,
+    loading,
+    refreshRemoteStore,
+    session.id,
+    visibleRecords.length,
+  ]);
+
+  const provisionalProcesses = visibleRecords.filter(
+    (process) => process.isOfficial === false,
+  );
+  const processes = visibleRecords.filter((process) => process.isOfficial !== false);
   const tenantSettings = institutionSettingsCompat ?? getInstitutionSettings(effectiveScopeId ?? session.tenantId);
-  const profile = getUserProfile(session.id, session.email);
   const activeTab = getExternalTabByPath(location.pathname);
 
   const pendingRequirements = processes.reduce(
-    (count, process) => count + (process.requirements ?? []).filter((item) => item.status === "aberta" || item.status === "respondida").length,
+    (count, process) =>
+      count +
+      (process.requirements ?? []).filter(
+        (item) =>
+          item.visibility !== "interno" &&
+          (item.status === "aberta" || item.status === "respondida"),
+      ).length,
     0,
   );
-  const pendingPayments = processes.filter((process) => process.payment?.status === "pendente").length;
-  const concludedProcesses = processes.filter((process) => process.status === "aprovado" || process.status === "concluido").length;
-  const activeProcesses = Math.max(processes.length - concludedProcesses, 0);
+  const concludedProcesses = processes.filter((process) =>
+    ["deferido", "indeferido", "arquivado"].includes(process.status),
+  ).length;
+  const activeProcesses =
+    Math.max(processes.length - concludedProcesses, 0) +
+    provisionalProcesses.length;
 
-  const recentActivity = useMemo(
-    () =>
-      [...processes]
-        .sort((a, b) => new Date(b.updatedAt ?? b.createdAt).getTime() - new Date(a.updatedAt ?? a.createdAt).getTime())
-        .slice(0, 3),
-    [processes],
-  );
+  const recentActivity = useMemo(() => {
+    const parseActivityMoment = (value: string | undefined) => {
+      if (!value) return 0;
+      const normalized = value.trim();
+      const br = normalized.match(
+        /^(\d{2})\/(\d{2})\/(\d{4})(?:,|\s)+(\d{2}):(\d{2})(?::(\d{2}))?/,
+      );
+      if (br) {
+        return new Date(
+          Number(br[3]),
+          Number(br[2]) - 1,
+          Number(br[1]),
+          Number(br[4]),
+          Number(br[5]),
+          Number(br[6] || 0),
+        ).getTime();
+      }
+
+      const parsed = new Date(normalized).getTime();
+      return Number.isFinite(parsed) ? parsed : 0;
+    };
+
+    return [...processes]
+      .sort(
+        (a, b) =>
+          parseActivityMoment(b.auditTrail?.[0]?.at ?? b.timeline?.[0]?.at) -
+          parseActivityMoment(a.auditTrail?.[0]?.at ?? a.timeline?.[0]?.at),
+      )
+      .slice(0, 3);
+  }, [processes]);
 
   const paymentGuides = useMemo(
     () =>
-      processes.flatMap((process) =>
+      visibleRecords.flatMap((process) =>
         getExternallyVisibleProcessPaymentGuides(process, tenantSettings).map((guide) => ({ process, guide })),
       ),
-    [processes, tenantSettings],
+    [visibleRecords, tenantSettings],
   );
-  const pendingGuides = paymentGuides.filter((item) => item.guide.status !== "compensada");
+  const pendingGuides = paymentGuides.filter(
+    (item) => item.guide.status !== "compensada",
+  );
+  const pendingPayments = pendingGuides.length;
 
   return (
     <PortalFrame eyebrow="Acesso Externo" title="Painel do profissional">
@@ -109,6 +186,41 @@ export function ExternalPortalPage() {
           }}
         />
 
+        {dataError ? (
+          <div className="rounded-[18px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="font-bold">Não foi possível atualizar o painel agora.</p>
+                <p className="mt-1 text-xs text-rose-700">
+                  Seus processos continuam preservados. A sincronização pode ser refeita sem perder dados.
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-full border-rose-200 bg-white text-rose-800 hover:bg-rose-100"
+                onClick={() => void refreshRemoteStore()}
+              >
+                Tentar novamente
+              </Button>
+            </div>
+          </div>
+        ) : null}
+
+        {loading && allProcesses.length === 0 ? (
+          <div
+            className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"
+            aria-label="Carregando dashboard do profissional"
+          >
+            {Array.from({ length: 4 }).map((_, index) => (
+              <div
+                key={index}
+                className="h-[112px] animate-pulse rounded-[22px] border border-slate-200 bg-white/90 shadow-sm"
+              />
+            ))}
+          </div>
+        ) : null}
+
         <StatsCards>
           <MetricCard title="Em andamento" value={String(activeProcesses)} helper="Protocolos ativos" icon={Waypoints} tone="blue" />
           <MetricCard title="Exigências abertas" value={String(pendingRequirements)} helper="Pendências com retorno" icon={AlertCircle} tone="amber" />
@@ -136,7 +248,7 @@ export function ExternalPortalPage() {
                       <p className="mt-1 text-xs uppercase tracking-[0.14em] text-slate-500">{statusLabel(process.status)}</p>
                     </div>
                     <Button asChild variant="outline" className="shrink-0 rounded-full">
-                      <Link to={`/processos/${process.id}`}>Abrir processo</Link>
+                      <Link to={buildProcessPath(process)}>Abrir processo</Link>
                     </Button>
                   </div>
                 ))

@@ -61,12 +61,13 @@ import { useInstitutionBranding } from "@/hooks/useInstitutionBranding";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
+import { useNotifications } from "@/hooks/useNotifications";
 import { useUserMenuPreferences, type MenuPreferenceKey } from "@/hooks/useUserMenuPreferences";
 import { usePlanEntitlements } from "@/hooks/usePlanEntitlements";
 import { getPublicAssetUrl } from "@/lib/assetUrl";
 import { formatDisplayText, humanizeRoleLabel } from "@/lib/displayText";
-import { can, canAccessMunicipalArea,
-  getRoleLandingPath, desktopThemePresets, getProcessPaymentGuides, getVisibleProcessesByScope, isInternalRole, mobileThemePresets, parseMarker, roleLabels, type Permission } from "@/lib/platform";
+import { buildProcessPath, can, canAccessMunicipalArea,
+  getRoleLandingPath, desktopThemePresets, getVisibleProcessesByScope, isExternalProfessionalRole, isInternalRole, mobileThemePresets, parseMarker, roleLabels, type Permission } from "@/lib/platform";
 import type { PlanModuleName } from "@/lib/planEntitlements";
 import { AppSidebar } from "@/components/platform/AppSidebar";
 import { InstitutionalLogo } from "@/components/platform/InstitutionalLogo";
@@ -117,6 +118,7 @@ function readEffectiveThemeCache(): LayoutThemeOverride | null {
 const navItems = [
   { key: "dashboard", to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, permission: "manage_own_profile" as Permission, essential: true, module: undefined as PlanModuleName | undefined },
   { key: "dashboard-tenant", to: "/prefeitura", label: "Prefeitura", icon: Landmark, permission: "manage_tenant_users" as Permission, essential: true, module: undefined as PlanModuleName | undefined },
+  { key: "municipal-organogram", to: "/prefeitura/organograma", label: "Organograma", icon: Network, permission: "manage_own_profile" as Permission, essential: true, module: undefined as PlanModuleName | undefined },
   { key: "dashboard-master", to: "/master", label: "Administrador Geral", icon: MonitorCog, permission: "view_master_dashboard" as Permission, essential: true, module: undefined as PlanModuleName | undefined },
   { key: "master-plans", to: "/master/planos", label: "Planos e níveis", icon: AccountCard, permission: "manage_commercial_plans" as Permission, essential: true, module: undefined as PlanModuleName | undefined },
   {
@@ -179,7 +181,7 @@ const navItems = [
   { key: "settings", to: "/configuracoes", label: "Cadastro e Gestão", icon: Building2, permission: "manage_tenant_branding" as Permission, essential: true, module: "Configurações" as PlanModuleName },
 ];
 
-const managementNavItems = ["/master", "/master/planos", "/prefeitura", "/configuracoes"];
+const managementNavItems = ["/master", "/master/planos", "/prefeitura", "/prefeitura/organograma", "/configuracoes"];
 
 const operationalNavItems = [
   "/dashboard",
@@ -269,6 +271,9 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
   const [isMobileViewport, setIsMobileViewport] = useState(() =>
     typeof window !== "undefined" ? window.matchMedia("(max-width: 767px)").matches : false,
   );
+  const [isDesktopTopbarViewport, setIsDesktopTopbarViewport] = useState(() =>
+    typeof window !== "undefined" ? window.matchMedia("(min-width: 1024px)").matches : true,
+  );
   const [markerLabel, setMarkerLabel] = useState("");
   const [markerColor, setMarkerColor] = useState("#2563eb");
   const [markerSavePulse, setMarkerSavePulse] = useState(false);
@@ -295,6 +300,10 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
   const isConfigPage = location.pathname.startsWith("/configuracoes");
   const { signOut } = useAuthGateway();
   const { session, sessions, setActiveSession } = usePlatformSession();
+  const { unreadCount: notificationCount } = useNotifications({
+    includeItems: false,
+    pollMs: 10000,
+  });
   const {
     municipality,
     tenantSettingsCompat,
@@ -304,8 +313,10 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
     loading: municipalityLoading,
   } = useMunicipality();
   const {
+    source,
     loading,
     dataError,
+    dataReadyForCurrentUser,
     refreshRemoteStore,
     institutions,
     sessionUsers,
@@ -339,8 +350,30 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
     [footerBranding, resolvedFooterLogoUrl],
   );
 
+  const hasUsableScopedData = Boolean(
+    processes.length > 0 ||
+    sessionUsers.some(
+      (user) =>
+        user.id === session.id ||
+        (user.email?.trim().toLowerCase() &&
+          user.email.trim().toLowerCase() === session.email?.trim().toLowerCase()),
+    ),
+  );
+  const showBlockingOfficialDataError = Boolean(
+    dataError &&
+    !loading &&
+    !dataReadyForCurrentUser &&
+    source !== "remote" &&
+    source !== "warm" &&
+    !hasUsableScopedData,
+  );
+
   const activeInstitution = municipality ?? institutions.find((item) => item.id === activeInstitutionId) ?? null;
   const tenantSettings = tenantSettingsCompat ?? getInstitutionSettings(activeInstitutionId);
+  const activeInstitutionTheme =
+    activeInstitution && "theme" in activeInstitution
+      ? activeInstitution.theme
+      : null;
   const userProfile = getUserProfile(session.id, session.email);
   const canonicalSignedInUser =
     sessionUsers.find((item) => item.id === session.id) ??
@@ -411,12 +444,20 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    const media = window.matchMedia("(max-width: 767px)");
-    const syncViewport = () => setIsMobileViewport(media.matches);
+    const mobileMedia = window.matchMedia("(max-width: 767px)");
+    const desktopTopbarMedia = window.matchMedia("(min-width: 1024px)");
+    const syncViewport = () => {
+      setIsMobileViewport(mobileMedia.matches);
+      setIsDesktopTopbarViewport(desktopTopbarMedia.matches);
+    };
 
     syncViewport();
-    media.addEventListener("change", syncViewport);
-    return () => media.removeEventListener("change", syncViewport);
+    mobileMedia.addEventListener("change", syncViewport);
+    desktopTopbarMedia.addEventListener("change", syncViewport);
+    return () => {
+      mobileMedia.removeEventListener("change", syncViewport);
+      desktopTopbarMedia.removeEventListener("change", syncViewport);
+    };
   }, []);
 
   const availableThemePresets = isMobileViewport ? mobileThemePresets : desktopThemePresets;
@@ -435,8 +476,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
     desktopThemePresets.find(
       (preset) =>
         preset.primary === municipalityTheme.primary &&
-        preset.accent === municipalityTheme.accent &&
-        (preset.inverseMain ? preset.background === municipalityTheme.background : true),
+        preset.accent === municipalityTheme.accent,
     ) ??
     defaultSigaproThemePreset;
   const stableMunicipalityTheme =
@@ -451,13 +491,13 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
     appliedTheme?.primary ||
     stableMunicipalityTheme.primary ||
     municipalityTheme.primary ||
-    ("theme" in (activeInstitution ?? {}) ? activeInstitution?.theme.primary : undefined) ||
+    activeInstitutionTheme?.primary ||
     resolvedThemePreset.primary ||
     "#123f32";
   const accentColor =
     appliedTheme?.accent ||
     stableMunicipalityTheme.accent ||
-    ("theme" in (activeInstitution ?? {}) ? activeInstitution?.theme.accent : undefined) ||
+    activeInstitutionTheme?.accent ||
     resolvedThemePreset.accent ||
     "#22c55e";
   const inverseThemeHint = appliedTheme?.inverseMain ?? resolvedThemePreset.inverseMain ?? false;
@@ -479,12 +519,9 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
     .map((item) => {
       if ("internalOnly" in item && item.internalOnly && !isInternalRole(session.role)) return null;
 
-      const isExternalRole =
-        session.role === "profissional_externo" ||
-        session.role === "property_owner" ||
-        session.role === "proprietario_consulta";
+      const isExternalProfessional = isExternalProfessionalRole(session.role);
 
-      if (item.to.startsWith("/externo") && !isExternalRole) return null;
+      if (item.to.startsWith("/externo") && !isExternalProfessional) return null;
 
       // Cadastro institucional e organograma completo são exclusivos da administração.
       if (
@@ -513,7 +550,10 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
         return null;
       }
       const visibleChildren = (item.children ?? []).filter(
-        (child) => !child.permission || can(session, child.permission),
+        (child) =>
+          !("permission" in child) ||
+          !child.permission ||
+          can(session, child.permission as Permission),
       );
       const parentAllowed = can(session, item.permission);
       if (!parentAllowed && visibleChildren.length === 0) return null;
@@ -528,6 +568,18 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
     if ((session.role === "master_admin" || session.role === "master_ops") && item.to === "/configuracoes") {
       return [];
     }
+
+    if (isExternalProfessionalRole(session.role)) {
+      // Dashboard do profissional é /dashboard. O portal /externo continua
+      // existindo como área operacional, mas nunca substitui a home executiva.
+      if (item.to === "/externo/controle") {
+        return [{
+          ...item,
+          children: (item.children ?? []).filter((child) => child.to !== "/externo"),
+        }];
+      }
+    }
+
     return [item];
   });
 
@@ -596,20 +648,6 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
   const recentMarkerEntries = useMemo(() => bookmarkedMarkers.slice(0, 6), [bookmarkedMarkers]);
   const selectedMarkerColorLabel =
     MARKER_COLOR_OPTIONS.find((option) => option.value === markerColor)?.label ?? "Cor personalizada";
-  const notificationCount = visibleTenantProcesses.reduce((count, process) => {
-    const pendingRequirements = process.requirements.filter(
-      (item) => item.status === "aberta" || item.status === "respondida",
-    ).length;
-    const awaitingDispatches = process.dispatches.filter(
-      (item) => item.status === "aguardando",
-    ).length;
-    const pendingGuides = getProcessPaymentGuides(process, tenantSettings).filter(
-      (guide) => guide.status === "pendente",
-    ).length;
-
-    return count + pendingRequirements + awaitingDispatches + pendingGuides;
-  }, 0);
-
   const globalSearchItems = useMemo(() => {
     const items: {
       id: string;
@@ -644,7 +682,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
         label: process.protocol || process.title || "Processo sem título",
         description: process.title || "Processo administrativo",
         group: "Processos",
-        onSelect: () => navigate(`/processos/${process.id}`),
+        onSelect: () => navigate(buildProcessPath(process)),
       });
     });
 
@@ -851,7 +889,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
   const processShortcutPath =
     isMasterUser
       ? "/dashboard/processos"
-      : session.role === "profissional_externo"
+      : isExternalProfessionalRole(session.role)
         ? "/externo/controle"
         : session.role === "proprietario_consulta" || session.role === "property_owner"
           ? "/proprietario"
@@ -1297,7 +1335,11 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
         }}
       >
         <div className="sig-topbar-shell flex min-h-[60px] items-center gap-3 px-2.5 sm:px-3.5 lg:min-h-[68px] lg:gap-3.5 lg:px-5 2xl:px-7">
-          <div className="sig-topbar-brand-cluster flex min-w-0 items-center gap-3 pr-1 lg:hidden lg:pr-4">
+          <div
+            className="sig-topbar-brand-cluster flex min-w-0 items-center gap-3 pr-1 lg:hidden lg:pr-4"
+            style={{ display: isDesktopTopbarViewport ? "none" : undefined }}
+            data-topbar-brand-viewport="mobile"
+          >
             <button
               type="button"
               onClick={() => setMobileSidebarOpen(true)}
@@ -1321,7 +1363,11 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
             </div>
           </div>
 
-          <div className="flex shrink-0 items-center gap-2 lg:hidden">
+          <div
+            className="flex shrink-0 items-center gap-2 lg:hidden"
+            style={{ display: isDesktopTopbarViewport ? "none" : undefined }}
+            data-topbar-actions-viewport="mobile"
+          >
               <button
                 type="button"
                 onClick={() => navigate(processShortcutPath)}
@@ -1352,12 +1398,22 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                 type="button"
                 onClick={() => navigate("/notificacoes")}
                 className={cn(
-                  "inline-flex h-[38px] w-[38px] items-center justify-center rounded-[14px] transition duration-200 hover:-translate-y-[1px]",
+                  "relative inline-flex h-[38px] w-[38px] items-center justify-center rounded-[14px] p-0 leading-none transition duration-200 hover:-translate-y-[1px]",
                   topbarIconButton,
                 )}
-                aria-label="Notificações"
+                aria-label={`Notificações (${notificationCount})`}
               >
-                <Bell className="h-[18px] w-[18px] text-white/92" />
+                <span
+                  aria-hidden="true"
+                  className="pointer-events-none absolute inset-0 flex items-center justify-center"
+                >
+                  <Bell className="block h-[18px] w-[18px] -translate-y-[0.5px] text-white/92" />
+                </span>
+                {notificationCount > 0 ? (
+                  <span className="sig-topbar-notification-badge absolute right-[2px] top-[2px] inline-flex min-h-[16px] min-w-[16px] items-center justify-center rounded-full px-1 text-[9px] font-bold leading-none">
+                    {notificationCount > 99 ? "99+" : notificationCount}
+                  </span>
+                ) : null}
               </button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -1375,7 +1431,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                     crop={topbarAvatarCrop}
                     size="sm"
                     className="sig-topbar-user-avatar"
-                    fallbackClassName="sig-topbar-user-avatar-fallback !bg-[linear-gradient(180deg,#ffffff_0%,#dde7f1_100%)] !text-[#17324a]"
+                    fallbackClassName="sig-topbar-user-avatar-fallback !bg-[linear-gradient(180deg,#ffffff_0%,#e7edf3_100%)] !text-black"
                   />
                   <ChevronDown className="h-3 w-3 text-white/80" />
                 </button>
@@ -1407,7 +1463,11 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
             </DropdownMenu>
           </div>
 
-          <div className="hidden min-w-0 flex-1 items-center justify-between gap-5 lg:flex">
+          <div
+            className="hidden min-w-0 flex-1 items-center justify-between gap-5 lg:flex"
+            style={{ display: isDesktopTopbarViewport ? undefined : "none" }}
+            data-topbar-viewport="desktop"
+          >
             <div className="sig-topbar-primary-group flex min-w-0 flex-1 items-center gap-4">
               <div className="sig-topbar-brand-cluster flex min-w-0 items-center gap-3.5 pr-1">
                 <div className="sig-topbar-brand-logo flex h-[54px] w-[54px] items-center justify-center">
@@ -1510,17 +1570,24 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                   type="button"
                   onClick={() => navigate("/notificacoes")}
                   className={cn(
-                    "sig-topbar-notification-button relative",
+                    "sig-topbar-notification-button relative p-0 leading-none",
                     topbarUtilityButtonClass,
                     topbarIconButton,
                   )}
                   aria-label={`Notificações (${notificationCount})`}
                   title="Notificações"
                 >
-                  <Bell className={topbarUtilityIconClass} aria-hidden="true" />
-                  <span className="sig-topbar-notification-badge absolute right-[3px] top-[3px] inline-flex min-h-[16px] min-w-[16px] items-center justify-center rounded-full px-1 text-[9px] font-bold leading-none">
-                    {notificationCount > 99 ? "99+" : notificationCount}
+                  <span
+                    aria-hidden="true"
+                    className="pointer-events-none absolute inset-0 flex items-center justify-center"
+                  >
+                    <Bell className="block h-[18px] w-[18px] -translate-y-[0.5px] text-white/92" />
                   </span>
+                  {notificationCount > 0 ? (
+                    <span className="sig-topbar-notification-badge absolute right-[3px] top-[3px] inline-flex min-h-[16px] min-w-[16px] items-center justify-center rounded-full px-1 text-[9px] font-bold leading-none">
+                      {notificationCount > 99 ? "99+" : notificationCount}
+                    </span>
+                  ) : null}
                 </button>
 
               <div className="sig-topbar-local-popper sig-marker-anchor relative flex shrink-0">
@@ -1783,7 +1850,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                           <DropdownMenuItem
                             key={process.id}
                             className="sig-marker-recent group rounded-[18px] border px-3 py-3 text-[13px] text-slate-700"
-                            onClick={() => navigate(`/processos/${process.id}`)}
+                            onClick={() => navigate(buildProcessPath(process))}
                             title={marker.label || process.title}
                           >
                             <span className="sig-marker-item-icon mr-3 inline-flex h-10 w-10 items-center justify-center rounded-[14px] border" style={markerIconSurface(marker.color ?? "#2563eb")}>
@@ -1996,7 +2063,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                       crop={topbarAvatarCrop}
                       size="md"
                       className="sig-topbar-user-avatar"
-                      fallbackClassName="sig-topbar-user-avatar-fallback !bg-[linear-gradient(180deg,#ffffff_0%,#dde7f1_100%)] !text-[#17324a]"
+                      fallbackClassName="sig-topbar-user-avatar-fallback !bg-[linear-gradient(180deg,#ffffff_0%,#e7edf3_100%)] !text-black"
                     />
                     <ChevronDown className={cn("h-3.5 w-3.5", darkTopbar ? "text-white/75" : "text-slate-700/75")} />
                   </button>
@@ -2030,10 +2097,10 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                           crop={topbarAvatarCrop}
                           size="lg"
                           className={cn(
-                            "sig-topbar-user-avatar !text-[#17324a] ring-4 shadow-[0_18px_38px_rgba(15,23,42,0.16)]",
+                            "sig-topbar-user-avatar !text-black ring-4 shadow-[0_18px_38px_rgba(15,23,42,0.16)]",
                             darkTopbar ? "border-white/18 ring-white/8" : "border-white ring-slate-100",
                           )}
-                          fallbackClassName="sig-topbar-user-avatar-fallback !bg-[linear-gradient(180deg,#ffffff_0%,#dde7f1_100%)] !text-[#17324a]"
+                          fallbackClassName="sig-topbar-user-avatar-fallback !bg-[linear-gradient(180deg,#ffffff_0%,#e7edf3_100%)] !text-black"
                         />
                         <span className={cn("absolute bottom-0.5 right-0.5 h-3 w-3 rounded-full border-2", darkTopbar ? "border-[#0d2237] bg-emerald-300" : "border-white bg-emerald-500")} />
                       </div>
@@ -2260,6 +2327,14 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
           "sig-content-frame flex min-h-screen",
           focusMode && "h-auto min-h-0 overflow-visible",
         )}
+        style={
+          focusMode
+            ? undefined
+            : {
+                minHeight: "117.6470588235vh",
+              }
+        }
+        data-refresh-layout-stable={focusMode ? "false" : "true"}
       >
         {(!focusMode || focusSidebarOpen) ? (
           <AppSidebar
@@ -2364,7 +2439,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
 
             </header> : null}
 
-            {dataError && !loading ? (
+            {showBlockingOfficialDataError ? (
               <div className="mx-4 mb-4 rounded-[18px] border border-amber-300 bg-amber-50 px-4 py-3 text-amber-950 shadow-sm sm:mx-6 lg:mx-8">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>

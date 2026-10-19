@@ -14,7 +14,7 @@ describe("urban analysis workflow regressions", () => {
   it("starts analysis through a dedicated idempotent RPC instead of setting the same status twice", () => {
     expect(analystDesk).toContain("startProcessAnalysis(process.id)");
     expect(analystDesk).toContain("handleStartAnalysis");
-    expect(analystDesk).toContain("/processos/${process.id}?aba=analise");
+    expect(analystDesk).toContain('navigate(buildProcessPath(process, "analise"))');
     expect(analystDesk).not.toContain("Processo distribuído para a mesa técnica.");
     expect(dataHook).toContain("startRemoteProcessAnalysis(processId)");
     expect(backend).toContain('callProcessRpc("start_process_analysis"');
@@ -30,7 +30,7 @@ describe("urban analysis workflow regressions", () => {
 
   it("prevents financial or fiscal advancement before analysis starts and required files are present", () => {
     expect(analystDesk).toContain(
-      "disabled={Boolean(actionBusy) || !analysisStarted || pendingRequirements.length > 0 || missingRequiredDocuments > 0}",
+      "disabled={Boolean(actionBusy) || !canEditAnalysis || !analysisStarted || pendingRequirements.length > 0 || missingRequiredDocuments > 0}",
     );
     expect(analystDesk).toContain("Responsável pela análise");
     expect(analystDesk).toContain("Continuar análise");

@@ -16,7 +16,8 @@ import { PageMainContent, PageMainGrid, PageShell, PageSideContent, PageStatsRow
 import { StatCard } from "@/components/platform/StatCard";
 import { MunicipalOrganizationChart } from "@/components/platform/MunicipalOrganizationChart";
 import { UserAvatar } from "@/components/platform/UserAvatar";
-import { accessLevelLabels, getProcessPaymentGuides, matchesOperationalScope, roleLabels, roleSuggestedTitles, statusLabel, statusTone, type AccountStatus, type ProcessRecord, type SessionUser, type UserRole } from "@/lib/platform";
+import {
+  buildProcessPath, accessLevelLabels, getProcessPaymentGuides, matchesOperationalScope, roleLabels, roleSuggestedTitles, statusLabel, statusTone, type AccountStatus, type ProcessRecord, type SessionUser, type UserRole } from "@/lib/platform";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
@@ -27,8 +28,10 @@ import {
   upsertRemoteMunicipalDepartment,
   type MunicipalDepartmentRecord,
 } from "@/integrations/backend/platform";
+import { getMunicipalityLogoOpenUrl } from "@/integrations/r2/client";
 
-const tenantRoles: UserRole[] = ["prefeitura_supervisor", "analista", "financeiro", "setor_intersetorial", "fiscal", "profissional_externo"];
+const tenantRoles: UserRole[] = ["prefeitura_admin", "prefeitura_supervisor", "analista", "financeiro", "setor_intersetorial", "fiscal", "profissional_externo", "property_owner", "proprietario_consulta"];
+const municipalInternalRoles: UserRole[] = ["prefeitura_admin", "prefeitura_supervisor", "analista", "financeiro", "setor_intersetorial", "fiscal"];
 
 const municipalProfilePresets = [
   { key: "chefe_divisao", label: "Chefe de Divisão", role: "prefeitura_supervisor" as UserRole, accessLevel: "2" },
@@ -62,9 +65,11 @@ function getMunicipalProfileSelectValue(role: UserRole, profileLabel?: string) {
   return preset?.key ?? role;
 }
 
-function applyMunicipalProfileSelection(
+function applyMunicipalProfileSelection<
+  T extends { role: UserRole; profileLabel?: string; accessLevel: string; title?: string },
+>(
   value: string,
-  current: { role: UserRole; profileLabel: string; accessLevel: string },
+  current: T,
 ) {
   const preset = municipalProfilePresets.find((item) => item.key === value);
   if (preset) {
@@ -76,10 +81,17 @@ function applyMunicipalProfileSelection(
     };
   }
   const role = value as UserRole;
+  const suggestedTitle = roleSuggestedTitles[role] || "";
   return {
     ...current,
     role,
     profileLabel: "",
+    title:
+      "title" in current &&
+      (!current.title?.trim() ||
+        Object.values(roleSuggestedTitles).includes(current.title as string))
+        ? suggestedTitle
+        : current.title,
   };
 }
 
@@ -102,6 +114,18 @@ function getMunicipalProfileLabel(user: SessionUser) {
   )?.label;
 
   return municipalPresetLabel || roleLabels[user.role];
+}
+
+function sameMunicipalLabel(left?: string | null, right?: string | null) {
+  const normalize = (value?: string | null) =>
+    String(value || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .trim()
+      .toLocaleLowerCase("pt-BR");
+  const a = normalize(left);
+  const b = normalize(right);
+  return Boolean(a && b && a === b);
 }
 
 function getUserDepartmentLabel(user: SessionUser) {
@@ -164,14 +188,16 @@ function resolveMunicipalRoleFromDepartment(
   return "setor_intersetorial";
 }
 
-function applyMunicipalDepartmentSelection(
-  departmentName: string,
-  current: {
+function applyMunicipalDepartmentSelection<
+  T extends {
     role: UserRole;
-    profileLabel: string;
+    profileLabel?: string;
     accessLevel: string;
     department: string;
   },
+>(
+  departmentName: string,
+  current: T,
 ) {
   if (!departmentName) {
     return { ...current, department: "" };
@@ -205,7 +231,7 @@ function getStatusLabel(status: AccountStatus) {
   return "Ativo";
 }
 function matchesSegment(user: SessionUser, segment: UserSegment) {
-  if (segment === "externos") return user.role === "profissional_externo" || user.role === "proprietario_consulta";
+  if (segment === "externos") return user.role === "profissional_externo" || user.role === "proprietario_consulta" || user.role === "property_owner";
   if (segment === "analistas") return user.role === "analista" || user.role === "prefeitura_supervisor";
   if (segment === "fiscal") return user.role === "fiscal";
   if (segment === "financeiro") return user.role === "financeiro";
@@ -217,6 +243,15 @@ function getPriorityTone(process: ProcessRecord) {
   if (process.sla.breached) return "border-red-500/20 bg-red-500/10 text-red-600 dark:text-red-400";
   if (process.sla.hoursRemaining <= 12) return "border-amber-200 bg-amber-50 text-amber-600 dark:text-amber-400";
   return "border-slate-200 bg-slate-50 text-slate-600";
+}
+
+function resolveMunicipalCoatOfArmsPreview(reference?: string | null) {
+  const raw = String(reference || "").trim();
+  if (!raw) return "";
+  if (raw.startsWith("r2:")) {
+    return getMunicipalityLogoOpenUrl(raw.slice(3).trim().replace(/^\/+/, ""));
+  }
+  return raw;
 }
 
 export function TenantAdminPage() {
@@ -232,12 +267,13 @@ export function TenantAdminPage() {
   const internalTenantUsers = useMemo(
     () =>
       tenantUsers.filter(
-        (user) => !["profissional_externo", "proprietario_consulta"].includes(user.role),
+        (user) => !["profissional_externo", "proprietario_consulta", "property_owner"].includes(user.role),
       ),
     [tenantUsers],
   );
-  const currentUnit = activeInstitution?.secretariaResponsavel || session.department || session.title || "Administração da Prefeitura";
+  const currentUnit = municipality?.secretariatName || session.department || session.title || "Administração da Prefeitura";
   const tenantSettings = getInstitutionSettings(effectiveScopeId ?? session.tenantId);
+  const coatOfArmsPreviewUrl = resolveMunicipalCoatOfArmsPreview(tenantSettings?.brasaoUrl);
   const hasPendingGuide = (process: ProcessRecord) =>
     getProcessPaymentGuides(process, tenantSettings).some((guide) => guide.status === "pendente");
   const availablePositionOptions = useMemo(
@@ -262,6 +298,10 @@ export function TenantAdminPage() {
 
   const [statusMessage, setStatusMessage] = useState("");
   const [editStatusMessage, setEditStatusMessage] = useState("");
+  const [createUserFeedback, setCreateUserFeedback] = useState<{
+    tone: "idle" | "loading" | "success" | "error";
+    message: string;
+  }>({ tone: "idle", message: "" });
   const [savingUserId, setSavingUserId] = useState<string | null>(null);
   const [workspaceView, setWorkspaceView] = useState<WorkspaceView>("visao-geral");
   const [segment, setSegment] = useState<UserSegment>("todos");
@@ -269,7 +309,7 @@ export function TenantAdminPage() {
   const [statusFilter, setStatusFilter] = useState<"todos" | AccountStatus>("todos");
   const [roleFilter, setRoleFilter] = useState<"todos" | UserRole>("todos");
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
-  const [form, setForm] = useState({ fullName: "", email: "", role: "analista" as UserRole, title: roleSuggestedTitles.analista, accessLevel: "1" });
+  const [form, setForm] = useState({ fullName: "", email: "", role: "analista" as UserRole, title: roleSuggestedTitles.analista, accessLevel: "1", department: "", temporaryPassword: "", confirmPassword: "" });
   const [editForm, setEditForm] = useState({ name: "", email: "", role: "analista" as UserRole, profileLabel: "", title: "", accessLevel: "1", department: "", userType: "" });
   const [departments, setDepartments] = useState<MunicipalDepartmentRecord[]>([]);
   const [orgBusy, setOrgBusy] = useState(false);
@@ -335,17 +375,49 @@ export function TenantAdminPage() {
     { label: "Gerados", value: generatedByCurrentUnit.length, helper: "Despachos emitidos pela unidade" },
     { label: "Restritos", value: restrictedTransitCount, helper: "Fluxos ocultos ao acesso externo" },
   ], [generatedByCurrentUnit.length, receivedForCurrentUnit.length, restrictedTransitCount]);
-  const startEdit = (user: SessionUser) => { setEditStatusMessage(""); setEditingUserId(user.id); setEditForm({ name: user.name, email: user.email, role: user.role, profileLabel: user.profileLabel || "", title: user.title, accessLevel: String(user.accessLevel), department: user.department || "", userType: user.userType || (user.role === "profissional_externo" || user.role === "proprietario_consulta" ? "Externo" : "Interno") }); };
+  const startEdit = (user: SessionUser) => { setEditStatusMessage(""); setEditingUserId(user.id); setEditForm({ name: user.name, email: user.email, role: user.role, profileLabel: user.profileLabel || "", title: user.title, accessLevel: String(user.accessLevel), department: user.department || "", userType: user.userType || (["profissional_externo", "proprietario_consulta", "property_owner"].includes(user.role) ? "Externo" : "Interno") }); };
   const handleCreateUser = async (event: FormEvent) => {
     event.preventDefault();
-    if (!effectiveScopeId) return;
+    if (!effectiveScopeId) {
+      setCreateUserFeedback({
+        tone: "error",
+        message: "Não foi possível identificar a Prefeitura atual.",
+      });
+      return;
+    }
 
     const normalizedName = form.fullName.trim();
     const normalizedEmail = form.email.trim().toLowerCase();
     const normalizedTitle = form.title.trim();
+    const normalizedDepartment = form.department.trim();
+    const temporaryPassword = form.temporaryPassword.trim();
+
+    const failCreate = (message: string) => {
+      setCreateUserFeedback({ tone: "error", message });
+    };
 
     if (!normalizedName || !normalizedEmail || !normalizedTitle) {
-      setStatusMessage("Preencha nome, e-mail e cargo/setor para criar o usuário interno.");
+      failCreate("Preencha nome, e-mail e cargo/função para criar a conta do servidor.");
+      return;
+    }
+
+    if (form.role !== "prefeitura_admin" && activeDepartments.length > 0 && !normalizedDepartment) {
+      failCreate("Selecione o departamento/unidade do servidor.");
+      return;
+    }
+
+    if (temporaryPassword.length < 8) {
+      failCreate("A senha provisória deve ter pelo menos 8 caracteres.");
+      return;
+    }
+
+    if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/.test(temporaryPassword)) {
+      failCreate("A senha provisória precisa ter maiúscula, minúscula, número e caractere especial.");
+      return;
+    }
+
+    if (temporaryPassword !== form.confirmPassword) {
+      failCreate("A confirmação da senha provisória não confere.");
       return;
     }
 
@@ -353,15 +425,20 @@ export function TenantAdminPage() {
       planEntitlements.maxUsers != null &&
       internalTenantUsers.length >= planEntitlements.maxUsers
     ) {
-      setStatusMessage(
-        `Limite do plano atingido: ${internalTenantUsers.length}/${planEntitlements.maxUsers} usuários internos. Faça upgrade do plano antes de vincular outra conta.`,
+      failCreate(
+        `Limite do plano atingido: ${internalTenantUsers.length}/${planEntitlements.maxUsers} usuários internos. Faça upgrade do plano antes de criar outra conta.`,
       );
       return;
     }
 
     if (savingUserId) return;
+
     setSavingUserId("new");
-    setStatusMessage("Confirmando vínculo no banco...");
+    setCreateUserFeedback({
+      tone: "loading",
+      message: "Salvando conta do servidor...",
+    });
+
     try {
       const user = await createTenantUser({
         tenantId: effectiveScopeId,
@@ -370,15 +447,64 @@ export function TenantAdminPage() {
         role: form.role,
         title: normalizedTitle,
         accessLevel: Number(form.accessLevel) as 1 | 2 | 3,
+        temporaryPassword,
       });
-      setStatusMessage(`Conta ${user.name} vinculada à Prefeitura ${municipalityName || activeInstitution?.name || "selecionada"} com ${accessLevelLabels[user.accessLevel]}.`);
-      setForm({ fullName: "", email: "", role: "analista", title: roleSuggestedTitles.analista, accessLevel: "1" });
+
+      const selectedDepartment =
+        activeDepartments.find((item) => item.name === normalizedDepartment) ?? null;
+
+      if (selectedDepartment) {
+        try {
+          await assignRemoteProfileDepartment({
+            municipalityId: effectiveScopeId,
+            profileId: user.id,
+            departmentId: selectedDepartment.id,
+          });
+        } catch (departmentError) {
+          const detail =
+            departmentError instanceof Error
+              ? departmentError.message
+              : "Falha ao vincular a unidade.";
+          setCreateUserFeedback({
+            tone: "error",
+            message: `A conta foi criada, mas o vínculo com o departamento não foi concluído: ${detail}`,
+          });
+          await refreshRemoteStore();
+          return;
+        }
+      }
+
+      await refreshRemoteStore();
+
+      setCreateUserFeedback({
+        tone: "success",
+        message: `Salvo com sucesso. A conta de ${user.name} foi criada para esta Prefeitura.`,
+      });
+
+      setForm({
+        fullName: "",
+        email: "",
+        role: "analista",
+        title: roleSuggestedTitles.analista,
+        accessLevel: "1",
+        department: "",
+        temporaryPassword: "",
+        confirmPassword: "",
+      });
     } catch (error) {
-      setStatusMessage(error instanceof Error ? error.message : "Não foi possível vincular a conta.");
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Não foi possível salvar a conta do servidor.";
+      setCreateUserFeedback({
+        tone: "error",
+        message,
+      });
     } finally {
       setSavingUserId(null);
     }
   };
+
   const runUserCommand = async (userId: string, command: () => Promise<SessionUser | null>, success: (user: SessionUser) => string) => {
     if (savingUserId) return false;
     setSavingUserId(userId);
@@ -410,7 +536,7 @@ export function TenantAdminPage() {
       setEditStatusMessage("Informe o cargo, função ou profissão do funcionário.");
       return;
     }
-    if (editForm.role !== "profissional_externo" && !editForm.department.trim()) {
+    if (!["profissional_externo", "proprietario_consulta", "property_owner"].includes(editForm.role) && !editForm.department.trim()) {
       setEditStatusMessage("Selecione o departamento do funcionário. O acesso interno é limitado ao departamento escolhido.");
       return;
     }
@@ -564,9 +690,12 @@ export function TenantAdminPage() {
     }
   };
 
-  const canManageAccount = (user: SessionUser) => user.id !== session.id && user.role !== "prefeitura_admin";
+  const canManageAccount = (user: SessionUser) =>
+    user.id !== session.id &&
+    user.role !== "master_admin" &&
+    user.role !== "master_ops";
   const handleBlockToggle = (user: SessionUser) => {
-    if (!canManageAccount(user)) { setStatusMessage("Somente o Master pode alterar outro administrador da Prefeitura."); return; }
+    if (!canManageAccount(user)) { setStatusMessage("A conta Master não pode ser alterada pela administração municipal."); return; }
     if (user.accountStatus === "blocked") {
       if (!window.confirm(`Deseja desbloquear ${user.name}?`)) return;
       void runUserCommand(user.id, () => setUserAccountStatus({ userId: user.id, status: "active", actor: session.id }), (updated) => `Conta de ${updated.name} desbloqueada.`);
@@ -577,7 +706,7 @@ export function TenantAdminPage() {
     void runUserCommand(user.id, () => setUserAccountStatus({ userId: user.id, status: "blocked", actor: session.id, reason }), (updated) => `Conta de ${updated.name} bloqueada.`);
   };
   const handleDeactivate = (user: SessionUser) => {
-    if (!canManageAccount(user)) { setStatusMessage("Somente o Master pode alterar outro administrador da Prefeitura."); return; }
+    if (!canManageAccount(user)) { setStatusMessage("A conta Master não pode ser alterada pela administração municipal."); return; }
     if (!window.confirm(`Deseja desativar a conta de ${user.name}? Esta ação pode ser revertida depois.`)) return;
     const reason = window.prompt("Informe a justificativa da desativação:", user.blockReason || "Conta desativada administrativamente");
     if (reason === null) return;
@@ -697,7 +826,7 @@ export function TenantAdminPage() {
               type="button"
               variant="outline"
               className="h-9 rounded-xl border-slate-300 bg-white px-3 text-xs font-bold text-slate-700 hover:bg-slate-50"
-              onClick={() => navigate(`/processos/${process.id}`)}
+              onClick={() => navigate(buildProcessPath(process))}
             >
               Abrir processo
             </Button>
@@ -761,7 +890,17 @@ export function TenantAdminPage() {
                 data-municipal-user-avatar-frame="true"
                 className={`rounded-[18px] border p-1.5 shadow-sm ${roleVisual.icon}`}
               >
-                <UserAvatar name={user.name} imageUrl={profile?.avatarUrl} size="lg" />
+                <UserAvatar
+                  name={user.name}
+                  imageUrl={profile?.avatarUrl}
+                  crop={profile ? {
+                    scale: profile.avatarScale ?? 1,
+                    offsetX: profile.avatarOffsetX ?? 0,
+                    offsetY: profile.avatarOffsetY ?? 0,
+                    editorSize: 320,
+                  } : undefined}
+                  size="lg"
+                />
               </div>
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2.5">
@@ -780,9 +919,11 @@ export function TenantAdminPage() {
                   >
                     {getMunicipalProfileLabel(user)}
                   </span>
-                  <span className="text-sm font-semibold text-slate-700">
-                    {user.title || "Cargo não informado"}
-                  </span>
+                  {!sameMunicipalLabel(getMunicipalProfileLabel(user), user.title) ? (
+                    <span className="text-sm font-semibold text-slate-700">
+                      {user.title || "Cargo não informado"}
+                    </span>
+                  ) : null}
                 </div>
 
                 <p className="mt-2 sig-fit-copy text-sm text-slate-500" title={user.email}>
@@ -965,7 +1106,7 @@ export function TenantAdminPage() {
               </>
             ) : (
               <p className="text-sm text-slate-500">
-                Esta conta administrativa é gerenciada pelo Master.
+                A conta Master é protegida e não pode ser alterada pela administração municipal.
               </p>
             )}
           </div>
@@ -1194,6 +1335,46 @@ export function TenantAdminPage() {
                 </div>
               </SectionCard>
 
+              <SectionCard
+                title="Brasão oficial"
+                description="Identidade institucional vinculada exclusivamente a esta Prefeitura."
+                icon={Building2}
+              >
+                <div className="space-y-4">
+                  <div className="flex min-h-[118px] items-center gap-4 rounded-2xl border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] p-4">
+                    <div className="flex h-[86px] w-[86px] shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
+                      {coatOfArmsPreviewUrl ? (
+                        <img
+                          src={coatOfArmsPreviewUrl}
+                          alt={`Brasão oficial de ${municipalityName || activeInstitution?.name || "Prefeitura"}`}
+                          className="block h-full w-full object-contain"
+                          decoding="async"
+                        />
+                      ) : (
+                        <Building2 className="h-8 w-8 text-slate-400" aria-hidden="true" />
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-slate-950">
+                        {coatOfArmsPreviewUrl ? "Brasão salvo" : "Brasão ainda não cadastrado"}
+                      </p>
+                      <p className="mt-1 text-xs leading-5 text-slate-500">
+                        O arquivo salvo é reutilizado nos documentos oficiais e como fallback institucional.
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="sig-dark-action-btn h-11 w-full justify-start rounded-2xl text-slate-50"
+                    onClick={() => navigate("/configuracoes?secao=branding")}
+                  >
+                    <Building2 className="mr-2 h-4 w-4 text-sky-200" />
+                    Alterar ou salvar brasão
+                  </Button>
+                </div>
+              </SectionCard>
+
               <SectionCard title="Resumo institucional" description="Situação curta da unidade municipal." icon={ShieldCheck}>
                 <div className="space-y-3">
                   <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
@@ -1220,7 +1401,7 @@ export function TenantAdminPage() {
 
         {workspaceView === "fila" ? <TableCard title="Fila operacional" description="Área dedicada à operação da Prefeitura, com prioridade, responsável, prazo e etapa atual." icon={ClipboardList}><div className="space-y-4"><div className="grid gap-3 xl:grid-cols-[1.2fr_0.7fr_0.7fr]"><div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">Prefeitura operando com {mainQueue.length} item(ns) priorizados na fila principal.</div><div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">SLA crítico: {criticalAlerts.length} item(ns).</div><div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">Pendências financeiras: {metrics.pendingPayments}.</div></div>{mainQueue.length === 0 ? <div className="rounded-[24px] border border-dashed border-slate-300 bg-slate-50 p-6 text-sm leading-6 text-slate-600">Nenhum protocolo operacional encontrado para esta Prefeitura.</div> : mainQueue.map((process) => renderQueueCard(process))}</div></TableCard> : null}
 
-        {workspaceView === "usuarios" ? <PageMainGrid className="xl:grid-cols-[minmax(0,2.08fr)_minmax(300px,0.82fr)] 2xl:grid-cols-[minmax(0,2.22fr)_minmax(360px,0.86fr)] xl:items-start"><PageMainContent className="gap-5"><PageStatsRow className="lg:grid-cols-3 xl:grid-cols-3 xl:gap-4.5 2xl:gap-5 [&>*]:min-w-0 [&>*]:min-h-[152px]"><StatCard label="Equipe" value={String(tenantUsers.length)} description="Usuários vinculados à Prefeitura" icon={Users2} tone="blue" /><StatCard label="Administradores" value={String(tenantUsers.filter((user) => user.role === "prefeitura_admin").length)} description="Perfis de gestão ativos" icon={ShieldCheck} tone="emerald" /><StatCard label="Bloqueados" value={String(tenantUsers.filter((user) => user.accountStatus === "blocked").length)} description="Contas com restrição" icon={ShieldAlert} tone="rose" /></PageStatsRow><TableCard title="Gestão de usuários" description="Equipe interna, papéis, níveis de acesso e administração da Prefeitura." icon={Users2} className="shadow-[0_14px_32px_rgba(15,23,42,0.06)]"><div className="space-y-4.5"><Tabs value={segment} onValueChange={(value) => setSegment(value as UserSegment)}><TabsList className="flex h-auto flex-wrap justify-start gap-2 rounded-2xl bg-slate-100 p-1.5"><TabsTrigger value="todos">Todos</TabsTrigger><TabsTrigger value="administradores">Administradores</TabsTrigger><TabsTrigger value="analistas">Analistas</TabsTrigger><TabsTrigger value="financeiro">Financeiro</TabsTrigger><TabsTrigger value="fiscal">Fiscal</TabsTrigger><TabsTrigger value="externos">Externos</TabsTrigger><TabsTrigger value="outros">Outros</TabsTrigger></TabsList></Tabs><div className="grid gap-3 xl:grid-cols-[minmax(0,1.58fr)_minmax(220px,0.74fr)_minmax(220px,0.74fr)] 2xl:grid-cols-[minmax(0,1.72fr)_minmax(236px,0.78fr)_minmax(236px,0.78fr)] xl:items-center"><div className="relative"><Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar nome, e-mail, setor ou categoria" className="h-11 rounded-2xl pl-10.5" /></div><Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as "todos" | AccountStatus)}><SelectTrigger className="h-11 rounded-2xl"><SelectValue placeholder="Status" /></SelectTrigger><SelectContent><SelectItem value="todos">Todos os status</SelectItem><SelectItem value="active">Ativo</SelectItem><SelectItem value="blocked">Bloqueado</SelectItem><SelectItem value="inactive">Inativo</SelectItem></SelectContent></Select><Select value={roleFilter} onValueChange={(value) => setRoleFilter(value as "todos" | UserRole)}><SelectTrigger className="h-11 rounded-2xl"><SelectValue placeholder="Perfil" /></SelectTrigger><SelectContent><SelectItem value="todos">Todos os perfis</SelectItem>{tenantRoles.map((role) => <SelectItem key={role} value={role}>{roleLabels[role]}</SelectItem>)}</SelectContent></Select></div><div className="grid gap-4 2xl:gap-4.5">{filteredUsers.length === 0 ? <div className="rounded-[24px] border border-dashed border-slate-300 bg-slate-50 p-6 text-sm leading-6 text-slate-600">Nenhum usuário encontrado para os filtros atuais.</div> : filteredUsers.map((user) => renderUserCard(user))}</div></div></TableCard></PageMainContent><PageSideContent className="gap-5"><SectionCard title="Vincular conta existente" description="A conta precisa estar confirmada e vinculada a esta Prefeitura. O papel interno só é ativado após confirmação no banco." className="xl:sticky xl:top-5 shadow-[0_14px_32px_rgba(15,23,42,0.06)]" contentClassName="space-y-4" actions={<Button type="button" variant="outline" className="sig-dark-action-btn rounded-full text-slate-50" onClick={() => navigate(-1)}><ArrowLeft className="mr-2 h-4 w-4 text-sky-200" />Voltar</Button>}><form className="space-y-4" onSubmit={handleCreateUser}><div className="space-y-2"><Label>Prefeitura vinculada</Label><div className="flex h-11 items-center rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-medium text-slate-700">{municipalityName || activeInstitution?.name || "Prefeitura atual"}</div></div><div className="space-y-2"><Label>Nome completo</Label><Input value={form.fullName} onChange={(event) => setForm((current) => ({ ...current, fullName: event.target.value }))} /></div><div className="space-y-2"><Label>E-mail</Label><Input value={form.email} onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))} /></div><div className="space-y-2"><Label>Perfil</Label><Select value={getMunicipalProfileSelectValue(form.role, form.title)} onValueChange={(value) => setForm((current) => applyMunicipalProfileSelection(value, current))}><SelectTrigger className="h-11 rounded-2xl"><SelectValue placeholder="Selecione o perfil" /></SelectTrigger><SelectContent>{tenantRoles.map((role) => <SelectItem key={role} value={role}>{roleLabels[role]}</SelectItem>)}{municipalProfilePresets.map((profile) => <SelectItem key={profile.key} value={profile.key}>{profile.label}</SelectItem>)}</SelectContent></Select></div><div className="space-y-2"><Label>Cargo / função / profissão</Label><Input list="tenant-position-options" value={form.title} onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))} placeholder="Ex.: Chefe de Divisão de Urbanismo" /><datalist id="tenant-position-options">{availablePositionOptions.map((option) => <option key={option} value={option} />)}</datalist><p className="text-xs leading-5 text-slate-500">Digite livremente qualquer cargo da Prefeitura ou escolha uma sugestão já cadastrada.</p></div><div className="space-y-2"><Label>Nível de acesso</Label><Select value={form.accessLevel} onValueChange={(value) => setForm((current) => ({ ...current, accessLevel: value }))}><SelectTrigger className="h-11 rounded-2xl"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="1">Nível 1 - Operacional</SelectItem><SelectItem value="2">Nível 2 - Coordenação</SelectItem><SelectItem value="3">Nível 3 - Gestão total</SelectItem></SelectContent></Select></div><Button type="submit" disabled={Boolean(savingUserId)} className="sig-force-dark-action h-12 w-full rounded-2xl bg-slate-950 !text-white hover:bg-slate-900">{savingUserId === "new" ? "Confirmando vínculo..." : "Vincular conta"}</Button></form></SectionCard></PageSideContent></PageMainGrid> : null}
+        {workspaceView === "usuarios" ? <PageMainGrid className="xl:grid-cols-[minmax(0,2.08fr)_minmax(300px,0.82fr)] 2xl:grid-cols-[minmax(0,2.22fr)_minmax(360px,0.86fr)] xl:items-start"><PageMainContent className="gap-5"><PageStatsRow className="lg:grid-cols-3 xl:grid-cols-3 xl:gap-4.5 2xl:gap-5 [&>*]:min-w-0 [&>*]:min-h-[152px]"><StatCard label="Equipe" value={String(tenantUsers.length)} description="Usuários vinculados à Prefeitura" icon={Users2} tone="blue" /><StatCard label="Administradores" value={String(tenantUsers.filter((user) => user.role === "prefeitura_admin").length)} description="Perfis de gestão ativos" icon={ShieldCheck} tone="emerald" /><StatCard label="Bloqueados" value={String(tenantUsers.filter((user) => user.accountStatus === "blocked").length)} description="Contas com restrição" icon={ShieldAlert} tone="rose" /></PageStatsRow><TableCard title="Gestão de usuários" description="Equipe interna, papéis, níveis de acesso e administração da Prefeitura." icon={Users2} className="shadow-[0_14px_32px_rgba(15,23,42,0.06)]"><div className="space-y-4.5"><Tabs value={segment} onValueChange={(value) => setSegment(value as UserSegment)}><TabsList className="flex h-auto flex-wrap justify-start gap-2 rounded-2xl bg-slate-100 p-1.5"><TabsTrigger value="todos">Todos</TabsTrigger><TabsTrigger value="administradores">Administradores</TabsTrigger><TabsTrigger value="analistas">Analistas</TabsTrigger><TabsTrigger value="financeiro">Financeiro</TabsTrigger><TabsTrigger value="fiscal">Fiscal</TabsTrigger><TabsTrigger value="externos">Externos</TabsTrigger><TabsTrigger value="outros">Outros</TabsTrigger></TabsList></Tabs><div className="grid gap-3 xl:grid-cols-[minmax(0,1.58fr)_minmax(220px,0.74fr)_minmax(220px,0.74fr)] 2xl:grid-cols-[minmax(0,1.72fr)_minmax(236px,0.78fr)_minmax(236px,0.78fr)] xl:items-center"><div className="relative"><Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar nome, e-mail, setor ou categoria" className="h-11 rounded-2xl pl-10.5" /></div><Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as "todos" | AccountStatus)}><SelectTrigger className="h-11 rounded-2xl"><SelectValue placeholder="Status" /></SelectTrigger><SelectContent><SelectItem value="todos">Todos os status</SelectItem><SelectItem value="active">Ativo</SelectItem><SelectItem value="blocked">Bloqueado</SelectItem><SelectItem value="inactive">Inativo</SelectItem></SelectContent></Select><Select value={roleFilter} onValueChange={(value) => setRoleFilter(value as "todos" | UserRole)}><SelectTrigger className="h-11 rounded-2xl"><SelectValue placeholder="Perfil" /></SelectTrigger><SelectContent><SelectItem value="todos">Todos os perfis</SelectItem>{tenantRoles.map((role) => <SelectItem key={role} value={role}>{roleLabels[role]}</SelectItem>)}</SelectContent></Select></div><div className="grid gap-4 2xl:gap-4.5">{filteredUsers.length === 0 ? <div className="rounded-[24px] border border-dashed border-slate-300 bg-slate-50 p-6 text-sm leading-6 text-slate-600">Nenhum usuário encontrado para os filtros atuais.</div> : filteredUsers.map((user) => renderUserCard(user))}</div></div></TableCard></PageMainContent><PageSideContent className="gap-5"><SectionCard title="Criar conta de servidor" description="O administrador cria acessos internos somente para esta Prefeitura. Contas Master permanecem protegidas e não podem ser criadas ou alteradas aqui." className="xl:sticky xl:top-5 shadow-[0_14px_32px_rgba(15,23,42,0.06)]" contentClassName="space-y-4" actions={<Button type="button" variant="outline" className="sig-dark-action-btn rounded-full text-slate-50" onClick={() => navigate(-1)}><ArrowLeft className="mr-2 h-4 w-4 text-sky-200" />Voltar</Button>}><form className="space-y-4" onSubmit={handleCreateUser}><div className="space-y-2"><Label>Prefeitura</Label><div className="flex h-11 items-center rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-medium text-slate-700">{municipalityName || activeInstitution?.name || "Prefeitura atual"}</div><p className="text-xs leading-5 text-slate-500">Este vínculo é fixo: a conta será criada apenas neste subdomínio/prefeitura.</p></div><div className="space-y-2"><Label>Nome completo</Label><Input value={form.fullName} onChange={(event) => setForm((current) => ({ ...current, fullName: event.target.value }))} /></div><div className="space-y-2"><Label>E-mail institucional / acesso</Label><Input type="email" autoComplete="off" value={form.email} onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))} /></div><div className="space-y-2"><Label>Perfil interno</Label><Select value={getMunicipalProfileSelectValue(form.role, form.title)} onValueChange={(value) => setForm((current) => applyMunicipalProfileSelection(value, current))}><SelectTrigger className="h-11 rounded-2xl"><SelectValue placeholder="Selecione o perfil" /></SelectTrigger><SelectContent>{municipalInternalRoles.map((role) => <SelectItem key={role} value={role}>{roleLabels[role]}</SelectItem>)}{municipalProfilePresets.map((profile) => <SelectItem key={profile.key} value={profile.key}>{profile.label}</SelectItem>)}</SelectContent></Select></div><div className="space-y-2"><Label>Departamento / unidade</Label><Select value={form.department || "__none__"} onValueChange={(value) => setForm((current) => ({ ...current, department: value === "__none__" ? "" : value }))}><SelectTrigger className="h-11 rounded-2xl"><SelectValue placeholder="Selecione a unidade" /></SelectTrigger><SelectContent><SelectItem value="__none__">Não informado</SelectItem>{activeDepartments.map((department) => <SelectItem key={department.id} value={department.name}>{department.code ? `${department.code} — ${department.name}` : department.name}</SelectItem>)}</SelectContent></Select><p className="text-xs leading-5 text-slate-500">A unidade é usada para limitar o acesso operacional do servidor às áreas corretas.</p></div><div className="space-y-2"><Label>Cargo / função</Label><Input list="tenant-position-options" value={form.title} onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))} placeholder="Ex.: Analista Técnico, Diretor, Fiscal de Obras" /><datalist id="tenant-position-options">{availablePositionOptions.map((option) => <option key={option} value={option} />)}</datalist></div><div className="space-y-2"><Label>Nível de acesso</Label><Select value={form.accessLevel} onValueChange={(value) => setForm((current) => ({ ...current, accessLevel: value }))}><SelectTrigger className="h-11 rounded-2xl"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="1">Nível 1 - Operacional</SelectItem><SelectItem value="2">Nível 2 - Coordenação</SelectItem><SelectItem value="3">Nível 3 - Gestão total</SelectItem></SelectContent></Select></div><div className="grid gap-3 sm:grid-cols-2"><div className="space-y-2"><Label>Senha provisória</Label><Input type="password" autoComplete="new-password" value={form.temporaryPassword} onChange={(event) => setForm((current) => ({ ...current, temporaryPassword: event.target.value }))} placeholder="Mínimo 8 caracteres" /></div><div className="space-y-2"><Label>Confirmar senha</Label><Input type="password" autoComplete="new-password" value={form.confirmPassword} onChange={(event) => setForm((current) => ({ ...current, confirmPassword: event.target.value }))} placeholder="Repita a senha" /></div></div><p className="text-xs leading-5 text-slate-500">Use maiúscula, minúscula, número e caractere especial. Se o e-mail já existir no SIGAPRO, a senha informada não altera a senha atual; o sistema apenas confirma o vínculo desta Prefeitura.</p><Button type="submit" disabled={Boolean(savingUserId)} className="sig-force-dark-action h-12 w-full rounded-2xl bg-slate-950 !text-white hover:bg-slate-900">{savingUserId === "new" ? "Salvando..." : "Criar conta de servidor"}</Button>{createUserFeedback.message ? <div role={createUserFeedback.tone === "error" ? "alert" : "status"} aria-live="polite" className={`rounded-2xl border px-4 py-3 text-sm font-semibold leading-5 ${createUserFeedback.tone === "success" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : createUserFeedback.tone === "error" ? "border-rose-200 bg-rose-50 text-rose-700" : "border-sky-200 bg-sky-50 text-sky-700"}`}>{createUserFeedback.message}</div> : null}</form></SectionCard></PageSideContent></PageMainGrid> : null}
 
 
         {workspaceView === "organograma" ? (
