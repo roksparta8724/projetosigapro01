@@ -12,6 +12,7 @@ describe("municipal staff account and avatar recovery regressions", () => {
   const r2Client = read("src/integrations/r2/client.ts");
   const r2Router = read("api/r2.ts");
   const legacyAvatar = read("server/api/profile-avatar-open.ts");
+  const appBootstrap = read("src/hooks/useAppBootstrap.tsx");
   const vite = read("vite.config.ts");
   const migration = read("neon/migrations/20261017_municipal_admin_create_staff_accounts.sql");
 
@@ -60,6 +61,20 @@ describe("municipal staff account and avatar recovery regressions", () => {
     expect(admin).toContain("coatOfArmsPreviewUrl");
     expect(admin).toContain("Alterar ou salvar brasão");
     expect(admin).toContain('navigate("/configuracoes?secao=branding")');
+  });
+
+  it("tries every valid R2 endpoint when reading a profile photo", () => {
+    expect(legacyAvatar).toContain("function resolveR2Clients()");
+    expect(legacyAvatar).toContain("streamAvatarFromAnyClient");
+    expect(legacyAvatar).toContain("for (const client of clients)");
+    expect(legacyAvatar).not.toContain("function resolveR2Client()");
+  });
+
+  it("keeps login critical path compact on Neon", () => {
+    expect(appBootstrap).toContain('backendClient.rpc("get_current_profile_context")');
+    expect(appBootstrap).toContain("const retryDelays = [0, 80, 180, 350]");
+    expect(appBootstrap).toContain("void markCurrentProfileAccess()");
+    expect(appBootstrap).not.toContain("const currentSession = (await backendClient.auth.getSession()).data.session");
   });
 
   it("serves current R2 profile photos through the same-origin avatar route", () => {
