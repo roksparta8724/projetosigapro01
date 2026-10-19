@@ -11,6 +11,9 @@ describe("Habite-se guide branding and status contrast", () => {
   const guide = read("src/components/GuiaRecolhimentoOficial.tsx");
   const permit = read("src/components/platform/HabiteSePermitPanel.tsx");
   const permitPdf = read("src/lib/habiteSePermitPdf.ts");
+  const esignApi = read("api/e-sign-artifact.ts");
+  const artifactClient = read("src/integrations/esign/artifactClient.ts");
+  const occupancy = read("src/components/platform/OccupancyPermitProcessPanel.tsx");
   const css = read("src/index.css");
   const notificationClient = read("src/integrations/notifications/notificationClient.ts");
 
@@ -62,6 +65,20 @@ describe("Habite-se guide branding and status contrast", () => {
     expect(notificationClient).toContain('delete_my_notification_v1');
     expect(notificationClient).toContain('_notification_id: notificationId');
     expect(notificationClient).not.toContain('delete_my_notifications_v1", {');
+  });
+
+  it("supports optional Secretary co-signature without blocking Habite-se completion", () => {
+    expect(permit).toContain("Solicitar assinatura do Secretário");
+    expect(permit).toContain('openSignature("secretary")');
+    expect(permit).toContain("Concluir processo com êxito");
+    expect(permit).toContain("Concluir sem assinatura complementar");
+    expect(permit).toContain("secretarySignature:");
+    expect(permitPdf).toContain("secretarySignature?:");
+    expect(permitPdf).toContain('"Secretaria responsável"');
+    expect(esignApi).toContain('artifactType === "habite_se_permit" && signerSlot === "secretaria"');
+    expect(artifactClient).toContain("requestHabiteSeSecretarySignature");
+    expect(occupancy).toContain("onCompleteProcess");
+    expect(occupancy).toContain("Analista elabora e encaminha");
   });
 
   it("hard-locks the Habite-se status badge to readable light text on saturated backgrounds", () => {
