@@ -134,6 +134,9 @@ export function AnalystDeskPage() {
   const [actionBusy, setActionBusy] = useState("");
   const [actionStatus, setActionStatus] = useState("");
   const [assignmentTargets, setAssignmentTargets] = useState<Record<string, string>>({});
+  const [dispatchFor, setDispatchFor] = useState<string | null>(null);
+  const [dispatchDestination, setDispatchDestination] = useState("Diretoria de Urbanismo");
+  const [dispatchNote, setDispatchNote] = useState("");
   const [liveSyncAt, setLiveSyncAt] = useState("");
   const [liveSyncError, setLiveSyncError] = useState("");
   const currentUnit =
@@ -532,6 +535,30 @@ export function AnalystDeskPage() {
     }
   };
 
+  const saveTechnicalDispatch = async (process: ProcessRecord) => {
+    if (!dispatchNote.trim()) {
+      setActionStatus("Informe o texto do despacho.");
+      return;
+    }
+    const ok = await runAnalystAction(
+      `dispatch-${process.id}`,
+      "Despacho registrado no processo.",
+      () => dispatchProcess({
+        processId: process.id,
+        actor: session.name,
+        from: "Análise Urbanística",
+        to: dispatchDestination,
+        subject: dispatchNote.trim(),
+        dueDate: isoDateAfterDays(3),
+        visibility: "interno",
+      }),
+    );
+    if (ok) {
+      setDispatchFor(null);
+      setDispatchNote("");
+    }
+  };
+
   const handleAssignAnalysis = async (process: ProcessRecord) => {
     const suggestedProfileId = analysisTeamLoad[0]?.analyst.id || "";
     const targetProfileId = assignmentTargets[process.id] || suggestedProfileId;
@@ -694,6 +721,13 @@ export function AnalystDeskPage() {
                         {analysisStarted ? "Em análise" : "Distribuído"} · {currentAnalyst}
                       </Badge>
                     )}
+                    <MarkerSelector
+                      processId={process.id}
+                      tags={process.tags}
+                      actor={session.name}
+                      subjectLabel="processo"
+                      triggerClassName="h-9"
+                    />
                     {process.triage.status !== "concluido" ? (
                       <Badge variant="outline" className="border-sky-200 bg-sky-50 text-sky-700">
                         Triagem
@@ -716,13 +750,14 @@ export function AnalystDeskPage() {
                 </div>
 
                 <div data-analysis-process-actions="true" className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
-                  <MarkerSelector
-                    processId={process.id}
-                    tags={process.tags}
-                    actor={session.name}
-                    subjectLabel="processo"
-                    triggerClassName="h-9"
-                  />
+                  {canEditAnalysis && analysisStarted ? (
+                    <Button type="button" variant="outline" size="sm"
+                      className="h-10 rounded-xl border-sky-400/25 bg-sky-400/10 px-3 text-xs font-semibold text-sky-100 hover:bg-sky-400/20"
+                      onClick={() => { setDispatchFor((current) => current === process.id ? null : process.id); setDispatchNote(""); }}>
+                      <Send className="mr-1.5 h-4 w-4" /> Encaminhar / despachar
+                    </Button>
+                  ) : null}
+
                   {allowArchiveAction ? (
                     <Button
                       type="button"
@@ -773,6 +808,41 @@ export function AnalystDeskPage() {
                 </div>
               </div>
 
+              {dispatchFor === process.id ? (
+                <div className="mx-5 mb-4 rounded-xl border border-sky-400/20 bg-[#0c2235] p-4">
+                  <p className="text-sm font-bold text-white">Encaminhar / despachar processo</p>
+                  <label className="mt-3 block text-xs font-semibold text-slate-200">
+                    Setor de destino
+                    <select value={dispatchDestination} onChange={(event) => setDispatchDestination(event.target.value)}
+                      className="mt-1 block w-full rounded-lg border border-white/20 bg-[#081b2b] p-2 text-white">
+                      <option value="Diretoria de Urbanismo">Diretoria de Urbanismo</option>
+                      <option value="Setor de IPTU / Fiscal">Setor de IPTU / Fiscal</option>
+                      <option value="Financeiro">Financeiro</option>
+                      <option value="Protocolo">Protocolo</option>
+                    </select>
+                  </label>
+                  <label className="mt-3 block text-xs font-semibold text-slate-200">
+                    Texto do despacho
+                    <textarea value={dispatchNote} onChange={(event) => setDispatchNote(event.target.value)}
+                      maxLength={4000} rows={3} placeholder="Escreva o despacho..."
+                      className="mt-1 block w-full rounded-lg border border-white/20 bg-[#081b2b] p-3 text-sm text-white placeholder:text-slate-400" />
+                  </label>
+                  <p className="mt-2 text-xs text-slate-300">Despachado por: <strong className="text-white">{session.name}</strong></p>
+                  <div className="mt-3 flex justify-end gap-2">
+                    <Button type="button" variant="outline" onClick={() => setDispatchFor(null)}>Cancelar</Button>
+                    <Button type="button" disabled={Boolean(actionBusy) || !dispatchNote.trim()}
+                      onClick={() => void saveTechnicalDispatch(process)}>Registrar despacho</Button>
+                  </div>
+                </div>
+              ) : null}
+              {process.dispatches.length > 0 ? (
+                <div className="mx-5 mb-3 rounded-xl border border-sky-400/20 bg-sky-400/5 p-3 text-xs text-slate-200">
+                  <p className="font-bold text-sky-200">Último despacho / encaminhamento</p>
+                  <p className="mt-1 whitespace-pre-wrap">{process.dispatches[process.dispatches.length - 1].subject}</p>
+                  <p className="mt-1 text-slate-300">Destino: {process.dispatches[process.dispatches.length - 1].to}</p>
+                  <p className="mt-1 text-slate-300">Despachado por: <strong className="text-white">{process.dispatches[process.dispatches.length - 1].requestedBy || "Autor não identificado"}</strong></p>
+                </div>
+              ) : null}
               {isExpanded ? (
                 <div id={`analysis-process-details-${process.id}`} className="border-t border-slate-100 bg-slate-50/35 pb-1 dark:border-slate-700 dark:bg-slate-950/15">
               <div className="sig-responsive-data-grid mx-5 mt-4">
