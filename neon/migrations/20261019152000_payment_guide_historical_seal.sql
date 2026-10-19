@@ -30,8 +30,16 @@ begin
       raise exception 'Guia compensada e documento financeiro historico e nao pode ser reemitida ou alterada';
     end if;
 
-    if coalesce(new.paid,false) is distinct from true then
+    -- Um registro legado pode estar "confirmed" com paid=false e paid_at
+    -- ausente. Preservar esse estado até que haja autenticação comprovada;
+    -- nunca inventar data ou baixa retroativa.
+    if coalesce(old.paid,false) and not coalesce(new.paid,false) then
       raise exception 'A baixa de uma guia compensada nao pode ser desfeita';
+    end if;
+
+    if lower(coalesce(old.status,'')) in ('compensada','confirmed','paid','pago','confirmado')
+       and lower(coalesce(new.status,'')) not in ('compensada','confirmed','paid','pago','confirmado') then
+      raise exception 'O status financeiro de uma guia compensada nao pode retroceder';
     end if;
 
     if old.paid_at is not null and new.paid_at is distinct from old.paid_at then
