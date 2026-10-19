@@ -441,6 +441,7 @@ export function OccupancyPermitProcessPanel({
         secretariat={secretariat}
         directorate={directorate}
         onProcessRefresh={onProcessRefresh}
+        onCompleteProcess={onCompleteProcess}
       />
 
       <Card className="rounded-[24px] border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
