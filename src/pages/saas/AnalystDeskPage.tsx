@@ -232,8 +232,8 @@ export function AnalystDeskPage() {
 
       if (disposed || error) return;
 
-      const official = Array.from(
-        new Set(
+      const official: string[] = Array.from(
+        new Set<string>(
           (data ?? [])
             .map((row) => String(row.process_id || ""))
             .filter(Boolean),
@@ -822,25 +822,32 @@ export function AnalystDeskPage() {
                   <p className="text-sm font-bold text-white">Encaminhar / despachar processo</p>
                   <label className="mt-3 block text-xs font-semibold text-slate-200">
                     Setor de destino
-                    <select value={dispatchDestination} onChange={(event) => setDispatchDestination(event.target.value)}
-                      className="mt-1 block w-full rounded-lg border border-white/20 bg-[#081b2b] p-2 text-white">
-                      <option value="Diretoria de Urbanismo">Diretoria de Urbanismo</option>
-                      <option value="Análise Urbanística">Outro analista da Análise Urbanística</option>
-                      <option value="Setor de IPTU / Fiscal">Setor de IPTU / Fiscal</option>
-                      <option value="Financeiro">Financeiro</option>
-                      <option value="Protocolo">Protocolo</option>
-                    </select>
+                    <Select value={dispatchDestination} onValueChange={setDispatchDestination}>
+                      <SelectTrigger className="mt-1 h-11 w-full rounded-xl border border-white/20 !bg-[#081b2b] !text-slate-100 [&>svg]:text-slate-300">
+                        <SelectValue placeholder="Selecione um setor" />
+                      </SelectTrigger>
+                      <SelectContent className="z-[100] border border-slate-600 !bg-[#0b2134] !text-slate-100 shadow-2xl [&_[role=option]]:text-slate-100 [&_[role=option][data-highlighted]]:!bg-sky-700">
+                        <SelectItem value="Diretoria de Urbanismo">Diretoria de Urbanismo</SelectItem>
+                        <SelectItem value="Análise Urbanística">Outro analista da Análise Urbanística</SelectItem>
+                        <SelectItem value="Setor de IPTU / Fiscal">Setor de IPTU / Fiscal</SelectItem>
+                        <SelectItem value="Financeiro">Financeiro</SelectItem>
+                        <SelectItem value="Protocolo">Protocolo</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </label>
                   {dispatchDestination === "Análise Urbanística" ? (
                     <label className="mt-3 block text-xs font-semibold text-slate-200">
                       Analista destinatário
-                      <select value={dispatchTargetAnalystId} onChange={(event) => setDispatchTargetAnalystId(event.target.value)}
-                        className="mt-1 block w-full rounded-lg border border-white/20 bg-[#081b2b] p-2 text-white">
-                        <option value="">Selecione um analista</option>
-                        {analysisTeam.filter((analyst) => analyst.id !== session.id).map((analyst) => (
-                          <option key={analyst.id} value={analyst.id}>{analyst.name}</option>
-                        ))}
-                      </select>
+                      <Select value={dispatchTargetAnalystId} onValueChange={setDispatchTargetAnalystId}>
+                        <SelectTrigger className="mt-1 h-11 w-full rounded-xl border border-white/20 !bg-[#081b2b] !text-slate-100 [&>svg]:text-slate-300">
+                          <SelectValue placeholder="Selecione um analista" />
+                        </SelectTrigger>
+                        <SelectContent className="z-[100] border border-slate-600 !bg-[#0b2134] !text-slate-100 shadow-2xl [&_[role=option]]:text-slate-100 [&_[role=option][data-highlighted]]:!bg-sky-700">
+                          {analysisTeam.filter((analyst) => analyst.id !== session.id).map((analyst) => (
+                            <SelectItem key={analyst.id} value={analyst.id}>{analyst.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </label>
                   ) : null}
                   <label className="mt-3 block text-xs font-semibold text-slate-200">
