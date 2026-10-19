@@ -149,7 +149,7 @@ describe("municipal staff account and avatar recovery regressions", () => {
   });
 
   it("caches same-origin R2 avatars in the service worker for repeat F5", () => {
-    expect(serviceWorker).toContain('CACHE_VERSION = "sigapro-enterprise-v4"');
+    expect(serviceWorker).toContain('CACHE_VERSION = "sigapro-enterprise-v5"');
     expect(serviceWorker).toContain("AVATAR_CACHE");
     expect(serviceWorker).toContain('url.pathname === "/api/profile-avatar-open"');
     expect(serviceWorker).toContain("cacheFirst(request, AVATAR_CACHE)");
