@@ -113,8 +113,20 @@ export function ExternalPaymentsPage() {
         tenantSettings?.brasaoUrl,
       );
 
-      const issuedAt = guide.issuedAt || new Date().toISOString();
-      const year = new Date(issuedAt).getFullYear() || new Date().getFullYear();
+      const issuedAt = String(guide.issuedAt || "").trim();
+      if (!issuedAt) {
+        throw new Error(
+          "A guia oficial não possui data de emissão persistida. Para preservar o documento original, o SIGAPRO não substituirá essa data pela data de hoje.",
+        );
+      }
+
+      const issuedDate = new Date(issuedAt);
+      if (Number.isNaN(issuedDate.getTime())) {
+        throw new Error(
+          "A data de emissão persistida desta guia é inválida. O documento foi bloqueado para preservar a integridade financeira.",
+        );
+      }
+      const year = issuedDate.getFullYear().toString();
 
       const guideDocument: GuiaRecolhimentoOficialProps = {
         prefeitura: {
