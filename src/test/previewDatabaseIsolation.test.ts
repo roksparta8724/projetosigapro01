@@ -14,6 +14,11 @@ describe("Vercel preview database isolation", () => {
     expect(source).toContain("previewEndpointsConfigured ? configuredDataApiUrl");
   });
 
+  it("prevents Vercel preview from falling back to legacy Supabase", () => {
+    const config = readFileSync(resolve(process.cwd(), "src/integrations/backend/config.ts"), "utf8");
+    expect(config).toContain('if (resolvedHostname.endsWith(".vercel.app")) return "neon";');
+  });
+
   it("retains the official database for official domains only", () => {
     expect(source).toContain("isNeonProduction || isLocalNeonRuntime");
     expect(source).toContain('endsWith(".vercel.app")');
