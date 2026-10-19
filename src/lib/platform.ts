@@ -617,7 +617,11 @@ export interface PaymentGuideEntry {
   status: "pendente" | "compensada";
   dueDate: string;
   issuedAt?: string;
+  /** Dia civil oficial e imutável da emissão (YYYY-MM-DD). */
+  issuedOn?: string;
   paidAt?: string;
+  /** Dia civil oficial e imutável da primeira baixa (YYYY-MM-DD). */
+  paidOn?: string;
   expiresAt?: string;
   requestedBy?: string;
   requestedAt?: string;
