@@ -11,7 +11,7 @@ export function useLivePlatformRefresh(
   },
 ) {
   const enabled = options?.enabled !== false;
-  const intervalMs = Math.max(3000, options?.intervalMs ?? 8000);
+  const intervalMs = Math.max(1500, options?.intervalMs ?? 4000);
   const refreshOnMount = options?.refreshOnMount !== false;
   const refreshRef = useRef(refreshRemoteStore);
   const inFlightRef = useRef(false);
@@ -54,12 +54,18 @@ export function useLivePlatformRefresh(
 
     const timer = window.setInterval(refreshWhenVisible, intervalMs);
     window.addEventListener("focus", refreshWhenVisible);
+    window.addEventListener("pageshow", refreshWhenVisible);
+    window.addEventListener("online", refreshWhenVisible);
+    window.addEventListener("sigapro:data-changed", refreshWhenVisible as EventListener);
     document.addEventListener("visibilitychange", refreshWhenVisible);
 
     return () => {
       disposed = true;
       window.clearInterval(timer);
       window.removeEventListener("focus", refreshWhenVisible);
+      window.removeEventListener("pageshow", refreshWhenVisible);
+      window.removeEventListener("online", refreshWhenVisible);
+      window.removeEventListener("sigapro:data-changed", refreshWhenVisible as EventListener);
       document.removeEventListener("visibilitychange", refreshWhenVisible);
     };
   }, [enabled, intervalMs, refreshOnMount]);
