@@ -45,7 +45,6 @@ import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { usePlanEntitlements } from "@/hooks/usePlanEntitlements";
 import { useDocumentMarkerAssignments } from "@/hooks/useDocumentMarkerAssignments";
 import { useConstructionPermit } from "@/hooks/useConstructionPermit";
-import { completeHabiteSeProcess } from "@/integrations/permits/habiteSePermitClient";
 import { useMunicipalOrganogram } from "@/hooks/useMunicipalOrganogram";
 import {
   getMunicipalityLogoOpenUrl,
@@ -3915,7 +3914,14 @@ export function ProcessDetailPage() {
                 }
                 onProcessRefresh={() => refreshRemoteStore()}
                 onCompleteProcess={async () => {
-                  await completeHabiteSeProcess(process.id);
+                  await updateProcessStatus({
+                    processId: process.id,
+                    status: "arquivado",
+                    actor: session.name,
+                    title: "Processo de Habite-se concluído",
+                    detail:
+                      "Alvará de Habite-se emitido com assinatura eletrônica válida da Diretoria. Processo concluído administrativamente pelo responsável autorizado e encaminhado ao histórico, preservando rastreabilidade, documentos, assinaturas e movimentações.",
+                  });
                   await refreshRemoteStore();
                 }}
                 onViewHabiteSeGuide={
