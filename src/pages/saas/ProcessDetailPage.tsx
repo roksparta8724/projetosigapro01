@@ -322,7 +322,7 @@ export function ProcessDetailPage() {
     reassignProcessAnalysis,
     updateProcessStatus,
   } = usePlatformData();
-  useLivePlatformRefresh(refreshRemoteStore, { intervalMs: 5000 });
+  useLivePlatformRefresh(refreshRemoteStore, { intervalMs: 2500 });
 
   const liveProcess = resolveProcessRoute(processes, processId);
   const [cachedProcessVisual, setCachedProcessVisual] = useState<ProcessRecord | undefined>(() =>
