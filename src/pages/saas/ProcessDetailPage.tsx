@@ -1612,11 +1612,19 @@ export function ProcessDetailPage() {
   const flowSteps = flowLabels.map((label, index) => ({
     key: `municipal-flow-${index}`,
     label,
-    state: index < currentFlowIndex ? "done" : index === currentFlowIndex ? "current" : "pending",
+    state: isFinalProcessStatus
+      ? "done"
+      : index < currentFlowIndex
+        ? "done"
+        : index === currentFlowIndex
+          ? "current"
+          : "pending",
   }));
   const currentFlowStatusLabel =
     isFinalProcessStatus
-      ? statusLabel(process.status)
+      ? isHabiteSeProcess
+        ? "Concluído"
+        : statusLabel(process.status)
       : permitReachedIssuanceStage && !isHabiteSeProcess
         ? "Alvará de Construção"
         : flowLabels[currentFlowIndex] || statusLabel(process.status);
