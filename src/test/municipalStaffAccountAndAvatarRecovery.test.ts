@@ -16,6 +16,7 @@ describe("municipal staff account and avatar recovery regressions", () => {
   const appBootstrap = read("src/hooks/useAppBootstrap.tsx");
   const avatarCache = read("src/lib/profileAvatarCache.ts");
   const portalFrame = read("src/components/platform/PortalFrame.tsx");
+  const profilePage = read("src/pages/saas/PerfilPage.tsx");
   const serviceWorker = read("public/sigapro-sw.js");
   const indexHtml = read("index.html");
   const viteConfig = read("vite.config.ts");
@@ -82,6 +83,27 @@ describe("municipal staff account and avatar recovery regressions", () => {
     expect(appBootstrap).toContain("void markCurrentProfileAccess()");
     expect(appBootstrap).toContain("void loadMunicipalityBundleById(municipalityId)");
     expect(appBootstrap).not.toContain("const currentSession = (await backendClient.auth.getSession()).data.session");
+  });
+
+  it("treats a newly selected photo as a local draft until explicit save", () => {
+    expect(profilePage).toContain('data-avatar-draft-state="unsaved"');
+    expect(profilePage).toContain("Prévia local — esta foto ainda não está salva");
+    expect(profilePage).toContain("A gravação permanente só acontece após clicar");
+    expect(profilePage).toContain("statusIsDraft");
+  });
+
+  it("only reports avatar success after the backend confirms the persistent R2 reference", () => {
+    expect(profilePage).toContain("const persistedAvatarRef");
+    expect(profilePage).toContain("persistedAvatarRef !== String(avatarStorageRef || \"\").trim()");
+    expect(profilePage).toContain("o banco não confirmou a referência permanente da foto");
+    expect(profilePage).toContain("Foto salva e confirmada no banco oficial.");
+  });
+
+  it("really clears the persisted avatar when removal is confirmed", () => {
+    expect(profilePage).toContain("const avatarRemovalRequested");
+    expect(profilePage).toContain('avatarRemovalRequested\n        ? ""');
+    expect(profilePage).toContain("if (avatarRemovalRequested && persistedAvatarRef)");
+    expect(profilePage).toContain("setAvatarFiles([])");
   });
 
   it("persists profile avatars by stable R2 reference instead of a public URL", () => {
