@@ -258,7 +258,10 @@ export function HabiteSePermitPanel({
 
   const isDirector = userCanSignPermitAsDirector(session);
   const isSecretary = userCanSignPermitAsSecretary(session);
-  const canCloseProcess = isDirector || ["prefeitura_admin", "prefeitura_supervisor", "master_admin", "master_ops"].includes(session.role);
+  const canCloseProcess =
+    canManage ||
+    isDirector ||
+    ["prefeitura_admin", "prefeitura_supervisor", "master_admin", "master_ops"].includes(session.role);
 
   const refresh = async () => {
     const snapshot = await getHabiteSePermit(process.id);
