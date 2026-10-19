@@ -53,8 +53,23 @@ function resolveR2Client() {
   });
 }
 
-function parseSource(req: Req) {
+function parseAvatarRequest(req: Req) {
   const requestUrl = new URL(req.url || "/api/profile-avatar-open", "https://sigapro.local");
+  const objectKey = String(requestUrl.searchParams.get("objectKey") || "")
+    .trim()
+    .replace(/^\/+/, "");
+
+  if (objectKey) {
+    const validProfileObject =
+      /^municipalities\/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/profiles\/avatars\/[a-zA-Z0-9_-]+\/[a-zA-Z0-9._-]+$/i.test(
+        objectKey,
+      );
+    if (!validProfileObject) {
+      throw new Error("Chave da foto de perfil inválida.");
+    }
+    return { kind: "r2" as const, objectKey };
+  }
+
   const raw = requestUrl.searchParams.get("source") || "";
   if (!raw) throw new Error("Origem da foto não informada.");
 
@@ -72,7 +87,7 @@ function parseSource(req: Req) {
     throw new Error("Origem da foto de perfil inválida.");
   }
 
-  return source;
+  return { kind: "legacy" as const, source };
 }
 
 function resolveExtension(source: URL) {
@@ -149,9 +164,11 @@ export default async function handler(req: Req, res: Res) {
     return;
   }
 
-  let source: URL;
+  let request:
+    | { kind: "r2"; objectKey: string }
+    | { kind: "legacy"; source: URL };
   try {
-    source = parseSource(req);
+    request = parseAvatarRequest(req);
   } catch (error) {
     json(res, 400, {
       error: error instanceof Error ? error.message : "Origem de avatar inválida.",
@@ -161,6 +178,22 @@ export default async function handler(req: Req, res: Res) {
 
   const client = resolveR2Client();
   const bucket = readEnv("R2_BUCKET_LOGOS") || "sigapro-logos";
+
+  if (request.kind === "r2") {
+    if (!client) {
+      json(res, 503, { error: "Armazenamento de fotos indisponível." });
+      return;
+    }
+
+    if (await streamCachedAvatar(client, bucket, request.objectKey, res)) {
+      return;
+    }
+
+    json(res, 404, { error: "Foto de perfil não encontrada." });
+    return;
+  }
+
+  const source = request.source;
   const cacheKey = getCacheKey(source);
 
   if (client && (await streamCachedAvatar(client, bucket, cacheKey, res))) {
