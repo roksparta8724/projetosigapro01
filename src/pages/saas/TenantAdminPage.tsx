@@ -1,5 +1,5 @@
 ﻿import { FormEvent, useEffect, useMemo, useState } from "react";
-import { AlertTriangle, ArrowLeft, Building2, CheckCircle2, ClipboardList, Clock3, FileText, Network, PencilLine, Plus, Search, ShieldAlert, ShieldCheck, Undo2, UserCog, UserRoundCog, UserX, Users2, Wallet } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Building2, CheckCircle2, ClipboardList, Clock3, FileText, Network, PencilLine, Plus, Search, Save, ShieldAlert, ShieldCheck, Undo2, UserCog, UserRoundCog, UserX, Users2, Wallet } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,8 @@ import { StatCard } from "@/components/platform/StatCard";
 import { MunicipalOrganizationChart } from "@/components/platform/MunicipalOrganizationChart";
 import { UserAvatar } from "@/components/platform/UserAvatar";
 import { DEFAULT_AVATAR_EDITOR_DIAMETER } from "@/lib/avatarCropGeometry";
+import { getMunicipalPositionDefaults, municipalPositionPresets, normalizeMunicipalPositionLabels, readLocalMunicipalPositionLabels, writeLocalMunicipalPositionLabels, type MunicipalPositionKey } from "@/lib/municipalPositionCatalog";
+import { updateRemoteMunicipalPositionLabels } from "@/integrations/backend/platform";
 import { resolveProfileAvatarDisplayUrl } from "@/lib/profileAvatarDisplay";
 import {
   buildProcessPath, accessLevelLabels, getProcessPaymentGuides, matchesOperationalScope, roleLabels, roleSuggestedTitles, statusLabel, statusTone, type AccountStatus, type ProcessRecord, type SessionUser, type UserRole } from "@/lib/platform";
@@ -276,6 +278,54 @@ export function TenantAdminPage() {
   );
   const currentUnit = municipality?.secretariatName || session.department || session.title || "Administração da Prefeitura";
   const tenantSettings = getInstitutionSettings(effectiveScopeId ?? session.tenantId);
+  const isAuthorizedPositionManager =
+    session.role === "prefeitura_admin" && session.accessLevel >= 3;
+  const [positionDraft, setPositionDraft] = useState(getMunicipalPositionDefaults);
+  const [positionSaveBusy, setPositionSaveBusy] = useState(false);
+  const [positionSaveStatus, setPositionSaveStatus] = useState("");
+  const tenantPositionTitlesRevision = JSON.stringify(tenantSettings?.positionTitles ?? {});
+  useEffect(() => {
+    const local = import.meta.env.DEV
+      ? readLocalMunicipalPositionLabels(effectiveScopeId)
+      : {};
+    setPositionDraft({
+      ...getMunicipalPositionDefaults(),
+      ...tenantSettings?.positionTitles,
+      ...local,
+    });
+    setPositionSaveStatus("");
+  }, [effectiveScopeId, tenantPositionTitlesRevision]);
+
+  const handleSaveMunicipalPositions = async () => {
+    if (!isAuthorizedPositionManager || !effectiveScopeId || positionSaveBusy) return;
+    const normalized = normalizeMunicipalPositionLabels(positionDraft);
+    const titles = Object.values(normalized);
+    if (titles.length !== municipalPositionPresets.length ||
+        new Set(titles.map((title) => title.toLocaleLowerCase("pt-BR"))).size !== titles.length) {
+      setPositionSaveStatus("Preencha os sete cargos com nomes diferentes (até 90 caracteres).");
+      return;
+    }
+    setPositionSaveBusy(true);
+    setPositionSaveStatus("Validando os cargos desta Prefeitura...");
+    try {
+      if (import.meta.env.DEV) {
+        writeLocalMunicipalPositionLabels(effectiveScopeId, normalized);
+        setPositionSaveStatus("Catálogo salvo apenas neste navegador para teste. Nenhum dado oficial foi alterado.");
+      } else {
+        await updateRemoteMunicipalPositionLabels({
+          municipalityId: effectiveScopeId,
+          titles: normalized as Record<string, string>,
+        });
+        setPositionSaveStatus("Cargos municipais atualizados; permissões técnicas preservadas.");
+      }
+      await refreshRemoteStore();
+    } catch (error) {
+      setPositionSaveStatus(error instanceof Error ? error.message : "Não foi possível salvar os cargos.");
+    } finally {
+      setPositionSaveBusy(false);
+    }
+  };
+
   const coatOfArmsPreviewUrl = resolveMunicipalCoatOfArmsPreview(tenantSettings?.brasaoUrl);
   const hasPendingGuide = (process: ProcessRecord) =>
     getProcessPaymentGuides(process, tenantSettings).some((guide) => guide.status === "pendente");
@@ -288,6 +338,7 @@ export function TenantAdminPage() {
             "Secretário",
             "Diretor",
             "Chefe de Divisão",
+            ...municipalPositionPresets.map((item) => positionDraft[item.key] || item.defaultTitle),
             "Assistente Administrativo",
             "Auxiliar Administrativo",
             ...urbanismPositionOptions,
@@ -296,7 +347,7 @@ export function TenantAdminPage() {
           ].filter((value): value is string => Boolean(value?.trim())),
         ),
       ).sort((left, right) => left.localeCompare(right, "pt-BR")),
-    [currentUnit, tenantUsers],
+    [currentUnit, tenantUsers, positionDraft],
   );
 
   const [statusMessage, setStatusMessage] = useState("");
@@ -1415,6 +1466,62 @@ export function TenantAdminPage() {
 
         {workspaceView === "fila" ? <TableCard title="Fila operacional" description="Área dedicada à operação da Prefeitura, com prioridade, responsável, prazo e etapa atual." icon={ClipboardList}><div className="space-y-4"><div className="grid gap-3 xl:grid-cols-[1.2fr_0.7fr_0.7fr]"><div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">Prefeitura operando com {mainQueue.length} item(ns) priorizados na fila principal.</div><div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">SLA crítico: {criticalAlerts.length} item(ns).</div><div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">Pendências financeiras: {metrics.pendingPayments}.</div></div>{mainQueue.length === 0 ? <div className="rounded-[24px] border border-dashed border-slate-300 bg-slate-50 p-6 text-sm leading-6 text-slate-600">Nenhum protocolo operacional encontrado para esta Prefeitura.</div> : mainQueue.map((process) => renderQueueCard(process))}</div></TableCard> : null}
 
+        {workspaceView === "usuarios" && isAuthorizedPositionManager ? (
+          <SectionCard
+            title="Cargos institucionais da Prefeitura"
+            description="Os nomes oficiais são editáveis por município. Cargo é uma identificação institucional: as permissões dependem separadamente do perfil, setor e nível de acesso."
+            icon={UserCog}
+            className="shadow-[0_14px_32px_rgba(15,23,42,0.06)]"
+            contentClassName="space-y-4"
+          >
+            <div data-municipal-position-catalog="true" className="grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
+              {municipalPositionPresets.map((position) => (
+                <div
+                  key={position.key}
+                  className="min-w-0 rounded-[20px] border border-sky-400/25 bg-gradient-to-br from-[#0d2b43] to-[#153c59] p-4 shadow-[0_8px_24px_rgba(8,30,48,0.13)]"
+                >
+                  <div className="flex items-center gap-2">
+                    <UserRoundCog className="h-4 w-4 shrink-0 text-sky-200" />
+                    <span className="text-[10px] font-extrabold uppercase tracking-[0.12em] !text-sky-100">
+                      {position.area}
+                    </span>
+                  </div>
+                  <Label htmlFor={`municipal-position-${position.key}`} className="mt-3 block text-[11px] font-semibold !text-white">
+                    {position.defaultTitle}
+                  </Label>
+                  <Input
+                    id={`municipal-position-${position.key}`}
+                    value={positionDraft[position.key] || ""}
+                    maxLength={90}
+                    onChange={(event) => setPositionDraft((current) => ({
+                      ...current,
+                      [position.key]: event.target.value,
+                    }))}
+                    className="mt-2 h-11 rounded-xl border-sky-100/30 bg-white !text-slate-950"
+                    aria-label={`Nome institucional: ${position.defaultTitle}`}
+                  />
+                  <p className="mt-2 text-[10px] leading-4 !text-slate-200">
+                    {position.key === "diretor_ti"
+                      ? "Pode ocupar a administração municipal quando o administrador atribuir o perfil autorizado."
+                      : "Acesso concedido pelo perfil e departamento, nunca pelo texto do cargo."}
+                  </p>
+                </div>
+              ))}
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <Button type="button" disabled={positionSaveBusy} onClick={() => void handleSaveMunicipalPositions()}
+                className="sig-force-dark-action h-11 rounded-2xl bg-[#0d3555] px-5 !text-white hover:bg-[#0f486f]">
+                <Save className="mr-2 h-4 w-4" />
+                {positionSaveBusy ? "Salvando..." : import.meta.env.DEV ? "Salvar catálogo para teste local" : "Salvar cargos municipais"}
+              </Button>
+              <p role="status" aria-live="polite" className="text-xs font-medium text-slate-600">
+                {positionSaveStatus || (import.meta.env.DEV
+                  ? "Modo de teste: não envia alterações ao banco oficial."
+                  : "Mudanças limitadas à Prefeitura atual.")}
+              </p>
+            </div>
+          </SectionCard>
+        ) : null}
         {workspaceView === "usuarios" ? <PageMainGrid className="xl:grid-cols-[minmax(0,2.08fr)_minmax(300px,0.82fr)] 2xl:grid-cols-[minmax(0,2.22fr)_minmax(360px,0.86fr)] xl:items-start"><PageMainContent className="gap-5"><PageStatsRow className="lg:grid-cols-3 xl:grid-cols-3 xl:gap-4.5 2xl:gap-5 [&>*]:min-w-0 [&>*]:min-h-[152px]"><StatCard label="Equipe" value={String(tenantUsers.length)} description="Usuários vinculados à Prefeitura" icon={Users2} tone="blue" /><StatCard label="Administradores" value={String(tenantUsers.filter((user) => user.role === "prefeitura_admin").length)} description="Perfis de gestão ativos" icon={ShieldCheck} tone="emerald" /><StatCard label="Bloqueados" value={String(tenantUsers.filter((user) => user.accountStatus === "blocked").length)} description="Contas com restrição" icon={ShieldAlert} tone="rose" /></PageStatsRow><TableCard title="Gestão de usuários" description="Equipe interna, papéis, níveis de acesso e administração da Prefeitura." icon={Users2} className="shadow-[0_14px_32px_rgba(15,23,42,0.06)]"><div className="space-y-4.5"><Tabs value={segment} onValueChange={(value) => setSegment(value as UserSegment)}><TabsList className="flex h-auto flex-wrap justify-start gap-2 rounded-2xl bg-slate-100 p-1.5"><TabsTrigger value="todos">Todos</TabsTrigger><TabsTrigger value="administradores">Administradores</TabsTrigger><TabsTrigger value="analistas">Analistas</TabsTrigger><TabsTrigger value="financeiro">Financeiro</TabsTrigger><TabsTrigger value="fiscal">Fiscal</TabsTrigger><TabsTrigger value="externos">Externos</TabsTrigger><TabsTrigger value="outros">Outros</TabsTrigger></TabsList></Tabs><div className="grid gap-3 xl:grid-cols-[minmax(0,1.58fr)_minmax(220px,0.74fr)_minmax(220px,0.74fr)] 2xl:grid-cols-[minmax(0,1.72fr)_minmax(236px,0.78fr)_minmax(236px,0.78fr)] xl:items-center"><div className="relative"><Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar nome, e-mail, setor ou categoria" className="h-11 rounded-2xl pl-10.5" /></div><Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as "todos" | AccountStatus)}><SelectTrigger className="h-11 rounded-2xl"><SelectValue placeholder="Status" /></SelectTrigger><SelectContent><SelectItem value="todos">Todos os status</SelectItem><SelectItem value="active">Ativo</SelectItem><SelectItem value="blocked">Bloqueado</SelectItem><SelectItem value="inactive">Inativo</SelectItem></SelectContent></Select><Select value={roleFilter} onValueChange={(value) => setRoleFilter(value as "todos" | UserRole)}><SelectTrigger className="h-11 rounded-2xl"><SelectValue placeholder="Perfil" /></SelectTrigger><SelectContent><SelectItem value="todos">Todos os perfis</SelectItem>{tenantRoles.map((role) => <SelectItem key={role} value={role}>{roleLabels[role]}</SelectItem>)}</SelectContent></Select></div><div className="grid gap-4 2xl:gap-4.5">{filteredUsers.length === 0 ? <div className="rounded-[24px] border border-dashed border-slate-300 bg-slate-50 p-6 text-sm leading-6 text-slate-600">Nenhum usuário encontrado para os filtros atuais.</div> : filteredUsers.map((user) => renderUserCard(user))}</div></div></TableCard></PageMainContent><PageSideContent className="gap-5"><SectionCard title="Criar conta de servidor" description="O administrador cria acessos internos somente para esta Prefeitura. Contas Master permanecem protegidas e não podem ser criadas ou alteradas aqui." className="xl:sticky xl:top-5 shadow-[0_14px_32px_rgba(15,23,42,0.06)]" contentClassName="space-y-4" actions={<Button type="button" variant="outline" className="sig-dark-action-btn rounded-full text-slate-50" onClick={() => navigate(-1)}><ArrowLeft className="mr-2 h-4 w-4 text-sky-200" />Voltar</Button>}><form className="space-y-4" onSubmit={handleCreateUser}><div className="space-y-2"><Label>Prefeitura</Label><div className="flex h-11 items-center rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-medium text-slate-700">{municipalityName || activeInstitution?.name || "Prefeitura atual"}</div><p className="text-xs leading-5 text-slate-500">Este vínculo é fixo: a conta será criada apenas neste subdomínio/prefeitura.</p></div><div className="space-y-2"><Label>Nome completo</Label><Input value={form.fullName} onChange={(event) => setForm((current) => ({ ...current, fullName: event.target.value }))} /></div><div className="space-y-2"><Label>E-mail institucional / acesso</Label><Input type="email" autoComplete="off" value={form.email} onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))} /></div><div className="space-y-2"><Label>Perfil interno</Label><Select value={getMunicipalProfileSelectValue(form.role, form.title)} onValueChange={(value) => setForm((current) => applyMunicipalProfileSelection(value, current))}><SelectTrigger className="h-11 rounded-2xl"><SelectValue placeholder="Selecione o perfil" /></SelectTrigger><SelectContent>{municipalInternalRoles.map((role) => <SelectItem key={role} value={role}>{roleLabels[role]}</SelectItem>)}{municipalProfilePresets.map((profile) => <SelectItem key={profile.key} value={profile.key}>{profile.label}</SelectItem>)}</SelectContent></Select></div><div className="space-y-2"><Label>Departamento / unidade</Label><Select value={form.department || "__none__"} onValueChange={(value) => setForm((current) => ({ ...current, department: value === "__none__" ? "" : value }))}><SelectTrigger className="h-11 rounded-2xl"><SelectValue placeholder="Selecione a unidade" /></SelectTrigger><SelectContent><SelectItem value="__none__">Não informado</SelectItem>{activeDepartments.map((department) => <SelectItem key={department.id} value={department.name}>{department.code ? `${department.code} — ${department.name}` : department.name}</SelectItem>)}</SelectContent></Select><p className="text-xs leading-5 text-slate-500">A unidade é usada para limitar o acesso operacional do servidor às áreas corretas.</p></div><div className="space-y-2"><Label>Cargo / função</Label><Input list="tenant-position-options" value={form.title} onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))} placeholder="Ex.: Analista Técnico, Diretor, Fiscal de Obras" /><datalist id="tenant-position-options">{availablePositionOptions.map((option) => <option key={option} value={option} />)}</datalist></div><div className="space-y-2"><Label>Nível de acesso</Label><Select value={form.accessLevel} onValueChange={(value) => setForm((current) => ({ ...current, accessLevel: value }))}><SelectTrigger className="h-11 rounded-2xl"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="1">Nível 1 - Operacional</SelectItem><SelectItem value="2">Nível 2 - Coordenação</SelectItem><SelectItem value="3">Nível 3 - Gestão total</SelectItem></SelectContent></Select></div><div className="grid gap-3 sm:grid-cols-2"><div className="space-y-2"><Label>Senha provisória</Label><Input type="password" autoComplete="new-password" value={form.temporaryPassword} onChange={(event) => setForm((current) => ({ ...current, temporaryPassword: event.target.value }))} placeholder="Mínimo 8 caracteres" /></div><div className="space-y-2"><Label>Confirmar senha</Label><Input type="password" autoComplete="new-password" value={form.confirmPassword} onChange={(event) => setForm((current) => ({ ...current, confirmPassword: event.target.value }))} placeholder="Repita a senha" /></div></div><p className="text-xs leading-5 text-slate-500">Use maiúscula, minúscula, número e caractere especial. Se o e-mail já existir no SIGAPRO, a senha informada não altera a senha atual; o sistema apenas confirma o vínculo desta Prefeitura.</p><Button type="submit" disabled={Boolean(savingUserId)} className="sig-force-dark-action h-12 w-full rounded-2xl bg-slate-950 !text-white hover:bg-slate-900">{savingUserId === "new" ? "Salvando..." : "Criar conta de servidor"}</Button>{createUserFeedback.message ? <div role={createUserFeedback.tone === "error" ? "alert" : "status"} aria-live="polite" className={`rounded-2xl border px-4 py-3 text-sm font-semibold leading-5 ${createUserFeedback.tone === "success" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : createUserFeedback.tone === "error" ? "border-rose-200 bg-rose-50 text-rose-700" : "border-sky-200 bg-sky-50 text-sky-700"}`}>{createUserFeedback.message}</div> : null}</form></SectionCard></PageSideContent></PageMainGrid> : null}
 
 
