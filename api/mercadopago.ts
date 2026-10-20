@@ -13,7 +13,7 @@ import {
   paymentWebhookFingerprint,
   testMercadoPagoToken,
 } from "../server/municipal-payment";
-import { callDataApiRpc } from "../server/municipal-storage";
+import { callDataApiRpc } from "../server/municipal-storage.js";
 
 type Req = import("http").IncomingMessage & {
   method?: string;
