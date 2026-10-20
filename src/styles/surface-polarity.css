@@ -2432,7 +2432,7 @@ html body #root .sig-app-frame .sig-main-shell
 
 /* PROCESSOS EXTERNOS > CONTRASTE PREMIUM V24 — ESCOPO EXATO.
    O tema claro pode redefinir text-fill-color em componentes aninhados.
-   Essa camada preserva a cor de acento das etiquetas (não alcança svg). */
+   Essa camada preserva a cor dos ícones sem alterar outros elementos. */
 html body #root .sig-main-shell [data-process-premium-card="true"]
 [data-external-process-marker="true"] [data-external-marker-label="true"] {
   color:#f8fafc !important;
