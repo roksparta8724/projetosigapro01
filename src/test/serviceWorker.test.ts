@@ -60,7 +60,7 @@ describe("service worker do SIGAPRO", () => {
     expect(worker.deleteCache).toHaveBeenCalledWith("sigapro-enterprise-v2:assets");
     expect(worker.deleteCache).toHaveBeenCalledWith("sigapro-enterprise-v3:assets");
     expect(worker.deleteCache).toHaveBeenCalledWith("sigapro-enterprise-v4:assets");
-    expect(worker.deleteCache).not.toHaveBeenCalledWith("sigapro-enterprise-v5:assets");
-    expect(worker.deleteCache).not.toHaveBeenCalledWith("sigapro-enterprise-v5:avatars");
+    expect(worker.deleteCache).toHaveBeenCalledWith("sigapro-enterprise-v5:assets");
+    expect(worker.deleteCache).toHaveBeenCalledWith("sigapro-enterprise-v5:avatars");
   });
 });
