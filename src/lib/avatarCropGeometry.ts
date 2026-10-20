@@ -37,8 +37,12 @@ export function resolveCircularAvatarGeometry(input: CircularAvatarGeometryInput
 
   const safeScale = Number.isFinite(input.scale) ? Math.max(1, input.scale ?? 1) : 1;
   const coverScale = Math.max(diameter / naturalWidth, diameter / naturalHeight) * safeScale;
-  const width = naturalWidth * coverScale;
-  const height = naturalHeight * coverScale;
+  // Em ponto flutuante, naturalWidth * (diameter / naturalWidth) pode
+  // resultar em 31.999999999999996 para um círculo de 32px. Garantir
+  // dimensões mínimas explícitas evita uma fresta na borda da máscara.
+  const minimumCover = diameter * safeScale;
+  const width = Math.max(minimumCover, naturalWidth * coverScale);
+  const height = Math.max(minimumCover, naturalHeight * coverScale);
 
   const editorSize = input.editorSize && Number.isFinite(input.editorSize) && input.editorSize > 0
     ? input.editorSize
