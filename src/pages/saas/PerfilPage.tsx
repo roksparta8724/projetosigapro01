@@ -207,7 +207,7 @@ async function confirmSavedAvatarReadable(url: string): Promise<boolean> {
 export function PerfilPage() {
   const { session } = usePlatformSession();
   const { municipality, scopeId, name: municipalityName, tenantSettingsCompat } = useMunicipality();
-  const { authenticatedEmail, authenticatedUserId, updateEmail, updatePassword } = useAuthGateway();
+  const { authenticatedEmail, authenticatedUserId, authenticatedProfileId, updateEmail, updatePassword } = useAuthGateway();
   const { getUserProfile, saveUserProfile, institutions, getInstitutionSettings } = usePlatformData();
   const { hiddenItems, loading: menuPrefsLoading, setItemHidden } = useUserMenuPreferences();
   const isMasterRole = session.role === "master_admin" || session.role === "master_ops";
@@ -215,9 +215,10 @@ export function PerfilPage() {
     ? session.id
     : session.email || session.name;
   const profileLookupEmail = authenticatedEmail || session.email;
-  const profile = getUserProfile(session.id, profileLookupEmail);
+  const profile = getUserProfile(authenticatedProfileId || session.id, profileLookupEmail);
   const profileUserId =
     profile?.userId ||
+    authenticatedProfileId ||
     (session.id !== "unknown" ? session.id : authenticatedUserId || "");
   const activeInstitutionId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
   const tenant = institutions.find((item) => item.id === activeInstitutionId) ?? null;
