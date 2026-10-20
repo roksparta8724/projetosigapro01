@@ -17,6 +17,7 @@ import { StatCard } from "@/components/platform/StatCard";
 import { MunicipalOrganizationChart } from "@/components/platform/MunicipalOrganizationChart";
 import { UserAvatar } from "@/components/platform/UserAvatar";
 import { DEFAULT_AVATAR_EDITOR_DIAMETER } from "@/lib/avatarCropGeometry";
+import { resolveProfileAvatarDisplayUrl } from "@/lib/profileAvatarDisplay";
 import {
   buildProcessPath, accessLevelLabels, getProcessPaymentGuides, matchesOperationalScope, roleLabels, roleSuggestedTitles, statusLabel, statusTone, type AccountStatus, type ProcessRecord, type SessionUser, type UserRole } from "@/lib/platform";
 import { usePlatformData } from "@/hooks/usePlatformData";
@@ -894,7 +895,7 @@ export function TenantAdminPage() {
               >
                 <UserAvatar
                   name={user.name}
-                  imageUrl={profile?.avatarUrl}
+                  imageUrl={resolveProfileAvatarDisplayUrl(profile)}
                   crop={profile ? {
                     scale: profile.avatarScale ?? 1,
                     offsetX: profile.avatarOffsetX ?? 0,
@@ -1144,7 +1145,7 @@ export function TenantAdminPage() {
                   <UserAvatar
                     key={`${session.id}:${effectiveScopeId || "global"}`}
                     name={session.name}
-                    imageUrl={activeUserProfile?.avatarUrl}
+                    imageUrl={resolveProfileAvatarDisplayUrl(activeUserProfile)}
                     crop={activeUserProfile ? {
                       scale: activeUserProfile.avatarScale ?? 1,
                       offsetX: activeUserProfile.avatarOffsetX ?? 0,
