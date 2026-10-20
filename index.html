@@ -117,14 +117,11 @@
           // Continuidade visual é opcional; nunca bloquear a aplicação.
         }
 
-        var initialAppZoom =
-          publicPaths.indexOf(path) >= 0 || isFullDocumentRoute ? "1" : "0.85";
+        // Escala institucional unificada de 100% desde o primeiro frame.
+        var initialAppZoom = "1";
 
         document.documentElement.style.zoom = initialAppZoom;
-        document.documentElement.setAttribute(
-          "data-page-zoom",
-          initialAppZoom === "1" ? "100" : "85"
-        );
+        document.documentElement.setAttribute("data-page-zoom", "100");
         document.documentElement.setAttribute("data-sigapro-initial-render", "true");
       })();
     </script>

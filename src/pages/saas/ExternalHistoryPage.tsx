@@ -16,6 +16,39 @@ import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 
+
+function parseSIGAPROHistoryDate(raw: unknown): Date | null {
+  const text = String(raw ?? "").trim();
+  if (!text) return null;
+  const br = /^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:,?\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/.exec(text);
+  if (br) {
+    const day = Number(br[1]);
+    const month = Number(br[2]);
+    const year = Number(br[3]);
+    const hour = Number(br[4] || 0);
+    const minute = Number(br[5] || 0);
+    const second = Number(br[6] || 0);
+    const date = new Date(year, month - 1, day, hour, minute, second);
+    return year >= 1900 && hour < 24 && minute < 60 &&
+      second < 60 && date.getFullYear() === year &&
+      date.getMonth() === month - 1 &&
+      date.getDate() === day ? date : null;
+  }
+  const date = new Date(text);
+  return Number.isFinite(date.getTime()) ? date : null;
+}
+
+function labelSIGAPROHistoryEvent(title: string): string {
+  const names: Record<string, string> = {
+    habite_se_completed: "Habite-se concluído",
+    payment_confirmed: "Pagamento confirmado",
+    guia_emitida: "Guia de pagamento emitida",
+    dispatch: "Despacho administrativo",
+    status_change: "Alteração da situação"
+  };
+  return names[title] || title.replace(/_/g, " ");
+}
+
 const periodOptions = [
   { value: "todos", label: "Todo o período" },
   { value: "15", label: "Últimos 15 dias" },
@@ -40,13 +73,24 @@ export function ExternalHistoryPage() {
 
   const timelineEntries = useMemo(() => {
     const entries = processes.flatMap((process) =>
-      (process.timeline ?? []).map((entry) => ({
+      [...(process.timeline ?? []), ...(process.auditTrail ?? []).filter((entry) => entry.visibleToExternal === true)].map((entry) => ({
         ...entry,
         process,
-        date: new Date(entry.at),
+        date: parseSIGAPROHistoryDate(entry.at),
       })),
     );
-    return entries.sort((a, b) => b.date.getTime() - a.date.getTime());
+    const seenEvents = new Set<string>();
+    const uniqueEntries = entries.filter((entry) => {
+      const detail = String(entry.detail ?? '').trim().toLocaleLowerCase('pt-BR').replace(/\s+/g, ' ');
+      const actor = String(entry.actor ?? '').trim().toLocaleLowerCase('pt-BR');
+      const timestamp = entry.date?.getTime();
+      if (!detail || timestamp == null) return true;
+      const identity = JSON.stringify([entry.process.id, timestamp, detail, actor]);
+      if (seenEvents.has(identity)) return false;
+      seenEvents.add(identity);
+      return true;
+    });
+    return uniqueEntries.sort((a, b) => (b.date?.getTime() ?? 0) - (a.date?.getTime() ?? 0));
   }, [processes]);
 
   const filteredEntries = useMemo(() => {
@@ -61,13 +105,13 @@ export function ExternalHistoryPage() {
         entry.process.protocol.toLowerCase().includes(term) ||
         entry.process.title.toLowerCase().includes(term) ||
         entry.title.toLowerCase().includes(term);
-      const matchesPeriod = !threshold || entry.date >= threshold;
+      const matchesPeriod = !threshold || (entry.date !== null && entry.date >= threshold);
       return matchesSearch && matchesPeriod;
     });
   }, [timelineEntries, search, periodFilter]);
 
   const activityCount = timelineEntries.length;
-  const lastWeek = timelineEntries.filter((entry) => entry.date.getTime() > Date.now() - 7 * 24 * 60 * 60 * 1000).length;
+  const lastWeek = timelineEntries.filter((entry) => (entry.date?.getTime() ?? 0) > Date.now() - 7 * 24 * 60 * 60 * 1000).length;
   const activeProcesses = processes.length;
   const activeTabLabel = activeTab.label;
 
@@ -135,17 +179,17 @@ export function ExternalHistoryPage() {
               contentClassName="space-y-4"
             >
               {filteredEntries.map((entry) => (
-                <div key={entry.id} className="sig-dark-panel rounded-[12px] border border-[#E5E7EB] p-4 shadow-sm">
+                <div key={`${entry.process.id}-${entry.id}`} className="sig-dark-panel rounded-[12px] border border-[#E5E7EB] p-4 shadow-sm">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="text-sm font-semibold text-slate-900">{entry.title}</p>
+                      <p className="text-sm font-semibold text-slate-900">{labelSIGAPROHistoryEvent(entry.title)}</p>
                       <p className="mt-1 text-sm text-slate-600">{entry.detail}</p>
                       <p className="mt-2 text-xs uppercase tracking-[0.16em] text-slate-500">
                         {formatOfficialProcessNumber(entry.process.protocol)} · {entry.actor}
                       </p>
                     </div>
                     <p className="text-xs font-semibold text-slate-500">
-                      {entry.date.toLocaleDateString("pt-BR")}
+                      {entry.date ? entry.date.toLocaleString("pt-BR") : "Data não informada"}
                     </p>
                   </div>
                 </div>

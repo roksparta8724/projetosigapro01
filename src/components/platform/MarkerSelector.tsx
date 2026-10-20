@@ -17,6 +17,7 @@ type MarkerSelectorProps = {
   subjectLabel?: string;
   className?: string;
   triggerClassName?: string;
+  showAppliedMarkers?: boolean;
   onApplyMarker?: (markerLabel: string, markerColor: string) => Promise<void> | void;
   onRemoveMarker?: (markerTag: string) => Promise<void> | void;
 };
@@ -28,6 +29,7 @@ export function MarkerSelector({
   subjectLabel = "processo",
   className,
   triggerClassName,
+  showAppliedMarkers = true,
   onApplyMarker,
   onRemoveMarker,
 }: MarkerSelectorProps) {
@@ -97,7 +99,7 @@ export function MarkerSelector({
 
   return (
     <div className={cn("flex min-w-0 flex-wrap items-center gap-1.5", className)}>
-      {markers.slice(0, 2).map((marker) => (
+      {showAppliedMarkers && markers.slice(0, 2).map((marker) => (
         <span
           key={marker.tag}
           className="inline-flex max-w-[180px] items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-bold leading-none shadow-sm"
@@ -116,7 +118,7 @@ export function MarkerSelector({
         </span>
       ))}
 
-      {markers.length > 2 ? (
+      {showAppliedMarkers && markers.length > 2 ? (
         <span className="inline-flex h-7 min-w-7 items-center justify-center rounded-full border border-slate-200 bg-slate-100 px-2 text-[10px] font-bold text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
           +{markers.length - 2}
         </span>

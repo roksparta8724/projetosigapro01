@@ -88,27 +88,10 @@ const AppRoutes = () => {
   const pathname = location.pathname;
 
   useLayoutEffect(() => {
-    const isLandingRoute =
-      pathname === "/" ||
-      pathname === "/inicio" ||
-      pathname === "/apresentacao";
-    const isPublicVerificationRoute =
-      pathname.startsWith("/v/") ||
-      pathname === "/verificar-assinatura";
-    const isFullDocumentRoute =
-      /\/processos\/[^/]+\/documentos\/[^/]+\/(visualizar|analisar)$/.test(pathname);
-
-    const zoom = isLandingRoute || isFullDocumentRoute || isPublicVerificationRoute ? "1" : "0.85";
-    document.documentElement.style.zoom = zoom;
+    document.documentElement.style.zoom = "1";
     document.body.style.zoom = "1";
-    document.documentElement.dataset.pageZoom =
-      isLandingRoute || isPublicVerificationRoute ? "100" : "85";
-
-    return () => {
-      document.documentElement.style.zoom = "";
-      delete document.documentElement.dataset.pageZoom;
-    };
-  }, [pathname]);
+    document.documentElement.dataset.pageZoom = "100";
+  }, []);
   const isPublicEntryPath =
     pathname === "/" ||
     pathname === "/inicio" ||
