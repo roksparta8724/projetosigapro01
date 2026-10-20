@@ -234,7 +234,6 @@ export function PerfilPage() {
   const avatarObjectUrlRef = useRef<string | null>(null);
   const avatarFrameDirtyRef = useRef(false);
   const avatarFrameEditVersionRef = useRef(0);
-  const avatarHeaderChoiceTouchedRef = useRef(false);
   const lastCepLookupRef = useRef("");
   const [masterBranding, setMasterBranding] = useState(() => loadMasterBranding());
   const [platformBranding, setPlatformBranding] = useState<Awaited<ReturnType<typeof loadPlatformBranding>> | null>(null);
@@ -484,7 +483,7 @@ export function PerfilPage() {
             avatarScale: profile.avatarScale ?? 1,
             avatarOffsetX: profile.avatarOffsetX ?? 0,
             avatarOffsetY: profile.avatarOffsetY ?? 0,
-            useAvatarInHeader: profile.useAvatarInHeader ?? false,
+            useAvatarInHeader: Boolean(profile.avatarUrl || profile.avatarStorageRef),
           }),
       bio: profile.bio,
     }));
@@ -632,15 +631,6 @@ export function PerfilPage() {
       avatarOffsetX: offsetX * referenceRatio,
       avatarOffsetY: offsetY * referenceRatio,
     }));
-  };
-
-  const updateAvatarHeaderVisibility = (checked: boolean) => {
-    avatarHeaderChoiceTouchedRef.current = true;
-    avatarFrameEditVersionRef.current += 1;
-    avatarFrameDirtyRef.current = true;
-    setAvatarDraftDirty(true);
-    setStatus("Preferência do cabeçalho alterada. Clique em “Salvar ajustes da foto” para confirmar.");
-    setForm((current) => ({ ...current, useAvatarInHeader: checked }));
   };
 
   // Ajustes da foto e do cabeçalho são confirmados juntos por handleSubmit.
@@ -1026,11 +1016,9 @@ export function PerfilPage() {
       const resolvedFullName = form.fullName.trim() || profile?.fullName || session.name || "Usuário autenticado";
       const resolvedEmail = normalizeProfileEmail(form.email || profile?.email || authenticatedEmail || session.email);
 
-      const showPhotoInHeader = Boolean(avatarUrl) && (
-        section === "foto-identidade" && !avatarHeaderChoiceTouchedRef.current
-          ? true
-          : form.useAvatarInHeader
-      );
+      // Foto cadastrada aparece automaticamente em todos os avatares.
+      // O valor legado false não pode esconder imagens salvas de contas antigas.
+      const showPhotoInHeader = Boolean(avatarUrl || avatarStorageRef);
       const nextProfile: UserProfile = {
         userId,
         fullName: resolvedFullName,
@@ -1085,7 +1073,6 @@ export function PerfilPage() {
       if (avatarReadConfirmed) {
         setAvatarDraftDirty(false);
         if (avatarFrameEditVersionRef.current === editVersion) avatarFrameDirtyRef.current = false;
-        avatarHeaderChoiceTouchedRef.current = false;
       }
       if (savedAvatarUrl && avatarReadConfirmed) {
         setAvatarFiles([
@@ -1108,7 +1095,7 @@ export function PerfilPage() {
         avatarScale: savedProfile.avatarScale ?? avatarScale,
         avatarOffsetX: savedProfile.avatarOffsetX ?? avatarOffsetX,
         avatarOffsetY: savedProfile.avatarOffsetY ?? avatarOffsetY,
-        useAvatarInHeader: avatarReadConfirmed ? savedProfile.useAvatarInHeader : current.useAvatarInHeader,
+        useAvatarInHeader: avatarReadConfirmed ? Boolean(savedAvatarUrl) : current.useAvatarInHeader,
       }));
       setStatus(
         avatarReadConfirmed
@@ -1415,8 +1402,8 @@ export function PerfilPage() {
                   <div className="space-y-4">
                     <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
                       <p className="sig-label">Foto no cabeçalho</p>
-                      <p className="mt-2 text-base font-semibold text-slate-950">{form.useAvatarInHeader ? "Ativada" : "Desativada"}</p>
-                      <p className="mt-1 text-sm text-slate-500">Exibição opcional ao lado da identificação do usuário.</p>
+                      <p className="mt-2 text-base font-semibold text-slate-950">{form.avatarUrl ? "Foto exibida automaticamente" : "Aguardando foto cadastrada"}</p>
+                      <p className="mt-1 text-sm text-slate-500">A foto salva é exibida no cabeçalho e nos cartões institucionais.</p>
                     </div>
 
                     <div className="space-y-3">
@@ -1617,11 +1604,11 @@ export function PerfilPage() {
                         <div className="flex items-center justify-between gap-3">
                           <div className="min-w-0">
                             <p id="profile-preview-topbar-title" className="text-xs font-semibold uppercase tracking-[0.18em]">Topbar</p>
-                            <p id="profile-preview-topbar-copy" className="mt-1 text-sm">{form.useAvatarInHeader ? "Foto ativada no cabeçalho." : "Foto desativada: o topo mostra as iniciais."}</p>
+                            <p id="profile-preview-topbar-copy" className="mt-1 text-sm">{avatarPreviewUrl ? "Foto exibida automaticamente no cabeçalho após salvar." : "Sem foto cadastrada: o topo mostra as iniciais."}</p>
                           </div>
                           <UserAvatar
                             name={form.fullName || session.name}
-                            imageUrl={form.useAvatarInHeader ? avatarPreviewUrl : ""}
+                            imageUrl={avatarPreviewUrl}
                             size="md"
                             className="border-white/20 bg-white/10"
                             crop={avatarPreviewCrop}
@@ -1637,12 +1624,12 @@ export function PerfilPage() {
                       </div>
                     </div>
                   </div>
-                  <div className="mt-4 flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                    <div className="pr-4">
-                      <p className="text-sm font-semibold text-slate-950">Exibir foto no cabeçalho</p>
-                      <p className="mt-1 text-sm text-slate-500">Quando desativada, o topo mostra apenas as iniciais. A foto aparece no cabeçalho quando esta opção está ativada e salva.</p>
-                    </div>
-                    <Switch checked={form.useAvatarInHeader} onCheckedChange={updateAvatarHeaderVisibility} />
+                  <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                    <p className="text-sm font-semibold text-slate-950">Foto institucional no cabeçalho</p>
+                    <p className="mt-1 text-sm text-slate-500">
+                      Exibição automática após o salvamento. A imagem também aparece nos cartões que identificam a conta;
+                      as iniciais são usadas somente quando não há foto disponível.
+                    </p>
                   </div>
                 </div>
               ) : null}
