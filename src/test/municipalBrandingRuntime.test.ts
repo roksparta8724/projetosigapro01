@@ -45,12 +45,17 @@ describe("municipal branding runtime resilience", () => {
       branding.indexOf("if (primaryFooterLogo)", branding.indexOf("const primaryFooterLogo =")),
     );
 
-    expect(headerBlock.indexOf("resolvedTenantHeaderLogoState.tenantId === resolvedInstitutionId")).toBeLessThan(
-      headerBlock.indexOf("resolvePersistentBrandingReference(base.logoUrl)"),
-    );
-    expect(footerBlock.indexOf("resolvedTenantFooterLogoState.tenantId === resolvedInstitutionId")).toBeLessThan(
-      footerBlock.indexOf("resolvePersistentBrandingReference(base.logoUrl)"),
-    );
+    const headerTenantLogo = headerBlock.indexOf("resolvedTenantHeaderLogoState.tenantId === resolvedInstitutionId");
+    const headerLegacyLogo = headerBlock.indexOf("resolvePersistentBrandingReference(base.logoUrl)");
+    const footerTenantLogo = footerBlock.indexOf("resolvedTenantFooterLogoState.tenantId === resolvedInstitutionId");
+    const footerLegacyLogo = footerBlock.indexOf("resolvePersistentBrandingReference(base.logoUrl)");
+
+    expect(headerTenantLogo).toBeGreaterThanOrEqual(0);
+    expect(headerLegacyLogo).toBeGreaterThanOrEqual(0);
+    expect(footerTenantLogo).toBeGreaterThanOrEqual(0);
+    expect(footerLegacyLogo).toBeGreaterThanOrEqual(0);
+    expect(headerTenantLogo).toBeLessThan(headerLegacyLogo);
+    expect(footerTenantLogo).toBeLessThan(footerLegacyLogo);
   });
 
   it("uses the same resolved logo in the configuration preview without replacing a newly selected file", () => {
