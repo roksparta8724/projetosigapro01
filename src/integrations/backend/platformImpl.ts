@@ -4133,9 +4133,21 @@ export async function saveRemoteInstitutionSettings(
     let lastError: { message?: string } | null = null;
 
     for (let attempt = 0; attempt < 8; attempt += 1) {
-      const result = await db
+      // PATCH em registros já existentes: atualiza somente as colunas
+      // presentes no payload e não limpa logos de outras variantes.
+      const { municipality_id: _municipalityId, ...changes } = currentPayload;
+      const existing = await db
         .from("municipality_branding")
-        .upsert(currentPayload, { onConflict: "municipality_id" });
+        .update(changes)
+        .eq("municipality_id", remoteTenantId)
+        .select("municipality_id")
+        .maybeSingle();
+      // Cadastro novo: só então efetuar INSERT/UPSERT com identidade correta.
+      const result = existing.error || existing.data
+        ? existing
+        : await db
+            .from("municipality_branding")
+            .upsert(currentPayload, { onConflict: "municipality_id" });
       lastError = result.error;
 
       if (!lastError) {
