@@ -302,6 +302,7 @@ type UrbanAnalysisChecklistPanelProps = {
   departmentLabel?: string | null;
   organogramTrail?: Array<{ code: string; name: string }>;
   readOnly?: boolean;
+  onOpenSignedPdf?: (documentId: string) => void;
 };
 
 const STATUS_META: Record<Exclude<ChecklistStatus, "">, { label: string; short: string; classes: string }> = {
@@ -508,6 +509,7 @@ export function UrbanAnalysisChecklistPanel({
   departmentLabel,
   organogramTrail = [],
   readOnly = false,
+  onOpenSignedPdf,
 }: UrbanAnalysisChecklistPanelProps) {
   const { appendProcessDocuments } = usePlatformData();
   const key = storageKey(municipalityId, process.id);
@@ -2897,6 +2899,10 @@ export function UrbanAnalysisChecklistPanel({
                   const directorSigner = version.signers.find(
                     (signer) => signer.slot === "diretoria",
                   );
+                  const archivedDocument = process.documents.find((doc) =>
+                    isSignedAnalysisVersionArchived([doc], version.artifact_version, version.verification_code));
+                  const versionWithdrawals = withdrawalHistory.filter((item) =>
+                    item.artifact_hash === version.artifact_hash);
                   return (
                     <div key={version.id} className="grid gap-3 px-4 py-4 lg:grid-cols-[110px_minmax(0,1fr)_auto] lg:items-start">
                       <div>
@@ -2918,6 +2924,23 @@ export function UrbanAnalysisChecklistPanel({
                         <p className="mt-1 font-mono text-[10px] text-slate-400 dark:text-slate-500">
                           Código {version.verification_code || "—"} • SHA-256 {compactEvidenceHash(version.artifact_hash)}
                         </p>
+                        {archivedDocument && onOpenSignedPdf ? (
+                          <Button type="button" data-analysis-version-open-pdf="true" variant="outline"
+                            className="mt-3 rounded-xl text-xs font-semibold"
+                            onClick={() => onOpenSignedPdf(archivedDocument.id)}>
+                            <FileText className="mr-2 h-4 w-4" /> Ver PDF assinado desta versão
+                          </Button>
+                        ) : (
+                          <p className="mt-2 text-xs font-semibold text-amber-700 dark:text-amber-300">
+                            {directorSigner ? "Assinatura registrada. Arquivo PDF ainda pendente de arquivamento." : "Aguardando assinatura da Diretoria para arquivar o documento."}
+                          </p>
+                        )}
+                        {versionWithdrawals.map((item) => (
+                          <p data-analysis-version-withdrawal="true" key={item.id}
+                            className="mt-1 text-xs font-medium text-slate-600 dark:text-slate-300">
+                            Retirado por: {item.withdrawn_by_name} • {formatMunicipalDateTime(item.withdrawn_at_exact)}
+                          </p>
+                        ))}
                       </div>
                       <div className="text-left lg:text-right">
                         <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">

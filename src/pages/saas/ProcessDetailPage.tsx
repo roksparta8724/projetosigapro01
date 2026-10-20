@@ -3730,6 +3730,7 @@ export function ProcessDetailPage() {
               <UrbanAnalysisChecklistPanel
                 process={process}
                 session={session}
+                onOpenSignedPdf={openViewer}
                 readOnly={!canEditAnalysisChecklist}
                 municipalityId={effectiveScopeId || process.tenantId}
                 municipalityName={municipalityName || tenant?.name || "Prefeitura Municipal"}
