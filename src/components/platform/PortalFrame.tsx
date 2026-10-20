@@ -299,7 +299,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
   const navigate = useNavigate();
   const location = useLocation();
   const isConfigPage = location.pathname.startsWith("/configuracoes");
-  const { signOut, authenticatedProfileId } = useAuthGateway();
+  const { signOut, authenticatedProfileId, authenticatedEmail } = useAuthGateway();
   const { session, sessions, setActiveSession } = usePlatformSession();
   const { unreadCount: notificationCount } = useNotifications({
     includeItems: false,
@@ -375,7 +375,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
     activeInstitution && "theme" in activeInstitution
       ? activeInstitution.theme
       : null;
-  const userProfile = getUserProfile(authenticatedProfileId || session.id, session.email);
+  const userProfile = getUserProfile(authenticatedProfileId || session.id, authenticatedEmail || session.email);
   const canonicalSignedInUser =
     sessionUsers.find((item) => item.id === session.id) ??
     sessionUsers.find(
