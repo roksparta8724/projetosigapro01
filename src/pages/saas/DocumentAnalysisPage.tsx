@@ -35,6 +35,7 @@ import { getSignedUrlForObjectStrict } from "@/integrations/r2/client";
 import {
   canAnalyzeProcessDocument,
   canReadProcessDocument,
+  buildProcessPath,
   formatOfficialProcessNumber,
   resolveProcessRoute,
 } from "@/lib/platform";
@@ -604,6 +605,17 @@ export function DocumentAnalysisPage() {
           <p className="mt-2 text-sm leading-6 text-slate-500">
             A edição permanece restrita ao responsável atual. A consulta ao documento continua disponível para os perfis autorizados.
           </p>
+          {canReadProcessDocument(session, process, effectiveScopeId) ? (
+            <Button
+              type="button"
+              variant="outline"
+              className="mt-6 rounded-2xl border-sky-200 bg-sky-50 text-sky-800 hover:bg-sky-100"
+              onClick={() => navigate(`${buildProcessPath(process)}/documentos/${document.id}/visualizar`, { replace: true })}
+            >
+              <FileText className="mr-2 h-4 w-4" />
+              Visualizar documento em modo de consulta
+            </Button>
+          ) : null>
         </div>
       </main>
     );
