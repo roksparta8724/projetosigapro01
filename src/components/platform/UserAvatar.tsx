@@ -214,38 +214,38 @@ export function UserAvatar({
       {showImage ? (
         <span className="absolute inset-0 block overflow-hidden rounded-full" data-avatar-crop-surface={cropGeometry ? "matched" : "loading"}>
           <img
-          src={resolvedImageUrl || undefined}
-          alt={name || "Usuario"}
-          decoding="async"
-          className={cn(
-            "sig-user-avatar-image absolute block max-w-none bg-white",
-            cropGeometry ? "" : "inset-0 h-full w-full object-cover object-center",
-            imageClassName,
-          )}
-          style={resolvedImageStyle}
-          onLoad={(event) => {
-            const nextWidth = event.currentTarget.naturalWidth || 1;
-            const nextHeight = event.currentTarget.naturalHeight || 1;
-            if (nextWidth !== naturalSize.width || nextHeight !== naturalSize.height) {
-              setNaturalSize({ width: nextWidth, height: nextHeight });
-            }
-          }}
-          onError={() => {
-            const alternate = alternateLegacyAvatarUrl(resolvedImageUrl);
-            if (
-              alternate &&
-              alternate !== resolvedImageUrl &&
-              !attemptedRecoveryRef.current.has(alternate)
-            ) {
-              attemptedRecoveryRef.current.add(resolvedImageUrl);
-              attemptedRecoveryRef.current.add(alternate);
-              setFailedImageUrl("");
-              setRecoveryImageUrl(alternate);
-              return;
-            }
+            src={resolvedImageUrl || undefined}
+            alt={name || "Usuario"}
+            decoding="async"
+            className={cn(
+              "sig-user-avatar-image absolute block max-w-none bg-white",
+              cropGeometry ? "" : "inset-0 h-full w-full object-cover object-center",
+              imageClassName,
+            )}
+            style={resolvedImageStyle}
+            onLoad={(event) => {
+              const nextWidth = event.currentTarget.naturalWidth || 1;
+              const nextHeight = event.currentTarget.naturalHeight || 1;
+              if (nextWidth !== naturalSize.width || nextHeight !== naturalSize.height) {
+                setNaturalSize({ width: nextWidth, height: nextHeight });
+              }
+            }}
+            onError={() => {
+              const alternate = alternateLegacyAvatarUrl(resolvedImageUrl);
+              if (
+                alternate &&
+                alternate !== resolvedImageUrl &&
+                !attemptedRecoveryRef.current.has(alternate)
+              ) {
+                attemptedRecoveryRef.current.add(resolvedImageUrl);
+                attemptedRecoveryRef.current.add(alternate);
+                setFailedImageUrl("");
+                setRecoveryImageUrl(alternate);
+                return;
+              }
 
-            setFailedImageUrl(resolvedImageUrl);
-          }}
+              setFailedImageUrl(resolvedImageUrl);
+            }}
           />
         </span>
       ) : null}
