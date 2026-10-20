@@ -2,7 +2,7 @@ import { databaseClient as db, neonAuthUrl } from "@/integrations/backend/databa
 import { isNeonBackend } from "@/integrations/backend/config";
 import { getLegacyProfileAvatarOpenUrl, getObjectKeyFromPublicUrl, uploadFile } from "@/integrations/r2/client";
 import { buildMunicipalityPortalUrl } from "@/lib/publicDomain";
-import { normalizeMunicipalPositionLabels, normalizeMunicipalPositionAliases, getMunicipalPositionDisplayTitle, readLocalMunicipalPositionLabels } from "@/lib/municipalPositionCatalog";
+import { normalizeMunicipalPositionLabels, normalizeMunicipalPositionAliases, getMunicipalPositionDisplayTitle, readLocalMunicipalPositionLabels, readLocalMunicipalPositionAliases } from "@/lib/municipalPositionCatalog";
 import {
   buildProcessDocuments,
   isOccupancyPermitProcessType,
@@ -1286,7 +1286,7 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
             ? profile?.professional_type || role?.label || ""
             : role?.label || membership.queue_name || ""),
         { ...positionSettingsByMunicipality.get(membership.tenant_id)?.positionTitles, ...readLocalMunicipalPositionLabels(membership.tenant_id) },
-        positionSettingsByMunicipality.get(membership.tenant_id)?.positionTitleAliases,
+        { ...positionSettingsByMunicipality.get(membership.tenant_id)?.positionTitleAliases, ...readLocalMunicipalPositionAliases(membership.tenant_id) },
       ),
       profileLabel:
         membership.profile_label ||
