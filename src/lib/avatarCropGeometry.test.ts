@@ -36,8 +36,8 @@ describe("enquadramento circular consistente do SIGAPRO", () => {
           offsetY: -99999,
         });
         expect(actual).not.toBeNull();
-        expect(actual!.width).toBeGreaterThanOrEqual(diameter);
-        expect(actual!.height).toBeGreaterThanOrEqual(diameter);
+        expect(actual!.width).toBeGreaterThanOrEqual(diameter * zoom);
+        expect(actual!.height).toBeGreaterThanOrEqual(diameter * zoom);
         expect(Math.abs(actual!.offsetX) + diameter / 2).toBeLessThanOrEqual(actual!.width / 2 + 0.0001);
         expect(Math.abs(actual!.offsetY) + diameter / 2).toBeLessThanOrEqual(actual!.height / 2 + 0.0001);
       }
