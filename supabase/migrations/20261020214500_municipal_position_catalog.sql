@@ -56,7 +56,7 @@ begin
     end if;
     _previous := coalesce(nullif(_old_titles->>_key,''), _defaults->>_key);
     if _previous is distinct from _value and
-      not coalesce(_aliases-> _key, '[]'::jsonb) ? _previous then
+      not (coalesce(_aliases-> _key, '[]'::jsonb) ? _previous) then
       -- Lista histórica de títulos permite atualizar exibições futuras sem
       -- alterar perfis assinados nem conceder privilégios ao alterar nomes.
       _aliases := jsonb_set(
