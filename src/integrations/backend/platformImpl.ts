@@ -3946,17 +3946,23 @@ export async function saveRemoteInstitutionSettings(
     municipality_id: remoteTenantId,
     logo_url: settings.logoUrl || null,
     coat_of_arms_url: settings.brasaoUrl || null,
-    // logo por variante
-    header_logo_url: settings.headerLogoUrl || null,
-    header_logo_object_key: settings.headerLogoObjectKey || null,
-    header_logo_file_name: settings.headerLogoFileName || null,
-    header_logo_mime_type: settings.headerLogoMimeType || null,
-    footer_logo_url: settings.footerLogoUrl || null,
-    footer_logo_object_key: settings.footerLogoObjectKey || null,
-    footer_logo_file_name: settings.footerLogoFileName || null,
-    footer_logo_mime_type: settings.footerLogoMimeType || null,
     updated_at: new Date().toISOString(),
   };
+  // Não sobrescrever com NULL um logo de variante que não participou desta
+  // atualização. undefined = campo não enviado; "" = remoção explícita.
+  const optionalBrandingFields = {
+    header_logo_url: settings.headerLogoUrl,
+    header_logo_object_key: settings.headerLogoObjectKey,
+    header_logo_file_name: settings.headerLogoFileName,
+    header_logo_mime_type: settings.headerLogoMimeType,
+    footer_logo_url: settings.footerLogoUrl,
+    footer_logo_object_key: settings.footerLogoObjectKey,
+    footer_logo_file_name: settings.footerLogoFileName,
+    footer_logo_mime_type: settings.footerLogoMimeType,
+  };
+  for (const [column, value] of Object.entries(optionalBrandingFields)) {
+    if (value !== undefined) municipalityBrandingPayload[column] = value || null;
+  }
 
   // ------------------------------------------------------------------
   // 2. municipality_settings — geral_settings inclui escalas por variante
