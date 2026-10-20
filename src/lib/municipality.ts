@@ -4,6 +4,7 @@ import {
   type Tenant,
   type TenantSettings,
 } from "@/lib/platform";
+import { normalizeMunicipalPositionLabels, normalizeMunicipalPositionAliases } from "@/lib/municipalPositionCatalog";
 
 export interface Municipality {
   id: string;
@@ -250,6 +251,8 @@ export function buildTenantSettingsFromMunicipality(
       (typeof general.directorship_email === "string" &&
         general.directorship_email) ||
       base.diretoriaEmail,
+    positionTitles: normalizeMunicipalPositionLabels(general.position_titles),
+    positionTitleAliases: normalizeMunicipalPositionAliases(general.position_title_aliases),
     departmentOwnership:
       general.department_ownership && typeof general.department_ownership === "object"
         ? (general.department_ownership as TenantSettings["departmentOwnership"])

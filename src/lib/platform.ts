@@ -1,5 +1,6 @@
 ﻿import { buildMunicipalityPortalUrl } from "@/lib/publicDomain";
 import { getDefaultMarkerPaletteEntry, getMarkerPaletteEntry } from "@/lib/markerPalette";
+import type { MunicipalPositionLabels, MunicipalPositionAliases } from "@/lib/municipalPositionCatalog";
 
 export type UserRole =
   | "master_admin"
@@ -497,6 +498,8 @@ export interface TenantSettings {
   diretoriaTelefone: string;
   diretoriaEmail: string;
   departmentOwnership?: Partial<Record<DepartmentOwnershipKey, DepartmentOwnershipEntry>>;
+  positionTitles?: MunicipalPositionLabels;
+  positionTitleAliases?: MunicipalPositionAliases;
   footerContactSource?: "secretaria" | "diretoria";
   horarioAtendimento: string;
   brasaoUrl: string;
