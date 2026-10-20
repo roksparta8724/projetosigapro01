@@ -102,9 +102,10 @@ export function UserAvatar({
       emptyClearTimerRef.current = null;
     }
 
-    if (imageUrl === "") {
-      // Profile refreshes can briefly expose an empty avatar before the signed
-      // URL is resolved. Delay clearing so a valid image never flashes away.
+    if (!imageUrl) {
+      // No avatar: return to initials. Brief hydration gaps are tolerated.
+      // This also covers null/undefined after deleting a previously saved
+      // photo, not only the empty string.
       emptyClearTimerRef.current = window.setTimeout(() => {
         setStableImageUrl("");
         setFailedImageUrl("");
