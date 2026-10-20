@@ -62,6 +62,11 @@ describe("profile and branding persistence regressions", () => {
     expect(userAvatar).toContain("sig-user-avatar-root relative aspect-square shrink-0 overflow-hidden rounded-full");
     expect(userAvatar).toContain("sig-user-avatar-image absolute block max-w-none bg-white");
     expect(userAvatar).toContain("resolveCircularAvatarGeometry");
+    expect(profilePage).toContain("const referenceRatio = DEFAULT_AVATAR_EDITOR_DIAMETER / Math.max(avatarMaskDiameter, 1)");
+    expect(profilePage).toContain("avatarOffsetX: offsetX * referenceRatio");
+    expect(profilePage).toContain("avatarOffsetY: offsetY * referenceRatio");
+    expect(profilePage).toContain("onMetricsChange={({ frameWidth }) =>");
+    expect(portalFrame).toContain("editorSize: DEFAULT_AVATAR_EDITOR_DIAMETER");
     expect(userAvatar).toContain('data-avatar-crop-surface={cropGeometry ? "matched" : "loading"}');
     expect(imageFrameEditor).toContain("AVATAR_CROP_MASK_FACTOR");
     expect(imageFrameEditor).toContain("sig-image-frame-stage");
