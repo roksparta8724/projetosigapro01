@@ -4001,19 +4001,6 @@ export async function saveRemoteInstitutionSettings(
   // ------------------------------------------------------------------
   // 2. municipality_settings — geral_settings inclui escalas por variante
   // ------------------------------------------------------------------
-  const existingSettingsResult = await db
-    .from("municipality_settings")
-    .select("general_settings")
-    .eq("municipality_id", remoteTenantId)
-    .maybeSingle();
-  if (existingSettingsResult.error) {
-    throw new Error("Não foi possível conferir as configurações atuais da Prefeitura.");
-  }
-  const existingGeneralSettings = existingSettingsResult.data?.general_settings &&
-    typeof existingSettingsResult.data.general_settings === "object" &&
-    !Array.isArray(existingSettingsResult.data.general_settings)
-      ? existingSettingsResult.data.general_settings as Record<string, unknown>
-      : {};
   const municipalitySettingsPayload = {
     municipality_id: remoteTenantId,
     protocol_prefix: settings.protocoloPrefixo || null,
@@ -4025,9 +4012,6 @@ export async function saveRemoteInstitutionSettings(
     allow_digital_protocol: true,
     allow_walkin_protocol: false,
     general_settings: {
-      ...existingGeneralSettings,
-      position_titles: settings.positionTitles ?? existingGeneralSettings.position_titles ?? {},
-      position_title_aliases: settings.positionTitleAliases ?? existingGeneralSettings.position_title_aliases ?? {},
       admin_contacts: settings.adminContacts ?? [],
       cnpj: settings.cnpj || null,
       postal_code: settings.cep || null,
