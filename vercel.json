@@ -104,7 +104,8 @@
     "deploymentEnabled": {
       "workbench-sigapro-polish-no-deploy-20261009": false,
       "fix/analise-premium-cadastro-20261013": false,
-      "workbench/logo-preview-premium-no-deploy-20261016": false
+      "workbench/logo-preview-premium-no-deploy-20261016": false,
+      "fix/vercel-serverless-esm-complete-no-deploy-20261020": false
     }
   }
 }

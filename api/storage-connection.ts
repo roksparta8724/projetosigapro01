@@ -1,4 +1,4 @@
-import type { MunicipalStorageConnection } from "../server/municipal-storage";
+import type { MunicipalStorageConnection } from "../server/municipal-storage.js";
 import {
   callDataApiRpc,
   credentialFingerprint,
