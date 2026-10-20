@@ -25,10 +25,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import {
   formatOfficialProcessNumber,
+  isInternalRole,
   type ProcessRecord,
   type SessionUser,
 } from "@/lib/platform";
 import { cn } from "@/lib/utils";
+import { usePlatformData } from "@/hooks/usePlatformData";
+import { uploadFileToStorage } from "@/integrations/r2/storage";
+import { isSignedAnalysisVersionArchived, signedAnalysisArchiveLabel } from "@/lib/signedAnalysisArchive";
 import { SignatureVerificationQr } from "@/components/platform/SignatureVerificationQr";
 import { createQrCodeDataUrl } from "@/lib/qrCode";
 import { buildPublicSignatureVerificationUrl } from "@/lib/signatureVerification";
@@ -475,6 +479,7 @@ export function UrbanAnalysisChecklistPanel({
   organogramTrail = [],
   readOnly = false,
 }: UrbanAnalysisChecklistPanelProps) {
+  const { appendProcessDocuments } = usePlatformData();
   const key = storageKey(municipalityId, process.id);
   const [state, setState] = useState<AnalysisChecklistState>(() =>
     readInitialChecklistState(key, process, session),
@@ -1971,7 +1976,75 @@ export function UrbanAnalysisChecklistPanel({
       }
 
       window.setTimeout(() => URL.revokeObjectURL(pdfUrl), 5 * 60_000);
-      setNotice("Registrado");
+
+      // A abertura no navegador não é armazenamento. Somente a versão efetivamente
+      // assinada no banco poderá ser arquivada no R2 e vinculada ao processo.
+      if (isFullySigned && isInternalRole(session.role)) {
+        try {
+          const verified = await getProcessArtifactSignatures(process.id, ANALYSIS_ARTIFACT_KEY);
+          const block = verified.block;
+          const technical = verified.signers.find((signer) => signer.slot === "analise_tecnica");
+          const director = verified.signers.find((signer) => signer.slot === "diretoria");
+          const payloadMatches = stableSignatureStringify(
+            buildChecklistSignaturePayload(state, process, municipalityId),
+          ) === stableSignatureStringify(block?.payload ?? {});
+          const signatureMatches = Boolean(
+            block?.artifact_hash &&
+            block?.verification_code &&
+            block.artifact_hash === state.technicalSignature?.evidenceHash &&
+            block.artifact_hash === state.directorSignature?.evidenceHash &&
+            technical && director && payloadMatches,
+          );
+          if (!signatureMatches || !block?.verification_code) {
+            setNotice("PDF aberto. O arquivo não foi arquivado porque a versão assinada não pôde ser confirmada no banco oficial.");
+          } else {
+            const version = Math.max(1, Number(block.artifact_version) || 1);
+            const verificationCode = block.verification_code;
+            if (isSignedAnalysisVersionArchived(process.documents, version, verificationCode)) {
+              setNotice("PDF aberto. Esta versão assinada já está na pasta Documentos assinados.");
+            } else {
+              const officialFile = new File(
+                [pdfBlob],
+                `analise-assinada-v${version}-${normalizeFilePart(process.protocol)}.pdf`,
+                { type: "application/pdf" },
+              );
+              const digest = await crypto.subtle.digest("SHA-256", await pdfBlob.arrayBuffer());
+              const pdfHash = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+              const uploaded = await uploadFileToStorage({
+                bucket: "process-documents",
+                tenantId: municipalityId,
+                userId: session.id,
+                file: officialFile,
+                folder: `documentos-assinados-${process.id}`,
+              });
+              await appendProcessDocuments(process.id, [{
+                id: crypto.randomUUID(),
+                label: signedAnalysisArchiveLabel(version, verificationCode),
+                required: false,
+                uploaded: true,
+                signed: true,
+                reviewStatus: "aprovado",
+                version,
+                source: "prefeitura",
+                fileName: officialFile.name,
+                filePath: uploaded.path,
+                fileHash: pdfHash,
+                mimeType: "application/pdf",
+                fileSizeBytes: officialFile.size,
+                sizeLabel: `${Math.max(1, Math.round(officialFile.size / 1024))} KB`,
+              }], session.name);
+              setNotice("PDF assinado conferido, arquivado no armazenamento oficial e vinculado à pasta Documentos assinados.");
+            }
+          }
+        } catch (archiveError) {
+          console.error("[SIGAPRO][Análise] Falha no arquivamento do PDF assinado", archiveError);
+          setNotice(
+            `PDF aberto, mas não arquivado: ${archiveError instanceof Error ? archiveError.message : "falha no armazenamento ou vínculo do processo"}.`,
+          );
+        }
+      } else {
+        setNotice("PDF aberto. O arquivamento permanente é habilitado após as assinaturas oficiais do Analista e da Diretoria.");
+      }
     } catch (error) {
       if (reservedPdfWindow && !reservedPdfWindow.closed) {
         reservedPdfWindow.close();
