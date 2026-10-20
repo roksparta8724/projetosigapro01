@@ -112,7 +112,8 @@ describe("municipal staff account and avatar recovery regressions", () => {
   it("persists permanent R2 avatar keys and confirms their image response before success", () => {
     expect(avatarStorage).toContain('input.bucket === "profile-assets" ? `r2:${uploaded.objectKey}`');
     expect(profilePage).toContain("confirmSavedAvatarReadable(savedAvatarUrl)");
-    expect(profilePage).toContain('response.headers.get("content-type")');
+    expect(profilePage).toContain("image.onload = () => complete(image.naturalWidth > 0");
+    expect(profilePage).toContain("image.onerror = () => complete(false)");
     expect(profilePage).toContain("avatarReadConfirmed");
     expect(profilePage).toContain("não confirmou sua leitura após o upload");
     expect(avatar).toContain("recoveryImageUrl");
