@@ -2410,3 +2410,22 @@ html body #root .sig-main-shell :is(
   -webkit-text-fill-color: #f0f7ff !important;
   opacity: 1 !important;
 }
+
+/* PROCESSOS EXTERNOS > MARCADORES — CONTRASTE V23 (tema claro e escuro)
+   A cor do ícone continua vindo do marcador cadastrado; somente a legenda
+   recebe o contraste branco sobre o chip azul-escuro. Não altera badges,
+   filtros, topbar nem os demais cartões de processo. */
+html body #root .sig-app-frame .sig-main-shell
+[data-process-premium-card="true"] [data-external-process-marker="true"] {
+  background:#102b44 !important;
+  border-color:rgba(56,189,248,.4) !important;
+  color:#f8fafc !important;
+  -webkit-text-fill-color:#f8fafc !important;
+}
+html body #root .sig-app-frame .sig-main-shell
+[data-process-premium-card="true"] [data-external-process-marker="true"]
+[data-external-marker-label="true"] {
+  color:#f8fafc !important;
+  -webkit-text-fill-color:#f8fafc !important;
+  opacity:1 !important;
+}
