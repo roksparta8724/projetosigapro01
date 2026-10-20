@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { jsPDF } from "jspdf";
 import {
   AlertTriangle,
@@ -518,6 +518,8 @@ export function UrbanAnalysisChecklistPanel({
   const [officialRevision, setOfficialRevision] = useState<number | null>(null);
   const [officialSheetLoading, setOfficialSheetLoading] = useState(true);
   const [draftSaveBusy, setDraftSaveBusy] = useState(false);
+  const pdfOperationRef = useRef(false);
+  const autoArchiveAttemptsRef = useRef(new Set<string>());
   const [signatureDialog, setSignatureDialog] = useState<"technical" | "director" | null>(null);
   const [signaturePassword, setSignaturePassword] = useState("");
   const [signatureBusy, setSignatureBusy] = useState(false);
@@ -1237,7 +1239,8 @@ export function UrbanAnalysisChecklistPanel({
     const pdfState = options.stateOverride ?? state;
     const technicalPdfOfficial = Boolean(pdfState.technicalSignature?.official && pdfState.technicalSignature?.verificationCode);
     const directorPdfOfficial = Boolean(pdfState.directorSignature?.official && pdfState.directorSignature?.verificationCode);
-    if (pdfBusy) return;
+    if (pdfOperationRef.current) return;
+    pdfOperationRef.current = true;
 
     const reservedPdfWindow = options.openViewer === false ? null : window.open("about:blank", "_blank");
     if (reservedPdfWindow) {
@@ -2076,9 +2079,9 @@ export function UrbanAnalysisChecklistPanel({
       const pdfBlob = doc.output("blob");
       const pdfFile = new File([pdfBlob], fileName, { type: "application/pdf" });
       if (options.openViewer !== false) {
-      const pdfUrl = URL.createObjectURL(pdfFile);
+        const pdfUrl = URL.createObjectURL(pdfFile);
         const viewerUrl = `${pdfUrl}#page=1&zoom=125&toolbar=1&navpanes=0&scrollbar=1`;
-  
+
         if (reservedPdfWindow && !reservedPdfWindow.closed) {
           reservedPdfWindow.location.replace(viewerUrl);
         } else {
@@ -2095,9 +2098,9 @@ export function UrbanAnalysisChecklistPanel({
             fallback.remove();
           }
         }
-  
+
         window.setTimeout(() => URL.revokeObjectURL(pdfUrl), 5 * 60_000);
-  
+
       }
 
       // A abertura no navegador não é armazenamento. Somente a versão efetivamente
@@ -2109,7 +2112,7 @@ export function UrbanAnalysisChecklistPanel({
           const technical = verified.signers.find((signer) => signer.slot === "analise_tecnica");
           const director = verified.signers.find((signer) => signer.slot === "diretoria");
           const payloadMatches = stableSignatureStringify(
-            buildChecklistSignaturePayload(state, process, municipalityId),
+            buildChecklistSignaturePayload(pdfState, process, municipalityId),
           ) === stableSignatureStringify(block?.payload ?? {});
           const signatureMatches = Boolean(
             block?.artifact_hash &&
@@ -2179,9 +2182,31 @@ export function UrbanAnalysisChecklistPanel({
           : "Não foi possível gerar o PDF.",
       );
     } finally {
+      pdfOperationRef.current = false;
       setPdfBusy(false);
     }
   };
+
+  useEffect(() => {
+    // Recupera PDFs historicamente assinados que ainda constam apenas como
+    // evidência no Neon; sem abrir aba e sem reescrever versões já arquivadas.
+    if (!isFullySigned || !isInternalRole(session.role) ||
+        !state.technicalSignature?.evidenceHash ||
+        !state.directorSignature?.evidenceHash) return;
+    const entry = revisionHistory.find((version) =>
+      version.artifact_hash === state.technicalSignature?.evidenceHash &&
+      version.artifact_hash === state.directorSignature?.evidenceHash &&
+      version.signers.some((signer) => signer.slot === "analise_tecnica") &&
+      version.signers.some((signer) => signer.slot === "diretoria")
+    );
+    if (!entry?.verification_code) return;
+    if (isSignedAnalysisVersionArchived(process.documents, entry.artifact_version, entry.verification_code)) return;
+    const attemptKey = process.id + ":" + entry.artifact_hash + ":" + entry.artifact_version;
+    if (autoArchiveAttemptsRef.current.has(attemptKey)) return;
+    autoArchiveAttemptsRef.current.add(attemptKey);
+    void generatePdf({ openViewer: false, stateOverride: state });
+  }, [isFullySigned, process.id, process.documents, revisionHistory, session.role,
+      state.technicalSignature?.evidenceHash, state.directorSignature?.evidenceHash]);
 
   const renderSection = (title: string, subtitle: string, items: ChecklistTemplateItem[]) => (
     <section data-analysis-section="true" data-force-card-contrast="adaptive" className="overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-[0_12px_30px_rgba(15,23,42,0.06)] dark:border-slate-700 dark:bg-slate-900 dark:shadow-[0_16px_38px_rgba(0,0,0,0.20)]">

@@ -22,7 +22,10 @@ export function SignedAnalysisArchiveFolder({ process, onOpenPdf, onOpenAnalysis
     setLoading(true);
     Promise.all([
       getProcessArtifactVersionHistory(process.id, "urban-analysis-checklist"),
-      getProcessArtifactWithdrawalHistory(process.id, "urban-analysis-checklist"),
+      getProcessArtifactWithdrawalHistory(process.id, "urban-analysis-checklist").catch((error) => {
+        console.error("[SIGAPRO][Retiradas] Histórico indisponível", error);
+        return [] as ArtifactWithdrawalEvent[];
+      }),
     ])
       .then(([data, withdrawalEvents]) => {
         if (!active) return;
