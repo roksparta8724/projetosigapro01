@@ -112,7 +112,7 @@ describe("profile and branding persistence regressions", () => {
     expect(profilePage).toContain("Ajustes da foto e do cabeçalho são confirmados juntos");
     expect(profilePage).not.toContain("avatarFrameSaveInFlightRef");
     expect(profilePage).toContain("if (saving) return");
-    expect(profilePage).toContain("section === \"foto-identidade\" && !avatarHeaderChoiceTouchedRef.current");
+    expect(profilePage).toContain("const showPhotoInHeader = Boolean(avatarUrl || avatarStorageRef)");
     expect(profilePage).toContain("const avatarReadConfirmed = !savedAvatarUrl ||");
     expect(profilePage).toContain("await confirmSavedAvatarReadable(savedAvatarUrl)");
     expect(profilePage).toContain("} else if (!savedAvatarUrl) {");
