@@ -2429,3 +2429,11 @@ html body #root .sig-app-frame .sig-main-shell
   -webkit-text-fill-color:#f8fafc !important;
   opacity:1 !important;
 }
+/* MARCADORES EXTERNOS V24 — cor aplicada diretamente à legenda, sem afetar o ícone. */
+html body #root [data-external-process-marker="true"] > [data-external-marker-label="true"],
+html body #root [data-layout-mode="default"] [data-external-process-marker="true"] > [data-external-marker-label="true"],
+html body #root [data-layout-mode="inverse-main"] [data-external-process-marker="true"] > [data-external-marker-label="true"] {
+  color:#f8fafc !important;
+  -webkit-text-fill-color:#f8fafc !important;
+  opacity:1 !important;
+}
