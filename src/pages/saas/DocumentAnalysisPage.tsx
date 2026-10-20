@@ -615,7 +615,7 @@ export function DocumentAnalysisPage() {
               <FileText className="mr-2 h-4 w-4" />
               Visualizar documento em modo de consulta
             </Button>
-          ) : null>
+          ) : null}
         </div>
       </main>
     );
