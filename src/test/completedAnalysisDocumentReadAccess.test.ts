@@ -8,7 +8,7 @@ import {
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-const process = {
+const completedProcess = {
   id: "proc-1",
   tenantId: "prefeitura-A",
   municipalityId: "prefeitura-A",
@@ -35,20 +35,20 @@ const session = (overrides: Partial<SessionUser> = {}) => ({
 
 describe("consulta documental após conclusão, sem escalada de edição", () => {
   it("mantém acesso de leitura para analista técnico originalmente responsável", () => {
-    expect(canReadProcessDocument(session(), process, "prefeitura-A")).toBe(true);
-    expect(canAnalyzeProcessDocument(session(), process, "prefeitura-A")).toBe(false);
+    expect(canReadProcessDocument(session(), completedProcess, "prefeitura-A")).toBe(true);
+    expect(canAnalyzeProcessDocument(session(), completedProcess, "prefeitura-A")).toBe(false);
   });
   it("autoriza consulta institucional para diretor e secretário, sem dar edição intersetorial", () => {
     const director = session({ role: "prefeitura_supervisor", id: "diretor", accessLevel: 2, department: "Administração", title: "Diretor" });
     const secretary = session({ role: "prefeitura_supervisor", id: "secretaria", accessLevel: 3, department: "Administração", title: "Secretária" });
-    expect(canReadProcessDocument(director, process, "prefeitura-A")).toBe(true);
-    expect(canReadProcessDocument(secretary, process, "prefeitura-A")).toBe(true);
-    expect(canAnalyzeProcessDocument(director, process, "prefeitura-A")).toBe(false);
+    expect(canReadProcessDocument(director, completedProcess, "prefeitura-A")).toBe(true);
+    expect(canReadProcessDocument(secretary, completedProcess, "prefeitura-A")).toBe(true);
+    expect(canAnalyzeProcessDocument(director, completedProcess, "prefeitura-A")).toBe(false);
   });
   it("bloqueia contas inativas e outros municípios, sem confiar em título livre", () => {
-    expect(canReadProcessDocument(session({ accountStatus: "blocked" }), process, "prefeitura-A")).toBe(false);
-    expect(canReadProcessDocument(session({ municipalityId: "prefeitura-B", tenantId:"prefeitura-B", role:"prefeitura_supervisor", accessLevel:3 }),process,"prefeitura-A")).toBe(false);
-    expect(canReadProcessDocument(session({ id:"outro", name:"Outro", role:"analista", department:"Financeiro", title:"Secretário" }),process,"prefeitura-A")).toBe(false);
+    expect(canReadProcessDocument(session({ accountStatus: "blocked" }), completedProcess, "prefeitura-A")).toBe(false);
+    expect(canReadProcessDocument(session({ municipalityId: "prefeitura-B", tenantId:"prefeitura-B", role:"prefeitura_supervisor", accessLevel:3 }),completedProcess, "prefeitura-A")).toBe(false);
+    expect(canReadProcessDocument(session({ id:"outro", name:"Outro", role:"analista", department:"Financeiro", title:"Secretário" }),completedProcess, "prefeitura-A")).toBe(false);
   });
   it("usa a permissão de leitura no visualizador e preserva o bloqueio de escrita", () => {
     const viewer=readFileSync(resolve(process.cwd(),"src/pages/saas/DocumentViewerPage.tsx"),"utf8");
