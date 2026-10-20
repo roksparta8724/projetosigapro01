@@ -3192,12 +3192,11 @@ export async function saveRemoteProfile(profile: UserProfile) {
     if (expectsRemoval && storedAvatar) {
       throw new Error("O banco não confirmou a remoção da foto. A imagem anterior foi preservada.");
     }
-    // Uma atualização de preferência só é sucesso se a RPC confirmar o
-    // mesmo estado. Antes, false era usado silenciosamente quando o campo
-    // não era devolvido, simulando sucesso sem alterar o cabeçalho.
-    if (Boolean(row.use_avatar_in_header ?? false) !== Boolean(profile.useAvatarInHeader)) {
-      throw new Error("O banco não confirmou a exibição da foto no cabeçalho. O ajuste não foi salvo.");
-    }
+    // A exibição da foto é automática quando existe imagem salva.
+    // Perfis legados podem devolver false em use_avatar_in_header mesmo com
+    // avatar_url válido; isso não pode bloquear um upload R2 já confirmado.
+    // A confirmação obrigatória continua sendo a referência permanente
+    // e o enquadramento realmente devolvidos pelo Neon.
     const persistedScale = Number(row.avatar_scale);
     const persistedOffsetX = Number(row.avatar_offset_x);
     const persistedOffsetY = Number(row.avatar_offset_y);
@@ -3235,7 +3234,7 @@ export async function saveRemoteProfile(profile: UserProfile) {
       avatarScale: Number(row.avatar_scale ?? 1),
       avatarOffsetX: Number(row.avatar_offset_x ?? 0),
       avatarOffsetY: Number(row.avatar_offset_y ?? 0),
-      useAvatarInHeader: Boolean(row.use_avatar_in_header ?? false),
+      useAvatarInHeader: Boolean(storedAvatar),
       bio: String(row.bio ?? ""),
     } satisfies UserProfile;
   }
