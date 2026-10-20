@@ -747,9 +747,10 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
     fallback: "Usuário institucional",
     maxLength: 34,
   });
-  const topbarAvatarImageUrl = userProfile?.useAvatarInHeader
-    ? (userProfile.avatarUrl?.trim() || "")
-    : null;
+  // A foto cadastrada é a identidade visual da conta em toda a plataforma.
+  // Cadastros antigos podem ter useAvatarInHeader=false mesmo com foto R2
+  // válida; esse campo legado não deve ocultar uma imagem já salva.
+  const topbarAvatarImageUrl = userProfile?.avatarUrl?.trim() || null;
   const topbarAvatarCrop = useMemo(() => {
     if (!topbarAvatarImageUrl) return undefined;
     return {
