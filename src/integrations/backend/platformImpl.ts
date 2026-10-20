@@ -2,6 +2,7 @@ import { databaseClient as db, neonAuthUrl } from "@/integrations/backend/databa
 import { isNeonBackend } from "@/integrations/backend/config";
 import { getLegacyProfileAvatarOpenUrl, getObjectKeyFromPublicUrl, uploadFile } from "@/integrations/r2/client";
 import { buildMunicipalityPortalUrl } from "@/lib/publicDomain";
+import { normalizeMunicipalPositionLabels, normalizeMunicipalPositionAliases, getMunicipalPositionDisplayTitle, readLocalMunicipalPositionLabels, readLocalMunicipalPositionAliases } from "@/lib/municipalPositionCatalog";
 import {
   buildProcessDocuments,
   isOccupancyPermitProcessType,
@@ -1060,6 +1061,8 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
       diretoriaResponsavel: typeof general.directorship === "string" ? general.directorship : "",
       diretoriaTelefone: typeof general.directorship_phone === "string" ? general.directorship_phone : "",
       diretoriaEmail: typeof general.directorship_email === "string" ? general.directorship_email : "",
+      positionTitles: normalizeMunicipalPositionLabels(general.position_titles),
+      positionTitleAliases: normalizeMunicipalPositionAliases(general.position_title_aliases),
       departmentOwnership:
         general.department_ownership && typeof general.department_ownership === "object"
           ? (general.department_ownership as TenantSettings["departmentOwnership"])
@@ -1247,6 +1250,7 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
     bio: profile.bio ?? "",
   })));
 
+  const positionSettingsByMunicipality = new Map(tenantSettings.map((settings) => [settings.tenantId, settings]));
   const membershipUsers: SessionUser[] = (membershipsResult.data ?? []).map((membership) => {
     const role = roleById.get(membership.role_id);
     const profile =
@@ -1276,13 +1280,14 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
       accessLevel: storedAccessLevel(membership.level_name, roleCode),
       tenantId: membership.tenant_id,
       municipalityId: profile?.municipality_id ?? membership.tenant_id,
-      title:
+      title: getMunicipalPositionDisplayTitle(
         membership.position_title ||
-        (
-          ["profissional_externo", "property_owner", "proprietario_consulta"].includes(roleCode)
+          (["profissional_externo", "property_owner", "proprietario_consulta"].includes(roleCode)
             ? profile?.professional_type || role?.label || ""
-            : role?.label || membership.queue_name || ""
-        ),
+            : role?.label || membership.queue_name || ""),
+        { ...positionSettingsByMunicipality.get(membership.tenant_id)?.positionTitles, ...readLocalMunicipalPositionLabels(membership.tenant_id) },
+        { ...positionSettingsByMunicipality.get(membership.tenant_id)?.positionTitleAliases, ...readLocalMunicipalPositionAliases(membership.tenant_id) },
+      ),
       profileLabel:
         membership.profile_label ||
         (
@@ -3887,6 +3892,25 @@ export async function upsertRemoteInstitution(input: {
   return { id: tenantId };
 }
 
+
+/** RPC municipal restrita: só muda rótulos institucionais; nunca RBAC nem histórico. */
+export async function updateRemoteMunicipalPositionLabels(input: {
+  municipalityId: string;
+  titles: Record<string, string>;
+}): Promise<void> {
+  if (!db) throw Error("Banco oficial indisponível.");
+  const municipalityId = normalizeUuid(input.municipalityId);
+  if (!municipalityId) throw Error("Prefeitura inválida para atualizar cargos.");
+  const titles = normalizeMunicipalPositionLabels(input.titles);
+  if (Object.keys(titles).length !== Object.keys(input.titles).length) {
+    throw Error("Cargo institucional inválido. Verifique o nome e o tamanho.");
+  }
+  const { error } = await db.rpc("update_municipal_position_titles_v1", {
+    _municipality_id: municipalityId,
+    _position_titles: titles,
+  });
+  if (error) throw new Error(error.message || "Não foi possível atualizar os cargos da Prefeitura.");
+}
 
 export async function saveRemoteInstitutionSettings(
   settings: TenantSettings & {
