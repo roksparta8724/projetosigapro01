@@ -35,6 +35,8 @@ import { uploadFileToStorage } from "@/integrations/r2/storage";
 import { formatCep, lookupCepAddress } from "@/lib/cep";
 import { formatDisplayText, humanizeRoleLabel } from "@/lib/displayText";
 import { cn } from "@/lib/utils";
+import { DEFAULT_AVATAR_EDITOR_DIAMETER } from "@/lib/avatarCropGeometry";
+import { resolveProfileAvatarDisplayUrl } from "@/lib/profileAvatarDisplay";
 import { calculateMasterLogoCrop, findOpaqueWhiteFooterHeight } from "@/lib/masterLogoCrop";
 import type { InstitutionalLogoConfigVariant } from "@/lib/institutionBranding";
 import {
@@ -169,10 +171,44 @@ type ProfileSection =
   | "vinculos"
   | "historico";
 
+// Uma gravação RPC só confirma o registro; a foto precisa poder ser LIDA
+// pelo mesmo endpoint que a página e o cabeçalho usarão após o F5.
+async function confirmSavedAvatarReadable(url: string): Promise<boolean> {
+  // Um avatar recém-salvo pode ser aberto por URL R2 assinada (HTTPS) ou
+  // pela rota protegida same-origin. fetch() de imagens cross-origin pode
+  // falhar por CORS mesmo quando a imagem é exibível; Image testa a leitura real.
+  if (!/^https:\/\//i.test(url) && !url.startsWith("/api/profile-avatar-open?objectKey=")) {
+    return false;
+  }
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const readable = await new Promise<boolean>((resolve) => {
+      const image = new Image();
+      let finished = false;
+      const complete = (ok: boolean) => {
+        if (finished) return;
+        finished = true;
+        window.clearTimeout(timeout);
+        image.onload = null;
+        image.onerror = null;
+        resolve(ok);
+      };
+      const timeout = window.setTimeout(() => complete(false), 8000);
+      image.onload = () => complete(image.naturalWidth > 0 && image.naturalHeight > 0);
+      image.onerror = () => complete(false);
+      image.src = url;
+    });
+    if (readable) return true;
+    if (attempt < 2) await new Promise<void>((resolve) => window.setTimeout(resolve, 250 * (attempt + 1)));
+  }
+
+  return false;
+}
+
 export function PerfilPage() {
   const { session } = usePlatformSession();
   const { municipality, scopeId, name: municipalityName, tenantSettingsCompat } = useMunicipality();
-  const { authenticatedEmail, authenticatedUserId, updateEmail, updatePassword } = useAuthGateway();
+  const { authenticatedEmail, authenticatedUserId, authenticatedProfileId, updateEmail, updatePassword } = useAuthGateway();
   const { getUserProfile, saveUserProfile, institutions, getInstitutionSettings } = usePlatformData();
   const { hiddenItems, loading: menuPrefsLoading, setItemHidden } = useUserMenuPreferences();
   const isMasterRole = session.role === "master_admin" || session.role === "master_ops";
@@ -180,9 +216,10 @@ export function PerfilPage() {
     ? session.id
     : session.email || session.name;
   const profileLookupEmail = authenticatedEmail || session.email;
-  const profile = getUserProfile(session.id, profileLookupEmail);
+  const profile = getUserProfile(authenticatedProfileId || session.id, profileLookupEmail);
   const profileUserId =
     profile?.userId ||
+    authenticatedProfileId ||
     (session.id !== "unknown" ? session.id : authenticatedUserId || "");
   const activeInstitutionId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
   const tenant = institutions.find((item) => item.id === activeInstitutionId) ?? null;
@@ -193,8 +230,11 @@ export function PerfilPage() {
   const [saving, setSaving] = useState(false);
   const [avatarFiles, setAvatarFiles] = useState<UploadedFileItem[]>([]);
   const [avatarDraftDirty, setAvatarDraftDirty] = useState(false);
+  const [avatarMaskDiameter, setAvatarMaskDiameter] = useState(DEFAULT_AVATAR_EDITOR_DIAMETER);
   const [section, setSection] = useState<ProfileSection>("visao-geral");
   const avatarObjectUrlRef = useRef<string | null>(null);
+  const avatarFrameDirtyRef = useRef(false);
+  const avatarFrameEditVersionRef = useRef(0);
   const lastCepLookupRef = useRef("");
   const [masterBranding, setMasterBranding] = useState(() => loadMasterBranding());
   const [platformBranding, setPlatformBranding] = useState<Awaited<ReturnType<typeof loadPlatformBranding>> | null>(null);
@@ -437,19 +477,19 @@ export function PerfilPage() {
       city: profile.city,
       state: profile.state,
       zipCode: profile.zipCode,
-      ...(avatarDraftDirty
+      ...(avatarDraftDirty || avatarFrameDirtyRef.current || saving
         ? {}
         : {
             avatarUrl: profile.avatarUrl,
             avatarScale: profile.avatarScale ?? 1,
             avatarOffsetX: profile.avatarOffsetX ?? 0,
             avatarOffsetY: profile.avatarOffsetY ?? 0,
-            useAvatarInHeader: profile.useAvatarInHeader ?? false,
+            useAvatarInHeader: Boolean(profile.avatarUrl || profile.avatarStorageRef),
           }),
       bio: profile.bio,
     }));
 
-    if (avatarDraftDirty) return;
+    if (avatarDraftDirty || avatarFrameDirtyRef.current || saving) return;
 
     if (profile.avatarUrl) {
       setAvatarFiles([
@@ -464,7 +504,7 @@ export function PerfilPage() {
     } else {
       setAvatarFiles([]);
     }
-  }, [avatarDraftDirty, profile]);
+  }, [avatarDraftDirty, saving, profile]);
 
   useEffect(() => {
     setDraftMasterHeaderConfig({
@@ -530,6 +570,7 @@ export function PerfilPage() {
     const selectedFiles = files.slice(0, 1);
     setAvatarFiles(selectedFiles);
     setAvatarDraftDirty(Boolean(nextFile.file));
+    if (nextFile.file) setForm((current) => ({ ...current, useAvatarInHeader: true }));
     setStatus(
       nextFile.file
         ? "Pré-visualização pronta. A foto ainda não foi salva; clique em “Salvar ajustes da foto”."
@@ -580,21 +621,21 @@ export function PerfilPage() {
   }, [form.zipCode]);
 
   const updateAvatarFrame = ({ scale, offsetX, offsetY }: { scale: number; offsetX: number; offsetY: number }) => {
+    const referenceRatio = DEFAULT_AVATAR_EDITOR_DIAMETER / Math.max(avatarMaskDiameter, 1);
+    avatarFrameEditVersionRef.current += 1;
+    avatarFrameDirtyRef.current = true;
     setAvatarDraftDirty(true);
-    setStatus("Enquadramento alterado. Clique em “Salvar ajustes da foto” para confirmar.");
+    setStatus("Enquadramento alterado. Clique em “Salvar ajustes da foto” para confirmar no banco.");
     setForm((current) => ({
       ...current,
       avatarScale: scale,
-      avatarOffsetX: offsetX,
-      avatarOffsetY: offsetY,
+      avatarOffsetX: offsetX * referenceRatio,
+      avatarOffsetY: offsetY * referenceRatio,
     }));
   };
 
-  const updateAvatarHeaderVisibility = (checked: boolean) => {
-    setAvatarDraftDirty(true);
-    setStatus("Preferência alterada. Clique em “Salvar ajustes da foto” para confirmar.");
-    setForm((current) => ({ ...current, useAvatarInHeader: checked }));
-  };
+  // Ajustes da foto e do cabeçalho são confirmados juntos por handleSubmit.
+  // Não fazer gravações automáticas separadas: poderiam sobrescrever a foto.
 
   const setAccountField = (field: keyof typeof accountForm, value: string) => {
     setAccountForm((current) => ({ ...current, [field]: value }));
@@ -930,6 +971,8 @@ export function PerfilPage() {
 
   const handleSubmit = async (event: FormEvent, avatarOverride?: UploadedFileItem[]) => {
     event.preventDefault();
+    if (saving) return;
+    const editVersion = avatarFrameEditVersionRef.current;
     setSaving(true);
     setStatus("");
 
@@ -942,15 +985,20 @@ export function PerfilPage() {
       }
 
       const effectiveAvatarFiles = avatarOverride ?? avatarFiles;
-      let avatarUrl = effectiveAvatarFiles[0]?.previewUrl ?? form.avatarUrl;
-      let avatarStorageRef = profile?.avatarStorageRef || profile?.avatarUrl || form.avatarUrl;
-      let avatarUploadFile = effectiveAvatarFiles[0]?.file;
-      let avatarScale = avatarOverride?.[0]?.file ? 1 : form.avatarScale;
-      let avatarOffsetX = avatarOverride?.[0]?.file ? 0 : form.avatarOffsetX;
-      let avatarOffsetY = avatarOverride?.[0]?.file ? 0 : form.avatarOffsetY;
+      let avatarUrl = avatarDraftDirty && effectiveAvatarFiles.length === 0
+        ? ""
+        : effectiveAvatarFiles[0]?.previewUrl ?? form.avatarUrl;
+      let avatarStorageRef = avatarDraftDirty && effectiveAvatarFiles.length === 0
+        ? ""
+        : profile?.avatarStorageRef || profile?.avatarUrl || form.avatarUrl;
+      const avatarUploadFile = effectiveAvatarFiles[0]?.file;
+      const avatarScale = form.avatarScale;
+      const avatarOffsetX = form.avatarOffsetX;
+      const avatarOffsetY = form.avatarOffsetY;
 
       if (avatarUploadFile) {
         try {
+          setStatus("Enviando a foto ao armazenamento institucional R2...");
           const uploaded = await uploadFileToStorage({
             bucket: "profile-assets",
             tenantId: activeInstitutionId,
@@ -969,6 +1017,9 @@ export function PerfilPage() {
       const resolvedFullName = form.fullName.trim() || profile?.fullName || session.name || "Usuário autenticado";
       const resolvedEmail = normalizeProfileEmail(form.email || profile?.email || authenticatedEmail || session.email);
 
+      // Foto cadastrada aparece automaticamente em todos os avatares.
+      // O valor legado false não pode esconder imagens salvas de contas antigas.
+      const showPhotoInHeader = Boolean(avatarUrl || avatarStorageRef);
       const nextProfile: UserProfile = {
         userId,
         fullName: resolvedFullName,
@@ -992,14 +1043,39 @@ export function PerfilPage() {
         avatarScale,
         avatarOffsetX,
         avatarOffsetY,
-        useAvatarInHeader: form.useAvatarInHeader,
+        useAvatarInHeader: showPhotoInHeader,
         bio: form.bio,
       };
 
+      // Ajustar a foto não deve sobrescrever endereço, documentos ou dados
+      // profissionais que possam ter sido atualizados em outra tela.
+      if (section === "foto-identidade" && profile) {
+        Object.assign(nextProfile, {
+          ...profile,
+          userId,
+          avatarUrl,
+          avatarStorageRef,
+          avatarScale,
+          avatarOffsetX,
+          avatarOffsetY,
+          useAvatarInHeader: showPhotoInHeader,
+        });
+      }
+
+      setStatus("Confirmando foto e preferências no banco Neon...");
       const savedProfile = await saveUserProfile(nextProfile);
       const savedAvatarUrl = savedProfile.avatarUrl || avatarUrl;
-      setAvatarDraftDirty(false);
-      if (savedAvatarUrl) {
+      // Novo upload só é sucesso quando a imagem gravada volta a abrir, sem
+      // usar blob local como prova. Alterações apenas do enquadramento não
+      // precisam repetir a consulta da imagem.
+      if (savedAvatarUrl && section === "foto-identidade") setStatus("Verificando a leitura da foto salva...");
+      const avatarReadConfirmed = !savedAvatarUrl ||
+        (!(avatarUploadFile || section === "foto-identidade") || await confirmSavedAvatarReadable(savedAvatarUrl));
+      if (avatarReadConfirmed) {
+        setAvatarDraftDirty(false);
+        if (avatarFrameEditVersionRef.current === editVersion) avatarFrameDirtyRef.current = false;
+      }
+      if (savedAvatarUrl && avatarReadConfirmed) {
         setAvatarFiles([
           {
             id: `avatar-saved-${crypto.randomUUID()}`,
@@ -1009,17 +1085,28 @@ export function PerfilPage() {
             previewUrl: savedAvatarUrl,
           },
         ]);
+      } else if (!savedAvatarUrl) {
+        setAvatarFiles([]);
       }
       setForm((current) => ({
         ...current,
-        fullName: resolvedFullName,
-        email: resolvedEmail,
-        avatarUrl: savedAvatarUrl,
+        fullName: savedProfile.fullName || resolvedFullName,
+        email: savedProfile.email || resolvedEmail,
+        avatarUrl: avatarReadConfirmed ? savedAvatarUrl : current.avatarUrl,
         avatarScale: savedProfile.avatarScale ?? avatarScale,
         avatarOffsetX: savedProfile.avatarOffsetX ?? avatarOffsetX,
         avatarOffsetY: savedProfile.avatarOffsetY ?? avatarOffsetY,
+        useAvatarInHeader: avatarReadConfirmed ? Boolean(savedAvatarUrl) : current.useAvatarInHeader,
       }));
-      setStatus("Perfil e foto salvos com sucesso no banco oficial.");
+      setStatus(
+        avatarReadConfirmed
+          ? section === "foto-identidade"
+            ? savedAvatarUrl
+              ? "Foto, enquadramento e exibição confirmados no perfil institucional."
+              : "Preferências salvas. Nenhuma foto de perfil está cadastrada."
+            : "Dados do perfil confirmados no banco institucional."
+          : "A foto foi registrada no perfil, mas o servidor não confirmou sua leitura após o upload. Não foi possível validar a exibição após F5.",
+      );
     } catch (error) {
       setStatus(
         error instanceof Error
@@ -1041,13 +1128,20 @@ export function PerfilPage() {
     { value: "historico", label: "Histórico", helper: "Ações recentes da conta" },
   ] as const;
 
-  const avatarPreviewUrl = avatarFiles[0]?.previewUrl || form.avatarUrl || "";
+  const avatarPreviewUrl =
+    avatarFiles[0]?.previewUrl ||
+    (avatarDraftDirty
+      ? ""
+      : resolveProfileAvatarDisplayUrl({
+          avatarUrl: form.avatarUrl,
+          avatarStorageRef: profile?.avatarStorageRef,
+        }));
   const avatarPreviewCrop = useMemo(
     () => ({
       scale: form.avatarScale,
       offsetX: form.avatarOffsetX,
       offsetY: form.avatarOffsetY,
-      editorSize: 320,
+      editorSize: DEFAULT_AVATAR_EDITOR_DIAMETER,
     }),
     [form.avatarOffsetX, form.avatarOffsetY, form.avatarScale],
   );
@@ -1115,7 +1209,7 @@ export function PerfilPage() {
     { label: "Gerenciar conta e senha", value: "conta-seguranca" },
   ] as const;
 
-  const statusIsError = /não foi possível|falha|erro|permission denied|indisponível|inválid/i.test(status);
+  const statusIsError = /não foi possível|não confirmou|não foi validada|não foi salva|falha|erro|permission denied|indisponível|inválid/i.test(status);
   const statusMessage = status ? (
     <div
       className={cn(
@@ -1316,8 +1410,8 @@ export function PerfilPage() {
                   <div className="space-y-4">
                     <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
                       <p className="sig-label">Foto no cabeçalho</p>
-                      <p className="mt-2 text-base font-semibold text-slate-950">{form.useAvatarInHeader ? "Ativada" : "Desativada"}</p>
-                      <p className="mt-1 text-sm text-slate-500">Exibição opcional ao lado da identificação do usuário.</p>
+                      <p className="mt-2 text-base font-semibold text-slate-950">{form.avatarUrl ? "Foto exibida automaticamente" : "Aguardando foto cadastrada"}</p>
+                      <p className="mt-1 text-sm text-slate-500">A foto salva é exibida no cabeçalho e nos cartões institucionais.</p>
                     </div>
 
                     <div className="space-y-3">
@@ -1479,9 +1573,12 @@ export function PerfilPage() {
                     <ImageFrameEditor
                       imageUrl={avatarFiles[0].previewUrl}
                       scale={form.avatarScale}
-                      offsetX={form.avatarOffsetX}
-                      offsetY={form.avatarOffsetY}
+                      offsetX={form.avatarOffsetX * avatarMaskDiameter / DEFAULT_AVATAR_EDITOR_DIAMETER}
+                      offsetY={form.avatarOffsetY * avatarMaskDiameter / DEFAULT_AVATAR_EDITOR_DIAMETER}
                       onChange={updateAvatarFrame}
+                      onMetricsChange={({ frameWidth }) => {
+                        if (frameWidth > 0) setAvatarMaskDiameter((current) => Math.abs(current - frameWidth) > 0.1 ? frameWidth : current);
+                      }}
                       label="Foto do perfil"
                       hint="A imagem preenche todo o círculo. Arraste para escolher o enquadramento e use o zoom se quiser aproximar."
                       fitMode="cover"
@@ -1515,7 +1612,7 @@ export function PerfilPage() {
                         <div className="flex items-center justify-between gap-3">
                           <div className="min-w-0">
                             <p id="profile-preview-topbar-title" className="text-xs font-semibold uppercase tracking-[0.18em]">Topbar</p>
-                            <p id="profile-preview-topbar-copy" className="mt-1 text-sm">Leitura compacta do avatar institucional.</p>
+                            <p id="profile-preview-topbar-copy" className="mt-1 text-sm">{avatarPreviewUrl ? "Foto exibida automaticamente no cabeçalho após salvar." : "Sem foto cadastrada: o topo mostra as iniciais."}</p>
                           </div>
                           <UserAvatar
                             name={form.fullName || session.name}
@@ -1523,7 +1620,7 @@ export function PerfilPage() {
                             size="md"
                             className="border-white/20 bg-white/10"
                             crop={avatarPreviewCrop}
-                            fallbackClassName="!bg-[linear-gradient(180deg,#cbd5e1_0%,#94a3b8_100%)] !text-[#0f172a]"
+                            fallbackClassName="!bg-[linear-gradient(180deg,#ffffff_0%,#dde7f1_100%)] !text-[#17324a]"
                           />
                         </div>
                       </div>
@@ -1535,12 +1632,12 @@ export function PerfilPage() {
                       </div>
                     </div>
                   </div>
-                  <div className="mt-4 flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                    <div className="pr-4">
-                      <p className="text-sm font-semibold text-slate-950">Exibir foto no cabeçalho</p>
-                      <p className="mt-1 text-sm text-slate-500">Ative para mostrar a foto junto da identificação.</p>
-                    </div>
-                    <Switch checked={form.useAvatarInHeader} onCheckedChange={updateAvatarHeaderVisibility} />
+                  <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                    <p className="text-sm font-semibold text-slate-950">Foto institucional no cabeçalho</p>
+                    <p className="mt-1 text-sm text-slate-500">
+                      Exibição automática após o salvamento. A imagem também aparece nos cartões que identificam a conta;
+                      as iniciais são usadas somente quando não há foto disponível.
+                    </p>
                   </div>
                 </div>
               ) : null}

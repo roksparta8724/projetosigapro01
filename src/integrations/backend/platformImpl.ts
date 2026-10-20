@@ -1,6 +1,6 @@
 import { databaseClient as db, neonAuthUrl } from "@/integrations/backend/databaseClient";
 import { isNeonBackend } from "@/integrations/backend/config";
-import { getLegacyProfileAvatarOpenUrl, getObjectKeyFromPublicUrl, getSignedUrlForObjectStrict, uploadFile } from "@/integrations/r2/client";
+import { getLegacyProfileAvatarOpenUrl, getObjectKeyFromPublicUrl, uploadFile } from "@/integrations/r2/client";
 import { buildMunicipalityPortalUrl } from "@/lib/publicDomain";
 import {
   buildProcessDocuments,
@@ -40,12 +40,14 @@ async function resolveStoredProfileAvatar(value: string | null | undefined) {
 
   if (/^(data:|blob:)/i.test(raw)) return raw;
 
-  const objectKeyFromUrl = /^https?:/i.test(raw)
-    ? getObjectKeyFromPublicUrl(raw)
-    : "";
-  const isProfileObjectKey = /^municipalities\/[0-9a-f-]+\/profiles\/avatars\//i.test(
-    objectKeyFromUrl,
-  );
+  // Algumas fotos antigas foram gravadas com URL pública de R2 contendo
+  // o nome do bucket antes de "municipalities". Recuperar a chave real
+  // permite reabrir essas imagens sem exigir novo upload do servidor.
+  const publicPath = /^https?:/i.test(raw) ? getObjectKeyFromPublicUrl(raw) : "";
+  const objectKeyFromUrl = publicPath.match(
+    /(?:^|\/)(municipalities\/[0-9a-f-]+\/profiles\/avatars\/[a-zA-Z0-9_-]+\/[a-zA-Z0-9._-]+)$/i,
+  )?.[1] || "";
+  const isProfileObjectKey = Boolean(objectKeyFromUrl);
 
   if (/^https?:/i.test(raw) && !isProfileObjectKey) return raw;
 
@@ -59,24 +61,9 @@ async function resolveStoredProfileAvatar(value: string | null | undefined) {
 
   if (!objectKey) return raw;
 
-  // Em produção, a leitura autenticada pelo endpoint de sign-get conhece o
-  // bucket lógico "profile-assets" e gera a URL diretamente do mesmo objeto que
-  // foi gravado no upload. Isso evita divergência entre localhost e produção.
-  // Se o assinador estiver temporariamente indisponível, mantemos a rota
-  // same-origin como fallback visual sem perder a referência persistida.
-  try {
-    const signedUrl = await getSignedUrlForObjectStrict({
-      bucket: "profile-assets",
-      objectKey,
-      expiresIn: 21600,
-    });
-    if (signedUrl) return signedUrl;
-  } catch (error) {
-    console.warn("[SIGAPRO][ProfileAvatar] Falha ao assinar leitura do avatar; usando fallback same-origin.", {
-      objectKey,
-      error,
-    });
-  }
+  // URL estável, sem expiração: o mesmo endpoint no Vite e no Vercel.
+  // A referência definitiva permanece "r2:<objectKey>" no Neon. Não gerar
+  // uma URL assinada por perfil a cada carga do store/refresh da aplicação.
 
   return `/api/profile-avatar-open?objectKey=${encodeURIComponent(objectKey)}`;
 }
@@ -3191,7 +3178,38 @@ export async function saveRemoteProfile(profile: UserProfile) {
       throw new Error("Perfil Neon autenticado nao encontrado.");
     }
 
-    const storedAvatar = String(row.avatar_url || profile.avatarStorageRef || profile.avatarUrl || "");
+    const savedAvatarValue = row.avatar_url;
+    const requestedR2Ref = String(profile.avatarStorageRef || "").trim();
+    // Não confirmar uma foto apenas porque existe preview local. A RPC precisa
+    // devolver a mesma chave persistida; caso contrário, o upload não concluiu.
+    if (requestedR2Ref.startsWith(PROFILE_ASSET_REF_PREFIX) &&
+        String(savedAvatarValue || "").trim() !== requestedR2Ref) {
+      throw new Error("O banco não confirmou a gravação permanente da foto de perfil. Tente novamente.");
+    }
+    const storedAvatar = String(savedAvatarValue || "").trim();
+    const expectsRemoval = !String(profile.avatarStorageRef || "").trim() &&
+      !String(profile.avatarUrl || "").trim();
+    if (expectsRemoval && storedAvatar) {
+      throw new Error("O banco não confirmou a remoção da foto. A imagem anterior foi preservada.");
+    }
+    // A exibição da foto é automática quando existe imagem salva.
+    // Perfis legados podem devolver false em use_avatar_in_header mesmo com
+    // avatar_url válido; isso não pode bloquear um upload R2 já confirmado.
+    // A confirmação obrigatória continua sendo a referência permanente
+    // e o enquadramento realmente devolvidos pelo Neon.
+    const persistedScale = Number(row.avatar_scale);
+    const persistedOffsetX = Number(row.avatar_offset_x);
+    const persistedOffsetY = Number(row.avatar_offset_y);
+    if (
+      !Number.isFinite(persistedScale) ||
+      !Number.isFinite(persistedOffsetX) ||
+      !Number.isFinite(persistedOffsetY) ||
+      Math.abs(persistedScale - Number(profile.avatarScale ?? 1)) > 0.01 ||
+      Math.abs(persistedOffsetX - Number(profile.avatarOffsetX ?? 0)) > 0.25 ||
+      Math.abs(persistedOffsetY - Number(profile.avatarOffsetY ?? 0)) > 0.25
+    ) {
+      throw new Error("O banco não confirmou o enquadramento da foto. Tente salvar novamente.");
+    }
 
     return {
       userId: profileId,
@@ -3216,7 +3234,7 @@ export async function saveRemoteProfile(profile: UserProfile) {
       avatarScale: Number(row.avatar_scale ?? 1),
       avatarOffsetX: Number(row.avatar_offset_x ?? 0),
       avatarOffsetY: Number(row.avatar_offset_y ?? 0),
-      useAvatarInHeader: Boolean(row.use_avatar_in_header ?? false),
+      useAvatarInHeader: Boolean(storedAvatar),
       bio: String(row.bio ?? ""),
     } satisfies UserProfile;
   }
@@ -3887,6 +3905,7 @@ export async function saveRemoteInstitutionSettings(
     skipMunicipalityUpdate?: boolean;
     skipMunicipalitySettings?: boolean;
     skipMunicipalityBranding?: boolean;
+    brandingVariant?: "header" | "footer";
     municipalityCity?: string;
     municipalityState?: string;
     municipalityFields?: Array<"secretariat" | "email" | "phone" | "address" | "site">;
@@ -3925,19 +3944,35 @@ export async function saveRemoteInstitutionSettings(
   // ------------------------------------------------------------------
   const municipalityBrandingPayload: Record<string, unknown> = {
     municipality_id: remoteTenantId,
-    logo_url: settings.logoUrl || null,
-    coat_of_arms_url: settings.brasaoUrl || null,
-    // logo por variante
-    header_logo_url: settings.headerLogoUrl || null,
-    header_logo_object_key: settings.headerLogoObjectKey || null,
-    header_logo_file_name: settings.headerLogoFileName || null,
-    header_logo_mime_type: settings.headerLogoMimeType || null,
-    footer_logo_url: settings.footerLogoUrl || null,
-    footer_logo_object_key: settings.footerLogoObjectKey || null,
-    footer_logo_file_name: settings.footerLogoFileName || null,
-    footer_logo_mime_type: settings.footerLogoMimeType || null,
     updated_at: new Date().toISOString(),
   };
+  // Ao salvar só a variante do cabeçalho ou do rodapé, não tocar nos
+  // demais espaços nem no brasão. Um upload nunca deve apagar a outra imagem.
+  if (!options?.brandingVariant || options.brandingVariant === "header") {
+    municipalityBrandingPayload.logo_url = settings.logoUrl || null;
+  }
+  if (!options?.brandingVariant) {
+    municipalityBrandingPayload.coat_of_arms_url = settings.brasaoUrl || null;
+  }
+  // Não sobrescrever com NULL um logo de variante que não participou desta
+  // atualização. undefined = campo não enviado; "" = remoção explícita.
+  const optionalBrandingFields = {
+    header_logo_url: settings.headerLogoUrl,
+    header_logo_object_key: settings.headerLogoObjectKey,
+    header_logo_file_name: settings.headerLogoFileName,
+    header_logo_mime_type: settings.headerLogoMimeType,
+    footer_logo_url: settings.footerLogoUrl,
+    footer_logo_object_key: settings.footerLogoObjectKey,
+    footer_logo_file_name: settings.footerLogoFileName,
+    footer_logo_mime_type: settings.footerLogoMimeType,
+  };
+  for (const [column, value] of Object.entries(optionalBrandingFields)) {
+    if (
+      options?.brandingVariant === "header" && column.startsWith("footer_") ||
+      options?.brandingVariant === "footer" && column.startsWith("header_")
+    ) continue;
+    if (value !== undefined) municipalityBrandingPayload[column] = value || null;
+  }
 
   // ------------------------------------------------------------------
   // 2. municipality_settings — geral_settings inclui escalas por variante
@@ -4108,9 +4143,21 @@ export async function saveRemoteInstitutionSettings(
     let lastError: { message?: string } | null = null;
 
     for (let attempt = 0; attempt < 8; attempt += 1) {
-      const result = await db
+      // PATCH em registros já existentes: atualiza somente as colunas
+      // presentes no payload e não limpa logos de outras variantes.
+      const { municipality_id: _municipalityId, ...changes } = currentPayload;
+      const existing = await db
         .from("municipality_branding")
-        .upsert(currentPayload, { onConflict: "municipality_id" });
+        .update(changes)
+        .eq("municipality_id", remoteTenantId)
+        .select("municipality_id")
+        .maybeSingle();
+      // Cadastro novo: só então efetuar INSERT/UPSERT com identidade correta.
+      const result = existing.error || existing.data
+        ? existing
+        : await db
+            .from("municipality_branding")
+            .upsert(currentPayload, { onConflict: "municipality_id" });
       lastError = result.error;
 
       if (!lastError) {

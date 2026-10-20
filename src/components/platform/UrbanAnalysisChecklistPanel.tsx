@@ -1143,9 +1143,7 @@ export function UrbanAnalysisChecklistPanel({
           setWithdrawalRecord(latestWithdrawal.withdrawal);
           setWithdrawalName(latestWithdrawal.withdrawal.withdrawn_by_name || "");
           setWithdrawalDateTime(
-            latestWithdrawal.withdrawal.withdrawn_at ||
-              latestWithdrawal.withdrawal.recorded_at ||
-              new Date().toISOString(),
+            latestWithdrawal.withdrawal.withdrawn_at || new Date().toISOString(),
           );
         }
       } catch (error) {

@@ -201,8 +201,8 @@ export function useInstitutionBranding(tenantId?: string | null) {
   const [platformBranding, setPlatformBranding] = useState<Awaited<ReturnType<typeof loadPlatformBranding>> | null>(null);
   const stableTenantHeaderLogoRef = useRef<{ tenantId: string; url: string }>({ tenantId: "", url: "" });
   const stableTenantFooterLogoRef = useRef<{ tenantId: string; url: string }>({ tenantId: "", url: "" });
-  const [resolvedTenantHeaderLogoUrl, setResolvedTenantHeaderLogoUrl] = useState("");
-  const [resolvedTenantFooterLogoUrl, setResolvedTenantFooterLogoUrl] = useState("");
+  const [resolvedTenantHeaderLogoState, setResolvedTenantHeaderLogo] = useState<{ tenantId: string; url: string }>({ tenantId: "", url: "" });
+  const [resolvedTenantFooterLogoState, setResolvedTenantFooterLogo] = useState<{ tenantId: string; url: string }>({ tenantId: "", url: "" });
 
   const requestedInstitutionId =
     tenantId ?? municipality?.id ?? scopeId ?? session.municipalityId ?? session.tenantId ?? "";
@@ -380,8 +380,8 @@ export function useInstitutionBranding(tenantId?: string | null) {
 
   useEffect(() => {
     if (shouldUseMasterBranding || !resolvedInstitutionId) {
-      setResolvedTenantHeaderLogoUrl("");
-      setResolvedTenantFooterLogoUrl("");
+      setResolvedTenantHeaderLogo({ tenantId: "", url: "" });
+      setResolvedTenantFooterLogo({ tenantId: "", url: "" });
       return;
     }
 
@@ -436,8 +436,8 @@ export function useInstitutionBranding(tenantId?: string | null) {
       if (!active) return;
       if (headerUrl) writeTenantLogoCache(resolvedInstitutionId, "header", headerUrl);
       if (footerUrl) writeTenantLogoCache(resolvedInstitutionId, "footer", footerUrl);
-      setResolvedTenantHeaderLogoUrl(headerUrl);
-      setResolvedTenantFooterLogoUrl(footerUrl);
+      setResolvedTenantHeaderLogo({ tenantId: resolvedInstitutionId, url: headerUrl });
+      setResolvedTenantFooterLogo({ tenantId: resolvedInstitutionId, url: footerUrl });
     });
 
     return () => {
@@ -492,10 +492,10 @@ export function useInstitutionBranding(tenantId?: string | null) {
       savedCoatOfArmsUrl ||
       municipalityLogoFallback(scopedMunicipality?.name || institution?.name);
     const primaryHeaderLogo =
-      resolvedTenantHeaderLogoUrl ||
+      (resolvedTenantHeaderLogoState.tenantId === resolvedInstitutionId ? resolvedTenantHeaderLogoState.url : "") ||
       brandingUrl ||
       synchronousHeaderUrl ||
-      (isUsableBrandingUrl(base.logoUrl) ? base.logoUrl : "") ||
+      resolvePersistentBrandingReference(base.logoUrl) ||
       (stableTenantHeaderLogoRef.current.tenantId === resolvedInstitutionId &&
       isUsableBrandingUrl(stableTenantHeaderLogoRef.current.url)
         ? stableTenantHeaderLogoRef.current.url
@@ -530,7 +530,9 @@ export function useInstitutionBranding(tenantId?: string | null) {
     masterBrandingState,
     platformBranding?.headerLogoFileName,
     resolvedMasterHeaderLogoUrl,
-    resolvedTenantHeaderLogoUrl,
+    resolvedTenantHeaderLogoState,
+    resolvedInstitutionId,
+    scopedMunicipalityBranding?.logoObjectKey,
     shouldUseMasterBranding,
     scopedMunicipalityBranding?.headerLogoUrl,
     scopedMunicipalityBranding?.footerLogoUrl,
@@ -578,10 +580,10 @@ export function useInstitutionBranding(tenantId?: string | null) {
       savedCoatOfArmsUrl ||
       municipalityLogoFallback(scopedMunicipality?.name || institution?.name);
     const primaryFooterLogo =
-      resolvedTenantFooterLogoUrl ||
+      (resolvedTenantFooterLogoState.tenantId === resolvedInstitutionId ? resolvedTenantFooterLogoState.url : "") ||
       brandingUrl ||
       synchronousFooterUrl ||
-      (isUsableBrandingUrl(base.logoUrl) ? base.logoUrl : "") ||
+      resolvePersistentBrandingReference(base.logoUrl) ||
       (stableTenantFooterLogoRef.current.tenantId === resolvedInstitutionId &&
       isUsableBrandingUrl(stableTenantFooterLogoRef.current.url)
         ? stableTenantFooterLogoRef.current.url
@@ -614,7 +616,9 @@ export function useInstitutionBranding(tenantId?: string | null) {
     masterBrandingState,
     platformBranding?.footerLogoFileName,
     resolvedMasterFooterLogoUrl,
-    resolvedTenantFooterLogoUrl,
+    resolvedTenantFooterLogoState,
+    resolvedInstitutionId,
+    scopedMunicipalityBranding?.logoObjectKey,
     shouldUseMasterBranding,
     scopedMunicipalityBranding?.footerLogoUrl,
     scopedMunicipalityBranding?.headerLogoUrl,

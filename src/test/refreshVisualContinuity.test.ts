@@ -56,12 +56,11 @@ describe("F5, logout and topbar visual continuity", () => {
   });
 
   it("seeds refresh continuity before React renders so Habite-se never disappears on F5", () => {
-    const continuityIndex = main.lastIndexOf("persistRefreshContinuity();");
-    const bootIndex = main.lastIndexOf("bootApplication();");
-
-    expect(continuityIndex).toBeGreaterThan(-1);
-    expect(bootIndex).toBeGreaterThan(-1);
-    expect(continuityIndex).toBeLessThan(bootIndex);
+    expect(main).toMatch(/persistRefreshContinuity\(\);\s*bootApplication\(\);/);
+    expect(main.indexOf("persistRefreshContinuity();")).toBeGreaterThan(-1);
+    expect(main.lastIndexOf("persistRefreshContinuity();")).toBeLessThan(
+      main.lastIndexOf("bootApplication();") + 1,
+    );
   });
 
   it("treats same-user warm store as visually ready during F5 revalidation", () => {
@@ -96,7 +95,7 @@ describe("F5, logout and topbar visual continuity", () => {
     expect(processDetail).toContain("stableProtocolTrackingOnly && preferredTab");
     expect(processDetail).toContain("stableProtocolTrackingOnly && requested");
     expect(processDetail).toContain("if (!stableProtocolTrackingOnly) return");
-    expect(processDetail).toMatch(/dataReadyForCurrentUser\s*&&\s*session\.id\s*!==\s*"unknown"/);
+    expect(processDetail).toMatch(/dataReadyForCurrentUser\s*&&\s*session\.id !== "unknown"/);
   });
 
   it("keeps the current Analysis tab visible while the same session revalidates", () => {
@@ -177,7 +176,7 @@ describe("F5, logout and topbar visual continuity", () => {
   it("marks every Habite-se workflow step done after final process status", () => {
     expect(processDetail).toContain('state: isFinalProcessStatus');
     expect(processDetail).toContain('? "done"');
-    expect(processDetail).toMatch(/isHabiteSeProcess[\s\S]{0,120}\? "Concluído"/);
+    expect(processDetail).toMatch(/isHabiteSeProcess\s*\? "Concluído"/);
   });
 
   it("keeps the current process live even when it leaves the active store after archive", () => {

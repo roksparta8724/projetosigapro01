@@ -405,6 +405,9 @@ async function loadProfileByUserId(userId: string): Promise<AppBootstrapProfile 
   if (!backendClient) return null;
 
   if (isNeonBackend) {
+    // Uma única RPC retorna perfil + papel efetivo + município + nível.
+    // Isso substitui 4 leituras sequenciais (profile id, profile, membership e roles)
+    // que aumentavam sensivelmente o tempo de login em produção.
     const retryDelays = [0, 80, 180, 350];
     let lastProfileError: unknown = null;
 
@@ -1076,6 +1079,10 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
         setError(null);
         setStage("bootstrapping_auth");
         try {
+          // O signInWithPassword substitui a sessão autenticada atual.
+          // Evitamos getSession + signOut antes de TODO login, que adicionava duas
+          // viagens de rede no caminho crítico. Em caso de erro de sessão, fazemos
+          // uma limpeza e uma única nova tentativa.
           clearIdentity();
 
           let signInResult = await backendClient.auth.signInWithPassword({
@@ -1148,10 +1155,6 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
                 throw new Error("Esta conta não está vinculada à Prefeitura deste subdomínio.");
               }
             } else if (nextProfile?.municipalityId) {
-              // No domínio principal, a identidade/município já foram validados
-              // por get_current_profile_context. O bundle institucional não deve
-              // bloquear a entrada; carregamos em segundo plano e atualizamos a UI
-              // assim que chegar.
               const municipalityId = nextProfile.municipalityId;
               void loadMunicipalityBundleById(municipalityId)
                 .then((bundle) => {

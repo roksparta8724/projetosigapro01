@@ -28,13 +28,17 @@ function pickVariantSettings(
   variant: InstitutionalLogoConfigVariant,
 ) {
   const settingsWithVariants = settings as TenantSettingsWithVariants | null | undefined;
-  const hasVariantLogo = Boolean(
-    settingsWithVariants?.headerLogoUrl || settingsWithVariants?.footerLogoUrl ||
-    settingsWithVariants?.headerLogoObjectKey || settingsWithVariants?.footerLogoObjectKey,
-  );
+  // Cabeçalho e rodapé são configuráveis de forma independente, mas uma
+  // Prefeitura com apenas um logo cadastrado não pode ficar com uma área vazia.
+  // Respeitar a preferência explícita da variante e reaproveitar o genérico
+  // somente enquanto ainda não houver imagem específica naquela posição.
   if (variant === "footer") {
     return {
-      logoUrl: hasVariantLogo ? settingsWithVariants?.footerLogoUrl || "" : settings?.logoUrl || "",
+      // Campo explicitamente limpo significa que o administrador removeu o
+      // logo desta posição. Apenas ausência do campo permite fallback legado.
+      logoUrl: settingsWithVariants && "footerLogoUrl" in settingsWithVariants
+        ? settingsWithVariants.footerLogoUrl || ""
+        : settings?.logoUrl || settingsWithVariants?.headerLogoUrl || "",
       scale: settings?.footerLogoScale,
       offsetX: settings?.footerLogoOffsetX,
       offsetY: settings?.footerLogoOffsetY,
@@ -44,7 +48,9 @@ function pickVariantSettings(
   }
 
   return {
-    logoUrl: hasVariantLogo ? settingsWithVariants?.headerLogoUrl || "" : settings?.logoUrl || "",
+    logoUrl: settingsWithVariants && "headerLogoUrl" in settingsWithVariants
+      ? settingsWithVariants.headerLogoUrl || ""
+      : settings?.logoUrl || settingsWithVariants?.footerLogoUrl || "",
     scale: settings?.headerLogoScale ?? settings?.logoScale,
     offsetX: settings?.headerLogoOffsetX ?? settings?.logoOffsetX,
     offsetY: settings?.headerLogoOffsetY ?? settings?.logoOffsetY,

@@ -56,6 +56,8 @@ import {
 } from "@/components/ui/command";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { DEFAULT_AVATAR_EDITOR_DIAMETER } from "@/lib/avatarCropGeometry";
+import { resolveProfileAvatarDisplayUrl } from "@/lib/profileAvatarDisplay";
 import { useAuthGateway } from "@/hooks/useAuthGateway";
 import { useInstitutionBranding } from "@/hooks/useInstitutionBranding";
 import { useMunicipality } from "@/hooks/useMunicipality";
@@ -66,7 +68,6 @@ import { useUserMenuPreferences, type MenuPreferenceKey } from "@/hooks/useUserM
 import { usePlanEntitlements } from "@/hooks/usePlanEntitlements";
 import { getPublicAssetUrl } from "@/lib/assetUrl";
 import { formatDisplayText, humanizeRoleLabel } from "@/lib/displayText";
-import { readCachedProfileAvatar } from "@/lib/profileAvatarCache";
 import { buildProcessPath, can, canAccessMunicipalArea,
   getRoleLandingPath, desktopThemePresets, getVisibleProcessesByScope, isExternalProfessionalRole, isInternalRole, mobileThemePresets, parseMarker, roleLabels, type Permission } from "@/lib/platform";
 import type { PlanModuleName } from "@/lib/planEntitlements";
@@ -299,7 +300,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
   const navigate = useNavigate();
   const location = useLocation();
   const isConfigPage = location.pathname.startsWith("/configuracoes");
-  const { signOut } = useAuthGateway();
+  const { signOut, authenticatedProfileId, authenticatedEmail } = useAuthGateway();
   const { session, sessions, setActiveSession } = usePlatformSession();
   const { unreadCount: notificationCount } = useNotifications({
     includeItems: false,
@@ -375,7 +376,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
     activeInstitution && "theme" in activeInstitution
       ? activeInstitution.theme
       : null;
-  const userProfile = getUserProfile(session.id, session.email);
+  const userProfile = getUserProfile(authenticatedProfileId || session.id, authenticatedEmail || session.email);
   const canonicalSignedInUser =
     sessionUsers.find((item) => item.id === session.id) ??
     sessionUsers.find(
@@ -742,40 +743,24 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
     return Array.from(groups.entries());
   }, [filteredSearchItems]);
 
-  const cachedTopbarAvatar = useMemo(
-    () => readCachedProfileAvatar(session.id, session.email),
-    [session.email, session.id],
-  );
-  const fullUserName =
-    userProfile?.fullName?.trim() ||
-    cachedTopbarAvatar?.fullName?.trim() ||
-    session.name ||
-    "Usuário institucional";
+  const fullUserName = userProfile?.fullName?.trim() || session.name || "Usuário institucional";
   const displayUserName = formatDisplayText(fullUserName, "name", {
     fallback: "Usuário institucional",
     maxLength: 34,
   });
-  const topbarAvatarImageUrl =
-    userProfile?.avatarUrl?.trim() ||
-    cachedTopbarAvatar?.avatarUrl?.trim() ||
-    "";
+  // A foto cadastrada é a identidade visual da conta em toda a plataforma.
+  // Cadastros antigos podem ter useAvatarInHeader=false mesmo com foto R2
+  // válida; esse campo legado não deve ocultar uma imagem já salva.
+  const topbarAvatarImageUrl = resolveProfileAvatarDisplayUrl(userProfile) || null;
   const topbarAvatarCrop = useMemo(() => {
     if (!topbarAvatarImageUrl) return undefined;
     return {
-      scale: Number(userProfile?.avatarScale ?? cachedTopbarAvatar?.avatarScale ?? 1),
-      offsetX: Number(userProfile?.avatarOffsetX ?? cachedTopbarAvatar?.avatarOffsetX ?? 0),
-      offsetY: Number(userProfile?.avatarOffsetY ?? cachedTopbarAvatar?.avatarOffsetY ?? 0),
-      editorSize: 320,
+      scale: Number(userProfile?.avatarScale ?? 1),
+      offsetX: Number(userProfile?.avatarOffsetX ?? 0),
+      offsetY: Number(userProfile?.avatarOffsetY ?? 0),
+      editorSize: DEFAULT_AVATAR_EDITOR_DIAMETER,
     };
-  }, [
-    cachedTopbarAvatar?.avatarOffsetX,
-    cachedTopbarAvatar?.avatarOffsetY,
-    cachedTopbarAvatar?.avatarScale,
-    topbarAvatarImageUrl,
-    userProfile?.avatarOffsetX,
-    userProfile?.avatarOffsetY,
-    userProfile?.avatarScale,
-  ]);
+  }, [topbarAvatarImageUrl, userProfile?.avatarOffsetX, userProfile?.avatarOffsetY, userProfile?.avatarScale]);
   const roleLabel = humanizeRoleLabel(userProfile?.professionalType?.trim() || roleLabels[session.role], "Usuário");
   const displaySessionEmail = formatDisplayText(session.email, "email", {
     fallback: "E-mail não informado",
@@ -1444,6 +1429,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                   aria-label="Abrir conta do usuário"
                 >
                   <UserAvatar
+                    key={`${authenticatedProfileId || session.id}:${activeInstitutionId || "global"}`}
                     name={displayUserName}
                     imageUrl={topbarAvatarImageUrl}
                     crop={topbarAvatarCrop}
@@ -2076,6 +2062,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                     title={fullUserName}
                   >
                     <UserAvatar
+                      key={`${authenticatedProfileId || session.id}:${activeInstitutionId || "global"}`}
                       name={displayUserName}
                       imageUrl={topbarAvatarImageUrl}
                       crop={topbarAvatarCrop}
@@ -2110,6 +2097,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                     <div className="flex items-start gap-3.5">
                       <div className="relative shrink-0">
                         <UserAvatar
+                          key={`${authenticatedProfileId || session.id}:${activeInstitutionId || "global"}`}
                           name={displayUserName}
                           imageUrl={topbarAvatarImageUrl}
                           crop={topbarAvatarCrop}

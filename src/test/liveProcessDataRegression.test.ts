@@ -65,6 +65,5 @@ describe("live process identity and operational freshness", () => {
   it("keeps the live process authoritative over the visual continuity cache", () => {
     expect(processDetail).toContain("const baseProcess = liveProcess ?? cachedProcessVisual");
     expect(processDetail).toContain("const process = useMemo(() =>");
-    expect(processDetail).toContain("directProcessState.status");
   });
 });

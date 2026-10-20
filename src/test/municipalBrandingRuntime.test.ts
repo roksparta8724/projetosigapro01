@@ -24,13 +24,14 @@ describe("municipal branding runtime resilience", () => {
   });
 
   it("renews an expired municipal logo from its persistent object key without changing the asset", () => {
-    expect(branding).toContain("resolvedTenantHeaderLogoUrl");
-    expect(branding).toContain("resolvedTenantFooterLogoUrl");
+    expect(branding).toContain("resolvedTenantHeaderLogoState.tenantId === resolvedInstitutionId");
+    expect(branding).toContain("resolvedTenantFooterLogoState.tenantId === resolvedInstitutionId");
     expect(branding).toContain("scopedMunicipalityBranding?.headerLogoObjectKey");
     expect(branding).toContain('bucket: "institutional-branding"');
     expect(branding).toContain("getSignedUrlForObjectStrict");
-    expect(branding).toContain("isUsableBrandingUrl(base.logoUrl)");
+    expect(branding).toContain("resolvePersistentBrandingReference(base.logoUrl)");
     expect(branding).toContain("municipalityLogoFallback");
+    expect(branding).toContain("resolvePersistentBrandingReference(base.logoUrl)");
     expect(branding).toContain("institutionSettings?.brasaoUrl");
   });
 
@@ -44,12 +45,17 @@ describe("municipal branding runtime resilience", () => {
       branding.indexOf("if (primaryFooterLogo)", branding.indexOf("const primaryFooterLogo =")),
     );
 
-    expect(headerBlock.indexOf("resolvedTenantHeaderLogoUrl")).toBeLessThan(
-      headerBlock.indexOf("isUsableBrandingUrl(base.logoUrl)"),
-    );
-    expect(footerBlock.indexOf("resolvedTenantFooterLogoUrl")).toBeLessThan(
-      footerBlock.indexOf("isUsableBrandingUrl(base.logoUrl)"),
-    );
+    const headerTenantLogo = headerBlock.indexOf("resolvedTenantHeaderLogoState.tenantId === resolvedInstitutionId");
+    const headerLegacyLogo = headerBlock.indexOf("resolvePersistentBrandingReference(base.logoUrl)");
+    const footerTenantLogo = footerBlock.indexOf("resolvedTenantFooterLogoState.tenantId === resolvedInstitutionId");
+    const footerLegacyLogo = footerBlock.indexOf("resolvePersistentBrandingReference(base.logoUrl)");
+
+    expect(headerTenantLogo).toBeGreaterThanOrEqual(0);
+    expect(headerLegacyLogo).toBeGreaterThanOrEqual(0);
+    expect(footerTenantLogo).toBeGreaterThanOrEqual(0);
+    expect(footerLegacyLogo).toBeGreaterThanOrEqual(0);
+    expect(headerTenantLogo).toBeLessThan(headerLegacyLogo);
+    expect(footerTenantLogo).toBeLessThan(footerLegacyLogo);
   });
 
   it("uses the same resolved logo in the configuration preview without replacing a newly selected file", () => {
@@ -60,8 +66,8 @@ describe("municipal branding runtime resilience", () => {
   });
 
   it("keeps the configured object-key logo authoritative but never leaves the municipal frame blank", () => {
-    expect(branding).toContain("resolvedTenantHeaderLogoUrl");
-    expect(branding).toContain("resolvedTenantFooterLogoUrl");
+    expect(branding).toContain("resolvedTenantHeaderLogoState.tenantId === resolvedInstitutionId");
+    expect(branding).toContain("resolvedTenantFooterLogoState.tenantId === resolvedInstitutionId");
     expect(branding).toContain("institutionalFallback");
     expect(branding).toContain("institutionSettings?.brasaoUrl");
     expect(branding).toContain("municipalityLogoFallback");

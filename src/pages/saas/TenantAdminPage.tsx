@@ -16,6 +16,8 @@ import { PageMainContent, PageMainGrid, PageShell, PageSideContent, PageStatsRow
 import { StatCard } from "@/components/platform/StatCard";
 import { MunicipalOrganizationChart } from "@/components/platform/MunicipalOrganizationChart";
 import { UserAvatar } from "@/components/platform/UserAvatar";
+import { DEFAULT_AVATAR_EDITOR_DIAMETER } from "@/lib/avatarCropGeometry";
+import { resolveProfileAvatarDisplayUrl } from "@/lib/profileAvatarDisplay";
 import {
   buildProcessPath, accessLevelLabels, getProcessPaymentGuides, matchesOperationalScope, roleLabels, roleSuggestedTitles, statusLabel, statusTone, type AccountStatus, type ProcessRecord, type SessionUser, type UserRole } from "@/lib/platform";
 import { usePlatformData } from "@/hooks/usePlatformData";
@@ -261,6 +263,7 @@ export function TenantAdminPage() {
   const { municipality, scopeId, name: municipalityName } = useMunicipality();
   const { sessionUsers, institutions, createTenantUser, updateTenantUser, setUserAccountStatus, deleteUserAccount, processes, getUserProfile, getInstitutionSettings, refreshRemoteStore } = usePlatformData();
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
+  const activeUserProfile = getUserProfile(session.id, session.email);
   const activeInstitution = municipality ?? institutions.find((item) => item.id === effectiveScopeId) ?? null;
   const tenantUsers = useMemo(() => sessionUsers.filter((user) => matchesOperationalScope(effectiveScopeId, user)), [effectiveScopeId, sessionUsers]);
   const tenantProcesses = useMemo(() => processes.filter((process) => matchesOperationalScope(effectiveScopeId, process)), [effectiveScopeId, processes]);
@@ -892,12 +895,12 @@ export function TenantAdminPage() {
               >
                 <UserAvatar
                   name={user.name}
-                  imageUrl={profile?.avatarUrl}
+                  imageUrl={resolveProfileAvatarDisplayUrl(profile)}
                   crop={profile ? {
                     scale: profile.avatarScale ?? 1,
                     offsetX: profile.avatarOffsetX ?? 0,
                     offsetY: profile.avatarOffsetY ?? 0,
-                    editorSize: 320,
+                    editorSize: DEFAULT_AVATAR_EDITOR_DIAMETER,
                   } : undefined}
                   size="lg"
                 />
@@ -1139,7 +1142,18 @@ export function TenantAdminPage() {
                   </p>
                 </div>
                 <div className="inline-flex items-center gap-3 rounded-full border border-slate-200 bg-white px-3.5 py-2.5 shadow-[0_8px_20px_rgba(15,23,42,0.05)]">
-                  <UserAvatar name={session.name} imageUrl={getUserProfile(session.id, session.email)?.avatarUrl} size="sm" />
+                  <UserAvatar
+                    key={`${session.id}:${effectiveScopeId || "global"}`}
+                    name={session.name}
+                    imageUrl={resolveProfileAvatarDisplayUrl(activeUserProfile)}
+                    crop={activeUserProfile ? {
+                      scale: activeUserProfile.avatarScale ?? 1,
+                      offsetX: activeUserProfile.avatarOffsetX ?? 0,
+                      offsetY: activeUserProfile.avatarOffsetY ?? 0,
+                      editorSize: DEFAULT_AVATAR_EDITOR_DIAMETER,
+                    } : undefined}
+                    size="sm"
+                  />
                   <div className="min-w-0">
                     <p className="sig-fit-title text-sm font-semibold text-slate-900">{session.name}</p>
                     <p className="sig-fit-copy text-xs text-slate-500">{session.title || "Responsável institucional"}</p>

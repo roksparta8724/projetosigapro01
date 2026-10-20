@@ -8,6 +8,7 @@ const config = readFileSync(resolve(process.cwd(), "src/pages/saas/Configuracoes
 const dataHook = readFileSync(resolve(process.cwd(), "src/hooks/usePlatformData.tsx"), "utf8");
 const backend = readFileSync(resolve(process.cwd(), "src/integrations/backend/platformImpl.ts"), "utf8");
 const profilePage = readFileSync(resolve(process.cwd(), "src/pages/saas/PerfilPage.tsx"), "utf8");
+const portalFrame = readFileSync(resolve(process.cwd(), "src/components/platform/PortalFrame.tsx"), "utf8");
 const storage = readFileSync(resolve(process.cwd(), "src/integrations/r2/storage.ts"), "utf8");
 const userAvatar = readFileSync(resolve(process.cwd(), "src/components/platform/UserAvatar.tsx"), "utf8");
 const imageFrameEditor = readFileSync(resolve(process.cwd(), "src/components/platform/ImageFrameEditor.tsx"), "utf8");
@@ -59,7 +60,15 @@ describe("profile and branding persistence regressions", () => {
 
   it("renders a professional crop stage with a bright final circle and dimmed outer image", () => {
     expect(userAvatar).toContain("sig-user-avatar-root relative aspect-square shrink-0 overflow-hidden rounded-full");
-    expect(userAvatar).toContain("sig-user-avatar-image absolute inset-0 block h-full w-full max-w-none bg-transparent object-cover object-center");
+    expect(userAvatar).toContain("sig-user-avatar-image absolute block max-w-none bg-white");
+    expect(userAvatar).toContain("resolveCircularAvatarGeometry");
+    expect(profilePage).toContain("const referenceRatio = DEFAULT_AVATAR_EDITOR_DIAMETER / Math.max(avatarMaskDiameter, 1)");
+    expect(profilePage).toContain("avatarOffsetX: offsetX * referenceRatio");
+    expect(profilePage).toContain("avatarOffsetY: offsetY * referenceRatio");
+    expect(profilePage).toContain("onMetricsChange={({ frameWidth }) =>");
+    expect(portalFrame).toContain("editorSize: DEFAULT_AVATAR_EDITOR_DIAMETER");
+    expect(userAvatar).toContain('data-avatar-crop-surface={cropGeometry ? "matched" : "loading"}');
+    expect(imageFrameEditor).toContain("AVATAR_CROP_MASK_FACTOR");
     expect(imageFrameEditor).toContain("sig-image-frame-stage");
     expect(imageFrameEditor).toContain('width: "min(360px, 100%)"');
     expect(imageFrameEditor).toContain('aspectRatio: "1 / 1"');
@@ -73,8 +82,10 @@ describe("profile and branding persistence regressions", () => {
     expect(css).toContain(".sig-image-frame-stage");
     expect(profilePage).toContain('fitMode="cover"');
     expect(profilePage).toContain("preenche todo o círculo");
-    expect(profilePage).toContain("Enquadramento alterado. Clique em “Salvar ajustes da foto” para confirmar.");
-    expect(profilePage).toContain("updateAvatarHeaderVisibility");
+    expect(profilePage).toContain("Salvar ajustes da foto");
+    expect(profilePage).toContain("Exibição automática após o salvamento.");
+    expect(profilePage).not.toContain("onCheckedChange={updateAvatarHeaderVisibility}");
+    expect(profilePage).toContain("Foto institucional no cabeçalho");
     expect(profilePage).toContain("border-rose-200 bg-rose-50 text-rose-700");
   });
 
@@ -95,16 +106,39 @@ describe("profile and branding persistence regressions", () => {
     expect(userAvatar).toContain("const resolvedImageUrl = recoveryImageUrl || stableImageUrl || imageUrl ||");
   });
 
-  it("keeps private R2 avatars persistent across F5 and saves new photos only on explicit confirmation", () => {
-    expect(storage).toContain('input.bucket === "profile-assets"');
-    expect(storage).toContain('`r2:${uploaded.objectKey}`');
+  it("saves avatar, crop and topbar preference together without competing autosave requests", () => {
+    expect(profilePage).toContain("setAvatarDraftDirty(true)");
+    expect(profilePage).toContain("avatarDraftDirty || avatarFrameDirtyRef.current || saving");
+    expect(profilePage).toContain("Ajustes da foto e do cabeçalho são confirmados juntos");
+    expect(profilePage).not.toContain("avatarFrameSaveInFlightRef");
+    expect(profilePage).toContain("if (saving) return");
+    expect(profilePage).toContain("const showPhotoInHeader = Boolean(avatarUrl || avatarStorageRef)");
+    expect(profilePage).toContain("const avatarReadConfirmed = !savedAvatarUrl ||");
+    expect(profilePage).toContain("await confirmSavedAvatarReadable(savedAvatarUrl)");
+    expect(profilePage).toContain("} else if (!savedAvatarUrl) {");
+    expect(profilePage).toContain("imageUrl={avatarPreviewUrl}");
+    expect(portalFrame).toContain("const topbarAvatarImageUrl = resolveProfileAvatarDisplayUrl(userProfile) || null");
+    expect(backend).toContain("useAvatarInHeader: Boolean(storedAvatar)");
+    expect(backend).not.toContain("O banco não confirmou a exibição da foto no cabeçalho");
+    expect(backend).toContain("O banco não confirmou o enquadramento da foto");
+  });
+
+  it("persists private R2 avatars after confirmation and preserves edits across F5", () => {
+    expect(storage).toContain('input.bucket === "profile-assets" ? `r2:${uploaded.objectKey}`');
     expect(backend).toContain("PROFILE_ASSET_REF_PREFIX");
-    expect(backend).toContain("resolveStoredProfileAvatar");
-    expect(backend).toContain("avatarStorageRef");
-    expect(profilePage).toContain("A foto ainda não foi salva; clique em “Salvar ajustes da foto”.");
+    expect(backend).toContain("/api/profile-avatar-open?objectKey=");
+    expect(backend).not.toContain("getSignedUrlForObjectStrict");
+    expect(backend).toContain("savedAvatarValue");
+    expect(backend).toContain("requestedR2Ref");
+    expect(profilePage).toContain("avatarDraftDirty");
+    expect(profilePage).toContain("if (nextFile.file) setForm((current) => ({ ...current, useAvatarInHeader: true }))");
+    expect(profilePage).toContain("useAvatarInHeader: showPhotoInHeader");
+    expect(portalFrame).toContain("const topbarAvatarImageUrl = resolveProfileAvatarDisplayUrl(userProfile) || null");
+    expect(profilePage).toContain("Pré-visualização pronta.");
     expect(profilePage).not.toContain("Salvando foto automaticamente...");
-    expect(profilePage).not.toContain("void handleSubmit({ preventDefault: () => {} } as FormEvent, selectedFiles)");
+    expect(profilePage).toContain("confirmSavedAvatarReadable(savedAvatarUrl)");
     expect(profilePage).toContain("uploaded.persistentRef");
-    expect(profilePage).not.toContain("Configure a URL publica do R2 antes de salvar a foto.");
+    expect(dataHook).toContain("readCachedProfileAvatar");
+    expect(dataHook).toContain("writeCachedProfileAvatar");
   });
 });

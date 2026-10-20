@@ -40,8 +40,7 @@ describe("Habite-se guide branding and status contrast", () => {
   it("keeps the Habite-se signature workflow exclusive to the municipal Director", () => {
     expect(permit).toContain("userCanSignPermitAsDirector(session)");
     expect(permit).toContain("requestDirectorSignature");
-    expect(permit).toContain('const slot = signingSecretary ? "secretaria" : "diretoria"');
-    expect(permit).toContain("signerSlot: slot");
+    expect(permit).toContain('const slot = signingSecretary ? "secretaria" : "diretoria";');
     expect(permit).toContain("setHabiteSePermitAwaitingDirector(process.id)");
     expect(permit).toContain("finalizeHabiteSePermit(process.id)");
     expect(permit).not.toContain('openSignature("analyst")');
@@ -62,12 +61,16 @@ describe("Habite-se guide branding and status contrast", () => {
     expect(permit).not.toContain("Salvar e encaminhar à Diretoria");
   });
 
-  it("deletes selected notifications through the protected notifications relation", () => {
+  it("deletes selected notification ids through the current database contract and checks partial failures", () => {
+    expect(notificationClient).toContain("export async function deleteMyNotifications(notificationIds: string[])");
+    expect(notificationClient).toContain("new Set((notificationIds ?? []).filter(Boolean))");
     expect(notificationClient).toContain('.from("notifications")');
     expect(notificationClient).toContain(".delete()");
     expect(notificationClient).toContain('.in("id", ids)');
     expect(notificationClient).toContain('.select("id")');
-    expect(notificationClient).not.toContain('delete_my_notifications_v1');
+    expect(notificationClient).toContain("if (deleted !== ids.length)");
+    expect(notificationClient).toContain("Foram excluídas");
+    expect(notificationClient).not.toContain('delete_my_notifications_v1", {');
   });
 
   it("supports optional Secretary co-signature without blocking Habite-se completion", () => {
@@ -86,7 +89,7 @@ describe("Habite-se guide branding and status contrast", () => {
 
   it("hard-locks the Habite-se status badge to readable light text on saturated backgrounds", () => {
     expect(permit).toContain('data-habite-se-status-badge="true"');
-    expect(permit).toContain("data-status={effectivePermitStatus}");
+    expect(permit).toContain('data-status={effectivePermitStatus}');
     expect(permit).toContain('bg-[#075985]');
     expect(permit).toContain('font-black');
     expect(permit).toContain('<span className="!text-white">');

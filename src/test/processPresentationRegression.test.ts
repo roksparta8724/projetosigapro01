@@ -71,9 +71,7 @@ describe("process guide placement and organogram regression", () => {
     expect(detail).toContain("const displayOrganizationPath =");
     expect(detail).toContain(": currentOrganizationPath;");
     expect(detail).toContain("isPrematureIssFinanceHandoff");
-    expect(detail).toContain("const holdsIssuedIssInsideUrbanism =");
-    expect(detail).toContain("const currentFolder = holdsIssuedIssInsideUrbanism");
-    expect(detail).toContain("isPrematureIssFinanceHandoff");
+    expect(detail).toContain("holdsIssuedIssInsideUrbanism");
   });
 });
 

@@ -1,6 +1,7 @@
 import { type CSSProperties, useEffect, useRef, useState } from "react";
 import { Avatar } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
+import { DEFAULT_AVATAR_EDITOR_DIAMETER, resolveCircularAvatarGeometry } from "@/lib/avatarCropGeometry";
 
 type UserAvatarSize = "sm" | "md" | "lg" | "xl";
 
@@ -101,9 +102,10 @@ export function UserAvatar({
       emptyClearTimerRef.current = null;
     }
 
-    if (imageUrl === "") {
-      // Profile refreshes can briefly expose an empty avatar before the signed
-      // URL is resolved. Delay clearing so a valid image never flashes away.
+    if (!imageUrl) {
+      // No avatar: return to initials. Brief hydration gaps are tolerated.
+      // This also covers null/undefined after deleting a previously saved
+      // photo, not only the empty string.
       emptyClearTimerRef.current = window.setTimeout(() => {
         setStableImageUrl("");
         setFailedImageUrl("");
@@ -146,40 +148,6 @@ export function UserAvatar({
     };
     preload.onerror = () => {
       if (cancelled) return;
-
-      const alternate = alternateLegacyAvatarUrl(imageUrl);
-      if (
-        alternate &&
-        alternate !== imageUrl &&
-        !attemptedRecoveryRef.current.has(alternate)
-      ) {
-        attemptedRecoveryRef.current.add(imageUrl);
-        attemptedRecoveryRef.current.add(alternate);
-
-        const recovery = new Image();
-        recovery.decoding = "async";
-        recovery.onload = async () => {
-          try {
-            await recovery.decode();
-          } catch {
-            // onload já confirmou a imagem.
-          }
-          if (cancelled) return;
-          setNaturalSize({
-            width: recovery.naturalWidth || 1,
-            height: recovery.naturalHeight || 1,
-          });
-          setRecoveryImageUrl(alternate);
-          setStableImageUrl(alternate);
-          setFailedImageUrl("");
-        };
-        recovery.onerror = () => {
-          if (!cancelled && !stableImageUrl) setFailedImageUrl(imageUrl);
-        };
-        recovery.src = alternate;
-        return;
-      }
-
       if (!stableImageUrl) setFailedImageUrl(imageUrl);
     };
     preload.src = imageUrl;
@@ -202,10 +170,26 @@ export function UserAvatar({
   const initials = userInitials(name);
   const sizePixels: Record<UserAvatarSize, number> = { sm: 32, md: 40, lg: 56, xl: 80 };
   const diameter = sizePixels[size];
-  const cropRatio = crop ? diameter / Math.max(crop.editorSize ?? 320, 1) : 1;
-  const resolvedImageStyle = crop
+  const cropGeometry = crop
+    ? resolveCircularAvatarGeometry({
+        naturalWidth: naturalSize.width,
+        naturalHeight: naturalSize.height,
+        diameter,
+        scale: crop.scale,
+        offsetX: crop.offsetX,
+        offsetY: crop.offsetY,
+        editorSize: crop.editorSize ?? DEFAULT_AVATAR_EDITOR_DIAMETER,
+      })
+    : null;
+  const resolvedImageStyle: CSSProperties | undefined = cropGeometry
     ? {
-        transform: `translate(${crop.offsetX * cropRatio}px, ${crop.offsetY * cropRatio}px) scale(${crop.scale})`,
+        left: "50%",
+        top: "50%",
+        width: `${cropGeometry.width}px`,
+        height: `${cropGeometry.height}px`,
+        maxWidth: "none",
+        objectFit: "fill",
+        transform: `translate(-50%, -50%) translate(${cropGeometry.offsetX}px, ${cropGeometry.offsetY}px)`,
         transformOrigin: "center center",
       }
     : imageStyle;
@@ -214,7 +198,7 @@ export function UserAvatar({
     <Avatar
       className={cn(
         sizeClasses[size],
-        "sig-user-avatar-root relative aspect-square shrink-0 overflow-hidden rounded-full border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#eef4f9_100%)] shadow-[0_8px_20px_rgba(15,42,68,0.10)] dark:border-slate-500/80 dark:bg-slate-400",
+        "sig-user-avatar-root relative aspect-square shrink-0 overflow-hidden rounded-full border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff_0%,#eef4f9_100%)] shadow-[0_8px_20px_rgba(15,42,68,0.10)]",
         className,
       )}
       title={title || name || "Usuario"}
@@ -222,46 +206,49 @@ export function UserAvatar({
       <span
         aria-hidden="true"
         className={cn(
-          "sig-user-avatar-fallback absolute inset-0 flex h-full w-full items-center justify-center rounded-full bg-[linear-gradient(180deg,#f8fbff_0%,#e8eef5_100%)] font-extrabold uppercase tracking-[-0.03em] !text-[#0f172a] select-none dark:bg-[linear-gradient(180deg,#cbd5e1_0%,#94a3b8_100%)] dark:!text-[#0f172a]",
+          "sig-user-avatar-fallback absolute inset-0 flex h-full w-full items-center justify-center rounded-full bg-[linear-gradient(180deg,#f8fbff_0%,#e8eef5_100%)] font-extrabold uppercase tracking-[-0.03em] text-[#17324a] select-none",
           fallbackClassName,
         )}
       >
         {initials}
       </span>
       {showImage ? (
-        <img
-          src={resolvedImageUrl || undefined}
-          alt={name || "Usuario"}
-          decoding="async"
-          className={cn(
-            "sig-user-avatar-image absolute inset-0 block h-full w-full max-w-none bg-transparent object-cover object-center",
-            imageClassName,
-          )}
-          style={resolvedImageStyle}
-          onLoad={(event) => {
-            const nextWidth = event.currentTarget.naturalWidth || 1;
-            const nextHeight = event.currentTarget.naturalHeight || 1;
-            if (nextWidth !== naturalSize.width || nextHeight !== naturalSize.height) {
-              setNaturalSize({ width: nextWidth, height: nextHeight });
-            }
-          }}
-          onError={() => {
-            const alternate = alternateLegacyAvatarUrl(resolvedImageUrl);
-            if (
-              alternate &&
-              alternate !== resolvedImageUrl &&
-              !attemptedRecoveryRef.current.has(alternate)
-            ) {
-              attemptedRecoveryRef.current.add(resolvedImageUrl);
-              attemptedRecoveryRef.current.add(alternate);
-              setFailedImageUrl("");
-              setRecoveryImageUrl(alternate);
-              return;
-            }
+        <span className="absolute inset-0 block overflow-hidden rounded-full" data-avatar-crop-surface={cropGeometry ? "matched" : "loading"}>
+          <img
+            src={resolvedImageUrl || undefined}
+            alt={name || "Usuario"}
+            decoding="async"
+            className={cn(
+              "sig-user-avatar-image absolute block max-w-none bg-white",
+              cropGeometry ? "" : "inset-0 h-full w-full object-cover object-center",
+              imageClassName,
+            )}
+            style={resolvedImageStyle}
+            onLoad={(event) => {
+              const nextWidth = event.currentTarget.naturalWidth || 1;
+              const nextHeight = event.currentTarget.naturalHeight || 1;
+              if (nextWidth !== naturalSize.width || nextHeight !== naturalSize.height) {
+                setNaturalSize({ width: nextWidth, height: nextHeight });
+              }
+            }}
+            onError={() => {
+              const alternate = alternateLegacyAvatarUrl(resolvedImageUrl);
+              if (
+                alternate &&
+                alternate !== resolvedImageUrl &&
+                !attemptedRecoveryRef.current.has(alternate)
+              ) {
+                attemptedRecoveryRef.current.add(resolvedImageUrl);
+                attemptedRecoveryRef.current.add(alternate);
+                setFailedImageUrl("");
+                setRecoveryImageUrl(alternate);
+                return;
+              }
 
-            setFailedImageUrl(resolvedImageUrl);
-          }}
-        />
+              setFailedImageUrl(resolvedImageUrl);
+            }}
+          />
+        </span>
       ) : null}
     </Avatar>
   );

@@ -801,7 +801,7 @@ function readProfileVisualCache(): UserProfile | null {
       avatarScale: persistent.avatarScale,
       avatarOffsetX: persistent.avatarOffsetX,
       avatarOffsetY: persistent.avatarOffsetY,
-      useAvatarInHeader: true,
+      useAvatarInHeader: persistent.useAvatarInHeader,
       bio: "",
     };
   }
@@ -1241,14 +1241,9 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
           !authoritativeProfile.avatarStorageRef?.trim(),
         );
         if (authoritativeAvatarRemoved && authoritativeProfile) {
-          // O banco oficial é soberano: uma remoção real da foto nunca pode ser
-          // "ressuscitada" pelo cache visual usado apenas para estabilizar o F5.
           syncProfileVisualCache(authoritativeProfile);
         }
-
-        const cachedVisualProfile = authoritativeAvatarRemoved
-          ? null
-          : readProfileVisualCache();
+        const cachedVisualProfile = authoritativeAvatarRemoved ? null : readProfileVisualCache();
         if (cachedVisualProfile) {
           sanitized = {
             ...sanitized,
@@ -1349,10 +1344,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
       if (authoritativeAvatarRemoved && authoritativeProfile) {
         syncProfileVisualCache(authoritativeProfile);
       }
-
-      const cachedVisualProfile = authoritativeAvatarRemoved
-        ? null
-        : readProfileVisualCache();
+      const cachedVisualProfile = authoritativeAvatarRemoved ? null : readProfileVisualCache();
       if (cachedVisualProfile) {
         sanitized = {
           ...sanitized,

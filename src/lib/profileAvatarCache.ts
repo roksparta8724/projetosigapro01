@@ -7,6 +7,7 @@ export type CachedProfileAvatar = {
   avatarScale: number;
   avatarOffsetX: number;
   avatarOffsetY: number;
+  useAvatarInHeader: boolean;
   cachedAt: number;
 };
 
@@ -43,7 +44,7 @@ export function readCachedProfileAvatar(
       cached.userId !== id ||
       !cached.avatarUrl ||
       typeof cached.cachedAt !== "number" ||
-      Date.now() - cached.cachedAt > MAX_AGE_MS
+      Date.now() - cached.cachedAt > (/[?&]X-Amz-Signature=/i.test(cached.avatarUrl) ? 30 * 60 * 1000 : MAX_AGE_MS)
     ) {
       window.localStorage.removeItem(keyForUser(id));
       return null;
@@ -64,6 +65,7 @@ export function readCachedProfileAvatar(
       avatarScale: Number(cached.avatarScale ?? 1),
       avatarOffsetX: Number(cached.avatarOffsetX ?? 0),
       avatarOffsetY: Number(cached.avatarOffsetY ?? 0),
+      useAvatarInHeader: Boolean(cached.useAvatarInHeader ?? false),
       cachedAt: cached.cachedAt,
     };
   } catch {
@@ -80,6 +82,7 @@ export function writeCachedProfileAvatar(profile: {
   avatarScale?: number | null;
   avatarOffsetX?: number | null;
   avatarOffsetY?: number | null;
+  useAvatarInHeader?: boolean | null;
 }) {
   if (typeof window === "undefined") return;
   const id = safeIdentity(profile.userId);
@@ -100,6 +103,7 @@ export function writeCachedProfileAvatar(profile: {
     avatarScale: Number(profile.avatarScale ?? 1),
     avatarOffsetX: Number(profile.avatarOffsetX ?? 0),
     avatarOffsetY: Number(profile.avatarOffsetY ?? 0),
+    useAvatarInHeader: Boolean(profile.useAvatarInHeader ?? false),
     cachedAt: Date.now(),
   };
 
