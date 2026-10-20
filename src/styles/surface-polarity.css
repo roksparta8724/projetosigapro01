@@ -2244,3 +2244,120 @@ html body #root .sig-app-frame
 }
 /* CONTRASTE DO PREVIEW INSTITUCIONAL V21 END */
 
+
+/* SIGAPRO SHARED FOOTER RESPONSIVE V1 */
+html body #root .sig-page-footer [data-sig-footer-grid="true"] {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)) !important;
+  align-items: start !important;
+}
+html body #root .sig-page-footer [data-sig-footer-column="true"],
+html body #root .sig-page-footer [data-sig-footer-column="true"] > div {
+  min-width: 0 !important;
+  max-width: 100% !important;
+}
+html body #root .sig-page-footer [data-sig-footer-column="true"] :is(p, span) {
+  white-space: normal !important;
+  overflow-wrap: anywhere !important;
+  word-break: normal !important;
+}
+
+/* SIGAPRO TENANT CONTRAST + FOOTER V3 */
+
+html body #root .sig-page-footer [data-sig-footer-grid="true"] {
+  grid-template-columns: repeat(auto-fit,minmax(min(100%,260px),1fr)) !important;
+  align-items: start !important;
+}
+
+html body #root .sig-page-footer [data-sig-footer-column="true"],
+html body #root .sig-page-footer [data-sig-footer-column="true"] > div {
+  min-width: 0 !important;
+  max-width: 100% !important;
+}
+
+html body #root .sig-page-footer [data-sig-footer-column="true"] :is(p,span) {
+  white-space: normal !important;
+  overflow-wrap: anywhere !important;
+  word-break: normal !important;
+}
+
+html body #root .sig-main-shell [data-analysis-queue-guide="true"] :is(p,span,strong,small) {
+  color: #eaf5ff !important;
+  -webkit-text-fill-color: #eaf5ff !important;
+  opacity: 1 !important;
+}
+
+html body #root .sig-main-shell [data-analysis-queue-guide="true"] svg {
+  color: #eaf5ff !important;
+  stroke: currentColor !important;
+}
+
+html body #root .sig-main-shell [data-analysis-distribution-manager="true"] h2 {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+}
+
+html body #root .sig-main-shell [data-analysis-availability-card="true"] {
+  background: linear-gradient(135deg,#1a3248 0%,#203e56 100%) !important;
+  border-color: rgba(149,178,207,.35) !important;
+}
+
+html body #root .sig-main-shell [data-analysis-availability-card="true"] :is(p,span,strong,small) {
+  color: #f0f7ff !important;
+  -webkit-text-fill-color: #f0f7ff !important;
+  opacity: 1 !important;
+}
+
+/* SIGAPRO 100 PERCENT RESPONSIVE PREMIUM V1 */
+
+html body #root .sig-page-footer [data-sig-footer-grid="true"] {
+  grid-template-columns:
+    repeat(auto-fit, minmax(min(100%, 260px), 1fr)) !important;
+  align-items: start !important;
+}
+
+html body #root .sig-page-footer [data-sig-footer-column="true"],
+html body #root .sig-page-footer [data-sig-footer-column="true"] > div {
+  min-width: 0 !important;
+  max-width: 100% !important;
+}
+
+html body #root .sig-page-footer [data-sig-footer-column="true"] :is(p,span) {
+  white-space: normal !important;
+  overflow-wrap: anywhere !important;
+  word-break: normal !important;
+}
+
+html body #root .sig-main-shell [data-analysis-distribution-grid="true"] {
+  grid-template-columns:
+    repeat(auto-fit, minmax(min(100%, 205px), 1fr)) !important;
+}
+
+html body #root .sig-main-shell [data-analysis-queue-guide="true"] :is(p,span,strong,small),
+html body #root .sig-main-shell [data-analysis-distribution-manager="true"] h2 {
+  color: #f8fbff !important;
+  -webkit-text-fill-color: #f8fbff !important;
+  opacity: 1 !important;
+}
+
+html body #root .sig-main-shell [data-analysis-queue-guide="true"] svg {
+  color: #dbeafe !important;
+  stroke: currentColor !important;
+  opacity: 1 !important;
+}
+
+html body #root .sig-main-shell :is(
+  [data-analysis-availability-card="true"],
+  [data-analysis-dark-card="true"]
+) {
+  background: linear-gradient(135deg,#1a3248,#203e56) !important;
+  border-color: rgba(149,178,207,.35) !important;
+}
+
+html body #root .sig-main-shell :is(
+  [data-analysis-availability-card="true"],
+  [data-analysis-dark-card="true"]
+) :is(p,span,strong,small) {
+  color: #f0f7ff !important;
+  -webkit-text-fill-color: #f0f7ff !important;
+  opacity: 1 !important;
+}
