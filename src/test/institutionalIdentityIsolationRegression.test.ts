@@ -50,7 +50,7 @@ describe("isolamento da identidade visual entre usuários e municípios", () => 
   it("reinicia o avatar quando o usuário ou a Prefeitura mudam", () => {
     expect(topbar).toContain("getUserProfile(authenticatedProfileId || session.id, authenticatedEmail || session.email)");
     expect(topbar).toContain('key={`${authenticatedProfileId || session.id}:${activeInstitutionId || "global"}`}');
-    expect(topbar).toContain("const topbarAvatarImageUrl = userProfile?.avatarUrl?.trim() || null");
+    expect(topbar).toContain("const topbarAvatarImageUrl = resolveProfileAvatarDisplayUrl(userProfile) || null");
     expect(profile).toContain("getUserProfile(authenticatedProfileId || session.id, profileLookupEmail)");
   });
 });
