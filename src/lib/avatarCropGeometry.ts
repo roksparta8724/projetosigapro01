@@ -1,13 +1,13 @@
 /**
  * Geometria única do recorte circular do SIGAPRO.
  *
- * O editor usa um palco quadrado de no máximo 320px e máscara inset-[8%],
+ * O editor usa um palco quadrado de no máximo 360px e máscara inset-[8%],
  * resultando numa área de recorte de 84% do palco. As coordenadas persistidas
  * são deslocamentos CSS (px) nesse círculo de referência. Avatares pequenos
  * reproduzem o mesmo recorte proporcionalmente, sem abrir lacunas brancas.
  */
 export const AVATAR_CROP_MASK_FACTOR = 0.84;
-export const DEFAULT_AVATAR_EDITOR_DIAMETER = 320 * AVATAR_CROP_MASK_FACTOR;
+export const DEFAULT_AVATAR_EDITOR_DIAMETER = 360 * AVATAR_CROP_MASK_FACTOR;
 
 export interface CircularAvatarGeometryInput {
   naturalWidth: number;
