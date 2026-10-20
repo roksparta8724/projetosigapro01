@@ -54,8 +54,7 @@ export function getMunicipalPositionDisplayTitle(
   return match ? labels?.[match.key] || match.defaultTitle : title;
 }
 export function getMunicipalPositionDefaults(): Record<MunicipalPositionKey, string> {
-  return Object.fromEntries(municipalPositionPresets.map((item) => [item.key, item.defaultTitle]))
-    as Record<MunicipalPositionKey, string>;
+  return Object.fromEntries(municipalPositionPresets.map((item) => [item.key, item.defaultTitle])) as Record<MunicipalPositionKey, string>;
 }
 
 /** Modo de teste local: sem qualquer gravação em Neon/R2. */
