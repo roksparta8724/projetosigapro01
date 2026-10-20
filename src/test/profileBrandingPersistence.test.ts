@@ -117,7 +117,7 @@ describe("profile and branding persistence regressions", () => {
     expect(profilePage).toContain("await confirmSavedAvatarReadable(savedAvatarUrl)");
     expect(profilePage).toContain("} else if (!savedAvatarUrl) {");
     expect(profilePage).toContain("imageUrl={avatarPreviewUrl}");
-    expect(portalFrame).toContain("const topbarAvatarImageUrl = userProfile?.avatarUrl?.trim() || null");
+    expect(portalFrame).toContain("const topbarAvatarImageUrl = resolveProfileAvatarDisplayUrl(userProfile) || null");
     expect(backend).toContain("O banco não confirmou a exibição da foto no cabeçalho");
     expect(backend).toContain("O banco não confirmou o enquadramento da foto");
   });
@@ -132,7 +132,7 @@ describe("profile and branding persistence regressions", () => {
     expect(profilePage).toContain("avatarDraftDirty");
     expect(profilePage).toContain("if (nextFile.file) setForm((current) => ({ ...current, useAvatarInHeader: true }))");
     expect(profilePage).toContain("useAvatarInHeader: showPhotoInHeader");
-    expect(portalFrame).toContain("const topbarAvatarImageUrl = userProfile?.avatarUrl?.trim() || null");
+    expect(portalFrame).toContain("const topbarAvatarImageUrl = resolveProfileAvatarDisplayUrl(userProfile) || null");
     expect(profilePage).toContain("Pré-visualização pronta.");
     expect(profilePage).not.toContain("Salvando foto automaticamente...");
     expect(profilePage).toContain("confirmSavedAvatarReadable(savedAvatarUrl)");
