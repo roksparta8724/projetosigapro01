@@ -2,7 +2,7 @@ import { databaseClient as db, neonAuthUrl } from "@/integrations/backend/databa
 import { isNeonBackend } from "@/integrations/backend/config";
 import { getLegacyProfileAvatarOpenUrl, getObjectKeyFromPublicUrl, uploadFile } from "@/integrations/r2/client";
 import { buildMunicipalityPortalUrl } from "@/lib/publicDomain";
-import { normalizeMunicipalPositionLabels, normalizeMunicipalPositionAliases, getMunicipalPositionDisplayTitle } from "@/lib/municipalPositionCatalog";
+import { normalizeMunicipalPositionLabels, normalizeMunicipalPositionAliases, getMunicipalPositionDisplayTitle, readLocalMunicipalPositionLabels } from "@/lib/municipalPositionCatalog";
 import {
   buildProcessDocuments,
   isOccupancyPermitProcessType,
@@ -1285,7 +1285,7 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
           (["profissional_externo", "property_owner", "proprietario_consulta"].includes(roleCode)
             ? profile?.professional_type || role?.label || ""
             : role?.label || membership.queue_name || ""),
-        positionSettingsByMunicipality.get(membership.tenant_id)?.positionTitles,
+        { ...positionSettingsByMunicipality.get(membership.tenant_id)?.positionTitles, ...readLocalMunicipalPositionLabels(membership.tenant_id) },
         positionSettingsByMunicipality.get(membership.tenant_id)?.positionTitleAliases,
       ),
       profileLabel:
@@ -3893,6 +3893,25 @@ export async function upsertRemoteInstitution(input: {
 }
 
 
+/** RPC municipal restrita: só muda rótulos institucionais; nunca RBAC nem histórico. */
+export async function updateRemoteMunicipalPositionLabels(input: {
+  municipalityId: string;
+  titles: Record<string, string>;
+}): Promise<void> {
+  if (!db) throw Error("Banco oficial indisponível.");
+  const municipalityId = normalizeUuid(input.municipalityId);
+  if (!municipalityId) throw Error("Prefeitura inválida para atualizar cargos.");
+  const titles = normalizeMunicipalPositionLabels(input.titles);
+  if (Object.keys(titles).length !== Object.keys(input.titles).length) {
+    throw Error("Cargo institucional inválido. Verifique o nome e o tamanho.");
+  }
+  const { error } = await db.rpc("update_municipal_position_titles_v1", {
+    _municipality_id: municipalityId,
+    _position_titles: titles,
+  });
+  if (error) throw new Error(error.message || "Não foi possível atualizar os cargos da Prefeitura.");
+}
+
 export async function saveRemoteInstitutionSettings(
   settings: TenantSettings & {
     institutionId?: string | null;
@@ -3982,6 +4001,19 @@ export async function saveRemoteInstitutionSettings(
   // ------------------------------------------------------------------
   // 2. municipality_settings — geral_settings inclui escalas por variante
   // ------------------------------------------------------------------
+  const existingSettingsResult = await db
+    .from("municipality_settings")
+    .select("general_settings")
+    .eq("municipality_id", remoteTenantId)
+    .maybeSingle();
+  if (existingSettingsResult.error) {
+    throw new Error("Não foi possível conferir as configurações atuais da Prefeitura.");
+  }
+  const existingGeneralSettings = existingSettingsResult.data?.general_settings &&
+    typeof existingSettingsResult.data.general_settings === "object" &&
+    !Array.isArray(existingSettingsResult.data.general_settings)
+      ? existingSettingsResult.data.general_settings as Record<string, unknown>
+      : {};
   const municipalitySettingsPayload = {
     municipality_id: remoteTenantId,
     protocol_prefix: settings.protocoloPrefixo || null,
@@ -3993,6 +4025,9 @@ export async function saveRemoteInstitutionSettings(
     allow_digital_protocol: true,
     allow_walkin_protocol: false,
     general_settings: {
+      ...existingGeneralSettings,
+      position_titles: settings.positionTitles ?? existingGeneralSettings.position_titles ?? {},
+      position_title_aliases: settings.positionTitleAliases ?? existingGeneralSettings.position_title_aliases ?? {},
       admin_contacts: settings.adminContacts ?? [],
       cnpj: settings.cnpj || null,
       postal_code: settings.cep || null,
