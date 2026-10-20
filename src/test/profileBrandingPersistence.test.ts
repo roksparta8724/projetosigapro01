@@ -118,7 +118,8 @@ describe("profile and branding persistence regressions", () => {
     expect(profilePage).toContain("} else if (!savedAvatarUrl) {");
     expect(profilePage).toContain("imageUrl={avatarPreviewUrl}");
     expect(portalFrame).toContain("const topbarAvatarImageUrl = resolveProfileAvatarDisplayUrl(userProfile) || null");
-    expect(backend).toContain("O banco não confirmou a exibição da foto no cabeçalho");
+    expect(backend).toContain("useAvatarInHeader: Boolean(storedAvatar)");
+    expect(backend).not.toContain("O banco não confirmou a exibição da foto no cabeçalho");
     expect(backend).toContain("O banco não confirmou o enquadramento da foto");
   });
 
