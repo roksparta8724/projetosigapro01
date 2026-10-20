@@ -60,7 +60,10 @@ describe("profile and branding persistence regressions", () => {
 
   it("renders a professional crop stage with a bright final circle and dimmed outer image", () => {
     expect(userAvatar).toContain("sig-user-avatar-root relative aspect-square shrink-0 overflow-hidden rounded-full");
-    expect(userAvatar).toContain("sig-user-avatar-image absolute inset-0 block h-full w-full max-w-none bg-white object-cover object-center");
+    expect(userAvatar).toContain("sig-user-avatar-image absolute block max-w-none bg-white");
+    expect(userAvatar).toContain("resolveCircularAvatarGeometry");
+    expect(userAvatar).toContain('data-avatar-crop-surface={cropGeometry ? "matched" : "loading"}');
+    expect(imageFrameEditor).toContain("AVATAR_CROP_MASK_FACTOR");
     expect(imageFrameEditor).toContain("sig-image-frame-stage");
     expect(imageFrameEditor).toContain('width: "min(360px, 100%)"');
     expect(imageFrameEditor).toContain('aspectRatio: "1 / 1"');
