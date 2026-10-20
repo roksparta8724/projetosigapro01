@@ -228,6 +228,7 @@ export function PerfilPage() {
   const [saving, setSaving] = useState(false);
   const [avatarFiles, setAvatarFiles] = useState<UploadedFileItem[]>([]);
   const [avatarDraftDirty, setAvatarDraftDirty] = useState(false);
+  const [avatarMaskDiameter, setAvatarMaskDiameter] = useState(DEFAULT_AVATAR_EDITOR_DIAMETER);
   const [section, setSection] = useState<ProfileSection>("visao-geral");
   const avatarObjectUrlRef = useRef<string | null>(null);
   const avatarFrameDirtyRef = useRef(false);
@@ -619,6 +620,7 @@ export function PerfilPage() {
   }, [form.zipCode]);
 
   const updateAvatarFrame = ({ scale, offsetX, offsetY }: { scale: number; offsetX: number; offsetY: number }) => {
+    const referenceRatio = DEFAULT_AVATAR_EDITOR_DIAMETER / Math.max(avatarMaskDiameter, 1);
     avatarFrameEditVersionRef.current += 1;
     avatarFrameDirtyRef.current = true;
     setAvatarDraftDirty(true);
@@ -626,8 +628,8 @@ export function PerfilPage() {
     setForm((current) => ({
       ...current,
       avatarScale: scale,
-      avatarOffsetX: offsetX,
-      avatarOffsetY: offsetY,
+      avatarOffsetX: offsetX * referenceRatio,
+      avatarOffsetY: offsetY * referenceRatio,
     }));
   };
 
@@ -1575,9 +1577,12 @@ export function PerfilPage() {
                     <ImageFrameEditor
                       imageUrl={avatarFiles[0].previewUrl}
                       scale={form.avatarScale}
-                      offsetX={form.avatarOffsetX}
-                      offsetY={form.avatarOffsetY}
+                      offsetX={form.avatarOffsetX * avatarMaskDiameter / DEFAULT_AVATAR_EDITOR_DIAMETER}
+                      offsetY={form.avatarOffsetY * avatarMaskDiameter / DEFAULT_AVATAR_EDITOR_DIAMETER}
                       onChange={updateAvatarFrame}
+                      onMetricsChange={({ frameWidth }) => {
+                        if (frameWidth > 0) setAvatarMaskDiameter((current) => Math.abs(current - frameWidth) > 0.1 ? frameWidth : current);
+                      }}
                       label="Foto do perfil"
                       hint="A imagem preenche todo o círculo. Arraste para escolher o enquadramento e use o zoom se quiser aproximar."
                       fitMode="cover"
