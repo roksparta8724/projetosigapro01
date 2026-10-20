@@ -1,4 +1,4 @@
-﻿import {
+import {
   Archive,
   ArchiveRestore,
   CheckCircle2,
@@ -12,7 +12,6 @@
   Send,
   Stamp,
   TimerReset,
-  RefreshCw,
   UserCheck,
   UserPlus,
   Users2,
@@ -138,8 +137,6 @@ export function AnalystDeskPage() {
   const [dispatchDestination, setDispatchDestination] = useState("Diretoria de Urbanismo");
   const [dispatchNote, setDispatchNote] = useState("");
   const [dispatchTargetAnalystId, setDispatchTargetAnalystId] = useState("");
-  const [liveSyncAt, setLiveSyncAt] = useState("");
-  const [liveSyncError, setLiveSyncError] = useState("");
   const currentUnit =
     session.role === "analista"
       ? session.department || session.title || URBAN_ANALYSIS_DEPARTMENT
@@ -157,12 +154,8 @@ export function AnalystDeskPage() {
     if (!effectiveScopeId) return;
     try {
       await refreshRemoteStoreRef.current();
-      setLiveSyncAt((current) => current || new Date().toISOString());
-      setLiveSyncError((current) => (current ? "" : current));
     } catch (error) {
-      setLiveSyncError(
-        error instanceof Error ? error.message : "Não foi possível atualizar a fila técnica.",
-      );
+      console.warn("[SIGAPRO][Analise] Atualizacao automatica indisponivel", error);
     }
   }, [effectiveScopeId]);
 
@@ -1127,7 +1120,7 @@ export function AnalystDeskPage() {
 
   const renderProcessRegistry = () => (
     <div className="space-y-3">
-      <div className="flex items-start gap-3 rounded-[16px] border border-sky-400/25 bg-[linear-gradient(135deg,#0c2131_0%,#0b2538_100%)] px-4 py-3 shadow-[0_4px_14px_rgba(14,116,181,0.05)] dark:border-sky-500/25 dark:bg-[linear-gradient(135deg,#0c2131_0%,#0b2538_100%)]">
+      <div data-analysis-queue-guide="true" className="flex items-start gap-3 rounded-[16px] border border-sky-400/25 bg-[linear-gradient(135deg,#0c2131_0%,#0b2538_100%)] px-4 py-3 shadow-[0_4px_14px_rgba(14,116,181,0.05)] dark:border-sky-500/25 dark:bg-[linear-gradient(135deg,#0c2131_0%,#0b2538_100%)]">
         <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-sky-700 text-white shadow-sm">
           <Workflow className="h-4 w-4" />
         </div>
@@ -1339,39 +1332,16 @@ export function AnalystDeskPage() {
                 <div>
                   <div className="flex items-center gap-2">
                     <Users2 className="h-5 w-5 text-sky-700" />
-                    <h2 className="text-sm font-extrabold text-slate-950">Gerenciador de distribuição da Análise</h2>
+                    <h2 className="text-sm font-extrabold text-white">Gerenciador de distribuição da Análise</h2>
                   </div>
                   <p className="mt-1 text-xs leading-5 text-slate-300">
                     Um processo sem responsável fica na fila comum. A atribuição define o responsável de referência para carga, SLA e auditoria, sem bloquear a colaboração técnica dos demais analistas da unidade.
                   </p>
                 </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className={`inline-flex items-center rounded-full border px-3 py-1.5 text-[10px] font-bold ${
-                    liveSyncError
-                      ? "border-amber-200 bg-amber-50 text-amber-800"
-                      : "border-emerald-200 bg-emerald-50 text-emerald-800"
-                  }`}>
-                    <span className={`mr-2 h-2 w-2 rounded-full ${liveSyncError ? "bg-amber-500" : "bg-emerald-500"}`} />
-                    {liveSyncError
-                      ? "Sincronização pendente"
-                      : liveSyncAt
-                        ? `Atualizado ${new Date(liveSyncAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}`
-                        : "Sincronização ativa"}
-                  </span>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="h-9 rounded-full"
-                    onClick={() => void refreshAnalysisDesk()}
-                  >
-                    <RefreshCw className="mr-2 h-4 w-4" />
-                    Atualizar agora
-                  </Button>
-                </div>
+
               </div>
 
-              <div className="grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-4">
+              <div data-analysis-distribution-grid="true" className="grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-4">
                 <div className="rounded-2xl border border-amber-400/25 bg-amber-400/10 p-4">
                   <p className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-amber-200">Aguardando distribuição</p>
                   <p className="mt-2 text-2xl font-black text-white">{unassignedAnalysis.length}</p>
@@ -1387,7 +1357,7 @@ export function AnalystDeskPage() {
                   <p className="mt-2 text-2xl font-black text-white">{teamAssignedAnalysis.length}</p>
                   <p className="mt-1 text-xs text-slate-300">Processos com responsável de referência; a equipe técnica da Análise pode colaborar quando necessário.</p>
                 </div>
-                <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
+                <div data-analysis-availability-card="true" className="rounded-2xl border border-slate-400/30 bg-[#20364b] p-4">
                   <p className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-slate-200">Equipe disponível</p>
                   <p className="mt-2 text-2xl font-black text-white">{analysisTeam.length}</p>
                   <p className="mt-1 text-xs text-slate-300">

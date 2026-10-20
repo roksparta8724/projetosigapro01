@@ -179,13 +179,24 @@ function buildFallbackTenantSettings(tenantId: string): TenantSettings {
   };
 }
 
+export function normalizeInstitutionalHexColor(value: unknown, fallback: string): string {
+  const candidate = typeof value === "string" ? value.trim() : "";
+  if (/^#[0-9a-fA-F]{6}$/.test(candidate)) return candidate;
+  if (/^#[0-9a-fA-F]{3}$/.test(candidate)) {
+    return "#" + candidate.slice(1).split("").map((part) => part + part).join("");
+  }
+  return fallback;
+}
+
 export function getMunicipalityTheme(
   branding: MunicipalityBranding | null | undefined,
   tenant: Tenant | null | undefined,
 ): MunicipalityTheme {
+  const primaryFallback = normalizeInstitutionalHexColor(tenant?.theme.primary, "#123f32");
+  const accentFallback = normalizeInstitutionalHexColor(tenant?.theme.accent, "#22c55e");
   return {
-    primary: branding?.primaryColor || tenant?.theme.primary || "#123f32",
-    accent: branding?.accentColor || tenant?.theme.accent || "#22c55e",
+    primary: normalizeInstitutionalHexColor(branding?.primaryColor, primaryFallback),
+    accent: normalizeInstitutionalHexColor(branding?.accentColor, accentFallback),
   };
 }
 

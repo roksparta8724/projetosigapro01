@@ -18,6 +18,17 @@ import { usePlatformSession } from "@/hooks/usePlatformSession";
 import {
   buildProcessPath, formatOfficialProcessNumber, getVisibleProcessesByScope, isInternalRole, statusLabel } from "@/lib/platform";
 
+function formatSIGAPROHistoryTitle(title: string): string {
+  const names: Record<string, string> = {
+    habite_se_completed: "Habite-se concluído",
+    payment_confirmed: "Pagamento confirmado",
+    guia_emitida: "Guia de pagamento emitida",
+    dispatch: "Despacho administrativo",
+    status_change: "Alteração da situação",
+  };
+  return names[title] || title.replace(/_/g, " ");
+}
+
 type ControlTab = "visao-geral" | "recebidos" | "gerados" | "despachos" | "historico";
 type DispatchPriority = "baixa" | "media" | "alta" | "critica";
 
@@ -90,7 +101,18 @@ export function MovementHistoryPage() {
   const dispatchTemplates = documentTemplates.filter((template) => template.type === "despacho");
   const unitUsers = sessionUsers.filter((user) => !batchTargetUnit || (user.department || user.title || "").toLowerCase().includes(batchTargetUnit.toLowerCase()) || batchTargetUnit.toLowerCase().includes((user.department || user.title || "").toLowerCase()));
   const historyRows = useMemo(() => processes.flatMap((process) => [...process.timeline.map((entry) => ({ id: `${process.id}-${entry.id}`, processId: process.id, protocol: process.protocol, title: entry.title, detail: entry.detail, actor: entry.actor, at: entry.at })), ...process.auditTrail.filter((entry) => entry.visibleToExternal || isInternalRole(session.role)).map((entry) => ({ id: `${process.id}-${entry.id}`, processId: process.id, protocol: process.protocol, title: entry.title, detail: entry.detail, actor: entry.actor, at: entry.at }))]), [processes, session.role]);
-  const filteredHistory = historyRows.filter((item) => `${item.protocol} ${item.title} ${item.detail} ${item.actor}`.toLowerCase().includes(search.toLowerCase()));
+  const historySeen = new Set<string>();
+  const filteredHistory = historyRows.filter((item) => {
+    if (!`${item.protocol} ${item.title} ${item.detail} ${item.actor}`.toLowerCase().includes(search.toLowerCase())) return false;
+    const detail = String(item.detail ?? '').trim().toLocaleLowerCase('pt-BR').replace(/\s+/g, ' ');
+    const stamp = String(item.at ?? '').trim();
+    if (!detail || !stamp) return true;
+    const actor = String(item.actor ?? '').trim().toLocaleLowerCase('pt-BR');
+    const identity = JSON.stringify([item.processId, stamp, detail, actor]);
+    if (historySeen.has(identity)) return false;
+    historySeen.add(identity);
+    return true;
+  });
   const processBoxes = useMemo(() => sectorOptions.map((sector) => ({ sector, received: dispatchRows.filter((item) => item.to === sector).length, generated: dispatchRows.filter((item) => item.from === sector).length, awaiting: dispatchRows.filter((item) => item.currentFolder === sector && item.dispatchStatus === "aguardando").length })), [dispatchRows, sectorOptions]);
   const responsibleSummary = useMemo(() => Array.from(dispatchRows.reduce((map, item) => { const key = item.assignedTo || "Sem atribuição"; const current = map.get(key) || { name: key, total: 0, pending: 0, critical: 0 }; current.total += 1; if (item.dispatchStatus === "aguardando") current.pending += 1; if (item.priority === "alta" || item.priority === "critica") current.critical += 1; map.set(key, current); return map; }, new Map<string, { name: string; total: number; pending: number; critical: number }>())).map(([, value]) => value).sort((a, b) => b.pending - a.pending || b.critical - a.critical || b.total - a.total).slice(0, 6), [dispatchRows]);
   const tabs = [
@@ -304,7 +326,7 @@ export function MovementHistoryPage() {
                 <p className="text-sm font-semibold text-slate-950">{formatOfficialProcessNumber(item.protocol)}</p>
                 <p className="text-xs uppercase tracking-[0.18em] text-slate-400">{item.at}</p>
               </div>
-              <p className="mt-2 text-sm font-medium text-slate-900">{item.title}</p>
+              <p className="mt-2 text-sm font-medium text-slate-900">{formatSIGAPROHistoryTitle(item.title)}</p>
               <p className="mt-2 text-sm leading-6 text-slate-600">{item.detail}</p>
               <p className="mt-2 text-xs uppercase tracking-[0.18em] text-slate-400">{item.actor}</p>
             </div>
