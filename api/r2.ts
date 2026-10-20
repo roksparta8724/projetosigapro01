@@ -1,9 +1,9 @@
-import handleDelete from "../server/api/r2-delete";
-import handleListUserFiles from "../server/api/r2-list-user-files";
-import handleMasterLogoSource from "../server/api/r2-master-logo-source";
-import handleProfileAvatarOpen from "../server/api/profile-avatar-open";
-import handleSignGet from "../server/api/r2-sign-get";
-import handleUpload from "../server/api/r2-upload";
+import handleDelete from "../server/api/r2-delete.js";
+import handleListUserFiles from "../server/api/r2-list-user-files.js";
+import handleMasterLogoSource from "../server/api/r2-master-logo-source.js";
+import handleProfileAvatarOpen from "../server/api/profile-avatar-open.js";
+import handleSignGet from "../server/api/r2-sign-get.js";
+import handleUpload from "../server/api/r2-upload.js";
 
 type Req = import("http").IncomingMessage & { method?: string };
 type Res = import("http").ServerResponse;
