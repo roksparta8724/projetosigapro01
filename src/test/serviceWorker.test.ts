@@ -21,7 +21,7 @@ function loadWorker() {
   runInNewContext(readFileSync(resolve(process.cwd(), "public/sigapro-sw.js"), "utf8"), {
     self,
     caches: {
-      keys: async () => ["sigapro-enterprise-v1:app", "sigapro-enterprise-v2:assets", "sigapro-enterprise-v3:assets"],
+      keys: async () => ["sigapro-enterprise-v1:app", "sigapro-enterprise-v2:assets", "sigapro-enterprise-v3:assets", "sigapro-enterprise-v4:assets", "sigapro-enterprise-v5:assets", "sigapro-enterprise-v5:avatars"],
       delete: deleteCache,
       open: openCache,
     },
@@ -58,6 +58,9 @@ describe("service worker do SIGAPRO", () => {
     await activation;
     expect(worker.deleteCache).toHaveBeenCalledWith("sigapro-enterprise-v1:app");
     expect(worker.deleteCache).toHaveBeenCalledWith("sigapro-enterprise-v2:assets");
-    expect(worker.deleteCache).not.toHaveBeenCalledWith("sigapro-enterprise-v3:assets");
+    expect(worker.deleteCache).toHaveBeenCalledWith("sigapro-enterprise-v3:assets");
+    expect(worker.deleteCache).toHaveBeenCalledWith("sigapro-enterprise-v4:assets");
+    expect(worker.deleteCache).not.toHaveBeenCalledWith("sigapro-enterprise-v5:assets");
+    expect(worker.deleteCache).not.toHaveBeenCalledWith("sigapro-enterprise-v5:avatars");
   });
 });

@@ -1818,7 +1818,13 @@ export function ProcessDetailPage() {
       visiblePaymentGuides.find((guide) => guide.kind === guideKind);
     if (!selectedGuide) return;
 
-    const issuedAt = selectedGuide.issuedAt || new Date().toISOString();
+    const issuedAt = String(selectedGuide.issuedAt || "").trim();
+    if (!issuedAt) {
+      setProcessActionStatus(
+        "A guia oficial não possui data de emissão persistida. Para preservar a integridade do documento, o sistema não substituirá essa data pela data de hoje.",
+      );
+      return;
+    }
     const year = new Date(issuedAt).getFullYear().toString();
     const approvalBreakdown =
       selectedGuide.kind === "aprovacao_final"
