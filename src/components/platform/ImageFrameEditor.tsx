@@ -1,3 +1,4 @@
+import { AVATAR_CROP_MASK_FACTOR } from "@/lib/avatarCropGeometry";
 import { Image as ImageIcon, RotateCcw, ZoomIn, ZoomOut } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -218,8 +219,8 @@ export function ImageFrameEditor({
 
   const cropFrameSize = useMemo(
     () => ({
-      width: shape === "circle" ? frameSize.width * 0.84 : frameSize.width,
-      height: shape === "circle" ? frameSize.height * 0.84 : frameSize.height,
+      width: shape === "circle" ? frameSize.width * AVATAR_CROP_MASK_FACTOR : frameSize.width,
+      height: shape === "circle" ? frameSize.height * AVATAR_CROP_MASK_FACTOR : frameSize.height,
     }),
     [frameSize.height, frameSize.width, shape],
   );
