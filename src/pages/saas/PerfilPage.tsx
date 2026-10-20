@@ -35,6 +35,7 @@ import { uploadFileToStorage } from "@/integrations/r2/storage";
 import { formatCep, lookupCepAddress } from "@/lib/cep";
 import { formatDisplayText, humanizeRoleLabel } from "@/lib/displayText";
 import { cn } from "@/lib/utils";
+import { DEFAULT_AVATAR_EDITOR_DIAMETER } from "@/lib/avatarCropGeometry";
 import { calculateMasterLogoCrop, findOpaqueWhiteFooterHeight } from "@/lib/masterLogoCrop";
 import type { InstitutionalLogoConfigVariant } from "@/lib/institutionBranding";
 import {
@@ -1142,7 +1143,7 @@ export function PerfilPage() {
       scale: form.avatarScale,
       offsetX: form.avatarOffsetX,
       offsetY: form.avatarOffsetY,
-      editorSize: 320,
+      editorSize: DEFAULT_AVATAR_EDITOR_DIAMETER,
     }),
     [form.avatarOffsetX, form.avatarOffsetY, form.avatarScale],
   );
