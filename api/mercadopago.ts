@@ -2,7 +2,7 @@ import {
   checkMercadoPagoConnection,
   createMercadoPagoGuideBoleto,
   getMercadoPagoGuideBoletoStatus,
-} from "../server/mercadopago";
+} from "../server/mercadopago.js";
 import {
   type MunicipalPaymentConnection,
   decryptPaymentAccessToken,
@@ -12,7 +12,7 @@ import {
   paymentCredentialFingerprint,
   paymentWebhookFingerprint,
   testMercadoPagoToken,
-} from "../server/municipal-payment";
+} from "../server/municipal-payment.js";
 import { callDataApiRpc } from "../server/municipal-storage.js";
 
 type Req = import("http").IncomingMessage & {

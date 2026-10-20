@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import type { ApiReq } from "./municipal-storage";
-import { resolveMercadoPagoMunicipalAccessToken } from "./municipal-payment";
+import { resolveMercadoPagoMunicipalAccessToken } from "./municipal-payment.js";
 type MercadoPagoEnvironment = "test" | "production";
 
 export type MercadoPagoConnectionCheck = {

@@ -12,6 +12,7 @@ const serverlessSources = [
   "server/api/r2-delete.ts",
   "server/api/r2-sign-get.ts",
   "server/api/r2-upload.ts",
+  "server/mercadopago.ts",
 ];
 
 function runtimeRelativeImports(path: string) {
