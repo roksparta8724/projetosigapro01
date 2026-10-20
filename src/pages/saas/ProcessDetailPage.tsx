@@ -27,6 +27,8 @@ import { OccupancyPermitProcessPanel } from "@/components/platform/OccupancyPerm
 import { MarkerSelector } from "@/components/platform/MarkerSelector";
 import { MunicipalOrganogramBar } from "@/components/platform/MunicipalOrganogramBar";
 import { UrbanAnalysisChecklistPanel } from "@/components/platform/UrbanAnalysisChecklistPanel";
+import { SignedAnalysisArchiveFolder } from "@/components/platform/SignedAnalysisArchiveFolder";
+import { isSignedAnalysisArchiveDocument } from "@/lib/signedAnalysisArchive";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { useLivePlatformRefresh } from "@/hooks/useLivePlatformRefresh";
 import {
@@ -1211,7 +1213,8 @@ export function ProcessDetailPage() {
   const constructionGuideSentExternally = issuedConstructionGuide
     ? isProcessPaymentGuideSharedExternally(process, issuedConstructionGuide)
     : false;
-  const uploadedCount = process.documents.filter((document) => document.uploaded).length;
+  const regularProcessDocuments = process.documents.filter((document) => !isSignedAnalysisArchiveDocument(document));
+  const uploadedCount = regularProcessDocuments.filter((document) => document.uploaded).length;
   const protocolGuide = visiblePaymentGuides.find((guide) => guide.kind === "protocolo");
   const pixPayload = protocolGuide
     ? buildGuidePixPayload({
@@ -1296,15 +1299,15 @@ export function ProcessDetailPage() {
     isProtocolTrackingOnly
       ? []
       : isInternalRole(session.role)
-        ? process.documents
-        : process.documents.filter((document) => document.uploaded);
-  const approvedDocumentCount = process.documents.filter(
+        ? regularProcessDocuments
+        : regularProcessDocuments.filter((document) => document.uploaded);
+  const approvedDocumentCount = regularProcessDocuments.filter(
     (document) => document.uploaded && document.reviewStatus === "aprovado",
   ).length;
-  const communicateDocumentCount = process.documents.filter(
+  const communicateDocumentCount = regularProcessDocuments.filter(
     (document) => document.uploaded && document.reviewStatus === "rejeitado",
   ).length;
-  const awaitingReviewDocumentCount = process.documents.filter(
+  const awaitingReviewDocumentCount = regularProcessDocuments.filter(
     (document) =>
       document.uploaded &&
       document.reviewStatus !== "aprovado" &&
@@ -1316,11 +1319,11 @@ export function ProcessDetailPage() {
       ? Math.min(100, Math.round((reviewedDocumentCount / uploadedCount) * 100))
       : 0;
   const documentDeliveryProgress =
-    process.documents.length > 0
-      ? Math.min(100, Math.round((uploadedCount / process.documents.length) * 100))
+    regularProcessDocuments.length > 0
+      ? Math.min(100, Math.round((uploadedCount / regularProcessDocuments.length) * 100))
       : 0;
-  const pendingExternalDocumentCount = process.documents.filter((document) => !document.uploaded).length;
-  const requiredAnalysisDocuments = process.documents.filter(
+  const pendingExternalDocumentCount = regularProcessDocuments.filter((document) => !document.uploaded).length;
+  const requiredAnalysisDocuments = regularProcessDocuments.filter(
     (document) => document.required || document.uploaded,
   );
   const allAnalysisDocumentsApproved =
@@ -3004,7 +3007,7 @@ export function ProcessDetailPage() {
           <CardContent className="p-5">
             <p className="sig-label">Documentos</p>
             <p className="mt-3 text-lg font-medium leading-7 text-slate-900 dark:text-slate-100">
-              {uploadedCount}/{process.documents.length}
+              {uploadedCount}/{regularProcessDocuments.length}
             </p>
             <p className="sig-field-help mt-2">Checklist com versão, nome do arquivo e assinatura</p>
           </CardContent>
@@ -3219,7 +3222,7 @@ export function ProcessDetailPage() {
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:min-w-[470px]">
                   <div data-command-metric="blue" className="sig-command-metric rounded-2xl border border-sky-300/35 bg-[#0b5e93] px-3 py-3 shadow-[0_8px_20px_rgba(2,132,199,0.20)]">
                     <p className="text-[9px] font-bold uppercase tracking-[0.12em] !text-sky-100">Enviados</p>
-                    <p className="mt-1 text-xl font-bold !text-white">{uploadedCount}/{process.documents.length}</p>
+                    <p className="mt-1 text-xl font-bold !text-white">{uploadedCount}/{regularProcessDocuments.length}</p>
                   </div>
                   <div data-command-metric="emerald" className="sig-command-metric rounded-2xl border border-emerald-300/35 bg-[#0b6b50] px-3 py-3 shadow-[0_8px_20px_rgba(5,150,105,0.20)]">
                     <p className="text-[9px] font-bold uppercase tracking-[0.12em] !text-emerald-100">Aprovados</p>
@@ -3391,6 +3394,14 @@ export function ProcessDetailPage() {
                   </div>
                 </div>
               ) : null}
+
+              {!isExternalProcessViewer && isInternalRole(session.role) && (
+                <SignedAnalysisArchiveFolder
+                  process={process}
+                  onOpenPdf={openViewer}
+                  onOpenAnalysis={() => setProcessTab("analise")}
+                />
+              )}
 
               {!canUploadProcessDocuments && visibleDocumentRows.length === 0 ? (
                 <div

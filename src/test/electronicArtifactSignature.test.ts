@@ -255,7 +255,7 @@ describe("official electronic signatures", () => {
     expect(withdrawalDirectMigration).toContain("trg_audit_process_artifact_withdrawal_v1");
   });
 
-  it("prints pickup from DB or current form with exact time and keeps success feedback to only Registrado", () => {
+  it("prints pickup time from DB and distinguishes PDF opened from archived or failed", () => {
     expect(checklist).toContain("pdfWithdrawalRecord?.withdrawn_by_name?.trim()");
     expect(checklist).toContain("withdrawalName.trim()");
     expect(checklist).toContain("pdfWithdrawalRecord?.withdrawn_at_exact");
@@ -263,7 +263,10 @@ describe("official electronic signatures", () => {
     expect(checklist).toContain("withdrawalDateTime");
     expect(checklist).toContain("Data e hora:");
     expect(checklist).toContain("Retirado por:");
-    expect(checklist).toContain('setNotice("Registrado")');
+    expect(checklist).toContain('setNotice("PDF assinado conferido, arquivado no armazenamento oficial e vinculado à pasta Documentos assinados.")');
+    expect(checklist).toContain("PDF aberto, mas não arquivado");
+    expect(checklist).toContain("PDF aberto. O arquivo não foi arquivado");
+    expect(checklist).toContain('setNotice("PDF aberto. O arquivamento permanente é habilitado');
     expect(checklist).not.toContain("PDF oficial gerado em 2 páginas");
   });
 

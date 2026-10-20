@@ -482,7 +482,7 @@ export function ExternalProcessControlPage() {
                                   className="inline-flex min-h-9 items-center gap-2.5 rounded-xl border border-sky-500/40 bg-[#102b44] px-3.5 py-2 text-[13px] font-bold text-white shadow-md"
                                 >
                                   <Flag className="h-5 w-5 shrink-0 sig-flag-filled" style={{ color: marker.color, fill: marker.color }} />
-                                  <span data-external-marker-label="true">{marker.label}</span>
+                                  <span data-external-marker-label="true" className="!text-[#f8fafc]" style={{ color: "#f8fafc", WebkitTextFillColor: "#f8fafc" }}>{marker.label}</span>
                                 </span>
                               );
                             })}
