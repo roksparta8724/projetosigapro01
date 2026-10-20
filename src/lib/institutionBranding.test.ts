@@ -20,4 +20,38 @@ describe("municipal branding variants", () => {
     const settings = { tenantId: "municipality-a", logoUrl: "", brasaoUrl: "/coat.png" } as TenantSettings;
     expect(getInstitutionBranding(settings).logoUrl).toBe("");
   });
+  it("reaproveita logo genérico nos cabeçalhos e rodapés legados sem variante registrada", () => {
+    const settings = { tenantId: "municipality-old", logoUrl: "r2:municipalities/test/branding/logo.png" } as TenantSettings;
+    expect(getInstitutionBranding(settings, undefined, "header").logoUrl).toBe(settings.logoUrl);
+    expect(getInstitutionBranding(settings, undefined, "footer").logoUrl).toBe(settings.logoUrl);
+  });
+
+  it("mantém rodapé disponível em cadastro com apenas o logo de cabeçalho", () => {
+    const settings = {
+      tenantId: "municipality-new",
+      headerLogoUrl: "/municipality-new/logo-header.png",
+    } as TenantSettings;
+    expect(getInstitutionBranding(settings, undefined, "header").logoUrl).toBe("/municipality-new/logo-header.png");
+    expect(getInstitutionBranding(settings, undefined, "footer").logoUrl).toBe("/municipality-new/logo-header.png");
+  });
+
+  it("não sobrescreve identidades de outros municípios", () => {
+    const first = getInstitutionBranding({ tenantId: "municipality-a", logoUrl: "/a.png" } as TenantSettings);
+    const second = getInstitutionBranding({ tenantId: "municipality-b", logoUrl: "/b.png" } as TenantSettings);
+    expect(first.tenantId).toBe("municipality-a");
+    expect(second.tenantId).toBe("municipality-b");
+    expect(first.logoUrl).not.toBe(second.logoUrl);
+  });
+
+  it("não substitui um rodapé específico ao trocar somente o logo de cabeçalho", () => {
+    const initial = {
+      tenantId: "municipality-c",
+      logoUrl: "/old.png",
+      footerLogoUrl: "/footer.png",
+    } as TenantSettings;
+    const saved = updateInstitutionBranding(initial, { logoUrl: "/new.png" }, "header");
+    expect(getInstitutionBranding(saved, undefined, "header").logoUrl).toBe("/new.png");
+    expect(getInstitutionBranding(saved, undefined, "footer").logoUrl).toBe("/footer.png");
+  });
+
 });
