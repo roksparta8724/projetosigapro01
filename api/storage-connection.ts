@@ -7,7 +7,7 @@ import {
   getMunicipalStorageSecretAdmin,
   normalizeStorageEndpoint,
   testMunicipalStorageConnection,
-} from "../server/municipal-storage";
+} from "../server/municipal-storage.js";
 
 function readEnv(key: string) {
   const raw = process.env[key];
