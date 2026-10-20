@@ -201,8 +201,8 @@ export function useInstitutionBranding(tenantId?: string | null) {
   const [platformBranding, setPlatformBranding] = useState<Awaited<ReturnType<typeof loadPlatformBranding>> | null>(null);
   const stableTenantHeaderLogoRef = useRef<{ tenantId: string; url: string }>({ tenantId: "", url: "" });
   const stableTenantFooterLogoRef = useRef<{ tenantId: string; url: string }>({ tenantId: "", url: "" });
-  const [resolvedTenantHeaderLogo, setResolvedTenantHeaderLogo] = useState<{ tenantId: string; url: string }>({ tenantId: "", url: "" });
-  const [resolvedTenantFooterLogo, setResolvedTenantFooterLogo] = useState<{ tenantId: string; url: string }>({ tenantId: "", url: "" });
+  const [resolvedTenantHeaderLogoState, setResolvedTenantHeaderLogo] = useState<{ tenantId: string; url: string }>({ tenantId: "", url: "" });
+  const [resolvedTenantFooterLogoState, setResolvedTenantFooterLogo] = useState<{ tenantId: string; url: string }>({ tenantId: "", url: "" });
 
   const requestedInstitutionId =
     tenantId ?? municipality?.id ?? scopeId ?? session.municipalityId ?? session.tenantId ?? "";
@@ -492,7 +492,7 @@ export function useInstitutionBranding(tenantId?: string | null) {
       savedCoatOfArmsUrl ||
       municipalityLogoFallback(scopedMunicipality?.name || institution?.name);
     const primaryHeaderLogo =
-      (resolvedTenantHeaderLogo.tenantId === resolvedInstitutionId ? resolvedTenantHeaderLogo.url : "") ||
+      (resolvedTenantHeaderLogoState.tenantId === resolvedInstitutionId ? resolvedTenantHeaderLogoState.url : "") ||
       brandingUrl ||
       synchronousHeaderUrl ||
       (isUsableBrandingUrl(base.logoUrl) ? base.logoUrl : "") ||
@@ -530,7 +530,7 @@ export function useInstitutionBranding(tenantId?: string | null) {
     masterBrandingState,
     platformBranding?.headerLogoFileName,
     resolvedMasterHeaderLogoUrl,
-    resolvedTenantHeaderLogo,
+    resolvedTenantHeaderLogoState,
     resolvedInstitutionId,
     scopedMunicipalityBranding?.logoObjectKey,
     shouldUseMasterBranding,
@@ -580,7 +580,7 @@ export function useInstitutionBranding(tenantId?: string | null) {
       savedCoatOfArmsUrl ||
       municipalityLogoFallback(scopedMunicipality?.name || institution?.name);
     const primaryFooterLogo =
-      (resolvedTenantFooterLogo.tenantId === resolvedInstitutionId ? resolvedTenantFooterLogo.url : "") ||
+      (resolvedTenantFooterLogoState.tenantId === resolvedInstitutionId ? resolvedTenantFooterLogoState.url : "") ||
       brandingUrl ||
       synchronousFooterUrl ||
       (isUsableBrandingUrl(base.logoUrl) ? base.logoUrl : "") ||
@@ -616,7 +616,7 @@ export function useInstitutionBranding(tenantId?: string | null) {
     masterBrandingState,
     platformBranding?.footerLogoFileName,
     resolvedMasterFooterLogoUrl,
-    resolvedTenantFooterLogo,
+    resolvedTenantFooterLogoState,
     resolvedInstitutionId,
     scopedMunicipalityBranding?.logoObjectKey,
     shouldUseMasterBranding,
