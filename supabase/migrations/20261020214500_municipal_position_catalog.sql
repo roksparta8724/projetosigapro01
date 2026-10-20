@@ -78,4 +78,30 @@ $body$;
 
 revoke all on function public.update_municipal_position_titles_v1(uuid,jsonb) from public;
 grant execute on function public.update_municipal_position_titles_v1(uuid,jsonb) to authenticated;
+
+-- Preserva catálogo e aliases quando outros módulos atualizam dados gerais.
+-- A função de atualização do catálogo é a única que envia essas duas chaves.
+create or replace function public.preserve_municipal_position_catalog_v1()
+returns trigger language plpgsql
+set search_path = 'pg_catalog','public'
+as $guard$
+begin
+  new.general_settings := coalesce(new.general_settings, '{}'::jsonb);
+  if coalesce(old.general_settings, '{}'::jsonb) ? 'position_titles'
+     and not (new.general_settings ? 'position_titles') then
+    new.general_settings := jsonb_set(new.general_settings, '{position_titles}', old.general_settings->'position_titles', true);
+  end if;
+  if coalesce(old.general_settings, '{}'::jsonb) ? 'position_title_aliases'
+     and not (new.general_settings ? 'position_title_aliases') then
+    new.general_settings := jsonb_set(new.general_settings, '{position_title_aliases}', old.general_settings->'position_title_aliases', true);
+  end if;
+  return new;
+end;
+$guard$;
+
+drop trigger if exists trg_preserve_municipal_position_catalog on public.municipality_settings;
+create trigger trg_preserve_municipal_position_catalog
+before update of general_settings on public.municipality_settings
+for each row execute function public.preserve_municipal_position_catalog_v1();
+
 commit;
