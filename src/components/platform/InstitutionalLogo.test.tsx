@@ -257,4 +257,31 @@ describe("InstitutionalLogo", () => {
       Object.defineProperty(window, "Image", { configurable: true, writable: true, value: OriginalImage });
     }
   });
+  it("never reuses municipality A branding while switching to municipality B", () => {
+    const first = { ...branding, tenantId: "municipality-a", logoUrl: "/municipality-a-logo.png" };
+    const second = { ...branding, tenantId: "municipality-b", logoUrl: "/municipality-b-logo.png" };
+    const { container, rerender } = render(
+      <InstitutionalLogo branding={first} variant="header" contextScope="municipality" />,
+    );
+    expect(container.querySelector("img")?.getAttribute("src")).toContain("/municipality-a-logo.png");
+    rerender(<InstitutionalLogo branding={second} variant="header" contextScope="municipality" />);
+    expect(container.querySelector("img")?.getAttribute("src")).toContain("/municipality-b-logo.png");
+    expect(container.querySelector("img")?.getAttribute("src")).not.toContain("/municipality-a-logo.png");
+  });
+
+  it("never substitutes the platform master logo for a municipality missing its own logo", () => {
+    const { container, rerender } = render(
+      <InstitutionalLogo branding={{ ...branding, tenantId: "master", logoUrl: "" }} contextScope="master" />,
+    );
+    expect(container.querySelector('[data-logo-context="sigapro"]')).not.toBeNull();
+    rerender(
+      <InstitutionalLogo
+        branding={{ ...branding, tenantId: "municipality-b", logoUrl: "" }}
+        contextScope="municipality"
+      />,
+    );
+    expect(container.querySelector('[data-logo-context="municipality"]')).not.toBeNull();
+    expect(container.querySelector("img")).toBeNull();
+  });
+
 });
