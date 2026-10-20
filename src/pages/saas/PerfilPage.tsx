@@ -36,6 +36,7 @@ import { formatCep, lookupCepAddress } from "@/lib/cep";
 import { formatDisplayText, humanizeRoleLabel } from "@/lib/displayText";
 import { cn } from "@/lib/utils";
 import { DEFAULT_AVATAR_EDITOR_DIAMETER } from "@/lib/avatarCropGeometry";
+import { resolveProfileAvatarDisplayUrl } from "@/lib/profileAvatarDisplay";
 import { calculateMasterLogoCrop, findOpaqueWhiteFooterHeight } from "@/lib/masterLogoCrop";
 import type { InstitutionalLogoConfigVariant } from "@/lib/institutionBranding";
 import {
@@ -1127,7 +1128,14 @@ export function PerfilPage() {
     { value: "historico", label: "Histórico", helper: "Ações recentes da conta" },
   ] as const;
 
-  const avatarPreviewUrl = avatarFiles[0]?.previewUrl || form.avatarUrl || "";
+  const avatarPreviewUrl =
+    avatarFiles[0]?.previewUrl ||
+    (avatarDraftDirty
+      ? ""
+      : resolveProfileAvatarDisplayUrl({
+          avatarUrl: form.avatarUrl,
+          avatarStorageRef: profile?.avatarStorageRef,
+        }));
   const avatarPreviewCrop = useMemo(
     () => ({
       scale: form.avatarScale,
