@@ -2272,6 +2272,7 @@ export function ConfiguracoesPage() {
         saveRemoteInstitutionSettings(nextSettingsForSave, {
           skipMunicipalityUpdate: true,
           skipMunicipalitySettings: false,
+          brandingVariant: variant,
         }),
         20000,
       );
