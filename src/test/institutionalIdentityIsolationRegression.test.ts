@@ -7,6 +7,8 @@ const brandingHook = read("src/hooks/useInstitutionBranding.ts");
 const logoComponent = read("src/components/platform/InstitutionalLogo.tsx");
 const topbar = read("src/components/platform/PortalFrame.tsx");
 const profile = read("src/pages/saas/PerfilPage.tsx");
+const backend = read("src/integrations/backend/platformImpl.ts");
+const tenantAdmin = read("src/pages/saas/TenantAdminPage.tsx");
 
 describe("isolamento da identidade visual entre usuários e municípios", () => {
   it("isola os logos hidratados por identificador da Prefeitura", () => {
@@ -24,6 +26,20 @@ describe("isolamento da identidade visual entre usuários e municípios", () => 
     expect(logoComponent).toContain("sameAssetResource(cachedAtMount, SIGAPRO_OFFICIAL_LOGO)");
     expect(logoComponent).toContain("sameAssetResource(requestedCandidate, SIGAPRO_OFFICIAL_LOGO)");
     expect(logoComponent).toContain("loadedSource.context === context");
+  });
+
+  it("atualiza apenas colunas institucionais enviadas, sem zerar logos de outras variantes", () => {
+    expect(backend).toContain("if (value !== undefined) municipalityBrandingPayload[column] = value || null");
+    expect(backend).toContain('.from("municipality_branding")');
+    expect(backend).toContain(".update(changes)");
+    expect(backend).toContain('.eq("municipality_id", remoteTenantId)');
+  });
+
+  it("usa o recorte compartilhado nos cartões dos servidores e no painel da Prefeitura", () => {
+    expect(tenantAdmin).toContain("editorSize: DEFAULT_AVATAR_EDITOR_DIAMETER");
+    expect(tenantAdmin).toContain("avatarScale ?? 1");
+    expect(tenantAdmin).toContain("avatarOffsetX ?? 0");
+    expect(tenantAdmin).toContain("avatarOffsetY ?? 0");
   });
 
   it("reinicia o avatar quando o usuário ou a Prefeitura mudam", () => {
