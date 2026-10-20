@@ -56,6 +56,7 @@ import {
 } from "@/components/ui/command";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { DEFAULT_AVATAR_EDITOR_DIAMETER } from "@/lib/avatarCropGeometry";
 import { useAuthGateway } from "@/hooks/useAuthGateway";
 import { useInstitutionBranding } from "@/hooks/useInstitutionBranding";
 import { useMunicipality } from "@/hooks/useMunicipality";
@@ -755,7 +756,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
       scale: Number(userProfile?.avatarScale ?? 1),
       offsetX: Number(userProfile?.avatarOffsetX ?? 0),
       offsetY: Number(userProfile?.avatarOffsetY ?? 0),
-      editorSize: 320,
+      editorSize: DEFAULT_AVATAR_EDITOR_DIAMETER,
     };
   }, [topbarAvatarImageUrl, userProfile?.avatarOffsetX, userProfile?.avatarOffsetY, userProfile?.avatarScale]);
   const roleLabel = humanizeRoleLabel(userProfile?.professionalType?.trim() || roleLabels[session.role], "Usuário");
