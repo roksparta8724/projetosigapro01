@@ -299,7 +299,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
   const navigate = useNavigate();
   const location = useLocation();
   const isConfigPage = location.pathname.startsWith("/configuracoes");
-  const { signOut } = useAuthGateway();
+  const { signOut, authenticatedProfileId } = useAuthGateway();
   const { session, sessions, setActiveSession } = usePlatformSession();
   const { unreadCount: notificationCount } = useNotifications({
     includeItems: false,
@@ -375,7 +375,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
     activeInstitution && "theme" in activeInstitution
       ? activeInstitution.theme
       : null;
-  const userProfile = getUserProfile(session.id, session.email);
+  const userProfile = getUserProfile(authenticatedProfileId || session.id, session.email);
   const canonicalSignedInUser =
     sessionUsers.find((item) => item.id === session.id) ??
     sessionUsers.find(
@@ -1427,6 +1427,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                   aria-label="Abrir conta do usuário"
                 >
                   <UserAvatar
+                    key={`${authenticatedProfileId || session.id}:${activeInstitutionId || "global"}`}
                     name={displayUserName}
                     imageUrl={topbarAvatarImageUrl}
                     crop={topbarAvatarCrop}
@@ -2059,6 +2060,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                     title={fullUserName}
                   >
                     <UserAvatar
+                      key={`${authenticatedProfileId || session.id}:${activeInstitutionId || "global"}`}
                       name={displayUserName}
                       imageUrl={topbarAvatarImageUrl}
                       crop={topbarAvatarCrop}
@@ -2093,6 +2095,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                     <div className="flex items-start gap-3.5">
                       <div className="relative shrink-0">
                         <UserAvatar
+                          key={`${authenticatedProfileId || session.id}:${activeInstitutionId || "global"}`}
                           name={displayUserName}
                           imageUrl={topbarAvatarImageUrl}
                           crop={topbarAvatarCrop}
