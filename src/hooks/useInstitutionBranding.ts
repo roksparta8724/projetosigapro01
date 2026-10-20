@@ -495,7 +495,7 @@ export function useInstitutionBranding(tenantId?: string | null) {
       (resolvedTenantHeaderLogoState.tenantId === resolvedInstitutionId ? resolvedTenantHeaderLogoState.url : "") ||
       brandingUrl ||
       synchronousHeaderUrl ||
-      (isUsableBrandingUrl(base.logoUrl) ? base.logoUrl : "") ||
+      resolvePersistentBrandingReference(base.logoUrl) ||
       (stableTenantHeaderLogoRef.current.tenantId === resolvedInstitutionId &&
       isUsableBrandingUrl(stableTenantHeaderLogoRef.current.url)
         ? stableTenantHeaderLogoRef.current.url
@@ -583,7 +583,7 @@ export function useInstitutionBranding(tenantId?: string | null) {
       (resolvedTenantFooterLogoState.tenantId === resolvedInstitutionId ? resolvedTenantFooterLogoState.url : "") ||
       brandingUrl ||
       synchronousFooterUrl ||
-      (isUsableBrandingUrl(base.logoUrl) ? base.logoUrl : "") ||
+      resolvePersistentBrandingReference(base.logoUrl) ||
       (stableTenantFooterLogoRef.current.tenantId === resolvedInstitutionId &&
       isUsableBrandingUrl(stableTenantFooterLogoRef.current.url)
         ? stableTenantFooterLogoRef.current.url
