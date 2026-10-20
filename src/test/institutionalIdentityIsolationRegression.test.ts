@@ -8,6 +8,7 @@ const logoComponent = read("src/components/platform/InstitutionalLogo.tsx");
 const topbar = read("src/components/platform/PortalFrame.tsx");
 const profile = read("src/pages/saas/PerfilPage.tsx");
 const backend = read("src/integrations/backend/platformImpl.ts");
+const settingsPage = read("src/pages/saas/ConfiguracoesPage.tsx");
 const tenantAdmin = read("src/pages/saas/TenantAdminPage.tsx");
 
 describe("isolamento da identidade visual entre usuários e municípios", () => {
@@ -33,6 +34,10 @@ describe("isolamento da identidade visual entre usuários e municípios", () => 
     expect(backend).toContain('.from("municipality_branding")');
     expect(backend).toContain(".update(changes)");
     expect(backend).toContain('.eq("municipality_id", remoteTenantId)');
+    expect(backend).toContain('brandingVariant?: "header" | "footer"');
+    expect(backend).toContain('options?.brandingVariant === "header" && column.startsWith("footer_")');
+    expect(backend).toContain('options?.brandingVariant === "footer" && column.startsWith("header_")');
+    expect(settingsPage).toContain("brandingVariant: variant");
   });
 
   it("usa o recorte compartilhado nos cartões dos servidores e no painel da Prefeitura", () => {
