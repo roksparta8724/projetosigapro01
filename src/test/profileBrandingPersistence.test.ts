@@ -83,7 +83,9 @@ describe("profile and branding persistence regressions", () => {
     expect(profilePage).toContain('fitMode="cover"');
     expect(profilePage).toContain("preenche todo o círculo");
     expect(profilePage).toContain("Salvar ajustes da foto");
-    expect(profilePage).toContain("updateAvatarHeaderVisibility");
+    expect(profilePage).toContain("Exibição automática após o salvamento.");
+    expect(profilePage).not.toContain("onCheckedChange={updateAvatarHeaderVisibility}");
+    expect(profilePage).toContain("Foto institucional no cabeçalho");
     expect(profilePage).toContain("border-rose-200 bg-rose-50 text-rose-700");
   });
 
@@ -114,8 +116,8 @@ describe("profile and branding persistence regressions", () => {
     expect(profilePage).toContain("const avatarReadConfirmed = !savedAvatarUrl ||");
     expect(profilePage).toContain("await confirmSavedAvatarReadable(savedAvatarUrl)");
     expect(profilePage).toContain("} else if (!savedAvatarUrl) {");
-    expect(profilePage).toContain('imageUrl={form.useAvatarInHeader ? avatarPreviewUrl : ""}');
-    expect(portalFrame).toContain("const topbarAvatarImageUrl = userProfile?.useAvatarInHeader");
+    expect(profilePage).toContain("imageUrl={avatarPreviewUrl}");
+    expect(portalFrame).toContain("const topbarAvatarImageUrl = userProfile?.avatarUrl?.trim() || null");
     expect(backend).toContain("O banco não confirmou a exibição da foto no cabeçalho");
     expect(backend).toContain("O banco não confirmou o enquadramento da foto");
   });
@@ -129,8 +131,8 @@ describe("profile and branding persistence regressions", () => {
     expect(backend).toContain("requestedR2Ref");
     expect(profilePage).toContain("avatarDraftDirty");
     expect(profilePage).toContain("if (nextFile.file) setForm((current) => ({ ...current, useAvatarInHeader: true }))");
-    expect(profilePage).toContain("useAvatarInHeader: form.useAvatarInHeader");
-    expect(portalFrame).toContain("const topbarAvatarImageUrl = userProfile?.useAvatarInHeader");
+    expect(profilePage).toContain("useAvatarInHeader: showPhotoInHeader");
+    expect(portalFrame).toContain("const topbarAvatarImageUrl = userProfile?.avatarUrl?.trim() || null");
     expect(profilePage).toContain("Pré-visualização pronta.");
     expect(profilePage).not.toContain("Salvando foto automaticamente...");
     expect(profilePage).toContain("confirmSavedAvatarReadable(savedAvatarUrl)");
