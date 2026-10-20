@@ -59,6 +59,7 @@ export function getMunicipalPositionDefaults(): Record<MunicipalPositionKey, str
 
 /** Modo de teste local: sem qualquer gravação em Neon/R2. */
 const DEV_PREFIX = "sigapro:municipal-position-labels:local-v1:";
+const DEV_ALIAS_PREFIX = "sigapro:municipal-position-aliases:local-v1:";
 export function readLocalMunicipalPositionLabels(municipalityId: string | null | undefined): MunicipalPositionLabels {
   if (!import.meta.env.DEV || !municipalityId || typeof window === "undefined") return {};
   try {
@@ -66,10 +67,28 @@ export function readLocalMunicipalPositionLabels(municipalityId: string | null |
     return stored ? normalizeMunicipalPositionLabels(JSON.parse(stored)) : {};
   } catch { return {}; }
 }
+export function readLocalMunicipalPositionAliases(municipalityId: string | null | undefined): MunicipalPositionAliases {
+  if (!import.meta.env.DEV || !municipalityId || typeof window === "undefined") return {};
+  try {
+    const stored = window.localStorage.getItem(DEV_ALIAS_PREFIX + municipalityId);
+    return stored ? normalizeMunicipalPositionAliases(JSON.parse(stored)) : {};
+  } catch { return {}; }
+}
 export function writeLocalMunicipalPositionLabels(municipalityId: string, labels: MunicipalPositionLabels): void {
   if (!import.meta.env.DEV || typeof window === "undefined" || !municipalityId) {
     throw Error("A edição local está disponível somente no ambiente de desenvolvimento.");
   }
-  window.localStorage.setItem(DEV_PREFIX + municipalityId, JSON.stringify(normalizeMunicipalPositionLabels(labels)));
+  const before = readLocalMunicipalPositionLabels(municipalityId);
+  const aliases = readLocalMunicipalPositionAliases(municipalityId);
+  const valid = normalizeMunicipalPositionLabels(labels);
+  for (const position of municipalPositionPresets) {
+    const previous = before[position.key] || position.defaultTitle;
+    const current = valid[position.key];
+    if (current && normalized(previous) !== normalized(current)) {
+      aliases[position.key] = Array.from(new Set([...(aliases[position.key] || []), previous])).slice(-15);
+    }
+  }
+  window.localStorage.setItem(DEV_PREFIX + municipalityId, JSON.stringify(valid));
+  window.localStorage.setItem(DEV_ALIAS_PREFIX + municipalityId, JSON.stringify(aliases));
   window.dispatchEvent(new CustomEvent("sigapro:municipal-positions-changed", { detail: { municipalityId } }));
 }
