@@ -1,6 +1,7 @@
 import { type CSSProperties, useEffect, useRef, useState } from "react";
 import { Avatar } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
+import { DEFAULT_AVATAR_EDITOR_DIAMETER, resolveCircularAvatarGeometry } from "@/lib/avatarCropGeometry";
 
 type UserAvatarSize = "sm" | "md" | "lg" | "xl";
 
@@ -168,10 +169,26 @@ export function UserAvatar({
   const initials = userInitials(name);
   const sizePixels: Record<UserAvatarSize, number> = { sm: 32, md: 40, lg: 56, xl: 80 };
   const diameter = sizePixels[size];
-  const cropRatio = crop ? diameter / Math.max(crop.editorSize ?? 320, 1) : 1;
-  const resolvedImageStyle = crop
+  const cropGeometry = crop
+    ? resolveCircularAvatarGeometry({
+        naturalWidth: naturalSize.width,
+        naturalHeight: naturalSize.height,
+        diameter,
+        scale: crop.scale,
+        offsetX: crop.offsetX,
+        offsetY: crop.offsetY,
+        editorSize: crop.editorSize ?? DEFAULT_AVATAR_EDITOR_DIAMETER,
+      })
+    : null;
+  const resolvedImageStyle: CSSProperties | undefined = cropGeometry
     ? {
-        transform: `translate(${crop.offsetX * cropRatio}px, ${crop.offsetY * cropRatio}px) scale(${crop.scale})`,
+        left: "50%",
+        top: "50%",
+        width: `${cropGeometry.width}px`,
+        height: `${cropGeometry.height}px`,
+        maxWidth: "none",
+        objectFit: "fill",
+        transform: `translate(-50%, -50%) translate(${cropGeometry.offsetX}px, ${cropGeometry.offsetY}px)`,
         transformOrigin: "center center",
       }
     : imageStyle;
@@ -195,12 +212,14 @@ export function UserAvatar({
         {initials}
       </span>
       {showImage ? (
-        <img
+        <span className="absolute inset-0 block overflow-hidden rounded-full" data-avatar-crop-surface={cropGeometry ? "matched" : "loading"}>
+          <img
           src={resolvedImageUrl || undefined}
           alt={name || "Usuario"}
           decoding="async"
           className={cn(
-            "sig-user-avatar-image absolute inset-0 block h-full w-full max-w-none bg-white object-cover object-center",
+            "sig-user-avatar-image absolute block max-w-none bg-white",
+            cropGeometry ? "" : "inset-0 h-full w-full object-cover object-center",
             imageClassName,
           )}
           style={resolvedImageStyle}
@@ -227,7 +246,8 @@ export function UserAvatar({
 
             setFailedImageUrl(resolvedImageUrl);
           }}
-        />
+          />
+        </span>
       ) : null}
     </Avatar>
   );
