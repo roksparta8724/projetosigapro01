@@ -24,9 +24,9 @@ describe("public signature QR verification", () => {
   it("keeps the QR route public and outside authenticated municipal routes", () => {
     expect(app).toContain('path="/v/:codigo"');
     expect(app).toContain('path="/verificar-assinatura"');
-    expect(app).toContain('pathname.startsWith("/v/")');
-    expect(app).toContain('pathname === "/verificar-assinatura"');
-    expect(app).toContain("isPublicVerificationRoute ? \"100\" : \"85\"");
+    expect(app).toContain('document.documentElement.style.zoom = "1"');
+    expect(app).toContain('document.documentElement.dataset.pageZoom = "100"');
+    expect(app).not.toContain('isPublicVerificationRoute ? "100" : "85"');
   });
 
   it("verifies the printed code against the official database without exposing sensitive evidence", () => {

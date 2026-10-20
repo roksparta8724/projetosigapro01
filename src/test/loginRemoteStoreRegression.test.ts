@@ -25,7 +25,7 @@ describe("login remote-store regression", () => {
 
     expect(access).toContain("dataReadyForCurrentUser");
     expect(access).toContain("dataError && !dataReadyForCurrentUser");
-    expect(platformData).toContain("remoteContextUserId === authenticatedUserId");
+    expect(platformData).toContain("isConfirmedStoreIdentity(remoteContextUserId, authenticatedUserId, authenticatedProfileId)");
     expect(platformData).toContain('source === "remote"');
   });
   it("does not show the global blocking-data banner when usable scoped data is already loaded", () => {

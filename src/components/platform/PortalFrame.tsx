@@ -1429,7 +1429,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                   aria-label="Abrir conta do usuário"
                 >
                   <UserAvatar
-                    key={`${authenticatedProfileId || session.id}:${session.municipalityId || session.tenantId || "global"}`}
+                    key={`${authenticatedProfileId || session.id}:${activeInstitutionId || "global"}`}
                     name={displayUserName}
                     imageUrl={topbarAvatarImageUrl}
                     crop={topbarAvatarCrop}
@@ -2062,7 +2062,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                     title={fullUserName}
                   >
                     <UserAvatar
-                      key={`${authenticatedProfileId || session.id}:${session.municipalityId || session.tenantId || "global"}`}
+                      key={`${authenticatedProfileId || session.id}:${activeInstitutionId || "global"}`}
                       name={displayUserName}
                       imageUrl={topbarAvatarImageUrl}
                       crop={topbarAvatarCrop}
@@ -2097,7 +2097,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                     <div className="flex items-start gap-3.5">
                       <div className="relative shrink-0">
                         <UserAvatar
-                          key={`${authenticatedProfileId || session.id}:${session.municipalityId || session.tenantId || "global"}`}
+                          key={`${authenticatedProfileId || session.id}:${activeInstitutionId || "global"}`}
                           name={displayUserName}
                           imageUrl={topbarAvatarImageUrl}
                           crop={topbarAvatarCrop}
