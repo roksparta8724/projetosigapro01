@@ -3906,6 +3906,7 @@ export async function saveRemoteInstitutionSettings(
     skipMunicipalityUpdate?: boolean;
     skipMunicipalitySettings?: boolean;
     skipMunicipalityBranding?: boolean;
+    brandingVariant?: "header" | "footer";
     municipalityCity?: string;
     municipalityState?: string;
     municipalityFields?: Array<"secretariat" | "email" | "phone" | "address" | "site">;
@@ -3944,10 +3945,16 @@ export async function saveRemoteInstitutionSettings(
   // ------------------------------------------------------------------
   const municipalityBrandingPayload: Record<string, unknown> = {
     municipality_id: remoteTenantId,
-    logo_url: settings.logoUrl || null,
-    coat_of_arms_url: settings.brasaoUrl || null,
     updated_at: new Date().toISOString(),
   };
+  // Ao salvar só a variante do cabeçalho ou do rodapé, não tocar nos
+  // demais espaços nem no brasão. Um upload nunca deve apagar a outra imagem.
+  if (!options?.brandingVariant || options.brandingVariant === "header") {
+    municipalityBrandingPayload.logo_url = settings.logoUrl || null;
+  }
+  if (!options?.brandingVariant) {
+    municipalityBrandingPayload.coat_of_arms_url = settings.brasaoUrl || null;
+  }
   // Não sobrescrever com NULL um logo de variante que não participou desta
   // atualização. undefined = campo não enviado; "" = remoção explícita.
   const optionalBrandingFields = {
@@ -3961,6 +3968,10 @@ export async function saveRemoteInstitutionSettings(
     footer_logo_mime_type: settings.footerLogoMimeType,
   };
   for (const [column, value] of Object.entries(optionalBrandingFields)) {
+    if (
+      options?.brandingVariant === "header" && column.startsWith("footer_") ||
+      options?.brandingVariant === "footer" && column.startsWith("header_")
+    ) continue;
     if (value !== undefined) municipalityBrandingPayload[column] = value || null;
   }
 
