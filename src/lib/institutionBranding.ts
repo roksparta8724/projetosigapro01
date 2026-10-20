@@ -34,11 +34,11 @@ function pickVariantSettings(
   // somente enquanto ainda não houver imagem específica naquela posição.
   if (variant === "footer") {
     return {
-      logoUrl:
-        settingsWithVariants?.footerLogoUrl ||
-        settings?.logoUrl ||
-        settingsWithVariants?.headerLogoUrl ||
-        "",
+      // Campo explicitamente limpo significa que o administrador removeu o
+      // logo desta posição. Apenas ausência do campo permite fallback legado.
+      logoUrl: settingsWithVariants && "footerLogoUrl" in settingsWithVariants
+        ? settingsWithVariants.footerLogoUrl || ""
+        : settings?.logoUrl || settingsWithVariants?.headerLogoUrl || "",
       scale: settings?.footerLogoScale,
       offsetX: settings?.footerLogoOffsetX,
       offsetY: settings?.footerLogoOffsetY,
@@ -48,11 +48,9 @@ function pickVariantSettings(
   }
 
   return {
-    logoUrl:
-      settingsWithVariants?.headerLogoUrl ||
-      settings?.logoUrl ||
-      settingsWithVariants?.footerLogoUrl ||
-      "",
+    logoUrl: settingsWithVariants && "headerLogoUrl" in settingsWithVariants
+      ? settingsWithVariants.headerLogoUrl || ""
+      : settings?.logoUrl || settingsWithVariants?.footerLogoUrl || "",
     scale: settings?.headerLogoScale ?? settings?.logoScale,
     offsetX: settings?.headerLogoOffsetX ?? settings?.logoOffsetX,
     offsetY: settings?.headerLogoOffsetY ?? settings?.logoOffsetY,
