@@ -2429,3 +2429,15 @@ html body #root .sig-app-frame .sig-main-shell
   -webkit-text-fill-color:#f8fafc !important;
   opacity:1 !important;
 }
+
+/* PROCESSOS EXTERNOS > CONTRASTE PREMIUM V24 — ESCOPO EXATO.
+   O tema claro pode redefinir text-fill-color em componentes aninhados.
+   Essa camada preserva a cor de acento das etiquetas (não alcança svg). */
+html body #root .sig-main-shell [data-process-premium-card="true"]
+[data-external-process-marker="true"] [data-external-marker-label="true"] {
+  color:#f8fafc !important;
+  -webkit-text-fill-color:#f8fafc !important;
+  opacity:1 !important;
+  font-weight:750 !important;
+  text-shadow:0 1px 1px rgba(2,6,23,.12);
+}

@@ -3044,6 +3044,41 @@ export function canEditProcessAnalysis(
   return false;
 }
 
+/**
+ * Consulta documental não equivale a competência para editar a análise.
+ * O responsável técnico mantém acesso de leitura após a tramitação; a Direção,
+ * Secretaria (papel supervisor autorizado) e administração municipal consultam
+ * apenas processos da própria Prefeitura. As edições continuam submetidas à
+ * atribuição formal em canAnalyzeProcessDocument/canEditProcessAnalysis.
+ */
+export function canReadProcessDocument(
+  session: SessionUser,
+  process: ProcessRecord,
+  scopeId?: string | null,
+): boolean {
+  if (session.accountStatus === "blocked" || session.accountStatus === "inactive") return false;
+  if (session.role === "master_admin" || session.role === "master_ops") return true;
+  if (isExternalProfessionalRole(session.role)) return canAccessProcess(session, process, scopeId);
+
+  const ownScopeId = getOperationalScopeId(session);
+  if (!ownScopeId || (scopeId && scopeId !== ownScopeId) || !matchesOperationalScope(ownScopeId, process)) {
+    return false;
+  }
+
+  if (session.role === "prefeitura_admin") return true;
+  if (session.role === "prefeitura_supervisor" && session.accessLevel >= 2) return true;
+
+  const assignee = process.analysis?.assignedProfileId?.trim();
+  const normalized = (value: string | null | undefined) => String(value ?? "")
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLocaleLowerCase("pt-BR");
+  if (session.role === "analista" && (
+    (assignee && assignee === session.id) ||
+    (!assignee && normalized(process.analysis?.assignedTo) && normalized(process.analysis?.assignedTo) === normalized(session.name))
+  )) return true;
+
+  return canAccessProcess(session, process, ownScopeId);
+}
+
 export function canAnalyzeProcessDocument(
   session: SessionUser,
   process: ProcessRecord,
