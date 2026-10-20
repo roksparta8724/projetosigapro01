@@ -8,6 +8,8 @@
 type AvatarRecord = {
   avatarUrl?: string | null;
   avatarStorageRef?: string | null;
+  /** Preferência histórica mantida no banco; não deve bloquear a foto salva. */
+  useAvatarInHeader?: boolean | null;
 };
 
 const PROFILE_AVATAR_OBJECT_KEY =
