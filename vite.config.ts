@@ -215,7 +215,8 @@ function createR2DevApiPlugin(): Plugin {
             branch: gitIdentity.branch,
             sha: gitIdentity.sha,
             pid: process.pid,
-            port: 8080,
+            port: process.env.SIGAPRO_LOCAL_QA_LAUNCH === "true" ? 8081 : 8080,
+            neonEnvironment: process.env.SIGAPRO_LOCAL_QA_LAUNCH === "true" ? "isolated-qa" : "official",
           }));
           return;
         }
