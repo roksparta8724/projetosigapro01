@@ -34,6 +34,7 @@ import {
 } from "@/components/platform/PageShell";
 import { PortalFrame } from "@/components/platform/PortalFrame";
 import { GovbrArGuideBridge } from "@/components/platform/GovbrArGuideBridge";
+import { useEffectiveCollectionMode } from "@/hooks/useEffectiveCollectionMode";
 import { SectionCard } from "@/components/platform/SectionCard";
 import { StatCard } from "@/components/platform/StatCard";
 import { TableCard } from "@/components/platform/TableCard";
@@ -114,6 +115,8 @@ export function ProtocolDeskPage() {
     municipality?.id ??
     scopeId ??
     null;
+
+  const { canImportMunicipalGuide, configuration: collectionConfig } = useEffectiveCollectionMode(effectiveScopeId);
 
   const userById = useMemo(
     () => new Map(sessionUsers.map((user) => [user.id, user])),
@@ -1379,8 +1382,8 @@ export function ProtocolDeskPage() {
         {section === "pagamentos" ? (
           <PageMainGrid>
             <PageMainContent>
-              <SectionCard
-                title="Recebimento direto de guias GOVBR/AR"
+              {canImportMunicipalGuide ? <SectionCard
+                title="Recebimento direto de guia oficial municipal"
                 description="A guia continua sendo emitida no AR da Prefeitura. Depois de gerar e salvar o PDF, vincule-o diretamente ao processo e comunique o profissional pelo SIGAPRO."
               >
                 <div className="space-y-4">
@@ -1408,6 +1411,8 @@ export function ProtocolDeskPage() {
                     const selected = govbrEligibleProcesses.find((item) => item.id === govbrProtocolId)!;
                     return <GovbrArGuideBridge
                       scope="protocolo"
+                      supplierCode={collectionConfig.supplier_code || ""}
+                      supplierName={collectionConfig.supplier_name || "Sistema da Prefeitura"}
                       process={selected}
                       municipalityId={effectiveScopeId || selected.tenantId}
                       actorId={session.id}
@@ -1429,7 +1434,7 @@ export function ProtocolDeskPage() {
                     </p>
                   )}
                 </div>
-              </SectionCard>
+              </SectionCard> : null}
               <TableCard
                 title="Pré-protocolos aguardando pagamento"
                 description="Antes da compensação existe somente o pré-protocolo e a guia inicial. Ao confirmar o pagamento, o SIGAPRO atribui o número oficial de forma atômica e abre o processo na Triagem de Protocolo."
