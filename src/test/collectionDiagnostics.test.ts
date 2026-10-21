@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isCollectionAuthError, isCollectionSchemaMissing, municipalCollectionError } from "@/lib/collectionDiagnostics";
+import { isCollectionAuthError, isCollectionSchemaMissing, isCollectionSuccessMessage, municipalCollectionError } from "@/lib/collectionDiagnostics";
 
 describe("Municipal collection: Neon authentication and readiness diagnostics", () => {
   it("never classifies JWK key errors as missing migrations", () => {
@@ -19,4 +19,12 @@ describe("Municipal collection: Neon authentication and readiness diagnostics", 
     expect(municipalCollectionError("Provedor ainda não homologado"))
       .toBe("Provedor ainda não homologado");
   });
+  it("does not render unavailable payments or failed saves as successful", () => {
+    expect(isCollectionSuccessMessage("A estrutura de arrecadação ainda não está disponível neste ambiente")).toBe(false);
+    expect(isCollectionSuccessMessage("Nenhuma configuração foi salva")).toBe(false);
+    expect(isCollectionSuccessMessage("Falha de autenticação JWT / JWK")).toBe(false);
+    expect(isCollectionSuccessMessage("Conexão salva com sucesso")).toBe(true);
+    expect(isCollectionSuccessMessage("Configuração salva como nova versão de homologação")).toBe(true);
+  });
+
 });
