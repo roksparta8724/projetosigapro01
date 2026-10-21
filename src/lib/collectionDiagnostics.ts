@@ -20,3 +20,12 @@ export function municipalCollectionError(error: unknown): string {
   }
   return value || "Não foi possível acessar a configuração municipal.";
 }
+
+/** A failure saying "indisponível" or "não salva" must NEVER be rendered green. */
+export function isCollectionSuccessMessage(message: string): boolean {
+  const value = message.trim().toLocaleLowerCase("pt-BR");
+  if (!value || /(?:não|nao|erro|falha|indispon[ií]vel|pendente|incompat[ií]vel|n[aã]o foi|sem acesso|n[aã]o configurad|n[aã]o confirmou|bloquead|expirad|inv[aá]lid)/i.test(value)) {
+    return false;
+  }
+  return /(?:conex[aã]o salva|configura[cç][aã]o salva|ativad[ao] com sucesso|conex[aã]o validada|dados banc[aá]rios e pix salvos|fornecedor validado|teste conclu[ií]do com sucesso)/i.test(value);
+}
