@@ -183,12 +183,24 @@ function createR2DevApiPlugin(): Plugin {
       console.log(`  pasta : ${process.cwd()}`);
       console.log(`  branch: ${gitIdentity.branch}`);
       console.log(`  commit: ${gitIdentity.sha}`);
-      console.log("  porta : 8080 (strict)");
+      console.log("  porta : " + (process.env.SIGAPRO_LOCAL_QA_LAUNCH === "true" ? "8081 QA" : "8080 (strict)"));
       console.log("");
 
       server.middlewares.use(async (req, res, next) => {
         if (!req.url || !req.method || !req.url.startsWith("/api/")) {
           next();
+          return;
+        }
+
+        // Explicit local QA may use copied municipal settings, but MUST NOT
+        // generate external charges, send a PIX to a provider, or write to a
+        // production R2 bucket with inherited local machine credentials.
+        if (process.env.SIGAPRO_LOCAL_QA_BLOCK_EXTERNAL_WRITES === "true" &&
+          [/^\\/api\\/mercadopago\\/guide-(boleto|status)/, /^\\/api\\/r2-(upload|delete|presign)/,
+           /^\\/api\\/e-sign-artifact/].some((regex) => regex.test(req.url || ""))) {
+          res.statusCode = 403;
+          res.setHeader("Content-Type", "application/json; charset=utf-8");
+          res.end(JSON.stringify({ error: "Homologação isolada: envio ao R2, assinatura e emissão de cobrança externa bloqueados. Configure credenciais e bucket exclusivos de sandbox antes de testar transações." }));
           return;
         }
 
@@ -678,10 +690,25 @@ function createR2DevApiPlugin(): Plugin {
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
+  // Keep the explicit, public QA Auth/Data pairing supplied by npm run dev:qa,
+  // even when the developer's .env contains older production settings.
+  const isolatedQa = process.env.SIGAPRO_LOCAL_QA_LAUNCH === "true";
+  const pinnedQa = isolatedQa ? {
+    VITE_SIGAPRO_NEON_ISOLATED: process.env.VITE_SIGAPRO_NEON_ISOLATED,
+    VITE_NEON_AUTH_URL: process.env.VITE_NEON_AUTH_URL,
+    VITE_NEON_DATA_API_URL: process.env.VITE_NEON_DATA_API_URL,
+    VITE_SIGAPRO_QA_READINESS_BANNER: process.env.VITE_SIGAPRO_QA_READINESS_BANNER,
+    SIGAPRO_LOCAL_QA_BLOCK_EXTERNAL_WRITES: process.env.SIGAPRO_LOCAL_QA_BLOCK_EXTERNAL_WRITES,
+  } : null;
   const env = loadEnv(mode, process.cwd(), "");
   for (const [key, value] of Object.entries(env)) {
     if (value !== undefined) {
       process.env[key] = value;
+    }
+  }
+  if (pinnedQa) {
+    for (const [key, value] of Object.entries(pinnedQa)) {
+      if (value !== undefined) process.env[key] = value;
     }
   }
 
