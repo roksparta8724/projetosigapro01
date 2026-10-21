@@ -207,9 +207,9 @@ export function MunicipalPaymentSettings({
   };
 
   return (
-    <div className="space-y-5">
+    <div className="sig-collection-payment-settings space-y-5" data-collection-payment-settings="true">
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
-        <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
+        <div data-collection-payment-card="provider" className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
@@ -240,7 +240,7 @@ export function MunicipalPaymentSettings({
             </div>
           </div>
 
-          <div className="mt-5 grid gap-3 sm:grid-cols-3">
+          <div data-collection-payment-features="true" className="mt-5 grid gap-3 sm:grid-cols-3">
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
               <CreditCard className="h-5 w-5 text-slate-700" />
               <p className="mt-3 text-sm font-semibold text-slate-900">
@@ -274,7 +274,7 @@ export function MunicipalPaymentSettings({
           </div>
         </div>
 
-        <div className="rounded-[24px] border border-slate-200 bg-slate-50 p-5">
+        <div data-collection-payment-card="status" className="rounded-[24px] border border-slate-200 bg-slate-50 p-5">
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white">
               {isActive ? (
@@ -317,7 +317,7 @@ export function MunicipalPaymentSettings({
         </div>
       </div>
 
-      <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
+      <div data-collection-payment-card="credentials" className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
@@ -466,7 +466,7 @@ export function MunicipalPaymentSettings({
           </Button>
           <Button
             type="button"
-            className="rounded-full bg-slate-950 px-5 text-white hover:bg-slate-900"
+            className="sig-collection-payment-activate rounded-full bg-slate-950 px-5 !text-white hover:bg-slate-900"
             disabled={
               Boolean(busy) ||
               (form.provider !== "manual" && !hasValidTest) ||
