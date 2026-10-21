@@ -41,6 +41,16 @@ describe("Ponte GOVBR/AR — guia oficial importada", () => {
     expect(formatGovbrArGuideLabel("14805/2023", "iss_obra")).toContain("Cadastro Mobiliário");
   });
 
+  it("usa nomes genéricos para outras prefeituras sem impor o GOVBR/AR", () => {
+    const own = availableGovbrArGuideTypes("protocolo", "fornecedor_municipal");
+    expect(own).toHaveLength(1);
+    expect(own[0].label).toBe("Taxa de protocolo inicial");
+    expect(formatGovbrArGuideLabel("2026-123", "iss_obra", "fornecedor_municipal"))
+      .toContain("Guia municipal oficial");
+    expect(formatGovbrArGuideLabel("2026-123", "iss_obra", "fornecedor_municipal"))
+      .not.toContain("GOVBR");
+  });
+
   it("identifica cada tipo de taxa, sem gerar linha digitável ou cobrança", () => {
     expect(formatGovbrArGuideLabel("AR-20", "habite_se")).toContain("Habite-se");
     expect(formatGovbrArGuideLabel("AR-21", "iss_obra")).toContain("ISSQN");
