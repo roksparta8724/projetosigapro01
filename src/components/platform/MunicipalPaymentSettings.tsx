@@ -19,7 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { backendClient } from "@/integrations/backend/databaseClient";
-import { municipalCollectionError } from "@/lib/collectionDiagnostics";
+import { isCollectionSuccessMessage, municipalCollectionError } from "@/lib/collectionDiagnostics";
 
 type PaymentConnection = {
   municipality_id?: string;
@@ -424,7 +424,7 @@ export function MunicipalPaymentSettings({
         {message ? (
           <div
             className={`mt-4 rounded-2xl border px-4 py-3 text-sm ${
-              /sucesso|validada|ativado|salva|disponível/i.test(message)
+              isCollectionSuccessMessage(message)
                 ? "border-emerald-200 bg-emerald-50 text-emerald-800"
                 : "border-amber-200 bg-amber-50 text-amber-900"
             }`}
