@@ -20,6 +20,7 @@ const env = {
   NODE_ENV: "development",
   VERCEL_ENV: "development",
   SIGAPRO_LOCAL_QA_LAUNCH: "true",
+  VITE_BACKEND: "neon",
   VITE_SIGAPRO_NEON_ISOLATED: "true",
   VITE_NEON_AUTH_URL: qaBranchAuth,
   VITE_NEON_DATA_API_URL: qaBranchData,
