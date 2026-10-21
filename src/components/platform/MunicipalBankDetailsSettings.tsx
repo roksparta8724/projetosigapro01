@@ -162,20 +162,20 @@ export function MunicipalBankDetailsSettings({
   const id = municipalityId;
   return (
     <section className="overflow-hidden rounded-[26px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900" data-municipal-bank-settings="true">
-      <div className="flex flex-wrap items-center justify-between gap-4 bg-gradient-to-r from-slate-950 via-sky-950 to-sky-800 p-5 !text-white">
+      <div data-bank-premium-header="true" className="flex flex-wrap items-center justify-between gap-4 bg-gradient-to-r from-slate-950 via-sky-950 to-sky-800 p-5 !text-white">
         <div className="flex items-start gap-3">
           <Landmark className="mt-1 h-6 w-6 shrink-0 !text-sky-200" />
           <div>
-            <h3 className="text-lg font-extrabold !text-white">Banco, convênio e PIX da Prefeitura</h3>
-            <p className="mt-1 text-sm leading-6 !text-sky-100">Dados oficiais exibidos nas novas guias personalizadas do SIGAPRO. Cada prefeitura mantém os seus próprios dados.</p>
+            <h3 data-bank-premium-title="true" className="text-lg font-extrabold !text-white">Banco, convênio e PIX da Prefeitura</h3>
+            <p data-bank-premium-description="true" className="mt-1 text-sm leading-6 !text-sky-100">Dados oficiais exibidos nas novas guias personalizadas do SIGAPRO. Cada prefeitura mantém os seus próprios dados.</p>
           </div>
         </div>
-        <span className="inline-flex items-center gap-2 rounded-full border border-sky-300/40 bg-sky-950/70 px-3 py-2 text-xs font-semibold !text-white">
+        <span data-bank-premium-badge="true" className="inline-flex items-center gap-2 rounded-full border border-sky-300/40 bg-sky-950/70 px-3 py-2 text-xs font-semibold !text-white">
           {loading ? "Carregando..." : saved ? <><CheckCircle2 className="h-4 w-4" /> Dados conferidos</> : <><LockKeyhole className="h-4 w-4" /> Alterações não salvas</>}
         </span>
       </div>
 
-      <div className="space-y-5 p-5">
+      <div data-bank-premium-body="true" className="space-y-5 bg-white p-5 text-slate-900 dark:bg-slate-900 dark:text-slate-100">
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2 md:col-span-2">
             <Label htmlFor={id + "-beneficiario"}>Beneficiário oficial da arrecadação</Label>
