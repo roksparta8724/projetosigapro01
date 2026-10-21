@@ -8,7 +8,7 @@ import { uploadFileToStorage } from "@/integrations/r2/storage";
 import type { PaymentGuideEntry, PaymentGuideKind, ProcessDocument, ProcessRecord } from "@/lib/platform";
 
 const GOVBR_PREFIX = "Guia GOVBR/AR - ";
-const MAX_PDF_BYTES = 12 * 1024 * 1024;
+const MAX_PDF_BYTES = 3 * 1024 * 1024;
 const guideTypes: { kind: PaymentGuideKind; label: string }[] = [
   { kind: "protocolo", label: "Taxa de protocolo" },
   { kind: "iss_obra", label: "Análise / ISSQN / Projeto" },
@@ -33,7 +33,7 @@ export function hasGovbrArReference(documents: ProcessDocument[], reference: str
 
 export async function validateGovbrArPdf(file: File) {
   if (file.size < 16 || file.size > MAX_PDF_BYTES) {
-    throw new Error("A guia GOVBR/AR deve ser um PDF entre 16 bytes e 12 MB.");
+    throw new Error("A guia GOVBR/AR deve ser um PDF entre 16 bytes e 3 MB (limite seguro do envio web).");
   }
   if (!/\.pdf$/i.test(file.name)) {
     throw new Error("Selecione o PDF original gerado pelo GOVBR/AR.");
