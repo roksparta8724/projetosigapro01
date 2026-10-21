@@ -743,6 +743,15 @@ export function ConfiguracoesPage() {
           | "platform")
       : "overview";
   });
+  // A arrecadação tem uma única tela administrativa. URLs antigas de
+  // Configurações > Arrecadação redirecionam para o novo ponto de entrada.
+  // Não salvar dados financeiros pelo formulário institucional legado.
+  useEffect(() => {
+    if (activeSettingsView === "collection") {
+      navigate("/prefeitura/arrecadacao", { replace: true });
+    }
+  }, [activeSettingsView, navigate]);
+
   const isPlatformSettingsView = String(activeSettingsView) === "platform";
   const [mercadoPagoHealth, setMercadoPagoHealth] = useState<MercadoPagoHealth | null>(null);
   const [mercadoPagoChecking, setMercadoPagoChecking] = useState(false);
@@ -3157,7 +3166,7 @@ export function ConfiguracoesPage() {
           { value: "institutional", label: "Dados institucionais", helper: "Prefeitura e cadastro" },
           { value: "communication", label: "Comunicação oficial", helper: "Canais e contato público" },
           { value: "protocol", label: "Protocolo e prefixos", helper: "Numeração e DAM" },
-          { value: "collection", label: "Arrecadação e banco", helper: "PIX, convênio e cobrança" },
+          { value: "collection", label: "Guias e Arrecadação", helper: "Banco, PIX e modalidade em uma página" },
           { value: "team", label: "Equipe responsável", helper: "Secretaria e diretoria" },
           { value: "account", label: "Preferências", helper: "Conta e alertas" },
           { value: "advanced", label: "Parâmetros avançados", helper: "Regras e base local" },
