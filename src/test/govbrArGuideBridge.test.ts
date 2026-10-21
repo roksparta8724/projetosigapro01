@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { formatGovbrArGuideLabel, hasGovbrArReference, isGovbrArGuideDocument, validateGovbrArPdf } from "@/components/platform/GovbrArGuideBridge";
 import type { ProcessDocument } from "@/lib/platform";
 
-function govbrDoc(reference: string, fileHash = "test-hash"): ProcessDocument {
+function govbrDoc(reference: string, fileHash = "a".repeat(64)): ProcessDocument {
   return {
     id: "doc-1",
     label: formatGovbrArGuideLabel(reference, "protocolo"),
@@ -22,6 +22,8 @@ describe("Ponte GOVBR/AR — guia oficial importada", () => {
     const imported = govbrDoc("AR-2026-001");
     expect(isGovbrArGuideDocument(imported)).toBe(true);
     expect(isGovbrArGuideDocument({ ...imported, uploaded: false })).toBe(false);
+    expect(isGovbrArGuideDocument({ ...imported, source: "profissional" })).toBe(false);
+    expect(isGovbrArGuideDocument({ ...imported, fileHash: "invalid" })).toBe(false);
     expect(isGovbrArGuideDocument({ ...imported, label: "Alvará de Aprovação" })).toBe(false);
   });
 
