@@ -8,6 +8,8 @@ import { uploadFileToStorage } from "@/integrations/r2/storage";
 import type { PaymentGuideEntry, PaymentGuideKind, ProcessDocument, ProcessRecord } from "@/lib/platform";
 
 const GOVBR_PREFIX = "Guia GOVBR/AR - ";
+const MUNICIPAL_PREFIX = "Guia municipal oficial - ";
+function collectionPrefix(supplierCode?: string) { return supplierCode === "govbr_ar" || !supplierCode ? GOVBR_PREFIX : MUNICIPAL_PREFIX; }
 const MAX_PDF_BYTES = 3 * 1024 * 1024;
 const guideTypes: { kind: PaymentGuideKind; label: string }[] = [
   { kind: "protocolo", label: "Protocolo inicial (Cadastro Eventual)" },
@@ -26,18 +28,18 @@ export function isGovbrArGuideDocument(doc: Pick<ProcessDocument, "uploaded" | "
     !!doc.filePath &&
     doc.source === "integracao" &&
     /^[a-f0-9]{64}$/i.test(doc.fileHash || "") &&
-    doc.label.startsWith(GOVBR_PREFIX);
+    (doc.label.startsWith(GOVBR_PREFIX) || doc.label.startsWith(MUNICIPAL_PREFIX));
 }
 
-export function formatGovbrArGuideLabel(reference: string, kind: PaymentGuideKind) {
+export function formatGovbrArGuideLabel(reference: string, kind: PaymentGuideKind, supplierCode = "govbr_ar") {
   const description = guideTypes.find((item) => item.kind === kind)?.label || "Recolhimento";
-  return `${GOVBR_PREFIX}${reference} | ${description}`;
+  return `${collectionPrefix(supplierCode)}${reference} | ${description}`;
 }
 
 export function hasGovbrArReference(documents: ProcessDocument[], reference: string) {
   return documents.some((doc) =>
     isGovbrArGuideDocument(doc) &&
-    doc.label.slice(GOVBR_PREFIX.length).split(" | ")[0].toUpperCase() === reference.toUpperCase());
+    doc.label.slice(doc.label.startsWith(GOVBR_PREFIX) ? GOVBR_PREFIX.length : MUNICIPAL_PREFIX.length).split(" | ")[0].toUpperCase() === reference.toUpperCase());
 }
 
 export async function validateGovbrArPdf(file: File) {
@@ -62,15 +64,19 @@ type Props = {
   actorName: string;
   canImport: boolean;
   scope: GovbrArGuideScope;
+  supplierCode: string;
+  supplierName: string;
   existingGuides: PaymentGuideEntry[];
   onAppend: (documents: ProcessDocument[]) => Promise<{ synced: number }>;
   onNotify: (message: string) => Promise<void>;
 };
 
 export function GovbrArGuideBridge({
-  process, municipalityId, actorId, actorName, canImport, scope, existingGuides, onAppend, onNotify,
+  process, municipalityId, actorId, actorName, canImport, scope, supplierCode, supplierName, existingGuides, onAppend, onNotify,
 }: Props) {
   const [reference, setReference] = useState("");
+  const isGovbr = supplierCode === "govbr_ar";
+  const systemName = isGovbr ? "GOVBR/AR" : (supplierName || "sistema da Prefeitura");
   const [guideKind, setGuideKind] = useState<PaymentGuideKind>(scope === "protocolo" ? "protocolo" : "iss_obra");
   const allowedKinds = availableGovbrArGuideTypes(scope);
   const [pdf, setPdf] = useState<File | null>(null);
@@ -136,7 +142,7 @@ export function GovbrArGuideBridge({
       return;
     }
     if (alreadyImported) {
-      setStatus("Essa referência GOVBR/AR já está vinculada ao processo. Abra o PDF existente, sem importar outra cobrança.");
+      setStatus("Essa referência oficial já está vinculada ao processo. Abra o PDF existente, sem importar outra cobrança.");
       return;
     }
     if (!verifiedByClerk || !pdf) {
@@ -156,7 +162,7 @@ export function GovbrArGuideBridge({
         folder: "govbr-ar",
       });
       if (!uploaded.path) throw new Error("O R2 não confirmou o armazenamento do PDF GOVBR/AR.");
-      const guideLabel = formatGovbrArGuideLabel(normalizedReference, guideKind);
+      const guideLabel = formatGovbrArGuideLabel(normalizedReference, guideKind, supplierCode);
       const document: ProcessDocument = {
         id: `doc-${crypto.randomUUID()}`,
         label: guideLabel,
@@ -167,7 +173,7 @@ export function GovbrArGuideBridge({
         annotations: [],
         version: 1,
         source: "integracao",
-        fileName: `GOVBR-AR-${normalizedReference.replace(/[^A-Z0-9._-]/g, "-")}.pdf`,
+        fileName: `GUIA-MUNICIPAL-${normalizedReference.replace(/[^A-Z0-9._-]/g, "-")}.pdf`,
         filePath: uploaded.path,
         fileHash: sha256,
         mimeType: "application/pdf",
@@ -182,12 +188,12 @@ export function GovbrArGuideBridge({
       if (pdfInputRef.current) pdfInputRef.current.value = "";
       setReference("");
       setVerifiedByClerk(false);
-      setStatus(`Guia GOVBR/AR ${normalizedReference} armazenada no R2 e vinculada ao processo. Nenhuma nova cobrança foi emitida.`);
+      setStatus(`Guia oficial ${normalizedReference} armazenada no R2 e vinculada ao processo. Nenhuma nova cobrança foi emitida.`);
       try {
-        await onNotify(`Guia oficial GOVBR/AR ${normalizedReference} (${guideLabel}) anexada ao processo pela equipe da Prefeitura (responsável: ${actorName}). Acesse o SIGAPRO, na área Financeiro ou Documentos, para consultar o PDF emitido pela Prefeitura.`);
-        setStatus(`Guia GOVBR/AR ${normalizedReference} vinculada ao processo e comunicação registrada para o profissional no SIGAPRO. Nenhuma cobrança nova foi criada.`);
+        await onNotify(`Guia oficial do sistema municipal ${normalizedReference} (${guideLabel}) anexada ao processo pela equipe da Prefeitura (responsável: ${actorName}). Acesse o SIGAPRO, na área Financeiro ou Documentos, para consultar o PDF emitido pela Prefeitura.`);
+        setStatus(`Guia municipal ${normalizedReference} vinculada ao processo e comunicação registrada para o profissional no SIGAPRO. Nenhuma cobrança nova foi criada.`);
       } catch {
-        setStatus(`Guia GOVBR/AR ${normalizedReference} SALVA no processo e no R2. A comunicação ao profissional não foi confirmada; use as mensagens do processo sem importar a guia novamente.`);
+        setStatus(`Guia municipal ${normalizedReference} SALVA no processo e no R2. A comunicação ao profissional não foi confirmada; use as mensagens do processo sem importar a guia novamente.`);
       }
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Não foi possível concluir o recebimento da guia GOVBR/AR.");
@@ -202,12 +208,12 @@ export function GovbrArGuideBridge({
         <div>
           <p className="text-[11px] font-extrabold uppercase tracking-[0.13em] text-cyan-200">Integração municipal • recebimento direto</p>
           <h3 className="mt-1 flex items-center gap-2 text-base font-extrabold !text-white">
-            <Landmark className="h-5 w-5 text-cyan-100" /> Receber guia oficial GOVBR/AR
+            <Landmark className="h-5 w-5 text-cyan-100" /> Receber guia oficial — {systemName}
           </h3>
           <p className="mt-1 text-xs leading-5 !text-sky-100">
             {scope === "protocolo"
-              ? "Cadastro Eventual • Protocolo inicial: emitir no GOVBR/AR, salvar o PDF e associar ao pré-protocolo/processo."
-              : "Financeiro • ISSQN/Projeto, Aprovação ou Habite-se: emitir no GOVBR/AR, salvar o PDF e associar ao processo."}
+              ? (isGovbr ? "Cadastro Eventual • Protocolo inicial: emitir no GOVBR/AR e vincular o PDF." : "Protocolo inicial: emitir no sistema municipal e vincular o PDF oficial.")
+              : (isGovbr ? "Financeiro • ISSQN/Projeto, Aprovação ou Habite-se no GOVBR/AR." : "Financeiro • ISSQN/Projeto, Aprovação ou Habite-se no sistema municipal.")}
           </p>
         </div>
         <span className="rounded-full border border-sky-300/50 bg-slate-950/40 px-3 py-1.5 text-xs font-bold !text-white">PDF original, sem gerar outra cobrança</span>
@@ -217,7 +223,7 @@ export function GovbrArGuideBridge({
         {canImport ? (
           <div className="grid gap-3 md:grid-cols-2">
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-sky-200 bg-sky-50 p-3 md:col-span-2">
-              <p className="max-w-xl text-xs leading-5 text-slate-700">No GOVBR/AR instalado no computador, use Atendimento → Solicitações → Taxas Diversas. Copie os dados para evitar digitação repetida.</p>
+              <p className="max-w-xl text-xs leading-5 text-slate-700">{isGovbr ? "No GOVBR/AR, use Atendimento → Solicitações → Taxas Diversas." : `No ${systemName}, emita a guia na rotina oficial da Prefeitura.`} Copie os dados para evitar digitação repetida.</p>
               <Button type="button" variant="outline" className="shrink-0 border-sky-300 bg-white text-sky-950" onClick={() => void copyDataForGovbr()}>
                 Copiar dados do processo
               </Button>
@@ -230,7 +236,7 @@ export function GovbrArGuideBridge({
               </select>
             </div>
             <div>
-              <Label htmlFor="govbr-ar-reference">Número da guia gerada no GOVBR/AR</Label>
+              <Label htmlFor="govbr-ar-reference">Número oficial da guia gerada pela Prefeitura</Label>
               <Input id="govbr-ar-reference" className="mt-2 h-11" placeholder="Referência oficial impressa na guia" disabled={busy}
                 value={reference} onChange={(event) => setReference(event.target.value)} maxLength={80} />
             </div>
@@ -249,7 +255,7 @@ export function GovbrArGuideBridge({
             <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm text-slate-900 md:col-span-2">
               <input type="checkbox" className="mt-1 h-4 w-4 accent-sky-700" checked={verifiedByClerk} disabled={busy}
                 onChange={(event) => setVerifiedByClerk(event.target.checked)} />
-              <span>Conferi no GOVBR/AR o número oficial, o contribuinte, o valor, a data de emissão e o vencimento, além do tipo de cobrança do setor. O PDF será anexado sem gerar nova cobrança SIGAPRO nem confirmar pagamento ou compensação.</span>
+              <span>Conferi no sistema municipal o número oficial, o contribuinte, o valor, a data de emissão e o vencimento, além do tipo de cobrança do setor. O PDF será anexado sem gerar nova cobrança SIGAPRO nem confirmar pagamento ou compensação.</span>
             </label>
             <Button type="button" className="h-11 w-full bg-sky-800 font-bold !text-white hover:bg-sky-700 md:col-span-2"
               disabled={busy || !pdf || !normalizedReference || !verifiedByClerk || alreadyImported}
@@ -263,7 +269,7 @@ export function GovbrArGuideBridge({
 
         {importedGuides.length > 0 ? (
           <div className="space-y-2 border-t border-slate-200 pt-4 dark:border-slate-700">
-            <p className="flex items-center gap-2 text-sm font-bold text-slate-900 dark:text-white"><ShieldCheck className="h-4 w-4 text-emerald-600" /> Guias GOVBR/AR recebidas neste processo</p>
+            <p className="flex items-center gap-2 text-sm font-bold text-slate-900 dark:text-white"><ShieldCheck className="h-4 w-4 text-emerald-600" /> Guias oficiais recebidas neste processo</p>
             {importedGuides.map((doc) => (
               <div key={doc.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800">
                 <div className="flex min-w-0 items-center gap-2">
@@ -280,7 +286,7 @@ export function GovbrArGuideBridge({
             ))}
           </div>
         ) : !canImport ? null : (
-          <p className="text-xs text-slate-600 dark:text-slate-300">Nenhuma guia GOVBR/AR importada. No programa municipal: Atendimento → Solicitações → Taxas Diversas → Guia de Recolhimento → salvar PDF.</p>
+          <p className="text-xs text-slate-600 dark:text-slate-300">{isGovbr ? "Nenhuma guia importada. GOVBR/AR: Atendimento → Solicitações → Taxas Diversas → Guia de Recolhimento → salvar PDF." : "Nenhuma guia municipal importada. Emita e salve a guia no sistema oficial antes de importar."}</p>
         )}
       </div>
     </section>
