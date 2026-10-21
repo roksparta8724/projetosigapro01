@@ -15,6 +15,10 @@ const processDetail = read("src/pages/saas/ProcessDetailPage.tsx");
 const bridge = read("src/components/platform/GovbrArGuideBridge.tsx");
 const guide = read("src/components/GuiaRecolhimentoOficial.tsx");
 const effectiveHook = read("src/hooks/useEffectiveCollectionMode.ts");
+const bankEditor = read("src/components/platform/MunicipalBankDetailsSettings.tsx");
+const oldSettings = read("src/pages/saas/ConfiguracoesPage.tsx");
+const bankMigration = read("neon/migrations/20261021_municipal_collection_bank_details.sql");
+
 
 describe("municipal collection configuration", () => {
   it("is disabled by default and snapshots only future inserts", () => {
@@ -71,6 +75,27 @@ describe("municipal collection configuration", () => {
     expect(processDetail).toContain("bankAccount: [tenantSettings?.bankAccount");
     expect(guide).toContain('data-dam-municipal-bank="true"');
     expect(guide).toContain("guia.bankMunicipalName");
+  });
+
+  it("uses one municipal administration page for banking, PIX, provider and modality", () => {
+    expect(page).toContain("<MunicipalBankDetailsSettings municipalityId={municipalityId}");
+    expect(page).toContain("<MunicipalPaymentSettings municipalityId={municipalityId}");
+    expect(oldSettings).toContain('navigate("/prefeitura/arrecadacao", { replace: true })');
+    expect(bankEditor).toContain("Salvar banco e PIX");
+    expect(bankEditor).toContain("Número do convênio");
+    expect(bankEditor).toContain("pixMerchantCity");
+    expect(api).toContain('action === "bank_get"');
+    expect(api).toContain('action === "bank_save"');
+  });
+
+  it("saves bank data as a scoped JSONB patch without updating other institutional settings", () => {
+    expect(bankMigration).toContain("public.is_municipal_payment_admin(_municipality_id)");
+    expect(bankMigration).toContain("public.can_read_municipal_collection_v1(_municipality_id)");
+    expect(bankMigration).toContain("coalesce(general_settings,'{}'::jsonb) || p");
+    expect(bankMigration).toContain("where municipality_id=_municipality_id");
+    expect(bankMigration).toContain("jsonb_object_keys(_fields)");
+    expect(bankMigration).not.toContain("update public.payment_guides");
+    expect(bankMigration).not.toContain("update public.municipalities");
   });
 
 });
