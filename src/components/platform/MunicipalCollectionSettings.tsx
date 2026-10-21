@@ -34,7 +34,7 @@ export function MunicipalCollectionSettings({ municipalityId, municipalityName, 
   return <div className="sig-collection-premium space-y-6" data-municipal-collection="true">
     <div data-collection-tone="dark" className="flex flex-wrap items-start justify-between gap-4 rounded-[28px] border border-sky-400/30 bg-gradient-to-br from-slate-950 via-blue-950 to-cyan-900 p-6 !text-white shadow-xl">
       <div><p className="sig-collection-eyebrow text-xs font-bold uppercase tracking-[.18em] !text-cyan-100">Configuração de guias e arrecadação</p><h2 className="sig-collection-title mt-2 text-2xl font-extrabold !text-white">{municipalityName || "Prefeitura Municipal"}</h2><p className="sig-collection-description mt-2 max-w-3xl text-sm leading-6 !text-slate-200">A modalidade ativa é registrada em cada nova guia. Documentos emitidos, pagos ou arquivados não são alterados por mudanças futuras.</p></div>
-      <span className={`rounded-full border px-4 py-2 text-sm font-bold ${statusTone}`}>Edição: {statusLabels[status]}</span>
+      <span data-collection-status="true" className={`rounded-full border px-4 py-2 text-sm font-bold ${statusTone}`}>Edição: {statusLabels[status]}</span>
     </div>
     <div role="status" className="rounded-2xl border border-sky-200 bg-sky-50 px-5 py-4 text-sm font-medium leading-6 text-slate-800">
       <strong>Modalidade em operação:</strong>{" "}
