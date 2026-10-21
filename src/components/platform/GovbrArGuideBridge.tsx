@@ -51,10 +51,10 @@ export function hasGovbrArReference(documents: ProcessDocument[], reference: str
 
 export async function validateGovbrArPdf(file: File) {
   if (file.size < 16 || file.size > MAX_PDF_BYTES) {
-    throw new Error("A guia GOVBR/AR deve ser um PDF entre 16 bytes e 3 MB (limite seguro do envio web).");
+    throw new Error("A guia oficial da Prefeitura deve ser um PDF entre 16 bytes e 3 MB (limite seguro do envio web).");
   }
   if (!/\.pdf$/i.test(file.name)) {
-    throw new Error("Selecione o PDF original gerado pelo GOVBR/AR.");
+    throw new Error("Selecione o PDF original gerado pelo sistema municipal.");
   }
   const signature = new TextDecoder().decode(await file.slice(0, 5).arrayBuffer());
   if (signature !== "%PDF-") {
@@ -141,7 +141,7 @@ export function GovbrArGuideBridge({
     if (busy || !canImport) return;
     setStatus("");
     if (!/^[A-Z0-9][A-Z0-9.\/_-]{2,79}$/.test(normalizedReference)) {
-      setStatus("Informe a referência real da guia GOVBR/AR (3 a 80 caracteres, sem espaços).");
+      setStatus("Informe a referência oficial da guia municipal (3 a 80 caracteres, sem espaços).");
       return;
     }
     if (!allowedKinds.some((item) => item.kind === guideKind)) {
