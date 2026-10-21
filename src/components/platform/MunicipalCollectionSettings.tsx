@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { BadgeCheck, Building2, FileUp, Landmark, RefreshCw, ShieldCheck } from "lucide-react";
-import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { backendClient } from "@/integrations/backend/databaseClient";
 import { MunicipalPaymentSettings } from "@/components/platform/MunicipalPaymentSettings";
+import { MunicipalBankDetailsSettings } from "@/components/platform/MunicipalBankDetailsSettings";
 
 type Mode = "sigapro" | "municipal_system";
 type Configuration = { mode?: Mode; status?: "not_configured"|"homologation"|"validated"|"active"|"error"; supplier_code?: string; supplier_name?: string; api_base_url?: string; environment?: "test"|"production"; integration_type?: "automatic"|"controlled_import"; secret_configured?: boolean; secret_fingerprint?: string; validation_message?: string; version?: number };
@@ -45,7 +45,10 @@ export function MunicipalCollectionSettings({ municipalityId, municipalityName, 
     <div className="grid gap-4 md:grid-cols-2">
       {[{mode:"sigapro" as Mode,title:"Guia personalizada SIGAPRO",text:"DAM A4, dados institucionais, provedor bancário existente, PIX/QR e original imutável no R2.",icon:Landmark},{mode:"municipal_system" as Mode,title:"Sistema próprio da Prefeitura",text:"Adaptador por fornecedor, API oficial ou importação controlada do documento emitido pelo município.",icon:Building2}].map(option => <button key={option.mode} data-collection-mode-card="true" data-selected={form.mode===option.mode?"true":"false"} aria-pressed={form.mode===option.mode} type="button" disabled={readOnly} onClick={()=>setForm(v=>({...v,mode:option.mode,integrationType:option.mode==="municipal_system" && v.mode!==option.mode?"controlled_import":v.integrationType}))} className={`rounded-[26px] border p-5 text-left transition ${form.mode===option.mode?"border-sky-400 bg-gradient-to-br from-slate-950 via-sky-950 to-sky-800 !text-white shadow-lg ring-2 ring-sky-500/30":"border-slate-200 bg-white text-slate-900 hover:border-sky-300 hover:bg-sky-50"}`}><option.icon className={`h-7 w-7 ${form.mode===option.mode?"!text-cyan-100":"text-slate-500"}`}/><h3 className={`mt-4 text-lg font-extrabold ${form.mode===option.mode?"!text-white":"text-slate-950"}`}>{option.title}</h3><p className={`mt-2 text-sm leading-6 ${form.mode===option.mode?"!text-sky-100":"text-slate-600"}`}>{option.text}</p></button>)}
     </div>
-    {form.mode === "sigapro" ? <div className="space-y-4"><div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm leading-6 text-blue-950"><strong>Arquitetura preservada.</strong> Dados bancários, convênio, beneficiário, instruções e meios de pagamento continuam na configuração institucional existente. <Link className="font-bold underline" to="/configuracoes?secao=collection">Configurar banco, agência, conta, convênio e beneficiário</Link>.</div>{readOnly?<div className="rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-600">A configuração bancária detalhada é restrita ao administrador municipal.</div>:<MunicipalPaymentSettings municipalityId={municipalityId} municipalityName={municipalityName}/>}</div> : <div className="rounded-[26px] border border-slate-200 bg-white p-6 shadow-sm">
+    {form.mode === "sigapro" ? <div className="space-y-5">
+      <MunicipalBankDetailsSettings municipalityId={municipalityId} readOnly={readOnly} />
+      {readOnly ? <p className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-700">Credenciais bancárias: alteração restrita ao administrador municipal.</p> : <MunicipalPaymentSettings municipalityId={municipalityId} municipalityName={municipalityName}/>}
+    </div> : <div className="rounded-[26px] border border-slate-200 bg-white p-6 shadow-sm">
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-sky-200 bg-sky-50 p-4">
         <div className="min-w-0 flex-1">
           <p className="text-sm font-bold text-sky-950">Sistema GOVBR — Administração de Receitas (AR)</p>
