@@ -19,8 +19,15 @@ const guideTypes: { kind: PaymentGuideKind; label: string }[] = [
 ];
 
 export type GovbrArGuideScope = "protocolo" | "financeiro";
-export function availableGovbrArGuideTypes(scope: GovbrArGuideScope) {
-  return guideTypes.filter((type) => scope === "protocolo" ? type.kind === "protocolo" : type.kind !== "protocolo");
+export function availableGovbrArGuideTypes(scope: GovbrArGuideScope, supplierCode = "govbr_ar") {
+  return guideTypes
+    .filter((type) => scope === "protocolo" ? type.kind === "protocolo" : type.kind !== "protocolo")
+    .map((type) => supplierCode === "govbr_ar" ? type : {
+      ...type,
+      label: type.kind === "protocolo" ? "Taxa de protocolo inicial" :
+        type.kind === "iss_obra" ? "ISSQN / Projeto" :
+        type.kind === "habite_se" ? "Habite-se" : "Aprovação / Alvará",
+    });
 }
 
 export function isGovbrArGuideDocument(doc: Pick<ProcessDocument, "uploaded" | "label" | "filePath" | "source" | "fileHash">) {
@@ -32,7 +39,7 @@ export function isGovbrArGuideDocument(doc: Pick<ProcessDocument, "uploaded" | "
 }
 
 export function formatGovbrArGuideLabel(reference: string, kind: PaymentGuideKind, supplierCode = "govbr_ar") {
-  const description = guideTypes.find((item) => item.kind === kind)?.label || "Recolhimento";
+  const description = availableGovbrArGuideTypes(kind === "protocolo" ? "protocolo" : "financeiro", supplierCode).find((item) => item.kind === kind)?.label || "Recolhimento";
   return `${collectionPrefix(supplierCode)}${reference} | ${description}`;
 }
 
@@ -78,7 +85,7 @@ export function GovbrArGuideBridge({
   const isGovbr = supplierCode === "govbr_ar";
   const systemName = isGovbr ? "GOVBR/AR" : (supplierName || "sistema da Prefeitura");
   const [guideKind, setGuideKind] = useState<PaymentGuideKind>(scope === "protocolo" ? "protocolo" : "iss_obra");
-  const allowedKinds = availableGovbrArGuideTypes(scope);
+  const allowedKinds = availableGovbrArGuideTypes(scope, supplierCode);
   const [pdf, setPdf] = useState<File | null>(null);
   const pdfInputRef = useRef<HTMLInputElement | null>(null);
   const [verifiedByClerk, setVerifiedByClerk] = useState(false);
@@ -93,7 +100,7 @@ export function GovbrArGuideBridge({
   const alreadyImported = hasGovbrArReference(process.documents, normalizedReference);
 
   const copyDataForGovbr = async () => {
-    const type = guideTypes.find((item) => item.kind === guideKind)?.label || "Recolhimento";
+    const type = allowedKinds.find((item) => item.kind === guideKind)?.label || "Recolhimento";
     const summary = [
       `Processo SIGAPRO: ${process.protocol}`,
       `Contribuinte: ${process.ownerName}`,
@@ -249,7 +256,7 @@ export function GovbrArGuideBridge({
             </div>
             {existingSameKind ? (
               <p className="md:col-span-2 rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs leading-5 text-amber-950">
-                Atenção: o SIGAPRO já registra uma guia de {guideTypes.find((item) => item.kind === guideKind)?.label} ({existingSameKind.code}, situação: {existingSameKind.status}). Confira com a Tesouraria qual é a cobrança válida. Esta importação não cancela nem substitui uma guia existente.
+                Atenção: o SIGAPRO já registra uma guia de {allowedKinds.find((item) => item.kind === guideKind)?.label} ({existingSameKind.code}, situação: {existingSameKind.status}). Confira com a Tesouraria qual é a cobrança válida. Esta importação não cancela nem substitui uma guia existente.
               </p>
             ) : null}
             <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm text-slate-900 md:col-span-2">
