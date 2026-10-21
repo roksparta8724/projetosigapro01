@@ -196,8 +196,9 @@ function createR2DevApiPlugin(): Plugin {
         // generate external charges, send a PIX to a provider, or write to a
         // production R2 bucket with inherited local machine credentials.
         if (process.env.SIGAPRO_LOCAL_QA_BLOCK_EXTERNAL_WRITES === "true" &&
-          [/^\\/api\\/mercadopago\\/guide-(boleto|status)/, /^\\/api\\/r2-(upload|delete|presign)/,
-           /^\\/api\\/e-sign-artifact/].some((regex) => regex.test(req.url || ""))) {
+          ["/api/mercadopago/guide-boleto", "/api/mercadopago/guide-status", "/api/r2-upload",
+           "/api/r2-delete", "/api/r2-presign", "/api/e-sign-artifact"]
+            .some((blocked) => (req.url || "").startsWith(blocked))) {
           res.statusCode = 403;
           res.setHeader("Content-Type", "application/json; charset=utf-8");
           res.end(JSON.stringify({ error: "Homologação isolada: envio ao R2, assinatura e emissão de cobrança externa bloqueados. Configure credenciais e bucket exclusivos de sandbox antes de testar transações." }));
