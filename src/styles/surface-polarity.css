@@ -2485,3 +2485,80 @@ html body #root .sig-collection-premium :is([data-collection-mode-card="true"],.
   outline-offset: 3px !important;
 }
 /* END COLLECTION CONFIGURATION PREMIUM CONTRAST */
+
+
+/* SIGAPRO COLLECTION PAYMENT WIDGET PREMIUM V2
+   Scope strictly: municipal collection settings > embedded payment provider.
+   Fixed dark cards stay readable under BOTH existing theme polarities.
+*/
+html body #root .sig-collection-premium .sig-collection-payment-settings [data-collection-payment-card="provider"],
+html body #root .sig-collection-premium .sig-collection-payment-settings [data-collection-payment-card="status"] {
+  background:linear-gradient(130deg,#071b30 0%,#0a3753 52%,#075d83 100%) !important;
+  border:1px solid rgba(125,211,252,.38) !important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.09),0 12px 28px rgba(2,6,23,.16) !important;
+  color:#f8fafc !important;
+}
+html body #root .sig-collection-premium .sig-collection-payment-settings [data-collection-payment-card="provider"] :is(h1,h2,h3,h4,p,strong,small,dt,dd),
+html body #root .sig-collection-premium .sig-collection-payment-settings [data-collection-payment-card="status"] :is(h1,h2,h3,h4,p,strong,small,dt,dd) {
+  color:#edf8ff !important;
+  -webkit-text-fill-color:#edf8ff !important;
+  opacity:1 !important;
+}
+html body #root .sig-collection-premium .sig-collection-payment-settings [data-collection-payment-card="provider"] :is(.text-slate-500,.text-slate-600),
+html body #root .sig-collection-premium .sig-collection-payment-settings [data-collection-payment-card="status"] :is(.text-slate-500,.text-slate-600) {
+  color:#d1e6f4 !important;
+  -webkit-text-fill-color:#d1e6f4 !important;
+}
+html body #root .sig-collection-premium .sig-collection-payment-settings [data-collection-payment-card="provider"] svg,
+html body #root .sig-collection-premium .sig-collection-payment-settings [data-collection-payment-card="status"] svg {
+  color:#d2f0ff !important;
+  stroke:currentColor !important;
+}
+html body #root .sig-collection-premium .sig-collection-payment-settings [data-collection-payment-features="true"] > div {
+  background:rgba(1,19,38,.33) !important;
+  border:1px solid rgba(186,230,253,.27) !important;
+}
+html body #root .sig-collection-premium .sig-collection-payment-settings [data-collection-payment-card="provider"] .rounded-full.border {
+  background:rgba(255,255,255,.95) !important;
+  border-color:rgba(255,255,255,.95) !important;
+  color:#075985 !important;
+}
+html body #root .sig-collection-premium .sig-collection-payment-settings [data-collection-payment-card="provider"] .rounded-full.border :is(span,svg) {
+  color:#075985 !important;
+  -webkit-text-fill-color:#075985 !important;
+}
+html body #root .sig-collection-premium .sig-collection-payment-settings [data-collection-payment-card="credentials"] {
+  background:#ffffff !important;
+  color:#0f172a !important;
+  border-color:#d5e3ef !important;
+  box-shadow:0 8px 22px rgba(10,30,50,.05) !important;
+}
+html body #root .sig-collection-premium .sig-collection-payment-settings [data-collection-payment-card="credentials"] :is(h3,label) {
+  color:#0f172a !important;
+  -webkit-text-fill-color:#0f172a !important;
+}
+html body #root .sig-collection-premium .sig-collection-payment-settings button.sig-collection-payment-activate {
+  background:linear-gradient(120deg,#061d37 0%,#075985 100%) !important;
+  border:1px solid #0c719f !important;
+  color:#fff !important;
+  -webkit-text-fill-color:#fff !important;
+  font-weight:800 !important;
+}
+html body #root .sig-collection-premium .sig-collection-payment-settings button.sig-collection-payment-activate:is(:disabled,[disabled]) {
+  opacity:.75 !important;
+  background:#334155 !important;
+  border-color:#64748b !important;
+  color:#f8fafc !important;
+  -webkit-text-fill-color:#f8fafc !important;
+  cursor:not-allowed !important;
+}
+html body #root .sig-collection-premium .sig-collection-payment-settings button.sig-collection-payment-activate :is(svg,span) {
+  color:#fff !important;
+  -webkit-text-fill-color:#fff !important;
+}
+@media (prefers-reduced-motion:reduce) {
+  html body #root .sig-collection-premium .sig-collection-payment-settings * {
+    scroll-behavior:auto !important;
+  }
+}
+/* END SIGAPRO COLLECTION PAYMENT WIDGET PREMIUM V2 */
