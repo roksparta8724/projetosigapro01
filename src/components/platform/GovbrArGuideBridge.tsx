@@ -123,12 +123,6 @@ export function GovbrArGuideBridge({
         folder: "govbr-ar",
       });
       if (!uploaded.path) throw new Error("O R2 não confirmou o armazenamento do PDF GOVBR/AR.");
-      const confirmation = await getSignedUrlForObjectStrict({
-        bucket: "process-documents",
-        objectKey: uploaded.path,
-      });
-      if (!confirmation) throw new Error("O PDF foi enviado, mas não foi possível confirmar sua leitura no R2.");
-
       const guideLabel = formatGovbrArGuideLabel(normalizedReference, guideKind);
       const document: ProcessDocument = {
         id: `doc-${crypto.randomUUID()}`,
@@ -156,7 +150,7 @@ export function GovbrArGuideBridge({
       setVerifiedByClerk(false);
       setStatus(`Guia GOVBR/AR ${normalizedReference} armazenada no R2 e vinculada ao processo. Nenhuma nova cobrança foi emitida.`);
       try {
-        await onNotify(`Guia oficial GOVBR/AR ${normalizedReference} (${guideLabel}) anexada ao processo. Acesse o SIGAPRO, na área Financeiro ou Documentos, para consultar o PDF emitido pela Prefeitura.`);
+        await onNotify(`Guia oficial GOVBR/AR ${normalizedReference} (${guideLabel}) anexada ao processo pela equipe da Prefeitura (responsável: ${actorName}). Acesse o SIGAPRO, na área Financeiro ou Documentos, para consultar o PDF emitido pela Prefeitura.`);
         setStatus(`Guia GOVBR/AR ${normalizedReference} vinculada ao processo e comunicação registrada para o profissional no SIGAPRO. Nenhuma cobrança nova foi criada.`);
       } catch {
         setStatus(`Guia GOVBR/AR ${normalizedReference} SALVA no processo e no R2. A comunicação ao profissional não foi confirmada; use as mensagens do processo sem importar a guia novamente.`);
@@ -172,7 +166,7 @@ export function GovbrArGuideBridge({
     <section data-govbr-ar-bridge="true" className="overflow-hidden rounded-[24px] border border-sky-200 bg-white shadow-sm dark:border-sky-700 dark:bg-slate-900">
       <div className="flex flex-wrap items-center justify-between gap-3 bg-gradient-to-r from-slate-950 via-sky-950 to-sky-800 px-5 py-4 text-white">
         <div>
-          <p className="text-[11px] font-extrabold uppercase tracking-[0.13em] text-cyan-200">Integração municipal • sem SEI</p>
+          <p className="text-[11px] font-extrabold uppercase tracking-[0.13em] text-cyan-200">Integração municipal • recebimento direto</p>
           <h3 className="mt-1 flex items-center gap-2 text-base font-extrabold !text-white">
             <Landmark className="h-5 w-5 text-cyan-100" /> Receber guia oficial GOVBR/AR
           </h3>
