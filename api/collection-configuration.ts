@@ -15,6 +15,12 @@ export default async function handler(req: Req, res: Res) {
     const input = await body(req); const municipalityId = uuid(input.municipalityId); const action = String(input.action || "get");
     if (action === "get") return json(res, 200, await rpc(req, "get_municipal_collection_configuration_v1", { _municipality_id: municipalityId }) || {});
     if (action === "effective") return json(res, 200, await rpc(req, "get_active_municipal_collection_configuration_v1", { _municipality_id: municipalityId }) || {});
+    if (action === "bank_get") return json(res, 200, await rpc(req, "get_municipal_collection_bank_details_v1", { _municipality_id: municipalityId }) || {});
+    if (action === "bank_save") {
+      const fields = input.fields && typeof input.fields === "object" && !Array.isArray(input.fields) ? input.fields : null;
+      if (!fields) throw new Error("Dados bancários inválidos.");
+      return json(res, 200, await rpc(req, "save_municipal_collection_bank_details_v1", { _municipality_id: municipalityId, _fields: fields }) || {});
+    }
     if (action === "save") {
       const mode = String(input.mode || "sigapro"); const integrationType = String(input.integrationType || "automatic");
       if (!['sigapro','municipal_system'].includes(mode) || !['automatic','controlled_import'].includes(integrationType)) throw new Error("Modalidade de arrecadação inválida.");
