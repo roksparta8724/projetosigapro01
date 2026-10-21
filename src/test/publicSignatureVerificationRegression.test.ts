@@ -26,7 +26,8 @@ describe("public signature QR verification", () => {
     expect(app).toContain('path="/verificar-assinatura"');
     expect(app).toContain('pathname.startsWith("/v/")');
     expect(app).toContain('pathname === "/verificar-assinatura"');
-    expect(app).toContain("isPublicVerificationRoute ? \"100\" : \"85\"");
+    // SIGAPRO now enforces 100% for login, public verification and internal pages.
+    expect(app).toContain('document.documentElement.dataset.pageZoom = "100"');
   });
 
   it("verifies the printed code against the official database without exposing sensitive evidence", () => {
