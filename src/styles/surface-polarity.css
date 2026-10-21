@@ -2361,3 +2361,37 @@ html body #root .sig-main-shell :is(
   -webkit-text-fill-color: #f0f7ff !important;
   opacity: 1 !important;
 }
+
+/* SIGAPRO EXTERNAL MARKER LABEL LEGIBILITY V25
+   Cor clara nas legendas de etiquetas escuras.
+   Preserva cores e desenhos dos icones dos marcadores.
+*/
+
+html body #root .sig-app-frame .sig-main-shell
+article[data-process-premium-card="true"]
+span[data-external-process-marker="true"] {
+  background-color: #102b44 !important;
+  color: #ffffff !important;
+}
+
+html body #root .sig-app-frame .sig-main-shell
+article[data-process-premium-card="true"]
+span[data-external-process-marker="true"]
+> span[data-external-marker-label="true"],
+
+html body #root [data-layout-mode="default"]
+.sig-main-shell
+article[data-process-premium-card="true"]
+span[data-external-process-marker="true"]
+> span[data-external-marker-label="true"],
+
+html body #root [data-layout-mode="inverse-main"]
+.sig-main-shell
+article[data-process-premium-card="true"]
+span[data-external-process-marker="true"]
+> span[data-external-marker-label="true"] {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  opacity: 1 !important;
+  text-shadow: 0 1px 1px rgba(0,0,0,0.18);
+}
