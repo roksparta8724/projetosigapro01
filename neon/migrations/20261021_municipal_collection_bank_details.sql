@@ -63,7 +63,7 @@ begin
       'bankWallet','bankInstructions'
     ]) then raise exception 'Campo bancario inesperado: %',k; end if;
   end loop;
-  if jsonb_typeof(_fields->'pixEnabled') <> 'boolean' then
+  if jsonb_typeof(_fields->'pixEnabled') is distinct from 'boolean' then
     raise exception 'Opcao PIX invalida';
   end if;
   pix_enabled := (_fields->>'pixEnabled')::boolean;
