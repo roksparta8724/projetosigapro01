@@ -1392,7 +1392,6 @@ export function ProtocolDeskPage() {
                         }).slice(0, 30).map((item) => (
                           <option key={item.id} value={item.id}>{item.protocol} • {item.ownerName}</option>
                         ))}
-                        {govbrProtocolId && !processes.some((item) => item.id === govbrProtocolId) ? null : null}
                       </select>
                     </div>
                   </div>
@@ -1421,9 +1420,6 @@ export function ProtocolDeskPage() {
                   )}
                 </div>
               </SectionCard>
-            </PageMainContent>
-            <PageMainContent>
-            <PageMainContent>
               <TableCard
                 title="Pré-protocolos aguardando pagamento"
                 description="Antes da compensação existe somente o pré-protocolo e a guia inicial. Ao confirmar o pagamento, o SIGAPRO atribui o número oficial de forma atômica e abre o processo na Triagem de Protocolo."
