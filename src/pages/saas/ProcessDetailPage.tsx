@@ -19,6 +19,7 @@ import { PageShell, PageStatsRow } from "@/components/platform/PageShell";
 import { PixQrCode } from "@/components/platform/PixQrCode";
 import { PortalFrame } from "@/components/platform/PortalFrame";
 import { GovbrArGuideBridge, isGovbrArGuideDocument } from "@/components/platform/GovbrArGuideBridge";
+import { useEffectiveCollectionMode } from "@/hooks/useEffectiveCollectionMode";
 import { StatCard } from "@/components/platform/StatCard";
 import { UserAvatar } from "@/components/platform/UserAvatar";
 import { ProcessIdentityPanel } from "@/components/platform/ProcessIdentityPanel";
@@ -544,6 +545,7 @@ export function ProcessDetailPage() {
     scopeId ??
     session.tenantId ??
     null;
+  const { canImportMunicipalGuide, configuration: collectionConfig } = useEffectiveCollectionMode(effectiveScopeId);
   const { headerBranding: guideHeaderBranding, footerBranding: guideFooterBranding } = useInstitutionBranding(effectiveScopeId);
   const {
     departments: organizationDepartments,
@@ -4406,11 +4408,13 @@ export function ProcessDetailPage() {
           )}
 
           {activeTab === "financeiro" && (
-            (!isExternalProcessViewer && (canProtocolOperate || canFinanceOperate)) ||
+            (!isExternalProcessViewer && canImportMunicipalGuide && (canProtocolOperate || canFinanceOperate)) ||
             process.documents.some(isGovbrArGuideDocument)
           ) && (
             <GovbrArGuideBridge
               scope={canFinanceOperate ? "financeiro" : "protocolo"}
+              supplierCode={collectionConfig.supplier_code || ""}
+              supplierName={collectionConfig.supplier_name || "Sistema da Prefeitura"}
               process={process}
               municipalityId={effectiveScopeId || process.tenantId}
               actorId={session.id}
@@ -4418,6 +4422,7 @@ export function ProcessDetailPage() {
               canImport={
                 !isExternalProcessViewer &&
                 (canProtocolOperate || canFinanceOperate) &&
+                canImportMunicipalGuide &&
                 session.role !== "prefeitura_admin" &&
                 session.id !== "unknown" &&
                 Boolean(effectiveScopeId)
