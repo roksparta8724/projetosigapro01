@@ -14,6 +14,7 @@ on:
       - src/lib/collectionDiagnostics.ts
       - src/test/collectionDiagnostics.test.ts
       - src/test/collectionNeonAuthAlignment.test.ts
+      - src/test/municipalBankingFlow.test.ts
       - server/municipal-storage.ts
       - api/collection-configuration.ts
   workflow_dispatch:
@@ -49,4 +50,5 @@ jobs:
           src/lib/guideOriginal.test.ts
           src/test/municipalBankingFlow.test.ts
       - name: Production-format bundle (no deployment)
+        if: always()
         run: npm run build
