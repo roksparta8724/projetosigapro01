@@ -27,6 +27,12 @@ function neonBranchHost(raw: string, kind: "neonauth" | "apirest") {
 }
 
 export function getDataApiUrl() {
+  // The official Vercel deployment also forces the production Neon Auth URL
+  // in the browser: server-side RPC must use the SAME branch, regardless of
+  // stale inherited variables from previous preview deployments.
+  if (process.env.VERCEL_ENV === "production") {
+    return VALIDATED_NEON_DATA_API_URL;
+  }
   // Vite localhost signs in with the official Neon Auth by default.
   // Do NOT honor an arbitrary Data API override independently: that creates
   // "jwk not found" by sending a production JWT to a QA branch (or vice versa).
