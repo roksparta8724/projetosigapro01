@@ -2732,7 +2732,8 @@ export function UrbanAnalysisChecklistPanel({
                 </div>
                 <div>
                   <p className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-sky-800 dark:text-sky-300">Acervo documental do processo</p>
-                  <p className="mt-1 text-base font-black text-slate-950 dark:text-white">Fichas técnicas oficiais e retificações</p>
+                  <p className="mt-1 text-base font-black text-slate-950 dark:text-white">Histórico de versões</p>
+                  <p className="mt-1 text-sm font-bold text-sky-900 dark:text-sky-200">Retificações e assinaturas da análise</p>
                   <p className="mt-1 max-w-2xl text-xs leading-5 text-slate-600 dark:text-slate-300">
                     Documentos apresentados em ordem de emissão. Cada assinatura preserva autoria, data, hora,
                     versão, código de verificação e histórico de alterações. O PDF arquivado pode ser consultado quando disponível.
@@ -2802,7 +2803,7 @@ export function UrbanAnalysisChecklistPanel({
                             </p>
                             <div className="mt-3 grid gap-x-5 gap-y-1.5 text-xs leading-5 text-slate-600 dark:text-slate-300 sm:grid-cols-2">
                               <p><strong className="text-slate-900 dark:text-white">Analista:</strong> {analystSigner?.name || "Nome não informado"}</p>
-                              <p><strong className="text-slate-900 dark:text-white">Assinatura técnica:</strong> {formatMunicipalDateTime(analystSigner?.signed_at || version.completed_at) || "Não registrada"}</p>
+                              <p><strong className="text-slate-900 dark:text-white">Assinada em (técnica):</strong> {formatMunicipalDateTime(analystSigner?.signed_at || version.completed_at) || "Não registrada"}</p>
                               <p><strong className="text-slate-900 dark:text-white">Diretoria:</strong> {directorSigner?.name || "Sem assinatura nesta versão"}</p>
                               <p><strong className="text-slate-900 dark:text-white">Assinatura da Diretoria:</strong> {directorSigner ? formatMunicipalDateTime(directorSigner.signed_at) : "Não aplicável"}</p>
                             </div>
