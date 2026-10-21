@@ -37,12 +37,16 @@ describe("Ponte GOVBR/AR — guia oficial importada", () => {
   });
 
   it("rejeita arquivos não PDF antes de enviar ao R2", async () => {
-    const file = new File(["not a pdf file"], "guia.pdf", { type: "application/pdf" });
+    const file = {
+      name: "guia.pdf",
+      size: 40,
+      slice: () => ({ arrayBuffer: async () => new TextEncoder().encode("INVALID").buffer }),
+    } as unknown as File;
     await expect(validateGovbrArPdf(file)).rejects.toThrow("assinatura de PDF");
   });
 
   it("rejeita nomes de arquivo sem extensão PDF", async () => {
-    const file = new File(["not a pdf file"], "guia.txt", { type: "text/plain" });
+    const file = new File(["not a valid PDF document at all"], "guia.txt", { type: "text/plain" });
     await expect(validateGovbrArPdf(file)).rejects.toThrow("PDF original");
   });
 });
