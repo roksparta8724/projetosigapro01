@@ -2,6 +2,8 @@
  * Isolated municipal collection QA server.
  * Separate from localhost:8080 and the production Neon credentials.
  * Public Neon branch URLs only; no keys, tokens or municipal secrets here.
+ * Neon Auth accepts allow_localhost=true; use localhost, not 127.0.0.1,
+ * otherwise Better Auth rejects the sign-in with "Invalid origin".
  */
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
@@ -30,11 +32,11 @@ const env = {
 };
 
 if (process.argv.includes("--check")) {
-  console.log("SIGAPRO: QA branch configured; URL: http://127.0.0.1:8081");
+  console.log("SIGAPRO: QA branch configured; URL: http://localhost:8081");
   console.log("No production changes. Live charge and R2 writes are disabled.");
 } else {
   const viteCli = join(root, "node_modules", "vite", "bin", "vite.js");
-  const child = spawn(process.execPath, [viteCli, "--host", "127.0.0.1", "--port", "8081", "--strictPort"], {
+  const child = spawn(process.execPath, [viteCli, "--host", "localhost", "--port", "8081", "--strictPort"], {
     cwd: root,
     env,
     stdio: "inherit",
