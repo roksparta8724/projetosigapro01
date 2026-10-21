@@ -18,6 +18,7 @@ import { PageHero } from "@/components/platform/PageHero";
 import { PageShell, PageStatsRow } from "@/components/platform/PageShell";
 import { PixQrCode } from "@/components/platform/PixQrCode";
 import { PortalFrame } from "@/components/platform/PortalFrame";
+import { GovbrArGuideBridge, isGovbrArGuideDocument } from "@/components/platform/GovbrArGuideBridge";
 import { StatCard } from "@/components/platform/StatCard";
 import { UserAvatar } from "@/components/platform/UserAvatar";
 import { ProcessIdentityPanel } from "@/components/platform/ProcessIdentityPanel";
@@ -4402,6 +4403,34 @@ export function ProcessDetailPage() {
               />
             </>
             )
+          )}
+
+          {activeTab === "financeiro" && (
+            (!isExternalProcessViewer && (canProtocolOperate || canFinanceOperate)) ||
+            process.documents.some(isGovbrArGuideDocument)
+          ) && (
+            <GovbrArGuideBridge
+              process={process}
+              municipalityId={effectiveScopeId || process.tenantId}
+              actorId={session.id}
+              actorName={session.name}
+              canImport={
+                !isExternalProcessViewer &&
+                (canProtocolOperate || canFinanceOperate) &&
+                session.role !== "prefeitura_admin" &&
+                session.id !== "unknown" &&
+                Boolean(effectiveScopeId)
+              }
+              existingGuides={paymentGuides}
+              onAppend={(documents) => appendProcessDocuments(process.id, documents, session.name)}
+              onNotify={(text) => sendProcessMessage({
+                processId: process.id,
+                senderName: session.name,
+                senderRole: session.role,
+                audience: "externo",
+                message: text,
+              })}
+            />
           )}
 
           {isExternalProcessViewer && session.role === "profissional_externo" && activeTab === "financeiro" && (
