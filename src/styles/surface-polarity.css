@@ -2647,3 +2647,18 @@ html[data-theme*="dark"] body #root .sig-collection-premium [data-municipal-bank
   -webkit-text-fill-color: #edf4ff !important;
 }
 /* END SIGAPRO BANK HEADER CONTRAST FIX 20261021 */
+
+/* Municipal collection badges must contrast with the dark header regardless
+   of the institutional theme. Background and text color are both explicit. */
+html body #root .sig-collection-premium [data-collection-tone="dark"] [data-collection-status="true"] {
+  display: inline-flex !important;
+  align-items: center !important;
+  background: #f1f9ff !important;
+  color: #0c3151 !important;
+  -webkit-text-fill-color: #0c3151 !important;
+  border: 1px solid #96d7fa !important;
+  font-weight: 800 !important;
+  opacity: 1 !important;
+  text-shadow: none !important;
+}
+/* END PREMIUM MUNICIPAL COLLECTION STATUS CONTRAST */
