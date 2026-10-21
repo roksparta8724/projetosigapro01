@@ -14,6 +14,7 @@ export default async function handler(req: Req, res: Res) {
   try {
     const input = await body(req); const municipalityId = uuid(input.municipalityId); const action = String(input.action || "get");
     if (action === "get") return json(res, 200, await rpc(req, "get_municipal_collection_configuration_v1", { _municipality_id: municipalityId }) || {});
+    if (action === "effective") return json(res, 200, await rpc(req, "get_active_municipal_collection_configuration_v1", { _municipality_id: municipalityId }) || {});
     if (action === "save") {
       const mode = String(input.mode || "sigapro"); const integrationType = String(input.integrationType || "automatic");
       if (!['sigapro','municipal_system'].includes(mode) || !['automatic','controlled_import'].includes(integrationType)) throw new Error("Modalidade de arrecadação inválida.");
