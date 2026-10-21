@@ -16,8 +16,12 @@ const guideTypes: { kind: PaymentGuideKind; label: string }[] = [
   { kind: "habite_se", label: "Habite-se" },
 ];
 
-export function isGovbrArGuideDocument(doc: Pick<ProcessDocument, "uploaded" | "label" | "filePath">) {
-  return !!doc.uploaded && !!doc.filePath && doc.label.startsWith(GOVBR_PREFIX);
+export function isGovbrArGuideDocument(doc: Pick<ProcessDocument, "uploaded" | "label" | "filePath" | "source" | "fileHash">) {
+  return !!doc.uploaded &&
+    !!doc.filePath &&
+    doc.source === "integracao" &&
+    /^[a-f0-9]{64}$/i.test(doc.fileHash || "") &&
+    doc.label.startsWith(GOVBR_PREFIX);
 }
 
 export function formatGovbrArGuideLabel(reference: string, kind: PaymentGuideKind) {
