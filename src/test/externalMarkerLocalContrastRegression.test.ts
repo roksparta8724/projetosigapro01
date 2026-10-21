@@ -30,11 +30,11 @@ describe("marcadores externos no tema institucional", () => {
   });
 
   it("protege a legenda nos temas claro e escuro", () => {
-    const rules = css.slice(
-      css.indexOf(
-        "SIGAPRO EXTERNAL MARKER LABEL LEGIBILITY V25"
-      )
-    );
+    // Only assert the marker-specific rules: subsequent scoped styles may
+    // legitimately style their own SVG icons without affecting markers.
+    const start = css.indexOf("SIGAPRO EXTERNAL MARKER LABEL LEGIBILITY V25");
+    const end = css.indexOf("COLLECTION CONFIGURATION PREMIUM CONTRAST", start);
+    const rules = css.slice(start, end);
 
     expect(rules).toContain(
       '[data-layout-mode="default"]'
