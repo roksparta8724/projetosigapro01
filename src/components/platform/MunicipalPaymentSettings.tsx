@@ -107,12 +107,12 @@ export function MunicipalPaymentSettings({
   const provider = connection?.provider || form.provider;
 
   const statusLabel = useMemo(() => {
-    if (!connection) return "Carregando configuração";
+    if (!connection) return busy === "load" ? "Carregando configuração" : "Conexão não verificada";
     if (connection.status === "active") return "Provedor ativo";
     if (connection.status === "error") return "Conexão com erro";
     if (connection.status === "configured") return "Configuração preparada";
     return "Provedor ainda não ativado";
-  }, [connection]);
+  }, [connection, busy]);
 
   const load = async () => {
     if (!municipalityId) return;
