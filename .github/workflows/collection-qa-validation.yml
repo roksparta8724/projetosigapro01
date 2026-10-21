@@ -6,6 +6,10 @@ on:
       - review/sigapro-integral-local-20261021
     paths:
       - .github/workflows/collection-qa-validation.yml
+      - scripts/dev-qa.mjs
+      - package.json
+      - vite.config.ts
+      - src/pages/saas/CollectionSettingsPage.tsx
       - src/components/platform/MunicipalBankDetailsSettings.tsx
       - src/components/platform/MunicipalPaymentSettings.tsx
       - src/components/platform/MunicipalCollectionSettings.tsx
@@ -47,6 +51,8 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci --legacy-peer-deps --no-audit --no-fund
+      - name: Check safe QA launcher without opening ports
+        run: npm run dev:qa:check
       - name: TypeScript
         run: npm run typecheck
       - name: Collection and GOVBR regression tests
