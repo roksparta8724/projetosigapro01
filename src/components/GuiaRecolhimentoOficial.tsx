@@ -61,6 +61,7 @@ type GuiaData = {
   qrCodePixUrl?: string;
   pixPayload?: string;
   bankName?: string;
+  bankMunicipalName?: string;
   bankCode?: string;
   bankAgency?: string;
   bankAccount?: string;
@@ -1819,7 +1820,7 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
                     <div data-dam-municipal-bank="true" style={{ marginBottom: 3, fontSize: "6px", lineHeight: 1.35, overflowWrap: "anywhere" }}>
                       <strong>Arrecadação municipal:</strong>{" "}
                       {[
-                        guia.bankName && `Banco ${guia.bankCode ? `${guia.bankCode} • ` : ""}${guia.bankName}`,
+                        guia.bankMunicipalName && `Banco ${guia.bankCode ? `${guia.bankCode} • ` : ""}${guia.bankMunicipalName}`,
                         guia.bankAgency && `Ag. ${guia.bankAgency}`,
                         guia.bankAccount && `Conta ${guia.bankAccount}`,
                         guia.bankBeneficiary && `Favorecido: ${guia.bankBeneficiary}`,
