@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Building2, CheckCircle2, Landmark, LockKeyhole, Save, ShieldCheck, Wallet } from "lucide-react";
+import { Building2, CheckCircle2, Landmark, LockKeyhole, Save, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -118,6 +118,7 @@ export function MunicipalBankDetailsSettings({
   const save = async () => {
     if (readOnly || loading || saving) return;
     setMessage("");
+    let pixKeyToSave = form.chavePix;
     if (form.pixEnabled) {
       if (!form.beneficiarioArrecadacao.trim() || !form.pixMerchantCity.trim()) {
         setMessage("Informe o beneficiário oficial e a cidade para habilitar o PIX.");
@@ -128,7 +129,7 @@ export function MunicipalBankDetailsSettings({
         setMessage(validation.message);
         return;
       }
-      form.chavePix = validation.normalized;
+      pixKeyToSave = validation.normalized;
     }
     if (form.bankCode.trim() && !/^\d{3}$/.test(form.bankCode.trim())) {
       setMessage("O código COMPE precisa conter exatamente 3 dígitos.");
@@ -144,7 +145,7 @@ export function MunicipalBankDetailsSettings({
     }
     setSaving(true);
     try {
-      const result = await bankRequest(municipalityId, "bank_save", form);
+      const result = await bankRequest(municipalityId, "bank_save", { ...form, chavePix: pixKeyToSave });
       setForm(result);
       setSaved(true);
       setMessage("Dados bancários e PIX salvos exclusivamente para esta Prefeitura. Nenhuma guia anterior foi alterada.");
