@@ -1,3 +1,4 @@
+import { archiveAndOpenGuide, openLegacyGuideOriginal, openStoredGuide, readGuideOriginal } from "@/lib/guideOriginal";
 ﻿import { FormEvent, MouseEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, ArrowRightLeft, Building2, CheckCircle2, Clock3, Download, Eye, FileBadge2, FileCheck2, FileKey2, FileStack, Landmark, LogOut, Maximize2, MessageSquareMore, PencilLine, Printer, ReceiptText, Route, ShieldAlert, Signature, UserRound, Wallet, Workflow, ZoomIn, ZoomOut } from "lucide-react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
@@ -542,7 +543,7 @@ export function ProcessDetailPage() {
     scopeId ??
     session.tenantId ??
     null;
-  const { headerBranding: guideHeaderBranding } = useInstitutionBranding(effectiveScopeId);
+  const { headerBranding: guideHeaderBranding, footerBranding: guideFooterBranding } = useInstitutionBranding(effectiveScopeId);
   const {
     departments: organizationDepartments,
     status: organizationStatus,
@@ -781,26 +782,6 @@ export function ProcessDetailPage() {
         );
 
         const preparedCharges: Record<string, MercadoPagoGuideCharge> = {};
-
-        for (const guide of prewarmVisibleGuides) {
-          const banking = resolveGuideBankingData({
-            settings: prewarmTenantSettings,
-            guide,
-            municipalityName: municipalityName || prewarmTenant?.name,
-            municipalityCity:
-              prewarmTenantSettings?.pixMerchantCity || prewarmTenant?.city,
-          });
-
-          if (banking.barcode && banking.digitableLine) continue;
-
-          preparedCharges[guide.code] = await ensureMercadoPagoGuideCharge({
-            municipalityId: effectiveScopeId,
-            guideCode: guide.code,
-            amount: guide.amount,
-            dueDate: guide.dueDate,
-            description: `${guide.label} · ${process.protocol}`,
-          });
-        }
 
         const embeddedLogo = await logoPromise;
         if (cancelled) return;
@@ -1418,6 +1399,44 @@ export function ProcessDetailPage() {
   );
   const displayGuide = requestedPaymentGuide ?? approvalGuide ?? constructionGuide ?? protocolGuide;
 
+  // SIGAPRO_APPROVAL_AUDIT_PAID_GUIDE_READONLY_V3: a autoria da aprovacao deve estar comprovada.
+  const getApprovalEvidence = (doc: typeof process.documents[number]) => {
+    const normal = (value: string | null | undefined) => String(value || "")
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .trim().toLocaleLowerCase("pt-BR");
+
+    const resolveAnalyst = (idOrName: string | null | undefined) => {
+      const candidate = normal(idOrName);
+      if (!candidate) return null;
+      return sessionUsers.find(user =>
+        (user.id === idOrName || normal(user.name) === candidate) &&
+        user.role === "analista" &&
+        !/diretor|diretora|secretari/.test(normal(user.title))
+      ) || null;
+    };
+
+    const audit = process.auditTrail.find(entry => {
+      const description = normal(entry.title + " " + entry.detail);
+      const matches = [doc.id, doc.label, doc.fileName].some(value => {
+        const term = normal(value);
+        return term.length >= 8 && description.includes(term);
+      });
+      return entry.category === "documento" &&
+        /aprov/.test(description) && matches &&
+        Boolean(resolveAnalyst(entry.actorProfileId || entry.actor));
+    });
+
+    if (audit) {
+      const analyst = resolveAnalyst(audit.actorProfileId || audit.actor);
+      return {name: analyst?.name || "", at: audit.at || ""};
+    }
+
+    const analyst = resolveAnalyst(doc.reviewedByProfileId) ||
+      resolveAnalyst(doc.reviewedBy);
+
+    return {name: analyst?.name || "", at: ""};
+  };
+
   const getDocumentReviewVisual = (document: typeof process.documents[number]) => {
     if (!document.uploaded) {
       return {
@@ -1811,17 +1830,43 @@ export function ProcessDetailPage() {
     autoPrint = true,
     guideCode?: string,
   ) => {
-    const selectedGuide =
+    let selectedGuide =
       (guideCode
         ? visiblePaymentGuides.find((guide) => guide.code === guideCode)
         : undefined) ||
       visiblePaymentGuides.find((guide) => guide.kind === guideKind);
     if (!selectedGuide) return;
 
-    const issuedAt = selectedGuide.issuedAt || new Date().toISOString();
+
+    const reservedGuideWindow = reserveGuiaRecolhimentoOficialWindow(
+      "Guia " + selectedGuide.code,
+    );
+    if (!reservedGuideWindow) {
+      setProcessActionStatus("Permita pop-ups para abrir o PDF original.");
+      return;
+    }
+    try {
+    if (await openLegacyGuideOriginal(process.documents, selectedGuide.code, reservedGuideWindow)) return;
+    const original = await readGuideOriginal(effectiveScopeId, selectedGuide.code);
+    if (await openStoredGuide(original, reservedGuideWindow)) return;
+    if (original.status === "compensada") {
+      throw new Error("Guia compensada sem PDF original arquivado. A guia não será recriada nem cobrada novamente.");
+    }
+    selectedGuide = { ...selectedGuide, code: original.guide_number, amount: Number(original.amount),
+      issuedAt: original.created_at, dueDate: original.due_date,
+      barcode: original.barcode, digitableLine: original.digitable_line, pixPayload: original.pix_code,
+      providerEnvironment: original.provider_environment, bankReference: original.bank_reference,
+      bankPaymentId: original.bank_payment_id, bankStatus: original.bank_status,
+      bankStatusDetail: original.bank_status_detail, bankAuthenticatedAt: original.bank_authenticated_at };
+    if (original.document_snapshot) {
+      await archiveAndOpenGuide(effectiveScopeId, original.document_snapshot, reservedGuideWindow);
+      return;
+    }
+    const paidGuide = false;
+    const issuedAt = selectedGuide.issuedAt;
+    if (!issuedAt) throw new Error("Data original da guia ausente no Neon.");
     const year = new Date(issuedAt).getFullYear().toString();
-    const approvalBreakdown =
-      selectedGuide.kind === "aprovacao_final"
+    const approvalBreakdown = !paidGuide && selectedGuide.kind === "aprovacao_final"
         ? calculateApprovalGuideBreakdown(
             selectedGuide.areaM2 ?? process.property.area,
             selectedGuide.usage || process.property.usage,
@@ -1829,8 +1874,7 @@ export function ProcessDetailPage() {
             tenantSettings,
           )
         : null;
-    const habiteSeBreakdown =
-      selectedGuide.kind === "habite_se"
+    const habiteSeBreakdown = !paidGuide && selectedGuide.kind === "habite_se"
         ? calculateHabiteSeGuideBreakdown(
             selectedGuide.areaM2 ?? process.property.area,
             selectedGuide.usage || process.property.usage,
@@ -1916,11 +1960,14 @@ export function ProcessDetailPage() {
       municipalityName: municipalityName || tenant?.name,
       municipalityCity: tenantSettings?.pixMerchantCity || tenant?.city,
     });
-    const providerCharge = preparedGuideCharges[selectedGuide.code] ?? null;
+    const providerCharge = banking.barcode && banking.digitableLine ? null : await ensureMercadoPagoGuideCharge({
+      municipalityId: effectiveScopeId, guideCode: selectedGuide.code, amount: selectedGuide.amount,
+      dueDate: selectedGuide.dueDate, description: selectedGuide.label + " · " + process.protocol,
+    });
     const digitableLine = providerCharge?.digitableLine || banking.digitableLine;
     const barcode = providerCharge?.barcodeContent || banking.barcode;
 
-    if (!barcode || !digitableLine) {
+    if (!paidGuide && (!barcode || !digitableLine)) {
       setProcessActionStatus(
         guidePreparationError
           ? `A guia não foi aberta porque os dados bancários ainda não estão válidos: ${guidePreparationError}`
@@ -1934,19 +1981,6 @@ export function ProcessDetailPage() {
       providerInstitution && providerInstitution.toLowerCase() !== "boleto"
         ? providerInstitution
         : banking.bankName || "Mercado Pago";
-
-    // Reserva a nova guia ainda dentro do gesto do clique. Assim podemos aguardar
-    // a conversão do brasão/logo para data URL sem transformar a abertura em popup
-    // assíncrono bloqueado pelo navegador.
-    const reservedGuideWindow = reserveGuiaRecolhimentoOficialWindow(
-      `Guia ${selectedGuide.code}`,
-    );
-    if (!reservedGuideWindow) {
-      setProcessActionStatus(
-        "O navegador bloqueou a abertura da guia. Permita pop-ups para o SIGAPRO e tente novamente.",
-      );
-      return;
-    }
 
     const renderedGuideLogoUrl = getRenderedMunicipalityLogoDataUrl();
     const directGuideLogoFallback =
@@ -1976,7 +2010,7 @@ export function ProcessDetailPage() {
     const rawIssuedBy = String(selectedGuide.issuedBy || "").trim();
     const issuedByLooksLikeId =
       /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(rawIssuedBy);
-    const issuedByDisplay = issuedByLooksLikeId || !rawIssuedBy ? session.name : rawIssuedBy;
+    const issuedByDisplay = issuedByLooksLikeId || !rawIssuedBy ? (paidGuide ? "Emissor original nao identificado" : session.name) : rawIssuedBy;
 
     const guideDocument: GuiaRecolhimentoOficialProps = {
       prefeitura: {
@@ -1985,11 +2019,17 @@ export function ProcessDetailPage() {
         endereco: tenantSettings?.endereco || "Endereço não configurado",
         telefone: tenantSettings?.telefone || "",
         logoUrl: embeddedGuideLogoUrl,
+        logoScale: guideHeaderBranding.logoScale,
+        logoOffsetX: guideHeaderBranding.logoOffsetX,
+        logoOffsetY: guideHeaderBranding.logoOffsetY,
+        footerLogoScale: guideFooterBranding.logoScale,
+        footerLogoOffsetX: guideFooterBranding.logoOffsetX,
+        footerLogoOffsetY: guideFooterBranding.logoOffsetY,
         cadastroTitulo: "Cadastro Eventual",
       },
       contribuinte: {
-        nome: process.ownerName,
-        cpfCnpj: process.ownerDocument,
+        nome: paidGuide ? selectedGuide.ownerName || process.ownerName : process.ownerName,
+        cpfCnpj: paidGuide ? selectedGuide.ownerDocument || process.ownerDocument : process.ownerDocument,
         endereco: process.address,
         numeroCadastro: process.property.registration || process.protocol,
       },
@@ -1998,7 +2038,7 @@ export function ProcessDetailPage() {
         exercicio: year,
         dataDocumento: issuedAt,
         vencimento: selectedGuide.dueDate,
-        observacao: getGuideObservation(selectedGuide.kind),
+        observacao: paidGuide ? "ESPELHO HISTORICO DE GUIA QUITADA. NAO PAGAR. NAO SUBSTITUI O ORIGINAL. " + getGuideObservation(selectedGuide.kind) : getGuideObservation(selectedGuide.kind),
         funcionarioResponsavel: issuedByDisplay,
         proprietario: selectedGuide.ownerName || process.ownerName,
         profissionalResponsavel: selectedGuide.professionalName || process.technicalLead,
@@ -2019,12 +2059,12 @@ export function ProcessDetailPage() {
         codigoBarras: barcode,
         linhaDigitavel: digitableLine,
         qrCodePixUrl: "",
-        pixPayload: banking.pixPayload,
+        pixPayload: paidGuide ? (selectedGuide.pixPayload || "") : banking.pixPayload,
         bankName: providerName,
         bankEnvironment:
           providerCharge?.environment || selectedGuide.providerEnvironment,
         bankAgreement: banking.bankAgreement,
-        bankInstructions: banking.bankInstructions,
+        bankInstructions: paidGuide ? [banking.bankInstructions, "PAGAMENTO JA COMPENSADO. NAO PAGAR NOVAMENTE."].filter(Boolean).join(" ") : banking.bankInstructions,
         bankReference: providerCharge?.orderId || selectedGuide.bankReference,
         bankPaymentId: providerCharge?.paymentId || selectedGuide.bankPaymentId,
         bankStatus: providerCharge?.status || selectedGuide.bankStatus,
@@ -2033,7 +2073,7 @@ export function ProcessDetailPage() {
         bankAuthenticatedAt:
           providerCharge?.authenticatedAt ||
           selectedGuide.bankAuthenticatedAt ||
-          (selectedGuide.status === "compensada" ? selectedGuide.paidAt : undefined),
+          selectedGuide.paidAt,
         paymentProvider:
           selectedGuide.paymentProvider ||
           tenantSettings?.paymentProvider ||
@@ -2048,24 +2088,10 @@ export function ProcessDetailPage() {
       itens: guideItems,
     };
 
-    const opened = openGuiaRecolhimentoOficialWindow(
-      guideDocument,
-      {
-        title: `Guia ${selectedGuide.code}`,
-        autoPrint,
-      },
-      reservedGuideWindow,
-    );
-
-    if (!opened) {
-      try {
-        reservedGuideWindow.close();
-      } catch {
-        // noop
-      }
-      setProcessActionStatus(
-        "Não foi possível concluir a abertura da guia oficial.",
-      );
+    await archiveAndOpenGuide(effectiveScopeId, guideDocument, reservedGuideWindow);
+    } catch (error) {
+      reservedGuideWindow.close();
+      setProcessActionStatus(error instanceof Error ? error.message : "Não foi possível salvar/abrir o PDF original.");
     }
   };
   const runProcessAction = async (
@@ -2506,7 +2532,10 @@ export function ProcessDetailPage() {
     const selectedDocument = process.documents.find((item) => item.id === documentId);
     if (!selectedDocument || openingDocumentId) return;
 
-    const shouldAnalyze = forceAnalysis || canReviewDocuments;
+    // SIGAPRO_DOCUMENT_ROUTING_READONLY_V2
+    // Clicar em "analisar" nao concede acesso de escrita. A rota real depende da titularidade.
+    const shouldAnalyze = Boolean((forceAnalysis || canReviewDocuments) &&
+      canAnalyzeProcessDocument(session, process, effectiveScopeId));
     const route = shouldAnalyze ? "analisar" : "visualizar";
     const query = shouldAnalyze ? "?ferramenta=highlight" : "";
     const workspaceUrl =
@@ -3406,6 +3435,7 @@ export function ProcessDetailPage() {
                 const isApproved = document.reviewStatus === "aprovado";
                 const hasCommunique = document.reviewStatus === "rejeitado";
                 const documentMarkerTags = documentMarkers.getTags(process.id, document.id);
+                const approvalEvidence = isApproved ? getApprovalEvidence(document) : null;
 
                 return (
                   <div
@@ -3515,7 +3545,7 @@ export function ProcessDetailPage() {
                             data-primary-action="document" className="sig-primary-document-action inline-flex h-10 items-center gap-2 rounded-full bg-[linear-gradient(135deg,#082f49_0%,#075985_48%,#0f78b8_100%)] px-5 text-[12px] font-bold !text-white shadow-[0_10px_24px_rgba(7,89,133,0.28)] transition hover:-translate-y-px hover:brightness-110 [&_*]:!text-white"
                           >
                             <PencilLine className="h-4 w-4" />
-                            {openingDocumentId === document.id ? "Abrindo análise..." : "Abrir documento e analisar"}
+                            {openingDocumentId === document.id ? "Abrindo documento..." : canAnalyzeProcessDocument(session, process, effectiveScopeId) ? "Abrir documento e analisar" : "Consultar documento"}
                           </button>
                         ) : !canReviewDocuments && (document.previewUrl || document.uploaded) ? (
                           <button
@@ -3653,7 +3683,7 @@ export function ProcessDetailPage() {
                       </div>
                     ) : null}
 
-                    {canReviewDocuments && document.uploaded ? (
+                    {document.uploaded && (canReviewDocuments || isApproved || hasCommunique) ? (
                       <div
                         data-process-document-review-strip="true"
                         className="mt-4 flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200/80 bg-white/80 px-4 py-3"
@@ -3686,6 +3716,20 @@ export function ProcessDetailPage() {
                               ? "As marcações e observações permanecem vinculadas ao documento."
                               : "Use “Analisar / marcar PDF” para marca-texto, comentários pontuais e decisão técnica."}
                           </p>
+                          {isApproved ? (
+                            <p data-sigapro-document-reviewer="true" className="mt-1 text-xs font-semibold text-emerald-800 dark:text-emerald-300">
+    {approvalEvidence?.name
+      ? "Aprovado pelo analista: " + approvalEvidence.name
+      : "Aprova??o registrada. Autor t?cnico ainda n?o identificado com seguran?a."}
+  </p>
+                          ) : null}
+                          {isApproved ? (
+  <p data-document-approval-audit="true" className="mt-1 text-xs text-slate-600 dark:text-slate-300">
+    {approvalEvidence?.at
+      ? "Aprovado em: " + approvalEvidence.at
+      : "Data e hora: consultar a auditoria oficial quando dispon?vel."}
+  </p>
+) : null}
                         </div>
                       </div>
                     ) : null}

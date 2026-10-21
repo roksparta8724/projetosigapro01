@@ -1,4 +1,5 @@
 import { backendClient } from "@/integrations/backend/databaseClient";
+import { normalizeOfficialBanking } from "@/lib/bankCodes";
 
 export type MercadoPagoGuideCharge = {
   ok: boolean;
@@ -116,10 +117,8 @@ async function refreshMercadoPagoGuideCharge(
 export async function ensureMercadoPagoGuideCharge(
   input: MercadoPagoGuideChargeInput,
 ): Promise<MercadoPagoGuideCharge> {
-  const cached = readCachedCharge(input);
-  if (cached) {
-    return await refreshMercadoPagoGuideCharge(input, cached);
-  }
+  // Always resolve the canonical Neon record. Browser storage is not proof
+  // of persistence and must never bypass a paid/original-guide check.
 
   let authorization = "";
   try {
@@ -148,14 +147,18 @@ export async function ensureMercadoPagoGuideCharge(
   if (!payload) {
     throw new Error(`Resposta inválida do Mercado Pago (HTTP ${response.status}).`);
   }
-  if (!payload.ok) {
+  if (!response.ok || !payload.ok) {
     throw new Error(payload.error || "Mercado Pago recusou a cobrança da guia.");
   }
-  if (!payload.digitableLine?.trim() || !payload.barcodeContent?.trim()) {
+  const banking = normalizeOfficialBanking(payload.barcodeContent, payload.digitableLine);
+  if (!banking.barcode || !banking.digitableLine) {
     throw new Error(
       "Mercado Pago criou a cobrança, mas não retornou linha digitável e código de barras completos.",
     );
   }
+
+  payload.barcodeContent = banking.barcode;
+  payload.digitableLine = banking.digitableLine;
 
   writeCachedCharge(input, payload);
   return payload;

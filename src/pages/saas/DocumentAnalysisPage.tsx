@@ -34,6 +34,8 @@ import { consumeDocumentWorkspaceAccessUrl } from "@/lib/documentWorkspaceAccess
 import { getSignedUrlForObjectStrict } from "@/integrations/r2/client";
 import {
   canAnalyzeProcessDocument,
+  canViewMunicipalProcessDocument,
+  buildProcessPath,
   formatOfficialProcessNumber,
   resolveProcessRoute,
 } from "@/lib/platform";
@@ -155,6 +157,24 @@ export function DocumentAnalysisPage() {
     !!process &&
     !!document &&
     canAnalyzeProcessDocument(session, process, effectiveScopeId);
+
+  // SIGAPRO_ANALYSIS_ROUTE_READONLY_REDIRECT_V2
+  // Quem nao tem poder de edicao deve abrir o arquivo pelo visualizador seguro.
+  const canConsultDocument = Boolean(
+    process && document && document.uploaded &&
+    canViewMunicipalProcessDocument(session, process, effectiveScopeId),
+  );
+
+  useEffect(() => {
+    if (!process || !document || !dataReadyForCurrentUser || canUseAnalysis || !canConsultDocument) return;
+    navigate(buildProcessPath(process) + "/documentos/" + document.id + "/visualizar", {
+      replace: true,
+      state: {
+        returnTo: routeState.returnTo || buildProcessPath(process, "documentos"),
+        documentAccessUrl: prefetchedDocumentAccessUrl || undefined,
+      },
+    });
+  }, [process?.id, document?.id, dataReadyForCurrentUser, canUseAnalysis, canConsultDocument, navigate]);
 
   useEffect(() => {
     setLocalReviewStatus(
@@ -591,7 +611,7 @@ export function DocumentAnalysisPage() {
   }
 
   if (!canUseAnalysis) {
-    if (platformDataLoading || !dataReadyForCurrentUser || session.id === "unknown") {
+    if (canConsultDocument || platformDataLoading || !dataReadyForCurrentUser || session.id === "unknown") {
       return null;
     }
 

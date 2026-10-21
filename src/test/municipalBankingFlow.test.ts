@@ -89,10 +89,10 @@ describe("municipal bank and payment guide flow", () => {
 
   it("does not open a guide before Mercado Pago returns complete bank data", () => {
     expect(finance).toContain("if (!banking.barcode || !banking.digitableLine)");
-    expect(processDetail).toContain("if (banking.barcode && banking.digitableLine) continue;");
-    expect(processDetail).toContain("if (!barcode || !digitableLine)");
-    expect(mercadoPagoGuide).toContain("!payload.digitableLine?.trim()");
-    expect(mercadoPagoGuide).toContain("!payload.barcodeContent?.trim()");
+    expect(processDetail).toContain("banking.barcode && banking.digitableLine ? null");
+    expect(processDetail).toContain("if (!paidGuide && (!barcode || !digitableLine))");
+    expect(mercadoPagoGuide).toContain("!banking.digitableLine");
+    expect(mercadoPagoGuide).toContain("!banking.barcode");
   });
 
   it("embeds the municipal crest and blocks an incomplete guide from opening", () => {
@@ -101,8 +101,8 @@ describe("municipal bank and payment guide flow", () => {
     expect(finance).toContain("embeddedGuideLogoUrl");
     expect(processDetail).toContain("embeddedGuideLogoUrl");
     expect(finance).toContain("if (!barcode || !digitableLine)");
-    expect(processDetail).toContain("if (!barcode || !digitableLine)");
-    expect(mercadoPagoGuide).toContain("!payload.digitableLine?.trim() || !payload.barcodeContent?.trim()");
+    expect(processDetail).toContain("if (!paidGuide && (!barcode || !digitableLine))");
+    expect(mercadoPagoGuide).toContain("!banking.barcode || !banking.digitableLine");
     expect(finance).toContain("A DAM foi bloqueada para não emitir uma guia inválida");
     expect(processDetail).toContain("A guia ainda está sendo preparada.");
   });
@@ -113,7 +113,7 @@ describe("municipal bank and payment guide flow", () => {
     expect(guide).toContain("Homologação Mercado Pago");
     expect(guide).toContain("PIX cadastrado pode ser real");
     expect(finance).toContain("pixPayload: banking.pixPayload");
-    expect(processDetail).toContain("pixPayload: banking.pixPayload");
+    expect(processDetail).toContain("banking.pixPayload");
   });
 
   it("keeps the official guide premium and print-safe", () => {
@@ -149,9 +149,9 @@ describe("municipal bank and payment guide flow", () => {
 
   it("requests provider banking data whenever the DAM has no barcode or digitable line", () => {
     expect(finance).toContain("if (!banking.barcode || !banking.digitableLine)");
-    expect(processDetail).toContain("if (banking.barcode && banking.digitableLine) continue;");
+    expect(processDetail).toContain("banking.barcode && banking.digitableLine ? null");
     expect(finance).toContain("if (!barcode || !digitableLine)");
-    expect(processDetail).toContain("if (!barcode || !digitableLine)");
+    expect(processDetail).toContain("if (!paidGuide && (!barcode || !digitableLine))");
     expect(finance).not.toContain('match.guide.status !== "compensada" &&');
     expect(processDetail).not.toContain('selectedGuide.status !== "compensada" &&');
   });
@@ -170,9 +170,9 @@ describe("municipal bank and payment guide flow", () => {
   it("binds DAM-ISS guides to the Mercado Pago order before rendering", () => {
     expect(processDetail).toContain('ensureMercadoPagoGuideCharge({');
     expect(processDetail).toContain("preparedGuideCharges");
-    expect(processDetail).toContain("guideCode: guide.code");
-    expect(processDetail).toContain("amount: guide.amount");
-    expect(processDetail).toContain('description: `${guide.label} · ${process.protocol}`');
+    expect(processDetail).toContain("guideCode: selectedGuide.code");
+    expect(processDetail).toContain("amount: selectedGuide.amount");
+    expect(processDetail).toContain('description: selectedGuide.label + " · " + process.protocol');
     expect(processDetail).toContain('codigoBarras: barcode');
     expect(processDetail).toContain('linhaDigitavel: digitableLine');
     expect(mercadoPagoServer).toContain("normalizeGuideCode");
@@ -184,7 +184,7 @@ describe("municipal bank and payment guide flow", () => {
     expect(guide).toContain("PIX cadastrado pode ser real");
     expect(guide).not.toContain("PIX real oculto durante a homologação");
     expect(finance).toContain("pixPayload: banking.pixPayload");
-    expect(processDetail).toContain("pixPayload: banking.pixPayload");
+    expect(processDetail).toContain("banking.pixPayload");
     expect(guide).toContain("VALIDAÇÃO ELETRÔNICA PELO PROVEDOR DE PAGAMENTO");
     expect(guide).toContain("Tesouraria / baixa manual");
   });
@@ -201,8 +201,8 @@ describe("municipal bank and payment guide flow", () => {
   it("prints the provider barcode inside the SIGAPRO guide without fabricating digits", () => {
     expect(guide).toContain('import { QRCodeSVG } from "qrcode.react"');
     expect(guide).toContain("<QRCodeSVG");
-    expect(guide).toContain("digits.length >= 40");
-    expect(guide).toContain("digits.length <= 48");
+    expect(guide).toContain("digits.length === 44");
+    expect(guide).toContain("normalizeOfficialBanking");
     expect(guide).toContain("Interleaved2of5Barcode");
     expect(guide).toContain("ProviderBarcode");
     expect(guide).toContain("dam-barcode-digits");

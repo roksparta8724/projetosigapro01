@@ -20,6 +20,7 @@ import { TenantNotFoundPage } from "@/pages/saas/TenantNotFoundPage";
 import { shouldShowPublicLanding } from "@/lib/tenant";
 import { MasterAdminPage } from "@/pages/saas/MasterAdminPage";
 import { TenantAdminPage } from "@/pages/saas/TenantAdminPage";
+import { CollectionSettingsPage } from "@/pages/saas/CollectionSettingsPage";
 import { MunicipalOrganizationPage } from "@/pages/saas/MunicipalOrganizationPage";
 import { MunicipalProcessRegistryPage } from "@/pages/saas/MunicipalProcessRegistryPage";
 import { DashboardHomePage } from "@/pages/saas/DashboardHomePage";
@@ -213,6 +214,7 @@ const AppRoutes = () => {
             </PermissionRoute>
           }
         />
+        <Route path="/prefeitura/arrecadacao" element={<PermissionRoute permission="view_collection_settings"><PlanModuleRoute module="Configurações"><CollectionSettingsPage /></PlanModuleRoute></PermissionRoute>} />
         <Route
           path="/prefeitura/processos"
           element={

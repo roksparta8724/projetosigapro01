@@ -31,6 +31,12 @@ const guide = {
 } as PaymentGuideEntry;
 
 describe("municipal payment collection", () => {
+  it("preserves a valid original PIX including lowercase email when settings change", () => {
+    const pixPayload = buildGuidePixPayload({ settings, guide });
+    const reopened = buildGuidePixPayload({ settings: { ...settings, chavePix: "changed@example.test" }, guide: { ...guide, pixPayload } });
+    expect(reopened).toBe(pixPayload);
+    expect(reopened).toContain("financeiro@prefeitura.gov.br");
+  });
   it("generates a valid EMV PIX payload from the municipal settings", () => {
     const payload = buildGuidePixPayload({
       settings,
@@ -73,7 +79,7 @@ describe("municipal payment collection", () => {
   it("never accepts an invented or malformed bank barcode", () => {
     expect(normalizeBankBarcode("123")).toBe("");
     expect(normalizeBankBarcode("1".repeat(44))).toBe("1".repeat(44));
-    expect(normalizeBankBarcode("2".repeat(48))).toBe("2".repeat(48));
+    expect(normalizeBankBarcode("2".repeat(48))).toBe("");
     expect(normalizeBankBarcode("3".repeat(47))).toBe("");
     expect(normalizeDigitableLine("2".repeat(47))).toBe("2".repeat(47));
     expect(normalizeDigitableLine("3".repeat(48))).toBe("3".repeat(48));

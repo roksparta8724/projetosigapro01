@@ -255,9 +255,7 @@ export function InstitutionalLogo({
   const frameRatio = frameSize / 160;
   const offsetX = (branding.logoOffsetX || 0) * frameRatio;
   const offsetY = (branding.logoOffsetY || 0) * frameRatio;
-  const showCrop =
-    isMaster &&
-    (variant === "header" || variant === "footer" || variant === "preview");
+  const showCrop = variant === "header" || variant === "footer" || variant === "preview";
 
   useEffect(() => {
     // Troca de arquivo, renovacao de URL assinada ou mudanca de contexto deve

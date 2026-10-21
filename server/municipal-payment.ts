@@ -84,6 +84,17 @@ export function encryptPaymentWebhookSecret(webhookSecret: string) {
   return encryptSecret(webhookSecret);
 }
 
+export function encryptMunicipalCollectionSecret(secret: string) {
+  if (!secret.trim()) throw new Error("Informe a credencial da integração municipal.");
+  return encryptSecret(secret);
+}
+
+export function municipalCollectionSecretFingerprint(value: string) {
+  const normalized = String(value || "").trim();
+  if (!normalized) return "";
+  return `MUN · ${createHash("sha256").update(normalized).digest("hex").slice(0, 12).toUpperCase()}`;
+}
+
 export function decryptPaymentAccessToken(ciphertext: string) {
   return decryptSecret(ciphertext);
 }

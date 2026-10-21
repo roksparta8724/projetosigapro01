@@ -1539,7 +1539,13 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
           uploaded: true,
           signed: false,
           reviewStatus: (document.review_status ?? "pendente") as "pendente" | "aprovado" | "rejeitado",
-          reviewedBy: (isNeonBackend ? document.reviewed_by_profile_id : null) ?? document.reviewed_by ?? undefined,
+          // Identidade humana para exibicao; profile ID preservado separadamente para auditoria.
+          reviewedBy: document.reviewed_by_profile_id
+            ? (profileById.get(String(document.reviewed_by_profile_id))?.full_name ||
+               profileById.get(String(document.reviewed_by_profile_id))?.email ||
+               document.reviewed_by || undefined)
+            : (document.reviewed_by ?? undefined),
+          reviewedByProfileId: document.reviewed_by_profile_id ?? undefined,
           annotations: Array.isArray(document.annotations) ? document.annotations : [],
           version: document.version ?? 1,
           source: (document.source ?? "profissional") as "profissional" | "prefeitura" | "integracao",
@@ -1725,6 +1731,7 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
             digitableLine: guide.digitable_line ? String(guide.digitable_line) : undefined,
             bankReference: guide.bank_reference ? String(guide.bank_reference) : undefined,
             bankPaymentId: guide.bank_payment_id ? String(guide.bank_payment_id) : undefined,
+            ticketUrl: guide.ticket_url ? String(guide.ticket_url) : undefined,
             bankStatus: guide.bank_status ? String(guide.bank_status) : undefined,
             bankStatusDetail: guide.bank_status_detail ? String(guide.bank_status_detail) : undefined,
             bankAuthenticatedAt: guide.bank_authenticated_at ? String(guide.bank_authenticated_at) : undefined,

@@ -5,7 +5,9 @@ import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
 import { checkMercadoPagoConnection, createMercadoPagoGuideBoleto, getMercadoPagoGuideBoletoStatus } from "./server/mercadopago";
+import collectionConfigurationHandler from "./api/collection-configuration";
 import paymentConnectionHandler from "./api/payment-connection";
+import { callDataApiRpc } from "./server/municipal-storage";
 import handleProfileAvatarOpen from "./server/api/profile-avatar-open";
 import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand, HeadBucketCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
@@ -263,6 +265,16 @@ function createR2DevApiPlugin(): Plugin {
           return;
         }
 
+        if (req.url.startsWith("/api/payment-connection") && req.method === "POST") {
+          await paymentConnectionHandler(req, res);
+          return;
+        }
+
+        if (req.url.startsWith("/api/collection-configuration") && req.method === "POST") {
+          await collectionConfigurationHandler(req, res);
+          return;
+        }
+
         if (req.url.startsWith("/api/mercadopago/health") && req.method === "GET") {
           const requestUrl = new URL(req.url, "http://localhost:8080");
           const municipalityId = requestUrl.searchParams.get("municipalityId");
@@ -283,6 +295,8 @@ function createR2DevApiPlugin(): Plugin {
             dueDate: body.dueDate ? String(body.dueDate) : undefined,
             description: body.description ? String(body.description) : undefined,
           }, req);
+
+          // Persistência V13 centralizada em server/mercadopago.ts (local e API).
           res.statusCode = result.ok ? 201 : 400;
           res.setHeader("Content-Type", "application/json; charset=utf-8");
           res.setHeader("Cache-Control", "no-store");
@@ -298,6 +312,8 @@ function createR2DevApiPlugin(): Plugin {
             guideCode: String(body.guideCode || ""),
             amount: Number(body.amount || 0),
           }, req);
+
+          // Persistência V13 centralizada em server/mercadopago.ts (local e API).
           res.statusCode = result.ok ? 200 : 400;
           res.setHeader("Content-Type", "application/json; charset=utf-8");
           res.setHeader("Cache-Control", "no-store");

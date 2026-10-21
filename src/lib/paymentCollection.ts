@@ -1,4 +1,5 @@
 import { buildPixPayload, isValidPixPayload } from "@/lib/pix";
+import { bankDigits, normalizeOfficialBanking } from "@/lib/bankCodes";
 import type { PaymentGuideEntry, TenantSettings } from "@/lib/platform";
 
 export function normalizeMunicipalPixKey(
@@ -66,10 +67,8 @@ export function validateMunicipalPixKey(
 }
 
 export function normalizeBankBarcode(value?: string | null) {
-  const digits = String(value || "").replace(/\D/g, "");
-  return digits.length >= 40 && digits.length <= 48 && digits.length % 2 === 0
-    ? digits
-    : "";
+  const digits = bankDigits(value);
+  return /^\d{44}$/.test(digits) ? digits : "";
 }
 
 export function normalizeDigitableLine(value?: string | null) {
@@ -156,10 +155,11 @@ export function resolveGuideBankingData(input: {
   municipalityName?: string | null;
   municipalityCity?: string | null;
 }) {
+  const official = normalizeOfficialBanking(input.guide.barcode, input.guide.digitableLine);
   return {
     pixPayload: buildGuidePixPayload(input),
-    barcode: normalizeBankBarcode(input.guide.barcode),
-    digitableLine: normalizeDigitableLine(input.guide.digitableLine),
+    barcode: official.barcode,
+    digitableLine: official.digitableLine,
     bankName: input.settings?.bankName?.trim() || "",
     bankAgreement: input.settings?.bankAgreementCode?.trim() || "",
     bankInstructions: input.settings?.bankInstructions?.trim() || "",

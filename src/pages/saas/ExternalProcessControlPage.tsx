@@ -478,10 +478,11 @@ export function ExternalProcessControlPage() {
                               return (
                                 <span
                                   key={`${process.id}-${tag}`}
+                                  data-external-process-marker="true"
                                   className="inline-flex min-h-9 items-center gap-2.5 rounded-xl border border-sky-500/40 bg-[#102b44] px-3.5 py-2 text-[13px] font-bold text-white shadow-md"
                                 >
                                   <Flag className="h-5 w-5 shrink-0 sig-flag-filled" style={{ color: marker.color, fill: marker.color }} />
-                                  {marker.label}
+                                  <span data-external-marker-label="true" className="!text-white" style={{ color: "#ffffff", WebkitTextFillColor: "#ffffff", fontWeight: 800 }}>{marker.label}</span>
                                 </span>
                               );
                             })}

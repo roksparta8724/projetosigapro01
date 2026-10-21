@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { jsPDF } from "jspdf";
+import { usePlatformData } from "@/hooks/usePlatformData";
+import { uploadFileToStorage } from "@/integrations/r2/storage";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -24,6 +26,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  buildProcessPath,
   formatOfficialProcessNumber,
   type ProcessRecord,
   type SessionUser,
@@ -475,6 +478,7 @@ export function UrbanAnalysisChecklistPanel({
   organogramTrail = [],
   readOnly = false,
 }: UrbanAnalysisChecklistPanelProps) {
+  const { appendProcessDocuments, sessionUsers } = usePlatformData();
   const key = storageKey(municipalityId, process.id);
   const [state, setState] = useState<AnalysisChecklistState>(() =>
     readInitialChecklistState(key, process, session),
@@ -496,6 +500,7 @@ export function UrbanAnalysisChecklistPanel({
   const [withdrawalName, setWithdrawalName] = useState("");
   const [withdrawalDateTime, setWithdrawalDateTime] = useState(() => new Date().toISOString());
   const [revisionHistory, setRevisionHistory] = useState<ArtifactVersionHistoryEntry[]>([]);
+  const [selectedFormalRevision, setSelectedFormalRevision] = useState<ArtifactVersionHistoryEntry | null>(null);
   const [withdrawalBusy, setWithdrawalBusy] = useState(false);
   const [withdrawalSaveConfirmed, setWithdrawalSaveConfirmed] = useState(false);
   const resolvedMunicipalityLogoUrl = useMemo(
@@ -523,8 +528,31 @@ export function UrbanAnalysisChecklistPanel({
         if (!technical && !director) return;
 
         setState((current) => {
-          const currentPayload = buildChecklistSignaturePayload(current, process, municipalityId);
           const signedPayload = snapshot.block?.payload ?? {};
+          // Em outra conta/computador, reconstroi a ficha da versao assinada no banco.
+          // Nao substitui um rascunho editavel do analista responsavel.
+          const officialData = signedPayload as Record<string, unknown>;
+          const restoreOfficial = readOnly &&
+            officialData.schema === "sigapro.urban-analysis-checklist.v2" &&
+            officialData.processId === process.id;
+          const restoredState: AnalysisChecklistState = restoreOfficial
+            ? {
+                ...current,
+                analystId: technical?.profile_id || current.analystId,
+                analystName: technical?.name || current.analystName,
+                analystTitle: technical?.title || current.analystTitle,
+                analysisDate: typeof officialData.analysisDate === "string" ? officialData.analysisDate : current.analysisDate,
+                sheetNumber: typeof officialData.sheetNumber === "string" ? officialData.sheetNumber : current.sheetNumber,
+                items: officialData.items && typeof officialData.items === "object" && !Array.isArray(officialData.items)
+                  ? officialData.items as AnalysisChecklistState["items"] : current.items,
+                routing: ["", "expediente", "topografia", "outro"].includes(String(officialData.routing ?? ""))
+                  ? String(officialData.routing ?? "") as AnalysisChecklistState["routing"] : current.routing,
+                routingOther: typeof officialData.routingOther === "string" ? officialData.routingOther : current.routingOther,
+                conclusion: typeof officialData.conclusion === "string" ? officialData.conclusion : current.conclusion,
+                communiquePages: typeof officialData.communiquePages === "string" ? officialData.communiquePages : current.communiquePages,
+              }
+            : current;
+          const currentPayload = buildChecklistSignaturePayload(restoredState, process, municipalityId);
           const payloadMatches =
             stableSignatureStringify(currentPayload) === stableSignatureStringify(signedPayload);
 
@@ -545,7 +573,7 @@ export function UrbanAnalysisChecklistPanel({
           const evidenceHash = snapshot.block?.artifact_hash;
 
           const next: AnalysisChecklistState = {
-            ...current,
+            ...restoredState,
             technicalSignature: technical
               ? {
                   userId: technical.profile_id || "",
@@ -586,7 +614,7 @@ export function UrbanAnalysisChecklistPanel({
     return () => {
       active = false;
     };
-  }, [key, process.id]);
+  }, [key, process.id, readOnly]);
 
   useEffect(() => {
     let active = true;
@@ -1111,8 +1139,11 @@ export function UrbanAnalysisChecklistPanel({
     );
   };
 
-  const generatePdf = async () => {
+  const generatePdf = async (persistSigned = false) => {
     if (pdfBusy) return;
+    if (persistSigned && !window.confirm(
+      "O PDF será gravado no banco e armazenamento conectados ao SIGAPRO, mesmo no localhost. Confirma a juntada?"
+    )) return;
 
     const reservedPdfWindow = window.open("about:blank", "_blank");
     if (reservedPdfWindow) {
@@ -1950,6 +1981,58 @@ export function UrbanAnalysisChecklistPanel({
 
       const pdfBlob = doc.output("blob");
       const pdfFile = new File([pdfBlob], fileName, { type: "application/pdf" });
+
+      // SIGAPRO_OFFICIAL_SIGNED_PDF_DOCUMENT_V1
+      // Um PDF assinado deve existir como documento versionado no processo, nao apenas em blob local.
+      if (persistSigned && !readOnly && (technicalOfficial || directorOfficial)) {
+        const verified = await getProcessArtifactSignatures(process.id, ANALYSIS_ARTIFACT_KEY);
+        const verifiedTechnical = verified.signers.find((signer) => signer.slot === "analise_tecnica");
+        const verifiedDirector = verified.signers.find((signer) => signer.slot === "diretoria");
+        if (!verified.block || !verifiedTechnical ||
+            stableSignatureStringify(verified.block.payload ?? {}) !==
+              stableSignatureStringify(buildChecklistSignaturePayload(state, process, municipalityId)) ||
+            (directorOfficial && !verifiedDirector)) {
+          throw new Error("PDF nao corresponde a versao assinada no banco. Anexo nao realizado.");
+        }
+        const signedStage = verifiedDirector ? "diretoria" : "analista";
+        const signedVersion = Math.max(1, Number(verified.block.artifact_version) || 1);
+        const sigCode = String(verified.block.verification_code || verified.block.artifact_hash || "assinatura")
+          .replace(/[^a-zA-Z0-9_-]/g, "").slice(0,48);
+        const safeProtocol = formatOfficialProcessNumber(process.protocol)
+          .replace(/[^a-zA-Z0-9_-]/g, "-");
+        const officialName = "Ficha-Tecnica-Assinada-" + safeProtocol + "-v" + signedVersion + "-" + signedStage + "-" + sigCode + ".pdf";
+        const alreadyRecorded = process.documents.some((entry) => entry.fileName === officialName);
+        if (!alreadyRecorded) {
+          // O armazenamento municipal gera o caminho isolado pelo ID da prefeitura.
+          const officialFile = new File([pdfBlob], officialName, { type: "application/pdf" });
+          const digest = await crypto.subtle.digest("SHA-256", await pdfBlob.arrayBuffer());
+          const hash = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+          const storedFile = await uploadFileToStorage({
+            bucket: "process-documents",
+            tenantId: municipalityId,
+            userId: session.id,
+            folder: "analysis-signed-fiches",
+            file: officialFile,
+          });
+          const objectKey = storedFile.path;
+          await appendProcessDocuments(process.id, [{
+            id: "signed-checklist-" + sigCode + "-" + signedStage,
+            label: signedStage === "diretoria" ? "Ficha Técnica - assinada pelo Analista e Diretoria" : "Ficha Técnica - assinada pelo Analista",
+            required: false,
+            uploaded: true,
+            signed: true,
+            reviewStatus: "aprovado",
+            version: signedVersion,
+            source: "prefeitura",
+            fileName: officialName,
+            filePath: objectKey,
+            fileHash: hash,
+            mimeType: "application/pdf",
+            fileSizeBytes: officialFile.size,
+            sizeLabel: (officialFile.size / 1024).toFixed(1) + " KB",
+          }], session.name);
+        }
+      }
       const pdfUrl = URL.createObjectURL(pdfFile);
       const viewerUrl = `${pdfUrl}#page=1&zoom=125&toolbar=1&navpanes=0&scrollbar=1`;
 
@@ -2636,84 +2719,222 @@ export function UrbanAnalysisChecklistPanel({
             </div>
           </div>
 
-          <div
+          {/* SIGAPRO_FORMAL_DOCUMENT_AUDIT_LOCAL_V2 */}
+          <section
             data-analysis-revision-history="true"
-            className="mt-5 overflow-hidden rounded-[20px] border border-slate-200 bg-white shadow-[0_10px_26px_rgba(15,23,42,0.05)] dark:border-slate-700 dark:bg-slate-900"
+            aria-label="Documentos oficiais e versões da análise"
+            className="mt-5 overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-[0_12px_30px_rgba(15,23,42,0.06)] dark:border-slate-700 dark:bg-slate-900"
           >
-            <div className="flex items-start justify-between gap-3 border-b border-slate-200 bg-slate-50/80 px-4 py-4 dark:border-slate-700 dark:bg-slate-950/45">
+            <header className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 bg-[linear-gradient(135deg,#f8fafc_0%,#eff6ff_100%)] px-5 py-5 dark:border-slate-700 dark:bg-none dark:bg-slate-950">
               <div className="flex items-start gap-3">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-sky-700 text-white">
-                  <History className="h-4.5 w-4.5" />
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#123c59] text-white shadow-sm">
+                  <FileText className="h-5 w-5" />
                 </div>
                 <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
-                    Histórico de versões
-                  </p>
-                  <p className="mt-1 text-sm font-bold text-slate-950 dark:text-white">
-                    Retificações e assinaturas da análise
-                  </p>
-                  <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
-                    Nenhuma versão assinada é apagada. Cada nova assinatura após uma alteração gera uma nova versão com data, hora, responsável e resumo das mudanças.
+                  <p className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-sky-800 dark:text-sky-300">Acervo documental do processo</p>
+                  <p className="mt-1 text-base font-black text-slate-950 dark:text-white">Fichas técnicas oficiais e retificações</p>
+                  <p className="mt-1 max-w-2xl text-xs leading-5 text-slate-600 dark:text-slate-300">
+                    Documentos apresentados em ordem de emissão. Cada assinatura preserva autoria, data, hora,
+                    versão, código de verificação e histórico de alterações. O PDF arquivado pode ser consultado quando disponível.
                   </p>
                 </div>
               </div>
-              <span className="shrink-0 rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-[10px] font-bold text-sky-800 dark:border-sky-500/30 dark:bg-sky-950/30 dark:text-sky-200">
-                {revisionHistory.length} versão(ões)
+              <span className="rounded-xl border border-sky-200 bg-white px-3 py-2 text-xs font-black text-sky-900 dark:border-sky-700 dark:bg-slate-900 dark:text-sky-200">
+                {revisionHistory.length} documento(s) registrado(s)
               </span>
-            </div>
+            </header>
 
             {revisionHistory.length === 0 ? (
-              <div className="px-4 py-5 text-sm text-slate-500 dark:text-slate-400">
-                O histórico será iniciado na primeira assinatura eletrônica da análise.
+              <div className="px-5 py-7 text-sm text-slate-600 dark:text-slate-300">
+                Nenhuma ficha técnica assinada consta no registro oficial deste processo.
               </div>
             ) : (
-              <div className="divide-y divide-slate-100 dark:divide-slate-800">
-                {revisionHistory.map((version, index) => {
-                  const olderVersion = revisionHistory[index + 1];
-                  const analystSigner = version.signers.find(
-                    (signer) => signer.slot === "analise_tecnica",
-                  );
-                  const directorSigner = version.signers.find(
-                    (signer) => signer.slot === "diretoria",
-                  );
-                  return (
-                    <div key={version.id} className="grid gap-3 px-4 py-4 lg:grid-cols-[110px_minmax(0,1fr)_auto] lg:items-start">
-                      <div>
-                        <span className="inline-flex rounded-full border border-slate-300 bg-slate-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.08em] text-slate-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200">
-                          Versão {version.artifact_version}
-                        </span>
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-sm font-bold text-slate-950 dark:text-white">
-                          {summarizeSignedRevision(
-                            version.payload || {},
-                            olderVersion?.payload || null,
-                          )}
-                        </p>
-                        <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
-                          Analista: {analystSigner?.name || "Não identificado"}
-                          {directorSigner?.name ? ` • Diretoria: ${directorSigner.name}` : " • Diretoria: ainda não assinou esta versão"}
-                        </p>
-                        <p className="mt-1 font-mono text-[10px] text-slate-400 dark:text-slate-500">
-                          Código {version.verification_code || "—"} • SHA-256 {compactEvidenceHash(version.artifact_hash)}
-                        </p>
-                      </div>
-                      <div className="text-left lg:text-right">
-                        <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">
-                          Assinada em
-                        </p>
-                        <p className="mt-1 text-xs font-bold text-slate-700 dark:text-slate-200">
-                          {formatMunicipalDateTime(
-                            analystSigner?.signed_at || version.completed_at,
-                          )}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })}
+              <div className="relative space-y-4 px-4 py-5 sm:px-6">
+                {[...revisionHistory]
+                  .sort((left, right) => left.artifact_version - right.artifact_version)
+                  .map((version, index, orderedVersions) => {
+                    const olderVersion = orderedVersions[index - 1];
+                    const analystSigner = version.signers.find((signer) => signer.slot === "analise_tecnica");
+                    const directorSigner = version.signers.find((signer) => signer.slot === "diretoria");
+                    const signatureToken = String(version.verification_code || "")
+                      .replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 48);
+                    const attachedPdfs = process.documents.filter((file) =>
+                      file.uploaded && Boolean(file.filePath || file.previewUrl) && file.source === "prefeitura" &&
+                      (file.fileName || "").startsWith("Ficha-Tecnica-Assinada-") &&
+                      (file.fileName || "").includes("-v" + version.artifact_version + "-") &&
+                      (signatureToken ? (file.fileName || "").includes(signatureToken) : false),
+                    );
+                    const attachedPdf = attachedPdfs.find((file) =>
+                      directorSigner && file.fileName?.includes("-diretoria-"),
+                    ) || attachedPdfs[attachedPdfs.length - 1];
+                    const isNewest = index === orderedVersions.length - 1;
+                    return (
+                      <article
+                        key={version.id}
+                        data-formal-analysis-document="true"
+                        data-document-version={version.artifact_version}
+                        className="relative overflow-hidden rounded-[18px] border border-slate-200 bg-white shadow-[0_7px_22px_rgba(15,23,42,0.05)] dark:border-slate-700 dark:bg-slate-950"
+                      >
+                        <div className="absolute inset-y-0 left-0 w-1 bg-sky-700" aria-hidden="true" />
+                        <div className="flex flex-col gap-4 p-4 pl-5 sm:p-5 sm:pl-6 lg:flex-row lg:justify-between">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="inline-flex rounded-lg border border-sky-200 bg-sky-50 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-[0.08em] text-sky-900 dark:border-sky-700 dark:bg-sky-950/30 dark:text-sky-200">
+                                Documento {String(index + 1).padStart(2, "0")}
+                              </span>
+                              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                                Revisão {version.artifact_version}
+                              </span>
+                              <span className={attachedPdf
+                                ? "rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-800 dark:border-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-200"
+                                : "rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-bold text-amber-900 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-200"}>
+                                {attachedPdf ? "PDF arquivado" : "PDF pendente de juntada"}
+                              </span>
+                            </div>
+                            <h4 className="mt-3 text-sm font-black uppercase tracking-[0.03em] text-slate-950 dark:text-white">
+                              Ficha Técnica de Análise Urbanística
+                            </h4>
+                            <p className="mt-1 text-xs font-semibold text-slate-600 dark:text-slate-300">
+                              {index === 0 ? "Documento inicial de análise" : "Retificação do documento de análise"} · {formatOfficialProcessNumber(process.protocol)}
+                            </p>
+                            <p className="mt-3 text-xs leading-5 text-slate-700 dark:text-slate-300">
+                              <strong>Registro técnico:</strong> {summarizeSignedRevision(version.payload || {}, olderVersion?.payload || null)}
+                            </p>
+                            <div className="mt-3 grid gap-x-5 gap-y-1.5 text-xs leading-5 text-slate-600 dark:text-slate-300 sm:grid-cols-2">
+                              <p><strong className="text-slate-900 dark:text-white">Analista:</strong> {analystSigner?.name || "Nome não informado"}</p>
+                              <p><strong className="text-slate-900 dark:text-white">Assinatura técnica:</strong> {formatMunicipalDateTime(analystSigner?.signed_at || version.completed_at) || "Não registrada"}</p>
+                              <p><strong className="text-slate-900 dark:text-white">Diretoria:</strong> {directorSigner?.name || "Sem assinatura nesta versão"}</p>
+                              <p><strong className="text-slate-900 dark:text-white">Assinatura da Diretoria:</strong> {directorSigner ? formatMunicipalDateTime(directorSigner.signed_at) : "Não aplicável"}</p>
+                            </div>
+                            <p className="mt-3 break-all rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-[10px] leading-5 text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
+                              Verificação: {version.verification_code || "não informada"} · SHA-256: {version.artifact_hash || "não informado"}
+                            </p>
+                          </div>
+                          <div className="flex shrink-0 flex-col gap-2 lg:w-[205px]">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className="h-10 w-full rounded-xl border-slate-300 bg-white font-semibold text-slate-900 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-900 dark:text-white"
+                              onClick={() => setSelectedFormalRevision(version)}
+                            >
+                              <FileText className="mr-2 h-4 w-4" />
+                              Ver registro oficial
+                            </Button>
+                            {attachedPdf ? (
+                              <Button
+                                type="button"
+                                className="h-10 w-full rounded-xl bg-[#075985] font-bold !text-white hover:bg-[#0369a1] [&_*]:!text-white"
+                                onClick={() => {
+                                  const route = buildProcessPath(process) + "/documentos/" + attachedPdf.id + "/visualizar";
+                                  window.open(window.location.origin + route, "_blank", "noopener,noreferrer");
+                                }}
+                              >
+                                <FileDown className="mr-2 h-4 w-4" />
+                                Abrir PDF arquivado
+                              </Button>
+                            ) : isNewest && !readOnly && technicalOfficial ? (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                className="h-10 w-full rounded-xl border-emerald-400 bg-emerald-50 font-bold text-emerald-900 hover:bg-emerald-100 dark:border-emerald-600 dark:bg-emerald-950/20 dark:text-emerald-200"
+                                disabled={pdfBusy}
+                                onClick={() => void generatePdf(true)}
+                              >
+                                <ShieldCheck className="mr-2 h-4 w-4" />
+                                {pdfBusy ? "Arquivando PDF..." : "Juntar PDF ao processo"}
+                              </Button>
+                            ) : (
+                              <span className="rounded-lg bg-slate-100 px-3 py-2 text-center text-[11px] leading-5 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                                Registro eletrônico preservado. Arquivo PDF ainda não juntado.
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </article>
+                    );
+                  })}
               </div>
             )}
-          </div>
+          </section>
+
+          <Dialog open={Boolean(selectedFormalRevision)} onOpenChange={(isOpen) => !isOpen && setSelectedFormalRevision(null)}>
+            <DialogContent className="max-h-[90vh] max-w-[780px] overflow-y-auto rounded-[22px] border border-slate-200 bg-white p-0 dark:border-slate-700 dark:bg-slate-950">
+              <DialogHeader className="border-b border-slate-200 bg-slate-50 px-6 py-5 dark:border-slate-700 dark:bg-slate-900">
+                <DialogTitle className="text-base font-black text-slate-950 dark:text-white">Registro oficial da versão assinada</DialogTitle>
+              </DialogHeader>
+              {selectedFormalRevision ? (
+                <div className="space-y-5 px-6 py-6 text-sm text-slate-800 dark:text-slate-200">
+                  <div className="border-b border-slate-200 pb-4 text-center dark:border-slate-700">
+                    <p className="text-xs font-bold uppercase tracking-widest">{municipalityName || "Prefeitura Municipal"}</p>
+                    <p className="mt-2 text-base font-extrabold uppercase">Ficha Técnica de Análise Urbanística</p>
+                    <p className="mt-1 text-xs">{formatOfficialProcessNumber(process.protocol)} · Revisão {selectedFormalRevision.artifact_version}</p>
+                  </div>
+                  <dl className="grid gap-3 text-xs sm:grid-cols-2">
+                    <div><dt className="font-bold">Emissão / assinatura</dt><dd>{formatMunicipalDateTime(selectedFormalRevision.completed_at)}</dd></div>
+                    <div><dt className="font-bold">Versão oficial</dt><dd>{selectedFormalRevision.artifact_version}</dd></div>
+                    <div><dt className="font-bold">Analista responsável</dt><dd>{selectedFormalRevision.signers.find((item) => item.slot === "analise_tecnica")?.name || "Não identificado"}</dd></div>
+                    <div><dt className="font-bold">Diretoria</dt><dd>{selectedFormalRevision.signers.find((item) => item.slot === "diretoria")?.name || "Não assinada nesta versão"}</dd></div>
+                  </dl>
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-900">
+                    <p className="text-xs font-black uppercase">Conclusão técnica registrada</p>
+                    <p className="mt-2 whitespace-pre-wrap text-sm leading-6">
+                      {typeof selectedFormalRevision.payload.conclusion === "string" && selectedFormalRevision.payload.conclusion.trim()
+                        ? selectedFormalRevision.payload.conclusion
+                        : "Nenhuma observação conclusiva registrada nesta versão."}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-black uppercase">Registro de integridade</p>
+                    <p className="mt-2 break-all font-mono text-xs leading-5">Código: {selectedFormalRevision.verification_code}</p>
+                    <p className="break-all font-mono text-xs leading-5">SHA-256: {selectedFormalRevision.artifact_hash}</p>
+                  </div>
+                  <p className="border-t border-slate-200 pt-3 text-xs leading-5 text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                    Este é o registro eletrônico da assinatura guardado no banco, não uma reprodução do PDF arquivado. O arquivo PDF, quando existente, deve ser aberto pelo botão no documento da lista.
+                  </p>
+                </div>
+              ) : null}
+            </DialogContent>
+          </Dialog>
+
+          <section data-analysis-audit-trail="true" className="mt-5 overflow-hidden rounded-[22px] border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
+            <header className="border-b border-slate-200 bg-slate-50 px-5 py-4 dark:border-slate-700 dark:bg-slate-950">
+              <p className="text-xs font-black uppercase tracking-[0.10em] text-slate-950 dark:text-white">Responsáveis e movimentações auditadas</p>
+              <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
+                Histórico das ações já registradas no banco: identidade do agente, tipo de alteração, data e hora. Nenhum evento é alterado nesta tela.
+              </p>
+            </header>
+            {process.auditTrail.length > 0 ? (
+              <ol className="max-h-[430px] divide-y divide-slate-100 overflow-y-auto dark:divide-slate-800">
+                {[...process.auditTrail].sort((left, right) => {
+                  const auditTime = (raw: string) => {
+                    const match = raw.match(/^(\d{2})\/(\d{2})\/(\d{4})[, ]+(\d{2}):(\d{2})(?::(\d{2}))?/);
+                    if (match) return Date.UTC(Number(match[3]), Number(match[2]) - 1, Number(match[1]), Number(match[4]), Number(match[5]), Number(match[6] || 0));
+                    const fallback = Date.parse(raw);
+                    return Number.isFinite(fallback) ? fallback : 0;
+                  };
+                  return auditTime(left.at) - auditTime(right.at);
+                }).map((entry) => {
+                  const officialActor = entry.actorProfileId
+                    ? sessionUsers.find((user) => user.id === entry.actorProfileId)?.name
+                    : sessionUsers.find((user) => user.id === entry.actor)?.name;
+                  const resolvedActor = officialActor || entry.actor || "Identificação não disponível";
+                  return (
+                    <li key={entry.id} className="flex flex-col gap-2 px-5 py-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-slate-900 dark:text-white">{entry.title}</p>
+                        <p className="mt-0.5 text-xs leading-5 text-slate-600 dark:text-slate-300">{entry.detail}</p>
+                        <p className="mt-1 text-xs font-semibold text-sky-800 dark:text-sky-300">Responsável: {resolvedActor}</p>
+                        {entry.actorProfileId ? <p className="mt-0.5 font-mono text-[10px] text-slate-400">Perfil: {entry.actorProfileId}</p> : null}
+                      </div>
+                      <span className="shrink-0 text-xs font-bold tabular-nums text-slate-600 dark:text-slate-300">{entry.at || "Data e hora não registradas"}</span>
+                    </li>
+                  );
+                })}
+              </ol>
+            ) : (
+              <p className="px-5 py-5 text-sm text-slate-500 dark:text-slate-400">Nenhum evento de auditoria retornado para este processo. O sistema não inventa nomes nem horários.</p>
+            )}
+          </section>
 
           <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-4 dark:border-slate-700">
             <div className="text-xs leading-5 text-slate-500 dark:text-slate-400">
@@ -2739,6 +2960,7 @@ export function UrbanAnalysisChecklistPanel({
                 )}
                 {pdfBusy ? "Gerando PDF oficial..." : "Gerar PDF oficial"}
               </Button>
+
             </div>
           </div>
 

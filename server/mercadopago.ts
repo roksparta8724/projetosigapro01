@@ -1,6 +1,8 @@
 import { createHash } from "node:crypto";
 import type { ApiReq } from "./municipal-storage";
 import { resolveMercadoPagoMunicipalAccessToken } from "./municipal-payment";
+import { assertGuideProviderSyncAccess, assertGuideProviderWriteAccess, persistGuideCharge, readStoredGuide, storedGuideCharge } from "./guide-persistence";
+import { normalizeOfficialBanking } from "../src/lib/bankCodes";
 type MercadoPagoEnvironment = "test" | "production";
 
 export type MercadoPagoConnectionCheck = {
@@ -49,7 +51,7 @@ export async function checkMercadoPagoConnection(
         token: getMercadoPagoAccessToken(),
         environment: getMercadoPagoEnvironment(),
       };
-  const environment = resolved.environment;
+  const environment: MercadoPagoEnvironment = resolved.environment === "production" ? "production" : "test";
   const token = resolved.token;
 
   if (!token) {
@@ -244,6 +246,7 @@ function extractMercadoPagoGuideResult(
           "",
       )
     : "";
+  const banking = normalizeOfficialBanking(String(paymentMethod.barcode_content || ""), String(paymentMethod.digitable_line || ""));
   return {
     ok: true,
     environment,
@@ -254,8 +257,8 @@ function extractMercadoPagoGuideResult(
     statusDetail,
     amount: String(source.total_amount || payment.amount || amountText),
     ticketUrl: String(paymentMethod.ticket_url || ""),
-    barcodeContent: String(paymentMethod.barcode_content || ""),
-    digitableLine: String(paymentMethod.digitable_line || ""),
+    barcodeContent: banking.barcode,
+    digitableLine: banking.digitableLine,
     financialInstitution: String(
       paymentMethod.financial_institution || "Mercado Pago",
     ),
@@ -268,9 +271,7 @@ function hasCompleteGuideBankingData(result: MercadoPagoGuideBoletoResult) {
   const barcodeDigits = String(result.barcodeContent || "").replace(/\D/g, "");
   return (
     (lineDigits.length === 47 || lineDigits.length === 48) &&
-    barcodeDigits.length >= 40 &&
-    barcodeDigits.length <= 48 &&
-    barcodeDigits.length % 2 === 0
+    barcodeDigits.length === 44
   );
 }
 
@@ -344,10 +345,19 @@ export async function getMercadoPagoGuideBoletoStatus(
   input: { municipalityId?: string; orderId: string; guideCode: string; amount: number },
   req?: ApiReq,
 ): Promise<MercadoPagoGuideBoletoResult> {
+  const stored = req ? await readStoredGuide(req, input.municipalityId, input.guideCode) : null;
+  if (stored) {
+    if (stored.status === "compensada") return storedGuideCharge(stored);
+    if (!stored.bank_reference || stored.bank_reference !== input.orderId) {
+      throw new Error("Cobrança não vinculada à guia original.");
+    }
+    input = { ...input, guideCode: stored.guide_number, amount: Number(stored.amount) };
+    await assertGuideProviderSyncAccess(req!, stored);
+  }
   const resolved = req
     ? await resolveMercadoPagoMunicipalAccessToken(req, input.municipalityId)
     : { token: getMercadoPagoAccessToken(), environment: getMercadoPagoEnvironment() };
-  const environment = resolved.environment;
+  const environment: MercadoPagoEnvironment = resolved.environment === "production" ? "production" : "test";
   const token = resolved.token;
   if (!token) {
     return { ok: false, environment, error: "Credencial do Mercado Pago não configurada." };
@@ -366,19 +376,33 @@ export async function getMercadoPagoGuideBoletoStatus(
   if (!result) {
     return { ok: false, environment, error: "Não foi possível consultar a situação da cobrança no Mercado Pago." };
   }
-  return result;
+  return stored && req ? persistGuideCharge(req, stored, result) : result;
 }
 export async function createMercadoPagoGuideBoleto(
   input: MercadoPagoGuideBoletoInput,
   req?: ApiReq,
 ): Promise<MercadoPagoGuideBoletoResult> {
+  const stored = req ? await readStoredGuide(req, input.municipalityId, input.guideCode) : null;
+  if (stored) {
+    if (stored.status === "compensada" || (stored.barcode && stored.digitable_line)) {
+      return storedGuideCharge(stored);
+    }
+    if (stored.bank_reference) {
+      return getMercadoPagoGuideBoletoStatus({
+        municipalityId: stored.municipality_id, guideCode: stored.guide_number,
+        orderId: stored.bank_reference, amount: Number(stored.amount),
+      }, req);
+    }
+    input = { ...input, guideCode: stored.guide_number, amount: Number(stored.amount), dueDate: stored.due_date };
+    await assertGuideProviderWriteAccess(req!, stored);
+  }
   const resolved = req
     ? await resolveMercadoPagoMunicipalAccessToken(req, input.municipalityId)
     : {
         token: getMercadoPagoAccessToken(),
         environment: getMercadoPagoEnvironment(),
       };
-  const environment = resolved.environment;
+  const environment: MercadoPagoEnvironment = resolved.environment === "production" ? "production" : "test";
   const token = resolved.token;
   const guideCode = normalizeGuideCode(input.guideCode);
   const amount = Number(input.amount);
@@ -413,7 +437,7 @@ export async function createMercadoPagoGuideBoleto(
   const amountText = amount.toFixed(2);
   const externalReference = guideCode;
   const idempotencyKey = stableUuidFromText(
-    `sigapro|${environment}|${guideCode}|${amountText}|${input.dueDate || ""}|v4`,
+    `sigapro|${input.municipalityId || "test"}|${environment}|${stored?.id || guideCode}|v5`,
   );
 
   const payment: Record<string, unknown> = {
@@ -505,6 +529,10 @@ export async function createMercadoPagoGuideBoleto(
       amountText,
     );
 
+    // Persist even an incomplete response: a retry must query this order,
+    // never issue another charge because the bank has not supplied the bars yet.
+    let persistedResult = stored && req ? await persistGuideCharge(req, stored, result) : result;
+
     if (!hasCompleteGuideBankingData(result) && result.orderId) {
       const refreshed = await refetchMercadoPagoOrder(
         result.orderId,
@@ -513,7 +541,10 @@ export async function createMercadoPagoGuideBoleto(
         externalReference,
         amountText,
       );
-      if (refreshed) result = refreshed;
+      if (refreshed) {
+        result = refreshed;
+        persistedResult = stored && req ? await persistGuideCharge(req, stored, result) : result;
+      }
     }
 
     if (!hasCompleteGuideBankingData(result)) {
@@ -525,7 +556,7 @@ export async function createMercadoPagoGuideBoleto(
       };
     }
 
-    return result;
+    return stored && req ? persistedResult : result;
   } catch (error) {
     return {
       ok: false,

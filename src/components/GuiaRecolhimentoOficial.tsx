@@ -2,6 +2,7 @@
 import * as React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { QRCodeSVG } from "qrcode.react";
+import { normalizeOfficialBanking } from "@/lib/bankCodes";
 
 type PrefeituraData = {
   nome: string;
@@ -12,6 +13,12 @@ type PrefeituraData = {
   cep?: string;
   telefone?: string;
   logoUrl?: string;
+  logoScale?: number;
+  logoOffsetX?: number;
+  logoOffsetY?: number;
+  footerLogoScale?: number;
+  footerLogoOffsetX?: number;
+  footerLogoOffsetY?: number;
   cadastroTitulo?: string;
 };
 
@@ -88,6 +95,8 @@ function formatCurrency(value?: number) {
 
 function formatDateBR(value?: string) {
   if (!value) return "";
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(value)) return value;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value.split("-").reverse().join("/");
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleDateString("pt-BR");
@@ -141,7 +150,7 @@ function normalizeOfficialBarcode(code?: string) {
   // O código vem do provedor/banco. Não calculamos ou completamos dígitos.
   // I25 exige quantidade par; aceitamos o conteúdo oficial retornado entre
   // 40 e 48 dígitos para acomodar os provedores homologados.
-  return digits.length >= 40 && digits.length <= 48 && digits.length % 2 === 0
+  return digits.length === 44
     ? digits
     : "";
 }
@@ -386,7 +395,7 @@ function getStyles() {
 
     .dam-header {
       display: grid;
-      grid-template-columns: 82px 1fr 118px;
+      grid-template-columns: 82px 1fr 170px;
       border-bottom: 1px solid #b7c5d2;
       align-items: stretch;
       background: linear-gradient(90deg, #f8fbfd 0%, #ffffff 58%, #f5f9fc 100%);
@@ -403,13 +412,13 @@ function getStyles() {
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 5px;
+      padding: 1px; overflow: hidden;
       background: #ffffff;
     }
 
     .dam-logo {
-      max-width: 62px;
-      max-height: 54px;
+      max-width: 74px;
+      max-height: 61px;
       object-fit: contain;
       display: block;
     }
@@ -482,7 +491,7 @@ function getStyles() {
 
     .dam-header-right-grid {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: minmax(0, 1fr) 38px;
     }
 
     .dam-mini-cell {
@@ -505,6 +514,7 @@ function getStyles() {
       font-size: 8.5px;
       line-height: 1;
       font-weight: 700;
+      white-space: nowrap;
     }
 
     .dam-title {
@@ -860,8 +870,8 @@ function getStyles() {
     }
 
     .dam-receipt-logo img {
-      width: 17mm;
-      height: 14mm;
+      width: auto;
+      height: auto;
       max-width: 17mm;
       max-height: 14mm;
       object-fit: contain;
@@ -1045,8 +1055,8 @@ function getStyles() {
 
     .dam-qrcode-box img,
     .dam-qrcode-box svg {
-      width: 60px;
-      height: 60px;
+      width: 96px;
+      height: 96px;
       object-fit: contain;
       display: block;
       background: #ffffff;
@@ -1077,8 +1087,6 @@ function getStyles() {
 
     .dam-pix-copy {
       margin-top: 2px;
-      max-height: 29px;
-      overflow: hidden;
       border: 1px solid #d4dee7;
       border-radius: 3px;
       background: #f8fafc;
@@ -1470,9 +1478,13 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
   const resolvedMunicipalityLogo =
     String(prefeitura.logoUrl || "").trim();
 
+  // Screen branding zoom/crop does not fit the smaller printed DAM frame.
+  const headerLogoStyle: React.CSSProperties = { objectFit: "contain", transform: "none" };
+  const footerLogoStyle: React.CSSProperties = { objectFit: "contain", transform: "none" };
+
   return (
     <div ref={ref} className={`dam-root ${className}`}>
-      <style>{getStyles()}</style>
+      <style dangerouslySetInnerHTML={{ __html: getStyles() }} />
 
       <div className="dam-toolbar print-hide">
         <button
@@ -1494,6 +1506,7 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
                     src={resolvedMunicipalityLogo}
                     alt="Logo da Prefeitura"
                     className="dam-logo"
+                    style={headerLogoStyle}
                   />
                 ) : (
                   <div className="dam-logo-fallback">PM</div>
@@ -1749,7 +1762,7 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
             <div className="dam-receipt-header">
               <div className="dam-receipt-logo">
                 {resolvedMunicipalityLogo ? (
-                  <img src={resolvedMunicipalityLogo} alt="Logo da Prefeitura" />
+                  <img src={resolvedMunicipalityLogo} alt="Logo da Prefeitura" style={footerLogoStyle} />
                 ) : (
                   <div className="dam-logo-fallback" style={{ width: 18, height: 18 }}>
                     PM
@@ -1864,7 +1877,7 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
                       </div>
                     ) : null}
                     <div className="dam-qrcode-box">
-                      <QRCodeSVG value={guia.pixPayload} size={64} level="M" />
+                      <QRCodeSVG value={guia.pixPayload} size={96} level="M" marginSize={4} />
                     </div>
                     <div className="dam-pix-copy-label">PIX Copia e Cola</div>
                     <div className="dam-pix-copy">{guia.pixPayload}</div>
@@ -1973,6 +1986,7 @@ export function buildGuiaRecolhimentoOficialHtml(
   props: GuiaRecolhimentoOficialProps,
   options?: { title?: string; autoPrint?: boolean },
 ) {
+  const banking = normalizeOfficialBanking(props.guia.codigoBarras, props.guia.linhaDigitavel);
   const normalizedProps: GuiaRecolhimentoOficialProps = {
     ...props,
     prefeitura: {
@@ -1981,6 +1995,8 @@ export function buildGuiaRecolhimentoOficialHtml(
     },
     guia: {
       ...props.guia,
+      codigoBarras: banking.barcode,
+      linhaDigitavel: banking.digitableLine,
       qrCodePixUrl: toAbsoluteGuideAssetUrl(props.guia.qrCodePixUrl),
     },
   };
