@@ -3,10 +3,17 @@ import { getDataApiUrl } from "../../server/municipal-storage";
 import { readFileSync } from "node:fs";
 
 const clientSource = readFileSync("src/integrations/backend/databaseClient.ts", "utf8");
+const qaLauncher = readFileSync("scripts/dev-qa.mjs", "utf8");
 
 afterEach(() => { vi.unstubAllEnvs(); });
 
 describe("SIGAPRO localhost Neon Auth/Data API alignment", () => {
+  it("uses localhost as Neon Auth trusted origin in QA rather than 127.0.0.1", () => {
+    expect(qaLauncher).toContain("http://localhost:8081");
+    expect(qaLauncher).toContain('[viteCli, "--host", "localhost", "--port", "8081", "--strictPort"]');
+    expect(qaLauncher).not.toContain('"http://127.0.0.1:8081"');
+  });
+
   it("keeps local client on official Auth/Data endpoints unless explicitly isolated", () => {
     expect(clientSource).toContain('VITE_SIGAPRO_NEON_ISOLATED === "true"');
     expect(clientSource).toContain("neonEndpointIdentity(localAuthOverride) === neonEndpointIdentity(localDataOverride)");
