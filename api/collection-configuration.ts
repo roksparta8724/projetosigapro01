@@ -68,5 +68,10 @@ export default async function handler(req: Req, res: Res) {
     }
     if (action === "activate") return json(res, 200, await rpc(req, "activate_municipal_collection_configuration_v1", { _municipality_id: municipalityId }) || {});
     throw new Error("Ação de arrecadação inválida.");
-  } catch (error) { json(res, 400, { error: error instanceof Error ? error.message : "Falha na configuração de arrecadação." }); }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Falha na configuração de arrecadação.";
+    const unauthorized = /jwk\s+not\s+found|jwt|jwks|invalid\s+token|invalid\s+signature|autentica[cç][aã]o necess[aá]ria|unauthorized/i.test(message);
+    const schemaMissing = /PGRST202|PGRST205|schema\s+cache|function\s+.*does\s+not\s+exist|relation\s+.*does\s+not\s+exist/i.test(message);
+    json(res, unauthorized ? 401 : schemaMissing ? 503 : 400, { error: message });
+  }
 }
