@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { backendClient } from "@/integrations/backend/databaseClient";
+import { municipalCollectionError } from "@/lib/collectionDiagnostics";
 
 type PaymentConnection = {
   municipality_id?: string;
@@ -128,15 +129,7 @@ export function MunicipalPaymentSettings({
         webhookSecret: "",
       }));
     } catch (error) {
-      const msg =
-        error instanceof Error
-          ? error.message
-          : "Não foi possível carregar a configuração.";
-      setMessage(
-        /schema cache|does not exist|not found/i.test(msg)
-          ? "Estrutura de pagamentos por Prefeitura preparada, mas a migration do Neon ainda não foi aplicada."
-          : msg,
-      );
+      setMessage(municipalCollectionError(error));
     } finally {
       setBusy("");
     }
@@ -162,7 +155,7 @@ export function MunicipalPaymentSettings({
       );
     } catch (error) {
       setMessage(
-        error instanceof Error ? error.message : "Falha ao salvar a conexão.",
+        municipalCollectionError(error),
       );
     } finally {
       setBusy("");
@@ -180,7 +173,7 @@ export function MunicipalPaymentSettings({
       );
     } catch (error) {
       setMessage(
-        error instanceof Error ? error.message : "Falha ao testar o provedor.",
+        municipalCollectionError(error),
       );
       void load();
     } finally {
@@ -199,7 +192,7 @@ export function MunicipalPaymentSettings({
       );
     } catch (error) {
       setMessage(
-        error instanceof Error ? error.message : "Falha ao ativar o provedor.",
+        municipalCollectionError(error),
       );
     } finally {
       setBusy("");
