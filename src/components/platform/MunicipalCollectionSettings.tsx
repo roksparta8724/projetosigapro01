@@ -43,7 +43,7 @@ export function MunicipalCollectionSettings({ municipalityId, municipalityName, 
           <p className="text-sm font-bold text-sky-950">Sistema GOVBR — Administração de Receitas (AR)</p>
           <p className="mt-1 text-xs leading-5 text-slate-700">Para prefeituras que utilizam o Cidade360 AR. A emissão automática só será ativada quando o fornecedor disponibilizar integração documentada, autorizada e homologada.</p>
         </div>
-        <Button type="button" variant="outline" disabled={readOnly} className="shrink-0 border-sky-400 bg-white text-sky-950 hover:bg-sky-100" onClick={() => setForm(v => ({ ...v, supplierCode: "govbr_ar", supplierName: "GOVBR - Administração de Receitas (AR)", apiBaseUrl: "", environment: "test", integrationType: "automatic", secret: "" }))}>
+        <Button type="button" variant="outline" disabled={readOnly} className="shrink-0 border-sky-400 bg-white text-sky-950 hover:bg-sky-100" onClick={() => setForm(v => ({ ...v, supplierCode: "govbr_ar", supplierName: "GOVBR - Administração de Receitas (AR)", apiBaseUrl: "", environment: "test", integrationType: "controlled_import", secret: "" }))}>
           Selecionar GOVBR / AR
         </Button>
       </div>
