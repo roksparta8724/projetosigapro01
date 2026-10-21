@@ -61,6 +61,10 @@ type GuiaData = {
   qrCodePixUrl?: string;
   pixPayload?: string;
   bankName?: string;
+  bankCode?: string;
+  bankAgency?: string;
+  bankAccount?: string;
+  bankBeneficiary?: string;
   bankAgreement?: string;
   bankInstructions?: string;
   bankReference?: string;
@@ -1811,6 +1815,17 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
                 <ReceiptRow label="Endereço" value={contribuinte.endereco} />
 
                 <div className="dam-note">
+                  {guia.bankAgency || guia.bankAccount || guia.bankBeneficiary ? (
+                    <div data-dam-municipal-bank="true" style={{ marginBottom: 3, fontSize: "6px", lineHeight: 1.35, overflowWrap: "anywhere" }}>
+                      <strong>Arrecadação municipal:</strong>{" "}
+                      {[
+                        guia.bankName && `Banco ${guia.bankCode ? `${guia.bankCode} • ` : ""}${guia.bankName}`,
+                        guia.bankAgency && `Ag. ${guia.bankAgency}`,
+                        guia.bankAccount && `Conta ${guia.bankAccount}`,
+                        guia.bankBeneficiary && `Favorecido: ${guia.bankBeneficiary}`,
+                      ].filter(Boolean).join(" | ")}
+                    </div>
+                  ) : null}
                   <div>
                     {guia.bankName
                       ? `Provedor de cobrança: ${guia.bankName}${guia.bankAgreement ? ` • Convênio ${guia.bankAgreement}` : ""}. Não receber após o vencimento.`
