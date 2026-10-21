@@ -17,7 +17,7 @@ begin
   return jsonb_build_object(
     'beneficiarioArrecadacao', coalesce(g->>'settlement_beneficiary',g->>'beneficiario_arrecadacao',''),
     'chavePix',coalesce(g->>'pix_key',g->>'chave_pix',''),
-    'pixEnabled',coalesce((g->>'pix_enabled')::boolean,true),
+    'pixEnabled',coalesce((g->>'pix_enabled')::boolean,length(coalesce(g->>'pix_key',g->>'chave_pix',''))>0),
     'pixKeyType',coalesce(g->>'pix_key_type','cnpj'),
     'pixMerchantCity',coalesce(g->>'pix_merchant_city',''),
     'bankCode',coalesce(g->>'bank_code',''),
