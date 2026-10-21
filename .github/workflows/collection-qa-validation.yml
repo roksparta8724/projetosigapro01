@@ -20,6 +20,13 @@ on:
       - src/components/platform/PortalFrame.tsx
       - src/components/platform/UrbanAnalysisChecklistPanel.tsx
       - api/collection-configuration.ts
+      - neon/migrations/20261021_municipal_collection_*.sql
+      - neon/migrations/20261021_dam_original_and_provider_persistence.sql
+      - src/lib/municipalCollectionBridge.ts
+      - src/components/platform/GovbrArGuideBridge.tsx
+      - src/pages/saas/ProcessDetailPage.tsx
+      - src/pages/saas/ProtocolDeskPage.tsx
+      - src/components/GuiaRecolhimentoOficial.tsx
   workflow_dispatch:
 
 permissions:
