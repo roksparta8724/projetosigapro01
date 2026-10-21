@@ -695,6 +695,7 @@ export default defineConfig(({ mode }) => {
   // even when the developer's .env contains older production settings.
   const isolatedQa = process.env.SIGAPRO_LOCAL_QA_LAUNCH === "true";
   const pinnedQa = isolatedQa ? {
+    VITE_BACKEND: "neon",
     NODE_ENV: "development",
     VERCEL_ENV: "development",
     VITE_SIGAPRO_NEON_ISOLATED: process.env.VITE_SIGAPRO_NEON_ISOLATED,
