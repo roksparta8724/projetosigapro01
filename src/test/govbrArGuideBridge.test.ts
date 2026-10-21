@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatGovbrArGuideLabel, hasGovbrArReference, isGovbrArGuideDocument, validateGovbrArPdf } from "@/components/platform/GovbrArGuideBridge";
+import { availableGovbrArGuideTypes, formatGovbrArGuideLabel, hasGovbrArReference, isGovbrArGuideDocument, validateGovbrArPdf } from "@/components/platform/GovbrArGuideBridge";
 import type { ProcessDocument } from "@/lib/platform";
 
 function govbrDoc(reference: string, fileHash = "a".repeat(64)): ProcessDocument {
@@ -31,6 +31,14 @@ describe("Ponte GOVBR/AR — guia oficial importada", () => {
     expect(hasGovbrArReference([govbrDoc("AR-2026-001")], "ar-2026-001")).toBe(true);
     expect(hasGovbrArReference([govbrDoc("AR-2026-001")], "AR-2026-002")).toBe(false);
     expect(hasGovbrArReference([], "AR-2026-001")).toBe(false);
+  });
+
+  it("separa Cadastro Eventual do Protocolo e impostos do Financeiro", () => {
+    expect(availableGovbrArGuideTypes("protocolo").map((type) => type.kind)).toEqual(["protocolo"]);
+    expect(availableGovbrArGuideTypes("financeiro").map((type) => type.kind))
+      .toEqual(["iss_obra", "aprovacao_final", "habite_se"]);
+    expect(formatGovbrArGuideLabel("1846/2026", "protocolo")).toContain("Cadastro Eventual");
+    expect(formatGovbrArGuideLabel("14805/2023", "iss_obra")).toContain("Cadastro Mobiliário");
   });
 
   it("identifica cada tipo de taxa, sem gerar linha digitável ou cobrança", () => {
