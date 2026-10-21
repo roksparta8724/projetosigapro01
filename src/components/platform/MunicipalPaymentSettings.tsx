@@ -172,10 +172,9 @@ export function MunicipalPaymentSettings({
         `Conexão validada. Boleto: ${next.boletoAvailable ? "disponível" : "não retornado"} · PIX: ${next.pixAvailable ? "disponível" : "não retornado"}.`,
       );
     } catch (error) {
-      setMessage(
-        municipalCollectionError(error),
-      );
-      void load();
+      // Do not call load(): that clears the error and masks the exact reason
+      // a provider test was rejected by Neon or its bank endpoint.
+      setMessage(municipalCollectionError(error));
     } finally {
       setBusy("");
     }
