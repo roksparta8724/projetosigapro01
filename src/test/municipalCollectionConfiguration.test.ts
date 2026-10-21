@@ -98,4 +98,19 @@ describe("municipal collection configuration", () => {
     expect(bankMigration).not.toContain("update public.municipalities");
   });
 
+  it("never reuses old municipality settings after switching account or Neon failures", () => {
+    expect(page).toContain("requestGeneration.current");
+    expect(page).toContain("generation !== requestGeneration.current");
+    expect(page).toContain("setConfiguration(null)");
+    expect(page).toContain("setActiveConfiguration(null)");
+    expect(page).toContain("requestGeneration.current += 1");
+  });
+
+  it("keeps failed provider-test diagnostics visible instead of clearing them", () => {
+    const provider = read("src/components/platform/MunicipalPaymentSettings.tsx");
+    const testBlock = provider.slice(provider.indexOf("const test = async"), provider.indexOf("const activate = async"));
+    expect(testBlock).toContain("setMessage(municipalCollectionError(error))");
+    expect(testBlock).not.toContain("void load()");
+  });
+
 });
