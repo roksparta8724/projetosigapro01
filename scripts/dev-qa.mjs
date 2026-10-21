@@ -17,6 +17,8 @@ if (authEndpoint !== dataEndpoint || !authEndpoint.startsWith("ep-")) {
 }
 const env = {
   ...process.env,
+  NODE_ENV: "development",
+  VERCEL_ENV: "development",
   SIGAPRO_LOCAL_QA_LAUNCH: "true",
   VITE_SIGAPRO_NEON_ISOLATED: "true",
   VITE_NEON_AUTH_URL: qaBranchAuth,
