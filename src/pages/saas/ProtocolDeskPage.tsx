@@ -1384,7 +1384,7 @@ export function ProtocolDeskPage() {
             <PageMainContent>
               {canImportMunicipalGuide ? <SectionCard
                 title="Recebimento direto de guia oficial municipal"
-                description="A guia continua sendo emitida no AR da Prefeitura. Depois de gerar e salvar o PDF, vincule-o diretamente ao processo e comunique o profissional pelo SIGAPRO."
+                description="A guia continua sendo emitida no sistema escolhido pela Prefeitura. Depois, importe o PDF oficial diretamente no processo e comunique o profissional pelo SIGAPRO."
               >
                 <div className="space-y-4">
                   <div className="grid gap-3 md:grid-cols-2">
