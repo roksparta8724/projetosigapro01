@@ -18,6 +18,7 @@ import { PageHero } from "@/components/platform/PageHero";
 import { PageShell, PageStatsRow } from "@/components/platform/PageShell";
 import { PixQrCode } from "@/components/platform/PixQrCode";
 import { PortalFrame } from "@/components/platform/PortalFrame";
+import { attachMunicipalCollectionGuide } from "@/lib/municipalCollectionBridge";
 import { GovbrArGuideBridge, isGovbrArGuideDocument } from "@/components/platform/GovbrArGuideBridge";
 import { useEffectiveCollectionMode } from "@/hooks/useEffectiveCollectionMode";
 import { StatCard } from "@/components/platform/StatCard";
@@ -4433,7 +4434,14 @@ export function ProcessDetailPage() {
                 Boolean(effectiveScopeId)
               }
               existingGuides={paymentGuides}
-              onAppend={(documents) => appendProcessDocuments(process.id, documents, session.name)}
+              onAppend={async (document, reference, guideKind) => {
+                const result = await attachMunicipalCollectionGuide({
+                  municipalityId: effectiveScopeId || process.tenantId,
+                  processId: process.id, reference, guideKind, document,
+                });
+                await refreshCurrentProcessStore();
+                return result;
+              }}
               onNotify={(text) => sendProcessMessage({
                 processId: process.id,
                 senderName: session.name,
