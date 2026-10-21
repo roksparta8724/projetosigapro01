@@ -47,6 +47,19 @@ export default async function handler(req: Req, res: Res) {
       if (!adapter) throw new Error("Fornecedor ainda sem adaptador homologado no SIGAPRO. A configuração permanecerá pendente.");
       throw new Error("O adaptador existe, mas o teste real exige credenciais homologadas e execução específica do fornecedor.");
     }
+    if (action === "attach") {
+      const processId = uuid(input.processId);
+      const document = input.document && typeof input.document === "object" && !Array.isArray(input.document)
+        ? input.document : null;
+      if (!document) throw new Error("Dados da guia municipal inválidos.");
+      return json(res, 200, await rpc(req, "append_municipal_collection_guide_document_v1", {
+        _municipality_id: municipalityId,
+        _process_id: processId,
+        _reference: String(input.reference || ""),
+        _guide_kind: String(input.guideKind || ""),
+        _document: document,
+      }) || {});
+    }
     if (action === "activate") return json(res, 200, await rpc(req, "activate_municipal_collection_configuration_v1", { _municipality_id: municipalityId }) || {});
     throw new Error("Ação de arrecadação inválida.");
   } catch (error) { json(res, 400, { error: error instanceof Error ? error.message : "Falha na configuração de arrecadação." }); }
