@@ -6,6 +6,8 @@ const read = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8"
 
 describe("municipal bank and payment guide flow", () => {
   const settingsPage = read("src/pages/saas/ConfiguracoesPage.tsx");
+  const collectionAdminPage = read("src/components/platform/MunicipalCollectionSettings.tsx");
+  const bankAdminEditor = read("src/components/platform/MunicipalBankDetailsSettings.tsx");
   const backend = read("src/integrations/backend/platformImpl.ts");
   const municipality = read("src/lib/municipality.ts");
   const finance = read("src/pages/saas/FinanceProtocolsPage.tsx");
@@ -19,8 +21,13 @@ describe("municipal bank and payment guide flow", () => {
   const mercadoPagoServer = read("server/mercadopago.ts");
 
   it("provides a dedicated admin collection and banking section", () => {
-    expect(settingsPage).toContain('{ value: "collection", label: "Arrecadação e banco"');
-    expect(settingsPage).toContain('title: "Arrecadação e banco"');
+    // The legacy collection form is retained as compatibility code, but
+    // users reach ONE operational page in Administração da Prefeitura.
+    expect(settingsPage).toContain('navigate("/prefeitura/arrecadacao", { replace: true })');
+    expect(collectionAdminPage).toContain("<MunicipalBankDetailsSettings municipalityId={municipalityId}");
+    expect(collectionAdminPage).toContain("Guia personalizada SIGAPRO");
+    expect(collectionAdminPage).toContain("Sistema próprio da Prefeitura");
+    expect(bankAdminEditor).toContain("Salvar banco e PIX");
     expect(settingsPage).toContain('setSettingsField("chavePix"');
     expect(settingsPage).toContain('setSettingsField("bankCode"');
     expect(settingsPage).toContain('setSettingsField("bankAgreementCode"');
