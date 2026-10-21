@@ -67,7 +67,7 @@ type Props = {
   supplierCode: string;
   supplierName: string;
   existingGuides: PaymentGuideEntry[];
-  onAppend: (documents: ProcessDocument[]) => Promise<{ synced: number }>;
+  onAppend: (document: ProcessDocument, reference: string, guideKind: PaymentGuideKind) => Promise<{ synced: number }>;
   onNotify: (message: string) => Promise<void>;
 };
 
@@ -180,7 +180,7 @@ export function GovbrArGuideBridge({
         fileSizeBytes: pdf.size,
         sizeLabel: `${(pdf.size / 1024).toFixed(1)} KB`,
       };
-      const saved = await onAppend([document]);
+      const saved = await onAppend(document, normalizedReference, guideKind);
       if (Number(saved.synced) !== 1) {
         throw new Error("O PDF foi enviado ao R2, mas a vinculação ao processo não foi confirmada no Neon.");
       }
