@@ -2064,6 +2064,10 @@ export function ProcessDetailPage() {
         qrCodePixUrl: "",
         pixPayload: paidGuide ? (selectedGuide.pixPayload || "") : banking.pixPayload,
         bankName: providerName,
+        bankCode: tenantSettings?.bankCode || "",
+        bankAgency: [tenantSettings?.bankAgency, tenantSettings?.bankAgencyDigit].filter(Boolean).join("-"),
+        bankAccount: [tenantSettings?.bankAccount, tenantSettings?.bankAccountDigit].filter(Boolean).join("-"),
+        bankBeneficiary: tenantSettings?.beneficiarioArrecadacao || "",
         bankEnvironment:
           providerCharge?.environment || selectedGuide.providerEnvironment,
         bankAgreement: banking.bankAgreement,
