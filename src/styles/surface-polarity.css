@@ -2562,3 +2562,88 @@ html body #root .sig-collection-payment-settings button.sig-collection-payment-a
   }
 }
 /* END SIGAPRO COLLECTION PAYMENT WIDGET PREMIUM V2 */
+
+
+/* SIGAPRO BANK HEADER CONTRAST FIX 20261021
+   Exact scope: bank editor in a single municipal collection page.
+   Global theme text-fill rules must not turn white-on-navy into navy-on-navy.
+*/
+html body #root .sig-collection-premium [data-municipal-bank-settings="true"] {
+  background: #ffffff !important;
+  border: 1px solid #cbddec !important;
+  overflow: hidden;
+  box-shadow: 0 12px 34px rgba(10, 34, 64, .09), inset 0 1px 0 rgba(255, 255, 255, .7) !important;
+}
+html body #root .sig-collection-premium [data-municipal-bank-settings="true"] [data-bank-premium-header="true"] {
+  background: linear-gradient(110deg,#081a33 0%,#0b3150 58%,#075981 100%) !important;
+  border-bottom: 1px solid rgba(125,211,252,.35) !important;
+  color: #f8fafc !important;
+}
+html body #root .sig-collection-premium [data-municipal-bank-settings="true"] [data-bank-premium-title="true"],
+html body #root .sig-collection-premium [data-municipal-bank-settings="true"] [data-bank-premium-badge="true"] {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  opacity: 1 !important;
+  text-shadow: 0 1px 1px rgba(0,0,0,.12);
+}
+html body #root .sig-collection-premium [data-municipal-bank-settings="true"] [data-bank-premium-description="true"] {
+  color: #dceefa !important;
+  -webkit-text-fill-color: #dceefa !important;
+  opacity: 1 !important;
+}
+html body #root .sig-collection-premium [data-municipal-bank-settings="true"] [data-bank-premium-header="true"] svg {
+  color: #dceefa !important;
+  stroke: currentColor !important;
+}
+html body #root .sig-collection-premium [data-municipal-bank-settings="true"] [data-bank-premium-badge="true"] {
+  background: #092a46 !important;
+  border: 1px solid rgba(125,211,252,.65) !important;
+  box-shadow: 0 1px 0 rgba(255,255,255,.08) inset !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: .5rem !important;
+}
+html body #root .sig-collection-premium [data-municipal-bank-settings="true"] [data-bank-premium-body="true"] {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border: none !important;
+  -webkit-text-fill-color: initial !important;
+}
+html body #root .sig-collection-premium [data-municipal-bank-settings="true"] [data-bank-premium-body="true"] :is(h4,label) {
+  color: #172d47 !important;
+  -webkit-text-fill-color: #172d47 !important;
+  opacity: 1 !important;
+}
+html body #root .sig-collection-premium [data-municipal-bank-settings="true"] [data-bank-premium-body="true"] :is(input,textarea,button[role="combobox"]) {
+  background-color: #ffffff !important;
+  color: #10263d !important;
+  -webkit-text-fill-color: #10263d !important;
+  border-color: #c1d3e3 !important;
+}
+html body #root .sig-collection-premium [data-municipal-bank-settings="true"] [data-bank-premium-body="true"] :is(input,textarea)::placeholder {
+  color: #64748b !important;
+  -webkit-text-fill-color: #64748b !important;
+}
+html body #root .sig-collection-premium [data-municipal-bank-settings="true"] [data-bank-premium-body="true"] input:focus-visible,
+html body #root .sig-collection-premium [data-municipal-bank-settings="true"] [data-bank-premium-body="true"] textarea:focus-visible {
+  outline: 2px solid #0284c7 !important;
+  outline-offset: 1px !important;
+}
+html body #root .sig-collection-premium [data-municipal-bank-settings="true"] [data-bank-premium-body="true"] button.bg-slate-950 {
+  background: #0b2340 !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+}
+html body #root .sig-collection-premium [data-municipal-bank-settings="true"] [data-bank-premium-body="true"] button.bg-slate-950 svg {
+  color: #fff !important;
+}
+html[data-theme*="dark"] body #root .sig-collection-premium [data-municipal-bank-settings="true"] [data-bank-premium-body="true"] {
+  background: #0e1c2e !important;
+  color: #e2e8f0 !important;
+  -webkit-text-fill-color: initial !important;
+}
+html[data-theme*="dark"] body #root .sig-collection-premium [data-municipal-bank-settings="true"] [data-bank-premium-body="true"] :is(h4,label) {
+  color: #edf4ff !important;
+  -webkit-text-fill-color: #edf4ff !important;
+}
+/* END SIGAPRO BANK HEADER CONTRAST FIX 20261021 */
