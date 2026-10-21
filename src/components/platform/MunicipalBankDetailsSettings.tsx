@@ -8,6 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { backendClient } from "@/integrations/backend/databaseClient";
 import { validateMunicipalPixKey } from "@/lib/paymentCollection";
+import { municipalCollectionError } from "@/lib/collectionDiagnostics";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import type { TenantSettings } from "@/lib/platform";
 
@@ -89,12 +90,14 @@ export function MunicipalBankDetailsSettings({
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [saved, setSaved] = useState(false);
+  const [loadFailed, setLoadFailed] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setMessage("");
     setSaved(false);
+    setLoadFailed(false);
     setForm(defaults);
     if (!municipalityId) {
       setLoading(false);
@@ -103,7 +106,7 @@ export function MunicipalBankDetailsSettings({
     void bankRequest(municipalityId, "bank_get")
       .then((bank) => { if (!cancelled) { setForm(bank); setSaved(true); } })
       .catch((error) => {
-        if (!cancelled) setMessage(error instanceof Error ? error.message : "Dados bancários indisponíveis.");
+        if (!cancelled) { setLoadFailed(true); setMessage(municipalCollectionError(error)); }
       })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
@@ -116,7 +119,7 @@ export function MunicipalBankDetailsSettings({
   };
 
   const save = async () => {
-    if (readOnly || loading || saving) return;
+    if (readOnly || loading || saving || loadFailed) return;
     setMessage("");
     let pixKeyToSave = form.chavePix;
     if (form.pixEnabled) {
@@ -153,12 +156,12 @@ export function MunicipalBankDetailsSettings({
       try { await refreshRemoteStore(); } catch { /* O banco confirmou o salvamento; atualizar a tela depois. */ }
     } catch (error) {
       setSaved(false);
-      setMessage(error instanceof Error ? error.message : "Erro ao salvar as informações bancárias.");
+      setMessage(municipalCollectionError(error));
     } finally {
       setSaving(false);
     }
   };
-  const disabled = readOnly || loading || saving;
+  const disabled = readOnly || loading || saving || loadFailed;
   const id = municipalityId;
   return (
     <section className="overflow-hidden rounded-[26px] border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900" data-municipal-bank-settings="true">
