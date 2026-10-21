@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { BadgeCheck, Building2, FileUp, Landmark, RefreshCw, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,12 +20,44 @@ async function request(municipalityId: string, action: string, payload: Record<s
 const statusLabels = { not_configured: "Não configurado", homologation: "Em homologação", validated: "Validado", active: "Ativo", error: "Com erro" } as const;
 
 export function MunicipalCollectionSettings({ municipalityId, municipalityName, readOnly = false }: { municipalityId: string; municipalityName?: string | null; readOnly?: boolean }) {
+  const requestGeneration = useRef(0);
   const [configuration, setConfiguration] = useState<Configuration | null>(null);
   const [activeConfiguration, setActiveConfiguration] = useState<Configuration | null>(null);
   const [busy, setBusy] = useState(""); const [message, setMessage] = useState("");
   const [form, setForm] = useState({ mode: "sigapro" as Mode, supplierCode: "", supplierName: "", apiBaseUrl: "", environment: "test" as "test"|"production", integrationType: "automatic" as "automatic"|"controlled_import", secret: "", boleto: true, pix: true, query: true, pdf: true, payment: true, reissue: false, cancel: false });
-  const load = async () => { if (!municipalityId) return; setBusy("load"); try { const current = await request(municipalityId,"get"); setConfiguration(current); const active = await request(municipalityId,"effective").catch(() => null); setActiveConfiguration(active?.status === "active" ? active : null); setForm(v => ({ ...v, mode: current.mode || "sigapro", supplierCode: current.supplier_code || "", supplierName: current.supplier_name || "", apiBaseUrl: current.api_base_url || "", environment: current.environment || "test", integrationType: current.integration_type || "automatic", secret: "" })); } catch (e) { setMessage(municipalCollectionError(e)); } finally { setBusy(""); } };
-  useEffect(() => { void load(); }, [municipalityId]);
+  const load = async () => {
+    // An administrator may change municipal accounts without reloading the app.
+    // Responses from the previous tenant must never populate the next tenant.
+    const generation = ++requestGeneration.current;
+    setConfiguration(null);
+    setActiveConfiguration(null);
+    setForm(v => ({ ...v, mode: "sigapro", supplierCode: "", supplierName: "", apiBaseUrl: "", environment: "test", integrationType: "automatic", secret: "" }));
+    setMessage("");
+    if (!municipalityId) { setBusy(""); return; }
+    setBusy("load");
+    try {
+      const current = await request(municipalityId, "get");
+      if (generation !== requestGeneration.current) return;
+      setConfiguration(current);
+      const active = await request(municipalityId, "effective").catch(() => null);
+      if (generation !== requestGeneration.current) return;
+      setActiveConfiguration(active?.status === "active" ? active : null);
+      setForm(v => ({
+        ...v, mode: current.mode || "sigapro", supplierCode: current.supplier_code || "",
+        supplierName: current.supplier_name || "", apiBaseUrl: current.api_base_url || "",
+        environment: current.environment || "test", integrationType: current.integration_type || "automatic", secret: "",
+      }));
+    } catch (e) {
+      if (generation === requestGeneration.current) {
+        setConfiguration(null);
+        setActiveConfiguration(null);
+        setMessage(municipalCollectionError(e));
+      }
+    } finally {
+      if (generation === requestGeneration.current) setBusy("");
+    }
+  };
+  useEffect(() => { void load(); return () => { requestGeneration.current += 1; }; }, [municipalityId]);
   const status = configuration?.status || "not_configured";
   const statusTone = useMemo(() => status === "active" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : status === "error" ? "border-rose-200 bg-rose-50 text-rose-800" : "border-amber-200 bg-amber-50 text-amber-900", [status]);
   const save = async () => { setBusy("save"); setMessage(""); try { const next=await request(municipalityId,"save",{...form, publicParameters:{enabledMethods:{boleto:form.boleto,pix:form.pix}},capabilities: form.mode==="municipal_system" && form.integrationType==="controlled_import" ? {query:false,pdf:false,payment:false,reissue:false,cancel:false,manualPdfImport:true} : {query:form.query,pdf:form.pdf,payment:form.payment,reissue:form.reissue,cancel:form.cancel}}); setConfiguration(next); setForm(v=>({...v,secret:""})); setMessage("Configuração salva como nova versão de homologação. Guias existentes permanecem intactas."); } catch(e){setMessage(municipalCollectionError(e));} finally{setBusy("");} };
