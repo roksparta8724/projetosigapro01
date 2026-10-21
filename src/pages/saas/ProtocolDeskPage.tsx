@@ -1371,7 +1371,7 @@ export function ProtocolDeskPage() {
           <PageMainGrid>
             <PageMainContent>
               <SectionCard
-                title="Recebimento GOVBR/AR • sem passagem pelo SEI"
+                title="Recebimento direto de guias GOVBR/AR"
                 description="A guia continua sendo emitida no AR da Prefeitura. Depois de gerar e salvar o PDF, vincule-o diretamente ao processo e comunique o profissional pelo SIGAPRO."
               >
                 <div className="space-y-4">
