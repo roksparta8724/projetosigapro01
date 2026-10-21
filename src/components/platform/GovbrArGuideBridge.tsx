@@ -10,11 +10,16 @@ import type { PaymentGuideEntry, PaymentGuideKind, ProcessDocument, ProcessRecor
 const GOVBR_PREFIX = "Guia GOVBR/AR - ";
 const MAX_PDF_BYTES = 3 * 1024 * 1024;
 const guideTypes: { kind: PaymentGuideKind; label: string }[] = [
-  { kind: "protocolo", label: "Taxa de protocolo" },
-  { kind: "iss_obra", label: "Análise / ISSQN / Projeto" },
+  { kind: "protocolo", label: "Protocolo inicial (Cadastro Eventual)" },
+  { kind: "iss_obra", label: "ISSQN / Projeto (Cadastro Mobiliário)" },
   { kind: "aprovacao_final", label: "Aprovação / Alvará" },
-  { kind: "habite_se", label: "Habite-se" },
+  { kind: "habite_se", label: "Habite-se (Financeiro)" },
 ];
+
+export type GovbrArGuideScope = "protocolo" | "financeiro";
+export function availableGovbrArGuideTypes(scope: GovbrArGuideScope) {
+  return guideTypes.filter((type) => scope === "protocolo" ? type.kind === "protocolo" : type.kind !== "protocolo");
+}
 
 export function isGovbrArGuideDocument(doc: Pick<ProcessDocument, "uploaded" | "label" | "filePath" | "source" | "fileHash">) {
   return !!doc.uploaded &&
@@ -56,16 +61,18 @@ type Props = {
   actorId: string;
   actorName: string;
   canImport: boolean;
+  scope: GovbrArGuideScope;
   existingGuides: PaymentGuideEntry[];
   onAppend: (documents: ProcessDocument[]) => Promise<{ synced: number }>;
   onNotify: (message: string) => Promise<void>;
 };
 
 export function GovbrArGuideBridge({
-  process, municipalityId, actorId, actorName, canImport, existingGuides, onAppend, onNotify,
+  process, municipalityId, actorId, actorName, canImport, scope, existingGuides, onAppend, onNotify,
 }: Props) {
   const [reference, setReference] = useState("");
-  const [guideKind, setGuideKind] = useState<PaymentGuideKind>("protocolo");
+  const [guideKind, setGuideKind] = useState<PaymentGuideKind>(scope === "protocolo" ? "protocolo" : "iss_obra");
+  const allowedKinds = availableGovbrArGuideTypes(scope);
   const [pdf, setPdf] = useState<File | null>(null);
   const pdfInputRef = useRef<HTMLInputElement | null>(null);
   const [verifiedByClerk, setVerifiedByClerk] = useState(false);
@@ -122,6 +129,10 @@ export function GovbrArGuideBridge({
     setStatus("");
     if (!/^[A-Z0-9][A-Z0-9.\/_-]{2,79}$/.test(normalizedReference)) {
       setStatus("Informe a referência real da guia GOVBR/AR (3 a 80 caracteres, sem espaços).");
+      return;
+    }
+    if (!allowedKinds.some((item) => item.kind === guideKind)) {
+      setStatus("Tipo de guia incompatível com o setor responsável.");
       return;
     }
     if (alreadyImported) {
@@ -193,7 +204,11 @@ export function GovbrArGuideBridge({
           <h3 className="mt-1 flex items-center gap-2 text-base font-extrabold !text-white">
             <Landmark className="h-5 w-5 text-cyan-100" /> Receber guia oficial GOVBR/AR
           </h3>
-          <p className="mt-1 text-xs leading-5 !text-sky-100">Taxas Diversas → Salvar PDF no GOVBR → Vincular ao processo → Disponibilizar no SIGAPRO.</p>
+          <p className="mt-1 text-xs leading-5 !text-sky-100">
+            {scope === "protocolo"
+              ? "Cadastro Eventual • Protocolo inicial: emitir no GOVBR/AR, salvar o PDF e associar ao pré-protocolo/processo."
+              : "Financeiro • ISSQN/Projeto, Aprovação ou Habite-se: emitir no GOVBR/AR, salvar o PDF e associar ao processo."}
+          </p>
         </div>
         <span className="rounded-full border border-sky-300/50 bg-slate-950/40 px-3 py-1.5 text-xs font-bold !text-white">PDF original, sem gerar outra cobrança</span>
       </div>
@@ -211,7 +226,7 @@ export function GovbrArGuideBridge({
               <Label htmlFor="govbr-ar-kind">Tipo de taxa</Label>
               <select id="govbr-ar-kind" value={guideKind} onChange={(event) => setGuideKind(event.target.value as PaymentGuideKind)} disabled={busy}
                 className="mt-2 h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-950 dark:border-slate-600 dark:bg-slate-950 dark:text-white">
-                {guideTypes.map((item) => <option key={item.kind} value={item.kind}>{item.label}</option>)}
+                {allowedKinds.map((item) => <option key={item.kind} value={item.kind}>{item.label}</option>)}
               </select>
             </div>
             <div>
@@ -234,7 +249,7 @@ export function GovbrArGuideBridge({
             <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm text-slate-900 md:col-span-2">
               <input type="checkbox" className="mt-1 h-4 w-4 accent-sky-700" checked={verifiedByClerk} disabled={busy}
                 onChange={(event) => setVerifiedByClerk(event.target.checked)} />
-              <span>Conferi no GOVBR/AR a identificação da guia, contribuinte, valor e vencimento. O PDF será anexado como documento oficial externo, sem gerar uma cobrança SIGAPRO nem confirmar pagamento.</span>
+              <span>Conferi no GOVBR/AR o número oficial, o contribuinte, o valor, a data de emissão e o vencimento, além do tipo de cobrança do setor. O PDF será anexado sem gerar nova cobrança SIGAPRO nem confirmar pagamento ou compensação.</span>
             </label>
             <Button type="button" className="h-11 w-full bg-sky-800 font-bold !text-white hover:bg-sky-700 md:col-span-2"
               disabled={busy || !pdf || !normalizedReference || !verifiedByClerk || alreadyImported}
