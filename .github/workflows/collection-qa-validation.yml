@@ -61,13 +61,13 @@ jobs:
           trap 'kill $QA_PID 2>/dev/null || true' EXIT
           ready=0
           for attempt in {1..55}; do
-            if curl --silent --fail http://127.0.0.1:8081/api/dev-source > /tmp/sigapro-qa-source.json; then ready=1; break; fi
+            if curl --silent --fail http://localhost:8081/api/dev-source > /tmp/sigapro-qa-source.json; then ready=1; break; fi
             sleep 1
           done
           if [ "$ready" -ne 1 ]; then tail -n 60 /tmp/sigapro-qa.log; exit 1; fi
           node -e 'const s=require("/tmp/sigapro-qa-source.json"); if(s.neonEnvironment!=="isolated-qa"||s.port!==8081)process.exit(1)'
           for path in "/api/mercadopago/guide-boleto" "/api/mercadopago/guide-status" "/api/r2-upload" "/api/r2-delete" "/api/r2-presign" "/api/e-sign-artifact"; do
-            code=$(curl --silent -o /tmp/sigapro-qa-response.json -w "%{http_code}" -X POST "http://127.0.0.1:8081$path")
+            code=$(curl --silent -o /tmp/sigapro-qa-response.json -w "%{http_code}" -X POST "http://localhost:8081$path")
             test "$code" = "403" || { echo "Unsafe QA route: $path ($code)"; exit 1; }
           done
           echo "QA isolation smoke test passed: 8081 isolated, external writes rejected"
