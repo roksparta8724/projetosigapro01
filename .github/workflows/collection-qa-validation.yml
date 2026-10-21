@@ -1,0 +1,52 @@
+name: SIGAPRO collection isolated code checks
+
+on:
+  push:
+    branches:
+      - review/sigapro-integral-local-20261021
+    paths:
+      - .github/workflows/collection-qa-validation.yml
+      - src/components/platform/MunicipalBankDetailsSettings.tsx
+      - src/components/platform/MunicipalPaymentSettings.tsx
+      - src/components/platform/MunicipalCollectionSettings.tsx
+      - src/styles/surface-polarity.css
+      - src/integrations/backend/databaseClient.ts
+      - src/lib/collectionDiagnostics.ts
+      - src/test/collectionDiagnostics.test.ts
+      - src/test/collectionNeonAuthAlignment.test.ts
+      - server/municipal-storage.ts
+      - api/collection-configuration.ts
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  collection:
+    name: TypeScript, local collection tests and compile only
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout review code
+        uses: actions/checkout@v4
+      - name: Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps --no-audit --no-fund
+      - name: TypeScript
+        run: npm run typecheck
+      - name: Collection and GOVBR regression tests
+        run: >-
+          npx vitest run
+          src/test/collectionDiagnostics.test.ts
+          src/test/collectionNeonAuthAlignment.test.ts
+          src/test/municipalCollectionConfiguration.test.ts
+          src/test/govbrArGuideBridge.test.ts
+          src/test/damProviderPersistence.test.ts
+          src/lib/guideOriginal.test.ts
+          src/test/municipalBankingFlow.test.ts
+      - name: Production-format bundle (no deployment)
+        run: npm run build
