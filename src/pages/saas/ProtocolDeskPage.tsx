@@ -137,6 +137,15 @@ export function ProtocolDeskPage() {
     [allProcesses, effectiveScopeId],
   );
 
+  // A guia inicial do Cadastro Eventual pode nascer no pré-protocolo.
+  // Incluir o pré-protocolo apenas no seletor GOVBR, sem oficializar o
+  // livro de protocolos nem confirmar pagamento.
+  const govbrEligibleProcesses = useMemo(
+    () => allProcesses.filter((item) =>
+      Boolean(effectiveScopeId) && matchesOperationalScope(effectiveScopeId, item)),
+    [allProcesses, effectiveScopeId],
+  );
+
   const protocolQueueProcesses = useMemo(
     () =>
       processes.filter((item) => {
@@ -1386,7 +1395,7 @@ export function ProtocolDeskPage() {
                       <select id="govbr-protocol-select" className="mt-2 h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-950 dark:border-slate-600 dark:bg-slate-950 dark:text-white"
                         value={govbrProtocolId} onChange={(event) => setGovbrProtocolId(event.target.value)}>
                         <option value="">Selecione o processo</option>
-                        {processes.filter((item) => {
+                        {govbrEligibleProcesses.filter((item) => {
                           const q = govbrProtocolQuery.trim().toLocaleLowerCase("pt-BR");
                           return !q || `${item.protocol} ${item.ownerName} ${item.externalProtocol}`.toLocaleLowerCase("pt-BR").includes(q);
                         }).slice(0, 30).map((item) => (
@@ -1395,8 +1404,8 @@ export function ProtocolDeskPage() {
                       </select>
                     </div>
                   </div>
-                  {processes.find((item) => item.id === govbrProtocolId) ? (() => {
-                    const selected = processes.find((item) => item.id === govbrProtocolId)!;
+                  {govbrEligibleProcesses.find((item) => item.id === govbrProtocolId) ? (() => {
+                    const selected = govbrEligibleProcesses.find((item) => item.id === govbrProtocolId)!;
                     return <GovbrArGuideBridge
                       scope="protocolo"
                       process={selected}
@@ -1416,7 +1425,7 @@ export function ProtocolDeskPage() {
                     />;
                   })() : (
                     <p className="rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm text-slate-700">
-                      Selecione um processo para anexar a guia. Para pré-protocolos ainda não oficializados, mantenha a regra de pagamento vigente: essa importação não substitui a confirmação bancária nem cria número de protocolo.
+                      Selecione um processo ou pré-protocolo já registrado no SIGAPRO. Importar a guia do GOVBR não confirma pagamento, não atribui número oficial e não altera a etapa da triagem.
                     </p>
                   )}
                 </div>
