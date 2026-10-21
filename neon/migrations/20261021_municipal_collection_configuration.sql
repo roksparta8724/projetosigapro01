@@ -1,4 +1,5 @@
--- PREPARAÇÃO LOCAL. Não aplicada em produção nem na branch QA.
+-- Migração municipal para homologação. NÃO aplicar em produção sem autorização.
+-- Compatível com Neon sem role anon; bloquear acesso público a configurações e segredos.
 begin;
 
 create table if not exists public.municipal_collection_configurations (
@@ -24,7 +25,7 @@ create table if not exists public.municipal_collection_configurations (
   unique(municipality_id,version)
 );
 alter table public.municipal_collection_configurations enable row level security;
-revoke all on table public.municipal_collection_configurations from anon, authenticated;
+revoke all on table public.municipal_collection_configurations from public, authenticated;
 
 create table if not exists public.municipal_collection_operations (
   id uuid primary key default gen_random_uuid(),
@@ -44,7 +45,7 @@ create table if not exists public.municipal_collection_operations (
   unique(municipality_id,guide_id,operation,idempotency_key)
 );
 alter table public.municipal_collection_operations enable row level security;
-revoke all on table public.municipal_collection_operations from anon, authenticated;
+revoke all on table public.municipal_collection_operations from public, authenticated;
 
 create table if not exists public.municipal_collection_webhook_events (
   id uuid primary key default gen_random_uuid(),
@@ -59,7 +60,7 @@ create table if not exists public.municipal_collection_webhook_events (
   unique(configuration_id,supplier_event_id)
 );
 alter table public.municipal_collection_webhook_events enable row level security;
-revoke all on table public.municipal_collection_webhook_events from anon, authenticated;
+revoke all on table public.municipal_collection_webhook_events from public, authenticated;
 
 alter table public.payment_guides
   add column if not exists collection_configuration_id uuid references public.municipal_collection_configurations(id) on delete restrict,
