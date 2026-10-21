@@ -33,6 +33,7 @@ import {
   PageStatsRow,
 } from "@/components/platform/PageShell";
 import { PortalFrame } from "@/components/platform/PortalFrame";
+import { attachMunicipalCollectionGuide } from "@/lib/municipalCollectionBridge";
 import { GovbrArGuideBridge } from "@/components/platform/GovbrArGuideBridge";
 import { useEffectiveCollectionMode } from "@/hooks/useEffectiveCollectionMode";
 import { SectionCard } from "@/components/platform/SectionCard";
@@ -102,7 +103,6 @@ export function ProtocolDeskPage() {
     dispatchProcess,
     getUserProfile,
     refreshRemoteStore,
-    appendProcessDocuments,
     sendProcessMessage,
   } = usePlatformData();
   const { municipality, scopeId, institutionSettingsCompat } = useMunicipality();
@@ -1419,7 +1419,14 @@ export function ProtocolDeskPage() {
                       actorName={session.name}
                       canImport={session.role !== "prefeitura_admin" && session.id !== "unknown"}
                       existingGuides={getProcessPaymentGuides(selected, tenantSettings)}
-                      onAppend={(documents) => appendProcessDocuments(selected.id, documents, session.name)}
+                      onAppend={async (document, reference, guideKind) => {
+                        const result = await attachMunicipalCollectionGuide({
+                          municipalityId: effectiveScopeId || selected.tenantId,
+                          processId: selected.id, reference, guideKind, document,
+                        });
+                        await refreshRemoteStore();
+                        return result;
+                      }}
                       onNotify={(message) => sendProcessMessage({
                         processId: selected.id,
                         senderName: session.name,
