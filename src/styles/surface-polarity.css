@@ -2662,3 +2662,29 @@ html body #root .sig-collection-premium [data-collection-tone="dark"] [data-coll
   text-shadow: none !important;
 }
 /* END PREMIUM MUNICIPAL COLLECTION STATUS CONTRAST */
+
+
+/* COLLECTION CREDENTIAL ICON AND STATUS CONTRAST V3: contained only in collection financial settings */
+html body #root .sig-collection-premium [data-collection-payment-card="status"] > .flex > .rounded-2xl {
+  background: #dff4ff !important;
+  border: 1px solid #7dd3fc !important;
+  color: #064968 !important;
+  box-shadow: inset 0 1px 0 #fff, 0 2px 8px rgba(0,0,0,.12) !important;
+}
+html body #root .sig-collection-premium [data-collection-payment-card="status"] > .flex > .rounded-2xl svg {
+  stroke: #075985 !important;
+  color: #075985 !important;
+}
+html body #root .sig-collection-premium [data-collection-tone="dark"] [data-collection-status="true"] {
+  background: #fff8df !important;
+  border-color: #fcd34d !important;
+  color: #633c00 !important;
+  -webkit-text-fill-color: #633c00 !important;
+  text-shadow: none !important;
+  white-space: normal !important;
+  text-align: center;
+}
+html body #root .sig-collection-premium [data-collection-tone="dark"] [data-collection-status="true"]:has(.sr-only) {
+  outline: 0;
+}
+/* END COLLECTION CREDENTIAL ICON AND STATUS CONTRAST V3 */
