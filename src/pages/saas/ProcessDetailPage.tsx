@@ -4410,6 +4410,7 @@ export function ProcessDetailPage() {
             process.documents.some(isGovbrArGuideDocument)
           ) && (
             <GovbrArGuideBridge
+              scope={canFinanceOperate ? "financeiro" : "protocolo"}
               process={process}
               municipalityId={effectiveScopeId || process.tenantId}
               actorId={session.id}
