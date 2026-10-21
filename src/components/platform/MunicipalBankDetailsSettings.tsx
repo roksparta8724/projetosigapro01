@@ -84,13 +84,14 @@ async function bankRequest(municipalityId: string, action: "bank_get" | "bank_sa
 export function MunicipalBankDetailsSettings({
   municipalityId, readOnly = false,
 }: { municipalityId: string; readOnly?: boolean }) {
-  const { refreshRemoteStore } = usePlatformData();
+  const { refreshRemoteStore, getInstitutionSettings } = usePlatformData();
   const [form, setForm] = useState<BankFields>(defaults);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [saved, setSaved] = useState(false);
   const [loadFailed, setLoadFailed] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -106,11 +107,38 @@ export function MunicipalBankDetailsSettings({
     void bankRequest(municipalityId, "bank_get")
       .then((bank) => { if (!cancelled) { setForm(bank); setSaved(true); } })
       .catch((error) => {
-        if (!cancelled) { setLoadFailed(true); setMessage(municipalCollectionError(error)); }
+        if (cancelled) return;
+        // Older municipal bank entries remain in general_settings. Show a
+        // READ-ONLY view of the locally loaded tenant snapshot when the new
+        // scoped bank RPC has not been installed on this environment yet.
+        // Never overwrite the user's real bank data with blank defaults.
+        const existing = getInstitutionSettings(municipalityId);
+        if (existing && existing.tenantId === municipalityId) {
+          setForm(normalizeBankFields({
+            beneficiarioArrecadacao: existing.beneficiarioArrecadacao,
+            chavePix: existing.chavePix,
+            pixEnabled: existing.pixEnabled,
+            pixKeyType: existing.pixKeyType,
+            pixMerchantCity: existing.pixMerchantCity,
+            bankCode: existing.bankCode,
+            bankName: existing.bankName,
+            bankAgency: existing.bankAgency,
+            bankAgencyDigit: existing.bankAgencyDigit,
+            bankAccount: existing.bankAccount,
+            bankAccountDigit: existing.bankAccountDigit,
+            bankBeneficiaryDocument: existing.bankBeneficiaryDocument,
+            bankCollectionMode: existing.bankCollectionMode,
+            bankAgreementCode: existing.bankAgreementCode,
+            bankWallet: existing.bankWallet,
+            bankInstructions: existing.bankInstructions,
+          }));
+        }
+        setLoadFailed(true);
+        setMessage(municipalCollectionError(error) + " Se existirem dados antigos, estão exibidos somente para conferência, sem possibilidade de salvar.");
       })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [municipalityId]);
+  }, [municipalityId, retryCount]);
 
   const setField = <K extends keyof BankFields>(key: K, value: BankFields[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -174,7 +202,7 @@ export function MunicipalBankDetailsSettings({
           </div>
         </div>
         <span data-bank-premium-badge="true" className="inline-flex items-center gap-2 rounded-full border border-sky-300/40 bg-sky-950/70 px-3 py-2 text-xs font-semibold !text-white">
-          {loading ? "Carregando..." : saved ? <><CheckCircle2 className="h-4 w-4" /> Dados conferidos</> : <><LockKeyhole className="h-4 w-4" /> Alterações não salvas</>}
+          {loading ? "Carregando..." : loadFailed ? <><LockKeyhole className="h-4 w-4" /> Acesso não confirmado</> : saved ? <><CheckCircle2 className="h-4 w-4" /> Dados conferidos</> : <><LockKeyhole className="h-4 w-4" /> Alterações não salvas</>}
         </span>
       </div>
 
@@ -239,6 +267,10 @@ export function MunicipalBankDetailsSettings({
           <strong>Integridade bancária:</strong> banco, agência, conta e convênio não criam automaticamente um boleto registrado. Linha digitável, código de barras e QR Code de cobrança só podem usar dados oficiais fornecidos pelo banco ou provedor.
         </div>
         {message ? <p role="status" className={`rounded-xl border p-3 text-sm font-medium ${saved ? "border-emerald-200 bg-emerald-50 text-emerald-950" : "border-amber-200 bg-amber-50 text-amber-950"}`}>{message}</p> : null}
+        {loadFailed ? <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-sky-200 bg-sky-50 p-3">
+          <p className="text-sm font-semibold text-sky-950">Salvamento protegido: dados bancários não serão substituídos enquanto o banco ou a sessão não responderem.</p>
+          <Button type="button" variant="outline" className="border-sky-300 bg-white !text-sky-950" onClick={() => setRetryCount((count) => count + 1)}>Tentar conectar novamente</Button>
+        </div> : null}
         <div className="flex items-center justify-end gap-3">
           {readOnly ? <span className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300"><ShieldCheck className="h-4 w-4"/> Somente leitura</span> :
             <Button type="button" disabled={disabled} onClick={() => void save()} className="h-11 rounded-xl !bg-slate-950 px-6 font-bold !text-white hover:!bg-sky-900">
