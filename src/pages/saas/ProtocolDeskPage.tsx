@@ -33,6 +33,7 @@ import {
   PageStatsRow,
 } from "@/components/platform/PageShell";
 import { PortalFrame } from "@/components/platform/PortalFrame";
+import { GovbrArGuideBridge } from "@/components/platform/GovbrArGuideBridge";
 import { SectionCard } from "@/components/platform/SectionCard";
 import { StatCard } from "@/components/platform/StatCard";
 import { TableCard } from "@/components/platform/TableCard";
@@ -100,6 +101,8 @@ export function ProtocolDeskPage() {
     dispatchProcess,
     getUserProfile,
     refreshRemoteStore,
+    appendProcessDocuments,
+    sendProcessMessage,
   } = usePlatformData();
   const { municipality, scopeId, institutionSettingsCompat } = useMunicipality();
   // Para funcionário municipal, a Prefeitura vinculada à conta é a fonte
@@ -167,6 +170,8 @@ export function ProtocolDeskPage() {
 
   const { presets: markerPresets } = useMarkerPresets();
   const [protocolQuery, setProtocolQuery] = useState("");
+  const [govbrProtocolQuery, setGovbrProtocolQuery] = useState("");
+  const [govbrProtocolId, setGovbrProtocolId] = useState("");
   const [protocolActionStatus, setProtocolActionStatus] = useState("");
   const [protocolActionBusy, setProtocolActionBusy] = useState("");
   const [markerFilter, setMarkerFilter] = useState("todos");
@@ -1364,6 +1369,60 @@ export function ProtocolDeskPage() {
 
         {section === "pagamentos" ? (
           <PageMainGrid>
+            <PageMainContent>
+              <SectionCard
+                title="Recebimento GOVBR/AR • sem passagem pelo SEI"
+                description="A guia continua sendo emitida no AR da Prefeitura. Depois de gerar e salvar o PDF, vincule-o diretamente ao processo e comunique o profissional pelo SIGAPRO."
+              >
+                <div className="space-y-4">
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <div>
+                      <label htmlFor="govbr-protocol-search" className="text-xs font-bold uppercase tracking-[0.12em] text-slate-600 dark:text-slate-300">Localizar processo oficial</label>
+                      <Input id="govbr-protocol-search" className="mt-2 h-11" value={govbrProtocolQuery} onChange={(event) => setGovbrProtocolQuery(event.target.value)}
+                        placeholder="Número do processo ou proprietário" />
+                    </div>
+                    <div>
+                      <label htmlFor="govbr-protocol-select" className="text-xs font-bold uppercase tracking-[0.12em] text-slate-600 dark:text-slate-300">Processo para receber o PDF</label>
+                      <select id="govbr-protocol-select" className="mt-2 h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-950 dark:border-slate-600 dark:bg-slate-950 dark:text-white"
+                        value={govbrProtocolId} onChange={(event) => setGovbrProtocolId(event.target.value)}>
+                        <option value="">Selecione o processo</option>
+                        {processes.filter((item) => {
+                          const q = govbrProtocolQuery.trim().toLocaleLowerCase("pt-BR");
+                          return !q || `${item.protocol} ${item.ownerName} ${item.externalProtocol}`.toLocaleLowerCase("pt-BR").includes(q);
+                        }).slice(0, 30).map((item) => (
+                          <option key={item.id} value={item.id}>{item.protocol} • {item.ownerName}</option>
+                        ))}
+                        {govbrProtocolId && !processes.some((item) => item.id === govbrProtocolId) ? null : null}
+                      </select>
+                    </div>
+                  </div>
+                  {processes.find((item) => item.id === govbrProtocolId) ? (() => {
+                    const selected = processes.find((item) => item.id === govbrProtocolId)!;
+                    return <GovbrArGuideBridge
+                      process={selected}
+                      municipalityId={effectiveScopeId || selected.tenantId}
+                      actorId={session.id}
+                      actorName={session.name}
+                      canImport={session.role !== "prefeitura_admin" && session.id !== "unknown"}
+                      existingGuides={getProcessPaymentGuides(selected, tenantSettings)}
+                      onAppend={(documents) => appendProcessDocuments(selected.id, documents, session.name)}
+                      onNotify={(message) => sendProcessMessage({
+                        processId: selected.id,
+                        senderName: session.name,
+                        senderRole: session.role,
+                        audience: "externo",
+                        message,
+                      })}
+                    />;
+                  })() : (
+                    <p className="rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm text-slate-700">
+                      Selecione um processo para anexar a guia. Para pré-protocolos ainda não oficializados, mantenha a regra de pagamento vigente: essa importação não substitui a confirmação bancária nem cria número de protocolo.
+                    </p>
+                  )}
+                </div>
+              </SectionCard>
+            </PageMainContent>
+            <PageMainContent>
             <PageMainContent>
               <TableCard
                 title="Pré-protocolos aguardando pagamento"
