@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { CheckCircle2, ExternalLink, FilePlus2, FileText, Landmark, LoaderCircle, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,7 +47,7 @@ export async function validateGovbrArPdf(file: File) {
 }
 
 type Props = {
-  process: Pick<ProcessRecord, "id" | "documents">;
+  process: Pick<ProcessRecord, "id" | "documents" | "protocol" | "ownerName" | "ownerDocument">;
   municipalityId: string;
   actorId: string;
   actorName: string;
@@ -63,6 +63,7 @@ export function GovbrArGuideBridge({
   const [reference, setReference] = useState("");
   const [guideKind, setGuideKind] = useState<PaymentGuideKind>("protocolo");
   const [pdf, setPdf] = useState<File | null>(null);
+  const pdfInputRef = useRef<HTMLInputElement | null>(null);
   const [verifiedByClerk, setVerifiedByClerk] = useState(false);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("");
@@ -73,6 +74,23 @@ export function GovbrArGuideBridge({
   const normalizedReference = reference.trim().toUpperCase();
   const existingSameKind = existingGuides.find((guide) => guide.kind === guideKind);
   const alreadyImported = hasGovbrArReference(process.documents, normalizedReference);
+
+  const copyDataForGovbr = async () => {
+    const type = guideTypes.find((item) => item.kind === guideKind)?.label || "Recolhimento";
+    const summary = [
+      `Processo SIGAPRO: ${process.protocol}`,
+      `Contribuinte: ${process.ownerName}`,
+      `CPF/CNPJ: ${process.ownerDocument || "Consultar cadastro municipal"}`,
+      `Taxa: ${type}`,
+      existingSameKind ? `Valor SIGAPRO para conferência: R$ ${existingSameKind.amount.toFixed(2)}` : "Valor: conferir na legislação municipal/GOVBR",
+    ].join("\n");
+    try {
+      await navigator.clipboard.writeText(summary);
+      setStatus("Dados copiados para preenchimento no GOVBR/AR. Confira os valores e documentos antes de emitir.");
+    } catch {
+      setStatus("O navegador não autorizou a cópia. Utilize os dados do processo para preencher o GOVBR/AR.");
+    }
+  };
 
   const viewPdf = async (document: ProcessDocument) => {
     if (!document.filePath) return;
@@ -146,6 +164,7 @@ export function GovbrArGuideBridge({
         throw new Error("O PDF foi enviado ao R2, mas a vinculação ao processo não foi confirmada no Neon.");
       }
       setPdf(null);
+      if (pdfInputRef.current) pdfInputRef.current.value = "";
       setReference("");
       setVerifiedByClerk(false);
       setStatus(`Guia GOVBR/AR ${normalizedReference} armazenada no R2 e vinculada ao processo. Nenhuma nova cobrança foi emitida.`);
@@ -178,6 +197,12 @@ export function GovbrArGuideBridge({
       <div className="space-y-4 p-5">
         {canImport ? (
           <div className="grid gap-3 md:grid-cols-2">
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-sky-200 bg-sky-50 p-3 md:col-span-2">
+              <p className="max-w-xl text-xs leading-5 text-slate-700">No GOVBR/AR instalado no computador, use Atendimento → Solicitações → Taxas Diversas. Copie os dados para evitar digitação repetida.</p>
+              <Button type="button" variant="outline" className="shrink-0 border-sky-300 bg-white text-sky-950" onClick={() => void copyDataForGovbr()}>
+                Copiar dados do processo
+              </Button>
+            </div>
             <div>
               <Label htmlFor="govbr-ar-kind">Tipo de taxa</Label>
               <select id="govbr-ar-kind" value={guideKind} onChange={(event) => setGuideKind(event.target.value as PaymentGuideKind)} disabled={busy}
@@ -192,7 +217,7 @@ export function GovbrArGuideBridge({
             </div>
             <div className="md:col-span-2">
               <Label htmlFor="govbr-ar-pdf">Guia oficial em PDF</Label>
-              <Input id="govbr-ar-pdf" className="mt-2 h-11 cursor-pointer bg-white file:mr-3 file:font-semibold dark:bg-slate-950"
+              <Input id="govbr-ar-pdf" ref={pdfInputRef} className="mt-2 h-11 cursor-pointer bg-white file:mr-3 file:font-semibold dark:bg-slate-950"
                 type="file" accept=".pdf,application/pdf" disabled={busy}
                 onChange={(event) => { setPdf(event.target.files?.[0] ?? null); setVerifiedByClerk(false); }} />
               {pdf ? <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">Selecionado: {pdf.name} ({(pdf.size / 1024).toFixed(1)} KB)</p> : null}
