@@ -17,12 +17,12 @@ const isLocalNeonRuntime =
 // The server enforces the matching data URL independently.
 const localIsolatedRequested =
   isLocalNeonRuntime && import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true";
-const localAuthOverride = String(import.meta.env.VITE_NEON_AUTH_URL || "").replace(/\\/+$/, "");
-const localDataOverride = String(import.meta.env.VITE_NEON_DATA_API_URL || "").replace(/\\/+$/, "");
+const localAuthOverride = String(import.meta.env.VITE_NEON_AUTH_URL || "").replace(/\/+$/, "");
+const localDataOverride = String(import.meta.env.VITE_NEON_DATA_API_URL || "").replace(/\/+$/, "");
 function neonEndpointIdentity(raw: string) {
   try {
     const host = new URL(raw).hostname;
-    return host.match(/^(ep-[^.]+)\\.(?:neonauth|apirest)\\./)?.[1] || "";
+    return host.match(/^(ep-[^.]+)\.(?:neonauth|apirest)\./)?.[1] || "";
   } catch { return ""; }
 }
 const localIsolatedReady =
