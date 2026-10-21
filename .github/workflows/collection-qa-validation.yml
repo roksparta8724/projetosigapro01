@@ -16,6 +16,9 @@ on:
       - src/test/collectionNeonAuthAlignment.test.ts
       - src/test/municipalBankingFlow.test.ts
       - server/municipal-storage.ts
+      - src/test/**
+      - src/components/platform/PortalFrame.tsx
+      - src/components/platform/UrbanAnalysisChecklistPanel.tsx
       - api/collection-configuration.ts
   workflow_dispatch:
 
