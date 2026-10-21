@@ -1398,6 +1398,7 @@ export function ProtocolDeskPage() {
                   {processes.find((item) => item.id === govbrProtocolId) ? (() => {
                     const selected = processes.find((item) => item.id === govbrProtocolId)!;
                     return <GovbrArGuideBridge
+                      scope="protocolo"
                       process={selected}
                       municipalityId={effectiveScopeId || selected.tenantId}
                       actorId={session.id}
