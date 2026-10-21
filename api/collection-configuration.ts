@@ -40,7 +40,7 @@ export default async function handler(req: Req, res: Res) {
         return json(res, 200, validated || {});
       }
       if (config.integration_type === "controlled_import") {
-        const validated = await rpc(req, "mark_municipal_collection_validation_v1", { _municipality_id: municipalityId, _ok: true, _message: "Fluxo de importação controlada validado localmente; nenhuma API externa foi testada." });
+        const validated = await rpc(req, "mark_municipal_collection_validation_v1", { _municipality_id: municipalityId, _ok: true, _message: "Configuração de importação controlada verificada. A operação com R2/Neon precisa de homologação prática; nenhuma API do fornecedor foi testada." });
         return json(res, 200, validated || {});
       }
       const adapter = getMunicipalCollectionAdapter(String(config.supplier_code || ""));
