@@ -1856,6 +1856,9 @@ export function ProcessDetailPage() {
     if (original.status === "compensada") {
       throw new Error("Guia compensada sem PDF original arquivado. A guia não será recriada nem cobrada novamente.");
     }
+    if (original.collection_mode_snapshot === "municipal_system") {
+      throw new Error("Esta guia pertence ao sistema próprio da Prefeitura. Receba ou abra o PDF oficial importado; o SIGAPRO não criará outra cobrança.");
+    }
     selectedGuide = { ...selectedGuide, code: original.guide_number, amount: Number(original.amount),
       issuedAt: original.created_at, dueDate: original.due_date,
       barcode: original.barcode, digitableLine: original.digitable_line, pixPayload: original.pix_code,
