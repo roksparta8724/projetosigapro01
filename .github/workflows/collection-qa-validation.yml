@@ -49,6 +49,8 @@ jobs:
           src/test/damProviderPersistence.test.ts
           src/lib/guideOriginal.test.ts
           src/test/municipalBankingFlow.test.ts
+      - name: Entire application regression suite (no deployment)
+        run: npm test -- --reporter=dot
       - name: Production-format bundle (no deployment)
         if: always()
         run: npm run build
