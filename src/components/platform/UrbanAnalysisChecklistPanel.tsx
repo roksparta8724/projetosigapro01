@@ -599,13 +599,14 @@ export function UrbanAnalysisChecklistPanel({
           const signedPayload = snapshot.block?.payload ?? {};
           // Em outra conta/computador, reconstroi a ficha da versao assinada no banco.
           // Nao substitui um rascunho editavel do analista responsavel.
-          const officialData = signedPayload as Record<string, unknown>;
-          const restoreOfficial = readOnly &&
-            officialData.schema === "sigapro.urban-analysis-checklist.v2" &&
-            officialData.processId === process.id;
+          const canonical = signedPayload as Record<string, unknown>;
+          const localHasItems = Object.values(current.items).some((item) => Boolean(item?.status));
+          const restoreOfficial = (readOnly || !localHasItems) &&
+            checklistPayloadMatchesProcess(canonical, process.id, municipalityId);
+          const officialData = canonical;
           const restoredState: AnalysisChecklistState = restoreOfficial
             ? {
-                ...current,
+                ...hydrateOfficialChecklistState(current, canonical),
                 analystId: technical?.profile_id || current.analystId,
                 analystName: technical?.name || current.analystName,
                 analystTitle: technical?.title || current.analystTitle,
