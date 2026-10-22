@@ -140,6 +140,7 @@ export function ExternalPaymentsPage() {
         },
         guia: {
           numeroGuia: guide.code,
+          nonPayablePreview: isolatedQa,
           exercicio: year,
           dataDocumento: issuedAt,
           vencimento: guide.dueDate,
@@ -150,20 +151,25 @@ export function ExternalPaymentsPage() {
           codigoBarras: barcode,
           linhaDigitavel: digitableLine,
           pixPayload: isolatedQa ? "" : banking.pixPayload,
-          bankName:
-            charge?.financialInstitution ||
-            banking.bankName ||
-            "Mercado Pago",
+          bankName: isolatedQa
+            ? "Mercado Pago (somente conexão de teste)"
+            : charge?.financialInstitution || banking.bankName || "Mercado Pago",
           bankAgreement: banking.bankAgreement,
+          // Display only the municipality's saved administrative bank metadata.
+          // These fields DO NOT prove a registered bank-issued boleto.
+          bankMunicipalName: tenantSettings?.bankName?.trim() || undefined,
+          bankCode: tenantSettings?.bankCode?.trim() || undefined,
+          bankAgency: tenantSettings?.bankAgency?.trim() || undefined,
+          bankAccount: tenantSettings?.bankAccount?.trim() || undefined,
+          bankBeneficiary: tenantSettings?.beneficiarioArrecadacao?.trim() || undefined,
           bankInstructions: isolatedQa
             ? "HOMOLOGAÇÃO SIGAPRO — DOCUMENTO NÃO PAGÁVEL. Nenhuma cobrança foi registrada no banco."
             : banking.bankInstructions,
           bankReference: isolatedQa ? undefined : (charge?.orderId || guide.bankReference),
           bankPaymentId: isolatedQa ? undefined : (charge?.paymentId || guide.bankPaymentId),
-          bankStatus: charge?.status || guide.bankStatus,
-          bankStatusDetail: charge?.statusDetail || guide.bankStatusDetail,
-          bankAuthenticatedAt:
-            charge?.authenticatedAt || guide.bankAuthenticatedAt,
+          bankStatus: isolatedQa ? undefined : (charge?.status || guide.bankStatus),
+          bankStatusDetail: isolatedQa ? undefined : (charge?.statusDetail || guide.bankStatusDetail),
+          bankAuthenticatedAt: isolatedQa ? undefined : (charge?.authenticatedAt || guide.bankAuthenticatedAt),
           bankEnvironment: isolatedQa ? "test" : (charge?.environment || guide.providerEnvironment),
           paymentProvider:
             guide.paymentProvider ||
