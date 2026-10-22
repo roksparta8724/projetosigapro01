@@ -58,6 +58,8 @@ on:
       - src/hooks/useInstitutionBranding.ts
       - src/integrations/backend/municipalityImpl.ts
       - src/lib/municipality.ts
+      - src/lib/municipalLogoFraming.ts
+      - src/lib/municipalLogoFraming.test.ts
       - src/test/**
       - src/components/platform/PortalFrame.tsx
       - src/components/platform/UrbanAnalysisChecklistPanel.tsx
