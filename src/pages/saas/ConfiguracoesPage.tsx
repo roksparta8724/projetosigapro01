@@ -2942,6 +2942,15 @@ export function ConfiguracoesPage() {
     brasaoFiles[0]?.previewUrl,
     settings?.brasaoUrl,
   );
+  // Only reuse a logo source after the actual institutional frame has decoded
+  // it successfully. A persisted signed URL may be expired while the preview
+  // has already recovered via its stable municipality object key.
+  const [confirmedHeaderSource, setConfirmedHeaderSource] = useState<{
+    scope: string; requested: string; url: string;
+  } | null>(null);
+  const [confirmedFooterSource, setConfirmedFooterSource] = useState<{
+    scope: string; requested: string; url: string;
+  } | null>(null);
   const [failedHeaderPreviewUrl, setFailedHeaderPreviewUrl] = useState("");
   const [failedFooterPreviewUrl, setFailedFooterPreviewUrl] = useState("");
   const previewHeaderDisplayUrl =
@@ -2952,6 +2961,40 @@ export function ConfiguracoesPage() {
     previewFooterLogoUrl && failedFooterPreviewUrl === previewFooterLogoUrl
       ? previewFooterFallbackUrl
       : previewFooterLogoUrl;
+
+  const confirmedPreviewScope = selectedTenantId || scopeId || "";
+  const previewHeaderEditorUrl = logoRemovalRequested === "header" ? ""
+    : draftHeaderLogoFiles[0]?.file
+      ? previewHeaderDisplayUrl
+      : confirmedHeaderSource?.scope === confirmedPreviewScope &&
+          confirmedHeaderSource.requested === previewHeaderDisplayUrl
+        ? confirmedHeaderSource.url
+        : previewHeaderDisplayUrl;
+  const previewFooterEditorUrl = logoRemovalRequested === "footer" ? ""
+    : draftFooterLogoFiles[0]?.file
+      ? previewFooterDisplayUrl
+      : confirmedFooterSource?.scope === confirmedPreviewScope &&
+          confirmedFooterSource.requested === previewFooterDisplayUrl
+        ? confirmedFooterSource.url
+        : previewFooterDisplayUrl;
+  const recordConfirmedHeaderSource = (url: string) => {
+    setConfirmedHeaderSource((current) =>
+      current?.scope === confirmedPreviewScope &&
+      current.requested === previewHeaderDisplayUrl &&
+      current.url === url
+        ? current
+        : { scope: confirmedPreviewScope, requested: previewHeaderDisplayUrl, url },
+    );
+  };
+  const recordConfirmedFooterSource = (url: string) => {
+    setConfirmedFooterSource((current) =>
+      current?.scope === confirmedPreviewScope &&
+      current.requested === previewFooterDisplayUrl &&
+      current.url === url
+        ? current
+        : { scope: confirmedPreviewScope, requested: previewFooterDisplayUrl, url },
+    );
+  };
 
   useEffect(() => {
     if (failedHeaderPreviewUrl && failedHeaderPreviewUrl !== previewHeaderLogoUrl) {
@@ -3428,31 +3471,24 @@ export function ConfiguracoesPage() {
                       </div>
 
                       <div className="mt-4 flex min-h-[158px] flex-col gap-5 rounded-[22px] border border-white/10 bg-slate-950/10 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] sm:flex-row sm:items-center md:p-5">
-                        <div
-                          data-municipal-logo-live-preview="header"
-                          className="sig-config-logo-frame sig-config-logo-frame-header relative mx-auto flex shrink-0 items-center justify-center overflow-hidden rounded-[22px] border border-slate-200/90 bg-white p-0 shadow-[0_16px_34px_rgba(2,6,23,0.18),inset_0_1px_0_rgba(255,255,255,0.98)] sm:mx-0"
-                          style={{ width: 188, minWidth: 188, maxWidth: 188, height: 188, flex: "0 0 188px" }}
-                        >
-                          {previewHeaderDisplayUrl ? (
-                            <img
-                              key={previewHeaderDisplayUrl}
-                              src={previewHeaderDisplayUrl}
-                              alt={tenantForm.name ? `Logo institucional de ${tenantForm.name}` : "Logo institucional"}
-                              className="block h-full w-full select-none object-contain object-center"
-                              style={{
-                                transform: `translate(${draftHeaderLogoConfig.scale <= 1.001 ? 0 : draftHeaderLogoConfig.offsetX}px, ${draftHeaderLogoConfig.scale <= 1.001 ? 0 : draftHeaderLogoConfig.offsetY}px) scale(${Math.max(1, draftHeaderLogoConfig.scale)})`,
-                                transformOrigin: "center center",
-                              }}
-                              loading="eager"
-                              decoding="sync"
-                              onError={() => setFailedHeaderPreviewUrl(previewHeaderLogoUrl)}
-                            />
-                          ) : (
-                            <div className="flex flex-col items-center justify-center gap-2 text-slate-400">
-                              <Building2 className="h-8 w-8" />
-                              <span className="text-[10px] font-bold uppercase tracking-[0.12em]">Prefeitura</span>
-                            </div>
-                          )}
+                        <div data-municipal-logo-live-preview="header"
+                          className="relative mx-auto flex min-h-[120px] shrink-0 items-center justify-center sm:mx-0">
+                          <InstitutionalLogo
+                            branding={{
+                              ...headerBranding,
+                              tenantId: confirmedPreviewScope || headerBranding.tenantId,
+                              logoUrl: previewHeaderDisplayUrl,
+                              fallbackLogoUrl: previewHeaderFallbackUrl || headerBranding.fallbackLogoUrl,
+                              logoScale: draftHeaderLogoConfig.scale,
+                              logoOffsetX: draftHeaderLogoConfig.offsetX,
+                              logoOffsetY: draftHeaderLogoConfig.offsetY,
+                            }}
+                            fallbackLabel={tenantForm.name || "Prefeitura"}
+                            variant="header"
+                            contextScope="municipality"
+                            className="!m-0"
+                            onResolvedSource={recordConfirmedHeaderSource}
+                          />
                         </div>
 
                         <div className="min-w-0 flex-1 py-1 text-white">
@@ -3492,15 +3528,30 @@ export function ConfiguracoesPage() {
                         }
                       }}
                     />
+                    <div data-header-original-reference="true"
+                      className="flex min-w-0 items-center gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-3 text-slate-800">
+                      <div className="flex h-[88px] w-[88px] shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white p-1.5">
+                        {previewHeaderEditorUrl ? (
+                          <img src={previewHeaderEditorUrl} alt="Brasão original completo para o cabeçalho"
+                            className="block h-full w-full object-contain object-center"
+                            onError={() => setFailedHeaderPreviewUrl(previewHeaderLogoUrl)} />
+                        ) : <Building2 className="h-7 w-7 text-slate-400" />}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-slate-900">Imagem original completa</p>
+                        <p className="mt-1 text-xs leading-5 text-slate-600">Referência fixa sem recorte. A prévia à esquerda usa o mesmo logo do cabeçalho real.</p>
+                      </div>
+                    </div>
                     <ImageFrameEditor
-                      imageUrl={previewHeaderDisplayUrl}
+                      imageUrl={previewHeaderEditorUrl}
                       scale={draftHeaderLogoConfig.scale}
                       offsetX={draftHeaderLogoConfig.offsetX}
                       offsetY={draftHeaderLogoConfig.offsetY}
                       onChange={setDraftHeaderLogoConfig}
                       label="Ajuste do logo do cabeçalho"
-                      hint="Em 1.00x o brasão aparece inteiro e centralizado. Aumente o zoom somente se quiser aproximar."
+                      hint="Em 1,50x o brasão original fica inteiramente visível. A prévia mostra o mesmo componente usado no cabeçalho real."
                       fitMode="contain"
+                      containBaseRatio={2 / 3}
                       minScale={1}
                       maxScale={5}
                       zoomStep={0.1}
@@ -3508,7 +3559,17 @@ export function ConfiguracoesPage() {
                       wrapperClassName="sig-config-logo-editor sig-config-logo-editor-header"
                       viewportClassName="!h-[188px] !w-[188px]"
                     />
+                    {draftHeaderLogoConfig.scale > 1.501 ? (
+                      <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-900">
+                        Este zoom aproxima e poderá cortar o brasão. Use “Encaixar inteiro” para restaurar a visão completa.
+                      </p>
+                    ) : null}
                     <div className="flex flex-wrap gap-3">
+                      <Button type="button" variant="outline"
+                        className="rounded-2xl border-sky-200 bg-sky-50 text-sky-950"
+                        onClick={() => setDraftHeaderLogoConfig({ scale: 1.5, offsetX: 0, offsetY: 0 })}>
+                        Encaixar inteiro
+                      </Button>
                       <Button type="button" variant="outline" className="rounded-2xl text-red-600" onClick={() => { setDraftHeaderLogoFiles([]); setLogoRemovalRequested("header"); }}>
                         Remover logo
                       </Button>
@@ -3574,7 +3635,7 @@ export function ConfiguracoesPage() {
                               ...footerBranding,
                               tenantId: selectedTenantId || footerBranding.tenantId,
                               logoUrl: previewFooterDisplayUrl,
-                              fallbackLogoUrl: "",
+                              fallbackLogoUrl: previewFooterFallbackUrl || footerBranding.fallbackLogoUrl,
                               logoScale: draftFooterLogoConfig.scale,
                               logoOffsetX: draftFooterLogoConfig.offsetX,
                               logoOffsetY: draftFooterLogoConfig.offsetY,
@@ -3583,6 +3644,7 @@ export function ConfiguracoesPage() {
                             variant="footer"
                             contextScope="municipality"
                             className="!m-0"
+                            onResolvedSource={recordConfirmedFooterSource}
                           />
                         </div>
                         <div className="min-w-0 flex-1 text-white">
@@ -3627,9 +3689,10 @@ export function ConfiguracoesPage() {
                     />
                     <div data-footer-original-reference="true" className="flex min-w-0 items-center gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-3 text-slate-800">
                       <div className="flex h-[88px] w-[88px] shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white p-1.5">
-                        {previewFooterDisplayUrl ? (
-                          <img src={previewFooterDisplayUrl} alt="Brasão original completo, sem zoom nem recorte"
-                            className="block h-full w-full object-contain object-center" />
+                        {previewFooterEditorUrl ? (
+                          <img src={previewFooterEditorUrl} alt="Brasão original completo, sem zoom nem recorte"
+                            className="block h-full w-full object-contain object-center"
+                            onError={() => setFailedFooterPreviewUrl(previewFooterLogoUrl)} />
                         ) : <Building2 className="h-7 w-7 text-slate-400" />}
                       </div>
                       <div className="min-w-0">
@@ -3638,7 +3701,7 @@ export function ConfiguracoesPage() {
                       </div>
                     </div>
                     <ImageFrameEditor
-                      imageUrl={previewFooterDisplayUrl}
+                      imageUrl={previewFooterEditorUrl}
                       scale={draftFooterLogoConfig.scale}
                       offsetX={draftFooterLogoConfig.offsetX}
                       offsetY={draftFooterLogoConfig.offsetY}
