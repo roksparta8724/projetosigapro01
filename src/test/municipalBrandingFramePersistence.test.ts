@@ -71,6 +71,19 @@ describe("Municipal framing: editor → Neon → page header/footer", () => {
     expect(renderer).toContain('const municipalOffsetX = ((branding.logoOffsetX || 0) / 188) * 100');
   });
 
+  it("shows the complete original beside a real-footer preview and uses a safe fit at 1.50x", () => {
+    const config = source("src/pages/saas/ConfiguracoesPage.tsx");
+    const logo = source("src/components/platform/InstitutionalLogo.tsx");
+    expect(config).toContain('data-footer-original-reference="true"');
+    expect(config).toContain("Imagem original completa");
+    expect(config).toContain('data-municipal-logo-live-preview="footer"');
+    expect(config).toContain('<InstitutionalLogo');
+    expect(config).toContain('containBaseRatio={2 / 3}');
+    expect(config).toContain('Encaixar inteiro');
+    expect(config).toContain('setDraftFooterLogoConfig({ scale: 1.5, offsetX: 0, offsetY: 0 })');
+    expect(logo).toContain('variant === "footer" ? scale * (2 / 3) : scale');
+  });
+
   it("keeps each municipality isolated without borrowing framing from a different tenant", () => {
     const hook = source("src/hooks/useInstitutionBranding.ts");
     expect(hook).toContain("tenantSettingsCompat?.tenantId === resolvedInstitutionId");
