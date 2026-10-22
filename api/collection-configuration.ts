@@ -25,6 +25,21 @@ export default async function handler(req: Req, res: Res) {
       const mode = String(input.mode || "sigapro"); const integrationType = String(input.integrationType || "automatic");
       if (!['sigapro','municipal_system'].includes(mode) || !['automatic','controlled_import'].includes(integrationType)) throw new Error("Modalidade de arrecadação inválida.");
       const secret = String(input.secret || "").trim();
+      let capabilities = input.capabilities && typeof input.capabilities === "object" && !Array.isArray(input.capabilities)
+        ? { ...(input.capabilities as Record<string, unknown>) }
+        : {};
+      if (mode === "sigapro") {
+        // Capabilities belong to the ACTIVE municipal provider, not the UI
+        // checkboxes. Manual/unknown banks must never advertise bank callbacks.
+        const payment = await rpc<Record<string, any>>(
+          req, "get_municipal_payment_connection_v1", { _municipality_id: municipalityId },
+        );
+        if (payment?.provider !== "mercado_pago" ||
+            payment?.status !== "active" ||
+            payment?.environment !== (input.environment === "production" ? "production" : "test")) {
+          capabilities = { ...capabilities, query: false, payment: false, reissue: false, cancel: false };
+        }
+      }
       const saved = await rpc(req, "save_municipal_collection_configuration_v1", {
         _municipality_id: municipalityId, _mode: mode, _supplier_code: String(input.supplierCode || "").trim().toLowerCase(),
         _supplier_name: String(input.supplierName || "").trim(), _api_base_url: String(input.apiBaseUrl || "").trim(),
@@ -32,7 +47,7 @@ export default async function handler(req: Req, res: Res) {
         _secret_ciphertext: secret ? encryptMunicipalCollectionSecret(secret) : null,
         _secret_fingerprint: secret ? municipalCollectionSecretFingerprint(secret) : null,
         _public_parameters: input.publicParameters && typeof input.publicParameters === "object" ? input.publicParameters : {},
-        _capabilities: input.capabilities && typeof input.capabilities === "object" ? input.capabilities : {},
+        _capabilities: capabilities,
       });
       return json(res, 200, saved || {});
     }
