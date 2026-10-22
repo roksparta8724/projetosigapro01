@@ -81,7 +81,11 @@ describe("Municipal framing: editor → Neon → page header/footer", () => {
     expect(config).toContain('containBaseRatio={2 / 3}');
     expect(config).toContain('Encaixar inteiro');
     expect(config).toContain('setDraftFooterLogoConfig({ scale: 1.5, offsetX: 0, offsetY: 0 })');
-    expect(logo).toContain('variant === "footer" ? scale * (2 / 3) : scale');
+    expect(logo).toContain('(variant === "footer" || variant === "header")');
+    expect(config).toContain('imageUrl={previewFooterEditorUrl}');
+    expect(config).toContain('imageUrl={previewHeaderEditorUrl}');
+    expect(config).toContain('onResolvedSource={recordConfirmedHeaderSource}');
+    expect(config).toContain('onResolvedSource={recordConfirmedFooterSource}');
   });
 
   it("keeps each municipality isolated without borrowing framing from a different tenant", () => {
