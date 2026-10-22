@@ -71,6 +71,8 @@ type GuiaData = {
   bankReference?: string;
   bankPaymentId?: string;
   bankEnvironment?: "test" | "production";
+  /** Explicit read-only QA document. Not an issued ticket or a payable demand. */
+  nonPayablePreview?: boolean;
   bankStatus?: string;
   bankStatusDetail?: string;
   bankAuthenticatedAt?: string;
@@ -245,6 +247,13 @@ function formatDateTimeBR(value?: string) {
 }
 
 function bankAuthenticationLabel(guia: GuiaData) {
+  if (guia.nonPayablePreview) {
+    return {
+      tone: "test",
+      title: "NÃO EMITIDA",
+      lines: ["Prévia administrativa de homologação.", "Nenhuma cobrança foi registrada no banco."],
+    };
+  }
   const status = String(guia.bankStatus || "").toLowerCase();
   const detail = String(guia.bankStatusDetail || "").toLowerCase();
   const paid =
@@ -1469,6 +1478,7 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
   const valorCobrado =
     guia.valorCobrado ?? totalDocumento - descontos + outrosAcrescimos;
   const bankAuth = bankAuthenticationLabel(guia);
+  const nonPayable = guia.nonPayablePreview === true;
 
   const prefeituraEndereco = [
     prefeitura.endereco,
@@ -1552,12 +1562,14 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
               </div>
             </div>
 
-            <div className="dam-title">{guideMeta.title}</div>
+            <div className="dam-title">{nonPayable ? "Prévia de guia — não pagável" : guideMeta.title}</div>
 
             {guia.bankEnvironment === "test" ? (
               <div className="dam-homologation-band">
                 <span className="dam-homologation-dot" />
-                Homologação Mercado Pago — documento de teste — não efetuar pagamento
+                {nonPayable
+                  ? "PRÉVIA ADMINISTRATIVA DE HOMOLOGAÇÃO — NÃO PAGÁVEL — SEM COBRANÇA BANCÁRIA"
+                  : "Homologação Mercado Pago — documento de teste — não efetuar pagamento"}
               </div>
             ) : null}
 
@@ -1828,9 +1840,11 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
                     </div>
                   ) : null}
                   <div>
-                    {guia.bankName
-                      ? `Provedor de cobrança: ${guia.bankName}${guia.bankAgreement ? ` • Convênio ${guia.bankAgreement}` : ""}. Não receber após o vencimento.`
-                      : "Pagamento pelos canais oficiais indicados pela Prefeitura. Não receber após o vencimento."}
+                    {nonPayable
+                      ? `Provedor selecionado para homologação: ${guia.bankName || "não informado"}. Nenhuma cobrança bancária emitida; não efetuar pagamento.`
+                      : guia.bankName
+                        ? `Provedor de cobrança: ${guia.bankName}${guia.bankAgreement ? ` • Convênio ${guia.bankAgreement}` : ""}. Não receber após o vencimento.`
+                        : "Pagamento pelos canais oficiais indicados pela Prefeitura. Não receber após o vencimento."}
                   </div>
                   {guia.bankReference || guia.bankPaymentId ? (
                     <div style={{ marginTop: 2, fontSize: "5.5px", color: "#475569" }}>
@@ -1843,7 +1857,7 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
 
                 <div className="dam-auth">
                   <div className="dam-auth-label">
-                    {guia.paymentProvider === "mercado_pago" ? "Validação eletrônica" : "Autenticação / baixa"}
+                    {nonPayable ? "Emissão bancária" : guia.paymentProvider === "mercado_pago" ? "Validação eletrônica" : "Autenticação / baixa"}
                   </div>
                   <div className="dam-auth-value">
                     {guia.paymentProvider === "mercado_pago" ? (
@@ -1909,7 +1923,9 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
                   <div className="dam-qr-wrap">
                     <div className="dam-qrcode-label">PIX</div>
                     <div className="dam-qrcode-box">
-                      <span className="dam-qrcode-fallback">PIX não configurado para esta Prefeitura.</span>
+                      <span className="dam-qrcode-fallback">
+                        {nonPayable ? "Não emitido — prévia sem cobrança bancária" : "PIX não configurado para esta Prefeitura."}
+                      </span>
                     </div>
                   </div>
                 )}
@@ -1919,14 +1935,16 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
             <div className="dam-bottom-section">
               <div className="dam-bottom-label">Linha Digitável</div>
               <div className="dam-digitable-value">
-                {formatDigitableLine(guia.linhaDigitavel)}
+                {nonPayable ? "NÃO EMITIDA — PRÉVIA DE HOMOLOGAÇÃO" : formatDigitableLine(guia.linhaDigitavel)}
               </div>
             </div>
 
             <div className="dam-bottom-section">
               <div className="dam-bottom-label">Código de Barras</div>
               <div className="dam-barcode-box">
-                <ProviderBarcode value={guia.codigoBarras} />
+                {nonPayable
+                  ? <span className="dam-barcode-fallback">NÃO EMITIDO — nenhuma cobrança foi registrada no provedor</span>
+                  : <ProviderBarcode value={guia.codigoBarras} />}
               </div>
             </div>
 
@@ -1955,7 +1973,9 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
               <div className="dam-final-left">
                 <div className="dam-bottom-label">Controle e conciliação da arrecadação</div>
                 <div className="dam-final-text">
-                  Guia vinculada ao processo administrativo e ao provedor oficial de cobrança.
+                  {nonPayable
+                    ? "Prévia para testar o fluxo administrativo. Não comprova emissão, autenticação ou compensação bancária."
+                    : "Guia vinculada ao processo administrativo e ao provedor oficial de cobrança."}
                 </div>
                 <div className="dam-final-box">
                   <div><strong>Provedor:</strong> {guia.bankName || "Arrecadação municipal"}</div>
@@ -1970,10 +1990,12 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
               <div className="dam-final-right">
                 <div className="dam-bottom-label">Tesouraria / baixa manual</div>
                 <div className="dam-final-right-box">
-                  {guia.autenticacaoMecanica ||
-                    (guia.paymentProvider === "mercado_pago"
-                      ? "Dispensada após confirmação eletrônica do provedor."
-                      : "Carimbo, assinatura, data e identificação do agente arrecadador.")}
+                  {nonPayable
+                    ? "Não realizada. Prévia de homologação sem pagamento."
+                    : guia.autenticacaoMecanica ||
+                      (guia.paymentProvider === "mercado_pago"
+                        ? "Dispensada após confirmação eletrônica do provedor."
+                        : "Carimbo, assinatura, data e identificação do agente arrecadador.")}
                 </div>
               </div>
             </div>
@@ -2011,9 +2033,14 @@ export function buildGuiaRecolhimentoOficialHtml(
     },
     guia: {
       ...props.guia,
-      codigoBarras: banking.barcode,
-      linhaDigitavel: banking.digitableLine,
-      qrCodePixUrl: toAbsoluteGuideAssetUrl(props.guia.qrCodePixUrl),
+      // Defense in depth: never expose a payable artifact in an admin-only QA preview.
+      codigoBarras: props.guia.nonPayablePreview ? "" : banking.barcode,
+      linhaDigitavel: props.guia.nonPayablePreview ? "" : banking.digitableLine,
+      qrCodePixUrl: props.guia.nonPayablePreview ? "" : toAbsoluteGuideAssetUrl(props.guia.qrCodePixUrl),
+      pixPayload: props.guia.nonPayablePreview ? "" : props.guia.pixPayload,
+      bankReference: props.guia.nonPayablePreview ? undefined : props.guia.bankReference,
+      bankPaymentId: props.guia.nonPayablePreview ? undefined : props.guia.bankPaymentId,
+      bankAuthenticatedAt: props.guia.nonPayablePreview ? undefined : props.guia.bankAuthenticatedAt,
     },
   };
   const markup = renderToStaticMarkup(<GuiaRecolhimentoOficial {...normalizedProps} />);
