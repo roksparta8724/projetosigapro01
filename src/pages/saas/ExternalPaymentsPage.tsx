@@ -296,6 +296,12 @@ export function ExternalPaymentsPage() {
           }
         />
 
+        {import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true" ? (
+          <div role="status" data-qa-payment-preview="true" className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm font-semibold leading-6 text-amber-950">
+            HOMOLOGAÇÃO SIGAPRO — As guias deste ambiente são prévias NÃO PAGÁVEIS. O Mercado Pago não recebe cobranças pelo localhost:8081.
+            A emissão bancária, o R2 oficial e a confirmação automática de pagamentos permanecem desativados.
+          </div>
+        ) : null}
         <InternalTabs
           items={externalTabs.map(({ value, label, helper }) => ({ value, label, helper }))}
           value={activeTab.value}
