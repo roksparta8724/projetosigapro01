@@ -1192,7 +1192,21 @@ export function ConfiguracoesPage() {
       sameFileList(current, nextZoneamentoFiles) ? current : nextZoneamentoFiles,
     );
     setLeisFiles((current) => (sameFileList(current, nextLeisFiles) ? current : nextLeisFiles));
-  }, [availableInstitutions, selectedTenantId, headerBranding.logoUrl, footerBranding.logoUrl]);
+  }, [
+    availableInstitutions,
+    selectedTenantId,
+    headerBranding.logoUrl,
+    footerBranding.logoUrl,
+    // Image URLs often remain unchanged when only zoom/position is saved.
+    // The editor must rehydrate the same confirmed framing shown on real pages.
+    tenantSettingsCompat?.headerLogoScale,
+    tenantSettingsCompat?.headerLogoOffsetX,
+    tenantSettingsCompat?.headerLogoOffsetY,
+    tenantSettingsCompat?.footerLogoScale,
+    tenantSettingsCompat?.footerLogoOffsetX,
+    tenantSettingsCompat?.footerLogoOffsetY,
+    selectedMunicipalitySettings?.updatedAt,
+  ]);
 
   useEffect(() => {
     let cancelled = false;
