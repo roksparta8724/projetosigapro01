@@ -3,6 +3,7 @@ import * as React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { QRCodeSVG } from "qrcode.react";
 import { normalizeOfficialBanking } from "@/lib/bankCodes";
+import { isValidPixPayload } from "@/lib/pix";
 
 type PrefeituraData = {
   nome: string;
@@ -426,14 +427,18 @@ function getStyles() {
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 1px; overflow: hidden;
+      padding: 2px;
+      overflow: hidden;
       background: #ffffff;
     }
 
     .dam-logo {
-      max-width: 74px;
-      max-height: 61px;
+      width: 100%;
+      height: 100%;
+      max-width: 100%;
+      max-height: 60px;
       object-fit: contain;
+      object-position: center;
       display: block;
     }
 
@@ -878,17 +883,20 @@ function getStyles() {
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 1.5mm;
+      padding: 0.65mm;
+      min-width: 0;
+      overflow: hidden;
       box-sizing: border-box;
       background: #ffffff;
     }
 
     .dam-receipt-logo img {
-      width: auto;
-      height: auto;
-      max-width: 17mm;
-      max-height: 14mm;
+      width: 20.5mm;
+      height: 17.6mm;
+      max-width: 100%;
+      max-height: 100%;
       object-fit: contain;
+      object-position: center;
       display: block;
     }
 
@@ -1118,6 +1126,19 @@ function getStyles() {
       font-size: 6px;
       line-height: 1;
       text-transform: uppercase;
+    }
+
+    .dam-payment-mode-note {
+      margin: 4px 3px;
+      padding: 5px 6px;
+      border: 1px solid #cbd5e1;
+      border-radius: 3px;
+      background: #f8fafc;
+      color: #334155;
+      font-size: 6.3px;
+      line-height: 1.3;
+      font-weight: 650;
+      text-align: center;
     }
 
     .dam-bottom-section {
@@ -1479,6 +1500,22 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
     guia.valorCobrado ?? totalDocumento - descontos + outrosAcrescimos;
   const bankAuth = bankAuthenticationLabel(guia);
   const nonPayable = guia.nonPayablePreview === true;
+  // Boleto and PIX are independent bank-issued payment methods. A working
+  // Mercado Pago boleto does NOT imply that the provider supplied a PIX QR.
+  // In isolated QA never turn a real municipal static key into a payable QR.
+  const verifiedPixPayload =
+    !nonPayable && isValidPixPayload(guia.pixPayload)
+      ? String(guia.pixPayload).trim()
+      : "";
+  const verifiedPixQrUrl =
+    !nonPayable && !verifiedPixPayload &&
+    /^(https:\/\/|data:image\/(?:png|jpeg|webp);base64,)/i.test(
+      String(guia.qrCodePixUrl || "").trim(),
+    )
+      ? String(guia.qrCodePixUrl).trim()
+      : "";
+  const boletoOnly = !verifiedPixPayload && !verifiedPixQrUrl &&
+    Boolean(guia.linhaDigitavel || guia.codigoBarras);
 
   const prefeituraEndereco = [
     prefeitura.endereco,
@@ -1902,37 +1939,40 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
                   value={formatCurrency(valorCobrado)}
                 />
 
-                {guia.pixPayload ? (
-                  <div className="dam-qr-wrap">
+                {verifiedPixPayload ? (
+                  <div className="dam-qr-wrap" data-dam-pix="official-payload">
                     <div className="dam-qrcode-label">PIX — QR Code e Copia e Cola</div>
                     {guia.bankEnvironment === "test" ? (
                       <div className="dam-pix-test-warning">
-                        PIX cadastrado pode ser real — não efetuar pagamento durante a homologação.
+                        Ambiente de homologação — não efetuar pagamento.
                       </div>
                     ) : null}
                     <div className="dam-qrcode-box">
-                      <QRCodeSVG value={guia.pixPayload} size={96} level="M" marginSize={4} />
+                      <QRCodeSVG value={verifiedPixPayload} size={96} level="M" marginSize={4} />
                     </div>
                     <div className="dam-pix-copy-label">PIX Copia e Cola</div>
-                    <div className="dam-pix-copy">{guia.pixPayload}</div>
+                    <div className="dam-pix-copy">{verifiedPixPayload}</div>
                   </div>
-                ) : guia.qrCodePixUrl ? (
-                  <div className="dam-qr-wrap">
+                ) : verifiedPixQrUrl ? (
+                  <div className="dam-qr-wrap" data-dam-pix="official-qr">
                     <div className="dam-qrcode-label">PIX — QR Code oficial</div>
+                    {guia.bankEnvironment === "test" ? (
+                      <div className="dam-pix-test-warning">
+                        Ambiente de homologação — não efetuar pagamento.
+                      </div>
+                    ) : null}
                     <div className="dam-qrcode-box">
-                      <img src={guia.qrCodePixUrl} alt="QR Code PIX" />
+                      <img src={verifiedPixQrUrl} alt="QR Code PIX" />
                     </div>
                   </div>
-                ) : (
-                  <div className="dam-qr-wrap">
-                    <div className="dam-qrcode-label">PIX</div>
-                    <div className="dam-qrcode-box">
-                      <span className="dam-qrcode-fallback">
-                        {nonPayable ? "Não emitido — prévia sem cobrança bancária" : "PIX não configurado para esta Prefeitura."}
-                      </span>
-                    </div>
+                ) : boletoOnly ? (
+                  <div className="dam-payment-mode-note" data-dam-payment-mode="boleto-only">
+                    Forma de pagamento: boleto bancário.
+                    {guia.bankEnvironment === "test"
+                      ? " Homologação — não pagar."
+                      : " Utilize a linha digitável ou o código de barras acima."}
                   </div>
-                )}
+                ) : null}
               </div>
             </div>
 
