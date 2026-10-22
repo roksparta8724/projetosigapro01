@@ -34,7 +34,7 @@ import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { prepareGuideInstitutionalLogo } from "@/lib/guideAssets";
-import { ensureMercadoPagoGuideCharge, type MercadoPagoGuideCharge } from "@/lib/mercadoPagoGuide";
+import { ensureMercadoPagoGuideCharge, requestQaPixCharge, type QaPixCharge, type MercadoPagoGuideCharge } from "@/lib/mercadoPagoGuide";
 import { normalizeOfficialBanking } from "@/lib/bankCodes";
 import { resolveGuideBankingData } from "@/lib/paymentCollection";
 
@@ -71,6 +71,7 @@ export function ExternalPaymentsPage() {
   const [openingGuideKey, setOpeningGuideKey] = useState("");
   const [guideActionStatus, setGuideActionStatus] = useState("");
   const [qaCharges, setQaCharges] = useState<Record<string, MercadoPagoGuideCharge>>({});
+  const [qaPixCharges, setQaPixCharges] = useState<Record<string,QaPixCharge>>({});
   const isolatedQaMode = import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true";
   const activeTab = getExternalTabByPath(location.pathname);
 
@@ -94,6 +95,24 @@ export function ExternalPaymentsPage() {
       await refreshRemoteStore();
     } catch (error) {
       setGuideActionStatus(error instanceof Error ? error.message : "Erro na emissão bancária de homologação.");
+    } finally {
+      setOpeningGuideKey("");
+    }
+  };
+
+  const issueSandboxPix = async (process: ProcessRecord, guide: PaymentGuideEntry) => {
+    if (!isolatedQaMode || !effectiveScopeId || openingGuideKey || guide.status === "compensada") return;
+    setOpeningGuideKey(`${process.id}:${guide.code}`);
+    setGuideActionStatus("");
+    try {
+      const result=await requestQaPixCharge({municipalityId:effectiveScopeId,guideCode:guide.code,action:"issue"});
+      if (!result.ok || !result.qrCode || result.environment!=="test" || !result.orderId) {
+        throw new Error("O Mercado Pago não retornou o QR PIX completo de homologação.");
+      }
+      setQaPixCharges(prev=>({...prev,[guide.code]:result}));
+      setGuideActionStatus("PIX de TESTE emitido para esta guia. Visualize a guia para conferir o QR de homologação. NÃO PAGAR.");
+    } catch(error) {
+      setGuideActionStatus(error instanceof Error ? error.message : "Falha na emissão do PIX de teste.");
     } finally {
       setOpeningGuideKey("");
     }
@@ -152,6 +171,14 @@ export function ExternalPaymentsPage() {
         throw new Error("A cobrança ainda não retornou código de barras e linha digitável válidos.");
       }
 
+      // Read the independent PIX sandbox order without creating a charge on document open.
+      let sandboxPix: QaPixCharge | undefined = qaPixCharges[guide.code];
+      if (isolatedQa && !sandboxPix?.ok) {
+        try {
+          const result=await requestQaPixCharge({municipalityId:effectiveScopeId,guideCode:guide.code,action:"get"});
+          if (result.ok) sandboxPix=result;
+        } catch { /* The boleto PDF must stay available when PIX is unavailable. */ }
+      }
       const logoUrl = await prepareGuideInstitutionalLogo(
         tenantSettings?.logoUrl,
         tenantSettings?.brasaoUrl,
@@ -195,6 +222,8 @@ export function ExternalPaymentsPage() {
           codigoBarras: barcode,
           linhaDigitavel: digitableLine,
           pixPayload: isolatedQa ? "" : banking.pixPayload,
+          qaSandboxPixPayload: isolatedQa && sandboxPix?.ok && sandboxPix.environment==="test"
+            ? sandboxPix.qrCode || "" : "",
           bankName: isolatedQa
             ? (sandboxIssued ? (charge?.financialInstitution || "Mercado Pago — teste") : "Mercado Pago (conexão de teste)")
             : charge?.financialInstitution || banking.bankName || "Mercado Pago",
@@ -350,8 +379,8 @@ export function ExternalPaymentsPage() {
 
         {import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true" ? (
           <div role="status" data-qa-payment-preview="true" className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm font-semibold leading-6 text-amber-950">
-            HOMOLOGAÇÃO SIGAPRO — Os documentos começam como prévias NÃO PAGÁVEIS. Para a guia pendente, use "Emitir boleto de TESTE" e depois "Visualizar guia".
-            Somente orders de TESTE do Mercado Pago são permitidas. NUNCA PAGAR. R2 oficial, cobranças reais e compensação automática permanecem desativados.
+            HOMOLOGAÇÃO SIGAPRO — Utilize "Emitir boleto de TESTE" e "Gerar PIX de TESTE" para obter exclusivamente dados de cobrança simulada do Mercado Pago; depois clique em "Visualizar guia".
+            NÃO PAGAR. Nenhum PIX estático da Prefeitura é usado. R2 oficial, cobranças reais e baixas automáticas permanecem desativados.
           </div>
         ) : null}
         <InternalTabs
@@ -524,6 +553,21 @@ export function ExternalPaymentsPage() {
                                   ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
                                   : <CreditCard className="mr-1.5 h-3.5 w-3.5" />}
                                 Emitir boleto de TESTE
+                              </Button>
+                            ) : null}
+                            {isolatedQaMode && guide.status !== "compensada" ? (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                data-qa-issue-pix="true"
+                                className="rounded-full border-sky-300 bg-sky-50 px-4 text-[12px] font-semibold text-sky-950 hover:bg-sky-100"
+                                disabled={Boolean(openingGuideKey)}
+                                onClick={() => void issueSandboxPix(process,guide)}
+                              >
+                                {openingGuideKey === `${process.id}:${guide.code}`
+                                  ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                                  : <CreditCard className="mr-1.5 h-3.5 w-3.5" />}
+                                Gerar PIX de TESTE
                               </Button>
                             ) : null}
                             <Button
