@@ -12,7 +12,17 @@ const fallback = { tenantId: "municipality-qa", logoScale: 1, footerLogoScale: 1
 describe("Municipal framing: editor → Neon → page header/footer", () => {
   it("reads distinct saved header and footer geometry from municipality_settings", () => {
     const settings = {
+      id: "settings-qa",
       municipalityId: municipality.id,
+      protocolPrefix: "SIG",
+      guidePrefix: "DAM",
+      timezone: "America/Sao_Paulo",
+      locale: "pt-BR",
+      requireProfessionalRegistration: true,
+      allowDigitalProtocol: true,
+      allowWalkinProtocol: false,
+      createdAt: "2026-10-22T00:00:00Z",
+      updatedAt: "2026-10-22T00:00:00Z",
       generalSettings: {
         header_logo_scale: 1.4,
         header_logo_offset_x: 24,
