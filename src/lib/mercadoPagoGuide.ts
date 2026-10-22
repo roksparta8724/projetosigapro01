@@ -116,6 +116,7 @@ async function refreshMercadoPagoGuideCharge(
 
 export async function ensureMercadoPagoGuideCharge(
   input: MercadoPagoGuideChargeInput,
+  options?: { isolatedSandboxOnly?: boolean },
 ): Promise<MercadoPagoGuideCharge> {
   // Always resolve the canonical Neon record. Browser storage is not proof
   // of persistence and must never bypass a paid/original-guide check.
@@ -133,7 +134,10 @@ export async function ensureMercadoPagoGuideCharge(
     authorization = "";
   }
 
-  const response = await fetch("/api/mercadopago/guide-boleto", {
+  const response = await fetch(
+    options?.isolatedSandboxOnly
+      ? "/api/qa/mercadopago/guide-boleto"
+      : "/api/mercadopago/guide-boleto", {
     method: "POST",
     headers: {
       Accept: "application/json",
