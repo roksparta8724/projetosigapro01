@@ -16,6 +16,8 @@ on:
       - src/styles/surface-polarity.css
       - src/integrations/backend/databaseClient.ts
       - src/lib/collectionDiagnostics.ts
+      - src/lib/municipalBankCatalog.ts
+      - src/lib/municipalBankCatalog.test.ts
       - src/test/collectionDiagnostics.test.ts
       - src/test/collectionNeonAuthAlignment.test.ts
       - src/test/municipalBankingFlow.test.ts
@@ -30,6 +32,7 @@ on:
       - neon/migrations/20261021_municipal_collection_*.sql
       - neon/migrations/20261021_dam_original_and_provider_persistence.sql
       - neon/migrations/20261022_collection_activation_bank_guard.sql
+      - neon/migrations/20261022_collection_provider_credential_isolation.sql
       - src/lib/municipalCollectionBridge.ts
       - src/components/platform/GovbrArGuideBridge.tsx
       - src/pages/saas/ProcessDetailPage.tsx
@@ -88,6 +91,7 @@ jobs:
           src/lib/guideOriginal.test.ts
           src/test/municipalBankingFlow.test.ts
           server/municipal-payment.test.ts
+          src/lib/municipalBankCatalog.test.ts
       - name: Entire application regression suite (no deployment)
         run: npm test -- --reporter=dot
       - name: Production-format bundle (no deployment)
