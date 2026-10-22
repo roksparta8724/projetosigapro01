@@ -18,7 +18,7 @@ const LOGO_SESSION_CACHE_KEY = "sigapro.institutional-logo.v3";
 
 const variantClasses = {
   header: "h-[112px] w-[188px] p-0 lg:h-[120px] lg:w-[204px]",
-  footer: "h-[140px] w-[188px] p-0",
+  footer: "h-[188px] w-[188px] p-0",
   preview: "h-[140px] w-full max-w-[204px] p-0",
   compact: "h-10 w-10 p-0",
   login: "h-full w-full p-0",
