@@ -393,10 +393,24 @@ export async function getMercadoPagoGuideBoletoStatus(
   }
   return stored && req ? persistGuideCharge(req, stored, result) : result;
 }
+/**
+ * QA sandbox billing is only allowed for an already-existing, authorized
+ * unpaid guide in the isolated Neon database. This optional guard MUST be
+ * enforced before ANY external order request. Production uses the old route.
+ */
 export async function createMercadoPagoGuideBoleto(
   input: MercadoPagoGuideBoletoInput,
   req?: ApiReq,
+  options?: { isolatedSandboxOnly?: boolean },
 ): Promise<MercadoPagoGuideBoletoResult> {
+  if (options?.isolatedSandboxOnly) {
+    if (
+      !req ||
+      process.env.SIGAPRO_LOCAL_QA_LAUNCH !== "true" ||
+      process.env.SIGAPRO_LOCAL_QA_BLOCK_EXTERNAL_WRITES !== "true" ||
+      process.env.VITE_SIGAPRO_NEON_ISOLATED !== "true"
+    ) throw new Error("Boleto de teste disponível apenas no localhost:8081 isolado.");
+  }
   const stored = req ? await readStoredGuide(req, input.municipalityId, input.guideCode) : null;
   if (stored) {
     if (stored.status === "compensada" || (stored.barcode && stored.digitable_line)) {
@@ -418,6 +432,9 @@ export async function createMercadoPagoGuideBoleto(
         environment: getMercadoPagoEnvironment(),
       };
   const environment: MercadoPagoEnvironment = resolved.environment === "production" ? "production" : "test";
+  if (options?.isolatedSandboxOnly && (!stored || environment !== "test")) {
+    throw new Error("Somente guia pré-existente do Neon isolado e credencial de TESTE podem emitir boleto de homologação.");
+  }
   const token = resolved.token;
   const guideCode = normalizeGuideCode(input.guideCode);
   const amount = Number(input.amount);
