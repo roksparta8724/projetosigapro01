@@ -268,6 +268,9 @@ export function InstitutionalLogo({
   const logoTranslation = isMaster
     ? `translate(${masterOffsetX}px, ${masterOffsetY}px)`
     : `translate(${municipalOffsetX}%, ${municipalOffsetY}%)`;
+  // The footer uses the same two-thirds optical fit as ImageFrameEditor.
+  // At 1.50x the entire original crest fits; higher intentional zoom may crop.
+  const displayScale = !isMaster && variant === "footer" ? scale * (2 / 3) : scale;
   const showCrop = variant === "header" || variant === "footer" || variant === "preview";
 
   useEffect(() => {
@@ -342,7 +345,7 @@ export function InstitutionalLogo({
                 !isMaster && "rounded-[22px] bg-white",
                 isMaster && "mix-blend-screen",
               )}
-              style={showCrop ? { transform: `${logoTranslation} scale(${scale})`, transformOrigin: "center center" } : undefined}
+              style={showCrop ? { transform: `${logoTranslation} scale(${displayScale})`, transformOrigin: "center center" } : undefined}
               loading="eager"
               decoding="sync"
               onLoad={() => {
