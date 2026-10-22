@@ -31,6 +31,8 @@ import { OccupancyPermitProcessPanel } from "@/components/platform/OccupancyPerm
 import { MarkerSelector } from "@/components/platform/MarkerSelector";
 import { MunicipalOrganogramBar } from "@/components/platform/MunicipalOrganogramBar";
 import { UrbanAnalysisChecklistPanel } from "@/components/platform/UrbanAnalysisChecklistPanel";
+import { resolveProcessDispatchAuthor } from "@/lib/dispatchActorIdentity";
+import { canReadInstitutionalHistory } from "@/lib/institutionalHistoryAccess";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { useLivePlatformRefresh } from "@/hooks/useLivePlatformRefresh";
 import {
@@ -3769,6 +3771,7 @@ export function ProcessDetailPage() {
               <UrbanAnalysisChecklistPanel
                 process={process}
                 session={session}
+                onOpenSignedPdf={openViewer}
                 readOnly={!canEditAnalysisChecklist}
                 municipalityId={effectiveScopeId || process.tenantId}
                 municipalityName={municipalityName || tenant?.name || "Prefeitura Municipal"}
@@ -5472,6 +5475,11 @@ export function ProcessDetailPage() {
                               <p className="mt-2 text-sm text-slate-600">
                                 Origem: <span className="font-medium text-slate-800">{getOrganizationPath(dispatch.from)}</span>
                               </p>
+                              {canReadInstitutionalHistory(session) ? (
+                                <p className="mt-1 text-sm text-slate-600">
+                                  Despachado por: <span className="font-semibold text-slate-800">{resolveProcessDispatchAuthor(dispatch, sessionUsers) || "identificação não registrada"}</span>
+                                </p>
+                              ) : null}
                               {dispatch.subject ? (
                                 <p className="mt-1 text-sm text-slate-500">{dispatch.subject}</p>
                               ) : null}
