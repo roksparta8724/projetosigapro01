@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   BadgeCheck,
   CreditCard,
@@ -92,6 +92,7 @@ export function MunicipalPaymentSettings({
   municipalityId: string;
   municipalityName?: string | null;
 }) {
+  const requestGeneration = useRef(0);
   const [connection, setConnection] = useState<PaymentConnection | null>(null);
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState("");
@@ -102,48 +103,57 @@ export function MunicipalPaymentSettings({
     webhookSecret: "",
   });
 
-  const isActive = connection?.status === "active";
-  const hasValidTest = connection?.last_test_status === "ok";
-  const provider = connection?.provider || form.provider;
+  const connectionMatchesForm = connection?.provider === form.provider && connection?.environment === form.environment;
+  const isActive = connectionMatchesForm && connection?.status === "active";
+  const hasValidTest = connectionMatchesForm && connection?.last_test_status === "ok";
+  const provider = form.provider;
 
   const statusLabel = useMemo(() => {
     if (!connection) return busy === "load" ? "Carregando configuração" : "Conexão não verificada";
+    if (!connectionMatchesForm) return "Alterações ainda não salvas";
     if (connection.status === "active") return "Provedor ativo";
     if (connection.status === "error") return "Conexão com erro";
     if (connection.status === "configured") return "Configuração preparada";
     return "Provedor ainda não ativado";
-  }, [connection, busy]);
+  }, [connection, busy, connectionMatchesForm]);
 
   const load = async () => {
-    if (!municipalityId) return;
-    setBusy("load");
+    const generation = ++requestGeneration.current;
+    // A response from another municipality must never populate this account.
+    setConnection(null);
+    setForm({ provider: "mercado_pago", environment: "test", accessToken: "", webhookSecret: "" });
     setMessage("");
+    if (!municipalityId) { setBusy(""); return; }
+    setBusy("load");
     try {
       const current = await paymentRequest(municipalityId, "get");
+      if (generation !== requestGeneration.current) return;
       setConnection(current);
-      setForm((value) => ({
-        ...value,
+      setForm({
         provider: current.provider || "mercado_pago",
         environment: current.environment || "test",
         accessToken: "",
         webhookSecret: "",
-      }));
+      });
     } catch (error) {
-      setMessage(municipalCollectionError(error));
+      if (generation === requestGeneration.current) setMessage(municipalCollectionError(error));
     } finally {
-      setBusy("");
+      if (generation === requestGeneration.current) setBusy("");
     }
   };
 
   useEffect(() => {
     void load();
+    return () => { requestGeneration.current += 1; };
   }, [municipalityId]);
 
   const save = async () => {
+    const generation = requestGeneration.current;
     setBusy("save");
     setMessage("");
     try {
       const next = await paymentRequest(municipalityId, "save", form);
+      if (generation !== requestGeneration.current) return;
       setConnection(next);
       setForm((current) => ({
         ...current,
@@ -154,47 +164,54 @@ export function MunicipalPaymentSettings({
         "Configuração salva com segurança. As credenciais não são devolvidas ao navegador.",
       );
     } catch (error) {
+      if (generation !== requestGeneration.current) return;
       setMessage(
         municipalCollectionError(error),
       );
     } finally {
-      setBusy("");
+      if (generation === requestGeneration.current) setBusy("");
     }
   };
 
   const test = async () => {
+    const generation = requestGeneration.current;
     setBusy("test");
     setMessage("");
     try {
       const next = await paymentRequest(municipalityId, "test");
+      if (generation !== requestGeneration.current) return;
       setConnection(next);
       setMessage(
         `Conexão validada. Boleto: ${next.boletoAvailable ? "disponível" : "não retornado"} · PIX: ${next.pixAvailable ? "disponível" : "não retornado"}.`,
       );
     } catch (error) {
+      if (generation !== requestGeneration.current) return;
       // Do not call load(): that clears the error and masks the exact reason
       // a provider test was rejected by Neon or its bank endpoint.
       setMessage(municipalCollectionError(error));
     } finally {
-      setBusy("");
+      if (generation === requestGeneration.current) setBusy("");
     }
   };
 
   const activate = async () => {
+    const generation = requestGeneration.current;
     setBusy("activate");
     setMessage("");
     try {
       const next = await paymentRequest(municipalityId, "activate");
+      if (generation !== requestGeneration.current) return;
       setConnection(next);
       setMessage(
         "Provedor ativado para esta Prefeitura. Novas cobranças passam a usar esta conexão.",
       );
     } catch (error) {
+      if (generation !== requestGeneration.current) return;
       setMessage(
         municipalCollectionError(error),
       );
     } finally {
-      setBusy("");
+      if (generation === requestGeneration.current) setBusy("");
     }
   };
 
@@ -420,6 +437,13 @@ export function MunicipalPaymentSettings({
           ) : null}
         </div>
 
+        <div role="status" data-municipal-provider-capabilities="true" className="mt-4 rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm leading-6 text-sky-950">
+          {form.provider === "mercado_pago"
+            ? "Mercado Pago: utilize a conta de testes na homologação. A conexão técnica verifica a credencial, mas não confirma uma cobrança real, conciliação ou titularidade municipal. Tokens antigos do ambiente local não são vinculados automaticamente a uma Prefeitura."
+            : form.provider === "bank_direct"
+              ? "Banco ou convênio direto: o cadastro identifica o banco escolhido. A emissão automática permanece indisponível até a integração bancária específica ser homologada."
+              : "PIX/baixa manual: a Tesouraria confere e registra pagamentos. Esta modalidade não consulta pagamentos automaticamente."}
+        </div>
         {message ? (
           <div
             className={`mt-4 rounded-2xl border px-4 py-3 text-sm ${
