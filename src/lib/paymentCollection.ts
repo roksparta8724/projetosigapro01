@@ -125,6 +125,10 @@ export function buildGuidePixPayload(input: {
   municipalityName?: string | null;
   municipalityCity?: string | null;
 }) {
+  // The isolated QA database contains copied municipal settings. A static PIX
+  // key can still transfer REAL money even when the bank API is in sandbox.
+  // Never present any live merchant PIX from copied settings on localhost:8081.
+  if (import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true") return "";
   if (isValidPixPayload(input.guide.pixPayload)) {
     return input.guide.pixPayload!.trim();
   }
