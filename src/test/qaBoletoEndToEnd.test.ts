@@ -75,10 +75,10 @@ describe("one complete sandbox-only SIGAPRO bank issuance", () => {
     expect(result.digitableLine).toBe(digitable);
     expect(result.barcodeContent).toBe(barcode);
     expect(result.orderId).toBe("MP-ORDER-SANDBOX");
-    expect(mocks.authorize).toHaveBeenCalledWith(req, original);
+    expect(mocks.authorize).toHaveBeenCalledWith(req, original, true);
     expect(mocks.write).toHaveBeenCalledWith(req, original, expect.objectContaining({
       orderId: "MP-ORDER-SANDBOX", externalReference: original.guide_number, amount: "35.24",
-    }));
+    }), true);
     const [url, request] = vi.mocked(fetch).mock.calls[0];
     expect(url).toBe("https://api.mercadopago.com/v1/orders");
     expect(request?.method).toBe("POST");
