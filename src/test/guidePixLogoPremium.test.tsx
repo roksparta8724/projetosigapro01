@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildPixPayload } from "@/lib/pix";
+import { buildPixPayload, isValidPixPayload } from "@/lib/pix";
 import {
   GuiaRecolhimentoOficial,
   buildGuiaRecolhimentoOficialHtml,
@@ -38,6 +38,24 @@ describe("SIGAPRO DAM — only real PIX and premium municipal logo", () => {
     expect(html).toContain("23797991400000200003380260600543513000633330");
     expect(html).toContain("Forma de pagamento: boleto bancário.");
     expect(html).toContain("Homologação — não pagar");
+  });
+
+  it("validates lowercase br.gov.bcb.pix used by Mercado Pago without changing QR bytes", () => {
+    const original=buildPixPayload({
+      key:"sandbox@example.test",merchantName:"PREFEITURA TESTE",
+      merchantCity:"SAO PAULO",amount:35.24,txid:"TEST123",
+    })!;
+    const body=original.slice(0,-4).replace("BR.GOV.BCB.PIX","br.gov.bcb.pix");
+    let crc=0xFFFF;
+    for(let i=0;i<body.length;i++){
+      crc^=body.charCodeAt(i)<<8;
+      for(let bit=0;bit<8;bit++){
+        crc=(crc&0x8000)?((crc<<1)^0x1021)&0xFFFF:(crc<<1)&0xFFFF;
+      }
+    }
+    const lower=body+crc.toString(16).toUpperCase().padStart(4,"0");
+    expect(lower).toContain("br.gov.bcb.pix");
+    expect(isValidPixPayload(lower)).toBe(true);
   });
 
   it("never invents PIX from a malformed Copia e Cola string", () => {
