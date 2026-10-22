@@ -47,6 +47,7 @@ on:
       - src/pages/saas/ExternalPaymentsPage.tsx
       - src/pages/saas/ProtocolarProjetoPage.tsx
       - server/mercadopago.ts
+      - src/components/platform/ImageFrameEditor.tsx
       - src/components/platform/InstitutionalLogo.tsx
       - src/components/platform/InstitutionalLogo.test.tsx
       - src/pages/saas/ConfiguracoesPage.tsx
