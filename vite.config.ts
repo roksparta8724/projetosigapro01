@@ -197,6 +197,41 @@ function createR2DevApiPlugin(): Plugin {
         // Uploads never use R2 credentials. Signed reads only access local QA files.
         if (await handleQaDocumentRequest(req, res)) return;
 
+        // Dedicated test-only billing endpoint. Unlike production billing,
+        // this allows ONLY a Mercado Pago TEST order for an existing Neon QA
+        // guide, with caller authorization and immutable guide amount.
+        if ((req.url || "").split("?")[0] === "/api/qa/mercadopago/guide-boleto" && req.method === "POST") {
+          res.setHeader("Cache-Control", "no-store");
+          res.setHeader("Content-Type", "application/json; charset=utf-8");
+          if (
+            process.env.SIGAPRO_LOCAL_QA_LAUNCH !== "true" ||
+            process.env.SIGAPRO_LOCAL_QA_BLOCK_EXTERNAL_WRITES !== "true" ||
+            process.env.VITE_SIGAPRO_NEON_ISOLATED !== "true"
+          ) {
+            res.statusCode = 403;
+            res.end(JSON.stringify({ok:false,error:"Emissão de teste indisponível fora do QA isolado."}));
+            return;
+          }
+          try {
+            const body = await readJsonBody(req);
+            const result = await createMercadoPagoGuideBoleto({
+              municipalityId: String(body.municipalityId || ""),
+              guideCode: String(body.guideCode || ""),
+              amount: Number(body.amount || 0),
+              description: "SIGAPRO — boleto de HOMOLOGAÇÃO (não efetuar pagamento)",
+            }, req, { isolatedSandboxOnly: true });
+            res.statusCode = result.ok ? 200 : 422;
+            res.end(JSON.stringify({ ...result, sandboxOnly:true }));
+          } catch (error) {
+            res.statusCode = 400;
+            res.end(JSON.stringify({
+              ok: false, sandboxOnly: true,
+              error: error instanceof Error ? error.message : "Falha na emissão do boleto de teste.",
+            }));
+          }
+          return;
+        }
+
         // Explicit local QA may use copied municipal settings, but MUST NOT
         // generate external charges, send a PIX to a provider, or write to a
         // production R2 bucket with inherited local machine credentials.
