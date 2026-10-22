@@ -4,7 +4,7 @@
  * The PIX response is kept only in an isolated per-Neon-branch local file.
  */
 import { createHash } from "node:crypto";
-import { mkdir, readFile, writeFile, unlink } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import type { ApiReq } from "./municipal-storage";
@@ -66,6 +66,15 @@ async function safeRead(file: string): Promise<Store | null> {
   }
 }
 
+/** Stable key for retrying an uncertain HTTP response without a second PIX order.
+ * Mercado Pago Orders requires X-Idempotency-Key on every creation call. */
+export function qaPixIdempotencyKey(branch: string, municipalityId: string, guideCode: string): string {
+  const hex = createHash("sha256")
+    .update(["sigapro", "pix", "qa", branch, municipalityId, guideCode].join(":"))
+    .digest("hex");
+  return `${hex.slice(0,8)}-${hex.slice(8,12)}-4${hex.slice(13,16)}-8${hex.slice(17,20)}-${hex.slice(20,32)}`;
+}
+
 function response(store: Store | null): QaPixResult {
   if (!store) return {ok:false,sandboxOnly:true,error:"PIX de teste ainda não emitido."};
   if (!store.qrCode || !isValidPixPayload(store.qrCode) || !store.orderId) {
@@ -99,7 +108,7 @@ export async function qaMercadoPagoPix(
   if (!access.ok || access.payload !== true) throw new Error("Sem autorização para esta guia de homologação.");
   const path=pathFor(branch,input.municipalityId,input.guideCode);
   let stored=await safeRead(path);
-  if(input.action==="get") return response(stored);
+  if (input.action==="get" && (!stored || stored.state==="issued" || !stored.orderId)) return response(stored);
 
   const resolved=await resolveMercadoPagoMunicipalAccessToken(req,input.municipalityId);
   if(resolved.environment!=="test" || !resolved.token) {
@@ -118,39 +127,59 @@ export async function qaMercadoPagoPix(
       method:"GET",headers:{Authorization:"Bearer "+resolved.token,Accept:"application/json"},
     });
     order=res.ok ? await res.json().catch(()=>null) : null;
-    if(!order) throw new Error("Order PIX de testes não encontrada. Uma nova cobrança foi bloqueada.");
+    if(!order) throw new Error("A consulta da order PIX pendente falhou. A mesma order será consultada novamente, sem duplicação.");
   }else{
-    if(stored) throw new Error("Emissão PIX iniciada; status incerto. Nova order bloqueada para evitar duplicação.");
-    await mkdir(dirname(path),{recursive:true,mode:0o700});
-    const pending:Store={state:"pending",amount,guideCode:input.guideCode,municipalityId:input.municipalityId};
-    // Exclusive reservation per guide prevents concurrent or accidental duplicate POSTs.
-    try {await writeFile(path,JSON.stringify(pending),{flag:"wx",mode:0o600});}
-    catch(error){
-      if((error as NodeJS.ErrnoException).code==="EEXIST") throw new Error("PIX de teste já está sendo preparado.");
-      throw error;
+    // An existing pending record may mean the provider accepted a POST whose
+    // response was lost. Retrying the SAME idempotency key is safe; changing
+    // the key or deleting the reservation could create a second payment.
+    if(!stored) {
+      await mkdir(dirname(path),{recursive:true,mode:0o700});
+      const pending:Store={state:"pending",amount,guideCode:input.guideCode,municipalityId:input.municipalityId};
+      try {await writeFile(path,JSON.stringify(pending),{flag:"wx",mode:0o600});}
+      catch(error){
+        if((error as NodeJS.ErrnoException).code==="EEXIST") throw new Error("PIX de teste já está sendo preparado.");
+        throw error;
+      }
     }
     const res=await fetch("https://api.mercadopago.com/v1/orders",{
       method:"POST",
-      headers:{Authorization:"Bearer "+resolved.token,Accept:"application/json","Content-Type":"application/json"},
+      headers:{
+        Authorization:"Bearer "+resolved.token,Accept:"application/json",
+        "Content-Type":"application/json",
+        "X-Idempotency-Key":qaPixIdempotencyKey(branch,input.municipalityId,input.guideCode),
+      },
       body:JSON.stringify({
-        type:"online",external_reference:externalReference,total_amount:amount,
-        payer:{email:"test@testuser.com",first_name:"APRO"},
+        type:"online",
+        processing_mode:"automatic",
+        external_reference:externalReference,
+        total_amount:amount,
+        payer:{email:"test_payer@example.com"},
         transactions:{payments:[{amount,payment_method:{id:"pix",type:"bank_transfer"}}]},
       }),
     });
     order=await res.json().catch(()=>null);
     if(!res.ok){
-      // An explicit HTTP refusal is safe to retry; unknown network errors are not.
-      await unlink(path).catch(()=>{});
-      throw new Error("Mercado Pago recusou o PIX de teste: "+String(order?.message || order?.error || res.status));
+      // Never delete a pending reservation: retrying with the same key
+      // avoids creating a second charge after an uncertain provider response.
+      throw new Error("Mercado Pago recusou o PIX de teste (HTTP "+res.status+"): "+
+        String(order?.message || order?.error || "Consulte as credenciais e o método PIX.")+
+        ". A próxima tentativa reutilizará a mesma chave de idempotência.");
     }
   }
   if(!order || typeof order.id!=="string" || order.external_reference!==externalReference ||
       Number(order.total_amount)!==Number(amount)) {
-    throw new Error("Order PIX de teste não corresponde à guia. Reemissão bloqueada.");
+    throw new Error("Order PIX de teste não corresponde à guia. Nova emissão bloqueada para evitar duplicação.");
   }
   const payment=order.transactions?.payments?.[0];
-  if(payment?.payment_method?.id!=="pix" || payment?.payment_method?.type!=="bank_transfer"){
+  if(!payment) {
+    // Orders may be asynchronous; remember its ID so the next GET can recover
+    // the bank-issued QR rather than issuing another order.
+    stored={state:"pending",amount,guideCode:input.guideCode,municipalityId:input.municipalityId,
+      orderId:String(order.id),status:String(order.status||"processing")};
+    await writeFile(path,JSON.stringify(stored),{mode:0o600});
+    return response(stored);
+  }
+  if(payment.payment_method?.id!=="pix" || payment.payment_method?.type!=="bank_transfer"){
     throw new Error("O provedor não retornou uma transação PIX de homologação.");
   }
   const qr=String(payment.payment_method.qr_code||"");
