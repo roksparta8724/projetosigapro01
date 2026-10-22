@@ -55,45 +55,50 @@ CREATE OR REPLACE FUNCTION public.qa_persist_payment_guide_provider_charge_v1(
  _municipality_id uuid, _guide_code text, _charge jsonb)
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER
 SET search_path=pg_catalog,public SET row_security=off AS $$
-DECLARE g public.payment_guides; amount numeric; ref text; barcode text; digit_line text;
+DECLARE
+  v_guide public.payment_guides;
+  v_charge_amount numeric;
+  v_order_reference text;
+  v_provider_barcode text;
+  v_provider_digitable_line text;
 BEGIN
   IF NOT public.qa_boleto_access_v1(_municipality_id,_guide_code) THEN
     RAISE EXCEPTION 'Guia QA não autorizada para este profissional ou Prefeitura';
   END IF;
-  SELECT * INTO STRICT g FROM public.payment_guides
+  SELECT * INTO STRICT v_guide FROM public.payment_guides
     WHERE municipality_id=_municipality_id AND guide_number=_guide_code FOR UPDATE;
-  ref := nullif(btrim(_charge->>'orderId'),'');
-  IF ref IS NULL OR length(ref)>128 OR (_charge->>'externalReference') IS DISTINCT FROM g.guide_number
+  v_order_reference := nullif(btrim(_charge->>'orderId'),'');
+  IF v_order_reference IS NULL OR length(v_order_reference)>128 OR (_charge->>'externalReference') IS DISTINCT FROM v_guide.guide_number
     OR (_charge->>'environment') IS DISTINCT FROM 'test'
     OR (_charge->>'amount') !~ '^[0-9]+(\.[0-9]{1,2})?$' THEN
     RAISE EXCEPTION 'Order do sandbox inválida para esta guia';
   END IF;
-  amount := (_charge->>'amount')::numeric;
-  IF amount IS DISTINCT FROM g.amount THEN RAISE EXCEPTION 'Valor do boleto diferente do valor original'; END IF;
-  IF nullif(g.bank_reference,'') IS NOT NULL AND g.bank_reference <> ref THEN
+  v_charge_amount := (_charge->>'amount')::numeric;
+  IF v_charge_amount IS DISTINCT FROM v_guide.amount THEN RAISE EXCEPTION 'Valor do boleto diferente do valor original'; END IF;
+  IF nullif(v_guide.bank_reference,'') IS NOT NULL AND v_guide.bank_reference <> v_order_reference THEN
     RAISE EXCEPTION 'Já existe outra order vinculada à guia';
   END IF;
-  barcode := nullif(regexp_replace(coalesce(_charge->>'barcodeContent',''),'[^0-9]','','g'),'');
-  digit_line := nullif(regexp_replace(coalesce(_charge->>'digitableLine',''),'[^0-9]','','g'),'');
-  IF (barcode IS NOT NULL AND length(barcode) <> 44) OR
-     (digit_line IS NOT NULL AND length(digit_line) NOT IN (47,48)) THEN
+  v_provider_barcode := nullif(regexp_replace(coalesce(_charge->>'barcodeContent',''),'[^0-9]','','g'),'');
+  v_provider_digitable_line := nullif(regexp_replace(coalesce(_charge->>'digitableLine',''),'[^0-9]','','g'),'');
+  IF (v_provider_barcode IS NOT NULL AND length(v_provider_barcode) <> 44) OR
+     (v_provider_digitable_line IS NOT NULL AND length(v_provider_digitable_line) NOT IN (47,48)) THEN
     RAISE EXCEPTION 'Dados bancários inválidos retornados pelo sandbox';
   END IF;
 
   UPDATE public.payment_guides SET
-    bank_reference=ref,
+    bank_reference=v_order_reference,
     bank_payment_id=coalesce(nullif(_charge->>'paymentId',''),bank_payment_id),
     bank_status=coalesce(nullif(_charge->>'status',''),bank_status),
     bank_status_detail=coalesce(nullif(_charge->>'statusDetail',''),bank_status_detail),
     bank_authenticated_at=NULL, -- sandbox never compensates the municipal guide
     payment_provider='mercado_pago',
     provider_environment='test',
-    barcode=coalesce(barcode,g.barcode),
-    digitable_line=coalesce(digit_line,g.digitable_line),
+    barcode=coalesce(v_provider_barcode,v_guide.barcode),
+    digitable_line=coalesce(v_provider_digitable_line,v_guide.digitable_line),
     ticket_url=coalesce(nullif(_charge->>'ticketUrl',''),g.ticket_url),
     provider_charge_saved_at=now()
-  WHERE id=g.id RETURNING * INTO g;
-  RETURN to_jsonb(g);
+  WHERE id=v_guide.id RETURNING * INTO v_guide;
+  RETURN to_jsonb(v_guide);
 END $$;
 
 REVOKE ALL ON FUNCTION public.qa_boleto_access_v1(uuid,text) FROM PUBLIC;
