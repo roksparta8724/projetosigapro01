@@ -38,6 +38,8 @@ export function fitMunicipalLogoFrame(
     0,
     (MUNICIPAL_LOGO_EDITOR_SIZE * (1 - MUNICIPAL_LOGO_BASE_RATIO * scale)) / 2,
   );
+  // Avoid negative zero and preserve an exact centered origin at full fit.
+  if (margin < 0.000001) return { scale, offsetX: 0, offsetY: 0 };
   const offsetX = clamp(finiteOr(frame?.offsetX, 0), -margin, margin);
   const offsetY = clamp(finiteOr(frame?.offsetY, 0), -margin, margin);
   return { scale, offsetX, offsetY };
