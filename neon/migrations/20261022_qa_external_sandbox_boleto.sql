@@ -95,7 +95,7 @@ BEGIN
     provider_environment='test',
     barcode=coalesce(v_provider_barcode,v_guide.barcode),
     digitable_line=coalesce(v_provider_digitable_line,v_guide.digitable_line),
-    ticket_url=coalesce(nullif(_charge->>'ticketUrl',''),g.ticket_url),
+    ticket_url=coalesce(nullif(_charge->>'ticketUrl',''),v_guide.ticket_url),
     provider_charge_saved_at=now()
   WHERE id=v_guide.id RETURNING * INTO v_guide;
   RETURN to_jsonb(v_guide);
