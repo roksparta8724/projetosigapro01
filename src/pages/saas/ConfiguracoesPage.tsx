@@ -3565,29 +3565,25 @@ export function ConfiguracoesPage() {
                       <div className="mt-4 flex min-h-[158px] flex-col gap-5 rounded-[22px] border border-white/10 bg-slate-950/10 p-4 sm:flex-row sm:items-center md:p-5">
                         <div
                           data-municipal-logo-live-preview="footer"
-                          className="sig-config-logo-frame sig-config-logo-frame-footer relative mx-auto flex shrink-0 items-center justify-center overflow-hidden rounded-[22px] border border-slate-200/90 bg-white p-0 shadow-[0_14px_30px_rgba(2,6,23,0.17),inset_0_1px_0_rgba(255,255,255,0.98)] sm:mx-0"
-                          style={{ width: 188, minWidth: 188, maxWidth: 188, height: 188, flex: "0 0 188px" }}
+                          className="relative mx-auto flex h-[144px] w-[144px] shrink-0 items-center justify-center sm:mx-0"
                         >
-                          {previewFooterDisplayUrl ? (
-                            <img
-                              key={previewFooterDisplayUrl}
-                              src={previewFooterDisplayUrl}
-                              alt={tenantForm.name ? `Logo de rodapé de ${tenantForm.name}` : "Logo institucional"}
-                              className="block h-full w-full select-none object-contain object-center"
-                              style={{
-                                transform: `translate(${draftFooterLogoConfig.scale <= 1.001 ? 0 : draftFooterLogoConfig.offsetX}px, ${draftFooterLogoConfig.scale <= 1.001 ? 0 : draftFooterLogoConfig.offsetY}px) scale(${Math.max(1, draftFooterLogoConfig.scale)})`,
-                                transformOrigin: "center center",
-                              }}
-                              loading="eager"
-                              decoding="sync"
-                              onError={() => setFailedFooterPreviewUrl(previewFooterLogoUrl)}
-                            />
-                          ) : (
-                            <div className="flex flex-col items-center justify-center gap-2 text-slate-400">
-                              <Building2 className="h-8 w-8" />
-                              <span className="text-[10px] font-bold uppercase tracking-[0.12em]">Prefeitura</span>
-                            </div>
-                          )}
+                          {/* Render precisely the SAME component and scale as the
+                              public footer; no separate 188px mockup geometry. */}
+                          <InstitutionalLogo
+                            branding={{
+                              ...footerBranding,
+                              tenantId: selectedTenantId || footerBranding.tenantId,
+                              logoUrl: previewFooterDisplayUrl,
+                              fallbackLogoUrl: "",
+                              logoScale: draftFooterLogoConfig.scale,
+                              logoOffsetX: draftFooterLogoConfig.offsetX,
+                              logoOffsetY: draftFooterLogoConfig.offsetY,
+                            }}
+                            fallbackLabel={tenantForm.name || "Prefeitura"}
+                            variant="footer"
+                            contextScope="municipality"
+                            className="!m-0"
+                          />
                         </div>
                         <div className="min-w-0 flex-1 text-white">
                           <p data-preview-copy="muted" className="text-[10px] font-bold uppercase tracking-[0.13em] text-white/60">Secretaria</p>
@@ -3629,6 +3625,18 @@ export function ConfiguracoesPage() {
                         }
                       }}
                     />
+                    <div data-footer-original-reference="true" className="flex min-w-0 items-center gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-3 text-slate-800">
+                      <div className="flex h-[88px] w-[88px] shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white p-1.5">
+                        {previewFooterDisplayUrl ? (
+                          <img src={previewFooterDisplayUrl} alt="Brasão original completo, sem zoom nem recorte"
+                            className="block h-full w-full object-contain object-center" />
+                        ) : <Building2 className="h-7 w-7 text-slate-400" />}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-slate-900">Imagem original completa</p>
+                        <p className="mt-1 text-xs leading-5 text-slate-600">Referência fixa, sem zoom e sem recorte. A prévia ao lado mostra exatamente o rodapé real.</p>
+                      </div>
+                    </div>
                     <ImageFrameEditor
                       imageUrl={previewFooterDisplayUrl}
                       scale={draftFooterLogoConfig.scale}
@@ -3636,8 +3644,9 @@ export function ConfiguracoesPage() {
                       offsetY={draftFooterLogoConfig.offsetY}
                       onChange={setDraftFooterLogoConfig}
                       label="Ajuste do logo do rodapé"
-                      hint="Em 1.00x o brasão aparece inteiro e centralizado. O rodapé pode ter um ajuste independente."
+                      hint="O encaixe foi calibrado: em 1.50x o brasão fica inteiro e centralizado. Acima disso pode ocorrer recorte."
                       fitMode="contain"
+                      containBaseRatio={2 / 3}
                       minScale={1}
                       maxScale={5}
                       zoomStep={0.1}
@@ -3645,7 +3654,17 @@ export function ConfiguracoesPage() {
                       wrapperClassName="sig-config-logo-editor sig-config-logo-editor-footer"
                       viewportClassName="!h-[188px] !w-[188px]"
                     />
+                    {draftFooterLogoConfig.scale > 1.5 + 0.001 ? (
+                      <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-900">
+                        O zoom atual recorta parte do brasão. Use “Encaixar inteiro” para mostrar a imagem completa.
+                      </p>
+                    ) : null}
                     <div className="flex flex-wrap gap-3">
+                      <Button type="button" variant="outline"
+                        className="rounded-2xl border-sky-200 bg-sky-50 text-sky-950"
+                        onClick={() => setDraftFooterLogoConfig({ scale: 1.5, offsetX: 0, offsetY: 0 })}>
+                        Encaixar inteiro
+                      </Button>
                       <Button
                         type="button"
                         variant="outline"
