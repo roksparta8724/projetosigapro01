@@ -3448,7 +3448,7 @@ export function ConfiguracoesPage() {
                   <p className="text-sm text-slate-900">Logo do cabeçalho</p>
                 </div>
                 <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">Ajuste o enquadramento do banner principal no frame institucional.</p>
-                <div className="mt-4 grid gap-5 xl:grid-cols-[minmax(440px,1.22fr)_minmax(300px,0.78fr)] 2xl:grid-cols-[minmax(520px,1.22fr)_minmax(320px,0.8fr)]">
+                <div className="mt-4 grid gap-5 xl:grid-cols-[minmax(320px,0.9fr)_minmax(0,1.1fr)]">
                   <div
                     data-institutional-header-preview="true"
                     className="sig-config-live-preview relative self-start overflow-hidden rounded-[28px] border border-white/[0.16] p-4 shadow-[0_22px_48px_rgba(15,42,68,0.20)] ring-1 ring-black/5 md:p-5"
