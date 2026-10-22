@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildGuidePixPayload,
+  hasMunicipalBankAgreementConfigured,
   isBankBarcodeIntegrationReady,
   normalizeBankBarcode,
   normalizeDigitableLine,
@@ -86,15 +87,11 @@ describe("municipal payment collection", () => {
     expect(normalizeDigitableLine("4".repeat(44))).toBe("");
   });
 
-  it("only marks bank barcode integration ready with a bank and its agreement/API mode", () => {
-    expect(isBankBarcodeIntegrationReady(settings)).toBe(true);
-    expect(isBankBarcodeIntegrationReady({
-      ...settings,
-      bankAgreementCode: "",
-    })).toBe(false);
-    expect(isBankBarcodeIntegrationReady({
-      ...settings,
-      bankCollectionMode: "manual",
-    })).toBe(false);
+  it("distinguishes bank agreement registration from verified boleto issuing", () => {
+    expect(hasMunicipalBankAgreementConfigured(settings)).toBe(true);
+    expect(hasMunicipalBankAgreementConfigured({ ...settings, bankAgreementCode: "" })).toBe(false);
+    expect(hasMunicipalBankAgreementConfigured({ ...settings, bankCollectionMode: "manual" })).toBe(false);
+    expect(isBankBarcodeIntegrationReady(settings)).toBe(false);
+    expect(isBankBarcodeIntegrationReady({ ...settings, bankCollectionMode: "api" })).toBe(false);
   });
 });
