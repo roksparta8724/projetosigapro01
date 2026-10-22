@@ -45,12 +45,27 @@ export async function checkMercadoPagoConnection(
   req?: ApiReq,
   municipalityId?: string | null,
 ): Promise<MercadoPagoConnectionCheck> {
-  const resolved = req
-    ? await resolveMercadoPagoMunicipalAccessToken(req, municipalityId)
-    : {
-        token: getMercadoPagoAccessToken(),
-        environment: getMercadoPagoEnvironment(),
-      };
+  let resolved: { token: string; environment: MercadoPagoEnvironment };
+  try {
+    resolved = req
+      ? await resolveMercadoPagoMunicipalAccessToken(req, municipalityId)
+      : {
+          token: getMercadoPagoAccessToken(),
+          environment: getMercadoPagoEnvironment(),
+        };
+  } catch (error) {
+    // Health checks must report a missing municipal provider, not crash or
+    // query a globally configured Mercado Pago account.
+    return {
+      ok: false,
+      configured: false,
+      environment: "test",
+      boletoAvailable: false,
+      pixAvailable: false,
+      availableMethods: [],
+      error: error instanceof Error ? error.message : "Conexão municipal indisponível.",
+    };
+  }
   const environment: MercadoPagoEnvironment = resolved.environment === "production" ? "production" : "test";
   const token = resolved.token;
 
