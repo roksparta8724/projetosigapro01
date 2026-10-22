@@ -18,6 +18,7 @@ const effectiveHook = read("src/hooks/useEffectiveCollectionMode.ts");
 const bankEditor = read("src/components/platform/MunicipalBankDetailsSettings.tsx");
 const oldSettings = read("src/pages/saas/ConfiguracoesPage.tsx");
 const bankMigration = read("neon/migrations/20261021_municipal_collection_bank_details.sql");
+const activationGuard = read("neon/migrations/20261022_collection_activation_bank_guard.sql");
 
 
 describe("municipal collection configuration", () => {
@@ -104,6 +105,14 @@ describe("municipal collection configuration", () => {
     expect(page).toContain("setConfiguration(null)");
     expect(page).toContain("setActiveConfiguration(null)");
     expect(page).toContain("requestGeneration.current += 1");
+  });
+
+  it("enforces bank readiness in Neon even when called outside the UI", () => {
+    expect(activationGuard).toContain("provider.environment <> target.environment");
+    expect(activationGuard).toContain("target.integration_type='automatic'");
+    expect(activationGuard).toContain("target.capabilities->>'payment'");
+    expect(activationGuard).toContain("bank_beneficiary_document");
+    expect(activationGuard).not.toContain("update public.payment_guides");
   });
 
   it("rejects a production setup backed by sandbox credentials and missing municipal CNPJ", () => {
