@@ -25,6 +25,8 @@ on:
       - src/test/collectionDiagnostics.test.ts
       - src/test/collectionNeonAuthAlignment.test.ts
       - src/test/isolatedProtocolPaymentFlow.test.ts
+      - src/test/isolatedGuideNonPayable.test.tsx
+      - src/components/GuiaRecolhimentoOficial.tsx
       - src/test/municipalBankingFlow.test.ts
       - server/municipal-storage.ts
       - server/municipal-payment.ts
@@ -98,6 +100,7 @@ jobs:
           src/test/collectionDiagnostics.test.ts
           src/test/collectionNeonAuthAlignment.test.ts
           src/test/isolatedProtocolPaymentFlow.test.ts
+          src/test/isolatedGuideNonPayable.test.tsx
           src/test/municipalCollectionConfiguration.test.ts
           src/test/govbrArGuideBridge.test.ts
           src/test/damProviderPersistence.test.ts
