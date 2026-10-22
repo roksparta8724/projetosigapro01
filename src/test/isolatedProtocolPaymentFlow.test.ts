@@ -35,6 +35,17 @@ describe("SIGAPRO isolated pre-protocol to non-payable guide", () => {
     expect(paymentPage).toContain('bankEnvironment: isolatedQa ? "test"');
   });
 
+  it("never animates the PIX and boleto buttons together and shows feedback at the selected guide", () => {
+    expect(paymentPage).toContain('action: "boleto" | "pix" | "guide"');
+    expect(paymentPage).toContain('busyGuideAction.action === "boleto"');
+    expect(paymentPage).toContain('busyGuideAction.action === "pix"');
+    expect(paymentPage).toContain('busyGuideAction.action === "guide"');
+    expect(paymentPage).toContain('data-qa-guide-feedback="true"');
+    expect(paymentPage).toContain('data-qa-pix-preview="true"');
+    expect(paymentPage).toContain('setBusyGuideAction(null)');
+    expect(paymentPage).not.toContain('openingGuideKey');
+  });
+
   it("requires authenticated tenant access and signed local PDF URLs", () => {
     expect(qaServer).toContain('"has_tenant_access"');
     expect(qaServer).toContain("timingSafeEqual");
