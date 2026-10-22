@@ -1595,6 +1595,7 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
         id: movement.id,
         title: movement.movement_type,
         detail: movement.description,
+        visibleToExternal: movement.visible_to_external === true,
         actor:
           scopedEventAuthorById.get(`movement:${movement.id}`)?.actor_name ||
           (movement.actor_profile_id
