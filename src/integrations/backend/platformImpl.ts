@@ -489,6 +489,8 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
     plansResult,
     planAssignmentsResult,
     lastAccessResult,
+    dispatchAuthorsResult,
+    eventAuthorsResult,
   ] = (await Promise.all([
     isNeonBackend
       ? Promise.resolve({ data: [], error: null })
@@ -534,6 +536,12 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
     db.from("client_plan_assignments").select("*").order("updated_at", { ascending: false }),
     isNeonBackend
       ? db.rpc("list_visible_user_last_access")
+      : Promise.resolve({ data: [], error: null }),
+    isNeonBackend
+      ? db.rpc("list_visible_dispatch_authors_v1")
+      : Promise.resolve({ data: [], error: null }),
+    isNeonBackend
+      ? db.rpc("list_visible_process_event_authors_v1")
       : Promise.resolve({ data: [], error: null }),
   ])) as any[];
 
@@ -662,6 +670,20 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
   const profileRows = municipalityResultData(profilesResult.data);
   const propertyRows = municipalityResultData(propertiesResult.data);
   const lastAccessRows = municipalityResultData(lastAccessResult.data);
+  // Scoped, server-verified names for colleagues hidden by profiles RLS.
+  // An unavailable migration degrades only this label, never the process store.
+  const scopedDispatchAuthorById = new Map<string, DatabaseRow>(
+    (dispatchAuthorsResult.data ?? []).map((entry: DatabaseRow) => [
+      String(entry.dispatch_id ?? ""),
+      entry,
+    ] as const),
+  );
+  const scopedEventAuthorById = new Map<string, DatabaseRow>(
+    (eventAuthorsResult.data ?? []).map((entry: DatabaseRow) => [
+      `${String(entry.event_kind ?? "")}:${String(entry.event_id ?? "")}`,
+      entry,
+    ] as const),
+  );
 
   const brandingByTenant = new Map<string, DatabaseRow>(
     brandingRows.map((item) => [String(item.tenant_id ?? ""), item] as const),
@@ -1527,7 +1549,10 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
       reopenHistory: reopenEntries.map((entry) => ({
         id: entry.id,
         reason: entry.reason,
-        actor: (isNeonBackend ? entry.actor_profile_id : null) ?? entry.actor_user_id ?? "Sistema",
+        actor:
+          scopedEventAuthorById.get(`reopen:${entry.id}`)?.actor_name ||
+          (entry.actor_profile_id ? profileById.get(String(entry.actor_profile_id))?.full_name : undefined) ||
+          ((entry.actor_profile_id || entry.actor_user_id) ? "Identificação não registrada" : "Sistema"),
         at: new Date(entry.created_at).toLocaleString("pt-BR"),
       })),
       documents: buildProcessDocuments(
@@ -1576,13 +1601,14 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
         id: movement.id,
         title: movement.movement_type,
         detail: movement.description,
+        visibleToExternal: movement.visible_to_external === true,
         actor:
+          scopedEventAuthorById.get(`movement:${movement.id}`)?.actor_name ||
           (movement.actor_profile_id
             ? profileById.get(movement.actor_profile_id)?.full_name ??
               profileById.get(movement.actor_profile_id)?.email
-            : null) ??
-          movement.actor_user_id ??
-          "Sistema",
+            : null) ||
+          ((movement.actor_profile_id || movement.actor_user_id) ? "Identificação não registrada" : "Sistema"),
         at: new Date(movement.created_at).toLocaleString("pt-BR"),
       })),
       auditTrail: auditEntries.map((entry) => ({
@@ -1592,12 +1618,12 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
         detail: entry.detail,
         actorProfileId: entry.actor_profile_id ?? undefined,
         actor:
+          scopedEventAuthorById.get(`audit:${entry.id}`)?.actor_name ||
           (entry.actor_profile_id
             ? profileById.get(entry.actor_profile_id)?.full_name ??
               profileById.get(entry.actor_profile_id)?.email
-            : null) ??
-          entry.actor_user_id ??
-          "Sistema",
+            : null) ||
+          ((entry.actor_profile_id || entry.actor_user_id) ? "Identificação não registrada" : "Sistema"),
         visibleToExternal: Boolean(entry.visible_to_external),
         at: new Date(entry.created_at).toLocaleString("pt-BR"),
       })),
@@ -1616,7 +1642,32 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
         onHoldReason: process.hold_reason ?? undefined,
       },
       signatures: [],
-      dispatches: dispatches.map((dispatch) => ({
+      dispatches: dispatches.map((dispatch) => {
+        // The database may record the signer as a profile ID or a user ID.
+        // Resolve both against the official profile directory; do not infer
+        // the signer from the assigned analyst or current session.
+        const scopedAuthor = scopedDispatchAuthorById.get(String(dispatch.id));
+        const recordedActorId = String(
+          scopedAuthor?.author_profile_id ??
+          dispatch.created_by_profile_id ??
+          dispatch.created_by_user_id ??
+          dispatch.actor_profile_id ??
+          dispatch.actor_user_id ??
+          "",
+        ).trim();
+        const recordedActorProfile = recordedActorId
+          ? profileById.get(recordedActorId) ?? profileByUser.get(recordedActorId)
+          : undefined;
+        const recordedActorName = String(
+          scopedAuthor?.author_name ??
+          recordedActorProfile?.full_name ??
+          recordedActorProfile?.email ??
+          dispatch.requested_by_name ??
+          dispatch.created_by_name ??
+          "",
+        ).trim();
+
+        return {
         id: String(dispatch.id),
         from: String(dispatch.from_department ?? ""),
         to: String(dispatch.to_department ?? ""),
@@ -1641,17 +1692,14 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
             ? dispatch.priority
             : "media",
         assignedTo: dispatch.assigned_to ? String(dispatch.assigned_to) : undefined,
-        requestedByProfileId: dispatch.created_by_profile_id
-          ? String(dispatch.created_by_profile_id)
-          : undefined,
-        requestedBy: dispatch.created_by_profile_id
-          ? String(
-              profileById.get(dispatch.created_by_profile_id)?.full_name ??
-              profileById.get(dispatch.created_by_profile_id)?.email ??
-              "",
-            ) || undefined
-          : undefined,
-      })),
+        requestedByProfileId: scopedAuthor?.author_profile_id
+          ? String(scopedAuthor.author_profile_id)
+          : recordedActorProfile?.id
+            ? String(recordedActorProfile.id)
+            : (dispatch.created_by_profile_id ? String(dispatch.created_by_profile_id) : undefined),
+        requestedBy: recordedActorName || undefined,
+      };
+      }),
       messages: processMessages.map((message) => ({
         id: String(message.id),
         senderName: String(message.sender_name ?? "Usuário"),
