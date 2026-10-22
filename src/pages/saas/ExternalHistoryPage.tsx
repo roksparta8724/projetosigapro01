@@ -15,6 +15,7 @@ import { formatOfficialProcessNumber, getVisibleProcessesByScope } from "@/lib/p
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
+import { isExternallyVisibleHistoryEvent } from "@/lib/institutionalHistoryAccess";
 
 
 function parseSIGAPROHistoryDate(raw: unknown): Date | null {
@@ -73,7 +74,7 @@ export function ExternalHistoryPage() {
 
   const timelineEntries = useMemo(() => {
     const entries = processes.flatMap((process) =>
-      [...(process.timeline ?? []), ...(process.auditTrail ?? []).filter((entry) => entry.visibleToExternal === true)].map((entry) => ({
+      [...(process.timeline ?? []).filter((entry) => isExternallyVisibleHistoryEvent(entry)), ...(process.auditTrail ?? []).filter((entry) => isExternallyVisibleHistoryEvent(entry))].map((entry) => ({
         ...entry,
         process,
         date: parseSIGAPROHistoryDate(entry.at),
