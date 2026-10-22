@@ -46,6 +46,10 @@ import {
   upsertRemoteInstitution,
 } from "@/integrations/backend/platform";
 import { updateInstitutionBranding, type InstitutionalLogoConfigVariant } from "@/lib/institutionBranding";
+import {
+  fitMunicipalLogoFrame, fullMunicipalLogoFrame,
+  MUNICIPAL_LOGO_BASE_RATIO, MUNICIPAL_LOGO_MAX_ZOOM,
+} from "@/lib/municipalLogoFraming";
 import { getLegislationOpenUrl, getStableMunicipalLegislationReference, getMunicipalityLogoOpenUrl, getObjectKeyFromPublicUrl, getPublicUrl, getSignedUrlForObject, getSignedUrlForObjectStrict } from "@/integrations/r2/client";
 import { uploadFileToStorage } from "@/integrations/r2/storage";
 import {
@@ -931,16 +935,16 @@ export function ConfiguracoesPage() {
       previewUrl: file.previewUrl,
     });
   }, [draftLogoFiles]);
-  const [draftHeaderLogoConfig, setDraftHeaderLogoConfig] = useState({
-    scale: Math.max(1, settings?.headerLogoScale ?? settings?.logoScale ?? 1),
+  const [draftHeaderLogoConfig, setDraftHeaderLogoConfig] = useState(() => fitMunicipalLogoFrame({
+    scale: settings?.headerLogoScale ?? settings?.logoScale ?? MUNICIPAL_LOGO_MAX_ZOOM,
     offsetX: settings?.headerLogoOffsetX ?? settings?.logoOffsetX ?? 0,
     offsetY: settings?.headerLogoOffsetY ?? settings?.logoOffsetY ?? 0,
-  });
-  const [draftFooterLogoConfig, setDraftFooterLogoConfig] = useState({
-    scale: Math.max(1, settings?.footerLogoScale ?? settings?.logoScale ?? 1),
+  }));
+  const [draftFooterLogoConfig, setDraftFooterLogoConfig] = useState(() => fitMunicipalLogoFrame({
+    scale: settings?.footerLogoScale ?? settings?.logoScale ?? MUNICIPAL_LOGO_MAX_ZOOM,
     offsetX: settings?.footerLogoOffsetX ?? settings?.logoOffsetX ?? 0,
     offsetY: settings?.footerLogoOffsetY ?? settings?.logoOffsetY ?? 0,
-  });
+  }));
   const [headerLogoStatus, setHeaderLogoStatus] = useState("");
   const [footerLogoStatus, setFooterLogoStatus] = useState("");
   const [logoSaving, setLogoSaving] = useState<InstitutionalLogoConfigVariant | null>(null);
@@ -1144,20 +1148,20 @@ export function ConfiguracoesPage() {
       return sameFileList(current, nextFooterFiles) ? current : nextFooterFiles;
     });
 
-    const nextHeaderConfig = {
-      scale: Math.max(1, nextSettings?.headerLogoScale ?? nextSettings?.logoScale ?? 1),
+    const nextHeaderConfig = fitMunicipalLogoFrame({
+      scale: nextSettings?.headerLogoScale ?? nextSettings?.logoScale ?? MUNICIPAL_LOGO_MAX_ZOOM,
       offsetX: nextSettings?.headerLogoOffsetX ?? nextSettings?.logoOffsetX ?? 0,
       offsetY: nextSettings?.headerLogoOffsetY ?? nextSettings?.logoOffsetY ?? 0,
-    };
+    });
     setDraftHeaderLogoConfig((current) =>
       shallowEqualObject(current, nextHeaderConfig) ? current : nextHeaderConfig,
     );
 
-    const nextFooterConfig = {
-      scale: Math.max(1, nextSettings?.footerLogoScale ?? nextSettings?.logoScale ?? 1),
+    const nextFooterConfig = fitMunicipalLogoFrame({
+      scale: nextSettings?.footerLogoScale ?? nextSettings?.logoScale ?? MUNICIPAL_LOGO_MAX_ZOOM,
       offsetX: nextSettings?.footerLogoOffsetX ?? nextSettings?.logoOffsetX ?? 0,
       offsetY: nextSettings?.footerLogoOffsetY ?? nextSettings?.logoOffsetY ?? 0,
-    };
+    });
     setDraftFooterLogoConfig((current) =>
       shallowEqualObject(current, nextFooterConfig) ? current : nextFooterConfig,
     );
@@ -2032,8 +2036,9 @@ export function ConfiguracoesPage() {
         fileSize: number;
       } | null = null;
 
-      const draftConfig =
-        variant === "footer" ? draftFooterLogoConfig : draftHeaderLogoConfig;
+      const draftConfig = fitMunicipalLogoFrame(
+        variant === "footer" ? draftFooterLogoConfig : draftHeaderLogoConfig,
+      );
       const activeBranding =
         variant === "footer" ? footerBranding : headerBranding;
 
@@ -2365,16 +2370,16 @@ export function ConfiguracoesPage() {
         logoOffsetX: nextSettings.logoOffsetX ?? 0,
         logoOffsetY: nextSettings.logoOffsetY ?? 0,
       }));
-      setDraftHeaderLogoConfig({
-        scale: Math.max(1, nextSettings.headerLogoScale ?? nextSettings.logoScale ?? 1),
+      setDraftHeaderLogoConfig(fitMunicipalLogoFrame({
+        scale: nextSettings.headerLogoScale ?? nextSettings.logoScale ?? MUNICIPAL_LOGO_MAX_ZOOM,
         offsetX: nextSettings.headerLogoOffsetX ?? nextSettings.logoOffsetX ?? 0,
         offsetY: nextSettings.headerLogoOffsetY ?? nextSettings.logoOffsetY ?? 0,
-      });
-      setDraftFooterLogoConfig({
-        scale: Math.max(1, nextSettings.footerLogoScale ?? nextSettings.logoScale ?? 1),
+      }));
+      setDraftFooterLogoConfig(fitMunicipalLogoFrame({
+        scale: nextSettings.footerLogoScale ?? nextSettings.logoScale ?? MUNICIPAL_LOGO_MAX_ZOOM,
         offsetX: nextSettings.footerLogoOffsetX ?? nextSettings.logoOffsetX ?? 0,
         offsetY: nextSettings.footerLogoOffsetY ?? nextSettings.logoOffsetY ?? 0,
-      });
+      }));
 
       if (variant === "footer") {
         setFooterLogoStatus(
@@ -3524,7 +3529,7 @@ export function ConfiguracoesPage() {
                         setDraftHeaderLogoFiles(files);
                         setLogoRemovalRequested(files.length ? null : "header");
                         if (files.length) {
-                          setDraftHeaderLogoConfig({ scale: 1, offsetX: 0, offsetY: 0 });
+                          setDraftHeaderLogoConfig(fullMunicipalLogoFrame());
                         }
                       }}
                     />
@@ -3547,13 +3552,13 @@ export function ConfiguracoesPage() {
                       scale={draftHeaderLogoConfig.scale}
                       offsetX={draftHeaderLogoConfig.offsetX}
                       offsetY={draftHeaderLogoConfig.offsetY}
-                      onChange={setDraftHeaderLogoConfig}
+                      onChange={(next) => setDraftHeaderLogoConfig(fitMunicipalLogoFrame(next))}
                       label="Ajuste do logo do cabeçalho"
                       hint="Em 1,50x o brasão original fica inteiramente visível. A prévia mostra o mesmo componente usado no cabeçalho real."
                       fitMode="contain"
-                      containBaseRatio={2 / 3}
+                      containBaseRatio={MUNICIPAL_LOGO_BASE_RATIO}
                       minScale={1}
-                      maxScale={5}
+                      maxScale={MUNICIPAL_LOGO_MAX_ZOOM}
                       zoomStep={0.1}
                       frameClassName="justify-center"
                       wrapperClassName="sig-config-logo-editor sig-config-logo-editor-header"
@@ -3567,7 +3572,7 @@ export function ConfiguracoesPage() {
                     <div className="flex flex-wrap gap-3">
                       <Button type="button" variant="outline"
                         className="rounded-2xl border-sky-200 bg-sky-50 text-sky-950"
-                        onClick={() => setDraftHeaderLogoConfig({ scale: 1.5, offsetX: 0, offsetY: 0 })}>
+                        onClick={() => setDraftHeaderLogoConfig(fullMunicipalLogoFrame())}>
                         Encaixar inteiro
                       </Button>
                       <Button type="button" variant="outline" className="rounded-2xl text-red-600" onClick={() => { setDraftHeaderLogoFiles([]); setLogoRemovalRequested("header"); }}>
@@ -3683,7 +3688,7 @@ export function ConfiguracoesPage() {
                         setDraftFooterLogoFiles(files);
                         setLogoRemovalRequested(files.length ? null : "footer");
                         if (files.length) {
-                          setDraftFooterLogoConfig({ scale: 1, offsetX: 0, offsetY: 0 });
+                          setDraftFooterLogoConfig(fullMunicipalLogoFrame());
                         }
                       }}
                     />
@@ -3705,13 +3710,13 @@ export function ConfiguracoesPage() {
                       scale={draftFooterLogoConfig.scale}
                       offsetX={draftFooterLogoConfig.offsetX}
                       offsetY={draftFooterLogoConfig.offsetY}
-                      onChange={setDraftFooterLogoConfig}
+                      onChange={(next) => setDraftFooterLogoConfig(fitMunicipalLogoFrame(next))}
                       label="Ajuste do logo do rodapé"
                       hint="O encaixe foi calibrado: em 1.50x o brasão fica inteiro e centralizado. Acima disso pode ocorrer recorte."
                       fitMode="contain"
                       containBaseRatio={2 / 3}
                       minScale={1}
-                      maxScale={5}
+                      maxScale={MUNICIPAL_LOGO_MAX_ZOOM}
                       zoomStep={0.1}
                       frameClassName="justify-center"
                       wrapperClassName="sig-config-logo-editor sig-config-logo-editor-footer"
@@ -3725,7 +3730,7 @@ export function ConfiguracoesPage() {
                     <div className="flex flex-wrap gap-3">
                       <Button type="button" variant="outline"
                         className="rounded-2xl border-sky-200 bg-sky-50 text-sky-950"
-                        onClick={() => setDraftFooterLogoConfig({ scale: 1.5, offsetX: 0, offsetY: 0 })}>
+                        onClick={() => setDraftFooterLogoConfig(fullMunicipalLogoFrame())}>
                         Encaixar inteiro
                       </Button>
                       <Button
