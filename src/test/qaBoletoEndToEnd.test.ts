@@ -48,7 +48,7 @@ beforeEach(() => {
   mocks.read.mockResolvedValue(original);
   mocks.authorize.mockResolvedValue(undefined);
   mocks.write.mockImplementation(async (_req, _stored, charge) => ({ ...charge,ok:true }));
-  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({
+  vi.stubGlobal("fetch", vi.fn().mockImplementation(async () => new Response(JSON.stringify({
     id: "MP-ORDER-SANDBOX",
     external_reference: original.guide_number,
     total_amount: "35.24",
