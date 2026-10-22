@@ -1731,7 +1731,7 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
             </div>
 
             <div className="dam-total-row">
-              <div className="dam-total-label">{nonPayable ? "VALOR REFERENCIAL — NÃO PAGAR" : "VALOR TOTAL A PAGAR"}</div>
+              <div className="dam-total-label">{nonPayable ? "VALOR REFERENCIAL — NÃO PAGAR" : guia.bankEnvironment === "test" ? "VALOR DO BOLETO DE TESTE — NÃO PAGAR" : "VALOR TOTAL A PAGAR"}</div>
               <div className="dam-total-value">{formatCurrency(totalDocumento)}</div>
             </div>
 
@@ -1747,6 +1747,8 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
             <div className="dam-warning-row">
               {nonPayable
                 ? "** SOMENTE PRÉVIA DE TESTE — SEM BOLETO REGISTRADO — NÃO PAGAR **"
+                : guia.bankEnvironment === "test"
+                  ? "** BOLETO EMITIDO NO AMBIENTE DE TESTES — NÃO PAGAR — SEM VALIDADE DE ARRECADAÇÃO OFICIAL **"
                 : guia.paymentProvider === "mercado_pago"
                   ? "** VALIDAÇÃO ELETRÔNICA PELO PROVEDOR DE PAGAMENTO ** ** NÃO RECEBER APÓS O VENCIMENTO **"
                   : "** VÁLIDO SOMENTE COM AUTENTICAÇÃO / BAIXA OFICIAL ** ** NÃO RECEBER APÓS O VENCIMENTO **"}
