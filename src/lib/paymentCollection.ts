@@ -94,18 +94,20 @@ export function isMunicipalBankIdentified(settings?: TenantSettings | null) {
   return Boolean(settings?.bankCode?.trim() && settings?.bankName?.trim());
 }
 
-export function isBankBarcodeIntegrationReady(settings?: TenantSettings | null) {
-  if (!settings) return false;
-  if (settings.bankCollectionMode === "api") {
-    return isMunicipalBankIdentified(settings);
-  }
-  if (settings.bankCollectionMode === "agreement") {
-    return Boolean(
-      isMunicipalBankIdentified(settings) &&
-        settings.bankAgreementCode?.trim(),
-    );
-  }
+/** Bank metadata is NOT proof that a registered boleto integration is usable. */
+export function isBankBarcodeIntegrationReady(_settings?: TenantSettings | null) {
+  // Readiness requires an authenticated, homologated provider response with
+  // an official barcode/line; that signal is resolved per guide, never here.
   return false;
+}
+
+/** Only a cadastral check: an agreement does not create registered charges. */
+export function hasMunicipalBankAgreementConfigured(settings?: TenantSettings | null) {
+  return Boolean(
+    settings?.bankCollectionMode === "agreement" &&
+    isMunicipalBankIdentified(settings) &&
+    settings.bankAgreementCode?.trim(),
+  );
 }
 
 function resolvePixTxid(guide: Pick<PaymentGuideEntry, "code">) {
