@@ -16,6 +16,15 @@ describe("official banking field normalization", () => {
   it("handles a provider repeating the digitable line as barcode_content", () => {
     expect(normalizeOfficialBanking(testLine, testLine).barcode).toBe(testBarcode);
   });
+  it("supports the Mercado Pago Orders documented 46-digit auxiliary barcode with its official line", () => {
+    const line = "23793380296060054351030006333303799140000020000";
+    const auxiliary = "3335008800000000006004835002100020000242462010";
+    const resolved = normalizeOfficialBanking(auxiliary, line);
+    expect(resolved.digitableLine).toBe(line);
+    expect(resolved.barcode).toBe(barcodeFromDigitableLine(line));
+    expect(resolved.barcode).toHaveLength(44);
+  });
+
   it("rejects contradictory codes and malformed strings instead of rendering false bars", () => {
     expect(normalizeOfficialBanking("1".repeat(44), testLine).barcode).toBe("");
     expect(normalizeOfficialBanking("abc" + testBarcode, testLine).barcode).toBe("");
