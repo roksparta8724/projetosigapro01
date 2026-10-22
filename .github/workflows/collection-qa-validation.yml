@@ -47,6 +47,13 @@ on:
       - src/pages/saas/ExternalPaymentsPage.tsx
       - src/pages/saas/ProtocolarProjetoPage.tsx
       - server/mercadopago.ts
+      - src/components/platform/InstitutionalLogo.tsx
+      - src/components/platform/InstitutionalLogo.test.tsx
+      - src/pages/saas/ConfiguracoesPage.tsx
+      - src/hooks/useMunicipality.tsx
+      - src/hooks/useInstitutionBranding.ts
+      - src/integrations/backend/municipalityImpl.ts
+      - src/lib/municipality.ts
       - src/test/**
       - src/components/platform/PortalFrame.tsx
       - src/components/platform/UrbanAnalysisChecklistPanel.tsx
@@ -115,6 +122,8 @@ jobs:
           src/lib/bankCodes.test.ts
           src/test/isolatedGuideNonPayable.test.tsx
           src/test/guidePixLogoPremium.test.tsx
+          src/test/municipalBrandingFramePersistence.test.ts
+          src/components/platform/InstitutionalLogo.test.tsx
           server/qa-mercadopago-pix.test.ts
           src/test/municipalCollectionConfiguration.test.ts
           src/test/govbrArGuideBridge.test.ts
