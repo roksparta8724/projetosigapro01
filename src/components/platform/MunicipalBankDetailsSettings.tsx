@@ -87,6 +87,7 @@ export function MunicipalBankDetailsSettings({
 }: { municipalityId: string; readOnly?: boolean }) {
   const { refreshRemoteStore, getInstitutionSettings } = usePlatformData();
   const [form, setForm] = useState<BankFields>(defaults);
+  const [manualBankSelection, setManualBankSelection] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -101,6 +102,7 @@ export function MunicipalBankDetailsSettings({
     setSaved(false);
     setLoadFailed(false);
     setForm(defaults);
+    setManualBankSelection(false);
     if (!municipalityId) {
       setLoading(false);
       return;
@@ -250,8 +252,14 @@ export function MunicipalBankDetailsSettings({
               <Label>Instituição bancária — seleção rápida (opcional)</Label>
               <Select
                 disabled={disabled}
-                value={findMunicipalBank(form.bankCode)?.code ?? "other"}
+                value={manualBankSelection ? "other" : findMunicipalBank(form.bankCode)?.code ?? "other"}
                 onValueChange={(code) => {
+                  if (code === "other") {
+                    setManualBankSelection(true);
+                    // Keep the saved bank until the administrator edits it.
+                    return;
+                  }
+                  setManualBankSelection(false);
                   const nextBank = selectMunicipalBank(form, code);
                   setForm((current) => ({ ...current, ...nextBank }));
                   setSaved(false);
