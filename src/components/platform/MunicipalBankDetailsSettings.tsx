@@ -202,7 +202,7 @@ export function MunicipalBankDetailsSettings({
           </div>
         </div>
         <span data-bank-premium-badge="true" className="inline-flex items-center gap-2 rounded-full border border-sky-300/40 bg-sky-950/70 px-3 py-2 text-xs font-semibold !text-white">
-          {loading ? "Carregando..." : loadFailed ? <><LockKeyhole className="h-4 w-4" /> Acesso não confirmado</> : saved ? <><CheckCircle2 className="h-4 w-4" /> Dados conferidos</> : <><LockKeyhole className="h-4 w-4" /> Alterações não salvas</>}
+          {loading ? "Carregando..." : loadFailed ? <><LockKeyhole className="h-4 w-4" /> Acesso não confirmado</> : saved ? <><CheckCircle2 className="h-4 w-4" /> Dados carregados</> : <><LockKeyhole className="h-4 w-4" /> Alterações não salvas</>}
         </span>
       </div>
 
@@ -263,6 +263,14 @@ export function MunicipalBankDetailsSettings({
             <div className="space-y-2 md:col-span-4"><Label>Instruções bancárias para a guia</Label><Textarea disabled={disabled} rows={3} maxLength={1500} value={form.bankInstructions} onChange={(e) => setField("bankInstructions", e.target.value)} placeholder="Ex.: pagável até o vencimento nos canais oficiais indicados pela Prefeitura."/></div>
           </div>
         </div>
+        {form.pixEnabled && (
+          <div role="status" className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm leading-6 text-amber-950">
+            <strong>Atenção à titularidade do PIX:</strong> uma chave cadastrada e salva não confirma que os valores serão recebidos pela Prefeitura.
+            {!form.bankBeneficiaryDocument.trim()
+              ? " O CNPJ da conta arrecadadora ainda não foi informado. Não utilize esta chave para cobrança municipal real."
+              : " Confirme a titularidade da chave e a autorização bancária com a Tesouraria antes da produção."}
+          </div>
+        )}
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs leading-5 text-amber-950">
           <strong>Integridade bancária:</strong> banco, agência, conta e convênio não criam automaticamente um boleto registrado. Linha digitável, código de barras e QR Code de cobrança só podem usar dados oficiais fornecidos pelo banco ou provedor.
         </div>
