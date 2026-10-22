@@ -871,10 +871,12 @@ function getStyles() {
 
     .dam-receipt-header {
       display: grid;
-      /* Malha institucional única: logo, conteúdo e bloco financeiro alinham
-         exatamente com as colunas do corpo da guia. */
+      /* Retoma a altura COMPACTA de 19mm. Somente o brasão cresce dentro do
+         card; as 3 colunas mantêm alinhamento com o corpo do DAM A4. */
       grid-template-columns: 28mm minmax(0, 1fr) 58mm;
-      min-height: 26mm;
+      height: 19mm;
+      min-height: 19mm;
+      max-height: 19mm;
       border-bottom: 1px solid #000000;
       align-items: stretch;
       background: #f8fbfd;
@@ -885,7 +887,7 @@ function getStyles() {
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 0.45mm;
+      padding: 0.25mm;
       min-width: 0;
       overflow: hidden;
       box-sizing: border-box;
@@ -893,8 +895,8 @@ function getStyles() {
     }
 
     .dam-receipt-logo img {
-      width: 27mm;
-      height: 25mm;
+      width: 27.3mm;
+      height: 18.25mm;
       max-width: 100%;
       max-height: 100%;
       object-fit: contain;
@@ -904,7 +906,7 @@ function getStyles() {
 
     .dam-receipt-center {
       text-align: left;
-      padding: 2.1mm 2.5mm;
+      padding: 1mm 2.5mm;
       box-sizing: border-box;
       display: flex;
       flex-direction: column;
@@ -943,7 +945,9 @@ function getStyles() {
 
     .dam-receipt-right .dam-receipt-row {
       grid-template-columns: 22mm minmax(0, 1fr);
-      min-height: 13mm;
+      height: 9.5mm;
+      min-height: 9.5mm;
+      box-sizing: border-box;
     }
 
     .dam-receipt-right .dam-receipt-row-label {
