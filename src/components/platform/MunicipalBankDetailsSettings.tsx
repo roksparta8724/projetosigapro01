@@ -8,6 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { backendClient } from "@/integrations/backend/databaseClient";
 import { validateMunicipalPixKey } from "@/lib/paymentCollection";
+import { MUNICIPAL_BANK_DIRECTORY, findMunicipalBank, describeMunicipalBankChannel, selectMunicipalBank } from "@/lib/municipalBankCatalog";
 import { municipalCollectionError } from "@/lib/collectionDiagnostics";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import type { TenantSettings } from "@/lib/platform";
@@ -244,6 +245,32 @@ export function MunicipalBankDetailsSettings({
 
         <div className="border-t border-slate-200 pt-5 dark:border-slate-700">
           <div className="mb-4 flex items-center gap-2"><Building2 className="h-5 w-5 text-sky-700 dark:text-sky-300"/><h4 className="font-bold text-slate-950 dark:text-white">Conta e convênio bancário</h4></div>
+          <div className="mb-4 grid gap-2 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label>Instituição bancária — seleção rápida (opcional)</Label>
+              <Select
+                disabled={disabled}
+                value={findMunicipalBank(form.bankCode)?.code ?? "other"}
+                onValueChange={(code) => {
+                  const nextBank = selectMunicipalBank(form, code);
+                  setForm((current) => ({ ...current, ...nextBank }));
+                  setSaved(false);
+                  setMessage("");
+                }}
+              >
+                <SelectTrigger className="h-11"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="other">Outro banco / informar manualmente</SelectItem>
+                  {MUNICIPAL_BANK_DIRECTORY.map((bank) => (
+                    <SelectItem key={bank.code} value={bank.code}>{bank.code} — {bank.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-950">
+              O cadastro aceita qualquer instituição autorizada, mesmo fora da lista. Selecione ou preencha o código e o nome do banco contratado.
+            </div>
+          </div>
           <div className="grid gap-4 md:grid-cols-4">
             <div className="space-y-2"><Label>Código COMPE</Label><Input disabled={disabled} inputMode="numeric" maxLength={3} value={form.bankCode} onChange={(e) => setField("bankCode", e.target.value.replace(/\D/g, "").slice(0, 3))} placeholder="001"/></div>
             <div className="space-y-2 md:col-span-3"><Label>Nome do banco</Label><Input disabled={disabled} value={form.bankName} onChange={(e) => setField("bankName", e.target.value)} placeholder="Banco arrecadador"/></div>
@@ -262,6 +289,10 @@ export function MunicipalBankDetailsSettings({
             <div className="space-y-2 md:col-span-2"><Label>Carteira / modalidade</Label><Input disabled={disabled} value={form.bankWallet} onChange={(e) => setField("bankWallet", e.target.value)}/></div>
             <div className="space-y-2 md:col-span-4"><Label>Instruções bancárias para a guia</Label><Textarea disabled={disabled} rows={3} maxLength={1500} value={form.bankInstructions} onChange={(e) => setField("bankInstructions", e.target.value)} placeholder="Ex.: pagável até o vencimento nos canais oficiais indicados pela Prefeitura."/></div>
           </div>
+        </div>
+        <div role="status" data-bank-integration-readiness="true" className="rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm leading-6 text-sky-950">
+          <strong>Modalidade bancária selecionada:</strong> {describeMunicipalBankChannel(form.bankCollectionMode).explanation}
+          <p className="mt-2 text-xs text-slate-700">O banco cadastrado pode ser diferente em cada Prefeitura. O cadastro não significa autorização para emitir boletos registrados ou executar baixas automáticas.</p>
         </div>
         {form.pixEnabled && (
           <div role="status" className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm leading-6 text-amber-950">
