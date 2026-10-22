@@ -106,6 +106,15 @@ describe("municipal collection configuration", () => {
     expect(page).toContain("requestGeneration.current += 1");
   });
 
+  it("rejects a production setup backed by sandbox credentials and missing municipal CNPJ", () => {
+    expect(api).toContain('provider.environment !== config.environment');
+    expect(api).toContain('provider.provider === "manual" && automated');
+    expect(api).toContain('provider.provider === "bank_direct"');
+    expect(api).toContain("get_municipal_collection_bank_details_v1");
+    expect(api).toContain("bankBeneficiaryDocument");
+    expect(api).toContain("Produção bloqueada:");
+  });
+
   it("keeps failed provider-test diagnostics visible instead of clearing them", () => {
     const provider = read("src/components/platform/MunicipalPaymentSettings.tsx");
     const testBlock = provider.slice(provider.indexOf("const test = async"), provider.indexOf("const activate = async"));
