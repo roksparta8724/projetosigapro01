@@ -73,7 +73,7 @@ export function ExternalHistoryPage() {
 
   const timelineEntries = useMemo(() => {
     const entries = processes.flatMap((process) =>
-      [...(process.timeline ?? []), ...(process.auditTrail ?? []).filter((entry) => entry.visibleToExternal === true)].map((entry) => ({
+      [...(process.timeline ?? []).filter((entry) => entry.visibleToExternal === true), ...(process.auditTrail ?? []).filter((entry) => entry.visibleToExternal === true)].map((entry) => ({
         ...entry,
         process,
         date: parseSIGAPROHistoryDate(entry.at),
