@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { jsPDF } from "jspdf";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { uploadFileToStorage } from "@/integrations/r2/storage";
+import { readOfficialAnalysisSheet, writeOfficialAnalysisSheet } from "@/integrations/backend/analysisSheetClient";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -449,6 +450,35 @@ function readInitialChecklistState(
 }
 
 
+function checklistPayloadMatchesProcess(
+  payload: Record<string, unknown>,
+  processId: string,
+  municipalityId: string,
+): boolean {
+  return payload.schema === "sigapro.urban-analysis-checklist.v2" &&
+    payload.processId === processId &&
+    payload.municipalityId === municipalityId &&
+    Boolean(payload.items && typeof payload.items === "object" && !Array.isArray(payload.items));
+}
+
+function hydrateOfficialChecklistState(
+  previous: AnalysisChecklistState,
+  payload: Record<string, unknown>,
+): AnalysisChecklistState {
+  const items = payload.items as Record<string, ChecklistItemState>;
+  const routing = String(payload.routing || "") as AnalysisChecklistState["routing"];
+  return {
+    ...previous,
+    analysisDate: typeof payload.analysisDate === "string" ? payload.analysisDate : previous.analysisDate,
+    sheetNumber: typeof payload.sheetNumber === "string" ? payload.sheetNumber : previous.sheetNumber,
+    items: { ...blankItems(), ...items },
+    routing: ["", "expediente", "topografia", "outro"].includes(routing) ? routing : "",
+    routingOther: typeof payload.routingOther === "string" ? payload.routingOther : "",
+    conclusion: typeof payload.conclusion === "string" ? payload.conclusion : "",
+    communiquePages: typeof payload.communiquePages === "string" ? payload.communiquePages : "",
+  };
+}
+
 function statusLabel(status: ChecklistStatus) {
   if (!status) return "Não avaliado";
   return STATUS_META[status].label;
@@ -484,6 +514,9 @@ export function UrbanAnalysisChecklistPanel({
     readInitialChecklistState(key, process, session),
   );
   const [notice, setNotice] = useState("");
+  const [officialRevision, setOfficialRevision] = useState<number | null>(null);
+  const [officialSheetLoading, setOfficialSheetLoading] = useState(true);
+  const [draftSaveBusy, setDraftSaveBusy] = useState(false);
   const [signatureDialog, setSignatureDialog] = useState<"technical" | "director" | null>(null);
   const [signaturePassword, setSignaturePassword] = useState("");
   const [signatureBusy, setSignatureBusy] = useState(false);
@@ -509,11 +542,40 @@ export function UrbanAnalysisChecklistPanel({
   );
 
   useEffect(() => {
-    // Só reidrata quando realmente muda processo/usuário. No F5 do mesmo
-    // processo o useState lazy já leu o estado antes do primeiro paint,
-    // evitando o salto 0/38 -> valor real.
+    let active = true;
+    // O navegador é cache de apresentação. A ficha compartilhada vem do banco.
     setState(readInitialChecklistState(key, process, session));
-  }, [key, process.id, session.id]);
+    setOfficialRevision(null);
+    setOfficialSheetLoading(true);
+    void readOfficialAnalysisSheet(process.id)
+      .then((sheet) => {
+        if (!active) return;
+        setOfficialRevision(sheet.revision);
+        if (sheet.found && sheet.payload) {
+          if (!checklistPayloadMatchesProcess(sheet.payload, process.id, municipalityId)) {
+            throw new Error("A ficha retornada não corresponde a este processo e município.");
+          }
+          setState((current) => {
+            // Preserva uma cópia do rascunho local divergente sem gravá-la sobre o banco.
+            if (stableSignatureStringify(buildChecklistSignaturePayload(current, process, municipalityId)) !== stableSignatureStringify(sheet.payload)) {
+              try {
+                window.localStorage.setItem(key + ":backup-anterior-a-leitura-oficial", JSON.stringify(current));
+              } catch { /* Backup opcional. */ }
+            }
+            const restored = hydrateOfficialChecklistState(current, sheet.payload as Record<string, unknown>);
+            window.localStorage.setItem(key, JSON.stringify(restored));
+            return restored;
+          });
+        }
+      })
+      .catch((error) => {
+        if (!active) return;
+        console.error("[SIGAPRO][Ficha Técnica] Falha ao ler banco", error);
+        setNotice(error instanceof Error ? error.message : "Leitura oficial da ficha indisponível.");
+      })
+      .finally(() => { if (active) setOfficialSheetLoading(false); });
+    return () => { active = false; };
+  }, [key, process.id, session.id, municipalityId]);
 
   useEffect(() => {
     let active = true;
@@ -770,17 +832,36 @@ export function UrbanAnalysisChecklistPanel({
     setState(next);
   };
 
-  const saveDraft = () => {
-    if (readOnly) {
+  const saveDraft = async () => {
+    if (readOnly || draftSaveBusy) {
       setNotice("Modo acompanhamento: alterações técnicas estão bloqueadas para proteger a autoria da análise.");
       return;
     }
-    const now = new Date().toISOString();
-    const next = { ...state, savedAt: now };
-    persistState(next);
-    setNotice(
-      "Rascunho técnico salvo para este processo. As assinaturas permanecem vinculadas somente à versão assinada.",
-    );
+    const next = { ...state, savedAt: new Date().toISOString() };
+    setDraftSaveBusy(true);
+    try {
+      if (officialRevision === null) {
+        throw new Error("Leitura do banco pendente ou indisponível. Não é possível confirmar uma gravação oficial.");
+      }
+      const newRevision = await writeOfficialAnalysisSheet(
+        process.id,
+        buildChecklistSignaturePayload(next, process, municipalityId),
+        officialRevision,
+      );
+      setOfficialRevision(newRevision);
+      persistState(next);
+      setNotice("Rascunho confirmado no banco institucional. Revisão oficial nº " + newRevision + ".");
+    } catch (error) {
+      // O erro nunca vira uma confirmação de salvamento oficial.
+      persistState(next);
+      setNotice(
+        "ATENÇÃO: rascunho preservado SOMENTE neste navegador. " +
+        (error instanceof Error ? error.message : "Falha de gravação no banco.") +
+        " Não assuma que outras contas conseguem visualizar esta versão.",
+      );
+    } finally {
+      setDraftSaveBusy(false);
+    }
   };
 
   const openSignatureConfirmation = (
