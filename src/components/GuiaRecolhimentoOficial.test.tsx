@@ -107,8 +107,8 @@ describe("GuiaRecolhimentoOficial", () => {
     });
 
     expect(html).toContain("DAM-ISS-2026-00002");
-    expect(html).toContain("grid-template-columns: 22mm minmax(0, 1fr) 58mm");
-    expect(html).toContain("grid-template-columns: 22mm minmax(0, 1fr)");
+    expect(html).toContain("grid-template-columns: 28mm minmax(0, 1fr) 58mm");
+    expect(html).toContain("grid-template-columns: 28mm minmax(0, 1fr)");
     expect(html).toContain("white-space: nowrap");
     expect(html).toContain("overflow-wrap: normal");
     expect(html).not.toContain("word-break: break-word");
