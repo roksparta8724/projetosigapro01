@@ -105,6 +105,21 @@ describe("InstitutionalLogo", () => {
     });
   });
 
+  it("uses a compact square official logo tile while keeping the same framing ratios as the 188px editor", () => {
+    const scaled = { ...branding, logoScale: 1.2, logoOffsetX: 0, logoOffsetY: 0 };
+    const { container } = render(
+      <InstitutionalLogo branding={scaled} variant="footer" contextScope="municipality" />,
+    );
+    expect(container.firstChild).toHaveClass(
+      "h-[144px]", "w-[144px]", "max-h-[144px]", "max-w-[144px]",
+      "overflow-hidden",
+    );
+    expect(container.firstChild).not.toHaveClass("h-[188px]", "w-[188px]");
+    const image = container.querySelector("img");
+    expect(image).toHaveClass("object-contain", "object-center");
+    expect(image).toHaveStyle({ transform: "translate(0%, 0%) scale(1.2)" });
+  });
+
   it("keeps municipal footer framing independent of the header", () => {
     const framed = { ...branding, logoScale: 1.2, logoOffsetX: 8, logoOffsetY: 10 };
     const { container, rerender } = render(
