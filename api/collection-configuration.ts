@@ -57,8 +57,8 @@ export default async function handler(req: Req, res: Res) {
         }
         if (config.environment === "production") {
           const bank = await rpc<Record<string, any>>(req, "get_municipal_collection_bank_details_v1", { _municipality_id: municipalityId });
-          const document = String(bank?.bankBeneficiaryDocument || "").replace(/\\D/g, "");
-          if (!/^\\d{14}$/.test(document) || !String(bank?.beneficiarioArrecadacao || "").trim()) {
+          const document = String(bank?.bankBeneficiaryDocument || "").replace(/\D/g, "");
+          if (!/^\d{14}$/.test(document) || !String(bank?.beneficiarioArrecadacao || "").trim()) {
             throw new Error("Produção bloqueada: informe o CNPJ e o beneficiário oficial da conta arrecadadora da Prefeitura.");
           }
         }
