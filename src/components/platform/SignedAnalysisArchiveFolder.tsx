@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { FileCheck2, History } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { ProcessRecord } from "@/lib/platform";
-import { getProcessArtifactVersionHistory, type ArtifactVersionHistoryEntry } from "@/integrations/esign/artifactClient";
+import { getProcessArtifactVersionHistory, getProcessArtifactWithdrawalHistory, type ArtifactVersionHistoryEntry, type ArtifactWithdrawalEvent } from "@/integrations/esign/artifactClient";
 import { isSignedAnalysisArchiveDocument, isSignedAnalysisVersionArchived } from "@/lib/signedAnalysisArchive";
 
 export function SignedAnalysisArchiveFolder({ process, onOpenPdf, onOpenAnalysis }: {
@@ -11,15 +11,27 @@ export function SignedAnalysisArchiveFolder({ process, onOpenPdf, onOpenAnalysis
   onOpenAnalysis: () => void;
 }) {
   const [versions, setVersions] = useState<ArtifactVersionHistoryEntry[]>([]);
+  const [withdrawals, setWithdrawals] = useState<ArtifactWithdrawalEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   useEffect(() => {
     let active = true;
     setVersions([]);
+    setWithdrawals([]);
     setError("");
     setLoading(true);
-    getProcessArtifactVersionHistory(process.id, "urban-analysis-checklist")
-      .then((data) => { if (active) setVersions(data); })
+    Promise.all([
+      getProcessArtifactVersionHistory(process.id, "urban-analysis-checklist"),
+      getProcessArtifactWithdrawalHistory(process.id, "urban-analysis-checklist").catch((error) => {
+        console.error("[SIGAPRO][Retiradas] Histórico indisponível", error);
+        return [] as ArtifactWithdrawalEvent[];
+      }),
+    ])
+      .then(([data, withdrawalEvents]) => {
+        if (!active) return;
+        setVersions(data);
+        setWithdrawals(withdrawalEvents);
+      })
       .catch((cause) => { if (active) setError(cause instanceof Error ? cause.message : "Histórico indisponível."); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
@@ -53,6 +65,21 @@ export function SignedAnalysisArchiveFolder({ process, onOpenPdf, onOpenAnalysis
             <Button type="button" variant="outline" className="rounded-xl" onClick={onOpenAnalysis}>Consultar análise</Button>
           </div>
         ))}
+        {withdrawals.length > 0 && (
+          <div data-signed-document-withdrawal-history="true" className="space-y-2 rounded-xl border border-sky-200 bg-white p-4 dark:border-sky-500/30 dark:bg-slate-900">
+            <p className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-100">Retiradas físicas registradas</p>
+            {withdrawals.map((withdrawal) => (
+              <div key={withdrawal.id} className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 pt-2 text-xs dark:border-slate-700">
+                <p className="font-semibold text-slate-900 dark:text-slate-100">
+                  Retirado por: {withdrawal.withdrawn_by_name}
+                </p>
+                <p className="text-slate-600 dark:text-slate-300" title={withdrawal.withdrawn_at_exact}>
+                  {Number.isNaN(Date.parse(withdrawal.withdrawn_at_exact)) ? "Data indisponível" : new Date(withdrawal.withdrawn_at_exact).toLocaleString("pt-BR")}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
         {!loading && !error && !archived.length && !evidenceOnly.length &&
           <p className="text-sm text-slate-600 dark:text-slate-300">Nenhum PDF assinado ou registro de assinatura localizado.</p>}
       </div>

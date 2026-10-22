@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { jsPDF } from "jspdf";
 import {
   AlertTriangle,
@@ -32,6 +32,7 @@ import {
 import { cn } from "@/lib/utils";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { uploadFileToStorage } from "@/integrations/r2/storage";
+import { readOfficialAnalysisSheet, writeOfficialAnalysisSheet } from "@/integrations/backend/analysisSheetClient";
 import { isSignedAnalysisVersionArchived, signedAnalysisArchiveLabel } from "@/lib/signedAnalysisArchive";
 import { SignatureVerificationQr } from "@/components/platform/SignatureVerificationQr";
 import { createQrCodeDataUrl } from "@/lib/qrCode";
@@ -301,6 +302,7 @@ type UrbanAnalysisChecklistPanelProps = {
   departmentLabel?: string | null;
   organogramTrail?: Array<{ code: string; name: string }>;
   readOnly?: boolean;
+  onOpenSignedPdf?: (documentId: string) => void;
 };
 
 const STATUS_META: Record<Exclude<ChecklistStatus, "">, { label: string; short: string; classes: string }> = {
@@ -450,6 +452,35 @@ function readInitialChecklistState(
 }
 
 
+function checklistPayloadMatchesProcess(
+  payload: Record<string, unknown>,
+  processId: string,
+  municipalityId: string,
+): boolean {
+  return payload.schema === "sigapro.urban-analysis-checklist.v2" &&
+    payload.processId === processId &&
+    payload.municipalityId === municipalityId &&
+    Boolean(payload.items && typeof payload.items === "object" && !Array.isArray(payload.items));
+}
+
+function hydrateOfficialChecklistState(
+  previous: AnalysisChecklistState,
+  payload: Record<string, unknown>,
+): AnalysisChecklistState {
+  const items = payload.items as Record<string, ChecklistItemState>;
+  const routing = String(payload.routing || "") as AnalysisChecklistState["routing"];
+  return {
+    ...previous,
+    analysisDate: typeof payload.analysisDate === "string" ? payload.analysisDate : previous.analysisDate,
+    sheetNumber: typeof payload.sheetNumber === "string" ? payload.sheetNumber : previous.sheetNumber,
+    items: { ...blankItems(), ...items },
+    routing: ["", "expediente", "topografia", "outro"].includes(routing) ? routing : "",
+    routingOther: typeof payload.routingOther === "string" ? payload.routingOther : "",
+    conclusion: typeof payload.conclusion === "string" ? payload.conclusion : "",
+    communiquePages: typeof payload.communiquePages === "string" ? payload.communiquePages : "",
+  };
+}
+
 function statusLabel(status: ChecklistStatus) {
   if (!status) return "Não avaliado";
   return STATUS_META[status].label;
@@ -478,6 +509,7 @@ export function UrbanAnalysisChecklistPanel({
   departmentLabel,
   organogramTrail = [],
   readOnly = false,
+  onOpenSignedPdf,
 }: UrbanAnalysisChecklistPanelProps) {
   const { appendProcessDocuments } = usePlatformData();
   const key = storageKey(municipalityId, process.id);
@@ -485,6 +517,11 @@ export function UrbanAnalysisChecklistPanel({
     readInitialChecklistState(key, process, session),
   );
   const [notice, setNotice] = useState("");
+  const [officialRevision, setOfficialRevision] = useState<number | null>(null);
+  const [officialSheetLoading, setOfficialSheetLoading] = useState(true);
+  const [draftSaveBusy, setDraftSaveBusy] = useState(false);
+  const pdfOperationRef = useRef(false);
+  const autoArchiveAttemptsRef = useRef(new Set<string>());
   const [signatureDialog, setSignatureDialog] = useState<"technical" | "director" | null>(null);
   const [signaturePassword, setSignaturePassword] = useState("");
   const [signatureBusy, setSignatureBusy] = useState(false);
@@ -509,11 +546,40 @@ export function UrbanAnalysisChecklistPanel({
   );
 
   useEffect(() => {
-    // Só reidrata quando realmente muda processo/usuário. No F5 do mesmo
-    // processo o useState lazy já leu o estado antes do primeiro paint,
-    // evitando o salto 0/38 -> valor real.
+    let active = true;
+    // O navegador é cache de apresentação. A ficha compartilhada vem do banco.
     setState(readInitialChecklistState(key, process, session));
-  }, [key, process.id, session.id]);
+    setOfficialRevision(null);
+    setOfficialSheetLoading(true);
+    void readOfficialAnalysisSheet(process.id)
+      .then((sheet) => {
+        if (!active) return;
+        setOfficialRevision(sheet.revision);
+        if (sheet.found && sheet.payload) {
+          if (!checklistPayloadMatchesProcess(sheet.payload, process.id, municipalityId)) {
+            throw new Error("A ficha retornada não corresponde a este processo e município.");
+          }
+          setState((current) => {
+            // Preserva uma cópia do rascunho local divergente sem gravá-la sobre o banco.
+            if (stableSignatureStringify(buildChecklistSignaturePayload(current, process, municipalityId)) !== stableSignatureStringify(sheet.payload)) {
+              try {
+                window.localStorage.setItem(key + ":backup-anterior-a-leitura-oficial", JSON.stringify(current));
+              } catch { /* Backup opcional. */ }
+            }
+            const restored = hydrateOfficialChecklistState(current, sheet.payload as Record<string, unknown>);
+            window.localStorage.setItem(key, JSON.stringify(restored));
+            return restored;
+          });
+        }
+      })
+      .catch((error) => {
+        if (!active) return;
+        console.error("[SIGAPRO][Ficha Técnica] Falha ao ler banco", error);
+        setNotice(error instanceof Error ? error.message : "Leitura oficial da ficha indisponível.");
+      })
+      .finally(() => { if (active) setOfficialSheetLoading(false); });
+    return () => { active = false; };
+  }, [key, process.id, session.id, municipalityId]);
 
   useEffect(() => {
     let active = true;
@@ -534,6 +600,37 @@ export function UrbanAnalysisChecklistPanel({
             stableSignatureStringify(currentPayload) === stableSignatureStringify(signedPayload);
 
           if (!payloadMatches) {
+            // Se outro navegador não tem os dados, recupera a versão assinada do
+            // payload canônico guardado no banco; jamais considera 0/38 a verdade.
+            const canonical = signedPayload as Record<string, unknown>;
+            const localHasItems = Object.values(current.items).some((item) => Boolean(item?.status));
+            if (checklistPayloadMatchesProcess(canonical, process.id, municipalityId) && !localHasItems) {
+              const restored = hydrateOfficialChecklistState(current, canonical);
+              window.localStorage.setItem(key, JSON.stringify(restored));
+              return {
+                ...restored,
+                technicalSignature: technical ? {
+                  userId: technical.profile_id || "",
+                  name: technical.name || "Analista Técnico",
+                  title: technical.title || technical.role || "Analista Técnico",
+                  signedAt: technical.signed_at || snapshot.block?.completed_at || "",
+                  verificationCode: snapshot.block?.verification_code,
+                  evidenceHash: snapshot.block?.artifact_hash,
+                  authMethod: technical.auth_method || "password_reauth",
+                  official: true,
+                } : null,
+                directorSignature: director ? {
+                  userId: director.profile_id || "",
+                  name: director.name || "Diretor(a)",
+                  title: director.title || director.role || "Diretor(a)",
+                  signedAt: director.signed_at || snapshot.block?.completed_at || "",
+                  verificationCode: snapshot.block?.verification_code,
+                  evidenceHash: snapshot.block?.artifact_hash,
+                  authMethod: director.auth_method || "password_reauth",
+                  official: true,
+                } : null,
+              };
+            }
             const next: AnalysisChecklistState = {
               ...current,
               technicalSignature: null,
@@ -747,17 +844,36 @@ export function UrbanAnalysisChecklistPanel({
     setState(next);
   };
 
-  const saveDraft = () => {
-    if (readOnly) {
+  const saveDraft = async () => {
+    if (readOnly || draftSaveBusy) {
       setNotice("Modo acompanhamento: alterações técnicas estão bloqueadas para proteger a autoria da análise.");
       return;
     }
-    const now = new Date().toISOString();
-    const next = { ...state, savedAt: now };
-    persistState(next);
-    setNotice(
-      "Rascunho técnico salvo para este processo. As assinaturas permanecem vinculadas somente à versão assinada.",
-    );
+    const next = { ...state, savedAt: new Date().toISOString() };
+    setDraftSaveBusy(true);
+    try {
+      if (officialRevision === null) {
+        throw new Error("Leitura do banco pendente ou indisponível. Não é possível confirmar uma gravação oficial.");
+      }
+      const newRevision = await writeOfficialAnalysisSheet(
+        process.id,
+        buildChecklistSignaturePayload(next, process, municipalityId),
+        officialRevision,
+      );
+      setOfficialRevision(newRevision);
+      persistState(next);
+      setNotice("Rascunho confirmado no banco institucional. Revisão oficial nº " + newRevision + ".");
+    } catch (error) {
+      // O erro nunca vira uma confirmação de salvamento oficial.
+      persistState(next);
+      setNotice(
+        "ATENÇÃO: rascunho preservado SOMENTE neste navegador. " +
+        (error instanceof Error ? error.message : "Falha de gravação no banco.") +
+        " Não assuma que outras contas conseguem visualizar esta versão.",
+      );
+    } finally {
+      setDraftSaveBusy(false);
+    }
   };
 
   const openSignatureConfirmation = (
@@ -915,6 +1031,11 @@ export function UrbanAnalysisChecklistPanel({
       setRevisionHistory(
         await getProcessArtifactVersionHistory(process.id, ANALYSIS_ARTIFACT_KEY),
       );
+      // Assinatura da Diretoria finaliza o documento: gera e arquiva PDF sem
+      // abrir uma segunda aba. A operação só será reconhecida após readback.
+      if (kind === "director" && next.technicalSignature?.official && next.directorSignature?.official) {
+        void generatePdf({ openViewer: false, stateOverride: next });
+      }
       setSignaturePassword("");
       setSignatureStage("idle");
       setSignatureDialog(null);
@@ -1116,10 +1237,14 @@ export function UrbanAnalysisChecklistPanel({
     );
   };
 
-  const generatePdf = async () => {
-    if (pdfBusy) return;
+  const generatePdf = async (options: { openViewer?: boolean; stateOverride?: AnalysisChecklistState } = {}) => {
+    const pdfState = options.stateOverride ?? state;
+    const technicalPdfOfficial = Boolean(pdfState.technicalSignature?.official && pdfState.technicalSignature?.verificationCode);
+    const directorPdfOfficial = Boolean(pdfState.directorSignature?.official && pdfState.directorSignature?.verificationCode);
+    if (pdfOperationRef.current) return;
+    pdfOperationRef.current = true;
 
-    const reservedPdfWindow = window.open("about:blank", "_blank");
+    const reservedPdfWindow = options.openViewer === false ? null : window.open("about:blank", "_blank");
     if (reservedPdfWindow) {
       reservedPdfWindow.opener = null;
       try {
@@ -1176,12 +1301,12 @@ export function UrbanAnalysisChecklistPanel({
         (await loadPdfImageDataUrl(CAMPO_LIMPO_BRASAO_FALLBACK));
 
       const technicalVerificationUrl =
-        technicalOfficial && state.technicalSignature?.verificationCode
-          ? buildPublicSignatureVerificationUrl(state.technicalSignature.verificationCode)
+        technicalPdfOfficial && pdfState.technicalSignature?.verificationCode
+          ? buildPublicSignatureVerificationUrl(pdfState.technicalSignature.verificationCode)
           : "";
       const directorVerificationUrl =
-        directorOfficial && state.directorSignature?.verificationCode
-          ? buildPublicSignatureVerificationUrl(state.directorSignature.verificationCode)
+        directorPdfOfficial && pdfState.directorSignature?.verificationCode
+          ? buildPublicSignatureVerificationUrl(pdfState.directorSignature.verificationCode)
           : "";
       const technicalSignatureQrDataUrl = technicalVerificationUrl
         ? createQrCodeDataUrl(technicalVerificationUrl, 320)
@@ -1212,8 +1337,8 @@ export function UrbanAnalysisChecklistPanel({
         (/campo\s+limpo\s+paulista/i.test(municipalityName || "")
           ? "(11) 4038-8300"
           : "");
-      const analysisDateLabel = state.analysisDate
-        ? state.analysisDate.split("-").reverse().join("/")
+      const analysisDateLabel = pdfState.analysisDate
+        ? pdfState.analysisDate.split("-").reverse().join("/")
         : "Não informada";
 
       const drawCheckSeal = (cx: number, cy: number, radius = 3.2) => {
@@ -1374,7 +1499,7 @@ export function UrbanAnalysisChecklistPanel({
         drawField("IMÓVEL", process.address || "Não informado", leftX, y + 23, 84);
         drawField(
           "ANÁLISE / FOLHA",
-          `${analysisDateLabel}  •  Folha ${state.sheetNumber || "1"}`,
+          `${analysisDateLabel}  •  Folha ${pdfState.sheetNumber || "1"}`,
           rightX,
           y + 23,
           86,
@@ -1461,7 +1586,7 @@ export function UrbanAnalysisChecklistPanel({
         item: ChecklistTemplateItem,
         compact = false,
       ) => {
-        const itemState = state.items[item.id] ?? { status: "", observation: "" };
+        const itemState = pdfState.items[item.id] ?? { status: "", observation: "" };
         const desc = fitLines(
           item.label,
           widths.desc - 3.2,
@@ -1801,7 +1926,7 @@ export function UrbanAnalysisChecklistPanel({
         53.2,
       );
       doc.text(
-        `Análise: ${analysisDateLabel}  •  Folha ${state.sheetNumber || "1"}`,
+        `Análise: ${analysisDateLabel}  •  Folha ${pdfState.sheetNumber || "1"}`,
         pageW - margin - 4,
         53.2,
         { align: "right" },
@@ -1853,19 +1978,19 @@ export function UrbanAnalysisChecklistPanel({
       });
 
       const routingLabel =
-        state.routing === "expediente"
+        pdfState.routing === "expediente"
           ? "Expediente"
-          : state.routing === "topografia"
+          : pdfState.routing === "topografia"
             ? "Topografia"
-            : state.routing === "outro"
-              ? state.routingOther || "Outro"
+            : pdfState.routing === "outro"
+              ? pdfState.routingOther || "Outro"
               : "Não definido";
 
       doc.setTextColor(...muted);
       doc.setFont("helvetica", "normal");
       doc.setFontSize(5.1);
       const conclusion =
-        state.conclusion?.trim() || "Sem conclusão complementar.";
+        pdfState.conclusion?.trim() || "Sem conclusão complementar.";
       doc.text(
         `Conclusão: ${doc.splitTextToSize(conclusion, 82).slice(0, 1).join(" ")}`,
         margin + 4,
@@ -1877,7 +2002,7 @@ export function UrbanAnalysisChecklistPanel({
         resultY + 18.6,
       );
       doc.text(
-        `Comunique-se: ${state.communiquePages || "Não informado"}`,
+        `Comunique-se: ${pdfState.communiquePages || "Não informado"}`,
         margin + 98,
         resultY + 22,
       );
@@ -1890,8 +2015,8 @@ export function UrbanAnalysisChecklistPanel({
         signatureY,
         signatureCardW,
         "Análise técnica",
-        state.technicalSignature,
-        technicalOfficial,
+        pdfState.technicalSignature,
+        technicalPdfOfficial,
         false,
         technicalSignatureQrDataUrl,
       );
@@ -1900,8 +2025,8 @@ export function UrbanAnalysisChecklistPanel({
         signatureY,
         signatureCardW,
         "Diretoria",
-        state.directorSignature,
-        directorOfficial,
+        pdfState.directorSignature,
+        directorPdfOfficial,
         directorRequestPending,
         directorSignatureQrDataUrl,
       );
@@ -1955,44 +2080,47 @@ export function UrbanAnalysisChecklistPanel({
 
       const pdfBlob = doc.output("blob");
       const pdfFile = new File([pdfBlob], fileName, { type: "application/pdf" });
-      const pdfUrl = URL.createObjectURL(pdfFile);
-      const viewerUrl = `${pdfUrl}#page=1&zoom=125&toolbar=1&navpanes=0&scrollbar=1`;
+      if (options.openViewer !== false) {
+        const pdfUrl = URL.createObjectURL(pdfFile);
+        const viewerUrl = `${pdfUrl}#page=1&zoom=125&toolbar=1&navpanes=0&scrollbar=1`;
 
-      if (reservedPdfWindow && !reservedPdfWindow.closed) {
-        reservedPdfWindow.location.replace(viewerUrl);
-      } else {
-        const opened = window.open(viewerUrl, "_blank");
-        if (opened) {
-          opened.opener = null;
+        if (reservedPdfWindow && !reservedPdfWindow.closed) {
+          reservedPdfWindow.location.replace(viewerUrl);
         } else {
-          const fallback = document.createElement("a");
-          fallback.href = pdfUrl;
-          fallback.download = fileName;
-          fallback.rel = "noreferrer";
-          document.body.appendChild(fallback);
-          fallback.click();
-          fallback.remove();
+          const opened = window.open(viewerUrl, "_blank");
+          if (opened) {
+            opened.opener = null;
+          } else {
+            const fallback = document.createElement("a");
+            fallback.href = pdfUrl;
+            fallback.download = fileName;
+            fallback.rel = "noreferrer";
+            document.body.appendChild(fallback);
+            fallback.click();
+            fallback.remove();
+          }
         }
-      }
 
-      window.setTimeout(() => URL.revokeObjectURL(pdfUrl), 5 * 60_000);
+        window.setTimeout(() => URL.revokeObjectURL(pdfUrl), 5 * 60_000);
+
+      }
 
       // A abertura no navegador não é armazenamento. Somente a versão efetivamente
       // assinada no banco poderá ser arquivada no R2 e vinculada ao processo.
-      if (isFullySigned && isInternalRole(session.role)) {
+      if (technicalPdfOfficial && directorPdfOfficial && isInternalRole(session.role)) {
         try {
           const verified = await getProcessArtifactSignatures(process.id, ANALYSIS_ARTIFACT_KEY);
           const block = verified.block;
           const technical = verified.signers.find((signer) => signer.slot === "analise_tecnica");
           const director = verified.signers.find((signer) => signer.slot === "diretoria");
           const payloadMatches = stableSignatureStringify(
-            buildChecklistSignaturePayload(state, process, municipalityId),
+            buildChecklistSignaturePayload(pdfState, process, municipalityId),
           ) === stableSignatureStringify(block?.payload ?? {});
           const signatureMatches = Boolean(
             block?.artifact_hash &&
             block?.verification_code &&
-            block.artifact_hash === state.technicalSignature?.evidenceHash &&
-            block.artifact_hash === state.directorSignature?.evidenceHash &&
+            block.artifact_hash === pdfState.technicalSignature?.evidenceHash &&
+            block.artifact_hash === pdfState.directorSignature?.evidenceHash &&
             technical && director && payloadMatches,
           );
           if (!signatureMatches || !block?.verification_code) {
@@ -2056,9 +2184,31 @@ export function UrbanAnalysisChecklistPanel({
           : "Não foi possível gerar o PDF.",
       );
     } finally {
+      pdfOperationRef.current = false;
       setPdfBusy(false);
     }
   };
+
+  useEffect(() => {
+    // Recupera PDFs historicamente assinados que ainda constam apenas como
+    // evidência no Neon; sem abrir aba e sem reescrever versões já arquivadas.
+    if (!isFullySigned || !isInternalRole(session.role) ||
+        !state.technicalSignature?.evidenceHash ||
+        !state.directorSignature?.evidenceHash) return;
+    const entry = revisionHistory.find((version) =>
+      version.artifact_hash === state.technicalSignature?.evidenceHash &&
+      version.artifact_hash === state.directorSignature?.evidenceHash &&
+      version.signers.some((signer) => signer.slot === "analise_tecnica") &&
+      version.signers.some((signer) => signer.slot === "diretoria")
+    );
+    if (!entry?.verification_code) return;
+    if (isSignedAnalysisVersionArchived(process.documents, entry.artifact_version, entry.verification_code)) return;
+    const attemptKey = process.id + ":" + entry.artifact_hash + ":" + entry.artifact_version;
+    if (autoArchiveAttemptsRef.current.has(attemptKey)) return;
+    autoArchiveAttemptsRef.current.add(attemptKey);
+    void generatePdf({ openViewer: false, stateOverride: state });
+  }, [isFullySigned, process.id, process.documents, revisionHistory, session.role,
+      state.technicalSignature?.evidenceHash, state.directorSignature?.evidenceHash]);
 
   const renderSection = (title: string, subtitle: string, items: ChecklistTemplateItem[]) => (
     <section data-analysis-section="true" data-force-card-contrast="adaptive" className="overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-[0_12px_30px_rgba(15,23,42,0.06)] dark:border-slate-700 dark:bg-slate-900 dark:shadow-[0_16px_38px_rgba(0,0,0,0.20)]">
@@ -2749,6 +2899,10 @@ export function UrbanAnalysisChecklistPanel({
                   const directorSigner = version.signers.find(
                     (signer) => signer.slot === "diretoria",
                   );
+                  const archivedDocument = process.documents.find((doc) =>
+                    isSignedAnalysisVersionArchived([doc], version.artifact_version, version.verification_code));
+                  const versionWithdrawals = withdrawalHistory.filter((item) =>
+                    item.artifact_hash === version.artifact_hash);
                   return (
                     <div key={version.id} className="grid gap-3 px-4 py-4 lg:grid-cols-[110px_minmax(0,1fr)_auto] lg:items-start">
                       <div>
@@ -2770,6 +2924,23 @@ export function UrbanAnalysisChecklistPanel({
                         <p className="mt-1 font-mono text-[10px] text-slate-400 dark:text-slate-500">
                           Código {version.verification_code || "—"} • SHA-256 {compactEvidenceHash(version.artifact_hash)}
                         </p>
+                        {archivedDocument && onOpenSignedPdf ? (
+                          <Button type="button" data-analysis-version-open-pdf="true" variant="outline"
+                            className="mt-3 rounded-xl text-xs font-semibold"
+                            onClick={() => onOpenSignedPdf(archivedDocument.id)}>
+                            <FileText className="mr-2 h-4 w-4" /> Ver PDF assinado desta versão
+                          </Button>
+                        ) : (
+                          <p className="mt-2 text-xs font-semibold text-amber-700 dark:text-amber-300">
+                            {directorSigner ? "Assinatura registrada. Arquivo PDF ainda pendente de arquivamento." : "Aguardando assinatura da Diretoria para arquivar o documento."}
+                          </p>
+                        )}
+                        {versionWithdrawals.map((item) => (
+                          <p data-analysis-version-withdrawal="true" key={item.id}
+                            className="mt-1 text-xs font-medium text-slate-600 dark:text-slate-300">
+                            Retirado por: {item.withdrawn_by_name} • {formatMunicipalDateTime(item.withdrawn_at_exact)}
+                          </p>
+                        ))}
                       </div>
                       <div className="text-left lg:text-right">
                         <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">
@@ -2795,9 +2966,9 @@ export function UrbanAnalysisChecklistPanel({
                 : "Nenhum rascunho salvo ainda."}
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button type="button" variant="outline" className="rounded-full" onClick={saveDraft}>
+              <Button type="button" variant="outline" className="rounded-full" onClick={() => void saveDraft()} disabled={draftSaveBusy || officialSheetLoading}>
                 <Save className="mr-2 h-4 w-4" />
-                Salvar rascunho
+                {draftSaveBusy ? "Salvando no banco..." : "Salvar rascunho"}
               </Button>
               <Button
                 type="button"

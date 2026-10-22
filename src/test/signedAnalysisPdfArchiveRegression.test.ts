@@ -30,7 +30,8 @@ describe("SIGAPRO: PDFs assinados e integridade documental", () => {
   });
   it("arquiva somente após as duas assinaturas oficiais e conferência do banco", () => {
     const analysis = file("src/components/platform/UrbanAnalysisChecklistPanel.tsx");
-    expect(analysis).toContain("if (isFullySigned && isInternalRole(session.role))");
+    expect(analysis).toContain("if (technicalPdfOfficial && directorPdfOfficial && isInternalRole(session.role))");
+    expect(analysis).toContain("buildChecklistSignaturePayload(pdfState, process, municipalityId)");
     expect(analysis).toContain("getProcessArtifactSignatures(process.id, ANALYSIS_ARTIFACT_KEY)");
     expect(analysis).toContain('signer.slot === "analise_tecnica"');
     expect(analysis).toContain('signer.slot === "diretoria"');

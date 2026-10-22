@@ -55,6 +55,7 @@ import {
   URBAN_ANALYSIS_DEPARTMENT,
 } from "@/lib/platform";
 import { usePlatformData } from "@/hooks/usePlatformData";
+import { resolveProcessDispatchAuthor } from "@/lib/dispatchActorIdentity";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { backendClient } from "@/integrations/backend/databaseClient";
@@ -860,9 +861,9 @@ export function AnalystDeskPage() {
               {process.dispatches.length > 0 ? (
                 <div className="mx-5 mb-3 rounded-xl border border-sky-400/20 bg-sky-400/5 p-3 text-xs text-slate-200">
                   <p className="font-bold text-sky-200">Último despacho / encaminhamento</p>
-                  <p className="mt-1 whitespace-pre-wrap">{process.dispatches[process.dispatches.length - 1].subject}</p>
-                  <p className="mt-1 text-slate-300">Destino: {process.dispatches[process.dispatches.length - 1].to}{process.dispatches[process.dispatches.length - 1].assignedTo ? ` · ${process.dispatches[process.dispatches.length - 1].assignedTo}` : ""}</p>
-                  <p className="mt-1 text-slate-300">Despachado por: <strong className="text-white">{process.dispatches[process.dispatches.length - 1].requestedBy || "Autor não identificado"}</strong></p>
+                  <p className="mt-1 whitespace-pre-wrap">{process.dispatches[0].subject}</p>
+                  <p className="mt-1 text-slate-300">Destino: {process.dispatches[0].to}{process.dispatches[0].assignedTo ? ` · ${process.dispatches[0].assignedTo}` : ""}</p>
+                  <p className="mt-1 text-slate-300">Despachado por: <strong className="text-white">{resolveProcessDispatchAuthor(process.dispatches[0], sessionUsers) || "Identificação não registrada neste despacho"}</strong></p>
                 </div>
               ) : null}
               {isExpanded ? (

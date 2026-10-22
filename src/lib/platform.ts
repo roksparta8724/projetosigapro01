@@ -691,6 +691,8 @@ export interface TimelineEntry {
   detail: string;
   actor: string;
   at: string;
+  /** Only explicitly public movements may be shown in the external history. */
+  visibleToExternal?: boolean;
 }
 
 export interface AuditEntry {
