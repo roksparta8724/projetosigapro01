@@ -50,6 +50,9 @@ on:
       - src/components/platform/InstitutionalLogo.tsx
       - src/components/platform/InstitutionalLogo.test.tsx
       - src/pages/saas/ConfiguracoesPage.tsx
+      - src/pages/saas/LegislationPage.tsx
+      - src/pages/saas/ZoningPage.tsx
+      - src/integrations/r2/legislationStableReference.test.ts
       - src/hooks/useMunicipality.tsx
       - src/hooks/useInstitutionBranding.ts
       - src/integrations/backend/municipalityImpl.ts
@@ -123,6 +126,7 @@ jobs:
           src/test/isolatedGuideNonPayable.test.tsx
           src/test/guidePixLogoPremium.test.tsx
           src/test/municipalBrandingFramePersistence.test.ts
+          src/integrations/r2/legislationStableReference.test.ts
           src/components/platform/InstitutionalLogo.test.tsx
           server/qa-mercadopago-pix.test.ts
           src/test/municipalCollectionConfiguration.test.ts
