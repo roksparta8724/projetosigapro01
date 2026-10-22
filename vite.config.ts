@@ -7,6 +7,7 @@ import { componentTagger } from "lovable-tagger";
 import { checkMercadoPagoConnection, createMercadoPagoGuideBoleto, getMercadoPagoGuideBoletoStatus } from "./server/mercadopago";
 import collectionConfigurationHandler from "./api/collection-configuration";
 import paymentConnectionHandler from "./api/payment-connection";
+import { handleQaDocumentRequest } from "./server/qa-document-store";
 import { callDataApiRpc } from "./server/municipal-storage";
 import handleProfileAvatarOpen from "./server/api/profile-avatar-open";
 import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand, HeadBucketCommand } from "@aws-sdk/client-s3";
@@ -191,6 +192,10 @@ function createR2DevApiPlugin(): Plugin {
           next();
           return;
         }
+
+        // Intercept only localhost:8081's isolated document repository.
+        // Uploads never use R2 credentials. Signed reads only access local QA files.
+        if (await handleQaDocumentRequest(req, res)) return;
 
         // Explicit local QA may use copied municipal settings, but MUST NOT
         // generate external charges, send a PIX to a provider, or write to a
