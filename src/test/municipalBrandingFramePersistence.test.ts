@@ -61,6 +61,16 @@ describe("Municipal framing: editor → Neon → page header/footer", () => {
     expect(config).toContain("O banco não confirmou o enquadramento do logo.");
   });
 
+  it("does not stretch the real site footer or offset its municipal logo tile", () => {
+    const footer = source("src/components/platform/PortalFrame.tsx");
+    const renderer = source("src/components/platform/InstitutionalLogo.tsx");
+    expect(footer).toContain('data-sig-footer-logo-cell="true"');
+    expect(footer).toContain('data-sig-footer-grid="true" className="grid min-w-0 items-center');
+    expect(footer).toContain('className="!m-0 !shrink-0"');
+    expect(renderer).toContain('footer: "h-[144px] w-[144px] max-h-[144px] max-w-[144px] p-0"');
+    expect(renderer).toContain('const municipalOffsetX = ((branding.logoOffsetX || 0) / 188) * 100');
+  });
+
   it("keeps each municipality isolated without borrowing framing from a different tenant", () => {
     const hook = source("src/hooks/useInstitutionBranding.ts");
     expect(hook).toContain("tenantSettingsCompat?.tenantId === resolvedInstitutionId");
