@@ -116,9 +116,33 @@ export function ExternalPaymentsPage() {
     setStatusGuideKey(actionKey);
     setGuideActionStatus("");
     try {
-      const result=await requestQaPixCharge({municipalityId:effectiveScopeId,guideCode:guide.code,action:"issue"});
-      if (!result.ok || !result.qrCode || result.environment!=="test" || !result.orderId) {
-        throw new Error("O Mercado Pago não retornou o QR PIX completo de homologação.");
+      let result: QaPixCharge;
+      try {
+        result=await requestQaPixCharge({municipalityId:effectiveScopeId,guideCode:guide.code,action:"issue"});
+      } catch (error) {
+        // Mercado Pago Orders can process PIX asynchronously. If the same
+        // order is pending, poll by ID without sending another POST.
+        const message=error instanceof Error ? error.message : "";
+        if (!/Emissão PIX pendente|order deve ser consultada|QR.*pendente/i.test(message)) throw error;
+        result={ok:false,sandboxOnly:true};
+        for (let attempt=0; attempt<3; attempt++) {
+          await new Promise<void>((resolve)=>setTimeout(resolve,800));
+          try {
+            result=await requestQaPixCharge({
+              municipalityId:effectiveScopeId,guideCode:guide.code,action:"get",
+            });
+            if(result.ok) break;
+          } catch {
+            // Keep initial provider status; repeated reads must not issue again.
+          }
+        }
+        if(!result.ok) throw new Error(
+          "A order PIX foi criada, mas o Mercado Pago ainda não disponibilizou o QR Code. "+
+          "Use o mesmo botão para consultar novamente, sem gerar outra cobrança.",
+        );
+      }
+      if (!result.ok || !isValidPixPayload(result.qrCode) || result.environment!=="test" || !result.orderId) {
+        throw new Error("O Mercado Pago não retornou um QR PIX válido de homologação.");
       }
       setQaPixCharges(prev=>({...prev,[guide.code]:result}));
       setGuideActionStatus("PIX de TESTE emitido para esta guia. Visualize a guia para conferir o QR de homologação. NÃO PAGAR.");
