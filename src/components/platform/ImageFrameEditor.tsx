@@ -31,6 +31,8 @@ interface ImageFrameEditorProps {
   maxScale?: number;
   zoomStep?: number;
   darkLogoPreview?: boolean;
+  /** Logo-only optical fit: 2/3 keeps the complete coat of arms visible at 1.50x. */
+  containBaseRatio?: number;
 }
 
 const DEFAULT_MIN_SCALE = 0.35;
@@ -94,6 +96,7 @@ function clampOffsets(input: {
   shape: "rounded" | "circle";
   minScale: number;
   maxScale: number;
+  containBaseRatio?: number;
 }) {
   const safeScale = clamp(input.nextScale, input.minScale, input.maxScale);
   const baseScale = resolveBaseScale(
@@ -104,7 +107,7 @@ function clampOffsets(input: {
     input.naturalHeight,
     input.shape,
   );
-  const renderScale = baseScale * safeScale;
+  const renderScale = baseScale * clamp(input.containBaseRatio ?? 1, 0.1, 1) * safeScale;
   const width = input.naturalWidth * renderScale;
   const height = input.naturalHeight * renderScale;
   const maxOffsetX = Math.max((width - input.frameWidth) / 2, 0);
@@ -136,6 +139,7 @@ export function ImageFrameEditor({
   maxScale,
   zoomStep = 0.1,
   darkLogoPreview = false,
+  containBaseRatio = 1,
 }: ImageFrameEditorProps) {
   const frameRef = useRef<HTMLDivElement | null>(null);
   const dragStateRef = useRef<{ startX: number; startY: number; offsetX: number; offsetY: number; pointerId?: number } | null>(null);
@@ -233,7 +237,7 @@ export function ImageFrameEditor({
       naturalSize.width,
       naturalSize.height,
       shape,
-    );
+    ) * clamp(containBaseRatio, 0.1, 1);
     const safeScale = clamp(scale, effectiveMinScale, effectiveMaxScale);
     const baseWidth = naturalSize.width * baseScale;
     const baseHeight = naturalSize.height * baseScale;
@@ -256,6 +260,7 @@ export function ImageFrameEditor({
     effectiveMaxScale,
     effectiveMinScale,
     fitMode,
+    containBaseRatio,
     cropFrameSize.height,
     cropFrameSize.width,
     naturalSize.height,
@@ -329,6 +334,7 @@ export function ImageFrameEditor({
           shape,
           minScale: effectiveMinScale,
           maxScale: effectiveMaxScale,
+          containBaseRatio,
         }),
       );
       return;
@@ -354,6 +360,7 @@ export function ImageFrameEditor({
         shape,
         minScale: effectiveMinScale,
         maxScale: effectiveMaxScale,
+        containBaseRatio,
       }),
     );
   };
