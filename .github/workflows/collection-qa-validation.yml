@@ -28,6 +28,8 @@ on:
       - src/test/isolatedGuideNonPayable.test.tsx
       - src/components/GuiaRecolhimentoOficial.tsx
       - src/lib/guideAssets.ts
+      - server/qa-mercadopago-pix.ts
+      - server/qa-mercadopago-pix.test.ts
       - src/test/guidePixLogoPremium.test.tsx
       - src/test/municipalBankingFlow.test.ts
       - server/municipal-storage.ts
@@ -112,6 +114,7 @@ jobs:
           src/lib/bankCodes.test.ts
           src/test/isolatedGuideNonPayable.test.tsx
           src/test/guidePixLogoPremium.test.tsx
+          server/qa-mercadopago-pix.test.ts
           src/test/municipalCollectionConfiguration.test.ts
           src/test/govbrArGuideBridge.test.ts
           src/test/damProviderPersistence.test.ts
