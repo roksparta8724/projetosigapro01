@@ -301,6 +301,7 @@ type UrbanAnalysisChecklistPanelProps = {
   departmentLabel?: string | null;
   organogramTrail?: Array<{ code: string; name: string }>;
   readOnly?: boolean;
+  onOpenSignedPdf?: (documentId: string) => void;
 };
 
 const STATUS_META: Record<Exclude<ChecklistStatus, "">, { label: string; short: string; classes: string }> = {
@@ -507,6 +508,7 @@ export function UrbanAnalysisChecklistPanel({
   departmentLabel,
   organogramTrail = [],
   readOnly = false,
+  onOpenSignedPdf,
 }: UrbanAnalysisChecklistPanelProps) {
   const { appendProcessDocuments, sessionUsers } = usePlatformData();
   const key = storageKey(municipalityId, process.id);
@@ -2907,6 +2909,7 @@ export function UrbanAnalysisChecklistPanel({
                                 type="button"
                                 className="h-10 w-full rounded-xl bg-[#075985] font-bold !text-white hover:bg-[#0369a1] [&_*]:!text-white"
                                 onClick={() => {
+                                  if (onOpenSignedPdf) { onOpenSignedPdf(attachedPdf.id); return; }
                                   const route = buildProcessPath(process) + "/documentos/" + attachedPdf.id + "/visualizar";
                                   window.open(window.location.origin + route, "_blank", "noopener,noreferrer");
                                 }}
