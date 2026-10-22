@@ -61,13 +61,29 @@ describe("SIGAPRO DAM — only real PIX and premium municipal logo", () => {
     expect(payload).toBeTruthy();
     const html = renderToStaticMarkup(
       <GuiaRecolhimentoOficial {...guide} guia={{
-        ...guide.guia, pixPayload: payload!,
+        ...guide.guia, bankEnvironment: "production", pixPayload: payload!,
       }} />,
     );
     expect(html).toContain('data-dam-pix="official-payload"');
     expect(html).toContain("PIX Copia e Cola");
     expect(html).toContain(payload);
     expect(html).not.toContain('data-dam-payment-mode="boleto-only"');
+  });
+
+  it("never displays a potentially real PIX copied into a sandbox boleto", () => {
+    const payload = buildPixPayload({
+      key: "teste@example.com",
+      merchantName: "PREFEITURA MUNICIPAL",
+      merchantCity: "CAMPINAS",
+      amount: 35.24,
+      txid: "SANDBOXONLY",
+    })!;
+    const html = buildGuiaRecolhimentoOficialHtml({
+      ...guide, guia: { ...guide.guia, bankEnvironment: "test", pixPayload: payload },
+    }, { autoPrint: false });
+    expect(html).not.toContain(payload);
+    expect(html).not.toContain('data-dam-pix="official-payload"');
+    expect(html).toContain('data-dam-payment-mode="boleto-only"');
   });
 
   it("never displays a payable PIX in an unissued QA preview", () => {
