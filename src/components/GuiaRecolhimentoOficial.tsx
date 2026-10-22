@@ -61,6 +61,8 @@ type GuiaData = {
   linhaDigitavel?: string;
   qrCodePixUrl?: string;
   pixPayload?: string;
+  /** Provider-issued PIX from isolated QA only, never the municipality\u0027s real static key. */
+  qaSandboxPixPayload?: string;
   bankName?: string;
   bankMunicipalName?: string;
   bankCode?: string;
@@ -1084,6 +1086,11 @@ function getStyles() {
       background: #ffffff;
     }
 
+    .dam-qr-sandbox { background: #fffbeb; }
+    .dam-qr-sandbox .dam-qrcode-box { min-height: 18mm; }
+    .dam-qr-sandbox .dam-qrcode-box svg { width: 68px; height: 68px; }
+    .dam-qr-sandbox .dam-pix-copy { max-height: 14mm; overflow: hidden; }
+
     .dam-pix-test-warning {
       margin-top: 2px;
       border: 1px solid #f0b45d;
@@ -1503,6 +1510,11 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
   // Boleto and PIX are independent bank-issued payment methods. A working
   // Mercado Pago boleto does NOT imply that the provider supplied a PIX QR.
   // In isolated QA never turn a real municipal static key into a payable QR.
+  const sandboxPixPayload =
+    guia.bankEnvironment === "test" &&
+    !nonPayable && isValidPixPayload(guia.qaSandboxPixPayload)
+      ? String(guia.qaSandboxPixPayload).trim()
+      : "";
   const verifiedPixPayload =
     !nonPayable && guia.bankEnvironment !== "test" && isValidPixPayload(guia.pixPayload)
       ? String(guia.pixPayload).trim()
@@ -1514,7 +1526,7 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
     )
       ? String(guia.qrCodePixUrl).trim()
       : "";
-  const boletoOnly = !verifiedPixPayload && !verifiedPixQrUrl &&
+  const boletoOnly = !sandboxPixPayload && !verifiedPixPayload && !verifiedPixQrUrl &&
     Boolean(guia.linhaDigitavel || guia.codigoBarras);
 
   const prefeituraEndereco = [
@@ -1939,7 +1951,17 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
                   value={formatCurrency(valorCobrado)}
                 />
 
-                {verifiedPixPayload ? (
+                {sandboxPixPayload ? (
+                  <div className="dam-qr-wrap dam-qr-sandbox" data-dam-pix="sandbox">
+                    <div className="dam-qrcode-label">PIX — MERCADO PAGO (TESTE)</div>
+                    <div className="dam-pix-test-warning">QR DE HOMOLOGAÇÃO · NÃO PAGAR</div>
+                    <div className="dam-qrcode-box">
+                      <QRCodeSVG value={sandboxPixPayload} size={68} level="M" marginSize={2} />
+                    </div>
+                    <div className="dam-pix-copy-label">PIX COPIA E COLA — SOMENTE TESTE</div>
+                    <div className="dam-pix-copy">{sandboxPixPayload}</div>
+                  </div>
+                ) : verifiedPixPayload ? (
                   <div className="dam-qr-wrap" data-dam-pix="official-payload">
                     <div className="dam-qrcode-label">PIX — QR Code e Copia e Cola</div>
                     {guia.bankEnvironment === "test" ? (
@@ -2084,6 +2106,11 @@ export function buildGuiaRecolhimentoOficialHtml(
       linhaDigitavel: props.guia.nonPayablePreview ? "" : banking.digitableLine,
       qrCodePixUrl: props.guia.nonPayablePreview ? "" : toAbsoluteGuideAssetUrl(props.guia.qrCodePixUrl),
       pixPayload: props.guia.nonPayablePreview ? "" : props.guia.pixPayload,
+      qaSandboxPixPayload:
+        props.guia.bankEnvironment === "test" && !props.guia.nonPayablePreview &&
+        isValidPixPayload(props.guia.qaSandboxPixPayload)
+          ? props.guia.qaSandboxPixPayload
+          : "",
       bankReference: props.guia.nonPayablePreview ? undefined : props.guia.bankReference,
       bankPaymentId: props.guia.nonPayablePreview ? undefined : props.guia.bankPaymentId,
       bankAuthenticatedAt: props.guia.nonPayablePreview ? undefined : props.guia.bankAuthenticatedAt,
