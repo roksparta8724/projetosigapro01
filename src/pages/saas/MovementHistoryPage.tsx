@@ -14,6 +14,7 @@ import { StatCard } from "@/components/platform/StatCard";
 import { TableCard } from "@/components/platform/TableCard";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
+import { resolveProcessDispatchAuthor } from "@/lib/dispatchActorIdentity";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import {
   buildProcessPath, formatOfficialProcessNumber, getVisibleProcessesByScope, isInternalRole, statusLabel } from "@/lib/platform";
@@ -74,14 +75,15 @@ export function MovementHistoryPage() {
     visibility: dispatch.visibility || "interno",
     priority: dispatch.priority || "media",
     assignedTo: dispatch.assignedTo || "",
+    createdBy: resolveProcessDispatchAuthor(dispatch, sessionUsers),
     currentFolder: process.processControl?.currentFolder || dispatch.to || process.sla.currentStage,
     externalTransitView: process.processControl?.externalTransitView ?? "completo",
-  }))), [processes]);
+  }))), [processes, sessionUsers]);
 
   const markerOptions = useMemo(() => Array.from(new Set(processes.flatMap((process) => process.tags.map((tag) => (tag.includes("::") ? tag.split("::")[0] : tag))))), [processes]);
 
   const filterDispatchRow = (item: (typeof dispatchRows)[number]) => {
-    const matchesSearch = `${item.protocol} ${item.subject} ${item.from} ${item.to} ${item.title} ${item.assignedTo}`.toLowerCase().includes(search.toLowerCase());
+    const matchesSearch = `${item.protocol} ${item.subject} ${item.from} ${item.to} ${item.title} ${item.assignedTo} ${item.createdBy || ""}`.toLowerCase().includes(search.toLowerCase());
     const matchesPriority = priorityFilter === "todas" || item.priority === priorityFilter;
     const matchesUnit = unitFilter === "todas" || item.from === unitFilter || item.to === unitFilter || item.currentFolder === unitFilter;
     const process = processes.find((entry) => entry.id === item.processId);
@@ -295,6 +297,7 @@ export function MovementHistoryPage() {
                   </div>
                   <p className="mt-2 text-sm font-medium text-slate-900">{item.subject}</p>
                   <p className="mt-1 text-sm text-slate-600">{item.from} <span className="px-1 text-slate-400">→</span> {item.to}</p>
+                  <p className="mt-1 text-xs font-medium text-slate-600">Despachado por: {item.createdBy || "identificação não registrada"}</p>
                   <p className="sig-fit-copy mt-1 text-sm leading-6 text-slate-500">{item.title}</p>
                 </div>
               </div>
