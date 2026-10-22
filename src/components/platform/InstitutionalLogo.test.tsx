@@ -117,7 +117,17 @@ describe("InstitutionalLogo", () => {
     expect(container.firstChild).not.toHaveClass("h-[188px]", "w-[188px]");
     const image = container.querySelector("img");
     expect(image).toHaveClass("object-contain", "object-center");
-    expect(image).toHaveStyle({ transform: "translate(0%, 0%) scale(1.2)" });
+    expect(image).toHaveStyle({ transform: "translate(0%, 0%) scale(0.7999999999999999)" });
+  });
+
+  it("fits the entire municipal footer logo when zoom is 1.50x", () => {
+    const { container } = render(
+      <InstitutionalLogo branding={{ ...branding, logoScale: 1.5, logoOffsetX: 0, logoOffsetY: 0 }}
+        variant="footer" contextScope="municipality" />,
+    );
+    expect(container.querySelector("img")).toHaveStyle({
+      transform: "translate(0%, 0%) scale(1)",
+    });
   });
 
   it("keeps municipal footer framing independent of the header", () => {
@@ -126,11 +136,11 @@ describe("InstitutionalLogo", () => {
       <InstitutionalLogo branding={framed} variant="footer" contextScope="municipality" />,
     );
     expect(container.querySelector("img")).toHaveStyle({
-      transform: `translate(${8 / 188 * 100}%, ${10 / 188 * 100}%) scale(1.2)`,
+      transform: `translate(${8 / 188 * 100}%, ${10 / 188 * 100}%) scale(${1.2 * (2 / 3)})`,
     });
     rerender(<InstitutionalLogo branding={{ ...framed, logoScale: 2 }} variant="footer" contextScope="municipality" />);
     expect(container.querySelector("img")).toHaveStyle({
-      transform: `translate(${8 / 188 * 100}%, ${10 / 188 * 100}%) scale(2)`,
+      transform: `translate(${8 / 188 * 100}%, ${10 / 188 * 100}%) scale(${2 * (2 / 3)})`,
     });
   });
 
