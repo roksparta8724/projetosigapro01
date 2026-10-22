@@ -95,13 +95,13 @@ export function getStableMunicipalLegislationReference(
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(id)) return raw;
   try {
     const url = new URL(raw);
-    if (url.protocol !== "https:" || !/(^|\\.)r2\\.cloudflarestorage\\.com$/i.test(url.hostname)) return raw;
+    if (url.protocol !== "https:" || !/(^|\.)r2\.cloudflarestorage\.com$/i.test(url.hostname)) return raw;
     const path = decodeURIComponent(url.pathname);
     const prefix = `/municipalities/${id}/legislation`;
     const start = path.toLowerCase().indexOf(prefix);
     if (start < 0) return raw;
     const objectKey = path.slice(start + 1);
-    if (!/^municipalities\\/[0-9a-f-]{36}\\/legislation(?:[-/]|$)/i.test(objectKey)) return raw;
+    if (!/^municipalities\/[0-9a-f-]{36}\/legislation(?:[-/]|$)/i.test(objectKey)) return raw;
     return `r2:${objectKey}`;
   } catch {
     return raw;
