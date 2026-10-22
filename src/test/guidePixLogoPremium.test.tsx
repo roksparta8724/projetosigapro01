@@ -71,6 +71,30 @@ describe("SIGAPRO DAM — only real PIX and premium municipal logo", () => {
     expect(html).not.toContain('data-dam-payment-mode="boleto-only"');
   });
 
+  it("displays a sandbox provider PIX QR alongside boleto only when explicitly returned by the test API", () => {
+    const testQr = buildPixPayload({
+      key:"sandbox@example.test",merchantName:"MERCADO PAGO TESTE",
+      merchantCity:"SAO PAULO",amount:35.24,txid:"SANDBOX-ORDER",
+    })!;
+    const html=buildGuiaRecolhimentoOficialHtml({
+      ...guide,guia:{...guide.guia,bankEnvironment:"test",qaSandboxPixPayload:testQr},
+    },{autoPrint:false});
+    expect(html).toContain('data-dam-pix="sandbox"');
+    expect(html).toContain("QR DE HOMOLOGAÇÃO");
+    expect(html).toContain("NÃO PAGAR");
+    expect(html).toContain(testQr);
+    expect(html).toContain("Linha Digitável");
+    expect(html).not.toContain('data-dam-payment-mode="boleto-only"');
+  });
+
+  it("refuses fake or invalid sandbox provider QR even if present in the guide object", () => {
+    const html=buildGuiaRecolhimentoOficialHtml({
+      ...guide,guia:{...guide.guia,bankEnvironment:"test",qaSandboxPixPayload:"000201PIXINVALID"},
+    },{autoPrint:false});
+    expect(html).not.toContain('data-dam-pix="sandbox"');
+    expect(html).toContain('data-dam-payment-mode="boleto-only"');
+  });
+
   it("never displays a potentially real PIX copied into a sandbox boleto", () => {
     const payload = buildPixPayload({
       key: "teste@example.com",
@@ -104,11 +128,11 @@ describe("SIGAPRO DAM — only real PIX and premium municipal logo", () => {
 
   it("enlarges the coat of arms within the aligned 22mm A4 column without distortion", () => {
     const html = buildGuiaRecolhimentoOficialHtml(guide, { autoPrint: false });
-    expect(html).toContain("grid-template-columns: 22mm minmax(0, 1fr) 58mm");
-    expect(html).toContain("width: 20.5mm");
-    expect(html).toContain("height: 17.6mm");
+    expect(html).toContain("grid-template-columns: 28mm minmax(0, 1fr) 58mm");
+    expect(html).toContain("width: 27mm");
+    expect(html).toContain("height: 25mm");
     expect(html).toContain("object-fit: contain");
-    expect(html).toContain("padding: 0.65mm");
+    expect(html).toContain("padding: 0.45mm");
   });
 
   it("trims only substantial whitespace in art sources and keeps filled logos untouched", () => {
