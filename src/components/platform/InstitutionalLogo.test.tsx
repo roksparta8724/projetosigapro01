@@ -93,15 +93,13 @@ describe("InstitutionalLogo", () => {
     expect(screen.queryByText("SIGAPRO")).not.toBeInTheDocument();
   });
 
-  it("applies confirmed municipal header framing at the same scale shown in the 188px editor", () => {
+  it("restores a full, uncut municipal header even when an old 1.75x crop was saved", () => {
     const framed = { ...branding, logoScale: 1.75, logoOffsetX: 20, logoOffsetY: -12 };
     const { container } = render(
       <InstitutionalLogo branding={framed} variant="header" contextScope="municipality" />,
     );
-    const image = container.querySelector("img");
-    expect(image).toBeTruthy();
-    expect(image).toHaveStyle({
-      transform: `translate(${20 / 188 * 100}%, ${-12 / 188 * 100}%) scale(${1.75 * (2 / 3)})`,
+    expect(container.querySelector("img")).toHaveStyle({
+      transform: "translate(0%, 0%) scale(1)",
     });
   });
 
@@ -149,8 +147,21 @@ describe("InstitutionalLogo", () => {
     });
     rerender(<InstitutionalLogo branding={{ ...framed, logoScale: 2 }} variant="footer" contextScope="municipality" />);
     expect(container.querySelector("img")).toHaveStyle({
-      transform: `translate(${8 / 188 * 100}%, ${10 / 188 * 100}%) scale(${2 * (2 / 3)})`,
+      transform: "translate(0%, 0%) scale(1)",
     });
+  });
+
+  it("never crops the complete crest with a legacy 5.0x saved zoom", () => {
+    for (const variant of ["header", "footer"] as const) {
+      const { container, unmount } = render(<InstitutionalLogo
+        branding={{ ...branding, logoScale: 5, logoOffsetX: 400, logoOffsetY: -300 }}
+        variant={variant} contextScope="municipality"
+      />);
+      expect(container.querySelector("img")).toHaveStyle({
+        transform: "translate(0%, 0%) scale(1)",
+      });
+      unmount();
+    }
   });
 
   it("uses the official local asset for an unconfigured master logo", () => {
