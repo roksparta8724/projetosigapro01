@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Building2 } from "@/components/platform/PremiumIcons";
 import { getPublicAssetUrl, resolveAssetUrl } from "@/lib/assetUrl";
 import { cn } from "@/lib/utils";
+import { fitMunicipalLogoFrame, MUNICIPAL_LOGO_BASE_RATIO, MUNICIPAL_LOGO_EDITOR_SIZE } from "@/lib/municipalLogoFraming";
 import type { InstitutionalBranding } from "@/lib/institutionBranding";
 
 interface InstitutionalLogoProps {
@@ -255,9 +256,14 @@ export function InstitutionalLogo({
   // Em logo municipal com object-fit contain, escala abaixo de 1 apenas cria
   // uma margem vazia excessiva. Valores legados menores que 1 sao normalizados
   // visualmente para 1; o editor continua podendo ampliar e reposicionar.
+  const municipalFrame = fitMunicipalLogoFrame({
+    scale: configuredScale,
+    offsetX: branding.logoOffsetX,
+    offsetY: branding.logoOffsetY,
+  });
   const scale = isMaster
     ? Math.max(0.35, Math.min(5, configuredScale))
-    : Math.max(1, Math.min(5, configuredScale));
+    : municipalFrame.scale;
   const frameSize = variant === "header" ? 128 : 144;
   const frameRatio = frameSize / 160;
   // Master uses its original 160px editor. Municipal editors use a 188px
@@ -267,15 +273,15 @@ export function InstitutionalLogo({
   const masterOffsetY = (branding.logoOffsetY || 0) * frameRatio;
   // Offsets are stored as editor-frame pixels (188px square). CSS
   // percentages preserve the same visual proportions in the compact footer.
-  const municipalOffsetX = ((branding.logoOffsetX || 0) / 188) * 100;
-  const municipalOffsetY = ((branding.logoOffsetY || 0) / 188) * 100;
+  const municipalOffsetX = (municipalFrame.offsetX / MUNICIPAL_LOGO_EDITOR_SIZE) * 100;
+  const municipalOffsetY = (municipalFrame.offsetY / MUNICIPAL_LOGO_EDITOR_SIZE) * 100;
   const logoTranslation = isMaster
     ? `translate(${masterOffsetX}px, ${masterOffsetY}px)`
     : `translate(${municipalOffsetX}%, ${municipalOffsetY}%)`;
   // Both municipal variants use the exact same calibrated optical fit as
   // the admin editors: 1.50x means an uncropped, full original image.
   const displayScale = !isMaster && (variant === "footer" || variant === "header")
-    ? scale * (2 / 3)
+    ? scale * MUNICIPAL_LOGO_BASE_RATIO
     : scale;
   const showCrop = variant === "header" || variant === "footer" || variant === "preview";
 
