@@ -11,6 +11,10 @@ BEGIN
   IF public.current_profile_id() IS NULL OR NOT public.has_tenant_access(_municipality_id) THEN RETURN false; END IF;
   SELECT * INTO g FROM public.payment_guides WHERE municipality_id=_municipality_id AND guide_number=_guide_code;
   IF g.id IS NULL OR g.process_id IS NULL OR NOT public.has_process_access(g.process_id) THEN RETURN false; END IF;
+  -- QA purpose is ONLY new pre-protocol testing, never an old payable DAM.
+  IF g.guide_number NOT LIKE 'DAM-PRE-%' OR
+    NOT EXISTS (SELECT 1 FROM public.processes pr
+      WHERE pr.id=g.process_id AND pr.officialized_at IS NULL) THEN RETURN false; END IF;
   IF g.collection_mode_snapshot IS DISTINCT FROM 'sigapro' OR coalesce(g.paid,false) OR
     lower(coalesce(g.status,'')) IN ('compensada','paid','pago','confirmed','confirmado') OR
     g.document_snapshot IS NOT NULL OR g.original_pdf_key IS NOT NULL THEN RETURN false; END IF;
