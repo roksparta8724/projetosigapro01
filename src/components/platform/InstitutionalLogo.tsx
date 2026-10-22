@@ -272,9 +272,11 @@ export function InstitutionalLogo({
   const logoTranslation = isMaster
     ? `translate(${masterOffsetX}px, ${masterOffsetY}px)`
     : `translate(${municipalOffsetX}%, ${municipalOffsetY}%)`;
-  // The footer uses the same two-thirds optical fit as ImageFrameEditor.
-  // At 1.50x the entire original crest fits; higher intentional zoom may crop.
-  const displayScale = !isMaster && variant === "footer" ? scale * (2 / 3) : scale;
+  // Both municipal variants use the exact same calibrated optical fit as
+  // the admin editors: 1.50x means an uncropped, full original image.
+  const displayScale = !isMaster && (variant === "footer" || variant === "header")
+    ? scale * (2 / 3)
+    : scale;
   const showCrop = variant === "header" || variant === "footer" || variant === "preview";
 
   useEffect(() => {
