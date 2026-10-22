@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   buildGuidePixPayload,
   hasMunicipalBankAgreementConfigured,
@@ -32,6 +32,16 @@ const guide = {
 } as PaymentGuideEntry;
 
 describe("municipal payment collection", () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  it("does not expose an existing real PIX payment from copied municipality data on isolated QA", () => {
+    vi.stubEnv("VITE_SIGAPRO_NEON_ISOLATED", "true");
+    expect(buildGuidePixPayload({ settings, guide })).toBe("");
+    expect(buildGuidePixPayload({
+      settings, guide: { ...guide, pixPayload: "000201TEST-ALREADY-EXISTS" },
+    })).toBe("");
+  });
+
   it("preserves a valid original PIX including lowercase email when settings change", () => {
     const pixPayload = buildGuidePixPayload({ settings, guide });
     const reopened = buildGuidePixPayload({ settings: { ...settings, chavePix: "changed@example.test" }, guide: { ...guide, pixPayload } });
