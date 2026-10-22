@@ -27,5 +27,4 @@ AS $$
 $$;
 
 REVOKE ALL ON FUNCTION public.list_visible_dispatch_authors_v1() FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.list_visible_dispatch_authors_v1() FROM anon;
 GRANT EXECUTE ON FUNCTION public.list_visible_dispatch_authors_v1() TO authenticated;
