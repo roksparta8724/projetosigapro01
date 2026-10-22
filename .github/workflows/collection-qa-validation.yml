@@ -32,6 +32,7 @@ on:
       - server/qa-document-store.test.ts
       - src/integrations/r2/client.ts
       - src/pages/saas/ExternalPaymentsPage.tsx
+      - src/pages/saas/ProtocolarProjetoPage.tsx
       - server/mercadopago.ts
       - src/test/**
       - src/components/platform/PortalFrame.tsx
