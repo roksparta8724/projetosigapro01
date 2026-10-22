@@ -68,7 +68,7 @@ describe("Municipal framing: editor → Neon → page header/footer", () => {
     expect(footer).toContain('data-sig-footer-grid="true" className="grid min-w-0 items-center');
     expect(footer).toContain('className="!m-0 !shrink-0"');
     expect(renderer).toContain('footer: "h-[144px] w-[144px] max-h-[144px] max-w-[144px] p-0"');
-    expect(renderer).toContain('const municipalOffsetX = ((branding.logoOffsetX || 0) / 188) * 100');
+    expect(renderer).toContain('const municipalOffsetX = (municipalFrame.offsetX / MUNICIPAL_LOGO_EDITOR_SIZE) * 100');
   });
 
   it("shows the complete original beside a real-footer preview and uses a safe fit at 1.50x", () => {
@@ -78,9 +78,9 @@ describe("Municipal framing: editor → Neon → page header/footer", () => {
     expect(config).toContain("Imagem original completa");
     expect(config).toContain('data-municipal-logo-live-preview="footer"');
     expect(config).toContain('<InstitutionalLogo');
-    expect(config).toContain('containBaseRatio={2 / 3}');
+    expect(config).toContain('containBaseRatio={MUNICIPAL_LOGO_BASE_RATIO}');
     expect(config).toContain('Encaixar inteiro');
-    expect(config).toContain('setDraftFooterLogoConfig({ scale: 1.5, offsetX: 0, offsetY: 0 })');
+    expect(config).toContain('setDraftFooterLogoConfig(fullMunicipalLogoFrame())');
     expect(logo).toContain('(variant === "footer" || variant === "header")');
     expect(config).toContain('imageUrl={previewFooterEditorUrl}');
     expect(config).toContain('imageUrl={previewHeaderEditorUrl}');
