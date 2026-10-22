@@ -4,6 +4,7 @@ import {
   canReadInstitutionalHistory,
   getInstitutionalHistoryProcesses,
   historicTimestamp,
+  isExternallyVisibleHistoryEvent,
 } from "@/lib/institutionalHistoryAccess";
 import type { ProcessRecord, SessionUser } from "@/lib/platform";
 
@@ -81,4 +82,10 @@ describe("institutional history access", () => {
     expect(historicTimestamp("2026-10-22T19:45:31Z")).toBeGreaterThan(0);
     expect(historicTimestamp("32/10/2026, 19:45:31")).toBe(0);
   });
+  it("shows external users only events explicitly marked for public viewing", () => {
+    expect(isExternallyVisibleHistoryEvent({ visibleToExternal: true })).toBe(true);
+    expect(isExternallyVisibleHistoryEvent({ visibleToExternal: false })).toBe(false);
+    expect(isExternallyVisibleHistoryEvent({})).toBe(false);
+  });
+
 });
