@@ -29,6 +29,7 @@ on:
       - api/collection-configuration.ts
       - neon/migrations/20261021_municipal_collection_*.sql
       - neon/migrations/20261021_dam_original_and_provider_persistence.sql
+      - neon/migrations/20261022_collection_activation_bank_guard.sql
       - src/lib/municipalCollectionBridge.ts
       - src/components/platform/GovbrArGuideBridge.tsx
       - src/pages/saas/ProcessDetailPage.tsx
