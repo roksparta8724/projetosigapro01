@@ -18,7 +18,10 @@ const LOGO_SESSION_CACHE_KEY = "sigapro.institutional-logo.v3";
 
 const variantClasses = {
   header: "h-[112px] w-[188px] p-0 lg:h-[120px] lg:w-[204px]",
-  footer: "h-[188px] w-[188px] p-0",
+  // Compact presentation (144px square) of the same 188px square editor crop.
+  // Keeping the aspect ratio preserves scale and position proportionally
+  // without stretching the site's entire institutional footer.
+  footer: "h-[144px] w-[144px] max-h-[144px] max-w-[144px] p-0",
   preview: "h-[140px] w-full max-w-[204px] p-0",
   compact: "h-10 w-10 p-0",
   login: "h-full w-full p-0",
@@ -258,6 +261,8 @@ export function InstitutionalLogo({
   // heights. Percent translations scale with the actual logo card in the page.
   const masterOffsetX = (branding.logoOffsetX || 0) * frameRatio;
   const masterOffsetY = (branding.logoOffsetY || 0) * frameRatio;
+  // Offsets are stored as editor-frame pixels (188px square). CSS
+  // percentages preserve the same visual proportions in the compact footer.
   const municipalOffsetX = ((branding.logoOffsetX || 0) / 188) * 100;
   const municipalOffsetY = ((branding.logoOffsetY || 0) / 188) * 100;
   const logoTranslation = isMaster
