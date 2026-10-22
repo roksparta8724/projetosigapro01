@@ -130,9 +130,16 @@ export function institutionalLogoVisibleBounds(
     for (let x = 0; x < width; x++) {
       const at = (y * width + x) * 4;
       const alpha = pixels[at + 3];
-      if (alpha < 25) continue;
-      const visiblyPainted = alpha < 247 ||
-        pixels[at] < 247 || pixels[at + 1] < 247 || pixels[at + 2] < 247;
+      // Scanned PNG/JPEG crests frequently carry large light-gray/near-white
+      // backgrounds. Using <247 treated compression noise as artwork and left
+      // the tiny emblem surrounded by whitespace in the DAM printout.
+      if (alpha < 72) continue;
+      const red = pixels[at];
+      const green = pixels[at + 1];
+      const blue = pixels[at + 2];
+      const lowest = Math.min(red, green, blue);
+      const highest = Math.max(red, green, blue);
+      const visiblyPainted = lowest < 220 || highest - lowest > 35;
       if (!visiblyPainted) continue;
       occupied++;
       minX = Math.min(minX, x); maxX = Math.max(maxX, x);
@@ -141,7 +148,9 @@ export function institutionalLogoVisibleBounds(
   }
   // Keep transparent/white-only images unchanged; avoid magnifying noise.
   if (maxX < 0 || occupied < width * height * 0.005) return null;
-  const margin = Math.max(2, Math.round(Math.min(width, height) * 0.04));
+  // Keep a thin border (including municipal artwork captions) but do not
+  // reproduce the large blank source margins inside the A4 logo cell.
+  const margin = Math.max(2, Math.round(Math.min(width, height) * 0.025));
   const x = Math.max(0, minX - margin);
   const y = Math.max(0, minY - margin);
   const right = Math.min(width, maxX + 1 + margin);
