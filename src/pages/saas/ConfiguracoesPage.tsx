@@ -3554,9 +3554,10 @@ export function ConfiguracoesPage() {
                       offsetY={draftHeaderLogoConfig.offsetY}
                       onChange={(next) => setDraftHeaderLogoConfig(fitMunicipalLogoFrame(next))}
                       label="Ajuste do logo do cabeçalho"
-                      hint="Em 1,50x o brasão original fica inteiramente visível. A prévia mostra o mesmo componente usado no cabeçalho real."
+                      hint="O brasão permanece inteiro. O máximo de 1,50x corresponde ao encaixe completo mostrado no cabeçalho."
                       fitMode="contain"
                       containBaseRatio={MUNICIPAL_LOGO_BASE_RATIO}
+                      keepWholeImageVisible
                       minScale={1}
                       maxScale={MUNICIPAL_LOGO_MAX_ZOOM}
                       zoomStep={0.1}
@@ -3564,11 +3565,6 @@ export function ConfiguracoesPage() {
                       wrapperClassName="sig-config-logo-editor sig-config-logo-editor-header"
                       viewportClassName="!h-[188px] !w-[188px]"
                     />
-                    {draftHeaderLogoConfig.scale > 1.501 ? (
-                      <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-900">
-                        Este zoom aproxima e poderá cortar o brasão. Use “Encaixar inteiro” para restaurar a visão completa.
-                      </p>
-                    ) : null}
                     <div className="flex flex-wrap gap-3">
                       <Button type="button" variant="outline"
                         className="rounded-2xl border-sky-200 bg-sky-50 text-sky-950"
@@ -3712,9 +3708,10 @@ export function ConfiguracoesPage() {
                       offsetY={draftFooterLogoConfig.offsetY}
                       onChange={(next) => setDraftFooterLogoConfig(fitMunicipalLogoFrame(next))}
                       label="Ajuste do logo do rodapé"
-                      hint="O encaixe foi calibrado: em 1.50x o brasão fica inteiro e centralizado. Acima disso pode ocorrer recorte."
+                      hint="O brasão permanece inteiro. O máximo de 1,50x corresponde ao encaixe completo mostrado no rodapé."
                       fitMode="contain"
-                      containBaseRatio={2 / 3}
+                      containBaseRatio={MUNICIPAL_LOGO_BASE_RATIO}
+                      keepWholeImageVisible
                       minScale={1}
                       maxScale={MUNICIPAL_LOGO_MAX_ZOOM}
                       zoomStep={0.1}
@@ -3722,11 +3719,6 @@ export function ConfiguracoesPage() {
                       wrapperClassName="sig-config-logo-editor sig-config-logo-editor-footer"
                       viewportClassName="!h-[188px] !w-[188px]"
                     />
-                    {draftFooterLogoConfig.scale > 1.5 + 0.001 ? (
-                      <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-900">
-                        O zoom atual recorta parte do brasão. Use “Encaixar inteiro” para mostrar a imagem completa.
-                      </p>
-                    ) : null}
                     <div className="flex flex-wrap gap-3">
                       <Button type="button" variant="outline"
                         className="rounded-2xl border-sky-200 bg-sky-50 text-sky-950"
