@@ -20,6 +20,41 @@ export type MercadoPagoGuideCharge = {
   errorDetails?: string[];
 };
 
+export type QaPixCharge = {
+  ok: boolean;
+  sandboxOnly: true;
+  environment?: "test";
+  orderId?: string;
+  paymentId?: string;
+  qrCode?: string;
+  status?: string;
+  error?: string;
+};
+
+/** The browser NEVER receives Access Tokens or a raw municipal PIX key. */
+export async function requestQaPixCharge(input: {
+  municipalityId: string; guideCode: string; action: "issue" | "get";
+}): Promise<QaPixCharge> {
+  if (import.meta.env.VITE_SIGAPRO_NEON_ISOLATED !== "true")
+    throw new Error("PIX de homologação indisponível fora do ambiente isolado.");
+  const sessionResult=await backendClient.auth.getSession();
+  const session=sessionResult?.data?.session;
+  const token=session?.access_token || session?.accessToken || session?.token || "";
+  if(!token) throw new Error("Entre novamente para autenticar o teste PIX.");
+  const response=await fetch("/api/qa/mercadopago/guide-pix",{
+    method:"POST",
+    headers:{Accept:"application/json","Content-Type":"application/json",Authorization:`Bearer ${token}`},
+    body:JSON.stringify(input),
+  });
+  const result=(await response.json().catch(()=>null)) as QaPixCharge | null;
+  if(!response.ok || !result?.ok || !result.sandboxOnly){
+    if (input.action==="get" && result?.error?.includes("ainda não emitido"))
+      return {ok:false,sandboxOnly:true};
+    throw new Error(result?.error||"Não foi possível consultar o PIX de teste.");
+  }
+  return result;
+}
+
 export type MercadoPagoGuideChargeInput = {
   municipalityId?: string | null;
   guideCode: string;
