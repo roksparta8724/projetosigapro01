@@ -142,14 +142,18 @@ describe("municipal branding runtime resilience", () => {
     expect(settings).toContain("const previewFooterDisplayUrl =");
     expect(settings).toContain('data-municipal-logo-live-preview="header"');
     expect(settings).toContain('data-municipal-logo-live-preview="footer"');
-    expect(settings).toContain("imageUrl={previewHeaderDisplayUrl}");
-    expect(settings).toContain("imageUrl={previewFooterDisplayUrl}");
+    expect(settings).toContain("imageUrl={previewHeaderEditorUrl}");
+    expect(settings).toContain("imageUrl={previewFooterEditorUrl}");
     expect(settings).toContain("headerBranding.fallbackLogoUrl");
     expect(settings).toContain("footerBranding.fallbackLogoUrl");
-    expect(settings).toContain("Math.max(1, draftHeaderLogoConfig.scale)");
+    expect(settings).toContain("logoScale: draftHeaderLogoConfig.scale");
+    expect(settings).toContain('onResolvedSource={recordConfirmedHeaderSource}');
+    expect(settings).toContain('onResolvedSource={recordConfirmedFooterSource}');
+    expect(settings).toContain('data-header-original-reference="true"');
+    expect(settings).toContain('data-footer-original-reference="true"');
     expect(settings).toContain("logoScale: draftFooterLogoConfig.scale");
     expect(settings).toContain("containBaseRatio={2 / 3}");
-    expect(logo).toContain('variant === "footer" ? scale * (2 / 3) : scale');
+    expect(logo).toContain('(variant === "footer" || variant === "header")');
   });
 
   it("keeps preview changes isolated from the page chrome and accepts the stable same-origin logo proxy", () => {
@@ -166,7 +170,8 @@ describe("municipal branding runtime resilience", () => {
   it("keeps a safe-fit, full-crest original reference and consistent square geometry in the footer", () => {
     expect(settings).toContain('width: 188, minWidth: 188, maxWidth: 188, height: 188');
     expect(settings).toContain('viewportClassName="!h-[188px] !w-[188px]"');
-    expect(settings).toContain("draftHeaderLogoConfig.scale <= 1.001 ? 0 : draftHeaderLogoConfig.offsetX");
+    expect(settings).toContain('data-header-original-reference="true"');
+    expect(settings).toContain('setDraftHeaderLogoConfig({ scale: 1.5, offsetX: 0, offsetY: 0 })');
     expect(settings).toContain('data-footer-original-reference="true"');
     expect(settings).toContain('data-municipal-logo-live-preview="footer"');
     expect(settings).toContain('className="relative mx-auto flex h-[144px] w-[144px]');
