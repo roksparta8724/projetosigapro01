@@ -82,15 +82,21 @@ export async function qaMercadoPagoPix(
   if (!uuidPattern.test(input.municipalityId) || !/^DAM-PRE-[A-Za-z0-9-]{8,100}$/.test(input.guideCode)) {
     throw new Error("Identificação de guia de homologação inválida.");
   }
-  const access = await callDataApiRpc<boolean>(req,"qa_boleto_access_v1",{
-    _municipality_id:input.municipalityId,_guide_code:input.guideCode,
-  });
-  if (!access.ok || access.payload !== true) throw new Error("Sem autorização para esta guia de homologação.");
   const guide = await readStoredGuide(req,input.municipalityId,input.guideCode);
   if (guide.guide_number !== input.guideCode || guide.municipality_id !== input.municipalityId ||
       !Number.isFinite(Number(guide.amount)) || Number(guide.amount) <= 0) {
     throw new Error("Guia original não autorizada para emissão PIX de teste.");
   }
+  // Use the already-granted QA RPCs, never the private internal guard that
+  // deliberately has no EXECUTE grant for authenticated clients.
+  const authFn = guide.bank_reference
+    ? "qa_authorize_payment_guide_provider_sync_v1"
+    : "qa_authorize_payment_guide_charge_v1";
+  const access = await callDataApiRpc<boolean>(req,authFn,{
+    _municipality_id:input.municipalityId,_guide_code:input.guideCode,
+    ...(guide.bank_reference ? {_bank_reference:guide.bank_reference} : {}),
+  });
+  if (!access.ok || access.payload !== true) throw new Error("Sem autorização para esta guia de homologação.");
   const path=pathFor(branch,input.municipalityId,input.guideCode);
   let stored=await safeRead(path);
   if(input.action==="get") return response(stored);
