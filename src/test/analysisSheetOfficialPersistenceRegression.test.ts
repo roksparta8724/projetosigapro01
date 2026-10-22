@@ -42,14 +42,16 @@ describe("SIGAPRO: persistencia da ficha e documentos oficiais assinados", () =>
     expect(checklist).toContain('signer.slot === "diretoria"');
   });
 
-  it("gera PDF assinado sem abrir outra aba e grava no R2 somente apos conferir hash e duas assinaturas", () => {
-    expect(checklist).toContain('void generatePdf({ openViewer: false, stateOverride: next })');
-    expect(checklist).toContain('if (options.openViewer !== false)');
-    expect(checklist).toContain("buildChecklistSignaturePayload(pdfState, process, municipalityId)");
-    expect(checklist).toContain("technicalPdfOfficial && directorPdfOfficial && isInternalRole(session.role)");
+  it("só junta PDF versionado após confirmação explícita e leitura das assinaturas no banco", () => {
+    expect(checklist).toContain("const generatePdf = async (persistSigned = false)");
+    expect(checklist).toContain("if (persistSigned && !window.confirm(");
+    expect(checklist).toContain("if (persistSigned && !readOnly && (technicalOfficial || directorOfficial))");
+    expect(checklist).toContain("const verified = await getProcessArtifactSignatures(process.id, ANALYSIS_ARTIFACT_KEY)");
+    expect(checklist).toContain("stableSignatureStringify(buildChecklistSignaturePayload(state, process, municipalityId))");
+    expect(checklist).toContain("(directorOfficial && !verifiedDirector)");
+    expect(checklist).toContain("const alreadyRecorded = process.documents.some(");
     expect(checklist).toContain('bucket: "process-documents"');
     expect(checklist).toContain("await appendProcessDocuments(process.id,");
-    expect(checklist).toContain("autoArchiveAttemptsRef.current.add(attemptKey)");
   });
 
   it("exibe retirada com quem recebeu e horario do banco e nao modifica PDF assinado", () => {
