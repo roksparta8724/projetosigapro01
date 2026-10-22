@@ -985,7 +985,8 @@ export function ConfiguracoesPage() {
       settings?.planoDiretorArquivoUrl,
       settings?.planoDiretorArquivoNome,
       "plano-diretor.pdf",
-      "plano-diretor"      settings?.tenantId,
+      "plano-diretor",
+      settings?.tenantId,
     ),
   );
   const [usoSoloFiles, setUsoSoloFiles] = useState<UploadedFileItem[]>(() =>
@@ -993,7 +994,8 @@ export function ConfiguracoesPage() {
       settings?.usoSoloArquivoUrl,
       settings?.usoSoloArquivoNome,
       "uso-e-ocupacao-do-solo.pdf",
-      "uso-solo"      settings?.tenantId,
+      "uso-solo",
+      settings?.tenantId,
     ),
   );
   const [zoneamentoFiles, setZoneamentoFiles] = useState<UploadedFileItem[]>(() =>
@@ -1001,7 +1003,8 @@ export function ConfiguracoesPage() {
       settings?.zoneamentoArquivoUrl,
       settings?.zoneamentoArquivoNome,
       "zoneamento.pdf",
-      "zoneamento"      settings?.tenantId,
+      "zoneamento",
+      settings?.tenantId,
     ),
   );
   const [leisFiles, setLeisFiles] = useState<UploadedFileItem[]>(() =>
@@ -1009,7 +1012,8 @@ export function ConfiguracoesPage() {
       settings?.leisArquivoUrl,
       settings?.leisArquivoNome,
       "leis-complementares.pdf",
-      "leis-complementares"      settings?.tenantId,
+      "leis-complementares",
+      settings?.tenantId,
     ),
   );
   const [institutionalAssetsSaving, setInstitutionalAssetsSaving] = useState(false);
@@ -1169,25 +1173,29 @@ export function ConfiguracoesPage() {
       nextSettings?.planoDiretorArquivoUrl,
       nextSettings?.planoDiretorArquivoNome,
       "plano-diretor.pdf",
-      "plano-diretor"      selectedTenantId,
+      "plano-diretor",
+      selectedTenantId,
     );
     const nextUsoSoloFiles = storedInstitutionalDocument(
       nextSettings?.usoSoloArquivoUrl,
       nextSettings?.usoSoloArquivoNome,
       "uso-e-ocupacao-do-solo.pdf",
-      "uso-solo"      selectedTenantId,
+      "uso-solo",
+      selectedTenantId,
     );
     const nextZoneamentoFiles = storedInstitutionalDocument(
       nextSettings?.zoneamentoArquivoUrl,
       nextSettings?.zoneamentoArquivoNome,
       "zoneamento.pdf",
-      "zoneamento"      selectedTenantId,
+      "zoneamento",
+      selectedTenantId,
     );
     const nextLeisFiles = storedInstitutionalDocument(
       nextSettings?.leisArquivoUrl,
       nextSettings?.leisArquivoNome,
       "leis-complementares.pdf",
-      "leis-complementares"      selectedTenantId,
+      "leis-complementares",
+      selectedTenantId,
     );
     setPlanoDiretorFiles((current) =>
       sameFileList(current, nextPlanoDiretorFiles) ? current : nextPlanoDiretorFiles,
