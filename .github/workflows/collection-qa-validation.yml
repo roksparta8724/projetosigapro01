@@ -24,6 +24,7 @@ on:
       - src/lib/paymentCollection.test.ts
       - src/test/collectionDiagnostics.test.ts
       - src/test/collectionNeonAuthAlignment.test.ts
+      - src/test/isolatedProtocolPaymentFlow.test.ts
       - src/test/municipalBankingFlow.test.ts
       - server/municipal-storage.ts
       - server/municipal-payment.ts
@@ -96,6 +97,7 @@ jobs:
           npx vitest run
           src/test/collectionDiagnostics.test.ts
           src/test/collectionNeonAuthAlignment.test.ts
+          src/test/isolatedProtocolPaymentFlow.test.ts
           src/test/municipalCollectionConfiguration.test.ts
           src/test/govbrArGuideBridge.test.ts
           src/test/damProviderPersistence.test.ts
