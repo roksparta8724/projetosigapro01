@@ -580,6 +580,10 @@ export function UrbanAnalysisChecklistPanel({
   }, [key, process.id, session.id, municipalityId]);
 
   useEffect(() => {
+    // Read official signed evidence only after restoring the canonical
+    // municipal sheet. Otherwise a stale browser cache can invalidate a
+    // legitimate signature while the database read is still in flight.
+    if (officialSheetLoading) return;
     let active = true;
 
     void getProcessArtifactSignatures(process.id, ANALYSIS_ARTIFACT_KEY)
@@ -678,7 +682,7 @@ export function UrbanAnalysisChecklistPanel({
     return () => {
       active = false;
     };
-  }, [key, process.id, readOnly]);
+  }, [key, process.id, readOnly, officialSheetLoading]);
 
   useEffect(() => {
     let active = true;
