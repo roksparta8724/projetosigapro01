@@ -46,7 +46,7 @@ import {
   upsertRemoteInstitution,
 } from "@/integrations/backend/platform";
 import { updateInstitutionBranding, type InstitutionalLogoConfigVariant } from "@/lib/institutionBranding";
-import { getMunicipalityLogoOpenUrl, getObjectKeyFromPublicUrl, getPublicUrl, getSignedUrlForObject, getSignedUrlForObjectStrict } from "@/integrations/r2/client";
+import { getLegislationOpenUrl, getStableMunicipalLegislationReference, getMunicipalityLogoOpenUrl, getObjectKeyFromPublicUrl, getPublicUrl, getSignedUrlForObject, getSignedUrlForObjectStrict } from "@/integrations/r2/client";
 import { uploadFileToStorage } from "@/integrations/r2/storage";
 import {
   getMasterInstitutionBranding,
@@ -159,8 +159,11 @@ function storedInstitutionalDocument(
   fileName: string | null | undefined,
   fallbackName: string,
   id: string,
+  municipalityId?: string | null,
 ): UploadedFileItem[] {
-  const persistentRef = url?.trim() || "";
+  // Older rows saved a six-hour presigned R2 URL instead of the immutable
+  // object key. Resolve the original asset inside the SAME municipality.
+  const persistentRef = getStableMunicipalLegislationReference(url, municipalityId);
   if (!persistentRef) return [];
 
   const privateObjectKey = persistentRef.startsWith("r2:")
@@ -173,7 +176,9 @@ function storedInstitutionalDocument(
       fileName: fileName?.trim() || fallbackName,
       mimeType: "application/pdf",
       sizeLabel: "arquivo salvo",
-      previewUrl: isRenderablePreviewUrl(persistentRef) ? persistentRef : undefined,
+      previewUrl: privateObjectKey
+        ? getLegislationOpenUrl(persistentRef)
+        : isRenderablePreviewUrl(persistentRef) ? persistentRef : undefined,
       persistentRef,
       storagePath:
         privateObjectKey ||
@@ -980,7 +985,7 @@ export function ConfiguracoesPage() {
       settings?.planoDiretorArquivoUrl,
       settings?.planoDiretorArquivoNome,
       "plano-diretor.pdf",
-      "plano-diretor",
+      "plano-diretor"      settings?.tenantId,
     ),
   );
   const [usoSoloFiles, setUsoSoloFiles] = useState<UploadedFileItem[]>(() =>
@@ -988,7 +993,7 @@ export function ConfiguracoesPage() {
       settings?.usoSoloArquivoUrl,
       settings?.usoSoloArquivoNome,
       "uso-e-ocupacao-do-solo.pdf",
-      "uso-solo",
+      "uso-solo"      settings?.tenantId,
     ),
   );
   const [zoneamentoFiles, setZoneamentoFiles] = useState<UploadedFileItem[]>(() =>
@@ -996,7 +1001,7 @@ export function ConfiguracoesPage() {
       settings?.zoneamentoArquivoUrl,
       settings?.zoneamentoArquivoNome,
       "zoneamento.pdf",
-      "zoneamento",
+      "zoneamento"      settings?.tenantId,
     ),
   );
   const [leisFiles, setLeisFiles] = useState<UploadedFileItem[]>(() =>
@@ -1004,7 +1009,7 @@ export function ConfiguracoesPage() {
       settings?.leisArquivoUrl,
       settings?.leisArquivoNome,
       "leis-complementares.pdf",
-      "leis-complementares",
+      "leis-complementares"      settings?.tenantId,
     ),
   );
   const [institutionalAssetsSaving, setInstitutionalAssetsSaving] = useState(false);
@@ -1164,25 +1169,25 @@ export function ConfiguracoesPage() {
       nextSettings?.planoDiretorArquivoUrl,
       nextSettings?.planoDiretorArquivoNome,
       "plano-diretor.pdf",
-      "plano-diretor",
+      "plano-diretor"      selectedTenantId,
     );
     const nextUsoSoloFiles = storedInstitutionalDocument(
       nextSettings?.usoSoloArquivoUrl,
       nextSettings?.usoSoloArquivoNome,
       "uso-e-ocupacao-do-solo.pdf",
-      "uso-solo",
+      "uso-solo"      selectedTenantId,
     );
     const nextZoneamentoFiles = storedInstitutionalDocument(
       nextSettings?.zoneamentoArquivoUrl,
       nextSettings?.zoneamentoArquivoNome,
       "zoneamento.pdf",
-      "zoneamento",
+      "zoneamento"      selectedTenantId,
     );
     const nextLeisFiles = storedInstitutionalDocument(
       nextSettings?.leisArquivoUrl,
       nextSettings?.leisArquivoNome,
       "leis-complementares.pdf",
-      "leis-complementares",
+      "leis-complementares"      selectedTenantId,
     );
     setPlanoDiretorFiles((current) =>
       sameFileList(current, nextPlanoDiretorFiles) ? current : nextPlanoDiretorFiles,
