@@ -59,7 +59,9 @@ export function MovementHistoryPage() {
   const [operationStatus, setOperationStatus] = useState("");
 
   const currentUnit = session.department || session.title || "Unidade atual";
-  const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
+  const effectiveScopeId = session.role === "master_admin" || session.role === "master_ops"
+    ? municipality?.id ?? scopeId ?? session.municipalityId ?? session.tenantId ?? null
+    : session.municipalityId ?? session.tenantId ?? municipality?.id ?? scopeId ?? null;
   const processes = useMemo(() => getInstitutionalHistoryProcesses(session, effectiveScopeId, allProcesses), [allProcesses, effectiveScopeId, session]);
   const mayOperate = (processId: string) => {
     const process = processes.find((item) => item.id === processId);
@@ -112,7 +114,7 @@ export function MovementHistoryPage() {
   const restrictedProcesses = processes.filter((process) => (process.processControl?.externalTransitView ?? "completo") === "restrito");
   const dispatchTemplates = documentTemplates.filter((template) => template.type === "despacho");
   const unitUsers = sessionUsers.filter((user) => !batchTargetUnit || (user.department || user.title || "").toLowerCase().includes(batchTargetUnit.toLowerCase()) || batchTargetUnit.toLowerCase().includes((user.department || user.title || "").toLowerCase()));
-  const historyRows = useMemo(() => processes.flatMap((process) => [...process.timeline.map((entry) => ({ id: `${process.id}-${entry.id}`, processId: process.id, protocol: process.protocol, title: entry.title, detail: entry.detail, actor: entry.actor, at: entry.at })), ...process.auditTrail.filter((entry) => entry.visibleToExternal || canReadInstitutionalHistory(session)).map((entry) => ({ id: `${process.id}-${entry.id}`, processId: process.id, protocol: process.protocol, title: entry.title, detail: entry.detail, actor: entry.actor, at: entry.at }))]), [processes, session.role]);
+  const historyRows = useMemo(() => processes.flatMap((process) => [...process.timeline.map((entry) => ({ id: `${process.id}-${entry.id}`, processId: process.id, protocol: process.protocol, title: entry.title, detail: entry.detail, actor: entry.actor, at: entry.at })), ...process.auditTrail.filter((entry) => entry.visibleToExternal || canReadInstitutionalHistory(session)).map((entry) => ({ id: `${process.id}-${entry.id}`, processId: process.id, protocol: process.protocol, title: entry.title, detail: entry.detail, actor: entry.actor, at: entry.at }))]), [processes, session.role, session.accountStatus]);
   const historySeen = new Set<string>();
   const filteredHistory = [...historyRows].sort((a, b) => historicTimestamp(b.at) - historicTimestamp(a.at)).filter((item) => {
     if (!`${item.protocol} ${item.title} ${item.detail} ${item.actor}`.toLowerCase().includes(search.toLowerCase())) return false;
