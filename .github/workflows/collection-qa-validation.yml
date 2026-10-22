@@ -7,6 +7,8 @@ on:
     paths:
       - .github/workflows/collection-qa-validation.yml
       - scripts/dev-qa.mjs
+      - scripts/qa-payment-secret.mjs
+      - scripts/qa-payment-secret.check.mjs
       - package.json
       - vite.config.ts
       - src/pages/saas/CollectionSettingsPage.tsx
@@ -62,6 +64,8 @@ jobs:
         run: npm ci --legacy-peer-deps --no-audit --no-fund
       - name: Check safe QA launcher without opening ports
         run: npm run dev:qa:check
+      - name: Verify stable QA-only payment encryption key (no external services)
+        run: node --test scripts/qa-payment-secret.check.mjs
       - name: Smoke isolated localhost 8081 and block all external side effects
         shell: bash
         run: |
