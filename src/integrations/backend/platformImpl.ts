@@ -489,6 +489,7 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
     plansResult,
     planAssignmentsResult,
     lastAccessResult,
+    dispatchAuthorsResult,
   ] = (await Promise.all([
     isNeonBackend
       ? Promise.resolve({ data: [], error: null })
@@ -534,6 +535,9 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
     db.from("client_plan_assignments").select("*").order("updated_at", { ascending: false }),
     isNeonBackend
       ? db.rpc("list_visible_user_last_access")
+      : Promise.resolve({ data: [], error: null }),
+    isNeonBackend
+      ? db.rpc("list_visible_dispatch_authors_v1")
       : Promise.resolve({ data: [], error: null }),
   ])) as any[];
 
@@ -662,6 +666,14 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
   const profileRows = municipalityResultData(profilesResult.data);
   const propertyRows = municipalityResultData(propertiesResult.data);
   const lastAccessRows = municipalityResultData(lastAccessResult.data);
+  // Scoped, server-verified names for colleagues hidden by profiles RLS.
+  // An unavailable migration degrades only this label, never the process store.
+  const scopedDispatchAuthorById = new Map<string, DatabaseRow>(
+    (dispatchAuthorsResult.data ?? []).map((entry: DatabaseRow) => [
+      String(entry.dispatch_id ?? ""),
+      entry,
+    ] as const),
+  );
 
   const brandingByTenant = new Map<string, DatabaseRow>(
     brandingRows.map((item) => [String(item.tenant_id ?? ""), item] as const),
@@ -1614,7 +1626,9 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
         // The database may record the signer as a profile ID or a user ID.
         // Resolve both against the official profile directory; do not infer
         // the signer from the assigned analyst or current session.
+        const scopedAuthor = scopedDispatchAuthorById.get(String(dispatch.id));
         const recordedActorId = String(
+          scopedAuthor?.author_profile_id ??
           dispatch.created_by_profile_id ??
           dispatch.created_by_user_id ??
           dispatch.actor_profile_id ??
@@ -1625,6 +1639,7 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
           ? profileById.get(recordedActorId) ?? profileByUser.get(recordedActorId)
           : undefined;
         const recordedActorName = String(
+          scopedAuthor?.author_name ??
           recordedActorProfile?.full_name ??
           recordedActorProfile?.email ??
           dispatch.requested_by_name ??
@@ -1657,9 +1672,11 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
             ? dispatch.priority
             : "media",
         assignedTo: dispatch.assigned_to ? String(dispatch.assigned_to) : undefined,
-        requestedByProfileId: recordedActorProfile?.id
-          ? String(recordedActorProfile.id)
-          : (dispatch.created_by_profile_id ? String(dispatch.created_by_profile_id) : undefined),
+        requestedByProfileId: scopedAuthor?.author_profile_id
+          ? String(scopedAuthor.author_profile_id)
+          : recordedActorProfile?.id
+            ? String(recordedActorProfile.id)
+            : (dispatch.created_by_profile_id ? String(dispatch.created_by_profile_id) : undefined),
         requestedBy: recordedActorName || undefined,
       };
       }),
