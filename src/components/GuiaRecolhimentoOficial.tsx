@@ -871,8 +871,8 @@ function getStyles() {
       display: grid;
       /* Malha institucional única: logo, conteúdo e bloco financeiro alinham
          exatamente com as colunas do corpo da guia. */
-      grid-template-columns: 22mm minmax(0, 1fr) 58mm;
-      min-height: 19mm;
+      grid-template-columns: 28mm minmax(0, 1fr) 58mm;
+      min-height: 26mm;
       border-bottom: 1px solid #000000;
       align-items: stretch;
       background: #f8fbfd;
@@ -883,7 +883,7 @@ function getStyles() {
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 0.65mm;
+      padding: 0.45mm;
       min-width: 0;
       overflow: hidden;
       box-sizing: border-box;
@@ -891,8 +891,8 @@ function getStyles() {
     }
 
     .dam-receipt-logo img {
-      width: 20.5mm;
-      height: 17.6mm;
+      width: 27mm;
+      height: 25mm;
       max-width: 100%;
       max-height: 100%;
       object-fit: contain;
@@ -941,7 +941,7 @@ function getStyles() {
 
     .dam-receipt-right .dam-receipt-row {
       grid-template-columns: 22mm minmax(0, 1fr);
-      min-height: 9.5mm;
+      min-height: 13mm;
     }
 
     .dam-receipt-right .dam-receipt-row-label {
@@ -987,9 +987,9 @@ function getStyles() {
 
     .dam-receipt-row {
       display: grid;
-      /* Mesmos 22 mm usados na coluna do logo para manter a grade vertical
+      /* Mesmos 28 mm usados na coluna do logo para manter a grade vertical
          perfeitamente alinhada da primeira à última linha. */
-      grid-template-columns: 22mm minmax(0, 1fr);
+      grid-template-columns: 28mm minmax(0, 1fr);
       border-bottom: 1px solid #000000;
       min-width: 0;
     }
