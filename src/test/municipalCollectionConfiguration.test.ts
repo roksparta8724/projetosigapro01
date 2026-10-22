@@ -19,6 +19,8 @@ const bankEditor = read("src/components/platform/MunicipalBankDetailsSettings.ts
 const oldSettings = read("src/pages/saas/ConfiguracoesPage.tsx");
 const bankMigration = read("neon/migrations/20261021_municipal_collection_bank_details.sql");
 const activationGuard = read("neon/migrations/20261022_collection_activation_bank_guard.sql");
+const credentialIsolation = read("neon/migrations/20261022_collection_provider_credential_isolation.sql");
+const providerUi = read("src/components/platform/MunicipalPaymentSettings.tsx");
 
 
 describe("municipal collection configuration", () => {
@@ -113,6 +115,21 @@ describe("municipal collection configuration", () => {
     expect(activationGuard).toContain("target.capabilities->>'payment'");
     expect(activationGuard).toContain("bank_beneficiary_document");
     expect(activationGuard).not.toContain("update public.payment_guides");
+  });
+
+  it("isolates credentials and test results per bank, environment and tenant", () => {
+    expect(credentialIsolation).toContain("old_connection.provider=_provider");
+    expect(credentialIsolation).toContain("old_connection.environment=_environment");
+    expect(credentialIsolation).toContain("else null end");
+    expect(credentialIsolation).toContain("last_tested_at=null,last_test_status=null");
+    expect(credentialIsolation).toContain("connection.provider='bank_direct'");
+    expect(credentialIsolation).toContain("connection.environment='production'");
+    expect(credentialIsolation).not.toContain("update public.payment_guides");
+    expect(providerUi).toContain("requestGeneration.current");
+    expect(providerUi).toContain("connectionMatchesForm");
+    expect(providerUi).toContain("data-municipal-provider-capabilities");
+    expect(api).toContain("payment?.provider !== \"mercado_pago\"");
+    expect(api).toContain("capabilities = { ...capabilities, query: false, payment: false");
   });
 
   it("rejects a production setup backed by sandbox credentials and missing municipal CNPJ", () => {
