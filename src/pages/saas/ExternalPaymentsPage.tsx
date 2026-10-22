@@ -88,8 +88,11 @@ export function ExternalPaymentsPage() {
         municipalityCity: municipality?.city,
       });
 
+      // Isolated QA only: an administrative preview, NOT a bank-issued DAM.
+      // Never ask Mercado Pago for payment, and never expose a payable PIX.
+      const isolatedQa = import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true";
       const charge =
-        banking.barcode && banking.digitableLine
+        isolatedQa || (banking.barcode && banking.digitableLine)
           ? null
           : await ensureMercadoPagoGuideCharge({
               municipalityId: effectiveScopeId,
@@ -98,14 +101,11 @@ export function ExternalPaymentsPage() {
               dueDate: guide.dueDate,
               description: `${guide.label} · ${process.preProtocol || process.title}`,
             });
+      const barcode = isolatedQa ? "" : (charge?.barcodeContent || banking.barcode);
+      const digitableLine = isolatedQa ? "" : (charge?.digitableLine || banking.digitableLine);
 
-      const barcode = charge?.barcodeContent || banking.barcode;
-      const digitableLine = charge?.digitableLine || banking.digitableLine;
-
-      if (!barcode || !digitableLine) {
-        throw new Error(
-          "A cobrança ainda não retornou código de barras e linha digitável válidos.",
-        );
+      if (!isolatedQa && (!barcode || !digitableLine)) {
+        throw new Error("A cobrança ainda não retornou código de barras e linha digitável válidos.");
       }
 
       const logoUrl = await prepareGuideInstitutionalLogo(
@@ -149,20 +149,22 @@ export function ExternalPaymentsPage() {
             guide.professionalName || process.technicalLead,
           codigoBarras: barcode,
           linhaDigitavel: digitableLine,
-          pixPayload: banking.pixPayload,
+          pixPayload: isolatedQa ? "" : banking.pixPayload,
           bankName:
             charge?.financialInstitution ||
             banking.bankName ||
             "Mercado Pago",
           bankAgreement: banking.bankAgreement,
-          bankInstructions: banking.bankInstructions,
-          bankReference: charge?.orderId || guide.bankReference,
-          bankPaymentId: charge?.paymentId || guide.bankPaymentId,
+          bankInstructions: isolatedQa
+            ? "HOMOLOGAÇÃO SIGAPRO — DOCUMENTO NÃO PAGÁVEL. Nenhuma cobrança foi registrada no banco."
+            : banking.bankInstructions,
+          bankReference: isolatedQa ? undefined : (charge?.orderId || guide.bankReference),
+          bankPaymentId: isolatedQa ? undefined : (charge?.paymentId || guide.bankPaymentId),
           bankStatus: charge?.status || guide.bankStatus,
           bankStatusDetail: charge?.statusDetail || guide.bankStatusDetail,
           bankAuthenticatedAt:
             charge?.authenticatedAt || guide.bankAuthenticatedAt,
-          bankEnvironment: charge?.environment || guide.providerEnvironment,
+          bankEnvironment: isolatedQa ? "test" : (charge?.environment || guide.providerEnvironment),
           paymentProvider:
             guide.paymentProvider ||
             tenantSettings?.paymentProvider ||
@@ -188,7 +190,7 @@ export function ExternalPaymentsPage() {
       };
 
       const opened = openGuiaRecolhimentoOficialWindow(guideDocument, {
-        title: `Guia ${guide.code}`,
+        title: isolatedQa ? `PRÉVIA NÃO PAGÁVEL · ${guide.code}` : `Guia ${guide.code}`,
         autoPrint: false,
       });
 
