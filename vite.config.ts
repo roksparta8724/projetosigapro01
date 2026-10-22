@@ -8,6 +8,7 @@ import { checkMercadoPagoConnection, createMercadoPagoGuideBoleto, getMercadoPag
 import collectionConfigurationHandler from "./api/collection-configuration";
 import paymentConnectionHandler from "./api/payment-connection";
 import { handleQaDocumentRequest } from "./server/qa-document-store";
+import { qaMercadoPagoPix } from "./server/qa-mercadopago-pix";
 import { callDataApiRpc } from "./server/municipal-storage";
 import handleProfileAvatarOpen from "./server/api/profile-avatar-open";
 import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand, HeadBucketCommand } from "@aws-sdk/client-s3";
@@ -196,6 +197,27 @@ function createR2DevApiPlugin(): Plugin {
         // Intercept only localhost:8081's isolated document repository.
         // Uploads never use R2 credentials. Signed reads only access local QA files.
         if (await handleQaDocumentRequest(req, res)) return;
+
+        // Independent PIX sandbox order, never a municipal PIX key and never
+        // the production payment endpoint. Both read and issue require auth.
+        if ((req.url || "").split("?")[0] === "/api/qa/mercadopago/guide-pix" && req.method === "POST") {
+          res.setHeader("Cache-Control", "no-store");
+          res.setHeader("Content-Type", "application/json; charset=utf-8");
+          try {
+            const body=await readJsonBody(req);
+            const result=await qaMercadoPagoPix(req,{
+              municipalityId:String(body.municipalityId||""),
+              guideCode:String(body.guideCode||""),
+              action:body.action==="get" ? "get" : "issue",
+            });
+            res.statusCode=result.ok?200:422;
+            res.end(JSON.stringify(result));
+          } catch(error) {
+            res.statusCode=400;
+            res.end(JSON.stringify({ok:false,sandboxOnly:true,error:error instanceof Error?error.message:"Falha no PIX de homologação."}));
+          }
+          return;
+        }
 
         // Dedicated test-only billing endpoint. Unlike production billing,
         // this allows ONLY a Mercado Pago TEST order for an existing Neon QA
