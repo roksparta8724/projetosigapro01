@@ -34,7 +34,8 @@ import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { prepareGuideInstitutionalLogo } from "@/lib/guideAssets";
-import { ensureMercadoPagoGuideCharge } from "@/lib/mercadoPagoGuide";
+import { ensureMercadoPagoGuideCharge, type MercadoPagoGuideCharge } from "@/lib/mercadoPagoGuide";
+import { normalizeOfficialBanking } from "@/lib/bankCodes";
 import { resolveGuideBankingData } from "@/lib/paymentCollection";
 
 const paymentStatusOptions = [
@@ -69,7 +70,34 @@ export function ExternalPaymentsPage() {
   const [statusFilter, setStatusFilter] = useState("todos");
   const [openingGuideKey, setOpeningGuideKey] = useState("");
   const [guideActionStatus, setGuideActionStatus] = useState("");
+  const [qaCharges, setQaCharges] = useState<Record<string, MercadoPagoGuideCharge>>({});
+  const isolatedQaMode = import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true";
   const activeTab = getExternalTabByPath(location.pathname);
+
+  const issueSandboxBoleto = async (process: ProcessRecord, guide: PaymentGuideEntry) => {
+    if (!isolatedQaMode || !effectiveScopeId || openingGuideKey || guide.status === "compensada") return;
+    setOpeningGuideKey(`${process.id}:${guide.code}`);
+    setGuideActionStatus("");
+    try {
+      const charge = await ensureMercadoPagoGuideCharge({
+        municipalityId: effectiveScopeId,
+        guideCode: guide.code,
+        amount: guide.amount,
+        dueDate: guide.dueDate,
+        description: "DAM de homologação SIGAPRO — NÃO PAGAR",
+      }, { isolatedSandboxOnly: true });
+      if (charge.environment !== "test" || !charge.orderId) {
+        throw new Error("O provedor não confirmou uma order exclusiva do ambiente de testes.");
+      }
+      setQaCharges((prev) => ({ ...prev, [guide.code]: charge }));
+      setGuideActionStatus("Boleto de homologação registrado no Neon de testes. Clique em Visualizar guia para conferir os dados. NÃO PAGAR.");
+      await refreshRemoteStore();
+    } catch (error) {
+      setGuideActionStatus(error instanceof Error ? error.message : "Erro na emissão bancária de homologação.");
+    } finally {
+      setOpeningGuideKey("");
+    }
+  };
 
   const openExternalGuide = async (
     process: ProcessRecord,
@@ -88,11 +116,23 @@ export function ExternalPaymentsPage() {
         municipalityCity: municipality?.city,
       });
 
-      // Isolated QA only: an administrative preview, NOT a bank-issued DAM.
-      // Never ask Mercado Pago for payment, and never expose a payable PIX.
+      // QA has two states: an unissued NON-PAYABLE administrative preview or
+      // a VERIFIED, provider-issued TEST boleto. Never infer issuance from the
+      // saved bank/PIX configuration. Test orders are initiated via explicit CTA.
       const isolatedQa = import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true";
-      const charge =
-        isolatedQa || (banking.barcode && banking.digitableLine)
+      const tested = qaCharges[guide.code];
+      const candidate = normalizeOfficialBanking(tested?.barcodeContent, tested?.digitableLine);
+      const savedSandbox = Boolean(
+        isolatedQa && guide.providerEnvironment === "test" &&
+        guide.paymentProvider === "mercado_pago" && guide.bankReference &&
+        banking.barcode && banking.digitableLine,
+      );
+      const newlyIssued = Boolean(isolatedQa && tested?.ok &&
+        tested.environment === "test" && tested.orderId &&
+        candidate.barcode && candidate.digitableLine);
+      const sandboxIssued = savedSandbox || newlyIssued;
+      const charge = isolatedQa ? (newlyIssued ? tested : null) :
+        (banking.barcode && banking.digitableLine)
           ? null
           : await ensureMercadoPagoGuideCharge({
               municipalityId: effectiveScopeId,
@@ -101,9 +141,13 @@ export function ExternalPaymentsPage() {
               dueDate: guide.dueDate,
               description: `${guide.label} · ${process.preProtocol || process.title}`,
             });
-      const barcode = isolatedQa ? "" : (charge?.barcodeContent || banking.barcode);
-      const digitableLine = isolatedQa ? "" : (charge?.digitableLine || banking.digitableLine);
-
+      const barcode = isolatedQa
+        ? (sandboxIssued ? (charge?.barcodeContent || banking.barcode) : "")
+        : (charge?.barcodeContent || banking.barcode);
+      const digitableLine = isolatedQa
+        ? (sandboxIssued ? (charge?.digitableLine || banking.digitableLine) : "")
+        : (charge?.digitableLine || banking.digitableLine);
+      const previewOnly = isolatedQa && !sandboxIssued;
       if (!isolatedQa && (!barcode || !digitableLine)) {
         throw new Error("A cobrança ainda não retornou código de barras e linha digitável válidos.");
       }
@@ -140,7 +184,7 @@ export function ExternalPaymentsPage() {
         },
         guia: {
           numeroGuia: guide.code,
-          nonPayablePreview: isolatedQa,
+          nonPayablePreview: previewOnly,
           exercicio: year,
           dataDocumento: issuedAt,
           vencimento: guide.dueDate,
@@ -152,7 +196,7 @@ export function ExternalPaymentsPage() {
           linhaDigitavel: digitableLine,
           pixPayload: isolatedQa ? "" : banking.pixPayload,
           bankName: isolatedQa
-            ? "Mercado Pago (somente conexão de teste)"
+            ? (sandboxIssued ? (charge?.financialInstitution || "Mercado Pago — teste") : "Mercado Pago (conexão de teste)")
             : charge?.financialInstitution || banking.bankName || "Mercado Pago",
           bankAgreement: banking.bankAgreement,
           // Display only the municipality's saved administrative bank metadata.
@@ -163,13 +207,15 @@ export function ExternalPaymentsPage() {
           bankAccount: tenantSettings?.bankAccount?.trim() || undefined,
           bankBeneficiary: tenantSettings?.beneficiarioArrecadacao?.trim() || undefined,
           bankInstructions: isolatedQa
-            ? "HOMOLOGAÇÃO SIGAPRO — DOCUMENTO NÃO PAGÁVEL. Nenhuma cobrança foi registrada no banco."
+            ? (sandboxIssued
+              ? "BOLETO DE HOMOLOGAÇÃO — dados fornecidos pelo Mercado Pago em ambiente de TESTE. NÃO EFETUAR PAGAMENTO."
+              : "HOMOLOGAÇÃO SIGAPRO — DOCUMENTO NÃO PAGÁVEL. Nenhuma cobrança foi registrada no banco.")
             : banking.bankInstructions,
-          bankReference: isolatedQa ? undefined : (charge?.orderId || guide.bankReference),
-          bankPaymentId: isolatedQa ? undefined : (charge?.paymentId || guide.bankPaymentId),
-          bankStatus: isolatedQa ? undefined : (charge?.status || guide.bankStatus),
-          bankStatusDetail: isolatedQa ? undefined : (charge?.statusDetail || guide.bankStatusDetail),
-          bankAuthenticatedAt: isolatedQa ? undefined : (charge?.authenticatedAt || guide.bankAuthenticatedAt),
+          bankReference: previewOnly ? undefined : (charge?.orderId || guide.bankReference),
+          bankPaymentId: previewOnly ? undefined : (charge?.paymentId || guide.bankPaymentId),
+          bankStatus: previewOnly ? undefined : (charge?.status || guide.bankStatus),
+          bankStatusDetail: previewOnly ? undefined : (charge?.statusDetail || guide.bankStatusDetail),
+          bankAuthenticatedAt: previewOnly ? undefined : (charge?.authenticatedAt || guide.bankAuthenticatedAt),
           bankEnvironment: isolatedQa ? "test" : (charge?.environment || guide.providerEnvironment),
           paymentProvider:
             guide.paymentProvider ||
@@ -196,7 +242,7 @@ export function ExternalPaymentsPage() {
       };
 
       const opened = openGuiaRecolhimentoOficialWindow(guideDocument, {
-        title: isolatedQa ? `PRÉVIA NÃO PAGÁVEL · ${guide.code}` : `Guia ${guide.code}`,
+        title: isolatedQa ? (sandboxIssued ? `BOLETO DE TESTE — NÃO PAGAR · ${guide.code}` : `PRÉVIA NÃO PAGÁVEL · ${guide.code}`) : `Guia ${guide.code}`,
         autoPrint: false,
       });
 
@@ -304,8 +350,8 @@ export function ExternalPaymentsPage() {
 
         {import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true" ? (
           <div role="status" data-qa-payment-preview="true" className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm font-semibold leading-6 text-amber-950">
-            HOMOLOGAÇÃO SIGAPRO — As guias deste ambiente são prévias NÃO PAGÁVEIS. O Mercado Pago não recebe cobranças pelo localhost:8081.
-            A emissão bancária, o R2 oficial e a confirmação automática de pagamentos permanecem desativados.
+            HOMOLOGAÇÃO SIGAPRO — Os documentos começam como prévias NÃO PAGÁVEIS. Para a guia pendente, use "Emitir boleto de TESTE" e depois "Visualizar guia".
+            Somente orders de TESTE do Mercado Pago são permitidas. NUNCA PAGAR. R2 oficial, cobranças reais e compensação automática permanecem desativados.
           </div>
         ) : null}
         <InternalTabs
@@ -465,6 +511,21 @@ export function ExternalPaymentsPage() {
                                 Editar rascunho
                               </Link>
                             </Button>
+                            {isolatedQaMode && guide.status !== "compensada" ? (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                data-qa-issue-boleto="true"
+                                className="rounded-full border-amber-300 bg-amber-50 px-4 text-[12px] font-semibold text-amber-950 hover:bg-amber-100"
+                                disabled={Boolean(openingGuideKey)}
+                                onClick={() => void issueSandboxBoleto(process, guide)}
+                              >
+                                {openingGuideKey === `${process.id}:${guide.code}`
+                                  ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                                  : <CreditCard className="mr-1.5 h-3.5 w-3.5" />}
+                                Emitir boleto de TESTE
+                              </Button>
+                            ) : null}
                             <Button
                               type="button"
                               data-preprotocol-guide-action="true"
