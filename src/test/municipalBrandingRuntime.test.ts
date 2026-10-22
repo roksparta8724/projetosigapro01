@@ -147,7 +147,9 @@ describe("municipal branding runtime resilience", () => {
     expect(settings).toContain("headerBranding.fallbackLogoUrl");
     expect(settings).toContain("footerBranding.fallbackLogoUrl");
     expect(settings).toContain("Math.max(1, draftHeaderLogoConfig.scale)");
-    expect(settings).toContain("Math.max(1, draftFooterLogoConfig.scale)");
+    expect(settings).toContain("logoScale: draftFooterLogoConfig.scale");
+    expect(settings).toContain("containBaseRatio={2 / 3}");
+    expect(logo).toContain('variant === "footer" ? scale * (2 / 3) : scale');
   });
 
   it("keeps preview changes isolated from the page chrome and accepts the stable same-origin logo proxy", () => {
@@ -161,11 +163,14 @@ describe("municipal branding runtime resilience", () => {
     expect(surface).toContain("CONTRASTE DO PREVIEW INSTITUCIONAL V21");
   });
 
-  it("keeps the whole crest visible at 1x with one square geometry in preview and editor", () => {
+  it("keeps a safe-fit, full-crest original reference and consistent square geometry in the footer", () => {
     expect(settings).toContain('width: 188, minWidth: 188, maxWidth: 188, height: 188');
     expect(settings).toContain('viewportClassName="!h-[188px] !w-[188px]"');
     expect(settings).toContain("draftHeaderLogoConfig.scale <= 1.001 ? 0 : draftHeaderLogoConfig.offsetX");
-    expect(settings).toContain("draftFooterLogoConfig.scale <= 1.001 ? 0 : draftFooterLogoConfig.offsetX");
+    expect(settings).toContain('data-footer-original-reference="true"');
+    expect(settings).toContain('data-municipal-logo-live-preview="footer"');
+    expect(settings).toContain('className="relative mx-auto flex h-[144px] w-[144px]');
+    expect(settings).toContain("setDraftFooterLogoConfig({ scale: 1.5, offsetX: 0, offsetY: 0 })");
     expect(settings).toContain("setDraftHeaderLogoConfig({ scale: 1, offsetX: 0, offsetY: 0 })");
     expect(settings).toContain("setDraftFooterLogoConfig({ scale: 1, offsetX: 0, offsetY: 0 })");
     expect(settings.match(/allowPreview=\{false\}/g)?.length).toBeGreaterThanOrEqual(2);
