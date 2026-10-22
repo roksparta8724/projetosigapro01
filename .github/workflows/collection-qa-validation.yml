@@ -27,6 +27,8 @@ on:
       - src/test/isolatedProtocolPaymentFlow.test.ts
       - src/test/isolatedGuideNonPayable.test.tsx
       - src/components/GuiaRecolhimentoOficial.tsx
+      - src/lib/guideAssets.ts
+      - src/test/guidePixLogoPremium.test.tsx
       - src/test/municipalBankingFlow.test.ts
       - server/municipal-storage.ts
       - server/municipal-payment.ts
@@ -109,6 +111,7 @@ jobs:
           src/test/qaBoletoSqlMigration.test.ts
           src/lib/bankCodes.test.ts
           src/test/isolatedGuideNonPayable.test.tsx
+          src/test/guidePixLogoPremium.test.tsx
           src/test/municipalCollectionConfiguration.test.ts
           src/test/govbrArGuideBridge.test.ts
           src/test/damProviderPersistence.test.ts
