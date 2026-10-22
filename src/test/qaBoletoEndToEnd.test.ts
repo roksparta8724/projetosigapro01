@@ -87,6 +87,24 @@ describe("one complete sandbox-only SIGAPRO bank issuance", () => {
     expect(mocks.resolve).toHaveBeenCalledWith(req, municipalityId);
   });
 
+  it("reports provider acceptance and Neon persistence failure accurately without changing the idempotency key", async () => {
+    mocks.write.mockRejectedValueOnce(new Error('column reference "barcode" is ambiguous'));
+    const failed = await createMercadoPagoGuideBoleto(input, req, opts);
+    expect(failed.ok).toBe(false);
+    expect(failed.errorCode).toBe("PROVIDER_ACCEPTED_PERSISTENCE_OR_SYNC_FAILED");
+    expect(failed.error).toContain("Neon");
+    expect(failed.error).not.toContain("Falha de rede ao criar");
+    const first = vi.mocked(fetch).mock.calls[0];
+    expect(first[1]?.method).toBe("POST");
+    const stableKey = (first[1]?.headers as Record<string,string>)["X-Idempotency-Key"];
+    expect(stableKey).toMatch(/^[0-9a-f-]{36}$/);
+    const recovered = await createMercadoPagoGuideBoleto(input, req, opts);
+    expect(recovered.ok).toBe(true);
+    const second = vi.mocked(fetch).mock.calls[1];
+    expect((second[1]?.headers as Record<string,string>)["X-Idempotency-Key"]).toBe(stableKey);
+    expect(JSON.parse(String(second[1]?.body)).total_amount).toBe("35.24");
+  });
+
   it("rejects a production environment BEFORE any provider or guide access", async () => {
     mocks.resolve.mockResolvedValue({ environment:"production", token: "APP_USR_PROD" });
     await expect(createMercadoPagoGuideBoleto(input, req, opts)).rejects.toThrow(/Conta de produção bloqueada/);
