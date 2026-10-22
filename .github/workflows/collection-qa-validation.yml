@@ -28,6 +28,10 @@ on:
       - server/municipal-storage.ts
       - server/municipal-payment.ts
       - server/municipal-payment.test.ts
+      - server/qa-document-store.ts
+      - server/qa-document-store.test.ts
+      - src/integrations/r2/client.ts
+      - src/pages/saas/ExternalPaymentsPage.tsx
       - server/mercadopago.ts
       - src/test/**
       - src/components/platform/PortalFrame.tsx
@@ -97,6 +101,7 @@ jobs:
           src/lib/guideOriginal.test.ts
           src/test/municipalBankingFlow.test.ts
           server/municipal-payment.test.ts
+          server/qa-document-store.test.ts
           src/lib/municipalBankCatalog.test.ts
           src/lib/paymentCollection.test.ts
       - name: Entire application regression suite (no deployment)
