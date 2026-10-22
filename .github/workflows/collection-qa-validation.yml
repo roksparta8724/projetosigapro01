@@ -106,6 +106,7 @@ jobs:
           src/test/collectionNeonAuthAlignment.test.ts
           src/test/isolatedProtocolPaymentFlow.test.ts
           src/test/qaBoletoEndToEnd.test.ts
+          src/test/qaBoletoSqlMigration.test.ts
           src/lib/bankCodes.test.ts
           src/test/isolatedGuideNonPayable.test.tsx
           src/test/municipalCollectionConfiguration.test.ts
