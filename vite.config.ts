@@ -704,6 +704,9 @@ export default defineConfig(({ mode }) => {
     VITE_NEON_DATA_API_URL: process.env.VITE_NEON_DATA_API_URL,
     VITE_SIGAPRO_QA_READINESS_BANNER: process.env.VITE_SIGAPRO_QA_READINESS_BANNER,
     SIGAPRO_LOCAL_QA_BLOCK_EXTERNAL_WRITES: process.env.SIGAPRO_LOCAL_QA_BLOCK_EXTERNAL_WRITES,
+    // Re-pin the dedicated private QA encryption key after loadEnv: older
+    // production .env entries must never override it.
+    MUNICIPAL_PAYMENT_MASTER_KEY: process.env.MUNICIPAL_PAYMENT_MASTER_KEY,
   } : null;
   const env = loadEnv(mode, process.cwd(), "");
   for (const [key, value] of Object.entries(env)) {
