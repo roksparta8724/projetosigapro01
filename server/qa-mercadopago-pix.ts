@@ -125,6 +125,7 @@ export async function qaMercadoPagoPix(
     // Recover an already-created order, never create a second one.
     const res=await fetch("https://api.mercadopago.com/v1/orders/"+encodeURIComponent(stored.orderId),{
       method:"GET",headers:{Authorization:"Bearer "+resolved.token,Accept:"application/json"},
+      signal:AbortSignal.timeout(12000),
     });
     order=res.ok ? await res.json().catch(()=>null) : null;
     if(!order) throw new Error("A consulta da order PIX pendente falhou. A mesma order será consultada novamente, sem duplicação.");
@@ -143,6 +144,7 @@ export async function qaMercadoPagoPix(
     }
     const res=await fetch("https://api.mercadopago.com/v1/orders",{
       method:"POST",
+      signal:AbortSignal.timeout(12000),
       headers:{
         Authorization:"Bearer "+resolved.token,Accept:"application/json",
         "Content-Type":"application/json",
