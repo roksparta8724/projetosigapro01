@@ -1610,7 +1610,29 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
         onHoldReason: process.hold_reason ?? undefined,
       },
       signatures: [],
-      dispatches: dispatches.map((dispatch) => ({
+      dispatches: dispatches.map((dispatch) => {
+        // The database may record the signer as a profile ID or a user ID.
+        // Resolve both against the official profile directory; do not infer
+        // the signer from the assigned analyst or current session.
+        const recordedActorId = String(
+          dispatch.created_by_profile_id ??
+          dispatch.created_by_user_id ??
+          dispatch.actor_profile_id ??
+          dispatch.actor_user_id ??
+          "",
+        ).trim();
+        const recordedActorProfile = recordedActorId
+          ? profileById.get(recordedActorId) ?? profileByUser.get(recordedActorId)
+          : undefined;
+        const recordedActorName = String(
+          recordedActorProfile?.full_name ??
+          recordedActorProfile?.email ??
+          dispatch.requested_by_name ??
+          dispatch.created_by_name ??
+          "",
+        ).trim();
+
+        return {
         id: String(dispatch.id),
         from: String(dispatch.from_department ?? ""),
         to: String(dispatch.to_department ?? ""),
@@ -1635,17 +1657,12 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
             ? dispatch.priority
             : "media",
         assignedTo: dispatch.assigned_to ? String(dispatch.assigned_to) : undefined,
-        requestedByProfileId: dispatch.created_by_profile_id
-          ? String(dispatch.created_by_profile_id)
-          : undefined,
-        requestedBy: dispatch.created_by_profile_id
-          ? String(
-              profileById.get(dispatch.created_by_profile_id)?.full_name ??
-              profileById.get(dispatch.created_by_profile_id)?.email ??
-              "",
-            ) || undefined
-          : undefined,
-      })),
+        requestedByProfileId: recordedActorProfile?.id
+          ? String(recordedActorProfile.id)
+          : (dispatch.created_by_profile_id ? String(dispatch.created_by_profile_id) : undefined),
+        requestedBy: recordedActorName || undefined,
+      };
+      }),
       messages: processMessages.map((message) => ({
         id: String(message.id),
         senderName: String(message.sender_name ?? "Usuário"),
