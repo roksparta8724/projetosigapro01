@@ -20,6 +20,9 @@ on:
       - src/test/collectionNeonAuthAlignment.test.ts
       - src/test/municipalBankingFlow.test.ts
       - server/municipal-storage.ts
+      - server/municipal-payment.ts
+      - server/municipal-payment.test.ts
+      - server/mercadopago.ts
       - src/test/**
       - src/components/platform/PortalFrame.tsx
       - src/components/platform/UrbanAnalysisChecklistPanel.tsx
@@ -83,6 +86,7 @@ jobs:
           src/test/damProviderPersistence.test.ts
           src/lib/guideOriginal.test.ts
           src/test/municipalBankingFlow.test.ts
+          server/municipal-payment.test.ts
       - name: Entire application regression suite (no deployment)
         run: npm test -- --reporter=dot
       - name: Production-format bundle (no deployment)
