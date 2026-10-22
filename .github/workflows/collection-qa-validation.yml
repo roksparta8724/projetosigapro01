@@ -30,6 +30,11 @@ on:
       - src/test/municipalBankingFlow.test.ts
       - server/municipal-storage.ts
       - server/municipal-payment.ts
+      - server/guide-persistence.ts
+      - src/lib/mercadoPagoGuide.ts
+      - src/lib/bankCodes.ts
+      - src/lib/bankCodes.test.ts
+      - neon/migrations/20261022_qa_external_sandbox_boleto.sql
       - server/municipal-payment.test.ts
       - server/qa-document-store.ts
       - server/qa-document-store.test.ts
@@ -100,6 +105,8 @@ jobs:
           src/test/collectionDiagnostics.test.ts
           src/test/collectionNeonAuthAlignment.test.ts
           src/test/isolatedProtocolPaymentFlow.test.ts
+          src/test/qaBoletoEndToEnd.test.ts
+          src/lib/bankCodes.test.ts
           src/test/isolatedGuideNonPayable.test.tsx
           src/test/municipalCollectionConfiguration.test.ts
           src/test/govbrArGuideBridge.test.ts
