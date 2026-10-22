@@ -101,7 +101,7 @@ describe("InstitutionalLogo", () => {
     const image = container.querySelector("img");
     expect(image).toBeTruthy();
     expect(image).toHaveStyle({
-      transform: `translate(${20 / 188 * 100}%, ${-12 / 188 * 100}%) scale(1.75)`,
+      transform: `translate(${20 / 188 * 100}%, ${-12 / 188 * 100}%) scale(${1.75 * (2 / 3)})`,
     });
   });
 
@@ -118,6 +118,15 @@ describe("InstitutionalLogo", () => {
     const image = container.querySelector("img");
     expect(image).toHaveClass("object-contain", "object-center");
     expect(image).toHaveStyle({ transform: "translate(0%, 0%) scale(0.7999999999999999)" });
+  });
+
+  it("uses the same safe fit in the real header at zoom 1.50x", () => {
+    const { container } = render(<InstitutionalLogo branding={{
+      ...branding, logoScale: 1.5, logoOffsetX: 0, logoOffsetY: 0,
+    }} variant="header" contextScope="municipality" />);
+    expect(container.querySelector("img")).toHaveStyle({
+      transform: "translate(0%, 0%) scale(1)",
+    });
   });
 
   it("fits the entire municipal footer logo when zoom is 1.50x", () => {
