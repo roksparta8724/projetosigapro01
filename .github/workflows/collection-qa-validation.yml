@@ -18,6 +18,8 @@ on:
       - src/lib/collectionDiagnostics.ts
       - src/lib/municipalBankCatalog.ts
       - src/lib/municipalBankCatalog.test.ts
+      - src/lib/paymentCollection.ts
+      - src/lib/paymentCollection.test.ts
       - src/test/collectionDiagnostics.test.ts
       - src/test/collectionNeonAuthAlignment.test.ts
       - src/test/municipalBankingFlow.test.ts
@@ -92,6 +94,7 @@ jobs:
           src/test/municipalBankingFlow.test.ts
           server/municipal-payment.test.ts
           src/lib/municipalBankCatalog.test.ts
+          src/lib/paymentCollection.test.ts
       - name: Entire application regression suite (no deployment)
         run: npm test -- --reporter=dot
       - name: Production-format bundle (no deployment)
