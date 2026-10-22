@@ -57,7 +57,7 @@ describe("Municipal framing: editor → Neon → page header/footer", () => {
     expect(config).toContain("tenantSettingsCompat?.headerLogoScale");
     expect(config).toContain("tenantSettingsCompat?.footerLogoScale");
     expect(config).toContain("tenantSettingsCompat?.footerLogoOffsetX");
-    expect(config).toContain("shallowEqualObject(current, nextFooterConfig)");
+    expect(config).toContain("current.scale === nextFooterConfig.scale");
     expect(config).toContain("O banco não confirmou o enquadramento do logo.");
   });
 
