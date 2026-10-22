@@ -2688,3 +2688,35 @@ html body #root .sig-collection-premium [data-collection-tone="dark"] [data-coll
   outline: 0;
 }
 /* END COLLECTION CREDENTIAL ICON AND STATUS CONTRAST V3 */
+
+
+/* MUNICIPAL FOOTER FRAMING — same square crop as the administrator's editor,
+   displayed at a compact size so the crest never dominates the footer.
+   Earlier generic footer rules force align-items:start !important. */
+html body #root .sig-page-footer [data-sig-footer-grid="true"] {
+  align-items: center !important;
+}
+html body #root .sig-page-footer [data-sig-footer-logo-cell="true"] {
+  display: flex !important;
+  min-width: 0 !important;
+  align-self: center !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+html body #root .sig-page-footer [data-sig-footer-logo-cell="true"]
+.sig-institution-logo-surface[data-logo-context="municipality"][data-logo-variant="footer"] {
+  width: 144px !important;
+  height: 144px !important;
+  min-width: 144px !important;
+  max-width: 144px !important;
+  min-height: 144px !important;
+  max-height: 144px !important;
+  flex: 0 0 144px !important;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
+}
+@media (min-width: 1536px) {
+  html body #root .sig-page-footer [data-sig-footer-logo-cell="true"] {
+    justify-content: flex-start !important;
+  }
+}
