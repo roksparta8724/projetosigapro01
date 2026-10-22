@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS public.qa_guide_pix_orders (
   CONSTRAINT qa_guide_pix_unique_guide UNIQUE(municipality_id,guide_number)
 );
 ALTER TABLE public.qa_guide_pix_orders ENABLE ROW LEVEL SECURITY;
-REVOKE ALL ON public.qa_guide_pix_orders FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON public.qa_guide_pix_orders FROM PUBLIC, authenticated;
 -- No direct table access. All calls use owner and test provider guards.
 
 CREATE OR REPLACE FUNCTION public.qa_get_guide_pix_order_v1(
