@@ -36,19 +36,23 @@ export async function readStoredGuide(req: ApiReq, municipalityId: string | unde
   return result.payload;
 }
 
-export async function assertGuideProviderWriteAccess(req: ApiReq, guide: StoredGuide) {
+export async function assertGuideProviderWriteAccess(req: ApiReq, guide: StoredGuide, sandboxOnly = false) {
   if (guide.collection_mode_snapshot === "municipal_system") {
     throw new Error("Esta guia pertence ao sistema próprio de arrecadação da Prefeitura; o SIGAPRO não emitirá outra cobrança.");
   }
-  const result = await callDataApiRpc(req, "authorize_payment_guide_charge_v1", {
+  const result = await callDataApiRpc(req, sandboxOnly
+    ? "qa_authorize_payment_guide_charge_v1"
+    : "authorize_payment_guide_charge_v1", {
     _municipality_id: guide.municipality_id, _guide_code: guide.guide_number,
   });
   if (!result.ok || result.payload !== true) throw new Error(result.error || "Sem permissão para preparar cobrança desta guia.");
 }
 
-export async function assertGuideProviderSyncAccess(req: ApiReq, guide: StoredGuide) {
+export async function assertGuideProviderSyncAccess(req: ApiReq, guide: StoredGuide, sandboxOnly = false) {
   if (!guide.bank_reference) throw new Error("A guia não possui cobrança bancária vinculada.");
-  const result = await callDataApiRpc(req, "authorize_payment_guide_provider_sync_v1", {
+  const result = await callDataApiRpc(req, sandboxOnly
+    ? "qa_authorize_payment_guide_provider_sync_v1"
+    : "authorize_payment_guide_provider_sync_v1", {
     _municipality_id: guide.municipality_id,
     _guide_code: guide.guide_number,
     _bank_reference: guide.bank_reference,
@@ -74,12 +78,14 @@ export function storedGuideCharge(guide: StoredGuide): MercadoPagoGuideBoletoRes
   };
 }
 
-export async function persistGuideCharge(req: ApiReq, guide: StoredGuide, charge: MercadoPagoGuideBoletoResult) {
+export async function persistGuideCharge(req: ApiReq, guide: StoredGuide, charge: MercadoPagoGuideBoletoResult, sandboxOnly = false) {
   if (!charge.orderId) throw new Error("A cobrança não retornou referência bancária persistível.");
   if (charge.externalReference !== guide.guide_number || !Number.isFinite(Number(charge.amount)) || Math.round(Number(charge.amount) * 100) !== Math.round(Number(guide.amount) * 100)) {
     throw new Error("A cobrança retornada não corresponde ao número e valor originais da guia.");
   }
-  const saved = await callDataApiRpc(req, "persist_payment_guide_provider_charge_v2", {
+  const saved = await callDataApiRpc(req, sandboxOnly
+    ? "qa_persist_payment_guide_provider_charge_v1"
+    : "persist_payment_guide_provider_charge_v2", {
     _municipality_id: guide.municipality_id, _guide_code: guide.guide_number,
     _charge: charge,
   });
