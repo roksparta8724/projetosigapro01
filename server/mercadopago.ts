@@ -359,6 +359,7 @@ function extractMercadoPagoError(
 export async function getMercadoPagoGuideBoletoStatus(
   input: { municipalityId?: string; orderId: string; guideCode: string; amount: number },
   req?: ApiReq,
+  options?: { isolatedSandboxOnly?: boolean },
 ): Promise<MercadoPagoGuideBoletoResult> {
   const stored = req ? await readStoredGuide(req, input.municipalityId, input.guideCode) : null;
   if (stored) {
@@ -367,7 +368,7 @@ export async function getMercadoPagoGuideBoletoStatus(
       throw new Error("Cobrança não vinculada à guia original.");
     }
     input = { ...input, guideCode: stored.guide_number, amount: Number(stored.amount) };
-    await assertGuideProviderSyncAccess(req!, stored);
+    await assertGuideProviderSyncAccess(req!, stored, options?.isolatedSandboxOnly);
   }
   const resolved = req
     ? await resolveMercadoPagoMunicipalAccessToken(req, input.municipalityId)
@@ -391,7 +392,7 @@ export async function getMercadoPagoGuideBoletoStatus(
   if (!result) {
     return { ok: false, environment, error: "Não foi possível consultar a situação da cobrança no Mercado Pago." };
   }
-  return stored && req ? persistGuideCharge(req, stored, result) : result;
+  return stored && req ? persistGuideCharge(req, stored, result, options?.isolatedSandboxOnly) : result;
 }
 /**
  * QA sandbox billing is only allowed for an already-existing, authorized
@@ -424,10 +425,10 @@ export async function createMercadoPagoGuideBoleto(
       return getMercadoPagoGuideBoletoStatus({
         municipalityId: stored.municipality_id, guideCode: stored.guide_number,
         orderId: stored.bank_reference, amount: Number(stored.amount),
-      }, req);
+      }, req, options);
     }
     input = { ...input, guideCode: stored.guide_number, amount: Number(stored.amount), dueDate: stored.due_date };
-    await assertGuideProviderWriteAccess(req!, stored);
+    await assertGuideProviderWriteAccess(req!, stored, options?.isolatedSandboxOnly);
   }
   const resolved = req
     ? await resolveMercadoPagoMunicipalAccessToken(req, input.municipalityId)
@@ -567,7 +568,7 @@ export async function createMercadoPagoGuideBoleto(
 
     // Persist even an incomplete response: a retry must query this order,
     // never issue another charge because the bank has not supplied the bars yet.
-    let persistedResult = stored && req ? await persistGuideCharge(req, stored, result) : result;
+    let persistedResult = stored && req ? await persistGuideCharge(req, stored, result, options?.isolatedSandboxOnly) : result;
 
     if (!hasCompleteGuideBankingData(result) && result.orderId) {
       const refreshed = await refetchMercadoPagoOrder(
@@ -579,7 +580,7 @@ export async function createMercadoPagoGuideBoleto(
       );
       if (refreshed) {
         result = refreshed;
-        persistedResult = stored && req ? await persistGuideCharge(req, stored, result) : result;
+        persistedResult = stored && req ? await persistGuideCharge(req, stored, result, options?.isolatedSandboxOnly) : result;
       }
     }
 
