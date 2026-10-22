@@ -144,13 +144,43 @@ describe("SIGAPRO DAM — only real PIX and premium municipal logo", () => {
     expect(html).not.toContain('data-dam-pix="official-payload"');
   });
 
-  it("enlarges the coat of arms within the aligned 22mm A4 column without distortion", () => {
+  it("keeps the original compact 19mm header and expands only the crest within the 28mm card", () => {
     const html = buildGuiaRecolhimentoOficialHtml(guide, { autoPrint: false });
     expect(html).toContain("grid-template-columns: 28mm minmax(0, 1fr) 58mm");
-    expect(html).toContain("width: 27mm");
-    expect(html).toContain("height: 25mm");
+    expect(html).toContain("height: 19mm");
+    expect(html).toContain("max-height: 19mm");
+    expect(html).toContain("height: 9.5mm");
+    expect(html).toContain("width: 27.3mm");
+    expect(html).toContain("height: 18.25mm");
     expect(html).toContain("object-fit: contain");
-    expect(html).toContain("padding: 0.45mm");
+    expect(html).toContain("padding: 0.25mm");
+    expect(html).not.toContain("min-height: 26mm");
+  });
+
+  it("removes scanned light-gray margins without cropping the coat of arms", () => {
+    const width = 120, height = 120;
+    const pixels = new Uint8ClampedArray(width * height * 4);
+    for (let i = 0; i < pixels.length; i += 4) {
+      pixels[i] = pixels[i + 1] = pixels[i + 2] = 240;
+      pixels[i + 3] = 255;
+    }
+    for (let y = 32; y < 88; y++) {
+      for (let x = 37; x < 83; x++) {
+        const at = (y * width + x) * 4;
+        pixels[at] = 22; pixels[at + 1] = 92; pixels[at + 2] = 62;
+      }
+    }
+    const bounds = institutionalLogoVisibleBounds(pixels, width, height);
+    expect(bounds).toBeTruthy();
+    expect(bounds!.x).toBeGreaterThanOrEqual(25);
+    expect(bounds!.y).toBeGreaterThanOrEqual(20);
+    expect(bounds!.width).toBeLessThan(70);
+    expect(bounds!.height).toBeLessThan(80);
+    // The trim includes every colored source pixel plus safety margin.
+    expect(bounds!.x).toBeLessThanOrEqual(37);
+    expect(bounds!.y).toBeLessThanOrEqual(32);
+    expect(bounds!.x + bounds!.width).toBeGreaterThanOrEqual(83);
+    expect(bounds!.y + bounds!.height).toBeGreaterThanOrEqual(88);
   });
 
   it("trims only substantial whitespace in art sources and keeps filled logos untouched", () => {
