@@ -42,7 +42,32 @@ export default async function handler(req: Req, res: Res) {
       if (config.mode === "sigapro") {
         const provider = await rpc<Record<string, any>>(req, "get_municipal_payment_connection_v1", { _municipality_id: municipalityId });
         if (provider?.status !== "active") throw new Error("Ative e teste o provedor da Guia SIGAPRO antes de validar a modalidade.");
-        const validated = await rpc(req, "mark_municipal_collection_validation_v1", { _municipality_id: municipalityId, _ok: true, _message: "Provedor da Guia SIGAPRO já validado e ativo para esta Prefeitura." });
+        if (provider.environment !== config.environment) {
+          throw new Error("Ambientes incompatíveis: a modalidade SIGAPRO e o provedor bancário devem usar a mesma homologação ou produção.");
+        }
+        if (provider.provider === "bank_direct") {
+          throw new Error("Integração bancária direta ainda não possui adaptador de emissão homologado no SIGAPRO.");
+        }
+        const automated = Boolean(config.capabilities?.query || config.capabilities?.payment);
+        if (provider.provider === "manual" && automated) {
+          throw new Error("PIX/baixa manual não oferece consulta bancária nem confirmação automática. Desative essas capacidades ou conecte um provedor homologado.");
+        }
+        if (!["manual", "mercado_pago"].includes(String(provider.provider || ""))) {
+          throw new Error("Provedor bancário não homologado para emissão de guias.");
+        }
+        if (config.environment === "production") {
+          const bank = await rpc<Record<string, any>>(req, "get_municipal_collection_bank_details_v1", { _municipality_id: municipalityId });
+          const document = String(bank?.bankBeneficiaryDocument || "").replace(/\\D/g, "");
+          if (!/^\\d{14}$/.test(document) || !String(bank?.beneficiarioArrecadacao || "").trim()) {
+            throw new Error("Produção bloqueada: informe o CNPJ e o beneficiário oficial da conta arrecadadora da Prefeitura.");
+          }
+        }
+        const validated = await rpc(req, "mark_municipal_collection_validation_v1", {
+          _municipality_id: municipalityId, _ok: true,
+          _message: provider.provider === "manual"
+            ? "PIX/baixa manual conferidos apenas para fluxo manual, sem consulta ou compensação automática."
+            : "Provedor Mercado Pago ativo no mesmo ambiente; homologação de cobrança real e conferência de titularidade continuam obrigatórias.",
+        });
         return json(res, 200, validated || {});
       }
       if (config.integration_type === "controlled_import") {
