@@ -114,11 +114,14 @@ describe("municipal bank and payment guide flow", () => {
     expect(processDetail).toContain("A guia ainda está sendo preparada.");
   });
 
-  it("marks sandbox guides while keeping the configured municipal PIX visible", () => {
+  it("marks sandbox guides and never exposes copied live PIX as a payable QR", () => {
     expect(guide).toContain('bankEnvironment?: "test" | "production"');
-    expect(guide).toContain('guia.bankEnvironment === "test"');
+    expect(guide).toContain('guia.bankEnvironment !== "test"');
     expect(guide).toContain("Homologação Mercado Pago");
-    expect(guide).toContain("PIX cadastrado pode ser real");
+    expect(guide).toContain("verifiedPixPayload");
+    expect(guide).toContain("data-dam-payment-mode=\"boleto-only\"");
+    // Administrative financial screens retain municipal PIX for official
+    // configurations, but sandbox DAM rendering never creates a payable QR.
     expect(finance).toContain("pixPayload: banking.pixPayload");
     expect(processDetail).toContain("banking.pixPayload");
   });
@@ -186,10 +189,11 @@ describe("municipal bank and payment guide flow", () => {
     expect(mercadoPagoServer).toContain("external_reference: externalReference");
   });
 
-  it("keeps PIX visible in homologation and uses electronic authentication", () => {
+  it("shows only bank-provided valid PIX in official mode and keeps electronic authentication", () => {
     expect(guide).toContain("PIX — QR Code e Copia e Cola");
-    expect(guide).toContain("PIX cadastrado pode ser real");
-    expect(guide).not.toContain("PIX real oculto durante a homologação");
+    expect(guide).toContain("isValidPixPayload(guia.pixPayload)");
+    expect(guide).toContain('guia.bankEnvironment !== "test"');
+    expect(guide).not.toContain("PIX cadastrado pode ser real");
     expect(finance).toContain("pixPayload: banking.pixPayload");
     expect(processDetail).toContain("banking.pixPayload");
     expect(guide).toContain("VALIDAÇÃO ELETRÔNICA PELO PROVEDOR DE PAGAMENTO");
