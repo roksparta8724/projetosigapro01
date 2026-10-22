@@ -64,7 +64,7 @@ describe("Municipal framing: editor → Neon → page header/footer", () => {
   it("keeps each municipality isolated without borrowing framing from a different tenant", () => {
     const hook = source("src/hooks/useInstitutionBranding.ts");
     expect(hook).toContain("tenantSettingsCompat?.tenantId === resolvedInstitutionId");
-    expect(hook).toContain("scopedMunicipalityBranding?.municipalityId === resolvedInstitutionId");
+    expect(hook).toContain("municipalityBranding?.municipalityId === resolvedInstitutionId");
     const provider = source("src/hooks/useMunicipality.tsx");
     expect(provider).toContain('detail.municipalityId !== bundle?.municipality?.id');
   });
