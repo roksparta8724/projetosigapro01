@@ -27,6 +27,7 @@ on:
       - src/test/isolatedProtocolPaymentFlow.test.ts
       - src/test/isolatedGuideNonPayable.test.tsx
       - src/components/GuiaRecolhimentoOficial.tsx
+      - src/components/GuiaRecolhimentoOficial.test.tsx
       - src/lib/guideAssets.ts
       - server/qa-mercadopago-pix.ts
       - server/qa-mercadopago-pix.test.ts
