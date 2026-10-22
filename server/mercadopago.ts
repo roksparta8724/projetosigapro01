@@ -410,6 +410,10 @@ export async function createMercadoPagoGuideBoleto(
       process.env.SIGAPRO_LOCAL_QA_BLOCK_EXTERNAL_WRITES !== "true" ||
       process.env.VITE_SIGAPRO_NEON_ISOLATED !== "true"
     ) throw new Error("Boleto de teste disponível apenas no localhost:8081 isolado.");
+    const sandboxConnection = await resolveMercadoPagoMunicipalAccessToken(req, input.municipalityId);
+    if (sandboxConnection.environment !== "test") {
+      throw new Error("Conta de produção bloqueada: utilize exclusivamente as credenciais de homologação do Mercado Pago.");
+    }
   }
   const stored = req ? await readStoredGuide(req, input.municipalityId, input.guideCode) : null;
   if (stored) {
