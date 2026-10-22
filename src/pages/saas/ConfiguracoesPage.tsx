@@ -1154,7 +1154,10 @@ export function ConfiguracoesPage() {
       offsetY: nextSettings?.headerLogoOffsetY ?? nextSettings?.logoOffsetY ?? 0,
     });
     setDraftHeaderLogoConfig((current) =>
-      shallowEqualObject(current, nextHeaderConfig) ? current : nextHeaderConfig,
+      current.scale === nextHeaderConfig.scale &&
+      current.offsetX === nextHeaderConfig.offsetX &&
+      current.offsetY === nextHeaderConfig.offsetY
+        ? current : nextHeaderConfig,
     );
 
     const nextFooterConfig = fitMunicipalLogoFrame({
@@ -1163,7 +1166,10 @@ export function ConfiguracoesPage() {
       offsetY: nextSettings?.footerLogoOffsetY ?? nextSettings?.logoOffsetY ?? 0,
     });
     setDraftFooterLogoConfig((current) =>
-      shallowEqualObject(current, nextFooterConfig) ? current : nextFooterConfig,
+      current.scale === nextFooterConfig.scale &&
+      current.offsetX === nextFooterConfig.offsetX &&
+      current.offsetY === nextFooterConfig.offsetY
+        ? current : nextFooterConfig,
     );
 
     const nextBrasaoFiles = imageFiles(nextSettings?.brasaoUrl ?? "", "brasao");
