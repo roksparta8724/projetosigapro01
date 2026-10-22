@@ -1504,11 +1504,11 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
   // Mercado Pago boleto does NOT imply that the provider supplied a PIX QR.
   // In isolated QA never turn a real municipal static key into a payable QR.
   const verifiedPixPayload =
-    !nonPayable && isValidPixPayload(guia.pixPayload)
+    !nonPayable && guia.bankEnvironment !== "test" && isValidPixPayload(guia.pixPayload)
       ? String(guia.pixPayload).trim()
       : "";
   const verifiedPixQrUrl =
-    !nonPayable && !verifiedPixPayload &&
+    !nonPayable && guia.bankEnvironment !== "test" && !verifiedPixPayload &&
     /^(https:\/\/|data:image\/(?:png|jpeg|webp);base64,)/i.test(
       String(guia.qrCodePixUrl || "").trim(),
     )
