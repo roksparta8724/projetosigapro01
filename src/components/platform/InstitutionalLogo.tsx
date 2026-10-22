@@ -253,8 +253,16 @@ export function InstitutionalLogo({
     : Math.max(1, Math.min(5, configuredScale));
   const frameSize = variant === "header" ? 128 : 144;
   const frameRatio = frameSize / 160;
-  const offsetX = (branding.logoOffsetX || 0) * frameRatio;
-  const offsetY = (branding.logoOffsetY || 0) * frameRatio;
+  // Master uses its original 160px editor. Municipal editors use a 188px
+  // frame, while displayed header/footer cards have different responsive
+  // heights. Percent translations scale with the actual logo card in the page.
+  const masterOffsetX = (branding.logoOffsetX || 0) * frameRatio;
+  const masterOffsetY = (branding.logoOffsetY || 0) * frameRatio;
+  const municipalOffsetX = ((branding.logoOffsetX || 0) / 188) * 100;
+  const municipalOffsetY = ((branding.logoOffsetY || 0) / 188) * 100;
+  const logoTranslation = isMaster
+    ? `translate(${masterOffsetX}px, ${masterOffsetY}px)`
+    : `translate(${municipalOffsetX}%, ${municipalOffsetY}%)`;
   const showCrop = variant === "header" || variant === "footer" || variant === "preview";
 
   useEffect(() => {
@@ -329,7 +337,7 @@ export function InstitutionalLogo({
                 !isMaster && "rounded-[22px] bg-white",
                 isMaster && "mix-blend-screen",
               )}
-              style={showCrop ? { transform: `translate(${offsetX}px, ${offsetY}px) scale(${scale})`, transformOrigin: "center center" } : undefined}
+              style={showCrop ? { transform: `${logoTranslation} scale(${scale})`, transformOrigin: "center center" } : undefined}
               loading="eager"
               decoding="sync"
               onLoad={() => {
