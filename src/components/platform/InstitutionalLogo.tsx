@@ -11,6 +11,9 @@ interface InstitutionalLogoProps {
   className?: string;
   viewportClassName?: string;
   contextScope?: "auto" | "master" | "municipality";
+  /** The exact URL that successfully decoded in the institutional frame.
+   * Editors must reuse this source instead of a stale signed candidate. */
+  onResolvedSource?: (url: string) => void;
 }
 
 const SIGAPRO_OFFICIAL_LOGO = getPublicAssetUrl("sigapro-logo.png");
@@ -97,6 +100,7 @@ export function InstitutionalLogo({
   className,
   viewportClassName,
   contextScope = "auto",
+  onResolvedSource,
 }: InstitutionalLogoProps) {
   const [failedSources, setFailedSources] = useState<string[]>([]);
   const [fallbackReady, setFallbackReady] = useState(false);
@@ -348,7 +352,10 @@ export function InstitutionalLogo({
               style={showCrop ? { transform: `${logoTranslation} scale(${displayScale})`, transformOrigin: "center center" } : undefined}
               loading="eager"
               decoding="sync"
-              onLoad={() => {
+              onLoad={(event) => {
+                if (event.currentTarget.naturalWidth > 0 && event.currentTarget.naturalHeight > 0) {
+                  onResolvedSource?.(displayUrl);
+                }
                 setLoadedSource({ context, url: displayUrl });
                 const isAuthoritativeCurrentLogo =
                   isMaster ||
