@@ -2953,30 +2953,30 @@ export function ConfiguracoesPage() {
   } | null>(null);
   const [failedHeaderPreviewUrl, setFailedHeaderPreviewUrl] = useState("");
   const [failedFooterPreviewUrl, setFailedFooterPreviewUrl] = useState("");
+  // Removing a custom logo does not remove the municipality's official crest.
+  // Display the actual default crest in both preview and editor.
   const previewHeaderDisplayUrl =
-    previewHeaderLogoUrl && failedHeaderPreviewUrl === previewHeaderLogoUrl
-      ? previewHeaderFallbackUrl
-      : previewHeaderLogoUrl;
+    previewHeaderLogoUrl && failedHeaderPreviewUrl !== previewHeaderLogoUrl
+      ? previewHeaderLogoUrl
+      : previewHeaderFallbackUrl;
   const previewFooterDisplayUrl =
-    previewFooterLogoUrl && failedFooterPreviewUrl === previewFooterLogoUrl
-      ? previewFooterFallbackUrl
-      : previewFooterLogoUrl;
+    previewFooterLogoUrl && failedFooterPreviewUrl !== previewFooterLogoUrl
+      ? previewFooterLogoUrl
+      : previewFooterFallbackUrl;
 
   const confirmedPreviewScope = selectedTenantId || scopeId || "";
-  const previewHeaderEditorUrl = logoRemovalRequested === "header" ? ""
-    : draftHeaderLogoFiles[0]?.file
-      ? previewHeaderDisplayUrl
-      : confirmedHeaderSource?.scope === confirmedPreviewScope &&
-          confirmedHeaderSource.requested === previewHeaderDisplayUrl
-        ? confirmedHeaderSource.url
-        : previewHeaderDisplayUrl;
-  const previewFooterEditorUrl = logoRemovalRequested === "footer" ? ""
-    : draftFooterLogoFiles[0]?.file
-      ? previewFooterDisplayUrl
-      : confirmedFooterSource?.scope === confirmedPreviewScope &&
-          confirmedFooterSource.requested === previewFooterDisplayUrl
-        ? confirmedFooterSource.url
-        : previewFooterDisplayUrl;
+  const previewHeaderEditorUrl = draftHeaderLogoFiles[0]?.file && logoRemovalRequested !== "header"
+    ? previewHeaderDisplayUrl
+    : confirmedHeaderSource?.scope === confirmedPreviewScope &&
+        confirmedHeaderSource.requested === previewHeaderDisplayUrl
+      ? confirmedHeaderSource.url
+      : previewHeaderDisplayUrl;
+  const previewFooterEditorUrl = draftFooterLogoFiles[0]?.file && logoRemovalRequested !== "footer"
+    ? previewFooterDisplayUrl
+    : confirmedFooterSource?.scope === confirmedPreviewScope &&
+        confirmedFooterSource.requested === previewFooterDisplayUrl
+      ? confirmedFooterSource.url
+      : previewFooterDisplayUrl;
   const recordConfirmedHeaderSource = (url: string) => {
     setConfirmedHeaderSource((current) =>
       current?.scope === confirmedPreviewScope &&
