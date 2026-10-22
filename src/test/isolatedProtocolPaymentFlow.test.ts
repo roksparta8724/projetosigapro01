@@ -1,0 +1,42 @@
+import { readFileSync } from "node:fs";
+import { describe, expect, it } from "vitest";
+
+const source = (path: string) => readFileSync(path,"utf8");
+const devServer = source("vite.config.ts");
+const storageClient = source("src/integrations/r2/client.ts");
+const protocolPage = source("src/pages/saas/ProtocolarProjetoPage.tsx");
+const paymentPage = source("src/pages/saas/ExternalPaymentsPage.tsx");
+const qaServer = source("server/qa-document-store.ts");
+
+describe("SIGAPRO isolated pre-protocol to non-payable guide", () => {
+  it("intercepts QA uploads BEFORE the general production R2 write block", () => {
+    const route = devServer.indexOf("await handleQaDocumentRequest(req, res)");
+    const blocked = devServer.indexOf('["/api/mercadopago/guide-boleto"');
+    expect(route).toBeGreaterThan(0);
+    expect(blocked).toBeGreaterThan(route);
+  });
+
+  it("never falls back from localhost QA to a production R2 API base", () => {
+    expect(storageClient).toContain('VITE_SIGAPRO_NEON_ISOLATED === "true"');
+    expect(storageClient).toContain('if (isolatedQa) return [normalized]');
+    expect(storageClient).toContain('if (isolatedQa) return path.startsWith("/")');
+  });
+
+  it("always labels isolated protocol and payment preview as not payable", () => {
+    expect(protocolPage).toContain('data-qa-protocol-sandbox="true"');
+    expect(protocolPage).toContain("NÃO PAGÁVEL");
+    expect(paymentPage).toContain("const isolatedQa = import.meta.env.VITE_SIGAPRO_NEON_ISOLATED");
+    expect(paymentPage).toContain("isolatedQa || (banking.barcode && banking.digitableLine)");
+    expect(paymentPage).toContain('const barcode = isolatedQa ? ""');
+    expect(paymentPage).toContain('pixPayload: isolatedQa ? ""');
+    expect(paymentPage).toContain('bankEnvironment: isolatedQa ? "test"');
+  });
+
+  it("requires authenticated tenant access and signed local PDF URLs", () => {
+    expect(qaServer).toContain('"has_tenant_access"');
+    expect(qaServer).toContain("timingSafeEqual");
+    expect(qaServer).toContain('SIGAPRO_LOCAL_QA_BLOCK_EXTERNAL_WRITES');
+    expect(qaServer).not.toContain("R2_ACCESS_KEY_ID");
+    expect(qaServer).not.toContain("PutObjectCommand");
+  });
+});
