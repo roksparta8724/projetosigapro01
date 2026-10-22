@@ -112,6 +112,82 @@ export function getRenderedMunicipalityLogoDataUrl() {
   return "";
 }
 
+/**
+ * Crop only substantial empty outer margins from a guide logo.
+ * Coordinates remain at the original source resolution: no resizing and no
+ * stretching of a municipal coat of arms. If artwork fills its source,
+ * preserve the source untouched.
+ */
+export function institutionalLogoVisibleBounds(
+  pixels: Uint8ClampedArray,
+  width: number,
+  height: number,
+): { x: number; y: number; width: number; height: number } | null {
+  if (width < 12 || height < 12 || pixels.length !== width * height * 4) return null;
+  let minX = width; let maxX = -1; let minY = height; let maxY = -1;
+  let occupied = 0;
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const at = (y * width + x) * 4;
+      const alpha = pixels[at + 3];
+      if (alpha < 25) continue;
+      const visiblyPainted = alpha < 247 ||
+        pixels[at] < 247 || pixels[at + 1] < 247 || pixels[at + 2] < 247;
+      if (!visiblyPainted) continue;
+      occupied++;
+      minX = Math.min(minX, x); maxX = Math.max(maxX, x);
+      minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+    }
+  }
+  // Keep transparent/white-only images unchanged; avoid magnifying noise.
+  if (maxX < 0 || occupied < width * height * 0.005) return null;
+  const margin = Math.max(2, Math.round(Math.min(width, height) * 0.04));
+  const x = Math.max(0, minX - margin);
+  const y = Math.max(0, minY - margin);
+  const right = Math.min(width, maxX + 1 + margin);
+  const bottom = Math.min(height, maxY + 1 + margin);
+  const cropped = { x, y, width: right - x, height: bottom - y };
+  // Do not crop for insignificant padding, to preserve the original quality.
+  if (cropped.width / width > 0.88 && cropped.height / height > 0.88) return null;
+  if (cropped.width < 8 || cropped.height < 8) return null;
+  return cropped;
+}
+
+async function fitInstitutionalLogoToPrintCard(source: string): Promise<string> {
+  if (!source.startsWith("data:image/") || typeof document === "undefined") return source;
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => resolve(image);
+      image.onerror = () => reject(new Error("Não foi possível preparar o brasão."));
+      image.src = source;
+    });
+    const width = img.naturalWidth;
+    const height = img.naturalHeight;
+    if (width < 12 || height < 12 || width * height > 4_000_000) return source;
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    if (!ctx) return source;
+    ctx.drawImage(img, 0, 0);
+    const bounds = institutionalLogoVisibleBounds(
+      ctx.getImageData(0, 0, width, height).data, width, height,
+    );
+    if (!bounds) return source;
+    const cropped = document.createElement("canvas");
+    cropped.width = bounds.width;
+    cropped.height = bounds.height;
+    const output = cropped.getContext("2d");
+    if (!output) return source;
+    output.drawImage(img, bounds.x, bounds.y, bounds.width, bounds.height,
+      0, 0, bounds.width, bounds.height);
+    return cropped.toDataURL("image/png");
+  } catch {
+    return source; // Never break a guide because its official logo cannot be cropped.
+  }
+}
+
 async function prepareStrictGuideImageSource(
   value: string | null | undefined,
   timeoutMs = 7000,
@@ -166,18 +242,18 @@ export async function prepareGuideInstitutionalLogo(
 
   for (const candidate of uniqueCandidates) {
     const prepared = await prepareStrictGuideImageSource(candidate);
-    if (prepared) return prepared;
+    if (prepared) return fitInstitutionalLogoToPrintCard(prepared);
   }
 
   const renderedSnapshot = getRenderedMunicipalityLogoDataUrl();
-  if (renderedSnapshot) return renderedSnapshot;
+  if (renderedSnapshot) return fitInstitutionalLogoToPrintCard(renderedSnapshot);
 
   const renderedImages = renderedMunicipalityLogoElements();
   for (const image of renderedImages) {
     const prepared = await prepareStrictGuideImageSource(
       image.currentSrc || image.src,
     );
-    if (prepared) return prepared;
+    if (prepared) return fitInstitutionalLogoToPrintCard(prepared);
   }
 
   // Último fallback: reutiliza apenas uma URL que o navegador já comprovou
