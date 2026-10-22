@@ -7,8 +7,10 @@ export type R2UploadResult = {
 };
 
 const apiBase = (import.meta.env.VITE_R2_API_BASE || "").toString().replace(/\/+$/, "");
+const isolatedQa = import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true";
 
 function buildApiUrl(path: string) {
+  if (isolatedQa) return path.startsWith("/") ? path : `/${path}`;
   if (!apiBase) return path;
   const normalized = path.startsWith("/") ? path : `/${path}`;
   return `${apiBase}${normalized}`;
@@ -16,6 +18,7 @@ function buildApiUrl(path: string) {
 
 function buildApiCandidates(path: string) {
   const normalized = path.startsWith("/") ? path : `/${path}`;
+  if (isolatedQa) return [normalized]; // QA must NEVER fall back to a Vercel/R2 production API.
   if (!apiBase) return [normalized];
 
   const remote = `${apiBase}${normalized}`;
