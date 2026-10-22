@@ -87,8 +87,8 @@ export function isValidPixPayload(value: string | null | undefined) {
   const payload = String(value || "").trim();
   if (
     !payload.startsWith("000201") ||
-    !payload.includes("BR.GOV.BCB.PIX") ||
-    !/6304[0-9A-F]{4}$/.test(payload)
+    !payload.toUpperCase().includes("BR.GOV.BCB.PIX") ||
+    !/6304[0-9A-Fa-f]{4}$/.test(payload)
   ) {
     return false;
   }
