@@ -168,7 +168,9 @@ describe("municipal branding runtime resilience", () => {
   });
 
   it("keeps a safe-fit, full-crest original reference and consistent square geometry in the footer", () => {
-    expect(settings).toContain('width: 188, minWidth: 188, maxWidth: 188, height: 188');
+    expect(settings).toContain('onResolvedSource={recordConfirmedHeaderSource}');
+    expect(settings).toContain('onResolvedSource={recordConfirmedFooterSource}');
+    expect(settings).not.toContain('width: 188, minWidth: 188, maxWidth: 188, height: 188');
     expect(settings).toContain('viewportClassName="!h-[188px] !w-[188px]"');
     expect(settings).toContain('data-header-original-reference="true"');
     expect(settings).toContain('setDraftHeaderLogoConfig({ scale: 1.5, offsetX: 0, offsetY: 0 })');
