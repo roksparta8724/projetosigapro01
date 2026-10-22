@@ -529,6 +529,7 @@ export async function createMercadoPagoGuideBoleto(
     },
   };
 
+  let providerAcceptedOrder = false;
   try {
     const response = await fetch("https://api.mercadopago.com/v1/orders", {
       method: "POST",
@@ -559,6 +560,9 @@ export async function createMercadoPagoGuideBoleto(
       };
     }
 
+    // Once the provider accepts the request, subsequent failures may come
+    // from Neon persistence or from a status lookup, NOT from initial network.
+    providerAcceptedOrder = true;
     let result = extractMercadoPagoGuideResult(
       source,
       environment,
@@ -595,14 +599,17 @@ export async function createMercadoPagoGuideBoleto(
 
     return stored && req ? persistedResult : result;
   } catch (error) {
+    const details = error instanceof Error ? error.message : "Falha desconhecida.";
     return {
       ok: false,
       environment,
       externalReference,
-      error:
-        error instanceof Error
-          ? `Falha de rede ao criar a cobrança da guia: ${error.message}`
-          : "Falha de rede ao criar a cobrança da guia.",
+      errorCode: providerAcceptedOrder
+        ? "PROVIDER_ACCEPTED_PERSISTENCE_OR_SYNC_FAILED"
+        : "PROVIDER_REQUEST_FAILED",
+      error: providerAcceptedOrder
+        ? `O Mercado Pago respondeu à emissão, mas o SIGAPRO não conseguiu concluir a gravação ou consulta no Neon: ${details}. Utilize a mesma guia e a mesma ação; o identificador de idempotência permanece fixo para evitar duplicação.`
+        : `Não foi possível concluir a comunicação com o Mercado Pago: ${details}. A mesma guia conserva a chave de idempotência em uma nova tentativa.`,
     };
   }
 }
