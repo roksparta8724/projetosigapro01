@@ -22,7 +22,7 @@ const guide: GuiaRecolhimentoOficialProps = {
     paymentProvider: "mercado_pago",
     bankEnvironment: "test",
     linhaDigitavel: "23793380296060054351030006333303799140000020000",
-    codigoBarras: "23791991400000200003380260600543503006333303",
+    codigoBarras: "23797991400000200003380260600543513000633330",
     valorDocumento: 35.24,
     valorCobrado: 35.24,
   },
@@ -35,6 +35,7 @@ describe("SIGAPRO DAM — only real PIX and premium municipal logo", () => {
     expect(html).not.toContain("PIX não configurado para esta Prefeitura");
     expect(html).not.toContain('class="dam-qr-wrap"');
     expect(html).toContain('data-dam-payment-mode="boleto-only"');
+    expect(html).toContain("23797991400000200003380260600543513000633330");
     expect(html).toContain("Forma de pagamento: boleto bancário.");
     expect(html).toContain("Homologação — não pagar");
   });
