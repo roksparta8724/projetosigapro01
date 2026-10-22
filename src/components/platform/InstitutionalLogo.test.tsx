@@ -93,6 +93,32 @@ describe("InstitutionalLogo", () => {
     expect(screen.queryByText("SIGAPRO")).not.toBeInTheDocument();
   });
 
+  it("applies confirmed municipal header framing at the same scale shown in the 188px editor", () => {
+    const framed = { ...branding, logoScale: 1.75, logoOffsetX: 20, logoOffsetY: -12 };
+    const { container } = render(
+      <InstitutionalLogo branding={framed} variant="header" contextScope="municipality" />,
+    );
+    const image = container.querySelector("img");
+    expect(image).toBeTruthy();
+    expect(image).toHaveStyle({
+      transform: `translate(${20 / 188 * 100}%, ${-12 / 188 * 100}%) scale(1.75)`,
+    });
+  });
+
+  it("keeps municipal footer framing independent of the header", () => {
+    const framed = { ...branding, logoScale: 1.2, logoOffsetX: 8, logoOffsetY: 10 };
+    const { container, rerender } = render(
+      <InstitutionalLogo branding={framed} variant="footer" contextScope="municipality" />,
+    );
+    expect(container.querySelector("img")).toHaveStyle({
+      transform: `translate(${8 / 188 * 100}%, ${10 / 188 * 100}%) scale(1.2)`,
+    });
+    rerender(<InstitutionalLogo branding={{ ...framed, logoScale: 2 }} variant="footer" contextScope="municipality" />);
+    expect(container.querySelector("img")).toHaveStyle({
+      transform: `translate(${8 / 188 * 100}%, ${10 / 188 * 100}%) scale(2)`,
+    });
+  });
+
   it("uses the official local asset for an unconfigured master logo", () => {
     const { container } = render(<InstitutionalLogo branding={{ ...branding, tenantId: "master", logoUrl: "" }} fallbackLabel="SIGAPRO" />);
     const image = screen.getByRole("img", { name: "Logo da prefeitura A" });
