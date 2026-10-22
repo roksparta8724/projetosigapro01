@@ -490,6 +490,7 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
     planAssignmentsResult,
     lastAccessResult,
     dispatchAuthorsResult,
+    eventAuthorsResult,
   ] = (await Promise.all([
     isNeonBackend
       ? Promise.resolve({ data: [], error: null })
@@ -538,6 +539,9 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
       : Promise.resolve({ data: [], error: null }),
     isNeonBackend
       ? db.rpc("list_visible_dispatch_authors_v1")
+      : Promise.resolve({ data: [], error: null }),
+    isNeonBackend
+      ? db.rpc("list_visible_process_event_authors_v1")
       : Promise.resolve({ data: [], error: null }),
   ])) as any[];
 
@@ -671,6 +675,12 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
   const scopedDispatchAuthorById = new Map<string, DatabaseRow>(
     (dispatchAuthorsResult.data ?? []).map((entry: DatabaseRow) => [
       String(entry.dispatch_id ?? ""),
+      entry,
+    ] as const),
+  );
+  const scopedEventAuthorById = new Map<string, DatabaseRow>(
+    (eventAuthorsResult.data ?? []).map((entry: DatabaseRow) => [
+      `${String(entry.event_kind ?? "")}:${String(entry.event_id ?? "")}`,
       entry,
     ] as const),
   );
@@ -1539,7 +1549,10 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
       reopenHistory: reopenEntries.map((entry) => ({
         id: entry.id,
         reason: entry.reason,
-        actor: (isNeonBackend ? entry.actor_profile_id : null) ?? entry.actor_user_id ?? "Sistema",
+        actor:
+          scopedEventAuthorById.get(`reopen:${entry.id}`)?.actor_name ||
+          (entry.actor_profile_id ? profileById.get(String(entry.actor_profile_id))?.full_name : undefined) ||
+          ((entry.actor_profile_id || entry.actor_user_id) ? "Identificação não registrada" : "Sistema"),
         at: new Date(entry.created_at).toLocaleString("pt-BR"),
       })),
       documents: buildProcessDocuments(
@@ -1583,12 +1596,12 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
         title: movement.movement_type,
         detail: movement.description,
         actor:
+          scopedEventAuthorById.get(`movement:${movement.id}`)?.actor_name ||
           (movement.actor_profile_id
             ? profileById.get(movement.actor_profile_id)?.full_name ??
               profileById.get(movement.actor_profile_id)?.email
-            : null) ??
-          movement.actor_user_id ??
-          "Sistema",
+            : null) ||
+          ((movement.actor_profile_id || movement.actor_user_id) ? "Identificação não registrada" : "Sistema"),
         at: new Date(movement.created_at).toLocaleString("pt-BR"),
       })),
       auditTrail: auditEntries.map((entry) => ({
@@ -1598,12 +1611,12 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
         detail: entry.detail,
         actorProfileId: entry.actor_profile_id ?? undefined,
         actor:
+          scopedEventAuthorById.get(`audit:${entry.id}`)?.actor_name ||
           (entry.actor_profile_id
             ? profileById.get(entry.actor_profile_id)?.full_name ??
               profileById.get(entry.actor_profile_id)?.email
-            : null) ??
-          entry.actor_user_id ??
-          "Sistema",
+            : null) ||
+          ((entry.actor_profile_id || entry.actor_user_id) ? "Identificação não registrada" : "Sistema"),
         visibleToExternal: Boolean(entry.visible_to_external),
         at: new Date(entry.created_at).toLocaleString("pt-BR"),
       })),
