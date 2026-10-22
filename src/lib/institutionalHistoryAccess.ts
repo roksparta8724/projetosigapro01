@@ -15,6 +15,15 @@ const INSTITUTIONAL_ROLES = new Set<string>([
   "financeiro",
   "setor_intersetorial",
   "fiscal",
+  // Legacy role codes still authorized explicitly by the database.
+  "admin_master",
+  "admin_municipality",
+  "admin_prefeitura",
+  "analyst",
+  "financial",
+  "counter_service",
+  "topography",
+  "expedient",
 ]);
 
 /**
