@@ -86,3 +86,8 @@ export function historicTimestamp(value?: string | null): number {
   const parsed = Date.parse(raw);
   return Number.isFinite(parsed) ? parsed : 0;
 }
+
+/** Externally published history is opt-in per event, never the default. */
+export function isExternallyVisibleHistoryEvent(event: { visibleToExternal?: boolean | null }): boolean {
+  return event.visibleToExternal === true;
+}
