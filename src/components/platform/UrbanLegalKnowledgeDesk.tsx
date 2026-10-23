@@ -3,8 +3,8 @@ import { BookText, CheckCircle2, FileSearch, Loader2, Search, ShieldCheck, Shiel
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { confirmUrbanLegalEvidence, listUrbanLegalEvidence } from "@/integrations/backend/urbanLegalEvidenceClient";
-import { ensureUrbanPdfBytes, extractUrbanPdfText, URBAN_PDF_MAX_BYTES } from "@/lib/urbanPdfTextReader";
-import { extractUrbanLegalSuggestions, searchLegalEvidence, sha256Hex,
+import { ensureUrbanPdfBytes, extractUrbanPdfText, URBAN_PDF_MAX_BYTES, type UrbanPdfPageText } from "@/lib/urbanPdfTextReader";
+import { excerptOccursOnPage, extractUrbanLegalSuggestions, searchLegalEvidence, sha256Hex,
   type UrbanLegalEvidence, type UrbanLegalSuggestion } from "@/lib/urbanLegalKnowledge";
 import { URBAN_METRICS, type UrbanMetric } from "@/lib/urbanPrecheck";
 
@@ -25,6 +25,12 @@ export function UrbanLegalKnowledgeDesk({ municipalityId, canEdit, onUseReferenc
   const [title, setTitle] = useState("");
   const [fileHash, setFileHash] = useState("");
   const [suggestions, setSuggestions] = useState<UrbanLegalSuggestion[]>([]);
+  const [pdfPages, setPdfPages] = useState<UrbanPdfPageText[]>([]);
+  const [manualPage, setManualPage] = useState("1");
+  const [manualMetric, setManualMetric] = useState<UrbanMetric>("front_setback_m");
+  const [manualExcerpt, setManualExcerpt] = useState("");
+  const [manualConfirmed, setManualConfirmed] = useState(false);
+  const [manualSaving, setManualSaving] = useState(false);
   const [pagesRead, setPagesRead] = useState(0);
   const [pagesTotal, setPagesTotal] = useState(0);
   const [emptyPages, setEmptyPages] = useState(0);
@@ -46,7 +52,7 @@ export function UrbanLegalKnowledgeDesk({ municipalityId, canEdit, onUseReferenc
 
   useEffect(() => {
     const request = ++requestId.current;
-    setSaved([]); setFileHash(""); setSuggestions([]); setTitle("");
+    setSaved([]); setFileHash(""); setSuggestions([]); setPdfPages([]); setTitle("");
     setCatalogError(""); setNotice(""); setConfirmedKey("");
     if (!municipalityId) return;
     setLoading(true);
@@ -61,7 +67,8 @@ export function UrbanLegalKnowledgeDesk({ municipalityId, canEdit, onUseReferenc
     const file = event.currentTarget.files?.[0];
     event.currentTarget.value = "";
     if (!file || !canEdit || reading) return;
-    setSuggestions([]); setFileHash(""); setConfirmedKey(""); setNotice("");
+    setSuggestions([]); setPdfPages([]); setFileHash(""); setConfirmedKey(""); setNotice("");
+    setManualExcerpt(""); setManualPage("1"); setManualConfirmed(false);
     setPagesTotal(0); setPagesRead(0); setEmptyPages(0);
     if (!/\.pdf$/i.test(file.name) || file.size > URBAN_PDF_MAX_BYTES || file.size < 5) {
       setNotice("Selecione um PDF válido de legislação com até 20 MB."); return;
@@ -76,6 +83,7 @@ export function UrbanLegalKnowledgeDesk({ municipalityId, canEdit, onUseReferenc
       setTitle(file.name.slice(0, 180));
       setPagesTotal(result.totalPages); setPagesRead(result.pages.length);
       setEmptyPages(result.scannedPages);
+      setPdfPages(result.pages);
       setSuggestions(extractUrbanLegalSuggestions(result.pages));
       setNotice(result.scannedPages === result.pages.length
         ? "O PDF não contém texto selecionável nas páginas verificadas. É necessário OCR ou consulta manual."
@@ -101,6 +109,28 @@ export function UrbanLegalKnowledgeDesk({ municipalityId, canEdit, onUseReferenc
     } catch (error) {
       setNotice(String((error as Error)?.message || error));
     } finally { setSavingKey(""); }
+  };
+
+  const saveManualEvidence = async () => {
+    if (!canEdit || !manualConfirmed || !fileHash || !municipalityId || manualSaving) return;
+    const page = Number(manualPage);
+    if (!excerptOccursOnPage(pdfPages, page, manualExcerpt)) {
+      setNotice("O trecho digitado não foi encontrado na camada de texto desta página do PDF. Confira a transcrição.");
+      return;
+    }
+    setManualSaving(true); setNotice("");
+    try {
+      await confirmUrbanLegalEvidence({
+        municipalityId, documentTitle:title, documentSha256:fileHash,
+        pageNumber:page, metric:manualMetric, excerpt:manualExcerpt.trim(),
+      });
+      await refresh();
+      setManualConfirmed(false);
+      setManualExcerpt("");
+      setNotice("Trecho literal conferido e adicionado ao acervo da Prefeitura. Não altera norma ativa.");
+    } catch (error) {
+      setNotice(String((error as Error)?.message || error));
+    } finally { setManualSaving(false); }
   };
 
   const filtered = useMemo(() => searchLegalEvidence(saved, search), [saved, search]);
@@ -150,6 +180,49 @@ export function UrbanLegalKnowledgeDesk({ municipalityId, canEdit, onUseReferenc
                 <Input className="mt-1" maxLength={180} aria-label="Título confirmado da legislação"
                   value={title} onChange={event => setTitle(event.target.value)} />
               </label>
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-[#132e48]">
+                <p className="text-xs font-bold text-slate-950 dark:text-white">
+                  Referência manual verificada no PDF
+                </p>
+                <p className="mt-1 text-xs leading-5 text-slate-600 dark:text-slate-300">
+                  Para artigos que não foram reconhecidos, transcreva literalmente um trecho presente na página.
+                  O SIGAPRO verifica o texto contra o PDF carregado antes de gravar a citação.
+                </p>
+                <div className="mt-3 grid gap-2 md:grid-cols-[110px_minmax(0,1fr)]">
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-200">
+                    Página
+                    <Input type="number" min={1} max={pagesRead} className="mt-1"
+                      value={manualPage} onChange={event => {setManualPage(event.target.value);setManualConfirmed(false);}}
+                      aria-label="Página da citação manual"/>
+                  </label>
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-200">
+                    Assunto
+                    <select className="mt-1 h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-slate-950 dark:border-slate-600 dark:bg-slate-900 dark:text-white"
+                      value={manualMetric} aria-label="Assunto da citação manual"
+                      onChange={event => {setManualMetric(event.target.value as UrbanMetric);setManualConfirmed(false);}}>
+                      {URBAN_METRICS.map(metric => <option key={metric.key} value={metric.key}>{metric.label}</option>)}
+                    </select>
+                  </label>
+                </div>
+                <label className="mt-2 block text-xs font-bold text-slate-700 dark:text-slate-200">
+                  Texto da página, literalmente
+                  <textarea className="mt-1 min-h-24 w-full rounded-md border border-slate-300 bg-white p-3 text-sm text-slate-900 dark:border-slate-600 dark:bg-slate-900 dark:text-white"
+                    maxLength={500} value={manualExcerpt} aria-label="Trecho literal da legislação"
+                    onChange={event => {setManualExcerpt(event.target.value);setManualConfirmed(false);}}
+                    placeholder="Copie uma frase do PDF, sem completar ou inventar texto..." />
+                </label>
+                <label className="mt-2 flex items-start gap-2 text-xs text-slate-800 dark:text-slate-100">
+                  <input type="checkbox" checked={manualConfirmed}
+                    onChange={event=>setManualConfirmed(event.target.checked)} className="mt-0.5"/>
+                  Revisei o artigo completo, a página, a legislação e confirmo a referência literal.
+                </label>
+                <Button type="button" variant="outline" className="mt-2"
+                  disabled={!manualConfirmed || manualSaving || Boolean(catalogError)}
+                  onClick={() => void saveManualEvidence()}>
+                  {manualSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <ShieldCheck className="mr-2 h-4 w-4"/>}
+                  Confirmar referência manual
+                </Button>
+              </div>
               {suggestions.length === 0 ? <p className="text-xs text-amber-800 dark:text-amber-200">
                 Nenhum trecho urbanístico reconhecido na parte lida. O documento ainda exige leitura humana.
               </p> : null}
