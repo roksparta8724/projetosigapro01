@@ -11,6 +11,7 @@ import {
   type UrbanMetric, type UrbanMeasurements, type UrbanRegulationVersion,
 } from "@/lib/urbanPrecheck";
 import type { ProcessRecord } from "@/lib/platform";
+import { UrbanDocumentEvidenceDesk } from "@/components/platform/UrbanDocumentEvidenceDesk";
 import { buildUrbanReviewDraft, deriveUrbanAreaMeasurements, type UrbanAreaKey } from "@/lib/urbanPrecheckAssist";
 
 type Field = { value: string; evidence: string };
@@ -238,6 +239,15 @@ export function UrbanPrecheckPanel({
             </p>
             <span className="text-xs text-sky-800 dark:text-sky-200">Vigência desde {regulation.effective_from}</span>
           </div>
+          <UrbanDocumentEvidenceDesk
+            process={process}
+            readOnly={readOnly}
+            allowedMetrics={regulation.rules.map((rule) => ({
+              key: rule.metric,
+              label: URBAN_METRICS.find((metric) => metric.key === rule.metric)?.label || rule.metric,
+            }))}
+            onUseEvidence={(metric, evidence) => setField(metric, "evidence", evidence)}
+          />
           <div className="mt-4 rounded-[20px] border border-sky-200 bg-sky-50/80 p-4 dark:border-sky-800 dark:bg-slate-900">
             <div className="flex items-start gap-2">
               <Calculator className="mt-0.5 h-5 w-5 text-sky-800 dark:text-sky-300" />
