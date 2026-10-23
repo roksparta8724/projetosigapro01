@@ -23,14 +23,14 @@ describe("municipal branding runtime resilience", () => {
     expect(tenant).toContain("document.createElement(\"link\")");
   });
 
-  it("renews an expired municipal logo from its persistent object key without changing the asset", () => {
+  it("renews an expired municipal logo from its persistent key without showing an unrelated crest", () => {
     expect(branding).toContain("resolvedTenantHeaderLogoState.tenantId === resolvedInstitutionId");
     expect(branding).toContain("resolvedTenantFooterLogoState.tenantId === resolvedInstitutionId");
     expect(branding).toContain("scopedMunicipalityBranding?.headerLogoObjectKey");
     expect(branding).toContain('bucket: "institutional-branding"');
     expect(branding).toContain("getSignedUrlForObjectStrict");
     expect(branding).toContain("resolvePersistentBrandingReference(base.logoUrl)");
-    expect(branding).toContain("municipalityLogoFallback");
+    expect(branding).not.toContain("municipalityLogoFallback");
     expect(branding).toContain("resolvePersistentBrandingReference(base.logoUrl)");
     expect(branding).toContain("institutionSettings?.brasaoUrl");
   });
@@ -65,12 +65,12 @@ describe("municipal branding runtime resilience", () => {
     expect(settings).toContain('imageFiles(headerUrl, "header-logo")');
   });
 
-  it("keeps the configured object-key logo authoritative but never leaves the municipal frame blank", () => {
+  it("keeps the configured municipal logo authoritative without showing an unrelated fallback crest", () => {
     expect(branding).toContain("resolvedTenantHeaderLogoState.tenantId === resolvedInstitutionId");
     expect(branding).toContain("resolvedTenantFooterLogoState.tenantId === resolvedInstitutionId");
     expect(branding).toContain("institutionalFallback");
     expect(branding).toContain("institutionSettings?.brasaoUrl");
-    expect(branding).toContain("municipalityLogoFallback");
+    expect(branding).not.toContain("municipalityLogoFallback");
     expect(branding).not.toContain("hasPersistedHeaderIdentity");
     expect(branding).not.toContain("hasPersistedFooterIdentity");
     expect(branding).toContain('if (raw.startsWith("r2:")) return false');
