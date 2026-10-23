@@ -6,7 +6,6 @@ const routedPages = [
   ["RecuperarSenhaPage", () => import("@/pages/saas/RecuperarSenhaPage")],
   ["CriarContaPage", () => import("@/pages/saas/CriarContaPage")],
   ["TenantNotFoundPage", () => import("@/pages/saas/TenantNotFoundPage")],
-  ["MasterAdminPage", () => import("@/pages/saas/MasterAdminPage")],
   ["TenantAdminPage", () => import("@/pages/saas/TenantAdminPage")],
   ["DashboardHomePage", () => import("@/pages/saas/DashboardHomePage")],
   ["AnalystDeskPage", () => import("@/pages/saas/AnalystDeskPage")],
@@ -38,6 +37,16 @@ const routedPages = [
 ] as const;
 
 describe("all routed page modules", () => {
+  // MasterAdminPage imports the entire master console. On Windows, cold Vite
+  // transformation under a full parallel test run can exceed 20 seconds.
+  // Give only this particularly heavy route a higher ceiling, without hiding
+  // failures in other pages or suppressing runtime initialization errors.
+  it("MasterAdminPage imports without module/runtime initialization errors", async () => {
+    const module = await import("@/pages/saas/MasterAdminPage");
+    expect(module).toHaveProperty("MasterAdminPage");
+    expect(typeof module.MasterAdminPage).toBe("function");
+  }, 60_000);
+
   it.each(routedPages)("%s imports without module/runtime initialization errors", async (exportName, load) => {
     const module = await load();
     expect(module).toHaveProperty(exportName);
