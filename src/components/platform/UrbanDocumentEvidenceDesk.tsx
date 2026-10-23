@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { BookOpenCheck, FileText, Link2, Loader2, ScanText, ShieldAlert } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,10 @@ import type { ProcessRecord } from "@/lib/platform";
 import { buildProcessPath } from "@/lib/platform";
 import { buildUrbanTextEvidence, findUrbanPdfEvidenceCandidates, isUploadedPdfDocument, suggestUrbanTextSignals, type UrbanPdfEvidenceCandidate } from "@/lib/urbanTextEvidence";
 import { getSignedUrlForObjectStrict } from "@/integrations/r2/client";
-import { downloadUrbanPdfBytes, extractUrbanPdfText, type UrbanPdfTextResult } from "@/lib/urbanPdfTextReader";
+import { downloadUrbanPdfBytes, extractUrbanPdfText, ensureUrbanPdfBytes, type UrbanPdfTextResult } from "@/lib/urbanPdfTextReader";
+import { verifyQaExistingDocumentCopy } from "@/lib/qaExistingDocumentRecovery";
+import { findUrbanDrawingMeasurements, type UrbanDrawingTarget } from "@/lib/urbanDrawingMeasurements";
+import { UrbanDrawingMeasurementDesk } from "@/components/platform/UrbanDrawingMeasurementDesk";
 import type { UrbanMetric } from "@/lib/urbanPrecheck";
 
 type Props = {
@@ -16,6 +19,7 @@ type Props = {
   readOnly: boolean;
   allowedMetrics: Array<{ key: UrbanMetric; label: string }>;
   onUseEvidence: (metric: UrbanMetric, evidence: string) => void;
+  onUseMeasurement: (target: UrbanDrawingTarget, value: number, evidence: string) => void;
 };
 
 /**
@@ -23,7 +27,7 @@ type Props = {
  * process's existing protected document viewer and records a verified excerpt.
  * This is a traceability desk, not PDF parsing/OCR or proof of compliance.
  */
-export function UrbanDocumentEvidenceDesk({ process, readOnly, allowedMetrics, onUseEvidence }: Props) {
+export function UrbanDocumentEvidenceDesk({ process, readOnly, allowedMetrics, onUseEvidence, onUseMeasurement }: Props) {
   const pdfs = useMemo(
     () => process.documents.filter(isUploadedPdfDocument),
     [process.documents],
@@ -37,6 +41,7 @@ export function UrbanDocumentEvidenceDesk({ process, readOnly, allowedMetrics, o
   const [readProgress, setReadProgress] = useState("");
   const [extracted, setExtracted] = useState<UrbanPdfTextResult | null>(null);
   const readAbort = useRef<AbortController | null>(null);
+  const qaFileInput = useRef<HTMLInputElement | null>(null);
 
   const selected = pdfs.find((doc) => doc.id === documentId) || null;
   const signals = useMemo(() => suggestUrbanTextSignals(excerpt), [excerpt]);
@@ -45,6 +50,14 @@ export function UrbanDocumentEvidenceDesk({ process, readOnly, allowedMetrics, o
   const foundCandidates = useMemo(
     () => (extracted ? findUrbanPdfEvidenceCandidates(extracted.pages) : [])
       .filter((candidate) => allowed.has(candidate.metric)),
+    [extracted, allowedMetrics],
+  );
+  const drawingSuggestions = useMemo(
+    () => extracted
+      ? findUrbanDrawingMeasurements(extracted.pages)
+        .filter(candidate => ["lot","footprint","permeable","totalFloor"].includes(candidate.target) ||
+          allowed.has(candidate.target as UrbanMetric))
+      : [],
     [extracted, allowedMetrics],
   );
 
@@ -119,6 +132,61 @@ export function UrbanDocumentEvidenceDesk({ process, readOnly, allowedMetrics, o
       setNotice(error instanceof Error ? error.message : "O PDF não pôde ser lido localmente.");
     } finally {
       if (readAbort.current === controller) readAbort.current = null;
+    }
+  };
+
+  const preReadAuthorizedLocalCopy = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.currentTarget.files?.[0];
+    event.currentTarget.value = "";
+    if (!file || readOnly || !selected ||
+        import.meta.env.VITE_SIGAPRO_NEON_ISOLATED !== "true" || readStatus === "loading") return;
+    const controller = new AbortController();
+    readAbort.current?.abort();
+    readAbort.current = controller;
+    setReadStatus("loading");
+    setExtracted(null); setReadProgress("Verificando integridade do PDF local...");
+    setNotice("");
+    try {
+      // Never treat an arbitrary plan as the official attachment.
+      await verifyQaExistingDocumentCopy(file, {
+        fileHash: selected.fileHash, fileSizeBytes: selected.fileSizeBytes,
+      });
+      if (controller.signal.aborted) return;
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      ensureUrbanPdfBytes(bytes);
+      const result = await extractUrbanPdfText(bytes, {
+        signal: controller.signal,
+        onProgress:(page,total)=>{
+          if (!controller.signal.aborted) setReadProgress("Lendo cópia verificada: página " + page + " de " + total);
+        },
+      });
+      if (controller.signal.aborted) return;
+      setExtracted(result); setReadStatus("ready"); setReadProgress("");
+      setNotice("Cópia local conferida por tamanho e SHA-256. Leitura temporária, sem envio ou substituição do PDF oficial. Confira as cotas na prancha original.");
+    } catch (error) {
+      if (controller.signal.aborted) return;
+      setReadStatus("error"); setReadProgress("");
+      setNotice(error instanceof Error ? error.message : "Não foi possível validar a cópia do PDF.");
+    } finally {
+      if (readAbort.current === controller) readAbort.current = null;
+    }
+  };
+
+  const acceptDrawingSuggestion = (candidate: ReturnType<typeof findUrbanDrawingMeasurements>[number]) => {
+    if (readOnly || !selected || !extracted) return;
+    try {
+      const evidence = buildUrbanTextEvidence({
+        documentId:selected.id,
+        fileName:selected.fileName || selected.label,
+        documentVersion:selected.version || 1,
+        fileHash:selected.fileHash,
+        page:candidate.page,
+        excerpt:("Cota textual conferida: " + candidate.excerpt).slice(0,125),
+      });
+      onUseMeasurement(candidate.target,candidate.value,evidence);
+      setNotice("Valor conferido enviado ao formulário. Se já existia um preenchimento, ele foi preservado. Faça a verificação final antes de registrar.");
+    } catch(error){
+      setNotice(error instanceof Error ? error.message : "Não foi possível preparar a referência documental.");
     }
   };
 
@@ -229,6 +297,17 @@ export function UrbanDocumentEvidenceDesk({ process, readOnly, allowedMetrics, o
               {readStatus === "loading" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ScanText className="mr-2 h-4 w-4" />}
               {readStatus === "loading" ? "Lendo PDF..." : "Localizar trechos no PDF"}
             </Button>
+            {import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true" ? (
+              <>
+                <input ref={qaFileInput} type="file" accept=".pdf,application/pdf"
+                  aria-label="Cópia local autorizada do PDF deste processo" className="sr-only"
+                  onChange={event => void preReadAuthorizedLocalCopy(event)} />
+                <Button type="button" variant="outline" disabled={readStatus === "loading"}
+                  onClick={() => qaFileInput.current?.click()}>
+                  Usar cópia verificada do computador
+                </Button>
+              </>
+            ) : null}
           </div>
           {readProgress ? <p role="status" className="mt-2 text-xs text-sky-800 dark:text-sky-200">{readProgress}</p> : null}
           {extracted ? (
@@ -264,6 +343,11 @@ export function UrbanDocumentEvidenceDesk({ process, readOnly, allowedMetrics, o
                 ))}
               </div>
             </div>
+          ) : null}
+          {extracted ? (
+            <UrbanDrawingMeasurementDesk key={documentId + "-" + readStatus}
+              suggestions={drawingSuggestions} readOnly={readOnly}
+              onConfirm={acceptDrawingSuggestion} />
           ) : null}
         </div>
       ) : null}
