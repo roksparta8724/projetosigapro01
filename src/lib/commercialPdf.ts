@@ -1,4 +1,4 @@
-import { jsPDF } from "jspdf";
+import type { jsPDF } from "jspdf";
 import { getPublicAssetUrl } from "@/lib/assetUrl";
 import { formatCurrency, type PlanItem } from "@/lib/platform";
 
@@ -389,6 +389,7 @@ export async function buildCommercialPdfBlob({
   hidePrices,
   municipalityProfile,
 }: BuildCommercialPdfOptions) {
+  const { jsPDF } = await import("jspdf");
   const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const topbarLogoAsset = await loadLogoAsset("sigapro-topbar-logo.png");
   const signatureAsset = signatureImageDataUrl
