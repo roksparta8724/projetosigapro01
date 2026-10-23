@@ -33,10 +33,11 @@ export function buildUrbanTextEvidence(input: {
   documentId: string;
   fileName: string;
   documentVersion: number;
+  fileHash?: string;
   page: number;
   excerpt: string;
 }): string {
-  const { documentId, fileName, documentVersion, page, excerpt } = input;
+  const { documentId, fileName, documentVersion, page, excerpt, fileHash } = input;
   if (!/^[a-z0-9_-]{2,128}$/i.test(documentId)) {
     throw new Error("Identificador de documento inválido.");
   }
@@ -51,8 +52,11 @@ export function buildUrbanTextEvidence(input: {
   if (!Number.isSafeInteger(documentVersion) || documentVersion < 1) {
     throw new Error("Versão do documento inválida.");
   }
+  const hash = typeof fileHash === "string" && /^[a-f0-9]{64}$/i.test(fileHash.trim())
+    ? "; SHA-256 " + fileHash.trim().toLowerCase()
+    : "";
   const reference = "Arquivo: " + name + "; versão " + documentVersion +
-    "; página " + page + "; documento " + documentId + "; trecho: " + passage;
+    "; página " + page + "; documento " + documentId + hash + "; trecho: " + passage;
   if (reference.length > 500) throw new Error("Referência longa demais para o registro.");
   return reference;
 }
