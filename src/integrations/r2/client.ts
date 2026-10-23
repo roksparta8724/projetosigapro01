@@ -149,7 +149,10 @@ export function getMunicipalityLogoOpenUrl(objectKey: string | null | undefined)
   // must never redirect municipal imagery to an old deployment or environment.
   if (typeof window !== "undefined") {
     const host = window.location.hostname.toLowerCase();
-    if (host === "sigapromunicipal.com.br" || host.endsWith(".sigapromunicipal.com.br")) {
+    // Localhost now implements the same validated GET route as Vercel. Do
+    // not bypass it through an old VITE_R2_API_BASE pointing at another site.
+    if (host === "localhost" || host === "127.0.0.1" ||
+        host === "sigapromunicipal.com.br" || host.endsWith(".sigapromunicipal.com.br")) {
       return path;
     }
   }
