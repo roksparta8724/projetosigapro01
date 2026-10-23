@@ -2770,3 +2770,93 @@ html body #root [data-layout-mode="default"] .sig-main-shell
   overflow-wrap:anywhere;
 }
 /* HABITE-SE ALVARA SUMMARY CONTRAST V22 END */
+
+
+/* SIGAPRO / ANALISE — contrast contract V23 (dark institutional / 2026-10-23).
+   Source of theme truth: SIGAPRO's data-layout-mode; Tailwind's .dark may
+   not be present. Restrict the fix to the TWO white-masked audit headers.
+   Leave signature buttons, success/status badges and light mode untouched. */
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-urban-analysis-sheet="true"] :is(
+  [data-analysis-withdrawal-card="true"],
+  [data-analysis-revision-history="true"]
+),
+html[data-theme*="dark"] body #root .sig-app-frame .sig-main-shell
+[data-urban-analysis-sheet="true"] :is(
+  [data-analysis-withdrawal-card="true"],
+  [data-analysis-revision-history="true"]
+) {
+  background:linear-gradient(165deg,#101f33 0%,#0b1829 100%) !important;
+  background-color:#101f33 !important;
+  border-color:#34516d !important;
+  color:#f6faff !important;
+}
+
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-urban-analysis-sheet="true"] :is(
+  [data-analysis-withdrawal-header="true"],
+  [data-analysis-revision-header="true"]
+),
+html[data-theme*="dark"] body #root .sig-app-frame .sig-main-shell
+[data-urban-analysis-sheet="true"] :is(
+  [data-analysis-withdrawal-header="true"],
+  [data-analysis-revision-header="true"]
+) {
+  background:linear-gradient(118deg,#173550 0%,#11314c 54%,#0d263f 100%) !important;
+  background-color:#16324e !important;
+  border-color:#3c607c !important;
+  color:#f8fbff !important;
+  box-shadow:inset 0 1px 0 rgba(186,230,253,.13) !important;
+}
+
+/* Explicit ink polarity in the formerly washed-out header only, including
+   specific utility colors that otherwise render pale text over white. */
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-urban-analysis-sheet="true"]
+:is([data-analysis-withdrawal-header="true"],[data-analysis-revision-header="true"])
+:is(h1,h2,h3,h4,p,span,strong,small,label),
+html[data-theme*="dark"] body #root .sig-app-frame .sig-main-shell
+[data-urban-analysis-sheet="true"]
+:is([data-analysis-withdrawal-header="true"],[data-analysis-revision-header="true"])
+:is(h1,h2,h3,h4,p,span,strong,small,label) {
+  color:#e7f4ff !important;
+  -webkit-text-fill-color:#e7f4ff !important;
+  opacity:1 !important;
+  text-shadow:none !important;
+}
+
+/* The labels, counts and icon remain visible against saturated navy. */
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-urban-analysis-sheet="true"]
+:is([data-analysis-withdrawal-header="true"],[data-analysis-revision-header="true"])
+:is(.text-slate-600,.text-slate-500,.text-slate-400),
+html[data-theme*="dark"] body #root .sig-app-frame .sig-main-shell
+[data-urban-analysis-sheet="true"]
+:is([data-analysis-withdrawal-header="true"],[data-analysis-revision-header="true"])
+:is(.text-slate-600,.text-slate-500,.text-slate-400) {
+  color:#c4dcf0 !important;
+  -webkit-text-fill-color:#c4dcf0 !important;
+}
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-urban-analysis-sheet="true"]
+:is([data-analysis-withdrawal-header="true"],[data-analysis-revision-header="true"])
+:is(.bg-white,[class*="bg-white"],.bg-sky-50),
+html[data-theme*="dark"] body #root .sig-app-frame .sig-main-shell
+[data-urban-analysis-sheet="true"]
+:is([data-analysis-withdrawal-header="true"],[data-analysis-revision-header="true"])
+:is(.bg-white,[class*="bg-white"],.bg-sky-50) {
+  background:#102d46 !important;
+  background-color:#102d46 !important;
+  border-color:#54728e !important;
+  color:#f8fbff !important;
+  -webkit-text-fill-color:#f8fbff !important;
+}
+
+/* In light workspace keep soft-white headers with true dark copy; no global
+   dark-theme override should bleed back into the default mode. */
+html body #root .sig-app-frame[data-layout-mode="default"] .sig-main-shell
+[data-urban-analysis-sheet="true"]
+:is([data-analysis-withdrawal-header="true"],[data-analysis-revision-header="true"]) {
+  background:linear-gradient(135deg,#fbfdff,#edf6ff) !important;
+  border-color:#d2dfed !important;
+}
