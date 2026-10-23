@@ -19,6 +19,7 @@ describe("SIGAPRO IA — rastreabilidade de documentos", () => {
       documentId: "fc2fb721-1e0c-40a1-9807-c2c8408c2e84",
       fileName: "implantacao.pdf",
       documentVersion: 3,
+      fileHash: "a".repeat(64),
       page: 7,
       excerpt: "Recuo frontal cotado na prancha: quatro metros e cinquenta centímetros.",
     });
@@ -26,6 +27,7 @@ describe("SIGAPRO IA — rastreabilidade de documentos", () => {
     expect(evidence).toContain("versão 3");
     expect(evidence).toContain("página 7");
     expect(evidence).toContain("documento fc2fb721");
+    expect(evidence).toContain("SHA-256 " + "a".repeat(64));
     expect(evidence).toContain("quatro metros");
   });
 
