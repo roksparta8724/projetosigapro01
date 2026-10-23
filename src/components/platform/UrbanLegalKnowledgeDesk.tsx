@@ -7,7 +7,7 @@ import { ensureUrbanPdfBytes, extractUrbanPdfText, URBAN_PDF_MAX_BYTES, type Urb
 import { excerptOccursOnPage, extractUrbanLegalSuggestions, searchLegalEvidence, sha256Hex,
   type UrbanLegalEvidence, type UrbanLegalSuggestion } from "@/lib/urbanLegalKnowledge";
 import { URBAN_METRICS, type UrbanMetric } from "@/lib/urbanPrecheck";
-import { validateUrbanLegalScope, type UrbanLegalScopeDraft } from "@/lib/urbanLegalScope";
+import { urbanLegalScopeMatchesDraft, validateUrbanLegalScope, type UrbanLegalScopeDraft } from "@/lib/urbanLegalScope";
 
 type Props = {
   municipalityId: string;
@@ -267,6 +267,7 @@ export function UrbanLegalKnowledgeDesk({ municipalityId, canEdit, onUseReferenc
                         </p>
                         {item.suggestedLimit !== null ? (
                           <Button size="sm" type="button" variant="outline"
+                            disabled={Boolean(scopeProblem) || confirmedKey !== key}
                             onClick={() => onUseReference(item.metric,
                               referenceForDraft(title,fileHash,item.page,item.excerpt),item.suggestedLimit)}>
                             Preencher proposta de rascunho
@@ -329,6 +330,8 @@ export function UrbanLegalKnowledgeDesk({ municipalityId, canEdit, onUseReferenc
               </p>
               <p className="mt-2 break-words text-xs leading-5 text-slate-800 dark:text-slate-100">{item.excerpt}</p>
               {canEdit ? <Button type="button" size="sm" variant="outline" className="mt-2"
+                disabled={!confirmedScope || !urbanLegalScopeMatchesDraft(item, confirmedScope)}
+                title={!confirmedScope || !urbanLegalScopeMatchesDraft(item, confirmedScope) ? "Referência pertence a outra zona, uso ou período" : "Usar referência confirmada"}
                 onClick={() => onUseReference(item.metric, referenceForDraft(
                   item.document_title,item.document_sha256,item.page_number,item.excerpt),null)}>
                 Usar citação no rascunho
