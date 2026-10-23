@@ -12,6 +12,7 @@ import {
 } from "@/lib/urbanPrecheck";
 import type { ProcessRecord } from "@/lib/platform";
 import { UrbanDocumentEvidenceDesk } from "@/components/platform/UrbanDocumentEvidenceDesk";
+import { UrbanLegalKnowledgeDesk } from "@/components/platform/UrbanLegalKnowledgeDesk";
 import { buildUrbanReviewDraft, deriveUrbanAreaMeasurements, type UrbanAreaKey } from "@/lib/urbanPrecheckAssist";
 
 type Field = { value: string; evidence: string };
@@ -230,6 +231,8 @@ export function UrbanPrecheckPanel({
           .map((key) => ({ key, label: URBAN_METRICS.find((item) => item.key === key)?.label || key }))}
         onUseEvidence={(metric, evidence) => setField(metric, "evidence", evidence)}
       />
+      <UrbanLegalKnowledgeDesk municipalityId={municipalityId} canEdit={false}
+        onUseReference={() => { /* Somente a administração municipal pode alterar o cadastro normativo. */ }} />
       {loading ? <p role="status" className="mt-4 flex items-center gap-2 text-sm text-slate-500"><Loader2 className="h-4 w-4 animate-spin" /> Consultando cadastro normativo municipal...</p> : null}
       {!loading && !regulation ? (
         <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100">
