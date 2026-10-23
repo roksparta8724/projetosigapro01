@@ -44,7 +44,7 @@ export function UrbanDocumentEvidenceDesk({ process, readOnly, allowedMetrics, o
   const [readProgress, setReadProgress] = useState("");
   const [extracted, setExtracted] = useState<UrbanPdfTextResult | null>(null);
   const [pdfBytes, setPdfBytes] = useState<Uint8Array | null>(null);
-  const [scanProof, setScanProof] = useState<{page:number;text:string;documentId:string}|null>(null);
+  const [scanProof, setScanProof] = useState<{page:number;text:string;documentId:string;method:"visual_double_transcription"|"browser_ocr_human_verified"}|null>(null);
   const readAbort = useRef<AbortController | null>(null);
   const qaFileInput = useRef<HTMLInputElement | null>(null);
 
@@ -227,7 +227,7 @@ export function UrbanDocumentEvidenceDesk({ process, readOnly, allowedMetrics, o
         fileHash: selected.fileHash,
         page: Number(pageText),
         excerpt: scanProof?.documentId===selected.id && scanProof.page===Number(pageText) && scanProof.text===excerpt
-          ? ("Transcrição visual dupla, sem OCR: "+excerpt).slice(0,280) : excerpt,
+          ? ((scanProof.method==="browser_ocr_human_verified" ? "OCR local revisado: " : "Transcrição visual dupla, sem OCR: ")+excerpt).slice(0,280) : excerpt,
       });
       onUseEvidence(metric, evidence);
       setNotice("Origem da medida preenchida. Confirme manualmente o valor no campo do parâmetro e registre a pré-conferência quando pronto.");
@@ -367,12 +367,12 @@ export function UrbanDocumentEvidenceDesk({ process, readOnly, allowedMetrics, o
               bytes={pdfBytes}
               scannedPages={extracted.pages.filter(page => !page.text).map(page => page.page)}
               readOnly={readOnly}
-              onVerifiedTranscript={({page,text}) => {
+              onVerifiedTranscript={({page,text,method}) => {
                 setPageText(String(page));
                 setExcerpt(text);
-                setScanProof({page,text,documentId:selected.id});
-                setNotice("Transcrição visual dupla conferida: página " + page +
-                  ". Selecione o parâmetro técnico e vincule a origem; ainda não é OCR.");
+                setScanProof({page,text,documentId:selected.id,method});
+                setNotice((method==="browser_ocr_human_verified" ? "OCR local com revisão humana: " : "Transcrição visual dupla sem OCR: ") + "página " + page +
+                  ". Selecione o parâmetro técnico e vincule a origem.");
               }}
             />
           ) : null}
