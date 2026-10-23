@@ -172,9 +172,15 @@ export function useInstitutionBranding(tenantId?: string | null) {
   const [platformBrandingChecked, setPlatformBrandingChecked] = useState(
     () => lastValidatedMasterBranding !== undefined,
   );
-  const [resolvedMasterLogos, setResolvedMasterLogos] = useState<ResolvedMasterLogoPair>(
-    () => lastValidatedMasterLogoPair ?? { sourceKey: "", header: "", footer: "" },
-  );
+  const [resolvedMasterLogos, setResolvedMasterLogos] = useState<ResolvedMasterLogoPair>(() => {
+    const cached = lastValidatedMasterLogoPair;
+    if (
+      cached &&
+      (!cached.header || isUsableBrandingUrl(cached.header)) &&
+      (!cached.footer || isUsableBrandingUrl(cached.footer))
+    ) return cached;
+    return { sourceKey: "", header: "", footer: "" };
+  });
   const [platformBranding, setPlatformBranding] = useState<PersistedMasterBranding>(
     () => lastValidatedMasterBranding ?? null,
   );
