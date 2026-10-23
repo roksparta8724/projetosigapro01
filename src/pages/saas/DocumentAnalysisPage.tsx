@@ -990,6 +990,20 @@ export function DocumentAnalysisPage() {
                       <QaDocumentUnavailableNotice
                         processRoute={buildProcessPath(process)}
                         documentId={document.id}
+                    objectKey={document.filePath}
+                    expectedFileHash={document.fileHash}
+                    expectedFileSizeBytes={document.fileSizeBytes}
+                    onRecovered={async () => {
+                      if (!document.filePath) return;
+                      const signedUrl = await getSignedUrlForObjectStrict({
+                        bucket: "process-documents",
+                        objectKey: document.filePath,
+                        expiresIn: 900,
+                      });
+                      if (!signedUrl) throw new Error("Arquivo importado, mas o link do QA não pôde ser obtido.");
+                      setAccessUrl(signedUrl);
+                      setAccessError("");
+                    }}
                       />
                     ) : (
                       <div className="max-w-xl rounded-[24px] border border-rose-200 bg-white p-6 text-center shadow-xl">
