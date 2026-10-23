@@ -5,7 +5,8 @@ export type UrbanLegalEvidence = {
   id: string; evidence_id: string; municipality_id: string; document_title: string;
   document_sha256: string; page_number: number; metric: UrbanMetric;
   excerpt: string; zone_code: string; use_code: string;
-  effective_from: string; effective_until: string | null; created_at: string;
+  effective_from: string; effective_until: string | null;
+  verification_method?: "text_layer_verified" | "visual_double_transcription"; created_at: string;
 };
 export type UrbanLegalSuggestion = {
   metric: UrbanMetric; label: string; page: number; excerpt: string;
