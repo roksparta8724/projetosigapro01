@@ -71,6 +71,18 @@ export function extractUrbanLegalSuggestions(
   return output;
 }
 
+/** Manual evidence must originate in the actual PDF text layer, not a typed claim. */
+export function excerptOccursOnPage(
+  pages: ReadonlyArray<{page: number; text: string}>,
+  pageNumber: number,
+  excerpt: string,
+): boolean {
+  const needle = clean(excerpt);
+  if (needle.length < 15 || needle.length > 500) return false;
+  const page = pages.find(p => p.page === pageNumber);
+  return Boolean(page && clean(page.text).includes(needle));
+}
+
 export function validateLegalEvidenceDraft(value: {
   title: string; hash: string; page: number; metric: string; excerpt: string;
 }): void {
