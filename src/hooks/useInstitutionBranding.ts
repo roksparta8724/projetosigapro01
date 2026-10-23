@@ -18,24 +18,6 @@ import { resolveAssetUrl } from "@/lib/assetUrl";
 import { getInstitutionBranding } from "@/lib/institutionBranding";
 import { getMasterInstitutionBranding, loadMasterBranding, saveMasterBranding, updateMasterBranding } from "@/lib/masterBranding";
 
-const MASTER_SIGNED_CACHE_TTL_MS = 1000 * 60 * 15;
-let cachedMasterHeaderSignedUrl = "";
-let cachedMasterHeaderSignedAt = 0;
-let cachedMasterFooterSignedUrl = "";
-let cachedMasterFooterSignedAt = 0;
-
-const isCacheValid = (ts: number) => Date.now() - ts < MASTER_SIGNED_CACHE_TTL_MS;
-
-const getCachedMasterHeaderUrl = () =>
-  cachedMasterHeaderSignedUrl && isCacheValid(cachedMasterHeaderSignedAt)
-    ? cachedMasterHeaderSignedUrl
-    : "";
-
-const getCachedMasterFooterUrl = () =>
-  cachedMasterFooterSignedUrl && isCacheValid(cachedMasterFooterSignedAt)
-    ? cachedMasterFooterSignedUrl
-    : "";
-
 function isUsableBrandingUrl(value: string | null | undefined) {
   const raw = String(value || "").trim();
   if (!raw) return false;
@@ -62,18 +44,6 @@ function isUsableBrandingUrl(value: string | null | undefined) {
   } catch {
     return true;
   }
-}
-
-function municipalityLogoFallback(name: string | null | undefined) {
-  const normalized = String(name || "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLocaleLowerCase("pt-BR");
-
-  if (normalized.includes("campo limpo paulista")) {
-    return "https://upload.wikimedia.org/wikipedia/commons/4/4e/Brasao-campo-limpo-paulista2.png";
-  }
-  return "";
 }
 
 const TENANT_LOGO_CACHE_PREFIX = "sigapro.municipality-logo.v3";
@@ -545,7 +515,7 @@ export function useInstitutionBranding(tenantId?: string | null) {
       resolvePersistentBrandingReference(institutionSettings?.brasaoUrl);
     const institutionalFallback =
       savedCoatOfArmsUrl ||
-      municipalityLogoFallback(scopedMunicipality?.name || institution?.name);
+      "";
     const primaryFooterLogo =
       (resolvedTenantFooterLogoState.tenantId === resolvedInstitutionId ? resolvedTenantFooterLogoState.url : "") ||
       brandingUrl ||
@@ -597,6 +567,7 @@ export function useInstitutionBranding(tenantId?: string | null) {
   return {
     headerBranding,
     footerBranding,
+    brandingReady: !shouldUseMasterBranding || (platformBrandingChecked && resolvedMasterLogos.sourceKey === masterSourceKey),
     officialHeaderText: resolvedHeaderText,
     officialFooterText: resolvedFooterText,
     canManageTenantSettings: can(session, "manage_tenant_branding"),
