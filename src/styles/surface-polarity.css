@@ -2860,3 +2860,32 @@ html body #root .sig-app-frame[data-layout-mode="default"] .sig-main-shell
   background:linear-gradient(135deg,#fbfdff,#edf6ff) !important;
   border-color:#d2dfed !important;
 }
+
+
+/* Analysis persistence banner is adaptive as well; the new status message
+   must not become another pale "mask" in the inverse institutional theme. */
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-urban-analysis-sheet="true"] [data-analysis-storage-status="true"],
+html[data-theme*="dark"] body #root .sig-app-frame .sig-main-shell
+[data-urban-analysis-sheet="true"] [data-analysis-storage-status="true"] {
+  background:linear-gradient(135deg,#143550,#10283f) !important;
+  background-color:#143550 !important;
+  border-color:#3a6789 !important;
+  color:#e6f4ff !important;
+}
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-urban-analysis-sheet="true"] [data-analysis-storage-status="true"] :is(p,span,strong),
+html[data-theme*="dark"] body #root .sig-app-frame .sig-main-shell
+[data-urban-analysis-sheet="true"] [data-analysis-storage-status="true"] :is(p,span,strong) {
+  color:#e7f4ff !important;
+  -webkit-text-fill-color:#e7f4ff !important;
+}
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-urban-analysis-sheet="true"] [data-analysis-storage-status="true"] button,
+html[data-theme*="dark"] body #root .sig-app-frame .sig-main-shell
+[data-urban-analysis-sheet="true"] [data-analysis-storage-status="true"] button {
+  background:#0c2339 !important;
+  border-color:#75a4c9 !important;
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+}
