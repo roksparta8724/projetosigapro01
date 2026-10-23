@@ -263,10 +263,11 @@ describe("official electronic signatures", () => {
     expect(checklist).toContain("withdrawalDateTime");
     expect(checklist).toContain("Data e hora:");
     expect(checklist).toContain("Retirado por:");
-    expect(checklist).toContain('setNotice("PDF assinado conferido, arquivado no armazenamento oficial e vinculado à pasta Documentos assinados.")');
-    expect(checklist).toContain("PDF aberto, mas não arquivado");
-    expect(checklist).toContain("PDF aberto. O arquivo não foi arquivado");
-    expect(checklist).toContain('setNotice("PDF aberto. O arquivamento permanente é habilitado');
+    expect(checklist).toContain('let signedPdfArchiveConfirmed = false');
+    expect(checklist).toContain("signedPdfArchiveConfirmed = true");
+    expect(checklist).toContain("PDF assinado conferido, arquivado no armazenamento oficial e vinculado à pasta Documentos assinados.");
+    expect(checklist).toContain("PDF aberto para consulta. A visualização não arquiva um novo documento.");
+    expect(checklist).toContain("const verified = await getProcessArtifactSignatures(process.id, ANALYSIS_ARTIFACT_KEY)");
     expect(checklist).not.toContain("PDF oficial gerado em 2 páginas");
   });
 

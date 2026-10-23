@@ -2069,6 +2069,7 @@ export function UrbanAnalysisChecklistPanel({
 
       const pdfBlob = doc.output("blob");
       const pdfFile = new File([pdfBlob], fileName, { type: "application/pdf" });
+      let signedPdfArchiveConfirmed = false;
 
       // SIGAPRO_OFFICIAL_SIGNED_PDF_DOCUMENT_V1
       // Um PDF assinado deve existir como documento versionado no processo, nao apenas em blob local.
@@ -2120,6 +2121,7 @@ export function UrbanAnalysisChecklistPanel({
             sizeLabel: (officialFile.size / 1024).toFixed(1) + " KB",
           }], session.name);
         }
+        signedPdfArchiveConfirmed = true;
       }
       const pdfUrl = URL.createObjectURL(pdfFile);
       const viewerUrl = `${pdfUrl}#page=1&zoom=125&toolbar=1&navpanes=0&scrollbar=1`;
@@ -2142,7 +2144,9 @@ export function UrbanAnalysisChecklistPanel({
       }
 
       window.setTimeout(() => URL.revokeObjectURL(pdfUrl), 5 * 60_000);
-      setNotice("Registrado");
+      setNotice(signedPdfArchiveConfirmed
+        ? "PDF assinado conferido, arquivado no armazenamento oficial e vinculado à pasta Documentos assinados."
+        : "PDF aberto para consulta. A visualização não arquiva um novo documento.");
     } catch (error) {
       if (reservedPdfWindow && !reservedPdfWindow.closed) {
         reservedPdfWindow.close();

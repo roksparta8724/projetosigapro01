@@ -34,9 +34,10 @@ describe("guide opening experience", () => {
     const mercadoApi = read("api/mercadopago.ts");
     const migration = read("supabase/migrations/20261019134500_persist_payment_guide_provider_charge.sql");
 
-    expect(processPage).toContain('const issuedAt = String(selectedGuide.issuedAt || "").trim()');
+    expect(processPage).toContain("const issuedAt = selectedGuide.issuedAt;");
+    expect(processPage).toContain('if (!issuedAt) throw new Error("Data original da guia ausente no Neon.")');
     expect(processPage).not.toContain("selectedGuide.issuedAt || new Date().toISOString()");
-    expect(processPage).toContain("não substituirá essa data pela data de hoje");
+    expect(processPage).toContain("original.created_at");
     expect(mercadoApi).toContain("persist_payment_guide_provider_charge_v1");
     expect(migration).toContain("provider_charge_saved_at");
     expect(migration).toContain("digitable_line");

@@ -21,17 +21,19 @@ describe("marcadores escuros da carteira externa", () => {
   });
 
   it("garante cor de texto legível em chip escuro, independente do tema", () => {
-    const section = css.slice(css.indexOf("PROCESSOS EXTERNOS > MARCADORES — CONTRASTE V23"));
-    expect(section).toContain('[data-process-premium-card="true"] [data-external-process-marker="true"]');
+    const from = css.indexOf("SIGAPRO EXTERNAL MARKER LABEL LEGIBILITY V25");
+    const section = css.slice(from, css.indexOf("COLLECTION CONFIGURATION PREMIUM CONTRAST", from));
+    expect(section).toContain('span[data-external-process-marker="true"]');
     expect(section).toContain('[data-external-marker-label="true"]');
-    expect(section).toContain("color:#f8fafc !important");
-    expect(section).toContain("-webkit-text-fill-color:#f8fafc !important");
-    const contrast = (luminance("#f8fafc") + 0.05) / (luminance("#102b44") + 0.05);
+    expect(section).toContain("color: #ffffff !important");
+    expect(section).toContain("-webkit-text-fill-color: #ffffff !important");
+    const contrast = (luminance("#ffffff") + 0.05) / (luminance("#102b44") + 0.05);
     expect(contrast).toBeGreaterThan(7);
   });
 
   it("não recolore ícones, menus, pagamentos, badges ou outras superfícies", () => {
-    const section = css.slice(css.indexOf("PROCESSOS EXTERNOS > MARCADORES — CONTRASTE V23"));
+    const from = css.indexOf("SIGAPRO EXTERNAL MARKER LABEL LEGIBILITY V25");
+    const section = css.slice(from, css.indexOf("COLLECTION CONFIGURATION PREMIUM CONTRAST", from));
     expect(section).not.toMatch(/\bsvg\b/);
     expect(section).not.toContain(".sig-premium-topbar");
     expect(section).not.toContain(".sig-sidebar-shell");

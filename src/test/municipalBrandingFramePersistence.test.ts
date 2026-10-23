@@ -65,7 +65,7 @@ describe("Municipal framing: editor → Neon → page header/footer", () => {
     const footer = source("src/components/platform/PortalFrame.tsx");
     const renderer = source("src/components/platform/InstitutionalLogo.tsx");
     expect(footer).toContain('data-sig-footer-logo-cell="true"');
-    expect(footer).toContain('data-sig-footer-grid="true" className="grid min-w-0 items-center');
+    expect(footer).toContain('data-sig-footer-grid="true" className="grid min-w-0 items-start');
     expect(footer).toContain('className="!m-0 !shrink-0"');
     expect(renderer).toContain('footer: "h-[144px] w-[144px] max-h-[144px] max-w-[144px] p-0"');
     expect(renderer).toContain('const municipalOffsetX = (municipalFrame.offsetX / MUNICIPAL_LOGO_EDITOR_SIZE) * 100');
