@@ -16,9 +16,10 @@ const version: UrbanRegulationVersion = {
   created_at:"2026-01-01T00:00:00Z",
 };
 const row: UrbanLegalEvidence = {
-  id:"c1",municipality_id:"prefeitura-a",document_title:"Lei urbanística 10/2026",
+  id:"c1",evidence_id:"base-c1",municipality_id:"prefeitura-a",document_title:"Lei urbanística 10/2026",
   document_sha256:sha,page_number:12,metric:"front_setback_m",
   excerpt:"O recuo frontal mínimo de 5 metros, salvo quando o lote estiver na zona especial, conforme anexo II.",
+  zone_code:"ZR1",use_code:"RESIDENCIAL",effective_from:"2026-01-01",effective_until:null,
   created_at:"2026-10-23T00:00:00Z",
 };
 const review: UrbanLegalReviewConfirmation = {
@@ -93,7 +94,7 @@ describe("SIGAPRO IA Urbanismo - revisão de condições e exceções",()=>{
     expect(migration).toContain("reviewed_by_profile_id");
     expect(migration).toContain("legal_review");
     expect(migration).toContain("revoke execute on function public.save_urban_precheck_run_v2");
-    expect(client).toContain('invoke("save_urban_precheck_run_v3"');
+    expect(client).toContain('invoke("save_urban_precheck_run_v4"');
     expect(client).toContain("legal_review?");
   });
 });
