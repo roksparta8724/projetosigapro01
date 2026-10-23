@@ -1,8 +1,8 @@
 import { createHash } from "node:crypto";
-import type { ApiReq } from "./municipal-storage";
-import { resolveMercadoPagoMunicipalAccessToken } from "./municipal-payment";
-import { assertGuideProviderSyncAccess, assertGuideProviderWriteAccess, persistGuideCharge, readStoredGuide, storedGuideCharge } from "./guide-persistence";
-import { normalizeOfficialBanking } from "../src/lib/bankCodes";
+import type { ApiReq } from "./municipal-storage.js";
+import { resolveMercadoPagoMunicipalAccessToken } from "./municipal-payment.js";
+import { assertGuideProviderSyncAccess, assertGuideProviderWriteAccess, persistGuideCharge, readStoredGuide, storedGuideCharge } from "./guide-persistence.js";
+import { normalizeOfficialBanking } from "../src/lib/bankCodes.js";
 type MercadoPagoEnvironment = "test" | "production";
 
 export type MercadoPagoConnectionCheck = {

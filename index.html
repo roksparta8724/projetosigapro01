@@ -81,6 +81,42 @@
 
         document.documentElement.style.setProperty("--sig-initial-bg", initialBackground);
 
+        // Em uma rota interna já autenticada, preserve também a faixa visual do
+        // topbar enquanto o bundle React executa. Isto não é um loading/shell:
+        // é apenas o fundo do documento vazio, evitando um flash totalmente
+        // branco entre F5 e o primeiro commit real da aplicação.
+        try {
+          var cachedSessionRaw = window.localStorage.getItem("sigapro.platform.session.v1");
+          var cachedSession = cachedSessionRaw ? JSON.parse(cachedSessionRaw) : null;
+          var isInternalRoute =
+            publicPaths.indexOf(path) < 0 &&
+            authPaths.indexOf(path) < 0 &&
+            path.indexOf("/cliente/") !== 0;
+          if (
+            isInternalRoute &&
+            cachedSession &&
+            cachedSession.id &&
+            cachedSession.id !== "unknown" &&
+            cachedSession.accountStatus !== "blocked" &&
+            cachedSession.accountStatus !== "inactive"
+          ) {
+            var rawEffectiveThemeForBoot = window.localStorage.getItem("sigapro.effective-theme.v2");
+            var effectiveThemeForBoot = rawEffectiveThemeForBoot
+              ? JSON.parse(rawEffectiveThemeForBoot)
+              : null;
+            var initialTopbar =
+              effectiveThemeForBoot &&
+              typeof effectiveThemeForBoot.primary === "string" &&
+              effectiveThemeForBoot.primary.trim()
+                ? effectiveThemeForBoot.primary.trim()
+                : "#0b3147";
+            document.documentElement.style.setProperty("--sig-initial-topbar", initialTopbar);
+            document.documentElement.setAttribute("data-sigapro-cached-internal", "true");
+          }
+        } catch (error) {
+          // Continuidade visual é opcional; nunca bloquear a aplicação.
+        }
+
         // Mesma escala desde o primeiro frame.
         var hostName = window.location.hostname.toLowerCase();
         var rootDomain = "sigapromunicipal.com.br";

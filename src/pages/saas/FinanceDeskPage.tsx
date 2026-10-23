@@ -61,6 +61,7 @@ import {
   isIssFeeConfigured,
 } from "@/lib/platform";
 import { collectionModeLabel } from "@/lib/paymentCollection";
+import { resolveProcessDispatchAuthor } from "@/lib/dispatchActorIdentity";
 import {
   type MunicipalFeeRule,
   type MunicipalFeeTable,
@@ -84,6 +85,7 @@ export function FinanceDeskPage() {
   const { municipality, scopeId, institutionSettingsCompat, municipalityId } = useMunicipality();
   const {
     processes: allProcesses,
+    sessionUsers,
     refreshRemoteStore,
     getInstitutionSettings,
     saveInstitutionSettings,
@@ -724,7 +726,7 @@ export function FinanceDeskPage() {
                                 Vistoria concluída • área declarada {Number(process.property.area || 0).toFixed(2)} m²
                               </p>
                               <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                                Encaminhado por {request?.requestedBy || request?.assignedTo || "servidor responsável"}
+                                Encaminhado por {request ? resolveProcessDispatchAuthor(request, sessionUsers) || "identificação não registrada" : "despacho não localizado"}
                                 {request?.createdAt ? ` • ${request.createdAt}` : ""}
                               </p>
                             </div>
@@ -790,7 +792,7 @@ export function FinanceDeskPage() {
                                 Responsável pela análise: {process.analysis?.assignedTo || request?.requestedBy || "Não atribuído"}
                               </p>
                               <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                                Encaminhado por {request?.requestedBy || process.analysis?.assignedTo || "Analista responsável"}
+                                Encaminhado por {request ? resolveProcessDispatchAuthor(request, sessionUsers) || "identificação não registrada" : "despacho não localizado"}
                                 {request?.createdAt ? ` • ${request.createdAt}` : ""}
                               </p>
                             </div>

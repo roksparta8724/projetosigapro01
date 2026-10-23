@@ -1,0 +1,28 @@
+# Keep source and test files byte-stable across Windows/Linux.
+# Several regression tests inspect source text literally; CRLF conversion on
+# Windows must not change their semantics.
+
+* text=auto
+
+*.ts   text eol=lf
+*.tsx  text eol=lf
+*.js   text eol=lf
+*.jsx  text eol=lf
+*.mjs  text eol=lf
+*.cjs  text eol=lf
+*.css  text eol=lf
+*.html text eol=lf
+*.json text eol=lf
+*.yml  text eol=lf
+*.yaml text eol=lf
+*.md   text eol=lf
+*.sql  text eol=lf
+*.sh   text eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.pdf binary

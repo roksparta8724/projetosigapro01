@@ -1,4 +1,4 @@
-import mercadoPagoHandler from "./mercadopago";
+import mercadoPagoHandler from "./mercadopago.js";
 
 type Req = Parameters<typeof mercadoPagoHandler>[0];
 type Res = Parameters<typeof mercadoPagoHandler>[1];
