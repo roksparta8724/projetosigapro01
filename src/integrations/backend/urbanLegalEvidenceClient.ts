@@ -29,6 +29,7 @@ export async function confirmUrbanLegalEvidence(input: {
   metric: UrbanMetric;
   excerpt: string;
   scope: UrbanLegalScopeDraft;
+  verificationMethod?: "text_layer_verified" | "visual_double_transcription";
 }): Promise<void> {
   validateLegalEvidenceDraft({
     title: input.documentTitle, hash: input.documentSha256,
@@ -37,7 +38,7 @@ export async function confirmUrbanLegalEvidence(input: {
   if (!input.municipalityId) throw new Error("Prefeitura não identificada.");
   const scopeError = validateUrbanLegalScope(input.scope);
   if (scopeError) throw new Error(scopeError);
-  await call("save_urban_legal_evidence_scoped_v2", {
+  await call("save_urban_legal_evidence_scoped_v3", {
     _municipality_id: input.municipalityId,
     _document_title: input.documentTitle,
     _document_sha256: input.documentSha256,
@@ -48,5 +49,6 @@ export async function confirmUrbanLegalEvidence(input: {
     _use_code: input.scope.useCode,
     _effective_from: input.scope.effectiveFrom,
     _effective_until: input.scope.effectiveUntil || null,
+    _verification_method: input.verificationMethod || "text_layer_verified",
   });
 }
