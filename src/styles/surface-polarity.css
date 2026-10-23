@@ -3104,3 +3104,38 @@ html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
   color:#a9c2d9 !important;
   -webkit-text-fill-color:#a9c2d9 !important;
 }
+
+
+/* SIGAPRO IA — ruler contrast in institutional inverse surface.
+   Scoped only to the new advisory module; no global dark-mode override. */
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-sigapro-urban-precheck="true"] [data-urban-graphic-ruler="true"] {
+  background:linear-gradient(150deg,#153650,#0a2035) !important;
+  border-color:#4781a2 !important;
+  color:#f0f8ff !important;
+}
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-sigapro-urban-precheck="true"] [data-urban-graphic-ruler="true"] :is(
+  [class*="bg-white"],[class*="bg-sky-50"],[class*="bg-amber-50"]
+) {
+  background:#112b44 !important;
+  border-color:#527d99 !important;
+}
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-sigapro-urban-precheck="true"] [data-urban-graphic-ruler="true"]
+:is(h3,h4,h5,p,span,strong,label) {
+  color:#ecf7ff !important;
+  -webkit-text-fill-color:#ecf7ff !important;
+}
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-sigapro-urban-precheck="true"] [data-urban-graphic-ruler="true"] :is(input,select) {
+  background:#0b1e30 !important;
+  color:#f5faff !important;
+  -webkit-text-fill-color:#f5faff !important;
+  border-color:#5a829f !important;
+}
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-sigapro-urban-precheck="true"] [data-urban-graphic-ruler="true"] :is(button:disabled) {
+  opacity:.68 !important;
+  cursor:not-allowed !important;
+}
