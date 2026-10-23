@@ -54,7 +54,7 @@ export async function saveUrbanPrecheckRun(
   if (!/^\d{4}-\d{2}-\d{2}$/.test(referenceDate)) throw new Error("Data legal inválida.");
   if (!Array.isArray(legalReview.evidenceIds) || legalReview.evidenceIds.length > 50 ||
       legalReview.note.length > 1200) throw new Error("Revisão legal incompleta ou excessiva.");
-  await invoke("save_urban_precheck_run_v3", {
+  await invoke("save_urban_precheck_run_v4", {
     _process_id: processId, _regulation_version_id: versionId,
     _reference_date: referenceDate, _measurements: measurements,
     _legal_review: {
