@@ -3162,3 +3162,37 @@ html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
   background-color:#0b2239 !important;
   border-color:#416b88 !important;
 }
+
+
+/* SIGAPRO IA — dark institutional contrast for scanned-page visual verification. */
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-urban-scanned-page="true"] {
+  background:linear-gradient(145deg,#10334c,#0b253b) !important;
+  background-color:#102c44 !important;
+  border-color:#4d83a5 !important;
+  color:#edf7ff !important;
+}
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-urban-scanned-page="true"] :is(h3,h4,h5,p,label,span,strong) {
+  color:#e9f6ff !important;
+  -webkit-text-fill-color:#e9f6ff !important;
+}
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-urban-scanned-page="true"] :is(textarea,select) {
+  color:#f5fbff !important;
+  -webkit-text-fill-color:#f5fbff !important;
+  background-color:#0b2239 !important;
+  border-color:#5b87a7 !important;
+}
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-urban-scanned-page="true"] button:not(:disabled) {
+  color:#fff !important;
+  -webkit-text-fill-color:#fff !important;
+  background-color:#175373 !important;
+  border-color:#74a5c6 !important;
+}
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-urban-scanned-page="true"] button:disabled {
+  opacity:.65 !important;
+  cursor:not-allowed !important;
+}
