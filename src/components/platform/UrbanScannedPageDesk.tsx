@@ -101,13 +101,13 @@ export function UrbanScannedPageDesk({bytes,scannedPages,readOnly,onVerifiedTran
           <div className="grid gap-3 md:grid-cols-2">
             <label className="text-xs font-bold text-slate-800 dark:text-white">
               Primeira leitura do trecho
-              <textarea aria-label="Primeira transcrição da página" maxLength={280} value={first}
+              <textarea aria-label="Primeira leitura do trecho" maxLength={280} value={first}
                 onChange={event=>{setFirst(event.target.value);setChecked(false);}}
                 className="mt-1 min-h-28 w-full rounded-xl border border-slate-300 bg-white p-3 text-sm text-slate-900 dark:border-slate-600 dark:bg-[#081c30] dark:text-white"/>
             </label>
             <label className="text-xs font-bold text-slate-800 dark:text-white">
               Segunda leitura independente
-              <textarea aria-label="Segunda transcrição da página" maxLength={280} value={second}
+              <textarea aria-label="Segunda leitura independente" maxLength={280} value={second}
                 onChange={event=>{setSecond(event.target.value);setChecked(false);}}
                 className="mt-1 min-h-28 w-full rounded-xl border border-slate-300 bg-white p-3 text-sm text-slate-900 dark:border-slate-600 dark:bg-[#081c30] dark:text-white"/>
             </label>
