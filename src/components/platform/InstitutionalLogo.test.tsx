@@ -57,7 +57,7 @@ describe("InstitutionalLogo", () => {
     expect(image).toHaveAttribute("src", expect.stringContaining("/municipality-a-logo.png"));
   });
 
-  it("reuses the last successfully loaded logo immediately after remount", () => {
+  it("does not display a cached logo as authoritative when the next mount has no selected source", () => {
     const first = render(<InstitutionalLogo branding={branding} fallbackLabel="Prefeitura A" variant="header" />);
     const firstImage = screen.getByRole("img", { name: "Logo da prefeitura A" });
     fireEvent.load(firstImage);
@@ -71,9 +71,7 @@ describe("InstitutionalLogo", () => {
       />,
     );
 
-    const restored = screen.getByRole("img", { name: "Logo da prefeitura A" });
-    expect(restored).toHaveAttribute("src", expect.stringContaining("/municipality-a-logo.png"));
-    expect(restored).not.toHaveClass("opacity-0");
+    expect(screen.queryByRole("img", { name: "Logo da prefeitura A" })).not.toBeInTheDocument();
   });
 
   it("uses a neutral municipal fallback after the hydration guard, never the SIGAPRO mark", () => {
@@ -182,7 +180,7 @@ describe("InstitutionalLogo", () => {
     expect(image).toHaveStyle({ transform: `translate(${40 * 144 / 160}px, ${-20 * 144 / 160}px) scale(2)` });
   });
 
-  it("retains a valid logo while replacing it without mounting a hidden preload image", () => {
+  it("shows only the newly selected logo on replacement, never two images", () => {
     const probes: Array<{
       onload: null | (() => void);
       onerror: null | (() => void);
@@ -220,7 +218,7 @@ describe("InstitutionalLogo", () => {
       );
 
       expect(screen.getByRole("img", { name: "Logo da prefeitura A" }))
-        .toHaveAttribute("src", expect.stringContaining("/municipality-a-logo.png"));
+        .toHaveAttribute("src", expect.stringContaining("/new-logo.png"));
       expect(container.querySelector('img[aria-hidden="true"]')).not.toBeInTheDocument();
       expect(container.querySelectorAll("img")).toHaveLength(1);
 
@@ -233,7 +231,7 @@ describe("InstitutionalLogo", () => {
     }
   });
 
-  it("keeps the loaded municipal logo when branding temporarily loses its URL", () => {
+  it("keeps a fixed frame instead of replaying a previous logo when the requested source disappears", () => {
     const { rerender } = render(
       <InstitutionalLogo branding={branding} fallbackLabel="Prefeitura A" />,
     );
@@ -247,12 +245,13 @@ describe("InstitutionalLogo", () => {
       />,
     );
 
+    expect(screen.queryByRole("img", { name: "Logo da prefeitura A" })).not.toBeInTheDocument();
+    rerender(<InstitutionalLogo branding={branding} fallbackLabel="Prefeitura A" />);
     expect(screen.getByRole("img", { name: "Logo da prefeitura A" }))
       .toHaveAttribute("src", expect.stringContaining("/municipality-a-logo.png"));
-    expect(screen.queryByText("Prefeitura")).not.toBeInTheDocument();
   });
 
-  it("keeps the cached official logo instead of flashing the coat of arms during F5 hydration", () => {
+  it("never flashes a different crest during F5 hydration without an official selected URL", () => {
     const brandedWithCrest = {
       ...branding,
       fallbackLogoUrl: "/municipality-a-crest.png",
@@ -271,8 +270,8 @@ describe("InstitutionalLogo", () => {
       />,
     );
 
-    expect(screen.getByRole("img", { name: "Logo da prefeitura A" }))
-      .toHaveAttribute("src", expect.stringContaining("/municipality-a-logo.png"));
+    expect(screen.queryByRole("img", { name: "Logo da prefeitura A" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("img", { name: /crest/i })).not.toBeInTheDocument();
 
     hydrated.rerender(
       <InstitutionalLogo branding={brandedWithCrest} fallbackLabel="Prefeitura A" />,
@@ -282,7 +281,7 @@ describe("InstitutionalLogo", () => {
       .toHaveAttribute("src", expect.stringContaining("/municipality-a-logo.png"));
   });
 
-  it("keeps the previous municipal logo if an off-DOM replacement probe fails", () => {
+  it("does not replay the old crest after the newly selected image fails", () => {
     const probes: Array<{
       onload: null | (() => void);
       onerror: null | (() => void);
@@ -320,10 +319,9 @@ describe("InstitutionalLogo", () => {
       );
 
       expect(container.querySelectorAll("img")).toHaveLength(1);
-      act(() => probes[probes.length - 1]?.onerror?.());
-
-      expect(screen.getByRole("img", { name: "Logo da prefeitura A" }))
-        .toHaveAttribute("src", expect.stringContaining("/municipality-a-logo.png"));
+      fireEvent.error(screen.getByRole("img", { name: "Logo da prefeitura A" }));
+      expect(container.querySelector("img[src*='municipality-a-logo.png']")).not.toBeInTheDocument();
+      expect(container.querySelector("img[src*='broken-logo.png']")).not.toBeInTheDocument();
     } finally {
       Object.defineProperty(window, "Image", { configurable: true, writable: true, value: OriginalImage });
     }
