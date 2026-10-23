@@ -19,6 +19,7 @@ describe("SIGAPRO QA — anexo não pode ser trocado por PDF diferente",()=>{
     const viewer=file("src/pages/saas/DocumentViewerPage.tsx");
     const desk=file("src/components/platform/QaDocumentUnavailableNotice.tsx");
     expect(viewer).toContain('key={process.id + ":" + document.id}');
+    expect(viewer).toContain('setAccessUrl("");');
     expect(desk).toContain('VITE_SIGAPRO_NEON_ISOLATED !== "true"');
     expect(desk).toContain('bucket: "process-documents"');
     expect(desk).toContain("URL.revokeObjectURL(activeObjectUrl.current)");
