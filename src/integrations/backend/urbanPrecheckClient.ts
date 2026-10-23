@@ -32,7 +32,7 @@ export async function activateUrbanRegulation(versionId: string): Promise<void> 
 
 export type UrbanPrecheckHistoryEntry = {
   id: string; municipality_id: string; process_id: string; regulation_version_id: string;
-  measurements: UrbanMeasurements; reviewer_profile_id: string; created_at: string;
+  measurements: UrbanMeasurements; reference_date: string | null; reviewer_profile_id: string; created_at: string;
 };
 export async function listUrbanPrecheckHistory(processId: string): Promise<UrbanPrecheckHistoryEntry[]> {
   const response = await invoke<unknown>("list_urban_prechecks_v1", { _process_id: processId });
@@ -41,9 +41,11 @@ export async function listUrbanPrecheckHistory(processId: string): Promise<Urban
 }
 
 export async function saveUrbanPrecheckRun(
-  processId: string, versionId: string, measurements: UrbanMeasurements,
+  processId: string, versionId: string, referenceDate: string, measurements: UrbanMeasurements,
 ): Promise<void> {
-  await invoke("save_urban_precheck_run_v1", {
-    _process_id: processId, _regulation_version_id: versionId, _measurements: measurements,
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(referenceDate)) throw new Error("Data legal inválida.");
+  await invoke("save_urban_precheck_run_v2", {
+    _process_id: processId, _regulation_version_id: versionId,
+    _reference_date: referenceDate, _measurements: measurements,
   });
 }
