@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import {
-  extractUrbanLegalSuggestions, searchLegalEvidence,
+  excerptOccursOnPage, extractUrbanLegalSuggestions, searchLegalEvidence,
   validateLegalEvidenceDraft, type UrbanLegalEvidence,
 } from "@/lib/urbanLegalKnowledge";
 
@@ -28,6 +28,12 @@ describe("SIGAPRO IA — normas provenientes de documentos reais", () => {
   });
   it("não usa número de outra página nem repete pesquisa falsa", () => {
     expect(extractUrbanLegalSuggestions([{ page: 1, text: "" }, { page: 2, text: "Lei complementar sem parâmetros." }])).toEqual([]);
+  });
+  it("a citação manual deve corresponder literalmente à página extraída", () => {
+    const pages = [{page:4,text:"Art. 27 - Recuo lateral mínimo de três metros."}];
+    expect(excerptOccursOnPage(pages,4,"Recuo lateral mínimo de três metros.")).toBe(true);
+    expect(excerptOccursOnPage(pages,5,"Recuo lateral mínimo de três metros.")).toBe(false);
+    expect(excerptOccursOnPage(pages,4,"Recuo lateral mínimo de cinco metros.")).toBe(false);
   });
   it("valida tamanho, hash, página, parâmetro e trecho antes de qualquer persistência", () => {
     const good = {
