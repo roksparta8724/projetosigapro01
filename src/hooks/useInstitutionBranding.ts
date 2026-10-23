@@ -192,12 +192,10 @@ export function useInstitutionBranding(tenantId?: string | null) {
   const { institutions, getInstitutionSettings } = usePlatformData();
   const isMaster = session.role === "master_admin" || session.role === "master_ops";
   const [masterBrandingState, setMasterBrandingState] = useState(() => loadMasterBranding());
-  const [resolvedMasterHeaderLogoUrl, setResolvedMasterHeaderLogoUrl] = useState<string>(
-    () => getCachedMasterHeaderUrl(),
-  );
-  const [resolvedMasterFooterLogoUrl, setResolvedMasterFooterLogoUrl] = useState<string>(
-    () => getCachedMasterFooterUrl(),
-  );
+  const [platformBrandingChecked, setPlatformBrandingChecked] = useState(false);
+  const [resolvedMasterLogos, setResolvedMasterLogos] = useState<{
+    sourceKey: string; header: string; footer: string;
+  }>({ sourceKey: "", header: "", footer: "" });
   const [platformBranding, setPlatformBranding] = useState<Awaited<ReturnType<typeof loadPlatformBranding>> | null>(null);
   const stableTenantHeaderLogoRef = useRef<{ tenantId: string; url: string }>({ tenantId: "", url: "" });
   const stableTenantFooterLogoRef = useRef<{ tenantId: string; url: string }>({ tenantId: "", url: "" });
@@ -250,7 +248,11 @@ export function useInstitutionBranding(tenantId?: string | null) {
     const handler = () => {
       setMasterBrandingState(loadMasterBranding());
       if (shouldUseMasterBranding) {
-        loadPlatformBranding().then(setPlatformBranding).catch(() => setPlatformBranding(null));
+        setPlatformBrandingChecked(false);
+        void loadPlatformBranding()
+          .then((remote) => setPlatformBranding(remote))
+          .catch(() => setPlatformBranding(null))
+          .finally(() => setPlatformBrandingChecked(true));
       }
     };
     window.addEventListener("sigapro-master-branding-updated", handler as EventListener);
@@ -260,12 +262,15 @@ export function useInstitutionBranding(tenantId?: string | null) {
   useEffect(() => {
     if (!shouldUseMasterBranding) return;
     let active = true;
+    setPlatformBrandingChecked(false);
     const loadRemote = async () => {
       try {
         const remote = await loadPlatformBranding();
         if (active) setPlatformBranding(remote);
       } catch {
         if (active) setPlatformBranding(null);
+      } finally {
+        if (active) setPlatformBrandingChecked(true);
       }
     };
     void loadRemote();
@@ -299,84 +304,43 @@ export function useInstitutionBranding(tenantId?: string | null) {
     });
   }, [platformBranding, shouldUseMasterBranding]);
 
+  // A single persisted source is authoritative per variant. The editor's
+  // local draft is considered ONLY when the platform does not have a record.
+  // Do not show a locally cached logo while fetching the official logo.
+  const masterHeaderRaw = platformBranding
+    ? (platformBranding.headerLogoObjectKey || platformBranding.headerLogoUrl || "")
+    : (masterBrandingState.headerLogoUrl || masterBrandingState.logoUrl || "");
+  const masterFooterRaw = platformBranding
+    ? (platformBranding.footerLogoObjectKey || platformBranding.footerLogoUrl || "")
+    : (masterBrandingState.footerLogoUrl || masterBrandingState.logoUrl || "");
+  const masterSourceKey = JSON.stringify([masterHeaderRaw, masterFooterRaw]);
+
   useEffect(() => {
-    if (!shouldUseMasterBranding) return;
-    const bucket =
-      (import.meta.env.VITE_R2_BUCKET_LOGOS as string | undefined) || "sigapro-logos";
-    const resolveLogo = async (raw: string, setter: (value: string) => void) => {
-      const trimmed = raw.trim();
-      if (!trimmed) {
-        setter("");
-        return;
-      }
-      if (!trimmed.startsWith("http")) {
-        const resolvedLocalAsset = resolveAssetUrl(trimmed);
-        if (resolvedLocalAsset) {
-          setter(resolvedLocalAsset);
-          return;
-        }
-      }
-      if (trimmed.startsWith("http")) {
-        // Para o Master, nunca usamos URL pública direta. Tentamos resolver o object_key.
-        try {
-          const url = new URL(trimmed);
-          const objectKey = url.pathname.replace(/^\/+/, "");
-          if (objectKey) {
-            const signedUrl = await getSignedUrlForObjectStrict({ bucket, objectKey });
-            if (signedUrl) {
-              setter(signedUrl);
-              return;
-            }
-          }
-        } catch {
-          // ignore
-        }
-        setter(resolveAssetUrl(trimmed) || trimmed);
-        return;
-      }
+    if (!shouldUseMasterBranding || !platformBrandingChecked) return;
+    let active = true;
+    const bucket = (import.meta.env.VITE_R2_BUCKET_LOGOS as string | undefined) || "sigapro-logos";
 
+    async function resolveOne(raw: string): Promise<string> {
+      const value = String(raw || "").trim();
+      if (!value) return "";
+      if (/^(https?:|blob:|data:|\/)/i.test(value)) {
+        return resolveAssetUrl(value) || value;
+      }
+      const objectKey = value.startsWith("r2:") ? value.slice(3) : value;
       try {
-        const signedUrl = await getSignedUrlForObjectStrict({ bucket, objectKey: trimmed });
-        setter(signedUrl || "");
+        return await getSignedUrlForObjectStrict({ bucket, objectKey }) || "";
       } catch {
-        setter("");
+        return "";
       }
-    };
+    }
 
-    const headerRaw =
-      platformBranding?.headerLogoObjectKey ||
-      platformBranding?.headerLogoUrl ||
-      masterBrandingState.headerLogoUrl ||
-      masterBrandingState.logoUrl ||
-      "";
-    const footerRaw =
-      platformBranding?.footerLogoObjectKey ||
-      platformBranding?.footerLogoUrl ||
-      masterBrandingState.footerLogoUrl ||
-      masterBrandingState.logoUrl ||
-      "";
-
-    void resolveLogo(headerRaw, (value) => {
-      if (value) {
-        cachedMasterHeaderSignedUrl = value;
-        cachedMasterHeaderSignedAt = Date.now();
-      } else if (!headerRaw) {
-        cachedMasterHeaderSignedUrl = "";
-        cachedMasterHeaderSignedAt = 0;
-      }
-      setResolvedMasterHeaderLogoUrl(value || getCachedMasterHeaderUrl());
-    });
-    void resolveLogo(footerRaw, (value) => {
-      if (value) {
-        cachedMasterFooterSignedUrl = value;
-        cachedMasterFooterSignedAt = Date.now();
-      } else if (!footerRaw) {
-        cachedMasterFooterSignedUrl = "";
-        cachedMasterFooterSignedAt = 0;
-      }
-      setResolvedMasterFooterLogoUrl(value || getCachedMasterFooterUrl());
-    });
-  }, [masterBrandingState.logoUrl, platformBranding, shouldUseMasterBranding]);
+    void Promise.all([resolveOne(masterHeaderRaw), resolveOne(masterFooterRaw)])
+      .then(([header, footer]) => {
+        if (!active) return;
+        setResolvedMasterLogos({ sourceKey: masterSourceKey, header, footer });
+      });
+    return () => { active = false; };
+  }, [shouldUseMasterBranding, platformBrandingChecked, masterSourceKey]);
 
   useEffect(() => {
     if (shouldUseMasterBranding || !resolvedInstitutionId) {
@@ -456,13 +420,15 @@ export function useInstitutionBranding(tenantId?: string | null) {
 
   const headerBranding = useMemo(() => {
     if (shouldUseMasterBranding) {
-      const masterBranding = getMasterInstitutionBranding(masterBrandingState, "header");
+      const local = getMasterInstitutionBranding(masterBrandingState, "header");
+      const ready = platformBrandingChecked && resolvedMasterLogos.sourceKey === masterSourceKey;
       return {
-        ...masterBranding,
-        logoUrl: resolvedMasterHeaderLogoUrl || masterBranding.logoUrl,
-        ...(platformBranding?.headerLogoFileName.endsWith("-enquadrado.png")
-          ? { logoScale: 1, logoOffsetX: 0, logoOffsetY: 0 }
-          : {}),
+        ...local,
+        // The file and its framing come from the SAME persisted platform record.
+        logoUrl: ready ? resolvedMasterLogos.header : "",
+        logoScale: platformBranding?.headerLogoScale ?? local.logoScale,
+        logoOffsetX: platformBranding?.headerLogoOffsetX ?? local.logoOffsetX,
+        logoOffsetY: platformBranding?.headerLogoOffsetY ?? local.logoOffsetY,
       };
     }
     const base = getInstitutionBranding(
@@ -490,7 +456,7 @@ export function useInstitutionBranding(tenantId?: string | null) {
       resolvePersistentBrandingReference(institutionSettings?.brasaoUrl);
     const institutionalFallback =
       savedCoatOfArmsUrl ||
-      municipalityLogoFallback(scopedMunicipality?.name || institution?.name);
+      "";
     const primaryHeaderLogo =
       (resolvedTenantHeaderLogoState.tenantId === resolvedInstitutionId ? resolvedTenantHeaderLogoState.url : "") ||
       brandingUrl ||
@@ -529,7 +495,7 @@ export function useInstitutionBranding(tenantId?: string | null) {
     institutionSettings,
     masterBrandingState,
     platformBranding?.headerLogoFileName,
-    resolvedMasterHeaderLogoUrl,
+    resolvedMasterLogos,
     resolvedTenantHeaderLogoState,
     resolvedInstitutionId,
     scopedMunicipalityBranding?.logoObjectKey,
@@ -543,13 +509,14 @@ export function useInstitutionBranding(tenantId?: string | null) {
 
   const footerBranding = useMemo(() => {
     if (shouldUseMasterBranding) {
-      const masterBranding = getMasterInstitutionBranding(masterBrandingState, "footer");
+      const local = getMasterInstitutionBranding(masterBrandingState, "footer");
+      const ready = platformBrandingChecked && resolvedMasterLogos.sourceKey === masterSourceKey;
       return {
-        ...masterBranding,
-        logoUrl: resolvedMasterFooterLogoUrl || masterBranding.logoUrl,
-        ...(platformBranding?.footerLogoFileName.endsWith("-enquadrado.png")
-          ? { logoScale: 1, logoOffsetX: 0, logoOffsetY: 0 }
-          : {}),
+        ...local,
+        logoUrl: ready ? resolvedMasterLogos.footer : "",
+        logoScale: platformBranding?.footerLogoScale ?? local.logoScale,
+        logoOffsetX: platformBranding?.footerLogoOffsetX ?? local.logoOffsetX,
+        logoOffsetY: platformBranding?.footerLogoOffsetY ?? local.logoOffsetY,
       };
     }
     const base = getInstitutionBranding(
@@ -615,7 +582,7 @@ export function useInstitutionBranding(tenantId?: string | null) {
     institutionSettings,
     masterBrandingState,
     platformBranding?.footerLogoFileName,
-    resolvedMasterFooterLogoUrl,
+    masterSourceKey,
     resolvedTenantFooterLogoState,
     resolvedInstitutionId,
     scopedMunicipalityBranding?.logoObjectKey,
