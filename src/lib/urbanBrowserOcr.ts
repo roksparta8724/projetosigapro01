@@ -18,8 +18,7 @@ type DetectorApi = {
 function browserApi(): DetectorApi | null {
   if (typeof window === "undefined" || !window.isSecureContext) return null;
   const value = (window as Window & { TextDetector?: DetectorApi }).TextDetector;
-  return typeof value === "function" || (value && typeof value.create === "function")
-    ? value : null;
+  return typeof value === "function" ? value : null;
 }
 
 export function browserOcrIsOffered(): boolean {
