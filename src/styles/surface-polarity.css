@@ -2889,3 +2889,61 @@ html[data-theme*="dark"] body #root .sig-app-frame .sig-main-shell
   color:#ffffff !important;
   -webkit-text-fill-color:#ffffff !important;
 }
+
+
+/* SIGAPRO 2026-10-23 / construction permit dark polarity.
+   Scoped to the permit workspace, never global button/card classes.
+   The institutional preset uses data-layout-mode, not necessarily .dark. */
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-construction-permit-panel="true"] [data-permit-prep="true"] {
+  background:linear-gradient(145deg,#122940 0%,#0b1d30 100%) !important;
+  background-color:#0d2338 !important;
+  border-color:#385c79 !important;
+  color:#f5faff !important;
+}
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-construction-permit-panel="true"] [data-permit-prep="true"]
+:is(p,span,strong,h2,h3,small,label) {
+  color:#f1f7ff !important;
+  -webkit-text-fill-color:#f1f7ff !important;
+}
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-construction-permit-panel="true"] [data-permit-prep="true"]
+[data-permit-prerequisite-card="true"] {
+  background:linear-gradient(165deg,#142b43,#0d2136) !important;
+  background-color:#10273e !important;
+  border:1px solid #3d5b75 !important;
+  box-shadow:inset 0 1px 0 rgba(188,222,255,.06) !important;
+  color:#f3f8ff !important;
+}
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-construction-permit-panel="true"] [data-permit-prep="true"]
+[data-permit-prerequisite-card="true"] p:first-child {
+  color:#bbd4ea !important;
+  -webkit-text-fill-color:#bbd4ea !important;
+}
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-construction-permit-panel="true"] [data-permit-draft-button="true"]:not(:disabled) {
+  background:#086a9b !important;
+  background-color:#086a9b !important;
+  border:1px solid #45bde7 !important;
+  color:#fff !important;
+  -webkit-text-fill-color:#fff !important;
+  box-shadow:0 10px 24px rgba(3,45,78,.28) !important;
+}
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-construction-permit-panel="true"] [data-permit-draft-button="true"]:disabled {
+  background:#223c54 !important;
+  background-color:#223c54 !important;
+  border:1px solid #52708a !important;
+  color:#d0dfed !important;
+  -webkit-text-fill-color:#d0dfed !important;
+  opacity:1 !important;
+  cursor:not-allowed !important;
+  box-shadow:none !important;
+}
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-construction-permit-panel="true"] [data-permit-draft-button="true"]:disabled :is(svg,span) {
+  color:#d0dfed !important;
+  -webkit-text-fill-color:#d0dfed !important;
+}
