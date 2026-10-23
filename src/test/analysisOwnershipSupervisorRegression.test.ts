@@ -157,7 +157,7 @@ describe("analysis ownership and director supervision", () => {
     expect(detail).toContain("canEditAssignedAnalysisArtifact");
     expect(detail).toContain("readOnly={!canEditAnalysisChecklist}");
     expect(checklist).toContain("Modo acompanhamento");
-    expect(checklist).toContain("<fieldset disabled={readOnly}");
+    expect(checklist).toContain("<fieldset disabled={readOnly || officialSheetLoading}");
     expect(migration).toContain("can_write_process_analysis");
     expect(migration).toContain("analysis_assigned_to_profile_id=_actor");
     expect(migration).toContain("_actor_role='prefeitura_supervisor'");
