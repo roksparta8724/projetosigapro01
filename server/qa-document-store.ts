@@ -8,7 +8,7 @@ import { mkdir, open, readFile, rm, stat } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { callDataApiRpc, getDataApiUrl, readEnv } from "./municipal-storage";
+import { callDataApiRpc, getDataApiUrl, readEnv } from "./municipal-storage.js";
 
 type Req = IncomingMessage & { body?: unknown };
 type Res = ServerResponse;

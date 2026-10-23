@@ -1,6 +1,6 @@
-import { callDataApiRpc, type ApiReq } from "./municipal-storage";
-import type { MercadoPagoGuideBoletoResult } from "./mercadopago";
-import { normalizeOfficialBanking } from "../src/lib/bankCodes";
+import { callDataApiRpc, type ApiReq } from "./municipal-storage.js";
+import type { MercadoPagoGuideBoletoResult } from "./mercadopago.js";
+import { normalizeOfficialBanking } from "../src/lib/bankCodes.js";
 
 export type StoredGuide = {
   id: string;

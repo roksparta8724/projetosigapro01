@@ -7,11 +7,11 @@ import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
-import type { ApiReq } from "./municipal-storage";
-import { callDataApiRpc, getDataApiUrl, readEnv } from "./municipal-storage";
-import { readStoredGuide } from "./guide-persistence";
-import { resolveMercadoPagoMunicipalAccessToken } from "./municipal-payment";
-import { isValidPixPayload } from "../src/lib/pix";
+import type { ApiReq } from "./municipal-storage.js";
+import { callDataApiRpc, getDataApiUrl, readEnv } from "./municipal-storage.js";
+import { readStoredGuide } from "./guide-persistence.js";
+import { resolveMercadoPagoMunicipalAccessToken } from "./municipal-payment.js";
+import { isValidPixPayload } from "../src/lib/pix.js";
 
 export type QaPixResult = {
   ok: boolean;
