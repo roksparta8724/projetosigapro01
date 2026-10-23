@@ -49,6 +49,25 @@ export async function municipalCollectionApiRequest<T>(
     }
     const session = sessionResult?.data?.session;
     token = String(session?.access_token || session?.accessToken || session?.token || "");
+    if (!token && typeof auth.refreshSession === "function") {
+      // Neon may restore a visual session before its access JWT is refreshed.
+      // Try the official auth adapter once, never use a cached profile as auth.
+      try {
+        const refreshed = await Promise.race([
+          auth.refreshSession(),
+          new Promise<never>((_, reject) => {
+            if (authTimer) clearTimeout(authTimer);
+            authTimer = setTimeout(() => reject(new MunicipalCollectionRequestError(
+              "O Neon não conseguiu renovar a sessão. Entre novamente no SIGAPRO.", 401,
+            )), timeoutMs);
+          }),
+        ]);
+        const fresh = refreshed?.data?.session;
+        token = String(fresh?.access_token || fresh?.accessToken || fresh?.token || "");
+      } catch {
+        // Display the explicit reauthentication error below.
+      }
+    }
   } catch (error) {
     if (error instanceof MunicipalCollectionRequestError) throw error;
     throw new MunicipalCollectionRequestError("Não foi possível confirmar sua sessão. Entre novamente na conta municipal.", 401);
