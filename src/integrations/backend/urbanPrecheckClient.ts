@@ -33,6 +33,13 @@ export async function activateUrbanRegulation(versionId: string): Promise<void> 
 export type UrbanPrecheckHistoryEntry = {
   id: string; municipality_id: string; process_id: string; regulation_version_id: string;
   measurements: UrbanMeasurements; reference_date: string | null; reviewer_profile_id: string; created_at: string;
+  legal_review?: {
+    evidence_ids?: string[];
+    note?: string;
+    document_scope_confirmed?: boolean;
+    reviewed_by_profile_id?: string;
+    reviewed_at?: string;
+  };
 };
 export async function listUrbanPrecheckHistory(processId: string): Promise<UrbanPrecheckHistoryEntry[]> {
   const response = await invoke<unknown>("list_urban_prechecks_v1", { _process_id: processId });
@@ -42,10 +49,18 @@ export async function listUrbanPrecheckHistory(processId: string): Promise<Urban
 
 export async function saveUrbanPrecheckRun(
   processId: string, versionId: string, referenceDate: string, measurements: UrbanMeasurements,
+  legalReview: { evidenceIds: string[]; note: string; documentScopeConfirmed: boolean },
 ): Promise<void> {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(referenceDate)) throw new Error("Data legal inválida.");
-  await invoke("save_urban_precheck_run_v2", {
+  if (!Array.isArray(legalReview.evidenceIds) || legalReview.evidenceIds.length > 50 ||
+      legalReview.note.length > 1200) throw new Error("Revisão legal incompleta ou excessiva.");
+  await invoke("save_urban_precheck_run_v3", {
     _process_id: processId, _regulation_version_id: versionId,
     _reference_date: referenceDate, _measurements: measurements,
+    _legal_review: {
+      evidence_ids: legalReview.evidenceIds,
+      note: legalReview.note,
+      document_scope_confirmed: legalReview.documentScopeConfirmed,
+    },
   });
 }
