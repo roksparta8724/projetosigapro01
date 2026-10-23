@@ -12,6 +12,7 @@ import { downloadUrbanPdfBytes, extractUrbanPdfText, ensureUrbanPdfBytes, type U
 import { verifyQaExistingDocumentCopy } from "@/lib/qaExistingDocumentRecovery";
 import { findUrbanDrawingMeasurements, type UrbanDrawingTarget } from "@/lib/urbanDrawingMeasurements";
 import { UrbanDrawingMeasurementDesk } from "@/components/platform/UrbanDrawingMeasurementDesk";
+import { UrbanGraphicRulerDesk } from "@/components/platform/UrbanGraphicRulerDesk";
 import type { UrbanMetric } from "@/lib/urbanPrecheck";
 
 type Props = {
@@ -41,6 +42,7 @@ export function UrbanDocumentEvidenceDesk({ process, readOnly, allowedMetrics, o
   const [readStatus, setReadStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [readProgress, setReadProgress] = useState("");
   const [extracted, setExtracted] = useState<UrbanPdfTextResult | null>(null);
+  const [pdfBytes, setPdfBytes] = useState<Uint8Array | null>(null);
   const readAbort = useRef<AbortController | null>(null);
   const qaFileInput = useRef<HTMLInputElement | null>(null);
 
@@ -66,6 +68,7 @@ export function UrbanDocumentEvidenceDesk({ process, readOnly, allowedMetrics, o
     readAbort.current?.abort();
     readAbort.current = null;
     setExtracted(null);
+    setPdfBytes(null);
     setReadStatus("idle");
     setReadProgress("");
     setDocumentId("");
@@ -79,6 +82,7 @@ export function UrbanDocumentEvidenceDesk({ process, readOnly, allowedMetrics, o
     readAbort.current?.abort();
     readAbort.current = null;
     setExtracted(null);
+    setPdfBytes(null);
     setReadStatus("idle");
     setReadProgress("");
     setPageText("1");
@@ -97,7 +101,7 @@ export function UrbanDocumentEvidenceDesk({ process, readOnly, allowedMetrics, o
     readAbort.current?.abort();
     readAbort.current = controller;
     setReadStatus("loading");
-    setExtracted(null);
+    setExtracted(null);setPdfBytes(null);
     setReadProgress("Solicitando acesso autenticado ao PDF...");
     setNotice("");
     try {
@@ -113,7 +117,7 @@ export function UrbanDocumentEvidenceDesk({ process, readOnly, allowedMetrics, o
       setReadProgress("Lendo o arquivo somente neste navegador...");
       const bytes = await downloadUrbanPdfBytes(url, controller.signal);
       if (controller.signal.aborted) return;
-      const result = await extractUrbanPdfText(bytes, {
+      const result = await extractUrbanPdfText(bytes.slice(), {
         signal: controller.signal,
         onProgress: (page, total) => {
           if (!controller.signal.aborted) setReadProgress("Lendo página " + page + " de " + total + "...");
@@ -121,6 +125,7 @@ export function UrbanDocumentEvidenceDesk({ process, readOnly, allowedMetrics, o
       });
       if (controller.signal.aborted) return;
       setExtracted(result);
+      setPdfBytes(bytes);
       setReadStatus("ready");
       setReadProgress("");
       setNotice(result.scannedPages === result.pages.length
@@ -145,7 +150,7 @@ export function UrbanDocumentEvidenceDesk({ process, readOnly, allowedMetrics, o
     readAbort.current?.abort();
     readAbort.current = controller;
     setReadStatus("loading");
-    setExtracted(null); setReadProgress("Verificando integridade do PDF local...");
+    setExtracted(null);setPdfBytes(null); setReadProgress("Verificando integridade do PDF local...");
     setNotice("");
     try {
       // Never treat an arbitrary plan as the official attachment.
@@ -155,14 +160,14 @@ export function UrbanDocumentEvidenceDesk({ process, readOnly, allowedMetrics, o
       if (controller.signal.aborted) return;
       const bytes = new Uint8Array(await file.arrayBuffer());
       ensureUrbanPdfBytes(bytes);
-      const result = await extractUrbanPdfText(bytes, {
+      const result = await extractUrbanPdfText(bytes.slice(), {
         signal: controller.signal,
         onProgress:(page,total)=>{
           if (!controller.signal.aborted) setReadProgress("Lendo cópia verificada: página " + page + " de " + total);
         },
       });
       if (controller.signal.aborted) return;
-      setExtracted(result); setReadStatus("ready"); setReadProgress("");
+      setExtracted(result); setPdfBytes(bytes); setReadStatus("ready"); setReadProgress("");
       setNotice("Cópia local conferida por tamanho e SHA-256. Leitura temporária, sem envio ou substituição do PDF oficial. Confira as cotas na prancha original.");
     } catch (error) {
       if (controller.signal.aborted) return;
@@ -189,6 +194,12 @@ export function UrbanDocumentEvidenceDesk({ process, readOnly, allowedMetrics, o
     } catch(error){
       setNotice(error instanceof Error ? error.message : "Não foi possível preparar a referência documental.");
     }
+  };
+
+  const acceptCalibratedDistance = (target: UrbanMetric, value: number, evidence: string) => {
+    if (readOnly || !selected || !pdfBytes || !allowed.has(target)) return;
+    onUseMeasurement(target, value, evidence);
+    setNotice("Régua gráfica: distância indicativa encaminhada para conferência; a aprovação permanece manual.");
   };
 
   const useExtractedCandidate = (candidate: UrbanPdfEvidenceCandidate) => {
@@ -349,6 +360,19 @@ export function UrbanDocumentEvidenceDesk({ process, readOnly, allowedMetrics, o
             <UrbanDrawingMeasurementDesk key={documentId + "-" + readStatus}
               suggestions={drawingSuggestions} readOnly={readOnly}
               onConfirm={acceptDrawingSuggestion} />
+          ) : null}
+          {extracted && pdfBytes ? (
+            <UrbanGraphicRulerDesk
+              key={documentId + "-" + readStatus + "-" + (selected.fileHash || selected.version || 1)}
+              pdfBytes={pdfBytes}
+              documentId={selected.id}
+              fileName={selected.fileName || selected.label}
+              documentVersion={selected.version || 1}
+              fileHash={selected.fileHash}
+              totalPages={extracted.totalPages}
+              allowedMetrics={allowedMetrics}
+              readOnly={readOnly}
+              onUseMeasurement={acceptCalibratedDistance} />
           ) : null}
         </div>
       ) : null}
