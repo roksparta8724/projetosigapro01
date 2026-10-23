@@ -18,6 +18,13 @@ import { resolveAssetUrl } from "@/lib/assetUrl";
 import { getInstitutionBranding } from "@/lib/institutionBranding";
 import { getMasterInstitutionBranding, loadMasterBranding, saveMasterBranding, updateMasterBranding } from "@/lib/masterBranding";
 
+type PersistedMasterBranding = Awaited<ReturnType<typeof loadPlatformBranding>>;
+type ResolvedMasterLogoPair = { sourceKey: string; header: string; footer: string };
+// Last successfully resolved official record shared across PortalFrame remounts.
+// Never cache a local draft or another municipality in the platform logo slot.
+let lastValidatedMasterBranding: PersistedMasterBranding | undefined;
+let lastValidatedMasterLogoPair: ResolvedMasterLogoPair | null = null;
+
 function isUsableBrandingUrl(value: string | null | undefined) {
   const raw = String(value || "").trim();
   if (!raw) return false;
@@ -162,11 +169,15 @@ export function useInstitutionBranding(tenantId?: string | null) {
   const { institutions, getInstitutionSettings } = usePlatformData();
   const isMaster = session.role === "master_admin" || session.role === "master_ops";
   const [masterBrandingState, setMasterBrandingState] = useState(() => loadMasterBranding());
-  const [platformBrandingChecked, setPlatformBrandingChecked] = useState(false);
-  const [resolvedMasterLogos, setResolvedMasterLogos] = useState<{
-    sourceKey: string; header: string; footer: string;
-  }>({ sourceKey: "", header: "", footer: "" });
-  const [platformBranding, setPlatformBranding] = useState<Awaited<ReturnType<typeof loadPlatformBranding>> | null>(null);
+  const [platformBrandingChecked, setPlatformBrandingChecked] = useState(
+    () => lastValidatedMasterBranding !== undefined,
+  );
+  const [resolvedMasterLogos, setResolvedMasterLogos] = useState<ResolvedMasterLogoPair>(
+    () => lastValidatedMasterLogoPair ?? { sourceKey: "", header: "", footer: "" },
+  );
+  const [platformBranding, setPlatformBranding] = useState<PersistedMasterBranding>(
+    () => lastValidatedMasterBranding ?? null,
+  );
   const stableTenantHeaderLogoRef = useRef<{ tenantId: string; url: string }>({ tenantId: "", url: "" });
   const stableTenantFooterLogoRef = useRef<{ tenantId: string; url: string }>({ tenantId: "", url: "" });
   const [resolvedTenantHeaderLogoState, setResolvedTenantHeaderLogo] = useState<{ tenantId: string; url: string }>({ tenantId: "", url: "" });
@@ -218,9 +229,14 @@ export function useInstitutionBranding(tenantId?: string | null) {
     const handler = () => {
       setMasterBrandingState(loadMasterBranding());
       if (shouldUseMasterBranding) {
+        lastValidatedMasterBranding = undefined;
+        lastValidatedMasterLogoPair = null;
         setPlatformBrandingChecked(false);
         void loadPlatformBranding()
-          .then((remote) => setPlatformBranding(remote))
+          .then((remote) => {
+            lastValidatedMasterBranding = remote;
+            setPlatformBranding(remote);
+          })
           .catch(() => setPlatformBranding(null))
           .finally(() => setPlatformBrandingChecked(true));
       }
@@ -232,11 +248,14 @@ export function useInstitutionBranding(tenantId?: string | null) {
   useEffect(() => {
     if (!shouldUseMasterBranding) return;
     let active = true;
-    setPlatformBrandingChecked(false);
+    if (lastValidatedMasterBranding === undefined) setPlatformBrandingChecked(false);
     const loadRemote = async () => {
       try {
         const remote = await loadPlatformBranding();
-        if (active) setPlatformBranding(remote);
+        if (active) {
+          lastValidatedMasterBranding = remote;
+          setPlatformBranding(remote);
+        }
       } catch {
         if (active) setPlatformBranding(null);
       } finally {
@@ -307,7 +326,9 @@ export function useInstitutionBranding(tenantId?: string | null) {
     void Promise.all([resolveOne(masterHeaderRaw), resolveOne(masterFooterRaw)])
       .then(([header, footer]) => {
         if (!active) return;
-        setResolvedMasterLogos({ sourceKey: masterSourceKey, header, footer });
+        const resolved = { sourceKey: masterSourceKey, header, footer };
+        lastValidatedMasterLogoPair = resolved;
+        setResolvedMasterLogos(resolved);
       });
     return () => { active = false; };
   }, [shouldUseMasterBranding, platformBrandingChecked, masterSourceKey]);
@@ -428,9 +449,9 @@ export function useInstitutionBranding(tenantId?: string | null) {
       savedCoatOfArmsUrl ||
       "";
     const primaryHeaderLogo =
+      synchronousHeaderUrl ||
       (resolvedTenantHeaderLogoState.tenantId === resolvedInstitutionId ? resolvedTenantHeaderLogoState.url : "") ||
       brandingUrl ||
-      synchronousHeaderUrl ||
       resolvePersistentBrandingReference(base.logoUrl) ||
       (stableTenantHeaderLogoRef.current.tenantId === resolvedInstitutionId &&
       isUsableBrandingUrl(stableTenantHeaderLogoRef.current.url)
@@ -517,9 +538,9 @@ export function useInstitutionBranding(tenantId?: string | null) {
       savedCoatOfArmsUrl ||
       "";
     const primaryFooterLogo =
+      synchronousFooterUrl ||
       (resolvedTenantFooterLogoState.tenantId === resolvedInstitutionId ? resolvedTenantFooterLogoState.url : "") ||
       brandingUrl ||
-      synchronousFooterUrl ||
       resolvePersistentBrandingReference(base.logoUrl) ||
       (stableTenantFooterLogoRef.current.tenantId === resolvedInstitutionId &&
       isUsableBrandingUrl(stableTenantFooterLogoRef.current.url)
