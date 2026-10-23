@@ -2947,3 +2947,47 @@ html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
   color:#d0dfed !important;
   -webkit-text-fill-color:#d0dfed !important;
 }
+
+
+/* SIGAPRO IA legal knowledge: institutional inverse theme, no washed-out cards.
+   This is scoped to the urban rule desk; light layout is unchanged. */
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-urban-rules-settings="true"] {
+  background:linear-gradient(150deg,#10263b,#091a2c) !important;
+  border-color:#3b6382 !important;
+  color:#edf7ff !important;
+}
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-urban-rules-settings="true"] [data-urban-legal-knowledge="true"] {
+  background:linear-gradient(135deg,#112d45,#0b2035) !important;
+  border-color:#3b678a !important;
+  color:#eff7ff !important;
+}
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-urban-legal-knowledge="true"] :is(article,[class*="bg-white"],[class*="bg-slate-50"]) {
+  background-color:#11283d !important;
+  border-color:#385873 !important;
+  color:#f0f7ff !important;
+}
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-urban-legal-knowledge="true"] :is(h4,p,label,strong,span) {
+  color:#e6f2fe !important;
+  -webkit-text-fill-color:#e6f2fe !important;
+}
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-urban-legal-knowledge="true"] :is(input,textarea,select) {
+  background-color:#0b1e30 !important;
+  color:#f1f9ff !important;
+  border-color:#567b9d !important;
+  -webkit-text-fill-color:#f1f9ff !important;
+}
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-urban-legal-knowledge="true"] input::placeholder {
+  color:#9fbad3 !important;
+  -webkit-text-fill-color:#9fbad3 !important;
+}
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-urban-legal-knowledge="true"] button:disabled {
+  opacity:0.68 !important;
+  cursor:not-allowed !important;
+}
