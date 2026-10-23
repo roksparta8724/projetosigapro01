@@ -41,7 +41,7 @@ export function extractUrbanLegalSuggestions(
         Math.min(text.length, match.index + match[0].length + 180))).slice(0, 300);
       if (excerpt.length < 15) continue;
       const after = clean(text.slice(match.index + match[0].length, match.index + match[0].length + 85))
-        .split(/[;.\n]/,1)[0];
+        .split(/;|\.(?!\d)/,1)[0];
       const direction = definition.direction === "minimum" ? MINIMUM : MAXIMUM;
       // An explicit directed number only, immediately following the metric.
       // Unqualified numbers, conditional cases and references to tables are manual.
