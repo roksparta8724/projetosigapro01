@@ -14,6 +14,8 @@ interface InstitutionalLogoProps {
   contextScope?: "auto" | "master" | "municipality";
   /** Keep dimensions fixed, but never show provisional branding while official source resolves. */
   ready?: boolean;
+  /** Only opt in when a generic crest is intentionally acceptable. The portal uses the selected official file only. */
+  allowMunicipalFallback?: boolean;
   /** The exact URL that successfully decoded in the institutional frame.
    * Editors must reuse this source instead of a stale signed candidate. */
   onResolvedSource?: (url: string) => void;
@@ -104,6 +106,7 @@ export function InstitutionalLogo({
   viewportClassName,
   contextScope = "auto",
   ready = true,
+  allowMunicipalFallback = false,
   onResolvedSource,
 }: InstitutionalLogoProps) {
   const [failedSources, setFailedSources] = useState<string[]>([]);
@@ -129,7 +132,7 @@ export function InstitutionalLogo({
     !isMaster && sameAssetResource(municipalFallbackCandidate, SIGAPRO_OFFICIAL_LOGO)
       ? ""
       : municipalFallbackCandidate;
-  const primaryUrl = requestedUrl || (isMaster ? SIGAPRO_OFFICIAL_LOGO : municipalFallbackUrl);
+  const primaryUrl = requestedUrl || (isMaster ? SIGAPRO_OFFICIAL_LOGO : allowMunicipalFallback ? municipalFallbackUrl : "");
   // No second municipal crest from a different URL: show only the configured one.
   const secondaryUrl = isMaster ? SIGAPRO_OFFICIAL_LOGO : "";
   const imageUrl = !ready ? "" : failedSources.includes(primaryUrl)
