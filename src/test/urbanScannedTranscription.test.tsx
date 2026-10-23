@@ -69,6 +69,9 @@ describe("SIGAPRO QA — conferência visual de página escaneada",()=>{
     expect(laws).toContain("scannedProof.text === normalizeUrbanScanTranscript(manualExcerpt)");
     expect(laws).toContain("pdfPages.some(entry => entry.page === page && !entry.text.trim())");
     expect(laws).toContain("setScannedProof(null)");
+    expect(laws).toContain('verificationMethod: scanDoubleVerified ? "visual_double_transcription"');
+    expect(readFileSync(resolve(process.cwd(),"neon/migrations/20261024_urban_scanned_source_audit_v5.sql"),"utf8"))
+      .toContain("revoke execute on function public.save_urban_legal_evidence_scoped_v2");
     expect(ui).toContain("renderUrbanGraphicPdfPage(");
     expect(ui).not.toContain("fetch(");
     expect(ui).not.toContain("uploadFile(");
