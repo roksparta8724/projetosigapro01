@@ -588,7 +588,14 @@ export function useInstitutionBranding(tenantId?: string | null) {
   return {
     headerBranding,
     footerBranding,
-    brandingReady: !shouldUseMasterBranding || (platformBrandingChecked && resolvedMasterLogos.sourceKey === masterSourceKey),
+    headerLogoReady: !shouldUseMasterBranding || (
+      platformBrandingChecked && resolvedMasterLogos.sourceKey === masterSourceKey &&
+      (!masterHeaderRaw || Boolean(resolvedMasterLogos.header))
+    ),
+    footerLogoReady: !shouldUseMasterBranding || (
+      platformBrandingChecked && resolvedMasterLogos.sourceKey === masterSourceKey &&
+      (!masterFooterRaw || Boolean(resolvedMasterLogos.footer))
+    ),
     officialHeaderText: resolvedHeaderText,
     officialFooterText: resolvedFooterText,
     canManageTenantSettings: can(session, "manage_tenant_branding"),
