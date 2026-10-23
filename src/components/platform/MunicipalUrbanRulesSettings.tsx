@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { activateUrbanRegulation, listUrbanRegulations, saveUrbanRegulationDraft } from "@/integrations/backend/urbanPrecheckClient";
 import { URBAN_METRICS, normalizeUrbanCode, type UrbanMetric, type UrbanRegulationVersion, type UrbanRule } from "@/lib/urbanPrecheck";
+import { UrbanLegalKnowledgeDesk } from "@/components/platform/UrbanLegalKnowledgeDesk";
 
 type EditableValue = { limit: string; reference: string };
 type DraftInputs = Partial<Record<UrbanMetric, EditableValue>>;
@@ -209,6 +210,22 @@ export function MunicipalUrbanRulesSettings({
           ))}
         </div>
       </div>
+      <UrbanLegalKnowledgeDesk
+        municipalityId={municipalityId}
+        canEdit={canEdit}
+        onUseReference={(metric, reference, suggestedLimit) => {
+          if (!canEdit) return;
+          setDraft(previous => ({
+            ...previous,
+            [metric]: {
+              // Never overwrite a measurement the municipal editor has entered.
+              limit: previous[metric]?.limit || (suggestedLimit === null ? "" : String(suggestedLimit)),
+              reference,
+            },
+          }));
+          setNotice("Referência copiada para o RASCUNHO. Revise zona, uso, data de vigência, lei, artigo, exceções e valor antes de salvar.");
+        }}
+      />
       {notice ? <p role="status" className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100">{notice}</p> : null}
     </section>
   );
