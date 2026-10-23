@@ -120,7 +120,10 @@ async function handler(req: Req, res: Res, route: string) {
     let bytes: Buffer;
     try { bytes = await readFile(filePath(key)); }
     catch (error) {
-      if ((error as NodeJS.ErrnoException).code === "ENOENT") return json(res, 404, { error: "Anexo QA não encontrado." });
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return json(res, 404, {
+        code: "QA_DOCUMENT_MISSING",
+        error: "Documento de homologação não encontrado no armazenamento isolado. O registro pode existir, mas o arquivo não foi copiado para o QA.",
+      });
       throw error;
     }
     res.statusCode = 200;
@@ -145,7 +148,15 @@ async function handler(req: Req, res: Res, route: string) {
 
   if (route === "/api/r2-sign-get") {
     const path = filePath(key);
-    await stat(path);
+    try {
+      await stat(path);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return json(res, 404, {
+        code: "QA_DOCUMENT_MISSING",
+        error: "Documento de homologação não encontrado no armazenamento isolado. O registro pode existir, mas o arquivo não foi copiado para o QA.",
+      });
+      throw error;
+    }
     const ttl = Math.min(900, Math.max(60, Number(body.expiresIn)||900));
     const exp = Math.floor(Date.now()/1000)+ttl;
     // Same-origin signed reads are required for browser PDF text extraction;
