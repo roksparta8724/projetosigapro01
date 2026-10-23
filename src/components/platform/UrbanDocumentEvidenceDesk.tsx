@@ -23,9 +23,10 @@ type Props = {
 };
 
 /**
- * No PDF bytes are sent to an LLM. In this phase the reviewer opens the
- * process's existing protected document viewer and records a verified excerpt.
- * This is a traceability desk, not PDF parsing/OCR or proof of compliance.
+ * Reads the PDF's selectable text in the authorized analyst browser only.
+ * Suggests textual dimensions and documentary excerpts; does not do OCR,
+ * measure graphics, stream data to external AI or establish compliance.
+ * A local QA copy is accepted only when size and SHA-256 match the record.
  */
 export function UrbanDocumentEvidenceDesk({ process, readOnly, allowedMetrics, onUseEvidence, onUseMeasurement }: Props) {
   const pdfs = useMemo(
