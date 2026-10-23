@@ -335,7 +335,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
   const activeInstitutionId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
   const isMasterUser = session.role === "master_admin" || session.role === "master_ops";
   const brandingTenantId = isMasterUser ? null : activeInstitutionId;
-  const { headerBranding, footerBranding, officialHeaderText, officialFooterText, brandingReady } = useInstitutionBranding(brandingTenantId);
+  const { headerBranding, footerBranding, officialHeaderText, officialFooterText, headerLogoReady, footerLogoReady } = useInstitutionBranding(brandingTenantId);
   const resolvedHeaderLogoUrl = resolveBrandingLogoUrl(headerBranding as Record<string, unknown>, "header");
   const resolvedFooterLogoUrl = resolveBrandingLogoUrl(footerBranding as Record<string, unknown>, "footer");
   const stableHeaderBranding = useMemo(
@@ -2426,7 +2426,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                         fallbackLabel={institutionDisplayName}
                         variant="header"
                         contextScope={isMasterUser ? "master" : "municipality"}
-                        ready={isMasterUser ? brandingReady : !municipalityLoading}
+                        ready={isMasterUser ? headerLogoReady : !municipalityLoading}
                         className="mx-auto md:mx-0"
                       />
                     </div>
@@ -2491,7 +2491,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                   fallbackLabel={institutionDisplayName}
                   variant="footer"
                   contextScope={isMasterUser ? "master" : "municipality"}
-                  ready={isMasterUser ? brandingReady : !municipalityLoading}
+                  ready={isMasterUser ? footerLogoReady : !municipalityLoading}
                   className="!m-0 !shrink-0"
                 />
               </div>
