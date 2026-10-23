@@ -396,6 +396,7 @@ export function DocumentViewerPage() {
                 {import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true" &&
                 isQaDocumentMissingError(error) ? (
                   <QaDocumentUnavailableNotice
+                    key={process.id + ":" + document.id}
                     processRoute={buildProcessPath(process)}
                     documentId={document.id}
                     objectKey={document.filePath}
