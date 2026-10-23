@@ -28,6 +28,42 @@ export function suggestUrbanTextSignals(text: string): UrbanTextSignal[] {
     .map(({ metric, label }) => ({ metric, label, text: source.slice(0, 800) }));
 }
 
+export type UrbanPdfEvidenceCandidate = {
+  metric: UrbanMetric;
+  label: string;
+  page: number;
+  excerpt: string;
+};
+
+/**
+ * This is a keyword search over a real extracted PDF text layer.
+ * It proposes short excerpts with page numbers; it NEVER identifies
+ * legal limits, reads graphic dimensions, or establishes compliance.
+ */
+export function findUrbanPdfEvidenceCandidates(
+  pages: ReadonlyArray<{ page: number; text: string }>,
+): UrbanPdfEvidenceCandidate[] {
+  const matches: UrbanPdfEvidenceCandidate[] = [];
+  for (const page of pages.slice(0, 24)) {
+    if (!Number.isInteger(page.page) || page.page < 1) continue;
+    const text = String(page.text || "").slice(0, 3000);
+    for (const signal of SIGNALS) {
+      const result = signal.expression.exec(text);
+      if (!result) continue;
+      const start = Math.max(0, result.index - 80);
+      const end = Math.min(text.length, result.index + result[0].length + 170);
+      const excerpt = clean(text.slice(start, end)).slice(0, 280);
+      if (excerpt.length < 10) continue;
+      matches.push({
+        metric: signal.metric, label: signal.label,
+        page: page.page, excerpt,
+      });
+      if (matches.length >= 40) return matches;
+    }
+  }
+  return matches;
+}
+
 /** Does not inspect a PDF or certify that its contents support the passage. */
 export function buildUrbanTextEvidence(input: {
   documentId: string;
