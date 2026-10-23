@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { confirmUrbanLegalEvidence, listUrbanLegalEvidence } from "@/integrations/backend/urbanLegalEvidenceClient";
 import { ensureUrbanPdfBytes, extractUrbanPdfText, URBAN_PDF_MAX_BYTES, type UrbanPdfPageText } from "@/lib/urbanPdfTextReader";
+import { UrbanScannedPageDesk } from "@/components/platform/UrbanScannedPageDesk";
+import { normalizeUrbanScanTranscript } from "@/lib/urbanScannedTranscription";
 import { excerptOccursOnPage, extractUrbanLegalSuggestions, searchLegalEvidence, sha256Hex,
   type UrbanLegalEvidence, type UrbanLegalSuggestion } from "@/lib/urbanLegalKnowledge";
 import { URBAN_METRICS, type UrbanMetric } from "@/lib/urbanPrecheck";
@@ -28,6 +30,8 @@ export function UrbanLegalKnowledgeDesk({ municipalityId, canEdit, onUseReferenc
   const [fileHash, setFileHash] = useState("");
   const [suggestions, setSuggestions] = useState<UrbanLegalSuggestion[]>([]);
   const [pdfPages, setPdfPages] = useState<UrbanPdfPageText[]>([]);
+  const [pdfBytes, setPdfBytes] = useState<Uint8Array|null>(null);
+  const [scannedProof, setScannedProof] = useState<{page:number;text:string;hash:string}|null>(null);
   const [manualPage, setManualPage] = useState("1");
   const [manualMetric, setManualMetric] = useState<UrbanMetric>("front_setback_m");
   const [manualExcerpt, setManualExcerpt] = useState("");
@@ -63,7 +67,7 @@ export function UrbanLegalKnowledgeDesk({ municipalityId, canEdit, onUseReferenc
 
   useEffect(() => {
     const request = ++requestId.current;
-    setSaved([]); setFileHash(""); setSuggestions([]); setPdfPages([]); setTitle("");
+    setSaved([]); setFileHash(""); setSuggestions([]); setPdfPages([]); setPdfBytes(null); setScannedProof(null); setTitle("");
     setCatalogError(""); setNotice(""); setConfirmedKey(""); setEffectiveUntil("");
     if (!municipalityId) return;
     setLoading(true);
@@ -78,7 +82,7 @@ export function UrbanLegalKnowledgeDesk({ municipalityId, canEdit, onUseReferenc
     const file = event.currentTarget.files?.[0];
     event.currentTarget.value = "";
     if (!file || !canEdit || reading) return;
-    setSuggestions([]); setPdfPages([]); setFileHash(""); setConfirmedKey(""); setNotice("");
+    setSuggestions([]); setPdfPages([]); setPdfBytes(null); setScannedProof(null); setFileHash(""); setConfirmedKey(""); setNotice("");
     setManualExcerpt(""); setManualPage("1"); setManualConfirmed(false);
     setPagesTotal(0); setPagesRead(0); setEmptyPages(0);
     if (!/\.pdf$/i.test(file.name) || file.size > URBAN_PDF_MAX_BYTES || file.size < 5) {
@@ -89,12 +93,13 @@ export function UrbanLegalKnowledgeDesk({ municipalityId, canEdit, onUseReferenc
       const bytes = new Uint8Array(await file.arrayBuffer());
       ensureUrbanPdfBytes(bytes);
       const hash = await sha256Hex(bytes);
-      const result = await extractUrbanPdfText(bytes);
+      const result = await extractUrbanPdfText(bytes.slice());
       setFileHash(hash);
       setTitle(file.name.slice(0, 180));
       setPagesTotal(result.totalPages); setPagesRead(result.pages.length);
       setEmptyPages(result.scannedPages);
       setPdfPages(result.pages);
+      setPdfBytes(bytes);
       setSuggestions(extractUrbanLegalSuggestions(result.pages));
       setNotice(result.scannedPages === result.pages.length
         ? "O PDF não contém texto selecionável nas páginas verificadas. É necessário OCR ou consulta manual."
@@ -126,8 +131,13 @@ export function UrbanLegalKnowledgeDesk({ municipalityId, canEdit, onUseReferenc
   const saveManualEvidence = async () => {
     if (!canEdit || !manualConfirmed || !fileHash || !municipalityId || manualSaving || !confirmedScope || scopeProblem) return;
     const page = Number(manualPage);
-    if (!excerptOccursOnPage(pdfPages, page, manualExcerpt)) {
-      setNotice("O trecho digitado não foi encontrado na camada de texto desta página do PDF. Confira a transcrição.");
+    const textLayerVerified = excerptOccursOnPage(pdfPages, page, manualExcerpt);
+    const scanDoubleVerified = scannedProof?.page === page &&
+      scannedProof.hash === fileHash &&
+      scannedProof.text === normalizeUrbanScanTranscript(manualExcerpt) &&
+      pdfPages.some(entry => entry.page === page && !entry.text.trim());
+    if (!textLayerVerified && !scanDoubleVerified) {
+      setNotice("A citação precisa corresponder literalmente ao texto da página ou ter dupla transcrição visual verificada de página escaneada.");
       return;
     }
     setManualSaving(true); setNotice("");
@@ -139,7 +149,7 @@ export function UrbanLegalKnowledgeDesk({ municipalityId, canEdit, onUseReferenc
       });
       await refresh();
       setManualConfirmed(false);
-      setManualExcerpt("");
+      setManualExcerpt("");setScannedProof(null);
       setNotice("Trecho literal vinculado à zona, uso e vigência no acervo QA. Não altera norma ativa.");
     } catch (error) {
       setNotice(String((error as Error)?.message || error));
@@ -221,13 +231,14 @@ export function UrbanLegalKnowledgeDesk({ municipalityId, canEdit, onUseReferenc
                 </p>
                 <p className="mt-1 text-xs leading-5 text-slate-600 dark:text-slate-300">
                   Para artigos que não foram reconhecidos, transcreva literalmente um trecho presente na página.
-                  O SIGAPRO verifica o texto contra o PDF carregado antes de gravar a citação.
+                  O SIGAPRO verifica o texto selecionável contra o PDF. Para páginas apenas digitalizadas,
+                  exige duas transcrições coincidentes e revisão administrativa antes de gravar.
                 </p>
                 <div className="mt-3 grid gap-2 md:grid-cols-[110px_minmax(0,1fr)]">
                   <label className="text-xs font-bold text-slate-700 dark:text-slate-200">
                     Página
                     <Input type="number" min={1} max={pagesRead} className="mt-1"
-                      value={manualPage} onChange={event => {setManualPage(event.target.value);setManualConfirmed(false);}}
+                      value={manualPage} onChange={event => {setManualPage(event.target.value);setManualConfirmed(false);setScannedProof(null);}}
                       aria-label="Página da citação manual"/>
                   </label>
                   <label className="text-xs font-bold text-slate-700 dark:text-slate-200">
@@ -243,7 +254,7 @@ export function UrbanLegalKnowledgeDesk({ municipalityId, canEdit, onUseReferenc
                   Texto da página, literalmente
                   <textarea className="mt-1 min-h-24 w-full rounded-md border border-slate-300 bg-white p-3 text-sm text-slate-900 dark:border-slate-600 dark:bg-slate-900 dark:text-white"
                     maxLength={500} value={manualExcerpt} aria-label="Trecho literal da legislação"
-                    onChange={event => {setManualExcerpt(event.target.value);setManualConfirmed(false);}}
+                    onChange={event => {setManualExcerpt(event.target.value);setManualConfirmed(false);setScannedProof(null);}}
                     placeholder="Copie uma frase do PDF, sem completar ou inventar texto..." />
                 </label>
                 <label className="mt-2 flex items-start gap-2 text-xs text-slate-800 dark:text-slate-100">
@@ -258,6 +269,22 @@ export function UrbanLegalKnowledgeDesk({ municipalityId, canEdit, onUseReferenc
                   Confirmar referência manual
                 </Button>
               </div>
+              {pdfBytes && pdfPages.some(page => !page.text.trim()) ? (
+                <UrbanScannedPageDesk
+                  key={fileHash}
+                  bytes={pdfBytes}
+                  scannedPages={pdfPages.filter(page => !page.text.trim()).map(page => page.page)}
+                  readOnly={!canEdit}
+                  onVerifiedTranscript={({page,text}) => {
+                    setManualPage(String(page));
+                    setManualExcerpt(text);
+                    setScannedProof({page,text,hash:fileHash});
+                    setManualConfirmed(false);
+                    setNotice("Transcrição visual dupla da lei conferida, página " + page +
+                      ". Selecione o assunto, confira a legislação integral e confirme a referência antes de gravar.");
+                  }}
+                />
+              ) : null}
               {suggestions.length === 0 ? <p className="text-xs text-amber-800 dark:text-amber-200">
                 Nenhum trecho urbanístico reconhecido na parte lida. O documento ainda exige leitura humana.
               </p> : null}
