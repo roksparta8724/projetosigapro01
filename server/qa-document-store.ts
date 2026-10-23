@@ -148,7 +148,10 @@ async function handler(req: Req, res: Res, route: string) {
     await stat(path);
     const ttl = Math.min(900, Math.max(60, Number(body.expiresIn)||900));
     const exp = Math.floor(Date.now()/1000)+ttl;
-    const signedUrl = `http://localhost:8081/api/qa-document?key=${encodeURIComponent(key)}&exp=${exp}&sig=${signature(key,exp)}`;
+    // Same-origin signed reads are required for browser PDF text extraction;
+    // the isolated store remains signed, short-lived and QA-only on both ports.
+    const localPort = process.env.SIGAPRO_LOCAL_QA_PORT === "8080" ? 8080 : 8081;
+    const signedUrl = `http://localhost:${localPort}/api/qa-document?key=${encodeURIComponent(key)}&exp=${exp}&sig=${signature(key,exp)}`;
     return json(res, 200, {bucket:"process-documents",objectKey:key,signedUrl});
   }
   if (route === "/api/r2-upload") {
