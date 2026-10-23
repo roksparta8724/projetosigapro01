@@ -92,14 +92,13 @@ export function UrbanGraphicRulerDesk({
       y:Math.min(1,Math.max(0,(event.clientY-rect.top)/rect.height)),
     };
     setConfirmed(false);setMessage("");
-    setPoints(existing=>{
-      if(existing.length!==1){
-        if(mode==="measurement")setMeasured(null);
-        return [point];
-      }
-      if(mode==="measurement")setMeasured({a:existing[0],b:point});
-      return [existing[0],point];
-    });
+    if(points.length!==1){
+      setPoints([point]);
+      if(mode==="measurement")setMeasured(null);
+    }else{
+      setPoints([points[0],point]);
+      if(mode==="measurement")setMeasured({a:points[0],b:point});
+    }
   };
 
   const confirmCalibration=()=>{
