@@ -133,7 +133,7 @@ export function UrbanDocumentEvidenceDesk({ process, readOnly, allowedMetrics, o
       setReadStatus("ready");
       setReadProgress("");
       setNotice(result.scannedPages === result.pages.length
-        ? "Nenhum texto selecionável encontrado nas páginas lidas. Pode ser PDF escaneado; use a conferência manual."
+        ? "Nenhum texto selecionável encontrado. Use a conferência visual de página escaneada, com dupla transcrição e validação humana."
         : "Pré-leitura concluída. Selecione um trecho e confirme na planta original antes de vinculá-lo.");
     } catch (error) {
       if (controller.signal.aborted) return;
@@ -261,7 +261,7 @@ export function UrbanDocumentEvidenceDesk({ process, readOnly, allowedMetrics, o
       <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-950 dark:border-amber-800 dark:bg-amber-950/50 dark:text-amber-100">
         <ShieldAlert className="mr-1 inline h-4 w-4" />
         A pré-leitura extrai somente o texto selecionável do PDF original, quando disponível.
-        Ela não interpreta automaticamente cotas gráficas ou PDFs escaneados; as referências
+        Ela não interpreta automaticamente cotas gráficas nem faz OCR. Páginas escaneadas podem ser transcritas visualmente; as referências
         encontradas são sugestões e nunca representam aprovação ou conformidade legal.
       </div>
       {pdfs.length === 0 ? (
