@@ -16,7 +16,8 @@ export function MunicipalUrbanRulesSettings({
   const [expandedVersionId, setExpandedVersionId] = useState<string | null>(null);
   const [zone, setZone] = useState("");
   const [usage, setUsage] = useState("");
-  const [effectiveFrom, setEffectiveFrom] = useState(() => new Date().toISOString().slice(0, 10));
+  // Legal effective dates must be supplied from the actual municipal ordinance.
+  const [effectiveFrom, setEffectiveFrom] = useState("");
   const [draft, setDraft] = useState<DraftInputs>({});
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -29,6 +30,7 @@ export function MunicipalUrbanRulesSettings({
     setDraft({});
     setZone("");
     setUsage("");
+    setEffectiveFrom("");
     setNotice("");
     if (!municipalityId) return;
     setLoading(true);
