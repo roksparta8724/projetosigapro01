@@ -1,4 +1,4 @@
-import { jsPDF } from "jspdf";
+import type { jsPDF } from "jspdf";
 import { createQrCodeDataUrl } from "@/lib/qrCode";
 import { buildPublicSignatureVerificationUrl } from "@/lib/signatureVerification";
 import type { ProcessRecord } from "@/lib/platform";
@@ -285,6 +285,7 @@ export async function buildHabiteSePermitPdfBlob({
   verificationCode,
   evidenceHash,
 }: HabiteSePermitPdfInput) {
+  const { jsPDF } = await import("jspdf");
   const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const pageWidth = pdf.internal.pageSize.getWidth();
   const pageHeight = pdf.internal.pageSize.getHeight();
