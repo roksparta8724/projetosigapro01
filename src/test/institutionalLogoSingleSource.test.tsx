@@ -70,6 +70,7 @@ describe("single authoritative institutional logo", () => {
     expect(hook).toContain("platformBranding?.headerLogoScale ?? local.logoScale");
     expect(hook).toContain("platformBranding?.footerLogoScale ?? local.logoScale");
     expect(hook).not.toContain('headerLogoFileName.endsWith("-enquadrado.png")');
-    expect(portal).toContain('ready={isMasterUser ? brandingReady : !municipalityLoading}');
+    expect(portal).toContain('ready={isMasterUser ? headerLogoReady : !municipalityLoading}');
+    expect(portal).toContain('ready={isMasterUser ? footerLogoReady : !municipalityLoading}');
   });
 });
