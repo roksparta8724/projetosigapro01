@@ -86,8 +86,8 @@ export function UrbanPrecheckPanel({
   );
 
   const conditionalReferences = useMemo(
-    () => findUrbanLegalConditions(legalCatalog, municipalityId, regulation),
-    [legalCatalog, municipalityId, regulation],
+    () => findUrbanLegalConditions(legalCatalog, municipalityId, regulation, asOf),
+    [legalCatalog, municipalityId, regulation, asOf],
   );
   useEffect(() => {
     // A change in law/date makes any previous confirmation obsolete.
