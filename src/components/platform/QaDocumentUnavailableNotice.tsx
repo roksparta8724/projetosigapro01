@@ -119,34 +119,34 @@ export function QaDocumentUnavailableNotice({
 
   return (
     <div data-qa-document-missing="true"
-      className={`mx-auto max-h-full w-full overflow-y-auto rounded-[22px] border border-amber-200 bg-white p-5 text-center shadow-xl ${preview ? "max-w-5xl" : "max-w-xl"}`}>
+      className={`mx-auto max-h-full w-full overflow-y-auto rounded-[22px] border border-sky-500/40 bg-[linear-gradient(160deg,#152d46,#0b1e31)] p-5 text-center text-slate-100 shadow-[0_26px_70px_rgba(0,0,0,0.35)] ${preview ? "max-w-5xl" : "max-w-xl"}`}>
       {preview ? (
         <>
           <div className="flex flex-wrap items-start justify-between gap-3 text-left">
             <div className="min-w-0">
-              <p className="text-base font-bold text-slate-950">Consulta local do PDF</p>
-              <p className="mt-1 break-words text-xs text-slate-600">{preview.name}</p>
+              <p className="text-base font-bold text-white">Consulta local do PDF</p>
+              <p className="mt-1 break-words text-xs text-slate-300">{preview.name}</p>
             </div>
             <button type="button" onClick={closePreview}
-              className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-800 hover:bg-slate-100">
+              className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-sky-500/50 bg-slate-900 px-3 py-2 text-xs font-bold text-slate-100 hover:bg-slate-800">
               <X className="h-4 w-4" aria-hidden="true" /> Fechar consulta
             </button>
           </div>
-          <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-left text-xs leading-5 text-amber-950">
+          <p className="mt-3 rounded-xl border border-amber-500/40 bg-amber-950/35 p-3 text-left text-xs leading-5 text-amber-100">
             Cópia escolhida por você, exibida somente neste navegador. Não foi comparada com o
             arquivo oficial, não substitui o anexo do processo e não autoriza aprovação,
             despacho ou envio de exigências.
           </p>
           {objectKey && /^[a-f0-9]{64}$/i.test(String(expectedFileHash || "")) ? (
-            <div className="mt-3 rounded-xl border border-sky-200 bg-sky-50 p-3 text-left">
-              <p className="text-xs font-bold text-sky-950">
+            <div className="mt-3 rounded-xl border border-sky-500/40 bg-slate-900/70 p-3 text-left">
+              <p className="text-xs font-bold text-sky-100">
                 Guardar esta cópia no armazenamento isolado de homologação
               </p>
-              <p className="mt-1 text-xs leading-5 text-slate-700">
+              <p className="mt-1 text-xs leading-5 text-slate-200">
                 Somente se o tamanho e o SHA-256 coincidirem com o registro.
                 O arquivo passará a abrir aqui nas próximas consultas, sem modificar o documento oficial.
               </p>
-              <label className="mt-2 flex items-start gap-2 text-xs text-slate-800">
+              <label className="mt-2 flex items-start gap-2 text-xs text-slate-100">
                 <input type="checkbox" checked={saveConsent}
                   disabled={savingCopy || storedCopy}
                   onChange={(event) => setSaveConsent(event.target.checked)}
@@ -160,13 +160,13 @@ export function QaDocumentUnavailableNotice({
                  savingCopy ? "Conferindo SHA-256 e armazenando..." : "Guardar cópia verificada no QA"}
               </button>
               {storedCopy ? (
-                <p role="status" className="mt-2 text-xs text-emerald-800">
+                <p role="status" className="mt-2 text-xs text-emerald-300">
                   Cópia conferida e armazenada. O arquivo já pode ser aberto pelo sistema local.
                 </p>
               ) : null}
             </div>
           ) : null}
-          {error ? <p role="alert" className="mt-2 rounded-xl bg-rose-50 p-3 text-xs text-rose-800">{error}</p> : null}
+          {error ? <p role="alert" className="mt-2 rounded-xl bg-rose-950/50 p-3 text-xs text-rose-100">{error}</p> : null}
           <iframe
             data-qa-local-pdf-preview="true"
             src={preview.url + "#toolbar=0&navpanes=0&view=FitH"}
@@ -176,15 +176,15 @@ export function QaDocumentUnavailableNotice({
         </>
       ) : (
         <>
-          <FileWarning className="mx-auto h-9 w-9 text-amber-600" aria-hidden="true" />
-          <h2 className="mt-3 text-base font-bold text-slate-950">
+          <FileWarning className="mx-auto h-9 w-9 text-amber-300" aria-hidden="true" />
+          <h2 className="mt-3 text-base font-bold text-white">
             Documento ainda não disponível nesta homologação
           </h2>
-          <p className="mt-2 text-sm leading-6 text-slate-700">
+          <p className="mt-2 text-sm leading-6 text-slate-200">
             O cadastro do anexo está presente, mas o PDF não foi localizado no armazenamento
             isolado do QA. Isso não significa que tenha sido apagado do SIGAPRO oficial.
           </p>
-          <p className="mt-3 text-xs leading-5 text-slate-600">
+          <p className="mt-3 text-xs leading-5 text-slate-300">
             Você pode escolher uma cópia PDF do seu computador para visualizar aqui, sem
             transferi-la para o banco ou para o R2. Essa cópia não substitui o anexo oficial.
           </p>
@@ -198,18 +198,18 @@ export function QaDocumentUnavailableNotice({
             {reading ? "Verificando PDF..." : "Abrir PDF do computador aqui"}
           </button>
           {error ? (
-            <p role="alert" className="mt-3 rounded-xl bg-rose-50 p-3 text-xs font-medium text-rose-800">{error}</p>
+            <p role="alert" className="mt-3 rounded-xl bg-rose-50 p-3 text-xs font-medium text-rose-100">{error}</p>
           ) : null}
         </>
       )}
 
       {officialUrl ? (
         <a href={officialUrl} target="_blank" rel="noopener noreferrer"
-          className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-sky-200 bg-white px-4 py-2 text-sm font-bold text-sky-800 transition hover:bg-sky-50">
+          className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-sky-500/40 bg-slate-900 px-4 py-2 text-sm font-bold text-sky-100 transition hover:bg-slate-800">
           <ExternalLink className="h-4 w-4" /> Abrir documento no SIGAPRO oficial
         </a>
       ) : null}
-      <p className="mt-4 flex items-center justify-center gap-1.5 text-xs font-semibold text-emerald-800">
+      <p className="mt-4 flex items-center justify-center gap-1.5 text-xs font-semibold text-emerald-300">
         <ShieldCheck className="h-4 w-4" /> Armazenamento e autenticação do QA separados do sistema oficial
       </p>
     </div>
