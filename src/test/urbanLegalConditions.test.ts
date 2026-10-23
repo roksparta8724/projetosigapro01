@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import {
-  classifyUrbanLegalExcerpt, findUrbanLegalConditions, validateUrbanLegalReview,
+  buildUrbanConditionalReviewDraft, classifyUrbanLegalExcerpt, findUrbanLegalConditions, validateUrbanLegalReview,
   type UrbanLegalReviewConfirmation,
 } from "@/lib/urbanLegalConditions";
 import type { UrbanLegalEvidence } from "@/lib/urbanLegalKnowledge";
@@ -55,6 +55,23 @@ describe("SIGAPRO IA Urbanismo - revisão de condições e exceções",()=>{
     expect(validateUrbanLegalReview(flags,{...review,note:"curta"})).toMatch(/20 a 1200/i);
     expect(validateUrbanLegalReview(flags,{...review,evidenceIds:["c1","c2"]})).toBeNull();
     expect(validateUrbanLegalReview([], {evidenceIds:[],note:"",documentScopeConfirmed:false})).toBeNull();
+  });
+  it("impede falsa conferência completa quando há mais de 50 citações",()=>{
+    const rows = Array.from({length:55},(_,i)=>({...row,id:"id"+i,page_number:i+1}));
+    const flags=findUrbanLegalConditions(rows,"prefeitura-a",version);
+    expect(flags.length).toBeGreaterThan(50);
+    expect(validateUrbanLegalReview(flags,{
+      ...review,evidenceIds:flags.map(f=>f.evidenceId),
+    })).toMatch(/mais de 50/i);
+  });
+  it("gera minuta contextual com documento, página e razão sem conclusão automática",()=>{
+    const flags=findUrbanLegalConditions([row],"prefeitura-a",version);
+    const draft=buildUrbanConditionalReviewDraft("PM-2026-00001",version,flags,review);
+    expect(draft).toContain("MINUTA INTERNA");
+    expect(draft).toContain("Lei urbanística 10/2026");
+    expect(draft).toContain("p. 12");
+    expect(draft).toContain("Fundamentação técnica");
+    expect(draft).not.toContain("APROVADO AUTOMATICAMENTE");
   });
   it("não substitui a checagem legal nem envia aprovação por IA",()=>{
     const code=readFileSync(resolve(process.cwd(),"src/components/platform/UrbanPrecheckPanel.tsx"),"utf8");
