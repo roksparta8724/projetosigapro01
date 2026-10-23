@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { backendClient } from "@/integrations/backend/databaseClient";
+import { municipalCollectionApiRequest } from "@/lib/municipalCollectionApi";
 import { isCollectionSuccessMessage, municipalCollectionError } from "@/lib/collectionDiagnostics";
 
 type PaymentConnection = {
@@ -39,44 +39,17 @@ type PaymentConnection = {
   pixAvailable?: boolean;
 };
 
-async function authorizationHeaders() {
-  try {
-    const result = await backendClient?.auth?.getSession?.();
-    const session = result?.data?.session ?? null;
-    const token =
-      session?.access_token ||
-      session?.accessToken ||
-      session?.token ||
-      "";
-    return token ? { Authorization: `Bearer ${token}` } : {};
-  } catch {
-    return {};
-  }
-}
-
 async function paymentRequest(
   municipalityId: string,
   action: string,
   payload: Record<string, unknown> = {},
 ) {
-  const response = await fetch("/api/payment-connection", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(await authorizationHeaders()),
-    },
-    body: JSON.stringify({ municipalityId, action, ...payload }),
-  });
-
-  const body = (await response.json().catch(() => ({}))) as PaymentConnection & {
-    error?: string;
-  };
-  if (!response.ok) {
-    throw new Error(
-      body.error || "Não foi possível concluir a configuração de pagamentos.",
-    );
-  }
-  return body;
+  return municipalCollectionApiRequest<PaymentConnection>(
+    "payment-connection",
+    municipalityId,
+    action,
+    payload,
+  );
 }
 
 function providerLabel(provider?: PaymentConnection["provider"]) {
