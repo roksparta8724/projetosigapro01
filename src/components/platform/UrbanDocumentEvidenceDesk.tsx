@@ -55,6 +55,7 @@ export function UrbanDocumentEvidenceDesk({ process, readOnly, allowedMetrics, o
         documentId: selected.id,
         fileName: selected.fileName || selected.label,
         documentVersion: selected.version || 1,
+        fileHash: selected.fileHash,
         page: Number(pageText),
         excerpt,
       });
