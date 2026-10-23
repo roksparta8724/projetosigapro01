@@ -2,10 +2,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   getSession: vi.fn(),
+  refreshSession: vi.fn(),
 }));
 
 vi.mock("@/integrations/backend/databaseClient", () => ({
-  backendClient: { auth: { getSession: mocks.getSession } },
+  backendClient: { auth: { getSession: mocks.getSession, refreshSession: mocks.refreshSession } },
 }));
 
 import {
@@ -19,6 +20,8 @@ describe("municipal collection session -> API -> bank/provider", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     mocks.getSession.mockReset();
+    mocks.refreshSession.mockReset();
+    mocks.refreshSession.mockResolvedValue({ data: { session: null } });
     mocks.getSession.mockResolvedValue({ data: { session: { access_token: "qa-token" } }, error: null });
   });
 
@@ -44,6 +47,19 @@ describe("municipal collection session -> API -> bank/provider", () => {
     await expect(municipalCollectionApiRequest("collection-configuration", municipalityId, "bank_save", { fields: {} }))
       .rejects.toMatchObject({ status: 401 });
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("recovers a refreshed Neon JWT without trusting the UI cache", async () => {
+    mocks.getSession.mockResolvedValue({ data: { session: null } });
+    mocks.refreshSession.mockResolvedValue({ data: { session: { access_token: "refreshed-qa-token" } } });
+    const mock = vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ status: "not_configured" }),
+    } as Response);
+    await municipalCollectionApiRequest("collection-configuration", municipalityId, "get");
+    expect(mocks.refreshSession).toHaveBeenCalledTimes(1);
+    expect(mock.mock.calls[0][1]?.headers).toMatchObject({ Authorization: "Bearer refreshed-qa-token" });
   });
 
   it("returns a specific error on a denied payment provider request", async () => {
