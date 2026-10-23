@@ -32,6 +32,22 @@ export function UrbanScannedPageDesk({bytes,scannedPages,readOnly,onVerifiedTran
   const [ocrAssisted,setOcrAssisted]=useState(false);
   const ocrEpoch=useRef(0);
   const canvas=useRef<HTMLCanvasElement|null>(null);
+  // A newly loaded PDF must never inherit unverified text or an OCR result
+  // from the previous document, even when the viewer keeps the same page.
+  useEffect(()=>{
+    ++ocrEpoch.current;
+    setExpanded(false);
+    setPage(pages[0]||1);
+    setFirst("");
+    setSecond("");
+    setChecked(false);
+    setBusy(false);
+    setError("");
+    setOcrText("");
+    setOcrError("");
+    setOcrBusy(false);
+    setOcrAssisted(false);
+  },[bytes]);
   useEffect(()=>{
     if(!expanded || !pages.includes(page))return;
     const abort=new AbortController();
