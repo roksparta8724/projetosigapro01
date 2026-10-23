@@ -1,5 +1,5 @@
 import { describe,expect,it,vi } from "vitest";
-import { fireEvent,render,screen } from "@testing-library/react";
+import { fireEvent,render,screen,waitFor } from "@testing-library/react";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { UrbanScannedPageDesk } from "@/components/platform/UrbanScannedPageDesk";
@@ -40,7 +40,7 @@ describe("SIGAPRO QA — conferência visual de página escaneada",()=>{
     expect(screen.getByRole("checkbox",{name:/Confirmei texto/i})).toBeDisabled();
     fireEvent.change(screen.getByRole("textbox",{name:/Segunda leitura/i}),{target:{value:source}});
     const check=screen.getByRole("checkbox",{name:/Confirmei texto/i});
-    expect(check).toBeEnabled();
+    await waitFor(()=>expect(check).toBeEnabled());
     fireEvent.click(check);
     fireEvent.click(confirm);
     expect(onVerifiedTranscript).toHaveBeenCalledOnce();
