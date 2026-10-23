@@ -54,7 +54,7 @@ describe("SIGAPRO IA: fonte legal por zona, uso e data",()=>{
     expect(sql).toContain("revoke execute on function public.save_urban_legal_evidence_v1(");
     expect(sql).toContain("revoke execute on function public.save_urban_precheck_run_v3(");
     expect(client).toContain("list_urban_legal_evidence_v2");
-    expect(client).toContain("save_urban_legal_evidence_scoped_v2");
+    expect(client).toContain("save_urban_legal_evidence_scoped_v3");
     expect(precheck).toContain('invoke("save_urban_precheck_run_v4"');
   });
 });
