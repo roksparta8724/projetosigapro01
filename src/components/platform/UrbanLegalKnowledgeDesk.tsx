@@ -49,6 +49,12 @@ export function UrbanLegalKnowledgeDesk({ municipalityId, canEdit, onUseReferenc
   const [catalogError, setCatalogError] = useState("");
   const requestId = useRef(0);
 
+  // Changing zone, use or reference date invalidates a previous human confirmation.
+  useEffect(() => {
+    setConfirmedKey("");
+    setManualConfirmed(false);
+  }, [scope?.zoneCode, scope?.useCode, scope?.effectiveFrom, effectiveUntil]);
+
   const refresh = useCallback(async () => {
     const list = await listUrbanLegalEvidence(municipalityId);
     setSaved(list);
