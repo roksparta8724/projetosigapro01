@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
+import { resolve } from "node:path";
 import { QRCodeSVG } from "qrcode.react";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { buildPixPayload, isValidPixPayload } from "@/lib/pix";
 
-const documentSource = readFileSync(fileURLToPath(new URL("../components/platform/OfficialPaymentGuideDocument.tsx", import.meta.url)), "utf8");
+const documentSource = readFileSync(resolve(process.cwd(), "src/components/platform/OfficialPaymentGuideDocument.tsx"), "utf8");
 
 describe("official guide PIX authenticity", () => {
   it("renders a real QR encoder and never a pseudo-random payment matrix", () => {
