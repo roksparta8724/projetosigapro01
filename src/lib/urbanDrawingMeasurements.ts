@@ -67,7 +67,7 @@ export function findUrbanDrawingMeasurements(
         const prior=clean(text.slice(Math.max(0,index-38),index));
         const after=text.slice(index+match[0].length,index+match[0].length+70);
         if(normative.test(prior) || normative.test(after)) continue;
-        const captures=after.match(/^\s*(?:[:=–-]\s*|de\s+)?(\d{1,7}(?:[.,]\d{1,3})?)\s*(m²|m2|metros?\s+quadrados?|metros?|m|%|pavimentos?|pav\.?)?/i);
+        const captures=after.match(/^\s*(?:[:=]\s*|de\s+)?(\d{1,7}(?:[.,]\d{1,3})?)\s*(m²|m2|metros?\s+quadrados?|metros?|m|%|pavimentos?|pav\.?)?/i);
         if(!captures) continue;
         const parsed=Number(captures[1].replace(",","."));
         const unit=normalizeUnit(captures[2]||"");
