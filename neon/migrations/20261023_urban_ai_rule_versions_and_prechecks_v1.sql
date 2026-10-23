@@ -163,6 +163,17 @@ begin
   if _row.effective_from > current_date then
     raise exception 'Norma com vigencia futura: mantenha como rascunho ate a data de inicio.';
   end if;
+  -- Do not supersede a newer rule with an older/equal effective date.
+  -- Historical checks depend on strict chronology of activated versions.
+  if exists (
+    select 1 from public.urban_regulation_versions existing
+    where existing.municipality_id=_row.municipality_id
+      and existing.zone_code=_row.zone_code and existing.use_code=_row.use_code
+      and existing.status='active'
+      and existing.effective_from >= _row.effective_from
+  ) then
+    raise exception 'A nova vigencia deve ser posterior à versao atualmente ativa.';
+  end if;
   update public.urban_regulation_versions set status='superseded'
   where municipality_id=_row.municipality_id
     and zone_code=_row.zone_code and use_code=_row.use_code and status='active';
