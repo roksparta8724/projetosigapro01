@@ -13,6 +13,11 @@ import {
 import type { ProcessRecord } from "@/lib/platform";
 import { UrbanDocumentEvidenceDesk } from "@/components/platform/UrbanDocumentEvidenceDesk";
 import { UrbanLegalKnowledgeDesk } from "@/components/platform/UrbanLegalKnowledgeDesk";
+import { listUrbanLegalEvidence } from "@/integrations/backend/urbanLegalEvidenceClient";
+import type { UrbanLegalEvidence } from "@/lib/urbanLegalKnowledge";
+import {
+  findUrbanLegalConditions, validateUrbanLegalReview, type UrbanLegalReviewConfirmation,
+} from "@/lib/urbanLegalConditions";
 import { buildUrbanReviewDraft, deriveUrbanAreaMeasurements, type UrbanAreaKey } from "@/lib/urbanPrecheckAssist";
 
 type Field = { value: string; evidence: string };
@@ -31,6 +36,12 @@ export function UrbanPrecheckPanel({
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState("");
+  const [legalCatalog, setLegalCatalog] = useState<UrbanLegalEvidence[]>([]);
+  const [legalCatalogReady, setLegalCatalogReady] = useState(false);
+  const [legalCatalogError, setLegalCatalogError] = useState("");
+  const [legalReview, setLegalReview] = useState<UrbanLegalReviewConfirmation>({
+    evidenceIds: [], note: "", documentScopeConfirmed: false,
+  });
 
   useEffect(() => {
     let active = true;
@@ -42,12 +53,26 @@ export function UrbanPrecheckPanel({
     setVersions([]);
     setHistory([]);
     setNotice("");
+    setLegalCatalog([]);
+    setLegalCatalogReady(false);
+    setLegalCatalogError("");
+    setLegalReview({ evidenceIds: [], note: "", documentScopeConfirmed: false });
     setLoading(true);
     void Promise.all([
       listUrbanRegulations(municipalityId),
       listUrbanPrecheckHistory(process.id),
-    ]).then(([rules, past]) => {
-      if (active) { setVersions(rules); setHistory(past); }
+      listUrbanLegalEvidence(municipalityId).then(
+        (rows) => ({ rows, error: "" }),
+        (error: unknown) => ({ rows: [] as UrbanLegalEvidence[],
+          error: String((error as Error)?.message || error) }),
+      ),
+    ]).then(([rules, past, legal]) => {
+      if (active) {
+        setVersions(rules); setHistory(past);
+        setLegalCatalog(legal.rows);
+        setLegalCatalogError(legal.error);
+        setLegalCatalogReady(true);
+      }
     }).catch((error: unknown) => {
       if (active) setNotice("Normas ainda indisponíveis: " + String((error as Error)?.message || error));
     }).finally(() => { if (active) setLoading(false); });
@@ -58,6 +83,17 @@ export function UrbanPrecheckPanel({
     () => selectUrbanRegulation(versions, municipalityId, zone, usage, asOf),
     [versions, municipalityId, zone, usage, asOf],
   );
+
+  const conditionalReferences = useMemo(
+    () => findUrbanLegalConditions(legalCatalog, municipalityId, regulation),
+    [legalCatalog, municipalityId, regulation],
+  );
+  useEffect(() => {
+    // A change in law/date makes any previous confirmation obsolete.
+    setLegalReview({ evidenceIds: [], note: "", documentScopeConfirmed: false });
+  }, [process.id, regulation?.id, asOf]);
+  const legalReviewIssue = validateUrbanLegalReview(conditionalReferences, legalReview);
+  const legalReviewReady = legalCatalogReady && !legalCatalogError && !legalReviewIssue;
 
   const setField = (metric: UrbanMetric, field: keyof Field, text: string) => {
     setFields((previous) => ({
@@ -137,6 +173,10 @@ export function UrbanPrecheckPanel({
   );
   const copyDraft = async () => {
     if (!reviewDraft) return;
+    if (!legalReviewReady) {
+      setNotice(legalCatalogError || legalReviewIssue || "Consulte o acervo legal antes de copiar a minuta.");
+      return;
+    }
     try {
       await navigator.clipboard.writeText(reviewDraft);
       setNotice("Minuta interna copiada. Revise cuidadosamente antes de qualquer Comunique-se oficial.");
@@ -145,14 +185,19 @@ export function UrbanPrecheckPanel({
     }
   };
 
-  const canSave = !!regulation && !readOnly && !saving &&
+  const canSave = !!regulation && !readOnly && !saving && !loading && legalReviewReady &&
     /^\d{4}-\d{2}-\d{2}$/.test(asOf) && asOf <= new Date().toISOString().slice(0, 10) &&
     findings.some(
     (finding) => finding.status !== "missing_evidence"
   );
 
   const save = async () => {
-    if (!regulation || readOnly || saving || !canSave) return;
+    if (!regulation || readOnly || saving) return;
+    if (!legalReviewReady) {
+      setNotice(legalCatalogError || legalReviewIssue || "Aguarde a verificação do acervo legal.");
+      return;
+    }
+    if (!canSave) return;
     const invalidEntered = regulation.rules.some((rule) => {
       const input = fields[rule.metric];
       if (!input?.value.trim() && !input?.evidence.trim()) return false;
@@ -178,10 +223,14 @@ export function UrbanPrecheckPanel({
     setSaving(true);
     setNotice("");
     try {
-      await saveUrbanPrecheckRun(process.id, regulation.id, asOf, complete);
+      await saveUrbanPrecheckRun(process.id, regulation.id, asOf, complete, {
+        evidenceIds: conditionalReferences.map(item => item.evidenceId),
+        note: legalReview.note.trim(),
+        documentScopeConfirmed: legalReview.documentScopeConfirmed,
+      });
       const updated = await listUrbanPrecheckHistory(process.id);
       setHistory(updated);
-      setNotice("Pré-conferência registrada no histórico. Não altera a aprovação nem a ficha oficial.");
+      setNotice("Pré-conferência e revisão das referências legais registradas no histórico. Não altera a aprovação nem a ficha oficial.");
     } catch (error) {
       setNotice(String((error as Error)?.message || error));
     } finally { setSaving(false); }
