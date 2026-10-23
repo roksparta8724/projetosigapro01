@@ -80,7 +80,8 @@ describe("SIGAPRO IA — OCR experimental estritamente local",()=>{
     expect(pane).toContain("suggestUrbanBrowserOcr(canvas.current)");
     expect(pane).toContain('setFirst(ocrText.slice(0,280));setSecond("");setChecked(false)');
     expect(pane).toContain("validateUrbanScanTranscription(first,second,page,pages)");
-    expect(pane).toContain("onVerifiedTranscript({page,text:normalizeUrbanScanTranscript(first)})");
+    expect(pane).toContain("onVerifiedTranscript({page,text:normalizeUrbanScanTranscript(first),");
+    expect(pane).toContain('method:ocrAssisted?"browser_ocr_human_verified":"visual_double_transcription"');
     expect(pane).not.toContain("fetch(");
   });
 });
