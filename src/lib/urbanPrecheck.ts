@@ -73,7 +73,9 @@ export function selectUrbanRegulation(
   if (!/^\d{4}-\d{2}-\d{2}$/.test(asOf)) return null;
   const matched = versions.filter((rule) =>
     rule.municipality_id === municipalityId &&
-    rule.status === "active" &&
+    // For past protocol dates the historically activated, now superseded
+    // regulation remains the correct candidate. Drafts are never eligible.
+    (rule.status === "active" || rule.status === "superseded") &&
     normalizeUrbanCode(rule.zone_code) === normalizeUrbanCode(zone) &&
     normalizeUrbanCode(rule.use_code) === normalizeUrbanCode(usage) &&
     rule.effective_from <= asOf &&
