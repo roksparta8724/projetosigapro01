@@ -204,8 +204,8 @@ export function UrbanPrecheckPanel({
         </span>
       </div>
       <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-950 dark:border-amber-500/40 dark:bg-amber-950/40 dark:text-amber-100">
-        A leitura automática de plantas por IA ainda não está habilitada. Verifique cada medida no projeto
-        original e identifique a prancha, a página ou o quadro de áreas utilizado. A legislação deve estar validada pela Prefeitura.
+        A leitura textual dos PDFs pode ser feita localmente abaixo. Isso não mede automaticamente a geometria das plantas
+        nem substitui a verificação das cotas, quadros de áreas e legislação municipal pelo analista responsável.
       </div>
 
       <div className="mt-4 grid gap-3 md:grid-cols-3">
@@ -223,6 +223,13 @@ export function UrbanPrecheckPanel({
         </label>
       </div>
 
+      <UrbanDocumentEvidenceDesk
+        process={process}
+        readOnly={readOnly}
+        allowedMetrics={(regulation ? regulation.rules.map((rule) => rule.metric) : URBAN_METRICS.map((item) => item.key))
+          .map((key) => ({ key, label: URBAN_METRICS.find((item) => item.key === key)?.label || key }))}
+        onUseEvidence={(metric, evidence) => setField(metric, "evidence", evidence)}
+      />
       {loading ? <p role="status" className="mt-4 flex items-center gap-2 text-sm text-slate-500"><Loader2 className="h-4 w-4 animate-spin" /> Consultando cadastro normativo municipal...</p> : null}
       {!loading && !regulation ? (
         <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100">
@@ -239,15 +246,6 @@ export function UrbanPrecheckPanel({
             </p>
             <span className="text-xs text-sky-800 dark:text-sky-200">Vigência desde {regulation.effective_from}</span>
           </div>
-          <UrbanDocumentEvidenceDesk
-            process={process}
-            readOnly={readOnly}
-            allowedMetrics={regulation.rules.map((rule) => ({
-              key: rule.metric,
-              label: URBAN_METRICS.find((metric) => metric.key === rule.metric)?.label || rule.metric,
-            }))}
-            onUseEvidence={(metric, evidence) => setField(metric, "evidence", evidence)}
-          />
           <div className="mt-4 rounded-[20px] border border-sky-200 bg-sky-50/80 p-4 dark:border-sky-800 dark:bg-slate-900">
             <div className="flex items-start gap-2">
               <Calculator className="mt-0.5 h-5 w-5 text-sky-800 dark:text-sky-300" />
