@@ -16,6 +16,9 @@ export type GuidePixShareCardProps = {
 export function getShareableGuidePix(input: GuidePixShareCardProps): string {
   const { guide } = input;
   if (guide.status === "compensada" || guide.providerEnvironment === "test" || guide.amount <= 0) return "";
+  // A boleto-specific Mercado Pago charge is not proof that the provider
+  // issued a PIX. Do not fabricate PIX from the municipal fallback key.
+  if (guide.paymentProvider === "mercado_pago" && !isValidPixPayload(guide.pixPayload)) return "";
   // Respect the immutable issued code first; the current municipal key is
   // used only as a compatibility fallback for an unpaid, non-frozen guide.
   const payload = buildGuidePixPayload({
@@ -24,20 +27,33 @@ export function getShareableGuidePix(input: GuidePixShareCardProps): string {
     municipalityName: input.municipalityName,
     municipalityCity: input.municipalityCity,
   });
-  return isValidPixPayload(payload) ? payload.trim() : "";
+  return payload && isValidPixPayload(payload) ? payload.trim() : "";
 }
 
 export function GuidePixShareCard(props: GuidePixShareCardProps) {
   const [feedback, setFeedback] = useState("");
   const payload = getShareableGuidePix(props);
-  if (!payload) return null;
+  const providerPaymentUrl = (() => {
+    if (props.guide.paymentProvider !== "mercado_pago") return "";
+    try {
+      const uri = new URL(String(props.guide.ticketUrl || ""));
+      return uri.protocol === "https:" && (
+        uri.hostname === "mercadopago.com.br" ||
+        uri.hostname.endsWith(".mercadopago.com.br") ||
+        uri.hostname === "mercadopago.com" ||
+        uri.hostname.endsWith(".mercadopago.com")
+      ) ? uri.href : "";
+    } catch { return ""; }
+  })();
+  if (!payload && !providerPaymentUrl) return null;
 
   const shareText = [
     `Guia municipal ${props.guide.code}`,
     `${props.guide.label} — R$ ${props.guide.amount.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
     props.guide.dueDate ? `Vencimento: ${props.guide.dueDate}` : "",
-    "PIX Copia e Cola:",
+    payload ? "PIX Copia e Cola:" : "",
     payload,
+    providerPaymentUrl ? `Link oficial do boleto: ${providerPaymentUrl}` : "",
     "Confira o nome do beneficiário no aplicativo bancário antes de pagar.",
   ].filter(Boolean).join("\n");
 
@@ -72,22 +88,22 @@ export function GuidePixShareCard(props: GuidePixShareCardProps) {
         <div className="min-w-0">
           <div className="flex items-center gap-2 text-sm font-extrabold text-slate-950 dark:text-white">
             <WalletCards className="h-4 w-4 text-sky-700 dark:text-sky-300" />
-            Pagamento via PIX — Copia e Cola
+            {payload ? "Pagamento via PIX — Copia e Cola" : "Link oficial de pagamento"}
           </div>
           <p className="mt-1 text-xs leading-5 text-slate-600 dark:text-slate-300">
-            Código desta guia para o profissional encaminhar ao proprietário. Não altera a cobrança nem confirma o pagamento.
+            Compartilhe os dados oficiais desta guia com o proprietário, sem alterar a cobrança ou confirmar o pagamento.
           </p>
         </div>
         <span className="rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-[11px] font-bold text-sky-900 dark:border-sky-600 dark:bg-sky-950 dark:text-sky-100">
-          PIX disponível
+          {payload ? "PIX disponível" : "Link do provedor"}
         </span>
       </div>
       <div className="mt-4 flex min-w-0 flex-col items-center gap-4 sm:flex-row sm:items-start">
-        <div className="shrink-0 rounded-2xl border border-slate-200 bg-white p-2" aria-label="QR Code PIX desta guia">
+        {payload ? <div className="shrink-0 rounded-2xl border border-slate-200 bg-white p-2" aria-label="QR Code PIX desta guia">
           <QRCodeSVG value={payload} size={112} level="M" marginSize={2} />
-        </div>
+        </div> : null}
         <div className="min-w-0 flex-1 self-stretch">
-          <label htmlFor={`pix-copia-cola-${props.guide.code}`} className="block text-xs font-bold uppercase tracking-wide text-slate-700 dark:text-slate-200">
+          {payload ? <><label htmlFor={`pix-copia-cola-${props.guide.code}`} className="block text-xs font-bold uppercase tracking-wide text-slate-700 dark:text-slate-200">
             Código PIX Copia e Cola
           </label>
           <textarea
@@ -99,16 +115,20 @@ export function GuidePixShareCard(props: GuidePixShareCardProps) {
             onFocus={(event) => event.currentTarget.select()}
             className="mt-2 w-full resize-none rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 font-mono text-xs leading-5 text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-400 dark:border-slate-600 dark:bg-slate-900 dark:text-white"
           />
+          </> : null}
           <div className="mt-3 flex flex-wrap gap-2">
-            <Button type="button" variant="outline" size="sm" className="rounded-full" onClick={() => void copyPix()}>
+            {payload ? <Button type="button" variant="outline" size="sm" className="rounded-full" onClick={() => void copyPix()}>
               <Copy className="mr-1.5 h-4 w-4" /> Copiar código PIX
-            </Button>
+            </Button> : null}
+            {providerPaymentUrl ? <Button type="button" variant="outline" size="sm" className="rounded-full" onClick={() => void navigator.clipboard.writeText(providerPaymentUrl).then(() => setFeedback("Link oficial copiado.")).catch(() => setFeedback("Não foi possível copiar o link."))}>
+              <Copy className="mr-1.5 h-4 w-4" /> Copiar link oficial
+            </Button> : null}
             <Button type="button" size="sm" className="rounded-full bg-sky-700 text-white hover:bg-sky-800" onClick={() => void sharePix()}>
               <Share2 className="mr-1.5 h-4 w-4" /> Compartilhar com proprietário
             </Button>
           </div>
           {feedback ? <p role="status" className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-sky-800 dark:text-sky-300"><Check className="h-3.5 w-3.5" />{feedback}</p> : null}
-          <p className="mt-2 text-[11px] leading-4 text-slate-500 dark:text-slate-400">O compartilhamento envia o código PIX, não cria um link bancário nem libera acesso ao processo.</p>
+          <p className="mt-2 text-[11px] leading-4 text-slate-500 dark:text-slate-400">O código PIX e o link, quando emitido pelo provedor, pertencem à guia. O compartilhamento não libera acesso ao processo.</p>
         </div>
       </div>
     </section>
