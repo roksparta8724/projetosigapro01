@@ -4,8 +4,6 @@ begin;
 alter table public.process_urban_precheck_runs
   add column if not exists legal_review jsonb not null default '{}'::jsonb;
 alter table public.process_urban_precheck_runs
-  drop constraint if exists process_urban_precheck_legal_review_object;
-alter table public.process_urban_precheck_runs
   add constraint process_urban_precheck_legal_review_object
   check (jsonb_typeof(legal_review) = 'object' and pg_column_size(legal_review) < 10000);
 
