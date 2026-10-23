@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   BadgeCheck,
   CreditCard,
@@ -18,7 +18,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { backendClient } from "@/integrations/backend/databaseClient";
+import { municipalCollectionApiRequest } from "@/lib/municipalCollectionApi";
+import { isCollectionSuccessMessage, municipalCollectionError } from "@/lib/collectionDiagnostics";
 
 type PaymentConnection = {
   municipality_id?: string;
@@ -38,44 +39,17 @@ type PaymentConnection = {
   pixAvailable?: boolean;
 };
 
-async function authorizationHeaders() {
-  try {
-    const result = await backendClient?.auth?.getSession?.();
-    const session = result?.data?.session ?? null;
-    const token =
-      session?.access_token ||
-      session?.accessToken ||
-      session?.token ||
-      "";
-    return token ? { Authorization: `Bearer ${token}` } : {};
-  } catch {
-    return {};
-  }
-}
-
 async function paymentRequest(
   municipalityId: string,
   action: string,
   payload: Record<string, unknown> = {},
 ) {
-  const response = await fetch("/api/payment-connection", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(await authorizationHeaders()),
-    },
-    body: JSON.stringify({ municipalityId, action, ...payload }),
-  });
-
-  const body = (await response.json().catch(() => ({}))) as PaymentConnection & {
-    error?: string;
-  };
-  if (!response.ok) {
-    throw new Error(
-      body.error || "Não foi possível concluir a configuração de pagamentos.",
-    );
-  }
-  return body;
+  return municipalCollectionApiRequest<PaymentConnection>(
+    "payment-connection",
+    municipalityId,
+    action,
+    payload,
+  );
 }
 
 function providerLabel(provider?: PaymentConnection["provider"]) {
@@ -91,9 +65,11 @@ export function MunicipalPaymentSettings({
   municipalityId: string;
   municipalityName?: string | null;
 }) {
+  const requestGeneration = useRef(0);
   const [connection, setConnection] = useState<PaymentConnection | null>(null);
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState("");
+  const [loadFailed, setLoadFailed] = useState(false);
   const [form, setForm] = useState({
     provider: "mercado_pago" as "mercado_pago" | "bank_direct" | "manual",
     environment: "test" as "test" | "production",
@@ -101,56 +77,63 @@ export function MunicipalPaymentSettings({
     webhookSecret: "",
   });
 
-  const isActive = connection?.status === "active";
-  const hasValidTest = connection?.last_test_status === "ok";
-  const provider = connection?.provider || form.provider;
+  const connectionMatchesForm = connection?.provider === form.provider && connection?.environment === form.environment;
+  const isActive = connectionMatchesForm && connection?.status === "active";
+  const hasValidTest = connectionMatchesForm && connection?.last_test_status === "ok";
+  const provider = form.provider;
 
   const statusLabel = useMemo(() => {
-    if (!connection) return "Carregando configuração";
+    if (!connection) return busy === "load" ? "Carregando configuração" : "Conexão não verificada";
+    if (!connectionMatchesForm) return "Alterações ainda não salvas";
     if (connection.status === "active") return "Provedor ativo";
     if (connection.status === "error") return "Conexão com erro";
     if (connection.status === "configured") return "Configuração preparada";
     return "Provedor ainda não ativado";
-  }, [connection]);
+  }, [connection, busy, connectionMatchesForm]);
 
   const load = async () => {
-    if (!municipalityId) return;
-    setBusy("load");
+    const generation = ++requestGeneration.current;
+    // A response from another municipality must never populate this account.
+    setConnection(null);
+    setLoadFailed(false);
+    setForm({ provider: "mercado_pago", environment: "test", accessToken: "", webhookSecret: "" });
     setMessage("");
+    if (!municipalityId) { setBusy(""); return; }
+    setBusy("load");
     try {
       const current = await paymentRequest(municipalityId, "get");
+      if (generation !== requestGeneration.current) return;
       setConnection(current);
-      setForm((value) => ({
-        ...value,
+      setLoadFailed(false);
+      setForm({
         provider: current.provider || "mercado_pago",
         environment: current.environment || "test",
         accessToken: "",
         webhookSecret: "",
-      }));
+      });
     } catch (error) {
-      const msg =
-        error instanceof Error
-          ? error.message
-          : "Não foi possível carregar a configuração.";
-      setMessage(
-        /schema cache|does not exist|not found/i.test(msg)
-          ? "Estrutura de pagamentos por Prefeitura preparada, mas a migration do Neon ainda não foi aplicada."
-          : msg,
-      );
+      if (generation === requestGeneration.current) {
+        setLoadFailed(true);
+        setMessage(municipalCollectionError(error));
+      }
     } finally {
-      setBusy("");
+      if (generation === requestGeneration.current) setBusy("");
     }
   };
 
   useEffect(() => {
     void load();
+    return () => { requestGeneration.current += 1; };
   }, [municipalityId]);
 
   const save = async () => {
+    if (loadFailed || !connection) return;
+    const generation = requestGeneration.current;
     setBusy("save");
     setMessage("");
     try {
       const next = await paymentRequest(municipalityId, "save", form);
+      if (generation !== requestGeneration.current) return;
       setConnection(next);
       setForm((current) => ({
         ...current,
@@ -161,55 +144,63 @@ export function MunicipalPaymentSettings({
         "Configuração salva com segurança. As credenciais não são devolvidas ao navegador.",
       );
     } catch (error) {
+      if (generation !== requestGeneration.current) return;
       setMessage(
-        error instanceof Error ? error.message : "Falha ao salvar a conexão.",
+        municipalCollectionError(error),
       );
     } finally {
-      setBusy("");
+      if (generation === requestGeneration.current) setBusy("");
     }
   };
 
   const test = async () => {
+    if (loadFailed || !connection) return;
+    const generation = requestGeneration.current;
     setBusy("test");
     setMessage("");
     try {
       const next = await paymentRequest(municipalityId, "test");
+      if (generation !== requestGeneration.current) return;
       setConnection(next);
       setMessage(
         `Conexão validada. Boleto: ${next.boletoAvailable ? "disponível" : "não retornado"} · PIX: ${next.pixAvailable ? "disponível" : "não retornado"}.`,
       );
     } catch (error) {
-      setMessage(
-        error instanceof Error ? error.message : "Falha ao testar o provedor.",
-      );
-      void load();
+      if (generation !== requestGeneration.current) return;
+      // Do not call load(): that clears the error and masks the exact reason
+      // a provider test was rejected by Neon or its bank endpoint.
+      setMessage(municipalCollectionError(error));
     } finally {
-      setBusy("");
+      if (generation === requestGeneration.current) setBusy("");
     }
   };
 
   const activate = async () => {
+    if (loadFailed || !connection) return;
+    const generation = requestGeneration.current;
     setBusy("activate");
     setMessage("");
     try {
       const next = await paymentRequest(municipalityId, "activate");
+      if (generation !== requestGeneration.current) return;
       setConnection(next);
       setMessage(
         "Provedor ativado para esta Prefeitura. Novas cobranças passam a usar esta conexão.",
       );
     } catch (error) {
+      if (generation !== requestGeneration.current) return;
       setMessage(
-        error instanceof Error ? error.message : "Falha ao ativar o provedor.",
+        municipalCollectionError(error),
       );
     } finally {
-      setBusy("");
+      if (generation === requestGeneration.current) setBusy("");
     }
   };
 
   return (
-    <div className="space-y-5">
+    <div className="sig-collection-payment-settings space-y-5" data-collection-payment-settings="true">
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
-        <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
+        <div data-collection-payment-card="provider" className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
@@ -240,7 +231,7 @@ export function MunicipalPaymentSettings({
             </div>
           </div>
 
-          <div className="mt-5 grid gap-3 sm:grid-cols-3">
+          <div data-collection-payment-features="true" className="mt-5 grid gap-3 sm:grid-cols-3">
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
               <CreditCard className="h-5 w-5 text-slate-700" />
               <p className="mt-3 text-sm font-semibold text-slate-900">
@@ -274,7 +265,7 @@ export function MunicipalPaymentSettings({
           </div>
         </div>
 
-        <div className="rounded-[24px] border border-slate-200 bg-slate-50 p-5">
+        <div data-collection-payment-card="status" className="rounded-[24px] border border-slate-200 bg-slate-50 p-5">
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white">
               {isActive ? (
@@ -317,7 +308,7 @@ export function MunicipalPaymentSettings({
         </div>
       </div>
 
-      <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
+      <div data-collection-payment-card="credentials" className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
@@ -428,10 +419,17 @@ export function MunicipalPaymentSettings({
           ) : null}
         </div>
 
+        <div role="status" data-municipal-provider-capabilities="true" className="mt-4 rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm leading-6 text-sky-950">
+          {form.provider === "mercado_pago"
+            ? "Mercado Pago: utilize a conta de testes na homologação. A conexão técnica verifica a credencial, mas não confirma uma cobrança real, conciliação ou titularidade municipal. Tokens antigos do ambiente local não são vinculados automaticamente a uma Prefeitura."
+            : form.provider === "bank_direct"
+              ? "Banco ou convênio direto: o cadastro identifica o banco escolhido. A emissão automática permanece indisponível até a integração bancária específica ser homologada."
+              : "PIX/baixa manual: a Tesouraria confere e registra pagamentos. Esta modalidade não consulta pagamentos automaticamente."}
+        </div>
         {message ? (
           <div
             className={`mt-4 rounded-2xl border px-4 py-3 text-sm ${
-              /sucesso|validada|ativado|salva|disponível/i.test(message)
+              isCollectionSuccessMessage(message)
                 ? "border-emerald-200 bg-emerald-50 text-emerald-800"
                 : "border-amber-200 bg-amber-50 text-amber-900"
             }`}
@@ -440,12 +438,13 @@ export function MunicipalPaymentSettings({
           </div>
         ) : null}
 
+        {loadFailed ? <div role="alert" className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm font-semibold text-amber-950"><span>Conexão do provedor não confirmada. Credenciais anteriores protegidas; nenhum salvamento foi realizado.</span><Button type="button" variant="outline" disabled={!!busy} onClick={() => void load()}>Tentar conectar novamente</Button></div> : null}
         <div className="mt-5 flex flex-wrap justify-end gap-2">
           <Button
             type="button"
             variant="outline"
             className="rounded-full"
-            disabled={Boolean(busy)}
+            disabled={Boolean(busy) || loadFailed || !connection}
             onClick={() => void save()}
           >
             {busy === "save" ? "Salvando..." : "Salvar conexão"}
@@ -455,7 +454,7 @@ export function MunicipalPaymentSettings({
             variant="outline"
             className="rounded-full"
             disabled={
-              Boolean(busy) ||
+              Boolean(busy) || loadFailed || !connection ||
               form.provider !== "mercado_pago" ||
               !connection?.credentials_configured
             }
@@ -466,9 +465,9 @@ export function MunicipalPaymentSettings({
           </Button>
           <Button
             type="button"
-            className="rounded-full bg-slate-950 px-5 text-white hover:bg-slate-900"
+            className="sig-collection-payment-activate rounded-full bg-slate-950 px-5 !text-white hover:bg-slate-900"
             disabled={
-              Boolean(busy) ||
+              Boolean(busy) || loadFailed || !connection ||
               (form.provider !== "manual" && !hasValidTest) ||
               isActive
             }

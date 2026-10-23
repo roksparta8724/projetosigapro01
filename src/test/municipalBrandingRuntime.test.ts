@@ -130,7 +130,7 @@ describe("municipal branding runtime resilience", () => {
     expect(surface).toContain("MUNICIPAL LOGO PREMIUM STAGE V17");
     expect(surface).toContain("object-fit:contain !important");
     expect(surface).toContain("transform-origin:center center !important");
-    expect(logo).toContain("Math.max(1, Math.min(5, configuredScale))");
+    expect(logo).toContain("fitMunicipalLogoFrame({");
     expect(settings).toContain("minScale={1}");
   });
 
@@ -142,12 +142,18 @@ describe("municipal branding runtime resilience", () => {
     expect(settings).toContain("const previewFooterDisplayUrl =");
     expect(settings).toContain('data-municipal-logo-live-preview="header"');
     expect(settings).toContain('data-municipal-logo-live-preview="footer"');
-    expect(settings).toContain("imageUrl={previewHeaderDisplayUrl}");
-    expect(settings).toContain("imageUrl={previewFooterDisplayUrl}");
+    expect(settings).toContain("imageUrl={previewHeaderEditorUrl}");
+    expect(settings).toContain("imageUrl={previewFooterEditorUrl}");
     expect(settings).toContain("headerBranding.fallbackLogoUrl");
     expect(settings).toContain("footerBranding.fallbackLogoUrl");
-    expect(settings).toContain("Math.max(1, draftHeaderLogoConfig.scale)");
-    expect(settings).toContain("Math.max(1, draftFooterLogoConfig.scale)");
+    expect(settings).toContain("logoScale: draftHeaderLogoConfig.scale");
+    expect(settings).toContain('onResolvedSource={recordConfirmedHeaderSource}');
+    expect(settings).toContain('onResolvedSource={recordConfirmedFooterSource}');
+    expect(settings).toContain('data-header-original-reference="true"');
+    expect(settings).toContain('data-footer-original-reference="true"');
+    expect(settings).toContain("logoScale: draftFooterLogoConfig.scale");
+    expect(settings).toContain("containBaseRatio={MUNICIPAL_LOGO_BASE_RATIO}");
+    expect(logo).toContain('(variant === "footer" || variant === "header")');
   });
 
   it("keeps preview changes isolated from the page chrome and accepts the stable same-origin logo proxy", () => {
@@ -161,13 +167,19 @@ describe("municipal branding runtime resilience", () => {
     expect(surface).toContain("CONTRASTE DO PREVIEW INSTITUCIONAL V21");
   });
 
-  it("keeps the whole crest visible at 1x with one square geometry in preview and editor", () => {
-    expect(settings).toContain('width: 188, minWidth: 188, maxWidth: 188, height: 188');
+  it("keeps a safe-fit, full-crest original reference and consistent square geometry in the footer", () => {
+    expect(settings).toContain('onResolvedSource={recordConfirmedHeaderSource}');
+    expect(settings).toContain('onResolvedSource={recordConfirmedFooterSource}');
+    expect(settings).not.toContain('width: 188, minWidth: 188, maxWidth: 188, height: 188');
     expect(settings).toContain('viewportClassName="!h-[188px] !w-[188px]"');
-    expect(settings).toContain("draftHeaderLogoConfig.scale <= 1.001 ? 0 : draftHeaderLogoConfig.offsetX");
-    expect(settings).toContain("draftFooterLogoConfig.scale <= 1.001 ? 0 : draftFooterLogoConfig.offsetX");
-    expect(settings).toContain("setDraftHeaderLogoConfig({ scale: 1, offsetX: 0, offsetY: 0 })");
-    expect(settings).toContain("setDraftFooterLogoConfig({ scale: 1, offsetX: 0, offsetY: 0 })");
+    expect(settings).toContain('data-header-original-reference="true"');
+    expect(settings).toContain('setDraftHeaderLogoConfig(fullMunicipalLogoFrame())');
+    expect(settings).toContain('data-footer-original-reference="true"');
+    expect(settings).toContain('data-municipal-logo-live-preview="footer"');
+    expect(settings).toContain('className="relative mx-auto flex h-[144px] w-[144px]');
+    expect(settings).toContain("setDraftFooterLogoConfig(fullMunicipalLogoFrame())");
+    expect(settings).toContain("setDraftHeaderLogoConfig(fullMunicipalLogoFrame())");
+    expect(settings).toContain("setDraftFooterLogoConfig(fullMunicipalLogoFrame())");
     expect(settings.match(/allowPreview=\{false\}/g)?.length).toBeGreaterThanOrEqual(2);
     expect(settings.match(/preparePreviewUrl/g)?.length).toBeGreaterThanOrEqual(2);
     expect(upload).toContain("preparePreviewUrl?: boolean");

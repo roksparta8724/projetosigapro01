@@ -82,16 +82,18 @@ export function buildPixPayload(input: PixPayloadInput) {
 }
 
 export function isValidPixPayload(value: string | null | undefined) {
-  const payload = String(value || "").trim().toUpperCase();
+  // CRC is calculated over the original bytes; uppercasing an email key
+  // invalidates an otherwise correct PIX and causes regeneration on reopen.
+  const payload = String(value || "").trim();
   if (
     !payload.startsWith("000201") ||
-    !payload.includes("BR.GOV.BCB.PIX") ||
-    !/6304[0-9A-F]{4}$/.test(payload)
+    !payload.toUpperCase().includes("BR.GOV.BCB.PIX") ||
+    !/6304[0-9A-Fa-f]{4}$/.test(payload)
   ) {
     return false;
   }
 
-  const expectedCrc = payload.slice(-4);
+  const expectedCrc = payload.slice(-4).toUpperCase();
   const payloadWithoutCrc = payload.slice(0, -4);
   return crc16Ccitt(payloadWithoutCrc) === expectedCrc;
 }

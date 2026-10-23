@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MetricCard } from "@/components/platform/MetricCard";
 import { MarkerSelector } from "@/components/platform/MarkerSelector";
+import { Flag } from "@/components/platform/PremiumIcons";
 import {
   MainContent,
   MainGrid,
@@ -145,6 +146,7 @@ export function ExternalProcessControlPage() {
   useEffect(() => {
     if (
       platformLoading ||
+      !dataReadyForCurrentUser ||
       recoveryAttemptedRef.current ||
       session.id === "unknown" ||
       typeof refreshRemoteStore !== "function"
@@ -155,9 +157,7 @@ export function ExternalProcessControlPage() {
     // Se o store ainda pertence à conta anterior, ou se o banco já terminou
     // de carregar mas nenhum processo vinculado ao profissional apareceu,
     // força uma única revalidação oficial. Nunca cria/migra processo aqui.
-    const needsRecovery =
-      !dataReadyForCurrentUser ||
-      (dataReadyForCurrentUser && visibleRecords.length === 0);
+    const needsRecovery = visibleRecords.length === 0;
 
     if (!needsRecovery) return;
 
@@ -478,10 +478,11 @@ export function ExternalProcessControlPage() {
                               return (
                                 <span
                                   key={`${process.id}-${tag}`}
-                                  className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-700 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                                  data-external-process-marker="true"
+                                  className="inline-flex min-h-9 items-center gap-2.5 rounded-xl border border-sky-500/40 bg-[#102b44] px-3.5 py-2 text-[13px] font-bold text-white shadow-md"
                                 >
-                                  <span className="h-2 w-2 rounded-full" style={{ backgroundColor: marker.color }} />
-                                  {marker.label}
+                                  <Flag className="h-5 w-5 shrink-0 sig-flag-filled" style={{ color: marker.color, fill: marker.color }} />
+                                  <span data-external-marker-label="true" className="!text-white" style={{ color: "#ffffff", WebkitTextFillColor: "#ffffff", fontWeight: 800 }}>{marker.label}</span>
                                 </span>
                               );
                             })}
@@ -577,6 +578,7 @@ export function ExternalProcessControlPage() {
 
                       <div className="flex min-w-0 flex-col justify-center gap-2.5 border-t border-slate-200/80 p-5 dark:border-slate-700/80 2xl:border-t-0">
                         <MarkerSelector
+                          showAppliedMarkers={false}
                           processId={process.id}
                           tags={process.tags}
                           actor={session.name}

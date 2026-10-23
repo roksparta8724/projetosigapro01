@@ -93,6 +93,77 @@ describe("InstitutionalLogo", () => {
     expect(screen.queryByText("SIGAPRO")).not.toBeInTheDocument();
   });
 
+  it("restores a full, uncut municipal header even when an old 1.75x crop was saved", () => {
+    const framed = { ...branding, logoScale: 1.75, logoOffsetX: 20, logoOffsetY: -12 };
+    const { container } = render(
+      <InstitutionalLogo branding={framed} variant="header" contextScope="municipality" />,
+    );
+    expect(container.querySelector("img")).toHaveStyle({
+      transform: "translate(0%, 0%) scale(1)",
+    });
+  });
+
+  it("uses a compact square official logo tile while keeping the same framing ratios as the 188px editor", () => {
+    const scaled = { ...branding, logoScale: 1.2, logoOffsetX: 0, logoOffsetY: 0 };
+    const { container } = render(
+      <InstitutionalLogo branding={scaled} variant="footer" contextScope="municipality" />,
+    );
+    expect(container.firstChild).toHaveClass(
+      "h-[144px]", "w-[144px]", "max-h-[144px]", "max-w-[144px]",
+      "overflow-hidden",
+    );
+    expect(container.firstChild).not.toHaveClass("h-[188px]", "w-[188px]");
+    const image = container.querySelector("img");
+    expect(image).toHaveClass("object-contain", "object-center");
+    expect(image).toHaveStyle({ transform: "translate(0%, 0%) scale(0.7999999999999999)" });
+  });
+
+  it("uses the same safe fit in the real header at zoom 1.50x", () => {
+    const { container } = render(<InstitutionalLogo branding={{
+      ...branding, logoScale: 1.5, logoOffsetX: 0, logoOffsetY: 0,
+    }} variant="header" contextScope="municipality" />);
+    expect(container.querySelector("img")).toHaveStyle({
+      transform: "translate(0%, 0%) scale(1)",
+    });
+  });
+
+  it("fits the entire municipal footer logo when zoom is 1.50x", () => {
+    const { container } = render(
+      <InstitutionalLogo branding={{ ...branding, logoScale: 1.5, logoOffsetX: 0, logoOffsetY: 0 }}
+        variant="footer" contextScope="municipality" />,
+    );
+    expect(container.querySelector("img")).toHaveStyle({
+      transform: "translate(0%, 0%) scale(1)",
+    });
+  });
+
+  it("keeps municipal footer framing independent of the header", () => {
+    const framed = { ...branding, logoScale: 1.2, logoOffsetX: 8, logoOffsetY: 10 };
+    const { container, rerender } = render(
+      <InstitutionalLogo branding={framed} variant="footer" contextScope="municipality" />,
+    );
+    expect(container.querySelector("img")).toHaveStyle({
+      transform: `translate(${8 / 188 * 100}%, ${10 / 188 * 100}%) scale(${1.2 * (2 / 3)})`,
+    });
+    rerender(<InstitutionalLogo branding={{ ...framed, logoScale: 2 }} variant="footer" contextScope="municipality" />);
+    expect(container.querySelector("img")).toHaveStyle({
+      transform: `translate(0%, 0%) scale(${2 * (2 / 3)})`,
+    });
+  });
+
+  it("caps legacy 5.0x values at the correct, independent header/footer limits", () => {
+    for (const variant of ["header", "footer"] as const) {
+      const { container, unmount } = render(<InstitutionalLogo
+        branding={{ ...branding, logoScale: 5, logoOffsetX: 400, logoOffsetY: -300 }}
+        variant={variant} contextScope="municipality"
+      />);
+      expect(container.querySelector("img")).toHaveStyle({
+        transform: variant === "header" ? "translate(0%, 0%) scale(1)" : "translate(0%, 0%) scale(2)",
+      });
+      unmount();
+    }
+  });
+
   it("uses the official local asset for an unconfigured master logo", () => {
     const { container } = render(<InstitutionalLogo branding={{ ...branding, tenantId: "master", logoUrl: "" }} fallbackLabel="SIGAPRO" />);
     const image = screen.getByRole("img", { name: "Logo da prefeitura A" });

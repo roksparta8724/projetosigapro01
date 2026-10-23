@@ -1,6 +1,8 @@
 import { createHash } from "node:crypto";
-import type { ApiReq } from "./municipal-storage";
-import { resolveMercadoPagoMunicipalAccessToken } from "./municipal-payment";
+import type { ApiReq } from "./municipal-storage.js";
+import { resolveMercadoPagoMunicipalAccessToken } from "./municipal-payment.js";
+import { assertGuideProviderSyncAccess, assertGuideProviderWriteAccess, persistGuideCharge, readStoredGuide, storedGuideCharge } from "./guide-persistence.js";
+import { normalizeOfficialBanking } from "../src/lib/bankCodes.js";
 type MercadoPagoEnvironment = "test" | "production";
 
 export type MercadoPagoConnectionCheck = {
@@ -43,13 +45,28 @@ export async function checkMercadoPagoConnection(
   req?: ApiReq,
   municipalityId?: string | null,
 ): Promise<MercadoPagoConnectionCheck> {
-  const resolved = req
-    ? await resolveMercadoPagoMunicipalAccessToken(req, municipalityId)
-    : {
-        token: getMercadoPagoAccessToken(),
-        environment: getMercadoPagoEnvironment(),
-      };
-  const environment = resolved.environment;
+  let resolved: { token: string; environment: MercadoPagoEnvironment };
+  try {
+    resolved = req
+      ? await resolveMercadoPagoMunicipalAccessToken(req, municipalityId)
+      : {
+          token: getMercadoPagoAccessToken(),
+          environment: getMercadoPagoEnvironment(),
+        };
+  } catch (error) {
+    // Health checks must report a missing municipal provider, not crash or
+    // query a globally configured Mercado Pago account.
+    return {
+      ok: false,
+      configured: false,
+      environment: "test",
+      boletoAvailable: false,
+      pixAvailable: false,
+      availableMethods: [],
+      error: error instanceof Error ? error.message : "Conexão municipal indisponível.",
+    };
+  }
+  const environment: MercadoPagoEnvironment = resolved.environment === "production" ? "production" : "test";
   const token = resolved.token;
 
   if (!token) {
@@ -244,6 +261,7 @@ function extractMercadoPagoGuideResult(
           "",
       )
     : "";
+  const banking = normalizeOfficialBanking(String(paymentMethod.barcode_content || ""), String(paymentMethod.digitable_line || ""));
   return {
     ok: true,
     environment,
@@ -254,8 +272,8 @@ function extractMercadoPagoGuideResult(
     statusDetail,
     amount: String(source.total_amount || payment.amount || amountText),
     ticketUrl: String(paymentMethod.ticket_url || ""),
-    barcodeContent: String(paymentMethod.barcode_content || ""),
-    digitableLine: String(paymentMethod.digitable_line || ""),
+    barcodeContent: banking.barcode,
+    digitableLine: banking.digitableLine,
     financialInstitution: String(
       paymentMethod.financial_institution || "Mercado Pago",
     ),
@@ -268,9 +286,7 @@ function hasCompleteGuideBankingData(result: MercadoPagoGuideBoletoResult) {
   const barcodeDigits = String(result.barcodeContent || "").replace(/\D/g, "");
   return (
     (lineDigits.length === 47 || lineDigits.length === 48) &&
-    barcodeDigits.length >= 40 &&
-    barcodeDigits.length <= 48 &&
-    barcodeDigits.length % 2 === 0
+    barcodeDigits.length === 44
   );
 }
 
@@ -343,11 +359,21 @@ function extractMercadoPagoError(
 export async function getMercadoPagoGuideBoletoStatus(
   input: { municipalityId?: string; orderId: string; guideCode: string; amount: number },
   req?: ApiReq,
+  options?: { isolatedSandboxOnly?: boolean },
 ): Promise<MercadoPagoGuideBoletoResult> {
+  const stored = req ? await readStoredGuide(req, input.municipalityId, input.guideCode) : null;
+  if (stored) {
+    if (stored.status === "compensada") return storedGuideCharge(stored);
+    if (!stored.bank_reference || stored.bank_reference !== input.orderId) {
+      throw new Error("Cobrança não vinculada à guia original.");
+    }
+    input = { ...input, guideCode: stored.guide_number, amount: Number(stored.amount) };
+    await assertGuideProviderSyncAccess(req!, stored, options?.isolatedSandboxOnly);
+  }
   const resolved = req
     ? await resolveMercadoPagoMunicipalAccessToken(req, input.municipalityId)
     : { token: getMercadoPagoAccessToken(), environment: getMercadoPagoEnvironment() };
-  const environment = resolved.environment;
+  const environment: MercadoPagoEnvironment = resolved.environment === "production" ? "production" : "test";
   const token = resolved.token;
   if (!token) {
     return { ok: false, environment, error: "Credencial do Mercado Pago não configurada." };
@@ -366,19 +392,54 @@ export async function getMercadoPagoGuideBoletoStatus(
   if (!result) {
     return { ok: false, environment, error: "Não foi possível consultar a situação da cobrança no Mercado Pago." };
   }
-  return result;
+  return stored && req ? persistGuideCharge(req, stored, result, options?.isolatedSandboxOnly) : result;
 }
+/**
+ * QA sandbox billing is only allowed for an already-existing, authorized
+ * unpaid guide in the isolated Neon database. This optional guard MUST be
+ * enforced before ANY external order request. Production uses the old route.
+ */
 export async function createMercadoPagoGuideBoleto(
   input: MercadoPagoGuideBoletoInput,
   req?: ApiReq,
+  options?: { isolatedSandboxOnly?: boolean },
 ): Promise<MercadoPagoGuideBoletoResult> {
+  if (options?.isolatedSandboxOnly) {
+    if (
+      !req ||
+      process.env.SIGAPRO_LOCAL_QA_LAUNCH !== "true" ||
+      process.env.SIGAPRO_LOCAL_QA_BLOCK_EXTERNAL_WRITES !== "true" ||
+      process.env.VITE_SIGAPRO_NEON_ISOLATED !== "true"
+    ) throw new Error("Boleto de teste disponível apenas no localhost:8081 isolado.");
+    const sandboxConnection = await resolveMercadoPagoMunicipalAccessToken(req, input.municipalityId);
+    if (sandboxConnection.environment !== "test") {
+      throw new Error("Conta de produção bloqueada: utilize exclusivamente as credenciais de homologação do Mercado Pago.");
+    }
+  }
+  const stored = req ? await readStoredGuide(req, input.municipalityId, input.guideCode) : null;
+  if (stored) {
+    if (stored.status === "compensada" || (stored.barcode && stored.digitable_line)) {
+      return storedGuideCharge(stored);
+    }
+    if (stored.bank_reference) {
+      return getMercadoPagoGuideBoletoStatus({
+        municipalityId: stored.municipality_id, guideCode: stored.guide_number,
+        orderId: stored.bank_reference, amount: Number(stored.amount),
+      }, req, options);
+    }
+    input = { ...input, guideCode: stored.guide_number, amount: Number(stored.amount), dueDate: stored.due_date };
+    await assertGuideProviderWriteAccess(req!, stored, options?.isolatedSandboxOnly);
+  }
   const resolved = req
     ? await resolveMercadoPagoMunicipalAccessToken(req, input.municipalityId)
     : {
         token: getMercadoPagoAccessToken(),
         environment: getMercadoPagoEnvironment(),
       };
-  const environment = resolved.environment;
+  const environment: MercadoPagoEnvironment = resolved.environment === "production" ? "production" : "test";
+  if (options?.isolatedSandboxOnly && (!stored || environment !== "test")) {
+    throw new Error("Somente guia pré-existente do Neon isolado e credencial de TESTE podem emitir boleto de homologação.");
+  }
   const token = resolved.token;
   const guideCode = normalizeGuideCode(input.guideCode);
   const amount = Number(input.amount);
@@ -413,7 +474,7 @@ export async function createMercadoPagoGuideBoleto(
   const amountText = amount.toFixed(2);
   const externalReference = guideCode;
   const idempotencyKey = stableUuidFromText(
-    `sigapro|${environment}|${guideCode}|${amountText}|${input.dueDate || ""}|v4`,
+    `sigapro|${input.municipalityId || "test"}|${environment}|${stored?.id || guideCode}|v5`,
   );
 
   const payment: Record<string, unknown> = {
@@ -468,6 +529,7 @@ export async function createMercadoPagoGuideBoleto(
     },
   };
 
+  let providerAcceptedOrder = false;
   try {
     const response = await fetch("https://api.mercadopago.com/v1/orders", {
       method: "POST",
@@ -498,12 +560,19 @@ export async function createMercadoPagoGuideBoleto(
       };
     }
 
+    // Once the provider accepts the request, subsequent failures may come
+    // from Neon persistence or from a status lookup, NOT from initial network.
+    providerAcceptedOrder = true;
     let result = extractMercadoPagoGuideResult(
       source,
       environment,
       externalReference,
       amountText,
     );
+
+    // Persist even an incomplete response: a retry must query this order,
+    // never issue another charge because the bank has not supplied the bars yet.
+    let persistedResult = stored && req ? await persistGuideCharge(req, stored, result, options?.isolatedSandboxOnly) : result;
 
     if (!hasCompleteGuideBankingData(result) && result.orderId) {
       const refreshed = await refetchMercadoPagoOrder(
@@ -513,7 +582,10 @@ export async function createMercadoPagoGuideBoleto(
         externalReference,
         amountText,
       );
-      if (refreshed) result = refreshed;
+      if (refreshed) {
+        result = refreshed;
+        persistedResult = stored && req ? await persistGuideCharge(req, stored, result, options?.isolatedSandboxOnly) : result;
+      }
     }
 
     if (!hasCompleteGuideBankingData(result)) {
@@ -525,16 +597,19 @@ export async function createMercadoPagoGuideBoleto(
       };
     }
 
-    return result;
+    return stored && req ? persistedResult : result;
   } catch (error) {
+    const details = error instanceof Error ? error.message : "Falha desconhecida.";
     return {
       ok: false,
       environment,
       externalReference,
-      error:
-        error instanceof Error
-          ? `Falha de rede ao criar a cobrança da guia: ${error.message}`
-          : "Falha de rede ao criar a cobrança da guia.",
+      errorCode: providerAcceptedOrder
+        ? "PROVIDER_ACCEPTED_PERSISTENCE_OR_SYNC_FAILED"
+        : "PROVIDER_REQUEST_FAILED",
+      error: providerAcceptedOrder
+        ? `O Mercado Pago respondeu à emissão, mas o SIGAPRO não conseguiu concluir a gravação ou consulta no Neon: ${details}. Utilize a mesma guia e a mesma ação; o identificador de idempotência permanece fixo para evitar duplicação.`
+        : `Não foi possível concluir a comunicação com o Mercado Pago: ${details}. A mesma guia conserva a chave de idempotência em uma nova tentativa.`,
     };
   }
 }

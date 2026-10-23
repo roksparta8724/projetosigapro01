@@ -6,7 +6,7 @@
  */
 
 import { DeleteObjectCommand, S3Client } from "@aws-sdk/client-s3";
-import { resolveMunicipalDocumentTarget } from "../municipal-storage";
+import { resolveMunicipalDocumentTarget } from "../municipal-storage.js";
 
 type Req = import("http").IncomingMessage & { method?: string; body?: unknown };
 type Res = import("http").ServerResponse;
@@ -195,6 +195,10 @@ export default async function handler(req: Req, res: Res) {
     }
 
     const municipalityId = extractMunicipalityId(objectKey);
+    if (objectKey.includes("/dam-originals/")) {
+      json(res, 409, { error: "O PDF original da DAM não pode ser removido." });
+      return;
+    }
     const municipalTarget = municipalityId
       ? await resolveMunicipalDocumentTarget(req, municipalityId, bucket, objectKey)
       : null;

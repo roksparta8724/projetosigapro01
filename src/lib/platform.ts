@@ -24,6 +24,7 @@ export type Permission =
   | "view_platform_metrics"
   | "manage_tenant_users"
   | "manage_tenant_branding"
+  | "view_collection_settings"
   | "manage_protocols"
   | "manage_own_profile"
   | "review_processes"
@@ -635,6 +636,7 @@ export interface PaymentGuideEntry {
   digitableLine?: string;
   bankReference?: string;
   bankPaymentId?: string;
+  ticketUrl?: string;
   bankStatus?: string;
   bankStatusDetail?: string;
   bankAuthenticatedAt?: string;
@@ -650,6 +652,7 @@ export interface ProcessDocument {
   signed: boolean;
   reviewStatus?: "pendente" | "aprovado" | "rejeitado";
   reviewedBy?: string;
+  reviewedByProfileId?: string;
   annotations?: Array<{
     id: string;
     kind?: "text" | "highlight";
@@ -691,6 +694,8 @@ export interface TimelineEntry {
   detail: string;
   actor: string;
   at: string;
+  /** Only explicitly public movements may be shown in the external history. */
+  visibleToExternal?: boolean;
 }
 
 export interface AuditEntry {
@@ -1351,12 +1356,13 @@ const rolePermissions: Record<UserRole, Permission[]> = {
     "manage_tenant_branding",
     "manage_own_profile",
     "view_own_processes",
+    "view_collection_settings",
   ],
-  prefeitura_supervisor: ["manage_protocols", "review_processes", "dispatch_interdepartmental", "manage_fiscal_financial", "sign_documents", "manage_own_profile", "view_own_processes"],
-  analista: ["manage_protocols", "review_processes", "dispatch_interdepartmental", "sign_documents", "manage_own_profile", "view_own_processes"],
-  financeiro: ["manage_financial", "manage_fiscal_financial", "sign_documents", "manage_own_profile", "view_own_processes"],
-  setor_intersetorial: ["manage_protocols", "dispatch_interdepartmental", "sign_documents", "manage_own_profile", "view_own_processes"],
-  fiscal: ["review_processes", "manage_fiscal_financial", "manage_own_profile", "view_own_processes"],
+  prefeitura_supervisor: ["manage_protocols", "review_processes", "dispatch_interdepartmental", "manage_fiscal_financial", "sign_documents", "manage_own_profile", "view_own_processes", "view_collection_settings"],
+  analista: ["manage_protocols", "review_processes", "dispatch_interdepartmental", "sign_documents", "manage_own_profile", "view_own_processes", "view_collection_settings"],
+  financeiro: ["manage_financial", "manage_fiscal_financial", "sign_documents", "manage_own_profile", "view_own_processes", "view_collection_settings"],
+  setor_intersetorial: ["manage_protocols", "dispatch_interdepartmental", "sign_documents", "manage_own_profile", "view_own_processes", "view_collection_settings"],
+  fiscal: ["review_processes", "manage_fiscal_financial", "manage_own_profile", "view_own_processes", "view_collection_settings"],
   profissional_externo: ["submit_processes", "view_own_processes", "sign_documents", "manage_own_profile"],
   property_owner: ["view_own_processes", "manage_own_profile"],
   proprietario_consulta: ["view_own_processes", "manage_own_profile"],
@@ -2530,6 +2536,7 @@ export function can(session: SessionUser, permission: Permission) {
   // Funcionários internos recebem capacidades somente dentro da própria pasta.
   // Isso também protege acesso por URL direta; não basta esconder o item no menu.
   if (isInternalRole(session.role)) {
+    if (permission === "view_collection_settings") return true;
     if (permission === "manage_tenant_users" || permission === "manage_tenant_branding") return false;
     if (permission === "manage_own_profile" || permission === "view_own_processes") return true;
 
@@ -2863,6 +2870,26 @@ export function canTrackProcess(session: SessionUser, process: ProcessRecord, sc
   // operacional continua restrita por canAccessProcess/getVisibleProcessesByScope,
   // portanto ampliar a consulta não mistura as filas dos departamentos.
   return true;
+}
+
+/** Consulta documental autorizada, sem herdar privilegios de escrita. */
+export function canViewMunicipalProcessDocument(
+  session: SessionUser,
+  process: ProcessRecord,
+  scopeId?: string | null,
+) {
+  if (session.accountStatus === "blocked" || session.accountStatus === "inactive") return false;
+  if (session.role !== "master_admin" && session.role !== "master_ops") {
+    const actorScope = getOperationalScopeId(session);
+    if (!actorScope || !matchesOperationalScope(actorScope, process)) return false;
+  }
+  if (!canTrackProcess(session, process, scopeId)) return false;
+  if (canAccessProcess(session, process, scopeId)) return true;
+  if (!isInternalRole(session.role)) return false;
+  // A lotacao no organograma precisa identificar a area de Analise/Urbanismo.
+  if (resolveSessionOperationalArea(session) !== "analise") return false;
+  return session.role === "analista" || session.role === "prefeitura_supervisor" ||
+    /diretor|diretora|secretari[oa]/i.test(session.title || "");
 }
 
 export function canAccessProcess(session: SessionUser, process: ProcessRecord, scopeId?: string | null) {

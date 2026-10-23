@@ -81,14 +81,57 @@
 
         document.documentElement.style.setProperty("--sig-initial-bg", initialBackground);
 
-        var initialAppZoom =
-          publicPaths.indexOf(path) >= 0 || isFullDocumentRoute ? "1" : "0.85";
+        // Em uma rota interna já autenticada, preserve também a faixa visual do
+        // topbar enquanto o bundle React executa. Isto não é um loading/shell:
+        // é apenas o fundo do documento vazio, evitando um flash totalmente
+        // branco entre F5 e o primeiro commit real da aplicação.
+        try {
+          var cachedSessionRaw = window.localStorage.getItem("sigapro.platform.session.v1");
+          var cachedSession = cachedSessionRaw ? JSON.parse(cachedSessionRaw) : null;
+          var isInternalRoute =
+            publicPaths.indexOf(path) < 0 &&
+            authPaths.indexOf(path) < 0 &&
+            path.indexOf("/cliente/") !== 0;
+          if (
+            isInternalRoute &&
+            cachedSession &&
+            cachedSession.id &&
+            cachedSession.id !== "unknown" &&
+            cachedSession.accountStatus !== "blocked" &&
+            cachedSession.accountStatus !== "inactive"
+          ) {
+            var rawEffectiveThemeForBoot = window.localStorage.getItem("sigapro.effective-theme.v2");
+            var effectiveThemeForBoot = rawEffectiveThemeForBoot
+              ? JSON.parse(rawEffectiveThemeForBoot)
+              : null;
+            var initialTopbar =
+              effectiveThemeForBoot &&
+              typeof effectiveThemeForBoot.primary === "string" &&
+              effectiveThemeForBoot.primary.trim()
+                ? effectiveThemeForBoot.primary.trim()
+                : "#0b3147";
+            document.documentElement.style.setProperty("--sig-initial-topbar", initialTopbar);
+            document.documentElement.setAttribute("data-sigapro-cached-internal", "true");
+          }
+        } catch (error) {
+          // Continuidade visual é opcional; nunca bloquear a aplicação.
+        }
+
+        // Mesma escala desde o primeiro frame.
+        var hostName = window.location.hostname.toLowerCase();
+        var rootDomain = "sigapromunicipal.com.br";
+        var forcedTenant = new URLSearchParams(window.location.search).get("tenant") ||
+          new URLSearchParams(window.location.search).get("subdomain") || "";
+        var subdomain = forcedTenant.toLowerCase() ||
+          (hostName.endsWith(".localhost") ? hostName.slice(0, -".localhost".length) : "") ||
+          (hostName.endsWith("." + rootDomain) ? hostName.slice(0, -(rootDomain.length + 1)) : "");
+        var reservedSubdomain = ["www", "app", "admin", "api", "support", "docs", "mail", "root", "status", "auth"];
+        var isTenantHost = !!subdomain && reservedSubdomain.indexOf(subdomain) === -1;
+        // Uma escala para todos os dominios e rotas.
+        var initialAppZoom = "1";
 
         document.documentElement.style.zoom = initialAppZoom;
-        document.documentElement.setAttribute(
-          "data-page-zoom",
-          initialAppZoom === "1" ? "100" : "85"
-        );
+        document.documentElement.setAttribute("data-page-zoom", "100");
         document.documentElement.setAttribute("data-sigapro-initial-render", "true");
       })();
     </script>

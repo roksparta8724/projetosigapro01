@@ -1,4 +1,4 @@
-const CACHE_VERSION = "sigapro-enterprise-v3";
+const CACHE_VERSION = "sigapro-enterprise-v6";
 const ASSET_CACHE = `${CACHE_VERSION}:assets`;
 
 self.addEventListener("install", (event) => {
@@ -47,5 +47,17 @@ self.addEventListener("fetch", (event) => {
 
   if (url.pathname.startsWith("/assets/")) {
     event.respondWith(cacheFirst(request, ASSET_CACHE));
+    return;
+  }
+
+  // Fotos e brasões são dados mutáveis por usuário/Prefeitura. Nunca
+  // armazenar respostas dessas rotas no Cache Storage do Service Worker:
+  // cache-first devolvia a foto antiga após salvar e mudar de conta.
+  // Deixar o navegador buscar a versão autorizada diretamente da rede.
+  if (
+    url.pathname === "/api/profile-avatar-open" ||
+    url.pathname === "/api/municipality-logo-open"
+  ) {
+    return;
   }
 });

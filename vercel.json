@@ -8,6 +8,42 @@
           "value": "no-cache, no-store, must-revalidate"
         }
       ]
+    },
+    {
+      "source": "/",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/index.html",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/api/profile-avatar-open",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "private, no-store"
+        }
+      ]
+    },
+    {
+      "source": "/api/municipality-logo-open",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "private, no-store"
+        }
+      ]
     }
   ],
   "rewrites": [
@@ -68,7 +104,10 @@
     "deploymentEnabled": {
       "workbench-sigapro-polish-no-deploy-20261009": false,
       "fix/analise-premium-cadastro-20261013": false,
-      "workbench/logo-preview-premium-no-deploy-20261016": false
+      "workbench/logo-preview-premium-no-deploy-20261016": false,
+      "work/analysis-sheet-official-persistence-local-only-20261020": false,
+      "fix/habite-se-alvara-summary-contrast-20261020": false,
+      "fix/vercel-serverless-esm-complete-no-deploy-20261020": false
     }
   }
 }

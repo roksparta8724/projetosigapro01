@@ -2,7 +2,7 @@ import {
   checkMercadoPagoConnection,
   createMercadoPagoGuideBoleto,
   getMercadoPagoGuideBoletoStatus,
-} from "../server/mercadopago";
+} from "../server/mercadopago.js";
 import {
   type MunicipalPaymentConnection,
   decryptPaymentAccessToken,
@@ -12,8 +12,8 @@ import {
   paymentCredentialFingerprint,
   paymentWebhookFingerprint,
   testMercadoPagoToken,
-} from "../server/municipal-payment";
-import { callDataApiRpc } from "../server/municipal-storage";
+} from "../server/municipal-payment.js";
+import { callDataApiRpc } from "../server/municipal-storage.js";
 
 type Req = import("http").IncomingMessage & {
   method?: string;
@@ -89,15 +89,33 @@ export default async function handler(req: Req, res: Res) {
 
     try {
       const body = await readJsonBody(req);
+      const guideCode = String(body.guideCode || "");
       const result = await getMercadoPagoGuideBoletoStatus(
         {
           municipalityId: body.municipalityId ? String(body.municipalityId) : undefined,
           orderId: String(body.orderId || ""),
-          guideCode: String(body.guideCode || ""),
+          guideCode,
           amount: Number(body.amount || 0),
         },
         req,
       );
+
+      if (result.ok) {
+        await rpcOrThrow(req, "persist_payment_guide_provider_charge_v1", {
+          _guide_code: guideCode,
+          _order_id: result.orderId || null,
+          _payment_id: result.paymentId || null,
+          _status: result.status || null,
+          _status_detail: result.statusDetail || null,
+          _authenticated_at: result.authenticatedAt || null,
+          _payment_provider: "mercado_pago",
+          _provider_environment: result.environment || null,
+          _barcode: result.barcodeContent || null,
+          _digitable_line: result.digitableLine || null,
+          _ticket_url: result.ticketUrl || null,
+        });
+      }
+
       json(res, result.ok ? 200 : 400, result);
     } catch (error) {
       json(res, 400, {
@@ -244,16 +262,33 @@ export default async function handler(req: Req, res: Res) {
 
     try {
       const body = await readJsonBody(req);
+      const guideCode = String(body.guideCode || "");
       const result = await createMercadoPagoGuideBoleto(
         {
           municipalityId: body.municipalityId ? String(body.municipalityId) : undefined,
-          guideCode: String(body.guideCode || ""),
+          guideCode,
           amount: Number(body.amount || 0),
           dueDate: body.dueDate ? String(body.dueDate) : undefined,
           description: body.description ? String(body.description) : undefined,
         },
         req,
       );
+
+      if (result.ok) {
+        await rpcOrThrow(req, "persist_payment_guide_provider_charge_v1", {
+          _guide_code: guideCode,
+          _order_id: result.orderId || null,
+          _payment_id: result.paymentId || null,
+          _status: result.status || null,
+          _status_detail: result.statusDetail || null,
+          _authenticated_at: result.authenticatedAt || null,
+          _payment_provider: "mercado_pago",
+          _provider_environment: result.environment || null,
+          _barcode: result.barcodeContent || null,
+          _digitable_line: result.digitableLine || null,
+          _ticket_url: result.ticketUrl || null,
+        });
+      }
 
       json(res, result.ok ? 201 : 400, result);
     } catch (error) {

@@ -6,8 +6,8 @@
  * usando S3 presigned GET URL via @aws-sdk/s3-request-presigner.
  */
 
-import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
-import { resolveMunicipalDocumentTarget } from "../municipal-storage";
+import { GetObjectCommand, HeadObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { callDataApiRpc, resolveMunicipalDocumentTarget } from "../municipal-storage.js";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 type Req = import("http").IncomingMessage & { method?: string; body?: unknown };
@@ -152,6 +152,16 @@ export default async function handler(req: Req, res: Res) {
         : 21600;
 
     const municipalityId = extractMunicipalityId(objectKey);
+    if (objectKey.includes("/dam-originals/")) {
+      const match = /^municipalities\/([a-f0-9-]{36})\/processes\/([a-f0-9-]{36})\/dam-originals\/([a-f0-9-]{36})\/[a-f0-9]{64}\.pdf$/.exec(objectKey);
+      if (!match) { json(res, 400, { error: "Referência do PDF original inválida." }); return; }
+      const allowed = await callDataApiRpc(req, "authorize_payment_guide_original_read_v1", {
+        _guide_id: match[3], _municipality_id: match[1], _process_id: match[2], _object_key: objectKey,
+      });
+      if (!allowed.ok || allowed.payload !== true) {
+        json(res, allowed.status === 401 ? 401 : 403, { error: "Sem acesso ao PDF original desta guia." }); return;
+      }
+    }
     const municipalTarget = municipalityId
       ? await resolveMunicipalDocumentTarget(req, municipalityId, bucket, objectKey)
       : null;
@@ -179,23 +189,49 @@ export default async function handler(req: Req, res: Res) {
       throw new Error("Variáveis R2 ausentes no ambiente.");
     }
 
-    const client = new S3Client({
-      region: "auto",
-      endpoint,
-      credentials: {
-        accessKeyId,
-        secretAccessKey,
-      },
-    });
+    let signedUrl = "";
+    let lastError: unknown = null;
 
-    const signedUrl = await getSignedUrl(
-      client,
-      new GetObjectCommand({
-        Bucket: bucket,
-        Key: objectKey,
-      }),
-      { expiresIn: ttl },
-    );
+    for (const endpoint of getR2EndpointCandidates()) {
+      const client = new S3Client({
+        region: "auto",
+        endpoint,
+        credentials: {
+          accessKeyId,
+          secretAccessKey,
+        },
+      });
+
+      try {
+        // O upload já possui fallback entre endpoints. A leitura precisa localizar
+        // fisicamente o MESMO objeto antes de assinar, ou uma URL válida pode
+        // apontar para a conta errada e retornar 404 somente em produção.
+        await client.send(
+          new HeadObjectCommand({
+            Bucket: bucket,
+            Key: objectKey,
+          }),
+        );
+
+        signedUrl = await getSignedUrl(
+          client,
+          new GetObjectCommand({
+            Bucket: bucket,
+            Key: objectKey,
+          }),
+          { expiresIn: ttl },
+        );
+        break;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+
+    if (!signedUrl) {
+      throw lastError instanceof Error
+        ? lastError
+        : new Error("Objeto não encontrado no armazenamento R2 configurado.");
+    }
 
     json(res, 200, { signedUrl, bucket: requestedBucket, resolvedBucket: bucket, objectKey, storageProvider: "sigapro_r2" });
   } catch (error) {

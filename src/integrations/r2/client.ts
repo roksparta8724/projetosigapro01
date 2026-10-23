@@ -7,8 +7,10 @@ export type R2UploadResult = {
 };
 
 const apiBase = (import.meta.env.VITE_R2_API_BASE || "").toString().replace(/\/+$/, "");
+const isolatedQa = import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true";
 
 function buildApiUrl(path: string) {
+  if (isolatedQa) return path.startsWith("/") ? path : `/${path}`;
   if (!apiBase) return path;
   const normalized = path.startsWith("/") ? path : `/${path}`;
   return `${apiBase}${normalized}`;
@@ -16,6 +18,7 @@ function buildApiUrl(path: string) {
 
 function buildApiCandidates(path: string) {
   const normalized = path.startsWith("/") ? path : `/${path}`;
+  if (isolatedQa) return [normalized]; // QA must NEVER fall back to a Vercel/R2 production API.
   if (!apiBase) return [normalized];
 
   const remote = `${apiBase}${normalized}`;
@@ -78,6 +81,33 @@ export function getPublicUrl(objectKey: string, baseOverride?: string) {
   return `${base.replace(/\/+$/, "")}/${objectKey.replace(/^\/+/, "")}`;
 }
 
+/** Recover a stable R2 object reference from older short-lived signed URLs.
+ * Accept ONLY the requesting municipality's legislation keys hosted by R2.
+ * Avoid using an arbitrary external URL as the source of a storage object key.
+ */
+export function getStableMunicipalLegislationReference(
+  reference: string | null | undefined,
+  municipalityId?: string | null,
+): string {
+  const raw = String(reference || "").trim();
+  if (!raw || raw.startsWith("r2:")) return raw;
+  const id = String(municipalityId || "").trim().toLowerCase();
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(id)) return raw;
+  try {
+    const url = new URL(raw);
+    if (url.protocol !== "https:" || !/(^|\.)r2\.cloudflarestorage\.com$/i.test(url.hostname)) return raw;
+    const path = decodeURIComponent(url.pathname);
+    const prefix = `/municipalities/${id}/legislation`;
+    const start = path.toLowerCase().indexOf(prefix);
+    if (start < 0) return raw;
+    const objectKey = path.slice(start + 1);
+    if (!/^municipalities\/[0-9a-f-]{36}\/legislation(?:[-/]|$)/i.test(objectKey)) return raw;
+    return `r2:${objectKey}`;
+  } catch {
+    return raw;
+  }
+}
+
 export function getLegislationOpenUrl(reference: string) {
   const raw = String(reference || "").trim();
   if (!raw) return "";
@@ -104,11 +134,11 @@ export function getLegacyProfileAvatarOpenUrl(sourceUrl: string | null | undefin
     return raw;
   }
 
-  // Avatar legado deve sempre usar a API do MESMO host da aplicação.
-  // Em produção, VITE_R2_API_BASE pode apontar para outro host/ambiente e não
-  // deve participar da renderização do perfil. O rewrite do Vercel encaminha
-  // esta rota internamente para a função consolidada /api/r2.
-  return `/api/profile-avatar-open?source=${encodeURIComponent(raw)}`;
+  // O bucket legado "avatars" é público. Para a primeira pintura do perfil
+  // usamos a própria URL pública, evitando uma função serverless no caminho
+  // crítico do F5. UserAvatar mantém /api/profile-avatar-open como fallback
+  // caso a origem legada fique temporariamente indisponível.
+  return raw;
 }
 
 export function getMunicipalityLogoOpenUrl(objectKey: string | null | undefined) {
