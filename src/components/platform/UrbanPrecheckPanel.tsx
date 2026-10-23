@@ -282,6 +282,99 @@ export function UrbanPrecheckPanel({
       />
       <UrbanLegalKnowledgeDesk municipalityId={municipalityId} canEdit={false}
         onUseReference={() => { /* Somente a administração municipal pode alterar o cadastro normativo. */ }} />
+
+      <div data-urban-legal-conditions="true"
+        className="mt-4 rounded-[20px] border border-sky-200 bg-sky-50/70 p-4 text-slate-900 dark:border-sky-600/40 dark:bg-[#122c44] dark:text-slate-100">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="flex items-center gap-2 text-sm font-extrabold text-slate-950 dark:text-white">
+            <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-300" />
+            Conferência de exceções e condições legais
+          </p>
+          <span className="rounded-full border border-sky-200 bg-white px-3 py-1 text-xs font-bold text-slate-800 dark:border-sky-600 dark:bg-slate-900 dark:text-slate-100">
+            {conditionalReferences.length} referência(s) sinalizada(s)
+          </span>
+        </div>
+        <p className="mt-2 text-xs leading-5 text-slate-700 dark:text-slate-200">
+          Sinais do acervo da mesma prefeitura e do mesmo parâmetro, ainda SEM prova de que a lei
+          se aplica ao imóvel. Verifique documento integral, zona, uso, data, anexos e exceções.
+          Ausência de sinais NÃO comprova ausência de condições legais.
+        </p>
+        {legalCatalogError ? (
+          <p role="alert" className="mt-3 rounded-xl border border-rose-500/50 bg-rose-950/60 p-3 text-xs text-rose-100">
+            Acervo indisponível: {legalCatalogError}. O registro de nova pré-conferência está bloqueado
+            até que a leitura municipal seja restabelecida.
+          </p>
+        ) : null}
+        {!legalCatalogReady && !legalCatalogError ? (
+          <p role="status" className="mt-3 text-xs text-slate-600 dark:text-slate-200">Consultando possíveis exceções no acervo municipal...</p>
+        ) : null}
+        {legalCatalogReady && !legalCatalogError && conditionalReferences.length === 0 ? (
+          <p className="mt-3 rounded-xl border border-amber-300/50 bg-amber-50 p-3 text-xs text-amber-950 dark:bg-[#3b311c] dark:text-amber-100">
+            Nenhum trecho condicional reconhecido no acervo disponível. Confira também as leis,
+            regulamentações e documentos originais; a consulta automática não é exaustiva.
+          </p>
+        ) : null}
+        <div className="mt-3 max-h-[380px] space-y-2 overflow-y-auto">
+          {conditionalReferences.map(flag => {
+            const checked = legalReview.evidenceIds.includes(flag.evidenceId);
+            return (
+              <article key={flag.evidenceId} className="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-600 dark:bg-[#0b1d31]">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <strong className="text-xs text-slate-950 dark:text-white">
+                    {URBAN_METRICS.find(item => item.key === flag.metric)?.label || flag.metric} · Página {flag.page}
+                  </strong>
+                  <span className="text-xs font-semibold text-amber-800 dark:text-amber-200">{flag.why}</span>
+                </div>
+                <p className="mt-1 break-words text-xs text-slate-600 dark:text-slate-300">
+                  {flag.documentTitle} · SHA-256 {flag.documentSha256.slice(0, 16)}…
+                </p>
+                <p className="mt-2 break-words text-xs leading-5 text-slate-800 dark:text-slate-100">{flag.excerpt}</p>
+                <label className="mt-3 flex items-start gap-2 text-xs font-semibold text-slate-800 dark:text-slate-100">
+                  <input type="checkbox" checked={checked} disabled={readOnly}
+                    aria-label={"Revisado: " + flag.documentTitle + " página " + flag.page}
+                    onChange={event => setLegalReview(previous => ({
+                      ...previous,
+                      evidenceIds: event.target.checked
+                        ? [...previous.evidenceIds.filter(id => id !== flag.evidenceId), flag.evidenceId]
+                        : previous.evidenceIds.filter(id => id !== flag.evidenceId),
+                    }))} className="mt-0.5" />
+                  Conferi a origem, o trecho integral e a possível condição (não implica aplicabilidade).
+                </label>
+              </article>
+            );
+          })}
+        </div>
+        {conditionalReferences.length > 0 ? (
+          <div className="mt-3 space-y-3">
+            <label className="flex items-start gap-2 text-xs font-semibold text-slate-800 dark:text-slate-100">
+              <input type="checkbox" checked={legalReview.documentScopeConfirmed} disabled={readOnly}
+                aria-label="Confirmei o escopo legal do processo"
+                onChange={event => setLegalReview(previous => ({
+                  ...previous, documentScopeConfirmed: event.target.checked,
+                }))} className="mt-0.5"/>
+              Examinei a norma integral e conferi zona, uso, data de vigência, ressalvas,
+              tabelas e a pertinência das referências ao processo.
+            </label>
+            <label className="block text-xs font-bold text-slate-800 dark:text-slate-100">
+              Fundamentação do analista (obrigatória para condições sinalizadas)
+              <textarea maxLength={1200} value={legalReview.note}
+                disabled={readOnly} aria-label="Fundamentação da conferência legal"
+                onChange={event=>setLegalReview(previous=>({...previous,note:event.target.value}))}
+                placeholder="Explique qual artigo se aplica, quais exceções verificou e por que a regra é pertinente."
+                className="mt-1 min-h-24 w-full rounded-xl border border-slate-300 bg-white p-3 text-sm text-slate-900 placeholder:text-slate-500 dark:border-slate-600 dark:bg-[#091a2b] dark:text-white dark:placeholder:text-slate-400"/>
+            </label>
+            {legalReviewIssue ? (
+              <p role="status" className="rounded-xl border border-amber-500/30 bg-amber-50 p-3 text-xs text-amber-950 dark:bg-[#3a2f1b] dark:text-amber-100">
+                {legalReviewIssue}
+              </p>
+            ) : (
+              <p role="status" className="text-xs font-bold text-emerald-800 dark:text-emerald-300">
+                Conferência contextual pronta para registro consultivo no histórico.
+              </p>
+            )}
+          </div>
+        ) : null}
+      </div>
       {loading ? <p role="status" className="mt-4 flex items-center gap-2 text-sm text-slate-500"><Loader2 className="h-4 w-4 animate-spin" /> Consultando cadastro normativo municipal...</p> : null}
       {!loading && !regulation ? (
         <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100">
@@ -354,19 +447,26 @@ export function UrbanPrecheckPanel({
               const definition = URBAN_METRICS.find((metric) => metric.key === rule.metric)!;
               const result = findings.find((finding) => finding.metric === rule.metric);
               const status = result?.status || "missing_evidence";
+              const conditional = conditionalReferences.some(item => item.metric === rule.metric);
               return (
                 <div key={rule.metric} className="rounded-2xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-900">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <p className="font-bold text-slate-950 dark:text-white">{definition.label}</p>
                     <span className={"rounded-full px-3 py-1 text-xs font-bold " + (
-                      status === "attention" ? "bg-amber-100 text-amber-950 dark:bg-amber-900 dark:text-amber-50" :
+                      (conditional || status === "attention") ? "bg-amber-100 text-amber-950 dark:bg-amber-900 dark:text-amber-50" :
                       status === "within_limit" ? "bg-emerald-100 text-emerald-950 dark:bg-emerald-900 dark:text-emerald-50" :
                       "bg-slate-200 text-slate-800 dark:bg-slate-700 dark:text-slate-100"
                     )}>
-                      {status === "attention" ? "Requer revisão" :
-                        status === "within_limit" ? "Dentro do limite informado" : "Sem evidência"}
+                      {conditional ? "Condição legal: conferir" :
+                        status === "attention" ? "Requer revisão" :
+                        status === "within_limit" ? "Comparação numérica dentro do limite" : "Sem evidência"}
                     </span>
                   </div>
+                  {conditional ? (
+                    <p className="mt-1 text-xs font-semibold text-amber-800 dark:text-amber-200">
+                      Há referências com ressalvas ou condições no acervo. A comparação numérica NÃO resolve a aplicação da norma.
+                    </p>
+                  ) : null}
                   <p className="mt-1 text-xs leading-5 text-slate-600 dark:text-slate-300">
                     Limite: {definition.direction === "minimum" ? "mínimo " : "máximo "}{rule.limit}{definition.unit ? " " + definition.unit : ""}
                     {" · "}{rule.reference}
@@ -402,7 +502,7 @@ export function UrbanPrecheckPanel({
                   </p>
                 </div>
                 <Button type="button" variant="outline" className="border-amber-300 bg-white text-slate-900"
-                  onClick={() => void copyDraft()}>
+                  disabled={!legalReviewReady} onClick={() => void copyDraft()}>
                   <Copy className="mr-2 h-4 w-4" /> Copiar minuta
                 </Button>
               </div>
@@ -447,6 +547,12 @@ export function UrbanPrecheckPanel({
                     <CheckCircle2 className="h-4 w-4 text-emerald-600" />}
                   {historicRules ? historicalFindings.filter((item) => item.status === "attention").length + " alertas" : "Norma arquivada indisponível"} · Registro consultivo
                 </p>
+                {entry.legal_review?.note ? (
+                  <div data-urban-review-audit="true" className="w-full rounded-lg border border-sky-200 bg-sky-50 p-3 text-xs leading-5 text-slate-800 dark:border-sky-700 dark:bg-[#132b43] dark:text-slate-100">
+                    <p className="font-bold">Revisão contextual registrada · {entry.legal_review.evidence_ids?.length || 0} referência(s)</p>
+                    <p className="mt-1 whitespace-pre-wrap break-words">{entry.legal_review.note}</p>
+                  </div>
+                ) : null}
               </div>
             );
           })}
