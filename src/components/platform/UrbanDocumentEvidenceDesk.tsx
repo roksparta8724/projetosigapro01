@@ -1,12 +1,14 @@
-import { useEffect, useMemo, useState } from "react";
-import { BookOpenCheck, FileText, Link2, ShieldAlert } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { BookOpenCheck, FileText, Link2, Loader2, ScanText, ShieldAlert } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import type { ProcessRecord } from "@/lib/platform";
 import { buildProcessPath } from "@/lib/platform";
-import { buildUrbanTextEvidence, isUploadedPdfDocument, suggestUrbanTextSignals } from "@/lib/urbanTextEvidence";
+import { buildUrbanTextEvidence, findUrbanPdfEvidenceCandidates, isUploadedPdfDocument, suggestUrbanTextSignals, type UrbanPdfEvidenceCandidate } from "@/lib/urbanTextEvidence";
+import { getSignedUrlForObjectStrict } from "@/integrations/r2/client";
+import { downloadUrbanPdfBytes, extractUrbanPdfText, type UrbanPdfTextResult } from "@/lib/urbanPdfTextReader";
 import type { UrbanMetric } from "@/lib/urbanPrecheck";
 
 type Props = {
@@ -31,19 +33,102 @@ export function UrbanDocumentEvidenceDesk({ process, readOnly, allowedMetrics, o
   const [excerpt, setExcerpt] = useState("");
   const [metric, setMetric] = useState<UrbanMetric | "">("");
   const [notice, setNotice] = useState("");
+  const [readStatus, setReadStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [readProgress, setReadProgress] = useState("");
+  const [extracted, setExtracted] = useState<UrbanPdfTextResult | null>(null);
+  const readAbort = useRef<AbortController | null>(null);
 
   const selected = pdfs.find((doc) => doc.id === documentId) || null;
   const signals = useMemo(() => suggestUrbanTextSignals(excerpt), [excerpt]);
   const allowed = new Set(allowedMetrics.map((item) => item.key));
   const knownSignals = signals.filter((item) => allowed.has(item.metric));
+  const foundCandidates = useMemo(
+    () => (extracted ? findUrbanPdfEvidenceCandidates(extracted.pages) : [])
+      .filter((candidate) => allowed.has(candidate.metric)),
+    [extracted, allowedMetrics],
+  );
 
   useEffect(() => {
+    readAbort.current?.abort();
+    readAbort.current = null;
+    setExtracted(null);
+    setReadStatus("idle");
+    setReadProgress("");
     setDocumentId("");
     setPageText("1");
     setExcerpt("");
     setMetric("");
     setNotice("");
   }, [process.id]);
+
+  const resetPdfRead = (selectedId: string) => {
+    readAbort.current?.abort();
+    readAbort.current = null;
+    setExtracted(null);
+    setReadStatus("idle");
+    setReadProgress("");
+    setPageText("1");
+    setExcerpt("");
+    setMetric("");
+    setDocumentId(selectedId);
+    setNotice("");
+  };
+
+  const preReadDocument = async () => {
+    if (!selected || !selected.filePath || readStatus === "loading") {
+      setNotice("Selecione um PDF anexado com arquivo original disponível.");
+      return;
+    }
+    const controller = new AbortController();
+    readAbort.current?.abort();
+    readAbort.current = controller;
+    setReadStatus("loading");
+    setExtracted(null);
+    setReadProgress("Solicitando acesso autenticado ao PDF...");
+    setNotice("");
+    try {
+      // Authenticated signed URL; only the user's browser reads the bytes.
+      const isolated = import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true";
+      const bucket = isolated
+        ? "process-documents"
+        : ((import.meta.env.VITE_R2_BUCKET_DOCUMENTOS as string | undefined) || "sigapro-documentos");
+      const url = await getSignedUrlForObjectStrict({
+        bucket, objectKey: selected.filePath, expiresIn: 900,
+      });
+      if (controller.signal.aborted) return;
+      setReadProgress("Lendo o arquivo somente neste navegador...");
+      const bytes = await downloadUrbanPdfBytes(url, controller.signal);
+      if (controller.signal.aborted) return;
+      const result = await extractUrbanPdfText(bytes, {
+        signal: controller.signal,
+        onProgress: (page, total) => {
+          if (!controller.signal.aborted) setReadProgress("Lendo página " + page + " de " + total + "...");
+        },
+      });
+      if (controller.signal.aborted) return;
+      setExtracted(result);
+      setReadStatus("ready");
+      setReadProgress("");
+      setNotice(result.scannedPages === result.pages.length
+        ? "Nenhum texto selecionável encontrado nas páginas lidas. Pode ser PDF escaneado; use a conferência manual."
+        : "Pré-leitura concluída. Selecione um trecho e confirme na planta original antes de vinculá-lo.");
+    } catch (error) {
+      if (controller.signal.aborted) return;
+      setReadStatus("error");
+      setReadProgress("");
+      setNotice(error instanceof Error ? error.message : "O PDF não pôde ser lido localmente.");
+    } finally {
+      if (readAbort.current === controller) readAbort.current = null;
+    }
+  };
+
+  const useExtractedCandidate = (candidate: UrbanPdfEvidenceCandidate) => {
+    if (readOnly || !selected) return;
+    setPageText(String(candidate.page));
+    setExcerpt(candidate.excerpt);
+    setMetric(candidate.metric);
+    setNotice("Trecho pré-selecionado. Confira a página no documento e confirme a medida antes de vinculá-la.");
+  };
 
   const addEvidence = () => {
     if (!selected || !metric || !allowed.has(metric) || readOnly) {
@@ -103,7 +188,7 @@ export function UrbanDocumentEvidenceDesk({ process, readOnly, allowedMetrics, o
           <label className="min-w-0 text-xs font-bold text-slate-800 dark:text-slate-100">
             Documento PDF apresentado
             <select aria-label="Documento PDF apresentado" className="mt-1 block h-10 w-full min-w-0 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 dark:border-slate-600 dark:bg-slate-950 dark:text-white"
-              value={documentId} onChange={(event) => { setDocumentId(event.target.value); setNotice(""); }}>
+              value={documentId} onChange={(event) => resetPdfRead(event.target.value)}>
               <option value="">Selecione o PDF para consultar</option>
               {pdfs.map((doc) => (
                 <option key={doc.id} value={doc.id}>{doc.fileName || doc.label} · versão {doc.version || 1}</option>
@@ -125,6 +210,62 @@ export function UrbanDocumentEvidenceDesk({ process, readOnly, allowedMetrics, o
           <FileText className="h-4 w-4" />
           Abrir PDF original no visualizador do SIGAPRO
         </Link>
+      ) : null}
+      {selected && !readOnly ? (
+        <div className="mt-4 rounded-2xl border border-sky-200 bg-sky-50/60 p-3 dark:border-sky-700 dark:bg-slate-950">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="flex items-center gap-2 text-sm font-bold text-slate-950 dark:text-white">
+                <ScanText className="h-4 w-4 text-sky-700 dark:text-sky-300" />
+                Pré-leitura local da camada de texto
+              </p>
+              <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
+                Até 20 MB e 24 páginas. Sem envio do PDF à IA, sem OCR e sem gravar trechos no banco.
+              </p>
+            </div>
+            <Button type="button" variant="outline" disabled={!selected.filePath || readStatus === "loading"}
+              onClick={() => void preReadDocument()}
+              className="border-sky-300 bg-white text-sky-950 dark:border-sky-600 dark:bg-slate-800 dark:text-white">
+              {readStatus === "loading" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ScanText className="mr-2 h-4 w-4" />}
+              {readStatus === "loading" ? "Lendo PDF..." : "Localizar trechos no PDF"}
+            </Button>
+          </div>
+          {readProgress ? <p role="status" className="mt-2 text-xs text-sky-800 dark:text-sky-200">{readProgress}</p> : null}
+          {extracted ? (
+            <div className="mt-3 space-y-2">
+              <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">
+                {extracted.pages.length} de {extracted.totalPages} páginas verificadas ·
+                {" "}{extracted.scannedPages} sem camada de texto ·
+                {" "}{foundCandidates.length} possíveis referências
+              </p>
+              {extracted.truncated ? <p className="text-xs font-medium text-amber-800 dark:text-amber-200">
+                Pré-leitura limitada às primeiras 24 páginas; continue a verificação no documento original.
+              </p> : null}
+              {!foundCandidates.length ? <p className="text-xs text-slate-600 dark:text-slate-300">
+                Nenhum termo urbanístico reconhecido. Isso não comprova conformidade.
+              </p> : null}
+              <div className="max-h-80 space-y-2 overflow-auto">
+                {foundCandidates.map((candidate, index) => (
+                  <div key={candidate.page + "-" + candidate.metric + "-" + index}
+                    className="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-xs font-bold text-slate-900 dark:text-white">
+                        Página {candidate.page} · {candidate.label}
+                      </p>
+                      <Button type="button" size="sm" variant="outline"
+                        onClick={() => useExtractedCandidate(candidate)}>
+                        Conferir este trecho
+                      </Button>
+                    </div>
+                    <p className="mt-2 break-words text-xs leading-5 text-slate-700 dark:text-slate-200">
+                      {candidate.excerpt}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+        </div>
       ) : null}
       <label className="mt-4 block text-xs font-bold text-slate-800 dark:text-slate-100">
         Trecho conferido na página original
