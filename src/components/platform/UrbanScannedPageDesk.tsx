@@ -125,7 +125,7 @@ export function UrbanScannedPageDesk({bytes,scannedPages,readOnly,onVerifiedTran
             <label className="text-xs font-semibold text-slate-800 dark:text-white">
               Ampliação
               <select aria-label="Zoom da página escaneada" className="mt-1 block h-10 min-w-36 rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900 dark:border-slate-600 dark:bg-[#0a1b30] dark:text-white"
-                value={zoom} onChange={event=>setZoom(Number(event.target.value))}>
+                value={zoom} onChange={event=>{reset();setZoom(Number(event.target.value));}}>
                 <option value={1}>100%</option><option value={1.35}>135%</option>
                 <option value={1.8}>180%</option><option value={2.3}>230%</option>
               </select>
