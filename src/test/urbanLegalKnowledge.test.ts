@@ -56,9 +56,10 @@ describe("SIGAPRO IA — normas provenientes de documentos reais", () => {
   });
   it("busca trechos já confirmados sem fabricar resultados", () => {
     const one: UrbanLegalEvidence = {
-      id: "one", municipality_id: "municipio-a", document_title: "Plano Diretor",
+      id: "one", evidence_id: "base-one", municipality_id: "municipio-a", document_title: "Plano Diretor",
       document_sha256: "b".repeat(64), page_number: 3,
       metric: "front_setback_m", excerpt: "O recuo frontal aplicável está disposto no Artigo 32.",
+      zone_code: "ZR1", use_code: "RESIDENCIAL", effective_from: "2026-01-01", effective_until: null,
       created_at: "2026-10-23T10:00:00Z",
     };
     expect(searchLegalEvidence([one], "artigo 32")).toEqual([one]);
