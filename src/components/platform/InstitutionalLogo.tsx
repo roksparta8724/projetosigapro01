@@ -260,7 +260,7 @@ export function InstitutionalLogo({
     scale: configuredScale,
     offsetX: branding.logoOffsetX,
     offsetY: branding.logoOffsetY,
-  });
+  }, variant === "footer" ? "footer" : "header");
   const scale = isMaster
     ? Math.max(0.35, Math.min(5, configuredScale))
     : municipalFrame.scale;
