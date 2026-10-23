@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { ExternalLink, FileWarning, FileUp, ShieldCheck, X } from "lucide-react";
 import { validateQaLocalPdf } from "@/lib/qaLocalPdfPreview";
+import { verifyQaExistingDocumentCopy } from "@/lib/qaExistingDocumentRecovery";
+import { uploadFile } from "@/integrations/r2/client";
 
 export const QA_DOCUMENT_MISSING_MESSAGE = "Documento de homologação não encontrado no armazenamento isolado.";
 
@@ -28,8 +30,15 @@ export function officialDocumentHref(processRoute: string, documentId: string): 
  * triggers a file upload, an object-store write, or a process review action.
  */
 export function QaDocumentUnavailableNotice({
-  processRoute, documentId,
-}: { processRoute: string; documentId: string }) {
+  processRoute, documentId, objectKey, expectedFileHash, expectedFileSizeBytes, onRecovered,
+}: {
+  processRoute: string;
+  documentId: string;
+  objectKey?: string;
+  expectedFileHash?: string;
+  expectedFileSizeBytes?: number;
+  onRecovered?: () => Promise<void> | void;
+}) {
   const officialUrl = officialDocumentHref(processRoute, documentId);
   const fileInput = useRef<HTMLInputElement | null>(null);
   const activeObjectUrl = useRef<string | null>(null);
@@ -37,6 +46,10 @@ export function QaDocumentUnavailableNotice({
   const [preview, setPreview] = useState<{ url: string; name: string } | null>(null);
   const [error, setError] = useState("");
   const [reading, setReading] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [saveConsent, setSaveConsent] = useState(false);
+  const [savingCopy, setSavingCopy] = useState(false);
+  const [storedCopy, setStoredCopy] = useState(false);
 
   useEffect(() => () => {
     selection.current += 1;
@@ -49,6 +62,9 @@ export function QaDocumentUnavailableNotice({
     if (activeObjectUrl.current) URL.revokeObjectURL(activeObjectUrl.current);
     activeObjectUrl.current = null;
     setPreview(null);
+    setSelectedFile(null);
+    setSaveConsent(false);
+    setStoredCopy(false);
     setError("");
     setReading(false);
   };
@@ -67,12 +83,37 @@ export function QaDocumentUnavailableNotice({
       const url = URL.createObjectURL(file);
       activeObjectUrl.current = url;
       setPreview({ url, name: file.name });
+      setSelectedFile(file);
+      setSaveConsent(false);
+      setStoredCopy(false);
     } catch (reason) {
       if (request === selection.current) {
         setError(reason instanceof Error ? reason.message : "Não foi possível verificar o PDF.");
       }
     } finally {
       if (request === selection.current) setReading(false);
+    }
+  };
+
+  const saveVerifiedCopyInQa = async () => {
+    if (!selectedFile || !saveConsent || !objectKey || savingCopy ||
+        import.meta.env.VITE_SIGAPRO_NEON_ISOLATED !== "true") return;
+    setSavingCopy(true);
+    setError("");
+    try {
+      await verifyQaExistingDocumentCopy(selectedFile, {
+        fileHash: expectedFileHash,
+        fileSizeBytes: expectedFileSizeBytes,
+      });
+      // Explicitly authorized import into the isolated QA local file store,
+      // never the production R2 bucket. No process metadata is rewritten.
+      await uploadFile({ bucket: "process-documents", objectKey, file: selectedFile });
+      setStoredCopy(true);
+      if (onRecovered) await onRecovered();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Não foi possível guardar a cópia validada no QA.");
+    } finally {
+      setSavingCopy(false);
     }
   };
 
@@ -96,6 +137,36 @@ export function QaDocumentUnavailableNotice({
             arquivo oficial, não substitui o anexo do processo e não autoriza aprovação,
             despacho ou envio de exigências.
           </p>
+          {objectKey && /^[a-f0-9]{64}$/i.test(String(expectedFileHash || "")) ? (
+            <div className="mt-3 rounded-xl border border-sky-200 bg-sky-50 p-3 text-left">
+              <p className="text-xs font-bold text-sky-950">
+                Guardar esta cópia no armazenamento isolado de homologação
+              </p>
+              <p className="mt-1 text-xs leading-5 text-slate-700">
+                Somente se o tamanho e o SHA-256 coincidirem com o registro.
+                O arquivo passará a abrir aqui nas próximas consultas, sem modificar o documento oficial.
+              </p>
+              <label className="mt-2 flex items-start gap-2 text-xs text-slate-800">
+                <input type="checkbox" checked={saveConsent}
+                  disabled={savingCopy || storedCopy}
+                  onChange={(event) => setSaveConsent(event.target.checked)}
+                  className="mt-0.5" />
+                Confirmo que tenho autorização para armazenar esta cópia no ambiente local de testes.
+              </label>
+              <button type="button" disabled={!saveConsent || savingCopy || storedCopy}
+                onClick={() => void saveVerifiedCopyInQa()}
+                className="mt-3 min-h-10 rounded-xl bg-sky-800 px-4 py-2 text-xs font-bold text-white hover:bg-sky-900 disabled:opacity-60">
+                {storedCopy ? "Cópia validada e armazenada no QA" :
+                 savingCopy ? "Conferindo SHA-256 e armazenando..." : "Guardar cópia verificada no QA"}
+              </button>
+              {storedCopy ? (
+                <p role="status" className="mt-2 text-xs text-emerald-800">
+                  Cópia conferida e armazenada. O arquivo já pode ser aberto pelo sistema local.
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+          {error ? <p role="alert" className="mt-2 rounded-xl bg-rose-50 p-3 text-xs text-rose-800">{error}</p> : null}
           <iframe
             data-qa-local-pdf-preview="true"
             src={preview.url + "#toolbar=0&navpanes=0&view=FitH"}
