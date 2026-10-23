@@ -24,8 +24,8 @@ describe("localhost municipal logo endpoint parity", () => {
     expect(frontend).toContain('host === "sigapromunicipal.com.br"');
   });
 
-  it("does not access official logos from isolated QA port 8081", () => {
-    expect(vite).toContain('process.env.SIGAPRO_LOCAL_QA_LAUNCH === "true"');
-    expect(vite).toContain("Logos oficiais não são consultados no QA isolado.");
+  it("blocks QA logos unless user opts into read-only municipal branding", () => {
+    expect(vite).toContain('process.env.SIGAPRO_QA_PUBLIC_BRANDING_READ !== "true"');
+    expect(vite).toContain("Logo municipal em QA requer opção explícita de leitura pública.");
   });
 });
