@@ -3073,3 +3073,34 @@ html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
   opacity:.65 !important;
   cursor:not-allowed !important;
 }
+
+
+/* Complete polarity of the document evidence subcards and fields. */
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-sigapro-urban-precheck="true"] [data-urban-document-evidence="true"]
+:is([class*="bg-white"],[class*="bg-slate-50"],[class*="bg-sky-50"]) {
+  background:#0e273f !important;
+  background-color:#0e273f !important;
+  border-color:#456b89 !important;
+}
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-sigapro-urban-precheck="true"] [data-urban-document-evidence="true"]
+:is(h4,h5,p,label,strong,span) {
+  color:#e8f6ff !important;
+  -webkit-text-fill-color:#e8f6ff !important;
+}
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-sigapro-urban-precheck="true"] [data-urban-document-evidence="true"]
+:is(input,select,textarea) {
+  background:#0a1f32 !important;
+  background-color:#0a1f32 !important;
+  border-color:#5b7d98 !important;
+  color:#fff !important;
+  -webkit-text-fill-color:#fff !important;
+}
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-sigapro-urban-precheck="true"] [data-urban-document-evidence="true"]
+:is(input,textarea)::placeholder {
+  color:#a9c2d9 !important;
+  -webkit-text-fill-color:#a9c2d9 !important;
+}
