@@ -1,5 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import { renderToStaticMarkup } from "react-dom/server";
+import { QRCodeSVG } from "qrcode.react";
+import { isValidPixPayload } from "@/lib/pix";
 
 export interface PaymentGuideDebtRow {
   year: string;
@@ -113,44 +115,20 @@ function buildBarcodeBars(code: string) {
   });
 }
 
-function hashSeed(value: string) {
-  let hash = 0;
-  for (let index = 0; index < value.length; index += 1) {
-    hash = (hash * 31 + value.charCodeAt(index)) >>> 0;
-  }
-  return hash;
-}
-
 function OfficialPixMatrix({ value }: { value: string }) {
-  const size = 132;
-  const grid = 21;
-  const cell = size / grid;
-  const seed = hashSeed(value || "pix");
-
-  return (
-    <svg viewBox={`0 0 ${size} ${size}`} width={size} height={size} role="img" aria-label="QRCode Pix">
-      <rect width={size} height={size} fill="#ffffff" />
-      {Array.from({ length: grid * grid }).map((_, index) => {
-        const row = Math.floor(index / grid);
-        const column = index % grid;
-        const reserved =
-          (row < 7 && column < 7) ||
-          (row < 7 && column >= grid - 7) ||
-          (row >= grid - 7 && column < 7);
-        const bit = ((seed >> ((row * grid + column) % 24)) & 1) === 1;
-        const alternate = ((row * 17 + column * 13 + seed) % 5) <= 1;
-        return reserved || bit || alternate ? (
-          <rect
-            key={`${row}-${column}`}
-            x={column * cell}
-            y={row * cell}
-            width={cell}
-            height={cell}
-            fill="#111827"
-          />
-        ) : null;
-      })}
-    </svg>
+  // Financial QR codes must encode an authentic, validated EMV PIX payload,
+  // never a decorative matrix derived from a hash or from a boleto line.
+  return isValidPixPayload(value) ? (
+    <QRCodeSVG value={value} size={132} level="M" marginSize={2} aria-label="QR Code PIX para pagamento" />
+  ) : (
+    <div role="status" style={{
+      display: "flex", alignItems: "center", justifyContent: "center",
+      minHeight: "132px", width: "132px", padding: "8px",
+      background: "#f8fafc", color: "#475569", fontSize: "11px",
+      textAlign: "center", border: "1px solid #e2e8f0",
+    }}>
+      PIX indisponível nesta guia.
+    </div>
   );
 }
 
@@ -416,9 +394,9 @@ export function OfficialPaymentGuideDocument({
             <div style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.08em", color: "#4b5563", textAlign: "center" }}>
               {data.bank.pixLabel || "PIX / QRCode"}
             </div>
-            <OfficialPixMatrix value={data.bank.pixPayload || data.bank.digitableLine} />
+            <OfficialPixMatrix value={data.bank.pixPayload || ""} />
             <div style={{ fontFamily: "ui-monospace, SFMono-Regular, Consolas, monospace", fontSize: "9px", textAlign: "center", wordBreak: "break-all" }}>
-              {data.bank.pixPayload || "Chave PIX não informada"}
+              {isValidPixPayload(data.bank.pixPayload) ? data.bank.pixPayload : "PIX não emitido para esta guia"}
             </div>
           </div>
         </div>

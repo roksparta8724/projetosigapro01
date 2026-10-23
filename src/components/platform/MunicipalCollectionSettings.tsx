@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { backendClient } from "@/integrations/backend/databaseClient";
+import { municipalCollectionApiRequest } from "@/lib/municipalCollectionApi";
 import { MunicipalPaymentSettings } from "@/components/platform/MunicipalPaymentSettings";
 import { MunicipalBankDetailsSettings } from "@/components/platform/MunicipalBankDetailsSettings";
 import { isCollectionSuccessMessage, municipalCollectionError } from "@/lib/collectionDiagnostics";
@@ -12,11 +12,9 @@ import { isCollectionSuccessMessage, municipalCollectionError } from "@/lib/coll
 type Mode = "sigapro" | "municipal_system";
 type Configuration = { mode?: Mode; status?: "not_configured"|"homologation"|"validated"|"active"|"error"; supplier_code?: string; supplier_name?: string; api_base_url?: string; environment?: "test"|"production"; integration_type?: "automatic"|"controlled_import"; secret_configured?: boolean; secret_fingerprint?: string; validation_message?: string; version?: number };
 async function request(municipalityId: string, action: string, payload: Record<string, unknown> = {}) {
-  const session = (await backendClient?.auth?.getSession?.())?.data?.session;
-  const token = session?.access_token || session?.accessToken || session?.token || "";
-  const response = await fetch("/api/collection-configuration", { method: "POST", headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify({ municipalityId, action, ...payload }) });
-  const result = await response.json().catch(() => ({})); if (!response.ok) throw new Error(result.error || "Falha na configuração de arrecadação."); return result as Configuration;
+  return municipalCollectionApiRequest<Configuration>("collection-configuration", municipalityId, action, payload);
 }
+
 const statusLabels = { not_configured: "Não configurado", homologation: "Em homologação", validated: "Validado", active: "Ativo", error: "Com erro" } as const;
 
 export function MunicipalCollectionSettings({ municipalityId, municipalityName, readOnly = false }: { municipalityId: string; municipalityName?: string | null; readOnly?: boolean }) {
@@ -24,6 +22,7 @@ export function MunicipalCollectionSettings({ municipalityId, municipalityName, 
   const [configuration, setConfiguration] = useState<Configuration | null>(null);
   const [activeConfiguration, setActiveConfiguration] = useState<Configuration | null>(null);
   const [busy, setBusy] = useState(""); const [message, setMessage] = useState("");
+  const [loadFailed, setLoadFailed] = useState(false);
   const [form, setForm] = useState({ mode: "sigapro" as Mode, supplierCode: "", supplierName: "", apiBaseUrl: "", environment: "test" as "test"|"production", integrationType: "automatic" as "automatic"|"controlled_import", secret: "", boleto: true, pix: true, query: true, pdf: true, payment: true, reissue: false, cancel: false });
   const load = async () => {
     // An administrator may change municipal accounts without reloading the app.
@@ -33,12 +32,14 @@ export function MunicipalCollectionSettings({ municipalityId, municipalityName, 
     setActiveConfiguration(null);
     setForm(v => ({ ...v, mode: "sigapro", supplierCode: "", supplierName: "", apiBaseUrl: "", environment: "test", integrationType: "automatic", secret: "" }));
     setMessage("");
+    setLoadFailed(false);
     if (!municipalityId) { setBusy(""); return; }
     setBusy("load");
     try {
       const current = await request(municipalityId, "get");
       if (generation !== requestGeneration.current) return;
       setConfiguration(current);
+      setLoadFailed(false);
       const active = await request(municipalityId, "effective").catch(() => null);
       if (generation !== requestGeneration.current) return;
       setActiveConfiguration(active?.status === "active" ? active : null);
@@ -51,6 +52,7 @@ export function MunicipalCollectionSettings({ municipalityId, municipalityName, 
       if (generation === requestGeneration.current) {
         setConfiguration(null);
         setActiveConfiguration(null);
+        setLoadFailed(true);
         setMessage(municipalCollectionError(e));
       }
     } finally {
@@ -76,9 +78,11 @@ export function MunicipalCollectionSettings({ municipalityId, municipalityName, 
       <p className="mt-1 text-xs text-slate-600">A opção selecionada abaixo é um rascunho até ser validada e ativada. Versões antigas, guias pagas e PDFs originais permanecem intactos.</p>
     </div>
     <div className="grid gap-4 md:grid-cols-2">
-      {[{mode:"sigapro" as Mode,title:"Guia personalizada SIGAPRO",text:"DAM A4, dados institucionais, provedor bancário existente, PIX/QR e original imutável no R2.",icon:Landmark},{mode:"municipal_system" as Mode,title:"Sistema próprio da Prefeitura",text:"Adaptador por fornecedor, API oficial ou importação controlada do documento emitido pelo município.",icon:Building2}].map(option => <button key={option.mode} data-collection-mode-card="true" data-selected={form.mode===option.mode?"true":"false"} aria-pressed={form.mode===option.mode} type="button" disabled={readOnly} onClick={()=>setForm(v=>({...v,mode:option.mode,integrationType:option.mode==="municipal_system" && v.mode!==option.mode?"controlled_import":v.integrationType}))} className={`rounded-[26px] border p-5 text-left transition ${form.mode===option.mode?"border-sky-400 bg-gradient-to-br from-slate-950 via-sky-950 to-sky-800 !text-white shadow-lg ring-2 ring-sky-500/30":"border-slate-200 bg-white text-slate-900 hover:border-sky-300 hover:bg-sky-50"}`}><option.icon className={`h-7 w-7 ${form.mode===option.mode?"!text-cyan-100":"text-slate-500"}`}/><h3 className={`mt-4 text-lg font-extrabold ${form.mode===option.mode?"!text-white":"text-slate-950"}`}>{option.title}</h3><p className={`mt-2 text-sm leading-6 ${form.mode===option.mode?"!text-sky-100":"text-slate-600"}`}>{option.text}</p></button>)}
+      {[{mode:"sigapro" as Mode,title:"Guia personalizada SIGAPRO",text:"DAM A4, dados institucionais, provedor bancário existente, PIX/QR e original imutável no R2.",icon:Landmark},{mode:"municipal_system" as Mode,title:"Sistema próprio da Prefeitura",text:"Adaptador por fornecedor, API oficial ou importação controlada do documento emitido pelo município.",icon:Building2}].map(option => <button key={option.mode} data-collection-mode-card="true" data-selected={form.mode===option.mode?"true":"false"} aria-pressed={form.mode===option.mode} type="button" disabled={readOnly || loadFailed || busy === "load"} onClick={()=>setForm(v=>({...v,mode:option.mode,integrationType:option.mode==="municipal_system" && v.mode!==option.mode?"controlled_import":v.integrationType}))} className={`rounded-[26px] border p-5 text-left transition ${form.mode===option.mode?"border-sky-400 bg-gradient-to-br from-slate-950 via-sky-950 to-sky-800 !text-white shadow-lg ring-2 ring-sky-500/30":"border-slate-200 bg-white text-slate-900 hover:border-sky-300 hover:bg-sky-50"}`}><option.icon className={`h-7 w-7 ${form.mode===option.mode?"!text-cyan-100":"text-slate-500"}`}/><h3 className={`mt-4 text-lg font-extrabold ${form.mode===option.mode?"!text-white":"text-slate-950"}`}>{option.title}</h3><p className={`mt-2 text-sm leading-6 ${form.mode===option.mode?"!text-sky-100":"text-slate-600"}`}>{option.text}</p></button>)}
     </div>
-    {form.mode === "sigapro" ? <div className="space-y-5">
+    {loadFailed ? <div role="alert" data-collection-connection-error="true" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950"><span>Não foi possível consultar a Prefeitura. Nenhuma configuração foi alterada.</span><Button variant="outline" type="button" onClick={()=>void load()} disabled={!!busy}>Tentar conexão novamente</Button></div> : null}
+    {busy === "load" ? <p role="status" className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-950">Confirmando sessão e carregando as configurações da Prefeitura...</p> : null}
+    {!loadFailed && configuration && busy !== "load" && (form.mode === "sigapro" ? <div className="space-y-5">
       <MunicipalBankDetailsSettings municipalityId={municipalityId} readOnly={readOnly} />
       {readOnly ? <p className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-700">Credenciais bancárias: alteração restrita ao administrador municipal.</p> : <MunicipalPaymentSettings municipalityId={municipalityId} municipalityName={municipalityName}/>}
     </div> : <div className="rounded-[26px] border border-slate-200 bg-white p-6 shadow-sm">
@@ -94,8 +98,8 @@ export function MunicipalCollectionSettings({ municipalityId, municipalityName, 
       {form.supplierCode === "govbr_ar" ? <p role="status" className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">GOVBR/AR identificado. Ainda não existe um adaptador homologado para emitir ou consultar guias automaticamente. Solicite à GOVBR a documentação e o acesso de homologação; nenhuma cobrança será criada por esta seleção.</p> : null}
       <div className="grid gap-4 md:grid-cols-2"><div className="space-y-2"><Label>Fornecedor</Label><Input disabled={readOnly} value={form.supplierName} onChange={e=>setForm(v=>({...v,supplierName:e.target.value}))} placeholder="Nome oficial do fornecedor"/></div><div className="space-y-2"><Label>Identificador do fornecedor / adaptador</Label><Input disabled={readOnly} value={form.supplierCode} onChange={e=>setForm(v=>({...v,supplierCode:e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g,"-")}))} placeholder="fornecedor_homologado"/></div>{form.integrationType==="automatic" ? <div className="space-y-2 md:col-span-2"><Label>URL oficial da API (somente integração automática homologada)</Label><Input disabled={readOnly} type="url" value={form.apiBaseUrl} onChange={e=>setForm(v=>({...v,apiBaseUrl:e.target.value}))} placeholder="Endereço HTTPS fornecido pelo suporte do sistema municipal"/></div> : null}<div className="space-y-2"><Label>Ambiente</Label><Select disabled={readOnly} value={form.environment} onValueChange={value=>setForm(v=>({...v,environment:value as typeof v.environment}))}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="test">Homologação</SelectItem><SelectItem value="production">Produção</SelectItem></SelectContent></Select></div><div className="space-y-2"><Label>Operação</Label><Select disabled={readOnly} value={form.integrationType} onValueChange={value=>setForm(v=>({...v,integrationType:value as typeof v.integrationType}))}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="automatic">Integração automática por API</SelectItem><SelectItem value="controlled_import">Importação controlada</SelectItem></SelectContent></Select></div>{form.integrationType==="automatic"?<div className="space-y-2 md:col-span-2"><Label>Credencial secreta</Label><Input disabled={readOnly} type="password" autoComplete="new-password" value={form.secret} onChange={e=>setForm(v=>({...v,secret:e.target.value}))} placeholder={configuration?.secret_configured?"Deixe vazio para manter o segredo atual":"Token, API key ou segredo"}/><p className="text-xs text-slate-500">Cifrada no backend; nunca é devolvida ao navegador.</p></div>:<div className="md:col-span-2 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"><FileUp className="mr-2 inline h-4 w-4"/>O documento será registrado no SIGAPRO após a emissão no sistema oficial, importação e vínculo do PDF. Nenhuma API será simulada.</div>}</div>
       {form.integrationType==="automatic" ? <div className="mt-5 grid gap-2 sm:grid-cols-5">{([['query','Consulta'],['pdf','PDF'],['payment','Pagamento'],['reissue','Reemissão'],['cancel','Cancelamento']] as const).map(([key,label])=><label key={key} className="flex items-center gap-2 rounded-xl border border-slate-200 p-3 text-sm"><input disabled={readOnly} type="checkbox" checked={form[key]} onChange={e=>setForm(v=>({...v,[key]:e.target.checked}))}/>{label}</label>)}</div> : <p className="mt-5 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-medium text-emerald-950">Importação controlada: o servidor emite no sistema municipal, importa o PDF oficial para o SIGAPRO e registra a comunicação. Sem consulta bancária, emissão automática ou confirmação de pagamento pelo SIGAPRO.</p>}
-    </div>}
+    </div>)}
     {message?<div role="status" className={`rounded-2xl border px-4 py-3 text-sm ${isCollectionSuccessMessage(message) ? "border-emerald-300 bg-emerald-50 text-emerald-950" : "border-amber-300 bg-amber-50 text-amber-950"}`}>{message}</div>:null}
-    <div className="flex flex-wrap justify-end gap-2">{readOnly?<span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-4 py-2 text-sm text-slate-700"><ShieldCheck className="h-4 w-4"/>Somente leitura</span>:<><Button variant="outline" disabled={!!busy} onClick={()=>void save()}>{busy==="save"?"Salvando...":"Salvar configuração"}</Button><Button variant="outline" disabled={!!busy||!configuration} onClick={()=>void validate()}><RefreshCw className="mr-2 h-4 w-4"/>Validar configuração</Button><Button data-collection-action="dark" className="sig-collection-dark-action !bg-sky-900 !text-white hover:!bg-sky-800" disabled={!!busy||configuration?.status!=="validated"} onClick={()=>void activate()}><BadgeCheck className="mr-2 h-4 w-4"/>Ativar para novas guias</Button></>}</div>
+    <div className="flex flex-wrap justify-end gap-2">{readOnly?<span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-4 py-2 text-sm text-slate-700"><ShieldCheck className="h-4 w-4"/>Somente leitura</span>:<><Button variant="outline" disabled={!!busy||loadFailed||!configuration} onClick={()=>void save()}>{busy==="save"?"Salvando...":"Salvar configuração"}</Button><Button variant="outline" disabled={!!busy||loadFailed||!configuration} onClick={()=>void validate()}><RefreshCw className="mr-2 h-4 w-4"/>Validar configuração</Button><Button data-collection-action="dark" className="sig-collection-dark-action !bg-sky-900 !text-white hover:!bg-sky-800" disabled={!!busy||loadFailed||configuration?.status!=="validated"} onClick={()=>void activate()}><BadgeCheck className="mr-2 h-4 w-4"/>Ativar para novas guias</Button></>}</div>
   </div>;
 }
