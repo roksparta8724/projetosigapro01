@@ -2669,9 +2669,10 @@ export function UrbanAnalysisChecklistPanel({
 
           <div
             data-analysis-withdrawal-card="true"
+            data-analysis-polarity-surface="true"
             className="mt-5 overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-[0_14px_34px_rgba(15,23,42,0.06)] dark:border-slate-700 dark:bg-slate-900"
           >
-            <div className="border-b border-slate-200 bg-[linear-gradient(135deg,#f8fbff_0%,#eef8ff_100%)] px-5 py-4 dark:border-slate-700 dark:bg-[linear-gradient(135deg,#0b1f31_0%,#0d3148_100%)]">
+            <div data-analysis-withdrawal-header="true" className="border-b border-slate-200 bg-[linear-gradient(135deg,#f8fbff_0%,#eef8ff_100%)] px-5 py-4 dark:border-slate-700 dark:bg-[linear-gradient(135deg,#0b1f31_0%,#0d3148_100%)]">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-[0.14em] text-sky-700 dark:text-sky-300">
@@ -2814,10 +2815,11 @@ export function UrbanAnalysisChecklistPanel({
           {/* SIGAPRO_FORMAL_DOCUMENT_AUDIT_LOCAL_V2 */}
           <section
             data-analysis-revision-history="true"
+            data-analysis-polarity-surface="true"
             aria-label="Documentos oficiais e versões da análise"
             className="mt-5 overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-[0_12px_30px_rgba(15,23,42,0.06)] dark:border-slate-700 dark:bg-slate-900"
           >
-            <header className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 bg-[linear-gradient(135deg,#f8fafc_0%,#eff6ff_100%)] px-5 py-5 dark:border-slate-700 dark:bg-none dark:bg-slate-950">
+            <header data-analysis-revision-header="true" className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 bg-[linear-gradient(135deg,#f8fafc_0%,#eff6ff_100%)] px-5 py-5 dark:border-slate-700 dark:bg-none dark:bg-slate-950">
               <div className="flex items-start gap-3">
                 <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#123c59] text-white shadow-sm">
                   <FileText className="h-5 w-5" />
