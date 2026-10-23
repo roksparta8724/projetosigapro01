@@ -33,13 +33,16 @@ export async function municipalCollectionApiRequest<T>(
   }
 
   let token = "";
+  let authTimer: ReturnType<typeof setTimeout> | undefined;
   try {
     const sessionResult = await Promise.race([
       auth.getSession(),
-      new Promise<never>((_, reject) => setTimeout(
-        () => reject(new MunicipalCollectionRequestError("A sessão demorou para responder. Confira sua conexão e tente novamente.", 408)),
-        timeoutMs,
-      )),
+      new Promise<never>((_, reject) => {
+        authTimer = setTimeout(
+          () => reject(new MunicipalCollectionRequestError("A sessão demorou para responder. Confira sua conexão e tente novamente.", 408)),
+          timeoutMs,
+        );
+      }),
     ]);
     if (sessionResult?.error) {
       throw new MunicipalCollectionRequestError("Falha ao confirmar a sessão. Saia e entre novamente com sua conta municipal.", 401);
@@ -49,6 +52,8 @@ export async function municipalCollectionApiRequest<T>(
   } catch (error) {
     if (error instanceof MunicipalCollectionRequestError) throw error;
     throw new MunicipalCollectionRequestError("Não foi possível confirmar sua sessão. Entre novamente na conta municipal.", 401);
+  } finally {
+    if (authTimer) clearTimeout(authTimer);
   }
 
   if (!token) {
