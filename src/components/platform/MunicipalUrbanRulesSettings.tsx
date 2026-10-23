@@ -213,6 +213,7 @@ export function MunicipalUrbanRulesSettings({
       <UrbanLegalKnowledgeDesk
         municipalityId={municipalityId}
         canEdit={canEdit}
+        scope={{ zoneCode: zone, useCode: usage, effectiveFrom, effectiveUntil: "" }}
         onUseReference={(metric, reference, suggestedLimit) => {
           if (!canEdit) return;
           setDraft(previous => ({
@@ -220,7 +221,7 @@ export function MunicipalUrbanRulesSettings({
             [metric]: {
               // Never overwrite a measurement the municipal editor has entered.
               limit: previous[metric]?.limit || (suggestedLimit === null ? "" : String(suggestedLimit)),
-              reference,
+              reference: previous[metric]?.reference || reference,
             },
           }));
           setNotice("Referência copiada para o RASCUNHO. Revise zona, uso, data de vigência, lei, artigo, exceções e valor antes de salvar.");
