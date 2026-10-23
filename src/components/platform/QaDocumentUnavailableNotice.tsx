@@ -51,6 +51,8 @@ export function QaDocumentUnavailableNotice({
   const [savingCopy, setSavingCopy] = useState(false);
   const [retryingRead, setRetryingRead] = useState(false);
   const [storedCopy, setStoredCopy] = useState(false);
+  const [verifiedCopy, setVerifiedCopy] = useState(false);
+  const [copyCheckMessage, setCopyCheckMessage] = useState("");
 
   useEffect(() => () => {
     selection.current += 1;
@@ -66,6 +68,8 @@ export function QaDocumentUnavailableNotice({
     setSelectedFile(null);
     setSaveConsent(false);
     setStoredCopy(false);
+    setVerifiedCopy(false);
+    setCopyCheckMessage("");
     setError("");
     setReading(false);
   };
@@ -77,9 +81,30 @@ export function QaDocumentUnavailableNotice({
     const request = ++selection.current;
     setReading(true);
     setError("");
+    setVerifiedCopy(false);
+    setCopyCheckMessage("");
     try {
       await validateQaLocalPdf(file);
+      let validCopy = false;
+      let checkMessage = "Pré-visualização não verificada. Esta cópia não pode ser vinculada ao anexo cadastrado.";
+      if (objectKey && /^[a-f0-9]{64}$/i.test(String(expectedFileHash || ""))) {
+        try {
+          await verifyQaExistingDocumentCopy(file, {
+            fileHash: expectedFileHash,
+            fileSizeBytes: expectedFileSizeBytes,
+          });
+          validCopy = true;
+          checkMessage = "Integridade confirmada: tamanho e SHA-256 coincidem com o documento cadastrado.";
+        } catch (reason) {
+          checkMessage = (reason instanceof Error ? reason.message : "Cópia diferente do anexo registrado.") +
+            " É possível consultar o PDF local, mas não armazená-lo como anexo oficial no QA.";
+        }
+      } else {
+        checkMessage = "O cadastro não possui SHA-256 verificável. Visualização temporária permitida, importação permanente bloqueada.";
+      }
       if (request !== selection.current) return;
+      setVerifiedCopy(validCopy);
+      setCopyCheckMessage(checkMessage);
       if (activeObjectUrl.current) URL.revokeObjectURL(activeObjectUrl.current);
       const url = URL.createObjectURL(file);
       activeObjectUrl.current = url;
@@ -110,7 +135,7 @@ export function QaDocumentUnavailableNotice({
   };
 
   const saveVerifiedCopyInQa = async () => {
-    if (!selectedFile || !saveConsent || !objectKey || savingCopy ||
+    if (!selectedFile || !saveConsent || !objectKey || !verifiedCopy || savingCopy ||
         import.meta.env.VITE_SIGAPRO_NEON_ISOLATED !== "true") return;
     setSavingCopy(true);
     setError("");
@@ -146,12 +171,12 @@ export function QaDocumentUnavailableNotice({
               <X className="h-4 w-4" aria-hidden="true" /> Fechar consulta
             </button>
           </div>
-          <p className="mt-3 rounded-xl border border-amber-500/40 bg-amber-950/35 p-3 text-left text-xs leading-5 text-amber-100">
-            Cópia escolhida por você, exibida somente neste navegador. Não foi comparada com o
-            arquivo oficial, não substitui o anexo do processo e não autoriza aprovação,
-            despacho ou envio de exigências.
+          <p data-qa-copy-integrity="true" role="status"
+            className="mt-3 rounded-xl border border-amber-500/40 bg-amber-950/35 p-3 text-left text-xs leading-5 text-amber-100">
+            {copyCheckMessage} A pré-visualização ocorre somente neste navegador e não aprova,
+            despacha nem altera o processo oficial.
           </p>
-          {objectKey && /^[a-f0-9]{64}$/i.test(String(expectedFileHash || "")) ? (
+          {verifiedCopy && objectKey && /^[a-f0-9]{64}$/i.test(String(expectedFileHash || "")) ? (
             <div className="mt-3 rounded-xl border border-sky-500/40 bg-slate-900/70 p-3 text-left">
               <p className="text-xs font-bold text-sky-100">
                 Guardar esta cópia no armazenamento isolado de homologação
@@ -219,7 +244,7 @@ export function QaDocumentUnavailableNotice({
             </button>
           ) : null}
           {error ? (
-            <p role="alert" className="mt-3 rounded-xl bg-rose-50 p-3 text-xs font-medium text-rose-100">{error}</p>
+            <p role="alert" className="mt-3 rounded-xl bg-rose-950/60 p-3 text-xs font-medium text-rose-100">{error}</p>
           ) : null}
         </>
       )}
