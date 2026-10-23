@@ -91,3 +91,26 @@ export function validateUrbanLegalReview(
   }
   return null;
 }
+
+
+/** Reviewer-only draft: complete, sourced and explicitly NON-official. */
+export function buildUrbanConditionalReviewDraft(
+  protocol: string, regulation: UrbanRegulationVersion,
+  flags: readonly UrbanLegalConditionFlag[], review: UrbanLegalReviewConfirmation,
+): string {
+  if (!flags.length) return "";
+  return [
+    "MINUTA INTERNA — REVISÃO DE CONDIÇÕES E EXCEÇÕES URBANÍSTICAS",
+    "O texto não constitui despacho, parecer definitivo nem exigência oficial.",
+    "Processo: " + protocol.slice(0,80),
+    "Parâmetros de comparação: " + regulation.zone_code + " / " + regulation.use_code +
+      "; versão " + regulation.version + "; vigência desde " + regulation.effective_from,
+    "Referências potencialmente relacionadas — aplicabilidade CONFERIDA APENAS PELO ANALISTA:",
+    ...flags.map((f,index) =>
+      String(index+1) + ". " + f.documentTitle.slice(0,120) +
+      " · p. " + f.page + " · SHA-256 " + f.documentSha256.slice(0,16) +
+      " · " + f.why + " · " + f.excerpt.slice(0,300)),
+    "Fundamentação técnica do analista: " + review.note.trim().slice(0,1200),
+    "Conferir legislação integral, condições específicas, escala, histórico normativo e processo antes de decidir.",
+  ].join("\n\n");
+}
