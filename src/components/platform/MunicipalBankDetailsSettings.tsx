@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { backendClient } from "@/integrations/backend/databaseClient";
+import { municipalCollectionApiRequest } from "@/lib/municipalCollectionApi";
 import { validateMunicipalPixKey } from "@/lib/paymentCollection";
 import { MUNICIPAL_BANK_DIRECTORY, findMunicipalBank, describeMunicipalBankChannel, selectMunicipalBank } from "@/lib/municipalBankCatalog";
 import { municipalCollectionError } from "@/lib/collectionDiagnostics";
@@ -69,16 +69,12 @@ function normalizeBankFields(data: Partial<BankFields>): BankFields {
 }
 
 async function bankRequest(municipalityId: string, action: "bank_get" | "bank_save", fields?: BankFields) {
-  const session = (await backendClient?.auth?.getSession?.())?.data?.session;
-  const token = session?.access_token || session?.accessToken || session?.token || "";
-  if (!token) throw new Error("É necessário entrar novamente com uma conta da Prefeitura.");
-  const response = await fetch("/api/collection-configuration", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ municipalityId, action, ...(fields ? { fields } : {}) }),
-  });
-  const data = await response.json().catch(() => ({})) as Partial<BankFields> & { error?: string };
-  if (!response.ok) throw new Error(data.error || "Não foi possível acessar os dados bancários municipais.");
+  const data = await municipalCollectionApiRequest<Partial<BankFields>>(
+    "collection-configuration",
+    municipalityId,
+    action,
+    fields ? { fields } : {},
+  );
   return normalizeBankFields(data);
 }
 
