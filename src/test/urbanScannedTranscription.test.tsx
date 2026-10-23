@@ -64,7 +64,7 @@ describe("SIGAPRO QA — conferência visual de página escaneada",()=>{
     const ui=readFileSync(resolve(process.cwd(),
       "src/components/platform/UrbanScannedPageDesk.tsx"),"utf8");
     expect(documents).toContain("Transcrição visual dupla, sem OCR");
-    expect(documents).toContain("setScanProof({page,text,documentId:selected.id})");
+    expect(documents).toContain("setScanProof({page,text,documentId:selected.id,method})");
     expect(laws).toContain("scannedProof.hash === fileHash");
     expect(laws).toContain("scannedProof.text === normalizeUrbanScanTranscript(manualExcerpt)");
     expect(laws).toContain("pdfPages.some(entry => entry.page === page && !entry.text.trim())");
