@@ -26,7 +26,7 @@ const specs: ReadonlyArray<{
   {target:"height_m",label:"Altura da edificação",pattern:/\baltura\s+(?:da\s+edifica[cç][aã]o|constru[ií]da)\b/gi,unit:"m",maximum:1000},
   {target:"floor_count",label:"Quantidade de pavimentos",pattern:/\b(?:n[uú]mero\s+de|quantidade\s+de)\s+pavimentos\b/gi,unit:"pav.",maximum:300},
   {target:"lot",label:"Área do terreno",pattern:/(?<!\p{L})[aá]rea\s+(?:do\s+)?(?:terreno|lote)\b/giu,unit:"m²",maximum:10000000},
-  {target:"footprint",label:"Projeção da edificação",pattern:/(?<!\p{L})(?:[aá]rea\s+de\s+)?proje[cç][aã]o\s+(?:da\s+edifica[cç][aã]o|constru[ií]da)\b/gi,unit:"m²",maximum:10000000},
+  {target:"footprint",label:"Projeção da edificação",pattern:/(?<!\p{L})(?:[aá]rea\s+de\s+)?proje[cç][aã]o\s+(?:da\s+edifica[cç][aã]o|constru[ií]da)\b/giu,unit:"m²",maximum:10000000},
   {target:"permeable",label:"Área permeável",pattern:/(?<!\p{L})[aá]rea\s+perme[aá]vel\b/giu,unit:"m²",maximum:10000000},
   {target:"totalFloor",label:"Área construída computável",pattern:/(?<!\p{L})[aá]rea\s+constru[ií]da\s+comput[aá]vel\b/giu,unit:"m²",maximum:10000000},
   {target:"occupancy_percent",label:"Taxa de ocupação",pattern:/\btaxa\s+de\s+ocupa[cç][aã]o\b/gi,unit:"%",maximum:100},
