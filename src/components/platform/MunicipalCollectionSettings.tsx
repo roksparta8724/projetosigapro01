@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { backendClient } from "@/integrations/backend/databaseClient";
+import { municipalCollectionApiRequest } from "@/lib/municipalCollectionApi";
 import { MunicipalPaymentSettings } from "@/components/platform/MunicipalPaymentSettings";
 import { MunicipalBankDetailsSettings } from "@/components/platform/MunicipalBankDetailsSettings";
 import { isCollectionSuccessMessage, municipalCollectionError } from "@/lib/collectionDiagnostics";
@@ -12,11 +12,9 @@ import { isCollectionSuccessMessage, municipalCollectionError } from "@/lib/coll
 type Mode = "sigapro" | "municipal_system";
 type Configuration = { mode?: Mode; status?: "not_configured"|"homologation"|"validated"|"active"|"error"; supplier_code?: string; supplier_name?: string; api_base_url?: string; environment?: "test"|"production"; integration_type?: "automatic"|"controlled_import"; secret_configured?: boolean; secret_fingerprint?: string; validation_message?: string; version?: number };
 async function request(municipalityId: string, action: string, payload: Record<string, unknown> = {}) {
-  const session = (await backendClient?.auth?.getSession?.())?.data?.session;
-  const token = session?.access_token || session?.accessToken || session?.token || "";
-  const response = await fetch("/api/collection-configuration", { method: "POST", headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify({ municipalityId, action, ...payload }) });
-  const result = await response.json().catch(() => ({})); if (!response.ok) throw new Error(result.error || "Falha na configuração de arrecadação."); return result as Configuration;
+  return municipalCollectionApiRequest<Configuration>("collection-configuration", municipalityId, action, payload);
 }
+
 const statusLabels = { not_configured: "Não configurado", homologation: "Em homologação", validated: "Validado", active: "Ativo", error: "Com erro" } as const;
 
 export function MunicipalCollectionSettings({ municipalityId, municipalityName, readOnly = false }: { municipalityId: string; municipalityName?: string | null; readOnly?: boolean }) {
