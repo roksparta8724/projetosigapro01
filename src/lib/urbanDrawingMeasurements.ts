@@ -77,7 +77,7 @@ export function findUrbanDrawingMeasurements(
         if(!exactUnit || !Number.isFinite(parsed) || parsed<=0 || parsed>spec.maximum ||
             (spec.unit==="pav." && !Number.isInteger(parsed))) continue;
         const final=after.slice(captures[0].length);
-        if(/^[\d.,]/.test(final)) continue; // Never read a numeric prefix.
+        if(/^[\p{L}\p{N}.,%²]/u.test(final)) continue; // Never read a numeric/unit prefix.
         const key=spec.target+"|"+page.page+"|"+parsed;
         if(dedup.has(key)) continue;
         dedup.add(key);
