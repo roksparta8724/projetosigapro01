@@ -163,6 +163,9 @@ export function DocumentViewerPage() {
   useEffect(() => {
     let cancelled = false;
     setError("");
+    // Prevent a previous process document from remaining in the iframe while
+    // the new file is being authorized or when its QA binary is unavailable.
+    setAccessUrl("");
 
     if (!allowed || !document) {
       return () => {
