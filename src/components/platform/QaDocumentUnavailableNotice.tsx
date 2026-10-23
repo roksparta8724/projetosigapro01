@@ -78,7 +78,7 @@ export function QaDocumentUnavailableNotice({
 
   return (
     <div data-qa-document-missing="true"
-      className={`mx-auto w-full rounded-[22px] border border-amber-200 bg-white p-5 text-center shadow-xl ${preview ? "max-w-5xl" : "max-w-xl"}`}>
+      className={`mx-auto max-h-full w-full overflow-y-auto rounded-[22px] border border-amber-200 bg-white p-5 text-center shadow-xl ${preview ? "max-w-5xl" : "max-w-xl"}`}>
       {preview ? (
         <>
           <div className="flex flex-wrap items-start justify-between gap-3 text-left">
