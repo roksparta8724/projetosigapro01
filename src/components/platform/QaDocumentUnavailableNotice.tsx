@@ -49,6 +49,7 @@ export function QaDocumentUnavailableNotice({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [saveConsent, setSaveConsent] = useState(false);
   const [savingCopy, setSavingCopy] = useState(false);
+  const [retryingRead, setRetryingRead] = useState(false);
   const [storedCopy, setStoredCopy] = useState(false);
 
   useEffect(() => () => {
@@ -92,6 +93,19 @@ export function QaDocumentUnavailableNotice({
       }
     } finally {
       if (request === selection.current) setReading(false);
+    }
+  };
+
+  const retryQaRead = async () => {
+    if (!onRecovered || retryingRead) return;
+    setRetryingRead(true);
+    setError("");
+    try {
+      await onRecovered();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "O PDF ainda não está disponível no armazenamento QA.");
+    } finally {
+      setRetryingRead(false);
     }
   };
 
@@ -197,6 +211,13 @@ export function QaDocumentUnavailableNotice({
             <FileUp className="h-4 w-4" aria-hidden="true" />
             {reading ? "Verificando PDF..." : "Abrir PDF do computador aqui"}
           </button>
+          {onRecovered && objectKey ? (
+            <button type="button" disabled={retryingRead}
+              onClick={() => void retryQaRead()}
+              className="mt-3 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-sky-500/50 bg-slate-900 px-4 py-2 text-sm font-bold text-sky-100 hover:bg-slate-800 disabled:opacity-60">
+              {retryingRead ? "Conferindo armazenamento QA..." : "Verificar novamente no QA"}
+            </button>
+          ) : null}
           {error ? (
             <p role="alert" className="mt-3 rounded-xl bg-rose-50 p-3 text-xs font-medium text-rose-100">{error}</p>
           ) : null}
