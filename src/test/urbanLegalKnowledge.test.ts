@@ -84,7 +84,7 @@ describe("SIGAPRO IA — normas provenientes de documentos reais", () => {
     expect(settings).toContain("Validar e ativar");
     const precheck = readFileSync(resolve(process.cwd(), "src/components/platform/UrbanPrecheckPanel.tsx"), "utf8");
     expect(precheck).toContain("<UrbanLegalKnowledgeDesk municipalityId={municipalityId} canEdit={false}");
-    expect(view).toContain("extractUrbanPdfText(bytes)");
+    expect(view).toContain("extractUrbanPdfText(bytes.slice())");
     expect(view).not.toContain("uploadFile(");
   });
 });
