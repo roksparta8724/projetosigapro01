@@ -3139,3 +3139,26 @@ html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
   opacity:.68 !important;
   cursor:not-allowed !important;
 }
+
+
+/* SIGAPRO IA — normative scope confirmation shares premium inverse polarity.
+   Avoid pale law applicability mask on institutional dark presets. */
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-urban-legal-knowledge="true"] [data-urban-legal-scope="true"] {
+  background:linear-gradient(135deg,#14344d,#10253a) !important;
+  background-color:#102d46 !important;
+  border-color:#527d9b !important;
+  color:#e9f6ff !important;
+}
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-urban-legal-knowledge="true"] [data-urban-legal-scope="true"]
+:is([class*="bg-white"],p,strong,span,label) {
+  color:#edf8ff !important;
+  -webkit-text-fill-color:#edf8ff !important;
+}
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-urban-legal-knowledge="true"] [data-urban-legal-scope="true"] [class*="bg-white"] {
+  background:#0b2239 !important;
+  background-color:#0b2239 !important;
+  border-color:#416b88 !important;
+}
