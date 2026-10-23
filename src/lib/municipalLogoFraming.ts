@@ -48,6 +48,7 @@ export function fitMunicipalLogoFrame(
   return { scale, offsetX, offsetY };
 }
 
-export function fullMunicipalLogoFrame(variant: "header" | "footer" = "header"): MunicipalLogoFrame {
-  return { scale: variant === "footer" ? MUNICIPAL_FOOTER_LOGO_MAX_ZOOM : MUNICIPAL_LOGO_MAX_ZOOM, offsetX: 0, offsetY: 0 };
+export function fullMunicipalLogoFrame(): MunicipalLogoFrame {
+  // Reset always displays the entire uploaded image; extra footer zoom is opt-in.
+  return { scale: MUNICIPAL_LOGO_MAX_ZOOM, offsetX: 0, offsetY: 0 };
 }
