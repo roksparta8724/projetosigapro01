@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { backendClient } from "@/integrations/backend/databaseClient";
+import { municipalCollectionApiRequest } from "@/lib/municipalCollectionApi";
 import { isCollectionSuccessMessage, municipalCollectionError } from "@/lib/collectionDiagnostics";
 
 type PaymentConnection = {
@@ -39,44 +39,17 @@ type PaymentConnection = {
   pixAvailable?: boolean;
 };
 
-async function authorizationHeaders() {
-  try {
-    const result = await backendClient?.auth?.getSession?.();
-    const session = result?.data?.session ?? null;
-    const token =
-      session?.access_token ||
-      session?.accessToken ||
-      session?.token ||
-      "";
-    return token ? { Authorization: `Bearer ${token}` } : {};
-  } catch {
-    return {};
-  }
-}
-
 async function paymentRequest(
   municipalityId: string,
   action: string,
   payload: Record<string, unknown> = {},
 ) {
-  const response = await fetch("/api/payment-connection", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(await authorizationHeaders()),
-    },
-    body: JSON.stringify({ municipalityId, action, ...payload }),
-  });
-
-  const body = (await response.json().catch(() => ({}))) as PaymentConnection & {
-    error?: string;
-  };
-  if (!response.ok) {
-    throw new Error(
-      body.error || "Não foi possível concluir a configuração de pagamentos.",
-    );
-  }
-  return body;
+  return municipalCollectionApiRequest<PaymentConnection>(
+    "payment-connection",
+    municipalityId,
+    action,
+    payload,
+  );
 }
 
 function providerLabel(provider?: PaymentConnection["provider"]) {
@@ -96,6 +69,7 @@ export function MunicipalPaymentSettings({
   const [connection, setConnection] = useState<PaymentConnection | null>(null);
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState("");
+  const [loadFailed, setLoadFailed] = useState(false);
   const [form, setForm] = useState({
     provider: "mercado_pago" as "mercado_pago" | "bank_direct" | "manual",
     environment: "test" as "test" | "production",
@@ -121,6 +95,7 @@ export function MunicipalPaymentSettings({
     const generation = ++requestGeneration.current;
     // A response from another municipality must never populate this account.
     setConnection(null);
+    setLoadFailed(false);
     setForm({ provider: "mercado_pago", environment: "test", accessToken: "", webhookSecret: "" });
     setMessage("");
     if (!municipalityId) { setBusy(""); return; }
@@ -129,6 +104,7 @@ export function MunicipalPaymentSettings({
       const current = await paymentRequest(municipalityId, "get");
       if (generation !== requestGeneration.current) return;
       setConnection(current);
+      setLoadFailed(false);
       setForm({
         provider: current.provider || "mercado_pago",
         environment: current.environment || "test",
@@ -136,7 +112,10 @@ export function MunicipalPaymentSettings({
         webhookSecret: "",
       });
     } catch (error) {
-      if (generation === requestGeneration.current) setMessage(municipalCollectionError(error));
+      if (generation === requestGeneration.current) {
+        setLoadFailed(true);
+        setMessage(municipalCollectionError(error));
+      }
     } finally {
       if (generation === requestGeneration.current) setBusy("");
     }
@@ -148,6 +127,7 @@ export function MunicipalPaymentSettings({
   }, [municipalityId]);
 
   const save = async () => {
+    if (loadFailed || !connection) return;
     const generation = requestGeneration.current;
     setBusy("save");
     setMessage("");
@@ -174,6 +154,7 @@ export function MunicipalPaymentSettings({
   };
 
   const test = async () => {
+    if (loadFailed || !connection) return;
     const generation = requestGeneration.current;
     setBusy("test");
     setMessage("");
@@ -195,6 +176,7 @@ export function MunicipalPaymentSettings({
   };
 
   const activate = async () => {
+    if (loadFailed || !connection) return;
     const generation = requestGeneration.current;
     setBusy("activate");
     setMessage("");
@@ -456,12 +438,13 @@ export function MunicipalPaymentSettings({
           </div>
         ) : null}
 
+        {loadFailed ? <div role="alert" className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm font-semibold text-amber-950"><span>Conexão do provedor não confirmada. Credenciais anteriores protegidas; nenhum salvamento foi realizado.</span><Button type="button" variant="outline" disabled={!!busy} onClick={() => void load()}>Tentar conectar novamente</Button></div> : null}
         <div className="mt-5 flex flex-wrap justify-end gap-2">
           <Button
             type="button"
             variant="outline"
             className="rounded-full"
-            disabled={Boolean(busy)}
+            disabled={Boolean(busy) || loadFailed || !connection}
             onClick={() => void save()}
           >
             {busy === "save" ? "Salvando..." : "Salvar conexão"}
@@ -471,7 +454,7 @@ export function MunicipalPaymentSettings({
             variant="outline"
             className="rounded-full"
             disabled={
-              Boolean(busy) ||
+              Boolean(busy) || loadFailed || !connection ||
               form.provider !== "mercado_pago" ||
               !connection?.credentials_configured
             }
@@ -484,7 +467,7 @@ export function MunicipalPaymentSettings({
             type="button"
             className="sig-collection-payment-activate rounded-full bg-slate-950 px-5 !text-white hover:bg-slate-900"
             disabled={
-              Boolean(busy) ||
+              Boolean(busy) || loadFailed || !connection ||
               (form.provider !== "manual" && !hasValidTest) ||
               isActive
             }
