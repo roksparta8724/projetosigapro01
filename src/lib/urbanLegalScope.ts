@@ -44,3 +44,15 @@ export function urbanLegalEvidenceAppliesTo(
     legalDateValid(effective_from||"") && effective_from<=asOf &&
     (effective_until==null || (legalDateValid(effective_until)&&asOf<=effective_until));
 }
+
+
+/** Scope of a candidate source must fit the ordinance draft under review. */
+export function urbanLegalScopeMatchesDraft(
+  evidence:UrbanLegalEvidence, draft:UrbanLegalScopeDraft,
+):boolean {
+  if(validateUrbanLegalScope(draft))return false;
+  return normalizeUrbanCode(evidence.zone_code)===normalizeUrbanCode(draft.zoneCode) &&
+    normalizeUrbanCode(evidence.use_code)===normalizeUrbanCode(draft.useCode) &&
+    legalDateValid(evidence.effective_from) && evidence.effective_from<=draft.effectiveFrom &&
+    (!evidence.effective_until || draft.effectiveFrom<=evidence.effective_until);
+}
