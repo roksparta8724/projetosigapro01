@@ -86,6 +86,24 @@ describe("localhost 8081 isolated pre-protocol attachments", () => {
     expect((await request("/api/r2-upload","POST",{bucket:"process-documents",objectKey,base64:bytes.toString("base64")})).status).not.toBe(200);
   });
 
+  it("assina o PDF na mesma porta do QA quando o piloto ocupa o 8080", async () => {
+    vi.stubEnv("SIGAPRO_LOCAL_QA_PORT", "8080");
+    const bytes = Buffer.from("%PDF-1.4\n1 0 obj << /Type /Catalog >>\nendobj\n%%EOF");
+    const upload = await request("/api/r2-upload", "POST", {
+      bucket: "process-documents", objectKey, base64: bytes.toString("base64"),
+    });
+    expect(upload.status).toBe(200);
+    const signed = await request("/api/r2-sign-get", "POST", {
+      bucket: "process-documents", objectKey,
+    });
+    expect(signed.status).toBe(200);
+    const url = new URL(String(signed.data?.signedUrl));
+    expect(url.origin).toBe("http://localhost:8080");
+    const opened = await request(url.pathname + url.search, "GET", undefined, false);
+    expect(opened.status).toBe(200);
+    expect(opened.bytes.equals(bytes)).toBe(true);
+  });
+
   it("rejects path traversal, other buckets, and invalid PDF content", async () => {
     expect((await request("/api/r2-upload","POST",{
       bucket:"process-documents",objectKey:`municipalities/${tenant}/../escape/file.pdf`,base64:"eA==",
