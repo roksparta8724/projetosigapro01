@@ -9,9 +9,11 @@ afterEach(() => { vi.unstubAllEnvs(); });
 
 describe("SIGAPRO localhost Neon Auth/Data API alignment", () => {
   it("uses localhost as Neon Auth trusted origin in QA rather than 127.0.0.1", () => {
-    expect(qaLauncher).toContain("http://localhost:8081");
-    expect(qaLauncher).toContain('[viteCli, "--host", "localhost", "--port", "8081", "--strictPort"]');
-    expect(qaLauncher).not.toContain('"http://127.0.0.1:8081"');
+    expect(qaLauncher).toContain('?? "8081"');
+    expect(qaLauncher).toContain('requestedPort !== "8080" && requestedPort !== "8081"');
+    expect(qaLauncher).toContain('[viteCli, "--host", "localhost", "--port", requestedPort, "--strictPort"]');
+    expect(qaLauncher).not.toContain('["--host", "127.0.0.1"]');
+    expect(qaLauncher).toContain('SIGAPRO_LOCAL_QA_LAUNCH: "true"');
   });
 
   it("keeps local client on official Auth/Data endpoints unless explicitly isolated", () => {
