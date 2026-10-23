@@ -117,7 +117,17 @@
           // Continuidade visual é opcional; nunca bloquear a aplicação.
         }
 
-        // Escala institucional unificada de 100% desde o primeiro frame.
+        // Mesma escala desde o primeiro frame.
+        var hostName = window.location.hostname.toLowerCase();
+        var rootDomain = "sigapromunicipal.com.br";
+        var forcedTenant = new URLSearchParams(window.location.search).get("tenant") ||
+          new URLSearchParams(window.location.search).get("subdomain") || "";
+        var subdomain = forcedTenant.toLowerCase() ||
+          (hostName.endsWith(".localhost") ? hostName.slice(0, -".localhost".length) : "") ||
+          (hostName.endsWith("." + rootDomain) ? hostName.slice(0, -(rootDomain.length + 1)) : "");
+        var reservedSubdomain = ["www", "app", "admin", "api", "support", "docs", "mail", "root", "status", "auth"];
+        var isTenantHost = !!subdomain && reservedSubdomain.indexOf(subdomain) === -1;
+        // Uma escala para todos os dominios e rotas.
         var initialAppZoom = "1";
 
         document.documentElement.style.zoom = initialAppZoom;
@@ -153,17 +163,6 @@
       #root {
         min-height: 100vh;
         min-height: 100dvh;
-      }
-
-      html[data-sigapro-initial-render="true"][data-sigapro-cached-internal="true"] #root:empty {
-        background:
-          linear-gradient(
-            to bottom,
-            var(--sig-initial-topbar, #0b3147) 0,
-            var(--sig-initial-topbar, #0b3147) 72px,
-            var(--sig-initial-bg, #f5f7fb) 72px,
-            var(--sig-initial-bg, #f5f7fb) 100%
-          );
       }
 
       html[data-sigapro-initial-render="true"] *,

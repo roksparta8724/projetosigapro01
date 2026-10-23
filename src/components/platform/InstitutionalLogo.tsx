@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Building2 } from "@/components/platform/PremiumIcons";
 import { getPublicAssetUrl, resolveAssetUrl } from "@/lib/assetUrl";
 import { cn } from "@/lib/utils";
+import { fitMunicipalLogoFrame, MUNICIPAL_LOGO_BASE_RATIO, MUNICIPAL_LOGO_EDITOR_SIZE } from "@/lib/municipalLogoFraming";
 import type { InstitutionalBranding } from "@/lib/institutionBranding";
 
 interface InstitutionalLogoProps {
@@ -11,6 +12,9 @@ interface InstitutionalLogoProps {
   className?: string;
   viewportClassName?: string;
   contextScope?: "auto" | "master" | "municipality";
+  /** The exact URL that successfully decoded in the institutional frame.
+   * Editors must reuse this source instead of a stale signed candidate. */
+  onResolvedSource?: (url: string) => void;
 }
 
 const SIGAPRO_OFFICIAL_LOGO = getPublicAssetUrl("sigapro-logo.png");
@@ -18,7 +22,10 @@ const LOGO_SESSION_CACHE_KEY = "sigapro.institutional-logo.v3";
 
 const variantClasses = {
   header: "h-[112px] w-[188px] p-0 lg:h-[120px] lg:w-[204px]",
-  footer: "h-[140px] w-[188px] p-0",
+  // Compact presentation (144px square) of the same 188px square editor crop.
+  // Keeping the aspect ratio preserves scale and position proportionally
+  // without stretching the site's entire institutional footer.
+  footer: "h-[144px] w-[144px] max-h-[144px] max-w-[144px] p-0",
   preview: "h-[140px] w-full max-w-[204px] p-0",
   compact: "h-10 w-10 p-0",
   login: "h-full w-full p-0",
@@ -94,6 +101,7 @@ export function InstitutionalLogo({
   className,
   viewportClassName,
   contextScope = "auto",
+  onResolvedSource,
 }: InstitutionalLogoProps) {
   const [failedSources, setFailedSources] = useState<string[]>([]);
   const [fallbackReady, setFallbackReady] = useState(false);
@@ -248,16 +256,34 @@ export function InstitutionalLogo({
   // Em logo municipal com object-fit contain, escala abaixo de 1 apenas cria
   // uma margem vazia excessiva. Valores legados menores que 1 sao normalizados
   // visualmente para 1; o editor continua podendo ampliar e reposicionar.
+  const municipalFrame = fitMunicipalLogoFrame({
+    scale: configuredScale,
+    offsetX: branding.logoOffsetX,
+    offsetY: branding.logoOffsetY,
+  });
   const scale = isMaster
     ? Math.max(0.35, Math.min(5, configuredScale))
-    : Math.max(1, Math.min(5, configuredScale));
+    : municipalFrame.scale;
   const frameSize = variant === "header" ? 128 : 144;
   const frameRatio = frameSize / 160;
-  const offsetX = (branding.logoOffsetX || 0) * frameRatio;
-  const offsetY = (branding.logoOffsetY || 0) * frameRatio;
-  const showCrop =
-    isMaster &&
-    (variant === "header" || variant === "footer" || variant === "preview");
+  // Master uses its original 160px editor. Municipal editors use a 188px
+  // frame, while displayed header/footer cards have different responsive
+  // heights. Percent translations scale with the actual logo card in the page.
+  const masterOffsetX = (branding.logoOffsetX || 0) * frameRatio;
+  const masterOffsetY = (branding.logoOffsetY || 0) * frameRatio;
+  // Offsets are stored as editor-frame pixels (188px square). CSS
+  // percentages preserve the same visual proportions in the compact footer.
+  const municipalOffsetX = (municipalFrame.offsetX / MUNICIPAL_LOGO_EDITOR_SIZE) * 100;
+  const municipalOffsetY = (municipalFrame.offsetY / MUNICIPAL_LOGO_EDITOR_SIZE) * 100;
+  const logoTranslation = isMaster
+    ? `translate(${masterOffsetX}px, ${masterOffsetY}px)`
+    : `translate(${municipalOffsetX}%, ${municipalOffsetY}%)`;
+  // Both municipal variants use the exact same calibrated optical fit as
+  // the admin editors: 1.50x means an uncropped, full original image.
+  const displayScale = !isMaster && (variant === "footer" || variant === "header")
+    ? scale * MUNICIPAL_LOGO_BASE_RATIO
+    : scale;
+  const showCrop = variant === "header" || variant === "footer" || variant === "preview";
 
   useEffect(() => {
     // Troca de arquivo, renovacao de URL assinada ou mudanca de contexto deve
@@ -331,10 +357,13 @@ export function InstitutionalLogo({
                 !isMaster && "rounded-[22px] bg-white",
                 isMaster && "mix-blend-screen",
               )}
-              style={showCrop ? { transform: `translate(${offsetX}px, ${offsetY}px) scale(${scale})`, transformOrigin: "center center" } : undefined}
+              style={showCrop ? { transform: `${logoTranslation} scale(${displayScale})`, transformOrigin: "center center" } : undefined}
               loading="eager"
               decoding="sync"
-              onLoad={() => {
+              onLoad={(event) => {
+                if (event.currentTarget.naturalWidth > 0 && event.currentTarget.naturalHeight > 0) {
+                  onResolvedSource?.(displayUrl);
+                }
                 setLoadedSource({ context, url: displayUrl });
                 const isAuthoritativeCurrentLogo =
                   isMaster ||

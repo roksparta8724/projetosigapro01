@@ -6,6 +6,7 @@
  */
 
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { createHash } from "node:crypto";
 import { resolveMunicipalDocumentTarget } from "../municipal-storage.js";
 
 type Req = import("http").IncomingMessage & { method?: string; body?: unknown };
@@ -61,6 +62,7 @@ async function putR2ObjectWithFallback(input: {
   objectKey: string;
   body: Buffer;
   contentType: string;
+  metadata?: Record<string, string>;
 }) {
   const endpoints = getR2EndpointCandidates();
   let lastError: unknown;
@@ -81,9 +83,12 @@ async function putR2ObjectWithFallback(input: {
         Key: input.objectKey,
         Body: input.body,
         ContentType: input.contentType,
+        Metadata: input.metadata,
+        ...(input.objectKey.includes("/dam-originals/") ? { IfNoneMatch: "*" } : {}),
       }));
       return;
     } catch (error) {
+      if (input.objectKey.includes("/dam-originals/") && (error as { $metadata?: { httpStatusCode?: number } })?.$metadata?.httpStatusCode === 412) return;
       lastError = error;
       if (!isR2CredentialError(error)) throw error;
     }
@@ -315,6 +320,23 @@ export default async function handler(req: Req, res: Res) {
 
     const buffer = Buffer.from(base64, "base64");
     const municipalityId = extractMunicipalityId(objectKey);
+    let damOriginalMetadata: Record<string, string> | undefined;
+    if (objectKey.includes("/dam-originals/")) {
+      if (contentType !== "application/pdf" || buffer.byteLength > 25 * 1024 * 1024) {
+        json(res, 400, { error: "O original DAM deve ser um PDF de até 25 MB." }); return;
+      }
+      const match = /^municipalities\/([a-f0-9-]{36})\/processes\/([a-f0-9-]{36})\/dam-originals\/([a-f0-9-]{36})\/([a-f0-9]{64})\.pdf$/.exec(objectKey);
+      if (!match || buffer.subarray(0, 5).toString() !== "%PDF-" || createHash("sha256").update(buffer).digest("hex") !== match[4]) {
+        json(res, 400, { error: "PDF original ou hash inválido." }); return;
+      }
+      const allowed = await callDataApiRpc(req, "authorize_payment_guide_original_upload_v2", {
+        _guide_id: match[3], _municipality_id: match[1], _process_id: match[2],
+      });
+      if (!allowed.ok || allowed.payload !== true) {
+        json(res, 403, { error: "Guia não permite arquivamento do PDF original." }); return;
+      }
+      damOriginalMetadata = { municipality: match[1], process: match[2], guide: match[3], sha256: match[4] };
+    }
     const municipalTarget = municipalityId
       ? await resolveMunicipalDocumentTarget(req, municipalityId, bucket, objectKey)
       : null;
@@ -375,7 +397,12 @@ export default async function handler(req: Req, res: Res) {
         Key: municipalTarget.objectKey,
         Body: buffer,
         ContentType: resolvedContentType,
-      }));
+        Metadata: damOriginalMetadata,
+        ...(objectKey.includes("/dam-originals/") ? { IfNoneMatch: "*" } : {}),
+      })).catch((error) => {
+        if (objectKey.includes("/dam-originals/") && error?.$metadata?.httpStatusCode === 412) return;
+        throw error;
+      });
 
       json(res, 200, {
         bucket: requestedBucket,
@@ -396,6 +423,7 @@ export default async function handler(req: Req, res: Res) {
       objectKey,
       body: buffer,
       contentType: resolvedContentType,
+      metadata: damOriginalMetadata,
     });
 
     json(res, 200, {

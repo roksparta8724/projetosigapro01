@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Calendar, CreditCard, Eye, FilePenLine, Loader2, Search } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { QRCodeSVG } from "qrcode.react";
+import { isValidPixPayload } from "@/lib/pix";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,7 +36,8 @@ import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { prepareGuideInstitutionalLogo } from "@/lib/guideAssets";
-import { ensureMercadoPagoGuideCharge } from "@/lib/mercadoPagoGuide";
+import { ensureMercadoPagoGuideCharge, requestQaPixCharge, type QaPixCharge, type MercadoPagoGuideCharge } from "@/lib/mercadoPagoGuide";
+import { normalizeOfficialBanking } from "@/lib/bankCodes";
 import { resolveGuideBankingData } from "@/lib/paymentCollection";
 
 const paymentStatusOptions = [
@@ -67,17 +70,98 @@ export function ExternalPaymentsPage() {
   const processes = getVisibleProcessesByScope(session, effectiveScopeId, allProcesses);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("todos");
-  const [openingGuideKey, setOpeningGuideKey] = useState("");
+  // Each operation has its own identity. Shared per-guide loading state made
+  // "Emitir boleto" and "Gerar PIX" animate at the same time.
+  const [busyGuideAction, setBusyGuideAction] = useState<{
+    key: string; action: "boleto" | "pix" | "guide";
+  } | null>(null);
+  const [statusGuideKey, setStatusGuideKey] = useState("");
   const [guideActionStatus, setGuideActionStatus] = useState("");
+  const [qaCharges, setQaCharges] = useState<Record<string, MercadoPagoGuideCharge>>({});
+  const [qaPixCharges, setQaPixCharges] = useState<Record<string,QaPixCharge>>({});
+  const isolatedQaMode = import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true";
   const activeTab = getExternalTabByPath(location.pathname);
+
+  const issueSandboxBoleto = async (process: ProcessRecord, guide: PaymentGuideEntry) => {
+    if (!isolatedQaMode || !effectiveScopeId || busyGuideAction || guide.status === "compensada") return;
+    const actionKey=`${process.id}:${guide.code}`;
+    setBusyGuideAction({key:actionKey,action:"boleto"});
+    setStatusGuideKey(actionKey);
+    setGuideActionStatus("");
+    try {
+      const charge = await ensureMercadoPagoGuideCharge({
+        municipalityId: effectiveScopeId,
+        guideCode: guide.code,
+        amount: guide.amount,
+        dueDate: guide.dueDate,
+        description: "DAM de homologação SIGAPRO — NÃO PAGAR",
+      }, { isolatedSandboxOnly: true });
+      if (charge.environment !== "test" || !charge.orderId) {
+        throw new Error("O provedor não confirmou uma order exclusiva do ambiente de testes.");
+      }
+      setQaCharges((prev) => ({ ...prev, [guide.code]: charge }));
+      setGuideActionStatus("Boleto de homologação registrado no Neon de testes. Clique em Visualizar guia para conferir os dados. NÃO PAGAR.");
+      await refreshRemoteStore();
+    } catch (error) {
+      setGuideActionStatus(error instanceof Error ? error.message : "Erro na emissão bancária de homologação.");
+    } finally {
+      setBusyGuideAction(null);
+    }
+  };
+
+  const issueSandboxPix = async (process: ProcessRecord, guide: PaymentGuideEntry) => {
+    if (!isolatedQaMode || !effectiveScopeId || busyGuideAction || guide.status === "compensada") return;
+    const actionKey=`${process.id}:${guide.code}`;
+    setBusyGuideAction({key:actionKey,action:"pix"});
+    setStatusGuideKey(actionKey);
+    setGuideActionStatus("");
+    try {
+      let result: QaPixCharge;
+      try {
+        result=await requestQaPixCharge({municipalityId:effectiveScopeId,guideCode:guide.code,action:"issue"});
+      } catch (error) {
+        // Mercado Pago Orders can process PIX asynchronously. If the same
+        // order is pending, poll by ID without sending another POST.
+        const message=error instanceof Error ? error.message : "";
+        if (!/Emissão PIX pendente|order deve ser consultada|QR.*pendente/i.test(message)) throw error;
+        result={ok:false,sandboxOnly:true};
+        for (let attempt=0; attempt<3; attempt++) {
+          await new Promise<void>((resolve)=>setTimeout(resolve,800));
+          try {
+            result=await requestQaPixCharge({
+              municipalityId:effectiveScopeId,guideCode:guide.code,action:"get",
+            });
+            if(result.ok) break;
+          } catch {
+            // Keep initial provider status; repeated reads must not issue again.
+          }
+        }
+        if(!result.ok) throw new Error(
+          "A order PIX foi criada, mas o Mercado Pago ainda não disponibilizou o QR Code. "+
+          "Use o mesmo botão para consultar novamente, sem gerar outra cobrança.",
+        );
+      }
+      if (!result.ok || !isValidPixPayload(result.qrCode) || result.environment!=="test" || !result.orderId) {
+        throw new Error("O Mercado Pago não retornou um QR PIX válido de homologação.");
+      }
+      setQaPixCharges(prev=>({...prev,[guide.code]:result}));
+      setGuideActionStatus("PIX de TESTE emitido para esta guia. Visualize a guia para conferir o QR de homologação. NÃO PAGAR.");
+    } catch(error) {
+      setGuideActionStatus(error instanceof Error ? error.message : "Falha na emissão do PIX de teste.");
+    } finally {
+      setBusyGuideAction(null);
+    }
+  };
 
   const openExternalGuide = async (
     process: ProcessRecord,
     guide: PaymentGuideEntry,
   ) => {
-    if (!effectiveScopeId || openingGuideKey) return;
+    if (!effectiveScopeId || busyGuideAction) return;
 
-    setOpeningGuideKey(`${process.id}:${guide.code}`);
+    const actionKey=`${process.id}:${guide.code}`;
+    setBusyGuideAction({key:actionKey,action:"guide"});
+    setStatusGuideKey(actionKey);
     setGuideActionStatus("");
 
     try {
@@ -88,8 +172,23 @@ export function ExternalPaymentsPage() {
         municipalityCity: municipality?.city,
       });
 
-      const charge =
-        banking.barcode && banking.digitableLine
+      // QA has two states: an unissued NON-PAYABLE administrative preview or
+      // a VERIFIED, provider-issued TEST boleto. Never infer issuance from the
+      // saved bank/PIX configuration. Test orders are initiated via explicit CTA.
+      const isolatedQa = import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true";
+      const tested = qaCharges[guide.code];
+      const candidate = normalizeOfficialBanking(tested?.barcodeContent, tested?.digitableLine);
+      const savedSandbox = Boolean(
+        isolatedQa && guide.providerEnvironment === "test" &&
+        guide.paymentProvider === "mercado_pago" && guide.bankReference &&
+        banking.barcode && banking.digitableLine,
+      );
+      const newlyIssued = Boolean(isolatedQa && tested?.ok &&
+        tested.environment === "test" && tested.orderId &&
+        candidate.barcode && candidate.digitableLine);
+      const sandboxIssued = savedSandbox || newlyIssued;
+      const charge = isolatedQa ? (newlyIssued ? tested : null) :
+        (banking.barcode && banking.digitableLine)
           ? null
           : await ensureMercadoPagoGuideCharge({
               municipalityId: effectiveScopeId,
@@ -98,16 +197,25 @@ export function ExternalPaymentsPage() {
               dueDate: guide.dueDate,
               description: `${guide.label} · ${process.preProtocol || process.title}`,
             });
-
-      const barcode = charge?.barcodeContent || banking.barcode;
-      const digitableLine = charge?.digitableLine || banking.digitableLine;
-
-      if (!barcode || !digitableLine) {
-        throw new Error(
-          "A cobrança ainda não retornou código de barras e linha digitável válidos.",
-        );
+      const barcode = isolatedQa
+        ? (sandboxIssued ? (charge?.barcodeContent || banking.barcode) : "")
+        : (charge?.barcodeContent || banking.barcode);
+      const digitableLine = isolatedQa
+        ? (sandboxIssued ? (charge?.digitableLine || banking.digitableLine) : "")
+        : (charge?.digitableLine || banking.digitableLine);
+      const previewOnly = isolatedQa && !sandboxIssued;
+      if (!isolatedQa && (!barcode || !digitableLine)) {
+        throw new Error("A cobrança ainda não retornou código de barras e linha digitável válidos.");
       }
 
+      // Read the independent PIX sandbox order without creating a charge on document open.
+      let sandboxPix: QaPixCharge | undefined = qaPixCharges[guide.code];
+      if (isolatedQa && !sandboxPix?.ok) {
+        try {
+          const result=await requestQaPixCharge({municipalityId:effectiveScopeId,guideCode:guide.code,action:"get"});
+          if (result.ok) sandboxPix=result;
+        } catch { /* The boleto PDF must stay available when PIX is unavailable. */ }
+      }
       const logoUrl = await prepareGuideInstitutionalLogo(
         tenantSettings?.logoUrl,
         tenantSettings?.brasaoUrl,
@@ -140,6 +248,7 @@ export function ExternalPaymentsPage() {
         },
         guia: {
           numeroGuia: guide.code,
+          nonPayablePreview: previewOnly,
           exercicio: year,
           dataDocumento: issuedAt,
           vencimento: guide.dueDate,
@@ -149,20 +258,31 @@ export function ExternalPaymentsPage() {
             guide.professionalName || process.technicalLead,
           codigoBarras: barcode,
           linhaDigitavel: digitableLine,
-          pixPayload: banking.pixPayload,
-          bankName:
-            charge?.financialInstitution ||
-            banking.bankName ||
-            "Mercado Pago",
+          pixPayload: isolatedQa ? "" : banking.pixPayload,
+          qaSandboxPixPayload: isolatedQa && sandboxPix?.ok && sandboxPix.environment==="test"
+            ? sandboxPix.qrCode || "" : "",
+          bankName: isolatedQa
+            ? (sandboxIssued ? (charge?.financialInstitution || "Mercado Pago — teste") : "Mercado Pago (conexão de teste)")
+            : charge?.financialInstitution || banking.bankName || "Mercado Pago",
           bankAgreement: banking.bankAgreement,
-          bankInstructions: banking.bankInstructions,
-          bankReference: charge?.orderId || guide.bankReference,
-          bankPaymentId: charge?.paymentId || guide.bankPaymentId,
-          bankStatus: charge?.status || guide.bankStatus,
-          bankStatusDetail: charge?.statusDetail || guide.bankStatusDetail,
-          bankAuthenticatedAt:
-            charge?.authenticatedAt || guide.bankAuthenticatedAt,
-          bankEnvironment: charge?.environment || guide.providerEnvironment,
+          // Display only the municipality's saved administrative bank metadata.
+          // These fields DO NOT prove a registered bank-issued boleto.
+          bankMunicipalName: tenantSettings?.bankName?.trim() || undefined,
+          bankCode: tenantSettings?.bankCode?.trim() || undefined,
+          bankAgency: tenantSettings?.bankAgency?.trim() || undefined,
+          bankAccount: tenantSettings?.bankAccount?.trim() || undefined,
+          bankBeneficiary: tenantSettings?.beneficiarioArrecadacao?.trim() || undefined,
+          bankInstructions: isolatedQa
+            ? (sandboxIssued
+              ? "BOLETO DE HOMOLOGAÇÃO — dados fornecidos pelo Mercado Pago em ambiente de TESTE. NÃO EFETUAR PAGAMENTO."
+              : "HOMOLOGAÇÃO SIGAPRO — DOCUMENTO NÃO PAGÁVEL. Nenhuma cobrança foi registrada no banco.")
+            : banking.bankInstructions,
+          bankReference: previewOnly ? undefined : (charge?.orderId || guide.bankReference),
+          bankPaymentId: previewOnly ? undefined : (charge?.paymentId || guide.bankPaymentId),
+          bankStatus: previewOnly ? undefined : (charge?.status || guide.bankStatus),
+          bankStatusDetail: previewOnly ? undefined : (charge?.statusDetail || guide.bankStatusDetail),
+          bankAuthenticatedAt: previewOnly ? undefined : (charge?.authenticatedAt || guide.bankAuthenticatedAt),
+          bankEnvironment: isolatedQa ? "test" : (charge?.environment || guide.providerEnvironment),
           paymentProvider:
             guide.paymentProvider ||
             tenantSettings?.paymentProvider ||
@@ -188,7 +308,7 @@ export function ExternalPaymentsPage() {
       };
 
       const opened = openGuiaRecolhimentoOficialWindow(guideDocument, {
-        title: `Guia ${guide.code}`,
+        title: isolatedQa ? (sandboxIssued ? `BOLETO DE TESTE — NÃO PAGAR · ${guide.code}` : `PRÉVIA NÃO PAGÁVEL · ${guide.code}`) : `Guia ${guide.code}`,
         autoPrint: false,
       });
 
@@ -204,7 +324,7 @@ export function ExternalPaymentsPage() {
           : "Não foi possível abrir a guia agora.",
       );
     } finally {
-      setOpeningGuideKey("");
+      setBusyGuideAction(null);
     }
   };
 
@@ -294,6 +414,12 @@ export function ExternalPaymentsPage() {
           }
         />
 
+        {import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true" ? (
+          <div role="status" data-qa-payment-preview="true" className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm font-semibold leading-6 text-amber-950">
+            HOMOLOGAÇÃO SIGAPRO — Utilize "Emitir boleto de TESTE" e "Gerar PIX de TESTE" para obter exclusivamente dados de cobrança simulada do Mercado Pago; depois clique em "Visualizar guia".
+            NÃO PAGAR. Nenhum PIX estático da Prefeitura é usado. R2 oficial, cobranças reais e baixas automáticas permanecem desativados.
+          </div>
+        ) : null}
         <InternalTabs
           items={externalTabs.map(({ value, label, helper }) => ({ value, label, helper }))}
           value={activeTab.value}
@@ -342,11 +468,6 @@ export function ExternalPaymentsPage() {
               }
               contentClassName="space-y-4"
             >
-              {guideActionStatus ? (
-                <div className="rounded-[14px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-200">
-                  {guideActionStatus}
-                </div>
-              ) : null}
 
               <div className="hidden rounded-[12px] border border-[#E5E7EB] bg-[#F8FAFC] px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 2xl:grid 2xl:grid-cols-[1.15fr_1fr_0.85fr_0.75fr_0.7fr_1.25fr] 2xl:gap-3">
                 <span>Pré-protocolo / Processo</span>
@@ -451,14 +572,44 @@ export function ExternalPaymentsPage() {
                                 Editar rascunho
                               </Link>
                             </Button>
+                            {isolatedQaMode && guide.status !== "compensada" ? (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                data-qa-issue-boleto="true"
+                                className="rounded-full border-amber-300 bg-amber-50 px-4 text-[12px] font-semibold text-amber-950 hover:bg-amber-100"
+                                disabled={Boolean(busyGuideAction)}
+                                onClick={() => void issueSandboxBoleto(process, guide)}
+                              >
+                                {busyGuideAction?.key === `${process.id}:${guide.code}` && busyGuideAction.action === "boleto"
+                                  ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                                  : <CreditCard className="mr-1.5 h-3.5 w-3.5" />}
+                                Emitir boleto de TESTE
+                              </Button>
+                            ) : null}
+                            {isolatedQaMode && guide.status !== "compensada" ? (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                data-qa-issue-pix="true"
+                                className="rounded-full border-sky-300 bg-sky-50 px-4 text-[12px] font-semibold text-sky-950 hover:bg-sky-100"
+                                disabled={Boolean(busyGuideAction)}
+                                onClick={() => void issueSandboxPix(process,guide)}
+                              >
+                                {busyGuideAction?.key === `${process.id}:${guide.code}` && busyGuideAction.action === "pix"
+                                  ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                                  : <CreditCard className="mr-1.5 h-3.5 w-3.5" />}
+                                Gerar PIX de TESTE
+                              </Button>
+                            ) : null}
                             <Button
                               type="button"
                               data-preprotocol-guide-action="true"
                               className="rounded-full bg-sky-700 px-4 text-[12px] font-bold !text-white shadow-[0_8px_20px_rgba(3,105,161,0.20)] hover:bg-sky-800 [&_*]:!text-white"
-                              disabled={openingGuideKey === `${process.id}:${guide.code}`}
+                              disabled={Boolean(busyGuideAction)}
                               onClick={() => void openExternalGuide(process, guide)}
                             >
-                              {openingGuideKey === `${process.id}:${guide.code}` ? (
+                              {busyGuideAction?.key === `${process.id}:${guide.code}` && busyGuideAction.action === "guide" ? (
                                 <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
                               ) : (
                                 <Eye className="mr-1.5 h-3.5 w-3.5" />
@@ -471,6 +622,25 @@ export function ExternalPaymentsPage() {
                             <Link to={processTarget}>Ver processo</Link>
                           </Button>
                         )}
+                        {statusGuideKey === `${process.id}:${guide.code}` && guideActionStatus ? (
+                          <div role="status" aria-live="polite"
+                            data-qa-guide-feedback="true"
+                            className="w-full rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-medium leading-5 text-amber-950 dark:border-amber-500/40 dark:bg-amber-950/30 dark:text-amber-100">
+                            {guideActionStatus}
+                          </div>
+                        ) : null}
+                        {isolatedQaMode && qaPixCharges[guide.code]?.ok &&
+                          isValidPixPayload(qaPixCharges[guide.code]?.qrCode) ? (
+                            <div data-qa-pix-preview="true"
+                              className="w-full rounded-xl border border-sky-200 bg-white p-3 text-center text-slate-900 shadow-sm">
+                              <p className="mb-2 text-xs font-bold">PIX DE HOMOLOGAÇÃO — NÃO PAGAR</p>
+                              <QRCodeSVG value={qaPixCharges[guide.code].qrCode!} size={124} level="M" />
+                              <p className="mt-2 break-all font-mono text-[9px]">
+                                {qaPixCharges[guide.code].qrCode}
+                              </p>
+                              <p className="mt-2 text-xs font-semibold">QR do Mercado Pago de TESTE. Visualize a guia para abrir o documento.</p>
+                            </div>
+                          ) : null}
                       </div>
                     </div>
                   </div>

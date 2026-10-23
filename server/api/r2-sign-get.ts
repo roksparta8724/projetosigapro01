@@ -7,7 +7,7 @@
  */
 
 import { GetObjectCommand, HeadObjectCommand, S3Client } from "@aws-sdk/client-s3";
-import { resolveMunicipalDocumentTarget } from "../municipal-storage.js";
+import { callDataApiRpc, resolveMunicipalDocumentTarget } from "../municipal-storage.js";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 type Req = import("http").IncomingMessage & { method?: string; body?: unknown };
@@ -112,13 +112,13 @@ export default async function handler(req: Req, res: Res) {
   }
 
   try {
-    const endpoints = getR2EndpointCandidates();
+    const endpoint = resolveR2Endpoint();
     const accessKeyId = readEnv("R2_ACCESS_KEY_ID");
     const secretAccessKey = readEnv("R2_SECRET_ACCESS_KEY");
-    const envOk = Boolean(endpoints.length && accessKeyId && secretAccessKey);
+    const envOk = Boolean(endpoint && accessKeyId && secretAccessKey);
 
     console.log("[ProdAudit][R2Sign] env", {
-      hasEndpoint: Boolean(endpoints.length),
+      hasEndpoint: Boolean(endpoint),
       hasAccessKeyId: Boolean(accessKeyId),
       hasSecret: Boolean(secretAccessKey),
       accessKeyLength: accessKeyId.length,
@@ -152,6 +152,16 @@ export default async function handler(req: Req, res: Res) {
         : 21600;
 
     const municipalityId = extractMunicipalityId(objectKey);
+    if (objectKey.includes("/dam-originals/")) {
+      const match = /^municipalities\/([a-f0-9-]{36})\/processes\/([a-f0-9-]{36})\/dam-originals\/([a-f0-9-]{36})\/[a-f0-9]{64}\.pdf$/.exec(objectKey);
+      if (!match) { json(res, 400, { error: "Referência do PDF original inválida." }); return; }
+      const allowed = await callDataApiRpc(req, "authorize_payment_guide_original_read_v1", {
+        _guide_id: match[3], _municipality_id: match[1], _process_id: match[2], _object_key: objectKey,
+      });
+      if (!allowed.ok || allowed.payload !== true) {
+        json(res, allowed.status === 401 ? 401 : 403, { error: "Sem acesso ao PDF original desta guia." }); return;
+      }
+    }
     const municipalTarget = municipalityId
       ? await resolveMunicipalDocumentTarget(req, municipalityId, bucket, objectKey)
       : null;
@@ -182,7 +192,7 @@ export default async function handler(req: Req, res: Res) {
     let signedUrl = "";
     let lastError: unknown = null;
 
-    for (const endpoint of endpoints) {
+    for (const endpoint of getR2EndpointCandidates()) {
       const client = new S3Client({
         region: "auto",
         endpoint,

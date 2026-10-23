@@ -28,17 +28,18 @@ describe("SIGAPRO: PDFs assinados e integridade documental", () => {
     expect(isSignedAnalysisArchiveDocument({ ...stored, uploaded: false })).toBe(false);
     expect(() => signedAnalysisArchiveLabel(2, "")).toThrow();
   });
-  it("arquiva somente após as duas assinaturas oficiais e conferência do banco", () => {
+  it("não confunde abrir PDF com arquivar e exige readback do banco para a versão assinada", () => {
     const analysis = file("src/components/platform/UrbanAnalysisChecklistPanel.tsx");
-    expect(analysis).toContain("if (isFullySigned && isInternalRole(session.role))");
+    expect(analysis).toContain("if (persistSigned && !window.confirm(");
+    expect(analysis).toContain("if (persistSigned && !readOnly && (technicalOfficial || directorOfficial))");
     expect(analysis).toContain("getProcessArtifactSignatures(process.id, ANALYSIS_ARTIFACT_KEY)");
-    expect(analysis).toContain('signer.slot === "analise_tecnica"');
-    expect(analysis).toContain('signer.slot === "diretoria"');
-    expect(analysis).toContain("stableSignatureStringify(block?.payload ?? {})");
+    expect(analysis).toContain("stableSignatureStringify(verified.block.payload ?? {})");
+    expect(analysis).toContain("stableSignatureStringify(buildChecklistSignaturePayload(state, process, municipalityId))");
+    expect(analysis).toContain("(directorOfficial && !verifiedDirector)");
     expect(analysis).toContain('bucket: "process-documents"');
     expect(analysis).toContain("await appendProcessDocuments(process.id,");
     expect(analysis).toContain("crypto.subtle.digest");
-    expect(analysis).toContain("PDF aberto, mas não arquivado");
+    expect(analysis).toContain("const alreadyRecorded = process.documents.some(");
   });
   it("mantém PDFs assinados fora do checklist obrigatório e disponíveis em pasta própria", () => {
     const detail = file("src/pages/saas/ProcessDetailPage.tsx");
@@ -53,14 +54,15 @@ describe("SIGAPRO: PDFs assinados e integridade documental", () => {
     expect(folder).toContain("getProcessArtifactVersionHistory");
     expect(folder).toContain("o PDF histórico original não foi arquivado");
   });
-  it("corrige exatamente a legenda das etiquetas, mantendo as cores dos ícones", () => {
+  it("mantém textos brancos nos marcadores azuis e preserva a cor original dos ícones", () => {
     const page = file("src/pages/saas/ExternalProcessControlPage.tsx");
     const css = file("src/styles/surface-polarity.css");
-    expect(page).toContain('WebkitTextFillColor: "#f8fafc"');
+    expect(page).toContain('data-external-marker-label="true"');
+    expect(page).toContain('WebkitTextFillColor: "#ffffff"');
     expect(page).toContain('style={{ color: marker.color, fill: marker.color }}');
-    const rules = css.slice(css.indexOf("MARCADORES EXTERNOS V24"));
+    const rules = css.slice(css.indexOf("SIGAPRO EXTERNAL MARKER LABEL LEGIBILITY V25"));
     expect(rules).toContain('[data-external-marker-label="true"]');
-    expect(rules).not.toContain("svg");
-    expect(rules).not.toContain(".sig-premium-topbar");
+    expect(rules).toContain("color: #ffffff !important;");
+    expect(rules).toContain("-webkit-text-fill-color: #ffffff !important;");
   });
 });

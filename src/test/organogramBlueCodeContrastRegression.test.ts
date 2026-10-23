@@ -21,13 +21,16 @@ const processDetail = readFileSync(
 );
 
 describe("organogram institutional blue code contrast", () => {
-  it("renders acronym badges through a dedicated white SVG glyph", () => {
+  it("renders legible white badges with larger, non-scaled institutional acronyms", () => {
     expect(chart).toContain('data-organogram-level-badge="true"');
     expect(chart).toContain('data-organogram-code-surface="blue"');
-    expect(chart).toContain("OrganogramAcronymGlyph");
+    expect(chart).toContain('data-organogram-code-text="true"');
+    expect(chart).toContain("text-[12px] font-extrabold");
+    expect(chart).toContain("inline-flex min-h-7 min-w-[54px]");
+    expect(chart).toContain("!text-white");
+    // The SVG fallback remains available for other compatible surfaces.
     expect(glyph).toContain('data-organogram-code-glyph="true"');
     expect(glyph).toContain('fill="#ffffff"');
-    expect(glyph).toContain('fill: "#ffffff"');
   });
 
   it("prevents any theme/card rule from repainting the acronym glyph dark", () => {

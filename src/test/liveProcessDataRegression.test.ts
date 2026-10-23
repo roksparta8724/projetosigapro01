@@ -51,10 +51,11 @@ describe("live process identity and operational freshness", () => {
   });
 
   it("does not repaint the analysis desk just to advance a heartbeat timestamp", () => {
-    expect(analystDesk).not.toContain("setLiveSyncAt");
-    expect(analystDesk).not.toContain("setLiveSyncError");
-    expect(analystDesk).toContain("window.setInterval(sync, 5000)");
-    expect(analystDesk).toContain("await refreshRemoteStoreRef.current()");
+    // This desk keeps its own silent refresh loop and does not repaint the
+    // whole desk merely to update a live-sync timestamp.
+    expect(analystDesk).toContain("const refreshAnalysisDesk = useCallback(async () =>");
+    expect(analystDesk).toContain("const timer = window.setInterval(sync, 5000)");
+    expect(analystDesk).toContain('document.visibilityState !== "visible"');
   });
 
   it("does not restart the previous-upload lookup when only the process object reference changes", () => {

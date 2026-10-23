@@ -1454,6 +1454,14 @@ export function ProtocolarProjetoPage({
     >
       <PageShell>
         <form className="sig-page-shell space-y-5" onSubmit={handleSubmit}>
+          {import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true" ? (
+            <div role="status" data-qa-protocol-sandbox="true" className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm font-semibold leading-6 text-amber-950">
+              HOMOLOGAÇÃO LOCAL — Os documentos anexados serão guardados somente neste computador, em armazenamento isolado do R2 oficial.
+              O pré-protocolo será registrado apenas no banco Neon de testes e a guia poderá ser visualizada como NÃO PAGÁVEL.
+              Utilize documentos fictícios para os testes. Nenhum pagamento será cobrado ou confirmado.
+            </div>
+          ) : null}
+
           <PageHero
             eyebrow={
               remotePreProtocolNumber

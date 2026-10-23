@@ -181,9 +181,10 @@ const navItems = [
       ],
     },
   { key: "settings", to: "/configuracoes", label: "Cadastro e Gestão", icon: Building2, permission: "manage_tenant_branding" as Permission, essential: true, module: "Configurações" as PlanModuleName },
+  { key: "collection", to: "/prefeitura/arrecadacao", label: "Guias e Arrecadação", icon: Landmark, permission: "view_collection_settings" as Permission, essential: true, module: "Configurações" as PlanModuleName },
 ];
 
-const managementNavItems = ["/master", "/master/planos", "/prefeitura", "/prefeitura/organograma", "/configuracoes"];
+const managementNavItems = ["/master", "/master/planos", "/prefeitura", "/prefeitura/organograma", "/prefeitura/arrecadacao", "/configuracoes"];
 
 const operationalNavItems = [
   "/dashboard",
@@ -2483,13 +2484,13 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
         >
           <div className="px-8 py-8 lg:px-12 lg:py-10">
             <div data-sig-footer-grid="true" className="grid min-w-0 items-start gap-x-6 gap-y-8 sm:grid-cols-2 2xl:grid-cols-4">
-              <div className="flex min-w-0 justify-center 2xl:justify-start 2xl:pl-3">
+              <div data-sig-footer-logo-cell="true" className="flex min-w-0 items-center justify-center 2xl:justify-start 2xl:pl-3">
                 <InstitutionalLogo
                   branding={stableFooterBranding}
                   fallbackLabel={institutionDisplayName}
                   variant="footer"
                   contextScope={isMasterUser ? "master" : "municipality"}
-                  className="mt-3"
+                  className="!m-0 !shrink-0"
                 />
               </div>
 

@@ -7,8 +7,10 @@ export type R2UploadResult = {
 };
 
 const apiBase = (import.meta.env.VITE_R2_API_BASE || "").toString().replace(/\/+$/, "");
+const isolatedQa = import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true";
 
 function buildApiUrl(path: string) {
+  if (isolatedQa) return path.startsWith("/") ? path : `/${path}`;
   if (!apiBase) return path;
   const normalized = path.startsWith("/") ? path : `/${path}`;
   return `${apiBase}${normalized}`;
@@ -16,6 +18,7 @@ function buildApiUrl(path: string) {
 
 function buildApiCandidates(path: string) {
   const normalized = path.startsWith("/") ? path : `/${path}`;
+  if (isolatedQa) return [normalized]; // QA must NEVER fall back to a Vercel/R2 production API.
   if (!apiBase) return [normalized];
 
   const remote = `${apiBase}${normalized}`;
@@ -76,6 +79,33 @@ export function getPublicUrl(objectKey: string, baseOverride?: string) {
   const base = (baseOverride || import.meta.env.VITE_R2_PUBLIC_BASE_URL || "").toString();
   if (!base) return "";
   return `${base.replace(/\/+$/, "")}/${objectKey.replace(/^\/+/, "")}`;
+}
+
+/** Recover a stable R2 object reference from older short-lived signed URLs.
+ * Accept ONLY the requesting municipality's legislation keys hosted by R2.
+ * Avoid using an arbitrary external URL as the source of a storage object key.
+ */
+export function getStableMunicipalLegislationReference(
+  reference: string | null | undefined,
+  municipalityId?: string | null,
+): string {
+  const raw = String(reference || "").trim();
+  if (!raw || raw.startsWith("r2:")) return raw;
+  const id = String(municipalityId || "").trim().toLowerCase();
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(id)) return raw;
+  try {
+    const url = new URL(raw);
+    if (url.protocol !== "https:" || !/(^|\.)r2\.cloudflarestorage\.com$/i.test(url.hostname)) return raw;
+    const path = decodeURIComponent(url.pathname);
+    const prefix = `/municipalities/${id}/legislation`;
+    const start = path.toLowerCase().indexOf(prefix);
+    if (start < 0) return raw;
+    const objectKey = path.slice(start + 1);
+    if (!/^municipalities\/[0-9a-f-]{36}\/legislation(?:[-/]|$)/i.test(objectKey)) return raw;
+    return `r2:${objectKey}`;
+  } catch {
+    return raw;
+  }
 }
 
 export function getLegislationOpenUrl(reference: string) {
