@@ -12,6 +12,8 @@ interface InstitutionalLogoProps {
   className?: string;
   viewportClassName?: string;
   contextScope?: "auto" | "master" | "municipality";
+  /** Keep dimensions fixed, but never show provisional branding while official source resolves. */
+  ready?: boolean;
   /** The exact URL that successfully decoded in the institutional frame.
    * Editors must reuse this source instead of a stale signed candidate. */
   onResolvedSource?: (url: string) => void;
@@ -101,6 +103,7 @@ export function InstitutionalLogo({
   className,
   viewportClassName,
   contextScope = "auto",
+  ready = true,
   onResolvedSource,
 }: InstitutionalLogoProps) {
   const [failedSources, setFailedSources] = useState<string[]>([]);
@@ -127,12 +130,9 @@ export function InstitutionalLogo({
       ? ""
       : municipalFallbackCandidate;
   const primaryUrl = requestedUrl || (isMaster ? SIGAPRO_OFFICIAL_LOGO : municipalFallbackUrl);
-  const secondaryUrl = isMaster
-    ? SIGAPRO_OFFICIAL_LOGO
-    : municipalFallbackUrl && !sameAssetResource(municipalFallbackUrl, primaryUrl)
-      ? municipalFallbackUrl
-      : "";
-  const imageUrl = failedSources.includes(primaryUrl)
+  // No second municipal crest from a different URL: show only the configured one.
+  const secondaryUrl = isMaster ? SIGAPRO_OFFICIAL_LOGO : "";
+  const imageUrl = !ready ? "" : failedSources.includes(primaryUrl)
     ? secondaryUrl && !failedSources.includes(secondaryUrl)
       ? secondaryUrl
       : ""
@@ -160,7 +160,8 @@ export function InstitutionalLogo({
     loadedSource.context === context &&
     loadedSource.url &&
     loadedSourceAllowed &&
-    !failedSources.includes(loadedSource.url)
+    !failedSources.includes(loadedSource.url) &&
+    sameAssetResource(loadedSource.url, imageUrl)
       ? loadedSource.url
       : "";
 
@@ -171,7 +172,8 @@ export function InstitutionalLogo({
   const safeCachedUrl =
     cachedContextUrl &&
     cachedAllowed &&
-    !failedSources.includes(cachedContextUrl)
+    !failedSources.includes(cachedContextUrl) &&
+    sameAssetResource(cachedContextUrl, imageUrl)
       ? cachedContextUrl
       : "";
 
@@ -333,7 +335,7 @@ export function InstitutionalLogo({
           className="relative flex h-full w-full items-center justify-center"
           style={isMaster ? undefined : { background: "#ffffff", backgroundColor: "#ffffff", opacity: 1 }}
         >
-          {!displayUrl && fallbackReady ? (
+          {ready && !displayUrl && fallbackReady ? (
             <div
               className="absolute inset-0 flex h-full w-full flex-col items-center justify-center gap-1 bg-white text-slate-400"
               role="img"
