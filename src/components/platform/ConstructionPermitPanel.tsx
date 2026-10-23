@@ -1003,7 +1003,7 @@ export function ConstructionPermitPanel({
             </div>
 
             {!permit ? (
-              <div data-permit-prep="true" className="rounded-[22px] border border-slate-200 bg-[linear-gradient(145deg,#f8fbff_0%,#eef6fb_100%)] p-5 dark:border-slate-700 dark:bg-[linear-gradient(145deg,#0d2032_0%,#10283d_100%)]">
+              <div data-permit-prep="true" data-permit-polarity="adaptive" className="rounded-[22px] border border-slate-200 bg-[linear-gradient(145deg,#f8fbff_0%,#eef6fb_100%)] p-5 dark:border-slate-700 dark:bg-[linear-gradient(145deg,#0d2032_0%,#10283d_100%)]">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                   <div>
                     <p className="font-semibold text-slate-950 dark:text-white">
@@ -1016,7 +1016,8 @@ export function ConstructionPermitPanel({
                   <Button
                     type="button"
                     data-premium-action="strong"
-                    className="sig-premium-primary-action h-11 shrink-0 rounded-xl px-5 font-bold"
+                    data-permit-draft-button="true"
+                    className="sig-premium-primary-action h-11 shrink-0 rounded-xl px-5 font-bold disabled:cursor-not-allowed"
                     disabled={!canStartDraft}
                     onClick={preparePermit}
                   >
@@ -1026,7 +1027,7 @@ export function ConstructionPermitPanel({
                 </div>
 
                 <div className="mt-5 grid gap-3 md:grid-cols-3">
-                  <div className={issPaymentConfirmed
+                  <div data-permit-prerequisite-card="true" className={issPaymentConfirmed
                     ? "rounded-2xl border border-emerald-200 bg-white p-4 dark:border-emerald-500/30 dark:bg-slate-950/45"
                     : "rounded-2xl border border-amber-200 bg-white p-4 dark:border-amber-500/30 dark:bg-slate-950/45"}>
                     <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">ISSQN / Projeto</p>
@@ -1034,7 +1035,7 @@ export function ConstructionPermitPanel({
                       {issPaymentConfirmed ? "Pagamento compensado" : "Aguardando compensação"}
                     </p>
                   </div>
-                  <div className={!approvalPaymentRequired || approvalPaymentConfirmed
+                  <div data-permit-prerequisite-card="true" className={!approvalPaymentRequired || approvalPaymentConfirmed
                     ? "rounded-2xl border border-emerald-200 bg-white p-4 dark:border-emerald-500/30 dark:bg-slate-950/45"
                     : "rounded-2xl border border-amber-200 bg-white p-4 dark:border-amber-500/30 dark:bg-slate-950/45"}>
                     <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Aprovação / Alvará</p>
@@ -1046,7 +1047,7 @@ export function ConstructionPermitPanel({
                           : "Aguardando emissão ou compensação"}
                     </p>
                   </div>
-                  <div className={allDocumentsApproved
+                  <div data-permit-prerequisite-card="true" className={allDocumentsApproved
                     ? "rounded-2xl border border-emerald-200 bg-white p-4 dark:border-emerald-500/30 dark:bg-slate-950/45"
                     : "rounded-2xl border border-amber-200 bg-white p-4 dark:border-amber-500/30 dark:bg-slate-950/45"}>
                     <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Pré-requisito técnico</p>
