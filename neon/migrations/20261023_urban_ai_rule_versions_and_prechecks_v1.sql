@@ -26,7 +26,7 @@ create unique index if not exists urban_regulation_one_active_scope
 create index if not exists urban_regulation_by_municipality
   on public.urban_regulation_versions(municipality_id,created_at desc);
 alter table public.urban_regulation_versions enable row level security;
-revoke all on public.urban_regulation_versions from public, anon, authenticated;
+revoke all on public.urban_regulation_versions from public, authenticated;
 
 create table if not exists public.process_urban_precheck_runs (
   id uuid primary key default gen_random_uuid(),
@@ -40,7 +40,7 @@ create table if not exists public.process_urban_precheck_runs (
 create index if not exists process_urban_prechecks_by_process
   on public.process_urban_precheck_runs(process_id,created_at desc);
 alter table public.process_urban_precheck_runs enable row level security;
-revoke all on public.process_urban_precheck_runs from public, anon, authenticated;
+revoke all on public.process_urban_precheck_runs from public, authenticated;
 
 create or replace function public.is_urban_regulation_admin_v1(_municipality_id uuid)
 returns boolean language sql stable security definer
@@ -50,7 +50,7 @@ set search_path=pg_catalog,public set row_security=off as $$
     public.current_role_code()='prefeitura_admin'
   );
 $$;
-revoke all on function public.is_urban_regulation_admin_v1(uuid) from public, anon;
+revoke all on function public.is_urban_regulation_admin_v1(uuid) from public;
 grant execute on function public.is_urban_regulation_admin_v1(uuid) to authenticated;
 
 create or replace function public.list_urban_regulation_versions_v1(_municipality_id uuid)
@@ -75,7 +75,7 @@ begin
   ),'[]'::jsonb);
 end;
 $$;
-revoke all on function public.list_urban_regulation_versions_v1(uuid) from public,anon;
+revoke all on function public.list_urban_regulation_versions_v1(uuid) from public;
 grant execute on function public.list_urban_regulation_versions_v1(uuid) to authenticated;
 
 create or replace function public.save_urban_regulation_draft_v1(
@@ -140,7 +140,7 @@ begin
   return jsonb_build_object('id',_id,'version',_next,'status','draft');
 end;
 $$;
-revoke all on function public.save_urban_regulation_draft_v1(uuid,text,text,date,jsonb) from public,anon;
+revoke all on function public.save_urban_regulation_draft_v1(uuid,text,text,date,jsonb) from public;
 grant execute on function public.save_urban_regulation_draft_v1(uuid,text,text,date,jsonb) to authenticated;
 
 create or replace function public.activate_urban_regulation_v1(_version_id uuid)
@@ -170,7 +170,7 @@ begin
   return jsonb_build_object('id',_row.id,'status','active');
 end;
 $$;
-revoke all on function public.activate_urban_regulation_v1(uuid) from public,anon;
+revoke all on function public.activate_urban_regulation_v1(uuid) from public;
 grant execute on function public.activate_urban_regulation_v1(uuid) to authenticated;
 
 create or replace function public.list_urban_prechecks_v1(_process_id uuid)
@@ -189,7 +189,7 @@ begin
   ),'[]'::jsonb);
 end;
 $$;
-revoke all on function public.list_urban_prechecks_v1(uuid) from public,anon;
+revoke all on function public.list_urban_prechecks_v1(uuid) from public;
 grant execute on function public.list_urban_prechecks_v1(uuid) to authenticated;
 
 create or replace function public.save_urban_precheck_run_v1(
@@ -242,7 +242,7 @@ begin
   return jsonb_build_object('id',_id,'status','advisory','signed',false);
 end;
 $$;
-revoke all on function public.save_urban_precheck_run_v1(uuid,uuid,jsonb) from public,anon;
+revoke all on function public.save_urban_precheck_run_v1(uuid,uuid,jsonb) from public;
 grant execute on function public.save_urban_precheck_run_v1(uuid,uuid,jsonb) to authenticated;
 notify pgrst, 'reload schema';
 commit;
