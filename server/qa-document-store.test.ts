@@ -104,6 +104,17 @@ describe("localhost 8081 isolated pre-protocol attachments", () => {
     expect(opened.bytes.equals(bytes)).toBe(true);
   });
 
+  it("returns an explicit QA-only 404 for cloned metadata whose file was not uploaded", async () => {
+    const response = await request("/api/r2-sign-get", "POST", {
+      bucket: "process-documents", objectKey,
+    });
+    expect(response.status).toBe(404);
+    expect(response.data?.code).toBe("QA_DOCUMENT_MISSING");
+    expect(String(response.data?.error)).toContain("armazenamento isolado");
+    expect(response.data?.signedUrl).toBeUndefined();
+    expect(rpc).toHaveBeenCalledWith(expect.anything(), "has_tenant_access", {target_tenant:tenant});
+  });
+
   it("rejects path traversal, other buckets, and invalid PDF content", async () => {
     expect((await request("/api/r2-upload","POST",{
       bucket:"process-documents",objectKey:`municipalities/${tenant}/../escape/file.pdf`,base64:"eA==",
