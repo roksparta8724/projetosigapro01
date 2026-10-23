@@ -5,6 +5,7 @@
  */
 import type { UrbanMetric, UrbanRegulationVersion } from "@/lib/urbanPrecheck";
 import type { UrbanLegalEvidence } from "@/lib/urbanLegalKnowledge";
+import { urbanLegalEvidenceAppliesTo } from "@/lib/urbanLegalScope";
 
 export type UrbanLegalConditionKind =
   | "exception" | "condition" | "external_reference" | "zoning" | "effective_date";
@@ -48,11 +49,13 @@ export function findUrbanLegalConditions(
   entries: readonly UrbanLegalEvidence[],
   municipalityId: string,
   regulation: UrbanRegulationVersion | null,
+  referenceDate: string = regulation?.effective_from || "",
 ): UrbanLegalConditionFlag[] {
   if (!regulation || !municipalityId || regulation.municipality_id !== municipalityId) return [];
   const allowed = new Set(regulation.rules.map(x=>x.metric));
   return entries.filter(entry =>
     entry.municipality_id === municipalityId &&
+    urbanLegalEvidenceAppliesTo(entry, regulation, referenceDate) &&
     allowed.has(entry.metric) &&
     /^[a-f0-9]{64}$/i.test(entry.document_sha256) &&
     Number.isInteger(entry.page_number) && entry.page_number > 0,
