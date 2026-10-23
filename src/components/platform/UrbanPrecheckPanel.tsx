@@ -16,7 +16,7 @@ import { UrbanLegalKnowledgeDesk } from "@/components/platform/UrbanLegalKnowled
 import { listUrbanLegalEvidence } from "@/integrations/backend/urbanLegalEvidenceClient";
 import type { UrbanLegalEvidence } from "@/lib/urbanLegalKnowledge";
 import {
-  findUrbanLegalConditions, validateUrbanLegalReview, type UrbanLegalReviewConfirmation,
+  buildUrbanConditionalReviewDraft, findUrbanLegalConditions, validateUrbanLegalReview, type UrbanLegalReviewConfirmation,
 } from "@/lib/urbanLegalConditions";
 import { buildUrbanReviewDraft, deriveUrbanAreaMeasurements, type UrbanAreaKey } from "@/lib/urbanPrecheckAssist";
 
@@ -164,13 +164,14 @@ export function UrbanPrecheckPanel({
     () => regulation ? evaluateUrbanPrecheck(regulation.rules, measurements) : [],
     [regulation, measurements],
   );
-  const reviewDraft = useMemo(
-    () => regulation
-      ? buildUrbanReviewDraft(process.protocol, regulation.zone_code,
-          regulation.use_code, regulation.version, findings)
-      : "",
-    [regulation, process.protocol, findings],
-  );
+  const reviewDraft = useMemo(() => {
+    if (!regulation) return "";
+    const numeric = buildUrbanReviewDraft(process.protocol, regulation.zone_code,
+      regulation.use_code, regulation.version, findings);
+    const contextual = buildUrbanConditionalReviewDraft(
+      process.protocol, regulation, conditionalReferences, legalReview);
+    return [numeric, contextual].filter(Boolean).join("\n\n---\n\n");
+  }, [regulation, process.protocol, findings, conditionalReferences, legalReview]);
   const copyDraft = async () => {
     if (!reviewDraft) return;
     if (!legalReviewReady) {
@@ -498,7 +499,7 @@ export function UrbanPrecheckPanel({
                     Minuta interna para conferência do analista
                   </p>
                   <p className="mt-1 text-xs text-amber-900 dark:text-amber-200">
-                    Gerada a partir de possíveis divergências. Não envia Comunique-se e não é decisão oficial.
+                    Gerada a partir de possíveis divergências e condições legais. Não envia Comunique-se e não é decisão oficial.
                   </p>
                 </div>
                 <Button type="button" variant="outline" className="border-amber-300 bg-white text-slate-900"
