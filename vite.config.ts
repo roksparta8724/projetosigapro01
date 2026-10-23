@@ -186,7 +186,9 @@ function createR2DevApiPlugin(): Plugin {
       console.log(`  pasta : ${process.cwd()}`);
       console.log(`  branch: ${gitIdentity.branch}`);
       console.log(`  commit: ${gitIdentity.sha}`);
-      console.log("  porta : " + (process.env.SIGAPRO_LOCAL_QA_LAUNCH === "true" ? "8081 QA" : "8080 (strict)"));
+      const runningPort = process.env.SIGAPRO_LOCAL_QA_LAUNCH === "true"
+        ? (process.env.SIGAPRO_LOCAL_QA_PORT === "8080" ? 8080 : 8081) : 8080;
+      console.log("  porta : " + runningPort + (process.env.SIGAPRO_LOCAL_QA_LAUNCH === "true" ? " QA isolado" : " local"));
       console.log("");
 
       server.middlewares.use(async (req, res, next) => {
@@ -278,7 +280,8 @@ function createR2DevApiPlugin(): Plugin {
             branch: gitIdentity.branch,
             sha: gitIdentity.sha,
             pid: process.pid,
-            port: process.env.SIGAPRO_LOCAL_QA_LAUNCH === "true" ? 8081 : 8080,
+            port: process.env.SIGAPRO_LOCAL_QA_LAUNCH === "true"
+              ? (process.env.SIGAPRO_LOCAL_QA_PORT === "8080" ? 8080 : 8081) : 8080,
             neonEnvironment: process.env.SIGAPRO_LOCAL_QA_LAUNCH === "true" ? "isolated-qa" : "official",
           }));
           return;
@@ -472,11 +475,14 @@ function createR2DevApiPlugin(): Plugin {
         // validated, R2-backed handler used on Vercel. Previously this GET
         // fell through to the POST-only API guard and always returned 405.
         if (req.url.split("?")[0] === "/api/municipality-logo-open") {
-          if (process.env.SIGAPRO_LOCAL_QA_LAUNCH === "true") {
+          // Optional, read-only public municipal identity. This route uses GET
+          // exclusively; QA uploads, deletes, payment and signatures remain blocked.
+          if (process.env.SIGAPRO_LOCAL_QA_LAUNCH === "true" &&
+              process.env.SIGAPRO_QA_PUBLIC_BRANDING_READ !== "true") {
             res.statusCode = 403;
             res.setHeader("Content-Type", "text/plain; charset=utf-8");
             res.setHeader("Cache-Control", "no-store");
-            res.end("Logos oficiais não são consultados no QA isolado.");
+            res.end("Logo municipal em QA requer opção explícita de leitura pública.");
             return;
           }
           await handleMunicipalityLogoOpen(req, res);
@@ -773,6 +779,7 @@ export default defineConfig(({ mode }) => {
   // Keep the explicit, public QA Auth/Data pairing supplied by npm run dev:qa,
   // even when the developer's .env contains older production settings.
   const isolatedQa = process.env.SIGAPRO_LOCAL_QA_LAUNCH === "true";
+  const qaPort = isolatedQa && process.env.SIGAPRO_LOCAL_QA_PORT === "8080" ? 8080 : 8081;
   const pinnedQa = isolatedQa ? {
     VITE_BACKEND: "neon",
     NODE_ENV: "development",
@@ -782,6 +789,8 @@ export default defineConfig(({ mode }) => {
     VITE_NEON_DATA_API_URL: process.env.VITE_NEON_DATA_API_URL,
     VITE_SIGAPRO_QA_READINESS_BANNER: process.env.VITE_SIGAPRO_QA_READINESS_BANNER,
     SIGAPRO_LOCAL_QA_BLOCK_EXTERNAL_WRITES: process.env.SIGAPRO_LOCAL_QA_BLOCK_EXTERNAL_WRITES,
+    SIGAPRO_LOCAL_QA_PORT: process.env.SIGAPRO_LOCAL_QA_PORT,
+    SIGAPRO_QA_PUBLIC_BRANDING_READ: process.env.SIGAPRO_QA_PUBLIC_BRANDING_READ,
     // Re-pin the dedicated private QA encryption key after loadEnv: older
     // production .env entries must never override it.
     MUNICIPAL_PAYMENT_MASTER_KEY: process.env.MUNICIPAL_PAYMENT_MASTER_KEY,
@@ -801,7 +810,7 @@ export default defineConfig(({ mode }) => {
   return {
   server: {
     host: "localhost",
-    port: 8080,
+    port: isolatedQa ? qaPort : 8080,
     strictPort: true,
     headers: {
       "Cache-Control": "no-store",
