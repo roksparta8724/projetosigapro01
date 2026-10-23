@@ -29,7 +29,7 @@ export async function confirmUrbanLegalEvidence(input: {
   metric: UrbanMetric;
   excerpt: string;
   scope: UrbanLegalScopeDraft;
-  verificationMethod?: "text_layer_verified" | "visual_double_transcription";
+  verificationMethod?: "text_layer_verified" | "visual_double_transcription" | "browser_ocr_human_verified";
 }): Promise<void> {
   validateLegalEvidenceDraft({
     title: input.documentTitle, hash: input.documentSha256,
