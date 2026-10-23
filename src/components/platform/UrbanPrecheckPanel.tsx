@@ -12,6 +12,7 @@ import {
 } from "@/lib/urbanPrecheck";
 import type { ProcessRecord } from "@/lib/platform";
 import { UrbanDocumentEvidenceDesk } from "@/components/platform/UrbanDocumentEvidenceDesk";
+import type { UrbanDrawingTarget } from "@/lib/urbanDrawingMeasurements";
 import { UrbanLegalKnowledgeDesk } from "@/components/platform/UrbanLegalKnowledgeDesk";
 import { listUrbanLegalEvidence } from "@/integrations/backend/urbanLegalEvidenceClient";
 import type { UrbanLegalEvidence } from "@/lib/urbanLegalKnowledge";
@@ -115,6 +116,35 @@ export function UrbanPrecheckPanel({
         [field]: text,
       },
     }));
+  };
+
+  const acceptDrawingReading = (target: UrbanDrawingTarget, value: number, evidence: string) => {
+    if (readOnly || !Number.isFinite(value) || value <= 0 || evidence.trim().length < 10) return;
+    if (["lot","footprint","permeable","totalFloor"].includes(target)) {
+      const key=target as UrbanAreaKey;
+      const existing=areaFields[key];
+      if (existing?.value.trim() || existing?.evidence.trim()) {
+        setNotice("O campo de área já possui preenchimento. Nenhum dado foi substituído. Confira e altere manualmente se necessário.");
+        return;
+      }
+      setAreaFields(previous => previous[key]?.value?.trim() || previous[key]?.evidence?.trim()
+        ? previous : {...previous,[key]:{value:String(value),evidence}});
+      setNotice("Área pré-preenchida com origem documental conferida. Revise e clique em Calcular e preencher índices.");
+      return;
+    }
+    const metric=target as UrbanMetric;
+    if (!regulation?.rules.some(rule=>rule.metric===metric)) {
+      setNotice("A norma ativa não contempla este parâmetro. Nenhuma medição foi aplicada.");
+      return;
+    }
+    const existing=fields[metric];
+    if (existing?.value.trim() || existing?.evidence.trim()) {
+      setNotice("Esta medição já está preenchida. Nenhum dado anterior foi substituído.");
+      return;
+    }
+    setFields(previous => previous[metric]?.value?.trim() || previous[metric]?.evidence?.trim()
+      ? previous : {...previous,[metric]:{value:String(value),evidence}});
+    setNotice("Medida textual conferida pré-preenchida no formulário. Confira a planta, unidade e norma antes do registro.");
   };
 
   const deriveAreaRatios = () => {
@@ -280,6 +310,7 @@ export function UrbanPrecheckPanel({
         allowedMetrics={(regulation ? regulation.rules.map((rule) => rule.metric) : URBAN_METRICS.map((item) => item.key))
           .map((key) => ({ key, label: URBAN_METRICS.find((item) => item.key === key)?.label || key }))}
         onUseEvidence={(metric, evidence) => setField(metric, "evidence", evidence)}
+        onUseMeasurement={acceptDrawingReading}
       />
       <UrbanLegalKnowledgeDesk municipalityId={municipalityId} canEdit={false}
         onUseReference={() => { /* Somente a administração municipal pode alterar o cadastro normativo. */ }} />
