@@ -7,11 +7,13 @@ import { ensureUrbanPdfBytes, extractUrbanPdfText, URBAN_PDF_MAX_BYTES, type Urb
 import { excerptOccursOnPage, extractUrbanLegalSuggestions, searchLegalEvidence, sha256Hex,
   type UrbanLegalEvidence, type UrbanLegalSuggestion } from "@/lib/urbanLegalKnowledge";
 import { URBAN_METRICS, type UrbanMetric } from "@/lib/urbanPrecheck";
+import { validateUrbanLegalScope, type UrbanLegalScopeDraft } from "@/lib/urbanLegalScope";
 
 type Props = {
   municipalityId: string;
   canEdit: boolean;
   onUseReference: (metric: UrbanMetric, reference: string, suggestedLimit: number | null) => void;
+  scope?: UrbanLegalScopeDraft;
 };
 
 function referenceForDraft(title: string, hash: string, page: number, excerpt: string): string {
@@ -20,7 +22,7 @@ function referenceForDraft(title: string, hash: string, page: number, excerpt: s
 }
 
 /** Client-only PDF parsing; only admin-confirmed 500-character snippets are saved. */
-export function UrbanLegalKnowledgeDesk({ municipalityId, canEdit, onUseReference }: Props) {
+export function UrbanLegalKnowledgeDesk({ municipalityId, canEdit, onUseReference, scope }: Props) {
   const fileInput = useRef<HTMLInputElement | null>(null);
   const [title, setTitle] = useState("");
   const [fileHash, setFileHash] = useState("");
@@ -38,6 +40,9 @@ export function UrbanLegalKnowledgeDesk({ municipalityId, canEdit, onUseReferenc
   const [savingKey, setSavingKey] = useState("");
   const [confirmedKey, setConfirmedKey] = useState("");
   const [notice, setNotice] = useState("");
+  const [effectiveUntil, setEffectiveUntil] = useState("");
+  const confirmedScope: UrbanLegalScopeDraft | null = scope ? { ...scope, effectiveUntil } : null;
+  const scopeProblem = confirmedScope ? validateUrbanLegalScope(confirmedScope) : "Selecione uma zona, uso e data de vigência para vincular a fonte legal.";
   const [search, setSearch] = useState("");
   const [saved, setSaved] = useState<UrbanLegalEvidence[]>([]);
   const [loading, setLoading] = useState(false);
@@ -53,7 +58,7 @@ export function UrbanLegalKnowledgeDesk({ municipalityId, canEdit, onUseReferenc
   useEffect(() => {
     const request = ++requestId.current;
     setSaved([]); setFileHash(""); setSuggestions([]); setPdfPages([]); setTitle("");
-    setCatalogError(""); setNotice(""); setConfirmedKey("");
+    setCatalogError(""); setNotice(""); setConfirmedKey(""); setEffectiveUntil("");
     if (!municipalityId) return;
     setLoading(true);
     void listUrbanLegalEvidence(municipalityId)
@@ -96,23 +101,24 @@ export function UrbanLegalKnowledgeDesk({ municipalityId, canEdit, onUseReferenc
   };
 
   const save = async (candidate: UrbanLegalSuggestion, key: string) => {
-    if (!canEdit || !fileHash || !municipalityId || savingKey || confirmedKey !== key) return;
+    if (!canEdit || !fileHash || !municipalityId || savingKey || confirmedKey !== key || !confirmedScope || scopeProblem) return;
     setSavingKey(key); setNotice("");
     try {
       await confirmUrbanLegalEvidence({
         municipalityId, documentTitle: title, documentSha256: fileHash,
         pageNumber: candidate.page, metric: candidate.metric, excerpt: candidate.excerpt,
+        scope: confirmedScope,
       });
       await refresh();
       setConfirmedKey("");
-      setNotice("Trecho confirmado no acervo municipal da homologação. Não ativa nem altera limites legais.");
+      setNotice("Trecho vinculado à zona, uso e vigência no acervo QA. Ainda não ativa limites legais.");
     } catch (error) {
       setNotice(String((error as Error)?.message || error));
     } finally { setSavingKey(""); }
   };
 
   const saveManualEvidence = async () => {
-    if (!canEdit || !manualConfirmed || !fileHash || !municipalityId || manualSaving) return;
+    if (!canEdit || !manualConfirmed || !fileHash || !municipalityId || manualSaving || !confirmedScope || scopeProblem) return;
     const page = Number(manualPage);
     if (!excerptOccursOnPage(pdfPages, page, manualExcerpt)) {
       setNotice("O trecho digitado não foi encontrado na camada de texto desta página do PDF. Confira a transcrição.");
@@ -123,11 +129,12 @@ export function UrbanLegalKnowledgeDesk({ municipalityId, canEdit, onUseReferenc
       await confirmUrbanLegalEvidence({
         municipalityId, documentTitle:title, documentSha256:fileHash,
         pageNumber:page, metric:manualMetric, excerpt:manualExcerpt.trim(),
+        scope:confirmedScope,
       });
       await refresh();
       setManualConfirmed(false);
       setManualExcerpt("");
-      setNotice("Trecho literal conferido e adicionado ao acervo da Prefeitura. Não altera norma ativa.");
+      setNotice("Trecho literal vinculado à zona, uso e vigência no acervo QA. Não altera norma ativa.");
     } catch (error) {
       setNotice(String((error as Error)?.message || error));
     } finally { setManualSaving(false); }
@@ -168,6 +175,28 @@ export function UrbanLegalKnowledgeDesk({ municipalityId, canEdit, onUseReferenc
               {reading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <FileSearch className="mr-2 h-4 w-4" />}
               {reading ? "Lendo a lei..." : "Selecionar PDF da legislação"}
             </Button>
+          </div>
+          <div data-urban-legal-scope="true"
+            className="mt-3 rounded-xl border border-sky-200 bg-sky-50 p-3 dark:border-sky-600 dark:bg-[#112a43]">
+            <p className="text-xs font-extrabold text-slate-900 dark:text-white">Aplicabilidade da referência — vínculo obrigatório</p>
+            <p className="mt-1 text-xs leading-5 text-slate-700 dark:text-slate-200">
+              O trecho será vinculado somente à zona, uso e período confirmados abaixo.
+              Leis gerais e exceções de outros setores devem ser vinculadas separadamente após conferência.
+            </p>
+            <div className="mt-2 grid gap-2 sm:grid-cols-2">
+              <p className="rounded-lg border border-slate-200 bg-white p-2 text-xs text-slate-900 dark:border-slate-600 dark:bg-[#091d30] dark:text-white">
+                Zona: <strong>{scope?.zoneCode || "Não informada"}</strong> · Uso: <strong>{scope?.useCode || "Não informado"}</strong>
+              </p>
+              <p className="rounded-lg border border-slate-200 bg-white p-2 text-xs text-slate-900 dark:border-slate-600 dark:bg-[#091d30] dark:text-white">
+                Vigente desde: <strong>{scope?.effectiveFrom || "Não informado"}</strong>
+              </p>
+            </div>
+            <label className="mt-2 block text-xs font-bold text-slate-800 dark:text-slate-100">
+              Último dia da vigência, se já revogada ou substituída
+              <Input aria-label="Fim da vigência da fonte legal" type="date" className="mt-1 max-w-xs"
+                value={effectiveUntil} onChange={event => {setEffectiveUntil(event.target.value);setConfirmedKey("");setManualConfirmed(false);}} />
+            </label>
+            {scopeProblem ? <p role="alert" className="mt-2 text-xs font-bold text-amber-800 dark:text-amber-200">{scopeProblem}</p> : null}
           </div>
           {fileHash && (
             <div className="mt-3 space-y-3">
@@ -217,7 +246,7 @@ export function UrbanLegalKnowledgeDesk({ municipalityId, canEdit, onUseReferenc
                   Revisei o artigo completo, a página, a legislação e confirmo a referência literal.
                 </label>
                 <Button type="button" variant="outline" className="mt-2"
-                  disabled={!manualConfirmed || manualSaving || Boolean(catalogError)}
+                  disabled={!manualConfirmed || manualSaving || Boolean(catalogError) || Boolean(scopeProblem)}
                   onClick={() => void saveManualEvidence()}>
                   {manualSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <ShieldCheck className="mr-2 h-4 w-4"/>}
                   Confirmar referência manual
@@ -252,7 +281,7 @@ export function UrbanLegalKnowledgeDesk({ municipalityId, canEdit, onUseReferenc
                         Li o artigo integral e confirmo que este trecho corresponde ao PDF e à página indicados.
                       </label>
                       <Button type="button" size="sm" className="mt-2 rounded-lg bg-sky-700 text-white hover:bg-sky-800"
-                        disabled={savingKey !== "" || confirmedKey !== key || !title.trim() || Boolean(catalogError)}
+                        disabled={savingKey !== "" || confirmedKey !== key || !title.trim() || Boolean(catalogError) || Boolean(scopeProblem)}
                         onClick={() => void save(item,key)}>
                         {savingKey === key ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <ShieldCheck className="mr-2 h-4 w-4"/>}
                         Confirmar trecho no acervo municipal
@@ -293,6 +322,10 @@ export function UrbanLegalKnowledgeDesk({ municipalityId, canEdit, onUseReferenc
               </p>
               <p className="mt-1 break-words text-xs text-slate-600 dark:text-slate-300">
                 {item.document_title} · SHA-256 {item.document_sha256.slice(0,20)}…
+              </p>
+              <p className="mt-1 break-words text-xs font-semibold text-sky-800 dark:text-sky-200">
+                Zona {item.zone_code} · uso {item.use_code} · vigência {item.effective_from}
+                {item.effective_until ? " até " + item.effective_until : " (sem data final cadastrada)"}
               </p>
               <p className="mt-2 break-words text-xs leading-5 text-slate-800 dark:text-slate-100">{item.excerpt}</p>
               {canEdit ? <Button type="button" size="sm" variant="outline" className="mt-2"
