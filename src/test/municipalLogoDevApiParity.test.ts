@@ -20,6 +20,8 @@ describe("localhost municipal logo endpoint parity", () => {
     expect(handler).toContain("R2_BUCKET_LOGOS");
     expect(handler).toContain('req.method !== "GET"');
     expect(frontend).toContain("/api/municipality-logo-open?objectKey=");
+    expect(frontend).toContain('host === "localhost" || host === "127.0.0.1"');
+    expect(frontend).toContain('host === "sigapromunicipal.com.br"');
   });
 
   it("does not access official logos from isolated QA port 8081", () => {
