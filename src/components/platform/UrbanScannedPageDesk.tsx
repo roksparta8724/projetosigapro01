@@ -3,6 +3,7 @@ import { FileScan, Loader2, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { renderUrbanGraphicPdfPage } from "@/lib/urbanGraphicPdfRenderer";
 import { normalizeUrbanScanTranscript, validateUrbanScanTranscription } from "@/lib/urbanScannedTranscription";
+import { browserOcrIsOffered, suggestUrbanBrowserOcr } from "@/lib/urbanBrowserOcr";
 
 type Props = {
   bytes: Uint8Array;
@@ -25,10 +26,16 @@ export function UrbanScannedPageDesk({bytes,scannedPages,readOnly,onVerifiedTran
   const [checked,setChecked]=useState(false);
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState("");
+  const [ocrText,setOcrText]=useState("");
+  const [ocrError,setOcrError]=useState("");
+  const [ocrBusy,setOcrBusy]=useState(false);
+  const ocrEpoch=useRef(0);
   const canvas=useRef<HTMLCanvasElement|null>(null);
   useEffect(()=>{
     if(!expanded || !pages.includes(page))return;
     const abort=new AbortController();
+    ++ocrEpoch.current;
+    setOcrText("");setOcrError("");setOcrBusy(false);
     setBusy(true);setError("");
     if(!canvas.current) return;
     void renderUrbanGraphicPdfPage({
@@ -41,11 +48,29 @@ export function UrbanScannedPageDesk({bytes,scannedPages,readOnly,onVerifiedTran
         setError(String((reason as Error)?.message||reason));
       }
     });
-    return ()=>abort.abort();
+    return ()=>{abort.abort();++ocrEpoch.current;};
   },[expanded,bytes,page,zoom]);
   if(readOnly||pages.length===0)return null;
   const issue=validateUrbanScanTranscription(first,second,page,pages);
-  const reset=()=>{setFirst("");setSecond("");setChecked(false);setError("");};
+  const reset=()=>{setFirst("");setSecond("");setChecked(false);setError("");setOcrText("");setOcrError("");++ocrEpoch.current;setOcrBusy(false);};
+  const suggestOcr=async()=>{
+    if(!expanded||busy||ocrBusy||error||!canvas.current||!browserOcrIsOffered())return;
+    const attempt=++ocrEpoch.current;
+    setOcrBusy(true);setOcrError("");setOcrText("");
+    try{
+      const result=await suggestUrbanBrowserOcr(canvas.current);
+      if(attempt!==ocrEpoch.current)return;
+      if(!result.trim()){
+        setOcrError("Nenhuma palavra reconhecida na imagem. Continue com a transcrição visual.");
+      }else{
+        setOcrText(result);
+      }
+    }catch(problem){
+      if(attempt===ocrEpoch.current)setOcrError(String((problem as Error)?.message||problem));
+    }finally{
+      if(attempt===ocrEpoch.current)setOcrBusy(false);
+    }
+  };
   const confirm=()=>{
     if(issue||!checked||busy||error||!expanded)return;
     onVerifiedTranscript({page,text:normalizeUrbanScanTranscript(first)});
@@ -98,6 +123,42 @@ export function UrbanScannedPageDesk({bytes,scannedPages,readOnly,onVerifiedTran
           {error?<p role="alert" className="rounded-lg border border-rose-400 bg-rose-950/60 p-2 text-xs text-rose-100">
             Não foi possível abrir esta página: {error}
           </p>:null}
+          <div data-urban-browser-ocr="true" className="rounded-xl border border-sky-200 bg-white p-3 text-xs text-slate-800 dark:border-sky-700 dark:bg-[#10273d] dark:text-slate-100">
+            <p className="font-extrabold">Sugestão OCR nativa do navegador — experimental</p>
+            <p className="mt-1 leading-5">
+              Esta opção só funciona se o navegador disponibilizar reconhecimento local em português.
+              O texto pode conter erros ou omissões. Não envia a página a um serviço externo
+              nem substitui a dupla conferência humana.
+            </p>
+            {browserOcrIsOffered()?(
+              <Button type="button" size="sm" variant="outline" className="mt-2"
+                disabled={busy||ocrBusy||Boolean(error)}
+                onClick={()=>void suggestOcr()}>
+                {ocrBusy?<Loader2 className="mr-2 h-4 w-4 animate-spin"/>:null}
+                {ocrBusy?"Analisando no navegador...":"Sugerir texto por OCR local"}
+              </Button>
+            ):(
+              <p role="status" className="mt-2 font-semibold text-amber-800 dark:text-amber-200">
+                OCR nativo não disponível neste navegador; utilize a transcrição dupla abaixo.
+              </p>
+            )}
+            {ocrError?<p role="alert" className="mt-2 text-amber-800 dark:text-amber-200">{ocrError}</p>:null}
+            {ocrText?(
+              <div className="mt-2 space-y-2">
+                <label className="block font-bold">
+                  Resultado bruto estimado, não confirmado
+                  <textarea aria-label="Sugestão bruta de OCR" readOnly value={ocrText}
+                    className="mt-1 min-h-24 w-full rounded-lg border border-slate-300 bg-slate-50 p-2 text-sm text-slate-900 dark:border-slate-600 dark:bg-[#081e32] dark:text-white"/>
+                </label>
+                <Button type="button" size="sm" variant="outline" onClick={()=>{
+                  setFirst(ocrText.slice(0,280));setSecond("");setChecked(false);
+                }}>
+                  Copiar sugestão somente para a primeira leitura
+                </Button>
+                <p className="leading-5">A segunda leitura deve ser feita independentemente a partir da imagem, sem copiar a sugestão.</p>
+              </div>
+            ):null}
+          </div>
           <div className="grid gap-3 md:grid-cols-2">
             <label className="text-xs font-bold text-slate-800 dark:text-white">
               Primeira leitura do trecho
