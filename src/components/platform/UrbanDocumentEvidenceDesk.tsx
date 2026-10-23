@@ -164,8 +164,8 @@ export function UrbanDocumentEvidenceDesk({ process, readOnly, allowedMetrics, o
               Evidências dos PDFs do processo
             </h4>
             <p className="mt-1 max-w-3xl text-xs leading-5 text-slate-600 dark:text-slate-300">
-              Abra a planta no visualizador oficial, confira a página e transcreva um trecho curto
-              que permita localizar a medida. O documento continua protegido pelo acesso do processo.
+              Selecione um PDF autorizado, localize trechos na camada de texto e confira a página
+              no documento original. Você também pode transcrever manualmente. A análise permanece sob responsabilidade do servidor.
             </p>
           </div>
         </div>
@@ -175,9 +175,9 @@ export function UrbanDocumentEvidenceDesk({ process, readOnly, allowedMetrics, o
       </div>
       <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-950 dark:border-amber-800 dark:bg-amber-950/50 dark:text-amber-100">
         <ShieldAlert className="mr-1 inline h-4 w-4" />
-        Nesta fase a ferramenta ainda não extrai texto ou cotas dos PDFs automaticamente.
-        Os termos destacados são apenas sugestões de classificação do trecho digitado,
-        não interpretação definitiva da legislação nem aprovação técnica.
+        A pré-leitura extrai somente o texto selecionável do PDF original, quando disponível.
+        Ela não interpreta automaticamente cotas gráficas ou PDFs escaneados; as referências
+        encontradas são sugestões e nunca representam aprovação ou conformidade legal.
       </div>
       {pdfs.length === 0 ? (
         <p className="mt-3 rounded-xl bg-slate-50 p-3 text-sm text-slate-700 dark:bg-slate-950 dark:text-slate-300">
