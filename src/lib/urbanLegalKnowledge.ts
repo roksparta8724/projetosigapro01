@@ -2,9 +2,10 @@
 import { URBAN_METRICS, type UrbanMetric } from "@/lib/urbanPrecheck";
 
 export type UrbanLegalEvidence = {
-  id: string; municipality_id: string; document_title: string;
+  id: string; evidence_id: string; municipality_id: string; document_title: string;
   document_sha256: string; page_number: number; metric: UrbanMetric;
-  excerpt: string; created_at: string;
+  excerpt: string; zone_code: string; use_code: string;
+  effective_from: string; effective_until: string | null; created_at: string;
 };
 export type UrbanLegalSuggestion = {
   metric: UrbanMetric; label: string; page: number; excerpt: string;
@@ -97,7 +98,8 @@ export function searchLegalEvidence(rows: readonly UrbanLegalEvidence[], term: s
   const needle = clean(term).toLocaleLowerCase("pt-BR");
   if (!needle) return [...rows];
   return rows.filter(row =>
-    (row.document_title + " " + row.excerpt + " " + row.metric + " " + row.page_number)
+    (row.document_title + " " + row.excerpt + " " + row.metric + " " + row.page_number +
+      " " + row.zone_code + " " + row.use_code + " " + row.effective_from)
       .toLocaleLowerCase("pt-BR").includes(needle));
 }
 
