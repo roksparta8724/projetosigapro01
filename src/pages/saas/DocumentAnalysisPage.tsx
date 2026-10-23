@@ -32,6 +32,7 @@ import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { useDocumentMarkerAssignments } from "@/hooks/useDocumentMarkerAssignments";
 import { consumeDocumentWorkspaceAccessUrl } from "@/lib/documentWorkspaceAccess";
 import { getSignedUrlForObjectStrict } from "@/integrations/r2/client";
+import { QaDocumentUnavailableNotice, isQaDocumentMissingError } from "@/components/platform/QaDocumentUnavailableNotice";
 import {
   canAnalyzeProcessDocument,
   canViewMunicipalProcessDocument,
@@ -974,10 +975,18 @@ export function DocumentAnalysisPage() {
               {!accessUrl ? (
                 accessError ? (
                   <div className="flex min-h-[calc(100vh-164px)] items-center justify-center bg-[#2f343b] p-6">
-                    <div className="max-w-xl rounded-[24px] border border-rose-200 bg-white p-6 text-center shadow-xl">
-                      <p className="font-semibold text-slate-950">Não foi possível abrir o arquivo.</p>
-                      <p className="mt-2 text-sm leading-6 text-slate-500">{accessError}</p>
-                    </div>
+                    {import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true" &&
+                    isQaDocumentMissingError(accessError) ? (
+                      <QaDocumentUnavailableNotice
+                        processRoute={buildProcessPath(process)}
+                        documentId={document.id}
+                      />
+                    ) : (
+                      <div className="max-w-xl rounded-[24px] border border-rose-200 bg-white p-6 text-center shadow-xl">
+                        <p className="font-semibold text-slate-950">Não foi possível abrir o arquivo.</p>
+                        <p className="mt-2 text-sm leading-6 text-slate-500">{accessError}</p>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div
