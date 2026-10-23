@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, BrainCircuit, CheckCircle2, ClipboardCheck, FileClock, Loader2, Save } from "lucide-react";
+import { AlertTriangle, BrainCircuit, Calculator, CheckCircle2, ClipboardCheck, Copy, FileClock, Loader2, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -11,6 +11,7 @@ import {
   type UrbanMetric, type UrbanMeasurements, type UrbanRegulationVersion,
 } from "@/lib/urbanPrecheck";
 import type { ProcessRecord } from "@/lib/platform";
+import { buildUrbanReviewDraft, deriveUrbanAreaMeasurements, type UrbanAreaKey } from "@/lib/urbanPrecheckAssist";
 
 type Field = { value: string; evidence: string };
 type Fields = Partial<Record<UrbanMetric, Field>>;
@@ -24,6 +25,7 @@ export function UrbanPrecheckPanel({
   const [usage, setUsage] = useState(process.property.usage || "");
   const [asOf, setAsOf] = useState((process.officializedAt || new Date().toISOString()).slice(0, 10));
   const [fields, setFields] = useState<Fields>({});
+  const [areaFields, setAreaFields] = useState<Partial<Record<UrbanAreaKey, Field>>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState("");
@@ -34,6 +36,7 @@ export function UrbanPrecheckPanel({
     setUsage(process.property.usage || "");
     setAsOf((process.officializedAt || new Date().toISOString()).slice(0, 10));
     setFields({});
+    setAreaFields({});
     setVersions([]);
     setHistory([]);
     setNotice("");
@@ -65,6 +68,47 @@ export function UrbanPrecheckPanel({
     }));
   };
 
+  const setAreaField = (key: UrbanAreaKey, field: keyof Field, text: string) => {
+    setAreaFields((previous) => ({
+      ...previous,
+      [key]: {
+        value: previous[key]?.value || "",
+        evidence: previous[key]?.evidence || "",
+        [field]: text,
+      },
+    }));
+  };
+
+  const deriveAreaRatios = () => {
+    if (!regulation || readOnly) return;
+    const inputs: Parameters<typeof deriveUrbanAreaMeasurements>[0] = {};
+    for (const key of ["lot", "footprint", "permeable", "totalFloor"] as const) {
+      const value = areaFields[key];
+      if (!value || (!value.value.trim() && !value.evidence.trim())) continue;
+      inputs[key] = {
+        value: value.value.trim() ? Number(value.value.trim().replace(",", ".")) : NaN,
+        evidence: value.evidence.trim(),
+      };
+    }
+    const derived = deriveUrbanAreaMeasurements(inputs);
+    const allowed = new Set(regulation.rules.map((r) => r.metric));
+    const entries = Object.entries(derived.measurements)
+      .filter(([metric]) => allowed.has(metric as UrbanMetric)) as Array<[UrbanMetric, { value: number; evidence: string }]>;
+    if (entries.length) {
+      setFields((previous) => {
+        const next = { ...previous };
+        for (const [metric, value] of entries) {
+          next[metric] = { value: String(value.value), evidence: value.evidence };
+        }
+        return next;
+      });
+    }
+    const success = entries.length
+      ? entries.length + " índice(s) calculado(s) e preenchido(s). Confira os valores antes do registro."
+      : "Nenhum índice aplicável pôde ser calculado.";
+    setNotice([success, ...derived.warnings].join(" "));
+  };
+
   const measurements = useMemo<UrbanMeasurements>(() => {
     const collected: UrbanMeasurements = {};
     if (!regulation) return collected;
@@ -82,6 +126,23 @@ export function UrbanPrecheckPanel({
     () => regulation ? evaluateUrbanPrecheck(regulation.rules, measurements) : [],
     [regulation, measurements],
   );
+  const reviewDraft = useMemo(
+    () => regulation
+      ? buildUrbanReviewDraft(process.protocol, regulation.zone_code,
+          regulation.use_code, regulation.version, findings)
+      : "",
+    [regulation, process.protocol, findings],
+  );
+  const copyDraft = async () => {
+    if (!reviewDraft) return;
+    try {
+      await navigator.clipboard.writeText(reviewDraft);
+      setNotice("Minuta interna copiada. Revise cuidadosamente antes de qualquer Comunique-se oficial.");
+    } catch {
+      setNotice("Não foi possível copiar. Verifique a permissão da área de transferência do navegador.");
+    }
+  };
+
   const canSave = !!regulation && !readOnly && !saving && findings.some(
     (finding) => finding.status !== "missing_evidence"
   );
@@ -175,6 +236,57 @@ export function UrbanPrecheckPanel({
             </p>
             <span className="text-xs text-sky-800 dark:text-sky-200">Vigência desde {regulation.effective_from}</span>
           </div>
+          <div className="mt-4 rounded-[20px] border border-sky-200 bg-sky-50/80 p-4 dark:border-sky-800 dark:bg-slate-900">
+            <div className="flex items-start gap-2">
+              <Calculator className="mt-0.5 h-5 w-5 text-sky-800 dark:text-sky-300" />
+              <div>
+                <p className="text-sm font-extrabold text-slate-950 dark:text-white">
+                  Calculadora auditável de índices de área
+                </p>
+                <p className="mt-1 text-xs leading-5 text-slate-700 dark:text-slate-200">
+                  Informe as áreas em m² e a origem documental. A ocupação, a permeabilidade e o
+                  coeficiente serão calculados por fórmula, sem leitura automática ou suposições.
+                </p>
+              </div>
+            </div>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              {([
+                ["lot", "Terreno (m²)"],
+                ["footprint", "Projeção da edificação (m²)"],
+                ["permeable", "Área permeável (m²)"],
+                ["totalFloor", "Construída computável (m²)"],
+              ] as const).map(([key, title]) => (
+                <div key={key} className="min-w-0 space-y-2">
+                  <label className="block text-xs font-bold text-slate-800 dark:text-slate-100">
+                    {title}
+                    <Input aria-label={title} className="mt-1" disabled={readOnly}
+                      type="text" inputMode="decimal" placeholder="Ex.: 250,00"
+                      value={areaFields[key]?.value || ""}
+                      onChange={(event) => setAreaField(key, "value", event.target.value)} />
+                  </label>
+                  <label className="block text-xs font-medium text-slate-700 dark:text-slate-200">
+                    Origem documental
+                    <Input aria-label={"Origem: " + title} className="mt-1" disabled={readOnly}
+                      maxLength={180} placeholder="Prancha e quadro de áreas"
+                      value={areaFields[key]?.evidence || ""}
+                      onChange={(event) => setAreaField(key, "evidence", event.target.value)} />
+                  </label>
+                </div>
+              ))}
+            </div>
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+              <p className="text-xs text-slate-600 dark:text-slate-300">
+                Taxa de ocupação = projeção ÷ terreno × 100;
+                permeabilidade = área permeável ÷ terreno × 100;
+                coeficiente = área computável ÷ terreno.
+              </p>
+              <Button type="button" variant="outline" disabled={readOnly}
+                className="rounded-xl border-sky-300 bg-white text-sky-950 hover:bg-sky-100 dark:border-sky-600 dark:bg-slate-800 dark:text-white"
+                onClick={deriveAreaRatios}>
+                <Calculator className="mr-2 h-4 w-4" /> Calcular e preencher índices
+              </Button>
+            </div>
+          </div>
           <div className="mt-3 space-y-3">
             {regulation.rules.map((rule) => {
               const definition = URBAN_METRICS.find((metric) => metric.key === rule.metric)!;
@@ -216,6 +328,27 @@ export function UrbanPrecheckPanel({
               );
             })}
           </div>
+          {reviewDraft ? (
+            <div className="mt-4 rounded-[20px] border border-amber-200 bg-amber-50 p-4 dark:border-amber-700 dark:bg-amber-950/30">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-bold text-amber-950 dark:text-amber-100">
+                    Minuta interna para conferência do analista
+                  </p>
+                  <p className="mt-1 text-xs text-amber-900 dark:text-amber-200">
+                    Gerada a partir de possíveis divergências. Não envia Comunique-se e não é decisão oficial.
+                  </p>
+                </div>
+                <Button type="button" variant="outline" className="border-amber-300 bg-white text-slate-900"
+                  onClick={() => void copyDraft()}>
+                  <Copy className="mr-2 h-4 w-4" /> Copiar minuta
+                </Button>
+              </div>
+              <pre className="mt-3 max-h-64 overflow-auto whitespace-pre-wrap break-words rounded-xl bg-white p-3 font-sans text-xs leading-6 text-slate-800 dark:bg-slate-900 dark:text-slate-100">
+                {reviewDraft}
+              </pre>
+            </div>
+          ) : null}
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
             <p className="text-xs text-slate-600 dark:text-slate-300">
               {findings.filter((x) => x.status === "attention").length} divergências · {" "}
