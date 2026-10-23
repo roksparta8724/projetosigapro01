@@ -49,6 +49,9 @@ export async function suggestUrbanBrowserOcr(canvas: HTMLCanvasElement): Promise
     throw new Error("A página precisa estar renderizada dentro do limite seguro de pixels.");
   }
   try {
+    if (typeof api.create === "function" && typeof api.availability !== "function") {
+      throw new Error("Este navegador não permite verificar antecipadamente a disponibilidade do OCR; use a transcrição visual.");
+    }
     if (typeof api.availability === "function") {
       // Do NOT start a model download for confidential municipal documents.
       const availability = await api.availability({languages:["pt"]});
