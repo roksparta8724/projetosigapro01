@@ -12,6 +12,7 @@ export function MunicipalUrbanRulesSettings({
   municipalityId, canEdit,
 }: { municipalityId: string; canEdit: boolean }) {
   const [versions, setVersions] = useState<UrbanRegulationVersion[]>([]);
+  const [expandedVersionId, setExpandedVersionId] = useState<string | null>(null);
   const [zone, setZone] = useState("");
   const [usage, setUsage] = useState("");
   const [effectiveFrom, setEffectiveFrom] = useState(() => new Date().toISOString().slice(0, 10));
@@ -23,6 +24,7 @@ export function MunicipalUrbanRulesSettings({
   useEffect(() => {
     let active = true;
     setVersions([]);
+    setExpandedVersionId(null);
     setDraft({});
     setZone("");
     setUsage("");
@@ -166,16 +168,43 @@ export function MunicipalUrbanRulesSettings({
         </p> : null}
         <div className="mt-3 grid gap-2">
           {versions.map((item) => (
-            <article key={item.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-900">
-              <div className="min-w-0 text-sm text-slate-950 dark:text-slate-100">
-                <p className="font-bold">{item.zone_code} · {item.use_code} · Versão {item.version}</p>
-                <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">Vigência: {item.effective_from} · {item.rules.length} parâmetros · {item.status === "active" ? "Vigente" : item.status === "draft" ? "Rascunho" : "Substituída"}</p>
+            <article key={item.id} className="min-w-0 rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-900">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="min-w-0 text-sm text-slate-950 dark:text-slate-100">
+                  <p className="font-bold">{item.zone_code} · {item.use_code} · Versão {item.version}</p>
+                  <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">Vigência: {item.effective_from} · {item.rules.length} parâmetros · {item.status === "active" ? "Vigente" : item.status === "draft" ? "Rascunho" : "Substituída"}</p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  {item.status === "active" ? <CheckCircle2 className="h-5 w-5 text-emerald-600" aria-label="Versão ativa" /> : null}
+                  <Button type="button" variant="outline" aria-expanded={expandedVersionId === item.id}
+                    onClick={() => setExpandedVersionId((previous) => previous === item.id ? null : item.id)}>
+                    {expandedVersionId === item.id ? "Ocultar parâmetros" : "Conferir parâmetros"}
+                  </Button>
+                  {item.status === "draft" && canEdit ?
+                    <Button type="button" variant="outline" disabled={busy || expandedVersionId !== item.id}
+                      title={expandedVersionId !== item.id ? "Confira os limites e os artigos antes de ativar" : "Validar e ativar a versão"}
+                      onClick={() => void activate(item.id)}>Validar e ativar</Button> : null}
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                {item.status === "active" ? <CheckCircle2 className="h-5 w-5 text-emerald-600" aria-label="Versão ativa" /> : null}
-                {item.status === "draft" && canEdit ?
-                  <Button type="button" variant="outline" disabled={busy} onClick={() => void activate(item.id)}>Validar e ativar</Button> : null}
-              </div>
+              {expandedVersionId === item.id ? (
+                <div className="mt-3 overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-600 dark:bg-slate-950">
+                  <p className="border-b border-slate-200 p-3 text-xs font-semibold text-slate-700 dark:border-slate-600 dark:text-slate-200">
+                    Confira os limites, a data de vigência, as condições de aplicação e cada referência legal antes da ativação.
+                  </p>
+                  <div className="divide-y divide-slate-200 dark:divide-slate-700">
+                    {item.rules.map((rule) => {
+                      const description = URBAN_METRICS.find((metric) => metric.key === rule.metric);
+                      return (
+                        <div key={rule.metric} className="grid gap-1 p-3 text-xs text-slate-800 dark:text-slate-100 md:grid-cols-[minmax(160px,1fr)_minmax(90px,0.35fr)_minmax(180px,1.4fr)]">
+                          <span className="font-bold">{description?.label || rule.metric}</span>
+                          <span className="font-semibold">{description?.direction === "minimum" ? "Mín. " : "Máx. "}{rule.limit} {description?.unit || ""}</span>
+                          <span className="break-words">{rule.reference}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
             </article>
           ))}
         </div>
