@@ -17,6 +17,7 @@ import { FileDropZone, type UploadedFileItem } from "@/components/platform/FileD
 import { PageHero } from "@/components/platform/PageHero";
 import { PageShell, PageStatsRow } from "@/components/platform/PageShell";
 import { PixQrCode } from "@/components/platform/PixQrCode";
+import { GuidePixShareCard } from "@/components/platform/GuidePixShareCard";
 import { PortalFrame } from "@/components/platform/PortalFrame";
 import { attachMunicipalCollectionGuide } from "@/lib/municipalCollectionBridge";
 import { GovbrArGuideBridge, isGovbrArGuideDocument } from "@/components/platform/GovbrArGuideBridge";
@@ -4550,6 +4551,7 @@ export function ProcessDetailPage() {
                           </Button>
                         </div>
                       </div>
+                      <GuidePixShareCard guide={guide} settings={tenantSettings} municipalityName={municipalityName || tenant?.name} municipalityCity={tenantSettings?.pixMerchantCity || tenant?.city} />
                     </div>
                   ))}
                 </div>
@@ -4560,6 +4562,10 @@ export function ProcessDetailPage() {
               )}
             </CardContent>
           </Card>
+          )}
+
+          {!isExternalProcessViewer && activeTab === "financeiro" && displayGuide && (
+            <GuidePixShareCard guide={displayGuide} settings={tenantSettings} municipalityName={municipalityName || tenant?.name} municipalityCity={tenantSettings?.pixMerchantCity || tenant?.city} />
           )}
 
           {!isExternalProcessViewer && activeTab === "financeiro" && requestedPaymentGuide && (
