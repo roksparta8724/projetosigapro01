@@ -33,7 +33,9 @@ if (-not (Test-Path $analise) -or
     throw "Faltam as mudancas IA/logo no codigo. Servidor preservado."
 }
 
-if (-not (Test-Path (Join-Path $root "node_modules\vite\bin\vite.js"))) {
+if (-not (Test-Path (Join-Path $root "node_modules\vite\bin\vite.js")) -or
+    -not (Test-Path (Join-Path $root "node_modules\pdfjs-dist\build\pdf.mjs")) -or
+    -not (Test-Path (Join-Path $root "node_modules\pdfjs-dist\build\pdf.worker.min.mjs"))) {
     Push-Location $root
     try {
         npm ci --no-audit --no-fund
