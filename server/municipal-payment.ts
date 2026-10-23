@@ -8,7 +8,7 @@ import {
   type ApiReq,
   callDataApiRpc,
   readEnv,
-} from "./municipal-storage";
+} from "./municipal-storage.js";
 
 export type MunicipalPaymentConnection = {
   municipality_id?: string;

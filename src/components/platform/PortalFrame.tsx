@@ -2483,7 +2483,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
           }}
         >
           <div className="px-8 py-8 lg:px-12 lg:py-10">
-            <div data-sig-footer-grid="true" className="grid min-w-0 items-center gap-x-6 gap-y-8 sm:grid-cols-2 2xl:grid-cols-4">
+            <div data-sig-footer-grid="true" className="grid min-w-0 items-start gap-x-6 gap-y-8 sm:grid-cols-2 2xl:grid-cols-4">
               <div data-sig-footer-logo-cell="true" className="flex min-w-0 items-center justify-center 2xl:justify-start 2xl:pl-3">
                 <InstitutionalLogo
                   branding={stableFooterBranding}
