@@ -124,6 +124,8 @@ export function DocumentAnalysisPage() {
   const [showReopenAnalysis, setShowReopenAnalysis] = useState(false);
   const [reopenReason, setReopenReason] = useState("");
   const [accessError, setAccessError] = useState("");
+  const missingQaDocument = import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true" &&
+    isQaDocumentMissingError(accessError);
   const [tool, setTool] = useState<AnalysisTool>(() => {
     const requested = searchParams.get("ferramenta");
     return requested === "highlight" || requested === "text" ? requested : "navigate";
@@ -443,6 +445,10 @@ export function DocumentAnalysisPage() {
 
   const approveDocument = async () => {
     if (!process || !document) return;
+    if (missingQaDocument) {
+      setStatus("Aprovação bloqueada: o PDF oficial não está armazenado nesta homologação. A cópia local é somente para consulta.");
+      return;
+    }
     setBusy("review-aprovado");
     setStatus("");
     try {
@@ -501,6 +507,10 @@ export function DocumentAnalysisPage() {
 
   const sendDraftToProfessional = async () => {
     if (!process || !document) return;
+    if (missingQaDocument) {
+      setStatus("Envio bloqueado: o PDF vinculado ao processo não está armazenado nesta homologação.");
+      return;
+    }
     if (draftAnnotations.length === 0) {
       setStatus("Adicione pelo menos um apontamento antes de enviar ao profissional.");
       return;
@@ -795,7 +805,7 @@ export function DocumentAnalysisPage() {
             <Button
               type="button"
               className="h-9 rounded-xl bg-[linear-gradient(135deg,#9a3412_0%,#c65d0e_55%,#e07a12_100%)] px-3 text-[11px] font-bold text-white shadow-[0_8px_18px_rgba(180,83,9,0.22)] hover:brightness-105"
-              disabled={busy === "send-draft" || draftAnnotations.length === 0 || !comuniqueDueDate}
+              disabled={missingQaDocument || busy === "send-draft" || draftAnnotations.length === 0 || !comuniqueDueDate}
               onClick={() => void sendDraftToProfessional()}
             >
               <Send className="mr-1.5 h-3.5 w-3.5" />
@@ -1318,7 +1328,7 @@ export function DocumentAnalysisPage() {
                 <Button
                   type="button"
                   className="h-11 w-full min-w-0 rounded-xl bg-[linear-gradient(135deg,#7c2d12_0%,#b45309_58%,#d97706_100%)] px-3 font-bold text-white shadow-[0_10px_24px_rgba(180,83,9,0.22)] hover:brightness-105"
-                  disabled={busy === "send-draft" || draftAnnotations.length === 0}
+                  disabled={missingQaDocument || busy === "send-draft" || draftAnnotations.length === 0}
                   onClick={() => void sendDraftToProfessional()}
                 >
                   <Send className="mr-2 h-4 w-4" />
@@ -1416,7 +1426,7 @@ export function DocumentAnalysisPage() {
                 <Button
                   type="button"
                   className="mt-3 w-full rounded-full bg-emerald-600 text-white hover:bg-emerald-500"
-                  disabled={busy.startsWith("review-") || busy === "send-draft"}
+                  disabled={missingQaDocument || busy.startsWith("review-") || busy === "send-draft"}
                   onClick={() => void approveDocument()}
                 >
                   <CheckCircle2 className="mr-2 h-4 w-4" />
