@@ -9,7 +9,7 @@ type Props = {
   bytes: Uint8Array;
   scannedPages: number[];
   readOnly: boolean;
-  onVerifiedTranscript: (entry: {page: number;text: string}) => void;
+  onVerifiedTranscript: (entry: {page: number;text: string; method:"visual_double_transcription"|"browser_ocr_human_verified"}) => void;
 };
 
 /**
@@ -29,13 +29,14 @@ export function UrbanScannedPageDesk({bytes,scannedPages,readOnly,onVerifiedTran
   const [ocrText,setOcrText]=useState("");
   const [ocrError,setOcrError]=useState("");
   const [ocrBusy,setOcrBusy]=useState(false);
+  const [ocrAssisted,setOcrAssisted]=useState(false);
   const ocrEpoch=useRef(0);
   const canvas=useRef<HTMLCanvasElement|null>(null);
   useEffect(()=>{
     if(!expanded || !pages.includes(page))return;
     const abort=new AbortController();
     ++ocrEpoch.current;
-    setOcrText("");setOcrError("");setOcrBusy(false);
+    setOcrText("");setOcrError("");setOcrBusy(false);setOcrAssisted(false);
     setBusy(true);setError("");
     if(!canvas.current) return;
     void renderUrbanGraphicPdfPage({
@@ -52,7 +53,7 @@ export function UrbanScannedPageDesk({bytes,scannedPages,readOnly,onVerifiedTran
   },[expanded,bytes,page,zoom]);
   if(readOnly||pages.length===0)return null;
   const issue=validateUrbanScanTranscription(first,second,page,pages);
-  const reset=()=>{setFirst("");setSecond("");setChecked(false);setError("");setOcrText("");setOcrError("");++ocrEpoch.current;setOcrBusy(false);};
+  const reset=()=>{setFirst("");setSecond("");setChecked(false);setError("");setOcrText("");setOcrError("");setOcrAssisted(false);++ocrEpoch.current;setOcrBusy(false);};
   const suggestOcr=async()=>{
     if(!expanded||busy||ocrBusy||error||!canvas.current||!browserOcrIsOffered())return;
     const attempt=++ocrEpoch.current;
@@ -73,7 +74,8 @@ export function UrbanScannedPageDesk({bytes,scannedPages,readOnly,onVerifiedTran
   };
   const confirm=()=>{
     if(issue||!checked||busy||error||!expanded)return;
-    onVerifiedTranscript({page,text:normalizeUrbanScanTranscript(first)});
+    onVerifiedTranscript({page,text:normalizeUrbanScanTranscript(first),
+      method:ocrAssisted?"browser_ocr_human_verified":"visual_double_transcription"});
     reset();
   };
   return (
@@ -151,7 +153,7 @@ export function UrbanScannedPageDesk({bytes,scannedPages,readOnly,onVerifiedTran
                     className="mt-1 min-h-24 w-full rounded-lg border border-slate-300 bg-slate-50 p-2 text-sm text-slate-900 dark:border-slate-600 dark:bg-[#081e32] dark:text-white"/>
                 </label>
                 <Button type="button" size="sm" variant="outline" onClick={()=>{
-                  setFirst(ocrText.slice(0,280));setSecond("");setChecked(false);
+                  setFirst(ocrText.slice(0,280));setSecond("");setChecked(false);setOcrAssisted(true);
                 }}>
                   Copiar sugestão somente para a primeira leitura
                 </Button>
@@ -181,7 +183,8 @@ export function UrbanScannedPageDesk({bytes,scannedPages,readOnly,onVerifiedTran
               disabled={Boolean(issue)||busy||Boolean(error)} checked={checked}
               onChange={event=>setChecked(event.target.checked)} className="mt-0.5"/>
             Examinei a imagem da página {page}, comparei as duas transcrições, confirmei os
-            caracteres e assumo a conferência técnica deste trecho.
+            caracteres e assumo a conferência técnica deste trecho. Se utilizei OCR,
+            confirmo que revisei também todos os caracteres sugeridos.
           </label>
           <Button type="button" disabled={Boolean(issue)||!checked||busy||Boolean(error)}
             onClick={confirm} className="rounded-xl bg-sky-700 text-white hover:bg-sky-800">
