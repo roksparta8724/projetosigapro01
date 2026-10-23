@@ -16,6 +16,14 @@ describe("SIGAPRO IA — normas provenientes de documentos reais", () => {
     expect(out.find(x => x.metric === "occupancy_percent")).toMatchObject({ page: 10, suggestedLimit: 60 });
     expect(out[0].excerpt).toContain("Artigo 21");
   });
+  it("mantém valores decimais com ponto e vírgula sem arredondar", () => {
+    const result = extractUrbanLegalSuggestions([
+      { page: 6, text: "Art. 12 - Coeficiente de aproveitamento máximo de 2.5 para a zona residencial." },
+      { page: 7, text: "Art. 13 - Altura máxima máxima de 10,5 m para edificações." },
+    ]);
+    expect(result.find(x => x.metric === "floor_area_ratio")?.suggestedLimit).toBe(2.5);
+    expect(result.find(x => x.metric === "height_m")?.suggestedLimit).toBe(10.5);
+  });
   it("não transforma remissões legais, condições ou valores sem unidade em obrigação automática", () => {
     const out = extractUrbanLegalSuggestions([
       { page: 8, text: "O recuo frontal mínimo de 5 metros, salvo quando previsto no anexo II." },
