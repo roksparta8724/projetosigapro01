@@ -173,8 +173,8 @@ export function QaDocumentUnavailableNotice({
           </div>
           <p data-qa-copy-integrity="true" role="status"
             className="mt-3 rounded-xl border border-amber-500/40 bg-amber-950/35 p-3 text-left text-xs leading-5 text-amber-100">
-            {copyCheckMessage} A pré-visualização ocorre somente neste navegador e não aprova,
-            despacha nem altera o processo oficial.
+            {copyCheckMessage} A pré-visualização ocorre somente neste navegador e não substitui o anexo do processo.
+            Ela não aprova, despacha nem altera o processo oficial.
           </p>
           {verifiedCopy && objectKey && /^[a-f0-9]{64}$/i.test(String(expectedFileHash || "")) ? (
             <div className="mt-3 rounded-xl border border-sky-500/40 bg-slate-900/70 p-3 text-left">
