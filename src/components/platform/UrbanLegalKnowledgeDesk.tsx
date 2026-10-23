@@ -146,11 +146,14 @@ export function UrbanLegalKnowledgeDesk({ municipalityId, canEdit, onUseReferenc
         municipalityId, documentTitle:title, documentSha256:fileHash,
         pageNumber:page, metric:manualMetric, excerpt:manualExcerpt.trim(),
         scope:confirmedScope,
+        verificationMethod: scanDoubleVerified ? "visual_double_transcription" : "text_layer_verified",
       });
       await refresh();
       setManualConfirmed(false);
       setManualExcerpt("");setScannedProof(null);
-      setNotice("Trecho literal vinculado à zona, uso e vigência no acervo QA. Não altera norma ativa.");
+      setNotice(scanDoubleVerified
+        ? "Trecho de página escaneada registrado como transcrição visual dupla no histórico do acervo QA. Não ativa norma."
+        : "Trecho literal vinculado à zona, uso e vigência no acervo QA. Não altera norma ativa.");
     } catch (error) {
       setNotice(String((error as Error)?.message || error));
     } finally { setManualSaving(false); }
@@ -360,6 +363,11 @@ export function UrbanLegalKnowledgeDesk({ municipalityId, canEdit, onUseReferenc
               <p className="mt-1 break-words text-xs font-semibold text-sky-800 dark:text-sky-200">
                 Zona {item.zone_code} · uso {item.use_code} · vigência {item.effective_from}
                 {item.effective_until ? " até " + item.effective_until : " (sem data final cadastrada)"}
+              </p>
+              <p className="mt-1 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                Origem da leitura: {item.verification_method === "visual_double_transcription"
+                  ? "transcrição visual dupla conferida por servidor (sem OCR)"
+                  : "camada de texto PDF conferida"}
               </p>
               <p className="mt-2 break-words text-xs leading-5 text-slate-800 dark:text-slate-100">{item.excerpt}</p>
               {canEdit ? <Button type="button" size="sm" variant="outline" className="mt-2"
