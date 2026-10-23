@@ -1,6 +1,6 @@
-import { callDataApiRpc } from "../server/municipal-storage";
-import { encryptMunicipalCollectionSecret, municipalCollectionSecretFingerprint } from "../server/municipal-payment";
-import { getMunicipalCollectionAdapter } from "../server/municipal-collection-adapters";
+import { callDataApiRpc } from "../server/municipal-storage.js";
+import { encryptMunicipalCollectionSecret, municipalCollectionSecretFingerprint } from "../server/municipal-payment.js";
+import { getMunicipalCollectionAdapter } from "../server/municipal-collection-adapters.js";
 
 type Req = import("http").IncomingMessage & { method?: string; body?: Record<string, unknown> };
 type Res = import("http").ServerResponse;
