@@ -31,7 +31,7 @@ export function UrbanLegalKnowledgeDesk({ municipalityId, canEdit, onUseReferenc
   const [suggestions, setSuggestions] = useState<UrbanLegalSuggestion[]>([]);
   const [pdfPages, setPdfPages] = useState<UrbanPdfPageText[]>([]);
   const [pdfBytes, setPdfBytes] = useState<Uint8Array|null>(null);
-  const [scannedProof, setScannedProof] = useState<{page:number;text:string;hash:string}|null>(null);
+  const [scannedProof, setScannedProof] = useState<{page:number;text:string;hash:string;method:"visual_double_transcription"|"browser_ocr_human_verified"}|null>(null);
   const [manualPage, setManualPage] = useState("1");
   const [manualMetric, setManualMetric] = useState<UrbanMetric>("front_setback_m");
   const [manualExcerpt, setManualExcerpt] = useState("");
@@ -146,7 +146,7 @@ export function UrbanLegalKnowledgeDesk({ municipalityId, canEdit, onUseReferenc
         municipalityId, documentTitle:title, documentSha256:fileHash,
         pageNumber:page, metric:manualMetric, excerpt:manualExcerpt.trim(),
         scope:confirmedScope,
-        verificationMethod: scanDoubleVerified ? "visual_double_transcription" : "text_layer_verified",
+        verificationMethod: scanDoubleVerified ? scannedProof.method : "text_layer_verified",
       });
       await refresh();
       setManualConfirmed(false);
@@ -278,12 +278,12 @@ export function UrbanLegalKnowledgeDesk({ municipalityId, canEdit, onUseReferenc
                   bytes={pdfBytes}
                   scannedPages={pdfPages.filter(page => !page.text.trim()).map(page => page.page)}
                   readOnly={!canEdit}
-                  onVerifiedTranscript={({page,text}) => {
+                  onVerifiedTranscript={({page,text,method}) => {
                     setManualPage(String(page));
                     setManualExcerpt(text);
-                    setScannedProof({page,text,hash:fileHash});
+                    setScannedProof({page,text,hash:fileHash,method});
                     setManualConfirmed(false);
-                    setNotice("Transcrição visual dupla da lei conferida, página " + page +
+                    setNotice((method==="browser_ocr_human_verified" ? "OCR local revisado da lei, " : "Transcrição visual dupla da lei, ") + "página " + page +
                       ". Selecione o assunto, confira a legislação integral e confirme a referência antes de gravar.");
                   }}
                 />
@@ -365,7 +365,8 @@ export function UrbanLegalKnowledgeDesk({ municipalityId, canEdit, onUseReferenc
                 {item.effective_until ? " até " + item.effective_until : " (sem data final cadastrada)"}
               </p>
               <p className="mt-1 text-xs font-semibold text-slate-700 dark:text-slate-300">
-                Origem da leitura: {item.verification_method === "visual_double_transcription"
+                Origem da leitura: {item.verification_method === "browser_ocr_human_verified" ? "OCR nativo com revisão humana" :
+                  item.verification_method === "visual_double_transcription"
                   ? "transcrição visual dupla conferida por servidor (sem OCR)"
                   : "camada de texto PDF conferida"}
               </p>
