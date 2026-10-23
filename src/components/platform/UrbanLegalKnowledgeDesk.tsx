@@ -102,7 +102,7 @@ export function UrbanLegalKnowledgeDesk({ municipalityId, canEdit, onUseReferenc
       setPdfBytes(bytes);
       setSuggestions(extractUrbanLegalSuggestions(result.pages));
       setNotice(result.scannedPages === result.pages.length
-        ? "O PDF não contém texto selecionável nas páginas verificadas. É necessário OCR ou consulta manual."
+        ? "O PDF não contém texto selecionável. Utilize a conferência visual ampliada e a dupla transcrição humana das páginas escaneadas."
         : result.truncated
           ? "Somente as primeiras 24 páginas foram lidas. Confira as demais páginas no documento original."
           : "Trechos localizados. Confira cada artigo e condição antes de confirmar uma referência.");
