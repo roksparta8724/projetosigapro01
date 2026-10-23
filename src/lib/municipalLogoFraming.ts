@@ -12,6 +12,8 @@
 export const MUNICIPAL_LOGO_BASE_RATIO = 2 / 3;
 export const MUNICIPAL_LOGO_MIN_ZOOM = 1;
 export const MUNICIPAL_LOGO_MAX_ZOOM = 1.5;
+/** Footer-only optical enlargement; header stays capped at the full 1.50x fit. */
+export const MUNICIPAL_FOOTER_LOGO_MAX_ZOOM = 3;
 export const MUNICIPAL_LOGO_EDITOR_SIZE = 188;
 
 export interface MunicipalLogoFrame {
@@ -28,11 +30,12 @@ function clamp(value: number, low: number, high: number) {
 }
 export function fitMunicipalLogoFrame(
   frame: Partial<MunicipalLogoFrame> | undefined | null,
+  variant: "header" | "footer" = "header",
 ): MunicipalLogoFrame {
   const scale = clamp(
     finiteOr(frame?.scale, MUNICIPAL_LOGO_MAX_ZOOM),
     MUNICIPAL_LOGO_MIN_ZOOM,
-    MUNICIPAL_LOGO_MAX_ZOOM,
+    variant === "footer" ? MUNICIPAL_FOOTER_LOGO_MAX_ZOOM : MUNICIPAL_LOGO_MAX_ZOOM,
   );
   const margin = Math.max(
     0,
@@ -45,6 +48,6 @@ export function fitMunicipalLogoFrame(
   return { scale, offsetX, offsetY };
 }
 
-export function fullMunicipalLogoFrame(): MunicipalLogoFrame {
-  return { scale: MUNICIPAL_LOGO_MAX_ZOOM, offsetX: 0, offsetY: 0 };
+export function fullMunicipalLogoFrame(variant: "header" | "footer" = "header"): MunicipalLogoFrame {
+  return { scale: variant === "footer" ? MUNICIPAL_FOOTER_LOGO_MAX_ZOOM : MUNICIPAL_LOGO_MAX_ZOOM, offsetX: 0, offsetY: 0 };
 }
