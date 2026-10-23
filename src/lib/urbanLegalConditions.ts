@@ -65,7 +65,7 @@ export function findUrbanLegalConditions(
       excerpt:entry.excerpt,kinds:flags,
       why:flags.map(x=>kinds.find(k=>k.kind===x)!.label).join(" · "),
     }];
-  }).slice(0,150);
+  }).slice(0,151);
 }
 
 export type UrbanLegalReviewConfirmation = {
@@ -80,6 +80,7 @@ export function validateUrbanLegalReview(
   review: UrbanLegalReviewConfirmation,
 ): string | null {
   if (!flags.length) return null;
+  if (flags.length > 50) return "O acervo possui mais de 50 referências condicionais; a conferência exige triagem técnica específica antes do registro.";
   if (!review.documentScopeConfirmed) return "Confirme se as citações pertencem à legislação aplicável, à zona, ao uso e à data do processo.";
   if (!review.note.trim() || review.note.trim().length < 20 || review.note.trim().length > 1200) {
     return "Registre fundamentação técnica com 20 a 1200 caracteres para as condições e exceções.";
