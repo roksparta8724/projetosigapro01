@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { QRCodeSVG } from "qrcode.react";
+import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { buildPixPayload, isValidPixPayload } from "@/lib/pix";
 
@@ -24,7 +25,7 @@ describe("official guide PIX authenticity", () => {
       txid: "DAMTESTE123",
     });
     expect(isValidPixPayload(payload)).toBe(true);
-    const markup = renderToStaticMarkup(QRCodeSVG({ value: payload, size: 132, level: "M", marginSize: 2 }));
+    const markup = renderToStaticMarkup(createElement(QRCodeSVG, { value: payload, size: 132, level: "M", marginSize: 2 }));
     expect(markup).toContain("<svg");
     expect(markup).toContain("<path");
     expect(markup).not.toContain("hashSeed");
