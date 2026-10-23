@@ -13,6 +13,7 @@ import { verifyQaExistingDocumentCopy } from "@/lib/qaExistingDocumentRecovery";
 import { findUrbanDrawingMeasurements, type UrbanDrawingTarget } from "@/lib/urbanDrawingMeasurements";
 import { UrbanDrawingMeasurementDesk } from "@/components/platform/UrbanDrawingMeasurementDesk";
 import { UrbanGraphicRulerDesk } from "@/components/platform/UrbanGraphicRulerDesk";
+import { UrbanScannedPageDesk } from "@/components/platform/UrbanScannedPageDesk";
 import type { UrbanMetric } from "@/lib/urbanPrecheck";
 
 type Props = {
@@ -43,6 +44,7 @@ export function UrbanDocumentEvidenceDesk({ process, readOnly, allowedMetrics, o
   const [readProgress, setReadProgress] = useState("");
   const [extracted, setExtracted] = useState<UrbanPdfTextResult | null>(null);
   const [pdfBytes, setPdfBytes] = useState<Uint8Array | null>(null);
+  const [scanProof, setScanProof] = useState<{page:number;text:string;documentId:string}|null>(null);
   const readAbort = useRef<AbortController | null>(null);
   const qaFileInput = useRef<HTMLInputElement | null>(null);
 
@@ -69,6 +71,7 @@ export function UrbanDocumentEvidenceDesk({ process, readOnly, allowedMetrics, o
     readAbort.current = null;
     setExtracted(null);
     setPdfBytes(null);
+    setScanProof(null);
     setReadStatus("idle");
     setReadProgress("");
     setDocumentId("");
@@ -83,6 +86,7 @@ export function UrbanDocumentEvidenceDesk({ process, readOnly, allowedMetrics, o
     readAbort.current = null;
     setExtracted(null);
     setPdfBytes(null);
+    setScanProof(null);
     setReadStatus("idle");
     setReadProgress("");
     setPageText("1");
@@ -101,7 +105,7 @@ export function UrbanDocumentEvidenceDesk({ process, readOnly, allowedMetrics, o
     readAbort.current?.abort();
     readAbort.current = controller;
     setReadStatus("loading");
-    setExtracted(null);setPdfBytes(null);
+    setExtracted(null);setPdfBytes(null);setScanProof(null);
     setReadProgress("Solicitando acesso autenticado ao PDF...");
     setNotice("");
     try {
@@ -150,7 +154,7 @@ export function UrbanDocumentEvidenceDesk({ process, readOnly, allowedMetrics, o
     readAbort.current?.abort();
     readAbort.current = controller;
     setReadStatus("loading");
-    setExtracted(null);setPdfBytes(null); setReadProgress("Verificando integridade do PDF local...");
+    setExtracted(null);setPdfBytes(null);setScanProof(null); setReadProgress("Verificando integridade do PDF local...");
     setNotice("");
     try {
       // Never treat an arbitrary plan as the official attachment.
@@ -222,7 +226,8 @@ export function UrbanDocumentEvidenceDesk({ process, readOnly, allowedMetrics, o
         documentVersion: selected.version || 1,
         fileHash: selected.fileHash,
         page: Number(pageText),
-        excerpt,
+        excerpt: scanProof?.documentId===selected.id && scanProof.page===Number(pageText) && scanProof.text===excerpt
+          ? ("Transcrição visual dupla, sem OCR: "+excerpt).slice(0,280) : excerpt,
       });
       onUseEvidence(metric, evidence);
       setNotice("Origem da medida preenchida. Confirme manualmente o valor no campo do parâmetro e registre a pré-conferência quando pronto.");
@@ -278,7 +283,7 @@ export function UrbanDocumentEvidenceDesk({ process, readOnly, allowedMetrics, o
           <label className="text-xs font-bold text-slate-800 dark:text-slate-100">
             Página conferida
             <Input aria-label="Página conferida" className="mt-1" type="number" min={1} max={10000}
-              value={pageText} onChange={(event) => setPageText(event.target.value)} />
+              value={pageText} onChange={(event) => {setPageText(event.target.value);setScanProof(null);}} />
           </label>
         </div>
       )}
@@ -356,6 +361,21 @@ export function UrbanDocumentEvidenceDesk({ process, readOnly, allowedMetrics, o
               </div>
             </div>
           ) : null}
+          {extracted && pdfBytes && extracted.scannedPages > 0 ? (
+            <UrbanScannedPageDesk
+              key={documentId + "-scanned-" + readStatus}
+              bytes={pdfBytes}
+              scannedPages={extracted.pages.filter(page => !page.text).map(page => page.page)}
+              readOnly={readOnly}
+              onVerifiedTranscript={({page,text}) => {
+                setPageText(String(page));
+                setExcerpt(text);
+                setScanProof({page,text,documentId:selected.id});
+                setNotice("Transcrição visual dupla conferida: página " + page +
+                  ". Selecione o parâmetro técnico e vincule a origem; ainda não é OCR.");
+              }}
+            />
+          ) : null}
           {extracted ? (
             <UrbanDrawingMeasurementDesk key={documentId + "-" + readStatus}
               suggestions={drawingSuggestions} readOnly={readOnly}
@@ -380,7 +400,7 @@ export function UrbanDocumentEvidenceDesk({ process, readOnly, allowedMetrics, o
         Trecho conferido na página original
         <Textarea className="mt-1 min-h-24 text-sm" value={excerpt} maxLength={280}
           disabled={readOnly || !selected} placeholder="Transcreva uma cota, item da prancha ou trecho normativo após conferir o PDF original..."
-          onChange={(event) => setExcerpt(event.target.value)} />
+          onChange={(event) => {setExcerpt(event.target.value);setScanProof(null);}} />
       </label>
       {knownSignals.length > 0 ? (
         <div className="mt-3 flex flex-wrap items-center gap-2">
