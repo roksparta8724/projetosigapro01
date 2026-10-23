@@ -3,6 +3,7 @@ import { jsPDF } from "jspdf";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { uploadFileToStorage } from "@/integrations/r2/storage";
 import { readOfficialAnalysisSheet, writeOfficialAnalysisSheet } from "@/integrations/backend/analysisSheetClient";
+import { findAnalysisSheetLocalCandidates, rescueChecklistEditableFields, type ChecklistLocalCandidate } from "@/lib/analysisSheetLocalRecovery";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -517,6 +518,9 @@ export function UrbanAnalysisChecklistPanel({
   );
   const [notice, setNotice] = useState("");
   const [officialRevision, setOfficialRevision] = useState<number | null>(null);
+  const [localDraftCandidates, setLocalDraftCandidates] = useState<ChecklistLocalCandidate[]>([]);
+  const [officialSheetFound, setOfficialSheetFound] = useState<boolean | null>(null);
+  const [officialReadError, setOfficialReadError] = useState(false);
   const [officialSheetLoading, setOfficialSheetLoading] = useState(true);
   const [draftSaveBusy, setDraftSaveBusy] = useState(false);
   const [signatureDialog, setSignatureDialog] = useState<"technical" | "director" | null>(null);
@@ -548,11 +552,19 @@ export function UrbanAnalysisChecklistPanel({
     // O navegador é cache de apresentação. A ficha compartilhada vem do banco.
     setState(readInitialChecklistState(key, process, session));
     setOfficialRevision(null);
+    setOfficialSheetFound(null);
+    setOfficialReadError(false);
+    try {
+      setLocalDraftCandidates(findAnalysisSheetLocalCandidates(
+        window.localStorage, municipalityId, process.id, session.id,
+      ));
+    } catch { setLocalDraftCandidates([]); }
     setOfficialSheetLoading(true);
     void readOfficialAnalysisSheet(process.id)
       .then((sheet) => {
         if (!active) return;
         setOfficialRevision(sheet.revision);
+        setOfficialSheetFound(sheet.found);
         if (sheet.found && sheet.payload) {
           if (!checklistPayloadMatchesProcess(sheet.payload, process.id, municipalityId)) {
             throw new Error("A ficha retornada não corresponde a este processo e município.");
@@ -573,11 +585,51 @@ export function UrbanAnalysisChecklistPanel({
       .catch((error) => {
         if (!active) return;
         console.error("[SIGAPRO][Ficha Técnica] Falha ao ler banco", error);
+        setOfficialReadError(true);
         setNotice(error instanceof Error ? error.message : "Leitura oficial da ficha indisponível.");
       })
       .finally(() => { if (active) setOfficialSheetLoading(false); });
     return () => { active = false; };
   }, [key, process.id, session.id, municipalityId]);
+
+  // Autosave is BROWSER-ONLY: it protects drafts between page changes.
+  // A revision is official ONLY after writeOfficialAnalysisSheet confirms it.
+  // Skip initial hydration to avoid overwriting a pre-existing browser draft.
+  useEffect(() => {
+    if (officialSheetLoading || readOnly || state.processId !== process.id) return;
+    const hasWork = Object.values(state.items).some(item =>
+      Boolean(item?.status || item?.observation?.trim())) ||
+      Boolean(state.conclusion.trim() || state.routing || state.routingOther.trim());
+    if (!hasWork) return;
+    const id = window.setTimeout(() => {
+      try { window.localStorage.setItem(key, JSON.stringify(state)); }
+      catch { /* Do not falsely report the draft as saved. */ }
+    }, 350);
+    return () => window.clearTimeout(id);
+  }, [state, key, process.id, readOnly, officialSheetLoading]);
+
+  const browserDraftCount = Object.values(state.items).filter(item =>
+    Boolean(item?.status || item?.observation?.trim())).length;
+  const rescueLocalDraft = (candidate: ChecklistLocalCandidate) => {
+    if (readOnly || officialSheetLoading || officialReadError ||
+        officialRevision !== 0 || !localDraftCandidates.some(item => item.key === candidate.key)) return;
+    try {
+      const restored = rescueChecklistEditableFields(candidate.payload, TEMPLATE.map(item => item.id));
+      const next: AnalysisChecklistState = {
+        ...state, ...restored,
+        processId: process.id,
+        technicalSignature: null, directorSignature: null, signedAt: "", signedBy: "",
+        savedAt: "",
+      };
+      // Snapshot the current draft before replacing the visible fields.
+      window.localStorage.setItem(key + ":backup-antes-da-recuperacao-manual", JSON.stringify(state));
+      window.localStorage.setItem(key, JSON.stringify(next));
+      setState(next);
+      setNotice("Rascunho do navegador recuperado para conferência. Ainda NÃO está salvo no banco; revise e clique em Salvar rascunho.");
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Rascunho local inválido.");
+    }
+  };
 
   useEffect(() => {
     // Read official signed evidence only after restoring the canonical
@@ -2306,6 +2358,37 @@ export function UrbanAnalysisChecklistPanel({
       </CardHeader>
 
       <CardContent data-workspace-surface="adaptive" className="space-y-5 bg-[linear-gradient(180deg,#fbfdff_0%,#f5f8fc_100%)] p-5 dark:bg-[linear-gradient(180deg,#0f172a_0%,#0b1320_100%)] md:p-6">
+        <section data-analysis-storage-status="true" role="status"
+          className="rounded-2xl border border-sky-200 bg-sky-50 p-4 text-slate-800 dark:border-sky-500/30 dark:bg-slate-900 dark:text-slate-100">
+          <p className="text-sm font-extrabold text-slate-950 dark:text-white">
+            {officialSheetLoading ? "Conferindo a ficha no banco..." :
+              officialReadError ? "Banco indisponível — ficha não confirmada" :
+              officialSheetFound ? "Ficha oficial recuperada — revisão " + officialRevision :
+              browserDraftCount > 0 ? "Rascunho recuperado deste navegador" :
+              "Nenhum rascunho oficial encontrado neste processo"}
+          </p>
+          <p className="mt-1 text-xs leading-5 text-slate-700 dark:text-slate-200">
+            {officialSheetLoading ? "Aguarde a leitura antes de alterar a planilha." :
+              officialReadError ? "Não foi possível confirmar os registros no banco. Dados locais não são confirmação oficial." :
+              officialSheetFound ? "Este conteúdo foi recuperado da ficha compartilhada deste ambiente. Alterações só ficam oficiais após Salvar rascunho." :
+              browserDraftCount > 0 ? browserDraftCount + " item(ns) deste navegador. Use Salvar rascunho para confirmar no banco da homologação." :
+              "O banco deste ambiente não retornou preenchimentos para este processo. Isso não comprova exclusão de rascunhos antigos em outros navegadores ou ambientes."}
+          </p>
+          {!readOnly && !officialReadError && !officialSheetLoading && officialRevision === 0 &&
+            localDraftCandidates.some(candidate => candidate.source !== "local" || browserDraftCount === 0) ? (
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <span className="text-xs font-semibold">Rascunhos anteriores deste navegador:</span>
+              {localDraftCandidates.filter(candidate => candidate.source !== "local" || browserDraftCount === 0).map(candidate => (
+                <Button key={candidate.key} type="button" variant="outline" size="sm"
+                  className="border-sky-300 bg-white font-bold text-slate-900 dark:border-sky-600 dark:bg-slate-800 dark:text-white"
+                  onClick={() => rescueLocalDraft(candidate)}>
+                  Recuperar {candidate.source === "backup" ? "backup" : candidate.source === "legacy" ? "rascunho antigo" : "rascunho local"}
+                  {" · "}{candidate.evaluated} avaliados
+                </Button>
+              ))}
+            </div>
+          ) : null}
+        </section>
         <section data-analysis-identity="true" data-force-card-contrast="adaptive" className="overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-[0_12px_30px_rgba(15,23,42,0.06)] dark:border-slate-700 dark:bg-slate-900">
           <div className="grid gap-4 border-b border-slate-200 bg-[linear-gradient(135deg,#f8fbff_0%,#eef6fb_100%)] px-5 py-5 dark:border-slate-700 dark:bg-[linear-gradient(135deg,#0d2032_0%,#10283d_100%)] md:grid-cols-[auto_minmax(0,1fr)_auto] md:items-center">
             <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-950">
@@ -2364,7 +2447,7 @@ export function UrbanAnalysisChecklistPanel({
           </div>
         ) : null}
 
-        <fieldset disabled={readOnly} className="contents">
+        <fieldset disabled={readOnly || officialSheetLoading} className="contents">
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <div data-analysis-mini-card="true" data-analysis-crisp-card="true" data-force-card-contrast="adaptive" className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
             <p className="sig-analysis-crisp-label text-[11px] font-extrabold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-300">Processo</p>
