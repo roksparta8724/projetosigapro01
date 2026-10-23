@@ -143,12 +143,14 @@ export function UrbanPrecheckPanel({
     }
   };
 
-  const canSave = !!regulation && !readOnly && !saving && findings.some(
+  const canSave = !!regulation && !readOnly && !saving &&
+    /^\d{4}-\d{2}-\d{2}$/.test(asOf) && asOf <= new Date().toISOString().slice(0, 10) &&
+    findings.some(
     (finding) => finding.status !== "missing_evidence"
   );
 
   const save = async () => {
-    if (!regulation || readOnly || saving) return;
+    if (!regulation || readOnly || saving || !canSave) return;
     const invalidEntered = regulation.rules.some((rule) => {
       const input = fields[rule.metric];
       if (!input?.value.trim() && !input?.evidence.trim()) return false;
@@ -174,7 +176,7 @@ export function UrbanPrecheckPanel({
     setSaving(true);
     setNotice("");
     try {
-      await saveUrbanPrecheckRun(process.id, regulation.id, complete);
+      await saveUrbanPrecheckRun(process.id, regulation.id, asOf, complete);
       const updated = await listUrbanPrecheckHistory(process.id);
       setHistory(updated);
       setNotice("Pré-conferência registrada no histórico. Não altera a aprovação nem a ficha oficial.");
@@ -377,13 +379,13 @@ export function UrbanPrecheckPanel({
               <div key={entry.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 p-3 dark:border-slate-700">
                 <p className="text-xs text-slate-700 dark:text-slate-200">
                   <ClipboardCheck className="mr-1 inline h-4 w-4" />
-                  {new Date(entry.created_at).toLocaleString("pt-BR")} · Versão {historicRules?.version || "arquivada"}
+                  {new Date(entry.created_at).toLocaleString("pt-BR")} · Referência legal: {entry.reference_date || "não registrada"} · Versão {historicRules?.version || "arquivada"}
                 </p>
                 <p className="flex items-center gap-1 text-xs text-slate-700 dark:text-slate-200">
-                  {historicalFindings.some((item) => item.status === "attention") ?
+                  {historicalFindings.some((item) => item.status === "attention") || !historicRules ?
                     <AlertTriangle className="h-4 w-4 text-amber-600" /> :
                     <CheckCircle2 className="h-4 w-4 text-emerald-600" />}
-                  {historicalFindings.filter((item) => item.status === "attention").length} alertas · Registro consultivo
+                  {historicRules ? historicalFindings.filter((item) => item.status === "attention").length + " alertas" : "Norma arquivada indisponível"} · Registro consultivo
                 </p>
               </div>
             );
