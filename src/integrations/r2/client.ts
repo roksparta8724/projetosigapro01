@@ -144,10 +144,16 @@ export function getLegacyProfileAvatarOpenUrl(sourceUrl: string | null | undefin
 export function getMunicipalityLogoOpenUrl(objectKey: string | null | undefined) {
   const normalized = String(objectKey || "").trim().replace(/^\/+/, "");
   if (!normalized) return "";
-
-  return buildApiUrl(
-    `/api/municipality-logo-open?objectKey=${encodeURIComponent(normalized)}`,
-  );
+  const path = `/api/municipality-logo-open?objectKey=${encodeURIComponent(normalized)}`;
+  // The official site must read its own R2 proxy. A stale VITE_R2_API_BASE
+  // must never redirect municipal imagery to an old deployment or environment.
+  if (typeof window !== "undefined") {
+    const host = window.location.hostname.toLowerCase();
+    if (host === "sigapromunicipal.com.br" || host.endsWith(".sigapromunicipal.com.br")) {
+      return path;
+    }
+  }
+  return buildApiUrl(path);
 }
 
 export function getObjectKeyFromPublicUrl(publicUrl: string) {
