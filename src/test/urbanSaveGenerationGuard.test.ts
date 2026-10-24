@@ -10,6 +10,11 @@ describe("SIGAPRO IA - geração da gravação por navegação", () => {
     expect(save).toContain("const saveGeneration = ++saveGenerationRef.current;");
     expect(save).toContain("saveGenerationRef.current !== saveGeneration");
   });
+  it("protege também a atualização do histórico iniciada após salvar",()=>{
+    const refresh=save.slice(save.indexOf("const updated = await listUrbanPrecheckHistory(requestedProcessId)"));
+    expect(refresh).toContain("saveGenerationRef.current !== saveGeneration");
+    expect(refresh).toContain("historyRetryGenerationRef.current !== savedHistoryGeneration");
+  });
   it("não deixa conclusão obsoleta publicar sucesso ou erro na tela",()=>{
     expect(save).toContain("saveGenerationRef.current === saveGeneration");
     expect(save).toMatch(/saveGenerationRef\.current !== saveGeneration[\s\S]*?setLastSavedSnapshot/);
