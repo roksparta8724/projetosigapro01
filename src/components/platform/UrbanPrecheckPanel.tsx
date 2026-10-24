@@ -97,6 +97,7 @@ export function UrbanPrecheckPanel({
   const legalReviewReady = legalCatalogReady && !legalCatalogError && !legalReviewIssue;
 
   const setField = (metric: UrbanMetric, field: keyof Field, text: string) => {
+    if (readOnly) return;
     setFields((previous) => ({
       ...previous,
       [metric]: {
@@ -108,6 +109,7 @@ export function UrbanPrecheckPanel({
   };
 
   const setAreaField = (key: UrbanAreaKey, field: keyof Field, text: string) => {
+    if (readOnly) return;
     setAreaFields((previous) => ({
       ...previous,
       [key]: {
