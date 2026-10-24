@@ -81,7 +81,8 @@ export function UrbanPrecheckPanel({
   }, [municipalityId, process.id, process.property.usage, process.officializedAt]);
 
   const regulation = useMemo(
-    () => selectUrbanRegulation(versions, municipalityId, zone, usage, asOf),
+    () => isValidUrbanReferenceDate(asOf, new Date().toISOString().slice(0, 10))
+      ? selectUrbanRegulation(versions, municipalityId, zone, usage, asOf) : null,
     [versions, municipalityId, zone, usage, asOf],
   );
 
