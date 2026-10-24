@@ -242,8 +242,12 @@ export function UrbanPrecheckPanel({
       !input.evidence.trim() || input.evidence.trim().length < 3 ||
       (rule.metric === "floor_count" && !Number.isInteger(parsed));
   });
-  const currentSnapshot = JSON.stringify({ processId: process.id, regulationId: regulation?.id, asOf,
+  const currentSnapshot = JSON.stringify({ processId: process.id, municipalityId, zone, usage, regulationId: regulation?.id, asOf,
     fields, legalReview, conditionalIds: conditionalReferences.map(item => item.evidenceId) });
+  const activeLegalContextRef = useRef("");
+  activeLegalContextRef.current = JSON.stringify({
+    processId: process.id, municipalityId, zone, usage, asOf, regulationId: regulation?.id,
+  });
   const canSave = currentSnapshot !== lastSavedSnapshot && !!regulation && !readOnly && !saving && !loading && !invalidEntered && legalReviewReady &&
     isValidUrbanReferenceDate(asOf, urbanMunicipalToday()) &&
     findings.some(
@@ -272,6 +276,7 @@ export function UrbanPrecheckPanel({
       return;
     }
     const requestedProcessId = process.id;
+    const requestedLegalContext = activeLegalContextRef.current;
     saveInFlightRef.current = true;
     setSaving(true);
     setNotice("");
@@ -281,22 +286,26 @@ export function UrbanPrecheckPanel({
         note: legalReview.note.trim(),
         documentScopeConfirmed: legalReview.documentScopeConfirmed,
       });
-      if (activeProcessRef.current !== requestedProcessId) return;
+      if (activeProcessRef.current !== requestedProcessId ||
+          activeLegalContextRef.current !== requestedLegalContext) return;
       setLastSavedSnapshot(currentSnapshot);
       setNotice("Pré-conferência registrada no banco. Atualizando o histórico...");
       try {
         const updated = await listUrbanPrecheckHistory(requestedProcessId);
-        if (activeProcessRef.current !== requestedProcessId) return;
+        if (activeProcessRef.current !== requestedProcessId ||
+            activeLegalContextRef.current !== requestedLegalContext) return;
         setHistory(updated);
         setHistoryError("");
         setNotice("Pré-conferência registrada e histórico atualizado. Não altera a aprovação nem a ficha oficial.");
       } catch (error) {
-        if (activeProcessRef.current !== requestedProcessId) return;
+        if (activeProcessRef.current !== requestedProcessId ||
+            activeLegalContextRef.current !== requestedLegalContext) return;
         setHistoryError(String((error as Error)?.message || error));
         setNotice("Pré-conferência registrada no banco, mas não foi possível atualizar o histórico nesta tela. Consulte o histórico antes de tentar registrar novamente.");
       }
     } catch (error) {
-      if (activeProcessRef.current === requestedProcessId) setNotice(String((error as Error)?.message || error));
+      if (activeProcessRef.current === requestedProcessId &&
+          activeLegalContextRef.current === requestedLegalContext) setNotice(String((error as Error)?.message || error));
     } finally { saveInFlightRef.current = false; setSaving(false); }
   };
 
