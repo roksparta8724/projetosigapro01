@@ -1,4 +1,4 @@
-import { DeleteObjectCommand, GetObjectCommand, HeadObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { DeleteObjectCommand, GetObjectCommand, HeadObjectCommand, ListObjectsV2Command, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { callDataApiRpc, type ApiReq } from "./municipal-storage.js";
 
@@ -80,6 +80,23 @@ async function canAccess(req: Request, municipalityId: string, objectKey: string
   if (!truthy(tenant)) return false;
 
   // A tenant membership alone must NOT grant access to every municipal document.
+  const protocolMatch = objectKey.match(
+    /^municipalities\/[0-9a-f-]{36}\/protocols\/([A-Za-z0-9_-]+)\//i,
+  );
+  if (protocolMatch) {
+    // A protocol key contains its uploader's own identity, not a process ID.
+    // Both values below come from verified Neon Auth RPCs, never client input.
+    const [subject, profile] = await Promise.all([
+      callDataApiRpc(req, "current_auth_subject", {}),
+      callDataApiRpc(req, "current_profile_id", {}),
+    ]);
+    const subjectId = subject.ok && typeof subject.payload === "string"
+      ? subject.payload : "";
+    const profileId = profile.ok && typeof profile.payload === "string"
+      ? profile.payload : "";
+    const principal = protocolMatch[1];
+    return Boolean(principal && (principal === subjectId || principal === profileId));
+  }
   const processMatch = objectKey.match(
     /^municipalities\/[0-9a-f-]{36}\/processes\/([0-9a-f-]{36})\//i,
   );
@@ -128,7 +145,7 @@ export async function handleQaStorage(req: Request, res: Res, action: string) {
       error: "Armazenamento exclusivo de QA ainda sem credencial vinculada." });
     return;
   }
-  if (!["upload", "sign-get", "delete"].includes(action)) {
+  if (!["upload", "sign-get", "delete", "list-user-files"].includes(action)) {
     json(res, 503, { code: "QA_STORAGE_ACTION_DISABLED",
       error: "Operação indisponível no armazenamento isolado de homologação." });
     return;
@@ -144,6 +161,66 @@ export async function handleQaStorage(req: Request, res: Res, action: string) {
 
   try {
     const input = await body(req);
+    if (action === "list-user-files") {
+      const context = await callDataApiRpc(req, "get_current_profile_context", {});
+      const user = await callDataApiRpc(req, "current_auth_subject", {});
+      const detail = context.ok && typeof context.payload === "object" &&
+        context.payload && !Array.isArray(context.payload)
+        ? context.payload as Record<string, unknown> : null;
+      const municipalityId = String(detail?.tenant_id || detail?.municipality_id || "");
+      const subject = user.ok && typeof user.payload === "string" ? user.payload : "";
+      const profileId = String(detail?.profile_id || "");
+      if (!/^[0-9a-f-]{36}$/i.test(municipalityId) ||
+          (!/^[A-Za-z0-9_-]+$/.test(subject) && !/^[A-Za-z0-9_-]+$/.test(profileId))) {
+        json(res, 403, { code: "QA_STORAGE_FORBIDDEN" }); return;
+      }
+      const member = await callDataApiRpc(req, "has_tenant_access",
+        { target_tenant: municipalityId });
+      if (!member.ok || member.payload !== true) {
+        json(res, 403, { code: "QA_STORAGE_FORBIDDEN" }); return;
+      }
+      const processId = typeof input.processId === "string" ? input.processId.trim() : "";
+      if (processId) {
+        if (!/^[0-9a-f-]{36}$/i.test(processId)) {
+          json(res, 400, { code: "QA_INVALID_PROCESS" }); return;
+        }
+        const access = await callDataApiRpc(req, "has_process_access", { _process_id: processId });
+        if (!access.ok || access.payload !== true) {
+          json(res, 403, { code: "QA_STORAGE_FORBIDDEN" }); return;
+        }
+      }
+      // Recovery is intentionally restricted to the current user's prefixes.
+      // It never enumerates another professional's records, even if an analyst
+      // has access to a process that the professional submitted.
+      const principals = [...new Set([subject, profileId].filter(
+        p => /^[A-Za-z0-9_-]+$/.test(p),
+      ))];
+      const since = typeof input.since === "string" &&
+        !Number.isNaN(Date.parse(input.since))
+        ? new Date(input.since) : new Date(Date.now() - 7 * 86400_000);
+      const s3 = client();
+      const sets = await Promise.all(principals.map(principal =>
+        s3.send(new ListObjectsV2Command({
+          Bucket: QA_STORAGE_BUCKET,
+          Prefix: `municipalities/${municipalityId}/protocols/${principal}/`,
+          MaxKeys: 250,
+        })),
+      ));
+      const files = sets.flatMap(result => result.Contents || [])
+        .filter(entry => entry.Key && entry.LastModified && entry.LastModified >= since)
+        .filter((entry, index, all) =>
+          all.findIndex(other => other.Key === entry.Key) === index)
+        .sort((a,b) => (b.LastModified?.getTime() || 0) - (a.LastModified?.getTime() || 0))
+        .slice(0, 250)
+        .map(entry => ({
+          objectKey: entry.Key!,
+          fileName: entry.Key!.split("/").at(-1) || "arquivo",
+          size: Number(entry.Size || 0),
+          lastModified: entry.LastModified!.toISOString(),
+        }));
+      json(res, 200, { files, storageProvider: "neon_qa" });
+      return;
+    }
     const scope = validObjectKey(input.objectKey);
     if (!scope || !logicalBucketValid(input.bucket, scope.key)) {
       json(res, 400, { code: "QA_INVALID_STORAGE_TARGET" });

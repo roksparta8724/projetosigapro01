@@ -137,6 +137,80 @@ describe("SIGAPRO isolated Neon QA storage", () => {
     }
     expect(send).not.toHaveBeenCalled();
   });
+  it("allows only the authenticated protocol uploader to write their own QA attachment", async () => {
+    active();send.mockResolvedValue({});
+    const owner="aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+    const objectKey="municipalities/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/protocols/"+owner+"/qa.pdf";
+    check.mockImplementation((_req, rpcName) => Promise.resolve({
+      ok:true,
+      payload:rpcName==="current_auth_subject" ? owner
+        : rpcName==="current_profile_id" ? "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb" : true,
+    }));
+    const out=response();
+    await handleQaStorage({method:"POST",headers:{authorization:"Bearer synthetic"},body:{
+      bucket:"process-documents",objectKey,contentType:"application/pdf",
+      base64:Buffer.from("%PDF-1.4\\nSYNTHETIC").toString("base64")
+    }} as never,out as never,"upload");
+    expect(out.statusCode).toBe(200);
+    expect(JSON.parse(out.data).storageProvider).toBe("neon_qa");
+    expect(send).toHaveBeenCalledTimes(1);
+  });
+  it("rejects uploads into another professional's protocol path", async () => {
+    active();check.mockImplementation((_req, rpcName) => Promise.resolve({
+      ok:true, payload:rpcName==="current_auth_subject" ?
+        "cccccccc-cccc-4ccc-8ccc-cccccccccccc" :
+        rpcName==="current_profile_id" ?
+        "dddddddd-dddd-4ddd-8ddd-dddddddddddd" : true,
+    }));
+    const out=response();
+    await handleQaStorage({method:"POST",headers:{authorization:"Bearer synthetic"},body:{
+      bucket:"process-documents",
+      objectKey:"municipalities/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/protocols/eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee/qa.pdf",
+      contentType:"application/pdf",
+      base64:Buffer.from("%PDF-1.4\\nSYNTHETIC").toString("base64")
+    }} as never,out as never,"upload");
+    expect(out.statusCode).toBe(403);
+    expect(send).not.toHaveBeenCalled();
+  });
+  it("lists only the logged-in professional's own recovery prefixes", async () => {
+    active();
+    const tenant="aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+    const subject="bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+    const profile="cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+    check.mockImplementation((_req, name) => Promise.resolve({
+      ok:true, payload:name==="current_auth_subject" ? subject
+        : name==="get_current_profile_context"
+        ? {tenant_id:tenant,profile_id:profile} : true,
+    }));
+    send.mockResolvedValue({Contents:[]});
+    const res=response();
+    await handleQaStorage({method:"POST",headers:{authorization:"Bearer synthetic"},
+      body:{since:"2026-10-20T00:00:00Z"}
+    } as never,res as never,"list-user-files");
+    expect(res.statusCode).toBe(200);
+    expect(JSON.parse(res.data).files).toEqual([]);
+    expect(send).toHaveBeenCalledTimes(2);
+    const commands=send.mock.calls.map(args=>args[0]);
+    for(const command of commands) {
+      expect(command.input.Bucket).toBe("sigapro-qa-urban-documents");
+      expect(command.input.Prefix).toMatch(new RegExp("^municipalities/"+tenant+"/protocols/(?:"+subject+"|"+profile+")/$"));
+    }
+  });
+  it("does not enumerate files when a process is outside the user's authorization", async () => {
+    active();
+    check.mockImplementation((_req,name)=>Promise.resolve({
+      ok:true,payload:name==="get_current_profile_context"
+        ? {tenant_id:"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",profile_id:"bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"}
+        : name==="current_auth_subject" ? "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
+        : name==="has_process_access" ? false : true,
+    }));
+    const out=response();
+    await handleQaStorage({method:"POST",headers:{authorization:"Bearer synthetic"},
+      body:{processId:"cccccccc-cccc-4ccc-8ccc-cccccccccccc"}
+    } as never,out as never,"list-user-files");
+    expect(out.statusCode).toBe(403);
+    expect(send).not.toHaveBeenCalled();
+  });
   it("refuses original payment guide document mutations", async () => {
     active();check.mockResolvedValue({ok:true,payload:true});
     const res=response();
