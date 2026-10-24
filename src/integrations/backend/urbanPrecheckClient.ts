@@ -44,6 +44,9 @@ export async function saveUrbanRegulationDraft(
 }
 
 export async function activateUrbanRegulation(versionId: string): Promise<void> {
+  if (typeof versionId !== "string" || !versionId.trim()) {
+    throw new Error("Versão normativa inválida para ativação.");
+  }
   await invoke("activate_urban_regulation_v1", { _version_id: versionId });
 }
 
