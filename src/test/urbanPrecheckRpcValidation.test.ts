@@ -19,6 +19,6 @@ describe("SIGAPRO — controle de qualidade antes de gravar pré-análise", () =
   it("rejeita revisões legais duplicadas ou inválidas antes de chamar RPC", () => {
     expect(source).toContain("new Set(legalReview.evidenceIds).size !== legalReview.evidenceIds.length");
     expect(source).toContain('typeof legalReview.documentScopeConfirmed !== "boolean"');
-    expect(source.indexOf("const entries = Object.entries(measurements)")).toBeLessThan(source.indexOf('await invoke("save_urban_precheck_run_v4"'));
+    expect(source.indexOf("const entries = Object.entries(measurements)")).toBeLessThan(source.indexOf('await invoke("save_urban_precheck_run_v5"'));
   });
 });
