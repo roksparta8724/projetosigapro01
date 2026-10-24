@@ -17,6 +17,7 @@ async function main() {
   const workflows = [
     "SIGAPRO Quality Gate",
     "Neon migration validation",
+    "SIGAPRO Urbanismo QA",
   ];
   const runs = await fetchJson("/actions/runs?branch=" + encodeURIComponent(branch) + "&per_page=100");
   const report = workflows.map(name => {
@@ -26,10 +27,10 @@ async function main() {
   });
   for (const result of report) console.log(JSON.stringify(result));
   if (report.some(result => result.conclusion !== "success")) {
-    console.error("BLOQUEADO: ambas as verificacoes devem passar no MESMO commit HEAD.");
+    console.error("BLOQUEADO: os tres pipelines devem passar no MESMO commit HEAD.");
     process.exitCode = 1;
   } else {
-    console.log("APROVADO: os dois pipelines correspondem ao HEAD " + head);
+    console.log("APROVADO: os tres pipelines correspondem ao HEAD " + head);
     console.log("AVISO: esta verificacao NAO substitui teste autenticado no Neon isolado.");
   }
 }
