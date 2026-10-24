@@ -43,7 +43,7 @@ export function getDataApiUrl() {
     const authHost = neonBranchHost(localAuth, "neonauth");
     const dataHost = neonBranchHost(localData, "apirest");
     if (isolatedRequested) {
-      if (!authHost || authHost !== dataHost) {
+      if (!authHost || authHost !== dataHost || authHost === neonBranchHost(VALIDATED_NEON_DATA_API_URL, "apirest")) {
         throw new Error("Homologação Neon local inválida: informe Auth e Data API HTTPS da MESMA branch.");
       }
       return localData.replace(/\/+$/, "");

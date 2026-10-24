@@ -37,6 +37,38 @@ function firstHeader(req: Req, name: string) {
   return Array.isArray(value) ? value[0] : value || "";
 }
 
+
+// In isolated QA, incoming Neon Auth webhook signatures must be checked
+// against that QA branch, never a fallback production JWKS.
+// This is server-only and does not change the production webhook endpoint.
+function endpointBranch(raw: string, expected: "neonauth" | "apirest") {
+  try {
+    const url = new URL(raw);
+    const match = url.hostname.match(/^([^.]+)\.(neonauth|apirest)\./);
+    return url.protocol === "https:" && url.hostname.endsWith(".neon.tech") &&
+      match?.[2] === expected && match[1].startsWith("ep-")
+      ? match[1] : "";
+  } catch {
+    return "";
+  }
+}
+
+export function resolveNeonAuthWebhookBaseUrl(): string {
+  if (process.env.VERCEL_ENV !== "production" &&
+      readEnv("VITE_SIGAPRO_NEON_ISOLATED") === "true") {
+    const auth = readEnv("VITE_NEON_AUTH_URL");
+    const data = readEnv("VITE_NEON_DATA_API_URL");
+    const authBranch = endpointBranch(auth, "neonauth");
+    const dataBranch = endpointBranch(data, "apirest");
+    const officialBranch = endpointBranch(DEFAULT_NEON_AUTH_BASE_URL, "neonauth");
+    if (!authBranch || authBranch !== dataBranch || authBranch === officialBranch) {
+      throw new Error("Homologação Neon Auth inválida: JWKS exige Auth e Data API da mesma branch isolada.");
+    }
+    return auth.replace(/\/+$/, "");
+  }
+  return (readEnv("NEON_AUTH_BASE_URL") || DEFAULT_NEON_AUTH_BASE_URL).replace(/\/+$/, "");
+}
+
 async function verifyNeonWebhook(rawBody: string, req: Req) {
   const signature = firstHeader(req, "x-neon-signature");
   const kid = firstHeader(req, "x-neon-signature-kid");
@@ -56,7 +88,7 @@ async function verifyNeonWebhook(rawBody: string, req: Req) {
     throw new Error("Neon webhook timestamp outside allowed window");
   }
 
-  const baseUrl = (readEnv("NEON_AUTH_BASE_URL") || DEFAULT_NEON_AUTH_BASE_URL).replace(/\/+$/, "");
+  const baseUrl = resolveNeonAuthWebhookBaseUrl();
   const jwksResponse = await fetch(`${baseUrl}/.well-known/jwks.json`);
   if (!jwksResponse.ok) {
     throw new Error("Could not fetch Neon JWKS");

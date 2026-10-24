@@ -74,4 +74,15 @@ describe("SIGAPRO localhost Neon Auth/Data API alignment", () => {
     vi.stubEnv("VITE_NEON_DATA_API_URL", "https://ep-other.apirest.example.com/db/rest/v1");
     expect(() => getDataApiUrl()).toThrow("MESMA branch");
   });
+  it("blocks the official branch in isolated local QA", () => {
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("VERCEL_ENV", "");
+    vi.stubEnv("VITE_SIGAPRO_NEON_ISOLATED", "true");
+    vi.stubEnv("VITE_NEON_AUTH_URL",
+      "https://ep-blue-cloud-b4hhgb4t.neonauth.c-6.us-east-2.aws.neon.tech/db/auth");
+    vi.stubEnv("VITE_NEON_DATA_API_URL",
+      "https://ep-blue-cloud-b4hhgb4t.apirest.c-6.us-east-2.aws.neon.tech/db/rest/v1");
+    expect(() => getDataApiUrl()).toThrow("MESMA branch");
+  });
+
 });
