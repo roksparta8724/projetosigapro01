@@ -214,7 +214,15 @@ export function UrbanPrecheckPanel({
     }
   };
 
-  const canSave = !!regulation && !readOnly && !saving && !loading && legalReviewReady &&
+  const invalidEntered = regulation?.rules.some((rule) => {
+    const input = fields[rule.metric];
+    if (!input?.value.trim() && !input?.evidence.trim()) return false;
+    const parsed = Number(input.value.trim().replace(",", "."));
+    return !input.value.trim() || !Number.isFinite(parsed) || parsed < 0 ||
+      !input.evidence.trim() || input.evidence.trim().length < 3 ||
+      (rule.metric === "floor_count" && !Number.isInteger(parsed));
+  });
+  const canSave = !!regulation && !readOnly && !saving && !loading && !invalidEntered && legalReviewReady &&
     isValidUrbanReferenceDate(asOf, new Date().toISOString().slice(0, 10)) &&
     findings.some(
     (finding) => finding.status !== "missing_evidence"
@@ -227,14 +235,6 @@ export function UrbanPrecheckPanel({
       return;
     }
     if (!canSave) return;
-    const invalidEntered = regulation.rules.some((rule) => {
-      const input = fields[rule.metric];
-      if (!input?.value.trim() && !input?.evidence.trim()) return false;
-      const parsed = Number(input.value.trim().replace(",", "."));
-      return !input.value.trim() || !Number.isFinite(parsed) || parsed < 0 ||
-        !input.evidence.trim() || input.evidence.trim().length < 3 ||
-        (rule.metric === "floor_count" && !Number.isInteger(parsed));
-    });
     if (invalidEntered) {
       setNotice("Corrija as leituras: valor válido e prancha/página de origem são obrigatórios.");
       return;
