@@ -63,7 +63,7 @@ export function UrbanScannedPageDesk({bytes,scannedPages,readOnly,onVerifiedTran
     setOcrAssisted(false);
   },[readOnly]);
   useEffect(()=>{
-    if(!expanded || !pages.includes(page))return;
+    if(readOnly || !expanded || !pages.includes(page))return;
     const abort=new AbortController();
     ++ocrEpoch.current;
     setOcrText("");setOcrError("");setOcrBusy(false);setOcrAssisted(false);
@@ -80,7 +80,7 @@ export function UrbanScannedPageDesk({bytes,scannedPages,readOnly,onVerifiedTran
       }
     });
     return ()=>{abort.abort();++ocrEpoch.current;};
-  },[expanded,bytes,page,zoom]);
+  },[expanded,bytes,page,zoom,readOnly]);
   if(readOnly||pages.length===0)return null;
   const issue=validateUrbanScanTranscription(first,second,page,pages);
   const reset=()=>{setFirst("");setSecond("");setChecked(false);setError("");setOcrText("");setOcrError("");setOcrAssisted(false);++ocrEpoch.current;setOcrBusy(false);};
