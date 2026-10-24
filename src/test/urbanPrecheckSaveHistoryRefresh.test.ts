@@ -5,9 +5,9 @@ import { resolve } from "node:path";
 describe("SIGAPRO — registro e atualização do histórico", () => {
   it("não informa falha de gravação quando apenas a atualização do histórico falhar", () => {
     const source=readFileSync(resolve(process.cwd(),"src/components/platform/UrbanPrecheckPanel.tsx"),"utf8");
-    const saved=source.indexOf("await saveUrbanPrecheckRun(process.id");
+    const saved=source.indexOf("await saveUrbanPrecheckRun(requestedProcessId");
     const confirmed=source.indexOf('setNotice("Pré-conferência registrada no banco. Atualizando o histórico...");');
-    const refreshed=source.indexOf("await listUrbanPrecheckHistory(process.id)",saved);
+    const refreshed=source.indexOf("await listUrbanPrecheckHistory(requestedProcessId)",saved);
     expect(saved).toBeGreaterThan(0);
     expect(confirmed).toBeGreaterThan(saved);
     expect(refreshed).toBeGreaterThan(confirmed);
