@@ -275,6 +275,8 @@ export function UrbanPrecheckPanel({
   });
   const currentSnapshot = JSON.stringify({ processId: process.id, municipalityId, zone, usage, regulationId: regulation?.id, asOf,
     fields, legalReview, conditionalIds: conditionalReferences.map(item => item.evidenceId) });
+  const activeSnapshotRef = useRef(currentSnapshot);
+  activeSnapshotRef.current = currentSnapshot;
   const activeLegalContextRef = useRef("");
   activeLegalContextRef.current = JSON.stringify({
     processId: process.id, municipalityId, zone, usage, asOf, regulationId: regulation?.id,
@@ -338,7 +340,9 @@ export function UrbanPrecheckPanel({
         setHistory(updated);
         setHistoryError("");
         setHistoryLoading(false);
-        setNotice("Pré-conferência registrada e histórico atualizado. Não altera a aprovação nem a ficha oficial.");
+        setNotice(activeSnapshotRef.current === currentSnapshot
+          ? "Pré-conferência registrada e histórico atualizado. Não altera a aprovação nem a ficha oficial."
+          : "A versão anterior foi registrada e o histórico atualizado. Existem alterações posteriores nesta tela que ainda não foram salvas.");
       } catch (error) {
         if (activeProcessRef.current !== requestedProcessId ||
             activeLegalContextRef.current !== requestedLegalContext ||
@@ -346,7 +350,9 @@ export function UrbanPrecheckPanel({
             historyRetryGenerationRef.current !== savedHistoryGeneration) return;
         setHistoryError(String((error as Error)?.message || error));
         setHistoryLoading(false);
-        setNotice("Pré-conferência registrada no banco, mas não foi possível atualizar o histórico nesta tela. Consulte o histórico antes de tentar registrar novamente.");
+        setNotice(activeSnapshotRef.current === currentSnapshot
+          ? "Pré-conferência registrada no banco, mas não foi possível atualizar o histórico nesta tela. Consulte o histórico antes de tentar registrar novamente."
+          : "A versão anterior foi registrada no banco; as alterações recentes não foram salvas. O histórico não pôde ser atualizado. Consulte-o antes de registrar novamente.");
       }
     } catch (error) {
       if (activeProcessRef.current === requestedProcessId &&
