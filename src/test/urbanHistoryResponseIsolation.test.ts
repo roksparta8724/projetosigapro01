@@ -12,6 +12,19 @@ const valid = {
 };
 describe("SIGAPRO — isolamento do histórico retornado pelo banco", () => {
   beforeEach(()=>rpc.mockReset());
+  it.each(["", "   "])("impede consulta de histórico sem identificação válida: %j", async (processId) => {
+    await expect(listUrbanPrecheckHistory(processId)).rejects.toThrow("Processo inválido");
+    expect(rpc).not.toHaveBeenCalled();
+  });
+  it("não confunde erro de rede com histórico vazio", async () => {
+    rpc.mockResolvedValueOnce({ data: null, error: { message: "Falha temporária de rede" } });
+    await expect(listUrbanPrecheckHistory("processo-a")).rejects.toThrow("Falha temporária de rede");
+    expect(rpc).toHaveBeenCalledTimes(1);
+  });
+  it("não confunde resposta incorreta com histórico vazio", async () => {
+    rpc.mockResolvedValueOnce({ data: null, error: null });
+    await expect(listUrbanPrecheckHistory("processo-a")).rejects.toThrow("indisponível");
+  });
   it("aceita histórico consistente do processo solicitado", async()=>{
     rpc.mockResolvedValueOnce({data:[valid],error:null});
     await expect(listUrbanPrecheckHistory("processo-a")).resolves.toEqual([valid]);
