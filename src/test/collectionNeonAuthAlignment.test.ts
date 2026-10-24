@@ -18,7 +18,9 @@ describe("SIGAPRO localhost Neon Auth/Data API alignment", () => {
 
   it("keeps local client on official Auth/Data endpoints unless explicitly isolated", () => {
     expect(clientSource).toContain('VITE_SIGAPRO_NEON_ISOLATED === "true"');
-    expect(clientSource).toContain("neonEndpointIdentity(localAuthOverride) === neonEndpointIdentity(localDataOverride)");
+    expect(clientSource).toContain("neonEndpointIdentity(authOverride) === neonEndpointIdentity(dataOverride)");
+    expect(clientSource).toContain("neonEndpointIdentity(authOverride) !== neonEndpointIdentity(VALIDATED_NEON_AUTH_URL)");
+    expect(clientSource).toContain("isolatedReady ? authOverride : \"\"");
   });
 
   it("ignores a stray QA Data API env override that would cause JWK not found", () => {
