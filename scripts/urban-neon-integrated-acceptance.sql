@@ -213,6 +213,20 @@ BEGIN
    END;
    IF (SELECT count(*) FROM public.process_urban_precheck_runs WHERE regulation_version_id=norm)<>1
    THEN RAISE EXCEPTION 'INVALID_LEGAL_CONTEXT_CREATED_AUDIT_ROW'; END IF;
+   -- Existing request IDs must not bypass authorization for a foreign identity.
+   PERFORM set_config('request.jwt.claims',jsonb_build_object('sub',outsider)::text,true);
+   BEGIN
+     PERFORM public.save_urban_precheck_run_v5(actor.process_id,norm,'2026-10-23'::date,
+       '{"front_setback_m":{"value":6,"evidence":"Prancha sintetica QA pagina 1"}}'::jsonb,
+       '{"evidence_ids":[],"note":"","document_scope_confirmed":false}'::jsonb,request_key);
+     RAISE EXCEPTION 'CROSS_TENANT_REPLAY_BYPASSED_PERMISSION';
+   EXCEPTION WHEN OTHERS THEN
+     IF SQLERRM <> 'Somente o analista responsavel ou Diretoria pode registrar a revisao.'
+     THEN RAISE EXCEPTION 'Unexpected foreign replay outcome: %',SQLERRM; END IF;
+   END;
+   PERFORM set_config('request.jwt.claims',jsonb_build_object('sub',actor.subject_id)::text,true);
+   IF (SELECT count(*) FROM public.process_urban_precheck_runs WHERE request_id=request_key)<>1
+   THEN RAISE EXCEPTION 'CROSS_TENANT_REPLAY_CHANGED_AUDIT_ROW'; END IF;
    -- Verify persisted tenant, legal version, analyst, reference date and evidence;
    -- a successful RPC result alone is not enough to guarantee audit integrity.
    IF NOT EXISTS (
