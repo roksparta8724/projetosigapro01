@@ -8,7 +8,7 @@ type Request = ApiReq & { body?: unknown };
 const QA_STORAGE_ENDPOINT = "https://br-solitary-sound-b4xlbvs6.storage.c-6.us-east-2.aws.neon.tech";
 const QA_STORAGE_BUCKET = "sigapro-qa-urban-documents";
 const QA_REGION = "us-east-2";
-const MUNICIPAL_KEY = /^municipalities\/([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\/(?:protocols|processes|branding|legislation(?:[-/]))[a-zA-Z0-9_./() -]*$/i;
+const MUNICIPAL_KEY = /^municipalities\/([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\/(?:protocols|habite-se|processes|branding|legislation(?:[-/]))[a-zA-Z0-9_./() -]*$/i;
 
 function env(key: string) {
   return String(process.env[key] || "").replace(/^['"]|['"]$/g, "").trim();
@@ -81,7 +81,7 @@ async function canAccess(req: Request, municipalityId: string, objectKey: string
 
   // A tenant membership alone must NOT grant access to every municipal document.
   const protocolMatch = objectKey.match(
-    /^municipalities\/[0-9a-f-]{36}\/protocols\/([A-Za-z0-9_-]+)\//i,
+    /^municipalities\/[0-9a-f-]{36}\/(?:protocols|habite-se)\/([A-Za-z0-9_-]+)\//i,
   );
   if (protocolMatch) {
     // A protocol key contains its uploader's own identity, not a process ID.
@@ -199,13 +199,17 @@ export async function handleQaStorage(req: Request, res: Res, action: string) {
         !Number.isNaN(Date.parse(input.since))
         ? new Date(input.since) : new Date(Date.now() - 7 * 86400_000);
       const s3 = client();
-      const sets = await Promise.all(principals.map(principal =>
-        s3.send(new ListObjectsV2Command({
-          Bucket: QA_STORAGE_BUCKET,
-          Prefix: `municipalities/${municipalityId}/protocols/${principal}/`,
-          MaxKeys: 250,
-        })),
-      ));
+      const sets = await Promise.all(
+        ["protocols", "habite-se"].flatMap(folder =>
+          principals.map(principal =>
+            s3.send(new ListObjectsV2Command({
+              Bucket: QA_STORAGE_BUCKET,
+              Prefix: `municipalities/${municipalityId}/${folder}/${principal}/`,
+              MaxKeys: 250,
+            })),
+          ),
+        ),
+      );
       const files = sets.flatMap(result => result.Contents || [])
         .filter(entry => entry.Key && entry.LastModified && entry.LastModified >= since)
         .filter((entry, index, all) =>

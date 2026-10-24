@@ -155,6 +155,39 @@ describe("SIGAPRO isolated Neon QA storage", () => {
     expect(JSON.parse(out.data).storageProvider).toBe("neon_qa");
     expect(send).toHaveBeenCalledTimes(1);
   });
+  it("accepts a Habite-se attachment only in its authenticated owner's folder", async () => {
+    active();send.mockResolvedValue({});
+    const owner="aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+    check.mockImplementation((_req, rpcName) => Promise.resolve({
+      ok:true,payload:rpcName==="current_auth_subject" ? owner
+        : rpcName==="current_profile_id" ? "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb" : true,
+    }));
+    const out=response();
+    await handleQaStorage({method:"POST",headers:{authorization:"Bearer synthetic"},body:{
+      bucket:"process-documents",
+      objectKey:"municipalities/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/habite-se/"+owner+"/anexo.pdf",
+      contentType:"application/pdf",base64:Buffer.from("%PDF-1.4 QA HABITE-SE").toString("base64")
+    }} as never,out as never,"upload");
+    expect(out.statusCode).toBe(200);
+    expect(JSON.parse(out.data).storageProvider).toBe("neon_qa");
+    expect(send).toHaveBeenCalledTimes(1);
+  });
+  it("prevents opening a Habite-se attachment from another professional", async () => {
+    active();
+    check.mockImplementation((_req, name) => Promise.resolve({
+      ok:true, payload: name==="current_auth_subject"
+        ? "cccccccc-cccc-4ccc-8ccc-cccccccccccc"
+        : name==="current_profile_id"
+        ? "dddddddd-dddd-4ddd-8ddd-dddddddddddd" : true,
+    }));
+    const out=response();
+    await handleQaStorage({method:"POST",headers:{authorization:"Bearer synthetic"},body:{
+      bucket:"process-documents",
+      objectKey:"municipalities/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/habite-se/eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee/anexo.pdf",
+    }} as never,out as never,"sign-get");
+    expect(out.statusCode).toBe(403);
+    expect(send).not.toHaveBeenCalled();
+  });
   it("rejects uploads into another professional's protocol path", async () => {
     active();check.mockImplementation((_req, rpcName) => Promise.resolve({
       ok:true, payload:rpcName==="current_auth_subject" ?
@@ -189,11 +222,15 @@ describe("SIGAPRO isolated Neon QA storage", () => {
     } as never,res as never,"list-user-files");
     expect(res.statusCode).toBe(200);
     expect(JSON.parse(res.data).files).toEqual([]);
-    expect(send).toHaveBeenCalledTimes(2);
+    expect(send).toHaveBeenCalledTimes(4);
     const commands=send.mock.calls.map(args=>args[0]);
-    for(const command of commands) {
+    const prefixes=commands.map(command => {
       expect(command.input.Bucket).toBe("sigapro-qa-urban-documents");
-      expect(command.input.Prefix).toMatch(new RegExp("^municipalities/"+tenant+"/protocols/(?:"+subject+"|"+profile+")/$"));
+      return command.input.Prefix;
+    });
+    for (const folder of ["protocols","habite-se"]) {
+      expect(prefixes).toContain("municipalities/"+tenant+"/"+folder+"/"+subject+"/");
+      expect(prefixes).toContain("municipalities/"+tenant+"/"+folder+"/"+profile+"/");
     }
   });
   it("does not enumerate files when a process is outside the user's authorization", async () => {
