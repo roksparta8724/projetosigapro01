@@ -32,7 +32,9 @@ export async function listUrbanRegulations(municipalityId: string): Promise<Urba
 export async function saveUrbanRegulationDraft(
   municipalityId: string, zone: string, usage: string, effectiveFrom: string, rules: UrbanRule[],
 ): Promise<void> {
-  if (!zone.trim() || !usage.trim() || !isValidUrbanReferenceDate(effectiveFrom, "9999-12-31") || !validateUrbanRules(rules)) {
+  if (typeof municipalityId !== "string" || !municipalityId.trim() ||
+      typeof zone !== "string" || typeof usage !== "string" ||
+      !zone.trim() || !usage.trim() || !isValidUrbanReferenceDate(effectiveFrom, "9999-12-31") || !validateUrbanRules(rules)) {
     throw new Error("Informe zona, uso, vigência, limites e referência legal para cada parâmetro.");
   }
   await invoke("save_urban_regulation_draft_v1", {
