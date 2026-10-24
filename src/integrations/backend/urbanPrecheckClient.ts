@@ -59,7 +59,8 @@ function isValidHistoricalMeasurements(value: unknown): boolean {
   const known = new Set<string>(URBAN_METRICS.map(metric => metric.key));
   return entries.length > 0 && entries.length <= known.size && entries.every(([metric, row]) =>
     known.has(metric) && row !== null && typeof row === "object" && !Array.isArray(row) &&
-    typeof row.value === "number" && Number.isFinite(row.value) && row.value >= 0 &&
+    typeof row.value === "number" && Number.isFinite(row.value) && row.value >= 0 && row.value <= 100000 &&
+    ((metric !== "occupancy_percent" && metric !== "permeability_percent") || row.value <= 100) &&
     (metric !== "floor_count" || Number.isInteger(row.value)) &&
     typeof row.evidence === "string" && row.evidence.trim().length >= 3 &&
     row.evidence.length <= 500
