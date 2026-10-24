@@ -19,7 +19,8 @@ describe("SIGAPRO IA — integração simulada da gravação municipal", () => {
   it("grava um registro documental válido pela função RPC correta", async () => {
     await saveUrbanPrecheckRun("processo-qa", "norma-qa", "2024-02-29", ok, review);
     expect(rpc).toHaveBeenCalledTimes(1);
-    expect(rpc).toHaveBeenCalledWith("save_urban_precheck_run_v4", {
+    expect(rpc).toHaveBeenCalledWith("save_urban_precheck_run_v5", {
+      _request_id: expect.stringMatching(/^[0-9a-f-]{36}$/i),
       _process_id: "processo-qa",
       _regulation_version_id: "norma-qa",
       _reference_date: "2024-02-29",
