@@ -7,7 +7,11 @@ export function qaUploadMime(file: Pick<File, "name" | "type">): string {
   const detected = String(file.type || "").trim().toLowerCase();
   // Windows browsers sometimes omit MIME for a user-selected .pdf.
   // The QA server also checks for the %PDF- magic bytes before persisting.
-  if (!detected && /\.pdf$/i.test(String(file.name || ""))) return "application/pdf";
+  if (!detected) {
+    const ext=String(file.name||"").split(".").at(-1)?.toLowerCase();
+    const mime:Record<string,string>={pdf:"application/pdf",png:"image/png",jpg:"image/jpeg",jpeg:"image/jpeg",webp:"image/webp"};
+    return mime[ext||""]||"application/octet-stream";
+  }
   return detected || "application/octet-stream";
 }
 export function validateQaUploadPreflight(file: Pick<File, "size" | "name" | "type">) {

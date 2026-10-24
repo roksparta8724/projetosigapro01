@@ -1,5 +1,5 @@
 import {afterEach,describe,expect,it,vi} from "vitest";
-import {QA_NATIVE_BASE,QA_NATIVE_MAX_PDF_BYTES,resolveQaNativeUrl,validateNativePdf,uploadQaNative,deleteQaNative} from "../integrations/r2/qaNeonNative";
+import {QA_NATIVE_BASE,QA_NATIVE_MAX_PDF_BYTES,resolveQaNativeUrl,validateNativePdf,validateNativeDocument,uploadQaNative,deleteQaNative} from "../integrations/r2/qaNeonNative";
 const key="municipalities/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/protocols/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/qa.pdf";
 afterEach(()=>vi.unstubAllGlobals());
 describe("SIGAPRO QA Neon binary PDF adapter",()=>{
@@ -23,6 +23,21 @@ describe("SIGAPRO QA Neon binary PDF adapter",()=>{
   expect(opts.body).toBe(file);
   expect(opts.headers.Authorization).toBe("Bearer fake-QA-token");
   expect(opts.headers["Content-Type"]).toBe("application/pdf");
+ });
+ it("uploads inspection JPEG to Neon QA without Vercel fallback",async()=>{
+  const path="municipalities/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/processes/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/photo.jpg";
+  const fake=vi.fn().mockResolvedValue(new Response(JSON.stringify({ok:true,objectKey:path,storageProvider:"neon_qa_function"}),{status:200}));
+  vi.stubGlobal("fetch",fake);
+  const image=new File([new Uint8Array([255,216,255,224])],"photo.jpg",{type:"image/jpeg"});
+  const result=await uploadQaNative({base:QA_NATIVE_BASE,file:image,objectKey:path,bucket:"process-documents",headers:{Authorization:"Bearer synthetic"}});
+  expect(result.objectKey).toBe(path);
+  expect(fake).toHaveBeenCalledOnce();
+  expect(fake.mock.calls[0][1].headers["Content-Type"]).toBe("image/jpeg");
+  expect(fake.mock.calls[0][0]).toContain(QA_NATIVE_BASE+"/upload?");
+ });
+ it("rejects spoofed MIME and mismatching key before any fetch",()=>{
+  expect(()=>validateNativeDocument({name:"photo.jpg",size:120,type:"application/pdf"})).toThrow("correspondente");
+  expect(()=>validateNativeDocument({name:"photo.jpg",size:120,type:"image/jpeg"},"municipalities/x/photo.png")).toThrow("caminho");
  });
  it("requires login and never sends anonymous PDF",async()=>{
   const fetchMock=vi.fn();vi.stubGlobal("fetch",fetchMock);

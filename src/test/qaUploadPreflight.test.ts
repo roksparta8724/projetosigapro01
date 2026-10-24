@@ -20,6 +20,11 @@ describe("SIGAPRO QA preflight avoids broken base64 uploads", () => {
     expect(qaUploadMime(file)).toBe("application/pdf");
     expect(() => validateQaUploadPreflight(file)).not.toThrow();
   });
+  it("recognizes photograph extensions without Windows MIME",()=>{
+    expect(qaUploadMime({name:"vistoria.JPG",type:""})).toBe("image/jpeg");
+    expect(qaUploadMime({name:"vistoria.png",type:""})).toBe("image/png");
+    expect(qaUploadMime({name:"vistoria.webp",type:""})).toBe("image/webp");
+  });
   it("rejects formats the isolated QA server does not store", () => {
     expect(() => validateQaUploadPreflight({ name:"projeto.dwg",type:"application/octet-stream",size:150 }))
       .toThrow("PDF ou imagens");

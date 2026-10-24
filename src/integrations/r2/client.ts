@@ -334,7 +334,7 @@ export async function uploadFile(input: {
   objectKey: string;
   file: File;
 }) {
-  if (qaNativeBase && qaUploadMime(input.file)==="application/pdf") {
+  if (qaNativeBase && ["application/pdf","image/png","image/jpeg","image/webp"].includes(qaUploadMime(input.file))) {
     return uploadQaNative({base:qaNativeBase,file:input.file,objectKey:input.objectKey,
       bucket:normalizeClientBucket(input.bucket),
       headers:await getAuthorizationHeaders() as Record<string,string>});

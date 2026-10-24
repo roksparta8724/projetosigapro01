@@ -144,6 +144,42 @@ describe("SIGAPRO branch-pinned QA large PDF function", () => {
   expect(called).toHaveLength(2);
   expect(called[1]).toContain("/rpc/qa_storage_process_tenant_access_v1");
  });
+ it.each([
+  ["photo.png","image/png",[137,80,78,71,13,10,26,10]],
+  ["photo.jpg","image/jpeg",[255,216,255,224]],
+  ["photo.webp","image/webp",[82,73,70,70,0,0,0,0,87,69,66,80]],
+ ] as const)("authorizes and uploads synthetic %s image into private QA storage",async(filename,mime,magic)=>{
+  vi.stubEnv("NEON_DATA_API_URL","https://ep-misty-breeze-b4ri8ig0.apirest.c-6.us-east-2.aws.neon.tech/sigapro_migration_stage_20260923/rest/v1");
+  vi.stubEnv("AWS_ENDPOINT_URL_S3","https://br-solitary-sound-b4xlbvs6.storage.c-6.us-east-2.aws.neon.tech");
+  vi.stubEnv("AWS_ACCESS_KEY_ID","nak_fake_qa_unit");
+  vi.stubEnv("AWS_SECRET_ACCESS_KEY","FAKE_QA_TEST_KEY_NO_REAL_STORAGE_123");
+  const sent:{method?:string;mime?:string}[]=[];
+  vi.stubGlobal("fetch",vi.fn(async(url:string,opts:{method?:string;headers?:Record<string,string>})=>{
+    if(url.includes(".apirest."))return new Response("true",{status:200,headers:{"Content-Type":"application/json"}});
+    sent.push({method:opts.method,mime:opts.headers?.["Content-Type"]});
+    return new Response(null,{status:200});
+  }));
+  const key="municipalities/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/processes/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/"+filename;
+  const bytes=new Uint8Array([...magic,1,2,3]);
+  const res=await handler.fetch(new Request("https://qa.invalid/upload?objectKey="+encodeURIComponent(key),{
+    method:"POST",headers:{Authorization:"Bearer synthetic","Content-Type":mime},body:bytes
+  }));
+  expect(res.status).toBe(200);
+  expect(sent).toEqual([{method:"PUT",mime}]);
+ });
+ it("rejects a disguised PNG without ever sending bytes to S3",async()=>{
+  vi.stubEnv("NEON_DATA_API_URL","https://ep-misty-breeze-b4ri8ig0.apirest.c-6.us-east-2.aws.neon.tech/sigapro_migration_stage_20260923/rest/v1");
+  let stored=false;
+  vi.stubGlobal("fetch",vi.fn(async(url:string)=>{
+    if(url.includes(".apirest."))return new Response("true",{status:200,headers:{"Content-Type":"application/json"}});
+    stored=true;return new Response(null,{status:200});
+  }));
+  const key="municipalities/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/processes/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/photo.png";
+  const res=await handler.fetch(new Request("https://qa.invalid/upload?objectKey="+encodeURIComponent(key),{
+    method:"POST",headers:{Authorization:"Bearer synthetic","Content-Type":"image/png"},body:new Uint8Array([255,216,255,0,1,2,3,4])
+  }));
+  expect(res.status).toBe(400);expect(stored).toBe(false);
+ });
  it("rejects a forged object key before any database or storage I/O", async () => {
   const response=await handler.fetch(new Request("https://qa.invalid/upload?objectKey=../../secret.pdf",
     {method:"POST",headers:{Authorization:"Bearer synthetic"}}));
