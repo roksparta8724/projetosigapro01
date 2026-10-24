@@ -77,6 +77,12 @@ BEGIN
      THEN RAISE EXCEPTION 'Foreign process write not denied by role: %', SQLERRM; END IF;
    END;
    PERFORM set_config('request.jwt.claims',jsonb_build_object('sub',actor.subject_id)::text,true);
+   -- A refused cross-tenant write must not create an audit row, even if
+   -- the foreign municipality has a valid active regulation version.
+   IF EXISTS (
+     SELECT 1 FROM public.process_urban_precheck_runs
+     WHERE process_id=foreign_process OR regulation_version_id=foreign_norm
+   ) THEN RAISE EXCEPTION 'FOREIGN_WRITE_CREATED_UNAUTHORIZED_AUDIT_ROW'; END IF;
    -- Confirm legislation listings preserve municipal isolation before any precheck.
    IF NOT EXISTS (
      SELECT 1 FROM jsonb_array_elements(public.list_urban_regulation_versions_v1(actor.municipality_id)) v
