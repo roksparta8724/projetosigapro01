@@ -28,17 +28,17 @@ function s3Request(method,key,bytes) {
   const url=new URL(ENDPOINT);
   const path="/"+BUCKET+"/"+key.split("/").map(encodeURIComponent).join("/");
   url.pathname=path;
-  const datetime=new Date().toISOString().replace(/[:-]|\\.\\d{3}/g,"");
+  const datetime=new Date().toISOString().replace(/[:-]|\.\d{3}/g,"");
   const day=datetime.slice(0,8);
   const payloadHash=sha(bytes||new Uint8Array());
   const headers={"x-amz-date":datetime,"x-amz-content-sha256":payloadHash};
   if(e.AWS_SESSION_TOKEN) headers["x-amz-security-token"]=e.AWS_SESSION_TOKEN;
   const signedKeys=["host",...Object.keys(headers)].sort();
   const all={"host":url.host,...headers};
-  const canonical=signedKeys.map(k=>k+":"+all[k]+"\\n").join("");
-  const canonicalRequest=[method,path,"",canonical,signedKeys.join(";"),payloadHash].join("\\n");
+  const canonical=signedKeys.map(k=>k+":"+all[k]+"\n").join("");
+  const canonicalRequest=[method,path,"",canonical,signedKeys.join(";"),payloadHash].join("\n");
   const scope=day+"/"+REGION+"/s3/aws4_request";
-  const stringToSign=["AWS4-HMAC-SHA256",datetime,scope,sha(canonicalRequest)].join("\\n");
+  const stringToSign=["AWS4-HMAC-SHA256",datetime,scope,sha(canonicalRequest)].join("\n");
   const keySign=mac(mac(mac(mac("AWS4"+e.AWS_SECRET_ACCESS_KEY,day),REGION),"s3"),"aws4_request");
   const signature=createHmac("sha256",keySign).update(stringToSign).digest("hex");
   headers.Authorization="AWS4-HMAC-SHA256 Credential="+e.AWS_ACCESS_KEY_ID+"/"+scope+
@@ -52,8 +52,8 @@ function respond(data,status=200,origin="") {
 }
 async function rpc(token,name,args={}) {
   const base=process.env.NEON_DATA_API_URL||"";
-  if(!base.includes(".apirest.")||!base.includes("solitary-sound")) return null;
-  const r=await fetch(base.replace(/\\/+$/,"")+"/rpc/"+name,{
+  if(base.replace(/\/+$/,"") !== "https://ep-misty-breeze-b4ri8ig0.apirest.c-6.us-east-2.aws.neon.tech/sigapro_migration_stage_20260923/rest/v1") return null;
+  const r=await fetch(base.replace(/\/+$/,"")+"/rpc/"+name,{
     method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+token},
     body:JSON.stringify(args),signal:AbortSignal.timeout(12000),
   });
@@ -62,7 +62,7 @@ async function rpc(token,name,args={}) {
 }
 function validKey(key) {
  if(typeof key!=="string"||key.length>850||key.includes("..")||key.includes("//")||
-    key.includes("\\\\")||/[\\r\\n]/.test(key)||key.includes("/dam-originals/")) return null;
+    key.includes("\\")||/[\r\n]/.test(key)||key.includes("/dam-originals/")) return null;
  let match=key.match(PROCESS_KEY);
  if(match)return {type:"process",tenant:match[1],process:match[2],key};
  match=key.match(OWNER_KEY);
@@ -99,7 +99,7 @@ export default {
   }
   if(origin&&!approved)return respond({code:"ORIGIN_FORBIDDEN"},403);
   if(!["/upload","/read","/object"].includes(path.pathname))return respond({code:"NOT_FOUND"},404,approved);
-  const token=(request.headers.get("Authorization")||"").match(/^Bearer\\s+(.+)$/i)?.[1];
+  const token=(request.headers.get("Authorization")||"").match(/^Bearer\s+(.+)$/i)?.[1];
   if(!token)return respond({code:"AUTH_REQUIRED"},401,approved);
   const scope=validKey(path.searchParams.get("objectKey"));
   if(!scope)return respond({code:"INVALID_OBJECT_KEY"},400,approved);
