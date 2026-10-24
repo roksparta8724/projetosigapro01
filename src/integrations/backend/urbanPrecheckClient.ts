@@ -1,3 +1,4 @@
+import { isValidUrbanReferenceDate } from "@/lib/urbanPrecheckAssist";
 import { backendClient } from "@/integrations/backend/databaseClient";
 import { normalizeUrbanCode, validateUrbanRules, type UrbanMeasurements, type UrbanRegulationVersion, type UrbanRule } from "@/lib/urbanPrecheck";
 
@@ -17,7 +18,7 @@ export async function listUrbanRegulations(municipalityId: string): Promise<Urba
 export async function saveUrbanRegulationDraft(
   municipalityId: string, zone: string, usage: string, effectiveFrom: string, rules: UrbanRule[],
 ): Promise<void> {
-  if (!zone.trim() || !usage.trim() || !/^\d{4}-\d{2}-\d{2}$/.test(effectiveFrom) || !validateUrbanRules(rules)) {
+  if (!zone.trim() || !usage.trim() || !isValidUrbanReferenceDate(effectiveFrom, new Date().toISOString().slice(0, 10)) || !validateUrbanRules(rules)) {
     throw new Error("Informe zona, uso, vigência, limites e referência legal para cada parâmetro.");
   }
   await invoke("save_urban_regulation_draft_v1", {
@@ -51,7 +52,7 @@ export async function saveUrbanPrecheckRun(
   processId: string, versionId: string, referenceDate: string, measurements: UrbanMeasurements,
   legalReview: { evidenceIds: string[]; note: string; documentScopeConfirmed: boolean },
 ): Promise<void> {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(referenceDate)) throw new Error("Data legal inválida.");
+  if (!isValidUrbanReferenceDate(referenceDate, new Date().toISOString().slice(0, 10))) throw new Error("Data legal inválida.");
   if (!Array.isArray(legalReview.evidenceIds) || legalReview.evidenceIds.length > 50 ||
       legalReview.note.length > 1200) throw new Error("Revisão legal incompleta ou excessiva.");
   await invoke("save_urban_precheck_run_v4", {
