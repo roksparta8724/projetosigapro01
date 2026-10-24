@@ -33,6 +33,14 @@ describe("SIGAPRO urbanismo — cálculos auditáveis", () => {
     expect(invalid.measurements).toEqual({});
     expect(invalid.warnings).toHaveLength(2);
   });
+  it("não registra índices infinitos mesmo quando as áreas originais são finitas", () => {
+    const result=deriveUrbanAreaMeasurements({
+      lot:{value:Number.MIN_VALUE,evidence:"Planta A1"},
+      totalFloor:{value:Number.MAX_VALUE,evidence:"Quadro de áreas A2"},
+    });
+    expect(result.measurements.floor_area_ratio).toBeUndefined();
+    expect(result.warnings.join(" ")).toContain("número inválido");
+  });
   it("produz minuta apenas para alertas, nunca parecer ou Comunique-se oficial", () => {
     const results = evaluateUrbanPrecheck([
       { metric: "front_setback_m", limit: 5, reference: "Lei hipotética art. 11" },
