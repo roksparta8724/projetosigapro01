@@ -112,7 +112,14 @@ export function getStableMunicipalLegislationReference(
 export function getLegislationOpenUrl(reference: string) {
   const raw = String(reference || "").trim();
   if (!raw) return "";
-  if (!raw.startsWith("r2:")) return raw;
+  if (!raw.startsWith("r2:")) {
+    // Legacy municipal settings may contain production object-store URLs.
+    // Never open those links directly from the isolated QA preview.
+    if (isolatedQa && (/^[a-z][a-z0-9+.-]*:/i.test(raw) || raw.startsWith("//"))) {
+      return "";
+    }
+    return raw;
+  }
 
   const objectKey = raw.slice(3).trim().replace(/^\/+/, "");
   if (!objectKey) return "";
