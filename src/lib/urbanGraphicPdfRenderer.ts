@@ -21,6 +21,7 @@ export async function renderUrbanGraphicPdfPage(input: {
   const [pdfjs,worker]=await Promise.all([
     import("pdfjs-dist"), import("pdfjs-dist/build/pdf.worker.min.mjs?url"),
   ]);
+  if(signal?.aborted) throw new DOMException("Leitura cancelada.", "AbortError");
   pdfjs.GlobalWorkerOptions.workerSrc=worker.default;
   // Copy is important: PDF.js may transfer ownership of its ArrayBuffer to the worker.
   const task=pdfjs.getDocument({
@@ -32,6 +33,7 @@ export async function renderUrbanGraphicPdfPage(input: {
     if(signal?.aborted) throw new DOMException("Leitura cancelada.", "AbortError");
     if(pageNumber>pdf.numPages) throw new Error("A página não existe no PDF selecionado.");
     const page=await pdf.getPage(pageNumber);
+    if(signal?.aborted) throw new DOMException("Leitura cancelada.", "AbortError");
     const base=page.getViewport({scale:1});
     const maxScale=Math.min(
       input.scale,4600/base.width,4600/base.height,
