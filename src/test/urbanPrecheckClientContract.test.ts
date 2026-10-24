@@ -76,7 +76,8 @@ describe("SIGAPRO IA - contrato do cliente de pré-conferência", () => {
       documentScopeConfirmed: true,
     };
     await saveUrbanPrecheckRun("processo-a", "norma-a", "2026-10-23", validMeasurement, documentedReview);
-    expect(rpc).toHaveBeenCalledWith("save_urban_precheck_run_v4", {
+    expect(rpc).toHaveBeenCalledWith("save_urban_precheck_run_v5", {
+      _request_id: expect.stringMatching(/^[0-9a-f-]{36}$/i),
       _process_id: "processo-a", _regulation_version_id: "norma-a",
       _reference_date: "2026-10-23", _measurements: validMeasurement,
       _legal_review: {
