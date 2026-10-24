@@ -319,7 +319,8 @@ export function UrbanPrecheckPanel({
         documentScopeConfirmed: legalReview.documentScopeConfirmed,
       });
       if (activeProcessRef.current !== requestedProcessId ||
-          activeLegalContextRef.current !== requestedLegalContext) return;
+          activeLegalContextRef.current !== requestedLegalContext ||
+          saveGenerationRef.current !== saveGeneration) return;
       setLastSavedSnapshot(currentSnapshot);
       setHistoryLoading(true);
       setHistoryError("");
@@ -347,7 +348,8 @@ export function UrbanPrecheckPanel({
       }
     } catch (error) {
       if (activeProcessRef.current === requestedProcessId &&
-          activeLegalContextRef.current === requestedLegalContext) setNotice(String((error as Error)?.message || error));
+          activeLegalContextRef.current === requestedLegalContext &&
+          saveGenerationRef.current === saveGeneration) setNotice(String((error as Error)?.message || error));
     } finally {
       if (saveGenerationRef.current === saveGeneration) {
         saveInFlightRef.current = false;
