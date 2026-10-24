@@ -5,7 +5,7 @@ vi.mock("@/integrations/backend/databaseClient", () => ({
   backendClient: { rpc },
 }));
 
-import { listUrbanPrecheckHistory, saveUrbanPrecheckRun } from "@/integrations/backend/urbanPrecheckClient";
+import { listUrbanRegulations, listUrbanPrecheckHistory, saveUrbanPrecheckRun } from "@/integrations/backend/urbanPrecheckClient";
 
 const validMeasurement = {
   front_setback_m: { value: 6, evidence: "Prancha 02 - recuo frontal" },
@@ -88,4 +88,29 @@ describe("SIGAPRO IA - contrato do cliente de pré-conferência", () => {
       validMeasurement, review)).rejects.toThrow(/Acesso negado/);
     expect(rpc).toHaveBeenCalledTimes(1);
   });
+  it("rejeita normas devolvidas por outra prefeitura", async () => {
+    rpc.mockResolvedValueOnce({ data: [{
+      id: "norma-de-fora", municipality_id: "municipio-b", zone_code: "Z1",
+      use_code: "RESIDENCIAL", status: "active", version: 1,
+      effective_from: "2026-01-01", rules: [],
+    }], error: null });
+    await expect(listUrbanRegulations("municipio-a")).rejects.toThrow(/inconsistente/i);
+  });
+
+  it("rejeita resposta de normas que não é lista", async () => {
+    rpc.mockResolvedValueOnce({ data: { id: "norma-invalida" }, error: null });
+    await expect(listUrbanRegulations("municipio-a")).rejects.toThrow(/inválida/i);
+  });
+
+  it("aceita catálogo vazio autorizado sem inventar legislação", async () => {
+    rpc.mockResolvedValueOnce({ data: [], error: null });
+    await expect(listUrbanRegulations("municipio-a")).resolves.toEqual([]);
+    expect(rpc).toHaveBeenCalledWith("list_urban_regulation_versions_v1", { _municipality_id: "municipio-a" });
+  });
+
+  it("propaga indisponibilidade do cadastro de normas", async () => {
+    rpc.mockResolvedValueOnce({ data: null, error: { message: "Cadastro municipal indisponível." } });
+    await expect(listUrbanRegulations("municipio-a")).rejects.toThrow(/Cadastro municipal indisponível/);
+  });
+
 });
