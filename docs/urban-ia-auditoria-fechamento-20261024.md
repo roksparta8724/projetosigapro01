@@ -46,3 +46,14 @@ Arquivos auditados:
 5. Verificar CI no **SHA final**, migrar apenas mediante aprovação, revisar diferenças e obter autorização para publicar.
 
 **Situação de liberação: BLOQUEADO** até testes autenticados e dados fictícios. Os gates SQL aprovados não autorizam promoção a produção.
+
+## Validação SQL adicional — execução integrada em 24/10/2026
+
+Ambiente exclusivamente isolado: `br-solitary-sound-b4xlbvs6`, banco `sigapro_migration_stage_20260923`.
+
+- `scripts/urban-neon-integrated-acceptance.sql`: **executado sem erro reportado**. O roteiro testa gravação e leitura controlada, recusa de acesso entre prefeituras, reenvio idempotente e rejeição de registros inválidos; seu bloco sintético usa rollback deliberado. A execução retornou `[]` (sem linhas; notificações SQL não foram expostas pela integração).
+- `scripts/urban-neon-negative-rpc-smoke.sql`: **executado sem erro reportado**; cobre três requisições inválidas.
+- `scripts/urban-neon-cross-tenant-authorization-smoke.sql`: **executado sem erro reportado**; verifica bloqueio de acesso entre municípios com claims simuladas.
+- Verificação independente após aceitação: `process_urban_precheck_runs=0`, `urban_regulation_versions=0`, processos com protocolo `QA-ISOLAMENTO-% = 0`.
+
+**Importante:** sucesso de SQL com JWT simulado não é teste de sessão real no navegador. Não criar afirmação de homologação E2E ou autorização de deploy com base nesses resultados. Continuam faltando dados fictícios persistentes para as rotas normais da aplicação e evidências U01–U16.
