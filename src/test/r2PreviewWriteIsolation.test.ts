@@ -29,7 +29,7 @@ describe("isolated Vercel QA must not touch official R2", () => {
     const res = response();
     await handler({ url: "/api/r2?action=" + action, method: "POST" } as never, res as never);
     expect(res.statusCode).toBe(503);
-    expect(JSON.parse(res.body).code).toBe("QA_R2_WRITE_DISABLED");
+    expect(JSON.parse(res.body).code).toBe("QA_STORAGE_NOT_READY");
     expect(upload).not.toHaveBeenCalled();
     expect(remove).not.toHaveBeenCalled();
   });

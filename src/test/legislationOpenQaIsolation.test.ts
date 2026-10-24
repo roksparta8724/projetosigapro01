@@ -29,7 +29,7 @@ describe("SIGAPRO isolated QA must never sign official legislation R2 objects", 
     await handler({ method, url: QA_PDF } as never, res as never);
     expect(res.statusCode).toBe(503);
     expect(res.headers["Cache-Control"]).toBe("no-store");
-    expect(res.body).toContain("R2 oficial bloqueado");
+    expect(res.body).toContain("Acervo isolado de QA");
     expect(res.headers.Location).toBeUndefined();
     expect(signUrl).not.toHaveBeenCalled();
   });

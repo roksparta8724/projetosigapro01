@@ -9,6 +9,7 @@
 
 import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { qaLegislationSignedUrl, qaStorageReady } from "../server/qa-storage.js";
 
 type Req = import("http").IncomingMessage & { method?: string };
 type Res = import("http").ServerResponse;
@@ -65,15 +66,6 @@ function fail(res: Res, status: number, message: string) {
 }
 
 export default async function handler(req: Req, res: Res) {
-  // The QA preview still inherits R2 credentials for the official documents
-  // bucket. Never sign or serve official legislation objects from isolated QA.
-  // This guard must precede validation, client creation and getSignedUrl().
-  if (process.env.VERCEL_ENV === "preview" &&
-      process.env.VITE_SIGAPRO_NEON_ISOLATED === "true") {
-    fail(res, 503, "Acervo de legislação indisponível na homologação: acesso ao R2 oficial bloqueado.");
-    return;
-  }
-
   if (req.method !== "GET") {
     fail(res, 405, "Método não permitido.");
     return;
@@ -87,6 +79,26 @@ export default async function handler(req: Req, res: Res) {
 
     if (!objectKey || !isMunicipalLegislationObject(objectKey)) {
       fail(res, 400, "Documento de legislação inválido.");
+      return;
+    }
+
+
+    if (process.env.VERCEL_ENV === "preview" &&
+        process.env.VITE_SIGAPRO_NEON_ISOLATED === "true") {
+      if (!qaStorageReady()) {
+        fail(res, 503, "Acervo isolado de QA não configurado.");
+        return;
+      }
+      try {
+        const signedUrl = await qaLegislationSignedUrl(objectKey);
+        res.statusCode = 302;
+        res.setHeader("Location", signedUrl);
+        res.setHeader("Cache-Control", "no-store, max-age=0");
+        res.setHeader("X-Robots-Tag", "noindex, nofollow");
+        res.end();
+      } catch {
+        fail(res, 404, "Legislação fictícia não encontrada no acervo de QA.");
+      }
       return;
     }
 
