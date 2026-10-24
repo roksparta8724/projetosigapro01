@@ -81,6 +81,20 @@ export function UrbanDocumentEvidenceDesk({ process, readOnly, allowedMetrics, o
     setNotice("");
   }, [process.id]);
 
+  // A replacement or new version can retain the same document id.
+  // Never reuse extracted text, measurements, or human verification for old bytes.
+  useEffect(() => {
+    readAbort.current?.abort();
+    readAbort.current = null;
+    setExtracted(null);
+    setPdfBytes(null);
+    setScanProof(null);
+    setReadStatus("idle");
+    setReadProgress("");
+    setExcerpt("");
+    setNotice("");
+  }, [selected?.id, selected?.version, selected?.fileHash, selected?.filePath]);
+
   const resetPdfRead = (selectedId: string) => {
     readAbort.current?.abort();
     readAbort.current = null;
