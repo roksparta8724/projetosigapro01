@@ -86,7 +86,8 @@ async function authorize(token,scope,write) {
   return Boolean(scope.principal&&(scope.principal===subject||scope.principal===profile));
  }
  if(scope.type==="process"){
-  if(await rpc(token,"has_process_access",{_process_id:scope.process})!==true)return false;
+  // Bind the object key municipality to the process municipality in one authorized QA RPC.
+  if(await rpc(token,"qa_storage_process_tenant_access_v1",{_process_id:scope.process,_tenant_id:scope.tenant})!==true)return false;
   return !write||await rpc(token,"can_write_process_analysis",{_process_id:scope.process})===true;
  }
  if(scope.type==="law"){

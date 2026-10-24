@@ -46,6 +46,21 @@ describe("SIGAPRO branch-pinned QA large PDF function", () => {
   expect(requests[0].method).toBe("PUT");
   expect(requests[0].header).toMatch(/^AWS4-HMAC-SHA256 /);
  });
+ it("rejects a document key whose municipality differs from its process", async () => {
+  vi.stubEnv("NEON_DATA_API_URL","https://ep-misty-breeze-b4ri8ig0.apirest.c-6.us-east-2.aws.neon.tech/sigapro_migration_stage_20260923/rest/v1");
+  const called:string[]=[];
+  vi.stubGlobal("fetch",vi.fn(async (url:string)=>{
+   called.push(url);
+   if(url.endsWith("/rpc/has_tenant_access")) return new Response("true",{status:200,headers:{"Content-Type":"application/json"}});
+   if(url.endsWith("/rpc/qa_storage_process_tenant_access_v1")) return new Response("false",{status:200,headers:{"Content-Type":"application/json"}});
+   throw new Error("storage must not be reached after a tenant/process mismatch");
+  }));
+  const key="municipalities/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/processes/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/planta.pdf";
+  const out=await handler.fetch(new Request("https://qa.invalid/read?objectKey="+encodeURIComponent(key),{headers:{Authorization:"Bearer synthetic"}}));
+  expect(out.status).toBe(403);
+  expect(called).toHaveLength(2);
+  expect(called[1]).toContain("/rpc/qa_storage_process_tenant_access_v1");
+ });
  it("rejects a forged object key before any database or storage I/O", async () => {
   const response=await handler.fetch(new Request("https://qa.invalid/upload?objectKey=../../secret.pdf",
     {method:"POST",headers:{Authorization:"Bearer synthetic"}}));
