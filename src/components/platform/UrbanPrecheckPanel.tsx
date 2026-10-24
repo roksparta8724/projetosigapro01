@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { isCurrentUrbanRequest } from "@/lib/urbanRequestGuard";
 import { AlertTriangle, BrainCircuit, Calculator, CheckCircle2, ClipboardCheck, Copy, FileClock, Loader2, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -332,21 +333,24 @@ export function UrbanPrecheckPanel({
     setHistoryRetrying(true);
     try {
       const updated = await listUrbanPrecheckHistory(requestedProcessId);
-      if (activeProcessRef.current !== requestedProcessId ||
-          activeMunicipalityRef.current !== requestedMunicipalityId ||
-          historyRetryGenerationRef.current !== retryGeneration) return;
+      if (!isCurrentUrbanRequest(
+            { processId: requestedProcessId, municipalityId: requestedMunicipalityId, generation: retryGeneration },
+            { processId: activeProcessRef.current, municipalityId: activeMunicipalityRef.current, generation: historyRetryGenerationRef.current },
+          )) return;
       setHistory(updated);
       setHistoryError("");
     } catch (error) {
-      if (activeProcessRef.current === requestedProcessId &&
-          activeMunicipalityRef.current === requestedMunicipalityId &&
-          historyRetryGenerationRef.current === retryGeneration) {
+      if (isCurrentUrbanRequest(
+            { processId: requestedProcessId, municipalityId: requestedMunicipalityId, generation: retryGeneration },
+            { processId: activeProcessRef.current, municipalityId: activeMunicipalityRef.current, generation: historyRetryGenerationRef.current },
+          )) {
         setHistoryError(String((error as Error)?.message || error));
       }
     } finally {
-      if (activeProcessRef.current === requestedProcessId &&
-          activeMunicipalityRef.current === requestedMunicipalityId &&
-          historyRetryGenerationRef.current === retryGeneration) {
+      if (isCurrentUrbanRequest(
+            { processId: requestedProcessId, municipalityId: requestedMunicipalityId, generation: retryGeneration },
+            { processId: activeProcessRef.current, municipalityId: activeMunicipalityRef.current, generation: historyRetryGenerationRef.current },
+          )) {
         historyRetryRef.current = false;
         setHistoryRetrying(false);
       }
