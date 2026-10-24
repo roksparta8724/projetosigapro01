@@ -162,8 +162,7 @@ export default {
       return new Response(remote.body,{status:200,headers:h});
    }
    return respond({ok:true,objectKey:scope.key,bucket:"process-documents",storageProvider:"neon_qa_function"},200,approved);
-  } catch (error) {
-   if (process.env.NODE_ENV === "test") console.error("SIGAPRO_QA_UNIT_ERROR",error instanceof Error ? error.name + ": " + error.message : String(error));
+  } catch {
    return respond({code:"QA_STORAGE_UNAVAILABLE"},503,approved);
   }
  }
