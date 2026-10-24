@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, BrainCircuit, Calculator, CheckCircle2, ClipboardCheck, Copy, FileClock, Loader2, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,6 +36,7 @@ export function UrbanPrecheckPanel({
   const [areaFields, setAreaFields] = useState<Partial<Record<UrbanAreaKey, Field>>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const saveInFlightRef = useRef(false);
   const [lastSavedSnapshot, setLastSavedSnapshot] = useState<string | null>(null);
   const [notice, setNotice] = useState("");
   const [legalCatalog, setLegalCatalog] = useState<UrbanLegalEvidence[]>([]);
@@ -233,7 +234,7 @@ export function UrbanPrecheckPanel({
   );
 
   const save = async () => {
-    if (!regulation || readOnly || saving) return;
+    if (!regulation || readOnly || saving || saveInFlightRef.current) return;
     if (!legalReviewReady) {
       setNotice(legalCatalogError || legalReviewIssue || "Aguarde a verificação do acervo legal.");
       return;
@@ -253,6 +254,7 @@ export function UrbanPrecheckPanel({
       setNotice("Nenhum parâmetro comprovado por documento para registrar.");
       return;
     }
+    saveInFlightRef.current = true;
     setSaving(true);
     setNotice("");
     try {
@@ -272,7 +274,7 @@ export function UrbanPrecheckPanel({
       }
     } catch (error) {
       setNotice(String((error as Error)?.message || error));
-    } finally { setSaving(false); }
+    } finally { saveInFlightRef.current = false; setSaving(false); }
   };
 
   return (
