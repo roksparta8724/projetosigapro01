@@ -50,7 +50,20 @@ export function getDataApiUrl() {
     }
     return VALIDATED_NEON_DATA_API_URL;
   }
-  // Production / preview retain their explicitly configured data source.
+  // In isolated Vercel preview, never fall back to official Neon or an
+  // independent R2_AUTH_DATA_API_URL with a different auth branch.
+  if (readEnv("VITE_SIGAPRO_NEON_ISOLATED") === "true") {
+    const auth = readEnv("VITE_NEON_AUTH_URL");
+    const data = readEnv("VITE_NEON_DATA_API_URL");
+    const authHost = neonBranchHost(auth, "neonauth");
+    const dataHost = neonBranchHost(data, "apirest");
+    const officialHost = neonBranchHost(VALIDATED_NEON_DATA_API_URL, "apirest");
+    if (!authHost || authHost !== dataHost || dataHost === officialHost) {
+      throw new Error("Homologação Neon isolada inválida: Auth e Data API devem pertencer à mesma branch não oficial.");
+    }
+    return data.replace(/\/+$/, "");
+  }
+  // Other deployments retain their explicitly configured data source.
   return (
     readEnv("R2_AUTH_DATA_API_URL") ||
     readEnv("VITE_NEON_DATA_API_URL") ||
