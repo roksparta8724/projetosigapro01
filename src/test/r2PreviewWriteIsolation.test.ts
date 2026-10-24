@@ -23,7 +23,7 @@ function response() {
 afterEach(() => { vi.unstubAllEnvs(); upload.mockReset(); remove.mockReset(); });
 
 describe("isolated Vercel QA must not touch official R2", () => {
-  it.each(["upload", "delete"])("rejects %s before storage handler", async action => {
+  it.each(["upload", "delete", "sign-get", "list-user-files", "master-logo-source", "profile-avatar-open"])("rejects %s before storage handler", async action => {
     vi.stubEnv("VERCEL_ENV", "preview");
     vi.stubEnv("VITE_SIGAPRO_NEON_ISOLATED", "true");
     const res = response();
