@@ -1,5 +1,6 @@
 import { backendClient } from "@/integrations/backend/databaseClient";
 import { qaUploadMime, validateQaUploadPreflight } from "@/lib/qaUploadPreflight";
+import { resolveQaNativeUrl, uploadQaNative, readQaNative, deleteQaNative } from "@/integrations/r2/qaNeonNative";
 
 export type R2UploadResult = {
   bucket: string;
@@ -9,6 +10,7 @@ export type R2UploadResult = {
 
 const apiBase = (import.meta.env.VITE_R2_API_BASE || "").toString().replace(/\/+$/, "");
 const isolatedQa = import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true";
+const qaNativeBase = resolveQaNativeUrl(isolatedQa, import.meta.env.VITE_SIGAPRO_QA_FUNCTION_URL);
 
 function buildApiUrl(path: string) {
   if (isolatedQa) return path.startsWith("/") ? path : `/${path}`;
@@ -262,6 +264,8 @@ export async function getSignedUrlForObject(input: {
   objectKey: string;
   expiresIn?: number;
 }) {
+  if(qaNativeBase)return readQaNative(qaNativeBase,input.objectKey,
+    await getAuthorizationHeaders() as Record<string,string>);
   // Never expose official R2 URLs as a fallback from the isolated QA browser.
   const allowPublicFallback = !isolatedQa &&
     String(import.meta.env.VITE_R2_PUBLIC_FALLBACK || "").toLowerCase() === "true";
@@ -294,6 +298,8 @@ export async function getSignedUrlForObjectStrict(input: {
   objectKey: string;
   expiresIn?: number;
 }) {
+  if(qaNativeBase)return readQaNative(qaNativeBase,input.objectKey,
+    await getAuthorizationHeaders() as Record<string,string>);
   const expiresIn = typeof input.expiresIn === "number" && Number.isFinite(input.expiresIn)
     ? input.expiresIn
     : 21600;
@@ -328,8 +334,11 @@ export async function uploadFile(input: {
   objectKey: string;
   file: File;
 }) {
-  // Never read/encode an oversized QA PDF only to receive HTTP 413.
-  // Larger files need a separately validated direct-to-bucket upload protocol.
+  if (qaNativeBase && qaUploadMime(input.file)==="application/pdf") {
+    return uploadQaNative({base:qaNativeBase,file:input.file,objectKey:input.objectKey,
+      bucket:normalizeClientBucket(input.bucket),
+      headers:await getAuthorizationHeaders() as Record<string,string>});
+  }
   if (isolatedQa) validateQaUploadPreflight(input.file);
   const controller = new AbortController();
   const timeout = window.setTimeout(() => {
@@ -431,6 +440,8 @@ export async function listRecoverableProcessFiles(input?: { since?: string; proc
 }
 
 export async function deleteFile(input: { bucket: string; objectKey: string }) {
+  if(qaNativeBase)return deleteQaNative(qaNativeBase,input.objectKey,
+    await getAuthorizationHeaders() as Record<string,string>);
   const response = await fetch(buildApiUrl("/api/r2-delete"), {
     method: "POST",
     headers: {
