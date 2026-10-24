@@ -18,6 +18,12 @@ export async function listUrbanLegalEvidence(municipalityId: string): Promise<Ur
     _municipality_id: municipalityId,
   });
   if (!Array.isArray(result)) throw new Error("Resposta do acervo legal municipal inválida.");
+  if (result.some((entry) => !entry || typeof entry !== "object" ||
+    entry.municipality_id !== municipalityId ||
+    typeof entry.id !== "string" || !entry.id ||
+    typeof entry.metric !== "string" || !entry.metric)) {
+    throw new Error("Acervo legal inconsistente para esta prefeitura.");
+  }
   return result as UrbanLegalEvidence[];
 }
 
