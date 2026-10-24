@@ -91,11 +91,14 @@ export function UrbanPrecheckPanel({
       loadGenerationRef.current === loadGeneration &&
       activeProcessRef.current === process.id &&
       activeMunicipalityRef.current === municipalityId;
-    // History is independent: a slow history request must not block legal rules.
+    // History is independent and cannot overwrite a newer manual retry.
+    const initialHistoryGeneration = historyRetryGenerationRef.current;
+    const isCurrentHistoryLoad = () => isCurrentLoad() &&
+      historyRetryGenerationRef.current === initialHistoryGeneration;
     void listUrbanPrecheckHistory(process.id).then(
-      (past) => { if (isCurrentLoad()) { setHistory(past); setHistoryError(""); } },
+      (past) => { if (isCurrentHistoryLoad()) { setHistory(past); setHistoryError(""); } },
       (error: unknown) => {
-        if (isCurrentLoad()) setHistoryError(String((error as Error)?.message || error));
+        if (isCurrentHistoryLoad()) setHistoryError(String((error as Error)?.message || error));
       },
     );
     // Only municipal legislation and evidence define readiness to analyze.
