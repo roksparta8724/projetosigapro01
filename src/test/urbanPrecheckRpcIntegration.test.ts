@@ -4,6 +4,7 @@ const rpc = vi.hoisted(() => vi.fn());
 vi.mock("@/integrations/backend/databaseClient", () => ({
   backendClient: { rpc },
 }));
+import type { UrbanMeasurements } from "@/lib/urbanPrecheck";
 import { saveUrbanPrecheckRun, saveUrbanRegulationDraft, listUrbanPrecheckHistory } from "@/integrations/backend/urbanPrecheckClient";
 
 const ok = { front_setback_m: { value: 5, evidence: "Prancha de implantação 01" } };
@@ -39,7 +40,7 @@ describe("SIGAPRO IA — integração simulada da gravação municipal", () => {
     ["métrica desconhecida", "2024-02-29", {inventada:{value:1,evidence:"Prancha 01"}}, review],
     ["revisão duplicada", "2024-02-29", ok, {...review,evidenceIds:["prova-1","prova-1"]}],
   ])("bloqueia %s antes da comunicação com o banco", async (_label, date, measurements, confirmation) => {
-    await expect(saveUrbanPrecheckRun("processo-qa", "norma-qa", date, measurements, confirmation)).rejects.toThrow();
+    await expect(saveUrbanPrecheckRun("processo-qa", "norma-qa", date, measurements as UrbanMeasurements, confirmation)).rejects.toThrow();
     expect(rpc).not.toHaveBeenCalled();
   });
 
