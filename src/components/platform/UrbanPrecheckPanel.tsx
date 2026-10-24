@@ -19,7 +19,7 @@ import type { UrbanLegalEvidence } from "@/lib/urbanLegalKnowledge";
 import {
   buildUrbanConditionalReviewDraft, findUrbanLegalConditions, validateUrbanLegalReview, type UrbanLegalReviewConfirmation,
 } from "@/lib/urbanLegalConditions";
-import { buildUrbanReviewDraft, deriveUrbanAreaMeasurements, mergeDerivedUrbanFields, type UrbanAreaKey } from "@/lib/urbanPrecheckAssist";
+import { buildUrbanReviewDraft, deriveUrbanAreaMeasurements, mergeDerivedUrbanFields, isValidUrbanReferenceDate, type UrbanAreaKey } from "@/lib/urbanPrecheckAssist";
 
 type Field = { value: string; evidence: string };
 type Fields = Partial<Record<UrbanMetric, Field>>;
@@ -213,7 +213,7 @@ export function UrbanPrecheckPanel({
   };
 
   const canSave = !!regulation && !readOnly && !saving && !loading && legalReviewReady &&
-    /^\d{4}-\d{2}-\d{2}$/.test(asOf) && asOf <= new Date().toISOString().slice(0, 10) &&
+    isValidUrbanReferenceDate(asOf, new Date().toISOString().slice(0, 10)) &&
     findings.some(
     (finding) => finding.status !== "missing_evidence"
   );
