@@ -1,6 +1,6 @@
 import { createClient as createNeonClient, SupabaseAuthAdapter } from "@neondatabase/neon-js";
 import { createAuthClient } from "@neondatabase/neon-js/auth";
-import { isNeonBackend, isNeonPreview, isNeonProduction } from "@/integrations/backend/config";
+import { isNeonBackend, isNeonPreview, isNeonProduction, isNeonQaHostname } from "@/integrations/backend/config";
 import { supabase as legacySupabaseClient } from "@/integrations/supabase/client";
 
 const VALIDATED_NEON_AUTH_URL =
@@ -16,7 +16,9 @@ const isLocalNeonRuntime =
 // No fallback to official endpoints is permitted if the requested pair is missing,
 // mismatched or points to the known official Neon endpoint.
 const isolatedRequested =
-  !isNeonProduction && import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true";
+  !isNeonProduction &&
+  (import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true" ||
+    (typeof window !== "undefined" && isNeonQaHostname(window.location.hostname)));
 const authOverride = String(import.meta.env.VITE_NEON_AUTH_URL || "").replace(/\/+$/, "");
 const dataOverride = String(import.meta.env.VITE_NEON_DATA_API_URL || "").replace(/\/+$/, "");
 function neonEndpointIdentity(raw: string) {
