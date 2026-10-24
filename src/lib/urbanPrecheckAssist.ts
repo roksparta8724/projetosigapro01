@@ -99,6 +99,7 @@ export function mergeDerivedUrbanFields<T extends string>(
 ): Partial<Record<T, { value: string; evidence: string }>> {
   const next = { ...current };
   for (const [metric, measurement] of calculated) {
+    if (!Number.isFinite(measurement.value) || measurement.value < 0 || !measurement.evidence.trim()) continue;
     if (next[metric]?.value.trim() || next[metric]?.evidence.trim()) continue;
     next[metric] = { value: String(measurement.value), evidence: measurement.evidence };
   }
