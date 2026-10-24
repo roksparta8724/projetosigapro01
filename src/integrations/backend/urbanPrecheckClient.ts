@@ -63,8 +63,13 @@ export async function listUrbanPrecheckHistory(processId: string): Promise<Urban
     typeof entry.id !== "string" || !entry.id ||
     typeof entry.municipality_id !== "string" || !entry.municipality_id ||
     typeof entry.regulation_version_id !== "string" || !entry.regulation_version_id ||
+    typeof entry.reviewer_profile_id !== "string" || !entry.reviewer_profile_id ||
+    typeof entry.created_at !== "string" || !Number.isFinite(Date.parse(entry.created_at)) ||
+    (entry.reference_date !== null && !isValidUrbanReferenceDate(entry.reference_date, "9999-12-31")) ||
     typeof entry.measurements !== "object" || entry.measurements === null ||
-    Array.isArray(entry.measurements))) {
+    Array.isArray(entry.measurements) ||
+    (entry.legal_review !== undefined && (typeof entry.legal_review !== "object" ||
+      entry.legal_review === null || Array.isArray(entry.legal_review))))) {
     throw new Error("Histórico de pré-análises inconsistente para este processo.");
   }
   return response as UrbanPrecheckHistoryEntry[];
