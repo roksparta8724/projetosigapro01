@@ -319,6 +319,10 @@ export function UrbanPrecheckPanel({
       if (activeProcessRef.current !== requestedProcessId ||
           activeLegalContextRef.current !== requestedLegalContext) return;
       setLastSavedSnapshot(currentSnapshot);
+      // Invalidate any initial or manual history read started before this successful write.
+      historyRetryGenerationRef.current += 1;
+      historyRetryRef.current = false;
+      setHistoryRetrying(false);
       setNotice("Pré-conferência registrada no banco. Atualizando o histórico...");
       try {
         const updated = await listUrbanPrecheckHistory(requestedProcessId);
