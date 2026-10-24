@@ -30,6 +30,16 @@ BEGIN
    VALUES (foreign_process,outsider_municipality,outsider_municipality,
      'QA-ISOLAMENTO-'||foreign_process::text,'Processo sintetico de segregacao QA',
      'aprovacao_projeto',outsider_profile);
+   -- Validate both access directions: a creator in the second municipality
+   -- must see its own synthetic process, while neither identity sees the
+   -- other municipality's process. No QA record survives this DO block.
+   PERFORM set_config('request.jwt.claims',jsonb_build_object('sub',outsider)::text,true);
+   IF NOT public.has_process_access(foreign_process) THEN
+     RAISE EXCEPTION 'FOREIGN_CREATOR_DENIED_OWN_PROCESS';
+   END IF;
+   IF public.has_process_access(actor.process_id) OR public.can_write_process_analysis(actor.process_id)
+   THEN RAISE EXCEPTION 'FOREIGN_CREATOR_CAN_ACCESS_ACTOR_PROCESS'; END IF;
+   PERFORM set_config('request.jwt.claims',jsonb_build_object('sub',actor.subject_id)::text,true);
    -- The synthetic second-tenant process only exists inside the rollback scope.
    PERFORM set_config('request.jwt.claims',jsonb_build_object('sub',actor.subject_id)::text,true);
    IF public.has_process_access(foreign_process) OR public.can_write_process_analysis(foreign_process)
