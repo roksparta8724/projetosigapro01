@@ -3,7 +3,7 @@
 -- rolled back by the deliberate exception subtransaction.
 -- JWT claim emulation tests SQL authorization, NOT real browser authentication.
 DO $qa$
-DECLARE actor record; outsider text; outsider_profile uuid; outsider_municipality uuid; norm uuid; foreign_norm uuid; foreign_process uuid; saved jsonb; history jsonb; passed boolean:=false;
+DECLARE actor record; outsider text; outsider_profile uuid; outsider_municipality uuid; norm uuid; foreign_norm uuid; foreign_process uuid; request_key uuid; saved jsonb; history jsonb; passed boolean:=false;
 BEGIN
  IF current_database()<>'sigapro_migration_stage_20260923' THEN
    RAISE EXCEPTION 'This test may only run on isolated QA database';
@@ -26,6 +26,7 @@ BEGIN
    norm:=gen_random_uuid();
    foreign_norm:=gen_random_uuid();
    foreign_process:=gen_random_uuid();
+   request_key:=gen_random_uuid();
    INSERT INTO public.processes (id,tenant_id,municipality_id,protocol_number,title,process_type,created_by_profile_id)
    VALUES (foreign_process,outsider_municipality,outsider_municipality,
      'QA-ISOLAMENTO-'||foreign_process::text,'Processo sintetico de segregacao QA',
@@ -120,9 +121,24 @@ BEGIN
    IF NOT public.can_write_process_analysis(actor.process_id) THEN
      RAISE EXCEPTION 'Assigned analyst unexpectedly denied';
    END IF;
-   saved:=public.save_urban_precheck_run_v4(actor.process_id,norm,'2026-10-23'::date,
+   saved:=public.save_urban_precheck_run_v5(actor.process_id,norm,'2026-10-23'::date,
     '{"front_setback_m":{"value":6,"evidence":"Prancha sintetica QA pagina 1"}}'::jsonb,
-    '{"evidence_ids":[],"note":"","document_scope_confirmed":false}'::jsonb);
+    '{"evidence_ids":[],"note":"","document_scope_confirmed":false}'::jsonb, request_key);
+   IF saved->>'idempotent_replay'<>'false' THEN
+     RAISE EXCEPTION 'FIRST_SAVE_MISIDENTIFIED_AS_REPLAY'; END IF;
+   IF (public.save_urban_precheck_run_v5(actor.process_id,norm,'2026-10-23'::date,
+    '{"front_setback_m":{"value":6,"evidence":"Prancha sintetica QA pagina 1"}}'::jsonb,
+    '{"evidence_ids":[],"note":"","document_scope_confirmed":false}'::jsonb,request_key)->>'id')<>saved->>'id'
+   THEN RAISE EXCEPTION 'RETRY_CREATED_DIFFERENT_RECORD'; END IF;
+   BEGIN
+     PERFORM public.save_urban_precheck_run_v5(actor.process_id,norm,'2026-10-23'::date,
+       '{"front_setback_m":{"value":7,"evidence":"Prancha sintetica QA pagina 1"}}'::jsonb,
+       '{"evidence_ids":[],"note":"","document_scope_confirmed":false}'::jsonb,request_key);
+     RAISE EXCEPTION 'MUTATED_RETRY_WAS_ACCEPTED';
+   EXCEPTION WHEN OTHERS THEN
+     IF SQLERRM <> 'Identificador de solicitacao reutilizado com dados diferentes.' THEN
+       RAISE EXCEPTION 'Unexpected mutated retry outcome: %',SQLERRM; END IF;
+   END;
    -- A valid norm from the second municipality must never be attached to
    -- the first municipality's authorized process, even by its assigned analyst.
    BEGIN
@@ -201,7 +217,7 @@ BEGIN
    -- a successful RPC result alone is not enough to guarantee audit integrity.
    IF NOT EXISTS (
      SELECT 1 FROM public.process_urban_precheck_runs r
-     WHERE r.id=(saved->>'id')::uuid
+     WHERE r.id=(saved->>'id')::uuid AND r.request_id=request_key
        AND r.process_id=actor.process_id
        AND r.municipality_id=actor.municipality_id
        AND r.regulation_version_id=norm
