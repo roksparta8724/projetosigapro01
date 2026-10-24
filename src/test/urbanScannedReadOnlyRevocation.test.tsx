@@ -1,5 +1,6 @@
 import {describe,expect,it,vi} from "vitest";
 import {fireEvent,render,screen} from "@testing-library/react";
+import {renderUrbanGraphicPdfPage} from "@/lib/urbanGraphicPdfRenderer";
 import {UrbanScannedPageDesk} from "@/components/platform/UrbanScannedPageDesk";
 
 vi.mock("@/lib/urbanGraphicPdfRenderer",()=>({
@@ -19,8 +20,13 @@ describe("SIGAPRO — scanned evidence permissions",()=>{
     const value="Afastamento obrigatório de quatro metros";
     fireEvent.change(screen.getByRole("textbox",{name:"Primeira leitura do trecho"}),{target:{value}});
     fireEvent.change(screen.getByRole("textbox",{name:"Segunda leitura independente"}),{target:{value}});
+    const renderCall=vi.mocked(renderUrbanGraphicPdfPage).mock.calls.at(-1);
+    const renderSignal=renderCall?.[0]?.signal;
+    expect(renderSignal).toBeDefined();
+    expect(renderSignal?.aborted).toBe(false);
     view.rerender(<UrbanScannedPageDesk bytes={bytes} scannedPages={[1]}
       readOnly={true} onVerifiedTranscript={onVerifiedTranscript}/>);
+    expect(renderSignal?.aborted).toBe(true);
     expect(screen.queryByRole("button",{name:/Usar trecho conferido/})).not.toBeInTheDocument();
     view.rerender(<UrbanScannedPageDesk bytes={bytes} scannedPages={[1]}
       readOnly={false} onVerifiedTranscript={onVerifiedTranscript}/>);
