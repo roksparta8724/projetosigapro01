@@ -39,6 +39,7 @@ export function UrbanPrecheckPanel({
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const saveInFlightRef = useRef(false);
+  const saveGenerationRef = useRef(0);
   const activeProcessRef = useRef(process.id);
   activeProcessRef.current = process.id;
   const historyRetryRef = useRef(false);
@@ -60,6 +61,9 @@ export function UrbanPrecheckPanel({
     setAreaFields({});
     setVersions([]);
     setHistory([]);
+    saveGenerationRef.current += 1;
+    saveInFlightRef.current = false;
+    setSaving(false);
     setHistoryError("");
     setHistoryRetrying(false);
     historyRetryRef.current = false;
@@ -277,6 +281,7 @@ export function UrbanPrecheckPanel({
     }
     const requestedProcessId = process.id;
     const requestedLegalContext = activeLegalContextRef.current;
+    const saveGeneration = ++saveGenerationRef.current;
     saveInFlightRef.current = true;
     setSaving(true);
     setNotice("");
@@ -306,7 +311,12 @@ export function UrbanPrecheckPanel({
     } catch (error) {
       if (activeProcessRef.current === requestedProcessId &&
           activeLegalContextRef.current === requestedLegalContext) setNotice(String((error as Error)?.message || error));
-    } finally { saveInFlightRef.current = false; setSaving(false); }
+    } finally {
+      if (saveGenerationRef.current === saveGeneration) {
+        saveInFlightRef.current = false;
+        setSaving(false);
+      }
+    }
   };
 
   const retryHistory = async () => {
