@@ -36,6 +36,7 @@ export function UrbanPrecheckPanel({
   const [areaFields, setAreaFields] = useState<Partial<Record<UrbanAreaKey, Field>>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [lastSavedSnapshot, setLastSavedSnapshot] = useState<string | null>(null);
   const [notice, setNotice] = useState("");
   const [legalCatalog, setLegalCatalog] = useState<UrbanLegalEvidence[]>([]);
   const [legalCatalogReady, setLegalCatalogReady] = useState(false);
@@ -54,6 +55,7 @@ export function UrbanPrecheckPanel({
     setVersions([]);
     setHistory([]);
     setNotice("");
+    setLastSavedSnapshot(null);
     setLegalCatalog([]);
     setLegalCatalogReady(false);
     setLegalCatalogError("");
@@ -222,7 +224,9 @@ export function UrbanPrecheckPanel({
       !input.evidence.trim() || input.evidence.trim().length < 3 ||
       (rule.metric === "floor_count" && !Number.isInteger(parsed));
   });
-  const canSave = !!regulation && !readOnly && !saving && !loading && !invalidEntered && legalReviewReady &&
+  const currentSnapshot = JSON.stringify({ processId: process.id, regulationId: regulation?.id, asOf,
+    fields, legalReview, conditionalIds: conditionalReferences.map(item => item.evidenceId) });
+  const canSave = currentSnapshot !== lastSavedSnapshot && !!regulation && !readOnly && !saving && !loading && !invalidEntered && legalReviewReady &&
     isValidUrbanReferenceDate(asOf, new Date().toISOString().slice(0, 10)) &&
     findings.some(
     (finding) => finding.status !== "missing_evidence"
@@ -257,6 +261,7 @@ export function UrbanPrecheckPanel({
         note: legalReview.note.trim(),
         documentScopeConfirmed: legalReview.documentScopeConfirmed,
       });
+      setLastSavedSnapshot(currentSnapshot);
       setNotice("Pré-conferência registrada no banco. Atualizando o histórico...");
       try {
         const updated = await listUrbanPrecheckHistory(process.id);
