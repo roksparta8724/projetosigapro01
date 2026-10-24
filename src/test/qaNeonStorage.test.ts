@@ -51,6 +51,30 @@ describe("SIGAPRO isolated Neon QA storage", () => {
     }} as never,res as never,"upload");
     expect(res.statusCode).toBe(403);expect(send).not.toHaveBeenCalled();
   });
+  it("accepts logical document buckets sent by the real frontend", async () => {
+    active();
+    check.mockResolvedValue({ok:true,payload:true});
+    send.mockResolvedValue({});
+    for (const bucket of ["process-documents", "sigapro-documentos"]) {
+      const res=response();
+      await handleQaStorage({method:"POST",headers:{authorization:"Bearer synthetic"},body:{
+        bucket,objectKey:KEY,contentType:"application/pdf",
+        base64:Buffer.from("%PDF-1.4\\nSYNTHETIC").toString("base64")
+      }} as never,res as never,"upload");
+      expect(res.statusCode).toBe(200);
+      expect(JSON.parse(res.data).resolvedBucket).toBe("sigapro-qa-urban-documents");
+    }
+    expect(send).toHaveBeenCalledTimes(2);
+  });
+  it("rejects an institutional-logo bucket disguised as a process document", async () => {
+    active();check.mockResolvedValue({ok:true,payload:true});
+    const res=response();
+    await handleQaStorage({method:"POST",headers:{authorization:"Bearer synthetic"},body:{
+      bucket:"institutional-branding",objectKey:KEY
+    }} as never,res as never,"sign-get");
+    expect(res.statusCode).toBe(400);
+    expect(send).not.toHaveBeenCalled();
+  });
   it("writes a correctly authorized synthetic PDF to the QA bucket", async () => {
     active();check.mockResolvedValue({ok:true,payload:true});send.mockResolvedValue({});
     const res=response();

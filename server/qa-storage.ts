@@ -107,12 +107,18 @@ async function canAccess(req: Request, municipalityId: string, objectKey: string
   return false;
 }
 
-function logicalBucketValid(value: unknown) {
-  const allowed = [
-    env("R2_BUCKET_DOCUMENTOS") || "sigapro-documentos",
-    env("R2_BUCKET_LOGOS") || "sigapro-logos",
-  ];
-  return typeof value === "string" && allowed.includes(value);
+function logicalBucketValid(value: unknown, objectKey: string) {
+  if (typeof value !== "string") return false;
+  const documents = new Set([
+    "process-documents", "sigapro-documentos", env("R2_BUCKET_DOCUMENTOS"),
+  ]);
+  const institutional = new Set([
+    "institutional-branding", "sigapro-logos", env("R2_BUCKET_LOGOS"),
+  ]);
+  // The browser submits logical bucket names; the QA S3 bucket is always
+  // pinned to a separate physical bucket, never to these logical names.
+  const isLaw = /\/legislation(?:[-/])/.test(objectKey);
+  return documents.has(value) || (isLaw && institutional.has(value));
 }
 
 export async function handleQaStorage(req: Request, res: Res, action: string) {
@@ -139,7 +145,7 @@ export async function handleQaStorage(req: Request, res: Res, action: string) {
   try {
     const input = await body(req);
     const scope = validObjectKey(input.objectKey);
-    if (!scope || !logicalBucketValid(input.bucket)) {
+    if (!scope || !logicalBucketValid(input.bucket, scope.key)) {
       json(res, 400, { code: "QA_INVALID_STORAGE_TARGET" });
       return;
     }

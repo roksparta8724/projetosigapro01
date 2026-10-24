@@ -76,6 +76,7 @@ async function getAuthorizationHeaders() {
 }
 
 export function getPublicUrl(objectKey: string, baseOverride?: string) {
+  if (isolatedQa) return ""; // QA documents must remain private.
   const base = (baseOverride || import.meta.env.VITE_R2_PUBLIC_BASE_URL || "").toString();
   if (!base) return "";
   return `${base.replace(/\/+$/, "")}/${objectKey.replace(/^\/+/, "")}`;
@@ -239,7 +240,8 @@ export async function getSignedUrlForObject(input: {
   objectKey: string;
   expiresIn?: number;
 }) {
-  const allowPublicFallback =
+  // Never expose official R2 URLs as a fallback from the isolated QA browser.
+  const allowPublicFallback = !isolatedQa &&
     String(import.meta.env.VITE_R2_PUBLIC_FALLBACK || "").toLowerCase() === "true";
   const expiresIn = typeof input.expiresIn === "number" && Number.isFinite(input.expiresIn)
     ? input.expiresIn
