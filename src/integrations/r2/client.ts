@@ -133,6 +133,20 @@ export function getLegacyProfileAvatarOpenUrl(sourceUrl: string | null | undefin
   const raw = String(sourceUrl || "").trim();
   if (!raw) return "";
 
+  if (isolatedQa) {
+    // A copied QA profile must not fetch avatars from the official R2,
+    // Supabase public buckets, or any other external hostname.
+    // Preserve same-origin previews for files selected during QA.
+    if (raw.startsWith("/") && !raw.startsWith("//") && !raw.includes("\\")) return raw;
+    if (typeof window !== "undefined" && raw.startsWith("blob:")) {
+      try {
+        const origin = new URL(raw.slice(5)).origin;
+        if (origin === window.location.origin) return raw;
+      } catch { /* reject an invalid blob URL */ }
+    }
+    return "";
+  }
+
   try {
     const source = new URL(raw);
     const allowedHost = /(^|\.)supabase\.co$/i.test(source.hostname);
