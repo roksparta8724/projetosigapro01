@@ -31,6 +31,7 @@ export function UrbanPrecheckPanel({
   const [versions, setVersions] = useState<UrbanRegulationVersion[]>([]);
   const [history, setHistory] = useState<UrbanPrecheckHistoryEntry[]>([]);
   const [historyError, setHistoryError] = useState("");
+  const [historyLoading, setHistoryLoading] = useState(true);
   const [historyRetrying, setHistoryRetrying] = useState(false);
   const [zone, setZone] = useState("");
   const [usage, setUsage] = useState(process.property.usage || "");
@@ -77,6 +78,7 @@ export function UrbanPrecheckPanel({
     saveInFlightRef.current = false;
     setSaving(false);
     setHistoryError("");
+    setHistoryLoading(true);
     setHistoryRetrying(false);
     historyRetryRef.current = false;
     historyRetryGenerationRef.current += 1;
@@ -96,9 +98,9 @@ export function UrbanPrecheckPanel({
     const isCurrentHistoryLoad = () => isCurrentLoad() &&
       historyRetryGenerationRef.current === initialHistoryGeneration;
     void listUrbanPrecheckHistory(process.id).then(
-      (past) => { if (isCurrentHistoryLoad()) { setHistory(past); setHistoryError(""); } },
+      (past) => { if (isCurrentHistoryLoad()) { setHistory(past); setHistoryError(""); setHistoryLoading(false); } },
       (error: unknown) => {
-        if (isCurrentHistoryLoad()) setHistoryError(String((error as Error)?.message || error));
+        if (isCurrentHistoryLoad()) { setHistoryError(String((error as Error)?.message || error)); setHistoryLoading(false); }
       },
     );
     // Only municipal legislation and evidence define readiness to analyze.
@@ -319,6 +321,7 @@ export function UrbanPrecheckPanel({
       if (activeProcessRef.current !== requestedProcessId ||
           activeLegalContextRef.current !== requestedLegalContext) return;
       setLastSavedSnapshot(currentSnapshot);
+      setHistoryLoading(true);
       // Invalidate any initial or manual history read started before this successful write.
       historyRetryGenerationRef.current += 1;
       historyRetryRef.current = false;
@@ -330,11 +333,13 @@ export function UrbanPrecheckPanel({
             activeLegalContextRef.current !== requestedLegalContext) return;
         setHistory(updated);
         setHistoryError("");
+        setHistoryLoading(false);
         setNotice("Pré-conferência registrada e histórico atualizado. Não altera a aprovação nem a ficha oficial.");
       } catch (error) {
         if (activeProcessRef.current !== requestedProcessId ||
             activeLegalContextRef.current !== requestedLegalContext) return;
         setHistoryError(String((error as Error)?.message || error));
+        setHistoryLoading(false);
         setNotice("Pré-conferência registrada no banco, mas não foi possível atualizar o histórico nesta tela. Consulte o histórico antes de tentar registrar novamente.");
       }
     } catch (error) {
@@ -355,6 +360,7 @@ export function UrbanPrecheckPanel({
     const retryGeneration = ++historyRetryGenerationRef.current;
     historyRetryRef.current = true;
     setHistoryRetrying(true);
+    setHistoryLoading(true);
     try {
       const updated = await listUrbanPrecheckHistory(requestedProcessId);
       if (!isCurrentUrbanRequest(
@@ -377,6 +383,7 @@ export function UrbanPrecheckPanel({
           )) {
         historyRetryRef.current = false;
         setHistoryRetrying(false);
+        setHistoryLoading(false);
       }
     }
   };
@@ -683,7 +690,7 @@ export function UrbanPrecheckPanel({
                 {historyRetrying ? "Consultando..." : "Consultar novamente"}
               </Button>
             </div>
-          ) : !history.length ? <p className="text-xs text-slate-500 dark:text-slate-300">Nenhuma pré-conferência registrada.</p> : null}
+          ) : historyLoading ? <p role="status" className="text-xs text-slate-500 dark:text-slate-300">Consultando histórico de pré-conferências...</p> : !history.length ? <p className="text-xs text-slate-500 dark:text-slate-300">Nenhuma pré-conferência registrada.</p> : null}
           {history.map((entry) => {
             const historicRules = versions.find((version) => version.id === entry.regulation_version_id);
             const historicalFindings = historicRules
