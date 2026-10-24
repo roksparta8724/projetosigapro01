@@ -20,6 +20,21 @@ function resolveAction(req: Req) {
 export default async function handler(req: Req, res: Res) {
   const action = resolveAction(req);
 
+  // The Vercel preview inherits the official R2 credentials. All writes must
+  // fail closed until a separate QA R2 store has been provisioned and reviewed.
+  if (process.env.VERCEL_ENV === "preview" &&
+      process.env.VITE_SIGAPRO_NEON_ISOLATED === "true" &&
+      (action === "upload" || action === "delete")) {
+    res.statusCode = 503;
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Cache-Control", "no-store");
+    res.end(JSON.stringify({
+      error: "Armazenamento de homologação indisponível: escrita em R2 bloqueada para proteger documentos oficiais.",
+      code: "QA_R2_WRITE_DISABLED",
+    }));
+    return;
+  }
+
   if (action === "upload") return handleUpload(req as never, res);
   if (action === "delete") return handleDelete(req as never, res);
   if (action === "sign-get") return handleSignGet(req as never, res);
