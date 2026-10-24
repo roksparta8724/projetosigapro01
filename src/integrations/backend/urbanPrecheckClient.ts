@@ -68,6 +68,9 @@ function isValidHistoricalMeasurements(value: unknown): boolean {
 }
 
 export async function listUrbanPrecheckHistory(processId: string): Promise<UrbanPrecheckHistoryEntry[]> {
+  if (typeof processId !== "string" || !processId.trim()) {
+    throw new Error("Processo inválido para consulta do histórico.");
+  }
   const response = await invoke<unknown>("list_urban_prechecks_v1", { _process_id: processId });
   if (!Array.isArray(response)) throw new Error("Histórico de pré-análises indisponível.");
   // The RPC enforces tenant access. Validate its response as a second boundary:
