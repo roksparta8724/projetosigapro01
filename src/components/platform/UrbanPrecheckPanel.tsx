@@ -257,9 +257,14 @@ export function UrbanPrecheckPanel({
         note: legalReview.note.trim(),
         documentScopeConfirmed: legalReview.documentScopeConfirmed,
       });
-      const updated = await listUrbanPrecheckHistory(process.id);
-      setHistory(updated);
-      setNotice("Pré-conferência e revisão das referências legais registradas no histórico. Não altera a aprovação nem a ficha oficial.");
+      setNotice("Pré-conferência registrada no banco. Atualizando o histórico...");
+      try {
+        const updated = await listUrbanPrecheckHistory(process.id);
+        setHistory(updated);
+        setNotice("Pré-conferência registrada e histórico atualizado. Não altera a aprovação nem a ficha oficial.");
+      } catch {
+        setNotice("Pré-conferência registrada no banco, mas não foi possível atualizar o histórico nesta tela. Consulte o histórico antes de tentar registrar novamente.");
+      }
     } catch (error) {
       setNotice(String((error as Error)?.message || error));
     } finally { setSaving(false); }
