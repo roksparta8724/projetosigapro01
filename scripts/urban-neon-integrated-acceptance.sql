@@ -51,7 +51,9 @@ BEGIN
        '{"evidence_ids":[],"note":"","document_scope_confirmed":false}'::jsonb);
      RAISE EXCEPTION 'CROSS_TENANT_RPC_WRITE_LEAK';
    EXCEPTION WHEN OTHERS THEN
-     IF SQLERRM='CROSS_TENANT_RPC_WRITE_LEAK' THEN RAISE; END IF;
+     IF SQLERRM <> 'Somente o analista responsavel ou Diretoria pode registrar a revisao.' THEN
+       RAISE EXCEPTION 'Unexpected write rejection (not permission denial): %',SQLERRM;
+     END IF;
    END;
    IF (SELECT count(*) FROM public.process_urban_precheck_runs WHERE regulation_version_id=norm)<>1
    THEN RAISE EXCEPTION 'CROSS_TENANT_RPC_WRITE_SIDE_EFFECT'; END IF;
@@ -59,7 +61,9 @@ BEGIN
      PERFORM public.list_urban_prechecks_v1(actor.process_id);
      RAISE EXCEPTION 'CROSS_TENANT_HISTORY_LEAK';
    EXCEPTION WHEN OTHERS THEN
-     IF SQLERRM='CROSS_TENANT_HISTORY_LEAK' THEN RAISE; END IF;
+     IF SQLERRM <> 'Sem acesso ao historico de analises.' THEN
+       RAISE EXCEPTION 'Unexpected history rejection (not permission denial): %',SQLERRM;
+     END IF;
    END;
    passed:=true;
    RAISE EXCEPTION 'QA_ROLLBACK_SUCCESS';
