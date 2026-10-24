@@ -10,6 +10,9 @@ async function invoke<T>(name: string, args: Record<string, unknown>): Promise<T
 }
 
 export async function listUrbanRegulations(municipalityId: string): Promise<UrbanRegulationVersion[]> {
+  if (typeof municipalityId !== "string" || !municipalityId.trim()) {
+    throw new Error("Prefeitura inválida para consulta da legislação.");
+  }
   const response = await invoke<unknown>("list_urban_regulation_versions_v1", { _municipality_id: municipalityId });
   if (!Array.isArray(response)) throw new Error("Resposta inválida do cadastro legal municipal.");
   if (response.some((item) => !item || typeof item !== "object" ||
