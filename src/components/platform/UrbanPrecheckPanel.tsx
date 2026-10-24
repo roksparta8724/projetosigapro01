@@ -39,6 +39,9 @@ export function UrbanPrecheckPanel({
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const saveInFlightRef = useRef(false);
+  const activeProcessRef = useRef(process.id);
+  activeProcessRef.current = process.id;
+  const historyRetryRef = useRef(false);
   const [lastSavedSnapshot, setLastSavedSnapshot] = useState<string | null>(null);
   const [notice, setNotice] = useState("");
   const [legalCatalog, setLegalCatalog] = useState<UrbanLegalEvidence[]>([]);
@@ -58,6 +61,8 @@ export function UrbanPrecheckPanel({
     setVersions([]);
     setHistory([]);
     setHistoryError("");
+    setHistoryRetrying(false);
+    historyRetryRef.current = false;
     setNotice("");
     setLastSavedSnapshot(null);
     setLegalCatalog([]);
@@ -292,16 +297,24 @@ export function UrbanPrecheckPanel({
   };
 
   const retryHistory = async () => {
-    if (historyRetrying) return;
+    if (historyRetryRef.current) return;
+    const requestedProcessId = process.id;
+    historyRetryRef.current = true;
     setHistoryRetrying(true);
     try {
-      const updated = await listUrbanPrecheckHistory(process.id);
+      const updated = await listUrbanPrecheckHistory(requestedProcessId);
+      if (activeProcessRef.current !== requestedProcessId) return;
       setHistory(updated);
       setHistoryError("");
     } catch (error) {
-      setHistoryError(String((error as Error)?.message || error));
+      if (activeProcessRef.current === requestedProcessId) {
+        setHistoryError(String((error as Error)?.message || error));
+      }
     } finally {
-      setHistoryRetrying(false);
+      if (activeProcessRef.current === requestedProcessId) {
+        historyRetryRef.current = false;
+        setHistoryRetrying(false);
+      }
     }
   };
 
