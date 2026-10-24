@@ -92,7 +92,7 @@ export function UrbanPrecheckPanel({
   useEffect(() => {
     // A change in law/date makes any previous confirmation obsolete.
     setLegalReview({ evidenceIds: [], note: "", documentScopeConfirmed: false });
-  }, [process.id, regulation?.id, asOf]);
+  }, [process.id, municipalityId, regulation?.id, zone, usage, asOf, legalCatalog]);
   const legalReviewIssue = validateUrbanLegalReview(conditionalReferences, legalReview);
   const legalReviewReady = legalCatalogReady && !legalCatalogError && !legalReviewIssue;
 
