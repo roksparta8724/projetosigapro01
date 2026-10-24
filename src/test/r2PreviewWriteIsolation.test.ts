@@ -33,6 +33,19 @@ describe("isolated Vercel QA must not touch official R2", () => {
     expect(upload).not.toHaveBeenCalled();
     expect(remove).not.toHaveBeenCalled();
   });
+  it("fails closed on the QA Git branch if isolation is misconfigured, before inherited official R2 can run", async () => {
+    vi.stubEnv("VERCEL_ENV", "preview");
+    vi.stubEnv("VERCEL_GIT_COMMIT_REF", "qa/sigapro-ia-logo-integrado-20261023");
+    vi.stubEnv("VITE_SIGAPRO_NEON_ISOLATED", "false");
+    for (const action of ["upload", "delete", "sign-get"]) {
+      const res=response();
+      await handler({url:"/api/r2?action="+action,method:"POST"} as never,res as never);
+      expect(res.statusCode).toBe(503);
+      expect(JSON.parse(res.body).code).toBe("QA_ISOLATION_NOT_CONFIGURED");
+    }
+    expect(upload).not.toHaveBeenCalled();
+    expect(remove).not.toHaveBeenCalled();
+  });
   it("does not block official environment", async () => {
     vi.stubEnv("VERCEL_ENV", "production");
     vi.stubEnv("VITE_SIGAPRO_NEON_ISOLATED", "true");

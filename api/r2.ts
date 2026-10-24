@@ -21,10 +21,19 @@ function resolveAction(req: Req) {
 export default async function handler(req: Req, res: Res) {
   const action = resolveAction(req);
 
-  // Preview never uses inherited official R2 credentials. QA goes only to
-  // the branch-pinned Neon bucket; unsupported actions fail closed.
-  if (process.env.VERCEL_ENV === "preview" &&
-      process.env.VITE_SIGAPRO_NEON_ISOLATED === "true") {
+  // A QA preview must never fall back to inherited production R2 secrets,
+  // even if its isolation flag was accidentally omitted or changed.
+  const isPreview = process.env.VERCEL_ENV === "preview";
+  const isQaBranch = isPreview &&
+    process.env.VERCEL_GIT_COMMIT_REF === "qa/sigapro-ia-logo-integrado-20261023";
+  if (isQaBranch && process.env.VITE_SIGAPRO_NEON_ISOLATED !== "true") {
+    res.statusCode = 503;
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Cache-Control", "no-store");
+    res.end(JSON.stringify({code:"QA_ISOLATION_NOT_CONFIGURED"}));
+    return;
+  }
+  if (isPreview && (isQaBranch || process.env.VITE_SIGAPRO_NEON_ISOLATED === "true")) {
     return handleQaStorage(req, res, action);
   }
 
