@@ -19,7 +19,7 @@ import type { UrbanLegalEvidence } from "@/lib/urbanLegalKnowledge";
 import {
   buildUrbanConditionalReviewDraft, findUrbanLegalConditions, validateUrbanLegalReview, type UrbanLegalReviewConfirmation,
 } from "@/lib/urbanLegalConditions";
-import { buildUrbanReviewDraft, deriveUrbanAreaMeasurements, mergeDerivedUrbanFields, isValidUrbanReferenceDate, type UrbanAreaKey } from "@/lib/urbanPrecheckAssist";
+import { buildUrbanReviewDraft, deriveUrbanAreaMeasurements, mergeDerivedUrbanFields, isValidUrbanReferenceDate, urbanMunicipalToday, type UrbanAreaKey } from "@/lib/urbanPrecheckAssist";
 
 type Field = { value: string; evidence: string };
 type Fields = Partial<Record<UrbanMetric, Field>>;
@@ -31,7 +31,7 @@ export function UrbanPrecheckPanel({
   const [history, setHistory] = useState<UrbanPrecheckHistoryEntry[]>([]);
   const [zone, setZone] = useState("");
   const [usage, setUsage] = useState(process.property.usage || "");
-  const [asOf, setAsOf] = useState((process.officializedAt || new Date().toISOString()).slice(0, 10));
+  const [asOf, setAsOf] = useState((process.officializedAt || urbanMunicipalToday()).slice(0, 10));
   const [fields, setFields] = useState<Fields>({});
   const [areaFields, setAreaFields] = useState<Partial<Record<UrbanAreaKey, Field>>>({});
   const [loading, setLoading] = useState(true);
@@ -50,7 +50,7 @@ export function UrbanPrecheckPanel({
     let active = true;
     setZone("");
     setUsage(process.property.usage || "");
-    setAsOf((process.officializedAt || new Date().toISOString()).slice(0, 10));
+    setAsOf((process.officializedAt || urbanMunicipalToday()).slice(0, 10));
     setFields({});
     setAreaFields({});
     setVersions([]);
@@ -84,7 +84,7 @@ export function UrbanPrecheckPanel({
   }, [municipalityId, process.id, process.property.usage, process.officializedAt]);
 
   const regulation = useMemo(
-    () => isValidUrbanReferenceDate(asOf, new Date().toISOString().slice(0, 10))
+    () => isValidUrbanReferenceDate(asOf, urbanMunicipalToday())
       ? selectUrbanRegulation(versions, municipalityId, zone, usage, asOf) : null,
     [versions, municipalityId, zone, usage, asOf],
   );
@@ -236,7 +236,7 @@ export function UrbanPrecheckPanel({
   const currentSnapshot = JSON.stringify({ processId: process.id, regulationId: regulation?.id, asOf,
     fields, legalReview, conditionalIds: conditionalReferences.map(item => item.evidenceId) });
   const canSave = currentSnapshot !== lastSavedSnapshot && !!regulation && !readOnly && !saving && !loading && !invalidEntered && legalReviewReady &&
-    isValidUrbanReferenceDate(asOf, new Date().toISOString().slice(0, 10)) &&
+    isValidUrbanReferenceDate(asOf, urbanMunicipalToday()) &&
     findings.some(
     (finding) => finding.status !== "missing_evidence"
   );
