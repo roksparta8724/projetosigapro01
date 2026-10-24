@@ -40,7 +40,7 @@ describe("SIGAPRO branch-pinned QA large PDF function", () => {
   });
   expect(req.headers.get("Content-Length")).toBeNull();
   const out=await handler.fetch(req);
-  expect(out.status).toBe(200);
+  expect(out.status, JSON.stringify(await out.clone().json())).toBe(200);
   expect(requests).toHaveLength(1);
   expect(requests[0].byteCount).toBe(bytes.byteLength);
   expect(requests[0].method).toBe("PUT");
