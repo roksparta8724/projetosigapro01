@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { isValidUrbanReferenceDate } from "@/lib/urbanPrecheckAssist";
 
 describe("SIGAPRO — vigência da legislação urbanística", () => {
@@ -6,6 +8,10 @@ describe("SIGAPRO — vigência da legislação urbanística", () => {
   it("aceita datas reais de referência anteriores ou iguais à data atual", () => {
     expect(isValidUrbanReferenceDate("2024-02-29", today)).toBe(true);
     expect(isValidUrbanReferenceDate(today, today)).toBe(true);
+  });
+  it("bloqueia a seleção da norma quando a data da análise não é válida", () => {
+    const panel = readFileSync(resolve(process.cwd(), "src/components/platform/UrbanPrecheckPanel.tsx"), "utf8");
+    expect(panel).toMatch(/isValidUrbanReferenceDate\(asOf, new Date\(\)\.toISOString\(\)\.slice\(0, 10\)\)\s*\? selectUrbanRegulation/);
   });
   it("rejeita dias inexistentes, datas futuras e formatos inválidos", () => {
     for (const date of ["2026-02-29", "2026-02-31", "2026-13-01", "2026-00-01",
