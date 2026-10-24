@@ -94,7 +94,7 @@ describe("SIGAPRO IA Urbanismo - revisão de condições e exceções",()=>{
     expect(migration).toContain("reviewed_by_profile_id");
     expect(migration).toContain("legal_review");
     expect(migration).toContain("revoke execute on function public.save_urban_precheck_run_v2");
-    expect(client).toContain('invoke("save_urban_precheck_run_v4"');
+    expect(client).toContain('invoke("save_urban_precheck_run_v5"');
     expect(client).toContain("legal_review?");
   });
 });
