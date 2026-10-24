@@ -70,7 +70,14 @@ export function selectUrbanRegulation(
   usage: string,
   asOf: string,
 ): UrbanRegulationVersion | null {
-  // Do not select legislation for a nonexistent civil date.\n  if (!/^\d{4}-\d{2}-\d{2}$/.test(asOf)) return null;\n  const [year, month, day] = asOf.split("-").map(Number);\n  if (year < 1900 || month < 1 || month > 12 || day < 1) return null;\n  const civilDate = new Date(Date.UTC(year, month - 1, day));\n  if (civilDate.getUTCFullYear() !== year || civilDate.getUTCMonth() !== month - 1 || civilDate.getUTCDate() !== day) return null;
+  // Reject impossible civil dates before selecting the applicable municipal rule.
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(asOf)) return null;
+  const [year, month, day] = asOf.split("-").map(Number);
+  if (year < 1900 || month < 1 || month > 12 || day < 1) return null;
+  const civilDate = new Date(Date.UTC(year, month - 1, day));
+  if (civilDate.getUTCFullYear() !== year ||
+      civilDate.getUTCMonth() !== month - 1 ||
+      civilDate.getUTCDate() !== day) return null;
   const matched = versions.filter((rule) =>
     rule.municipality_id === municipalityId &&
     // For past protocol dates the historically activated, now superseded
