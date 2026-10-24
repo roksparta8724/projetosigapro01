@@ -166,13 +166,15 @@ export function UrbanPrecheckPanel({
       setFields((previous) => {
         const next = { ...previous };
         for (const [metric, value] of entries) {
+          // Never replace a reading or document reference entered by the analyst.
+          if (next[metric]?.value.trim() || next[metric]?.evidence.trim()) continue;
           next[metric] = { value: String(value.value), evidence: value.evidence };
         }
         return next;
       });
     }
     const success = entries.length
-      ? entries.length + " índice(s) calculado(s) e preenchido(s). Confira os valores antes do registro."
+      ? entries.length + " índice(s) calculado(s); campos já preenchidos foram preservados. Confira os valores antes do registro."
       : "Nenhum índice aplicável pôde ser calculado.";
     setNotice([success, ...derived.warnings].join(" "));
   };
