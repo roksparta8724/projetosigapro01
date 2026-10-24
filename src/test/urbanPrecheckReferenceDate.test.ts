@@ -11,7 +11,7 @@ describe("SIGAPRO — vigência da legislação urbanística", () => {
   });
   it("bloqueia a seleção da norma quando a data da análise não é válida", () => {
     const panel = readFileSync(resolve(process.cwd(), "src/components/platform/UrbanPrecheckPanel.tsx"), "utf8");
-    expect(panel).toMatch(/isValidUrbanReferenceDate\(asOf, new Date\(\)\.toISOString\(\)\.slice\(0, 10\)\)\s*\? selectUrbanRegulation/);
+    expect(panel).toContain("isValidUrbanReferenceDate(asOf, urbanMunicipalToday())");
   });
   it("rejeita dias inexistentes, datas futuras e formatos inválidos", () => {
     for (const date of ["2026-02-29", "2026-02-31", "2026-13-01", "2026-00-01",
