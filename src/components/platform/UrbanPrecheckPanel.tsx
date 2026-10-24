@@ -56,8 +56,16 @@ export function UrbanPrecheckPanel({
     evidenceIds: [], note: "", documentScopeConfirmed: false,
   });
 
+  const loadGenerationRef = useRef(0);
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
+
   useEffect(() => {
     let active = true;
+    const loadGeneration = ++loadGenerationRef.current;
     setZone("");
     setUsage(process.property.usage || "");
     setAsOf((process.officializedAt || urbanMunicipalToday()).slice(0, 10));
@@ -84,7 +92,8 @@ export function UrbanPrecheckPanel({
       listUrbanPrecheckHistory(process.id),
       listUrbanLegalEvidence(municipalityId),
     ]).then(([rules, past, legal]) => {
-      if (!active) return;
+      if (!active || !mountedRef.current || loadGenerationRef.current !== loadGeneration ||
+          activeProcessRef.current !== process.id || activeMunicipalityRef.current !== municipalityId) return;
       if (rules.status === "fulfilled") setVersions(rules.value);
       else setNotice("Normas indisponíveis: " + String((rules.reason as Error)?.message || rules.reason));
       if (past.status === "fulfilled") { setHistory(past.value); setHistoryError(""); }
@@ -97,7 +106,10 @@ export function UrbanPrecheckPanel({
         setLegalCatalogError(String((legal.reason as Error)?.message || legal.reason));
       }
       setLegalCatalogReady(true);
-    }).finally(() => { if (active) setLoading(false); });
+    }).finally(() => {
+      if (active && mountedRef.current && loadGenerationRef.current === loadGeneration &&
+          activeProcessRef.current === process.id && activeMunicipalityRef.current === municipalityId) setLoading(false);
+    });
     return () => { active = false; };
   }, [municipalityId, process.id, process.property.usage, process.officializedAt]);
 
