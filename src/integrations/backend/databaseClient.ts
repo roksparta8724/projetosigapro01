@@ -17,12 +17,12 @@ const isLocalNeonRuntime =
 // mismatched or points to the known official Neon endpoint.
 const isolatedRequested =
   !isNeonProduction && import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true";
-const authOverride = String(import.meta.env.VITE_NEON_AUTH_URL || "").replace(/\\/+$/, "");
-const dataOverride = String(import.meta.env.VITE_NEON_DATA_API_URL || "").replace(/\\/+$/, "");
+const authOverride = String(import.meta.env.VITE_NEON_AUTH_URL || "").replace(/\/+$/, "");
+const dataOverride = String(import.meta.env.VITE_NEON_DATA_API_URL || "").replace(/\/+$/, "");
 function neonEndpointIdentity(raw: string) {
   try {
     const host = new URL(raw).hostname;
-    return host.match(/^(ep-[^.]+)\\.(?:neonauth|apirest)\\./)?.[1] || "";
+    return host.match(/^(ep-[^.]+)\.(?:neonauth|apirest)\./)?.[1] || "";
   } catch { return ""; }
 }
 const isolatedEndpoint =
@@ -37,7 +37,7 @@ const NEON_AUTH_URL = String(
     : isolatedRequested
       ? (isolatedReady ? authOverride : "")
       : import.meta.env.VITE_NEON_AUTH_URL || (isNeonPreview ? VALIDATED_NEON_AUTH_URL : ""),
-).replace(/\\/+$/, "");
+).replace(/\/+$/, "");
 
 const NEON_DATA_API_URL = String(
   isNeonProduction || (isLocalNeonRuntime && !isolatedRequested)
@@ -45,7 +45,7 @@ const NEON_DATA_API_URL = String(
     : isolatedRequested
       ? (isolatedReady ? dataOverride : "")
       : import.meta.env.VITE_NEON_DATA_API_URL || (isNeonPreview ? VALIDATED_NEON_DATA_API_URL : ""),
-).replace(/\\/+$/, "");
+).replace(/\/+$/, "");
 
 export const neonAuthUrl = NEON_AUTH_URL;
 export const neonDataApiUrl = NEON_DATA_API_URL;
