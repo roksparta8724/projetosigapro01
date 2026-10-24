@@ -72,7 +72,7 @@ describe("SIGAPRO IA - contrato do cliente de pré-conferência", () => {
 
   it("grava exatamente o processo, a norma, a data, as evidências e a revisão declarados", async () => {
     const documentedReview = {
-      evidenceIds: ["evidencia-1"], note: "Conferência humana documentada no arquivo urbanístico.",
+      evidenceIds: ["123e4567-e89b-42d3-a456-426614174000"], note: "Conferência humana documentada no arquivo urbanístico.",
       documentScopeConfirmed: true,
     };
     await saveUrbanPrecheckRun("processo-a", "norma-a", "2026-10-23", validMeasurement, documentedReview);
@@ -80,7 +80,7 @@ describe("SIGAPRO IA - contrato do cliente de pré-conferência", () => {
       _process_id: "processo-a", _regulation_version_id: "norma-a",
       _reference_date: "2026-10-23", _measurements: validMeasurement,
       _legal_review: {
-        evidence_ids: ["evidencia-1"],
+        evidence_ids: ["123e4567-e89b-42d3-a456-426614174000"],
         note: "Conferência humana documentada no arquivo urbanístico.",
         document_scope_confirmed: true,
       },
