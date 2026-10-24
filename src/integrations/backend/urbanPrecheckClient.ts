@@ -1,4 +1,4 @@
-import { isValidUrbanReferenceDate } from "@/lib/urbanPrecheckAssist";
+import { isValidUrbanReferenceDate, urbanMunicipalToday } from "@/lib/urbanPrecheckAssist";
 import { backendClient } from "@/integrations/backend/databaseClient";
 import { normalizeUrbanCode, validateUrbanRules, URBAN_METRICS, type UrbanMeasurements, type UrbanRegulationVersion, type UrbanRule } from "@/lib/urbanPrecheck";
 
@@ -74,7 +74,7 @@ export async function saveUrbanPrecheckRun(
   processId: string, versionId: string, referenceDate: string, measurements: UrbanMeasurements,
   legalReview: { evidenceIds: string[]; note: string; documentScopeConfirmed: boolean },
 ): Promise<void> {
-  if (!isValidUrbanReferenceDate(referenceDate, new Date().toISOString().slice(0, 10))) throw new Error("Data legal inválida.");
+  if (!isValidUrbanReferenceDate(referenceDate, urbanMunicipalToday())) throw new Error("Data legal inválida.");
   if (!legalReview || typeof legalReview !== "object" || !Array.isArray(legalReview.evidenceIds) ||
       legalReview.evidenceIds.length > 50 || typeof legalReview.note !== "string" ||
       legalReview.note.length > 1200) throw new Error("Revisão legal incompleta ou excessiva.");
