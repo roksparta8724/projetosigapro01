@@ -21,7 +21,6 @@ describe("SIGAPRO branch-pinned QA large PDF function", () => {
   expect(response.headers.get("Access-Control-Allow-Origin")).toBe(origin);
  });
  it("handles a binary PDF stream without Content-Length and enforces auth before S3",async()=>{
-  const {createHash}=await import("node:crypto");
   vi.stubEnv("NEON_DATA_API_URL","https://ep-misty-breeze-b4ri8ig0.apirest.c-6.us-east-2.aws.neon.tech/sigapro_migration_stage_20260923/rest/v1");
   vi.stubEnv("AWS_ENDPOINT_URL_S3","https://br-solitary-sound-b4xlbvs6.storage.c-6.us-east-2.aws.neon.tech");
   vi.stubEnv("AWS_ACCESS_KEY_ID","nak_fake_qa_unit");
