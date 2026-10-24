@@ -9,6 +9,8 @@ describe("SIGAPRO — bloqueio simultâneo de registros", () => {
     expect(s).toContain("saving || saveInFlightRef.current");
     const save=s.slice(s.indexOf("const save = async () =>"));
     expect(save.indexOf("saveInFlightRef.current = true")).toBeLessThan(save.indexOf("await saveUrbanPrecheckRun("));
-    expect(save).toContain("saveInFlightRef.current = false; setSaving(false)");
+    expect(save).toContain("if (saveGenerationRef.current === saveGeneration)");
+    expect(save).toContain("saveInFlightRef.current = false;");
+    expect(save).toContain("setSaving(false);");
   });
 });
