@@ -53,3 +53,7 @@ BEGIN
   RETURN _saved || jsonb_build_object('idempotent_replay',false);
 END
 $body$;
+
+-- Explicitly restrict the SECURITY DEFINER API to signed-in users.
+REVOKE ALL ON FUNCTION public.save_urban_precheck_run_v5(uuid,uuid,date,jsonb,jsonb,uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.save_urban_precheck_run_v5(uuid,uuid,date,jsonb,jsonb,uuid) TO authenticated;
