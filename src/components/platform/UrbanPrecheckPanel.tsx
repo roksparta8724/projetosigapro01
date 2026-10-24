@@ -323,21 +323,23 @@ export function UrbanPrecheckPanel({
       setLastSavedSnapshot(currentSnapshot);
       setHistoryLoading(true);
       // Invalidate any initial or manual history read started before this successful write.
-      historyRetryGenerationRef.current += 1;
+      const savedHistoryGeneration = ++historyRetryGenerationRef.current;
       historyRetryRef.current = false;
       setHistoryRetrying(false);
       setNotice("Pré-conferência registrada no banco. Atualizando o histórico...");
       try {
         const updated = await listUrbanPrecheckHistory(requestedProcessId);
         if (activeProcessRef.current !== requestedProcessId ||
-            activeLegalContextRef.current !== requestedLegalContext) return;
+            activeLegalContextRef.current !== requestedLegalContext ||
+            historyRetryGenerationRef.current !== savedHistoryGeneration) return;
         setHistory(updated);
         setHistoryError("");
         setHistoryLoading(false);
         setNotice("Pré-conferência registrada e histórico atualizado. Não altera a aprovação nem a ficha oficial.");
       } catch (error) {
         if (activeProcessRef.current !== requestedProcessId ||
-            activeLegalContextRef.current !== requestedLegalContext) return;
+            activeLegalContextRef.current !== requestedLegalContext ||
+            historyRetryGenerationRef.current !== savedHistoryGeneration) return;
         setHistoryError(String((error as Error)?.message || error));
         setHistoryLoading(false);
         setNotice("Pré-conferência registrada no banco, mas não foi possível atualizar o histórico nesta tela. Consulte o histórico antes de tentar registrar novamente.");
