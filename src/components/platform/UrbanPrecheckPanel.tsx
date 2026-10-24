@@ -42,6 +42,8 @@ export function UrbanPrecheckPanel({
   const saveGenerationRef = useRef(0);
   const activeProcessRef = useRef(process.id);
   activeProcessRef.current = process.id;
+  const activeMunicipalityRef = useRef(municipalityId);
+  activeMunicipalityRef.current = municipalityId;
   const historyRetryRef = useRef(false);
   const historyRetryGenerationRef = useRef(0);
   const [lastSavedSnapshot, setLastSavedSnapshot] = useState<string | null>(null);
@@ -331,19 +333,19 @@ export function UrbanPrecheckPanel({
     try {
       const updated = await listUrbanPrecheckHistory(requestedProcessId);
       if (activeProcessRef.current !== requestedProcessId ||
-          municipalityId !== requestedMunicipalityId ||
+          activeMunicipalityRef.current !== requestedMunicipalityId ||
           historyRetryGenerationRef.current !== retryGeneration) return;
       setHistory(updated);
       setHistoryError("");
     } catch (error) {
       if (activeProcessRef.current === requestedProcessId &&
-          municipalityId === requestedMunicipalityId &&
+          activeMunicipalityRef.current === requestedMunicipalityId &&
           historyRetryGenerationRef.current === retryGeneration) {
         setHistoryError(String((error as Error)?.message || error));
       }
     } finally {
       if (activeProcessRef.current === requestedProcessId &&
-          municipalityId === requestedMunicipalityId &&
+          activeMunicipalityRef.current === requestedMunicipalityId &&
           historyRetryGenerationRef.current === retryGeneration) {
         historyRetryRef.current = false;
         setHistoryRetrying(false);
