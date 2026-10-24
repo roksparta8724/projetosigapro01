@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 
 const calls = vi.hoisted(() => ({
   history: vi.fn(), regulations: vi.fn(), evidence: vi.fn(), save: vi.fn(),
@@ -64,6 +64,43 @@ describe("SIGAPRO IA — histórico React com respostas concorrentes", () => {
     await act(async () => { old.resolve([]); });
     expect(screen.queryByText("Nenhuma pré-conferência registrada.")).toBeNull();
     await act(async () => { current.resolve([]); });
+    expect(await screen.findByText("Nenhuma pré-conferência registrada.")).toBeTruthy();
+  });
+
+  it("descarta consulta antiga após mudança de prefeitura com mesmo processo", async () => {
+    const original = pending<never[]>();
+    const second = pending<never[]>();
+    calls.history.mockReturnValueOnce(original.promise).mockReturnValueOnce(second.promise);
+    const { rerender } = render(<UrbanPrecheckPanel process={process("A")} municipalityId="prefeitura-A" readOnly />);
+    rerender(<UrbanPrecheckPanel process={process("A")} municipalityId="prefeitura-B" readOnly />);
+    await waitFor(() => expect(calls.history).toHaveBeenCalledTimes(2));
+    await act(async () => original.resolve([]));
+    expect(screen.queryByText("Nenhuma pré-conferência registrada.")).toBeNull();
+    await act(async () => second.resolve([]));
+    expect(await screen.findByText("Nenhuma pré-conferência registrada.")).toBeTruthy();
+  });
+
+  it("recupera o histórico depois de erro usando o botão de nova consulta", async () => {
+    calls.history.mockRejectedValueOnce(new Error("Falha temporária QA")).mockResolvedValueOnce([]);
+    render(<UrbanPrecheckPanel process={process("A")} municipalityId="prefeitura-A" readOnly />);
+    expect(await screen.findByText(/Histórico indisponível: Falha temporária QA/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Consultar novamente" }));
+    await waitFor(() => expect(calls.history).toHaveBeenCalledTimes(2));
+    expect(await screen.findByText("Nenhuma pré-conferência registrada.")).toBeTruthy();
+    expect(screen.queryByText(/Histórico indisponível: Falha temporária QA/)).toBeNull();
+  });
+
+  it("não permite que a resposta inicial tardia sobrescreva uma consulta posterior", async () => {
+    const initial = pending<never[]>();
+    const retry = pending<never[]>();
+    calls.history.mockReturnValueOnce(initial.promise).mockReturnValueOnce(retry.promise);
+    render(<UrbanPrecheckPanel process={process("A")} municipalityId="prefeitura-A" readOnly />);
+    // Manual retry is presented after an error. Force the initial request to reject,
+    // then keep the subsequent request pending to verify loading and resolution.
+    await act(async () => initial.reject(new Error("Rede interrompida QA")));
+    fireEvent.click(await screen.findByRole("button", { name: "Consultar novamente" }));
+    expect(screen.getByText(/Consultando histórico de pré-conferências/)).toBeTruthy();
+    await act(async () => retry.resolve([]));
     expect(await screen.findByText("Nenhuma pré-conferência registrada.")).toBeTruthy();
   });
 
