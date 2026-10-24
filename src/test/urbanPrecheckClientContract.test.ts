@@ -36,6 +36,16 @@ describe("SIGAPRO IA - contrato do cliente de pré-conferência", () => {
     }
   });
 
+  it.each([
+    ["sem identificador do analista", { ...validRow, reviewer_profile_id: "" }],
+    ["data de gravação ilegível", { ...validRow, created_at: "invalid" }],
+    ["data legal malformada", { ...validRow, reference_date: "2026-99-99" }],
+    ["revisão legal em formato inesperado", { ...validRow, legal_review: [] }],
+  ])("impede exibir auditoria incompleta: %s", async (_label, row) => {
+    rpc.mockResolvedValueOnce({ data: [row], error: null });
+    await expect(listUrbanPrecheckHistory("processo-a")).rejects.toThrow(/inconsistente/i);
+  });
+
   it("aceita o histórico coerente e usa a RPC de leitura autorizada", async () => {
     rpc.mockResolvedValueOnce({ data: [validRow], error: null });
     await expect(listUrbanPrecheckHistory("processo-a")).resolves.toEqual([validRow]);
