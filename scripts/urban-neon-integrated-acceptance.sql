@@ -159,6 +159,12 @@ BEGIN
          RAISE EXCEPTION 'INVALID_MEASUREMENT_ACCEPTED';
        EXCEPTION WHEN OTHERS THEN
          IF SQLERRM='INVALID_MEASUREMENT_ACCEPTED' THEN RAISE; END IF;
+         -- Reject only through the writer's documentary/range validation.
+         -- A generic SQL failure must not count as a successful rejection.
+         IF SQLERRM NOT IN (
+           'Informe somente parametros vigentes com valor e referencia da prancha.',
+           'Medida fora do intervalo permitido.'
+         ) THEN RAISE EXCEPTION 'Unexpected measurement rejection: %', SQLERRM; END IF;
          rejection_count:=rejection_count+1;
        END;
      END LOOP;
