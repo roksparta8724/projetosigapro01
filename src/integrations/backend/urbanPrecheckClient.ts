@@ -17,7 +17,10 @@ export async function listUrbanRegulations(municipalityId: string): Promise<Urba
     typeof item.id !== "string" || !item.id ||
     typeof item.zone_code !== "string" || !item.zone_code ||
     typeof item.use_code !== "string" || !item.use_code ||
-    !Array.isArray(item.rules))) {
+    !validateUrbanRules(item.rules) ||
+    !["draft", "active", "superseded"].includes(item.status) ||
+    !Number.isInteger(item.version) || item.version < 1 ||
+    !isValidUrbanReferenceDate(item.effective_from, "9999-12-31"))) {
     throw new Error("Cadastro legal inconsistente para esta prefeitura.");
   }
   return response as UrbanRegulationVersion[];
