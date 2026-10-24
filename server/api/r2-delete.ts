@@ -146,6 +146,17 @@ async function readJsonBody(req: Req) {
 }
 
 export default async function handler(req: Req, res: Res) {
+  // Defense in depth: block direct serverless invocations, not only /api/r2.
+  if (process.env.VERCEL_ENV === "preview" &&
+      process.env.VITE_SIGAPRO_NEON_ISOLATED === "true") {
+    res.statusCode = 503;
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Cache-Control", "no-store");
+    res.end(JSON.stringify({ code: "QA_R2_WRITE_DISABLED",
+      error: "Homologação isolada: escrita no armazenamento oficial bloqueada." }));
+    return;
+  }
+
   setCors(res);
   if (req.method === "OPTIONS") {
     res.statusCode = 204;
