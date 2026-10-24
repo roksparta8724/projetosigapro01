@@ -114,12 +114,31 @@ export default {
    if(write&&request.method==="POST"){
     if(request.headers.get("Content-Type")?.split(";")[0].trim().toLowerCase()!=="application/pdf")
       return respond({code:"PDF_ONLY"},415,approved);
-    const length=Number(request.headers.get("Content-Length"));
-    if(!Number.isSafeInteger(length)||length<1)return respond({code:"CONTENT_LENGTH_REQUIRED"},411,approved);
-    if(length>MAX_PDF_BYTES)return respond({code:"FILE_TOO_LARGE"},413,approved);
-    bytes=new Uint8Array(await request.arrayBuffer());
-    if(bytes.length!==length||bytes.length>MAX_PDF_BYTES||
-       new TextDecoder().decode(bytes.subarray(0,5))!=="%PDF-")
+    // Browsers may omit Content-Length on streamed HTTP/2 uploads. Cap the
+    // streamed bytes ourselves rather than requiring a browser-forbidden header.
+    const rawLength=request.headers.get("Content-Length");
+    const declared=rawLength===null?null:Number(rawLength);
+    if(declared!==null&&(!Number.isSafeInteger(declared)||declared<1))
+      return respond({code:"INVALID_CONTENT_LENGTH"},400,approved);
+    if(declared!==null&&declared>MAX_PDF_BYTES)
+      return respond({code:"FILE_TOO_LARGE"},413,approved);
+    if(!request.body)return respond({code:"EMPTY_PDF"},400,approved);
+    const chunks=[],reader=request.body.getReader();
+    let total=0,tooLarge=false;
+    while(true){
+      const part=await reader.read();
+      if(part.done)break;
+      total+=part.value.byteLength;
+      if(total>MAX_PDF_BYTES){tooLarge=true;await reader.cancel();break;}
+      chunks.push(part.value);
+    }
+    if(tooLarge)return respond({code:"FILE_TOO_LARGE"},413,approved);
+    if(total<5||(declared!==null&&declared!==total))
+      return respond({code:"INVALID_PDF"},400,approved);
+    bytes=new Uint8Array(total);
+    let offset=0;
+    for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.byteLength;}
+    if(new TextDecoder().decode(bytes.subarray(0,5))!=="%PDF-")
       return respond({code:"INVALID_PDF"},400,approved);
    }
    const method=request.method==="POST"?"PUT":request.method;
