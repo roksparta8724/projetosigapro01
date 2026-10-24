@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 
 const directRoutes = [
   "api/municipality-logo-open.ts",
+  "api/legislation-open.ts",
   "server/api/profile-avatar-open.ts",
   "server/api/r2-master-logo-source.ts",
   "server/api/r2-sign-get.ts",
@@ -18,7 +19,7 @@ describe("SIGAPRO — isolamento de todas as rotas R2 na prévia", () => {
     const guard = source.indexOf('process.env.VITE_SIGAPRO_NEON_ISOLATED === "true"', entryPoint);
     expect(entryPoint).toBeGreaterThanOrEqual(0);
     expect(guard).toBeGreaterThan(entryPoint);
-    expect(source.slice(guard, guard + 600)).toContain("res.statusCode = 503");
+    expect(source.slice(guard, guard + 600)).toMatch(/res\.statusCode = 503|fail\(res, 503/);
     expect(source.slice(guard, guard + 650)).toContain("return;");
     for (const method of ["PutObjectCommand", "DeleteObjectCommand", "GetObjectCommand", "ListObjectsV2Command"]) {
       const execution = source.indexOf("new " + method + "(", entryPoint);

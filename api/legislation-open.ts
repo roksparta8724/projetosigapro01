@@ -65,6 +65,15 @@ function fail(res: Res, status: number, message: string) {
 }
 
 export default async function handler(req: Req, res: Res) {
+  // The QA preview still inherits R2 credentials for the official documents
+  // bucket. Never sign or serve official legislation objects from isolated QA.
+  // This guard must precede validation, client creation and getSignedUrl().
+  if (process.env.VERCEL_ENV === "preview" &&
+      process.env.VITE_SIGAPRO_NEON_ISOLATED === "true") {
+    fail(res, 503, "Acervo de legislação indisponível na homologação: acesso ao R2 oficial bloqueado.");
+    return;
+  }
+
   if (req.method !== "GET") {
     fail(res, 405, "Método não permitido.");
     return;
