@@ -288,6 +288,36 @@ describe("SIGAPRO IA — histórico React com respostas concorrentes", () => {
     expect(calls.save).toHaveBeenCalledTimes(1);
   });
 
+  it("bloqueia reenvio após falha incerta e confirma gravação pelo histórico", async () => {
+    calls.regulations.mockResolvedValueOnce([{
+      id: "norma-save-QA", municipality_id: "prefeitura-A", zone_code: "Z1",
+      use_code: "RESIDENCIAL", effective_from: "2020-01-01", version: 1,
+      status: "active", created_at: "2020-01-01T12:00:00Z",
+      rules: [{ metric: "front_setback_m", limit: 5, reference: "Lei fictícia QA art. 12" }],
+    }]);
+    calls.history.mockResolvedValueOnce([]).mockResolvedValueOnce([{
+      id: "audit-after-timeout-QA", process_id: "A", municipality_id: "prefeitura-A",
+      regulation_version_id: "norma-save-QA", reviewer_profile_id: "analista-QA",
+      reference_date: "2026-10-23", created_at: "2026-10-23T14:00:00.000Z",
+      measurements: { front_setback_m: { value: 6, evidence: "Prancha 02" } },
+    }]);
+    calls.save.mockRejectedValueOnce(new Error("Conexão interrompida QA"));
+    render(<UrbanPrecheckPanel process={process("A")} municipalityId="prefeitura-A" readOnly={false} />);
+    fireEvent.change(screen.getByPlaceholderText("Ex.: ZR1"), { target: { value: "Z1" } });
+    expect(await screen.findByText(/Norma ativa: Z1/)).toBeTruthy();
+    fireEvent.change(screen.getByRole("textbox", { name: "Medição: Recuo frontal" }), { target: { value: "6" } });
+    fireEvent.change(screen.getByRole("textbox", { name: "Evidência: Recuo frontal" }), { target: { value: "Prancha 02" } });
+    const button = screen.getByRole("button", { name: /Registrar pré-conferência/i });
+    await waitFor(() => expect(button.hasAttribute("disabled")).toBe(false));
+    fireEvent.click(button);
+    expect(await screen.findByText(/Verifique o histórico antes de reenviar/)).toBeTruthy();
+    expect(button.hasAttribute("disabled")).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: "Consultar novamente" }));
+    expect(await screen.findByText(/O histórico confirmou o registro/)).toBeTruthy();
+    expect(button.hasAttribute("disabled")).toBe(true);
+    expect(calls.save).toHaveBeenCalledTimes(1);
+  });
+
   it("mostra erro real de histórico sem afirmar que está vazio", async () => {
     calls.history.mockRejectedValueOnce(new Error("Falha de rede QA"));
     render(<UrbanPrecheckPanel process={process("A")} municipalityId="prefeitura-A" readOnly />);
