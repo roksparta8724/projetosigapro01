@@ -123,6 +123,22 @@ BEGIN
    saved:=public.save_urban_precheck_run_v4(actor.process_id,norm,'2026-10-23'::date,
     '{"front_setback_m":{"value":6,"evidence":"Prancha sintetica QA pagina 1"}}'::jsonb,
     '{"evidence_ids":[],"note":"","document_scope_confirmed":false}'::jsonb);
+   -- A valid norm from the second municipality must never be attached to
+   -- the first municipality's authorized process, even by its assigned analyst.
+   BEGIN
+     PERFORM public.save_urban_precheck_run_v4(actor.process_id,foreign_norm,'2026-10-23'::date,
+       '{"front_setback_m":{"value":7,"evidence":"Prancha QA outra prefeitura"}}'::jsonb,
+       '{"evidence_ids":[],"note":"","document_scope_confirmed":false}'::jsonb);
+     RAISE EXCEPTION 'CROSS_TENANT_NORM_ATTACHED_TO_ACTOR_PROCESS';
+   EXCEPTION WHEN OTHERS THEN
+     IF SQLERRM = 'CROSS_TENANT_NORM_ATTACHED_TO_ACTOR_PROCESS' THEN RAISE; END IF;
+     IF SQLERRM NOT IN (
+       'Versao normativa nao pertence a prefeitura do processo.',
+       'Versao normativa ou data de referencia nao identificada.'
+     ) THEN RAISE EXCEPTION 'Unexpected cross-tenant regulation outcome: %',SQLERRM; END IF;
+   END;
+   IF EXISTS (SELECT 1 FROM public.process_urban_precheck_runs WHERE regulation_version_id=foreign_norm)
+   THEN RAISE EXCEPTION 'CROSS_TENANT_NORM_CREATED_AUDIT_ROW'; END IF;
    -- Verify persisted tenant, legal version, analyst, reference date and evidence;
    -- a successful RPC result alone is not enough to guarantee audit integrity.
    IF NOT EXISTS (
