@@ -361,12 +361,12 @@ export function UrbanPrecheckPanel({
                 <label className="mt-3 flex items-start gap-2 text-xs font-semibold text-slate-800 dark:text-slate-100">
                   <input type="checkbox" checked={checked} disabled={readOnly}
                     aria-label={"Revisado: " + flag.documentTitle + " página " + flag.page}
-                    onChange={event => setLegalReview(previous => ({
+                    onChange={event => { if (readOnly) return; setLegalReview(previous => ({
                       ...previous,
                       evidenceIds: event.target.checked
                         ? [...previous.evidenceIds.filter(id => id !== flag.evidenceId), flag.evidenceId]
                         : previous.evidenceIds.filter(id => id !== flag.evidenceId),
-                    }))} className="mt-0.5" />
+                    })); }} className="mt-0.5" />
                   Conferi a origem, o trecho integral e a possível condição (não implica aplicabilidade).
                 </label>
               </article>
@@ -378,7 +378,7 @@ export function UrbanPrecheckPanel({
             <label className="flex items-start gap-2 text-xs font-semibold text-slate-800 dark:text-slate-100">
               <input type="checkbox" checked={legalReview.documentScopeConfirmed} disabled={readOnly}
                 aria-label="Confirmei o escopo legal do processo"
-                onChange={event => setLegalReview(previous => ({
+                onChange={event => { if (readOnly) return; setLegalReview(previous => ({
                   ...previous, documentScopeConfirmed: event.target.checked,
                 }))} className="mt-0.5"/>
               Examinei a norma integral e conferi zona, uso, data de vigência, ressalvas,
@@ -388,7 +388,7 @@ export function UrbanPrecheckPanel({
               Fundamentação do analista (obrigatória para condições sinalizadas)
               <textarea maxLength={1200} value={legalReview.note}
                 disabled={readOnly} aria-label="Fundamentação da conferência legal"
-                onChange={event=>setLegalReview(previous=>({...previous,note:event.target.value}))}
+                onChange={event=>{if (readOnly) return; setLegalReview(previous=>({...previous,note:event.target.value}));}}
                 placeholder="Explique qual artigo se aplica, quais exceções verificou e por que a regra é pertinente."
                 className="mt-1 min-h-24 w-full rounded-xl border border-slate-300 bg-white p-3 text-sm text-slate-900 placeholder:text-slate-500 dark:border-slate-600 dark:bg-[#091a2b] dark:text-white dark:placeholder:text-slate-400"/>
             </label>
