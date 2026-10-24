@@ -265,6 +265,29 @@ describe("SIGAPRO IA — histórico React com respostas concorrentes", () => {
     expect(calls.save).toHaveBeenCalledTimes(1);
   });
 
+  it("não informa sucesso nem atualiza histórico quando a gravação é recusada", async () => {
+    calls.regulations.mockResolvedValueOnce([{
+      id: "norma-save-QA", municipality_id: "prefeitura-A", zone_code: "Z1",
+      use_code: "RESIDENCIAL", effective_from: "2020-01-01", version: 1,
+      status: "active", created_at: "2020-01-01T12:00:00Z",
+      rules: [{ metric: "front_setback_m", limit: 5, reference: "Lei fictícia QA art. 12" }],
+    }]);
+    calls.history.mockResolvedValueOnce([]);
+    calls.save.mockRejectedValueOnce(new Error("Sem permissão para registrar QA"));
+    render(<UrbanPrecheckPanel process={process("A")} municipalityId="prefeitura-A" readOnly={false} />);
+    fireEvent.change(screen.getByPlaceholderText("Ex.: ZR1"), { target: { value: "Z1" } });
+    expect(await screen.findByText(/Norma ativa: Z1/)).toBeTruthy();
+    fireEvent.change(screen.getByRole("textbox", { name: "Medição: Recuo frontal" }), { target: { value: "6" } });
+    fireEvent.change(screen.getByRole("textbox", { name: "Evidência: Recuo frontal" }), { target: { value: "Prancha 02" } });
+    const button = screen.getByRole("button", { name: /Registrar pré-conferência/i });
+    await waitFor(() => expect(button.hasAttribute("disabled")).toBe(false));
+    fireEvent.click(button);
+    expect(await screen.findByText(/Sem permissão para registrar QA/)).toBeTruthy();
+    expect(screen.queryByText(/Pré-conferência registrada no banco/)).toBeNull();
+    expect(calls.history).toHaveBeenCalledTimes(1);
+    expect(calls.save).toHaveBeenCalledTimes(1);
+  });
+
   it("mostra erro real de histórico sem afirmar que está vazio", async () => {
     calls.history.mockRejectedValueOnce(new Error("Falha de rede QA"));
     render(<UrbanPrecheckPanel process={process("A")} municipalityId="prefeitura-A" readOnly />);
