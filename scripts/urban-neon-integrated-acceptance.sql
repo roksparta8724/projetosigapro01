@@ -60,13 +60,17 @@ BEGIN
      IF SQLERRM='CROSS_TENANT_REGULATION_LEAK' THEN RAISE; END IF;
      -- The function may reject an unauthorized municipality outright.
    END;
-   -- The second municipality can see its own fictional regulation but not the first.
-   IF NOT EXISTS (SELECT 1 FROM jsonb_array_elements(public.list_urban_regulation_versions_v1(outsider_municipality)) v
-     WHERE v->>'id'=foreign_norm::text)
-   THEN RAISE EXCEPTION 'FOREIGN_TENANT_CANNOT_READ_OWN_NORM'; END IF;
-   IF EXISTS (SELECT 1 FROM jsonb_array_elements(public.list_urban_regulation_versions_v1(outsider_municipality)) v
-     WHERE v->>'id'=norm::text)
-   THEN RAISE EXCEPTION 'ACTOR_NORM_LEAKED_TO_FOREIGN_TENANT'; END IF;
+   -- A second tenant may have a valid account with a restricted role: either
+   -- receive only its own catalog or be denied altogether. Neither can leak
+   -- the other municipality's legislation.
+   BEGIN
+     IF EXISTS (SELECT 1 FROM jsonb_array_elements(public.list_urban_regulation_versions_v1(outsider_municipality)) v
+       WHERE v->>'id'=norm::text)
+     THEN RAISE EXCEPTION 'ACTOR_NORM_LEAKED_TO_FOREIGN_TENANT'; END IF;
+   EXCEPTION WHEN OTHERS THEN
+     IF SQLERRM='ACTOR_NORM_LEAKED_TO_FOREIGN_TENANT' THEN RAISE; END IF;
+     IF SQLERRM<>'Sem permissao para consultar normas urbanisticas municipais.' THEN RAISE; END IF;
+   END;
    PERFORM set_config('request.jwt.claims',jsonb_build_object('sub',actor.subject_id)::text,true);
    IF NOT public.can_write_process_analysis(actor.process_id) THEN
      RAISE EXCEPTION 'Assigned analyst unexpectedly denied';
