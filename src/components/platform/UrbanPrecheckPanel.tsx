@@ -333,6 +333,7 @@ export function UrbanPrecheckPanel({
         const updated = await listUrbanPrecheckHistory(requestedProcessId);
         if (activeProcessRef.current !== requestedProcessId ||
             activeLegalContextRef.current !== requestedLegalContext ||
+            saveGenerationRef.current !== saveGeneration ||
             historyRetryGenerationRef.current !== savedHistoryGeneration) return;
         setHistory(updated);
         setHistoryError("");
@@ -341,6 +342,7 @@ export function UrbanPrecheckPanel({
       } catch (error) {
         if (activeProcessRef.current !== requestedProcessId ||
             activeLegalContextRef.current !== requestedLegalContext ||
+            saveGenerationRef.current !== saveGeneration ||
             historyRetryGenerationRef.current !== savedHistoryGeneration) return;
         setHistoryError(String((error as Error)?.message || error));
         setHistoryLoading(false);
