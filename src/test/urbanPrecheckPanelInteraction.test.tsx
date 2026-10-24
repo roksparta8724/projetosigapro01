@@ -214,6 +214,27 @@ describe("SIGAPRO IA — histórico React com respostas concorrentes", () => {
     expect(calls.save).toHaveBeenCalledTimes(1);
   });
 
+  it.each([
+    ["occupancy_percent", "Taxa de ocupação", "101"],
+    ["permeability_percent", "Permeabilidade", "101"],
+    ["front_setback_m", "Recuo frontal", "100001"],
+  ])("impede gravar %s fora dos limites também pela interface", async (metric, label, value) => {
+    calls.regulations.mockResolvedValueOnce([{
+      id: "norma-limites-QA", municipality_id: "prefeitura-A", zone_code: "Z1",
+      use_code: "RESIDENCIAL", effective_from: "2020-01-01", version: 1,
+      status: "active", created_at: "2020-01-01T12:00:00Z",
+      rules: [{ metric, limit: 5, reference: "Lei fictícia QA art. 12" }],
+    }]);
+    calls.history.mockResolvedValueOnce([]);
+    render(<UrbanPrecheckPanel process={process("A")} municipalityId="prefeitura-A" readOnly={false} />);
+    fireEvent.change(screen.getByPlaceholderText("Ex.: ZR1"), { target: { value: "Z1" } });
+    expect(await screen.findByText(/Norma ativa: Z1/)).toBeTruthy();
+    fireEvent.change(screen.getByRole("textbox", { name: "Medição: " + label }), { target: { value } });
+    fireEvent.change(screen.getByRole("textbox", { name: "Evidência: " + label }), { target: { value: "Prancha 02, cotas QA" } });
+    expect(screen.getByRole("button", { name: /Registrar pré-conferência/i }).hasAttribute("disabled")).toBe(true);
+    expect(calls.save).not.toHaveBeenCalled();
+  });
+
   it("mostra erro real de histórico sem afirmar que está vazio", async () => {
     calls.history.mockRejectedValueOnce(new Error("Falha de rede QA"));
     render(<UrbanPrecheckPanel process={process("A")} municipalityId="prefeitura-A" readOnly />);
