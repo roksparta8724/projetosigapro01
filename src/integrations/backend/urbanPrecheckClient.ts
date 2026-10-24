@@ -144,8 +144,10 @@ export async function saveUrbanPrecheckRun(
       typeof legalReview.note !== "string" || typeof legalReview.documentScopeConfirmed !== "boolean") {
     throw new Error("Revisão legal inválida.");
   }
-  if (!processId.trim() || !versionId.trim()) throw new Error("Processo ou versão normativa inválida.");
-  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(requestId)) {
+  if (typeof processId !== "string" || typeof versionId !== "string" ||
+      !processId.trim() || !versionId.trim()) throw new Error("Processo ou versão normativa inválida.");
+  if (typeof requestId !== "string" ||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(requestId)) {
     throw new Error("Identificador da solicitação inválido.");
   }
   await invoke("save_urban_precheck_run_v5", {
