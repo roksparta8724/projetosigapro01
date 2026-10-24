@@ -257,6 +257,12 @@ describe("SIGAPRO IA — histórico React com respostas concorrentes", () => {
     fireEvent.click(button);
     expect(calls.save).toHaveBeenCalledTimes(1);
     expect(screen.getByText(/Histórico indisponível: Rede indisponível QA/)).toBeTruthy();
+    calls.history.mockResolvedValueOnce([]);
+    fireEvent.click(screen.getByRole("button", { name: "Consultar novamente" }));
+    await waitFor(() => expect(calls.history).toHaveBeenCalledTimes(3));
+    expect(await screen.findByText("Nenhuma pré-conferência registrada.")).toBeTruthy();
+    expect(button.hasAttribute("disabled")).toBe(true);
+    expect(calls.save).toHaveBeenCalledTimes(1);
   });
 
   it("mostra erro real de histórico sem afirmar que está vazio", async () => {
