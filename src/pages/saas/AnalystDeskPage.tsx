@@ -1,6 +1,7 @@
 import {
   Archive,
   ArchiveRestore,
+  BrainCircuit,
   CheckCircle2,
   ChevronDown,
   Clock3,
@@ -1194,6 +1195,43 @@ export function AnalystDeskPage() {
           value={section}
           onChange={(value) => setSection(value as AnalystSection)}
         />
+
+        <section
+          data-sigapro-ai-access="pilot"
+          className="overflow-hidden rounded-[22px] border border-sky-300/20 bg-[linear-gradient(110deg,#153d60_0%,#12304c_56%,#0b2138_100%)] px-5 py-4 shadow-[0_12px_30px_rgba(7,25,49,0.15)] md:px-6"
+          aria-label="SIGAPRO IA Urbanismo — acesso à pré-conferência"
+        >
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex min-w-0 flex-1 items-start gap-3">
+              <span className="rounded-2xl border border-sky-200/25 bg-white/10 p-3">
+                <BrainCircuit className="h-6 w-6 text-sky-100" aria-hidden="true" />
+              </span>
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="text-base font-extrabold tracking-tight text-white">SIGAPRO IA · Conferência urbanística</h2>
+                  <span className="rounded-full border border-amber-200/30 bg-amber-300/15 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.1em] text-amber-100">
+                    Piloto em homologação
+                  </span>
+                </div>
+                <p className="mt-1 max-w-3xl text-xs leading-5 text-slate-200 md:text-sm">
+                  Confira recuos, taxas e índices contra a legislação cadastrada por Prefeitura.
+                  No processo, abra a aba Análise e procure <strong className="font-semibold text-white">Pré-conferência urbanística</strong>.
+                  Somente o analista decide; a ferramenta não emite aprovação automática.
+                </p>
+              </div>
+            </div>
+            {(myAnalyses[0] ?? processRegistry[0]) ? (
+              <Link
+                to={buildProcessPath(myAnalyses[0] ?? processRegistry[0]) + "?aba=analise"}
+                className="inline-flex h-11 shrink-0 items-center justify-center rounded-xl border border-white/70 bg-white px-4 text-xs font-extrabold text-slate-950 shadow-sm transition hover:bg-sky-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+              >
+                Abrir análise do processo
+              </Link>
+            ) : (
+              <span className="text-xs font-semibold text-slate-200">Abra um processo para iniciar a pré-conferência.</span>
+            )}
+          </div>
+        </section>
 
         {section === "visao-geral" && (
           <>

@@ -5,7 +5,7 @@ import { useAppBootstrap } from "@/hooks/useAppBootstrap";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { useTenant } from "@/hooks/useTenant";
-import { getPublicUrl, getSignedUrlForObject } from "@/integrations/r2/client";
+import { getMunicipalityLogoOpenUrl } from "@/integrations/r2/client";
 import { getMunicipalityBrandingSafe } from "@/integrations/backend/platform";
 import { mapMunicipalityBranding, mapMunicipalitySettings } from "@/integrations/backend/municipality";
 import { backendClient } from "@/integrations/backend/databaseClient";
@@ -36,6 +36,26 @@ interface MunicipalityContextValue {
 }
 
 const MunicipalityContext = createContext<MunicipalityContextValue | null>(null);
+
+/**
+ * Resolve the official R2 object keys using the app's stable image endpoint.
+ * Do not delay the municipal dashboard on signed-URL round trips, or persist
+ * temporary signed URLs as if they were the official branding.
+ */
+export function withMunicipalLogoOpenUrls(branding: MunicipalityBranding): MunicipalityBranding {
+  const header = branding.headerLogoObjectKey
+    ? getMunicipalityLogoOpenUrl(branding.headerLogoObjectKey)
+    : branding.headerLogoUrl || branding.logoUrl || "";
+  const footer = branding.footerLogoObjectKey
+    ? getMunicipalityLogoOpenUrl(branding.footerLogoObjectKey)
+    : branding.footerLogoUrl || branding.logoUrl || header;
+  return {
+    ...branding,
+    headerLogoUrl: header,
+    footerLogoUrl: footer,
+    logoUrl: branding.logoUrl || header,
+  };
+}
 
 export function MunicipalityProvider({ children }: { children: React.ReactNode }) {
   const bootstrap = useAppBootstrap();
@@ -108,18 +128,7 @@ export function MunicipalityProvider({ children }: { children: React.ReactNode }
           setResolvedSettings(mapMunicipalitySettings(settingsResponse.data as Record<string, unknown>));
         }
         if (!fetched) return;
-        let next = mapMunicipalityBranding(fetched);
-        const bucket = (import.meta.env.VITE_R2_BUCKET_LOGOS as string | undefined) || "sigapro-logos";
-        for (const variant of ["header", "footer"] as const) {
-          const objectKey = variant === "header" ? next.headerLogoObjectKey : next.footerLogoObjectKey;
-          if (!objectKey) continue;
-          try {
-            const url = getPublicUrl(objectKey) || await getSignedUrlForObject({ bucket, objectKey });
-            if (url) next = { ...next, [variant === "header" ? "headerLogoUrl" : "footerLogoUrl"]: url };
-          } catch {
-            // Retain official object key; no fallback to another municipality.
-          }
-        }
+        const next = withMunicipalLogoOpenUrls(mapMunicipalityBranding(fetched));
         if (active && generation === brandingRefreshGeneration.current) setResolvedBranding(next);
       })().catch((error) => {
         console.warn("[SIGAPRO] Falha ao revalidar identidade institucional após salvar", error);
@@ -151,28 +160,7 @@ export function MunicipalityProvider({ children }: { children: React.ReactNode }
           if (!fetched) {
             return;
           }
-          const mapped = mapMunicipalityBranding(fetched);
-          const headerKey = mapped.headerLogoObjectKey || "";
-          const footerKey = mapped.footerLogoObjectKey || "";
-          const hasPublicBase = Boolean(getPublicUrl("test"));
-          let next = { ...mapped };
-          const bucket =
-            (import.meta.env.VITE_R2_BUCKET_LOGOS as string | undefined) ||
-            "sigapro-logos";
-          if (headerKey) {
-            const publicUrl = hasPublicBase ? getPublicUrl(headerKey) : "";
-            const signedUrl = publicUrl || (await getSignedUrlForObject({ bucket, objectKey: headerKey }));
-            if (signedUrl) {
-              next = { ...next, headerLogoUrl: signedUrl, logoUrl: next.logoUrl || signedUrl };
-            }
-          }
-          if (footerKey) {
-            const publicUrl = hasPublicBase ? getPublicUrl(footerKey) : "";
-            const signedUrl = publicUrl || (await getSignedUrlForObject({ bucket, objectKey: footerKey }));
-            if (signedUrl) {
-              next = { ...next, footerLogoUrl: signedUrl, logoUrl: next.logoUrl || signedUrl };
-            }
-          }
+          const next = withMunicipalLogoOpenUrls(mapMunicipalityBranding(fetched));
           setResolvedBranding(next);
         } catch (error) {
           console.warn("[BrandingLoad] Falha ao buscar branding direto", error);
@@ -185,75 +173,13 @@ export function MunicipalityProvider({ children }: { children: React.ReactNode }
 
     const headerKey = branding.headerLogoObjectKey || "";
     const footerKey = branding.footerLogoObjectKey || "";
-    const hasPublicBase = Boolean(getPublicUrl("test"));
-
-    if (!headerKey && !footerKey) {
-      return;
-    }
-
+    if (!headerKey && !footerKey) return;
     if (
       brandingResolveRef.current.headerKey === headerKey &&
       brandingResolveRef.current.footerKey === footerKey
-    ) {
-      return;
-    }
-
-    let active = true;
-
-    console.log("[BrandingLoad] Resolvendo URLs do branding", {
-      headerKey,
-      footerKey,
-      hasPublicBase,
-    });
-
-    const resolveSigned = async () => {
-      let next = { ...branding };
-      try {
-        const bucket =
-          (import.meta.env.VITE_R2_BUCKET_LOGOS as string | undefined) ||
-          "sigapro-logos";
-
-        if (headerKey) {
-          const publicUrl = hasPublicBase ? getPublicUrl(headerKey) : "";
-          const signedUrl = publicUrl || (await getSignedUrlForObject({ bucket, objectKey: headerKey }));
-          if (signedUrl) {
-            next = {
-              ...next,
-              headerLogoUrl: signedUrl,
-              logoUrl: next.logoUrl || signedUrl,
-            };
-          }
-        }
-
-        if (footerKey) {
-          const publicUrl = hasPublicBase ? getPublicUrl(footerKey) : "";
-          const signedUrl = publicUrl || (await getSignedUrlForObject({ bucket, objectKey: footerKey }));
-          if (signedUrl) {
-            next = {
-              ...next,
-              footerLogoUrl: signedUrl,
-              logoUrl: next.logoUrl || signedUrl,
-            };
-          }
-        }
-      } catch (error) {
-        console.warn("[Municipality] Falha ao resolver URL assinada do logo", error);
-      }
-
-      if (!active) return;
-      brandingResolveRef.current = { headerKey, footerKey };
-      console.log("[BrandingLoad] URLs resolvidas", {
-        headerLogoUrl: next.headerLogoUrl,
-        footerLogoUrl: next.footerLogoUrl,
-      });
-      setResolvedBranding(next);
-    };
-
-    void resolveSigned();
-
-    return () => {
-      active = false;
-    };
+    ) return;
+    brandingResolveRef.current = { headerKey, footerKey };
+    setResolvedBranding(withMunicipalLogoOpenUrls(branding));
   }, [
     bootstrap.scopeType,
     bundle?.branding?.headerLogoObjectKey,

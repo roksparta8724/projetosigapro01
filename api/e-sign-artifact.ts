@@ -294,6 +294,20 @@ function validateServerSecret() {
 }
 
 export default async function handler(req: ApiReq, res: Res) {
+  // QA shares the deployment's signing-secret configuration with production.
+  // Until a dedicated QA signing key and artifact store exist, fail closed
+  // before inspecting, generating or persisting any electronic signature.
+  if (process.env.VERCEL_ENV === "preview" &&
+      process.env.VITE_SIGAPRO_NEON_ISOLATED === "true") {
+    json(res, 503, {
+      ok: false,
+      code: "QA_E_SIGNATURE_DISABLED",
+      service: "sigapro-electronic-signature",
+      error: "Assinatura eletrônica indisponível na homologação isolada sem uma chave exclusiva de QA.",
+    });
+    return;
+  }
+
   if (req.method === "GET") {
     const serverSecret = validateServerSecret();
     json(res, serverSecret.ok ? 200 : 503, {

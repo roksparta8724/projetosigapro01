@@ -18,6 +18,7 @@ import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { useDocumentMarkerAssignments } from "@/hooks/useDocumentMarkerAssignments";
 import { consumeDocumentWorkspaceAccessUrl } from "@/lib/documentWorkspaceAccess";
 import { getSignedUrlForObjectStrict } from "@/integrations/r2/client";
+import { QaDocumentUnavailableNotice, isQaDocumentMissingError } from "@/components/platform/QaDocumentUnavailableNotice";
 import {
   canAnalyzeProcessDocument,
   canViewMunicipalProcessDocument,
@@ -162,6 +163,9 @@ export function DocumentViewerPage() {
   useEffect(() => {
     let cancelled = false;
     setError("");
+    // Prevent a previous process document from remaining in the iframe while
+    // the new file is being authorized or when its QA binary is unavailable.
+    setAccessUrl("");
 
     if (!allowed || !document) {
       return () => {
@@ -392,10 +396,33 @@ export function DocumentViewerPage() {
           <div className="h-full overflow-hidden rounded-[18px] border border-slate-300/80 bg-[#2b3037] shadow-[0_24px_70px_rgba(15,23,42,0.18)]">
             {error ? (
               <div className="flex h-full items-center justify-center p-8">
-                <div className="max-w-xl rounded-[24px] border border-rose-200 bg-white p-7 text-center shadow-xl">
-                  <p className="text-base font-semibold text-slate-950">Não foi possível abrir o documento.</p>
-                  <p className="mt-2 text-sm leading-6 text-slate-500">{error}</p>
-                </div>
+                {import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true" &&
+                isQaDocumentMissingError(error) ? (
+                  <QaDocumentUnavailableNotice
+                    key={process.id + ":" + document.id}
+                    processRoute={buildProcessPath(process)}
+                    documentId={document.id}
+                    objectKey={document.filePath}
+                    expectedFileHash={document.fileHash}
+                    expectedFileSizeBytes={document.fileSizeBytes}
+                    onRecovered={async () => {
+                      if (!document.filePath) return;
+                      const signedUrl = await getSignedUrlForObjectStrict({
+                        bucket: "process-documents",
+                        objectKey: document.filePath,
+                        expiresIn: 900,
+                      });
+                      if (!signedUrl) throw new Error("Arquivo importado, mas o link do QA não pôde ser obtido.");
+                      setAccessUrl(signedUrl);
+                      setError("");
+                    }}
+                  />
+                ) : (
+                  <div className="max-w-xl rounded-[24px] border border-rose-200 bg-white p-7 text-center shadow-xl">
+                    <p className="text-base font-semibold text-slate-950">Não foi possível abrir o documento.</p>
+                    <p className="mt-2 text-sm leading-6 text-slate-500">{error}</p>
+                  </div>
+                )}
               </div>
             ) : !accessUrl ? (
               <div

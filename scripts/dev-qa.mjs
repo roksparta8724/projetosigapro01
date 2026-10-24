@@ -1,6 +1,7 @@
 /**
  * Isolated municipal collection QA server.
- * Separate from localhost:8080 and the production Neon credentials.
+ * Runs on 8081 by default; explicit --port=8080 may replace the local Vite view.
+ * Backend always stays on isolated Neon QA, never the production Neon branch.
  * Public Neon branch URLs only; no keys, tokens or municipal secrets here.
  * Neon Auth accepts allow_localhost=true; use localhost, not 127.0.0.1,
  * otherwise Better Auth rejects the sign-in with "Invalid origin".
@@ -11,6 +12,11 @@ import { dirname, join } from "node:path";
 import { loadOrCreateQaPaymentSecret } from "./qa-payment-secret.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
+const requestedPort = process.argv.find((arg) => arg.startsWith("--port="))?.slice("--port=".length) ?? "8081";
+if (requestedPort !== "8080" && requestedPort !== "8081") {
+  throw new Error("Porta de homologação inválida: use somente 8080 ou 8081.");
+}
+const readonlyMunicipalLogo = process.argv.includes("--read-public-logos");
 const qaBranchAuth = "https://ep-misty-breeze-b4ri8ig0.neonauth.c-6.us-east-2.aws.neon.tech/sigapro_migration_stage_20260923/auth";
 const qaBranchData = "https://ep-misty-breeze-b4ri8ig0.apirest.c-6.us-east-2.aws.neon.tech/sigapro_migration_stage_20260923/rest/v1";
 const authEndpoint = new URL(qaBranchAuth).hostname.split(".")[0];
@@ -29,6 +35,8 @@ const env = {
   NODE_ENV: "development",
   VERCEL_ENV: "development",
   SIGAPRO_LOCAL_QA_LAUNCH: "true",
+  SIGAPRO_LOCAL_QA_PORT: requestedPort,
+  SIGAPRO_QA_PUBLIC_BRANDING_READ: readonlyMunicipalLogo ? "true" : "false",
   VITE_BACKEND: "neon",
   VITE_SIGAPRO_NEON_ISOLATED: "true",
   VITE_NEON_AUTH_URL: qaBranchAuth,
@@ -39,13 +47,15 @@ const env = {
 };
 
 if (process.argv.includes("--check")) {
-  console.log("SIGAPRO: QA branch configured; URL: http://localhost:8081");
+  console.log("SIGAPRO: QA branch configured; URL: http://localhost:" + requestedPort);
   console.log("No production changes. Live charge and R2 writes are disabled.");
+  console.log("Public municipal logos read-only: " + (readonlyMunicipalLogo ? "opted in" : "disabled"));
   console.log("QA payment key is provisioned privately on launch (never printed).");
 } else {
   console.log("[SIGAPRO][QA] Chave bancária local isolada configurada e preservada entre reinicializações.");
+  console.log("[SIGAPRO][QA] localhost:" + requestedPort + " / Neon isolado / logos públicos: " + (readonlyMunicipalLogo ? "leitura permitida" : "bloqueada"));
   const viteCli = join(root, "node_modules", "vite", "bin", "vite.js");
-  const child = spawn(process.execPath, [viteCli, "--host", "localhost", "--port", "8081", "--strictPort"], {
+  const child = spawn(process.execPath, [viteCli, "--host", "localhost", "--port", requestedPort, "--strictPort"], {
     cwd: root,
     env,
     stdio: "inherit",

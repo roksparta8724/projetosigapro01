@@ -32,6 +32,7 @@ import { OccupancyPermitProcessPanel } from "@/components/platform/OccupancyPerm
 import { MarkerSelector } from "@/components/platform/MarkerSelector";
 import { MunicipalOrganogramBar } from "@/components/platform/MunicipalOrganogramBar";
 import { UrbanAnalysisChecklistPanel } from "@/components/platform/UrbanAnalysisChecklistPanel";
+import { UrbanPrecheckPanel } from "@/components/platform/UrbanPrecheckPanel";
 import { SignedAnalysisArchiveFolder } from "@/components/platform/SignedAnalysisArchiveFolder";
 import { isSignedAnalysisArchiveDocument } from "@/lib/signedAnalysisArchive";
 import { resolveProcessDispatchAuthor } from "@/lib/dispatchActorIdentity";
@@ -3804,6 +3805,11 @@ export function ProcessDetailPage() {
                 municipalityEmail={tenantSettings?.email || ""}
                 departmentLabel={getOrganizationPath(currentFolder) || "Análise Urbanística"}
                 organogramTrail={currentOrganizationTrail}
+              />
+              <UrbanPrecheckPanel
+                process={process}
+                municipalityId={effectiveScopeId || process.tenantId}
+                readOnly={!canEditAnalysisChecklist}
               />
               {canReviewDocuments ? (
                 <AnalysisReadinessPanel

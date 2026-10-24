@@ -1,0 +1,297 @@
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { handleQaStorage, qaStorageReady } from "../../server/qa-storage";
+
+const check = vi.hoisted(() => vi.fn());
+vi.mock("../../server/municipal-storage.js", () => ({ callDataApiRpc: check }));
+const send = vi.hoisted(() => vi.fn());
+vi.mock("@aws-sdk/client-s3", async (actual) => {
+  const mod = await actual<typeof import("@aws-sdk/client-s3")>();
+  return { ...mod, S3Client: class { send = send; } };
+});
+const signed = vi.hoisted(() => vi.fn());
+vi.mock("@aws-sdk/s3-request-presigner", () => ({ getSignedUrl: signed }));
+
+const KEY = "municipalities/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/processes/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/qa.pdf";
+function response() { return {
+  statusCode: 200, data: "", headers: {} as Record<string, string>,
+  setHeader(name: string, value: string) { this.headers[name] = value; },
+  end(s: string) { this.data = s; },
+}; }
+function active() {
+  vi.stubEnv("VERCEL_ENV", "preview");
+  vi.stubEnv("VITE_SIGAPRO_NEON_ISOLATED", "true");
+  vi.stubEnv("SIGAPRO_QA_STORAGE_ENDPOINT", "https://br-solitary-sound-b4xlbvs6.storage.c-6.us-east-2.aws.neon.tech");
+  vi.stubEnv("SIGAPRO_QA_STORAGE_BUCKET", "sigapro-qa-urban-documents");
+  vi.stubEnv("SIGAPRO_QA_STORAGE_REGION", "us-east-2");
+  vi.stubEnv("SIGAPRO_QA_STORAGE_ACCESS_KEY_ID", "nak_mock_for_unit_test");
+  vi.stubEnv("SIGAPRO_QA_STORAGE_SECRET_ACCESS_KEY", "unit-test-only-not-a-real-storage-key");
+}
+afterEach(() => {vi.unstubAllEnvs();check.mockReset();send.mockReset();signed.mockReset();});
+describe("SIGAPRO isolated Neon QA storage", () => {
+  it("rejects missing credentials without touching production R2", async () => {
+    vi.stubEnv("VERCEL_ENV", "preview");
+    vi.stubEnv("VITE_SIGAPRO_NEON_ISOLATED", "true");
+    expect(qaStorageReady()).toBe(false);
+    const res = response();
+    await handleQaStorage({ method: "POST" } as never, res as never, "upload");
+    expect(res.statusCode).toBe(503);
+    expect(JSON.parse(res.data).code).toBe("QA_STORAGE_NOT_READY");
+    expect(send).not.toHaveBeenCalled();
+  });
+  it("rejects a forged endpoint even with credentials", () => {
+    active();vi.stubEnv("SIGAPRO_QA_STORAGE_ENDPOINT", "https://production.r2.cloudflarestorage.com");
+    expect(qaStorageReady()).toBe(false);
+  });
+  it("denies cross-tenant upload before S3", async () => {
+    active();check.mockResolvedValue({ok:true,payload:false});
+    const res=response();
+    await handleQaStorage({ method:"POST",headers:{authorization:"Bearer synthetic"},body:{
+      bucket:"sigapro-documentos",objectKey:KEY,contentType:"application/pdf",
+      base64:Buffer.from("%PDF-1.4\\nqa").toString("base64")
+    }} as never,res as never,"upload");
+    expect(res.statusCode).toBe(403);expect(send).not.toHaveBeenCalled();
+  });
+  it("accepts logical document buckets sent by the real frontend", async () => {
+    active();
+    check.mockResolvedValue({ok:true,payload:true});
+    send.mockResolvedValue({});
+    for (const bucket of ["process-documents", "sigapro-documentos"]) {
+      const res=response();
+      await handleQaStorage({method:"POST",headers:{authorization:"Bearer synthetic"},body:{
+        bucket,objectKey:KEY,contentType:"application/pdf",
+        base64:Buffer.from("%PDF-1.4\\nSYNTHETIC").toString("base64")
+      }} as never,res as never,"upload");
+      expect(res.statusCode).toBe(200);
+      expect(JSON.parse(res.data).resolvedBucket).toBe("sigapro-qa-urban-documents");
+    }
+    expect(send).toHaveBeenCalledTimes(2);
+  });
+  it("rejects an institutional-logo bucket disguised as a process document", async () => {
+    active();check.mockResolvedValue({ok:true,payload:true});
+    const res=response();
+    await handleQaStorage({method:"POST",headers:{authorization:"Bearer synthetic"},body:{
+      bucket:"institutional-branding",objectKey:KEY
+    }} as never,res as never,"sign-get");
+    expect(res.statusCode).toBe(400);
+    expect(send).not.toHaveBeenCalled();
+  });
+  it("writes a correctly authorized synthetic PDF to the QA bucket", async () => {
+    active();check.mockResolvedValue({ok:true,payload:true});send.mockResolvedValue({});
+    const res=response();
+    await handleQaStorage({method:"POST",headers:{authorization:"Bearer synthetic"},body:{
+      bucket:"sigapro-documentos",objectKey:KEY,contentType:"application/pdf",
+      base64:Buffer.from("%PDF-1.4\\nQA-only").toString("base64")
+    }} as never,res as never,"upload");
+    expect(res.statusCode).toBe(200);
+    expect(JSON.parse(res.data).storageProvider).toBe("neon_qa");
+    expect(send).toHaveBeenCalledTimes(1);
+  });
+  it("rejects missing bearer before any remote access", async () => {
+    active();
+    const res=response();
+    await handleQaStorage({ method:"POST", headers:{},
+      body:{bucket:"sigapro-documentos",objectKey:KEY}
+    } as never,res as never,"sign-get");
+    expect(res.statusCode).toBe(401);
+    expect(check).not.toHaveBeenCalled();
+    expect(send).not.toHaveBeenCalled();
+  });
+  it("rejects a tenant member trying to read another process", async () => {
+    active();
+    check.mockImplementation((_req,name) => Promise.resolve({
+      ok:true,payload:name!=="qa_storage_process_tenant_access_v1"
+    }));
+    const res=response();
+    await handleQaStorage({method:"POST",headers:{authorization:"Bearer synthetic"},
+      body:{bucket:"sigapro-documentos",objectKey:KEY}
+    } as never,res as never,"sign-get");
+    expect(res.statusCode).toBe(403);
+    expect(check.mock.calls.map(call=>call[1])).toContain("qa_storage_process_tenant_access_v1");
+    expect(send).not.toHaveBeenCalled();
+  });
+  it.each(["sign-get", "upload"] as const)(
+    "denies %s if process belongs to a different municipality even when separate legacy checks would pass",
+    async action => {
+      active();
+      check.mockImplementation((_req, name) => Promise.resolve({
+        ok: true,
+        payload: name !== "qa_storage_process_tenant_access_v1",
+      }));
+      const res = response();
+      await handleQaStorage({method:"POST",headers:{authorization:"Bearer synthetic"},body:{
+        bucket:"process-documents", objectKey:KEY,
+      }} as never,res as never,action);
+      expect(res.statusCode).toBe(403);
+      expect(check.mock.calls.some(args=>
+        args[1]==="qa_storage_process_tenant_access_v1" &&
+        args[2]?._process_id==="bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb" &&
+        args[2]?._tenant_id==="aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+      )).toBe(true);
+      expect(send).not.toHaveBeenCalled();
+    }
+  );
+  it("rejects process writes by non-responsible analysts", async () => {
+    active();
+    check.mockImplementation((_req,name) => Promise.resolve({
+      ok:true,payload:name!=="can_write_process_analysis"
+    }));
+    const res=response();
+    await handleQaStorage({method:"POST",headers:{authorization:"Bearer synthetic"},body:{
+      bucket:"sigapro-documentos",objectKey:KEY,contentType:"application/pdf",
+      base64:Buffer.from("%PDF-1.4 QA").toString("base64")
+    }} as never,res as never,"upload");
+    expect(res.statusCode).toBe(403);
+    expect(check.mock.calls.map(call=>call[1])).toContain("can_write_process_analysis");
+    expect(send).not.toHaveBeenCalled();
+  });
+  it("denies arbitrary protocol and branding paths", async () => {
+    active();check.mockResolvedValue({ok:true,payload:true});
+    for (const objectKey of [
+      "municipalities/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/protocols/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/qa.pdf",
+      "municipalities/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/branding/qa.png"
+    ]) {
+      const res=response();
+      await handleQaStorage({method:"POST",headers:{authorization:"Bearer synthetic"},
+        body:{bucket:"sigapro-documentos",objectKey}
+      } as never,res as never,"sign-get");
+      expect(res.statusCode).toBe(403);
+    }
+    expect(send).not.toHaveBeenCalled();
+  });
+  it("allows only the authenticated protocol uploader to write their own QA attachment", async () => {
+    active();send.mockResolvedValue({});
+    const owner="aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+    const objectKey="municipalities/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/protocols/"+owner+"/qa.pdf";
+    check.mockImplementation((_req, rpcName) => Promise.resolve({
+      ok:true,
+      payload:rpcName==="current_auth_subject" ? owner
+        : rpcName==="current_profile_id" ? "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb" : true,
+    }));
+    const out=response();
+    await handleQaStorage({method:"POST",headers:{authorization:"Bearer synthetic"},body:{
+      bucket:"process-documents",objectKey,contentType:"application/pdf",
+      base64:Buffer.from("%PDF-1.4\\nSYNTHETIC").toString("base64")
+    }} as never,out as never,"upload");
+    expect(out.statusCode).toBe(200);
+    expect(JSON.parse(out.data).storageProvider).toBe("neon_qa");
+    expect(send).toHaveBeenCalledTimes(1);
+  });
+  it("accepts a Habite-se attachment only in its authenticated owner's folder", async () => {
+    active();send.mockResolvedValue({});
+    const owner="aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+    check.mockImplementation((_req, rpcName) => Promise.resolve({
+      ok:true,payload:rpcName==="current_auth_subject" ? owner
+        : rpcName==="current_profile_id" ? "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb" : true,
+    }));
+    const out=response();
+    await handleQaStorage({method:"POST",headers:{authorization:"Bearer synthetic"},body:{
+      bucket:"process-documents",
+      objectKey:"municipalities/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/habite-se/"+owner+"/anexo.pdf",
+      contentType:"application/pdf",base64:Buffer.from("%PDF-1.4 QA HABITE-SE").toString("base64")
+    }} as never,out as never,"upload");
+    expect(out.statusCode).toBe(200);
+    expect(JSON.parse(out.data).storageProvider).toBe("neon_qa");
+    expect(send).toHaveBeenCalledTimes(1);
+  });
+  it("prevents opening a Habite-se attachment from another professional", async () => {
+    active();
+    check.mockImplementation((_req, name) => Promise.resolve({
+      ok:true, payload: name==="current_auth_subject"
+        ? "cccccccc-cccc-4ccc-8ccc-cccccccccccc"
+        : name==="current_profile_id"
+        ? "dddddddd-dddd-4ddd-8ddd-dddddddddddd" : true,
+    }));
+    const out=response();
+    await handleQaStorage({method:"POST",headers:{authorization:"Bearer synthetic"},body:{
+      bucket:"process-documents",
+      objectKey:"municipalities/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/habite-se/eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee/anexo.pdf",
+    }} as never,out as never,"sign-get");
+    expect(out.statusCode).toBe(403);
+    expect(send).not.toHaveBeenCalled();
+  });
+  it("rejects uploads into another professional's protocol path", async () => {
+    active();check.mockImplementation((_req, rpcName) => Promise.resolve({
+      ok:true, payload:rpcName==="current_auth_subject" ?
+        "cccccccc-cccc-4ccc-8ccc-cccccccccccc" :
+        rpcName==="current_profile_id" ?
+        "dddddddd-dddd-4ddd-8ddd-dddddddddddd" : true,
+    }));
+    const out=response();
+    await handleQaStorage({method:"POST",headers:{authorization:"Bearer synthetic"},body:{
+      bucket:"process-documents",
+      objectKey:"municipalities/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/protocols/eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee/qa.pdf",
+      contentType:"application/pdf",
+      base64:Buffer.from("%PDF-1.4\\nSYNTHETIC").toString("base64")
+    }} as never,out as never,"upload");
+    expect(out.statusCode).toBe(403);
+    expect(send).not.toHaveBeenCalled();
+  });
+  it("lists only the logged-in professional's own recovery prefixes", async () => {
+    active();
+    const tenant="aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+    const subject="bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+    const profile="cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+    check.mockImplementation((_req, name) => Promise.resolve({
+      ok:true, payload:name==="current_auth_subject" ? subject
+        : name==="get_current_profile_context"
+        ? {tenant_id:tenant,profile_id:profile} : true,
+    }));
+    send.mockResolvedValue({Contents:[]});
+    const res=response();
+    await handleQaStorage({method:"POST",headers:{authorization:"Bearer synthetic"},
+      body:{since:"2026-10-20T00:00:00Z"}
+    } as never,res as never,"list-user-files");
+    expect(res.statusCode).toBe(200);
+    expect(JSON.parse(res.data).files).toEqual([]);
+    expect(send).toHaveBeenCalledTimes(4);
+    const commands=send.mock.calls.map(args=>args[0]);
+    const prefixes=commands.map(command => {
+      expect(command.input.Bucket).toBe("sigapro-qa-urban-documents");
+      return command.input.Prefix;
+    });
+    for (const folder of ["protocols","habite-se"]) {
+      expect(prefixes).toContain("municipalities/"+tenant+"/"+folder+"/"+subject+"/");
+      expect(prefixes).toContain("municipalities/"+tenant+"/"+folder+"/"+profile+"/");
+    }
+  });
+  it("does not enumerate files when a process is outside the user's authorization", async () => {
+    active();
+    check.mockImplementation((_req,name)=>Promise.resolve({
+      ok:true,payload:name==="get_current_profile_context"
+        ? {tenant_id:"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",profile_id:"bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"}
+        : name==="current_auth_subject" ? "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
+        : name==="qa_storage_process_tenant_access_v1" ? false : true,
+    }));
+    const out=response();
+    await handleQaStorage({method:"POST",headers:{authorization:"Bearer synthetic"},
+      body:{processId:"cccccccc-cccc-4ccc-8ccc-cccccccccccc"}
+    } as never,out as never,"list-user-files");
+    expect(out.statusCode).toBe(403);
+    expect(send).not.toHaveBeenCalled();
+  });
+  it("denies recovery enumeration scoped to a process of another municipality", async () => {
+    active();
+    check.mockImplementation((_req,name) => Promise.resolve({
+      ok:true,
+      payload: name==="get_current_profile_context"
+        ? {tenant_id:"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",profile_id:"bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"}
+        : name==="current_auth_subject" ? "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
+        : name==="qa_storage_process_tenant_access_v1" ? false : true,
+    }));
+    const res=response();
+    await handleQaStorage({method:"POST",headers:{authorization:"Bearer synthetic"},
+      body:{processId:"cccccccc-cccc-4ccc-8ccc-cccccccccccc"}
+    } as never,res as never,"list-user-files");
+    expect(res.statusCode).toBe(403);
+    expect(send).not.toHaveBeenCalled();
+  });
+  it("refuses original payment guide document mutations", async () => {
+    active();check.mockResolvedValue({ok:true,payload:true});
+    const res=response();
+    await handleQaStorage({method:"POST",headers:{authorization:"Bearer synthetic"},body:{
+      bucket:"sigapro-documentos",
+      objectKey:"municipalities/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/processes/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/dam-originals/qa.pdf"
+    }} as never,res as never,"delete");
+    expect(res.statusCode).toBe(409);expect(send).not.toHaveBeenCalled();
+  });
+});

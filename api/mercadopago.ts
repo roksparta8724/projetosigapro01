@@ -69,6 +69,20 @@ export default async function handler(req: Req, res: Res) {
   const requestUrl = new URL(req.url || "/api/mercadopago", "https://sigapro.local");
   const action = requestUrl.searchParams.get("action") || "health";
 
+  // The isolated preview inherits payment metadata that could reference a real
+  // provider. Never contact Mercado Pago or generate a charge from QA without
+  // a dedicated sandbox integration and explicit test-only credentials.
+  const isolatedQa = process.env.VERCEL_ENV === "preview" &&
+    process.env.VITE_SIGAPRO_NEON_ISOLATED === "true";
+  if (isolatedQa && ["health", "guide-status", "guide-boleto"].includes(action)) {
+    json(res, 503, {
+      ok: false,
+      code: "QA_PAYMENT_PROVIDER_DISABLED",
+      error: "Conexão bancária desabilitada na homologação isolada para proteger cobranças reais.",
+    });
+    return;
+  }
+
   if (action === "health") {
     if (req.method !== "GET") {
       json(res, 405, { ok: false, error: "Método não permitido." });
@@ -192,6 +206,14 @@ export default async function handler(req: Req, res: Res) {
       }
 
       if (subaction === "test") {
+        if (isolatedQa) {
+          json(res, 503, {
+            ok: false,
+            code: "QA_PAYMENT_PROVIDER_DISABLED",
+            error: "Teste bancário indisponível na homologação isolada sem credenciais exclusivas de sandbox.",
+          });
+          return;
+        }
         const secretConfig = await getMunicipalPaymentSecretAdmin(req, municipalityId);
         if (secretConfig.provider !== "mercado_pago") {
           throw new Error("O teste automático atual está disponível para Mercado Pago.");
