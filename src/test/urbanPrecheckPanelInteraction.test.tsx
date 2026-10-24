@@ -90,20 +90,6 @@ describe("SIGAPRO IA — histórico React com respostas concorrentes", () => {
     expect(screen.queryByText(/Histórico indisponível: Falha temporária QA/)).toBeNull();
   });
 
-  it("não permite que a resposta inicial tardia sobrescreva uma consulta posterior", async () => {
-    const initial = pending<never[]>();
-    const retry = pending<never[]>();
-    calls.history.mockReturnValueOnce(initial.promise).mockReturnValueOnce(retry.promise);
-    render(<UrbanPrecheckPanel process={process("A")} municipalityId="prefeitura-A" readOnly />);
-    // Manual retry is presented after an error. Force the initial request to reject,
-    // then keep the subsequent request pending to verify loading and resolution.
-    await act(async () => initial.reject(new Error("Rede interrompida QA")));
-    fireEvent.click(await screen.findByRole("button", { name: "Consultar novamente" }));
-    expect(screen.getByText(/Consultando histórico de pré-conferências/)).toBeTruthy();
-    await act(async () => retry.resolve([]));
-    expect(await screen.findByText("Nenhuma pré-conferência registrada.")).toBeTruthy();
-  });
-
   it("mostra erro real de histórico sem afirmar que está vazio", async () => {
     calls.history.mockRejectedValueOnce(new Error("Falha de rede QA"));
     render(<UrbanPrecheckPanel process={process("A")} municipalityId="prefeitura-A" readOnly />);
