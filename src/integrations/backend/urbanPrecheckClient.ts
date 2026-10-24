@@ -12,6 +12,14 @@ async function invoke<T>(name: string, args: Record<string, unknown>): Promise<T
 export async function listUrbanRegulations(municipalityId: string): Promise<UrbanRegulationVersion[]> {
   const response = await invoke<unknown>("list_urban_regulation_versions_v1", { _municipality_id: municipalityId });
   if (!Array.isArray(response)) throw new Error("Resposta inválida do cadastro legal municipal.");
+  if (response.some((item) => !item || typeof item !== "object" ||
+    item.municipality_id !== municipalityId ||
+    typeof item.id !== "string" || !item.id ||
+    typeof item.zone_code !== "string" || !item.zone_code ||
+    typeof item.use_code !== "string" || !item.use_code ||
+    !Array.isArray(item.rules))) {
+    throw new Error("Cadastro legal inconsistente para esta prefeitura.");
+  }
   return response as UrbanRegulationVersion[];
 }
 
