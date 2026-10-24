@@ -3,7 +3,7 @@
 -- rolled back by the deliberate exception subtransaction.
 -- JWT claim emulation tests SQL authorization, NOT real browser authentication.
 DO $qa$
-DECLARE actor record; outsider text; norm uuid; saved jsonb; history jsonb; passed boolean:=false;
+DECLARE actor record; outsider text; outsider_profile uuid; outsider_municipality uuid; norm uuid; foreign_norm uuid; saved jsonb; history jsonb; passed boolean:=false;
 BEGIN
  IF current_database()<>'sigapro_migration_stage_20260923' THEN
    RAISE EXCEPTION 'This test may only run on isolated QA database';
@@ -17,13 +17,14 @@ BEGIN
  AND p.municipality_id=coalesce(proc.municipality_id,proc.tenant_id)
  LIMIT 1;
  IF actor.process_id IS NULL THEN RAISE EXCEPTION 'No assigned QA analyst'; END IF;
- SELECT a.provider_user_id INTO outsider FROM public.profiles p
+ SELECT a.provider_user_id,p.id,p.municipality_id INTO outsider,outsider_profile,outsider_municipality FROM public.profiles p
  JOIN public.profile_auth_identities a ON a.profile_id=p.id AND a.provider='neon' AND a.is_active
  WHERE p.municipality_id<>actor.municipality_id AND p.deleted_at IS NULL
  AND p.account_status='active' LIMIT 1;
  IF outsider IS NULL THEN RAISE EXCEPTION 'No other municipality identity in QA'; END IF;
  BEGIN
    norm:=gen_random_uuid();
+   foreign_norm:=gen_random_uuid();
    INSERT INTO public.urban_regulation_versions
     (id,municipality_id,zone_code,use_code,effective_from,version,status,rules,
      created_by_profile_id,activated_by_profile_id,activated_at)
@@ -31,12 +32,23 @@ BEGIN
     '2026-01-01',1,'active',
     '[{"metric":"front_setback_m","limit":5,"reference":"NORMA FICTICIA QA - SEM EFEITO LEGAL"}]'::jsonb,
     actor.profile_id,actor.profile_id,clock_timestamp());
+   INSERT INTO public.urban_regulation_versions
+    (id,municipality_id,zone_code,use_code,effective_from,version,status,rules,
+     created_by_profile_id,activated_by_profile_id,activated_at)
+   VALUES(foreign_norm,outsider_municipality,'QA_ACCEPTANCE_ZONE','QA_ACCEPTANCE_USE',
+    '2026-01-01',1,'active',
+    '[{"metric":"front_setback_m","limit":7,"reference":"NORMA FICTICIA SEGUNDO MUNICIPIO QA"}]'::jsonb,
+    outsider_profile,outsider_profile,clock_timestamp());
    PERFORM set_config('request.jwt.claims',jsonb_build_object('sub',actor.subject_id)::text,true);
    -- Confirm legislation listings preserve municipal isolation before any precheck.
    IF NOT EXISTS (
      SELECT 1 FROM jsonb_array_elements(public.list_urban_regulation_versions_v1(actor.municipality_id)) v
      WHERE v->>'id'=norm::text
    ) THEN RAISE EXCEPTION 'Municipal regulation not visible to its own tenant'; END IF;
+   -- Verify both municipal catalogs are isolated, including asymmetric limits.
+   IF EXISTS (SELECT 1 FROM jsonb_array_elements(public.list_urban_regulation_versions_v1(actor.municipality_id)) v
+     WHERE v->>'id'=foreign_norm::text)
+   THEN RAISE EXCEPTION 'FOREIGN_NORM_EXPOSED_TO_ACTOR'; END IF;
    -- An outsider must not obtain an active norm from the analyst's municipality.
    PERFORM set_config('request.jwt.claims',jsonb_build_object('sub',outsider)::text,true);
    BEGIN
@@ -48,6 +60,13 @@ BEGIN
      IF SQLERRM='CROSS_TENANT_REGULATION_LEAK' THEN RAISE; END IF;
      -- The function may reject an unauthorized municipality outright.
    END;
+   -- The second municipality can see its own fictional regulation but not the first.
+   IF NOT EXISTS (SELECT 1 FROM jsonb_array_elements(public.list_urban_regulation_versions_v1(outsider_municipality)) v
+     WHERE v->>'id'=foreign_norm::text)
+   THEN RAISE EXCEPTION 'FOREIGN_TENANT_CANNOT_READ_OWN_NORM'; END IF;
+   IF EXISTS (SELECT 1 FROM jsonb_array_elements(public.list_urban_regulation_versions_v1(outsider_municipality)) v
+     WHERE v->>'id'=norm::text)
+   THEN RAISE EXCEPTION 'ACTOR_NORM_LEAKED_TO_FOREIGN_TENANT'; END IF;
    PERFORM set_config('request.jwt.claims',jsonb_build_object('sub',actor.subject_id)::text,true);
    IF NOT public.can_write_process_analysis(actor.process_id) THEN
      RAISE EXCEPTION 'Assigned analyst unexpectedly denied';
@@ -128,7 +147,7 @@ BEGIN
    IF SQLERRM<>'QA_ROLLBACK_SUCCESS' THEN RAISE; END IF;
  END;
  PERFORM set_config('request.jwt.claims','',true);
- IF NOT passed OR EXISTS(SELECT 1 FROM public.urban_regulation_versions WHERE id=norm)
+ IF NOT passed OR EXISTS(SELECT 1 FROM public.urban_regulation_versions WHERE id IN (norm,foreign_norm))
     OR EXISTS(SELECT 1 FROM public.process_urban_precheck_runs WHERE regulation_version_id=norm)
  THEN RAISE EXCEPTION 'QA acceptance failed: fixture leak'; END IF;
  RAISE NOTICE 'PASS: analyst saved and retrieved; other tenant blocked; fixture fully rolled back';
