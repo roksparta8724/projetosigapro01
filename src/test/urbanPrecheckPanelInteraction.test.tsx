@@ -216,7 +216,7 @@ describe("SIGAPRO IA — histórico React com respostas concorrentes", () => {
 
   it.each([
     ["occupancy_percent", "Taxa de ocupação", "101"],
-    ["permeability_percent", "Permeabilidade", "101"],
+    ["permeability_percent", "Taxa de permeabilidade", "101"],
     ["front_setback_m", "Recuo frontal", "100001"],
   ])("impede gravar %s fora dos limites também pela interface", async (metric, label, value) => {
     calls.regulations.mockResolvedValueOnce([{
