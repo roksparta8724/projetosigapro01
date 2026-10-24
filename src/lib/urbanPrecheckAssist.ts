@@ -120,3 +120,12 @@ export function isValidUrbanReferenceDate(value: string, today: string): boolean
   return date.getUTCFullYear() === year &&
     date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
 }
+
+/** Civil date at the municipal headquarters, not UTC. Avoid day rollover in Brazil. */
+export function urbanMunicipalToday(now: Date = new Date()): string {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit",
+  }).formatToParts(now);
+  const value = (type: string) => parts.find(part => part.type === type)?.value || "";
+  return `${value("year")}-${value("month")}-${value("day")}`;
+}
