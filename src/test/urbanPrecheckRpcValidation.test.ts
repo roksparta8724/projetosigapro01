@@ -10,6 +10,12 @@ describe("SIGAPRO — controle de qualidade antes de gravar pré-análise", () =
     expect(source).toContain("entry.evidence.trim().length < 3");
     expect(source).toContain('metric === "floor_count" && !Number.isInteger(entry.value)');
   });
+  it("rejeita objetos ausentes e formatos indevidos sem atingir o banco", () => {
+    expect(source).toContain('!legalReview || typeof legalReview !== "object"');
+    expect(source).toContain('typeof legalReview.note !== "string"');
+    expect(source).toContain('!measurements || typeof measurements !== "object" || Array.isArray(measurements)');
+    expect(source).toContain('if (!processId.trim() || !versionId.trim())');
+  });
   it("rejeita revisões legais duplicadas ou inválidas antes de chamar RPC", () => {
     expect(source).toContain("new Set(legalReview.evidenceIds).size !== legalReview.evidenceIds.length");
     expect(source).toContain('typeof legalReview.documentScopeConfirmed !== "boolean"');
