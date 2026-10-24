@@ -39,7 +39,7 @@ describe("SIGAPRO IA — validação do payload antes de chegar ao banco", () =>
     await saveUrbanPrecheckRun(processId, versionId, date,
       { front_setback_m: { value: 5, evidence } }, review);
     expect(rpc).toHaveBeenCalledTimes(1);
-    expect(rpc).toHaveBeenCalledWith("save_urban_precheck_run_v4", expect.objectContaining({
+    expect(rpc).toHaveBeenCalledWith("save_urban_precheck_run_v5", expect.objectContaining({
       _process_id: processId,
       _regulation_version_id: versionId,
       _legal_review: { evidence_ids: [], note: "", document_scope_confirmed: false },
