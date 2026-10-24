@@ -75,6 +75,24 @@ function isValidHistoricalMeasurements(value: unknown): boolean {
   );
 }
 
+function isValidHistoricalLegalReview(value: unknown): boolean {
+  if (value === undefined) return true; // Backward compatibility with older history entries.
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const review = value as Record<string, unknown>;
+  if (review.evidence_ids !== undefined &&
+      (!Array.isArray(review.evidence_ids) || review.evidence_ids.length > 50 ||
+       review.evidence_ids.some(id => typeof id !== "string" ||
+         !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) ||
+       new Set(review.evidence_ids).size !== review.evidence_ids.length)) return false;
+  if (review.note !== undefined && (typeof review.note !== "string" || review.note.length > 1200)) return false;
+  if (review.document_scope_confirmed !== undefined && typeof review.document_scope_confirmed !== "boolean") return false;
+  if (review.reviewed_by_profile_id !== undefined &&
+      (typeof review.reviewed_by_profile_id !== "string" || !review.reviewed_by_profile_id.trim())) return false;
+  if (review.reviewed_at !== undefined &&
+      (typeof review.reviewed_at !== "string" || !Number.isFinite(Date.parse(review.reviewed_at)))) return false;
+  return true;
+}
+
 export async function listUrbanPrecheckHistory(processId: string): Promise<UrbanPrecheckHistoryEntry[]> {
   if (typeof processId !== "string" || !processId.trim()) {
     throw new Error("Processo inválido para consulta do histórico.");
@@ -92,8 +110,7 @@ export async function listUrbanPrecheckHistory(processId: string): Promise<Urban
     typeof entry.created_at !== "string" || !Number.isFinite(Date.parse(entry.created_at)) ||
     (entry.reference_date !== null && !isValidUrbanReferenceDate(entry.reference_date, "9999-12-31")) ||
     !isValidHistoricalMeasurements(entry.measurements) ||
-    (entry.legal_review !== undefined && (typeof entry.legal_review !== "object" ||
-      entry.legal_review === null || Array.isArray(entry.legal_review))))) {
+    !isValidHistoricalLegalReview(entry.legal_review))) {
     throw new Error("Histórico de pré-análises inconsistente para este processo.");
   }
   return response as UrbanPrecheckHistoryEntry[];
