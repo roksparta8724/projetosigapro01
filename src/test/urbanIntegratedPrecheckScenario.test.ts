@@ -53,6 +53,24 @@ describe("SIGAPRO — cenário integrado da pré-análise municipal", () => {
     expect(history[0].regulation_version_id).toBe(selected!.id);
   });
 
+  it("não confirma gravação rejeitada e permite recuperação sem contaminar outro processo", async () => {
+    const documented={occupancy_percent:{value:62,evidence:"Planta de implantação"}};
+    rpc.mockResolvedValueOnce({data:null,error:{message:"Permissão negada pelo banco"}});
+    await expect(saveUrbanPrecheckRun("processo-a",regulation.id,"2026-10-23",documented,
+      {evidenceIds:[],note:"",documentScopeConfirmed:false})).rejects.toThrow("Permissão negada pelo banco");
+
+    rpc.mockResolvedValueOnce({data:[{
+      id:"registro-b", municipality_id:municipality,process_id:"processo-b",
+      regulation_version_id:regulation.id,measurements:documented,
+      reference_date:"2026-10-23",reviewer_profile_id:"analista-b",
+      created_at:"2026-10-23T13:00:00Z",
+    }],error:null});
+    const history=await listUrbanPrecheckHistory("processo-b");
+    expect(history).toHaveLength(1);
+    expect(history[0].process_id).toBe("processo-b");
+    expect(rpc).toHaveBeenLastCalledWith("list_urban_prechecks_v1",{_process_id:"processo-b"});
+  });
+
   it("não mistura legislação de outra prefeitura ou fora da vigência", () => {
     expect(selectUrbanRegulation([regulation],"outro-municipio","ZR1","RESIDENCIAL","2026-10-23")).toBeNull();
     expect(selectUrbanRegulation([regulation],municipality,"ZR1","RESIDENCIAL","2025-12-31")).toBeNull();
