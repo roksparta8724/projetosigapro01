@@ -102,12 +102,14 @@ export async function saveUrbanPrecheckRun(
   const entries = Object.entries(measurements);
   if (!entries.length || entries.length > URBAN_METRICS.length || entries.some(([metric, entry]) =>
     !validMetrics.has(metric) || !entry || typeof entry !== "object" ||
-    !Number.isFinite(entry.value) || entry.value < 0 ||
+    !Number.isFinite(entry.value) || entry.value < 0 || entry.value > 100000 ||
+    ((metric === "occupancy_percent" || metric === "permeability_percent") && entry.value > 100) ||
     (metric === "floor_count" && !Number.isInteger(entry.value)) ||
     typeof entry.evidence !== "string" || entry.evidence.trim().length < 3 ||
     entry.evidence.length > 500
   )) throw new Error("Medições inválidas: confira valores e provas documentais.");
-  if (legalReview.evidenceIds.some(id => typeof id !== "string" || !id.trim() || id.length > 128) ||
+  if (legalReview.evidenceIds.some(id => typeof id !== "string" ||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) ||
       new Set(legalReview.evidenceIds).size !== legalReview.evidenceIds.length ||
       typeof legalReview.note !== "string" || typeof legalReview.documentScopeConfirmed !== "boolean") {
     throw new Error("Revisão legal inválida.");
