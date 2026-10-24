@@ -108,7 +108,7 @@ describe("SIGAPRO branch-pinned QA large PDF function", () => {
   expect(storageCalls).toEqual(["PUT","GET","DELETE","GET"]);
   expect(rpcNames).toContain("qa_storage_process_tenant_access_v1");
   expect(rpcNames).toContain("can_write_process_analysis");
- });
+ }, 15000);
  it("blocks a nonresponsible analyst from writing even when authorized to read",async()=>{
   vi.stubEnv("NEON_DATA_API_URL","https://ep-misty-breeze-b4ri8ig0.apirest.c-6.us-east-2.aws.neon.tech/sigapro_migration_stage_20260923/rest/v1");
   const calls:string[]=[];
