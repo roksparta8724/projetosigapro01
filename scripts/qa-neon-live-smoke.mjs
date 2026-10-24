@@ -1,0 +1,41 @@
+/**
+ * QA-only live negative smoke checks: no account tokens, personal records, uploads
+ * or mutations. The Neon function is intentionally pinned to the isolated branch.
+ * A 2xx from an unauthenticated object operation is a critical failure.
+ */
+const base = "https://br-solitary-sound-b4xlbvs6-sigaproqa.compute.c-6.us-east-2.aws.neon.tech";
+const previewOrigin = "https://projetosigapro01-git-qa-sigapro-f7ead8-roksparta8724s-projects.vercel.app";
+const officialOrigin = "https://sigapromunicipal.com.br";
+
+async function probe(label, path, options, expected, extra) {
+  let response;
+  try {
+    response = await fetch(base + path, {
+      ...options,
+      redirect: "manual",
+      signal: AbortSignal.timeout(12000),
+    });
+  } catch (error) {
+    throw new Error(label + ": QA function unreachable (" +
+      (error instanceof Error ? error.name : "unknown transport error") + ")");
+  }
+  if (response.status !== expected || (extra && !extra(response))) {
+    throw new Error(label + ": unexpected status/headers " + response.status);
+  }
+  console.log("PASS " + label + " (" + response.status + ")");
+}
+
+await probe("upload requires JWT", "/upload", { method: "POST" }, 401);
+await probe("read requires JWT", "/read", { method: "GET" }, 401);
+await probe("delete requires JWT", "/object", { method: "DELETE" }, 401);
+await probe("official origin refused", "/upload", {
+  method: "OPTIONS", headers: { Origin: officialOrigin },
+}, 403, r => !r.headers.has("access-control-allow-origin"));
+await probe("QA preview preflight allowed", "/upload", {
+  method: "OPTIONS", headers: { Origin: previewOrigin },
+}, 204, r => r.headers.get("access-control-allow-origin") === previewOrigin);
+await probe("invalid private key rejected before storage access",
+  "/upload?objectKey=" + encodeURIComponent("../../secret.pdf"), {
+    method: "POST", headers: { Authorization: "Bearer synthetic-qa-negative-test" },
+  }, 400);
+console.log("SIGAPRO QA Neon Function live negative smoke checks passed.");
