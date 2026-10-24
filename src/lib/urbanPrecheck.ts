@@ -104,8 +104,8 @@ export function evaluateUrbanPrecheck(
         limit: rule.limit, unit: definition.unit, reference: rule.reference, evidence };
     }
     const withinLimit = definition.direction === "minimum"
-      ? item.value + 1e-9 >= rule.limit
-      : item.value <= rule.limit + 1e-9;
+      ? item.value >= rule.limit
+      : item.value <= rule.limit;
     return { metric: rule.metric, label: definition.label, direction: definition.direction,
       status: withinLimit ? "within_limit" : "attention", observed: item.value,
       limit: rule.limit, unit: definition.unit, reference: rule.reference, evidence };
