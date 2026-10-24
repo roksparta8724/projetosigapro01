@@ -271,28 +271,32 @@ export function UrbanPrecheckPanel({
       setNotice("Nenhum parâmetro comprovado por documento para registrar.");
       return;
     }
+    const requestedProcessId = process.id;
     saveInFlightRef.current = true;
     setSaving(true);
     setNotice("");
     try {
-      await saveUrbanPrecheckRun(process.id, regulation.id, asOf, complete, {
+      await saveUrbanPrecheckRun(requestedProcessId, regulation.id, asOf, complete, {
         evidenceIds: conditionalReferences.map(item => item.evidenceId),
         note: legalReview.note.trim(),
         documentScopeConfirmed: legalReview.documentScopeConfirmed,
       });
+      if (activeProcessRef.current !== requestedProcessId) return;
       setLastSavedSnapshot(currentSnapshot);
       setNotice("Pré-conferência registrada no banco. Atualizando o histórico...");
       try {
-        const updated = await listUrbanPrecheckHistory(process.id);
+        const updated = await listUrbanPrecheckHistory(requestedProcessId);
+        if (activeProcessRef.current !== requestedProcessId) return;
         setHistory(updated);
         setHistoryError("");
         setNotice("Pré-conferência registrada e histórico atualizado. Não altera a aprovação nem a ficha oficial.");
       } catch (error) {
+        if (activeProcessRef.current !== requestedProcessId) return;
         setHistoryError(String((error as Error)?.message || error));
         setNotice("Pré-conferência registrada no banco, mas não foi possível atualizar o histórico nesta tela. Consulte o histórico antes de tentar registrar novamente.");
       }
     } catch (error) {
-      setNotice(String((error as Error)?.message || error));
+      if (activeProcessRef.current === requestedProcessId) setNotice(String((error as Error)?.message || error));
     } finally { saveInFlightRef.current = false; setSaving(false); }
   };
 
