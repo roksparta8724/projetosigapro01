@@ -120,6 +120,20 @@ describe("SIGAPRO IA — histórico React com respostas concorrentes", () => {
     expect(screen.getByText("Nenhuma pré-conferência registrada.")).toBeTruthy();
   });
 
+  it("mostra registro histórico real e não o classifica como aprovado quando falta norma arquivada", async () => {
+    calls.history.mockResolvedValueOnce([{
+      id: "audit-QA-01", process_id: "A", municipality_id: "prefeitura-A",
+      regulation_version_id: "norma-arquivada-QA", reviewer_profile_id: "analista-QA",
+      reference_date: "2026-10-23", created_at: "2026-10-23T12:00:00.000Z",
+      measurements: { front_setback_m: { value: 6, evidence: "Prancha 02" } },
+      legal_review: { evidence_ids: [], note: "Conferência humana QA documentada." },
+    }]);
+    render(<UrbanPrecheckPanel process={process("A")} municipalityId="prefeitura-A" readOnly />);
+    expect(await screen.findByText(/Norma histórica indisponível — resultado não verificável/)).toBeTruthy();
+    expect(screen.getByText(/Conferência humana QA documentada/)).toBeTruthy();
+    expect(screen.getByText(/Registro consultivo, não é aprovação/)).toBeTruthy();
+  });
+
   it("mostra erro real de histórico sem afirmar que está vazio", async () => {
     calls.history.mockRejectedValueOnce(new Error("Falha de rede QA"));
     render(<UrbanPrecheckPanel process={process("A")} municipalityId="prefeitura-A" readOnly />);
