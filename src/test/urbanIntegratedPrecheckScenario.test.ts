@@ -40,7 +40,7 @@ describe("SIGAPRO — cenário integrado da pré-análise municipal", () => {
     rpc.mockResolvedValueOnce({data:null,error:null});
     await saveUrbanPrecheckRun(protocol, selected!.id, "2026-10-23", measurements,
       {evidenceIds:[],note:"",documentScopeConfirmed:false});
-    expect(rpc).toHaveBeenNthCalledWith(1,"save_urban_precheck_run_v4",
+    expect(rpc).toHaveBeenNthCalledWith(1,"save_urban_precheck_run_v5",
       expect.objectContaining({_process_id:protocol,_regulation_version_id:"norma-2026",_measurements:measurements}));
 
     const persisted={id:"run-qa",municipality_id:municipality,process_id:protocol,
