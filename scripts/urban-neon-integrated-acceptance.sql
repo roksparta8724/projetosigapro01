@@ -16,6 +16,14 @@ BEGIN
  WHERE p.account_status='active' AND p.deleted_at IS NULL
  AND p.municipality_id=coalesce(proc.municipality_id,proc.tenant_id)
  LIMIT 1;
+ IF EXISTS (
+   SELECT 1 FROM pg_proc p, LATERAL aclexplode(coalesce(p.proacl,acldefault('f',p.proowner))) acl
+   WHERE p.oid='public.save_urban_precheck_run_v5(uuid,uuid,date,jsonb,jsonb,uuid)'::regprocedure
+     AND acl.grantee=0 AND acl.privilege_type='EXECUTE'
+ ) THEN RAISE EXCEPTION 'V5_RPC_PUBLIC_EXECUTE_NOT_REVOKED'; END IF;
+ IF NOT has_function_privilege('authenticated',
+   'public.save_urban_precheck_run_v5(uuid,uuid,date,jsonb,jsonb,uuid)','EXECUTE')
+ THEN RAISE EXCEPTION 'V5_RPC_AUTHENTICATED_EXECUTE_MISSING'; END IF;
  IF actor.process_id IS NULL THEN RAISE EXCEPTION 'No assigned QA analyst'; END IF;
  SELECT a.provider_user_id,p.id,p.municipality_id INTO outsider,outsider_profile,outsider_municipality FROM public.profiles p
  JOIN public.profile_auth_identities a ON a.profile_id=p.id AND a.provider='neon' AND a.is_active
