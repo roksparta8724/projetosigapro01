@@ -57,6 +57,30 @@ BEGIN
    history:=public.list_urban_prechecks_v1(actor.process_id);
    IF NOT EXISTS (SELECT 1 FROM jsonb_array_elements(history) h WHERE h->>'id'=saved->>'id')
    THEN RAISE EXCEPTION 'Saved analysis is absent from history'; END IF;
+   -- An unauthenticated request cannot read or create an urban precheck.
+   PERFORM set_config('request.jwt.claims','',true);
+   IF public.has_process_access(actor.process_id) OR public.can_write_process_analysis(actor.process_id)
+   THEN RAISE EXCEPTION 'ANONYMOUS_PERMISSION_LEAK'; END IF;
+   BEGIN
+     PERFORM public.save_urban_precheck_run_v4(actor.process_id,norm,'2026-10-23'::date,
+       '{"front_setback_m":{"value":6,"evidence":"Prancha sintetica QA pagina 1"}}'::jsonb,
+       '{"evidence_ids":[],"note":"","document_scope_confirmed":false}'::jsonb);
+     RAISE EXCEPTION 'ANONYMOUS_WRITE_LEAK';
+   EXCEPTION WHEN OTHERS THEN
+     IF SQLERRM <> 'Somente o analista responsavel ou Diretoria pode registrar a revisao.' THEN
+       RAISE EXCEPTION 'Unexpected anonymous write outcome: %',SQLERRM;
+     END IF;
+   END;
+   BEGIN
+     PERFORM public.list_urban_prechecks_v1(actor.process_id);
+     RAISE EXCEPTION 'ANONYMOUS_HISTORY_LEAK';
+   EXCEPTION WHEN OTHERS THEN
+     IF SQLERRM <> 'Sem acesso ao historico de analises.' THEN
+       RAISE EXCEPTION 'Unexpected anonymous history outcome: %',SQLERRM;
+     END IF;
+   END;
+   IF (SELECT count(*) FROM public.process_urban_precheck_runs WHERE regulation_version_id=norm)<>1
+   THEN RAISE EXCEPTION 'ANONYMOUS_WRITE_SIDE_EFFECT'; END IF;
    PERFORM set_config('request.jwt.claims',jsonb_build_object('sub',outsider)::text,true);
    IF public.has_process_access(actor.process_id) OR public.can_write_process_analysis(actor.process_id)
    THEN RAISE EXCEPTION 'CROSS_TENANT_ACCESS_LEAK'; END IF;
