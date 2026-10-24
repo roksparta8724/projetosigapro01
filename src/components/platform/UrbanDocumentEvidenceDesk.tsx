@@ -95,6 +95,19 @@ export function UrbanDocumentEvidenceDesk({ process, readOnly, allowedMetrics, o
     setNotice("");
   }, [selected?.id, selected?.version, selected?.fileHash, selected?.filePath]);
 
+  // Close active reads immediately if the current user loses edit permission.
+  useEffect(() => {
+    if (!readOnly) return;
+    readAbort.current?.abort();
+    readAbort.current = null;
+    setExtracted(null);
+    setPdfBytes(null);
+    setScanProof(null);
+    setReadStatus("idle");
+    setReadProgress("");
+    setExcerpt("");
+  }, [readOnly]);
+
   const resetPdfRead = (selectedId: string) => {
     readAbort.current?.abort();
     readAbort.current = null;
@@ -111,7 +124,7 @@ export function UrbanDocumentEvidenceDesk({ process, readOnly, allowedMetrics, o
   };
 
   const preReadDocument = async () => {
-    if (!selected || !selected.filePath || readStatus === "loading") {
+    if (readOnly || !selected || !selected.filePath || readStatus === "loading") {
       setNotice("Selecione um PDF anexado com arquivo original disponível.");
       return;
     }
