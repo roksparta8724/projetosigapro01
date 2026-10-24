@@ -29,6 +29,8 @@ export function UrbanPrecheckPanel({
 }: { process: ProcessRecord; municipalityId: string; readOnly: boolean }) {
   const [versions, setVersions] = useState<UrbanRegulationVersion[]>([]);
   const [history, setHistory] = useState<UrbanPrecheckHistoryEntry[]>([]);
+  const [historyError, setHistoryError] = useState("");
+  const [historyRetrying, setHistoryRetrying] = useState(false);
   const [zone, setZone] = useState("");
   const [usage, setUsage] = useState(process.property.usage || "");
   const [asOf, setAsOf] = useState((process.officializedAt || urbanMunicipalToday()).slice(0, 10));
@@ -55,6 +57,7 @@ export function UrbanPrecheckPanel({
     setAreaFields({});
     setVersions([]);
     setHistory([]);
+    setHistoryError("");
     setNotice("");
     setLastSavedSnapshot(null);
     setLegalCatalog([]);
@@ -70,10 +73,8 @@ export function UrbanPrecheckPanel({
       if (!active) return;
       if (rules.status === "fulfilled") setVersions(rules.value);
       else setNotice("Normas indisponíveis: " + String((rules.reason as Error)?.message || rules.reason));
-      if (past.status === "fulfilled") setHistory(past.value);
-      else setNotice(previous => [previous,
-        "Histórico indisponível: " + String((past.reason as Error)?.message || past.reason),
-      ].filter(Boolean).join(" | "));
+      if (past.status === "fulfilled") { setHistory(past.value); setHistoryError(""); }
+      else setHistoryError(String((past.reason as Error)?.message || past.reason));
       if (legal.status === "fulfilled") {
         setLegalCatalog(legal.value);
         setLegalCatalogError("");
@@ -279,13 +280,29 @@ export function UrbanPrecheckPanel({
       try {
         const updated = await listUrbanPrecheckHistory(process.id);
         setHistory(updated);
+        setHistoryError("");
         setNotice("Pré-conferência registrada e histórico atualizado. Não altera a aprovação nem a ficha oficial.");
-      } catch {
+      } catch (error) {
+        setHistoryError(String((error as Error)?.message || error));
         setNotice("Pré-conferência registrada no banco, mas não foi possível atualizar o histórico nesta tela. Consulte o histórico antes de tentar registrar novamente.");
       }
     } catch (error) {
       setNotice(String((error as Error)?.message || error));
     } finally { saveInFlightRef.current = false; setSaving(false); }
+  };
+
+  const retryHistory = async () => {
+    if (historyRetrying) return;
+    setHistoryRetrying(true);
+    try {
+      const updated = await listUrbanPrecheckHistory(process.id);
+      setHistory(updated);
+      setHistoryError("");
+    } catch (error) {
+      setHistoryError(String((error as Error)?.message || error));
+    } finally {
+      setHistoryRetrying(false);
+    }
   };
 
   return (
@@ -583,7 +600,14 @@ export function UrbanPrecheckPanel({
           <FileClock className="h-4 w-4" /> Histórico de pré-conferências
         </h4>
         <div className="mt-2 space-y-2">
-          {!history.length ? <p className="text-xs text-slate-500 dark:text-slate-300">Nenhuma pré-conferência registrada.</p> : null}
+          {historyError ? (
+            <div role="alert" className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100">
+              Histórico indisponível: {historyError}. O sistema não confirmou que o histórico está vazio.
+              <Button type="button" variant="outline" size="sm" className="ml-2" disabled={historyRetrying} onClick={() => void retryHistory()}>
+                {historyRetrying ? "Consultando..." : "Consultar novamente"}
+              </Button>
+            </div>
+          ) : !history.length ? <p className="text-xs text-slate-500 dark:text-slate-300">Nenhuma pré-conferência registrada.</p> : null}
           {history.map((entry) => {
             const historicRules = versions.find((version) => version.id === entry.regulation_version_id);
             const historicalFindings = historicRules
