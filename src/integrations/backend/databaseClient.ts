@@ -12,35 +12,40 @@ const isLocalNeonRuntime =
   typeof window !== "undefined" &&
   ["localhost", "127.0.0.1"].includes(window.location.hostname.toLowerCase());
 
-// Local QA must be explicitly enabled with BOTH auth and data URLs from the
-// SAME Neon branch. Otherwise localhost uses the official pair, never a mix.
-// The server enforces the matching data URL independently.
-const localIsolatedRequested =
-  isLocalNeonRuntime && import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true";
-const localAuthOverride = String(import.meta.env.VITE_NEON_AUTH_URL || "").replace(/\/+$/, "");
-const localDataOverride = String(import.meta.env.VITE_NEON_DATA_API_URL || "").replace(/\/+$/, "");
+// Explicit isolated QA must fail closed on localhost AND Vercel previews.
+// No fallback to official endpoints is permitted if the requested pair is missing,
+// mismatched or points to the known official Neon endpoint.
+const isolatedRequested =
+  !isNeonProduction && import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true";
+const authOverride = String(import.meta.env.VITE_NEON_AUTH_URL || "").replace(/\\/+$/, "");
+const dataOverride = String(import.meta.env.VITE_NEON_DATA_API_URL || "").replace(/\\/+$/, "");
 function neonEndpointIdentity(raw: string) {
   try {
     const host = new URL(raw).hostname;
-    return host.match(/^(ep-[^.]+)\.(?:neonauth|apirest)\./)?.[1] || "";
+    return host.match(/^(ep-[^.]+)\\.(?:neonauth|apirest)\\./)?.[1] || "";
   } catch { return ""; }
 }
-const localIsolatedReady =
-  localIsolatedRequested &&
-  !!neonEndpointIdentity(localAuthOverride) &&
-  neonEndpointIdentity(localAuthOverride) === neonEndpointIdentity(localDataOverride);
+const isolatedEndpoint =
+  neonEndpointIdentity(authOverride) &&
+  neonEndpointIdentity(authOverride) === neonEndpointIdentity(dataOverride) &&
+  neonEndpointIdentity(authOverride) !== neonEndpointIdentity(VALIDATED_NEON_AUTH_URL);
+const isolatedReady = isolatedRequested && Boolean(isolatedEndpoint);
 
 const NEON_AUTH_URL = String(
-  isNeonProduction || (isLocalNeonRuntime && !localIsolatedReady)
+  isNeonProduction || (isLocalNeonRuntime && !isolatedRequested)
     ? VALIDATED_NEON_AUTH_URL
-    : import.meta.env.VITE_NEON_AUTH_URL || (isNeonPreview ? VALIDATED_NEON_AUTH_URL : ""),
-).replace(/\/+$/, "");
+    : isolatedRequested
+      ? (isolatedReady ? authOverride : "")
+      : import.meta.env.VITE_NEON_AUTH_URL || (isNeonPreview ? VALIDATED_NEON_AUTH_URL : ""),
+).replace(/\\/+$/, "");
 
 const NEON_DATA_API_URL = String(
-  isNeonProduction || (isLocalNeonRuntime && !localIsolatedReady)
+  isNeonProduction || (isLocalNeonRuntime && !isolatedRequested)
     ? VALIDATED_NEON_DATA_API_URL
-    : import.meta.env.VITE_NEON_DATA_API_URL || (isNeonPreview ? VALIDATED_NEON_DATA_API_URL : ""),
-).replace(/\/+$/, "");
+    : isolatedRequested
+      ? (isolatedReady ? dataOverride : "")
+      : import.meta.env.VITE_NEON_DATA_API_URL || (isNeonPreview ? VALIDATED_NEON_DATA_API_URL : ""),
+).replace(/\\/+$/, "");
 
 export const neonAuthUrl = NEON_AUTH_URL;
 export const neonDataApiUrl = NEON_DATA_API_URL;
