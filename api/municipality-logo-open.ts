@@ -64,6 +64,17 @@ function fail(res: Res, status: number, message: string) {
 }
 
 export default async function handler(req: Req, res: Res) {
+  // Isolated QA must not read or modify official R2 objects, including direct routes.
+  if (process.env.VERCEL_ENV === "preview" &&
+      process.env.VITE_SIGAPRO_NEON_ISOLATED === "true") {
+    res.statusCode = 503;
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Cache-Control", "no-store");
+    res.end(JSON.stringify({ code: "QA_R2_ACCESS_DISABLED",
+      error: "Armazenamento de homologação isolado ainda não configurado." }));
+    return;
+  }
+
   if (req.method !== "GET") {
     fail(res, 405, "Método não permitido.");
     return;
