@@ -342,6 +342,13 @@ describe("SIGAPRO IA — histórico React com respostas concorrentes", () => {
     expect(await screen.findByText(/Nenhum novo registro foi identificado/)).toBeTruthy();
     await waitFor(() => expect(button.hasAttribute("disabled")).toBe(false));
     expect(calls.save).toHaveBeenCalledTimes(1);
+    const originalKey = calls.save.mock.calls[0][5];
+    expect(originalKey).toMatch(/^[0-9a-f-]{36}$/i);
+    calls.history.mockResolvedValueOnce([]);
+    calls.save.mockResolvedValueOnce(undefined);
+    fireEvent.click(button);
+    await waitFor(() => expect(calls.save).toHaveBeenCalledTimes(2));
+    expect(calls.save.mock.calls[1][5]).toBe(originalKey);
   });
 
   it("não atribui ao envio incerto uma medição diferente de outro registro", async () => {
