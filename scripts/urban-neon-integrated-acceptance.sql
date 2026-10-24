@@ -189,10 +189,9 @@ BEGIN
        '{"note":"Sem evidencias","document_scope_confirmed":false}'::jsonb);
      RAISE EXCEPTION 'MISSING_LEGAL_REVIEW_REFERENCES_ACCEPTED';
    EXCEPTION WHEN OTHERS THEN
-     -- Older QA v4 writers can reject this via the table NOT NULL guard;
-     -- the attempted write still must not persist any incomplete audit.
-     IF SQLERRM <> 'Conferencia das referencias legais invalida.' AND
-        SQLERRM NOT LIKE 'null value in column "legal_review" of relation "process_urban_precheck_runs" violates not-null constraint%' THEN
+     -- The patched v4 must return a clear legal validation error BEFORE
+     -- inserting; accepting a table NOT NULL error would hide a regression.
+     IF SQLERRM <> 'Conferencia das referencias legais invalida.' THEN
        RAISE EXCEPTION 'Unexpected incomplete legal-review outcome: %',SQLERRM;
      END IF;
    END;
