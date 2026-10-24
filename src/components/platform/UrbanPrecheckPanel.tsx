@@ -700,6 +700,13 @@ export function UrbanPrecheckPanel({
             const historicRules = versions.find((version) => version.id === entry.regulation_version_id);
             const historicalFindings = historicRules
               ? evaluateUrbanPrecheck(historicRules.rules, entry.measurements) : [];
+            const historicalWarnings = historicalFindings.filter((item) => item.status === "attention").length;
+            const historicalUnverified = historicalFindings.filter((item) => item.status === "missing_evidence").length;
+            const historicalStatus = !historicRules
+              ? "Norma histórica indisponível — resultado não verificável"
+              : historicalWarnings || historicalUnverified
+                ? `${historicalWarnings} divergência(s) · ${historicalUnverified} parâmetro(s) sem comprovação`
+                : "Sem divergências nos parâmetros comprovados";
             return (
               <div key={entry.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 p-3 dark:border-slate-700">
                 <p className="text-xs text-slate-700 dark:text-slate-200">
@@ -707,10 +714,10 @@ export function UrbanPrecheckPanel({
                   {new Date(entry.created_at).toLocaleString("pt-BR")} · Referência legal: {entry.reference_date || "não registrada"} · Versão {historicRules?.version || "arquivada"}
                 </p>
                 <p className="flex items-center gap-1 text-xs text-slate-700 dark:text-slate-200">
-                  {historicalFindings.some((item) => item.status === "attention") || !historicRules ?
+                  {(historicalWarnings > 0 || historicalUnverified > 0 || !historicRules) ?
                     <AlertTriangle className="h-4 w-4 text-amber-600" /> :
                     <CheckCircle2 className="h-4 w-4 text-emerald-600" />}
-                  {historicRules ? historicalFindings.filter((item) => item.status === "attention").length + " alertas" : "Norma arquivada indisponível"} · Registro consultivo
+                  {historicalStatus} · Registro consultivo, não é aprovação
                 </p>
                 {entry.legal_review?.note ? (
                   <div data-urban-review-audit="true" className="w-full rounded-lg border border-sky-200 bg-sky-50 p-3 text-xs leading-5 text-slate-800 dark:border-sky-700 dark:bg-[#132b43] dark:text-slate-100">
