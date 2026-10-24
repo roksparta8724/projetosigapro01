@@ -45,6 +45,17 @@ export type UrbanPrecheckHistoryEntry = {
 export async function listUrbanPrecheckHistory(processId: string): Promise<UrbanPrecheckHistoryEntry[]> {
   const response = await invoke<unknown>("list_urban_prechecks_v1", { _process_id: processId });
   if (!Array.isArray(response)) throw new Error("Histórico de pré-análises indisponível.");
+  // The RPC enforces tenant access. Validate its response as a second boundary:
+  // never display a row belonging to a different process or malformed history.
+  if (response.some((entry) => !entry || typeof entry !== "object" ||
+    entry.process_id !== processId ||
+    typeof entry.id !== "string" || !entry.id ||
+    typeof entry.municipality_id !== "string" || !entry.municipality_id ||
+    typeof entry.regulation_version_id !== "string" || !entry.regulation_version_id ||
+    typeof entry.measurements !== "object" || entry.measurements === null ||
+    Array.isArray(entry.measurements))) {
+    throw new Error("Histórico de pré-análises inconsistente para este processo.");
+  }
   return response as UrbanPrecheckHistoryEntry[];
 }
 
