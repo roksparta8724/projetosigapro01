@@ -140,6 +140,32 @@ BEGIN
    END;
    IF EXISTS (SELECT 1 FROM public.process_urban_precheck_runs WHERE regulation_version_id=foreign_norm)
    THEN RAISE EXCEPTION 'CROSS_TENANT_NORM_CREATED_AUDIT_ROW'; END IF;
+   -- Reject unsubstantiated or physically invalid measurements via the real RPC.
+   -- A rejected attempt must never add a history row.
+   DECLARE
+     invalid_payload jsonb;
+     rejection_count integer := 0;
+   BEGIN
+     FOR invalid_payload IN SELECT value FROM jsonb_array_elements(
+       '[{"front_setback_m":{"value":-1,"evidence":"Prancha ficticia QA"}},
+         {"front_setback_m":{"value":6,"evidence":""}},
+         {"front_setback_m":{"value":"seis","evidence":"Prancha ficticia QA"}},
+         {"metric_inexistente":{"value":6,"evidence":"Prancha ficticia QA"}}]'::jsonb)
+     LOOP
+       BEGIN
+         PERFORM public.save_urban_precheck_run_v4(
+           actor.process_id,norm,'2026-10-23'::date,invalid_payload,
+           '{"evidence_ids":[],"note":"","document_scope_confirmed":false}'::jsonb);
+         RAISE EXCEPTION 'INVALID_MEASUREMENT_ACCEPTED';
+       EXCEPTION WHEN OTHERS THEN
+         IF SQLERRM='INVALID_MEASUREMENT_ACCEPTED' THEN RAISE; END IF;
+         rejection_count:=rejection_count+1;
+       END;
+     END LOOP;
+     IF rejection_count<>4 THEN RAISE EXCEPTION 'INVALID_MEASUREMENT_CASES_NOT_EXECUTED'; END IF;
+     IF (SELECT count(*) FROM public.process_urban_precheck_runs WHERE regulation_version_id=norm)<>1
+     THEN RAISE EXCEPTION 'INVALID_MEASUREMENT_CREATED_AUDIT_ROW'; END IF;
+   END;
    -- Verify persisted tenant, legal version, analyst, reference date and evidence;
    -- a successful RPC result alone is not enough to guarantee audit integrity.
    IF NOT EXISTS (
