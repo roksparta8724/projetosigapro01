@@ -46,6 +46,19 @@ describe("SIGAPRO IA - contrato do cliente de pré-conferência", () => {
     await expect(listUrbanPrecheckHistory("processo-a")).rejects.toThrow(/inconsistente/i);
   });
 
+  it.each([
+    ["medição negativa", { front_setback_m: { value: -2, evidence: "Prancha 02" } }],
+    ["valor não numérico", { front_setback_m: { value: "6", evidence: "Prancha 02" } }],
+    ["valor infinito", { front_setback_m: { value: Infinity, evidence: "Prancha 02" } }],
+    ["prova inexistente", { front_setback_m: { value: 6, evidence: "" } }],
+    ["métrica desconhecida", { unknown_metric: { value: 6, evidence: "Prancha 02" } }],
+    ["pavimentos fracionários", { floor_count: { value: 1.5, evidence: "Prancha 02" } }],
+    ["nenhuma medição", {}],
+  ])("rejeita histórico com %s", async (_label, measurements) => {
+    rpc.mockResolvedValueOnce({ data: [{ ...validRow, measurements }], error: null });
+    await expect(listUrbanPrecheckHistory("processo-a")).rejects.toThrow(/inconsistente/i);
+  });
+
   it("aceita o histórico coerente e usa a RPC de leitura autorizada", async () => {
     rpc.mockResolvedValueOnce({ data: [validRow], error: null });
     await expect(listUrbanPrecheckHistory("processo-a")).resolves.toEqual([validRow]);
