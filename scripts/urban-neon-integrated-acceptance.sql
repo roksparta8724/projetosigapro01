@@ -172,6 +172,29 @@ BEGIN
      IF (SELECT count(*) FROM public.process_urban_precheck_runs WHERE regulation_version_id=norm)<>1
      THEN RAISE EXCEPTION 'INVALID_MEASUREMENT_CREATED_AUDIT_ROW'; END IF;
    END;
+   -- Out-of-period or incomplete legal confirmation cannot be filed either.
+   BEGIN
+     PERFORM public.save_urban_precheck_run_v4(actor.process_id,norm,'2099-01-01'::date,
+       '{"front_setback_m":{"value":6,"evidence":"Prancha ficticia QA"}}'::jsonb,
+       '{"evidence_ids":[],"note":"","document_scope_confirmed":false}'::jsonb);
+     RAISE EXCEPTION 'FUTURE_REFERENCE_DATE_ACCEPTED';
+   EXCEPTION WHEN OTHERS THEN
+     IF SQLERRM <> 'Informe data de referencia legal valida (nao futura).' THEN
+       RAISE EXCEPTION 'Unexpected future-date outcome: %',SQLERRM;
+     END IF;
+   END;
+   BEGIN
+     PERFORM public.save_urban_precheck_run_v4(actor.process_id,norm,'2026-10-23'::date,
+       '{"front_setback_m":{"value":6,"evidence":"Prancha ficticia QA"}}'::jsonb,
+       '{"note":"Sem evidencias","document_scope_confirmed":false}'::jsonb);
+     RAISE EXCEPTION 'MISSING_LEGAL_REVIEW_REFERENCES_ACCEPTED';
+   EXCEPTION WHEN OTHERS THEN
+     IF SQLERRM <> 'Conferencia das referencias legais invalida.' THEN
+       RAISE EXCEPTION 'Unexpected incomplete legal-review outcome: %',SQLERRM;
+     END IF;
+   END;
+   IF (SELECT count(*) FROM public.process_urban_precheck_runs WHERE regulation_version_id=norm)<>1
+   THEN RAISE EXCEPTION 'INVALID_LEGAL_CONTEXT_CREATED_AUDIT_ROW'; END IF;
    -- Verify persisted tenant, legal version, analyst, reference date and evidence;
    -- a successful RPC result alone is not enough to guarantee audit integrity.
    IF NOT EXISTS (
