@@ -6,7 +6,7 @@ import {listUrbanPrecheckHistory} from "@/integrations/backend/urbanPrecheckClie
 
 const valid = {
   id:"historico-1",municipality_id:"prefeitura-a",
-  process_id:"processo-a",regulation_version_id:"norma-1",measurements:{},
+  process_id:"processo-a",regulation_version_id:"norma-1",measurements:{front_setback_m:{value:6,evidence:"Prancha 02 — cota frontal"}},
   reference_date:"2026-10-23",reviewer_profile_id:"analista-a",
   created_at:"2026-10-23T12:00:00Z",
 };
