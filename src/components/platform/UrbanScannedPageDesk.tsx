@@ -103,7 +103,7 @@ export function UrbanScannedPageDesk({bytes,scannedPages,readOnly,onVerifiedTran
     }
   };
   const confirm=()=>{
-    if(issue||!checked||busy||error||!expanded)return;
+    if(readOnly||issue||!checked||busy||ocrBusy||error||!expanded)return;
     onVerifiedTranscript({page,text:normalizeUrbanScanTranscript(first),
       method:ocrAssisted?"browser_ocr_human_verified":"visual_double_transcription"});
     reset();
@@ -216,7 +216,7 @@ export function UrbanScannedPageDesk({bytes,scannedPages,readOnly,onVerifiedTran
             caracteres e assumo a conferência técnica deste trecho. Se utilizei OCR,
             confirmo que revisei também todos os caracteres sugeridos.
           </label>
-          <Button type="button" disabled={Boolean(issue)||!checked||busy||Boolean(error)}
+          <Button type="button" disabled={readOnly||Boolean(issue)||!checked||busy||ocrBusy||Boolean(error)}
             onClick={confirm} className="rounded-xl bg-sky-700 text-white hover:bg-sky-800">
             <ShieldCheck className="mr-2 h-4 w-4"/> Usar trecho conferido da página {page}
           </Button>
