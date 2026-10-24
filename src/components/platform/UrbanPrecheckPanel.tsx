@@ -43,6 +43,7 @@ export function UrbanPrecheckPanel({
   const activeProcessRef = useRef(process.id);
   activeProcessRef.current = process.id;
   const historyRetryRef = useRef(false);
+  const historyRetryGenerationRef = useRef(0);
   const [lastSavedSnapshot, setLastSavedSnapshot] = useState<string | null>(null);
   const [notice, setNotice] = useState("");
   const [legalCatalog, setLegalCatalog] = useState<UrbanLegalEvidence[]>([]);
@@ -67,6 +68,7 @@ export function UrbanPrecheckPanel({
     setHistoryError("");
     setHistoryRetrying(false);
     historyRetryRef.current = false;
+    historyRetryGenerationRef.current += 1;
     setNotice("");
     setLastSavedSnapshot(null);
     setLegalCatalog([]);
@@ -322,19 +324,27 @@ export function UrbanPrecheckPanel({
   const retryHistory = async () => {
     if (historyRetryRef.current) return;
     const requestedProcessId = process.id;
+    const requestedMunicipalityId = municipalityId;
+    const retryGeneration = ++historyRetryGenerationRef.current;
     historyRetryRef.current = true;
     setHistoryRetrying(true);
     try {
       const updated = await listUrbanPrecheckHistory(requestedProcessId);
-      if (activeProcessRef.current !== requestedProcessId) return;
+      if (activeProcessRef.current !== requestedProcessId ||
+          municipalityId !== requestedMunicipalityId ||
+          historyRetryGenerationRef.current !== retryGeneration) return;
       setHistory(updated);
       setHistoryError("");
     } catch (error) {
-      if (activeProcessRef.current === requestedProcessId) {
+      if (activeProcessRef.current === requestedProcessId &&
+          municipalityId === requestedMunicipalityId &&
+          historyRetryGenerationRef.current === retryGeneration) {
         setHistoryError(String((error as Error)?.message || error));
       }
     } finally {
-      if (activeProcessRef.current === requestedProcessId) {
+      if (activeProcessRef.current === requestedProcessId &&
+          municipalityId === requestedMunicipalityId &&
+          historyRetryGenerationRef.current === retryGeneration) {
         historyRetryRef.current = false;
         setHistoryRetrying(false);
       }
