@@ -251,6 +251,12 @@ export function applyMunicipalBasePath(basePath: string | undefined, objectKey: 
 }
 
 export async function testMunicipalStorageConnection(config: MunicipalStorageConnection) {
+  // Defense in depth: do not write temporary files to any cloned municipal
+  // storage destination from an isolated preview, even if another route calls us.
+  if (process.env.VERCEL_ENV === "preview" &&
+      process.env.VITE_SIGAPRO_NEON_ISOLATED === "true") {
+    throw new Error("Teste de bucket externo bloqueado na homologação isolada.");
+  }
   const client = buildMunicipalS3Client(config);
   const bucket = String(config.bucket_documents || "").trim();
   if (!bucket) throw new Error("Bucket de documentos não configurado.");

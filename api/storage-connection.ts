@@ -104,6 +104,16 @@ export default async function handler(req: Req, res: Res) {
   try {
     const body = await readJsonBody(req);
     const action = typeof body.action === "string" ? body.action : "get";
+
+    if (process.env.VERCEL_ENV === "preview" &&
+        process.env.VITE_SIGAPRO_NEON_ISOLATED === "true" &&
+        action === "test") {
+      json(res, 503, {
+        code: "QA_STORAGE_TEST_DISABLED",
+        error: "Teste de gravação em bucket externo bloqueado na homologação isolada.",
+      });
+      return;
+    }
     const municipalityId = municipalityIdFrom(body);
 
     if (action === "get") {
