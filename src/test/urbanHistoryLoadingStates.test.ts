@@ -10,7 +10,7 @@ describe("SIGAPRO IA - estados do histórico", () => {
     expect(source).toContain('setHistoryLoading(true);');
     expect(source).toContain("historyLoading ? <p role=\"status\"");
     expect(source).toContain("Consultando histórico de pré-conferências...");
-    expect(source).toMatch(/historyLoading[\s\S]*?!history\.length \? <p/);
+    expect(source).toContain("!historyLoading && !history.length && !historyError");
   });
 
   it("finaliza indicador quando a leitura inicial termina ou falha", () => {
