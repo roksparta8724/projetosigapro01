@@ -102,7 +102,9 @@ async function canAccess(req: Request, municipalityId: string, objectKey: string
   );
   if (processMatch) {
     const processId = processMatch[1];
-    const access = await callDataApiRpc(req, "has_process_access", { _process_id: processId });
+    // A process is accessible only when its actual municipality matches the QA key/context.
+    const access = await callDataApiRpc(req, "qa_storage_process_tenant_access_v1",
+      { _process_id: processId, _tenant_id: municipalityId });
     if (!truthy(access)) return false;
     if (action === "upload" || action === "delete") {
       const write = await callDataApiRpc(req, "can_write_process_analysis",
@@ -184,7 +186,9 @@ export async function handleQaStorage(req: Request, res: Res, action: string) {
         if (!/^[0-9a-f-]{36}$/i.test(processId)) {
           json(res, 400, { code: "QA_INVALID_PROCESS" }); return;
         }
-        const access = await callDataApiRpc(req, "has_process_access", { _process_id: processId });
+        // A process is accessible only when its actual municipality matches the QA key/context.
+    const access = await callDataApiRpc(req, "qa_storage_process_tenant_access_v1",
+      { _process_id: processId, _tenant_id: municipalityId });
         if (!access.ok || access.payload !== true) {
           json(res, 403, { code: "QA_STORAGE_FORBIDDEN" }); return;
         }

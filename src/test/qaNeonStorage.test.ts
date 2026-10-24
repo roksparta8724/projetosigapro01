@@ -99,16 +99,37 @@ describe("SIGAPRO isolated Neon QA storage", () => {
   it("rejects a tenant member trying to read another process", async () => {
     active();
     check.mockImplementation((_req,name) => Promise.resolve({
-      ok:true,payload:name!=="has_process_access"
+      ok:true,payload:name!=="qa_storage_process_tenant_access_v1"
     }));
     const res=response();
     await handleQaStorage({method:"POST",headers:{authorization:"Bearer synthetic"},
       body:{bucket:"sigapro-documentos",objectKey:KEY}
     } as never,res as never,"sign-get");
     expect(res.statusCode).toBe(403);
-    expect(check.mock.calls.map(call=>call[1])).toContain("has_process_access");
+    expect(check.mock.calls.map(call=>call[1])).toContain("qa_storage_process_tenant_access_v1");
     expect(send).not.toHaveBeenCalled();
   });
+  it.each(["sign-get", "upload"] as const)(
+    "denies %s if process belongs to a different municipality even when separate legacy checks would pass",
+    async action => {
+      active();
+      check.mockImplementation((_req, name) => Promise.resolve({
+        ok: true,
+        payload: name !== "qa_storage_process_tenant_access_v1",
+      }));
+      const res = response();
+      await handleQaStorage({method:"POST",headers:{authorization:"Bearer synthetic"},body:{
+        bucket:"process-documents", objectKey:KEY,
+      }} as never,res as never,action);
+      expect(res.statusCode).toBe(403);
+      expect(check.mock.calls.some(args=>
+        args[1]==="qa_storage_process_tenant_access_v1" &&
+        args[2]?._process_id==="bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb" &&
+        args[2]?._tenant_id==="aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+      )).toBe(true);
+      expect(send).not.toHaveBeenCalled();
+    }
+  );
   it("rejects process writes by non-responsible analysts", async () => {
     active();
     check.mockImplementation((_req,name) => Promise.resolve({
@@ -239,13 +260,29 @@ describe("SIGAPRO isolated Neon QA storage", () => {
       ok:true,payload:name==="get_current_profile_context"
         ? {tenant_id:"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",profile_id:"bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"}
         : name==="current_auth_subject" ? "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
-        : name==="has_process_access" ? false : true,
+        : name==="qa_storage_process_tenant_access_v1" ? false : true,
     }));
     const out=response();
     await handleQaStorage({method:"POST",headers:{authorization:"Bearer synthetic"},
       body:{processId:"cccccccc-cccc-4ccc-8ccc-cccccccccccc"}
     } as never,out as never,"list-user-files");
     expect(out.statusCode).toBe(403);
+    expect(send).not.toHaveBeenCalled();
+  });
+  it("denies recovery enumeration scoped to a process of another municipality", async () => {
+    active();
+    check.mockImplementation((_req,name) => Promise.resolve({
+      ok:true,
+      payload: name==="get_current_profile_context"
+        ? {tenant_id:"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",profile_id:"bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"}
+        : name==="current_auth_subject" ? "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
+        : name==="qa_storage_process_tenant_access_v1" ? false : true,
+    }));
+    const res=response();
+    await handleQaStorage({method:"POST",headers:{authorization:"Bearer synthetic"},
+      body:{processId:"cccccccc-cccc-4ccc-8ccc-cccccccccccc"}
+    } as never,res as never,"list-user-files");
+    expect(res.statusCode).toBe(403);
     expect(send).not.toHaveBeenCalled();
   });
   it("refuses original payment guide document mutations", async () => {
