@@ -89,6 +89,14 @@ export function UrbanPrecheckPanel({
     [versions, municipalityId, zone, usage, asOf],
   );
 
+  useEffect(() => {
+    // Measurements belong to a specific legal version and must never cross
+    // zoning, use, reference-date or municipal regulation boundaries.
+    setFields({});
+    setAreaFields({});
+    setLastSavedSnapshot(null);
+  }, [process.id, municipalityId, zone, usage, asOf, regulation?.id]);
+
   const conditionalReferences = useMemo(
     () => findUrbanLegalConditions(legalCatalog, municipalityId, regulation, asOf),
     [legalCatalog, municipalityId, regulation, asOf],
@@ -246,7 +254,7 @@ export function UrbanPrecheckPanel({
     }
     const complete: UrbanMeasurements = {};
     for (const finding of findings) {
-      if (finding.status !== "missing_evidence") {
+      if (finding.status !== "missing_evidence" && measurements[finding.metric]) {
         complete[finding.metric] = measurements[finding.metric];
       }
     }
