@@ -62,23 +62,26 @@ export function UrbanPrecheckPanel({
     setLegalCatalogError("");
     setLegalReview({ evidenceIds: [], note: "", documentScopeConfirmed: false });
     setLoading(true);
-    void Promise.all([
+    void Promise.allSettled([
       listUrbanRegulations(municipalityId),
       listUrbanPrecheckHistory(process.id),
-      listUrbanLegalEvidence(municipalityId).then(
-        (rows) => ({ rows, error: "" }),
-        (error: unknown) => ({ rows: [] as UrbanLegalEvidence[],
-          error: String((error as Error)?.message || error) }),
-      ),
+      listUrbanLegalEvidence(municipalityId),
     ]).then(([rules, past, legal]) => {
-      if (active) {
-        setVersions(rules); setHistory(past);
-        setLegalCatalog(legal.rows);
-        setLegalCatalogError(legal.error);
-        setLegalCatalogReady(true);
+      if (!active) return;
+      if (rules.status === "fulfilled") setVersions(rules.value);
+      else setNotice("Normas indisponíveis: " + String((rules.reason as Error)?.message || rules.reason));
+      if (past.status === "fulfilled") setHistory(past.value);
+      else setNotice(previous => [previous,
+        "Histórico indisponível: " + String((past.reason as Error)?.message || past.reason),
+      ].filter(Boolean).join(" | "));
+      if (legal.status === "fulfilled") {
+        setLegalCatalog(legal.value);
+        setLegalCatalogError("");
+      } else {
+        setLegalCatalog([]);
+        setLegalCatalogError(String((legal.reason as Error)?.message || legal.reason));
       }
-    }).catch((error: unknown) => {
-      if (active) setNotice("Normas ainda indisponíveis: " + String((error as Error)?.message || error));
+      setLegalCatalogReady(true);
     }).finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [municipalityId, process.id, process.property.usage, process.officializedAt]);
