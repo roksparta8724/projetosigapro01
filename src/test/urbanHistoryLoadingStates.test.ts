@@ -18,6 +18,14 @@ describe("SIGAPRO IA - estados do histórico", () => {
     expect(source).toContain('setHistoryError(String((error as Error)?.message || error)); setHistoryLoading(false);');
   });
 
+  it("não deixa atualização antiga após salvar sobrescrever uma consulta manual mais recente", () => {
+    expect(source).toContain("const savedHistoryGeneration = ++historyRetryGenerationRef.current;");
+    const saveRefresh = source.slice(source.indexOf("const savedHistoryGeneration"));
+    const retry = source.slice(source.indexOf("const retryHistory = async () =>"));
+    expect(saveRefresh).toContain("historyRetryGenerationRef.current !== savedHistoryGeneration");
+    expect(retry).toContain("const retryGeneration = ++historyRetryGenerationRef.current");
+  });
+
   it("não mostra sucesso de leitura quando a atualização após salvar falhar", () => {
     expect(source).toContain('setHistoryLoading(true);');
     expect(source).toContain('setHistoryLoading(false);');
