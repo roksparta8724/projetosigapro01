@@ -397,7 +397,25 @@ export function UrbanPrecheckPanel({
       setHistory(updated);
       setHistoryError("");
       if (failedSaveSnapshotRef.current !== null) {
-        const wasSaved = updated.some(entry => !historyBeforeSaveRef.current.has(entry.id));
+        const pending = failedSaveSnapshotRef.current;
+        const expected = pending ? JSON.parse(pending) as {
+          processId: string; municipalityId: string; regulationId: string; asOf: string;
+          fields: Fields;
+        } : null;
+        const wasSaved = !!expected && updated.some(entry => {
+          if (historyBeforeSaveRef.current.has(entry.id) ||
+              entry.process_id !== expected.processId ||
+              entry.municipality_id !== expected.municipalityId ||
+              entry.regulation_version_id !== expected.regulationId ||
+              entry.reference_date !== expected.asOf) return false;
+          const savedMetrics = Object.entries(entry.measurements);
+          return savedMetrics.length > 0 && savedMetrics.every(([metric, measurement]) => {
+            const original = expected.fields[metric as UrbanMetric];
+            return original &&
+              Number(original.value.trim().replace(",", ".")) === measurement?.value &&
+              original.evidence.trim() === measurement?.evidence;
+          });
+        });
         if (wasSaved) setLastSavedSnapshot(failedSaveSnapshotRef.current);
         failedSaveSnapshotRef.current = null;
         setSaveNeedsVerification(false);
