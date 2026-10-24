@@ -322,6 +322,7 @@ export function UrbanPrecheckPanel({
           activeLegalContextRef.current !== requestedLegalContext) return;
       setLastSavedSnapshot(currentSnapshot);
       setHistoryLoading(true);
+      setHistoryError("");
       // Invalidate any initial or manual history read started before this successful write.
       const savedHistoryGeneration = ++historyRetryGenerationRef.current;
       historyRetryRef.current = false;
@@ -363,6 +364,7 @@ export function UrbanPrecheckPanel({
     historyRetryRef.current = true;
     setHistoryRetrying(true);
     setHistoryLoading(true);
+    setHistoryError("");
     try {
       const updated = await listUrbanPrecheckHistory(requestedProcessId);
       if (!isCurrentUrbanRequest(
@@ -685,14 +687,15 @@ export function UrbanPrecheckPanel({
           <FileClock className="h-4 w-4" /> Histórico de pré-conferências
         </h4>
         <div className="mt-2 space-y-2">
-          {historyError ? (
+          {historyLoading ? <p role="status" className="text-xs text-slate-500 dark:text-slate-300">Consultando histórico de pré-conferências...</p> : null}
+          {!historyLoading && historyError ? (
             <div role="alert" className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100">
               Histórico indisponível: {historyError}. O sistema não confirmou que o histórico está vazio.
               <Button type="button" variant="outline" size="sm" className="ml-2" disabled={historyRetrying} onClick={() => void retryHistory()}>
                 {historyRetrying ? "Consultando..." : "Consultar novamente"}
               </Button>
             </div>
-          ) : historyLoading ? <p role="status" className="text-xs text-slate-500 dark:text-slate-300">Consultando histórico de pré-conferências...</p> : !history.length ? <p className="text-xs text-slate-500 dark:text-slate-300">Nenhuma pré-conferência registrada.</p> : null}
+          ) : !historyLoading && !history.length && !historyError ? <p className="text-xs text-slate-500 dark:text-slate-300">Nenhuma pré-conferência registrada.</p> : null}
           {history.map((entry) => {
             const historicRules = versions.find((version) => version.id === entry.regulation_version_id);
             const historicalFindings = historicRules
