@@ -1,12 +1,24 @@
 import { describe, expect, it } from "vitest";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { mergeDerivedUrbanFields } from "@/lib/urbanPrecheckAssist";
 
-describe("SIGAPRO — índices existentes preservados", () => {
-  it("não sobrescreve valores e referências da análise manual ao derivar índices", () => {
-    const source=readFileSync(resolve(process.cwd(),"src/components/platform/UrbanPrecheckPanel.tsx"),"utf8");
-    const derived=source.slice(source.indexOf("const deriveAreaRatios = () =>"),source.indexOf("const measurements = useMemo"));
-    expect(derived).toContain("if (next[metric]?.value.trim() || next[metric]?.evidence.trim()) continue;");
-    expect(derived).toContain("next[metric] = { value: String(value.value), evidence: value.evidence };");
+describe("SIGAPRO — índices urbanísticos calculados", () => {
+  it("preserva valor e evidência registrados manualmente e preenche campos vazios", () => {
+    const current = {
+      occupancy_percent: {value:"35",evidence:"Prancha A1, pág. 2"},
+      permeability_percent: {value:"",evidence:""},
+    };
+    const result = mergeDerivedUrbanFields(current, [
+      ["occupancy_percent", {value:40,evidence:"Leitura automática da planta"}],
+      ["permeability_percent", {value:25,evidence:"Planta revisada, pág. 1"}],
+    ]);
+    expect(result.occupancy_percent).toEqual(current.occupancy_percent);
+    expect(result.permeability_percent).toEqual({value:"25",evidence:"Planta revisada, pág. 1"});
+    expect(current.permeability_percent.value).toBe("");
+  });
+  it("não sobrescreve referências já existentes mesmo quando o valor está vazio", () => {
+    const result=mergeDerivedUrbanFields({
+      floor_area_ratio:{value:"",evidence:"Conferência pendente do analista"},
+    },[["floor_area_ratio",{value:1.2,evidence:"Cálculo sugerido"}]]);
+    expect(result.floor_area_ratio).toEqual({value:"",evidence:"Conferência pendente do analista"});
   });
 });
