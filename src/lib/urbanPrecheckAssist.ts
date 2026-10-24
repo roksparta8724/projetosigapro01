@@ -91,3 +91,16 @@ export function buildUrbanReviewDraft(
   ];
   return lines.join("\n\n");
 }
+
+/** Merge calculated values without overwriting an analyst's manual entry or source. */
+export function mergeDerivedUrbanFields<T extends string>(
+  current: Partial<Record<T, { value: string; evidence: string }>>,
+  calculated: ReadonlyArray<readonly [T, { value: number; evidence: string }]>,
+): Partial<Record<T, { value: string; evidence: string }>> {
+  const next = { ...current };
+  for (const [metric, measurement] of calculated) {
+    if (next[metric]?.value.trim() || next[metric]?.evidence.trim()) continue;
+    next[metric] = { value: String(measurement.value), evidence: measurement.evidence };
+  }
+  return next;
+}
