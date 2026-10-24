@@ -304,6 +304,7 @@ describe("SIGAPRO IA — histórico React com respostas concorrentes", () => {
     calls.save.mockRejectedValueOnce(new Error("Conexão interrompida QA"));
     render(<UrbanPrecheckPanel process={process("A")} municipalityId="prefeitura-A" readOnly={false} />);
     fireEvent.change(screen.getByPlaceholderText("Ex.: ZR1"), { target: { value: "Z1" } });
+    fireEvent.change(screen.getByLabelText("Data de referência legal"), { target: { value: "2026-10-23" } });
     expect(await screen.findByText(/Norma ativa: Z1/)).toBeTruthy();
     fireEvent.change(screen.getByRole("textbox", { name: "Medição: Recuo frontal" }), { target: { value: "6" } });
     fireEvent.change(screen.getByRole("textbox", { name: "Evidência: Recuo frontal" }), { target: { value: "Prancha 02" } });
