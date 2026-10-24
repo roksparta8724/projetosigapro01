@@ -1,0 +1,91 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const rpc = vi.hoisted(() => vi.fn());
+vi.mock("@/integrations/backend/databaseClient", () => ({
+  backendClient: { rpc },
+}));
+
+import { listUrbanPrecheckHistory, saveUrbanPrecheckRun } from "@/integrations/backend/urbanPrecheckClient";
+
+const validMeasurement = {
+  front_setback_m: { value: 6, evidence: "Prancha 02 - recuo frontal" },
+};
+const review = { evidenceIds: [], note: "", documentScopeConfirmed: false };
+const validRow = {
+  id: "run-1", municipality_id: "municipio-a", process_id: "processo-a",
+  regulation_version_id: "norma-a", measurements: validMeasurement,
+  reference_date: "2026-10-23", reviewer_profile_id: "analista-a",
+  created_at: "2026-10-23T12:00:00.000Z",
+};
+
+describe("SIGAPRO IA - contrato do cliente de pré-conferência", () => {
+  beforeEach(() => {
+    rpc.mockReset();
+    rpc.mockResolvedValue({ data: [], error: null });
+  });
+
+  it("recusa histórico de outro processo mesmo quando a RPC retorna sucesso", async () => {
+    rpc.mockResolvedValueOnce({ data: [{ ...validRow, process_id: "processo-b" }], error: null });
+    await expect(listUrbanPrecheckHistory("processo-a")).rejects.toThrow(/inconsistente/i);
+  });
+
+  it("recusa histórico malformado, nulo ou com lista de medições", async () => {
+    for (const data of [null, {}, [{ ...validRow, measurements: [] }], [null]]) {
+      rpc.mockResolvedValueOnce({ data, error: null });
+      await expect(listUrbanPrecheckHistory("processo-a")).rejects.toThrow();
+    }
+  });
+
+  it("aceita o histórico coerente e usa a RPC de leitura autorizada", async () => {
+    rpc.mockResolvedValueOnce({ data: [validRow], error: null });
+    await expect(listUrbanPrecheckHistory("processo-a")).resolves.toEqual([validRow]);
+    expect(rpc).toHaveBeenCalledWith("list_urban_prechecks_v1", { _process_id: "processo-a" });
+  });
+
+  it("propaga falhas de permissão do banco sem mascarar como lista vazia", async () => {
+    rpc.mockResolvedValueOnce({ data: null, error: { message: "Sem acesso ao historico de analises." } });
+    await expect(listUrbanPrecheckHistory("processo-a")).rejects.toThrow(/Sem acesso/);
+  });
+
+  it("grava exatamente o processo, a norma, a data, as evidências e a revisão declarados", async () => {
+    const documentedReview = {
+      evidenceIds: ["evidencia-1"], note: "Conferência humana documentada no arquivo urbanístico.",
+      documentScopeConfirmed: true,
+    };
+    await saveUrbanPrecheckRun("processo-a", "norma-a", "2026-10-23", validMeasurement, documentedReview);
+    expect(rpc).toHaveBeenCalledWith("save_urban_precheck_run_v4", {
+      _process_id: "processo-a", _regulation_version_id: "norma-a",
+      _reference_date: "2026-10-23", _measurements: validMeasurement,
+      _legal_review: {
+        evidence_ids: ["evidencia-1"],
+        note: "Conferência humana documentada no arquivo urbanístico.",
+        document_scope_confirmed: true,
+      },
+    });
+  });
+
+  it.each([
+    ["medições vazias", {}],
+    ["evidência curta", { front_setback_m: { value: 5, evidence: "X" } }],
+    ["valor negativo", { front_setback_m: { value: -1, evidence: "Prancha 02" } }],
+    ["métrica não prevista", { invented_metric: { value: 10, evidence: "Prancha 02" } }],
+    ["pavimentos fracionários", { floor_count: { value: 1.5, evidence: "Prancha 02" } }],
+  ])("impede envio de %s", async (_label, measurements) => {
+    await expect(saveUrbanPrecheckRun("processo-a", "norma-a", "2026-10-23",
+      measurements as typeof validMeasurement, review)).rejects.toThrow(/Medições inválidas/);
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("rejeita citações repetidas ou revisão sem confirmação booleana", async () => {
+    await expect(saveUrbanPrecheckRun("processo-a", "norma-a", "2026-10-23",
+      validMeasurement, { ...review, evidenceIds: ["e1", "e1"] })).rejects.toThrow(/revisão legal inválida/i);
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("não tenta gravar quando o banco recusa a operação", async () => {
+    rpc.mockResolvedValueOnce({ data: null, error: { message: "Acesso negado ao processo." } });
+    await expect(saveUrbanPrecheckRun("processo-a", "norma-a", "2026-10-23",
+      validMeasurement, review)).rejects.toThrow(/Acesso negado/);
+    expect(rpc).toHaveBeenCalledTimes(1);
+  });
+});
