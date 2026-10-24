@@ -27,9 +27,10 @@ describe("SIGAPRO isolated QA must never sign official legislation R2 objects", 
     vi.stubEnv("R2_SECRET_ACCESS_KEY", "never-used-qa");
     const res = response();
     await handler({ method, url: QA_PDF } as never, res as never);
-    expect(res.statusCode).toBe(503);
+    expect(res.statusCode).toBe(method === "GET" ? 503 : 405);
     expect(res.headers["Cache-Control"]).toBe("no-store");
-    expect(res.body).toContain("Acervo isolado de QA");
+    if (method === "GET") expect(res.body).toContain("Acervo isolado de QA");
+    else expect(res.body).toContain("Método não permitido.");
     expect(res.headers.Location).toBeUndefined();
     expect(signUrl).not.toHaveBeenCalled();
   });
