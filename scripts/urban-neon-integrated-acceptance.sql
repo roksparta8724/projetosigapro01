@@ -3,7 +3,7 @@
 -- rolled back by the deliberate exception subtransaction.
 -- JWT claim emulation tests SQL authorization, NOT real browser authentication.
 DO $qa$
-DECLARE actor record; outsider text; outsider_profile uuid; outsider_municipality uuid; norm uuid; foreign_norm uuid; saved jsonb; history jsonb; passed boolean:=false;
+DECLARE actor record; outsider text; outsider_profile uuid; outsider_municipality uuid; norm uuid; foreign_norm uuid; foreign_process uuid; saved jsonb; history jsonb; passed boolean:=false;
 BEGIN
  IF current_database()<>'sigapro_migration_stage_20260923' THEN
    RAISE EXCEPTION 'This test may only run on isolated QA database';
@@ -25,6 +25,21 @@ BEGIN
  BEGIN
    norm:=gen_random_uuid();
    foreign_norm:=gen_random_uuid();
+   foreign_process:=gen_random_uuid();
+   INSERT INTO public.processes (id,tenant_id,municipality_id,protocol_number,title,process_type,created_by_profile_id)
+   VALUES (foreign_process,outsider_municipality,outsider_municipality,
+     'QA-ISOLAMENTO-'||foreign_process::text,'Processo sintetico de segregacao QA',
+     'aprovacao_projeto',outsider_profile);
+   -- The synthetic second-tenant process only exists inside the rollback scope.
+   PERFORM set_config('request.jwt.claims',jsonb_build_object('sub',actor.subject_id)::text,true);
+   IF public.has_process_access(foreign_process) OR public.can_write_process_analysis(foreign_process)
+   THEN RAISE EXCEPTION 'ACTOR_CAN_ACCESS_FOREIGN_PROCESS'; END IF;
+   BEGIN
+     PERFORM public.list_urban_prechecks_v1(foreign_process);
+     RAISE EXCEPTION 'ACTOR_READ_FOREIGN_PROCESS_HISTORY';
+   EXCEPTION WHEN OTHERS THEN
+     IF SQLERRM <> 'Sem acesso ao historico de analises.' THEN RAISE; END IF;
+   END;
    INSERT INTO public.urban_regulation_versions
     (id,municipality_id,zone_code,use_code,effective_from,version,status,rules,
      created_by_profile_id,activated_by_profile_id,activated_at)
@@ -153,6 +168,7 @@ BEGIN
  PERFORM set_config('request.jwt.claims','',true);
  IF NOT passed OR EXISTS(SELECT 1 FROM public.urban_regulation_versions WHERE id IN (norm,foreign_norm))
     OR EXISTS(SELECT 1 FROM public.process_urban_precheck_runs WHERE regulation_version_id=norm)
+    OR EXISTS(SELECT 1 FROM public.processes WHERE id=foreign_process)
  THEN RAISE EXCEPTION 'QA acceptance failed: fixture leak'; END IF;
  RAISE NOTICE 'PASS: analyst saved and retrieved; other tenant blocked; fixture fully rolled back';
 END $qa$;
