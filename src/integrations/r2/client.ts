@@ -1,4 +1,5 @@
 import { backendClient } from "@/integrations/backend/databaseClient";
+import { qaUploadMime, validateQaUploadPreflight } from "@/lib/qaUploadPreflight";
 
 export type R2UploadResult = {
   bucket: string;
@@ -327,6 +328,9 @@ export async function uploadFile(input: {
   objectKey: string;
   file: File;
 }) {
+  // Never read/encode an oversized QA PDF only to receive HTTP 413.
+  // Larger files need a separately validated direct-to-bucket upload protocol.
+  if (isolatedQa) validateQaUploadPreflight(input.file);
   const controller = new AbortController();
   const timeout = window.setTimeout(() => {
     controller.abort();
@@ -344,7 +348,7 @@ export async function uploadFile(input: {
       objectKey: input.objectKey,
       fileName: input.file.name,
       fileSize: input.file.size,
-      mimeType: input.file.type || "application/octet-stream",
+      mimeType: isolatedQa ? qaUploadMime(input.file) : (input.file.type || "application/octet-stream"),
     });
 
     const response = await fetch(buildApiUrl("/api/r2-upload"), {
@@ -356,7 +360,7 @@ export async function uploadFile(input: {
       body: JSON.stringify({
         bucket: normalizeClientBucket(input.bucket),
         objectKey: input.objectKey,
-        contentType: input.file.type || "application/octet-stream",
+        contentType: isolatedQa ? qaUploadMime(input.file) : (input.file.type || "application/octet-stream"),
         fileName: input.file.name,
         base64,
       }),
