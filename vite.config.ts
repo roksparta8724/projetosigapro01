@@ -90,7 +90,17 @@ function isR2CredentialError(error: unknown) {
     /signature.*does not match|invalid access key|access denied/i.test(message);
 }
 
+function assertQaR2WriteAllowed() {
+  if (process.env.VITE_SIGAPRO_NEON_ISOLATED === "true" &&
+      process.env.SIGAPRO_QA_R2_WRITES_ALLOWED !== "true") {
+    throw new Error("Homologação isolada: escrita no R2 bloqueada até configurar armazenamento de testes.");
+  }
+}
+
 async function sendR2WithFallback<T>(command: any): Promise<T> {
+  if (command instanceof PutObjectCommand || command instanceof DeleteObjectCommand) {
+    assertQaR2WriteAllowed();
+  }
   const endpoints = getR2EndpointCandidates();
   if (endpoints.length === 0) {
     throw new Error("Endpoint R2 não configurado.");
@@ -643,6 +653,7 @@ function createR2DevApiPlugin(): Plugin {
                 secretAccessKey: readEnvValue("R2_SECRET_ACCESS_KEY"),
               },
             });
+            assertQaR2WriteAllowed();
             const uploadUrl = await getSignedUrl(
               presignClient,
               new PutObjectCommand({
