@@ -41,6 +41,7 @@ export function UrbanPrecheckPanel({
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const saveInFlightRef = useRef(false);
+  const idempotencyRef = useRef<{ snapshot: string; id: string } | null>(null);
   const saveGenerationRef = useRef(0);
   const activeProcessRef = useRef(process.id);
   activeProcessRef.current = process.id;
@@ -79,6 +80,7 @@ export function UrbanPrecheckPanel({
     setHistory([]);
     saveGenerationRef.current += 1;
     saveInFlightRef.current = false;
+    idempotencyRef.current = null;
     setSaving(false);
     setHistoryError("");
     setHistoryLoading(true);
@@ -316,6 +318,9 @@ export function UrbanPrecheckPanel({
       setNotice("Nenhum parâmetro comprovado por documento para registrar.");
       return;
     }
+    const requestId = idempotencyRef.current?.snapshot === currentSnapshot
+      ? idempotencyRef.current.id : crypto.randomUUID();
+    idempotencyRef.current = { snapshot: currentSnapshot, id: requestId };
     const requestedProcessId = process.id;
     const requestedLegalContext = activeLegalContextRef.current;
     const saveGeneration = ++saveGenerationRef.current;
@@ -328,7 +333,7 @@ export function UrbanPrecheckPanel({
         evidenceIds: conditionalReferences.map(item => item.evidenceId),
         note: legalReview.note.trim(),
         documentScopeConfirmed: legalReview.documentScopeConfirmed,
-      });
+      }, requestId);
       if (activeProcessRef.current !== requestedProcessId ||
           activeLegalContextRef.current !== requestedLegalContext ||
           saveGenerationRef.current !== saveGeneration) return;
