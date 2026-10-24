@@ -24,12 +24,12 @@ export default async function handler(req: Req, res: Res) {
   // fail closed until a separate QA R2 store has been provisioned and reviewed.
   if (process.env.VERCEL_ENV === "preview" &&
       process.env.VITE_SIGAPRO_NEON_ISOLATED === "true" &&
-      (action === "upload" || action === "delete")) {
+      ["upload", "delete", "sign-get", "list-user-files", "master-logo-source", "profile-avatar-open"].includes(action)) {
     res.statusCode = 503;
     res.setHeader("Content-Type", "application/json; charset=utf-8");
     res.setHeader("Cache-Control", "no-store");
     res.end(JSON.stringify({
-      error: "Armazenamento de homologação indisponível: escrita em R2 bloqueada para proteger documentos oficiais.",
+      error: "Armazenamento de homologação indisponível: acesso ao R2 oficial bloqueado para proteger documentos municipais.",
       code: "QA_R2_WRITE_DISABLED",
     }));
     return;
