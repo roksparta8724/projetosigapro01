@@ -38,6 +38,22 @@ BEGIN
    saved:=public.save_urban_precheck_run_v4(actor.process_id,norm,'2026-10-23'::date,
     '{"front_setback_m":{"value":6,"evidence":"Prancha sintetica QA pagina 1"}}'::jsonb,
     '{"evidence_ids":[],"note":"","document_scope_confirmed":false}'::jsonb);
+   -- Verify persisted tenant, legal version, analyst, reference date and evidence;
+   -- a successful RPC result alone is not enough to guarantee audit integrity.
+   IF NOT EXISTS (
+     SELECT 1 FROM public.process_urban_precheck_runs r
+     WHERE r.id=(saved->>'id')::uuid
+       AND r.process_id=actor.process_id
+       AND r.municipality_id=actor.municipality_id
+       AND r.regulation_version_id=norm
+       AND r.reviewer_profile_id=actor.profile_id
+       AND r.reference_date='2026-10-23'::date
+       AND r.measurements->'front_setback_m'->>'evidence'='Prancha sintetica QA pagina 1'
+       AND r.measurements->'front_setback_m'->>'value'='6'
+       AND r.legal_review->'evidence_ids'='[]'::jsonb
+   ) THEN RAISE EXCEPTION 'Precheck audit fields do not match saved evidence'; END IF;
+   IF (SELECT count(*) FROM public.process_urban_precheck_runs WHERE regulation_version_id=norm)<>1
+   THEN RAISE EXCEPTION 'Unexpected number of precheck records after one save'; END IF;
    history:=public.list_urban_prechecks_v1(actor.process_id);
    IF NOT EXISTS (SELECT 1 FROM jsonb_array_elements(history) h WHERE h->>'id'=saved->>'id')
    THEN RAISE EXCEPTION 'Saved analysis is absent from history'; END IF;
