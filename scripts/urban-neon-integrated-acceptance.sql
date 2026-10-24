@@ -32,6 +32,23 @@ BEGIN
     '[{"metric":"front_setback_m","limit":5,"reference":"NORMA FICTICIA QA - SEM EFEITO LEGAL"}]'::jsonb,
     actor.profile_id,actor.profile_id,clock_timestamp());
    PERFORM set_config('request.jwt.claims',jsonb_build_object('sub',actor.subject_id)::text,true);
+   -- Confirm legislation listings preserve municipal isolation before any precheck.
+   IF NOT EXISTS (
+     SELECT 1 FROM jsonb_array_elements(public.list_urban_regulation_versions_v1(actor.municipality_id)) v
+     WHERE v->>'id'=norm::text
+   ) THEN RAISE EXCEPTION 'Municipal regulation not visible to its own tenant'; END IF;
+   -- An outsider must not obtain an active norm from the analyst's municipality.
+   PERFORM set_config('request.jwt.claims',jsonb_build_object('sub',outsider)::text,true);
+   BEGIN
+     IF EXISTS (
+       SELECT 1 FROM jsonb_array_elements(public.list_urban_regulation_versions_v1(actor.municipality_id)) v
+       WHERE v->>'id'=norm::text
+     ) THEN RAISE EXCEPTION 'CROSS_TENANT_REGULATION_LEAK'; END IF;
+   EXCEPTION WHEN OTHERS THEN
+     IF SQLERRM='CROSS_TENANT_REGULATION_LEAK' THEN RAISE; END IF;
+     -- The function may reject an unauthorized municipality outright.
+   END;
+   PERFORM set_config('request.jwt.claims',jsonb_build_object('sub',actor.subject_id)::text,true);
    IF NOT public.can_write_process_analysis(actor.process_id) THEN
      RAISE EXCEPTION 'Assigned analyst unexpectedly denied';
    END IF;
