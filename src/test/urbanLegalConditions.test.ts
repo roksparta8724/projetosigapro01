@@ -78,7 +78,7 @@ describe("SIGAPRO IA Urbanismo - revisão de condições e exceções",()=>{
     const code=readFileSync(resolve(process.cwd(),"src/components/platform/UrbanPrecheckPanel.tsx"),"utf8");
     expect(code).toContain('data-urban-legal-conditions="true"');
     expect(code).toContain("legalReviewReady");
-    expect(code).toContain("saveUrbanPrecheckRun(process.id, regulation.id, asOf, complete");
+    expect(code).toContain("saveUrbanPrecheckRun(requestedProcessId, regulation.id, asOf, complete");
     expect(code).toContain('data-urban-review-audit="true"');
     expect(code).toContain("Condição legal: conferir");
     expect(code).not.toContain("approveProcess(");
