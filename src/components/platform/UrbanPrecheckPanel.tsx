@@ -98,7 +98,7 @@ export function UrbanPrecheckPanel({
   const legalReviewReady = legalCatalogReady && !legalCatalogError && !legalReviewIssue;
 
   const setField = (metric: UrbanMetric, field: keyof Field, text: string) => {
-    if (readOnly) return;
+    if (readOnly || !regulation?.rules.some(rule => rule.metric === metric)) return;
     setFields((previous) => ({
       ...previous,
       [metric]: {
@@ -168,9 +168,10 @@ export function UrbanPrecheckPanel({
     if (entries.length) {
       setFields(previous => mergeDerivedUrbanFields(previous, entries));
     }
-    const success = entries.length
-      ? entries.length + " índice(s) calculado(s); campos já preenchidos foram preservados. Confira os valores antes do registro."
-      : "Nenhum índice aplicável pôde ser calculado.";
+    const newCount = entries.filter(([metric]) => !fields[metric]?.value.trim() && !fields[metric]?.evidence.trim()).length;
+    const success = newCount
+      ? newCount + " índice(s) preenchido(s); valores e fontes anteriores preservados. Confira antes do registro."
+      : "Nenhum campo vazio com índice calculável; valores e fontes existentes foram preservados.";
     setNotice([success, ...derived.warnings].join(" "));
   };
 
@@ -200,7 +201,7 @@ export function UrbanPrecheckPanel({
     return [numeric, contextual].filter(Boolean).join("\n\n---\n\n");
   }, [regulation, process.protocol, findings, conditionalReferences, legalReview]);
   const copyDraft = async () => {
-    if (!reviewDraft) return;
+    if (!reviewDraft || readOnly || loading) return;
     if (!legalReviewReady) {
       setNotice(legalCatalogError || legalReviewIssue || "Consulte o acervo legal antes de copiar a minuta.");
       return;
@@ -531,7 +532,7 @@ export function UrbanPrecheckPanel({
                   </p>
                 </div>
                 <Button type="button" variant="outline" className="border-amber-300 bg-white text-slate-900"
-                  disabled={!legalReviewReady} onClick={() => void copyDraft()}>
+                  disabled={readOnly || loading || !legalReviewReady} onClick={() => void copyDraft()}>
                   <Copy className="mr-2 h-4 w-4" /> Copiar minuta
                 </Button>
               </div>
