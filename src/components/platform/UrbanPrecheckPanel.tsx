@@ -269,7 +269,8 @@ export function UrbanPrecheckPanel({
     const input = fields[rule.metric];
     if (!input?.value.trim() && !input?.evidence.trim()) return false;
     const parsed = Number(input.value.trim().replace(",", "."));
-    return !input.value.trim() || !Number.isFinite(parsed) || parsed < 0 ||
+    return !input.value.trim() || !Number.isFinite(parsed) || parsed < 0 || parsed > 100000 ||
+      ((rule.metric === "occupancy_percent" || rule.metric === "permeability_percent") && parsed > 100) ||
       !input.evidence.trim() || input.evidence.trim().length < 3 ||
       (rule.metric === "floor_count" && !Number.isInteger(parsed));
   });
