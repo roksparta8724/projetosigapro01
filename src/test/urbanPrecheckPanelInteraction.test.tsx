@@ -90,6 +90,36 @@ describe("SIGAPRO IA — histórico React com respostas concorrentes", () => {
     expect(screen.queryByText(/Histórico indisponível: Falha temporária QA/)).toBeNull();
   });
 
+  it("A-B-A: respostas antigas não apagam um erro da consulta mais recente", async () => {
+    const firstA = pending<never[]>();
+    const B = pending<never[]>();
+    const latestA = pending<never[]>();
+    calls.history.mockReturnValueOnce(firstA.promise).mockReturnValueOnce(B.promise).mockReturnValueOnce(latestA.promise);
+    const { rerender } = render(<UrbanPrecheckPanel process={process("A")} municipalityId="prefeitura-A" readOnly />);
+    rerender(<UrbanPrecheckPanel process={process("B")} municipalityId="prefeitura-A" readOnly />);
+    rerender(<UrbanPrecheckPanel process={process("A")} municipalityId="prefeitura-A" readOnly />);
+    await waitFor(() => expect(calls.history).toHaveBeenCalledTimes(3));
+    await act(async () => latestA.reject(new Error("Falha na consulta atual QA")));
+    expect(await screen.findByText(/Histórico indisponível: Falha na consulta atual QA/)).toBeTruthy();
+    await act(async () => { firstA.resolve([]); B.resolve([]); });
+    expect(screen.getByText(/Histórico indisponível: Falha na consulta atual QA/)).toBeTruthy();
+    expect(screen.queryByText("Nenhuma pré-conferência registrada.")).toBeNull();
+  });
+
+  it("ao trocar a prefeitura, uma falha antiga não substitui o histórico atual", async () => {
+    const first = pending<never[]>();
+    const second = pending<never[]>();
+    calls.history.mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise);
+    const { rerender } = render(<UrbanPrecheckPanel process={process("A")} municipalityId="prefeitura-A" readOnly />);
+    rerender(<UrbanPrecheckPanel process={process("A")} municipalityId="prefeitura-B" readOnly />);
+    await waitFor(() => expect(calls.history).toHaveBeenCalledTimes(2));
+    await act(async () => second.resolve([]));
+    expect(await screen.findByText("Nenhuma pré-conferência registrada.")).toBeTruthy();
+    await act(async () => first.reject(new Error("Erro de prefeitura anterior QA")));
+    expect(screen.queryByText(/Erro de prefeitura anterior QA/)).toBeNull();
+    expect(screen.getByText("Nenhuma pré-conferência registrada.")).toBeTruthy();
+  });
+
   it("mostra erro real de histórico sem afirmar que está vazio", async () => {
     calls.history.mockRejectedValueOnce(new Error("Falha de rede QA"));
     render(<UrbanPrecheckPanel process={process("A")} municipalityId="prefeitura-A" readOnly />);
