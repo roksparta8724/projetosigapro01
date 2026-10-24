@@ -288,16 +288,16 @@ export function UrbanPrecheckPanel({
 
       <div className="mt-4 grid gap-3 md:grid-cols-3">
         <label className="text-xs font-bold text-slate-700 dark:text-slate-200">Zona do imóvel
-          <Input className="mt-1" placeholder="Ex.: ZR1" value={zone} maxLength={40}
-            onChange={(event) => setZone(normalizeUrbanCode(event.target.value))} />
+          <Input className="mt-1" placeholder="Ex.: ZR1" value={zone} disabled={readOnly} maxLength={40}
+            onChange={(event) => { if (readOnly) return; setZone(normalizeUrbanCode(event.target.value)); }} />
         </label>
         <label className="text-xs font-bold text-slate-700 dark:text-slate-200">Categoria de uso
-          <Input className="mt-1" value={usage} maxLength={60} placeholder="Ex.: RESIDENCIAL"
-            onChange={(event) => setUsage(normalizeUrbanCode(event.target.value))} />
+          <Input className="mt-1" value={usage} disabled={readOnly} maxLength={60} placeholder="Ex.: RESIDENCIAL"
+            onChange={(event) => { if (readOnly) return; setUsage(normalizeUrbanCode(event.target.value)); }} />
         </label>
         <label className="text-xs font-bold text-slate-700 dark:text-slate-200">Data de referência legal
-          <Input className="mt-1" type="date" value={asOf}
-            onChange={(event) => setAsOf(event.target.value)} />
+          <Input className="mt-1" type="date" value={asOf} disabled={readOnly}
+            onChange={(event) => { if (readOnly) return; setAsOf(event.target.value); }} />
         </label>
       </div>
 
