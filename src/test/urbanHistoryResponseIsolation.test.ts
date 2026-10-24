@@ -22,6 +22,10 @@ describe("SIGAPRO — isolamento do histórico retornado pelo banco", () => {
     ["sem prefeitura",{...valid,municipality_id:null}],
     ["sem versão legal",{...valid,regulation_version_id:null}],
     ["medição inválida",{...valid,measurements:null}],
+    ["ocupação acima de 100%",{...valid,measurements:{occupancy_percent:{value:120,evidence:"Prancha 02"}}}],
+    ["permeabilidade acima de 100%",{...valid,measurements:{permeability_percent:{value:150,evidence:"Prancha 02"}}}],
+    ["medição acima do limite",{...valid,measurements:{front_setback_m:{value:100001,evidence:"Prancha 02"}}}],
+    ["pavimento fracionado",{...valid,measurements:{floor_count:{value:2.5,evidence:"Prancha 02"}}}],
   ])("não mostra registros %s",async (_label,record)=>{
     rpc.mockResolvedValueOnce({data:[record],error:null});
     await expect(listUrbanPrecheckHistory("processo-a")).rejects.toThrow("inconsistente");
