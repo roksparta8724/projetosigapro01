@@ -62,6 +62,57 @@ describe("SIGAPRO isolated Neon QA storage", () => {
     expect(JSON.parse(res.data).storageProvider).toBe("neon_qa");
     expect(send).toHaveBeenCalledTimes(1);
   });
+  it("rejects missing bearer before any remote access", async () => {
+    active();
+    const res=response();
+    await handleQaStorage({ method:"POST", headers:{},
+      body:{bucket:"sigapro-documentos",objectKey:KEY}
+    } as never,res as never,"sign-get");
+    expect(res.statusCode).toBe(401);
+    expect(check).not.toHaveBeenCalled();
+    expect(send).not.toHaveBeenCalled();
+  });
+  it("rejects a tenant member trying to read another process", async () => {
+    active();
+    check.mockImplementation((_req,name) => Promise.resolve({
+      ok:true,payload:name!=="has_process_access"
+    }));
+    const res=response();
+    await handleQaStorage({method:"POST",headers:{authorization:"Bearer synthetic"},
+      body:{bucket:"sigapro-documentos",objectKey:KEY}
+    } as never,res as never,"sign-get");
+    expect(res.statusCode).toBe(403);
+    expect(check.mock.calls.map(call=>call[1])).toContain("has_process_access");
+    expect(send).not.toHaveBeenCalled();
+  });
+  it("rejects process writes by non-responsible analysts", async () => {
+    active();
+    check.mockImplementation((_req,name) => Promise.resolve({
+      ok:true,payload:name!=="can_write_process_analysis"
+    }));
+    const res=response();
+    await handleQaStorage({method:"POST",headers:{authorization:"Bearer synthetic"},body:{
+      bucket:"sigapro-documentos",objectKey:KEY,contentType:"application/pdf",
+      base64:Buffer.from("%PDF-1.4 QA").toString("base64")
+    }} as never,res as never,"upload");
+    expect(res.statusCode).toBe(403);
+    expect(check.mock.calls.map(call=>call[1])).toContain("can_write_process_analysis");
+    expect(send).not.toHaveBeenCalled();
+  });
+  it("denies arbitrary protocol and branding paths", async () => {
+    active();check.mockResolvedValue({ok:true,payload:true});
+    for (const objectKey of [
+      "municipalities/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/protocols/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/qa.pdf",
+      "municipalities/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/branding/qa.png"
+    ]) {
+      const res=response();
+      await handleQaStorage({method:"POST",headers:{authorization:"Bearer synthetic"},
+        body:{bucket:"sigapro-documentos",objectKey}
+      } as never,res as never,"sign-get");
+      expect(res.statusCode).toBe(403);
+    }
+    expect(send).not.toHaveBeenCalled();
+  });
   it("refuses original payment guide document mutations", async () => {
     active();check.mockResolvedValue({ok:true,payload:true});
     const res=response();

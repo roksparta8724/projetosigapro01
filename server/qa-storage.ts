@@ -73,11 +73,38 @@ function validObjectKey(value: unknown) {
   return match ? { key: value, municipalityId: match[1] } : null;
 }
 
-async function canAccess(req: Request, municipalityId: string) {
-  const check = await callDataApiRpc(req, "has_tenant_access", { target_tenant: municipalityId });
-  return check.ok && (check.payload === true || check.payload === "true" ||
-    (check.payload && typeof check.payload === "object" &&
-    (check.payload as Record<string, unknown>).has_tenant_access === true));
+async function canAccess(req: Request, municipalityId: string, objectKey: string, action: string) {
+  const tenant = await callDataApiRpc(req, "has_tenant_access", { target_tenant: municipalityId });
+  const truthy = (result: { ok: boolean; payload?: unknown }) =>
+    result.ok && (result.payload === true || result.payload === "true");
+  if (!truthy(tenant)) return false;
+
+  // A tenant membership alone must NOT grant access to every municipal document.
+  const processMatch = objectKey.match(
+    /^municipalities\/[0-9a-f-]{36}\/processes\/([0-9a-f-]{36})\//i,
+  );
+  if (processMatch) {
+    const processId = processMatch[1];
+    const access = await callDataApiRpc(req, "has_process_access", { _process_id: processId });
+    if (!truthy(access)) return false;
+    if (action === "upload" || action === "delete") {
+      const write = await callDataApiRpc(req, "can_write_process_analysis",
+        { _process_id: processId });
+      return truthy(write);
+    }
+    return true;
+  }
+
+  // Municipal legislation is only editable by a regulation administrator.
+  if (/\/legislation(?:[-/])/.test(objectKey)) {
+    if (action === "sign-get") return true;
+    const admin = await callDataApiRpc(req, "is_urban_regulation_admin_v1",
+      { _municipality_id: municipalityId });
+    return truthy(admin);
+  }
+
+  // Branding and user protocol recovery need specific owner/role authorization.
+  return false;
 }
 
 function logicalBucketValid(value: unknown) {
@@ -104,6 +131,10 @@ export async function handleQaStorage(req: Request, res: Res, action: string) {
     json(res, 405, { code: "METHOD_NOT_ALLOWED" });
     return;
   }
+  if (!/^Bearer\s+\S+$/i.test(String(req.headers?.authorization || ""))) {
+    json(res, 401, { code: "QA_STORAGE_UNAUTHENTICATED" });
+    return;
+  }
 
   try {
     const input = await body(req);
@@ -112,8 +143,8 @@ export async function handleQaStorage(req: Request, res: Res, action: string) {
       json(res, 400, { code: "QA_INVALID_STORAGE_TARGET" });
       return;
     }
-    if (!(await canAccess(req, scope.municipalityId))) {
-      json(res, req.headers.authorization ? 403 : 401, { code: "QA_STORAGE_FORBIDDEN" });
+    if (!(await canAccess(req, scope.municipalityId, scope.key, action))) {
+      json(res, 403, { code: "QA_STORAGE_FORBIDDEN" });
       return;
     }
     const s3 = client();
