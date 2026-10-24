@@ -50,6 +50,9 @@ export function UrbanPrecheckPanel({
   const historyRetryGenerationRef = useRef(0);
   const [lastSavedSnapshot, setLastSavedSnapshot] = useState<string | null>(null);
   const [notice, setNotice] = useState("");
+  const [saveNeedsVerification, setSaveNeedsVerification] = useState(false);
+  const failedSaveSnapshotRef = useRef<string | null>(null);
+  const historyBeforeSaveRef = useRef<Set<string>>(new Set());
   const [legalCatalog, setLegalCatalog] = useState<UrbanLegalEvidence[]>([]);
   const [legalCatalogReady, setLegalCatalogReady] = useState(false);
   const [legalCatalogError, setLegalCatalogError] = useState("");
@@ -83,6 +86,8 @@ export function UrbanPrecheckPanel({
     historyRetryRef.current = false;
     historyRetryGenerationRef.current += 1;
     setNotice("");
+    setSaveNeedsVerification(false);
+    failedSaveSnapshotRef.current = null;
     setLastSavedSnapshot(null);
     setLegalCatalog([]);
     setLegalCatalogReady(false);
@@ -135,6 +140,8 @@ export function UrbanPrecheckPanel({
     setFields({});
     setAreaFields({});
     setLastSavedSnapshot(null);
+    setSaveNeedsVerification(false);
+    failedSaveSnapshotRef.current = null;
   }, [process.id, municipalityId, zone, usage, asOf, regulation?.id]);
 
   const conditionalReferences = useMemo(
@@ -282,7 +289,7 @@ export function UrbanPrecheckPanel({
   activeLegalContextRef.current = JSON.stringify({
     processId: process.id, municipalityId, zone, usage, asOf, regulationId: regulation?.id,
   });
-  const canSave = currentSnapshot !== lastSavedSnapshot && !!regulation && !readOnly && !saving && !loading && !invalidEntered && legalReviewReady &&
+  const canSave = currentSnapshot !== lastSavedSnapshot && !!regulation && !readOnly && !saving && !saveNeedsVerification && !loading && !invalidEntered && legalReviewReady &&
     isValidUrbanReferenceDate(asOf, urbanMunicipalToday()) &&
     findings.some(
     (finding) => finding.status !== "missing_evidence"
@@ -313,6 +320,7 @@ export function UrbanPrecheckPanel({
     const requestedLegalContext = activeLegalContextRef.current;
     const saveGeneration = ++saveGenerationRef.current;
     saveInFlightRef.current = true;
+    historyBeforeSaveRef.current = new Set(history.map(entry => entry.id));
     setSaving(true);
     setNotice("");
     try {
@@ -358,7 +366,11 @@ export function UrbanPrecheckPanel({
     } catch (error) {
       if (activeProcessRef.current === requestedProcessId &&
           activeLegalContextRef.current === requestedLegalContext &&
-          saveGenerationRef.current === saveGeneration) setNotice(String((error as Error)?.message || error));
+          saveGenerationRef.current === saveGeneration) {
+        failedSaveSnapshotRef.current = currentSnapshot;
+        setSaveNeedsVerification(true);
+        setNotice(String((error as Error)?.message || error) + " Verifique o histórico antes de reenviar: a gravação pode ter sido concluída.");
+      }
     } finally {
       if (saveGenerationRef.current === saveGeneration) {
         saveInFlightRef.current = false;
@@ -384,6 +396,15 @@ export function UrbanPrecheckPanel({
           )) return;
       setHistory(updated);
       setHistoryError("");
+      if (failedSaveSnapshotRef.current !== null) {
+        const wasSaved = updated.some(entry => !historyBeforeSaveRef.current.has(entry.id));
+        if (wasSaved) setLastSavedSnapshot(failedSaveSnapshotRef.current);
+        failedSaveSnapshotRef.current = null;
+        setSaveNeedsVerification(false);
+        setNotice(wasSaved
+          ? "O histórico confirmou o registro. Não envie novamente a mesma pré-conferência."
+          : "Histórico consultado. Nenhum novo registro foi identificado; confira os dados antes de tentar novamente.");
+      }
     } catch (error) {
       if (isCurrentUrbanRequest(
             { processId: requestedProcessId, municipalityId: requestedMunicipalityId, generation: retryGeneration },
