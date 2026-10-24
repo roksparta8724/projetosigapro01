@@ -48,6 +48,20 @@ export function UrbanScannedPageDesk({bytes,scannedPages,readOnly,onVerifiedTran
     setOcrBusy(false);
     setOcrAssisted(false);
   },[bytes]);
+  // Revoke any pending verification immediately when the user becomes read-only.
+  // An in-flight OCR result must never be usable after access is withdrawn.
+  useEffect(()=>{
+    if(!readOnly)return;
+    ++ocrEpoch.current;
+    setExpanded(false);
+    setFirst("");
+    setSecond("");
+    setChecked(false);
+    setOcrText("");
+    setOcrError("");
+    setOcrBusy(false);
+    setOcrAssisted(false);
+  },[readOnly]);
   useEffect(()=>{
     if(!expanded || !pages.includes(page))return;
     const abort=new AbortController();
