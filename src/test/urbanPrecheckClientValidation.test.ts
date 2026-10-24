@@ -35,6 +35,19 @@ describe("SIGAPRO IA — validação do payload antes de chegar ao banco", () =>
     expect(rpc).not.toHaveBeenCalled();
   });
 
+  it("reutiliza a chave de idempotência em reenvio explícito e rejeita chave inválida", async () => {
+    const key = "123e4567-e89b-42d3-a456-426614174099";
+    const measurement = { front_setback_m: { value: 5, evidence } };
+    await saveUrbanPrecheckRun(processId, versionId, date, measurement, review, key);
+    await saveUrbanPrecheckRun(processId, versionId, date, measurement, review, key);
+    expect(rpc).toHaveBeenCalledTimes(2);
+    expect(rpc.mock.calls[0][1]._request_id).toBe(key);
+    expect(rpc.mock.calls[1][1]._request_id).toBe(key);
+    await expect(saveUrbanPrecheckRun(processId, versionId, date, measurement, review, "chave-invalida"))
+      .rejects.toThrow(/Identificador da solicitação inválido/);
+    expect(rpc).toHaveBeenCalledTimes(2);
+  });
+
   it("aceita medida válida e transmite a revisão legal completa", async () => {
     await saveUrbanPrecheckRun(processId, versionId, date,
       { front_setback_m: { value: 5, evidence } }, review);
