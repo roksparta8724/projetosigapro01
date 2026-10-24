@@ -39,6 +39,12 @@ describe("SIGAPRO — isolamento do histórico retornado pelo banco", () => {
     ["permeabilidade acima de 100%",{...valid,measurements:{permeability_percent:{value:150,evidence:"Prancha 02"}}}],
     ["medição acima do limite",{...valid,measurements:{front_setback_m:{value:100001,evidence:"Prancha 02"}}}],
     ["pavimento fracionado",{...valid,measurements:{floor_count:{value:2.5,evidence:"Prancha 02"}}}],
+    ["revisão com evidência de tipo errado",{...valid,legal_review:{evidence_ids:"não é lista"}}],
+    ["revisão com evidência inválida",{...valid,legal_review:{evidence_ids:["arquivo-incorreto"]}}],
+    ["revisão com evidência duplicada",{...valid,legal_review:{evidence_ids:["00000000-0000-0000-0000-000000000001","00000000-0000-0000-0000-000000000001"]}}],
+    ["revisão com confirmação textual",{...valid,legal_review:{document_scope_confirmed:"sim"}}],
+    ["revisão com data inválida",{...valid,legal_review:{reviewed_at:"ontem"}}],
+    ["revisão com nota excessiva",{...valid,legal_review:{note:"a".repeat(1201)}}],
   ])("não mostra registros %s",async (_label,record)=>{
     rpc.mockResolvedValueOnce({data:[record],error:null});
     await expect(listUrbanPrecheckHistory("processo-a")).rejects.toThrow("inconsistente");
