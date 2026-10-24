@@ -73,7 +73,7 @@ async function verifyNeonWebhook(rawBody: string, req: Req) {
     throw new Error("Invalid Neon webhook signature format");
   }
 
-  const publicKey = crypto.createPublicKey({ key: jwk as JsonWebKey, format: "jwk" });
+  const publicKey = crypto.createPublicKey({ key: jwk as crypto.JsonWebKey, format: "jwk" });
   const payloadB64 = Buffer.from(rawBody, "utf8").toString("base64url");
   const signaturePayload = `${timestamp}.${payloadB64}`;
   const signaturePayloadB64 = Buffer.from(signaturePayload, "utf8").toString("base64url");
