@@ -90,6 +90,7 @@ export async function listUrbanPrecheckHistory(processId: string): Promise<Urban
 export async function saveUrbanPrecheckRun(
   processId: string, versionId: string, referenceDate: string, measurements: UrbanMeasurements,
   legalReview: { evidenceIds: string[]; note: string; documentScopeConfirmed: boolean },
+  requestId: string = crypto.randomUUID(),
 ): Promise<void> {
   if (!isValidUrbanReferenceDate(referenceDate, urbanMunicipalToday())) throw new Error("Data legal inválida.");
   if (!legalReview || typeof legalReview !== "object" || !Array.isArray(legalReview.evidenceIds) ||
@@ -115,7 +116,11 @@ export async function saveUrbanPrecheckRun(
     throw new Error("Revisão legal inválida.");
   }
   if (!processId.trim() || !versionId.trim()) throw new Error("Processo ou versão normativa inválida.");
-  await invoke("save_urban_precheck_run_v4", {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(requestId)) {
+    throw new Error("Identificador da solicitação inválido.");
+  }
+  await invoke("save_urban_precheck_run_v5", {
+    _request_id: requestId,
     _process_id: processId, _regulation_version_id: versionId,
     _reference_date: referenceDate, _measurements: measurements,
     _legal_review: {
