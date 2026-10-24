@@ -134,6 +134,27 @@ describe("SIGAPRO IA — histórico React com respostas concorrentes", () => {
     expect(screen.getByText(/Registro consultivo, não é aprovação/)).toBeTruthy();
   });
 
+  it("distingue divergência e ausência de prova na norma histórica correspondente", async () => {
+    calls.regulations.mockResolvedValueOnce([{
+      id: "norma-historica-QA", municipality_id: "prefeitura-A", zone_code: "Z1",
+      use_code: "RESIDENCIAL", effective_from: "2020-01-01", version: 2,
+      status: "superseded", created_at: "2020-01-01T12:00:00Z",
+      rules: [
+        { metric: "front_setback_m", limit: 5, reference: "Lei fictícia de QA, art. 12" },
+        { metric: "side_setback_m", limit: 2, reference: "Lei fictícia de QA, art. 13" },
+      ],
+    }]);
+    calls.history.mockResolvedValueOnce([{
+      id: "audit-QA-02", process_id: "A", municipality_id: "prefeitura-A",
+      regulation_version_id: "norma-historica-QA", reviewer_profile_id: "analista-QA",
+      reference_date: "2026-10-23", created_at: "2026-10-23T13:00:00.000Z",
+      measurements: { front_setback_m: { value: 3, evidence: "Prancha 02" } },
+    }]);
+    render(<UrbanPrecheckPanel process={process("A")} municipalityId="prefeitura-A" readOnly />);
+    expect(await screen.findByText(/1 divergência\\(s\\) · 1 parâmetro\\(s\\) sem comprovação/)).toBeTruthy();
+    expect(screen.getByText(/Registro consultivo, não é aprovação/)).toBeTruthy();
+  });
+
   it("mostra erro real de histórico sem afirmar que está vazio", async () => {
     calls.history.mockRejectedValueOnce(new Error("Falha de rede QA"));
     render(<UrbanPrecheckPanel process={process("A")} municipalityId="prefeitura-A" readOnly />);
