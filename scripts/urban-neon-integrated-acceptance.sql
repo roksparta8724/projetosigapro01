@@ -134,6 +134,7 @@ BEGIN
      IF SQLERRM = 'CROSS_TENANT_NORM_ATTACHED_TO_ACTOR_PROCESS' THEN RAISE; END IF;
      IF SQLERRM NOT IN (
        'Versao normativa nao pertence a prefeitura do processo.',
+       'Norma e processo nao correspondem ao mesmo municipio e data de vigencia.',
        'Versao normativa ou data de referencia nao identificada.'
      ) THEN RAISE EXCEPTION 'Unexpected cross-tenant regulation outcome: %',SQLERRM; END IF;
    END;
