@@ -19,7 +19,7 @@ import type { UrbanLegalEvidence } from "@/lib/urbanLegalKnowledge";
 import {
   buildUrbanConditionalReviewDraft, findUrbanLegalConditions, validateUrbanLegalReview, type UrbanLegalReviewConfirmation,
 } from "@/lib/urbanLegalConditions";
-import { buildUrbanReviewDraft, deriveUrbanAreaMeasurements, type UrbanAreaKey } from "@/lib/urbanPrecheckAssist";
+import { buildUrbanReviewDraft, deriveUrbanAreaMeasurements, mergeDerivedUrbanFields, type UrbanAreaKey } from "@/lib/urbanPrecheckAssist";
 
 type Field = { value: string; evidence: string };
 type Fields = Partial<Record<UrbanMetric, Field>>;
@@ -163,15 +163,7 @@ export function UrbanPrecheckPanel({
     const entries = Object.entries(derived.measurements)
       .filter(([metric]) => allowed.has(metric as UrbanMetric)) as Array<[UrbanMetric, { value: number; evidence: string }]>;
     if (entries.length) {
-      setFields((previous) => {
-        const next = { ...previous };
-        for (const [metric, value] of entries) {
-          // Never replace a reading or document reference entered by the analyst.
-          if (next[metric]?.value.trim() || next[metric]?.evidence.trim()) continue;
-          next[metric] = { value: String(value.value), evidence: value.evidence };
-        }
-        return next;
-      });
+      setFields(previous => mergeDerivedUrbanFields(previous, entries));
     }
     const success = entries.length
       ? entries.length + " índice(s) calculado(s); campos já preenchidos foram preservados. Confira os valores antes do registro."
