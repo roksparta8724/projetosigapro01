@@ -40,19 +40,6 @@ BEGIN
    EXCEPTION WHEN OTHERS THEN
      IF SQLERRM <> 'Sem acesso ao historico de analises.' THEN RAISE; END IF;
    END;
-   -- Even with a real active rule for the other municipality, the assigned
-   -- analyst must not be able to write any historical record for its process.
-   -- The procedure must deny the request before validating the norm itself.
-   BEGIN
-     PERFORM public.save_urban_precheck_run_v4(
-       foreign_process,gen_random_uuid(),'2026-10-23'::date,
-       '{"front_setback_m":{"value":7,"evidence":"Prancha de QA isolada"}}'::jsonb,
-       '{"evidence_ids":[],"note":"","document_scope_confirmed":false}'::jsonb);
-     RAISE EXCEPTION 'ACTOR_WROTE_FOREIGN_PROCESS';
-   EXCEPTION WHEN OTHERS THEN
-     IF SQLERRM <> 'Somente o analista responsavel ou Diretoria pode registrar a revisao.'
-     THEN RAISE EXCEPTION 'Foreign process write not denied by role: %', SQLERRM; END IF;
-   END;
    INSERT INTO public.urban_regulation_versions
     (id,municipality_id,zone_code,use_code,effective_from,version,status,rules,
      created_by_profile_id,activated_by_profile_id,activated_at)
@@ -67,6 +54,19 @@ BEGIN
     '2026-01-01',1,'active',
     '[{"metric":"front_setback_m","limit":7,"reference":"NORMA FICTICIA SEGUNDO MUNICIPIO QA"}]'::jsonb,
     outsider_profile,outsider_profile,clock_timestamp());
+   -- Even with a real active rule for the other municipality, the assigned
+   -- analyst must not be able to write any historical record for its process.
+   -- The procedure must deny the request before validating the norm itself.
+   BEGIN
+     PERFORM public.save_urban_precheck_run_v4(
+       foreign_process,foreign_norm,'2026-10-23'::date,
+       '{"front_setback_m":{"value":7,"evidence":"Prancha de QA isolada"}}'::jsonb,
+       '{"evidence_ids":[],"note":"","document_scope_confirmed":false}'::jsonb);
+     RAISE EXCEPTION 'ACTOR_WROTE_FOREIGN_PROCESS';
+   EXCEPTION WHEN OTHERS THEN
+     IF SQLERRM <> 'Somente o analista responsavel ou Diretoria pode registrar a revisao.'
+     THEN RAISE EXCEPTION 'Foreign process write not denied by role: %', SQLERRM; END IF;
+   END;
    PERFORM set_config('request.jwt.claims',jsonb_build_object('sub',actor.subject_id)::text,true);
    -- Confirm legislation listings preserve municipal isolation before any precheck.
    IF NOT EXISTS (
