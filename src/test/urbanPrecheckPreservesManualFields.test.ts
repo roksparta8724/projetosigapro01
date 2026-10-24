@@ -21,4 +21,14 @@ describe("SIGAPRO — índices urbanísticos calculados", () => {
     },[["floor_area_ratio",{value:1.2,evidence:"Cálculo sugerido"}]]);
     expect(result.floor_area_ratio).toEqual({value:"",evidence:"Conferência pendente do analista"});
   });
+  it("rejeita cálculos inválidos sem contaminar a ficha técnica", () => {
+    const result=mergeDerivedUrbanFields({}, [
+      ["occupancy_percent",{value:NaN,evidence:"Prancha A"}],
+      ["permeability_percent",{value:Infinity,evidence:"Prancha B"}],
+      ["floor_area_ratio",{value:-1,evidence:"Prancha C"}],
+      ["front_setback",{value:5,evidence:""}],
+    ]);
+    expect(Object.keys(result)).toHaveLength(0);
+  });
+
 });
