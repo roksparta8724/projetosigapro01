@@ -380,7 +380,7 @@ export function UrbanPrecheckPanel({
                 aria-label="Confirmei o escopo legal do processo"
                 onChange={event => { if (readOnly) return; setLegalReview(previous => ({
                   ...previous, documentScopeConfirmed: event.target.checked,
-                }))} className="mt-0.5"/>
+                })); }} className="mt-0.5"/>
               Examinei a norma integral e conferi zona, uso, data de vigência, ressalvas,
               tabelas e a pertinência das referências ao processo.
             </label>
