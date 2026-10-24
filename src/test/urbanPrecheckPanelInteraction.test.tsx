@@ -151,7 +151,7 @@ describe("SIGAPRO IA — histórico React com respostas concorrentes", () => {
       measurements: { front_setback_m: { value: 3, evidence: "Prancha 02" } },
     }]);
     render(<UrbanPrecheckPanel process={process("A")} municipalityId="prefeitura-A" readOnly />);
-    expect(await screen.findByText(/1 divergência\\(s\\) · 1 parâmetro\\(s\\) sem comprovação/)).toBeTruthy();
+    expect(await screen.findByText("1 divergência(s) · 1 parâmetro(s) sem comprovação")).toBeTruthy();
     expect(screen.getByText(/Registro consultivo, não é aprovação/)).toBeTruthy();
   });
 
