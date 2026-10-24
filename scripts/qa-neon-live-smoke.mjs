@@ -38,4 +38,19 @@ await probe("invalid private key rejected before storage access",
   "/upload?objectKey=" + encodeURIComponent("../../secret.pdf"), {
     method: "POST", headers: { Authorization: "Bearer synthetic-qa-negative-test" },
   }, 400);
+// The new QA photo routes must reject forged sessions before attempting any
+// S3 write, even when the extension and Content-Type are legitimate.
+for(const extension of ["jpg","png","webp"]) {
+  const key="municipalities/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/processes/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/vistoria."+extension;
+  const mime=extension==="jpg"?"image/jpeg":"image/"+extension;
+  await probe("image upload forbids forged JWT ("+extension+")",
+    "/upload?objectKey="+encodeURIComponent(key), {
+      method:"POST",
+      headers:{Authorization:"Bearer deliberately-invalid-qa-smoke","Content-Type":mime},
+    },403);
+}
+await probe("SVG storage key forbidden before RPC",
+  "/upload?objectKey="+encodeURIComponent("municipalities/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/processes/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/fake.svg"),{
+    method:"POST",headers:{Authorization:"Bearer deliberately-invalid-qa-smoke","Content-Type":"image/svg+xml"}
+  },400);
 console.log("SIGAPRO QA Neon Function live negative smoke checks passed.");

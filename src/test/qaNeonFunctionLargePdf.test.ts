@@ -167,6 +167,27 @@ describe("SIGAPRO branch-pinned QA large PDF function", () => {
   expect(res.status).toBe(200);
   expect(sent).toEqual([{method:"PUT",mime}]);
  });
+ it("streams a private JPEG with explicit type and nosniff",async()=>{
+  vi.stubEnv("NEON_DATA_API_URL","https://ep-misty-breeze-b4ri8ig0.apirest.c-6.us-east-2.aws.neon.tech/sigapro_migration_stage_20260923/rest/v1");
+  vi.stubEnv("AWS_ENDPOINT_URL_S3","https://br-solitary-sound-b4xlbvs6.storage.c-6.us-east-2.aws.neon.tech");
+  vi.stubEnv("AWS_ACCESS_KEY_ID","nak_fake_qa_unit");
+  vi.stubEnv("AWS_SECRET_ACCESS_KEY","FAKE_QA_TEST_KEY_NO_REAL_STORAGE_123");
+  const jpg=new Uint8Array([255,216,255,224,0,1,2,3]);
+  vi.stubGlobal("fetch",vi.fn(async(url:string,opts:{method?:string})=>{
+    if(url.includes(".apirest."))return new Response("true",{status:200,headers:{"Content-Type":"application/json"}});
+    expect(opts.method).toBe("GET");
+    return new Response(jpg,{status:200});
+  }));
+  const key="municipalities/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/processes/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/vistoria.jpg";
+  const r=await handler.fetch(new Request("https://qa.invalid/read?objectKey="+encodeURIComponent(key),{
+    headers:{Authorization:"Bearer synthetic"}
+  }));
+  expect(r.status).toBe(200);
+  expect(r.headers.get("Content-Type")).toBe("image/jpeg");
+  expect(r.headers.get("X-Content-Type-Options")).toBe("nosniff");
+  expect(r.headers.get("Cache-Control")).toBe("private, no-store");
+  expect(new Uint8Array(await r.arrayBuffer())).toEqual(jpg);
+ });
  it("rejects a disguised PNG without ever sending bytes to S3",async()=>{
   vi.stubEnv("NEON_DATA_API_URL","https://ep-misty-breeze-b4ri8ig0.apirest.c-6.us-east-2.aws.neon.tech/sigapro_migration_stage_20260923/rest/v1");
   let stored=false;
