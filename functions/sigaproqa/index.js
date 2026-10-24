@@ -15,6 +15,14 @@ const ORIGINS = new Set([
   "https://projetosigapro01-dfv7zlx7v-roksparta8724s-projects.vercel.app",
 ]);
 
+// Some browser-like test runtimes provide AbortSignal without its timeout helper.
+function requestTimeout(ms) {
+  if (typeof AbortSignal.timeout === "function") return AbortSignal.timeout(ms);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ms);
+  if (typeof timer.unref === "function") timer.unref();
+  return controller.signal;
+}
 const sha = data => createHash("sha256").update(data).digest("hex");
 const mac = (key,data) => createHmac("sha256",key).update(data).digest();
 function s3Env() {
@@ -55,7 +63,7 @@ async function rpc(token,name,args={}) {
   if(base.replace(/\/+$/,"") !== "https://ep-misty-breeze-b4ri8ig0.apirest.c-6.us-east-2.aws.neon.tech/sigapro_migration_stage_20260923/rest/v1") return null;
   const r=await fetch(base.replace(/\/+$/,"")+"/rpc/"+name,{
     method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+token},
-    body:JSON.stringify(args),signal:AbortSignal.timeout(12000),
+    body:JSON.stringify(args),signal:requestTimeout(12000),
   });
   if(!r.ok)return null;
   return r.json().catch(()=>null);
@@ -145,7 +153,7 @@ export default {
    const signed=s3Request(method,scope.key,bytes);
    const remote=await fetch(signed.url,{
      method,headers:{...signed.headers,...(bytes?{"Content-Type":"application/pdf"}:{})},
-     body:bytes,signal:AbortSignal.timeout(45000),redirect:"manual",
+     body:bytes,signal:requestTimeout(45000),redirect:"manual",
    });
    if(!remote.ok)return respond({code:remote.status===404?"NOT_FOUND":"QA_STORAGE_ERROR"},remote.status===404?404:503,approved);
    if(method==="GET"){
