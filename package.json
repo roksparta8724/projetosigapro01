@@ -9,13 +9,14 @@
     "dev:qa:check": "node scripts/dev-qa.mjs --check",
     "build": "vite build",
     "build:dev": "vite build --mode development",
-    "typecheck": "tsc -p tsconfig.app.json --noEmit",
+    "typecheck": "tsc -p tsconfig.app.json --noEmit && npm run typecheck:auth-webhook",
     "runtime:pages": "node scripts/check-page-runtime-names.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "quality": "npm run typecheck && npm test && npm run build"
+    "quality": "npm run typecheck && npm test && npm run build",
+    "typecheck:auth-webhook": "tsc --noEmit --target es2022 --module nodenext --moduleResolution nodenext --esModuleInterop --skipLibCheck api/neon-auth-email.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1024.0",

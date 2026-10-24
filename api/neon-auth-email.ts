@@ -56,7 +56,7 @@ async function verifyNeonWebhook(rawBody: string, req: Req) {
     throw new Error("Neon webhook timestamp outside allowed window");
   }
 
-  const baseUrl = (readEnv("NEON_AUTH_BASE_URL") || DEFAULT_NEON_AUTH_BASE_URL).replace(//+$/, "");
+  const baseUrl = (readEnv("NEON_AUTH_BASE_URL") || DEFAULT_NEON_AUTH_BASE_URL).replace(/\/+$/, "");
   const jwksResponse = await fetch(`${baseUrl}/.well-known/jwks.json`);
   if (!jwksResponse.ok) {
     throw new Error("Could not fetch Neon JWKS");
@@ -73,7 +73,7 @@ async function verifyNeonWebhook(rawBody: string, req: Req) {
     throw new Error("Invalid Neon webhook signature format");
   }
 
-  const publicKey = crypto.createPublicKey({ key: jwk as crypto.JsonWebKeyInput, format: "jwk" });
+  const publicKey = crypto.createPublicKey({ key: jwk as JsonWebKey, format: "jwk" });
   const payloadB64 = Buffer.from(rawBody, "utf8").toString("base64url");
   const signaturePayload = `${timestamp}.${payloadB64}`;
   const signaturePayloadB64 = Buffer.from(signaturePayload, "utf8").toString("base64url");
