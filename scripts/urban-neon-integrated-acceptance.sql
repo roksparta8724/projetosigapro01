@@ -39,7 +39,6 @@ BEGIN
    END IF;
    IF public.has_process_access(actor.process_id) OR public.can_write_process_analysis(actor.process_id)
    THEN RAISE EXCEPTION 'FOREIGN_CREATOR_CAN_ACCESS_ACTOR_PROCESS'; END IF;
-   PERFORM set_config('request.jwt.claims',jsonb_build_object('sub',actor.subject_id)::text,true);
    -- The synthetic second-tenant process only exists inside the rollback scope.
    PERFORM set_config('request.jwt.claims',jsonb_build_object('sub',actor.subject_id)::text,true);
    IF public.has_process_access(foreign_process) OR public.can_write_process_analysis(foreign_process)
@@ -96,7 +95,9 @@ BEGIN
      ) THEN RAISE EXCEPTION 'CROSS_TENANT_REGULATION_LEAK'; END IF;
    EXCEPTION WHEN OTHERS THEN
      IF SQLERRM='CROSS_TENANT_REGULATION_LEAK' THEN RAISE; END IF;
-     -- The function may reject an unauthorized municipality outright.
+     -- A permission denial is expected; unrelated DB failures must fail QA.
+     IF SQLERRM<>'Sem permissao para consultar normas urbanisticas municipais.'
+     THEN RAISE EXCEPTION 'Unexpected foreign regulation lookup failure: %',SQLERRM; END IF;
    END;
    -- A second tenant may have a valid account with a restricted role: either
    -- receive only its own catalog or be denied altogether. Neither can leak
