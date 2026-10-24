@@ -1,6 +1,6 @@
 import { isValidUrbanReferenceDate } from "@/lib/urbanPrecheckAssist";
 import { backendClient } from "@/integrations/backend/databaseClient";
-import { normalizeUrbanCode, validateUrbanRules, type UrbanMeasurements, type UrbanRegulationVersion, type UrbanRule } from "@/lib/urbanPrecheck";
+import { normalizeUrbanCode, validateUrbanRules, URBAN_METRICS, type UrbanMeasurements, type UrbanRegulationVersion, type UrbanRule } from "@/lib/urbanPrecheck";
 
 async function invoke<T>(name: string, args: Record<string, unknown>): Promise<T> {
   if (!backendClient) throw new Error("Banco municipal indisponível.");
@@ -55,6 +55,20 @@ export async function saveUrbanPrecheckRun(
   if (!isValidUrbanReferenceDate(referenceDate, new Date().toISOString().slice(0, 10))) throw new Error("Data legal inválida.");
   if (!Array.isArray(legalReview.evidenceIds) || legalReview.evidenceIds.length > 50 ||
       legalReview.note.length > 1200) throw new Error("Revisão legal incompleta ou excessiva.");
+  const validMetrics = new Set<string>(URBAN_METRICS.map(item => item.key));
+  const entries = Object.entries(measurements);
+  if (!entries.length || entries.length > URBAN_METRICS.length || entries.some(([metric, entry]) =>
+    !validMetrics.has(metric) || !entry || typeof entry !== "object" ||
+    !Number.isFinite(entry.value) || entry.value < 0 ||
+    (metric === "floor_count" && !Number.isInteger(entry.value)) ||
+    typeof entry.evidence !== "string" || entry.evidence.trim().length < 3 ||
+    entry.evidence.length > 500
+  )) throw new Error("Medições inválidas: confira valores e provas documentais.");
+  if (legalReview.evidenceIds.some(id => typeof id !== "string" || !id.trim()) ||
+      new Set(legalReview.evidenceIds).size !== legalReview.evidenceIds.length ||
+      typeof legalReview.note !== "string" || typeof legalReview.documentScopeConfirmed !== "boolean") {
+    throw new Error("Revisão legal inválida.");
+  }
   await invoke("save_urban_precheck_run_v4", {
     _process_id: processId, _regulation_version_id: versionId,
     _reference_date: referenceDate, _measurements: measurements,
