@@ -87,17 +87,25 @@ export function UrbanPrecheckPanel({
     setLegalCatalogError("");
     setLegalReview({ evidenceIds: [], note: "", documentScopeConfirmed: false });
     setLoading(true);
+    const isCurrentLoad = () => active && mountedRef.current &&
+      loadGenerationRef.current === loadGeneration &&
+      activeProcessRef.current === process.id &&
+      activeMunicipalityRef.current === municipalityId;
+    // History is independent: a slow history request must not block legal rules.
+    void listUrbanPrecheckHistory(process.id).then(
+      (past) => { if (isCurrentLoad()) { setHistory(past); setHistoryError(""); } },
+      (error: unknown) => {
+        if (isCurrentLoad()) setHistoryError(String((error as Error)?.message || error));
+      },
+    );
+    // Only municipal legislation and evidence define readiness to analyze.
     void Promise.allSettled([
       listUrbanRegulations(municipalityId),
-      listUrbanPrecheckHistory(process.id),
       listUrbanLegalEvidence(municipalityId),
-    ]).then(([rules, past, legal]) => {
-      if (!active || !mountedRef.current || loadGenerationRef.current !== loadGeneration ||
-          activeProcessRef.current !== process.id || activeMunicipalityRef.current !== municipalityId) return;
+    ]).then(([rules, legal]) => {
+      if (!isCurrentLoad()) return;
       if (rules.status === "fulfilled") setVersions(rules.value);
       else setNotice("Normas indisponíveis: " + String((rules.reason as Error)?.message || rules.reason));
-      if (past.status === "fulfilled") { setHistory(past.value); setHistoryError(""); }
-      else setHistoryError(String((past.reason as Error)?.message || past.reason));
       if (legal.status === "fulfilled") {
         setLegalCatalog(legal.value);
         setLegalCatalogError("");
@@ -106,10 +114,7 @@ export function UrbanPrecheckPanel({
         setLegalCatalogError(String((legal.reason as Error)?.message || legal.reason));
       }
       setLegalCatalogReady(true);
-    }).finally(() => {
-      if (active && mountedRef.current && loadGenerationRef.current === loadGeneration &&
-          activeProcessRef.current === process.id && activeMunicipalityRef.current === municipalityId) setLoading(false);
-    });
+    }).finally(() => { if (isCurrentLoad()) setLoading(false); });
     return () => { active = false; };
   }, [municipalityId, process.id, process.property.usage, process.officializedAt]);
 
