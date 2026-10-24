@@ -45,8 +45,13 @@ export function deriveUrbanAreaMeasurements(inputs: UrbanAreaInputs): UrbanAreaD
       warnings.push("A " + item.label + " excede a área do terreno: confira as medidas antes de comparar.");
       continue;
     }
+    const ratio = (area.value / lot.value) * item.multiple;
+    if (!Number.isFinite(ratio)) {
+      warnings.push("O cálculo da " + item.label + " resultou em número inválido: confira as áreas.");
+      continue;
+    }
     measurements[item.metric] = {
-      value: (area.value / lot.value) * item.multiple,
+      value: ratio,
       evidence: ("Terreno: " + lot.evidence.trim() + "; " + item.label + ": " +
         area.evidence.trim() + ". Cálculo = " + area.value + " / " + lot.value +
         (item.multiple === 100 ? " × 100" : "")).slice(0, 500),
