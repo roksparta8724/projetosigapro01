@@ -53,6 +53,19 @@ export type UrbanPrecheckHistoryEntry = {
     reviewed_at?: string;
   };
 };
+function isValidHistoricalMeasurements(value: unknown): boolean {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const entries = Object.entries(value);
+  const known = new Set<string>(URBAN_METRICS.map(metric => metric.key));
+  return entries.length > 0 && entries.length <= known.size && entries.every(([metric, row]) =>
+    known.has(metric) && row !== null && typeof row === "object" && !Array.isArray(row) &&
+    typeof row.value === "number" && Number.isFinite(row.value) && row.value >= 0 &&
+    (metric !== "floor_count" || Number.isInteger(row.value)) &&
+    typeof row.evidence === "string" && row.evidence.trim().length >= 3 &&
+    row.evidence.length <= 500
+  );
+}
+
 export async function listUrbanPrecheckHistory(processId: string): Promise<UrbanPrecheckHistoryEntry[]> {
   const response = await invoke<unknown>("list_urban_prechecks_v1", { _process_id: processId });
   if (!Array.isArray(response)) throw new Error("Histórico de pré-análises indisponível.");
@@ -66,8 +79,7 @@ export async function listUrbanPrecheckHistory(processId: string): Promise<Urban
     typeof entry.reviewer_profile_id !== "string" || !entry.reviewer_profile_id ||
     typeof entry.created_at !== "string" || !Number.isFinite(Date.parse(entry.created_at)) ||
     (entry.reference_date !== null && !isValidUrbanReferenceDate(entry.reference_date, "9999-12-31")) ||
-    typeof entry.measurements !== "object" || entry.measurements === null ||
-    Array.isArray(entry.measurements) ||
+    !isValidHistoricalMeasurements(entry.measurements) ||
     (entry.legal_review !== undefined && (typeof entry.legal_review !== "object" ||
       entry.legal_review === null || Array.isArray(entry.legal_review))))) {
     throw new Error("Histórico de pré-análises inconsistente para este processo.");
