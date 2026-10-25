@@ -145,6 +145,27 @@ function canonicalS3Query(pairs) {
     .sort((a,b)=>a[0]===b[0]?(a[1]<b[1]?-1:a[1]>b[1]?1:0):(a[0]<b[0]?-1:1))
     .map(([key,value])=>key+"="+value).join("&");
 }
+function assertCompleteS3Listing(xml) {
+  // S3 ListObjectsV2 is authoritative only when its framing, item records
+  // and explicit IsTruncated flag are present. Never call a partial page
+  // a successful recovery of all available documents.
+  const root=/<ListBucketResult(?:\s[^>]*)?>/.test(xml) &&
+    /<\/ListBucketResult>\s*$/.test(xml);
+  const flag=xmlValue(xml,"IsTruncated").trim();
+  const opens=(xml.match(/<Contents>/g)||[]).length;
+  const closes=(xml.match(/<\/Contents>/g)||[]).length;
+  if(!root||(flag!=="true"&&flag!=="false")||opens!==closes)
+    throw new Error("QA_STORAGE_INVALID_LIST");
+  for(const entry of xml.matchAll(/<Contents>([\s\S]*?)<\/Contents>/g)) {
+    const raw=entry[1],rawKey=xmlValue(raw,"Key");
+    const key=decodeListedKey(rawKey);
+    const size=xmlValue(raw,"Size"),when=xmlValue(raw,"LastModified");
+    if(!rawKey||!key||!/^[0-9]+$/.test(size)||
+       !Number.isSafeInteger(Number(size))||!Number.isFinite(Date.parse(when)))
+      throw new Error("QA_STORAGE_INVALID_LIST");
+  }
+  return flag==="true";
+}
 function listEntries(xml,prefix,since) {
   const found=[];
   for(const match of xml.matchAll(/<Contents>([\s\S]*?)<\/Contents>/g)) {
@@ -220,8 +241,9 @@ async function recoverQaFiles(request,token,origin) {
       const xml=await r.text();
       if(xml.length>2*1024*1024||!xml.includes("<ListBucketResult"))
         throw new Error("QA_STORAGE_INVALID_LIST");
+      const isTruncated=assertCompleteS3Listing(xml);
       entries.push(...listEntries(xml,prefix,since));
-      if(xmlValue(xml,"IsTruncated").trim()!=="true")return entries;
+      if(!isTruncated)return entries;
       next=xmlUnescape(xmlValue(xml,"NextContinuationToken"));
       if(!next||next.length>1024||tokens.has(next))
         throw new Error("QA_STORAGE_INVALID_CONTINUATION");

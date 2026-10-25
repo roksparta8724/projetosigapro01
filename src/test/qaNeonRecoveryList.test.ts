@@ -30,7 +30,7 @@ function setup(deny:string[]=[]){
   const xml='<?xml version="1.0"?><ListBucketResult>'+
     '<Contents><Key>'+key+'</Key><LastModified>2026-10-24T00:00:00Z</LastModified><Size>12</Size></Contents>'+
     '<Contents><Key>municipalities/'+tenant+'/protocols/other/doc.pdf</Key><LastModified>2026-10-24T00:00:00Z</LastModified><Size>5</Size></Contents>'+
-    '</ListBucketResult>';
+    '<IsTruncated>false</IsTruncated></ListBucketResult>';
   return new Response(xml,{status:200});
  }));
  return calls;
@@ -133,6 +133,25 @@ describe("SIGAPRO native Neon QA recovery list with real authorization guard",()
   expect(page).toContain("continuation-token=opaque~token%2Bone%20two%21%27%28%29%2A");
   expect(page).not.toContain("one+two");
   expect(new URL(page!).searchParams.get("continuation-token")).toBe(token);
+ });
+ it.each([
+  ["missing IsTruncated",'<ListBucketResult><Contents><Key>municipalities/'+tenant+'/protocols/'+principal+'/file.pdf</Key><Size>9</Size><LastModified>2026-10-24T00:00:00Z</LastModified></Contents></ListBucketResult>'],
+  ["missing Size",'<ListBucketResult><Contents><Key>municipalities/'+tenant+'/protocols/'+principal+'/file.pdf</Key><LastModified>2026-10-24T00:00:00Z</LastModified></Contents><IsTruncated>false</IsTruncated></ListBucketResult>'],
+  ["unclosed Contents",'<ListBucketResult><Contents><Key>municipalities/'+tenant+'/protocols/'+principal+'/file.pdf</Key><Size>9</Size><LastModified>2026-10-24T00:00:00Z</LastModified><IsTruncated>false</IsTruncated></ListBucketResult>'],
+  ["unclosed root",'<ListBucketResult><IsTruncated>false</IsTruncated>'],
+ ] as const)("rejects %s in the S3 listing rather than silently hiding files",async(_name,xml)=>{
+  setup();
+  const original=globalThis.fetch;
+  let storageCalls=0;
+  vi.stubGlobal("fetch",vi.fn(async(url:string,opts:any)=>{
+    if(url.includes(".apirest."))return original(url,opts);
+    storageCalls++;
+    return new Response(xml,{status:200});
+  }));
+  const response=await handler.fetch(body({since:"2026-10-20T00:00:00Z"}));
+  expect(response.status).toBe(503);
+  expect((await response.json()).code).toBe("QA_STORAGE_UNAVAILABLE");
+  expect(storageCalls).toBeGreaterThan(0);
  });
  it("denies when the tenant authorization is rejected",async()=>{
   const calls=setup(["has_tenant_access"]);
