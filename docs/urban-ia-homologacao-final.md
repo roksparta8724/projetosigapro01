@@ -43,5 +43,11 @@
 ## Evidências de execução
 Para cada caso U01–U16: data/hora, SHA, URL de ambiente QA, navegador, perfil fictício, protocolo fictício, ação, resultado esperado/observado, status PASS/FAIL/BLOCKED, screenshot com dados sensíveis ocultos e identificação do responsável. Exigir fechamento dos FAIL e registrar impedimentos BLOCKED sem considerá-los aprovados.
 
-## Limitação atual conhecida
-O portão operacional encontra **zero normas ativas de QA e processos de apenas uma prefeitura**. Sem fixtures controladas de segunda prefeitura e sessão autenticada de navegador, a situação correta é **BLOQUEADO PARA HOMOLOGAÇÃO COMPLETA**, mesmo que todas as rotinas SQL sejam verdes.
+## Situação de execução — revisão de 25/10/2026
+- A auditoria SQL executada na branch Neon QA confirmou **2 municípios com perfis ativos, contratos municipais ativos, processos e normas vigentes**, de acordo com `scripts/urban-neon-e2e-fixture-preflight.sql`. O portão operacional também confirmou funções e tabelas de urbanismo prontas para testes autenticados.
+- Os testes reversíveis de dois municípios, análise urbanística, recuperação e negação de acesso entre prefeituras passaram no banco isolado; nenhuma fixture temporária foi mantida.
+- O roteiro `urban-neon-two-municipality-contract-rollback-qa.sql` **reutiliza o contrato QA já ativo**: criar um contrato duplicado não é pré-requisito e violaria a restrição de unicidade do banco.
+- **Ainda faltam**: teste HTTP com dois JWTs legítimos de municípios diferentes e PDF/JPEG em armazenamento isolado, aceite humano autenticado U01–U16, comprovação bancária exclusivamente em sandbox e revisão formal antes de eventual publicação.
+- **Sem qualquer um desses comprovantes, o status é `NÃO LIBERADO PARA PRODUÇÃO`**, apesar de os testes automatizados e de autorização SQL estarem aprovados. Os números de normas e processos podem mudar; executar novamente os portões para obter o estado atual.
+
+Este roteiro não substitui a checagem de pagamentos, guias quitadas, assinatura do Diretor, geração de PDFs ou dados reais da Prefeitura. Não promova dados de QA para a produção.
