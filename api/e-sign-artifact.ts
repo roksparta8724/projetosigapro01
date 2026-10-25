@@ -298,7 +298,8 @@ export default async function handler(req: ApiReq, res: Res) {
   // Until a dedicated QA signing key and artifact store exist, fail closed
   // before inspecting, generating or persisting any electronic signature.
   if (process.env.VERCEL_ENV === "preview" &&
-      process.env.VITE_SIGAPRO_NEON_ISOLATED === "true") {
+      (process.env.VITE_SIGAPRO_NEON_ISOLATED === "true" ||
+       process.env.VERCEL_GIT_COMMIT_REF === "qa/sigapro-ia-logo-integrado-20261023")) {
     json(res, 503, {
       ok: false,
       code: "QA_E_SIGNATURE_DISABLED",

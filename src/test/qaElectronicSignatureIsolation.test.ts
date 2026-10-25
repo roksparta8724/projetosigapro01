@@ -25,6 +25,16 @@ describe("SIGAPRO QA electronic signing isolation", () => {
     expect(payload.ok).toBe(false);
   });
 
+  it.each(["GET","POST"])("blocks %s on the QA branch even if its isolation flag is missing",async method=>{
+    vi.stubEnv("VERCEL_ENV","preview");
+    vi.stubEnv("VERCEL_GIT_COMMIT_REF","qa/sigapro-ia-logo-integrado-20261023");
+    vi.stubEnv("VITE_SIGAPRO_NEON_ISOLATED","false");
+    const out=response();
+    await handler({method,url:"/api/e-sign-artifact"} as never,out as never);
+    expect(out.statusCode).toBe(503);
+    expect(JSON.parse(out.body).code).toBe("QA_E_SIGNATURE_DISABLED");
+  });
+
   it("keeps production unsupported-method semantics", async () => {
     vi.stubEnv("VERCEL_ENV", "production");
     vi.stubEnv("VITE_SIGAPRO_NEON_ISOLATED", "true");
