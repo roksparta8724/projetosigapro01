@@ -17,6 +17,7 @@ import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { useDocumentMarkerAssignments } from "@/hooks/useDocumentMarkerAssignments";
 import { consumeDocumentWorkspaceAccessUrl } from "@/lib/documentWorkspaceAccess";
+import { revokeOwnedQaBlobUrl } from "@/lib/qaBlobUrl";
 import { getSignedUrlForObjectStrict } from "@/integrations/r2/client";
 import { QaDocumentUnavailableNotice, isQaDocumentMissingError } from "@/components/platform/QaDocumentUnavailableNotice";
 import {
@@ -162,6 +163,7 @@ export function DocumentViewerPage() {
 
   useEffect(() => {
     let cancelled = false;
+    let ownedBlobUrl = "";
     setError("");
     // Prevent a previous process document from remaining in the iframe while
     // the new file is being authorized or when its QA binary is unavailable.
@@ -200,10 +202,14 @@ export function DocumentViewerPage() {
       expiresIn: 21600,
     })
       .then((url) => {
-        if (!cancelled) {
-          if (url) setAccessUrl(url);
-          else setError("Não foi possível gerar o acesso seguro ao documento.");
+        if (cancelled) {
+          // Late responses must never leave a private PDF/image blob alive.
+          revokeOwnedQaBlobUrl(url);
+          return;
         }
+        if (url.startsWith("blob:")) ownedBlobUrl = url;
+        if (url) setAccessUrl(url);
+        else setError("Não foi possível gerar o acesso seguro ao documento.");
       })
       .catch((reason) => {
         if (!cancelled) {
@@ -217,6 +223,9 @@ export function DocumentViewerPage() {
 
     return () => {
       cancelled = true;
+      // Release only blobs created by this effect; pre-fetched URLs remain
+      // owned by their original workspace instead.
+      revokeOwnedQaBlobUrl(ownedBlobUrl);
     };
   }, [
     allowed,
