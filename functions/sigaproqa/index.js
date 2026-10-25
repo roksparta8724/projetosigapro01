@@ -193,17 +193,32 @@ async function recoverQaFiles(request,token,origin) {
   const prefixes=["protocols","habite-se"].flatMap(folder=>
     principals.map(principal=>"municipalities/"+tenant+"/"+folder+"/"+principal+"/"));
   const groups=await Promise.all(prefixes.map(async prefix=>{
-    const query=new URLSearchParams([
-      ["encoding-type","url"],["list-type","2"],["max-keys","250"],["prefix",prefix]
-    ]).toString();
-    // Sign the exact canonical query used by the bucket-level GET request.
-    const signed=s3Request("GET","",undefined,query);
-    const r=await fetch(signed.url,{method:"GET",headers:signed.headers,
-      redirect:"manual",signal:requestTimeout(45000)});
-    if(!r.ok)throw new Error("QA_STORAGE_UNAVAILABLE");
-    const xml=await r.text();
-    if(xml.length>2*1024*1024||!xml.includes("<ListBucketResult"))throw new Error("QA_STORAGE_INVALID_LIST");
-    return listEntries(xml,prefix,since);
+    const entries=[],tokens=new Set();
+    let next="";
+    // Do not quietly omit documents beyond S3's first lexicographic page.
+    // Bound the work so an untrusted or malformed continuation cannot cause
+    // endless storage calls. An oversized list fails explicitly instead.
+    for(let page=0;page<12;page++){
+      const parameters=[
+        ...(next?[["continuation-token",next]]:[]),
+        ["encoding-type","url"],["list-type","2"],["max-keys","250"],["prefix",prefix]
+      ];
+      const query=new URLSearchParams(parameters).toString();
+      const signed=s3Request("GET","",undefined,query);
+      const r=await fetch(signed.url,{method:"GET",headers:signed.headers,
+        redirect:"manual",signal:requestTimeout(45000)});
+      if(!r.ok)throw new Error("QA_STORAGE_UNAVAILABLE");
+      const xml=await r.text();
+      if(xml.length>2*1024*1024||!xml.includes("<ListBucketResult"))
+        throw new Error("QA_STORAGE_INVALID_LIST");
+      entries.push(...listEntries(xml,prefix,since));
+      if(xmlValue(xml,"IsTruncated").trim()!=="true")return entries;
+      next=xmlUnescape(xmlValue(xml,"NextContinuationToken"));
+      if(!next||next.length>1024||tokens.has(next))
+        throw new Error("QA_STORAGE_INVALID_CONTINUATION");
+      tokens.add(next);
+    }
+    throw new Error("QA_STORAGE_LIST_PAGE_LIMIT");
   }));
   const seen=new Set(),files=groups.flat().sort((a,b)=>
     Date.parse(b.lastModified)-Date.parse(a.lastModified)).filter(x=>{

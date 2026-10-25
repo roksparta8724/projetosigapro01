@@ -62,6 +62,54 @@ describe("SIGAPRO native Neon QA recovery list with real authorization guard",()
     );
   }
  });
+ it("recovers later S3 pages without including another professional's files",async()=>{
+  const calls=setup();
+  const priorFetch=globalThis.fetch;
+  const nextKey="municipalities/"+tenant+"/protocols/"+principal+"/second.pdf";
+  const secondPageToken="opaque+NEXT/2";
+  vi.stubGlobal("fetch",vi.fn(async(url:string,opts:any)=>{
+    if(url.includes(".apirest."))return priorFetch(url,opts);
+    calls.push({url,opts});
+    const search=new URL(url).searchParams;
+    const prefix=search.get("prefix")||"";
+    if(!prefix.includes("/protocols/"))
+      return new Response('<ListBucketResult><IsTruncated>false</IsTruncated></ListBucketResult>',{status:200});
+    if(search.has("continuation-token")){
+      expect(search.get("continuation-token")).toBe(secondPageToken);
+      return new Response('<ListBucketResult>'+
+        '<Contents><Key>'+nextKey+'</Key><LastModified>2026-10-25T00:00:00Z</LastModified><Size>98</Size></Contents>'+
+        '<Contents><Key>municipalities/'+tenant+'/protocols/other/hidden.pdf</Key>'+
+        '<LastModified>2026-10-25T00:00:00Z</LastModified><Size>5</Size></Contents>'+
+        '<IsTruncated>false</IsTruncated></ListBucketResult>',{status:200});
+    }
+    return new Response('<ListBucketResult>'+
+      '<Contents><Key>'+key+'</Key><LastModified>2026-10-24T00:00:00Z</LastModified><Size>12</Size></Contents>'+
+      '<IsTruncated>true</IsTruncated>'+
+      '<NextContinuationToken>'+secondPageToken+'</NextContinuationToken>'+
+      '</ListBucketResult>',{status:200});
+  }));
+  const r=await handler.fetch(body({since:"2026-10-20T00:00:00Z",processId}));
+  expect(r.status).toBe(200);
+  const data=await r.json() as {files:Array<{objectKey:string}>};
+  expect(data.files.map(x=>x.objectKey)).toEqual([nextKey,key]);
+  const remote=calls.filter(x=>x.url.includes(".storage."));
+  expect(remote).toHaveLength(3);
+  expect(remote.filter(x=>new URL(x.url).searchParams.has("continuation-token"))).toHaveLength(1);
+ });
+ it("rejects repeated opaque S3 continuation tokens instead of returning incomplete recovery",async()=>{
+  setup();
+  const original=globalThis.fetch;
+  let calls=0;
+  vi.stubGlobal("fetch",vi.fn(async(url:string,opts:any)=>{
+    if(url.includes(".apirest."))return original(url,opts);
+    calls++;
+    return new Response('<ListBucketResult><IsTruncated>true</IsTruncated>'+
+      '<NextContinuationToken>duplicate-qa-page</NextContinuationToken></ListBucketResult>',{status:200});
+  }));
+  const r=await handler.fetch(body());
+  expect(r.status).toBe(503);
+  expect(calls).toBeLessThanOrEqual(4);
+ });
  it("denies when the tenant authorization is rejected",async()=>{
   const calls=setup(["has_tenant_access"]);
   const r=await handler.fetch(body());
