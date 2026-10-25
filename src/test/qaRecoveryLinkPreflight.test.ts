@@ -1,8 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
+import { Blob as NodeBlob } from "node:buffer";
 import { readFileSync } from "node:fs";
 import { verifyQaRecoverableDocumentBeforeLink } from "../lib/qaRecoveryLinkPreflight";
 
-const pdf=new Blob(["%PDF-1.7\nQA synthetic file\n%%EOF"],{type:"application/pdf"});
+const pdf=new NodeBlob(["%PDF-1.7\nQA synthetic file\n%%EOF"],{type:"application/pdf"});
 const input={objectKey:"municipalities/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/protocols/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/qa.pdf",fileName:"qa.pdf",size:pdf.size};
 const read=vi.fn(async()=>"blob:https://qa.invalid/temporary");
 const mocks=(blob=pdf)=>({
@@ -28,7 +29,7 @@ describe("SIGAPRO QA — never associate unreadable or forged recovered document
    expect(dependencies.revokeUrl).toHaveBeenCalledOnce();
  });
  it("rejects PDF names hiding HTML and does not trust browser Content-Type",async()=>{
-   const spoof=new Blob(["<html>fake QA PDF</html>"],{type:"application/pdf"});
+   const spoof=new NodeBlob(["<html>fake QA PDF</html>"],{type:"application/pdf"});
    const dependencies=mocks(spoof);
    await expect(verifyQaRecoverableDocumentBeforeLink({...input,size:spoof.size},read,dependencies))
      .rejects.toThrow("assinatura de arquivo inválida");
