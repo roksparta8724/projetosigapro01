@@ -199,6 +199,7 @@ export function DocumentViewerPage() {
     void getSignedUrlForObjectStrict({
       bucket,
       objectKey: document.filePath,
+      processId: process?.id,
       expiresIn: 21600,
     })
       .then((url) => {
@@ -419,6 +420,7 @@ export function DocumentViewerPage() {
                       const signedUrl = await getSignedUrlForObjectStrict({
                         bucket: "process-documents",
                         objectKey: document.filePath,
+                        processId: process?.id,
                         expiresIn: 900,
                       });
                       if (!signedUrl) throw new Error("Arquivo importado, mas o link do QA não pôde ser obtido.");
