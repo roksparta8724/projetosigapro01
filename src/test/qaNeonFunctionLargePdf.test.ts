@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { createHash } from "node:crypto";
 afterEach(()=>{vi.unstubAllEnvs();vi.unstubAllGlobals();});
 import handler from "../../functions/sigaproqa/index.js";
 describe("SIGAPRO branch-pinned QA large PDF function", () => {
@@ -223,7 +224,8 @@ describe("SIGAPRO branch-pinned QA large PDF function", () => {
       calls.push(rpc);
       const value=rpc==="current_auth_subject"||rpc==="current_profile_id"?"analyst":
         rpc==="qa_storage_recovery_principals_v1"?[owner]:
-        rpc==="qa_storage_process_file_keys_v1"?[key]:true;
+        rpc==="qa_storage_process_file_keys_v1"?[key]:
+        rpc==="qa_storage_verified_file_sha_v1"?createHash("sha256").update(bytes).digest("hex"):true;
       return new Response(JSON.stringify(value),{status:200,headers:{"Content-Type":"application/json"}});
     }
     calls.push("S3:"+options.method);
@@ -240,11 +242,62 @@ describe("SIGAPRO branch-pinned QA large PDF function", () => {
   expect(calls).toContain("qa_storage_process_tenant_access_v1");
   expect(calls).toContain("qa_storage_recovery_principals_v1");
   expect(calls).toContain("qa_storage_process_file_keys_v1");
+  expect(calls).toContain("qa_storage_verified_file_sha_v1");
   const illegalUpload=await handler.fetch(new Request("https://qa.invalid/upload?objectKey="+encodeURIComponent(key)+"&processId="+processId,{
     method:"POST",headers:{...auth,"Content-Type":"application/pdf"},body:bytes
   }));
   expect(illegalUpload.status).toBe(403);
   expect(calls).not.toContain("S3:PUT");
+ });
+ it("denies mutable catalog-only records when no separate byte provenance was attested",async()=>{
+   vi.stubEnv("NEON_DATA_API_URL","https://ep-misty-breeze-b4ri8ig0.apirest.c-6.us-east-2.aws.neon.tech/sigapro_migration_stage_20260923/rest/v1");
+   const tenant="aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+   const proc="bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+   const applicant="cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+   const key="municipalities/"+tenant+"/protocols/"+applicant+"/catalog-only.pdf";
+   const calls:string[]=[];
+   vi.stubGlobal("fetch",vi.fn(async(url:string)=>{
+     if(!url.includes(".apirest."))throw new Error("No storage read without independently attested SHA");
+     const rpc=url.split("/rpc/")[1]||"";
+     calls.push(rpc);
+     const response=rpc==="current_auth_subject"||rpc==="current_profile_id"?"analyst":
+       rpc==="qa_storage_recovery_principals_v1"?[applicant]:
+       rpc==="qa_storage_process_file_keys_v1"?[key]:
+       rpc==="qa_storage_verified_file_sha_v1"?null:true;
+     return new Response(JSON.stringify(response),{status:200,headers:{"Content-Type":"application/json"}});
+   }));
+   const res=await handler.fetch(new Request("https://qa.invalid/read?objectKey="+
+     encodeURIComponent(key)+"&processId="+proc,{headers:{Authorization:"Bearer synthetic"}}));
+   expect(res.status).toBe(403);
+   expect((await res.json()).code).toBe("QA_PROVENANCE_NOT_VERIFIED");
+   expect(calls).toContain("qa_storage_verified_file_sha_v1");
+ });
+ it("rejects altered S3 bytes despite a previously attested process file hash",async()=>{
+   vi.stubEnv("NEON_DATA_API_URL","https://ep-misty-breeze-b4ri8ig0.apirest.c-6.us-east-2.aws.neon.tech/sigapro_migration_stage_20260923/rest/v1");
+   vi.stubEnv("AWS_ENDPOINT_URL_S3","https://br-solitary-sound-b4xlbvs6.storage.c-6.us-east-2.aws.neon.tech");
+   vi.stubEnv("AWS_ACCESS_KEY_ID","nak_fake_qa_unit");
+   vi.stubEnv("AWS_SECRET_ACCESS_KEY","FAKE_QA_TEST_KEY_NO_REAL_STORAGE_123");
+   const tenant="aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+   const proc="bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+   const applicant="cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+   const key="municipalities/"+tenant+"/protocols/"+applicant+"/attested.pdf";
+   const original=new TextEncoder().encode("%PDF-1.7 original");
+   const changed=new TextEncoder().encode("%PDF-1.7 altered");
+   vi.stubGlobal("fetch",vi.fn(async(url:string)=>{
+     if(url.includes(".apirest.")){
+       const rpc=url.split("/rpc/")[1]||"";
+       const value=rpc==="current_auth_subject"||rpc==="current_profile_id"?"analyst":
+         rpc==="qa_storage_recovery_principals_v1"?[applicant]:
+         rpc==="qa_storage_process_file_keys_v1"?[key]:
+         rpc==="qa_storage_verified_file_sha_v1"?createHash("sha256").update(original).digest("hex"):true;
+       return new Response(JSON.stringify(value),{status:200,headers:{"Content-Type":"application/json"}});
+     }
+     return new Response(changed,{status:200});
+   }));
+   const out=await handler.fetch(new Request("https://qa.invalid/read?objectKey="+
+     encodeURIComponent(key)+"&processId="+proc,{headers:{Authorization:"Bearer synthetic"}}));
+   expect(out.status).toBe(409);
+   expect((await out.json()).code).toBe("QA_STORAGE_INTEGRITY_MISMATCH");
  });
  it("denies an analyst a different case file from the same applicant even inside one municipality",async()=>{
   vi.stubEnv("NEON_DATA_API_URL","https://ep-misty-breeze-b4ri8ig0.apirest.c-6.us-east-2.aws.neon.tech/sigapro_migration_stage_20260923/rest/v1");
