@@ -289,21 +289,10 @@ export default async function handler(req: Req, res: Res) {
         req,
       );
 
-      if (result.ok) {
-        await rpcOrThrow(req, "persist_payment_guide_provider_charge_v1", {
-          _guide_code: guideCode,
-          _order_id: result.orderId || null,
-          _payment_id: result.paymentId || null,
-          _status: result.status || null,
-          _status_detail: result.statusDetail || null,
-          _authenticated_at: result.authenticatedAt || null,
-          _payment_provider: "mercado_pago",
-          _provider_environment: result.environment || null,
-          _barcode: result.barcodeContent || null,
-          _digitable_line: result.digitableLine || null,
-          _ticket_url: result.ticketUrl || null,
-        });
-      }
+      // createMercadoPagoGuideBoleto already persisted this charge through
+      // persistGuideCharge / persist_payment_guide_provider_charge_v2,
+      // scoped to the exact municipality, immutable guide and amount.
+      // Never call the legacy unscoped-by-municipality RPC a second time.
 
       json(res, result.ok ? 201 : 400, result);
     } catch (error) {
