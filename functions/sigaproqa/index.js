@@ -138,7 +138,7 @@ function decodeListedKey(raw) {
 }
 function listEntries(xml,prefix,since) {
   const found=[];
-  for(const match of xml.matchAll(/<Contents>([\\s\\S]*?)<\\/Contents>/g)) {
+  for(const match of xml.matchAll(/<Contents>([\s\S]*?)<\/Contents>/g)) {
     const value=match[1];
     const key=decodeListedKey(xmlValue(value,"Key"));
     const size=Number(xmlValue(value,"Size"));
