@@ -22,6 +22,32 @@ describe("SIGAPRO branch-pinned QA large PDF function", () => {
   expect(response.headers.get("Access-Control-Allow-Origin")).toBe(origin);
  });
  it.each([
+   "http://localhost:8080",
+   "http://localhost:8081",
+ ])("allows only integrated SIGAPRO localhost QA port %s",async(origin)=>{
+   const r=await handler.fetch(new Request("https://qa.invalid/upload",{
+     method:"OPTIONS",headers:{Origin:origin},
+   }));
+   expect(r.status).toBe(204);
+   expect(r.headers.get("Access-Control-Allow-Origin")).toBe(origin);
+   expect(r.headers.get("Access-Control-Allow-Headers")).toContain("authorization");
+ });
+ it.each([
+   "http://localhost:8082",
+   "http://localhost:5173",
+   "http://localhost:3000",
+   "http://127.0.0.1:8080",
+   "http://localhost.evil.test:8080",
+   "https://localhost:8080",
+   "http://localhost:8080.attacker.test",
+ ])("rejects unrelated local origins %s",async(origin)=>{
+   const r=await handler.fetch(new Request("https://qa.invalid/upload",{
+     method:"OPTIONS",headers:{Origin:origin},
+   }));
+   expect(r.status).toBe(403);
+   expect(r.headers.get("Access-Control-Allow-Origin")).toBeNull();
+ });
+ it.each([
    "https://projetosigapro01-lghgavz4w-roksparta8724s-projects.vercel.app",
    "https://projetosigapro01-2hrd1bktg-roksparta8724s-projects.vercel.app",
    "https://projetosigapro01-qxyprgos7-roksparta8724s-projects.vercel.app",
