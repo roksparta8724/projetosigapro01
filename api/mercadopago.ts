@@ -73,8 +73,12 @@ export default async function handler(req: Req, res: Res) {
   // provider. Never contact Mercado Pago or generate a charge from QA without
   // a dedicated sandbox integration and explicit test-only credentials.
   const isolatedQa = process.env.VERCEL_ENV === "preview" &&
-    process.env.VITE_SIGAPRO_NEON_ISOLATED === "true";
-  if (isolatedQa && ["health", "guide-status", "guide-boleto"].includes(action)) {
+    (process.env.VITE_SIGAPRO_NEON_ISOLATED === "true" ||
+     process.env.VERCEL_GIT_COMMIT_REF === "qa/sigapro-ia-logo-integrado-20261023");
+  // QA has no dedicated sandbox provider or payment signing credentials.
+  // Fail before all connection, charge or configuration actions to prevent
+  // inherited real-bank tokens from ever being used in previews.
+  if (isolatedQa) {
     json(res, 503, {
       ok: false,
       code: "QA_PAYMENT_PROVIDER_DISABLED",

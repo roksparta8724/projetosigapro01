@@ -10,6 +10,17 @@ function uuid(value: unknown) { const id = String(value || "").trim(); if (!/^[0
 async function rpc<T>(req: Req, fn: string, args: Record<string, unknown>) { const result = await callDataApiRpc<T>(req, fn, args); if (!result.ok) throw new Error(result.error || "Operação não autorizada."); return result.payload; }
 
 export default async function handler(req: Req, res: Res) {
+  // Never fetch or modify real municipal bank details, guide imports or
+  // collection credentials from an isolated QA preview. The QA browser
+  // cannot fall back to inherited production Neon/provider environments.
+  if (process.env.VERCEL_ENV === "preview" &&
+      (process.env.VITE_SIGAPRO_NEON_ISOLATED === "true" ||
+       process.env.VERCEL_GIT_COMMIT_REF === "qa/sigapro-ia-logo-integrado-20261023")) {
+    return json(res, 503, {
+      code: "QA_COLLECTION_CONFIGURATION_DISABLED",
+      error: "Arrecadação municipal indisponível nesta homologação sem integração financeira exclusiva de teste.",
+    });
+  }
   if (req.method !== "POST") return json(res, 405, { error: "Método não permitido." });
   try {
     const input = await body(req); const municipalityId = uuid(input.municipalityId); const action = String(input.action || "get");
