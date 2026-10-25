@@ -1,6 +1,6 @@
 import { backendClient } from "@/integrations/backend/databaseClient";
 import { qaUploadMime, validateQaUploadPreflight } from "@/lib/qaUploadPreflight";
-import { resolveQaNativeUrl, uploadQaNative, readQaNative, deleteQaNative } from "@/integrations/r2/qaNeonNative";
+import { resolveQaNativeUrl, uploadQaNative, readQaNative, deleteQaNative, shouldIsolateQaStorage } from "@/integrations/r2/qaNeonNative";
 
 export type R2UploadResult = {
   bucket: string;
@@ -9,8 +9,18 @@ export type R2UploadResult = {
 };
 
 const apiBase = (import.meta.env.VITE_R2_API_BASE || "").toString().replace(/\/+$/, "");
-const isolatedQa = import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true";
+const isolatedQa = shouldIsolateQaStorage(
+  typeof window === "undefined" ? "" : window.location.hostname,
+  import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true",
+);
 const qaNativeBase = resolveQaNativeUrl(isolatedQa, import.meta.env.VITE_SIGAPRO_QA_FUNCTION_URL);
+
+function requireQaNativeBase(): string {
+  if (!qaNativeBase) {
+    throw new Error("Armazenamento exclusivo de homologação indisponível. Nenhum arquivo foi transmitido ao R2 oficial.");
+  }
+  return qaNativeBase;
+}
 
 function buildApiUrl(path: string) {
   if (isolatedQa) return path.startsWith("/") ? path : `/${path}`;
@@ -264,7 +274,7 @@ export async function getSignedUrlForObject(input: {
   objectKey: string;
   expiresIn?: number;
 }) {
-  if(qaNativeBase)return readQaNative(qaNativeBase,input.objectKey,
+  if (isolatedQa) return readQaNative(requireQaNativeBase(), input.objectKey,
     await getAuthorizationHeaders() as Record<string,string>);
   // Never expose official R2 URLs as a fallback from the isolated QA browser.
   const allowPublicFallback = !isolatedQa &&
@@ -298,7 +308,7 @@ export async function getSignedUrlForObjectStrict(input: {
   objectKey: string;
   expiresIn?: number;
 }) {
-  if(qaNativeBase)return readQaNative(qaNativeBase,input.objectKey,
+  if (isolatedQa) return readQaNative(requireQaNativeBase(), input.objectKey,
     await getAuthorizationHeaders() as Record<string,string>);
   const expiresIn = typeof input.expiresIn === "number" && Number.isFinite(input.expiresIn)
     ? input.expiresIn
@@ -334,8 +344,10 @@ export async function uploadFile(input: {
   objectKey: string;
   file: File;
 }) {
-  if (qaNativeBase && ["application/pdf","image/png","image/jpeg","image/webp"].includes(qaUploadMime(input.file))) {
-    return uploadQaNative({base:qaNativeBase,file:input.file,objectKey:input.objectKey,
+  // Every QA document is uploaded through the isolated Neon function. Never
+  // enter legacy base64/Vercel/R2 upload on QA, including with a missing flag.
+  if (isolatedQa) {
+    return uploadQaNative({base:requireQaNativeBase(),file:input.file,objectKey:input.objectKey,
       bucket:normalizeClientBucket(input.bucket),
       headers:await getAuthorizationHeaders() as Record<string,string>});
   }
@@ -440,7 +452,7 @@ export async function listRecoverableProcessFiles(input?: { since?: string; proc
 }
 
 export async function deleteFile(input: { bucket: string; objectKey: string }) {
-  if(qaNativeBase)return deleteQaNative(qaNativeBase,input.objectKey,
+  if (isolatedQa) return deleteQaNative(requireQaNativeBase(), input.objectKey,
     await getAuthorizationHeaders() as Record<string,string>);
   const response = await fetch(buildApiUrl("/api/r2-delete"), {
     method: "POST",

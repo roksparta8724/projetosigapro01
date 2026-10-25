@@ -1,5 +1,5 @@
 import {afterEach,describe,expect,it,vi} from "vitest";
-import {QA_NATIVE_BASE,QA_NATIVE_MAX_PDF_BYTES,resolveQaNativeUrl,validateNativePdf,validateNativeDocument,uploadQaNative,deleteQaNative} from "../integrations/r2/qaNeonNative";
+import {QA_NATIVE_BASE,QA_NATIVE_MAX_PDF_BYTES,resolveQaNativeUrl,validateNativePdf,validateNativeDocument,uploadQaNative,deleteQaNative,shouldIsolateQaStorage} from "../integrations/r2/qaNeonNative";
 const key="municipalities/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/protocols/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/qa.pdf";
 afterEach(()=>vi.unstubAllGlobals());
 describe("SIGAPRO QA Neon binary PDF adapter",()=>{
@@ -7,6 +7,15 @@ describe("SIGAPRO QA Neon binary PDF adapter",()=>{
   expect(resolveQaNativeUrl(false,QA_NATIVE_BASE)).toBe("");
   expect(resolveQaNativeUrl(true,"https://sigapromunicipal.com.br")).toBe("");
   expect(resolveQaNativeUrl(true,QA_NATIVE_BASE)).toBe(QA_NATIVE_BASE);
+ });
+ it("forces isolated document routing on the stable QA host without any isolation flag",()=>{
+  const qa="projetosigapro01-git-qa-sigapro-f7ead8-roksparta8724s-projects.vercel.app";
+  expect(shouldIsolateQaStorage(qa,false)).toBe(true);
+  expect(shouldIsolateQaStorage(qa,true)).toBe(true);
+  expect(shouldIsolateQaStorage("projetosigapro01-something.vercel.app",true)).toBe(true);
+  expect(shouldIsolateQaStorage("localhost",false)).toBe(false);
+  expect(shouldIsolateQaStorage("sigapromunicipal.com.br",true)).toBe(false);
+  expect(shouldIsolateQaStorage("prefeitura.sigapromunicipal.com.br",true)).toBe(false);
  });
  it("accepts 3 MiB PDF, rejects 25 MiB + 1",()=>{
   expect(()=>validateNativePdf({name:"planta.pdf",size:3145728,type:"application/pdf"})).not.toThrow();

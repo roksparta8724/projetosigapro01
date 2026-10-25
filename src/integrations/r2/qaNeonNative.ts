@@ -1,3 +1,13 @@
+import { isNeonProductionHostname, isNeonQaHostname } from "@/integrations/backend/config";
+
+// The stable QA preview must stay isolated even if a Vercel preview variable
+// disappears. On official domains, an inherited QA flag must never disable
+// the legitimate production storage.
+export function shouldIsolateQaStorage(hostname:string,isolationFlag:boolean) {
+ return !isNeonProductionHostname(hostname) &&
+   (isolationFlag || isNeonQaHostname(hostname));
+}
+
 export const QA_NATIVE_BASE="https://br-solitary-sound-b4xlbvs6-sigaproqa.compute.c-6.us-east-2.aws.neon.tech";
 export const QA_NATIVE_MAX_PDF_BYTES=25*1024*1024;
 const types:Record<string,string>={pdf:"application/pdf",png:"image/png",jpg:"image/jpeg",jpeg:"image/jpeg",webp:"image/webp"};
