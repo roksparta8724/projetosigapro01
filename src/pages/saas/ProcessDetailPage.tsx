@@ -1089,6 +1089,7 @@ export function ProcessDetailPage() {
           const url = await getSignedUrlForObjectStrict({
             bucket,
             objectKey: document.filePath!,
+            processId: process.id,
             expiresIn: 21600,
           });
           if (cancelled || !url) return;
@@ -2640,6 +2641,7 @@ export function ProcessDetailPage() {
             getSignedUrlForObjectStrict({
               bucket: "process-documents",
               objectKey: candidate.objectKey,
+              processId: process.id,
               expiresIn: 300,
             }),
           );
