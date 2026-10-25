@@ -22,6 +22,7 @@ function setup(deny:string[]=[]){
   if(url.includes(".apirest.")){
    const rpc=url.split("/rpc/")[1];
    const value=deny.includes(rpc)?false:
+     rpc==="qa_storage_recovery_principals_v1"?[principal]:
      rpc==="get_current_profile_context"?{tenant_id:tenant,profile_id:principal}:
      rpc==="current_auth_subject"?principal:
      rpc==="current_profile_id"?principal:true;
@@ -198,6 +199,43 @@ describe("SIGAPRO native Neon QA recovery list with real authorization guard",()
   expect(r.status).toBe(409);
   expect((await r.json()).code).toBe("QA_RECOVERY_RESULT_LIMIT");
   expect(requested).toBe(3);
+ });
+ it("recovers original applicant files for an authorized municipal analyst, never analyst's own protocol files",async()=>{
+  const calls=setup();
+  const original=globalThis.fetch;
+  const creator="dddddddd-dddd-4ddd-8ddd-dddddddddddd";
+  const orphan="municipalities/"+tenant+"/protocols/"+creator+"/planta.pdf";
+  vi.stubGlobal("fetch",vi.fn(async(url:string,opts:any)=>{
+    if(url.includes(".apirest.")){
+      if(url.endsWith("/rpc/qa_storage_recovery_principals_v1")){
+        calls.push({url,opts});
+        return new Response(JSON.stringify([creator]),{status:200,headers:{"Content-Type":"application/json"}});
+      }
+      return original(url,opts);
+    }
+    calls.push({url,opts});
+    const prefix=new URL(url).searchParams.get("prefix");
+    const xml=prefix==="municipalities/"+tenant+"/protocols/"+creator+"/"
+      ? '<ListBucketResult><Contents><Key>'+orphan+'</Key><LastModified>2026-10-25T00:00:00Z</LastModified><Size>20</Size></Contents><IsTruncated>false</IsTruncated></ListBucketResult>'
+      : '<ListBucketResult><IsTruncated>false</IsTruncated></ListBucketResult>';
+    return new Response(xml,{status:200});
+  }));
+  const response=await handler.fetch(body({processId,since:"2026-10-20T00:00:00Z"}));
+  expect(response.status).toBe(200);
+  const data=await response.json() as {files:Array<{objectKey:string}>};
+  expect(data.files.map(x=>x.objectKey)).toEqual([orphan]);
+  const storageCalls=calls.filter(x=>x.url.includes(".storage."));
+  expect(storageCalls).toHaveLength(3);
+  expect(storageCalls.some(x=>
+    new URL(x.url).searchParams.get("prefix")==="municipalities/"+tenant+"/protocols/"+principal+"/"
+  )).toBe(false);
+  expect(calls.some(x=>x.url.endsWith("/rpc/qa_storage_recovery_principals_v1"))).toBe(true);
+ });
+ it("fails closed when scoped process creator identities are absent or invalid",async()=>{
+  const calls=setup(["qa_storage_recovery_principals_v1"]);
+  const r=await handler.fetch(body({processId}));
+  expect(r.status).toBe(403);
+  expect(calls.every(x=>x.url.includes(".apirest."))).toBe(true);
  });
  it("denies when the tenant authorization is rejected",async()=>{
   const calls=setup(["has_tenant_access"]);

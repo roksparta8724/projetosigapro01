@@ -215,9 +215,22 @@ async function recoverQaFiles(request,token,origin) {
   if(processId&&await rpc(token,"qa_storage_process_tenant_access_v1",
     {_process_id:processId,_tenant_id:tenant})!==true)
     return respond({code:"ACCESS_DENIED"},403,origin);
-  const principals=[...new Set([subject,profile,context?.profile_id].filter(
+  let principals=[...new Set([subject,profile,context?.profile_id].filter(
     value=>typeof value==="string"&&OWN_PRINCIPAL.test(value)))];
   if(!principals.length)return respond({code:"ACCESS_DENIED"},403,origin);
+  if(processId) {
+    // Municipal analysts must recover the *original applicant's* orphaned
+    // protocol uploads, not only their own account's folders. The QA RPC
+    // derives creator identities from that exact authorized municipality-
+    // bound process; never trust IDs supplied by the browser.
+    const creators=await rpc(token,"qa_storage_recovery_principals_v1",{
+      _process_id:processId,_tenant_id:tenant
+    });
+    if(!Array.isArray(creators)||creators.length>10||
+       !creators.every(value=>typeof value==="string"&&OWN_PRINCIPAL.test(value)))
+      return respond({code:"ACCESS_DENIED"},403,origin);
+    principals=[...new Set(creators)];
+  }
   const since=typeof input.since==="string"&&Number.isFinite(Date.parse(input.since))
     ? Date.parse(input.since):Date.now()-7*86400_000;
   const prefixes=["protocols","habite-se"].flatMap(folder=>
