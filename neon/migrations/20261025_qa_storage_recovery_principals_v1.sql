@@ -22,10 +22,15 @@ BEGIN
     INTO _principals
   FROM public.processes proc
   LEFT JOIN public.profiles creator ON creator.id=proc.created_by_profile_id
+  LEFT JOIN public.profile_auth_identities neon_identity
+    ON neon_identity.profile_id=proc.created_by_profile_id
+   AND neon_identity.provider='neon'
+   AND neon_identity.is_active=true
   CROSS JOIN LATERAL unnest(ARRAY[
     proc.created_by_profile_id::text,
     proc.created_by::text,
-    creator.user_id::text
+    creator.user_id::text,
+    neon_identity.provider_user_id
   ]) AS uploader(candidate)
   WHERE proc.id=_process_id
     AND coalesce(proc.municipality_id,proc.tenant_id)=_tenant_id
