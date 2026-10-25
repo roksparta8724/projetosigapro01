@@ -5,6 +5,8 @@ import signGet from "../../server/api/r2-sign-get";
 import list from "../../server/api/r2-list-user-files";
 import masterLogo from "../../server/api/r2-master-logo-source";
 import avatar from "../../server/api/profile-avatar-open";
+import municipalLogo from "../../api/municipality-logo-open";
+import legislation from "../../api/legislation-open";
 
 afterEach(() => vi.unstubAllEnvs());
 
@@ -63,5 +65,39 @@ describe("SIGAPRO QA R2 direct serverless entrypoints", () => {
       expect(res.statusCode).toBe(405);
     }
   );
+
+  it("blocks direct municipal branding image GET on QA branch without isolation flag",async()=>{
+    vi.stubEnv("VERCEL_ENV","preview");
+    vi.stubEnv("VERCEL_GIT_COMMIT_REF","qa/sigapro-ia-logo-integrado-20261023");
+    vi.stubEnv("VITE_SIGAPRO_NEON_ISOLATED","false");
+    const res={
+      statusCode:200,body:"",headers:{} as Record<string,string>,
+      setHeader(k:string,v:string){this.headers[k]=v;},
+      end(value:string){this.body=value;},
+    };
+    await municipalLogo({
+      method:"GET",url:"/api/municipality-logo-open?objectKey=municipalities/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/branding/logo.png"
+    } as never,res as never);
+    expect(res.statusCode).toBe(503);
+    expect(JSON.parse(res.body).code).toBe("QA_R2_ACCESS_DISABLED");
+    expect(res.headers["Cache-Control"]).toBe("no-store");
+  });
+  it("prevents a direct QA legislation GET from being signed against official R2",async()=>{
+    vi.stubEnv("VERCEL_ENV","preview");
+    vi.stubEnv("VERCEL_GIT_COMMIT_REF","qa/sigapro-ia-logo-integrado-20261023");
+    vi.stubEnv("VITE_SIGAPRO_NEON_ISOLATED","false");
+    const res={
+      statusCode:200,body:"",headers:{} as Record<string,string>,
+      setHeader(k:string,v:string){this.headers[k]=v;},
+      end(value:string){this.body=value;},
+    };
+    await legislation({
+      method:"GET",url:"/api/legislation-open?objectKey=municipalities/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/legislation/qa.pdf"
+    } as never,res as never);
+    expect(res.statusCode).toBe(503);
+    expect(res.headers["Cache-Control"]).toBe("no-store");
+    expect(res.headers.Location).toBeUndefined();
+    expect(res.body).toContain("Isolamento");
+  });
 
 });

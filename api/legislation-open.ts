@@ -83,8 +83,16 @@ export default async function handler(req: Req, res: Res) {
     }
 
 
+    // Even without the QA isolation flag, this preview branch must never
+    // fall back to inherited production R2 credentials.
+    const qaBranchPreview = process.env.VERCEL_ENV === "preview" &&
+      process.env.VERCEL_GIT_COMMIT_REF === "qa/sigapro-ia-logo-integrado-20261023";
+    if (qaBranchPreview && process.env.VITE_SIGAPRO_NEON_ISOLATED !== "true") {
+      fail(res, 503, "Isolamento da homologação não configurado.");
+      return;
+    }
     if (process.env.VERCEL_ENV === "preview" &&
-        process.env.VITE_SIGAPRO_NEON_ISOLATED === "true") {
+        (process.env.VITE_SIGAPRO_NEON_ISOLATED === "true" || qaBranchPreview)) {
       if (!qaStorageReady()) {
         fail(res, 503, "Acervo isolado de QA não configurado.");
         return;
