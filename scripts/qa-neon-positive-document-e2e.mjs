@@ -107,11 +107,13 @@ export async function runQaDocumentE2e(env=process.env,request=fetch,report=cons
     for(const doc of documents) {
       const upload=await send("upload","POST",token,doc.data,doc.mime,doc.key);
       await status(upload,200,"Private QA upload");
+      // Treat HTTP 200 as possibly persisted even when the JSON
+      // acknowledgment is malformed. Cleanup must still delete that object.
+      uploaded.push(doc);
       const payload=await upload.json();
       if(payload.ok!==true||payload.objectKey!==doc.key||
          payload.storageProvider!=="neon_qa_function")
         throw new Error("Upload acknowledgment did not match the isolated Neon QA object.");
-      uploaded.push(doc);
       const read=await send("read","GET",token,undefined,undefined,doc.key);
       await status(read,200,"Private QA download");
       const result=Buffer.from(await read.arrayBuffer());
