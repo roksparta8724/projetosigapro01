@@ -354,6 +354,22 @@ export default {
      return respond({code:"INVALID_PROCESS"},400,approved);
    if(!await authorize(token,scope,write,requestedProcess))
      return respond({code:"ACCESS_DENIED"},403,approved);
+   // A process's catalog record and its path-derived legacy file_hash are
+   // not independently trustworthy evidence of the original file bytes.
+   let verifiedBytesSha="";
+   if(path.pathname==="/read"&&scope.type==="owner"&&requestedProcess){
+     const [subject,profile]=await Promise.all([
+       rpc(token,"current_auth_subject"),rpc(token,"current_profile_id")
+     ]);
+     if(scope.principal!==subject&&scope.principal!==profile){
+       const evidence=await rpc(token,"qa_storage_verified_file_sha_v1",{
+         _process_id:requestedProcess,_tenant_id:scope.tenant,_object_key:scope.key
+       });
+       if(typeof evidence!=="string"||!/^[a-f0-9]{64}$/.test(evidence))
+         return respond({code:"QA_PROVENANCE_NOT_VERIFIED"},403,approved);
+       verifiedBytesSha=evidence;
+     }
+   }
    let bytes;
    if(write&&request.method==="POST"){
     if(request.headers.get("Content-Type")?.split(";")[0].trim().toLowerCase()!==mime)
@@ -395,6 +411,13 @@ export default {
    if(method==="GET"){
       const h={"Content-Type":mime,"Content-Disposition":"inline","X-Content-Type-Options":"nosniff","Cache-Control":"private, no-store","Vary":"Origin"};
       if(approved)h["Access-Control-Allow-Origin"]=approved;
+      if(verifiedBytesSha){
+        const raw=await remote.arrayBuffer();
+        if(raw.byteLength<1||raw.byteLength>MAX_FILE_BYTES||
+           sha(new Uint8Array(raw))!==verifiedBytesSha)
+          return respond({code:"QA_STORAGE_INTEGRITY_MISMATCH"},409,approved);
+        return new Response(raw,{status:200,headers:h});
+      }
       return new Response(remote.body,{status:200,headers:h});
    }
    return respond({ok:true,objectKey:scope.key,bucket:"process-documents",storageProvider:"neon_qa_function"},200,approved);
