@@ -1,6 +1,6 @@
 import { backendClient } from "@/integrations/backend/databaseClient";
 import { qaUploadMime, validateQaUploadPreflight } from "@/lib/qaUploadPreflight";
-import { resolveQaNativeUrl, uploadQaNative, readQaNative, deleteQaNative, shouldIsolateQaStorage } from "@/integrations/r2/qaNeonNative";
+import { resolveQaNativeUrl, uploadQaNative, readQaNative, deleteQaNative, listQaNativeFiles, shouldIsolateQaStorage } from "@/integrations/r2/qaNeonNative";
 
 export type R2UploadResult = {
   bucket: string;
@@ -430,6 +430,10 @@ export type RecoverableProcessFile = {
 };
 
 export async function listRecoverableProcessFiles(input?: { since?: string; processId?: string }) {
+  if (isolatedQa) {
+    return listQaNativeFiles(requireQaNativeBase(),
+      await getAuthorizationHeaders() as Record<string,string>,input);
+  }
   const response = await fetch(buildApiUrl("/api/r2-list-user-files"), {
     method: "POST",
     headers: {

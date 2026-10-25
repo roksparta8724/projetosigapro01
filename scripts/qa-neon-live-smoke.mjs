@@ -53,4 +53,11 @@ await probe("SVG storage key forbidden before RPC",
   "/upload?objectKey="+encodeURIComponent("municipalities/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/processes/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/fake.svg"),{
     method:"POST",headers:{Authorization:"Bearer deliberately-invalid-qa-smoke","Content-Type":"image/svg+xml"}
   },400);
+await probe("recovery list requires JWT", "/list-user-files",{
+  method:"POST",headers:{"Content-Type":"application/json"},body:"{}",
+},401);
+await probe("invalid recovery process rejected before storage", "/list-user-files",{
+  method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer synthetic-qa-negative-test"},
+  body:JSON.stringify({processId:"not-a-uuid"}),
+},400);
 console.log("SIGAPRO QA Neon Function live negative smoke checks passed.");

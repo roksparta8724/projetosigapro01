@@ -51,11 +51,12 @@ function s3Env() {
       !e.AWS_SECRET_ACCESS_KEY) throw new Error("QA_STORAGE_UNAVAILABLE");
   return e;
 }
-function s3Request(method,key,bytes) {
+function s3Request(method,key,bytes,query="") {
   const e=s3Env();
   const url=new URL(ENDPOINT);
-  const path="/"+BUCKET+"/"+key.split("/").map(encodeURIComponent).join("/");
+  const path="/"+BUCKET+(key?"/"+key.split("/").map(encodeURIComponent).join("/"):"");
   url.pathname=path;
+  if(query)url.search="?"+query;
   const datetime=new Date().toISOString().replace(/[:-]|\.\d{3}/g,"");
   const day=datetime.slice(0,8);
   const payloadHash=sha(bytes||new Uint8Array());
@@ -64,7 +65,7 @@ function s3Request(method,key,bytes) {
   const signedKeys=["host",...Object.keys(headers)].sort();
   const all={"host":url.host,...headers};
   const canonical=signedKeys.map(k=>k+":"+all[k]+"\n").join("");
-  const canonicalRequest=[method,path,"",canonical,signedKeys.join(";"),payloadHash].join("\n");
+  const canonicalRequest=[method,path,query,canonical,signedKeys.join(";"),payloadHash].join("\n");
   const scope=day+"/"+REGION+"/s3/aws4_request";
   const stringToSign=["AWS4-HMAC-SHA256",datetime,scope,sha(canonicalRequest)].join("\n");
   const keySign=mac(mac(mac(mac("AWS4"+e.AWS_SECRET_ACCESS_KEY,day),REGION),"s3"),"aws4_request");
@@ -115,6 +116,102 @@ async function authorize(token,scope,write) {
  }
  return false;
 }
+const ID = new RegExp("^"+UUID+"$","i");
+const OWN_PRINCIPAL = /^[A-Za-z0-9_-]{1,128}$/;
+const xmlValue = (xml, tag) => {
+  const match=xml.match(new RegExp("<"+tag+">([\\s\\S]*?)<\\/"+tag+">","i"));
+  return match?.[1]||"";
+};
+function xmlUnescape(raw) {
+  return raw.replace(/&(?:amp|lt|gt|quot|apos|#(?:x[0-9a-f]+|[0-9]+));/gi, entity=>{
+    const values={"&amp;":"&","&lt;":"<","&gt;":">","&quot;":'"',"&apos;":"'"};
+    const normalized=entity.toLowerCase();
+    if(values[normalized])return values[normalized];
+    const h=normalized.startsWith("&#x");
+    const cp=parseInt(normalized.slice(h?3:2,-1),h?16:10);
+    return Number.isInteger(cp)&&cp>0&&cp<=0x10ffff?String.fromCodePoint(cp):"";
+  });
+}
+function decodeListedKey(raw) {
+  const value=xmlUnescape(raw);
+  try{return decodeURIComponent(value);}catch{return "";}
+}
+function listEntries(xml,prefix,since) {
+  const found=[];
+  for(const match of xml.matchAll(/<Contents>([\\s\\S]*?)<\\/Contents>/g)) {
+    const value=match[1];
+    const key=decodeListedKey(xmlValue(value,"Key"));
+    const size=Number(xmlValue(value,"Size"));
+    const when=Date.parse(xmlValue(value,"LastModified"));
+    if(!key.startsWith(prefix)||!validKey(key)||!Number.isSafeInteger(size)||
+       size<0||!Number.isFinite(when)||when<since)continue;
+    found.push({objectKey:key,fileName:key.split("/").at(-1)||"arquivo",
+      size,lastModified:new Date(when).toISOString()});
+  }
+  return found;
+}
+async function requestJsonBody(request) {
+  if(!request.body)return {};
+  const reader=request.body.getReader(),chunks=[];
+  let length=0;
+  while(true) {
+    const part=await reader.read();
+    if(part.done)break;
+    length+=part.value.byteLength;
+    if(length>2048){await reader.cancel();return null;}
+    chunks.push(part.value);
+  }
+  const input=new Uint8Array(length);let offset=0;
+  for(const chunk of chunks){input.set(chunk,offset);offset+=chunk.byteLength;}
+  try {
+    const data=JSON.parse(new TextDecoder().decode(input)||"{}");
+    return data&&typeof data==="object"&&!Array.isArray(data)?data:null;
+  }catch{return null;}
+}
+async function recoverQaFiles(request,token,origin) {
+  const input=await requestJsonBody(request);
+  if(!input)return respond({code:"INVALID_RECOVERY_REQUEST"},400,origin);
+  const processId=typeof input.processId==="string"?input.processId.trim():"";
+  if(processId&&!ID.test(processId))return respond({code:"INVALID_PROCESS"},400,origin);
+  const [context,subject,profile]=await Promise.all([
+    rpc(token,"get_current_profile_context"),rpc(token,"current_auth_subject"),
+    rpc(token,"current_profile_id")
+  ]);
+  const tenant=typeof context?.tenant_id==="string"?context.tenant_id:
+    typeof context?.municipality_id==="string"?context.municipality_id:"";
+  if(!ID.test(tenant))return respond({code:"ACCESS_DENIED"},403,origin);
+  const authorized=await rpc(token,"has_tenant_access",{target_tenant:tenant});
+  if(authorized!==true)return respond({code:"ACCESS_DENIED"},403,origin);
+  if(processId&&await rpc(token,"qa_storage_process_tenant_access_v1",
+    {_process_id:processId,_tenant_id:tenant})!==true)
+    return respond({code:"ACCESS_DENIED"},403,origin);
+  const principals=[...new Set([subject,profile,context?.profile_id].filter(
+    value=>typeof value==="string"&&OWN_PRINCIPAL.test(value)))];
+  if(!principals.length)return respond({code:"ACCESS_DENIED"},403,origin);
+  const since=typeof input.since==="string"&&Number.isFinite(Date.parse(input.since))
+    ? Date.parse(input.since):Date.now()-7*86400_000;
+  const prefixes=["protocols","habite-se"].flatMap(folder=>
+    principals.map(principal=>"municipalities/"+tenant+"/"+folder+"/"+principal+"/"));
+  const groups=await Promise.all(prefixes.map(async prefix=>{
+    const query=new URLSearchParams([
+      ["encoding-type","url"],["list-type","2"],["max-keys","250"],["prefix",prefix]
+    ]).toString();
+    // Sign the exact canonical query used by the bucket-level GET request.
+    const signed=s3Request("GET","",undefined,query);
+    const r=await fetch(signed.url,{method:"GET",headers:signed.headers,
+      redirect:"manual",signal:requestTimeout(45000)});
+    if(!r.ok)throw new Error("QA_STORAGE_UNAVAILABLE");
+    const xml=await r.text();
+    if(xml.length>2*1024*1024||!xml.includes("<ListBucketResult"))throw new Error("QA_STORAGE_INVALID_LIST");
+    return listEntries(xml,prefix,since);
+  }));
+  const seen=new Set(),files=groups.flat().sort((a,b)=>
+    Date.parse(b.lastModified)-Date.parse(a.lastModified)).filter(x=>{
+      if(seen.has(x.objectKey))return false;
+      seen.add(x.objectKey);return true;
+    }).slice(0,250);
+  return respond({files,storageProvider:"neon_qa_function"},200,origin);
+}
 export default {
  async fetch(request) {
   const origin=request.headers.get("Origin")||"";
@@ -127,9 +224,14 @@ export default {
      "Cache-Control":"no-store","Vary":"Origin"}}):respond({code:"ORIGIN_FORBIDDEN"},403);
   }
   if(origin&&!approved)return respond({code:"ORIGIN_FORBIDDEN"},403);
-  if(!["/upload","/read","/object"].includes(path.pathname))return respond({code:"NOT_FOUND"},404,approved);
+  if(!["/upload","/read","/object","/list-user-files"].includes(path.pathname))return respond({code:"NOT_FOUND"},404,approved);
   const token=(request.headers.get("Authorization")||"").match(/^Bearer\s+(.+)$/i)?.[1];
   if(!token)return respond({code:"AUTH_REQUIRED"},401,approved);
+  if(path.pathname==="/list-user-files") {
+    if(request.method!=="POST")return respond({code:"METHOD_NOT_ALLOWED"},405,approved);
+    try{return await recoverQaFiles(request,token,approved);}
+    catch{return respond({code:"QA_STORAGE_UNAVAILABLE"},503,approved);}
+  }
   const scope=validKey(path.searchParams.get("objectKey"));
   if(!scope)return respond({code:"INVALID_OBJECT_KEY"},400,approved);
   const mime=contentType(scope.key);

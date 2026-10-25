@@ -84,3 +84,22 @@ export async function deleteQaNative(base:string,key:string,headers:Record<strin
  if(p.ok!==true||p.objectKey!==key)throw new Error("Exclusão não confirmada pelo armazenamento.");
  return {ok:true,bucket:"process-documents",objectKey:key};
 }
+
+export type QaRecoverableFile={
+ objectKey:string;fileName:string;size:number;lastModified:string|null;
+};
+export async function listQaNativeFiles(
+ base:string,headers:Record<string,string>,input?:{since?:string;processId?:string}
+):Promise<QaRecoverableFile[]> {
+ if(base!==QA_NATIVE_BASE)throw new Error("Destino isolado de QA inválido.");
+ const r=await fetch(base+"/list-user-files",{
+  method:"POST",headers:{Authorization:bearer(headers),"Content-Type":"application/json"},
+  body:JSON.stringify({since:input?.since,processId:input?.processId}),cache:"no-store",
+ });
+ if(!r.ok)throw new Error(await failure(r,"Falha ao recuperar anexos do QA"));
+ const data=await r.json() as {files?:QaRecoverableFile[];storageProvider?:string};
+ if(data.storageProvider!=="neon_qa_function"||!Array.isArray(data.files))
+  throw new Error("A recuperação de anexos não foi confirmada pelo Neon QA.");
+ return data.files.filter(x=>typeof x.objectKey==="string"&&
+   typeof x.fileName==="string"&&Number.isSafeInteger(x.size)&&x.size>=0);
+}

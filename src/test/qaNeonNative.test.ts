@@ -1,5 +1,5 @@
 import {afterEach,describe,expect,it,vi} from "vitest";
-import {QA_NATIVE_BASE,QA_NATIVE_MAX_PDF_BYTES,resolveQaNativeUrl,validateNativePdf,validateNativeDocument,uploadQaNative,deleteQaNative,shouldIsolateQaStorage} from "../integrations/r2/qaNeonNative";
+import {QA_NATIVE_BASE,QA_NATIVE_MAX_PDF_BYTES,resolveQaNativeUrl,validateNativePdf,validateNativeDocument,uploadQaNative,deleteQaNative,listQaNativeFiles,shouldIsolateQaStorage} from "../integrations/r2/qaNeonNative";
 const key="municipalities/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/protocols/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/qa.pdf";
 afterEach(()=>vi.unstubAllGlobals());
 describe("SIGAPRO QA Neon binary PDF adapter",()=>{
@@ -47,6 +47,27 @@ describe("SIGAPRO QA Neon binary PDF adapter",()=>{
  it("rejects spoofed MIME and mismatching key before any fetch",()=>{
   expect(()=>validateNativeDocument({name:"photo.jpg",size:120,type:"application/pdf"})).toThrow("correspondente");
   expect(()=>validateNativeDocument({name:"photo.jpg",size:120,type:"image/jpeg"},"municipalities/x/photo.png")).toThrow("caminho");
+ });
+ it("queries only the isolated Neon QA function for recoverable files",async()=>{
+  const url=QA_NATIVE_BASE+"/list-user-files";
+  const files=[{objectKey:key,fileName:"qa.pdf",size:123,lastModified:"2026-10-24T00:00:00.000Z"}];
+  const request=vi.fn().mockResolvedValue(new Response(JSON.stringify({
+    files,storageProvider:"neon_qa_function"
+  }),{status:200}));
+  vi.stubGlobal("fetch",request);
+  const result=await listQaNativeFiles(QA_NATIVE_BASE,
+    {Authorization:"Bearer synthetic"},{processId:"bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"});
+  expect(result).toEqual(files);
+  expect(request).toHaveBeenCalledOnce();
+  expect(request.mock.calls[0][0]).toBe(url);
+  expect(JSON.parse(request.mock.calls[0][1].body).processId).toBe("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb");
+ });
+ it("never lists recovery files without authorization or a confirmed Neon response",async()=>{
+  const request=vi.fn();vi.stubGlobal("fetch",request);
+  await expect(listQaNativeFiles(QA_NATIVE_BASE,{})).rejects.toThrow("login");
+  expect(request).not.toHaveBeenCalled();
+  request.mockResolvedValue(new Response(JSON.stringify({files:[]}),{status:200}));
+  await expect(listQaNativeFiles(QA_NATIVE_BASE,{Authorization:"Bearer synthetic"})).rejects.toThrow("confirmada");
  });
  it("requires login and never sends anonymous PDF",async()=>{
   const fetchMock=vi.fn();vi.stubGlobal("fetch",fetchMock);
