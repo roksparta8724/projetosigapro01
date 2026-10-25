@@ -64,6 +64,8 @@ import {
   type RecoverableProcessFile,
 } from "@/integrations/r2/client";
 import { uploadFileToStorage } from "@/integrations/r2/storage";
+import { shouldIsolateQaStorage } from "@/integrations/r2/qaNeonNative";
+import { verifyQaRecoverableDocumentBeforeLink } from "@/lib/qaRecoveryLinkPreflight";
 import {
   buildProcessPath,
   buildProcessRouteKey,
@@ -2627,6 +2629,21 @@ export function ProcessDetailPage() {
     const ok = await runProcessAction(
       `recover-document-${document.id}`,
       async () => {
+        // A listed object is not necessarily readable. In isolated QA, never
+        // mark the document uploaded until access, byte size and media signature
+        // have been checked, and release the temporary private blob afterwards.
+        if (shouldIsolateQaStorage(
+          window.location.hostname,
+          import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true",
+        )) {
+          await verifyQaRecoverableDocumentBeforeLink(candidate, () =>
+            getSignedUrlForObjectStrict({
+              bucket: "process-documents",
+              objectKey: candidate.objectKey,
+              expiresIn: 300,
+            }),
+          );
+        }
         const result = await appendProcessDocuments(
           process.id,
           [
