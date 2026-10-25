@@ -116,8 +116,16 @@ async function authorize(token,scope,write,readProcessId="") {
   const allowed=await rpc(token,"qa_storage_recovery_principals_v1",{
     _process_id:readProcessId,_tenant_id:scope.tenant
   });
-  return Array.isArray(allowed)&&allowed.length<=10&&
-    allowed.includes(scope.principal);
+  if(!Array.isArray(allowed)||allowed.length>10||
+     !allowed.includes(scope.principal))return false;
+  // One applicant can submit objects to multiple unrelated protocols.
+  // Creator identity and municipality alone are not proof of provenance.
+  const linked=await rpc(token,"qa_storage_process_file_keys_v1",{
+    _process_id:readProcessId,_tenant_id:scope.tenant
+  });
+  return Array.isArray(linked)&&linked.length<=1000&&
+    linked.every(key=>typeof key==="string"&&key.length<=850)&&
+    linked.includes(scope.key);
  }
  if(scope.type==="process"){
   // Bind the object key municipality to the process municipality in one authorized QA RPC.
@@ -228,11 +236,22 @@ async function recoverQaFiles(request,token,origin) {
   if(processId&&await rpc(token,"qa_storage_process_tenant_access_v1",
     {_process_id:processId,_tenant_id:tenant})!==true)
     return respond({code:"ACCESS_DENIED"},403,origin);
+  let processLinkedKeys=null;
   let principals=[...new Set([subject,profile,context?.profile_id].filter(
     value=>typeof value==="string"&&OWN_PRINCIPAL.test(value)))];
   if(!principals.length)return respond({code:"ACCESS_DENIED"},403,origin);
   if(processId) {
-    // Municipal analysts must recover the *original applicant's* orphaned
+    // Original owner folders can contain other protocols' private files.
+    // Only an exact recorded document key or the process-specific folder
+    // establishes provenance. Missing RPC => deny before reading storage.
+    const verified=await rpc(token,"qa_storage_process_file_keys_v1",{
+      _process_id:processId,_tenant_id:tenant
+    });
+    if(!Array.isArray(verified)||verified.length>1000||
+       !verified.every(key=>typeof key==="string"&&key.length<=850))
+      return respond({code:"ACCESS_DENIED"},403,origin);
+    processLinkedKeys=new Set(verified);
+    // Municipal analysts must search the *original applicant's* catalogued
     // protocol uploads, not only their own account's folders. The QA RPC
     // derives creator identities from that exact authorized municipality-
     // bound process; never trust IDs supplied by the browser.
@@ -286,7 +305,10 @@ async function recoverQaFiles(request,token,origin) {
     }
     throw new Error("QA_STORAGE_LIST_PAGE_LIMIT");
   }));
-  const seen=new Set(),files=groups.flat().sort((a,b)=>
+  const seen=new Set(),files=groups.flat().filter(entry=>
+    !processId || entry.objectKey.startsWith("municipalities/"+tenant+"/processes/"+processId+"/") ||
+      processLinkedKeys?.has(entry.objectKey)
+  ).sort((a,b)=>
     Date.parse(b.lastModified)-Date.parse(a.lastModified)).filter(x=>{
       if(seen.has(x.objectKey))return false;
       seen.add(x.objectKey);return true;
