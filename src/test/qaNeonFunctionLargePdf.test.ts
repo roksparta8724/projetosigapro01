@@ -21,6 +21,32 @@ describe("SIGAPRO branch-pinned QA large PDF function", () => {
   expect(response.status).toBe(204);
   expect(response.headers.get("Access-Control-Allow-Origin")).toBe(origin);
  });
+ it.each([
+   "https://projetosigapro01-lghgavz4w-roksparta8724s-projects.vercel.app",
+   "https://projetosigapro01-2hrd1bktg-roksparta8724s-projects.vercel.app",
+   "https://projetosigapro01-qxyprgos7-roksparta8724s-projects.vercel.app",
+ ])("permits only an actual SIGAPRO-owned immutable deployment origin %s",async(origin)=>{
+   const response=await handler.fetch(new Request("https://qa.invalid/upload",{
+     method:"OPTIONS",headers:{Origin:origin}
+   }));
+   expect(response.status).toBe(204);
+   expect(response.headers.get("Access-Control-Allow-Origin")).toBe(origin);
+   expect(response.headers.get("Vary")).toBe("Origin");
+ });
+ it.each([
+   "https://sigapromunicipal.com.br",
+   "https://projetosigapro01-lghgavz4w-evil-projects.vercel.app",
+   "https://projetosigapro01-lghgavz4w-roksparta8724s-projects.vercel.app.attacker.test",
+   "https://otherproject-lghgavz4w-roksparta8724s-projects.vercel.app",
+   "https://projetosigapro01-git-main-roksparta8724s-projects.vercel.app",
+   "http://projetosigapro01-lghgavz4w-roksparta8724s-projects.vercel.app",
+ ])("refuses unrelated or deceptive QA browser origin %s",async(origin)=>{
+   const response=await handler.fetch(new Request("https://qa.invalid/read",{
+     method:"OPTIONS",headers:{Origin:origin}
+   }));
+   expect(response.status).toBe(403);
+   expect(response.headers.get("Access-Control-Allow-Origin")).toBeNull();
+ });
  it("handles a binary PDF stream without Content-Length and enforces auth before S3",async()=>{
   vi.stubEnv("NEON_DATA_API_URL","https://ep-misty-breeze-b4ri8ig0.apirest.c-6.us-east-2.aws.neon.tech/sigapro_migration_stage_20260923/rest/v1");
   vi.stubEnv("AWS_ENDPOINT_URL_S3","https://br-solitary-sound-b4xlbvs6.storage.c-6.us-east-2.aws.neon.tech");
