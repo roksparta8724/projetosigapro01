@@ -21,6 +21,8 @@ export const QA_DOCUMENT_ENDPOINT=
   "https://br-solitary-sound-b4xlbvs6-sigaproqa.compute.c-6.us-east-2.aws.neon.tech";
 export const QA_DOCUMENT_ORIGIN=
   "https://projetosigapro01-git-qa-sigapro-f7ead8-roksparta8724s-projects.vercel.app";
+export const QA_DOCUMENT_CONTEXT_RPC=
+  "https://ep-misty-breeze-b4ri8ig0.apirest.c-6.us-east-2.aws.neon.tech/sigapro_migration_stage_20260923/rest/v1/rpc/get_current_profile_context";
 
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const PRINCIPAL=/^[A-Za-z0-9_-]{1,128}$/;
@@ -105,8 +107,35 @@ export async function runQaDocumentE2e(env=process.env,request=fetch,report=cons
       ": expected HTTP "+expected+", received "+response.status);
     return response;
   };
+  // Check the REAL authenticated municipality from the isolated Data API.
+  // A second subject is insufficient to prove that two municipalities differ.
+  // Fail before a single synthetic PUT if either account belongs to the wrong
+  // QA municipality, or if the second is merely another user of the first.
+  const currentQaTenant=async(jwt)=>{
+    const result=await request(QA_DOCUMENT_CONTEXT_RPC,{
+      method:"POST",headers:{Authorization:"Bearer "+jwt,
+        Origin:QA_DOCUMENT_ORIGIN,"Content-Type":"application/json"},
+      body:"{}",redirect:"manual",
+      ...(typeof AbortSignal.timeout==="function"?{signal:AbortSignal.timeout(30000)}:{}),
+      cache:"no-store",
+    });
+    await status(result,200,"Authenticated QA municipality");
+    const context=await result.json();
+    const resolved=typeof context?.tenant_id==="string"?context.tenant_id:
+      typeof context?.municipality_id==="string"?context.municipality_id:"";
+    if(!UUID.test(resolved))throw new Error("The QA session has no valid municipal affiliation.");
+    return resolved.toLowerCase();
+  };
   let primaryError;
   try {
+    const actual=await currentQaTenant(token);
+    if(actual!==tenant.toLowerCase())
+      throw new Error("Primary QA user does not belong to the specified test municipality.");
+    if(other){
+      const secondary=await currentQaTenant(other);
+      if(secondary===actual)
+        throw new Error("The second QA user must belong to a different verified municipality.");
+    }
     for(const doc of documents) {
       // A request can time out *after* Neon has already committed the PUT.
       // Register this unique synthetic key BEFORE sending; cleanup will
@@ -137,8 +166,8 @@ export async function runQaDocumentE2e(env=process.env,request=fetch,report=cons
        !documents.every(doc=>found.files.some(file=>file.objectKey===doc.key&&file.size===doc.data.length)))
       throw new Error("The QA recovery list does not contain all uploaded synthetic documents.");
     report("PASS: QA authorized document recovery list");
-    if(other)report("PASS: other authenticated QA account denied access to private files");
-    else report("SKIPPED: second authenticated QA account was not configured");
+    if(other)report("PASS: authenticated user from another verified QA municipality denied access to private files");
+    else report("SKIPPED: cross-municipality signed-session verification; second QA account unavailable");
   }catch(error) {
     primaryError=error;
   }finally {
