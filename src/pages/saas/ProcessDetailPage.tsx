@@ -1041,12 +1041,12 @@ export function ProcessDetailPage() {
         if (available.length > 0) {
           setRecoverableStatus(
             isolatedQa
-              ? `${available.length} arquivo(s) com vínculo cadastral deste processo localizado(s) no armazenamento QA. Verifique o conteúdo antes de recuperar.`
+              ? `${available.length} arquivo(s) com origem e vínculo deste processo verificados no QA. Confira o conteúdo antes de recuperar.`
               : `${available.length} upload(s) deste protocolo encontrado(s) no armazenamento. Você pode recuperar sem reenviar.`,
           );
         } else if (isolatedQa) {
           setRecoverableStatus(
-            "Nenhum arquivo com vínculo cadastral confirmado foi localizado neste processo. Arquivos antigos de outros protocolos do mesmo requerente não podem ser vinculados automaticamente.",
+            "Nenhum arquivo com comprovação independente de origem foi localizado neste processo. Cadastros antigos, sem prova do arquivo original, não são vinculados automaticamente.",
           );
         }
       } catch (error) {
@@ -3626,7 +3626,7 @@ export function ProcessDetailPage() {
                           {canUploadProcessDocuments
                             ? "Se você já enviou este arquivo anteriormente, tente recuperá-lo do armazenamento; caso contrário, selecione o documento correto."
                             : shouldIsolateQaStorage(window.location.hostname, import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true")
-                              ? "Somente arquivos associados a este processo no catálogo municipal podem ser recuperados automaticamente. Arquivos do mesmo requerente em outros protocolos são bloqueados."
+                              ? "A recuperação automática exige vínculo com este processo e comprovação independente do arquivo. O cadastro antigo, sozinho, não autoriza leitura de outros protocolos."
                               : "Somente arquivos já enviados pelo profissional aparecem aqui. Vincule o arquivo ao item correto do checklist para disponibilizá-lo à análise."}
                         </p>
                         {recoverableFiles.length > 0 ? (
