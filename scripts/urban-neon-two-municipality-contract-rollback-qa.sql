@@ -30,9 +30,24 @@ BEGIN
     RAISE EXCEPTION 'Pré-requisitos das duas prefeituras ausentes';
   END IF;
   BEGIN
-    INSERT INTO public.client_plan_assignments
-      (municipality_id,plan_id,contract_status,starts_at,billing_notes)
-    VALUES(b.municipality_id,active_plan,'ativo',now(),marker||' CONTRATO FICTÍCIO SEM VALIDADE');
+    -- Both isolated QA municipalities may already have a real QA contract.
+    -- A unique (municipality_id) constraint correctly forbids duplicates.
+    -- Reuse an existing active QA contract; insert only when absent, and
+    -- never update/replace a municipality's existing plan.
+    IF NOT EXISTS(
+      SELECT 1 FROM public.client_plan_assignments
+      WHERE municipality_id=b.municipality_id
+    ) THEN
+      INSERT INTO public.client_plan_assignments
+        (municipality_id,plan_id,contract_status,starts_at,billing_notes)
+      VALUES(b.municipality_id,active_plan,'ativo',now(),
+        marker||' CONTRATO FICTÍCIO SEM VALIDADE');
+    ELSIF NOT EXISTS(
+      SELECT 1 FROM public.client_plan_assignments
+      WHERE municipality_id=b.municipality_id AND contract_status='ativo'
+    ) THEN
+      RAISE EXCEPTION 'Second QA municipality has an inactive existing contract';
+    END IF;
     INSERT INTO public.processes
       (tenant_id,municipality_id,protocol_number,title,process_type,created_by_profile_id)
     VALUES(a.municipality_id,a.municipality_id,marker||'-A',marker||' PROCESSO A FICTÍCIO',
