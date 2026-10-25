@@ -69,6 +69,14 @@ describe("SIGAPRO QA Neon binary PDF adapter",()=>{
   request.mockResolvedValue(new Response(JSON.stringify({files:[]}),{status:200}));
   await expect(listQaNativeFiles(QA_NATIVE_BASE,{Authorization:"Bearer synthetic"})).rejects.toThrow("confirmada");
  });
+ it("explains when recovery would omit more than 250 documents",async()=>{
+  const request=vi.fn().mockResolvedValue(new Response(
+    JSON.stringify({code:"QA_RECOVERY_RESULT_LIMIT",limit:250}),{status:409}));
+  vi.stubGlobal("fetch",request);
+  await expect(listQaNativeFiles(QA_NATIVE_BASE,{Authorization:"Bearer synthetic"}))
+    .rejects.toThrow("mais de 250 anexos");
+  expect(request).toHaveBeenCalledOnce();
+ });
  it("requires login and never sends anonymous PDF",async()=>{
   const fetchMock=vi.fn();vi.stubGlobal("fetch",fetchMock);
   const file=new File(["%PDF-1.7"],"qa.pdf",{type:"application/pdf"});

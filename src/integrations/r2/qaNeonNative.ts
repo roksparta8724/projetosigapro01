@@ -45,6 +45,8 @@ async function failure(r:Response,label:string) {
  if(r.status===401)return "Sua sessão expirou. Faça login novamente.";
  if(r.status===403)return "Seu perfil não tem permissão para este documento.";
  if(r.status===413)return "O PDF excede 25 MB.";
+ if(r.status===409&&body?.code==="QA_RECOVERY_RESULT_LIMIT")
+   return "Foram encontrados mais de 250 anexos. Informe um período menor para recuperar todos sem omissões.";
  return label+" ("+String(body?.code||r.status)+").";
 }
 export async function uploadQaNative(input:{

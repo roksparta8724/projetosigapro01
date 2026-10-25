@@ -222,6 +222,9 @@ async function recoverQaFiles(request,token,origin) {
     ? Date.parse(input.since):Date.now()-7*86400_000;
   const prefixes=["protocols","habite-se"].flatMap(folder=>
     principals.map(principal=>"municipalities/"+tenant+"/"+folder+"/"+principal+"/"));
+  // The request's process has already passed the municipality-bound RPC.
+  // Recover its analysis/vistoria files too, not only owner protocol drafts.
+  if(processId)prefixes.push("municipalities/"+tenant+"/processes/"+processId+"/");
   const groups=await Promise.all(prefixes.map(async prefix=>{
     const entries=[],tokens=new Set();
     let next="";
@@ -255,7 +258,11 @@ async function recoverQaFiles(request,token,origin) {
     Date.parse(b.lastModified)-Date.parse(a.lastModified)).filter(x=>{
       if(seen.has(x.objectKey))return false;
       seen.add(x.objectKey);return true;
-    }).slice(0,250);
+    });
+  // Never silently truncate a municipality's documents: a user can narrow
+  // the date interval and retry rather than mistake 250 rows for all files.
+  if(files.length>250)return respond({code:"QA_RECOVERY_RESULT_LIMIT",
+    limit:250},409,origin);
   return respond({files,storageProvider:"neon_qa_function"},200,origin);
 }
 export default {

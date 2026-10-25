@@ -43,7 +43,7 @@ describe("SIGAPRO native Neon QA recovery list with real authorization guard",()
   expect((await handler.fetch(body({processId}))).status).toBe(403);
   expect(calls.every(x=>x.url.includes(".apirest."))).toBe(true);
  });
- it("lists only the authenticated professional's protocol and Habite-se prefixes",async()=>{
+ it("lists only the authenticated user's owner prefixes and the explicitly authorized process",async()=>{
   const calls=setup();
   const r=await handler.fetch(body({since:"2026-10-20T00:00:00Z",processId}));
   expect(r.status).toBe(200);
@@ -51,14 +51,14 @@ describe("SIGAPRO native Neon QA recovery list with real authorization guard",()
   expect(result.storageProvider).toBe("neon_qa_function");
   expect(result.files.map(x=>x.objectKey)).toEqual([key]);
   const remote=calls.filter(x=>x.url.includes(".storage."));
-  expect(remote).toHaveLength(2);
+  expect(remote).toHaveLength(3);
   for(const x of remote){
     expect(x.opts.headers.Authorization).toMatch(/^AWS4-HMAC-SHA256 /);
     const u=new URL(x.url);
     expect(u.pathname).toBe("/sigapro-qa-urban-documents");
     expect(u.searchParams.get("list-type")).toBe("2");
     expect(u.searchParams.get("prefix")).toMatch(
-      new RegExp("^municipalities/"+tenant+"/(?:protocols|habite-se)/"+principal+"/")
+      new RegExp("^municipalities/"+tenant+"/(?:(?:protocols|habite-se)/"+principal+"|processes/"+processId+")/")
     );
   }
  });
@@ -93,7 +93,7 @@ describe("SIGAPRO native Neon QA recovery list with real authorization guard",()
   const data=await r.json() as {files:Array<{objectKey:string}>};
   expect(data.files.map(x=>x.objectKey)).toEqual([nextKey,key]);
   const remote=calls.filter(x=>x.url.includes(".storage."));
-  expect(remote).toHaveLength(3);
+  expect(remote).toHaveLength(4);
   expect(remote.filter(x=>new URL(x.url).searchParams.has("continuation-token"))).toHaveLength(1);
  });
  it("rejects repeated opaque S3 continuation tokens instead of returning incomplete recovery",async()=>{
@@ -152,6 +152,52 @@ describe("SIGAPRO native Neon QA recovery list with real authorization guard",()
   expect(response.status).toBe(503);
   expect((await response.json()).code).toBe("QA_STORAGE_UNAVAILABLE");
   expect(storageCalls).toBeGreaterThan(0);
+ });
+ it("recovers a signed process document only after checking its municipality and process access",async()=>{
+  const calls=setup();
+  const original=globalThis.fetch;
+  const document="municipalities/"+tenant+"/processes/"+processId+"/vistoria/photo.jpg";
+  vi.stubGlobal("fetch",vi.fn(async(url:string,opts:any)=>{
+    if(url.includes(".apirest."))return original(url,opts);
+    calls.push({url,opts});
+    const prefix=new URL(url).searchParams.get("prefix")||"";
+    const xml=prefix.endsWith("/processes/"+processId+"/")
+      ? '<ListBucketResult><Contents><Key>'+document+'</Key><LastModified>2026-10-25T00:00:00Z</LastModified><Size>493</Size></Contents><IsTruncated>false</IsTruncated></ListBucketResult>'
+      : '<ListBucketResult><IsTruncated>false</IsTruncated></ListBucketResult>';
+    return new Response(xml,{status:200});
+  }));
+  const r=await handler.fetch(body({processId,since:"2026-10-20T00:00:00Z"}));
+  expect(r.status).toBe(200);
+  const payload=await r.json() as {files:Array<{objectKey:string}>};
+  expect(payload.files.map(x=>x.objectKey)).toEqual([document]);
+  const check=calls.find(x=>x.url.endsWith("/rpc/qa_storage_process_tenant_access_v1"));
+  expect(check).toBeDefined();
+  expect(JSON.parse(check!.opts.body)).toMatchObject({_process_id:processId,_tenant_id:tenant});
+  expect(calls.filter(x=>x.url.includes(".storage."))).toHaveLength(3);
+ });
+ it("fails explicitly instead of silently dropping document 251",async()=>{
+  setup();
+  const original=globalThis.fetch;
+  const prefix="municipalities/"+tenant+"/protocols/"+principal+"/";
+  let requested=0;
+  vi.stubGlobal("fetch",vi.fn(async(url:string,opts:any)=>{
+    if(url.includes(".apirest."))return original(url,opts);
+    requested++;
+    const parsed=new URL(url),requestedPrefix=parsed.searchParams.get("prefix");
+    if(requestedPrefix!==prefix)
+      return new Response('<ListBucketResult><IsTruncated>false</IsTruncated></ListBucketResult>',{status:200});
+    const page=parsed.searchParams.has("continuation-token")?250:0;
+    const count=page===250?1:250;
+    const rows=Array.from({length:count},(_,i)=>'<Contents><Key>'+prefix+'qa_'+(page+i)+'.pdf</Key><LastModified>2026-10-24T00:00:00Z</LastModified><Size>15</Size></Contents>').join("");
+    return new Response('<ListBucketResult>'+rows+
+      '<IsTruncated>'+(page===250?'false':'true')+'</IsTruncated>'+
+      (page===250?'':'<NextContinuationToken>next-250</NextContinuationToken>')+
+      '</ListBucketResult>',{status:200});
+  }));
+  const r=await handler.fetch(body({since:"2026-10-20T00:00:00Z"}));
+  expect(r.status).toBe(409);
+  expect((await r.json()).code).toBe("QA_RECOVERY_RESULT_LIMIT");
+  expect(requested).toBe(3);
  });
  it("denies when the tenant authorization is rejected",async()=>{
   const calls=setup(["has_tenant_access"]);
