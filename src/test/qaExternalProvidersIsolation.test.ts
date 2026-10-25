@@ -46,7 +46,7 @@ describe("SIGAPRO QA prevents real external financial and storage operations", (
     await storageHandler({ method: "POST", url: "/api/storage-connection",
       body: { action: "test", municipalityId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" } } as never, reply as never);
     expect(reply.statusCode).toBe(503);
-    expect(JSON.parse(reply.body).code).toBe("QA_STORAGE_TEST_DISABLED");
+    expect(JSON.parse(reply.body).code).toBe("QA_MUNICIPAL_STORAGE_CONFIGURATION_DISABLED");
   });
 
   it("guards the underlying storage test helper before creating an S3 client", () => {
