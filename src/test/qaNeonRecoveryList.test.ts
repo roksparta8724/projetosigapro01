@@ -23,6 +23,9 @@ function setup(deny:string[]=[]){
    const rpc=url.split("/rpc/")[1];
    const value=deny.includes(rpc)?false:
      rpc==="qa_storage_recovery_principals_v1"?[principal]:
+     rpc==="qa_storage_process_file_keys_v1"?[
+       key,"municipalities/"+tenant+"/protocols/"+principal+"/second.pdf"
+     ]:
      rpc==="get_current_profile_context"?{tenant_id:tenant,profile_id:principal}:
      rpc==="current_auth_subject"?principal:
      rpc==="current_profile_id"?principal:true;
@@ -237,6 +240,10 @@ describe("SIGAPRO native Neon QA recovery list with real authorization guard",()
         calls.push({url,opts});
         return new Response(JSON.stringify([creator]),{status:200,headers:{"Content-Type":"application/json"}});
       }
+      if(url.endsWith("/rpc/qa_storage_process_file_keys_v1")){
+        calls.push({url,opts});
+        return new Response(JSON.stringify([orphan]),{status:200,headers:{"Content-Type":"application/json"}});
+      }
       return original(url,opts);
     }
     calls.push({url,opts});
@@ -256,6 +263,28 @@ describe("SIGAPRO native Neon QA recovery list with real authorization guard",()
     new URL(x.url).searchParams.get("prefix")==="municipalities/"+tenant+"/protocols/"+principal+"/"
   )).toBe(false);
   expect(calls.some(x=>x.url.endsWith("/rpc/qa_storage_recovery_principals_v1"))).toBe(true);
+ });
+ it("omits another protocol's owner file even when the applicant and municipality match",async()=>{
+  setup();
+  const original=globalThis.fetch;
+  const other="municipalities/"+tenant+"/protocols/"+principal+"/other-process.pdf";
+  vi.stubGlobal("fetch",vi.fn(async(url:string,opts:any)=>{
+    if(url.includes(".apirest."))return original(url,opts);
+    const prefix=new URL(url).searchParams.get("prefix")||"";
+    const rows=prefix.endsWith("/protocols/"+principal+"/")
+      ?'<Contents><Key>'+other+'</Key><LastModified>2026-10-25T00:00:00Z</LastModified><Size>18</Size></Contents>':
+      "";
+    return new Response('<ListBucketResult>'+rows+'<IsTruncated>false</IsTruncated></ListBucketResult>',{status:200});
+  }));
+  const scoped=await handler.fetch(body({processId}));
+  expect(scoped.status).toBe(200);
+  expect((await scoped.json()).files).toEqual([]);
+ });
+ it("rejects process searches if the provenance catalog is inaccessible",async()=>{
+  const calls=setup(["qa_storage_process_file_keys_v1"]);
+  const response=await handler.fetch(body({processId}));
+  expect(response.status).toBe(403);
+  expect(calls.every(x=>x.url.includes(".apirest."))).toBe(true);
  });
  it("fails closed when scoped process creator identities are absent or invalid",async()=>{
   const calls=setup(["qa_storage_recovery_principals_v1"]);
