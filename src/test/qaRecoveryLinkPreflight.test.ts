@@ -28,8 +28,10 @@ describe("SIGAPRO QA — never associate unreadable or forged recovered document
    expect(dependencies.revokeUrl).toHaveBeenCalledOnce();
  });
  it("rejects PDF names hiding HTML and does not trust browser Content-Type",async()=>{
-   const dependencies=mocks(new Blob(["<html>fake QA PDF</html>"],{type:"application/pdf"}));
-   await expect(verifyQaRecoverableDocumentBeforeLink({...input,size:24},read,dependencies)).rejects.toThrow();
+   const spoof=new Blob(["<html>fake QA PDF</html>"],{type:"application/pdf"});
+   const dependencies=mocks(spoof);
+   await expect(verifyQaRecoverableDocumentBeforeLink({...input,size:spoof.size},read,dependencies))
+     .rejects.toThrow("assinatura de arquivo inválida");
    expect(dependencies.revokeUrl).toHaveBeenCalledOnce();
  });
  it("refuses public URLs, even when they respond successfully",async()=>{
