@@ -94,7 +94,10 @@ export async function runQaDocumentE2e(env=process.env,request=fetch,report=cons
         "Origin":QA_DOCUMENT_ORIGIN,
         ...(contentType?{"Content-Type":contentType}:{}),
       },...(body===undefined?{}:{body}),
-      redirect:"manual",signal:AbortSignal.timeout(30000),
+      // Node's timeout signal is present in real QA execution. Browser-like
+      // unit-test environments can omit it while using an injected fake fetch.
+      redirect:"manual",
+      ...(typeof AbortSignal.timeout==="function"?{signal:AbortSignal.timeout(30000)}:{}),
       cache:"no-store",
     });
   const status=async(response,expected,label)=>{
