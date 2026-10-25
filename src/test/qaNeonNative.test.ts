@@ -1,5 +1,5 @@
 import {afterEach,describe,expect,it,vi} from "vitest";
-import {QA_NATIVE_BASE,QA_NATIVE_MAX_PDF_BYTES,resolveQaNativeUrl,validateNativePdf,validateNativeDocument,uploadQaNative,deleteQaNative,listQaNativeFiles,shouldIsolateQaStorage} from "../integrations/r2/qaNeonNative";
+import {QA_NATIVE_BASE,QA_NATIVE_MAX_PDF_BYTES,resolveQaNativeUrl,validateNativePdf,validateNativeDocument,uploadQaNative,readQaNative,deleteQaNative,listQaNativeFiles,shouldIsolateQaStorage} from "../integrations/r2/qaNeonNative";
 const key="municipalities/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/protocols/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/qa.pdf";
 afterEach(()=>vi.unstubAllGlobals());
 describe("SIGAPRO QA Neon binary PDF adapter",()=>{
@@ -89,4 +89,16 @@ describe("SIGAPRO QA Neon binary PDF adapter",()=>{
   await expect(deleteQaNative(QA_NATIVE_BASE,key,{Authorization:"Bearer fake-QA-token"})).rejects.toThrow("não tem permissão");
   expect(fetchMock).toHaveBeenCalledTimes(1);
  });
+ it("allows only valid process UUIDs in QA private owner reads",async()=>{
+  const f=vi.fn().mockResolvedValue(new Response('{"code":"ACCESS_DENIED"}',{status:403}));
+  vi.stubGlobal("fetch",f);
+  await expect(readQaNative(QA_NATIVE_BASE,key,{Authorization:"Bearer fake"},
+   "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb")).rejects.toThrow("não tem permissão");
+  expect(f.mock.calls[0][0]).toContain("processId=bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb");
+  f.mockClear();
+  await expect(readQaNative(QA_NATIVE_BASE,key,{Authorization:"Bearer fake"},"bad-process"))
+   .rejects.toThrow("inválido");
+  expect(f).not.toHaveBeenCalled();
+ });
+
 });

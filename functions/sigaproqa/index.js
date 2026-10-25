@@ -99,12 +99,25 @@ function validKey(key) {
  match=key.match(LAW_KEY);
  return match?{type:"law",tenant:match[1],key}:null;
 }
-async function authorize(token,scope,write) {
+async function authorize(token,scope,write,readProcessId="") {
  const membership=await rpc(token,"has_tenant_access",{target_tenant:scope.tenant});
  if(membership!==true)return false;
  if(scope.type==="owner"){
   const [subject,profile]=await Promise.all([rpc(token,"current_auth_subject"),rpc(token,"current_profile_id")]);
-  return Boolean(scope.principal&&(scope.principal===subject||scope.principal===profile));
+  if(scope.principal&&(scope.principal===subject||scope.principal===profile))
+    return true;
+  // A process-authorized municipal analyst may READ the original applicant
+  // only within the explicitly requested municipality-bound process.
+  // Other users never gain write/delete to the applicant's personal folder.
+  if(write||!readProcessId||!ID.test(readProcessId))return false;
+  if(await rpc(token,"qa_storage_process_tenant_access_v1",{
+    _process_id:readProcessId,_tenant_id:scope.tenant
+  })!==true)return false;
+  const allowed=await rpc(token,"qa_storage_recovery_principals_v1",{
+    _process_id:readProcessId,_tenant_id:scope.tenant
+  });
+  return Array.isArray(allowed)&&allowed.length<=10&&
+    allowed.includes(scope.principal);
  }
  if(scope.type==="process"){
   // Bind the object key municipality to the process municipality in one authorized QA RPC.
@@ -313,7 +326,12 @@ export default {
      (path.pathname==="/object"&&request.method!=="DELETE"))
      return respond({code:"METHOD_NOT_ALLOWED"},405,approved);
   try {
-   if(!await authorize(token,scope,write))return respond({code:"ACCESS_DENIED"},403,approved);
+   const requestedProcess=path.pathname==="/read"
+     ? path.searchParams.get("processId")||"":"";
+   if(requestedProcess&&!ID.test(requestedProcess))
+     return respond({code:"INVALID_PROCESS"},400,approved);
+   if(!await authorize(token,scope,write,requestedProcess))
+     return respond({code:"ACCESS_DENIED"},403,approved);
    let bytes;
    if(write&&request.method==="POST"){
     if(request.headers.get("Content-Type")?.split(";")[0].trim().toLowerCase()!==mime)

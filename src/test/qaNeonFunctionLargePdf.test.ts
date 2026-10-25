@@ -206,4 +206,58 @@ describe("SIGAPRO branch-pinned QA large PDF function", () => {
     {method:"POST",headers:{Authorization:"Bearer synthetic"}}));
   expect(response.status).toBe(400);
  });
+ it("allows a municipal analyst's read only with a bound process and original applicant principal",async()=>{
+  vi.stubEnv("NEON_DATA_API_URL","https://ep-misty-breeze-b4ri8ig0.apirest.c-6.us-east-2.aws.neon.tech/sigapro_migration_stage_20260923/rest/v1");
+  vi.stubEnv("AWS_ENDPOINT_URL_S3","https://br-solitary-sound-b4xlbvs6.storage.c-6.us-east-2.aws.neon.tech");
+  vi.stubEnv("AWS_ACCESS_KEY_ID","nak_fake_qa_unit");
+  vi.stubEnv("AWS_SECRET_ACCESS_KEY","FAKE_QA_TEST_KEY_NO_REAL_STORAGE_123");
+  const tenant="aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+  const processId="bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+  const owner="cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+  const key="municipalities/"+tenant+"/protocols/"+owner+"/old-document.pdf";
+  const bytes=new TextEncoder().encode("%PDF-1.7\\nQA");
+  const calls:string[]=[];
+  vi.stubGlobal("fetch",vi.fn(async(url:string,options:{method?:string})=>{
+    if(url.includes(".apirest.")){
+      const rpc=url.split("/rpc/")[1]||"";
+      calls.push(rpc);
+      const value=rpc==="current_auth_subject"||rpc==="current_profile_id"?"analyst":
+        rpc==="qa_storage_recovery_principals_v1"?[owner]:true;
+      return new Response(JSON.stringify(value),{status:200,headers:{"Content-Type":"application/json"}});
+    }
+    calls.push("S3:"+options.method);
+    return new Response(bytes,{status:200,headers:{"Content-Type":"application/pdf"}});
+  }));
+  const url="https://qa.invalid/read?objectKey="+encodeURIComponent(key);
+  const auth={Authorization:"Bearer synthetic"};
+  expect((await handler.fetch(new Request(url,{headers:auth}))).status).toBe(403);
+  expect(calls).not.toContain("S3:GET");
+  const authorized=await handler.fetch(new Request(url+"&processId="+processId,{headers:auth}));
+  expect(authorized.status).toBe(200);
+  expect(new Uint8Array(await authorized.arrayBuffer())).toEqual(bytes);
+  expect(calls).toContain("qa_storage_process_tenant_access_v1");
+  expect(calls).toContain("qa_storage_recovery_principals_v1");
+  const illegalUpload=await handler.fetch(new Request("https://qa.invalid/upload?objectKey="+encodeURIComponent(key)+"&processId="+processId,{
+    method:"POST",headers:{...auth,"Content-Type":"application/pdf"},body:bytes
+  }));
+  expect(illegalUpload.status).toBe(403);
+  expect(calls).not.toContain("S3:PUT");
+ });
+ it("blocks a foreign applicant's file when the process is outside the analyst's municipality",async()=>{
+  vi.stubEnv("NEON_DATA_API_URL","https://ep-misty-breeze-b4ri8ig0.apirest.c-6.us-east-2.aws.neon.tech/sigapro_migration_stage_20260923/rest/v1");
+  let calls=0;
+  vi.stubGlobal("fetch",vi.fn(async(url:string)=>{
+    if(!url.includes(".apirest.")){calls++;throw new Error("Unauthorized S3 contact");}
+    const rpc=url.split("/rpc/")[1]||"";
+    const value=rpc==="qa_storage_process_tenant_access_v1"?false:
+      rpc==="current_auth_subject"||rpc==="current_profile_id"?"analyst":true;
+    return new Response(JSON.stringify(value),{status:200,headers:{"Content-Type":"application/json"}});
+  }));
+  const key="municipalities/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/protocols/cccccccc-cccc-4ccc-8ccc-cccccccccccc/old-document.pdf";
+  const response=await handler.fetch(new Request("https://qa.invalid/read?objectKey="+encodeURIComponent(key)+
+    "&processId=bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",{headers:{Authorization:"Bearer synthetic"}}));
+  expect(response.status).toBe(403);
+  expect(calls).toBe(0);
+ });
+
 });

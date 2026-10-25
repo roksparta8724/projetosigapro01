@@ -31,9 +31,13 @@ export function validateNativePdf(file:Pick<File,"name"|"size"|"type">) {
  const mime=validateNativeDocument(file);
  if(mime!=="application/pdf")throw new Error("O envio direto da homologação aceita somente PDF.");
 }
-function target(base:string,action:"upload"|"read"|"object",key:string) {
+const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+function target(base:string,action:"upload"|"read"|"object",key:string,processId?:string) {
  if(base!==QA_NATIVE_BASE)throw new Error("Destino isolado de QA inválido.");
- return base+"/"+action+"?objectKey="+encodeURIComponent(key);
+ if(processId&&(!UUID.test(processId)||action!=="read"))
+   throw new Error("Processo de leitura QA inválido.");
+ return base+"/"+action+"?objectKey="+encodeURIComponent(key)+
+   (processId?"&processId="+encodeURIComponent(processId):"");
 }
 function bearer(headers:Record<string,string>) {
  const value=headers.Authorization||headers.authorization||"";
@@ -70,8 +74,8 @@ export async function uploadQaNative(input:{
   throw e;
  }finally{clearTimeout(timer);}
 }
-export async function readQaNative(base:string,key:string,headers:Record<string,string>) {
- const r=await fetch(target(base,"read",key),{method:"GET",headers:{Authorization:bearer(headers)},cache:"no-store"});
+export async function readQaNative(base:string,key:string,headers:Record<string,string>,processId?:string) {
+ const r=await fetch(target(base,"read",key,processId),{method:"GET",headers:{Authorization:bearer(headers)},cache:"no-store"});
  if(!r.ok)throw new Error(await failure(r,"Falha ao abrir documento"));
  const blob=await r.blob();
  const mime=qaNativeMimeForKey(key);

@@ -273,9 +273,10 @@ export async function getSignedUrlForObject(input: {
   bucket: string;
   objectKey: string;
   expiresIn?: number;
+  processId?: string;
 }) {
   if (isolatedQa) return readQaNative(requireQaNativeBase(), input.objectKey,
-    await getAuthorizationHeaders() as Record<string,string>);
+    await getAuthorizationHeaders() as Record<string,string>,input.processId);
   // Never expose official R2 URLs as a fallback from the isolated QA browser.
   const allowPublicFallback = !isolatedQa &&
     String(import.meta.env.VITE_R2_PUBLIC_FALLBACK || "").toLowerCase() === "true";
@@ -307,9 +308,10 @@ export async function getSignedUrlForObjectStrict(input: {
   bucket: string;
   objectKey: string;
   expiresIn?: number;
+  processId?: string;
 }) {
   if (isolatedQa) return readQaNative(requireQaNativeBase(), input.objectKey,
-    await getAuthorizationHeaders() as Record<string,string>);
+    await getAuthorizationHeaders() as Record<string,string>,input.processId);
   const expiresIn = typeof input.expiresIn === "number" && Number.isFinite(input.expiresIn)
     ? input.expiresIn
     : 21600;
