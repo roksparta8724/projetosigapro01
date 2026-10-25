@@ -18,7 +18,7 @@ describe("SIGAPRO QA — contrato municipal nos testes reversíveis", () => {
 
   it("preserva a validação de duas prefeituras e reverte todos os dados sintéticos", () => {
     expect(acceptance).toContain("current_database() <> 'sigapro_migration_stage_20260923'");
-    expect(acceptance).toContain("COUNT(DISTINCT");
+    expect(acceptance).toContain("count(DISTINCT");
     expect(acceptance).toContain("QA_ROLLBACK_EXPECTED");
     expect(acceptance).toContain("EXCEPTION WHEN OTHERS");
     expect(acceptance).toContain("Falha na reversão do teste QA");
