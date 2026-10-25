@@ -234,7 +234,8 @@ describe("SIGAPRO branch-pinned QA large PDF function", () => {
   expect(calls).not.toContain("S3:GET");
   const authorized=await handler.fetch(new Request(url+"&processId="+processId,{headers:auth}));
   expect(authorized.status).toBe(200);
-  expect(new Uint8Array(await authorized.arrayBuffer())).toEqual(bytes);
+  const returned=new Uint8Array(await authorized.arrayBuffer());
+  expect(Buffer.from(returned).equals(Buffer.from(bytes))).toBe(true);
   expect(calls).toContain("qa_storage_process_tenant_access_v1");
   expect(calls).toContain("qa_storage_recovery_principals_v1");
   const illegalUpload=await handler.fetch(new Request("https://qa.invalid/upload?objectKey="+encodeURIComponent(key)+"&processId="+processId,{
