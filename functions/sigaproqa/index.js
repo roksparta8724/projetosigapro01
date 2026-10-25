@@ -231,8 +231,14 @@ async function recoverQaFiles(request,token,origin) {
       return respond({code:"ACCESS_DENIED"},403,origin);
     principals=[...new Set(creators)];
   }
-  const since=typeof input.since==="string"&&Number.isFinite(Date.parse(input.since))
-    ? Date.parse(input.since):Date.now()-7*86400_000;
+  // A process-scoped recovery is a historical search: old applications
+  // must not disappear after the last seven days. The ordinary personal
+  // inbox still defaults to a bounded recent interval.
+  const since=input.since===undefined
+    ? (processId?0:Date.now()-7*86400_000)
+    : typeof input.since==="string"?Date.parse(input.since):NaN;
+  if(!Number.isFinite(since)||since<0)
+    return respond({code:"INVALID_RECOVERY_DATE"},400,origin);
   const prefixes=["protocols","habite-se"].flatMap(folder=>
     principals.map(principal=>"municipalities/"+tenant+"/"+folder+"/"+principal+"/"));
   // The request's process has already passed the municipality-bound RPC.

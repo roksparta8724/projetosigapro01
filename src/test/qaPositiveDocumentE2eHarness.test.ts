@@ -22,6 +22,27 @@ describe("QA-only positive storage smoke requires opt-in and secrets external to
       SIGAPRO_QA_TENANT_ID:tenant
     })).toThrow("outro usuário");
   });
+  it("attempts cleanup if transport fails after an ambiguous QA PUT",async()=>{
+    const token=createJwt("qa-tester"),requests:string[]=[];
+    const fake=vi.fn(async(url:string,opts:RequestInit)=>{
+      const action=new URL(url).pathname.split("/").pop()||"";
+      requests.push(action);
+      if(action==="upload")throw new Error("QA transport timeout after unknown PUT");
+      if(action==="object")return new Response(JSON.stringify({
+        ok:true,objectKey:new URL(url).searchParams.get("objectKey"),
+      }),{status:200});
+      if(action==="read")return new Response(JSON.stringify({code:"NOT_FOUND"}),{status:404});
+      throw new Error("Unexpected action "+action);
+    });
+    const env={
+      SIGAPRO_QA_DOCUMENT_E2E_OPT_IN:"QA_ONLY_WITH_CLEANUP",
+      SIGAPRO_QA_JWT:token,
+      SIGAPRO_QA_TENANT_ID:tenant,
+    };
+    await expect(runQaDocumentE2e(env,fake as unknown as typeof fetch,vi.fn()))
+      .rejects.toThrow("QA transport timeout");
+    expect(requests).toEqual(["upload","object","read"]);
+  });
   it("does not issue any network requests if missing opt-in",async()=>{
     const request=vi.fn();
     await expect(runQaDocumentE2e({},request as unknown as typeof fetch,vi.fn()))

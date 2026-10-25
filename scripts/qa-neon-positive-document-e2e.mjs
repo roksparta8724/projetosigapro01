@@ -105,11 +105,12 @@ export async function runQaDocumentE2e(env=process.env,request=fetch,report=cons
   let primaryError;
   try {
     for(const doc of documents) {
+      // A request can time out *after* Neon has already committed the PUT.
+      // Register this unique synthetic key BEFORE sending; cleanup will
+      // attempt a DELETE even if the transport or acknowledgment fails.
+      uploaded.push(doc);
       const upload=await send("upload","POST",token,doc.data,doc.mime,doc.key);
       await status(upload,200,"Private QA upload");
-      // Treat HTTP 200 as possibly persisted even when the JSON
-      // acknowledgment is malformed. Cleanup must still delete that object.
-      uploaded.push(doc);
       const payload=await upload.json();
       if(payload.ok!==true||payload.objectKey!==doc.key||
          payload.storageProvider!=="neon_qa_function")
@@ -138,8 +139,8 @@ export async function runQaDocumentE2e(env=process.env,request=fetch,report=cons
   }catch(error) {
     primaryError=error;
   }finally {
-    // Strict cleanup: even if integrity/read/list testing fails, remove every
-    // object whose successful write has been confirmed. Never touch other keys.
+    // Strict cleanup: even if a PUT timed out after persisting, delete all
+    // synthetic keys whose upload was attempted. Never touch other keys.
     for(const doc of uploaded){
       try {
         const deleted=await send("object","DELETE",token,undefined,undefined,doc.key);

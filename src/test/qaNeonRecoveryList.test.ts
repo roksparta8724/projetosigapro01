@@ -63,6 +63,32 @@ describe("SIGAPRO native Neon QA recovery list with real authorization guard",()
     );
   }
  });
+ it("includes years-old process attachments by default without weakening personal inbox search",async()=>{
+  setup();
+  const original=globalThis.fetch;
+  const older="municipalities/"+tenant+"/processes/"+processId+"/historic-2022.pdf";
+  vi.stubGlobal("fetch",vi.fn(async(url:string,opts:any)=>{
+    if(url.includes(".apirest."))return original(url,opts);
+    const pref=new URL(url).searchParams.get("prefix");
+    return new Response(pref?.endsWith("/processes/"+processId+"/")
+      ? '<ListBucketResult><Contents><Key>'+older+'</Key><Size>33</Size><LastModified>2022-08-11T10:00:00Z</LastModified></Contents><IsTruncated>false</IsTruncated></ListBucketResult>'
+      : '<ListBucketResult><IsTruncated>false</IsTruncated></ListBucketResult>',{status:200});
+  }));
+  const scoped=await handler.fetch(body({processId}));
+  expect(scoped.status).toBe(200);
+  expect((await scoped.json()).files.map((x:{objectKey:string})=>x.objectKey)).toEqual([older]);
+  const inbox=await handler.fetch(body());
+  expect(inbox.status).toBe(200);
+  expect((await inbox.json()).files).toEqual([]);
+ });
+ it.each([null,123,"not-a-date","1968-01-01T00:00:00Z"])(
+    "rejects malformed or negative recovery date %s instead of hiding historical files",async since=>{
+      const calls=setup();
+      const response=await handler.fetch(body({processId,since}));
+      expect(response.status).toBe(400);
+      expect((await response.json()).code).toBe("INVALID_RECOVERY_DATE");
+      expect(calls.every(x=>x.url.includes(".apirest."))).toBe(true);
+    });
  it("recovers later S3 pages without including another professional's files",async()=>{
   const calls=setup();
   const priorFetch=globalThis.fetch;
