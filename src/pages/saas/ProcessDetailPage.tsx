@@ -1034,9 +1034,19 @@ export function ProcessDetailPage() {
         );
         const available = files.filter((file) => !alreadyLinked.has(file.objectKey));
         setRecoverableFiles(available);
+        const isolatedQa = shouldIsolateQaStorage(
+          window.location.hostname,
+          import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true",
+        );
         if (available.length > 0) {
           setRecoverableStatus(
-            `${available.length} upload(s) deste protocolo encontrado(s) no armazenamento. Você pode recuperar sem reenviar.`,
+            isolatedQa
+              ? `${available.length} arquivo(s) com vínculo cadastral deste processo localizado(s) no armazenamento QA. Verifique o conteúdo antes de recuperar.`
+              : `${available.length} upload(s) deste protocolo encontrado(s) no armazenamento. Você pode recuperar sem reenviar.`,
+          );
+        } else if (isolatedQa) {
+          setRecoverableStatus(
+            "Nenhum arquivo com vínculo cadastral confirmado foi localizado neste processo. Arquivos antigos de outros protocolos do mesmo requerente não podem ser vinculados automaticamente.",
           );
         }
       } catch (error) {
@@ -3615,7 +3625,9 @@ export function ProcessDetailPage() {
                         <p className="mt-1 text-sm leading-6 text-amber-800 dark:text-amber-300">
                           {canUploadProcessDocuments
                             ? "Se você já enviou este arquivo anteriormente, tente recuperá-lo do armazenamento; caso contrário, selecione o documento correto."
-                            : "Somente arquivos já enviados pelo profissional aparecem aqui. Vincule o arquivo ao item correto do checklist para disponibilizá-lo à análise."}
+                            : shouldIsolateQaStorage(window.location.hostname, import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true")
+                              ? "Somente arquivos associados a este processo no catálogo municipal podem ser recuperados automaticamente. Arquivos do mesmo requerente em outros protocolos são bloqueados."
+                              : "Somente arquivos já enviados pelo profissional aparecem aqui. Vincule o arquivo ao item correto do checklist para disponibilizá-lo à análise."}
                         </p>
                         {recoverableFiles.length > 0 ? (
                           <div className="mt-3 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
