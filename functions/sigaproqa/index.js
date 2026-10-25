@@ -136,6 +136,15 @@ function decodeListedKey(raw) {
   const value=xmlUnescape(raw);
   try{return decodeURIComponent(value);}catch{return "";}
 }
+// SigV4 requires RFC 3986 canonical query encoding (not form URL encoding).
+// In particular, spaces must be %20, never '+', and '~' must remain literal.
+function canonicalS3Query(pairs) {
+  const escape=value=>encodeURIComponent(value).replace(/[!'()*]/g,char=>
+    "%"+char.charCodeAt(0).toString(16).toUpperCase());
+  return pairs.map(([key,value])=>[escape(String(key)),escape(String(value))])
+    .sort((a,b)=>a[0]===b[0]?(a[1]<b[1]?-1:a[1]>b[1]?1:0):(a[0]<b[0]?-1:1))
+    .map(([key,value])=>key+"="+value).join("&");
+}
 function listEntries(xml,prefix,since) {
   const found=[];
   for(const match of xml.matchAll(/<Contents>([\s\S]*?)<\/Contents>/g)) {
@@ -203,7 +212,7 @@ async function recoverQaFiles(request,token,origin) {
         ...(next?[["continuation-token",next]]:[]),
         ["encoding-type","url"],["list-type","2"],["max-keys","250"],["prefix",prefix]
       ];
-      const query=new URLSearchParams(parameters).toString();
+      const query=canonicalS3Query(parameters);
       const signed=s3Request("GET","",undefined,query);
       const r=await fetch(signed.url,{method:"GET",headers:signed.headers,
         redirect:"manual",signal:requestTimeout(45000)});

@@ -110,6 +110,30 @@ describe("SIGAPRO native Neon QA recovery list with real authorization guard",()
   expect(r.status).toBe(503);
   expect(calls).toBeLessThanOrEqual(4);
  });
+ it("encodes RFC3986 special continuation tokens consistently with the SigV4 URL",async()=>{
+  setup();
+  const original=globalThis.fetch;
+  const token="opaque~token+one two!'()*";
+  const seen:string[]=[];
+  vi.stubGlobal("fetch",vi.fn(async(url:string,opts:any)=>{
+    if(url.includes(".apirest."))return original(url,opts);
+    seen.push(url);
+    if(new URL(url).searchParams.has("continuation-token"))
+      return new Response('<ListBucketResult><IsTruncated>false</IsTruncated></ListBucketResult>',{status:200});
+    const prefix=new URL(url).searchParams.get("prefix")||"";
+    return new Response('<ListBucketResult><IsTruncated>'+
+      (prefix.includes("/protocols/")?"true":"false")+
+      '</IsTruncated><NextContinuationToken>'+token.replace("&","&amp;")+
+      '</NextContinuationToken></ListBucketResult>',{status:200});
+  }));
+  const r=await handler.fetch(body({since:"2026-10-20T00:00:00Z"}));
+  expect(r.status).toBe(200);
+  const page=seen.find(x=>new URL(x).searchParams.has("continuation-token"));
+  expect(page).toBeDefined();
+  expect(page).toContain("continuation-token=opaque~token%2Bone%20two%21%27%28%29%2A");
+  expect(page).not.toContain("one+two");
+  expect(new URL(page!).searchParams.get("continuation-token")).toBe(token);
+ });
  it("denies when the tenant authorization is rejected",async()=>{
   const calls=setup(["has_tenant_access"]);
   const r=await handler.fetch(body());
