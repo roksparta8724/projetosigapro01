@@ -54,19 +54,19 @@ function minimalPdf() {
     "<< /Type /Catalog /Pages 2 0 R >>",
     "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
     "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 300] /Contents 4 0 R >>",
-    "<< /Length 0 >>\\nstream\\n\\nendstream",
+    "<< /Length 0 >>\nstream\n\nendstream",
   ];
-  let data="%PDF-1.4\\n",offsets=[0];
+  let data="%PDF-1.4\n",offsets=[0];
   for(let i=0;i<objects.length;i++) {
     offsets.push(Buffer.byteLength(data));
-    data+=(i+1)+" 0 obj\\n"+objects[i]+"\\nendobj\\n";
+    data+=(i+1)+" 0 obj\n"+objects[i]+"\nendobj\n";
   }
   const xref=Buffer.byteLength(data);
-  data+="xref\\n0 5\\n0000000000 65535 f \\n";
+  data+="xref\n0 5\n0000000000 65535 f \n";
   for(const offset of offsets.slice(1))
-    data+=String(offset).padStart(10,"0")+" 00000 n \\n";
-  data+="trailer\\n<< /Size 5 /Root 1 0 R >>\\nstartxref\\n"+
-    xref+"\\n%%EOF\\n";
+    data+=String(offset).padStart(10,"0")+" 00000 n \n";
+  data+="trailer\n<< /Size 5 /Root 1 0 R >>\nstartxref\n"+
+    xref+"\n%%EOF\n";
   return Buffer.from(data);
 }
 
