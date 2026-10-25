@@ -3,6 +3,8 @@ import upload from "../../server/api/r2-upload";
 import remove from "../../server/api/r2-delete";
 import signGet from "../../server/api/r2-sign-get";
 import list from "../../server/api/r2-list-user-files";
+import masterLogo from "../../server/api/r2-master-logo-source";
+import avatar from "../../server/api/profile-avatar-open";
 
 afterEach(() => vi.unstubAllEnvs());
 
@@ -26,6 +28,8 @@ describe("SIGAPRO QA R2 direct serverless entrypoints", () => {
     ["delete",remove,"QA_R2_WRITE_DISABLED"],
     ["sign-get",signGet,"QA_R2_ACCESS_DISABLED"],
     ["list-user-files",list,"QA_R2_ACCESS_DISABLED"],
+    ["master-logo-source",masterLogo,"QA_R2_ACCESS_DISABLED"],
+    ["profile-avatar-open",avatar,"QA_R2_ACCESS_DISABLED"],
   ] as const)("blocks direct %s even when the isolated QA flag is missing",async(_name,handler,code)=>{
     vi.stubEnv("VERCEL_ENV","preview");
     vi.stubEnv("VERCEL_GIT_COMMIT_REF","qa/sigapro-ia-logo-integrado-20261023");
