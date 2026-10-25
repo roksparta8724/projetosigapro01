@@ -222,7 +222,8 @@ describe("SIGAPRO branch-pinned QA large PDF function", () => {
       const rpc=url.split("/rpc/")[1]||"";
       calls.push(rpc);
       const value=rpc==="current_auth_subject"||rpc==="current_profile_id"?"analyst":
-        rpc==="qa_storage_recovery_principals_v1"?[owner]:true;
+        rpc==="qa_storage_recovery_principals_v1"?[owner]:
+        rpc==="qa_storage_process_file_keys_v1"?[key]:true;
       return new Response(JSON.stringify(value),{status:200,headers:{"Content-Type":"application/json"}});
     }
     calls.push("S3:"+options.method);
@@ -238,11 +239,34 @@ describe("SIGAPRO branch-pinned QA large PDF function", () => {
   expect(Buffer.from(returned).equals(Buffer.from(bytes))).toBe(true);
   expect(calls).toContain("qa_storage_process_tenant_access_v1");
   expect(calls).toContain("qa_storage_recovery_principals_v1");
+  expect(calls).toContain("qa_storage_process_file_keys_v1");
   const illegalUpload=await handler.fetch(new Request("https://qa.invalid/upload?objectKey="+encodeURIComponent(key)+"&processId="+processId,{
     method:"POST",headers:{...auth,"Content-Type":"application/pdf"},body:bytes
   }));
   expect(illegalUpload.status).toBe(403);
   expect(calls).not.toContain("S3:PUT");
+ });
+ it("denies an analyst a different case file from the same applicant even inside one municipality",async()=>{
+  vi.stubEnv("NEON_DATA_API_URL","https://ep-misty-breeze-b4ri8ig0.apirest.c-6.us-east-2.aws.neon.tech/sigapro_migration_stage_20260923/rest/v1");
+  const tenant="aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+  const proc="bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+  const applicant="cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+  const wrong="municipalities/"+tenant+"/protocols/"+applicant+"/other-process.pdf";
+  const allowed="municipalities/"+tenant+"/protocols/"+applicant+"/this-process.pdf";
+  const calls:string[]=[];
+  vi.stubGlobal("fetch",vi.fn(async(url:string)=>{
+    if(!url.includes(".apirest."))throw new Error("Storage must never serve another process's file");
+    const rpc=url.split("/rpc/")[1]||"";
+    calls.push(rpc);
+    const response=rpc==="current_auth_subject"||rpc==="current_profile_id"?"analyst":
+      rpc==="qa_storage_recovery_principals_v1"?[applicant]:
+      rpc==="qa_storage_process_file_keys_v1"?[allowed]:true;
+    return new Response(JSON.stringify(response),{status:200,headers:{"Content-Type":"application/json"}});
+  }));
+  const denied=await handler.fetch(new Request("https://qa.invalid/read?objectKey="+
+    encodeURIComponent(wrong)+"&processId="+proc,{headers:{Authorization:"Bearer synthetic"}}));
+  expect(denied.status).toBe(403);
+  expect(calls).toContain("qa_storage_process_file_keys_v1");
  });
  it("blocks a foreign applicant's file when the process is outside the analyst's municipality",async()=>{
   vi.stubEnv("NEON_DATA_API_URL","https://ep-misty-breeze-b4ri8ig0.apirest.c-6.us-east-2.aws.neon.tech/sigapro_migration_stage_20260923/rest/v1");
