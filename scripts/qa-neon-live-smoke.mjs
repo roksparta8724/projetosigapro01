@@ -34,6 +34,21 @@ await probe("official origin refused", "/upload", {
 await probe("QA preview preflight allowed", "/upload", {
   method: "OPTIONS", headers: { Origin: previewOrigin },
 }, 204, r => r.headers.get("access-control-allow-origin") === previewOrigin);
+// An immutable preview's hostname changes on each Vercel build, unlike the
+// branch alias. Verify the REAL deployed QA function's CORS, not just mocks.
+const immutableQaOrigin="https://projetosigapro01-1wgk0b4a2-roksparta8724s-projects.vercel.app";
+await probe("SIGAPRO immutable QA preview preflight allowed", "/upload",{
+  method:"OPTIONS",headers:{Origin:immutableQaOrigin}
+},204,r=>r.headers.get("access-control-allow-origin")===immutableQaOrigin);
+for(const origin of [
+  "https://otherproject-1wgk0b4a2-roksparta8724s-projects.vercel.app",
+  "https://projetosigapro01-1wgk0b4a2-fake-projects.vercel.app",
+  "https://projetosigapro01-1wgk0b4a2-roksparta8724s-projects.vercel.app.attacker.test",
+]) {
+  await probe("forged immutable QA preview must be rejected", "/upload",{
+    method:"OPTIONS",headers:{Origin:origin}
+  },403,r=>!r.headers.has("access-control-allow-origin"));
+}
 await probe("invalid private key rejected before storage access",
   "/upload?objectKey=" + encodeURIComponent("../../secret.pdf"), {
     method: "POST", headers: { Authorization: "Bearer synthetic-qa-negative-test" },
