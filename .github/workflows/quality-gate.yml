@@ -35,3 +35,10 @@ jobs:
 
       - name: Production build
         run: npm run build
+
+      # Live, credential-free QA security checks. Run only for this isolated
+      # PR: never reach the QA function from main or unrelated deployments.
+      # The script sends only unauthenticated OPTIONS/negative requests.
+      - name: Live isolated QA storage origin and access smoke
+        if: github.event_name == 'pull_request' && github.head_ref == 'qa/sigapro-ia-logo-integrado-20261023'
+        run: node scripts/qa-neon-live-smoke.mjs
