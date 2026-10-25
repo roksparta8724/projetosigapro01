@@ -6,7 +6,7 @@ const pdf=new Blob(["%PDF-1.7\nQA synthetic file\n%%EOF"],{type:"application/pdf
 const input={objectKey:"municipalities/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/protocols/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/qa.pdf",fileName:"qa.pdf",size:pdf.size};
 const read=vi.fn(async()=>"blob:https://qa.invalid/temporary");
 const mocks=(blob=pdf)=>({
-  fetchUrl:vi.fn(async()=>new Response(blob,{status:200})),
+  fetchUrl:vi.fn(async()=>({ok:true,blob:async()=>blob} as Response)),
   revokeUrl:vi.fn(),
 });
 describe("SIGAPRO QA — never associate unreadable or forged recovered documents",()=>{
