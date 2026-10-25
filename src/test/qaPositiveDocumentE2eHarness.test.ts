@@ -28,10 +28,13 @@ describe("QA-only positive storage smoke requires opt-in and secrets external to
       const action=new URL(url).pathname.split("/").pop()||"";
       requests.push(action);
       if(action==="upload")throw new Error("QA transport timeout after unknown PUT");
-      if(action==="object")return new Response(JSON.stringify({
-        ok:true,objectKey:new URL(url).searchParams.get("objectKey"),
-      }),{status:200});
-      if(action==="read")return new Response(JSON.stringify({code:"NOT_FOUND"}),{status:404});
+      // Vitest may use a browser-like environment without the native Response
+      // constructor. Keep this fake transport independent of that global.
+      if(action==="object")return {
+        status:200,
+        json:async()=>({ok:true,objectKey:new URL(url).searchParams.get("objectKey")}),
+      } as Response;
+      if(action==="read")return {status:404} as Response;
       throw new Error("Unexpected action "+action);
     });
     const env={
