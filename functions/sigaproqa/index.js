@@ -31,9 +31,18 @@ const PROCESS_KEY = new RegExp("^municipalities/("+UUID+")/processes/("+UUID+")/
 const OWNER_KEY = new RegExp("^municipalities/("+UUID+")/(?:protocols|habite-se)/([a-zA-Z0-9_-]+)/[a-zA-Z0-9_.() -]+\\.(?:pdf|png|jpe?g|webp)$", "i");
 const LAW_KEY = new RegExp("^municipalities/("+UUID+")/legislation(?:[-/])[a-zA-Z0-9_./() -]+\\.pdf$", "i");
 const ORIGINS = new Set([
+  // Stable branch alias plus the original QA acceptance deployment.
   "https://projetosigapro01-git-qa-sigapro-f7ead8-roksparta8724s-projects.vercel.app",
   "https://projetosigapro01-dfv7zlx7v-roksparta8724s-projects.vercel.app",
 ]);
+// Every new immutable Vercel preview receives a 9-character deployment ID.
+// Only SIGAPRO deployments under the actual project-owning team are allowed:
+// an arbitrary *.vercel.app hostname must never pass QA CORS.
+const QA_DEPLOYMENT_ORIGIN =
+  /^https:\/\/projetosigapro01-[a-z0-9]{9}-roksparta8724s-projects\.vercel\.app$/;
+function approvedQaOrigin(origin) {
+  return ORIGINS.has(origin)||QA_DEPLOYMENT_ORIGIN.test(origin);
+}
 
 // Some browser-like test runtimes provide AbortSignal without its timeout helper.
 function requestTimeout(ms) {
@@ -322,7 +331,7 @@ async function recoverQaFiles(request,token,origin) {
 export default {
  async fetch(request) {
   const origin=request.headers.get("Origin")||"";
-  const approved=ORIGINS.has(origin)?origin:"";
+  const approved=approvedQaOrigin(origin)?origin:"";
   const path=new URL(request.url);
   if(request.method==="OPTIONS") {
    return approved?new Response(null,{status:204,headers:{"Access-Control-Allow-Origin":approved,
