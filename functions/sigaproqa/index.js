@@ -31,6 +31,9 @@ const PROCESS_KEY = new RegExp("^municipalities/("+UUID+")/processes/("+UUID+")/
 const OWNER_KEY = new RegExp("^municipalities/("+UUID+")/(?:protocols|habite-se)/([a-zA-Z0-9_-]+)/[a-zA-Z0-9_.() -]+\\.(?:pdf|png|jpe?g|webp)$", "i");
 const LAW_KEY = new RegExp("^municipalities/("+UUID+")/legislation(?:[-/])[a-zA-Z0-9_./() -]+\\.pdf$", "i");
 const ORIGINS = new Set([
+  // Exact local QA launcher ports. No wildcard localhost ports, no public HTTP.
+  "http://localhost:8080",
+  "http://localhost:8081",
   // Stable branch alias plus the original QA acceptance deployment.
   "https://projetosigapro01-git-qa-sigapro-f7ead8-roksparta8724s-projects.vercel.app",
   "https://projetosigapro01-dfv7zlx7v-roksparta8724s-projects.vercel.app",
