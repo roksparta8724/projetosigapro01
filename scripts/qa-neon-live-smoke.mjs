@@ -49,6 +49,25 @@ for(const origin of [
     method:"OPTIONS",headers:{Origin:origin}
   },403,r=>!r.headers.has("access-control-allow-origin"));
 }
+// The integrated local QA launcher runs exclusively on localhost:8080 or :8081.
+// Verify this against the deployed Neon QA Function, not against a local mock.
+for (const origin of ["http://localhost:8080", "http://localhost:8081"]) {
+  await probe("integrated local SIGAPRO QA preflight allowed", "/upload", {
+    method: "OPTIONS", headers: { Origin: origin },
+  }, 204, response => response.headers.get("access-control-allow-origin") === origin &&
+      (response.headers.get("access-control-allow-headers")||"").includes("authorization"));
+}
+for (const origin of [
+  "http://localhost:8082",
+  "http://localhost:5173",
+  "http://127.0.0.1:8080",
+  "https://localhost:8080",
+  "http://localhost.evil.test:8080",
+]) {
+  await probe("unapproved local origin blocked", "/upload", {
+    method: "OPTIONS", headers: { Origin: origin },
+  }, 403, response => !response.headers.has("access-control-allow-origin"));
+}
 await probe("invalid private key rejected before storage access",
   "/upload?objectKey=" + encodeURIComponent("../../secret.pdf"), {
     method: "POST", headers: { Authorization: "Bearer synthetic-qa-negative-test" },
