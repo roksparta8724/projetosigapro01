@@ -1,4 +1,4 @@
-import { archiveAndOpenGuide, openLegacyGuideOriginal, openStoredGuide, readGuideOriginal } from "@/lib/guideOriginal";
+import { archiveAndOpenGuide, isGuideSettled, openLegacyGuideOriginal, openStoredGuide, readGuideOriginal } from "@/lib/guideOriginal";
 import { normalizeOfficialBanking } from "@/lib/bankCodes";
 ﻿import { FormEvent, MouseEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, ArrowRightLeft, Building2, CheckCircle2, Clock3, Download, Eye, FileBadge2, FileCheck2, FileKey2, FileStack, Landmark, LogOut, Maximize2, MessageSquareMore, PencilLine, Printer, ReceiptText, Route, ShieldAlert, Signature, UserRound, Wallet, Workflow, ZoomIn, ZoomOut } from "lucide-react";
@@ -1882,7 +1882,7 @@ export function ProcessDetailPage() {
     // A consulta de um original histórico sem vínculo SHA continua possível,
     // mas somente após verificar que o registro bancário é da própria guia.
     if (await openLegacyGuideOriginal(process.documents, original.guide_number, reservedGuideWindow)) return;
-    if (original.status === "compensada") {
+    if (isGuideSettled(original)) {
       throw new Error("Guia compensada sem PDF original arquivado. A guia não será recriada nem cobrada novamente.");
     }
     if (original.collection_mode_snapshot === "municipal_system") {
