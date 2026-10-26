@@ -42,6 +42,7 @@ import { getMunicipalityLogoOpenUrl } from "@/integrations/r2/client";
 import { ensureMercadoPagoGuideCharge, requestQaPixCharge, type QaPixCharge, type MercadoPagoGuideCharge } from "@/lib/mercadoPagoGuide";
 import { normalizeOfficialBanking } from "@/lib/bankCodes";
 import { resolveGuideBankingData } from "@/lib/paymentCollection";
+import { archiveAndOpenGuide } from "@/lib/guideOriginal";
 
 const paymentStatusOptions = [
   { value: "todos", label: "Todos os status" },
@@ -329,6 +330,17 @@ export function ExternalPaymentsPage() {
           },
         ],
       };
+
+      // Official external guides must follow the same immutable Neon + R2
+      // document archival path as internal guides. The old HTML-only path
+      // rebuilt the paper every time the professional clicked "visualizar".
+      // An already archived (including paid) original is reopened byte-for-byte.
+      // Isolated QA intentionally keeps a NON-PAYABLE / sandbox visual preview
+      // without writing into the production R2 document bucket.
+      if (!isolatedQa) {
+        await archiveAndOpenGuide(effectiveScopeId, guideDocument, reservedGuideWindow);
+        return;
+      }
 
       const opened = openGuiaRecolhimentoOficialWindow(guideDocument, {
         title: isolatedQa ? (sandboxIssued ? `BOLETO DE TESTE — NÃO PAGAR · ${guide.code}` : `PRÉVIA NÃO PAGÁVEL · ${guide.code}`) : `Guia ${guide.code}`,
