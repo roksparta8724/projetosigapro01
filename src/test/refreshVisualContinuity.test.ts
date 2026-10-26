@@ -170,7 +170,7 @@ describe("F5, logout and topbar visual continuity", () => {
     expect(processDetail).toContain('isFinalProcessStatus ? "Concluído" : "Em andamento"');
     expect(processDetail).toContain('data-process-final-milestone="true"');
     expect(processDetail).toContain("Processo concluído");
-    expect(processDetail).toContain("intervalMs: 1800");
+    expect(processDetail).toContain("intervalMs: 12000");
   });
 
   it("marks every Habite-se workflow step done after final process status", () => {
@@ -184,7 +184,7 @@ describe("F5, logout and topbar visual continuity", () => {
     expect(processDetail).toContain('"id,status,current_department,current_queue,sla_stage,process_checkpoint,archived_at,updated_at"');
     expect(processDetail).toContain("setDirectProcessState");
     expect(processDetail).toContain("setCachedProcessVisual");
-    expect(processDetail).toContain("window.setInterval(() => void syncExactProcess(), 1500)");
+    expect(processDetail).toContain("window.setInterval(() => void syncExactProcess(), 6000)");
   });
 
   it("treats repeated status commands as idempotent instead of surfacing P0001", () => {
