@@ -28,7 +28,7 @@ describe("SIGAPRO — boleto/PDF abre sem misturar municípios e versões", () =
       external.indexOf("  // Enquanto existe guia inicial pendente"),
     );
     expect(external).toContain('from "@/lib/guideOriginal";');
-    expect(external).toContain("archiveAndOpenGuide, openStoredGuide, readGuideOriginal");
+    expect(external).toContain("archiveAndOpenGuide, openLegacyGuideOriginal, openStoredGuide, readGuideOriginal");
     expect(section).toContain("if (!isolatedQa) {");
     expect(section).toContain("await archiveAndOpenGuide(effectiveScopeId, guideDocument, reservedGuideWindow);");
     expect(section).toContain("return;");
@@ -62,6 +62,27 @@ describe("SIGAPRO — boleto/PDF abre sem misturar municípios e versões", () =
     expect(section).toContain("valorDocumento: originalAmount");
     expect(section).toContain("valorCobrado: originalAmount");
     expect(section).toContain("await archiveAndOpenGuide(effectiveScopeId, guideDocument, reservedGuideWindow)");
+  });
+
+  it("always opens the recorded SHA original before any exact historical PDF, both internally and externally", () => {
+    const internalFlow = process.slice(
+      process.indexOf("const printGuide = async"),
+      process.indexOf("const runProcessAction = async"),
+    );
+    const externalFlow = external.slice(
+      external.indexOf("const openExternalGuide = async"),
+      external.indexOf("  // Enquanto existe guia inicial pendente"),
+    );
+    for (const [flow, canonical, legacy] of [
+      [internalFlow, "await openStoredGuide(original, reservedGuideWindow)", "await openLegacyGuideOriginal(process.documents, original.guide_number, reservedGuideWindow)"],
+      [externalFlow, "await openStoredGuide(officialOriginal, reservedGuideWindow)", "await openLegacyGuideOriginal(process.documents, officialOriginal.guide_number, reservedGuideWindow)"],
+    ]) {
+      const canonicalIndex = flow.indexOf(canonical);
+      const legacyIndex = flow.indexOf(legacy);
+      expect(canonicalIndex).toBeGreaterThan(0);
+      expect(legacyIndex).toBeGreaterThan(canonicalIndex);
+      expect(flow.indexOf("status === \"compensada\"")).toBeGreaterThan(legacyIndex);
+    }
   });
 
   it("uses the current municipality's stored branding, not just the old logoUrl", () => {
