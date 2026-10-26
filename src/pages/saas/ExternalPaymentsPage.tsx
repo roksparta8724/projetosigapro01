@@ -200,6 +200,18 @@ export function ExternalPaymentsPage() {
         if (officialOriginal.collection_mode_snapshot === "municipal_system") {
           throw new Error("Guia emitida pelo sistema próprio da Prefeitura: importe o documento original para visualização.");
         }
+      } else {
+        // QA uses ONLY its isolated Neon Function/S3 and canonical guide data.
+        // A plain QA preview may still be shown when a guide has not been
+        // issued, but no sandbox payment can be archived without a Neon row.
+        officialOriginal = await readGuideOriginal(effectiveScopeId, guide.code).catch(() => null);
+        if (officialOriginal && await openStoredGuide(officialOriginal, reservedGuideWindow)) return;
+        if (officialOriginal?.status === "compensada") {
+          throw new Error("Guia de teste compensada sem original; a guia não será reconstruída.");
+        }
+        if (officialOriginal?.collection_mode_snapshot === "municipal_system") {
+          throw new Error("Guia do sistema próprio da Prefeitura: não emitir cobrança de homologação.");
+        }
       }
       const banking = resolveGuideBankingData({
         settings: tenantSettings,
@@ -214,14 +226,23 @@ export function ExternalPaymentsPage() {
       const tested = qaCharges[guide.code];
       const candidate = normalizeOfficialBanking(tested?.barcodeContent, tested?.digitableLine);
       const savedSandbox = Boolean(
-        isolatedQa && guide.providerEnvironment === "test" &&
-        guide.paymentProvider === "mercado_pago" && guide.bankReference &&
-        banking.barcode && banking.digitableLine,
+        isolatedQa && officialOriginal?.provider_environment === "test" &&
+        officialOriginal?.bank_reference && guide.paymentProvider === "mercado_pago" &&
+        normalizeOfficialBanking(officialOriginal?.barcode, officialOriginal?.digitable_line).barcode &&
+        normalizeOfficialBanking(officialOriginal?.barcode, officialOriginal?.digitable_line).digitableLine,
       );
       const newlyIssued = Boolean(isolatedQa && tested?.ok &&
         tested.environment === "test" && tested.orderId &&
         candidate.barcode && candidate.digitableLine);
-      const sandboxIssued = savedSandbox || newlyIssued;
+      // An in-memory sandbox response never outranks the stored Neon order.
+      // Paid/sigapro guide id, SHA, amount and banking must come from Neon.
+      const sandboxIssued = Boolean(
+        (savedSandbox || newlyIssued) && officialOriginal &&
+        officialOriginal.provider_environment === "test" &&
+        officialOriginal.bank_reference &&
+        officialOriginal.status !== "compensada" &&
+        (!newlyIssued || tested?.orderId === officialOriginal.bank_reference),
+      );
       const canonicalPriorBanking = normalizeOfficialBanking(
         officialOriginal?.barcode, officialOriginal?.digitable_line,
       );
@@ -245,10 +266,10 @@ export function ExternalPaymentsPage() {
         confirmedOriginal?.barcode, confirmedOriginal?.digitable_line,
       );
       const barcode = isolatedQa
-        ? (sandboxIssued ? (charge?.barcodeContent || banking.barcode) : "")
+        ? (sandboxIssued ? confirmedBanking.barcode : "")
         : confirmedBanking.barcode;
       const digitableLine = isolatedQa
-        ? (sandboxIssued ? (charge?.digitableLine || banking.digitableLine) : "")
+        ? (sandboxIssued ? confirmedBanking.digitableLine : "")
         : confirmedBanking.digitableLine;
       const previewOnly = isolatedQa && !sandboxIssued;
       if (!isolatedQa && (!barcode || !digitableLine)) {
@@ -386,9 +407,18 @@ export function ExternalPaymentsPage() {
       // document archival path as internal guides. The old HTML-only path
       // rebuilt the paper every time the professional clicked "visualizar".
       // An already archived (including paid) original is reopened byte-for-byte.
-      // Isolated QA intentionally keeps a NON-PAYABLE / sandbox visual preview
-      // without writing into the production R2 document bucket.
-      if (!isolatedQa) {
+      // A bank order CONFIRMED in the isolated Neon QA database is archived
+      // to isolated Neon S3 (never to the production R2). Reopening is the
+      // original SHA PDF, just like the municipal production workflow.
+      // Unissued QA previews remain non-payable and are NEVER persisted.
+      if (!isolatedQa || sandboxIssued) {
+        if (isolatedQa && (
+          !confirmedOriginal?.id ||
+          confirmedOriginal.provider_environment !== "test" ||
+          !confirmedOriginal.bank_reference ||
+          !barcode || !digitableLine ||
+          guideDocument.guia.nonPayablePreview
+        )) throw new Error("Boleto de homologação sem confirmação bancária persistida; PDF não arquivado.");
         await archiveAndOpenGuide(effectiveScopeId, guideDocument, reservedGuideWindow);
         return;
       }
