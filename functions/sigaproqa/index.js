@@ -28,6 +28,7 @@ function validMagic(mime,bytes) {
 }
 const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}";
 const PROCESS_KEY = new RegExp("^municipalities/("+UUID+")/processes/("+UUID+")/[a-zA-Z0-9_./() -]+\\.(?:pdf|png|jpe?g|webp)$", "i");
+const DAM_ORIGINAL_KEY = new RegExp("^municipalities/("+UUID+")/processes/("+UUID+")/dam-originals/("+UUID+")/([a-f0-9]{64})\\.pdf$", "i");
 const OWNER_KEY = new RegExp("^municipalities/("+UUID+")/(?:protocols|habite-se)/([a-zA-Z0-9_-]+)/[a-zA-Z0-9_.() -]+\\.(?:pdf|png|jpe?g|webp)$", "i");
 const LAW_KEY = new RegExp("^municipalities/("+UUID+")/legislation(?:[-/])[a-zA-Z0-9_./() -]+\\.pdf$", "i");
 const ORIGINS = new Set([
@@ -63,7 +64,7 @@ function s3Env() {
       !e.AWS_SECRET_ACCESS_KEY) throw new Error("QA_STORAGE_UNAVAILABLE");
   return e;
 }
-function s3Request(method,key,bytes,query="") {
+function s3Request(method,key,bytes,query="",extraSignedHeaders={}) {
   const e=s3Env();
   const url=new URL(ENDPOINT);
   const path="/"+BUCKET+(key?"/"+key.split("/").map(encodeURIComponent).join("/"):"");
@@ -72,7 +73,7 @@ function s3Request(method,key,bytes,query="") {
   const datetime=new Date().toISOString().replace(/[:-]|\.\d{3}/g,"");
   const day=datetime.slice(0,8);
   const payloadHash=sha(bytes||new Uint8Array());
-  const headers={"x-amz-date":datetime,"x-amz-content-sha256":payloadHash};
+  const headers={"x-amz-date":datetime,"x-amz-content-sha256":payloadHash,...extraSignedHeaders};
   if(e.AWS_SESSION_TOKEN) headers["x-amz-security-token"]=e.AWS_SESSION_TOKEN;
   const signedKeys=["host",...Object.keys(headers)].sort();
   const all={"host":url.host,...headers};
@@ -103,17 +104,36 @@ async function rpc(token,name,args={}) {
 }
 function validKey(key) {
  if(typeof key!=="string"||key.length>850||key.includes("..")||key.includes("//")||
-    key.includes("\\")||/[\r\n]/.test(key)||key.includes("/dam-originals/")) return null;
- let match=key.match(PROCESS_KEY);
+    key.includes("\\")||/[\r\n]/.test(key)) return null;
+ let match=key.match(DAM_ORIGINAL_KEY);
+ if(match)return {type:"dam-original",tenant:match[1],process:match[2],
+   guide:match[3],originalSha:match[4].toLowerCase(),key};
+ // Do not let other paths under dam-originals use the generic process rule.
+ if(key.includes("/dam-originals/"))return null;
+ match=key.match(PROCESS_KEY);
  if(match)return {type:"process",tenant:match[1],process:match[2],key};
  match=key.match(OWNER_KEY);
  if(match)return {type:"owner",tenant:match[1],principal:match[2],key};
  match=key.match(LAW_KEY);
  return match?{type:"law",tenant:match[1],key}:null;
 }
-async function authorize(token,scope,write,readProcessId="") {
+async function authorize(token,scope,write,readProcessId="",operation="") {
  const membership=await rpc(token,"has_tenant_access",{target_tenant:scope.tenant});
  if(membership!==true)return false;
+ if(scope.type==="dam-original"){
+   // SQL authorizes THIS guide and process, not generic municipal write access.
+   // Document originals can never be deleted or overwritten.
+   if(operation==="/object")return false;
+   const args={_guide_id:scope.guide,_municipality_id:scope.tenant,
+     _process_id:scope.process};
+   if(operation==="/upload")
+     return await rpc(token,"authorize_payment_guide_original_upload_v2",args)===true;
+   if(operation==="/read")
+     return await rpc(token,"authorize_payment_guide_original_read_v1",{
+       ...args,_object_key:scope.key,
+     })===true;
+   return false;
+ }
  if(scope.type==="owner"){
   const [subject,profile]=await Promise.all([rpc(token,"current_auth_subject"),rpc(token,"current_profile_id")]);
   if(scope.principal&&(scope.principal===subject||scope.principal===profile))
@@ -364,7 +384,7 @@ export default {
      ? path.searchParams.get("processId")||"":"";
    if(requestedProcess&&!ID.test(requestedProcess))
      return respond({code:"INVALID_PROCESS"},400,approved);
-   if(!await authorize(token,scope,write,requestedProcess))
+   if(!await authorize(token,scope,write,requestedProcess,path.pathname))
      return respond({code:"ACCESS_DENIED"},403,approved);
    // A process's catalog record and its path-derived legacy file_hash are
    // not independently trustworthy evidence of the original file bytes.
@@ -412,15 +432,35 @@ export default {
     for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.byteLength;}
     if(!validMagic(mime,bytes))
       return respond({code:mime==="application/pdf"?"INVALID_PDF":"INVALID_IMAGE"},400,approved);
+    if(scope.type==="dam-original"&&sha(bytes)!==scope.originalSha)
+      return respond({code:"QA_ORIGINAL_SHA_MISMATCH"},400,approved);
    }
    const method=request.method==="POST"?"PUT":request.method;
-   const signed=s3Request(method,scope.key,bytes);
+   // Signed conditional PUT: immutable original can never be replaced.
+   const signed=s3Request(method,scope.key,bytes,"",
+     scope.type==="dam-original"&&method==="PUT"?{"if-none-match":"*"}:{});
    const remote=await fetch(signed.url,{
      method,headers:{...signed.headers,...(bytes?{"Content-Type":mime}:{})},
      body:bytes,signal:requestTimeout(45000),redirect:"manual",
    });
-   if(!remote.ok)return respond({code:remote.status===404?"NOT_FOUND":"QA_STORAGE_ERROR"},remote.status===404?404:503,approved);
+   if(!remote.ok){
+     if(remote.status===412&&scope.type==="dam-original"&&method==="PUT"){
+       // Retrying an already-uploaded identical original is safe.
+       const stored=s3Request("GET",scope.key);
+       const exists=await fetch(stored.url,{method:"GET",headers:stored.headers,
+         signal:requestTimeout(45000),redirect:"manual"});
+       if(exists.ok){
+         const data=new Uint8Array(await exists.arrayBuffer());
+         if(data.byteLength<=MAX_FILE_BYTES&&sha(data)===scope.originalSha)
+           return respond({ok:true,objectKey:scope.key,bucket:"process-documents",
+             storageProvider:"neon_qa_function",unchanged:true},200,approved);
+       }
+       return respond({code:"QA_ORIGINAL_CONFLICT"},409,approved);
+     }
+     return respond({code:remote.status===404?"NOT_FOUND":"QA_STORAGE_ERROR"},remote.status===404?404:503,approved);
+   }
    if(method==="GET"){
+      if(scope.type==="dam-original")verifiedBytesSha=scope.originalSha;
       const h={"Content-Type":mime,"Content-Disposition":"inline","X-Content-Type-Options":"nosniff","Cache-Control":"private, no-store","Vary":"Origin"};
       if(approved)h["Access-Control-Allow-Origin"]=approved;
       if(verifiedBytesSha){
