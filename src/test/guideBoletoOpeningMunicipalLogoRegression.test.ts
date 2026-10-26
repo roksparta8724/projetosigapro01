@@ -48,6 +48,21 @@ describe("SIGAPRO — boleto/PDF abre sem misturar municípios e versões", () =
     expect(guide).toContain("if (props.guia.nonPayablePreview) return false");
   });
 
+  it("does not revive an expired or rejected municipality logo in printable guide HTML", () => {
+    // A strict logo fetch may be rejected by isolated QA (503) or expire.
+    // The print path must never revert to the same raw, unverified URL.
+    expect(process).toContain('setPreparedGuideLogoUrl(embeddedLogo || "");');
+    expect(process).toContain("const directGuideLogoFallback = renderedGuideLogoUrl;");
+    const fallbackBlock = process.slice(
+      process.indexOf("const directGuideLogoFallback = renderedGuideLogoUrl;"),
+      process.indexOf("const rawIssuedBy ="),
+    );
+    expect(fallbackBlock).not.toContain("tenantSettings?.brasaoUrl ||");
+    expect(fallbackBlock).not.toContain("tenantSettings?.logoUrl ||");
+    expect(fallbackBlock).not.toContain("stableGuideLogoUrl ||");
+    expect(fallbackBlock).toContain("prepareGuideInstitutionalLogo(");
+  });
+
   it("keeps QA separate from official R2; missing QA logo is not proof of branch mixing", () => {
     expect(logoRoute).toContain("QA_R2_ACCESS_DISABLED");
     expect(logoRoute).toContain('process.env.VERCEL_ENV === "preview"');
