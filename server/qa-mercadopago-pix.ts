@@ -10,6 +10,7 @@ import { dirname, join } from "node:path";
 import type { ApiReq } from "./municipal-storage.js";
 import { callDataApiRpc, getDataApiUrl, readEnv } from "./municipal-storage.js";
 import { readStoredGuide } from "./guide-persistence.js";
+import { isPersistedGuideSettled } from "./guide-settlement.js";
 import { resolveMercadoPagoMunicipalAccessToken } from "./municipal-payment.js";
 import { isValidPixPayload } from "../src/lib/pix.js";
 
@@ -95,6 +96,12 @@ export async function qaMercadoPagoPix(
   if (guide.guide_number !== input.guideCode || guide.municipality_id !== input.municipalityId ||
       !Number.isFinite(Number(guide.amount)) || Number(guide.amount) <= 0) {
     throw new Error("Guia original não autorizada para emissão PIX de teste.");
+  }
+  if (isPersistedGuideSettled(guide)) {
+    throw new Error("Guia já paga: o SIGAPRO não emitirá uma nova cobrança PIX.");
+  }
+  if (guide.collection_mode_snapshot === "municipal_system") {
+    throw new Error("A guia pertence à arrecadação própria da Prefeitura; não emitir PIX paralelo.");
   }
   // Use the already-granted QA RPCs, never the private internal guard that
   // deliberately has no EXECUTE grant for authenticated clients.

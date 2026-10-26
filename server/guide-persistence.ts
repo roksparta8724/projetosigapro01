@@ -11,6 +11,7 @@ export type StoredGuide = {
   due_date: string;
   created_at: string;
   status: string;
+  paid?: boolean;
   bank_reference?: string;
   bank_payment_id?: string;
   bank_status?: string;

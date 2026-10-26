@@ -3,6 +3,7 @@ import type { ApiReq } from "./municipal-storage.js";
 import { resolveMercadoPagoMunicipalAccessToken } from "./municipal-payment.js";
 import { assertGuideProviderSyncAccess, assertGuideProviderWriteAccess, persistGuideCharge, readStoredGuide, storedGuideCharge } from "./guide-persistence.js";
 import { normalizeOfficialBanking } from "../src/lib/bankCodes.js";
+import { isPersistedGuideSettled } from "./guide-settlement.js";
 type MercadoPagoEnvironment = "test" | "production";
 
 export type MercadoPagoConnectionCheck = {
@@ -363,7 +364,10 @@ export async function getMercadoPagoGuideBoletoStatus(
 ): Promise<MercadoPagoGuideBoletoResult> {
   const stored = req ? await readStoredGuide(req, input.municipalityId, input.guideCode) : null;
   if (stored) {
-    if (stored.status === "compensada") return storedGuideCharge(stored);
+    if (stored.collection_mode_snapshot === "municipal_system") {
+      throw new Error("Guia vinculada à arrecadação própria da Prefeitura; não consultar cobrança paralela.");
+    }
+    if (isPersistedGuideSettled(stored)) return storedGuideCharge(stored);
     if (!stored.bank_reference || stored.bank_reference !== input.orderId) {
       throw new Error("Cobrança não vinculada à guia original.");
     }
@@ -418,7 +422,10 @@ export async function createMercadoPagoGuideBoleto(
   }
   const stored = req ? await readStoredGuide(req, input.municipalityId, input.guideCode) : null;
   if (stored) {
-    if (stored.status === "compensada" || (stored.barcode && stored.digitable_line)) {
+    if (stored.collection_mode_snapshot === "municipal_system") {
+      throw new Error("Guia vinculada à arrecadação própria da Prefeitura; não emitir cobrança paralela.");
+    }
+    if (isPersistedGuideSettled(stored) || (stored.barcode && stored.digitable_line)) {
       return storedGuideCharge(stored);
     }
     if (stored.bank_reference) {

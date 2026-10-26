@@ -71,6 +71,28 @@ describe("isolated Mercado Pago PIX and existing boleto remain independent",()=>
     expect(duplicate.orderId).toBe(first.orderId);
     expect(fetch).toHaveBeenCalledTimes(1);
   });
+
+  it.each([
+    { paid:true, status:"pendente" },
+    { paid:false, status:"pago" },
+    { paid:false, status:"confirmed" },
+  ])("does not create or consult PIX on already-paid guides (%s)",async state=>{
+    mocks.guide.mockResolvedValue({...state,guide_number:guideCode,municipality_id:municipalityId,amount:35.24});
+    await expect(qaMercadoPagoPix(request,{municipalityId,guideCode,action:"issue"}))
+      .rejects.toThrow(/já paga/);
+    expect(mocks.rpc).not.toHaveBeenCalled();
+    expect(fetch).not.toHaveBeenCalled();
+  });
+  it("does not issue PIX for a municipal own-system guide",async()=>{
+    mocks.guide.mockResolvedValue({
+      guide_number:guideCode,municipality_id:municipalityId,amount:35.24,
+      collection_mode_snapshot:"municipal_system",status:"pendente",
+    });
+    await expect(qaMercadoPagoPix(request,{municipalityId,guideCode,action:"issue"}))
+      .rejects.toThrow(/arrecadação própria/);
+    expect(fetch).not.toHaveBeenCalled();
+    expect(mocks.rpc).not.toHaveBeenCalled();
+  });
   it("blocks production provider credentials before any payment request",async()=>{
     mocks.token.mockResolvedValue({environment:"production",token:"APP_USR_PRODUCTION"});
     await expect(qaMercadoPagoPix(request,{municipalityId,guideCode,action:"issue"}))

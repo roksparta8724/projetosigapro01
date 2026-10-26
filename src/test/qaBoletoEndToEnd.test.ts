@@ -19,7 +19,7 @@ vi.mock("../../server/guide-persistence", () => ({
   persistGuideCharge: mocks.write,
   storedGuideCharge: mocks.stored,
 }));
-import { createMercadoPagoGuideBoleto } from "../../server/mercadopago";
+import { createMercadoPagoGuideBoleto, getMercadoPagoGuideBoletoStatus } from "../../server/mercadopago";
 
 const municipalityId = "11111111-1111-4111-8111-111111111111";
 const original = {
@@ -123,6 +123,43 @@ describe("one complete sandbox-only SIGAPRO bank issuance", () => {
     mocks.read.mockRejectedValue(new Error("Guia não encontrada ou acesso não autorizado"));
     await expect(createMercadoPagoGuideBoleto(input, req, opts)).rejects.toThrow("Guia não encontrada");
     expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { paid: true, status: "pendente" },
+    { paid: false, status: "pago" },
+    { paid: false, status: "confirmed" },
+    { paid: false, status: "compensada" },
+  ])("never issues a bank order for an already-paid guide (%s)", async (state) => {
+    mocks.read.mockResolvedValue({ ...original, ...state });
+    mocks.stored.mockReturnValue({ ok: false, environment: "test" });
+    const result = await createMercadoPagoGuideBoleto(input, req, opts);
+    expect(result.ok).toBe(false);
+    expect(fetch).not.toHaveBeenCalled();
+    expect(mocks.authorize).not.toHaveBeenCalled();
+    expect(mocks.write).not.toHaveBeenCalled();
+  });
+
+  it("never synchronizes a paid guide through the bank provider, including a stale pending status", async () => {
+    mocks.read.mockResolvedValue({ ...original, paid: true, status: "pendente", bank_reference: "OLD-ORDER" });
+    mocks.stored.mockReturnValue({ ok: false, environment: "test" });
+    await getMercadoPagoGuideBoletoStatus({
+      municipalityId, guideCode: original.guide_number, orderId: "OLD-ORDER", amount: original.amount,
+    }, req, opts);
+    expect(fetch).not.toHaveBeenCalled();
+    expect(mocks.sync).not.toHaveBeenCalled();
+    expect(mocks.write).not.toHaveBeenCalled();
+  });
+
+  it("never calls a bank provider for a guide owned by municipal collection", async () => {
+    mocks.read.mockResolvedValue({ ...original, collection_mode_snapshot: "municipal_system", bank_reference: "LEGACY-ORDER" });
+    await expect(createMercadoPagoGuideBoleto(input, req, opts)).rejects.toThrow(/arrecadação própria/);
+    await expect(getMercadoPagoGuideBoletoStatus({
+      municipalityId, guideCode: original.guide_number, orderId: "LEGACY-ORDER", amount: original.amount,
+    }, req, opts)).rejects.toThrow(/arrecadação própria/);
+    expect(fetch).not.toHaveBeenCalled();
+    expect(mocks.sync).not.toHaveBeenCalled();
+    expect(mocks.write).not.toHaveBeenCalled();
   });
 
   it("does not create a second charge when an order reference already exists", async () => {
