@@ -111,9 +111,33 @@ export function ExternalPaymentsPage() {
       if (charge.environment !== "test" || !charge.orderId) {
         throw new Error("O provedor não confirmou uma order exclusiva do ambiente de testes.");
       }
+      // Do not acknowledge an issued order before the canonical Neon row
+      // confirms the exact same provider order, tenant, amount and bank fields.
+      // A gateway response alone cannot establish that the guide was saved.
+      const persisted = await readGuideOriginal(effectiveScopeId, guide.code);
+      const savedBanking = normalizeOfficialBanking(persisted.barcode, persisted.digitable_line);
+      const issuedBanking = normalizeOfficialBanking(charge.barcodeContent, charge.digitableLine);
+      if (
+        persisted.municipality_id !== effectiveScopeId ||
+        persisted.guide_number !== guide.code ||
+        persisted.provider_environment !== "test" ||
+        persisted.payment_provider !== "mercado_pago" ||
+        persisted.bank_reference !== charge.orderId ||
+        persisted.status === "compensada" ||
+        persisted.paid === true ||
+        !savedBanking.barcode || !savedBanking.digitableLine ||
+        savedBanking.barcode !== issuedBanking.barcode ||
+        savedBanking.digitableLine !== issuedBanking.digitableLine ||
+        !Number.isFinite(Number(persisted.amount)) ||
+        Number(persisted.amount).toFixed(2) !== Number(guide.amount).toFixed(2)
+      ) {
+        throw new Error(
+          "O Mercado Pago respondeu, mas o boleto ainda não foi confirmado com os mesmos dados no Neon QA. Consulte a guia antes de repetir a emissão.",
+        );
+      }
       setQaCharges((prev) => ({ ...prev, [guide.code]: charge }));
-      setGuideActionStatus("Boleto de homologação registrado no Neon de testes. Clique em Visualizar guia para conferir os dados. NÃO PAGAR.");
       await refreshRemoteStore();
+      setGuideActionStatus("Boleto de TESTE confirmado no Neon com referência bancária e valor corretos. Abra a guia para arquivar o PDF original. NÃO PAGAR.");
     } catch (error) {
       setGuideActionStatus(error instanceof Error ? error.message : "Erro na emissão bancária de homologação.");
     } finally {
@@ -204,12 +228,14 @@ export function ExternalPaymentsPage() {
         // QA uses ONLY its isolated Neon Function/S3 and canonical guide data.
         // A plain QA preview may still be shown when a guide has not been
         // issued, but no sandbox payment can be archived without a Neon row.
-        officialOriginal = await readGuideOriginal(effectiveScopeId, guide.code).catch(() => null);
-        if (officialOriginal && await openStoredGuide(officialOriginal, reservedGuideWindow)) return;
-        if (officialOriginal?.status === "compensada") {
+        // Never disguise a failed Neon read as an unissued/non-payable preview.
+        // A missing or inaccessible canonical guide is a genuine blocking error.
+        officialOriginal = await readGuideOriginal(effectiveScopeId, guide.code);
+        if (await openStoredGuide(officialOriginal, reservedGuideWindow)) return;
+        if (officialOriginal.status === "compensada" || officialOriginal.paid === true) {
           throw new Error("Guia de teste compensada sem original; a guia não será reconstruída.");
         }
-        if (officialOriginal?.collection_mode_snapshot === "municipal_system") {
+        if (officialOriginal.collection_mode_snapshot === "municipal_system") {
           throw new Error("Guia do sistema próprio da Prefeitura: não emitir cobrança de homologação.");
         }
       }
@@ -224,24 +250,23 @@ export function ExternalPaymentsPage() {
       // a VERIFIED, provider-issued TEST boleto. Never infer issuance from the
       // saved bank/PIX configuration. Test orders are initiated via explicit CTA.
       const tested = qaCharges[guide.code];
-      const candidate = normalizeOfficialBanking(tested?.barcodeContent, tested?.digitableLine);
       const savedSandbox = Boolean(
         isolatedQa && officialOriginal?.provider_environment === "test" &&
         officialOriginal?.bank_reference && officialOriginal?.payment_provider === "mercado_pago" &&
         normalizeOfficialBanking(officialOriginal?.barcode, officialOriginal?.digitable_line).barcode &&
         normalizeOfficialBanking(officialOriginal?.barcode, officialOriginal?.digitable_line).digitableLine,
       );
-      const newlyIssued = Boolean(isolatedQa && tested?.ok &&
-        tested.environment === "test" && tested.orderId &&
-        candidate.barcode && candidate.digitableLine);
-      // An in-memory sandbox response never outranks the stored Neon order.
-      // Paid/sigapro guide id, SHA, amount and banking must come from Neon.
+      // A stale tab or an out-of-order callback cannot replace the confirmed
+      // order held by Neon, including after F5 or from a different browser.
       const sandboxIssued = Boolean(
-        (savedSandbox || newlyIssued) && officialOriginal &&
-        officialOriginal.provider_environment === "test" &&
-        officialOriginal.bank_reference &&
+        savedSandbox && officialOriginal &&
         officialOriginal.status !== "compensada" &&
-        (!newlyIssued || tested?.orderId === officialOriginal.bank_reference),
+        officialOriginal.paid !== true,
+      );
+      const newlyIssued = Boolean(
+        sandboxIssued && tested?.ok &&
+        tested.environment === "test" &&
+        tested.orderId === officialOriginal?.bank_reference,
       );
       const canonicalPriorBanking = normalizeOfficialBanking(
         officialOriginal?.barcode, officialOriginal?.digitable_line,
