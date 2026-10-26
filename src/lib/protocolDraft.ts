@@ -97,7 +97,7 @@ export const defaultProtocolDraftForm: ProtocolDraftForm = {
   uso: "",
   tipoEdificacao: "",
   tipoObra: "",
-  padraoConstrutivo: "medio",
+  padraoConstrutivo: "",
   processoAprovacao: "",
   numeroAlvara: "",
   dataConclusaoObra: "",

@@ -2019,19 +2019,29 @@ export function ProtocolarProjetoPage({
                   </>
                 ) : (
                   <>
-                    <Label>Padrão construtivo</Label>
-                    <Input
-                      list="padroes-construtivos"
-                      value={form.padraoConstrutivo}
-                      onChange={(event) => setField("padraoConstrutivo", event.target.value)}
-                      placeholder="Médio"
-                    />
-                    <datalist id="padroes-construtivos">
-                      <option value="luxo" />
-                      <option value="primeira" />
-                      <option value="medio" />
-                      <option value="economico" />
-                    </datalist>
+                    <Label htmlFor="sigapro-construction-standard">Padrão construtivo</Label>
+                    <Select
+                      value={form.padraoConstrutivo || ""}
+                      onValueChange={(value) => setField("padraoConstrutivo", value)}
+                    >
+                      <SelectTrigger id="sigapro-construction-standard" className="h-11 bg-white text-left dark:bg-slate-950">
+                        <SelectValue placeholder="Selecione o padrão construtivo" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {form.padraoConstrutivo && !["luxo", "primeira", "medio", "economico"].includes(form.padraoConstrutivo) ? (
+                          <SelectItem value={form.padraoConstrutivo}>
+                            {form.padraoConstrutivo} (rascunho anterior)
+                          </SelectItem>
+                        ) : null}
+                        <SelectItem value="luxo">Luxo</SelectItem>
+                        <SelectItem value="primeira">Primeira</SelectItem>
+                        <SelectItem value="medio">Médio</SelectItem>
+                        <SelectItem value="economico">Econômico</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs leading-5 text-slate-600 dark:text-slate-300">
+                      Sem preenchimento automático. Escolha conforme o acabamento e a classificação adotada pela Prefeitura.
+                    </p>
                   </>
                 )}
               </div>
