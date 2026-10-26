@@ -14,7 +14,7 @@ Situação em 26/10/2026: NÃO LIBERADO PARA PRODUÇÃO. Este documento não aut
 
 1. Rodar node scripts/production-release-preflight.mjs para revisar o inventário financeiro. O script NÃO executa SQL nem libera o domínio.
 2. Rodar scripts/production-schema-catalog.sql, em modo leitura, separadamente nos branch IDs de produção e QA, verificando também signatures, grants e RLS. Não executar toda a pasta de migrações.
-3. Fazer revisão de DDL forward-only e testar em cópia de produção autorizada, com plano de recuperação, sem alterar pagamentos, processos, assinaturas ou objetos R2. Núcleo de DAM candidato: 20261017 campos bancários, 20261021 original e provedor, 20261026 alinhamento de acesso, 20261026 PIX opcional. Ajustes de arrecadação e IA urbanística exigem pacote e aceite separados; alguns arquivos contêm instruções QA-only mesmo sem _qa_ no nome.
+3. Fazer revisão de DDL forward-only e testar em cópia de produção autorizada, com plano de recuperação, sem alterar pagamentos, processos, assinaturas ou objetos R2. Núcleo de DAM candidato: 20261017 campos bancários → 20261026 snapshot por guia → 20261021 original e provedor → 20261026 alinhamento de acesso → 20261026 PIX opcional → 20261026 bloqueio de emissão SIGAPRO para modo municipal_system. DDL novo é forward-only e NÃO altera guias antigas; exige validação em cópia real do branch oficial. Ajustes de arrecadação e IA urbanística exigem pacote e aceite separados; alguns arquivos contêm instruções QA-only mesmo sem _qa_ no nome.
 4. Confirmar uma guia NOVA e autenticada no Mercado Pago SANDBOX: emissão persistida no Neon isolado; PDF permanente no bucket segregado; SHA idêntico na leitura e após F5/login; idempotência e conciliação sem duplicar cobrança.
 5. Concluir os fluxos de Aprovação de Projeto e Habite-se com documentos, protocolo, analista responsável, diretor, vistoria, financeiro, assinaturas, histórico, conclusão e reabertura; testar perfis em duas prefeituras e proibir vazamento entre elas. Revisar tema claro/escuro, logos, avatares, zoom, impressão e ausência de telas piscando.
 6. Publicar UMA prévia com o mesmo SHA aprovado, executar aceite autenticado, revisar backup/point-in-time Neon e preservação R2; publicar no domínio oficial SOMENTE com autorização expressa. Monitorar logs após a promoção.
@@ -22,3 +22,9 @@ Situação em 26/10/2026: NÃO LIBERADO PARA PRODUÇÃO. Este documento não aut
 ## Travamento obrigatório
 
 NÃO promover enquanto faltar qualquer: schema/RLS oficial comprovado; banco sandbox E2E; PDF original imutável comprovado; fluxos municipais aceitos; SHA de preview coincidente; rollback preparado e aprovação expressa.
+
+## Limitação operacional constatada
+
+Em 26/10/2026, a tentativa autorizada de criar branch Neon persistente a partir de produção retornou HTTP 422: branches limit exceeded. Nenhum branch antigo deve ser apagado automaticamente, e migrations devem permanecer NÃO APLICADAS até capacidade/autorização para homologar em cópia fiel.
+
+No Vercel QA remoto, o emissor bancário real de sandbox não é exposto (somente localhost 8080/8081 com modo isolado); um PDF sintético no navegador remoto não representa emissão bancária verdadeira. Conexão Mercado Pago configurada e teste de conexão aprovado NÃO comprovam upload original. O aceite positivo exige sessão autorizada e cobrança nova isolada.

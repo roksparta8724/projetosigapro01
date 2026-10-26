@@ -6,9 +6,11 @@ const root=resolve(dirname(fileURLToPath(import.meta.url)),"..");
 const dir=join(root,"neon","migrations");
 const financial=[
  "20261017_payment_guide_banking_fields.sql",
+ "20261026_prod_collection_guide_snapshot_v1.sql",
  "20261021_dam_original_and_provider_persistence.sql",
  "20261026_dam_original_archive_access_alignment.sql",
  "20261026_dam_boleto_optional_pix_fix.sql",
+ "20261026_prod_dam_collection_mode_guard_v1.sql",
 ];
 const pendingSeparateReview=[
  "20261021_municipal_collection_configuration.sql",
