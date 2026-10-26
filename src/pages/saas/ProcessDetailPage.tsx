@@ -1865,9 +1865,13 @@ export function ProcessDetailPage() {
       return;
     }
     try {
-    if (await openLegacyGuideOriginal(process.documents, selectedGuide.code, reservedGuideWindow)) return;
     const original = await readGuideOriginal(effectiveScopeId, selectedGuide.code);
+    // O original oficial persistido no Neon sempre prevalece sobre cópias
+    // antigas anexadas ao processo. Nunca reconstruir nem substituir o PDF.
     if (await openStoredGuide(original, reservedGuideWindow)) return;
+    // A consulta de um original histórico sem vínculo SHA continua possível,
+    // mas somente após verificar que o registro bancário é da própria guia.
+    if (await openLegacyGuideOriginal(process.documents, original.guide_number, reservedGuideWindow)) return;
     if (original.status === "compensada") {
       throw new Error("Guia compensada sem PDF original arquivado. A guia não será recriada nem cobrada novamente.");
     }
