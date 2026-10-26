@@ -64,10 +64,26 @@ function fail(res: Res, status: number, message: string) {
 }
 
 export default async function handler(req: Req, res: Res) {
-  // Isolated QA must not read or modify official R2 objects, including direct routes.
+  // The isolated QA preview may show ONLY the user-provided public municipal
+  // crest committed to this QA branch. No official R2 read or credentials.
+  // Other municipalities/keys remain denied, and production is unchanged.
   if (process.env.VERCEL_ENV === "preview" &&
       (process.env.VITE_SIGAPRO_NEON_ISOLATED === "true" ||
        process.env.VERCEL_GIT_COMMIT_REF === "qa/sigapro-ia-logo-integrado-20261023")) {
+    if (req.method === "GET") {
+      const qaUrl = new URL(req.url || "/api/municipality-logo-open", "https://sigapro.local");
+      const key = String(qaUrl.searchParams.get("objectKey") || "").trim().replace(/^\\/+/, "");
+      const qaMunicipalBrandPath = "municipalities/49dac0b6-6352-4744-9aab-9ff91c59d970/branding/";
+      if (key === qaMunicipalBrandPath + "header-logo.jpg" ||
+          key === qaMunicipalBrandPath + "footer-logo.jpg") {
+        res.statusCode = 302;
+        res.setHeader("Location", "/qa-branding/campo-limpo-paulista.webp");
+        res.setHeader("Cache-Control", "private, max-age=60");
+        res.setHeader("X-Robots-Tag", "noindex, nofollow");
+        res.end();
+        return;
+      }
+    }
     res.statusCode = 503;
     res.setHeader("Content-Type", "application/json; charset=utf-8");
     res.setHeader("Cache-Control", "no-store");
