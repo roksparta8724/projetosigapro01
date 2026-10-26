@@ -9,7 +9,7 @@ import { resolve } from "node:path";
 
 const port = 4387;
 const host = "127.0.0.1";
-const harnessName = ".sigapro-qa-original-browser-render.html";
+const harnessName = "qa-dam-original-browser-render.html";
 const htmlPath = resolve(harnessName);
 const page = `<!doctype html><html lang="pt-BR"><head><meta charset="UTF-8"></head>
 <body><output id="qa-result" data-state="pending">Iniciando renderer do DAM</output>
@@ -91,7 +91,11 @@ try {
   if(status==="TIMEOUT"){child.kill("SIGKILL");throw new Error("Chrome excedeu o tempo da renderização");}
   const result=stdout.match(/SIGAPRO_REAL_RENDER_(PASSED|FAILED):([^<]+)/);
   if(status!==0||!result||result[1]!=="PASSED")
-    throw new Error("Renderer real não passou: "+(result?.[0]||"sem resultado")+" "+browserError.slice(-1200));
+    throw new Error(
+      "Renderer real não passou: "+(result?.[0]||"sem resultado")+
+      " | Chrome DOM: "+stdout.slice(0,2200).replace(/\\s+/g," ")+
+      " | browser stderr: "+browserError.slice(-750)
+    );
   console.log("PASS: actual SIGAPRO HTML-to-canvas-to-jsPDF renderer generated valid QA PDF ("+result[2].trim()+" bytes)");
 }finally{
   if(vite)vite.kill("SIGTERM");
