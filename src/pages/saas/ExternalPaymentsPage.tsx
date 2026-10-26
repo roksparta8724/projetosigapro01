@@ -85,10 +85,17 @@ export function ExternalPaymentsPage() {
   const [qaCharges, setQaCharges] = useState<Record<string, MercadoPagoGuideCharge>>({});
   const [qaPixCharges, setQaPixCharges] = useState<Record<string,QaPixCharge>>({});
   const isolatedQaMode = import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true";
+  // A prévia remota do Vercel não possui a rota do emissor bancário isolado.
+  // Exibir a emissão lá causava 404 e sugeria falsamente que houve cobrança.
+  // O provedor de testes existe SOMENTE no Vite local isolado :8080/:8081.
+  const localQaBankIssuer = isolatedQaMode &&
+    typeof window !== "undefined" &&
+    ["localhost", "127.0.0.1"].includes(window.location.hostname) &&
+    ["8080", "8081"].includes(window.location.port);
   const activeTab = getExternalTabByPath(location.pathname);
 
   const issueSandboxBoleto = async (process: ProcessRecord, guide: PaymentGuideEntry) => {
-    if (!isolatedQaMode || !effectiveScopeId || busyGuideAction || guide.status === "compensada") return;
+    if (!localQaBankIssuer || !effectiveScopeId || busyGuideAction || guide.status === "compensada") return;
     const actionKey=`${process.id}:${guide.code}`;
     setBusyGuideAction({key:actionKey,action:"boleto"});
     setStatusGuideKey(actionKey);
@@ -115,7 +122,7 @@ export function ExternalPaymentsPage() {
   };
 
   const issueSandboxPix = async (process: ProcessRecord, guide: PaymentGuideEntry) => {
-    if (!isolatedQaMode || !effectiveScopeId || busyGuideAction || guide.status === "compensada") return;
+    if (!localQaBankIssuer || !effectiveScopeId || busyGuideAction || guide.status === "compensada") return;
     const actionKey=`${process.id}:${guide.code}`;
     setBusyGuideAction({key:actionKey,action:"pix"});
     setStatusGuideKey(actionKey);
@@ -497,8 +504,10 @@ export function ExternalPaymentsPage() {
 
         {import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true" ? (
           <div role="status" data-qa-payment-preview="true" className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm font-semibold leading-6 text-amber-950">
-            HOMOLOGAÇÃO SIGAPRO — Utilize "Emitir boleto de TESTE" e "Gerar PIX de TESTE" para obter exclusivamente dados de cobrança simulada do Mercado Pago; depois clique em "Visualizar guia".
-            NÃO PAGAR. Nenhum PIX estático da Prefeitura é usado. R2 oficial, cobranças reais e baixas automáticas permanecem desativados.
+            {localQaBankIssuer
+              ? 'HOMOLOGAÇÃO SIGAPRO — Emita exclusivamente boleto/PIX do Mercado Pago em TESTE e visualize a guia. NÃO PAGAR.'
+              : 'HOMOLOGAÇÃO SIGAPRO — Esta prévia remota permite somente a visualização NÃO PAGÁVEL. A emissão bancária de teste requer o servidor local isolado e não está disponível neste endereço.'}
+            {" "}Nenhum PIX estático da Prefeitura é usado. R2 oficial, cobranças reais e baixas automáticas permanecem desativados.
           </div>
         ) : null}
         <InternalTabs
@@ -653,7 +662,7 @@ export function ExternalPaymentsPage() {
                                 Editar rascunho
                               </Link>
                             </Button>
-                            {isolatedQaMode && guide.status !== "compensada" ? (
+                            {localQaBankIssuer && guide.status !== "compensada" ? (
                               <Button
                                 type="button"
                                 variant="outline"
@@ -668,7 +677,7 @@ export function ExternalPaymentsPage() {
                                 Emitir boleto de TESTE
                               </Button>
                             ) : null}
-                            {isolatedQaMode && guide.status !== "compensada" ? (
+                            {localQaBankIssuer && guide.status !== "compensada" ? (
                               <Button
                                 type="button"
                                 variant="outline"
