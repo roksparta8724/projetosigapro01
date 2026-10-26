@@ -6,6 +6,11 @@ import {
   CircleDashed,
   FilePlus2,
   FileStack,
+  Building2,
+  MapPinned,
+  BadgeCheck,
+  ClipboardList,
+  Settings2,
   Landmark,
   Link2,
   Loader2,
@@ -45,10 +50,11 @@ import {
   getChecklistTemplate,
   isOccupancyPermitProcessType,
   matchesOperationalScope,
-  processTypeCatalog,
   workTypeCatalog,
 } from "@/lib/platform";
 import { externalTabs, getExternalTabByPath } from "@/lib/externalTabs";
+import { getMunicipalService, getMunicipalServicesForCategory,
+  municipalServiceCategories, type MunicipalServiceCategoryId } from "@/lib/municipalServiceCatalog";
 import {
   createDraftNumber,
   defaultProtocolDraftForm,
@@ -288,6 +294,7 @@ export function ProtocolarProjetoPage({
   const isResumingDraft = Boolean(resumeDraftNumber || remotePreProtocolNumber);
   const remoteHydratedRef = useRef("");
   const [remoteDraftLoading, setRemoteDraftLoading] = useState(false);
+  const [categoryChoice, setCategoryChoice] = useState<MunicipalServiceCategoryId | "">("");
   const [sourceProcessId, setSourceProcessId] = useState("");
   const [sourceProcessLoading, setSourceProcessLoading] = useState(false);
   const [sourcePermitLabel, setSourcePermitLabel] = useState("");
@@ -636,10 +643,9 @@ export function ProtocolarProjetoPage({
     ? (form.modalidadeHabiteSe === "parcial" ? "Carta de Habite-se Parcial" : "Habite-se")
     : form.tipo;
 
-  const standardProcessTypes = useMemo(
-    () => processTypeCatalog.filter((type) => !isOccupancyPermitProcessType(type)),
-    [],
-  );
+  const currentService = getMunicipalService(form.tipo);
+  const selectedCategoryId = currentService?.categoryId ?? categoryChoice;
+  const categoryServices = getMunicipalServicesForCategory(selectedCategoryId);
 
   const checklistTemplate = useMemo(
     () => getChecklistTemplate(effectiveProcessType, effectiveScopeId),
@@ -687,6 +693,28 @@ export function ProtocolarProjetoPage({
     () => Object.values(files).reduce((sum, current) => sum + current.length, 0),
     [files],
   );
+
+  const serviceSelectionLocked = Boolean(
+    remotePreProtocolNumber || submitting || savingDraft ||
+    hasPendingDocumentUpload || uploadedDocumentCount > 0
+  );
+
+  const selectProtocolService = (type: string) => {
+    if (serviceSelectionLocked || !getMunicipalService(type)) return;
+    setField("tipo", type);
+    setStatus("");
+  };
+
+  const selectProtocolCategory = (categoryId: MunicipalServiceCategoryId) => {
+    if (serviceSelectionLocked) return;
+    const category = municipalServiceCategories.find((entry) => entry.id === categoryId);
+    if (!category?.available) return;
+    setCategoryChoice(categoryId);
+    if (currentService && currentService.categoryId !== categoryId) {
+      setField("tipo", "");
+      setStatus("Selecione o serviço da nova categoria para carregar o checklist correspondente.");
+    }
+  };
 
   const requiredDocuments = useMemo(
     () => documentItems.filter((item) => item.required),
@@ -1152,6 +1180,11 @@ export function ProtocolarProjetoPage({
       return;
     }
 
+    if (!isHabiteSeMode && !remotePreProtocolNumber && !form.tipo.trim()) {
+      setStatus("Selecione a categoria e o serviço municipal antes de protocolar.");
+      return;
+    }
+
     if (!isHabiteSeMode && isOccupancyPermitProcessType(form.tipo)) {
       setStatus(
         "Habite-se é um protocolo independente. Use a opção Solicitar Habite-se para abrir esse serviço corretamente.",
@@ -1533,6 +1566,79 @@ export function ProtocolarProjetoPage({
             ))}
           </PageStatsRow>
 
+          {!isHabiteSeMode ? (
+            <SectionCard
+              title="1. Serviço municipal"
+              description="Primeiro escolha a categoria e o serviço. O SIGAPRO preserva os checklists, a cobrança e as etapas do tipo selecionado."
+              icon={ClipboardList}
+              contentClassName="space-y-5"
+            >
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3" data-service-category-catalog="true">
+                {municipalServiceCategories.map((category) => {
+                  const selected = selectedCategoryId === category.id;
+                  const Icon = category.id === "projetos_alvaras" ? Building2
+                    : category.id === "parcelamento_urbanizacao" ? MapPinned
+                    : category.id === "certidoes_consultas" ? BadgeCheck
+                    : category.id === "fiscalizacao" ? ClipboardList : Settings2;
+                  return (
+                    <button
+                      key={category.id}
+                      type="button"
+                      data-service-category={category.id}
+                      aria-pressed={selected}
+                      disabled={!category.available || serviceSelectionLocked}
+                      onClick={() => selectProtocolCategory(category.id)}
+                      className={`flex min-h-[122px] flex-col items-start gap-2 rounded-2xl border p-4 text-left transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500 disabled:cursor-not-allowed ${selected
+                        ? "border-sky-500 bg-sky-50 shadow-[0_10px_24px_rgba(14,116,144,0.08)] dark:border-sky-400 dark:bg-sky-400/10"
+                        : "border-slate-200 bg-white hover:border-sky-300 dark:border-white/15 dark:bg-slate-900/60 dark:hover:border-sky-400/40"
+                      } ${!category.available ? "opacity-65" : "disabled:opacity-75"}`}
+                    >
+                      <span className="flex w-full items-center justify-between gap-2">
+                        <Icon className={`h-5 w-5 ${selected ? "text-sky-700 dark:text-sky-300" : "text-slate-500 dark:text-slate-300"}`} />
+                        {!category.available
+                          ? <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-600 dark:bg-white/10 dark:text-slate-300">Em preparação</span>
+                          : selected ? <CheckCircle2 className="h-4 w-4 text-sky-700 dark:text-sky-300" /> : null}
+                      </span>
+                      <span className="text-sm font-bold leading-5 text-slate-950 dark:text-white">{category.label}</span>
+                      <span className="text-xs leading-5 text-slate-600 dark:text-slate-300">{category.description}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="sigapro-municipal-service">Serviço / atividade municipal *</Label>
+                  <Select
+                    value={currentService?.type ?? ""}
+                    onValueChange={selectProtocolService}
+                    disabled={!selectedCategoryId || serviceSelectionLocked || categoryServices.length === 0}
+                  >
+                    <SelectTrigger id="sigapro-municipal-service" className="h-12 rounded-xl bg-white text-left dark:bg-slate-950">
+                      <SelectValue placeholder="Selecione o serviço da categoria" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categoryServices.map((service) => (
+                        <SelectItem key={service.id} value={service.type}>{service.type}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-center rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm leading-6 text-slate-700 dark:border-white/10 dark:bg-white/[0.04] dark:text-slate-200">
+                  {currentService
+                    ? "Serviço definido. Os documentos exigidos seguem o checklist municipal deste tipo."
+                    : form.tipo
+                      ? "Tipo preservado de um rascunho anterior, sem conversão automática."
+                      : "Escolha a categoria. Serviços em preparação não geram protocolo nem cobrança."}
+                </div>
+              </div>
+              {serviceSelectionLocked ? (
+                <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-medium leading-5 text-amber-900 dark:border-amber-500/20 dark:bg-amber-400/10 dark:text-amber-200">
+                  A troca de serviço fica protegida após anexos ou pré-protocolo. Abra um novo rascunho para outro serviço; os arquivos e pagamentos existentes permanecem preservados.
+                </p>
+              ) : null}
+            </SectionCard>
+          ) : null}
+
           <SectionCard
             title="Resumo do protocolo"
             description="Visão consolidada do que será protocolado antes do envio final."
@@ -1762,12 +1868,13 @@ export function ProtocolarProjetoPage({
                   </>
                 ) : (
                   <>
-                    <Input list="sigapro-process-types" value={form.tipo} onChange={(event) => setField("tipo", event.target.value)} />
-                    <datalist id="sigapro-process-types">
-                      {standardProcessTypes.map((type) => (
-                        <option key={type} value={type} />
-                      ))}
-                    </datalist>
+                    <Input
+                      value={form.tipo}
+                      readOnly
+                      placeholder="Escolha a categoria e o serviço acima"
+                      className="bg-slate-50 font-semibold dark:bg-slate-900"
+                      aria-label="Tipo do processo escolhido no catálogo municipal"
+                    />
                   </>
                 )}
               </div>
