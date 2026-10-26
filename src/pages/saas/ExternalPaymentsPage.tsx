@@ -15,6 +15,7 @@ import { PortalFrame } from "@/components/platform/PortalFrame";
 import {
   type GuiaRecolhimentoOficialProps,
   openGuiaRecolhimentoOficialWindow,
+  reserveGuiaRecolhimentoOficialWindow,
 } from "@/components/GuiaRecolhimentoOficial";
 import { SectionPanel } from "@/components/platform/SectionPanel";
 import { externalTabs, getExternalTabByPath } from "@/lib/externalTabs";
@@ -35,7 +36,9 @@ import {
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
-import { prepareGuideInstitutionalLogo } from "@/lib/guideAssets";
+import { getRenderedMunicipalityLogoDataUrl, prepareGuideInstitutionalLogo } from "@/lib/guideAssets";
+import { useInstitutionBranding } from "@/hooks/useInstitutionBranding";
+import { getMunicipalityLogoOpenUrl } from "@/integrations/r2/client";
 import { ensureMercadoPagoGuideCharge, requestQaPixCharge, type QaPixCharge, type MercadoPagoGuideCharge } from "@/lib/mercadoPagoGuide";
 import { normalizeOfficialBanking } from "@/lib/bankCodes";
 import { resolveGuideBankingData } from "@/lib/paymentCollection";
@@ -63,9 +66,10 @@ export function ExternalPaymentsPage() {
     getInstitutionSettings,
     refreshRemoteStore,
   } = usePlatformData();
-  const { municipality, scopeId, institutionSettingsCompat } = useMunicipality();
+  const { municipality, branding: municipalityBranding, scopeId, institutionSettingsCompat } = useMunicipality();
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
   const tenantSettings = institutionSettingsCompat ?? getInstitutionSettings(effectiveScopeId);
+  const { headerBranding } = useInstitutionBranding(effectiveScopeId);
 
   const processes = getVisibleProcessesByScope(session, effectiveScopeId, allProcesses);
   const [search, setSearch] = useState("");
@@ -159,6 +163,13 @@ export function ExternalPaymentsPage() {
   ) => {
     if (!effectiveScopeId || busyGuideAction) return;
 
+    // Reserve the new tab synchronously inside the user's click. A later
+    // window.open() after provider/branding awaits is blocked by browsers.
+    const reservedGuideWindow = reserveGuiaRecolhimentoOficialWindow(`Guia ${guide.code}`);
+    if (!reservedGuideWindow) {
+      setGuideActionStatus("O navegador bloqueou a guia. Habilite pop-ups do SIGAPRO e tente novamente.");
+      return;
+    }
     const actionKey=`${process.id}:${guide.code}`;
     setBusyGuideAction({key:actionKey,action:"guide"});
     setStatusGuideKey(actionKey);
@@ -216,9 +227,21 @@ export function ExternalPaymentsPage() {
           if (result.ok) sandboxPix=result;
         } catch { /* The boleto PDF must stay available when PIX is unavailable. */ }
       }
+      // Use the same municipality-specific official logo sources as the
+      // internal guide. Legacy tenantSettings.logoUrl alone is often empty.
+      const stableMunicipalLogoUrl = getMunicipalityLogoOpenUrl(
+        municipalityBranding?.headerLogoObjectKey ||
+        municipalityBranding?.logoObjectKey ||
+        "",
+      );
       const logoUrl = await prepareGuideInstitutionalLogo(
-        tenantSettings?.logoUrl,
+        stableMunicipalLogoUrl,
+        headerBranding.logoUrl,
+        headerBranding.fallbackLogoUrl,
+        tenantSettings?.headerLogoUrl,
         tenantSettings?.brasaoUrl,
+        tenantSettings?.logoUrl,
+        getRenderedMunicipalityLogoDataUrl(),
       );
 
       const issuedAt = guide.issuedAt || new Date().toISOString();
@@ -310,7 +333,7 @@ export function ExternalPaymentsPage() {
       const opened = openGuiaRecolhimentoOficialWindow(guideDocument, {
         title: isolatedQa ? (sandboxIssued ? `BOLETO DE TESTE — NÃO PAGAR · ${guide.code}` : `PRÉVIA NÃO PAGÁVEL · ${guide.code}`) : `Guia ${guide.code}`,
         autoPrint: false,
-      });
+      }, reservedGuideWindow);
 
       if (!opened) {
         throw new Error(
@@ -318,6 +341,8 @@ export function ExternalPaymentsPage() {
         );
       }
     } catch (error) {
+      // Do not strand a blank/preview tab when provider or logo preparation fails.
+      if (!reservedGuideWindow.closed) reservedGuideWindow.close();
       setGuideActionStatus(
         error instanceof Error
           ? error.message
