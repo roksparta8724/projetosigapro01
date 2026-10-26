@@ -70,7 +70,7 @@ describe("municipal bank and payment guide flow", () => {
     expect(processDetail).not.toContain("000201|");
     expect(processDetail).not.toContain("function buildProtocolGuideHtml");
     expect(finance).toContain("bankStatus: providerCharge?.status");
-    expect(processDetail).toContain("bankStatus: providerCharge?.status");
+    expect(processDetail).toContain('bankStatus: isolatedQa && !verifiedQaBoleto ? undefined : providerCharge?.status');
     expect(finance).not.toContain("PIX|");
   });
 
