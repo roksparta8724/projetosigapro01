@@ -34,6 +34,7 @@ export type GuideOriginal = {
   digitable_line?: string;
   pix_code?: string;
   provider_environment?: "test" | "production";
+  payment_provider?: string | null;
   bank_reference?: string;
   bank_payment_id?: string;
   bank_status?: string;
