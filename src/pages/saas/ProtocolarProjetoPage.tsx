@@ -202,6 +202,7 @@ export function ProtocolarProjetoPage({
 } = {}) {
   const navigate = useNavigate();
   const location = useLocation();
+  const isCounterProtocol = location.pathname.startsWith("/prefeitura/protocolos/novo");
   const isHabiteSeMode = mode === "habite-se";
   const draftEntryMode: ProtocolDraftEntryMode = isHabiteSeMode
     ? "habite-se"
@@ -283,13 +284,13 @@ export function ProtocolarProjetoPage({
     tipo: isHabiteSeMode ? "Habite-se" : defaultProtocolDraftForm.tipo,
     tipoObra: isHabiteSeMode ? "Conclusão da obra" : defaultProtocolDraftForm.tipoObra,
     padraoConstrutivo: isHabiteSeMode ? "" : defaultProtocolDraftForm.padraoConstrutivo,
-    profissional: profileFullName || session.name,
-    profissionalDocumento: profile?.cpfCnpj || "",
-    tipoProfissional: profile?.professionalType || "",
-    empresaProfissional: profile?.companyName || "",
-    registro: profileRegistrationNumber,
-    telefone: profilePhone,
-    email: profileEmail || session.email,
+    profissional: isCounterProtocol ? "" : profileFullName || session.name,
+    profissionalDocumento: isCounterProtocol ? "" : profile?.cpfCnpj || "",
+    tipoProfissional: isCounterProtocol ? "" : profile?.professionalType || "",
+    empresaProfissional: isCounterProtocol ? "" : profile?.companyName || "",
+    registro: isCounterProtocol ? "" : profileRegistrationNumber,
+    telefone: isCounterProtocol ? "" : profilePhone,
+    email: isCounterProtocol ? "" : profileEmail || session.email,
   });
   const searchParams = new URLSearchParams(location.search);
   const resumeDraftNumber = searchParams.get("rascunho");
@@ -401,46 +402,32 @@ export function ProtocolarProjetoPage({
               storedForm.proprietarioEmail || payload.ownerEmail || "",
             ),
             profissional: String(
-              storedForm.profissional ||
-                payload.technicalLead ||
-                profileFullName ||
-                session.name,
+              storedForm.profissional || payload.technicalLead ||
+                (isCounterProtocol ? "" : profileFullName || session.name),
             ),
             profissionalDocumento: String(
-              storedForm.profissionalDocumento ||
-                payload.professionalDocument ||
-                profile?.cpfCnpj ||
-                "",
+              storedForm.profissionalDocumento || payload.professionalDocument ||
+                (isCounterProtocol ? "" : profile?.cpfCnpj || ""),
             ),
             tipoProfissional: String(
-              storedForm.tipoProfissional ||
-                payload.professionalType ||
-                profile?.professionalType ||
-                "",
+              storedForm.tipoProfissional || payload.professionalType ||
+                (isCounterProtocol ? "" : profile?.professionalType || ""),
             ),
             empresaProfissional: String(
-              storedForm.empresaProfissional ||
-                payload.professionalCompany ||
-                profile?.companyName ||
-                "",
+              storedForm.empresaProfissional || payload.professionalCompany ||
+                (isCounterProtocol ? "" : profile?.companyName || ""),
             ),
             registro: String(
-              storedForm.registro ||
-                payload.professionalRegistration ||
-                profileRegistrationNumber ||
-                "",
+              storedForm.registro || payload.professionalRegistration ||
+                (isCounterProtocol ? "" : profileRegistrationNumber),
             ),
             telefone: String(
-              storedForm.telefone ||
-                payload.professionalPhone ||
-                profilePhone ||
-                "",
+              storedForm.telefone || payload.professionalPhone ||
+                (isCounterProtocol ? "" : profilePhone),
             ),
             email: String(
-              storedForm.email ||
-                payload.professionalEmail ||
-                profileEmail ||
-                session.email,
+              storedForm.email || payload.professionalEmail ||
+                (isCounterProtocol ? "" : profileEmail || session.email),
             ),
           });
 
@@ -554,13 +541,13 @@ export function ProtocolarProjetoPage({
         tipoObra: isHabiteSeMode ? "Conclusão da obra" : draft.form.tipoObra,
         padraoConstrutivo: isHabiteSeMode ? "" : draft.form.padraoConstrutivo,
         modalidadeHabiteSe: draft.form.modalidadeHabiteSe || "integral",
-        profissional: draft.form.profissional || profileFullName || session.name,
-        profissionalDocumento: draft.form.profissionalDocumento || profile?.cpfCnpj || "",
-        tipoProfissional: draft.form.tipoProfissional || profile?.professionalType || "",
-        empresaProfissional: draft.form.empresaProfissional || profile?.companyName || "",
-        registro: draft.form.registro || profileRegistrationNumber,
-        telefone: draft.form.telefone || profilePhone,
-        email: draft.form.email || profileEmail || session.email,
+        profissional: draft.form.profissional || (isCounterProtocol ? "" : profileFullName || session.name),
+        profissionalDocumento: draft.form.profissionalDocumento || (isCounterProtocol ? "" : profile?.cpfCnpj || ""),
+        tipoProfissional: draft.form.tipoProfissional || (isCounterProtocol ? "" : profile?.professionalType || ""),
+        empresaProfissional: draft.form.empresaProfissional || (isCounterProtocol ? "" : profile?.companyName || ""),
+        registro: draft.form.registro || (isCounterProtocol ? "" : profileRegistrationNumber),
+        telefone: draft.form.telefone || (isCounterProtocol ? "" : profilePhone),
+        email: draft.form.email || (isCounterProtocol ? "" : profileEmail || session.email),
       });
 
       // Renderiza primeiro a estrutura já persistida, sem esperar URLs
@@ -592,10 +579,10 @@ export function ProtocolarProjetoPage({
       tipo: isHabiteSeMode ? "Habite-se" : defaultProtocolDraftForm.tipo,
       tipoObra: isHabiteSeMode ? "Conclusão da obra" : defaultProtocolDraftForm.tipoObra,
       padraoConstrutivo: isHabiteSeMode ? "" : defaultProtocolDraftForm.padraoConstrutivo,
-      profissional: profileFullName || session.name,
-      registro: profileRegistrationNumber,
-      telefone: profilePhone,
-      email: profileEmail || session.email,
+      profissional: isCounterProtocol ? "" : profileFullName || session.name,
+      registro: isCounterProtocol ? "" : profileRegistrationNumber,
+      telefone: isCounterProtocol ? "" : profilePhone,
+      email: isCounterProtocol ? "" : profileEmail || session.email,
     });
     setStatus(
       resumeDraftNumber
@@ -608,6 +595,7 @@ export function ProtocolarProjetoPage({
     };
   }, [
     effectiveScopeId,
+    isCounterProtocol,
     remotePreProtocolNumber,
     resumeDraftNumber,
     session.id,
@@ -617,9 +605,11 @@ export function ProtocolarProjetoPage({
     navigate,
   ]);
 
-  // Dados do perfil podem chegar depois do primeiro paint. Preenche apenas
-  // campos vazios; nunca reinicializa anexos nem o rascunho já em edição.
+  // No atendimento em balcão, o perfil pertence ao servidor que autenticou
+  // o registro, e nunca ao profissional responsável técnico pela obra.
+  // O profissional externo mantém o preenchimento automático já existente.
   useEffect(() => {
+    if (isCounterProtocol) return;
     setForm((current) => ({
       ...current,
       profissional: current.profissional || profileFullName || session.name,
@@ -631,6 +621,7 @@ export function ProtocolarProjetoPage({
       email: current.email || profileEmail || session.email,
     }));
   }, [
+    isCounterProtocol,
     profile?.companyName,
     profile?.cpfCnpj,
     profile?.professionalType,
@@ -1491,18 +1482,18 @@ export function ProtocolarProjetoPage({
 
     remoteDraftActionRef.current = "payment";
     navigate(
-      `/externo/pagamentos?preprotocolo=${encodeURIComponent(remoteSeed.preProtocol)}`,
+      isCounterProtocol ? "/prefeitura/protocolos" : `/externo/pagamentos?preprotocolo=${encodeURIComponent(remoteSeed.preProtocol)}`,
       { replace: true },
     );
   };
 
   return (
     <PortalFrame
-      eyebrow={isHabiteSeMode ? "Novo protocolo independente" : "Novo protocolo"}
+      eyebrow={isCounterProtocol ? "Atendimento presencial da Prefeitura" : isHabiteSeMode ? "Novo protocolo independente" : "Novo protocolo"}
       title={
         remotePreProtocolNumber
           ? (isHabiteSeMode ? "Editar rascunho do Habite-se" : "Editar rascunho do projeto")
-          : (isHabiteSeMode ? "Solicitar Habite-se" : "Protocolar projeto")
+          : (isCounterProtocol ? "Protocolar em balcão" : isHabiteSeMode ? "Solicitar Habite-se" : "Protocolar projeto")
       }
     >
       <PageShell>
@@ -1528,7 +1519,7 @@ export function ProtocolarProjetoPage({
                     : "Abra o Habite-se como um novo processo, separado da aprovação do projeto")
                 : (remotePreProtocolNumber
                     ? "Revise o rascunho antes do pagamento da guia inicial"
-                    : "Cadastre o projeto, envie os documentos e conclua o protocolo em uma única jornada")
+                    : isCounterProtocol ? "Registre o requerente e os dados do responsável técnico pela obra, anexe os documentos e gere o pré-protocolo assistido com rastreabilidade do servidor." : "Cadastre o projeto, envie os documentos e conclua o protocolo em uma única jornada")
             }
             description={
               isHabiteSeMode
@@ -1537,7 +1528,7 @@ export function ProtocolarProjetoPage({
                     : "Informe o processo de aprovação e o Alvará que deram origem à obra, anexe os documentos e gere o pré-protocolo com a guia inicial. O processo municipal e a numeração oficial só são criados após a confirmação do pagamento.")
                 : (remotePreProtocolNumber
                     ? "Esta abertura continua editável enquanto a guia estiver pendente. Nenhuma sequência oficial será consumida antes do pagamento."
-                    : "Preencha e confira seus dados, imóvel e documentos. O envio gera apenas o pré-protocolo e a guia inicial; o processo entra na Prefeitura somente depois da compensação do pagamento.")
+                    : isCounterProtocol ? "Atendimento presencial: identifique o profissional habilitado e o proprietário sem substituir a identidade do servidor. O pré-protocolo e a guia seguem as regras municipais de pagamento." : "Preencha e confira seus dados, imóvel e documentos. O envio gera apenas o pré-protocolo e a guia inicial; o processo entra na Prefeitura somente depois da compensação do pagamento.")
             }
             icon={FilePlus2}
             actions={
@@ -1546,7 +1537,7 @@ export function ProtocolarProjetoPage({
                   <ArrowLeft className="mr-2 h-4 w-4" />
                   Voltar
                 </Button>
-                <Button type="button" variant="outline" className="rounded-full" onClick={() => navigate("/externo/controle")}>
+                <Button type="button" variant="outline" className="rounded-full" onClick={() => navigate(isCounterProtocol ? "/prefeitura/protocolos" : "/externo/controle")}>
                   <LogOut className="mr-2 h-4 w-4" />
                   Sair do protocolo
                 </Button>
@@ -1671,8 +1662,10 @@ export function ProtocolarProjetoPage({
           </SectionCard>
 
           <SectionCard
-            title="Dados do profissional responsável"
-            description="Confira ou preencha os seus próprios dados. Eles identificam quem está protocolando e quem responde tecnicamente pelo projeto."
+            title={isCounterProtocol ? "Responsável técnico pelo projeto / obra" : "Dados do profissional responsável"}
+            description={isCounterProtocol
+              ? "Informe os dados do engenheiro, arquiteto ou técnico habilitado responsável pelo projeto ou obra. O servidor autenticado fica identificado separadamente no atendimento."
+              : "Confira ou preencha os seus próprios dados. Eles identificam quem está protocolando e quem responde tecnicamente pelo projeto."}
             icon={UserSquare2}
             contentClassName="grid gap-4 md:grid-cols-2 xl:grid-cols-3"
           >
@@ -1726,6 +1719,8 @@ export function ProtocolarProjetoPage({
           </SectionCard>
 
           <ProtocolTechnicalResponsibility
+            counterMode={isCounterProtocol}
+            clerkName={session.name}
             form={form}
             setField={setField}
             setToggle={(key,value)=>setForm((current)=>({...current,[key]:value}))}
@@ -2221,7 +2216,7 @@ export function ProtocolarProjetoPage({
                 type="button"
                 variant="outline"
                 className="rounded-full"
-                onClick={() => navigate("/externo/controle")}
+                onClick={() => navigate(isCounterProtocol ? "/prefeitura/protocolos" : "/externo/controle")}
                 disabled={savingDraft || submitting || hasPendingDocumentUpload}
               >
                 <LogOut className="mr-2 h-4 w-4" />

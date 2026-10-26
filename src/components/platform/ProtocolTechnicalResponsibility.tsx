@@ -10,6 +10,8 @@ interface Props {
   form: ProtocolDraftForm;
   setField: (key: keyof ProtocolDraftForm, value: string) => void;
   setToggle: (key: "execucaoMesmoResponsavel" | "protocolanteMesmoResponsavel", value: boolean) => void;
+  counterMode?: boolean;
+  clerkName?: string;
 }
 function ActivityChoice({value,onChange}:{value:string;onChange:(value:string)=>void}){
   return <Select value={value||""} onValueChange={onChange}>
@@ -26,7 +28,7 @@ function CouncilChoice({value,onChange}:{value:string;onChange:(value:string)=>v
     <SelectContent>{professionalCouncilOptions.map((entry)=><SelectItem key={entry.value} value={entry.value}>{entry.label}</SelectItem>)}</SelectContent>
   </Select>;
 }
-export function ProtocolTechnicalResponsibility({form,setField,setToggle}:Props) {
+export function ProtocolTechnicalResponsibility({form,setField,setToggle,counterMode=false,clerkName}:Props) {
   const projectCouncil=form.conselhoProfissional || inferProfessionalCouncil(form.tipoProfissional);
   const executionCouncil=form.execucaoMesmoResponsavel!==false ? projectCouncil : (form.execucaoConselho || inferProfessionalCouncil(form.execucaoTipoProfissional));
   return <SectionCard title="Responsabilidades técnicas e protocolo"
@@ -52,6 +54,14 @@ export function ProtocolTechnicalResponsibility({form,setField,setToggle}:Props)
       <div className="space-y-2"><Label>Telefone</Label><Input value={form.execucaoTelefone||""} onChange={e=>setField("execucaoTelefone",e.target.value)}/></div>
       <div className="space-y-2"><Label>E-mail</Label><Input type="email" value={form.execucaoEmail||""} onChange={e=>setField("execucaoEmail",e.target.value)}/></div>
     </div> : null}
+    {counterMode ? (
+      <div data-counter-clerk-identity="true" className="rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm leading-6 text-sky-950 dark:border-sky-400/20 dark:bg-sky-400/10 dark:text-sky-100">
+        <p className="font-bold">Atendimento presencial registrado pelo servidor</p>
+        <p>Servidor autenticado: {clerkName || "Identificado na sessão institucional"}</p>
+        <p className="text-xs">O servidor é o autor do registro no SIGAPRO. Os dados do profissional habilitado acima são independentes e não concedem acesso nem assinatura a terceiros.</p>
+      </div>
+    ) : (
+      <>
     <label className="flex items-start gap-3 border-t border-slate-200 pt-4 text-sm font-medium text-slate-800 dark:border-white/10 dark:text-slate-100">
       <input type="checkbox" checked={form.protocolanteMesmoResponsavel!==false} onChange={e=>setToggle("protocolanteMesmoResponsavel",e.target.checked)} className="mt-1 h-4 w-4 accent-sky-700" />
       O protocolante é o mesmo responsável técnico pelo projeto
@@ -66,6 +76,8 @@ export function ProtocolTechnicalResponsibility({form,setField,setToggle}:Props)
       <div className="space-y-2"><Label>Telefone</Label><Input value={form.protocolanteTelefone||""} onChange={e=>setField("protocolanteTelefone",e.target.value)}/></div>
       <div className="space-y-2"><Label>E-mail</Label><Input type="email" value={form.protocolanteEmail||""} onChange={e=>setField("protocolanteEmail",e.target.value)}/></div>
     </div> : null}
+      </>
+    )}
     <p className="text-xs leading-5 text-slate-600 dark:text-slate-300">
       Os dados técnicos acompanham o processo, mas não substituem a identidade autenticada, a validação das atribuições profissionais ou as assinaturas oficiais.
     </p>
