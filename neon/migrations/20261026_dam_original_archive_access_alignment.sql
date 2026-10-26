@@ -130,9 +130,18 @@ returns trigger language plpgsql set search_path = pg_catalog, public as $$ begi
   then raise exception 'Guia emitida possui original permanente e não pode ser excluída'; end if;
   return old;
 end $$;
-drop trigger if exists protect_dam_original_delete on public.payment_guides;
-create trigger protect_dam_original_delete before delete on public.payment_guides
-  for each row execute function public.protect_dam_original_delete_v1();
+-- Install the deletion guard without dropping/replacing existing triggers.
+do $sigapro_guard$
+begin
+  if not exists (
+    select 1 from pg_trigger
+    where tgrelid='public.payment_guides'::regclass
+      and tgname='protect_dam_original_delete' and not tgisinternal
+  ) then
+    create trigger protect_dam_original_delete before delete on public.payment_guides
+      for each row execute function public.protect_dam_original_delete_v1();
+  end if;
+end $sigapro_guard$;
 
 revoke all on function public.freeze_payment_guide_document_v1(uuid,text,jsonb) from public;
 
