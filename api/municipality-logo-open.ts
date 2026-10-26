@@ -72,7 +72,7 @@ export default async function handler(req: Req, res: Res) {
        process.env.VERCEL_GIT_COMMIT_REF === "qa/sigapro-ia-logo-integrado-20261023")) {
     if (req.method === "GET") {
       const qaUrl = new URL(req.url || "/api/municipality-logo-open", "https://sigapro.local");
-      const key = String(qaUrl.searchParams.get("objectKey") || "").trim().replace(/^\\/+/, "");
+      const key = String(qaUrl.searchParams.get("objectKey") || "").trim().replace(new RegExp("^/+"), "");
       const qaMunicipalBrandPath = "municipalities/49dac0b6-6352-4744-9aab-9ff91c59d970/branding/";
       if (key === qaMunicipalBrandPath + "header-logo.jpg" ||
           key === qaMunicipalBrandPath + "footer-logo.jpg") {
