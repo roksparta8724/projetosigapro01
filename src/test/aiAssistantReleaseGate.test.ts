@@ -4,7 +4,7 @@ import {callDataApiRpc} from "../../server/municipal-storage";
 vi.mock("../../server/municipal-storage",()=>({
   readEnv:(key:string)=>process.env[key]||"",
   readBearer:(req:{headers:{authorization?:string}})=>{
-    const match=/^Bearer\\s+(.+)$/i.exec(req.headers.authorization||"");
+    const match=/^Bearer\s+(.+)$/i.exec(req.headers.authorization||"");
     return match?.[1]||"";
   },
   callDataApiRpc:vi.fn(),
