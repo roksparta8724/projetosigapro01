@@ -7,7 +7,7 @@ const valid = Buffer.from("%PDF-1.4\n1 0 obj\n<<>>\nendobj\n%%EOF\n");
 const sha = createHash("sha256").update(valid).digest("hex");
 const key = `municipalities/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/processes/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/dam-originals/cccccccc-cccc-4ccc-8ccc-cccccccccccc/${sha}.pdf`;
 function mockStore(bytes: Uint8Array = valid, length: number | undefined = bytes.byteLength) {
-  const send = vi.fn(async () => ({
+  const send = vi.fn(async (_command: unknown) => ({
     ContentLength: length,
     Body: { transformToByteArray: async () => new Uint8Array(bytes) },
   }));
@@ -20,8 +20,8 @@ describe("immutable municipal DAM original: AWS conditional 412 handling", () =>
     await expect(verifyImmutableDamOriginalAlreadyStored(client, "process-documents", key))
       .resolves.toBeUndefined();
     expect(send).toHaveBeenCalledOnce();
-    expect(send.mock.calls[0][0].constructor.name).toBe("GetObjectCommand");
-    expect(send.mock.calls[0][0].input).toMatchObject({
+    expect((send.mock.calls[0][0] as { constructor: { name: string } }).constructor.name).toBe("GetObjectCommand");
+    expect((send.mock.calls[0][0] as { input: unknown }).input).toMatchObject({
       Bucket: "process-documents", Key: key,
     });
   });
