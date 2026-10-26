@@ -107,11 +107,26 @@ describe("SIGAPRO — boleto/PDF abre sem misturar municípios e versões", () =
   });
 
   it("closes the internal reserved tab when the boleto bank data cannot be confirmed", () => {
-    const guard = process.indexOf("if (!paidGuide && (!barcode || !digitableLine))");
+    const guard = process.indexOf("if (!isolatedQa && !paidGuide && (!barcode || !digitableLine))");
     const catchBranch = process.indexOf("reservedGuideWindow.close();", guard);
     expect(guard).toBeGreaterThan(0);
     expect(process.slice(guard, guard + 630)).toContain("throw new Error(");
     expect(catchBranch).toBeGreaterThan(guard);
+  });
+
+  it("internal QA renders explicit non-payable municipal preview without calling the production bank or R2", () => {
+    const section = process.slice(process.indexOf("const printGuide = async"), process.indexOf("const runProcessAction = async"));
+    expect(section).toContain('const isolatedQa = import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true";');
+    expect(section).toContain("const providerCharge = isolatedQa || (banking.barcode && banking.digitableLine) ? null");
+    expect(section).toContain('nonPayablePreview: isolatedQa && !(barcode && digitableLine)');
+    expect(section).toContain('pixPayload: isolatedQa ? ""');
+    expect(section).toContain("DOCUMENTO DE HOMOLOGAÇÃO — NÃO PAGAR.");
+    expect(section).toContain("if (isolatedQa) {");
+    const preview = section.lastIndexOf("openGuiaRecolhimentoOficialWindow(");
+    const archived = section.lastIndexOf("await archiveAndOpenGuide(");
+    expect(preview).toBeGreaterThan(0);
+    expect(archived).toBeGreaterThan(preview);
+    expect(section.slice(preview,archived)).toContain("return;");
   });
 
   it("never regenerates a paid original and does not require PIX for verified bank barcode", () => {
