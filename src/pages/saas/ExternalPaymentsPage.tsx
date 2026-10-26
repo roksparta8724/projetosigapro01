@@ -42,7 +42,7 @@ import { getMunicipalityLogoOpenUrl } from "@/integrations/r2/client";
 import { ensureMercadoPagoGuideCharge, requestQaPixCharge, type QaPixCharge, type MercadoPagoGuideCharge } from "@/lib/mercadoPagoGuide";
 import { normalizeOfficialBanking } from "@/lib/bankCodes";
 import { resolveGuideBankingData } from "@/lib/paymentCollection";
-import { archiveAndOpenGuide } from "@/lib/guideOriginal";
+import { archiveAndOpenGuide, openStoredGuide, readGuideOriginal, type GuideOriginal } from "@/lib/guideOriginal";
 
 const paymentStatusOptions = [
   { value: "todos", label: "Todos os status" },
@@ -177,6 +177,20 @@ export function ExternalPaymentsPage() {
     setGuideActionStatus("");
 
     try {
+      const isolatedQa = import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true";
+      // Stored PDF first, BEFORE requesting a new bank order or reading current
+      // editable branding. Reopening is read-only even when already paid.
+      let officialOriginal: GuideOriginal | null = null;
+      if (!isolatedQa) {
+        officialOriginal = await readGuideOriginal(effectiveScopeId, guide.code);
+        if (await openStoredGuide(officialOriginal, reservedGuideWindow)) return;
+        if (officialOriginal.status === "compensada") {
+          throw new Error("Guia paga sem PDF original arquivado. Não será reemitida.");
+        }
+        if (officialOriginal.collection_mode_snapshot === "municipal_system") {
+          throw new Error("Guia emitida pelo sistema próprio da Prefeitura: importe o documento original para visualização.");
+        }
+      }
       const banking = resolveGuideBankingData({
         settings: tenantSettings,
         guide,
@@ -187,7 +201,6 @@ export function ExternalPaymentsPage() {
       // QA has two states: an unissued NON-PAYABLE administrative preview or
       // a VERIFIED, provider-issued TEST boleto. Never infer issuance from the
       // saved bank/PIX configuration. Test orders are initiated via explicit CTA.
-      const isolatedQa = import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true";
       const tested = qaCharges[guide.code];
       const candidate = normalizeOfficialBanking(tested?.barcodeContent, tested?.digitableLine);
       const savedSandbox = Boolean(
@@ -199,8 +212,11 @@ export function ExternalPaymentsPage() {
         tested.environment === "test" && tested.orderId &&
         candidate.barcode && candidate.digitableLine);
       const sandboxIssued = savedSandbox || newlyIssued;
+      const canonicalPriorBanking = normalizeOfficialBanking(
+        officialOriginal?.barcode, officialOriginal?.digitable_line,
+      );
       const charge = isolatedQa ? (newlyIssued ? tested : null) :
-        (banking.barcode && banking.digitableLine)
+        (canonicalPriorBanking.barcode && canonicalPriorBanking.digitableLine)
           ? null
           : await ensureMercadoPagoGuideCharge({
               municipalityId: effectiveScopeId,
@@ -209,12 +225,21 @@ export function ExternalPaymentsPage() {
               dueDate: guide.dueDate,
               description: `${guide.label} · ${process.preProtocol || process.title}`,
             });
+      // A provider reply alone is not proof that the bill persisted in Neon.
+      // Re-read the same canonical guide after a new bank order and use only
+      // its saved barcode, dates, amount and reference to build the original.
+      const confirmedOriginal = !isolatedQa && charge
+        ? await readGuideOriginal(effectiveScopeId, guide.code)
+        : officialOriginal;
+      const confirmedBanking = normalizeOfficialBanking(
+        confirmedOriginal?.barcode, confirmedOriginal?.digitable_line,
+      );
       const barcode = isolatedQa
         ? (sandboxIssued ? (charge?.barcodeContent || banking.barcode) : "")
-        : (charge?.barcodeContent || banking.barcode);
+        : confirmedBanking.barcode;
       const digitableLine = isolatedQa
         ? (sandboxIssued ? (charge?.digitableLine || banking.digitableLine) : "")
-        : (charge?.digitableLine || banking.digitableLine);
+        : confirmedBanking.digitableLine;
       const previewOnly = isolatedQa && !sandboxIssued;
       if (!isolatedQa && (!barcode || !digitableLine)) {
         throw new Error("A cobrança ainda não retornou código de barras e linha digitável válidos.");
@@ -245,7 +270,9 @@ export function ExternalPaymentsPage() {
         getRenderedMunicipalityLogoDataUrl(),
       );
 
-      const issuedAt = guide.issuedAt || new Date().toISOString();
+      const issuedAt = confirmedOriginal?.created_at || guide.issuedAt || new Date().toISOString();
+      const originalAmount = confirmedOriginal ? Number(confirmedOriginal.amount) : guide.amount;
+      const originalDueDate = confirmedOriginal?.due_date || guide.dueDate;
       const year = new Date(issuedAt).getFullYear() || new Date().getFullYear();
 
       const guideDocument: GuiaRecolhimentoOficialProps = {
@@ -275,14 +302,14 @@ export function ExternalPaymentsPage() {
           nonPayablePreview: previewOnly,
           exercicio: year,
           dataDocumento: issuedAt,
-          vencimento: guide.dueDate,
+          vencimento: originalDueDate,
           observacao: getGuideObservation(guide.kind),
           proprietario: guide.ownerName || process.ownerName,
           profissionalResponsavel:
             guide.professionalName || process.technicalLead,
           codigoBarras: barcode,
           linhaDigitavel: digitableLine,
-          pixPayload: isolatedQa ? "" : banking.pixPayload,
+          pixPayload: isolatedQa ? "" : (isValidPixPayload(confirmedOriginal?.pix_code) ? confirmedOriginal!.pix_code : ""),
           qaSandboxPixPayload: isolatedQa && sandboxPix?.ok && sandboxPix.environment==="test"
             ? sandboxPix.qrCode || "" : "",
           bankName: isolatedQa
@@ -301,20 +328,20 @@ export function ExternalPaymentsPage() {
               ? "BOLETO DE HOMOLOGAÇÃO — dados fornecidos pelo Mercado Pago em ambiente de TESTE. NÃO EFETUAR PAGAMENTO."
               : "HOMOLOGAÇÃO SIGAPRO — DOCUMENTO NÃO PAGÁVEL. Nenhuma cobrança foi registrada no banco.")
             : banking.bankInstructions,
-          bankReference: previewOnly ? undefined : (charge?.orderId || guide.bankReference),
-          bankPaymentId: previewOnly ? undefined : (charge?.paymentId || guide.bankPaymentId),
-          bankStatus: previewOnly ? undefined : (charge?.status || guide.bankStatus),
-          bankStatusDetail: previewOnly ? undefined : (charge?.statusDetail || guide.bankStatusDetail),
-          bankAuthenticatedAt: previewOnly ? undefined : (charge?.authenticatedAt || guide.bankAuthenticatedAt),
-          bankEnvironment: isolatedQa ? "test" : (charge?.environment || guide.providerEnvironment),
+          bankReference: previewOnly ? undefined : (confirmedOriginal?.bank_reference || charge?.orderId || guide.bankReference),
+          bankPaymentId: previewOnly ? undefined : (confirmedOriginal?.bank_payment_id || charge?.paymentId || guide.bankPaymentId),
+          bankStatus: previewOnly ? undefined : (confirmedOriginal?.bank_status || charge?.status || guide.bankStatus),
+          bankStatusDetail: previewOnly ? undefined : (confirmedOriginal?.bank_status_detail || charge?.statusDetail || guide.bankStatusDetail),
+          bankAuthenticatedAt: previewOnly ? undefined : (confirmedOriginal?.bank_authenticated_at || charge?.authenticatedAt || guide.bankAuthenticatedAt),
+          bankEnvironment: isolatedQa ? "test" : (confirmedOriginal?.provider_environment || charge?.environment || guide.providerEnvironment),
           paymentProvider:
             guide.paymentProvider ||
             tenantSettings?.paymentProvider ||
             "mercado_pago",
-          valorDocumento: guide.amount,
+          valorDocumento: originalAmount,
           descontos: 0,
           outrosAcrescimos: 0,
-          valorCobrado: guide.amount,
+          valorCobrado: originalAmount,
           referencia: getGuideReference(guide.kind),
         },
         itens: [
@@ -322,11 +349,11 @@ export function ExternalPaymentsPage() {
             ano: year,
             divida: guide.label,
             tabela: tenantSettings?.guiaPrefixo || "DAM",
-            principal: guide.amount,
+            principal: originalAmount,
             multa: 0,
             juros: 0,
             correcao: 0,
-            total: guide.amount,
+            total: originalAmount,
           },
         ],
       };
