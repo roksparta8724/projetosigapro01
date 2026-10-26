@@ -30,6 +30,9 @@ beforeEach(()=>{
   vi.stubEnv("SIGAPRO_LOCAL_QA_LAUNCH","true");
   vi.stubEnv("SIGAPRO_LOCAL_QA_BLOCK_EXTERNAL_WRITES","true");
   vi.stubEnv("VITE_SIGAPRO_NEON_ISOLATED","true");
+  // Vitest uses jsdom for UI tests; its AbortSignal has no timeout helper.
+  // The HTTP calls are mocked here, so only a valid non-aborted signal is needed.
+  vi.stubGlobal("AbortSignal",{timeout:()=>new AbortController().signal});
   qr=buildPixPayload({
     key:"sandbox@example.test", merchantName:"MERCADO PAGO TESTE",
     merchantCity:"SAO PAULO",amount:35.24,txid:"QA-PIX-01",
