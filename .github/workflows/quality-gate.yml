@@ -27,6 +27,9 @@ jobs:
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
 
+      - name: Read-only production SQL inventory
+        run: node scripts/production-release-preflight.mjs
+
       - name: TypeScript
         run: npm run typecheck
 
