@@ -25,9 +25,12 @@ describe("Habite-se guide branding and status contrast", () => {
     expect(detail).toContain("prewarmTenantSettings?.brasaoUrl");
     expect(detail).toContain("const renderedGuideLogoUrl = getRenderedMunicipalityLogoDataUrl()");
     expect(detail).toContain("preparedGuideLogoUrl ||");
-    expect(detail).toContain("renderedGuideLogoUrl ||");
-    expect(detail).toContain("tenantSettings?.headerLogoUrl ||");
-    expect(detail).toContain("tenantSettings?.brasaoUrl ||");
+    expect(detail).toContain("const directGuideLogoFallback = renderedGuideLogoUrl;");
+    expect(detail).toContain('setPreparedGuideLogoUrl(embeddedLogo || "");');
+    // Bank guides may not fall back to a raw, unverified R2/QA URL in the
+    // printed artifact. Header/coat-of-arms URLs stay only as fetch candidates.
+    expect(detail).toContain("tenantSettings?.headerLogoUrl,");
+    expect(detail).toContain("tenantSettings?.brasaoUrl,");
     expect(detail).toContain("logoUrl: embeddedGuideLogoUrl");
     expect(detail).toContain("reserveGuiaRecolhimentoOficialWindow");
     expect(detail).toContain("await prepareGuideInstitutionalLogo(");
