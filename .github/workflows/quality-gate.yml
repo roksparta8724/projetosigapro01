@@ -66,7 +66,7 @@ jobs:
       # archival, not only Chrome's unrelated Print to PDF implementation.
       - name: Render actual SIGAPRO original PDF in Chrome
         if: github.event_name == 'pull_request' && github.head_ref == 'qa/sigapro-ia-logo-integrado-20261023'
-        run: node scripts/qa-dam-original-browser-render.mjs
+        run: timeout --signal=KILL 105s node scripts/qa-dam-original-browser-render.mjs
 
       - name: Keep isolated synthetic PDF for visual QA
         if: always() && github.event_name == 'pull_request' && github.head_ref == 'qa/sigapro-ia-logo-integrado-20261023'
