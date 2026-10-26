@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Blob as NodeBlob } from "node:buffer";
 import { webcrypto } from "node:crypto";
-import { archiveAndOpenGuide, openLegacyGuideOriginal, type GuideOriginal } from "./guideOriginal";
+import { archiveAndOpenGuide, hasVerifiableGuidePaymentData, openLegacyGuideOriginal, type GuideOriginal } from "./guideOriginal";
 import type { ProcessDocument } from "@/lib/platform";
 import { backendClient } from "@/integrations/backend/databaseClient";
 import { getSignedUrlForObjectStrict, uploadFile } from "@/integrations/r2/client";
@@ -69,6 +69,42 @@ describe("immutable DAM original", () => {
     await expect(archiveAndOpenGuide("m1", props, target)).rejects.toThrow("R2 unavailable");
     expect(backendClient.rpc).toHaveBeenCalledTimes(2);
     expect(target.location.replace).not.toHaveBeenCalled();
+  });
+  it("opens and archives a valid bank boleto without PIX, using the immutable Neon snapshot", async () => {
+    const barcode = "23791684000003000003388060601573644066333333";
+    const digitableLine = "23793388096060157364540663333335168400000300000";
+    const boletoProps = {
+      ...props,
+      guia: { ...props.guia, pixPayload: "", codigoBarras: barcode, linhaDigitavel: digitableLine },
+    } as GuiaRecolhimentoOficialProps;
+    expect(hasVerifiableGuidePaymentData(boletoProps)).toBe(true);
+    backendClient.rpc.mockResolvedValueOnce({ data: original })
+      .mockResolvedValueOnce({ data: { ...original, document_snapshot: boletoProps } })
+      .mockResolvedValueOnce({ data: { ...original, original_pdf_key: `municipalities/m1/processes/p1/dam-originals/g1/${storedSha}.pdf`, original_pdf_sha256: storedSha } });
+    await archiveAndOpenGuide("m1", boletoProps, target);
+    expect(renderGuideOriginalPdf).toHaveBeenCalledWith(boletoProps);
+    expect(uploadFile).toHaveBeenCalledTimes(1);
+    expect(target.location.replace).toHaveBeenCalledTimes(1);
+  });
+  it("never archives an incomplete boleto lacking both bank barcode and official PIX", async () => {
+    const invalid = {
+      ...props, guia: { ...props.guia, pixPayload: "", codigoBarras: "1".repeat(44),
+        linhaDigitavel: "2".repeat(47) },
+    } as GuiaRecolhimentoOficialProps;
+    expect(hasVerifiableGuidePaymentData(invalid)).toBe(false);
+    backendClient.rpc.mockResolvedValue({ data: original });
+    await expect(archiveAndOpenGuide("m1", invalid, target)).rejects.toThrow("sem boleto bancário válido");
+    expect(uploadFile).not.toHaveBeenCalled();
+    expect(renderGuideOriginalPdf).not.toHaveBeenCalled();
+  });
+  it("never turns a non-payable QA preview into an archived payable PDF", async () => {
+    const preview = {
+      ...props, guia: { ...props.guia, nonPayablePreview: true },
+    } as GuiaRecolhimentoOficialProps;
+    expect(hasVerifiableGuidePaymentData(preview)).toBe(false);
+    backendClient.rpc.mockResolvedValue({ data: original });
+    await expect(archiveAndOpenGuide("m1", preview, target)).rejects.toThrow("sem boleto bancário válido");
+    expect(uploadFile).not.toHaveBeenCalled();
   });
   it("fails closed if Neon or the signed original is unavailable", async () => {
     backendClient.rpc.mockResolvedValue({ error: { message: "Neon unavailable" } });
