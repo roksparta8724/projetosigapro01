@@ -58,8 +58,13 @@ describe("SIGAPRO premium workflow: stable process list and safe financial polli
       expect(section).toContain("current.process_id !== process.id");
       expect(section).toContain("current.municipality_id !== effectiveScopeId");
     }
-    expect(boleto.indexOf("current.bank_reference || current.original_pdf_key"))
+    expect(boleto.indexOf("if (current.original_pdf_key) {"))
       .toBeLessThan(boleto.indexOf("const charge = await ensureMercadoPagoGuideCharge"));
+    expect(boleto.indexOf("const existingOrder = Boolean(current.bank_reference)"))
+      .toBeLessThan(boleto.indexOf("const charge = await ensureMercadoPagoGuideCharge"));
+    expect(boleto).toContain("if (savedCodes.barcode && savedCodes.digitableLine)");
+    expect(boleto).toContain('current.payment_provider !== "mercado_pago"');
+    expect(boleto).toContain('current.provider_environment !== "test"');
     expect(boleto).toContain("nenhuma nova cobrança foi emitida");
     expect(pix.indexOf("if (isGuideSettled(current))")).toBeLessThan(
       pix.indexOf("result=await requestQaPixCharge("),

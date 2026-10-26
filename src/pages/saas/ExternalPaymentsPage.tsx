@@ -114,11 +114,28 @@ export function ExternalPaymentsPage() {
       if (isGuideSettled(current)) {
         throw new Error("Esta guia já foi paga. Abra o PDF original; uma nova cobrança não será criada.");
       }
-      if (current.bank_reference || current.original_pdf_key) {
+      if (current.original_pdf_key) {
         setGuideActionStatus(
-          "Esta guia já possui cobrança registrada no Neon. Abra a mesma guia para consultar o boleto original; nenhuma nova cobrança foi emitida. NÃO PAGAR.",
+          "PDF original desta guia já está arquivado no Neon. Abra a mesma guia; nenhum boleto novo será emitido. NÃO PAGAR.",
         );
         return;
+      }
+      const existingOrder = Boolean(current.bank_reference);
+      if (existingOrder) {
+        // The bank may create an order before returning its barcode. Never
+        // request a different order: the isolated server detects bank_reference
+        // and does ONLY a GET for that exact order, with the same guide/amount.
+        if (current.payment_provider !== "mercado_pago" ||
+            current.provider_environment !== "test") {
+          throw new Error("Há uma cobrança de outro provedor vinculada à guia. Consulte o Financeiro, sem emitir novamente.");
+        }
+        const savedCodes = normalizeOfficialBanking(current.barcode, current.digitable_line);
+        if (savedCodes.barcode && savedCodes.digitableLine) {
+          setGuideActionStatus(
+            "Boleto de TESTE já confirmado no Neon. Abra a guia para consultar e arquivar seu PDF; nenhuma nova cobrança foi emitida. NÃO PAGAR.",
+          );
+          return;
+        }
       }
       const charge = await ensureMercadoPagoGuideCharge({
         municipalityId: effectiveScopeId,
