@@ -10,7 +10,7 @@ describe("SIGAPRO — boleto/PDF abre sem misturar municípios e versões", () =
   it("reserva a aba sincronamente antes de consulta bancária/brasão assíncrona", () => {
     const section = external.slice(
       external.indexOf("const openExternalGuide = async"),
-      external.indexOf("const openExternalGuide = async") + 10500,
+      external.indexOf("  // Enquanto existe guia inicial pendente"),
     );
     const reserve = section.indexOf("const reservedGuideWindow = reserveGuiaRecolhimentoOficialWindow(");
     const provider = section.indexOf("resolveGuideBankingData(");
@@ -27,7 +27,8 @@ describe("SIGAPRO — boleto/PDF abre sem misturar municípios e versões", () =
       external.indexOf("const openExternalGuide = async"),
       external.indexOf("  // Enquanto existe guia inicial pendente"),
     );
-    expect(external).toContain('import { archiveAndOpenGuide } from "@/lib/guideOriginal";');
+    expect(external).toContain('from "@/lib/guideOriginal";');
+    expect(external).toContain("archiveAndOpenGuide, openStoredGuide, readGuideOriginal");
     expect(section).toContain("if (!isolatedQa) {");
     expect(section).toContain("await archiveAndOpenGuide(effectiveScopeId, guideDocument, reservedGuideWindow);");
     expect(section).toContain("return;");
