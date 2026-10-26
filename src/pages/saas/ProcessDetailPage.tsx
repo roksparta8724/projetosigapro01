@@ -2000,7 +2000,7 @@ export function ProcessDetailPage() {
       throw new Error(
         guidePreparationError
           ? `A guia não foi aberta porque os dados bancários ainda não estão válidos: ${guidePreparationError}`
-          : "O boleto ainda não possui código de barras e linha digitável confirmados. Não foi gerado um PDF pagável.",
+          : "A guia ainda está sendo preparada. Aguarde a conclusão dos dados bancários antes de abrir.",
       );
     }
 
