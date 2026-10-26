@@ -37,7 +37,7 @@ describe("live process identity and operational freshness", () => {
     expect(liveRefresh).toContain("document.visibilityState");
     expect(liveRefresh).toContain('window.addEventListener("focus"');
     expect(liveRefresh).toContain('document.addEventListener("visibilitychange"');
-    expect(processDetail).toContain("useLivePlatformRefresh(refreshCurrentProcessStore, { intervalMs: 1800 })");
+    expect(processDetail).toContain("useLivePlatformRefresh(refreshCurrentProcessStore, { intervalMs: 12000 })");
     expect(documentAnalysis).toContain("useLivePlatformRefresh(refreshRemoteStore, { intervalMs: 5000 })");
     expect(financeDesk).toContain("useLivePlatformRefresh(refreshRemoteStore, { intervalMs: 8000 })");
     expect(registry).toContain("useLivePlatformRefresh(refreshRemoteStore, { intervalMs: 8000, refreshOnMount: false })");
