@@ -51,7 +51,7 @@ describe("immutable guide originals: scope, database and R2 contract", () => {
     expect(migration).not.toContain("drop trigger if exists");
     expect(archival).toContain("await readGuideOriginal(municipalityId, code)");
     expect(archival).toContain("await openStoredGuide(original, target)");
-    expect(archival).toContain("if (original.status === \"compensada\")");
+    expect(archival).toContain("if (isGuideSettled(original))");
   });
 
   it("matches the same sha256-based original object path in SQL, upload, signed reading and the browser", () => {
