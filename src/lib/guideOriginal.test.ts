@@ -63,6 +63,50 @@ describe("immutable DAM original", () => {
     expect(getSignedUrlForObjectStrict).toHaveBeenCalledWith(expect.objectContaining({ objectKey: `municipalities/m1/processes/p1/dam-originals/g1/${storedSha}.pdf` }));
     expect(target.location.replace).toHaveBeenCalledTimes(1);
   });
+  it("archives a freshly issued PDF just once and reopens the byte-identical stored original after payment", async () => {
+    let stored: GuideOriginal = { ...original };
+    vi.mocked(backendClient.rpc).mockImplementation(async (name, args) => {
+      if (name === "get_payment_guide_original_v1") return { data: { ...stored } };
+      if (name === "freeze_payment_guide_document_v1") {
+        stored = { ...stored, document_snapshot: props };
+        return { data: { ...stored } };
+      }
+      if (name === "attach_payment_guide_original_v1") {
+        stored = {
+          ...stored,
+          original_pdf_key: String(args._object_key),
+          original_pdf_sha256: String(args._sha256),
+        };
+        return { data: { ...stored } };
+      }
+      throw new Error("Unexpected banking RPC: " + name);
+    });
+    await archiveAndOpenGuide("m1", props, target);
+    const originalPdfKey = stored.original_pdf_key;
+    const originalSha = stored.original_pdf_sha256;
+    expect(originalPdfKey).toMatch(/^municipalities\/m1\/processes\/p1\/dam-originals\/g1\/[a-f0-9]{64}\.pdf$/);
+    expect(originalSha).toMatch(/^[a-f0-9]{64}$/);
+    expect(uploadFile).toHaveBeenCalledTimes(1);
+    expect(renderGuideOriginalPdf).toHaveBeenCalledTimes(1);
+    stored = { ...stored, status: "compensada" };
+    const editedCurrentSettings = {
+      ...props, prefeitura: { nome: "PREFEITURA EDITADA DEPOIS" },
+      guia: { ...props.guia, valorDocumento: 999, dataDocumento: "2026-12-31" },
+    } as GuiaRecolhimentoOficialProps;
+    await archiveAndOpenGuide("m1", editedCurrentSettings, target);
+    expect(stored.original_pdf_key).toBe(originalPdfKey);
+    expect(stored.original_pdf_sha256).toBe(originalSha);
+    expect(uploadFile).toHaveBeenCalledTimes(1);
+    expect(renderGuideOriginalPdf).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(backendClient.rpc).mock.calls.map(([name]) => name)).toEqual([
+      "get_payment_guide_original_v1",
+      "freeze_payment_guide_document_v1",
+      "attach_payment_guide_original_v1",
+      "get_payment_guide_original_v1",
+    ]);
+    expect(target.location.replace).toHaveBeenCalledTimes(2);
+  });
+
   it("does not pretend the PDF is saved when upload fails", async () => {
     backendClient.rpc.mockResolvedValueOnce({ data: original }).mockResolvedValueOnce({ data: { ...original, document_snapshot: props } });
     vi.mocked(uploadFile).mockRejectedValue(new Error("R2 unavailable"));
