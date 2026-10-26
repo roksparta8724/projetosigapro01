@@ -43,6 +43,7 @@ import { ensureMercadoPagoGuideCharge, requestQaPixCharge, type QaPixCharge, typ
 import { normalizeOfficialBanking } from "@/lib/bankCodes";
 import { buildGuidePixPayload, resolveGuideBankingData } from "@/lib/paymentCollection";
 import { archiveAndOpenGuide, openLegacyGuideOriginal, openStoredGuide, readGuideOriginal, type GuideOriginal } from "@/lib/guideOriginal";
+import { verifyPersistedQaBoleto } from "@/lib/qaGuideBankConfirmation";
 
 const paymentStatusOptions = [
   { value: "todos", label: "Todos os status" },
@@ -111,30 +112,17 @@ export function ExternalPaymentsPage() {
       if (charge.environment !== "test" || !charge.orderId) {
         throw new Error("O provedor não confirmou uma order exclusiva do ambiente de testes.");
       }
-      // Do not acknowledge an issued order before the canonical Neon row
-      // confirms the exact same provider order, tenant, amount and bank fields.
-      // A gateway response alone cannot establish that the guide was saved.
+      // Verify the same order, municipality, process and canonical amount
+      // against Neon before announcing that a bank boleto was issued.
       const persisted = await readGuideOriginal(effectiveScopeId, guide.code);
-      const savedBanking = normalizeOfficialBanking(persisted.barcode, persisted.digitable_line);
-      const issuedBanking = normalizeOfficialBanking(charge.barcodeContent, charge.digitableLine);
-      if (
-        persisted.municipality_id !== effectiveScopeId ||
-        persisted.guide_number !== guide.code ||
-        persisted.provider_environment !== "test" ||
-        persisted.payment_provider !== "mercado_pago" ||
-        persisted.bank_reference !== charge.orderId ||
-        persisted.status === "compensada" ||
-        persisted.paid === true ||
-        !savedBanking.barcode || !savedBanking.digitableLine ||
-        savedBanking.barcode !== issuedBanking.barcode ||
-        savedBanking.digitableLine !== issuedBanking.digitableLine ||
-        !Number.isFinite(Number(persisted.amount)) ||
-        Number(persisted.amount).toFixed(2) !== Number(guide.amount).toFixed(2)
-      ) {
-        throw new Error(
-          "O Mercado Pago respondeu, mas o boleto ainda não foi confirmado com os mesmos dados no Neon QA. Consulte a guia antes de repetir a emissão.",
-        );
-      }
+      verifyPersistedQaBoleto({
+        original: persisted,
+        charge,
+        municipalityId: effectiveScopeId,
+        processId: process.id,
+        guideCode: guide.code,
+        amount: guide.amount,
+      });
       setQaCharges((prev) => ({ ...prev, [guide.code]: charge }));
       await refreshRemoteStore();
       setGuideActionStatus("Boleto de TESTE confirmado no Neon com referência bancária e valor corretos. Abra a guia para arquivar o PDF original. NÃO PAGAR.");
@@ -214,6 +202,11 @@ export function ExternalPaymentsPage() {
       let officialOriginal: GuideOriginal | null = null;
       if (!isolatedQa) {
         officialOriginal = await readGuideOriginal(effectiveScopeId, guide.code);
+        if (
+          officialOriginal.municipality_id !== effectiveScopeId ||
+          officialOriginal.process_id !== process.id ||
+          officialOriginal.guide_number !== guide.code
+        ) throw new Error("Guia oficial não corresponde ao processo e à Prefeitura selecionados.");
         if (await openStoredGuide(officialOriginal, reservedGuideWindow)) return;
         // External users may read an exact historical PDF linked to this process.
         // This fallback never overrides an existing SHA-256 original in Neon.
@@ -231,6 +224,11 @@ export function ExternalPaymentsPage() {
         // Never disguise a failed Neon read as an unissued/non-payable preview.
         // A missing or inaccessible canonical guide is a genuine blocking error.
         officialOriginal = await readGuideOriginal(effectiveScopeId, guide.code);
+        if (
+          officialOriginal.municipality_id !== effectiveScopeId ||
+          officialOriginal.process_id !== process.id ||
+          officialOriginal.guide_number !== guide.code
+        ) throw new Error("Guia QA não corresponde ao processo e à Prefeitura selecionados.");
         if (await openStoredGuide(officialOriginal, reservedGuideWindow)) return;
         if (officialOriginal.status === "compensada" || officialOriginal.paid === true) {
           throw new Error("Guia de teste compensada sem original; a guia não será reconstruída.");
