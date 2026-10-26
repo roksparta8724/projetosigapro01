@@ -102,6 +102,24 @@ export function ExternalPaymentsPage() {
     setStatusGuideKey(actionKey);
     setGuideActionStatus("");
     try {
+      // The UI may be stale after F5 or a payment webhook. Read the
+      // authenticated Neon guide BEFORE any issuer POST. An existing order
+      // is not an invitation to issue a second, potentially chargeable one.
+      const current = await readGuideOriginal(effectiveScopeId, guide.code);
+      if (current.municipality_id !== effectiveScopeId ||
+          current.process_id !== process.id ||
+          current.guide_number !== guide.code) {
+        throw new Error("A guia não pertence ao processo e à Prefeitura selecionados.");
+      }
+      if (isGuideSettled(current)) {
+        throw new Error("Esta guia já foi paga. Abra o PDF original; uma nova cobrança não será criada.");
+      }
+      if (current.bank_reference || current.original_pdf_key) {
+        setGuideActionStatus(
+          "Esta guia já possui cobrança registrada no Neon. Abra a mesma guia para consultar o boleto original; nenhuma nova cobrança foi emitida. NÃO PAGAR.",
+        );
+        return;
+      }
       const charge = await ensureMercadoPagoGuideCharge({
         municipalityId: effectiveScopeId,
         guideCode: guide.code,
@@ -150,6 +168,17 @@ export function ExternalPaymentsPage() {
     setStatusGuideKey(actionKey);
     setGuideActionStatus("");
     try {
+      // Do not create a PIX order for a paid or foreign process due to a
+      // stale external guide list. Distinct boleto/PIX media remain allowed.
+      const current = await readGuideOriginal(effectiveScopeId, guide.code);
+      if (current.municipality_id !== effectiveScopeId ||
+          current.process_id !== process.id ||
+          current.guide_number !== guide.code) {
+        throw new Error("A guia PIX não pertence ao processo e à Prefeitura selecionados.");
+      }
+      if (isGuideSettled(current)) {
+        throw new Error("Guia já paga: o PIX não será emitido novamente.");
+      }
       let result: QaPixCharge;
       try {
         result=await requestQaPixCharge({municipalityId:effectiveScopeId,guideCode:guide.code,action:"issue"});
