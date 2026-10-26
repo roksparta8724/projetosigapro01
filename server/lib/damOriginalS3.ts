@@ -13,9 +13,17 @@ export async function verifyImmutableDamOriginalAlreadyStored(
   client: S3Client,
   bucket: string,
   objectKey: string,
+  logicalOriginalKey: string = objectKey,
 ): Promise<void> {
-  const match = ORIGINAL_KEY.exec(objectKey);
-  if (!match || !bucket) {
+  // Municipal S3 may prepend a configured base path. Validate the canonical
+  // process/guide/SHA path separately from the physical bucket key, which
+  // must be exactly that canonical key or a base-path-prefixed version.
+  const match = ORIGINAL_KEY.exec(logicalOriginalKey);
+  if (
+    !match || !bucket ||
+    (objectKey !== logicalOriginalKey && !objectKey.endsWith("/" + logicalOriginalKey)) ||
+    objectKey.includes("..") || objectKey.includes("//") || objectKey.includes("\\")
+  ) {
     throw new Error("Referência permanente DAM inválida.");
   }
   const existing = await client.send(new GetObjectCommand({
