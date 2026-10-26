@@ -424,6 +424,7 @@ export function ProcessDetailPage() {
 
     let disposed = false;
     let inFlight = false;
+    let reportedSyncFailure = false;
 
     const syncExactProcess = async () => {
       if (
@@ -461,7 +462,17 @@ export function ProcessDetailPage() {
 
         const { data, error } = await query.limit(1);
 
-        if (error || disposed) return;
+        if (disposed) return;
+        if (error) {
+          // A failed poll is not an empty process. Keep the last verified
+          // process on screen and avoid unhandled errors and visual flashes.
+          if (!reportedSyncFailure) {
+            console.warn("[SIGAPRO][Processo] Sincronização temporariamente indisponível:", error);
+            reportedSyncFailure = true;
+          }
+          return;
+        }
+        reportedSyncFailure = false;
         const row = Array.isArray(data) ? data[0] : data;
         if (!row?.id) return;
 
@@ -520,6 +531,13 @@ export function ProcessDetailPage() {
           writeCachedProcessVisual(session.id, processId, patched);
           return patched;
         });
+      } catch (error) {
+        // No unhandled rejection from timers/focus listeners. A transient
+        // network failure must not reset the current process or its workflow.
+        if (!disposed && !reportedSyncFailure) {
+          console.warn("[SIGAPRO][Processo] Falha de rede ao sincronizar:", error);
+          reportedSyncFailure = true;
+        }
       } finally {
         inFlight = false;
       }
@@ -530,7 +548,9 @@ export function ProcessDetailPage() {
     };
 
     void syncExactProcess();
-    const timer = window.setInterval(() => void syncExactProcess(), 1500);
+    // Focus/visibility/data-changed events provide instant updates.
+    // A gentle fallback avoids hammering Neon with a request every 1.5 s.
+    const timer = window.setInterval(() => void syncExactProcess(), 6000);
     window.addEventListener("focus", syncExactProcess);
     window.addEventListener("pageshow", syncExactProcess);
     window.addEventListener("online", syncExactProcess);
