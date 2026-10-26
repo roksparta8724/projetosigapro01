@@ -42,7 +42,7 @@ import { getMunicipalityLogoOpenUrl } from "@/integrations/r2/client";
 import { ensureMercadoPagoGuideCharge, requestQaPixCharge, type QaPixCharge, type MercadoPagoGuideCharge } from "@/lib/mercadoPagoGuide";
 import { normalizeOfficialBanking } from "@/lib/bankCodes";
 import { buildGuidePixPayload, resolveGuideBankingData } from "@/lib/paymentCollection";
-import { archiveAndOpenGuide, openStoredGuide, readGuideOriginal, type GuideOriginal } from "@/lib/guideOriginal";
+import { archiveAndOpenGuide, openLegacyGuideOriginal, openStoredGuide, readGuideOriginal, type GuideOriginal } from "@/lib/guideOriginal";
 
 const paymentStatusOptions = [
   { value: "todos", label: "Todos os status" },
@@ -184,6 +184,9 @@ export function ExternalPaymentsPage() {
       if (!isolatedQa) {
         officialOriginal = await readGuideOriginal(effectiveScopeId, guide.code);
         if (await openStoredGuide(officialOriginal, reservedGuideWindow)) return;
+        // External users may read an exact historical PDF linked to this process.
+        // This fallback never overrides an existing SHA-256 original in Neon.
+        if (await openLegacyGuideOriginal(process.documents, officialOriginal.guide_number, reservedGuideWindow)) return;
         if (officialOriginal.status === "compensada") {
           throw new Error("Guia paga sem PDF original arquivado. Não será reemitida.");
         }
