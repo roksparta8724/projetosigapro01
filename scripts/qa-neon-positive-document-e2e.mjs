@@ -10,7 +10,9 @@
  * SIGAPRO_QA_TENANT_ID=<QA municipality UUID>
  * Optional: SIGAPRO_QA_OTHER_JWT=<different authenticated QA session>
  *
- * WARNING: A successful owner-prefix roundtrip does not validate the
+ * Exercises the same owner-folder layout as the real SIGAPRO protocol UI:
+ * municipalities/{tenant}/protocols/{authenticated_profile_id}/...
+ * WARNING: a successful owner-prefix roundtrip does not validate the
  * separately scoped process linkage or signed browser login.
  */
 import { createHash, randomUUID } from "node:crypto";
@@ -83,11 +85,10 @@ const uri=(action,key)=>QA_DOCUMENT_ENDPOINT+"/"+action+
 export async function runQaDocumentE2e(env=process.env,request=fetch,report=console.log) {
   const {tenant,token,subject,other}=validateQaDocumentE2eConfig(env);
   const unique=randomUUID();
-  const prefix="municipalities/"+tenant+"/protocols/"+subject+"/";
-  const documents=[
-    {key:prefix+"qa-e2e-"+unique+".pdf",data:minimalPdf(),mime:"application/pdf"},
-    {key:prefix+"qa-e2e-"+unique+".jpg",data:Buffer.from(JPEG_BASE64,"base64"),mime:"image/jpeg"},
-  ];
+  // Populate only after the authenticated Data API resolves the real QA
+  // profile_id. SIGAPRO's actual uploadFileToStorage uses session.id (profile),
+  // not the JWT subject, for municipality/protocols/{profile}/ keys.
+  const documents=[];
   const uploaded=[],cleanupErrors=[];
   const send=async(action,method,jwt,body,contentType,key="")=>
     request(action==="list-user-files"?QA_DOCUMENT_ENDPOINT+"/list-user-files":uri(action,key),{
@@ -124,18 +125,25 @@ export async function runQaDocumentE2e(env=process.env,request=fetch,report=cons
     const resolved=typeof context?.tenant_id==="string"?context.tenant_id:
       typeof context?.municipality_id==="string"?context.municipality_id:"";
     if(!UUID.test(resolved))throw new Error("The QA session has no valid municipal affiliation.");
-    return resolved.toLowerCase();
+    const profile=typeof context?.profile_id==="string"?context.profile_id:"";
+    if(!UUID.test(profile))throw new Error("The QA session has no valid municipal profile ID.");
+    return {tenant:resolved.toLowerCase(),profile:profile.toLowerCase()};
   };
   let primaryError;
   try {
-    const actual=await currentQaTenant(token);
-    if(actual!==tenant.toLowerCase())
+    const owner=await currentQaTenant(token);
+    if(owner.tenant!==tenant.toLowerCase())
       throw new Error("Primary QA user does not belong to the specified test municipality.");
     if(other){
       const secondary=await currentQaTenant(other);
-      if(secondary===actual)
+      if(secondary.tenant===owner.tenant)
         throw new Error("The second QA user must belong to a different verified municipality.");
     }
+    const prefix="municipalities/"+owner.tenant+"/protocols/"+owner.profile+"/";
+    documents.push(
+      {key:prefix+"qa-e2e-"+unique+".pdf",data:minimalPdf(),mime:"application/pdf"},
+      {key:prefix+"qa-e2e-"+unique+".jpg",data:Buffer.from(JPEG_BASE64,"base64"),mime:"image/jpeg"},
+    );
     for(const doc of documents) {
       // A request can time out *after* Neon has already committed the PUT.
       // Register this unique synthetic key BEFORE sending; cleanup will
