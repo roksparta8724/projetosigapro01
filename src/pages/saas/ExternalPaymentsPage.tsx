@@ -41,7 +41,7 @@ import { useInstitutionBranding } from "@/hooks/useInstitutionBranding";
 import { getMunicipalityLogoOpenUrl } from "@/integrations/r2/client";
 import { ensureMercadoPagoGuideCharge, requestQaPixCharge, type QaPixCharge, type MercadoPagoGuideCharge } from "@/lib/mercadoPagoGuide";
 import { normalizeOfficialBanking } from "@/lib/bankCodes";
-import { resolveGuideBankingData } from "@/lib/paymentCollection";
+import { buildGuidePixPayload, resolveGuideBankingData } from "@/lib/paymentCollection";
 import { archiveAndOpenGuide, openStoredGuide, readGuideOriginal, type GuideOriginal } from "@/lib/guideOriginal";
 
 const paymentStatusOptions = [
@@ -273,6 +273,20 @@ export function ExternalPaymentsPage() {
       const issuedAt = confirmedOriginal?.created_at || guide.issuedAt || new Date().toISOString();
       const originalAmount = confirmedOriginal ? Number(confirmedOriginal.amount) : guide.amount;
       const originalDueDate = confirmedOriginal?.due_date || guide.dueDate;
+      // Any municipal PIX complement must use the already saved original
+      // amount and code, never an out-of-date list entry after a refresh.
+      const originalPixPayload = !isolatedQa
+        ? buildGuidePixPayload({
+            settings: tenantSettings,
+            guide: {
+              code: confirmedOriginal?.guide_number || guide.code,
+              amount: originalAmount,
+              pixPayload: confirmedOriginal?.pix_code || "",
+            },
+            municipalityName: municipality?.name,
+            municipalityCity: municipality?.city,
+          })
+        : "";
       const year = new Date(issuedAt).getFullYear() || new Date().getFullYear();
 
       const guideDocument: GuiaRecolhimentoOficialProps = {
@@ -309,7 +323,7 @@ export function ExternalPaymentsPage() {
             guide.professionalName || process.technicalLead,
           codigoBarras: barcode,
           linhaDigitavel: digitableLine,
-          pixPayload: isolatedQa ? "" : (isValidPixPayload(confirmedOriginal?.pix_code) ? confirmedOriginal!.pix_code : ""),
+          pixPayload: originalPixPayload,
           qaSandboxPixPayload: isolatedQa && sandboxPix?.ok && sandboxPix.environment==="test"
             ? sandboxPix.qrCode || "" : "",
           bankName: isolatedQa
