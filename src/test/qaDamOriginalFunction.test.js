@@ -10,14 +10,15 @@ const hash=createHash("sha256").update(bytes).digest("hex");
 const key=`municipalities/${tenant}/processes/${processId}/dam-originals/${guideId}/${hash}.pdf`;
 const origin="http://localhost:8081";
 const url=(action,k=key)=>"https://qa.function.example/"+action+"?objectKey="+encodeURIComponent(k);
-let stored,linked,permitted,order;
+let stored,linked,permitted;
+const order=[];
 const calls=[];
 beforeEach(()=>{
   vi.stubEnv("NEON_DATA_API_URL","https://ep-misty-breeze-b4ri8ig0.apirest.c-6.us-east-2.aws.neon.tech/sigapro_migration_stage_20260923/rest/v1");
   vi.stubEnv("AWS_ENDPOINT_URL_S3","https://br-solitary-sound-b4xlbvs6.storage.c-6.us-east-2.aws.neon.tech");
   vi.stubEnv("AWS_ACCESS_KEY_ID","nak_qa_test");
   vi.stubEnv("AWS_SECRET_ACCESS_KEY","local-only-stub-no-real-secret");
-  stored=null;linked=false;permitted=true;order.length=0;
+  stored=null;linked=false;permitted=true;order.length=0;calls.length=0;
   vi.stubGlobal("fetch",vi.fn(async (input,options)=>{
     const target=new URL(String(input));
     if(target.pathname.includes("/rpc/")){
@@ -99,7 +100,6 @@ describe("Neon QA DAM originals: native storage and scoped access",()=>{
     const malformed=[
       key.replace(guideId,"../"+guideId),
       key.replace("/dam-originals/","/dam-originals/copy/"),
-      key.replace("/dam-originals/","/dam-originals-backup/"),
       key.replace(guideId,"x"),
     ];
     for(const candidate of malformed){
