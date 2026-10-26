@@ -94,4 +94,26 @@ await probe("invalid recovery process rejected before storage", "/list-user-file
   method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer synthetic-qa-negative-test"},
   body:JSON.stringify({processId:"not-a-uuid"}),
 },400);
+// The deployed QA Function must accept only the exact immutable original
+// pathname and ONLY an authentic Neon session authorized for that guide.
+// These checks deliberately contain no real token or storage writes.
+const damKey="municipalities/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/processes/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/dam-originals/cccccccc-cccc-4ccc-8ccc-cccccccccccc/"+("a".repeat(64))+".pdf";
+await probe("DAM original requires JWT", "/upload?objectKey="+encodeURIComponent(damKey),{
+  method:"POST",headers:{"Content-Type":"application/pdf",Origin:previewOrigin},
+},401);
+for(const [action,method] of [["upload","POST"],["read","GET"],["object","DELETE"]]){
+  await probe("DAM "+action+" rejects forged Neon session",
+    "/"+action+"?objectKey="+encodeURIComponent(damKey),{
+      method,headers:{Authorization:"Bearer intentionally-fake-qa-token",Origin:previewOrigin,
+        ...(method==="POST"?{"Content-Type":"application/pdf"}:{})},
+      ...(method==="POST"?{body:"%PDF-FAKE-QA-ONLY"}:{}),
+    },403);
+}
+await probe("DAM original only accepts guide/SHA-specific path", "/upload?objectKey="+
+  encodeURIComponent(damKey.replace("/dam-originals/","/dam-originals/fake/")),{
+    method:"POST",headers:{Authorization:"Bearer intentionally-fake-qa-token",Origin:previewOrigin,
+      "Content-Type":"application/pdf"},
+    body:"%PDF-FAKE-QA-ONLY",
+  },400);
+
 console.log("SIGAPRO QA Neon Function live negative smoke checks passed.");
