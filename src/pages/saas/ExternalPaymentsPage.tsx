@@ -124,8 +124,18 @@ export function ExternalPaymentsPage() {
         amount: guide.amount,
       });
       setQaCharges((prev) => ({ ...prev, [guide.code]: charge }));
-      await refreshRemoteStore();
-      setGuideActionStatus("Boleto de TESTE confirmado no Neon com referência bancária e valor corretos. Abra a guia para arquivar o PDF original. NÃO PAGAR.");
+      // A post-issuance list refresh can fail independently of a payment
+      // order that was already confirmed in Neon. Never portray that failure
+      // as a failed issuance, which would encourage an unsafe second POST.
+      let listRefreshFailed = false;
+      try {
+        await refreshRemoteStore();
+      } catch {
+        listRefreshFailed = true;
+      }
+      setGuideActionStatus(listRefreshFailed
+        ? "Boleto de TESTE já confirmado e salvo no Neon. A lista não atualizou; atualize a página para visualizar o mesmo boleto, sem emitir novamente. NÃO PAGAR."
+        : "Boleto de TESTE confirmado no Neon com referência bancária e valor corretos. Abra a guia para arquivar o PDF original. NÃO PAGAR.");
     } catch (error) {
       setGuideActionStatus(error instanceof Error ? error.message : "Erro na emissão bancária de homologação.");
     } finally {
