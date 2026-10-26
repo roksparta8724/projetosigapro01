@@ -1370,6 +1370,10 @@ function getStyles() {
     }
 
     @media print {
+      @page {
+        size: A4 portrait;
+        margin: 0;
+      }
       html, body {
         width: 210mm;
         min-height: 297mm;
