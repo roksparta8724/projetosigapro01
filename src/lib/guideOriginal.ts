@@ -26,6 +26,7 @@ export type GuideOriginal = {
   process_id: string;
   guide_number: string;
   status: string;
+  paid?: boolean;
   collection_mode_snapshot?: "sigapro" | "municipal_system" | null;
   amount: number;
   created_at: string;
