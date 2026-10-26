@@ -43,12 +43,23 @@ try {
     },
     itens:[{ano:2026,divida:"Simulação de taxa — NÃO PAGAR",principal:35.24,total:35.24}],
   };
+  // Renderer runs after the iframe and fonts load; timeout must be explicit,
+  // not inferred from Chrome's early DOM snapshot of a pending operation.
+  const timeoutId=setTimeout(()=>{
+    if(output.dataset.state==="pending"){
+      const frame=document.querySelector("iframe");
+      const images=frame?.contentDocument?.images?.length??0;
+      output.dataset.state="failed";
+      output.textContent="SIGAPRO_REAL_RENDER_FAILED:real PDF not ready after 80000ms (frame="+Boolean(frame)+",images="+images+")";
+    }
+  },80000);
   const pdf=await renderGuideOriginalPdf(props);
   if(!(pdf instanceof Blob)||pdf.type!=="application/pdf")
     throw new Error("Renderizador não retornou Blob PDF");
   const bytes=new Uint8Array(await pdf.arrayBuffer());
   if(bytes.byteLength<3000 || String.fromCharCode(...bytes.slice(0,5))!=="%PDF-")
     throw new Error("PDF do SIGAPRO vazio ou corrompido");
+  clearTimeout(timeoutId);
   output.dataset.state="passed";
   output.textContent="SIGAPRO_REAL_RENDER_PASSED:"+bytes.byteLength;
 }catch(error){
@@ -79,14 +90,14 @@ try {
   const child=spawn(chrome,[
     "--headless","--no-sandbox","--disable-gpu","--disable-dev-shm-usage",
     "--disable-background-networking","--no-first-run",
-    "--virtual-time-budget=26000","--dump-dom",base+"/"+harnessName,
+    "--virtual-time-budget=100000","--dump-dom",base+"/"+harnessName,
   ],{stdio:["ignore","pipe","pipe"]});
   let stdout="",browserError="";
   child.stdout.on("data",d=>{stdout+=d.toString();if(stdout.length>1e6)stdout=stdout.slice(-1e6);});
   child.stderr.on("data",d=>{browserError=(browserError+d.toString()).slice(-2500);});
   const status=await Promise.race([
     new Promise(resolve=>child.once("exit",code=>resolve(code))),
-    new Promise(resolve=>setTimeout(()=>resolve("TIMEOUT"),65000)),
+    new Promise(resolve=>setTimeout(()=>resolve("TIMEOUT"),115000)),
   ]);
   if(status==="TIMEOUT"){child.kill("SIGKILL");throw new Error("Chrome excedeu o tempo da renderização");}
   const result=stdout.match(/SIGAPRO_REAL_RENDER_(PASSED|FAILED):([^<]+)/);
