@@ -19,11 +19,11 @@ describe("SIGAPRO QA original PDF, not just a temporary bank HTML preview", () =
     expect(flow.indexOf("await ensureMercadoPagoGuideCharge(")).toBeGreaterThan(open);
   });
   it("revalidates the sandbox bank reference, environment and canonical barcode from Neon", () => {
-    expect(flow).toContain('officialOriginal.provider_environment === "test"');
+    expect(flow).toContain('officialOriginal?.provider_environment === "test"');
     expect(flow).toContain("tested.orderId === officialOriginal?.bank_reference");
     expect(flow).toContain("const sandboxIssued = Boolean(");
     expect(flow).toContain("savedSandbox && officialOriginal");
-    expect(flow).toContain("officialOriginal.paid !== true");
+    expect(flow).toContain("!isGuideSettled(officialOriginal)");
     expect(flow).not.toContain("readGuideOriginal(effectiveScopeId, guide.code).catch(() => null)");
     expect(flow).toContain("sandboxIssued ? confirmedBanking.barcode :");
     expect(flow).toContain("sandboxIssued ? confirmedBanking.digitableLine :");
