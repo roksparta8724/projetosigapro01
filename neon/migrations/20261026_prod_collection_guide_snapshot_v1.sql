@@ -16,9 +16,9 @@ RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = pg_catalog, public SET row_security = off AS $function$
 DECLARE active_config public.municipal_collection_configurations%ROWTYPE;
 BEGIN
-  -- A supplied canonical snapshot is not silently replaced at INSERT.
-  IF NEW.collection_configuration_id IS NOT NULL OR NEW.collection_mode_snapshot IS NOT NULL
-  THEN RETURN NEW; END IF;
+  -- Never trust caller-supplied billing mode for a NEW guide.
+  -- Always use the active municipality configuration, just like the QA
+  -- branch function. Historical guides are untouched (INSERT trigger only).
   SELECT * INTO active_config
     FROM public.municipal_collection_configurations
     WHERE municipality_id = NEW.municipality_id AND status = 'active'
@@ -30,6 +30,13 @@ BEGIN
     NEW.collection_configuration_version := active_config.version;
     NEW.collection_capabilities_snapshot := active_config.capabilities;
     NEW.collection_public_parameters_snapshot := active_config.public_parameters;
+  ELSIF NEW.collection_configuration_id IS NOT NULL
+      OR NEW.collection_mode_snapshot IS NOT NULL
+      OR NEW.collection_provider_snapshot IS NOT NULL
+      OR NEW.collection_configuration_version IS NOT NULL
+      OR NEW.collection_capabilities_snapshot IS NOT NULL
+      OR NEW.collection_public_parameters_snapshot IS NOT NULL THEN
+    RAISE EXCEPTION 'Sem configuração municipal ativa: modo e provedor não podem ser definidos pelo solicitante';
   END IF;
   RETURN NEW;
 END $function$;

@@ -15,6 +15,14 @@ describe("production candidate: preserve historical collections and prevent para
     expect(snapshots).toContain("BEFORE INSERT ON public.payment_guides");
     expect(snapshots).toContain("NEW.collection_mode_snapshot := active_config.mode");
     expect(snapshots).toContain("NEW.collection_configuration_version := active_config.version");
+    // A caller cannot forge SIGAPRO mode for a Prefeitura with a
+    // municipal_system config, nor invent a mode without active config.
+    expect(snapshots).not.toContain("IF NEW.collection_configuration_id IS NOT NULL OR NEW.collection_mode_snapshot IS NOT NULL\\n  THEN RETURN NEW");
+    expect(snapshots).toContain("Never trust caller-supplied billing mode");
+    expect(snapshots).toContain("ELSIF NEW.collection_configuration_id IS NOT NULL");
+    expect(snapshots).toContain("NEW.collection_mode_snapshot := active_config.mode");
+    expect(snapshots).toContain("RAISE EXCEPTION 'Sem configuração municipal ativa");
+
     expect(snapshots).not.toMatch(/\bUPDATE\s+public\.payment_guides\b/i);
     expect(snapshots).not.toMatch(/\bDELETE\s+FROM\s+public\.payment_guides\b/i);
     expect(snapshots).not.toMatch(/\bTRUNCATE\b/i);
