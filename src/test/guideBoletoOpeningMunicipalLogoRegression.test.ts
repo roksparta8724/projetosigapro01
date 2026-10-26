@@ -118,9 +118,14 @@ describe("SIGAPRO — boleto/PDF abre sem misturar municípios e versões", () =
     const section = process.slice(process.indexOf("const printGuide = async"), process.indexOf("const runProcessAction = async"));
     expect(section).toContain('const isolatedQa = import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true";');
     expect(section).toContain("const providerCharge = isolatedQa || (banking.barcode && banking.digitableLine) ? null");
-    expect(section).toContain('nonPayablePreview: isolatedQa && !(barcode && digitableLine)');
+    expect(section).toContain('nonPayablePreview: isolatedQa && !verifiedQaBoleto');
     expect(section).toContain('pixPayload: isolatedQa ? ""');
     expect(section).toContain("DOCUMENTO DE HOMOLOGAÇÃO — NÃO PAGAR.");
+    expect(section).toContain("verifiedQaBoleto ? qaCanonicalBanking.barcode :");
+    expect(section).toContain("verifiedQaBoleto ? qaCanonicalBanking.digitableLine :");
+    expect(section).toContain("original.provider_environment === \"test\"");
+    expect(section).toContain("original.payment_provider === \"mercado_pago\"");
+    expect(section).toContain("if (verifiedQaBoleto) {");
     expect(section).toContain("if (isolatedQa) {");
     const preview = section.lastIndexOf("openGuiaRecolhimentoOficialWindow(");
     const archived = section.lastIndexOf("await archiveAndOpenGuide(");
