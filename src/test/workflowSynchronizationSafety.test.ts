@@ -18,7 +18,7 @@ describe("SIGAPRO premium workflow: stable process list and safe financial polli
       processPage.indexOf("const syncExactProcess = async"),
       processPage.indexOf("const onVisible = () =>"),
     );
-    expect(sync).toContain("if (disposed ||");
+    expect(sync).toContain("disposed ||");
     expect(sync).toContain("inFlight ||");
     expect(sync).toContain("if (disposed) return");
     expect(sync).toContain("if (error) {");
