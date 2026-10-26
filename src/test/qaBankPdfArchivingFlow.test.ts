@@ -37,10 +37,12 @@ describe("SIGAPRO QA original PDF, not just a temporary bank HTML preview", () =
     );
     const readIndex = issue.indexOf("const persisted = await readGuideOriginal(effectiveScopeId, guide.code)");
     const verifyIndex = issue.indexOf("verifyPersistedQaBoleto({");
-    const successIndex = issue.indexOf('setGuideActionStatus("Boleto de TESTE confirmado');
+    const successIndex = issue.indexOf("setGuideActionStatus(listRefreshFailed");
     expect(readIndex).toBeGreaterThan(0);
     expect(verifyIndex).toBeGreaterThan(readIndex);
     expect(successIndex).toBeGreaterThan(verifyIndex);
+    expect(issue).toContain("await refreshRemoteStore();");
+    expect(issue).toContain("sem emitir novamente");
     expect(issue).toContain("processId: process.id");
     expect(issue).toContain("guideCode: guide.code");
     expect(flow).toContain("officialOriginal.process_id !== process.id");
