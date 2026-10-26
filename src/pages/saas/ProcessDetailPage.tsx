@@ -1866,6 +1866,15 @@ export function ProcessDetailPage() {
     }
     try {
     const original = await readGuideOriginal(effectiveScopeId, selectedGuide.code);
+    const isolatedQa = import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true";
+    const qaCanonicalBanking = normalizeOfficialBanking(original.barcode, original.digitable_line);
+    const verifiedQaBoleto = Boolean(
+      isolatedQa &&
+      original.provider_environment === "test" &&
+      original.payment_provider === "mercado_pago" &&
+      original.bank_reference &&
+      qaCanonicalBanking.barcode && qaCanonicalBanking.digitableLine
+    );
     // O original oficial persistido no Neon sempre prevalece sobre cópias
     // antigas anexadas ao processo. Nunca reconstruir nem substituir o PDF.
     if (await openStoredGuide(original, reservedGuideWindow)) return;
@@ -1885,6 +1894,9 @@ export function ProcessDetailPage() {
       bankPaymentId: original.bank_payment_id, bankStatus: original.bank_status,
       bankStatusDetail: original.bank_status_detail, bankAuthenticatedAt: original.bank_authenticated_at };
     if (original.document_snapshot) {
+      if (isolatedQa && !verifiedQaBoleto) {
+        throw new Error("Snapshot QA sem boleto do provedor confirmado no Neon; não será arquivado.");
+      }
       await archiveAndOpenGuide(effectiveScopeId, original.document_snapshot, reservedGuideWindow);
       return;
     }
@@ -1986,15 +1998,18 @@ export function ProcessDetailPage() {
       municipalityName: municipalityName || tenant?.name,
       municipalityCity: tenantSettings?.pixMerchantCity || tenant?.city,
     });
-    const isolatedQa = import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true";
     // A prévia remota NÃO tem endpoint de emissão bancária. Ela deve
     // apresentar apenas documento de teste, nunca tentar criar cobrança real.
     const providerCharge = isolatedQa || (banking.barcode && banking.digitableLine) ? null : await ensureMercadoPagoGuideCharge({
       municipalityId: effectiveScopeId, guideCode: selectedGuide.code, amount: selectedGuide.amount,
       dueDate: selectedGuide.dueDate, description: selectedGuide.label + " · " + process.protocol,
     });
-    const digitableLine = providerCharge?.digitableLine || banking.digitableLine;
-    const barcode = providerCharge?.barcodeContent || banking.barcode;
+    const digitableLine = isolatedQa
+      ? (verifiedQaBoleto ? qaCanonicalBanking.digitableLine : "")
+      : (providerCharge?.digitableLine || banking.digitableLine);
+    const barcode = isolatedQa
+      ? (verifiedQaBoleto ? qaCanonicalBanking.barcode : "")
+      : (providerCharge?.barcodeContent || banking.barcode);
 
     if (!isolatedQa && !paidGuide && (!barcode || !digitableLine)) {
       // The tab is already reserved for this user's click. Returning here
@@ -2060,7 +2075,7 @@ export function ProcessDetailPage() {
       guia: {
         numeroGuia: selectedGuide.code,
         // Uma guia QA ainda sem boleto não pode exibir dados pagáveis falsos.
-        nonPayablePreview: isolatedQa && !(barcode && digitableLine),
+        nonPayablePreview: isolatedQa && !verifiedQaBoleto,
         exercicio: year,
         dataDocumento: issuedAt,
         vencimento: selectedGuide.dueDate,
@@ -2096,7 +2111,7 @@ export function ProcessDetailPage() {
         bankAgency: [tenantSettings?.bankAgency, tenantSettings?.bankAgencyDigit].filter(Boolean).join("-"),
         bankAccount: [tenantSettings?.bankAccount, tenantSettings?.bankAccountDigit].filter(Boolean).join("-"),
         bankBeneficiary: tenantSettings?.beneficiarioArrecadacao || "",
-        bankEnvironment:
+        bankEnvironment: isolatedQa ? "test" :
           providerCharge?.environment || selectedGuide.providerEnvironment,
         bankAgreement: banking.bankAgreement,
         bankInstructions: isolatedQa
@@ -2104,9 +2119,9 @@ export function ProcessDetailPage() {
           : paidGuide
             ? [banking.bankInstructions, "PAGAMENTO JA COMPENSADO. NAO PAGAR NOVAMENTE."].filter(Boolean).join(" ")
             : banking.bankInstructions,
-        bankReference: providerCharge?.orderId || selectedGuide.bankReference,
-        bankPaymentId: providerCharge?.paymentId || selectedGuide.bankPaymentId,
-        bankStatus: providerCharge?.status || selectedGuide.bankStatus,
+        bankReference: isolatedQa && !verifiedQaBoleto ? undefined : providerCharge?.orderId || selectedGuide.bankReference,
+        bankPaymentId: isolatedQa && !verifiedQaBoleto ? undefined : providerCharge?.paymentId || selectedGuide.bankPaymentId,
+        bankStatus: isolatedQa && !verifiedQaBoleto ? undefined : providerCharge?.status || selectedGuide.bankStatus,
         bankStatusDetail:
           providerCharge?.statusDetail || selectedGuide.bankStatusDetail,
         bankAuthenticatedAt:
@@ -2128,6 +2143,10 @@ export function ProcessDetailPage() {
     };
 
     if (isolatedQa) {
+      if (verifiedQaBoleto) {
+        await archiveAndOpenGuide(effectiveScopeId, guideDocument, reservedGuideWindow);
+        return;
+      }
       const opened = openGuiaRecolhimentoOficialWindow(
         guideDocument,
         { title: `PRÉVIA QA — NÃO PAGAR · ${selectedGuide.code}`, autoPrint: false },
