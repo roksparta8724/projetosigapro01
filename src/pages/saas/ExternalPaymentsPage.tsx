@@ -42,7 +42,7 @@ import { getMunicipalityLogoOpenUrl } from "@/integrations/r2/client";
 import { ensureMercadoPagoGuideCharge, requestQaPixCharge, type QaPixCharge, type MercadoPagoGuideCharge } from "@/lib/mercadoPagoGuide";
 import { normalizeOfficialBanking } from "@/lib/bankCodes";
 import { buildGuidePixPayload, resolveGuideBankingData } from "@/lib/paymentCollection";
-import { archiveAndOpenGuide, openLegacyGuideOriginal, openStoredGuide, readGuideOriginal, type GuideOriginal } from "@/lib/guideOriginal";
+import { archiveAndOpenGuide, isGuideSettled, openLegacyGuideOriginal, openStoredGuide, readGuideOriginal, type GuideOriginal } from "@/lib/guideOriginal";
 import { verifyPersistedQaBoleto } from "@/lib/qaGuideBankConfirmation";
 
 const paymentStatusOptions = [
@@ -211,7 +211,7 @@ export function ExternalPaymentsPage() {
         // External users may read an exact historical PDF linked to this process.
         // This fallback never overrides an existing SHA-256 original in Neon.
         if (await openLegacyGuideOriginal(process.documents, officialOriginal.guide_number, reservedGuideWindow)) return;
-        if (officialOriginal.status === "compensada") {
+        if (isGuideSettled(officialOriginal)) {
           throw new Error("Guia paga sem PDF original arquivado. Não será reemitida.");
         }
         if (officialOriginal.collection_mode_snapshot === "municipal_system") {
@@ -230,7 +230,7 @@ export function ExternalPaymentsPage() {
           officialOriginal.guide_number !== guide.code
         ) throw new Error("Guia QA não corresponde ao processo e à Prefeitura selecionados.");
         if (await openStoredGuide(officialOriginal, reservedGuideWindow)) return;
-        if (officialOriginal.status === "compensada" || officialOriginal.paid === true) {
+        if (isGuideSettled(officialOriginal)) {
           throw new Error("Guia de teste compensada sem original; a guia não será reconstruída.");
         }
         if (officialOriginal.collection_mode_snapshot === "municipal_system") {
@@ -258,8 +258,7 @@ export function ExternalPaymentsPage() {
       // order held by Neon, including after F5 or from a different browser.
       const sandboxIssued = Boolean(
         savedSandbox && officialOriginal &&
-        officialOriginal.status !== "compensada" &&
-        officialOriginal.paid !== true,
+        !isGuideSettled(officialOriginal),
       );
       const newlyIssued = Boolean(
         sandboxIssued && tested?.ok &&
