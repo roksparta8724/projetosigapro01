@@ -26,6 +26,31 @@ describe("immutable municipal DAM original: AWS conditional 412 handling", () =>
     });
   });
 
+  it("accepts identical PDF in a municipal S3 bucket with configured base path", async () => {
+    const { client, send } = mockStore();
+    const physicalKey = "prefeitura-arquivos/urbanismo/" + key;
+    await expect(verifyImmutableDamOriginalAlreadyStored(
+      client, "municipal-documentos", physicalKey, key,
+    )).resolves.toBeUndefined();
+    expect((send.mock.calls[0][0] as { input: unknown }).input).toMatchObject({
+      Bucket: "municipal-documentos", Key: physicalKey,
+    });
+  });
+
+  it("rejects municipal prefixes or foreign logical keys that could swap a guide", async () => {
+    const { client, send } = mockStore();
+    for (const badKey of [
+      "prefeitura-arquivos/other-process/" + key.replace("/processes/", "/processes/../"),
+      "prefeitura-arquivos/" + key.replace("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "ffffffff-ffff-4fff-8fff-ffffffffffff"),
+      "prefix//" + key,
+    ]) {
+      await expect(verifyImmutableDamOriginalAlreadyStored(
+        client, "municipal-documentos", badKey, key,
+      )).rejects.toThrow("Referência permanente DAM inválida");
+    }
+    expect(send).not.toHaveBeenCalled();
+  });
+
   it("rejects conflicting content instead of incorrectly claiming an uploaded original", async () => {
     const { client } = mockStore(Buffer.from("%PDF-1.4\nTAMPERED\n%%EOF"));
     await expect(verifyImmutableDamOriginalAlreadyStored(client, "process-documents", key))
