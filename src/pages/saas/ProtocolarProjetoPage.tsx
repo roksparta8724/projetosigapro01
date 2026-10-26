@@ -20,7 +20,7 @@ import {
   UploadCloud,
   UserSquare2,
 } from "lucide-react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { FileDropZone, type UploadedFileItem } from "@/components/platform/FileDropZone";
 import { PageHero } from "@/components/platform/PageHero";
 import { PortalFrame } from "@/components/platform/PortalFrame";
@@ -54,6 +54,7 @@ import {
 } from "@/lib/platform";
 import { externalTabs, getExternalTabByPath } from "@/lib/externalTabs";
 import { ProtocolTechnicalResponsibility } from "@/components/platform/ProtocolTechnicalResponsibility";
+import { isolateCounterProfessionalDraft, isLicensedProfessionalActivity, shouldAutofillTechnicalLead } from "@/lib/counterProtocolProfessional";
 import { compatibleTechnicalDocumentLabel, inferProfessionalCouncil, professionalActivityOptions, professionalCouncilOptions, technicalResponsibilityLabel } from "@/lib/professionalResponsibility";
 import { getMunicipalService, getMunicipalServicesForCategory,
   municipalServiceCategories, type MunicipalServiceCategoryId } from "@/lib/municipalServiceCatalog";
@@ -209,6 +210,7 @@ export function ProtocolarProjetoPage({
     : "projeto";
   const draftStorageFolder = isHabiteSeMode ? "habite-se" : "protocolos";
   const { session } = usePlatformSession();
+  const autofillTechnicalLead = shouldAutofillTechnicalLead(session.role, isCounterProtocol);
   const planEntitlements = usePlanEntitlements();
   const { municipality, scopeId, institutionSettingsCompat } = useMunicipality();
   const { refreshRemoteStore, getInstitutionSettings, getUserProfile, appendProcessDocuments, processes } = usePlatformData();
@@ -218,6 +220,12 @@ export function ProtocolarProjetoPage({
   const profileRegistrationNumber = profile?.registrationNumber ?? "";
   const profilePhone = profile?.phone ?? "";
   const profileEmail = profile?.email ?? "";
+  const clerkIdentity = {
+    names: [session.name, profileFullName],
+    emails: [session.email, profileEmail],
+    documents: [profile?.cpfCnpj],
+    occupations: [session.title, profile?.professionalType],
+  };
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
   const tenantSettings = institutionSettingsCompat ?? getInstitutionSettings(effectiveScopeId);
   const scopedProcesses = useMemo(
@@ -284,13 +292,13 @@ export function ProtocolarProjetoPage({
     tipo: isHabiteSeMode ? "Habite-se" : defaultProtocolDraftForm.tipo,
     tipoObra: isHabiteSeMode ? "Conclusão da obra" : defaultProtocolDraftForm.tipoObra,
     padraoConstrutivo: isHabiteSeMode ? "" : defaultProtocolDraftForm.padraoConstrutivo,
-    profissional: isCounterProtocol ? "" : profileFullName || session.name,
-    profissionalDocumento: isCounterProtocol ? "" : profile?.cpfCnpj || "",
-    tipoProfissional: isCounterProtocol ? "" : profile?.professionalType || "",
-    empresaProfissional: isCounterProtocol ? "" : profile?.companyName || "",
-    registro: isCounterProtocol ? "" : profileRegistrationNumber,
-    telefone: isCounterProtocol ? "" : profilePhone,
-    email: isCounterProtocol ? "" : profileEmail || session.email,
+    profissional: !autofillTechnicalLead ? "" : profileFullName || session.name,
+    profissionalDocumento: !autofillTechnicalLead ? "" : profile?.cpfCnpj || "",
+    tipoProfissional: !autofillTechnicalLead ? "" : profile?.professionalType || "",
+    empresaProfissional: !autofillTechnicalLead ? "" : profile?.companyName || "",
+    registro: !autofillTechnicalLead ? "" : profileRegistrationNumber,
+    telefone: !autofillTechnicalLead ? "" : profilePhone,
+    email: !autofillTechnicalLead ? "" : profileEmail || session.email,
   });
   const searchParams = new URLSearchParams(location.search);
   const resumeDraftNumber = searchParams.get("rascunho");
@@ -353,7 +361,7 @@ export function ProtocolarProjetoPage({
               : {};
 
           setDraftNumber(remoteDraft.preProtocolNumber);
-          setForm({
+          setForm(isolateCounterProfessionalDraft({
             ...defaultProtocolDraftForm,
             ...storedForm,
             tipo: isHabiteSeMode
@@ -403,33 +411,33 @@ export function ProtocolarProjetoPage({
             ),
             profissional: String(
               storedForm.profissional || payload.technicalLead ||
-                (isCounterProtocol ? "" : profileFullName || session.name),
+                (!autofillTechnicalLead ? "" : profileFullName || session.name),
             ),
             profissionalDocumento: String(
               storedForm.profissionalDocumento || payload.professionalDocument ||
-                (isCounterProtocol ? "" : profile?.cpfCnpj || ""),
+                (!autofillTechnicalLead ? "" : profile?.cpfCnpj || ""),
             ),
             tipoProfissional: String(
               storedForm.tipoProfissional || payload.professionalType ||
-                (isCounterProtocol ? "" : profile?.professionalType || ""),
+                (!autofillTechnicalLead ? "" : profile?.professionalType || ""),
             ),
             empresaProfissional: String(
               storedForm.empresaProfissional || payload.professionalCompany ||
-                (isCounterProtocol ? "" : profile?.companyName || ""),
+                (!autofillTechnicalLead ? "" : profile?.companyName || ""),
             ),
             registro: String(
               storedForm.registro || payload.professionalRegistration ||
-                (isCounterProtocol ? "" : profileRegistrationNumber),
+                (!autofillTechnicalLead ? "" : profileRegistrationNumber),
             ),
             telefone: String(
               storedForm.telefone || payload.professionalPhone ||
-                (isCounterProtocol ? "" : profilePhone),
+                (!autofillTechnicalLead ? "" : profilePhone),
             ),
             email: String(
               storedForm.email || payload.professionalEmail ||
-                (isCounterProtocol ? "" : profileEmail || session.email),
+                (!autofillTechnicalLead ? "" : profileEmail || session.email),
             ),
-          });
+          }, clerkIdentity, isCounterProtocol));
 
           const payloadDocuments = Array.isArray(payload.documents)
             ? payload.documents
@@ -532,7 +540,7 @@ export function ProtocolarProjetoPage({
     if (draft) {
       setDraftNumber(draft.draftNumber);
       setStatus("");
-      setForm({
+      setForm(isolateCounterProfessionalDraft({
         ...defaultProtocolDraftForm,
         ...draft.form,
         tipo: isHabiteSeMode
@@ -541,14 +549,14 @@ export function ProtocolarProjetoPage({
         tipoObra: isHabiteSeMode ? "Conclusão da obra" : draft.form.tipoObra,
         padraoConstrutivo: isHabiteSeMode ? "" : draft.form.padraoConstrutivo,
         modalidadeHabiteSe: draft.form.modalidadeHabiteSe || "integral",
-        profissional: draft.form.profissional || (isCounterProtocol ? "" : profileFullName || session.name),
-        profissionalDocumento: draft.form.profissionalDocumento || (isCounterProtocol ? "" : profile?.cpfCnpj || ""),
-        tipoProfissional: draft.form.tipoProfissional || (isCounterProtocol ? "" : profile?.professionalType || ""),
-        empresaProfissional: draft.form.empresaProfissional || (isCounterProtocol ? "" : profile?.companyName || ""),
-        registro: draft.form.registro || (isCounterProtocol ? "" : profileRegistrationNumber),
-        telefone: draft.form.telefone || (isCounterProtocol ? "" : profilePhone),
-        email: draft.form.email || (isCounterProtocol ? "" : profileEmail || session.email),
-      });
+        profissional: draft.form.profissional || (!autofillTechnicalLead ? "" : profileFullName || session.name),
+        profissionalDocumento: draft.form.profissionalDocumento || (!autofillTechnicalLead ? "" : profile?.cpfCnpj || ""),
+        tipoProfissional: draft.form.tipoProfissional || (!autofillTechnicalLead ? "" : profile?.professionalType || ""),
+        empresaProfissional: draft.form.empresaProfissional || (!autofillTechnicalLead ? "" : profile?.companyName || ""),
+        registro: draft.form.registro || (!autofillTechnicalLead ? "" : profileRegistrationNumber),
+        telefone: draft.form.telefone || (!autofillTechnicalLead ? "" : profilePhone),
+        email: draft.form.email || (!autofillTechnicalLead ? "" : profileEmail || session.email),
+      }, clerkIdentity, isCounterProtocol));
 
       // Renderiza primeiro a estrutura já persistida, sem esperar URLs
       // assinadas. Depois só atualiza o src do preview dentro de uma área de
@@ -579,10 +587,10 @@ export function ProtocolarProjetoPage({
       tipo: isHabiteSeMode ? "Habite-se" : defaultProtocolDraftForm.tipo,
       tipoObra: isHabiteSeMode ? "Conclusão da obra" : defaultProtocolDraftForm.tipoObra,
       padraoConstrutivo: isHabiteSeMode ? "" : defaultProtocolDraftForm.padraoConstrutivo,
-      profissional: isCounterProtocol ? "" : profileFullName || session.name,
-      registro: isCounterProtocol ? "" : profileRegistrationNumber,
-      telefone: isCounterProtocol ? "" : profilePhone,
-      email: isCounterProtocol ? "" : profileEmail || session.email,
+      profissional: !autofillTechnicalLead ? "" : profileFullName || session.name,
+      registro: !autofillTechnicalLead ? "" : profileRegistrationNumber,
+      telefone: !autofillTechnicalLead ? "" : profilePhone,
+      email: !autofillTechnicalLead ? "" : profileEmail || session.email,
     });
     setStatus(
       resumeDraftNumber
@@ -596,6 +604,7 @@ export function ProtocolarProjetoPage({
   }, [
     effectiveScopeId,
     isCounterProtocol,
+    autofillTechnicalLead,
     remotePreProtocolNumber,
     resumeDraftNumber,
     session.id,
@@ -609,7 +618,7 @@ export function ProtocolarProjetoPage({
   // o registro, e nunca ao profissional responsável técnico pela obra.
   // O profissional externo mantém o preenchimento automático já existente.
   useEffect(() => {
-    if (isCounterProtocol) return;
+    if (!autofillTechnicalLead) return;
     setForm((current) => ({
       ...current,
       profissional: current.profissional || profileFullName || session.name,
@@ -621,7 +630,7 @@ export function ProtocolarProjetoPage({
       email: current.email || profileEmail || session.email,
     }));
   }, [
-    isCounterProtocol,
+    autofillTechnicalLead,
     profile?.companyName,
     profile?.cpfCnpj,
     profile?.professionalType,
@@ -1174,6 +1183,11 @@ export function ProtocolarProjetoPage({
       return;
     }
 
+    if (isCounterProtocol && !remotePreProtocolNumber &&
+        !isLicensedProfessionalActivity(form.tipoProfissional)) {
+      setStatus("Informe uma atividade técnica habilitada (engenheiro, arquiteto ou técnico). O cargo administrativo do servidor não substitui o responsável pela obra.");
+      return;
+    }
     if (!remotePreProtocolNumber && form.execucaoMesmoResponsavel === false &&
         (!form.execucaoNome.trim() || !form.execucaoDocumento.trim() ||
          !form.execucaoTipoProfissional.trim() || !form.execucaoRegistro.trim())) {
@@ -1660,6 +1674,21 @@ export function ProtocolarProjetoPage({
               <SoftInfoCard key={item.label} label={item.label} value={item.value} />
             ))}
           </SectionCard>
+
+          {isCounterProtocol ? (
+            <div role="note" data-counter-employee-profile="true"
+              className="flex flex-col gap-3 rounded-2xl border border-sky-200 bg-sky-50 p-4 shadow-sm dark:border-sky-400/25 dark:bg-sky-400/10 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0 space-y-1">
+                <p className="text-xs font-bold uppercase tracking-[0.12em] text-sky-800 dark:text-sky-200">Servidor que realiza o atendimento em balcão</p>
+                <p className="font-semibold text-slate-950 dark:text-white">{profileFullName || session.name} · {session.title || "Servidor municipal"}</p>
+                <p className="text-xs text-slate-700 dark:text-slate-200">{session.department || "Protocolo"} · Conta institucional autenticada</p>
+                <p className="text-xs text-slate-600 dark:text-slate-300">Os dados do servidor ficam no perfil funcional e não são copiados para o cadastro do responsável técnico.</p>
+              </div>
+              <Link to="/perfil" className="shrink-0 rounded-full border border-sky-300 bg-white px-4 py-2 text-xs font-semibold text-sky-900 hover:bg-sky-100 dark:border-sky-400/30 dark:bg-slate-900 dark:text-sky-100">
+                Meu perfil
+              </Link>
+            </div>
+          ) : null}
 
           <SectionCard
             title={isCounterProtocol ? "Responsável técnico pelo projeto / obra" : "Dados do profissional responsável"}

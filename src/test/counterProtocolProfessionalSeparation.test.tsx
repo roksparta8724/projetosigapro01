@@ -16,11 +16,13 @@ describe("SIGAPRO protocolar em balcão: identidade e responsável técnico sepa
   });
 
   it("never populates a fresh counter request with the municipal employee's profile", () => {
-    expect(page).toContain('profissional: isCounterProtocol ? "" : profileFullName || session.name');
-    expect(page).toContain('profissionalDocumento: isCounterProtocol ? "" : profile?.cpfCnpj || ""');
-    expect(page).toContain('email: isCounterProtocol ? "" : profileEmail || session.email');
-    expect(page).toContain('if (isCounterProtocol) return;');
-    expect(page).toContain('draft.form.profissional || (isCounterProtocol ? "" : profileFullName || session.name)');
+    expect(page).toContain('shouldAutofillTechnicalLead(session.role, isCounterProtocol)');
+    expect(page).toContain('profissional: !autofillTechnicalLead ? "" : profileFullName || session.name');
+    expect(page).toContain('profissionalDocumento: !autofillTechnicalLead ? "" : profile?.cpfCnpj || ""');
+    expect(page).toContain('email: !autofillTechnicalLead ? "" : profileEmail || session.email');
+    expect(page).toContain('if (!autofillTechnicalLead) return;');
+    expect(page).toContain('isolateCounterProfessionalDraft({');
+    expect(page).toContain('data-counter-employee-profile="true"');
     expect(page).toContain('storedForm.profissional || payload.technicalLead ||');
   });
 
