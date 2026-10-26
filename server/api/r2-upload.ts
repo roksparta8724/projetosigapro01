@@ -418,7 +418,7 @@ export default async function handler(req: Req, res: Res) {
       })).catch(async (error) => {
         if (objectKey.includes("/dam-originals/") && error?.$metadata?.httpStatusCode === 412) {
           await verifyImmutableDamOriginalAlreadyStored(
-            municipalTarget.client, municipalTarget.bucket, municipalTarget.objectKey,
+            municipalTarget.client, municipalTarget.bucket, municipalTarget.objectKey, objectKey,
           );
           return;
         }
