@@ -62,6 +62,12 @@ jobs:
           fi
           echo "PASS: Chrome created an original-shaped, single-page A4 synthetic QA DAM PDF"
 
+      # Test the exact HTML-to-canvas + jsPDF code used by permanent Neon/R2
+      # archival, not only Chrome's unrelated Print to PDF implementation.
+      - name: Render actual SIGAPRO original PDF in Chrome
+        if: github.event_name == 'pull_request' && github.head_ref == 'qa/sigapro-ia-logo-integrado-20261023'
+        run: node scripts/qa-dam-original-browser-render.mjs
+
       - name: Keep isolated synthetic PDF for visual QA
         if: always() && github.event_name == 'pull_request' && github.head_ref == 'qa/sigapro-ia-logo-integrado-20261023'
         uses: actions/upload-artifact@v4
