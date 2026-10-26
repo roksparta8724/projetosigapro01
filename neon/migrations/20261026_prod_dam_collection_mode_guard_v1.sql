@@ -5,15 +5,30 @@ BEGIN;
 CREATE OR REPLACE FUNCTION public.assert_dam_writer_v1(_guide public.payment_guides)
 RETURNS void LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = pg_catalog, public AS $function$
+DECLARE actor uuid;
 BEGIN
-  IF public.current_profile_id() IS NULL OR NOT (
+  actor := public.current_profile_id();
+  IF actor IS NULL OR NOT (
     public.is_master() OR (
       public.has_tenant_access(_guide.municipality_id)
       AND public.has_process_access(_guide.process_id)
-      AND public.is_internal_municipality_role()
+      AND (
+        public.is_internal_municipality_role()
+        OR (
+          coalesce(public.current_role_code(),'') = 'profissional_externo'
+          AND _guide.guide_kind = 'protocolo'
+          AND EXISTS (
+            SELECT 1 FROM public.processes pr
+             WHERE pr.id = _guide.process_id
+               AND pr.municipality_id = _guide.municipality_id
+               AND pr.created_by_profile_id = actor
+               AND pr.officialized_at IS NULL
+          )
+        )
+      )
     )
   ) THEN
-    RAISE EXCEPTION 'Sem permissão para preparar a guia municipal';
+    RAISE EXCEPTION 'Sem permissão para preparar a guia municipal deste processo';
   END IF;
 
   -- Historical guides with NULL snapshot must never be rewritten. If this

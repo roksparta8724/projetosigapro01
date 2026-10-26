@@ -27,6 +27,11 @@ describe("production candidate: preserve historical collections and prevent para
     expect(guard).toContain("public.has_tenant_access(_guide.municipality_id)");
     expect(guard).toContain("public.has_process_access(_guide.process_id)");
     expect(guard).toContain("public.is_internal_municipality_role()");
+    expect(guard).toContain("public.current_role_code(),'') = 'profissional_externo'");
+    expect(guard).toContain("_guide.guide_kind = 'protocolo'");
+    expect(guard).toContain("pr.created_by_profile_id = actor");
+    expect(guard).toContain("pr.municipality_id = _guide.municipality_id");
+    expect(guard).toContain("pr.officialized_at IS NULL");
     expect(guard).not.toMatch(/\bUPDATE\s+public\.payment_guides\b/i);
   });
   it("orders additive columns before first DAM RPC and installs the final mode guard last",()=>{
