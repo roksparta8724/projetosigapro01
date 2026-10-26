@@ -784,14 +784,7 @@ export function ProcessDetailPage() {
           prewarmTenantSettings?.headerLogoUrl,
           prewarmTenantSettings?.brasaoUrl,
           prewarmTenantSettings?.logoUrl,
-        ).catch(
-          () =>
-            getRenderedMunicipalityLogoDataUrl() ||
-            prewarmTenantSettings?.brasaoUrl ||
-            prewarmTenantSettings?.headerLogoUrl ||
-            prewarmGuideLogoUrl ||
-            "",
-        );
+        ).catch(() => getRenderedMunicipalityLogoDataUrl());
 
         const preparedCharges: Record<string, MercadoPagoGuideCharge> = {};
 
@@ -802,7 +795,9 @@ export function ProcessDetailPage() {
           ...current,
           ...preparedCharges,
         }));
-        setPreparedGuideLogoUrl(embeddedLogo || prewarmGuideLogoUrl || "");
+        // A rejected R2/QA logo URL is not an embedded printable image.
+        // Never reinsert an unverified raw URL after strict preparation fails.
+        setPreparedGuideLogoUrl(embeddedLogo || "");
       } catch (error) {
         if (cancelled) return;
         setGuidePreparationError(
@@ -2011,15 +2006,9 @@ export function ProcessDetailPage() {
         : banking.bankName || "Mercado Pago";
 
     const renderedGuideLogoUrl = getRenderedMunicipalityLogoDataUrl();
-    const directGuideLogoFallback =
-      renderedGuideLogoUrl ||
-      tenantSettings?.headerLogoUrl ||
-      tenantSettings?.brasaoUrl ||
-      guideHeaderBranding.logoUrl ||
-      ("fallbackLogoUrl" in guideHeaderBranding ? guideHeaderBranding.fallbackLogoUrl : "") ||
-      stableGuideLogoUrl ||
-      tenantSettings?.logoUrl ||
-      "";
+    // Only an already decoded, locally embedded municipal image is a safe
+    // fallback. Raw storage/API URLs can return 403/503 or expire before print.
+    const directGuideLogoFallback = renderedGuideLogoUrl;
 
     let embeddedGuideLogoUrl = preparedGuideLogoUrl || "";
     if (!embeddedGuideLogoUrl) {
