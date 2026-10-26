@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Blob as NodeBlob } from "node:buffer";
 import { webcrypto } from "node:crypto";
-import { archiveAndOpenGuide, hasVerifiableGuidePaymentData, openLegacyGuideOriginal, type GuideOriginal } from "./guideOriginal";
+import { archiveAndOpenGuide, hasVerifiableGuidePaymentData, isGuideSettled, openLegacyGuideOriginal, type GuideOriginal } from "./guideOriginal";
 import type { ProcessDocument } from "@/lib/platform";
 import { backendClient } from "@/integrations/backend/databaseClient";
 import { getSignedUrlForObjectStrict, uploadFile } from "@/integrations/r2/client";
@@ -46,6 +46,25 @@ describe("immutable DAM original", () => {
     expect(renderGuideOriginalPdf).not.toHaveBeenCalled();
     expect(uploadFile).not.toHaveBeenCalled();
     expect(backendClient.rpc).toHaveBeenCalledTimes(1);
+  });
+  it.each([
+    { status: "pendente", paid: true },
+    { status: "paid", paid: false },
+    { status: "pago", paid: false },
+    { status: "confirmed", paid: false },
+    { status: "confirmado", paid: false },
+    { status: "compensada", paid: false },
+  ])("never regenerates a compensated guide ($status, paid=$paid), even if R2 original is missing", async ({ status, paid }) => {
+    const settled = { ...original, status, paid };
+    expect(isGuideSettled(settled)).toBe(true);
+    vi.mocked(backendClient.rpc).mockResolvedValue({ data: settled });
+    await expect(archiveAndOpenGuide("m1", props, target)).rejects.toThrow("Não será recriada");
+    expect(uploadFile).not.toHaveBeenCalled();
+    expect(renderGuideOriginalPdf).not.toHaveBeenCalled();
+    expect(backendClient.rpc).toHaveBeenCalledTimes(1);
+  });
+  it("does not confuse an unpaid pending guide with a paid one", () => {
+    expect(isGuideSettled({ ...original, paid: false })).toBe(false);
   });
   it("does not recreate a paid guide with no original", async () => {
     backendClient.rpc.mockResolvedValue({ data: { ...original, status: "compensada" } });
