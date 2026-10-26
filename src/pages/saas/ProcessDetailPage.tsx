@@ -352,7 +352,10 @@ export function ProcessDetailPage() {
     () => refreshRemoteStore(processId ?? null),
     [processId, refreshRemoteStore],
   );
-  useLivePlatformRefresh(refreshCurrentProcessStore, { intervalMs: 1800 });
+  // Full process rehydration is expensive and used to race the 1.5s
+  // status-only sync. Status polls now run every 6s; full refresh every 12s.
+  // Event listeners still refresh immediately on mutations/focus/reconnect.
+  useLivePlatformRefresh(refreshCurrentProcessStore, { intervalMs: 12000 });
 
   const liveProcess = resolveProcessRoute(processes, processId);
   const [cachedProcessVisual, setCachedProcessVisual] = useState<ProcessRecord | undefined>(() =>
