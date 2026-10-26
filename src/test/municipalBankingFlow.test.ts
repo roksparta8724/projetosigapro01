@@ -96,8 +96,9 @@ describe("municipal bank and payment guide flow", () => {
 
   it("does not open a guide before Mercado Pago returns complete bank data", () => {
     expect(finance).toContain("if (!banking.barcode || !banking.digitableLine)");
-    expect(processDetail).toContain("banking.barcode && banking.digitableLine ? null");
-    expect(processDetail).toContain("if (!paidGuide && (!barcode || !digitableLine))");
+    expect(processDetail).toContain("isolatedQa || (banking.barcode && banking.digitableLine) ? null");
+    expect(processDetail).toContain("if (!isolatedQa && !paidGuide && (!barcode || !digitableLine))");
+    expect(processDetail).toContain('nonPayablePreview: isolatedQa && !(barcode && digitableLine)');
     expect(mercadoPagoGuide).toContain("!banking.digitableLine");
     expect(mercadoPagoGuide).toContain("!banking.barcode");
   });
@@ -108,7 +109,7 @@ describe("municipal bank and payment guide flow", () => {
     expect(finance).toContain("embeddedGuideLogoUrl");
     expect(processDetail).toContain("embeddedGuideLogoUrl");
     expect(finance).toContain("if (!barcode || !digitableLine)");
-    expect(processDetail).toContain("if (!paidGuide && (!barcode || !digitableLine))");
+    expect(processDetail).toContain("if (!isolatedQa && !paidGuide && (!barcode || !digitableLine))");
     expect(mercadoPagoGuide).toContain("!banking.barcode || !banking.digitableLine");
     expect(finance).toContain("A DAM foi bloqueada para não emitir uma guia inválida");
     expect(processDetail).toContain("A guia ainda está sendo preparada.");
@@ -159,9 +160,9 @@ describe("municipal bank and payment guide flow", () => {
 
   it("requests provider banking data whenever the DAM has no barcode or digitable line", () => {
     expect(finance).toContain("if (!banking.barcode || !banking.digitableLine)");
-    expect(processDetail).toContain("banking.barcode && banking.digitableLine ? null");
+    expect(processDetail).toContain("isolatedQa || (banking.barcode && banking.digitableLine) ? null");
     expect(finance).toContain("if (!barcode || !digitableLine)");
-    expect(processDetail).toContain("if (!paidGuide && (!barcode || !digitableLine))");
+    expect(processDetail).toContain("if (!isolatedQa && !paidGuide && (!barcode || !digitableLine))");
     expect(finance).not.toContain('match.guide.status !== "compensada" &&');
     expect(processDetail).not.toContain('selectedGuide.status !== "compensada" &&');
   });
