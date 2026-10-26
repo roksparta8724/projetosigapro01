@@ -46,6 +46,14 @@ export type GuideOriginal = {
   original_pdf_sha256?: string;
 };
 
+/** A compensated guide may only reopen its already archived original PDF. */
+export function isGuideSettled(guide: Pick<GuideOriginal, "status" | "paid">): boolean {
+  return guide.paid === true ||
+    ["compensada", "paid", "pago", "confirmed", "confirmado"].includes(
+      String(guide.status || "").trim().toLowerCase(),
+    );
+}
+
 function originalObjectKey(original: GuideOriginal, sha256: string) {
   if (!original.process_id) throw new Error("Guia original sem vínculo persistente com o processo.");
   if (!/^[a-f0-9]{64}$/.test(sha256)) throw new Error("SHA-256 do PDF original inválido no Neon.");
@@ -89,7 +97,7 @@ export async function archiveAndOpenGuide(
   const code = props.guia.numeroGuia;
   let original = await readGuideOriginal(municipalityId, code);
   if (await openStoredGuide(original, target)) return;
-  if (original.status === "compensada") throw new Error("Guia compensada sem PDF original arquivado. Não será recriada.");
+  if (isGuideSettled(original)) throw new Error("Guia compensada sem PDF original arquivado. Não será recriada.");
   // Boleto bancário e PIX são meios independentes. Um boleto confirmado pelo
   // provedor não precisa conter QR PIX para que seu PDF original seja aberto.
   // Documento não pagável de QA jamais pode ser arquivado como cobrança.
