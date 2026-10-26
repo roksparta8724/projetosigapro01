@@ -482,10 +482,24 @@ export function ExternalPaymentsPage() {
   // Assim a confirmação de pagamento transforma o pré-protocolo em processo
   // sem exigir F5 e sem risco de a interface ficar com estado antigo.
   useEffect(() => {
+    let disposed = false;
+    let inFlight = false;
+    let reportedSyncFailure = false;
     const refresh = () => {
-      if (document.visibilityState === "visible") {
-        void refreshRemoteStore();
-      }
+      if (disposed || inFlight || document.visibilityState !== "visible") return;
+      // Only one read at a time: slow responses must not overlap a new
+      // focus/visibility poll or make an already issued guide appear missing.
+      inFlight = true;
+      void Promise.resolve()
+        .then(() => refreshRemoteStore())
+        .then(() => { reportedSyncFailure = false; })
+        .catch((error: unknown) => {
+          if (!disposed && !reportedSyncFailure) {
+            console.warn("[SIGAPRO][Financeiro externo] Atualização temporariamente indisponível:", error);
+            reportedSyncFailure = true;
+          }
+        })
+        .finally(() => { inFlight = false; });
     };
 
     const timer = window.setInterval(refresh, 8000);
@@ -493,6 +507,7 @@ export function ExternalPaymentsPage() {
     document.addEventListener("visibilitychange", refresh);
 
     return () => {
+      disposed = true;
       window.clearInterval(timer);
       window.removeEventListener("focus", refresh);
       document.removeEventListener("visibilitychange", refresh);
