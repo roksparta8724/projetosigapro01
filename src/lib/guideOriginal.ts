@@ -4,6 +4,7 @@ import { getSignedUrlForObjectStrict, uploadFile } from "@/integrations/r2/clien
 import { type GuiaRecolhimentoOficialProps } from "@/components/GuiaRecolhimentoOficial";
 import type { ProcessDocument } from "@/lib/platform";
 import { isValidPixPayload } from "@/lib/pix";
+import { normalizeOfficialBanking } from "@/lib/bankCodes";
 
 export async function openLegacyGuideOriginal(documents: ProcessDocument[], code: string, target: Window) {
   const matches = documents.filter((doc) => doc.uploaded && doc.filePath &&
@@ -73,6 +74,13 @@ export async function openStoredGuide(original: GuideOriginal, target: Window) {
   return true;
 }
 
+export function hasVerifiableGuidePaymentData(props: GuiaRecolhimentoOficialProps): boolean {
+  if (props.guia.nonPayablePreview) return false;
+  if (isValidPixPayload(props.guia.pixPayload)) return true;
+  const banking = normalizeOfficialBanking(props.guia.codigoBarras, props.guia.linhaDigitavel);
+  return Boolean(banking.barcode && banking.digitableLine);
+}
+
 export async function archiveAndOpenGuide(
   municipalityId: string, props: GuiaRecolhimentoOficialProps, target: Window,
 ) {
@@ -80,11 +88,18 @@ export async function archiveAndOpenGuide(
   let original = await readGuideOriginal(municipalityId, code);
   if (await openStoredGuide(original, target)) return;
   if (original.status === "compensada") throw new Error("Guia compensada sem PDF original arquivado. Não será recriada.");
-  if (!isValidPixPayload(props.guia.pixPayload)) throw new Error("PIX Copia e Cola inválido; a DAM não será arquivada sem QR Code oficial verificável.");
+  // Boleto bancário e PIX são meios independentes. Um boleto confirmado pelo
+  // provedor não precisa conter QR PIX para que seu PDF original seja aberto.
+  // Documento não pagável de QA jamais pode ser arquivado como cobrança.
+  if (!hasVerifiableGuidePaymentData(props)) {
+    throw new Error("Guia sem boleto bancário válido ou PIX oficial verificável; o PDF não será arquivado.");
+  }
   original = await guideRpc("freeze_payment_guide_document_v1", municipalityId, code, { _snapshot: props });
   if (await openStoredGuide(original, target)) return;
   if (!original.document_snapshot) throw new Error("Snapshot original não persistido.");
-  if (!isValidPixPayload(original.document_snapshot.guia.pixPayload)) throw new Error("O snapshot persistido não contém PIX oficial válido.");
+  if (!hasVerifiableGuidePaymentData(original.document_snapshot)) {
+    throw new Error("Snapshot sem boleto bancário consistente ou PIX oficial válido.");
+  }
   const pdf = await renderGuideOriginalPdf(original.document_snapshot);
   const bytes = await pdf.arrayBuffer();
   const digest = await crypto.subtle.digest("SHA-256", bytes);
