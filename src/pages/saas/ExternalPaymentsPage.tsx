@@ -227,7 +227,7 @@ export function ExternalPaymentsPage() {
       const candidate = normalizeOfficialBanking(tested?.barcodeContent, tested?.digitableLine);
       const savedSandbox = Boolean(
         isolatedQa && officialOriginal?.provider_environment === "test" &&
-        officialOriginal?.bank_reference && guide.paymentProvider === "mercado_pago" &&
+        officialOriginal?.bank_reference && officialOriginal?.payment_provider === "mercado_pago" &&
         normalizeOfficialBanking(officialOriginal?.barcode, officialOriginal?.digitable_line).barcode &&
         normalizeOfficialBanking(officialOriginal?.barcode, officialOriginal?.digitable_line).digitableLine,
       );
