@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - review/sigapro-integral-local-20261021
+      - qa/sigapro-ia-logo-integrado-20261023
     paths:
       - .github/workflows/collection-qa-validation.yml
       - scripts/dev-qa.mjs
