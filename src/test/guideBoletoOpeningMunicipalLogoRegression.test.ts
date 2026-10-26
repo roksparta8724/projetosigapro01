@@ -22,6 +22,25 @@ describe("SIGAPRO — boleto/PDF abre sem misturar municípios e versões", () =
     expect(section).toContain("reservedGuideWindow.close()");
   });
 
+  it("opens new official external guides through the immutable Neon/R2 original instead of a transient HTML preview", () => {
+    const section = external.slice(
+      external.indexOf("const openExternalGuide = async"),
+      external.indexOf("  // Enquanto existe guia inicial pendente"),
+    );
+    expect(external).toContain('import { archiveAndOpenGuide } from "@/lib/guideOriginal";');
+    expect(section).toContain("if (!isolatedQa) {");
+    expect(section).toContain("await archiveAndOpenGuide(effectiveScopeId, guideDocument, reservedGuideWindow);");
+    expect(section).toContain("return;");
+    expect(section.indexOf("await archiveAndOpenGuide(")).toBeLessThan(
+      section.indexOf("const opened = openGuiaRecolhimentoOficialWindow("),
+    );
+    expect(guide).toContain("if (await openStoredGuide(original, target)) return;");
+    expect(guide).toContain('if (original.status === "compensada")');
+    expect(guide).toContain('"freeze_payment_guide_document_v1"');
+    expect(guide).toContain('"attach_payment_guide_original_v1"');
+    expect(guide).toContain('if (!original.original_pdf_key || !original.original_pdf_sha256)');
+  });
+
   it("uses the current municipality's stored branding, not just the old logoUrl", () => {
     expect(external).toContain("branding: municipalityBranding");
     expect(external).toContain("useInstitutionBranding(effectiveScopeId)");
