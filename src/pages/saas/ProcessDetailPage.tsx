@@ -1986,14 +1986,17 @@ export function ProcessDetailPage() {
       municipalityName: municipalityName || tenant?.name,
       municipalityCity: tenantSettings?.pixMerchantCity || tenant?.city,
     });
-    const providerCharge = banking.barcode && banking.digitableLine ? null : await ensureMercadoPagoGuideCharge({
+    const isolatedQa = import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true";
+    // A prévia remota NÃO tem endpoint de emissão bancária. Ela deve
+    // apresentar apenas documento de teste, nunca tentar criar cobrança real.
+    const providerCharge = isolatedQa || (banking.barcode && banking.digitableLine) ? null : await ensureMercadoPagoGuideCharge({
       municipalityId: effectiveScopeId, guideCode: selectedGuide.code, amount: selectedGuide.amount,
       dueDate: selectedGuide.dueDate, description: selectedGuide.label + " · " + process.protocol,
     });
     const digitableLine = providerCharge?.digitableLine || banking.digitableLine;
     const barcode = providerCharge?.barcodeContent || banking.barcode;
 
-    if (!paidGuide && (!barcode || !digitableLine)) {
+    if (!isolatedQa && !paidGuide && (!barcode || !digitableLine)) {
       // The tab is already reserved for this user's click. Returning here
       // would leave an orphaned "Preparando guia" window indefinitely.
       throw new Error(
@@ -2056,10 +2059,16 @@ export function ProcessDetailPage() {
       },
       guia: {
         numeroGuia: selectedGuide.code,
+        // Uma guia QA ainda sem boleto não pode exibir dados pagáveis falsos.
+        nonPayablePreview: isolatedQa && !(barcode && digitableLine),
         exercicio: year,
         dataDocumento: issuedAt,
         vencimento: selectedGuide.dueDate,
-        observacao: paidGuide ? "ESPELHO HISTORICO DE GUIA QUITADA. NAO PAGAR. NAO SUBSTITUI O ORIGINAL. " + getGuideObservation(selectedGuide.kind) : getGuideObservation(selectedGuide.kind),
+        observacao: isolatedQa
+          ? "HOMOLOGAÇÃO ISOLADA — NÃO PAGAR. Nenhum pagamento foi confirmado nesta visualização. " + getGuideObservation(selectedGuide.kind)
+          : paidGuide
+            ? "ESPELHO HISTORICO DE GUIA QUITADA. NAO PAGAR. NAO SUBSTITUI O ORIGINAL. " + getGuideObservation(selectedGuide.kind)
+            : getGuideObservation(selectedGuide.kind),
         funcionarioResponsavel: issuedByDisplay,
         proprietario: selectedGuide.ownerName || process.ownerName,
         profissionalResponsavel: selectedGuide.professionalName || process.technicalLead,
@@ -2080,7 +2089,7 @@ export function ProcessDetailPage() {
         codigoBarras: barcode,
         linhaDigitavel: digitableLine,
         qrCodePixUrl: "",
-        pixPayload: paidGuide ? (selectedGuide.pixPayload || "") : banking.pixPayload,
+        pixPayload: isolatedQa ? "" : paidGuide ? (selectedGuide.pixPayload || "") : banking.pixPayload,
         bankName: providerName,
         bankMunicipalName: tenantSettings?.bankName || "",
         bankCode: tenantSettings?.bankCode || "",
@@ -2090,7 +2099,11 @@ export function ProcessDetailPage() {
         bankEnvironment:
           providerCharge?.environment || selectedGuide.providerEnvironment,
         bankAgreement: banking.bankAgreement,
-        bankInstructions: paidGuide ? [banking.bankInstructions, "PAGAMENTO JA COMPENSADO. NAO PAGAR NOVAMENTE."].filter(Boolean).join(" ") : banking.bankInstructions,
+        bankInstructions: isolatedQa
+          ? "DOCUMENTO DE HOMOLOGAÇÃO — NÃO PAGAR."
+          : paidGuide
+            ? [banking.bankInstructions, "PAGAMENTO JA COMPENSADO. NAO PAGAR NOVAMENTE."].filter(Boolean).join(" ")
+            : banking.bankInstructions,
         bankReference: providerCharge?.orderId || selectedGuide.bankReference,
         bankPaymentId: providerCharge?.paymentId || selectedGuide.bankPaymentId,
         bankStatus: providerCharge?.status || selectedGuide.bankStatus,
@@ -2114,6 +2127,15 @@ export function ProcessDetailPage() {
       itens: guideItems,
     };
 
+    if (isolatedQa) {
+      const opened = openGuiaRecolhimentoOficialWindow(
+        guideDocument,
+        { title: `PRÉVIA QA — NÃO PAGAR · ${selectedGuide.code}`, autoPrint: false },
+        reservedGuideWindow,
+      );
+      if (!opened) throw new Error("O navegador bloqueou a prévia de homologação.");
+      return;
+    }
     await archiveAndOpenGuide(effectiveScopeId, guideDocument, reservedGuideWindow);
     } catch (error) {
       reservedGuideWindow.close();
