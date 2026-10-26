@@ -116,7 +116,7 @@ describe("isolated Mercado Pago PIX and existing boleto remain independent",()=>
   });
   it("reuses the exact provider idempotency key for an unresolved POST without duplicating the order",async()=>{
     let times=0;
-    vi.stubGlobal("fetch",vi.fn().mockImplementation(async()=>{
+    vi.mocked(fetch).mockImplementation(vi.fn().mockImplementation(async()=>{
       times++;
       if(times===1) throw new Error("socket timeout after provider acceptance");
       return new Response(JSON.stringify({
@@ -140,7 +140,7 @@ describe("isolated Mercado Pago PIX and existing boleto remain independent",()=>
 
   it("polls the same asynchronous order instead of issuing a second PIX",async()=>{
     let calls=0;
-    vi.stubGlobal("fetch",vi.fn().mockImplementation(async (_url:unknown,opts?:RequestInit)=>{
+    vi.mocked(fetch).mockImplementation(vi.fn().mockImplementation(async (_url:unknown,opts?:RequestInit)=>{
       calls++;
       const transactions=calls===1?{payments:[]}:{payments:[{
         id:"PAY_QA_POLL",status:"action_required",payment_method:{
@@ -162,7 +162,7 @@ describe("isolated Mercado Pago PIX and existing boleto remain independent",()=>
   });
 
   it("rejects provider orders with mismatched amount and prevents double POST",async()=>{
-    vi.stubGlobal("fetch",vi.fn().mockImplementation(async()=>new Response(JSON.stringify({
+    vi.mocked(fetch).mockImplementation(vi.fn().mockImplementation(async()=>new Response(JSON.stringify({
       id:"ORDER_QA_PIX_002",external_reference:guideCode+"-PIX-QA",
       total_amount:"999.99",transactions:{payments:[]},
     }),{status:201})));
