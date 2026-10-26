@@ -53,6 +53,8 @@ import {
   workTypeCatalog,
 } from "@/lib/platform";
 import { externalTabs, getExternalTabByPath } from "@/lib/externalTabs";
+import { ProtocolTechnicalResponsibility } from "@/components/platform/ProtocolTechnicalResponsibility";
+import { compatibleTechnicalDocumentLabel, inferProfessionalCouncil, professionalActivityOptions, professionalCouncilOptions, technicalResponsibilityLabel } from "@/lib/professionalResponsibility";
 import { getMunicipalService, getMunicipalServicesForCategory,
   municipalServiceCategories, type MunicipalServiceCategoryId } from "@/lib/municipalServiceCatalog";
 import {
@@ -131,6 +133,7 @@ function describeDocument(label: string): Omit<UploadDocumentItem, "label" | "re
   if (
     normalized.includes("art") ||
     normalized.includes("rrt") ||
+    normalized.includes("trt") ||
     normalized.includes("projeto arquitetonico") ||
     normalized.includes("memorial") ||
     normalized.includes("levantamento")
@@ -1180,6 +1183,17 @@ export function ProtocolarProjetoPage({
       return;
     }
 
+    if (!remotePreProtocolNumber && form.execucaoMesmoResponsavel === false &&
+        (!form.execucaoNome.trim() || !form.execucaoDocumento.trim() ||
+         !form.execucaoTipoProfissional.trim() || !form.execucaoRegistro.trim())) {
+      setStatus("Informe nome, CPF/CNPJ, atividade e registro do responsável técnico pela execução.");
+      return;
+    }
+    if (!remotePreProtocolNumber && form.protocolanteMesmoResponsavel === false &&
+        (!form.protocolanteNome.trim() || !form.protocolanteDocumento.trim())) {
+      setStatus("Informe nome e CPF/CNPJ da pessoa responsável pelo protocolo.");
+      return;
+    }
     if (!isHabiteSeMode && !remotePreProtocolNumber && !form.tipo.trim()) {
       setStatus("Selecione a categoria e o serviço municipal antes de protocolar.");
       return;
@@ -1359,7 +1373,13 @@ export function ProtocolarProjetoPage({
                 form.dataConclusaoObra.trim() ? `Conclusão informada: ${form.dataConclusaoObra.trim()}` : "",
                 form.observacoes.trim(),
               ].filter(Boolean).join(" | ")
-            : form.observacoes,
+            : [
+                form.observacoes,
+                form.responsabilidadeProjeto ? "Responsabilidade projeto " + technicalResponsibilityLabel(form.conselhoProfissional || inferProfessionalCouncil(form.tipoProfissional)) + ": " + form.responsabilidadeProjeto : "",
+                form.responsabilidadeExecucao ? "Responsabilidade execução: " + form.responsabilidadeExecucao : "",
+                form.execucaoMesmoResponsavel === false ? "Responsável execução: " + form.execucaoNome + " / " + form.execucaoRegistro : "",
+                form.protocolanteMesmoResponsavel === false ? "Protocolante: " + form.protocolanteNome : "",
+              ].filter(Boolean).join(" | "),
           property: {
             registration: form.matricula,
             iptu: form.iptu,
@@ -1665,12 +1685,31 @@ export function ProtocolarProjetoPage({
               <Input value={form.profissionalDocumento} onChange={(event) => setField("profissionalDocumento", event.target.value)} />
             </div>
             <div className="space-y-2">
-              <Label>Tipo profissional</Label>
-              <Input value={form.tipoProfissional} onChange={(event) => setField("tipoProfissional", event.target.value)} placeholder="Ex.: Engenheiro Civil, Arquiteto" />
+              <Label>Atividade profissional</Label>
+              <Select value={form.tipoProfissional || ""} onValueChange={(value)=>setForm((current)=>({
+                ...current,tipoProfissional:value,conselhoProfissional:inferProfessionalCouncil(value)||current.conselhoProfissional
+              }))}>
+                <SelectTrigger className="bg-white dark:bg-slate-950"><SelectValue placeholder="Engenheiro, arquiteto ou técnico" /></SelectTrigger>
+                <SelectContent>
+                  {form.tipoProfissional && !professionalActivityOptions.some((x)=>x===form.tipoProfissional) ? <SelectItem value={form.tipoProfissional}>{form.tipoProfissional}</SelectItem> : null}
+                  {professionalActivityOptions.map((role)=><SelectItem key={role} value={role}>{role}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Conselho profissional</Label>
+              <Select value={form.conselhoProfissional || inferProfessionalCouncil(form.tipoProfissional) || ""} onValueChange={(v)=>setField("conselhoProfissional",v)}>
+                <SelectTrigger className="bg-white dark:bg-slate-950"><SelectValue placeholder="CREA, CAU ou CFT/CRT" /></SelectTrigger>
+                <SelectContent>{professionalCouncilOptions.map((o)=><SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label>Registro profissional{tenantSettings?.registroProfissionalObrigatorio ? " *" : ""}</Label>
-              <Input value={form.registro} onChange={(event) => setField("registro", event.target.value)} placeholder="CREA, CAU ou equivalente" />
+              <Input value={form.registro} onChange={(event) => setField("registro", event.target.value)} placeholder="Número CREA, CAU ou CFT/CRT" />
+            </div>
+            <div className="space-y-2">
+              <Label>Inscrição municipal do profissional</Label>
+              <Input value={form.inscricaoMunicipalProfissional || ""} onChange={(e)=>setField("inscricaoMunicipalProfissional",e.target.value)} placeholder="Se exigida pela Prefeitura" />
             </div>
             <div className="space-y-2">
               <Label>Telefone</Label>
@@ -1685,6 +1724,12 @@ export function ProtocolarProjetoPage({
               <Input value={form.empresaProfissional} onChange={(event) => setField("empresaProfissional", event.target.value)} />
             </div>
           </SectionCard>
+
+          <ProtocolTechnicalResponsibility
+            form={form}
+            setField={setField}
+            setToggle={(key,value)=>setForm((current)=>({...current,[key]:value}))}
+          />
 
           <SectionCard
             title="Dados do proprietário"
@@ -2082,7 +2127,7 @@ export function ProtocolarProjetoPage({
                                 ) : (
                                   <CircleDashed className="h-4 w-4 text-slate-400 dark:text-sky-200" />
                                 )}
-                                <p className="min-w-0 break-words text-base font-semibold leading-6 text-slate-950 dark:text-white">{item.label}</p>
+                                <p className="min-w-0 break-words text-base font-semibold leading-6 text-slate-950 dark:text-white">{compatibleTechnicalDocumentLabel(item.label)}</p>
                               </div>
                               <p className="mt-2 break-words text-[15px] leading-6 text-slate-600 dark:text-slate-300">{item.description}</p>
                             </div>
@@ -2111,7 +2156,7 @@ export function ProtocolarProjetoPage({
                           </div>
 
                           <FileDropZone
-                            title={item.label}
+                            title={compatibleTechnicalDocumentLabel(item.label)}
                             description="Arraste PDF ou uma imagem. O arquivo pode ser substituído ou removido antes do protocolo final."
                             accept=".pdf,image/*"
                             multiple={false}
