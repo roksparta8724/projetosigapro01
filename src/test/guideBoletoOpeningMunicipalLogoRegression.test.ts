@@ -28,7 +28,7 @@ describe("SIGAPRO — boleto/PDF abre sem misturar municípios e versões", () =
       external.indexOf("  // Enquanto existe guia inicial pendente"),
     );
     expect(external).toContain('from "@/lib/guideOriginal";');
-    expect(external).toContain("archiveAndOpenGuide, openLegacyGuideOriginal, openStoredGuide, readGuideOriginal");
+    expect(external).toContain("archiveAndOpenGuide, isGuideSettled, openLegacyGuideOriginal, openStoredGuide, readGuideOriginal");
     expect(section).toContain("if (!isolatedQa) {");
     expect(section).toContain("await archiveAndOpenGuide(effectiveScopeId, guideDocument, reservedGuideWindow);");
     expect(section).toContain("return;");
@@ -36,7 +36,7 @@ describe("SIGAPRO — boleto/PDF abre sem misturar municípios e versões", () =
       section.indexOf("const opened = openGuiaRecolhimentoOficialWindow("),
     );
     expect(guide).toContain("if (await openStoredGuide(original, target)) return;");
-    expect(guide).toContain('if (original.status === "compensada")');
+    expect(guide).toContain('if (isGuideSettled(original))');
     expect(guide).toContain('"freeze_payment_guide_document_v1"');
     expect(guide).toContain('"attach_payment_guide_original_v1"');
     expect(guide).toContain('if (!original.original_pdf_key || !original.original_pdf_sha256)');
@@ -53,7 +53,7 @@ describe("SIGAPRO — boleto/PDF abre sem misturar municípios e versões", () =
     expect(storedRead).toBeGreaterThan(0);
     expect(alreadyArchived).toBeGreaterThan(storedRead);
     expect(createOrder).toBeGreaterThan(alreadyArchived);
-    expect(section).toContain('if (officialOriginal.status === "compensada")');
+    expect(section).toContain('if (isGuideSettled(officialOriginal))');
     expect(section).toContain("const confirmedOriginal = !isolatedQa && charge");
     expect(section).toContain("await readGuideOriginal(effectiveScopeId, guide.code)");
     expect(section).toContain("confirmedOriginal?.barcode, confirmedOriginal?.digitable_line");
@@ -81,7 +81,7 @@ describe("SIGAPRO — boleto/PDF abre sem misturar municípios e versões", () =
       const legacyIndex = flow.indexOf(legacy);
       expect(canonicalIndex).toBeGreaterThan(0);
       expect(legacyIndex).toBeGreaterThan(canonicalIndex);
-      expect(flow.indexOf("status === \"compensada\"")).toBeGreaterThan(legacyIndex);
+      expect(flow.indexOf("if (isGuideSettled(", legacyIndex)).toBeGreaterThan(legacyIndex);
     }
   });
 
@@ -135,7 +135,7 @@ describe("SIGAPRO — boleto/PDF abre sem misturar municípios e versões", () =
   });
 
   it("never regenerates a paid original and does not require PIX for verified bank barcode", () => {
-    expect(guide).toContain('if (original.status === "compensada")');
+    expect(guide).toContain('if (isGuideSettled(original))');
     expect(guide).toContain("hasVerifiableGuidePaymentData");
     expect(guide).toContain("normalizeOfficialBanking(");
     expect(guide).toContain("if (props.guia.nonPayablePreview) return false");
