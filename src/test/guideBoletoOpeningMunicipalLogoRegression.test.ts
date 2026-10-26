@@ -41,6 +41,28 @@ describe("SIGAPRO — boleto/PDF abre sem misturar municípios e versões", () =
     expect(guide).toContain('if (!original.original_pdf_key || !original.original_pdf_sha256)');
   });
 
+  it("opens existing originals before billing and uses only re-read Neon data for new registered PDFs", () => {
+    const section = external.slice(
+      external.indexOf("const openExternalGuide = async"),
+      external.indexOf("  // Enquanto existe guia inicial pendente"),
+    );
+    const storedRead = section.indexOf("officialOriginal = await readGuideOriginal(effectiveScopeId, guide.code)");
+    const alreadyArchived = section.indexOf("await openStoredGuide(officialOriginal, reservedGuideWindow)");
+    const createOrder = section.indexOf("await ensureMercadoPagoGuideCharge(");
+    expect(storedRead).toBeGreaterThan(0);
+    expect(alreadyArchived).toBeGreaterThan(storedRead);
+    expect(createOrder).toBeGreaterThan(alreadyArchived);
+    expect(section).toContain('if (officialOriginal.status === "compensada")');
+    expect(section).toContain("const confirmedOriginal = !isolatedQa && charge");
+    expect(section).toContain("await readGuideOriginal(effectiveScopeId, guide.code)");
+    expect(section).toContain("confirmedOriginal?.barcode, confirmedOriginal?.digitable_line");
+    expect(section).toContain("dataDocumento: issuedAt");
+    expect(section).toContain("vencimento: originalDueDate");
+    expect(section).toContain("valorDocumento: originalAmount");
+    expect(section).toContain("valorCobrado: originalAmount");
+    expect(section).toContain("await archiveAndOpenGuide(effectiveScopeId, guideDocument, reservedGuideWindow)");
+  });
+
   it("uses the current municipality's stored branding, not just the old logoUrl", () => {
     expect(external).toContain("branding: municipalityBranding");
     expect(external).toContain("useInstitutionBranding(effectiveScopeId)");
