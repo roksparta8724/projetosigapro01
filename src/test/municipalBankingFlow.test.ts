@@ -98,7 +98,7 @@ describe("municipal bank and payment guide flow", () => {
     expect(finance).toContain("if (!banking.barcode || !banking.digitableLine)");
     expect(processDetail).toContain("isolatedQa || (banking.barcode && banking.digitableLine) ? null");
     expect(processDetail).toContain("if (!isolatedQa && !paidGuide && (!barcode || !digitableLine))");
-    expect(processDetail).toContain('nonPayablePreview: isolatedQa && !(barcode && digitableLine)');
+    expect(processDetail).toContain('nonPayablePreview: isolatedQa && !verifiedQaBoleto');
     expect(mercadoPagoGuide).toContain("!banking.digitableLine");
     expect(mercadoPagoGuide).toContain("!banking.barcode");
   });
