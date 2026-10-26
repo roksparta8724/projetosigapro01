@@ -4,12 +4,27 @@ import { describe, expect, it } from "vitest";
 const migration = readFileSync(
   "neon/migrations/20261026_dam_original_archive_access_alignment.sql", "utf8",
 );
+const optionalPixMigration = readFileSync(
+  "neon/migrations/20261026_dam_boleto_optional_pix_fix.sql", "utf8",
+);
 const upload = readFileSync("server/api/r2-upload.ts", "utf8");
 const signing = readFileSync("server/api/r2-sign-get.ts", "utf8");
 const archival = readFileSync("src/lib/guideOriginal.ts", "utf8");
 const external = readFileSync("src/pages/saas/ExternalPaymentsPage.tsx", "utf8");
 
 describe("immutable guide originals: scope, database and R2 contract", () => {
+  it("archives an official bank boleto even without PIX and validates PIX only when provided", () => {
+    expect(optionalPixMigration).toContain("create or replace function public.freeze_payment_guide_document_v1");
+    expect(optionalPixMigration).toContain("nullif(btrim(coalesce(_snapshot #>> '{guia,pixPayload}', '')), '') is not null");
+    expect(optionalPixMigration).toContain("and (_snapshot #>> '{guia,pixPayload}') !~");
+    expect(optionalPixMigration).toContain("g.barcode");
+    expect(optionalPixMigration).toContain("g.digitable_line");
+    expect(optionalPixMigration).toContain("g.amount");
+    expect(optionalPixMigration).toContain("g.created_at");
+    expect(optionalPixMigration).not.toContain("delete from public.payment_guides");
+    expect(optionalPixMigration).not.toContain("update public.payment_guides set paid");
+  });
+
   it("grants only archive access, not bank-provider mutation, to a process creator", () => {
     expect(migration).toContain("assert_dam_document_archiver_v2");
     expect(migration).toContain("public.has_tenant_access(_guide.municipality_id)");
