@@ -1995,12 +1995,13 @@ export function ProcessDetailPage() {
     const barcode = providerCharge?.barcodeContent || banking.barcode;
 
     if (!paidGuide && (!barcode || !digitableLine)) {
-      setProcessActionStatus(
+      // The tab is already reserved for this user's click. Returning here
+      // would leave an orphaned "Preparando guia" window indefinitely.
+      throw new Error(
         guidePreparationError
           ? `A guia não foi aberta porque os dados bancários ainda não estão válidos: ${guidePreparationError}`
-          : "A guia ainda está sendo preparada. Aguarde a conclusão dos dados bancários antes de abrir.",
+          : "O boleto ainda não possui código de barras e linha digitável confirmados. Não foi gerado um PDF pagável.",
       );
-      return;
     }
 
     const providerInstitution = providerCharge?.financialInstitution?.trim() || "";
