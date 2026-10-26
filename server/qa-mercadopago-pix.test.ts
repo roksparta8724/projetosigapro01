@@ -19,14 +19,18 @@ vi.mock("./guide-persistence",()=>({readStoredGuide:mocks.guide}));
 vi.mock("./municipal-payment",()=>({resolveMercadoPagoMunicipalAccessToken:mocks.token}));
 import { qaMercadoPagoPix, qaPixIdempotencyKey } from "./qa-mercadopago-pix";
 const municipalityId="11111111-1111-4111-8111-111111111111";
-const guideCode="DAM-PRE-20261022-7791A2E9";
+let guideCode="DAM-PRE-20261022-7791A2E9";
+let caseSequence=0;
 const request={headers:{authorization:"Bearer QA_TOKEN"}} as never;
 let root="";
 let qr="";
 beforeEach(()=>{
   vi.clearAllMocks();
   root=mkdtempSync(join(tmpdir(),"sigapro-pix-"));
+  // Isolate every case even if the native node:os homedir wins over the mock.
+  vi.stubEnv("HOME",root);
   vi.stubEnv("SIGAPRO_QA_TEST_HOME",root);
+  guideCode=`DAM-PRE-20261022-${process.pid}-${++caseSequence}`;
   vi.stubEnv("SIGAPRO_LOCAL_QA_LAUNCH","true");
   vi.stubEnv("SIGAPRO_LOCAL_QA_BLOCK_EXTERNAL_WRITES","true");
   vi.stubEnv("VITE_SIGAPRO_NEON_ISOLATED","true");
