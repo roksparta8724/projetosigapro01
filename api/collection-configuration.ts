@@ -10,20 +10,35 @@ function uuid(value: unknown) { const id = String(value || "").trim(); if (!/^[0
 async function rpc<T>(req: Req, fn: string, args: Record<string, unknown>) { const result = await callDataApiRpc<T>(req, fn, args); if (!result.ok) throw new Error(result.error || "Operação não autorizada."); return result.payload; }
 
 export default async function handler(req: Req, res: Res) {
-  // Never fetch or modify real municipal bank details, guide imports or
-  // collection credentials from an isolated QA preview. The QA browser
-  // cannot fall back to inherited production Neon/provider environments.
-  if (process.env.VERCEL_ENV === "preview" &&
-      (process.env.VITE_SIGAPRO_NEON_ISOLATED === "true" ||
-       process.env.VERCEL_GIT_COMMIT_REF === "qa/sigapro-ia-logo-integrado-20261023")) {
-    return json(res, 503, {
-      code: "QA_COLLECTION_CONFIGURATION_DISABLED",
-      error: "Arrecadação municipal indisponível nesta homologação sem integração financeira exclusiva de teste.",
-    });
-  }
   if (req.method !== "POST") return json(res, 405, { error: "Método não permitido." });
   try {
     const input = await body(req); const municipalityId = uuid(input.municipalityId); const action = String(input.action || "get");
+    // Permit the exact Neon QA preview to READ only its own tenant-scoped
+    // configuration. Previously all calls returned 503, even read-only
+    // "get", breaking the entire Guias e Arrecadação screen after login.
+    // Keep every mutation of municipal collection and bank details closed
+    // until an independent QA-only payment and S3 integration is accepted.
+    const isolatedQa = process.env.VERCEL_ENV === "preview" &&
+      (process.env.VITE_SIGAPRO_NEON_ISOLATED === "true" ||
+       process.env.VERCEL_GIT_COMMIT_REF === "qa/sigapro-ia-logo-integrado-20261023");
+    if (isolatedQa) {
+      if (process.env.VERCEL_GIT_COMMIT_REF !== "qa/sigapro-ia-logo-integrado-20261023" ||
+          process.env.VITE_SIGAPRO_NEON_ISOLATED !== "true") {
+        return json(res, 503, {
+          code: "QA_COLLECTION_ISOLATION_REQUIRED",
+          error: "Homologação da arrecadação exige banco Neon QA isolado.",
+        });
+      }
+      if (!/^Bearer\s+\S+$/i.test(String(req.headers.authorization || ""))) {
+        return json(res, 401, { code: "QA_AUTH_REQUIRED", error: "Faça login no SIGAPRO de homologação." });
+      }
+      if (!["get", "effective", "bank_get"].includes(action)) {
+        return json(res, 503, {
+          code: "QA_COLLECTION_WRITES_DISABLED",
+          error: "Na homologação, a configuração da modalidade e os dados bancários municipais permanecem somente leitura. Configure a credencial Mercado Pago no painel de Teste abaixo; emissão e ativação aguardam o aceite.",
+        });
+      }
+    }
     if (action === "get") return json(res, 200, await rpc(req, "get_municipal_collection_configuration_v1", { _municipality_id: municipalityId }) || {});
     if (action === "effective") return json(res, 200, await rpc(req, "get_active_municipal_collection_configuration_v1", { _municipality_id: municipalityId }) || {});
     if (action === "bank_get") return json(res, 200, await rpc(req, "get_municipal_collection_bank_details_v1", { _municipality_id: municipalityId }) || {});
