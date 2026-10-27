@@ -271,7 +271,7 @@ function extractMercadoPagoGuideResult(
   const providerMetadataValid =
     Boolean(source.id && providerReference) &&
     providerReference === externalReference &&
-    /^[0-9]+(?:\\.[0-9]{1,2})?$/.test(providerAmount) &&
+    /^[0-9]+(?:\.[0-9]{1,2})?$/.test(providerAmount) &&
     Math.round(Number(providerAmount) * 100) === Math.round(Number(amountText) * 100);
   return {
     ok: providerMetadataValid,
