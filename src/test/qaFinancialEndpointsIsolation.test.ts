@@ -35,7 +35,7 @@ describe("SIGAPRO QA never invokes inherited bank or municipal collection provid
     expect(JSON.parse(res.body).code).toBe("QA_PAYMENT_PROVIDER_DISABLED");
   });
   it.each(["get","bank_get","bank_save","save","validate","activate","attach"])(
-    "blocks municipal collection %s without touching the bank or Data API",async action=>{
+    "blocks municipal collection %s when Neon QA isolation is missing, before any Data API call",async action=>{
       isolate();
       const res=response();
       await collection({
@@ -43,7 +43,7 @@ describe("SIGAPRO QA never invokes inherited bank or municipal collection provid
         body:{action,municipalityId:"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"}
       } as never,res as never);
       expect(res.statusCode).toBe(503);
-      expect(JSON.parse(res.body).code).toBe("QA_COLLECTION_CONFIGURATION_DISABLED");
+      expect(JSON.parse(res.body).code).toBe("QA_COLLECTION_ISOLATION_REQUIRED");
       expect(res.headers["Cache-Control"]).toBe("no-store");
     }
   );
