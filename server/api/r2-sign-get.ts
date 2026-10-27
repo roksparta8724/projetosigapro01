@@ -179,6 +179,13 @@ export default async function handler(req: Req, res: Res) {
       : null;
 
     if (municipalTarget) {
+      // A signed S3 GET can exist even when the municipal storage object does
+      // not. Check the physical bucket/key first, just as we do for SIGAPRO R2.
+      // This prevents claiming an archived DAM is available when it would 404.
+      await municipalTarget.client.send(new HeadObjectCommand({
+        Bucket: municipalTarget.bucket,
+        Key: municipalTarget.objectKey,
+      }));
       const signedUrl = await getSignedUrl(
         municipalTarget.client,
         new GetObjectCommand({
