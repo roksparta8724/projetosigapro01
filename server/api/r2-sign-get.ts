@@ -9,6 +9,7 @@
 import { GetObjectCommand, HeadObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { callDataApiRpc, resolveMunicipalDocumentTarget } from "../municipal-storage.js";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { verifyImmutableDamOriginalAlreadyStored } from "../lib/damOriginalS3.js";
 
 type Req = import("http").IncomingMessage & { method?: string; body?: unknown };
 type Res = import("http").ServerResponse;
@@ -179,13 +180,20 @@ export default async function handler(req: Req, res: Res) {
       : null;
 
     if (municipalTarget) {
-      // A signed S3 GET can exist even when the municipal storage object does
-      // not. Check the physical bucket/key first, just as we do for SIGAPRO R2.
-      // This prevents claiming an archived DAM is available when it would 404.
-      await municipalTarget.client.send(new HeadObjectCommand({
-        Bucket: municipalTarget.bucket,
-        Key: municipalTarget.objectKey,
-      }));
+      // For immutable DAM originals, existence alone is insufficient: an
+      // external municipal S3 administrator might have replaced the bytes.
+      // Compare the actual PDF against the SHA-256 recorded in the Neon key.
+      if (objectKey.includes("/dam-originals/")) {
+        await verifyImmutableDamOriginalAlreadyStored(
+          municipalTarget.client, municipalTarget.bucket,
+          municipalTarget.objectKey, objectKey,
+        );
+      } else {
+        await municipalTarget.client.send(new HeadObjectCommand({
+          Bucket: municipalTarget.bucket,
+          Key: municipalTarget.objectKey,
+        }));
+      }
       const signedUrl = await getSignedUrl(
         municipalTarget.client,
         new GetObjectCommand({
@@ -225,12 +233,16 @@ export default async function handler(req: Req, res: Res) {
         // O upload já possui fallback entre endpoints. A leitura precisa localizar
         // fisicamente o MESMO objeto antes de assinar, ou uma URL válida pode
         // apontar para a conta errada e retornar 404 somente em produção.
-        await client.send(
-          new HeadObjectCommand({
-            Bucket: bucket,
-            Key: objectKey,
-          }),
-        );
+        if (objectKey.includes("/dam-originals/")) {
+          await verifyImmutableDamOriginalAlreadyStored(client, bucket, objectKey);
+        } else {
+          await client.send(
+            new HeadObjectCommand({
+              Bucket: bucket,
+              Key: objectKey,
+            }),
+          );
+        }
 
         signedUrl = await getSignedUrl(
           client,
