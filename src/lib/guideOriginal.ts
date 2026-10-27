@@ -101,10 +101,21 @@ export async function archiveAndOpenGuide(
   // Boleto bancário e PIX são meios independentes. Um boleto confirmado pelo
   // provedor não precisa conter QR PIX para que seu PDF original seja aberto.
   // Documento não pagável de QA jamais pode ser arquivado como cobrança.
-  if (!hasVerifiableGuidePaymentData(props)) {
+  // A Prefeitura's PIX configured in a browser is NOT proof of the payee.
+  // Only a valid PIX already persisted for this exact Neon guide may appear
+  // on an immutable original. A confirmed boleto remains valid without PIX.
+  const persistedPix = String(original.pix_code || "").trim();
+  const canonicalProps: GuiaRecolhimentoOficialProps = {
+    ...props,
+    guia: {
+      ...props.guia,
+      pixPayload: isValidPixPayload(persistedPix) ? persistedPix : "",
+    },
+  };
+  if (!hasVerifiableGuidePaymentData(canonicalProps)) {
     throw new Error("Guia sem boleto bancário válido ou PIX oficial verificável; o PDF não será arquivado.");
   }
-  original = await guideRpc("freeze_payment_guide_document_v1", municipalityId, code, { _snapshot: props });
+  original = await guideRpc("freeze_payment_guide_document_v1", municipalityId, code, { _snapshot: canonicalProps });
   if (await openStoredGuide(original, target)) return;
   if (!original.document_snapshot) throw new Error("Snapshot original não persistido.");
   if (!hasVerifiableGuidePaymentData(original.document_snapshot)) {
