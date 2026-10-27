@@ -40,11 +40,15 @@ beforeEach(()=>{
     state:"issued"}};
   return {ok:false};
  });
- mocks.fetch.mockResolvedValue(new Response(JSON.stringify({
-  id:"ORDER_QA_PIX_1234",external_reference:guideCode,total_amount:"12.30",
-  status:"action_required",transactions:{payments:[{id:"PAY_1234",
-   payment_method:{id:"pix",type:"bank_transfer",qr_code:"VALID_TEST_PIX_PAYLOAD"}}]}
- }),{status:201}));
+ mocks.fetch.mockResolvedValue({
+  ok:true,status:201,json:async()=>({
+   id:"ORDER_QA_PIX_1234",external_reference:guideCode,total_amount:"12.30",
+   status:"action_required",transactions:{payments:[{id:"PAY_1234",
+    payment_method:{id:"pix",type:"bank_transfer",qr_code:"VALID_TEST_PIX_PAYLOAD"}}]}
+  })
+ });
+ // Vitest jsdom AbortSignal lacks Node.js timeout(); the HTTP response is mocked.
+ vi.stubGlobal("AbortSignal",{timeout:()=>new AbortController().signal});
  vi.stubGlobal("fetch",mocks.fetch);
 });
 afterEach(()=>{vi.unstubAllEnvs();vi.unstubAllGlobals()});
@@ -92,10 +96,10 @@ describe("serverless QA PIX is isolated and idempotent",()=>{
    .toEqual({id:"pix",type:"bank_transfer"});
  });
  it("rejects provider amount discrepancy without saving",async()=>{
-  mocks.fetch.mockResolvedValue(new Response(JSON.stringify({
+  mocks.fetch.mockResolvedValue({ok:true,status:201,json:async()=>({
    id:"ORDER_QA_PIX_1234",external_reference:guideCode,total_amount:"999.99",
    transactions:{payments:[]}
-  }),{status:201}));
+  })});
   const result=await request("issue");
   expect(result.status).toBe(409);
   expect(mocks.rpc.mock.calls.map(x=>x[1])).toEqual(["qa_mp_pix_reserve_v1"]);
