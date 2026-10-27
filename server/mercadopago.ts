@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import type { ApiReq } from "./municipal-storage.js";
 import { resolveMercadoPagoMunicipalAccessToken } from "./municipal-payment.js";
-import { assertGuideProviderSyncAccess, assertGuideProviderWriteAccess, persistGuideCharge, readStoredGuide, storedGuideCharge } from "./guide-persistence.js";
+import { assertBankChargeAttestationReady, assertGuideProviderSyncAccess, assertGuideProviderWriteAccess, persistGuideCharge, readStoredGuide, storedGuideCharge } from "./guide-persistence.js";
 import { normalizeOfficialBanking } from "../src/lib/bankCodes.js";
 import { isPersistedGuideSettled } from "./guide-settlement.js";
 type MercadoPagoEnvironment = "test" | "production";
@@ -436,6 +436,7 @@ export async function createMercadoPagoGuideBoleto(
     }
     input = { ...input, guideCode: stored.guide_number, amount: Number(stored.amount), dueDate: stored.due_date };
     await assertGuideProviderWriteAccess(req!, stored, options?.isolatedSandboxOnly);
+    if (!options?.isolatedSandboxOnly) assertBankChargeAttestationReady();
   }
   const resolved = req
     ? await resolveMercadoPagoMunicipalAccessToken(req, input.municipalityId)
