@@ -16,6 +16,7 @@ import { UrbanDocumentEvidenceDesk } from "@/components/platform/UrbanDocumentEv
 import { UrbanDossierReadinessPanel } from "@/components/platform/UrbanDossierReadinessPanel";
 import type { UrbanDrawingTarget } from "@/lib/urbanDrawingMeasurements";
 import { UrbanLegalKnowledgeDesk } from "@/components/platform/UrbanLegalKnowledgeDesk";
+import { urbanLegalEvidenceAppliesTo } from "@/lib/urbanLegalScope";
 import { listUrbanLegalEvidence } from "@/integrations/backend/urbanLegalEvidenceClient";
 import type { UrbanLegalEvidence } from "@/lib/urbanLegalKnowledge";
 import {
@@ -489,7 +490,11 @@ export function UrbanPrecheckPanel({
         documents={process.documents}
         hasApplicableRegulation={Boolean(regulation)}
         legalCatalogState={legalCatalogError ? "failed" : !legalCatalogReady ? "loading" : "ready"}
-        legalEvidenceCount={legalCatalog.filter(item=>item.municipality_id===municipalityId).length}
+        legalEvidenceCount={legalCatalog.filter(item =>
+          urbanLegalEvidenceAppliesTo(item,regulation,asOf) &&
+          /^[a-f0-9]{64}$/i.test(item.document_sha256) &&
+          Number.isInteger(item.page_number) && item.page_number>0
+        ).length}
       />
       <UrbanDocumentEvidenceDesk
         process={process}

@@ -38,6 +38,7 @@ describe("SIGAPRO IA — preflight de leitura e evidência, sem aprovação auto
    expect(report.externalFormatCount).toBe(1);
    expect(report.pdfWithOriginal).toBe(0);
    expect(report.issues.some(i=>i.code==="UNSUPPORTED_NATIVE_FORMAT")).toBe(true);
+   expect(report.completeForHumanReview).toBe(false);
  });
  it("não interpreta OCR do scan apenas pelo nome do PDF",()=>{
    const report=setup([doc("Prancha escaneada",{fileName:"scan.pdf"})]);

@@ -89,7 +89,8 @@ export function inspectUrbanDossier(input:{
     legalEvidenceCount:Math.max(0,Math.floor(input.legalEvidenceCount)||0),
     completeForHumanReview:required.length>0 && requiredAvailable===required.length &&
       input.hasApplicableRegulation && input.legalCatalogState==="ready" &&
-      input.legalEvidenceCount>0 && !issues.some(i=>i.code==="REJECTED_DOCUMENT"),
+      input.legalEvidenceCount>0 && external.length===0 &&
+      !issues.some(i=>i.code==="REJECTED_DOCUMENT"),
     issues,
   };
 }
