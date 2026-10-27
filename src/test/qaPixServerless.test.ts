@@ -15,7 +15,7 @@ const guideId="11111111-1111-4111-8111-111111111111";
 const keyRx=/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-8[0-9a-f]{3}-[0-9a-f]{12}$/;
 const reservation={id:"55555555-5555-4555-8555-555555555555",municipality_id:tenant,
  guide_id:guideId,guide_number:guideCode,amount:12.30,idempotency_key:"",
- state:"pending",order_id:null,qr_code:null};
+ state:"pending",order_id:null,qr_code:null,may_post:true};
 async function request(action:"get"|"issue",opts:{auth?:string;tenant?:string}={}){
  let body:Record<string,unknown>={};
  const req={method:"POST",headers:{authorization:opts.auth??"Bearer SAFE_USER"},
@@ -94,11 +94,22 @@ describe("serverless QA PIX is isolated and idempotent",()=>{
   const [endpoint,opts]=mocks.fetch.mock.calls[0];
   expect(endpoint).toBe("https://api.mercadopago.com/v1/orders");
   expect(opts.method).toBe("POST");
-  expect(opts.headers["X-Idempotency-Key"]).toMatch(keyRx);
+  expect(opts.headers["X-Idempotency-Key"]).toBeUndefined();
   expect(mocks.rpc.mock.calls[0][2]).toMatchObject({_proof_epoch:1800000000});
   expect(mocks.rpc.mock.calls[1][2]._proof_mac).toMatch(/^[a-f0-9]{64}$/);
   expect(JSON.parse(opts.body).transactions.payments[0].payment_method)
    .toEqual({id:"pix",type:"bank_transfer"});
+ });
+ it("cannot create a second provider Order after first claim",async()=>{
+  mocks.rpc.mockImplementation(async(_req:unknown,fn:string,args:Record<string,unknown>)=>{
+   if(fn==="qa_mp_pix_reserve_v2")return {ok:true,payload:{...reservation,
+    idempotency_key:args._key,may_post:false}};
+   return {ok:false};
+  });
+  const response=await request("issue");
+  expect(response.status).toBe(409);
+  expect(response.body).toMatchObject({code:"QA_PIX_ORDER_CREATION_UNCERTAIN"});
+  expect(mocks.fetch).not.toHaveBeenCalled();
  });
  it("rejects provider amount discrepancy without saving",async()=>{
   mocks.fetch.mockResolvedValue({ok:true,status:201,json:async()=>({

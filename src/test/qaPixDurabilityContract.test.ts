@@ -22,7 +22,8 @@ describe("QA PIX durable integration security contract",()=>{
   expect(sql).toContain("UNIQUE(municipality_id,guide_number)");
   expect(sql).toContain("guide_id uuid NOT NULL UNIQUE");
   expect(sql).toContain("FOR UPDATE");
-  expect(server).toContain('"X-Idempotency-Key":key');
+  expect(server).not.toContain('"X-Idempotency-Key":key');
+  expect(server).toContain("QA_PIX_ORDER_CREATION_UNCERTAIN");
   expect(server).toContain("signQaPixProof");
   expect(sql).toContain("Guia com boleto ou outra cobrança: PIX paralelo bloqueado");
  });

@@ -15,7 +15,7 @@ type Req=IncomingMessage & {body?:Record<string,unknown>};
 type Res=ServerResponse;
 type Reservation={municipality_id:string;guide_number:string;guide_id:string;amount:number;
  idempotency_key:string;order_id?:string|null;payment_id?:string|null;qr_code?:string|null;
- provider_status?:string|null;state:"pending"|"issued"};
+ provider_status?:string|null;state:"pending"|"issued";may_post?:boolean};
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 function send(res:Res,status:number,data:unknown){
  res.statusCode=status;res.setHeader("Content-Type","application/json; charset=utf-8");
@@ -107,6 +107,10 @@ export default async function handler(req:Req,res:Res){
   const amount=Number(guide.amount).toFixed(2);
   const externalReference=guide.guide_number;
   const hasOrder=Boolean(reservation.order_id);
+  // A DB-row claim is single use, preventing duplicate automatic Orders POST requests.
+  if(!hasOrder && action==="issue" && reservation.may_post!==true)
+   return send(res,409,{ok:false,code:"QA_PIX_ORDER_CREATION_UNCERTAIN",
+    error:"Já houve tentativa de emissão. Conferir no provedor antes de nova cobrança."});
   if(!hasOrder&&!enabled())return send(res,503,{ok:false,code:"QA_PIX_CHARGE_OPT_IN_REQUIRED"});
   const endpoint="https://api.mercadopago.com/v1/orders"+
     (hasOrder?"/"+encodeURIComponent(reservation.order_id||""):"");
@@ -114,7 +118,9 @@ export default async function handler(req:Req,res:Res){
    method:hasOrder?"GET":"POST",
    signal:AbortSignal.timeout(15000),
    headers:{Accept:"application/json",Authorization:"Bearer "+resolved.token,
-    ...(!hasOrder?{"Content-Type":"application/json","X-Idempotency-Key":key}:{})},
+    // In automatic mode Mercado Pago does not expect X-Idempotency-Key.
+    // Neon claims the attempt atomically, once per guide, to prevent duplicate POST.
+    ...(!hasOrder?{"Content-Type":"application/json"}:{})},
    ...(!hasOrder?{body:JSON.stringify({
     type:"online",processing_mode:"automatic",external_reference:externalReference,
     total_amount:amount,payer:{email:"test_payer@example.com",first_name:"APRO"},
