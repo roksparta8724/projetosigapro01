@@ -108,7 +108,7 @@ BEGIN
   guide_id=excluded.guide_id,
   reconciliation_status=excluded.reconciliation_status
  WHERE public.mp_webhook_order_events_v1.payload_sha256=excluded.payload_sha256
- RETURNING id,reconciliation_status,attempt_count,guide_id INTO receipt;
+ RETURNING id,reconciliation_status,attempt_count,public.mp_webhook_order_events_v1.guide_id INTO receipt;
  IF NOT FOUND THEN
   RAISE EXCEPTION 'Duplicate request ID conflicts with previously signed event payload';
  END IF;
