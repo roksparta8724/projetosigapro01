@@ -41,7 +41,7 @@ describe("Mercado Pago TEST webhook HMAC and settlement firewall",()=>{
  it("rejects wrong event topic",()=>expect(validate({queryTopic:"payment"}).ok).toBe(false));
  it("rejects missing request id",()=>expect(validate({requestId:""}).ok).toBe(false));
  it("rejects duplicate signature fields",()=>expect(validate({headerSignature:signature()+",v1="+"0".repeat(64)}).ok).toBe(false));
- it("rejects altered request timestamp",()=>expect(validate({headerSignature:signature(id.toLowerCase(),secret,String(now-1000))}).ok).toBe(false));
+ it("rejects a timestamp altered after the signature was generated",()=>expect(validate({headerSignature:"ts="+ts+",v1="+signature(id.toLowerCase(),secret,String(now-1000)).split("v1=")[1]}).ok).toBe(false));
  it("exposes no credential in health",async()=>{const r=await request("GET");expect(r.body.secretConfigured).toBe(true);expect(JSON.stringify(r.body)).not.toContain(secret);});
  it("refuses receipt without durable persistence even with valid HMAC",async()=>{const r=await request("POST");expect(r.status).toBe(503);expect(r.body.code).toBe("WEBHOOK_PERSISTENCE_NOT_READY");});
  it("rejects forged webhook at HTTP boundary",async()=>{const r=await request("POST",{...notice,data:{id:"OTHER"}});expect(r.status).toBe(401);});
