@@ -263,15 +263,26 @@ function extractMercadoPagoGuideResult(
       )
     : "";
   const banking = normalizeOfficialBanking(String(paymentMethod.barcode_content || ""), String(paymentMethod.digitable_line || ""));
+  // Never substitute the guide's expected reference or amount for missing bank
+  // values. A provider response is trustworthy only for fields it actually
+  // returned; our HMAC must never authenticate application-generated fallbacks.
+  const providerReference = String(source.external_reference ?? "").trim();
+  const providerAmount = String(source.total_amount ?? payment.amount ?? "").trim();
+  const providerMetadataValid =
+    Boolean(source.id && providerReference) &&
+    providerReference === externalReference &&
+    /^[0-9]+(?:\\.[0-9]{1,2})?$/.test(providerAmount) &&
+    Math.round(Number(providerAmount) * 100) === Math.round(Number(amountText) * 100);
   return {
-    ok: true,
+    ok: providerMetadataValid,
     environment,
     orderId: String(source.id || ""),
     paymentId: String(payment.id || ""),
-    externalReference: String(source.external_reference || externalReference),
+    externalReference: providerReference,
     status,
     statusDetail,
-    amount: String(source.total_amount || payment.amount || amountText),
+    amount: providerAmount,
+    error: providerMetadataValid ? undefined : "O provedor não confirmou referência e valor compatíveis com a guia.",
     ticketUrl: String(paymentMethod.ticket_url || ""),
     barcodeContent: banking.barcode,
     digitableLine: banking.digitableLine,

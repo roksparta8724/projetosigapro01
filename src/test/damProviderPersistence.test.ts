@@ -48,6 +48,21 @@ describe("Neon guide charge persistence", () => {
     expect(JSON.parse(String(vi.mocked(fetch).mock.calls[0][1]?.body)).total_amount).toBe("300.00");
     expect(rpc).toHaveBeenCalledWith(req, "persist_payment_guide_provider_charge_v2", expect.objectContaining({ _municipality_id: "m1", _charge: expect.objectContaining({ orderId: "order1" }) }));
   });
+  it.each([
+    ["referência ausente", { id: "order1", total_amount: "300.00" }],
+    ["valor ausente", { id: "order1", external_reference: "DAM-001" }],
+    ["valor diferente", { id: "order1", external_reference: "DAM-001", total_amount: "301.00" }],
+    ["referência diferente", { id: "order1", external_reference: "DAM-OTHER", total_amount: "300.00" }],
+  ])("never signs or writes when provider returns %s", async (_name, bankReply) => {
+    rpc.mockResolvedValueOnce({ ok: true, status: 200, payload: guide, error: "" })
+      .mockResolvedValueOnce({ ok: true, status: 200, payload: true, error: "" });
+    vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify(bankReply), { status: 200 }));
+    const result = await createMercadoPagoGuideBoleto(input, req);
+    expect(result.ok).toBe(false);
+    expect(result.errorCode).toBe("PROVIDER_ACCEPTED_PERSISTENCE_OR_SYNC_FAILED");
+    expect(rpc.mock.calls.some((call) => call[1] === "persist_payment_guide_provider_charge_v2")).toBe(false);
+  });
+
   it("reports persistence failure instead of returning a locally successful charge", async () => {
     rpc.mockResolvedValueOnce({ ok: true, status: 200, payload: guide, error: "" })
       .mockResolvedValueOnce({ ok: true, status: 200, payload: true, error: "" })
