@@ -61,7 +61,7 @@ export default async function handler(req:Req,res:Res){
     rawQueryId:orderId,queryTopic:topic,notification:notice,
     headerSignature:signature,requestId,secret:config.webhookSecret,
    });
-   if(!verified.ok)return {kind:"invalid",reason:verified.reason} as const;
+   if(verified.ok === false)return {kind:"invalid",reason:verified.reason} as const;
    stage="provider";
    let observation;
    try{observation=await fetchMunicipalMpOrder(verified.orderId,config.accessToken)}
