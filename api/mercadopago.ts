@@ -140,7 +140,7 @@ export default async function handler(req: Req, res: Res) {
       const body = await readJsonBody(req);
       const guideCode = String(body.guideCode || "");
       if (isolatedQa) {
-        if (!/^Bearer\\s+\\S+$/i.test(String(req.headers?.authorization || ""))) {
+        if (!/^Bearer\s+\S+$/i.test(String(req.headers?.authorization || ""))) {
           json(res, 401, { ok: false, code: "QA_AUTH_REQUIRED" }); return;
         }
         const id = municipalityIdFrom(body);
@@ -337,7 +337,7 @@ export default async function handler(req: Req, res: Res) {
       const body = await readJsonBody(req);
       const guideCode = String(body.guideCode || "");
       if (isolatedQa) {
-        if (!/^Bearer\\s+\\S+$/i.test(String(req.headers?.authorization || ""))) {
+        if (!/^Bearer\s+\S+$/i.test(String(req.headers?.authorization || ""))) {
           json(res, 401, { ok: false, code: "QA_AUTH_REQUIRED" }); return;
         }
         const id = municipalityIdFrom(body);
