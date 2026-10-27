@@ -43,6 +43,7 @@ import { ensureMercadoPagoGuideCharge, requestQaPixCharge, type QaPixCharge, typ
 import { normalizeOfficialBanking } from "@/lib/bankCodes";
 import { buildGuidePixPayload, resolveGuideBankingData } from "@/lib/paymentCollection";
 import { archiveAndOpenGuide, isGuideSettled, openLegacyGuideOriginal, openStoredGuide, readGuideOriginal, type GuideOriginal } from "@/lib/guideOriginal";
+import { isGuideOverdueOnBrazilDate } from "@/lib/guideCivilDueDate";
 import { verifyPersistedQaBoleto } from "@/lib/qaGuideBankConfirmation";
 
 const paymentStatusOptions = [
@@ -53,9 +54,8 @@ const paymentStatusOptions = [
 ];
 
 function getGuideStatus(guide: { status: string; dueDate: string }) {
-  if (guide.status === "compensada") return "compensada";
-  const due = new Date(guide.dueDate);
-  if (!Number.isNaN(due.getTime()) && due.getTime() < Date.now()) return "vencida";
+  if (isGuideSettled(guide)) return "compensada";
+  if (isGuideOverdueOnBrazilDate(guide.dueDate)) return "vencida";
   return "pendente";
 }
 
@@ -96,7 +96,7 @@ export function ExternalPaymentsPage() {
   const activeTab = getExternalTabByPath(location.pathname);
 
   const issueSandboxBoleto = async (process: ProcessRecord, guide: PaymentGuideEntry) => {
-    if (!localQaBankIssuer || !effectiveScopeId || busyGuideAction || guide.status === "compensada") return;
+    if (!localQaBankIssuer || !effectiveScopeId || busyGuideAction || isGuideSettled(guide)) return;
     const actionKey=`${process.id}:${guide.code}`;
     setBusyGuideAction({key:actionKey,action:"boleto"});
     setStatusGuideKey(actionKey);
@@ -179,7 +179,7 @@ export function ExternalPaymentsPage() {
   };
 
   const issueSandboxPix = async (process: ProcessRecord, guide: PaymentGuideEntry) => {
-    if (!localQaBankIssuer || !effectiveScopeId || busyGuideAction || guide.status === "compensada") return;
+    if (!localQaBankIssuer || !effectiveScopeId || busyGuideAction || isGuideSettled(guide)) return;
     const actionKey=`${process.id}:${guide.code}`;
     setBusyGuideAction({key:actionKey,action:"pix"});
     setStatusGuideKey(actionKey);
@@ -785,7 +785,7 @@ export function ExternalPaymentsPage() {
                                 Editar rascunho
                               </Link>
                             </Button>
-                            {localQaBankIssuer && guide.status !== "compensada" ? (
+                            {localQaBankIssuer && !isGuideSettled(guide) ? (
                               <Button
                                 type="button"
                                 variant="outline"
@@ -800,7 +800,7 @@ export function ExternalPaymentsPage() {
                                 Emitir boleto de TESTE
                               </Button>
                             ) : null}
-                            {localQaBankIssuer && guide.status !== "compensada" ? (
+                            {localQaBankIssuer && !isGuideSettled(guide) ? (
                               <Button
                                 type="button"
                                 variant="outline"
