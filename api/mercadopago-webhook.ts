@@ -25,13 +25,19 @@ async function readNotice(req:Req):Promise<MPOrderNotice & {id?:unknown}>{
  return JSON.parse(Buffer.concat(chunks).toString("utf8"));
 }
 export default async function handler(req:Req,res:Res){
- if(req.method==="GET")return send(res,200,{
-  ok:true,environment:"qa",
-  receiverDeployed:process.env.VERCEL_ENV==="preview" &&
-   process.env.VERCEL_GIT_COMMIT_REF==="qa/sigapro-ia-logo-integrado-20261023",
-  durableReceiptConfigured:qaWebhookConfigured(),
-  reconciliationMode:"manual_review_no_automatic_settlement",
- });
+ if(req.method==="GET"){
+  let durableReceiptConfigured=false;
+  if(qaWebhookConfigured()){
+   try{durableReceiptConfigured=await withWebhookConnection(async()=>true)}catch{durableReceiptConfigured=false}
+  }
+  return send(res,200,{
+   ok:true,environment:"qa",
+   receiverDeployed:process.env.VERCEL_ENV==="preview" &&
+    process.env.VERCEL_GIT_COMMIT_REF==="qa/sigapro-ia-logo-integrado-20261023",
+   durableReceiptConfigured,
+   reconciliationMode:"manual_review_no_automatic_settlement",
+  });
+ }
  if(req.method!=="POST")return send(res,405,{ok:false,code:"METHOD_NOT_ALLOWED"});
  if(!qaWebhookConfigured())return send(res,503,{ok:false,code:"QA_WEBHOOK_DATABASE_NOT_READY"});
  let url:URL;try{url=new URL(req.url||"/","https://qa.invalid")}catch{return send(res,400,{ok:false,code:"INVALID_QUERY"})}
