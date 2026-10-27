@@ -28,7 +28,18 @@ export default async function handler(req:Req,res:Res){
  if(req.method==="GET"){
   let durableReceiptConfigured=false;
   if(qaWebhookConfigured()){
-   try{durableReceiptConfigured=await withWebhookConnection(async()=>true)}catch{durableReceiptConfigured=false}
+   try {
+    durableReceiptConfigured=await withWebhookConnection(async db=>{
+     // A successful connection alone does not prove that receipts can be saved.
+     // Check both database RPCs without reading tenant secrets or mutating rows.
+     const result=await db.query(
+      `SELECT to_regprocedure('public.mp_qa_webhook_connection_v1(uuid)') IS NOT NULL AS connection_ready,
+              to_regprocedure('public.mp_qa_webhook_ingest_v1(uuid,text,text,text,text,boolean,text,text,text,numeric)') IS NOT NULL AS ingest_ready`,
+      [],
+     );
+     return result.rows[0]?.connection_ready===true && result.rows[0]?.ingest_ready===true;
+    });
+   } catch { durableReceiptConfigured=false; }
   }
   return send(res,200,{
    ok:true,environment:"qa",
