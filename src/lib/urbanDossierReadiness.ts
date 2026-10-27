@@ -30,11 +30,11 @@ const pdfLike=(doc:ProcessDocument)=>doc.mimeType?.toLowerCase().split(";")[0]?.
   /\.pdf$/i.test(doc.fileName?.trim()||"");
 const nativePlans=(doc:ProcessDocument)=>/\.(?:dwg|dxf|ifc|rvt)$/i.test(doc.fileName?.trim()||"");
 const readableOriginal=(doc:ProcessDocument)=>doc.uploaded && Boolean(doc.filePath?.trim());
-function latestDocuments(documents: readonly ProcessDocument[]) {
+function latestDocuments(documents: readonly ProcessDocument[] | null | undefined) {
   // Historical versions may coexist. Only the latest version of a requirement
   // determines whether that requirement is currently satisfied.
   const current=new Map<string,ProcessDocument>();
-  for(const doc of documents) {
+  for(const doc of Array.isArray(documents) ? documents : []) {
     const key=normalize(doc.label)||doc.id;
     const existing=current.get(key);
     if(!existing || (Number(doc.version)||0)>=(Number(existing.version)||0))
@@ -44,7 +44,7 @@ function latestDocuments(documents: readonly ProcessDocument[]) {
 }
 
 export function inspectUrbanDossier(input:{
-  documents:readonly ProcessDocument[];
+  documents:readonly ProcessDocument[] | null | undefined;
   hasApplicableRegulation:boolean;
   legalCatalogState:"loading"|"failed"|"ready";
   legalEvidenceCount:number;

@@ -10,6 +10,14 @@ const setup=(docs:ProcessDocument[],legalCount=2)=>inspectUrbanDossier({
   documents:docs,hasApplicableRegulation:true,legalCatalogState:"ready",legalEvidenceCount:legalCount
 });
 describe("SIGAPRO IA — preflight de leitura e evidência, sem aprovação automática",()=>{
+ it("dados antigos sem a coleção de anexos não derrubam a tela de análise",()=>{
+   const report=inspectUrbanDossier({documents:undefined,hasApplicableRegulation:true,
+     legalCatalogState:"ready",legalEvidenceCount:2});
+   expect(report.requiredTotal).toBe(0);
+   expect(report.completeForHumanReview).toBe(false);
+   expect(report.issues.some(i=>i.code==="NO_REQUIRED_CHECKLIST")).toBe(true);
+ });
+
  it("informa documento obrigatório ausente sem presumir que foi enviado",()=>{
    const report=setup([doc("Projeto arquitetônico",{uploaded:false,filePath:undefined})]);
    expect(report.requiredAvailable).toBe(0);

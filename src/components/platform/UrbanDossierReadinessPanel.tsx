@@ -5,7 +5,7 @@ import { inspectUrbanDossier } from "@/lib/urbanDossierReadiness";
 export function UrbanDossierReadinessPanel({
   documents, hasApplicableRegulation, legalCatalogState, legalEvidenceCount,
 }:{
-  documents:readonly ProcessDocument[];
+  documents:readonly ProcessDocument[] | null | undefined;
   hasApplicableRegulation:boolean;
   legalCatalogState:"loading"|"failed"|"ready";
   legalEvidenceCount:number;
