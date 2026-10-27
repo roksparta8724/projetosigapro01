@@ -55,6 +55,7 @@ import {
 import { externalTabs, getExternalTabByPath } from "@/lib/externalTabs";
 import { ProtocolTechnicalResponsibility } from "@/components/platform/ProtocolTechnicalResponsibility";
 import { isolateCounterProfessionalDraft, isLicensedProfessionalActivity, shouldAutofillTechnicalLead } from "@/lib/counterProtocolProfessional";
+import { isGuideSettled } from "@/lib/guideOriginal";
 import { compatibleTechnicalDocumentLabel, inferProfessionalCouncil, professionalActivityOptions, professionalCouncilOptions, technicalResponsibilityLabel } from "@/lib/professionalResponsibility";
 import { getMunicipalService, getMunicipalServicesForCategory,
   municipalServiceCategories, type MunicipalServiceCategoryId } from "@/lib/municipalServiceCatalog";
@@ -306,6 +307,7 @@ export function ProtocolarProjetoPage({
   const isResumingDraft = Boolean(resumeDraftNumber || remotePreProtocolNumber);
   const remoteHydratedRef = useRef("");
   const [remoteDraftLoading, setRemoteDraftLoading] = useState(false);
+  const [remoteDraftWritable, setRemoteDraftWritable] = useState(!remotePreProtocolNumber);
   const [categoryChoice, setCategoryChoice] = useState<MunicipalServiceCategoryId | "">("");
   const [sourceProcessId, setSourceProcessId] = useState("");
   const [sourceProcessLoading, setSourceProcessLoading] = useState(false);
@@ -329,12 +331,23 @@ export function ProtocolarProjetoPage({
       remoteHydratedRef.current !== remotePreProtocolNumber
     ) {
       remoteHydratedRef.current = remotePreProtocolNumber;
+      setRemoteDraftWritable(false);
       setRemoteDraftLoading(true);
       setStatus("Carregando o rascunho vinculado à guia inicial...");
 
       void getRemoteExternalPreprotocolDraft(remotePreProtocolNumber)
         .then((remoteDraft) => {
           if (cancelled) return;
+          // Status from the canonical Neon draft, never the old browser copy.
+          // A settled guide must never reopen an editable preprotocol even when
+          // municipal officialization is temporarily behind the bank webhook.
+          if (isGuideSettled(remoteDraft.guide)) {
+            setRemoteDraftWritable(false);
+            setStatus("O pagamento desta guia já foi confirmado. A edição do pré-protocolo foi encerrada; consulte o acompanhamento do processo.");
+            navigate(isCounterProtocol ? "/prefeitura/protocolos" : "/externo/controle", { replace: true });
+            return;
+          }
+          setRemoteDraftWritable(true);
 
           const payload = remoteDraft.payload ?? {};
           const remoteType = String(payload.type || "");
@@ -486,6 +499,7 @@ export function ProtocolarProjetoPage({
         .catch((error) => {
           if (cancelled) return;
           remoteHydratedRef.current = "";
+          setRemoteDraftWritable(false);
           setStatus(
             error instanceof Error
               ? error.message
@@ -1118,6 +1132,10 @@ export function ProtocolarProjetoPage({
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
+    if (remotePreProtocolNumber && !remoteDraftWritable) {
+      setStatus("A edição permanece bloqueada enquanto o pré-protocolo não for confirmado como pendente pelo banco. Consulte o acompanhamento do processo.");
+      return;
+    }
     const remoteDraftAction = remotePreProtocolNumber
       ? remoteDraftActionRef.current
       : "payment";
@@ -2198,6 +2216,7 @@ export function ProtocolarProjetoPage({
                             busy={Boolean(uploadingLabels[item.label])}
                             disabled={
                               !effectiveScopeId ||
+                              (Boolean(remotePreProtocolNumber) && !remoteDraftWritable) ||
                               savingDraft ||
                               submitting ||
                               (hasPendingDocumentUpload && !uploadingLabels[item.label])
@@ -2291,6 +2310,7 @@ export function ProtocolarProjetoPage({
                       disabled={
                         submitting ||
                         remoteDraftLoading ||
+                        !remoteDraftWritable ||
                         hasPendingDocumentUpload
                       }
                       onClick={() => {
@@ -2311,6 +2331,7 @@ export function ProtocolarProjetoPage({
                       disabled={
                         submitting ||
                         remoteDraftLoading ||
+                        !remoteDraftWritable ||
                         hasPendingDocumentUpload ||
                         missingRequired.length > 0
                       }

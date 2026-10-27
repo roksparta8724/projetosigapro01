@@ -699,9 +699,11 @@ export function ExternalPaymentsPage() {
                   .includes("habite");
                 const processTarget =
                   process.isOfficial === false
-                    ? `${isHabiteSe ? "/externo/habite-se" : "/externo/protocolar"}?preprotocolo=${encodeURIComponent(
-                        process.preProtocol || process.protocol,
-                      )}`
+                    ? (status === "compensada"
+                        ? "/externo/controle"
+                        : `${isHabiteSe ? "/externo/habite-se" : "/externo/protocolar"}?preprotocolo=${encodeURIComponent(
+                            process.preProtocol || process.protocol,
+                          )}`)
                     : buildProcessPath(process, "financeiro");
 
                 return (
@@ -724,12 +726,12 @@ export function ExternalPaymentsPage() {
                       <div className="min-w-0">
                         <p className="truncate text-[15px] font-semibold text-slate-950">
                           {process.isOfficial === false
-                            ? "Rascunho com guia emitida"
+                            ? (status === "compensada" ? "Pagamento confirmado · em oficialização" : "Rascunho com guia emitida")
                             : formatOfficialProcessNumber(process.protocol)}
                         </p>
                         <p className="mt-1 truncate text-[13px] text-slate-500">
                           {process.isOfficial === false
-                            ? `Referência temporária: ${process.preProtocol || process.protocol} · sem número oficial até o pagamento`
+                            ? (status === "compensada" ? `Pagamento confirmado · acompanhe a oficialização do pré-protocolo ${process.preProtocol || process.protocol}` : `Referência temporária: ${process.preProtocol || process.protocol} · sem número oficial até o pagamento`)
                             : formatOfficialProcessTitle({ title: process.title, type: process.type })}
                         </p>
                       </div>
@@ -774,17 +776,23 @@ export function ExternalPaymentsPage() {
                       >
                         {process.isOfficial === false ? (
                           <>
-                            <Button
-                              asChild
-                              variant="outline"
-                              data-preprotocol-edit-action="true"
-                              className="rounded-full text-[12px] font-semibold"
-                            >
-                              <Link to={processTarget}>
-                                <FilePenLine className="mr-1.5 h-3.5 w-3.5" />
-                                Editar rascunho
-                              </Link>
-                            </Button>
+                            {status === "compensada" ? (
+                              <Button asChild variant="outline" className="rounded-full text-[12px] font-semibold">
+                                <Link to="/externo/controle">Acompanhar oficialização</Link>
+                              </Button>
+                            ) : (
+                              <Button
+                                asChild
+                                variant="outline"
+                                data-preprotocol-edit-action="true"
+                                className="rounded-full text-[12px] font-semibold"
+                              >
+                                <Link to={processTarget}>
+                                  <FilePenLine className="mr-1.5 h-3.5 w-3.5" />
+                                  Editar rascunho
+                                </Link>
+                              </Button>
+                            )}
                             {localQaBankIssuer && !isGuideSettled(guide) ? (
                               <Button
                                 type="button"
