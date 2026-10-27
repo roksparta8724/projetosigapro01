@@ -55,7 +55,8 @@ describe("Mercado Pago multi-tenant TEST webhook durable inbox",()=>{
  it("valid HMAC signs uppercase order ID using lowercase canonical representation",()=>expect(validate()).toMatchObject({ok:true,orderId:id}));
  it("rejects forged HMAC",()=>expect(validate({headerSignature:signed(undefined,"forged-secret")}).ok).toBe(false));
  it("rejects mismatched URL and event order identifiers",()=>expect(validate({notification:{...notice,data:{id:"OTHER1234"}}}).ok).toBe(false));
- it("rejects production events",()=>expect(validate({notification:{...notice,live_mode:true}}).ok).toBe(false));
+ it("accepts signed Order notifications with live_mode true as an authenticated event",()=>expect(validate({notification:{...notice,live_mode:true}}).ok).toBe(true));
+ it("rejects non-boolean live_mode",()=>expect(validate({notification:{...notice,live_mode:"false"}}).ok).toBe(false));
  it("rejects wrong topic",()=>expect(validate({queryTopic:"payment"}).ok).toBe(false));
  it("rejects missing request ID",()=>expect(validate({requestId:""}).ok).toBe(false));
  it("rejects duplicate signature fields",()=>expect(validate({headerSignature:signed()+",v1="+"0".repeat(64)}).ok).toBe(false));
@@ -93,6 +94,13 @@ describe("Mercado Pago multi-tenant TEST webhook durable inbox",()=>{
   expect(r.status).toBe(401);
   expect(db.fetchOrder).not.toHaveBeenCalled();
   expect(db.persist).not.toHaveBeenCalled();
+ });
+ it("live_mode true still requires HMAC, tenant provider lookup, and never settles a guide",async()=>{
+  const r=await request("POST",{body:{...notice,live_mode:true}});
+  expect(r.status).toBe(200);
+  expect(r.body.automaticSettlement).toBe(false);
+  expect(db.fetchOrder).toHaveBeenCalledWith(id,"encrypted-token-decrypted-in-backend");
+  expect(db.persist).toHaveBeenCalledOnce();
  });
  it("writes bank-verified observation to tenant journal but NEVER pays a guide",async()=>{
   const r=await request("POST");

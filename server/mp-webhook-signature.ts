@@ -8,6 +8,9 @@ export type MPOrderNotice = {
 };
 export type WebhookSignatureResult = { ok: true; orderId: string } | { ok: false; reason: string };
 
+// The MP Orders test simulator and signed notifications may present either
+// boolean live_mode value. QA routing, tenant credentials, HMAC and provider
+// lookup enforce safety; this flag alone does not settle any guide.
 const ORDER_ID = /^[A-Za-z0-9_-]{6,100}$/;
 const HEX_MAC = /^[a-f0-9]{64}$/i;
 const REQUEST_ID = /^[A-Za-z0-9_-]{8,128}$/;
@@ -28,7 +31,7 @@ export function verifyMercadoPagoOrderWebhook(input: {
   const { rawQueryId, queryTopic, headerSignature, requestId, notification, secret } = input;
   if (!rawQueryId || !ORDER_ID.test(rawQueryId) ||
       queryTopic !== "order" || notification.type !== "order" ||
-      notification.live_mode !== false || !String(notification.action || "").startsWith("order.")) {
+      typeof notification.live_mode !== "boolean" || !String(notification.action || "").startsWith("order.")) {
     return { ok: false, reason: "Evento ou identificação de ordem inválida." };
   }
   const bodyId = notification.data?.id;
