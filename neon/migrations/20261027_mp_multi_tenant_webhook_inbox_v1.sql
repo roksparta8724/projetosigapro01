@@ -59,7 +59,9 @@ CREATE OR REPLACE FUNCTION public.mp_qa_webhook_ingest_v1(
 ) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER
 SET search_path TO 'pg_catalog','public' SET row_security TO 'off'
 AS $fn$
-DECLARE g record; status text; receipt record;
+DECLARE
+ guide_id uuid;guide_number text;guide_amount numeric;guide_status text;
+ guide_paid boolean;guide_mode text;status text;receipt record;
 BEGIN
  IF _municipality_id IS NULL OR _order_id !~ '^[A-Za-z0-9_-]{6,100}$'
   OR _request_id !~ '^[A-Za-z0-9_-]{8,128}$'
@@ -71,18 +73,19 @@ BEGIN
    AND p.provider='mercado_pago' AND p.environment='test' AND p.status='active')
  THEN RAISE EXCEPTION 'Active test provider not found'; END IF;
  SELECT g.id,g.amount,g.guide_number,g.status,g.paid,g.collection_mode_snapshot
- INTO g FROM public.payment_guides g
+ INTO guide_id,guide_amount,guide_number,guide_status,guide_paid,guide_mode
+ FROM public.payment_guides g
  WHERE g.municipality_id=_municipality_id AND g.bank_reference=_order_id
  AND g.payment_provider='mercado_pago' AND g.provider_environment='test' LIMIT 1;
  IF NOT coalesce(_bank_fetch_ok,false) THEN
    status:='bank_fetch_failed';
- ELSIF g.id IS NOT NULL
-   AND g.collection_mode_snapshot IS DISTINCT FROM 'municipal_system'
-   AND g.guide_number=_external_reference
-   AND coalesce(g.paid,false)=false
-   AND lower(coalesce(g.status,'')) NOT IN ('confirmed','paid','pago','compensada','confirmado')
+ ELSIF guide_id IS NOT NULL
+   AND guide_mode IS DISTINCT FROM 'municipal_system'
+   AND guide_number=_external_reference
+   AND coalesce(guide_paid,false)=false
+   AND lower(coalesce(guide_status,'')) NOT IN ('confirmed','paid','pago','compensada','confirmado')
    AND _currency='BRL' AND _provider_amount IS NOT NULL
-   AND _provider_amount>0 AND round(g.amount,2)=round(_provider_amount,2)
+   AND _provider_amount>0 AND round(guide_amount,2)=round(_provider_amount,2)
  THEN status:='verified_manual_review';
  ELSE status:='unmatched_manual_review';
  END IF;
@@ -93,7 +96,7 @@ BEGIN
  VALUES (_municipality_id,_order_id,_request_id,_notification_id,_payload_sha256,
   true,coalesce(_bank_fetch_ok,false),left(_provider_status,96),
   left(_external_reference,160),left(_currency,12),_provider_amount,
-  CASE WHEN status='verified_manual_review' THEN g.id ELSE NULL END,status)
+  CASE WHEN status='verified_manual_review' THEN guide_id ELSE NULL END,status)
  ON CONFLICT(municipality_id,order_id,request_id) DO UPDATE SET
   last_received_at=now(),
   attempt_count=least(1000000,public.mp_webhook_order_events_v1.attempt_count+1),
