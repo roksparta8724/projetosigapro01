@@ -14,7 +14,7 @@ vi.mock("@/integrations/r2/client", () => ({ getSignedUrlForObjectStrict: vi.fn(
 vi.mock("./guidePdf", () => ({ renderGuideOriginalPdf: vi.fn() }));
 const pixPayload = buildPixPayload({ key: "financeiro@prefeitura.gov.br", merchantName: "Prefeitura Teste", merchantCity: "Sao Paulo", amount: 300, txid: "DAM1" })!;
 const props = { prefeitura: { nome: "Teste" }, contribuinte: { nome: "Teste" }, guia: { numeroGuia: "DAM-1", dataDocumento: "2026-10-13", valorDocumento: 300, pixPayload }, itens: [] } as GuiaRecolhimentoOficialProps;
-const original: GuideOriginal = { id: "g1", municipality_id: "m1", process_id: "p1", guide_number: "DAM-1", amount: 300, created_at: "2026-10-13", due_date: "2026-10-20", status: "pendente" };
+const original: GuideOriginal = { id: "g1", municipality_id: "m1", process_id: "p1", guide_number: "DAM-1", amount: 300, created_at: "2026-10-13", due_date: "2026-10-20", status: "pendente", pix_code: pixPayload };
 const storedSha = "a".repeat(64);
 const target = { location: { replace: vi.fn() } } as unknown as Window;
 beforeEach(() => {
@@ -69,6 +69,12 @@ describe("immutable DAM original", () => {
   it("does not recreate a paid guide with no original", async () => {
     backendClient.rpc.mockResolvedValue({ data: { ...original, status: "compensada" } });
     await expect(archiveAndOpenGuide("m1", props, target)).rejects.toThrow("Não será recriada");
+    expect(uploadFile).not.toHaveBeenCalled();
+  });
+  it("rejects browser-only PIX when the Neon guide has no recorded recipient", async () => {
+    backendClient.rpc.mockResolvedValue({ data: { ...original, pix_code: undefined } });
+    await expect(archiveAndOpenGuide("m1", props, target)).rejects.toThrow("sem boleto bancário válido");
+    expect(backendClient.rpc).toHaveBeenCalledTimes(1);
     expect(uploadFile).not.toHaveBeenCalled();
   });
   it("renders the persisted snapshot instead of current settings and opens only after attaching", async () => {
