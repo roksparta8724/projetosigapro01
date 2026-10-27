@@ -9,6 +9,7 @@ import { isPersistedGuideSettled } from "../server/guide-settlement.js";
 import { resolveMercadoPagoMunicipalAccessToken } from "../server/municipal-payment.js";
 import { callDataApiRpc } from "../server/municipal-storage.js";
 import { isValidPixPayload } from "../src/lib/pix.js";
+import { signQaPixProof } from "../server/qa-mp-pix-proof.js";
 
 type Req=IncomingMessage & {body?:Record<string,unknown>};
 type Res=ServerResponse;
@@ -89,8 +90,9 @@ export default async function handler(req:Req,res:Res){
    reservation=existing.payload;
   }else{
    // Reserving the unique guide+tenant is a database transaction, not a Vercel filesystem.
-   reservation=await rpc<Reservation>(req,"qa_mp_pix_reserve_v1",{
-    _municipality_id:municipalityId,_guide_code:guideCode,_key:key
+   reservation=await rpc<Reservation>(req,"qa_mp_pix_reserve_v2",{
+    _municipality_id:municipalityId,_guide_code:guideCode,_key:key,
+    ...signQaPixProof({action:"reserve",municipalityId,guideCode,key,amount:Number(guide.amount)})
    });
   }
   if(reservation.municipality_id!==municipalityId||reservation.guide_id!==guide.id ||
@@ -139,11 +141,15 @@ export default async function handler(req:Req,res:Res){
     (qr&&!isValidPixPayload(qr)))
    return send(res,409,{ok:false,code:"QA_PIX_PROVIDER_MISMATCH",
     error:"Order, valor ou QR não correspondem à guia. Não gerar outra cobrança."});
-  const saved=await rpc<Reservation>(req,"qa_mp_pix_save_v1",{
+  const providerPaymentId=String(payment.id||"");
+  const providerStatus=String(object.status||payment.status||"action_required");
+  const saved=await rpc<Reservation>(req,"qa_mp_pix_save_v2",{
    _municipality_id:municipalityId,_guide_code:guideCode,_key:key,
-   _order_id:orderId,_payment_id:String(payment.id||""),
-   _status:String(object.status||payment.status||"action_required"),
-   _qr_code:qr,_amount:Number(amount)
+   _order_id:orderId,_payment_id:providerPaymentId,
+   _status:providerStatus,
+   _qr_code:qr,_amount:Number(amount),
+   ...signQaPixProof({action:"save",municipalityId,guideCode,key,
+     amount:Number(amount),orderId,paymentId:providerPaymentId,status:providerStatus,qrCode:qr})
   });
   if(saved.order_id!==orderId||saved.municipality_id!==municipalityId)
    throw new Error("Gravação PIX não foi confirmada");

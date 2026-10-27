@@ -8,9 +8,9 @@ describe("QA PIX durable integration security contract",()=>{
   expect(rewrites).toContain("/api/qa/mercadopago/guide-pix");
   expect(rewrites).toContain("/api/qa-mercadopago-pix");
   expect(readFileSync("api/mercadopago.ts","utf8")).toContain("QA_PIX_ALREADY_RESERVED");
-  expect(server).toContain("qa_mp_pix_reserve_v1");
+  expect(server).toContain("qa_mp_pix_reserve_v2");
   expect(server).toContain("qa_mp_pix_get_v1");
-  expect(server).toContain("qa_mp_pix_save_v1");
+  expect(server).toContain("qa_mp_pix_save_v2");
  });
  it("does not emit charges without isolated TEST opt-in",()=>{
   expect(server).toContain("SIGAPRO_QA_MP_CHARGE_OPT_IN");
@@ -23,6 +23,7 @@ describe("QA PIX durable integration security contract",()=>{
   expect(sql).toContain("guide_id uuid NOT NULL UNIQUE");
   expect(sql).toContain("FOR UPDATE");
   expect(server).toContain('"X-Idempotency-Key":key');
+  expect(server).toContain("signQaPixProof");
   expect(sql).toContain("Guia com boleto ou outra cobrança: PIX paralelo bloqueado");
  });
  it("GET never creates a reservation or makes a provider POST",()=>{

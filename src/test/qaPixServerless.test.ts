@@ -5,6 +5,9 @@ vi.mock("../../server/guide-settlement.js",()=>({isPersistedGuideSettled:mocks.s
 vi.mock("../../server/municipal-payment.js",()=>({resolveMercadoPagoMunicipalAccessToken:mocks.secret}));
 vi.mock("../../server/municipal-storage.js",()=>({callDataApiRpc:mocks.rpc}));
 vi.mock("../../src/lib/pix.js",()=>({isValidPixPayload:(s:string)=>s==="VALID_TEST_PIX_PAYLOAD"}));
+vi.mock("../../server/qa-mp-pix-proof.js",()=>({signQaPixProof:()=>({
+ _proof_epoch:1800000000,_proof_mac:"f".repeat(64)
+})}));
 import handler from "../../api/qa-mercadopago-pix";
 const tenant="49dac0b6-6352-4744-9aab-9ff91c59d970";
 const guideCode="DAM-PRE-20261027-TEST1234";
@@ -33,9 +36,9 @@ beforeEach(()=>{
  mocks.secret.mockResolvedValue({environment:"test",token:"SANDBOX_TOKEN"});
  mocks.rpc.mockImplementation(async(_req:unknown,fn:string,args:Record<string,unknown>)=>{
   if(fn==="qa_mp_pix_get_v1")return {ok:true,payload:null};
-  if(fn==="qa_mp_pix_reserve_v1")
+  if(fn==="qa_mp_pix_reserve_v2")
    return {ok:true,payload:{...reservation,idempotency_key:args._key}};
-  if(fn==="qa_mp_pix_save_v1")return {ok:true,payload:{...reservation,
+  if(fn==="qa_mp_pix_save_v2")return {ok:true,payload:{...reservation,
     idempotency_key:args._key,order_id:"ORDER_QA_PIX_1234",qr_code:"VALID_TEST_PIX_PAYLOAD",
     state:"issued"}};
   return {ok:false};
@@ -87,11 +90,13 @@ describe("serverless QA PIX is isolated and idempotent",()=>{
   expect(result.body).toMatchObject({ok:true,sandboxOnly:true,environment:"test",
     qrCode:"VALID_TEST_PIX_PAYLOAD",orderId:"ORDER_QA_PIX_1234"});
   const calls=mocks.rpc.mock.calls.map(x=>x[1]);
-  expect(calls).toEqual(["qa_mp_pix_reserve_v1","qa_mp_pix_save_v1"]);
+  expect(calls).toEqual(["qa_mp_pix_reserve_v2","qa_mp_pix_save_v2"]);
   const [endpoint,opts]=mocks.fetch.mock.calls[0];
   expect(endpoint).toBe("https://api.mercadopago.com/v1/orders");
   expect(opts.method).toBe("POST");
   expect(opts.headers["X-Idempotency-Key"]).toMatch(keyRx);
+  expect(mocks.rpc.mock.calls[0][2]).toMatchObject({_proof_epoch:1800000000});
+  expect(mocks.rpc.mock.calls[1][2]._proof_mac).toMatch(/^[a-f0-9]{64}$/);
   expect(JSON.parse(opts.body).transactions.payments[0].payment_method)
    .toEqual({id:"pix",type:"bank_transfer"});
  });
@@ -102,6 +107,6 @@ describe("serverless QA PIX is isolated and idempotent",()=>{
   })});
   const result=await request("issue");
   expect(result.status).toBe(409);
-  expect(mocks.rpc.mock.calls.map(x=>x[1])).toEqual(["qa_mp_pix_reserve_v1"]);
+  expect(mocks.rpc.mock.calls.map(x=>x[1])).toEqual(["qa_mp_pix_reserve_v2"]);
  });
 });
