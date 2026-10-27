@@ -161,7 +161,7 @@ describe("immutable DAM original", () => {
         linhaDigitavel: "2".repeat(47) },
     } as GuiaRecolhimentoOficialProps;
     expect(hasVerifiableGuidePaymentData(invalid)).toBe(false);
-    backendClient.rpc.mockResolvedValue({ data: original });
+    backendClient.rpc.mockResolvedValue({ data: { ...original, pix_code: undefined } });
     await expect(archiveAndOpenGuide("m1", invalid, target)).rejects.toThrow("sem boleto bancário válido");
     expect(uploadFile).not.toHaveBeenCalled();
     expect(renderGuideOriginalPdf).not.toHaveBeenCalled();
