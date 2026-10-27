@@ -12,7 +12,6 @@ import handler from "../../api/qa-mercadopago-pix";
 const tenant="49dac0b6-6352-4744-9aab-9ff91c59d970";
 const guideCode="DAM-PRE-20261027-TEST1234";
 const guideId="11111111-1111-4111-8111-111111111111";
-const keyRx=/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-8[0-9a-f]{3}-[0-9a-f]{12}$/;
 const reservation={id:"55555555-5555-4555-8555-555555555555",municipality_id:tenant,
  guide_id:guideId,guide_number:guideCode,amount:12.30,idempotency_key:"",
  state:"pending",order_id:null,qr_code:null,may_post:true};
