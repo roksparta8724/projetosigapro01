@@ -104,7 +104,11 @@ BEGIN
   provider_amount=excluded.provider_amount,
   guide_id=excluded.guide_id,
   reconciliation_status=excluded.reconciliation_status
+ WHERE public.mp_webhook_order_events_v1.payload_sha256=excluded.payload_sha256
  RETURNING id,reconciliation_status,attempt_count,guide_id INTO receipt;
+ IF receipt.id IS NULL THEN
+  RAISE EXCEPTION 'Duplicate request ID conflicts with previously signed event payload';
+ END IF;
  RETURN jsonb_build_object('receipt_id',receipt.id,'status',receipt.reconciliation_status,
    'attempts',receipt.attempt_count,'matched',receipt.guide_id IS NOT NULL);
 END
