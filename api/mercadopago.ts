@@ -276,7 +276,7 @@ export default async function handler(req: Req, res: Res) {
             {
               _municipality_id: municipalityId,
               _ok: true,
-              _message: `Conexão Mercado Pago validada. Boleto: ${result.boletoAvailable ? "sim" : "não"} · PIX: ${result.pixAvailable ? "sim" : "não"}.`,
+              _message: `Credencial validada. Boleto: ${result.boletoAvailable ? "listado" : "não listado"}. PIX: disponibilidade não comprovada por esta consulta; exige order de teste.`,
             },
           );
           json(res, 200, {
@@ -348,6 +348,22 @@ export default async function handler(req: Req, res: Res) {
         const resolved = await resolveMercadoPagoMunicipalAccessToken(req, id);
         if (resolved.environment !== "test") {
           json(res, 403, { ok: false, code: "QA_TEST_CREDENTIALS_ONLY" }); return;
+        }
+      }
+      if (isolatedQa) {
+        // A PIX reservation is a financial lock; never issue a parallel boleto.
+        const pix = await callDataApiRpc<Record<string,unknown>|null>(
+          req, "qa_mp_pix_get_v1", {
+            _municipality_id: municipalityIdFrom(body),
+            _guide_code: guideCode,
+          },
+        );
+        if (!pix.ok) {
+          json(res, 503, {ok:false,code:"QA_PIX_RESERVATION_CHECK_FAILED"}); return;
+        }
+        if (pix.payload) {
+          json(res, 409, {ok:false,code:"QA_PIX_ALREADY_RESERVED",
+            error:"Guia possui uma reserva PIX de teste. Outra cobrança não será emitida."}); return;
         }
       }
       const result = await createMercadoPagoGuideBoleto(

@@ -163,7 +163,7 @@ export function MunicipalPaymentSettings({
       if (generation !== requestGeneration.current) return;
       setConnection(next);
       setMessage(
-        `Conexão validada. Boleto: ${next.boletoAvailable ? "disponível" : "não retornado"} · PIX: ${next.pixAvailable ? "disponível" : "não retornado"}.`,
+        `Conexão técnica validada. Boleto: ${next.boletoAvailable ? "listado" : "não listado"}. PIX: ${next.pixAvailable ? "listado (emissão ainda exige teste)" : "não aferido por esta consulta; validar com order PIX de teste"}.`,
       );
     } catch (error) {
       if (generation !== requestGeneration.current) return;

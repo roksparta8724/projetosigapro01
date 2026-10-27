@@ -93,6 +93,10 @@ export function ExternalPaymentsPage() {
     typeof window !== "undefined" &&
     ["localhost", "127.0.0.1"].includes(window.location.hostname) &&
     ["8080", "8081"].includes(window.location.port);
+  // Preview QA PIX is persisted in Neon through a protected serverless handler.
+  const qaPixIssuer = localQaBankIssuer || (isolatedQaMode &&
+    typeof window !== "undefined" &&
+    window.location.hostname === "projetosigapro01-git-qa-sigapro-f7ead8-roksparta8724s-projects.vercel.app");
   const activeTab = getExternalTabByPath(location.pathname);
 
   const issueSandboxBoleto = async (process: ProcessRecord, guide: PaymentGuideEntry) => {
@@ -179,7 +183,7 @@ export function ExternalPaymentsPage() {
   };
 
   const issueSandboxPix = async (process: ProcessRecord, guide: PaymentGuideEntry) => {
-    if (!localQaBankIssuer || !effectiveScopeId || busyGuideAction || isGuideSettled(guide)) return;
+    if (!qaPixIssuer || !effectiveScopeId || busyGuideAction || isGuideSettled(guide)) return;
     const actionKey=`${process.id}:${guide.code}`;
     setBusyGuideAction({key:actionKey,action:"pix"});
     setStatusGuideKey(actionKey);
@@ -808,7 +812,7 @@ export function ExternalPaymentsPage() {
                                 Emitir boleto de TESTE
                               </Button>
                             ) : null}
-                            {localQaBankIssuer && !isGuideSettled(guide) ? (
+                            {qaPixIssuer && !isGuideSettled(guide) ? (
                               <Button
                                 type="button"
                                 variant="outline"
