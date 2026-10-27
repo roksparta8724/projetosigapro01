@@ -3,13 +3,16 @@ import { createMercadoPagoGuideBoleto, getMercadoPagoGuideBoletoStatus } from ".
 import { callDataApiRpc } from "../../server/municipal-storage";
 import type { ApiReq } from "../../server/municipal-storage";
 
-vi.mock("../../server/municipal-storage", () => ({ callDataApiRpc: vi.fn() }));
+vi.mock("../../server/municipal-storage", () => ({
+  callDataApiRpc: vi.fn(),
+  readEnv: (key: string) => String(process.env[key] || ""),
+}));
 vi.mock("../../server/municipal-payment", () => ({ resolveMercadoPagoMunicipalAccessToken: vi.fn(async () => ({ environment: "test", token: "sandbox" })) }));
 const req = { headers: { authorization: "Bearer fake-test" } } as ApiReq;
 const guide = { id: "g1", municipality_id: "m1", process_id: "p1", guide_number: "DAM-001", amount: 300, due_date: "2026-10-20", created_at: "2026-10-13T12:00:00Z", status: "pendente" };
 const input = { municipalityId: "m1", guideCode: "DAM-001", amount: 999 };
 const rpc = vi.mocked(callDataApiRpc);
-beforeEach(() => { vi.resetAllMocks(); vi.stubGlobal("fetch", vi.fn(() => { throw new Error("Unexpected network"); })); });
+beforeEach(() => { vi.resetAllMocks(); process.env.SIGAPRO_BANK_CHARGE_SIGNING_SECRET = "c".repeat(64); vi.stubGlobal("fetch", vi.fn(() => { throw new Error("Unexpected network"); })); });
 
 describe("Neon guide charge persistence", () => {
   it("checks write authorization before contacting the provider", async () => {
