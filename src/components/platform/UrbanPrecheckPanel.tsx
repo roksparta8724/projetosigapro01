@@ -13,6 +13,7 @@ import {
 } from "@/lib/urbanPrecheck";
 import type { ProcessRecord } from "@/lib/platform";
 import { UrbanDocumentEvidenceDesk } from "@/components/platform/UrbanDocumentEvidenceDesk";
+import { UrbanDossierReadinessPanel } from "@/components/platform/UrbanDossierReadinessPanel";
 import type { UrbanDrawingTarget } from "@/lib/urbanDrawingMeasurements";
 import { UrbanLegalKnowledgeDesk } from "@/components/platform/UrbanLegalKnowledgeDesk";
 import { listUrbanLegalEvidence } from "@/integrations/backend/urbanLegalEvidenceClient";
@@ -484,6 +485,12 @@ export function UrbanPrecheckPanel({
         </label>
       </div>
 
+      <UrbanDossierReadinessPanel
+        documents={process.documents}
+        hasApplicableRegulation={Boolean(regulation)}
+        legalCatalogState={legalCatalogError ? "failed" : !legalCatalogReady ? "loading" : "ready"}
+        legalEvidenceCount={legalCatalog.filter(item=>item.municipality_id===municipalityId).length}
+      />
       <UrbanDocumentEvidenceDesk
         process={process}
         readOnly={readOnly}
