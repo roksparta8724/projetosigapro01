@@ -16,7 +16,7 @@ const HEX_MAC = /^[a-f0-9]{64}$/i;
 const REQUEST_ID = /^[A-Za-z0-9_-]{8,128}$/;
 
 /**
- * Mercado Pago requires the query-string data.id (lowercased if alphanumeric).
+ * Mercado Pago signs the query-string data.id with its ORIGINAL letter casing.
  * x-signature: ts=... , v1=HMAC_SHA256("id:...;request-id:...;ts:...;")
  */
 export function verifyMercadoPagoOrderWebhook(input: {
@@ -36,7 +36,7 @@ export function verifyMercadoPagoOrderWebhook(input: {
   }
   const bodyId = notification.data?.id;
   if (typeof bodyId !== "string" || !ORDER_ID.test(bodyId) ||
-      bodyId.toLowerCase() !== rawQueryId.toLowerCase()) {
+      bodyId !== rawQueryId) {
     return { ok: false, reason: "O ID do evento não corresponde ao identificador da URL." };
   }
   if (!requestId || !REQUEST_ID.test(requestId) || !headerSignature ||
@@ -61,7 +61,7 @@ export function verifyMercadoPagoOrderWebhook(input: {
   if (!Number.isFinite(timestampMs) || Math.abs((input.nowMs ?? Date.now())-timestampMs)>maxSkewMs) {
     return { ok: false, reason: "Notificação vencida ou com horário inválido." };
   }
-  const canonical = `id:${rawQueryId.toLowerCase()};request-id:${requestId};ts:${ts};`;
+  const canonical = `id:${rawQueryId};request-id:${requestId};ts:${ts};`;
   const expected = createHmac("sha256",secret).update(canonical,"utf8").digest();
   const supplied = Buffer.from(signature,"hex");
   if (supplied.length!==expected.length || !timingSafeEqual(supplied,expected)) {

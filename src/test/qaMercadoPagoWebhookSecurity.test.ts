@@ -20,7 +20,7 @@ const requestId="2066ca19-c6f1-498a-be75-1923005edd06";
 const secret="test-qa-tenant-only-signature-secret";
 const notice={id:"995121",type:"order",action:"order.updated",live_mode:false,data:{id}};
 function signed(t=String(Date.now()),key=secret,oid=id){
- return "ts="+t+",v1="+createHmac("sha256",key).update(`id:${oid.toLowerCase()};request-id:${requestId};ts:${t};`).digest("hex");
+ return "ts="+t+",v1="+createHmac("sha256",key).update(`id:${oid};request-id:${requestId};ts:${t};`).digest("hex");
 }
 function validate(input: Partial<Parameters<typeof verifyMercadoPagoOrderWebhook>[0]>={}){
  const now=Date.now();
@@ -52,8 +52,14 @@ beforeEach(()=>{
 });
 afterEach(()=>vi.unstubAllEnvs());
 describe("Mercado Pago multi-tenant TEST webhook durable inbox",()=>{
- it("valid HMAC signs uppercase order ID using lowercase canonical representation",()=>expect(validate()).toMatchObject({ok:true,orderId:id}));
- it("rejects forged HMAC",()=>expect(validate({headerSignature:signed(undefined,"forged-secret")}).ok).toBe(false));
+ it("valid HMAC preserves uppercase order ID in canonical manifest",()=>expect(validate()).toMatchObject({ok:true,orderId:id}));
+ it("rejects HMAC signed using lowercase ID when URL uses uppercase ID",()=>{
+  expect(validate({headerSignature:signed(undefined,secret,id.toLowerCase())}).ok).toBe(false);
+ });
+ it("rejects a body ID with different casing from the signed query ID",()=>{
+  expect(validate({notification:{...notice,data:{id:id.toLowerCase()}}}).ok).toBe(false);
+ });
+  it("rejects forged HMAC",()=>expect(validate({headerSignature:signed(undefined,"forged-secret")}).ok).toBe(false));
  it("rejects mismatched URL and event order identifiers",()=>expect(validate({notification:{...notice,data:{id:"OTHER1234"}}}).ok).toBe(false));
  it("accepts signed Order notifications with live_mode true as an authenticated event",()=>expect(validate({notification:{...notice,live_mode:true}}).ok).toBe(true));
  it("rejects non-boolean live_mode",()=>expect(validate({notification:{...notice,live_mode:"false"}}).ok).toBe(false));
