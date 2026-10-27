@@ -90,9 +90,11 @@ describe("SIGAPRO — boleto/PDF abre sem misturar municípios e versões", () =
     expect(external).toContain('["localhost", "127.0.0.1"].includes(window.location.hostname)');
     expect(external).toContain('["8080", "8081"].includes(window.location.port)');
     expect(external).toContain("if (!localQaBankIssuer || !effectiveScopeId || busyGuideAction");
-    expect(external).toContain('{localQaBankIssuer && guide.status !== "compensada" ? (');
+    expect(external).toContain('{localQaBankIssuer && !isGuideSettled(guide) ? (');
     expect(external).toContain("A emissão bancária de teste requer o servidor local isolado");
     expect(external).not.toContain('{isolatedQaMode && guide.status !== "compensada" ? (');
+    expect(external).toContain("isGuideSettled(guide)");
+    expect(external).not.toContain('const due = new Date(guide.dueDate)');
   });
 
   it("uses the current municipality's stored branding, not just the old logoUrl", () => {
