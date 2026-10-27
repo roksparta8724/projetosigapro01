@@ -14,6 +14,8 @@ import {
   testMercadoPagoToken,
 } from "../server/municipal-payment.js";
 import { callDataApiRpc } from "../server/municipal-storage.js";
+import { readStoredGuide } from "../server/guide-persistence.js";
+import { resolveMercadoPagoMunicipalAccessToken } from "../server/municipal-payment.js";
 
 type Req = import("http").IncomingMessage & {
   method?: string;
@@ -75,14 +77,43 @@ export default async function handler(req: Req, res: Res) {
   const isolatedQa = process.env.VERCEL_ENV === "preview" &&
     (process.env.VITE_SIGAPRO_NEON_ISOLATED === "true" ||
      process.env.VERCEL_GIT_COMMIT_REF === "qa/sigapro-ia-logo-integrado-20261023");
-  // QA has no dedicated sandbox provider or payment signing credentials.
-  // Fail before all connection, charge or configuration actions to prevent
-  // inherited real-bank tokens from ever being used in previews.
-  if (isolatedQa) {
+  // Preview payments remain fail-closed by default. Only the EXACT isolated
+  // QA git branch can opt into credential setup. This does not enable charges.
+  // Test orders require an independent, explicit server-side opt-in.
+  const qaExactBranch = process.env.VERCEL_ENV === "preview" &&
+    process.env.VITE_SIGAPRO_NEON_ISOLATED === "true" &&
+    process.env.VERCEL_GIT_COMMIT_REF === "qa/sigapro-ia-logo-integrado-20261023";
+  const qaSetupEnabled = qaExactBranch &&
+    process.env.SIGAPRO_QA_MP_SETUP_OPT_IN === "QA_ONLY_TEST_CREDENTIALS" &&
+    String(process.env.MUNICIPAL_PAYMENT_MASTER_KEY || "").length >= 32 &&
+    /^[a-f0-9]{64}$/.test(String(process.env.SIGAPRO_BANK_CHARGE_SIGNING_SECRET || ""));
+  const qaChargesEnabled = qaSetupEnabled &&
+    process.env.SIGAPRO_QA_MP_CHARGE_OPT_IN === "QA_ONLY_TEST_ORDERS";
+
+  if (isolatedQa && !qaSetupEnabled) {
     json(res, 503, {
       ok: false,
       code: "QA_PAYMENT_PROVIDER_DISABLED",
-      error: "Conexão bancária desabilitada na homologação isolada para proteger cobranças reais.",
+      error: "A homologação bancária exige chave QA exclusiva e opção explícita de credenciais de Teste.",
+    });
+    return;
+  }
+
+  if (isolatedQa && action === "health") {
+    json(res, 200, {
+      ok: true, configured: false, environment: "test",
+      code: "QA_TEST_CREDENTIAL_SETUP_AVAILABLE",
+      testAccountVerified: false, orderCreationEnabled: qaChargesEnabled,
+    });
+    return;
+  }
+
+  // Even after credential setup is enabled, no order or status request may
+  // reach Mercado Pago without a second QA-only opt-in.
+  if (isolatedQa && ["guide-boleto", "guide-status"].includes(action) && !qaChargesEnabled) {
+    json(res, 503, {
+      ok: false, code: "QA_PAYMENT_CHARGES_DISABLED",
+      error: "Emissão e consulta bancária aguardam credencial de Teste validada e autorização isolada.",
     });
     return;
   }
@@ -108,6 +139,20 @@ export default async function handler(req: Req, res: Res) {
     try {
       const body = await readJsonBody(req);
       const guideCode = String(body.guideCode || "");
+      if (isolatedQa) {
+        if (!/^Bearer\\s+\\S+$/i.test(String(req.headers?.authorization || ""))) {
+          json(res, 401, { ok: false, code: "QA_AUTH_REQUIRED" }); return;
+        }
+        const id = municipalityIdFrom(body);
+        const guide = await readStoredGuide(req, id, guideCode);
+        if (!guide) {
+          json(res, 403, { ok: false, code: "QA_CANONICAL_GUIDE_REQUIRED" }); return;
+        }
+        const resolved = await resolveMercadoPagoMunicipalAccessToken(req, id);
+        if (resolved.environment !== "test") {
+          json(res, 403, { ok: false, code: "QA_TEST_CREDENTIALS_ONLY" }); return;
+        }
+      }
       const result = await getMercadoPagoGuideBoletoStatus(
         {
           municipalityId: body.municipalityId ? String(body.municipalityId) : undefined,
@@ -143,6 +188,15 @@ export default async function handler(req: Req, res: Res) {
       const body = await readJsonBody(req);
       const subaction = typeof body.action === "string" ? body.action : "get";
       const municipalityId = municipalityIdFrom(body);
+
+      // In QA, only Mercado Pago TEST is configurable. No bank-direct,
+      // manual or production-account integration may inherit QA credentials.
+      if (isolatedQa && subaction === "save" &&
+        (String(body.provider || "") !== "mercado_pago" ||
+         String(body.environment || "") !== "test")) {
+        json(res, 403, { ok: false, code: "QA_TEST_CREDENTIALS_ONLY" });
+        return;
+      }
 
       if (subaction === "get") {
         const connection = await rpcOrThrow<MunicipalPaymentConnection>(
@@ -199,15 +253,12 @@ export default async function handler(req: Req, res: Res) {
       }
 
       if (subaction === "test") {
-        if (isolatedQa) {
-          json(res, 503, {
-            ok: false,
-            code: "QA_PAYMENT_PROVIDER_DISABLED",
-            error: "Teste bancário indisponível na homologação isolada sem credenciais exclusivas de sandbox.",
-          });
+
+        const secretConfig = await getMunicipalPaymentSecretAdmin(req, municipalityId);
+        if (isolatedQa && secretConfig.environment !== "test") {
+          json(res, 403, { ok: false, code: "QA_TEST_CREDENTIALS_ONLY" });
           return;
         }
-        const secretConfig = await getMunicipalPaymentSecretAdmin(req, municipalityId);
         if (secretConfig.provider !== "mercado_pago") {
           throw new Error("O teste automático atual está disponível para Mercado Pago.");
         }
@@ -251,6 +302,13 @@ export default async function handler(req: Req, res: Res) {
       }
 
       if (subaction === "activate") {
+        if (isolatedQa) {
+          const connection = await getMunicipalPaymentSecretAdmin(req, municipalityId);
+          if (connection.provider !== "mercado_pago" || connection.environment !== "test") {
+            json(res, 403, { ok: false, code: "QA_TEST_CREDENTIALS_ONLY" });
+            return;
+          }
+        }
         const connection = await rpcOrThrow<MunicipalPaymentConnection>(
           req,
           "activate_municipal_payment_connection_v1",
@@ -278,6 +336,20 @@ export default async function handler(req: Req, res: Res) {
     try {
       const body = await readJsonBody(req);
       const guideCode = String(body.guideCode || "");
+      if (isolatedQa) {
+        if (!/^Bearer\\s+\\S+$/i.test(String(req.headers?.authorization || ""))) {
+          json(res, 401, { ok: false, code: "QA_AUTH_REQUIRED" }); return;
+        }
+        const id = municipalityIdFrom(body);
+        const guide = await readStoredGuide(req, id, guideCode);
+        if (!guide) {
+          json(res, 403, { ok: false, code: "QA_CANONICAL_GUIDE_REQUIRED" }); return;
+        }
+        const resolved = await resolveMercadoPagoMunicipalAccessToken(req, id);
+        if (resolved.environment !== "test") {
+          json(res, 403, { ok: false, code: "QA_TEST_CREDENTIALS_ONLY" }); return;
+        }
+      }
       const result = await createMercadoPagoGuideBoleto(
         {
           municipalityId: body.municipalityId ? String(body.municipalityId) : undefined,
