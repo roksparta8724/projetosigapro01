@@ -89,6 +89,17 @@ describe("Mercado Pago multi-tenant TEST webhook durable inbox",()=>{
   expect(db.fetchOrder).not.toHaveBeenCalled();
   expect(db.persist).not.toHaveBeenCalled();
  });
+ it("diagnoses signed-event rejection without exposing credentials",async()=>{
+  const warn=vi.spyOn(console,"warn").mockImplementation(()=>{});
+  try {
+   const r=await request("POST",{body:{...notice,data:{id:"OTHER1234"}}});
+   expect(r.status).toBe(401);
+   const logs=warn.mock.calls.flat().join(" ");
+   expect(logs).toContain("signed_event_rejected");
+   expect(logs).not.toContain(secret);
+   expect(logs).not.toContain("encrypted-token-decrypted-in-backend");
+  } finally {warn.mockRestore();}
+ });
  it("forged notification never reaches provider or event inbox",async()=>{
   const r=await request("POST",{body:{...notice,data:{id:"OTHER1234"}}});
   expect(r.status).toBe(401);

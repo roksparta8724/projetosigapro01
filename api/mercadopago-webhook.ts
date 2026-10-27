@@ -49,33 +49,48 @@ export default async function handler(req:Req,res:Res){
  try{notice=await readNotice(req)}catch{return send(res,400,{ok:false,code:"INVALID_EVENT_BODY"})}
  const requestId=String(req.headers["x-request-id"]||"");
  const signature=String(req.headers["x-signature"]||"");
- // Do not expose secret, account token, full payment data, or SQL exceptions.
+ // Do not log tenant IDs, payment data, signature, request bodies or SQL exceptions.
+ // Fixed stage names and static verification reasons are safe for QA diagnostics.
+ let stage="connect";
  try{
   const outcome=await withWebhookConnection(async db=>{
+   stage="tenant";
    const config=await readQaMunicipalPaymentSecret(db,municipalityId);
    if(!config)return {kind:"unconfigured"} as const;
    const verified=verifyMercadoPagoOrderWebhook({
     rawQueryId:orderId,queryTopic:topic,notification:notice,
     headerSignature:signature,requestId,secret:config.webhookSecret,
    });
-   if(!verified.ok)return {kind:"invalid"} as const;
+   if(!verified.ok)return {kind:"invalid",reason:verified.reason} as const;
+   stage="provider";
    let observation;
    try{observation=await fetchMunicipalMpOrder(verified.orderId,config.accessToken)}
    catch{observation={fetched:false,status:"provider_unavailable",reference:"",currency:"",amount:null}}
    const notificationId=String(notice.id||requestId).slice(0,128);
    const payloadHash=createHash("sha256").update(JSON.stringify(notice)).digest("hex");
+   stage="persist";
    const receipt=await persistQaOrderEvent(db,{
     municipalityId,orderId:verified.orderId,requestId,notificationId,
     payloadHash,observation
    });
    return {kind:"saved",receipt,retry:!observation.fetched} as const;
   });
-  if(outcome.kind==="unconfigured")return send(res,503,{ok:false,code:"QA_MUNICIPAL_WEBHOOK_SECRET_REQUIRED"});
-  if(outcome.kind==="invalid")return send(res,401,{ok:false,code:"INVALID_WEBHOOK_SIGNATURE"});
-  if(outcome.retry)return send(res,503,{ok:false,code:"QA_BANK_RETRY_REQUIRED",receiptSaved:true});
+  if(outcome.kind==="unconfigured"){
+   console.warn("[sigapro-qa-webhook] tenant_connection_missing");
+   return send(res,503,{ok:false,code:"QA_MUNICIPAL_WEBHOOK_SECRET_REQUIRED"});
+  }
+  if(outcome.kind==="invalid"){
+   console.warn("[sigapro-qa-webhook] signed_event_rejected:",outcome.reason);
+   return send(res,401,{ok:false,code:"INVALID_WEBHOOK_SIGNATURE"});
+  }
+  if(outcome.retry){
+   console.warn("[sigapro-qa-webhook] provider_unavailable_receipt_saved");
+   return send(res,503,{ok:false,code:"QA_BANK_RETRY_REQUIRED",receiptSaved:true});
+  }
   return send(res,200,{ok:true,received:true,receiptId:outcome.receipt.receipt_id,
    reconciliationStatus:outcome.receipt.status,automaticSettlement:false});
  }catch{
+  console.warn("[sigapro-qa-webhook] processing_unavailable_stage:",stage);
   return send(res,503,{ok:false,code:"QA_WEBHOOK_PROCESSING_UNAVAILABLE"});
  }
 }
