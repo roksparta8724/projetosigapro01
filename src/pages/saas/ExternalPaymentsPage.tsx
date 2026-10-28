@@ -43,7 +43,7 @@ import { getMunicipalityLogoOpenUrl } from "@/integrations/r2/client";
 import { ensureMercadoPagoGuideCharge, requestQaPixCharge, type QaPixCharge, type MercadoPagoGuideCharge } from "@/lib/mercadoPagoGuide";
 import { normalizeOfficialBanking } from "@/lib/bankCodes";
 import { buildGuidePixPayload, resolveGuideBankingData } from "@/lib/paymentCollection";
-import { archiveAndOpenGuide, canResumeQaFrozenGuide, isGuideSettled, openLegacyGuideOriginal, openStoredGuide, readGuideOriginal, type GuideOriginal } from "@/lib/guideOriginal";
+import { archiveAndOpenGuide, isGuideSettled, openLegacyGuideOriginal, openStoredGuide, readGuideOriginal, type GuideOriginal, canResumeQaFrozenGuide } from "@/lib/guideOriginal";
 import { isGuideOverdueOnBrazilDate } from "@/lib/guideCivilDueDate";
 import { verifyPersistedQaBoleto } from "@/lib/qaGuideBankConfirmation";
 
