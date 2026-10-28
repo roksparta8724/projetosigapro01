@@ -1,15 +1,19 @@
 import { buildGuiaRecolhimentoOficialHtml, type GuiaRecolhimentoOficialProps } from "@/components/GuiaRecolhimentoOficial";
 
-// Keep the bank's document snapshot and payment data unchanged. Only its
-// visual A4 capture is reflowed; PDF originals already stored stay immutable.
+/**
+ * Captura SOMENTE uma folha A4. Dados bancários, valores, QR PIX e o snapshot
+ * jurídico não são modificados. Nunca gerar uma segunda folha ou cortar campos.
+ */
 export async function renderGuideOriginalPdf(props: GuiaRecolhimentoOficialProps): Promise<Blob> {
   const [{ default: html2canvas }, { jsPDF }] = await Promise.all([import("html2canvas"), import("jspdf")]);
   const frame = document.createElement("iframe");
-  frame.style.cssText = "position:fixed;left:-10000px;top:0;width:820px;height:1600px;border:0";
+  frame.style.cssText = "position:fixed;left:-10000px;top:0;width:820px;height:1700px;border:0";
   frame.setAttribute("aria-hidden", "true");
   document.body.appendChild(frame);
+
   try {
-    const doc = frame.contentDocument!;
+    const doc = frame.contentDocument;
+    if (!doc) throw new Error("Não foi possível iniciar a folha A4 da guia.");
     doc.open();
     doc.write(buildGuiaRecolhimentoOficialHtml(props, { autoPrint: false }));
     doc.close();
@@ -22,50 +26,81 @@ export async function renderGuideOriginalPdf(props: GuiaRecolhimentoOficialProps
     const sheet = doc.querySelector<HTMLElement>(".dam-sheet");
     if (!sheet) throw new Error("Documento DAM sem página.");
 
-    // Fixed-height receipt/header boxes caused the original A4 overlap.
-    // Let the sections grow to their actual contents BEFORE rendering.
-    // A4 sizing is applied proportionally to the complete capture below.
-    const reflow = doc.createElement("style");
-    reflow.textContent = `
+    // A versão anterior aumentava cada célula e dividia o PDF em duas folhas.
+    // Esta versão reduz apenas os excessos de padding e altura mínima na
+    // captura, sem esmagar as fontes, distorcer brasão ou QR, ou omitir taxas.
+    const compact = doc.createElement("style");
+    compact.textContent = `
       .dam-sheet {
-        height: auto !important;
-        min-height: 286.5mm !important;
-        max-height: none !important;
-        overflow: visible !important;
+        height:auto !important; min-height:286.5mm !important;
+        max-height:none !important; overflow:visible !important;
+        padding:2.4mm !important;
       }
-      .dam-stack { height: auto !important; }
-      .dam-header-center, .dam-logo-box {
-        height: auto !important;
-        min-height: 64px !important;
-      }
+      .dam-sheet, .dam-sheet * { box-sizing:border-box !important; }
+      .dam-stack { height:auto !important; gap:0.65mm !important; }
+      .dam-header-center, .dam-logo-box { height:auto !important; min-height:59px !important; }
+      .dam-subtitle-main, .dam-subtitle-side { padding:4px 6px !important; }
+      .dam-subtitle-value { margin-top:2px !important; line-height:1.28 !important; }
+      .dam-guide-tag { margin-top:2px !important; padding:2px 4px !important; }
+      .dam-fields-grid { gap:1px !important; padding:1px !important; }
+      .dam-field-label { padding:2px 4px !important; }
+      .dam-field-value { min-height:20px !important; padding:3px 5px !important; }
+      .dam-responsibility-cell { min-height:33px !important; padding:4px 6px !important; }
+      .dam-responsibility-value { margin-top:2px !important; line-height:1.25 !important; }
+      .dam-work-meta { padding:3px 6px !important; }
+      .dam-reference { padding:3px 6px !important; }
+      .dam-table-wrap { padding:2px 4px !important; }
+      .dam-table th, .dam-table td { padding:3px !important; line-height:1.25 !important; }
+      .dam-total-label, .dam-total-value { padding:3px 5px !important; }
+      .dam-responsible-label, .dam-responsible-value { padding:3px 5px !important; }
+      .dam-warning-row { padding:3px 6px !important; line-height:1.25 !important; }
+      .dam-observation-row { min-height:24px !important; }
+      .dam-observation-label, .dam-observation-value { padding:3px 6px !important; }
+      .dam-summary-row { min-height:35px !important; }
+      .dam-summary-cell { padding:5px 6px !important; }
+      .dam-summary-value { margin-top:3px !important; }
+      .dam-tear-line { margin:0.6mm 0 !important; }
       .dam-receipt-header {
-        height: auto !important;
-        min-height: 24mm !important;
-        max-height: none !important;
+        height:auto !important; min-height:21mm !important; max-height:none !important;
+        grid-template-columns:28mm minmax(0,1fr) 58mm !important;
       }
-      .dam-receipt-right .dam-receipt-row {
-        height: auto !important;
-        min-height: 12mm !important;
-      }
-      .dam-receipt-center,
+      .dam-receipt-logo img { max-height:19.5mm !important; }
+      .dam-receipt-center { padding:1.6mm 2.5mm !important; overflow:visible !important; }
+      .dam-receipt-right .dam-receipt-row { height:auto !important; min-height:10.5mm !important; }
       .dam-receipt-right .dam-receipt-row-label,
-      .dam-receipt-right .dam-receipt-row-value {
-        overflow: visible !important;
+      .dam-receipt-right .dam-receipt-row-value { padding:1.4mm !important; overflow:visible !important; }
+      .dam-receipt-left > .dam-receipt-row,
+      .dam-receipt-amounts > .dam-receipt-row { min-height:7mm !important; }
+      .dam-receipt-left .dam-receipt-row-label,
+      .dam-receipt-left .dam-receipt-row-value,
+      .dam-receipt-amounts > .dam-receipt-row > .dam-receipt-row-label,
+      .dam-receipt-amounts > .dam-receipt-row > .dam-receipt-row-value {
+        padding:3px 5px !important; line-height:1.3 !important;
       }
+      .dam-note, .dam-auth { padding:4px 6px !important; }
+      .dam-qr-wrap { padding:4px !important; }
+      .dam-qr-sandbox .dam-qrcode-box { min-height:29mm !important; }
+      .dam-qr-sandbox .dam-qrcode-box svg { width:112px !important; height:112px !important; }
+      .dam-bottom-section { min-height:8mm !important; padding:3px 6px !important; }
+      .dam-barcode-box.dam-barcode-unavailable { height:8mm !important; }
+      .dam-final-left, .dam-final-right, .dam-footer-left, .dam-footer-right {
+        padding:4px 6px !important;
+      }
+      .dam-final-area { min-height:16mm !important; }
+      .dam-final-box { min-height:9mm !important; padding:4px 5px !important; }
+      .dam-final-right-box { min-height:9mm !important; }
+      .dam-auth-box { min-height:11mm !important; }
       .dam-mini-value, .dam-receipt-title, .dam-receipt-subline,
       .dam-receipt-row-label, .dam-receipt-row-value, .dam-final-box,
       .dam-bank-auth-line, .dam-summary-value, .dam-pix-copy {
-        white-space: normal !important;
-        overflow-wrap: anywhere !important;
-        word-break: break-word !important;
+        white-space:normal !important; overflow-wrap:anywhere !important;
+        word-break:break-word !important;
       }
-      .dam-sheet, .dam-sheet * { box-sizing: border-box !important; }
     `;
-    doc.head.appendChild(reflow);
+    doc.head.appendChild(compact);
 
-    // Do not silently clip data, QR values, municipality names or tax rows.
-    // Keep the real overflow check; the previous fixed A4 height was causing
-    // a false failure even though a proportional full-page render was possible.
+    // Rejeitar apenas cortes reais dentro dos cartões. O PDF nunca deve
+    // arquivar textos extravasando limites; a folha é ajustada proporcionalmente.
     const elements = [
       sheet,
       ...Array.from(sheet.querySelectorAll<HTMLElement>(
@@ -82,54 +117,40 @@ export async function renderGuideOriginalPdf(props: GuiaRecolhimentoOficialProps
       ) {
         const section = typeof element.className === "string"
           ? element.className.trim().split(/\\s+/).slice(0, 2).join(".")
-          : "cartão";
-        throw new Error(
-          "O PDF da guia excede os limites de " + section +
-          ". Nenhum original foi arquivado. Revise os dados desta guia.",
-        );
+          : "card";
+        throw new Error("Conteúdo excede o " + section + " da guia A4; nenhum original foi arquivado.");
       }
     }
 
-    const pdf = new jsPDF({ unit: "mm", format: "a4", compress: true });
-    pdf.setProperties({ title: `DAM ${props.guia.numeroGuia}`, subject: "Original da guia municipal" });
+    const canvas = await html2canvas(sheet, {
+      scale:3, backgroundColor:"#ffffff", logging:false,
+    });
+    const pdf = new jsPDF({ unit:"mm", format:"a4", compress:true });
+    pdf.setProperties({ title:`DAM ${props.guia.numeroGuia}`, subject:"Guia municipal A4 — via única" });
     const issuedAt = new Date(props.guia.dataDocumento || "2000-01-01T00:00:00.000Z");
-    pdf.setCreationDate(Number.isNaN(issuedAt.getTime()) ? new Date("2000-01-01T00:00:00.000Z") : issuedAt);
+    pdf.setCreationDate(Number.isNaN(issuedAt.getTime())
+      ? new Date("2000-01-01T00:00:00.000Z") : issuedAt);
 
-    const pageWidth = 200;
-    const availableHeight = 286.5;
-    const capture = (element: HTMLElement) =>
-      html2canvas(element, { scale: 3, backgroundColor: "#ffffff", logging: false });
-    const addCanvas = (canvas: HTMLCanvasElement) => {
-      // Same scale for X and Y: preserve the institutional cards and QR
-      // aspect ratio, never squeeze the rendered document vertically.
-      const naturalHeight = canvas.height / canvas.width * pageWidth;
-      const fit = Math.min(1, availableHeight / naturalHeight);
-      if (fit < 0.90) {
-        throw new Error("O documento excede a capacidade legível da página A4. Nenhum original foi arquivado.");
-      }
-      const width = pageWidth * fit;
-      pdf.addImage(
-        canvas.toDataURL("image/png"), "PNG",
-        5 + (pageWidth - width) / 2, 5,
-        width, naturalHeight * fit,
+    // Ajuste uniforme na folha, sem dupla página e sem deformação.
+    const pageWidthMm = 200;
+    const pageHeightMm = 286.5;
+    const naturalHeightMm = canvas.height / canvas.width * pageWidthMm;
+    const fit = Math.min(1, pageHeightMm / naturalHeightMm);
+    if (fit < 0.72) {
+      throw new Error(
+        "Há conteúdo demais para uma guia A4 legível em uma única página. " +
+        "Nenhum original foi arquivado: reduza o texto administrativo.",
       );
-    };
-
-    const sheetHeightMm = sheet.getBoundingClientRect().height /
-      sheet.getBoundingClientRect().width * pageWidth;
-    if (sheetHeightMm <= availableHeight / 0.90) {
-      addCanvas(await capture(sheet));
-    } else {
-      // Rare long guides have a separate complete tax-page and payment-page.
-      // A full block is never cut in the middle, and all charged rows survive.
-      const top = sheet.querySelector<HTMLElement>(".dam-block-top");
-      const bottom = sheet.querySelector<HTMLElement>(".dam-block-bottom");
-      if (!top || !bottom) {
-        throw new Error("A estrutura da guia A4 está incompleta. Nenhum original foi arquivado.");
-      }
-      addCanvas(await capture(top));
-      pdf.addPage("a4", "portrait");
-      addCanvas(await capture(bottom));
+    }
+    const widthMm = pageWidthMm * fit;
+    const heightMm = naturalHeightMm * fit;
+    pdf.addImage(
+      canvas.toDataURL("image/png"), "PNG",
+      5 + (pageWidthMm - widthMm) / 2, 5,
+      widthMm, heightMm,
+    );
+    if (pdf.getNumberOfPages() !== 1) {
+      throw new Error("Falha ao montar a via única A4; nenhum original foi arquivado.");
     }
     return pdf.output("blob");
   } finally {
