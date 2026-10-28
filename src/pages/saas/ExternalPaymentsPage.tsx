@@ -45,6 +45,7 @@ import { normalizeOfficialBanking } from "@/lib/bankCodes";
 import { buildGuidePixPayload, resolveGuideBankingData } from "@/lib/paymentCollection";
 import { archiveAndOpenGuide, isGuideSettled, openLegacyGuideOriginal, openStoredGuide, readGuideOriginal, type GuideOriginal, canResumeQaFrozenGuide } from "@/lib/guideOriginal";
 import { isGuideOverdueOnBrazilDate } from "@/lib/guideCivilDueDate";
+import { renderGuideOriginalPdf } from "@/lib/guidePdf";
 import { verifyPersistedQaBoleto } from "@/lib/qaGuideBankConfirmation";
 
 const paymentStatusOptions = [
@@ -80,7 +81,7 @@ export function ExternalPaymentsPage() {
   // Each operation has its own identity. Shared per-guide loading state made
   // "Emitir boleto" and "Gerar PIX" animate at the same time.
   const [busyGuideAction, setBusyGuideAction] = useState<{
-    key: string; action: "boleto" | "pix" | "guide";
+    key: string; action: "boleto" | "pix" | "guide" | "preview";
   } | null>(null);
   const [statusGuideKey, setStatusGuideKey] = useState("");
   const [guideActionStatus, setGuideActionStatus] = useState("");
@@ -284,6 +285,42 @@ export function ExternalPaymentsPage() {
     }catch(error) {
       setGuideActionStatus(error instanceof Error?error.message:"Falha na consulta de status PIX de TESTE.");
     }finally{setBusyGuideAction(null);}
+  };
+
+  /** Compare the corrected QA-only A4 layout against the frozen snapshot.
+   * Never mutate the archived legal original or issue another bank order. */
+  const previewQaA4Layout = async (process: ProcessRecord, guide: PaymentGuideEntry) => {
+    if (!isolatedQaMode || !effectiveScopeId || busyGuideAction ||
+        !guide.code.startsWith("DAM-PRE-QA-")) return;
+    const target = reserveGuiaRecolhimentoOficialWindow(`Conferência A4 · ${guide.code}`);
+    if (!target) {
+      setGuideActionStatus("O navegador bloqueou a prévia A4. Habilite pop-ups e tente novamente.");
+      return;
+    }
+    const key = `${process.id}:${guide.code}`;
+    setBusyGuideAction({key,action:"preview"});
+    setStatusGuideKey(key);
+    setGuideActionStatus("");
+    try {
+      const original = await readGuideOriginal(effectiveScopeId,guide.code);
+      if (original.municipality_id !== effectiveScopeId ||
+          original.process_id !== process.id ||
+          original.guide_number !== guide.code ||
+          original.provider_environment !== "test" ||
+          !original.document_snapshot) {
+        throw new Error("Prévia A4 indisponível: a guia não possui snapshot de TESTE válido desta Prefeitura.");
+      }
+      const rendered = await renderGuideOriginalPdf(original.document_snapshot);
+      const url = URL.createObjectURL(rendered);
+      target.location.replace(url);
+      window.setTimeout(() => URL.revokeObjectURL(url), 5 * 60 * 1000);
+      setGuideActionStatus("Prévia de layout A4 gerada apenas para conferência. O PDF original arquivado não foi alterado; nenhum PIX foi emitido.");
+    } catch(error) {
+      target.close();
+      setGuideActionStatus(error instanceof Error ? error.message : "Não foi possível apresentar a prévia do layout A4.");
+    } finally {
+      setBusyGuideAction(null);
+    }
   };
 
   const openExternalGuide = async (
@@ -942,6 +979,22 @@ export function ExternalPaymentsPage() {
                               )}
                               Visualizar guia
                             </Button>
+                            {isolatedQaMode && guide.code.startsWith("DAM-PRE-QA-") ? (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                data-qa-a4-layout-preview="true"
+                                className="rounded-full border-slate-300 bg-white px-4 text-[12px] font-semibold text-slate-800 hover:bg-slate-100"
+                                disabled={Boolean(busyGuideAction)}
+                                onClick={() => void previewQaA4Layout(process,guide)}
+                              >
+                                {busyGuideAction?.key === `${process.id}:${guide.code}` &&
+                                 busyGuideAction.action === "preview"
+                                  ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                                  : <Eye className="mr-1.5 h-3.5 w-3.5" />}
+                                Conferir layout A4 (QA)
+                              </Button>
+                            ) : null}
                           </>
                         ) : (
                           <Button asChild variant="outline" className="rounded-full text-[13px]">
