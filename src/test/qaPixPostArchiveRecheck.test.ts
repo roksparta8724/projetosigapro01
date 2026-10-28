@@ -36,6 +36,6 @@ describe("QA post-original bank reconciliation workflow",()=>{
   expect(page).toContain("original.original_pdf_key && original.original_pdf_sha256");
   expect(page).toContain("await reconcileQaPixAfterPdf");
   expect(client).toContain('"/api/qa/mercadopago/guide-reconcile"');
-  expect(vercel).toContain('"/api/qa-mercadopago-reconcile"');
+  expect(vercel).toContain('"/api/mercadopago-webhook?mode=post-archive-reconcile"');
  });
 });
