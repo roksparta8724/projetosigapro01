@@ -378,6 +378,10 @@ export async function getMercadoPagoGuideBoletoStatus(
     if (stored.collection_mode_snapshot === "municipal_system") {
       throw new Error("Guia vinculada à arrecadação própria da Prefeitura; não consultar cobrança paralela.");
     }
+    if (stored.payment_provider && stored.payment_provider !== "mercado_pago")
+      throw new Error("Guia vinculada a outro banco: consulta Mercado Pago bloqueada.");
+    if (stored.bank_reference && !stored.payment_provider)
+      throw new Error("Guia antiga sem identidade bancária confirmada: consulta automática bloqueada.");
     if (isPersistedGuideSettled(stored)) return storedGuideCharge(stored);
     if (!stored.bank_reference || stored.bank_reference !== input.orderId) {
       throw new Error("Cobrança não vinculada à guia original.");
@@ -436,6 +440,10 @@ export async function createMercadoPagoGuideBoleto(
     if (stored.collection_mode_snapshot === "municipal_system") {
       throw new Error("Guia vinculada à arrecadação própria da Prefeitura; não emitir cobrança paralela.");
     }
+    if (stored.payment_provider && stored.payment_provider !== "mercado_pago")
+      throw new Error("Guia vinculada a outro banco: emissão Mercado Pago bloqueada.");
+    if (stored.bank_reference && !stored.payment_provider)
+      throw new Error("Guia antiga com referência bancária sem provedor confirmado: emissão bloqueada.");
     if (isPersistedGuideSettled(stored) || (stored.barcode && stored.digitable_line)) {
       return storedGuideCharge(stored);
     }

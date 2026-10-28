@@ -47,6 +47,8 @@ import { archiveAndOpenGuide, isGuideSettled, openLegacyGuideOriginal, openStore
 import { isGuideOverdueOnBrazilDate } from "@/lib/guideCivilDueDate";
 import { renderGuideOriginalPdf } from "@/lib/guidePdf";
 import { verifyPersistedQaBoleto } from "@/lib/qaGuideBankConfirmation";
+import { municipalCollectionApiRequest } from "@/lib/municipalCollectionApi";
+import { resolveMunicipalChargeRoute, municipalChargeRouteMessage, type BankConnection } from "@/lib/municipalChargeRouting";
 
 const paymentStatusOptions = [
   { value: "todos", label: "Todos os status" },
@@ -441,6 +443,25 @@ export function ExternalPaymentsPage() {
       const canonicalPriorBanking = normalizeOfficialBanking(
         officialOriginal?.barcode, officialOriginal?.digitable_line,
       );
+      // Never assume Mercado Pago is the provider of another municipality.
+      // Read the active collection/provider configuration from the authorized
+      // municipal API, and honor the guide's original frozen payment route.
+      let selectedProvider: BankConnection | null = null;
+      if (!isolatedQa && !(
+        canonicalPriorBanking.barcode && canonicalPriorBanking.digitableLine
+      )) {
+        const [active,connection] = await Promise.all([
+          municipalCollectionApiRequest<{mode?:string;status?:string}>(
+            "collection-configuration", effectiveScopeId, "effective",
+          ),
+          municipalCollectionApiRequest<BankConnection>(
+            "payment-connection", effectiveScopeId, "get",
+          ),
+        ]);
+        selectedProvider = connection;
+        const route = resolveMunicipalChargeRoute(officialOriginal!,connection,active);
+        if (route !== "mercado_pago") throw new Error(municipalChargeRouteMessage(route));
+      }
       const charge = isolatedQa ? (newlyIssued ? tested : null) :
         (canonicalPriorBanking.barcode && canonicalPriorBanking.digitableLine)
           ? null
@@ -591,7 +612,7 @@ export function ExternalPaymentsPage() {
           bankName: isolatedQa
             ? (sandboxIssued ? (charge?.financialInstitution || "Mercado Pago — boleto de TESTE")
               : sandboxPixIssued ? "Mercado Pago — PIX de TESTE" : "Mercado Pago (conexão de teste)")
-            : charge?.financialInstitution || banking.bankName || "Mercado Pago",
+            : charge?.financialInstitution || banking.bankName || "Banco arrecadador não informado",
           bankAgreement: banking.bankAgreement,
           // Display only the municipality's saved administrative bank metadata.
           // These fields DO NOT prove a registered bank-issued boleto.
@@ -614,9 +635,9 @@ export function ExternalPaymentsPage() {
           bankAuthenticatedAt: previewOnly ? undefined : (confirmedOriginal?.bank_authenticated_at || charge?.authenticatedAt || guide.bankAuthenticatedAt),
           bankEnvironment: isolatedQa ? "test" : (confirmedOriginal?.provider_environment || charge?.environment || guide.providerEnvironment),
           paymentProvider:
-            guide.paymentProvider ||
-            tenantSettings?.paymentProvider ||
-            "mercado_pago",
+            confirmedOriginal?.payment_provider ||
+            selectedProvider?.provider ||
+            (isolatedQa ? "mercado_pago" : (charge?.ok ? "mercado_pago" : tenantSettings?.paymentProvider || "manual")),
           valorDocumento: originalAmount,
           descontos: 0,
           outrosAcrescimos: 0,
