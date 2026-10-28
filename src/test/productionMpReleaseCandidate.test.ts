@@ -10,6 +10,11 @@ describe("independent production Mercado Pago webhook release",()=>{
   expect(handler).toContain('VERCEL_ENV==="production"');
   expect(handler).toContain('VERCEL_GIT_COMMIT_REF===requiredBranch');
   expect(handler).toContain("sigapro_prod_webhook_worker");
+  expect(handler).toContain("NOT r.rolcreaterole");
+  expect(handler).toContain("NOT r.rolcreatedb");
+  expect(handler).toContain("NOT r.rolbypassrls");
+  expect(handler).toContain("NOT pg_has_role(current_user,'neon_superuser','member')");
+  expect(handler).toContain("PROD_WORKER_EXCESSIVE_PRIVILEGES");
   expect(handler).toContain("ep-blue-cloud-b4hhgb4t");
   expect(handler).toContain("mp_prod_webhook_connection_v1");
   expect(entry).toContain("mp-prod-webhook.js");

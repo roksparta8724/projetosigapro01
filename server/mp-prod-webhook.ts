@@ -44,7 +44,20 @@ async function connect<T>(fn:(client:Db)=>Promise<T>):Promise<T>{
  const client=new pg.Client({connectionString:prodDatabaseUrl(),
   connectionTimeoutMillis:4500,statement_timeout:9500,query_timeout:9500});
  await client.connect();
- try{return await fn(client)}finally{await client.end()}
+ try{
+  // Neon-managed roles may inherit neon_superuser, CREATEROLE or BYPASSRLS.
+  // Reject them even if a Vercel secret points at the correct username.
+  const check=await client.query(`SELECT (
+    current_user='sigapro_prod_webhook_worker'
+    AND NOT r.rolsuper AND NOT r.rolcreaterole
+    AND NOT r.rolcreatedb AND NOT r.rolbypassrls
+    AND NOT pg_has_role(current_user,'neon_superuser','member')
+   ) AS limited_role FROM pg_catalog.pg_roles r
+   WHERE r.rolname=current_user`,[]);
+  if(check.rows[0]?.limited_role!==true)
+    throw new Error("PROD_WORKER_EXCESSIVE_PRIVILEGES");
+  return await fn(client);
+ }finally{await client.end()}
 }
 async function readJson(req:Req,max:number){
  if(req.body!==undefined){
