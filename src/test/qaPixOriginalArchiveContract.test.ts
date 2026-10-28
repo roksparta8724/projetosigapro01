@@ -24,6 +24,10 @@ describe("QA-only sandbox PIX immutable original contract",()=>{
   expect(sql).toContain("c.environment='test'");
   expect(sql).toContain("g.collection_mode_snapshot IS DISTINCT FROM 'sigapro'");
   expect(sql).toContain("REVOKE ALL ON FUNCTION");
+  // Mercado Pago may send br.gov.bcb.pix in lowercase. Keep canonical EMV
+  // validation strict but case-insensitive so the provider QR is not rejected.
+  expect(sql).toContain("COALESCE(p.qr_code,'') !~*");
+  expect(sql).not.toContain("COALESCE(p.qr_code,'') !~ '");
   expect(sql).not.toMatch(/SET\s+paid\s*=|SET\s+status\s*=/i);
  });
  it("does not archive administrative previews or produce another provider POST",()=>{

@@ -43,7 +43,7 @@ BEGIN
     OR p.payment_id IS NULL OR p.payment_id=''
     OR p.provider_status NOT IN ('action_required','processed')
     OR p.amount IS DISTINCT FROM g.amount OR p.idempotency_key IS NULL
-    OR COALESCE(p.qr_code,'') !~ '^000201.*BR\.GOV\.BCB\.PIX.*6304[0-9A-Fa-f]{4}$'
+    OR COALESCE(p.qr_code,'') !~* '^000201.*BR\.GOV\.BCB\.PIX.*6304[0-9A-Fa-f]{4}$'
     OR length(p.qr_code)>3000
   THEN RAISE EXCEPTION 'Ordem PIX sem comprovação de teste compatível com a guia'; END IF;
   IF (g.bank_reference IS NOT NULL AND g.bank_reference <> p.order_id)
