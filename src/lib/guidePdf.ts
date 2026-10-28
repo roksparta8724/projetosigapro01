@@ -18,6 +18,25 @@ export async function renderGuideOriginalPdf(props: GuiaRecolhimentoOficialProps
     }));
     const sheet = doc.querySelector<HTMLElement>(".dam-sheet");
     if (!sheet) throw new Error("Documento DAM sem página.");
+    // The original is immutable. Never archive a visually truncated A4:
+    // this catches content overflowing the page or an individual receipt card.
+    const elements = [
+      sheet,
+      ...Array.from(sheet.querySelectorAll<HTMLElement>(
+        ".dam-block, .dam-header-right, .dam-mini-cell, .dam-field, " +
+        ".dam-responsibility-cell, .dam-summary-cell, .dam-receipt-center, " +
+        ".dam-receipt-row, .dam-receipt-row-value, .dam-pix-copy, .dam-final-box",
+      )),
+    ];
+    for (const element of elements) {
+      const tolerance = 2;
+      if (
+        element.scrollWidth > element.clientWidth + tolerance ||
+        element.scrollHeight > element.clientHeight + tolerance
+      ) {
+        throw new Error("O PDF da guia excede os limites do card ou da página A4. Nenhum original foi arquivado.");
+      }
+    }
     const canvas = await html2canvas(sheet, { scale: 3, backgroundColor: "#ffffff", logging: false });
     const pdf = new jsPDF({ unit: "mm", format: "a4", compress: true });
     pdf.setProperties({ title: `DAM ${props.guia.numeroGuia}`, subject: "Original da guia municipal" });
