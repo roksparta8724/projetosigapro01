@@ -78,7 +78,7 @@ describe("Mercado Pago multi-tenant TEST webhook durable inbox",()=>{
   const r=await request("GET");
   expect(r.status).toBe(200);
   expect(r.body.durableReceiptConfigured).toBe(true);
-  expect(r.body.reconciliationMode).toBe("manual_review_no_automatic_settlement");
+  expect(r.body.reconciliationMode).toBe("qa_accredited_after_original_archive");
   expect(JSON.stringify(r.body)).not.toContain(secret);
  });
  it("stays closed if isolated database is not ready",async()=>{
@@ -163,6 +163,19 @@ describe("Mercado Pago multi-tenant TEST webhook durable inbox",()=>{
   expect(r.status).toBe(200);
   expect(r.body.reconciliationStatus).toBe("unmatched_manual_review");
   expect(r.body.automaticSettlement).toBe(false);
+ });
+ it("credits only when the server-side bank settlement function attests the payment",async()=>{
+  db.persist.mockResolvedValue({receipt_id:"12",status:"settled_qa",matched:true,attempts:1});
+  const r=await request("POST");
+  expect(r.status).toBe(200);
+  expect(r.body.automaticSettlement).toBe(true);
+ });
+ it("refuses to acknowledge accredited payments without a bank original PDF",async()=>{
+  db.persist.mockResolvedValue({receipt_id:"12",status:"awaiting_original_pdf",matched:true,attempts:1});
+  const r=await request("POST");
+  expect(r.status).toBe(503);
+  expect(r.body.code).toBe("QA_ORIGINAL_PDF_REQUIRED");
+  expect(r.body.receiptSaved).toBe(true);
  });
  it("deduplicated webhook is still idempotent and not a financial confirmation",async()=>{
   db.persist.mockResolvedValue({receipt_id:"12",status:"verified_manual_review",matched:true,attempts:2});

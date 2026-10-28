@@ -35,7 +35,7 @@ export default async function handler(req:Req,res:Res){
    receiverDeployed:process.env.VERCEL_ENV==="preview" &&
     process.env.VERCEL_GIT_COMMIT_REF==="qa/sigapro-ia-logo-integrado-20261023",
    durableReceiptConfigured,
-   reconciliationMode:"manual_review_no_automatic_settlement",
+   reconciliationMode:"qa_accredited_after_original_archive",
   });
  }
  if(req.method!=="POST")return send(res,405,{ok:false,code:"METHOD_NOT_ALLOWED"});
@@ -87,8 +87,15 @@ export default async function handler(req:Req,res:Res){
    console.warn("[sigapro-qa-webhook] provider_unavailable_receipt_saved");
    return send(res,503,{ok:false,code:"QA_BANK_RETRY_REQUIRED",receiptSaved:true});
   }
+  if(outcome.receipt.status==="awaiting_original_pdf"){
+   // Ask the provider to retry once the authorized user archived the immutable
+   // original. Never settle a municipal process without its original document.
+   return send(res,503,{ok:false,code:"QA_ORIGINAL_PDF_REQUIRED",receiptSaved:true});
+  }
+  const settled=outcome.receipt.status==="settled_qa"||
+    outcome.receipt.status==="already_settled_qa";
   return send(res,200,{ok:true,received:true,receiptId:outcome.receipt.receipt_id,
-   reconciliationStatus:outcome.receipt.status,automaticSettlement:false});
+   reconciliationStatus:outcome.receipt.status,automaticSettlement:settled});
  }catch{
   console.warn("[sigapro-qa-webhook] processing_unavailable_stage:",stage);
   return send(res,503,{ok:false,code:"QA_WEBHOOK_PROCESSING_UNAVAILABLE"});
