@@ -101,7 +101,26 @@ export default async function handler(req:Req,res:Res){
   if(reservation.municipality_id!==municipalityId||reservation.guide_id!==guide.id ||
     Number(reservation.amount)!==Number(guide.amount)||reservation.idempotency_key!==key)
    throw new Error("Reserva PIX não corresponde à guia original");
-  // GET refreshes the already-existing order, without any new charge.
+  // The immutable PIX snapshot is already financially bound to this guide.
+  // A GET must NEVER pass through qa_mp_pix_save_v2 again: that writer
+  // explicitly rejects frozen/archived guides, producing false 503 failures.
+  // The real bank credit is separately checked by the signed-webhook
+  // reconciler, after the PDF original is archived.
+  if(action==="get"&&(guide.document_snapshot||guide.original_pdf_key)){
+   if(reservation.state!=="issued" || !reservation.order_id ||
+      !reservation.payment_id || !isValidPixPayload(String(reservation.qr_code||"")) ||
+      guide.bank_reference!==reservation.order_id ||
+      guide.bank_payment_id!==reservation.payment_id ||
+      guide.pix_code!==reservation.qr_code ||
+      guide.payment_provider!=="mercado_pago" ||
+      guide.provider_environment!=="test"){
+    return send(res,409,{ok:false,code:"QA_FROZEN_PIX_INTEGRITY_MISMATCH",
+     error:"O PIX arquivado não corresponde à guia original no Neon. Emissão bloqueada."});
+   }
+   return send(res,200,{...render(reservation),statusStale:true});
+  }
+  // GET on an unfrozen guide can still refresh and persist the
+  // provider's verified order, but never creates a second charge.
   if(reservation.state==="issued"&&action==="issue")return send(res,200,render(reservation));
   // A prior attempt without a saved order may be reconciled read-only by external_reference.
   const resolved=await resolveMercadoPagoMunicipalAccessToken(req,municipalityId);
