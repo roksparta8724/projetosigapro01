@@ -254,7 +254,7 @@ function bankAuthenticationLabel(guia: GuiaData) {
     return {
       tone: "test",
       title: "NÃO EMITIDA",
-      lines: ["Prévia administrativa de homologação.", "Nenhuma cobrança foi registrada no banco."],
+      lines: ["Prévia administrativa de homologação.", "Nenhuma cobrança foi registrada no provedor."],
     };
   }
   const status = String(guia.bankStatus || "").toLowerCase();
@@ -1091,9 +1091,9 @@ function getStyles() {
     }
 
     .dam-qr-sandbox { background: #fffbeb; }
-    .dam-qr-sandbox .dam-qrcode-box { min-height: 18mm; }
-    .dam-qr-sandbox .dam-qrcode-box svg { width: 68px; height: 68px; }
-    .dam-qr-sandbox .dam-pix-copy { max-height: 14mm; overflow: hidden; }
+    .dam-qr-sandbox .dam-qrcode-box { min-height: 29mm; }
+    .dam-qr-sandbox .dam-qrcode-box svg { width: 104px; height: 104px; }
+    .dam-qr-sandbox .dam-pix-copy { overflow-wrap: anywhere; max-height: none; }
 
     .dam-pix-test-warning {
       margin-top: 2px;
@@ -1515,6 +1515,7 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
     guia.valorCobrado ?? totalDocumento - descontos + outrosAcrescimos;
   const bankAuth = bankAuthenticationLabel(guia);
   const nonPayable = guia.nonPayablePreview === true;
+  const testPixOnly = guia.bankEnvironment === "test" && !nonPayable && isValidPixPayload(guia.qaSandboxPixPayload) && !guia.codigoBarras && !guia.linhaDigitavel;
   // Boleto and PIX are independent bank-issued payment methods. A working
   // Mercado Pago boleto does NOT imply that the provider supplied a PIX QR.
   // In isolated QA never turn a real municipal static key into a payable QR.
@@ -1619,7 +1620,7 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
               </div>
             </div>
 
-            <div className="dam-title">{nonPayable ? "Prévia de guia — não pagável" : guideMeta.title}</div>
+            <div className="dam-title">{nonPayable ? "Prévia de guia — não pagável" : testPixOnly ? "PIX de homologação — sem boleto" : guideMeta.title}</div>
 
             {guia.bankEnvironment === "test" ? (
               <div className="dam-homologation-band">
@@ -1788,7 +1789,7 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
             </div>
 
             <div className="dam-total-row">
-              <div className="dam-total-label">{nonPayable ? "VALOR REFERENCIAL — NÃO PAGAR" : guia.bankEnvironment === "test" ? "VALOR DO BOLETO DE TESTE — NÃO PAGAR" : "VALOR TOTAL A PAGAR"}</div>
+              <div className="dam-total-label">{nonPayable ? "VALOR REFERENCIAL — NÃO PAGAR" : testPixOnly ? "VALOR DO PIX DE TESTE — NÃO PAGAR" : guia.bankEnvironment === "test" ? "VALOR DO BOLETO DE TESTE — NÃO PAGAR" : "VALOR TOTAL A PAGAR"}</div>
               <div className="dam-total-value">{formatCurrency(totalDocumento)}</div>
             </div>
 
@@ -1804,6 +1805,8 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
             <div className="dam-warning-row">
               {nonPayable
                 ? "** SOMENTE PRÉVIA DE TESTE — SEM BOLETO REGISTRADO — NÃO PAGAR **"
+                : testPixOnly
+                  ? "** PIX EMITIDO EM AMBIENTE DE TESTE — BOLETO NÃO EMITIDO — NÃO PAGAR — SEM VALIDADE DE ARRECADAÇÃO OFICIAL **"
                 : guia.bankEnvironment === "test"
                   ? "** BOLETO EMITIDO NO AMBIENTE DE TESTES — NÃO PAGAR — SEM VALIDADE DE ARRECADAÇÃO OFICIAL **"
                 : guia.paymentProvider === "mercado_pago"
@@ -1964,7 +1967,7 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
                     <div className="dam-qrcode-label">PIX — MERCADO PAGO (TESTE)</div>
                     <div className="dam-pix-test-warning">QR DE HOMOLOGAÇÃO · NÃO PAGAR</div>
                     <div className="dam-qrcode-box">
-                      <QRCodeSVG value={sandboxPixPayload} size={68} level="M" marginSize={2} />
+                      <QRCodeSVG value={sandboxPixPayload} size={104} level="M" marginSize={4} />
                     </div>
                     <div className="dam-pix-copy-label">PIX COPIA E COLA — SOMENTE TESTE</div>
                     <div className="dam-pix-copy">{sandboxPixPayload}</div>
@@ -2009,7 +2012,7 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
             <div className="dam-bottom-section">
               <div className="dam-bottom-label">Linha Digitável</div>
               <div className="dam-digitable-value">
-                {nonPayable ? "NÃO EMITIDA — PRÉVIA DE HOMOLOGAÇÃO" : formatDigitableLine(guia.linhaDigitavel)}
+                {nonPayable ? "NÃO EMITIDA — PRÉVIA DE HOMOLOGAÇÃO" : testPixOnly ? "BOLETO NÃO EMITIDO — SOMENTE PIX DE TESTE" : formatDigitableLine(guia.linhaDigitavel)}
               </div>
             </div>
 
@@ -2018,7 +2021,9 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
               <div className="dam-barcode-box">
                 {nonPayable
                   ? <span className="dam-barcode-fallback">NÃO EMITIDO — nenhuma cobrança foi registrada no provedor</span>
-                  : <ProviderBarcode value={guia.codigoBarras} />}
+                  : testPixOnly
+                    ? <span className="dam-barcode-fallback">BOLETO NÃO EMITIDO — PIX DE HOMOLOGAÇÃO REGISTRADO NO PROVEDOR</span>
+                    : <ProviderBarcode value={guia.codigoBarras} />}
               </div>
             </div>
 
@@ -2028,6 +2033,8 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
                 <div className="dam-footer-note">
                   {nonPayable
                     ? "SOMENTE HOMOLOGAÇÃO — prévia administrativa, sem pagamento, PIX, código de barras ou confirmação bancária."
+                    : testPixOnly
+                      ? "PIX DE TESTE EMITIDO PELO PROVEDOR. BOLETO NÃO EMITIDO. NÃO PAGAR. Este documento não comprova compensação nem baixa financeira municipal."
                     : guia.bankInstructions ||
                     (guia.linhaDigitavel || guia.pixPayload || guia.qrCodePixUrl
                       ? "Efetue o pagamento pelo canal oficial indicado pela Prefeitura. Após a compensação, o recolhimento poderá ser conferido na tramitação administrativa."
@@ -2051,6 +2058,8 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
                 <div className="dam-final-text">
                   {nonPayable
                     ? "Prévia para testar o fluxo administrativo. Não comprova emissão, autenticação ou compensação bancária."
+                    : testPixOnly
+                      ? "PIX emitido no sandbox do Mercado Pago. Registro exclusivo de homologação; não representa pagamento, cobrança municipal oficial ou baixa."
                     : "Guia vinculada ao processo administrativo e ao provedor oficial de cobrança."}
                 </div>
                 <div className="dam-final-box">

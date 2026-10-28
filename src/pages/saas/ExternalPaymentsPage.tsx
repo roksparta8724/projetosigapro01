@@ -374,7 +374,6 @@ export function ExternalPaymentsPage() {
       const digitableLine = isolatedQa
         ? (sandboxIssued ? confirmedBanking.digitableLine : "")
         : confirmedBanking.digitableLine;
-      const previewOnly = isolatedQa && !sandboxIssued;
       if (!isolatedQa && (!barcode || !digitableLine)) {
         throw new Error("A cobrança ainda não retornou código de barras e linha digitável válidos.");
       }
@@ -387,6 +386,14 @@ export function ExternalPaymentsPage() {
           if (result.ok) sandboxPix=result;
         } catch { /* The boleto PDF must stay available when PIX is unavailable. */ }
       }
+      // A provider-signed, tenant-scoped sandbox PIX order exists independently
+      // from the boleto. Show its REAL TEST QR in the read-only QA document
+      // without claiming that a boleto was issued or changing the DAM settlement.
+      const sandboxPixIssued = Boolean(
+        isolatedQa && sandboxPix?.ok && sandboxPix.environment==="test" &&
+        sandboxPix.orderId && isValidPixPayload(sandboxPix.qrCode)
+      );
+      const previewOnly = isolatedQa && !sandboxIssued && !sandboxPixIssued;
       // Use the same municipality-specific official logo sources as the
       // internal guide. Legacy tenantSettings.logoUrl alone is often empty.
       const stableMunicipalLogoUrl = getMunicipalityLogoOpenUrl(
@@ -461,7 +468,8 @@ export function ExternalPaymentsPage() {
           qaSandboxPixPayload: isolatedQa && sandboxPix?.ok && sandboxPix.environment==="test"
             ? sandboxPix.qrCode || "" : "",
           bankName: isolatedQa
-            ? (sandboxIssued ? (charge?.financialInstitution || "Mercado Pago — teste") : "Mercado Pago (conexão de teste)")
+            ? (sandboxIssued ? (charge?.financialInstitution || "Mercado Pago — boleto de TESTE")
+              : sandboxPixIssued ? "Mercado Pago — PIX de TESTE" : "Mercado Pago (conexão de teste)")
             : charge?.financialInstitution || banking.bankName || "Mercado Pago",
           bankAgreement: banking.bankAgreement,
           // Display only the municipality's saved administrative bank metadata.
@@ -474,12 +482,14 @@ export function ExternalPaymentsPage() {
           bankInstructions: isolatedQa
             ? (sandboxIssued
               ? "BOLETO DE HOMOLOGAÇÃO — dados fornecidos pelo Mercado Pago em ambiente de TESTE. NÃO EFETUAR PAGAMENTO."
-              : "HOMOLOGAÇÃO SIGAPRO — DOCUMENTO NÃO PAGÁVEL. Nenhuma cobrança foi registrada no banco.")
+              : sandboxPixIssued
+                ? "PIX GERADO PELO MERCADO PAGO EM AMBIENTE DE TESTE — NÃO PAGAR. Boleto não emitido. Esta via não comprova arrecadação ou compensação municipal."
+                : "HOMOLOGAÇÃO SIGAPRO — DOCUMENTO NÃO PAGÁVEL. Nenhuma cobrança foi registrada no banco.")
             : banking.bankInstructions,
-          bankReference: previewOnly ? undefined : (confirmedOriginal?.bank_reference || charge?.orderId || guide.bankReference),
-          bankPaymentId: previewOnly ? undefined : (confirmedOriginal?.bank_payment_id || charge?.paymentId || guide.bankPaymentId),
-          bankStatus: previewOnly ? undefined : (confirmedOriginal?.bank_status || charge?.status || guide.bankStatus),
-          bankStatusDetail: previewOnly ? undefined : (confirmedOriginal?.bank_status_detail || charge?.statusDetail || guide.bankStatusDetail),
+          bankReference: previewOnly ? undefined : (sandboxPixIssued && !sandboxIssued ? sandboxPix?.orderId : (confirmedOriginal?.bank_reference || charge?.orderId || guide.bankReference)),
+          bankPaymentId: previewOnly ? undefined : (sandboxPixIssued && !sandboxIssued ? sandboxPix?.paymentId : (confirmedOriginal?.bank_payment_id || charge?.paymentId || guide.bankPaymentId)),
+          bankStatus: previewOnly ? undefined : (sandboxPixIssued && !sandboxIssued ? (sandboxPix?.statusStale ? "status_aguardando_consulta" : sandboxPix?.status) : (confirmedOriginal?.bank_status || charge?.status || guide.bankStatus)),
+          bankStatusDetail: previewOnly ? undefined : (sandboxPixIssued && !sandboxIssued ? "pix_sandbox" : (confirmedOriginal?.bank_status_detail || charge?.statusDetail || guide.bankStatusDetail)),
           bankAuthenticatedAt: previewOnly ? undefined : (confirmedOriginal?.bank_authenticated_at || charge?.authenticatedAt || guide.bankAuthenticatedAt),
           bankEnvironment: isolatedQa ? "test" : (confirmedOriginal?.provider_environment || charge?.environment || guide.providerEnvironment),
           paymentProvider:
@@ -527,7 +537,7 @@ export function ExternalPaymentsPage() {
       }
 
       const opened = openGuiaRecolhimentoOficialWindow(guideDocument, {
-        title: isolatedQa ? (sandboxIssued ? `BOLETO DE TESTE — NÃO PAGAR · ${guide.code}` : `PRÉVIA NÃO PAGÁVEL · ${guide.code}`) : `Guia ${guide.code}`,
+        title: isolatedQa ? (sandboxIssued ? `BOLETO DE TESTE — NÃO PAGAR · ${guide.code}` : sandboxPixIssued ? `PIX DE TESTE — NÃO PAGAR · ${guide.code}` : `PRÉVIA NÃO PAGÁVEL · ${guide.code}`) : `Guia ${guide.code}`,
         autoPrint: false,
       }, reservedGuideWindow);
 
