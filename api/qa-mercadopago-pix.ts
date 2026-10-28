@@ -15,7 +15,7 @@ type Req=IncomingMessage & {body?:Record<string,unknown>};
 type Res=ServerResponse;
 type Reservation={municipality_id:string;guide_number:string;guide_id:string;amount:number;
  idempotency_key:string;order_id?:string|null;payment_id?:string|null;qr_code?:string|null;
- provider_status?:string|null;state:"pending"|"issued";may_post?:boolean};
+ provider_status?:string|null;state:"pending"|"issued";may_post?:boolean;created_at?:string};
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 function send(res:Res,status:number,data:unknown){
  res.statusCode=status;res.setHeader("Content-Type","application/json; charset=utf-8");
@@ -99,38 +99,84 @@ export default async function handler(req:Req,res:Res){
     Number(reservation.amount)!==Number(guide.amount)||reservation.idempotency_key!==key)
    throw new Error("Reserva PIX não corresponde à guia original");
   if(reservation.state==="issued")return send(res,200,render(reservation));
-  if(action==="get"&&!reservation.order_id)
-   return send(res,200,render(reservation));
+  // A prior attempt without a saved order may be reconciled read-only by external_reference.
   const resolved=await resolveMercadoPagoMunicipalAccessToken(req,municipalityId);
   if(resolved.environment!=="test"||!resolved.token)
    return send(res,403,{ok:false,code:"TEST_CREDENTIALS_ONLY"});
   const amount=Number(guide.amount).toFixed(2);
   const externalReference=guide.guide_number;
   const hasOrder=Boolean(reservation.order_id);
-  // A DB-row claim is single use, preventing duplicate automatic Orders POST requests.
-  if(!hasOrder && action==="issue" && reservation.may_post!==true)
-   return send(res,409,{ok:false,code:"QA_PIX_ORDER_CREATION_UNCERTAIN",
-    error:"Já houve tentativa de emissão. Conferir no provedor antes de nova cobrança."});
-  if(!hasOrder&&!enabled())return send(res,503,{ok:false,code:"QA_PIX_CHARGE_OPT_IN_REQUIRED"});
-  const endpoint="https://api.mercadopago.com/v1/orders"+
-    (hasOrder?"/"+encodeURIComponent(reservation.order_id||""):"");
-  const provider=await fetch(endpoint,{
-   method:hasOrder?"GET":"POST",
-   signal:AbortSignal.timeout(15000),
-   headers:{Accept:"application/json",Authorization:"Bearer "+resolved.token,
-    // In automatic mode Mercado Pago does not expect X-Idempotency-Key.
-    // Neon claims the attempt atomically, once per guide, to prevent duplicate POST.
-    ...(!hasOrder?{"Content-Type":"application/json"}:{})},
-   ...(!hasOrder?{body:JSON.stringify({
-    type:"online",processing_mode:"automatic",external_reference:externalReference,
-    total_amount:amount,payer:{email:"test_payer@example.com",first_name:"APRO"},
-    transactions:{payments:[{amount,payment_method:{id:"pix",type:"bank_transfer"}}]}
-   })}:{})
-  });
+  const baseUrl="https://api.mercadopago.com/v1/orders";
+  const commonHeaders={Accept:"application/json",Authorization:"Bearer "+resolved.token};
+  const recoverOnly=!hasOrder && (action==="get"||reservation.may_post!==true);
+  let provider:Awaited<ReturnType<typeof fetch>>;
+  let recoveredOrderId:string|null=null;
+  if(recoverOnly){
+   // Read-only reconciliation. A rejected/uncertain POST is NEVER repeated automatically.
+   // Search exact guide reference, bounded by creation date, as in the official Orders API.
+   const created=Date.parse(String(reservation.created_at||""));
+   const begin=new Date((Number.isFinite(created)?created:Date.now())-24*60*60*1000);
+   const end=new Date(Date.now()+60*60*1000);
+   const search=new URL(baseUrl);
+   search.searchParams.set("begin_date",begin.toISOString());
+   search.searchParams.set("end_date",end.toISOString());
+   search.searchParams.set("external_reference",externalReference);
+   const lookup=await fetch(search.toString(),{
+    method:"GET",headers:commonHeaders,signal:AbortSignal.timeout(15000),
+   });
+   const body=await lookup.json().catch(()=>null);
+   if(!lookup.ok||!body||typeof body!=="object"||!Array.isArray((body as {data?:unknown}).data)){
+    console.warn("[sigapro-qa-pix] search_failed",{status:lookup.status});
+    return send(res,503,{ok:false,code:"QA_PIX_RECONCILIATION_UNAVAILABLE",
+     error:"A consulta segura da tentativa PIX no provedor não foi concluída. Nenhuma nova cobrança será enviada."});
+   }
+   const results=(body as {data:Array<Record<string,unknown>>}).data
+    .filter(x=>x&&x.external_reference===externalReference);
+   const paging=(body as {paging?:{total?:number}}).paging;
+   if(results.length>1||(paging?.total!==undefined&&Number(paging.total)>results.length))
+    return send(res,409,{ok:false,code:"QA_PIX_AMBIGUOUS_ORDER",
+     error:"O provedor encontrou múltiplas ordens ou resultados incompletos. Emissão bloqueada para conferência."});
+   if(results.length===0)
+    return send(res,409,{ok:false,code:"QA_PIX_NO_ORDER_FOUND",
+     error:"O provedor não localizou uma ordem desta tentativa. A guia permanece bloqueada para impedir duplicidade; use outra guia de TESTE após conferência."});
+   const recoveredId=String(results[0].id||"");
+   if(!/^[A-Za-z0-9_-]{6,100}$/.test(recoveredId))
+    return send(res,409,{ok:false,code:"QA_PIX_BAD_SEARCH_RESULT",
+     error:"A busca retornou uma ordem sem identificador válido; não criar outra cobrança."});
+   recoveredOrderId=recoveredId;
+   provider=await fetch(baseUrl+"/"+encodeURIComponent(recoveredId),{
+    method:"GET",headers:commonHeaders,signal:AbortSignal.timeout(15000),
+   });
+  }else if(hasOrder){
+   provider=await fetch(baseUrl+"/"+encodeURIComponent(reservation.order_id||""),{
+    method:"GET",headers:commonHeaders,signal:AbortSignal.timeout(15000),
+   });
+  }else{
+   if(!enabled())return send(res,503,{ok:false,code:"QA_PIX_CHARGE_OPT_IN_REQUIRED"});
+   // The official Checkout Transparente Orders API REQUIRES this header even in
+   // automatic processing mode. It is stable per tenant+guide, never random per click.
+   provider=await fetch(baseUrl,{
+    method:"POST",signal:AbortSignal.timeout(15000),
+    headers:{...commonHeaders,"Content-Type":"application/json","X-Idempotency-Key":key},
+    body:JSON.stringify({
+     type:"online",processing_mode:"automatic",external_reference:externalReference,
+     total_amount:amount,payer:{email:"test_payer@example.com",first_name:"APRO"},
+     transactions:{payments:[{amount,payment_method:{id:"pix",type:"bank_transfer"}}]}
+    }),
+   });
+  }
   const order=await provider.json().catch(()=>null);
-  if(!provider.ok||!order||typeof order!=="object")
-   return send(res,503,{ok:false,code:"QA_PIX_PROVIDER_UNAVAILABLE",
-    error:"Mercado Pago não confirmou a order. Reutilize a mesma guia e chave de idempotência."});
+  if(!provider.ok||!order||typeof order!=="object"){
+   const errorBody=order&&typeof order==="object"?order as Record<string,unknown>:{};
+   const errors=Array.isArray(errorBody.errors)?errorBody.errors:[];
+   const first=errors[0]&&typeof errors[0]==="object"?errors[0] as Record<string,unknown>:{};
+   const codeRaw=String(first.code||errorBody.code||errorBody.error||"unknown");
+   const providerCode=/^[A-Za-z0-9_.-]{1,64}$/.test(codeRaw)?codeRaw:"unavailable";
+   // Never log provider body, secret, municipal key, QR payload or payment personal data.
+   console.warn("[sigapro-qa-pix] provider_declined",{status:provider.status,code:providerCode});
+   return send(res,503,{ok:false,code:"QA_PIX_PROVIDER_UNAVAILABLE",providerCode,
+    error:"Mercado Pago não confirmou a ordem (HTTP "+provider.status+", "+providerCode+"). A tentativa permanece protegida contra duplicidade."});
+  }
   const object=order as Record<string,unknown>;
   const orderId=String(object.id||"");
   const providerAmount=String(object.total_amount||"");
@@ -140,6 +186,7 @@ export default async function handler(req:Req,res:Res){
   const qr=String(method.qr_code||"");
   if(!/^[A-Za-z0-9_-]{6,100}$/.test(orderId) ||
     (hasOrder&&orderId!==reservation.order_id) ||
+    (recoveredOrderId!==null&&orderId!==recoveredOrderId) ||
     object.external_reference!==externalReference ||
     !/^\d+(?:\.\d{1,2})?$/.test(providerAmount) ||
     Math.round(Number(providerAmount)*100)!==Math.round(Number(amount)*100) ||

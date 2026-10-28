@@ -93,22 +93,50 @@ describe("serverless QA PIX is isolated and idempotent",()=>{
   const [endpoint,opts]=mocks.fetch.mock.calls[0];
   expect(endpoint).toBe("https://api.mercadopago.com/v1/orders");
   expect(opts.method).toBe("POST");
-  expect(opts.headers["X-Idempotency-Key"]).toBeUndefined();
+  expect(opts.headers["X-Idempotency-Key"]).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-8[0-9a-f]{3}-[0-9a-f]{12}$/);
   expect(mocks.rpc.mock.calls[0][2]).toMatchObject({_proof_epoch:1800000000});
   expect(mocks.rpc.mock.calls[1][2]._proof_mac).toMatch(/^[a-f0-9]{64}$/);
   expect(JSON.parse(opts.body).transactions.payments[0].payment_method)
    .toEqual({id:"pix",type:"bank_transfer"});
  });
- it("cannot create a second provider Order after first claim",async()=>{
+ it("reconciles the claimed attempt with a read-only provider search, never a second POST",async()=>{
   mocks.rpc.mockImplementation(async(_req:unknown,fn:string,args:Record<string,unknown>)=>{
    if(fn==="qa_mp_pix_reserve_v2")return {ok:true,payload:{...reservation,
-    idempotency_key:args._key,may_post:false}};
+    idempotency_key:args._key,may_post:false,created_at:"2026-10-27T23:58:00.000Z"}};
    return {ok:false};
   });
+  mocks.fetch.mockResolvedValueOnce({ok:true,status:200,json:async()=>({data:[],paging:{total:0}})});
   const response=await request("issue");
   expect(response.status).toBe(409);
-  expect(response.body).toMatchObject({code:"QA_PIX_ORDER_CREATION_UNCERTAIN"});
-  expect(mocks.fetch).not.toHaveBeenCalled();
+  expect(response.body).toMatchObject({code:"QA_PIX_NO_ORDER_FOUND"});
+  expect(mocks.fetch).toHaveBeenCalledTimes(1);
+  expect(mocks.fetch.mock.calls[0][0]).toContain("/v1/orders?");
+  expect(mocks.fetch.mock.calls[0][1].method).toBe("GET");
+ });
+ it("recovers exactly one existing provider order and saves it without another POST",async()=>{
+  mocks.rpc.mockImplementation(async(_req:unknown,fn:string,args:Record<string,unknown>)=>{
+   if(fn==="qa_mp_pix_reserve_v2")return {ok:true,payload:{...reservation,
+    idempotency_key:args._key,may_post:false,created_at:"2026-10-27T23:58:00.000Z"}};
+   if(fn==="qa_mp_pix_save_v2")return {ok:true,payload:{...reservation,
+    idempotency_key:args._key,order_id:"ORDER_QA_PIX_1234",qr_code:"VALID_TEST_PIX_PAYLOAD",state:"issued"}};
+   return {ok:false};
+  });
+  mocks.fetch.mockResolvedValueOnce({ok:true,status:200,json:async()=>({
+   data:[{id:"ORDER_QA_PIX_1234",external_reference:guideCode}],paging:{total:1}
+  })});
+  const response=await request("issue");
+  expect(response.status).toBe(200);
+  expect(response.body).toMatchObject({ok:true,orderId:"ORDER_QA_PIX_1234"});
+  expect(mocks.fetch).toHaveBeenCalledTimes(2);
+  expect(mocks.fetch.mock.calls.every(x=>x[1].method==="GET")).toBe(true);
+  expect(mocks.rpc.mock.calls.map(x=>x[1])).toEqual(["qa_mp_pix_reserve_v2","qa_mp_pix_save_v2"]);
+ });
+ it("shows sanitized provider HTTP code without exposing credentials",async()=>{
+  mocks.fetch.mockResolvedValueOnce({ok:false,status:400,json:async()=>({errors:[{code:"invalid_header_value",message:"sensitive user text"}]})});
+  const response=await request("issue");
+  expect(response.status).toBe(503);
+  expect(response.body).toMatchObject({code:"QA_PIX_PROVIDER_UNAVAILABLE",providerCode:"invalid_header_value"});
+  expect(JSON.stringify(response.body)).not.toContain("sensitive user text");
  });
  it("rejects provider amount discrepancy without saving",async()=>{
   mocks.fetch.mockResolvedValue({ok:true,status:201,json:async()=>({
