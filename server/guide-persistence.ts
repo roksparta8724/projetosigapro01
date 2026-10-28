@@ -11,6 +11,10 @@ export type StoredGuide = {
   due_date: string;
   created_at: string;
   status: string;
+  paid?: boolean;
+  document_snapshot?: unknown;
+  original_pdf_key?: string;
+  original_pdf_sha256?: string;
   bank_reference?: string;
   bank_payment_id?: string;
   bank_status?: string;
