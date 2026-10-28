@@ -78,7 +78,8 @@ describe("QA frozen DAM resumes original PDF without reissuing PIX", () => {
     expect(migration).toContain("(_snapshot #>> '{guia,pixPayload}') !~* '^000201");
     expect(migration).toContain("g.pix_code ~* '^000201");
     expect(migration).not.toContain("g.pix_code ~ '^000201");
-    expect(migration).not.toMatch(/UPDATE\s+public\.payment_guides/i);
+    expect(migration).toContain("if g.document_snapshot is not null then return to_jsonb(g)");
+    expect(migration).not.toMatch(/UPDATE\s+public\.payment_guides\s+SET\s+(paid|status)\b/i);
   });
   it("resumes from the frozen snapshot before any PIX-binding or issuer logic", () => {
     const source = readFileSync(join(process.cwd(), "src/pages/saas/ExternalPaymentsPage.tsx"), "utf8");
