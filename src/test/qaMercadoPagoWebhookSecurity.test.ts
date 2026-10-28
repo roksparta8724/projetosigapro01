@@ -20,7 +20,11 @@ const requestId="2066ca19-c6f1-498a-be75-1923005edd06";
 const secret="test-qa-tenant-only-signature-secret";
 const notice={id:"995121",type:"order",action:"order.updated",live_mode:false,data:{id}};
 function signed(t=String(Date.now()),key=secret,oid=id){
- return "ts="+t+",v1="+createHmac("sha256",key).update(`id:${oid};request-id:${requestId};ts:${t};`).digest("hex");
+ // Official Order webhook HMAC manifest lowercases an alphanumeric data.id.
+ return "ts="+t+",v1="+createHmac("sha256",key).update(`id:${oid.toLowerCase()};request-id:${requestId};ts:${t};`).digest("hex");
+}
+function signedWithWrongUppercase(t=String(Date.now())){
+ return "ts="+t+",v1="+createHmac("sha256",secret).update(`id:${id};request-id:${requestId};ts:${t};`).digest("hex");
 }
 function validate(input: Partial<Parameters<typeof verifyMercadoPagoOrderWebhook>[0]>={}){
  const now=Date.now();
@@ -52,9 +56,9 @@ beforeEach(()=>{
 });
 afterEach(()=>vi.unstubAllEnvs());
 describe("Mercado Pago multi-tenant TEST webhook durable inbox",()=>{
- it("valid HMAC preserves uppercase order ID in canonical manifest",()=>expect(validate()).toMatchObject({ok:true,orderId:id}));
- it("rejects HMAC signed using lowercase ID when URL uses uppercase ID",()=>{
-  expect(validate({headerSignature:signed(undefined,secret,id.toLowerCase())}).ok).toBe(false);
+ it("valid HMAC lowercases only the signed manifest, preserving the original uppercase Order ID for lookup",()=>expect(validate()).toMatchObject({ok:true,orderId:id}));
+ it("rejects an HMAC incorrectly signed with uppercase ID when URL contains uppercase letters",()=>{
+  expect(validate({headerSignature:signedWithWrongUppercase()}).ok).toBe(false);
  });
  it("rejects a body ID with different casing from the signed query ID",()=>{
   expect(validate({notification:{...notice,data:{id:id.toLowerCase()}}}).ok).toBe(false);
