@@ -13,6 +13,9 @@ const base={
  }],refunds:[],chargebacks:[]}
 };
 async function check(obj:unknown){
+ // Vitest jsdom implements AbortController but not AbortSignal.timeout.
+ // Never disable the real 6500ms timeout in production: patch only this test.
+ vi.stubGlobal("AbortSignal",{timeout:()=>new AbortController().signal});
  vi.stubGlobal("fetch",vi.fn().mockResolvedValue(new Response(JSON.stringify(obj),
   {status:200,headers:{"Content-Type":"application/json"}})));
  return fetchMunicipalMpOrder(id,"qa-test-token-never-sent");

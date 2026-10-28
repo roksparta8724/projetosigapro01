@@ -33,7 +33,9 @@ describe("QA post-original bank reconciliation workflow",()=>{
   expect(api).toContain("qaWebhookConfigured()");
  });
  it("reuses the status button and existing JWT after archive",()=>{
-  expect(page).toContain("original.original_pdf_key && original.original_pdf_sha256");
+  expect(page).toContain("!original.original_pdf_key || !original.original_pdf_sha256 || !original.document_snapshot");
+  expect(page).toContain('data-qa-reconcile-existing-pix="true"');
+  expect(page).toContain("const confirmed=await readGuideOriginal(effectiveScopeId,guide.code)");
   expect(page).toContain("await reconcileQaPixAfterPdf");
   expect(client).toContain('"/api/qa/mercadopago/guide-reconcile"');
   expect(vercel).toContain('"/api/mercadopago-webhook?mode=post-archive-reconcile"');
