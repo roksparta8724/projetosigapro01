@@ -206,6 +206,23 @@ export function FinanceDeskPage() {
       return;
     }
 
+    const canonical = financeLedgerProcesses.find((process) => process.id === processId);
+    const matchingGuide = canonical
+      ? getProcessPaymentGuides(canonical, tenantSettings).find((item) => item.kind === guideKind)
+      : null;
+    if (!canonical || !matchingGuide) {
+      setManualPaymentStatus("Guia não localizada no livro financeiro. Atualize a lista antes de confirmar.");
+      return;
+    }
+    // The DB RPC independently enforces this. Never show a manual 'success'
+    // for a bank-connected guide even when the screen was not refreshed.
+    if (matchingGuide.paymentProvider === "mercado_pago" ||
+        (matchingGuide.bankReference && !matchingGuide.paymentProvider)) {
+      setManualPaymentStatus(
+        "Guia vinculada a cobrança bancária. Aguarde a compensação automática do provedor; a baixa manual está bloqueada.",
+      );
+      return;
+    }
     const busyKey = processId + ":" + guideKind;
     setManualPaymentBusyKey(busyKey);
     setManualPaymentStatus("");
@@ -1019,7 +1036,8 @@ export function FinanceDeskPage() {
                               </div>
                             </div>
 
-                            {canConfirmManualPayment ? (
+                            {canConfirmManualPayment && guide.paymentProvider !== "mercado_pago" &&
+                              !(guide.bankReference && !guide.paymentProvider) ? (
                               <AlertDialog>
                                 <AlertDialogTrigger asChild>
                                   <Button
