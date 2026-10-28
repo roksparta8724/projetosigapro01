@@ -39,8 +39,7 @@ BEGIN
 END
 $fn$;
 
-DROP TRIGGER IF EXISTS trg_qa_guard_process_document_tenant_v1 ON public.process_documents;
-CREATE TRIGGER trg_qa_guard_process_document_tenant_v1
+CREATE OR REPLACE TRIGGER trg_qa_guard_process_document_tenant_v1
 BEFORE INSERT OR UPDATE OF process_id,tenant_id,municipality_id
 ON public.process_documents FOR EACH ROW
 EXECUTE FUNCTION public.qa_guard_process_document_tenant_v1();
