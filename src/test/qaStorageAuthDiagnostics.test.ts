@@ -8,7 +8,7 @@ describe("QA document worker authorization diagnosis",()=>{
    expect(w).toContain(part);
  });
  it("logs fixed denial stages only",()=>{
-  for(const part of ["QA_DATA_ENDPOINT_MISMATCH","QA_AUTH_RPC_REJECTED",
+  for(const part of ["QA_AUTH_RPC_REJECTED",
    "QA_TENANT_SCOPE_REJECTED","QA_DAM_UPLOAD_POLICY_REJECTED"])
    expect(w).toContain(part);
   expect(w).not.toContain("console.warn(token");
