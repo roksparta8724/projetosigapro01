@@ -10,6 +10,9 @@ async function fetchOrder(order: Record<string, unknown>) {
     total_amount:"1.00",status:"processed",...order,
   }),{status:200,headers:{"Content-Type":"application/json"}}));
   vi.stubGlobal("fetch",mock);
+  // Vitest jsdom does not implement AbortSignal.timeout (Node server runtime does).
+  // Supply only the signal primitive needed by the mocked provider GET.
+  vi.stubGlobal("AbortSignal",{timeout:()=>new AbortController().signal});
   const result=await fetchMunicipalMpOrder(orderId,"synthetic-server-test-token");
   expect(mock).toHaveBeenCalledOnce();
   const [url,options]=mock.mock.calls[0] as [string,RequestInit];
