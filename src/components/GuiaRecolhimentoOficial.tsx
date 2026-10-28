@@ -254,7 +254,7 @@ function bankAuthenticationLabel(guia: GuiaData) {
     return {
       tone: "test",
       title: "NÃO EMITIDA",
-      lines: ["Prévia administrativa de homologação.", "Nenhuma cobrança foi registrada no provedor."],
+      lines: ["Prévia administrativa de homologação.", "Nenhuma cobrança foi registrada no banco."],
     };
   }
   const status = String(guia.bankStatus || "").toLowerCase();
