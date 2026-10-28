@@ -90,6 +90,67 @@ export async function renderGuideOriginalPdf(props: GuiaRecolhimentoOficialProps
       .dam-final-box { min-height:9mm !important; padding:4px 5px !important; }
       .dam-final-right-box { min-height:9mm !important; }
       .dam-auth-box { min-height:11mm !important; }
+      /* Alinhamento conferido contra a guia real de homologação:
+         títulos, nomes, grade de tributos e totais deixam de encostar nas linhas. */
+      .dam-subtitle-side { padding-bottom:7px !important; }
+      .dam-guide-tag { line-height:1.36 !important; padding:3px 5px !important; }
+      .dam-field-value {
+        min-height:25px !important; padding:4px 6px !important;
+        display:flex !important; align-items:center !important;
+        line-height:1.3 !important;
+      }
+      .dam-responsibility-cell {
+        min-height:44px !important; padding:5px 7px !important;
+        display:flex !important; flex-direction:column !important;
+        justify-content:center !important;
+      }
+      .dam-responsibility-label { line-height:1.28 !important; }
+      .dam-responsibility-value {
+        margin-top:4px !important; line-height:1.34 !important;
+      }
+      .dam-reference {
+        min-height:24px !important; display:flex !important;
+        align-items:center !important; padding:5px 7px !important;
+      }
+      .dam-table th, .dam-table td {
+        vertical-align:middle !important;
+        padding:5px 3px !important;
+        line-height:1.32 !important;
+      }
+      .dam-table th { height:24px !important; }
+      .dam-table td { height:24px !important; }
+      .dam-table tbody tr:last-child td { height:25px !important; }
+      .dam-total-row { min-height:29px !important; }
+      .dam-total-label, .dam-total-value {
+        min-height:29px !important; display:flex !important;
+        align-items:center !important; padding:5px 8px !important;
+        line-height:1.25 !important;
+      }
+      .dam-total-value { justify-content:flex-end !important; }
+      .dam-responsible-label, .dam-responsible-value {
+        min-height:24px !important; padding:4px 7px !important;
+        display:flex !important; align-items:center !important;
+      }
+      .dam-observation-label, .dam-observation-value {
+        display:flex !important; align-items:center !important;
+        min-height:25px !important; padding:5px 7px !important;
+      }
+      .dam-summary-row { min-height:44px !important; }
+      .dam-summary-cell {
+        display:flex !important; flex-direction:column !important;
+        justify-content:center !important; padding:6px 8px !important;
+      }
+      .dam-summary-label { line-height:1.3 !important; }
+      .dam-summary-value { margin-top:4px !important; line-height:1.3 !important; }
+      .dam-note {
+        padding:7px 8px 9px !important; line-height:1.4 !important;
+      }
+      .dam-note > div {
+        min-width:0 !important; overflow-wrap:anywhere !important;
+        line-height:1.35 !important;
+      }
+      .dam-note > div:last-child { margin-bottom:2px !important; }
+
       .dam-mini-value, .dam-receipt-title, .dam-receipt-subline,
       .dam-receipt-row-label, .dam-receipt-row-value, .dam-final-box,
       .dam-bank-auth-line, .dam-summary-value, .dam-pix-copy {
