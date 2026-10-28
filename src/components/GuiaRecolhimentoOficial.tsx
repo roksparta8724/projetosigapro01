@@ -1624,6 +1624,73 @@ function getStyles() {
       word-break: break-word;
     }
 
+
+    /* Malha única para PDF A4, prévia e impressão; valores e rótulos
+       não invadem bordas nem são cortados por alturas rígidas. */
+    .dam-sheet { --dam-label-column: 28mm; --dam-amount-column: 58mm; --dam-amount-label: 19mm; }
+    .dam-subtitle-main, .dam-subtitle-side { min-width:0; padding:7px 9px 10px; }
+    .dam-subtitle-value { margin-top:4px; line-height:1.4; }
+    .dam-guide-tag { display:inline-block; margin-top:4px; padding:4px 7px; line-height:1.35; vertical-align:top; max-width:100%; }
+    .dam-responsibility-cell { min-height:43px; padding:7px 8px 8px; }
+    .dam-responsibility-label { line-height:1.25; }
+    .dam-responsibility-value { margin-top:5px; font-size:8px; line-height:1.37; }
+    .dam-work-meta { padding:6px 8px; line-height:1.38; }
+    .dam-reference { padding:6px 8px; line-height:1.34; }
+    .dam-table-wrap { padding:5px 7px 7px; }
+    .dam-table th, .dam-table td { padding:6px 4px; line-height:1.37; vertical-align:middle; }
+    .dam-table th { line-height:1.3; }
+    .dam-observation-row { min-height:32px; }
+    .dam-observation-label, .dam-observation-value { padding:7px 8px; line-height:1.36; }
+    .dam-summary-row { min-height:47px; }
+    .dam-summary-cell { padding:8px 9px; min-width:0; }
+    .dam-summary-label { line-height:1.3; }
+    .dam-summary-value { margin-top:5px; font-size:8px; line-height:1.35; }
+    .dam-receipt-header {
+      grid-template-columns:var(--dam-label-column) minmax(0,1fr) var(--dam-amount-column);
+      min-height:25mm; height:auto; max-height:none;
+    }
+    .dam-receipt-center { border-right:1px solid #64748b; padding:3mm 3.5mm; overflow:visible; }
+    .dam-receipt-right { border-left:0; min-width:0; }
+    .dam-receipt-right .dam-receipt-row {
+      grid-template-columns:var(--dam-amount-label) minmax(0,1fr);
+      height:auto; min-height:12.5mm;
+    }
+    .dam-receipt-right .dam-receipt-row-label,
+    .dam-receipt-right .dam-receipt-row-value {
+      padding:2.2mm 1.6mm; line-height:1.35; display:flex; align-items:center; min-width:0;
+    }
+    .dam-receipt-body { grid-template-columns:minmax(0,1fr) var(--dam-amount-column); align-items:start; }
+    .dam-receipt-left { border-right:1px solid #64748b; min-width:0; }
+    .dam-receipt-amounts { min-width:0; }
+    .dam-receipt-left > .dam-receipt-row {
+      grid-template-columns:var(--dam-label-column) minmax(0,1fr);
+      min-height:9mm;
+    }
+    .dam-receipt-amounts > .dam-receipt-row {
+      grid-template-columns:var(--dam-amount-label) minmax(0,1fr);
+      min-height:9mm;
+    }
+    .dam-receipt-left .dam-receipt-row-label,
+    .dam-receipt-left .dam-receipt-row-value,
+    .dam-receipt-amounts > .dam-receipt-row > .dam-receipt-row-label,
+    .dam-receipt-amounts > .dam-receipt-row > .dam-receipt-row-value {
+      padding:6px 8px; min-width:0; line-height:1.4;
+      display:flex; align-items:center;
+      white-space:normal; text-overflow:clip;
+      overflow-wrap:anywhere; word-break:break-word;
+    }
+    .dam-receipt-left .dam-receipt-row-value { font-size:8.2px; }
+    .dam-receipt-amounts > .dam-receipt-row > .dam-receipt-row-label { font-size:6.9px; }
+    .dam-receipt-amounts > .dam-receipt-row > .dam-receipt-row-value { font-size:8px; font-weight:700; }
+    .dam-note { padding:7px 8px; line-height:1.4; }
+    .dam-auth { padding:7px 8px; }
+    .dam-auth-label, .dam-auth-value { line-height:1.35; }
+    .dam-final-left, .dam-final-right, .dam-footer-left, .dam-footer-right { padding:7px 8px; }
+    .dam-final-box { padding:6px 7px; line-height:1.45; }
+    .dam-bank-auth-line { line-height:1.4; }
+    .dam-bottom-section { padding:7px 8px; }
+    .dam-qr-wrap { padding:7px; }
+
     @media print {
       @page {
         size: A4 portrait;
@@ -2198,7 +2265,7 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
                 </div>
               </div>
 
-              <div>
+              <div className="dam-receipt-amounts">
                 <ReceiptRow
                   label="Valor Doc."
                   value={formatCurrency(totalDocumento)}
