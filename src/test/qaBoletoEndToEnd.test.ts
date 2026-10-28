@@ -31,6 +31,8 @@ const original = {
   due_date: "2026-10-24",
   created_at: "2026-10-22T14:21:24.884Z",
   status: "pendente",
+  payment_provider: "mercado_pago",
+  provider_environment: "test",
   collection_mode_snapshot: "sigapro",
 };
 const barcode = "23791684000003000003388060601573644066333333";

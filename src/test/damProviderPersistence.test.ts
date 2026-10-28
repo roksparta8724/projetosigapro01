@@ -9,7 +9,7 @@ vi.mock("../../server/municipal-storage", () => ({
 }));
 vi.mock("../../server/municipal-payment", () => ({ resolveMercadoPagoMunicipalAccessToken: vi.fn(async () => ({ environment: "test", token: "sandbox" })) }));
 const req = { headers: { authorization: "Bearer fake-test" } } as ApiReq;
-const guide = { id: "g1", municipality_id: "m1", process_id: "p1", guide_number: "DAM-001", amount: 300, due_date: "2026-10-20", created_at: "2026-10-13T12:00:00Z", status: "pendente" };
+const guide = { id: "g1", municipality_id: "m1", process_id: "p1", guide_number: "DAM-001", amount: 300, due_date: "2026-10-20", created_at: "2026-10-13T12:00:00Z", status: "pendente", payment_provider:"mercado_pago", provider_environment:"test" };
 const input = { municipalityId: "m1", guideCode: "DAM-001", amount: 999 };
 const rpc = vi.mocked(callDataApiRpc);
 beforeEach(() => { vi.resetAllMocks(); process.env.SIGAPRO_BANK_CHARGE_SIGNING_SECRET = "c".repeat(64); vi.stubGlobal("fetch", vi.fn(() => { throw new Error("Unexpected network"); })); });
@@ -31,6 +31,11 @@ describe("Neon guide charge persistence", () => {
   it("refuses a missing/unauthorized guide before provider access", async () => {
     rpc.mockResolvedValue({ ok: false, status: 403, payload: null, error: "denied" });
     await expect(createMercadoPagoGuideBoleto(input, req)).rejects.toThrow("denied");
+    expect(fetch).not.toHaveBeenCalled();
+  });
+  it("rejects a different bank without contacting Mercado Pago", async () => {
+    rpc.mockResolvedValue({ ok:true,status:200,payload:{...guide,payment_provider:"bank_direct",bank_reference:"BANK-OTHER-ORDER"},error:"" });
+    await expect(createMercadoPagoGuideBoleto(input,req)).rejects.toThrow("outro banco");
     expect(fetch).not.toHaveBeenCalled();
   });
   it("refuses querying an order from another guide", async () => {
