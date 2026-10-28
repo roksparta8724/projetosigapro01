@@ -36,6 +36,7 @@ import {
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
+import { backendClient } from "@/integrations/backend/databaseClient";
 import { getRenderedMunicipalityLogoDataUrl, prepareGuideInstitutionalLogo } from "@/lib/guideAssets";
 import { useInstitutionBranding } from "@/hooks/useInstitutionBranding";
 import { getMunicipalityLogoOpenUrl } from "@/integrations/r2/client";
@@ -200,6 +201,18 @@ export function ExternalPaymentsPage() {
       if (isGuideSettled(current)) {
         throw new Error("Guia já paga: o PIX não será emitido novamente.");
       }
+      // Once frozen, clicking the original issue button may ONLY consult the
+      // existing order. Never re-enter the issue/reservation flow.
+      if (current.original_pdf_key || current.document_snapshot) {
+        const previous=await requestQaPixCharge({
+          municipalityId:effectiveScopeId,guideCode:guide.code,action:"get",
+        });
+        if (!previous.ok || !isValidPixPayload(previous.qrCode))
+          throw new Error("O documento foi congelado, mas a ordem PIX de teste não pôde ser consultada.");
+        setQaPixCharges(prev=>({...prev,[guide.code]:previous}));
+        setGuideActionStatus("PIX de TESTE já arquivado. Clique em Visualizar guia para abrir o mesmo PDF original. Nenhuma nova cobrança foi criada.");
+        return;
+      }
       let result: QaPixCharge;
       try {
         result=await requestQaPixCharge({municipalityId:effectiveScopeId,guideCode:guide.code,action:"issue"});
@@ -362,7 +375,7 @@ export function ExternalPaymentsPage() {
       // A provider reply alone is not proof that the bill persisted in Neon.
       // Re-read the same canonical guide after a new bank order and use only
       // its saved barcode, dates, amount and reference to build the original.
-      const confirmedOriginal = !isolatedQa && charge
+      let confirmedOriginal = !isolatedQa && charge
         ? await readGuideOriginal(effectiveScopeId, guide.code)
         : officialOriginal;
       const confirmedBanking = normalizeOfficialBanking(
@@ -394,6 +407,33 @@ export function ExternalPaymentsPage() {
         sandboxPix.orderId && isValidPixPayload(sandboxPix.qrCode)
       );
       const previewOnly = isolatedQa && !sandboxIssued && !sandboxPixIssued;
+      // The signed serverless response is already durable in the QA payment ledger,
+      // but an external document may be archived ONLY after the database itself
+      // binds that exact order and PIX payload to this guide. This RPC exists
+      // exclusively on the isolated Neon QA branch; it never settles a guide.
+      if (sandboxPixIssued && !sandboxIssued) {
+        const { data: bound, error: bindingError } = await backendClient.rpc(
+          "qa_mp_pix_bind_to_guide_v1", {
+            _municipality_id: effectiveScopeId,
+            _guide_code: guide.code,
+            _order_id: sandboxPix!.orderId,
+          },
+        );
+        if (bindingError || !bound?.id) {
+          throw new Error(bindingError?.message || "Neon QA não confirmou o vínculo do PIX de teste à guia.");
+        }
+        confirmedOriginal = await readGuideOriginal(effectiveScopeId, guide.code);
+        if (
+          confirmedOriginal.municipality_id !== effectiveScopeId ||
+          confirmedOriginal.process_id !== process.id ||
+          confirmedOriginal.guide_number !== guide.code ||
+          confirmedOriginal.provider_environment !== "test" ||
+          confirmedOriginal.payment_provider !== "mercado_pago" ||
+          confirmedOriginal.bank_reference !== sandboxPix!.orderId ||
+          confirmedOriginal.pix_code !== sandboxPix!.qrCode ||
+          isGuideSettled(confirmedOriginal)
+        ) throw new Error("PIX de teste divergente da guia canônica no Neon. Arquivamento interrompido.");
+      }
       // Use the same municipality-specific official logo sources as the
       // internal guide. Legacy tenantSettings.logoUrl alone is often empty.
       const stableMunicipalLogoUrl = getMunicipalityLogoOpenUrl(
@@ -427,7 +467,7 @@ export function ExternalPaymentsPage() {
             municipalityName: municipality?.name,
             municipalityCity: municipality?.city,
           })
-        : "";
+        : sandboxPixIssued ? String(confirmedOriginal?.pix_code || "") : "";
       const year = new Date(issuedAt).getFullYear() || new Date().getFullYear();
 
       const guideDocument: GuiaRecolhimentoOficialProps = {
@@ -462,11 +502,13 @@ export function ExternalPaymentsPage() {
           proprietario: guide.ownerName || process.ownerName,
           profissionalResponsavel:
             guide.professionalName || process.technicalLead,
-          codigoBarras: barcode,
-          linhaDigitavel: digitableLine,
+          // Absence of a boleto must be a JSON null/missing field, never an
+          // empty string: freeze_payment_guide_document_v1 compares it with
+          // the unmodified canonical Neon NULL on PIX-only test guides.
+          codigoBarras: isolatedQa && sandboxPixIssued && !sandboxIssued ? undefined : barcode,
+          linhaDigitavel: isolatedQa && sandboxPixIssued && !sandboxIssued ? undefined : digitableLine,
           pixPayload: originalPixPayload,
-          qaSandboxPixPayload: isolatedQa && sandboxPix?.ok && sandboxPix.environment==="test"
-            ? sandboxPix.qrCode || "" : "",
+          qaSandboxPixPayload: sandboxPixIssued ? originalPixPayload : "",
           bankName: isolatedQa
             ? (sandboxIssued ? (charge?.financialInstitution || "Mercado Pago — boleto de TESTE")
               : sandboxPixIssued ? "Mercado Pago — PIX de TESTE" : "Mercado Pago (conexão de teste)")
@@ -524,14 +566,17 @@ export function ExternalPaymentsPage() {
       // to isolated Neon S3 (never to the production R2). Reopening is the
       // original SHA PDF, just like the municipal production workflow.
       // Unissued QA previews remain non-payable and are NEVER persisted.
-      if (!isolatedQa || sandboxIssued) {
+      if (!isolatedQa || sandboxIssued || sandboxPixIssued) {
         if (isolatedQa && (
           !confirmedOriginal?.id ||
           confirmedOriginal.provider_environment !== "test" ||
           !confirmedOriginal.bank_reference ||
-          !barcode || !digitableLine ||
+          (sandboxIssued
+            ? (!barcode || !digitableLine)
+            : (!isValidPixPayload(confirmedOriginal.pix_code) ||
+               confirmedOriginal.pix_code !== originalPixPayload)) ||
           guideDocument.guia.nonPayablePreview
-        )) throw new Error("Boleto de homologação sem confirmação bancária persistida; PDF não arquivado.");
+        )) throw new Error("Cobrança de teste sem vínculo financeiro canônico; PDF não arquivado.");
         await archiveAndOpenGuide(effectiveScopeId, guideDocument, reservedGuideWindow);
         return;
       }

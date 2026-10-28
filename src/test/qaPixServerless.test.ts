@@ -73,6 +73,18 @@ describe("serverless QA PIX is isolated and idempotent",()=>{
   expect(mocks.rpc.mock.calls[0][1]).toBe("qa_mp_pix_get_v1");
   expect(mocks.fetch).not.toHaveBeenCalled();
  });
+ it("uses read-only QA ledger access after original snapshot freezes",async()=>{
+  mocks.read.mockResolvedValueOnce({id:guideId,guide_number:guideCode,municipality_id:tenant,
+   amount:12.30,document_snapshot:{guia:{numeroGuia:guideCode}}});
+  mocks.rpc.mockImplementation(async(_req:unknown,fn:string)=>{
+   if(fn==="qa_mp_pix_read_existing_v1")return {ok:true,payload:null};
+   return {ok:false};
+  });
+  const result=await request("get");
+  expect(result.status).toBe(200);
+  expect(mocks.rpc.mock.calls.map(x=>x[1])).toEqual(["qa_mp_pix_read_existing_v1"]);
+  expect(mocks.fetch).not.toHaveBeenCalled();
+ });
  it("blocks new PIX orders without explicit billing opt-in",async()=>{
   vi.stubEnv("SIGAPRO_QA_MP_CHARGE_OPT_IN","");
   expect((await request("issue")).status).toBe(503);

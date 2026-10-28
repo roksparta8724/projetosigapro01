@@ -81,7 +81,10 @@ export default async function handler(req:Req,res:Res){
   // Reading is side-effect free: it must not reserve a pending PIX order.
   let reservation:Reservation;
   if(action==="get"){
-   const existing=await callDataApiRpc<Reservation|null>(req,"qa_mp_pix_get_v1",{
+   const existing=await callDataApiRpc<Reservation|null>(req,
+     guide.original_pdf_key || guide.document_snapshot
+       ? "qa_mp_pix_read_existing_v1"
+       : "qa_mp_pix_get_v1",{
     _municipality_id:municipalityId,_guide_code:guideCode
    });
    if(!existing.ok)throw new Error("PIX de teste não pôde ser consultado");
