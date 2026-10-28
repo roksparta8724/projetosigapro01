@@ -34,6 +34,7 @@ export type GuideOriginal = {
   pix_code?: string;
   provider_environment?: "test" | "production";
   bank_reference?: string;
+  payment_provider?: string;
   bank_payment_id?: string;
   bank_status?: string;
   bank_status_detail?: string;
@@ -73,16 +74,40 @@ export async function openStoredGuide(original: GuideOriginal, target: Window) {
   return true;
 }
 
+
+/** Safe retry of a real signed bank notice after the immutable original is saved.
+ * No provider POST or second charge. A failed status check never replaces the PDF. */
+async function recheckSignedOrderAfterPdf(original: GuideOriginal): Promise<void> {
+  if (original.provider_environment !== "production" ||
+      original.payment_provider !== "mercado_pago" ||
+      !original.bank_reference || !original.original_pdf_key) return;
+  try {
+    const auth = await backendClient.auth.getSession();
+    const session = auth?.data?.session;
+    const token = session?.access_token || session?.accessToken || session?.token || "";
+    if (!token) return;
+    await fetch("/api/mercadopago-webhook?mode=post-archive-reconcile", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",Accept: "application/json" },
+      body: JSON.stringify({municipalityId:original.municipality_id,
+        guideCode:original.guide_number}),cache: "no-store",
+    });
+  } catch {
+    // Original remains readable; provider may resend the signed event.
+  }
+}
+
 export async function archiveAndOpenGuide(
   municipalityId: string, props: GuiaRecolhimentoOficialProps, target: Window,
 ) {
   const code = props.guia.numeroGuia;
   let original = await readGuideOriginal(municipalityId, code);
-  if (await openStoredGuide(original, target)) return;
+  if (await openStoredGuide(original, target)) { await recheckSignedOrderAfterPdf(original); return; }
   if (original.status === "compensada") throw new Error("Guia compensada sem PDF original arquivado. Não será recriada.");
   if (!isValidPixPayload(props.guia.pixPayload)) throw new Error("PIX Copia e Cola inválido; a DAM não será arquivada sem QR Code oficial verificável.");
   original = await guideRpc("freeze_payment_guide_document_v1", municipalityId, code, { _snapshot: props });
-  if (await openStoredGuide(original, target)) return;
+  if (await openStoredGuide(original, target)) { await recheckSignedOrderAfterPdf(original); return; }
   if (!original.document_snapshot) throw new Error("Snapshot original não persistido.");
   if (!isValidPixPayload(original.document_snapshot.guia.pixPayload)) throw new Error("O snapshot persistido não contém PIX oficial válido.");
   const pdf = await renderGuideOriginalPdf(original.document_snapshot);
@@ -99,4 +124,5 @@ export async function archiveAndOpenGuide(
     throw new Error("O Neon não confirmou o PDF original arquivado no R2.");
   }
   if (!await openStoredGuide(original, target)) throw new Error("PDF não vinculado à guia no Neon.");
+  await recheckSignedOrderAfterPdf(original);
 }

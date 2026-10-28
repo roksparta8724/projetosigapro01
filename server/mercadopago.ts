@@ -437,6 +437,14 @@ export async function createMercadoPagoGuideBoleto(
         environment: getMercadoPagoEnvironment(),
       };
   const environment: MercadoPagoEnvironment = resolved.environment === "production" ? "production" : "test";
+  // Do not create production bank charges before the city's signed webhook
+  // and dedicated production reconciliation worker are configured.
+  if (req && environment === "production" &&
+      (!("connection" in resolved) || !resolved.connection?.webhook_secret_ciphertext ||
+       !process.env.SIGAPRO_PROD_MP_WEBHOOK_DATABASE_URL)) {
+    throw new Error("Configure a assinatura de webhook do Mercado Pago e a conciliação bancária antes de emitir uma DAM de produção.");
+  }
+
   if (options?.isolatedSandboxOnly && (!stored || environment !== "test")) {
     throw new Error("Somente guia pré-existente do Neon isolado e credencial de TESTE podem emitir boleto de homologação.");
   }
