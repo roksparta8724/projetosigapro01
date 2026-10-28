@@ -93,12 +93,12 @@ function respond(data,status=200,origin="") {
   return new Response(JSON.stringify(data),{status,headers});
 }
 async function rpc(token,name,args={}) {
-  const base=process.env.NEON_DATA_API_URL||"";
-  if(base.replace(/\/+$/,"") !== "https://ep-misty-breeze-b4ri8ig0.apirest.c-6.us-east-2.aws.neon.tech/sigapro_migration_stage_20260923/rest/v1") {
-    console.warn("[sigaproqa] QA_DATA_ENDPOINT_MISMATCH");
-    return null;
-  }
-  const r=await fetch(base.replace(/\/+$/,"")+"/rpc/"+name,{
+  // Pin the isolated QA database explicitly. Neon Function inherited an
+  // unrelated/missing NEON_DATA_API_URL from a previous deployment, so the
+  // mandatory tenant scope check always returned false and blocked every PDF.
+  // Do NOT let function environment override this branch-specific target.
+  const qaDataApi="https://ep-misty-breeze-b4ri8ig0.apirest.c-6.us-east-2.aws.neon.tech/sigapro_migration_stage_20260923/rest/v1";
+  const r=await fetch(qaDataApi+"/rpc/"+name,{
     method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+token},
     body:JSON.stringify(args),signal:requestTimeout(12000),
   });
