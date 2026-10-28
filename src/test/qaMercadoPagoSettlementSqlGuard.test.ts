@@ -23,7 +23,7 @@ describe("QA municipal settlement SQL bank controls",()=>{
   for(const check of ["municipality_id=_municipality_id","bank_reference=_order_id",
    "bank_payment_id=_payment_id","provider_environment='test'",
    "collection_mode_snapshot='sigapro'","guide_number=e.external_reference",
-   "o.payment_id","qr_code=g.pix_code","p.municipality_id=g.municipality_id",
+   "payment_id=_payment_id","qr_code=g.pix_code","p.municipality_id=g.municipality_id",
    "amount=_paid_amount"])expect(sql).toContain(check);
  });
  it("is atomic and idempotent; changes only an authorized unpaid guide",()=>{

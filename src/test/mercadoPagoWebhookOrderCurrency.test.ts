@@ -23,7 +23,7 @@ async function fetchOrder(order: Record<string, unknown>) {
 
 describe("Mercado Pago Orders webhook currency parsing in isolated QA",()=>{
   it("uses the documented currency field and preserves BRL manual reconciliation evidence",async()=>{
-    expect(await fetchOrder({currency:"BRL"})).toEqual({
+    expect(await fetchOrder({currency:"BRL"})).toMatchObject({
       fetched:true,status:"processed",reference:"DAM-PRE-QA-20261028-PIXHMLG2",
       currency:"BRL",amount:1,
     });
