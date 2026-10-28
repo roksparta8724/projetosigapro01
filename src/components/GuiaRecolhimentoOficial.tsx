@@ -1597,6 +1597,33 @@ function getStyles() {
       grid-template-columns: minmax(0,1fr) 54mm;
     }
 
+    /* A4: nenhuma grade pode expandir além do cartão que a contém.
+       Quebrar conteúdo de identificação é preferível a sobrepor colunas. */
+    .dam-stack, .dam-block, .dam-block-top, .dam-block-bottom,
+    .dam-fields-grid, .dam-table-wrap, .dam-receipt-body,
+    .dam-receipt-left, .dam-receipt-right, .dam-receipt-row,
+    .dam-footer-left, .dam-footer-right, .dam-final-left,
+    .dam-final-right { min-width: 0; }
+    .dam-receipt-left .dam-receipt-row-label,
+    .dam-receipt-left .dam-receipt-row-value {
+      white-space: normal;
+      text-overflow: clip;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+      line-height: 1.27;
+    }
+    .dam-receipt-left .dam-receipt-row-value,
+    .dam-note, .dam-auth-value, .dam-final-box,
+    .dam-final-right-box, .dam-bank-auth-line {
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+    .dam-table td:nth-child(2),
+    .dam-table td:nth-child(3) {
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+
     @media print {
       @page {
         size: A4 portrait;
@@ -1775,7 +1802,9 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
     .filter(Boolean)
     .join(" - ");
 
-  const visibleItens = itens.slice(0, 8);
+  // Uma guia oficial jamais pode omitir lançamentos por limite visual.
+  // O preflight A4 do gerador recusa arquivar a página se não couber.
+  const visibleItens = itens;
   const resolvedMunicipalityLogo =
     String(prefeitura.logoUrl || "").trim();
 
