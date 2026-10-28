@@ -210,7 +210,9 @@ export function ExternalPaymentsPage() {
         if (!previous.ok || !isValidPixPayload(previous.qrCode))
           throw new Error("O documento foi congelado, mas a ordem PIX de teste não pôde ser consultada.");
         setQaPixCharges(prev=>({...prev,[guide.code]:previous}));
-        setGuideActionStatus("PIX de TESTE já arquivado. Clique em Visualizar guia para abrir o mesmo PDF original. Nenhuma nova cobrança foi criada.");
+        setGuideActionStatus(current.original_pdf_key
+          ? "PIX de TESTE já arquivado. Clique em Visualizar guia para abrir o mesmo PDF original. Nenhuma nova cobrança foi criada."
+          : "PIX de TESTE confirmado e snapshot preservado. O PDF original ainda não foi arquivado: clique em Visualizar guia para concluir o envio, sem emitir outra cobrança.");
         return;
       }
       let result: QaPixCharge;

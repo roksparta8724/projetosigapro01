@@ -66,6 +66,20 @@ describe("QA frozen DAM resumes original PDF without reissuing PIX", () => {
       }))).toBe(false);
     }
   });
+  it("retains the stored-order CTA while accurately distinguishing unfinished PDF archival", () => {
+    const source = readFileSync(join(process.cwd(), "src/pages/saas/ExternalPaymentsPage.tsx"), "utf8");
+    expect(source).toContain("PIX de TESTE confirmado e snapshot preservado.");
+    expect(source).toContain("current.original_pdf_key");
+  });
+  it("accepts lower-case provider merchant account in both immutable freeze guards", () => {
+    const migration = readFileSync(join(process.cwd(),
+      "neon/migrations/20261028_qa_freeze_pix_lowercase_v2.sql"), "utf8");
+    expect(migration).toContain("QA EXCLUSIVE");
+    expect(migration).toContain("(_snapshot #>> '{guia,pixPayload}') !~* '^000201");
+    expect(migration).toContain("g.pix_code ~* '^000201");
+    expect(migration).not.toContain("g.pix_code ~ '^000201");
+    expect(migration).not.toMatch(/UPDATE\s+public\.payment_guides/i);
+  });
   it("resumes from the frozen snapshot before any PIX-binding or issuer logic", () => {
     const source = readFileSync(join(process.cwd(), "src/pages/saas/ExternalPaymentsPage.tsx"), "utf8");
     const resume = source.indexOf("if (officialOriginal.document_snapshot) {");

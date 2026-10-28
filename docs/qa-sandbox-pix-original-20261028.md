@@ -38,3 +38,9 @@ Rollback QA (antes de manter documentos novos vinculados): retirar o novo códig
 - Corrigido no fluxo exclusivamente QA: se já houver snapshot, valida-se código, valor, ordem, ambiente de teste e a cobrança canônica (PIX CRC ou boleto real), e se retoma diretamente `archiveAndOpenGuide` com o **snapshot persistido**, sem consultar ou recriar uma ordem nem repetir o bind.
 - A gravação do PDF no storage e o vínculo SHA continuam exigindo sessão autorizada e confirmação da função QA. Se falharem, o snapshot permanece preservado para nova tentativa. Guias quitadas ou com snapshot inválido permanecem bloqueadas.
 - Critérios de aceite ainda pendentes de sessão real: upload PDF, conferência SHA-256, reabertura após F5 e autorização de outro perfil, e negação intermunicipal. Sem isso **não há homologação funcional completa**.
+
+## 28/10 — normalização de formato EMV no congelamento QA
+- Detectado no banco QA: PIX real de homologação com identificador `br.gov.bcb.pix` em minúsculas; o validador `freeze_payment_guide_document_v1` usava regex sensível a maiúsculas nos dois testes do QR.
+- Corrigido **somente na branch Neon QA**: `!~*` e `~*` mantêm a validação de estrutura, aceitando a grafia minúscula do provedor sem alterar a referência, o valor ou o CRC do payload.
+- Migração versionada `neon/migrations/20261028_qa_freeze_pix_lowercase_v2.sql`. Não aplicar em produção sem revisão e aceite separados.
+- O botão Gerar PIX distingue original já arquivado de snapshot congelado aguardando upload; ambas as rotas são somente leitura para a ordem já emitida.
