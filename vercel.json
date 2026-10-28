@@ -64,6 +64,10 @@
       "destination": "/api/qa-mercadopago-pix"
     },
     {
+      "source": "/api/qa/mercadopago/guide-reconcile",
+      "destination": "/api/qa-mercadopago-reconcile"
+    },
+    {
       "source": "/api/mercadopago/guide-boleto",
       "destination": "/api/mercadopago?action=guide-boleto"
     },

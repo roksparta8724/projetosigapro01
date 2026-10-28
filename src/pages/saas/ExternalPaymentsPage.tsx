@@ -40,7 +40,7 @@ import { backendClient } from "@/integrations/backend/databaseClient";
 import { getRenderedMunicipalityLogoDataUrl, prepareGuideInstitutionalLogo } from "@/lib/guideAssets";
 import { useInstitutionBranding } from "@/hooks/useInstitutionBranding";
 import { getMunicipalityLogoOpenUrl } from "@/integrations/r2/client";
-import { ensureMercadoPagoGuideCharge, requestQaPixCharge, type QaPixCharge, type MercadoPagoGuideCharge } from "@/lib/mercadoPagoGuide";
+import { ensureMercadoPagoGuideCharge, requestQaPixCharge, reconcileQaPixAfterPdf, type QaPixCharge, type MercadoPagoGuideCharge } from "@/lib/mercadoPagoGuide";
 import { normalizeOfficialBanking } from "@/lib/bankCodes";
 import { buildGuidePixPayload, resolveGuideBankingData } from "@/lib/paymentCollection";
 import { archiveAndOpenGuide, isGuideSettled, openLegacyGuideOriginal, openStoredGuide, readGuideOriginal, type GuideOriginal, canResumeQaFrozenGuide } from "@/lib/guideOriginal";
@@ -261,6 +261,19 @@ export function ExternalPaymentsPage() {
       const original=await readGuideOriginal(effectiveScopeId,guide.code);
       if(original.municipality_id!==effectiveScopeId||original.process_id!==process.id||original.guide_number!==guide.code)
         throw new Error("Guia PIX fora da Prefeitura ou do processo autenticado.");
+      if (original.original_pdf_key && original.original_pdf_sha256) {
+        // Recheck only the existing signed provider order; never reissue PIX.
+        const reconciled=await reconcileQaPixAfterPdf({
+          municipalityId:effectiveScopeId,guideCode:guide.code,
+        });
+        setGuideActionStatus(reconciled.settled
+          ? "Mercado Pago confirmou o crédito e o Neon conciliou a guia de TESTE com seu PDF original."
+          : reconciled.status==="awaiting_bank_credit"
+            ? "Mercado Pago ainda não confirmou o crédito PIX. Nenhuma baixa realizada."
+            : "Conciliação bancária em revisão: "+reconciled.status+".");
+        if(reconciled.settled)await refreshRemoteStore();
+        return;
+      }
       const latest=await requestQaPixCharge({municipalityId:effectiveScopeId,guideCode:guide.code,action:"get"});
       if(!latest.ok||latest.environment!=="test"||!latest.orderId||!isValidPixPayload(latest.qrCode))
         throw new Error("O PIX de homologação ainda não foi confirmado pelo provedor.");
