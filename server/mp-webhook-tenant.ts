@@ -63,7 +63,12 @@ export async function fetchMunicipalMpOrder(orderId:string,token:string):Promise
  if(!raw||String(raw.id||"").toLowerCase()!==orderId.toLowerCase()) return {fetched:false,status:"provider_order_mismatch",reference:"",currency:"",amount:null};
  const total=String(raw.total_amount??"");
  const amount=/^\d+(?:\.\d{1,2})?$/.test(total)?Number(total):null;
- const currency=String(raw.currency_id||"");
+ // Orders v1 returns "currency" (e.g. BRL). Older provider shapes may
+ // use "currency_id". Reject contradictory values rather than guess a unit.
+ const officialCurrency=typeof raw.currency==="string"?raw.currency.trim():"";
+ const legacyCurrency=typeof raw.currency_id==="string"?raw.currency_id.trim():"";
+ const currency=officialCurrency&&legacyCurrency&&officialCurrency!==legacyCurrency
+  ?"":officialCurrency||legacyCurrency;
  const status=String(raw.status||"").slice(0,96);
  return {fetched:true,status,reference:String(raw.external_reference||"").slice(0,160),currency:currency.slice(0,12),amount};
 }
