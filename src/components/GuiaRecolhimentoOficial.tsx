@@ -1702,12 +1702,39 @@ function getStyles() {
         background: #ffffff !important;
       }
 
-      /* Mantém a guia inteira em A4 com respiro institucional real.
-         A largura compensada preserva a malha e centraliza o documento após o zoom. */
+      /* A via impressa deve incluir o rodapé de conciliação.
+         A antiga altura máxima cortava silenciosamente o fim da guia. */
       .dam-root {
-        zoom: 0.90;
-        width: 111.111%;
+        zoom: 0.78;
+        width: 128.205%;
         transform-origin: top center;
+      }
+      .dam-sheet {
+        height: auto !important;
+        min-height: 0 !important;
+        max-height: none !important;
+        overflow: visible !important;
+        padding: 2.4mm !important;
+      }
+      .dam-stack { height: auto !important; gap: 0.7mm !important; }
+      .dam-subtitle-main, .dam-subtitle-side { padding: 4px 6px !important; }
+      .dam-responsibility-cell { min-height: 34px !important; padding: 5px 6px !important; }
+      .dam-table th, .dam-table td { padding: 4px 3px !important; }
+      .dam-summary-cell { padding: 5px 6px !important; }
+      .dam-receipt-header { height: auto !important; min-height: 21mm !important; max-height: none !important; }
+      .dam-receipt-right .dam-receipt-row { min-height: 10mm !important; height: auto !important; }
+      .dam-receipt-left > .dam-receipt-row,
+      .dam-receipt-amounts > .dam-receipt-row { min-height: 7mm !important; }
+      .dam-receipt-left .dam-receipt-row-label,
+      .dam-receipt-left .dam-receipt-row-value,
+      .dam-receipt-amounts > .dam-receipt-row > .dam-receipt-row-label,
+      .dam-receipt-amounts > .dam-receipt-row > .dam-receipt-row-value {
+        padding: 4px 6px !important;
+      }
+      .dam-note { padding: 5px 6px !important; }
+      .dam-qr-wrap { padding: 4px !important; }
+      .dam-final-left, .dam-final-right, .dam-footer-left, .dam-footer-right {
+        padding: 5px 6px !important;
       }
 
       .print-hide {
