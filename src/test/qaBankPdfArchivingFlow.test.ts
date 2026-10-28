@@ -49,11 +49,13 @@ describe("SIGAPRO QA original PDF, not just a temporary bank HTML preview", () =
   });
 
   it("archives only a confirmed sandbox guide, never a non-payable QA preview", () => {
-    const archive = flow.indexOf("if (!isolatedQa || sandboxIssued) {");
+    const archive = flow.indexOf("if (!isolatedQa || sandboxIssued || sandboxPixIssued) {");
     const preview = flow.indexOf("const opened = openGuiaRecolhimentoOficialWindow(");
     expect(archive).toBeGreaterThan(0);
     expect(preview).toBeGreaterThan(archive);
     expect(flow.slice(archive,preview)).toContain("confirmedOriginal.provider_environment !== \"test\"");
+    expect(flow).toContain('"qa_mp_pix_bind_to_guide_v1"');
+    expect(flow.slice(archive,preview)).toContain("!isValidPixPayload(confirmedOriginal.pix_code)");
     expect(flow.slice(archive,preview)).toContain("guideDocument.guia.nonPayablePreview");
     expect(flow.slice(archive,preview)).toContain("await archiveAndOpenGuide(effectiveScopeId, guideDocument, reservedGuideWindow)");
     expect(original).toContain("if (props.guia.nonPayablePreview) return false;");

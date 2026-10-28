@@ -54,7 +54,9 @@ describe("SIGAPRO — boleto/PDF abre sem misturar municípios e versões", () =
     expect(alreadyArchived).toBeGreaterThan(storedRead);
     expect(createOrder).toBeGreaterThan(alreadyArchived);
     expect(section).toContain('if (isGuideSettled(officialOriginal))');
-    expect(section).toContain("const confirmedOriginal = !isolatedQa && charge");
+    expect(section).toContain("let confirmedOriginal = !isolatedQa && charge");
+    expect(section).toContain('"qa_mp_pix_bind_to_guide_v1"');
+    expect(section).toContain("confirmedOriginal = await readGuideOriginal(effectiveScopeId, guide.code);");
     expect(section).toContain("await readGuideOriginal(effectiveScopeId, guide.code)");
     expect(section).toContain("confirmedOriginal?.barcode, confirmedOriginal?.digitable_line");
     expect(section).toContain("dataDocumento: issuedAt");

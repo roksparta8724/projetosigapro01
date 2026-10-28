@@ -16,7 +16,9 @@ const HEX_MAC = /^[a-f0-9]{64}$/i;
 const REQUEST_ID = /^[A-Za-z0-9_-]{8,128}$/;
 
 /**
- * Mercado Pago signs the query-string data.id with its ORIGINAL letter casing.
+ * Mercado Pago signs alphanumeric data.id LOWERCASED in the HMAC manifest,
+ * even when the query-string/body order ID arrives in UPPERCASE.
+ * Preserve the original ID for the exact query/body comparison and API GET.
  * x-signature: ts=... , v1=HMAC_SHA256("id:...;request-id:...;ts:...;")
  */
 export function verifyMercadoPagoOrderWebhook(input: {
@@ -61,7 +63,7 @@ export function verifyMercadoPagoOrderWebhook(input: {
   if (!Number.isFinite(timestampMs) || Math.abs((input.nowMs ?? Date.now())-timestampMs)>maxSkewMs) {
     return { ok: false, reason: "Notificação vencida ou com horário inválido." };
   }
-  const canonical = `id:${rawQueryId};request-id:${requestId};ts:${ts};`;
+  const canonical = `id:${rawQueryId.toLowerCase()};request-id:${requestId};ts:${ts};`;
   const expected = createHmac("sha256",secret).update(canonical,"utf8").digest();
   const supplied = Buffer.from(signature,"hex");
   if (supplied.length!==expected.length || !timingSafeEqual(supplied,expected)) {
