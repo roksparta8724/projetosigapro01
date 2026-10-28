@@ -81,7 +81,7 @@ export function ExternalPaymentsPage() {
   // Each operation has its own identity. Shared per-guide loading state made
   // "Emitir boleto" and "Gerar PIX" animate at the same time.
   const [busyGuideAction, setBusyGuideAction] = useState<{
-    key: string; action: "boleto" | "pix" | "guide" | "preview";
+    key: string; action: "boleto" | "pix" | "guide" | "preview" | "reconcile";
   } | null>(null);
   const [statusGuideKey, setStatusGuideKey] = useState("");
   const [guideActionStatus, setGuideActionStatus] = useState("");
@@ -253,38 +253,55 @@ export function ExternalPaymentsPage() {
     }
   };
 
+  // Works after F5 and on a new device: always checks the canonical Neon guide,
+  // never depends on a cached QR or requests another provider order.
   const refreshSandboxPixStatus = async (process: ProcessRecord, guide: PaymentGuideEntry) => {
-    if(!effectiveScopeId||busyGuideAction)return;
-    const key=`${process.id}:${guide.code}`;
-    setBusyGuideAction({key,action:"pix"});
+    if (!qaPixIssuer || !effectiveScopeId || busyGuideAction || !guide.code.startsWith("DAM-PRE-QA-")) return;
+    const key = `${process.id}:${guide.code}`;
+    setBusyGuideAction({key, action:"reconcile"});
     setStatusGuideKey(key);
+    setGuideActionStatus("");
     try {
       const original=await readGuideOriginal(effectiveScopeId,guide.code);
-      if(original.municipality_id!==effectiveScopeId||original.process_id!==process.id||original.guide_number!==guide.code)
+      if(original.municipality_id!==effectiveScopeId ||
+         original.process_id!==process.id || original.guide_number!==guide.code)
         throw new Error("Guia PIX fora da Prefeitura ou do processo autenticado.");
-      if (original.original_pdf_key && original.original_pdf_sha256) {
-        // Recheck only the existing signed provider order; never reissue PIX.
-        const reconciled=await reconcileQaPixAfterPdf({
-          municipalityId:effectiveScopeId,guideCode:guide.code,
-        });
-        setGuideActionStatus(reconciled.settled
-          ? "Mercado Pago confirmou o crédito e o Neon conciliou a guia de TESTE com seu PDF original."
-          : reconciled.status==="awaiting_bank_credit"
-            ? "Mercado Pago ainda não confirmou o crédito PIX. Nenhuma baixa realizada."
-            : "Conciliação bancária em revisão: "+reconciled.status+".");
-        if(reconciled.settled)await refreshRemoteStore();
+      if (isGuideSettled(original)) {
+        setGuideActionStatus("Guia já compensada no Neon. Nenhuma nova cobrança foi emitida.");
+        await refreshRemoteStore();
         return;
       }
-      const latest=await requestQaPixCharge({municipalityId:effectiveScopeId,guideCode:guide.code,action:"get"});
-      if(!latest.ok||latest.environment!=="test"||!latest.orderId||!isValidPixPayload(latest.qrCode))
-        throw new Error("O PIX de homologação ainda não foi confirmado pelo provedor.");
-      setQaPixCharges(prev=>({...prev,[guide.code]:latest}));
-      setGuideActionStatus(latest.statusStale?
-        "QR anterior preservado; não foi possível atualizar o status do provedor. Sem baixa municipal.":
-        `Mercado Pago (TESTE): ${latest.status||"pendente"}. Nenhuma baixa municipal foi realizada.`);
-    }catch(error) {
-      setGuideActionStatus(error instanceof Error?error.message:"Falha na consulta de status PIX de TESTE.");
-    }finally{setBusyGuideAction(null);}
+      if (original.provider_environment!=="test" || original.payment_provider!=="mercado_pago" ||
+          !original.bank_reference || !original.pix_code) {
+        setGuideActionStatus("Esta guia ainda não possui uma ordem PIX de TESTE confirmada no Neon. Nenhuma cobrança foi criada.");
+        return;
+      }
+      if (!original.original_pdf_key || !original.original_pdf_sha256 || !original.document_snapshot) {
+        setGuideActionStatus("É necessário arquivar o PDF original da mesma guia antes de conferir a baixa bancária. Nenhuma cobrança foi criada.");
+        return;
+      }
+      // A fresh authenticated bank GET checks the SAME order. It settles only
+      // with an existing signed webhook, credited transaction and valid PDF.
+      const reconciled=await reconcileQaPixAfterPdf({
+        municipalityId:effectiveScopeId,guideCode:guide.code,
+      });
+      if (reconciled.settled) {
+        const confirmed=await readGuideOriginal(effectiveScopeId,guide.code);
+        if (!isGuideSettled(confirmed) || confirmed.original_pdf_key!==original.original_pdf_key ||
+            confirmed.bank_reference!==original.bank_reference)
+          throw new Error("O Neon ainda não confirmou a baixa na guia original; resultado não homologado.");
+        setGuideActionStatus("Crédito bancário conciliado e baixa registrada no Neon na mesma guia, com PDF original preservado.");
+        await refreshRemoteStore();
+      } else {
+        setGuideActionStatus(reconciled.status==="awaiting_bank_credit"
+          ? "Mercado Pago ainda não comprovou crédito PIX. A guia continua pendente no Neon."
+          : "Baixa não efetuada. Conciliação bancária em revisão: "+reconciled.status+".");
+      }
+    } catch(error) {
+      setGuideActionStatus(error instanceof Error ? error.message : "Falha na conferência bancária de TESTE. Nenhuma baixa foi registrada.");
+    } finally {
+      setBusyGuideAction(null);
+    }
   };
 
   /** Compare the corrected QA-only A4 layout against the frozen snapshot.
@@ -979,6 +996,22 @@ export function ExternalPaymentsPage() {
                               )}
                               Visualizar guia
                             </Button>
+                            {qaPixIssuer && guide.code.startsWith("DAM-PRE-QA-") && !isGuideSettled(guide) ? (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                data-qa-reconcile-existing-pix="true"
+                                className="rounded-full border-emerald-300 bg-emerald-50 px-4 text-[12px] font-semibold text-emerald-950 hover:bg-emerald-100"
+                                disabled={Boolean(busyGuideAction)}
+                                onClick={() => void refreshSandboxPixStatus(process,guide)}
+                              >
+                                {busyGuideAction?.key === `${process.id}:${guide.code}` &&
+                                 busyGuideAction.action === "reconcile"
+                                  ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                                  : <CreditCard className="mr-1.5 h-3.5 w-3.5" />}
+                                Conferir baixa bancária (QA)
+                              </Button>
+                            ) : null}
                             {isolatedQaMode && guide.code.startsWith("DAM-PRE-QA-") ? (
                               <Button
                                 type="button"
