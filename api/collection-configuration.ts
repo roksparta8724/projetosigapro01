@@ -1,6 +1,8 @@
 import { callDataApiRpc } from "../server/municipal-storage.js";
 import { encryptMunicipalCollectionSecret, municipalCollectionSecretFingerprint } from "../server/municipal-payment.js";
 import { getMunicipalCollectionAdapter } from "../server/municipal-collection-adapters.js";
+import { readStoredGuide } from "../server/guide-persistence.js";
+import { resolveMunicipalPaymentSecret } from "../server/municipal-payment.js";
 
 type Req = import("http").IncomingMessage & { method?: string; body?: Record<string, unknown> };
 type Res = import("http").ServerResponse;
@@ -38,6 +40,23 @@ export default async function handler(req: Req, res: Res) {
           error: "Na homologação, a configuração da modalidade e os dados bancários municipais permanecem somente leitura. Configure a credencial Mercado Pago no painel de Teste abaixo; emissão e ativação aguardam o aceite.",
         });
       }
+    }
+    if (action === "guide_provider") {
+      // Read-only routing for the AUTHORIZED process professional. Do not
+      // expose administrative provider settings, key fingerprints or secrets.
+      const guideCode=String(input.guideCode||"").trim();
+      if (!guideCode || guideCode.length>120) throw new Error("Guia inválida.");
+      const guide=await readStoredGuide(req,municipalityId,guideCode);
+      if (guide.municipality_id!==municipalityId || guide.guide_number!==guideCode)
+        throw new Error("Guia não autorizada para esta Prefeitura.");
+      const configuration=await resolveMunicipalPaymentSecret(req,municipalityId);
+      if (configuration.municipality_id && configuration.municipality_id!==municipalityId)
+        throw new Error("Conexão bancária fora da Prefeitura.");
+      return json(res,200,{
+        provider:String(configuration.provider||"manual"),
+        environment:String(configuration.environment||"test"),
+        status:String(configuration.status||"inactive"),
+      });
     }
     if (action === "get") return json(res, 200, await rpc(req, "get_municipal_collection_configuration_v1", { _municipality_id: municipalityId }) || {});
     if (action === "effective") return json(res, 200, await rpc(req, "get_active_municipal_collection_configuration_v1", { _municipality_id: municipalityId }) || {});

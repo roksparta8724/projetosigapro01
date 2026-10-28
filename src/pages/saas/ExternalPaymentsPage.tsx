@@ -450,16 +450,12 @@ export function ExternalPaymentsPage() {
       if (!isolatedQa && !(
         canonicalPriorBanking.barcode && canonicalPriorBanking.digitableLine
       )) {
-        const [active,connection] = await Promise.all([
-          municipalCollectionApiRequest<{mode?:string;status?:string}>(
-            "collection-configuration", effectiveScopeId, "effective",
-          ),
-          municipalCollectionApiRequest<BankConnection>(
-            "payment-connection", effectiveScopeId, "get",
-          ),
-        ]);
+        const connection=await municipalCollectionApiRequest<BankConnection>(
+          "collection-configuration", effectiveScopeId, "guide_provider",
+          {guideCode:guide.code},
+        );
         selectedProvider = connection;
-        const route = resolveMunicipalChargeRoute(officialOriginal!,connection,active);
+        const route = resolveMunicipalChargeRoute(officialOriginal!,connection,null);
         if (route !== "mercado_pago") throw new Error(municipalChargeRouteMessage(route));
       }
       const charge = isolatedQa ? (newlyIssued ? tested : null) :
