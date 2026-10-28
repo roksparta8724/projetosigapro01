@@ -84,6 +84,35 @@ export async function openStoredGuide(original: GuideOriginal, target: Window) {
   return true;
 }
 
+/**
+ * A frozen QA guide may resume an interrupted PDF upload without contacting the
+ * provider or re-binding its PIX. Require the exact original payment evidence;
+ * never treat an administrative preview or a settled guide as a payable PDF.
+ * Municipality/process access is separately checked by the authorized read RPC.
+ */
+export function canResumeQaFrozenGuide(original: GuideOriginal): boolean {
+  const snapshot = original.document_snapshot;
+  if (!snapshot?.guia || isGuideSettled(original) ||
+      !original.bank_reference || original.provider_environment !== "test" ||
+      original.payment_provider !== "mercado_pago" ||
+      snapshot.guia.nonPayablePreview === true ||
+      snapshot.guia.numeroGuia !== original.guide_number ||
+      Number(snapshot.guia.valorDocumento) !== Number(original.amount) ||
+      Number(snapshot.guia.valorCobrado) !== Number(original.amount)) {
+    return false;
+  }
+  const bank = normalizeOfficialBanking(original.barcode, original.digitable_line);
+  const paperBank = normalizeOfficialBanking(snapshot.guia.codigoBarras, snapshot.guia.linhaDigitavel);
+  const matchingBoleto = Boolean(
+    bank.barcode && bank.digitableLine &&
+    bank.barcode === paperBank.barcode && bank.digitableLine === paperBank.digitableLine
+  );
+  const matchingPix = Boolean(
+    isValidPixPayload(original.pix_code) && snapshot.guia.pixPayload === original.pix_code
+  );
+  return matchingBoleto || matchingPix;
+}
+
 export function hasVerifiableGuidePaymentData(props: GuiaRecolhimentoOficialProps): boolean {
   if (props.guia.nonPayablePreview) return false;
   if (isValidPixPayload(props.guia.pixPayload)) return true;

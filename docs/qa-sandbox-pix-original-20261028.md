@@ -32,3 +32,9 @@ WHERE guide_number='DAM-PRE-QA-20261028-PIXHMLG2';
 Nenhum webhook validado e conciliado foi comprovado para essa ordem. Nenhuma cobrança fictícia pode dar baixa real. Se a produção apresentar guias históricas quitadas sem PDF original, não gerar PDF retroativo. Os fluxos de Aprovação, Habite-se, IA e permissões entre duas prefeituras ainda exigem aceite autenticado. **A autorização para migrar/promover produção é independente.**
 
 Rollback QA (antes de manter documentos novos vinculados): retirar o novo código da QA branch e, se necessário, `DROP FUNCTION public.qa_mp_pix_bind_to_guide_v1(uuid,text,text)` na mesma branch isolada. Nunca apagar PDFs originais, pagamentos ou processos para simular rollback.
+
+## 28/10 — retomada segura após snapshot congelado
+- Falha encontrada: ao reabrir uma guia com `document_snapshot` já salvo e sem `original_pdf_key`, a UI tentava executar novamente `qa_mp_pix_bind_to_guide_v1`; a RPC corretamente rejeitava a guia congelada, bloqueando todo retry do PDF.
+- Corrigido no fluxo exclusivamente QA: se já houver snapshot, valida-se código, valor, ordem, ambiente de teste e a cobrança canônica (PIX CRC ou boleto real), e se retoma diretamente `archiveAndOpenGuide` com o **snapshot persistido**, sem consultar ou recriar uma ordem nem repetir o bind.
+- A gravação do PDF no storage e o vínculo SHA continuam exigindo sessão autorizada e confirmação da função QA. Se falharem, o snapshot permanece preservado para nova tentativa. Guias quitadas ou com snapshot inválido permanecem bloqueadas.
+- Critérios de aceite ainda pendentes de sessão real: upload PDF, conferência SHA-256, reabertura após F5 e autorização de outro perfil, e negação intermunicipal. Sem isso **não há homologação funcional completa**.

@@ -43,7 +43,7 @@ import { getMunicipalityLogoOpenUrl } from "@/integrations/r2/client";
 import { ensureMercadoPagoGuideCharge, requestQaPixCharge, type QaPixCharge, type MercadoPagoGuideCharge } from "@/lib/mercadoPagoGuide";
 import { normalizeOfficialBanking } from "@/lib/bankCodes";
 import { buildGuidePixPayload, resolveGuideBankingData } from "@/lib/paymentCollection";
-import { archiveAndOpenGuide, isGuideSettled, openLegacyGuideOriginal, openStoredGuide, readGuideOriginal, type GuideOriginal } from "@/lib/guideOriginal";
+import { archiveAndOpenGuide, canResumeQaFrozenGuide, isGuideSettled, openLegacyGuideOriginal, openStoredGuide, readGuideOriginal, type GuideOriginal } from "@/lib/guideOriginal";
 import { isGuideOverdueOnBrazilDate } from "@/lib/guideCivilDueDate";
 import { verifyPersistedQaBoleto } from "@/lib/qaGuideBankConfirmation";
 
@@ -329,6 +329,16 @@ export function ExternalPaymentsPage() {
         }
         if (officialOriginal.collection_mode_snapshot === "municipal_system") {
           throw new Error("Guia do sistema próprio da Prefeitura: não emitir cobrança de homologação.");
+        }
+        // The original may already be financially frozen while the PDF upload
+        // or tab navigation failed. Resume from the SAME immutable snapshot:
+        // never bind PIX again, never call a provider, never change the DAM.
+        if (officialOriginal.document_snapshot) {
+          if (!canResumeQaFrozenGuide(officialOriginal)) {
+            throw new Error("Snapshot de teste sem vínculo financeiro íntegro; PDF original não será reconstruído.");
+          }
+          await archiveAndOpenGuide(effectiveScopeId, officialOriginal.document_snapshot, reservedGuideWindow);
+          return;
         }
       }
       const banking = resolveGuideBankingData({
