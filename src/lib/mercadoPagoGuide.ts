@@ -28,6 +28,7 @@ export type QaPixCharge = {
   paymentId?: string;
   qrCode?: string;
   status?: string;
+  statusStale?: boolean;
   error?: string;
 };
 

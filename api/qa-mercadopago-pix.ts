@@ -98,7 +98,8 @@ export default async function handler(req:Req,res:Res){
   if(reservation.municipality_id!==municipalityId||reservation.guide_id!==guide.id ||
     Number(reservation.amount)!==Number(guide.amount)||reservation.idempotency_key!==key)
    throw new Error("Reserva PIX não corresponde à guia original");
-  if(reservation.state==="issued")return send(res,200,render(reservation));
+  // GET refreshes the already-existing order, without any new charge.
+  if(reservation.state==="issued"&&action==="issue")return send(res,200,render(reservation));
   // A prior attempt without a saved order may be reconciled read-only by external_reference.
   const resolved=await resolveMercadoPagoMunicipalAccessToken(req,municipalityId);
   if(resolved.environment!=="test"||!resolved.token)
@@ -174,6 +175,8 @@ export default async function handler(req:Req,res:Res){
    const providerCode=/^[A-Za-z0-9_.-]{1,64}$/.test(codeRaw)?codeRaw:"unavailable";
    // Never log provider body, secret, municipal key, QR payload or payment personal data.
    console.warn("[sigapro-qa-pix] provider_declined",{status:provider.status,code:providerCode});
+   if(action==="get"&&reservation.state==="issued"&&reservation.order_id)
+    return send(res,200,{...render(reservation),statusStale:true});
    return send(res,503,{ok:false,code:"QA_PIX_PROVIDER_UNAVAILABLE",providerCode,
     error:"Mercado Pago não confirmou a ordem (HTTP "+provider.status+", "+providerCode+"). A tentativa permanece protegida contra duplicidade."});
   }

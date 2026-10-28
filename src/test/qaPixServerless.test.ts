@@ -131,6 +131,40 @@ describe("serverless QA PIX is isolated and idempotent",()=>{
   expect(mocks.fetch.mock.calls.every(x=>x[1].method==="GET")).toBe(true);
   expect(mocks.rpc.mock.calls.map(x=>x[1])).toEqual(["qa_mp_pix_reserve_v2","qa_mp_pix_save_v2"]);
  });
+ it("GET refreshes an issued order by provider GET, without another POST or guide settlement",async()=>{
+  const {createHash}=await import("node:crypto");
+  const h=createHash("sha256").update(["sigapro","qa","pix","v1",tenant,guideId].join("|")).digest("hex");
+  const key=[h.slice(0,8),h.slice(8,12),"4"+h.slice(13,16),"8"+h.slice(17,20),h.slice(20,32)].join("-");
+  mocks.rpc.mockImplementation(async(_req:unknown,fn:string)=>{
+   if(fn==="qa_mp_pix_get_v1")return {ok:true,payload:{...reservation,order_id:"ORDER_QA_PIX_1234",qr_code:"VALID_TEST_PIX_PAYLOAD",idempotency_key:key,state:"issued"}};
+   if(fn==="qa_mp_pix_save_v2")return {ok:true,payload:{...reservation,order_id:"ORDER_QA_PIX_1234",qr_code:"VALID_TEST_PIX_PAYLOAD",idempotency_key:key,state:"issued",provider_status:"processed"}};
+   return {ok:false};
+  });
+  mocks.fetch.mockResolvedValueOnce({ok:true,status:200,json:async()=>({
+   id:"ORDER_QA_PIX_1234",external_reference:guideCode,total_amount:"12.30",status:"processed",
+   transactions:{payments:[{id:"PAY_1234",payment_method:{id:"pix",type:"bank_transfer",qr_code:"VALID_TEST_PIX_PAYLOAD"}}]}
+  })});
+  const x=await request("get");
+  expect(x.status).toBe(200);
+  expect(x.body).toMatchObject({ok:true,status:"processed"});
+  expect(mocks.fetch.mock.calls).toHaveLength(1);
+  expect(mocks.fetch.mock.calls[0][1].method).toBe("GET");
+  expect(mocks.rpc.mock.calls.map(c=>c[1])).toEqual(["qa_mp_pix_get_v1","qa_mp_pix_save_v2"]);
+ });
+ it("returns a saved QR with stale status indicator when provider refresh fails",async()=>{
+  const {createHash}=await import("node:crypto");
+  const h=createHash("sha256").update(["sigapro","qa","pix","v1",tenant,guideId].join("|")).digest("hex");
+  const key=[h.slice(0,8),h.slice(8,12),"4"+h.slice(13,16),"8"+h.slice(17,20),h.slice(20,32)].join("-");
+  mocks.rpc.mockImplementation(async(_req:unknown,fn:string)=>{
+   if(fn==="qa_mp_pix_get_v1")return {ok:true,payload:{...reservation,order_id:"ORDER_QA_PIX_1234",qr_code:"VALID_TEST_PIX_PAYLOAD",idempotency_key:key,state:"issued"}};
+   return {ok:false};
+  });
+  mocks.fetch.mockResolvedValueOnce({ok:false,status:503,json:async()=>({})});
+  const x=await request("get");
+  expect(x.body).toMatchObject({ok:true,statusStale:true});
+  expect(mocks.fetch.mock.calls).toHaveLength(1);
+  expect(mocks.fetch.mock.calls[0][1].method).toBe("GET");
+ });
  it("shows sanitized provider HTTP code without exposing credentials",async()=>{
   mocks.fetch.mockResolvedValueOnce({ok:false,status:400,json:async()=>({errors:[{code:"invalid_header_value",message:"sensitive user text"}]})});
   const response=await request("issue");

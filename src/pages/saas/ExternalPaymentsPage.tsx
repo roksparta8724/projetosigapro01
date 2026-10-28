@@ -237,6 +237,27 @@ export function ExternalPaymentsPage() {
     }
   };
 
+  const refreshSandboxPixStatus = async (process: ProcessRecord, guide: PaymentGuideEntry) => {
+    if(!effectiveScopeId||busyGuideAction)return;
+    const key=`${process.id}:${guide.code}`;
+    setBusyGuideAction({key,action:"pix"});
+    setStatusGuideKey(key);
+    try {
+      const original=await readGuideOriginal(effectiveScopeId,guide.code);
+      if(original.municipality_id!==effectiveScopeId||original.process_id!==process.id||original.guide_number!==guide.code)
+        throw new Error("Guia PIX fora da Prefeitura ou do processo autenticado.");
+      const latest=await requestQaPixCharge({municipalityId:effectiveScopeId,guideCode:guide.code,action:"get"});
+      if(!latest.ok||latest.environment!=="test"||!latest.orderId||!isValidPixPayload(latest.qrCode))
+        throw new Error("O PIX de homologação ainda não foi confirmado pelo provedor.");
+      setQaPixCharges(prev=>({...prev,[guide.code]:latest}));
+      setGuideActionStatus(latest.statusStale?
+        "QR anterior preservado; não foi possível atualizar o status do provedor. Sem baixa municipal.":
+        `Mercado Pago (TESTE): ${latest.status||"pendente"}. Nenhuma baixa municipal foi realizada.`);
+    }catch(error) {
+      setGuideActionStatus(error instanceof Error?error.message:"Falha na consulta de status PIX de TESTE.");
+    }finally{setBusyGuideAction(null);}
+  };
+
   const openExternalGuide = async (
     process: ProcessRecord,
     guide: PaymentGuideEntry,
@@ -854,19 +875,39 @@ export function ExternalPaymentsPage() {
                             {guideActionStatus}
                           </div>
                         ) : null}
-                        {isolatedQaMode && qaPixCharges[guide.code]?.ok &&
-                          isValidPixPayload(qaPixCharges[guide.code]?.qrCode) ? (
-                            <div data-qa-pix-preview="true"
-                              className="w-full rounded-xl border border-sky-200 bg-white p-3 text-center text-slate-900 shadow-sm">
-                              <p className="mb-2 text-xs font-bold">PIX DE HOMOLOGAÇÃO — NÃO PAGAR</p>
-                              <QRCodeSVG value={qaPixCharges[guide.code].qrCode!} size={124} level="M" />
-                              <p className="mt-2 break-all font-mono text-[9px]">
+                      </div>
+                      {isolatedQaMode && qaPixCharges[guide.code]?.ok &&
+                       isValidPixPayload(qaPixCharges[guide.code]?.qrCode) ? (
+                        <section data-qa-pix-preview="true"
+                          onClick={(event)=>event.stopPropagation()}
+                          onKeyDown={(event)=>event.stopPropagation()}
+                          className="2xl:col-span-6 w-full rounded-xl border border-sky-200 bg-white p-4 text-slate-900 shadow-sm dark:bg-slate-950 dark:text-white">
+                          <div className="flex flex-col gap-5 sm:flex-row">
+                            <div className="shrink-0 rounded-xl border border-slate-200 bg-white p-3 text-center">
+                              <p className="mb-2 text-xs font-extrabold text-amber-800">PIX DE HOMOLOGAÇÃO — NÃO PAGAR</p>
+                              <QRCodeSVG value={qaPixCharges[guide.code].qrCode!} size={172} level="M" />
+                            </div>
+                            <div className="min-w-0 flex-1 space-y-2">
+                              <p className="text-sm font-bold">Ordem Mercado Pago · ambiente de TESTE</p>
+                              <p className="text-sm">Status no provedor: <strong>{
+                                qaPixCharges[guide.code].statusStale?"consulta temporariamente indisponível":
+                                qaPixCharges[guide.code].status==="processed"?"processado no sandbox":
+                                qaPixCharges[guide.code].status==="action_required"?"aguardando transferência simulada":
+                                qaPixCharges[guide.code].status||"pendente"
+                              }</strong></p>
+                              <p className="text-xs text-slate-600 dark:text-slate-300">Status de teste não confirma arrecadação nem baixa municipal.</p>
+                              <p className="rounded-lg bg-slate-50 p-3 font-mono text-[11px] leading-relaxed break-all text-slate-800 dark:bg-slate-900 dark:text-slate-100">
                                 {qaPixCharges[guide.code].qrCode}
                               </p>
-                              <p className="mt-2 text-xs font-semibold">QR do Mercado Pago de TESTE. Visualize a guia para abrir o documento.</p>
+                              <Button type="button" variant="outline" size="sm" data-qa-pix-refresh="true"
+                                disabled={Boolean(busyGuideAction)}
+                                onClick={()=>void refreshSandboxPixStatus(process,guide)}>
+                                Consultar status do PIX de TESTE (sem nova cobrança)
+                              </Button>
                             </div>
-                          ) : null}
-                      </div>
+                          </div>
+                        </section>
+                      ) : null}
                     </div>
                   </div>
                 );
