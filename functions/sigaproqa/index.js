@@ -94,12 +94,20 @@ function respond(data,status=200,origin="") {
 }
 async function rpc(token,name,args={}) {
   const base=process.env.NEON_DATA_API_URL||"";
-  if(base.replace(/\/+$/,"") !== "https://ep-misty-breeze-b4ri8ig0.apirest.c-6.us-east-2.aws.neon.tech/sigapro_migration_stage_20260923/rest/v1") return null;
+  if(base.replace(/\/+$/,"") !== "https://ep-misty-breeze-b4ri8ig0.apirest.c-6.us-east-2.aws.neon.tech/sigapro_migration_stage_20260923/rest/v1") {
+    console.warn("[sigaproqa] QA_DATA_ENDPOINT_MISMATCH");
+    return null;
+  }
   const r=await fetch(base.replace(/\/+$/,"")+"/rpc/"+name,{
     method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+token},
     body:JSON.stringify(args),signal:requestTimeout(12000),
   });
-  if(!r.ok)return null;
+  if(!r.ok) {
+    if(["has_tenant_access","authorize_payment_guide_original_upload_v2",
+         "authorize_payment_guide_original_read_v1"].includes(name))
+      console.warn("[sigaproqa] QA_AUTH_RPC_REJECTED",name,r.status);
+    return null;
+  }
   return r.json().catch(()=>null);
 }
 function validKey(key) {
@@ -119,15 +127,21 @@ function validKey(key) {
 }
 async function authorize(token,scope,write,readProcessId="",operation="") {
  const membership=await rpc(token,"has_tenant_access",{target_tenant:scope.tenant});
- if(membership!==true)return false;
+ if(membership!==true) {
+    console.warn("[sigaproqa] QA_TENANT_SCOPE_REJECTED",scope.type);
+    return false;
+  }
  if(scope.type==="dam-original"){
    // SQL authorizes THIS guide and process, not generic municipal write access.
    // Document originals can never be deleted or overwritten.
    if(operation==="/object")return false;
    const args={_guide_id:scope.guide,_municipality_id:scope.tenant,
      _process_id:scope.process};
-   if(operation==="/upload")
-     return await rpc(token,"authorize_payment_guide_original_upload_v2",args)===true;
+   if(operation==="/upload") {
+      const allowed=await rpc(token,"authorize_payment_guide_original_upload_v2",args);
+      if(allowed!==true) console.warn("[sigaproqa] QA_DAM_UPLOAD_POLICY_REJECTED");
+      return allowed===true;
+    }
    if(operation==="/read")
      return await rpc(token,"authorize_payment_guide_original_read_v1",{
        ...args,_object_key:scope.key,
