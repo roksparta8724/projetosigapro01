@@ -864,22 +864,22 @@ export function ExternalPaymentsPage() {
                       }
                     }}
                   >
-                    <div className="grid gap-4 2xl:grid-cols-[1.15fr_1fr_0.85fr_0.75fr_0.7fr_1.25fr] 2xl:items-center">
+                    <div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-[minmax(0,1.18fr)_minmax(0,1.1fr)_minmax(0,1.05fr)_minmax(0,0.9fr)_minmax(0,0.75fr)] 2xl:items-start">
                       <div className="min-w-0">
-                        <p className="truncate text-[15px] font-semibold text-slate-950">
+                        <p className="break-words text-[15px] font-semibold text-slate-950">
                           {process.isOfficial === false
                             ? (status === "compensada" ? "Pagamento confirmado · em oficialização" : "Rascunho com guia emitida")
                             : formatOfficialProcessNumber(process.protocol)}
                         </p>
-                        <p className="mt-1 truncate text-[13px] text-slate-500">
+                        <p className="mt-1 break-words text-[13px] text-slate-500">
                           {process.isOfficial === false
                             ? (status === "compensada" ? `Pagamento confirmado · acompanhe a oficialização do pré-protocolo ${process.preProtocol || process.protocol}` : `Referência temporária: ${process.preProtocol || process.protocol} · sem número oficial até o pagamento`)
                             : formatOfficialProcessTitle({ title: process.title, type: process.type })}
                         </p>
                       </div>
                       <div className="min-w-0">
-                        <p className="truncate text-[14px] font-semibold text-slate-900">{formatOfficialProcessTitle({ title: process.title, type: process.type })}</p>
-                        <p className="mt-1 truncate text-[13px] text-slate-500">{process.type}</p>
+                        <p className="break-words text-[14px] font-semibold text-slate-900">{formatOfficialProcessTitle({ title: process.title, type: process.type })}</p>
+                        <p className="mt-1 break-words text-[13px] text-slate-500">{process.type}</p>
                       </div>
                       <div className="min-w-0">
                         <p className="text-[14px] font-semibold text-slate-900">
@@ -887,7 +887,7 @@ export function ExternalPaymentsPage() {
                         </p>
                         {guide.officialProcessReference &&
                         guide.officialProcessReference !== guide.code ? (
-                          <p className="mt-1 truncate text-[11px] font-medium text-slate-400" title={guide.code}>
+                          <p className="mt-1 break-words text-[11px] font-medium text-slate-400" title={guide.code}>
                             Guia original paga no pré-protocolo: {guide.code}
                           </p>
                         ) : null}
@@ -912,7 +912,7 @@ export function ExternalPaymentsPage() {
                         </Badge>
                       </div>
                       <div
-                        className="flex flex-wrap justify-start gap-2 2xl:justify-end"
+                        className="col-span-full flex flex-wrap items-center justify-start gap-2 border-t border-slate-200/80 pt-3 2xl:justify-end"
                         onClick={(event) => event.stopPropagation()}
                         onKeyDown={(event) => event.stopPropagation()}
                       >
