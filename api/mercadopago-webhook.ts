@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import qaReconcileArchivedOriginal from "../server/qa-mercadopago-reconcile.js";
+import productionWebhook from "../server/mp-prod-webhook.js";
 import type { IncomingMessage,ServerResponse } from "node:http";
 import { verifyMercadoPagoOrderWebhook,type MPOrderNotice } from "../server/mp-webhook-signature.js";
 import { withWebhookConnection,readQaMunicipalPaymentSecret,fetchMunicipalMpOrder,persistQaOrderEvent,qaWebhookConfigured } from "../server/mp-webhook-tenant.js";
@@ -26,6 +27,7 @@ async function readNotice(req:Req):Promise<MPOrderNotice & {id?:unknown}>{
  return JSON.parse(Buffer.concat(chunks).toString("utf8"));
 }
 export default async function handler(req:Req,res:Res){
+ if(process.env.VERCEL_ENV==="production")return productionWebhook(req,res);
  // Reuse this one QA-only Vercel function: Hobby permits at most 12 functions.
  // This mode still requires browser JWT, tenant+process authorization and
  // a genuinely signed prior webhook. Normal provider notices retain HMAC.
