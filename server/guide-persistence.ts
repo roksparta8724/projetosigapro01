@@ -14,6 +14,7 @@ export type StoredGuide = {
   status: string;
   paid?: boolean;
   bank_reference?: string;
+  pix_code?: string | null;
   document_snapshot?: unknown;
   original_pdf_key?: string;
   original_pdf_sha256?: string;
