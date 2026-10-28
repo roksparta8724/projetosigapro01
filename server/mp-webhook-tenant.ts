@@ -94,6 +94,13 @@ export async function fetchMunicipalMpOrder(orderId:string,token:string):Promise
  const single=Array.isArray(payments)&&payments.length===1 &&
    payments[0]&&typeof payments[0]==="object"
    ?payments[0] as Record<string,unknown>:null;
+ const method=single?.payment_method && typeof single.payment_method==="object"
+  ?single.payment_method as Record<string,unknown>:null;
+ // Orders API can omit currency; an online Brazilian PIX bank transfer
+ // is BRL. This exception MUST NOT apply to boleto, cards or missing evidence.
+ const verifiedCurrency=currency || (!officialCurrency && !legacyCurrency &&
+   raw.country_code==="BRA" && raw.type==="online" &&
+   method?.id==="pix" && method?.type==="bank_transfer"?"BRL":"");
  const paymentId=single&&typeof single.id==="string"?single.id.slice(0,100):"";
  const transactionStatus=String(single?.status||"").slice(0,96);
  const transactionStatusDetail=String(single?.status_detail||"").slice(0,96);
@@ -103,12 +110,12 @@ export async function fetchMunicipalMpOrder(orderId:string,token:string):Promise
  const noRefund=Array.isArray(refunds)?refunds.length===0:refunds==null;
  const accredited=status==="processed"&&statusDetail==="accredited" &&
    transactionStatus==="processed"&&transactionStatusDetail==="accredited" &&
-   currency==="BRL"&&(!raw.country_code||raw.country_code==="BRA") &&
+   verifiedCurrency==="BRL"&&(!raw.country_code||raw.country_code==="BRA") &&
    /^[A-Za-z0-9_-]{6,100}$/.test(paymentId) &&
    sameCents(amount,paidAmount,transactionAmount,transactionPaidAmount) &&
    noChargeback&&noRefund;
  return {fetched:true,status,statusDetail,reference:String(raw.external_reference||"").slice(0,160),
-  currency:currency.slice(0,12),amount,paidAmount,paymentId,transactionStatus,
+  currency:verifiedCurrency.slice(0,12),amount,paidAmount,paymentId,transactionStatus,
   transactionStatusDetail,transactionAmount,transactionPaidAmount,accredited};
 }
 
