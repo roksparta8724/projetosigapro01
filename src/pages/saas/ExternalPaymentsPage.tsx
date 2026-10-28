@@ -48,7 +48,7 @@ import { isGuideOverdueOnBrazilDate } from "@/lib/guideCivilDueDate";
 import { renderGuideOriginalPdf } from "@/lib/guidePdf";
 import { verifyPersistedQaBoleto } from "@/lib/qaGuideBankConfirmation";
 import { municipalCollectionApiRequest } from "@/lib/municipalCollectionApi";
-import { resolveMunicipalChargeRoute, municipalChargeRouteMessage, type BankConnection } from "@/lib/municipalChargeRouting";
+import { resolveMunicipalChargeRoute, municipalChargeRouteMessage, displayGuidePaymentProvider, type BankConnection } from "@/lib/municipalChargeRouting";
 
 const paymentStatusOptions = [
   { value: "todos", label: "Todos os status" },
@@ -634,10 +634,10 @@ export function ExternalPaymentsPage() {
           bankStatusDetail: previewOnly ? undefined : (sandboxPixIssued && !sandboxIssued ? "pix_sandbox" : (confirmedOriginal?.bank_status_detail || charge?.statusDetail || guide.bankStatusDetail)),
           bankAuthenticatedAt: previewOnly ? undefined : (confirmedOriginal?.bank_authenticated_at || charge?.authenticatedAt || guide.bankAuthenticatedAt),
           bankEnvironment: isolatedQa ? "test" : (confirmedOriginal?.provider_environment || charge?.environment || guide.providerEnvironment),
-          paymentProvider:
-            confirmedOriginal?.payment_provider ||
-            selectedProvider?.provider ||
-            (isolatedQa ? "mercado_pago" : (charge?.ok ? "mercado_pago" : tenantSettings?.paymentProvider || "manual")),
+          paymentProvider: displayGuidePaymentProvider(
+            confirmedOriginal?.payment_provider,
+            selectedProvider?.provider || (isolatedQa || charge?.ok ? "mercado_pago" : null),
+          ),
           valorDocumento: originalAmount,
           descontos: 0,
           outrosAcrescimos: 0,

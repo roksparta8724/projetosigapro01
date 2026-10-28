@@ -21,8 +21,8 @@ export function resolveMunicipalChargeRoute(
 ): "mercado_pago" | "municipal_system" | "bank_direct" | "manual" | "unconfigured" | "provider_mismatch" {
   if (guide.collection_mode_snapshot === "municipal_system") return "municipal_system";
   // The guide's saved mode takes precedence over a later administrative switch.
-  if (!guide.collection_mode_snapshot && active?.status === "active" &&
-      active.mode === "municipal_system") return "municipal_system";
+  if (!guide.collection_mode_snapshot && !guide.payment_provider && !guide.bank_reference &&
+      active?.status === "active" && active.mode === "municipal_system") return "municipal_system";
   const boundProvider=String(guide.payment_provider||"").trim();
   const currentProvider=String(connection?.provider||"").trim();
   if (boundProvider && boundProvider !== "mercado_pago") {
@@ -47,4 +47,15 @@ export function municipalChargeRouteMessage(route: ReturnType<typeof resolveMuni
     case "unconfigured": return "Não existe provedor bancário automático ativo para esta Prefeitura. Configure a modalidade e o banco em Guias e Arrecadação; o Mercado Pago nunca é escolhido automaticamente.";
     default: return "";
   }
+}
+
+/** Printed providers are controlled values: never claim Mercado Pago for an
+ * unknown historical bank or a manual collection configuration. */
+export function displayGuidePaymentProvider(
+  stored: string | null | undefined,
+  current?: string | null,
+): "mercado_pago" | "bank_direct" | "manual" {
+  const chosen=String(stored||current||"").trim();
+  if (chosen==="mercado_pago" || chosen==="bank_direct") return chosen;
+  return "manual";
 }
