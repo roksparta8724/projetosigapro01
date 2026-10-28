@@ -1,11 +1,11 @@
 /** Revalidate a previously signed QA bank order after its PDF archive.
  * No new order, payment or unsigned webhook is generated. */
 import type {IncomingMessage,ServerResponse} from "node:http";
-import {readStoredGuide} from "../server/guide-persistence.js";
-import {isPersistedGuideSettled} from "../server/guide-settlement.js";
-import {callDataApiRpc,readBearer} from "../server/municipal-storage.js";
+import {readStoredGuide} from "./guide-persistence.js";
+import {isPersistedGuideSettled} from "./guide-settlement.js";
+import {callDataApiRpc,readBearer} from "./municipal-storage.js";
 import {qaWebhookConfigured,withWebhookConnection,readQaMunicipalPaymentSecret,
- fetchMunicipalMpOrder,persistQaOrderEvent} from "../server/mp-webhook-tenant.js";
+ fetchMunicipalMpOrder,persistQaOrderEvent} from "./mp-webhook-tenant.js";
 type Req=IncomingMessage&{body?:unknown};
 type Res=ServerResponse;
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
