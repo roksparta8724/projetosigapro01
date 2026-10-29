@@ -38,7 +38,12 @@ describe("guide opening experience", () => {
     expect(processPage).toContain('if (!issuedAt) throw new Error("Data original da guia ausente no Neon.")');
     expect(processPage).not.toContain("selectedGuide.issuedAt || new Date().toISOString()");
     expect(processPage).toContain("original.created_at");
-    expect(mercadoApi).toContain("persist_payment_guide_provider_charge_v1");
+    // The signed, municipality-scoped v2 persistence runs inside the
+    // provider helper; the API MUST NOT attempt the retired v1 write.
+    const persistence = read("server/guide-persistence.ts");
+    expect(mercadoApi).not.toContain("persist_payment_guide_provider_charge_v1");
+    expect(persistence).toContain("persist_payment_guide_provider_charge_v2");
+    expect(persistence).toContain("signVerifiedBankCharge");
     expect(migration).toContain("provider_charge_saved_at");
     expect(migration).toContain("digitable_line");
     expect(migration).toContain("barcode");
