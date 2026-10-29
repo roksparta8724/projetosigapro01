@@ -62,4 +62,16 @@ describe("SIGAPRO: official checklist readback must fail closed", () => {
     expect(unlocked).toBeGreaterThan(guard);
     expect(panel.slice(start, unlocked)).toContain("throw new Error");
   });
+  it("blocks technical/director signatures while the authoritative sheet is unavailable", () => {
+    const panel = readFileSync(resolve(process.cwd(), "src/components/platform/UrbanAnalysisChecklistPanel.tsx"), "utf8");
+    const signGuard = "if (officialSheetLoading || officialRevision === null)";
+    expect(panel.split(signGuard)).toHaveLength(3);
+    expect(panel).toContain("Leitura oficial indisponível. Não é permitido assinar um rascunho local.");
+    const canSign = panel.slice(panel.indexOf("const canSignTechnical ="), panel.indexOf("const isDirectorProfile"));
+    expect(canSign).toContain("!officialSheetLoading");
+    expect(canSign).toContain("officialRevision !== null");
+    const canRequest = panel.slice(panel.indexOf("const canRequestDirector ="), panel.indexOf("const isFullySigned"));
+    expect(canRequest).toContain("!officialSheetLoading");
+    expect(canRequest).toContain("officialRevision !== null");
+  });
 });
