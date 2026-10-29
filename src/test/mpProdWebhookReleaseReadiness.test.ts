@@ -42,7 +42,20 @@ describe("release Orders observation: only accredited PIX can officialize",()=>{
   return fetchMunicipalMpOrder(orderId,"test-provider-token");
  }
  it("accepts one accredited PIX with exact amount",async()=>expect((await observe(base)).accredited).toBe(true));
- it.each([{id:"boleto",type:"ticket"},{id:"visa",type:"credit_card"},null])("rejects non-PIX method %j",async method=>{
+ it("accepts an actually accredited boleto ticket with matching amount and payment ID",async()=>{
+  const payload={...base,transactions:{...base.transactions,payments:[
+    {...base.transactions.payments[0],payment_method:{id:"boleto",type:"ticket"}}]}};
+  expect((await observe(payload)).accredited).toBe(true);
+ });
+ it("never accepts an unpaid boleto (action_required / waiting_payment)",async()=>{
+  const payload={...base,status:"action_required",status_detail:"waiting_payment",
+   total_paid_amount:"0.00",transactions:{...base.transactions,payments:[
+    {...base.transactions.payments[0],status:"action_required",status_detail:"waiting_payment",
+    paid_amount:"0.00",payment_method:{id:"boleto",type:"ticket"}}]}};
+  expect((await observe(payload)).accredited).toBe(false);
+ });
+ it.each([{id:"visa",type:"credit_card"},{id:"ted",type:"bank_transfer"},
+  {id:"boleto",type:"bank_transfer"},{id:"pix",type:"ticket"},null])("rejects other or mismatched payment methods %j",async method=>{
   const payload={...base,transactions:{...base.transactions,payments:[{...base.transactions.payments[0],payment_method:method}]}};
   expect((await observe(payload)).accredited).toBe(false);
  });
