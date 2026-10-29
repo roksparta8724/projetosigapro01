@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { municipalCollectionApiRequest } from "@/lib/municipalCollectionApi";
+import { MunicipalBankFileInspector } from "@/components/platform/MunicipalBankFileInspector";
 import { validateMunicipalPixKey } from "@/lib/paymentCollection";
 import { MUNICIPAL_BANK_DIRECTORY, findMunicipalBank, describeMunicipalBankChannel, selectMunicipalBank } from "@/lib/municipalBankCatalog";
 import { municipalCollectionError } from "@/lib/collectionDiagnostics";
@@ -298,6 +299,7 @@ export function MunicipalBankDetailsSettings({
           <strong>Modalidade bancária selecionada:</strong> {describeMunicipalBankChannel(form.bankCollectionMode).explanation}
           <p className="mt-2 text-xs text-slate-700">O banco cadastrado pode ser diferente em cada Prefeitura. O cadastro não significa autorização para emitir boletos registrados ou executar baixas automáticas.</p>
         </div>
+        <div className="mt-4"><MunicipalBankFileInspector municipalityId={municipalityId} bankCode={form.bankCode} readOnly={readOnly}/></div>
         {form.pixEnabled && (
           <div role="status" className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm leading-6 text-amber-950">
             <strong>Atenção à titularidade do PIX:</strong> uma chave cadastrada e salva não confirma que os valores serão recebidos pela Prefeitura.
