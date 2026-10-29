@@ -673,7 +673,37 @@ export function ExternalPaymentsPage() {
                confirmedOriginal.pix_code !== originalPixPayload)) ||
           guideDocument.guia.nonPayablePreview
         )) throw new Error("Cobrança de teste sem vínculo financeiro canônico; PDF não arquivado.");
+        const previouslyArchived=Boolean(confirmedOriginal?.original_pdf_key);
         await archiveAndOpenGuide(effectiveScopeId, guideDocument, reservedGuideWindow);
+        // The original was persisted before this read. A bank-only GET may
+        // now settle an existing signed test order; NEVER issue a new PIX.
+        if(isolatedQa && sandboxPixIssued && !previouslyArchived){
+          try{
+            const archived=await readGuideOriginal(effectiveScopeId,guide.code);
+            if(archived.municipality_id===effectiveScopeId &&
+               archived.process_id===process.id && archived.guide_number===guide.code &&
+               archived.original_pdf_key && archived.original_pdf_sha256 &&
+               archived.bank_reference===sandboxPix?.orderId && !isGuideSettled(archived)){
+              const bank=await reconcileQaPixAfterPdf({
+                municipalityId:effectiveScopeId,guideCode:guide.code,
+              });
+              if(bank.settled){
+                const paid=await readGuideOriginal(effectiveScopeId,guide.code);
+                if(isGuideSettled(paid) && paid.bank_reference===archived.bank_reference &&
+                   paid.original_pdf_key===archived.original_pdf_key){
+                  setGuideActionStatus("Guia original arquivada e PIX de TESTE conciliado: baixa comprovada no Neon e processo enviado à triagem.");
+                  await refreshRemoteStore();
+                }
+              }else{
+                setGuideActionStatus(bank.status==="awaiting_bank_credit"
+                  ?"PDF original arquivado. O banco ainda não confirmou o crédito; a guia permanece pendente."
+                  :"PDF arquivado; conciliação ainda em análise bancária. Nenhuma segunda cobrança foi criada.");
+              }
+            }
+          }catch{
+            setGuideActionStatus("PDF original arquivado. A confirmação bancária ainda depende do Mercado Pago; use Conferir baixa bancária (QA) para consultar a mesma ordem.");
+          }
+        }
         return;
       }
 
