@@ -43,6 +43,15 @@ export type GuideOriginal = {
   original_pdf_sha256?: string;
 };
 
+/** An already compensated guide may be viewed, never reopened for editing a draft. */
+export function isGuideSettled(guide: { status?: string | null; paid?: boolean | null } | null | undefined): boolean {
+  if (!guide) return false;
+  return guide.paid === true ||
+    ["compensada", "paid", "pago", "confirmed", "confirmado"].includes(
+      String(guide.status || "").trim().toLowerCase(),
+    );
+}
+
 function originalObjectKey(original: GuideOriginal, sha256: string) {
   if (!original.process_id) throw new Error("Guia original sem vínculo persistente com o processo.");
   if (!/^[a-f0-9]{64}$/.test(sha256)) throw new Error("SHA-256 do PDF original inválido no Neon.");
