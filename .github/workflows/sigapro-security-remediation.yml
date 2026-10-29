@@ -34,6 +34,9 @@ jobs:
           npm ci --legacy-peer-deps --no-fund --no-audit
           echo "Applying compatible vulnerability remediations..."
           npm audit fix --package-lock-only --legacy-peer-deps --no-fund || true
+          # Some legacy peer installs drop @testing-library/dom and node typings
+          # when npm audit rebuilds the lockfile. Keep these explicit dev peers.
+          npm install --package-lock-only --legacy-peer-deps --save-dev --save-exact --no-fund --no-audit '@types/node@22.16.5' '@testing-library/dom@10.4.1'
           cp package.json "$RUNNER_TEMP/compatible-package.json"
           cp package-lock.json "$RUNNER_TEMP/compatible-package-lock.json"
           # Attempt the current official Neon SDK and patched test/build toolchain
@@ -46,10 +49,14 @@ jobs:
           fi
           if [ "$candidate_ok" = true ]; then
             npm audit fix --package-lock-only --legacy-peer-deps --no-fund || true
+          # Some legacy peer installs drop @testing-library/dom and node typings
+          # when npm audit rebuilds the lockfile. Keep these explicit dev peers.
+          npm install --package-lock-only --legacy-peer-deps --save-dev --save-exact --no-fund --no-audit '@types/node@22.16.5' '@testing-library/dom@10.4.1'
           fi
 
           validate() {
             npm ci --legacy-peer-deps --no-fund --no-audit &&
+            npm ls @types/node @testing-library/dom --depth=0 &&
             npm run typecheck &&
             npm test &&
             npm run build
