@@ -46,11 +46,10 @@ function resolveR2Endpoint() {
 const VALIDATED_NEON_DATA_API_URL =
   "https://ep-blue-cloud-b4hhgb4t.apirest.c-6.us-east-2.aws.neon.tech/sigapro_migration_stage_20260923/rest/v1";
 
-function isR2AuthRequired() {
-  const configured = readEnv("R2_REQUIRE_AUTH").toLowerCase();
-  if (configured === "true") return true;
-  if (configured === "false") return false;
-  return readEnv("VERCEL_ENV").toLowerCase() === "production";
+export function isR2AuthRequired() {
+  // Never allow a stale test override to disable auth in production.
+  if (readEnv("VERCEL_ENV").toLowerCase() === "production") return true;
+  return readEnv("R2_REQUIRE_AUTH").toLowerCase() === "true";
 }
 
 function readBearer(req: Req) {

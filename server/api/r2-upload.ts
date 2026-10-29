@@ -103,11 +103,10 @@ async function putR2ObjectWithFallback(input: {
 const VALIDATED_NEON_DATA_API_URL =
   "https://ep-blue-cloud-b4hhgb4t.apirest.c-6.us-east-2.aws.neon.tech/sigapro_migration_stage_20260923/rest/v1";
 
-function isR2AuthRequired() {
-  const configured = readEnv("R2_REQUIRE_AUTH").toLowerCase();
-  if (configured === "true") return true;
-  if (configured === "false") return false;
-  return readEnv("VERCEL_ENV").toLowerCase() === "production";
+export function isR2AuthRequired() {
+  // Never allow a stale test override to disable auth in production.
+  if (readEnv("VERCEL_ENV").toLowerCase() === "production") return true;
+  return readEnv("R2_REQUIRE_AUTH").toLowerCase() === "true";
 }
 
 function readBearer(req: Req) {
@@ -211,14 +210,18 @@ function resolveRequestedBucket(value: string) {
   return "";
 }
 
-function buildPublicUrl(_bucket: string, objectKey: string) {
-  const base = readEnv("R2_PUBLIC_BASE_URL");
-  if (base) {
-    return `${base.replace(/\/+$/, "")}/${objectKey.replace(/^\/+/, "")}`;
-  }
+export function buildPublicUrl(bucket: string, objectKey: string) {
+  // A configured public CDN for logos/legislation does not authorize publishing
+  // payment originals, signed technical reports or private process attachments.
+  const documentsBucket = readEnv("R2_BUCKET_DOCUMENTOS") || "sigapro-documentos";
+  const publicLegalKey =
+    /^municipalities\/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/legislation(?:[-/]|$)/i.test(objectKey);
+  if (bucket === documentsBucket && !publicLegalKey) return "";
 
-  // O endpoint S3 do R2 é privado. Sem domínio público configurado,
-  // persistimos apenas o objectKey e geramos URL assinada no momento da leitura.
+  const base = readEnv("R2_PUBLIC_BASE_URL");
+  if (base) return `${base.replace(/\/+$/, "")}/${objectKey.replace(/^\/+/, "")}`;
+
+  // Without a public host, persist only the key and authorize a signed GET.
   return "";
 }
 
@@ -321,6 +324,17 @@ export default async function handler(req: Req, res: Res) {
 
     const buffer = Buffer.from(base64, "base64");
     const municipalityId = extractMunicipalityId(objectKey);
+    // Tenantless/legacy keys are never writable by ordinary municipal accounts.
+    // This also prevents malformed municipality paths from bypassing tenant checks.
+    if (!municipalityId) {
+      const platformPermission = await callDataApiRpc(req, "is_master", {});
+      if (!platformPermission.ok || platformPermission.payload !== true) {
+        json(res, platformPermission.status === 401 ? 401 : 403, {
+          error: "Somente o administrador geral pode enviar arquivos sem identificação municipal.",
+        });
+        return;
+      }
+    }
     let damOriginalMetadata: Record<string, string> | undefined;
     if (objectKey.includes("/dam-originals/")) {
       if (contentType !== "application/pdf" || buffer.byteLength > 25 * 1024 * 1024) {
