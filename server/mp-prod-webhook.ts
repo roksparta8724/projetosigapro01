@@ -22,17 +22,22 @@ function prodEnv(){
  return process.env.VERCEL_ENV==="production" &&
    process.env.VERCEL_GIT_COMMIT_REF===requiredBranch;
 }
-function prodDatabaseUrl(){
+export function prodDatabaseUrl(){
  if(!prodEnv())throw new Error("PROD_BRANCH_REQUIRED");
  const raw=String(process.env.SIGAPRO_PROD_MP_WEBHOOK_DATABASE_URL||"");
  let url:URL;try{url=new URL(raw)}catch{throw new Error("PROD_BANK_DATABASE_NOT_CONFIGURED")}
+ const sslmode=url.searchParams.get("sslmode");
  if(url.protocol!=="postgresql:"||
     url.username!=="sigapro_prod_webhook_worker"||
     !/^ep-blue-cloud-b4hhgb4t(?:-pooler)?\./.test(url.hostname)||
     url.pathname!=="/sigapro_migration_stage_20260923"||
-    url.searchParams.get("sslmode")!=="require")
+    (sslmode!=="require" && sslmode!=="verify-full"))
   throw new Error("PROD_BANK_DATABASE_BRANCH_OR_ROLE_MISMATCH");
- return raw;
+ // pg-connection-string currently interprets "require" as verify-full,
+ // but future pg releases will weaken "require" to libpq semantics.
+ // Enforce strict certificate/hostname verification now and avoid runtime warning.
+ url.searchParams.set("sslmode","verify-full");
+ return url.toString();
 }
 function send(res:Res,status:number,data:Record<string,unknown>){
  res.statusCode=status;res.setHeader("Cache-Control","no-store");

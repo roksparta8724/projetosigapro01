@@ -66,3 +66,32 @@ describe("release Orders observation: only accredited PIX can officialize",()=>{
   expect((await observe({...base,id:"wrong-order"})).fetched).toBe(false);
  });
 });
+
+import {prodDatabaseUrl} from "../../server/mp-prod-webhook";
+describe("Production webhook SSL guarantees",()=>{
+  const expectedHost="ep-blue-cloud-b4hhgb4t.apirest.c-6.us-east-2.aws.neon.tech";
+  afterEach(()=>vi.unstubAllEnvs());
+  function configure(mode:string,host=expectedHost){
+    vi.stubEnv("VERCEL_ENV","production");
+    vi.stubEnv("VERCEL_GIT_COMMIT_REF","main");
+    vi.stubEnv("SIGAPRO_PROD_MP_WEBHOOK_DATABASE_URL",
+      `postgresql://sigapro_prod_webhook_worker:placeholder@${host}/sigapro_migration_stage_20260923?sslmode=${mode}`);
+  }
+  it("upgrades legacy require to verified certificate and hostname",()=>{
+    configure("require");
+    expect(new URL(prodDatabaseUrl()).searchParams.get("sslmode")).toBe("verify-full");
+  });
+  it("accepts explicit verify-full without weakening it",()=>{
+    configure("verify-full");
+    expect(new URL(prodDatabaseUrl()).searchParams.get("sslmode")).toBe("verify-full");
+  });
+  it("rejects unsafe SSL modes, wrong hosts and wrong branches",()=>{
+    configure("disable");
+    expect(()=>prodDatabaseUrl()).toThrow("PROD_BANK_DATABASE_BRANCH_OR_ROLE_MISMATCH");
+    configure("require","staging.example.invalid");
+    expect(()=>prodDatabaseUrl()).toThrow("PROD_BANK_DATABASE_BRANCH_OR_ROLE_MISMATCH");
+    configure("require");
+    vi.stubEnv("VERCEL_GIT_COMMIT_REF","workbench/sigapro-consolidacao-p3-no-deploy-20261029");
+    expect(()=>prodDatabaseUrl()).toThrow("PROD_BRANCH_REQUIRED");
+  });
+});
