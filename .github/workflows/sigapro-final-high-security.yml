@@ -20,7 +20,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          npm pkg set 'overrides.@neondatabase/auth.zod=4.6.7' 'overrides.@neondatabase/auth-ui.zod=4.6.7' 'overrides.@neondatabase/neon-js.zod=4.6.7'
+          # A single compatible Zod 4.6.7 must replace all vulnerable nested 4.1/4.5 copies.
+          npm pkg set 'overrides.zod=4.6.7'
+          npm pkg delete 'overrides.@neondatabase/auth' 'overrides.@neondatabase/auth-ui' 'overrides.@neondatabase/neon-js'
           npm install --legacy-peer-deps --save-exact --no-fund --no-audit 'zod@4.6.7'
           npm install --legacy-peer-deps --save-dev --save-exact --no-fund --no-audit 'sharp@0.35.5'
           npm ci --legacy-peer-deps --no-fund --no-audit
