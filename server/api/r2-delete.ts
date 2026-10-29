@@ -23,24 +23,23 @@ function extractMunicipalityId(objectKey: string) {
 }
 
 function resolveR2Endpoint() {
+  // Use the same endpoint precedence as upload/sign-get; an old account ID
+  // must not redirect the deletion request to a different storage account.
+  const rawEndpoint = readEnv("R2_ENDPOINT");
+  if (rawEndpoint) {
+    try {
+      const url = new URL(/^https?:\/\//i.test(rawEndpoint) ? rawEndpoint : `https://${rawEndpoint}`);
+      return `${url.protocol}//${url.host}`;
+    } catch {
+      return rawEndpoint.replace(/\/+$/, "");
+    }
+  }
   const accountId = readEnv("R2_ACCOUNT_ID")
     .replace(/^https?:\/\//i, "")
     .replace(/\.r2\.cloudflarestorage\.com.*$/i, "")
     .replace(/[^a-zA-Z0-9]/g, "");
-
-  if (accountId && !/^sua_?account_?id$/i.test(accountId)) {
-    return `https://${accountId}.r2.cloudflarestorage.com`;
-  }
-
-  const rawEndpoint = readEnv("R2_ENDPOINT");
-  if (!rawEndpoint) return "";
-
-  try {
-    const url = new URL(/^https?:\/\//i.test(rawEndpoint) ? rawEndpoint : `https://${rawEndpoint}`);
-    return `${url.protocol}//${url.host}`;
-  } catch {
-    return rawEndpoint.replace(/\/+$/, "");
-  }
+  return accountId && !/^sua_?account_?id$/i.test(accountId)
+    ? `https://${accountId}.r2.cloudflarestorage.com` : "";
 }
 
 const VALIDATED_NEON_DATA_API_URL =
@@ -144,6 +143,55 @@ async function readJsonBody(req: Req) {
   });
 }
 
+export async function authorizeR2Delete(
+  req: Req,
+  bucket: string,
+  objectKey: string,
+  municipalityId: string,
+  currentProfileId: string | null,
+): Promise<{ ok: true } | { ok: false; status: number; error: string }> {
+  const documentsBucket = readEnv("R2_BUCKET_DOCUMENTOS") || "sigapro-documentos";
+
+  // Deleting an object directly would bypass process history, document versions,
+  // signatures, retention controls and audit events. Use a future dedicated,
+  // transactional archival workflow rather than deleting process bytes here.
+  if (bucket === documentsBucket) {
+    return { ok: false, status: 409, error: "Documentos de processos não podem ser excluídos diretamente do armazenamento." };
+  }
+
+  // This RPC verifies membership in the target municipality, not object ownership.
+  // Therefore it is necessary but never sufficient to delete a logo or avatar.
+  const scope = municipalityId
+    ? await callDataApiRpc(req, "has_tenant_access", { target_tenant: municipalityId })
+    : await callDataApiRpc(req, "is_master", {});
+  if (!scope.ok || scope.payload !== true) {
+    return {
+      ok: false,
+      status: scope.status === 401 ? 401 : 403,
+      error: "Sem permissão para excluir arquivos deste município.",
+    };
+  }
+  // Only the platform master can delete tenantless/legacy branding objects.
+  if (!municipalityId) return { ok: true };
+
+  const avatar = /^municipalities\/[0-9a-f-]{36}\/profiles\/avatars\/([a-zA-Z0-9_-]+)\/[^/]+$/i.exec(objectKey);
+  if (avatar && currentProfileId && avatar[1].toLowerCase() === currentProfileId.toLowerCase()) {
+    return { ok: true };
+  }
+
+  // Other users' profile photos and institutional branding require an
+  // administrative account in that same municipality (or a platform master).
+  const admin = await callDataApiRpc(req, "is_municipality_admin", {});
+  if (admin.ok && admin.payload === true) return { ok: true };
+  const master = await callDataApiRpc(req, "is_master", {});
+  if (master.ok && master.payload === true) return { ok: true };
+  return {
+    ok: false,
+    status: admin.status === 401 || master.status === 401 ? 401 : 403,
+    error: "Somente o titular da foto ou a administração autorizada pode excluir este arquivo.",
+  };
+}
+
 export default async function handler(req: Req, res: Res) {
   setCors(res);
   if (req.method === "OPTIONS") {
@@ -199,16 +247,9 @@ export default async function handler(req: Req, res: Res) {
       json(res, 409, { error: "Documento original ou assinado permanente não pode ser removido." });
       return;
     }
-    // A valid login alone never authorizes deleting another city's files.
-    // Enforce the target tenant with the same Neon-RLS RPC used for uploads.
-    // Unscoped keys can only be administered by a platform master.
-    const scope = municipalityId
-      ? await callDataApiRpc(req, "has_tenant_access", { target_tenant: municipalityId })
-      : await callDataApiRpc(req, "is_master", {});
-    if (!scope.ok || scope.payload !== true) {
-      json(res, scope.status === 401 ? 401 : 403, {
-        error: "Sem permissão para excluir arquivos deste município.",
-      });
+    const access = await authorizeR2Delete(req, bucket, objectKey, municipalityId, auth.profileId);
+    if (access.ok === false) {
+      json(res, access.status, { error: access.error });
       return;
     }
     const municipalTarget = municipalityId

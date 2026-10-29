@@ -58,6 +58,7 @@ describe("R2 signed GET municipal document access", () => {
   it("keeps the delete endpoint restricted by municipality and preserves permanent signed PDFs", async () => {
     const { readFileSync } = await import("node:fs");
     const src = readFileSync("server/api/r2-delete.ts", "utf8");
+    expect(src).toContain('await authorizeR2Delete(req, bucket, objectKey, municipalityId, auth.profileId)');
     expect(src).toContain('"has_tenant_access", { target_tenant: municipalityId }');
     expect(src).toContain('await callDataApiRpc(req, "is_master", {})');
     expect(src).toContain('scope.payload !== true');
