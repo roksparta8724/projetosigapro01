@@ -526,37 +526,41 @@ export function ExternalProcessControlPage() {
                       </div>
 
                       <div className="min-w-0 border-t border-slate-200/80 p-5 2xl:border-t-0 2xl:border-r">
-                        <div className="flex items-start gap-3">
+                        <div className="flex min-w-0 items-start gap-3">
                           <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${hasPendingGuide ? "bg-amber-50 text-amber-600 dark:bg-amber-950/50 dark:text-amber-300" : "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-300"}`}>
                             <CreditCard className="h-4 w-4" />
                           </div>
                           <div className="min-w-0 flex-1">
-                            <p className="text-[11px] font-semibold uppercase tracking-[0.13em] text-slate-400">Pagamentos</p>
+                            <p className="break-words text-[11px] font-semibold uppercase tracking-[0.13em] text-slate-400">Pagamentos</p>
                             {displayGuides.length > 0 ? (
-                              <div className="mt-2 space-y-2">
+                              <div className="mt-2 min-w-0 space-y-2">
                                 {displayGuides.map((guide) => {
                                   const compensated = isGuideCompensated(guide.status);
                                   return (
                                     <div
                                       key={`${process.id}-payment-${guide.kind}`}
                                       data-external-payment-guide={guide.kind}
-                                      className="rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2 shadow-[0_3px_10px_rgba(15,23,42,0.035)] dark:border-slate-700 dark:bg-slate-950/35"
+                                      className="min-w-0 max-w-full overflow-hidden rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2 shadow-[0_3px_10px_rgba(15,23,42,0.035)] dark:border-slate-700 dark:bg-slate-950/35"
                                     >
-                                      <div className="flex items-center justify-between gap-3">
-                                        <span className="truncate text-[11px] font-bold text-slate-700 dark:text-slate-200">
+                                      <div className="flex min-w-0 flex-wrap items-start justify-between gap-x-2 gap-y-1">
+                                        <span className="min-w-0 max-w-full break-words text-[11px] font-bold leading-4 text-slate-700 dark:text-slate-200">
                                           {compactExternalGuideLabel(guide.kind)}
                                         </span>
-                                        <span className="shrink-0 text-[12px] font-extrabold text-slate-950 dark:text-white">
+                                        <span className="max-w-full whitespace-nowrap text-[12px] font-extrabold text-slate-950 dark:text-white">
                                           {formatCurrency(guide.amount)}
                                         </span>
                                       </div>
-                                      <div className="mt-1.5 flex items-center justify-between gap-2">
-                                        <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold ${compensated ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-200 dark:ring-emerald-800" : "bg-amber-50 text-amber-700 ring-1 ring-amber-200 dark:bg-amber-950/50 dark:text-amber-200 dark:ring-amber-800"}`}>
+                                      <div className="mt-2 flex min-w-0 flex-col items-start gap-1.5">
+                                        <span
+                                          data-external-payment-status="true"
+                                          className={`inline-flex max-w-full items-center self-start whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-bold leading-4 ${compensated ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-200 dark:ring-emerald-800" : "bg-amber-50 text-amber-700 ring-1 ring-amber-200 dark:bg-amber-950/50 dark:text-amber-200 dark:ring-amber-800"}`}
+                                        >
                                           {compensated ? "Compensado" : "Pendente"}
                                         </span>
                                         {guide.code ? (
                                           <span
-                                            className="truncate text-[9px] font-semibold text-slate-400"
+                                            data-external-payment-reference="true"
+                                            className="block w-full min-w-0 max-w-full break-all text-[10px] font-semibold leading-4 text-slate-500 dark:text-slate-400"
                                             title={getPaymentGuideDisplayReference(process, guide)}
                                           >
                                             {getPaymentGuideDisplayReference(process, guide)}
@@ -568,7 +572,7 @@ export function ExternalProcessControlPage() {
                                 })}
                               </div>
                             ) : (
-                              <p className="mt-2 text-[12px] font-semibold text-slate-500 dark:text-slate-400">
+                              <p className="mt-2 break-words text-[12px] font-semibold text-slate-500 dark:text-slate-400">
                                 Nenhuma guia liberada
                               </p>
                             )}
