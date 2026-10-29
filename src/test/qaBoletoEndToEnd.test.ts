@@ -220,3 +220,61 @@ describe("one complete sandbox-only SIGAPRO bank issuance", () => {
     expect(mocks.authorize).not.toHaveBeenCalled();
   });
 });
+
+describe("Mercado Pago provider identity guards before Neon persistence", () => {
+  it("rejects a GET returning another order ID, even with matching value and guide", async () => {
+    mocks.read.mockResolvedValue({ ...original, bank_reference: "MP-ORDER-SANDBOX" });
+    mocks.sync.mockResolvedValue(undefined);
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      id: "UNRELATED-ORDER",
+      external_reference: original.guide_number,
+      total_amount: "35.24",
+      transactions: { payments: [{ id: "P1", payment_method: {
+        barcode_content: barcode, digitable_line: digitable,
+      } }] },
+    }), { status: 200 })));
+    const result = await getMercadoPagoGuideBoletoStatus({
+      municipalityId, guideCode: original.guide_number,
+      orderId: "MP-ORDER-SANDBOX", amount: original.amount,
+    }, req, opts);
+    expect(result.ok).toBe(false);
+    expect(result.error).toMatch(/ordem diferente/);
+    expect(mocks.write).not.toHaveBeenCalled();
+  });
+
+  it("rejects two payment transactions for one bank guide, without updating Neon", async () => {
+    mocks.read.mockResolvedValue({ ...original, bank_reference: "MP-ORDER-SANDBOX" });
+    mocks.sync.mockResolvedValue(undefined);
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      id: "MP-ORDER-SANDBOX",
+      external_reference: original.guide_number,
+      total_amount: "35.24",
+      status: "processed", status_detail: "accredited",
+      transactions: { payments: [
+        { id: "P1", amount: "35.24", payment_method: { barcode_content: barcode, digitable_line: digitable } },
+        { id: "P2", amount: "35.24", payment_method: { barcode_content: barcode, digitable_line: digitable } },
+      ] },
+    }), { status: 200 })));
+    const result = await getMercadoPagoGuideBoletoStatus({
+      municipalityId, guideCode: original.guide_number,
+      orderId: "MP-ORDER-SANDBOX", amount: original.amount,
+    }, req, opts);
+    expect(result.ok).toBe(false);
+    expect(mocks.write).not.toHaveBeenCalled();
+  });
+
+  it("rejects a provider payment amount different from the canonical guide", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      id: "MP-ORDER-SANDBOX",
+      external_reference: original.guide_number,
+      total_amount: "35.24",
+      transactions: { payments: [{
+        id: "P1", amount: "1.00",
+        payment_method: { barcode_content: barcode, digitable_line: digitable },
+      }] },
+    }), { status: 201 })));
+    const result = await createMercadoPagoGuideBoleto(input, req, opts);
+    expect(result.ok).toBe(false);
+    expect(mocks.write).not.toHaveBeenCalled();
+  });
+});

@@ -268,11 +268,18 @@ function extractMercadoPagoGuideResult(
   // returned; our HMAC must never authenticate application-generated fallbacks.
   const providerReference = String(source.external_reference ?? "").trim();
   const providerAmount = String(source.total_amount ?? payment.amount ?? "").trim();
+  // A single municipal guide represents one provider payment. Never accept a
+  // split or duplicated transaction as proof of one fully attributable charge.
+  const paymentAmount = payment.amount == null ? "" : String(payment.amount).trim();
+  const validMoney = (value: string) =>
+    /^[0-9]+(?:\.[0-9]{1,2})?$/.test(value) &&
+    Math.round(Number(value) * 100) === Math.round(Number(amountText) * 100);
   const providerMetadataValid =
-    Boolean(source.id && providerReference) &&
+    Boolean(source.id && providerReference && payment.id) &&
+    payments.length === 1 &&
     providerReference === externalReference &&
-    /^[0-9]+(?:\.[0-9]{1,2})?$/.test(providerAmount) &&
-    Math.round(Number(providerAmount) * 100) === Math.round(Number(amountText) * 100);
+    validMoney(providerAmount) &&
+    (!paymentAmount || validMoney(paymentAmount));
   return {
     ok: providerMetadataValid,
     environment,
@@ -411,6 +418,12 @@ export async function getMercadoPagoGuideBoletoStatus(
   if (!result) {
     return { ok: false, environment, error: "Não foi possível consultar a situação da cobrança no Mercado Pago." };
   }
+  // The GET URL is not proof that the provider returned that same order.
+  // Refuse mismatched IDs and unverified payment shapes before any Neon write.
+  if (result.orderId !== input.orderId) {
+    return { ...result, ok: false, error: "O Mercado Pago devolveu uma ordem diferente da cobrança vinculada à guia." };
+  }
+  if (!result.ok) return result;
   return stored && req ? persistGuideCharge(req, stored, result, options?.isolatedSandboxOnly) : result;
 }
 /**
@@ -608,8 +621,9 @@ export async function createMercadoPagoGuideBoleto(
       amountText,
     );
 
-    // Persist even an incomplete response: a retry must query this order,
-    // never issue another charge because the bank has not supplied the bars yet.
+    // Persist an authenticated order even if barcodes are still missing,
+    // but never bind an unverified order, amount, or multi-payment response.
+    if (!result.ok) return result;
     let persistedResult = stored && req ? await persistGuideCharge(req, stored, result, options?.isolatedSandboxOnly) : result;
 
     if (!hasCompleteGuideBankingData(result) && result.orderId) {
@@ -620,7 +634,7 @@ export async function createMercadoPagoGuideBoleto(
         externalReference,
         amountText,
       );
-      if (refreshed) {
+      if (refreshed?.ok && refreshed.orderId === result.orderId) {
         result = refreshed;
         persistedResult = stored && req ? await persistGuideCharge(req, stored, result, options?.isolatedSandboxOnly) : result;
       }
