@@ -552,6 +552,7 @@ export function UrbanAnalysisChecklistPanel({
     void readOfficialAnalysisSheet(process.id)
       .then((sheet) => {
         if (!active) return;
+        setOfficialRevision(sheet.revision);
         if (sheet.found && sheet.payload) {
           if (!checklistPayloadMatchesProcess(sheet.payload, process.id, municipalityId)) {
             throw new Error("A ficha retornada não corresponde a este processo e município.");
@@ -568,8 +569,6 @@ export function UrbanAnalysisChecklistPanel({
             return restored;
           });
         }
-        // Only a validated readback can unlock an official write.
-        setOfficialRevision(sheet.revision);
       })
       .catch((error) => {
         if (!active) return;
@@ -778,6 +777,8 @@ export function UrbanAnalysisChecklistPanel({
 
   const canSignTechnical =
     !readOnly &&
+    !officialSheetLoading &&
+    officialRevision !== null &&
     ["master_admin", "master_ops", "analista", "analyst"].includes(session.role);
   const isDirectorProfile =
     /diretor|diretora|director/i.test(session.role || "") ||
@@ -800,6 +801,8 @@ export function UrbanAnalysisChecklistPanel({
     directorRequest.request?.status === "pending";
   const canRequestDirector =
     !readOnly &&
+    !officialSheetLoading &&
+    officialRevision !== null &&
     technicalOfficial &&
     ["master_admin", "master_ops", "analista", "analyst"].includes(session.role);
   const isFullySigned = technicalOfficial && directorOfficial;
@@ -875,6 +878,12 @@ export function UrbanAnalysisChecklistPanel({
   const openSignatureConfirmation = (
     kind: "technical" | "director",
   ) => {
+    // Browser drafts must never be signed as official while the authoritative
+    // municipal sheet cannot be verified in the database.
+    if (officialSheetLoading || officialRevision === null) {
+      setNotice("A ficha oficial ainda não foi carregada e validada no banco. Assinatura bloqueada até confirmar a leitura.");
+      return;
+    }
     if (kind === "technical") {
       if (!canSignTechnical) {
         setNotice("Este perfil não possui atribuição para assinar a análise técnica.");
@@ -913,6 +922,12 @@ export function UrbanAnalysisChecklistPanel({
   };
 
   const confirmElectronicSignature = async () => {
+    // Recheck at click time: process/municipality might have changed since
+    // the confirmation modal was opened.
+    if (officialSheetLoading || officialRevision === null) {
+      setSignatureError({ message: "Leitura oficial indisponível. Não é permitido assinar um rascunho local." });
+      return;
+    }
     if (!signatureDialog || !signaturePassword) {
       setSignatureError({ message: "Informe sua senha de acesso." });
       return;
