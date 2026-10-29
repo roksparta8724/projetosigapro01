@@ -4,8 +4,8 @@ import { authorizeR2LogoRead } from "../../server/api/r2-sign-get";
 import { getDataApiUrl } from "../../server/municipal-storage";
 import { readFileSync } from "node:fs";
 const tenant = "11111111-1111-4111-8111-111111111111";
-const req = (token = "") => ({ headers: token ? { authorization: `Bearer ${token}` } : {} })
-  as Parameters<typeof authorizeR2LogoRead>[0];
+const req = (token = "") =>
+  ({ headers: token ? { authorization: `Bearer ${token}` } : {} } as Parameters<typeof authorizeR2LogoRead>[0]);
 afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
 describe("SIGAPRO consolidated R2 runtime", () => {
   it("prefers configured R2 endpoint over stale account ID", () => {
