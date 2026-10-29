@@ -7,7 +7,7 @@ import {
   type UrbanPrecheckHistoryEntry,
 } from "@/integrations/backend/urbanPrecheckClient";
 import {
-  URBAN_METRICS, evaluateUrbanPrecheck, normalizeUrbanCode, selectUrbanRegulation,
+  URBAN_METRICS, evaluateUrbanPrecheck, filterUrbanPrecheckHistoryForContext, formatUrbanHistoryDate, normalizeUrbanCode, selectUrbanRegulation, summarizeUrbanPrecheckHistory,
   type UrbanMetric, type UrbanMeasurements, type UrbanRegulationVersion,
 } from "@/lib/urbanPrecheck";
 import type { ProcessRecord } from "@/lib/platform";
@@ -83,6 +83,10 @@ export function UrbanPrecheckPanel({
   const findings = useMemo(
     () => regulation ? evaluateUrbanPrecheck(regulation.rules, measurements) : [],
     [regulation, measurements],
+  );
+  const visibleHistory = useMemo(
+    () => filterUrbanPrecheckHistoryForContext(history, municipalityId, process.id),
+    [history, municipalityId, process.id],
   );
   const canSave = !!regulation && !readOnly && !saving && findings.some(
     (finding) => finding.status !== "missing_evidence"
@@ -241,22 +245,25 @@ export function UrbanPrecheckPanel({
           <FileClock className="h-4 w-4" /> Histórico de pré-conferências
         </h4>
         <div className="mt-2 space-y-2">
-          {!history.length ? <p className="text-xs text-slate-500 dark:text-slate-300">Nenhuma pré-conferência registrada.</p> : null}
-          {history.map((entry) => {
-            const historicRules = versions.find((version) => version.id === entry.regulation_version_id);
-            const historicalFindings = historicRules
-              ? evaluateUrbanPrecheck(historicRules.rules, entry.measurements) : [];
+          {!visibleHistory.length ? <p className="text-xs text-slate-500 dark:text-slate-300">Nenhuma pré-conferência registrada.</p> : null}
+          {visibleHistory.map((entry) => {
+            const historicRules = versions.find((version) =>
+              version.id === entry.regulation_version_id && version.municipality_id === municipalityId,
+            );
+            const summary = summarizeUrbanPrecheckHistory(historicRules?.rules ?? null, entry.measurements);
             return (
               <div key={entry.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 p-3 dark:border-slate-700">
                 <p className="text-xs text-slate-700 dark:text-slate-200">
                   <ClipboardCheck className="mr-1 inline h-4 w-4" />
-                  {new Date(entry.created_at).toLocaleString("pt-BR")} · Versão {historicRules?.version || "arquivada"}
+                  {formatUrbanHistoryDate(entry.created_at)} · Versão {historicRules?.version || "arquivada"}
                 </p>
                 <p className="flex items-center gap-1 text-xs text-slate-700 dark:text-slate-200">
-                  {historicalFindings.some((item) => item.status === "attention") ?
-                    <AlertTriangle className="h-4 w-4 text-amber-600" /> :
-                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />}
-                  {historicalFindings.filter((item) => item.status === "attention").length} alertas · Registro consultivo
+                  {summary.status === "within_limit" ?
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600" /> :
+                    <AlertTriangle className="h-4 w-4 text-amber-600" />}
+                  {summary.status === "unavailable"
+                    ? "Norma histórica indisponível · sem avaliação"
+                    : `${summary.alertCount} alertas · ${summary.missingCount} sem comprovação · Registro consultivo`}
                 </p>
               </div>
             );

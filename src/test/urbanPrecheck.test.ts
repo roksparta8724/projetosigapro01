@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  evaluateUrbanPrecheck, normalizeUrbanCode, selectUrbanRegulation, validateUrbanRules,
+  evaluateUrbanPrecheck, filterUrbanPrecheckHistoryForContext, formatUrbanHistoryDate, normalizeUrbanCode, selectUrbanRegulation, summarizeUrbanPrecheckHistory, validateUrbanRules,
   type UrbanRegulationVersion,
 } from "@/lib/urbanPrecheck";
 
@@ -41,4 +41,35 @@ describe("SIGAPRO urbanismo: pré-conferência informativa, sem aprovação auto
   it("não aceita rascunho como norma vigente", () => {
     expect(selectUrbanRegulation([{ ...regulation, status: "draft" }], "municipio-A", "ZR1", "RESIDENCIAL", "2026-10-23")).toBeNull();
   });
+  it("não apresenta registros de outro processo nem de outra prefeitura", () => {
+    const entries = [
+      { id: "ok", municipality_id: "municipio-A", process_id: "processo-1" },
+      { id: "cross-tenant", municipality_id: "municipio-B", process_id: "processo-1" },
+      { id: "cross-process", municipality_id: "municipio-A", process_id: "processo-2" },
+    ];
+    expect(filterUrbanPrecheckHistoryForContext(entries, "municipio-A", "processo-1"))
+      .toEqual([entries[0]]);
+  });
+  it("não exibe sinal verde se faltam evidências ou a norma histórica está indisponível", () => {
+    expect(summarizeUrbanPrecheckHistory(null, {}).status).toBe("unavailable");
+    expect(summarizeUrbanPrecheckHistory(rules, {}).status).toBe("incomplete");
+    expect(summarizeUrbanPrecheckHistory(rules, {
+      front_setback_m: { value: 6, evidence: "Prancha 01" },
+      occupancy_percent: { value: 55, evidence: "" },
+    }).status).toBe("incomplete");
+    expect(summarizeUrbanPrecheckHistory(rules, {
+      front_setback_m: { value: 3, evidence: "Prancha 01" },
+      occupancy_percent: { value: 55, evidence: "Prancha 02" },
+    }).status).toBe("attention");
+    expect(summarizeUrbanPrecheckHistory(rules, {
+      front_setback_m: { value: 6, evidence: "Prancha 01" },
+      occupancy_percent: { value: 55, evidence: "Prancha 02" },
+    }).status).toBe("within_limit");
+  });
+  it("não mostra Invalid Date no histórico da pré-conferência", () => {
+    expect(formatUrbanHistoryDate("invalid")).toBe("Data não registrada");
+    expect(formatUrbanHistoryDate(null)).toBe("Data não registrada");
+    expect(formatUrbanHistoryDate("2026-10-29T13:00:00Z")).not.toContain("Invalid Date");
+  });
+
 });

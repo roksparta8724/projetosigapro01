@@ -109,3 +109,39 @@ export function evaluateUrbanPrecheck(
       limit: rule.limit, unit: definition.unit, reference: rule.reference, evidence };
   });
 }
+
+/** Historical prechecks are scoped twice: by process and by municipality.
+ * This is defense-in-depth; the Neon RPC must also enforce tenant access.
+ */
+export function filterUrbanPrecheckHistoryForContext<
+  T extends { municipality_id: string; process_id: string },
+>(entries: readonly T[], municipalityId: string, processId: string): T[] {
+  return entries.filter(
+    (entry) => entry.municipality_id === municipalityId && entry.process_id === processId,
+  );
+}
+
+/** No green/compliant history indicator without a valid archived rule AND all evidence. */
+export function summarizeUrbanPrecheckHistory(
+  rules: UrbanRule[] | null,
+  measurements: UrbanMeasurements,
+): { status: "unavailable" | "attention" | "incomplete" | "within_limit"; alertCount: number; missingCount: number } {
+  if (!rules || !validateUrbanRules(rules)) {
+    return { status: "unavailable", alertCount: 0, missingCount: 0 };
+  }
+  const results = evaluateUrbanPrecheck(rules, measurements);
+  const alertCount = results.filter((result) => result.status === "attention").length;
+  const missingCount = results.filter((result) => result.status === "missing_evidence").length;
+  return {
+    status: alertCount ? "attention" : missingCount ? "incomplete" : "within_limit",
+    alertCount,
+    missingCount,
+  };
+}
+
+/** Avoid leaking "Invalid Date" into official municipal review screens. */
+export function formatUrbanHistoryDate(value: unknown): string {
+  if (typeof value !== "string" || !value.trim()) return "Data não registrada";
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp) ? new Date(timestamp).toLocaleString("pt-BR") : "Data não registrada";
+}
