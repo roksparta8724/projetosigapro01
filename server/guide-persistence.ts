@@ -1,5 +1,5 @@
 import { createHmac } from "node:crypto";
-import { callDataApiRpc, readEnv, type ApiReq } from "./municipal-storage.js";
+import { callDataApiRpc, type ApiReq } from "./municipal-storage.js";
 import type { MercadoPagoGuideBoletoResult } from "./mercadopago.js";
 import { normalizeOfficialBanking } from "../src/lib/bankCodes.js";
 
@@ -85,7 +85,7 @@ export function storedGuideCharge(guide: StoredGuide): MercadoPagoGuideBoletoRes
 
 /** Only the API server signs a bank/provider reply. Browsers never receive the signing key. */
 export function assertBankChargeAttestationReady(): string {
-  const secret = readEnv("SIGAPRO_BANK_CHARGE_SIGNING_SECRET");
+  const secret = String(process.env.SIGAPRO_BANK_CHARGE_SIGNING_SECRET || "").trim();
   if (!/^[a-f0-9]{64}$/.test(secret)) {
     throw new Error("Assinatura bancária segura não configurada no servidor. A cobrança não será criada.");
   }
