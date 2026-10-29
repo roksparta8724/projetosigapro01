@@ -108,9 +108,12 @@ export async function fetchMunicipalMpOrder(orderId:string,token:string):Promise
  const transactionPaidAmount=money(single?.paid_amount);
  const noChargeback=Array.isArray(chargebacks)?chargebacks.length===0:chargebacks==null;
  const noRefund=Array.isArray(refunds)?refunds.length===0:refunds==null;
+ // Credit a guide only for a single confirmed PIX bank transfer. A paid
+ // card or boleto with the same amount must never release a PIX protocol.
+ const verifiedPixMethod=method?.id==="pix"&&method?.type==="bank_transfer";
  const accredited=status==="processed"&&statusDetail==="accredited" &&
    transactionStatus==="processed"&&transactionStatusDetail==="accredited" &&
-   verifiedCurrency==="BRL"&&(!raw.country_code||raw.country_code==="BRA") &&
+   verifiedPixMethod && verifiedCurrency==="BRL"&&(!raw.country_code||raw.country_code==="BRA") &&
    /^[A-Za-z0-9_-]{6,100}$/.test(paymentId) &&
    sameCents(amount,paidAmount,transactionAmount,transactionPaidAmount) &&
    noChargeback&&noRefund;
