@@ -79,4 +79,13 @@ describe("R2 signed GET municipal document access", () => {
     expect(src).toContain("!isPublicLegalDocumentKey(objectKey)");
     expect(src).toContain("authorize_payment_guide_original_read_v1");
   });
+  it("enforces create-once signed-analysis PDFs in both SIGAPRO R2 and municipal S3", async () => {
+    const { readFileSync } = await import("node:fs");
+    const src = readFileSync("server/api/r2-upload.ts", "utf8");
+    expect(src).toContain('input.objectKey.includes("/analysis-signed-fiches/")');
+    expect(src).toContain('objectKey.includes("/analysis-signed-fiches/")');
+    expect(src.split('IfNoneMatch: "*"').length - 1).toBe(2);
+    expect(src).toContain('code: "SIGNED_PDF_IMMUTABLE"');
+    expect(src).toContain("writeStatus === 412");
+  });
 });

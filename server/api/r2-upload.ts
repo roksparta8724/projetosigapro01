@@ -84,7 +84,8 @@ async function putR2ObjectWithFallback(input: {
         Body: input.body,
         ContentType: input.contentType,
         Metadata: input.metadata,
-        ...(input.objectKey.includes("/dam-originals/") ? { IfNoneMatch: "*" } : {}),
+        // Signed analysis PDFs are immutable just like financial originals.
+        ...(input.objectKey.includes("/dam-originals/") || input.objectKey.includes("/analysis-signed-fiches/") ? { IfNoneMatch: "*" } : {}),
       }));
       return;
     } catch (error) {
@@ -398,7 +399,8 @@ export default async function handler(req: Req, res: Res) {
         Body: buffer,
         ContentType: resolvedContentType,
         Metadata: damOriginalMetadata,
-        ...(objectKey.includes("/dam-originals/") ? { IfNoneMatch: "*" } : {}),
+        // Municipal S3 must enforce the same create-once contract.
+        ...(objectKey.includes("/dam-originals/") || objectKey.includes("/analysis-signed-fiches/") ? { IfNoneMatch: "*" } : {}),
       })).catch((error) => {
         if (objectKey.includes("/dam-originals/") && error?.$metadata?.httpStatusCode === 412) return;
         throw error;
@@ -434,6 +436,12 @@ export default async function handler(req: Req, res: Res) {
       storageProvider: "sigapro_r2",
     });
   } catch (error) {
+    // Conditional write conflicts must never overwrite signed originals.
+    const writeStatus = (error as { $metadata?: { httpStatusCode?: number } } | null)?.$metadata?.httpStatusCode;
+    if (writeStatus === 412) {
+      json(res, 409, { error: "Este PDF assinado já existe e não pode ser substituído.", code: "SIGNED_PDF_IMMUTABLE" });
+      return;
+    }
     const rawMessage = error instanceof Error ? error.message : "Erro ao enviar o arquivo.";
     const signatureMismatch = isR2CredentialError(error);
     const message = signatureMismatch
