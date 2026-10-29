@@ -62,6 +62,16 @@ describe("SIGAPRO: official checklist readback must fail closed", () => {
     expect(unlocked).toBeGreaterThan(guard);
     expect(panel.slice(start, unlocked)).toContain("throw new Error");
   });
+  it("requires the API to reject unsaved analyst/director signatures even when called directly", () => {
+    const api = readFileSync(resolve(process.cwd(), "api/e-sign-artifact.ts"), "utf8");
+    expect(api).toContain('if (artifactType === "urban_analysis_checklist")');
+    expect(api).toContain('"get_process_analysis_sheet_v2"');
+    expect(api).toContain('official.found !== true');
+    expect(api).toContain('official.payload.processId !== processId');
+    expect(api).toContain('stableStringify(official.payload) !== stableStringify(payload)');
+    expect(api).toContain('"ANALYSIS_SHEET_NOT_SAVED"');
+    expect(api).toContain('409,');
+  });
   it("blocks technical/director signatures while the authoritative sheet is unavailable", () => {
     const panel = readFileSync(resolve(process.cwd(), "src/components/platform/UrbanAnalysisChecklistPanel.tsx"), "utf8");
     const signGuard = "if (officialSheetLoading || officialRevision === null)";
