@@ -3,12 +3,13 @@ import { FileCheck2, History } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { ProcessRecord } from "@/lib/platform";
 import { getProcessArtifactVersionHistory, getProcessArtifactWithdrawalHistory, type ArtifactVersionHistoryEntry, type ArtifactWithdrawalEvent } from "@/integrations/esign/artifactClient";
-import { isSignedAnalysisArchiveDocument, isSignedAnalysisVersionArchived } from "@/lib/signedAnalysisArchive";
+import { isVerifiedSignedAnalysisArchiveDocument, isVerifiedSignedAnalysisVersionArchived } from "@/lib/signedAnalysisArchive";
 
-export function SignedAnalysisArchiveFolder({ process, onOpenPdf, onOpenAnalysis }: {
+export function SignedAnalysisArchiveFolder({ process, onOpenPdf, onOpenAnalysis, onVerifiedArchiveIds }: {
   process: ProcessRecord;
   onOpenPdf: (id: string) => void;
   onOpenAnalysis: () => void;
+  onVerifiedArchiveIds?: (processId: string, ids: string[]) => void;
 }) {
   const [versions, setVersions] = useState<ArtifactVersionHistoryEntry[]>([]);
   const [withdrawals, setWithdrawals] = useState<ArtifactWithdrawalEvent[]>([]);
@@ -36,9 +37,15 @@ export function SignedAnalysisArchiveFolder({ process, onOpenPdf, onOpenAnalysis
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [process.id]);
-  const archived = process.documents.filter(isSignedAnalysisArchiveDocument);
+  const archived = error ? [] : process.documents.filter((doc) =>
+    isVerifiedSignedAnalysisArchiveDocument(doc, versions));
+  // Stable identities prevent unnecessary parent rerenders during live refresh.
+  const verifiedIds = archived.map((doc) => doc.id).sort().join("|");
+  useEffect(() => {
+    if (!loading) onVerifiedArchiveIds?.(process.id, error ? [] : verifiedIds ? verifiedIds.split("|") : []);
+  }, [process.id, verifiedIds, loading, error, onVerifiedArchiveIds]);
   const evidenceOnly = versions.filter((v) => !v.verification_code ||
-    !isSignedAnalysisVersionArchived(process.documents, v.artifact_version, v.verification_code));
+    !isVerifiedSignedAnalysisVersionArchived(process.documents, versions, v.artifact_version, v.verification_code));
   return (
     <section data-signed-documents-folder="true" className="rounded-[22px] border border-sky-200 bg-sky-50/50 p-5 shadow-sm dark:border-sky-500/30 dark:bg-sky-950/20">
       <header className="flex flex-wrap items-center justify-between gap-3">
@@ -52,7 +59,7 @@ export function SignedAnalysisArchiveFolder({ process, onOpenPdf, onOpenAnalysis
         {archived.map((doc) => (
           <div data-signed-pdf-archived="true" key={doc.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-white p-3 dark:border-emerald-500/30 dark:bg-slate-900">
             <div className="min-w-0"><p className="break-words text-sm font-semibold text-slate-900 dark:text-slate-100">{doc.label}</p>
-              <p className="text-xs text-emerald-700 dark:text-emerald-300">PDF arquivado no armazenamento institucional.</p></div>
+              <p className="text-xs text-emerald-700 dark:text-emerald-300">PDF registrado no processo e vinculado à assinatura oficial.</p></div>
             <Button type="button" variant="outline" className="rounded-xl" onClick={() => onOpenPdf(doc.id)}>Abrir PDF assinado</Button>
           </div>
         ))}
@@ -61,7 +68,7 @@ export function SignedAnalysisArchiveFolder({ process, onOpenPdf, onOpenAnalysis
         {evidenceOnly.map((version) => (
           <div data-signed-evidence-only="true" key={version.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3 dark:border-amber-500/30 dark:bg-amber-950/20">
             <div className="min-w-0"><p className="flex items-center gap-2 text-sm font-semibold text-slate-900 dark:text-slate-100"><History className="h-4 w-4" /> Assinatura registrada • versão {version.artifact_version}</p>
-              <p className="mt-1 break-words text-xs text-slate-600 dark:text-slate-300">Código {version.verification_code || "indisponível"} — o PDF histórico original não foi arquivado; a assinatura permanece no banco.</p></div>
+              <p className="mt-1 break-words text-xs text-slate-600 dark:text-slate-300">Código {version.verification_code || "indisponível"} — o PDF histórico original não foi arquivado ou não pôde ser confirmado pelos dados da assinatura; a assinatura permanece no banco.</p></div>
             <Button type="button" variant="outline" className="rounded-xl" onClick={onOpenAnalysis}>Consultar análise</Button>
           </div>
         ))}

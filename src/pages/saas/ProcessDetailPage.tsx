@@ -716,6 +716,16 @@ export function ProcessDetailPage() {
   const [viewerZoom, setViewerZoom] = useState(1);
   const [documentAccessUrls, setDocumentAccessUrls] = useState<Record<string, string>>({});
   const [documentAccessErrors, setDocumentAccessErrors] = useState<Record<string, string>>({});
+  const [verifiedSignedArchive, setVerifiedSignedArchive] = useState<{ processId: string; ids: string[] }>({
+    processId: "", ids: [],
+  });
+  const updateVerifiedSignedArchive = useCallback((processId: string, ids: string[]) => {
+    setVerifiedSignedArchive((current) => {
+      if (current.processId === processId && current.ids.length === ids.length &&
+          current.ids.every((id, i) => id === ids[i])) return current;
+      return { processId, ids };
+    });
+  }, []);
   const [documentUploads, setDocumentUploads] = useState<Record<string, UploadedFileItem[]>>({});
   const [requirementUploads, setRequirementUploads] = useState<Record<string, UploadedFileItem[]>>({});
   const [recoverableFiles, setRecoverableFiles] = useState<RecoverableProcessFile[]>([]);
@@ -1201,7 +1211,12 @@ export function ProcessDetailPage() {
   const constructionGuideSentExternally = issuedConstructionGuide
     ? isProcessPaymentGuideSharedExternally(process, issuedConstructionGuide)
     : false;
-  const regularProcessDocuments = process.documents.filter((document) => !isSignedAnalysisArchiveDocument(document));
+  // Only authenticated signature history can remove a PDF from the ordinary
+  // checklist. A filename or client-side signed flag is not legal evidence.
+  const verifiedArchiveIds = new Set(
+    verifiedSignedArchive.processId === process.id ? verifiedSignedArchive.ids : [],
+  );
+  const regularProcessDocuments = process.documents.filter((document) => !verifiedArchiveIds.has(document.id));
   const uploadedCount = regularProcessDocuments.filter((document) => document.uploaded).length;
   const protocolGuide = visiblePaymentGuides.find((guide) => guide.kind === "protocolo");
   const pixPayload = protocolGuide
@@ -3438,6 +3453,7 @@ export function ProcessDetailPage() {
                   process={process}
                   onOpenPdf={openViewer}
                   onOpenAnalysis={() => setProcessTab("analise")}
+                  onVerifiedArchiveIds={updateVerifiedSignedArchive}
                 />
               )}
 

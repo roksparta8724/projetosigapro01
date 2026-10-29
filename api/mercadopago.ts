@@ -14,6 +14,7 @@ import {
   testMercadoPagoToken,
 } from "../server/municipal-payment.js";
 import { callDataApiRpc } from "../server/municipal-storage.js";
+import { assertMunicipalCredentialSave, assertMunicipalCredentialActivation } from "../server/municipal-payment-credential-validation.js";
 
 type Req = import("http").IncomingMessage & {
   method?: string;
@@ -139,13 +140,15 @@ export default async function handler(req: Req, res: Res) {
         const environment = String(body.environment || "test").trim();
         const accessToken = String(body.accessToken || "").trim();
         const webhookSecret = String(body.webhookSecret || "").trim();
-
-        if (!["mercado_pago", "bank_direct", "manual"].includes(provider)) {
-          throw new Error("Provedor de pagamento inválido.");
-        }
-        if (!["test", "production"].includes(environment)) {
-          throw new Error("Ambiente de pagamento inválido.");
-        }
+        if ((body.accessToken != null && typeof body.accessToken !== "string") ||
+            (body.webhookSecret != null && typeof body.webhookSecret !== "string"))
+          throw new Error("Credenciais inválidas: informe texto nos campos protegidos.");
+        // Read the scoped public status first; no secret is returned to the browser.
+        const saved = await rpcOrThrow<MunicipalPaymentConnection>(
+          req, "get_municipal_payment_connection_v1",
+          { _municipality_id: municipalityId },
+        );
+        assertMunicipalCredentialSave({provider,environment,accessToken,webhookSecret},saved);
 
         let accessCiphertext: string | null = null;
         let accessFingerprint: string | null = null;
@@ -223,6 +226,11 @@ export default async function handler(req: Req, res: Res) {
       }
 
       if (subaction === "activate") {
+        const prior = await rpcOrThrow<MunicipalPaymentConnection>(
+          req, "get_municipal_payment_connection_v1",
+          { _municipality_id: municipalityId },
+        );
+        assertMunicipalCredentialActivation(prior);
         const connection = await rpcOrThrow<MunicipalPaymentConnection>(
           req,
           "activate_municipal_payment_connection_v1",

@@ -1576,6 +1576,7 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
           source: (document.source ?? "profissional") as "profissional" | "prefeitura" | "integracao",
           fileName: document.file_name ?? undefined,
           filePath: document.file_path ?? undefined,
+          fileHash: document.file_hash ?? undefined,
           mimeType: document.mime_type ?? undefined,
           sizeLabel: document.size_label ?? undefined,
           fileSizeBytes: document.file_size_bytes == null ? undefined : Number(document.file_size_bytes),

@@ -8,9 +8,14 @@ import { municipalCollectionApiRequest } from "@/lib/municipalCollectionApi";
 import { MunicipalPaymentSettings } from "@/components/platform/MunicipalPaymentSettings";
 import { MunicipalBankDetailsSettings } from "@/components/platform/MunicipalBankDetailsSettings";
 import { isCollectionSuccessMessage, municipalCollectionError } from "@/lib/collectionDiagnostics";
+import { MUNICIPAL_INTEGRATION_PROFILES, getMunicipalIntegrationProfile } from "@/lib/municipalIntegrationCatalog";
 
 type Mode = "sigapro" | "municipal_system";
 type Configuration = { mode?: Mode; status?: "not_configured"|"homologation"|"validated"|"active"|"error"; supplier_code?: string; supplier_name?: string; api_base_url?: string; environment?: "test"|"production"; integration_type?: "automatic"|"controlled_import"; secret_configured?: boolean; secret_fingerprint?: string; validation_message?: string; version?: number };
+type ProviderStatus = { supplierCode: string; connectorInstalled: boolean; credentialVerified: boolean; bankSettlementEnabled: boolean; operations: string[]; mode: string };
+async function requestProviderStatus(municipalityId:string,supplierCode:string) {
+  return municipalCollectionApiRequest<ProviderStatus>("collection-configuration",municipalityId,"provider_status",{supplierCode});
+}
 async function request(municipalityId: string, action: string, payload: Record<string, unknown> = {}) {
   return municipalCollectionApiRequest<Configuration>("collection-configuration", municipalityId, action, payload);
 }
@@ -23,6 +28,8 @@ export function MunicipalCollectionSettings({ municipalityId, municipalityName, 
   const [activeConfiguration, setActiveConfiguration] = useState<Configuration | null>(null);
   const [busy, setBusy] = useState(""); const [message, setMessage] = useState("");
   const [loadFailed, setLoadFailed] = useState(false);
+  const [providerStatus, setProviderStatus] = useState<ProviderStatus | null>(null);
+  const [providerStatusError, setProviderStatusError] = useState("");
   const [form, setForm] = useState({ mode: "sigapro" as Mode, supplierCode: "", supplierName: "", apiBaseUrl: "", environment: "test" as "test"|"production", integrationType: "automatic" as "automatic"|"controlled_import", secret: "", boleto: true, pix: true, query: true, pdf: true, payment: true, reissue: false, cancel: false });
   const load = async () => {
     // An administrator may change municipal accounts without reloading the app.
@@ -60,6 +67,17 @@ export function MunicipalCollectionSettings({ municipalityId, municipalityName, 
     }
   };
   useEffect(() => { void load(); return () => { requestGeneration.current += 1; }; }, [municipalityId]);
+  useEffect(() => {
+    let active=true;
+    setProviderStatus(null);
+    setProviderStatusError("");
+    if (form.mode !== "municipal_system" || !form.supplierCode || !municipalityId || loadFailed) return;
+    void requestProviderStatus(municipalityId,form.supplierCode)
+      .then(data=>{if(active && data.supplierCode===form.supplierCode.trim().toLowerCase())setProviderStatus(data);})
+      .catch(error=>{if(active)setProviderStatusError(municipalCollectionError(error));});
+    return ()=>{active=false;};
+  },[municipalityId,form.mode,form.supplierCode,loadFailed]);
+  const providerProfile = getMunicipalIntegrationProfile(form.supplierCode);
   const status = configuration?.status || "not_configured";
   const statusTone = useMemo(() => status === "active" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : status === "error" ? "border-rose-200 bg-rose-50 text-rose-800" : "border-amber-200 bg-amber-50 text-amber-900", [status]);
   const save = async () => { setBusy("save"); setMessage(""); try { const next=await request(municipalityId,"save",{...form, publicParameters:{enabledMethods:{boleto:form.boleto,pix:form.pix}},capabilities: form.mode==="municipal_system" && form.integrationType==="controlled_import" ? {query:false,pdf:false,payment:false,reissue:false,cancel:false,manualPdfImport:true} : {query:form.query,pdf:form.pdf,payment:form.payment,reissue:form.reissue,cancel:form.cancel}}); setConfiguration(next); setForm(v=>({...v,secret:""})); setMessage("Configuração salva como nova versão de homologação. Guias existentes permanecem intactas."); } catch(e){setMessage(municipalCollectionError(e));} finally{setBusy("");} };
@@ -95,9 +113,38 @@ export function MunicipalCollectionSettings({ municipalityId, municipalityName, 
           Selecionar GOVBR / AR
         </Button>
       </div>
+      <div data-municipal-supplier-catalogue="true" className="mb-4 space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-4">
+        <Label htmlFor="municipal-supplier-preset">Fornecedor que a Prefeitura já utiliza</Label>
+        <select id="municipal-supplier-preset" value={providerProfile?.code || "other"} disabled={readOnly || !!busy}
+          onChange={e => {
+            const option = getMunicipalIntegrationProfile(e.target.value);
+            if (option) setForm(v=>({...v,supplierCode:option.code,supplierName:option.name,
+              environment:"test",integrationType:"controlled_import",apiBaseUrl:"",secret:""}));
+            else setForm(v=>({...v,supplierCode:"",supplierName:"",environment:"test",
+              integrationType:"controlled_import",apiBaseUrl:"",secret:""}));
+          }}
+          className="h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900"
+        >
+          <option value="other">Outro banco / sistema municipal (cadastro próprio)</option>
+          {MUNICIPAL_INTEGRATION_PROFILES.map(v=><option key={v.code} value={v.code}>{v.name}</option>)}
+        </select>
+        {providerProfile ? (
+          <div data-supplier-onboarding-requirements="true" className="space-y-1 text-xs leading-5 text-slate-700">
+            <p className="font-semibold text-slate-900">{providerProfile.recommendation}</p>
+            <p>Para habilitar conexão automática: {providerProfile.requirements.join("; ")}.</p>
+          </div>
+        ) : <p className="text-xs text-slate-600">Cadastre abaixo o fornecedor oficial. O SIGAPRO não assume que ele possui API homologada.</p>}
+        <p className="text-xs font-medium text-amber-900">Selecionar um banco não ativa emissão, QR Pix ou baixa automática. Essas funções só operam com conector de servidor homologado e as credenciais oficiais daquela Prefeitura.</p>
+        <div data-collection-provider-readiness="true" className="rounded-lg border border-slate-200 bg-white p-3 text-xs leading-5 text-slate-800">
+          {providerStatusError ? <p role="alert">{providerStatusError} Nenhuma conexão será ativada.</p> :
+           providerStatus?.connectorInstalled ?
+            <p>Conector instalado: {providerStatus.operations.join(", ") || "sem operações declaradas"}. A conta e os certificados municipais ainda precisam ser testados antes de ativar.</p> :
+            <p>Conector automático ainda não instalado. É possível configurar a importação controlada, mas não emitir ou consultar pagamentos diretamente no banco.</p>}
+        </div>
+      </div>
       {form.supplierCode === "govbr_ar" ? <p role="status" className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">GOVBR/AR identificado. Ainda não existe um adaptador homologado para emitir ou consultar guias automaticamente. Solicite à GOVBR a documentação e o acesso de homologação; nenhuma cobrança será criada por esta seleção.</p> : null}
-      <div className="grid gap-4 md:grid-cols-2"><div className="space-y-2"><Label>Fornecedor</Label><Input disabled={readOnly} value={form.supplierName} onChange={e=>setForm(v=>({...v,supplierName:e.target.value}))} placeholder="Nome oficial do fornecedor"/></div><div className="space-y-2"><Label>Identificador do fornecedor / adaptador</Label><Input disabled={readOnly} value={form.supplierCode} onChange={e=>setForm(v=>({...v,supplierCode:e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g,"-")}))} placeholder="fornecedor_homologado"/></div>{form.integrationType==="automatic" ? <div className="space-y-2 md:col-span-2"><Label>URL oficial da API (somente integração automática homologada)</Label><Input disabled={readOnly} type="url" value={form.apiBaseUrl} onChange={e=>setForm(v=>({...v,apiBaseUrl:e.target.value}))} placeholder="Endereço HTTPS fornecido pelo suporte do sistema municipal"/></div> : null}<div className="space-y-2"><Label>Ambiente</Label><Select disabled={readOnly} value={form.environment} onValueChange={value=>setForm(v=>({...v,environment:value as typeof v.environment}))}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="test">Homologação</SelectItem><SelectItem value="production">Produção</SelectItem></SelectContent></Select></div><div className="space-y-2"><Label>Operação</Label><Select disabled={readOnly} value={form.integrationType} onValueChange={value=>setForm(v=>({...v,integrationType:value as typeof v.integrationType}))}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="automatic">Integração automática por API</SelectItem><SelectItem value="controlled_import">Importação controlada</SelectItem></SelectContent></Select></div>{form.integrationType==="automatic"?<div className="space-y-2 md:col-span-2"><Label>Credencial secreta</Label><Input disabled={readOnly} type="password" autoComplete="new-password" value={form.secret} onChange={e=>setForm(v=>({...v,secret:e.target.value}))} placeholder={configuration?.secret_configured?"Deixe vazio para manter o segredo atual":"Token, API key ou segredo"}/><p className="text-xs text-slate-500">Cifrada no backend; nunca é devolvida ao navegador.</p></div>:<div className="md:col-span-2 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"><FileUp className="mr-2 inline h-4 w-4"/>O documento será registrado no SIGAPRO após a emissão no sistema oficial, importação e vínculo do PDF. Nenhuma API será simulada.</div>}</div>
-      {form.integrationType==="automatic" ? <div className="mt-5 grid gap-2 sm:grid-cols-5">{([['query','Consulta'],['pdf','PDF'],['payment','Pagamento'],['reissue','Reemissão'],['cancel','Cancelamento']] as const).map(([key,label])=><label key={key} className="flex items-center gap-2 rounded-xl border border-slate-200 p-3 text-sm"><input disabled={readOnly} type="checkbox" checked={form[key]} onChange={e=>setForm(v=>({...v,[key]:e.target.checked}))}/>{label}</label>)}</div> : <p className="mt-5 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-medium text-emerald-950">Importação controlada: o servidor emite no sistema municipal, importa o PDF oficial para o SIGAPRO e registra a comunicação. Sem consulta bancária, emissão automática ou confirmação de pagamento pelo SIGAPRO.</p>}
+      <div className="grid gap-4 md:grid-cols-2"><div className="space-y-2"><Label>Fornecedor</Label><Input disabled={readOnly} value={form.supplierName} onChange={e=>setForm(v=>({...v,supplierName:e.target.value}))} placeholder="Nome oficial do fornecedor"/></div><div className="space-y-2"><Label>Identificador do fornecedor / adaptador</Label><Input disabled={readOnly} value={form.supplierCode} onChange={e=>setForm(v=>({...v,supplierCode:e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g,"-"),apiBaseUrl:"",secret:"",integrationType:"controlled_import"}))} placeholder="fornecedor_homologado"/></div>{form.integrationType==="automatic" ? <div className="space-y-2 md:col-span-2"><Label>URL oficial da API (somente integração automática homologada)</Label><Input disabled={readOnly} type="url" value={form.apiBaseUrl} onChange={e=>setForm(v=>({...v,apiBaseUrl:e.target.value}))} placeholder="Endereço HTTPS fornecido pelo suporte do sistema municipal"/></div> : null}<div className="space-y-2"><Label>Ambiente</Label><Select disabled={readOnly} value={form.environment} onValueChange={value=>setForm(v=>({...v,environment:value as typeof v.environment,secret:""}))}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="test">Homologação</SelectItem><SelectItem value="production">Produção</SelectItem></SelectContent></Select></div><div className="space-y-2"><Label>Operação</Label><Select disabled={readOnly} value={form.integrationType} onValueChange={value=>setForm(v=>({...v,integrationType:value as typeof v.integrationType}))}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="automatic" disabled={!providerStatus?.connectorInstalled}>Integração automática por API (conector instalado)</SelectItem><SelectItem value="controlled_import">Importação controlada</SelectItem></SelectContent></Select></div>{form.integrationType==="automatic"?<div className="space-y-2 md:col-span-2"><Label>Credencial secreta</Label><Input disabled={readOnly} type="password" autoComplete="new-password" value={form.secret} onChange={e=>setForm(v=>({...v,secret:e.target.value}))} placeholder={configuration?.secret_configured?"Deixe vazio para manter o segredo atual":"Token, API key ou segredo"}/><p className="text-xs text-slate-500">Cifrada no backend; nunca é devolvida ao navegador.</p></div>:<div className="md:col-span-2 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"><FileUp className="mr-2 inline h-4 w-4"/>O documento será registrado no SIGAPRO após a emissão no sistema oficial, importação e vínculo do PDF. Nenhuma API será simulada.</div>}</div>
+      {form.integrationType==="automatic" ? <div className="mt-5 grid gap-2 sm:grid-cols-5">{([['query','Consulta'],['pdf','PDF'],['payment','Pagamento'],['reissue','Reemissão'],['cancel','Cancelamento']] as const).map(([key,label])=><label key={key} className="flex items-center gap-2 rounded-xl border border-slate-200 p-3 text-sm"><input disabled={readOnly} type="checkbox" checked={form[key]} onChange={e=>setForm(v=>({...v,[key]:e.target.checked}))}/>{label}</label>)}</div> : <p className="mt-5 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-medium text-emerald-950">Importação controlada: a Prefeitura emite a guia no seu sistema oficial; o SIGAPRO recebe e vincula o PDF ao processo. Sem emissão ou baixa bancária automática pelo SIGAPRO.</p>}
     </div>)}
     {message?<div role="status" className={`rounded-2xl border px-4 py-3 text-sm ${isCollectionSuccessMessage(message) ? "border-emerald-300 bg-emerald-50 text-emerald-950" : "border-amber-300 bg-amber-50 text-amber-950"}`}>{message}</div>:null}
     <div className="flex flex-wrap justify-end gap-2">{readOnly?<span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-4 py-2 text-sm text-slate-700"><ShieldCheck className="h-4 w-4"/>Somente leitura</span>:<><Button variant="outline" disabled={!!busy||loadFailed||!configuration} onClick={()=>void save()}>{busy==="save"?"Salvando...":"Salvar configuração"}</Button><Button variant="outline" disabled={!!busy||loadFailed||!configuration} onClick={()=>void validate()}><RefreshCw className="mr-2 h-4 w-4"/>Validar configuração</Button><Button data-collection-action="dark" className="sig-collection-dark-action !bg-sky-900 !text-white hover:!bg-sky-800" disabled={!!busy||loadFailed||configuration?.status!=="validated"} onClick={()=>void activate()}><BadgeCheck className="mr-2 h-4 w-4"/>Ativar para novas guias</Button></>}</div>
