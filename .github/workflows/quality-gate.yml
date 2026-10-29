@@ -27,6 +27,30 @@ jobs:
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
 
+      # Inventory vulnerabilities separately in runtime and development dependencies.
+      # This is diagnostic: do not declare release approval until triaged.
+      - name: Dependency security inventory
+        shell: bash
+        run: |
+          npm audit --omit=dev --json > "$RUNNER_TEMP/audit-runtime.json" || true
+          npm audit --json > "$RUNNER_TEMP/audit-all.json" || true
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          for (const [label, filename] of [
+            ['RUNTIME', 'audit-runtime.json'],
+            ['ALL', 'audit-all.json'],
+          ]) {
+            const report = JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP + '/' + filename, 'utf8'));
+            const severities = report.metadata?.vulnerabilities || {};
+            const affected = Object.entries(report.vulnerabilities || {})
+              .map(([name, item]) => ({ name, severity: item.severity, isDirect: item.isDirect, fixAvailable: item.fixAvailable }))
+              .sort((a,b) => ({ critical: 0, high: 1, moderate: 2, low: 3 }[a.severity] ?? 4) -
+                             ({ critical: 0, high: 1, moderate: 2, low: 3 }[b.severity] ?? 4));
+            console.log('AUDIT_' + label + '_COUNTS ' + JSON.stringify(severities));
+            console.log('AUDIT_' + label + '_PACKAGES ' + JSON.stringify(affected));
+          }
+          NODE
+
       - name: TypeScript
         run: npm run typecheck
 
