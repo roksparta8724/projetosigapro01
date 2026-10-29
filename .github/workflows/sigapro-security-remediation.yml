@@ -34,6 +34,7 @@ jobs:
           npm ci --legacy-peer-deps --no-fund --no-audit
           echo "Applying compatible vulnerability remediations..."
           npm audit fix --package-lock-only --legacy-peer-deps --no-fund || true
+          # Use Vitest 5-specific matcher integration and explicit Node types in the application tsconfig.
           # Some legacy peer installs drop @testing-library/dom and node typings
           # when npm audit rebuilds the lockfile. Keep these explicit dev peers.
           npm install --package-lock-only --legacy-peer-deps --save-dev --save-exact --no-fund --no-audit '@types/node@22.16.5' '@testing-library/dom@10.4.1'
