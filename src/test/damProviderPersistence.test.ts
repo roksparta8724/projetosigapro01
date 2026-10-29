@@ -83,7 +83,7 @@ describe("Neon guide charge persistence", () => {
       .mockResolvedValueOnce({ ok: true, status: 200, payload: { ...stored, payment_provider: "mercado_pago", provider_environment: "test", barcode: "23791684000003000003388060601573644066333333", digitable_line: "23793388096060157364540663333335168400000300000" }, error: "" });
     vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({
       id: "order1", external_reference: "DAM-001", total_amount: "300.00",
-      transactions: { payments: [{ payment_method: { barcode_content: "23791684000003000003388060601573644066333333", digitable_line: "23793388096060157364540663333335168400000300000" } }] },
+      transactions: { payments: [{ id: "PAY-ORDER1", payment_method: { barcode_content: "23791684000003000003388060601573644066333333", digitable_line: "23793388096060157364540663333335168400000300000" } }] },
     }), { status: 200 }));
     expect((await createMercadoPagoGuideBoleto(input, req)).ok).toBe(true);
     expect(rpc.mock.calls.some((call) => call[1] === "authorize_payment_guide_charge_v1")).toBe(false);

@@ -274,9 +274,18 @@ function extractMercadoPagoGuideResult(
   const validMoney = (value: string) =>
     /^[0-9]+(?:\.[0-9]{1,2})?$/.test(value) &&
     Math.round(Number(value) * 100) === Math.round(Number(amountText) * 100);
+  // Pending provider orders may be accepted before the asynchronous payment
+  // object exists. Persist that order ID to prevent a second charge, but
+  // never accept a settled order without exactly one identifiable payment.
+  const orderAccredited =
+    status.toLowerCase() === "processed" &&
+    statusDetail.toLowerCase() === "accredited";
+  const paymentShapeValid = payments.length === 0
+    ? !orderAccredited
+    : payments.length === 1 && Boolean(payment.id);
   const providerMetadataValid =
-    Boolean(source.id && providerReference && payment.id) &&
-    payments.length === 1 &&
+    Boolean(source.id && providerReference) &&
+    paymentShapeValid &&
     providerReference === externalReference &&
     validMoney(providerAmount) &&
     (!paymentAmount || validMoney(paymentAmount));
@@ -623,7 +632,9 @@ export async function createMercadoPagoGuideBoleto(
 
     // Persist an authenticated order even if barcodes are still missing,
     // but never bind an unverified order, amount, or multi-payment response.
-    if (!result.ok) return result;
+    if (!result.ok) {
+      return { ...result, errorCode: "PROVIDER_ACCEPTED_PERSISTENCE_OR_SYNC_FAILED" };
+    }
     let persistedResult = stored && req ? await persistGuideCharge(req, stored, result, options?.isolatedSandboxOnly) : result;
 
     if (!hasCompleteGuideBankingData(result) && result.orderId) {
