@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { buildPixPayload } from "../src/lib/pix";
 const mocks = vi.hoisted(() => ({
-  rpc: vi.fn(), guide: vi.fn(), token: vi.fn(), dataUrl: vi.fn(),
+  rpc: vi.fn(), guide: vi.fn(), token: vi.fn(), dataUrl: vi.fn(), fetch: vi.fn(),
 }));
 vi.mock("node:os", async importOriginal => {
   const actual=await importOriginal<typeof import("node:os")>();
@@ -19,17 +19,24 @@ vi.mock("./guide-persistence",()=>({readStoredGuide:mocks.guide}));
 vi.mock("./municipal-payment",()=>({resolveMercadoPagoMunicipalAccessToken:mocks.token}));
 import { qaMercadoPagoPix, qaPixIdempotencyKey } from "./qa-mercadopago-pix";
 const municipalityId="11111111-1111-4111-8111-111111111111";
-const guideCode="DAM-PRE-20261022-7791A2E9";
+let guideCode="DAM-PRE-20261022-7791A2E9";
+let caseSequence=0;
 const request={headers:{authorization:"Bearer QA_TOKEN"}} as never;
 let root="";
 let qr="";
 beforeEach(()=>{
   vi.clearAllMocks();
   root=mkdtempSync(join(tmpdir(),"sigapro-pix-"));
+  // Isolate every case even if the native node:os homedir wins over the mock.
+  vi.stubEnv("HOME",root);
   vi.stubEnv("SIGAPRO_QA_TEST_HOME",root);
+  guideCode=`DAM-PRE-20261022-${process.pid}-${++caseSequence}`;
   vi.stubEnv("SIGAPRO_LOCAL_QA_LAUNCH","true");
   vi.stubEnv("SIGAPRO_LOCAL_QA_BLOCK_EXTERNAL_WRITES","true");
   vi.stubEnv("VITE_SIGAPRO_NEON_ISOLATED","true");
+  // Vitest uses jsdom for UI tests; its AbortSignal has no timeout helper.
+  // The HTTP calls are mocked here, so only a valid non-aborted signal is needed.
+  vi.stubGlobal("AbortSignal",{timeout:()=>new AbortController().signal});
   qr=buildPixPayload({
     key:"sandbox@example.test", merchantName:"MERCADO PAGO TESTE",
     merchantCity:"SAO PAULO",amount:35.24,txid:"QA-PIX-01",
@@ -37,12 +44,13 @@ beforeEach(()=>{
   mocks.rpc.mockResolvedValue({ok:true,payload:true});
   mocks.guide.mockResolvedValue({guide_number:guideCode,municipality_id:municipalityId,amount:35.24});
   mocks.token.mockResolvedValue({environment:"test",token:"APP_USR_SANDBOX_ONLY"});
-  vi.stubGlobal("fetch",vi.fn().mockImplementation(async ()=>new Response(JSON.stringify({
+  mocks.fetch.mockImplementation(async ()=>new Response(JSON.stringify({
     id:"ORDER_QA_PIX_001",external_reference:guideCode+"-PIX-QA",total_amount:"35.24",status:"action_required",
     transactions:{payments:[{id:"PAY_QA_001",status:"action_required",payment_method:{
       id:"pix",type:"bank_transfer",qr_code:qr,
     }}]},
-  }),{status:201})));
+  }),{status:201}));
+  vi.stubGlobal("fetch",mocks.fetch);
 });
 afterEach(()=>{
   rmSync(root,{recursive:true,force:true});vi.unstubAllEnvs();vi.unstubAllGlobals();
@@ -51,7 +59,7 @@ describe("isolated Mercado Pago PIX and existing boleto remain independent",()=>
   it("creates a test-only PIX order once and reads the exact provider QR after restart",async()=>{
     const first=await qaMercadoPagoPix(request,{municipalityId,guideCode,action:"issue"});
     expect(first).toMatchObject({ok:true,sandboxOnly:true,environment:"test",qrCode:qr,orderId:"ORDER_QA_PIX_001"});
-    const [url,opts]=vi.mocked(fetch).mock.calls[0];
+    const [url,opts]=mocks.fetch.mock.calls[0];
     expect(url).toBe("https://api.mercadopago.com/v1/orders");
     expect(opts?.method).toBe("POST");
     const idempotency=(opts?.headers as Record<string,string>)["X-Idempotency-Key"];
@@ -69,29 +77,51 @@ describe("isolated Mercado Pago PIX and existing boleto remain independent",()=>
     expect(reloaded.qrCode).toBe(qr);
     const duplicate=await qaMercadoPagoPix(request,{municipalityId,guideCode,action:"issue"});
     expect(duplicate.orderId).toBe(first.orderId);
-    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(mocks.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    { paid:true, status:"pendente" },
+    { paid:false, status:"pago" },
+    { paid:false, status:"confirmed" },
+  ])("does not create or consult PIX on already-paid guides (%s)",async state=>{
+    mocks.guide.mockResolvedValue({...state,guide_number:guideCode,municipality_id:municipalityId,amount:35.24});
+    await expect(qaMercadoPagoPix(request,{municipalityId,guideCode,action:"issue"}))
+      .rejects.toThrow(/já paga/);
+    expect(mocks.rpc).not.toHaveBeenCalled();
+    expect(mocks.fetch).not.toHaveBeenCalled();
+  });
+  it("does not issue PIX for a municipal own-system guide",async()=>{
+    mocks.guide.mockResolvedValue({
+      guide_number:guideCode,municipality_id:municipalityId,amount:35.24,
+      collection_mode_snapshot:"municipal_system",status:"pendente",
+    });
+    await expect(qaMercadoPagoPix(request,{municipalityId,guideCode,action:"issue"}))
+      .rejects.toThrow(/arrecadação própria/);
+    expect(mocks.fetch).not.toHaveBeenCalled();
+    expect(mocks.rpc).not.toHaveBeenCalled();
   });
   it("blocks production provider credentials before any payment request",async()=>{
     mocks.token.mockResolvedValue({environment:"production",token:"APP_USR_PRODUCTION"});
     await expect(qaMercadoPagoPix(request,{municipalityId,guideCode,action:"issue"}))
       .rejects.toThrow(/TESTE/);
-    expect(fetch).not.toHaveBeenCalled();
+    expect(mocks.fetch).not.toHaveBeenCalled();
   });
   it("blocks cross-prefecture use and payment requests",async()=>{
     mocks.rpc.mockResolvedValue({ok:true,payload:false});
     await expect(qaMercadoPagoPix(request,{municipalityId,guideCode,action:"issue"}))
       .rejects.toThrow(/autorização/);
-    expect(fetch).not.toHaveBeenCalled();
+    expect(mocks.fetch).not.toHaveBeenCalled();
   });
   it("does not issue outside localhost isolated QA",async()=>{
     vi.stubEnv("SIGAPRO_LOCAL_QA_LAUNCH","");
     await expect(qaMercadoPagoPix(request,{municipalityId,guideCode,action:"issue"}))
       .rejects.toThrow(/isolado/);
-    expect(fetch).not.toHaveBeenCalled();
+    expect(mocks.fetch).not.toHaveBeenCalled();
   });
   it("reuses the exact provider idempotency key for an unresolved POST without duplicating the order",async()=>{
     let times=0;
-    vi.stubGlobal("fetch",vi.fn().mockImplementation(async()=>{
+    mocks.fetch.mockImplementation(async()=>{
       times++;
       if(times===1) throw new Error("socket timeout after provider acceptance");
       return new Response(JSON.stringify({
@@ -103,11 +133,11 @@ describe("isolated Mercado Pago PIX and existing boleto remain independent",()=>
           payment_method:{id:"pix",type:"bank_transfer",qr_code:qr},
         }]},
       }),{status:201});
-    }));
+    });
     await expect(qaMercadoPagoPix(request,{municipalityId,guideCode,action:"issue"})).rejects.toThrow(/socket timeout/);
     const result=await qaMercadoPagoPix(request,{municipalityId,guideCode,action:"issue"});
     expect(result.ok).toBe(true);
-    const calls=vi.mocked(fetch).mock.calls;
+    const calls=mocks.fetch.mock.calls;
     expect(calls).toHaveLength(2);
     expect((calls[0][1]?.headers as Record<string,string>)["X-Idempotency-Key"])
       .toBe((calls[1][1]?.headers as Record<string,string>)["X-Idempotency-Key"]);
@@ -115,7 +145,7 @@ describe("isolated Mercado Pago PIX and existing boleto remain independent",()=>
 
   it("polls the same asynchronous order instead of issuing a second PIX",async()=>{
     let calls=0;
-    vi.stubGlobal("fetch",vi.fn().mockImplementation(async (_url:unknown,opts?:RequestInit)=>{
+    mocks.fetch.mockImplementation(async (_url:unknown,opts?:RequestInit)=>{
       calls++;
       const transactions=calls===1?{payments:[]}:{payments:[{
         id:"PAY_QA_POLL",status:"action_required",payment_method:{
@@ -127,27 +157,27 @@ describe("isolated Mercado Pago PIX and existing boleto remain independent",()=>
         total_amount:"35.24",status:calls===1?"processing":"action_required",
         transactions,
       }),{status:calls===1?201:200});
-    }));
+    });
     const first=await qaMercadoPagoPix(request,{municipalityId,guideCode,action:"issue"});
     expect(first.ok).toBe(false);
     const resumed=await qaMercadoPagoPix(request,{municipalityId,guideCode,action:"get"});
     expect(resumed.qrCode).toBe(qr);
-    expect(fetch).toHaveBeenCalledTimes(2);
-    expect(vi.mocked(fetch).mock.calls[1][1]?.method).toBe("GET");
+    expect(mocks.fetch).toHaveBeenCalledTimes(2);
+    expect(mocks.fetch.mock.calls[1][1]?.method).toBe("GET");
   });
 
   it("rejects provider orders with mismatched amount and prevents double POST",async()=>{
-    vi.stubGlobal("fetch",vi.fn().mockImplementation(async()=>new Response(JSON.stringify({
+    mocks.fetch.mockImplementation(async()=>new Response(JSON.stringify({
       id:"ORDER_QA_PIX_002",external_reference:guideCode+"-PIX-QA",
       total_amount:"999.99",transactions:{payments:[]},
-    }),{status:201})));
+    }),{status:201}));
     await expect(qaMercadoPagoPix(request,{municipalityId,guideCode,action:"issue"}))
       .rejects.toThrow(/não corresponde/);
     await expect(qaMercadoPagoPix(request,{municipalityId,guideCode,action:"issue"}))
       .rejects.toThrow(/não corresponde/);
     // Same idempotency key guarantees that an uncertain response cannot
     // create two distinct provider orders, even if the caller retries.
-    const requests=vi.mocked(fetch).mock.calls;
+    const requests=mocks.fetch.mock.calls;
     expect(requests).toHaveLength(2);
     expect((requests[0][1]?.headers as Record<string,string>)["X-Idempotency-Key"])
       .toBe((requests[1][1]?.headers as Record<string,string>)["X-Idempotency-Key"]);

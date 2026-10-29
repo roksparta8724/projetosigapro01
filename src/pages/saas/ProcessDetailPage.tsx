@@ -1,4 +1,5 @@
-import { archiveAndOpenGuide, openLegacyGuideOriginal, openStoredGuide, readGuideOriginal } from "@/lib/guideOriginal";
+import { archiveAndOpenGuide, isGuideSettled, openLegacyGuideOriginal, openStoredGuide, readGuideOriginal } from "@/lib/guideOriginal";
+import { normalizeOfficialBanking } from "@/lib/bankCodes";
 ﻿import { FormEvent, MouseEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, ArrowRightLeft, Building2, CheckCircle2, Clock3, Download, Eye, FileBadge2, FileCheck2, FileKey2, FileStack, Landmark, LogOut, Maximize2, MessageSquareMore, PencilLine, Printer, ReceiptText, Route, ShieldAlert, Signature, UserRound, Wallet, Workflow, ZoomIn, ZoomOut } from "lucide-react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
@@ -32,6 +33,7 @@ import { OccupancyPermitProcessPanel } from "@/components/platform/OccupancyPerm
 import { MarkerSelector } from "@/components/platform/MarkerSelector";
 import { MunicipalOrganogramBar } from "@/components/platform/MunicipalOrganogramBar";
 import { UrbanAnalysisChecklistPanel } from "@/components/platform/UrbanAnalysisChecklistPanel";
+import { UrbanPrecheckPanel } from "@/components/platform/UrbanPrecheckPanel";
 import { SignedAnalysisArchiveFolder } from "@/components/platform/SignedAnalysisArchiveFolder";
 import { isSignedAnalysisArchiveDocument } from "@/lib/signedAnalysisArchive";
 import { resolveProcessDispatchAuthor } from "@/lib/dispatchActorIdentity";
@@ -63,6 +65,8 @@ import {
   type RecoverableProcessFile,
 } from "@/integrations/r2/client";
 import { uploadFileToStorage } from "@/integrations/r2/storage";
+import { shouldIsolateQaStorage } from "@/integrations/r2/qaNeonNative";
+import { verifyQaRecoverableDocumentBeforeLink } from "@/lib/qaRecoveryLinkPreflight";
 import {
   buildProcessPath,
   buildProcessRouteKey,
@@ -348,7 +352,10 @@ export function ProcessDetailPage() {
     () => refreshRemoteStore(processId ?? null),
     [processId, refreshRemoteStore],
   );
-  useLivePlatformRefresh(refreshCurrentProcessStore, { intervalMs: 1800 });
+  // Full process rehydration is expensive and used to race the 1.5s
+  // status-only sync. Status polls now run every 6s; full refresh every 12s.
+  // Event listeners still refresh immediately on mutations/focus/reconnect.
+  useLivePlatformRefresh(refreshCurrentProcessStore, { intervalMs: 12000 });
 
   const liveProcess = resolveProcessRoute(processes, processId);
   const [cachedProcessVisual, setCachedProcessVisual] = useState<ProcessRecord | undefined>(() =>
@@ -420,6 +427,7 @@ export function ProcessDetailPage() {
 
     let disposed = false;
     let inFlight = false;
+    let reportedSyncFailure = false;
 
     const syncExactProcess = async () => {
       if (
@@ -457,7 +465,17 @@ export function ProcessDetailPage() {
 
         const { data, error } = await query.limit(1);
 
-        if (error || disposed) return;
+        if (disposed) return;
+        if (error) {
+          // A failed poll is not an empty process. Keep the last verified
+          // process on screen and avoid unhandled errors and visual flashes.
+          if (!reportedSyncFailure) {
+            console.warn("[SIGAPRO][Processo] Sincronização temporariamente indisponível:", error);
+            reportedSyncFailure = true;
+          }
+          return;
+        }
+        reportedSyncFailure = false;
         const row = Array.isArray(data) ? data[0] : data;
         if (!row?.id) return;
 
@@ -516,6 +534,13 @@ export function ProcessDetailPage() {
           writeCachedProcessVisual(session.id, processId, patched);
           return patched;
         });
+      } catch (error) {
+        // No unhandled rejection from timers/focus listeners. A transient
+        // network failure must not reset the current process or its workflow.
+        if (!disposed && !reportedSyncFailure) {
+          console.warn("[SIGAPRO][Processo] Falha de rede ao sincronizar:", error);
+          reportedSyncFailure = true;
+        }
       } finally {
         inFlight = false;
       }
@@ -526,7 +551,9 @@ export function ProcessDetailPage() {
     };
 
     void syncExactProcess();
-    const timer = window.setInterval(() => void syncExactProcess(), 1500);
+    // Focus/visibility/data-changed events provide instant updates.
+    // A gentle fallback avoids hammering Neon with a request every 1.5 s.
+    const timer = window.setInterval(() => void syncExactProcess(), 6000);
     window.addEventListener("focus", syncExactProcess);
     window.addEventListener("pageshow", syncExactProcess);
     window.addEventListener("online", syncExactProcess);
@@ -781,14 +808,7 @@ export function ProcessDetailPage() {
           prewarmTenantSettings?.headerLogoUrl,
           prewarmTenantSettings?.brasaoUrl,
           prewarmTenantSettings?.logoUrl,
-        ).catch(
-          () =>
-            getRenderedMunicipalityLogoDataUrl() ||
-            prewarmTenantSettings?.brasaoUrl ||
-            prewarmTenantSettings?.headerLogoUrl ||
-            prewarmGuideLogoUrl ||
-            "",
-        );
+        ).catch(() => getRenderedMunicipalityLogoDataUrl());
 
         const preparedCharges: Record<string, MercadoPagoGuideCharge> = {};
 
@@ -799,7 +819,9 @@ export function ProcessDetailPage() {
           ...current,
           ...preparedCharges,
         }));
-        setPreparedGuideLogoUrl(embeddedLogo || prewarmGuideLogoUrl || "");
+        // A rejected R2/QA logo URL is not an embedded printable image.
+        // Never reinsert an unverified raw URL after strict preparation fails.
+        setPreparedGuideLogoUrl(embeddedLogo || "");
       } catch (error) {
         if (cancelled) return;
         setGuidePreparationError(
@@ -1031,9 +1053,19 @@ export function ProcessDetailPage() {
         );
         const available = files.filter((file) => !alreadyLinked.has(file.objectKey));
         setRecoverableFiles(available);
+        const isolatedQa = shouldIsolateQaStorage(
+          window.location.hostname,
+          import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true",
+        );
         if (available.length > 0) {
           setRecoverableStatus(
-            `${available.length} upload(s) deste protocolo encontrado(s) no armazenamento. Você pode recuperar sem reenviar.`,
+            isolatedQa
+              ? `${available.length} arquivo(s) com origem e vínculo deste processo verificados no QA. Confira o conteúdo antes de recuperar.`
+              : `${available.length} upload(s) deste protocolo encontrado(s) no armazenamento. Você pode recuperar sem reenviar.`,
+          );
+        } else if (isolatedQa) {
+          setRecoverableStatus(
+            "Nenhum arquivo com comprovação independente de origem foi localizado neste processo. Cadastros antigos, sem prova do arquivo original, não são vinculados automaticamente.",
           );
         }
       } catch (error) {
@@ -1086,6 +1118,7 @@ export function ProcessDetailPage() {
           const url = await getSignedUrlForObjectStrict({
             bucket,
             objectKey: document.filePath!,
+            processId: process.id,
             expiresIn: 21600,
           });
           if (cancelled || !url) return;
@@ -1856,10 +1889,23 @@ export function ProcessDetailPage() {
       return;
     }
     try {
-    if (await openLegacyGuideOriginal(process.documents, selectedGuide.code, reservedGuideWindow)) return;
     const original = await readGuideOriginal(effectiveScopeId, selectedGuide.code);
+    const isolatedQa = import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true";
+    const qaCanonicalBanking = normalizeOfficialBanking(original.barcode, original.digitable_line);
+    const verifiedQaBoleto = Boolean(
+      isolatedQa &&
+      original.provider_environment === "test" &&
+      original.payment_provider === "mercado_pago" &&
+      original.bank_reference &&
+      qaCanonicalBanking.barcode && qaCanonicalBanking.digitableLine
+    );
+    // O original oficial persistido no Neon sempre prevalece sobre cópias
+    // antigas anexadas ao processo. Nunca reconstruir nem substituir o PDF.
     if (await openStoredGuide(original, reservedGuideWindow)) return;
-    if (original.status === "compensada") {
+    // A consulta de um original histórico sem vínculo SHA continua possível,
+    // mas somente após verificar que o registro bancário é da própria guia.
+    if (await openLegacyGuideOriginal(process.documents, original.guide_number, reservedGuideWindow)) return;
+    if (isGuideSettled(original)) {
       throw new Error("Guia compensada sem PDF original arquivado. A guia não será recriada nem cobrada novamente.");
     }
     if (original.collection_mode_snapshot === "municipal_system") {
@@ -1872,6 +1918,9 @@ export function ProcessDetailPage() {
       bankPaymentId: original.bank_payment_id, bankStatus: original.bank_status,
       bankStatusDetail: original.bank_status_detail, bankAuthenticatedAt: original.bank_authenticated_at };
     if (original.document_snapshot) {
+      if (isolatedQa && !verifiedQaBoleto) {
+        throw new Error("Snapshot QA sem boleto do provedor confirmado no Neon; não será arquivado.");
+      }
       await archiveAndOpenGuide(effectiveScopeId, original.document_snapshot, reservedGuideWindow);
       return;
     }
@@ -1973,20 +2022,27 @@ export function ProcessDetailPage() {
       municipalityName: municipalityName || tenant?.name,
       municipalityCity: tenantSettings?.pixMerchantCity || tenant?.city,
     });
-    const providerCharge = banking.barcode && banking.digitableLine ? null : await ensureMercadoPagoGuideCharge({
+    // A prévia remota NÃO tem endpoint de emissão bancária. Ela deve
+    // apresentar apenas documento de teste, nunca tentar criar cobrança real.
+    const providerCharge = isolatedQa || (banking.barcode && banking.digitableLine) ? null : await ensureMercadoPagoGuideCharge({
       municipalityId: effectiveScopeId, guideCode: selectedGuide.code, amount: selectedGuide.amount,
       dueDate: selectedGuide.dueDate, description: selectedGuide.label + " · " + process.protocol,
     });
-    const digitableLine = providerCharge?.digitableLine || banking.digitableLine;
-    const barcode = providerCharge?.barcodeContent || banking.barcode;
+    const digitableLine = isolatedQa
+      ? (verifiedQaBoleto ? qaCanonicalBanking.digitableLine : "")
+      : (providerCharge?.digitableLine || banking.digitableLine);
+    const barcode = isolatedQa
+      ? (verifiedQaBoleto ? qaCanonicalBanking.barcode : "")
+      : (providerCharge?.barcodeContent || banking.barcode);
 
-    if (!paidGuide && (!barcode || !digitableLine)) {
-      setProcessActionStatus(
+    if (!isolatedQa && !paidGuide && (!barcode || !digitableLine)) {
+      // The tab is already reserved for this user's click. Returning here
+      // would leave an orphaned "Preparando guia" window indefinitely.
+      throw new Error(
         guidePreparationError
           ? `A guia não foi aberta porque os dados bancários ainda não estão válidos: ${guidePreparationError}`
           : "A guia ainda está sendo preparada. Aguarde a conclusão dos dados bancários antes de abrir.",
       );
-      return;
     }
 
     const providerInstitution = providerCharge?.financialInstitution?.trim() || "";
@@ -1996,15 +2052,9 @@ export function ProcessDetailPage() {
         : banking.bankName || "Mercado Pago";
 
     const renderedGuideLogoUrl = getRenderedMunicipalityLogoDataUrl();
-    const directGuideLogoFallback =
-      renderedGuideLogoUrl ||
-      tenantSettings?.headerLogoUrl ||
-      tenantSettings?.brasaoUrl ||
-      guideHeaderBranding.logoUrl ||
-      ("fallbackLogoUrl" in guideHeaderBranding ? guideHeaderBranding.fallbackLogoUrl : "") ||
-      stableGuideLogoUrl ||
-      tenantSettings?.logoUrl ||
-      "";
+    // Only an already decoded, locally embedded municipal image is a safe
+    // fallback. Raw storage/API URLs can return 403/503 or expire before print.
+    const directGuideLogoFallback = renderedGuideLogoUrl;
 
     let embeddedGuideLogoUrl = preparedGuideLogoUrl || "";
     if (!embeddedGuideLogoUrl) {
@@ -2048,10 +2098,16 @@ export function ProcessDetailPage() {
       },
       guia: {
         numeroGuia: selectedGuide.code,
+        // Uma guia QA ainda sem boleto não pode exibir dados pagáveis falsos.
+        nonPayablePreview: isolatedQa && !verifiedQaBoleto,
         exercicio: year,
         dataDocumento: issuedAt,
         vencimento: selectedGuide.dueDate,
-        observacao: paidGuide ? "ESPELHO HISTORICO DE GUIA QUITADA. NAO PAGAR. NAO SUBSTITUI O ORIGINAL. " + getGuideObservation(selectedGuide.kind) : getGuideObservation(selectedGuide.kind),
+        observacao: isolatedQa
+          ? "HOMOLOGAÇÃO ISOLADA — NÃO PAGAR. Nenhum pagamento foi confirmado nesta visualização. " + getGuideObservation(selectedGuide.kind)
+          : paidGuide
+            ? "ESPELHO HISTORICO DE GUIA QUITADA. NAO PAGAR. NAO SUBSTITUI O ORIGINAL. " + getGuideObservation(selectedGuide.kind)
+            : getGuideObservation(selectedGuide.kind),
         funcionarioResponsavel: issuedByDisplay,
         proprietario: selectedGuide.ownerName || process.ownerName,
         profissionalResponsavel: selectedGuide.professionalName || process.technicalLead,
@@ -2072,20 +2128,24 @@ export function ProcessDetailPage() {
         codigoBarras: barcode,
         linhaDigitavel: digitableLine,
         qrCodePixUrl: "",
-        pixPayload: paidGuide ? (selectedGuide.pixPayload || "") : banking.pixPayload,
+        pixPayload: isolatedQa ? "" : paidGuide ? (selectedGuide.pixPayload || "") : banking.pixPayload,
         bankName: providerName,
         bankMunicipalName: tenantSettings?.bankName || "",
         bankCode: tenantSettings?.bankCode || "",
         bankAgency: [tenantSettings?.bankAgency, tenantSettings?.bankAgencyDigit].filter(Boolean).join("-"),
         bankAccount: [tenantSettings?.bankAccount, tenantSettings?.bankAccountDigit].filter(Boolean).join("-"),
         bankBeneficiary: tenantSettings?.beneficiarioArrecadacao || "",
-        bankEnvironment:
+        bankEnvironment: isolatedQa ? "test" :
           providerCharge?.environment || selectedGuide.providerEnvironment,
         bankAgreement: banking.bankAgreement,
-        bankInstructions: paidGuide ? [banking.bankInstructions, "PAGAMENTO JA COMPENSADO. NAO PAGAR NOVAMENTE."].filter(Boolean).join(" ") : banking.bankInstructions,
-        bankReference: providerCharge?.orderId || selectedGuide.bankReference,
-        bankPaymentId: providerCharge?.paymentId || selectedGuide.bankPaymentId,
-        bankStatus: providerCharge?.status || selectedGuide.bankStatus,
+        bankInstructions: isolatedQa
+          ? "DOCUMENTO DE HOMOLOGAÇÃO — NÃO PAGAR."
+          : paidGuide
+            ? [banking.bankInstructions, "PAGAMENTO JA COMPENSADO. NAO PAGAR NOVAMENTE."].filter(Boolean).join(" ")
+            : banking.bankInstructions,
+        bankReference: isolatedQa && !verifiedQaBoleto ? undefined : providerCharge?.orderId || selectedGuide.bankReference,
+        bankPaymentId: isolatedQa && !verifiedQaBoleto ? undefined : providerCharge?.paymentId || selectedGuide.bankPaymentId,
+        bankStatus: isolatedQa && !verifiedQaBoleto ? undefined : providerCharge?.status || selectedGuide.bankStatus,
         bankStatusDetail:
           providerCharge?.statusDetail || selectedGuide.bankStatusDetail,
         bankAuthenticatedAt:
@@ -2106,6 +2166,19 @@ export function ProcessDetailPage() {
       itens: guideItems,
     };
 
+    if (isolatedQa) {
+      if (verifiedQaBoleto) {
+        await archiveAndOpenGuide(effectiveScopeId, guideDocument, reservedGuideWindow);
+        return;
+      }
+      const opened = openGuiaRecolhimentoOficialWindow(
+        guideDocument,
+        { title: `PRÉVIA QA — NÃO PAGAR · ${selectedGuide.code}`, autoPrint: false },
+        reservedGuideWindow,
+      );
+      if (!opened) throw new Error("O navegador bloqueou a prévia de homologação.");
+      return;
+    }
     await archiveAndOpenGuide(effectiveScopeId, guideDocument, reservedGuideWindow);
     } catch (error) {
       reservedGuideWindow.close();
@@ -2626,6 +2699,22 @@ export function ProcessDetailPage() {
     const ok = await runProcessAction(
       `recover-document-${document.id}`,
       async () => {
+        // A listed object is not necessarily readable. In isolated QA, never
+        // mark the document uploaded until access, byte size and media signature
+        // have been checked, and release the temporary private blob afterwards.
+        if (shouldIsolateQaStorage(
+          window.location.hostname,
+          import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true",
+        )) {
+          await verifyQaRecoverableDocumentBeforeLink(candidate, () =>
+            getSignedUrlForObjectStrict({
+              bucket: "process-documents",
+              objectKey: candidate.objectKey,
+              processId: process.id,
+              expiresIn: 300,
+            }),
+          );
+        }
         const result = await appendProcessDocuments(
           process.id,
           [
@@ -3595,7 +3684,9 @@ export function ProcessDetailPage() {
                         <p className="mt-1 text-sm leading-6 text-amber-800 dark:text-amber-300">
                           {canUploadProcessDocuments
                             ? "Se você já enviou este arquivo anteriormente, tente recuperá-lo do armazenamento; caso contrário, selecione o documento correto."
-                            : "Somente arquivos já enviados pelo profissional aparecem aqui. Vincule o arquivo ao item correto do checklist para disponibilizá-lo à análise."}
+                            : shouldIsolateQaStorage(window.location.hostname, import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true")
+                              ? "A recuperação automática exige vínculo com este processo e comprovação independente do arquivo. O cadastro antigo, sozinho, não autoriza leitura de outros protocolos."
+                              : "Somente arquivos já enviados pelo profissional aparecem aqui. Vincule o arquivo ao item correto do checklist para disponibilizá-lo à análise."}
                         </p>
                         {recoverableFiles.length > 0 ? (
                           <div className="mt-3 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
@@ -3804,6 +3895,11 @@ export function ProcessDetailPage() {
                 municipalityEmail={tenantSettings?.email || ""}
                 departmentLabel={getOrganizationPath(currentFolder) || "Análise Urbanística"}
                 organogramTrail={currentOrganizationTrail}
+              />
+              <UrbanPrecheckPanel
+                process={process}
+                municipalityId={effectiveScopeId || process.tenantId}
+                readOnly={!canEditAnalysisChecklist}
               />
               {canReviewDocuments ? (
                 <AnalysisReadinessPanel

@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - review/sigapro-integral-local-20261021
+      - qa/sigapro-ia-logo-integrado-20261023
     paths:
       - .github/workflows/collection-qa-validation.yml
       - scripts/dev-qa.mjs
@@ -141,6 +142,39 @@ jobs:
           server/qa-document-store.test.ts
           src/lib/municipalBankCatalog.test.ts
           src/lib/paymentCollection.test.ts
+      - name: Print synthetic A4 boleto in real headless Chrome (QA only, no bank call)
+        if: github.ref == 'refs/heads/qa/sigapro-ia-logo-integrado-20261023'
+        env:
+          SIGAPRO_QA_PDF_OUTPUT_DIR: /tmp/sigapro-boleto-qa-browser
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx vitest run src/test/qaBoletoBrowserPdfSmoke.test.tsx --reporter=dot
+          pdf="$SIGAPRO_QA_PDF_OUTPUT_DIR/boleto-homologacao.pdf"
+          html="$SIGAPRO_QA_PDF_OUTPUT_DIR/boleto-homologacao.html"
+          chrome="$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)"
+          if [ -z "$chrome" ]; then echo "QA FAIL: no headless Chrome available to prove print output"; exit 1; fi
+          timeout 60 "$chrome" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --no-first-run \
+            --no-default-browser-check --no-pdf-header-footer --print-to-pdf="$pdf" "file://$html" \
+            > /tmp/sigapro-boleto-chrome.log 2>&1 || { tail -n 35 /tmp/sigapro-boleto-chrome.log; exit 1; }
+          test -s "$pdf"
+          test "$(head -c 5 "$pdf")" = '%PDF-'
+          if command -v pdfinfo >/dev/null 2>&1; then
+            pdfinfo "$pdf" | grep -E '^(Pages:|Page size:)'
+            pages="$(pdfinfo "$pdf" | awk '/^Pages:/ { print $2 }')"
+            test "$pages" = 1 || { echo "QA FAIL: DAM split into $pages printed pages"; exit 1; }
+            size="$(pdfinfo "$pdf" | awk -F ': ' '/^Page size:/ { print $2 }')"
+            echo "$size" | grep -Eq '595([.]| ).*841([.]| )' || { echo "QA FAIL: boleto is not A4"; exit 1; }
+          fi
+          echo "PASS: Chrome printed real single-page A4 QA boleto PDF from exact SIGAPRO markup"
+      - name: Keep synthetic QA PDF for visual inspection
+        if: always() && github.ref == 'refs/heads/qa/sigapro-ia-logo-integrado-20261023'
+        uses: actions/upload-artifact@v4
+        with:
+          name: sigapro-boleto-qa-synthetic-${{ github.run_id }}
+          path: /tmp/sigapro-boleto-qa-browser/boleto-homologacao.pdf
+          if-no-files-found: ignore
+          retention-days: 3
       - name: Entire application regression suite (no deployment)
         run: npm test -- --reporter=dot
       - name: Production-format bundle (no deployment)

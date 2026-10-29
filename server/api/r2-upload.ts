@@ -8,6 +8,7 @@
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { createHash } from "node:crypto";
 import { resolveMunicipalDocumentTarget } from "../municipal-storage.js";
+import { verifyImmutableDamOriginalAlreadyStored } from "../lib/damOriginalS3.js";
 
 type Req = import("http").IncomingMessage & { method?: string; body?: unknown };
 type Res = import("http").ServerResponse;
@@ -88,7 +89,10 @@ async function putR2ObjectWithFallback(input: {
       }));
       return;
     } catch (error) {
-      if (input.objectKey.includes("/dam-originals/") && (error as { $metadata?: { httpStatusCode?: number } })?.$metadata?.httpStatusCode === 412) return;
+      if (input.objectKey.includes("/dam-originals/") && (error as { $metadata?: { httpStatusCode?: number } })?.$metadata?.httpStatusCode === 412) {
+        await verifyImmutableDamOriginalAlreadyStored(client, input.bucket, input.objectKey);
+        return;
+      }
       lastError = error;
       if (!isR2CredentialError(error)) throw error;
     }
@@ -252,6 +256,18 @@ async function readJsonBody(req: Req) {
 }
 
 export default async function handler(req: Req, res: Res) {
+  // Defense in depth: block direct serverless invocations, not only /api/r2.
+  if (process.env.VERCEL_ENV === "preview" &&
+      (process.env.VITE_SIGAPRO_NEON_ISOLATED === "true" ||
+       process.env.VERCEL_GIT_COMMIT_REF === "qa/sigapro-ia-logo-integrado-20261023")) {
+    res.statusCode = 503;
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Cache-Control", "no-store");
+    res.end(JSON.stringify({ code: "QA_R2_WRITE_DISABLED",
+      error: "Homologação isolada: escrita no armazenamento oficial bloqueada." }));
+    return;
+  }
+
   setCors(res);
   if (req.method === "OPTIONS") {
     res.statusCode = 204;
@@ -399,8 +415,13 @@ export default async function handler(req: Req, res: Res) {
         ContentType: resolvedContentType,
         Metadata: damOriginalMetadata,
         ...(objectKey.includes("/dam-originals/") ? { IfNoneMatch: "*" } : {}),
-      })).catch((error) => {
-        if (objectKey.includes("/dam-originals/") && error?.$metadata?.httpStatusCode === 412) return;
+      })).catch(async (error) => {
+        if (objectKey.includes("/dam-originals/") && error?.$metadata?.httpStatusCode === 412) {
+          await verifyImmutableDamOriginalAlreadyStored(
+            municipalTarget.client, municipalTarget.bucket, municipalTarget.objectKey, objectKey,
+          );
+          return;
+        }
         throw error;
       });
 

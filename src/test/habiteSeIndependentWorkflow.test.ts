@@ -36,7 +36,10 @@ describe("Habite-se independent workflow", () => {
     expect(protocolPage).toContain('mode?: ProtocolEntryMode');
     expect(protocolPage).toContain('const isHabiteSeMode = mode === "habite-se"');
     expect(protocolPage).toContain('"PROCESSO DE HABITE-SE INDEPENDENTE"');
-    expect(protocolPage).toContain("standardProcessTypes");
+    const serviceCatalog = read("src/lib/municipalServiceCatalog.ts");
+    expect(protocolPage).toContain("getMunicipalService(form.tipo)");
+    expect(serviceCatalog).toContain("!isOccupancyPermitProcessType(service.type)");
+    expect(protocolPage).toContain('const isHabiteSeMode = mode === "habite-se"');
     expect(protocolPage).toContain(
       "Habite-se é um protocolo independente. Use a opção Solicitar Habite-se",
     );

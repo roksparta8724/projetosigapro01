@@ -36,6 +36,18 @@ async function readBody(req: Req): Promise<Record<string, unknown>> {
 }
 
 export default async function handler(req: Req, res: Res) {
+  // Isolated QA must not read or modify official R2 objects, including direct routes.
+  if (process.env.VERCEL_ENV === "preview" &&
+      (process.env.VITE_SIGAPRO_NEON_ISOLATED === "true" ||
+       process.env.VERCEL_GIT_COMMIT_REF === "qa/sigapro-ia-logo-integrado-20261023")) {
+    res.statusCode = 503;
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Cache-Control", "no-store");
+    res.end(JSON.stringify({ code: "QA_R2_ACCESS_DISABLED",
+      error: "Armazenamento de homologação isolado ainda não configurado." }));
+    return;
+  }
+
   if (req.method !== "POST") {
     res.statusCode = 405;
     res.end();

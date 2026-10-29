@@ -1,0 +1,60 @@
+import { backendClient } from "@/integrations/backend/databaseClient";
+import {
+  validateLegalEvidenceDraft, type UrbanLegalEvidence,
+} from "@/lib/urbanLegalKnowledge";
+import type { UrbanMetric } from "@/lib/urbanPrecheck";
+import { validateUrbanLegalScope, type UrbanLegalScopeDraft } from "@/lib/urbanLegalScope";
+
+async function call<T>(name: string, args: Record<string, unknown>): Promise<T> {
+  if (!backendClient) throw new Error("Banco de normas municipais indisponível.");
+  const { data, error } = await backendClient.rpc(name, args);
+  if (error) throw new Error("Acervo legal: " + (error.message || String(error)));
+  return data as T;
+}
+
+export async function listUrbanLegalEvidence(municipalityId: string): Promise<UrbanLegalEvidence[]> {
+  if (!municipalityId) return [];
+  const result = await call<unknown>("list_urban_legal_evidence_v2", {
+    _municipality_id: municipalityId,
+  });
+  if (!Array.isArray(result)) throw new Error("Resposta do acervo legal municipal inválida.");
+  if (result.some((entry) => !entry || typeof entry !== "object" ||
+    entry.municipality_id !== municipalityId ||
+    typeof entry.id !== "string" || !entry.id ||
+    typeof entry.metric !== "string" || !entry.metric)) {
+    throw new Error("Acervo legal inconsistente para esta prefeitura.");
+  }
+  return result as UrbanLegalEvidence[];
+}
+
+export async function confirmUrbanLegalEvidence(input: {
+  municipalityId: string;
+  documentTitle: string;
+  documentSha256: string;
+  pageNumber: number;
+  metric: UrbanMetric;
+  excerpt: string;
+  scope: UrbanLegalScopeDraft;
+  verificationMethod?: "text_layer_verified" | "visual_double_transcription" | "browser_ocr_human_verified";
+}): Promise<void> {
+  validateLegalEvidenceDraft({
+    title: input.documentTitle, hash: input.documentSha256,
+    page: input.pageNumber, metric: input.metric, excerpt: input.excerpt,
+  });
+  if (!input.municipalityId) throw new Error("Prefeitura não identificada.");
+  const scopeError = validateUrbanLegalScope(input.scope);
+  if (scopeError) throw new Error(scopeError);
+  await call("save_urban_legal_evidence_scoped_v3", {
+    _municipality_id: input.municipalityId,
+    _document_title: input.documentTitle,
+    _document_sha256: input.documentSha256,
+    _page_number: input.pageNumber,
+    _metric: input.metric,
+    _excerpt: input.excerpt,
+    _zone_code: input.scope.zoneCode,
+    _use_code: input.scope.useCode,
+    _effective_from: input.scope.effectiveFrom,
+    _effective_until: input.scope.effectiveUntil || null,
+    _verification_method: input.verificationMethod || "text_layer_verified",
+  });
+}

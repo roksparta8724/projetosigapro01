@@ -3,6 +3,7 @@ import { Bot, Loader2, Send, Sparkles } from "lucide-react";
 import { PortalFrame } from "@/components/platform/PortalFrame";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { backendClient } from "@/integrations/backend/databaseClient";
 
 type ChatMessage = {
   role: "user" | "assistant";
@@ -21,7 +22,7 @@ export function AiAssistantPage() {
     },
   ]);
 
-  const canSend = useMemo(() => draft.trim().length > 0 && !isSending, [draft, isSending]);
+  const canSend = useMemo(() => draft.trim().length > 0 && draft.length <= 1600 && !isSending, [draft, isSending]);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -34,13 +35,22 @@ export function AiAssistantPage() {
     setMessages((current) => [...current, { role: "user", content: userMessage }]);
 
     try {
-      const response = await fetch("/api/ai-assistant", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages: [...messages, { role: "user", content: userMessage }],
-        }),
-      });
+      const sessionResult = await backendClient?.auth?.getSession?.();
+      const session = sessionResult?.data?.session;
+      const token = String(session?.access_token || session?.accessToken || session?.token || "");
+      if (!token) throw new Error("Sessão não confirmada. Entre novamente no SIGAPRO para usar o assistente.");
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 25000);
+      let response: Response;
+      try {
+        response = await fetch("/api/ai-assistant", {
+          method: "POST", cache:"no-store", credentials:"same-origin", signal:controller.signal,
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({
+            messages: [...messages.filter((item)=>item.role==="user" || item.role==="assistant").slice(-6), { role: "user", content: userMessage }],
+          }),
+        });
+      } finally { clearTimeout(timeout); }
 
       const payload = (await response.json()) as { error?: string; message?: string };
       if (!response.ok || !payload.message) {
@@ -66,7 +76,7 @@ export function AiAssistantPage() {
             <div>
               <h2 className="text-base font-semibold text-slate-950">Assistente operacional</h2>
               <p className="mt-1 text-sm leading-6 text-slate-600">
-                Use este canal para rascunhar comunicados, revisar exigencias e tirar duvidas sobre os fluxos internos.
+                Use este canal para rascunhar comunicados e esclarecer fluxos. Não envie CPF, documentos, senhas, dados bancários ou conteúdo sigiloso. Respostas são sugestões e exigem conferência humana.
               </p>
             </div>
           </div>
@@ -106,7 +116,8 @@ export function AiAssistantPage() {
             <Input
               value={draft}
               onChange={(event) => setDraft(event.target.value)}
-              placeholder="Ex.: Gere um resumo do processo SIG-2026-0148 para retorno ao requerente."
+              maxLength={1600}
+              placeholder="Ex.: Como organizar uma resposta a um Comunique-se? Não inclua dados pessoais."
               className="h-11"
             />
             <Button type="submit" disabled={!canSend} className="h-11 rounded-xl px-4">

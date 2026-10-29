@@ -19,7 +19,7 @@ vi.mock("../../server/guide-persistence", () => ({
   persistGuideCharge: mocks.write,
   storedGuideCharge: mocks.stored,
 }));
-import { createMercadoPagoGuideBoleto } from "../../server/mercadopago";
+import { createMercadoPagoGuideBoleto, getMercadoPagoGuideBoletoStatus } from "../../server/mercadopago";
 
 const municipalityId = "11111111-1111-4111-8111-111111111111";
 const original = {
@@ -31,6 +31,8 @@ const original = {
   due_date: "2026-10-24",
   created_at: "2026-10-22T14:21:24.884Z",
   status: "pendente",
+  payment_provider: "mercado_pago",
+  provider_environment: "test",
   collection_mode_snapshot: "sigapro",
 };
 const barcode = "23791684000003000003388060601573644066333333";
@@ -112,9 +114,54 @@ describe("one complete sandbox-only SIGAPRO bank issuance", () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
+  it("accepts an explicitly opted-in Vercel QA branch and issues ONLY with TEST token",async()=>{
+    vi.stubEnv("SIGAPRO_LOCAL_QA_LAUNCH","false");
+    vi.stubEnv("SIGAPRO_LOCAL_QA_BLOCK_EXTERNAL_WRITES","false");
+    vi.stubEnv("VERCEL_ENV","preview");
+    vi.stubEnv("VERCEL_GIT_COMMIT_REF","qa/sigapro-ia-logo-integrado-20261023");
+    vi.stubEnv("SIGAPRO_QA_MP_SETUP_OPT_IN","QA_ONLY_TEST_CREDENTIALS");
+    vi.stubEnv("SIGAPRO_QA_MP_CHARGE_OPT_IN","QA_ONLY_TEST_ORDERS");
+    vi.stubEnv("MUNICIPAL_PAYMENT_MASTER_KEY","A".repeat(32));
+    vi.stubEnv("SIGAPRO_BANK_CHARGE_SIGNING_SECRET","a".repeat(64));
+    const result=await createMercadoPagoGuideBoleto(input,req,opts);
+    expect(result.ok).toBe(true);
+    expect(result.environment).toBe("test");
+    expect(mocks.authorize).toHaveBeenCalledWith(req,original,true);
+    expect(mocks.write).toHaveBeenCalledWith(req,original,expect.anything(),true);
+  });
+  it.each([
+    ["production deploy","production","qa/sigapro-ia-logo-integrado-20261023","QA_ONLY_TEST_ORDERS"],
+    ["wrong branch","preview","main","QA_ONLY_TEST_ORDERS"],
+    ["missing explicit charge opt-in","preview","qa/sigapro-ia-logo-integrado-20261023",""],
+  ])("blocks remote boleto from %s before provider call",async(_name,env,ref,opt)=>{
+    vi.stubEnv("SIGAPRO_LOCAL_QA_LAUNCH","false");
+    vi.stubEnv("SIGAPRO_LOCAL_QA_BLOCK_EXTERNAL_WRITES","false");
+    vi.stubEnv("VERCEL_ENV",env);
+    vi.stubEnv("VERCEL_GIT_COMMIT_REF",ref);
+    vi.stubEnv("SIGAPRO_QA_MP_SETUP_OPT_IN","QA_ONLY_TEST_CREDENTIALS");
+    vi.stubEnv("SIGAPRO_QA_MP_CHARGE_OPT_IN",opt);
+    vi.stubEnv("MUNICIPAL_PAYMENT_MASTER_KEY","A".repeat(32));
+    vi.stubEnv("SIGAPRO_BANK_CHARGE_SIGNING_SECRET","a".repeat(64));
+    await expect(createMercadoPagoGuideBoleto(input,req,opts)).rejects.toThrow("preview");
+    expect(mocks.resolve).not.toHaveBeenCalled();
+    expect(fetch).not.toHaveBeenCalled();
+  });
+  it("blocks production payment credentials even on isolated QA preview",async()=>{
+    vi.stubEnv("SIGAPRO_LOCAL_QA_LAUNCH","false");
+    vi.stubEnv("SIGAPRO_LOCAL_QA_BLOCK_EXTERNAL_WRITES","false");
+    vi.stubEnv("VERCEL_ENV","preview");
+    vi.stubEnv("VERCEL_GIT_COMMIT_REF","qa/sigapro-ia-logo-integrado-20261023");
+    vi.stubEnv("SIGAPRO_QA_MP_SETUP_OPT_IN","QA_ONLY_TEST_CREDENTIALS");
+    vi.stubEnv("SIGAPRO_QA_MP_CHARGE_OPT_IN","QA_ONLY_TEST_ORDERS");
+    vi.stubEnv("MUNICIPAL_PAYMENT_MASTER_KEY","A".repeat(32));
+    vi.stubEnv("SIGAPRO_BANK_CHARGE_SIGNING_SECRET","a".repeat(64));
+    mocks.resolve.mockResolvedValue({environment:"production",token:"APP_USR_PROD"});
+    await expect(createMercadoPagoGuideBoleto(input,req,opts)).rejects.toThrow("Conta de produção bloqueada");
+    expect(fetch).not.toHaveBeenCalled();
+  });
   it("rejects any nonisolated launch before touching bank accounts", async () => {
     vi.stubEnv("SIGAPRO_LOCAL_QA_LAUNCH", "false");
-    await expect(createMercadoPagoGuideBoleto(input, req, opts)).rejects.toThrow(/localhost:8081 isolado/);
+    await expect(createMercadoPagoGuideBoleto(input, req, opts)).rejects.toThrow(/localhost QA ou preview/);
     expect(mocks.resolve).not.toHaveBeenCalled();
     expect(fetch).not.toHaveBeenCalled();
   });
@@ -123,6 +170,43 @@ describe("one complete sandbox-only SIGAPRO bank issuance", () => {
     mocks.read.mockRejectedValue(new Error("Guia não encontrada ou acesso não autorizado"));
     await expect(createMercadoPagoGuideBoleto(input, req, opts)).rejects.toThrow("Guia não encontrada");
     expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { paid: true, status: "pendente" },
+    { paid: false, status: "pago" },
+    { paid: false, status: "confirmed" },
+    { paid: false, status: "compensada" },
+  ])("never issues a bank order for an already-paid guide (%s)", async (state) => {
+    mocks.read.mockResolvedValue({ ...original, ...state });
+    mocks.stored.mockReturnValue({ ok: false, environment: "test" });
+    const result = await createMercadoPagoGuideBoleto(input, req, opts);
+    expect(result.ok).toBe(false);
+    expect(fetch).not.toHaveBeenCalled();
+    expect(mocks.authorize).not.toHaveBeenCalled();
+    expect(mocks.write).not.toHaveBeenCalled();
+  });
+
+  it("never synchronizes a paid guide through the bank provider, including a stale pending status", async () => {
+    mocks.read.mockResolvedValue({ ...original, paid: true, status: "pendente", bank_reference: "OLD-ORDER" });
+    mocks.stored.mockReturnValue({ ok: false, environment: "test" });
+    await getMercadoPagoGuideBoletoStatus({
+      municipalityId, guideCode: original.guide_number, orderId: "OLD-ORDER", amount: original.amount,
+    }, req, opts);
+    expect(fetch).not.toHaveBeenCalled();
+    expect(mocks.sync).not.toHaveBeenCalled();
+    expect(mocks.write).not.toHaveBeenCalled();
+  });
+
+  it("never calls a bank provider for a guide owned by municipal collection", async () => {
+    mocks.read.mockResolvedValue({ ...original, collection_mode_snapshot: "municipal_system", bank_reference: "LEGACY-ORDER" });
+    await expect(createMercadoPagoGuideBoleto(input, req, opts)).rejects.toThrow(/arrecadação própria/);
+    await expect(getMercadoPagoGuideBoletoStatus({
+      municipalityId, guideCode: original.guide_number, orderId: "LEGACY-ORDER", amount: original.amount,
+    }, req, opts)).rejects.toThrow(/arrecadação própria/);
+    expect(fetch).not.toHaveBeenCalled();
+    expect(mocks.sync).not.toHaveBeenCalled();
+    expect(mocks.write).not.toHaveBeenCalled();
   });
 
   it("does not create a second charge when an order reference already exists", async () => {
@@ -134,5 +218,63 @@ describe("one complete sandbox-only SIGAPRO bank issuance", () => {
     expect(fetch).toHaveBeenCalledTimes(1);
     expect(vi.mocked(fetch).mock.calls[0][1]?.method).toBe("GET");
     expect(mocks.authorize).not.toHaveBeenCalled();
+  });
+});
+
+describe("Mercado Pago provider identity guards before Neon persistence", () => {
+  it("rejects a GET returning another order ID, even with matching value and guide", async () => {
+    mocks.read.mockResolvedValue({ ...original, bank_reference: "MP-ORDER-SANDBOX" });
+    mocks.sync.mockResolvedValue(undefined);
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      id: "UNRELATED-ORDER",
+      external_reference: original.guide_number,
+      total_amount: "35.24",
+      transactions: { payments: [{ id: "P1", payment_method: {
+        barcode_content: barcode, digitable_line: digitable,
+      } }] },
+    }), { status: 200 })));
+    const result = await getMercadoPagoGuideBoletoStatus({
+      municipalityId, guideCode: original.guide_number,
+      orderId: "MP-ORDER-SANDBOX", amount: original.amount,
+    }, req, opts);
+    expect(result.ok).toBe(false);
+    expect(result.error).toMatch(/ordem diferente/);
+    expect(mocks.write).not.toHaveBeenCalled();
+  });
+
+  it("rejects two payment transactions for one bank guide, without updating Neon", async () => {
+    mocks.read.mockResolvedValue({ ...original, bank_reference: "MP-ORDER-SANDBOX" });
+    mocks.sync.mockResolvedValue(undefined);
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      id: "MP-ORDER-SANDBOX",
+      external_reference: original.guide_number,
+      total_amount: "35.24",
+      status: "processed", status_detail: "accredited",
+      transactions: { payments: [
+        { id: "P1", amount: "35.24", payment_method: { barcode_content: barcode, digitable_line: digitable } },
+        { id: "P2", amount: "35.24", payment_method: { barcode_content: barcode, digitable_line: digitable } },
+      ] },
+    }), { status: 200 })));
+    const result = await getMercadoPagoGuideBoletoStatus({
+      municipalityId, guideCode: original.guide_number,
+      orderId: "MP-ORDER-SANDBOX", amount: original.amount,
+    }, req, opts);
+    expect(result.ok).toBe(false);
+    expect(mocks.write).not.toHaveBeenCalled();
+  });
+
+  it("rejects a provider payment amount different from the canonical guide", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      id: "MP-ORDER-SANDBOX",
+      external_reference: original.guide_number,
+      total_amount: "35.24",
+      transactions: { payments: [{
+        id: "P1", amount: "1.00",
+        payment_method: { barcode_content: barcode, digitable_line: digitable },
+      }] },
+    }), { status: 201 })));
+    const result = await createMercadoPagoGuideBoleto(input, req, opts);
+    expect(result.ok).toBe(false);
+    expect(mocks.write).not.toHaveBeenCalled();
   });
 });

@@ -60,6 +60,18 @@
       "destination": "/api/mercadopago?action=health"
     },
     {
+      "source": "/api/qa/mercadopago/guide-pix",
+      "destination": "/api/qa-mercadopago-pix"
+    },
+    {
+      "source": "/api/qa/mercadopago/guide-reconcile",
+      "destination": "/api/mercadopago-webhook?mode=post-archive-reconcile"
+    },
+    {
+      "source": "/api/qa/mercadopago/guide-boleto",
+      "destination": "/api/mercadopago?action=guide-boleto"
+    },
+    {
       "source": "/api/mercadopago/guide-boleto",
       "destination": "/api/mercadopago?action=guide-boleto"
     },

@@ -1,8 +1,9 @@
 import { createHash } from "node:crypto";
 import type { ApiReq } from "./municipal-storage.js";
 import { resolveMercadoPagoMunicipalAccessToken } from "./municipal-payment.js";
-import { assertGuideProviderSyncAccess, assertGuideProviderWriteAccess, persistGuideCharge, readStoredGuide, storedGuideCharge } from "./guide-persistence.js";
+import { assertBankChargeAttestationReady, assertGuideProviderSyncAccess, assertGuideProviderWriteAccess, persistGuideCharge, readStoredGuide, storedGuideCharge } from "./guide-persistence.js";
 import { normalizeOfficialBanking } from "../src/lib/bankCodes.js";
+import { isPersistedGuideSettled } from "./guide-settlement.js";
 type MercadoPagoEnvironment = "test" | "production";
 
 export type MercadoPagoConnectionCheck = {
@@ -262,15 +263,42 @@ function extractMercadoPagoGuideResult(
       )
     : "";
   const banking = normalizeOfficialBanking(String(paymentMethod.barcode_content || ""), String(paymentMethod.digitable_line || ""));
+  // Never substitute the guide's expected reference or amount for missing bank
+  // values. A provider response is trustworthy only for fields it actually
+  // returned; our HMAC must never authenticate application-generated fallbacks.
+  const providerReference = String(source.external_reference ?? "").trim();
+  const providerAmount = String(source.total_amount ?? payment.amount ?? "").trim();
+  // A single municipal guide represents one provider payment. Never accept a
+  // split or duplicated transaction as proof of one fully attributable charge.
+  const paymentAmount = payment.amount == null ? "" : String(payment.amount).trim();
+  const validMoney = (value: string) =>
+    /^[0-9]+(?:\.[0-9]{1,2})?$/.test(value) &&
+    Math.round(Number(value) * 100) === Math.round(Number(amountText) * 100);
+  // Pending provider orders may be accepted before the asynchronous payment
+  // object exists. Persist that order ID to prevent a second charge, but
+  // never accept a settled order without exactly one identifiable payment.
+  const orderAccredited =
+    status.toLowerCase() === "processed" &&
+    statusDetail.toLowerCase() === "accredited";
+  const paymentShapeValid = payments.length === 0
+    ? !orderAccredited
+    : payments.length === 1 && Boolean(payment.id);
+  const providerMetadataValid =
+    Boolean(source.id && providerReference) &&
+    paymentShapeValid &&
+    providerReference === externalReference &&
+    validMoney(providerAmount) &&
+    (!paymentAmount || validMoney(paymentAmount));
   return {
-    ok: true,
+    ok: providerMetadataValid,
     environment,
     orderId: String(source.id || ""),
     paymentId: String(payment.id || ""),
-    externalReference: String(source.external_reference || externalReference),
+    externalReference: providerReference,
     status,
     statusDetail,
-    amount: String(source.total_amount || payment.amount || amountText),
+    amount: providerAmount,
+    error: providerMetadataValid ? undefined : "O provedor não confirmou referência e valor compatíveis com a guia.",
     ticketUrl: String(paymentMethod.ticket_url || ""),
     barcodeContent: banking.barcode,
     digitableLine: banking.digitableLine,
@@ -363,7 +391,14 @@ export async function getMercadoPagoGuideBoletoStatus(
 ): Promise<MercadoPagoGuideBoletoResult> {
   const stored = req ? await readStoredGuide(req, input.municipalityId, input.guideCode) : null;
   if (stored) {
-    if (stored.status === "compensada") return storedGuideCharge(stored);
+    if (stored.collection_mode_snapshot === "municipal_system") {
+      throw new Error("Guia vinculada à arrecadação própria da Prefeitura; não consultar cobrança paralela.");
+    }
+    if (stored.payment_provider && stored.payment_provider !== "mercado_pago")
+      throw new Error("Guia vinculada a outro banco: consulta Mercado Pago bloqueada.");
+    if (stored.bank_reference && !stored.payment_provider)
+      throw new Error("Guia antiga sem identidade bancária confirmada: consulta automática bloqueada.");
+    if (isPersistedGuideSettled(stored)) return storedGuideCharge(stored);
     if (!stored.bank_reference || stored.bank_reference !== input.orderId) {
       throw new Error("Cobrança não vinculada à guia original.");
     }
@@ -392,6 +427,12 @@ export async function getMercadoPagoGuideBoletoStatus(
   if (!result) {
     return { ok: false, environment, error: "Não foi possível consultar a situação da cobrança no Mercado Pago." };
   }
+  // The GET URL is not proof that the provider returned that same order.
+  // Refuse mismatched IDs and unverified payment shapes before any Neon write.
+  if (result.orderId !== input.orderId) {
+    return { ...result, ok: false, error: "O Mercado Pago devolveu uma ordem diferente da cobrança vinculada à guia." };
+  }
+  if (!result.ok) return result;
   return stored && req ? persistGuideCharge(req, stored, result, options?.isolatedSandboxOnly) : result;
 }
 /**
@@ -405,12 +446,23 @@ export async function createMercadoPagoGuideBoleto(
   options?: { isolatedSandboxOnly?: boolean },
 ): Promise<MercadoPagoGuideBoletoResult> {
   if (options?.isolatedSandboxOnly) {
-    if (
-      !req ||
-      process.env.SIGAPRO_LOCAL_QA_LAUNCH !== "true" ||
-      process.env.SIGAPRO_LOCAL_QA_BLOCK_EXTERNAL_WRITES !== "true" ||
-      process.env.VITE_SIGAPRO_NEON_ISOLATED !== "true"
-    ) throw new Error("Boleto de teste disponível apenas no localhost:8081 isolado.");
+    // Both environments are strictly isolated. The remote preview is
+    // whitelisted by exact Vercel env + QA branch + both explicit opt-ins.
+    // A test order can NEVER be issued from production or another preview.
+    const isolatedLocal =
+      process.env.SIGAPRO_LOCAL_QA_LAUNCH === "true" &&
+      process.env.SIGAPRO_LOCAL_QA_BLOCK_EXTERNAL_WRITES === "true" &&
+      process.env.VITE_SIGAPRO_NEON_ISOLATED === "true";
+    const isolatedPreview =
+      process.env.VERCEL_ENV === "preview" &&
+      process.env.VERCEL_GIT_COMMIT_REF === "qa/sigapro-ia-logo-integrado-20261023" &&
+      process.env.VITE_SIGAPRO_NEON_ISOLATED === "true" &&
+      process.env.SIGAPRO_QA_MP_SETUP_OPT_IN === "QA_ONLY_TEST_CREDENTIALS" &&
+      process.env.SIGAPRO_QA_MP_CHARGE_OPT_IN === "QA_ONLY_TEST_ORDERS" &&
+      String(process.env.MUNICIPAL_PAYMENT_MASTER_KEY || "").length >= 32 &&
+      /^[a-f0-9]{64}$/.test(String(process.env.SIGAPRO_BANK_CHARGE_SIGNING_SECRET || ""));
+    if (!req || (!isolatedLocal && !isolatedPreview))
+      throw new Error("Boleto de teste disponível apenas no localhost QA ou preview da branch isolada e autorizada.");
     const sandboxConnection = await resolveMercadoPagoMunicipalAccessToken(req, input.municipalityId);
     if (sandboxConnection.environment !== "test") {
       throw new Error("Conta de produção bloqueada: utilize exclusivamente as credenciais de homologação do Mercado Pago.");
@@ -418,7 +470,14 @@ export async function createMercadoPagoGuideBoleto(
   }
   const stored = req ? await readStoredGuide(req, input.municipalityId, input.guideCode) : null;
   if (stored) {
-    if (stored.status === "compensada" || (stored.barcode && stored.digitable_line)) {
+    if (stored.collection_mode_snapshot === "municipal_system") {
+      throw new Error("Guia vinculada à arrecadação própria da Prefeitura; não emitir cobrança paralela.");
+    }
+    if (stored.payment_provider && stored.payment_provider !== "mercado_pago")
+      throw new Error("Guia vinculada a outro banco: emissão Mercado Pago bloqueada.");
+    if (stored.bank_reference && !stored.payment_provider)
+      throw new Error("Guia antiga com referência bancária sem provedor confirmado: emissão bloqueada.");
+    if (isPersistedGuideSettled(stored) || (stored.barcode && stored.digitable_line)) {
       return storedGuideCharge(stored);
     }
     if (stored.bank_reference) {
@@ -429,6 +488,7 @@ export async function createMercadoPagoGuideBoleto(
     }
     input = { ...input, guideCode: stored.guide_number, amount: Number(stored.amount), dueDate: stored.due_date };
     await assertGuideProviderWriteAccess(req!, stored, options?.isolatedSandboxOnly);
+    if (!options?.isolatedSandboxOnly) assertBankChargeAttestationReady();
   }
   const resolved = req
     ? await resolveMercadoPagoMunicipalAccessToken(req, input.municipalityId)
@@ -570,8 +630,11 @@ export async function createMercadoPagoGuideBoleto(
       amountText,
     );
 
-    // Persist even an incomplete response: a retry must query this order,
-    // never issue another charge because the bank has not supplied the bars yet.
+    // Persist an authenticated order even if barcodes are still missing,
+    // but never bind an unverified order, amount, or multi-payment response.
+    if (!result.ok) {
+      return { ...result, errorCode: "PROVIDER_ACCEPTED_PERSISTENCE_OR_SYNC_FAILED" };
+    }
     let persistedResult = stored && req ? await persistGuideCharge(req, stored, result, options?.isolatedSandboxOnly) : result;
 
     if (!hasCompleteGuideBankingData(result) && result.orderId) {
@@ -582,7 +645,7 @@ export async function createMercadoPagoGuideBoleto(
         externalReference,
         amountText,
       );
-      if (refreshed) {
+      if (refreshed?.ok && refreshed.orderId === result.orderId) {
         result = refreshed;
         persistedResult = stored && req ? await persistGuideCharge(req, stored, result, options?.isolatedSandboxOnly) : result;
       }

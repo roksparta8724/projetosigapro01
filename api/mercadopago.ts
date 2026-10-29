@@ -14,6 +14,8 @@ import {
   testMercadoPagoToken,
 } from "../server/municipal-payment.js";
 import { callDataApiRpc } from "../server/municipal-storage.js";
+import { readStoredGuide } from "../server/guide-persistence.js";
+import { resolveMercadoPagoMunicipalAccessToken } from "../server/municipal-payment.js";
 
 type Req = import("http").IncomingMessage & {
   method?: string;
@@ -69,6 +71,53 @@ export default async function handler(req: Req, res: Res) {
   const requestUrl = new URL(req.url || "/api/mercadopago", "https://sigapro.local");
   const action = requestUrl.searchParams.get("action") || "health";
 
+  // The isolated preview inherits payment metadata that could reference a real
+  // provider. Never contact Mercado Pago or generate a charge from QA without
+  // a dedicated sandbox integration and explicit test-only credentials.
+  const isolatedQa = process.env.VERCEL_ENV === "preview" &&
+    (process.env.VITE_SIGAPRO_NEON_ISOLATED === "true" ||
+     process.env.VERCEL_GIT_COMMIT_REF === "qa/sigapro-ia-logo-integrado-20261023");
+  // Preview payments remain fail-closed by default. Only the EXACT isolated
+  // QA git branch can opt into credential setup. This does not enable charges.
+  // Test orders require an independent, explicit server-side opt-in.
+  const qaExactBranch = process.env.VERCEL_ENV === "preview" &&
+    process.env.VITE_SIGAPRO_NEON_ISOLATED === "true" &&
+    process.env.VERCEL_GIT_COMMIT_REF === "qa/sigapro-ia-logo-integrado-20261023";
+  const qaSetupEnabled = qaExactBranch &&
+    process.env.SIGAPRO_QA_MP_SETUP_OPT_IN === "QA_ONLY_TEST_CREDENTIALS" &&
+    String(process.env.MUNICIPAL_PAYMENT_MASTER_KEY || "").length >= 32 &&
+    /^[a-f0-9]{64}$/.test(String(process.env.SIGAPRO_BANK_CHARGE_SIGNING_SECRET || ""));
+  const qaChargesEnabled = qaSetupEnabled &&
+    process.env.SIGAPRO_QA_MP_CHARGE_OPT_IN === "QA_ONLY_TEST_ORDERS";
+
+  if (isolatedQa && !qaSetupEnabled) {
+    json(res, 503, {
+      ok: false,
+      code: "QA_PAYMENT_PROVIDER_DISABLED",
+      error: "A homologação bancária exige chave QA exclusiva e opção explícita de credenciais de Teste.",
+    });
+    return;
+  }
+
+  if (isolatedQa && action === "health") {
+    json(res, 200, {
+      ok: true, configured: false, environment: "test",
+      code: "QA_TEST_CREDENTIAL_SETUP_AVAILABLE",
+      testAccountVerified: false, orderCreationEnabled: qaChargesEnabled,
+    });
+    return;
+  }
+
+  // Even after credential setup is enabled, no order or status request may
+  // reach Mercado Pago without a second QA-only opt-in.
+  if (isolatedQa && ["guide-boleto", "guide-status"].includes(action) && !qaChargesEnabled) {
+    json(res, 503, {
+      ok: false, code: "QA_PAYMENT_CHARGES_DISABLED",
+      error: "Emissão e consulta bancária aguardam credencial de Teste validada e autorização isolada.",
+    });
+    return;
+  }
+
   if (action === "health") {
     if (req.method !== "GET") {
       json(res, 405, { ok: false, error: "Método não permitido." });
@@ -90,6 +139,20 @@ export default async function handler(req: Req, res: Res) {
     try {
       const body = await readJsonBody(req);
       const guideCode = String(body.guideCode || "");
+      if (isolatedQa) {
+        if (!/^Bearer\s+\S+$/i.test(String(req.headers?.authorization || ""))) {
+          json(res, 401, { ok: false, code: "QA_AUTH_REQUIRED" }); return;
+        }
+        const id = municipalityIdFrom(body);
+        const guide = await readStoredGuide(req, id, guideCode);
+        if (!guide) {
+          json(res, 403, { ok: false, code: "QA_CANONICAL_GUIDE_REQUIRED" }); return;
+        }
+        const resolved = await resolveMercadoPagoMunicipalAccessToken(req, id);
+        if (resolved.environment !== "test") {
+          json(res, 403, { ok: false, code: "QA_TEST_CREDENTIALS_ONLY" }); return;
+        }
+      }
       const result = await getMercadoPagoGuideBoletoStatus(
         {
           municipalityId: body.municipalityId ? String(body.municipalityId) : undefined,
@@ -98,24 +161,14 @@ export default async function handler(req: Req, res: Res) {
           amount: Number(body.amount || 0),
         },
         req,
+        isolatedQa ? { isolatedSandboxOnly: true } : undefined,
       );
 
-      if (result.ok) {
-        await rpcOrThrow(req, "persist_payment_guide_provider_charge_v1", {
-          _guide_code: guideCode,
-          _order_id: result.orderId || null,
-          _payment_id: result.paymentId || null,
-          _status: result.status || null,
-          _status_detail: result.statusDetail || null,
-          _authenticated_at: result.authenticatedAt || null,
-          _payment_provider: "mercado_pago",
-          _provider_environment: result.environment || null,
-          _barcode: result.barcodeContent || null,
-          _digitable_line: result.digitableLine || null,
-          _ticket_url: result.ticketUrl || null,
-        });
-      }
-
+      // getMercadoPagoGuideBoletoStatus / createMercadoPagoGuideBoleto
+      // already persist via persistGuideCharge (municipality + guide ID,
+      // verified external reference and amount). Never repeat with legacy
+      // persist_payment_guide_provider_charge_v1: it selects by guide number
+      // without municipality and can target another city's identical code.
       json(res, result.ok ? 200 : 400, result);
     } catch (error) {
       json(res, 400, {
@@ -136,6 +189,15 @@ export default async function handler(req: Req, res: Res) {
       const body = await readJsonBody(req);
       const subaction = typeof body.action === "string" ? body.action : "get";
       const municipalityId = municipalityIdFrom(body);
+
+      // In QA, only Mercado Pago TEST is configurable. No bank-direct,
+      // manual or production-account integration may inherit QA credentials.
+      if (isolatedQa && subaction === "save" &&
+        (String(body.provider || "") !== "mercado_pago" ||
+         String(body.environment || "") !== "test")) {
+        json(res, 403, { ok: false, code: "QA_TEST_CREDENTIALS_ONLY" });
+        return;
+      }
 
       if (subaction === "get") {
         const connection = await rpcOrThrow<MunicipalPaymentConnection>(
@@ -192,7 +254,12 @@ export default async function handler(req: Req, res: Res) {
       }
 
       if (subaction === "test") {
+
         const secretConfig = await getMunicipalPaymentSecretAdmin(req, municipalityId);
+        if (isolatedQa && secretConfig.environment !== "test") {
+          json(res, 403, { ok: false, code: "QA_TEST_CREDENTIALS_ONLY" });
+          return;
+        }
         if (secretConfig.provider !== "mercado_pago") {
           throw new Error("O teste automático atual está disponível para Mercado Pago.");
         }
@@ -210,7 +277,7 @@ export default async function handler(req: Req, res: Res) {
             {
               _municipality_id: municipalityId,
               _ok: true,
-              _message: `Conexão Mercado Pago validada. Boleto: ${result.boletoAvailable ? "sim" : "não"} · PIX: ${result.pixAvailable ? "sim" : "não"}.`,
+              _message: `Credencial validada. Boleto: ${result.boletoAvailable ? "listado" : "não listado"}. PIX: disponibilidade não comprovada por esta consulta; exige order de teste.`,
             },
           );
           json(res, 200, {
@@ -236,6 +303,13 @@ export default async function handler(req: Req, res: Res) {
       }
 
       if (subaction === "activate") {
+        if (isolatedQa) {
+          const connection = await getMunicipalPaymentSecretAdmin(req, municipalityId);
+          if (connection.provider !== "mercado_pago" || connection.environment !== "test") {
+            json(res, 403, { ok: false, code: "QA_TEST_CREDENTIALS_ONLY" });
+            return;
+          }
+        }
         const connection = await rpcOrThrow<MunicipalPaymentConnection>(
           req,
           "activate_municipal_payment_connection_v1",
@@ -263,6 +337,36 @@ export default async function handler(req: Req, res: Res) {
     try {
       const body = await readJsonBody(req);
       const guideCode = String(body.guideCode || "");
+      if (isolatedQa) {
+        if (!/^Bearer\s+\S+$/i.test(String(req.headers?.authorization || ""))) {
+          json(res, 401, { ok: false, code: "QA_AUTH_REQUIRED" }); return;
+        }
+        const id = municipalityIdFrom(body);
+        const guide = await readStoredGuide(req, id, guideCode);
+        if (!guide) {
+          json(res, 403, { ok: false, code: "QA_CANONICAL_GUIDE_REQUIRED" }); return;
+        }
+        const resolved = await resolveMercadoPagoMunicipalAccessToken(req, id);
+        if (resolved.environment !== "test") {
+          json(res, 403, { ok: false, code: "QA_TEST_CREDENTIALS_ONLY" }); return;
+        }
+      }
+      if (isolatedQa) {
+        // A PIX reservation is a financial lock; never issue a parallel boleto.
+        const pix = await callDataApiRpc<Record<string,unknown>|null>(
+          req, "qa_mp_pix_get_v1", {
+            _municipality_id: municipalityIdFrom(body),
+            _guide_code: guideCode,
+          },
+        );
+        if (!pix.ok) {
+          json(res, 503, {ok:false,code:"QA_PIX_RESERVATION_CHECK_FAILED"}); return;
+        }
+        if (pix.payload) {
+          json(res, 409, {ok:false,code:"QA_PIX_ALREADY_RESERVED",
+            error:"Guia possui uma reserva PIX de teste. Outra cobrança não será emitida."}); return;
+        }
+      }
       const result = await createMercadoPagoGuideBoleto(
         {
           municipalityId: body.municipalityId ? String(body.municipalityId) : undefined,
@@ -272,23 +376,13 @@ export default async function handler(req: Req, res: Res) {
           description: body.description ? String(body.description) : undefined,
         },
         req,
+        isolatedQa ? { isolatedSandboxOnly: true } : undefined,
       );
 
-      if (result.ok) {
-        await rpcOrThrow(req, "persist_payment_guide_provider_charge_v1", {
-          _guide_code: guideCode,
-          _order_id: result.orderId || null,
-          _payment_id: result.paymentId || null,
-          _status: result.status || null,
-          _status_detail: result.statusDetail || null,
-          _authenticated_at: result.authenticatedAt || null,
-          _payment_provider: "mercado_pago",
-          _provider_environment: result.environment || null,
-          _barcode: result.barcodeContent || null,
-          _digitable_line: result.digitableLine || null,
-          _ticket_url: result.ticketUrl || null,
-        });
-      }
+      // createMercadoPagoGuideBoleto already persisted this charge through
+      // persistGuideCharge / persist_payment_guide_provider_charge_v2,
+      // scoped to the exact municipality, immutable guide and amount.
+      // Never call the legacy unscoped-by-municipality RPC a second time.
 
       json(res, result.ok ? 201 : 400, result);
     } catch (error) {

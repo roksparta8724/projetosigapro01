@@ -28,6 +28,7 @@ export type QaPixCharge = {
   paymentId?: string;
   qrCode?: string;
   status?: string;
+  statusStale?: boolean;
   error?: string;
 };
 
@@ -201,4 +202,29 @@ export async function ensureMercadoPagoGuideCharge(
 
   writeCachedCharge(input, payload);
   return payload;
+}
+
+export type QaPixReconciliation={ok:boolean;status:string;settled:boolean};
+/** Fresh provider-only reconciliation after original PDF upload, never a new order. */
+export async function reconcileQaPixAfterPdf(input:{municipalityId:string;guideCode:string})
+ :Promise<QaPixReconciliation>{
+ if(import.meta.env.VITE_SIGAPRO_NEON_ISOLATED!=="true")
+  throw new Error("Conciliação de homologação indisponível fora do QA.");
+ const response=await backendClient.auth.getSession();
+ const session=response?.data?.session;
+ const token=session?.access_token||session?.accessToken||session?.token||"";
+ if(!token)throw new Error("Entre novamente para conferir a conciliação PIX.");
+ const res=await fetch("/api/qa/mercadopago/guide-reconcile",{
+  method:"POST",headers:{Authorization:`Bearer ${token}`,Accept:"application/json",
+   "Content-Type":"application/json"},body:JSON.stringify(input),cache:"no-store",
+ });
+ const result=await res.json().catch(()=>null) as (QaPixReconciliation&{code?:string})|null;
+ if(!res.ok||!result?.ok){
+  if(result?.code==="QA_SIGNED_WEBHOOK_REQUIRED")
+   throw new Error("Aguardando webhook assinado do banco; nenhuma baixa efetuada.");
+  if(result?.code==="QA_ORIGINAL_PDF_REQUIRED")
+   throw new Error("Arquive e abra o PDF original antes de conciliar o PIX.");
+  throw new Error("Consulta bancária QA indisponível ou não autorizada ("+String(result?.code||res.status)+").");
+ }
+ return result;
 }

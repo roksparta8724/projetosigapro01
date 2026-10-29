@@ -249,10 +249,15 @@ export async function prepareGuideInstitutionalLogo(
     new Set(values.map((value) => String(value || "").trim()).filter(Boolean)),
   );
 
-  for (const candidate of uniqueCandidates) {
-    const prepared = await prepareStrictGuideImageSource(candidate);
-    if (prepared) return fitInstitutionalLogoToPrintCard(prepared);
-  }
+  // Prepare independent stored municipal logo candidates concurrently.
+  // A missing/blocked source used to delay opening the boleto by 7 seconds
+  // EACH, leaving the already reserved PDF tab apparently frozen.
+  // Keep the caller's institutional priority order and a bounded total wait.
+  const preparedCandidates = await Promise.all(
+    uniqueCandidates.map((candidate) => prepareStrictGuideImageSource(candidate, 4500)),
+  );
+  const firstVerified = preparedCandidates.find(Boolean);
+  if (firstVerified) return fitInstitutionalLogoToPrintCard(firstVerified);
 
   const renderedSnapshot = getRenderedMunicipalityLogoDataUrl();
   if (renderedSnapshot) return fitInstitutionalLogoToPrintCard(renderedSnapshot);

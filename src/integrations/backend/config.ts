@@ -8,6 +8,12 @@ export function isNeonPreviewHostname(hostname: string) {
   );
 }
 
+export function isNeonQaHostname(hostname: string) {
+  const normalized = hostname.toLowerCase();
+  return normalized.startsWith("projetosigapro01-git-qa-sigapro-") &&
+    normalized.endsWith(".vercel.app");
+}
+
 export function isNeonProductionHostname(hostname: string) {
   const normalized = hostname.toLowerCase();
   return (
@@ -38,8 +44,11 @@ export function resolveBackendMode(input?: {
 
   // Canonical architecture: Neon is the default backend everywhere.
   // Supabase exists only as an explicit rollback/development compatibility mode.
-  // Official domains can never be redirected to Supabase by a stale env var.
-  if (isNeonProductionHostname(resolvedHostname)) return "neon";
+  // Official domains and isolated QA can never be redirected to the
+  // legacy backend, even by inherited/stale VITE_BACKEND=supabase.
+  if (isNeonProductionHostname(resolvedHostname) ||
+      isNeonQaHostname(resolvedHostname) ||
+      import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true") return "neon";
 
   if (configured === "supabase") return "supabase";
   if (configured === "neon") return "neon";

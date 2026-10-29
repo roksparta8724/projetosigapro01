@@ -49,9 +49,15 @@ describe("guide opening experience", () => {
     const guide = read("src/components/GuiaRecolhimentoOficial.tsx");
 
     expect(guide).toContain(".dam-root {");
-    expect(guide).toContain("zoom: 0.90;");
-    expect(guide).toContain("width: 111.111%;");
+    expect(guide).toContain("zoom: 0.78;");
+    expect(guide).toContain("width: 128.205%;");
     expect(guide).toContain("transform-origin: top center;");
+    // Printing must include the complete footer and preserve a single A4
+    // rather than clipping it inside the old fixed-height sheet.
+    expect(guide).toContain("height: auto !important;");
+    expect(guide).toContain("min-height: 0 !important;");
+    expect(guide).toContain("max-height: none !important;");
+    expect(guide).toContain("overflow: visible !important;");
     expect(guide).toContain("@media print");
   });
 });

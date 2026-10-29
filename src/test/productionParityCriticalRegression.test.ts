@@ -15,9 +15,11 @@ describe("critical localhost x production parity", () => {
     expect(branding).toContain("isUsableBrandingUrl");
     expect(branding).toContain("X-Amz-Date");
     expect(branding).toContain("X-Amz-Expires");
-    expect(branding).toContain("municipalityLogoFallback");
-    expect(branding).toContain("campo limpo paulista");
-    expect(branding).toContain("Brasao-campo-limpo-paulista2.png");
+    expect(branding).not.toContain("municipalityLogoFallback");
+    expect(branding).not.toContain("Brasao-campo-limpo-paulista2.png");
+    expect(branding).toContain("getMunicipalityLogoOpenUrl");
+    expect(branding).toContain("synchronousHeaderUrl");
+    expect(branding).toContain("synchronousFooterUrl");
   });
 
   it("allows public municipal legislation to fall back to SIGAPRO R2 without BYOS auth", () => {

@@ -3,13 +3,16 @@ import { createMercadoPagoGuideBoleto, getMercadoPagoGuideBoletoStatus } from ".
 import { callDataApiRpc } from "../../server/municipal-storage";
 import type { ApiReq } from "../../server/municipal-storage";
 
-vi.mock("../../server/municipal-storage", () => ({ callDataApiRpc: vi.fn() }));
+vi.mock("../../server/municipal-storage", () => ({
+  callDataApiRpc: vi.fn(),
+  readEnv: (key: string) => String(process.env[key] || ""),
+}));
 vi.mock("../../server/municipal-payment", () => ({ resolveMercadoPagoMunicipalAccessToken: vi.fn(async () => ({ environment: "test", token: "sandbox" })) }));
 const req = { headers: { authorization: "Bearer fake-test" } } as ApiReq;
-const guide = { id: "g1", municipality_id: "m1", process_id: "p1", guide_number: "DAM-001", amount: 300, due_date: "2026-10-20", created_at: "2026-10-13T12:00:00Z", status: "pendente" };
+const guide = { id: "g1", municipality_id: "m1", process_id: "p1", guide_number: "DAM-001", amount: 300, due_date: "2026-10-20", created_at: "2026-10-13T12:00:00Z", status: "pendente", payment_provider:"mercado_pago", provider_environment:"test" };
 const input = { municipalityId: "m1", guideCode: "DAM-001", amount: 999 };
 const rpc = vi.mocked(callDataApiRpc);
-beforeEach(() => { vi.resetAllMocks(); vi.stubGlobal("fetch", vi.fn(() => { throw new Error("Unexpected network"); })); });
+beforeEach(() => { vi.resetAllMocks(); process.env.SIGAPRO_BANK_CHARGE_SIGNING_SECRET = "c".repeat(64); vi.stubGlobal("fetch", vi.fn(() => { throw new Error("Unexpected network"); })); });
 
 describe("Neon guide charge persistence", () => {
   it("checks write authorization before contacting the provider", async () => {
@@ -30,6 +33,11 @@ describe("Neon guide charge persistence", () => {
     await expect(createMercadoPagoGuideBoleto(input, req)).rejects.toThrow("denied");
     expect(fetch).not.toHaveBeenCalled();
   });
+  it("rejects a different bank without contacting Mercado Pago", async () => {
+    rpc.mockResolvedValue({ ok:true,status:200,payload:{...guide,payment_provider:"bank_direct",bank_reference:"BANK-OTHER-ORDER"},error:"" });
+    await expect(createMercadoPagoGuideBoleto(input,req)).rejects.toThrow("outro banco");
+    expect(fetch).not.toHaveBeenCalled();
+  });
   it("refuses querying an order from another guide", async () => {
     rpc.mockResolvedValue({ ok: true, status: 200, payload: { ...guide, bank_reference: "correct" }, error: "" });
     await expect(getMercadoPagoGuideBoletoStatus({ ...input, orderId: "other" }, req)).rejects.toThrow("não vinculada");
@@ -45,6 +53,21 @@ describe("Neon guide charge persistence", () => {
     expect(JSON.parse(String(vi.mocked(fetch).mock.calls[0][1]?.body)).total_amount).toBe("300.00");
     expect(rpc).toHaveBeenCalledWith(req, "persist_payment_guide_provider_charge_v2", expect.objectContaining({ _municipality_id: "m1", _charge: expect.objectContaining({ orderId: "order1" }) }));
   });
+  it.each([
+    ["referência ausente", { id: "order1", total_amount: "300.00" }],
+    ["valor ausente", { id: "order1", external_reference: "DAM-001" }],
+    ["valor diferente", { id: "order1", external_reference: "DAM-001", total_amount: "301.00" }],
+    ["referência diferente", { id: "order1", external_reference: "DAM-OTHER", total_amount: "300.00" }],
+  ])("never signs or writes when provider returns %s", async (_name, bankReply) => {
+    rpc.mockResolvedValueOnce({ ok: true, status: 200, payload: guide, error: "" })
+      .mockResolvedValueOnce({ ok: true, status: 200, payload: true, error: "" });
+    vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify(bankReply), { status: 200 }));
+    const result = await createMercadoPagoGuideBoleto(input, req);
+    expect(result.ok).toBe(false);
+    expect(result.errorCode).toBe("PROVIDER_ACCEPTED_PERSISTENCE_OR_SYNC_FAILED");
+    expect(rpc.mock.calls.some((call) => call[1] === "persist_payment_guide_provider_charge_v2")).toBe(false);
+  });
+
   it("reports persistence failure instead of returning a locally successful charge", async () => {
     rpc.mockResolvedValueOnce({ ok: true, status: 200, payload: guide, error: "" })
       .mockResolvedValueOnce({ ok: true, status: 200, payload: true, error: "" })
@@ -60,7 +83,7 @@ describe("Neon guide charge persistence", () => {
       .mockResolvedValueOnce({ ok: true, status: 200, payload: { ...stored, payment_provider: "mercado_pago", provider_environment: "test", barcode: "23791684000003000003388060601573644066333333", digitable_line: "23793388096060157364540663333335168400000300000" }, error: "" });
     vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({
       id: "order1", external_reference: "DAM-001", total_amount: "300.00",
-      transactions: { payments: [{ payment_method: { barcode_content: "23791684000003000003388060601573644066333333", digitable_line: "23793388096060157364540663333335168400000300000" } }] },
+      transactions: { payments: [{ id: "PAY-ORDER1", payment_method: { barcode_content: "23791684000003000003388060601573644066333333", digitable_line: "23793388096060157364540663333335168400000300000" } }] },
     }), { status: 200 }));
     expect((await createMercadoPagoGuideBoleto(input, req)).ok).toBe(true);
     expect(rpc.mock.calls.some((call) => call[1] === "authorize_payment_guide_charge_v1")).toBe(false);

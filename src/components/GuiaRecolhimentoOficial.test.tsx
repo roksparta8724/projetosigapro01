@@ -101,7 +101,7 @@ describe("GuiaRecolhimentoOficial", () => {
     expect(html).toContain("window.print()");
   });
 
-  it("keeps guide metadata on one line and aligns the receipt header with the body grid", () => {
+  it("keeps long guide metadata INSIDE its own card and aligns the receipt grid", () => {
     const html = buildGuiaRecolhimentoOficialHtml(baseProps, {
       autoPrint: false,
     });
@@ -109,8 +109,11 @@ describe("GuiaRecolhimentoOficial", () => {
     expect(html).toContain("DAM-ISS-2026-00002");
     expect(html).toContain("grid-template-columns: 28mm minmax(0, 1fr) 58mm");
     expect(html).toContain("grid-template-columns: 28mm minmax(0, 1fr)");
-    expect(html).toContain("white-space: nowrap");
-    expect(html).toContain("overflow-wrap: normal");
-    expect(html).not.toContain("word-break: break-word");
+    // Long order IDs and municipal addresses must wrap inside their cells.
+    // One-line metadata was the cause of overlapped A4 receipt and header.
+    expect(html).toContain("word-break: break-word");
+    expect(html).toContain("overflow-wrap: anywhere");
+    expect(html).toContain(".dam-mini-value {");
+    expect(html).toContain(".dam-receipt-row-value {");
   });
 });

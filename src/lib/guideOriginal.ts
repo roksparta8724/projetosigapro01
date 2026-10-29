@@ -4,6 +4,7 @@ import { getSignedUrlForObjectStrict, uploadFile } from "@/integrations/r2/clien
 import { type GuiaRecolhimentoOficialProps } from "@/components/GuiaRecolhimentoOficial";
 import type { ProcessDocument } from "@/lib/platform";
 import { isValidPixPayload } from "@/lib/pix";
+import { normalizeOfficialBanking } from "@/lib/bankCodes";
 
 export async function openLegacyGuideOriginal(documents: ProcessDocument[], code: string, target: Window) {
   const matches = documents.filter((doc) => doc.uploaded && doc.filePath &&
@@ -25,6 +26,7 @@ export type GuideOriginal = {
   process_id: string;
   guide_number: string;
   status: string;
+  paid?: boolean;
   collection_mode_snapshot?: "sigapro" | "municipal_system" | null;
   amount: number;
   created_at: string;
@@ -33,6 +35,7 @@ export type GuideOriginal = {
   digitable_line?: string;
   pix_code?: string;
   provider_environment?: "test" | "production";
+  payment_provider?: string | null;
   bank_reference?: string;
   bank_payment_id?: string;
   bank_status?: string;
@@ -42,6 +45,14 @@ export type GuideOriginal = {
   original_pdf_key?: string;
   original_pdf_sha256?: string;
 };
+
+/** A compensated guide may only reopen its already archived original PDF. */
+export function isGuideSettled(guide: Pick<GuideOriginal, "status" | "paid">): boolean {
+  return guide.paid === true ||
+    ["compensada", "paid", "pago", "confirmed", "confirmado"].includes(
+      String(guide.status || "").trim().toLowerCase(),
+    );
+}
 
 function originalObjectKey(original: GuideOriginal, sha256: string) {
   if (!original.process_id) throw new Error("Guia original sem vínculo persistente com o processo.");
@@ -73,18 +84,72 @@ export async function openStoredGuide(original: GuideOriginal, target: Window) {
   return true;
 }
 
+/**
+ * A frozen QA guide may resume an interrupted PDF upload without contacting the
+ * provider or re-binding its PIX. Require the exact original payment evidence;
+ * never treat an administrative preview or a settled guide as a payable PDF.
+ * Municipality/process access is separately checked by the authorized read RPC.
+ */
+export function canResumeQaFrozenGuide(original: GuideOriginal): boolean {
+  const snapshot = original.document_snapshot;
+  if (!snapshot?.guia || isGuideSettled(original) ||
+      !original.bank_reference || original.provider_environment !== "test" ||
+      original.payment_provider !== "mercado_pago" ||
+      snapshot.guia.nonPayablePreview === true ||
+      snapshot.guia.numeroGuia !== original.guide_number ||
+      Number(snapshot.guia.valorDocumento) !== Number(original.amount) ||
+      Number(snapshot.guia.valorCobrado) !== Number(original.amount)) {
+    return false;
+  }
+  const bank = normalizeOfficialBanking(original.barcode, original.digitable_line);
+  const paperBank = normalizeOfficialBanking(snapshot.guia.codigoBarras, snapshot.guia.linhaDigitavel);
+  const matchingBoleto = Boolean(
+    bank.barcode && bank.digitableLine &&
+    bank.barcode === paperBank.barcode && bank.digitableLine === paperBank.digitableLine
+  );
+  const matchingPix = Boolean(
+    isValidPixPayload(original.pix_code) && snapshot.guia.pixPayload === original.pix_code
+  );
+  return matchingBoleto || matchingPix;
+}
+
+export function hasVerifiableGuidePaymentData(props: GuiaRecolhimentoOficialProps): boolean {
+  if (props.guia.nonPayablePreview) return false;
+  if (isValidPixPayload(props.guia.pixPayload)) return true;
+  const banking = normalizeOfficialBanking(props.guia.codigoBarras, props.guia.linhaDigitavel);
+  return Boolean(banking.barcode && banking.digitableLine);
+}
+
 export async function archiveAndOpenGuide(
   municipalityId: string, props: GuiaRecolhimentoOficialProps, target: Window,
 ) {
   const code = props.guia.numeroGuia;
   let original = await readGuideOriginal(municipalityId, code);
   if (await openStoredGuide(original, target)) return;
-  if (original.status === "compensada") throw new Error("Guia compensada sem PDF original arquivado. Não será recriada.");
-  if (!isValidPixPayload(props.guia.pixPayload)) throw new Error("PIX Copia e Cola inválido; a DAM não será arquivada sem QR Code oficial verificável.");
-  original = await guideRpc("freeze_payment_guide_document_v1", municipalityId, code, { _snapshot: props });
+  if (isGuideSettled(original)) throw new Error("Guia compensada sem PDF original arquivado. Não será recriada.");
+  // Boleto bancário e PIX são meios independentes. Um boleto confirmado pelo
+  // provedor não precisa conter QR PIX para que seu PDF original seja aberto.
+  // Documento não pagável de QA jamais pode ser arquivado como cobrança.
+  // A Prefeitura's PIX configured in a browser is NOT proof of the payee.
+  // Only a valid PIX already persisted for this exact Neon guide may appear
+  // on an immutable original. A confirmed boleto remains valid without PIX.
+  const persistedPix = String(original.pix_code || "").trim();
+  const canonicalProps: GuiaRecolhimentoOficialProps = {
+    ...props,
+    guia: {
+      ...props.guia,
+      pixPayload: isValidPixPayload(persistedPix) ? persistedPix : "",
+    },
+  };
+  if (!hasVerifiableGuidePaymentData(canonicalProps)) {
+    throw new Error("Guia sem boleto bancário válido ou PIX oficial verificável; o PDF não será arquivado.");
+  }
+  original = await guideRpc("freeze_payment_guide_document_v1", municipalityId, code, { _snapshot: canonicalProps });
   if (await openStoredGuide(original, target)) return;
   if (!original.document_snapshot) throw new Error("Snapshot original não persistido.");
-  if (!isValidPixPayload(original.document_snapshot.guia.pixPayload)) throw new Error("O snapshot persistido não contém PIX oficial válido.");
+  if (!hasVerifiableGuidePaymentData(original.document_snapshot)) {
+    throw new Error("Snapshot sem boleto bancário consistente ou PIX oficial válido.");
+  }
   const pdf = await renderGuideOriginalPdf(original.document_snapshot);
   const bytes = await pdf.arrayBuffer();
   const digest = await crypto.subtle.digest("SHA-256", bytes);

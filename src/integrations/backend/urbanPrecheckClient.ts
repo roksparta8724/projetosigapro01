@@ -1,0 +1,163 @@
+import { isValidUrbanReferenceDate, urbanMunicipalToday } from "@/lib/urbanPrecheckAssist";
+import { backendClient } from "@/integrations/backend/databaseClient";
+import { normalizeUrbanCode, validateUrbanRules, URBAN_METRICS, type UrbanMeasurements, type UrbanRegulationVersion, type UrbanRule } from "@/lib/urbanPrecheck";
+
+async function invoke<T>(name: string, args: Record<string, unknown>): Promise<T> {
+  if (!backendClient) throw new Error("Banco municipal indisponível.");
+  const { data, error } = await backendClient.rpc(name, args);
+  if (error) throw new Error("Banco municipal: " + (error.message || String(error)));
+  return data as T;
+}
+
+export async function listUrbanRegulations(municipalityId: string): Promise<UrbanRegulationVersion[]> {
+  if (typeof municipalityId !== "string" || !municipalityId.trim()) {
+    throw new Error("Prefeitura inválida para consulta da legislação.");
+  }
+  const response = await invoke<unknown>("list_urban_regulation_versions_v1", { _municipality_id: municipalityId });
+  if (!Array.isArray(response)) throw new Error("Resposta inválida do cadastro legal municipal.");
+  if (response.some((item) => !item || typeof item !== "object" ||
+    item.municipality_id !== municipalityId ||
+    typeof item.id !== "string" || !item.id ||
+    typeof item.zone_code !== "string" || !item.zone_code ||
+    typeof item.use_code !== "string" || !item.use_code ||
+    !validateUrbanRules(item.rules) ||
+    !["draft", "active", "superseded"].includes(item.status) ||
+    !Number.isInteger(item.version) || item.version < 1 ||
+    !isValidUrbanReferenceDate(item.effective_from, "9999-12-31"))) {
+    throw new Error("Cadastro legal inconsistente para esta prefeitura.");
+  }
+  return response as UrbanRegulationVersion[];
+}
+
+export async function saveUrbanRegulationDraft(
+  municipalityId: string, zone: string, usage: string, effectiveFrom: string, rules: UrbanRule[],
+): Promise<void> {
+  if (typeof municipalityId !== "string" || !municipalityId.trim() ||
+      typeof zone !== "string" || typeof usage !== "string" ||
+      !zone.trim() || !usage.trim() || !isValidUrbanReferenceDate(effectiveFrom, "9999-12-31") || !validateUrbanRules(rules)) {
+    throw new Error("Informe zona, uso, vigência, limites e referência legal para cada parâmetro.");
+  }
+  await invoke("save_urban_regulation_draft_v1", {
+    _municipality_id: municipalityId, _zone_code: normalizeUrbanCode(zone),
+    _use_code: normalizeUrbanCode(usage), _effective_from: effectiveFrom, _rules: rules,
+  });
+}
+
+export async function activateUrbanRegulation(versionId: string): Promise<void> {
+  if (typeof versionId !== "string" || !versionId.trim()) {
+    throw new Error("Versão normativa inválida para ativação.");
+  }
+  await invoke("activate_urban_regulation_v1", { _version_id: versionId });
+}
+
+export type UrbanPrecheckHistoryEntry = {
+  id: string; municipality_id: string; process_id: string; regulation_version_id: string;
+  measurements: UrbanMeasurements; reference_date: string | null; reviewer_profile_id: string; created_at: string;
+  legal_review?: {
+    evidence_ids?: string[];
+    note?: string;
+    document_scope_confirmed?: boolean;
+    reviewed_by_profile_id?: string;
+    reviewed_at?: string;
+  };
+};
+function isValidHistoricalMeasurements(value: unknown): boolean {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const entries = Object.entries(value);
+  const known = new Set<string>(URBAN_METRICS.map(metric => metric.key));
+  return entries.length > 0 && entries.length <= known.size && entries.every(([metric, row]) =>
+    known.has(metric) && row !== null && typeof row === "object" && !Array.isArray(row) &&
+    typeof row.value === "number" && Number.isFinite(row.value) && row.value >= 0 && row.value <= 100000 &&
+    ((metric !== "occupancy_percent" && metric !== "permeability_percent") || row.value <= 100) &&
+    (metric !== "floor_count" || Number.isInteger(row.value)) &&
+    typeof row.evidence === "string" && row.evidence.trim().length >= 3 &&
+    row.evidence.length <= 500
+  );
+}
+
+function isValidHistoricalLegalReview(value: unknown): boolean {
+  if (value === undefined) return true; // Backward compatibility with older history entries.
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const review = value as Record<string, unknown>;
+  if (review.evidence_ids !== undefined &&
+      (!Array.isArray(review.evidence_ids) || review.evidence_ids.length > 50 ||
+       review.evidence_ids.some(id => typeof id !== "string" ||
+         !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) ||
+       new Set(review.evidence_ids).size !== review.evidence_ids.length)) return false;
+  if (review.note !== undefined && (typeof review.note !== "string" || review.note.length > 1200)) return false;
+  if (review.document_scope_confirmed !== undefined && typeof review.document_scope_confirmed !== "boolean") return false;
+  if (review.reviewed_by_profile_id !== undefined &&
+      (typeof review.reviewed_by_profile_id !== "string" || !review.reviewed_by_profile_id.trim())) return false;
+  if (review.reviewed_at !== undefined &&
+      (typeof review.reviewed_at !== "string" || !Number.isFinite(Date.parse(review.reviewed_at)))) return false;
+  return true;
+}
+
+export async function listUrbanPrecheckHistory(processId: string): Promise<UrbanPrecheckHistoryEntry[]> {
+  if (typeof processId !== "string" || !processId.trim()) {
+    throw new Error("Processo inválido para consulta do histórico.");
+  }
+  const response = await invoke<unknown>("list_urban_prechecks_v1", { _process_id: processId });
+  if (!Array.isArray(response)) throw new Error("Histórico de pré-análises indisponível.");
+  // The RPC enforces tenant access. Validate its response as a second boundary:
+  // never display a row belonging to a different process or malformed history.
+  if (response.some((entry) => !entry || typeof entry !== "object" ||
+    entry.process_id !== processId ||
+    typeof entry.id !== "string" || !entry.id ||
+    typeof entry.municipality_id !== "string" || !entry.municipality_id ||
+    typeof entry.regulation_version_id !== "string" || !entry.regulation_version_id ||
+    typeof entry.reviewer_profile_id !== "string" || !entry.reviewer_profile_id ||
+    typeof entry.created_at !== "string" || !Number.isFinite(Date.parse(entry.created_at)) ||
+    (entry.reference_date !== null && !isValidUrbanReferenceDate(entry.reference_date, "9999-12-31")) ||
+    !isValidHistoricalMeasurements(entry.measurements) ||
+    !isValidHistoricalLegalReview(entry.legal_review))) {
+    throw new Error("Histórico de pré-análises inconsistente para este processo.");
+  }
+  return response as UrbanPrecheckHistoryEntry[];
+}
+
+export async function saveUrbanPrecheckRun(
+  processId: string, versionId: string, referenceDate: string, measurements: UrbanMeasurements,
+  legalReview: { evidenceIds: string[]; note: string; documentScopeConfirmed: boolean },
+  requestId: string = crypto.randomUUID(),
+): Promise<void> {
+  if (!isValidUrbanReferenceDate(referenceDate, urbanMunicipalToday())) throw new Error("Data legal inválida.");
+  if (!legalReview || typeof legalReview !== "object" || !Array.isArray(legalReview.evidenceIds) ||
+      legalReview.evidenceIds.length > 50 || typeof legalReview.note !== "string" ||
+      legalReview.note.length > 1200) throw new Error("Revisão legal incompleta ou excessiva.");
+  const validMetrics = new Set<string>(URBAN_METRICS.map(item => item.key));
+  if (!measurements || typeof measurements !== "object" || Array.isArray(measurements)) {
+    throw new Error("Medições inválidas: informe as leituras documentadas.");
+  }
+  const entries = Object.entries(measurements);
+  if (!entries.length || entries.length > URBAN_METRICS.length || entries.some(([metric, entry]) =>
+    !validMetrics.has(metric) || !entry || typeof entry !== "object" ||
+    !Number.isFinite(entry.value) || entry.value < 0 || entry.value > 100000 ||
+    ((metric === "occupancy_percent" || metric === "permeability_percent") && entry.value > 100) ||
+    (metric === "floor_count" && !Number.isInteger(entry.value)) ||
+    typeof entry.evidence !== "string" || entry.evidence.trim().length < 3 ||
+    entry.evidence.length > 500
+  )) throw new Error("Medições inválidas: confira valores e provas documentais.");
+  if (legalReview.evidenceIds.some(id => typeof id !== "string" ||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) ||
+      new Set(legalReview.evidenceIds).size !== legalReview.evidenceIds.length ||
+      typeof legalReview.note !== "string" || typeof legalReview.documentScopeConfirmed !== "boolean") {
+    throw new Error("Revisão legal inválida.");
+  }
+  if (typeof processId !== "string" || typeof versionId !== "string" ||
+      !processId.trim() || !versionId.trim()) throw new Error("Processo ou versão normativa inválida.");
+  if (typeof requestId !== "string" ||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(requestId)) {
+    throw new Error("Identificador da solicitação inválido.");
+  }
+  await invoke("save_urban_precheck_run_v5", {
+    _request_id: requestId,
+    _process_id: processId, _regulation_version_id: versionId,
+    _reference_date: referenceDate, _measurements: measurements,
+    _legal_review: {
+      evidence_ids: legalReview.evidenceIds,
+      note: legalReview.note,
+      document_scope_confirmed: legalReview.documentScopeConfirmed,
+    },
+  });
+}

@@ -2,6 +2,7 @@ import { type CSSProperties, useEffect, useRef, useState } from "react";
 import { Avatar } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { DEFAULT_AVATAR_EDITOR_DIAMETER, resolveCircularAvatarGeometry } from "@/lib/avatarCropGeometry";
+import { safeAvatarUrlInQa } from "@/lib/qaAvatarIsolation";
 
 type UserAvatarSize = "sm" | "md" | "lg" | "xl";
 
@@ -61,6 +62,7 @@ function cacheAvatarDimensions(url: string, width: number, height: number): void
 }
 
 function alternateLegacyAvatarUrl(value: string) {
+  if (import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true") return "";
   const raw = String(value || "").trim();
   if (!raw) return "";
 
@@ -111,7 +113,7 @@ function userInitials(name?: string | null) {
 
 export function UserAvatar({
   name,
-  imageUrl,
+  imageUrl: suppliedImageUrl,
   size = "md",
   className,
   imageClassName,
@@ -120,6 +122,7 @@ export function UserAvatar({
   fallbackClassName,
   title,
 }: UserAvatarProps) {
+  const imageUrl = safeAvatarUrlInQa(suppliedImageUrl);
   const [failedImageUrl, setFailedImageUrl] = useState("");
   const [stableImageUrl, setStableImageUrl] = useState(imageUrl ?? "");
   const [naturalSize, setNaturalSize] = useState(() => readCachedAvatarDimensions(imageUrl));

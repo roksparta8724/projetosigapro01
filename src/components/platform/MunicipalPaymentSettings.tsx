@@ -7,6 +7,7 @@ import {
   RefreshCw,
   ShieldCheck,
   Webhook,
+  Copy,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import { municipalCollectionApiRequest } from "@/lib/municipalCollectionApi";
 import { isCollectionSuccessMessage, municipalCollectionError } from "@/lib/collectionDiagnostics";
+import { municipalMpWebhookUrl } from "@/lib/municipalMpWebhookUrl";
 
 type PaymentConnection = {
   municipality_id?: string;
@@ -81,6 +83,19 @@ export function MunicipalPaymentSettings({
   const isActive = connectionMatchesForm && connection?.status === "active";
   const hasValidTest = connectionMatchesForm && connection?.last_test_status === "ok";
   const provider = form.provider;
+  const webhookUrl=useMemo(
+    ()=>municipalMpWebhookUrl(municipalityId,form.environment),
+    [municipalityId,form.environment],
+  );
+  const copyWebhookUrl=async()=>{
+    if(!webhookUrl)return;
+    try{
+      await navigator.clipboard.writeText(webhookUrl);
+      setMessage("URL de Webhook copiada. Configure-a em Integrações > Webhooks do Mercado Pago, no ambiente correspondente.");
+    }catch{
+      setMessage("Copie manualmente a URL exibida: seu navegador bloqueou a área de transferência.");
+    }
+  };
 
   const statusLabel = useMemo(() => {
     if (!connection) return busy === "load" ? "Carregando configuração" : "Conexão não verificada";
@@ -163,7 +178,7 @@ export function MunicipalPaymentSettings({
       if (generation !== requestGeneration.current) return;
       setConnection(next);
       setMessage(
-        `Conexão validada. Boleto: ${next.boletoAvailable ? "disponível" : "não retornado"} · PIX: ${next.pixAvailable ? "disponível" : "não retornado"}.`,
+        `Conexão técnica validada. Boleto: ${next.boletoAvailable ? "listado" : "não listado"}. PIX: ${next.pixAvailable ? "listado (emissão ainda exige teste)" : "não aferido por esta consulta; validar com order PIX de teste"}.`,
       );
     } catch (error) {
       if (generation !== requestGeneration.current) return;
@@ -419,6 +434,30 @@ export function MunicipalPaymentSettings({
           ) : null}
         </div>
 
+        {form.provider === "mercado_pago" ? (
+          <section data-municipal-webhook-setup="true" className="mt-4 rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sky-950">
+            <div className="flex items-center gap-2">
+              <Webhook className="h-5 w-5" />
+              <h4 className="text-sm font-bold">Notificações — Order (Mercado Pago)</h4>
+            </div>
+            <p className="mt-2 text-xs leading-5">
+              No Mercado Pago, abra Integrações, Configuração de Webhooks, selecione
+              <strong> {form.environment === "test" ? "Teste" : "Produção"}</strong> e o evento
+              <strong> Order (Mercado Pago)</strong>. Cada prefeitura precisa de sua própria URL e assinatura secreta.
+            </p>
+            <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+              <Input aria-label="URL de webhook desta Prefeitura" readOnly value={webhookUrl} className="min-w-0 flex-1 bg-white font-mono text-xs" />
+              <Button type="button" variant="outline" className="shrink-0 border-sky-300 bg-white text-sky-950" disabled={!webhookUrl} onClick={() => void copyWebhookUrl()}>
+                <Copy className="mr-2 h-4 w-4" />Copiar URL
+              </Button>
+            </div>
+            <p className="mt-2 text-xs leading-5">
+              Salve a assinatura secreta da mesma aplicação no SIGAPRO. Configurar a URL não comprova crédito:
+              a homologação exige webhook assinado, consulta de order acreditada e baixa no Neon.
+              Não utilize a URL de teste para receber dinheiro real.
+            </p>
+          </section>
+        ) : null}
         <div role="status" data-municipal-provider-capabilities="true" className="mt-4 rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm leading-6 text-sky-950">
           {form.provider === "mercado_pago"
             ? "Mercado Pago: utilize a conta de testes na homologação. A conexão técnica verifica a credencial, mas não confirma uma cobrança real, conciliação ou titularidade municipal. Tokens antigos do ambiente local não são vinculados automaticamente a uma Prefeitura."

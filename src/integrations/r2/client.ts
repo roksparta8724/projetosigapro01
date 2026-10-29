@@ -1,4 +1,6 @@
 import { backendClient } from "@/integrations/backend/databaseClient";
+import { qaUploadMime, validateQaUploadPreflight } from "@/lib/qaUploadPreflight";
+import { resolveQaNativeUrl, uploadQaNative, readQaNative, deleteQaNative, listQaNativeFiles, shouldIsolateQaStorage } from "@/integrations/r2/qaNeonNative";
 
 export type R2UploadResult = {
   bucket: string;
@@ -7,7 +9,18 @@ export type R2UploadResult = {
 };
 
 const apiBase = (import.meta.env.VITE_R2_API_BASE || "").toString().replace(/\/+$/, "");
-const isolatedQa = import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true";
+const isolatedQa = shouldIsolateQaStorage(
+  typeof window === "undefined" ? "" : window.location.hostname,
+  import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true",
+);
+const qaNativeBase = resolveQaNativeUrl(isolatedQa, import.meta.env.VITE_SIGAPRO_QA_FUNCTION_URL);
+
+function requireQaNativeBase(): string {
+  if (!qaNativeBase) {
+    throw new Error("Armazenamento exclusivo de homologação indisponível. Nenhum arquivo foi transmitido ao R2 oficial.");
+  }
+  return qaNativeBase;
+}
 
 function buildApiUrl(path: string) {
   if (isolatedQa) return path.startsWith("/") ? path : `/${path}`;
@@ -76,6 +89,7 @@ async function getAuthorizationHeaders() {
 }
 
 export function getPublicUrl(objectKey: string, baseOverride?: string) {
+  if (isolatedQa) return ""; // QA documents must remain private.
   const base = (baseOverride || import.meta.env.VITE_R2_PUBLIC_BASE_URL || "").toString();
   if (!base) return "";
   return `${base.replace(/\/+$/, "")}/${objectKey.replace(/^\/+/, "")}`;
@@ -111,7 +125,14 @@ export function getStableMunicipalLegislationReference(
 export function getLegislationOpenUrl(reference: string) {
   const raw = String(reference || "").trim();
   if (!raw) return "";
-  if (!raw.startsWith("r2:")) return raw;
+  if (!raw.startsWith("r2:")) {
+    // Legacy municipal settings may contain production object-store URLs.
+    // Never open those links directly from the isolated QA preview.
+    if (isolatedQa && (/^[a-z][a-z0-9+.-]*:/i.test(raw) || raw.startsWith("//"))) {
+      return "";
+    }
+    return raw;
+  }
 
   const objectKey = raw.slice(3).trim().replace(/^\/+/, "");
   if (!objectKey) return "";
@@ -124,6 +145,20 @@ export function getLegislationOpenUrl(reference: string) {
 export function getLegacyProfileAvatarOpenUrl(sourceUrl: string | null | undefined) {
   const raw = String(sourceUrl || "").trim();
   if (!raw) return "";
+
+  if (isolatedQa) {
+    // A copied QA profile must not fetch avatars from the official R2,
+    // Supabase public buckets, or any other external hostname.
+    // Preserve same-origin previews for files selected during QA.
+    if (raw.startsWith("/") && !raw.startsWith("//") && !raw.includes("\\")) return raw;
+    if (typeof window !== "undefined" && raw.startsWith("blob:")) {
+      try {
+        const origin = new URL(raw.slice(5)).origin;
+        if (origin === window.location.origin) return raw;
+      } catch { /* reject an invalid blob URL */ }
+    }
+    return "";
+  }
 
   try {
     const source = new URL(raw);
@@ -144,10 +179,19 @@ export function getLegacyProfileAvatarOpenUrl(sourceUrl: string | null | undefin
 export function getMunicipalityLogoOpenUrl(objectKey: string | null | undefined) {
   const normalized = String(objectKey || "").trim().replace(/^\/+/, "");
   if (!normalized) return "";
-
-  return buildApiUrl(
-    `/api/municipality-logo-open?objectKey=${encodeURIComponent(normalized)}`,
-  );
+  const path = `/api/municipality-logo-open?objectKey=${encodeURIComponent(normalized)}`;
+  // The official site must read its own R2 proxy. A stale VITE_R2_API_BASE
+  // must never redirect municipal imagery to an old deployment or environment.
+  if (typeof window !== "undefined") {
+    const host = window.location.hostname.toLowerCase();
+    // Localhost now implements the same validated GET route as Vercel. Do
+    // not bypass it through an old VITE_R2_API_BASE pointing at another site.
+    if (host === "localhost" || host === "127.0.0.1" ||
+        host === "sigapromunicipal.com.br" || host.endsWith(".sigapromunicipal.com.br")) {
+      return path;
+    }
+  }
+  return buildApiUrl(path);
 }
 
 export function getObjectKeyFromPublicUrl(publicUrl: string) {
@@ -229,8 +273,12 @@ export async function getSignedUrlForObject(input: {
   bucket: string;
   objectKey: string;
   expiresIn?: number;
+  processId?: string;
 }) {
-  const allowPublicFallback =
+  if (isolatedQa) return readQaNative(requireQaNativeBase(), input.objectKey,
+    await getAuthorizationHeaders() as Record<string,string>,input.processId);
+  // Never expose official R2 URLs as a fallback from the isolated QA browser.
+  const allowPublicFallback = !isolatedQa &&
     String(import.meta.env.VITE_R2_PUBLIC_FALLBACK || "").toLowerCase() === "true";
   const expiresIn = typeof input.expiresIn === "number" && Number.isFinite(input.expiresIn)
     ? input.expiresIn
@@ -260,7 +308,10 @@ export async function getSignedUrlForObjectStrict(input: {
   bucket: string;
   objectKey: string;
   expiresIn?: number;
+  processId?: string;
 }) {
+  if (isolatedQa) return readQaNative(requireQaNativeBase(), input.objectKey,
+    await getAuthorizationHeaders() as Record<string,string>,input.processId);
   const expiresIn = typeof input.expiresIn === "number" && Number.isFinite(input.expiresIn)
     ? input.expiresIn
     : 21600;
@@ -295,6 +346,14 @@ export async function uploadFile(input: {
   objectKey: string;
   file: File;
 }) {
+  // Every QA document is uploaded through the isolated Neon function. Never
+  // enter legacy base64/Vercel/R2 upload on QA, including with a missing flag.
+  if (isolatedQa) {
+    return uploadQaNative({base:requireQaNativeBase(),file:input.file,objectKey:input.objectKey,
+      bucket:normalizeClientBucket(input.bucket),
+      headers:await getAuthorizationHeaders() as Record<string,string>});
+  }
+  if (isolatedQa) validateQaUploadPreflight(input.file);
   const controller = new AbortController();
   const timeout = window.setTimeout(() => {
     controller.abort();
@@ -312,7 +371,7 @@ export async function uploadFile(input: {
       objectKey: input.objectKey,
       fileName: input.file.name,
       fileSize: input.file.size,
-      mimeType: input.file.type || "application/octet-stream",
+      mimeType: isolatedQa ? qaUploadMime(input.file) : (input.file.type || "application/octet-stream"),
     });
 
     const response = await fetch(buildApiUrl("/api/r2-upload"), {
@@ -324,7 +383,7 @@ export async function uploadFile(input: {
       body: JSON.stringify({
         bucket: normalizeClientBucket(input.bucket),
         objectKey: input.objectKey,
-        contentType: input.file.type || "application/octet-stream",
+        contentType: isolatedQa ? qaUploadMime(input.file) : (input.file.type || "application/octet-stream"),
         fileName: input.file.name,
         base64,
       }),
@@ -373,6 +432,10 @@ export type RecoverableProcessFile = {
 };
 
 export async function listRecoverableProcessFiles(input?: { since?: string; processId?: string }) {
+  if (isolatedQa) {
+    return listQaNativeFiles(requireQaNativeBase(),
+      await getAuthorizationHeaders() as Record<string,string>,input);
+  }
   const response = await fetch(buildApiUrl("/api/r2-list-user-files"), {
     method: "POST",
     headers: {
@@ -395,6 +458,8 @@ export async function listRecoverableProcessFiles(input?: { since?: string; proc
 }
 
 export async function deleteFile(input: { bucket: string; objectKey: string }) {
+  if (isolatedQa) return deleteQaNative(requireQaNativeBase(), input.objectKey,
+    await getAuthorizationHeaders() as Record<string,string>);
   const response = await fetch(buildApiUrl("/api/r2-delete"), {
     method: "POST",
     headers: {

@@ -2770,3 +2770,429 @@ html body #root [data-layout-mode="default"] .sig-main-shell
   overflow-wrap:anywhere;
 }
 /* HABITE-SE ALVARA SUMMARY CONTRAST V22 END */
+
+
+/* SIGAPRO / ANALISE — contrast contract V23 (dark institutional / 2026-10-23).
+   Source of theme truth: SIGAPRO's data-layout-mode; Tailwind's .dark may
+   not be present. Restrict the fix to the TWO white-masked audit headers.
+   Leave signature buttons, success/status badges and light mode untouched. */
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-urban-analysis-sheet="true"] :is(
+  [data-analysis-withdrawal-card="true"],
+  [data-analysis-revision-history="true"]
+),
+html[data-theme*="dark"] body #root .sig-app-frame .sig-main-shell
+[data-urban-analysis-sheet="true"] :is(
+  [data-analysis-withdrawal-card="true"],
+  [data-analysis-revision-history="true"]
+) {
+  background:linear-gradient(165deg,#101f33 0%,#0b1829 100%) !important;
+  background-color:#101f33 !important;
+  border-color:#34516d !important;
+  color:#f6faff !important;
+}
+
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-urban-analysis-sheet="true"] :is(
+  [data-analysis-withdrawal-header="true"],
+  [data-analysis-revision-header="true"]
+),
+html[data-theme*="dark"] body #root .sig-app-frame .sig-main-shell
+[data-urban-analysis-sheet="true"] :is(
+  [data-analysis-withdrawal-header="true"],
+  [data-analysis-revision-header="true"]
+) {
+  background:linear-gradient(118deg,#173550 0%,#11314c 54%,#0d263f 100%) !important;
+  background-color:#16324e !important;
+  border-color:#3c607c !important;
+  color:#f8fbff !important;
+  box-shadow:inset 0 1px 0 rgba(186,230,253,.13) !important;
+}
+
+/* Explicit ink polarity in the formerly washed-out header only, including
+   specific utility colors that otherwise render pale text over white. */
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-urban-analysis-sheet="true"]
+:is([data-analysis-withdrawal-header="true"],[data-analysis-revision-header="true"])
+:is(h1,h2,h3,h4,p,span,strong,small,label),
+html[data-theme*="dark"] body #root .sig-app-frame .sig-main-shell
+[data-urban-analysis-sheet="true"]
+:is([data-analysis-withdrawal-header="true"],[data-analysis-revision-header="true"])
+:is(h1,h2,h3,h4,p,span,strong,small,label) {
+  color:#e7f4ff !important;
+  -webkit-text-fill-color:#e7f4ff !important;
+  opacity:1 !important;
+  text-shadow:none !important;
+}
+
+/* The labels, counts and icon remain visible against saturated navy. */
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-urban-analysis-sheet="true"]
+:is([data-analysis-withdrawal-header="true"],[data-analysis-revision-header="true"])
+:is(.text-slate-600,.text-slate-500,.text-slate-400),
+html[data-theme*="dark"] body #root .sig-app-frame .sig-main-shell
+[data-urban-analysis-sheet="true"]
+:is([data-analysis-withdrawal-header="true"],[data-analysis-revision-header="true"])
+:is(.text-slate-600,.text-slate-500,.text-slate-400) {
+  color:#c4dcf0 !important;
+  -webkit-text-fill-color:#c4dcf0 !important;
+}
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-urban-analysis-sheet="true"]
+:is([data-analysis-withdrawal-header="true"],[data-analysis-revision-header="true"])
+:is(.bg-white,[class*="bg-white"],.bg-sky-50),
+html[data-theme*="dark"] body #root .sig-app-frame .sig-main-shell
+[data-urban-analysis-sheet="true"]
+:is([data-analysis-withdrawal-header="true"],[data-analysis-revision-header="true"])
+:is(.bg-white,[class*="bg-white"],.bg-sky-50) {
+  background:#102d46 !important;
+  background-color:#102d46 !important;
+  border-color:#54728e !important;
+  color:#f8fbff !important;
+  -webkit-text-fill-color:#f8fbff !important;
+}
+
+/* In light workspace keep soft-white headers with true dark copy; no global
+   dark-theme override should bleed back into the default mode. */
+html body #root .sig-app-frame[data-layout-mode="default"] .sig-main-shell
+[data-urban-analysis-sheet="true"]
+:is([data-analysis-withdrawal-header="true"],[data-analysis-revision-header="true"]) {
+  background:linear-gradient(135deg,#fbfdff,#edf6ff) !important;
+  border-color:#d2dfed !important;
+}
+
+
+/* Analysis persistence banner is adaptive as well; the new status message
+   must not become another pale "mask" in the inverse institutional theme. */
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-urban-analysis-sheet="true"] [data-analysis-storage-status="true"],
+html[data-theme*="dark"] body #root .sig-app-frame .sig-main-shell
+[data-urban-analysis-sheet="true"] [data-analysis-storage-status="true"] {
+  background:linear-gradient(135deg,#143550,#10283f) !important;
+  background-color:#143550 !important;
+  border-color:#3a6789 !important;
+  color:#e6f4ff !important;
+}
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-urban-analysis-sheet="true"] [data-analysis-storage-status="true"] :is(p,span,strong),
+html[data-theme*="dark"] body #root .sig-app-frame .sig-main-shell
+[data-urban-analysis-sheet="true"] [data-analysis-storage-status="true"] :is(p,span,strong) {
+  color:#e7f4ff !important;
+  -webkit-text-fill-color:#e7f4ff !important;
+}
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-urban-analysis-sheet="true"] [data-analysis-storage-status="true"] button,
+html[data-theme*="dark"] body #root .sig-app-frame .sig-main-shell
+[data-urban-analysis-sheet="true"] [data-analysis-storage-status="true"] button {
+  background:#0c2339 !important;
+  border-color:#75a4c9 !important;
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+}
+
+
+/* SIGAPRO 2026-10-23 / construction permit dark polarity.
+   Scoped to the permit workspace, never global button/card classes.
+   The institutional preset uses data-layout-mode, not necessarily .dark. */
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-construction-permit-panel="true"] [data-permit-prep="true"] {
+  background:linear-gradient(145deg,#122940 0%,#0b1d30 100%) !important;
+  background-color:#0d2338 !important;
+  border-color:#385c79 !important;
+  color:#f5faff !important;
+}
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-construction-permit-panel="true"] [data-permit-prep="true"]
+:is(p,span,strong,h2,h3,small,label) {
+  color:#f1f7ff !important;
+  -webkit-text-fill-color:#f1f7ff !important;
+}
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-construction-permit-panel="true"] [data-permit-prep="true"]
+[data-permit-prerequisite-card="true"] {
+  background:linear-gradient(165deg,#142b43,#0d2136) !important;
+  background-color:#10273e !important;
+  border:1px solid #3d5b75 !important;
+  box-shadow:inset 0 1px 0 rgba(188,222,255,.06) !important;
+  color:#f3f8ff !important;
+}
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-construction-permit-panel="true"] [data-permit-prep="true"]
+[data-permit-prerequisite-card="true"] p:first-child {
+  color:#bbd4ea !important;
+  -webkit-text-fill-color:#bbd4ea !important;
+}
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-construction-permit-panel="true"] [data-permit-draft-button="true"]:not(:disabled) {
+  background:#086a9b !important;
+  background-color:#086a9b !important;
+  border:1px solid #45bde7 !important;
+  color:#fff !important;
+  -webkit-text-fill-color:#fff !important;
+  box-shadow:0 10px 24px rgba(3,45,78,.28) !important;
+}
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-construction-permit-panel="true"] [data-permit-draft-button="true"]:disabled {
+  background:#223c54 !important;
+  background-color:#223c54 !important;
+  border:1px solid #52708a !important;
+  color:#d0dfed !important;
+  -webkit-text-fill-color:#d0dfed !important;
+  opacity:1 !important;
+  cursor:not-allowed !important;
+  box-shadow:none !important;
+}
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-construction-permit-panel="true"] [data-permit-draft-button="true"]:disabled :is(svg,span) {
+  color:#d0dfed !important;
+  -webkit-text-fill-color:#d0dfed !important;
+}
+
+
+/* SIGAPRO IA legal knowledge: institutional inverse theme, no washed-out cards.
+   This is scoped to the urban rule desk; light layout is unchanged. */
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-urban-rules-settings="true"] {
+  background:linear-gradient(150deg,#10263b,#091a2c) !important;
+  border-color:#3b6382 !important;
+  color:#edf7ff !important;
+}
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-urban-rules-settings="true"] [data-urban-legal-knowledge="true"] {
+  background:linear-gradient(135deg,#112d45,#0b2035) !important;
+  border-color:#3b678a !important;
+  color:#eff7ff !important;
+}
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-urban-legal-knowledge="true"] :is(article,[class*="bg-white"],[class*="bg-slate-50"]) {
+  background-color:#11283d !important;
+  border-color:#385873 !important;
+  color:#f0f7ff !important;
+}
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-urban-legal-knowledge="true"] :is(h4,p,label,strong,span) {
+  color:#e6f2fe !important;
+  -webkit-text-fill-color:#e6f2fe !important;
+}
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-urban-legal-knowledge="true"] :is(input,textarea,select) {
+  background-color:#0b1e30 !important;
+  color:#f1f9ff !important;
+  border-color:#567b9d !important;
+  -webkit-text-fill-color:#f1f9ff !important;
+}
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-urban-legal-knowledge="true"] input::placeholder {
+  color:#9fbad3 !important;
+  -webkit-text-fill-color:#9fbad3 !important;
+}
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-urban-legal-knowledge="true"] button:disabled {
+  opacity:0.68 !important;
+  cursor:not-allowed !important;
+}
+
+
+/* SIGAPRO IA - legal exception review: match institutional inverse theme.
+   Do not override badges or functional colors outside this review section. */
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-sigapro-urban-precheck="true"] [data-urban-legal-conditions="true"] {
+  background:linear-gradient(135deg,#14334d 0%,#0c253d 100%) !important;
+  background-color:#102d45 !important;
+  border-color:#3b6788 !important;
+  color:#e7f5ff !important;
+  box-shadow:inset 0 1px 0 rgba(192,229,255,.08) !important;
+}
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-sigapro-urban-precheck="true"] [data-urban-legal-conditions="true"] article {
+  background:#0c2238 !important;
+  border-color:#3e607e !important;
+  color:#e7f5ff !important;
+}
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-sigapro-urban-precheck="true"] [data-urban-legal-conditions="true"]
+:is(h2,h3,h4,p,span,strong,label) {
+  color:#e7f5ff !important;
+  -webkit-text-fill-color:#e7f5ff !important;
+}
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-sigapro-urban-precheck="true"] [data-urban-legal-conditions="true"] textarea {
+  background:#091a2b !important;
+  border-color:#587d9d !important;
+  color:#f7fbff !important;
+  -webkit-text-fill-color:#f7fbff !important;
+}
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-sigapro-urban-precheck="true"] [data-urban-legal-conditions="true"] textarea::placeholder {
+  color:#a9c1d9 !important;
+  -webkit-text-fill-color:#a9c1d9 !important;
+}
+
+
+/* SIGAPRO IA — reviewed plan dimensions. The institutional inverse theme
+   is not always accompanied by the Tailwind .dark class. Keep this scoped. */
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-sigapro-urban-precheck="true"] [data-urban-document-evidence="true"] {
+  background:linear-gradient(145deg,#102941,#0b1f33) !important;
+  border-color:#416b89 !important;
+  color:#eaf7ff !important;
+}
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-sigapro-urban-precheck="true"] [data-urban-drawing-measurements="true"] {
+  background:linear-gradient(140deg,#123b54,#0b2a44) !important;
+  background-color:#0c2b43 !important;
+  border-color:#4c86a9 !important;
+  color:#f5fbff !important;
+  box-shadow:inset 0 1px 0 rgba(192,230,255,.1) !important;
+}
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-sigapro-urban-precheck="true"] [data-urban-drawing-measurements="true"] :is(
+  [class*="bg-white"],[class*="bg-sky-50"],[class*="bg-amber-50"]
+) {
+  background:#122c45 !important;
+  background-color:#122c45 !important;
+  border-color:#527895 !important;
+}
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-sigapro-urban-precheck="true"] [data-urban-drawing-measurements="true"]
+:is(h3,h4,h5,p,strong,span,label) {
+  color:#eaf7ff !important;
+  -webkit-text-fill-color:#eaf7ff !important;
+}
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-sigapro-urban-precheck="true"] [data-urban-drawing-measurements="true"] button {
+  color:#fff !important;
+  -webkit-text-fill-color:#fff !important;
+  background-color:#104b70 !important;
+  border-color:#6aa3c1 !important;
+}
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-sigapro-urban-precheck="true"] [data-urban-drawing-measurements="true"] button:disabled {
+  color:#d2dfef !important;
+  -webkit-text-fill-color:#d2dfef !important;
+  opacity:.65 !important;
+  cursor:not-allowed !important;
+}
+
+
+/* Complete polarity of the document evidence subcards and fields. */
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-sigapro-urban-precheck="true"] [data-urban-document-evidence="true"]
+:is([class*="bg-white"],[class*="bg-slate-50"],[class*="bg-sky-50"]) {
+  background:#0e273f !important;
+  background-color:#0e273f !important;
+  border-color:#456b89 !important;
+}
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-sigapro-urban-precheck="true"] [data-urban-document-evidence="true"]
+:is(h4,h5,p,label,strong,span) {
+  color:#e8f6ff !important;
+  -webkit-text-fill-color:#e8f6ff !important;
+}
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-sigapro-urban-precheck="true"] [data-urban-document-evidence="true"]
+:is(input,select,textarea) {
+  background:#0a1f32 !important;
+  background-color:#0a1f32 !important;
+  border-color:#5b7d98 !important;
+  color:#fff !important;
+  -webkit-text-fill-color:#fff !important;
+}
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-sigapro-urban-precheck="true"] [data-urban-document-evidence="true"]
+:is(input,textarea)::placeholder {
+  color:#a9c2d9 !important;
+  -webkit-text-fill-color:#a9c2d9 !important;
+}
+
+
+/* SIGAPRO IA — ruler contrast in institutional inverse surface.
+   Scoped only to the new advisory module; no global dark-mode override. */
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-sigapro-urban-precheck="true"] [data-urban-graphic-ruler="true"] {
+  background:linear-gradient(150deg,#153650,#0a2035) !important;
+  border-color:#4781a2 !important;
+  color:#f0f8ff !important;
+}
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-sigapro-urban-precheck="true"] [data-urban-graphic-ruler="true"] :is(
+  [class*="bg-white"],[class*="bg-sky-50"],[class*="bg-amber-50"]
+) {
+  background:#112b44 !important;
+  border-color:#527d99 !important;
+}
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-sigapro-urban-precheck="true"] [data-urban-graphic-ruler="true"]
+:is(h3,h4,h5,p,span,strong,label) {
+  color:#ecf7ff !important;
+  -webkit-text-fill-color:#ecf7ff !important;
+}
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-sigapro-urban-precheck="true"] [data-urban-graphic-ruler="true"] :is(input,select) {
+  background:#0b1e30 !important;
+  color:#f5faff !important;
+  -webkit-text-fill-color:#f5faff !important;
+  border-color:#5a829f !important;
+}
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-sigapro-urban-precheck="true"] [data-urban-graphic-ruler="true"] :is(button:disabled) {
+  opacity:.68 !important;
+  cursor:not-allowed !important;
+}
+
+
+/* SIGAPRO IA — normative scope confirmation shares premium inverse polarity.
+   Avoid pale law applicability mask on institutional dark presets. */
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-urban-legal-knowledge="true"] [data-urban-legal-scope="true"] {
+  background:linear-gradient(135deg,#14344d,#10253a) !important;
+  background-color:#102d46 !important;
+  border-color:#527d9b !important;
+  color:#e9f6ff !important;
+}
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-urban-legal-knowledge="true"] [data-urban-legal-scope="true"]
+:is([class*="bg-white"],p,strong,span,label) {
+  color:#edf8ff !important;
+  -webkit-text-fill-color:#edf8ff !important;
+}
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-urban-legal-knowledge="true"] [data-urban-legal-scope="true"] [class*="bg-white"] {
+  background:#0b2239 !important;
+  background-color:#0b2239 !important;
+  border-color:#416b88 !important;
+}
+
+
+/* SIGAPRO IA — dark institutional contrast for scanned-page visual verification. */
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-urban-scanned-page="true"] {
+  background:linear-gradient(145deg,#10334c,#0b253b) !important;
+  background-color:#102c44 !important;
+  border-color:#4d83a5 !important;
+  color:#edf7ff !important;
+}
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-urban-scanned-page="true"] :is(h3,h4,h5,p,label,span,strong) {
+  color:#e9f6ff !important;
+  -webkit-text-fill-color:#e9f6ff !important;
+}
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-urban-scanned-page="true"] :is(textarea,select) {
+  color:#f5fbff !important;
+  -webkit-text-fill-color:#f5fbff !important;
+  background-color:#0b2239 !important;
+  border-color:#5b87a7 !important;
+}
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-urban-scanned-page="true"] button:not(:disabled) {
+  color:#fff !important;
+  -webkit-text-fill-color:#fff !important;
+  background-color:#175373 !important;
+  border-color:#74a5c6 !important;
+}
+html body #root .sig-app-frame[data-layout-mode="inverse-main"] .sig-main-shell
+[data-urban-scanned-page="true"] button:disabled {
+  opacity:.65 !important;
+  cursor:not-allowed !important;
+}

@@ -15,6 +15,7 @@ import { PortalFrame } from "@/components/platform/PortalFrame";
 import {
   type GuiaRecolhimentoOficialProps,
   openGuiaRecolhimentoOficialWindow,
+  reserveGuiaRecolhimentoOficialWindow,
 } from "@/components/GuiaRecolhimentoOficial";
 import { SectionPanel } from "@/components/platform/SectionPanel";
 import { externalTabs, getExternalTabByPath } from "@/lib/externalTabs";
@@ -35,10 +36,19 @@ import {
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
-import { prepareGuideInstitutionalLogo } from "@/lib/guideAssets";
-import { ensureMercadoPagoGuideCharge, requestQaPixCharge, type QaPixCharge, type MercadoPagoGuideCharge } from "@/lib/mercadoPagoGuide";
+import { backendClient } from "@/integrations/backend/databaseClient";
+import { getRenderedMunicipalityLogoDataUrl, prepareGuideInstitutionalLogo } from "@/lib/guideAssets";
+import { useInstitutionBranding } from "@/hooks/useInstitutionBranding";
+import { getMunicipalityLogoOpenUrl } from "@/integrations/r2/client";
+import { ensureMercadoPagoGuideCharge, requestQaPixCharge, reconcileQaPixAfterPdf, type QaPixCharge, type MercadoPagoGuideCharge } from "@/lib/mercadoPagoGuide";
 import { normalizeOfficialBanking } from "@/lib/bankCodes";
-import { resolveGuideBankingData } from "@/lib/paymentCollection";
+import { buildGuidePixPayload, resolveGuideBankingData } from "@/lib/paymentCollection";
+import { archiveAndOpenGuide, isGuideSettled, openLegacyGuideOriginal, openStoredGuide, readGuideOriginal, type GuideOriginal, canResumeQaFrozenGuide } from "@/lib/guideOriginal";
+import { isGuideOverdueOnBrazilDate } from "@/lib/guideCivilDueDate";
+import { renderGuideOriginalPdf } from "@/lib/guidePdf";
+import { verifyPersistedQaBoleto } from "@/lib/qaGuideBankConfirmation";
+import { municipalCollectionApiRequest } from "@/lib/municipalCollectionApi";
+import { resolveMunicipalChargeRoute, municipalChargeRouteMessage, displayGuidePaymentProvider, type BankConnection } from "@/lib/municipalChargeRouting";
 
 const paymentStatusOptions = [
   { value: "todos", label: "Todos os status" },
@@ -48,9 +58,8 @@ const paymentStatusOptions = [
 ];
 
 function getGuideStatus(guide: { status: string; dueDate: string }) {
-  if (guide.status === "compensada") return "compensada";
-  const due = new Date(guide.dueDate);
-  if (!Number.isNaN(due.getTime()) && due.getTime() < Date.now()) return "vencida";
+  if (isGuideSettled(guide)) return "compensada";
+  if (isGuideOverdueOnBrazilDate(guide.dueDate)) return "vencida";
   return "pendente";
 }
 
@@ -63,9 +72,10 @@ export function ExternalPaymentsPage() {
     getInstitutionSettings,
     refreshRemoteStore,
   } = usePlatformData();
-  const { municipality, scopeId, institutionSettingsCompat } = useMunicipality();
+  const { municipality, branding: municipalityBranding, scopeId, institutionSettingsCompat } = useMunicipality();
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
   const tenantSettings = institutionSettingsCompat ?? getInstitutionSettings(effectiveScopeId);
+  const { headerBranding } = useInstitutionBranding(effectiveScopeId);
 
   const processes = getVisibleProcessesByScope(session, effectiveScopeId, allProcesses);
   const [search, setSearch] = useState("");
@@ -73,22 +83,71 @@ export function ExternalPaymentsPage() {
   // Each operation has its own identity. Shared per-guide loading state made
   // "Emitir boleto" and "Gerar PIX" animate at the same time.
   const [busyGuideAction, setBusyGuideAction] = useState<{
-    key: string; action: "boleto" | "pix" | "guide";
+    key: string; action: "boleto" | "pix" | "guide" | "preview" | "reconcile";
   } | null>(null);
   const [statusGuideKey, setStatusGuideKey] = useState("");
   const [guideActionStatus, setGuideActionStatus] = useState("");
   const [qaCharges, setQaCharges] = useState<Record<string, MercadoPagoGuideCharge>>({});
   const [qaPixCharges, setQaPixCharges] = useState<Record<string,QaPixCharge>>({});
   const isolatedQaMode = import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true";
+  // Local Vite QA and the fixed, protected Vercel QA branch both use the
+  // same isolated-tenant API and test-only bank credentials. Never production.
+  const localQaBankIssuer = isolatedQaMode &&
+    typeof window !== "undefined" &&
+    ["localhost", "127.0.0.1"].includes(window.location.hostname) &&
+    ["8080", "8081"].includes(window.location.port);
+  // Preview QA PIX is persisted in Neon through a protected serverless handler.
+  const qaPixIssuer = localQaBankIssuer || (isolatedQaMode &&
+    typeof window !== "undefined" &&
+    window.location.hostname === "projetosigapro01-git-qa-sigapro-f7ead8-roksparta8724s-projects.vercel.app");
+  const qaBoletoIssuer = qaPixIssuer;
   const activeTab = getExternalTabByPath(location.pathname);
 
   const issueSandboxBoleto = async (process: ProcessRecord, guide: PaymentGuideEntry) => {
-    if (!isolatedQaMode || !effectiveScopeId || busyGuideAction || guide.status === "compensada") return;
+    if (!qaBoletoIssuer || !effectiveScopeId || busyGuideAction || isGuideSettled(guide)) return;
     const actionKey=`${process.id}:${guide.code}`;
     setBusyGuideAction({key:actionKey,action:"boleto"});
     setStatusGuideKey(actionKey);
     setGuideActionStatus("");
     try {
+      // The UI may be stale after F5 or a payment webhook. Read the
+      // authenticated Neon guide BEFORE any issuer POST. An existing order
+      // is not an invitation to issue a second, potentially chargeable one.
+      const current = await readGuideOriginal(effectiveScopeId, guide.code);
+      if (current.municipality_id !== effectiveScopeId ||
+          current.process_id !== process.id ||
+          current.guide_number !== guide.code) {
+        throw new Error("A guia não pertence ao processo e à Prefeitura selecionados.");
+      }
+      if (isGuideSettled(current)) {
+        throw new Error("Esta guia já foi paga. Abra o PDF original; uma nova cobrança não será criada.");
+      }
+      if (current.original_pdf_key) {
+        setGuideActionStatus(
+          "PDF original desta guia já está arquivado no Neon. Abra a mesma guia; nenhum boleto novo será emitido. NÃO PAGAR.",
+        );
+        return;
+      }
+      if (current.pix_code) {
+        throw new Error("Esta guia já possui PIX de homologação. Não é permitido emitir boleto paralelo.");
+      }
+      const existingOrder = Boolean(current.bank_reference);
+      if (existingOrder) {
+        // The bank may create an order before returning its barcode. Never
+        // request a different order: the isolated server detects bank_reference
+        // and does ONLY a GET for that exact order, with the same guide/amount.
+        if (current.payment_provider !== "mercado_pago" ||
+            current.provider_environment !== "test") {
+          throw new Error("Há uma cobrança de outro provedor vinculada à guia. Consulte o Financeiro, sem emitir novamente.");
+        }
+        const savedCodes = normalizeOfficialBanking(current.barcode, current.digitable_line);
+        if (savedCodes.barcode && savedCodes.digitableLine) {
+          setGuideActionStatus(
+            "Boleto de TESTE já confirmado no Neon. Abra a guia para consultar e arquivar seu PDF; nenhuma nova cobrança foi emitida. NÃO PAGAR.",
+          );
+          return;
+        }
+      }
       const charge = await ensureMercadoPagoGuideCharge({
         municipalityId: effectiveScopeId,
         guideCode: guide.code,
@@ -99,9 +158,30 @@ export function ExternalPaymentsPage() {
       if (charge.environment !== "test" || !charge.orderId) {
         throw new Error("O provedor não confirmou uma order exclusiva do ambiente de testes.");
       }
+      // Verify the same order, municipality, process and canonical amount
+      // against Neon before announcing that a bank boleto was issued.
+      const persisted = await readGuideOriginal(effectiveScopeId, guide.code);
+      verifyPersistedQaBoleto({
+        original: persisted,
+        charge,
+        municipalityId: effectiveScopeId,
+        processId: process.id,
+        guideCode: guide.code,
+        amount: guide.amount,
+      });
       setQaCharges((prev) => ({ ...prev, [guide.code]: charge }));
-      setGuideActionStatus("Boleto de homologação registrado no Neon de testes. Clique em Visualizar guia para conferir os dados. NÃO PAGAR.");
-      await refreshRemoteStore();
+      // A post-issuance list refresh can fail independently of a payment
+      // order that was already confirmed in Neon. Never portray that failure
+      // as a failed issuance, which would encourage an unsafe second POST.
+      let listRefreshFailed = false;
+      try {
+        await refreshRemoteStore();
+      } catch {
+        listRefreshFailed = true;
+      }
+      setGuideActionStatus(listRefreshFailed
+        ? "Boleto de TESTE já confirmado e salvo no Neon. A lista não atualizou; atualize a página para visualizar o mesmo boleto, sem emitir novamente. NÃO PAGAR."
+        : "Boleto de TESTE confirmado no Neon com referência bancária e valor corretos. Abra a guia para arquivar o PDF original. NÃO PAGAR.");
     } catch (error) {
       setGuideActionStatus(error instanceof Error ? error.message : "Erro na emissão bancária de homologação.");
     } finally {
@@ -110,12 +190,37 @@ export function ExternalPaymentsPage() {
   };
 
   const issueSandboxPix = async (process: ProcessRecord, guide: PaymentGuideEntry) => {
-    if (!isolatedQaMode || !effectiveScopeId || busyGuideAction || guide.status === "compensada") return;
+    if (!qaPixIssuer || !effectiveScopeId || busyGuideAction || isGuideSettled(guide)) return;
     const actionKey=`${process.id}:${guide.code}`;
     setBusyGuideAction({key:actionKey,action:"pix"});
     setStatusGuideKey(actionKey);
     setGuideActionStatus("");
     try {
+      // Do not create a PIX order for a paid or foreign process due to a
+      // stale external guide list. Distinct boleto/PIX media remain allowed.
+      const current = await readGuideOriginal(effectiveScopeId, guide.code);
+      if (current.municipality_id !== effectiveScopeId ||
+          current.process_id !== process.id ||
+          current.guide_number !== guide.code) {
+        throw new Error("A guia PIX não pertence ao processo e à Prefeitura selecionados.");
+      }
+      if (isGuideSettled(current)) {
+        throw new Error("Guia já paga: o PIX não será emitido novamente.");
+      }
+      // Once frozen, clicking the original issue button may ONLY consult the
+      // existing order. Never re-enter the issue/reservation flow.
+      if (current.original_pdf_key || current.document_snapshot) {
+        const previous=await requestQaPixCharge({
+          municipalityId:effectiveScopeId,guideCode:guide.code,action:"get",
+        });
+        if (!previous.ok || !isValidPixPayload(previous.qrCode))
+          throw new Error("O documento foi congelado, mas a ordem PIX de teste não pôde ser consultada.");
+        setQaPixCharges(prev=>({...prev,[guide.code]:previous}));
+        setGuideActionStatus(current.original_pdf_key
+          ? "PIX de TESTE já arquivado. Clique em Visualizar guia para abrir o mesmo PDF original. Nenhuma nova cobrança foi criada."
+          : "PIX de TESTE confirmado e snapshot preservado. O PDF original ainda não foi arquivado: clique em Visualizar guia para concluir o envio, sem emitir outra cobrança.");
+        return;
+      }
       let result: QaPixCharge;
       try {
         result=await requestQaPixCharge({municipalityId:effectiveScopeId,guideCode:guide.code,action:"issue"});
@@ -153,18 +258,163 @@ export function ExternalPaymentsPage() {
     }
   };
 
+  // Works after F5 and on a new device: always checks the canonical Neon guide,
+  // never depends on a cached QR or requests another provider order.
+  const refreshSandboxPixStatus = async (process: ProcessRecord, guide: PaymentGuideEntry) => {
+    if (!qaPixIssuer || !effectiveScopeId || busyGuideAction || !guide.code.startsWith("DAM-PRE-QA-")) return;
+    const key = `${process.id}:${guide.code}`;
+    setBusyGuideAction({key, action:"reconcile"});
+    setStatusGuideKey(key);
+    setGuideActionStatus("");
+    try {
+      const original=await readGuideOriginal(effectiveScopeId,guide.code);
+      if(original.municipality_id!==effectiveScopeId ||
+         original.process_id!==process.id || original.guide_number!==guide.code)
+        throw new Error("Guia PIX fora da Prefeitura ou do processo autenticado.");
+      if (isGuideSettled(original)) {
+        setGuideActionStatus("Guia já compensada no Neon. Nenhuma nova cobrança foi emitida.");
+        await refreshRemoteStore();
+        return;
+      }
+      if (original.provider_environment!=="test" || original.payment_provider!=="mercado_pago" ||
+          !original.bank_reference || !original.pix_code) {
+        setGuideActionStatus("Esta guia ainda não possui uma ordem PIX de TESTE confirmada no Neon. Nenhuma cobrança foi criada.");
+        return;
+      }
+      if (!original.original_pdf_key || !original.original_pdf_sha256 || !original.document_snapshot) {
+        setGuideActionStatus("É necessário arquivar o PDF original da mesma guia antes de conferir a baixa bancária. Nenhuma cobrança foi criada.");
+        return;
+      }
+      // A fresh authenticated bank GET checks the SAME order. It settles only
+      // with an existing signed webhook, credited transaction and valid PDF.
+      const reconciled=await reconcileQaPixAfterPdf({
+        municipalityId:effectiveScopeId,guideCode:guide.code,
+      });
+      if (reconciled.settled) {
+        const confirmed=await readGuideOriginal(effectiveScopeId,guide.code);
+        if (!isGuideSettled(confirmed) || confirmed.original_pdf_key!==original.original_pdf_key ||
+            confirmed.bank_reference!==original.bank_reference)
+          throw new Error("O Neon ainda não confirmou a baixa na guia original; resultado não homologado.");
+        setGuideActionStatus("Crédito bancário conciliado e baixa registrada no Neon na mesma guia, com PDF original preservado.");
+        await refreshRemoteStore();
+      } else {
+        setGuideActionStatus(reconciled.status==="awaiting_bank_credit"
+          ? "Mercado Pago ainda não comprovou crédito PIX. A guia continua pendente no Neon."
+          : "Baixa não efetuada. Conciliação bancária em revisão: "+reconciled.status+".");
+      }
+    } catch(error) {
+      setGuideActionStatus(error instanceof Error ? error.message : "Falha na conferência bancária de TESTE. Nenhuma baixa foi registrada.");
+    } finally {
+      setBusyGuideAction(null);
+    }
+  };
+
+  /** Compare the corrected QA-only A4 layout against the frozen snapshot.
+   * Never mutate the archived legal original or issue another bank order. */
+  const previewQaA4Layout = async (process: ProcessRecord, guide: PaymentGuideEntry) => {
+    if (!isolatedQaMode || !effectiveScopeId || busyGuideAction ||
+        !guide.code.startsWith("DAM-PRE-QA-")) return;
+    const target = reserveGuiaRecolhimentoOficialWindow(`Conferência A4 · ${guide.code}`);
+    if (!target) {
+      setGuideActionStatus("O navegador bloqueou a prévia A4. Habilite pop-ups e tente novamente.");
+      return;
+    }
+    const key = `${process.id}:${guide.code}`;
+    setBusyGuideAction({key,action:"preview"});
+    setStatusGuideKey(key);
+    setGuideActionStatus("");
+    try {
+      const original = await readGuideOriginal(effectiveScopeId,guide.code);
+      if (original.municipality_id !== effectiveScopeId ||
+          original.process_id !== process.id ||
+          original.guide_number !== guide.code ||
+          original.provider_environment !== "test" ||
+          !original.document_snapshot) {
+        throw new Error("Prévia A4 indisponível: a guia não possui snapshot de TESTE válido desta Prefeitura.");
+      }
+      const rendered = await renderGuideOriginalPdf(original.document_snapshot);
+      const url = URL.createObjectURL(rendered);
+      target.location.replace(url);
+      window.setTimeout(() => URL.revokeObjectURL(url), 5 * 60 * 1000);
+      setGuideActionStatus("Prévia de layout A4 gerada apenas para conferência. O PDF original arquivado não foi alterado; nenhum PIX foi emitido.");
+    } catch(error) {
+      target.close();
+      setGuideActionStatus(error instanceof Error ? error.message : "Não foi possível apresentar a prévia do layout A4.");
+    } finally {
+      setBusyGuideAction(null);
+    }
+  };
+
   const openExternalGuide = async (
     process: ProcessRecord,
     guide: PaymentGuideEntry,
   ) => {
     if (!effectiveScopeId || busyGuideAction) return;
 
+    // Reserve the new tab synchronously inside the user's click. A later
+    // window.open() after provider/branding awaits is blocked by browsers.
+    const reservedGuideWindow = reserveGuiaRecolhimentoOficialWindow(`Guia ${guide.code}`);
+    if (!reservedGuideWindow) {
+      setGuideActionStatus("O navegador bloqueou a guia. Habilite pop-ups do SIGAPRO e tente novamente.");
+      return;
+    }
     const actionKey=`${process.id}:${guide.code}`;
     setBusyGuideAction({key:actionKey,action:"guide"});
     setStatusGuideKey(actionKey);
     setGuideActionStatus("");
 
     try {
+      const isolatedQa = import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true";
+      // Stored PDF first, BEFORE requesting a new bank order or reading current
+      // editable branding. Reopening is read-only even when already paid.
+      let officialOriginal: GuideOriginal | null = null;
+      if (!isolatedQa) {
+        officialOriginal = await readGuideOriginal(effectiveScopeId, guide.code);
+        if (
+          officialOriginal.municipality_id !== effectiveScopeId ||
+          officialOriginal.process_id !== process.id ||
+          officialOriginal.guide_number !== guide.code
+        ) throw new Error("Guia oficial não corresponde ao processo e à Prefeitura selecionados.");
+        if (await openStoredGuide(officialOriginal, reservedGuideWindow)) return;
+        // External users may read an exact historical PDF linked to this process.
+        // This fallback never overrides an existing SHA-256 original in Neon.
+        if (await openLegacyGuideOriginal(process.documents, officialOriginal.guide_number, reservedGuideWindow)) return;
+        if (isGuideSettled(officialOriginal)) {
+          throw new Error("Guia paga sem PDF original arquivado. Não será reemitida.");
+        }
+        if (officialOriginal.collection_mode_snapshot === "municipal_system") {
+          throw new Error("Guia emitida pelo sistema próprio da Prefeitura: importe o documento original para visualização.");
+        }
+      } else {
+        // QA uses ONLY its isolated Neon Function/S3 and canonical guide data.
+        // A plain QA preview may still be shown when a guide has not been
+        // issued, but no sandbox payment can be archived without a Neon row.
+        // Never disguise a failed Neon read as an unissued/non-payable preview.
+        // A missing or inaccessible canonical guide is a genuine blocking error.
+        officialOriginal = await readGuideOriginal(effectiveScopeId, guide.code);
+        if (
+          officialOriginal.municipality_id !== effectiveScopeId ||
+          officialOriginal.process_id !== process.id ||
+          officialOriginal.guide_number !== guide.code
+        ) throw new Error("Guia QA não corresponde ao processo e à Prefeitura selecionados.");
+        if (await openStoredGuide(officialOriginal, reservedGuideWindow)) return;
+        if (isGuideSettled(officialOriginal)) {
+          throw new Error("Guia de teste compensada sem original; a guia não será reconstruída.");
+        }
+        if (officialOriginal.collection_mode_snapshot === "municipal_system") {
+          throw new Error("Guia do sistema próprio da Prefeitura: não emitir cobrança de homologação.");
+        }
+        // The original may already be financially frozen while the PDF upload
+        // or tab navigation failed. Resume from the SAME immutable snapshot:
+        // never bind PIX again, never call a provider, never change the DAM.
+        if (officialOriginal.document_snapshot) {
+          if (!canResumeQaFrozenGuide(officialOriginal)) {
+            throw new Error("Snapshot de teste sem vínculo financeiro íntegro; PDF original não será reconstruído.");
+          }
+          await archiveAndOpenGuide(effectiveScopeId, officialOriginal.document_snapshot, reservedGuideWindow);
+          return;
+        }
+      }
       const banking = resolveGuideBankingData({
         settings: tenantSettings,
         guide,
@@ -175,20 +425,44 @@ export function ExternalPaymentsPage() {
       // QA has two states: an unissued NON-PAYABLE administrative preview or
       // a VERIFIED, provider-issued TEST boleto. Never infer issuance from the
       // saved bank/PIX configuration. Test orders are initiated via explicit CTA.
-      const isolatedQa = import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true";
       const tested = qaCharges[guide.code];
-      const candidate = normalizeOfficialBanking(tested?.barcodeContent, tested?.digitableLine);
       const savedSandbox = Boolean(
-        isolatedQa && guide.providerEnvironment === "test" &&
-        guide.paymentProvider === "mercado_pago" && guide.bankReference &&
-        banking.barcode && banking.digitableLine,
+        isolatedQa && officialOriginal?.provider_environment === "test" &&
+        officialOriginal?.bank_reference && officialOriginal?.payment_provider === "mercado_pago" &&
+        normalizeOfficialBanking(officialOriginal?.barcode, officialOriginal?.digitable_line).barcode &&
+        normalizeOfficialBanking(officialOriginal?.barcode, officialOriginal?.digitable_line).digitableLine,
       );
-      const newlyIssued = Boolean(isolatedQa && tested?.ok &&
-        tested.environment === "test" && tested.orderId &&
-        candidate.barcode && candidate.digitableLine);
-      const sandboxIssued = savedSandbox || newlyIssued;
+      // A stale tab or an out-of-order callback cannot replace the confirmed
+      // order held by Neon, including after F5 or from a different browser.
+      const sandboxIssued = Boolean(
+        savedSandbox && officialOriginal &&
+        !isGuideSettled(officialOriginal),
+      );
+      const newlyIssued = Boolean(
+        sandboxIssued && tested?.ok &&
+        tested.environment === "test" &&
+        tested.orderId === officialOriginal?.bank_reference,
+      );
+      const canonicalPriorBanking = normalizeOfficialBanking(
+        officialOriginal?.barcode, officialOriginal?.digitable_line,
+      );
+      // Never assume Mercado Pago is the provider of another municipality.
+      // Read the active collection/provider configuration from the authorized
+      // municipal API, and honor the guide's original frozen payment route.
+      let selectedProvider: BankConnection | null = null;
+      if (!isolatedQa && !(
+        canonicalPriorBanking.barcode && canonicalPriorBanking.digitableLine
+      )) {
+        const connection=await municipalCollectionApiRequest<BankConnection>(
+          "collection-configuration", effectiveScopeId, "guide_provider",
+          {guideCode:guide.code},
+        );
+        selectedProvider = connection;
+        const route = resolveMunicipalChargeRoute(officialOriginal!,connection,null);
+        if (route !== "mercado_pago") throw new Error(municipalChargeRouteMessage(route));
+      }
       const charge = isolatedQa ? (newlyIssued ? tested : null) :
-        (banking.barcode && banking.digitableLine)
+        (canonicalPriorBanking.barcode && canonicalPriorBanking.digitableLine)
           ? null
           : await ensureMercadoPagoGuideCharge({
               municipalityId: effectiveScopeId,
@@ -197,13 +471,21 @@ export function ExternalPaymentsPage() {
               dueDate: guide.dueDate,
               description: `${guide.label} · ${process.preProtocol || process.title}`,
             });
+      // A provider reply alone is not proof that the bill persisted in Neon.
+      // Re-read the same canonical guide after a new bank order and use only
+      // its saved barcode, dates, amount and reference to build the original.
+      let confirmedOriginal = !isolatedQa && charge
+        ? await readGuideOriginal(effectiveScopeId, guide.code)
+        : officialOriginal;
+      const confirmedBanking = normalizeOfficialBanking(
+        confirmedOriginal?.barcode, confirmedOriginal?.digitable_line,
+      );
       const barcode = isolatedQa
-        ? (sandboxIssued ? (charge?.barcodeContent || banking.barcode) : "")
-        : (charge?.barcodeContent || banking.barcode);
+        ? (sandboxIssued ? confirmedBanking.barcode : "")
+        : confirmedBanking.barcode;
       const digitableLine = isolatedQa
-        ? (sandboxIssued ? (charge?.digitableLine || banking.digitableLine) : "")
-        : (charge?.digitableLine || banking.digitableLine);
-      const previewOnly = isolatedQa && !sandboxIssued;
+        ? (sandboxIssued ? confirmedBanking.digitableLine : "")
+        : confirmedBanking.digitableLine;
       if (!isolatedQa && (!barcode || !digitableLine)) {
         throw new Error("A cobrança ainda não retornou código de barras e linha digitável válidos.");
       }
@@ -216,12 +498,75 @@ export function ExternalPaymentsPage() {
           if (result.ok) sandboxPix=result;
         } catch { /* The boleto PDF must stay available when PIX is unavailable. */ }
       }
+      // A provider-signed, tenant-scoped sandbox PIX order exists independently
+      // from the boleto. Show its REAL TEST QR in the read-only QA document
+      // without claiming that a boleto was issued or changing the DAM settlement.
+      const sandboxPixIssued = Boolean(
+        isolatedQa && sandboxPix?.ok && sandboxPix.environment==="test" &&
+        sandboxPix.orderId && isValidPixPayload(sandboxPix.qrCode)
+      );
+      const previewOnly = isolatedQa && !sandboxIssued && !sandboxPixIssued;
+      // The signed serverless response is already durable in the QA payment ledger,
+      // but an external document may be archived ONLY after the database itself
+      // binds that exact order and PIX payload to this guide. This RPC exists
+      // exclusively on the isolated Neon QA branch; it never settles a guide.
+      if (sandboxPixIssued && !sandboxIssued) {
+        const { data: bound, error: bindingError } = await backendClient.rpc(
+          "qa_mp_pix_bind_to_guide_v1", {
+            _municipality_id: effectiveScopeId,
+            _guide_code: guide.code,
+            _order_id: sandboxPix!.orderId,
+          },
+        );
+        if (bindingError || !bound?.id) {
+          throw new Error(bindingError?.message || "Neon QA não confirmou o vínculo do PIX de teste à guia.");
+        }
+        confirmedOriginal = await readGuideOriginal(effectiveScopeId, guide.code);
+        if (
+          confirmedOriginal.municipality_id !== effectiveScopeId ||
+          confirmedOriginal.process_id !== process.id ||
+          confirmedOriginal.guide_number !== guide.code ||
+          confirmedOriginal.provider_environment !== "test" ||
+          confirmedOriginal.payment_provider !== "mercado_pago" ||
+          confirmedOriginal.bank_reference !== sandboxPix!.orderId ||
+          confirmedOriginal.pix_code !== sandboxPix!.qrCode ||
+          isGuideSettled(confirmedOriginal)
+        ) throw new Error("PIX de teste divergente da guia canônica no Neon. Arquivamento interrompido.");
+      }
+      // Use the same municipality-specific official logo sources as the
+      // internal guide. Legacy tenantSettings.logoUrl alone is often empty.
+      const stableMunicipalLogoUrl = getMunicipalityLogoOpenUrl(
+        municipalityBranding?.headerLogoObjectKey ||
+        municipalityBranding?.logoObjectKey ||
+        "",
+      );
       const logoUrl = await prepareGuideInstitutionalLogo(
-        tenantSettings?.logoUrl,
+        stableMunicipalLogoUrl,
+        headerBranding.logoUrl,
+        headerBranding.fallbackLogoUrl,
+        tenantSettings?.headerLogoUrl,
         tenantSettings?.brasaoUrl,
+        tenantSettings?.logoUrl,
+        getRenderedMunicipalityLogoDataUrl(),
       );
 
-      const issuedAt = guide.issuedAt || new Date().toISOString();
+      const issuedAt = confirmedOriginal?.created_at || guide.issuedAt || new Date().toISOString();
+      const originalAmount = confirmedOriginal ? Number(confirmedOriginal.amount) : guide.amount;
+      const originalDueDate = confirmedOriginal?.due_date || guide.dueDate;
+      // Any municipal PIX complement must use the already saved original
+      // amount and code, never an out-of-date list entry after a refresh.
+      const originalPixPayload = !isolatedQa
+        ? buildGuidePixPayload({
+            settings: tenantSettings,
+            guide: {
+              code: confirmedOriginal?.guide_number || guide.code,
+              amount: originalAmount,
+              pixPayload: confirmedOriginal?.pix_code || "",
+            },
+            municipalityName: municipality?.name,
+            municipalityCity: municipality?.city,
+          })
+        : sandboxPixIssued ? String(confirmedOriginal?.pix_code || "") : "";
       const year = new Date(issuedAt).getFullYear() || new Date().getFullYear();
 
       const guideDocument: GuiaRecolhimentoOficialProps = {
@@ -251,19 +596,22 @@ export function ExternalPaymentsPage() {
           nonPayablePreview: previewOnly,
           exercicio: year,
           dataDocumento: issuedAt,
-          vencimento: guide.dueDate,
+          vencimento: originalDueDate,
           observacao: getGuideObservation(guide.kind),
           proprietario: guide.ownerName || process.ownerName,
           profissionalResponsavel:
             guide.professionalName || process.technicalLead,
-          codigoBarras: barcode,
-          linhaDigitavel: digitableLine,
-          pixPayload: isolatedQa ? "" : banking.pixPayload,
-          qaSandboxPixPayload: isolatedQa && sandboxPix?.ok && sandboxPix.environment==="test"
-            ? sandboxPix.qrCode || "" : "",
+          // Absence of a boleto must be a JSON null/missing field, never an
+          // empty string: freeze_payment_guide_document_v1 compares it with
+          // the unmodified canonical Neon NULL on PIX-only test guides.
+          codigoBarras: isolatedQa && sandboxPixIssued && !sandboxIssued ? undefined : barcode,
+          linhaDigitavel: isolatedQa && sandboxPixIssued && !sandboxIssued ? undefined : digitableLine,
+          pixPayload: originalPixPayload,
+          qaSandboxPixPayload: sandboxPixIssued ? originalPixPayload : "",
           bankName: isolatedQa
-            ? (sandboxIssued ? (charge?.financialInstitution || "Mercado Pago — teste") : "Mercado Pago (conexão de teste)")
-            : charge?.financialInstitution || banking.bankName || "Mercado Pago",
+            ? (sandboxIssued ? (charge?.financialInstitution || "Mercado Pago — boleto de TESTE")
+              : sandboxPixIssued ? "Mercado Pago — PIX de TESTE" : "Mercado Pago (conexão de teste)")
+            : charge?.financialInstitution || banking.bankName || "Banco arrecadador não informado",
           bankAgreement: banking.bankAgreement,
           // Display only the municipality's saved administrative bank metadata.
           // These fields DO NOT prove a registered bank-issued boleto.
@@ -275,22 +623,24 @@ export function ExternalPaymentsPage() {
           bankInstructions: isolatedQa
             ? (sandboxIssued
               ? "BOLETO DE HOMOLOGAÇÃO — dados fornecidos pelo Mercado Pago em ambiente de TESTE. NÃO EFETUAR PAGAMENTO."
-              : "HOMOLOGAÇÃO SIGAPRO — DOCUMENTO NÃO PAGÁVEL. Nenhuma cobrança foi registrada no banco.")
+              : sandboxPixIssued
+                ? "PIX GERADO PELO MERCADO PAGO EM AMBIENTE DE TESTE — NÃO PAGAR. Boleto não emitido. Esta via não comprova arrecadação ou compensação municipal."
+                : "HOMOLOGAÇÃO SIGAPRO — DOCUMENTO NÃO PAGÁVEL. Nenhuma cobrança foi registrada no banco.")
             : banking.bankInstructions,
-          bankReference: previewOnly ? undefined : (charge?.orderId || guide.bankReference),
-          bankPaymentId: previewOnly ? undefined : (charge?.paymentId || guide.bankPaymentId),
-          bankStatus: previewOnly ? undefined : (charge?.status || guide.bankStatus),
-          bankStatusDetail: previewOnly ? undefined : (charge?.statusDetail || guide.bankStatusDetail),
-          bankAuthenticatedAt: previewOnly ? undefined : (charge?.authenticatedAt || guide.bankAuthenticatedAt),
-          bankEnvironment: isolatedQa ? "test" : (charge?.environment || guide.providerEnvironment),
-          paymentProvider:
-            guide.paymentProvider ||
-            tenantSettings?.paymentProvider ||
-            "mercado_pago",
-          valorDocumento: guide.amount,
+          bankReference: previewOnly ? undefined : (sandboxPixIssued && !sandboxIssued ? sandboxPix?.orderId : (confirmedOriginal?.bank_reference || charge?.orderId || guide.bankReference)),
+          bankPaymentId: previewOnly ? undefined : (sandboxPixIssued && !sandboxIssued ? sandboxPix?.paymentId : (confirmedOriginal?.bank_payment_id || charge?.paymentId || guide.bankPaymentId)),
+          bankStatus: previewOnly ? undefined : (sandboxPixIssued && !sandboxIssued ? (sandboxPix?.statusStale ? "status_aguardando_consulta" : sandboxPix?.status) : (confirmedOriginal?.bank_status || charge?.status || guide.bankStatus)),
+          bankStatusDetail: previewOnly ? undefined : (sandboxPixIssued && !sandboxIssued ? "pix_sandbox" : (confirmedOriginal?.bank_status_detail || charge?.statusDetail || guide.bankStatusDetail)),
+          bankAuthenticatedAt: previewOnly ? undefined : (confirmedOriginal?.bank_authenticated_at || charge?.authenticatedAt || guide.bankAuthenticatedAt),
+          bankEnvironment: isolatedQa ? "test" : (confirmedOriginal?.provider_environment || charge?.environment || guide.providerEnvironment),
+          paymentProvider: displayGuidePaymentProvider(
+            confirmedOriginal?.payment_provider,
+            selectedProvider?.provider || (isolatedQa || charge?.ok ? "mercado_pago" : null),
+          ),
+          valorDocumento: originalAmount,
           descontos: 0,
           outrosAcrescimos: 0,
-          valorCobrado: guide.amount,
+          valorCobrado: originalAmount,
           referencia: getGuideReference(guide.kind),
         },
         itens: [
@@ -298,19 +648,72 @@ export function ExternalPaymentsPage() {
             ano: year,
             divida: guide.label,
             tabela: tenantSettings?.guiaPrefixo || "DAM",
-            principal: guide.amount,
+            principal: originalAmount,
             multa: 0,
             juros: 0,
             correcao: 0,
-            total: guide.amount,
+            total: originalAmount,
           },
         ],
       };
 
+      // Official external guides must follow the same immutable Neon + R2
+      // document archival path as internal guides. The old HTML-only path
+      // rebuilt the paper every time the professional clicked "visualizar".
+      // An already archived (including paid) original is reopened byte-for-byte.
+      // A bank order CONFIRMED in the isolated Neon QA database is archived
+      // to isolated Neon S3 (never to the production R2). Reopening is the
+      // original SHA PDF, just like the municipal production workflow.
+      // Unissued QA previews remain non-payable and are NEVER persisted.
+      if (!isolatedQa || sandboxIssued || sandboxPixIssued) {
+        if (isolatedQa && (
+          !confirmedOriginal?.id ||
+          confirmedOriginal.provider_environment !== "test" ||
+          !confirmedOriginal.bank_reference ||
+          (sandboxIssued
+            ? (!barcode || !digitableLine)
+            : (!isValidPixPayload(confirmedOriginal.pix_code) ||
+               confirmedOriginal.pix_code !== originalPixPayload)) ||
+          guideDocument.guia.nonPayablePreview
+        )) throw new Error("Cobrança de teste sem vínculo financeiro canônico; PDF não arquivado.");
+        const previouslyArchived=Boolean(confirmedOriginal?.original_pdf_key);
+        await archiveAndOpenGuide(effectiveScopeId, guideDocument, reservedGuideWindow);
+        // The original was persisted before this read. A bank-only GET may
+        // now settle an existing signed test order; NEVER issue a new PIX.
+        if(isolatedQa && sandboxPixIssued && !previouslyArchived){
+          try{
+            const archived=await readGuideOriginal(effectiveScopeId,guide.code);
+            if(archived.municipality_id===effectiveScopeId &&
+               archived.process_id===process.id && archived.guide_number===guide.code &&
+               archived.original_pdf_key && archived.original_pdf_sha256 &&
+               archived.bank_reference===sandboxPix?.orderId && !isGuideSettled(archived)){
+              const bank=await reconcileQaPixAfterPdf({
+                municipalityId:effectiveScopeId,guideCode:guide.code,
+              });
+              if(bank.settled){
+                const paid=await readGuideOriginal(effectiveScopeId,guide.code);
+                if(isGuideSettled(paid) && paid.bank_reference===archived.bank_reference &&
+                   paid.original_pdf_key===archived.original_pdf_key){
+                  setGuideActionStatus("Guia original arquivada e PIX de TESTE conciliado: baixa comprovada no Neon e processo enviado à triagem.");
+                  await refreshRemoteStore();
+                }
+              }else{
+                setGuideActionStatus(bank.status==="awaiting_bank_credit"
+                  ?"PDF original arquivado. O banco ainda não confirmou o crédito; a guia permanece pendente."
+                  :"PDF arquivado; conciliação ainda em análise bancária. Nenhuma segunda cobrança foi criada.");
+              }
+            }
+          }catch{
+            setGuideActionStatus("PDF original arquivado. A confirmação bancária ainda depende do Mercado Pago; use Conferir baixa bancária (QA) para consultar a mesma ordem.");
+          }
+        }
+        return;
+      }
+
       const opened = openGuiaRecolhimentoOficialWindow(guideDocument, {
-        title: isolatedQa ? (sandboxIssued ? `BOLETO DE TESTE — NÃO PAGAR · ${guide.code}` : `PRÉVIA NÃO PAGÁVEL · ${guide.code}`) : `Guia ${guide.code}`,
+        title: isolatedQa ? (sandboxIssued ? `BOLETO DE TESTE — NÃO PAGAR · ${guide.code}` : sandboxPixIssued ? `PIX DE TESTE — NÃO PAGAR · ${guide.code}` : `PRÉVIA NÃO PAGÁVEL · ${guide.code}`) : `Guia ${guide.code}`,
         autoPrint: false,
-      });
+      }, reservedGuideWindow);
 
       if (!opened) {
         throw new Error(
@@ -318,6 +721,8 @@ export function ExternalPaymentsPage() {
         );
       }
     } catch (error) {
+      // Do not strand a blank/preview tab when provider or logo preparation fails.
+      if (!reservedGuideWindow.closed) reservedGuideWindow.close();
       setGuideActionStatus(
         error instanceof Error
           ? error.message
@@ -332,10 +737,24 @@ export function ExternalPaymentsPage() {
   // Assim a confirmação de pagamento transforma o pré-protocolo em processo
   // sem exigir F5 e sem risco de a interface ficar com estado antigo.
   useEffect(() => {
+    let disposed = false;
+    let inFlight = false;
+    let reportedSyncFailure = false;
     const refresh = () => {
-      if (document.visibilityState === "visible") {
-        void refreshRemoteStore();
-      }
+      if (disposed || inFlight || document.visibilityState !== "visible") return;
+      // Only one read at a time: slow responses must not overlap a new
+      // focus/visibility poll or make an already issued guide appear missing.
+      inFlight = true;
+      void Promise.resolve()
+        .then(() => refreshRemoteStore())
+        .then(() => { reportedSyncFailure = false; })
+        .catch((error: unknown) => {
+          if (!disposed && !reportedSyncFailure) {
+            console.warn("[SIGAPRO][Financeiro externo] Atualização temporariamente indisponível:", error);
+            reportedSyncFailure = true;
+          }
+        })
+        .finally(() => { inFlight = false; });
     };
 
     const timer = window.setInterval(refresh, 8000);
@@ -343,6 +762,7 @@ export function ExternalPaymentsPage() {
     document.addEventListener("visibilitychange", refresh);
 
     return () => {
+      disposed = true;
       window.clearInterval(timer);
       window.removeEventListener("focus", refresh);
       document.removeEventListener("visibilitychange", refresh);
@@ -416,8 +836,10 @@ export function ExternalPaymentsPage() {
 
         {import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true" ? (
           <div role="status" data-qa-payment-preview="true" className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm font-semibold leading-6 text-amber-950">
-            HOMOLOGAÇÃO SIGAPRO — Utilize "Emitir boleto de TESTE" e "Gerar PIX de TESTE" para obter exclusivamente dados de cobrança simulada do Mercado Pago; depois clique em "Visualizar guia".
-            NÃO PAGAR. Nenhum PIX estático da Prefeitura é usado. R2 oficial, cobranças reais e baixas automáticas permanecem desativados.
+            {localQaBankIssuer
+              ? 'HOMOLOGAÇÃO SIGAPRO — Emita exclusivamente boleto/PIX do Mercado Pago em TESTE e visualize a guia. NÃO PAGAR.'
+              : 'HOMOLOGAÇÃO SIGAPRO — Esta prévia remota permite somente a visualização NÃO PAGÁVEL. A emissão bancária de teste requer o servidor local isolado e não está disponível neste endereço.'}
+            {" "}Nenhum PIX estático da Prefeitura é usado. R2 oficial, cobranças reais e baixas automáticas permanecem desativados.
           </div>
         ) : null}
         <InternalTabs
@@ -486,9 +908,11 @@ export function ExternalPaymentsPage() {
                   .includes("habite");
                 const processTarget =
                   process.isOfficial === false
-                    ? `${isHabiteSe ? "/externo/habite-se" : "/externo/protocolar"}?preprotocolo=${encodeURIComponent(
-                        process.preProtocol || process.protocol,
-                      )}`
+                    ? (status === "compensada"
+                        ? "/externo/controle"
+                        : `${isHabiteSe ? "/externo/habite-se" : "/externo/protocolar"}?preprotocolo=${encodeURIComponent(
+                            process.preProtocol || process.protocol,
+                          )}`)
                     : buildProcessPath(process, "financeiro");
 
                 return (
@@ -507,22 +931,22 @@ export function ExternalPaymentsPage() {
                       }
                     }}
                   >
-                    <div className="grid gap-4 2xl:grid-cols-[1.15fr_1fr_0.85fr_0.75fr_0.7fr_1.25fr] 2xl:items-center">
+                    <div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-[minmax(0,1.18fr)_minmax(0,1.1fr)_minmax(0,1.05fr)_minmax(0,0.9fr)_minmax(0,0.75fr)] 2xl:items-start">
                       <div className="min-w-0">
-                        <p className="truncate text-[15px] font-semibold text-slate-950">
+                        <p className="break-words text-[15px] font-semibold text-slate-950">
                           {process.isOfficial === false
-                            ? "Rascunho com guia emitida"
+                            ? (status === "compensada" ? "Pagamento confirmado · em oficialização" : "Rascunho com guia emitida")
                             : formatOfficialProcessNumber(process.protocol)}
                         </p>
-                        <p className="mt-1 truncate text-[13px] text-slate-500">
+                        <p className="mt-1 break-words text-[13px] text-slate-500">
                           {process.isOfficial === false
-                            ? `Referência temporária: ${process.preProtocol || process.protocol} · sem número oficial até o pagamento`
+                            ? (status === "compensada" ? `Pagamento confirmado · acompanhe a oficialização do pré-protocolo ${process.preProtocol || process.protocol}` : `Referência temporária: ${process.preProtocol || process.protocol} · sem número oficial até o pagamento`)
                             : formatOfficialProcessTitle({ title: process.title, type: process.type })}
                         </p>
                       </div>
                       <div className="min-w-0">
-                        <p className="truncate text-[14px] font-semibold text-slate-900">{formatOfficialProcessTitle({ title: process.title, type: process.type })}</p>
-                        <p className="mt-1 truncate text-[13px] text-slate-500">{process.type}</p>
+                        <p className="break-words text-[14px] font-semibold text-slate-900">{formatOfficialProcessTitle({ title: process.title, type: process.type })}</p>
+                        <p className="mt-1 break-words text-[13px] text-slate-500">{process.type}</p>
                       </div>
                       <div className="min-w-0">
                         <p className="text-[14px] font-semibold text-slate-900">
@@ -530,7 +954,7 @@ export function ExternalPaymentsPage() {
                         </p>
                         {guide.officialProcessReference &&
                         guide.officialProcessReference !== guide.code ? (
-                          <p className="mt-1 truncate text-[11px] font-medium text-slate-400" title={guide.code}>
+                          <p className="mt-1 break-words text-[11px] font-medium text-slate-400" title={guide.code}>
                             Guia original paga no pré-protocolo: {guide.code}
                           </p>
                         ) : null}
@@ -555,24 +979,30 @@ export function ExternalPaymentsPage() {
                         </Badge>
                       </div>
                       <div
-                        className="flex flex-wrap justify-start gap-2 2xl:justify-end"
+                        className="col-span-full flex flex-wrap items-center justify-start gap-2 border-t border-slate-200/80 pt-3 2xl:justify-end"
                         onClick={(event) => event.stopPropagation()}
                         onKeyDown={(event) => event.stopPropagation()}
                       >
                         {process.isOfficial === false ? (
                           <>
-                            <Button
-                              asChild
-                              variant="outline"
-                              data-preprotocol-edit-action="true"
-                              className="rounded-full text-[12px] font-semibold"
-                            >
-                              <Link to={processTarget}>
-                                <FilePenLine className="mr-1.5 h-3.5 w-3.5" />
-                                Editar rascunho
-                              </Link>
-                            </Button>
-                            {isolatedQaMode && guide.status !== "compensada" ? (
+                            {status === "compensada" ? (
+                              <Button asChild variant="outline" className="rounded-full text-[12px] font-semibold">
+                                <Link to="/externo/controle">Acompanhar oficialização</Link>
+                              </Button>
+                            ) : (
+                              <Button
+                                asChild
+                                variant="outline"
+                                data-preprotocol-edit-action="true"
+                                className="rounded-full text-[12px] font-semibold"
+                              >
+                                <Link to={processTarget}>
+                                  <FilePenLine className="mr-1.5 h-3.5 w-3.5" />
+                                  Editar rascunho
+                                </Link>
+                              </Button>
+                            )}
+                            {qaBoletoIssuer && !isGuideSettled(guide) && !guide.bankReference ? (
                               <Button
                                 type="button"
                                 variant="outline"
@@ -587,7 +1017,7 @@ export function ExternalPaymentsPage() {
                                 Emitir boleto de TESTE
                               </Button>
                             ) : null}
-                            {isolatedQaMode && guide.status !== "compensada" ? (
+                            {qaPixIssuer && !isGuideSettled(guide) ? (
                               <Button
                                 type="button"
                                 variant="outline"
@@ -616,6 +1046,38 @@ export function ExternalPaymentsPage() {
                               )}
                               Visualizar guia
                             </Button>
+                            {qaPixIssuer && guide.code.startsWith("DAM-PRE-QA-") && !isGuideSettled(guide) ? (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                data-qa-reconcile-existing-pix="true"
+                                className="rounded-full border-emerald-300 bg-emerald-50 px-4 text-[12px] font-semibold text-emerald-950 hover:bg-emerald-100"
+                                disabled={Boolean(busyGuideAction)}
+                                onClick={() => void refreshSandboxPixStatus(process,guide)}
+                              >
+                                {busyGuideAction?.key === `${process.id}:${guide.code}` &&
+                                 busyGuideAction.action === "reconcile"
+                                  ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                                  : <CreditCard className="mr-1.5 h-3.5 w-3.5" />}
+                                Conferir baixa bancária (QA)
+                              </Button>
+                            ) : null}
+                            {isolatedQaMode && guide.code.startsWith("DAM-PRE-QA-") ? (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                data-qa-a4-layout-preview="true"
+                                className="rounded-full border-slate-300 bg-white px-4 text-[12px] font-semibold text-slate-800 hover:bg-slate-100"
+                                disabled={Boolean(busyGuideAction)}
+                                onClick={() => void previewQaA4Layout(process,guide)}
+                              >
+                                {busyGuideAction?.key === `${process.id}:${guide.code}` &&
+                                 busyGuideAction.action === "preview"
+                                  ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                                  : <Eye className="mr-1.5 h-3.5 w-3.5" />}
+                                Conferir layout A4 (QA)
+                              </Button>
+                            ) : null}
                           </>
                         ) : (
                           <Button asChild variant="outline" className="rounded-full text-[13px]">
@@ -629,19 +1091,39 @@ export function ExternalPaymentsPage() {
                             {guideActionStatus}
                           </div>
                         ) : null}
-                        {isolatedQaMode && qaPixCharges[guide.code]?.ok &&
-                          isValidPixPayload(qaPixCharges[guide.code]?.qrCode) ? (
-                            <div data-qa-pix-preview="true"
-                              className="w-full rounded-xl border border-sky-200 bg-white p-3 text-center text-slate-900 shadow-sm">
-                              <p className="mb-2 text-xs font-bold">PIX DE HOMOLOGAÇÃO — NÃO PAGAR</p>
-                              <QRCodeSVG value={qaPixCharges[guide.code].qrCode!} size={124} level="M" />
-                              <p className="mt-2 break-all font-mono text-[9px]">
+                      </div>
+                      {isolatedQaMode && qaPixCharges[guide.code]?.ok &&
+                       isValidPixPayload(qaPixCharges[guide.code]?.qrCode) ? (
+                        <section data-qa-pix-preview="true"
+                          onClick={(event)=>event.stopPropagation()}
+                          onKeyDown={(event)=>event.stopPropagation()}
+                          className="2xl:col-span-6 w-full rounded-xl border border-sky-200 bg-white p-4 text-slate-900 shadow-sm dark:bg-slate-950 dark:text-white">
+                          <div className="flex flex-col gap-5 sm:flex-row">
+                            <div className="shrink-0 rounded-xl border border-slate-200 bg-white p-3 text-center">
+                              <p className="mb-2 text-xs font-extrabold text-amber-800">PIX DE HOMOLOGAÇÃO — NÃO PAGAR</p>
+                              <QRCodeSVG value={qaPixCharges[guide.code].qrCode!} size={172} level="M" />
+                            </div>
+                            <div className="min-w-0 flex-1 space-y-2">
+                              <p className="text-sm font-bold">Ordem Mercado Pago · ambiente de TESTE</p>
+                              <p className="text-sm">Status no provedor: <strong>{
+                                qaPixCharges[guide.code].statusStale?"consulta temporariamente indisponível":
+                                qaPixCharges[guide.code].status==="processed"?"processado no sandbox":
+                                qaPixCharges[guide.code].status==="action_required"?"aguardando transferência simulada":
+                                qaPixCharges[guide.code].status||"pendente"
+                              }</strong></p>
+                              <p className="text-xs text-slate-600 dark:text-slate-300">Status de teste não confirma arrecadação nem baixa municipal.</p>
+                              <p className="rounded-lg bg-slate-50 p-3 font-mono text-[11px] leading-relaxed break-all text-slate-800 dark:bg-slate-900 dark:text-slate-100">
                                 {qaPixCharges[guide.code].qrCode}
                               </p>
-                              <p className="mt-2 text-xs font-semibold">QR do Mercado Pago de TESTE. Visualize a guia para abrir o documento.</p>
+                              <Button type="button" variant="outline" size="sm" data-qa-pix-refresh="true"
+                                disabled={Boolean(busyGuideAction)}
+                                onClick={()=>void refreshSandboxPixStatus(process,guide)}>
+                                Consultar status do PIX de TESTE (sem nova cobrança)
+                              </Button>
                             </div>
-                          ) : null}
-                      </div>
+                          </div>
+                        </section>
+                      ) : null}
                     </div>
                   </div>
                 );

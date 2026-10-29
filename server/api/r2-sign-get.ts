@@ -9,6 +9,7 @@
 import { GetObjectCommand, HeadObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { callDataApiRpc, resolveMunicipalDocumentTarget } from "../municipal-storage.js";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { verifyImmutableDamOriginalAlreadyStored } from "../lib/damOriginalS3.js";
 
 type Req = import("http").IncomingMessage & { method?: string; body?: unknown };
 type Res = import("http").ServerResponse;
@@ -99,6 +100,18 @@ async function readJsonBody(req: Req) {
 }
 
 export default async function handler(req: Req, res: Res) {
+  // Isolated QA must not read or modify official R2 objects, including direct routes.
+  if (process.env.VERCEL_ENV === "preview" &&
+      (process.env.VITE_SIGAPRO_NEON_ISOLATED === "true" ||
+       process.env.VERCEL_GIT_COMMIT_REF === "qa/sigapro-ia-logo-integrado-20261023")) {
+    res.statusCode = 503;
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Cache-Control", "no-store");
+    res.end(JSON.stringify({ code: "QA_R2_ACCESS_DISABLED",
+      error: "Armazenamento de homologação isolado ainda não configurado." }));
+    return;
+  }
+
   setCors(res);
   if (req.method === "OPTIONS") {
     res.statusCode = 204;
@@ -167,6 +180,20 @@ export default async function handler(req: Req, res: Res) {
       : null;
 
     if (municipalTarget) {
+      // For immutable DAM originals, existence alone is insufficient: an
+      // external municipal S3 administrator might have replaced the bytes.
+      // Compare the actual PDF against the SHA-256 recorded in the Neon key.
+      if (objectKey.includes("/dam-originals/")) {
+        await verifyImmutableDamOriginalAlreadyStored(
+          municipalTarget.client, municipalTarget.bucket,
+          municipalTarget.objectKey, objectKey,
+        );
+      } else {
+        await municipalTarget.client.send(new HeadObjectCommand({
+          Bucket: municipalTarget.bucket,
+          Key: municipalTarget.objectKey,
+        }));
+      }
       const signedUrl = await getSignedUrl(
         municipalTarget.client,
         new GetObjectCommand({
@@ -206,12 +233,16 @@ export default async function handler(req: Req, res: Res) {
         // O upload já possui fallback entre endpoints. A leitura precisa localizar
         // fisicamente o MESMO objeto antes de assinar, ou uma URL válida pode
         // apontar para a conta errada e retornar 404 somente em produção.
-        await client.send(
-          new HeadObjectCommand({
-            Bucket: bucket,
-            Key: objectKey,
-          }),
-        );
+        if (objectKey.includes("/dam-originals/")) {
+          await verifyImmutableDamOriginalAlreadyStored(client, bucket, objectKey);
+        } else {
+          await client.send(
+            new HeadObjectCommand({
+              Bucket: bucket,
+              Key: objectKey,
+            }),
+          );
+        }
 
         signedUrl = await getSignedUrl(
           client,

@@ -73,6 +73,21 @@ export default async function handler(req: Req, res: Res) {
   const requestUrl = new URL(req.url || "/api/storage-connection", "https://sigapro.local");
   const actionFromQuery = requestUrl.searchParams.get("action") || "";
 
+  // A QA preview cannot read or mutate a municipal storage configuration
+  // through inherited production credentials or the official Neon endpoint.
+  // Preserve the non-mutating health route and standard CORS preflight.
+  const isolatedQa = process.env.VERCEL_ENV === "preview" &&
+    (process.env.VITE_SIGAPRO_NEON_ISOLATED === "true" ||
+     process.env.VERCEL_GIT_COMMIT_REF === "qa/sigapro-ia-logo-integrado-20261023");
+  if (isolatedQa && req.method !== "OPTIONS" &&
+      !(req.method === "GET" && actionFromQuery === "health")) {
+    json(res, 503, {
+      code: "QA_MUNICIPAL_STORAGE_CONFIGURATION_DISABLED",
+      error: "A configuração de armazenamento municipal está desabilitada nesta homologação isolada.",
+    });
+    return;
+  }
+
   if (req.method === "GET" && actionFromQuery === "health") {
     json(res, 200, {
       ok: true,
@@ -104,6 +119,16 @@ export default async function handler(req: Req, res: Res) {
   try {
     const body = await readJsonBody(req);
     const action = typeof body.action === "string" ? body.action : "get";
+
+    if (process.env.VERCEL_ENV === "preview" &&
+        process.env.VITE_SIGAPRO_NEON_ISOLATED === "true" &&
+        action === "test") {
+      json(res, 503, {
+        code: "QA_STORAGE_TEST_DISABLED",
+        error: "Teste de gravação em bucket externo bloqueado na homologação isolada.",
+      });
+      return;
+    }
     const municipalityId = municipalityIdFrom(body);
 
     if (action === "get") {

@@ -9,6 +9,7 @@
 
 import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { qaLegislationSignedUrl, qaStorageReady } from "../server/qa-storage.js";
 
 type Req = import("http").IncomingMessage & { method?: string };
 type Res = import("http").ServerResponse;
@@ -78,6 +79,34 @@ export default async function handler(req: Req, res: Res) {
 
     if (!objectKey || !isMunicipalLegislationObject(objectKey)) {
       fail(res, 400, "Documento de legislação inválido.");
+      return;
+    }
+
+
+    // Even without the QA isolation flag, this preview branch must never
+    // fall back to inherited production R2 credentials.
+    const qaBranchPreview = process.env.VERCEL_ENV === "preview" &&
+      process.env.VERCEL_GIT_COMMIT_REF === "qa/sigapro-ia-logo-integrado-20261023";
+    if (qaBranchPreview && process.env.VITE_SIGAPRO_NEON_ISOLATED !== "true") {
+      fail(res, 503, "Isolamento da homologação não configurado.");
+      return;
+    }
+    if (process.env.VERCEL_ENV === "preview" &&
+        (process.env.VITE_SIGAPRO_NEON_ISOLATED === "true" || qaBranchPreview)) {
+      if (!qaStorageReady()) {
+        fail(res, 503, "Acervo isolado de QA não configurado.");
+        return;
+      }
+      try {
+        const signedUrl = await qaLegislationSignedUrl(objectKey);
+        res.statusCode = 302;
+        res.setHeader("Location", signedUrl);
+        res.setHeader("Cache-Control", "no-store, max-age=0");
+        res.setHeader("X-Robots-Tag", "noindex, nofollow");
+        res.end();
+      } catch {
+        fail(res, 404, "Legislação fictícia não encontrada no acervo de QA.");
+      }
       return;
     }
 

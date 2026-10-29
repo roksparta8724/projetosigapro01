@@ -1091,9 +1091,9 @@ function getStyles() {
     }
 
     .dam-qr-sandbox { background: #fffbeb; }
-    .dam-qr-sandbox .dam-qrcode-box { min-height: 18mm; }
-    .dam-qr-sandbox .dam-qrcode-box svg { width: 68px; height: 68px; }
-    .dam-qr-sandbox .dam-pix-copy { max-height: 14mm; overflow: hidden; }
+    .dam-qr-sandbox .dam-qrcode-box { min-height: 29mm; }
+    .dam-qr-sandbox .dam-qrcode-box svg { width: 104px; height: 104px; }
+    .dam-qr-sandbox .dam-pix-copy { overflow-wrap: anywhere; max-height: none; }
 
     .dam-pix-test-warning {
       margin-top: 2px;
@@ -1369,19 +1369,372 @@ function getStyles() {
       box-sizing: border-box;
     }
 
+
+    /* DAM A4 2026-10-28: contain every field inside its own card.
+       These rules apply to both the screen preview AND html2canvas originals;
+       print-only fixes never affect a generated bank PDF. */
+    .dam-sheet, .dam-sheet * { box-sizing: border-box; }
+    .dam-header { grid-template-columns: 82px minmax(0, 1fr) 176px; }
+    .dam-header-center, .dam-header-right, .dam-header-right-grid,
+    .dam-mini-cell, .dam-subtitle-main, .dam-subtitle-side,
+    .dam-responsibility-cell, .dam-receipt-center, .dam-receipt-right {
+      min-width: 0;
+    }
+    .dam-mini-value {
+      white-space: normal;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+      font-size: 8.4px;
+      line-height: 1.24;
+    }
+    .dam-mini-cell { overflow: hidden; }
+    .dam-mini-label { line-height: 1.2; }
+    .dam-subtitle-value {
+      font-size: 8px;
+      line-height: 1.3;
+      overflow-wrap: anywhere;
+    }
+    .dam-guide-tag {
+      max-width: 100%;
+      white-space: normal;
+      overflow-wrap: anywhere;
+      font-size: 6.6px;
+      line-height: 1.3;
+      padding: 3px 5px;
+    }
+    .dam-field-label { font-size: 7.1px; line-height: 1.2; }
+    .dam-field-value {
+      min-height: 23px;
+      padding: 4px 5px;
+      font-size: 9px;
+      line-height: 1.3;
+      min-width: 0;
+      white-space: normal;
+      overflow-wrap: anywhere;
+    }
+    .dam-responsibility-cell {
+      min-height: 33px;
+      padding: 5px 5px 4px;
+    }
+    .dam-responsibility-label {
+      font-size: 6.4px;
+      line-height: 1.18;
+      overflow-wrap: anywhere;
+    }
+    .dam-responsibility-value {
+      margin-top: 3px;
+      font-size: 8px;
+      line-height: 1.27;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+    .dam-reference {
+      padding: 4px 5px;
+      font-size: 8px;
+      line-height: 1.25;
+      overflow-wrap: anywhere;
+    }
+    .dam-table th, .dam-table td {
+      font-size: 7.5px;
+      line-height: 1.28;
+      padding: 4px 3px;
+      overflow-wrap: anywhere;
+      word-break: normal;
+    }
+    .dam-table th { font-size: 6.6px; line-height: 1.2; }
+    .dam-table td:nth-child(n + 6) {
+      white-space: nowrap;
+      font-size: 7.2px;
+      padding-left: 2px;
+      padding-right: 2px;
+    }
+    .dam-total-label, .dam-total-value {
+      padding: 4px 5px;
+      line-height: 1.2;
+    }
+    .dam-total-label { font-size: 8.3px; }
+    .dam-total-value { font-size: 10px; }
+    .dam-responsible-label, .dam-responsible-value {
+      padding: 4px 5px;
+      line-height: 1.25;
+      overflow-wrap: anywhere;
+    }
+    .dam-warning-row {
+      padding: 5px 8px;
+      font-size: 7.2px;
+      line-height: 1.4;
+      overflow-wrap: anywhere;
+    }
+    .dam-observation-row {
+      grid-template-columns: 22mm minmax(0,1fr);
+      min-height: 26px;
+      align-items: stretch;
+    }
+    .dam-observation-label, .dam-observation-value {
+      padding: 5px;
+      font-size: 7.8px;
+      line-height: 1.3;
+      overflow-wrap: anywhere;
+    }
+    .dam-summary-row {
+      grid-template-columns: minmax(0,1.6fr) repeat(4,minmax(0,1fr));
+      min-height: 34px;
+      align-items: stretch;
+    }
+    .dam-summary-cell {
+      padding: 5px 4px;
+      overflow: hidden;
+    }
+    .dam-summary-label { font-size: 6.4px; line-height: 1.2; }
+    .dam-summary-value {
+      font-size: 7.5px;
+      line-height: 1.28;
+      white-space: normal;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+    .dam-receipt-header {
+      height: 24mm;
+      min-height: 24mm;
+      max-height: 24mm;
+      grid-template-columns: 28mm minmax(0,1fr) 58mm;
+    }
+    .dam-receipt-logo img { height: 22.5mm; }
+    .dam-receipt-center {
+      padding: 1.5mm 2.5mm;
+      justify-content: center;
+      gap: 1px;
+      overflow: hidden;
+    }
+    .dam-receipt-title {
+      white-space: normal;
+      overflow: visible;
+      text-overflow: clip;
+      overflow-wrap: anywhere;
+      font-size: 9px;
+      line-height: 1.18;
+    }
+    .dam-receipt-subline {
+      margin-top: 1px;
+      font-size: 7px;
+      line-height: 1.25;
+      white-space: normal;
+      overflow: visible;
+      text-overflow: clip;
+      overflow-wrap: anywhere;
+    }
+    .dam-receipt-right .dam-receipt-row {
+      height: 12mm;
+      min-height: 12mm;
+      grid-template-columns: 19mm minmax(0,1fr);
+    }
+    .dam-receipt-right .dam-receipt-row-label,
+    .dam-receipt-right .dam-receipt-row-value {
+      padding: 1.3mm 1.5mm;
+      font-size: 7px;
+      line-height: 1.22;
+      white-space: normal;
+      overflow: hidden;
+      text-overflow: clip;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+    .dam-receipt-right .dam-receipt-row-value {
+      font-size: 7.3px;
+    }
+    .dam-receipt-row-label {
+      font-size: 7px;
+      line-height: 1.2;
+    }
+    .dam-receipt-row-value {
+      font-size: 8.2px;
+      line-height: 1.28;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+    .dam-note { font-size: 7.3px; line-height: 1.3; }
+    .dam-auth-value {
+      min-height: 7mm;
+      font-size: 7.2px;
+      line-height: 1.28;
+      overflow-wrap: anywhere;
+    }
+    .dam-qr-wrap { padding: 4px; }
+    .dam-qrcode-label, .dam-pix-copy-label, .dam-bottom-label {
+      font-size: 7px;
+      line-height: 1.25;
+    }
+    .dam-qr-sandbox .dam-qrcode-box { min-height: 31mm; }
+    .dam-qr-sandbox .dam-qrcode-box svg { width: 112px; height: 112px; }
+    .dam-pix-copy {
+      font-size: 6px;
+      line-height: 1.4;
+      overflow-wrap: anywhere;
+      word-break: break-all;
+      max-width: 100%;
+    }
+    .dam-barcode-box.dam-barcode-unavailable {
+      height: 11mm;
+      align-items: center;
+      background: #f8fafc;
+    }
+    .dam-barcode-fallback {
+      font-size: 7px;
+      line-height: 1.25;
+      overflow-wrap: anywhere;
+    }
+    .dam-bank-auth-line, .dam-final-box, .dam-final-text,
+    .dam-final-right-box, .dam-footer-note {
+      font-size: 7px;
+      line-height: 1.35;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+    .dam-final-area {
+      grid-template-columns: minmax(0,1fr) 54mm;
+    }
+    .dam-footer-area {
+      grid-template-columns: minmax(0,1fr) 54mm;
+    }
+
+    /* A4: nenhuma grade pode expandir além do cartão que a contém.
+       Quebrar conteúdo de identificação é preferível a sobrepor colunas. */
+    .dam-stack, .dam-block, .dam-block-top, .dam-block-bottom,
+    .dam-fields-grid, .dam-table-wrap, .dam-receipt-body,
+    .dam-receipt-left, .dam-receipt-right, .dam-receipt-row,
+    .dam-footer-left, .dam-footer-right, .dam-final-left,
+    .dam-final-right { min-width: 0; }
+    .dam-receipt-left .dam-receipt-row-label,
+    .dam-receipt-left .dam-receipt-row-value {
+      white-space: normal;
+      text-overflow: clip;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+      line-height: 1.27;
+    }
+    .dam-receipt-left .dam-receipt-row-value,
+    .dam-note, .dam-auth-value, .dam-final-box,
+    .dam-final-right-box, .dam-bank-auth-line {
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+    .dam-table td:nth-child(2),
+    .dam-table td:nth-child(3) {
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+
+
+    /* Malha única para PDF A4, prévia e impressão; valores e rótulos
+       não invadem bordas nem são cortados por alturas rígidas. */
+    .dam-sheet { --dam-label-column: 28mm; --dam-amount-column: 58mm; --dam-amount-label: 19mm; }
+    .dam-subtitle-main, .dam-subtitle-side { min-width:0; padding:7px 9px 10px; }
+    .dam-subtitle-value { margin-top:4px; line-height:1.4; }
+    .dam-guide-tag { display:inline-block; margin-top:4px; padding:4px 7px; line-height:1.35; vertical-align:top; max-width:100%; }
+    .dam-responsibility-cell { min-height:43px; padding:7px 8px 8px; }
+    .dam-responsibility-label { line-height:1.25; }
+    .dam-responsibility-value { margin-top:5px; font-size:8px; line-height:1.37; }
+    .dam-work-meta { padding:6px 8px; line-height:1.38; }
+    .dam-reference { padding:6px 8px; line-height:1.34; }
+    .dam-table-wrap { padding:5px 7px 7px; }
+    .dam-table th, .dam-table td { padding:6px 4px; line-height:1.37; vertical-align:middle; }
+    .dam-table th { line-height:1.3; }
+    .dam-observation-row { min-height:32px; }
+    .dam-observation-label, .dam-observation-value { padding:7px 8px; line-height:1.36; }
+    .dam-summary-row { min-height:47px; }
+    .dam-summary-cell { padding:8px 9px; min-width:0; }
+    .dam-summary-label { line-height:1.3; }
+    .dam-summary-value { margin-top:5px; font-size:8px; line-height:1.35; }
+    .dam-receipt-header {
+      grid-template-columns:var(--dam-label-column) minmax(0,1fr) var(--dam-amount-column);
+      min-height:25mm; height:auto; max-height:none;
+    }
+    .dam-receipt-center { border-right:1px solid #64748b; padding:3mm 3.5mm; overflow:visible; }
+    .dam-receipt-right { border-left:0; min-width:0; }
+    .dam-receipt-right .dam-receipt-row {
+      grid-template-columns:var(--dam-amount-label) minmax(0,1fr);
+      height:auto; min-height:12.5mm;
+    }
+    .dam-receipt-right .dam-receipt-row-label,
+    .dam-receipt-right .dam-receipt-row-value {
+      padding:2.2mm 1.6mm; line-height:1.35; display:flex; align-items:center; min-width:0;
+    }
+    .dam-receipt-body { grid-template-columns:minmax(0,1fr) var(--dam-amount-column); align-items:start; }
+    .dam-receipt-left { border-right:1px solid #64748b; min-width:0; }
+    .dam-receipt-amounts { min-width:0; }
+    .dam-receipt-left > .dam-receipt-row {
+      grid-template-columns:var(--dam-label-column) minmax(0,1fr);
+      min-height:9mm;
+    }
+    .dam-receipt-amounts > .dam-receipt-row {
+      grid-template-columns:var(--dam-amount-label) minmax(0,1fr);
+      min-height:9mm;
+    }
+    .dam-receipt-left .dam-receipt-row-label,
+    .dam-receipt-left .dam-receipt-row-value,
+    .dam-receipt-amounts > .dam-receipt-row > .dam-receipt-row-label,
+    .dam-receipt-amounts > .dam-receipt-row > .dam-receipt-row-value {
+      padding:6px 8px; min-width:0; line-height:1.4;
+      display:flex; align-items:center;
+      white-space:normal; text-overflow:clip;
+      overflow-wrap:anywhere; word-break:break-word;
+    }
+    .dam-receipt-left .dam-receipt-row-value { font-size:8.2px; }
+    .dam-receipt-amounts > .dam-receipt-row > .dam-receipt-row-label { font-size:6.9px; }
+    .dam-receipt-amounts > .dam-receipt-row > .dam-receipt-row-value { font-size:8px; font-weight:700; }
+    .dam-note { padding:7px 8px; line-height:1.4; }
+    .dam-auth { padding:7px 8px; }
+    .dam-auth-label, .dam-auth-value { line-height:1.35; }
+    .dam-final-left, .dam-final-right, .dam-footer-left, .dam-footer-right { padding:7px 8px; }
+    .dam-final-box { padding:6px 7px; line-height:1.45; }
+    .dam-bank-auth-line { line-height:1.4; }
+    .dam-bottom-section { padding:7px 8px; }
+    .dam-qr-wrap { padding:7px; }
+
     @media print {
+      @page {
+        size: A4 portrait;
+        margin: 0;
+      }
       html, body {
         width: 210mm;
         min-height: 297mm;
         background: #ffffff !important;
       }
 
-      /* Mantém a guia inteira em A4 com respiro institucional real.
-         A largura compensada preserva a malha e centraliza o documento após o zoom. */
+      /* A via impressa deve incluir o rodapé de conciliação.
+         A antiga altura máxima cortava silenciosamente o fim da guia. */
       .dam-root {
-        zoom: 0.90;
-        width: 111.111%;
+        zoom: 0.78;
+        width: 128.205%;
         transform-origin: top center;
+      }
+      .dam-sheet {
+        height: auto !important;
+        min-height: 0 !important;
+        max-height: none !important;
+        overflow: visible !important;
+        padding: 2.4mm !important;
+      }
+      .dam-stack { height: auto !important; gap: 0.7mm !important; }
+      .dam-subtitle-main, .dam-subtitle-side { padding: 4px 6px !important; }
+      .dam-responsibility-cell { min-height: 34px !important; padding: 5px 6px !important; }
+      .dam-table th, .dam-table td { padding: 4px 3px !important; }
+      .dam-summary-cell { padding: 5px 6px !important; }
+      .dam-receipt-header { height: auto !important; min-height: 21mm !important; max-height: none !important; }
+      .dam-receipt-right .dam-receipt-row { min-height: 10mm !important; height: auto !important; }
+      .dam-receipt-left > .dam-receipt-row,
+      .dam-receipt-amounts > .dam-receipt-row { min-height: 7mm !important; }
+      .dam-receipt-left .dam-receipt-row-label,
+      .dam-receipt-left .dam-receipt-row-value,
+      .dam-receipt-amounts > .dam-receipt-row > .dam-receipt-row-label,
+      .dam-receipt-amounts > .dam-receipt-row > .dam-receipt-row-value {
+        padding: 4px 6px !important;
+      }
+      .dam-note { padding: 5px 6px !important; }
+      .dam-qr-wrap { padding: 4px !important; }
+      .dam-final-left, .dam-final-right, .dam-footer-left, .dam-footer-right {
+        padding: 5px 6px !important;
       }
 
       .print-hide {
@@ -1511,6 +1864,7 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
     guia.valorCobrado ?? totalDocumento - descontos + outrosAcrescimos;
   const bankAuth = bankAuthenticationLabel(guia);
   const nonPayable = guia.nonPayablePreview === true;
+  const testPixOnly = guia.bankEnvironment === "test" && !nonPayable && isValidPixPayload(guia.qaSandboxPixPayload) && !guia.codigoBarras && !guia.linhaDigitavel;
   // Boleto and PIX are independent bank-issued payment methods. A working
   // Mercado Pago boleto does NOT imply that the provider supplied a PIX QR.
   // In isolated QA never turn a real municipal static key into a payable QR.
@@ -1542,7 +1896,9 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
     .filter(Boolean)
     .join(" - ");
 
-  const visibleItens = itens.slice(0, 8);
+  // Uma guia oficial jamais pode omitir lançamentos por limite visual.
+  // O preflight A4 do gerador recusa arquivar a página se não couber.
+  const visibleItens = itens;
   const resolvedMunicipalityLogo =
     String(prefeitura.logoUrl || "").trim();
 
@@ -1615,7 +1971,7 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
               </div>
             </div>
 
-            <div className="dam-title">{nonPayable ? "Prévia de guia — não pagável" : guideMeta.title}</div>
+            <div className="dam-title">{nonPayable ? "Prévia de guia — não pagável" : testPixOnly ? "PIX de homologação — sem boleto" : guideMeta.title}</div>
 
             {guia.bankEnvironment === "test" ? (
               <div className="dam-homologation-band">
@@ -1702,6 +2058,11 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
 
             <div className="dam-table-wrap">
               <table className="dam-table">
+                <colgroup>
+                  {[5, 19, 9, 5, 5, 12, 11, 10, 12, 12].map((width, index) => (
+                    <col key={index} style={{ width: `${width}%` }} />
+                  ))}
+                </colgroup>
                 <thead>
                   <tr>
                     {[
@@ -1784,7 +2145,7 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
             </div>
 
             <div className="dam-total-row">
-              <div className="dam-total-label">{nonPayable ? "VALOR REFERENCIAL — NÃO PAGAR" : guia.bankEnvironment === "test" ? "VALOR DO BOLETO DE TESTE — NÃO PAGAR" : "VALOR TOTAL A PAGAR"}</div>
+              <div className="dam-total-label">{nonPayable ? "VALOR REFERENCIAL — NÃO PAGAR" : testPixOnly ? "VALOR DO PIX DE TESTE — NÃO PAGAR" : guia.bankEnvironment === "test" ? "VALOR DO BOLETO DE TESTE — NÃO PAGAR" : "VALOR TOTAL A PAGAR"}</div>
               <div className="dam-total-value">{formatCurrency(totalDocumento)}</div>
             </div>
 
@@ -1800,6 +2161,8 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
             <div className="dam-warning-row">
               {nonPayable
                 ? "** SOMENTE PRÉVIA DE TESTE — SEM BOLETO REGISTRADO — NÃO PAGAR **"
+                : testPixOnly
+                  ? "** PIX EMITIDO EM AMBIENTE DE TESTE — BOLETO NÃO EMITIDO — NÃO PAGAR — SEM VALIDADE DE ARRECADAÇÃO OFICIAL **"
                 : guia.bankEnvironment === "test"
                   ? "** BOLETO EMITIDO NO AMBIENTE DE TESTES — NÃO PAGAR — SEM VALIDADE DE ARRECADAÇÃO OFICIAL **"
                 : guia.paymentProvider === "mercado_pago"
@@ -1929,7 +2292,7 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
                 </div>
               </div>
 
-              <div>
+              <div className="dam-receipt-amounts">
                 <ReceiptRow
                   label="Valor Doc."
                   value={formatCurrency(totalDocumento)}
@@ -1960,7 +2323,7 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
                     <div className="dam-qrcode-label">PIX — MERCADO PAGO (TESTE)</div>
                     <div className="dam-pix-test-warning">QR DE HOMOLOGAÇÃO · NÃO PAGAR</div>
                     <div className="dam-qrcode-box">
-                      <QRCodeSVG value={sandboxPixPayload} size={68} level="M" marginSize={2} />
+                      <QRCodeSVG value={sandboxPixPayload} size={104} level="M" marginSize={4} />
                     </div>
                     <div className="dam-pix-copy-label">PIX COPIA E COLA — SOMENTE TESTE</div>
                     <div className="dam-pix-copy">{sandboxPixPayload}</div>
@@ -2005,16 +2368,18 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
             <div className="dam-bottom-section">
               <div className="dam-bottom-label">Linha Digitável</div>
               <div className="dam-digitable-value">
-                {nonPayable ? "NÃO EMITIDA — PRÉVIA DE HOMOLOGAÇÃO" : formatDigitableLine(guia.linhaDigitavel)}
+                {nonPayable ? "NÃO EMITIDA — PRÉVIA DE HOMOLOGAÇÃO" : testPixOnly ? "BOLETO NÃO EMITIDO — SOMENTE PIX DE TESTE" : formatDigitableLine(guia.linhaDigitavel)}
               </div>
             </div>
 
             <div className="dam-bottom-section">
               <div className="dam-bottom-label">Código de Barras</div>
-              <div className="dam-barcode-box">
+              <div className={`dam-barcode-box${nonPayable || testPixOnly ? " dam-barcode-unavailable" : ""}`}>
                 {nonPayable
                   ? <span className="dam-barcode-fallback">NÃO EMITIDO — nenhuma cobrança foi registrada no provedor</span>
-                  : <ProviderBarcode value={guia.codigoBarras} />}
+                  : testPixOnly
+                    ? <span className="dam-barcode-fallback">BOLETO NÃO EMITIDO — PIX DE HOMOLOGAÇÃO REGISTRADO NO PROVEDOR</span>
+                    : <ProviderBarcode value={guia.codigoBarras} />}
               </div>
             </div>
 
@@ -2024,6 +2389,8 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
                 <div className="dam-footer-note">
                   {nonPayable
                     ? "SOMENTE HOMOLOGAÇÃO — prévia administrativa, sem pagamento, PIX, código de barras ou confirmação bancária."
+                    : testPixOnly
+                      ? "PIX DE TESTE EMITIDO PELO PROVEDOR. BOLETO NÃO EMITIDO. NÃO PAGAR. Este documento não comprova compensação nem baixa financeira municipal."
                     : guia.bankInstructions ||
                     (guia.linhaDigitavel || guia.pixPayload || guia.qrCodePixUrl
                       ? "Efetue o pagamento pelo canal oficial indicado pela Prefeitura. Após a compensação, o recolhimento poderá ser conferido na tramitação administrativa."
@@ -2047,6 +2414,8 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
                 <div className="dam-final-text">
                   {nonPayable
                     ? "Prévia para testar o fluxo administrativo. Não comprova emissão, autenticação ou compensação bancária."
+                    : testPixOnly
+                      ? "PIX emitido no sandbox do Mercado Pago. Registro exclusivo de homologação; não representa pagamento, cobrança municipal oficial ou baixa."
                     : "Guia vinculada ao processo administrativo e ao provedor oficial de cobrança."}
                 </div>
                 <div className="dam-final-box">
