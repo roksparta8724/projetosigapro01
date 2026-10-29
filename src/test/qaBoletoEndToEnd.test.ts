@@ -161,7 +161,7 @@ describe("one complete sandbox-only SIGAPRO bank issuance", () => {
   });
   it("rejects any nonisolated launch before touching bank accounts", async () => {
     vi.stubEnv("SIGAPRO_LOCAL_QA_LAUNCH", "false");
-    await expect(createMercadoPagoGuideBoleto(input, req, opts)).rejects.toThrow(/localhost:8081 isolado/);
+    await expect(createMercadoPagoGuideBoleto(input, req, opts)).rejects.toThrow(/localhost QA ou preview/);
     expect(mocks.resolve).not.toHaveBeenCalled();
     expect(fetch).not.toHaveBeenCalled();
   });
