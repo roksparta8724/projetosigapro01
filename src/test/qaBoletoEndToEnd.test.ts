@@ -114,6 +114,51 @@ describe("one complete sandbox-only SIGAPRO bank issuance", () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
+  it("accepts an explicitly opted-in Vercel QA branch and issues ONLY with TEST token",async()=>{
+    vi.stubEnv("SIGAPRO_LOCAL_QA_LAUNCH","false");
+    vi.stubEnv("SIGAPRO_LOCAL_QA_BLOCK_EXTERNAL_WRITES","false");
+    vi.stubEnv("VERCEL_ENV","preview");
+    vi.stubEnv("VERCEL_GIT_COMMIT_REF","qa/sigapro-ia-logo-integrado-20261023");
+    vi.stubEnv("SIGAPRO_QA_MP_SETUP_OPT_IN","QA_ONLY_TEST_CREDENTIALS");
+    vi.stubEnv("SIGAPRO_QA_MP_CHARGE_OPT_IN","QA_ONLY_TEST_ORDERS");
+    vi.stubEnv("MUNICIPAL_PAYMENT_MASTER_KEY","A".repeat(32));
+    vi.stubEnv("SIGAPRO_BANK_CHARGE_SIGNING_SECRET","a".repeat(64));
+    const result=await createMercadoPagoGuideBoleto(input,req,opts);
+    expect(result.ok).toBe(true);
+    expect(result.environment).toBe("test");
+    expect(mocks.authorize).toHaveBeenCalledWith(req,original,true);
+    expect(mocks.write).toHaveBeenCalledWith(req,original,expect.anything(),true);
+  });
+  it.each([
+    ["production deploy","production","qa/sigapro-ia-logo-integrado-20261023","QA_ONLY_TEST_ORDERS"],
+    ["wrong branch","preview","main","QA_ONLY_TEST_ORDERS"],
+    ["missing explicit charge opt-in","preview","qa/sigapro-ia-logo-integrado-20261023",""],
+  ])("blocks remote boleto from %s before provider call",async(_name,env,ref,opt)=>{
+    vi.stubEnv("SIGAPRO_LOCAL_QA_LAUNCH","false");
+    vi.stubEnv("SIGAPRO_LOCAL_QA_BLOCK_EXTERNAL_WRITES","false");
+    vi.stubEnv("VERCEL_ENV",env);
+    vi.stubEnv("VERCEL_GIT_COMMIT_REF",ref);
+    vi.stubEnv("SIGAPRO_QA_MP_SETUP_OPT_IN","QA_ONLY_TEST_CREDENTIALS");
+    vi.stubEnv("SIGAPRO_QA_MP_CHARGE_OPT_IN",opt);
+    vi.stubEnv("MUNICIPAL_PAYMENT_MASTER_KEY","A".repeat(32));
+    vi.stubEnv("SIGAPRO_BANK_CHARGE_SIGNING_SECRET","a".repeat(64));
+    await expect(createMercadoPagoGuideBoleto(input,req,opts)).rejects.toThrow("preview");
+    expect(mocks.resolve).not.toHaveBeenCalled();
+    expect(fetch).not.toHaveBeenCalled();
+  });
+  it("blocks production payment credentials even on isolated QA preview",async()=>{
+    vi.stubEnv("SIGAPRO_LOCAL_QA_LAUNCH","false");
+    vi.stubEnv("SIGAPRO_LOCAL_QA_BLOCK_EXTERNAL_WRITES","false");
+    vi.stubEnv("VERCEL_ENV","preview");
+    vi.stubEnv("VERCEL_GIT_COMMIT_REF","qa/sigapro-ia-logo-integrado-20261023");
+    vi.stubEnv("SIGAPRO_QA_MP_SETUP_OPT_IN","QA_ONLY_TEST_CREDENTIALS");
+    vi.stubEnv("SIGAPRO_QA_MP_CHARGE_OPT_IN","QA_ONLY_TEST_ORDERS");
+    vi.stubEnv("MUNICIPAL_PAYMENT_MASTER_KEY","A".repeat(32));
+    vi.stubEnv("SIGAPRO_BANK_CHARGE_SIGNING_SECRET","a".repeat(64));
+    mocks.resolve.mockResolvedValue({environment:"production",token:"APP_USR_PROD"});
+    await expect(createMercadoPagoGuideBoleto(input,req,opts)).rejects.toThrow("Conta de produção bloqueada");
+    expect(fetch).not.toHaveBeenCalled();
+  });
   it("rejects any nonisolated launch before touching bank accounts", async () => {
     vi.stubEnv("SIGAPRO_LOCAL_QA_LAUNCH", "false");
     await expect(createMercadoPagoGuideBoleto(input, req, opts)).rejects.toThrow(/localhost:8081 isolado/);

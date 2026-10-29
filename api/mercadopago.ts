@@ -161,6 +161,7 @@ export default async function handler(req: Req, res: Res) {
           amount: Number(body.amount || 0),
         },
         req,
+        isolatedQa ? { isolatedSandboxOnly: true } : undefined,
       );
 
       // getMercadoPagoGuideBoletoStatus / createMercadoPagoGuideBoleto
@@ -375,6 +376,7 @@ export default async function handler(req: Req, res: Res) {
           description: body.description ? String(body.description) : undefined,
         },
         req,
+        isolatedQa ? { isolatedSandboxOnly: true } : undefined,
       );
 
       // createMercadoPagoGuideBoleto already persisted this charge through

@@ -90,9 +90,8 @@ export function ExternalPaymentsPage() {
   const [qaCharges, setQaCharges] = useState<Record<string, MercadoPagoGuideCharge>>({});
   const [qaPixCharges, setQaPixCharges] = useState<Record<string,QaPixCharge>>({});
   const isolatedQaMode = import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true";
-  // A prévia remota do Vercel não possui a rota do emissor bancário isolado.
-  // Exibir a emissão lá causava 404 e sugeria falsamente que houve cobrança.
-  // O provedor de testes existe SOMENTE no Vite local isolado :8080/:8081.
+  // Local Vite QA and the fixed, protected Vercel QA branch both use the
+  // same isolated-tenant API and test-only bank credentials. Never production.
   const localQaBankIssuer = isolatedQaMode &&
     typeof window !== "undefined" &&
     ["localhost", "127.0.0.1"].includes(window.location.hostname) &&
@@ -101,10 +100,11 @@ export function ExternalPaymentsPage() {
   const qaPixIssuer = localQaBankIssuer || (isolatedQaMode &&
     typeof window !== "undefined" &&
     window.location.hostname === "projetosigapro01-git-qa-sigapro-f7ead8-roksparta8724s-projects.vercel.app");
+  const qaBoletoIssuer = qaPixIssuer;
   const activeTab = getExternalTabByPath(location.pathname);
 
   const issueSandboxBoleto = async (process: ProcessRecord, guide: PaymentGuideEntry) => {
-    if (!localQaBankIssuer || !effectiveScopeId || busyGuideAction || isGuideSettled(guide)) return;
+    if (!qaBoletoIssuer || !effectiveScopeId || busyGuideAction || isGuideSettled(guide)) return;
     const actionKey=`${process.id}:${guide.code}`;
     setBusyGuideAction({key:actionKey,action:"boleto"});
     setStatusGuideKey(actionKey);
@@ -127,6 +127,9 @@ export function ExternalPaymentsPage() {
           "PDF original desta guia já está arquivado no Neon. Abra a mesma guia; nenhum boleto novo será emitido. NÃO PAGAR.",
         );
         return;
+      }
+      if (current.pix_code) {
+        throw new Error("Esta guia já possui PIX de homologação. Não é permitido emitir boleto paralelo.");
       }
       const existingOrder = Boolean(current.bank_reference);
       if (existingOrder) {
@@ -999,7 +1002,7 @@ export function ExternalPaymentsPage() {
                                 </Link>
                               </Button>
                             )}
-                            {localQaBankIssuer && !isGuideSettled(guide) ? (
+                            {qaBoletoIssuer && !isGuideSettled(guide) && !guide.bankReference ? (
                               <Button
                                 type="button"
                                 variant="outline"

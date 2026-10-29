@@ -424,12 +424,23 @@ export async function createMercadoPagoGuideBoleto(
   options?: { isolatedSandboxOnly?: boolean },
 ): Promise<MercadoPagoGuideBoletoResult> {
   if (options?.isolatedSandboxOnly) {
-    if (
-      !req ||
-      process.env.SIGAPRO_LOCAL_QA_LAUNCH !== "true" ||
-      process.env.SIGAPRO_LOCAL_QA_BLOCK_EXTERNAL_WRITES !== "true" ||
-      process.env.VITE_SIGAPRO_NEON_ISOLATED !== "true"
-    ) throw new Error("Boleto de teste disponível apenas no localhost:8081 isolado.");
+    // Both environments are strictly isolated. The remote preview is
+    // whitelisted by exact Vercel env + QA branch + both explicit opt-ins.
+    // A test order can NEVER be issued from production or another preview.
+    const isolatedLocal =
+      process.env.SIGAPRO_LOCAL_QA_LAUNCH === "true" &&
+      process.env.SIGAPRO_LOCAL_QA_BLOCK_EXTERNAL_WRITES === "true" &&
+      process.env.VITE_SIGAPRO_NEON_ISOLATED === "true";
+    const isolatedPreview =
+      process.env.VERCEL_ENV === "preview" &&
+      process.env.VERCEL_GIT_COMMIT_REF === "qa/sigapro-ia-logo-integrado-20261023" &&
+      process.env.VITE_SIGAPRO_NEON_ISOLATED === "true" &&
+      process.env.SIGAPRO_QA_MP_SETUP_OPT_IN === "QA_ONLY_TEST_CREDENTIALS" &&
+      process.env.SIGAPRO_QA_MP_CHARGE_OPT_IN === "QA_ONLY_TEST_ORDERS" &&
+      String(process.env.MUNICIPAL_PAYMENT_MASTER_KEY || "").length >= 32 &&
+      /^[a-f0-9]{64}$/.test(String(process.env.SIGAPRO_BANK_CHARGE_SIGNING_SECRET || ""));
+    if (!req || (!isolatedLocal && !isolatedPreview))
+      throw new Error("Boleto de teste disponível apenas no localhost QA ou preview da branch isolada e autorizada.");
     const sandboxConnection = await resolveMercadoPagoMunicipalAccessToken(req, input.municipalityId);
     if (sandboxConnection.environment !== "test") {
       throw new Error("Conta de produção bloqueada: utilize exclusivamente as credenciais de homologação do Mercado Pago.");
