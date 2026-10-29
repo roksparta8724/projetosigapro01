@@ -57,6 +57,12 @@ function isR2CredentialError(error: unknown) {
     /signature.*does not match|invalid access key|access denied/i.test(message);
 }
 
+export function isCreateOnlyDocumentBucket(bucket: string) {
+  // A newly uploaded process document gets a new object key (UUID and revision).
+  // No common upload should silently overwrite an older document revision.
+  return bucket === (readEnv("R2_BUCKET_DOCUMENTOS") || "sigapro-documentos");
+}
+
 async function putR2ObjectWithFallback(input: {
   bucket: string;
   objectKey: string;
@@ -84,8 +90,8 @@ async function putR2ObjectWithFallback(input: {
         Body: input.body,
         ContentType: input.contentType,
         Metadata: input.metadata,
-        // Signed analysis PDFs are immutable just like financial originals.
-        ...(input.objectKey.includes("/dam-originals/") || input.objectKey.includes("/analysis-signed-fiches/") ? { IfNoneMatch: "*" } : {}),
+        // Every process document is create-once, including ordinary attachments.
+        ...(isCreateOnlyDocumentBucket(input.bucket) ? { IfNoneMatch: "*" } : {}),
       }));
       return;
     } catch (error) {
@@ -413,8 +419,8 @@ export default async function handler(req: Req, res: Res) {
         Body: buffer,
         ContentType: resolvedContentType,
         Metadata: damOriginalMetadata,
-        // Municipal S3 must enforce the same create-once contract.
-        ...(objectKey.includes("/dam-originals/") || objectKey.includes("/analysis-signed-fiches/") ? { IfNoneMatch: "*" } : {}),
+        // Municipal S3 must preserve old document revisions as well.
+        ...(isCreateOnlyDocumentBucket(bucket) ? { IfNoneMatch: "*" } : {}),
       })).catch((error) => {
         if (objectKey.includes("/dam-originals/") && error?.$metadata?.httpStatusCode === 412) return;
         throw error;
@@ -453,7 +459,11 @@ export default async function handler(req: Req, res: Res) {
     // Conditional write conflicts must never overwrite signed originals.
     const writeStatus = (error as { $metadata?: { httpStatusCode?: number } } | null)?.$metadata?.httpStatusCode;
     if (writeStatus === 412) {
-      json(res, 409, { error: "Este PDF assinado já existe e não pode ser substituído.", code: "SIGNED_PDF_IMMUTABLE" });
+      if (objectKey.includes("/analysis-signed-fiches/") || objectKey.includes("/dam-originals/")) {
+        json(res, 409, { error: "Este PDF assinado ou original já existe e não pode ser substituído.", code: "SIGNED_PDF_IMMUTABLE" });
+      } else {
+        json(res, 409, { error: "Documento já armazenado. Envie uma nova versão com outra referência.", code: "DOCUMENT_ALREADY_EXISTS" });
+      }
       return;
     }
     const rawMessage = error instanceof Error ? error.message : "Erro ao enviar o arquivo.";

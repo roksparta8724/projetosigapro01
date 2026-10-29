@@ -83,7 +83,8 @@ describe("R2 signed GET municipal document access", () => {
   it("enforces create-once signed-analysis PDFs in both SIGAPRO R2 and municipal S3", async () => {
     const { readFileSync } = await import("node:fs");
     const src = readFileSync("server/api/r2-upload.ts", "utf8");
-    expect(src).toContain('input.objectKey.includes("/analysis-signed-fiches/")');
+    expect(src).toContain('isCreateOnlyDocumentBucket(input.bucket)');
+    expect(src).toContain('isCreateOnlyDocumentBucket(bucket)');
     expect(src).toContain('objectKey.includes("/analysis-signed-fiches/")');
     expect(src.split('IfNoneMatch: "*"').length - 1).toBe(2);
     expect(src).toContain('code: "SIGNED_PDF_IMMUTABLE"');
