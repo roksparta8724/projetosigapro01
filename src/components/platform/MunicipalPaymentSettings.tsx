@@ -438,10 +438,17 @@ export function MunicipalPaymentSettings({
           ) : null}
         </div>
 
-        {form.provider === "mercado_pago" ? (
+        {form.provider === "mercado_pago" && form.environment === "production" ? (
           <div data-municipal-bank-webhook-setup="true" className="mt-4 space-y-2 rounded-2xl border border-slate-200 bg-slate-50 p-4">
             <p className="text-sm font-semibold text-slate-900">URL oficial para notificações de pagamento</p>
-            <Input aria-label="URL de Webhook da Prefeitura" readOnly value={webhookUrl} className="font-mono text-xs" />
+            <div className="flex flex-wrap items-center gap-2">
+              <Input aria-label="URL de Webhook da Prefeitura" readOnly value={webhookUrl} className="min-w-0 flex-1 font-mono text-xs" />
+              <Button type="button" variant="outline" onClick={() => {
+                void navigator.clipboard.writeText(webhookUrl)
+                  .then(() => setMessage("URL oficial do Webhook copiada. Configure-a na aplicação Mercado Pago da Prefeitura."))
+                  .catch(() => setMessage("Selecione a URL exibida e copie-a manualmente."));
+              }}>Copiar URL</Button>
+            </div>
             <p className="text-xs leading-5 text-slate-600">
               Cadastre esta URL na aplicação Mercado Pago da Prefeitura para notificações de Orders (order).
               Copie a chave secreta desse Webhook para o campo protegido acima.
@@ -457,6 +464,12 @@ export function MunicipalPaymentSettings({
               </p>
             ) : null}
           </div>
+        ) : null}
+        {form.provider === "mercado_pago" && form.environment === "test" ? (
+          <p data-bank-test-webhook-note="true" className="mt-3 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-xs leading-5 text-sky-900">
+            Homologação: use somente credenciais de teste. A URL acima é apresentada apenas em produção,
+            pois o webhook oficial exige notificações de pagamentos reais e não aceita eventos simulados.
+          </p>
         ) : null}
         <div role="status" data-municipal-provider-capabilities="true" className="mt-4 rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm leading-6 text-sky-950">
           {form.provider === "mercado_pago"

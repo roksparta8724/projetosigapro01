@@ -30,6 +30,9 @@ describe("Municipal banking credentials - safe reusable configuration",()=>{
     const ui=readFileSync("src/components/platform/MunicipalPaymentSettings.tsx","utf8");
     const api=readFileSync("api/mercadopago.ts","utf8");
     expect(ui).toContain('data-municipal-bank-webhook-setup="true"');
+    expect(ui).toContain('form.provider === "mercado_pago" && form.environment === "production"');
+    expect(ui).toContain('data-bank-test-webhook-note="true"');
+    expect(ui).toContain("Copiar URL");
     expect(ui).toContain('hasUnsavedCredentials || !connection?.credentials_configured');
     expect(ui).toContain('!connectionMatchesForm || hasUnsavedCredentials');
     expect(ui).toContain('accessToken: ""');
