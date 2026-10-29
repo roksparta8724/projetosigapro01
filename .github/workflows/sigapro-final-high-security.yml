@@ -1,0 +1,57 @@
+name: SIGAPRO - Teste Final de Dependencias Altas (QA)
+on:
+  push:
+    branches: [workbench/sigapro-consolidacao-p3-no-deploy-20261029]
+    paths: [.github/workflows/sigapro-final-high-security.yml]
+permissions:
+  contents: write
+jobs:
+  test-upgrades:
+    if: github.ref == 'refs/heads/workbench/sigapro-consolidacao-p3-no-deploy-20261029'
+    runs-on: ubuntu-latest
+    timeout-minutes: 23
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Testar remediacao coordenada Zod e Sharp sem atingir producao
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm pkg set 'overrides.@neondatabase/auth.zod=4.6.7' 'overrides.@neondatabase/auth-ui.zod=4.6.7' 'overrides.@neondatabase/neon-js.zod=4.6.7'
+          npm install --legacy-peer-deps --save-exact --no-fund --no-audit 'zod@4.6.7'
+          npm install --legacy-peer-deps --save-dev --save-exact --no-fund --no-audit 'sharp@0.35.5'
+          npm ci --legacy-peer-deps --no-fund --no-audit
+          npm run typecheck
+          npm test
+          npm run build
+          npm audit --omit=dev --json > "$RUNNER_TEMP/audit-runtime.json" || true
+          npm audit --json > "$RUNNER_TEMP/audit-all.json" || true
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const base=process.env.RUNNER_TEMP+'/';
+          const r=JSON.parse(fs.readFileSync(base+'audit-runtime.json','utf8'));
+          const a=JSON.parse(fs.readFileSync(base+'audit-all.json','utf8'));
+          const v=Object.entries(a.vulnerabilities||{}).filter(([,x])=>x.severity==='critical'||x.severity==='high')
+            .map(([name,x])=>({name,severity:x.severity,fixAvailable:x.fixAvailable}));
+          console.log('SIGAPRO_FINAL_HIGH_AUDIT '+JSON.stringify({runtime:r.metadata?.vulnerabilities,all:a.metadata?.vulnerabilities}));
+          console.log('SIGAPRO_FINAL_HIGH_REMAINING '+JSON.stringify(v));
+          fs.writeFileSync('docs/SIGAPRO_DEPENDENCY_SECURITY_REMEDIATION.md',[
+            '# SIGAPRO - Integrated dependency security remediation',
+            '',
+            'QA branch only. Neon SDK, Better Auth, Vitest, Vite, Zod, Sharp tested together.',
+            'TypeScript, complete tests and production build passed.',
+            'Runtime audit: '+JSON.stringify(r.metadata?.vulnerabilities),
+            'Complete audit: '+JSON.stringify(a.metadata?.vulnerabilities),
+            'Remaining high/critical: '+JSON.stringify(v),
+            'Operational payments, multi-tenant logins and archival signatures require live evidence before release.',
+            ''
+          ].join('\n'),'utf8');
+          NODE
+          git config user.name "sigapro-security-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json docs/SIGAPRO_DEPENDENCY_SECURITY_REMEDIATION.md
+          git commit -m "security(deps): validate patched Zod and Sharp with full regression [skip ci]"
+          git push origin HEAD:refs/heads/workbench/sigapro-consolidacao-p3-no-deploy-20261029
