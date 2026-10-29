@@ -6,7 +6,7 @@
  */
 
 import { DeleteObjectCommand, S3Client } from "@aws-sdk/client-s3";
-import { resolveMunicipalDocumentTarget } from "../municipal-storage.js";
+import { callDataApiRpc, resolveMunicipalDocumentTarget } from "../municipal-storage.js";
 
 type Req = import("http").IncomingMessage & { method?: string; body?: unknown };
 type Res = import("http").ServerResponse;
@@ -195,8 +195,21 @@ export default async function handler(req: Req, res: Res) {
     }
 
     const municipalityId = extractMunicipalityId(objectKey);
-    if (objectKey.includes("/dam-originals/")) {
-      json(res, 409, { error: "O PDF original da DAM não pode ser removido." });
+    if (objectKey.includes("/dam-originals/") ||
+        /^municipalities\/[a-f0-9-]{36}\/analysis-signed-fiches\//i.test(objectKey)) {
+      json(res, 409, { error: "Documento original ou assinado permanente não pode ser removido." });
+      return;
+    }
+    // A valid login alone never authorizes deleting another city's files.
+    // Enforce the target tenant with the same Neon-RLS RPC used for uploads.
+    // Unscoped keys can only be administered by a platform master.
+    const scope = municipalityId
+      ? await callDataApiRpc(req, "has_tenant_access", { target_tenant: municipalityId })
+      : await callDataApiRpc(req, "is_master", {});
+    if (!scope.ok || scope.payload !== true) {
+      json(res, scope.status === 401 ? 401 : 403, {
+        error: "Sem permissão para excluir arquivos deste município.",
+      });
       return;
     }
     const municipalTarget = municipalityId

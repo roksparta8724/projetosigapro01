@@ -55,6 +55,18 @@ describe("R2 signed GET municipal document access", () => {
     await expect(authorizePrivateR2DocumentRead(request("test-token"), objectKey, municipalityA))
       .resolves.toMatchObject({ ok: false, status: 503 });
   });
+  it("keeps the delete endpoint restricted by municipality and preserves permanent signed PDFs", async () => {
+    const { readFileSync } = await import("node:fs");
+    const src = readFileSync("server/api/r2-delete.ts", "utf8");
+    expect(src).toContain('"has_tenant_access", { target_tenant: municipalityId }');
+    expect(src).toContain('await callDataApiRpc(req, "is_master", {})');
+    expect(src).toContain('scope.payload !== true');
+    expect(src).toContain('analysis-signed-fiches');
+    const auth = src.indexOf("const scope = municipalityId");
+    const deleteFile = src.indexOf("new DeleteObjectCommand");
+    expect(auth).toBeGreaterThan(-1);
+    expect(deleteFile).toBeGreaterThan(auth);
+  });
   it("requires authorization before generating a signed URL on either R2 or municipal S3", async () => {
     const { readFileSync } = await import("node:fs");
     const src = readFileSync("server/api/r2-sign-get.ts", "utf8");
