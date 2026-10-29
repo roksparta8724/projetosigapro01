@@ -1,11 +1,11 @@
 # SIGAPRO - Relatorio de Remediacao de Dependencias
 
 Ambiente: QA isolada, sem publicacao em producao.
-Estrategia aplicada: compatible-only
+Estrategia aplicada: neon-and-toolchain
 
 ## Resultado da auditoria npm
-Runtime (--omit=dev): {"info":0,"low":7,"moderate":2,"high":4,"critical":1,"total":14}
-Completa: {"info":0,"low":7,"moderate":6,"high":6,"critical":3,"total":22}
+Runtime (--omit=dev): {"info":0,"low":6,"moderate":2,"high":4,"critical":1,"total":13}
+Completa: {"info":0,"low":6,"moderate":4,"high":5,"critical":1,"total":16}
 
 ## Pendencias alta/critica
 - high: @neondatabase/auth; reparo: true
@@ -13,9 +13,6 @@ Completa: {"info":0,"low":7,"moderate":6,"high":6,"critical":3,"total":22}
 - high: @neondatabase/neon-js; reparo: {"isSemVerMajor":true}
 - critical: better-auth; reparo: true
 - high: sharp; reparo: {"name":"sharp","version":"0.35.5","isSemVerMajor":true}
-- critical: tinypool; reparo: {"name":"vitest","version":"5.0.5","isSemVerMajor":true}
-- high: vite; reparo: {"name":"vite","version":"8.3.5","isSemVerMajor":true}
-- critical: vitest; reparo: {"name":"vitest","version":"5.0.5","isSemVerMajor":true}
 - high: zod; reparo: {"name":"zod","version":"4.6.7","isSemVerMajor":true}
 
 ## Validacao
