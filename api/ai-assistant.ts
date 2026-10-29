@@ -1,5 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { callDataApiRpc, readBearer, readEnv } from "../server/municipal-storage.js";
+import { resolvePrivateAiConfig } from "../server/private-ai-provider.js";
 
 type Req = IncomingMessage & { method?: string; body?: unknown };
 type Res = ServerResponse;
@@ -95,20 +96,40 @@ export default async function handler(req: Req, res: Res) {
   if (!messages.length) return json(res,400,
     {error:"Informe uma pergunta válida. Máximo de 8 mensagens, até 1.600 caracteres cada, sem instruções de sistema."});
 
+  // A private GPU is opt-in. No unverified gateway is called, and private
+  // mode NEVER falls back to a paid cloud AI provider.
+  const provider = readEnv("SIGAPRO_AI_PROVIDER") || "openai";
+  const privateConfig = provider === "private" ? resolvePrivateAiConfig({
+    gatewayUrl: readEnv("SIGAPRO_AI_GATEWAY_URL"),
+    gatewayToken: readEnv("SIGAPRO_AI_GATEWAY_TOKEN"),
+    model: readEnv("SIGAPRO_AI_MODEL"),
+  }) : null;
+  if (provider === "private" && !privateConfig) return json(res,503,{
+    code:"SIGAPRO_PRIVATE_AI_NOT_CONFIGURED",
+    error:"A IA privada do SIGAPRO ainda aguarda a configuração segura do servidor. A pré-conferência urbanística permanece independente.",
+  });
+  if (provider !== "private" && provider !== "openai") return json(res,503,{
+    code:"SIGAPRO_AI_PROVIDER_INVALID",
+    error:"O provedor de IA deste ambiente não foi reconhecido.",
+  });
   const apiKey = readEnv("OPENAI_API_KEY");
-  if (!apiKey) return json(res,503,
+  if (provider === "openai" && !apiKey) return json(res,503,
     {code:"SIGAPRO_AI_NOT_CONFIGURED",
       error:"O assistente de conversação ainda não possui provedor de IA configurado neste ambiente. A pré-conferência urbanística funciona separadamente."});
 
+  const endpoint = provider === "private" ? privateConfig!.endpoint : "https://api.openai.com/v1/chat/completions";
+  const credential = provider === "private" ? privateConfig!.token : apiKey;
+  const selectedModel = provider === "private" ? privateConfig!.model : readEnv("OPENAI_MODEL") || "gpt-4.1-mini";
   const controller = new AbortController();
   const timer = setTimeout(()=>controller.abort(),20000);
   try {
-    const response = await fetch("https://api.openai.com/v1/chat/completions",{
+    const response = await fetch(endpoint,{
       method:"POST",
+      redirect:"error",
       signal:controller.signal,
-      headers:{"Content-Type":"application/json",Authorization:`Bearer ${apiKey}`},
+      headers:{"Content-Type":"application/json",Authorization:`Bearer ${credential}`},
       body:JSON.stringify({
-        model:readEnv("OPENAI_MODEL")||"gpt-4.1-mini",
+        model:selectedModel,
         temperature:0.2,
         max_tokens:550,
         messages:[
@@ -122,7 +143,7 @@ export default async function handler(req: Req, res: Res) {
     const content = payload.choices?.[0]?.message?.content;
     if (typeof content !== "string" || !content.trim())
       return json(res,502,{error:"O provedor de IA retornou uma resposta vazia."});
-    return json(res,200,{message:content.trim(),model:payload.model||readEnv("OPENAI_MODEL")||"gpt-4.1-mini"});
+    return json(res,200,{message:content.trim(),model:payload.model||selectedModel});
   } catch {
     return json(res,504,{error:"A consulta ao assistente expirou ou falhou. Nenhum processo foi modificado."});
   } finally {clearTimeout(timer);}
