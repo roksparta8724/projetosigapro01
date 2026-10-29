@@ -7,7 +7,7 @@
  */
 
 import { GetObjectCommand, HeadObjectCommand, S3Client } from "@aws-sdk/client-s3";
-import { callDataApiRpc, resolveMunicipalDocumentTarget } from "../municipal-storage.js";
+import { callDataApiRpc, getDataApiUrl, readBearer, resolveMunicipalDocumentTarget } from "../municipal-storage.js";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 type Req = import("http").IncomingMessage & { method?: string; body?: unknown };
@@ -66,6 +66,58 @@ function resolveRequestedBucket(value: string) {
   if (value === "institutional-branding" || value === "profile-assets") return logos;
   if (value === documents || value === logos) return value;
   return "";
+}
+
+// Only historical public legislation is intentionally readable without
+// a signed-in municipal session. Every process document is private.
+function isPublicLegalDocumentKey(objectKey: string) {
+  return /^municipalities\/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/legislation(?:[-/]|$)/i.test(objectKey);
+}
+
+/**
+ * A signed R2 URL is a temporary bearer credential for the file.
+ * Before generating it, require the same row-level SELECT permission used by
+ * the process-document viewer. Never trust a municipality or object key supplied
+ * by the browser as proof of authorization.
+ */
+export async function authorizePrivateR2DocumentRead(
+  req: Req,
+  objectKey: string,
+  keyMunicipalityId: string,
+): Promise<{ ok: true } | { ok: false; status: number; error: string }> {
+  const token = readBearer(req);
+  if (!token) return { ok: false, status: 401, error: "Autenticação necessária para abrir documento." };
+  try {
+    const query = new URLSearchParams({
+      file_path: `eq.${objectKey}`,
+      select: "id,municipality_id,tenant_id",
+      limit: "1",
+    });
+    const result = await fetch(`${getDataApiUrl()}/process_documents?${query.toString()}`, {
+      method: "GET",
+      headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+      cache: "no-store",
+    });
+    if (!result.ok) {
+      return {
+        ok: false,
+        status: result.status === 401 ? 401 : result.status >= 500 ? 503 : 403,
+        error: "Não foi possível confirmar a autorização do documento.",
+      };
+    }
+    const rows: unknown = await result.json();
+    const document = Array.isArray(rows) ? rows[0] as
+      | { municipality_id?: unknown; tenant_id?: unknown }
+      | undefined : undefined;
+    if (!document) return { ok: false, status: 403, error: "Documento não disponível para este usuário." };
+    const documentMunicipalityId = String(document.municipality_id || document.tenant_id || "").toLowerCase();
+    if (keyMunicipalityId && documentMunicipalityId !== keyMunicipalityId.toLowerCase()) {
+      return { ok: false, status: 403, error: "Documento fora do município autorizado." };
+    }
+    return { ok: true };
+  } catch {
+    return { ok: false, status: 503, error: "Validação de acesso ao documento temporariamente indisponível." };
+  }
 }
 
 function setCors(res: Res) {
@@ -162,6 +214,18 @@ export default async function handler(req: Req, res: Res) {
         json(res, allowed.status === 401 ? 401 : 403, { error: "Sem acesso ao PDF original desta guia." }); return;
       }
     }
+    const documentsBucket = readEnv("R2_BUCKET_DOCUMENTOS") || "sigapro-documentos";
+    // DAM originals have their own immutable-guide authorization RPC above.
+    // A public municipal legal rule is the only other unregistered exception.
+    const isGuideOriginal = objectKey.includes("/dam-originals/");
+    if (bucket === documentsBucket && !isGuideOriginal && !isPublicLegalDocumentKey(objectKey)) {
+      const permission = await authorizePrivateR2DocumentRead(req, objectKey, municipalityId);
+      if (!permission.ok) {
+        json(res, permission.status, { error: permission.error });
+        return;
+      }
+    }
+
     const municipalTarget = municipalityId
       ? await resolveMunicipalDocumentTarget(req, municipalityId, bucket, objectKey)
       : null;
