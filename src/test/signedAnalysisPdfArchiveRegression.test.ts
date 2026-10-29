@@ -21,6 +21,20 @@ describe("SIGAPRO: PDFs assinados e integridade documental", () => {
     expect(isSignedAnalysisVersionArchived([stored], 1, "ABC-2026")).toBe(false);
     expect(isSignedAnalysisVersionArchived([stored], 2, "OUTRO")).toBe(false);
   });
+  it("recupera o PDF histórico real sem misturá-lo aos anexos comuns", () => {
+    const legacy: ProcessDocument = {
+      ...stored,
+      version: 1,
+      label: "Ficha Técnica - assinada pelo Analista e Diretoria",
+      fileName: "Ficha-Tecnica-Assinada-Processo-n--000003-2026-v1-diretoria-65638FB96E8E16E5DFB0.pdf",
+    };
+    expect(isSignedAnalysisArchiveDocument(legacy)).toBe(true);
+    expect(isSignedAnalysisVersionArchived([legacy], 1, "65638FB96E8E16E5DFB0")).toBe(true);
+    expect(isSignedAnalysisVersionArchived([legacy], 2, "65638FB96E8E16E5DFB0")).toBe(false);
+    expect(isSignedAnalysisVersionArchived([legacy], 1, "OUTRO-CODIGO")).toBe(false);
+    expect(isSignedAnalysisArchiveDocument({ ...legacy, fileName: "arquivo-qualquer.pdf" })).toBe(false);
+    expect(isSignedAnalysisArchiveDocument({ ...legacy, source: "profissional" })).toBe(false);
+  });
   it("não rotula como PDF original um registro de assinatura ou upload inexistente", () => {
     expect(isSignedAnalysisArchiveDocument({ ...stored, filePath: "" })).toBe(false);
     expect(isSignedAnalysisArchiveDocument({ ...stored, signed: false })).toBe(false);
@@ -36,6 +50,10 @@ describe("SIGAPRO: PDFs assinados e integridade documental", () => {
     expect(analysis).toContain("stableSignatureStringify(verified.block.payload ?? {})");
     expect(analysis).toContain("stableSignatureStringify(buildChecklistSignaturePayload(state, process, municipalityId))");
     expect(analysis).toContain("(directorOfficial && !verifiedDirector)");
+    expect(analysis).toContain("signedAnalysisArchiveLabel(signedVersion, verifiedCode)");
+    expect(analysis).toContain("isSignedAnalysisArchiveDocument(entry)");
+    expect(analysis).toContain('code: "OFFICIAL_SHEET_NOT_SAVED"');
+    expect(analysis).toContain("confirmedSheet.revision !== officialRevision");
     expect(analysis).toContain('bucket: "process-documents"');
     expect(analysis).toContain("await appendProcessDocuments(process.id,");
     expect(analysis).toContain("crypto.subtle.digest");

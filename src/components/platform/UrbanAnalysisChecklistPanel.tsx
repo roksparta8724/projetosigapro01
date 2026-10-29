@@ -3,6 +3,7 @@ import { jsPDF } from "jspdf";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { uploadFileToStorage } from "@/integrations/r2/storage";
 import { readOfficialAnalysisSheet, writeOfficialAnalysisSheet } from "@/integrations/backend/analysisSheetClient";
+import { isSignedAnalysisArchiveDocument, signedAnalysisArchiveLabel } from "@/lib/signedAnalysisArchive";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -943,6 +944,18 @@ export function UrbanAnalysisChecklistPanel({
     setSignatureError(null);
 
     try {
+      // The signed evidence must exactly match the latest persisted municipal
+      // sheet, not just whatever remains in this browser's draft state.
+      const confirmedSheet = await readOfficialAnalysisSheet(process.id);
+      if (!confirmedSheet.found || !confirmedSheet.payload ||
+          confirmedSheet.revision !== officialRevision ||
+          !checklistPayloadMatchesProcess(confirmedSheet.payload, process.id, municipalityId) ||
+          stableSignatureStringify(confirmedSheet.payload) !== stableSignatureStringify(payload)) {
+        throw new ArtifactSignatureError(
+          "A ficha atual não corresponde à revisão salva no banco. Salve a análise, confirme a revisão e tente assinar novamente.",
+          { stage: "verification", code: "OFFICIAL_SHEET_NOT_SAVED" },
+        );
+      }
       try {
         await signProcessArtifactWithPassword({
           processId: process.id,
@@ -2096,17 +2109,27 @@ export function UrbanAnalysisChecklistPanel({
         if (!verified.block || !verifiedTechnical ||
             stableSignatureStringify(verified.block.payload ?? {}) !==
               stableSignatureStringify(buildChecklistSignaturePayload(state, process, municipalityId)) ||
-            (directorOfficial && !verifiedDirector)) {
+            (directorOfficial && !verifiedDirector) ||
+            !verified.block.verification_code ||
+            !verified.block.artifact_hash) {
           throw new Error("PDF nao corresponde a versao assinada no banco. Anexo nao realizado.");
         }
         const signedStage = verifiedDirector ? "diretoria" : "analista";
         const signedVersion = Math.max(1, Number(verified.block.artifact_version) || 1);
-        const sigCode = String(verified.block.verification_code || verified.block.artifact_hash || "assinatura")
-          .replace(/[^a-zA-Z0-9_-]/g, "").slice(0,48);
+        const verifiedCode = verified.block.verification_code.trim();
+        const sigCode = verifiedCode.replace(/[^a-zA-Z0-9_-]/g, "").slice(0,48);
+        if (!sigCode) throw new Error("Código de assinatura bancado pelo servidor inválido. PDF não arquivado.");
         const safeProtocol = formatOfficialProcessNumber(process.protocol)
           .replace(/[^a-zA-Z0-9_-]/g, "-");
         const officialName = "Ficha-Tecnica-Assinada-" + safeProtocol + "-v" + signedVersion + "-" + signedStage + "-" + sigCode + ".pdf";
         const alreadyRecorded = process.documents.some((entry) => entry.fileName === officialName);
+        if (alreadyRecorded && !process.documents.some((entry) =>
+          entry.fileName === officialName &&
+          isSignedAnalysisArchiveDocument(entry) &&
+          Boolean(entry.fileHash?.trim())
+        )) {
+          throw new Error("Registro anterior do PDF assinado está incompleto. Arquivamento não confirmado.");
+        }
         if (!alreadyRecorded) {
           // O armazenamento municipal gera o caminho isolado pelo ID da prefeitura.
           const officialFile = new File([pdfBlob], officialName, { type: "application/pdf" });
@@ -2122,7 +2145,7 @@ export function UrbanAnalysisChecklistPanel({
           const objectKey = storedFile.path;
           await appendProcessDocuments(process.id, [{
             id: "signed-checklist-" + sigCode + "-" + signedStage,
-            label: signedStage === "diretoria" ? "Ficha Técnica - assinada pelo Analista e Diretoria" : "Ficha Técnica - assinada pelo Analista",
+            label: signedAnalysisArchiveLabel(signedVersion, verifiedCode),
             required: false,
             uploaded: true,
             signed: true,
