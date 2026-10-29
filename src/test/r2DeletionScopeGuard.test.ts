@@ -5,8 +5,8 @@ const a = "11111111-1111-4111-8111-111111111111";
 const b = "22222222-2222-4222-8222-222222222222";
 const mine = "a1111111-1111-4111-8111-111111111111";
 const other = "b2222222-2222-4222-8222-222222222222";
-const req = { headers: { authorization: "Bearer restricted-user-token" } }
-  as Parameters<typeof authorizeR2Delete>[0];
+const req = { headers: { authorization: "Bearer restricted-user-token" } } as
+  Parameters<typeof authorizeR2Delete>[0];
 const avatar = (tenant: string, owner: string) =>
   `municipalities/${tenant}/profiles/avatars/${owner}/avatar.png`;
 const branding = (tenant: string) => `municipalities/${tenant}/branding/municipal.png`;
