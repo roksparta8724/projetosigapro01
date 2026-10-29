@@ -442,6 +442,12 @@ export async function createMercadoPagoGuideBoleto(
         orderId: stored.bank_reference, amount: Number(stored.amount),
       }, req, options);
     }
+    // The signed Neon bank-charge RPC refuses a guide whose original document
+    // was frozen before binding a bank order. Do not create a provider order
+    // that could never be persisted (or paid off through the webhook).
+    if (stored.document_snapshot != null || stored.original_pdf_key) {
+      throw new Error("Guia com documento original já congelado sem cobrança bancária vinculada. Não será criada uma ordem órfã; encaminhe para conferência financeira.");
+    }
     input = { ...input, guideCode: stored.guide_number, amount: Number(stored.amount), dueDate: stored.due_date };
     await assertGuideProviderWriteAccess(req!, stored, options?.isolatedSandboxOnly);
     if (!options?.isolatedSandboxOnly) assertBankChargeAttestationReady();
