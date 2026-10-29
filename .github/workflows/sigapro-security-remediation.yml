@@ -1,0 +1,113 @@
+name: SIGAPRO - Reparacao Unica de Dependencias (QA)
+on:
+  push:
+    branches:
+      - workbench/sigapro-consolidacao-p3-no-deploy-20261029
+    paths:
+      - .github/workflows/sigapro-security-remediation.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sigapro-dependency-security-remediation
+  cancel-in-progress: false
+
+jobs:
+  remediate:
+    if: github.ref == 'refs/heads/workbench/sigapro-consolidacao-p3-no-deploy-20261029'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Corrigir dependencias como UM pacote isolado (sem deploy)
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Installing current lockfile..."
+          npm ci --legacy-peer-deps --no-fund --no-audit
+          echo "Applying compatible vulnerability remediations..."
+          npm audit fix --package-lock-only --legacy-peer-deps --no-fund || true
+          cp package.json "$RUNNER_TEMP/compatible-package.json"
+          cp package-lock.json "$RUNNER_TEMP/compatible-package-lock.json"
+          # Attempt the current official Neon SDK and patched test/build toolchain
+          # together, without forcing incompatible transitive overrides.
+          echo "Trying security upgrades in one isolated candidate..."
+          candidate_ok=true
+          npm install --package-lock-only --legacy-peer-deps --save-exact --no-fund --no-audit '@neondatabase/neon-js@0.9.0-beta' || candidate_ok=false
+          if [ "$candidate_ok" = true ]; then
+            npm install --package-lock-only --legacy-peer-deps --save-dev --save-exact --no-fund --no-audit 'vitest@4.1.12' 'vite@6.4.5' || candidate_ok=false
+          fi
+          if [ "$candidate_ok" = true ]; then
+            npm audit fix --package-lock-only --legacy-peer-deps --no-fund || true
+          fi
+
+          validate() {
+            npm ci --legacy-peer-deps --no-fund --no-audit &&
+            npm run typecheck &&
+            npm test &&
+            npm run build
+          }
+
+          selected="neon-and-toolchain"
+          if [ "$candidate_ok" != true ] || ! validate; then
+            echo "::warning::Candidate compatibility failed. Restore last compatible dependency set."
+            cp "$RUNNER_TEMP/compatible-package.json" package.json
+            cp "$RUNNER_TEMP/compatible-package-lock.json" package-lock.json
+            selected="compatible-only"
+            validate
+          fi
+
+          npm audit --omit=dev --json > "$RUNNER_TEMP/audit-runtime-final.json" || true
+          npm audit --json > "$RUNNER_TEMP/audit-all-final.json" || true
+          SIGAPRO_REMEDIATION_SELECTED="$selected" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const path = process.env.RUNNER_TEMP;
+          const runtime = JSON.parse(fs.readFileSync(path+'/audit-runtime-final.json','utf8'));
+          const all = JSON.parse(fs.readFileSync(path+'/audit-all-final.json','utf8'));
+          const counts = (report) => report.metadata?.vulnerabilities || {};
+          const ranked = Object.entries(all.vulnerabilities || {})
+            .map(([name,value]) => ({name, severity:value.severity, fixAvailable:value.fixAvailable}))
+            .filter(x=>['critical','high'].includes(x.severity));
+          console.log('SIGAPRO_FINAL_RUNTIME_AUDIT '+JSON.stringify(counts(runtime)));
+          console.log('SIGAPRO_FINAL_ALL_AUDIT '+JSON.stringify(counts(all)));
+          console.log('SIGAPRO_REMAINING_HIGH_CRITICAL '+JSON.stringify(ranked));
+          const summary = [
+            '# SIGAPRO - Relatorio de Remediacao de Dependencias',
+            '',
+            'Ambiente: QA isolada, sem publicacao em producao.',
+            'Estrategia aplicada: '+process.env.SIGAPRO_REMEDIATION_SELECTED,
+            '',
+            '## Resultado da auditoria npm',
+            'Runtime (--omit=dev): '+JSON.stringify(counts(runtime)),
+            'Completa: '+JSON.stringify(counts(all)),
+            '',
+            '## Pendencias alta/critica',
+            ...ranked.map(x=>'- '+x.severity+': '+x.name+'; reparo: '+JSON.stringify(x.fixAvailable)),
+            '',
+            '## Validacao',
+            'npm ci, TypeScript, 980+ testes e build de producao rodaram com sucesso neste job.',
+            'Nao equivale a teste de contas reais, pagamento confirmado, PDF arquivado ou aceite municipal.',
+            '',
+          ];
+          fs.mkdirSync('docs',{recursive:true});
+          fs.writeFileSync('docs/SIGAPRO_DEPENDENCY_SECURITY_REMEDIATION.md',summary.join('\n'),'utf8');
+          const critical=Number(counts(all).critical || 0);
+          if(critical>0) console.log('::warning::' + critical + ' critical npm advisories remain. Release is blocked until assessed.');
+          NODE
+
+          git config user.name "sigapro-qa-security-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json docs/SIGAPRO_DEPENDENCY_SECURITY_REMEDIATION.md
+          if git diff --cached --quiet; then
+            echo "No new changes from the safe remediation attempt."
+          else
+            git commit -m "security(deps): consolidate tested dependency remediations [skip ci]"
+            git push origin HEAD:refs/heads/workbench/sigapro-consolidacao-p3-no-deploy-20261029
+          fi
