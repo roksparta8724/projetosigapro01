@@ -76,7 +76,7 @@
     "tailwind-merge": "^2.6.0",
     "tailwindcss-animate": "^1.0.7",
     "vaul": "^0.9.9",
-    "zod": "^3.25.76"
+    "zod": "4.6.7"
   },
   "devDependencies": {
     "@eslint/js": "^9.32.0",
@@ -96,7 +96,7 @@
     "jsdom": "^20.0.3",
     "lovable-tagger": "^1.1.13",
     "postcss": "^8.5.6",
-    "sharp": "^0.34.5",
+    "sharp": "0.35.5",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.38.0",
@@ -104,6 +104,15 @@
     "vitest": "5.0.5"
   },
   "overrides": {
-    "better-auth": "1.7.14"
+    "better-auth": "1.7.14",
+    "@neondatabase/auth": {
+      "zod": "4.6.7"
+    },
+    "@neondatabase/auth-ui": {
+      "zod": "4.6.7"
+    },
+    "@neondatabase/neon-js": {
+      "zod": "4.6.7"
+    }
   }
 }
