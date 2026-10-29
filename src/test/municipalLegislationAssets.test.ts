@@ -16,6 +16,7 @@ describe("municipal legislation assets", () => {
   const r2SignApi = read("server/api/r2-sign-get.ts");
   const r2UploadApi = read("server/api/r2-upload.ts");
   const legislationOpenApi = read("api/legislation-open.ts");
+  const r2Runtime = read("server/r2-runtime.ts");
   const viteConfig = read("vite.config.ts");
 
   it("persists institutional assets instead of saving blob preview URLs", () => {
@@ -103,15 +104,15 @@ describe("municipal legislation assets", () => {
     expect(legislationOpenApi).toContain("getR2EndpointCandidates");
     expect(r2SignApi).toContain("getR2EndpointCandidates");
 
-    const legislationRaw = legislationOpenApi.indexOf('readEnv("R2_ENDPOINT")');
-    const legislationAccount = legislationOpenApi.indexOf('readEnv("R2_ACCOUNT_ID")');
-    const signRaw = r2SignApi.indexOf('readEnv("R2_ENDPOINT")');
-    const signAccount = r2SignApi.indexOf('readEnv("R2_ACCOUNT_ID")');
-
-    expect(legislationRaw).toBeGreaterThanOrEqual(0);
-    expect(legislationRaw).toBeLessThan(legislationAccount);
-    expect(signRaw).toBeGreaterThanOrEqual(0);
-    expect(signRaw).toBeLessThan(signAccount);
+    // The endpoint preference now lives in one shared runtime, not in each route.
+    expect(legislationOpenApi).toContain('from "../server/r2-runtime.js"');
+    expect(r2SignApi).toContain('from "../r2-runtime.js"');
+    const configured = r2Runtime.indexOf('env("R2_ENDPOINT")');
+    const account = r2Runtime.indexOf('env("R2_ACCOUNT_ID")');
+    expect(configured).toBeGreaterThanOrEqual(0);
+    expect(configured).toBeLessThan(account);
+    expect(legislationOpenApi).not.toContain('readEnv("R2_ACCOUNT_ID")');
+    expect(r2SignApi).not.toContain('readEnv("R2_ACCOUNT_ID")');
   });
 
   it("resolves physical storage buckets only on the server", () => {
