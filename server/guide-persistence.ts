@@ -1,3 +1,4 @@
+import { createHmac } from "node:crypto";
 import { callDataApiRpc, type ApiReq } from "./municipal-storage.js";
 import type { MercadoPagoGuideBoletoResult } from "./mercadopago.js";
 import { normalizeOfficialBanking } from "../src/lib/bankCodes.js";
@@ -82,6 +83,40 @@ export function storedGuideCharge(guide: StoredGuide): MercadoPagoGuideBoletoRes
   };
 }
 
+/** Only the API server signs a bank/provider reply. Browsers never receive the signing key. */
+export function assertBankChargeAttestationReady(): string {
+  const secret = String(process.env.SIGAPRO_BANK_CHARGE_SIGNING_SECRET || "").trim();
+  if (!/^[a-f0-9]{64}$/.test(secret)) {
+    throw new Error("Assinatura bancária segura não configurada no servidor. A cobrança não será criada.");
+  }
+  return secret;
+}
+
+export function signVerifiedBankCharge(guide: StoredGuide, charge: MercadoPagoGuideBoletoResult) {
+  if (!charge.ok || !charge.orderId || charge.externalReference !== guide.guide_number ||
+      !Number.isFinite(Number(charge.amount)) ||
+      Math.round(Number(charge.amount) * 100) !== Math.round(Number(guide.amount) * 100)) {
+    throw new Error("Somente resposta bancária coerente com a guia pode ser assinada.");
+  }
+  const secret = assertBankChargeAttestationReady();
+  const stamp = String(Math.floor(Date.now() / 1000));
+  const fields = [
+    "sigapro-charge-v1", guide.municipality_id, guide.guide_number,
+    String(charge.externalReference || ""), String(charge.amount || ""),
+    String(charge.orderId || ""), String(charge.environment || ""),
+    String(charge.paymentId || ""), String(charge.status || ""),
+    String(charge.statusDetail || ""), String(charge.authenticatedAt || ""),
+    String(charge.barcodeContent || ""), String(charge.digitableLine || ""),
+    String(charge.ticketUrl || ""), stamp,
+  ];
+  if (fields.some((value) => /[\r\n]/.test(value))) {
+    throw new Error("Retorno bancário contém caracteres de controle inválidos.");
+  }
+  const signature = createHmac("sha256", Buffer.from(secret, "hex"))
+    .update(fields.join("\n"), "utf8").digest("hex");
+  return { ...charge, __receipt_epoch: stamp, __receipt_mac: signature };
+}
+
 export async function persistGuideCharge(req: ApiReq, guide: StoredGuide, charge: MercadoPagoGuideBoletoResult, sandboxOnly = false) {
   if (!charge.orderId) throw new Error("A cobrança não retornou referência bancária persistível.");
   if (charge.externalReference !== guide.guide_number || !Number.isFinite(Number(charge.amount)) || Math.round(Number(charge.amount) * 100) !== Math.round(Number(guide.amount) * 100)) {
@@ -91,7 +126,7 @@ export async function persistGuideCharge(req: ApiReq, guide: StoredGuide, charge
     ? "qa_persist_payment_guide_provider_charge_v1"
     : "persist_payment_guide_provider_charge_v2", {
     _municipality_id: guide.municipality_id, _guide_code: guide.guide_number,
-    _charge: charge,
+    _charge: sandboxOnly ? charge : signVerifiedBankCharge(guide, charge),
   });
   if (!saved.ok) throw new Error(`Falha ao salvar dados bancários no Neon. ${saved.error}`);
   const persisted = saved.payload as StoredGuide | null;
