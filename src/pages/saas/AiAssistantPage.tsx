@@ -3,6 +3,7 @@ import { Bot, Loader2, Send, Sparkles } from "lucide-react";
 import { PortalFrame } from "@/components/platform/PortalFrame";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { backendClient } from "@/integrations/backend/databaseClient";
 
 type ChatMessage = {
   role: "user" | "assistant";
@@ -17,7 +18,7 @@ export function AiAssistantPage() {
     {
       role: "assistant",
       content:
-        "Ola. Sou o assistente SIGAPRO. Posso ajudar com fluxos de protocolo, financeiro, exigencias e comunicacao com o requerente.",
+        "Olá! Sou o assistente operacional SIGAPRO. Posso explicar fluxos internos e apoiar a redação de minutas. A análise urbanística de processos exige normas municipais validadas e conferência do servidor responsável.",
     },
   ]);
 
@@ -34,11 +35,26 @@ export function AiAssistantPage() {
     setMessages((current) => [...current, { role: "user", content: userMessage }]);
 
     try {
+      // Session JWT must be validated by the server. Never rely on a visual profile.
+      const auth=backendClient?.auth;
+      if (!auth?.getSession) throw new Error("Sessão institucional indisponível. Entre novamente.");
+      const sessionResult=await auth.getSession();
+      if (sessionResult?.error) throw new Error("Falha ao validar sua sessão. Entre novamente.");
+      let session=sessionResult?.data?.session;
+      let bearer=String(session?.access_token||session?.accessToken||session?.token||"");
+      if (!bearer && typeof auth.refreshSession === "function") {
+        const refreshed=await auth.refreshSession();
+        session=refreshed?.data?.session;
+        bearer=String(session?.access_token||session?.accessToken||session?.token||"");
+      }
+      if (!bearer) throw new Error("Sessão expirada. Entre novamente no SIGAPRO.");
       const response = await fetch("/api/ai-assistant", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        credentials:"same-origin",
+        cache:"no-store",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${bearer}` },
         body: JSON.stringify({
-          messages: [...messages, { role: "user", content: userMessage }],
+          messages: [...messages, { role: "user", content: userMessage }].slice(-8),
         }),
       });
 
