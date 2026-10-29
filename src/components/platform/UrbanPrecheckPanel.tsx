@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, BrainCircuit, CheckCircle2, ClipboardCheck, FileClock, Loader2, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,6 +27,7 @@ export function UrbanPrecheckPanel({
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState("");
+  const idempotencyRef=useRef<{snapshot:string;id:string}|null>(null);
 
   useEffect(() => {
     let active = true;
@@ -34,6 +35,7 @@ export function UrbanPrecheckPanel({
     setUsage(process.property.usage || "");
     setAsOf((process.officializedAt || new Date().toISOString()).slice(0, 10));
     setFields({});
+    idempotencyRef.current=null;
     setVersions([]);
     setHistory([]);
     setNotice("");
@@ -113,7 +115,11 @@ export function UrbanPrecheckPanel({
     setSaving(true);
     setNotice("");
     try {
-      await saveUrbanPrecheckRun(process.id, regulation.id, asOf, complete, crypto.randomUUID());
+      const snapshot=JSON.stringify({processId:process.id,municipalityId,versionId:regulation.id,referenceDate:asOf,measurements:complete});
+      const requestId=idempotencyRef.current?.snapshot===snapshot
+        ? idempotencyRef.current.id : crypto.randomUUID();
+      idempotencyRef.current={snapshot,id:requestId};
+      await saveUrbanPrecheckRun(process.id, regulation.id, asOf, complete, requestId);
       const updated = await listUrbanPrecheckHistory(process.id);
       setHistory(updated);
       setNotice("Pré-conferência registrada no histórico. Não altera a aprovação nem a ficha oficial.");

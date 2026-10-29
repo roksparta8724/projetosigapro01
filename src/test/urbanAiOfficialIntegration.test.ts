@@ -11,6 +11,8 @@ describe("SIGAPRO IA: official database precheck contract and human-only decisio
     expect(client).toContain("_reference_date: referenceDate");
     expect(client).toContain("document_scope_confirmed: false");
     expect(panel).toContain("crypto.randomUUID()");
+    expect(panel).toContain("idempotencyRef.current?.snapshot===snapshot");
+    expect(panel).toContain("idempotencyRef.current={snapshot,id:requestId}");
     expect(panel).toContain("Nunca aprova automaticamente");
   });
   it("uses the actual assigned-analyst panel and active municipal legal rules",()=>{
