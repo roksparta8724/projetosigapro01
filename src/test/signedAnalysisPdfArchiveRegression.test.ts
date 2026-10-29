@@ -5,6 +5,9 @@ import {
   isSignedAnalysisArchiveDocument,
   isSignedAnalysisVersionArchived,
   signedAnalysisArchiveLabel,
+  isVerifiedSignedAnalysisArchiveDocument,
+  isVerifiedSignedAnalysisVersionArchived,
+  type SignedAnalysisServerEvidence,
 } from "@/lib/signedAnalysisArchive";
 import type { ProcessDocument } from "@/lib/platform";
 const file = (p: string) => readFileSync(resolve(process.cwd(), p), "utf8");
@@ -35,6 +38,36 @@ describe("SIGAPRO: PDFs assinados e integridade documental", () => {
     expect(isSignedAnalysisArchiveDocument({ ...legacy, fileName: "arquivo-qualquer.pdf" })).toBe(false);
     expect(isSignedAnalysisArchiveDocument({ ...legacy, source: "profissional" })).toBe(false);
   });
+  it("recognizes historical PDF only with matching authenticated signature evidence", () => {
+    const archived: ProcessDocument = {
+      ...stored,
+      signed: false,
+      version: 1,
+      label: "Ficha Técnica - assinada pelo Analista e Diretoria",
+      fileName: "Ficha-Tecnica-Assinada-Processo-n--000003-2026-v1-diretoria-65638FB96E8E16E5DFB0.pdf",
+      fileHash: "a".repeat(64),
+    };
+    const evidence: SignedAnalysisServerEvidence = {
+      artifact_type: "urban_analysis_checklist",
+      artifact_key: "urban-analysis-checklist",
+      artifact_version: 1,
+      artifact_hash: "b".repeat(64),
+      verification_code: "65638FB96E8E16E5DFB0",
+      signers: [{ slot: "analise_tecnica", status: "concluido" }, { slot: "diretoria", status: "concluido" }],
+    };
+    expect(isVerifiedSignedAnalysisArchiveDocument(archived, [evidence])).toBe(true);
+    expect(isVerifiedSignedAnalysisVersionArchived([archived], [evidence], 1, evidence.verification_code)).toBe(true);
+    expect(isVerifiedSignedAnalysisArchiveDocument(archived, [])).toBe(false);
+    expect(isVerifiedSignedAnalysisArchiveDocument({ ...archived, fileHash: "" }, [evidence])).toBe(false);
+    expect(isVerifiedSignedAnalysisArchiveDocument({ ...archived, source: "profissional" }, [evidence])).toBe(false);
+    expect(isVerifiedSignedAnalysisArchiveDocument({ ...archived, fileName: "outro.pdf" }, [evidence])).toBe(false);
+    expect(isVerifiedSignedAnalysisArchiveDocument({ ...archived, version: 2 }, [evidence])).toBe(false);
+    expect(isVerifiedSignedAnalysisArchiveDocument(archived, [{ ...evidence, artifact_version: 2 }])).toBe(false);
+    expect(isVerifiedSignedAnalysisArchiveDocument(archived, [{ ...evidence, verification_code: "INVALIDA" }])).toBe(false);
+    expect(isVerifiedSignedAnalysisArchiveDocument(archived, [{ ...evidence, signers: [] }])).toBe(false);
+    expect(isVerifiedSignedAnalysisArchiveDocument(archived, [{ ...evidence, signers: [{ slot: "analise_tecnica", status: "concluido" }] }])).toBe(false);
+    expect(isVerifiedSignedAnalysisArchiveDocument(archived, [{ ...evidence, artifact_type: "construction_permit" }])).toBe(false);
+  });
   it("não rotula como PDF original um registro de assinatura ou upload inexistente", () => {
     expect(isSignedAnalysisArchiveDocument({ ...stored, filePath: "" })).toBe(false);
     expect(isSignedAnalysisArchiveDocument({ ...stored, signed: false })).toBe(false);
@@ -62,7 +95,11 @@ describe("SIGAPRO: PDFs assinados e integridade documental", () => {
   it("mantém PDFs assinados fora do checklist obrigatório e disponíveis em pasta própria", () => {
     const detail = file("src/pages/saas/ProcessDetailPage.tsx");
     const folder = file("src/components/platform/SignedAnalysisArchiveFolder.tsx");
-    expect(detail).toContain("const regularProcessDocuments = process.documents.filter((document) => !isSignedAnalysisArchiveDocument(document))");
+    expect(detail).toContain("const regularProcessDocuments = process.documents.filter((document) => !verifiedArchiveIds.has(document.id))");
+    expect(detail).toContain("onVerifiedArchiveIds={updateVerifiedSignedArchive}");
+    const platform = file("src/integrations/backend/platformImpl.ts");
+    expect(platform).toContain("fileHash: document.file_hash ?? undefined");
+    expect(folder).toContain("isVerifiedSignedAnalysisArchiveDocument(doc, versions)");
     expect(detail).toContain("const requiredAnalysisDocuments = regularProcessDocuments.filter(");
     expect(detail).toContain("const visibleDocumentRows =");
     expect(detail).toContain("<SignedAnalysisArchiveFolder");
