@@ -1,6 +1,6 @@
 import { callDataApiRpc } from "../server/municipal-storage.js";
 import { encryptMunicipalCollectionSecret, municipalCollectionSecretFingerprint } from "../server/municipal-payment.js";
-import { getMunicipalCollectionAdapter } from "../server/municipal-collection-adapters.js";
+import { getMunicipalCollectionAdapter, describeMunicipalCollectionAdapter } from "../server/municipal-collection-adapters.js";
 
 type Req = import("http").IncomingMessage & { method?: string; body?: Record<string, unknown> };
 type Res = import("http").ServerResponse;
@@ -15,6 +15,14 @@ export default async function handler(req: Req, res: Res) {
     const input = await body(req); const municipalityId = uuid(input.municipalityId); const action = String(input.action || "get");
     if (action === "get") return json(res, 200, await rpc(req, "get_municipal_collection_configuration_v1", { _municipality_id: municipalityId }) || {});
     if (action === "effective") return json(res, 200, await rpc(req, "get_active_municipal_collection_configuration_v1", { _municipality_id: municipalityId }) || {});
+    if (action === "provider_status") {
+      // Verify this authenticated municipal admin using the existing SQL RLS/RPC.
+      await rpc(req, "get_municipal_collection_configuration_v1", { _municipality_id: municipalityId });
+      const supplierCode=String(input.supplierCode||"").trim().toLowerCase();
+      if(!/^[a-z0-9_-]{1,64}$/.test(supplierCode))
+        throw new Error("Identificador do banco/fornecedor inválido.");
+      return json(res,200,describeMunicipalCollectionAdapter(supplierCode));
+    }
     if (action === "bank_get") return json(res, 200, await rpc(req, "get_municipal_collection_bank_details_v1", { _municipality_id: municipalityId }) || {});
     if (action === "bank_save") {
       const fields = input.fields && typeof input.fields === "object" && !Array.isArray(input.fields) ? input.fields : null;
