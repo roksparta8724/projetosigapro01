@@ -1,3 +1,4 @@
+import { resolveR2Endpoint } from "../r2-runtime.js";
 /**
  * api/r2-delete.ts — Vercel Serverless handler
  *
@@ -6,7 +7,7 @@
  */
 
 import { DeleteObjectCommand, S3Client } from "@aws-sdk/client-s3";
-import { callDataApiRpc, resolveMunicipalDocumentTarget } from "../municipal-storage.js";
+import { callDataApiRpc, getDataApiUrl, resolveMunicipalDocumentTarget } from "../municipal-storage.js";
 
 type Req = import("http").IncomingMessage & { method?: string; body?: unknown };
 type Res = import("http").ServerResponse;
@@ -21,29 +22,6 @@ function extractMunicipalityId(objectKey: string) {
   const match = /^municipalities\/([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\//i.exec(objectKey);
   return match?.[1] || "";
 }
-
-function resolveR2Endpoint() {
-  // Use the same endpoint precedence as upload/sign-get; an old account ID
-  // must not redirect the deletion request to a different storage account.
-  const rawEndpoint = readEnv("R2_ENDPOINT");
-  if (rawEndpoint) {
-    try {
-      const url = new URL(/^https?:\/\//i.test(rawEndpoint) ? rawEndpoint : `https://${rawEndpoint}`);
-      return `${url.protocol}//${url.host}`;
-    } catch {
-      return rawEndpoint.replace(/\/+$/, "");
-    }
-  }
-  const accountId = readEnv("R2_ACCOUNT_ID")
-    .replace(/^https?:\/\//i, "")
-    .replace(/\.r2\.cloudflarestorage\.com.*$/i, "")
-    .replace(/[^a-zA-Z0-9]/g, "");
-  return accountId && !/^sua_?account_?id$/i.test(accountId)
-    ? `https://${accountId}.r2.cloudflarestorage.com` : "";
-}
-
-const VALIDATED_NEON_DATA_API_URL =
-  "https://ep-blue-cloud-b4hhgb4t.apirest.c-6.us-east-2.aws.neon.tech/sigapro_migration_stage_20260923/rest/v1";
 
 export function isR2AuthRequired() {
   // Never allow a stale test override to disable auth in production.
@@ -67,11 +45,7 @@ async function requireAuthenticatedProfile(req: Req) {
     return { ok: false as const, status: 401, error: "Autenticação necessária." };
   }
 
-  const dataApiUrl = (
-    readEnv("R2_AUTH_DATA_API_URL") ||
-    readEnv("VITE_NEON_DATA_API_URL") ||
-    VALIDATED_NEON_DATA_API_URL
-  ).replace(/\/+$/, "");
+  const dataApiUrl = getDataApiUrl();
 
   try {
     const response = await fetch(`${dataApiUrl}/rpc/current_profile_id`, {

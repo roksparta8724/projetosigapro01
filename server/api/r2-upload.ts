@@ -1,3 +1,4 @@
+import { getR2EndpointCandidates, resolveR2Endpoint } from "../r2-runtime.js";
 /**
  * api/r2-upload.ts — Vercel Serverless handler
  *
@@ -7,7 +8,7 @@
 
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { createHash } from "node:crypto";
-import { resolveMunicipalDocumentTarget } from "../municipal-storage.js";
+import { getDataApiUrl, resolveMunicipalDocumentTarget } from "../municipal-storage.js";
 
 type Req = import("http").IncomingMessage & { method?: string; body?: unknown };
 type Res = import("http").ServerResponse;
@@ -16,35 +17,6 @@ function readEnv(key: string) {
   const raw = process.env[key];
   if (!raw) return "";
   return String(raw).replace(/^['"]|['"]$/g, "").trim();
-}
-
-function getR2EndpointCandidates() {
-  const candidates: string[] = [];
-
-  const rawEndpoint = readEnv("R2_ENDPOINT");
-  if (rawEndpoint) {
-    try {
-      const url = new URL(/^https?:\/\//i.test(rawEndpoint) ? rawEndpoint : `https://${rawEndpoint}`);
-      candidates.push(`${url.protocol}//${url.host}`);
-    } catch {
-      candidates.push(rawEndpoint.replace(/\/+$/, ""));
-    }
-  }
-
-  const accountId = readEnv("R2_ACCOUNT_ID")
-    .replace(/^https?:\/\//i, "")
-    .replace(/\.r2\.cloudflarestorage\.com.*$/i, "")
-    .replace(/[^a-zA-Z0-9]/g, "");
-
-  if (accountId && !/^sua_?account_?id$/i.test(accountId)) {
-    candidates.push(`https://${accountId}.r2.cloudflarestorage.com`);
-  }
-
-  return Array.from(new Set(candidates.filter(Boolean)));
-}
-
-function resolveR2Endpoint() {
-  return getR2EndpointCandidates()[0] || "";
 }
 
 function isR2CredentialError(error: unknown) {
@@ -106,9 +78,6 @@ async function putR2ObjectWithFallback(input: {
     : new Error("Falha de autenticação no armazenamento R2.");
 }
 
-const VALIDATED_NEON_DATA_API_URL =
-  "https://ep-blue-cloud-b4hhgb4t.apirest.c-6.us-east-2.aws.neon.tech/sigapro_migration_stage_20260923/rest/v1";
-
 export function isR2AuthRequired() {
   // Never allow a stale test override to disable auth in production.
   if (readEnv("VERCEL_ENV").toLowerCase() === "production") return true;
@@ -119,14 +88,6 @@ function readBearer(req: Req) {
   const raw = req.headers.authorization || "";
   const match = /^Bearer\s+(.+)$/i.exec(raw);
   return match?.[1]?.trim() || "";
-}
-
-function getDataApiUrl() {
-  return (
-    readEnv("R2_AUTH_DATA_API_URL") ||
-    readEnv("VITE_NEON_DATA_API_URL") ||
-    VALIDATED_NEON_DATA_API_URL
-  ).replace(/\/+$/, "");
 }
 
 function extractMunicipalityId(objectKey: string) {
@@ -383,6 +344,19 @@ export default async function handler(req: Req, res: Res) {
         return;
       }
 
+      // Municipal crests and headers are controlled by the municipality administration.
+      const brandingWrite = bucket === (readEnv("R2_BUCKET_LOGOS") || "sigapro-logos") &&
+        /^municipalities\/[0-9a-f-]{36}\/branding(?:\/|$)/i.test(objectKey);
+      if (brandingWrite) {
+        const admin = await callDataApiRpc(req, "is_municipality_admin", {});
+        if (!admin.ok || admin.payload !== true) {
+          const master = await callDataApiRpc(req, "is_master", {});
+          if (!master.ok || master.payload !== true) {
+            json(res, 403, { error: "Somente a administração municipal pode alterar a identidade institucional." });
+            return;
+          }
+        }
+      }
       const documentBucket = readEnv("R2_BUCKET_DOCUMENTOS") || "sigapro-documentos";
       // Quando a Prefeitura usa armazenamento próprio, os bytes deixam de consumir
       // a franquia física do R2 do SIGAPRO. As demais regras contratuais continuam.

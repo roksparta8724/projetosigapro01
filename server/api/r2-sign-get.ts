@@ -1,3 +1,4 @@
+import { getR2EndpointCandidates, resolveR2Endpoint } from "../r2-runtime.js";
 /**
  * api/r2-sign-get.ts — Vercel Serverless handler
  *
@@ -17,40 +18,6 @@ function readEnv(key: string) {
   const raw = process.env[key];
   if (!raw) return "";
   return String(raw).replace(/^['"]|['"]$/g, "").trim();
-}
-
-function getR2EndpointCandidates() {
-  const candidates: string[] = [];
-
-  // Use the same endpoint preference as upload. This prevents a stale
-  // R2_ACCOUNT_ID from signing a URL for a different account than the one
-  // where the municipal logo/document was actually written.
-  const rawEndpoint = readEnv("R2_ENDPOINT");
-  if (rawEndpoint) {
-    try {
-      const url = new URL(
-        /^https?:\/\//i.test(rawEndpoint) ? rawEndpoint : `https://${rawEndpoint}`,
-      );
-      candidates.push(`${url.protocol}//${url.host}`);
-    } catch {
-      candidates.push(rawEndpoint.replace(/\/+$/, ""));
-    }
-  }
-
-  const accountId = readEnv("R2_ACCOUNT_ID")
-    .replace(/^https?:\/\//i, "")
-    .replace(/\.r2\.cloudflarestorage\.com.*$/i, "")
-    .replace(/[^a-zA-Z0-9]/g, "");
-
-  if (accountId && !/^sua_?account_?id$/i.test(accountId)) {
-    candidates.push(`https://${accountId}.r2.cloudflarestorage.com`);
-  }
-
-  return Array.from(new Set(candidates.filter(Boolean)));
-}
-
-function resolveR2Endpoint() {
-  return getR2EndpointCandidates()[0] || "";
 }
 
 function extractMunicipalityId(objectKey: string) {
@@ -118,6 +85,22 @@ export async function authorizePrivateR2DocumentRead(
   } catch {
     return { ok: false, status: 503, error: "Validação de acesso ao documento temporariamente indisponível." };
   }
+}
+
+/** Authorization for a presigned identity asset; URLs are bearer credentials. */
+export async function authorizeR2LogoRead(req: Req, key: string) {
+  // Logos are public; private avatars and other objects are not.
+  const publicBrand =
+    /^platform\/branding\/[a-zA-Z0-9/_-]+\.(?:png|webp|jpe?g)$/i.test(key) ||
+    /^municipalities\/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/branding\/[a-zA-Z0-9/_ .()-]+\.(?:png|webp|jpe?g)$/i.test(key);
+  if (publicBrand && !key.includes("..")) return { ok: true as const };
+  const tenant = extractMunicipalityId(key);
+  const result = await callDataApiRpc(req, tenant ? "has_tenant_access" : "is_master",
+    tenant ? { target_tenant: tenant } : {});
+  if (!result.ok || result.payload !== true)
+    return { ok: false as const, status: result.status === 401 ? 401 : 403,
+      error: "Sem permissão para acessar este arquivo." };
+  return { ok: true as const };
 }
 
 function setCors(res: Res) {
@@ -213,6 +196,11 @@ export default async function handler(req: Req, res: Res) {
       if (!allowed.ok || allowed.payload !== true) {
         json(res, allowed.status === 401 ? 401 : 403, { error: "Sem acesso ao PDF original desta guia." }); return;
       }
+    }
+    const logosBucket = readEnv("R2_BUCKET_LOGOS") || "sigapro-logos";
+    if (bucket === logosBucket) {
+      const permission = await authorizeR2LogoRead(req, objectKey);
+      if (permission.ok === false) { json(res, permission.status, { error: permission.error }); return; }
     }
     const documentsBucket = readEnv("R2_BUCKET_DOCUMENTOS") || "sigapro-documentos";
     // DAM originals have their own immutable-guide authorization RPC above.
