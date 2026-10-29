@@ -280,6 +280,7 @@ export default async function handler(req: Req, res: Res) {
     return;
   }
 
+  let conflictObjectKey = "";
   try {
     const endpoint = resolveR2Endpoint();
     const accessKeyId = readEnv("R2_ACCESS_KEY_ID");
@@ -328,6 +329,7 @@ export default async function handler(req: Req, res: Res) {
       return;
     }
 
+    conflictObjectKey = objectKey;
     const buffer = Buffer.from(base64, "base64");
     const municipalityId = extractMunicipalityId(objectKey);
     // Tenantless/legacy keys are never writable by ordinary municipal accounts.
@@ -459,7 +461,7 @@ export default async function handler(req: Req, res: Res) {
     // Conditional write conflicts must never overwrite signed originals.
     const writeStatus = (error as { $metadata?: { httpStatusCode?: number } } | null)?.$metadata?.httpStatusCode;
     if (writeStatus === 412) {
-      if (objectKey.includes("/analysis-signed-fiches/") || objectKey.includes("/dam-originals/")) {
+      if (conflictObjectKey.includes("/analysis-signed-fiches/") || conflictObjectKey.includes("/dam-originals/")) {
         json(res, 409, { error: "Este PDF assinado ou original já existe e não pode ser substituído.", code: "SIGNED_PDF_IMMUTABLE" });
       } else {
         json(res, 409, { error: "Documento já armazenado. Envie uma nova versão com outra referência.", code: "DOCUMENT_ALREADY_EXISTS" });
