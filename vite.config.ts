@@ -11,6 +11,7 @@ import { handleQaDocumentRequest } from "./server/qa-document-store";
 import { qaMercadoPagoPix } from "./server/qa-mercadopago-pix";
 import { callDataApiRpc } from "./server/municipal-storage";
 import handleProfileAvatarOpen from "./server/api/profile-avatar-open";
+import handleMunicipalityLogoOpen from "./api/municipality-logo-open";
 import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand, HeadBucketCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
@@ -464,6 +465,21 @@ function createR2DevApiPlugin(): Plugin {
               ? JSON.stringify(responsePayload)
               : responseBody,
           );
+          return;
+        }
+
+        // Localhost parity: the municipal logo GET must reach the same
+        // validated, R2-backed handler used on Vercel. Previously this GET
+        // fell through to the POST-only API guard and always returned 405.
+        if (req.url.split("?")[0] === "/api/municipality-logo-open") {
+          if (process.env.SIGAPRO_LOCAL_QA_LAUNCH === "true") {
+            res.statusCode = 403;
+            res.setHeader("Content-Type", "text/plain; charset=utf-8");
+            res.setHeader("Cache-Control", "no-store");
+            res.end("Logos oficiais não são consultados no QA isolado.");
+            return;
+          }
+          await handleMunicipalityLogoOpen(req, res);
           return;
         }
 
