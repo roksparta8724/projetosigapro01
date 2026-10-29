@@ -230,8 +230,15 @@ export async function getSignedUrlForObject(input: {
   objectKey: string;
   expiresIn?: number;
 }) {
+  // Public fallback is only for municipal legislation explicitly intended for public access.
+  // Never turn an auth/RLS failure for a private process PDF (or profile assets)
+  // into a public bucket URL even when the compatibility flag is enabled.
+  const publicLegislationKey =
+    /^municipalities\/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/legislation(?:[-/]|$)/i.test(input.objectKey);
   const allowPublicFallback =
-    String(import.meta.env.VITE_R2_PUBLIC_FALLBACK || "").toLowerCase() === "true";
+    String(import.meta.env.VITE_R2_PUBLIC_FALLBACK || "").toLowerCase() === "true" &&
+    normalizeClientBucket(input.bucket) === "process-documents" &&
+    publicLegislationKey;
   const expiresIn = typeof input.expiresIn === "number" && Number.isFinite(input.expiresIn)
     ? input.expiresIn
     : 21600;
