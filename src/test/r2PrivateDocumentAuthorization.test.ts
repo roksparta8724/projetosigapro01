@@ -85,7 +85,7 @@ describe("R2 signed GET municipal document access", () => {
     const src = readFileSync("server/api/r2-upload.ts", "utf8");
     expect(src).toContain('isCreateOnlyDocumentBucket(input.bucket)');
     expect(src).toContain('isCreateOnlyDocumentBucket(bucket)');
-    expect(src).toContain('objectKey.includes("/analysis-signed-fiches/")');
+    expect(src).toContain('conflictObjectKey.includes("/analysis-signed-fiches/")');
     expect(src.split('IfNoneMatch: "*"').length - 1).toBe(2);
     expect(src).toContain('code: "SIGNED_PDF_IMMUTABLE"');
     expect(src).toContain("writeStatus === 412");
