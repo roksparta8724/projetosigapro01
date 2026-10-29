@@ -7,6 +7,7 @@ import { FileDropZone, type UploadedFileItem } from "@/components/platform/FileD
 import { ImageFrameEditor } from "@/components/platform/ImageFrameEditor";
 import { InstitutionalLogo } from "@/components/platform/InstitutionalLogo";
 import { MunicipalStorageSettings } from "@/components/platform/MunicipalStorageSettings";
+import { MunicipalUrbanRulesSettings } from "@/components/platform/MunicipalUrbanRulesSettings";
 import { MunicipalPaymentSettings } from "@/components/platform/MunicipalPaymentSettings";
 import { InternalTabs } from "@/components/platform/InternalTabs";
 import { PageHeader } from "@/components/platform/PageHeader";
@@ -3906,6 +3907,9 @@ export function ConfiguracoesPage() {
                   </Button>
                 </div>
               </div>
+              {selectedTenantId ? (
+                <MunicipalUrbanRulesSettings municipalityId={selectedTenantId} canEdit={canManageTenantSettings} />
+              ) : null}
             </div>
             ) : (
               <div className="rounded-[24px] border border-slate-200 bg-slate-50 p-5 text-sm text-slate-600">
