@@ -220,7 +220,7 @@ export default async function handler(req: Req, res: Res) {
     const isGuideOriginal = objectKey.includes("/dam-originals/");
     if (bucket === documentsBucket && !isGuideOriginal && !isPublicLegalDocumentKey(objectKey)) {
       const permission = await authorizePrivateR2DocumentRead(req, objectKey, municipalityId);
-      if (!permission.ok) {
+      if (permission.ok === false) {
         json(res, permission.status, { error: permission.error });
         return;
       }
