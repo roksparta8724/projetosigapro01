@@ -28,6 +28,21 @@ export default async function handler(req: Req, res: Res) {
       let capabilities = input.capabilities && typeof input.capabilities === "object" && !Array.isArray(input.capabilities)
         ? { ...(input.capabilities as Record<string, unknown>) }
         : {};
+      if (mode === "municipal_system" && integrationType === "automatic") {
+        const adapter = getMunicipalCollectionAdapter(String(input.supplierCode || ""));
+        // The administrator selects a provider, never grants capabilities.
+        // Unimplemented suppliers are draft-only and must not collect tokens.
+        // Operational flags are derived exclusively from certified adapters.
+        if (!adapter) {
+          if (secret) throw new Error("Não envie credenciais: este fornecedor ainda não tem conector automático homologado. Use importação controlada.");
+          capabilities = { query:false, pdf:false, payment:false, reissue:false, cancel:false };
+        } else {
+          capabilities = Object.fromEntries(
+            (["query","pdf","payment","reissue","cancel"] as const)
+              .map(operation => [operation, capabilities[operation] === true && adapter.operations.includes(operation)])
+          );
+        }
+      }
       if (mode === "sigapro") {
         // Capabilities belong to the ACTIVE municipal provider, not the UI
         // checkboxes. Manual/unknown banks must never advertise bank callbacks.
