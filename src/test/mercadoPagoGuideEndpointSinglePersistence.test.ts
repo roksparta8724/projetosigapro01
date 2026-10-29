@@ -62,6 +62,7 @@ describe("SIGAPRO — não persistir duas vezes o retorno bancário", () => {
     expect(mocks.createBoleto).toHaveBeenCalledWith(
       expect.objectContaining({ municipalityId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", guideCode: "DAM-001" }),
       expect.anything(),
+      undefined, // production path does not inherit QA-only persistence permissions
     );
     expect(mocks.callDataApiRpc).not.toHaveBeenCalled();
   });
