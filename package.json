@@ -70,7 +70,7 @@
     "react-dom": "^18.3.1",
     "react-hook-form": "^7.61.1",
     "react-resizable-panels": "^2.1.9",
-    "react-router-dom": "^6.30.1",
+    "react-router-dom": "7.18.5",
     "recharts": "^2.15.4",
     "sonner": "^1.7.4",
     "tailwind-merge": "^2.6.0",
@@ -105,6 +105,8 @@
   },
   "overrides": {
     "better-auth": "1.7.14",
-    "zod": "4.6.7"
+    "zod": "4.6.7",
+    "postcss-selector-parser": "6.1.5",
+    "html-to-text": "10.0.1"
   }
 }
