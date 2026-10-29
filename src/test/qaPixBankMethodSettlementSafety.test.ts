@@ -42,7 +42,10 @@ function mockBankReply(value: Record<string, unknown>, status = 200) {
   ));
 }
 
-beforeEach(() => mockBankReply(bankOrder()));
+beforeEach(() => {
+  vi.stubGlobal("AbortSignal", { timeout: () => new AbortController().signal });
+  mockBankReply(bankOrder());
+});
 afterEach(() => vi.unstubAllGlobals());
 
 describe("QA Mercado Pago bank confirmation is PIX-specific, not just a paid amount", () => {

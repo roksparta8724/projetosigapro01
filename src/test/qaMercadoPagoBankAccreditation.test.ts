@@ -6,7 +6,7 @@ const payment="PAY01QA20261028VALID0000000001";
 const base={id,external_reference:"DAM-QA-20261028",currency:"BRL",country_code:"BRA",
  total_amount:"1.00",total_paid_amount:"1.00",status:"processed",status_detail:"accredited",
  transactions:{payments:[{id:payment,amount:"1.00",paid_amount:"1.00",
-  status:"processed",status_detail:"accredited"}],chargebacks:[]}};
+  status:"processed",status_detail:"accredited",payment_method:{id:"pix",type:"bank_transfer"}}],chargebacks:[]}};
 afterEach(()=>{vi.unstubAllGlobals();vi.restoreAllMocks()});
 async function observe(changes:Record<string,unknown>={}){
  vi.stubGlobal("AbortSignal",{timeout:()=>new AbortController().signal});
