@@ -102,5 +102,8 @@
     "typescript-eslint": "^8.38.0",
     "vite": "6.4.5",
     "vitest": "5.0.5"
+  },
+  "overrides": {
+    "better-auth": "1.7.14"
   }
 }
