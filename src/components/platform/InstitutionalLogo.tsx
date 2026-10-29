@@ -158,8 +158,7 @@ export function InstitutionalLogo({
     loadedSource.context === context &&
     loadedSource.url &&
     loadedSourceAllowed &&
-    !failedSources.includes(loadedSource.url) &&
-    sameAssetResource(loadedSource.url, imageUrl)
+    !failedSources.includes(loadedSource.url)
       ? loadedSource.url
       : "";
 
@@ -170,8 +169,7 @@ export function InstitutionalLogo({
   const safeCachedUrl =
     cachedContextUrl &&
     cachedAllowed &&
-    !failedSources.includes(cachedContextUrl) &&
-    sameAssetResource(cachedContextUrl, imageUrl)
+    !failedSources.includes(cachedContextUrl)
       ? cachedContextUrl
       : "";
 

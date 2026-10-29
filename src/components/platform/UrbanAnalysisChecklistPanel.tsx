@@ -553,7 +553,6 @@ export function UrbanAnalysisChecklistPanel({
     void readOfficialAnalysisSheet(process.id)
       .then((sheet) => {
         if (!active) return;
-        setOfficialRevision(sheet.revision);
         if (sheet.found && sheet.payload) {
           if (!checklistPayloadMatchesProcess(sheet.payload, process.id, municipalityId)) {
             throw new Error("A ficha retornada não corresponde a este processo e município.");
@@ -570,6 +569,8 @@ export function UrbanAnalysisChecklistPanel({
             return restored;
           });
         }
+        // Unlock official actions only after the response belongs to this municipality.
+        setOfficialRevision(sheet.revision);
       })
       .catch((error) => {
         if (!active) return;

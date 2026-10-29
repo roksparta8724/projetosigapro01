@@ -33,10 +33,11 @@ describe("official institutional logo asset isolation", () => {
     expect((html.match(/<img\b/g) ?? [])).toHaveLength(1);
   });
 
-  it("ignores a stale cached image if it does not match the current official asset", () => {
+  it("retains a previously loaded logo only inside the same municipal context while revalidating", () => {
     const source = readFileSync(resolve(process.cwd(), "src/components/platform/InstitutionalLogo.tsx"), "utf8");
-    expect(source).toContain("sameAssetResource(loadedSource.url, imageUrl)");
-    expect(source).toContain("sameAssetResource(cachedContextUrl, imageUrl)");
+    expect(source).toContain("loadedSource.context === context");
+    expect(source).toContain("!failedSources.includes(loadedSource.url)");
+    expect(source).toContain("!sameAssetResource(cachedContextUrl, SIGAPRO_OFFICIAL_LOGO)");
     expect(source).toContain('const secondaryUrl = isMaster ? SIGAPRO_OFFICIAL_LOGO : "";');
   });
 });
