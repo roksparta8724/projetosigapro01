@@ -25,6 +25,16 @@ describe("Neon guide charge persistence", () => {
     expect(fetch).not.toHaveBeenCalled();
     expect(rpc.mock.calls.every((call) => call[1] === "get_payment_guide_original_v1")).toBe(true);
   });
+  it.each([
+    { document_snapshot: {guia:{numeroGuia:"DAM-001"}} },
+    { original_pdf_key: "municipalities/m1/processes/p1/dam-originals/g1/digest.pdf" },
+  ])("prevents an orphan bank order when the original guide is already frozen (%j)", async frozen => {
+    rpc.mockResolvedValue({ok:true,status:200,payload:{...guide,...frozen},error:""});
+    await expect(createMercadoPagoGuideBoleto(input,req))
+      .rejects.toThrow("já congelado sem cobrança bancária vinculada");
+    expect(fetch).not.toHaveBeenCalled();
+    expect(rpc.mock.calls.every((call)=>call[1]==="get_payment_guide_original_v1")).toBe(true);
+  });
   it("refuses a missing/unauthorized guide before provider access", async () => {
     rpc.mockResolvedValue({ ok: false, status: 403, payload: null, error: "denied" });
     await expect(createMercadoPagoGuideBoleto(input, req)).rejects.toThrow("denied");
