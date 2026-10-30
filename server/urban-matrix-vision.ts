@@ -10,6 +10,36 @@ const MAX_IMAGE_BYTES=1_050_000;
 const MAX_B64_CHARS=1_400_000;
 export const VISION_ACTION="urban-matrix-vision";
 
+/**
+ * Never relay third-party error bodies, token hints or account identifiers to
+ * browser users. Only controlled error categories may leave this endpoint.
+ * Vision model license acceptance is an explicit owner action, never automatic.
+ */
+export function classifyCloudflareVisionFailure(status:number, payload:unknown) {
+  let licenseMention=false;
+  if(payload && typeof payload==="object" && !Array.isArray(payload)) {
+    const errors=(payload as {errors?:unknown}).errors;
+    if(Array.isArray(errors)) licenseMention=errors.slice(0,4).some(x=>{
+      const message=x && typeof x==="object" ? (x as {message?:unknown}).message : "";
+      return typeof message==="string" && /(?:licen[cs]e|agreement|accept.*(?:term|polic)|agree.*(?:term|model)|model.*(?:term|agreement))/i.test(message.slice(0,350));
+    });
+  }
+  if(licenseMention) return {httpStatus:502,code:"CLOUDFLARE_VISION_LICENSE_REQUIRED",
+    error:"O modelo visual exige aceitação inicial dos termos da Meta pela conta Cloudflare. O responsável deve realizar essa aceitação na conta; o SIGAPRO não aceita termos automaticamente."};
+  if(status===401) return {httpStatus:502,code:"CLOUDFLARE_VISION_TOKEN_REJECTED",
+    error:"A Cloudflare recusou a autenticação da IA visual. Confira o token protegido e as permissões de Workers AI no ambiente QA."};
+  if(status===403) return {httpStatus:502,code:"CLOUDFLARE_VISION_ACCESS_DENIED",
+    error:"A Cloudflare negou acesso ao modelo visual. Verifique as permissões de Workers AI e a aceitação dos termos da Meta na conta."};
+  if(status===400||status===422) return {httpStatus:502,code:"CLOUDFLARE_VISION_REQUEST_REJECTED",
+    error:"A Cloudflare recusou a requisição de imagem. O suporte técnico deve verificar o formato enviado e as exigências do modelo."};
+  if(status===404) return {httpStatus:502,code:"CLOUDFLARE_VISION_MODEL_UNAVAILABLE",
+    error:"O modelo de visão configurado não foi encontrado ou não está disponível nessa conta Cloudflare."};
+  if(status===429) return {httpStatus:429,code:"CLOUDFLARE_VISION_RATE_LIMIT",
+    error:"A Cloudflare limitou a leitura visual por franquia ou capacidade. Nenhum dado foi salvo; use o registro manual assistido."};
+  return {httpStatus:502,code:"CLOUDFLARE_VISION_PROVIDER_ERROR",
+    error:"A Cloudflare não concluiu a leitura visual. Verifique o status do provedor e tente novamente."};
+}
+
 export function validateVisionInput(body:unknown) {
   if(!body||typeof body!=="object"||Array.isArray(body))return null;
   const x=body as Record<string,unknown>;
@@ -76,9 +106,17 @@ export async function suggestUrbanMatrixPageText(req:Req,res:Res,identity:Identi
       headers:{"Authorization":"Bearer "+config.token,"Content-Type":"application/json"},
       body:JSON.stringify({prompt,image:input.imageDataUrl,max_tokens:1200,temperature:0}),
     });
-    if(!response.ok) return answer(res,response.status===429?429:502,{
-      error:response.status===429 ? "Franquia da Cloudflare atingida. Use o registro manual assistido." :
-        "A leitura visual Cloudflare não pôde ser executada. Confira se o modelo de visão foi autorizado na conta e tente novamente."});
+    if(!response.ok) {
+      // Upstream error text is untrusted and never returned or logged.
+      // Parse only for safe classification of licensing errors.
+      let details:unknown=null;
+      try {details=await response.json();} catch { /* no trusted details */ }
+      const failure=classifyCloudflareVisionFailure(response.status,details);
+      console.warn("[SIGAPRO][UrbanVision] Cloudflare request rejected",{
+        status:response.status,code:failure.code,
+      });
+      return answer(res,failure.httpStatus,{code:failure.code,error:failure.error});
+    }
     const parsed=await response.json() as {result?:{response?:unknown};response?:unknown};
     const raw=parsed.result?.response??parsed.response;
     if(typeof raw!=="string"||raw.trim().length<20)
