@@ -3,6 +3,7 @@ import { callDataApiRpc, readBearer, readEnv } from "../server/municipal-storage
 import { resolvePrivateAiConfig } from "../server/private-ai-provider.js";
 import { resolveCloudflareAiConfig } from "../server/cloudflare-ai-provider.js";
 import { extractUrbanMatrixFromPage } from "../server/urban-matrix-extraction.js";
+import { suggestUrbanMatrixPageText } from "../server/urban-matrix-vision.js";
 
 type Req = IncomingMessage & { method?: string; body?: unknown };
 type Res = ServerResponse;
@@ -11,6 +12,7 @@ type ChatMessage = { role: Role; content: string };
 const MAX_MESSAGES = 8;
 const MAX_MESSAGE_LENGTH = 1600;
 const MAX_BODY_BYTES = 16000;
+const MAX_VISION_BODY_BYTES=1_450_000;
 
 function json(res: Res, status: number, body: unknown) {
   res.statusCode = status;
@@ -33,8 +35,12 @@ function sameOrigin(req: Req) {
 }
 
 async function readBody(req: Req): Promise<unknown> {
+  const vision=req.headers["x-sigapro-vision"]==="1";
+  const maxAllowed=vision?MAX_VISION_BODY_BYTES:MAX_BODY_BYTES;
   if (req.body !== undefined) {
-    if (JSON.stringify(req.body).length > MAX_BODY_BYTES) throw new Error("REQUEST_TOO_LARGE");
+    if (JSON.stringify(req.body).length > maxAllowed) throw new Error("REQUEST_TOO_LARGE");
+    const supplied=req.body as {action?:unknown};
+    if (vision && supplied?.action!=="urban-matrix-vision") throw new Error("REQUEST_TOO_LARGE");
     return req.body;
   }
   const chunks: Buffer[] = [];
@@ -42,11 +48,13 @@ async function readBody(req: Req): Promise<unknown> {
   for await (const chunk of req) {
     const part = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
     size += part.byteLength;
-    if (size > MAX_BODY_BYTES) throw new Error("REQUEST_TOO_LARGE");
+    if (size > maxAllowed) throw new Error("REQUEST_TOO_LARGE");
     chunks.push(part);
   }
   try {
-    return JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}");
+    const parsed=JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}");
+    if (vision && parsed?.action!=="urban-matrix-vision") throw new Error("REQUEST_TOO_LARGE");
+    return parsed;
   } catch { throw new Error("INVALID_JSON"); }
 }
 
@@ -93,6 +101,10 @@ export default async function handler(req: Req, res: Res) {
   catch (e) {
     return json(res,e instanceof Error && e.message==="REQUEST_TOO_LARGE"?413:400,
       {error:"Solicitação inválida ou muito extensa."});
+  }
+  if (body && typeof body==="object" && !Array.isArray(body) &&
+    (body as Record<string,unknown>).action==="urban-matrix-vision") {
+    return suggestUrbanMatrixPageText(req,res,user,body);
   }
   if (body && typeof body==="object" && !Array.isArray(body) &&
     (body as Record<string,unknown>).action==="urban-matrix-extract") {
