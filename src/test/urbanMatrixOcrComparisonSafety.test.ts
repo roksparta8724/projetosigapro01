@@ -5,6 +5,9 @@ describe("SIGAPRO QA — OCR não transforma índices soltos em regras",()=>{
  it("exibe matriz histórica por coluna, sem afirmar que foi verificada pela IA",()=>{
    expect(ui).toContain('data-urban-ocr-comparison="true"');
    expect(ui).toContain("matchingOriginalScope");
+   expect(ui).toContain('data-urban-ocr-fallback="true"');
+   expect(ui).toContain('{matchingOriginalScope && matchingOriginalRow ? <>');
+   expect(ui).not.toContain('ocrDraft && matchingOriginalScope && matchingOriginalRow ?');
    expect(ui).toContain("<OcrReferenceComparison row={matchingOriginalRow}/>");
    expect(ui).toContain("Não são valores confirmados pela IA nem comprovação da vigência atual.");
    expect(ui).toContain("Conferir na imagem");
