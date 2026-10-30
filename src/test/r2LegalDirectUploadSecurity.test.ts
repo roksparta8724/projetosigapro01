@@ -44,7 +44,7 @@ beforeEach(() => {
   vi.stubEnv("R2_ACCESS_KEY_ID", "fake-not-real");
   vi.stubEnv("R2_SECRET_ACCESS_KEY", "fake-not-real");
 });
-afterEach(() => { vi.unstubAllEnvs(); vi.restoreAllMocks(); });
+afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 describe("SIGAPRO — direct secure legal PDF upload", () => {
   it("accepts official large PDFs up to 100 MB only in the tenant legislation directory", () => {
     expect(validateLegalUploadInput(body)?.fileSize).toBe(body.fileSize);
@@ -85,6 +85,43 @@ describe("SIGAPRO — direct secure legal PDF upload", () => {
     }));
     expect((await call()).status).toBe(403);
     expect(mock.sign).not.toHaveBeenCalled();
+  });
+  it("runs an authorized, read-only CORS preflight against signed R2 endpoint without exposing URL", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      status: 200,
+      headers: new Headers({
+        "Access-Control-Allow-Origin": "https://sigapromunicipal.com.br",
+        "Access-Control-Allow-Methods": "PUT",
+        "Access-Control-Allow-Headers": "content-type,if-none-match",
+      }),
+    }));
+    const r = await call({ body:{...body, action:"diagnose"} });
+    expect(r.status).toBe(200);
+    expect(r.output.diagnosis).toBe("R2_CORS_PREFLIGHT_OK");
+    expect(JSON.stringify(r.output)).not.toContain("signed-upload");
+    const req = vi.mocked(fetch).mock.calls[0];
+    expect(req[1]?.method).toBe("OPTIONS");
+    expect(req[1]?.headers).toEqual(expect.objectContaining({
+      Origin: "https://sigapromunicipal.com.br",
+      "Access-Control-Request-Method": "PUT",
+      "Access-Control-Request-Headers": "content-type,if-none-match",
+    }));
+    vi.unstubAllGlobals();
+  });
+  it("reports specific CORS refusal without making any write", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({status:403,headers:new Headers()}));
+    const r = await call({body:{...body,action:"diagnose"}});
+    expect(r.status).toBe(200);
+    expect(r.output.diagnosis).toBe("R2_CORS_PREFLIGHT_DENIED");
+    expect(mock.send).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
+  it("refuses unauthenticated preflight diagnostic, never exposing signed URLs", async()=>{
+    vi.stubGlobal("fetch", vi.fn());
+    expect((await call({authorization:"",body:{...body,action:"diagnose"}})).status).toBe(401);
+    expect(mock.sign).not.toHaveBeenCalled();
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
   });
   it("confirms the real object size before accepting its permanent R2 reference", async () => {
     const r = await call({ body:{ ...body, action:"verify" } });
