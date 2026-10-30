@@ -30,8 +30,8 @@ const baseProps = {
     descontos: 0,
     outrosAcrescimos: 0,
     valorCobrado: 300,
-    linhaDigitavel: "237933802966601057305440603333035168460000030000",
-    codigoBarras: "237951684600000300033802666010573044060333303500",
+    linhaDigitavel: "23793388096060157364540663333335168400000300000",
+    codigoBarras: "23791684000003000003388060601573644066333333",
     pixPayload: "00020126560014BR.GOV.BCB.PIX0134financeiro@example.com5204000053039865406300.005802BR5918PREFEITURA TESTE6009SAO PAULO62070503***6304ABCD",
     bankName: "Mercado Pago",
     bankInstructions: "Pagamento pelos canais oficiais.",
@@ -53,13 +53,20 @@ const baseProps = {
 };
 
 describe("GuiaRecolhimentoOficial", () => {
+  it("preserves calendar dates and fits the crest regardless of screen branding zoom", () => {
+    const html = buildGuiaRecolhimentoOficialHtml({ ...baseProps, prefeitura: { ...baseProps.prefeitura, logoScale: 5, logoOffsetX: 200 } }, { autoPrint: false });
+    expect(html).toContain("13/10/2026");
+    expect(html).toContain("20/10/2026");
+    expect(html).toContain("object-fit:contain;transform:none");
+    expect(html).not.toContain("scale(5)");
+  });
   it("renders the municipal logo, official digitable line and provider barcode in one DAM", () => {
     const html = buildGuiaRecolhimentoOficialHtml(baseProps, {
       autoPrint: false,
     });
 
     expect(html).toContain("https://example.com/brasao.png");
-    expect(html).toContain("237933802966 601057305440 603333035168 460000030000");
+    expect(html).toContain("23793.38809 60601.573645 40663.333335 1 68400000300000");
     expect(html).toContain('class="dam-barcode-svg"');
     expect(html).toContain('aria-label="Código de barras bancário"');
     expect(html).not.toContain("Sem linha digitável oficial");
@@ -100,8 +107,8 @@ describe("GuiaRecolhimentoOficial", () => {
     });
 
     expect(html).toContain("DAM-ISS-2026-00002");
-    expect(html).toContain("grid-template-columns: 22mm minmax(0, 1fr) 58mm");
-    expect(html).toContain("grid-template-columns: 22mm minmax(0, 1fr)");
+    expect(html).toContain("grid-template-columns: 28mm minmax(0, 1fr) 58mm");
+    expect(html).toContain("grid-template-columns: 28mm minmax(0, 1fr)");
     expect(html).toContain("white-space: nowrap");
     expect(html).toContain("overflow-wrap: normal");
     expect(html).not.toContain("word-break: break-word");

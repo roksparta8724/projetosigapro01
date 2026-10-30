@@ -27,11 +27,14 @@ describe("profile and branding persistence regressions", () => {
 
   it("keeps municipal header, footer and preview logos whole while preserving master framing", () => {
     expect(logo).toContain("const showCrop =");
-    expect(logo).toContain("isMaster &&");
-    expect(logo).toContain('(variant === "header" || variant === "footer" || variant === "preview")');
+    // Municipal branding supports explicit framing/zoom; still blocks master-logo
+    // fallback and renders the actual image with object-contain.
+    expect(logo).toContain('const showCrop = variant === "header" || variant === "footer" || variant === "preview"');
+    expect(logo).toContain("sameAssetResource(requestedCandidate, SIGAPRO_OFFICIAL_LOGO)");
     expect(logo).toContain("const configuredScale = Number.isFinite(branding.logoScale)");
     expect(logo).toContain("Math.max(0.35, Math.min(5, configuredScale))");
-    expect(logo).toContain("Math.max(1, Math.min(5, configuredScale))");
+    expect(logo).toContain("fitMunicipalLogoFrame({");
+    expect(logo).toContain("MUNICIPAL_LOGO_BASE_RATIO");
     expect(logo).toContain('transformOrigin: "center center"');
     // A moldura municipal usa todo o espaço sem padding antigo que cortava o logo.
     expect(logo).toContain('header: "h-[112px] w-[188px] p-0');

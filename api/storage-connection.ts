@@ -1,4 +1,4 @@
-import type { MunicipalStorageConnection } from "../server/municipal-storage";
+import type { MunicipalStorageConnection } from "../server/municipal-storage.js";
 import {
   callDataApiRpc,
   credentialFingerprint,
@@ -7,7 +7,7 @@ import {
   getMunicipalStorageSecretAdmin,
   normalizeStorageEndpoint,
   testMunicipalStorageConnection,
-} from "../server/municipal-storage";
+} from "../server/municipal-storage.js";
 
 function readEnv(key: string) {
   const raw = process.env[key];
@@ -77,8 +77,9 @@ export default async function handler(req: Req, res: Res) {
     json(res, 200, {
       ok: true,
       env: {
-        hasNeonAuthUrl: Boolean(readEnv("VITE_NEON_AUTH_URL")),
-        hasNeonDataApiUrl: Boolean(readEnv("VITE_NEON_DATA_API_URL")),
+        // Official runtime uses audited Neon endpoints even without VITE overrides.
+        hasNeonAuthUrl: Boolean(readEnv("VITE_NEON_AUTH_URL")) || process.env.VERCEL_ENV === "production",
+        hasNeonDataApiUrl: Boolean(readEnv("VITE_NEON_DATA_API_URL")) || process.env.VERCEL_ENV === "production",
         hasR2Endpoint: Boolean(readEnv("R2_ENDPOINT")),
         hasR2AccessKeyId: Boolean(readEnv("R2_ACCESS_KEY_ID")),
         hasR2Secret: Boolean(readEnv("R2_SECRET_ACCESS_KEY")),

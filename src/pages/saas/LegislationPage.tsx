@@ -20,7 +20,7 @@ import { TableContainer } from "@/components/platform/TableContainer";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
-import { getLegislationOpenUrl } from "@/integrations/r2/client";
+import { getLegislationOpenUrl, getStableMunicipalLegislationReference } from "@/integrations/r2/client";
 
 type LegislationView = "visao-geral" | "plano-diretor" | "uso-solo" | "leis-complementares" | "referencias";
 
@@ -121,7 +121,7 @@ export function LegislationPage() {
   const openOfficialDocument = (item: LawItem) => {
     if (!item.fileUrl) return;
 
-    const targetUrl = getLegislationOpenUrl(item.fileUrl);
+    const targetUrl = getLegislationOpenUrl(getStableMunicipalLegislationReference(item.fileUrl, effectiveScopeId));
     if (!targetUrl) return;
 
     const opened = window.open(targetUrl, "_blank", "noopener,noreferrer");

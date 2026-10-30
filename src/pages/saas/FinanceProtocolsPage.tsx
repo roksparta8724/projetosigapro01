@@ -1,3 +1,4 @@
+import { archiveAndOpenGuide, openLegacyGuideOriginal, openStoredGuide, readGuideOriginal } from "@/lib/guideOriginal";
 import {
   Building2,
   CalendarClock,
@@ -20,7 +21,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { openGuiaRecolhimentoOficialWindow } from "@/components/GuiaRecolhimentoOficial";
+import { reserveGuiaRecolhimentoOficialWindow } from "@/components/GuiaRecolhimentoOficial";
 import { PageHero } from "@/components/platform/PageHero";
 import { MarkerSelector } from "@/components/platform/MarkerSelector";
 import {
@@ -277,9 +278,27 @@ export function FinanceProtocolsPage() {
     );
     if (!match) return;
 
+    const target = reserveGuiaRecolhimentoOficialWindow("Guia " + match.guide.code);
+    if (!target) { setFinancialStatus("Permita pop-ups para abrir o PDF original."); return; }
+    try {
+    if (await openLegacyGuideOriginal(match.process.documents, match.guide.code, target)) return;
+    const original = await readGuideOriginal(effectiveScopeId, match.guide.code);
+    if (await openStoredGuide(original, target)) return;
+    if (original.status === "compensada") throw new Error("Guia compensada sem PDF original arquivado. Não será recriada.");
+    if (original.document_snapshot) {
+      await archiveAndOpenGuide(effectiveScopeId, original.document_snapshot, target);
+      return;
+    }
+    const canonicalGuide = { ...match.guide, code: original.guide_number, amount: Number(original.amount),
+      issuedAt: original.created_at, dueDate: original.due_date, barcode: original.barcode,
+      digitableLine: original.digitable_line, pixPayload: original.pix_code,
+      providerEnvironment: original.provider_environment, bankReference: original.bank_reference,
+      bankPaymentId: original.bank_payment_id, bankStatus: original.bank_status,
+      bankStatusDetail: original.bank_status_detail, bankAuthenticatedAt: original.bank_authenticated_at };
+    if (!canonicalGuide.issuedAt) throw new Error("Data original da guia ausente no Neon.");
     const banking = resolveGuideBankingData({
       settings: tenantSettings,
-      guide: match.guide,
+      guide: canonicalGuide,
       municipalityName,
       municipalityCity: tenantSettings?.pixMerchantCity,
     });
@@ -293,10 +312,10 @@ export function FinanceProtocolsPage() {
       try {
         providerCharge = await ensureMercadoPagoGuideCharge({
           municipalityId: effectiveScopeId,
-          guideCode: match.guide.code,
-          amount: match.guide.amount,
-          dueDate: match.guide.dueDate,
-          description: `${guideKindLabel(match.guide.kind)} · ${match.process.protocol}`,
+          guideCode: canonicalGuide.code,
+          amount: canonicalGuide.amount,
+          dueDate: canonicalGuide.dueDate,
+          description: `${guideKindLabel(canonicalGuide.kind)} · ${match.process.protocol}`,
         });
         setFinancialStatus(
           "Cobrança Mercado Pago vinculada à própria guia do SIGAPRO. Linha digitável e código de barras foram incorporados à DAM.",
@@ -307,6 +326,7 @@ export function FinanceProtocolsPage() {
             ? `Não foi possível obter a cobrança Mercado Pago desta guia: ${error.message}`
             : "Não foi possível obter a cobrança Mercado Pago desta guia.";
         setFinancialStatus(message);
+        target.close();
         return;
       } finally {
         setGuideBillingBusyKey("");
@@ -321,6 +341,7 @@ export function FinanceProtocolsPage() {
       const message =
         "A cobrança bancária não retornou linha digitável e código de barras completos. A DAM foi bloqueada para não emitir uma guia inválida.";
       setFinancialStatus(message);
+      target.close();
       return;
     }
 
@@ -336,7 +357,7 @@ export function FinanceProtocolsPage() {
       tenantSettings?.brasaoUrl,
     );
 
-    const openedGuide = openGuiaRecolhimentoOficialWindow(
+    await archiveAndOpenGuide(effectiveScopeId,
       {
         prefeitura: {
           nome:
@@ -360,27 +381,27 @@ export function FinanceProtocolsPage() {
             match.process.property.registration || match.process.protocol,
         },
         guia: {
-          numeroGuia: match.guide.code,
+          numeroGuia: canonicalGuide.code,
           exercicio: new Date(
-            match.guide.issuedAt || Date.now(),
+            canonicalGuide.issuedAt,
           )
             .getFullYear()
             .toString(),
-          dataDocumento: match.guide.issuedAt || new Date().toISOString(),
-          vencimento: match.guide.dueDate,
+          dataDocumento: canonicalGuide.issuedAt,
+          vencimento: canonicalGuide.dueDate,
           funcionarioResponsavel: session.name,
-          referencia: getGuideReference(match.guide.kind),
-          observacao: getGuideObservation(match.guide.kind),
-          valorDocumento: match.guide.amount,
+          referencia: getGuideReference(canonicalGuide.kind),
+          observacao: getGuideObservation(canonicalGuide.kind),
+          valorDocumento: canonicalGuide.amount,
           descontos: 0,
           outrosAcrescimos: 0,
-          valorCobrado: match.guide.amount,
+          valorCobrado: canonicalGuide.amount,
           linhaDigitavel: digitableLine,
           codigoBarras: barcode,
           qrCodePixUrl: "",
           pixPayload: banking.pixPayload,
           bankName: providerName,
-          bankEnvironment: providerCharge?.environment,
+          bankEnvironment: providerCharge?.environment || canonicalGuide.providerEnvironment,
           bankAgreement: banking.bankAgreement,
           bankInstructions: banking.bankInstructions,
           bankReference: providerCharge?.orderId || match?.guide?.bankReference,
@@ -397,32 +418,27 @@ export function FinanceProtocolsPage() {
         itens: [
           {
             ano: new Date(
-              match.guide.issuedAt || Date.now(),
+              canonicalGuide.issuedAt,
             )
               .getFullYear()
               .toString(),
-            divida: match.guide.label,
+            divida: canonicalGuide.label,
             tabela: tenantSettings?.guiaPrefixo || "DAM",
             sb: "",
             pc: "",
-            principal: match.guide.amount,
+            principal: canonicalGuide.amount,
             multa: 0,
             juros: 0,
             correcao: 0,
-            total: match.guide.amount,
+            total: canonicalGuide.amount,
           },
         ],
       },
-      {
-        title: `Guia ${match.guide.code}`,
-        autoPrint,
-      },
+      target,
     );
-
-    if (!openedGuide) {
-      setFinancialStatus(
-        "O navegador bloqueou a abertura da guia. Permita pop-ups para o localhost e tente novamente.",
-      );
+    } catch (error) {
+      target.close();
+      setFinancialStatus(error instanceof Error ? error.message : "Falha ao arquivar a guia original.");
     }
   };
 

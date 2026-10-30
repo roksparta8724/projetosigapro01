@@ -24,7 +24,8 @@ create table if not exists public.municipal_payment_provider_connections (
 );
 
 alter table public.municipal_payment_provider_connections enable row level security;
-revoke all on table public.municipal_payment_provider_connections from anon, authenticated;
+-- This Neon project has authenticated but not the optional anon role.
+revoke all on table public.municipal_payment_provider_connections from public, authenticated;
 
 create or replace function public.is_municipal_payment_admin(_municipality_id uuid)
 returns boolean
@@ -298,6 +299,15 @@ begin
   return public.get_municipal_payment_connection_v1(_municipality_id);
 end;
 $function$;
+
+-- PostgreSQL grants function EXECUTE to PUBLIC by default; revoke before granting tenant-scoped access.
+revoke all on function public.is_municipal_payment_admin(uuid) from public;
+revoke all on function public.get_municipal_payment_connection_v1(uuid) from public;
+revoke all on function public.get_municipal_payment_secret_admin_v1(uuid) from public;
+revoke all on function public.resolve_municipal_payment_secret_v1(uuid) from public;
+revoke all on function public.save_municipal_payment_connection_v1(uuid,text,text,text,text,text,text) from public;
+revoke all on function public.mark_municipal_payment_test_v1(uuid,boolean,text) from public;
+revoke all on function public.activate_municipal_payment_connection_v1(uuid) from public;
 
 grant execute on function public.get_municipal_payment_connection_v1(uuid) to authenticated;
 grant execute on function public.get_municipal_payment_secret_admin_v1(uuid) to authenticated;

@@ -7,6 +7,18 @@ describe("finance municipal guide ledger", () => {
     resolve(process.cwd(), "src/pages/saas/FinanceDeskPage.tsx"),
     "utf8",
   );
+  const protocols = readFileSync(
+    resolve(process.cwd(), "src/pages/saas/FinanceProtocolsPage.tsx"),
+    "utf8",
+  );
+
+  it("never substitutes today's date for an already-issued payment guide", () => {
+    expect(protocols).toContain('if (!canonicalGuide.issuedAt) throw new Error("Data original da guia ausente no Neon.")');
+    expect(protocols).toContain("dataDocumento: canonicalGuide.issuedAt");
+    expect(protocols).toContain("canonicalGuide.issuedAt,");
+    expect(protocols).not.toContain("dataDocumento: match.guide.issuedAt || new Date().toISOString()");
+    expect(protocols).not.toContain("match.guide.issuedAt || Date.now()");
+  });
 
   it("keeps issued guides visible after a process leaves the Financeiro queue", () => {
     expect(finance).toContain("financeLedgerProcesses");

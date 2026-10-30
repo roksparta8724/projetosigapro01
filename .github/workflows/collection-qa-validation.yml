@@ -1,0 +1,148 @@
+name: SIGAPRO collection isolated code checks
+
+on:
+  push:
+    branches:
+      - review/sigapro-integral-local-20261021
+    paths:
+      - .github/workflows/collection-qa-validation.yml
+      - scripts/dev-qa.mjs
+      - scripts/qa-payment-secret.mjs
+      - scripts/qa-payment-secret.check.mjs
+      - package.json
+      - vite.config.ts
+      - src/pages/saas/CollectionSettingsPage.tsx
+      - src/components/platform/MunicipalBankDetailsSettings.tsx
+      - src/components/platform/MunicipalPaymentSettings.tsx
+      - src/components/platform/MunicipalCollectionSettings.tsx
+      - src/styles/surface-polarity.css
+      - src/integrations/backend/databaseClient.ts
+      - src/lib/collectionDiagnostics.ts
+      - src/lib/municipalBankCatalog.ts
+      - src/lib/municipalBankCatalog.test.ts
+      - src/lib/paymentCollection.ts
+      - src/lib/paymentCollection.test.ts
+      - src/test/collectionDiagnostics.test.ts
+      - src/test/collectionNeonAuthAlignment.test.ts
+      - src/test/isolatedProtocolPaymentFlow.test.ts
+      - src/test/isolatedGuideNonPayable.test.tsx
+      - src/components/GuiaRecolhimentoOficial.tsx
+      - src/components/GuiaRecolhimentoOficial.test.tsx
+      - src/lib/guideAssets.ts
+      - server/qa-mercadopago-pix.ts
+      - server/qa-mercadopago-pix.test.ts
+      - src/test/guidePixLogoPremium.test.tsx
+      - src/test/municipalBankingFlow.test.ts
+      - server/municipal-storage.ts
+      - server/municipal-payment.ts
+      - server/guide-persistence.ts
+      - src/lib/mercadoPagoGuide.ts
+      - src/lib/bankCodes.ts
+      - src/lib/bankCodes.test.ts
+      - neon/migrations/20261022_qa_external_sandbox_boleto.sql
+      - server/municipal-payment.test.ts
+      - server/qa-document-store.ts
+      - server/qa-document-store.test.ts
+      - src/integrations/r2/client.ts
+      - src/pages/saas/ExternalPaymentsPage.tsx
+      - src/pages/saas/ProtocolarProjetoPage.tsx
+      - server/mercadopago.ts
+      - src/components/platform/ImageFrameEditor.tsx
+      - src/components/platform/InstitutionalLogo.tsx
+      - src/components/platform/InstitutionalLogo.test.tsx
+      - src/pages/saas/ConfiguracoesPage.tsx
+      - src/pages/saas/LegislationPage.tsx
+      - src/pages/saas/ZoningPage.tsx
+      - src/integrations/r2/legislationStableReference.test.ts
+      - src/hooks/useMunicipality.tsx
+      - src/hooks/useInstitutionBranding.ts
+      - src/integrations/backend/municipalityImpl.ts
+      - src/lib/municipality.ts
+      - src/lib/municipalLogoFraming.ts
+      - src/lib/municipalLogoFraming.test.ts
+      - src/test/**
+      - src/components/platform/PortalFrame.tsx
+      - src/components/platform/UrbanAnalysisChecklistPanel.tsx
+      - api/collection-configuration.ts
+      - neon/migrations/20261021_municipal_collection_*.sql
+      - neon/migrations/20261021_dam_original_and_provider_persistence.sql
+      - neon/migrations/20261022_collection_activation_bank_guard.sql
+      - neon/migrations/20261022_collection_provider_credential_isolation.sql
+      - src/lib/municipalCollectionBridge.ts
+      - src/components/platform/GovbrArGuideBridge.tsx
+      - src/pages/saas/ProcessDetailPage.tsx
+      - src/pages/saas/ProtocolDeskPage.tsx
+      - src/components/GuiaRecolhimentoOficial.tsx
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  collection:
+    name: TypeScript, local collection tests and compile only
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout review code
+        uses: actions/checkout@v4
+      - name: Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps --no-audit --no-fund
+      - name: Check safe QA launcher without opening ports
+        run: npm run dev:qa:check
+      - name: Verify stable QA-only payment encryption key (no external services)
+        run: node --test scripts/qa-payment-secret.check.mjs
+      - name: Smoke isolated localhost 8081 and block all external side effects
+        shell: bash
+        run: |
+          npm run dev:qa >/tmp/sigapro-qa.log 2>&1 &
+          QA_PID=$!
+          trap 'kill $QA_PID 2>/dev/null || true' EXIT
+          ready=0
+          for attempt in {1..55}; do
+            if curl --silent --fail http://localhost:8081/api/dev-source > /tmp/sigapro-qa-source.json; then ready=1; break; fi
+            sleep 1
+          done
+          if [ "$ready" -ne 1 ]; then tail -n 60 /tmp/sigapro-qa.log; exit 1; fi
+          node -e 'const s=require("/tmp/sigapro-qa-source.json"); if(s.neonEnvironment!=="isolated-qa"||s.port!==8081)process.exit(1)'
+          for path in "/api/mercadopago/guide-boleto" "/api/mercadopago/guide-status" "/api/r2-upload" "/api/r2-delete" "/api/r2-presign" "/api/e-sign-artifact"; do
+            code=$(curl --silent -o /tmp/sigapro-qa-response.json -w "%{http_code}" -X POST "http://localhost:8081$path")
+            test "$code" = "403" || { echo "Unsafe QA route: $path ($code)"; exit 1; }
+          done
+          echo "QA isolation smoke test passed: 8081 isolated, external writes rejected"
+      - name: TypeScript
+        run: npm run typecheck
+      - name: Collection and GOVBR regression tests
+        run: >-
+          npx vitest run
+          src/test/collectionDiagnostics.test.ts
+          src/test/collectionNeonAuthAlignment.test.ts
+          src/test/isolatedProtocolPaymentFlow.test.ts
+          src/test/qaBoletoEndToEnd.test.ts
+          src/test/qaBoletoSqlMigration.test.ts
+          src/lib/bankCodes.test.ts
+          src/test/isolatedGuideNonPayable.test.tsx
+          src/test/guidePixLogoPremium.test.tsx
+          src/test/municipalBrandingFramePersistence.test.ts
+          src/integrations/r2/legislationStableReference.test.ts
+          src/components/platform/InstitutionalLogo.test.tsx
+          server/qa-mercadopago-pix.test.ts
+          src/test/municipalCollectionConfiguration.test.ts
+          src/test/govbrArGuideBridge.test.ts
+          src/test/damProviderPersistence.test.ts
+          src/lib/guideOriginal.test.ts
+          src/test/municipalBankingFlow.test.ts
+          server/municipal-payment.test.ts
+          server/qa-document-store.test.ts
+          src/lib/municipalBankCatalog.test.ts
+          src/lib/paymentCollection.test.ts
+      - name: Entire application regression suite (no deployment)
+        run: npm test -- --reporter=dot
+      - name: Production-format bundle (no deployment)
+        if: always()
+        run: npm run build

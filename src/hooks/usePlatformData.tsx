@@ -1,6 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 /* eslint-disable react-hooks/exhaustive-deps */
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { isConfirmedStoreIdentity } from "@/lib/confirmedStoreIdentity";
 import {
   type AccountStatus,
   buildProcessDocuments,
@@ -1015,7 +1016,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
     // autenticar. Só aquece o cache depois que o bootstrap remoto confirmou
     // que o contexto pertence ao usuário atual.
     const contextConfirmed =
-      !expectsRemoteStore || remoteContextUserId === authenticatedUserId;
+      !expectsRemoteStore || isConfirmedStoreIdentity(remoteContextUserId, authenticatedUserId, authenticatedProfileId);
 
     if (hasVisibleData && contextConfirmed) {
       syncWarmPlatformStore(store, warmIdentity);
@@ -1032,7 +1033,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
     if (
       !authenticatedUserId ||
       !remoteContextUserId ||
-      authenticatedUserId === remoteContextUserId
+      isConfirmedStoreIdentity(remoteContextUserId, authenticatedUserId, authenticatedProfileId)
     ) {
       return;
     }
@@ -1050,7 +1051,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
       ownerLinks: [],
       ownerMessages: [],
     }));
-  }, [authenticatedUserId, remoteContextUserId]);
+  }, [authenticatedProfileId, authenticatedUserId, remoteContextUserId]);
 
   useEffect(() => {
     let active = true;
@@ -1256,8 +1257,8 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
           authenticatedEmail,
         );
         if (activeProfile) syncProfileVisualCache(activeProfile);
-        setStore(sanitized);
-        syncWarmPlatformStore(sanitized, authenticatedUserId);
+        setStore((current) => stabilizePlatformStore(current, sanitized));
+        syncWarmPlatformStore(sanitized, authenticatedProfileId || authenticatedUserId);
         syncStore(sanitized);
         setSource("remote");
         setDataError(null);
@@ -1358,7 +1359,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
       );
       if (activeProfile) syncProfileVisualCache(activeProfile);
       setStore((current) => stabilizePlatformStore(current, sanitized));
-      syncWarmPlatformStore(sanitized, authenticatedUserId);
+      syncWarmPlatformStore(sanitized, authenticatedProfileId || authenticatedUserId);
       syncStore(sanitized);
       setSource("remote");
       setDataError(null);
@@ -1777,7 +1778,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
 
     const dataReadyForCurrentUser = Boolean(
       authenticatedUserId &&
-      remoteContextUserId === authenticatedUserId &&
+      isConfirmedStoreIdentity(remoteContextUserId, authenticatedUserId, authenticatedProfileId) &&
       !authLoading &&
       !loading &&
       (
@@ -2623,6 +2624,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
     };
   }, [
     authenticatedEmail,
+    authenticatedProfileId,
     authenticatedMunicipalityId,
     authenticatedRole,
     authenticatedUserId,

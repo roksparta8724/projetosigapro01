@@ -36,6 +36,8 @@ const tenantRoles: UserRole[] = ["prefeitura_admin", "prefeitura_supervisor", "a
 const municipalInternalRoles: UserRole[] = ["prefeitura_admin", "prefeitura_supervisor", "analista", "financeiro", "setor_intersetorial", "fiscal"];
 
 const municipalProfilePresets = [
+  { key: "secretario_municipal", label: "Secretário Municipal", role: "prefeitura_supervisor" as UserRole, accessLevel: "3" },
+  { key: "diretor_municipal", label: "Diretor Municipal", role: "prefeitura_supervisor" as UserRole, accessLevel: "2" },
   { key: "chefe_divisao", label: "Chefe de Divisão", role: "prefeitura_supervisor" as UserRole, accessLevel: "2" },
   { key: "assistente_administrativo", label: "Assistente Administrativo", role: "setor_intersetorial" as UserRole, accessLevel: "1" },
   { key: "auxiliar_administrativo", label: "Auxiliar Administrativo", role: "setor_intersetorial" as UserRole, accessLevel: "1" },
@@ -79,6 +81,7 @@ function applyMunicipalProfileSelection<
       ...current,
       role: preset.role,
       profileLabel: preset.label,
+      title: preset.label,
       accessLevel: preset.accessLevel,
     };
   }
@@ -210,7 +213,7 @@ function applyMunicipalDepartmentSelection<
     ...current,
     department: departmentName,
     role: nextRole,
-    profileLabel: "",
+    profileLabel: nextRole === "prefeitura_supervisor" ? current.profileLabel : "",
     accessLevel:
       nextRole === "prefeitura_admin"
         ? "3"

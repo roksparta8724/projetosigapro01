@@ -1,3 +1,4 @@
+import { resolveR2Endpoint } from "../r2-runtime.js";
 /**
  * api/r2-list-user-files.ts
  *
@@ -9,8 +10,9 @@
 import { ListObjectsV2Command, S3Client } from "@aws-sdk/client-s3";
 import {
   applyMunicipalBasePath,
+  getDataApiUrl,
   resolveMunicipalDocumentTarget,
-} from "../municipal-storage";
+} from "../municipal-storage.js";
 
 type Req = import("http").IncomingMessage & { method?: string; body?: unknown };
 type Res = import("http").ServerResponse;
@@ -20,30 +22,6 @@ function readEnv(key: string) {
   if (!raw) return "";
   return String(raw).replace(/^['"]|['"]$/g, "").trim();
 }
-
-function resolveR2Endpoint() {
-  const accountId = readEnv("R2_ACCOUNT_ID")
-    .replace(/^https?:\/\//i, "")
-    .replace(/\.r2\.cloudflarestorage\.com.*$/i, "")
-    .replace(/[^a-zA-Z0-9]/g, "");
-
-  if (accountId && !/^sua_?account_?id$/i.test(accountId)) {
-    return `https://${accountId}.r2.cloudflarestorage.com`;
-  }
-
-  const rawEndpoint = readEnv("R2_ENDPOINT");
-  if (!rawEndpoint) return "";
-
-  try {
-    const url = new URL(/^https?:\/\//i.test(rawEndpoint) ? rawEndpoint : `https://${rawEndpoint}`);
-    return `${url.protocol}//${url.host}`;
-  } catch {
-    return rawEndpoint.replace(/\/+$/, "");
-  }
-}
-
-const VALIDATED_NEON_DATA_API_URL =
-  "https://ep-blue-cloud-b4hhgb4t.apirest.c-6.us-east-2.aws.neon.tech/sigapro_migration_stage_20260923/rest/v1";
 
 function readBearer(req: Req) {
   const raw = req.headers.authorization || "";
@@ -87,11 +65,7 @@ async function resolveAuthenticatedScope(req: Req) {
     return { ok: false as const, status: 401, error: "Autenticação necessária." };
   }
 
-  const dataApiUrl = (
-    readEnv("R2_AUTH_DATA_API_URL") ||
-    readEnv("VITE_NEON_DATA_API_URL") ||
-    VALIDATED_NEON_DATA_API_URL
-  ).replace(/\/+$/, "");
+  const dataApiUrl = getDataApiUrl();
 
   try {
     const profileResponse = await fetch(`${dataApiUrl}/rpc/current_profile_id`, {
@@ -191,11 +165,7 @@ export default async function handler(req: Req, res: Res) {
     // When a municipal analyst is viewing a process, recover only uploads that
     // belong to the professional who created that same accessible process.
     if (processId) {
-      const dataApiUrl = (
-        readEnv("R2_AUTH_DATA_API_URL") ||
-        readEnv("VITE_NEON_DATA_API_URL") ||
-        VALIDATED_NEON_DATA_API_URL
-      ).replace(/\/+$/, "");
+      const dataApiUrl = getDataApiUrl();
       const token = readBearer(req);
 
       const processResponse = await fetch(

@@ -36,7 +36,13 @@ describe("Habite-se independent workflow", () => {
     expect(protocolPage).toContain('mode?: ProtocolEntryMode');
     expect(protocolPage).toContain('const isHabiteSeMode = mode === "habite-se"');
     expect(protocolPage).toContain('"PROCESSO DE HABITE-SE INDEPENDENTE"');
-    expect(protocolPage).toContain("standardProcessTypes");
+    // The restored municipal service catalogue replaces the old freeform selector
+    // while Habite-se remains a separate process route, not a selectable project type.
+    expect(protocolPage).toContain("getMunicipalServicesForCategory(selectedCategoryId)");
+    expect(protocolPage).toContain("!isHabiteSeMode ? (");
+    const catalog = read("src/lib/municipalServiceCatalog.ts");
+    expect(catalog).toContain("!isOccupancyPermitProcessType(service.type)");
+    expect(catalog).toContain('"available": false');
     expect(protocolPage).toContain(
       "Habite-se é um protocolo independente. Use a opção Solicitar Habite-se",
     );

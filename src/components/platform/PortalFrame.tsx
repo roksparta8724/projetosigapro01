@@ -181,9 +181,10 @@ const navItems = [
       ],
     },
   { key: "settings", to: "/configuracoes", label: "Cadastro e Gestão", icon: Building2, permission: "manage_tenant_branding" as Permission, essential: true, module: "Configurações" as PlanModuleName },
+  { key: "collection", to: "/prefeitura/arrecadacao", label: "Guias e Arrecadação", icon: Landmark, permission: "view_collection_settings" as Permission, essential: true, module: "Configurações" as PlanModuleName },
 ];
 
-const managementNavItems = ["/master", "/master/planos", "/prefeitura", "/prefeitura/organograma", "/configuracoes"];
+const managementNavItems = ["/master", "/master/planos", "/prefeitura", "/prefeitura/organograma", "/prefeitura/arrecadacao", "/configuracoes"];
 
 const operationalNavItems = [
   "/dashboard",
@@ -2482,22 +2483,22 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
           }}
         >
           <div className="px-8 py-8 lg:px-12 lg:py-10">
-            <div className="grid items-center gap-8 md:grid-cols-2 xl:grid-cols-[220px_minmax(0,1.2fr)_minmax(0,0.95fr)_minmax(0,0.95fr)]">
-              <div className="flex justify-center xl:justify-start xl:pl-3">
+            <div data-sig-footer-grid="true" className="grid min-w-0 items-start gap-x-6 gap-y-8 sm:grid-cols-2 2xl:grid-cols-4">
+              <div data-sig-footer-logo-cell="true" className="flex min-w-0 items-center justify-center 2xl:justify-start 2xl:pl-3">
                 <InstitutionalLogo
                   branding={stableFooterBranding}
                   fallbackLabel={institutionDisplayName}
                   variant="footer"
                   contextScope={isMasterUser ? "master" : "municipality"}
-                  className="mt-3"
+                  className="!m-0 !shrink-0"
                 />
               </div>
 
-              <div className="flex items-start gap-4 xl:pl-2">
+              <div data-sig-footer-column="true" className="flex min-w-0 items-start gap-3 2xl:pl-2">
                 <div className="mt-1 rounded-[14px] border border-white/14 bg-white/10 p-3">
                   <Building2 className="h-5 w-5 text-white" />
                 </div>
-                <div className="space-y-2.5">
+                <div className="min-w-0 flex-1 space-y-2.5">
                   <p className="text-xs font-normal uppercase tracking-[0.08em] text-white">Secretaria</p>
                   <p className="max-w-[560px] text-sm font-medium leading-6 text-[#F8FBFF] lg:text-[15px]">
                     {institutionFooterTitle}
@@ -2508,14 +2509,14 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                 </div>
               </div>
 
-              <div className="flex items-start gap-4 xl:justify-center">
+              <div data-sig-footer-column="true" className="flex min-w-0 items-start gap-3 2xl:justify-center">
                 <div className="mt-1 rounded-[14px] border border-white/14 bg-white/10 p-3">
                   <MapPin className="h-5 w-5 text-white" />
                 </div>
-                <div className="space-y-2.5">
+                <div className="min-w-0 flex-1 space-y-2.5">
                   <p className="text-xs font-normal uppercase tracking-[0.08em] text-white">Endereço</p>
                   <p
-                    className="whitespace-nowrap text-sm font-medium leading-6 text-[#F8FBFF] lg:text-[15px]"
+                    className="min-w-0 max-w-full whitespace-normal break-words text-sm font-medium leading-6 text-[#F8FBFF] lg:text-[15px]"
                     title={tenantSettings?.endereco || "Endereço não informado"}
                   >
                     {tenantSettings?.endereco || "Endereço não informado"}
@@ -2529,18 +2530,18 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                 </div>
               </div>
 
-              <div className="flex items-start gap-4 xl:justify-end">
+              <div data-sig-footer-column="true" className="flex min-w-0 items-start gap-3 2xl:justify-end">
                 <div className="mt-1 rounded-[14px] border border-white/14 bg-white/10 p-3">
                   <Phone className="h-5 w-5 text-white" />
                 </div>
-                <div className="space-y-2.5">
+                <div className="min-w-0 flex-1 space-y-2.5">
                   <p className="text-xs font-normal uppercase tracking-[0.08em] text-white">Contato</p>
                   <p className="text-sm font-medium leading-6 text-[#F8FBFF] lg:text-[15px]">
                     {institutionFooterPhone}
                   </p>
                   <div className="flex min-w-0 items-center gap-2 text-sm font-normal leading-6 text-[#D6E7F4] lg:text-[14px]">
                     <Mail className="h-4 w-4 shrink-0 text-white/72" />
-                    <span className="sig-fit-copy block text-[#D6E7F4]" title={institutionFooterEmail}>
+                    <span className="sig-fit-copy block min-w-0 max-w-full whitespace-normal break-words text-[#D6E7F4]" title={institutionFooterEmail}>
                       {institutionFooterEmail}
                     </span>
                   </div>
