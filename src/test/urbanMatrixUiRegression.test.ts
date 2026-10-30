@@ -1,9 +1,14 @@
 import {describe,expect,it} from "vitest";
 import {readFileSync} from "node:fs";
 const ui=readFileSync("src/components/platform/UrbanLegalMatrixImporter.tsx","utf8");
+const importer=readFileSync("src/lib/urbanMatrixImport.ts","utf8");
 const settings=readFileSync("src/components/platform/MunicipalUrbanRulesSettings.tsx","utf8");
 const sql=readFileSync("neon/migrations/20261030_urban_legal_matrix_import_v1.sql","utf8");
 describe("SIGAPRO matrix import: reviewed-only tenant isolated",()=>{
+ it("uses Node ESM-compatible imports in serverless runtime, not extensionless source imports",()=>{
+  expect(importer).toContain('from "./urbanPrecheck.js"');
+  expect(importer).not.toContain('from "./urbanPrecheck";');
+ });
  it("provides Quadro I/II with no auto activation",()=>{
   expect(settings).toContain("<UrbanLegalMatrixImporter");
   expect(ui).toContain("Quadro I — Índices numéricos");

@@ -1,4 +1,4 @@
-import { URBAN_METRICS, validateUrbanRules, type UrbanMetric, type UrbanRule } from "./urbanPrecheck";
+import { URBAN_METRICS, validateUrbanRules, type UrbanMetric, type UrbanRule } from "./urbanPrecheck.js";
 
 export type ImportQuadro = "I" | "II";
 export type UrbanExtractedCandidate = {
