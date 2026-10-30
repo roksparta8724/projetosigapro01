@@ -4,6 +4,7 @@ import { resolvePrivateAiConfig } from "../server/private-ai-provider.js";
 import { resolveCloudflareAiConfig } from "../server/cloudflare-ai-provider.js";
 import { extractUrbanMatrixFromPage } from "../server/urban-matrix-extraction.js";
 import { suggestUrbanMatrixPageText } from "../server/urban-matrix-vision.js";
+import { acceptCloudflareVisionLicense } from "../server/cloudflare-vision-license.js";
 
 type Req = IncomingMessage & { method?: string; body?: unknown };
 type Res = ServerResponse;
@@ -101,6 +102,11 @@ export default async function handler(req: Req, res: Res) {
   catch (e) {
     return json(res,e instanceof Error && e.message==="REQUEST_TOO_LARGE"?413:400,
       {error:"Solicitação inválida ou muito extensa."});
+  }
+  // Account-wide terms are an explicit MASTER action, never part of OCR.
+  if (body && typeof body==="object" && !Array.isArray(body) &&
+    (body as Record<string,unknown>).action==="urban-vision-license-accept") {
+    return acceptCloudflareVisionLicense(req,res,user,body);
   }
   if (body && typeof body==="object" && !Array.isArray(body) &&
     (body as Record<string,unknown>).action==="urban-matrix-vision") {
