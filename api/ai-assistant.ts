@@ -1,6 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { callDataApiRpc, readBearer, readEnv } from "../server/municipal-storage.js";
 import { resolvePrivateAiConfig } from "../server/private-ai-provider.js";
+import { resolveCloudflareAiConfig } from "../server/cloudflare-ai-provider.js";
 
 type Req = IncomingMessage & { method?: string; body?: unknown };
 type Res = ServerResponse;
@@ -108,7 +109,18 @@ export default async function handler(req: Req, res: Res) {
     code:"SIGAPRO_PRIVATE_AI_NOT_CONFIGURED",
     error:"A IA privada do SIGAPRO ainda aguarda a configuração segura do servidor. A pré-conferência urbanística permanece independente.",
   });
-  if (provider !== "private" && provider !== "openai") return json(res,503,{
+  // Cloudflare Workers AI is an independent opt-in, using ONLY a fixed
+  // Cloudflare URL and a model explicitly available to Workers Free users.
+  const cloudflareConfig = provider === "cloudflare" ? resolveCloudflareAiConfig({
+    accountId: readEnv("SIGAPRO_CF_ACCOUNT_ID"),
+    token: readEnv("SIGAPRO_CF_API_TOKEN"),
+    model: readEnv("SIGAPRO_CF_MODEL"),
+  }) : null;
+  if (provider === "cloudflare" && !cloudflareConfig) return json(res,503,{
+    code:"SIGAPRO_CLOUDFLARE_AI_NOT_CONFIGURED",
+    error:"A IA Cloudflare do SIGAPRO ainda não foi configurada. Confira as variáveis protegidas na Vercel.",
+  });
+  if (provider !== "private" && provider !== "openai" && provider !== "cloudflare") return json(res,503,{
     code:"SIGAPRO_AI_PROVIDER_INVALID",
     error:"O provedor de IA deste ambiente não foi reconhecido.",
   });
@@ -117,9 +129,12 @@ export default async function handler(req: Req, res: Res) {
     {code:"SIGAPRO_AI_NOT_CONFIGURED",
       error:"O assistente de conversação ainda não possui provedor de IA configurado neste ambiente. A pré-conferência urbanística funciona separadamente."});
 
-  const endpoint = provider === "private" ? privateConfig!.endpoint : "https://api.openai.com/v1/chat/completions";
-  const credential = provider === "private" ? privateConfig!.token : apiKey;
-  const selectedModel = provider === "private" ? privateConfig!.model : readEnv("OPENAI_MODEL") || "gpt-4.1-mini";
+  const endpoint = provider === "cloudflare" ? cloudflareConfig!.endpoint :
+    provider === "private" ? privateConfig!.endpoint : "https://api.openai.com/v1/chat/completions";
+  const credential = provider === "cloudflare" ? cloudflareConfig!.token :
+    provider === "private" ? privateConfig!.token : apiKey;
+  const selectedModel = provider === "cloudflare" ? cloudflareConfig!.model :
+    provider === "private" ? privateConfig!.model : readEnv("OPENAI_MODEL") || "gpt-4.1-mini";
   const controller = new AbortController();
   const timer = setTimeout(()=>controller.abort(),20000);
   try {
@@ -138,7 +153,13 @@ export default async function handler(req: Req, res: Res) {
         ],
       }),
     });
-    if (!response.ok) return json(res,502,{error:"O provedor de IA não respondeu corretamente. Consulte a configuração e tente novamente."});
+    if (!response.ok) {
+      if (provider === "cloudflare" && response.status === 429) return json(res,429,{
+        code:"SIGAPRO_CLOUDFLARE_AI_LIMIT",
+        error:"A franquia diária ou a capacidade da IA Cloudflare foi atingida. Tente novamente mais tarde.",
+      });
+      return json(res,502,{error:"O provedor de IA não respondeu corretamente. Consulte a configuração e tente novamente."});
+    }
     const payload = await response.json() as {choices?:Array<{message?:{content?:string}}>;usage?:unknown;model?:string};
     const content = payload.choices?.[0]?.message?.content;
     if (typeof content !== "string" || !content.trim())
