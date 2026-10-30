@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { BookText, CheckCircle2, FileText, Loader2, ShieldAlert } from "lucide-react";
 import { backendClient } from "@/integrations/backend/databaseClient";
-import { normalizeUrbanCode } from "@/lib/urbanPrecheck";
-import { extractLiteralCandidates, validateImportDate,
+import { normalizeUrbanCode, URBAN_METRICS, type UrbanMetric } from "@/lib/urbanPrecheck";
+import { extractLiteralCandidates, parsedLiteralNumber, validateImportDate,
   type ImportQuadro, type UrbanExtractedCandidate } from "@/lib/urbanMatrixImport";
 
 type Props = { municipalityId: string; canEdit: boolean; onSaved: () => Promise<void> };
@@ -46,6 +46,10 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
   const [candidates,setCandidates] = useState<UrbanExtractedCandidate[]>([]);
   const [checked,setChecked] = useState<number[]>([]);
   const [consent,setConsent] = useState(false);
+  const [manualMetric,setManualMetric] = useState<UrbanMetric>("front_setback_m");
+  const [manualValue,setManualValue] = useState("");
+  const [manualExcerpt,setManualExcerpt] = useState("");
+  const [manualNote,setManualNote] = useState("");
   const [busy,setBusy] = useState(false);
   const [message,setMessage] = useState("");
   const [history,setHistory] = useState<SavedSnapshot[]>([]);
@@ -99,6 +103,27 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
         : "Nenhuma linha pôde ser confirmada literalmente. Confira se o trecho e a tabela foram copiados corretamente.");
     } catch (err) {setMessage(err instanceof Error ? err.message:"Falha na extração.");}
     finally{setBusy(false);}
+  };
+  const addManualCandidate = () => {
+    if (busy || !file || !text.trim() || !Number.isSafeInteger(Number(page)) ||
+        Number(page)<1 || !dateValid(effectiveFrom) || !zone.trim() || !usage.trim()) {
+      setMessage("Selecione o PDF, página, zona, uso, vigência e transcrição antes de registrar uma linha manual.");
+      return;
+    }
+    const excerpt=manualExcerpt.trim();
+    const proposed = quadro==="I" ?
+      {kind:"numeric_index",metric:manualMetric,limit:parsedLiteralNumber(manualValue),
+        rawValue:manualValue.trim(),source_excerpt:excerpt} :
+      {kind:"use_condition",note:manualNote.trim(),source_excerpt:excerpt};
+    const verified=extractLiteralCandidates({candidates:[proposed]},text.trim(),quadro);
+    if (!verified.length || (quadro==="I" && candidates.some(x=>x.metric===manualMetric)) ||
+        (quadro==="II" && candidates.some(x=>x.source_excerpt===excerpt))) {
+      setMessage("Linha recusada. O trecho precisa ser idêntico ao texto da página e conter o valor numérico declarado. Não repita índices da mesma zona/uso.");
+      return;
+    }
+    setCandidates(previous=>[...previous,...verified]);setChecked([]);
+    setManualExcerpt("");setManualValue("");setManualNote("");
+    setMessage("Linha proposta registrada localmente. Compare-a com o PDF e marque para confirmação humana; ainda não foi gravada no Neon.");
   };
   const saveReview = async () => {
     if(busy || !canEdit || !backendClient || !file || !dateValid(effectiveFrom) ||
@@ -221,13 +246,51 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
     </label>
     <label className="mt-3 flex items-start gap-2 text-xs leading-5 text-slate-800 dark:text-slate-200">
       <input type="checkbox" checked={consent} onChange={e=>setConsent(e.target.checked)} className="mt-1"/>
-      Confirmo que a página é de um PDF oficial e autorizo enviar SOMENTE este trecho para a IA Cloudflare. A IA não decide validade ou vigência.
+      Confirmo que a página pertence ao PDF oficial selecionado. Somente se eu clicar em “Extrair propostas” autorizo enviar o trecho à IA Cloudflare; o registro manual não envia dados.
     </label>
     <button type="button" disabled={busy} onClick={()=>void queryAi()}
       className="mt-3 min-h-11 rounded-xl bg-sky-800 px-4 py-2 font-semibold !text-white disabled:opacity-70">
       {busy?<Loader2 aria-hidden className="mr-2 inline h-4 w-4 animate-spin"/>:null}
       Extrair propostas do trecho — sem salvar
     </button>
+    <div className="mt-4 rounded-xl border border-sky-200 bg-sky-50 p-3 text-slate-900">
+      <h5 className="text-sm font-extrabold">Registro manual assistido — sem enviar dados à IA</h5>
+      <p className="mt-1 text-xs leading-5">
+        Use se o PDF for digitalizado ou a Cloudflare não estiver disponível. Transcreva
+        o valor e cole uma citação literal da página; o sistema não inventa nenhum índice.
+      </p>
+      {quadro==="I"?<div className="mt-3 grid gap-2 sm:grid-cols-2">
+        <label className="text-xs font-bold">Índice identificado na lei
+          <select aria-label="Índice para transcrição manual" value={manualMetric}
+            onChange={e=>setManualMetric(e.target.value as UrbanMetric)}
+            className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-2 text-slate-950">
+            {URBAN_METRICS.map(m=><option key={m.key} value={m.key}>{m.label} ({m.unit || "un."})</option>)}
+          </select>
+        </label>
+        <label className="text-xs font-bold">Número exatamente como escrito no PDF
+          <input aria-label="Número da transcrição manual" value={manualValue}
+            onChange={e=>setManualValue(e.target.value)} maxLength={30}
+            placeholder="Ex.: 7 ou 1,5"
+            className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-2 text-slate-950"/>
+        </label>
+      </div>:<label className="mt-3 block text-xs font-bold">
+        Condição de uso para revisão
+        <textarea aria-label="Condição de uso transcrita" value={manualNote}
+          onChange={e=>setManualNote(e.target.value)} maxLength={400} rows={2}
+          className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-2 text-slate-950"/>
+      </label>}
+      <label className="mt-3 block text-xs font-bold">
+        Citação literal contínua da página — 20 a 500 caracteres
+        <textarea aria-label="Citação exata da página" rows={3} maxLength={500}
+          value={manualExcerpt} onChange={e=>setManualExcerpt(e.target.value)}
+          placeholder="Cole o trecho idêntico ao texto acima, incluindo o número e sua linha..."
+          className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-2 text-slate-950"/>
+      </label>
+      <button type="button" disabled={busy} onClick={addManualCandidate}
+        className="mt-3 min-h-11 rounded-xl border border-sky-700 bg-white px-4 py-2 font-bold text-sky-950 disabled:opacity-70">
+        Adicionar linha para conferência (sem gravar)
+      </button>
+    </div>
     {candidates.length>0 ? <div className="mt-4 space-y-3">
       <h5 className="text-sm font-bold text-slate-900 dark:text-white">Matriz para conferência — {candidates.length} proposta(s)</h5>
       {candidates.map((item,i)=><label key={i} className="flex gap-3 rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-900">

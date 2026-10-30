@@ -9,6 +9,10 @@ describe("SIGAPRO matrix import: reviewed-only tenant isolated",()=>{
   expect(ui).toContain("Quadro I — Índices numéricos");
   expect(ui).toContain("Quadro II — Categorias e condições de uso");
   expect(ui).toContain("Registrar linhas conferidas como RASCUNHO");
+  expect(ui).toContain("Registro manual assistido — sem enviar dados à IA");
+  expect(ui).toContain("Adicionar linha para conferência (sem gravar)");
+  expect(ui).toContain("extractLiteralCandidates({candidates:[proposed]}");
+
   expect(ui).not.toContain("activateUrbanRegulation(");
  });
  it("binds citations to local PDF SHA-256 and requires confirmation",()=>{
