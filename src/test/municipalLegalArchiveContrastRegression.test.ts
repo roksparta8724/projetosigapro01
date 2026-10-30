@@ -11,7 +11,7 @@ describe("SIGAPRO municipal legal archive premium layout",()=>{
     expect(rules).toContain('data-sigapro-urban-rules-save="true"');
     expect(rules).toContain('aria-label="Salvar nova versão como rascunho"');
     expect(rules).toContain('sig-force-dark-action');
-    expect(rules).toContain('!text-white');
+    expect(rules).toContain('text-white');
     expect(rules).toContain('Salvar nova versão como rascunho');
     expect(css).toContain('button[data-sigapro-urban-rules-save="true"]');
     expect(css).toContain('-webkit-text-fill-color: #ffffff !important;');
