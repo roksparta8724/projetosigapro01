@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { activateUrbanRegulation, listUrbanRegulations, saveUrbanRegulationDraft } from "@/integrations/backend/urbanPrecheckClient";
 import { URBAN_METRICS, normalizeUrbanCode, type UrbanMetric, type UrbanRegulationVersion, type UrbanRule } from "@/lib/urbanPrecheck";
+import { municipalCivilDate } from "@/lib/municipalCivilDate";
 
 type EditableValue = { limit: string; reference: string };
 type DraftInputs = Partial<Record<UrbanMetric, EditableValue>>;
@@ -14,7 +15,7 @@ export function MunicipalUrbanRulesSettings({
   const [versions, setVersions] = useState<UrbanRegulationVersion[]>([]);
   const [zone, setZone] = useState("");
   const [usage, setUsage] = useState("");
-  const [effectiveFrom, setEffectiveFrom] = useState(() => new Date().toISOString().slice(0, 10));
+  const [effectiveFrom, setEffectiveFrom] = useState(() => municipalCivilDate());
   const [draft, setDraft] = useState<DraftInputs>({});
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(false);
