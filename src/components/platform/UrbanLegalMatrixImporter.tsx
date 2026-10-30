@@ -211,7 +211,7 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
         if(typeof result.draftText!=="string"||result.draftText.trim().length<20)
           throw Error("A IA não conseguiu transcrever esse recorte com segurança.");
         setText(result.draftText.trim().slice(0,6000));
-        setOcrDraft(true);setOcrVerified(false);
+        setOcrDraft(true);setOcrVerified(false);setMethod("visual_double_transcription");
         setMessage("Texto preenchido automaticamente como PROPOSTA NÃO VERIFICADA. Compare cada coluna e número com o PDF; corrija o texto e confirme a revisão antes de extrair índices.");
       } finally {bitmap.close();}
     } catch(err) {setMessage(err instanceof Error?err.message:"A leitura visual não foi concluída.");}
@@ -450,14 +450,28 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
       </label>
       {pageImagePreview?<img src={pageImagePreview} alt="Prévia local da linha fotografada do quadro"
         className="mt-2 max-h-60 w-full rounded-lg border border-slate-200 object-contain"/>:null}
-      <button type="button" data-urban-matrix-action="vision" disabled={visionBusy||busy||!pageImage||!consent}
+      <label data-urban-matrix-vision-consent="true"
+        className="mt-3 flex items-start gap-3 rounded-xl border border-sky-300 bg-white p-3 text-sm font-bold leading-5 text-slate-950">
+        <input type="checkbox" aria-label="Autorizar leitura da imagem pela IA"
+          checked={consent} onChange={e=>setConsent(e.target.checked)}
+          className="mt-1 h-4 w-4 shrink-0 accent-sky-800"/>
+        Autorizo enviar somente o recorte da tabela à IA Cloudflare para transcrição.
+        O PDF completo permanece local. Ao trocar a imagem, confirmarei a autorização novamente.
+      </label>
+      <button type="button" data-urban-matrix-action="vision"
+        disabled={visionBusy||busy||!file||!pageImage||!consent||!Number.isSafeInteger(Number(page))||Number(page)<1||Number(page)>10000}
         onClick={()=>void readPageImage()}
         className="mt-3 min-h-11 rounded-xl border border-sky-800 bg-sky-800 px-4 py-2 text-sm font-bold text-white disabled:cursor-not-allowed">
         {visionBusy?"Lendo a tabela…":"Ler imagem e pré-preencher a transcrição com IA"}
       </button>
-      {(!file || !page || !pageImage || !consent) ? <p data-urban-matrix-vision-hint="true" className="mt-2 text-sm font-semibold leading-6 text-slate-900">
-        Para habilitar a leitura: selecione o PDF oficial, informe a página, anexe a imagem recortada e marque a autorização abaixo.
-      </p> : null}
+      <p role="status" data-urban-matrix-vision-hint="true" className="mt-2 text-sm font-semibold leading-6 text-slate-900">
+        {!file ? "Para habilitar: selecione o PDF oficial acima."
+          : !Number.isSafeInteger(Number(page))||Number(page)<1||Number(page)>10000
+            ? "Para habilitar: informe a página física do PDF acima."
+          : !pageImage ? "Para habilitar: selecione o recorte JPG/PNG da tabela."
+          : !consent ? "Imagem carregada. Marque a autorização logo ACIMA do botão para habilitar a leitura."
+          : "Leitura liberada: a imagem e a autorização estão prontas. Clique no botão para transcrever."}
+      </p>
       <p className="mt-2 text-sm leading-6 text-slate-800">A leitura usa a IA visual Cloudflare da homologação e pode consumir sua franquia. Nenhum dado é ativado ou gravado automaticamente.</p>
     </div>
     <label className="mt-3 block text-xs font-bold text-slate-800 dark:text-white">
@@ -481,9 +495,12 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
         <option value="visual_double_transcription">Dupla conferência visual de tabela digitalizada</option>
       </select>
     </label>
-    <label className="mt-3 flex items-start gap-2 text-xs leading-5 text-slate-800 dark:text-slate-200">
-      <input type="checkbox" checked={consent} onChange={e=>setConsent(e.target.checked)} className="mt-1"/>
-      Confirmo que selecionei a página do documento oficial. Ao clicar em “Ler imagem” ou “Extrair propostas”, autorizo enviar SOMENTE o recorte ou trecho à IA Cloudflare; o arquivo PDF completo permanece local.
+    <label data-urban-matrix-text-consent="true"
+      className="mt-3 flex items-start gap-2 rounded-xl border border-slate-200 bg-white p-3 text-xs font-semibold leading-5 text-slate-900">
+      <input type="checkbox" aria-label="Autorizar envio do trecho textual à IA"
+        checked={consent} onChange={e=>setConsent(e.target.checked)} className="mt-1 h-4 w-4 shrink-0 accent-sky-800"/>
+      Autorizo enviar SOMENTE o trecho da página à IA Cloudflare para extrair propostas.
+      O PDF completo permanece local. É a mesma autorização exibida junto ao botão de leitura da imagem.
     </label>
     <button type="button" data-urban-matrix-action="extract" disabled={busy} onClick={()=>void queryAi()}
       className="mt-3 min-h-11 rounded-xl border border-sky-800 bg-sky-800 px-4 py-2 font-bold text-white">
