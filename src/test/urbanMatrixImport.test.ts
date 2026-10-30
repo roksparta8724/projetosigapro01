@@ -1,5 +1,5 @@
 import { describe,expect,it } from "vitest";
-import {extractLiteralCandidates,validatedNumericRules,validateImportDate} from "@/lib/urbanMatrixImport";
+import {extractLiteralCandidates,validatedNumericRules,validateImportDate,parsedLiteralNumber} from "@/lib/urbanMatrixImport";
 const page = "ZM-ABC RECUO FRONTAL 7 metros, RECUO LATERAL 3 metros, USOS R1 são permitidos mediante avaliação prévia.";
 describe("Importação SIGAPRO — propostas sempre com citação literal",()=>{
  it("accepts quoted numeric candidates in Quadro I",()=>{
@@ -26,6 +26,15 @@ describe("Importação SIGAPRO — propostas sempre com citação literal",()=>{
   ]},src,"II");
   expect(a).toHaveLength(1);expect(a[0].kind).toBe("use_condition");
   expect(()=>validatedNumericRules(a,"Fonte Quadro II")).toThrow();
+ });
+ it("blocks mismatch between quoted number and model numeric claim",()=>{
+  expect(parsedLiteralNumber("7")).toBe(7);
+  expect(parsedLiteralNumber("1,5")).toBe(1.5);
+  expect(parsedLiteralNumber("7%")).toBe(7);
+  expect(parsedLiteralNumber("7/3")).toBeNull();
+  const wrong={candidates:[{kind:"numeric_index",metric:"front_setback_m",limit:8,rawValue:"7",
+    source_excerpt:"ZM-ABC RECUO FRONTAL 7 metros, RECUO LATERAL 3 metros"}]};
+  expect(extractLiteralCandidates(wrong,page,"I")).toEqual([]);
  });
  it("rejects impossible legal effective dates",()=>{
   expect(validateImportDate("2026-02-30")).toBe(false);

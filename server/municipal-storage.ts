@@ -33,6 +33,21 @@ export function getDataApiUrl() {
   if (process.env.VERCEL_ENV === "production") {
     return VALIDATED_NEON_DATA_API_URL;
   }
+  if (process.env.VERCEL_ENV === "preview" &&
+      readEnv("VITE_SIGAPRO_URBAN_MATRIX_QA_ENABLED") === "true") {
+    const auth = readEnv("VITE_NEON_AUTH_URL");
+    const data = readEnv("VITE_NEON_DATA_API_URL");
+    const serverData = readEnv("R2_AUTH_DATA_API_URL");
+    const authId = neonBranchHost(auth, "neonauth");
+    const dataId = neonBranchHost(data, "apirest");
+    const runtimeId = neonBranchHost(serverData, "apirest");
+    if (!authId || !dataId || authId !== dataId || runtimeId !== dataId ||
+        dataId === "ep-blue-cloud-b4hhgb4t" || data !== serverData ||
+        !data.endsWith("/sigapro_migration_stage_20260923/rest/v1")) {
+      throw new Error("Importação QA isolada: Neon Auth e Data API precisam apontar à mesma branch NÃO produtiva.");
+    }
+    return data;
+  }
   // Vite localhost signs in with the official Neon Auth by default.
   // Do NOT honor an arbitrary Data API override independently: that creates
   // "jwk not found" by sending a production JWT to a QA branch (or vice versa).

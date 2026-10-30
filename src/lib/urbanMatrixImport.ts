@@ -10,6 +10,13 @@ export type UrbanExtractedCandidate = {
   note?: string;
 };
 const allowed = new Set<string>(URBAN_METRICS.map(m => m.key));
+/** Reject a model's invented numeric value even if the citation contains SOME other number. */
+export function parsedLiteralNumber(value: string): number | null {
+  const found = /^\s*(\d+(?:[.,]\d{1,3})?)\s*(?:%|m|metros?)?\s*$/i.exec(value);
+  if (!found) return null;
+  const numeric=Number(found[1].replace(",", "."));
+  return Number.isFinite(numeric) ? numeric : null;
+}
 function isRecord(v: unknown): v is Record<string, unknown> {
   return Boolean(v) && typeof v === "object" && !Array.isArray(v);
 }
@@ -40,6 +47,7 @@ export function extractLiteralCandidates(
       typeof raw.limit === "number" && Number.isFinite(raw.limit) &&
       typeof raw.rawValue === "string" && raw.rawValue.length >= 1 &&
       raw.rawValue.length <= 30 && excerpt.includes(raw.rawValue) &&
+      parsedLiteralNumber(raw.rawValue) === raw.limit &&
       !seen.has(raw.metric)) {
       const metric = raw.metric as UrbanMetric;
       const candidate: UrbanRule = {metric,limit:raw.limit,reference:"Fonte temporária para validação humana"};
