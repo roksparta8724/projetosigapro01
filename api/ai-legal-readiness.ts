@@ -1,6 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { callDataApiRpc, readBearer } from "../server/municipal-storage.js";
 import { isMunicipalityUuid, summarizeUrbanLegalReadiness } from "../server/urban-legal-readiness.js";
+import { municipalCivilDate } from "../src/lib/municipalCivilDate.js";
 
 type Req = IncomingMessage & { method?: string };
 type Res = ServerResponse;
@@ -52,7 +53,7 @@ export default async function handler(req: Req, res: Res) {
     { error: "Acervo legal indisponível ou sem autorização para este perfil." });
   try {
     const readiness = summarizeUrbanLegalReadiness(
-      rules.payload, evidence.payload, municipalityId, new Date().toISOString().slice(0, 10),
+      rules.payload, evidence.payload, municipalityId, municipalCivilDate(),
     );
     return json(res, 200, {
       ...readiness,

@@ -10,6 +10,7 @@ import {
   URBAN_METRICS, evaluateUrbanPrecheck, filterUrbanPrecheckHistoryForContext, formatUrbanHistoryDate, normalizeUrbanCode, selectUrbanRegulation, summarizeUrbanPrecheckHistory,
   type UrbanMetric, type UrbanMeasurements, type UrbanRegulationVersion,
 } from "@/lib/urbanPrecheck";
+import { municipalCivilDateFromValue } from "@/lib/municipalCivilDate";
 import type { ProcessRecord } from "@/lib/platform";
 
 type Field = { value: string; evidence: string };
@@ -22,7 +23,7 @@ export function UrbanPrecheckPanel({
   const [history, setHistory] = useState<UrbanPrecheckHistoryEntry[]>([]);
   const [zone, setZone] = useState("");
   const [usage, setUsage] = useState(process.property.usage || "");
-  const [asOf, setAsOf] = useState((process.officializedAt || new Date().toISOString()).slice(0, 10));
+  const [asOf, setAsOf] = useState(() => municipalCivilDateFromValue(process.officializedAt));
   const [fields, setFields] = useState<Fields>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
