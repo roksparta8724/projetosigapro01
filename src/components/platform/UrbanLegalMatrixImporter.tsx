@@ -25,7 +25,7 @@ type ReviewPackage = {
 function validReviewRow(value: unknown): value is ReviewPackageRow {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const row = value as Record<string, unknown>;
-  return Number.isSafeInteger(row.pagina_pdf) && Number(row.pagina_pdf)>0 &&
+  return typeof row.pagina_pdf === "number" && Number.isSafeInteger(row.pagina_pdf) && Number(row.pagina_pdf)>0 &&
     Number(row.pagina_pdf)<=10000 &&
     ["zona_conforme_tabela","uso_predominante_conforme_tabela","ca_basico_original",
       "ca_maximo_original","gabarito_original","observacoes_especificas",
@@ -37,7 +37,7 @@ function validReviewRow(value: unknown): value is ReviewPackageRow {
     (row.ca_minimo_original === null || typeof row.ca_minimo_original === "string") &&
     ["taxa_ocupacao_maxima_pct","taxa_permeabilidade_minima_pct",
       "lote_minimo_m2","testada_minima_m","recuo_frontal_m","recuo_fundos_m"]
-      .every(key => typeof row[key] === "number" && Number.isFinite(row[key]) && Number(row[key])>=0) &&
+      .every(key => typeof row[key] === "number" && Number.isFinite(row[key] as number) && Number(row[key])>=0) &&
     (typeof row.recuo_lateral_m === "string" ||
       (typeof row.recuo_lateral_m === "number" && Number.isFinite(row.recuo_lateral_m)));
 }
