@@ -4,6 +4,7 @@ import handleMasterLogoSource from "../server/api/r2-master-logo-source.js";
 import handleProfileAvatarOpen from "../server/api/profile-avatar-open.js";
 import handleSignGet from "../server/api/r2-sign-get.js";
 import handleUpload from "../server/api/r2-upload.js";
+import handleLegalSignPut from "../server/api/r2-legal-sign-put.js";
 
 type Req = import("http").IncomingMessage & { method?: string };
 type Res = import("http").ServerResponse;
@@ -21,6 +22,7 @@ export default async function handler(req: Req, res: Res) {
   const action = resolveAction(req);
 
   if (action === "upload") return handleUpload(req as never, res);
+  if (action === "legal-sign-put") return handleLegalSignPut(req as never, res);
   if (action === "delete") return handleDelete(req as never, res);
   if (action === "sign-get") return handleSignGet(req as never, res);
   if (action === "list-user-files") return handleListUserFiles(req as never, res);

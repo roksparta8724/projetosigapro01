@@ -147,18 +147,18 @@ describe("InstitutionalLogo", () => {
     });
     rerender(<InstitutionalLogo branding={{ ...framed, logoScale: 2 }} variant="footer" contextScope="municipality" />);
     expect(container.querySelector("img")).toHaveStyle({
-      transform: "translate(0%, 0%) scale(1)",
+      transform: `translate(0%, 0%) scale(${2 * (2 / 3)})`,
     });
   });
 
-  it("never crops the complete crest with a legacy 5.0x saved zoom", () => {
+  it("caps legacy 5.0x values at the correct, independent header/footer limits", () => {
     for (const variant of ["header", "footer"] as const) {
       const { container, unmount } = render(<InstitutionalLogo
         branding={{ ...branding, logoScale: 5, logoOffsetX: 400, logoOffsetY: -300 }}
         variant={variant} contextScope="municipality"
       />);
       expect(container.querySelector("img")).toHaveStyle({
-        transform: "translate(0%, 0%) scale(1)",
+        transform: variant === "header" ? "translate(0%, 0%) scale(1)" : "translate(0%, 0%) scale(2)",
       });
       unmount();
     }

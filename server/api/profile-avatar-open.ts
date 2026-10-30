@@ -1,3 +1,4 @@
+import { getR2EndpointCandidates } from "../r2-runtime.js";
 import { createHash } from "node:crypto";
 import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 
@@ -10,33 +11,6 @@ function readEnv(key: string) {
   const raw = process.env[key];
   if (!raw) return "";
   return String(raw).replace(/^['"]|['"]$/g, "").trim();
-}
-
-function getR2EndpointCandidates() {
-  const candidates: string[] = [];
-
-  const rawEndpoint = readEnv("R2_ENDPOINT");
-  if (rawEndpoint) {
-    try {
-      const url = new URL(
-        /^https?:\/\//i.test(rawEndpoint) ? rawEndpoint : `https://${rawEndpoint}`,
-      );
-      candidates.push(`${url.protocol}//${url.host}`);
-    } catch {
-      candidates.push(rawEndpoint.replace(/\/+$/, ""));
-    }
-  }
-
-  const accountId = readEnv("R2_ACCOUNT_ID")
-    .replace(/^https?:\/\//i, "")
-    .replace(/\.r2\.cloudflarestorage\.com.*$/i, "")
-    .replace(/[^a-zA-Z0-9]/g, "");
-
-  if (accountId && !/^sua_?account_?id$/i.test(accountId)) {
-    candidates.push(`https://${accountId}.r2.cloudflarestorage.com`);
-  }
-
-  return Array.from(new Set(candidates.filter(Boolean)));
 }
 
 function resolveR2Clients() {

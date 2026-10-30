@@ -9,7 +9,7 @@ const req = { headers: { authorization: "Bearer fake-test" } } as ApiReq;
 const guide = { id: "g1", municipality_id: "m1", process_id: "p1", guide_number: "DAM-001", amount: 300, due_date: "2026-10-20", created_at: "2026-10-13T12:00:00Z", status: "pendente" };
 const input = { municipalityId: "m1", guideCode: "DAM-001", amount: 999 };
 const rpc = vi.mocked(callDataApiRpc);
-beforeEach(() => { vi.resetAllMocks(); vi.stubGlobal("fetch", vi.fn(() => { throw new Error("Unexpected network"); })); });
+beforeEach(() => { vi.resetAllMocks(); vi.stubEnv("SIGAPRO_BANK_CHARGE_SIGNING_SECRET","ab".repeat(32)); vi.stubGlobal("fetch", vi.fn(() => { throw new Error("Unexpected network"); })); });
 
 describe("Neon guide charge persistence", () => {
   it("checks write authorization before contacting the provider", async () => {
@@ -25,13 +25,23 @@ describe("Neon guide charge persistence", () => {
     expect(fetch).not.toHaveBeenCalled();
     expect(rpc.mock.calls.every((call) => call[1] === "get_payment_guide_original_v1")).toBe(true);
   });
+  it.each([
+    { document_snapshot: {guia:{numeroGuia:"DAM-001"}} },
+    { original_pdf_key: "municipalities/m1/processes/p1/dam-originals/g1/digest.pdf" },
+  ])("prevents an orphan bank order when the original guide is already frozen (%j)", async frozen => {
+    rpc.mockResolvedValue({ok:true,status:200,payload:{...guide,...frozen},error:""});
+    await expect(createMercadoPagoGuideBoleto(input,req))
+      .rejects.toThrow("já congelado sem cobrança bancária vinculada");
+    expect(fetch).not.toHaveBeenCalled();
+    expect(rpc.mock.calls.every((call)=>call[1]==="get_payment_guide_original_v1")).toBe(true);
+  });
   it("refuses a missing/unauthorized guide before provider access", async () => {
     rpc.mockResolvedValue({ ok: false, status: 403, payload: null, error: "denied" });
     await expect(createMercadoPagoGuideBoleto(input, req)).rejects.toThrow("denied");
     expect(fetch).not.toHaveBeenCalled();
   });
   it("refuses querying an order from another guide", async () => {
-    rpc.mockResolvedValue({ ok: true, status: 200, payload: { ...guide, bank_reference: "correct" }, error: "" });
+    rpc.mockResolvedValue({ ok: true, status: 200, payload: { ...guide, bank_reference: "correct", payment_provider: "mercado_pago", provider_environment: "test" }, error: "" });
     await expect(getMercadoPagoGuideBoletoStatus({ ...input, orderId: "other" }, req)).rejects.toThrow("não vinculada");
     expect(fetch).not.toHaveBeenCalled();
   });
@@ -53,7 +63,7 @@ describe("Neon guide charge persistence", () => {
     expect((await createMercadoPagoGuideBoleto(input, req)).error).toContain("salvar dados bancários");
   });
   it("updates an existing reference without authorizing a second charge", async () => {
-    const stored = { ...guide, bank_reference: "order1" };
+    const stored = { ...guide, bank_reference: "order1", payment_provider: "mercado_pago", provider_environment: "test" };
     rpc.mockResolvedValueOnce({ ok: true, status: 200, payload: stored, error: "" })
       .mockResolvedValueOnce({ ok: true, status: 200, payload: stored, error: "" })
       .mockResolvedValueOnce({ ok: true, status: 200, payload: true, error: "" })

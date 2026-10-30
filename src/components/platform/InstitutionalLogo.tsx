@@ -127,11 +127,9 @@ export function InstitutionalLogo({
       ? ""
       : municipalFallbackCandidate;
   const primaryUrl = requestedUrl || (isMaster ? SIGAPRO_OFFICIAL_LOGO : municipalFallbackUrl);
-  const secondaryUrl = isMaster
-    ? SIGAPRO_OFFICIAL_LOGO
-    : municipalFallbackUrl && !sameAssetResource(municipalFallbackUrl, primaryUrl)
-      ? municipalFallbackUrl
-      : "";
+  // A Prefeitura never switches to a different, unverified crest when its
+  // official source fails. Master retains only the platform's own logo.
+  const secondaryUrl = isMaster ? SIGAPRO_OFFICIAL_LOGO : "";
   const imageUrl = failedSources.includes(primaryUrl)
     ? secondaryUrl && !failedSources.includes(secondaryUrl)
       ? secondaryUrl
@@ -260,7 +258,7 @@ export function InstitutionalLogo({
     scale: configuredScale,
     offsetX: branding.logoOffsetX,
     offsetY: branding.logoOffsetY,
-  });
+  }, variant === "footer" ? "footer" : "header");
   const scale = isMaster
     ? Math.max(0.35, Math.min(5, configuredScale))
     : municipalFrame.scale;

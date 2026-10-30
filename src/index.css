@@ -10964,3 +10964,55 @@ html body #root .sig-main-shell
   border-color: #334155 !important;
 }
 /* ===== END HABITE-SE INSPECTION LEGEND CONTRAST LOCK ===== */
+
+
+/* SIGAPRO IA: the urban-rules draft action stays legible in every layout mode.
+   This scoped guard fixes the invisible dark-on-dark label observed on 29 Oct 2026. */
+html body .sig-main-shell button[data-sigapro-urban-rules-save="true"],
+html body .sig-main-shell button[data-sigapro-urban-rules-save="true"]:hover,
+html body .sig-main-shell button[data-sigapro-urban-rules-save="true"]:disabled {
+  background-color: #0f172a !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  opacity: 1;
+}
+html body .sig-main-shell button[data-sigapro-urban-rules-save="true"] :is(span,svg),
+html body .sig-main-shell button[data-sigapro-urban-rules-save="true"]:disabled :is(span,svg) {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  stroke: currentColor !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+
+/* Urban legislation editor action: independent of the generic Button's
+   disabled:text-slate-400 and disabled:opacity-50 utility styles.
+   Works whether or not a particular page uses .sig-main-shell. */
+html body #root [data-urban-rules-settings="true"] button[data-sigapro-urban-rules-save="true"],
+html body #root [data-urban-rules-settings="true"] button[data-sigapro-urban-rules-save="true"]:disabled,
+html body #root [data-urban-rules-settings="true"] button[data-sigapro-urban-rules-save="true"]:hover,
+html body #root [data-urban-rules-settings="true"] button[data-sigapro-urban-rules-save="true"]:focus-visible {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  background: #0f172a !important;
+  border-color: #1e293b !important;
+  opacity: 1 !important;
+  filter: none !important;
+  mix-blend-mode: normal !important;
+}
+html body #root [data-urban-rules-settings="true"] button[data-sigapro-urban-rules-save="true"] :is(span,svg),
+html body #root [data-urban-rules-settings="true"] button[data-sigapro-urban-rules-save="true"]:disabled :is(span,svg) {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  filter: none !important;
+  text-shadow: none !important;
+  mix-blend-mode: normal !important;
+}
+html body #root [data-urban-rules-settings="true"] button[data-sigapro-urban-rules-save="true"]:disabled {
+  cursor: not-allowed;
+  border-style: dashed !important;
+}
+/* END URBAN RULES SAVE BUTTON READABILITY V2 */

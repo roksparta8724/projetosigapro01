@@ -6,7 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { backendClient } from "@/integrations/backend/databaseClient";
+import { municipalCollectionApiRequest } from "@/lib/municipalCollectionApi";
+import { MunicipalBankFileInspector } from "@/components/platform/MunicipalBankFileInspector";
 import { validateMunicipalPixKey } from "@/lib/paymentCollection";
 import { MUNICIPAL_BANK_DIRECTORY, findMunicipalBank, describeMunicipalBankChannel, selectMunicipalBank } from "@/lib/municipalBankCatalog";
 import { municipalCollectionError } from "@/lib/collectionDiagnostics";
@@ -69,16 +70,12 @@ function normalizeBankFields(data: Partial<BankFields>): BankFields {
 }
 
 async function bankRequest(municipalityId: string, action: "bank_get" | "bank_save", fields?: BankFields) {
-  const session = (await backendClient?.auth?.getSession?.())?.data?.session;
-  const token = session?.access_token || session?.accessToken || session?.token || "";
-  if (!token) throw new Error("É necessário entrar novamente com uma conta da Prefeitura.");
-  const response = await fetch("/api/collection-configuration", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ municipalityId, action, ...(fields ? { fields } : {}) }),
-  });
-  const data = await response.json().catch(() => ({})) as Partial<BankFields> & { error?: string };
-  if (!response.ok) throw new Error(data.error || "Não foi possível acessar os dados bancários municipais.");
+  const data = await municipalCollectionApiRequest<Partial<BankFields>>(
+    "collection-configuration",
+    municipalityId,
+    action,
+    fields ? { fields } : {},
+  );
   return normalizeBankFields(data);
 }
 
@@ -302,6 +299,7 @@ export function MunicipalBankDetailsSettings({
           <strong>Modalidade bancária selecionada:</strong> {describeMunicipalBankChannel(form.bankCollectionMode).explanation}
           <p className="mt-2 text-xs text-slate-700">O banco cadastrado pode ser diferente em cada Prefeitura. O cadastro não significa autorização para emitir boletos registrados ou executar baixas automáticas.</p>
         </div>
+        <div className="mt-4"><MunicipalBankFileInspector municipalityId={municipalityId} bankCode={form.bankCode} readOnly={readOnly}/></div>
         {form.pixEnabled && (
           <div role="status" className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm leading-6 text-amber-950">
             <strong>Atenção à titularidade do PIX:</strong> uma chave cadastrada e salva não confirma que os valores serão recebidos pela Prefeitura.

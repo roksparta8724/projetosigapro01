@@ -6,6 +6,11 @@ import {
   CircleDashed,
   FilePlus2,
   FileStack,
+  Building2,
+  MapPinned,
+  BadgeCheck,
+  ClipboardList,
+  Settings2,
   Landmark,
   Link2,
   Loader2,
@@ -15,7 +20,7 @@ import {
   UploadCloud,
   UserSquare2,
 } from "lucide-react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { FileDropZone, type UploadedFileItem } from "@/components/platform/FileDropZone";
 import { PageHero } from "@/components/platform/PageHero";
 import { PortalFrame } from "@/components/platform/PortalFrame";
@@ -45,10 +50,15 @@ import {
   getChecklistTemplate,
   isOccupancyPermitProcessType,
   matchesOperationalScope,
-  processTypeCatalog,
   workTypeCatalog,
 } from "@/lib/platform";
 import { externalTabs, getExternalTabByPath } from "@/lib/externalTabs";
+import { ProtocolTechnicalResponsibility } from "@/components/platform/ProtocolTechnicalResponsibility";
+import { isolateCounterProfessionalDraft, isLicensedProfessionalActivity, shouldAutofillTechnicalLead } from "@/lib/counterProtocolProfessional";
+import { isGuideSettled } from "@/lib/guideOriginal";
+import { compatibleTechnicalDocumentLabel, inferProfessionalCouncil, professionalActivityOptions, professionalCouncilOptions, technicalResponsibilityLabel } from "@/lib/professionalResponsibility";
+import { getMunicipalService, getMunicipalServicesForCategory,
+  municipalServiceCategories, type MunicipalServiceCategoryId } from "@/lib/municipalServiceCatalog";
 import {
   createDraftNumber,
   defaultProtocolDraftForm,
@@ -125,6 +135,7 @@ function describeDocument(label: string): Omit<UploadDocumentItem, "label" | "re
   if (
     normalized.includes("art") ||
     normalized.includes("rrt") ||
+    normalized.includes("trt") ||
     normalized.includes("projeto arquitetonico") ||
     normalized.includes("memorial") ||
     normalized.includes("levantamento")
@@ -193,12 +204,14 @@ export function ProtocolarProjetoPage({
 } = {}) {
   const navigate = useNavigate();
   const location = useLocation();
+  const isCounterProtocol = location.pathname.startsWith("/prefeitura/protocolos/novo");
   const isHabiteSeMode = mode === "habite-se";
   const draftEntryMode: ProtocolDraftEntryMode = isHabiteSeMode
     ? "habite-se"
     : "projeto";
   const draftStorageFolder = isHabiteSeMode ? "habite-se" : "protocolos";
   const { session } = usePlatformSession();
+  const autofillTechnicalLead = shouldAutofillTechnicalLead(session.role, isCounterProtocol);
   const planEntitlements = usePlanEntitlements();
   const { municipality, scopeId, institutionSettingsCompat } = useMunicipality();
   const { refreshRemoteStore, getInstitutionSettings, getUserProfile, appendProcessDocuments, processes } = usePlatformData();
@@ -208,6 +221,12 @@ export function ProtocolarProjetoPage({
   const profileRegistrationNumber = profile?.registrationNumber ?? "";
   const profilePhone = profile?.phone ?? "";
   const profileEmail = profile?.email ?? "";
+  const clerkIdentity = {
+    names: [session.name, profileFullName],
+    emails: [session.email, profileEmail],
+    documents: [profile?.cpfCnpj],
+    occupations: [session.title, profile?.professionalType],
+  };
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
   const tenantSettings = institutionSettingsCompat ?? getInstitutionSettings(effectiveScopeId);
   const scopedProcesses = useMemo(
@@ -274,13 +293,13 @@ export function ProtocolarProjetoPage({
     tipo: isHabiteSeMode ? "Habite-se" : defaultProtocolDraftForm.tipo,
     tipoObra: isHabiteSeMode ? "Conclusão da obra" : defaultProtocolDraftForm.tipoObra,
     padraoConstrutivo: isHabiteSeMode ? "" : defaultProtocolDraftForm.padraoConstrutivo,
-    profissional: profileFullName || session.name,
-    profissionalDocumento: profile?.cpfCnpj || "",
-    tipoProfissional: profile?.professionalType || "",
-    empresaProfissional: profile?.companyName || "",
-    registro: profileRegistrationNumber,
-    telefone: profilePhone,
-    email: profileEmail || session.email,
+    profissional: !autofillTechnicalLead ? "" : profileFullName || session.name,
+    profissionalDocumento: !autofillTechnicalLead ? "" : profile?.cpfCnpj || "",
+    tipoProfissional: !autofillTechnicalLead ? "" : profile?.professionalType || "",
+    empresaProfissional: !autofillTechnicalLead ? "" : profile?.companyName || "",
+    registro: !autofillTechnicalLead ? "" : profileRegistrationNumber,
+    telefone: !autofillTechnicalLead ? "" : profilePhone,
+    email: !autofillTechnicalLead ? "" : profileEmail || session.email,
   });
   const searchParams = new URLSearchParams(location.search);
   const resumeDraftNumber = searchParams.get("rascunho");
@@ -288,6 +307,8 @@ export function ProtocolarProjetoPage({
   const isResumingDraft = Boolean(resumeDraftNumber || remotePreProtocolNumber);
   const remoteHydratedRef = useRef("");
   const [remoteDraftLoading, setRemoteDraftLoading] = useState(false);
+  const [remoteDraftWritable, setRemoteDraftWritable] = useState(!remotePreProtocolNumber);
+  const [categoryChoice, setCategoryChoice] = useState<MunicipalServiceCategoryId | "">("");
   const [sourceProcessId, setSourceProcessId] = useState("");
   const [sourceProcessLoading, setSourceProcessLoading] = useState(false);
   const [sourcePermitLabel, setSourcePermitLabel] = useState("");
@@ -310,12 +331,23 @@ export function ProtocolarProjetoPage({
       remoteHydratedRef.current !== remotePreProtocolNumber
     ) {
       remoteHydratedRef.current = remotePreProtocolNumber;
+      setRemoteDraftWritable(false);
       setRemoteDraftLoading(true);
       setStatus("Carregando o rascunho vinculado à guia inicial...");
 
       void getRemoteExternalPreprotocolDraft(remotePreProtocolNumber)
         .then((remoteDraft) => {
           if (cancelled) return;
+          // Status from the canonical Neon draft, never the old browser copy.
+          // A settled guide must never reopen an editable preprotocol even when
+          // municipal officialization is temporarily behind the bank webhook.
+          if (isGuideSettled(remoteDraft.guide)) {
+            setRemoteDraftWritable(false);
+            setStatus("O pagamento desta guia já foi confirmado. A edição do pré-protocolo foi encerrada; consulte o acompanhamento do processo.");
+            navigate(isCounterProtocol ? "/prefeitura/protocolos" : "/externo/controle", { replace: true });
+            return;
+          }
+          setRemoteDraftWritable(true);
 
           const payload = remoteDraft.payload ?? {};
           const remoteType = String(payload.type || "");
@@ -342,7 +374,7 @@ export function ProtocolarProjetoPage({
               : {};
 
           setDraftNumber(remoteDraft.preProtocolNumber);
-          setForm({
+          setForm(isolateCounterProfessionalDraft({
             ...defaultProtocolDraftForm,
             ...storedForm,
             tipo: isHabiteSeMode
@@ -391,48 +423,34 @@ export function ProtocolarProjetoPage({
               storedForm.proprietarioEmail || payload.ownerEmail || "",
             ),
             profissional: String(
-              storedForm.profissional ||
-                payload.technicalLead ||
-                profileFullName ||
-                session.name,
+              storedForm.profissional || payload.technicalLead ||
+                (!autofillTechnicalLead ? "" : profileFullName || session.name),
             ),
             profissionalDocumento: String(
-              storedForm.profissionalDocumento ||
-                payload.professionalDocument ||
-                profile?.cpfCnpj ||
-                "",
+              storedForm.profissionalDocumento || payload.professionalDocument ||
+                (!autofillTechnicalLead ? "" : profile?.cpfCnpj || ""),
             ),
             tipoProfissional: String(
-              storedForm.tipoProfissional ||
-                payload.professionalType ||
-                profile?.professionalType ||
-                "",
+              storedForm.tipoProfissional || payload.professionalType ||
+                (!autofillTechnicalLead ? "" : profile?.professionalType || ""),
             ),
             empresaProfissional: String(
-              storedForm.empresaProfissional ||
-                payload.professionalCompany ||
-                profile?.companyName ||
-                "",
+              storedForm.empresaProfissional || payload.professionalCompany ||
+                (!autofillTechnicalLead ? "" : profile?.companyName || ""),
             ),
             registro: String(
-              storedForm.registro ||
-                payload.professionalRegistration ||
-                profileRegistrationNumber ||
-                "",
+              storedForm.registro || payload.professionalRegistration ||
+                (!autofillTechnicalLead ? "" : profileRegistrationNumber),
             ),
             telefone: String(
-              storedForm.telefone ||
-                payload.professionalPhone ||
-                profilePhone ||
-                "",
+              storedForm.telefone || payload.professionalPhone ||
+                (!autofillTechnicalLead ? "" : profilePhone),
             ),
             email: String(
-              storedForm.email ||
-                payload.professionalEmail ||
-                profileEmail ||
-                session.email,
+              storedForm.email || payload.professionalEmail ||
+                (!autofillTechnicalLead ? "" : profileEmail || session.email),
             ),
-          });
+          }, clerkIdentity, isCounterProtocol));
 
           const payloadDocuments = Array.isArray(payload.documents)
             ? payload.documents
@@ -481,6 +499,7 @@ export function ProtocolarProjetoPage({
         .catch((error) => {
           if (cancelled) return;
           remoteHydratedRef.current = "";
+          setRemoteDraftWritable(false);
           setStatus(
             error instanceof Error
               ? error.message
@@ -535,7 +554,7 @@ export function ProtocolarProjetoPage({
     if (draft) {
       setDraftNumber(draft.draftNumber);
       setStatus("");
-      setForm({
+      setForm(isolateCounterProfessionalDraft({
         ...defaultProtocolDraftForm,
         ...draft.form,
         tipo: isHabiteSeMode
@@ -544,14 +563,14 @@ export function ProtocolarProjetoPage({
         tipoObra: isHabiteSeMode ? "Conclusão da obra" : draft.form.tipoObra,
         padraoConstrutivo: isHabiteSeMode ? "" : draft.form.padraoConstrutivo,
         modalidadeHabiteSe: draft.form.modalidadeHabiteSe || "integral",
-        profissional: draft.form.profissional || profileFullName || session.name,
-        profissionalDocumento: draft.form.profissionalDocumento || profile?.cpfCnpj || "",
-        tipoProfissional: draft.form.tipoProfissional || profile?.professionalType || "",
-        empresaProfissional: draft.form.empresaProfissional || profile?.companyName || "",
-        registro: draft.form.registro || profileRegistrationNumber,
-        telefone: draft.form.telefone || profilePhone,
-        email: draft.form.email || profileEmail || session.email,
-      });
+        profissional: draft.form.profissional || (!autofillTechnicalLead ? "" : profileFullName || session.name),
+        profissionalDocumento: draft.form.profissionalDocumento || (!autofillTechnicalLead ? "" : profile?.cpfCnpj || ""),
+        tipoProfissional: draft.form.tipoProfissional || (!autofillTechnicalLead ? "" : profile?.professionalType || ""),
+        empresaProfissional: draft.form.empresaProfissional || (!autofillTechnicalLead ? "" : profile?.companyName || ""),
+        registro: draft.form.registro || (!autofillTechnicalLead ? "" : profileRegistrationNumber),
+        telefone: draft.form.telefone || (!autofillTechnicalLead ? "" : profilePhone),
+        email: draft.form.email || (!autofillTechnicalLead ? "" : profileEmail || session.email),
+      }, clerkIdentity, isCounterProtocol));
 
       // Renderiza primeiro a estrutura já persistida, sem esperar URLs
       // assinadas. Depois só atualiza o src do preview dentro de uma área de
@@ -582,10 +601,10 @@ export function ProtocolarProjetoPage({
       tipo: isHabiteSeMode ? "Habite-se" : defaultProtocolDraftForm.tipo,
       tipoObra: isHabiteSeMode ? "Conclusão da obra" : defaultProtocolDraftForm.tipoObra,
       padraoConstrutivo: isHabiteSeMode ? "" : defaultProtocolDraftForm.padraoConstrutivo,
-      profissional: profileFullName || session.name,
-      registro: profileRegistrationNumber,
-      telefone: profilePhone,
-      email: profileEmail || session.email,
+      profissional: !autofillTechnicalLead ? "" : profileFullName || session.name,
+      registro: !autofillTechnicalLead ? "" : profileRegistrationNumber,
+      telefone: !autofillTechnicalLead ? "" : profilePhone,
+      email: !autofillTechnicalLead ? "" : profileEmail || session.email,
     });
     setStatus(
       resumeDraftNumber
@@ -598,6 +617,8 @@ export function ProtocolarProjetoPage({
     };
   }, [
     effectiveScopeId,
+    isCounterProtocol,
+    autofillTechnicalLead,
     remotePreProtocolNumber,
     resumeDraftNumber,
     session.id,
@@ -607,9 +628,11 @@ export function ProtocolarProjetoPage({
     navigate,
   ]);
 
-  // Dados do perfil podem chegar depois do primeiro paint. Preenche apenas
-  // campos vazios; nunca reinicializa anexos nem o rascunho já em edição.
+  // No atendimento em balcão, o perfil pertence ao servidor que autenticou
+  // o registro, e nunca ao profissional responsável técnico pela obra.
+  // O profissional externo mantém o preenchimento automático já existente.
   useEffect(() => {
+    if (!autofillTechnicalLead) return;
     setForm((current) => ({
       ...current,
       profissional: current.profissional || profileFullName || session.name,
@@ -621,6 +644,7 @@ export function ProtocolarProjetoPage({
       email: current.email || profileEmail || session.email,
     }));
   }, [
+    autofillTechnicalLead,
     profile?.companyName,
     profile?.cpfCnpj,
     profile?.professionalType,
@@ -636,10 +660,9 @@ export function ProtocolarProjetoPage({
     ? (form.modalidadeHabiteSe === "parcial" ? "Carta de Habite-se Parcial" : "Habite-se")
     : form.tipo;
 
-  const standardProcessTypes = useMemo(
-    () => processTypeCatalog.filter((type) => !isOccupancyPermitProcessType(type)),
-    [],
-  );
+  const currentService = getMunicipalService(form.tipo);
+  const selectedCategoryId = currentService?.categoryId ?? categoryChoice;
+  const categoryServices = getMunicipalServicesForCategory(selectedCategoryId);
 
   const checklistTemplate = useMemo(
     () => getChecklistTemplate(effectiveProcessType, effectiveScopeId),
@@ -687,6 +710,28 @@ export function ProtocolarProjetoPage({
     () => Object.values(files).reduce((sum, current) => sum + current.length, 0),
     [files],
   );
+
+  const serviceSelectionLocked = Boolean(
+    remotePreProtocolNumber || submitting || savingDraft ||
+    hasPendingDocumentUpload || uploadedDocumentCount > 0
+  );
+
+  const selectProtocolService = (type: string) => {
+    if (serviceSelectionLocked || !getMunicipalService(type)) return;
+    setField("tipo", type);
+    setStatus("");
+  };
+
+  const selectProtocolCategory = (categoryId: MunicipalServiceCategoryId) => {
+    if (serviceSelectionLocked) return;
+    const category = municipalServiceCategories.find((entry) => entry.id === categoryId);
+    if (!category?.available) return;
+    setCategoryChoice(categoryId);
+    if (currentService && currentService.categoryId !== categoryId) {
+      setField("tipo", "");
+      setStatus("Selecione o serviço da nova categoria para carregar o checklist correspondente.");
+    }
+  };
 
   const requiredDocuments = useMemo(
     () => documentItems.filter((item) => item.required),
@@ -1087,6 +1132,10 @@ export function ProtocolarProjetoPage({
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
+    if (remotePreProtocolNumber && !remoteDraftWritable) {
+      setStatus("A edição permanece bloqueada enquanto o pré-protocolo não for confirmado como pendente pelo banco. Consulte o acompanhamento do processo.");
+      return;
+    }
     const remoteDraftAction = remotePreProtocolNumber
       ? remoteDraftActionRef.current
       : "payment";
@@ -1149,6 +1198,27 @@ export function ProtocolarProjetoPage({
       !form.registro.trim()
     ) {
       setStatus("Informe o registro profissional exigido pela Prefeitura.");
+      return;
+    }
+
+    if (isCounterProtocol && !remotePreProtocolNumber &&
+        !isLicensedProfessionalActivity(form.tipoProfissional)) {
+      setStatus("Informe uma atividade técnica habilitada (engenheiro, arquiteto ou técnico). O cargo administrativo do servidor não substitui o responsável pela obra.");
+      return;
+    }
+    if (!remotePreProtocolNumber && form.execucaoMesmoResponsavel === false &&
+        (!form.execucaoNome.trim() || !form.execucaoDocumento.trim() ||
+         !form.execucaoTipoProfissional.trim() || !form.execucaoRegistro.trim())) {
+      setStatus("Informe nome, CPF/CNPJ, atividade e registro do responsável técnico pela execução.");
+      return;
+    }
+    if (!remotePreProtocolNumber && form.protocolanteMesmoResponsavel === false &&
+        (!form.protocolanteNome.trim() || !form.protocolanteDocumento.trim())) {
+      setStatus("Informe nome e CPF/CNPJ da pessoa responsável pelo protocolo.");
+      return;
+    }
+    if (!isHabiteSeMode && !remotePreProtocolNumber && !form.tipo.trim()) {
+      setStatus("Selecione a categoria e o serviço municipal antes de protocolar.");
       return;
     }
 
@@ -1326,7 +1396,13 @@ export function ProtocolarProjetoPage({
                 form.dataConclusaoObra.trim() ? `Conclusão informada: ${form.dataConclusaoObra.trim()}` : "",
                 form.observacoes.trim(),
               ].filter(Boolean).join(" | ")
-            : form.observacoes,
+            : [
+                form.observacoes,
+                form.responsabilidadeProjeto ? "Responsabilidade projeto " + technicalResponsibilityLabel(form.conselhoProfissional || inferProfessionalCouncil(form.tipoProfissional)) + ": " + form.responsabilidadeProjeto : "",
+                form.responsabilidadeExecucao ? "Responsabilidade execução: " + form.responsabilidadeExecucao : "",
+                form.execucaoMesmoResponsavel === false ? "Responsável execução: " + form.execucaoNome + " / " + form.execucaoRegistro : "",
+                form.protocolanteMesmoResponsavel === false ? "Protocolante: " + form.protocolanteNome : "",
+              ].filter(Boolean).join(" | "),
           property: {
             registration: form.matricula,
             iptu: form.iptu,
@@ -1438,18 +1514,18 @@ export function ProtocolarProjetoPage({
 
     remoteDraftActionRef.current = "payment";
     navigate(
-      `/externo/pagamentos?preprotocolo=${encodeURIComponent(remoteSeed.preProtocol)}`,
+      isCounterProtocol ? "/prefeitura/protocolos" : `/externo/pagamentos?preprotocolo=${encodeURIComponent(remoteSeed.preProtocol)}`,
       { replace: true },
     );
   };
 
   return (
     <PortalFrame
-      eyebrow={isHabiteSeMode ? "Novo protocolo independente" : "Novo protocolo"}
+      eyebrow={isCounterProtocol ? "Atendimento presencial da Prefeitura" : isHabiteSeMode ? "Novo protocolo independente" : "Novo protocolo"}
       title={
         remotePreProtocolNumber
           ? (isHabiteSeMode ? "Editar rascunho do Habite-se" : "Editar rascunho do projeto")
-          : (isHabiteSeMode ? "Solicitar Habite-se" : "Protocolar projeto")
+          : (isCounterProtocol ? "Protocolar em balcão" : isHabiteSeMode ? "Solicitar Habite-se" : "Protocolar projeto")
       }
     >
       <PageShell>
@@ -1475,7 +1551,7 @@ export function ProtocolarProjetoPage({
                     : "Abra o Habite-se como um novo processo, separado da aprovação do projeto")
                 : (remotePreProtocolNumber
                     ? "Revise o rascunho antes do pagamento da guia inicial"
-                    : "Cadastre o projeto, envie os documentos e conclua o protocolo em uma única jornada")
+                    : isCounterProtocol ? "Registre o requerente e os dados do responsável técnico pela obra, anexe os documentos e gere o pré-protocolo assistido com rastreabilidade do servidor." : "Cadastre o projeto, envie os documentos e conclua o protocolo em uma única jornada")
             }
             description={
               isHabiteSeMode
@@ -1484,7 +1560,7 @@ export function ProtocolarProjetoPage({
                     : "Informe o processo de aprovação e o Alvará que deram origem à obra, anexe os documentos e gere o pré-protocolo com a guia inicial. O processo municipal e a numeração oficial só são criados após a confirmação do pagamento.")
                 : (remotePreProtocolNumber
                     ? "Esta abertura continua editável enquanto a guia estiver pendente. Nenhuma sequência oficial será consumida antes do pagamento."
-                    : "Preencha e confira seus dados, imóvel e documentos. O envio gera apenas o pré-protocolo e a guia inicial; o processo entra na Prefeitura somente depois da compensação do pagamento.")
+                    : isCounterProtocol ? "Atendimento presencial: identifique o profissional habilitado e o proprietário sem substituir a identidade do servidor. O pré-protocolo e a guia seguem as regras municipais de pagamento." : "Preencha e confira seus dados, imóvel e documentos. O envio gera apenas o pré-protocolo e a guia inicial; o processo entra na Prefeitura somente depois da compensação do pagamento.")
             }
             icon={FilePlus2}
             actions={
@@ -1493,7 +1569,7 @@ export function ProtocolarProjetoPage({
                   <ArrowLeft className="mr-2 h-4 w-4" />
                   Voltar
                 </Button>
-                <Button type="button" variant="outline" className="rounded-full" onClick={() => navigate("/externo/controle")}>
+                <Button type="button" variant="outline" className="rounded-full" onClick={() => navigate(isCounterProtocol ? "/prefeitura/protocolos" : "/externo/controle")}>
                   <LogOut className="mr-2 h-4 w-4" />
                   Sair do protocolo
                 </Button>
@@ -1533,6 +1609,79 @@ export function ProtocolarProjetoPage({
             ))}
           </PageStatsRow>
 
+          {!isHabiteSeMode ? (
+            <SectionCard
+              title="1. Serviço municipal"
+              description="Primeiro escolha a categoria e o serviço. O SIGAPRO preserva os checklists, a cobrança e as etapas do tipo selecionado."
+              icon={ClipboardList}
+              contentClassName="space-y-5"
+            >
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3" data-service-category-catalog="true">
+                {municipalServiceCategories.map((category) => {
+                  const selected = selectedCategoryId === category.id;
+                  const Icon = category.id === "projetos_alvaras" ? Building2
+                    : category.id === "parcelamento_urbanizacao" ? MapPinned
+                    : category.id === "certidoes_consultas" ? BadgeCheck
+                    : category.id === "fiscalizacao" ? ClipboardList : Settings2;
+                  return (
+                    <button
+                      key={category.id}
+                      type="button"
+                      data-service-category={category.id}
+                      aria-pressed={selected}
+                      disabled={!category.available || serviceSelectionLocked}
+                      onClick={() => selectProtocolCategory(category.id)}
+                      className={`flex min-h-[122px] flex-col items-start gap-2 rounded-2xl border p-4 text-left transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500 disabled:cursor-not-allowed ${selected
+                        ? "border-sky-500 bg-sky-50 shadow-[0_10px_24px_rgba(14,116,144,0.08)] dark:border-sky-400 dark:bg-sky-400/10"
+                        : "border-slate-200 bg-white hover:border-sky-300 dark:border-white/15 dark:bg-slate-900/60 dark:hover:border-sky-400/40"
+                      } ${!category.available ? "opacity-65" : "disabled:opacity-75"}`}
+                    >
+                      <span className="flex w-full items-center justify-between gap-2">
+                        <Icon className={`h-5 w-5 ${selected ? "text-sky-700 dark:text-sky-300" : "text-slate-500 dark:text-slate-300"}`} />
+                        {!category.available
+                          ? <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-600 dark:bg-white/10 dark:text-slate-300">Em preparação</span>
+                          : selected ? <CheckCircle2 className="h-4 w-4 text-sky-700 dark:text-sky-300" /> : null}
+                      </span>
+                      <span className="text-sm font-bold leading-5 text-slate-950 dark:text-white">{category.label}</span>
+                      <span className="text-xs leading-5 text-slate-600 dark:text-slate-300">{category.description}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="sigapro-municipal-service">Serviço / atividade municipal *</Label>
+                  <Select
+                    value={currentService?.type ?? ""}
+                    onValueChange={selectProtocolService}
+                    disabled={!selectedCategoryId || serviceSelectionLocked || categoryServices.length === 0}
+                  >
+                    <SelectTrigger id="sigapro-municipal-service" className="h-12 rounded-xl bg-white text-left dark:bg-slate-950">
+                      <SelectValue placeholder="Selecione o serviço da categoria" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categoryServices.map((service) => (
+                        <SelectItem key={service.id} value={service.type}>{service.type}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-center rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm leading-6 text-slate-700 dark:border-white/10 dark:bg-white/[0.04] dark:text-slate-200">
+                  {currentService
+                    ? "Serviço definido. Os documentos exigidos seguem o checklist municipal deste tipo."
+                    : form.tipo
+                      ? "Tipo preservado de um rascunho anterior, sem conversão automática."
+                      : "Escolha a categoria. Serviços em preparação não geram protocolo nem cobrança."}
+                </div>
+              </div>
+              {serviceSelectionLocked ? (
+                <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-medium leading-5 text-amber-900 dark:border-amber-500/20 dark:bg-amber-400/10 dark:text-amber-200">
+                  A troca de serviço fica protegida após anexos ou pré-protocolo. Abra um novo rascunho para outro serviço; os arquivos e pagamentos existentes permanecem preservados.
+                </p>
+              ) : null}
+            </SectionCard>
+          ) : null}
+
           <SectionCard
             title="Resumo do protocolo"
             description="Visão consolidada do que será protocolado antes do envio final."
@@ -1544,9 +1693,26 @@ export function ProtocolarProjetoPage({
             ))}
           </SectionCard>
 
+          {isCounterProtocol ? (
+            <div role="note" data-counter-employee-profile="true"
+              className="flex flex-col gap-3 rounded-2xl border border-sky-200 bg-sky-50 p-4 shadow-sm dark:border-sky-400/25 dark:bg-sky-400/10 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0 space-y-1">
+                <p className="text-xs font-bold uppercase tracking-[0.12em] text-sky-800 dark:text-sky-200">Servidor que realiza o atendimento em balcão</p>
+                <p className="font-semibold text-slate-950 dark:text-white">{profileFullName || session.name} · {session.title || "Servidor municipal"}</p>
+                <p className="text-xs text-slate-700 dark:text-slate-200">{session.department || "Protocolo"} · Conta institucional autenticada</p>
+                <p className="text-xs text-slate-600 dark:text-slate-300">Os dados do servidor ficam no perfil funcional e não são copiados para o cadastro do responsável técnico.</p>
+              </div>
+              <Link to="/perfil" className="shrink-0 rounded-full border border-sky-300 bg-white px-4 py-2 text-xs font-semibold text-sky-900 hover:bg-sky-100 dark:border-sky-400/30 dark:bg-slate-900 dark:text-sky-100">
+                Meu perfil
+              </Link>
+            </div>
+          ) : null}
+
           <SectionCard
-            title="Dados do profissional responsável"
-            description="Confira ou preencha os seus próprios dados. Eles identificam quem está protocolando e quem responde tecnicamente pelo projeto."
+            title={isCounterProtocol ? "Responsável técnico pelo projeto / obra" : "Dados do profissional responsável"}
+            description={isCounterProtocol
+              ? "Informe os dados do engenheiro, arquiteto ou técnico habilitado responsável pelo projeto ou obra. O servidor autenticado fica identificado separadamente no atendimento."
+              : "Confira ou preencha os seus próprios dados. Eles identificam quem está protocolando e quem responde tecnicamente pelo projeto."}
             icon={UserSquare2}
             contentClassName="grid gap-4 md:grid-cols-2 xl:grid-cols-3"
           >
@@ -1559,12 +1725,31 @@ export function ProtocolarProjetoPage({
               <Input value={form.profissionalDocumento} onChange={(event) => setField("profissionalDocumento", event.target.value)} />
             </div>
             <div className="space-y-2">
-              <Label>Tipo profissional</Label>
-              <Input value={form.tipoProfissional} onChange={(event) => setField("tipoProfissional", event.target.value)} placeholder="Ex.: Engenheiro Civil, Arquiteto" />
+              <Label>Atividade profissional</Label>
+              <Select value={form.tipoProfissional || ""} onValueChange={(value)=>setForm((current)=>({
+                ...current,tipoProfissional:value,conselhoProfissional:inferProfessionalCouncil(value)||current.conselhoProfissional
+              }))}>
+                <SelectTrigger className="bg-white dark:bg-slate-950"><SelectValue placeholder="Engenheiro, arquiteto ou técnico" /></SelectTrigger>
+                <SelectContent>
+                  {form.tipoProfissional && !professionalActivityOptions.some((x)=>x===form.tipoProfissional) ? <SelectItem value={form.tipoProfissional}>{form.tipoProfissional}</SelectItem> : null}
+                  {professionalActivityOptions.map((role)=><SelectItem key={role} value={role}>{role}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Conselho profissional</Label>
+              <Select value={form.conselhoProfissional || inferProfessionalCouncil(form.tipoProfissional) || ""} onValueChange={(v)=>setField("conselhoProfissional",v)}>
+                <SelectTrigger className="bg-white dark:bg-slate-950"><SelectValue placeholder="CREA, CAU ou CFT/CRT" /></SelectTrigger>
+                <SelectContent>{professionalCouncilOptions.map((o)=><SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label>Registro profissional{tenantSettings?.registroProfissionalObrigatorio ? " *" : ""}</Label>
-              <Input value={form.registro} onChange={(event) => setField("registro", event.target.value)} placeholder="CREA, CAU ou equivalente" />
+              <Input value={form.registro} onChange={(event) => setField("registro", event.target.value)} placeholder="Número CREA, CAU ou CFT/CRT" />
+            </div>
+            <div className="space-y-2">
+              <Label>Inscrição municipal do profissional</Label>
+              <Input value={form.inscricaoMunicipalProfissional || ""} onChange={(e)=>setField("inscricaoMunicipalProfissional",e.target.value)} placeholder="Se exigida pela Prefeitura" />
             </div>
             <div className="space-y-2">
               <Label>Telefone</Label>
@@ -1579,6 +1764,14 @@ export function ProtocolarProjetoPage({
               <Input value={form.empresaProfissional} onChange={(event) => setField("empresaProfissional", event.target.value)} />
             </div>
           </SectionCard>
+
+          <ProtocolTechnicalResponsibility
+            counterMode={isCounterProtocol}
+            clerkName={session.name}
+            form={form}
+            setField={setField}
+            setToggle={(key,value)=>setForm((current)=>({...current,[key]:value}))}
+          />
 
           <SectionCard
             title="Dados do proprietário"
@@ -1762,12 +1955,13 @@ export function ProtocolarProjetoPage({
                   </>
                 ) : (
                   <>
-                    <Input list="sigapro-process-types" value={form.tipo} onChange={(event) => setField("tipo", event.target.value)} />
-                    <datalist id="sigapro-process-types">
-                      {standardProcessTypes.map((type) => (
-                        <option key={type} value={type} />
-                      ))}
-                    </datalist>
+                    <Input
+                      value={form.tipo}
+                      readOnly
+                      placeholder="Escolha a categoria e o serviço acima"
+                      className="bg-slate-50 font-semibold dark:bg-slate-900"
+                      aria-label="Tipo do processo escolhido no catálogo municipal"
+                    />
                   </>
                 )}
               </div>
@@ -1867,19 +2061,29 @@ export function ProtocolarProjetoPage({
                   </>
                 ) : (
                   <>
-                    <Label>Padrão construtivo</Label>
-                    <Input
-                      list="padroes-construtivos"
-                      value={form.padraoConstrutivo}
-                      onChange={(event) => setField("padraoConstrutivo", event.target.value)}
-                      placeholder="Médio"
-                    />
-                    <datalist id="padroes-construtivos">
-                      <option value="luxo" />
-                      <option value="primeira" />
-                      <option value="medio" />
-                      <option value="economico" />
-                    </datalist>
+                    <Label htmlFor="sigapro-construction-standard">Padrão construtivo</Label>
+                    <Select
+                      value={form.padraoConstrutivo || ""}
+                      onValueChange={(value) => setField("padraoConstrutivo", value)}
+                    >
+                      <SelectTrigger id="sigapro-construction-standard" className="h-11 bg-white text-left dark:bg-slate-950">
+                        <SelectValue placeholder="Selecione o padrão construtivo" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {form.padraoConstrutivo && !["luxo", "primeira", "medio", "economico"].includes(form.padraoConstrutivo) ? (
+                          <SelectItem value={form.padraoConstrutivo}>
+                            {form.padraoConstrutivo} (rascunho anterior)
+                          </SelectItem>
+                        ) : null}
+                        <SelectItem value="luxo">Luxo</SelectItem>
+                        <SelectItem value="primeira">Primeira</SelectItem>
+                        <SelectItem value="medio">Médio</SelectItem>
+                        <SelectItem value="economico">Econômico</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs leading-5 text-slate-600 dark:text-slate-300">
+                      Sem preenchimento automático. Escolha conforme o acabamento e a classificação adotada pela Prefeitura.
+                    </p>
                   </>
                 )}
               </div>
@@ -1975,7 +2179,7 @@ export function ProtocolarProjetoPage({
                                 ) : (
                                   <CircleDashed className="h-4 w-4 text-slate-400 dark:text-sky-200" />
                                 )}
-                                <p className="min-w-0 break-words text-base font-semibold leading-6 text-slate-950 dark:text-white">{item.label}</p>
+                                <p className="min-w-0 break-words text-base font-semibold leading-6 text-slate-950 dark:text-white">{compatibleTechnicalDocumentLabel(item.label)}</p>
                               </div>
                               <p className="mt-2 break-words text-[15px] leading-6 text-slate-600 dark:text-slate-300">{item.description}</p>
                             </div>
@@ -2004,7 +2208,7 @@ export function ProtocolarProjetoPage({
                           </div>
 
                           <FileDropZone
-                            title={item.label}
+                            title={compatibleTechnicalDocumentLabel(item.label)}
                             description="Arraste PDF ou uma imagem. O arquivo pode ser substituído ou removido antes do protocolo final."
                             accept=".pdf,image/*"
                             multiple={false}
@@ -2012,6 +2216,7 @@ export function ProtocolarProjetoPage({
                             busy={Boolean(uploadingLabels[item.label])}
                             disabled={
                               !effectiveScopeId ||
+                              (Boolean(remotePreProtocolNumber) && !remoteDraftWritable) ||
                               savingDraft ||
                               submitting ||
                               (hasPendingDocumentUpload && !uploadingLabels[item.label])
@@ -2059,7 +2264,7 @@ export function ProtocolarProjetoPage({
                 type="button"
                 variant="outline"
                 className="rounded-full"
-                onClick={() => navigate("/externo/controle")}
+                onClick={() => navigate(isCounterProtocol ? "/prefeitura/protocolos" : "/externo/controle")}
                 disabled={savingDraft || submitting || hasPendingDocumentUpload}
               >
                 <LogOut className="mr-2 h-4 w-4" />
@@ -2105,6 +2310,7 @@ export function ProtocolarProjetoPage({
                       disabled={
                         submitting ||
                         remoteDraftLoading ||
+                        !remoteDraftWritable ||
                         hasPendingDocumentUpload
                       }
                       onClick={() => {
@@ -2125,6 +2331,7 @@ export function ProtocolarProjetoPage({
                       disabled={
                         submitting ||
                         remoteDraftLoading ||
+                        !remoteDraftWritable ||
                         hasPendingDocumentUpload ||
                         missingRequired.length > 0
                       }

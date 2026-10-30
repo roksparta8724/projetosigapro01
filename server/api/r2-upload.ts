@@ -1,3 +1,4 @@
+import { getR2EndpointCandidates, resolveR2Endpoint } from "../r2-runtime.js";
 /**
  * api/r2-upload.ts — Vercel Serverless handler
  *
@@ -7,7 +8,7 @@
 
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { createHash } from "node:crypto";
-import { resolveMunicipalDocumentTarget } from "../municipal-storage.js";
+import { getDataApiUrl, resolveMunicipalDocumentTarget } from "../municipal-storage.js";
 
 type Req = import("http").IncomingMessage & { method?: string; body?: unknown };
 type Res = import("http").ServerResponse;
@@ -18,35 +19,6 @@ function readEnv(key: string) {
   return String(raw).replace(/^['"]|['"]$/g, "").trim();
 }
 
-function getR2EndpointCandidates() {
-  const candidates: string[] = [];
-
-  const rawEndpoint = readEnv("R2_ENDPOINT");
-  if (rawEndpoint) {
-    try {
-      const url = new URL(/^https?:\/\//i.test(rawEndpoint) ? rawEndpoint : `https://${rawEndpoint}`);
-      candidates.push(`${url.protocol}//${url.host}`);
-    } catch {
-      candidates.push(rawEndpoint.replace(/\/+$/, ""));
-    }
-  }
-
-  const accountId = readEnv("R2_ACCOUNT_ID")
-    .replace(/^https?:\/\//i, "")
-    .replace(/\.r2\.cloudflarestorage\.com.*$/i, "")
-    .replace(/[^a-zA-Z0-9]/g, "");
-
-  if (accountId && !/^sua_?account_?id$/i.test(accountId)) {
-    candidates.push(`https://${accountId}.r2.cloudflarestorage.com`);
-  }
-
-  return Array.from(new Set(candidates.filter(Boolean)));
-}
-
-function resolveR2Endpoint() {
-  return getR2EndpointCandidates()[0] || "";
-}
-
 function isR2CredentialError(error: unknown) {
   const name =
     error && typeof error === "object" && "name" in error
@@ -55,6 +27,12 @@ function isR2CredentialError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error || "");
   return /SignatureDoesNotMatch|InvalidAccessKeyId|AccessDenied/i.test(name) ||
     /signature.*does not match|invalid access key|access denied/i.test(message);
+}
+
+export function isCreateOnlyDocumentBucket(bucket: string) {
+  // A newly uploaded process document gets a new object key (UUID and revision).
+  // No common upload should silently overwrite an older document revision.
+  return bucket === (readEnv("R2_BUCKET_DOCUMENTOS") || "sigapro-documentos");
 }
 
 async function putR2ObjectWithFallback(input: {
@@ -84,7 +62,8 @@ async function putR2ObjectWithFallback(input: {
         Body: input.body,
         ContentType: input.contentType,
         Metadata: input.metadata,
-        ...(input.objectKey.includes("/dam-originals/") ? { IfNoneMatch: "*" } : {}),
+        // Every process document is create-once, including ordinary attachments.
+        ...(isCreateOnlyDocumentBucket(input.bucket) ? { IfNoneMatch: "*" } : {}),
       }));
       return;
     } catch (error) {
@@ -99,28 +78,16 @@ async function putR2ObjectWithFallback(input: {
     : new Error("Falha de autenticação no armazenamento R2.");
 }
 
-const VALIDATED_NEON_DATA_API_URL =
-  "https://ep-blue-cloud-b4hhgb4t.apirest.c-6.us-east-2.aws.neon.tech/sigapro_migration_stage_20260923/rest/v1";
-
-function isR2AuthRequired() {
-  const configured = readEnv("R2_REQUIRE_AUTH").toLowerCase();
-  if (configured === "true") return true;
-  if (configured === "false") return false;
-  return readEnv("VERCEL_ENV").toLowerCase() === "production";
+export function isR2AuthRequired() {
+  // Never allow a stale test override to disable auth in production.
+  if (readEnv("VERCEL_ENV").toLowerCase() === "production") return true;
+  return readEnv("R2_REQUIRE_AUTH").toLowerCase() === "true";
 }
 
 function readBearer(req: Req) {
   const raw = req.headers.authorization || "";
   const match = /^Bearer\s+(.+)$/i.exec(raw);
   return match?.[1]?.trim() || "";
-}
-
-function getDataApiUrl() {
-  return (
-    readEnv("R2_AUTH_DATA_API_URL") ||
-    readEnv("VITE_NEON_DATA_API_URL") ||
-    VALIDATED_NEON_DATA_API_URL
-  ).replace(/\/+$/, "");
 }
 
 function extractMunicipalityId(objectKey: string) {
@@ -210,14 +177,18 @@ function resolveRequestedBucket(value: string) {
   return "";
 }
 
-function buildPublicUrl(_bucket: string, objectKey: string) {
-  const base = readEnv("R2_PUBLIC_BASE_URL");
-  if (base) {
-    return `${base.replace(/\/+$/, "")}/${objectKey.replace(/^\/+/, "")}`;
-  }
+export function buildPublicUrl(bucket: string, objectKey: string) {
+  // A configured public CDN for logos/legislation does not authorize publishing
+  // payment originals, signed technical reports or private process attachments.
+  const documentsBucket = readEnv("R2_BUCKET_DOCUMENTOS") || "sigapro-documentos";
+  const publicLegalKey =
+    /^municipalities\/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/legislation(?:[-/]|$)/i.test(objectKey);
+  if (bucket === documentsBucket && !publicLegalKey) return "";
 
-  // O endpoint S3 do R2 é privado. Sem domínio público configurado,
-  // persistimos apenas o objectKey e geramos URL assinada no momento da leitura.
+  const base = readEnv("R2_PUBLIC_BASE_URL");
+  if (base) return `${base.replace(/\/+$/, "")}/${objectKey.replace(/^\/+/, "")}`;
+
+  // Without a public host, persist only the key and authorize a signed GET.
   return "";
 }
 
@@ -270,6 +241,7 @@ export default async function handler(req: Req, res: Res) {
     return;
   }
 
+  let conflictObjectKey = "";
   try {
     const endpoint = resolveR2Endpoint();
     const accessKeyId = readEnv("R2_ACCESS_KEY_ID");
@@ -318,8 +290,20 @@ export default async function handler(req: Req, res: Res) {
       return;
     }
 
+    conflictObjectKey = objectKey;
     const buffer = Buffer.from(base64, "base64");
     const municipalityId = extractMunicipalityId(objectKey);
+    // Tenantless/legacy keys are never writable by ordinary municipal accounts.
+    // This also prevents malformed municipality paths from bypassing tenant checks.
+    if (!municipalityId) {
+      const platformPermission = await callDataApiRpc(req, "is_master", {});
+      if (!platformPermission.ok || platformPermission.payload !== true) {
+        json(res, platformPermission.status === 401 ? 401 : 403, {
+          error: "Somente o administrador geral pode enviar arquivos sem identificação municipal.",
+        });
+        return;
+      }
+    }
     let damOriginalMetadata: Record<string, string> | undefined;
     if (objectKey.includes("/dam-originals/")) {
       if (contentType !== "application/pdf" || buffer.byteLength > 25 * 1024 * 1024) {
@@ -360,6 +344,19 @@ export default async function handler(req: Req, res: Res) {
         return;
       }
 
+      // Municipal crests and headers are controlled by the municipality administration.
+      const brandingWrite = bucket === (readEnv("R2_BUCKET_LOGOS") || "sigapro-logos") &&
+        /^municipalities\/[0-9a-f-]{36}\/branding(?:\/|$)/i.test(objectKey);
+      if (brandingWrite) {
+        const admin = await callDataApiRpc(req, "is_municipality_admin", {});
+        if (!admin.ok || admin.payload !== true) {
+          const master = await callDataApiRpc(req, "is_master", {});
+          if (!master.ok || master.payload !== true) {
+            json(res, 403, { error: "Somente a administração municipal pode alterar a identidade institucional." });
+            return;
+          }
+        }
+      }
       const documentBucket = readEnv("R2_BUCKET_DOCUMENTOS") || "sigapro-documentos";
       // Quando a Prefeitura usa armazenamento próprio, os bytes deixam de consumir
       // a franquia física do R2 do SIGAPRO. As demais regras contratuais continuam.
@@ -398,7 +395,8 @@ export default async function handler(req: Req, res: Res) {
         Body: buffer,
         ContentType: resolvedContentType,
         Metadata: damOriginalMetadata,
-        ...(objectKey.includes("/dam-originals/") ? { IfNoneMatch: "*" } : {}),
+        // Municipal S3 must preserve old document revisions as well.
+        ...(isCreateOnlyDocumentBucket(bucket) ? { IfNoneMatch: "*" } : {}),
       })).catch((error) => {
         if (objectKey.includes("/dam-originals/") && error?.$metadata?.httpStatusCode === 412) return;
         throw error;
@@ -434,6 +432,16 @@ export default async function handler(req: Req, res: Res) {
       storageProvider: "sigapro_r2",
     });
   } catch (error) {
+    // Conditional write conflicts must never overwrite signed originals.
+    const writeStatus = (error as { $metadata?: { httpStatusCode?: number } } | null)?.$metadata?.httpStatusCode;
+    if (writeStatus === 412) {
+      if (conflictObjectKey.includes("/analysis-signed-fiches/") || conflictObjectKey.includes("/dam-originals/")) {
+        json(res, 409, { error: "Este PDF assinado ou original já existe e não pode ser substituído.", code: "SIGNED_PDF_IMMUTABLE" });
+      } else {
+        json(res, 409, { error: "Documento já armazenado. Envie uma nova versão com outra referência.", code: "DOCUMENT_ALREADY_EXISTS" });
+      }
+      return;
+    }
     const rawMessage = error instanceof Error ? error.message : "Erro ao enviar o arquivo.";
     const signatureMismatch = isR2CredentialError(error);
     const message = signatureMismatch

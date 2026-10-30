@@ -7,6 +7,7 @@ import { FileDropZone, type UploadedFileItem } from "@/components/platform/FileD
 import { ImageFrameEditor } from "@/components/platform/ImageFrameEditor";
 import { InstitutionalLogo } from "@/components/platform/InstitutionalLogo";
 import { MunicipalStorageSettings } from "@/components/platform/MunicipalStorageSettings";
+import { MunicipalUrbanRulesSettings } from "@/components/platform/MunicipalUrbanRulesSettings";
 import { MunicipalPaymentSettings } from "@/components/platform/MunicipalPaymentSettings";
 import { InternalTabs } from "@/components/platform/InternalTabs";
 import { PageHeader } from "@/components/platform/PageHeader";
@@ -48,7 +49,7 @@ import {
 import { updateInstitutionBranding, type InstitutionalLogoConfigVariant } from "@/lib/institutionBranding";
 import {
   fitMunicipalLogoFrame, fullMunicipalLogoFrame,
-  MUNICIPAL_LOGO_BASE_RATIO, MUNICIPAL_LOGO_MAX_ZOOM,
+  MUNICIPAL_LOGO_BASE_RATIO, MUNICIPAL_LOGO_MAX_ZOOM, MUNICIPAL_FOOTER_LOGO_MAX_ZOOM,
 } from "@/lib/municipalLogoFraming";
 import { getLegislationOpenUrl, getStableMunicipalLegislationReference, getMunicipalityLogoOpenUrl, getObjectKeyFromPublicUrl, getPublicUrl, getSignedUrlForObject, getSignedUrlForObjectStrict } from "@/integrations/r2/client";
 import { uploadFileToStorage } from "@/integrations/r2/storage";
@@ -944,7 +945,7 @@ export function ConfiguracoesPage() {
     scale: settings?.footerLogoScale ?? settings?.logoScale ?? MUNICIPAL_LOGO_MAX_ZOOM,
     offsetX: settings?.footerLogoOffsetX ?? settings?.logoOffsetX ?? 0,
     offsetY: settings?.footerLogoOffsetY ?? settings?.logoOffsetY ?? 0,
-  }));
+  }, "footer"));
   const [headerLogoStatus, setHeaderLogoStatus] = useState("");
   const [footerLogoStatus, setFooterLogoStatus] = useState("");
   const [logoSaving, setLogoSaving] = useState<InstitutionalLogoConfigVariant | null>(null);
@@ -1164,7 +1165,7 @@ export function ConfiguracoesPage() {
       scale: nextSettings?.footerLogoScale ?? nextSettings?.logoScale ?? MUNICIPAL_LOGO_MAX_ZOOM,
       offsetX: nextSettings?.footerLogoOffsetX ?? nextSettings?.logoOffsetX ?? 0,
       offsetY: nextSettings?.footerLogoOffsetY ?? nextSettings?.logoOffsetY ?? 0,
-    });
+    }, "footer");
     setDraftFooterLogoConfig((current) =>
       current.scale === nextFooterConfig.scale &&
       current.offsetX === nextFooterConfig.offsetX &&
@@ -2044,6 +2045,7 @@ export function ConfiguracoesPage() {
 
       const draftConfig = fitMunicipalLogoFrame(
         variant === "footer" ? draftFooterLogoConfig : draftHeaderLogoConfig,
+        variant,
       );
       const activeBranding =
         variant === "footer" ? footerBranding : headerBranding;
@@ -2385,7 +2387,7 @@ export function ConfiguracoesPage() {
         scale: nextSettings.footerLogoScale ?? nextSettings.logoScale ?? MUNICIPAL_LOGO_MAX_ZOOM,
         offsetX: nextSettings.footerLogoOffsetX ?? nextSettings.logoOffsetX ?? 0,
         offsetY: nextSettings.footerLogoOffsetY ?? nextSettings.logoOffsetY ?? 0,
-      }));
+      }, "footer"));
 
       if (variant === "footer") {
         setFooterLogoStatus(
@@ -2441,8 +2443,11 @@ export function ConfiguracoesPage() {
       throw new Error(`O arquivo "${item.fileName}" precisa ser PDF ou imagem.`);
     }
 
-    if (item.file.size > 30 * 1024 * 1024) {
-      throw new Error(`O arquivo "${item.fileName}" excede o limite de 30 MB.`);
+    const isLegalPdf = bucket === "process-documents" && /\b(?:application\/pdf)\b/i.test(mimeType) &&
+      /^legislation\//.test(folder);
+    const maxFileSize = isLegalPdf ? 100 * 1024 * 1024 : 30 * 1024 * 1024;
+    if (item.file.size > maxFileSize) {
+      throw new Error(`O arquivo "${item.fileName}" excede o limite de ${isLegalPdf ? "100" : "30"} MB.`);
     }
 
     const uploaded = await uploadFileToStorage({
@@ -3712,14 +3717,14 @@ export function ConfiguracoesPage() {
                       scale={draftFooterLogoConfig.scale}
                       offsetX={draftFooterLogoConfig.offsetX}
                       offsetY={draftFooterLogoConfig.offsetY}
-                      onChange={(next) => setDraftFooterLogoConfig(fitMunicipalLogoFrame(next))}
+                      onChange={(next) => setDraftFooterLogoConfig(fitMunicipalLogoFrame(next, "footer"))}
                       label="Ajuste do logo do rodapé"
-                      hint="O brasão permanece inteiro. O máximo de 1,50x corresponde ao encaixe completo mostrado no rodapé."
+                      hint="Até 1,50x mostra o arquivo inteiro. Amplie até 3,00x para aproximar o brasão e reduzir bordas vazias, sempre com proporção preservada. Confira o resultado na prévia real."
                       fitMode="contain"
                       containBaseRatio={MUNICIPAL_LOGO_BASE_RATIO}
                       keepWholeImageVisible
                       minScale={1}
-                      maxScale={MUNICIPAL_LOGO_MAX_ZOOM}
+                      maxScale={MUNICIPAL_FOOTER_LOGO_MAX_ZOOM}
                       zoomStep={0.1}
                       frameClassName="justify-center"
                       wrapperClassName="sig-config-logo-editor sig-config-logo-editor-footer"
@@ -3821,7 +3826,7 @@ export function ConfiguracoesPage() {
                       <p className="text-sm font-bold text-slate-950">Acervo legal municipal</p>
                     </div>
                     <p className="mt-1 max-w-3xl text-xs leading-5 text-slate-500">
-                      Estes arquivos alimentam diretamente o módulo Legislação. Priorize PDF oficial já publicado pela Prefeitura.
+                      Estes arquivos alimentam o módulo Legislação. Use leis promulgadas e anexos oficiais; minutas e propostas não são normas vigentes. Cada campo aceita um PDF oficial de até 100 MB; PDFs maiores são enviados diretamente ao armazenamento, sem passar pela função da Vercel.
                     </p>
                   </div>
                   <span className="w-fit rounded-full border border-sky-200 bg-white px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-sky-700">
@@ -3829,7 +3834,7 @@ export function ConfiguracoesPage() {
                   </span>
                 </div>
 
-                <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-4">
+                <div className="grid min-w-0 grid-cols-1 gap-5 lg:grid-cols-2">
                   <FileDropZone
                     title="Plano Diretor"
                     description="PDF oficial do Plano Diretor municipal."
@@ -3905,6 +3910,9 @@ export function ConfiguracoesPage() {
                   </Button>
                 </div>
               </div>
+              {selectedTenantId ? (
+                <MunicipalUrbanRulesSettings municipalityId={selectedTenantId} canEdit={canManageTenantSettings} />
+              ) : null}
             </div>
             ) : (
               <div className="rounded-[24px] border border-slate-200 bg-slate-50 p-5 text-sm text-slate-600">
