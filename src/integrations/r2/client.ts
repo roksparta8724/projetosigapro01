@@ -311,7 +311,7 @@ async function uploadLargeLegalPdf(input: {bucket: string; objectKey: string; fi
     contentType: "application/pdf", fileSize: input.file.size,
   };
   async function send(action: "sign" | "verify") {
-    const response = await fetch(buildApiUrl("/api/r2-legal-sign-put"), {
+    const response = await fetch(buildApiUrl("/api/r2?action=legal-sign-put"), {
       method:"POST",
       headers: {"Content-Type":"application/json", ...tokenHeaders},
       credentials:"same-origin",

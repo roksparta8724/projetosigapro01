@@ -1,8 +1,8 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { HeadObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { callDataApiRpc, readBearer, resolveMunicipalDocumentTarget } from "../server/municipal-storage.js";
-import { resolveR2Endpoint } from "../server/r2-runtime.js";
+import { callDataApiRpc, readBearer, resolveMunicipalDocumentTarget } from "../municipal-storage.js";
+import { resolveR2Endpoint } from "../r2-runtime.js";
 
 type Req = IncomingMessage & { body?: unknown; method?: string };
 type Res = ServerResponse;

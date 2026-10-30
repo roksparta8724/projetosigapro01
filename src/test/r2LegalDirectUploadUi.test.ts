@@ -5,7 +5,7 @@ describe("SIGAPRO municipal legal documents — 100 MiB direct upload path",()=>
   it("uses a direct PUT, then verifies the stored object, without Base64 to Vercel",()=>{
     const file=readFileSync("src/integrations/r2/client.ts","utf8");
     expect(file).toContain("isDirectLegalPdfUpload");
-    expect(file).toContain('buildApiUrl("/api/r2-legal-sign-put")');
+    expect(file).toContain('buildApiUrl("/api/r2?action=legal-sign-put")');
     expect(file).toContain('method:"PUT"');
     expect(file).toContain('const verified = await send("verify")');
     expect(file).toContain('return uploadLargeLegalPdf(input);');

@@ -13,7 +13,7 @@ vi.mock("@aws-sdk/client-s3", () => ({
   HeadObjectCommand: class { constructor(public input: unknown) {} },
   PutObjectCommand: class { constructor(public input: unknown) {} },
 }));
-import handler, { validateLegalUploadInput, MAX_OFFICIAL_LEGAL_PDF_BYTES } from "../../api/r2-legal-sign-put";
+import handler, { validateLegalUploadInput, MAX_OFFICIAL_LEGAL_PDF_BYTES } from "../../server/api/r2-legal-sign-put";
 
 const tenant = "11111111-1111-4111-8111-111111111111";
 const user = "22222222-2222-4222-8222-222222222222";

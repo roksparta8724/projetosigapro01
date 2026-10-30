@@ -5,7 +5,7 @@ O limite anterior de 30 MiB não era a única causa da falha. O upload legado en
 
 - Limite novo para PDF de legislação: **100 MiB**. Logos e imagens institucionais continuam com 30 MiB.
 - Somente as quatro pastas \`legislation-plano-diretor\`, \`legislation-uso-solo\`, \`legislation-zoneamento\` e \`legislation-leis-complementares\`, com \`municipalityId\` válido, podem usar o caminho direto.
-- \`POST /api/r2-legal-sign-put\` exige JWT, autorização municipal, perfil admin/master e consulta da cota de armazenamento antes de assinar.
+- \`POST /api/r2?action=legal-sign-put\` exige JWT, autorização municipal, perfil admin/master e consulta da cota de armazenamento antes de assinar.
 - O link de upload vale 300 segundos, é exclusivo de uma chave de objeto e é emitido com \`If-None-Match: *\` para evitar sobrescrita de documentos antigos.
 - Após o PUT, o cliente chama a API autenticada de **verify**, que faz \`HeadObject\` e compara tamanho e Content-Type antes de vincular a referência no Neon.
 - O R2 recebe o arquivo original sem convertê-lo em Base64; só o link assinado temporário passa pelo navegador.
@@ -41,3 +41,6 @@ A política de CORS **não abre o bucket para gravação anônima**: o PUT exige
 
 Cloudflare R2: https://developers.cloudflare.com/r2/buckets/cors/ .
 Vercel: https://vercel.com/docs/functions/limitations .
+
+## Limite do plano Vercel
+O plano Hobby do projeto permite no máximo 12 funções Serverless. O handler de assinatura foi incorporado à rota **já existente** `api/r2.ts`, com o arquivo de implementação fora da pasta `api/`. Nenhuma função extra foi adicionada; isso evita falhas de publicação por excesso de rotas.
