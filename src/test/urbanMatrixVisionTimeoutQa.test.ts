@@ -5,9 +5,9 @@ const server=readFileSync("server/urban-matrix-vision.ts","utf8");
 const vercel=JSON.parse(readFileSync("vercel.json","utf8")) as {functions?:Record<string,{maxDuration:number}>};
 describe("SIGAPRO QA — leitura visual Cloudflare com prazo controlado",()=>{
  it("usa o contrato de API de visão do Llama 3.2 documentado pela Cloudflare",()=>{
-   expect(server).toContain('messages:[');
-   expect(server).toContain('image:input.imageDataUrl,max_tokens:900,temperature:0');
-   expect(server).not.toContain('body:JSON.stringify({prompt,image:input.imageDataUrl');
+   expect(server).toContain('body:JSON.stringify({prompt,image:input.imageDataUrl,max_tokens:520,temperature:0})');
+   expect(server).not.toContain('messages:[');
+   expect(server).toContain('Não invente números, não misture linhas diferentes');
  });
  it("permite tempo de inferência adequado e mantém um teto para não consumir recursos ilimitados",()=>{
    expect(server).toContain('PROVIDER_TIMEOUT_MS=45000');
