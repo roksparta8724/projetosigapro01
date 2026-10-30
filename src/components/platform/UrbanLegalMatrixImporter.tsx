@@ -41,6 +41,53 @@ function validReviewRow(value: unknown): value is ReviewPackageRow {
     (typeof row.recuo_lateral_m === "string" ||
       (typeof row.recuo_lateral_m === "number" && Number.isFinite(row.recuo_lateral_m)));
 }
+
+function OcrReferenceComparison({row}:{row:ReviewPackageRow}) {
+  const values:[string,string][]=[
+    ["C.A. mínimo",row.ca_minimo_original??"A CONFERIR"],
+    ["C.A. básico",row.ca_basico_original],["C.A. máximo",row.ca_maximo_original],
+    ["Ocupação máxima",String(row.taxa_ocupacao_maxima_pct)+"%"],
+    ["Permeabilidade mínima",String(row.taxa_permeabilidade_minima_pct)+"%"],
+    ["Lote mínimo",String(row.lote_minimo_m2)+" m²"],
+    ["Testada mínima",String(row.testada_minima_m)+" m"],
+    ["Gabarito",row.gabarito_original],
+    ["Recuo frontal",String(row.recuo_frontal_m)+" m"],
+    ["Recuo de fundos",String(row.recuo_fundos_m)+" m"],
+    ["Recuo lateral",String(row.recuo_lateral_m)+" m"],
+  ];
+  return <section data-urban-ocr-comparison="true"
+    aria-label="Conferência dos parâmetros com o PDF"
+    className="mt-4 rounded-xl border border-sky-300 bg-white p-4 text-slate-950">
+    <h5 className="text-base font-extrabold text-slate-950">Comparação de colunas — PDF × matriz histórica</h5>
+    <p className="mt-1 text-sm leading-6 text-slate-800">
+      Página {row.pagina_pdf} · {row.zona_conforme_tabela} · {row.uso_predominante_conforme_tabela}.
+      Estes valores vieram do pacote JSON da lei original.
+      Não são valores confirmados pela IA nem comprovação da vigência atual.
+      Compare cada coluna com a imagem antes de corrigir a transcrição acima.
+    </p>
+    <div className="mt-3 overflow-x-auto rounded-lg border border-slate-200">
+      <table className="w-full border-collapse text-left text-sm text-slate-950">
+        <thead className="bg-slate-100">
+          <tr><th scope="col" className="p-2 font-bold">Parâmetro</th>
+            <th scope="col" className="p-2 font-bold">JSON (original)</th>
+            <th scope="col" className="p-2 font-bold">Situação</th></tr>
+        </thead>
+        <tbody>{values.map(([label,value])=><tr key={label} className="border-t border-slate-200">
+          <th scope="row" className="p-2 font-semibold">{label}</th>
+          <td className="p-2 font-bold">{value}</td>
+          <td className="p-2 font-semibold text-amber-950">Conferir na imagem</td>
+        </tr>)}</tbody>
+      </table>
+    </div>
+    {row.observacoes_especificas?<p className="mt-3 text-sm font-semibold text-amber-950">
+      Observações e exceções originais: {row.observacoes_especificas}
+    </p>:null}
+    {row.pendencias_de_leitura?<p className="mt-2 text-sm font-bold text-rose-950">
+      Pendência da leitura original: {row.pendencias_de_leitura}
+    </p>:null}
+  </section>;
+}
+
 const dateValid = (s: string) => validateImportDate(s);
 const MAX_PDF_BYTES = 100 * 1024 * 1024;
 
@@ -94,6 +141,13 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
   const [history,setHistory] = useState<SavedSnapshot[]>([]);
   const [historyChecked,setHistoryChecked] = useState(false);
   const [historyError,setHistoryError] = useState(false);
+  // Unresolved OCR cells are not eligible for confirmation, extraction or saving.
+  const ocrHasIllegibleCell=/\[\s*ILEG[IÍ]VEL\s*\]/i.test(text);
+  const matchingOriginalRow=reviewPackage?.quadro_I[reviewRowIndex]??null;
+  const matchingOriginalScope=Boolean(matchingOriginalRow && quadro==="I" &&
+    Number(page)===matchingOriginalRow.pagina_pdf &&
+    normalizeUrbanCode(zone)===normalizeUrbanCode(matchingOriginalRow.zona_conforme_tabela) &&
+    normalizeUrbanCode(usage)===normalizeUrbanCode(matchingOriginalRow.uso_predominante_conforme_tabela));
   const reset = () => {setCandidates([]);setChecked([]);setConsent(false);setMessage("");};
   const loadStructuredReview = async (incoming: File | null) => {
     setReviewPackage(null);setReviewRowIndex(0);
@@ -221,7 +275,7 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
     if (busy || !file || !zone.trim() || !usage.trim() ||
       !Number.isSafeInteger(Number(page)) || Number(page)<1 || Number(page)>10000 ||
       text.trim().length<40 || text.length>6000 || !consent ||
-      (ocrDraft && !ocrVerified)) {
+      (ocrDraft && (!ocrVerified || ocrHasIllegibleCell))) {
       setMessage("Informe página, zona, uso e texto da lei. A vigência só será exigida para registrar rascunho. Se houve OCR, confira a transcrição primeiro.");
       return;
     }
@@ -250,7 +304,7 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
   const addManualCandidate = () => {
     if (busy || !file || !text.trim() || !Number.isSafeInteger(Number(page)) ||
         Number(page)<1 || !zone.trim() || !usage.trim() ||
-        (ocrDraft && !ocrVerified)) {
+        (ocrDraft && (!ocrVerified || ocrHasIllegibleCell))) {
       setMessage("Selecione o PDF, página, zona, uso e transcrição para propor uma linha manual. A vigência é exigida somente no salvamento.");
       return;
     }
@@ -273,7 +327,7 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
     if(busy || !canEdit || !backendClient || !file || !dateValid(effectiveFrom) ||
       !zone.trim() || !usage.trim() || !Number.isSafeInteger(Number(page)) ||
       Number(page)<1 || Number(page)>10000 || !consent ||
-      (ocrDraft && !ocrVerified)) {
+      (ocrDraft && (!ocrVerified || ocrHasIllegibleCell))) {
       setMessage("Complete e confira o escopo legal antes do registro.");return;
     }
     const chosen=candidates.filter((_,i)=>checked.includes(i));
@@ -481,8 +535,16 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
         placeholder="Cole apenas o trecho da página oficial, com sua linha, cabeçalhos e notas..."
         className="mt-1 w-full rounded-xl border border-slate-300 bg-white p-3 text-sm text-slate-950"/>
     </label>
+    {ocrDraft && matchingOriginalScope && matchingOriginalRow ? <OcrReferenceComparison row={matchingOriginalRow}/>:null}
+    {ocrDraft && ocrHasIllegibleCell ? <p data-urban-ocr-unresolved="true" role="alert"
+      className="mt-3 rounded-xl border border-rose-300 bg-rose-50 p-3 text-sm font-bold leading-6 text-rose-950">
+      A transcrição contém [ILEGÍVEL]. Não é seguro confirmar nem extrair índices.
+      Confira a célula no PDF e substitua o marcador somente se o valor estiver realmente legível.
+      Caso contrário, mantenha a linha pendente.
+    </p>:null}
     {ocrDraft?<label className="mt-3 flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs font-bold leading-5 text-amber-950">
-      <input type="checkbox" checked={ocrVerified} onChange={e=>setOcrVerified(e.target.checked)}
+      <input type="checkbox" checked={ocrVerified} disabled={ocrHasIllegibleCell}
+        onChange={e=>setOcrVerified(e.target.checked)}
         className="mt-1"/>
       Conferi a transcrição gerada pela IA com a imagem original, célula por célula,
       incluindo código da zona, uso, vírgulas decimais e recuos.
@@ -502,7 +564,8 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
       Autorizo enviar SOMENTE o trecho da página à IA Cloudflare para extrair propostas.
       O PDF completo permanece local. É a mesma autorização exibida junto ao botão de leitura da imagem.
     </label>
-    <button type="button" data-urban-matrix-action="extract" disabled={busy} onClick={()=>void queryAi()}
+    <button type="button" data-urban-matrix-action="extract"
+      disabled={busy||(ocrDraft&&(!ocrVerified||ocrHasIllegibleCell))} onClick={()=>void queryAi()}
       className="mt-3 min-h-11 rounded-xl border border-sky-800 bg-sky-800 px-4 py-2 font-bold text-white">
       {busy?<Loader2 aria-hidden className="mr-2 inline h-4 w-4 animate-spin"/>:null}
       Extrair propostas do trecho — sem salvar
@@ -558,7 +621,7 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
           <p className="mt-1 text-xs text-slate-600">Compare com a página {page} do PDF. Marque somente se linha, zona, uso, índice e exceções forem corretos.</p>
         </div>
       </label>)}
-      <button type="button" data-sigapro-contrast="dark" disabled={busy||!checked.length||!qaWriteEnabled||(ocrDraft&&!ocrVerified)} onClick={()=>void saveReview()}
+      <button type="button" data-sigapro-contrast="dark" disabled={busy||!checked.length||!qaWriteEnabled||(ocrDraft&&(!ocrVerified||ocrHasIllegibleCell))} onClick={()=>void saveReview()}
         className="sig-premium-dark-action min-h-11 max-w-full rounded-xl border border-slate-900 bg-slate-950 px-5 py-3 font-extrabold !text-white">
         <CheckCircle2 className="mr-2 inline h-4 w-4"/> Registrar linhas conferidas como RASCUNHO
       </button>
