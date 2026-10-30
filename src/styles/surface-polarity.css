@@ -2244,6 +2244,16 @@ html body #root .sig-app-frame
 }
 /* CONTRASTE DO PREVIEW INSTITUCIONAL V21 END */
 
+/* Identificadores de cabeçalho/rodapé com contraste garantido no preview. */
+html body #root .sig-app-frame [data-config-brand-panel] [data-preview-role-badge] {
+  background-color:#ffffff !important;
+  border-color:#ffffff !important;
+  color:#0f172a !important;
+  -webkit-text-fill-color:#0f172a !important;
+  opacity:1 !important;
+  text-shadow:none !important;
+}
+
 
 /* SIGAPRO SHARED FOOTER RESPONSIVE V1 */
 html body #root .sig-page-footer [data-sig-footer-grid="true"] {

@@ -70,11 +70,28 @@ export function MunicipalUrbanRulesSettings({
     try {
       await saveUrbanRegulationDraft(municipalityId, zone, usage, effectiveFrom, rules);
       await reload();
-      setDraft({});
-      setNotice("Nova versão registrada como RASCUNHO. Confira os artigos e ative quando validada.");
+      setNotice("Nova versão registrada como RASCUNHO. Os campos permanecem preenchidos para conferência; nada foi ativado.");
     } catch (error) {
       setNotice(String((error as Error)?.message || error));
     } finally { setBusy(false); }
+  };
+  const continueReview = (item: UrbanRegulationVersion) => {
+    if (!canEdit || busy || loading || !municipalityId || item.municipality_id !== municipalityId || item.status !== "draft") return;
+    const hasCurrentEdits = Boolean(zone.trim() || usage.trim() ||
+      Object.values(draft).some((entry) => Boolean(entry?.limit.trim() || entry?.reference.trim())));
+    if (hasCurrentEdits && !window.confirm(
+      "Reabrir este rascunho substituirá os campos atualmente preenchidos. Deseja continuar?"
+    )) return;
+    const restored: DraftInputs = {};
+    for (const rule of item.rules) {
+      if (!URBAN_METRICS.some((metric) => metric.key === rule.metric)) continue;
+      restored[rule.metric] = { limit: String(rule.limit), reference: rule.reference };
+    }
+    setZone(item.zone_code);
+    setUsage(item.use_code);
+    setEffectiveFrom(item.effective_from.slice(0, 10));
+    setDraft(restored);
+    setNotice("Rascunho da versão " + item.version + " recuperado do banco desta Prefeitura para nova conferência. Nenhuma regra foi ativada.");
   };
   const activate = async (id: string) => {
     if (!canEdit || busy || !window.confirm(
@@ -189,6 +206,7 @@ export function MunicipalUrbanRulesSettings({
 
       <div className="mt-6 border-t border-slate-200 pt-4 dark:border-slate-700">
         <h4 className="text-sm font-bold text-slate-950 dark:text-white">Versões cadastradas neste município</h4>
+        <p className="mt-1 text-xs leading-5 text-slate-700 dark:text-slate-300">Já salvou um rascunho em outro link? Use "Reabrir rascunho" abaixo para recuperar os campos registrados nesta Prefeitura, sem ativar normas.</p>
         {loading ? <p role="status" className="mt-3 text-sm text-slate-500">Carregando normas oficiais...</p> : null}
         {!loading && versions.length === 0 ? <p className="mt-3 text-sm text-slate-500 dark:text-slate-300">
           Não há regras cadastradas. A análise automática ficará indisponível até a ativação de uma versão válida.
@@ -202,8 +220,14 @@ export function MunicipalUrbanRulesSettings({
               </div>
               <div className="flex items-center gap-2">
                 {item.status === "active" ? <CheckCircle2 className="h-5 w-5 text-emerald-600" aria-label="Versão ativa" /> : null}
-                {item.status === "draft" && canEdit ?
-                  <Button type="button" variant="outline" disabled={busy} onClick={() => void activate(item.id)}>Validar e ativar</Button> : null}
+                {item.status === "draft" && canEdit ? (
+                  <>
+                    <Button type="button" variant="outline" disabled={busy || loading}
+                      onClick={() => continueReview(item)}>Reabrir rascunho</Button>
+                    <Button type="button" variant="outline" disabled={busy || loading}
+                      onClick={() => void activate(item.id)}>Validar e ativar</Button>
+                  </>
+                ) : null}
               </div>
             </article>
           ))}
