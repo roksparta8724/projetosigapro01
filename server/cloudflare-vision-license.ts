@@ -12,7 +12,7 @@ export const VISION_LICENSE_ACTION="urban-vision-license-accept";
 export function validateCloudflareVisionLicenseRequest(body: unknown) {
   if(!body || typeof body!=="object" || Array.isArray(body)) return false;
   const b=body as Record<string,unknown>;
-  return Object.keys(b).sort().join(",")==="action,accepted,confirmation,model" &&
+  return Object.keys(b).length===4 && ["action","accepted","confirmation","model"].every(k=>Object.prototype.hasOwnProperty.call(b,k)) &&
     b.action===VISION_LICENSE_ACTION &&
     b.accepted===true &&
     b.model===VISION_MODEL &&
