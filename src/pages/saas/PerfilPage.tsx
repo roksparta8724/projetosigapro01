@@ -1555,6 +1555,15 @@ export function PerfilPage() {
         {section === "foto-identidade" ? (
           <SectionCard title="Foto e identidade" description="Imagem de perfil, corte e exibição institucional." icon={Camera}>
             <div className="space-y-5">
+              {isMasterRole && /(?:supabase\\.co|\/api\/profile-avatar-open\\?source=)/i.test(String(profile?.avatarUrl||"")) ?
+                <p role="status" data-master-legacy-avatar-warning="true"
+                  className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm font-semibold leading-6 text-amber-950">
+                  Sua conta Master ainda tem uma referência de foto do armazenamento antigo.
+                  Se esse servidor não responder, a imagem não poderá aparecer, mas o SIGAPRO
+                  não apagou o cadastro. O sistema tenta primeiro recuperar uma cópia no R2.
+                  Caso não exista cópia acessível, selecione novamente o arquivo original nesta seção;
+                  o novo upload ficará exclusivamente na área global do Master.
+                </p> : null}
               <FileDropZone
                 title="Foto de perfil"
                 description="Arraste uma imagem ou selecione um arquivo para personalizar a conta."

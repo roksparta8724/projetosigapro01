@@ -2961,3 +2961,20 @@ html body #root .sig-app-frame [data-master-cloudflare-vision-license="true"] {
   }
 }
 /* MASTER NAVIGATION VISUAL STABILITY END */
+
+/* MASTER PREMIUM: prevent logo and avatar animation while changing routes.
+   Images retain object-fit/crop; these rules only remove visual re-entry pulses. */
+html body #root .sig-app-frame .sig-premium-topbar .sig-topbar-brand-logo,
+html body #root .sig-app-frame .sig-premium-topbar .sig-topbar-brand-badge,
+html body #root .sig-app-frame .sig-premium-topbar img.sig-topbar-brand-image,
+html body #root .sig-app-frame [data-logo-context="sigapro"],
+html body #root .sig-app-frame [data-logo-context="sigapro"] img,
+html body #root .sig-app-frame .sig-premium-topbar .sig-topbar-user-avatar {
+  animation:none !important;
+  transition:none !important;
+}
+html body #root .sig-app-frame [data-logo-context="sigapro"] img {
+  object-fit:contain !important;
+  object-position:center center !important;
+}
+/* MASTER PREMIUM ROUTE STABILITY END */

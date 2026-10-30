@@ -68,11 +68,22 @@ export async function acceptCloudflareVisionLicense(
       body:JSON.stringify({prompt:"agree"}),
     });
     if(!response.ok) {
+      // Only retain numeric Cloudflare error codes, never upstream messages.
+      let errorIds:number[]=[];
+      try {
+        const payload=await response.json() as {errors?:Array<{code?:unknown}>};
+        if(Array.isArray(payload?.errors))
+          errorIds=payload.errors.slice(0,3).map(e=>e?.code)
+            .filter((c):c is number=>typeof c==="number" && Number.isInteger(c) && c>0);
+      }catch{/* safe generic classification */}
       const fail=classifyCloudflareVisionFailure(response.status,null);
       console.warn("[SIGAPRO][VisionLicense] Explicit master acceptance rejected",{
-        status:response.status,code:fail.code,
+        status:response.status,code:fail.code,providerCodes:errorIds,
       });
-      return reply(res,fail.httpStatus,{code:fail.code,error:fail.error});
+      return reply(res,fail.httpStatus,{code:fail.code,providerCodes:errorIds,
+        error:response.status===403
+          ? "A Cloudflare retornou HTTP 403. Confira na conta correta se o token tem Workers AI — Read e Workers AI — Edit. Nenhum termo foi confirmado pelo provedor."
+          : fail.error});
     }
     let payload:unknown=null;
     try{payload=await response.json();}catch{/* provider may respond with invalid JSON */}
