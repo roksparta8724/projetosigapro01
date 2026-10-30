@@ -17,6 +17,28 @@ export function parsedLiteralNumber(value: string): number | null {
   const numeric=Number(found[1].replace(",", "."));
   return Number.isFinite(numeric) ? numeric : null;
 }
+/** Verify that the literal number is next to the NAMED legal parameter,
+ * never just somewhere else in the same quoted row. This catches an AI
+ * assigning the occupancy value to permeability or moving CA columns.
+ */
+function valueBelongsToMetric(excerpt:string,metric:UrbanMetric,rawValue:string):boolean {
+  const numberText=/^\s*(\d+(?:[,.]\d{1,3})?)/.exec(rawValue)?.[1];
+  if(!numberText)return false;
+  const prefix:Record<UrbanMetric,string>={
+    front_setback_m:"recuo\\s+(?:minimo\\s+)?frontal",
+    side_setback_m:"recuo\\s+(?:minimo\\s+)?lateral",
+    rear_setback_m:"recuo\\s+(?:de\\s+)?fundos",
+    permeability_percent:"(?:taxa\\s+de\\s+)?permeabilidade(?:\\s+minima)?",
+    occupancy_percent:"(?:taxa\\s+de\\s+)?ocupacao(?:\\s+maxima)?",
+    floor_area_ratio:"(?:c\\.?\\s*a\\.?\\s*(?:maximo|max)|coeficiente\\s+de\\s+aproveitamento\\s+(?:maximo|max))",
+    height_m:"(?:gabarito\\s+de\\s+altura|altura\\s+(?:da\\s+edificacao\\s+)?maxima)",
+    floor_count:"(?:quantidade\\s+de\\s+pavimentos|pavimentos\\s+maximos)",
+  };
+  const normalized=excerpt.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
+  const escaped=numberText.replace(/\./g,"\\.");
+  const regex=new RegExp("(?:^|[^a-z])"+prefix[metric]+"\\s*(?:[:=\\-]\\s*)?"+escaped+"(?![\\d.,])","i");
+  return regex.test(normalized);
+}
 function isRecord(v: unknown): v is Record<string, unknown> {
   return Boolean(v) && typeof v === "object" && !Array.isArray(v);
 }
@@ -48,6 +70,7 @@ export function extractLiteralCandidates(
       typeof raw.rawValue === "string" && raw.rawValue.length >= 1 &&
       raw.rawValue.length <= 30 && excerpt.includes(raw.rawValue) &&
       parsedLiteralNumber(raw.rawValue) === raw.limit &&
+      valueBelongsToMetric(excerpt,raw.metric as UrbanMetric,raw.rawValue) &&
       !seen.has(raw.metric)) {
       const metric = raw.metric as UrbanMetric;
       const candidate: UrbanRule = {metric,limit:raw.limit,reference:"Fonte temporária para validação humana"};

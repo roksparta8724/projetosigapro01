@@ -17,7 +17,7 @@ describe("SIGAPRO matrix import: reviewed-only tenant isolated",()=>{
   expect(ui).toContain("Registro manual assistido — sem enviar dados à IA");
   expect(ui).toContain("Ler imagem e pré-preencher a transcrição com IA");
   expect(ui).toContain("setOcrDraft(true);setOcrVerified(false)");
-  expect(ui).toContain("ocrDraft && !ocrVerified");
+  expect(ui).toContain("ocrReconciliationBlocked");
   expect(ui).toContain('imageDataUrl:data');
   expect(ui).toContain('"X-SIGAPRO-VISION":"1"');
   expect(ui).toContain("Adicionar linha para conferência (sem gravar)");

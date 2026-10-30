@@ -18,6 +18,18 @@ describe("Importação SIGAPRO — propostas sempre com citação literal",()=>{
   ];
   expect(extractLiteralCandidates({candidates:x},page,"I")).toEqual([]);
  });
+ it("blocks an AI moving a literal number into the wrong named column",()=>{
+  const page="ZM-ABC RECUO FRONTAL 7 metros, RECUO LATERAL 3 metros, TAXA DE OCUPAÇÃO MÁXIMA 50%.";
+  const proposed={candidates:[
+    {kind:"numeric_index",metric:"side_setback_m",limit:7,rawValue:"7",
+      source_excerpt:"ZM-ABC RECUO FRONTAL 7 metros, RECUO LATERAL 3 metros"},
+    {kind:"numeric_index",metric:"front_setback_m",limit:7,rawValue:"7",
+      source_excerpt:"ZM-ABC RECUO FRONTAL 7 metros, RECUO LATERAL 3 metros"},
+  ]};
+  const result=extractLiteralCandidates(proposed,page,"I");
+  expect(result).toHaveLength(1);
+  expect(result[0].metric).toBe("front_setback_m");
+ });
  it("keeps Quadro II conditions separate and prevents fake numeric rules",()=>{
   const src="USOS R1 são permitidos mediante avaliação prévia em legislação específica da área urbanizada.";
   const a=extractLiteralCandidates({candidates:[
