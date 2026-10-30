@@ -34,7 +34,6 @@ create index if not exists urban_matrix_by_scope on public.urban_legal_matrix_im
 alter table public.urban_legal_matrix_imports enable row level security;
 alter table public.urban_legal_matrix_imports force row level security;
 revoke all on public.urban_legal_matrix_imports from public;
-revoke all on public.urban_legal_matrix_imports from anon;
 revoke all on public.urban_legal_matrix_imports from authenticated;
 
 create or replace function public.list_urban_legal_matrix_imports_v1(_municipality_id uuid)
