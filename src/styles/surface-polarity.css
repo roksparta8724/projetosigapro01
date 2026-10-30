@@ -2780,3 +2780,74 @@ html body #root [data-layout-mode="default"] .sig-main-shell
   overflow-wrap:anywhere;
 }
 /* HABITE-SE ALVARA SUMMARY CONTRAST V22 END */
+
+/* SIGAPRO URBAN MATRIX QA — contrast and disabled actions isolated to the importer.
+   Keep light cards readable in default/inverse page shells without altering global branding. */
+html body #root [data-urban-matrix-import="true"]
+:is([data-urban-matrix-ai-card="true"],[data-urban-matrix-manual-card="true"]) {
+  background:#eff8ff !important;
+  border-color:#93c5fd !important;
+  color:#0f172a !important;
+  -webkit-text-fill-color:#0f172a !important;
+}
+html body #root [data-urban-matrix-import="true"]
+:is([data-urban-matrix-ai-card="true"],[data-urban-matrix-manual-card="true"])
+:is(h5,p,label,strong,span) {
+  color:#0f172a !important;
+  -webkit-text-fill-color:#0f172a !important;
+  opacity:1 !important;
+  text-shadow:none !important;
+}
+html body #root [data-urban-matrix-import="true"]
+:is([data-urban-matrix-ai-card="true"],[data-urban-matrix-manual-card="true"])
+:is(p,label) {
+  font-size:13px !important;
+  line-height:1.55 !important;
+}
+html body #root [data-urban-matrix-import="true"]
+:is([data-urban-matrix-ai-card="true"],[data-urban-matrix-manual-card="true"])
+:is(input:not([type="checkbox"]),textarea,select) {
+  background-color:#ffffff !important;
+  color:#0f172a !important;
+  -webkit-text-fill-color:#0f172a !important;
+  border-color:#94a3b8 !important;
+}
+html body #root [data-urban-matrix-import="true"]
+:is(input,textarea)::placeholder {
+  color:#475569 !important;
+  -webkit-text-fill-color:#475569 !important;
+  opacity:1 !important;
+}
+html body #root [data-urban-matrix-import="true"] button[data-urban-matrix-action]:not(:disabled) {
+  opacity:1 !important;
+  font-weight:800 !important;
+}
+html body #root [data-urban-matrix-import="true"]
+button[data-urban-matrix-action="vision"]:not(:disabled),
+html body #root [data-urban-matrix-import="true"]
+button[data-urban-matrix-action="extract"]:not(:disabled) {
+  background:#075985 !important;
+  border-color:#075985 !important;
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+}
+html body #root [data-urban-matrix-import="true"]
+button[data-urban-matrix-action="manual"]:not(:disabled) {
+  background:#ffffff !important;
+  border-color:#075985 !important;
+  color:#082f49 !important;
+  -webkit-text-fill-color:#082f49 !important;
+}
+html body #root [data-urban-matrix-import="true"] button[data-urban-matrix-action]:disabled {
+  background:#e2e8f0 !important;
+  border:1px solid #94a3b8 !important;
+  color:#334155 !important;
+  -webkit-text-fill-color:#334155 !important;
+  opacity:1 !important;
+  cursor:not-allowed !important;
+}
+html body #root [data-urban-matrix-import="true"] button[data-urban-matrix-action]:focus-visible {
+  outline:3px solid #0284c7 !important;
+  outline-offset:2px !important;
+}
+/* SIGAPRO URBAN MATRIX QA CONTRAST END */

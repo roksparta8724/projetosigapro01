@@ -58,18 +58,30 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
   const [busy,setBusy] = useState(false);
   const [message,setMessage] = useState("");
   const [history,setHistory] = useState<SavedSnapshot[]>([]);
+  const [historyChecked,setHistoryChecked] = useState(false);
+  const [historyError,setHistoryError] = useState(false);
   const reset = () => {setCandidates([]);setChecked([]);setConsent(false);setMessage("");};
 
   useEffect(() => {
     let active = true;
     setFile(null);setQuadro("I");setPage("");setText("");setZone("");
     setUsage("");setEffectiveFrom("");reset();setHistory([]);
+    setHistoryChecked(false);setHistoryError(false);
     if (!municipalityId || !canEdit || !backendClient) return () => {active=false;};
     void backendClient.rpc("list_urban_legal_matrix_imports_v1",
       {_municipality_id: municipalityId}).then(({data,error}:{data:unknown;error:unknown})=>{
       if (!active) return;
-      if (error) {setMessage("Matriz em homologação: a estrutura de importação precisa ser ativada na base QA.");return;}
-      if (Array.isArray(data)) setHistory(data as SavedSnapshot[]);
+      setHistoryChecked(true);
+      if (error || !Array.isArray(data)) {
+        setHistoryError(true);
+        setMessage("Não foi possível consultar as importações desta prefeitura no banco QA. Não conclua que os dados foram perdidos; verifique a conexão/migração.");
+        return;
+      }
+      setHistory(data as SavedSnapshot[]);
+    }).catch(()=>{
+      if (!active) return;
+      setHistoryChecked(true);setHistoryError(true);
+      setMessage("Falha ao consultar o histórico da matriz no banco QA. Não refaça o cadastro sem confirmar a situação da conexão.");
     });
     return () => {active=false;};
   },[municipalityId,canEdit]);
@@ -215,7 +227,10 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
       }
       const historyResult=await backendClient.rpc("list_urban_legal_matrix_imports_v1",
         {_municipality_id:municipalityId});
-      if(Array.isArray(historyResult.data))setHistory(historyResult.data as SavedSnapshot[]);
+      if(historyResult.error || !Array.isArray(historyResult.data))
+        throw Error("Registro enviado ao banco, mas a leitura do histórico falhou. Verifique antes de tentar salvar outra vez.");
+      setHistory(historyResult.data as SavedSnapshot[]);
+      setHistoryChecked(true);setHistoryError(false);
       setChecked([]);setCandidates([]);setConsent(false);
       setMessage(quadro==="I"
         ? "Quadro I registrado e nova versão NUMÉRICA salva como RASCUNHO. Nenhuma regra ativada."
@@ -289,8 +304,8 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
         href={previewUrl+"#page="+(Number(page)>0?Number(page):1)}
         target="_blank" rel="noreferrer">Abrir documento local na página selecionada</a>
     </div>:null}
-    <div className="mt-4 rounded-xl border border-sky-200 bg-sky-50 p-3 text-slate-950">
-      <h5 className="text-sm font-extrabold">Ler tabela digitalizada com IA — preenchimento assistido</h5>
+    <div data-urban-matrix-ai-card="true" className="mt-4 rounded-xl border border-sky-200 bg-sky-50 p-4 text-slate-950">
+      <h5 className="text-base font-extrabold leading-6 text-slate-950">Ler tabela digitalizada com IA — preenchimento assistido</h5>
       <p className="mt-1 text-xs leading-5">
         Para Quadros I/II que são imagens: abra o PDF em zoom 100–150%, capture
         somente o cabeçalho e a linha de uma zona (Win + Shift + S), salve como PNG/JPG
@@ -306,12 +321,15 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
       </label>
       {pageImagePreview?<img src={pageImagePreview} alt="Prévia local da linha fotografada do quadro"
         className="mt-2 max-h-60 w-full rounded-lg border border-slate-200 object-contain"/>:null}
-      <button type="button" disabled={visionBusy||busy||!pageImage||!consent}
+      <button type="button" data-urban-matrix-action="vision" disabled={visionBusy||busy||!pageImage||!consent}
         onClick={()=>void readPageImage()}
-        className="mt-3 min-h-11 rounded-xl bg-sky-800 px-4 py-2 text-sm font-bold !text-white disabled:cursor-not-allowed disabled:opacity-70">
+        className="mt-3 min-h-11 rounded-xl border border-sky-800 bg-sky-800 px-4 py-2 text-sm font-bold text-white disabled:cursor-not-allowed">
         {visionBusy?"Lendo a tabela…":"Ler imagem e pré-preencher a transcrição com IA"}
       </button>
-      <p className="mt-2 text-xs text-slate-700">A leitura usa a IA visual Cloudflare da homologação e pode consumir sua franquia. Sem ativação ou gravação automática.</p>
+      {(!file || !page || !pageImage || !consent) ? <p data-urban-matrix-vision-hint="true" className="mt-2 text-sm font-semibold leading-6 text-slate-900">
+        Para habilitar a leitura: selecione o PDF oficial, informe a página, anexe a imagem recortada e marque a autorização abaixo.
+      </p> : null}
+      <p className="mt-2 text-sm leading-6 text-slate-800">A leitura usa a IA visual Cloudflare da homologação e pode consumir sua franquia. Nenhum dado é ativado ou gravado automaticamente.</p>
     </div>
     <label className="mt-3 block text-xs font-bold text-slate-800 dark:text-white">
       Transcrição literal da página — revise números e cabeçalhos antes de importar
@@ -338,13 +356,13 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
       <input type="checkbox" checked={consent} onChange={e=>setConsent(e.target.checked)} className="mt-1"/>
       Confirmo que selecionei a página do documento oficial. Ao clicar em “Ler imagem” ou “Extrair propostas”, autorizo enviar SOMENTE o recorte ou trecho à IA Cloudflare; o arquivo PDF completo permanece local.
     </label>
-    <button type="button" disabled={busy} onClick={()=>void queryAi()}
-      className="mt-3 min-h-11 rounded-xl bg-sky-800 px-4 py-2 font-semibold !text-white disabled:opacity-70">
+    <button type="button" data-urban-matrix-action="extract" disabled={busy} onClick={()=>void queryAi()}
+      className="mt-3 min-h-11 rounded-xl border border-sky-800 bg-sky-800 px-4 py-2 font-bold text-white">
       {busy?<Loader2 aria-hidden className="mr-2 inline h-4 w-4 animate-spin"/>:null}
       Extrair propostas do trecho — sem salvar
     </button>
-    <div className="mt-4 rounded-xl border border-sky-200 bg-sky-50 p-3 text-slate-900">
-      <h5 className="text-sm font-extrabold">Registro manual assistido — sem enviar dados à IA</h5>
+    <div data-urban-matrix-manual-card="true" className="mt-4 rounded-xl border border-sky-200 bg-sky-50 p-4 text-slate-950">
+      <h5 className="text-base font-extrabold leading-6 text-slate-950">Registro manual assistido — sem enviar dados à IA</h5>
       <p className="mt-1 text-xs leading-5">
         Use se o PDF for digitalizado ou a Cloudflare não estiver disponível. Transcreva
         o valor e cole uma citação literal da página; o sistema não inventa nenhum índice.
@@ -376,8 +394,8 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
           placeholder="Cole o trecho idêntico ao texto acima, incluindo o número e sua linha..."
           className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-2 text-slate-950"/>
       </label>
-      <button type="button" disabled={busy} onClick={addManualCandidate}
-        className="mt-3 min-h-11 rounded-xl border border-sky-700 bg-white px-4 py-2 font-bold text-sky-950 disabled:opacity-70">
+      <button type="button" data-urban-matrix-action="manual" disabled={busy} onClick={addManualCandidate}
+        className="mt-3 min-h-11 rounded-xl border border-sky-700 bg-white px-4 py-2 font-bold text-sky-950">
         Adicionar linha para conferência (sem gravar)
       </button>
     </div>
@@ -407,6 +425,9 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
     <div className="mt-5 border-t border-slate-200 pt-3">
       <h5 className="text-sm font-bold text-slate-900 dark:text-white">Importações revisadas desta prefeitura</h5>
       <p className="text-xs text-slate-700 dark:text-slate-200">Todas permanecem como revisão/rascunho, sem ativação automática.</p>
+      {!historyChecked ? <p role="status" className="mt-2 text-sm text-slate-700">Consultando registros desta prefeitura…</p> : null}
+      {historyChecked && historyError ? <p role="alert" className="mt-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm font-bold text-amber-950">Não foi possível verificar o histórico. Os registros podem existir no banco: não cadastre novamente antes de conferir a conexão.</p> : null}
+      {historyChecked && !historyError && history.length===0 ? <p data-urban-matrix-empty-history="true" className="mt-2 rounded-lg border border-slate-200 bg-white p-3 text-sm font-semibold text-slate-800">Nenhuma importação revisada foi encontrada neste ambiente QA para esta prefeitura. Os rascunhos de regras manuais ficam em uma lista separada.</p> : null}
       {history.slice(0,12).map(item=><p key={item.id}
         className="mt-2 rounded-lg border border-slate-200 bg-white p-2 text-xs text-slate-900">
         Quadro {item.quadro} · {item.zone_code}/{item.use_code} · página {item.page_number} · versão {item.version} · {item.status}
