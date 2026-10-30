@@ -151,9 +151,19 @@ export function MunicipalUrbanRulesSettings({
             ))}
           </div>
           <div className="mt-4 flex justify-end">
-            <Button type="button" disabled={busy || loading} onClick={() => void save()} className="rounded-xl bg-sky-700 text-white hover:bg-sky-800">
-              {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-              Salvar nova versão como rascunho
+            <Button
+              type="button"
+              data-sigapro-urban-rules-save="true"
+              aria-label="Salvar nova versão como rascunho"
+              disabled={busy || loading}
+              onClick={() => void save()}
+              className="sig-force-dark-action min-h-11 w-full max-w-full rounded-xl border border-slate-800 bg-slate-950 px-5 !text-white hover:bg-slate-900 focus-visible:ring-2 focus-visible:ring-sky-400 sm:w-auto"
+            >
+              {busy ? <Loader2 aria-hidden="true" className="mr-2 h-4 w-4 shrink-0 animate-spin !text-white" /> :
+                <Save aria-hidden="true" className="mr-2 h-4 w-4 shrink-0 !text-white" />}
+              <span className="whitespace-normal text-center font-semibold leading-5 !text-white">
+                Salvar nova versão como rascunho
+              </span>
             </Button>
           </div>
         </>

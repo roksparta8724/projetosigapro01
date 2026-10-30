@@ -10964,3 +10964,23 @@ html body #root .sig-main-shell
   border-color: #334155 !important;
 }
 /* ===== END HABITE-SE INSPECTION LEGEND CONTRAST LOCK ===== */
+
+
+/* SIGAPRO IA: the urban-rules draft action stays legible in every layout mode.
+   This scoped guard fixes the invisible dark-on-dark label observed on 29 Oct 2026. */
+html body .sig-main-shell button[data-sigapro-urban-rules-save="true"],
+html body .sig-main-shell button[data-sigapro-urban-rules-save="true"]:hover,
+html body .sig-main-shell button[data-sigapro-urban-rules-save="true"]:disabled {
+  background-color: #0f172a !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  opacity: 1;
+}
+html body .sig-main-shell button[data-sigapro-urban-rules-save="true"] :is(span,svg),
+html body .sig-main-shell button[data-sigapro-urban-rules-save="true"]:disabled :is(span,svg) {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  stroke: currentColor !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}

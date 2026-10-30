@@ -3823,7 +3823,7 @@ export function ConfiguracoesPage() {
                       <p className="text-sm font-bold text-slate-950">Acervo legal municipal</p>
                     </div>
                     <p className="mt-1 max-w-3xl text-xs leading-5 text-slate-500">
-                      Estes arquivos alimentam diretamente o módulo Legislação. Priorize PDF oficial já publicado pela Prefeitura.
+                      Estes arquivos alimentam o módulo Legislação. Use leis promulgadas e anexos oficiais; minutas e propostas não são normas vigentes. Cada campo aceita um PDF.
                     </p>
                   </div>
                   <span className="w-fit rounded-full border border-sky-200 bg-white px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-sky-700">
@@ -3831,7 +3831,7 @@ export function ConfiguracoesPage() {
                   </span>
                 </div>
 
-                <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-4">
+                <div className="grid min-w-0 grid-cols-1 gap-5 lg:grid-cols-2">
                   <FileDropZone
                     title="Plano Diretor"
                     description="PDF oficial do Plano Diretor municipal."
