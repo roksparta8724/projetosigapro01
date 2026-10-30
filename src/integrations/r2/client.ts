@@ -351,7 +351,7 @@ async function uploadLargeLegalPdf(input: {bucket: string; objectKey: string; fi
     if (!uploaded.ok) {
       throw new Error(uploaded.status === 412
         ? "Esta versão do PDF já existe no R2. Reenvie como uma nova revisão."
-        : \`Falha de envio direto do PDF ao armazenamento (HTTP \${uploaded.status}).\`);
+        : `Falha de envio direto do PDF ao armazenamento (HTTP ${uploaded.status}).`);
     }
     const verified = await send("verify");
     if (!verified.ok || verified.objectKey !== input.objectKey) {

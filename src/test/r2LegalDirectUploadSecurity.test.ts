@@ -18,7 +18,7 @@ import handler, { validateLegalUploadInput, MAX_OFFICIAL_LEGAL_PDF_BYTES } from 
 const tenant = "11111111-1111-4111-8111-111111111111";
 const user = "22222222-2222-4222-8222-222222222222";
 const revision = "33333333-3333-4333-8333-333333333333";
-const objectKey = \`municipalities/\${tenant}/legislation-plano-diretor/\${user}/\${revision}-lei-complementar-613.pdf\`;
+const objectKey = `municipalities/${tenant}/legislation-plano-diretor/${user}/${revision}-lei-complementar-613.pdf`;
 const body = { action: "sign", bucket: "process-documents", objectKey,
   fileSize: 51 * 1024 * 1024, contentType: "application/pdf" };
 async function call(input: { method?: string; authorization?: string; origin?: string; body?: unknown } = {}) {
