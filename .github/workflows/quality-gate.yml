@@ -65,5 +65,8 @@ jobs:
       - name: Tests
         run: npm test -- --reporter=verbose
 
+      - name: Private AI gateway tests without GPU
+        run: node --test infra/private-ai/gateway/gateway.test.mjs
+
       - name: Production build
         run: npm run build
