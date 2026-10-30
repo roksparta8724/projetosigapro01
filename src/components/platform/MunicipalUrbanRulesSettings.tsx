@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { activateUrbanRegulation, listUrbanRegulations, saveUrbanRegulationDraft } from "@/integrations/backend/urbanPrecheckClient";
 import { URBAN_METRICS, normalizeUrbanCode, type UrbanMetric, type UrbanRegulationVersion, type UrbanRule } from "@/lib/urbanPrecheck";
 import { municipalCivilDate } from "@/lib/municipalCivilDate";
+import { UrbanLegalMatrixImporter } from "./UrbanLegalMatrixImporter";
 
 type EditableValue = { limit: string; reference: string };
 type DraftInputs = Partial<Record<UrbanMetric, EditableValue>>;
@@ -126,6 +127,8 @@ export function MunicipalUrbanRulesSettings({
           Verifique alterações e vigência com o setor técnico responsável.
         </p>
       </div>
+
+      {canEdit && municipalityId ? <UrbanLegalMatrixImporter municipalityId={municipalityId} canEdit={canEdit} onSaved={reload}/> : null}
 
       {canEdit && municipalityId ? (
         <>

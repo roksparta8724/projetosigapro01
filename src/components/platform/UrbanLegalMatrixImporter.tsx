@@ -1,0 +1,248 @@
+import { useEffect, useState } from "react";
+import { BookText, CheckCircle2, FileText, Loader2, ShieldAlert } from "lucide-react";
+import { backendClient } from "@/integrations/backend/databaseClient";
+import { normalizeUrbanCode } from "@/lib/urbanPrecheck";
+import { extractLiteralCandidates, validatedNumericRules, validateImportDate,
+  type ImportQuadro, type UrbanExtractedCandidate } from "@/lib/urbanMatrixImport";
+import { saveUrbanRegulationDraft } from "@/integrations/backend/urbanPrecheckClient";
+
+type Props = { municipalityId: string; canEdit: boolean; onSaved: () => Promise<void> };
+type SavedSnapshot = { id: string; version: number; quadro: ImportQuadro; zone_code: string;
+  use_code: string; page_number: number; status: string; document_title: string };
+type ExtractionReply = { candidates?: unknown; error?: string; quadro?: ImportQuadro;
+  status?: string; automaticallyActivated?: boolean };
+const dateValid = (s: string) => validateImportDate(s);
+const MAX_PDF_BYTES = 100 * 1024 * 1024;
+
+async function verifyPdfAndHash(file: File) {
+  if (file.size > MAX_PDF_BYTES || file.size < 5 || !/\.pdf$/i.test(file.name))
+    throw new Error("Selecione um PDF oficial válido, de até 100 MB.");
+  const bytes = new Uint8Array(await file.slice(0, 5).arrayBuffer());
+  if (String.fromCharCode(...bytes) !== "%PDF-")
+    throw new Error("O arquivo selecionado não possui assinatura PDF.");
+  if (!globalThis.crypto?.subtle) throw new Error("Navegador sem suporte à verificação SHA-256.");
+  const hashed = await crypto.subtle.digest("SHA-256", await file.arrayBuffer());
+  return Array.from(new Uint8Array(hashed)).map(b => b.toString(16).padStart(2,"0")).join("");
+}
+
+export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props) {
+  const [file,setFile] = useState<File|null>(null);
+  const [quadro,setQuadro] = useState<ImportQuadro>("I");
+  const [page,setPage] = useState("");
+  const [text,setText] = useState("");
+  const [zone,setZone] = useState("");
+  const [usage,setUsage] = useState("");
+  const [effectiveFrom,setEffectiveFrom] = useState("");
+  const [method,setMethod] = useState<"text_layer_verified"|"visual_double_transcription">("text_layer_verified");
+  const [candidates,setCandidates] = useState<UrbanExtractedCandidate[]>([]);
+  const [checked,setChecked] = useState<number[]>([]);
+  const [consent,setConsent] = useState(false);
+  const [busy,setBusy] = useState(false);
+  const [message,setMessage] = useState("");
+  const [history,setHistory] = useState<SavedSnapshot[]>([]);
+  const reset = () => {setCandidates([]);setChecked([]);setConsent(false);setMessage("");};
+
+  useEffect(() => {
+    let active = true;
+    setFile(null);setQuadro("I");setPage("");setText("");setZone("");
+    setUsage("");setEffectiveFrom("");reset();setHistory([]);
+    if (!municipalityId || !canEdit || !backendClient) return () => {active=false;};
+    void backendClient.rpc("list_urban_legal_matrix_imports_v1",
+      {_municipality_id: municipalityId}).then(({data,error}:{data:unknown;error:unknown})=>{
+      if (!active) return;
+      if (error) {setMessage("Matriz em homologação: a estrutura de importação precisa ser ativada na base QA.");return;}
+      if (Array.isArray(data)) setHistory(data as SavedSnapshot[]);
+    });
+    return () => {active=false;};
+  },[municipalityId,canEdit]);
+
+  const queryAi = async () => {
+    if (busy || !file || !dateValid(effectiveFrom) || !zone.trim() || !usage.trim() ||
+      !Number.isSafeInteger(Number(page)) || Number(page)<1 || Number(page)>10000 ||
+      text.trim().length<40 || text.length>6500 || !consent) {
+      setMessage("Selecione o PDF e informe página, zona, uso, vigência e texto da página; autorize o envio do trecho à Cloudflare.");
+      return;
+    }
+    setBusy(true);setCandidates([]);setChecked([]);setMessage("");
+    try {
+      await verifyPdfAndHash(file);
+      const current=await backendClient?.auth?.getSession?.();
+      const bearer=String(current?.data?.session?.access_token || current?.data?.session?.accessToken || "");
+      if (!bearer) throw Error("Faça login novamente para consultar a IA.");
+      const response=await fetch("/api/ai-assistant",{
+        method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+bearer},
+        cache:"no-store",credentials:"same-origin",
+        body:JSON.stringify({action:"urban-matrix-extract",quadro,pageNumber:Number(page),
+          documentTitle:file.name,pageText:text.trim()}),
+      });
+      const payload=await response.json() as ExtractionReply;
+      if (!response.ok) throw Error(payload.error||"Não foi possível interpretar o trecho.");
+      const normalized=extractLiteralCandidates({candidates:payload.candidates},text.trim(),quadro);
+      setCandidates(normalized);
+      setMessage(normalized.length
+        ? "Propostas extraídas. Confira cada número/condição diretamente no PDF e marque apenas as linhas corretas."
+        : "Nenhuma linha pôde ser confirmada literalmente. Confira se o trecho e a tabela foram copiados corretamente.");
+    } catch (err) {setMessage(err instanceof Error ? err.message:"Falha na extração.");}
+    finally{setBusy(false);}
+  };
+  const saveReview = async () => {
+    if(busy || !canEdit || !backendClient || !file || !dateValid(effectiveFrom) ||
+      !zone.trim() || !usage.trim() || !Number.isSafeInteger(Number(page)) ||
+      Number(page)<1 || Number(page)>10000 || !consent) {
+      setMessage("Complete e confira o escopo legal antes do registro.");return;
+    }
+    const chosen=candidates.filter((_,i)=>checked.includes(i));
+    if (!chosen.length) {setMessage("Marque ao menos uma linha conferida no PDF.");return;}
+    const entries=extractLiteralCandidates({candidates:chosen},text.trim(),quadro);
+    if(entries.length!==chosen.length) {setMessage("O trecho mudou ou deixou de corresponder à fonte. Reextraia a página.");return;}
+    if(!window.confirm("Confirma que conferiu o PDF oficial, página, zona, uso, vigência e TODAS as linhas selecionadas? Será gravada apenas uma versão de REVISÃO, nunca ativada."))return;
+    setBusy(true);setMessage("");
+    try {
+      const hash=await verifyPdfAndHash(file);
+      const scope={_municipality_id:municipalityId,_document_title:file.name.slice(0,180),
+        _document_sha256:hash,_page_number:Number(page),_quadro:quadro,
+        _zone_code:normalizeUrbanCode(zone),_use_code:normalizeUrbanCode(usage),
+        _effective_from:effectiveFrom,_source_excerpt:text.trim(),
+        _reviewed_entries:entries,_verification_method:method};
+      const result=await backendClient.rpc("save_urban_legal_matrix_import_v1",scope);
+      if(result.error) throw Error("Falha ao salvar revisão da matriz: "+result.error.message);
+      // Quadro II stores conditions in an isolated human-reviewed version.
+      // The existing numeric precheck schema has only 8 metrics; never create
+      // a fake numerical rule for use permission, restrictions or parking.
+      if (quadro==="I") {
+        const prefix="Lei/arquivo "+file.name.slice(0,135)+", Quadro I, página PDF "+page;
+        const numeric=validatedNumericRules(entries,prefix);
+        for(const rule of numeric) {
+          const candidate=entries.find(item=>item.metric===rule.metric)!;
+          const saved=await backendClient.rpc("save_urban_legal_evidence_scoped_v3",{
+            _municipality_id:municipalityId,_document_title:file.name.slice(0,180),
+            _document_sha256:hash,_page_number:Number(page),_metric:rule.metric,
+            _excerpt:candidate.source_excerpt,_zone_code:normalizeUrbanCode(zone),
+            _use_code:normalizeUrbanCode(usage),_effective_from:effectiveFrom,
+            _effective_until:null,_verification_method:method,
+          });
+          if(saved.error) throw Error("Matriz registrada, mas uma evidência falhou: "+saved.error.message);
+        }
+        await saveUrbanRegulationDraft(municipalityId,zone,usage,effectiveFrom,numeric);
+        await onSaved();
+      }
+      const historyResult=await backendClient.rpc("list_urban_legal_matrix_imports_v1",
+        {_municipality_id:municipalityId});
+      if(Array.isArray(historyResult.data))setHistory(historyResult.data as SavedSnapshot[]);
+      setChecked([]);setCandidates([]);setConsent(false);
+      setMessage(quadro==="I"
+        ? "Quadro I registrado e nova versão NUMÉRICA salva como RASCUNHO. Nenhuma regra ativada."
+        : "Condições do Quadro II registradas como REVISÃO, sem autorizar usos nem ativar normas.");
+    }catch(err){setMessage(err instanceof Error?err.message:"Não foi possível salvar.");}
+    finally{setBusy(false);}
+  };
+
+  if(!canEdit || !municipalityId)return null;
+  return <section data-urban-matrix-import="true" className="mt-5 rounded-2xl border border-sky-200 bg-slate-50 p-4 dark:border-sky-800 dark:bg-slate-900">
+    <div className="flex items-start gap-3">
+      <BookText className="mt-1 h-5 w-5 shrink-0 text-sky-700 dark:text-sky-300"/>
+      <div>
+        <h4 className="font-extrabold text-slate-950 dark:text-white">Importador assistido — Matriz de parâmetros</h4>
+        <p className="mt-1 text-sm leading-6 text-slate-700 dark:text-slate-200">
+          Homologação dos Quadros I e II da LC 379/2009 e alterações vigentes.
+          A IA só sugere trechos copiados da página do PDF oficial. Ela não identifica
+          automaticamente a zona do imóvel, não comprova vigência e não aprova processos.
+        </p>
+      </div>
+    </div>
+    <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-950">
+      <ShieldAlert className="mr-1 inline h-4 w-4"/>
+      Faça download do PDF que está no R2 e selecione a mesma versão aqui; copie o texto
+      da página da tabela para o campo abaixo. Tabelas digitalizadas exigem transcrição
+      e dupla conferência humana. Nenhum PDF completo é enviado à IA: só o trecho autorizado.
+    </p>
+    <div className="mt-4 grid gap-3 md:grid-cols-2">
+      <label className="text-xs font-bold text-slate-800 dark:text-white">Arquivo PDF oficial
+        <input type="file" accept=".pdf,application/pdf" className="mt-1 block w-full rounded-lg border border-slate-300 bg-white p-2 text-slate-900"
+          onChange={e=>{setFile(e.target.files?.[0]||null);reset();}}/>
+      </label>
+      <label className="text-xs font-bold text-slate-800 dark:text-white">Quadro de origem
+        <select value={quadro} onChange={e=>{setQuadro(e.target.value as ImportQuadro);reset();}}
+          className="mt-1 min-h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-slate-950">
+          <option value="I">Quadro I — Índices numéricos</option>
+          <option value="II">Quadro II — Categorias e condições de uso</option>
+        </select>
+      </label>
+      <label className="text-xs font-bold text-slate-800 dark:text-white">Página física do PDF
+        <input aria-label="Número de página do PDF" type="number" min="1" max="10000" value={page}
+          onChange={e=>{setPage(e.target.value);reset();}} placeholder="Informe a página visualizada"
+          className="mt-1 min-h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-slate-950"/>
+      </label>
+      <label className="text-xs font-bold text-slate-800 dark:text-white">Vigência legal confirmada
+        <input aria-label="Vigência legal confirmada" type="date" value={effectiveFrom}
+          onChange={e=>{setEffectiveFrom(e.target.value);reset();}}
+          className="mt-1 min-h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-slate-950"/>
+      </label>
+      <label className="text-xs font-bold text-slate-800 dark:text-white">Código de zona validado
+        <input aria-label="Código de zona do documento" value={zone} maxLength={40}
+          onChange={e=>{setZone(normalizeUrbanCode(e.target.value));reset();}}
+          placeholder="Exatamente como no mapa vigente"
+          className="mt-1 min-h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-slate-950"/>
+      </label>
+      <label className="text-xs font-bold text-slate-800 dark:text-white">Categoria de uso validada
+        <input aria-label="Categoria de uso do documento" value={usage} maxLength={60}
+          onChange={e=>{setUsage(normalizeUrbanCode(e.target.value));reset();}}
+          placeholder="Exatamente como no quadro vigente"
+          className="mt-1 min-h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-slate-950"/>
+      </label>
+    </div>
+    <label className="mt-3 block text-xs font-bold text-slate-800 dark:text-white">
+      Texto copiado da página da tabela — sem corrigir ou completar valores
+      <textarea rows={7} maxLength={6500} value={text}
+        onChange={e=>{setText(e.target.value);reset();}}
+        placeholder="Cole apenas o trecho da página oficial, com sua linha, cabeçalhos e notas..."
+        className="mt-1 w-full rounded-xl border border-slate-300 bg-white p-3 text-sm text-slate-950"/>
+    </label>
+    <label className="mt-3 block text-xs font-bold text-slate-800 dark:text-white">Método da verificação
+      <select value={method} onChange={e=>{setMethod(e.target.value as typeof method);reset();}}
+        className="mt-1 min-h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-slate-950">
+        <option value="text_layer_verified">Conferi a camada de texto com a página original</option>
+        <option value="visual_double_transcription">Dupla conferência visual de tabela digitalizada</option>
+      </select>
+    </label>
+    <label className="mt-3 flex items-start gap-2 text-xs leading-5 text-slate-800 dark:text-slate-200">
+      <input type="checkbox" checked={consent} onChange={e=>setConsent(e.target.checked)} className="mt-1"/>
+      Confirmo que a página é de um PDF oficial e autorizo enviar SOMENTE este trecho para a IA Cloudflare. A IA não decide validade ou vigência.
+    </label>
+    <button type="button" disabled={busy} onClick={()=>void queryAi()}
+      className="mt-3 min-h-11 rounded-xl bg-sky-800 px-4 py-2 font-semibold !text-white disabled:opacity-70">
+      {busy?<Loader2 aria-hidden className="mr-2 inline h-4 w-4 animate-spin"/>:null}
+      Extrair propostas do trecho — sem salvar
+    </button>
+    {candidates.length>0 ? <div className="mt-4 space-y-3">
+      <h5 className="text-sm font-bold text-slate-900 dark:text-white">Matriz para conferência — {candidates.length} proposta(s)</h5>
+      {candidates.map((item,i)=><label key={i} className="flex gap-3 rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-900">
+        <input aria-label={"Conferi a linha "+(i+1)} className="mt-1" type="checkbox"
+          checked={checked.includes(i)}
+          onChange={e=>setChecked(old=>e.target.checked?[...old,i]:old.filter(x=>x!==i))}/>
+        <div className="min-w-0 flex-1">
+          <p className="font-bold">{item.kind==="numeric_index"
+            ? item.metric+" = "+item.limit+" (proposta não validada)" : item.note}</p>
+          <p className="mt-1 break-words text-slate-700">Citação literal: “{item.source_excerpt}”</p>
+          <p className="mt-1 text-xs text-slate-600">Compare com a página {page} do PDF. Marque somente se linha, zona, uso, índice e exceções forem corretos.</p>
+        </div>
+      </label>)}
+      <button type="button" disabled={busy||!checked.length} onClick={()=>void saveReview()}
+        className="min-h-11 rounded-xl border border-slate-900 bg-slate-950 px-4 py-2 font-bold !text-white disabled:opacity-70">
+        <CheckCircle2 className="mr-2 inline h-4 w-4"/> Registrar linhas conferidas como RASCUNHO
+      </button>
+      <p className="text-xs text-slate-700 dark:text-slate-200">
+        Quadro II salva somente condições de uso em versão revisada; não vira índice numérico nem autoriza usos automaticamente.
+      </p>
+    </div>:null}
+    {message?<p role="status" className="mt-4 rounded-xl border border-slate-300 bg-white p-3 text-sm text-slate-900">{message}</p>:null}
+    <div className="mt-5 border-t border-slate-200 pt-3">
+      <h5 className="text-sm font-bold text-slate-900 dark:text-white">Importações revisadas desta prefeitura</h5>
+      <p className="text-xs text-slate-700 dark:text-slate-200">Todas permanecem como revisão/rascunho, sem ativação automática.</p>
+      {history.slice(0,12).map(item=><p key={item.id}
+        className="mt-2 rounded-lg border border-slate-200 bg-white p-2 text-xs text-slate-900">
+        Quadro {item.quadro} · {item.zone_code}/{item.use_code} · página {item.page_number} · versão {item.version} · {item.status}
+      </p>)}
+    </div>
+  </section>;
+}
