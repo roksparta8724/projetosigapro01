@@ -4,8 +4,8 @@ import { backendClient } from "@/integrations/backend/databaseClient";
 const LICENSE_CONFIRMATION="ACEITO OS TERMOS DO LLAMA 3.2";
 const VISION_MODEL="@cf/meta/llama-3.2-11b-vision-instruct";
 // Links oficiais publicados pela Cloudflare para o modelo visual.
-const LICENSE_URL="https://github.com/meta-llama/llama-models/blob/main/models/llama3_2/LICENSE";
-const POLICY_URL="https://github.com/meta-llama/llama-models/blob/main/models/llama3_2/USE_POLICY.md";
+const LICENSE_URL="https://dev.meta.ai/llama/llama3_2/license";
+const POLICY_URL="https://dev.meta.ai/llama/llama3_2/use-policy";
 
 export function CloudflareVisionLicenseActivation() {
   const [accepted,setAccepted]=useState(false);
@@ -50,6 +50,14 @@ export function CloudflareVisionLicenseActivation() {
     <p className="mt-3 text-sm leading-6 text-slate-800">
       A aceitação é da <strong>conta Cloudflare inteira</strong>, não apenas da prefeitura ou da homologação.
       O SIGAPRO não registra nem ativa índices urbanísticos nesta ação. Não é necessário informar tokens.
+    </p>
+    <p className="mt-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm leading-6 text-amber-950">
+      <strong>Leia antes de confirmar:</strong> os documentos oficiais da Meta podem estar em inglês.
+      Eles estabelecem direitos, responsabilidades e restrições de uso do modelo de IA.
+      A aceitação vale para toda a conta Cloudflare vinculada ao SIGAPRO,
+      não ativa regras municipais. Leia e compreenda a licença e a política antes
+      de aceitar; uma tradução do navegador pode ajudar na leitura, mas não
+      substitui os termos oficiais.
     </p>
     <div className="mt-3 flex flex-wrap gap-4 text-sm font-bold">
       <a href={LICENSE_URL} target="_blank" rel="noopener noreferrer" className="text-sky-900 underline underline-offset-4">Ler licença oficial da Meta</a>
