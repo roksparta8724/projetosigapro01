@@ -13,7 +13,7 @@ describe("SIGAPRO matrix import: reviewed-only tenant isolated",()=>{
  });
  it("binds citations to local PDF SHA-256 and requires confirmation",()=>{
   expect(ui).toContain('crypto.subtle.digest("SHA-256", await file.arrayBuffer())');
-  expect(ui).toContain('"save_urban_legal_evidence_scoped_v3"');
+  expect(sql).toContain("perform public.save_urban_legal_evidence_scoped_v3(");
   expect(ui).toContain('"save_urban_legal_matrix_import_v1"');
   expect(ui).toContain("window.confirm(");
   expect(ui).toContain("checked.includes(i)");
