@@ -30,14 +30,14 @@ function booleanResult(value: unknown): boolean {
 export function validateLegalUploadInput(body: unknown) {
   const b = body && typeof body === "object" && !Array.isArray(body)
     ? body as Record<string, unknown> : null;
-  if (!b || (b.action !== "sign" && b.action !== "verify") ||
+  if (!b || (b.action !== "sign" && b.action !== "verify" && b.action !== "diagnose") ||
     b.bucket !== PDF_BUCKET || b.contentType !== "application/pdf" ||
     typeof b.objectKey !== "string" || b.objectKey.length > 500 ||
     !Number.isSafeInteger(b.fileSize) || Number(b.fileSize) < 5 ||
     Number(b.fileSize) > MAX_OFFICIAL_LEGAL_PDF_BYTES) return null;
   const match = LEGAL_KEY.exec(b.objectKey);
   return match ? {
-    action: b.action as "sign" | "verify",
+    action: b.action as "sign" | "verify" | "diagnose",
     municipalityId: match[1].toLowerCase(),
     objectKey: b.objectKey,
     fileSize: Number(b.fileSize),
@@ -118,6 +118,45 @@ export default async function handler(req: Req, res: Res) {
       }), { expiresIn: 300 });
       return json(res, 200, { uploadUrl: url, objectKey: input.objectKey,
         requiredHeaders: { "Content-Type": "application/pdf", "If-None-Match": "*" } });
+    }
+    if (input.action === "diagnose") {
+      // Safe, read-only CORS preflight against the exact signed R2 target.
+      // Do not echo the signed URL or its query parameters to the client.
+      const origin = String(req.headers.origin || "https://" + req.headers.host);
+      const url = await getSignedUrl(client, new PutObjectCommand({
+        Bucket: bucket, Key: key, ContentType: "application/pdf", IfNoneMatch: "*",
+      }), { expiresIn: 120 });
+      try {
+        const probe = await fetch(url, {
+          method: "OPTIONS", redirect: "manual",
+          headers: {
+            Origin: origin,
+            "Access-Control-Request-Method": "PUT",
+            "Access-Control-Request-Headers": "content-type,if-none-match",
+          },
+          signal: AbortSignal.timeout(8000),
+        });
+        const allowedOrigin = probe.headers.get("access-control-allow-origin") || "";
+        const allowedMethods = probe.headers.get("access-control-allow-methods") || "";
+        const allowedHeaders = probe.headers.get("access-control-allow-headers") || "";
+        const allowed = (allowedOrigin === origin || allowedOrigin === "*") &&
+          allowedMethods.split(",").some((v) => v.trim().toUpperCase() === "PUT") &&
+          ["content-type", "if-none-match"].every((h) =>
+            allowedHeaders.split(",").some((v) => v.trim().toLowerCase() === h || v.trim() === "*"));
+        return json(res, 200, {
+          diagnosis: allowed ? "R2_CORS_PREFLIGHT_OK" : "R2_CORS_PREFLIGHT_DENIED",
+          httpStatus: probe.status,
+          // The bucket is not necessarily SIGAPRO R2 when BYOS is enabled.
+          storage: target ? "municipal_s3" : "sigapro_r2",
+          requestedOrigin: origin,
+        });
+      } catch {
+        return json(res, 200, {
+          diagnosis: "R2_PREFLIGHT_UNAVAILABLE",
+          storage: target ? "municipal_s3" : "sigapro_r2",
+          requestedOrigin: origin,
+        });
+      }
     }
     // A response from PUT is not enough: confirm bytes stored match the
     // declared original before allowing the UI to save the permanent reference.

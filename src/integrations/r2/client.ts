@@ -310,7 +310,7 @@ async function uploadLargeLegalPdf(input: {bucket: string; objectKey: string; fi
     bucket: "process-documents", objectKey: input.objectKey,
     contentType: "application/pdf", fileSize: input.file.size,
   };
-  async function send(action: "sign" | "verify") {
+  async function send(action: "sign" | "verify" | "diagnose") {
     const response = await fetch(buildApiUrl("/api/r2?action=legal-sign-put"), {
       method:"POST",
       headers: {"Content-Type":"application/json", ...tokenHeaders},
@@ -320,6 +320,8 @@ async function uploadLargeLegalPdf(input: {bucket: string; objectKey: string; fi
     const result = await response.json().catch(() => ({})) as {
       error?: string; uploadUrl?: string; requiredHeaders?: Record<string,string>;
       objectKey?: string; publicUrl?: string; ok?: boolean;
+      diagnosis?: "R2_CORS_PREFLIGHT_OK" | "R2_CORS_PREFLIGHT_DENIED" | "R2_PREFLIGHT_UNAVAILABLE";
+      storage?: "municipal_s3" | "sigapro_r2"; httpStatus?: number;
     };
     if (!response.ok) throw new Error(result.error || "Não foi possível autorizar o PDF no armazenamento.");
     return result;
@@ -344,9 +346,33 @@ async function uploadLargeLegalPdf(input: {bucket: string; objectKey: string; fi
         signal:controller.signal,
       });
     } catch {
-      throw new Error(
-        "Não foi possível enviar o PDF diretamente ao armazenamento. Verifique a conexão e o CORS do bucket R2 (origem deste subdomínio, método PUT, cabeçalhos Content-Type e If-None-Match). O PDF anterior não foi substituído.",
-      );
+      // The browser may hide a successful PUT response. Confirm with an
+      // authenticated HEAD before treating that as an unsuccessful upload.
+      try {
+        const stored = await send("verify");
+        if (stored.ok && stored.objectKey === input.objectKey) {
+          return { bucket:"process-documents", objectKey:input.objectKey, publicUrl:"" } satisfies R2UploadResult;
+        }
+      } catch { /* HEAD was unavailable or the object was not stored. */ }
+
+      let reason = "Não foi possível concluir o upload direto ao armazenamento.";
+      if (controller.signal.aborted) {
+        reason = "O envio ultrapassou o tempo limite. Tente novamente com uma conexão mais estável.";
+      } else {
+        try {
+          const diagnostic = await send("diagnose");
+          if (diagnostic.diagnosis === "R2_CORS_PREFLIGHT_DENIED") {
+            reason = "R2_CORS_PREFLIGHT_DENIED: o armazenamento não autorizou o preflight do navegador. Verifique o domínio exato e a política CORS do bucket de documentos indicado.";
+          } else if (diagnostic.diagnosis === "R2_CORS_PREFLIGHT_OK") {
+            reason = "R2_CORS_PREFLIGHT_OK: a política CORS respondeu corretamente, mas o PUT falhou. Verifique a assinatura, o destino e as permissões de gravação do R2. Não altere a política CORS por enquanto.";
+          } else {
+            reason = "R2_PREFLIGHT_UNAVAILABLE: não foi possível testar a comunicação com o armazenamento. Confirme a conexão e o endpoint institucional.";
+          }
+        } catch {
+          reason = "R2_DIAGNOSTIC_UNAVAILABLE: o arquivo não foi confirmado no R2. A verificação automática do destino também falhou.";
+        }
+      }
+      throw new Error(reason + " O PDF anterior não foi substituído.");
     }
     if (!uploaded.ok) {
       throw new Error(uploaded.status === 412
