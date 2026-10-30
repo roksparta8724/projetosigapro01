@@ -2,6 +2,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { callDataApiRpc, readBearer, readEnv } from "../server/municipal-storage.js";
 import { resolvePrivateAiConfig } from "../server/private-ai-provider.js";
 import { resolveCloudflareAiConfig } from "../server/cloudflare-ai-provider.js";
+import { extractUrbanMatrixFromPage } from "../server/urban-matrix-extraction.js";
 
 type Req = IncomingMessage & { method?: string; body?: unknown };
 type Res = ServerResponse;
@@ -92,6 +93,10 @@ export default async function handler(req: Req, res: Res) {
   catch (e) {
     return json(res,e instanceof Error && e.message==="REQUEST_TOO_LARGE"?413:400,
       {error:"Solicitação inválida ou muito extensa."});
+  }
+  if (body && typeof body==="object" && !Array.isArray(body) &&
+    (body as Record<string,unknown>).action==="urban-matrix-extract") {
+    return extractUrbanMatrixFromPage(req,res,user,body);
   }
   const messages = normalizeAssistantMessages(body);
   if (!messages.length) return json(res,400,
