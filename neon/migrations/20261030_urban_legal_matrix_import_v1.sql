@@ -115,3 +115,77 @@ revoke all on function public.save_urban_legal_matrix_import_v1(uuid,text,text,i
 grant execute on function public.list_urban_legal_matrix_imports_v1(uuid) to authenticated;
 grant execute on function public.save_urban_legal_matrix_import_v1(uuid,text,text,integer,text,text,text,date,text,jsonb,text) to authenticated;
 notify pgrst,'reload schema';
+
+
+-- Atomic reviewed Quadro I import: save matrix, scoped evidence and numeric
+-- draft in one Postgres transaction. Failure rolls the entire request back.
+create or replace function public.save_urban_matrix_numeric_review_v1(
+  _municipality_id uuid, _document_title text, _document_sha256 text,
+  _page_number integer, _zone_code text, _use_code text,
+  _effective_from date, _source_excerpt text, _reviewed_entries jsonb,
+  _verification_method text
+) returns jsonb language plpgsql security definer
+set search_path to 'pg_catalog','public' set row_security to 'off'
+as $function$
+declare
+  _matrix jsonb;
+  _draft jsonb;
+  _entry jsonb;
+  _metric text;
+  _excerpt text;
+  _raw text;
+  _reference text;
+  _rules jsonb := '[]'::jsonb;
+  _seen text[] := array[]::text[];
+begin
+  if not public.is_urban_regulation_admin_v1(_municipality_id) or
+      public.current_profile_id() is null then
+    raise exception 'Permissao municipal invalida.';
+  end if;
+  if coalesce(jsonb_typeof(_reviewed_entries),'null')<>'array' or
+     jsonb_array_length(_reviewed_entries) not between 1 and 8 then
+    raise exception 'Quadro I exige entre 1 e 8 indices revisados.';
+  end if;
+  for _entry in select value from jsonb_array_elements(_reviewed_entries) loop
+    _metric := _entry->>'metric';
+    _excerpt := btrim(coalesce(_entry->>'source_excerpt',''));
+    _raw := coalesce(_entry->>'rawValue','');
+    if _entry->>'kind' <> 'numeric_index'
+      or _metric not in ('front_setback_m','side_setback_m','rear_setback_m',
+        'permeability_percent','occupancy_percent','floor_area_ratio','height_m','floor_count')
+      or _metric = any(_seen)
+      or coalesce(jsonb_typeof(_entry->'limit'),'null') <> 'number'
+      or length(_excerpt) not between 20 and 500
+      or position(_excerpt in _source_excerpt)=0
+      or length(_raw) not between 1 and 30 or position(_raw in _excerpt)=0
+    then
+      raise exception 'Indice sem fonte literal e numerica conferida.';
+    end if;
+    _reference := left('Arquivo '||_document_title||', Quadro I, pagina PDF '||
+      _page_number::text||' — trecho: '||_excerpt,500);
+    _rules := _rules || jsonb_build_array(jsonb_build_object(
+      'metric',_metric,'limit',(_entry->>'limit')::numeric,'reference',_reference));
+    _seen := array_append(_seen,_metric);
+  end loop;
+  -- All downstream RPC validations run inside the same transaction.
+  _matrix := public.save_urban_legal_matrix_import_v1(
+    _municipality_id,_document_title,_document_sha256,_page_number,'I',
+    _zone_code,_use_code,_effective_from,_source_excerpt,_reviewed_entries,_verification_method
+  );
+  for _entry in select value from jsonb_array_elements(_reviewed_entries) loop
+    perform public.save_urban_legal_evidence_scoped_v3(
+      _municipality_id,_document_title,_document_sha256,_page_number,
+      _entry->>'metric',_entry->>'source_excerpt',_zone_code,_use_code,
+      _effective_from,null,_verification_method
+    );
+  end loop;
+  _draft := public.save_urban_regulation_draft_v1(
+    _municipality_id,_zone_code,_use_code,_effective_from,_rules
+  );
+  return jsonb_build_object('status','reviewed_draft',
+    'matrix_id',_matrix->>'id','numeric_draft',_draft);
+end;
+$function$;
+revoke all on function public.save_urban_matrix_numeric_review_v1(uuid,text,text,integer,text,text,date,text,jsonb,text) from public;
+grant execute on function public.save_urban_matrix_numeric_review_v1(uuid,text,text,integer,text,text,date,text,jsonb,text) to authenticated;
+notify pgrst,'reload schema';

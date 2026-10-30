@@ -2,9 +2,8 @@ import { useEffect, useState } from "react";
 import { BookText, CheckCircle2, FileText, Loader2, ShieldAlert } from "lucide-react";
 import { backendClient } from "@/integrations/backend/databaseClient";
 import { normalizeUrbanCode } from "@/lib/urbanPrecheck";
-import { extractLiteralCandidates, validatedNumericRules, validateImportDate,
+import { extractLiteralCandidates, validateImportDate,
   type ImportQuadro, type UrbanExtractedCandidate } from "@/lib/urbanMatrixImport";
-import { saveUrbanRegulationDraft } from "@/integrations/backend/urbanPrecheckClient";
 
 type Props = { municipalityId: string; canEdit: boolean; onSaved: () => Promise<void> };
 type SavedSnapshot = { id: string; version: number; quadro: ImportQuadro; zone_code: string;
@@ -27,6 +26,16 @@ async function verifyPdfAndHash(file: File) {
 
 export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props) {
   const [file,setFile] = useState<File|null>(null);
+  const [previewUrl,setPreviewUrl] = useState("");
+  // Preview writes must use an explicitly configured, non-production Neon pair.
+  const authUrl=String(import.meta.env.VITE_NEON_AUTH_URL || "");
+  const dataUrl=String(import.meta.env.VITE_NEON_DATA_API_URL || "");
+  const authEp=authUrl.match(/^(?:https:\/\/)?(ep-[^.]+)\.neonauth\./)?.[1];
+  const dataEp=dataUrl.match(/^(?:https:\/\/)?(ep-[^.]+)\.apirest\./)?.[1];
+  const qaWriteEnabled=import.meta.env.VITE_SIGAPRO_URBAN_MATRIX_QA_ENABLED==="true" &&
+    Boolean(authEp && dataEp && authEp===dataEp && authEp!=="ep-blue-cloud-b4hhgb4t") &&
+    !["sigapromunicipal.com.br","www.sigapromunicipal.com.br"].includes(window.location.hostname) &&
+    !window.location.hostname.endsWith(".sigapromunicipal.com.br");
   const [quadro,setQuadro] = useState<ImportQuadro>("I");
   const [page,setPage] = useState("");
   const [text,setText] = useState("");
@@ -56,10 +65,16 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
     return () => {active=false;};
   },[municipalityId,canEdit]);
 
+  useEffect(()=>{
+    if(!file){setPreviewUrl("");return;}
+    const local=URL.createObjectURL(file);
+    setPreviewUrl(local);
+    return ()=>URL.revokeObjectURL(local);
+  },[file]);
   const queryAi = async () => {
     if (busy || !file || !dateValid(effectiveFrom) || !zone.trim() || !usage.trim() ||
       !Number.isSafeInteger(Number(page)) || Number(page)<1 || Number(page)>10000 ||
-      text.trim().length<40 || text.length>6500 || !consent) {
+      text.trim().length<40 || text.length>6000 || !consent) {
       setMessage("Selecione o PDF e informe página, zona, uso, vigência e texto da página; autorize o envio do trecho à Cloudflare.");
       return;
     }
@@ -104,27 +119,15 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
         _zone_code:normalizeUrbanCode(zone),_use_code:normalizeUrbanCode(usage),
         _effective_from:effectiveFrom,_source_excerpt:text.trim(),
         _reviewed_entries:entries,_verification_method:method};
-      const result=await backendClient.rpc("save_urban_legal_matrix_import_v1",scope);
-      if(result.error) throw Error("Falha ao salvar revisão da matriz: "+result.error.message);
-      // Quadro II stores conditions in an isolated human-reviewed version.
-      // The existing numeric precheck schema has only 8 metrics; never create
-      // a fake numerical rule for use permission, restrictions or parking.
+      if (!qaWriteEnabled) throw Error("Somente o ambiente Neon de homologação isolado pode gravar a matriz nesta etapa.");
       if (quadro==="I") {
-        const prefix="Lei/arquivo "+file.name.slice(0,135)+", Quadro I, página PDF "+page;
-        const numeric=validatedNumericRules(entries,prefix);
-        for(const rule of numeric) {
-          const candidate=entries.find(item=>item.metric===rule.metric)!;
-          const saved=await backendClient.rpc("save_urban_legal_evidence_scoped_v3",{
-            _municipality_id:municipalityId,_document_title:file.name.slice(0,180),
-            _document_sha256:hash,_page_number:Number(page),_metric:rule.metric,
-            _excerpt:candidate.source_excerpt,_zone_code:normalizeUrbanCode(zone),
-            _use_code:normalizeUrbanCode(usage),_effective_from:effectiveFrom,
-            _effective_until:null,_verification_method:method,
-          });
-          if(saved.error) throw Error("Matriz registrada, mas uma evidência falhou: "+saved.error.message);
-        }
-        await saveUrbanRegulationDraft(municipalityId,zone,usage,effectiveFrom,numeric);
+        const { _quadro: _onlyQuadro, ...payload } = scope;
+        const reviewed=await backendClient.rpc("save_urban_matrix_numeric_review_v1",payload);
+        if(reviewed.error) throw Error("Importação atômica recusada: "+reviewed.error.message);
         await onSaved();
+      } else {
+        const reviewed=await backendClient.rpc("save_urban_legal_matrix_import_v1",scope);
+        if(reviewed.error) throw Error("Falha ao registrar condições de uso: "+reviewed.error.message);
       }
       const historyResult=await backendClient.rpc("list_urban_legal_matrix_imports_v1",
         {_municipality_id:municipalityId});
@@ -191,9 +194,20 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
           className="mt-1 min-h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-slate-950"/>
       </label>
     </div>
+    {previewUrl?<div className="mt-4 rounded-xl border border-slate-200 bg-white p-3">
+      <p className="mb-2 text-xs font-bold text-slate-800">
+        Conferência visual: PDF local selecionado (não enviado ao servidor)
+      </p>
+      <iframe title="Visualização local do PDF oficial para conferir a página"
+        src={previewUrl+"#page="+(Number(page)>0?Number(page):1)}
+        loading="lazy" className="h-[360px] w-full rounded-lg border border-slate-200"/>
+      <a className="mt-2 block text-sm font-semibold text-sky-800 underline"
+        href={previewUrl+"#page="+(Number(page)>0?Number(page):1)}
+        target="_blank" rel="noreferrer">Abrir documento local na página selecionada</a>
+    </div>:null}
     <label className="mt-3 block text-xs font-bold text-slate-800 dark:text-white">
       Texto copiado da página da tabela — sem corrigir ou completar valores
-      <textarea rows={7} maxLength={6500} value={text}
+      <textarea rows={7} maxLength={6000} value={text}
         onChange={e=>{setText(e.target.value);reset();}}
         placeholder="Cole apenas o trecho da página oficial, com sua linha, cabeçalhos e notas..."
         className="mt-1 w-full rounded-xl border border-slate-300 bg-white p-3 text-sm text-slate-950"/>
@@ -227,10 +241,11 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
           <p className="mt-1 text-xs text-slate-600">Compare com a página {page} do PDF. Marque somente se linha, zona, uso, índice e exceções forem corretos.</p>
         </div>
       </label>)}
-      <button type="button" disabled={busy||!checked.length} onClick={()=>void saveReview()}
+      <button type="button" disabled={busy||!checked.length||!qaWriteEnabled} onClick={()=>void saveReview()}
         className="min-h-11 rounded-xl border border-slate-900 bg-slate-950 px-4 py-2 font-bold !text-white disabled:opacity-70">
         <CheckCircle2 className="mr-2 inline h-4 w-4"/> Registrar linhas conferidas como RASCUNHO
       </button>
+      {!qaWriteEnabled?<p role="status" className="text-xs font-semibold text-amber-800">Gravação bloqueada até a Vercel Preview apontar para Neon QA com AUTH e DATA API do mesmo branch. O site oficial permanece intacto.</p>:null}
       <p className="text-xs text-slate-700 dark:text-slate-200">
         Quadro II salva somente condições de uso em versão revisada; não vira índice numérico nem autoriza usos automaticamente.
       </p>
