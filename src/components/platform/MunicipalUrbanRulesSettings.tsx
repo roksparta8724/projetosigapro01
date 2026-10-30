@@ -112,6 +112,20 @@ export function MunicipalUrbanRulesSettings({
         O upload de PDFs do acervo legal não cria regras automaticamente. Informe os parâmetros
         somente após leitura da legislação oficial; situações especiais exigem avaliação jurídica e urbanística.
       </div>
+      <div className="mt-3 rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm leading-6 text-slate-800 dark:border-sky-700 dark:bg-slate-900 dark:text-slate-100">
+        <p className="font-bold">Como preencher com fontes oficiais</p>
+        <p className="mt-1">
+          1. Identifique a <strong>zona real</strong> no mapa de zoneamento vigente;
+          2. confira a <strong>categoria de uso</strong> na tabela de usos permitidos;
+          3. consulte o <strong>quadro oficial de índices urbanísticos</strong> para essa combinação;
+          4. registre apenas os limites aplicáveis com lei, artigo, quadro, página e exceções.
+        </p>
+        <p className="mt-1 text-xs leading-5 text-slate-700 dark:text-slate-200">
+          Não use valores de exemplos, minutas de revisão ou propostas não promulgadas.
+          Se o parâmetro não foi confirmado, deixe o campo sem preencher e não ative a norma.
+          Verifique alterações e vigência com o setor técnico responsável.
+        </p>
+      </div>
 
       {canEdit && municipalityId ? (
         <>
@@ -151,20 +165,21 @@ export function MunicipalUrbanRulesSettings({
             ))}
           </div>
           <div className="mt-4 flex justify-end">
-            <Button
+            <button
               type="button"
               data-sigapro-urban-rules-save="true"
               aria-label="Salvar nova versão como rascunho"
+              aria-busy={busy}
               disabled={busy || loading}
               onClick={() => void save()}
-              className="sig-force-dark-action min-h-11 w-full max-w-full rounded-xl border border-slate-800 bg-slate-950 px-5 !text-white hover:bg-slate-900 focus-visible:ring-2 focus-visible:ring-sky-400 sm:w-auto"
+              className="sig-force-dark-action sig-urban-rules-save-button inline-flex min-h-11 w-full max-w-full items-center justify-center gap-2 rounded-xl border border-slate-800 bg-slate-950 px-5 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 sm:w-auto"
             >
-              {busy ? <Loader2 aria-hidden="true" className="mr-2 h-4 w-4 shrink-0 animate-spin !text-white" /> :
-                <Save aria-hidden="true" className="mr-2 h-4 w-4 shrink-0 !text-white" />}
-              <span className="whitespace-normal text-center font-semibold leading-5 !text-white">
+              {busy ? <Loader2 aria-hidden="true" className="h-4 w-4 shrink-0 animate-spin" /> :
+                <Save aria-hidden="true" className="h-4 w-4 shrink-0" />}
+              <span data-sigapro-urban-rules-save-label="true" className="whitespace-normal text-center font-bold leading-5 text-white">
                 Salvar nova versão como rascunho
               </span>
-            </Button>
+            </button>
           </div>
         </>
       ) : null}

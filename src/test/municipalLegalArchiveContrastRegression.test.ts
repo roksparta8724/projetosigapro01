@@ -16,6 +16,17 @@ describe("SIGAPRO municipal legal archive premium layout",()=>{
     expect(css).toContain('button[data-sigapro-urban-rules-save="true"]');
     expect(css).toContain('-webkit-text-fill-color: #ffffff !important;');
     expect(css).toContain('visibility: visible !important;');
+    expect(rules).toContain('<button');
+    expect(rules).toContain('data-sigapro-urban-rules-save-label="true"');
+    expect(css).toContain('html body #root [data-urban-rules-settings="true"] button[data-sigapro-urban-rules-save="true"]:disabled');
+    expect(css).toContain('opacity: 1 !important;');
+    expect(css).toContain('background: #0f172a !important;');
+  });
+  it("explains where to find real urban index and use parameters without pre-filling a fictional zone",()=>{
+    expect(rules).toContain("Identifique a <strong>zona real</strong>");
+    expect(rules).toContain("quadro oficial de índices urbanísticos");
+    expect(rules).toContain("Não use valores de exemplos, minutas de revisão");
+    expect(rules).toContain("Se o parâmetro não foi confirmado, deixe o campo sem preencher");
   });
   it("keeps legal document cards readable with two desktop columns rather than four cramped columns",()=>{
     expect(settings).toContain('grid min-w-0 grid-cols-1 gap-5 lg:grid-cols-2');
