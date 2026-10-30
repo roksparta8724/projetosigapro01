@@ -1,7 +1,8 @@
+import { isPersistedGuideSettled } from "./guide-settlement.js";
 import { createHash } from "node:crypto";
 import type { ApiReq } from "./municipal-storage.js";
 import { resolveMercadoPagoMunicipalAccessToken } from "./municipal-payment.js";
-import { assertGuideProviderSyncAccess, assertGuideProviderWriteAccess, persistGuideCharge, readStoredGuide, storedGuideCharge } from "./guide-persistence.js";
+import { assertBankChargeAttestationReady, assertGuideProviderSyncAccess, assertGuideProviderWriteAccess, persistGuideCharge, readStoredGuide, storedGuideCharge } from "./guide-persistence.js";
 import { normalizeOfficialBanking } from "../src/lib/bankCodes.js";
 type MercadoPagoEnvironment = "test" | "production";
 
@@ -363,7 +364,12 @@ export async function getMercadoPagoGuideBoletoStatus(
 ): Promise<MercadoPagoGuideBoletoResult> {
   const stored = req ? await readStoredGuide(req, input.municipalityId, input.guideCode) : null;
   if (stored) {
-    if (stored.status === "compensada") return storedGuideCharge(stored);
+    if (stored.collection_mode_snapshot === "municipal_system" ||
+      (stored.payment_provider && stored.payment_provider !== "mercado_pago") ||
+      (stored.bank_reference && !stored.payment_provider)) {
+      throw new Error("Cobrança bancária sem provedor SIGAPRO confirmado: consulta bloqueada.");
+    }
+    if (isPersistedGuideSettled(stored)) return storedGuideCharge(stored);
     if (!stored.bank_reference || stored.bank_reference !== input.orderId) {
       throw new Error("Cobrança não vinculada à guia original.");
     }
@@ -392,6 +398,10 @@ export async function getMercadoPagoGuideBoletoStatus(
   if (!result) {
     return { ok: false, environment, error: "Não foi possível consultar a situação da cobrança no Mercado Pago." };
   }
+  if (result.orderId !== input.orderId) {
+    return { ...result, ok: false, error: "Ordem bancária retornada não corresponde à guia original." };
+  }
+  if (!result.ok) return result;
   return stored && req ? persistGuideCharge(req, stored, result, options?.isolatedSandboxOnly) : result;
 }
 /**
@@ -418,7 +428,12 @@ export async function createMercadoPagoGuideBoleto(
   }
   const stored = req ? await readStoredGuide(req, input.municipalityId, input.guideCode) : null;
   if (stored) {
-    if (stored.status === "compensada" || (stored.barcode && stored.digitable_line)) {
+    if (stored.collection_mode_snapshot === "municipal_system" ||
+      (stored.payment_provider && stored.payment_provider !== "mercado_pago") ||
+      (stored.bank_reference && !stored.payment_provider)) {
+      throw new Error("Guia vinculada à arrecadação municipal ou sem provedor bancário confirmado.");
+    }
+    if (isPersistedGuideSettled(stored) || (stored.barcode && stored.digitable_line)) {
       return storedGuideCharge(stored);
     }
     if (stored.bank_reference) {
@@ -427,8 +442,15 @@ export async function createMercadoPagoGuideBoleto(
         orderId: stored.bank_reference, amount: Number(stored.amount),
       }, req, options);
     }
+    // The signed Neon bank-charge RPC refuses a guide whose original document
+    // was frozen before binding a bank order. Do not create a provider order
+    // that could never be persisted (or paid off through the webhook).
+    if (stored.document_snapshot != null || stored.original_pdf_key) {
+      throw new Error("Guia com documento original já congelado sem cobrança bancária vinculada. Não será criada uma ordem órfã; encaminhe para conferência financeira.");
+    }
     input = { ...input, guideCode: stored.guide_number, amount: Number(stored.amount), dueDate: stored.due_date };
     await assertGuideProviderWriteAccess(req!, stored, options?.isolatedSandboxOnly);
+    if (!options?.isolatedSandboxOnly) assertBankChargeAttestationReady();
   }
   const resolved = req
     ? await resolveMercadoPagoMunicipalAccessToken(req, input.municipalityId)
@@ -572,6 +594,9 @@ export async function createMercadoPagoGuideBoleto(
 
     // Persist even an incomplete response: a retry must query this order,
     // never issue another charge because the bank has not supplied the bars yet.
+    if (!result.ok || !result.orderId) {
+      return { ...result, ok:false, errorCode:"PROVIDER_ACCEPTED_UNVERIFIED_ORDER" };
+    }
     let persistedResult = stored && req ? await persistGuideCharge(req, stored, result, options?.isolatedSandboxOnly) : result;
 
     if (!hasCompleteGuideBankingData(result) && result.orderId) {
@@ -582,7 +607,7 @@ export async function createMercadoPagoGuideBoleto(
         externalReference,
         amountText,
       );
-      if (refreshed) {
+      if (refreshed?.ok && refreshed.orderId === result.orderId) {
         result = refreshed;
         persistedResult = stored && req ? await persistGuideCharge(req, stored, result, options?.isolatedSandboxOnly) : result;
       }

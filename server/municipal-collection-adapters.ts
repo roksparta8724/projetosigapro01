@@ -28,3 +28,21 @@ export function assertAdapterOperation(adapter: MunicipalCollectionAdapter, oper
     throw new Error(`O fornecedor não declarou suporte à operação ${operation}.`);
   }
 }
+
+/**
+ * Server-authoritative, read-only feature discovery. A catalogue entry is NOT
+ * an installed adapter and an installed adapter is NOT an active bank contract.
+ * No credentials or municipalities' private data are returned.
+ */
+export function describeMunicipalCollectionAdapter(code: string) {
+ const normalized=String(code||"").trim().toLowerCase();
+ const a=getMunicipalCollectionAdapter(normalized);
+ return {
+  supplierCode: normalized,
+  connectorInstalled: Boolean(a),
+  operations: a ? [...a.operations] : [],
+  credentialVerified: false,
+  bankSettlementEnabled: false,
+  mode: a ? "connector_installed_pending_credential_validation" : "controlled_import_only",
+ } as const;
+}

@@ -14,6 +14,7 @@ import {
   testMercadoPagoToken,
 } from "../server/municipal-payment.js";
 import { callDataApiRpc } from "../server/municipal-storage.js";
+import { assertMunicipalCredentialSave, assertMunicipalCredentialActivation } from "../server/municipal-payment-credential-validation.js";
 
 type Req = import("http").IncomingMessage & {
   method?: string;
@@ -100,22 +101,9 @@ export default async function handler(req: Req, res: Res) {
         req,
       );
 
-      if (result.ok) {
-        await rpcOrThrow(req, "persist_payment_guide_provider_charge_v1", {
-          _guide_code: guideCode,
-          _order_id: result.orderId || null,
-          _payment_id: result.paymentId || null,
-          _status: result.status || null,
-          _status_detail: result.statusDetail || null,
-          _authenticated_at: result.authenticatedAt || null,
-          _payment_provider: "mercado_pago",
-          _provider_environment: result.environment || null,
-          _barcode: result.barcodeContent || null,
-          _digitable_line: result.digitableLine || null,
-          _ticket_url: result.ticketUrl || null,
-        });
-      }
-
+      // The provider helper has already validated and persisted this charge
+      // through the municipality-scoped signed v2 RPC. A second legacy v1
+      // write is unscoped, lacks bank attestation, and is forbidden in Neon.
       json(res, result.ok ? 200 : 400, result);
     } catch (error) {
       json(res, 400, {
@@ -152,13 +140,15 @@ export default async function handler(req: Req, res: Res) {
         const environment = String(body.environment || "test").trim();
         const accessToken = String(body.accessToken || "").trim();
         const webhookSecret = String(body.webhookSecret || "").trim();
-
-        if (!["mercado_pago", "bank_direct", "manual"].includes(provider)) {
-          throw new Error("Provedor de pagamento inválido.");
-        }
-        if (!["test", "production"].includes(environment)) {
-          throw new Error("Ambiente de pagamento inválido.");
-        }
+        if ((body.accessToken != null && typeof body.accessToken !== "string") ||
+            (body.webhookSecret != null && typeof body.webhookSecret !== "string"))
+          throw new Error("Credenciais inválidas: informe texto nos campos protegidos.");
+        // Read the scoped public status first; no secret is returned to the browser.
+        const saved = await rpcOrThrow<MunicipalPaymentConnection>(
+          req, "get_municipal_payment_connection_v1",
+          { _municipality_id: municipalityId },
+        );
+        assertMunicipalCredentialSave({provider,environment,accessToken,webhookSecret},saved);
 
         let accessCiphertext: string | null = null;
         let accessFingerprint: string | null = null;
@@ -236,6 +226,11 @@ export default async function handler(req: Req, res: Res) {
       }
 
       if (subaction === "activate") {
+        const prior = await rpcOrThrow<MunicipalPaymentConnection>(
+          req, "get_municipal_payment_connection_v1",
+          { _municipality_id: municipalityId },
+        );
+        assertMunicipalCredentialActivation(prior);
         const connection = await rpcOrThrow<MunicipalPaymentConnection>(
           req,
           "activate_municipal_payment_connection_v1",
@@ -274,22 +269,9 @@ export default async function handler(req: Req, res: Res) {
         req,
       );
 
-      if (result.ok) {
-        await rpcOrThrow(req, "persist_payment_guide_provider_charge_v1", {
-          _guide_code: guideCode,
-          _order_id: result.orderId || null,
-          _payment_id: result.paymentId || null,
-          _status: result.status || null,
-          _status_detail: result.statusDetail || null,
-          _authenticated_at: result.authenticatedAt || null,
-          _payment_provider: "mercado_pago",
-          _provider_environment: result.environment || null,
-          _barcode: result.barcodeContent || null,
-          _digitable_line: result.digitableLine || null,
-          _ticket_url: result.ticketUrl || null,
-        });
-      }
-
+      // The provider helper has already validated and persisted this charge
+      // through the municipality-scoped signed v2 RPC. A second legacy v1
+      // write is unscoped, lacks bank attestation, and is forbidden in Neon.
       json(res, result.ok ? 201 : 400, result);
     } catch (error) {
       json(res, 400, {

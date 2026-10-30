@@ -17,6 +17,7 @@ import { FileDropZone, type UploadedFileItem } from "@/components/platform/FileD
 import { PageHero } from "@/components/platform/PageHero";
 import { PageShell, PageStatsRow } from "@/components/platform/PageShell";
 import { PixQrCode } from "@/components/platform/PixQrCode";
+import { GuidePixShareCard } from "@/components/platform/GuidePixShareCard";
 import { PortalFrame } from "@/components/platform/PortalFrame";
 import { attachMunicipalCollectionGuide } from "@/lib/municipalCollectionBridge";
 import { GovbrArGuideBridge, isGovbrArGuideDocument } from "@/components/platform/GovbrArGuideBridge";
@@ -31,6 +32,7 @@ import { OccupancyPermitProcessPanel } from "@/components/platform/OccupancyPerm
 import { MarkerSelector } from "@/components/platform/MarkerSelector";
 import { MunicipalOrganogramBar } from "@/components/platform/MunicipalOrganogramBar";
 import { UrbanAnalysisChecklistPanel } from "@/components/platform/UrbanAnalysisChecklistPanel";
+import { UrbanPrecheckPanel } from "@/components/platform/UrbanPrecheckPanel";
 import { SignedAnalysisArchiveFolder } from "@/components/platform/SignedAnalysisArchiveFolder";
 import { isSignedAnalysisArchiveDocument } from "@/lib/signedAnalysisArchive";
 import { resolveProcessDispatchAuthor } from "@/lib/dispatchActorIdentity";
@@ -715,6 +717,16 @@ export function ProcessDetailPage() {
   const [viewerZoom, setViewerZoom] = useState(1);
   const [documentAccessUrls, setDocumentAccessUrls] = useState<Record<string, string>>({});
   const [documentAccessErrors, setDocumentAccessErrors] = useState<Record<string, string>>({});
+  const [verifiedSignedArchive, setVerifiedSignedArchive] = useState<{ processId: string; ids: string[] }>({
+    processId: "", ids: [],
+  });
+  const updateVerifiedSignedArchive = useCallback((processId: string, ids: string[]) => {
+    setVerifiedSignedArchive((current) => {
+      if (current.processId === processId && current.ids.length === ids.length &&
+          current.ids.every((id, i) => id === ids[i])) return current;
+      return { processId, ids };
+    });
+  }, []);
   const [documentUploads, setDocumentUploads] = useState<Record<string, UploadedFileItem[]>>({});
   const [requirementUploads, setRequirementUploads] = useState<Record<string, UploadedFileItem[]>>({});
   const [recoverableFiles, setRecoverableFiles] = useState<RecoverableProcessFile[]>([]);
@@ -1200,7 +1212,12 @@ export function ProcessDetailPage() {
   const constructionGuideSentExternally = issuedConstructionGuide
     ? isProcessPaymentGuideSharedExternally(process, issuedConstructionGuide)
     : false;
-  const regularProcessDocuments = process.documents.filter((document) => !isSignedAnalysisArchiveDocument(document));
+  // Only authenticated signature history can remove a PDF from the ordinary
+  // checklist. A filename or client-side signed flag is not legal evidence.
+  const verifiedArchiveIds = new Set(
+    verifiedSignedArchive.processId === process.id ? verifiedSignedArchive.ids : [],
+  );
+  const regularProcessDocuments = process.documents.filter((document) => !verifiedArchiveIds.has(document.id));
   const uploadedCount = regularProcessDocuments.filter((document) => document.uploaded).length;
   const protocolGuide = visiblePaymentGuides.find((guide) => guide.kind === "protocolo");
   const pixPayload = protocolGuide
@@ -3437,6 +3454,7 @@ export function ProcessDetailPage() {
                   process={process}
                   onOpenPdf={openViewer}
                   onOpenAnalysis={() => setProcessTab("analise")}
+                  onVerifiedArchiveIds={updateVerifiedSignedArchive}
                 />
               )}
 
@@ -3803,6 +3821,11 @@ export function ProcessDetailPage() {
                 municipalityEmail={tenantSettings?.email || ""}
                 departmentLabel={getOrganizationPath(currentFolder) || "Análise Urbanística"}
                 organogramTrail={currentOrganizationTrail}
+              />
+              <UrbanPrecheckPanel
+                process={process}
+                municipalityId={effectiveScopeId || process.tenantId}
+                readOnly={!canEditAnalysisChecklist}
               />
               {canReviewDocuments ? (
                 <AnalysisReadinessPanel
@@ -4550,6 +4573,7 @@ export function ProcessDetailPage() {
                           </Button>
                         </div>
                       </div>
+                      <GuidePixShareCard guide={guide} settings={tenantSettings} municipalityName={municipalityName || tenant?.name} municipalityCity={tenantSettings?.pixMerchantCity || tenant?.city} />
                     </div>
                   ))}
                 </div>
@@ -4560,6 +4584,10 @@ export function ProcessDetailPage() {
               )}
             </CardContent>
           </Card>
+          )}
+
+          {!isExternalProcessViewer && activeTab === "financeiro" && displayGuide && (
+            <GuidePixShareCard guide={displayGuide} settings={tenantSettings} municipalityName={municipalityName || tenant?.name} municipalityCity={tenantSettings?.pixMerchantCity || tenant?.city} />
           )}
 
           {!isExternalProcessViewer && activeTab === "financeiro" && requestedPaymentGuide && (
