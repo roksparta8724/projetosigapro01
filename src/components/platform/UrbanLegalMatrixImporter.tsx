@@ -132,11 +132,11 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
     finally{setVisionBusy(false);}
   };
   const queryAi = async () => {
-    if (busy || !file || !dateValid(effectiveFrom) || !zone.trim() || !usage.trim() ||
+    if (busy || !file || !zone.trim() || !usage.trim() ||
       !Number.isSafeInteger(Number(page)) || Number(page)<1 || Number(page)>10000 ||
       text.trim().length<40 || text.length>6000 || !consent ||
       (ocrDraft && !ocrVerified)) {
-      setMessage("Informe página, zona, uso, vigência e texto oficial. Se houve leitura por imagem, confira e confirme primeiro a transcrição; só então autorize extrair propostas.");
+      setMessage("Informe página, zona, uso e texto da lei. A vigência só será exigida para registrar rascunho. Se houve OCR, confira a transcrição primeiro.");
       return;
     }
     setBusy(true);setCandidates([]);setChecked([]);setMessage("");
@@ -149,7 +149,7 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
         method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+bearer},
         cache:"no-store",credentials:"same-origin",
         body:JSON.stringify({action:"urban-matrix-extract",quadro,pageNumber:Number(page),
-          documentTitle:file.name,pageText:text.trim()}),
+          documentTitle:file.name,pageText:text.trim(),zoneCode:normalizeUrbanCode(zone),useCode:normalizeUrbanCode(usage)}),
       });
       const payload=await response.json() as ExtractionReply;
       if (!response.ok) throw Error(payload.error||"Não foi possível interpretar o trecho.");
@@ -163,9 +163,9 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
   };
   const addManualCandidate = () => {
     if (busy || !file || !text.trim() || !Number.isSafeInteger(Number(page)) ||
-        Number(page)<1 || !dateValid(effectiveFrom) || !zone.trim() || !usage.trim() ||
+        Number(page)<1 || !zone.trim() || !usage.trim() ||
         (ocrDraft && !ocrVerified)) {
-      setMessage("Selecione o PDF, página, zona, uso, vigência e transcrição antes de registrar uma linha manual.");
+      setMessage("Selecione o PDF, página, zona, uso e transcrição para propor uma linha manual. A vigência é exigida somente no salvamento.");
       return;
     }
     const excerpt=manualExcerpt.trim();

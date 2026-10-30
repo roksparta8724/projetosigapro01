@@ -10,7 +10,7 @@ vi.mock("../../server/cloudflare-ai-provider.js",()=>({
 import {extractUrbanMatrixFromPage,validUrbanMatrixRequest} from "../../server/urban-matrix-extraction";
 const city="11111111-1111-4111-8111-111111111111",other="22222222-2222-4222-8222-222222222222";
 const textPage="ZM-ABC RECUO FRONTAL 7 metros, RECUO LATERAL 3 metros, USOS R1 são permitidos mediante avaliação prévia.";
-const body={action:"urban-matrix-extract",quadro:"I",documentTitle:"lei complementar 379.pdf",pageNumber:36,pageText:textPage};
+const body={action:"urban-matrix-extract",quadro:"I",documentTitle:"lei complementar 379.pdf",pageNumber:36,pageText:textPage,zoneCode:"ZM-ABC",useCode:"COMERCIAL"};
 const profile={municipality_id:city,tenant_id:city,is_master:false,account_status:"active"};
 async function call(user:Record<string,unknown>=profile,input:unknown=body) {
  let payload:Record<string,unknown>={};
