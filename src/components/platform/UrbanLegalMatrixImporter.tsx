@@ -535,7 +535,16 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
         placeholder="Cole apenas o trecho da página oficial, com sua linha, cabeçalhos e notas..."
         className="mt-1 w-full rounded-xl border border-slate-300 bg-white p-3 text-sm text-slate-950"/>
     </label>
-    {ocrDraft && matchingOriginalScope && matchingOriginalRow ? <OcrReferenceComparison row={matchingOriginalRow}/>:null}
+    {matchingOriginalScope && matchingOriginalRow ? <>
+      {!ocrDraft?<p data-urban-ocr-fallback="true"
+        className="mt-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm font-semibold leading-6 text-amber-950">
+        A comparação está disponível mesmo sem IA. Os valores são da lei original,
+        não da transcrição, e não podem ser tratados como índices confirmados sem
+        conferência no PDF e validação da vigência legal. Se a Cloudflare expirar,
+        não é necessário repetir a leitura para consultar os dados históricos.
+      </p>:null}
+      <OcrReferenceComparison row={matchingOriginalRow}/>
+    </>:null}
     {ocrDraft && ocrHasIllegibleCell ? <p data-urban-ocr-unresolved="true" role="alert"
       className="mt-3 rounded-xl border border-rose-300 bg-rose-50 p-3 text-sm font-bold leading-6 text-rose-950">
       A transcrição contém [ILEGÍVEL]. Não é seguro confirmar nem extrair índices.
