@@ -10,6 +10,37 @@ type SavedSnapshot = { id: string; version: number; quadro: ImportQuadro; zone_c
   use_code: string; page_number: number; status: string; document_title: string };
 type ExtractionReply = { candidates?: unknown; error?: string; quadro?: ImportQuadro;
   status?: string; automaticallyActivated?: boolean };
+type ReviewPackageRow = {
+  pagina_pdf: number; zona_conforme_tabela: string; uso_predominante_conforme_tabela: string;
+  ca_minimo_original: string | null; ca_basico_original: string; ca_maximo_original: string;
+  taxa_ocupacao_maxima_pct: number; taxa_permeabilidade_minima_pct: number;
+  lote_minimo_m2: number; testada_minima_m: number; gabarito_original: string;
+  recuo_frontal_m: number; recuo_fundos_m: number; recuo_lateral_m: number | string;
+  observacoes_especificas: string; pendencias_de_leitura: string;
+};
+type ReviewPackage = {
+  tipo: string; municipio: string; arquivo_sha256: string;
+  nao_ativar_regras_automaticamente: true; quadro_I: ReviewPackageRow[];
+};
+function validReviewRow(value: unknown): value is ReviewPackageRow {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const row = value as Record<string, unknown>;
+  return Number.isSafeInteger(row.pagina_pdf) && Number(row.pagina_pdf)>0 &&
+    Number(row.pagina_pdf)<=10000 &&
+    ["zona_conforme_tabela","uso_predominante_conforme_tabela","ca_basico_original",
+      "ca_maximo_original","gabarito_original","observacoes_especificas",
+      "pendencias_de_leitura"].every(key =>
+        typeof row[key] === "string" && (row[key] as string).length <= 500) &&
+    typeof row.zona_conforme_tabela === "string" && row.zona_conforme_tabela.trim().length>0 &&
+    typeof row.uso_predominante_conforme_tabela === "string" &&
+    row.uso_predominante_conforme_tabela.trim().length>0 &&
+    (row.ca_minimo_original === null || typeof row.ca_minimo_original === "string") &&
+    ["taxa_ocupacao_maxima_pct","taxa_permeabilidade_minima_pct",
+      "lote_minimo_m2","testada_minima_m","recuo_frontal_m","recuo_fundos_m"]
+      .every(key => typeof row[key] === "number" && Number.isFinite(row[key]) && Number(row[key])>=0) &&
+    (typeof row.recuo_lateral_m === "string" ||
+      (typeof row.recuo_lateral_m === "number" && Number.isFinite(row.recuo_lateral_m)));
+}
 const dateValid = (s: string) => validateImportDate(s);
 const MAX_PDF_BYTES = 100 * 1024 * 1024;
 
@@ -57,10 +88,53 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
   const [manualNote,setManualNote] = useState("");
   const [busy,setBusy] = useState(false);
   const [message,setMessage] = useState("");
+  const [reviewPackage,setReviewPackage] = useState<ReviewPackage|null>(null);
+  const [reviewRowIndex,setReviewRowIndex] = useState(0);
+  const [reviewLoading,setReviewLoading] = useState(false);
   const [history,setHistory] = useState<SavedSnapshot[]>([]);
   const [historyChecked,setHistoryChecked] = useState(false);
   const [historyError,setHistoryError] = useState(false);
   const reset = () => {setCandidates([]);setChecked([]);setConsent(false);setMessage("");};
+  const loadStructuredReview = async (incoming: File | null) => {
+    setReviewPackage(null);setReviewRowIndex(0);
+    if (!incoming) return;
+    if (!file) {setMessage("Selecione o mesmo PDF oficial antes do pacote de revisão.");return;}
+    if (incoming.size > 1_000_000 || !incoming.name.toLowerCase().endsWith(".json")) {
+      setMessage("Selecione um pacote JSON de revisão com até 1 MB.");return;
+    }
+    setReviewLoading(true);setMessage("");
+    try {
+      const parsed: unknown = JSON.parse(await incoming.text());
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
+        throw Error("Estrutura do pacote inválida.");
+      const candidate = parsed as Partial<ReviewPackage>;
+      if (candidate.tipo !== "sigapro_urban_matrix_original_lc379_2009_review" ||
+          candidate.nao_ativar_regras_automaticamente !== true ||
+          typeof candidate.municipio !== "string" || candidate.municipio.length>120 ||
+          typeof candidate.arquivo_sha256 !== "string" ||
+          !/^[a-f0-9]{64}$/.test(candidate.arquivo_sha256) ||
+          !Array.isArray(candidate.quadro_I) ||
+          candidate.quadro_I.length===0 || candidate.quadro_I.length>500 ||
+          !candidate.quadro_I.every(validReviewRow))
+        throw Error("Pacote de revisão incompatível ou com linhas inválidas.");
+      const actualHash=await verifyPdfAndHash(file);
+      if(actualHash!==candidate.arquivo_sha256)
+        throw Error("O PDF selecionado NÃO corresponde ao arquivo de origem deste pacote. Nenhum campo foi alterado.");
+      setReviewPackage(candidate as ReviewPackage);
+      setMessage("Pacote de revisão carregado com conferência SHA-256 do PDF. Selecione uma linha para pré-preencher apenas o escopo. A legislação vigente ainda precisa ser validada.");
+    } catch(e) {setMessage("Pacote não carregado: "+(e instanceof Error?e.message:"erro desconhecido"));}
+    finally {setReviewLoading(false);}
+  };
+  const applyReviewRow = () => {
+    const row=reviewPackage?.quadro_I[reviewRowIndex];
+    if(!row || !canEdit || busy) return;
+    setQuadro("I");setPage(String(row.pagina_pdf));
+    setZone(normalizeUrbanCode(row.zona_conforme_tabela));
+    setUsage(normalizeUrbanCode(row.uso_predominante_conforme_tabela));
+    setEffectiveFrom("");setText("");setOcrDraft(false);setOcrVerified(false);
+    setCandidates([]);setChecked([]);setConsent(false);
+    setMessage("Página, zona e uso preenchidos para revisão. Os valores abaixo são da lei ORIGINAL e não foram gravados. Confira a linha no PDF e possíveis alterações posteriores; a vigência continua em branco.");
+  };
 
   useEffect(() => {
     let active = true;
@@ -261,7 +335,7 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
     <div className="mt-4 grid gap-3 md:grid-cols-2">
       <label className="text-xs font-bold text-slate-800 dark:text-white">Arquivo PDF oficial
         <input type="file" accept=".pdf,application/pdf" className="mt-1 block w-full rounded-lg border border-slate-300 bg-white p-2 text-slate-900"
-          onChange={e=>{setFile(e.target.files?.[0]||null);setPageImage(null);setText("");setOcrDraft(false);setOcrVerified(false);reset();}}/>
+          onChange={e=>{setFile(e.target.files?.[0]||null);setReviewPackage(null);setReviewRowIndex(0);setPageImage(null);setText("");setOcrDraft(false);setOcrVerified(false);reset();}}/>
       </label>
       <label className="text-xs font-bold text-slate-800 dark:text-white">Quadro de origem
         <select value={quadro} onChange={e=>{setQuadro(e.target.value as ImportQuadro);reset();}}
@@ -292,6 +366,60 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
           placeholder="Exatamente como no quadro vigente"
           className="mt-1 min-h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-slate-950"/>
       </label>
+    </div>
+    <div data-urban-structured-review="true" className="mt-4 rounded-xl border border-sky-300 bg-white p-4 text-slate-950">
+      <h5 className="text-sm font-extrabold text-slate-950">Pré-preencher pela matriz extraída do PDF — revisão controlada</h5>
+      <p className="mt-1 text-sm leading-6 text-slate-800">
+        Envie o pacote JSON de revisão preparado a partir do PDF. O SIGAPRO confere o hash SHA-256
+        do arquivo original antes de disponibilizar as linhas. Nenhuma norma é ativada ou salva nesta etapa.
+      </p>
+      <label className="mt-3 block text-xs font-bold text-slate-900">
+        Pacote de dados para conferência (.json)
+        <input aria-label="Importar pacote estruturado da legislação" type="file" accept=".json,application/json"
+          className="mt-1 block w-full rounded-lg border border-slate-300 bg-white p-2 text-slate-950"
+          onChange={e=>void loadStructuredReview(e.target.files?.[0]||null)} disabled={!file||reviewLoading}/>
+      </label>
+      {reviewLoading?<p role="status" className="mt-2 text-sm text-sky-900">Conferindo PDF e pacote…</p>:null}
+      {reviewPackage?<div className="mt-3 rounded-xl border border-sky-200 bg-sky-50 p-3 text-slate-950">
+        <p className="text-sm font-bold text-slate-950">Origem: {reviewPackage.municipio} · {reviewPackage.quadro_I.length} linhas · LEI ORIGINAL, VIGÊNCIA NÃO VERIFICADA</p>
+        <label className="mt-3 block text-xs font-bold text-slate-900">
+          Selecione a zona e o uso conforme tabela de origem
+          <select aria-label="Linha extraída para pré-preenchimento" value={reviewRowIndex}
+            onChange={e=>setReviewRowIndex(Number(e.target.value))}
+            className="mt-1 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-slate-950">
+            {reviewPackage.quadro_I.map((row,i)=><option key={i} value={i}>
+              Página {row.pagina_pdf} · {row.zona_conforme_tabela} · {row.uso_predominante_conforme_tabela}
+            </option>)}
+          </select>
+        </label>
+        {reviewPackage.quadro_I[reviewRowIndex] ? (() => {
+          const row=reviewPackage.quadro_I[reviewRowIndex];
+          const values=[
+            ["C.A. mínimo",row.ca_minimo_original??"A CONFERIR"],
+            ["C.A. básico",row.ca_basico_original],["C.A. máximo",row.ca_maximo_original],
+            ["Ocupação máx.",String(row.taxa_ocupacao_maxima_pct)+"%"],
+            ["Permeabilidade mín.",String(row.taxa_permeabilidade_minima_pct)+"%"],
+            ["Lote mínimo",String(row.lote_minimo_m2)+" m²"],
+            ["Testada mínima",String(row.testada_minima_m)+" m"],
+            ["Gabarito",row.gabarito_original],
+            ["Recuo frontal",String(row.recuo_frontal_m)+" m"],
+            ["Recuo de fundos",String(row.recuo_fundos_m)+" m"],
+            ["Recuo lateral",String(row.recuo_lateral_m)+" m"],
+          ];
+          return <div className="mt-3">
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {values.map(([title,value])=><p key={title} className="rounded-lg border border-sky-200 bg-white px-3 py-2 text-xs leading-5 text-slate-950">
+                <strong className="block font-bold text-slate-700">{title}</strong>{value}
+              </p>)}
+            </div>
+            {row.observacoes_especificas?<p className="mt-2 text-xs leading-5 text-amber-950">Exceções da tabela: {row.observacoes_especificas}</p>:null}
+            {row.pendencias_de_leitura?<p role="alert" className="mt-2 text-xs font-bold leading-5 text-rose-900">Leitura pendente: {row.pendencias_de_leitura}</p>:null}
+          </div>;
+        })() : null}
+        <button type="button" data-urban-review-apply="true" className="mt-3 min-h-11 rounded-xl border border-slate-900 bg-slate-950 px-4 py-2 text-sm font-extrabold text-white"
+          onClick={applyReviewRow}>Pré-preencher página, zona e uso para conferência</button>
+        <p className="mt-2 text-xs font-semibold leading-5 text-amber-950">Valores históricos apenas para comparação. A transcrição literal, a vigência e a confirmação humana continuam obrigatórias para gravar um rascunho no Neon QA.</p>
+      </div>:null}
     </div>
     {previewUrl?<div className="mt-4 rounded-xl border border-slate-200 bg-white p-3">
       <p className="mb-2 text-xs font-bold text-slate-800">
