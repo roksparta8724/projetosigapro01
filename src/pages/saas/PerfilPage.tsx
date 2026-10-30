@@ -491,14 +491,15 @@ export function PerfilPage() {
 
     if (avatarDraftDirty || avatarFrameDirtyRef.current || saving) return;
 
-    if (profile.avatarUrl) {
+    const persistedAvatarUrl = resolveProfileAvatarDisplayUrl(profile);
+    if (persistedAvatarUrl) {
       setAvatarFiles([
         {
           id: "avatar-atual",
           fileName: "foto-perfil",
           mimeType: "image/*",
           sizeLabel: "imagem salva",
-          previewUrl: profile.avatarUrl,
+          previewUrl: persistedAvatarUrl,
         },
       ]);
     } else {
@@ -1001,13 +1002,14 @@ export function PerfilPage() {
           setStatus("Enviando a foto ao armazenamento institucional R2...");
           const uploaded = await uploadFileToStorage({
             bucket: "profile-assets",
-            tenantId: activeInstitutionId,
+            tenantId: isMasterRole ? null : activeInstitutionId,
+            masterProfile: isMasterRole,
             userId,
             file: avatarUploadFile,
             folder: "avatars",
           });
           avatarStorageRef = uploaded.persistentRef;
-          avatarUrl = uploaded.publicUrl || effectiveAvatarFiles[0]?.previewUrl || form.avatarUrl;
+          avatarUrl = uploaded.persistentRef; // Never persist a temporary blob preview.
         } catch (error) {
           setStatus(error instanceof Error ? error.message : "Falha ao enviar a foto para o R2.");
           return;
@@ -1064,7 +1066,8 @@ export function PerfilPage() {
 
       setStatus("Confirmando foto e preferências no banco Neon...");
       const savedProfile = await saveUserProfile(nextProfile);
-      const savedAvatarUrl = savedProfile.avatarUrl || avatarUrl;
+      const savedAvatarUrl = resolveProfileAvatarDisplayUrl(savedProfile) ||
+        resolveProfileAvatarDisplayUrl({avatarUrl,avatarStorageRef});
       // Novo upload só é sucesso quando a imagem gravada volta a abrir, sem
       // usar blob local como prova. Alterações apenas do enquadramento não
       // precisam repetir a consulta da imagem.

@@ -49,13 +49,18 @@ function sanitizeFileName(fileName: string) {
 export async function uploadFileToStorage(input: {
   bucket: MunicipalityFileBucket;
   tenantId?: string | null;
+  /** Global platform account; upload server verifies the Master role. */
+  masterProfile?: boolean;
   userId: string;
   file: File;
   folder: string;
 }) {
   const scopeId = normalizeUuid(input.tenantId);
-  if (!scopeId) {
-    throw new Error("Escopo municipal invalido para upload.");
+  if (input.masterProfile && (input.bucket !== "profile-assets" || input.folder !== "avatars")) {
+    throw new Error("O Master só pode carregar avatares no espaço global.");
+  }
+  if (!input.masterProfile && !scopeId) {
+    throw new Error("Escopo municipal inválido para upload.");
   }
 
   const safeUserId = input.userId?.trim();
@@ -65,7 +70,8 @@ export async function uploadFileToStorage(input: {
 
   const safeName = sanitizeFileName(input.file.name);
   const folder = normalizeFolder(input.folder, input.bucket);
-  const objectKey = `municipalities/${scopeId}/${folder}/${safeUserId}/${crypto.randomUUID()}-${safeName}`;
+  const ownerPrefix = input.masterProfile ? "platform" : `municipalities/${scopeId}`;
+  const objectKey = `${ownerPrefix}/${folder}/${safeUserId}/${crypto.randomUUID()}-${safeName}`;
   const bucket =
     input.bucket === "process-documents"
       ? "process-documents"
