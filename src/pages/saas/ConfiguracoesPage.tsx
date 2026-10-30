@@ -2443,8 +2443,11 @@ export function ConfiguracoesPage() {
       throw new Error(`O arquivo "${item.fileName}" precisa ser PDF ou imagem.`);
     }
 
-    if (item.file.size > 30 * 1024 * 1024) {
-      throw new Error(`O arquivo "${item.fileName}" excede o limite de 30 MB.`);
+    const isLegalPdf = bucket === "process-documents" && /\b(?:application\/pdf)\b/i.test(mimeType) &&
+      /^legislation\//.test(folder);
+    const maxFileSize = isLegalPdf ? 100 * 1024 * 1024 : 30 * 1024 * 1024;
+    if (item.file.size > maxFileSize) {
+      throw new Error(`O arquivo "${item.fileName}" excede o limite de ${isLegalPdf ? "100" : "30"} MB.`);
     }
 
     const uploaded = await uploadFileToStorage({
@@ -3823,7 +3826,7 @@ export function ConfiguracoesPage() {
                       <p className="text-sm font-bold text-slate-950">Acervo legal municipal</p>
                     </div>
                     <p className="mt-1 max-w-3xl text-xs leading-5 text-slate-500">
-                      Estes arquivos alimentam o módulo Legislação. Use leis promulgadas e anexos oficiais; minutas e propostas não são normas vigentes. Cada campo aceita um PDF.
+                      Estes arquivos alimentam o módulo Legislação. Use leis promulgadas e anexos oficiais; minutas e propostas não são normas vigentes. Cada campo aceita um PDF oficial de até 100 MB; PDFs maiores são enviados diretamente ao armazenamento, sem passar pela função da Vercel.
                     </p>
                   </div>
                   <span className="w-fit rounded-full border border-sky-200 bg-white px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-sky-700">

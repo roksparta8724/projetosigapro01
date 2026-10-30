@@ -3,17 +3,17 @@ const mock = vi.hoisted(() => ({
   rpc: vi.fn(), bearer: vi.fn(), target: vi.fn(), sign: vi.fn(),
   send: vi.fn(), endpoint: vi.fn(),
 }));
-vi.mock("../server/municipal-storage.js", () => ({
+vi.mock("../../server/municipal-storage.js", () => ({
   callDataApiRpc: mock.rpc, readBearer: mock.bearer, resolveMunicipalDocumentTarget: mock.target,
 }));
-vi.mock("../server/r2-runtime.js", () => ({ resolveR2Endpoint: mock.endpoint }));
+vi.mock("../../server/r2-runtime.js", () => ({ resolveR2Endpoint: mock.endpoint }));
 vi.mock("@aws-sdk/s3-request-presigner", () => ({ getSignedUrl: mock.sign }));
 vi.mock("@aws-sdk/client-s3", () => ({
   S3Client: class { send(command: unknown) { return mock.send(command); } },
   HeadObjectCommand: class { constructor(public input: unknown) {} },
   PutObjectCommand: class { constructor(public input: unknown) {} },
 }));
-import handler, { validateLegalUploadInput, MAX_OFFICIAL_LEGAL_PDF_BYTES } from "../api/r2-legal-sign-put";
+import handler, { validateLegalUploadInput, MAX_OFFICIAL_LEGAL_PDF_BYTES } from "../../api/r2-legal-sign-put";
 
 const tenant = "11111111-1111-4111-8111-111111111111";
 const user = "22222222-2222-4222-8222-222222222222";
