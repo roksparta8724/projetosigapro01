@@ -2851,3 +2851,50 @@ html body #root [data-urban-matrix-import="true"] button[data-urban-matrix-actio
   outline-offset:2px !important;
 }
 /* SIGAPRO URBAN MATRIX QA CONTRAST END */
+
+/* SIGAPRO PREMIUM CONTRAST CONTRACT V1 — 2026-10-30
+   Every newly created dark action must opt in with data-sigapro-contrast="dark".
+   Both color AND -webkit-text-fill-color are locked: inverse themes may
+   otherwise render a navy label on a navy CTA despite Tailwind text-white.
+   The rule is semantic and reusable, not a broad override of light cards. */
+html body #root .sig-app-frame button[data-sigapro-contrast="dark"],
+html body #root .sig-app-frame button.sig-premium-dark-action {
+  background:#0b2442 !important;
+  background-image:linear-gradient(120deg,#071b32 0%,#075985 100%) !important;
+  background-color:#0b2442 !important;
+  border:1px solid #2c718f !important;
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  opacity:1 !important;
+  font-weight:800 !important;
+  text-shadow:none !important;
+  box-shadow:0 8px 20px rgba(2,28,46,.14) !important;
+}
+html body #root .sig-app-frame button[data-sigapro-contrast="dark"] :is(span,strong,small,svg),
+html body #root .sig-app-frame button.sig-premium-dark-action :is(span,strong,small,svg) {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  stroke:currentColor;
+  opacity:1 !important;
+}
+html body #root .sig-app-frame button[data-sigapro-contrast="dark"]:hover:not(:disabled),
+html body #root .sig-app-frame button.sig-premium-dark-action:hover:not(:disabled) {
+  background:#0d4167 !important;
+  background-image:linear-gradient(120deg,#0a3455 0%,#0876a5 100%) !important;
+}
+html body #root .sig-app-frame button[data-sigapro-contrast="dark"]:focus-visible,
+html body #root .sig-app-frame button.sig-premium-dark-action:focus-visible {
+  outline:3px solid #38bdf8 !important;
+  outline-offset:3px !important;
+}
+html body #root .sig-app-frame button[data-sigapro-contrast="dark"]:disabled,
+html body #root .sig-app-frame button.sig-premium-dark-action:disabled {
+  background:#334155 !important;
+  background-image:none !important;
+  border-color:#475569 !important;
+  color:#f8fafc !important;
+  -webkit-text-fill-color:#f8fafc !important;
+  opacity:1 !important;
+  box-shadow:none !important;
+}
+/* SIGAPRO PREMIUM CONTRAST CONTRACT V1 END */

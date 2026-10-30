@@ -416,7 +416,8 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
             {row.pendencias_de_leitura?<p role="alert" className="mt-2 text-xs font-bold leading-5 text-rose-900">Leitura pendente: {row.pendencias_de_leitura}</p>:null}
           </div>;
         })() : null}
-        <button type="button" data-urban-review-apply="true" className="mt-3 min-h-11 rounded-xl border border-slate-900 bg-slate-950 px-4 py-2 text-sm font-extrabold text-white"
+        <button type="button" data-urban-review-apply="true" data-sigapro-contrast="dark"
+          className="sig-premium-dark-action mt-3 min-h-11 max-w-full rounded-xl border border-slate-900 bg-slate-950 px-5 py-3 text-sm font-extrabold !text-white shadow-sm transition-colors hover:bg-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
           onClick={applyReviewRow}>Pré-preencher página, zona e uso para conferência</button>
         <p className="mt-2 text-xs font-semibold leading-5 text-amber-950">Valores históricos apenas para comparação. A transcrição literal, a vigência e a confirmação humana continuam obrigatórias para gravar um rascunho no Neon QA.</p>
       </div>:null}
@@ -540,8 +541,8 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
           <p className="mt-1 text-xs text-slate-600">Compare com a página {page} do PDF. Marque somente se linha, zona, uso, índice e exceções forem corretos.</p>
         </div>
       </label>)}
-      <button type="button" disabled={busy||!checked.length||!qaWriteEnabled||(ocrDraft&&!ocrVerified)} onClick={()=>void saveReview()}
-        className="min-h-11 rounded-xl border border-slate-900 bg-slate-950 px-4 py-2 font-bold !text-white disabled:opacity-70">
+      <button type="button" data-sigapro-contrast="dark" disabled={busy||!checked.length||!qaWriteEnabled||(ocrDraft&&!ocrVerified)} onClick={()=>void saveReview()}
+        className="sig-premium-dark-action min-h-11 max-w-full rounded-xl border border-slate-900 bg-slate-950 px-5 py-3 font-extrabold !text-white">
         <CheckCircle2 className="mr-2 inline h-4 w-4"/> Registrar linhas conferidas como RASCUNHO
       </button>
       {!qaWriteEnabled?<p role="status" className="text-xs font-semibold text-amber-800">Gravação bloqueada até a Vercel Preview apontar para Neon QA com AUTH e DATA API do mesmo branch. O site oficial permanece intacto.</p>:null}
