@@ -38,7 +38,7 @@ export function CloudflareVisionLicenseActivation() {
     }catch(e){setMessage(e instanceof Error?e.message:"Falha ao confirmar a licença.");}
     finally{setBusy(false);}
   };
-  return <section data-master-cloudflare-vision-license="true"
+  return <section id="ia-cloudflare" data-master-cloudflare-vision-license="true"
     className="mt-4 rounded-2xl border border-sky-300 bg-white p-5 text-slate-950 shadow-sm">
     <div className="flex items-center gap-3">
       <ShieldCheck aria-hidden="true" className="h-6 w-6 shrink-0 text-sky-800"/>

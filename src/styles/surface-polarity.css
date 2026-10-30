@@ -2898,3 +2898,66 @@ html body #root .sig-app-frame button.sig-premium-dark-action:disabled {
   box-shadow:none !important;
 }
 /* SIGAPRO PREMIUM CONTRAST CONTRACT V1 END */
+
+/* MASTER NAVIGATION VISUAL STABILITY — authenticated avatar and fixed logo frames
+   Only the SIGAPRO product mark is affected; municipal editor crop stays intact. */
+html body #root .sig-app-frame .sig-premium-topbar .sig-topbar-brand-logo {
+  width:62px !important;
+  height:62px !important;
+  min-width:62px !important;
+  min-height:62px !important;
+  max-width:62px !important;
+  max-height:62px !important;
+  flex:0 0 62px !important;
+  aspect-ratio:1 / 1 !important;
+}
+html body #root .sig-app-frame .sig-premium-topbar .sig-topbar-brand-badge {
+  flex:none !important;
+  min-width:60px !important;
+  min-height:60px !important;
+  max-width:60px !important;
+  max-height:60px !important;
+  aspect-ratio:1 / 1 !important;
+}
+html body #root .sig-app-frame .sig-premium-topbar img.sig-topbar-brand-image {
+  display:block !important;
+  width:100% !important;
+  height:100% !important;
+  min-width:0 !important;
+  min-height:0 !important;
+  object-fit:contain !important;
+  object-position:center !important;
+  flex-shrink:0 !important;
+}
+html body #root .sig-app-frame [data-logo-context="sigapro"][data-logo-variant="header"] {
+  width:128px !important;
+  height:128px !important;
+  min-width:128px !important;
+  min-height:128px !important;
+  flex:0 0 128px !important;
+  aspect-ratio:1 / 1 !important;
+}
+html body #root .sig-app-frame [data-logo-context="sigapro"][data-logo-variant="header"] img {
+  width:100% !important;
+  height:100% !important;
+  object-fit:contain !important;
+  object-position:center !important;
+  min-width:0 !important;
+  min-height:0 !important;
+}
+html body #root .sig-app-frame [data-master-cloudflare-vision-license="true"] {
+  scroll-margin-top:105px;
+}
+@media (max-width:1023px) {
+  html body #root .sig-app-frame .sig-premium-topbar .sig-topbar-brand-logo {
+    width:50px !important; height:50px !important;
+    min-width:50px !important; min-height:50px !important;
+    max-width:50px !important; max-height:50px !important;
+    flex:0 0 50px !important;
+  }
+  html body #root .sig-app-frame .sig-premium-topbar .sig-topbar-brand-badge {
+    min-width:48px !important; min-height:48px !important;
+    max-width:48px !important; max-height:48px !important;
+  }
+}
+/* MASTER NAVIGATION VISUAL STABILITY END */

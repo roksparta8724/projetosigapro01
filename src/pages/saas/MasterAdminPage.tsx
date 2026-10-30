@@ -1,6 +1,7 @@
 ﻿import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, Building2, Copy, CreditCard, Landmark, Network, PencilLine, Plus, Search, Settings2, ShieldAlert, ShieldPlus, Trash2, Undo2, UserX, Users2, Workflow, Zap } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { CloudCog } from "lucide-react";
 import { AlertCard } from "@/components/platform/AlertCard";
 import { MetricCard } from "@/components/platform/MetricCard";
 import { InternalTabs } from "@/components/platform/InternalTabs";
@@ -818,6 +819,18 @@ export function MasterAdminPage() {
           icon={ShieldPlus}
           actions={
             <div className="flex flex-col gap-2 sm:flex-row">
+              <Button type="button" data-master-vision-shortcut="true"
+                className="sig-premium-dark-action rounded-full border border-sky-300 bg-slate-950 !text-white"
+                onClick={() => {
+                  setWorkspaceView("visao-geral");
+                  navigate("/master?secao=visao-geral#ia-cloudflare");
+                  window.requestAnimationFrame(() =>
+                    document.getElementById("ia-cloudflare")?.scrollIntoView({behavior:"smooth",block:"start"})
+                  );
+                }}>
+                <CloudCog className="mr-2 h-4 w-4 text-white" />
+                Configurar IA Cloudflare
+              </Button>
               <Button type="button" variant="outline" className="sig-dark-action-btn rounded-full text-slate-50" onClick={() => navigate("/master/planos")}>
                 <CreditCard className="mr-2 h-4 w-4 text-sky-200" />
                 Planos e níveis
