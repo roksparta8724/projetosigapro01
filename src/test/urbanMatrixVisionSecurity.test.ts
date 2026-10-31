@@ -72,6 +72,10 @@ describe("Cloudflare visual Quadro OCR — protected QA drafts only",()=>{
   const callArgs=m.fetch.mock.calls[0];
   expect(callArgs[0]).toContain("/ai/run/@cf/meta/llama-3.2-11b-vision-instruct");
   expect(callArgs[1].body).not.toContain("password");
+  const sent=JSON.parse(callArgs[1].body) as {prompt:string;image:string};
+  expect(sent.image).toBe(image);
+  expect(sent.image).not.toContain("data:image/");
+  expect(sent.prompt.length).toBeGreaterThan(50);
  });
  it("never treats a provider HTTP 200 with narrative text as valid structured OCR",async()=>{
    m.fetch.mockResolvedValue({ok:true,json:async()=>({result:{response:

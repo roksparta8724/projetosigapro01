@@ -111,7 +111,10 @@ export async function suggestUrbanMatrixPageText(req:Req,res:Res,identity:Identi
       // Restore prompt+image, which returned HTTP 200 in the QA deployment.
       // The messages+image variant reached the 45s deadline with this crop.
       // Only the authorized cropped image is sent; never the PDF.
-      body:JSON.stringify({prompt,image:input.imageDataUrl,max_tokens:670,temperature:0}),
+      // Cloudflare's REST /ai/run expects base64 image content, not the
+      // browser's data:image/...;base64, prefix. Input was already validated.
+      body:JSON.stringify({prompt,image:input.imageDataUrl.slice(input.imageDataUrl.indexOf(",")+1),
+        max_tokens:670,temperature:0}),
     });
     if(!response.ok) {
       // Upstream error text is untrusted and never returned or logged.
