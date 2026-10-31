@@ -42,6 +42,7 @@ jobs:
           pkg.devDependencies.eslint='10.14.0';
           pkg.devDependencies['typescript-eslint']='8.71.0';
           pkg.devDependencies['eslint-plugin-react-refresh']='0.5.7';
+          pkg.devDependencies['eslint-plugin-react-hooks']='7.1.1';
           // Sucrase >=3.35.1 no longer pulls vulnerable glob via Tailwind 3.x.
           pkg.overrides={...pkg.overrides, sucrase:'3.35.1',
             minimatch:'11.0.1'};
