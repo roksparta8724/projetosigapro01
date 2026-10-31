@@ -6,6 +6,7 @@ import { extractLiteralCandidates, parsedLiteralNumber, validateImportDate,
   type ImportQuadro, type UrbanExtractedCandidate } from "@/lib/urbanMatrixImport";
 import { reconcileUrbanOcr, type OcrReconciliation } from "@/lib/urbanOcrReconciliation";
 import { URBAN_VISION_FIELDS, type UrbanVisionFieldKey } from "@/lib/urbanVisionStructured";
+import { compareUrbanVisionDrafts, type UrbanDiagnosticRow } from "@/lib/urbanVisionDiagnostic";
 import { UrbanMatrixBatchReviewBoard } from "./UrbanMatrixBatchReviewBoard";
 import { UrbanMatrixArchivePanel, type UrbanStoredDraft } from "./UrbanMatrixArchivePanel";
 
@@ -313,6 +314,8 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
   const [focusSelection,setFocusSelection]=useState<UrbanVisionFieldKey>("zona");
   const [focusedResults,setFocusedResults]=useState<Partial<Record<UrbanVisionFieldKey,string|null>>>({});
   const [focusNotice,setFocusNotice]=useState("");
+  const [expertDiagnostics,setExpertDiagnostics]=useState<UrbanDiagnosticRow[]|null>(null);
+  const [expertStatus,setExpertStatus]=useState("");
   // No localStorage: only the same authenticated component session may reuse an
   // identical, already-authorized crop without charging Cloudflare again.
   const visionSessionCache=useRef(new Map<string,VisionReply>());
@@ -514,20 +517,25 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
   // these dependencies do not change when an OCR request completes.
   useEffect(()=>{
     setFocusCandidates([]);setFocusedResults({});setFocusNotice("");
+    setExpertDiagnostics(null);setExpertStatus("");
   },[municipalityId,file,pageImage,quadro,page,zone,usage]);
-  const readPageImage = async (visionMode:"structured"|"literal"|"focused"="structured") => {
+  const readPageImage = async (visionMode:"structured"|"literal"|"focused"|"expert"="structured") => {
     if(visionBusy || busy || !canEdit || !file || !pageImage || !consent ||
       !Number.isSafeInteger(Number(page)) || Number(page)<1 || Number(page)>10000){
       setMessage("Selecione PDF oficial, página física e imagem recortada da tabela. Autorize a consulta à IA antes de prosseguir.");return;
     }
     if(visionMode==="focused"&&!focusCandidates.includes(focusSelection))return;
+    if(visionMode==="expert"&&(quadro!=="I"||!ocrDraft||text.trim().length<20))return;
     setVisionBusy(true);
-    if(visionMode!=="focused"){
+    if(visionMode!=="focused"&&visionMode!=="expert"){
       setCandidates([]);setChecked([]);setMessage("");
       setVisionNotice({kind:"reading",message:"Solicitação enviada para leitura da linha. Nenhum dado será salvo automaticamente."});
       setVisionRawPreview("");
       setOcrVerified(false);setVisionFeedback(null);
       setFocusCandidates([]);setFocusedResults({});setFocusNotice("");
+    }else if(visionMode==="expert"){
+      setExpertStatus("Analisando recorte com Gemma 4; sem alterar transcrição existente.");
+      setExpertDiagnostics(null);
     }else{
       setFocusNotice("Lendo somente "+(URBAN_VISION_FIELDS.find(([k])=>k===focusSelection)?.[1]||"a célula")+
         " em uma chamada individual. Nenhum valor será inserido automaticamente.");
@@ -585,6 +593,19 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
             throw Error("A IA não conseguiu transcrever esse recorte com segurança.");
           if(visionSessionCache.current.size>=5)visionSessionCache.current.clear();
           visionSessionCache.current.set(cacheKey,result);
+        }
+        if(visionMode==="expert"){
+          if(result.status!=="unverified_expert_ocr_draft"||typeof result.draftText!=="string"){
+            setExpertStatus("Gemma 4 não identificou as 13 colunas com segurança. O resultado anterior permanece preservado.");
+            return;
+          }
+          const diagnostics=compareUrbanVisionDrafts(text,result.draftText);
+          setExpertDiagnostics(diagnostics);
+          const agreeing=diagnostics.filter(x=>x.verdict==="agree").length;
+          const conflicts=diagnostics.filter(x=>x.verdict==="conflict").length;
+          setExpertStatus("Segunda opinião: "+agreeing+" concordâncias, "+conflicts+
+            " divergências. Valores isolados e não lidos permanecem pendentes. Nenhum índice foi aprovado.");
+          return;
         }
         if(visionMode==="focused"){
           if(result.status!=="unverified_focused_cell"||result.fieldKey!==focusSelection)
@@ -668,7 +689,9 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
       } finally {bitmap.close();}
     } catch(err) {
       const reason=err instanceof Error?err.message:"A leitura visual não foi concluída.";
-      if(visionMode==="focused")setFocusNotice("Releitura focalizada não concluída: "+reason);
+      if(visionMode==="expert")setExpertStatus("Auditoria independente não concluída: "+reason+
+        ". O OCR anterior foi mantido sem alterações.");
+      else if(visionMode==="focused")setFocusNotice("Releitura focalizada não concluída: "+reason);
       else{
         setVisionNotice({kind:"error",message:reason+" Nenhum índice foi salvo; a referência histórica permanece disponível abaixo."});
         setMessage(reason);
@@ -1005,6 +1028,50 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
           A segunda tentativa é opcional, utiliza o mesmo recorte com outra instrução e pode consumir a franquia de IA.
           Não envia o PDF completo nem ativa índices.
         </p>:null}
+
+      {ocrDraft && text.trim().length>=20 && quadro==="I" && file && pageImage && consent
+        ?<section data-urban-expert-audit="true"
+          className="mt-4 rounded-xl border border-sky-300 bg-white p-4 text-slate-950">
+          <h6 className="text-base font-extrabold text-sky-950">Diagnóstico de precisão — segunda IA Gemma 4</h6>
+          <p className="mt-1 text-sm font-semibold leading-6 text-slate-800">
+            Duas leituras independentes dos mesmos 13 campos, com comparação de concordâncias,
+            valores divergentes e ilegíveis. Nenhum dado será inserido ou validado automaticamente.
+          </p>
+          <button type="button" data-sigapro-contrast="dark" data-urban-expert-run="true"
+            disabled={visionBusy||busy||!canEdit}
+            onClick={()=>void readPageImage("expert")}
+            className="mt-3 min-h-11 rounded-lg border border-sky-900 bg-sky-900 px-4 py-2 text-sm font-extrabold text-white">
+            {visionBusy?"Executando auditoria…":"Executar diagnóstico completo com Gemma 4"}
+          </button>
+          <p className="mt-2 text-xs font-bold text-amber-950">
+            Consulta opcional e independente que pode consumir franquia da Cloudflare.
+            A fonte oficial e a conferência humana continuam obrigatórias.
+          </p>
+          {expertStatus?<p data-urban-expert-status="true" role="status" aria-live="polite"
+            className="mt-3 rounded-lg border border-sky-200 bg-slate-50 p-3 text-sm font-bold text-slate-900">
+            {expertStatus}
+          </p>:null}
+          {expertDiagnostics?<div className="mt-3 overflow-x-auto rounded-lg border border-slate-200"
+            data-urban-expert-diagnostics="true">
+            <table className="w-full min-w-[740px] border-collapse text-left text-sm text-slate-950">
+              <thead className="bg-slate-100"><tr>
+                <th className="p-2">Parâmetro</th><th className="p-2">Primeira IA</th>
+                <th className="p-2">Gemma 4</th><th className="p-2">Diagnóstico</th>
+              </tr></thead>
+              <tbody>{expertDiagnostics.map(row=><tr key={row.key} className="border-t border-slate-200">
+                <td className="p-2 font-bold">{row.label}</td>
+                <td className="p-2">{row.primary??"[ILEGÍVEL]"}</td>
+                <td className="p-2">{row.expert??"[ILEGÍVEL]"}</td>
+                <td className={"p-2 font-extrabold "+(row.verdict==="agree"?"text-emerald-800":"text-rose-900")}>
+                  {row.verdict==="agree"?"Concordam — conferir PDF":
+                    row.verdict==="conflict"?"DIVERGÊNCIA — bloqueado":
+                    row.verdict==="one_model_only"?"Uma IA apenas — pendente":
+                    "Ambas ilegíveis — pendente"}
+                </td>
+              </tr>)}</tbody>
+            </table>
+          </div>:null}
+        </section>:null}
       {focusCandidates.length>0 && file && pageImage && consent?
         <section data-urban-focus-review="true"
           className="mt-4 rounded-xl border border-amber-300 bg-amber-50 p-4 text-slate-950">
