@@ -70,12 +70,18 @@ export function unwrapCloudflareVisionAnswer(payload:unknown):string|null {
   const root=payload as Record<string,unknown>;
   const candidates:unknown[]=[];
   const visit=(value:unknown,depth:number)=>{
-    if(depth>4||value===null||value===undefined)return;
+    if(depth>7||value===null||value===undefined)return;
     if(typeof value==="string"){candidates.push(value);return;}
     if(!value||typeof value!=="object")return;
     if(Array.isArray(value)){
       // Never reassemble free-form token arrays as numeric table cells.
-      if(value.length===1)visit(value[0],depth+1);
+      if(value.length<=8)for(const part of value){
+        if(part&&typeof part==="object"&&!Array.isArray(part)&&
+          (part as Record<string,unknown>).type==="text"&&
+          typeof (part as Record<string,unknown>).text==="string"){
+          visit((part as Record<string,unknown>).text,depth+1);
+        }else if(value.length===1)visit(part,depth+1);
+      }
       return;
     }
     const node=value as Record<string,unknown>;
@@ -183,7 +189,9 @@ export async function suggestUrbanMatrixPageText(req:Req,res:Res,identity:Identi
         messages:[{role:"user",content:[
           {type:"text",text:prompt},
           {type:"image_url",image_url:{url:input.imageDataUrl}},
-        ]}],stream:false,temperature:0,max_completion_tokens:1500,
+        ]}],
+        chat_template_kwargs:{enable_thinking:false},
+        stream:false,temperature:0,max_completion_tokens:2000,
       }:{
         task:"query",image:input.imageDataUrl,question:prompt,
         stream:false,reasoning:false,max_tokens:1100,temperature:0,
@@ -209,11 +217,24 @@ export async function suggestUrbanMatrixPageText(req:Req,res:Res,identity:Identi
       ? parsed as Record<string,unknown>:null;
     const resultNode=root?.result&&typeof root.result==="object"&&!Array.isArray(root.result)
       ? root.result as Record<string,unknown>:null;
+    const choice=Array.isArray(resultNode?.choices)&&resultNode.choices.length>0
+      &&resultNode.choices[0]&&typeof resultNode.choices[0]==="object"
+      ?resultNode.choices[0] as Record<string,unknown>:null;
+    const modelMessage=choice?.message&&typeof choice.message==="object"
+      &&!Array.isArray(choice.message)?choice.message as Record<string,unknown>:null;
+    const usage=resultNode?.usage&&typeof resultNode.usage==="object"
+      ?resultNode.usage as Record<string,unknown>:null;
     // Metadata only: do not log contents or values from scanned legislation.
     console.info("[SIGAPRO][UrbanVision] response envelope",{
       topKeys:root?Object.keys(root).slice(0,8):[],
       resultKeys:resultNode?Object.keys(resultNode).slice(0,8):[],
-      textLength:raw?.length||0,mode:input.mode,hasNamedFields:typeof raw==="string"&&
+      textLength:raw?.length||0,mode:input.mode,
+      finishReason:typeof choice?.finish_reason==="string"?choice.finish_reason:"unknown",
+      messageKeys:modelMessage?Object.keys(modelMessage).slice(0,7):[],
+      contentShape:typeof modelMessage?.content==="string"?"string":
+        Array.isArray(modelMessage?.content)?"blocks":"empty",
+      completionTokens:typeof usage?.completion_tokens==="number"?usage.completion_tokens:null,
+      hasNamedFields:typeof raw==="string"&&
         /(?:zona|uso|recuo|ca_basico|campos)/i.test(raw),
     });
     if(input.mode==="focused"){
@@ -233,9 +254,11 @@ export async function suggestUrbanMatrixPageText(req:Req,res:Res,identity:Identi
       return answer(res,200,{
         status:"unverified_unstructured_ocr_response",
         ocrPreview:typeof raw==="string"?raw.trim().slice(0,2500):"",
-        diagnosticCode:raw?"OCR_SHORT_RESPONSE":"OCR_EMPTY_RESPONSE",
+        diagnosticCode:raw?"OCR_SHORT_RESPONSE":expert?"GEMMA_EMPTY_COMPLETION":"OCR_EMPTY_RESPONSE",
         recognizable:0,total:13,code:"URBAN_VISION_UNSTRUCTURED",
-        warning:"A Cloudflare respondeu, mas não produziu células suficientes para análise. "+
+        warning:expert&&!raw
+          ?"A Gemma 4 respondeu sem texto utilizável. A transcrição anterior e o PDF foram preservados."
+          :"A Cloudflare respondeu, mas não produziu células suficientes para análise. "+
           "Use a conferência pelo PDF e pacote histórico; não repita a mesma imagem.",
         automaticallyActivated:false,originalDocumentUploaded:false,
         requiresVisualComparison:true,
