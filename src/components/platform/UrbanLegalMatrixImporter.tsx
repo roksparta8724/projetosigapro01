@@ -6,7 +6,7 @@ import { extractLiteralCandidates, parsedLiteralNumber, validateImportDate,
   type ImportQuadro, type UrbanExtractedCandidate } from "@/lib/urbanMatrixImport";
 import { reconcileUrbanOcr, type OcrReconciliation } from "@/lib/urbanOcrReconciliation";
 import { URBAN_VISION_FIELDS, type UrbanVisionFieldKey } from "@/lib/urbanVisionStructured";
-import { compareUrbanVisionDrafts, type UrbanDiagnosticRow } from "@/lib/urbanVisionDiagnostic";
+import { compareUrbanVisionDrafts, auditExpertAgainstArchivedRow, type UrbanDiagnosticRow } from "@/lib/urbanVisionDiagnostic";
 import { UrbanMatrixBatchReviewBoard } from "./UrbanMatrixBatchReviewBoard";
 import { UrbanMatrixArchivePanel, type UrbanStoredDraft } from "./UrbanMatrixArchivePanel";
 
@@ -375,6 +375,11 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
     Number(page)===matchingOriginalRow.pagina_pdf &&
     normalizeUrbanCode(zone)===normalizeUrbanCode(matchingOriginalRow.zona_conforme_tabela) &&
     normalizeUrbanCode(usage)===normalizeUrbanCode(matchingOriginalRow.uso_predominante_conforme_tabela));
+  const historicalExpertAudit=expertDiagnostics
+    ? auditExpertAgainstArchivedRow(expertDiagnostics,matchingOriginalScope?matchingOriginalRow:null)
+    : null;
+  const historicalMatches=historicalExpertAudit?.filter(x=>x.status==="match").length??0;
+  const historicalConflicts=historicalExpertAudit?.filter(x=>x.status==="divergent").length??0;
   const ocrReconciliation=ocrDraft && matchingOriginalScope && matchingOriginalRow
     ? reconcileUrbanOcr(text,matchingOriginalRow) : null;
   const ocrReconciliationBlocked=Boolean(ocrDraft && reviewPackage &&
@@ -1108,25 +1113,68 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
             className="mt-3 rounded-lg border border-sky-200 bg-slate-50 p-3 text-sm font-bold text-slate-900">
             {expertStatus}
           </p>:null}
-          {expertDiagnostics?<div className="mt-3 overflow-x-auto rounded-lg border border-slate-200"
-            data-urban-expert-diagnostics="true">
-            <table className="w-full min-w-[740px] border-collapse text-left text-sm text-slate-950">
+          {expertDiagnostics?<div className="mt-3 space-y-3">
+            <p data-urban-expert-historical-summary="true" role="status"
+              className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm font-extrabold text-amber-950">
+              {matchingOriginalScope&&matchingOriginalRow
+                ?"Comparação com rascunho histórico importado: "+historicalMatches+
+                  "/13 semelhantes, "+historicalConflicts+
+                  " divergentes. Esta referência ainda exige conferência humana e validação da vigência da lei."
+                :"Sem comparação histórica vinculada à página, zona e uso. Nenhum parâmetro foi verificado contra uma fonte documental."}
+            </p>
+            <div className="overflow-x-auto rounded-lg border border-slate-200"
+              data-urban-expert-diagnostics="true">
+            <table className="w-full min-w-[940px] border-collapse text-left text-sm text-slate-950">
               <thead className="bg-slate-100"><tr>
-                <th className="p-2">Parâmetro</th><th className="p-2">Primeira IA</th>
-                <th className="p-2">Gemma 4</th><th className="p-2">Diagnóstico</th>
+                <th className="p-2">Parâmetro</th><th className="p-2">Moondream</th>
+                <th className="p-2">Gemma 4</th>
+                <th className="p-2">Rascunho histórico (não validado)</th>
+                <th className="p-2">Resultado e pendência</th>
               </tr></thead>
-              <tbody>{expertDiagnostics.map(row=><tr key={row.key} className="border-t border-slate-200">
-                <td className="p-2 font-bold">{row.label}</td>
-                <td className="p-2">{row.primary??"[ILEGÍVEL]"}</td>
-                <td className="p-2">{row.expert??"[ILEGÍVEL]"}</td>
-                <td className={"p-2 font-extrabold "+(row.verdict==="agree"?"text-emerald-800":"text-rose-900")}>
-                  {row.verdict==="agree"?"Concordam — conferir PDF":
-                    row.verdict==="conflict"?"DIVERGÊNCIA — bloqueado":
-                    row.verdict==="one_model_only"?"Uma IA apenas — pendente":
-                    "Ambas ilegíveis — pendente"}
-                </td>
-              </tr>)}</tbody>
+              <tbody>{expertDiagnostics.map(row=>{
+                const history=historicalExpertAudit?.find(h=>h.key===row.key);
+                const historicLabel=history?.status==="match"?"Confere com o rascunho — conferir PDF":
+                  history?.status==="divergent"?"DIVERGE DO RASCUNHO — verificar PDF":
+                  history?.status==="unreadable"?"IA ilegível — pendente":
+                  history?.status==="ambiguous"?"Ambíguo — pendente":
+                  history?.status==="missing"?"Sem leitura da IA — pendente":
+                  "Histórico não comparado";
+                return <tr key={row.key} data-urban-expert-row={row.key}
+                  className={"border-t "+(history?.status==="divergent"
+                    ?"border-rose-300 bg-rose-50":"border-slate-200")}>
+                  <td className="p-2 font-bold">{row.label}</td>
+                  <td className="p-2">{row.primary??"[ILEGÍVEL]"}</td>
+                  <td className="p-2">{row.expert??"[ILEGÍVEL]"}</td>
+                  <td className="p-2">{history?.reference??"Não disponível"}</td>
+                  <td className="p-2">
+                    <p className={row.verdict==="agree"?"font-bold text-emerald-800":"font-extrabold text-rose-900"}>
+                      {row.verdict==="agree"?"IAs concordam":
+                        row.verdict==="conflict"?"IAs divergem":
+                        row.verdict==="one_model_only"?"Uma IA apenas":"Não lido"}
+                    </p>
+                    <p className={history?.status==="divergent"?"font-extrabold text-rose-900":"font-semibold text-slate-800"}>
+                      {historicLabel}
+                    </p>
+                    {row.verdict!=="agree"||history?.status==="divergent"
+                      ?<button type="button" data-urban-expert-select-field={row.key}
+                        disabled={visionBusy||busy}
+                        onClick={()=>{
+                          setFocusCandidates(old=>old.includes(row.key)?old:[...old,row.key]);
+                          setFocusSelection(row.key);
+                          document.querySelector('[data-urban-focus-review="true"]')?.scrollIntoView({behavior:"smooth",block:"center"});
+                        }}
+                        className="mt-2 rounded border border-sky-700 bg-white px-2 py-1 text-xs font-extrabold text-sky-900">
+                        Conferir este campo
+                      </button>:null}
+                  </td>
+                </tr>;
+              })}</tbody>
             </table>
+            </div>
+            <p className="text-xs font-semibold text-amber-950">
+              Concordância entre modelos ou com o rascunho não comprova legislação vigente nem autoriza parâmetros.
+              O gabarito textual e a identificação da zona exigem conferência literal no PDF.
+            </p>
           </div>:null}
         </section>:null}
       {focusCandidates.length>0 && file && pageImage && consent?

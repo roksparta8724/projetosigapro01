@@ -1,6 +1,6 @@
 import { describe,it,expect,vi,beforeEach,afterEach } from "vitest";
 import { readFileSync } from "node:fs";
-import { compareUrbanVisionDrafts } from "@/lib/urbanVisionDiagnostic";
+import { compareUrbanVisionDrafts,auditExpertAgainstArchivedRow } from "@/lib/urbanVisionDiagnostic";
 import {parseUrbanVisionResult} from "@/lib/urbanVisionStructured";
 import {validateVisionInput,suggestUrbanMatrixPageText} from "../../server/urban-matrix-vision";
 const mock=vi.hoisted(()=>({rpc:vi.fn(),env:vi.fn(),fetch:vi.fn()}));
@@ -74,6 +74,26 @@ describe("SIGAPRO — 13 campos com auditoria independente Gemma 4, sem gravacao
   expect(rows.find(x=>x.key==="recuo_frontal")?.verdict).toBe("conflict");
   expect(rows.find(x=>x.key==="ca_basico")?.verdict).toBe("not_read");
  });
+ it("identifica zona prefixada e gabarito alterado como divergentes do rascunho histórico",()=>{
+  const first="Zona: [ILEGÍVEL]\\nUso: comercial\\nC.A. mínimo: [ILEGÍVEL]\\nGabarito: [ILEGÍVEL]";
+  const second="Zona: ZONA ZM-B(e)\\nUso: comercial\\nC.A. mínimo: 0,05\\nGabarito: largura da via + a testada + recuo";
+  const row={
+    pagina_pdf:36,zona_conforme_tabela:"ZM-B(e)",uso_predominante_conforme_tabela:"comercial",
+    ca_minimo_original:"0,05",ca_basico_original:"0,5",ca_maximo_original:"1",
+    taxa_ocupacao_maxima_pct:50,taxa_permeabilidade_minima_pct:70,
+    lote_minimo_m2:3000,testada_minima_m:30,
+    gabarito_original:"largura da via da testada + recuo",
+    recuo_frontal_m:10,recuo_fundos_m:8,recuo_lateral_m:5,
+  };
+  const diagnostic=compareUrbanVisionDrafts(first,second);
+  const verified=auditExpertAgainstArchivedRow(diagnostic,row);
+  expect(verified.find(x=>x.key==="zona")?.status).toBe("divergent");
+  expect(verified.find(x=>x.key==="gabarito")?.status).toBe("divergent");
+  expect(verified.find(x=>x.key==="ca_minimo")?.status).toBe("match");
+  expect(verified.find(x=>x.key==="uso")?.status).toBe("match");
+  expect(verified.find(x=>x.key==="recuo_frontal")?.status).toBe("unreadable");
+  expect(auditExpertAgainstArchivedRow(diagnostic,null).every(x=>x.status==="not_checked")).toBe(true);
+ });
  it("nunca trata a classe comercial como codigo da zona",()=>{
   const parsed=parseUrbanVisionResult(JSON.stringify({
     zona:"comercial",uso:"comercial",ca_minimo:"0,05",ca_basico:"0,5",
@@ -85,6 +105,9 @@ describe("SIGAPRO — 13 campos com auditoria independente Gemma 4, sem gravacao
  it("auditoria da IA nunca preenche indice nem aprova por consenso",()=>{
   const ui=readFileSync("src/components/platform/UrbanLegalMatrixImporter.tsx","utf8");
   expect(ui).toContain('data-urban-expert-audit="true"');
+  expect(ui).toContain('data-urban-expert-historical-summary="true"');
+  expect(ui).toContain('data-urban-expert-select-field={row.key}');
+  expect(ui).toContain('auditExpertAgainstArchivedRow(expertDiagnostics,matchingOriginalScope?matchingOriginalRow:null)');
   expect(ui).toContain('onClick={()=>void readPageImage("expert")}');
   expect(ui).toContain('setAutoAuditPending(true)');
   expect(ui).toContain('void readPageImage("expert")');
