@@ -50,7 +50,7 @@ describe("SIGAPRO QA — OCR não transforma índices soltos em regras",()=>{
    expect(ui).toContain('id="urban-matrix-transcription"');
    expect(ui).toContain('preparedText={preparedManualText}');
    expect(ui).toContain("setPreparedManualText(verifiedText)");
-   expect(ui).toContain("Transcrição preparada por conferência humana — rascunho não salvo");
+   expect(ui).toContain("Editar transcrição preparada — abrir somente se precisar corrigir");
  });
  it("invalida o resultado visual se o operador altera a revisão, troca o PDF ou edita o texto",()=>{
    expect(ui).toContain("onInvalidatePrepared={()=>{");
