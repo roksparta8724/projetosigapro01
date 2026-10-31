@@ -33,8 +33,8 @@ describe("SIGAPRO QA — retorno Cloudflare, reconsulta opcional e zona correta"
    expect(validateVisionInput({...input,mode:"paid-fallback"})).toBeNull();
  });
  it("separa o modo literal da consulta original e cobra apenas após clique explícito",()=>{
-   expect(ui).toContain('visionMode:"structured"|"literal"="structured"');
-   expect(ui).toContain('quadro,page,hash,visionMode].join("|")');
+   expect(ui).toContain('visionMode:"structured"|"literal"|"focused"="structured"');
+   expect(ui).toContain('quadro,page,hash,visionMode,visionMode==="focused"?focusSelection:""].join("|")');
    expect(ui).toContain('onClick={()=>void readPageImage("literal")}');
    expect(ui).toContain('data-urban-vision-literal-retry="true"');
    expect(ui).toContain('mode:visionMode');
