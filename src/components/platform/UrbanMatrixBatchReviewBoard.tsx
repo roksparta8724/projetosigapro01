@@ -6,9 +6,9 @@ import {examineBatchRows,checkedBatchIndexes,makeUrbanBatchStaging,
 type Props={
  municipalityId:string;file:File;reviewPackage:BatchUrbanPackage;
  qaWriteEnabled:boolean;canEdit:boolean;onOpenRow:(index:number)=>void;
+ onArchiveSaved:()=>void;archiveRestored?:boolean;
 };
-type SavedBatch={id:string;version:number;document_title:string;total_rows:number;
- reviewed_rows:number;status:string;created_at:string};
+
 const MAX_PDF_BYTES=100*1024*1024;
 async function checkLocalPdf(file:File,expectedHash:string){
  if(file.size<5||file.size>MAX_PDF_BYTES||!/\.pdf$/i.test(file.name))
@@ -20,36 +20,21 @@ async function checkLocalPdf(file:File,expectedHash:string){
  if(hash!==expectedHash)throw Error("O PDF não corresponde ao pacote JSON (SHA-256). Nenhuma linha foi salva.");
 }
 export function UrbanMatrixBatchReviewBoard({
- municipalityId,file,reviewPackage,qaWriteEnabled,canEdit,onOpenRow
+ municipalityId,file,reviewPackage,qaWriteEnabled,canEdit,onOpenRow,
+ onArchiveSaved,archiveRestored=false
 }:Props){
  const [attested,setAttested]=useState(false);
  const [checked,setChecked]=useState<number[]>([]);
  const [busy,setBusy]=useState(false);
  const [notice,setNotice]=useState("");
- const [history,setHistory]=useState<SavedBatch[]>([]);
- const [historyChecked,setHistoryChecked]=useState(false);
- const [historyError,setHistoryError]=useState(false);
- useEffect(()=>{
-  let live=true;
-  setHistory([]);setHistoryChecked(false);setHistoryError(false);
-  if(!qaWriteEnabled||!backendClient)return()=>{live=false;};
-  void backendClient.rpc("list_urban_matrix_batch_staging_v1",{
-    _municipality_id:municipalityId
-  }).then(({data,error}:{data:unknown;error:unknown})=>{
-    if(!live)return;
-    setHistoryChecked(true);
-    if(error||!Array.isArray(data)){setHistoryError(true);return;}
-    setHistory(data as SavedBatch[]);
-  }).catch(()=>{if(live){setHistoryChecked(true);setHistoryError(true);}});
-  return()=>{live=false;};
- },[municipalityId,qaWriteEnabled]);
+ const [savedHere,setSavedHere]=useState(archiveRestored);
  const statuses=useMemo(()=>examineBatchRows(reviewPackage.quadro_I),[reviewPackage]);
  const eligible=useMemo(()=>statuses.filter(x=>x.bulkEligible),[statuses]);
  const pending=useMemo(()=>statuses.filter(x=>!x.bulkEligible),[statuses]);
  const reviewed=useMemo(()=>checkedBatchIndexes(checked,statuses),[checked,statuses]);
  const sameCount=reviewed.length===eligible.length&&eligible.length>0;
  const save=async()=>{
-  if(busy||!canEdit||!qaWriteEnabled||!backendClient||!municipalityId){
+  if(busy||savedHere||!canEdit||!qaWriteEnabled||!backendClient||!municipalityId){
    setNotice("Gravação disponível somente em homologação Neon QA autorizada.");return;
   }
   if(checked.length>0&&!attested){
@@ -71,12 +56,9 @@ export function UrbanMatrixBatchReviewBoard({
    setNotice("Lote histórico QA versão "+receipt.version+": "+
     receipt.rows+" linhas arquivadas; "+receipt.reviewed+
     " declaradas conferidas. Vigência pendente; nenhuma regra ativa.");
-   const opened=await backendClient.rpc("list_urban_matrix_batch_staging_v1",{
-    _municipality_id:municipalityId
-   });
-   if(opened.error||!Array.isArray(opened.data))
-    throw Error("Gravação confirmada, mas a reabertura do histórico falhou. Não envie novamente.");
-   setHistory(opened.data as SavedBatch[]);
+   setSavedHere(true);
+   // Parent archive is always mounted; refresh without requiring JSON reupload.
+   onArchiveSaved();
   }catch(e){setNotice(e instanceof Error?e.message:"Falha no arquivo em lote.");}
   finally{setBusy(false);}
  };
@@ -172,7 +154,7 @@ export function UrbanMatrixBatchReviewBoard({
           <ul className="mt-2 list-inside list-disc text-xs font-semibold leading-5 text-slate-700">
             {row.issues.map((issue,i)=><li key={i}>{issue}</li>)}
           </ul>
-          <button type="button" onClick={()=>onOpenRow(row.index)}
+          <button type="button" onClick={()=>onOpenRow(row.index)} data-sigapro-contrast="dark"
             className="mt-3 min-h-10 rounded-lg border border-sky-900 bg-sky-900 px-3 py-2 text-xs font-extrabold text-white">
             Abrir linha para conferir no PDF
           </button>
@@ -225,10 +207,10 @@ export function UrbanMatrixBatchReviewBoard({
      </p>
     </div>
     <button type="button" data-urban-batch-stage-save="true" data-sigapro-contrast="dark"
-      disabled={busy||!qaWriteEnabled}
+      disabled={busy||savedHere||!qaWriteEnabled}
       onClick={()=>void save()}
       className="min-h-11 rounded-lg border border-slate-950 bg-slate-950 px-4 py-2 text-sm font-extrabold text-white disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-700">
-      {busy?"Arquivando lote…":"Salvar lote histórico como rascunho QA"}
+      {busy?"Arquivando lote…":savedHere?"Rascunho já arquivado no Neon QA":"Salvar lote histórico como rascunho QA"}
     </button>
    </div>
    {!qaWriteEnabled?<p role="alert" className="mt-2 text-sm font-bold text-amber-950">
@@ -236,20 +218,10 @@ export function UrbanMatrixBatchReviewBoard({
    </p>:null}
    {notice?<p data-urban-batch-message="true" role="status"
       className="mt-3 rounded-lg border border-slate-200 bg-white p-3 text-sm font-bold text-slate-950">{notice}</p>:null}
-   {historyChecked && historyError?<p role="alert"
-     className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs font-bold text-amber-950">
-     Histórico de lotes QA indisponível. Não conclua que os dados foram perdidos;
-     verifique a conexão antes de tentar gravar novamente.
+   {savedHere?<p data-urban-batch-saved-info="true" role="status"
+     className="mt-3 rounded-lg border border-emerald-300 bg-emerald-50 p-3 text-sm font-bold text-emerald-950">
+     O lote está arquivado. Consulte e reabra em “Rascunhos históricos já salvos no Neon QA”, acima, sem gerar outro.
    </p>:null}
-   {historyChecked&&!historyError&&history.length===0?<p className="mt-3 text-xs font-semibold text-slate-700">
-     Nenhum lote deste documento foi localizado no histórico da prefeitura neste ambiente QA.
-   </p>:null}
-   {history.length>0?<details className="mt-3 rounded-lg border border-slate-200 bg-white p-3">
-     <summary className="cursor-pointer font-bold text-sky-950">Lotes arquivados nesta prefeitura</summary>
-     {history.map(h=><p key={h.id} className="mt-2 text-xs font-semibold text-slate-800">
-      Versão {h.version} · {h.total_rows} linhas · {h.reviewed_rows} conferidas · {h.status}
-     </p>)}
-    </details>:null}
   </div>
  </section>;
 }
