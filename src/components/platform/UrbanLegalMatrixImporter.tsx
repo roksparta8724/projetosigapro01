@@ -312,6 +312,7 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
   const visionSessionCache=useRef(new Map<string,VisionReply>());
   const [previewUrl,setPreviewUrl] = useState("");
   const [pdfViewerReload,setPdfViewerReload] = useState(0);
+  const [openedRowNotice,setOpenedRowNotice]=useState("");
   // The browser's native PDF reader does not reliably honor fragment changes
   // in an already mounted iframe. Remount on page / document / manual refresh.
   // Preview writes must use an explicitly configured, non-production Neon pair.
@@ -440,8 +441,19 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
     setZone(normalizeUrbanCode(row.zona_conforme_tabela));
     setUsage(normalizeUrbanCode(row.uso_predominante_conforme_tabela));
     setEffectiveFrom("");setText("");setPreparedManualText(null);
-    setOcrDraft(false);setOcrVerified(false);setCandidates([]);setChecked([]);setConsent(false);
-    setMessage("Linha aberta para leitura individual do PDF. Vigência não confirmada; nenhum índice salvo.");
+    // Old crop or consent must never carry into another zone / use.
+    setPageImage(null);setVisionNotice(null);setVisionFeedback(null);
+    setVisionRawPreview("");setOcrDraft(false);setOcrVerified(false);
+    setCandidates([]);setChecked([]);setConsent(false);
+    setPdfViewerReload(previous=>previous+1);
+    setOpenedRowNotice("Linha "+(index+1)+" aberta: "+row.zona_conforme_tabela+
+      " · "+row.uso_predominante_conforme_tabela+" · página "+row.pagina_pdf+
+      ". Confira o PDF e selecione o recorte desta linha para a IA.");
+    setMessage("Linha aberta para conferência. Vigência não confirmada; nenhum índice salvo.");
+    requestAnimationFrame(()=>{
+      document.getElementById("urban-matrix-selected-row")?.scrollIntoView({behavior:"smooth",block:"start"});
+      document.getElementById("urban-matrix-selected-row-control")?.focus({preventScroll:true});
+    });
   };
   const applyReviewRow = () => {
     const row=reviewPackage?.quadro_I[reviewRowIndex];
@@ -762,9 +774,13 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
           archiveRestored={archiveRestored}
           onArchiveSaved={()=>{setArchiveRestored(true);setArchiveReloadToken(previous=>previous+1);}}
         />:null}
-        <label className="mt-4 block text-xs font-bold text-slate-900">
+        {openedRowNotice?<p data-urban-row-opened="true" role="status" aria-live="polite"
+          className="mt-3 rounded-xl border border-emerald-300 bg-emerald-50 p-3 text-sm font-extrabold text-emerald-950">
+          {openedRowNotice}
+        </p>:null}
+        <label id="urban-matrix-selected-row" className="mt-4 block scroll-mt-32 text-sm font-bold text-slate-900">
           Selecione a zona e o uso conforme tabela de origem
-          <select aria-label="Linha extraída para pré-preenchimento" value={reviewRowIndex}
+          <select id="urban-matrix-selected-row-control" aria-label="Linha extraída para pré-preenchimento" value={reviewRowIndex}
             onChange={e=>openBatchRow(Number(e.target.value))}
             className="mt-1 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-slate-950">
             {reviewPackage.quadro_I.map((row,i)=><option key={i} value={i}>
