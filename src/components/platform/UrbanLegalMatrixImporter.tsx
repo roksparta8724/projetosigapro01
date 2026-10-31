@@ -535,7 +535,7 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
       setCandidates([]);setChecked([]);setMessage("");
       setVisionNotice({kind:"reading",message:"Solicitação enviada para leitura da linha. Nenhum dado será salvo automaticamente."});
       setVisionRawPreview("");
-      setOcrVerified(false);setVisionFeedback(null);
+      setOcrDraft(false);setOcrVerified(false);setVisionFeedback(null);
       setFocusCandidates([]);setFocusedResults({});setFocusNotice("");
     }else if(visionMode==="expert"){
       setExpertStatus("Analisando recorte com Gemma 4; sem alterar transcrição existente.");
@@ -605,11 +605,14 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
           }
           const hasInitialDraft=ocrDraft&&text.trim().length>=20;
           if(!hasInitialDraft){
-            // Recover from complete failure of the first model, but label the
-            // second reading as uncorroborated, NEVER as validated data.
-            setText(result.draftText.trim().slice(0,6000));
-            setOcrDraft(true);setOcrVerified(false);setMethod("visual_double_transcription");
-            setPreparedManualText(null);
+            // The second model is uncorroborated. Never overwrite text typed or
+            // approved by a human, even if the first model failed.
+            if(!text.trim()){
+              setText(result.draftText.trim().slice(0,6000));
+              setOcrDraft(true);setOcrVerified(false);
+              setMethod("visual_double_transcription");
+              setPreparedManualText(null);
+            }
             setVisionFeedback({
               recognized:Number(result.recognizable)||0,total:13,
               missing:Array.isArray(result.unrecognized)?result.unrecognized.length:13,
@@ -1065,7 +1068,7 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
           Não envia o PDF completo nem ativa índices.
         </p>:null}
 
-      {ocrDraft && text.trim().length>=20 && quadro==="I" && file && pageImage && consent
+      {(ocrDraft && text.trim().length>=20 || Boolean(expertStatus)||Boolean(expertDiagnostics)) && quadro==="I" && file && pageImage && consent
         ?<section data-urban-expert-audit="true"
           className="mt-4 rounded-xl border border-sky-300 bg-white p-4 text-slate-950">
           <h6 className="text-base font-extrabold text-sky-950">Diagnóstico de precisão — segunda IA Gemma 4</h6>
