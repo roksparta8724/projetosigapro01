@@ -5,7 +5,10 @@ const server=readFileSync("server/urban-matrix-vision.ts","utf8");
 const vercel=JSON.parse(readFileSync("vercel.json","utf8")) as {functions?:Record<string,{maxDuration:number}>};
 describe("SIGAPRO QA — leitura visual Cloudflare com prazo controlado",()=>{
  it("usa o contrato de API de visão do Llama 3.2 documentado pela Cloudflare",()=>{
-   expect(server).toContain('body:JSON.stringify({prompt,image:input.imageDataUrl,max_tokens:670,temperature:0})');
+   // REST image is raw base64 after validating the browser data URI.
+   expect(server).toContain('image:input.imageDataUrl.slice(input.imageDataUrl.indexOf(",")+1)');
+   expect(server).toContain('max_tokens:670,temperature:0}');
+   expect(server).not.toContain('image:input.imageDataUrl,max_tokens:670');
    expect(server).not.toContain('messages:[');
    expect(server).toContain("URBAN_VISION_JSON_PROMPT");
    expect(server).toContain('const structured=parseUrbanVisionResult(raw)');
