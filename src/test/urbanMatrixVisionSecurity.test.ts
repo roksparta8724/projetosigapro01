@@ -49,11 +49,20 @@ describe("Cloudflare visual Quadro OCR — protected QA drafts only",()=>{
   expect(m.fetch).not.toHaveBeenCalled();
  });
  it("returns only unverified transcription; never activates or saves a draft",async()=>{
-  m.fetch.mockResolvedValue({ok:true,json:async()=>({result:{response:
-   "ZONA EXEMPLO ILEGÍVEL. O número nesta coluna não é legível na imagem."}})});
+  const structured={
+    zona:"ZM-B(e)",uso:"comercial",ca_minimo:"0,05",
+    ca_basico:"0,5",ca_maximo:"1",ocupacao_maxima:"50%",
+    permeabilidade_minima:"70%",lote_minimo:"3000 m²",
+    testada_minima:"30 m",gabarito:"largura da via da testada + recuo",
+    recuo_frontal:"10 m",recuo_fundos:"8 m",recuo_lateral:"5 m",
+  };
+  m.fetch.mockResolvedValue({ok:true,json:async()=>({result:{response:JSON.stringify(structured)}})});
   const res=await call();
   expect(res.code).toBe(200);
-  expect(res.payload.status).toBe("unverified_ocr_draft");
+  expect(res.payload.status).toBe("unverified_structured_ocr_draft");
+  expect(res.payload.recognizable).toBe(13);
+  expect(res.payload.total).toBe(13);
+  expect(res.payload.draftText).toContain("C.A. mínimo: 0,05");
   expect(res.payload.automaticallyActivated).toBe(false);
   expect(res.payload.originalDocumentUploaded).toBe(false);
   expect(m.rpc).toHaveBeenCalledWith(expect.anything(),"is_urban_regulation_admin_v1",{
@@ -63,6 +72,14 @@ describe("Cloudflare visual Quadro OCR — protected QA drafts only",()=>{
   const callArgs=m.fetch.mock.calls[0];
   expect(callArgs[0]).toContain("/ai/run/@cf/meta/llama-3.2-11b-vision-instruct");
   expect(callArgs[1].body).not.toContain("password");
+ });
+ it("never reports success from a prose-only or JSON-like narrative",async()=>{
+   m.fetch.mockResolvedValue({ok:true,json:async()=>({result:{response:
+     "Os decimais estão preservados e nenhum valor foi inventado."}})});
+   const res=await call();
+   expect(res.code).toBe(422);
+   expect(res.payload.code).toBe("URBAN_VISION_UNSTRUCTURED");
+   expect(res.payload.draftText).toBeUndefined();
  });
  it("returns non-success on Cloudflare error; never falls back to a different provider",async()=>{
   m.fetch.mockResolvedValue({ok:false,status:403});

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { BookText, CheckCircle2, FileText, Loader2, ShieldAlert } from "lucide-react";
 import { backendClient } from "@/integrations/backend/databaseClient";
 import { normalizeUrbanCode, URBAN_METRICS, type UrbanMetric } from "@/lib/urbanPrecheck";
@@ -11,6 +11,8 @@ type SavedSnapshot = { id: string; version: number; quadro: ImportQuadro; zone_c
   use_code: string; page_number: number; status: string; document_title: string };
 type ExtractionReply = { candidates?: unknown; error?: string; quadro?: ImportQuadro;
   status?: string; automaticallyActivated?: boolean };
+type VisionReply = { draftText?:unknown; error?:string;
+  status?:string;recognizable?:number;total?:number;unrecognized?:string[] };
 type ReviewPackageRow = {
   pagina_pdf: number; zona_conforme_tabela: string; uso_predominante_conforme_tabela: string;
   ca_minimo_original: string | null; ca_basico_original: string; ca_maximo_original: string;
@@ -61,14 +63,43 @@ function OcrReferenceComparison({row,analysis}:{row:ReviewPackageRow;analysis:Oc
     status==="unreadable"?"ILEGÍVEL":"NÃO IDENTIFICADO";
   return <section data-urban-ocr-comparison="true"
     aria-label="Conferência dos parâmetros com o PDF"
-    className="mt-4 rounded-xl border border-sky-300 bg-white p-4 text-slate-950">
-    <h5 className="text-base font-extrabold text-slate-950">Comparação de colunas — PDF × matriz histórica</h5>
-    <p className="mt-1 text-sm leading-6 text-slate-800">
-      Página {row.pagina_pdf} · {row.zona_conforme_tabela} · {row.uso_predominante_conforme_tabela}.
+    className="mt-5 overflow-hidden rounded-2xl border border-slate-300 bg-white p-3 text-slate-950 shadow-sm sm:p-4">
+    <div className="rounded-xl bg-gradient-to-r from-slate-950 via-slate-900 to-sky-950 p-4 text-white sm:p-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-extrabold uppercase tracking-[0.15em] text-sky-200">Matriz de evidências · quadro I</p>
+          <h5 className="mt-1 text-lg font-extrabold leading-6 text-white">Comparação de colunas — PDF × matriz histórica</h5>
+        </div>
+        <span className="rounded-full border border-white/30 bg-white/10 px-3 py-1 text-xs font-bold text-white">
+          Revisão humana obrigatória
+        </span>
+      </div>
+      <p className="mt-2 text-sm font-semibold leading-6 text-slate-100">
+        Página {row.pagina_pdf} · {row.zona_conforme_tabela} · {row.uso_predominante_conforme_tabela}
+      </p>
+    </div>
+    <p className="mt-4 text-sm leading-6 text-slate-800">
       Estes valores vieram do pacote JSON da lei original.
       Não são valores confirmados pela IA nem comprovação da vigência atual.
       Compare cada coluna com a imagem antes de corrigir a transcrição acima.
     </p>
+    {analysis ? <div data-urban-ocr-kpis="true" className="mt-3 grid gap-2 sm:grid-cols-3">
+      <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-emerald-950">
+        <span className="block text-xs font-extrabold uppercase tracking-wide">Correspondências textuais</span>
+        <strong className="mt-1 block text-2xl font-extrabold">{analysis.matches} / {analysis.matches+analysis.unresolved}</strong>
+        <span className="text-xs font-semibold">Ainda exigem fonte oficial</span>
+      </div>
+      <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-rose-950">
+        <span className="block text-xs font-extrabold uppercase tracking-wide">Células pendentes</span>
+        <strong className="mt-1 block text-2xl font-extrabold">{analysis.unresolved}</strong>
+        <span className="text-xs font-semibold">Divergentes, ausentes ou ambíguas</span>
+      </div>
+      <div className="rounded-xl border border-sky-200 bg-sky-50 p-3 text-sky-950">
+        <span className="block text-xs font-extrabold uppercase tracking-wide">Situação jurídica</span>
+        <strong className="mt-2 block text-base font-extrabold">Não verificada</strong>
+        <span className="text-xs font-semibold">Vigência e exceções pendentes</span>
+      </div>
+    </div>:null}
     {analysis ? <div data-urban-ocr-reconciliation-summary="true"
       className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm font-bold leading-6 text-amber-950">
       Correspondência literal identificada: {analysis.matches} de {analysis.matches+analysis.unresolved}
@@ -85,10 +116,10 @@ function OcrReferenceComparison({row,analysis}:{row:ReviewPackageRow;analysis:Oc
       Ainda não houve transcrição pela IA nesta sessão. Os dados abaixo são apenas referências históricas,
       não podem ser tratados como índices conferidos sem verificar o documento oficial.
     </p>}
-    <div className="mt-3 overflow-x-auto rounded-lg border border-slate-200">
+    <div className="mt-4 max-w-full overflow-x-auto rounded-xl border border-slate-200">
       <table className="w-full min-w-[700px] border-collapse text-left text-sm text-slate-950">
         <thead className="bg-slate-100">
-          <tr><th scope="col" className="p-2 font-bold">Parâmetro</th>
+          <tr><th scope="col" className="p-3 font-extrabold">Parâmetro</th>
             <th scope="col" className="p-2 font-bold">JSON (original)</th>
             <th scope="col" className="p-2 font-bold">Leitura IA</th>
             <th scope="col" className="p-2 font-bold">Situação</th></tr>
@@ -96,12 +127,16 @@ function OcrReferenceComparison({row,analysis}:{row:ReviewPackageRow;analysis:Oc
         <tbody>{values.map(([label,value],i)=>{
           const field=analysis?.fields[i];
           return <tr key={label} className="border-t border-slate-200" data-urban-ocr-field={field?.key||String(i)}>
-            <th scope="row" className="p-2 font-semibold">{label}</th>
-            <td className="p-2 font-bold">{value}</td>
-            <td className="p-2">{field?.read??"—"}</td>
-            <td className={"p-2 font-bold "+(!field?"text-slate-700":
-              field.status==="match"?"text-emerald-900":"text-rose-900")}>
-              {field?statusLabel(field.status):"Conferir na imagem"}
+            <th scope="row" className="max-w-[180px] break-words p-3 font-semibold">{label}</th>
+            <td className="max-w-[190px] break-words p-3 font-bold">{value}</td>
+            <td className="max-w-[190px] break-words p-3">{field?.read??"—"}</td>
+            <td className="max-w-[220px] break-words p-3 font-bold">
+              <span className={"inline-flex rounded-lg border px-2 py-1 text-xs font-extrabold leading-5 "+(
+                !field?"border-slate-300 bg-slate-50 text-slate-800":
+                field.status==="match"?"border-emerald-300 bg-emerald-50 text-emerald-950":
+                "border-rose-300 bg-rose-50 text-rose-950")}>
+                {field?statusLabel(field.status):"Conferir na imagem"}
+              </span>
             </td>
           </tr>;
         })}</tbody>
@@ -136,6 +171,10 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
   const [ocrDraft,setOcrDraft]=useState(false);
   const [ocrVerified,setOcrVerified]=useState(false);
   const [visionBusy,setVisionBusy]=useState(false);
+  const [visionFeedback,setVisionFeedback]=useState<{recognized:number;total:number;missing:number}|null>(null);
+  // No localStorage: only the same authenticated component session may reuse an
+  // identical, already-authorized crop without charging Cloudflare again.
+  const visionSessionCache=useRef(new Map<string,VisionReply>());
   const [previewUrl,setPreviewUrl] = useState("");
   // Preview writes must use an explicitly configured, non-production Neon pair.
   const authUrl=String(import.meta.env.VITE_NEON_AUTH_URL || "");
@@ -179,6 +218,11 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
     ? reconcileUrbanOcr(text,matchingOriginalRow) : null;
   const ocrReconciliationBlocked=Boolean(ocrDraft && reviewPackage &&
     (!matchingOriginalScope || !ocrReconciliation?.complete));
+  useEffect(()=>{
+    visionSessionCache.current.clear();
+    setVisionFeedback(null);
+    setOcrVerified(false);
+  },[municipalityId]);
   const reset = () => {setCandidates([]);setChecked([]);setConsent(false);setMessage("");};
   const loadStructuredReview = async (incoming: File | null) => {
     setReviewPackage(null);setReviewRowIndex(0);
@@ -263,6 +307,7 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
       setMessage("Selecione PDF oficial, página física e imagem recortada da tabela. Autorize a consulta à IA antes de prosseguir.");return;
     }
     setVisionBusy(true);setCandidates([]);setChecked([]);setMessage("");
+    setOcrVerified(false);setVisionFeedback(null);
     try {
       if(pageImage.size>12*1024*1024 || !["image/jpeg","image/png"].includes(pageImage.type))
         throw Error("Selecione uma imagem JPG/PNG de até 12 MB (antes de comprimir).");
@@ -281,23 +326,47 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
         if(data.length>1_400_000)data=canvas.toDataURL("image/jpeg",0.65);
         if(data.length>1_400_000)
           throw Error("A imagem ainda está grande. Faça um recorte apenas da linha e do cabeçalho da tabela.");
-        const session=await backendClient?.auth?.getSession?.();
-        const bearer=String(session?.data?.session?.access_token||session?.data?.session?.accessToken||"");
-        if(!bearer)throw Error("Sua sessão expirou. Entre novamente no SIGAPRO.");
-        const response=await fetch("/api/ai-assistant",{
-          method:"POST",credentials:"same-origin",cache:"no-store",
-          headers:{"Content-Type":"application/json",Authorization:"Bearer "+bearer,
-            "X-SIGAPRO-VISION":"1"},
-          body:JSON.stringify({action:"urban-matrix-vision",quadro,
-            pageNumber:Number(page),imageDataUrl:data}),
-        });
-        const result=await response.json() as {draftText?:unknown;error?:string};
-        if(!response.ok)throw Error(result.error||"Falha na leitura visual.");
-        if(typeof result.draftText!=="string"||result.draftText.trim().length<20)
-          throw Error("A IA não conseguiu transcrever esse recorte com segurança.");
+        // Digest binds the result to this exact crop, page, tenant and
+        // original PDF. An in-memory cache avoids repeated paid calls.
+        const bytes=new TextEncoder().encode(data);
+        const digest=await crypto.subtle.digest("SHA-256",bytes);
+        const hash=Array.from(new Uint8Array(digest)).map(b=>b.toString(16).padStart(2,"0")).join("");
+        const cacheKey=[municipalityId,reviewPackage?.arquivo_sha256||file.name+"-"+file.size+"-"+file.lastModified,
+          quadro,page,hash].join("|");
+        let result=visionSessionCache.current.get(cacheKey);
+        const reused=Boolean(result);
+        if(!result){
+          const session=await backendClient?.auth?.getSession?.();
+          const bearer=String(session?.data?.session?.access_token||session?.data?.session?.accessToken||"");
+          if(!bearer)throw Error("Sua sessão expirou. Entre novamente no SIGAPRO.");
+          const response=await fetch("/api/ai-assistant",{
+            method:"POST",credentials:"same-origin",cache:"no-store",
+            headers:{"Content-Type":"application/json",Authorization:"Bearer "+bearer,
+              "X-SIGAPRO-VISION":"1"},
+            body:JSON.stringify({action:"urban-matrix-vision",quadro,
+              pageNumber:Number(page),imageDataUrl:data}),
+          });
+          result=await response.json() as VisionReply;
+          if(!response.ok)throw Error(result.error||"Falha na leitura visual.");
+          if(typeof result.draftText!=="string"||result.draftText.trim().length<20)
+            throw Error("A IA não conseguiu transcrever esse recorte com segurança.");
+          if(visionSessionCache.current.size>=5)visionSessionCache.current.clear();
+          visionSessionCache.current.set(cacheKey,result);
+        }
+        if(typeof result.draftText!=="string")
+          throw Error("Resposta da IA sem transcrição verificável.");
+        const structured=result.status==="unverified_structured_ocr_draft";
+        setVisionFeedback(structured?{
+          recognized:Number(result.recognizable)||0,
+          total:Number(result.total)||13,
+          missing:Array.isArray(result.unrecognized)?result.unrecognized.length:13,
+        }:null);
         setText(result.draftText.trim().slice(0,6000));
         setOcrDraft(true);setOcrVerified(false);setMethod("visual_double_transcription");
-        setMessage("Texto preenchido automaticamente como PROPOSTA NÃO VERIFICADA. Compare cada coluna e número com o PDF; corrija o texto e confirme a revisão antes de extrair índices.");
+        setMessage((reused?"Leitura recuperada nesta sessão, sem nova chamada à Cloudflare. ":"")+
+          (quadro==="I"?"A IA devolveu células estruturadas, ainda NÃO verificadas. A comparação abaixo exige conferência de cada coluna com o PDF. ":
+            "Transcrição preliminar do Quadro II; confira as condições na fonte original. ")+
+          "Nenhuma norma foi gravada ou ativada.");
       } finally {bitmap.close();}
     } catch(err) {setMessage(err instanceof Error?err.message:"A leitura visual não foi concluída.");}
     finally{setVisionBusy(false);}
@@ -420,7 +489,7 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
     <div className="mt-4 grid gap-3 md:grid-cols-2">
       <label className="text-xs font-bold text-slate-800 dark:text-white">Arquivo PDF oficial
         <input type="file" accept=".pdf,application/pdf" className="mt-1 block w-full rounded-lg border border-slate-300 bg-white p-2 text-slate-900"
-          onChange={e=>{setFile(e.target.files?.[0]||null);setReviewPackage(null);setReviewRowIndex(0);setPageImage(null);setText("");setOcrDraft(false);setOcrVerified(false);reset();}}/>
+          onChange={e=>{setFile(e.target.files?.[0]||null);setReviewPackage(null);setReviewRowIndex(0);setPageImage(null);setText("");setOcrDraft(false);setOcrVerified(false);setVisionFeedback(null);visionSessionCache.current.clear();reset();}}/>
       </label>
       <label className="text-xs font-bold text-slate-800 dark:text-white">Quadro de origem
         <select value={quadro} onChange={e=>{setQuadro(e.target.value as ImportQuadro);reset();}}
@@ -519,7 +588,26 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
         target="_blank" rel="noreferrer">Abrir documento local na página selecionada</a>
     </div>:null}
     <div data-urban-matrix-ai-card="true" className="mt-4 rounded-xl border border-sky-200 bg-sky-50 p-4 text-slate-950">
-      <h5 className="text-base font-extrabold leading-6 text-slate-950">Ler tabela digitalizada com IA — preenchimento assistido</h5>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-xs font-extrabold uppercase tracking-[0.13em] text-sky-800">IA visual · revisão controlada</p>
+          <h5 className="mt-1 text-base font-extrabold leading-6 text-slate-950">Ler tabela digitalizada — extração estruturada</h5>
+        </div>
+        <span className="rounded-full border border-sky-200 bg-white px-3 py-1 text-xs font-extrabold text-sky-900">
+          Somente homologação
+        </span>
+      </div>
+      <div className="mt-3 grid gap-2 sm:grid-cols-3">
+        <div className="rounded-xl border border-sky-200 bg-white p-3 text-xs font-semibold leading-5 text-slate-900">
+          <span className="block text-sm font-extrabold text-sky-900">1 · Enviar recorte</span>Cabeçalho e uma única linha
+        </div>
+        <div className="rounded-xl border border-sky-200 bg-white p-3 text-xs font-semibold leading-5 text-slate-900">
+          <span className="block text-sm font-extrabold text-sky-900">2 · Comparar</span>Valores da IA × PDF × histórico
+        </div>
+        <div className="rounded-xl border border-sky-200 bg-white p-3 text-xs font-semibold leading-5 text-slate-900">
+          <span className="block text-sm font-extrabold text-sky-900">3 · Conferir</span>Sem aprovação automática
+        </div>
+      </div>
       <p className="mt-1 text-xs leading-5">
         Para Quadros I/II que são imagens: abra o PDF em zoom 100–150%, capture
         somente o cabeçalho e a linha de uma zona (Win + Shift + S), salve como PNG/JPG
@@ -531,7 +619,7 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
         <input aria-label="Imagem da linha do Quadro I ou II" type="file" accept="image/png,image/jpeg"
           className="mt-1 block w-full rounded-lg border border-slate-300 bg-white p-2"
           onChange={e=>{setPageImage(e.target.files?.[0]||null);setOcrDraft(false);
-            setOcrVerified(false);setText("");reset();}}/>
+            setOcrVerified(false);setVisionFeedback(null);setText("");reset();}}/>
       </label>
       {pageImagePreview?<img src={pageImagePreview} alt="Prévia local da linha fotografada do quadro"
         className="mt-2 max-h-60 w-full rounded-lg border border-slate-200 object-contain"/>:null}
@@ -547,7 +635,7 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
         disabled={visionBusy||busy||!file||!pageImage||!consent||!Number.isSafeInteger(Number(page))||Number(page)<1||Number(page)>10000}
         onClick={()=>void readPageImage()}
         className="mt-3 min-h-11 rounded-xl border border-sky-800 bg-sky-800 px-4 py-2 text-sm font-bold text-white disabled:cursor-not-allowed">
-        {visionBusy?"Lendo a tabela…":"Ler imagem e pré-preencher a transcrição com IA"}
+        {visionBusy?"Lendo uma linha com IA…":"Extrair campos por coluna com IA — sem salvar"}
       </button>
       <p role="status" data-urban-matrix-vision-hint="true" className="mt-2 text-sm font-semibold leading-6 text-slate-900">
         {!file ? "Para habilitar: selecione o PDF oficial acima."
@@ -557,7 +645,17 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
           : !consent ? "Imagem carregada. Marque a autorização logo ACIMA do botão para habilitar a leitura."
           : "Leitura liberada: a imagem e a autorização estão prontas. Clique no botão para transcrever."}
       </p>
-      <p className="mt-2 text-sm leading-6 text-slate-800">A leitura usa a IA visual Cloudflare da homologação e pode consumir sua franquia. Nenhum dado é ativado ou gravado automaticamente.</p>
+      {visionFeedback?<div data-urban-structured-vision-result="true" role="status"
+        className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border border-sky-300 bg-white px-4 py-3 text-sm text-slate-950">
+        <strong className="text-sky-900">{visionFeedback.recognized}/{visionFeedback.total} células transcritas</strong>
+        <span className="text-amber-950">{visionFeedback.missing} sem leitura segura</span>
+        <span className="font-semibold text-slate-800">Proposta da IA — não validada</span>
+      </div>:null}
+      <p className="mt-2 text-sm leading-6 text-slate-800">
+        A leitura usa a IA visual Cloudflare da homologação e pode consumir sua franquia.
+        A mesma imagem autorizada pode ser reutilizada nesta sessão sem nova cobrança.
+        Nenhum dado é ativado ou gravado automaticamente.
+      </p>
     </div>
     <label className="mt-3 block text-xs font-bold text-slate-800 dark:text-white">
       Transcrição literal da página — revise números e cabeçalhos antes de importar
