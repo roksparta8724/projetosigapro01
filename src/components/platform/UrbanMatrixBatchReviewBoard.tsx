@@ -45,6 +45,7 @@ export function UrbanMatrixBatchReviewBoard({
  },[municipalityId,qaWriteEnabled]);
  const statuses=useMemo(()=>examineBatchRows(reviewPackage.quadro_I),[reviewPackage]);
  const eligible=useMemo(()=>statuses.filter(x=>x.bulkEligible),[statuses]);
+ const pending=useMemo(()=>statuses.filter(x=>!x.bulkEligible),[statuses]);
  const reviewed=useMemo(()=>checkedBatchIndexes(checked,statuses),[checked,statuses]);
  const sameCount=reviewed.length===eligible.length&&eligible.length>0;
  const save=async()=>{
@@ -130,6 +131,55 @@ export function UrbanMatrixBatchReviewBoard({
     Linhas com leitura pendente, exceções, valores não numéricos ou zona/uso repetidos
     são excluídas da seleção em lote. Todas permanecem no arquivo histórico.
    </p>
+   {pending.length>0?<section data-urban-batch-individual-review="true"
+     className="mt-4 rounded-xl border border-amber-300 bg-amber-50 p-4 text-slate-950">
+     <h6 className="text-base font-extrabold text-amber-950">
+       Conferência individual obrigatória — {pending.length} linhas
+     </h6>
+     <p className="mt-1 text-xs font-semibold leading-5 text-slate-800">
+       Estas linhas ficam no acervo histórico, mas NÃO são aprovadas automaticamente.
+       Compare cada dado com o PDF original, suas observações e alterações legislativas.
+       A abertura abaixo não modifica a marcação nem grava regra vigente.
+     </p>
+     <div className="mt-3 grid gap-3 lg:grid-cols-2">
+       {pending.map(row=>{
+        const original=reviewPackage.quadro_I[row.index];
+        return <article key={row.index} data-urban-batch-pending-index={row.index}
+          className="min-w-0 rounded-lg border border-amber-200 bg-white p-3 text-slate-950">
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div>
+              <p className="text-sm font-extrabold text-slate-950">{row.zone} · {row.use}</p>
+              <p className="text-xs font-semibold text-slate-700">Linha {row.index+1} · página {row.page} do PDF</p>
+            </div>
+            <span className="rounded-md border border-amber-300 bg-amber-100 px-2 py-1 text-xs font-bold text-amber-950">
+              Pendente
+            </span>
+          </div>
+          <p className="mt-2 text-xs font-bold text-slate-900">
+            C.A. mínimo: {original.ca_minimo_original??"não verificado"} ·
+            C.A. básico: {original.ca_basico_original} · máximo: {original.ca_maximo_original}
+          </p>
+          <p className="mt-1 text-xs font-semibold text-slate-800">
+            Recuos de origem (m): frente {original.recuo_frontal_m}, fundos {original.recuo_fundos_m},
+            lateral {String(original.recuo_lateral_m)}
+          </p>
+          {original.observacoes_especificas?<p className="mt-2 text-xs font-semibold leading-5 text-amber-950">
+            Observação do documento: {original.observacoes_especificas}
+          </p>:null}
+          {original.pendencias_de_leitura?<p className="mt-2 text-xs font-extrabold leading-5 text-rose-900">
+            Leitura não comprovada: {original.pendencias_de_leitura}
+          </p>:null}
+          <ul className="mt-2 list-inside list-disc text-xs font-semibold leading-5 text-slate-700">
+            {row.issues.map((issue,i)=><li key={i}>{issue}</li>)}
+          </ul>
+          <button type="button" onClick={()=>onOpenRow(row.index)}
+            className="mt-3 min-h-10 rounded-lg border border-sky-900 bg-sky-900 px-3 py-2 text-xs font-extrabold text-white">
+            Abrir linha para conferir no PDF
+          </button>
+        </article>;
+       })}
+     </div>
+   </section>:null}
    <div className="mt-4 max-h-[440px] overflow-auto rounded-xl border border-slate-200"
      role="region" aria-label="Tabela completa de zonas e usos do Quadro I">
     <table className="w-full min-w-[700px] border-collapse text-left text-sm">
