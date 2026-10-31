@@ -38,7 +38,7 @@ jobs:
           import fs from 'node:fs';
           const path='package.json';
           const pkg=JSON.parse(fs.readFileSync(path,'utf8'));
-          pkg.devDependencies['@eslint/js']='10.14.0';
+          pkg.devDependencies['@eslint/js']='10.0.1';
           pkg.devDependencies.eslint='10.14.0';
           pkg.devDependencies['typescript-eslint']='8.71.0';
           pkg.devDependencies['eslint-plugin-react-refresh']='0.5.7';
