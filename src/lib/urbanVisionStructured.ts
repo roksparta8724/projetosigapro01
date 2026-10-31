@@ -25,80 +25,151 @@ export type UrbanVisionResult = {
   unrecognized: UrbanVisionFieldKey[];
   status: "unverified_structured_ocr_draft";
 };
-const keys = new Set<string>(URBAN_VISION_FIELDS.map(([key])=>key));
 const numberKeys = new Set<string>([
   "ca_minimo","ca_basico","ca_maximo","ocupacao_maxima",
   "permeabilidade_minima","lote_minimo","testada_minima",
   "recuo_frontal","recuo_fundos","recuo_lateral",
 ]);
 const uncertainty = /^(?:\[?\s*ileg[ií]vel\s*\]?|n[aã]o (?:foi |est[aá] )?(?:leg[ií]vel|identificad[oa]|vis[ií]vel)|incert[oa]|indefinid[oa]|desconhecid[oa]|n\/a|null)$/i;
-export function parseUrbanVisionResult(raw:unknown): UrbanVisionResult|null {
-  if(typeof raw!=="string" || raw.length>9000)return null;
-  const body=raw.trim().replace(/^\x60{3}(?:json)?\s*/i,"").replace(/\s*\x60{3}$/,"");
-  // JSON wrapped in commentary and explicitly labeled columns are allowed;
-  // both paths still pass through the strict per-cell validator below.
-  let value:unknown=null;
-  // Models sometimes wrap a valid JSON object in surrounding commentary.
-  // Remove the wrapper but NEVER manufacture fields or values.
-  const first=body.indexOf("{"),last=body.lastIndexOf("}");
-  if(first>=0 && last>first) {
-    try {value=JSON.parse(body.slice(first,last+1));}
-    catch { return null; }
-  } else {
-    // Alternative format: literal "Column name: cell" lines, not prose.
-    // Strict label matching avoids positional value shifts.
-    if(/[{}]/.test(body))return null;
-    const normalize=(name:string)=>name.normalize("NFD")
-      .replace(/[\u0300-\u036f]/g,"").toLocaleLowerCase("pt-BR")
-      .replace(/[^a-z0-9]+/g," ").trim().replace(/\s+/g," ");
-    const labels=new Map<string,UrbanVisionFieldKey>();
-    for(const [key,label] of URBAN_VISION_FIELDS){
-      labels.set(normalize(key),key);
-      labels.set(normalize(label),key);
+function normalizeLabel(label:string):string {
+  return label.normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+    .toLocaleLowerCase("pt-BR").replace(/[^a-z0-9]+/g," ").trim()
+    .replace(/\s+/g," ");
+}
+const fieldLabels=new Map<string,UrbanVisionFieldKey>();
+for(const [key,label] of URBAN_VISION_FIELDS) {
+  fieldLabels.set(normalizeLabel(key),key);
+  fieldLabels.set(normalizeLabel(label),key);
+}
+const fieldAliases:[UrbanVisionFieldKey,string[]][]=[
+  ["zona",["zonas","codigo de zona","zona validada","zone"]],
+  ["uso",["uso predominante","categoria de uso","use","tipo de uso"]],
+  ["ca_minimo",["ca minimo","c a minimo","coeficiente minimo","coeficiente de aproveitamento minimo"]],
+  ["ca_basico",["ca basico","c a basico","coeficiente basico","coeficiente de aproveitamento basico"]],
+  ["ca_maximo",["ca maximo","c a maximo","coeficiente maximo","coeficiente de aproveitamento maximo"]],
+  ["ocupacao_maxima",["taxa de ocupacao maxima","taxa ocupacao maxima","taxa de ocupacao maxima pct","ocupacao max","taxa de ocupacao"]],
+  ["permeabilidade_minima",["taxa de permeabilidade minima","taxa permeabilidade minima","permeabilidade minima pct","taxa de permeabilidade"]],
+  ["lote_minimo",["lote minimo m2","area minima do lote","lote minimo m"]],
+  ["testada_minima",["testada minima m","frente minima do lote"]],
+  ["gabarito",["altura maxima","gabarito altura maxima","gabarito altura maxima m"]],
+  ["recuo_frontal",["frente","recuo frente","afastamento frontal","recuo frontal m"]],
+  ["recuo_fundos",["fundos","recuo de fundos","afastamento fundos","recuo fundos m"]],
+  ["recuo_lateral",["lateral","afastamento lateral","recuo lateral m"]],
+];
+for(const [key,labels] of fieldAliases)for(const label of labels)fieldLabels.set(normalizeLabel(label),key);
+
+const wrappers=new Set(["campos","indices","dados","tabela","resultado","result",
+  "data","fields","cells","valores","parametros","extracao","extraction","quadro i"]);
+const metadata=new Set(["status","pagina","quadro","observacoes","notas","confidence",
+  "confianca","observations","notes"]);
+const disallowed=new Set(["prompt","instruction","instructions","system","ignore previous instructions"]);
+
+function plain(x:unknown):x is Record<string,unknown> {
+  return x!==null && typeof x==="object" && !Array.isArray(x);
+}
+/** Map only explicitly named cells; never guess a value's column by position. */
+function recoverNamedCells(input:unknown,depth=0):Record<UrbanVisionFieldKey,unknown>|null {
+  if(depth>3)return null;
+  const result:Partial<Record<UrbanVisionFieldKey,unknown>>={};
+  const record=(key:UrbanVisionFieldKey,value:unknown):boolean=>{
+    if(Object.prototype.hasOwnProperty.call(result,key))return false;
+    result[key]=value;
+    return true;
+  };
+  if(Array.isArray(input)){
+    if(input.length>40)return null;
+    for(const row of input){
+      if(!plain(row))return null;
+      const normalized=Object.fromEntries(Object.entries(row).map(([k,v])=>[normalizeLabel(k),v]));
+      const rawKey=normalized.campo??normalized.parametro??normalized.indice??
+        normalized.nome??normalized.coluna??normalized.label??normalized.key;
+      if(typeof rawKey!=="string")return null;
+      const key=fieldLabels.get(normalizeLabel(rawKey));
+      if(!key)continue;
+      if(!record(key,normalized.valor??normalized.value??normalized.texto??null))return null;
     }
-    labels.set("zona validada","zona");
-    labels.set("codigo de zona","zona");
-    labels.set("zonas","zona");
-    labels.set("uso predominante","uso");
-    labels.set("categoria de uso","uso");
-    labels.set("taxa de ocupacao maxima","ocupacao_maxima");
-    labels.set("taxa de permeabilidade minima","permeabilidade_minima");
-    labels.set("lote minimo m2","lote_minimo");
-    labels.set("testada minima m","testada_minima");
-    labels.set("recuo de fundos","recuo_fundos");
-    const found:Record<string,unknown>={};
-    for(const source of body.split(/\r?\n/).slice(0,65)){
-      const line=source.trim().replace(/^(?:[-*]\s+|\d+[.)]\s+)/,"");
+  } else if(plain(input)){
+    const pairs=Object.entries(input);
+    if(pairs.length>55)return null;
+    for(const [label,value] of pairs){
+      const normalized=normalizeLabel(label);
+      if(disallowed.has(normalized))return null;
+      const key=fieldLabels.get(normalized);
+      if(key){if(!record(key,value))return null;continue;}
+      if(wrappers.has(normalized)){
+        const nested=recoverNamedCells(value,depth+1);
+        if(!nested)return null;
+        for(const [nestedKey,nestedValue] of Object.entries(nested)){
+          if(!record(nestedKey as UrbanVisionFieldKey,nestedValue))return null;
+        }
+      } else if(!metadata.has(normalized)) {
+        // Unknown schema is never interpreted as an index or approved as OCR.
+        return null;
+      }
+    }
+  } else return null;
+  return Object.keys(result).length>=2?result as Record<UrbanVisionFieldKey,unknown>:null;
+}
+
+function literalCell(cell:unknown):string|null|undefined {
+  if(cell===null||cell===undefined)return null;
+  if(plain(cell)) {
+    // Reject a cell explicitly described as illegible or uncertain.
+    if(cell.legivel===false||cell.readable===false||cell.ambiguo===true||cell.ambiguous===true)
+      return null;
+    const contents=cell.valor??cell.value??cell.texto??cell.text;
+    return literalCell(contents);
+  }
+  // JSON numbers cannot preserve the literal decimal punctuation on the PDF.
+  // They must be checked against the source, not accepted as literal OCR.
+  if(typeof cell==="number"&&Number.isFinite(cell))return null;
+  if(typeof cell!=="string"||cell.length>180||/[\r\n<>]/.test(cell))return undefined;
+  const cleaned=cell.trim().replace(/\s+/g," ");
+  return (!cleaned||uncertainty.test(cleaned))?null:cleaned;
+}
+
+export function parseUrbanVisionResult(raw:unknown):UrbanVisionResult|null {
+  if(typeof raw!=="string"||raw.length>9000)return null;
+  const body=raw.trim().replace(/^\x60{3}(?:json)?\s*/i,"").replace(/\s*\x60{3}$/,"");
+  let value:unknown=null;
+  const firstObject=body.indexOf("{"),lastObject=body.lastIndexOf("}");
+  const firstArray=body.indexOf("["),lastArray=body.lastIndexOf("]");
+  // Arrays of named cells are allowed, but bracketed [ILEGÍVEL] text is not JSON.
+  if(firstArray>=0 && firstObject>firstArray && lastArray>lastObject &&
+    /^\[\s*\{/.test(body.slice(firstArray))){
+    try{value=JSON.parse(body.slice(firstArray,lastArray+1));}
+    catch{return null;}
+  } else if(firstObject>=0 && lastObject>firstObject){
+    try{value=JSON.parse(body.slice(firstObject,lastObject+1));}
+    catch{return null;}
+  } else {
+    if(/[{}]/.test(body))return null;
+    const record:Record<string,string>={};
+    for(const lineText of body.split(/\r?\n/).slice(0,65)){
+      const line=lineText.trim().replace(/^(?:[-*]\s+|\d+[.)]\s+)/,"");
       const match=/^(.{2,65}?)\s*[:=]\s*(.{1,180})$/.exec(line);
       if(!match)continue;
-      const key=labels.get(normalize(match[1]));
+      const key=fieldLabels.get(normalizeLabel(match[1]));
       if(!key)continue;
-      if(Object.prototype.hasOwnProperty.call(found,key))return null;
-      found[key]=match[2].trim();
+      if(Object.prototype.hasOwnProperty.call(record,key))return null;
+      record[key]=match[2].trim();
     }
-    // Do not interpret a few numbers in general prose as structured OCR.
-    if(Object.keys(found).length<3)return null;
-    value=found;
+    value=record;
   }
-  if(!value||typeof value!=="object"||Array.isArray(value))return null;
-  const obj=value as Record<string,unknown>;
-  if(Object.keys(obj).some(key=>!keys.has(key)))return null;
+  const cells=recoverNamedCells(value);
+  if(!cells)return null;
   const values:Partial<Record<UrbanVisionFieldKey,string>>={};
   const unrecognized:UrbanVisionFieldKey[]=[];
   for(const [key] of URBAN_VISION_FIELDS){
-    const cell=obj[key];
-    if(cell==null || (typeof cell==="string" && (!cell.trim()||uncertainty.test(cell.trim())))){
+    const normalized=literalCell(cells[key]);
+    if(normalized===undefined)return null;
+    if(normalized===null){unrecognized.push(key);continue;}
+    if(numberKeys.has(key) && !/^\d{1,6}(?:[,.]\d{1,3})?\s*(?:%|m²|m2|m)?$/i.test(normalized)){
       unrecognized.push(key);continue;
     }
-    if(typeof cell!=="string" || cell.length>180 || /[\r\n<>]/.test(cell))return null;
-    const cleaned=cell.trim().replace(/\s+/g," ");
-    if(!cleaned){unrecognized.push(key);continue;}
-    if(numberKeys.has(key) && !/^\d{1,6}(?:[,.]\d{1,3})?\s*(?:%|m²|m2|m)?$/i.test(cleaned)){
-      unrecognized.push(key);continue;
-    }
-    if(key==="zona" && cleaned.length>60)return null;
-    if(key==="uso" && cleaned.length>80)return null;
-    values[key]=cleaned;
+    if(key==="zona"&&normalized.length>60)return null;
+    if(key==="uso"&&normalized.length>80)return null;
+    values[key]=normalized;
   }
   const recognizable=URBAN_VISION_FIELDS.length-unrecognized.length;
   if(recognizable<2)return null;
