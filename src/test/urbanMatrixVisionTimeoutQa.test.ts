@@ -4,11 +4,11 @@ import {validateVisionInput} from "../../server/urban-matrix-vision";
 const server=readFileSync("server/urban-matrix-vision.ts","utf8");
 const vercel=JSON.parse(readFileSync("vercel.json","utf8")) as {functions?:Record<string,{maxDuration:number}>};
 describe("SIGAPRO QA — leitura visual Cloudflare com prazo controlado",()=>{
- it("usa o contrato de API de visão do Llama 3.2 documentado pela Cloudflare",()=>{
+ it("usa o contrato de OCR do Moondream 3.1 documentado pela Cloudflare",()=>{
    // REST image is raw base64 after validating the browser data URI.
-   expect(server).toContain('image:input.imageDataUrl.slice(input.imageDataUrl.indexOf(",")+1)');
-   expect(server).toContain('max_tokens:670,temperature:0}');
-   expect(server).not.toContain('image:input.imageDataUrl,max_tokens:670');
+   expect(server).toContain('image:input.imageDataUrl,question:prompt');
+   expect(server).toContain('stream:false,reasoning:false,max_tokens:1100');
+   expect(server).toContain('"/ai/run/@cf/moondream/moondream3.1-9B-A2B"');
    expect(server).not.toContain('messages:[');
    expect(server).toContain("URBAN_VISION_JSON_PROMPT");
    expect(server).toContain('const structured=parseUrbanVisionResult(raw)');
