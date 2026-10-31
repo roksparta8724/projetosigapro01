@@ -59,11 +59,29 @@ const fieldAliases:[UrbanVisionFieldKey,string[]][]=[
 for(const [key,labels] of fieldAliases)for(const label of labels)fieldLabels.set(normalizeLabel(label),key);
 
 const wrappers=new Set(["campos","indices","dados","tabela","resultado","result",
-  "data","fields","cells","valores","parametros","extracao","extraction","quadro i"]);
+  "data","fields","cells","valores","parametros","extracao","extraction",
+  "colunas","columns","linhas","itens","items","dados extraidos","quadro i"]);
 const metadata=new Set(["status","pagina","quadro","observacoes","notas","confidence",
-  "confianca","observations","notes"]);
+  "confianca","observations","notes","mensagem","explanation","explicacao","resultado ocr"]);
 const disallowed=new Set(["prompt","instruction","instructions","system","ignore previous instructions"]);
 
+// Some vision responses wrap literal name:value rows inside a transcription field.
+ // Only explicitly named columns are parsed; no order-based numeric fallback.
+function parseNamedCellLines(raw:string):Record<string,string>|null {
+  if(raw.length>8000)return null;
+  const record:Record<string,string>={};
+  for(const entry of raw.split(/\r?\n/).slice(0,60)){
+    const line=entry.trim().replace(/^(?:[-*]\\s+|\\d+[.)]\\s+)/,"");
+    const pair=/^(.{2,65}?)\\s*[:=]\\s*(.{1,180})$/.exec(line);
+    if(!pair)continue;
+    const key=fieldLabels.get(normalizeLabel(pair[1]));
+    if(!key)continue;
+    if(Object.prototype.hasOwnProperty.call(record,key))return null;
+    record[key]=pair[2].trim();
+  }
+  return Object.keys(record).length>=2?record:null;
+}
+const textWrappers=new Set(["transcricao","transcription","texto","text","ocr text","extracted text","output"]);
 function plain(x:unknown):x is Record<string,unknown> {
   return x!==null && typeof x==="object" && !Array.isArray(x);
 }
@@ -82,7 +100,8 @@ function recoverNamedCells(input:unknown,depth=0):Record<UrbanVisionFieldKey,unk
       if(!plain(row))return null;
       const normalized=Object.fromEntries(Object.entries(row).map(([k,v])=>[normalizeLabel(k),v]));
       const rawKey=normalized.campo??normalized.parametro??normalized.indice??
-        normalized.nome??normalized.coluna??normalized.label??normalized.key;
+        normalized.nome??normalized.coluna??normalized.titulo??normalized.rotulo??
+        normalized.label??normalized.key;
       if(typeof rawKey!=="string")return null;
       const key=fieldLabels.get(normalizeLabel(rawKey));
       if(!key)continue;
@@ -96,8 +115,10 @@ function recoverNamedCells(input:unknown,depth=0):Record<UrbanVisionFieldKey,unk
       if(disallowed.has(normalized))return null;
       const key=fieldLabels.get(normalized);
       if(key){if(!record(key,value))return null;continue;}
-      if(wrappers.has(normalized)){
-        const nested=recoverNamedCells(value,depth+1);
+      if(wrappers.has(normalized)||textWrappers.has(normalized)){
+        const nested=typeof value==="string" && textWrappers.has(normalized)
+          ? recoverNamedCells(parseNamedCellLines(value),depth+1)
+          : recoverNamedCells(value,depth+1);
         if(!nested)return null;
         for(const [nestedKey,nestedValue] of Object.entries(nested)){
           if(!record(nestedKey as UrbanVisionFieldKey,nestedValue))return null;
@@ -144,17 +165,7 @@ export function parseUrbanVisionResult(raw:unknown):UrbanVisionResult|null {
     catch{return null;}
   } else {
     if(/[{}]/.test(body))return null;
-    const record:Record<string,string>={};
-    for(const lineText of body.split(/\r?\n/).slice(0,65)){
-      const line=lineText.trim().replace(/^(?:[-*]\s+|\d+[.)]\s+)/,"");
-      const match=/^(.{2,65}?)\s*[:=]\s*(.{1,180})$/.exec(line);
-      if(!match)continue;
-      const key=fieldLabels.get(normalizeLabel(match[1]));
-      if(!key)continue;
-      if(Object.prototype.hasOwnProperty.call(record,key))return null;
-      record[key]=match[2].trim();
-    }
-    value=record;
+    value=parseNamedCellLines(body);
   }
   const cells=recoverNamedCells(value);
   if(!cells)return null;
@@ -192,4 +203,4 @@ export const URBAN_VISION_JSON_PROMPT =
   "Não confunda C.A. mínimo, básico e máximo; não confunda recuo frontal, de fundos e lateral. "+
   "Não misture linha comercial com residencial. "+
   "NÃO utilize informações externas, referências históricas ou suposições. "+
-  "Não informe vigência e não aprove nenhuma regra.";
+  "Não informe vigência e não aprove nenhuma regra. Se não conseguir ler uma coluna, escreva null; nunca responda apenas com uma explicação geral.";
