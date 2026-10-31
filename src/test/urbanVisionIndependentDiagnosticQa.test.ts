@@ -75,6 +75,9 @@ describe("SIGAPRO — 13 campos com auditoria independente Gemma 4, sem gravacao
   expect(ui).toContain('Executar leitura completa e diagnóstico com 2 IAs');
   expect(ui).toContain('setFocusCandidates(diagnosticsPending)');
   expect(ui).toContain('setExpertDiagnostics(null);setExpertStatus("");setOcrVerified(false)');
+  expect(ui).toContain('const scopeIsCurrent=()=>');
+  expect(ui).toContain('if(!scopeIsCurrent())return;');
+  expect(ui).toContain('current.file===requestedScope.file && current.pageImage===requestedScope.pageImage');
   expect(ui).not.toContain('},[text]);');
   expect(ui).toContain("compareUrbanVisionDrafts(text,result.draftText)");
   expect(ui).toContain("Nenhum índice foi aprovado.");

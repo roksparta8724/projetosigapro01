@@ -317,6 +317,11 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
   const [expertDiagnostics,setExpertDiagnostics]=useState<UrbanDiagnosticRow[]|null>(null);
   const [expertStatus,setExpertStatus]=useState("");
   const [autoAuditPending,setAutoAuditPending]=useState(false);
+  // Reject asynchronous OCR results if the document, image, selected zone,
+  // usage or municipality changes while the provider is still processing.
+  const currentVisionScope=useRef({municipalityId,file,pageImage,quadro:"I" as ImportQuadro,
+    page:"",zone:"",usage:""});
+
   // No localStorage: only the same authenticated component session may reuse an
   // identical, already-authorized crop without charging Cloudflare again.
   const visionSessionCache=useRef(new Map<string,VisionReply>());
@@ -520,7 +525,16 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
     setFocusCandidates([]);setFocusedResults({});setFocusNotice("");
     setExpertDiagnostics(null);setExpertStatus("");setAutoAuditPending(false);
   },[municipalityId,file,pageImage,quadro,page,zone,usage]);
+  currentVisionScope.current={municipalityId,file,pageImage,quadro,page,zone,usage};
   const readPageImage = async (visionMode:"structured"|"literal"|"focused"|"expert"="structured") => {
+    const requestedScope=currentVisionScope.current;
+    const scopeIsCurrent=()=>{
+      const current=currentVisionScope.current;
+      return current.municipalityId===requestedScope.municipalityId &&
+        current.file===requestedScope.file && current.pageImage===requestedScope.pageImage &&
+        current.quadro===requestedScope.quadro && current.page===requestedScope.page &&
+        current.zone===requestedScope.zone && current.usage===requestedScope.usage;
+    };
     if(visionBusy || busy || !canEdit || !file || !pageImage || !consent ||
       !Number.isSafeInteger(Number(page)) || Number(page)<1 || Number(page)>10000){
       setMessage("Selecione PDF oficial, página física e imagem recortada da tabela. Autorize a consulta à IA antes de prosseguir.");return;
@@ -598,6 +612,7 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
           if(visionSessionCache.current.size>=5)visionSessionCache.current.clear();
           visionSessionCache.current.set(cacheKey,result);
         }
+        if(!scopeIsCurrent())return;
         if(visionMode==="expert"){
           if(result.status!=="unverified_expert_ocr_draft"||typeof result.draftText!=="string"){
             setExpertStatus("Gemma 4 não identificou as 13 colunas com segurança. O resultado anterior permanece preservado.");
@@ -718,6 +733,7 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
             "Nenhuma norma foi gravada ou ativada.");
       } finally {bitmap.close();}
     } catch(err) {
+      if(!scopeIsCurrent())return;
       const reason=err instanceof Error?err.message:"A leitura visual não foi concluída.";
       if(visionMode==="expert")setExpertStatus("Auditoria independente não concluída: "+reason+
         ". O OCR anterior foi mantido sem alterações.");
