@@ -598,18 +598,24 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
           normalizeUrbanCode(extractedZone)!==normalizeUrbanCode(zone);
         const useMismatch=quadro==="I"&&confident(extractedUse)&&Boolean(usage)&&
           normalizeUrbanCode(extractedUse)!==normalizeUrbanCode(usage);
-        setVisionNotice({kind:zoneMismatch||useMismatch?"error":"success",message:
+        setVisionNotice({kind:zoneMismatch||useMismatch?"error":Number(result.recognizable)===13?"success":"reading",message:
           zoneMismatch||useMismatch
             ?"Imagem diferente da linha selecionada. Editor: "+zone+" / "+usage+
               ". IA leu: "+(extractedZone||"zona ilegível")+" / "+(extractedUse||"uso ilegível")+
               ". Selecione a linha correspondente e refaça a conferência. Nenhuma regra foi aprovada."
-            :reused
-              ?"Leitura estruturada recuperada desta sessão. Compare os valores abaixo."
-              :"Campos lidos como PROPOSTA, não aprovados. Confira cada coluna no PDF."});
-        setMessage((reused?"Leitura recuperada nesta sessão, sem nova chamada à Cloudflare. ":"")+
-          (quadro==="I"?"A IA devolveu células estruturadas, ainda NÃO verificadas. A comparação abaixo exige conferência de cada coluna com o PDF. ":
-            "Transcrição preliminar do Quadro II; confira as condições na fonte original. ")+
-          "Nenhuma norma foi gravada ou ativada.");
+            :Number(result.recognizable)<13
+              ?"Transcrição parcial: "+String(result.recognizable||0)+"/13 campos associados aos cabeçalhos. "+
+                "As demais células continuam ilegíveis ou não identificadas; nenhum parâmetro foi aprovado."
+              :reused
+                ?"Leitura estruturada recuperada desta sessão. Compare os valores abaixo."
+                :"13 campos sugeridos pela IA, ainda não aprovados. Confira cada coluna no PDF."});
+        setMessage(zoneMismatch||useMismatch
+          ?"DIVERGÊNCIA DE ZONA OU USO: a linha aberta não é a que a IA transcreveu. "+
+            "Nenhuma norma foi gravada ou ativada."
+          :(reused?"Leitura recuperada nesta sessão, sem nova chamada à Cloudflare. ":"")+
+            (quadro==="I"?"A IA devolveu células sugeridas e NÃO verificadas. Compare cada coluna com o PDF. ":
+              "Transcrição preliminar do Quadro II; confira as condições na fonte original. ")+
+            "Nenhuma norma foi gravada ou ativada.");
       } finally {bitmap.close();}
     } catch(err) {
       const reason=err instanceof Error?err.message:"A leitura visual não foi concluída.";
