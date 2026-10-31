@@ -316,6 +316,7 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
   const [focusNotice,setFocusNotice]=useState("");
   const [expertDiagnostics,setExpertDiagnostics]=useState<UrbanDiagnosticRow[]|null>(null);
   const [expertStatus,setExpertStatus]=useState("");
+  const [autoAuditPending,setAutoAuditPending]=useState(false);
   // No localStorage: only the same authenticated component session may reuse an
   // identical, already-authorized crop without charging Cloudflare again.
   const visionSessionCache=useRef(new Map<string,VisionReply>());
@@ -517,7 +518,7 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
   // these dependencies do not change when an OCR request completes.
   useEffect(()=>{
     setFocusCandidates([]);setFocusedResults({});setFocusNotice("");
-    setExpertDiagnostics(null);setExpertStatus("");
+    setExpertDiagnostics(null);setExpertStatus("");setAutoAuditPending(false);
   },[municipalityId,file,pageImage,quadro,page,zone,usage]);
   // An edited initial transcription invalidates all prior cross-model verdicts.
   useEffect(()=>{
@@ -529,9 +530,12 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
       setMessage("Selecione PDF oficial, página física e imagem recortada da tabela. Autorize a consulta à IA antes de prosseguir.");return;
     }
     if(visionMode==="focused"&&!focusCandidates.includes(focusSelection))return;
-    if(visionMode==="expert"&&(quadro!=="I"||!ocrDraft||text.trim().length<20))return;
+    if(visionMode==="expert"&&(quadro!=="I"||(!ocrDraft && visionFeedback?.recognized!==0)))return;
     setVisionBusy(true);
     if(visionMode!=="focused"&&visionMode!=="expert"){
+      setAutoAuditPending(false);
+      setExpertStatus("O SIGAPRO consultará automaticamente uma segunda IA para diagnosticar os 13 campos.");
+      setExpertDiagnostics(null);
       setCandidates([]);setChecked([]);setMessage("");
       setVisionNotice({kind:"reading",message:"Solicitação enviada para leitura da linha. Nenhum dado será salvo automaticamente."});
       setVisionRawPreview("");
@@ -603,11 +607,29 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
             setExpertStatus("Gemma 4 não identificou as 13 colunas com segurança. O resultado anterior permanece preservado.");
             return;
           }
-          const diagnostics=compareUrbanVisionDrafts(text,result.draftText);
+          const hasInitialDraft=ocrDraft&&text.trim().length>=20;
+          if(!hasInitialDraft){
+            // Recover from complete failure of the first model, but label the
+            // second reading as uncorroborated, NEVER as validated data.
+            setText(result.draftText.trim().slice(0,6000));
+            setOcrDraft(true);setOcrVerified(false);setMethod("visual_double_transcription");
+            setPreparedManualText(null);
+            setVisionFeedback({
+              recognized:Number(result.recognizable)||0,total:13,
+              missing:Array.isArray(result.unrecognized)?result.unrecognized.length:13,
+            });
+            setVisionNotice({kind:"reading",message:"A primeira IA não identificou as colunas. "+
+              "A Gemma 4 produziu uma transcrição independente, ainda NÃO corroborada nem aprovada."});
+            const missing=Array.isArray(result.unrecognized)?result.unrecognized:[];
+            const pending=missing.filter((key):key is UrbanVisionFieldKey=>
+              URBAN_VISION_FIELDS.some(([id])=>id===key));
+            setFocusCandidates(pending);setFocusSelection(pending[0]||"zona");
+          }
+          const diagnostics=compareUrbanVisionDrafts(hasInitialDraft?text:"",result.draftText);
           setExpertDiagnostics(diagnostics);
           const agreeing=diagnostics.filter(x=>x.verdict==="agree").length;
           const conflicts=diagnostics.filter(x=>x.verdict==="conflict").length;
-          setExpertStatus("Segunda opinião: "+agreeing+" concordâncias, "+conflicts+
+          setExpertStatus((hasInitialDraft?"Duas IAs comparadas. ":"Somente a Gemma 4 conseguiu ler campos; falta uma segunda evidência. ")+agreeing+" concordâncias, "+conflicts+
             " divergências. Valores isolados e não lidos permanecem pendentes. Nenhum índice foi aprovado.");
           return;
         }
@@ -630,6 +652,7 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
           setVisionFeedback({recognized:0,total:13,missing:13});
           setFocusCandidates(URBAN_VISION_FIELDS.map(([k])=>k));
           setFocusSelection("zona");
+          if(visionMode==="structured"&&quadro==="I")setAutoAuditPending(true);
           // Preserve the provenance of any prior OCR text. Repeated failed
           // calls must never recast old unverified OCR as trusted manual text.
           setOcrVerified(false);
@@ -672,6 +695,7 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
           ...(useMismatch?["uso" as const]:[]),...missing])];
         setFocusCandidates(toReview);
         setFocusSelection(toReview[0]||"zona");
+        if(visionMode==="structured"&&quadro==="I")setAutoAuditPending(true);
         setVisionNotice({kind:zoneMismatch||useMismatch?"error":Number(result.recognizable)===13?"success":"reading",message:
           zoneMismatch||useMismatch
             ?"Imagem diferente da linha selecionada. Editor: "+zone+" / "+usage+
@@ -702,6 +726,14 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
       }
     } finally{setVisionBusy(false);}
   };
+  // One authorized click starts two independent readings in sequence.
+  // No automatic call is triggered by typing, page loads or background jobs.
+  useEffect(()=>{
+    if(!autoAuditPending||visionBusy||!file||!pageImage||!consent||quadro!=="I")return;
+    if(!ocrDraft&&visionFeedback?.recognized!==0)return;
+    setAutoAuditPending(false);
+    void readPageImage("expert");
+  },[autoAuditPending,visionBusy,ocrDraft,visionFeedback,quadro,file,pageImage,consent]);
   const queryAi = async () => {
     if (busy || !file || !zone.trim() || !usage.trim() ||
       !Number.isSafeInteger(Number(page)) || Number(page)<1 || Number(page)>10000 ||
@@ -1011,14 +1043,15 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
         <input type="checkbox" aria-label="Autorizar leitura da imagem pela IA"
           checked={consent} onChange={e=>setConsent(e.target.checked)}
           className="mt-1 h-4 w-4 shrink-0 accent-sky-800"/>
-        Autorizo enviar somente o recorte da tabela à IA Cloudflare para transcrição.
+        Autorizo enviar somente o recorte da tabela à Cloudflare para duas leituras independentes (Moondream 3.1 e Gemma 4),
+        com comparação dos 13 campos. São até duas consultas de IA por análise, sujeitas à franquia da conta.
         O PDF completo permanece local. Ao trocar a imagem, confirmarei a autorização novamente.
       </label>
       <button type="button" data-urban-matrix-action="vision"
         disabled={visionBusy||busy||!file||!pageImage||!consent||!Number.isSafeInteger(Number(page))||Number(page)<1||Number(page)>10000}
         onClick={()=>void readPageImage()} data-sigapro-contrast="dark"
         className="mt-3 min-h-11 rounded-xl border border-sky-800 bg-sky-800 px-4 py-2 text-sm font-bold text-white disabled:cursor-not-allowed">
-        {visionBusy?"Lendo uma linha com IA…":"Extrair campos por coluna com IA — sem salvar"}
+        {visionBusy?"Analisando a tabela com IA…":"Executar leitura completa e diagnóstico com 2 IAs — sem salvar"}
       </button>
       {visionNotice?.kind==="error"&&visionFeedback?.recognized===0 && file && pageImage && consent
         ?<button type="button" data-urban-vision-literal-retry="true"
@@ -1038,14 +1071,14 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
           className="mt-4 rounded-xl border border-sky-300 bg-white p-4 text-slate-950">
           <h6 className="text-base font-extrabold text-sky-950">Diagnóstico de precisão — segunda IA Gemma 4</h6>
           <p className="mt-1 text-sm font-semibold leading-6 text-slate-800">
-            Duas leituras independentes dos mesmos 13 campos, com comparação de concordâncias,
-            valores divergentes e ilegíveis. Nenhum dado será inserido ou validado automaticamente.
+            A segunda IA é executada automaticamente após a primeira leitura, em um único fluxo,
+            com comparação dos 13 campos. Valores divergentes e ilegíveis não são aprovados.
           </p>
           <button type="button" data-sigapro-contrast="dark" data-urban-expert-run="true"
             disabled={visionBusy||busy||!canEdit}
             onClick={()=>void readPageImage("expert")}
             className="mt-3 min-h-11 rounded-lg border border-sky-900 bg-sky-900 px-4 py-2 text-sm font-extrabold text-white">
-            {visionBusy?"Executando auditoria…":"Executar diagnóstico completo com Gemma 4"}
+            {visionBusy?"Executando auditoria…":"Reexecutar diagnóstico Gemma 4 (opcional)"}
           </button>
           <p className="mt-2 text-xs font-bold text-amber-950">
             Consulta opcional e independente que pode consumir franquia da Cloudflare.
