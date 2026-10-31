@@ -518,14 +518,20 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
       try {
         if(bitmap.width<400 || bitmap.height<140)
           throw Error("Imagem muito pequena. Amplie a tabela e recorte uma linha com os cabeçalhos.");
-        const ratio=Math.min(1,1900/Math.max(bitmap.width,bitmap.height));
+        // Thin historical table fonts are often only 6–12px high in the
+        // operator's crop. Preserve available pixels, and magnify small crops
+        // before the vision encoder downscales the image internally.
+        // Never stretch beyond 1900px or beyond 2.2x the uploaded resolution.
+        const ratio=Math.min(2.2,1900/Math.max(bitmap.width,bitmap.height));
         const canvas=document.createElement("canvas");
-        canvas.width=Math.round(bitmap.width*ratio);
-        canvas.height=Math.round(bitmap.height*ratio);
+        canvas.width=Math.max(1,Math.round(bitmap.width*ratio));
+        canvas.height=Math.max(1,Math.round(bitmap.height*ratio));
         const ctx=canvas.getContext("2d");
         if(!ctx)throw Error("Seu navegador não conseguiu ler a imagem.");
+        ctx.imageSmoothingEnabled=true;
+        ctx.imageSmoothingQuality="high";
         ctx.drawImage(bitmap,0,0,canvas.width,canvas.height);
-        let data=canvas.toDataURL("image/jpeg",0.82);
+        let data=canvas.toDataURL("image/jpeg",0.88);
         if(data.length>1_400_000)data=canvas.toDataURL("image/jpeg",0.65);
         if(data.length>1_400_000)
           throw Error("A imagem ainda está grande. Faça um recorte apenas da linha e do cabeçalho da tabela.");
