@@ -47,7 +47,7 @@ export function validateVisionInput(body:unknown) {
   if(x.action!==VISION_ACTION || (x.quadro!=="I"&&x.quadro!=="II") ||
     !Number.isSafeInteger(x.pageNumber)||Number(x.pageNumber)<1||Number(x.pageNumber)>10000 ||
     typeof x.imageDataUrl!=="string"||x.imageDataUrl.length>MAX_B64_CHARS+50 ||
-    (x.mode!==undefined&&x.mode!=="structured"&&x.mode!=="literal"&&x.mode!=="focused") ||
+    (x.mode!==undefined&&x.mode!=="structured"&&x.mode!=="literal"&&x.mode!=="focused"&&x.mode!=="expert") ||
     (x.mode==="focused" && (typeof x.fieldKey!=="string" || !URBAN_VISION_FIELDS.some(([k])=>k===x.fieldKey))) ||
     (x.mode!=="focused"&&x.fieldKey!==undefined))return null;
   const match=/^data:image\/(jpeg|png);base64,([A-Za-z0-9+/]+={0,2})$/.exec(x.imageDataUrl);
@@ -59,7 +59,7 @@ export function validateVisionInput(body:unknown) {
   const png=match[1]==="png" && image.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10]));
   if(!jpeg&&!png)return null;
   return {quadro:x.quadro as "I"|"II",pageNumber:x.pageNumber as number,imageDataUrl:x.imageDataUrl,
-    mode:x.mode==="focused"?"focused" as const:x.mode==="literal"?"literal" as const:"structured" as const,
+    mode:x.mode==="focused"?"focused" as const:x.mode==="expert"?"expert" as const:x.mode==="literal"?"literal" as const:"structured" as const,
     fieldKey:x.mode==="focused"?x.fieldKey as UrbanVisionFieldKey:undefined};
 }
 /** Normalize Cloudflare's model-output wrapper without guessing numeric columns.
@@ -136,7 +136,10 @@ export async function suggestUrbanMatrixPageText(req:Req,res:Res,identity:Identi
   // No expected/legal value is included in the prompt: no answer leakage.
   const focusLabel=input.mode==="focused"
     ? URBAN_VISION_FIELDS.find(([k])=>k===input.fieldKey)?.[1]:undefined;
-  const prompt=input.mode==="focused"
+  const prompt=input.mode==="expert"
+    ? URBAN_VISION_JSON_PROMPT+" Distinga a ZONA do USO predominante. Nunca responda 'comercial' como zona. "+
+      "Preserve literal o gabarito textual. Não complete lacunas com valores esperados ou inferidos."
+    : input.mode==="focused"
     ? "Leia somente a célula da coluna intitulada '"+focusLabel+"' na única linha de dados da imagem. "+
       "Use o cabeçalho para identificar a coluna exata. Não use a posição de números de outras colunas. "+
       "Devolva APENAS o texto literal dessa célula, sem explicação, sem traduzir e preservando vírgula decimal. "+
@@ -164,9 +167,11 @@ export async function suggestUrbanMatrixPageText(req:Req,res:Res,identity:Identi
   const PROVIDER_TIMEOUT_MS=45000;
   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),PROVIDER_TIMEOUT_MS);
   try {
+    const expert=input.mode==="expert";
     const url="https://api.cloudflare.com/client/v4/accounts/"+
       encodeURIComponent(readEnv("SIGAPRO_CF_ACCOUNT_ID"))+
-      "/ai/run/@cf/moondream/moondream3.1-9B-A2B";
+      (expert?"/ai/run/@cf/google/gemma-4-26b-a4b-it":
+        "/ai/run/@cf/moondream/moondream3.1-9B-A2B");
     const response=await fetch(url,{
       method:"POST",redirect:"error",signal:controller.signal,
       headers:{"Authorization":"Bearer "+config.token,"Content-Type":"application/json"},
@@ -174,8 +179,15 @@ export async function suggestUrbanMatrixPageText(req:Req,res:Res,identity:Identi
       // It is specifically designed for OCR/document extraction; the old
       // Llama vision model returned HTTP 200 but only unstructured responses.
       // The crop is explicitly authorized; no full PDF or saved indices leave QA.
-      body:JSON.stringify({task:"query",image:input.imageDataUrl,question:prompt,
-        stream:false,reasoning:false,max_tokens:1100,temperature:0}),
+      body:JSON.stringify(expert?{
+        messages:[{role:"user",content:[
+          {type:"text",text:prompt},
+          {type:"image_url",image_url:{url:input.imageDataUrl}},
+        ]}],stream:false,temperature:0,max_completion_tokens:1500,
+      }:{
+        task:"query",image:input.imageDataUrl,question:prompt,
+        stream:false,reasoning:false,max_tokens:1100,temperature:0,
+      }),
     });
     if(!response.ok) {
       // Upstream error text is untrusted and never returned or logged.
@@ -189,7 +201,7 @@ export async function suggestUrbanMatrixPageText(req:Req,res:Res,identity:Identi
       return answer(res,failure.httpStatus,{code:failure.code,error:failure.error});
     }
     console.info("[SIGAPRO][UrbanVision] provider responded",{
-      status:response.status,elapsedMs:Date.now()-startedAt,modelFamily:"moondream3.1",mode:input.mode,
+      status:response.status,elapsedMs:Date.now()-startedAt,modelFamily:expert?"gemma4":"moondream3.1",mode:input.mode,
     });
     const parsed=await response.json() as unknown;
     const raw=unwrapCloudflareVisionAnswer(parsed);
@@ -252,7 +264,8 @@ export async function suggestUrbanMatrixPageText(req:Req,res:Res,identity:Identi
       }
       // Even a 13/13 lexical match is NOT a legal or human validation.
       return answer(res,200,{
-        ...structured,automaticallyActivated:false,
+        ...structured,status:expert?"unverified_expert_ocr_draft":structured.status,
+        modelFamily:expert?"gemma4":"moondream3.1",automaticallyActivated:false,
         originalDocumentUploaded:false,requiresVisualComparison:true,
       });
     }
