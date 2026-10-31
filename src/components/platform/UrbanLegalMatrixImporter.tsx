@@ -519,6 +519,10 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
     setFocusCandidates([]);setFocusedResults({});setFocusNotice("");
     setExpertDiagnostics(null);setExpertStatus("");
   },[municipalityId,file,pageImage,quadro,page,zone,usage]);
+  // An edited initial transcription invalidates all prior cross-model verdicts.
+  useEffect(()=>{
+    setExpertDiagnostics(null);setExpertStatus("");
+  },[text]);
   const readPageImage = async (visionMode:"structured"|"literal"|"focused"|"expert"="structured") => {
     if(visionBusy || busy || !canEdit || !file || !pageImage || !consent ||
       !Number.isSafeInteger(Number(page)) || Number(page)<1 || Number(page)>10000){
