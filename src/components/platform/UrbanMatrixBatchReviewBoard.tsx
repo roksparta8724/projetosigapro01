@@ -1,4 +1,4 @@
-import {useMemo,useState} from "react";
+import {useEffect,useMemo,useState} from "react";
 import {backendClient} from "@/integrations/backend/databaseClient";
 import {examineBatchRows,checkedBatchIndexes,makeUrbanBatchStaging,
   type BatchUrbanPackage} from "@/lib/urbanBatchReview";
@@ -27,6 +27,22 @@ export function UrbanMatrixBatchReviewBoard({
  const [busy,setBusy]=useState(false);
  const [notice,setNotice]=useState("");
  const [history,setHistory]=useState<SavedBatch[]>([]);
+ const [historyChecked,setHistoryChecked]=useState(false);
+ const [historyError,setHistoryError]=useState(false);
+ useEffect(()=>{
+  let live=true;
+  setHistory([]);setHistoryChecked(false);setHistoryError(false);
+  if(!qaWriteEnabled||!backendClient)return()=>{live=false;};
+  void backendClient.rpc("list_urban_matrix_batch_staging_v1",{
+    _municipality_id:municipalityId
+  }).then(({data,error}:{data:unknown;error:unknown})=>{
+    if(!live)return;
+    setHistoryChecked(true);
+    if(error||!Array.isArray(data)){setHistoryError(true);return;}
+    setHistory(data as SavedBatch[]);
+  }).catch(()=>{if(live){setHistoryChecked(true);setHistoryError(true);}});
+  return()=>{live=false;};
+ },[municipalityId,qaWriteEnabled]);
  const statuses=useMemo(()=>examineBatchRows(reviewPackage.quadro_I),[reviewPackage]);
  const eligible=useMemo(()=>statuses.filter(x=>x.bulkEligible),[statuses]);
  const reviewed=useMemo(()=>checkedBatchIndexes(checked,statuses),[checked,statuses]);
@@ -170,6 +186,14 @@ export function UrbanMatrixBatchReviewBoard({
    </p>:null}
    {notice?<p data-urban-batch-message="true" role="status"
       className="mt-3 rounded-lg border border-slate-200 bg-white p-3 text-sm font-bold text-slate-950">{notice}</p>:null}
+   {historyChecked && historyError?<p role="alert"
+     className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs font-bold text-amber-950">
+     Histórico de lotes QA indisponível. Não conclua que os dados foram perdidos;
+     verifique a conexão antes de tentar gravar novamente.
+   </p>:null}
+   {historyChecked&&!historyError&&history.length===0?<p className="mt-3 text-xs font-semibold text-slate-700">
+     Nenhum lote deste documento foi localizado no histórico da prefeitura neste ambiente QA.
+   </p>:null}
    {history.length>0?<details className="mt-3 rounded-lg border border-slate-200 bg-white p-3">
      <summary className="cursor-pointer font-bold text-sky-950">Lotes arquivados nesta prefeitura</summary>
      {history.map(h=><p key={h.id} className="mt-2 text-xs font-semibold text-slate-800">

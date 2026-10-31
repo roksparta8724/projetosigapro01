@@ -2,6 +2,7 @@ import {describe,it,expect} from "vitest";
 import {readFileSync} from "node:fs";
 const ui=readFileSync("src/components/platform/UrbanLegalMatrixImporter.tsx","utf8");
 const board=readFileSync("src/components/platform/UrbanMatrixBatchReviewBoard.tsx","utf8");
+const helper=readFileSync("src/lib/urbanBatchReview.ts","utf8");
 const sql=readFileSync("neon/migrations/20261031_urban_matrix_batch_staging_qa_v1.sql","utf8");
 describe("SIGAPRO — lote histórico QA, sem ativação e por prefeitura",()=>{
  it("só exibe a matriz após verificar SHA-256 do PDF na carga",()=>{
@@ -24,7 +25,7 @@ describe("SIGAPRO — lote histórico QA, sem ativação e por prefeitura",()=>{
   expect(board).toContain('"save_urban_matrix_batch_staging_v1"');
   expect(board).toContain("makeUrbanBatchStaging(reviewPackage,reviewed)");
   expect(board).toContain("!qaWriteEnabled");
-  expect(board).toContain("pending");
+  expect(helper).toContain('"pending_legal_review"');
   expect(board).not.toContain("activate_urban_regulation");
   expect(board).not.toContain("save_urban_regulation_draft_v1");
   expect(board).toContain('"list_urban_matrix_batch_staging_v1"');
