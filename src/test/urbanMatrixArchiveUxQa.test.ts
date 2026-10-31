@@ -19,8 +19,9 @@ describe("SIGAPRO QA – acervo visível, OCR liberado e contraste premium",()=>
   });
   it("recusa recriar lote já existente, preservando 23 linhas e vigência pendente",()=>{
     expect(board).toContain("h.document_sha256===reviewPackage.arquivo_sha256");
-    expect(board).toContain("disabled={busy||savedHere||archiveLookupBusy||!qaWriteEnabled}");
+    expect(board).toContain("disabled={busy||savedHere||archiveLookupBusy||archiveLookupFailed||!qaWriteEnabled}");
     expect(board).toContain("Rascunho já arquivado no Neon QA");
+    expect(board).toContain("data-urban-batch-history-error");
     expect(migration).toContain("public.is_urban_regulation_admin_v1(_municipality_id)");
     expect(migration).toContain("municipality_id=_municipality_id");
     expect(migration).toContain("'pending_legal_review'");
