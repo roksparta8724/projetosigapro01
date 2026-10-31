@@ -35,7 +35,8 @@ const uncertainty = /^(?:\[?\s*ileg[ií]vel\s*\]?|n[aã]o (?:foi |est[aá] )?(?:
 export function parseUrbanVisionResult(raw:unknown): UrbanVisionResult|null {
   if(typeof raw!=="string" || raw.length>9000)return null;
   const body=raw.trim().replace(/^\x60{3}(?:json)?\s*/i,"").replace(/\s*\x60{3}$/,"");
-  if(!body.startsWith("{")||!body.endsWith("}"))return null;
+  // JSON wrapped in commentary and explicitly labeled columns are allowed;
+  // both paths still pass through the strict per-cell validator below.
   let value:unknown=null;
   // Models sometimes wrap a valid JSON object in surrounding commentary.
   // Remove the wrapper but NEVER manufacture fields or values.
