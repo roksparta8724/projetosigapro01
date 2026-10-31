@@ -15,7 +15,7 @@ type ExtractionReply = { candidates?: unknown; error?: string; quadro?: ImportQu
   status?: string; automaticallyActivated?: boolean };
 type VisionReply = { draftText?:unknown; error?:string;
   status?:string;recognizable?:number;total?:number;unrecognized?:string[];
-  warning?:string;ocrPreview?:string;code?:string };
+  warning?:string;ocrPreview?:string;code?:string;diagnosticCode?:string };
 type ReviewPackageRow = {
   pagina_pdf: number; zona_conforme_tabela: string; uso_predominante_conforme_tabela: string;
   ca_minimo_original: string | null; ca_basico_original: string; ca_maximo_original: string;
@@ -502,7 +502,7 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
     setPageImagePreview(local);
     return ()=>URL.revokeObjectURL(local);
   },[pageImage]);
-  const readPageImage = async () => {
+  const readPageImage = async (visionMode:"structured"|"literal"="structured") => {
     if(visionBusy || busy || !canEdit || !file || !pageImage || !consent ||
       !Number.isSafeInteger(Number(page)) || Number(page)<1 || Number(page)>10000){
       setMessage("Selecione PDF oficial, página física e imagem recortada da tabela. Autorize a consulta à IA antes de prosseguir.");return;
@@ -535,7 +535,7 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
         const digest=await crypto.subtle.digest("SHA-256",bytes);
         const hash=Array.from(new Uint8Array(digest)).map(b=>b.toString(16).padStart(2,"0")).join("");
         const cacheKey=[municipalityId,reviewPackage?.arquivo_sha256||file.name+"-"+file.size+"-"+file.lastModified,
-          quadro,page,hash].join("|");
+          quadro,page,hash,visionMode].join("|");
         let result=visionSessionCache.current.get(cacheKey);
         const reused=Boolean(result);
         if(!result){
@@ -547,7 +547,7 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
             headers:{"Content-Type":"application/json",Authorization:"Bearer "+bearer,
               "X-SIGAPRO-VISION":"1"},
             body:JSON.stringify({action:"urban-matrix-vision",quadro,
-              pageNumber:Number(page),imageDataUrl:data}),
+              pageNumber:Number(page),imageDataUrl:data,mode:visionMode}),
           });
           result=await response.json() as VisionReply;
           if(!response.ok)throw Error(result.error||"Falha na leitura visual.");
@@ -566,9 +566,14 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
           // Preserve the provenance of any prior OCR text. Repeated failed
           // calls must never recast old unverified OCR as trusted manual text.
           setOcrVerified(false);
-          const message="A Cloudflare respondeu, mas o modelo não identificou campos confiáveis. "+
-            "A imagem NÃO está aprovada. Use a conferência célula por célula na matriz "+
-            "histórica abaixo, sem pagar por outra leitura da mesma imagem.";
+          const issue=result.diagnosticCode==="OCR_EMPTY_RESPONSE"
+            ?"O modelo não retornou texto para este recorte."
+            :result.diagnosticCode==="OCR_SHORT_RESPONSE"
+              ?"A resposta do modelo foi curta demais para reconhecer as colunas."
+              :"O modelo não associou os valores aos cabeçalhos com segurança.";
+          const message="A Cloudflare respondeu, mas não foi possível validar a extração: "+issue+
+            " Confira se a ZONA e o USO da imagem coincidem com a linha selecionada. "+
+            "Não aprove estes campos. A conferência manual continua disponível.";
           setVisionNotice({kind:"error",message:(reused?"Resultado recuperado desta sessão. ":"")+message});
           setMessage(message);
           return;
@@ -584,9 +589,23 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
         setPreparedManualText(null);
         setText(result.draftText.trim().slice(0,6000));
         setOcrDraft(true);setOcrVerified(false);setMethod("visual_double_transcription");
-        setVisionNotice({kind:"success",message:reused
-          ?"Leitura estruturada recuperada da sessão anterior. Compare os valores abaixo."
-          :"Leitura estruturada recebida. Confira cada campo na matriz antes de confirmar."});
+        // A visually different zone must never be reported as a successful reading
+        // for the selected legal row (the prior video selected ZM-MA but sent ZM-B).
+        const extractedZone=result.draftText.match(/^Zona:\s*(.*)$/mi)?.[1]?.trim()||"";
+        const extractedUse=result.draftText.match(/^Uso:\s*(.*)$/mi)?.[1]?.trim()||"";
+        const confident=(v:string)=>Boolean(v&&!/\[\s*ileg[ií]vel\s*\]/i.test(v));
+        const zoneMismatch=quadro==="I"&&confident(extractedZone)&&Boolean(zone)&&
+          normalizeUrbanCode(extractedZone)!==normalizeUrbanCode(zone);
+        const useMismatch=quadro==="I"&&confident(extractedUse)&&Boolean(usage)&&
+          normalizeUrbanCode(extractedUse)!==normalizeUrbanCode(usage);
+        setVisionNotice({kind:zoneMismatch||useMismatch?"error":"success",message:
+          zoneMismatch||useMismatch
+            ?"Imagem diferente da linha selecionada. Editor: "+zone+" / "+usage+
+              ". IA leu: "+(extractedZone||"zona ilegível")+" / "+(extractedUse||"uso ilegível")+
+              ". Selecione a linha correspondente e refaça a conferência. Nenhuma regra foi aprovada."
+            :reused
+              ?"Leitura estruturada recuperada desta sessão. Compare os valores abaixo."
+              :"Campos lidos como PROPOSTA, não aprovados. Confira cada coluna no PDF."});
         setMessage((reused?"Leitura recuperada nesta sessão, sem nova chamada à Cloudflare. ":"")+
           (quadro==="I"?"A IA devolveu células estruturadas, ainda NÃO verificadas. A comparação abaixo exige conferência de cada coluna com o PDF. ":
             "Transcrição preliminar do Quadro II; confira as condições na fonte original. ")+
@@ -874,6 +893,12 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
           <span className="block text-sm font-extrabold text-sky-900">3 · Conferir</span>Sem aprovação automática
         </div>
       </div>
+      {matchingOriginalScope && matchingOriginalRow
+        ?<p data-urban-ai-expected-row="true"
+          className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm font-extrabold text-amber-950">
+          Linha selecionada: {matchingOriginalRow.zona_conforme_tabela} · {matchingOriginalRow.uso_predominante_conforme_tabela}.
+          Confirme que o recorte mostra EXATAMENTE esta zona e uso antes de enviar à IA.
+        </p>:null}
       <p data-urban-ai-page-status="true" role="status"
         className="mt-3 rounded-lg border border-sky-200 bg-white p-3 text-sm font-bold text-slate-900">
         {Number.isSafeInteger(Number(page))&&Number(page)>0
@@ -909,6 +934,18 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
         className="mt-3 min-h-11 rounded-xl border border-sky-800 bg-sky-800 px-4 py-2 text-sm font-bold text-white disabled:cursor-not-allowed">
         {visionBusy?"Lendo uma linha com IA…":"Extrair campos por coluna com IA — sem salvar"}
       </button>
+      {visionNotice?.kind==="error"&&visionFeedback?.recognized===0 && file && pageImage && consent
+        ?<button type="button" data-urban-vision-literal-retry="true"
+          data-sigapro-contrast="dark" disabled={visionBusy||busy}
+          onClick={()=>void readPageImage("literal")}
+          className="mt-2 min-h-11 rounded-xl border border-sky-800 bg-sky-800 px-4 py-2 text-sm font-extrabold text-white">
+          Tentar transcrição literal das colunas (nova consulta à Cloudflare)
+        </button>:null}
+      {visionNotice?.kind==="error"&&visionFeedback?.recognized===0
+        ?<p className="mt-2 text-xs font-semibold text-amber-950">
+          A segunda tentativa é opcional, utiliza o mesmo recorte com outra instrução e pode consumir a franquia de IA.
+          Não envia o PDF completo nem ativa índices.
+        </p>:null}
       {visionNotice?<p data-urban-vision-status="true" data-state={visionNotice.kind}
         role={visionNotice.kind==="error"?"alert":"status"} aria-live="polite"
         className={"mt-3 rounded-xl border px-4 py-3 text-sm font-bold leading-6 "+(
