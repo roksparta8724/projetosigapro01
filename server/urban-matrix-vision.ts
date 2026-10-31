@@ -26,11 +26,11 @@ export function classifyCloudflareVisionFailure(status:number, payload:unknown) 
     });
   }
   if(licenseMention) return {httpStatus:502,code:"CLOUDFLARE_VISION_LICENSE_REQUIRED",
-    error:"O modelo visual exige aceitação inicial dos termos da Meta pela conta Cloudflare. O responsável deve realizar essa aceitação na conta; o SIGAPRO não aceita termos automaticamente."};
+    error:"O modelo anterior exige aceitação de licença pela conta Cloudflare. O responsável deve realizar essa ação; o SIGAPRO não aceita termos automaticamente."};
   if(status===401) return {httpStatus:502,code:"CLOUDFLARE_VISION_TOKEN_REJECTED",
     error:"A Cloudflare recusou a autenticação da IA visual. Confira o token protegido e as permissões de Workers AI no ambiente QA."};
   if(status===403) return {httpStatus:502,code:"CLOUDFLARE_VISION_ACCESS_DENIED",
-    error:"A Cloudflare negou acesso ao modelo visual. Verifique as permissões de Workers AI e a aceitação dos termos da Meta na conta."};
+    error:"A Cloudflare negou acesso ao modelo visual. Verifique as permissões de Workers AI da conta e do token QA."};
   if(status===400||status===422) return {httpStatus:502,code:"CLOUDFLARE_VISION_REQUEST_REJECTED",
     error:"A Cloudflare recusou a requisição de imagem. O suporte técnico deve verificar o formato enviado e as exigências do modelo."};
   if(status===404) return {httpStatus:502,code:"CLOUDFLARE_VISION_MODEL_UNAVAILABLE",
@@ -104,17 +104,16 @@ export async function suggestUrbanMatrixPageText(req:Req,res:Res,identity:Identi
   try {
     const url="https://api.cloudflare.com/client/v4/accounts/"+
       encodeURIComponent(readEnv("SIGAPRO_CF_ACCOUNT_ID"))+
-      "/ai/run/@cf/meta/llama-3.2-11b-vision-instruct";
+      "/ai/run/@cf/moondream/moondream3.1-9B-A2B";
     const response=await fetch(url,{
       method:"POST",redirect:"error",signal:controller.signal,
       headers:{"Authorization":"Bearer "+config.token,"Content-Type":"application/json"},
-      // Restore prompt+image, which returned HTTP 200 in the QA deployment.
-      // The messages+image variant reached the 45s deadline with this crop.
-      // Only the authorized cropped image is sent; never the PDF.
-      // Cloudflare's REST /ai/run expects base64 image content, not the
-      // browser's data:image/...;base64, prefix. Input was already validated.
-      body:JSON.stringify({prompt,image:input.imageDataUrl.slice(input.imageDataUrl.indexOf(",")+1),
-        max_tokens:670,temperature:0}),
+      // Moondream 3.1 uses task=query, question and a base64 data URI.
+      // It is specifically designed for OCR/document extraction; the old
+      // Llama vision model returned HTTP 200 but only unstructured responses.
+      // The crop is explicitly authorized; no full PDF or saved indices leave QA.
+      body:JSON.stringify({task:"query",image:input.imageDataUrl,question:prompt,
+        stream:false,reasoning:false,max_tokens:1100,temperature:0}),
     });
     if(!response.ok) {
       // Upstream error text is untrusted and never returned or logged.
@@ -128,10 +127,13 @@ export async function suggestUrbanMatrixPageText(req:Req,res:Res,identity:Identi
       return answer(res,failure.httpStatus,{code:failure.code,error:failure.error});
     }
     console.info("[SIGAPRO][UrbanVision] provider responded",{
-      status:response.status,elapsedMs:Date.now()-startedAt,
+      status:response.status,elapsedMs:Date.now()-startedAt,modelFamily:"moondream3.1",
     });
-    const parsed=await response.json() as {result?:{response?:unknown};response?:unknown};
-    const raw=parsed.result?.response??parsed.response;
+    const parsed=await response.json() as {
+      result?:{answer?:unknown;response?:unknown};
+      answer?:unknown;response?:unknown;
+    };
+    const raw=parsed.result?.answer??parsed.answer??parsed.result?.response??parsed.response;
     if(typeof raw!=="string"||raw.trim().length<20)
       return answer(res,200,{
         status:"unverified_unstructured_ocr_response",
