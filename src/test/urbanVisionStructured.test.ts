@@ -163,11 +163,11 @@ describe("SIGAPRO QA: extração visual estruturada em 13 células",()=>{
   });
   it("aceita transcrição por rótulo sob chave não padronizada, nunca por números posicionais",()=>{
     const reading=JSON.stringify({result:{raw_table_text:
-      "Zona: ZM-B(e)\\nUso: comercial\\nC.A. básico: 0,5\\nRecuo de fundos: 8 m"}});
+      "Zona: ZM-B(e)\nUso: comercial\nC.A. básico: 0,5\nRecuo de fundos: 8 m"}});
     // Unknown string wrappers are metadata rather than guessed numeric cells.
     expect(parseUrbanVisionResult(reading)).toBeNull();
     expect(parseUrbanVisionResult(JSON.stringify({result:{transcricao:
-      "Zona: ZM-B(e)\\nUso: comercial\\nRecuo de fundos: 8 m"}}))?.recognizable).toBe(3);
+      "Zona: ZM-B(e)\nUso: comercial\nRecuo de fundos: 8 m"}}))?.recognizable).toBe(3);
   });
   it("rejects nested instructions, malformed response and invalid/duplicate keys",()=>{
     expect(parseUrbanVisionResult(JSON.stringify({dados:{
