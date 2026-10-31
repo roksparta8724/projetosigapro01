@@ -21,6 +21,9 @@ describe("SIGAPRO QA — retorno Cloudflare, reconsulta opcional e zona correta"
      expect(parseUrbanVisionResult(raw)?.recognizable).toBe(3);
    }
    expect(unwrapCloudflareVisionAnswer({result:{answer:""}})).toBe(null);
+   expect(unwrapCloudflareVisionAnswer({result:{choices:[{
+     message:{content:[{type:"text",text:named}]}
+   }]}})).toBe(named);
    expect(parseUrbanVisionResult(unwrapCloudflareVisionAnswer({result:{answer:"0,05 0,5 1 50"}}))).toBeNull();
  });
  it("somente imagens com modelo e formato controlados chegam ao OCR",()=>{

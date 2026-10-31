@@ -46,6 +46,22 @@ describe("SIGAPRO — 13 campos com auditoria independente Gemma 4, sem gravacao
   expect(sent.messages[0].content[1].type).toBe("image_url");
   expect(sent.messages[0].content[1].image_url.url).toBe(image);
   expect(sent.messages[0].content[0].text).not.toContain("0,05");
+  expect(sent.chat_template_kwargs.enable_thinking).toBe(false);
+  expect(sent.max_completion_tokens).toBe(2000);
+ });
+ it("detecta resposta da Gemma com tokens consumidos e conteúdo vazio",async()=>{
+  mock.fetch.mockResolvedValue({ok:true,status:200,json:async()=>({
+    result:{choices:[{finish_reason:"length",message:{content:"",reasoning_content:null}}],
+      usage:{completion_tokens:1500}},
+  })});
+  let payload:any;
+  const res={statusCode:200,setHeader:vi.fn(),end:vi.fn((value:string)=>{payload=JSON.parse(value);})};
+  await suggestUrbanMatrixPageText({method:"POST"} as never,res as never,
+    {municipality_id:city,tenant_id:city,is_master:false},
+    {action:"urban-matrix-vision",quadro:"I",pageNumber:36,imageDataUrl:image,mode:"expert"});
+  expect(payload.status).toBe("unverified_unstructured_ocr_response");
+  expect(payload.diagnosticCode).toBe("GEMMA_EMPTY_COMPLETION");
+  expect(payload.automaticallyActivated).toBe(false);
  });
  it("diagnostica divergencia de zona, lacunas e valores coincidentes",()=>{
   const first="Zona: ZM-B(e)\nUso: comercial\nC.A. mínimo: [ILEGÍVEL]\nRecuo frontal: 10";

@@ -615,7 +615,9 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
         if(!scopeIsCurrent())return;
         if(visionMode==="expert"){
           if(result.status!=="unverified_expert_ocr_draft"||typeof result.draftText!=="string"){
-            setExpertStatus("Gemma 4 não identificou as 13 colunas com segurança. O resultado anterior permanece preservado.");
+            setExpertStatus(result.diagnosticCode==="GEMMA_EMPTY_COMPLETION"
+              ?"A Gemma 4 respondeu sem produzir texto. É uma falha da geração do modelo, não prova de que a tabela esteja ilegível. A primeira leitura e o PDF foram preservados."
+              :"Gemma 4 não identificou as colunas com segurança. O resultado anterior permanece preservado.");
             return;
           }
           const hasInitialDraft=ocrDraft&&text.trim().length>=20;
