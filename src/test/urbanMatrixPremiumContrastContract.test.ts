@@ -37,7 +37,8 @@ describe("SIGAPRO — contrato de contraste premium para novos botões", () => {
     expect(importer).toContain('data-urban-vision-status="true"');
     expect(importer).toContain('role={visionNotice.kind==="error"?"alert":"status"}');
     expect(importer).toContain('setVisionNotice({kind:"error"');
-    expect(importer).toContain('setVisionNotice({kind:"success"');
+    expect(importer).toContain('kind:zoneMismatch||useMismatch?"error":Number(result.recognizable)===13?"success":"reading"');
+    expect(importer).toContain("Transcrição parcial: ");
     expect(importer).toContain('setVisionNotice({kind:"reading"');
   });
 
