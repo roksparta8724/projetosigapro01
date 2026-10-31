@@ -73,6 +73,7 @@ function OcrReferenceComparison({row,analysis,preparedText,onPrepareVerified,onI
   ];
   const reviewBlocked=Boolean(row.pendencias_de_leitura?.trim()) ||
     row.ca_minimo_original===null || values.some(([,value])=>!value.trim()||/\bA CONFERIR\b/i.test(value));
+  const allCellsSelected=confirmedCells.length===referenceCells.length;
   const canPrepare=!reviewBlocked && sourceAttested &&
     referenceCells.every(([label])=>confirmedCells.includes(label));
   const statusLabel=(status:string)=>status==="match"?"Coincide — conferir no PDF":
@@ -200,13 +201,15 @@ function OcrReferenceComparison({row,analysis,preparedText,onPrepareVerified,onI
         </div>
         <div className="flex flex-wrap gap-2">
           <button type="button" data-urban-manual-check-all="true" data-sigapro-contrast="dark"
-            disabled={!sourceAttested||reviewBlocked||confirmedCells.length===referenceCells.length}
+            data-selection-state={allCellsSelected?"complete":"pending"}
+            aria-pressed={allCellsSelected}
+            disabled={!sourceAttested||reviewBlocked||allCellsSelected}
             onClick={()=>{
               onInvalidatePrepared();
               setConfirmedCells(referenceCells.map(([label])=>label));
             }}
             className="min-h-10 rounded-lg border border-sky-800 bg-sky-800 px-4 py-2 text-sm font-extrabold text-white disabled:cursor-not-allowed disabled:border-slate-300 disabled:bg-slate-100 disabled:text-slate-600">
-            Marcar todas ({referenceCells.length})
+            {allCellsSelected?"✓ Todas marcadas ("+referenceCells.length+")":"Marcar todas ("+referenceCells.length+")"}
           </button>
           <button type="button" data-urban-manual-uncheck-all="true"
             disabled={confirmedCells.length===0}
@@ -306,6 +309,11 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
   // identical, already-authorized crop without charging Cloudflare again.
   const visionSessionCache=useRef(new Map<string,VisionReply>());
   const [previewUrl,setPreviewUrl] = useState("");
+  const [pdfViewerReload,setPdfViewerReload] = useState(0);
+  // The browser's native PDF reader does not reliably honor fragment changes
+  // in an already mounted iframe. Remount on page / document / manual refresh.
+  const selectedPdfPage=Number.isSafeInteger(Number(page)) && Number(page)>0
+    ?Number(page):1;
   // Preview writes must use an explicitly configured, non-production Neon pair.
   const authUrl=String(import.meta.env.VITE_NEON_AUTH_URL || "");
   const dataUrl=String(import.meta.env.VITE_NEON_DATA_API_URL || "");
@@ -718,15 +726,21 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
             ["Recuo de fundos",String(row.recuo_fundos_m)+" m"],
             ["Recuo lateral",String(row.recuo_lateral_m)+" m"],
           ];
-          return <div className="mt-3">
-            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          return <details data-urban-original-reference="true"
+            className="mt-3 overflow-hidden rounded-lg border border-sky-200 bg-white text-slate-950">
+            <summary className="cursor-pointer bg-white px-3 py-3 text-sm font-extrabold text-sky-950">
+              Ver os 11 índices históricos do pacote — expandir ou recolher
+            </summary>
+            <div className="px-3 pb-3">
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {values.map(([title,value])=><p key={title} className="rounded-lg border border-sky-200 bg-white px-3 py-2 text-xs leading-5 text-slate-950">
                 <strong className="block font-bold text-slate-700">{title}</strong>{value}
               </p>)}
             </div>
             {row.observacoes_especificas?<p className="mt-2 text-xs leading-5 text-amber-950">Exceções da tabela: {row.observacoes_especificas}</p>:null}
-            {row.pendencias_de_leitura?<p role="alert" className="mt-2 text-xs font-bold leading-5 text-rose-900">Leitura pendente: {row.pendencias_de_leitura}</p>:null}
-          </div>;
+              {row.pendencias_de_leitura?<p role="alert" className="mt-2 text-xs font-bold leading-5 text-rose-900">Leitura pendente: {row.pendencias_de_leitura}</p>:null}
+            </div>
+          </details>;
         })() : null}
         <button type="button" data-urban-review-apply="true" data-sigapro-contrast="dark"
           className="sig-premium-dark-action mt-3 min-h-11 max-w-full rounded-xl border border-slate-900 bg-slate-950 px-5 py-3 text-sm font-extrabold !text-white shadow-sm transition-colors hover:bg-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
@@ -734,17 +748,35 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
         <p className="mt-2 text-xs font-semibold leading-5 text-amber-950">Valores históricos apenas para comparação. A transcrição literal, a vigência e a confirmação humana continuam obrigatórias para gravar um rascunho no Neon QA.</p>
       </div>:null}
     </div>
-    {previewUrl?<div className="mt-4 rounded-xl border border-slate-200 bg-white p-3">
-      <p className="mb-2 text-xs font-bold text-slate-800">
-        Conferência visual: PDF local selecionado (não enviado ao servidor)
-      </p>
-      <iframe title="Visualização local do PDF oficial para conferir a página"
-        src={previewUrl+"#page="+(Number(page)>0?Number(page):1)}
+    {previewUrl?<section data-urban-pdf-review="true"
+      className="mt-4 overflow-hidden rounded-xl border border-slate-200 bg-white p-3 text-slate-950">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h5 className="text-sm font-extrabold text-slate-950">Conferência visual do PDF oficial</h5>
+          <p data-urban-pdf-selected-page="true" className="mt-1 text-sm font-bold text-sky-900">
+            Página solicitada: {selectedPdfPage} · arquivo local, não enviado ao servidor
+          </p>
+        </div>
+        <button type="button" data-urban-pdf-reload="true"
+          onClick={()=>setPdfViewerReload(n=>n+1)}
+          className="min-h-10 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-bold text-slate-900">
+          Recarregar página no leitor
+        </button>
+      </div>
+      <iframe key={[previewUrl,selectedPdfPage,pdfViewerReload].join(":")}
+        title={"Visualização local do PDF oficial — página solicitada "+selectedPdfPage}
+        src={previewUrl+"#page="+selectedPdfPage}
         loading="lazy" className="h-[360px] w-full rounded-lg border border-slate-200"/>
-      <a className="mt-2 block text-sm font-semibold text-sky-800 underline"
-        href={previewUrl+"#page="+(Number(page)>0?Number(page):1)}
-        target="_blank" rel="noreferrer">Abrir documento local na página selecionada</a>
-    </div>:null}
+      <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+        <p className="max-w-xl text-xs font-semibold leading-5 text-amber-950">
+          Confira o número da página exibida no leitor: alguns navegadores ignoram a navegação automática.
+          Caso isso ocorra, abra o PDF abaixo e selecione a página manualmente.
+        </p>
+        <a className="text-sm font-bold text-sky-900 underline underline-offset-2"
+          href={previewUrl+"#page="+selectedPdfPage}
+          target="_blank" rel="noreferrer">Abrir PDF na página solicitada</a>
+      </div>
+    </section>:null}
     <div data-urban-matrix-ai-card="true" className="mt-4 rounded-xl border border-sky-200 bg-sky-50 p-4 text-slate-950">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>

@@ -69,7 +69,10 @@ describe("SIGAPRO QA — OCR não transforma índices soltos em regras",()=>{
  it("permite marcar ou desmarcar todos os 13 parâmetros SOMENTE após declaração humana",()=>{
    expect(ui).toContain('data-urban-manual-bulk-check="true"');
    expect(ui).toContain('data-urban-manual-check-all="true" data-sigapro-contrast="dark"');
-   expect(ui).toContain('disabled={!sourceAttested||reviewBlocked||confirmedCells.length===referenceCells.length}');
+   expect(ui).toContain('disabled={!sourceAttested||reviewBlocked||allCellsSelected}');
+   expect(ui).toContain('data-selection-state={allCellsSelected?"complete":"pending"}');
+   expect(ui).toContain('aria-pressed={allCellsSelected}');
+   expect(ui).toContain('✓ Todas marcadas (');
    expect(ui).toContain('setConfirmedCells(referenceCells.map(([label])=>label))');
    expect(ui).toContain('data-urban-manual-uncheck-all="true"');
    expect(ui).toContain('setConfirmedCells([])');

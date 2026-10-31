@@ -3083,3 +3083,30 @@ html body #root [data-urban-matrix-import="true"] [data-urban-ocr-detailed-compa
   background:#f1f5f9 !important;
   opacity:1 !important;
 }
+
+/* SIGAPRO URBAN MANUAL SELECTION STATE — explicit contrast on completion. */
+html body #root [data-urban-matrix-import="true"]
+[data-urban-manual-check-all="true"][data-selection-state="complete"] {
+  background:#ecfdf5 !important;
+  border-color:#6ee7b7 !important;
+  color:#065f46 !important;
+  -webkit-text-fill-color:#065f46 !important;
+  opacity:1 !important;
+}
+html body #root [data-urban-matrix-import="true"]
+[data-urban-original-reference="true"] > summary {
+  background:#fff !important;
+  color:#0c4a6e !important;
+  -webkit-text-fill-color:#0c4a6e !important;
+  opacity:1 !important;
+}
+html body #root [data-urban-matrix-import="true"]
+[data-urban-pdf-review="true"] :is(h5,p,button) {
+  opacity:1 !important;
+}
+html body #root [data-urban-matrix-import="true"]
+[data-urban-pdf-selected-page="true"] {
+  color:#075985 !important;
+  -webkit-text-fill-color:#075985 !important;
+}
+/* END SIGAPRO URBAN MANUAL SELECTION STATE */
