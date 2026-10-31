@@ -435,7 +435,7 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
   };
   const openBatchRow=(index:number)=>{
     const row=reviewPackage?.quadro_I[index];
-    if(!row||!canEdit||busy)return;
+    if(!row||busy)return;
     setReviewRowIndex(index);
     setQuadro("I");setPage(String(row.pagina_pdf));
     setZone(normalizeUrbanCode(row.zona_conforme_tabela));
@@ -771,7 +771,7 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
           key={[municipalityId,reviewPackage.arquivo_sha256,file.name,file.lastModified].join(":")}
           municipalityId={municipalityId} file={file} reviewPackage={reviewPackage}
           qaWriteEnabled={qaWriteEnabled} canEdit={canEdit} onOpenRow={openBatchRow}
-          archiveRestored={archiveRestored}
+          activeRowIndex={reviewRowIndex} archiveRestored={archiveRestored}
           onArchiveSaved={()=>{setArchiveRestored(true);setArchiveReloadToken(previous=>previous+1);}}
         />:null}
         {openedRowNotice?<p data-urban-row-opened="true" role="status" aria-live="polite"
