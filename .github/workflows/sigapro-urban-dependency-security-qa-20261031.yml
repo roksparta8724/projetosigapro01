@@ -1,0 +1,98 @@
+name: SIGAPRO - Remediacao segura do grafo npm (QA 20261031)
+on:
+  push:
+    branches:
+      - workbench/sigapro-matriz-urbanistica-importacao-20261030
+    paths:
+      - .github/workflows/sigapro-urban-dependency-security-qa-20261031.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sigapro-urban-dependency-security-qa-20261031
+  cancel-in-progress: false
+
+jobs:
+  remediate:
+    if: github.ref == 'refs/heads/workbench/sigapro-matriz-urbanistica-importacao-20261030'
+    name: Validate, audit, then commit (QA only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout the isolated QA branch
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: true
+      - name: Node 22 LTS
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Candidate patch (no publication)
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const path='package.json';
+          const pkg=JSON.parse(fs.readFileSync(path,'utf8'));
+          pkg.devDependencies['@eslint/js']='10.14.0';
+          pkg.devDependencies.eslint='10.14.0';
+          pkg.devDependencies['typescript-eslint']='8.71.0';
+          pkg.devDependencies['eslint-plugin-react-refresh']='0.5.7';
+          // Sucrase >=3.35.1 no longer pulls vulnerable glob via Tailwind 3.x.
+          pkg.overrides={...pkg.overrides, sucrase:'3.35.1',
+            minimatch:'11.0.1'};
+          fs.writeFileSync(path,JSON.stringify(pkg,null,2)+'\n');
+          NODE
+          npm install --package-lock-only --legacy-peer-deps --ignore-scripts --no-fund --no-audit
+          npm audit fix --package-lock-only --legacy-peer-deps --ignore-scripts --no-fund || true
+          npm ci --legacy-peer-deps --no-fund --no-audit
+          npm ls eslint minimatch sucrase glob --all > "$RUNNER_TEMP/dependency-tree.txt" || true
+          echo 'Dependency tree snapshot:'
+          head -100 "$RUNNER_TEMP/dependency-tree.txt"
+      - name: Verify zero advisories (runtime AND full tree)
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm audit --omit=dev --json > "$RUNNER_TEMP/audit-runtime.json" || true
+          npm audit --json > "$RUNNER_TEMP/audit-all.json" || true
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          for(const file of ['audit-runtime.json','audit-all.json']){
+            const result=JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+'/'+file,'utf8'));
+            if(result.error||!result.metadata?.vulnerabilities){
+              throw Error('Cannot verify npm audit for '+file);
+            }
+            const total=Number(result.metadata.vulnerabilities.total||0);
+            const affected=Object.entries(result.vulnerabilities||{})
+              .map(([name,value])=>({name,severity:value.severity,fixAvailable:value.fixAvailable}));
+            console.log('SIGAPRO_AUDIT_'+file+' '+JSON.stringify({counts:result.metadata.vulnerabilities,affected}));
+            if(total!==0)throw Error('Security gate blocked '+file+' with '+total+' advisories; no commit or release');
+          }
+          NODE
+      - name: TypeScript
+        run: npm run typecheck
+      - name: Complete test suite
+        run: npm test
+      - name: Private AI gateway security tests
+        run: node --test infra/private-ai/gateway/gateway.test.mjs
+      - name: Production-mode build (local CI artifact only)
+        run: npm run build
+      - name: Verify installed lockfile remains stable
+        run: npm ci --legacy-peer-deps --ignore-scripts --no-fund --no-audit --dry-run
+      - name: Commit tested manifest and lockfile only
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'sigapro-qa-security-bot'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add package.json package-lock.json
+          if git diff --cached --quiet; then
+            echo 'No dependency change necessary.'
+            exit 0
+          fi
+          git commit -m 'security(urban QA): zero-advisory dependency graph verified with full regression [skip ci]'
+          git push origin HEAD:refs/heads/workbench/sigapro-matriz-urbanistica-importacao-20261030
