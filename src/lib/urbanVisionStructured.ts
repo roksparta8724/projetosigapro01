@@ -81,54 +81,68 @@ function parseNamedCellLines(raw:string):Record<string,string>|null {
   }
   return Object.keys(record).length>=2?record:null;
 }
-const textWrappers=new Set(["transcricao","transcription","texto","text","ocr text","extracted text","output"]);
+const textWrappers=new Set(["transcricao","transcription","texto","text","ocr text","extracted text","output","answer","response","content"]);
 function plain(x:unknown):x is Record<string,unknown> {
   return x!==null && typeof x==="object" && !Array.isArray(x);
 }
-/** Map only explicitly named cells; never guess a value's column by position. */
-function recoverNamedCells(input:unknown,depth=0):Record<UrbanVisionFieldKey,unknown>|null {
-  if(depth>3)return null;
+/** Parse ONLY values bound to named, known columns; unknown wrapper metadata is ignored.
+ * Cloudflare vision replies can legitimately nest a result object or include
+ * harmless metadata keys. Reject duplicates and instruction keys everywhere.
+ * Never recover fields by ordinal/position, and never interpret arbitrary
+ * unsupported labels as legal parameters. */
+function recoverNamedCells(input:unknown):Record<UrbanVisionFieldKey,unknown>|null {
   const result:Partial<Record<UrbanVisionFieldKey,unknown>>={};
+  let visited=0;
   const record=(key:UrbanVisionFieldKey,value:unknown):boolean=>{
     if(Object.prototype.hasOwnProperty.call(result,key))return false;
     result[key]=value;
     return true;
   };
-  if(Array.isArray(input)){
-    if(input.length>40)return null;
-    for(const row of input){
-      if(!plain(row))return null;
-      const normalized=Object.fromEntries(Object.entries(row).map(([k,v])=>[normalizeLabel(k),v]));
-      const rawKey=normalized.campo??normalized.parametro??normalized.indice??
-        normalized.nome??normalized.coluna??normalized.titulo??normalized.rotulo??
-        normalized.label??normalized.key;
-      if(typeof rawKey!=="string")return null;
-      const key=fieldLabels.get(normalizeLabel(rawKey));
-      if(!key)continue;
-      if(!record(key,normalized.valor??normalized.value??normalized.texto??null))return null;
+  const walk=(node:unknown,depth:number):boolean=>{
+    if(depth>7||++visited>180)return false;
+    if(Array.isArray(node)){
+      if(node.length>45)return false;
+      for(const item of node){
+        if(!plain(item))return false;
+        const normalized=Object.fromEntries(Object.entries(item).map(([k,v])=>[normalizeLabel(k),v]));
+        const rawKey=normalized.campo??normalized.parametro??normalized.indice??
+          normalized.nome??normalized.coluna??normalized.titulo??normalized.rotulo??
+          normalized.label??normalized.key;
+        if(typeof rawKey==="string"){
+          const key=fieldLabels.get(normalizeLabel(rawKey));
+          if(disallowed.has(normalizeLabel(rawKey)))return false;
+          if(key && !record(key,normalized.valor??normalized.value??normalized.texto??normalized.text??null))
+            return false;
+          // Named cell rows are consumed, including unknown labels.
+          continue;
+        }
+        if(!walk(item,depth+1))return false;
+      }
+      return true;
     }
-  } else if(plain(input)){
-    const pairs=Object.entries(input);
-    if(pairs.length>55)return null;
+    if(!plain(node))return false;
+    const pairs=Object.entries(node);
+    if(pairs.length>85)return false;
     for(const [label,value] of pairs){
       const normalized=normalizeLabel(label);
-      if(disallowed.has(normalized))return null;
+      if(disallowed.has(normalized))return false;
       const key=fieldLabels.get(normalized);
-      if(key){if(!record(key,value))return null;continue;}
-      if(wrappers.has(normalized)||textWrappers.has(normalized)){
-        const nested=typeof value==="string" && textWrappers.has(normalized)
-          ? recoverNamedCells(parseNamedCellLines(value),depth+1)
-          : recoverNamedCells(value,depth+1);
-        if(!nested)return null;
-        for(const [nestedKey,nestedValue] of Object.entries(nested)){
-          if(!record(nestedKey as UrbanVisionFieldKey,nestedValue))return null;
-        }
-      } else if(!metadata.has(normalized)) {
-        // Unknown schema is never interpreted as an index or approved as OCR.
-        return null;
+      if(key){if(!record(key,value))return false;continue;}
+      if(typeof value==="string" && (textWrappers.has(normalized)||wrappers.has(normalized))){
+        const lines=parseNamedCellLines(value);
+        if(lines&&!walk(lines,depth+1))return false;
+        continue;
       }
+      if(plain(value)||Array.isArray(value)){
+        // Accept nested forms such as output.result, transcription.items, 
+        // table.rows without requiring a fixed envelope name.
+        if(!walk(value,depth+1))return false;
+      }
+      // Other keys are metadata, not OCR cells and never create values.
     }
-  } else return null;
+    return true;
+  };
+  if(!walk(input,0))return null;
   return Object.keys(result).length>=2?result as Record<UrbanVisionFieldKey,unknown>:null;
 }
 
