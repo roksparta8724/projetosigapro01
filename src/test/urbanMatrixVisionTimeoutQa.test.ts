@@ -9,7 +9,8 @@ describe("SIGAPRO QA — leitura visual Cloudflare com prazo controlado",()=>{
    expect(server).toContain('image:input.imageDataUrl,question:prompt');
    expect(server).toContain('stream:false,reasoning:false,max_tokens:1100');
    expect(server).toContain('"/ai/run/@cf/moondream/moondream3.1-9B-A2B"');
-   expect(server).not.toContain('messages:[');
+   expect(server).toContain('messages:[{role:"user",content:[');
+   expect(server).toContain('expert?"/ai/run/@cf/google/gemma-4-26b-a4b-it":');
    expect(server).toContain("URBAN_VISION_JSON_PROMPT");
    expect(server).toContain('const structured=parseUrbanVisionResult(raw)');
  });
