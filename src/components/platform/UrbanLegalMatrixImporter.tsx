@@ -46,9 +46,9 @@ function validReviewRow(value: unknown): value is ReviewPackageRow {
       (typeof row.recuo_lateral_m === "number" && Number.isFinite(row.recuo_lateral_m)));
 }
 
-function OcrReferenceComparison({row,analysis,onPrepareVerified}:{
-  row:ReviewPackageRow;analysis:OcrReconciliation|null;
-  onPrepareVerified:(verifiedText:string)=>void;
+function OcrReferenceComparison({row,analysis,preparedText,onPrepareVerified,onInvalidatePrepared}:{
+  row:ReviewPackageRow;analysis:OcrReconciliation|null;preparedText:string|null;
+  onPrepareVerified:(verifiedText:string)=>void;onInvalidatePrepared:()=>void;
 }) {
   // Local-only, explicit per-cell human verification. Reset on document/row
   // changes through the keyed component: never reuse approvals across tenants.
@@ -130,11 +130,17 @@ function OcrReferenceComparison({row,analysis,onPrepareVerified}:{
         </p>)}
       </div>
     </div> : <p className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm font-semibold leading-6 text-amber-950">
-      Ainda não houve transcrição pela IA nesta sessão. Os dados abaixo são apenas referências históricas,
-      não podem ser tratados como índices conferidos sem verificar o documento oficial.
+      {preparedText
+        ? "Transcrição preparada por conferência humana, não pela IA. Valores conferidos na página, mas vigência e exceções continuam pendentes."
+        : "A IA ainda não forneceu transcrição estruturada. Use os valores históricos para conferir as células no PDF; nenhuma regra foi aprovada."}
     </p>}
-    <div className="mt-4 max-w-full overflow-x-auto rounded-xl border border-slate-200">
-      <table className="w-full min-w-[700px] border-collapse text-left text-sm text-slate-950">
+    <details data-urban-ocr-detailed-comparison="true" open={Boolean(analysis)}
+      className="mt-4 overflow-hidden rounded-xl border border-slate-200 bg-white">
+      <summary className="cursor-pointer bg-slate-50 px-4 py-3 text-sm font-bold text-sky-950">
+        Comparação detalhada dos 11 índices — expandir ou recolher
+      </summary>
+      <div className="max-w-full overflow-x-auto">
+        <table className="w-full min-w-[700px] border-collapse text-left text-sm text-slate-950">
         <thead className="bg-slate-100">
           <tr><th scope="col" className="p-3 font-extrabold">Parâmetro</th>
             <th scope="col" className="p-2 font-bold">JSON (original)</th>
@@ -157,8 +163,9 @@ function OcrReferenceComparison({row,analysis,onPrepareVerified}:{
             </td>
           </tr>;
         })}</tbody>
-      </table>
-    </div>
+        </table>
+      </div>
+    </details>
     {row.observacoes_especificas?<p className="mt-3 text-sm font-semibold text-amber-950">
       Observações e exceções originais: {row.observacoes_especificas}
     </p>:null}
@@ -182,8 +189,11 @@ function OcrReferenceComparison({row,analysis,onPrepareVerified}:{
           className="flex min-w-0 items-start gap-2 rounded-xl border border-sky-200 bg-white p-3 text-sm text-slate-950">
           <input aria-label={"Conferi no PDF: "+label}
             type="checkbox" checked={confirmedCells.includes(label)}
-            onChange={e=>setConfirmedCells(prev=>e.target.checked
-              ?[...prev,label]:prev.filter(x=>x!==label))}
+            onChange={e=>{
+              onInvalidatePrepared();
+              setConfirmedCells(prev=>e.target.checked
+                ?[...prev,label]:prev.filter(x=>x!==label));
+            }}
             className="mt-1 h-4 w-4 shrink-0 accent-sky-800"/>
           <span className="min-w-0 break-words font-semibold text-slate-900">
             <strong className="block text-xs text-slate-700">{label}</strong>{value}
@@ -192,7 +202,7 @@ function OcrReferenceComparison({row,analysis,onPrepareVerified}:{
       </div>
       <label className="mt-3 flex items-start gap-2 rounded-lg border border-sky-200 bg-white p-3 text-sm font-semibold leading-6 text-slate-950">
         <input type="checkbox" checked={sourceAttested}
-          onChange={e=>setSourceAttested(e.target.checked)}
+          onChange={e=>{onInvalidatePrepared();setSourceAttested(e.target.checked);}}
           className="mt-1 h-4 w-4 shrink-0 accent-sky-800"/>
         Conferi pessoalmente a página oficial, a linha, os cabeçalhos e as unidades.
         Sei que os valores são históricos e que a legislação vigente ainda precisa ser comprovada.
@@ -211,6 +221,32 @@ function OcrReferenceComparison({row,analysis,onPrepareVerified}:{
         Esta ação só prepara uma transcrição de trabalho. Para registrar revisão no Neon QA,
         ainda serão exigidos fonte literal, vigência confirmada e as aprovações humanas previstas no fluxo.
       </p>
+      {preparedText ? <section data-urban-manual-result="true" role="status" aria-live="polite"
+        className="mt-4 overflow-hidden rounded-xl border border-emerald-300 bg-white text-slate-950 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-emerald-200 bg-emerald-50 px-4 py-3">
+          <div>
+            <p className="text-xs font-extrabold uppercase tracking-wide text-emerald-950">Resultado da conferência humana</p>
+            <h6 className="mt-1 text-base font-extrabold text-slate-950">Transcrição preparada — 13 campos</h6>
+          </div>
+          <span className="rounded-full border border-emerald-300 bg-white px-3 py-1 text-xs font-bold text-emerald-950">
+            Não salvo · não é leitura da IA
+          </span>
+        </div>
+        <div className="px-4 py-3">
+          <p className="text-sm font-semibold leading-6 text-slate-800">
+            Página {row.pagina_pdf} · {row.zona_conforme_tabela} · {row.uso_predominante_conforme_tabela}.
+            O mesmo texto aparece no campo de transcrição acima; nenhuma regra nem vigência foi alterada.
+          </p>
+          <pre data-urban-manual-result-text="true"
+            className="mt-3 max-h-64 overflow-auto whitespace-pre-wrap break-words rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm font-medium leading-6 text-slate-950">{preparedText}</pre>
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+            <a href="#urban-matrix-transcription" className="text-sm font-bold text-sky-900 underline underline-offset-2">
+              Ver campo de transcrição
+            </a>
+            <span className="text-xs font-semibold text-amber-950">Vigência e exceções ainda pendentes</span>
+          </div>
+        </div>
+      </section> : null}
     </div>
   </section>;
 }
@@ -254,6 +290,8 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
   const [quadro,setQuadro] = useState<ImportQuadro>("I");
   const [page,setPage] = useState("");
   const [text,setText] = useState("");
+  // Display-only duplicate of the operator-prepared text, never a persisted rule.
+  const [preparedManualText,setPreparedManualText]=useState<string|null>(null);
   const [zone,setZone] = useState("");
   const [usage,setUsage] = useState("");
   const [effectiveFrom,setEffectiveFrom] = useState("");
@@ -291,7 +329,7 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
   },[municipalityId]);
   const reset = () => {setCandidates([]);setChecked([]);setConsent(false);setMessage("");};
   const loadStructuredReview = async (incoming: File | null) => {
-    setReviewPackage(null);setReviewRowIndex(0);
+    setReviewPackage(null);setReviewRowIndex(0);setPreparedManualText(null);
     if (!incoming) return;
     if (!file) {setMessage("Selecione o mesmo PDF oficial antes do pacote de revisão.");return;}
     if (incoming.size > 1_000_000 || !incoming.name.toLowerCase().endsWith(".json")) {
@@ -326,14 +364,14 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
     setQuadro("I");setPage(String(row.pagina_pdf));
     setZone(normalizeUrbanCode(row.zona_conforme_tabela));
     setUsage(normalizeUrbanCode(row.uso_predominante_conforme_tabela));
-    setEffectiveFrom("");setText("");setOcrDraft(false);setOcrVerified(false);
+    setEffectiveFrom("");setText("");setPreparedManualText(null);setOcrDraft(false);setOcrVerified(false);
     setCandidates([]);setChecked([]);setConsent(false);
     setMessage("Página, zona e uso preenchidos para revisão. Os valores abaixo são da lei ORIGINAL e não foram gravados. Confira a linha no PDF e possíveis alterações posteriores; a vigência continua em branco.");
   };
 
   useEffect(() => {
     let active = true;
-    setFile(null);setQuadro("I");setPage("");setText("");setZone("");
+    setFile(null);setQuadro("I");setPage("");setText("");setPreparedManualText(null);setZone("");
     setUsage("");setEffectiveFrom("");reset();setHistory([]);
     setHistoryChecked(false);setHistoryError(false);
     if (!municipalityId || !canEdit || !backendClient) return () => {active=false;};
@@ -446,6 +484,7 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
           total:Number(result.total)||13,
           missing:Array.isArray(result.unrecognized)?result.unrecognized.length:13,
         }:null);
+        setPreparedManualText(null);
         setText(result.draftText.trim().slice(0,6000));
         setOcrDraft(true);setOcrVerified(false);setMethod("visual_double_transcription");
         setVisionNotice({kind:"success",message:reused
@@ -580,10 +619,10 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
     <div className="mt-4 grid gap-3 md:grid-cols-2">
       <label className="text-xs font-bold text-slate-800 dark:text-white">Arquivo PDF oficial
         <input type="file" accept=".pdf,application/pdf" className="mt-1 block w-full rounded-lg border border-slate-300 bg-white p-2 text-slate-900"
-          onChange={e=>{setFile(e.target.files?.[0]||null);setReviewPackage(null);setReviewRowIndex(0);setPageImage(null);setText("");setOcrDraft(false);setOcrVerified(false);setVisionFeedback(null);setVisionNotice(null);setVisionRawPreview("");visionSessionCache.current.clear();reset();}}/>
+          onChange={e=>{setFile(e.target.files?.[0]||null);setReviewPackage(null);setReviewRowIndex(0);setPreparedManualText(null);setPageImage(null);setText("");setOcrDraft(false);setOcrVerified(false);setVisionFeedback(null);setVisionNotice(null);setVisionRawPreview("");visionSessionCache.current.clear();reset();}}/>
       </label>
       <label className="text-xs font-bold text-slate-800 dark:text-white">Quadro de origem
-        <select value={quadro} onChange={e=>{setQuadro(e.target.value as ImportQuadro);reset();}}
+        <select value={quadro} onChange={e=>{setQuadro(e.target.value as ImportQuadro);setPreparedManualText(null);setText("");setOcrDraft(false);setOcrVerified(false);reset();}}
           className="mt-1 min-h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-slate-950">
           <option value="I">Quadro I — Índices numéricos</option>
           <option value="II">Quadro II — Categorias e condições de uso</option>
@@ -591,7 +630,7 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
       </label>
       <label className="text-xs font-bold text-slate-800 dark:text-white">Página física do PDF
         <input aria-label="Número de página do PDF" type="number" min="1" max="10000" value={page}
-          onChange={e=>{setPage(e.target.value);setText("");setOcrDraft(false);setOcrVerified(false);setVisionFeedback(null);setVisionNotice(null);setVisionRawPreview("");reset();}} placeholder="Informe a página visualizada"
+          onChange={e=>{setPage(e.target.value);setText("");setPreparedManualText(null);setOcrDraft(false);setOcrVerified(false);setVisionFeedback(null);setVisionNotice(null);setVisionRawPreview("");reset();}} placeholder="Informe a página visualizada"
           className="mt-1 min-h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-slate-950"/>
       </label>
       <label className="text-xs font-bold text-slate-800 dark:text-white">Vigência legal confirmada
@@ -630,7 +669,7 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
         <label className="mt-3 block text-xs font-bold text-slate-900">
           Selecione a zona e o uso conforme tabela de origem
           <select aria-label="Linha extraída para pré-preenchimento" value={reviewRowIndex}
-            onChange={e=>setReviewRowIndex(Number(e.target.value))}
+            onChange={e=>{setReviewRowIndex(Number(e.target.value));setPreparedManualText(null);setText("");setOcrDraft(false);setOcrVerified(false);setCandidates([]);setChecked([]);}}
             className="mt-1 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-slate-950">
             {reviewPackage.quadro_I.map((row,i)=><option key={i} value={i}>
               Página {row.pagina_pdf} · {row.zona_conforme_tabela} · {row.uso_predominante_conforme_tabela}
@@ -709,7 +748,7 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
         Imagem recortada da página (não o PDF completo)
         <input aria-label="Imagem da linha do Quadro I ou II" type="file" accept="image/png,image/jpeg"
           className="mt-1 block w-full rounded-lg border border-slate-300 bg-white p-2"
-          onChange={e=>{setPageImage(e.target.files?.[0]||null);setOcrDraft(false);
+          onChange={e=>{setPageImage(e.target.files?.[0]||null);setPreparedManualText(null);setOcrDraft(false);
             setOcrVerified(false);setVisionFeedback(null);setVisionNotice(null);setVisionRawPreview("");setText("");reset();}}/>
       </label>
       {pageImagePreview?<img src={pageImagePreview} alt="Prévia local da linha fotografada do quadro"
@@ -767,9 +806,10 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
       </p>
     </div>
     <label className="mt-3 block text-xs font-bold text-slate-800 dark:text-white">
-      Transcrição literal da página — revise números e cabeçalhos antes de importar
-      <textarea rows={7} maxLength={6000} value={text}
-        onChange={e=>{setText(e.target.value);setOcrVerified(false);reset();}}
+      {preparedManualText?"Transcrição preparada por conferência humana — rascunho não salvo":
+        "Transcrição literal da página — revise números e cabeçalhos antes de importar"}
+      <textarea id="urban-matrix-transcription" rows={7} maxLength={6000} value={text}
+        onChange={e=>{setText(e.target.value);setPreparedManualText(null);setOcrVerified(false);reset();}}
         placeholder="Cole apenas o trecho da página oficial, com sua linha, cabeçalhos e notas..."
         className="mt-1 w-full rounded-xl border border-slate-300 bg-white p-3 text-sm text-slate-950"/>
     </label>
@@ -782,9 +822,16 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
         não é necessário repetir a leitura para consultar os dados históricos.
       </p>:null}
       <OcrReferenceComparison
-        key={[municipalityId,reviewPackage?.arquivo_sha256,reviewRowIndex].join(":")}
+        key={[municipalityId,reviewPackage?.arquivo_sha256,reviewRowIndex,zone,usage,page].join(":")}
         row={matchingOriginalRow} analysis={ocrReconciliation}
+        preparedText={preparedManualText}
+        onInvalidatePrepared={()=>{
+          if(preparedManualText && text===preparedManualText)setText("");
+          setPreparedManualText(null);
+          setCandidates([]);setChecked([]);setConsent(false);
+        }}
         onPrepareVerified={verifiedText=>{
+          setPreparedManualText(verifiedText);
           setText(verifiedText);
           setOcrDraft(false);setOcrVerified(false);setVisionFeedback(null);
           setCandidates([]);setChecked([]);setConsent(false);

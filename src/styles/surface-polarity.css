@@ -3064,3 +3064,22 @@ html body #root [data-urban-matrix-import="true"] [data-urban-vision-status="tru
   border-color:#6ee7b7 !important;
 }
 /* END SIGAPRO URBAN OCR EVIDENCE PREMIUM CONTRAST */
+
+/* Premium results stay legible even when global municipal theme overrides text. */
+html body #root [data-urban-matrix-import="true"] [data-urban-manual-result="true"],
+html body #root [data-urban-matrix-import="true"] [data-urban-manual-result="true"] :is(h6,pre,p,span) {
+  color:#0f172a !important;
+  -webkit-text-fill-color:#0f172a !important;
+  opacity:1 !important;
+}
+html body #root [data-urban-matrix-import="true"] [data-urban-manual-result="true"] pre {
+  background:#f8fafc !important;
+  border-color:#cbd5e1 !important;
+  white-space:pre-wrap !important;
+}
+html body #root [data-urban-matrix-import="true"] [data-urban-ocr-detailed-comparison="true"] > summary {
+  color:#082f49 !important;
+  -webkit-text-fill-color:#082f49 !important;
+  background:#f1f5f9 !important;
+  opacity:1 !important;
+}

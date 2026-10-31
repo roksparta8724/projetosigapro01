@@ -31,7 +31,7 @@ describe("SIGAPRO QA — OCR não transforma índices soltos em regras",()=>{
    expect(ui).toContain('sourceAttested');
    expect(ui).toContain('referenceCells.every');
    expect(ui).toContain('setMethod("visual_double_transcription")');
-   expect(ui).toContain('key={[municipalityId,reviewPackage?.arquivo_sha256,reviewRowIndex].join(":")}');
+   expect(ui).toContain('key={[municipalityId,reviewPackage?.arquivo_sha256,reviewRowIndex,zone,usage,page].join(":")}');
    expect(ui).toContain('data-urban-vision-raw-preview="true"');
    expect(ui).toContain('result.status==="unverified_unstructured_ocr_response"');
  });
@@ -40,5 +40,30 @@ describe("SIGAPRO QA — OCR não transforma índices soltos em regras",()=>{
    expect(comparison).not.toContain("backendClient");
    expect(comparison).not.toContain("setEffectiveFrom");
    expect(comparison).not.toContain("save_urban_matrix_numeric_review_v1");
+ });
+ it("mostra o resultado no próprio card, além do campo de transcrição acima",()=>{
+   expect(ui).toContain('data-urban-manual-result="true"');
+   expect(ui).toContain('data-urban-manual-result-text="true"');
+   expect(ui).toContain("Resultado da conferência humana");
+   expect(ui).toContain("Não salvo · não é leitura da IA");
+   expect(ui).toContain('href="#urban-matrix-transcription"');
+   expect(ui).toContain('id="urban-matrix-transcription"');
+   expect(ui).toContain('preparedText={preparedManualText}');
+   expect(ui).toContain("setPreparedManualText(verifiedText)");
+   expect(ui).toContain("Transcrição preparada por conferência humana — rascunho não salvo");
+ });
+ it("invalida o resultado visual se o operador altera a revisão, troca o PDF ou edita o texto",()=>{
+   expect(ui).toContain("onInvalidatePrepared={()=>{");
+   expect(ui).toContain('if(preparedManualText && text===preparedManualText)setText("")');
+   expect(ui).toContain('onChange={e=>{onInvalidatePrepared();setSourceAttested(e.target.checked);}}');
+   expect(ui).toContain('onChange={e=>{setText(e.target.value);setPreparedManualText(null);');
+   expect(ui).toContain('setReviewPackage(null);setReviewRowIndex(0);setPreparedManualText(null);');
+ });
+ it("recolhe comparação extensa quando não houve análise da IA, mantendo revisão manual acessível",()=>{
+   expect(ui).toContain('data-urban-ocr-detailed-comparison="true" open={Boolean(analysis)}');
+   expect(ui).toContain("Comparação detalhada dos 11 índices — expandir ou recolher");
+   expect(ui).toContain('data-urban-matrix-manual-verification="true"');
+   expect(ui).toContain('role="status" aria-live="polite"');
+   expect(ui).not.toContain("Ainda não houve transcrição pela IA nesta sessão.");
  });
 });
