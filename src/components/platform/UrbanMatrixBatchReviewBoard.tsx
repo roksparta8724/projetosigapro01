@@ -28,13 +28,35 @@ export function UrbanMatrixBatchReviewBoard({
  const [busy,setBusy]=useState(false);
  const [notice,setNotice]=useState("");
  const [savedHere,setSavedHere]=useState(archiveRestored);
+ const [archiveLookupBusy,setArchiveLookupBusy]=useState(true);
+ useEffect(()=>{
+   if(archiveRestored)setSavedHere(true);
+ },[archiveRestored]);
+ useEffect(()=>{
+   let active=true;
+   if(!qaWriteEnabled||!backendClient){
+     setArchiveLookupBusy(false);return()=>{active=false;};
+   }
+   setArchiveLookupBusy(true);
+   void backendClient.rpc("list_urban_matrix_batch_staging_v1",{
+     _municipality_id:municipalityId
+   }).then(({data,error}:{data:unknown;error:unknown})=>{
+     if(!active)return;
+     if(!error&&Array.isArray(data)){
+       const prior=data.some((h:{document_sha256?:string})=>
+         h.document_sha256===reviewPackage.arquivo_sha256);
+       if(prior)setSavedHere(true);
+     }
+   }).catch(()=>{}).finally(()=>{if(active)setArchiveLookupBusy(false);});
+   return()=>{active=false;};
+ },[municipalityId,qaWriteEnabled,reviewPackage.arquivo_sha256]);
  const statuses=useMemo(()=>examineBatchRows(reviewPackage.quadro_I),[reviewPackage]);
  const eligible=useMemo(()=>statuses.filter(x=>x.bulkEligible),[statuses]);
  const pending=useMemo(()=>statuses.filter(x=>!x.bulkEligible),[statuses]);
  const reviewed=useMemo(()=>checkedBatchIndexes(checked,statuses),[checked,statuses]);
  const sameCount=reviewed.length===eligible.length&&eligible.length>0;
  const save=async()=>{
-  if(busy||savedHere||!canEdit||!qaWriteEnabled||!backendClient||!municipalityId){
+  if(busy||savedHere||archiveLookupBusy||!canEdit||!qaWriteEnabled||!backendClient||!municipalityId){
    setNotice("Gravação disponível somente em homologação Neon QA autorizada.");return;
   }
   if(checked.length>0&&!attested){
@@ -207,10 +229,10 @@ export function UrbanMatrixBatchReviewBoard({
      </p>
     </div>
     <button type="button" data-urban-batch-stage-save="true" data-sigapro-contrast="dark"
-      disabled={busy||savedHere||!qaWriteEnabled}
+      disabled={busy||savedHere||archiveLookupBusy||!qaWriteEnabled}
       onClick={()=>void save()}
       className="min-h-11 rounded-lg border border-slate-950 bg-slate-950 px-4 py-2 text-sm font-extrabold text-white disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-700">
-      {busy?"Arquivando lote…":savedHere?"Rascunho já arquivado no Neon QA":"Salvar lote histórico como rascunho QA"}
+      {busy?"Arquivando lote…":savedHere?"Rascunho já arquivado no Neon QA":archiveLookupBusy?"Verificando histórico QA…":"Salvar lote histórico como rascunho QA"}
     </button>
    </div>
    {!qaWriteEnabled?<p role="alert" className="mt-2 text-sm font-bold text-amber-950">
