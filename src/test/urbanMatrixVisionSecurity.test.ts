@@ -73,12 +73,24 @@ describe("Cloudflare visual Quadro OCR — protected QA drafts only",()=>{
   expect(callArgs[0]).toContain("/ai/run/@cf/meta/llama-3.2-11b-vision-instruct");
   expect(callArgs[1].body).not.toContain("password");
  });
- it("never reports success from a prose-only or JSON-like narrative",async()=>{
+ it("never treats a provider HTTP 200 with narrative text as valid structured OCR",async()=>{
    m.fetch.mockResolvedValue({ok:true,json:async()=>({result:{response:
      "Os decimais estão preservados e nenhum valor foi inventado."}})});
    const res=await call();
-   expect(res.code).toBe(422);
+   expect(res.code).toBe(200);
+   expect(res.payload.status).toBe("unverified_unstructured_ocr_response");
    expect(res.payload.code).toBe("URBAN_VISION_UNSTRUCTURED");
+   expect(res.payload.automaticallyActivated).toBe(false);
+   expect(res.payload.originalDocumentUploaded).toBe(false);
+   expect(res.payload.draftText).toBeUndefined();
+   expect(res.payload.ocrPreview).toContain("Os decimais");
+ });
+ it("short or absent OCR output never generates verified numerical cells",async()=>{
+   m.fetch.mockResolvedValue({ok:true,json:async()=>({result:{response:"Nada legível"}})});
+   const res=await call();
+   expect(res.code).toBe(200);
+   expect(res.payload.status).toBe("unverified_unstructured_ocr_response");
+   expect(res.payload.recognizable).toBe(0);
    expect(res.payload.draftText).toBeUndefined();
  });
  it("returns non-success on Cloudflare error; never falls back to a different provider",async()=>{

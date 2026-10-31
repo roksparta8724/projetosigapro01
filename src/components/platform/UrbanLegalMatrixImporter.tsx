@@ -12,7 +12,8 @@ type SavedSnapshot = { id: string; version: number; quadro: ImportQuadro; zone_c
 type ExtractionReply = { candidates?: unknown; error?: string; quadro?: ImportQuadro;
   status?: string; automaticallyActivated?: boolean };
 type VisionReply = { draftText?:unknown; error?:string;
-  status?:string;recognizable?:number;total?:number;unrecognized?:string[] };
+  status?:string;recognizable?:number;total?:number;unrecognized?:string[];
+  warning?:string;ocrPreview?:string;code?:string };
 type ReviewPackageRow = {
   pagina_pdf: number; zona_conforme_tabela: string; uso_predominante_conforme_tabela: string;
   ca_minimo_original: string | null; ca_basico_original: string; ca_maximo_original: string;
@@ -45,7 +46,14 @@ function validReviewRow(value: unknown): value is ReviewPackageRow {
       (typeof row.recuo_lateral_m === "number" && Number.isFinite(row.recuo_lateral_m)));
 }
 
-function OcrReferenceComparison({row,analysis}:{row:ReviewPackageRow;analysis:OcrReconciliation|null}) {
+function OcrReferenceComparison({row,analysis,onPrepareVerified}:{
+  row:ReviewPackageRow;analysis:OcrReconciliation|null;
+  onPrepareVerified:(verifiedText:string)=>void;
+}) {
+  // Local-only, explicit per-cell human verification. Reset on document/row
+  // changes through the keyed component: never reuse approvals across tenants.
+  const [confirmedCells,setConfirmedCells]=useState<string[]>([]);
+  const [sourceAttested,setSourceAttested]=useState(false);
   const values:[string,string][]=[
     ["C.A. mínimo",row.ca_minimo_original??"A CONFERIR"],
     ["C.A. básico",row.ca_basico_original],["C.A. máximo",row.ca_maximo_original],
@@ -58,6 +66,15 @@ function OcrReferenceComparison({row,analysis}:{row:ReviewPackageRow;analysis:Oc
     ["Recuo de fundos",String(row.recuo_fundos_m)+" m"],
     ["Recuo lateral",String(row.recuo_lateral_m)+" m"],
   ];
+  const referenceCells:[string,string][]=[
+    ["Zona",row.zona_conforme_tabela],
+    ["Uso",row.uso_predominante_conforme_tabela],
+    ...values,
+  ];
+  const reviewBlocked=Boolean(row.pendencias_de_leitura?.trim()) ||
+    row.ca_minimo_original===null || values.some(([,value])=>!value.trim()||/\bA CONFERIR\b/i.test(value));
+  const canPrepare=!reviewBlocked && sourceAttested &&
+    referenceCells.every(([label])=>confirmedCells.includes(label));
   const statusLabel=(status:string)=>status==="match"?"Coincide — conferir no PDF":
     status==="divergent"?"DIVERGENTE":status==="ambiguous"?"AMBÍGUO":
     status==="unreadable"?"ILEGÍVEL":"NÃO IDENTIFICADO";
@@ -148,6 +165,53 @@ function OcrReferenceComparison({row,analysis}:{row:ReviewPackageRow;analysis:Oc
     {row.pendencias_de_leitura?<p className="mt-2 text-sm font-bold text-rose-950">
       Pendência da leitura original: {row.pendencias_de_leitura}
     </p>:null}
+    <div data-urban-matrix-manual-verification="true"
+      className="mt-5 rounded-xl border border-sky-300 bg-sky-50 p-4 text-slate-950">
+      <h6 className="text-base font-extrabold text-slate-950">Conferência assistida pelo PDF — sem depender da IA</h6>
+      <p className="mt-2 text-sm font-semibold leading-6 text-slate-800">
+        O pacote JSON passou pela conferência SHA-256 com o PDF selecionado.
+        Marque apenas as células que você conferiu visualmente na página original,
+        uma por uma. Isso não confirma vigência legal nem ativa índices.
+      </p>
+      <p data-urban-matrix-manual-progress="true" role="status"
+        className="mt-2 text-sm font-extrabold text-sky-900">
+        {confirmedCells.length} de {referenceCells.length} células conferidas
+      </p>
+      <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        {referenceCells.map(([label,value])=><label key={label}
+          className="flex min-w-0 items-start gap-2 rounded-xl border border-sky-200 bg-white p-3 text-sm text-slate-950">
+          <input aria-label={"Conferi no PDF: "+label}
+            type="checkbox" checked={confirmedCells.includes(label)}
+            onChange={e=>setConfirmedCells(prev=>e.target.checked
+              ?[...prev,label]:prev.filter(x=>x!==label))}
+            className="mt-1 h-4 w-4 shrink-0 accent-sky-800"/>
+          <span className="min-w-0 break-words font-semibold text-slate-900">
+            <strong className="block text-xs text-slate-700">{label}</strong>{value}
+          </span>
+        </label>)}
+      </div>
+      <label className="mt-3 flex items-start gap-2 rounded-lg border border-sky-200 bg-white p-3 text-sm font-semibold leading-6 text-slate-950">
+        <input type="checkbox" checked={sourceAttested}
+          onChange={e=>setSourceAttested(e.target.checked)}
+          className="mt-1 h-4 w-4 shrink-0 accent-sky-800"/>
+        Conferi pessoalmente a página oficial, a linha, os cabeçalhos e as unidades.
+        Sei que os valores são históricos e que a legislação vigente ainda precisa ser comprovada.
+      </label>
+      {reviewBlocked?<p role="alert" className="mt-3 rounded-lg border border-rose-300 bg-rose-50 p-3 text-sm font-bold text-rose-950">
+        Há índice ou leitura original pendente. Não é permitido preparar a linha
+        automaticamente; confira a fonte e use o registro manual para resolver a pendência.
+      </p>:null}
+      <button type="button" data-urban-manual-prepare="true" data-sigapro-contrast="dark"
+        disabled={!canPrepare}
+        onClick={()=>onPrepareVerified(referenceCells.map(([label,value])=>label+": "+value).join("\n"))}
+        className="mt-3 min-h-11 rounded-xl border border-sky-800 bg-sky-900 px-4 py-2 text-sm font-extrabold text-white disabled:cursor-not-allowed disabled:border-slate-300 disabled:bg-slate-200 disabled:text-slate-700">
+        Preparar texto conferido do PDF — sem salvar regras
+      </button>
+      <p className="mt-2 text-xs font-semibold leading-5 text-slate-700">
+        Esta ação só prepara uma transcrição de trabalho. Para registrar revisão no Neon QA,
+        ainda serão exigidos fonte literal, vigência confirmada e as aprovações humanas previstas no fluxo.
+      </p>
+    </div>
   </section>;
 }
 const dateValid = (s: string) => validateImportDate(s);
@@ -172,6 +236,7 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
   const [ocrVerified,setOcrVerified]=useState(false);
   const [visionBusy,setVisionBusy]=useState(false);
   const [visionNotice,setVisionNotice]=useState<{kind:"reading"|"success"|"error";message:string}|null>(null);
+  const [visionRawPreview,setVisionRawPreview]=useState("");
   const [visionFeedback,setVisionFeedback]=useState<{recognized:number;total:number;missing:number}|null>(null);
   // No localStorage: only the same authenticated component session may reuse an
   // identical, already-authorized crop without charging Cloudflare again.
@@ -309,6 +374,7 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
     }
     setVisionBusy(true);setCandidates([]);setChecked([]);setMessage("");
     setVisionNotice({kind:"reading",message:"Solicitação enviada para leitura da linha. Nenhum dado será salvo automaticamente."});
+    setVisionRawPreview("");
     setOcrVerified(false);setVisionFeedback(null);
     try {
       if(pageImage.size>12*1024*1024 || !["image/jpeg","image/png"].includes(pageImage.type))
@@ -350,10 +416,27 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
           });
           result=await response.json() as VisionReply;
           if(!response.ok)throw Error(result.error||"Falha na leitura visual.");
-          if(typeof result.draftText!=="string"||result.draftText.trim().length<20)
+          if(result.status!=="unverified_unstructured_ocr_response" &&
+            (typeof result.draftText!=="string"||result.draftText.trim().length<20))
             throw Error("A IA não conseguiu transcrever esse recorte com segurança.");
           if(visionSessionCache.current.size>=5)visionSessionCache.current.clear();
           visionSessionCache.current.set(cacheKey,result);
+        }
+        if(result.status==="unverified_unstructured_ocr_response"){
+          // Preserve any existing operator-entered text; an unreliable LLM
+          // response must never silently overwrite human evidence.
+          setVisionRawPreview(typeof result.ocrPreview==="string"?
+            result.ocrPreview.slice(0,2500):"");
+          setVisionFeedback({recognized:0,total:13,missing:13});
+          // Preserve the provenance of any prior OCR text. Repeated failed
+          // calls must never recast old unverified OCR as trusted manual text.
+          setOcrVerified(false);
+          const message="A Cloudflare respondeu, mas o modelo não identificou campos confiáveis. "+
+            "A imagem NÃO está aprovada. Use a conferência célula por célula na matriz "+
+            "histórica abaixo, sem pagar por outra leitura da mesma imagem.";
+          setVisionNotice({kind:"error",message:(reused?"Resultado recuperado desta sessão. ":"")+message});
+          setMessage(message);
+          return;
         }
         if(typeof result.draftText!=="string")
           throw Error("Resposta da IA sem transcrição verificável.");
@@ -497,7 +580,7 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
     <div className="mt-4 grid gap-3 md:grid-cols-2">
       <label className="text-xs font-bold text-slate-800 dark:text-white">Arquivo PDF oficial
         <input type="file" accept=".pdf,application/pdf" className="mt-1 block w-full rounded-lg border border-slate-300 bg-white p-2 text-slate-900"
-          onChange={e=>{setFile(e.target.files?.[0]||null);setReviewPackage(null);setReviewRowIndex(0);setPageImage(null);setText("");setOcrDraft(false);setOcrVerified(false);setVisionFeedback(null);setVisionNotice(null);visionSessionCache.current.clear();reset();}}/>
+          onChange={e=>{setFile(e.target.files?.[0]||null);setReviewPackage(null);setReviewRowIndex(0);setPageImage(null);setText("");setOcrDraft(false);setOcrVerified(false);setVisionFeedback(null);setVisionNotice(null);setVisionRawPreview("");visionSessionCache.current.clear();reset();}}/>
       </label>
       <label className="text-xs font-bold text-slate-800 dark:text-white">Quadro de origem
         <select value={quadro} onChange={e=>{setQuadro(e.target.value as ImportQuadro);reset();}}
@@ -508,7 +591,7 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
       </label>
       <label className="text-xs font-bold text-slate-800 dark:text-white">Página física do PDF
         <input aria-label="Número de página do PDF" type="number" min="1" max="10000" value={page}
-          onChange={e=>{setPage(e.target.value);setText("");setOcrDraft(false);setOcrVerified(false);setVisionFeedback(null);setVisionNotice(null);reset();}} placeholder="Informe a página visualizada"
+          onChange={e=>{setPage(e.target.value);setText("");setOcrDraft(false);setOcrVerified(false);setVisionFeedback(null);setVisionNotice(null);setVisionRawPreview("");reset();}} placeholder="Informe a página visualizada"
           className="mt-1 min-h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-slate-950"/>
       </label>
       <label className="text-xs font-bold text-slate-800 dark:text-white">Vigência legal confirmada
@@ -627,7 +710,7 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
         <input aria-label="Imagem da linha do Quadro I ou II" type="file" accept="image/png,image/jpeg"
           className="mt-1 block w-full rounded-lg border border-slate-300 bg-white p-2"
           onChange={e=>{setPageImage(e.target.files?.[0]||null);setOcrDraft(false);
-            setOcrVerified(false);setVisionFeedback(null);setVisionNotice(null);setText("");reset();}}/>
+            setOcrVerified(false);setVisionFeedback(null);setVisionNotice(null);setVisionRawPreview("");setText("");reset();}}/>
       </label>
       {pageImagePreview?<img src={pageImagePreview} alt="Prévia local da linha fotografada do quadro"
         className="mt-2 max-h-60 w-full rounded-lg border border-slate-200 object-contain"/>:null}
@@ -653,6 +736,16 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
           "border-sky-300 bg-white text-slate-950")}>
         {visionNotice.message}
       </p>:null}
+      {visionRawPreview?<details data-urban-vision-raw-preview="true"
+        className="mt-2 rounded-lg border border-amber-200 bg-white p-3 text-sm text-slate-950">
+        <summary className="cursor-pointer font-bold text-slate-900">
+          Ver resposta textual da IA rejeitada — somente diagnóstico
+        </summary>
+        <p className="mt-2 text-sm font-semibold text-amber-950">
+          Isto NÃO é uma transcrição validada. O conteúdo abaixo não será importado nem salvo.
+        </p>
+        <pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-slate-50 p-3 text-xs text-slate-900">{visionRawPreview}</pre>
+      </details>:null}
       <p role="status" data-urban-matrix-vision-hint="true" className="mt-2 text-sm font-semibold leading-6 text-slate-900">
         {!file ? "Para habilitar: selecione o PDF oficial acima."
           : !Number.isSafeInteger(Number(page))||Number(page)<1||Number(page)>10000
@@ -688,7 +781,20 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
         conferência no PDF e validação da vigência legal. Se a Cloudflare expirar,
         não é necessário repetir a leitura para consultar os dados históricos.
       </p>:null}
-      <OcrReferenceComparison row={matchingOriginalRow} analysis={ocrReconciliation}/>
+      <OcrReferenceComparison
+        key={[municipalityId,reviewPackage?.arquivo_sha256,reviewRowIndex].join(":")}
+        row={matchingOriginalRow} analysis={ocrReconciliation}
+        onPrepareVerified={verifiedText=>{
+          setText(verifiedText);
+          setOcrDraft(false);setOcrVerified(false);setVisionFeedback(null);
+          setCandidates([]);setChecked([]);setConsent(false);
+          setMethod("visual_double_transcription");
+          setVisionNotice({kind:"success",message:
+            "Transcrição de trabalho preparada com sua conferência das células. "+
+            "Não é uma leitura validada pela IA e não prova vigência legal."});
+          setMessage("Texto preparado a partir do pacote histórico e da conferência humana. "+
+            "Nenhum índice foi gravado. Verifique exceções, vigência e citações literais antes de continuar.");
+        }}/>
     </>:null}
     {ocrDraft && ocrHasIllegibleCell ? <p data-urban-ocr-unresolved="true" role="alert"
       className="mt-3 rounded-xl border border-rose-300 bg-rose-50 p-3 text-sm font-bold leading-6 text-rose-950">

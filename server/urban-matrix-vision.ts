@@ -130,14 +130,37 @@ export async function suggestUrbanMatrixPageText(req:Req,res:Res,identity:Identi
     const parsed=await response.json() as {result?:{response?:unknown};response?:unknown};
     const raw=parsed.result?.response??parsed.response;
     if(typeof raw!=="string"||raw.trim().length<20)
-      return answer(res,422,{error:"A imagem não produziu transcrição legível. Faça um recorte maior e mais nítido da linha."});
+      return answer(res,200,{
+        status:"unverified_unstructured_ocr_response",
+        ocrPreview:typeof raw==="string"?raw.trim().slice(0,2500):"",
+        recognizable:0,total:13,code:"URBAN_VISION_UNSTRUCTURED",
+        warning:"A Cloudflare respondeu, mas não produziu células suficientes para análise. "+
+          "Use a conferência pelo PDF e pacote histórico; não repita a mesma imagem.",
+        automaticallyActivated:false,originalDocumentUploaded:false,
+        requiresVisualComparison:true,
+      });
     if(input.quadro==="I") {
       const structured=parseUrbanVisionResult(raw);
-      if(!structured)
-        return answer(res,422,{
-          code:"URBAN_VISION_UNSTRUCTURED",
-          error:"A IA não devolveu células estruturadas confiáveis. Nenhum índice foi utilizado. Faça um recorte mais nítido com cabeçalho e uma única linha; não repita automaticamente.",
+      if(!structured) {
+        // Provider HTTP 200 is not evidence that OCR succeeded. Surface a
+        // bounded untrusted provider preview WITHOUT treating it as legal text,
+        // OCR draft, numeric indices, or a valid rule. The user can continue
+        // via the SHA-256-verified historical matrix and human cell review.
+        console.info("[SIGAPRO][UrbanVision] non-structured provider output",{
+          length:raw.length,containsJsonObject:raw.includes("{"),kind:"human_review_required",
         });
+        return answer(res,200,{
+          status:"unverified_unstructured_ocr_response",
+          ocrPreview:raw.trim().slice(0,2500),
+          recognizable:0,total:13,
+          code:"URBAN_VISION_UNSTRUCTURED",
+          warning:"O modelo respondeu, mas não identificou as colunas com segurança. "+
+            "Esta resposta não é uma transcrição validada. Utilize a conferência "+
+            "de 13 células com o PDF e o pacote histórico, sem repetir a mesma leitura.",
+          automaticallyActivated:false,originalDocumentUploaded:false,
+          requiresVisualComparison:true,
+        });
+      }
       // Even a 13/13 lexical match is NOT a legal or human validation.
       return answer(res,200,{
         ...structured,automaticallyActivated:false,
