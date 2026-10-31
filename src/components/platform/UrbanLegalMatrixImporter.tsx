@@ -184,6 +184,41 @@ function OcrReferenceComparison({row,analysis,preparedText,onPrepareVerified,onI
         className="mt-2 text-sm font-extrabold text-sky-900">
         {confirmedCells.length} de {referenceCells.length} células conferidas
       </p>
+      <label className="mt-3 flex items-start gap-2 rounded-lg border border-sky-200 bg-white p-3 text-sm font-semibold leading-6 text-slate-950">
+        <input type="checkbox" checked={sourceAttested}
+          onChange={e=>{onInvalidatePrepared();setSourceAttested(e.target.checked);}}
+          className="mt-1 h-4 w-4 shrink-0 accent-sky-800"/>
+        Conferi pessoalmente a página oficial, a linha, os cabeçalhos e as unidades.
+        Sei que os valores são históricos e que a legislação vigente ainda precisa ser comprovada.
+      </label>
+      <div data-urban-manual-bulk-check="true" className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-sky-200 bg-white p-3">
+        <div>
+          <p className="text-sm font-extrabold text-slate-950">Conferência dos índices</p>
+          <p className="mt-1 text-xs font-semibold leading-5 text-slate-700">
+            Após comparar cada campo com o PDF, confirme a declaração acima e marque todas de uma vez.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" data-urban-manual-check-all="true" data-sigapro-contrast="dark"
+            disabled={!sourceAttested||reviewBlocked||confirmedCells.length===referenceCells.length}
+            onClick={()=>{
+              onInvalidatePrepared();
+              setConfirmedCells(referenceCells.map(([label])=>label));
+            }}
+            className="min-h-10 rounded-lg border border-sky-800 bg-sky-800 px-4 py-2 text-sm font-extrabold text-white disabled:cursor-not-allowed disabled:border-slate-300 disabled:bg-slate-100 disabled:text-slate-600">
+            Marcar todas ({referenceCells.length})
+          </button>
+          <button type="button" data-urban-manual-uncheck-all="true"
+            disabled={confirmedCells.length===0}
+            onClick={()=>{
+              onInvalidatePrepared();
+              setConfirmedCells([]);
+            }}
+            className="min-h-10 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-900 disabled:cursor-not-allowed disabled:opacity-50">
+            Desmarcar todas
+          </button>
+        </div>
+      </div>
       <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
         {referenceCells.map(([label,value])=><label key={label}
           className="flex min-w-0 items-start gap-2 rounded-xl border border-sky-200 bg-white p-3 text-sm text-slate-950">
@@ -200,13 +235,6 @@ function OcrReferenceComparison({row,analysis,preparedText,onPrepareVerified,onI
           </span>
         </label>)}
       </div>
-      <label className="mt-3 flex items-start gap-2 rounded-lg border border-sky-200 bg-white p-3 text-sm font-semibold leading-6 text-slate-950">
-        <input type="checkbox" checked={sourceAttested}
-          onChange={e=>{onInvalidatePrepared();setSourceAttested(e.target.checked);}}
-          className="mt-1 h-4 w-4 shrink-0 accent-sky-800"/>
-        Conferi pessoalmente a página oficial, a linha, os cabeçalhos e as unidades.
-        Sei que os valores são históricos e que a legislação vigente ainda precisa ser comprovada.
-      </label>
       {reviewBlocked?<p role="alert" className="mt-3 rounded-lg border border-rose-300 bg-rose-50 p-3 text-sm font-bold text-rose-950">
         Há índice ou leitura original pendente. Não é permitido preparar a linha
         automaticamente; confira a fonte e use o registro manual para resolver a pendência.
@@ -235,13 +263,13 @@ function OcrReferenceComparison({row,analysis,preparedText,onPrepareVerified,onI
         <div className="px-4 py-3">
           <p className="text-sm font-semibold leading-6 text-slate-800">
             Página {row.pagina_pdf} · {row.zona_conforme_tabela} · {row.uso_predominante_conforme_tabela}.
-            O mesmo texto aparece no campo de transcrição acima; nenhuma regra nem vigência foi alterada.
+            O texto está disponível aqui; a edição fica recolhida acima. Nenhuma regra nem vigência foi alterada.
           </p>
           <pre data-urban-manual-result-text="true"
             className="mt-3 max-h-64 overflow-auto whitespace-pre-wrap break-words rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm font-medium leading-6 text-slate-950">{preparedText}</pre>
           <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
             <a href="#urban-matrix-transcription" className="text-sm font-bold text-sky-900 underline underline-offset-2">
-              Ver campo de transcrição
+              Abrir opção de editar transcrição
             </a>
             <span className="text-xs font-semibold text-amber-950">Vigência e exceções ainda pendentes</span>
           </div>
@@ -805,16 +833,26 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
         Nenhum dado é ativado ou gravado automaticamente.
       </p>
     </div>
-    <label className="mt-3 block text-xs font-bold text-slate-800 dark:text-white">
-      {preparedManualText?"Transcrição preparada por conferência humana — rascunho não salvo":
-        "Transcrição literal da página — revise números e cabeçalhos antes de importar"}
+    {preparedManualText ? <details data-urban-transcription-edit="true" id="urban-matrix-transcription"
+      className="mt-3 rounded-xl border border-slate-200 bg-white text-slate-950">
+      <summary className="cursor-pointer px-4 py-3 text-sm font-extrabold text-sky-950">
+        Editar transcrição preparada — abrir somente se precisar corrigir
+      </summary>
+      <label className="block px-4 pb-4 text-xs font-bold text-slate-800">
+        Ao editar, a conferência preparada será invalidada e precisará ser revisada.
+        <textarea rows={7} maxLength={6000} value={text}
+          onChange={e=>{setText(e.target.value);setPreparedManualText(null);setOcrVerified(false);reset();}}
+          className="mt-2 w-full rounded-xl border border-slate-300 bg-white p-3 text-sm text-slate-950"/>
+      </label>
+    </details> : <label className="mt-3 block text-xs font-bold text-slate-800 dark:text-white">
+      Transcrição literal da página — revise números e cabeçalhos antes de importar
       <textarea id="urban-matrix-transcription" rows={7} maxLength={6000} value={text}
-        onChange={e=>{setText(e.target.value);setPreparedManualText(null);setOcrVerified(false);reset();}}
+        onChange={e=>{setText(e.target.value);setOcrVerified(false);reset();}}
         placeholder="Cole apenas o trecho da página oficial, com sua linha, cabeçalhos e notas..."
         className="mt-1 w-full rounded-xl border border-slate-300 bg-white p-3 text-sm text-slate-950"/>
-    </label>
+    </label>}
     {matchingOriginalScope && matchingOriginalRow ? <>
-      {!ocrDraft?<p data-urban-ocr-fallback="true"
+      {!ocrDraft && !preparedManualText?<p data-urban-ocr-fallback="true"
         className="mt-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm font-semibold leading-6 text-amber-950">
         A comparação está disponível mesmo sem IA. Os valores são da lei original,
         não da transcrição, e não podem ser tratados como índices confirmados sem
@@ -836,11 +874,9 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
           setOcrDraft(false);setOcrVerified(false);setVisionFeedback(null);
           setCandidates([]);setChecked([]);setConsent(false);
           setMethod("visual_double_transcription");
-          setVisionNotice({kind:"success",message:
-            "Transcrição de trabalho preparada com sua conferência das células. "+
-            "Não é uma leitura validada pela IA e não prova vigência legal."});
-          setMessage("Texto preparado a partir do pacote histórico e da conferência humana. "+
-            "Nenhum índice foi gravado. Verifique exceções, vigência e citações literais antes de continuar.");
+          // Show one main result beside the button, not a duplicate in the AI panel.
+          setVisionNotice(null);
+          setMessage("");
         }}/>
     </>:null}
     {ocrDraft && ocrHasIllegibleCell ? <p data-urban-ocr-unresolved="true" role="alert"

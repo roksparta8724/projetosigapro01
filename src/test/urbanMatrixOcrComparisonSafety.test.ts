@@ -66,4 +66,26 @@ describe("SIGAPRO QA — OCR não transforma índices soltos em regras",()=>{
    expect(ui).toContain('role="status" aria-live="polite"');
    expect(ui).not.toContain("Ainda não houve transcrição pela IA nesta sessão.");
  });
+ it("permite marcar ou desmarcar todos os 13 parâmetros SOMENTE após declaração humana",()=>{
+   expect(ui).toContain('data-urban-manual-bulk-check="true"');
+   expect(ui).toContain('data-urban-manual-check-all="true" data-sigapro-contrast="dark"');
+   expect(ui).toContain('disabled={!sourceAttested||reviewBlocked||confirmedCells.length===referenceCells.length}');
+   expect(ui).toContain('setConfirmedCells(referenceCells.map(([label])=>label))');
+   expect(ui).toContain('data-urban-manual-uncheck-all="true"');
+   expect(ui).toContain('setConfirmedCells([])');
+   expect(ui).toContain("onInvalidatePrepared();");
+   expect(ui).toContain('disabled={!canPrepare}');
+   expect(ui).toContain('referenceCells.every');
+ });
+ it("apresenta só um resultado principal e recolhe edição do texto após conferência",()=>{
+   expect(ui).toContain('data-urban-manual-result="true"');
+   expect(ui).toContain('data-urban-transcription-edit="true"');
+   expect(ui).toContain('{preparedManualText ? <details');
+   expect(ui).toContain('{!ocrDraft && !preparedManualText?<p data-urban-ocr-fallback="true"');
+   expect(ui).toContain('setVisionNotice(null);');
+   expect(ui).toContain('setMessage("");');
+   expect(ui).toContain('onChange={e=>{setText(e.target.value);setPreparedManualText(null);');
+   expect(ui).toContain('Nenhuma regra nem vigência foi alterada.');
+ });
+
 });
