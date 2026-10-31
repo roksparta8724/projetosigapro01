@@ -858,7 +858,13 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
           <span className="block text-sm font-extrabold text-sky-900">3 · Conferir</span>Sem aprovação automática
         </div>
       </div>
-      <p className="mt-1 text-xs leading-5">
+      <p data-urban-ai-page-status="true" role="status"
+        className="mt-3 rounded-lg border border-sky-200 bg-white p-3 text-sm font-bold text-slate-900">
+        {Number.isSafeInteger(Number(page))&&Number(page)>0
+          ?"Página física pronta para IA: "+page+" · quadro "+quadro+". Confira se a imagem corresponde a esta página."
+          :"Selecione uma linha na matriz acima para preencher a página automaticamente e liberar a leitura."}
+      </p>
+      <p className="mt-1 text-sm leading-6 text-slate-800">
         Para Quadros I/II que são imagens: abra o PDF em zoom 100–150%, capture
         somente o cabeçalho e a linha de uma zona (Win + Shift + S), salve como PNG/JPG
         e selecione abaixo. A IA transcreve o recorte; pode confundir células,
@@ -1005,8 +1011,13 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
       Autorizo enviar SOMENTE o trecho da página à IA Cloudflare para extrair propostas.
       O PDF completo permanece local. É a mesma autorização exibida junto ao botão de leitura da imagem.
     </label>
+    <p data-urban-text-ai-prerequisites="true" className="mt-2 text-sm font-semibold text-slate-800">
+      Esta segunda opção analisa o TEXTO transcrito acima (mínimo 40 caracteres).
+      Para ler uma imagem use “Extrair campos por coluna com IA” na seção anterior.
+    </p>
     <button type="button" data-urban-matrix-action="extract"
-      disabled={busy||(ocrDraft&&(!ocrVerified||ocrHasIllegibleCell||ocrReconciliationBlocked))} onClick={()=>void queryAi()}
+      disabled={busy||!file||text.trim().length<40||!consent||!Number.isSafeInteger(Number(page))||Number(page)<1||
+        !zone.trim()||!usage.trim()||(ocrDraft&&(!ocrVerified||ocrHasIllegibleCell||ocrReconciliationBlocked))} onClick={()=>void queryAi()}
       className="mt-3 min-h-11 rounded-xl border border-sky-800 bg-sky-800 px-4 py-2 font-bold text-white">
       {busy?<Loader2 aria-hidden className="mr-2 inline h-4 w-4 animate-spin"/>:null}
       Extrair propostas do trecho — sem salvar
