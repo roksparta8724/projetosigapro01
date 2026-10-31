@@ -193,6 +193,11 @@ export function parseUrbanVisionResult(raw:unknown):UrbanVisionResult|null {
       unrecognized.push(key);continue;
     }
     if(key==="zona"&&normalized.length>60)return null;
+    // These labels are types of USE, not zone codes. Prevent an OCR column
+    // swap from being counted as a valid zone reading.
+    if(key==="zona"&&/^(?:comercial|residencial|industrial|misto|mista|servi[cç]os|institucional|habitacional)$/i.test(normalized)){
+      unrecognized.push(key);continue;
+    }
     if(key==="uso"&&normalized.length>80)return null;
     values[key]=normalized;
   }

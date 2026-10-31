@@ -1,6 +1,7 @@
 import { describe,it,expect,vi,beforeEach,afterEach } from "vitest";
 import { readFileSync } from "node:fs";
 import { compareUrbanVisionDrafts } from "@/lib/urbanVisionDiagnostic";
+import {parseUrbanVisionResult} from "@/lib/urbanVisionStructured";
 import {validateVisionInput,suggestUrbanMatrixPageText} from "../../server/urban-matrix-vision";
 const mock=vi.hoisted(()=>({rpc:vi.fn(),env:vi.fn(),fetch:vi.fn()}));
 vi.mock("../../server/municipal-storage.js",()=>({callDataApiRpc:mock.rpc,readEnv:mock.env}));
@@ -57,10 +58,24 @@ describe("SIGAPRO — 13 campos com auditoria independente Gemma 4, sem gravacao
   expect(rows.find(x=>x.key==="recuo_frontal")?.verdict).toBe("conflict");
   expect(rows.find(x=>x.key==="ca_basico")?.verdict).toBe("not_read");
  });
+ it("nunca trata a classe comercial como codigo da zona",()=>{
+  const parsed=parseUrbanVisionResult(JSON.stringify({
+    zona:"comercial",uso:"comercial",ca_minimo:"0,05",ca_basico:"0,5",
+  }));
+  expect(parsed?.unrecognized).toContain("zona");
+  expect(parsed?.recognizable).toBe(3);
+  expect(parsed?.draftText).toContain("Zona: [ILEGÍVEL]");
+ });
  it("auditoria da IA nunca preenche indice nem aprova por consenso",()=>{
   const ui=readFileSync("src/components/platform/UrbanLegalMatrixImporter.tsx","utf8");
   expect(ui).toContain('data-urban-expert-audit="true"');
   expect(ui).toContain('onClick={()=>void readPageImage("expert")}');
+  expect(ui).toContain('setAutoAuditPending(true)');
+  expect(ui).toContain('void readPageImage("expert")');
+  expect(ui).toContain('Executar leitura completa e diagnóstico com 2 IAs');
+  expect(ui).toContain('setFocusCandidates(diagnosticsPending)');
+  expect(ui).toContain('setExpertDiagnostics(null);setExpertStatus("");setOcrVerified(false)');
+  expect(ui).not.toContain('},[text]);');
   expect(ui).toContain("compareUrbanVisionDrafts(text,result.draftText)");
   expect(ui).toContain("Nenhum índice foi aprovado.");
   expect(ui).toContain('setExpertDiagnostics(null);setExpertStatus("")');

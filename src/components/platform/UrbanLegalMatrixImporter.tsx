@@ -520,10 +520,6 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
     setFocusCandidates([]);setFocusedResults({});setFocusNotice("");
     setExpertDiagnostics(null);setExpertStatus("");setAutoAuditPending(false);
   },[municipalityId,file,pageImage,quadro,page,zone,usage]);
-  // An edited initial transcription invalidates all prior cross-model verdicts.
-  useEffect(()=>{
-    setExpertDiagnostics(null);setExpertStatus("");
-  },[text]);
   const readPageImage = async (visionMode:"structured"|"literal"|"focused"|"expert"="structured") => {
     if(visionBusy || busy || !canEdit || !file || !pageImage || !consent ||
       !Number.isSafeInteger(Number(page)) || Number(page)<1 || Number(page)>10000){
@@ -627,6 +623,9 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
           }
           const diagnostics=compareUrbanVisionDrafts(hasInitialDraft?text:"",result.draftText);
           setExpertDiagnostics(diagnostics);
+          const diagnosticsPending=diagnostics.filter(x=>x.verdict!=="agree").map(x=>x.key);
+          setFocusCandidates(diagnosticsPending);
+          setFocusSelection(diagnosticsPending[0]||"zona");
           const agreeing=diagnostics.filter(x=>x.verdict==="agree").length;
           const conflicts=diagnostics.filter(x=>x.verdict==="conflict").length;
           setExpertStatus((hasInitialDraft?"Duas IAs comparadas. ":"Somente a Gemma 4 conseguiu ler campos; falta uma segunda evidência. ")+agreeing+" concordâncias, "+conflicts+
@@ -1201,13 +1200,13 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
       <label className="block px-4 pb-4 text-xs font-bold text-slate-800">
         Ao editar, a conferência preparada será invalidada e precisará ser revisada.
         <textarea rows={7} maxLength={6000} value={text}
-          onChange={e=>{setText(e.target.value);setPreparedManualText(null);setOcrVerified(false);reset();}}
+          onChange={e=>{setText(e.target.value);setExpertDiagnostics(null);setExpertStatus("");setPreparedManualText(null);setOcrVerified(false);reset();}}
           className="mt-2 w-full rounded-xl border border-slate-300 bg-white p-3 text-sm text-slate-950"/>
       </label>
     </details> : <label className="mt-3 block text-xs font-bold text-slate-800 dark:text-white">
       Transcrição literal da página — revise números e cabeçalhos antes de importar
       <textarea id="urban-matrix-transcription" rows={7} maxLength={6000} value={text}
-        onChange={e=>{setText(e.target.value);setOcrVerified(false);reset();}}
+        onChange={e=>{setText(e.target.value);setExpertDiagnostics(null);setExpertStatus("");setOcrVerified(false);reset();}}
         placeholder="Cole apenas o trecho da página oficial, com sua linha, cabeçalhos e notas..."
         className="mt-1 w-full rounded-xl border border-slate-300 bg-white p-3 text-sm text-slate-950"/>
     </label>}
@@ -1224,13 +1223,13 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
         row={matchingOriginalRow} analysis={ocrReconciliation}
         preparedText={preparedManualText}
         onInvalidatePrepared={()=>{
-          if(preparedManualText && text===preparedManualText)setText("");
+          if(preparedManualText && text===preparedManualText){setExpertDiagnostics(null);setExpertStatus("");setText("");}
           setPreparedManualText(null);
           setCandidates([]);setChecked([]);setConsent(false);
         }}
         onPrepareVerified={verifiedText=>{
           setPreparedManualText(verifiedText);
-          setText(verifiedText);
+          setExpertDiagnostics(null);setExpertStatus("");setText(verifiedText);
           setOcrDraft(false);setOcrVerified(false);setVisionFeedback(null);
           setCandidates([]);setChecked([]);setConsent(false);
           setMethod("visual_double_transcription");
