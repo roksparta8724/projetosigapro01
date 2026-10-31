@@ -15,7 +15,7 @@ describe("SIGAPRO matrix import: reviewed-only tenant isolated",()=>{
   expect(ui).toContain("Quadro II — Categorias e condições de uso");
   expect(ui).toContain("Registrar linhas conferidas como RASCUNHO");
   expect(ui).toContain("Registro manual assistido — sem enviar dados à IA");
-  expect(ui).toContain("Extrair campos por coluna com IA — sem salvar");
+  expect(ui).toContain("Executar leitura completa e diagnóstico com 2 IAs — sem salvar");
   expect(ui).toContain("setOcrDraft(true);setOcrVerified(false)");
   expect(ui).toContain("ocrReconciliationBlocked");
   expect(ui).toContain('imageDataUrl:data');

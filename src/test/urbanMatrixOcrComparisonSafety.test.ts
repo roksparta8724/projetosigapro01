@@ -55,9 +55,9 @@ describe("SIGAPRO QA — OCR não transforma índices soltos em regras",()=>{
  });
  it("invalida o resultado visual se o operador altera a revisão, troca o PDF ou edita o texto",()=>{
    expect(ui).toContain("onInvalidatePrepared={()=>{");
-   expect(ui).toContain('if(preparedManualText && text===preparedManualText)setText("")');
+   expect(ui).toContain('if(preparedManualText && text===preparedManualText){setExpertDiagnostics(null);setExpertStatus("");setText("");}');
    expect(ui).toContain('onChange={e=>{onInvalidatePrepared();setSourceAttested(e.target.checked);}}');
-   expect(ui).toContain('onChange={e=>{setText(e.target.value);setPreparedManualText(null);');
+   expect(ui).toContain('onChange={e=>{setText(e.target.value);setExpertDiagnostics(null);setExpertStatus("");setPreparedManualText(null);');
    expect(ui).toContain('setReviewPackage(null);setReviewRowIndex(0);setPreparedManualText(null);');
  });
  it("recolhe comparação extensa quando não houve análise da IA, mantendo revisão manual acessível",()=>{
@@ -88,7 +88,7 @@ describe("SIGAPRO QA — OCR não transforma índices soltos em regras",()=>{
    expect(ui).toContain('{!ocrDraft && !preparedManualText?<p data-urban-ocr-fallback="true"');
    expect(ui).toContain('setVisionNotice(null);');
    expect(ui).toContain('setMessage("");');
-   expect(ui).toContain('onChange={e=>{setText(e.target.value);setPreparedManualText(null);');
+   expect(ui).toContain('onChange={e=>{setText(e.target.value);setExpertDiagnostics(null);setExpertStatus("");setPreparedManualText(null);');
    expect(ui).toContain('Nenhuma regra nem vigência foi alterada.');
  });
 
