@@ -57,6 +57,43 @@ export function validateVisionInput(body:unknown) {
   if(!jpeg&&!png)return null;
   return {quadro:x.quadro as "I"|"II",pageNumber:x.pageNumber as number,imageDataUrl:x.imageDataUrl};
 }
+/** Normalize Cloudflare's model-output wrapper without guessing numeric columns.
+ * Never logs OCR content or image; returned text is still untrusted and verified
+ * separately by the 13 named-cell parser. */
+export function unwrapCloudflareVisionAnswer(payload:unknown):string|null {
+  if(!payload || typeof payload!=="object" || Array.isArray(payload))return null;
+  const root=payload as Record<string,unknown>;
+  const candidates:unknown[]=[];
+  const visit=(value:unknown,depth:number)=>{
+    if(depth>4||value===null||value===undefined)return;
+    if(typeof value==="string"){candidates.push(value);return;}
+    if(!value||typeof value!=="object")return;
+    if(Array.isArray(value)){
+      // Never reassemble free-form token arrays as numeric table cells.
+      if(value.length===1)visit(value[0],depth+1);
+      return;
+    }
+    const node=value as Record<string,unknown>;
+    for(const key of ["answer","response","output","text","content"]){
+      if(Object.prototype.hasOwnProperty.call(node,key))visit(node[key],depth+1);
+    }
+    for(const key of ["result","data","message"])if(node[key]&&typeof node[key]==="object"){
+      visit(node[key],depth+1);
+    }
+    if(Array.isArray(node.choices) && node.choices.length===1){
+      const first=node.choices[0];
+      if(first&&typeof first==="object")visit(first,depth+1);
+    }
+    // Named-cell objects can be parsed from JSON even if no answer string exists.
+    if(depth>0&&["zona","uso","campos","colunas","fields","cells","transcricao"].some(k=>k in node)){
+      const encoded=JSON.stringify(node);
+      if(encoded.length<=9000)candidates.push(encoded);
+    }
+  };
+  visit(root,0);
+  const usable=candidates.filter((x):x is string=>typeof x==="string"&&x.trim().length>0&&x.length<=9000);
+  return usable[0]?.trim()||null;
+}
 function answer(res:Res,status:number,data:unknown) {
   res.statusCode=status;
   res.setHeader("Content-Type","application/json; charset=utf-8");
@@ -129,15 +166,24 @@ export async function suggestUrbanMatrixPageText(req:Req,res:Res,identity:Identi
     console.info("[SIGAPRO][UrbanVision] provider responded",{
       status:response.status,elapsedMs:Date.now()-startedAt,modelFamily:"moondream3.1",
     });
-    const parsed=await response.json() as {
-      result?:{answer?:unknown;response?:unknown};
-      answer?:unknown;response?:unknown;
-    };
-    const raw=parsed.result?.answer??parsed.answer??parsed.result?.response??parsed.response;
+    const parsed=await response.json() as unknown;
+    const raw=unwrapCloudflareVisionAnswer(parsed);
+    const root=parsed&&typeof parsed==="object"&&!Array.isArray(parsed)
+      ? parsed as Record<string,unknown>:null;
+    const resultNode=root?.result&&typeof root.result==="object"&&!Array.isArray(root.result)
+      ? root.result as Record<string,unknown>:null;
+    // Metadata only: do not log contents or values from scanned legislation.
+    console.info("[SIGAPRO][UrbanVision] response envelope",{
+      topKeys:root?Object.keys(root).slice(0,8):[],
+      resultKeys:resultNode?Object.keys(resultNode).slice(0,8):[],
+      textLength:raw?.length||0,hasNamedFields:typeof raw==="string"&&
+        /(?:zona|uso|recuo|ca_basico|campos)/i.test(raw),
+    });
     if(typeof raw!=="string"||raw.trim().length<20)
       return answer(res,200,{
         status:"unverified_unstructured_ocr_response",
         ocrPreview:typeof raw==="string"?raw.trim().slice(0,2500):"",
+        diagnosticCode:raw?"OCR_SHORT_RESPONSE":"OCR_EMPTY_RESPONSE",
         recognizable:0,total:13,code:"URBAN_VISION_UNSTRUCTURED",
         warning:"A Cloudflare respondeu, mas não produziu células suficientes para análise. "+
           "Use a conferência pelo PDF e pacote histórico; não repita a mesma imagem.",
