@@ -58,6 +58,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { DEFAULT_AVATAR_EDITOR_DIAMETER } from "@/lib/avatarCropGeometry";
 import { resolveProfileAvatarDisplayUrl } from "@/lib/profileAvatarDisplay";
+import { readCachedProfileAvatar } from "@/lib/profileAvatarCache";
 import { useAuthGateway } from "@/hooks/useAuthGateway";
 import { useInstitutionBranding } from "@/hooks/useInstitutionBranding";
 import { useMunicipality } from "@/hooks/useMunicipality";
@@ -752,16 +753,28 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
   // A foto cadastrada é a identidade visual da conta em toda a plataforma.
   // Cadastros antigos podem ter useAvatarInHeader=false mesmo com foto R2
   // válida; esse campo legado não deve ocultar uma imagem já salva.
-  const topbarAvatarImageUrl = resolveProfileAvatarDisplayUrl(userProfile) || null;
+  // Profile is global to the signed-in user: route/municipality changes must
+  // not remount the avatar or make the same authenticated photo disappear.
+  // Cache is read only for this authenticated user and checked email.
+  const ownCachedAvatar =
+    readCachedProfileAvatar(authenticatedProfileId || session.id, authenticatedEmail || session.email) ||
+    (authenticatedProfileId && authenticatedProfileId !== session.id
+      ? readCachedProfileAvatar(session.id, authenticatedEmail || session.email) : null);
+  const topbarAvatarImageUrl =
+    resolveProfileAvatarDisplayUrl(userProfile) ||
+    resolveProfileAvatarDisplayUrl(ownCachedAvatar) || null;
   const topbarAvatarCrop = useMemo(() => {
     if (!topbarAvatarImageUrl) return undefined;
+    const cropSource =
+      resolveProfileAvatarDisplayUrl(userProfile) ? userProfile : ownCachedAvatar;
     return {
-      scale: Number(userProfile?.avatarScale ?? 1),
-      offsetX: Number(userProfile?.avatarOffsetX ?? 0),
-      offsetY: Number(userProfile?.avatarOffsetY ?? 0),
+      scale: Number(cropSource?.avatarScale ?? 1),
+      offsetX: Number(cropSource?.avatarOffsetX ?? 0),
+      offsetY: Number(cropSource?.avatarOffsetY ?? 0),
       editorSize: DEFAULT_AVATAR_EDITOR_DIAMETER,
     };
-  }, [topbarAvatarImageUrl, userProfile?.avatarOffsetX, userProfile?.avatarOffsetY, userProfile?.avatarScale]);
+  }, [topbarAvatarImageUrl, userProfile?.avatarOffsetX, userProfile?.avatarOffsetY, userProfile?.avatarScale,
+      ownCachedAvatar?.avatarOffsetX, ownCachedAvatar?.avatarOffsetY, ownCachedAvatar?.avatarScale]);
   const roleLabel = humanizeRoleLabel(userProfile?.professionalType?.trim() || roleLabels[session.role], "Usuário");
   const displaySessionEmail = formatDisplayText(session.email, "email", {
     fallback: "E-mail não informado",
@@ -1430,7 +1443,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                   aria-label="Abrir conta do usuário"
                 >
                   <UserAvatar
-                    key={`${authenticatedProfileId || session.id}:${activeInstitutionId || "global"}`}
+                    key={authenticatedProfileId || session.id}
                     name={displayUserName}
                     imageUrl={topbarAvatarImageUrl}
                     crop={topbarAvatarCrop}
@@ -2063,7 +2076,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                     title={fullUserName}
                   >
                     <UserAvatar
-                      key={`${authenticatedProfileId || session.id}:${activeInstitutionId || "global"}`}
+                      key={authenticatedProfileId || session.id}
                       name={displayUserName}
                       imageUrl={topbarAvatarImageUrl}
                       crop={topbarAvatarCrop}
@@ -2098,7 +2111,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                     <div className="flex items-start gap-3.5">
                       <div className="relative shrink-0">
                         <UserAvatar
-                          key={`${authenticatedProfileId || session.id}:${activeInstitutionId || "global"}`}
+                          key={authenticatedProfileId || session.id}
                           name={displayUserName}
                           imageUrl={topbarAvatarImageUrl}
                           crop={topbarAvatarCrop}

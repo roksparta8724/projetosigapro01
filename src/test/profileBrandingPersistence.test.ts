@@ -32,7 +32,7 @@ describe("profile and branding persistence regressions", () => {
     expect(logo).toContain('const showCrop = variant === "header" || variant === "footer" || variant === "preview"');
     expect(logo).toContain("sameAssetResource(requestedCandidate, SIGAPRO_OFFICIAL_LOGO)");
     expect(logo).toContain("const configuredScale = Number.isFinite(branding.logoScale)");
-    expect(logo).toContain("Math.max(0.35, Math.min(5, configuredScale))");
+    expect(logo).toContain("Math.max(1, Math.min(5, configuredScale))");
     expect(logo).toContain("fitMunicipalLogoFrame({");
     expect(logo).toContain("MUNICIPAL_LOGO_BASE_RATIO");
     expect(logo).toContain('transformOrigin: "center center"');
@@ -120,7 +120,9 @@ describe("profile and branding persistence regressions", () => {
     expect(profilePage).toContain("await confirmSavedAvatarReadable(savedAvatarUrl)");
     expect(profilePage).toContain("} else if (!savedAvatarUrl) {");
     expect(profilePage).toContain("imageUrl={avatarPreviewUrl}");
-    expect(portalFrame).toContain("const topbarAvatarImageUrl = resolveProfileAvatarDisplayUrl(userProfile) || null");
+    expect(portalFrame).toContain("const topbarAvatarImageUrl =");
+    expect(portalFrame).toContain("resolveProfileAvatarDisplayUrl(userProfile) ||");
+    expect(portalFrame).toContain("resolveProfileAvatarDisplayUrl(ownCachedAvatar) || null");
     expect(backend).toContain("useAvatarInHeader: Boolean(storedAvatar)");
     expect(backend).not.toContain("O banco não confirmou a exibição da foto no cabeçalho");
     expect(backend).toContain("O banco não confirmou o enquadramento da foto");
@@ -136,7 +138,9 @@ describe("profile and branding persistence regressions", () => {
     expect(profilePage).toContain("avatarDraftDirty");
     expect(profilePage).toContain("if (nextFile.file) setForm((current) => ({ ...current, useAvatarInHeader: true }))");
     expect(profilePage).toContain("useAvatarInHeader: showPhotoInHeader");
-    expect(portalFrame).toContain("const topbarAvatarImageUrl = resolveProfileAvatarDisplayUrl(userProfile) || null");
+    expect(portalFrame).toContain("const topbarAvatarImageUrl =");
+    expect(portalFrame).toContain("resolveProfileAvatarDisplayUrl(userProfile) ||");
+    expect(portalFrame).toContain("resolveProfileAvatarDisplayUrl(ownCachedAvatar) || null");
     expect(profilePage).toContain("Pré-visualização pronta.");
     expect(profilePage).not.toContain("Salvando foto automaticamente...");
     expect(profilePage).toContain("confirmSavedAvatarReadable(savedAvatarUrl)");

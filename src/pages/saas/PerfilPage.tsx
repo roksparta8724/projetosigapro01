@@ -491,14 +491,15 @@ export function PerfilPage() {
 
     if (avatarDraftDirty || avatarFrameDirtyRef.current || saving) return;
 
-    if (profile.avatarUrl) {
+    const persistedAvatarUrl = resolveProfileAvatarDisplayUrl(profile);
+    if (persistedAvatarUrl) {
       setAvatarFiles([
         {
           id: "avatar-atual",
           fileName: "foto-perfil",
           mimeType: "image/*",
           sizeLabel: "imagem salva",
-          previewUrl: profile.avatarUrl,
+          previewUrl: persistedAvatarUrl,
         },
       ]);
     } else {
@@ -1001,13 +1002,14 @@ export function PerfilPage() {
           setStatus("Enviando a foto ao armazenamento institucional R2...");
           const uploaded = await uploadFileToStorage({
             bucket: "profile-assets",
-            tenantId: activeInstitutionId,
+            tenantId: isMasterRole ? null : activeInstitutionId,
+            masterProfile: isMasterRole,
             userId,
             file: avatarUploadFile,
             folder: "avatars",
           });
           avatarStorageRef = uploaded.persistentRef;
-          avatarUrl = uploaded.publicUrl || effectiveAvatarFiles[0]?.previewUrl || form.avatarUrl;
+          avatarUrl = uploaded.persistentRef; // Never persist a temporary blob preview.
         } catch (error) {
           setStatus(error instanceof Error ? error.message : "Falha ao enviar a foto para o R2.");
           return;
@@ -1064,7 +1066,8 @@ export function PerfilPage() {
 
       setStatus("Confirmando foto e preferências no banco Neon...");
       const savedProfile = await saveUserProfile(nextProfile);
-      const savedAvatarUrl = savedProfile.avatarUrl || avatarUrl;
+      const savedAvatarUrl = resolveProfileAvatarDisplayUrl(savedProfile) ||
+        resolveProfileAvatarDisplayUrl({avatarUrl,avatarStorageRef});
       // Novo upload só é sucesso quando a imagem gravada volta a abrir, sem
       // usar blob local como prova. Alterações apenas do enquadramento não
       // precisam repetir a consulta da imagem.
@@ -1552,6 +1555,15 @@ export function PerfilPage() {
         {section === "foto-identidade" ? (
           <SectionCard title="Foto e identidade" description="Imagem de perfil, corte e exibição institucional." icon={Camera}>
             <div className="space-y-5">
+              {isMasterRole && /(?:supabase\\.co|\/api\/profile-avatar-open\\?source=)/i.test(String(profile?.avatarUrl||"")) ?
+                <p role="status" data-master-legacy-avatar-warning="true"
+                  className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm font-semibold leading-6 text-amber-950">
+                  Sua conta Master ainda tem uma referência de foto do armazenamento antigo.
+                  Se esse servidor não responder, a imagem não poderá aparecer, mas o SIGAPRO
+                  não apagou o cadastro. O sistema tenta primeiro recuperar uma cópia no R2.
+                  Caso não exista cópia acessível, selecione novamente o arquivo original nesta seção;
+                  o novo upload ficará exclusivamente na área global do Master.
+                </p> : null}
               <FileDropZone
                 title="Foto de perfil"
                 description="Arraste uma imagem ou selecione um arquivo para personalizar a conta."

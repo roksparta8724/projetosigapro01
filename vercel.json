@@ -110,5 +110,10 @@
       "fix/vercel-serverless-esm-complete-no-deploy-20261020": false,
       "workbench/sigapro-consolidacao-p3-no-deploy-20261029": false
     }
+  },
+  "functions": {
+    "api/ai-assistant.ts": {
+      "maxDuration": 60
+    }
   }
 }

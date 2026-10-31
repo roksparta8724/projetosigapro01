@@ -6,6 +6,10 @@ type Req = import("http").IncomingMessage & { method?: string };
 type Res = import("http").ServerResponse;
 
 const MAX_AVATAR_BYTES = 12 * 1024 * 1024;
+// Avoid repeated DNS/fetch failures for old Supabase domains that no longer
+// resolve. R2 cached copies are still checked before this temporary fallback.
+const LEGACY_RETRY_MS=5*60*1000;
+const legacySourceRetryAfter=new Map<string,number>();
 
 function readEnv(key: string) {
   const raw = process.env[key];
@@ -36,7 +40,7 @@ function parseAvatarRequest(req: Req) {
 
   if (objectKey) {
     const validProfileObject =
-      /^municipalities\/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/profiles\/avatars\/[a-zA-Z0-9_-]+\/[a-zA-Z0-9._-]+$/i.test(
+      /^(?:municipalities\/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}|platform)\/profiles\/avatars\/[a-zA-Z0-9_-]+\/[a-zA-Z0-9._-]+$/i.test(
         objectKey,
       );
     if (!validProfileObject) {
@@ -184,8 +188,12 @@ export default async function handler(req: Req, res: Res) {
 
   const source = request.source;
   const cacheKey = getCacheKey(source);
-
   if (clients.length && (await streamAvatarFromAnyClient(clients, bucket, cacheKey, res))) {
+    legacySourceRetryAfter.delete(cacheKey);
+    return;
+  }
+  if ((legacySourceRetryAfter.get(cacheKey)||0) > Date.now()) {
+    json(res,503,{error:"Foto antiga temporariamente indisponível. A referência foi preservada; o SIGAPRO não excluiu a imagem."});
     return;
   }
 
@@ -254,13 +262,18 @@ export default async function handler(req: Req, res: Res) {
       }
     }
 
+    legacySourceRetryAfter.delete(cacheKey);
     setCors(res);
     res.statusCode = 200;
     res.setHeader("Content-Type", contentType);
     res.setHeader("Cache-Control", "private, max-age=21600, stale-while-revalidate=86400");
     res.end(bytes);
   } catch (error) {
-    console.error("[SIGAPRO][AvatarLegacy] Falha ao recuperar foto antiga.", error);
-    json(res, 502, { error: "Não foi possível recuperar a foto de perfil." });
+    legacySourceRetryAfter.set(cacheKey,Date.now()+LEGACY_RETRY_MS);
+    // Log only the failure class, never an avatar URL or private key.
+    const cause=(error as {cause?:{code?:unknown}})?.cause;
+    const failureCode=typeof cause?.code==="string" && /^[A-Z_]{2,32}$/.test(cause.code) ? cause.code : "NETWORK";
+    console.warn("[SIGAPRO][AvatarLegacy] Legacy image unavailable", {code:failureCode});
+    json(res,503,{error:"Fonte antiga da foto indisponível. A referência permanece no perfil; nenhuma imagem foi excluída."});
   }
 }

@@ -3461,7 +3461,7 @@ export function ConfiguracoesPage() {
               <div data-config-brand-panel="header" className="rounded-[24px] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f6f9fc_100%)] p-5">
                 <div className="flex items-center gap-2 text-slate-950">
                   <ImageIcon className="h-4 w-4" />
-                  <p className="text-sm text-slate-900">Logo do cabeçalho</p>
+                  <p className="text-base font-extrabold tracking-tight text-slate-950">Logo do cabeçalho</p>
                 </div>
                 <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">Ajuste o enquadramento do banner principal no frame institucional.</p>
                 <div className="mt-4 grid gap-5 xl:grid-cols-[minmax(320px,0.9fr)_minmax(0,1.1fr)]">
@@ -3481,8 +3481,8 @@ export function ConfiguracoesPage() {
                             Cabeçalho da Prefeitura
                           </p>
                         </div>
-                        <span className="shrink-0 rounded-full border border-emerald-200/20 bg-emerald-300/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-emerald-50">
-                          Prévia ao vivo
+                        <span data-preview-role-badge="header" className="shrink-0 rounded-full border border-white bg-white px-3 py-1.5 text-xs font-extrabold uppercase tracking-wide text-slate-950 shadow-sm">
+                          Cabeçalho
                         </span>
                       </div>
 
@@ -3615,7 +3615,7 @@ export function ConfiguracoesPage() {
               <div data-config-brand-panel="footer" className="rounded-[24px] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f6f9fc_100%)] p-5">
                 <div className="flex items-center gap-2 text-slate-950">
                   <ImageIcon className="h-4 w-4" />
-                  <p className="text-sm text-slate-900">Logo do rodapé</p>
+                  <p className="text-base font-extrabold tracking-tight text-slate-950">Logo do rodapé</p>
                 </div>
                 <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">Ajuste um enquadramento próprio para o rodapé sem afetar o cabeçalho.</p>
                 <div className="mt-4 grid gap-5 xl:grid-cols-[minmax(320px,0.9fr)_minmax(0,1.1fr)]">
@@ -3631,7 +3631,7 @@ export function ConfiguracoesPage() {
                           <p data-preview-copy="muted" className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/[0.65]">Prévia institucional</p>
                           <p data-preview-copy="strong" className="mt-1 text-sm font-semibold text-white">Rodapé da Prefeitura</p>
                         </div>
-                        <span className="rounded-full border border-white/[0.12] bg-white/[0.08] px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-white/80">
+                        <span data-preview-role-badge="footer" className="shrink-0 rounded-full border border-white bg-white px-3 py-1.5 text-xs font-extrabold uppercase tracking-wide text-slate-950 shadow-sm">
                           Rodapé
                         </span>
                       </div>
