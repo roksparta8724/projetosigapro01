@@ -18,7 +18,8 @@ describe("SIGAPRO QA — OCR não transforma índices soltos em regras",()=>{
  it("bloqueia confirmação com [ILEGÍVEL] e extração prematura",()=>{
    expect(ui).toContain('ocrHasIllegibleCell=/\\[\\s*ILEG[IÍ]VEL\\s*\\]/i.test(text)');
    expect(ui).toContain('disabled={ocrHasIllegibleCell||ocrReconciliationBlocked}');
-   expect(ui).toContain('disabled={busy||(ocrDraft&&(!ocrVerified||ocrHasIllegibleCell||ocrReconciliationBlocked))}');
+   expect(ui).toContain('disabled={busy||!file||text.trim().length<40||!consent||!Number.isSafeInteger(Number(page))||Number(page)<1||');
+   expect(ui).toContain('!zone.trim()||!usage.trim()||(ocrDraft&&(!ocrVerified||ocrHasIllegibleCell||ocrReconciliationBlocked))}');
    expect(ui).toContain('data-urban-ocr-unresolved="true"');
    expect(ui).toContain('(ocrDraft && (!ocrVerified || ocrHasIllegibleCell || ocrReconciliationBlocked))');
  });
