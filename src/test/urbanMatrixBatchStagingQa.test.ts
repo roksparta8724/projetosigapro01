@@ -44,4 +44,14 @@ describe("SIGAPRO — lote histórico QA, sem ativação e por prefeitura",()=>{
   expect(sql).not.toContain("activate_urban_regulation_v1(");
   expect(sql).not.toContain("save_urban_regulation_draft_v1(");
  });
+  it("conserva cabeçalho premium com letras claras mesmo sob tema municipal",()=>{
+    const contrast=readFileSync("src/styles/surface-polarity.css","utf8");
+    expect(board).toContain('data-urban-batch-header="true"');
+    expect(contrast).toContain('[data-urban-batch-header="true"] :is(h5,p,span,strong,small)');
+    expect(contrast).toContain('-webkit-text-fill-color:#f8fafc !important');
+    expect(board).toContain("Linhas marcadas (declaração)");
+    expect(board).toContain("Marcada após declaração · vigência pendente");
+    expect(board).not.toContain("Conferidas nesta sessão");
+  });
+
 });

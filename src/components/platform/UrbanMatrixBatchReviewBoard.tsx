@@ -81,7 +81,7 @@ export function UrbanMatrixBatchReviewBoard({
  };
  return <section data-urban-batch-review="true"
    className="mt-5 overflow-hidden rounded-2xl border border-sky-300 bg-white text-slate-950 shadow-sm">
-  <header className="border-b border-slate-700 bg-slate-950 p-4 text-white">
+  <header data-urban-batch-header="true" className="border-b border-slate-700 bg-slate-950 p-4 text-white">
    <p className="text-xs font-extrabold uppercase tracking-widest text-sky-200">Quadro I · revisão em lote</p>
    <h5 className="mt-1 text-lg font-extrabold text-white">Matriz completa — {statuses.length} linhas</h5>
    <p className="mt-2 text-sm font-semibold leading-6 text-slate-100">
@@ -97,7 +97,7 @@ export function UrbanMatrixBatchReviewBoard({
      <strong className="block text-2xl font-extrabold text-slate-950">{statuses.length}</strong>
     </div>
     <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
-     <span className="block text-xs font-bold text-emerald-950">Conferidas nesta sessão</span>
+     <span className="block text-xs font-bold text-emerald-950">Linhas marcadas (declaração)</span>
      <strong className="block text-2xl font-extrabold text-emerald-950">{reviewed.length}</strong>
     </div>
     <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
@@ -134,7 +134,7 @@ export function UrbanMatrixBatchReviewBoard({
      role="region" aria-label="Tabela completa de zonas e usos do Quadro I">
     <table className="w-full min-w-[700px] border-collapse text-left text-sm">
      <thead className="sticky top-0 bg-slate-100 text-slate-950">
-      <tr><th scope="col" className="p-3">Conferida</th><th scope="col" className="p-3">Página</th>
+      <tr><th scope="col" className="p-3">Marcada</th><th scope="col" className="p-3">Página</th>
        <th scope="col" className="p-3">Zona / uso</th><th scope="col" className="p-3">Situação</th>
        <th scope="col" className="p-3">Detalhes</th></tr>
      </thead>
@@ -155,7 +155,7 @@ export function UrbanMatrixBatchReviewBoard({
         Análise individual: {row.issues[0]}
        </span>:reviewed.includes(row.index)?
        <span className="text-xs font-extrabold text-emerald-900">
-        Conferida no PDF · vigência pendente
+        Marcada após declaração · vigência pendente
        </span>:
        <span className="text-xs font-semibold text-slate-700">Aguardando conferência</span>}
       </td>

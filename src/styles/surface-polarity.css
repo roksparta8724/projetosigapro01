@@ -3110,3 +3110,21 @@ html body #root [data-urban-matrix-import="true"]
   -webkit-text-fill-color:#075985 !important;
 }
 /* END SIGAPRO URBAN MANUAL SELECTION STATE */
+
+/* SIGAPRO batch matrix — local premium polarity (fix navy-on-navy title). */
+html body #root [data-urban-matrix-import="true"] [data-urban-batch-header="true"] {
+  background-color:#071c34 !important;
+  background-image:linear-gradient(110deg,#091c34,#0d3d58) !important;
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+}
+html body #root [data-urban-matrix-import="true"] [data-urban-batch-header="true"] :is(h5,p,span,strong,small) {
+  color:#f8fafc !important;
+  -webkit-text-fill-color:#f8fafc !important;
+  opacity:1 !important;
+  text-shadow:none !important;
+}
+html body #root [data-urban-matrix-import="true"] [data-urban-batch-header="true"] > p:first-child {
+  color:#bae6fd !important;
+  -webkit-text-fill-color:#bae6fd !important;
+}
