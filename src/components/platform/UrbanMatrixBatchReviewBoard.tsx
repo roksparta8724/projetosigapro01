@@ -6,6 +6,7 @@ import {examineBatchRows,checkedBatchIndexes,makeUrbanBatchStaging,
 type Props={
  municipalityId:string;file:File;reviewPackage:BatchUrbanPackage;
  qaWriteEnabled:boolean;canEdit:boolean;onOpenRow:(index:number)=>void;
+ activeRowIndex:number;
  onArchiveSaved:()=>void;archiveRestored?:boolean;
 };
 
@@ -21,7 +22,7 @@ async function checkLocalPdf(file:File,expectedHash:string){
 }
 export function UrbanMatrixBatchReviewBoard({
  municipalityId,file,reviewPackage,qaWriteEnabled,canEdit,onOpenRow,
- onArchiveSaved,archiveRestored=false
+ onArchiveSaved,archiveRestored=false,activeRowIndex
 }:Props){
  const [attested,setAttested]=useState(false);
  const [checked,setChecked]=useState<number[]>([]);
@@ -151,7 +152,9 @@ export function UrbanMatrixBatchReviewBoard({
        {pending.map(row=>{
         const original=reviewPackage.quadro_I[row.index];
         return <article key={row.index} data-urban-batch-pending-index={row.index}
-          className="min-w-0 rounded-lg border border-amber-200 bg-white p-3 text-slate-950">
+          data-urban-batch-active={activeRowIndex===row.index?"true":"false"}
+          className={"min-w-0 rounded-lg border bg-white p-3 text-slate-950 "+
+           (activeRowIndex===row.index?"border-sky-600 shadow-md ring-2 ring-sky-200":"border-amber-200")}>
           <div className="flex flex-wrap items-start justify-between gap-2">
             <div>
               <p className="text-sm font-extrabold text-slate-950">{row.zone} · {row.use}</p>
@@ -179,6 +182,7 @@ export function UrbanMatrixBatchReviewBoard({
             {row.issues.map((issue,i)=><li key={i}>{issue}</li>)}
           </ul>
           <button type="button" onClick={()=>onOpenRow(row.index)} data-sigapro-contrast="dark"
+            aria-controls="urban-matrix-selected-row"
             className="mt-3 min-h-10 rounded-lg border border-sky-900 bg-sky-900 px-3 py-2 text-xs font-extrabold text-white">
             Abrir linha para conferir no PDF
           </button>
@@ -195,7 +199,8 @@ export function UrbanMatrixBatchReviewBoard({
        <th scope="col" className="p-3">Detalhes</th></tr>
      </thead>
      <tbody>{statuses.map(row=><tr key={row.index} data-urban-batch-row={row.index}
-       className="border-t border-slate-200 bg-white text-slate-950">
+       className={"border-t border-slate-200 text-slate-950 "+
+        (activeRowIndex===row.index?"bg-sky-50":"bg-white")}>
       <td className="p-3"><input type="checkbox"
        aria-label={"Conferi a linha "+(row.index+1)+" do lote"}
        disabled={!attested||!row.bulkEligible} checked={reviewed.includes(row.index)}
@@ -216,6 +221,7 @@ export function UrbanMatrixBatchReviewBoard({
        <span className="text-xs font-semibold text-slate-700">Aguardando conferência</span>}
       </td>
       <td className="p-3"><button type="button" onClick={()=>onOpenRow(row.index)}
+        aria-controls="urban-matrix-selected-row"
         className="rounded-lg border border-sky-300 bg-white px-3 py-2 text-xs font-bold text-sky-950">
         Abrir linha
       </button></td>
