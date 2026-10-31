@@ -29,6 +29,7 @@ export function UrbanMatrixBatchReviewBoard({
  const [notice,setNotice]=useState("");
  const [savedHere,setSavedHere]=useState(archiveRestored);
  const [archiveLookupBusy,setArchiveLookupBusy]=useState(true);
+ const [archiveLookupFailed,setArchiveLookupFailed]=useState(false);
  useEffect(()=>{
    if(archiveRestored)setSavedHere(true);
  },[archiveRestored]);
@@ -37,17 +38,18 @@ export function UrbanMatrixBatchReviewBoard({
    if(!qaWriteEnabled||!backendClient){
      setArchiveLookupBusy(false);return()=>{active=false;};
    }
-   setArchiveLookupBusy(true);
+   setArchiveLookupBusy(true);setArchiveLookupFailed(false);
    void backendClient.rpc("list_urban_matrix_batch_staging_v1",{
      _municipality_id:municipalityId
    }).then(({data,error}:{data:unknown;error:unknown})=>{
      if(!active)return;
-     if(!error&&Array.isArray(data)){
+     if(error||!Array.isArray(data)){setArchiveLookupFailed(true);return;}
+     if(Array.isArray(data)){
        const prior=data.some((h:{document_sha256?:string})=>
          h.document_sha256===reviewPackage.arquivo_sha256);
        if(prior)setSavedHere(true);
      }
-   }).catch(()=>{}).finally(()=>{if(active)setArchiveLookupBusy(false);});
+   }).catch(()=>{if(active)setArchiveLookupFailed(true);}).finally(()=>{if(active)setArchiveLookupBusy(false);});
    return()=>{active=false;};
  },[municipalityId,qaWriteEnabled,reviewPackage.arquivo_sha256]);
  const statuses=useMemo(()=>examineBatchRows(reviewPackage.quadro_I),[reviewPackage]);
@@ -56,7 +58,7 @@ export function UrbanMatrixBatchReviewBoard({
  const reviewed=useMemo(()=>checkedBatchIndexes(checked,statuses),[checked,statuses]);
  const sameCount=reviewed.length===eligible.length&&eligible.length>0;
  const save=async()=>{
-  if(busy||savedHere||archiveLookupBusy||!canEdit||!qaWriteEnabled||!backendClient||!municipalityId){
+  if(busy||savedHere||archiveLookupBusy||archiveLookupFailed||!canEdit||!qaWriteEnabled||!backendClient||!municipalityId){
    setNotice("Gravação disponível somente em homologação Neon QA autorizada.");return;
   }
   if(checked.length>0&&!attested){
@@ -229,10 +231,10 @@ export function UrbanMatrixBatchReviewBoard({
      </p>
     </div>
     <button type="button" data-urban-batch-stage-save="true" data-sigapro-contrast="dark"
-      disabled={busy||savedHere||archiveLookupBusy||!qaWriteEnabled}
+      disabled={busy||savedHere||archiveLookupBusy||archiveLookupFailed||!qaWriteEnabled}
       onClick={()=>void save()}
       className="min-h-11 rounded-lg border border-slate-950 bg-slate-950 px-4 py-2 text-sm font-extrabold text-white disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-700">
-      {busy?"Arquivando lote…":savedHere?"Rascunho já arquivado no Neon QA":archiveLookupBusy?"Verificando histórico QA…":"Salvar lote histórico como rascunho QA"}
+      {busy?"Arquivando lote…":savedHere?"Rascunho já arquivado no Neon QA":archiveLookupBusy?"Verificando histórico QA…":archiveLookupFailed?"Verifique a conexão do histórico QA":"Salvar lote histórico como rascunho QA"}
     </button>
    </div>
    {!qaWriteEnabled?<p role="alert" className="mt-2 text-sm font-bold text-amber-950">
@@ -240,6 +242,7 @@ export function UrbanMatrixBatchReviewBoard({
    </p>:null}
    {notice?<p data-urban-batch-message="true" role="status"
       className="mt-3 rounded-lg border border-slate-200 bg-white p-3 text-sm font-bold text-slate-950">{notice}</p>:null}
+   {archiveLookupFailed?<p data-urban-batch-history-error="true" role="alert" className="mt-3 rounded-lg border border-rose-300 bg-rose-50 p-3 text-sm font-bold text-rose-900">Não foi possível verificar os rascunhos existentes. Para evitar duplicação, a gravação foi bloqueada até restabelecer a conexão com o Neon QA.</p>:null}
    {savedHere?<p data-urban-batch-saved-info="true" role="status"
      className="mt-3 rounded-lg border border-emerald-300 bg-emerald-50 p-3 text-sm font-bold text-emerald-950">
      O lote está arquivado. Consulte e reabra em “Rascunhos históricos já salvos no Neon QA”, acima, sem gerar outro.
