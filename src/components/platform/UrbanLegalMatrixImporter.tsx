@@ -509,6 +509,12 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
     setPageImagePreview(local);
     return ()=>URL.revokeObjectURL(local);
   },[pageImage]);
+  // A proposal from one PDF/zone must never remain visible for another page,
+  // image, municipality or use. The initial OCR result is unaffected because
+  // these dependencies do not change when an OCR request completes.
+  useEffect(()=>{
+    setFocusCandidates([]);setFocusedResults({});setFocusNotice("");
+  },[municipalityId,file,pageImage,quadro,page,zone,usage]);
   const readPageImage = async (visionMode:"structured"|"literal"|"focused"="structured") => {
     if(visionBusy || busy || !canEdit || !file || !pageImage || !consent ||
       !Number.isSafeInteger(Number(page)) || Number(page)<1 || Number(page)>10000){
