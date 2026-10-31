@@ -75,8 +75,8 @@ describe("SIGAPRO — 13 campos com auditoria independente Gemma 4, sem gravacao
   expect(rows.find(x=>x.key==="ca_basico")?.verdict).toBe("not_read");
  });
  it("identifica zona prefixada e gabarito alterado como divergentes do rascunho histórico",()=>{
-  const first="Zona: [ILEGÍVEL]\\nUso: comercial\\nC.A. mínimo: [ILEGÍVEL]\\nGabarito: [ILEGÍVEL]";
-  const second="Zona: ZONA ZM-B(e)\\nUso: comercial\\nC.A. mínimo: 0,05\\nGabarito: largura da via + a testada + recuo";
+  const first="Zona: [ILEGÍVEL]\nUso: comercial\nC.A. mínimo: [ILEGÍVEL]\nGabarito: [ILEGÍVEL]";
+  const second="Zona: ZONA ZM-B(e)\nUso: comercial\nC.A. mínimo: 0,05\nGabarito: largura da via + a testada + recuo";
   const row={
     pagina_pdf:36,zona_conforme_tabela:"ZM-B(e)",uso_predominante_conforme_tabela:"comercial",
     ca_minimo_original:"0,05",ca_basico_original:"0,5",ca_maximo_original:"1",
