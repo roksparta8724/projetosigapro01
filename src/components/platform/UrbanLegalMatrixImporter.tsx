@@ -5,6 +5,7 @@ import { normalizeUrbanCode, URBAN_METRICS, type UrbanMetric } from "@/lib/urban
 import { extractLiteralCandidates, parsedLiteralNumber, validateImportDate,
   type ImportQuadro, type UrbanExtractedCandidate } from "@/lib/urbanMatrixImport";
 import { reconcileUrbanOcr, type OcrReconciliation } from "@/lib/urbanOcrReconciliation";
+import { UrbanMatrixBatchReviewBoard } from "./UrbanMatrixBatchReviewBoard";
 
 type Props = { municipalityId: string; canEdit: boolean; onSaved: () => Promise<void> };
 type SavedSnapshot = { id: string; version: number; quadro: ImportQuadro; zone_code: string;
@@ -395,6 +396,17 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
     } catch(e) {setMessage("Pacote não carregado: "+(e instanceof Error?e.message:"erro desconhecido"));}
     finally {setReviewLoading(false);}
   };
+  const openBatchRow=(index:number)=>{
+    const row=reviewPackage?.quadro_I[index];
+    if(!row||!canEdit||busy)return;
+    setReviewRowIndex(index);
+    setQuadro("I");setPage(String(row.pagina_pdf));
+    setZone(normalizeUrbanCode(row.zona_conforme_tabela));
+    setUsage(normalizeUrbanCode(row.uso_predominante_conforme_tabela));
+    setEffectiveFrom("");setText("");setPreparedManualText(null);
+    setOcrDraft(false);setOcrVerified(false);setCandidates([]);setChecked([]);setConsent(false);
+    setMessage("Linha aberta para leitura individual do PDF. Vigência não confirmada; nenhum índice salvo.");
+  };
   const applyReviewRow = () => {
     const row=reviewPackage?.quadro_I[reviewRowIndex];
     if(!row || !canEdit || busy) return;
@@ -703,7 +715,12 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
       {reviewLoading?<p role="status" className="mt-2 text-sm text-sky-900">Conferindo PDF e pacote…</p>:null}
       {reviewPackage?<div className="mt-3 rounded-xl border border-sky-200 bg-sky-50 p-3 text-slate-950">
         <p className="text-sm font-bold text-slate-950">Origem: {reviewPackage.municipio} · {reviewPackage.quadro_I.length} linhas · LEI ORIGINAL, VIGÊNCIA NÃO VERIFICADA</p>
-        <label className="mt-3 block text-xs font-bold text-slate-900">
+        {file?<UrbanMatrixBatchReviewBoard
+          key={[municipalityId,reviewPackage.arquivo_sha256,file.name,file.lastModified].join(":")}
+          municipalityId={municipalityId} file={file} reviewPackage={reviewPackage}
+          qaWriteEnabled={qaWriteEnabled} canEdit={canEdit} onOpenRow={openBatchRow}
+        />:null}
+        <label className="mt-4 block text-xs font-bold text-slate-900">
           Selecione a zona e o uso conforme tabela de origem
           <select aria-label="Linha extraída para pré-preenchimento" value={reviewRowIndex}
             onChange={e=>{setReviewRowIndex(Number(e.target.value));setPreparedManualText(null);setText("");setOcrDraft(false);setOcrVerified(false);setCandidates([]);setChecked([]);}}
