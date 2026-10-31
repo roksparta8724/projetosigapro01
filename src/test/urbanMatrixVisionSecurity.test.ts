@@ -56,7 +56,7 @@ describe("Cloudflare visual Quadro OCR — protected QA drafts only",()=>{
     testada_minima:"30 m",gabarito:"largura da via da testada + recuo",
     recuo_frontal:"10 m",recuo_fundos:"8 m",recuo_lateral:"5 m",
   };
-  m.fetch.mockResolvedValue({ok:true,json:async()=>({result:{response:JSON.stringify(structured)}})});
+  m.fetch.mockResolvedValue({ok:true,json:async()=>({result:{answer:JSON.stringify(structured)}})});
   const res=await call();
   expect(res.code).toBe(200);
   expect(res.payload.status).toBe("unverified_structured_ocr_draft");
@@ -70,15 +70,16 @@ describe("Cloudflare visual Quadro OCR — protected QA drafts only",()=>{
   });
   expect(m.fetch).toHaveBeenCalledOnce();
   const callArgs=m.fetch.mock.calls[0];
-  expect(callArgs[0]).toContain("/ai/run/@cf/meta/llama-3.2-11b-vision-instruct");
+  expect(callArgs[0]).toContain("/ai/run/@cf/moondream/moondream3.1-9B-A2B");
   expect(callArgs[1].body).not.toContain("password");
-  const sent=JSON.parse(callArgs[1].body) as {prompt:string;image:string};
-  expect(sent.image).toBe(image);
-  expect(sent.image).not.toContain("data:image/");
-  expect(sent.prompt.length).toBeGreaterThan(50);
+  const sent=JSON.parse(callArgs[1].body) as {question:string;image:string;task:string;stream:boolean};
+  expect(sent.image).toBe(dataUrl);
+  expect(sent.task).toBe("query");
+  expect(sent.stream).toBe(false);
+  expect(sent.question.length).toBeGreaterThan(50);
  });
  it("never treats a provider HTTP 200 with narrative text as valid structured OCR",async()=>{
-   m.fetch.mockResolvedValue({ok:true,json:async()=>({result:{response:
+   m.fetch.mockResolvedValue({ok:true,json:async()=>({result:{answer:
      "Os decimais estão preservados e nenhum valor foi inventado."}})});
    const res=await call();
    expect(res.code).toBe(200);
@@ -90,7 +91,7 @@ describe("Cloudflare visual Quadro OCR — protected QA drafts only",()=>{
    expect(res.payload.ocrPreview).toContain("Os decimais");
  });
  it("short or absent OCR output never generates verified numerical cells",async()=>{
-   m.fetch.mockResolvedValue({ok:true,json:async()=>({result:{response:"Nada legível"}})});
+   m.fetch.mockResolvedValue({ok:true,json:async()=>({result:{answer:"Nada legível"}})});
    const res=await call();
    expect(res.code).toBe(200);
    expect(res.payload.status).toBe("unverified_unstructured_ocr_response");
