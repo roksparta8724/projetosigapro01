@@ -45,7 +45,7 @@ describe("SIGAPRO QA — retorno Cloudflare, reconsulta opcional e zona correta"
    expect(ui).toContain('data-urban-ai-expected-row="true"');
    expect(ui).toContain("normalizeUrbanCode(extractedZone)!==normalizeUrbanCode(zone)");
    expect(ui).toContain("normalizeUrbanCode(extractedUse)!==normalizeUrbanCode(usage)");
-   expect(ui).toContain('kind:zoneMismatch||useMismatch?"error":"success"');
+   expect(ui).toContain('kind:zoneMismatch||useMismatch?"error":Number(result.recognizable)===13?"success":"reading"');
    expect(ui).toContain("Nenhuma regra foi aprovada.");
  });
  it("logs não incluem imagem, resposta da IA ou credenciais",()=>{
