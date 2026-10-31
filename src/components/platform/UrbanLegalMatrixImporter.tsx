@@ -5,6 +5,7 @@ import { normalizeUrbanCode, URBAN_METRICS, type UrbanMetric } from "@/lib/urban
 import { extractLiteralCandidates, parsedLiteralNumber, validateImportDate,
   type ImportQuadro, type UrbanExtractedCandidate } from "@/lib/urbanMatrixImport";
 import { reconcileUrbanOcr, type OcrReconciliation } from "@/lib/urbanOcrReconciliation";
+import { URBAN_VISION_FIELDS, type UrbanVisionFieldKey } from "@/lib/urbanVisionStructured";
 import { UrbanMatrixBatchReviewBoard } from "./UrbanMatrixBatchReviewBoard";
 import { UrbanMatrixArchivePanel, type UrbanStoredDraft } from "./UrbanMatrixArchivePanel";
 
@@ -15,7 +16,8 @@ type ExtractionReply = { candidates?: unknown; error?: string; quadro?: ImportQu
   status?: string; automaticallyActivated?: boolean };
 type VisionReply = { draftText?:unknown; error?:string;
   status?:string;recognizable?:number;total?:number;unrecognized?:string[];
-  warning?:string;ocrPreview?:string;code?:string;diagnosticCode?:string };
+  warning?:string;ocrPreview?:string;code?:string;diagnosticCode?:string;
+  fieldKey?:string;read?:string|null };
 type ReviewPackageRow = {
   pagina_pdf: number; zona_conforme_tabela: string; uso_predominante_conforme_tabela: string;
   ca_minimo_original: string | null; ca_basico_original: string; ca_maximo_original: string;
@@ -307,6 +309,10 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
   const [visionNotice,setVisionNotice]=useState<{kind:"reading"|"success"|"error";message:string}|null>(null);
   const [visionRawPreview,setVisionRawPreview]=useState("");
   const [visionFeedback,setVisionFeedback]=useState<{recognized:number;total:number;missing:number}|null>(null);
+  const [focusCandidates,setFocusCandidates]=useState<UrbanVisionFieldKey[]>([]);
+  const [focusSelection,setFocusSelection]=useState<UrbanVisionFieldKey>("zona");
+  const [focusedResults,setFocusedResults]=useState<Partial<Record<UrbanVisionFieldKey,string|null>>>({});
+  const [focusNotice,setFocusNotice]=useState("");
   // No localStorage: only the same authenticated component session may reuse an
   // identical, already-authorized crop without charging Cloudflare again.
   const visionSessionCache=useRef(new Map<string,VisionReply>());
@@ -443,6 +449,7 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
     setEffectiveFrom("");setText("");setPreparedManualText(null);
     // Old crop or consent must never carry into another zone / use.
     setPageImage(null);setVisionNotice(null);setVisionFeedback(null);
+    setFocusCandidates([]);setFocusedResults({});setFocusNotice("");
     setVisionRawPreview("");setOcrDraft(false);setOcrVerified(false);
     setCandidates([]);setChecked([]);setConsent(false);
     setPdfViewerReload(previous=>previous+1);
@@ -502,15 +509,23 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
     setPageImagePreview(local);
     return ()=>URL.revokeObjectURL(local);
   },[pageImage]);
-  const readPageImage = async (visionMode:"structured"|"literal"="structured") => {
+  const readPageImage = async (visionMode:"structured"|"literal"|"focused"="structured") => {
     if(visionBusy || busy || !canEdit || !file || !pageImage || !consent ||
       !Number.isSafeInteger(Number(page)) || Number(page)<1 || Number(page)>10000){
       setMessage("Selecione PDF oficial, página física e imagem recortada da tabela. Autorize a consulta à IA antes de prosseguir.");return;
     }
-    setVisionBusy(true);setCandidates([]);setChecked([]);setMessage("");
-    setVisionNotice({kind:"reading",message:"Solicitação enviada para leitura da linha. Nenhum dado será salvo automaticamente."});
-    setVisionRawPreview("");
-    setOcrVerified(false);setVisionFeedback(null);
+    if(visionMode==="focused"&&!focusCandidates.includes(focusSelection))return;
+    setVisionBusy(true);
+    if(visionMode!=="focused"){
+      setCandidates([]);setChecked([]);setMessage("");
+      setVisionNotice({kind:"reading",message:"Solicitação enviada para leitura da linha. Nenhum dado será salvo automaticamente."});
+      setVisionRawPreview("");
+      setOcrVerified(false);setVisionFeedback(null);
+      setFocusCandidates([]);setFocusedResults({});setFocusNotice("");
+    }else{
+      setFocusNotice("Lendo somente "+(URBAN_VISION_FIELDS.find(([k])=>k===focusSelection)?.[1]||"a célula")+
+        " em uma chamada individual. Nenhum valor será inserido automaticamente.");
+    }
     try {
       if(pageImage.size>12*1024*1024 || !["image/jpeg","image/png"].includes(pageImage.type))
         throw Error("Selecione uma imagem JPG/PNG de até 12 MB (antes de comprimir).");
@@ -541,7 +556,7 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
         const digest=await crypto.subtle.digest("SHA-256",bytes);
         const hash=Array.from(new Uint8Array(digest)).map(b=>b.toString(16).padStart(2,"0")).join("");
         const cacheKey=[municipalityId,reviewPackage?.arquivo_sha256||file.name+"-"+file.size+"-"+file.lastModified,
-          quadro,page,hash,visionMode].join("|");
+          quadro,page,hash,visionMode,visionMode==="focused"?focusSelection:""].join("|");
         let result=visionSessionCache.current.get(cacheKey);
         const reused=Boolean(result);
         if(!result){
@@ -553,15 +568,28 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
             headers:{"Content-Type":"application/json",Authorization:"Bearer "+bearer,
               "X-SIGAPRO-VISION":"1"},
             body:JSON.stringify({action:"urban-matrix-vision",quadro,
-              pageNumber:Number(page),imageDataUrl:data,mode:visionMode}),
+              pageNumber:Number(page),imageDataUrl:data,mode:visionMode,
+              ...(visionMode==="focused"?{fieldKey:focusSelection}:{})}),
           });
           result=await response.json() as VisionReply;
           if(!response.ok)throw Error(result.error||"Falha na leitura visual.");
           if(result.status!=="unverified_unstructured_ocr_response" &&
+            result.status!=="unverified_focused_cell" &&
             (typeof result.draftText!=="string"||result.draftText.trim().length<20))
             throw Error("A IA não conseguiu transcrever esse recorte com segurança.");
           if(visionSessionCache.current.size>=5)visionSessionCache.current.clear();
           visionSessionCache.current.set(cacheKey,result);
+        }
+        if(visionMode==="focused"){
+          if(result.status!=="unverified_focused_cell"||result.fieldKey!==focusSelection)
+            throw Error("Retorno focalizado incompatível com a célula solicitada.");
+          const read=typeof result.read==="string"?result.read:null;
+          setFocusedResults(previous=>({...previous,[focusSelection]:read}));
+          setFocusNotice(read===null
+            ?"Célula ainda ilegível. Faça a conferência ampliada no PDF oficial; não deduza um número."
+            :"Proposta para "+(URBAN_VISION_FIELDS.find(([k])=>k===focusSelection)?.[1]||focusSelection)+
+              ": "+read+". NÃO foi inserida na transcrição nem aprovada. Compare com o PDF antes de corrigir.");
+          return;
         }
         if(result.status==="unverified_unstructured_ocr_response"){
           // Preserve any existing operator-entered text; an unreliable LLM
@@ -569,6 +597,8 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
           setVisionRawPreview(typeof result.ocrPreview==="string"?
             result.ocrPreview.slice(0,2500):"");
           setVisionFeedback({recognized:0,total:13,missing:13});
+          setFocusCandidates(URBAN_VISION_FIELDS.map(([k])=>k));
+          setFocusSelection("zona");
           // Preserve the provenance of any prior OCR text. Repeated failed
           // calls must never recast old unverified OCR as trusted manual text.
           setOcrVerified(false);
@@ -604,6 +634,13 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
           normalizeUrbanCode(extractedZone)!==normalizeUrbanCode(zone);
         const useMismatch=quadro==="I"&&confident(extractedUse)&&Boolean(usage)&&
           normalizeUrbanCode(extractedUse)!==normalizeUrbanCode(usage);
+        const missing=(Array.isArray(result.unrecognized)?result.unrecognized:[]).filter(
+          (k):k is UrbanVisionFieldKey=>URBAN_VISION_FIELDS.some(([known])=>known===k));
+        const toReview=[...new Set<UrbanVisionFieldKey>([
+          ...(zoneMismatch?["zona" as const]:[]),
+          ...(useMismatch?["uso" as const]:[]),...missing])];
+        setFocusCandidates(toReview);
+        setFocusSelection(toReview[0]||"zona");
         setVisionNotice({kind:zoneMismatch||useMismatch?"error":Number(result.recognizable)===13?"success":"reading",message:
           zoneMismatch||useMismatch
             ?"Imagem diferente da linha selecionada. Editor: "+zone+" / "+usage+
@@ -625,8 +662,11 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
       } finally {bitmap.close();}
     } catch(err) {
       const reason=err instanceof Error?err.message:"A leitura visual não foi concluída.";
-      setVisionNotice({kind:"error",message:reason+" Nenhum índice foi salvo; a referência histórica permanece disponível abaixo."});
-      setMessage(reason);
+      if(visionMode==="focused")setFocusNotice("Releitura focalizada não concluída: "+reason);
+      else{
+        setVisionNotice({kind:"error",message:reason+" Nenhum índice foi salvo; a referência histórica permanece disponível abaixo."});
+        setMessage(reason);
+      }
     } finally{setVisionBusy(false);}
   };
   const queryAi = async () => {
@@ -928,7 +968,8 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
         <input aria-label="Imagem da linha do Quadro I ou II" type="file" accept="image/png,image/jpeg"
           className="mt-1 block w-full rounded-lg border border-slate-300 bg-white p-2"
           onChange={e=>{setPageImage(e.target.files?.[0]||null);setPreparedManualText(null);setOcrDraft(false);
-            setOcrVerified(false);setVisionFeedback(null);setVisionNotice(null);setVisionRawPreview("");setText("");reset();}}/>
+            setOcrVerified(false);setVisionFeedback(null);setVisionNotice(null);setVisionRawPreview("");setText("");
+            setFocusCandidates([]);setFocusedResults({});setFocusNotice("");reset();}}/>
       </label>
       {pageImagePreview?<img src={pageImagePreview} alt="Prévia local da linha fotografada do quadro"
         className="mt-2 max-h-60 w-full rounded-lg border border-slate-200 object-contain"/>:null}
@@ -958,6 +999,52 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
           A segunda tentativa é opcional, utiliza o mesmo recorte com outra instrução e pode consumir a franquia de IA.
           Não envia o PDF completo nem ativa índices.
         </p>:null}
+      {focusCandidates.length>0 && file && pageImage && consent?
+        <section data-urban-focus-review="true"
+          className="mt-4 rounded-xl border border-amber-300 bg-amber-50 p-4 text-slate-950">
+          <h6 className="text-base font-extrabold text-slate-950">Leitura avançada — célula por célula</h6>
+          <p className="mt-1 text-sm font-semibold leading-6 text-slate-800">
+            A IA de tabelas pode confundir coeficientes e zonas. A releitura faz UMA pergunta
+            sobre UMA coluna de cada vez, como recomenda a documentação do modelo.
+            Cada clique pode consumir uma nova chamada à Cloudflare. Nenhuma resposta
+            altera o documento, a comparação ou a decisão do analista.
+          </p>
+          <div className="mt-3 flex flex-wrap items-end gap-2">
+            <label className="min-w-[210px] flex-1 text-sm font-bold text-slate-900">
+              Campo com problema
+              <select value={focusSelection}
+                aria-label="Selecionar célula para releitura focada"
+                onChange={e=>setFocusSelection(e.target.value as UrbanVisionFieldKey)}
+                className="mt-1 min-h-11 w-full rounded-lg border border-amber-300 bg-white px-3 text-slate-950">
+                {focusCandidates.map(key=><option key={key} value={key}>
+                  {URBAN_VISION_FIELDS.find(([k])=>k===key)?.[1]||key}
+                </option>)}
+              </select>
+            </label>
+            <button type="button" data-urban-focus-retry="true" data-sigapro-contrast="dark"
+              disabled={visionBusy||busy||!canEdit}
+              onClick={()=>void readPageImage("focused")}
+              className="min-h-11 rounded-lg border border-sky-900 bg-sky-900 px-4 py-2 text-sm font-extrabold text-white">
+              {visionBusy?"Consultando célula…":"Reexaminar somente esta célula"}
+            </button>
+          </div>
+          {focusNotice?<p data-urban-focus-result="true" role="status" aria-live="polite"
+            className="mt-3 rounded-lg border border-amber-300 bg-white p-3 text-sm font-bold leading-6 text-slate-950">
+            {focusNotice}
+          </p>:null}
+          {Object.keys(focusedResults).length>0?<div className="mt-3 space-y-2" data-urban-focus-proposals="true">
+            {Object.entries(focusedResults).map(([key,value])=><p key={key}
+              className="rounded-lg border border-slate-200 bg-white p-2 text-sm text-slate-900">
+              <strong>{URBAN_VISION_FIELDS.find(([k])=>k===key)?.[1]||key}:</strong>
+              {" "}{value??"[ILEGÍVEL]"} — sugestão separada, requer comparação com o PDF
+            </p>)}
+          </div>:null}
+          <p className="mt-3 text-xs font-bold text-amber-950">
+            Dica: para coeficientes pequenos, recorte apenas os respectivos cabeçalhos
+            e a mesma linha em alta resolução. A zona e o uso devem ser conferidos
+            no PDF original; nunca copie de uma zona para outra.
+          </p>
+        </section>:null}
       {visionNotice?<p data-urban-vision-status="true" data-state={visionNotice.kind}
         role={visionNotice.kind==="error"?"alert":"status"} aria-live="polite"
         className={"mt-3 rounded-xl border px-4 py-3 text-sm font-bold leading-6 "+(

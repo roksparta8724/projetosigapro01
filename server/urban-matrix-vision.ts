@@ -1,7 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { callDataApiRpc, readEnv } from "./municipal-storage.js";
 import { resolveCloudflareAiConfig } from "./cloudflare-ai-provider.js";
-import { parseUrbanVisionResult, URBAN_VISION_JSON_PROMPT } from "../src/lib/urbanVisionStructured.js";
+import { parseUrbanVisionResult, parseFocusedUrbanCell, URBAN_VISION_FIELDS, URBAN_VISION_JSON_PROMPT, type UrbanVisionFieldKey } from "../src/lib/urbanVisionStructured.js";
 
 type Req=IncomingMessage & {method?:string};
 type Res=ServerResponse;
@@ -47,7 +47,9 @@ export function validateVisionInput(body:unknown) {
   if(x.action!==VISION_ACTION || (x.quadro!=="I"&&x.quadro!=="II") ||
     !Number.isSafeInteger(x.pageNumber)||Number(x.pageNumber)<1||Number(x.pageNumber)>10000 ||
     typeof x.imageDataUrl!=="string"||x.imageDataUrl.length>MAX_B64_CHARS+50 ||
-    (x.mode!==undefined&&x.mode!=="structured"&&x.mode!=="literal"))return null;
+    (x.mode!==undefined&&x.mode!=="structured"&&x.mode!=="literal"&&x.mode!=="focused") ||
+    (x.mode==="focused" && (typeof x.fieldKey!=="string" || !URBAN_VISION_FIELDS.some(([k])=>k===x.fieldKey))) ||
+    (x.mode!=="focused"&&x.fieldKey!==undefined))return null;
   const match=/^data:image\/(jpeg|png);base64,([A-Za-z0-9+/]+={0,2})$/.exec(x.imageDataUrl);
   if(!match||match[2].length>MAX_B64_CHARS)return null;
   const image=Buffer.from(match[2],"base64");
@@ -56,7 +58,9 @@ export function validateVisionInput(body:unknown) {
   const jpeg=match[1]==="jpeg" && image[0]===0xff && image[1]===0xd8 && image[2]===0xff;
   const png=match[1]==="png" && image.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10]));
   if(!jpeg&&!png)return null;
-  return {quadro:x.quadro as "I"|"II",pageNumber:x.pageNumber as number,imageDataUrl:x.imageDataUrl,mode:x.mode==="literal"?"literal" as const:"structured" as const};
+  return {quadro:x.quadro as "I"|"II",pageNumber:x.pageNumber as number,imageDataUrl:x.imageDataUrl,
+    mode:x.mode==="focused"?"focused" as const:x.mode==="literal"?"literal" as const:"structured" as const,
+    fieldKey:x.mode==="focused"?x.fieldKey as UrbanVisionFieldKey:undefined};
 }
 /** Normalize Cloudflare's model-output wrapper without guessing numeric columns.
  * Never logs OCR content or image; returned text is still untrusted and verified
@@ -128,7 +132,17 @@ export async function suggestUrbanMatrixPageText(req:Req,res:Res,identity:Identi
     model:readEnv("SIGAPRO_CF_MODEL"),
   });
   if(!config)return answer(res,503,{error:"Credenciais Cloudflare QA indisponíveis."});
-  const prompt=input.quadro==="I"
+  // One question per field improves accuracy on narrow historical table columns.
+  // No expected/legal value is included in the prompt: no answer leakage.
+  const focusLabel=input.mode==="focused"
+    ? URBAN_VISION_FIELDS.find(([k])=>k===input.fieldKey)?.[1]:undefined;
+  const prompt=input.mode==="focused"
+    ? "Leia somente a célula da coluna intitulada '"+focusLabel+"' na única linha de dados da imagem. "+
+      "Use o cabeçalho para identificar a coluna exata. Não use a posição de números de outras colunas. "+
+      "Devolva APENAS o texto literal dessa célula, sem explicação, sem traduzir e preservando vírgula decimal. "+
+      "Se o cabeçalho ou a célula estiver ilegível, cortado ou incerto, responda [ILEGÍVEL]. "+
+      "Nunca deduza pelo contexto ou por legislação externa."
+    : input.quadro==="I"
     ? input.mode==="literal"
       ? "Faça OCR literal de UMA única linha visível desta tabela urbana e seus cabeçalhos. "+
         "Não descreva a foto; não faça comentários; não invente números. "+
@@ -190,6 +204,19 @@ export async function suggestUrbanMatrixPageText(req:Req,res:Res,identity:Identi
       textLength:raw?.length||0,mode:input.mode,hasNamedFields:typeof raw==="string"&&
         /(?:zona|uso|recuo|ca_basico|campos)/i.test(raw),
     });
+    if(input.mode==="focused"){
+      const read=parseFocusedUrbanCell(raw,input.fieldKey!);
+      console.info("[SIGAPRO][UrbanVision] focused cell reading",{
+        fieldKey:input.fieldKey,readable:read!==null,mode:"focused",
+      });
+      return answer(res,200,{
+        status:"unverified_focused_cell",fieldKey:input.fieldKey,read,
+        warning:read===null
+          ?"A IA não identificou esta célula com segurança. A conferência visual continua obrigatória."
+          :"Proposta focalizada: compare diretamente no PDF. Nenhuma célula foi aprovada ou importada.",
+        automaticallyActivated:false,originalDocumentUploaded:false,requiresVisualComparison:true,
+      });
+    }
     if(typeof raw!=="string"||raw.trim().length<20)
       return answer(res,200,{
         status:"unverified_unstructured_ocr_response",

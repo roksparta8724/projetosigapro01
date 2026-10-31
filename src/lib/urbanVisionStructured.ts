@@ -218,3 +218,43 @@ export const URBAN_VISION_JSON_PROMPT =
   "Não misture linha comercial com residencial. "+
   "NÃO utilize informações externas, referências históricas ou suposições. "+
   "Não informe vigência e não aprove nenhuma regra. Se não conseguir ler uma coluna, escreva null; nunca responda apenas com uma explicação geral.";
+
+/** A second, operator-initiated reading of ONE named cell only.
+ * This is a suggestion, not an approved parameter. No numerical inference,
+ * no free-form explanation, and no association based on column position. */
+export function parseFocusedUrbanCell(raw:unknown,key:UrbanVisionFieldKey):string|null {
+  if(typeof raw!=="string"||raw.length>700)return null;
+  let answer=raw.trim().replace(/^\x60{3}(?:json)?\s*/i,"").replace(/\s*\x60{3}$/,"").trim();
+  if(answer.startsWith("{")){
+    try{
+      const parsed=JSON.parse(answer) as unknown;
+      if(!plain(parsed))return null;
+      const keys=Object.keys(parsed);
+      const allowed=new Set([key,"valor","value","texto","text"]);
+      if(keys.some(k=>!allowed.has(k)))return null;
+      const value=parsed[key]??parsed.valor??parsed.value??parsed.texto??parsed.text;
+      if(typeof value!=="string")return null;
+      answer=value.trim();
+    }catch{return null;}
+  }
+  if(answer.includes("\n")||answer.includes("\r"))return null;
+  // Accept a single explicitly named label, but never arbitrary prose.
+  const colon=answer.indexOf(":");
+  if(colon>=0){
+    const named=fieldLabels.get(normalizeLabel(answer.slice(0,colon)));
+    if(named!==key)return null;
+    answer=answer.slice(colon+1).trim();
+  }
+  const cell=literalCell(answer);
+  if(!cell||cell.length>140)return null;
+  if(numberKeys.has(key))
+    return /^\d{1,6}(?:[,.]\d{1,3})?\s*(?:%|m²|m2|m)?$/i.test(cell)?cell:null;
+  if(/^(?:na imagem|n[aã]o sei|a resposta|the image|o valor|there is|parece que)/i.test(cell))return null;
+  if(key==="zona")
+    return /^(?:ZM|ZC|ZI|ZR|ZE|Z[A-Z]|AIU|ZONA\s+Z)[A-Za-z0-9À-ÿ()\-_/ .]{0,37}$/.test(cell)?cell:null;
+  if(key==="uso")
+    return /^[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ()\-_/ .]{1,50}$/.test(cell)?cell:null;
+  if(key==="gabarito")
+    return /^[A-Za-zÀ-ÿ0-9%+()\-_/ .]{2,140}$/.test(cell)?cell:null;
+  return null;
+}
