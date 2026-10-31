@@ -312,8 +312,6 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
   const [pdfViewerReload,setPdfViewerReload] = useState(0);
   // The browser's native PDF reader does not reliably honor fragment changes
   // in an already mounted iframe. Remount on page / document / manual refresh.
-  const selectedPdfPage=Number.isSafeInteger(Number(page)) && Number(page)>0
-    ?Number(page):1;
   // Preview writes must use an explicitly configured, non-production Neon pair.
   const authUrl=String(import.meta.env.VITE_NEON_AUTH_URL || "");
   const dataUrl=String(import.meta.env.VITE_NEON_DATA_API_URL || "");
@@ -325,6 +323,9 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
     !window.location.hostname.endsWith(".sigapromunicipal.com.br");
   const [quadro,setQuadro] = useState<ImportQuadro>("I");
   const [page,setPage] = useState("");
+  // Page must be initialized before any derived value can read it.
+  const selectedPdfPage=Number.isSafeInteger(Number(page)) && Number(page)>0
+    ?Number(page):1;
   const [text,setText] = useState("");
   // Display-only duplicate of the operator-prepared text, never a persisted rule.
   const [preparedManualText,setPreparedManualText]=useState<string|null>(null);

@@ -37,4 +37,20 @@ describe("SIGAPRO QA — paginação PDF e revisão premium",()=>{
    expect(checker).not.toContain("backendClient");
    expect(ui).toContain('disabled={!canPrepare}');
  });
+ it("não acessa o estado da página antes de sua inicialização (regressão tela branca)",()=>{
+   const component=ui.slice(ui.indexOf("export function UrbanLegalMatrixImporter("));
+   const state=component.indexOf('const [page,setPage] = useState("")');
+   const derived=component.indexOf("const selectedPdfPage=Number.isSafeInteger(Number(page))");
+   const frame=component.indexOf('data-urban-pdf-review="true"');
+   expect(state).toBeGreaterThan(0);
+   expect(derived).toBeGreaterThan(state);
+   expect(frame).toBeGreaterThan(derived);
+   // A deterministic runtime demonstration that a derived variable before
+   // initialization is a ReferenceError, while the fixed order is safe.
+   expect(()=>new Function("const selected=Number(page)||1; const page=36; return selected;")())
+     .toThrow(ReferenceError);
+   expect(new Function("const page=36; const selected=Number(page)||1; return selected;")())
+     .toBe(36);
+ });
+
 });
