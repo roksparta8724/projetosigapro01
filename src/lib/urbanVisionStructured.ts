@@ -71,8 +71,8 @@ function parseNamedCellLines(raw:string):Record<string,string>|null {
   if(raw.length>8000)return null;
   const record:Record<string,string>={};
   for(const entry of raw.split(/\r?\n/).slice(0,60)){
-    const line=entry.trim().replace(/^(?:[-*]\\s+|\\d+[.)]\\s+)/,"");
-    const pair=/^(.{2,65}?)\\s*[:=]\\s*(.{1,180})$/.exec(line);
+    const line=entry.trim().replace(/^(?:[-*]\s+|\d+[.)]\s+)/,"");
+    const pair=/^(.{2,65}?)\s*[:=]\s*(.{1,180})$/.exec(line);
     if(!pair)continue;
     const key=fieldLabels.get(normalizeLabel(pair[1]));
     if(!key)continue;
