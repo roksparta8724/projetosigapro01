@@ -68,4 +68,33 @@ describe("SIGAPRO QA: extração visual estruturada em 13 células",()=>{
     expect(srv).toContain("originalDocumentUploaded:false");
     expect(srv).toContain("automaticallyActivated:false");
   });
+  it("accepts explicitly labelled cell lines, not positional prose",()=>{
+    const labelled=[
+      "Zona: ZM-B(e)","Uso predominante: comercial",
+      "C.A. mínimo: 0,05","C.A. básico: 0,5","C.A. máximo: 1",
+      "Taxa de ocupação máxima: 50%","Taxa de permeabilidade mínima: 70%",
+      "Lote mínimo: 3000 m²","Testada mínima: 30 m",
+      "Gabarito: largura da via da testada + recuo",
+      "Recuo frontal: 10 m","Recuo de fundos: 8 m","Recuo lateral: 5 m",
+    ].join("\n");
+    const parsed=parseUrbanVisionResult(labelled);
+    expect(parsed?.recognizable).toBe(13);
+    expect(parsed?.draftText).toContain("Zona: ZM-B(e)");
+    expect(reconcileUrbanOcr(parsed!.draftText,original).complete).toBe(true);
+    expect(parseUrbanVisionResult("Os números foram preservados.\nC.A.: 0,05")).toBeNull();
+  });
+  it("keeps absent cells unresolved, refuses repeated labels and invalid JSON",()=>{
+    const partial=parseUrbanVisionResult("Zona: ZM-B(e)\nUso: comercial\nRecuo frontal: [ILEGÍVEL]");
+    expect(partial?.unrecognized).toContain("recuo_frontal");
+    expect(partial?.unrecognized).toContain("ca_basico");
+    expect(partial?.draftText).toContain("Recuo frontal: [ILEGÍVEL]");
+    expect(parseUrbanVisionResult("Zona: A\nZona: B\nUso: comercial\nC.A. mínimo: 0,05")).toBeNull();
+    expect(parseUrbanVisionResult('{"zona":"ZM-B(e)","uso":')).toBeNull();
+  });
+  it("supports a fenced JSON result with explanatory text outside without using that text",()=>{
+    const quoted="Leitura automática não confirmada:\n\x60\x60\x60json\n"+JSON.stringify(good)+"\n\x60\x60\x60\nÉ necessário conferência";
+    expect(parseUrbanVisionResult(quoted)?.recognizable).toBe(13);
+    expect(parseUrbanVisionResult(quoted)?.draftText).not.toContain("Leitura automática");
+  });
+
 });

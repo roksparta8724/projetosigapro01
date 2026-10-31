@@ -2978,3 +2978,89 @@ html body #root .sig-app-frame [data-logo-context="sigapro"] img {
   object-position:center center !important;
 }
 /* MASTER PREMIUM ROUTE STABILITY END */
+
+
+/* SIGAPRO URBAN OCR EVIDENCE PANEL — premium contrast invariant.
+   This localized selector overrides global inverse-theme and heading rules.
+   Keep this BELOW generic surface rules; no unrelated card is affected. */
+html body #root [data-urban-matrix-import="true"]
+[data-urban-ocr-premium-header="true"] {
+  background:#0b2741 !important;
+  background-image:linear-gradient(115deg,#081e34 0%,#0b3552 100%) !important;
+  border-color:#366783 !important;
+  color:#f8fafc !important;
+  -webkit-text-fill-color:#f8fafc !important;
+}
+html body #root [data-urban-matrix-import="true"]
+[data-urban-ocr-premium-header="true"] :is(h5,p,span,strong,small) {
+  color:#f8fafc !important;
+  -webkit-text-fill-color:#f8fafc !important;
+  opacity:1 !important;
+  text-shadow:none !important;
+}
+html body #root [data-urban-matrix-import="true"]
+[data-urban-ocr-premium-header="true"] [data-urban-ocr-premium-eyebrow="true"] {
+  color:#c1e6ff !important;
+  -webkit-text-fill-color:#c1e6ff !important;
+}
+html body #root [data-urban-matrix-import="true"]
+[data-urban-ocr-premium-header="true"] [data-urban-ocr-premium-badge="true"] {
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  background:rgba(255,255,255,.16) !important;
+  border-color:rgba(255,255,255,.44) !important;
+}
+html body #root [data-urban-matrix-import="true"]
+[data-urban-ocr-comparison="true"] :is(table,th,td) {
+  color:#0f172a !important;
+  -webkit-text-fill-color:#0f172a !important;
+}
+html body #root [data-urban-matrix-import="true"]
+[data-urban-ocr-comparison="true"] table :is(th,td) {
+  background-color:#ffffff !important;
+}
+html body #root [data-urban-matrix-import="true"]
+[data-urban-ocr-comparison="true"] table thead th {
+  background-color:#eaf2fa !important;
+  color:#102a43 !important;
+  -webkit-text-fill-color:#102a43 !important;
+}
+html body #root [data-urban-matrix-import="true"]
+[data-urban-ocr-comparison="true"] table [data-urban-ocr-verdict="match"] {
+  color:#065f46 !important;
+  -webkit-text-fill-color:#065f46 !important;
+  background:#ecfdf5 !important;
+  border-color:#6ee7b7 !important;
+}
+html body #root [data-urban-matrix-import="true"]
+[data-urban-ocr-comparison="true"] table [data-urban-ocr-verdict="attention"] {
+  color:#881337 !important;
+  -webkit-text-fill-color:#881337 !important;
+  background:#fff1f2 !important;
+  border-color:#fda4af !important;
+}
+html body #root [data-urban-matrix-import="true"]
+[data-urban-ocr-comparison="true"] table [data-urban-ocr-verdict="pending"] {
+  color:#334155 !important;
+  -webkit-text-fill-color:#334155 !important;
+  background:#f1f5f9 !important;
+  border-color:#cbd5e1 !important;
+}
+html body #root [data-urban-matrix-import="true"] [data-urban-vision-status="true"] {
+  color:#0f172a !important;
+  -webkit-text-fill-color:#0f172a !important;
+  opacity:1 !important;
+}
+html body #root [data-urban-matrix-import="true"] [data-urban-vision-status="true"][data-state="error"] {
+  color:#881337 !important;
+  -webkit-text-fill-color:#881337 !important;
+  background:#fff1f2 !important;
+  border-color:#fda4af !important;
+}
+html body #root [data-urban-matrix-import="true"] [data-urban-vision-status="true"][data-state="success"] {
+  color:#065f46 !important;
+  -webkit-text-fill-color:#065f46 !important;
+  background:#ecfdf5 !important;
+  border-color:#6ee7b7 !important;
+}
+/* END SIGAPRO URBAN OCR EVIDENCE PREMIUM CONTRAST */

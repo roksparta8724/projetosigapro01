@@ -23,4 +23,22 @@ describe("SIGAPRO — contrato de contraste premium para novos botões", () => {
     expect(css).toContain('button[data-sigapro-contrast="dark"]:focus-visible');
     expect(css).toContain('button[data-sigapro-contrast="dark"]:disabled');
   });
+  it("fixes dark-on-dark evidence header with scoped text fill, preserving light rows",()=>{
+    expect(importer).toContain('data-urban-ocr-premium-header="true"');
+    expect(importer).toContain('data-urban-ocr-premium-eyebrow="true"');
+    expect(importer).toContain('data-urban-ocr-premium-badge="true"');
+    expect(importer).toContain('data-urban-ocr-verdict={!field?');
+    expect(css).toContain('[data-urban-ocr-premium-header="true"] :is(h5,p,span,strong,small)');
+    expect(css).toContain('-webkit-text-fill-color:#f8fafc !important;');
+    expect(css).toContain('[data-urban-ocr-comparison="true"] table thead th');
+    expect(css).toContain('[data-urban-ocr-verdict="attention"]');
+  });
+  it("shows failed and successful read feedback immediately beside the read button",()=>{
+    expect(importer).toContain('data-urban-vision-status="true"');
+    expect(importer).toContain('role={visionNotice.kind==="error"?"alert":"status"}');
+    expect(importer).toContain('setVisionNotice({kind:"error"');
+    expect(importer).toContain('setVisionNotice({kind:"success"');
+    expect(importer).toContain('setVisionNotice({kind:"reading"');
+  });
+
 });

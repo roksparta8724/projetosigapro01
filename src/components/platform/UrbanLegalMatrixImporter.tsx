@@ -64,13 +64,13 @@ function OcrReferenceComparison({row,analysis}:{row:ReviewPackageRow;analysis:Oc
   return <section data-urban-ocr-comparison="true"
     aria-label="Conferência dos parâmetros com o PDF"
     className="mt-5 overflow-hidden rounded-2xl border border-slate-300 bg-white p-3 text-slate-950 shadow-sm sm:p-4">
-    <div className="rounded-xl bg-gradient-to-r from-slate-950 via-slate-900 to-sky-950 p-4 text-white sm:p-5">
+    <div data-urban-ocr-premium-header="true" className="rounded-xl border border-sky-800 bg-slate-950 p-4 text-white sm:p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-xs font-extrabold uppercase tracking-[0.15em] text-sky-200">Matriz de evidências · quadro I</p>
+          <p data-urban-ocr-premium-eyebrow="true" className="text-xs font-extrabold uppercase tracking-[0.15em] text-sky-200">Matriz de evidências · quadro I</p>
           <h5 className="mt-1 text-lg font-extrabold leading-6 text-white">Comparação de colunas — PDF × matriz histórica</h5>
         </div>
-        <span className="rounded-full border border-white/30 bg-white/10 px-3 py-1 text-xs font-bold text-white">
+        <span data-urban-ocr-premium-badge="true" className="rounded-full border border-white/30 bg-white/10 px-3 py-1 text-xs font-bold text-white">
           Revisão humana obrigatória
         </span>
       </div>
@@ -131,7 +131,7 @@ function OcrReferenceComparison({row,analysis}:{row:ReviewPackageRow;analysis:Oc
             <td className="max-w-[190px] break-words p-3 font-bold">{value}</td>
             <td className="max-w-[190px] break-words p-3">{field?.read??"—"}</td>
             <td className="max-w-[220px] break-words p-3 font-bold">
-              <span className={"inline-flex rounded-lg border px-2 py-1 text-xs font-extrabold leading-5 "+(
+              <span data-urban-ocr-verdict={!field?"pending":field.status==="match"?"match":"attention"} className={"inline-flex rounded-lg border px-2 py-1 text-xs font-extrabold leading-5 "+(
                 !field?"border-slate-300 bg-slate-50 text-slate-800":
                 field.status==="match"?"border-emerald-300 bg-emerald-50 text-emerald-950":
                 "border-rose-300 bg-rose-50 text-rose-950")}>
@@ -171,6 +171,7 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
   const [ocrDraft,setOcrDraft]=useState(false);
   const [ocrVerified,setOcrVerified]=useState(false);
   const [visionBusy,setVisionBusy]=useState(false);
+  const [visionNotice,setVisionNotice]=useState<{kind:"reading"|"success"|"error";message:string}|null>(null);
   const [visionFeedback,setVisionFeedback]=useState<{recognized:number;total:number;missing:number}|null>(null);
   // No localStorage: only the same authenticated component session may reuse an
   // identical, already-authorized crop without charging Cloudflare again.
@@ -307,6 +308,7 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
       setMessage("Selecione PDF oficial, página física e imagem recortada da tabela. Autorize a consulta à IA antes de prosseguir.");return;
     }
     setVisionBusy(true);setCandidates([]);setChecked([]);setMessage("");
+    setVisionNotice({kind:"reading",message:"Solicitação enviada para leitura da linha. Nenhum dado será salvo automaticamente."});
     setOcrVerified(false);setVisionFeedback(null);
     try {
       if(pageImage.size>12*1024*1024 || !["image/jpeg","image/png"].includes(pageImage.type))
@@ -363,13 +365,19 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
         }:null);
         setText(result.draftText.trim().slice(0,6000));
         setOcrDraft(true);setOcrVerified(false);setMethod("visual_double_transcription");
+        setVisionNotice({kind:"success",message:reused
+          ?"Leitura estruturada recuperada da sessão anterior. Compare os valores abaixo."
+          :"Leitura estruturada recebida. Confira cada campo na matriz antes de confirmar."});
         setMessage((reused?"Leitura recuperada nesta sessão, sem nova chamada à Cloudflare. ":"")+
           (quadro==="I"?"A IA devolveu células estruturadas, ainda NÃO verificadas. A comparação abaixo exige conferência de cada coluna com o PDF. ":
             "Transcrição preliminar do Quadro II; confira as condições na fonte original. ")+
           "Nenhuma norma foi gravada ou ativada.");
       } finally {bitmap.close();}
-    } catch(err) {setMessage(err instanceof Error?err.message:"A leitura visual não foi concluída.");}
-    finally{setVisionBusy(false);}
+    } catch(err) {
+      const reason=err instanceof Error?err.message:"A leitura visual não foi concluída.";
+      setVisionNotice({kind:"error",message:reason+" Nenhum índice foi salvo; a referência histórica permanece disponível abaixo."});
+      setMessage(reason);
+    } finally{setVisionBusy(false);}
   };
   const queryAi = async () => {
     if (busy || !file || !zone.trim() || !usage.trim() ||
@@ -489,7 +497,7 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
     <div className="mt-4 grid gap-3 md:grid-cols-2">
       <label className="text-xs font-bold text-slate-800 dark:text-white">Arquivo PDF oficial
         <input type="file" accept=".pdf,application/pdf" className="mt-1 block w-full rounded-lg border border-slate-300 bg-white p-2 text-slate-900"
-          onChange={e=>{setFile(e.target.files?.[0]||null);setReviewPackage(null);setReviewRowIndex(0);setPageImage(null);setText("");setOcrDraft(false);setOcrVerified(false);setVisionFeedback(null);visionSessionCache.current.clear();reset();}}/>
+          onChange={e=>{setFile(e.target.files?.[0]||null);setReviewPackage(null);setReviewRowIndex(0);setPageImage(null);setText("");setOcrDraft(false);setOcrVerified(false);setVisionFeedback(null);setVisionNotice(null);visionSessionCache.current.clear();reset();}}/>
       </label>
       <label className="text-xs font-bold text-slate-800 dark:text-white">Quadro de origem
         <select value={quadro} onChange={e=>{setQuadro(e.target.value as ImportQuadro);reset();}}
@@ -500,7 +508,7 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
       </label>
       <label className="text-xs font-bold text-slate-800 dark:text-white">Página física do PDF
         <input aria-label="Número de página do PDF" type="number" min="1" max="10000" value={page}
-          onChange={e=>{setPage(e.target.value);setText("");setOcrDraft(false);setOcrVerified(false);reset();}} placeholder="Informe a página visualizada"
+          onChange={e=>{setPage(e.target.value);setText("");setOcrDraft(false);setOcrVerified(false);setVisionFeedback(null);setVisionNotice(null);reset();}} placeholder="Informe a página visualizada"
           className="mt-1 min-h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-slate-950"/>
       </label>
       <label className="text-xs font-bold text-slate-800 dark:text-white">Vigência legal confirmada
@@ -619,7 +627,7 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
         <input aria-label="Imagem da linha do Quadro I ou II" type="file" accept="image/png,image/jpeg"
           className="mt-1 block w-full rounded-lg border border-slate-300 bg-white p-2"
           onChange={e=>{setPageImage(e.target.files?.[0]||null);setOcrDraft(false);
-            setOcrVerified(false);setVisionFeedback(null);setText("");reset();}}/>
+            setOcrVerified(false);setVisionFeedback(null);setVisionNotice(null);setText("");reset();}}/>
       </label>
       {pageImagePreview?<img src={pageImagePreview} alt="Prévia local da linha fotografada do quadro"
         className="mt-2 max-h-60 w-full rounded-lg border border-slate-200 object-contain"/>:null}
@@ -637,6 +645,14 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
         className="mt-3 min-h-11 rounded-xl border border-sky-800 bg-sky-800 px-4 py-2 text-sm font-bold text-white disabled:cursor-not-allowed">
         {visionBusy?"Lendo uma linha com IA…":"Extrair campos por coluna com IA — sem salvar"}
       </button>
+      {visionNotice?<p data-urban-vision-status="true" data-state={visionNotice.kind}
+        role={visionNotice.kind==="error"?"alert":"status"} aria-live="polite"
+        className={"mt-3 rounded-xl border px-4 py-3 text-sm font-bold leading-6 "+(
+          visionNotice.kind==="error"?"border-rose-300 bg-rose-50 text-rose-950":
+          visionNotice.kind==="success"?"border-emerald-300 bg-emerald-50 text-emerald-950":
+          "border-sky-300 bg-white text-slate-950")}>
+        {visionNotice.message}
+      </p>:null}
       <p role="status" data-urban-matrix-vision-hint="true" className="mt-2 text-sm font-semibold leading-6 text-slate-900">
         {!file ? "Para habilitar: selecione o PDF oficial acima."
           : !Number.isSafeInteger(Number(page))||Number(page)<1||Number(page)>10000
