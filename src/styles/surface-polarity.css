@@ -3128,3 +3128,67 @@ html body #root [data-urban-matrix-import="true"] [data-urban-batch-header="true
   color:#bae6fd !important;
   -webkit-text-fill-color:#bae6fd !important;
 }
+
+/* Urban legal importer premium polarity — intentionally scoped to this page.
+   Dark/blue surfaces have white labels under every municipal theme. */
+html body #root [data-urban-matrix-import="true"]
+:is([data-urban-archive-header="true"],[data-urban-batch-header="true"]) {
+  background:#081f38 !important;
+  background-image:linear-gradient(125deg,#071a30,#0b4b70) !important;
+  border-color:#24749a !important;
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+}
+html body #root [data-urban-matrix-import="true"]
+:is([data-urban-archive-header="true"],[data-urban-batch-header="true"]) :is(h5,h6,p,span,strong,small) {
+  color:#f8fafc !important;
+  -webkit-text-fill-color:#f8fafc !important;
+  opacity:1 !important;
+  font-weight:600;
+}
+html body #root [data-urban-matrix-import="true"]
+:is([data-urban-archive-header="true"],[data-urban-batch-header="true"]) :is(h5,h6,strong) {
+  font-weight:800 !important;
+}
+html body #root [data-urban-matrix-import="true"] button[data-sigapro-contrast="dark"],
+html body #root [data-urban-matrix-import="true"] [data-urban-batch-individual-review="true"] button[data-sigapro-contrast="dark"] {
+  background:#0a385c !important;
+  background-image:linear-gradient(115deg,#062b49,#0b5a7d) !important;
+  border:1px solid #397ba4 !important;
+  color:#fff !important;
+  -webkit-text-fill-color:#fff !important;
+  font-size:.875rem !important;
+  font-weight:800 !important;
+  line-height:1.4 !important;
+  opacity:1 !important;
+  box-shadow:0 6px 18px rgba(10,39,65,.16) !important;
+}
+html body #root [data-urban-matrix-import="true"] button[data-sigapro-contrast="dark"] :is(span,strong,small) {
+  color:#fff !important;
+  -webkit-text-fill-color:#fff !important;
+}
+html body #root [data-urban-matrix-import="true"] button[data-sigapro-contrast="dark"]:hover:not(:disabled) {
+  background:#104d76 !important;
+  background-image:linear-gradient(115deg,#0c3b62,#0d648b) !important;
+}
+html body #root [data-urban-matrix-import="true"] button[data-sigapro-contrast="dark"]:disabled {
+  background:#dbe5ee !important;
+  background-image:none !important;
+  border-color:#94a3b8 !important;
+  color:#334155 !important;
+  -webkit-text-fill-color:#334155 !important;
+  box-shadow:none !important;
+}
+html body #root [data-urban-matrix-import="true"] :is([data-urban-archive-panel="true"],[data-urban-batch-review="true"]) {
+  font-size:.875rem;
+  line-height:1.5;
+}
+html body #root [data-urban-matrix-import="true"] [data-urban-archive-history="true"] p,
+html body #root [data-urban-matrix-import="true"] [data-urban-archive-opened="true"] :is(p,td,th) {
+  color:#172b42 !important;
+  -webkit-text-fill-color:#172b42 !important;
+}
+html body #root [data-urban-matrix-import="true"] :is(button,summary,input,select,textarea):focus-visible {
+  outline:3px solid #22a6d2 !important;
+  outline-offset:3px !important;
+}
