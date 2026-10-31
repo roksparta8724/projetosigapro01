@@ -6,6 +6,7 @@ import { extractLiteralCandidates, parsedLiteralNumber, validateImportDate,
   type ImportQuadro, type UrbanExtractedCandidate } from "@/lib/urbanMatrixImport";
 import { reconcileUrbanOcr, type OcrReconciliation } from "@/lib/urbanOcrReconciliation";
 import { UrbanMatrixBatchReviewBoard } from "./UrbanMatrixBatchReviewBoard";
+import { UrbanMatrixArchivePanel, type UrbanStoredDraft } from "./UrbanMatrixArchivePanel";
 
 type Props = { municipalityId: string; canEdit: boolean; onSaved: () => Promise<void> };
 type SavedSnapshot = { id: string; version: number; quadro: ImportQuadro; zone_code: string;
@@ -346,6 +347,8 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
   const [reviewPackage,setReviewPackage] = useState<ReviewPackage|null>(null);
   const [reviewRowIndex,setReviewRowIndex] = useState(0);
   const [reviewLoading,setReviewLoading] = useState(false);
+  const [archiveReloadToken,setArchiveReloadToken]=useState(0);
+  const [archiveRestored,setArchiveRestored]=useState(false);
   const [history,setHistory] = useState<SavedSnapshot[]>([]);
   const [historyChecked,setHistoryChecked] = useState(false);
   const [historyError,setHistoryError] = useState(false);
@@ -368,6 +371,7 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
   const reset = () => {setCandidates([]);setChecked([]);setConsent(false);setMessage("");};
   const loadStructuredReview = async (incoming: File | null) => {
     setReviewPackage(null);setReviewRowIndex(0);setPreparedManualText(null);
+    setArchiveRestored(false);
     if (!incoming) return;
     if (!file) {setMessage("Selecione o mesmo PDF oficial antes do pacote de revisão.");return;}
     if (incoming.size > 1_000_000 || !incoming.name.toLowerCase().endsWith(".json")) {
@@ -392,9 +396,41 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
       if(actualHash!==candidate.arquivo_sha256)
         throw Error("O PDF selecionado NÃO corresponde ao arquivo de origem deste pacote. Nenhum campo foi alterado.");
       setReviewPackage(candidate as ReviewPackage);
+      // Select the first verified PDF row so the OCR page does not stay blank.
+      const firstRow=candidate.quadro_I[0]!;
+      setQuadro("I");setReviewRowIndex(0);setPage(String(firstRow.pagina_pdf));
+      setZone(normalizeUrbanCode(firstRow.zona_conforme_tabela));
+      setUsage(normalizeUrbanCode(firstRow.uso_predominante_conforme_tabela));
       setMessage("Pacote de revisão carregado com conferência SHA-256 do PDF. Selecione uma linha para pré-preencher apenas o escopo. A legislação vigente ainda precisa ser validada.");
     } catch(e) {setMessage("Pacote não carregado: "+(e instanceof Error?e.message:"erro desconhecido"));}
     finally {setReviewLoading(false);}
+  };
+  const restoreArchivedDraft=async(draft:UrbanStoredDraft)=>{
+    if(!file)throw Error("Selecione o PDF original para abrir o rascunho sem reenviar o JSON.");
+    if(draft.municipality_id!==municipalityId||draft.status!=="pending_legal_review"||
+      !/^[a-f0-9]{64}$/.test(draft.document_sha256)||
+      !Array.isArray(draft.source_rows)||draft.source_rows.length<1||
+      draft.source_rows.length>500||!draft.source_rows.every(validReviewRow))
+      throw Error("Rascunho incompatível com a prefeitura ou com a estrutura de revisão.");
+    const actualHash=await verifyPdfAndHash(file);
+    if(actualHash!==draft.document_sha256)
+      throw Error("O PDF enviado não corresponde ao rascunho arquivado (SHA-256). Nenhum dado foi alterado.");
+    const first=draft.source_rows[0]!;
+    const restored:ReviewPackage={
+      tipo:"sigapro_urban_matrix_original_lc379_2009_review",
+      municipio:draft.source_municipality,
+      arquivo_sha256:draft.document_sha256,
+      quadro_I:draft.source_rows,
+      nao_ativar_regras_automaticamente:true,
+    };
+    setReviewPackage(restored);setArchiveRestored(true);setReviewRowIndex(0);
+    setQuadro("I");setPage(String(first.pagina_pdf));
+    setZone(normalizeUrbanCode(first.zona_conforme_tabela));
+    setUsage(normalizeUrbanCode(first.uso_predominante_conforme_tabela));
+    setEffectiveFrom("");setPreparedManualText(null);setText("");
+    setOcrDraft(false);setOcrVerified(false);setCandidates([]);setChecked([]);
+    setVisionNotice(null);setVisionFeedback(null);setConsent(false);
+    setMessage("Rascunho histórico recuperado do Neon QA, com PDF original conferido por SHA-256. Nenhuma regra foi ativada. Continue a análise das pendências.");
   };
   const openBatchRow=(index:number)=>{
     const row=reviewPackage?.quadro_I[index];
@@ -665,10 +701,14 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
       da página da tabela para o campo abaixo. Tabelas digitalizadas exigem transcrição
       e dupla conferência humana. Nenhum PDF completo é enviado à IA: só o trecho autorizado.
     </p>
+    <UrbanMatrixArchivePanel municipalityId={municipalityId}
+      qaWriteEnabled={qaWriteEnabled} canEdit={canEdit}
+      reloadToken={archiveReloadToken} file={file}
+      onRestore={restoreArchivedDraft}/>
     <div className="mt-4 grid gap-3 md:grid-cols-2">
       <label className="text-xs font-bold text-slate-800 dark:text-white">Arquivo PDF oficial
         <input type="file" accept=".pdf,application/pdf" className="mt-1 block w-full rounded-lg border border-slate-300 bg-white p-2 text-slate-900"
-          onChange={e=>{setFile(e.target.files?.[0]||null);setReviewPackage(null);setReviewRowIndex(0);setPreparedManualText(null);setPageImage(null);setText("");setOcrDraft(false);setOcrVerified(false);setVisionFeedback(null);setVisionNotice(null);setVisionRawPreview("");visionSessionCache.current.clear();reset();}}/>
+          onChange={e=>{setFile(e.target.files?.[0]||null);setArchiveRestored(false);setReviewPackage(null);setReviewRowIndex(0);setPreparedManualText(null);setPageImage(null);setText("");setOcrDraft(false);setOcrVerified(false);setVisionFeedback(null);setVisionNotice(null);setVisionRawPreview("");visionSessionCache.current.clear();reset();}}/>
       </label>
       <label className="text-xs font-bold text-slate-800 dark:text-white">Quadro de origem
         <select value={quadro} onChange={e=>{setQuadro(e.target.value as ImportQuadro);setPreparedManualText(null);setText("");setOcrDraft(false);setOcrVerified(false);reset();}}
@@ -719,11 +759,13 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
           key={[municipalityId,reviewPackage.arquivo_sha256,file.name,file.lastModified].join(":")}
           municipalityId={municipalityId} file={file} reviewPackage={reviewPackage}
           qaWriteEnabled={qaWriteEnabled} canEdit={canEdit} onOpenRow={openBatchRow}
+          archiveRestored={archiveRestored}
+          onArchiveSaved={()=>{setArchiveRestored(true);setArchiveReloadToken(previous=>previous+1);}}
         />:null}
         <label className="mt-4 block text-xs font-bold text-slate-900">
           Selecione a zona e o uso conforme tabela de origem
           <select aria-label="Linha extraída para pré-preenchimento" value={reviewRowIndex}
-            onChange={e=>{setReviewRowIndex(Number(e.target.value));setPreparedManualText(null);setText("");setOcrDraft(false);setOcrVerified(false);setCandidates([]);setChecked([]);}}
+            onChange={e=>openBatchRow(Number(e.target.value))}
             className="mt-1 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-slate-950">
             {reviewPackage.quadro_I.map((row,i)=><option key={i} value={i}>
               Página {row.pagina_pdf} · {row.zona_conforme_tabela} · {row.uso_predominante_conforme_tabela}
@@ -841,7 +883,7 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
       </label>
       <button type="button" data-urban-matrix-action="vision"
         disabled={visionBusy||busy||!file||!pageImage||!consent||!Number.isSafeInteger(Number(page))||Number(page)<1||Number(page)>10000}
-        onClick={()=>void readPageImage()}
+        onClick={()=>void readPageImage()} data-sigapro-contrast="dark"
         className="mt-3 min-h-11 rounded-xl border border-sky-800 bg-sky-800 px-4 py-2 text-sm font-bold text-white disabled:cursor-not-allowed">
         {visionBusy?"Lendo uma linha com IA…":"Extrair campos por coluna com IA — sem salvar"}
       </button>
@@ -866,7 +908,7 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
       <p role="status" data-urban-matrix-vision-hint="true" className="mt-2 text-sm font-semibold leading-6 text-slate-900">
         {!file ? "Para habilitar: selecione o PDF oficial acima."
           : !Number.isSafeInteger(Number(page))||Number(page)<1||Number(page)>10000
-            ? "Para habilitar: informe a página física do PDF acima."
+            ? "Para habilitar: informe a página do PDF ou abra uma linha da matriz para preencher automaticamente."
           : !pageImage ? "Para habilitar: selecione o recorte JPG/PNG da tabela."
           : !consent ? "Imagem carregada. Marque a autorização logo ACIMA do botão para habilitar a leitura."
           : "Leitura liberada: a imagem e a autorização estão prontas. Clique no botão para transcrever."}
