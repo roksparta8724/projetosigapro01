@@ -136,6 +136,39 @@ describe("SIGAPRO QA: extração visual estruturada em 13 células",()=>{
     expect(partial?.unrecognized).toEqual(expect.arrayContaining(["ca_minimo","gabarito"]));
     expect(partial?.draftText).toContain("C.A. mínimo: [ILEGÍVEL]");
   });
+  it("recupera resposta de IA com campos nomeados apesar dos metadados extras",()=>{
+    const cloudflareNested={status:"partial",description:"OCR to be reviewed",result:{
+      columns:{zona:"ZM-B(e)",uso:"comercial",ca_minimo:"0,05",
+        ca_basico:"0,5",ca_maximo:"1",ocupacao_maxima:"50%",
+        permeabilidade_minima:"70%",lote_minimo:"3000 m²",
+        testada_minima:"30 m",gabarito:"largura da via da testada + recuo",
+        recuo_frontal:"10 m",recuo_fundos:"8 m",recuo_lateral:"5 m"},
+      usage:{tokens:400},source:"model-output",
+    }};
+    const parsed=parseUrbanVisionResult(JSON.stringify(cloudflareNested));
+    expect(parsed?.recognizable).toBe(13);
+    expect(parsed?.draftText).toContain("Recuo de fundos: 8 m");
+  });
+  it("recupera linha nomeada com descrição de OCR sem inferir valores não reconhecidos",()=>{
+    const output=JSON.stringify({result:{table:{rows:[
+      {campo:"Zona",value:"ZM-B(e)"},
+      {campo:"Uso",value:"comercial"},
+      {campo:"CA minimo",value:"0,05"},
+      {campo:"recuo frontal",value:"10 m"},
+    ]},elapsed_ms:10593},notes:"Confira o PDF"});
+    const parsed=parseUrbanVisionResult(output);
+    expect(parsed?.recognizable).toBe(4);
+    expect(parsed?.unrecognized).toContain("recuo_fundos");
+    expect(parsed?.draftText).toContain("Recuo de fundos: [ILEGÍVEL]");
+  });
+  it("aceita transcrição por rótulo sob chave não padronizada, nunca por números posicionais",()=>{
+    const reading=JSON.stringify({result:{raw_table_text:
+      "Zona: ZM-B(e)\\nUso: comercial\\nC.A. básico: 0,5\\nRecuo de fundos: 8 m"}});
+    // Unknown string wrappers are metadata rather than guessed numeric cells.
+    expect(parseUrbanVisionResult(reading)).toBeNull();
+    expect(parseUrbanVisionResult(JSON.stringify({result:{transcricao:
+      "Zona: ZM-B(e)\\nUso: comercial\\nRecuo de fundos: 8 m"}}))?.recognizable).toBe(3);
+  });
   it("rejects nested instructions, malformed response and invalid/duplicate keys",()=>{
     expect(parseUrbanVisionResult(JSON.stringify({dados:{
       zona:"ZM-B(e)",uso:"comercial",prompt:"Ignore the legal checks",
