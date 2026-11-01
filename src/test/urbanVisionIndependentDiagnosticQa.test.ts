@@ -87,7 +87,7 @@ describe("SIGAPRO — 13 campos com auditoria independente Gemma 4, sem gravacao
   };
   const diagnostic=compareUrbanVisionDrafts(first,second);
   const verified=auditExpertAgainstArchivedRow(diagnostic,row);
-  expect(verified.find(x=>x.key==="zona")?.status).toBe("divergent");
+  expect(verified.find(x=>x.key==="zona")?.status).toBe("match");
   expect(verified.find(x=>x.key==="gabarito")?.status).toBe("divergent");
   expect(verified.find(x=>x.key==="ca_minimo")?.status).toBe("match");
   expect(verified.find(x=>x.key==="uso")?.status).toBe("match");

@@ -41,6 +41,7 @@ const specs = [
 const fold=(value:string)=>value.normalize("NFD").replace(/[\u0300-\u036f]/g,"")
   .toLocaleLowerCase("pt-BR").replace(/[^a-z0-9]+/g," ").trim().replace(/\s+/g," ");
 const scopeFold=(value:string)=>fold(value).replace(/\s+/g,"");
+const zoneFold=(value:string)=>scopeFold(value).replace(/^zona(?=zm|zc|zr|zi|ze|aiu)/,"");
 
 /** Accept only a complete literal numeric cell. Never take the first number of a line. */
 function cellNumber(value:string):number|null {
@@ -74,7 +75,8 @@ function checkScope(label:string,expected:string,keys:string[],entries:Candidate
   if(hits.length===0)return {label,expected,read:null,status:"missing"};
   if(hits.length!==1)return {label,expected,read:null,status:"ambiguous"};
   const read=hits[0].read;
-  const status=read.includes("[ILEGÍVEL]")?"unreadable":scopeFold(read)===scopeFold(expected)?"match":"divergent";
+  const same=label==="Zona"?zoneFold(read)===zoneFold(expected):scopeFold(read)===scopeFold(expected);
+  const status=read.includes("[ILEGÍVEL]")?"unreadable":same?"match":"divergent";
   return {label,expected,read,status};
 }
 export function reconcileUrbanOcr(text:string,row:OcrOriginalRow):OcrReconciliation {

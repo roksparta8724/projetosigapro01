@@ -19,9 +19,12 @@ function parseDraft(text:string):Map<string,string>{
  }
  return result;
 }
-function comparable(raw:string){
+function comparable(raw:string,key:UrbanVisionFieldKey){
  const flat=raw.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase()
    .replace(/\s+/g," ").trim();
+ // A table-heading prefix does not change the identity of a zoning code.
+ // Preserve the verbatim text in the evidence, normalize only comparison.
+ if(key==="zona")return flat.replace(/^zona\s+/,"").replace(/\s+/g,"");
  // Never round digits or infer units; only conservative lexical agreement.
  return /^\d+(?:[.,]\d+)?\s*(?:m2|m²|m|%)?$/.test(flat)
    ?flat.replace(",",".").replace(/\s+/g,""):flat;
@@ -31,7 +34,7 @@ export function compareUrbanVisionDrafts(primary:string,expert:string):UrbanDiag
  return URBAN_VISION_FIELDS.map(([key,label])=>{
   const p=a.get(key)||null,e=b.get(key)||null;
   const verdict:UrbanDiagnosticVerdict=p&&e
-    ?comparable(p)===comparable(e)?"agree":"conflict"
+    ?comparable(p,key)===comparable(e,key)?"agree":"conflict"
     :p||e?"one_model_only":"not_read";
   return {key,label,primary:p,expert:e,verdict};
  });
@@ -62,7 +65,8 @@ export function auditExpertAgainstArchivedRow(
   diagnostics:readonly UrbanDiagnosticRow[],row:OcrOriginalRow|null
 ):UrbanHistoricalEvidence[]{
   if(!row)return diagnostics.map(d=>({key:d.key,reference:null,read:d.expert,status:"not_checked" as const}));
-  const expertText=diagnostics.map(d=>d.label+": "+(d.expert??"[ILEGÍVEL]")).join("\n");
+  const expertText=diagnostics.map(d=>d.label+": "+(d.key==="zona"&&d.expert
+    ?d.expert.replace(/^zona\s+/i,""):d.expert??"[ILEGÍVEL]")).join("\n");
   const audited=reconcileUrbanOcr(expertText,row);
   return diagnostics.map(d=>{
     const result=d.key==="zona"?audited.scope[0]
