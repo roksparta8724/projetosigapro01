@@ -921,11 +921,10 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
     <div className="flex items-start gap-3">
       <BookText className="mt-1 h-5 w-5 shrink-0 text-sky-700 dark:text-sky-300"/>
       <div>
-        <h4 className="font-extrabold text-slate-950 dark:text-white">Importador assistido — Matriz de parâmetros</h4>
+        <h4 className="text-lg font-extrabold text-slate-950 dark:text-white">Parâmetros urbanísticos da prefeitura</h4>
         <p className="mt-1 text-sm leading-6 text-slate-700 dark:text-slate-200">
-          Homologação dos Quadros I e II da LC 379/2009 e alterações vigentes.
-          A IA só sugere trechos copiados da página do PDF oficial. Ela não identifica
-          automaticamente a zona do imóvel, não comprova vigência e não aprova processos.
+          Cadastre a legislação com segurança: escolha o PDF, analise os parâmetros
+          e confira o resultado. A IA auxilia na leitura, mas nunca aprova ou ativa regras.
         </p>
       </div>
     </div>
