@@ -1043,6 +1043,24 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
             {adminOverviewConflicts} divergência(s)
           </span>:null}
         </div>
+        {previewUrl?<details data-urban-admin-source-view="true"
+          className="mt-3 rounded-xl border border-sky-200 bg-sky-50 p-3">
+          <summary className="cursor-pointer text-sm font-extrabold text-sky-900">
+            <span className="mr-2">Ver página original do PDF para conferir os valores</span>
+          </summary>
+          <p className="mt-2 text-xs font-semibold text-amber-950">
+            Confira a página, a zona, o uso e cada coluna no documento original;
+            o número da página pode precisar ser selecionado manualmente no leitor.
+          </p>
+          <iframe key={["guided",previewUrl,selectedPdfPage,pdfViewerReload].join(":")}
+            title={"PDF oficial para conferência guiada — página "+selectedPdfPage}
+            src={previewUrl+"#page="+selectedPdfPage}
+            className="mt-2 h-[330px] w-full rounded-lg border border-slate-300 bg-white"/>
+          <a href={previewUrl+"#page="+selectedPdfPage} target="_blank" rel="noreferrer"
+            className="mt-2 inline-block text-sm font-bold text-sky-900 underline underline-offset-2">
+            Abrir PDF original em outra guia
+          </a>
+        </details>:null}
         {adminOverviewRead>0?<div data-urban-admin-field-grid="true"
           className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
           {adminFieldOverview.map(field=><div key={field.key}
