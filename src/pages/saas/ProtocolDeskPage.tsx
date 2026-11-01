@@ -61,6 +61,7 @@ import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { useMarkerPresets } from "@/hooks/useMarkerPresets";
 import {
   confirmRemotePreprotocolPayment,
+  reconcileRemoteProcessTriage,
   listRemotePendingPreprotocolPayments,
   type PendingPreprotocolPayment,
 } from "@/integrations/backend/platform";
@@ -80,16 +81,35 @@ function getOpeningDate(process: ProcessRecord) {
   return process.timeline[process.timeline.length - 1]?.at ?? process.payment.issuedAt ?? "-";
 }
 
+function normalizeDocumentLabel(value: string) {
+  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+}
+
+function getMissingApprovalDocumentTypes(process: ProcessRecord) {
+  if (!/(aprov|licenciament|arquitet|projeto)/i.test(process.type) || /habite.?se/i.test(process.type)) return [];
+  const labels = process.documents
+    .filter((document) => document.required && document.uploaded && document.reviewStatus === "aprovado")
+    .map((document) => normalizeDocumentLabel(document.label));
+  return [
+    { name: "Projeto Arquitetônico", matches: (label: string) => label.includes("projeto arquitetonico") },
+    { name: "Memorial Descritivo", matches: (label: string) => label.includes("memorial descritivo") },
+    { name: "ART/RRT", matches: (label: string) => /(^|[^a-z])(art|rrt)([^a-z]|$)/.test(label) },
+    { name: "Escritura/Matrícula", matches: (label: string) => /escritura|matricula/.test(label) },
+  ].filter((documentType) => !labels.some(documentType.matches)).map((documentType) => documentType.name);
+}
+
 function getMissingRequiredDocuments(process: ProcessRecord) {
-  return process.documents.filter((document) => document.required && !document.uploaded).length;
+  const missingFiles = process.documents.filter((document) => document.required && !document.uploaded).length;
+  if (process.documents.length === 0) return Math.max(1, getMissingApprovalDocumentTypes(process).length);
+  return Math.max(missingFiles, getMissingApprovalDocumentTypes(process).length);
 }
 
 function getPendingTriageDocuments(process: ProcessRecord) {
-  return process.documents.filter(
-    (document) =>
-      document.required &&
-      (!document.uploaded || document.reviewStatus !== "aprovado"),
+  const pendingReview = process.documents.filter(
+    (document) => document.required && (!document.uploaded || document.reviewStatus !== "aprovado"),
   ).length;
+  if (process.documents.length === 0) return Math.max(1, getMissingApprovalDocumentTypes(process).length);
+  return Math.max(pendingReview, getMissingApprovalDocumentTypes(process).length);
 }
 
 export function ProtocolDeskPage() {
@@ -177,6 +197,15 @@ export function ProtocolDeskPage() {
     [processes, session],
   );
 
+  const recoverableTriageCases = useMemo(() =>
+    processes.filter((item) =>
+      ["analise_tecnica", "distribuicao"].includes(item.status) &&
+      item.triage.status !== "concluido" &&
+      !(item.dispatches || []).some((d) => /urbanis|an[aá]lise/i.test(d.to))
+    ),
+    [processes],
+  );
+
   const tenantSettings =
     institutionSettingsCompat ?? getInstitutionSettings(effectiveScopeId ?? session.tenantId);
 
@@ -184,6 +213,7 @@ export function ProtocolDeskPage() {
   const [protocolQuery, setProtocolQuery] = useState("");
   const [govbrProtocolQuery, setGovbrProtocolQuery] = useState("");
   const [govbrProtocolId, setGovbrProtocolId] = useState("");
+  const [triageRecoveryReason, setTriageRecoveryReason] = useState("");
   const [protocolActionStatus, setProtocolActionStatus] = useState("");
   const [protocolActionBusy, setProtocolActionBusy] = useState("");
   const [markerFilter, setMarkerFilter] = useState("todos");
@@ -854,7 +884,35 @@ export function ProtocolDeskPage() {
     }
   };
 
+  const handleRecoverPrematureAnalysis = async (process: ProcessRecord) => {
+    const reason = triageRecoveryReason.trim();
+    if (reason.length < 15) {
+      setProtocolActionStatus("Informe uma justificativa de pelo menos 15 caracteres para a correção auditada.");
+      return;
+    }
+    const key = `reconcile-${process.id}`;
+    setProtocolActionBusy(key);
+    setProtocolActionStatus("");
+    try {
+      await reconcileRemoteProcessTriage(process.id, reason);
+      await refreshRemoteStore();
+      setTriageRecoveryReason("");
+      setProtocolActionStatus(`${formatOfficialProcessNumber(process.protocol)} retornou à Triagem com histórico preservado. Confira os anexos e conclua a triagem normalmente.`);
+    } catch (error) {
+      setProtocolActionStatus(error instanceof Error ? `Não foi possível reconciliar a etapa: ${error.message}` : "Não foi possível corrigir a etapa no Neon.");
+    } finally {
+      setProtocolActionBusy("");
+    }
+  };
   const handleDispatchToUrbanism = async (process: ProcessRecord) => {
+    if (process.triage.status !== "concluido") {
+      setProtocolActionStatus("Conclua a triagem documental antes do encaminhamento.");
+      return;
+    }
+    if (getPendingTriageDocuments(process) > 0) {
+      setProtocolActionStatus("Faltam anexos obrigatórios ou a conferência dos documentos. Consulte Documentos pendentes.");
+      return;
+    }
     if (process.status !== "pagamento_confirmado") {
       setProtocolActionStatus("Confirme primeiro a guia inicial antes de despachar para o Urbanismo.");
       return;
@@ -932,7 +990,9 @@ export function ProtocolDeskPage() {
                 (guide) => guide.kind === "protocolo",
               )?.status === "compensada" ? (
                 <div className="inline-flex min-h-10 items-center rounded-full border border-sky-200 bg-sky-50 px-4 text-sm font-medium text-sky-800">
-                  Encaminhado automaticamente para {URBAN_ANALYSIS_DEPARTMENT}
+                  {matchedProcess.dispatches.some((d) => /urbanis|an[aá]lise/i.test(d.to))
+                     ? `Encaminhado formalmente para ${URBAN_ANALYSIS_DEPARTMENT}`
+                     : "Guia compensada. Aguarda triagem concluída e despacho formal."}
                 </div>
               ) : null}
             </div>
@@ -1038,6 +1098,29 @@ export function ProtocolDeskPage() {
           value={section}
           onChange={(value) => setSection(value as ProtocolSection)}
         />
+
+        {session.role === "prefeitura_admin" && recoverableTriageCases.length > 0 ? (
+          <SectionCard title="Revisão de integridade da tramitação" description="Processos que avançaram à Análise sem concluir triagem ou despacho. A correção preserva guias, arquivos e histórico.">
+            <div className="space-y-3">
+              <Input value={triageRecoveryReason} onChange={(event) => setTriageRecoveryReason(event.target.value)}
+                placeholder="Justificativa para retorno auditado à Triagem (mín. 15 caracteres)"
+                className="border-slate-300 bg-white text-slate-900 dark:bg-slate-900 dark:text-white" />
+              {recoverableTriageCases.map((process) => (
+                <div key={process.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-white p-4 dark:border-amber-700 dark:bg-slate-900">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900 dark:text-white">{formatOfficialProcessNumber(process.protocol)}</p>
+                    <p className="text-xs text-slate-600 dark:text-slate-300">Triagem: {process.triage.status} · Situação: {statusLabel(process.status)}. Guias e anexos não serão alterados.</p>
+                  </div>
+                  <Button type="button" variant="outline"
+                    disabled={triageRecoveryReason.trim().length < 15 || Boolean(protocolActionBusy)}
+                    onClick={() => void handleRecoverPrematureAnalysis(process)}>
+                    {protocolActionBusy === `reconcile-${process.id}` ? "Corrigindo..." : "Devolver à Triagem com auditoria"}
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </SectionCard>
+        ) : null}
 
         {section === "visao-geral" ? (
           <>
