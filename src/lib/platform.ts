@@ -3043,6 +3043,7 @@ export function canSuperviseProcessAnalysis(
   process: ProcessRecord,
 ) {
   if (session.accountStatus === "blocked" || session.accountStatus === "inactive") return false;
+  if (!isProcessReleasedToUrbanAnalysis(process)) return false;
   if (session.role === "master_admin" || session.role === "master_ops") return true;
   if (!isAnalysisSupervisor(session)) return false;
 
@@ -3130,6 +3131,8 @@ export function canEditAssignedAnalysisArtifact(
   if (session.accountStatus === "blocked" || session.accountStatus === "inactive") {
     return false;
   }
+
+  if (!isProcessReleasedToUrbanAnalysis(process)) return false;
 
   if (session.role === "master_admin" || session.role === "master_ops") return true;
   if (session.role !== "analista" && session.role !== "prefeitura_supervisor") return false;
