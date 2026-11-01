@@ -125,30 +125,25 @@ export function MunicipalUrbanRulesSettings({
           Conferência humana obrigatória
         </span>
       </div>
-      <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-950 dark:border-amber-500/40 dark:bg-amber-950/40 dark:text-amber-100">
-        <ShieldAlert className="mr-1 inline h-4 w-4" />
-        O upload de PDFs do acervo legal não cria regras automaticamente. Informe os parâmetros
-        somente após leitura da legislação oficial; situações especiais exigem avaliação jurídica e urbanística.
-      </div>
-      <div className="mt-3 rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm leading-6 text-slate-800 dark:border-sky-700 dark:bg-slate-900 dark:text-slate-100">
-        <p className="font-bold">Como preencher com fontes oficiais</p>
-        <p className="mt-1">
-          1. Identifique a <strong>zona real</strong> no mapa de zoneamento vigente;
-          2. confira a <strong>categoria de uso</strong> na tabela de usos permitidos;
-          3. consulte o <strong>quadro oficial de índices urbanísticos</strong> para essa combinação;
-          4. registre apenas os limites aplicáveis com lei, artigo, quadro, página e exceções.
-        </p>
-        <p className="mt-1 text-xs leading-5 text-slate-700 dark:text-slate-200">
-          Não use valores de exemplos, minutas de revisão ou propostas não promulgadas.
-          Se o parâmetro não foi confirmado, deixe o campo sem preencher e não ative a norma.
-          Verifique alterações e vigência com o setor técnico responsável.
-        </p>
-      </div>
+      <p data-urban-admin-legal-hint="true"
+        className="mt-3 rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-sm font-semibold leading-6 text-sky-950 dark:border-sky-700 dark:bg-slate-900 dark:text-sky-100">
+        Use o PDF oficial e confira os valores por zona e uso. A leitura automática não confirma
+        a vigência da lei nem ativa parâmetros.
+      </p>
 
       {canEdit && municipalityId ? <UrbanLegalMatrixImporter municipalityId={municipalityId} canEdit={canEdit} onSaved={reload}/> : null}
 
       {canEdit && municipalityId ? (
-        <>
+        <details data-urban-manual-rule-editor="true"
+          className="mt-5 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+          <summary className="cursor-pointer text-base font-extrabold text-sky-900 dark:text-sky-100">
+            Cadastro manual de regras urbanísticas — uso excepcional
+          </summary>
+          <p className="mt-2 text-sm leading-6 text-slate-700 dark:text-slate-200">
+            Abra somente para registrar manualmente valores já conferidos na legislação oficial.
+            Esta seção é diferente da leitura assistida acima; os dados não são preenchidos
+            automaticamente nem são ativados ao salvar.
+          </p>
           <div className="mt-5 grid gap-3 md:grid-cols-3">
             <label className="text-xs font-bold text-slate-700 dark:text-slate-200">
               Código da zona
@@ -201,7 +196,7 @@ export function MunicipalUrbanRulesSettings({
               </span>
             </button>
           </div>
-        </>
+        </details>
       ) : null}
 
       <div className="mt-6 border-t border-slate-200 pt-4 dark:border-slate-700">
