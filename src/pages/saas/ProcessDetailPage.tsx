@@ -64,7 +64,7 @@ import {
   type RecoverableProcessFile,
 } from "@/integrations/r2/client";
 import { uploadFileToStorage } from "@/integrations/r2/storage";
-import { createQa04ArchitecturalPdf, isQa04ArchitecturalImportAllowed } from "@/lib/qa04ArchitecturalFixture";
+import { createQa04DocumentKit, isQa04ArchitecturalImportAllowed, QA04_DOCUMENT_LABELS } from "@/lib/qa04ArchitecturalFixture";
 import {
   buildProcessPath,
   buildProcessRouteKey,
@@ -996,11 +996,15 @@ export function ProcessDetailPage() {
     role: session.role,
     process,
   });
-  const qa04FixtureAlreadyUploaded = process?.documents.some(
-    (document) => document.uploaded && document.filePath &&
-      document.label === "Projeto Arquitetônico" &&
-      document.fileName?.startsWith("SIGAPRO-QA04-PLANTA-"),
-  ) ?? false;
+  const qa04FixtureUploadedLabels = new Set(
+    (process?.documents ?? [])
+      .filter((document) => document.uploaded && document.filePath &&
+        document.fileName?.startsWith("SIGAPRO-QA04-"))
+      .map((document) => document.label),
+  );
+  const qa04MissingFixtureLabels = QA04_DOCUMENT_LABELS.filter(
+    (label) => !qa04FixtureUploadedLabels.has(label),
+  );
   const canRecoverStoredDocuments =
     canUploadProcessDocuments ||
     (
@@ -2698,39 +2702,43 @@ export function ProcessDetailPage() {
       setProcessActionStatus("Importação disponível apenas ao administrador autorizado no Neon QA isolado.");
       return;
     }
-    if (qa04FixtureAlreadyUploaded) {
-      setProcessActionStatus("O projeto fictício já está anexado. Abra o documento na aba Documentos.");
+    if (qa04MissingFixtureLabels.length === 0) {
+      setProcessActionStatus("Os quatro documentos fictícios já estão anexados ao processo.");
       return;
     }
     await runProcessAction("qa04-import-project", async () => {
-      const file = createQa04ArchitecturalPdf();
-      const uploaded = await uploadFileToStorage({
-        bucket: "process-documents",
-        tenantId: effectiveScopeId,
-        userId: session.id,
-        file,
-        folder: "qa-arquitetura",
-      });
-      const result = await appendProcessDocuments(process.id, [{
-        id: `doc-${crypto.randomUUID()}`,
-        label: "Projeto Arquitetônico",
-        required: true,
-        uploaded: true,
-        signed: false,
-        reviewStatus: "pendente",
-        annotations: [],
-        version: 1,
-        source: "prefeitura",
-        fileName: file.name,
-        filePath: uploaded.path,
-        mimeType: "application/pdf",
-        fileSizeBytes: file.size,
-        previewUrl: uploaded.publicUrl || undefined,
-      }], session.name);
-      if (Number(result.synced || 0) !== 1) {
-        throw new Error("Falha na vinculação auditada do PDF ao processo 04.");
+      const kit = createQa04DocumentKit().filter((entry) =>
+        qa04MissingFixtureLabels.includes(entry.label),
+      );
+      for (const { label, file } of kit) {
+        const uploaded = await uploadFileToStorage({
+          bucket: "process-documents",
+          tenantId: effectiveScopeId,
+          userId: session.id,
+          file,
+          folder: "qa-arquitetura",
+        });
+        const result = await appendProcessDocuments(process.id, [{
+          id: `doc-${crypto.randomUUID()}`,
+          label,
+          required: true,
+          uploaded: true,
+          signed: false,
+          reviewStatus: "pendente",
+          annotations: [],
+          version: 1,
+          source: "prefeitura",
+          fileName: file.name,
+          filePath: uploaded.path,
+          mimeType: "application/pdf",
+          fileSizeBytes: file.size,
+          previewUrl: uploaded.publicUrl || undefined,
+        }], session.name);
+        if (Number(result.synced || 0) !== 1) {
+          throw new Error(`Falha ao vincular ${label}. A importação pode ser retomada sem duplicar os já anexados.`);
+        }
       }
-    }, "Projeto fictício importado para o processo 04. O PDF precisa passar pela triagem antes da análise.");
+    }, "Kit fictício importado: projeto arquitetônico e três placeholders sem validade. Confira na Triagem antes do despacho.");
   };
 
   const handleUploadMissingDocument = async (document: typeof process.documents[number]) => {
@@ -3419,14 +3427,14 @@ export function ProcessDetailPage() {
               {canImportQa04Fixture ? (
                 <div className="rounded-2xl border border-sky-300 bg-sky-50 p-4 text-slate-900 dark:border-sky-600 dark:bg-slate-900 dark:text-slate-100">
                   <p className="text-sm font-bold">Ensaio controlado de IA — Processo 04 fictício</p>
-                  <p className="mt-1 text-xs leading-5">Importa um projeto esquemático em PDF para este processo exclusivamente no banco isolado de QA. Não conclui a triagem, não registra pagamento e não libera a Análise. O documento ficará pendente de conferência.</p>
+                  <p className="mt-1 text-xs leading-5">Importa um projeto arquitetônico de ensaio e três placeholders manifestamente fictícios. Apenas no Neon QA; não aprova documentos, não altera pagamento e não libera a Análise automaticamente. Os arquivos permanecerão pendentes de análise técnica.</p>
                   <Button
                     type="button"
                     className="mt-3 bg-sky-700 text-white hover:bg-sky-800"
-                    disabled={qa04FixtureAlreadyUploaded || Boolean(processActionBusy)}
+                    disabled={qa04MissingFixtureLabels.length === 0 || Boolean(processActionBusy)}
                     onClick={() => void handleImportQa04ArchitecturalFixture()}
                   >
-                    {qa04FixtureAlreadyUploaded ? "Projeto de QA já anexado" : processActionBusy === "qa04-import-project" ? "Importando PDF..." : "Importar projeto arquitetônico fictício"}
+                    {qa04MissingFixtureLabels.length === 0 ? "Kit fictício já anexado" : processActionBusy === "qa04-import-project" ? "Importando documentos..." : `Importar kit fictício (${qa04MissingFixtureLabels.length} arquivo(s))`}
                   </Button>
                 </div>
               ) : null}

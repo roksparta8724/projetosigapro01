@@ -97,3 +97,43 @@ export function createQa04ArchitecturalPdf(): File {
   lines.forEach((line, i) => pdf.text(line, 22, 69 + i * 18));
   return new File([pdf.output("blob")], "SIGAPRO-QA04-PLANTA-FICTICIA.pdf", { type: "application/pdf" });
 }
+
+/** All four QA-only document categories so the receipt/dispatch workflow can be exercised. */
+export const QA04_DOCUMENT_LABELS = [
+  "Projeto Arquitetônico",
+  "Memorial Descritivo",
+  "ART/RRT",
+  "Escritura/Matrícula",
+] as const;
+
+function createAbsentDocumentPlaceholder(label: string, fileName: string): File {
+  const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  pdf.setProperties({ title: `SIGAPRO QA04 - ${label} - placeholder inexistente` });
+  pdf.setFont("helvetica", "bold");
+  pdf.setTextColor(175, 30, 30);
+  pdf.setFontSize(18);
+  pdf.text("FICTICIO / QA - NAO E DOCUMENTO OFICIAL", 15, 28);
+  pdf.setTextColor(20, 42, 64);
+  pdf.setFontSize(14);
+  pdf.text(`Categoria simulada: ${label}`, 15, 50);
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(11);
+  pdf.text("Processo 000004/2026 - arquivo de teste automatizado.", 15, 67);
+  pdf.text("Nenhuma ART/RRT, matricula ou certidao verdadeira foi emitida.", 15, 79);
+  pdf.text("Este anexo apenas testa a presenca documental no Protocolo.", 15, 91);
+  pdf.text("A IA e o analista devem sinalizar que nao e evidencia legal valida.", 15, 103);
+  pdf.text("Nunca usar para aprovacao municipal ou assinatura.", 15, 115);
+  return new File([pdf.output("blob")], fileName, { type: "application/pdf" });
+}
+
+export function createQa04DocumentKit(): Array<{ label: string; file: File }> {
+  return [
+    { label: "Projeto Arquitetônico", file: createQa04ArchitecturalPdf() },
+    { label: "Memorial Descritivo", file: createAbsentDocumentPlaceholder(
+        "Memorial Descritivo", "SIGAPRO-QA04-MEMORIAL-FICTICIO.pdf") },
+    { label: "ART/RRT", file: createAbsentDocumentPlaceholder(
+        "ART/RRT", "SIGAPRO-QA04-ART-RRT-INEXISTENTE.pdf") },
+    { label: "Escritura/Matrícula", file: createAbsentDocumentPlaceholder(
+        "Escritura/Matricula", "SIGAPRO-QA04-MATRICULA-INEXISTENTE.pdf") },
+  ];
+}
