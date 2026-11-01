@@ -7,7 +7,7 @@ export async function createUrbanQaProcess04Fixture():Promise<File> {
  const doc=new jsPDF({orientation:"landscape",unit:"pt",format:"a3",compress:true});
  const W=doc.internal.pageSize.getWidth();
  const H=doc.internal.pageSize.getHeight();
- const dark=[15,48,71],blue=[20,92,135],gray=[83,103,118];
+ const dark=[15,48,71] as const,blue=[20,92,135] as const,gray=[83,103,118] as const;
  const text=(x:number,y:number,value:string,size=11,bold=false)=>{
    doc.setFont("helvetica",bold?"bold":"normal");doc.setFontSize(size);
    doc.setTextColor(...(bold?dark:gray));doc.text(value,x,y);
