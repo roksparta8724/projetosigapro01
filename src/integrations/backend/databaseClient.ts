@@ -52,7 +52,7 @@ export const hasNeonBackendEnv = Boolean(
   NEON_DATA_API_URL !== "undefined"
 );
 
-export const neonAccountClient: any = NEON_AUTH_URL
+export const neonAccountClient = NEON_AUTH_URL
   ? createAuthClient(NEON_AUTH_URL)
   : null;
 
@@ -69,8 +69,8 @@ export const neonClient = hasNeonBackendEnv
     })
   : null;
 
-export const backendClient: any = isNeonBackend ? neonClient : legacySupabaseClient;
-export const databaseClient: any = backendClient;
+export const backendClient = isNeonBackend ? neonClient : legacySupabaseClient;
+export const databaseClient = backendClient;
 
 export const hasDatabaseEnv = isNeonBackend
   ? hasNeonBackendEnv
