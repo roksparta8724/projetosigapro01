@@ -945,8 +945,11 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
               onChange={e=>{
                 setFile(e.target.files?.[0]||null);setArchiveRestored(false);
                 setReviewPackage(null);setReviewRowIndex(0);setPreparedManualText(null);
+                setPage("");setZone("");setUsage("");setEffectiveFrom("");
                 setPageImage(null);setText("");setOcrDraft(false);setOcrVerified(false);
                 setVisionFeedback(null);setVisionNotice(null);setVisionRawPreview("");
+                setExpertDiagnostics(null);setExpertStatus("");setAutoAuditPending(false);
+                setPdfLayer(null);setPdfLayerNotice("");
                 visionSessionCache.current.clear();reset();
               }}/>
             {file?<span className="mt-1 block break-all text-xs font-semibold text-emerald-800">
