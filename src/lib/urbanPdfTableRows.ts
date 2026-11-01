@@ -119,8 +119,12 @@ export function inspectUrbanPdfRows(layer:UrbanPdfSourceLayer):UrbanPdfRowDiscov
   // One printed zone may continue across additional rows, but never bridge
   // an adjacent different zone. Ambiguous proximity means no association.
   const maxDistance=zoneRuns.length===1?70:40;
-  if(!best||best.distance>maxDistance||
-    (second&&second.distance-best.distance<9))continue;
+  if(!best||best.distance>maxDistance)continue;
+  if(second&&second.distance-best.distance<9){
+   // Equal-distance, conflicting labels: do not choose one by luck.
+   ambiguousZoneUsageRows+=group.length;
+   continue;
+  }
   const zone=printedZone(best.run);
   if(!zone||zone.length>40)continue;
   // Some merged zone cells on the real PDF read "ZM-B3(A) e ZM-B3(B)".
