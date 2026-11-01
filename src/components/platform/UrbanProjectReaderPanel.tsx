@@ -4,15 +4,22 @@ import {UrbanPdfPageCanvas} from "./UrbanPdfPageCanvas";
 import {inspectArchitecturalProjectPdf,type ProjectPdfInspection} from "@/lib/urbanProjectPdfReader";
 import {URBAN_METRICS,type UrbanMetric} from "@/lib/urbanPrecheck";
 import type {ProjectMeasure} from "@/lib/urbanArchitecturalMeasures";
+import type {ProcessDocument} from "@/lib/platform";
+import {getSignedUrlForObjectStrict} from "@/integrations/r2/client";
 
 type Props={
  readOnly:boolean;allowedMetrics:UrbanMetric[];
+ documents:ProcessDocument[];
  onConfirm:(item:ProjectMeasure,source:{fileName:string;sha256:string})=>void;
 };
 const label=(metric:UrbanMetric)=>URBAN_METRICS.find(m=>m.key===metric)?.label||metric;
 /** No PDF is uploaded to AI or server. Reviewer must confirm each measurement. */
-export function UrbanProjectReaderPanel({readOnly,allowedMetrics,onConfirm}:Props){
+export function UrbanProjectReaderPanel({readOnly,allowedMetrics,documents,onConfirm}:Props){
  const [file,setFile]=useState<File|null>(null);
+ const [storedDocumentId,setStoredDocumentId]=useState("");
+ const candidateDocuments=documents.filter(item=>item.uploaded&&item.filePath&&
+   (item.mimeType==="application/pdf"||/\.pdf$/i.test(item.fileName||"")) &&
+   (item.fileSizeBytes===undefined||item.fileSizeBytes<=80*1024*1024));
  const [report,setReport]=useState<ProjectPdfInspection|null>(null);
  const [busy,setBusy]=useState(false);
  const [error,setError]=useState("");
@@ -20,6 +27,42 @@ export function UrbanProjectReaderPanel({readOnly,allowedMetrics,onConfirm}:Prop
  const [ack,setAck]=useState(false);
  const [displayPage,setDisplayPage]=useState(1);
  const [applied,setApplied]=useState<UrbanMetric[]>([]);
+ const inspectStored=async()=>{
+   if(busy||readOnly)return;
+   const original=candidateDocuments.find(d=>d.id===storedDocumentId);
+   if(!original||!original.filePath)return;
+   setBusy(true);setReport(null);setError("");setChosen(null);setAck(false);setApplied([]);
+   try{
+     // Existing server-side signed-url endpoint verifies the current user's
+     // right to the process document. Never construct a public R2 URL.
+     const bucket=(import.meta.env.VITE_R2_BUCKET_DOCUMENTOS as string|undefined)||"sigapro-documentos";
+     const signed=await getSignedUrlForObjectStrict({
+       bucket,objectKey:original.filePath,expiresIn:300,
+     });
+     if(!signed||!signed.startsWith("https://"))throw Error("Não foi autorizado acesso seguro ao anexo.");
+     const response=await fetch(signed,{method:"GET",mode:"cors",redirect:"error"});
+     if(!response.ok)throw Error("Falha ao abrir o PDF anexado (HTTP "+response.status+").");
+     const bytesExpected=Number(response.headers.get("content-length")||"0");
+     if(bytesExpected>80*1024*1024)throw Error("PDF anexado excede o limite de 80 MB.");
+     const blob=await response.blob();
+     if(blob.size>80*1024*1024||blob.size<5)throw Error("PDF anexado inválido ou acima de 80 MB.");
+     const filename=/\.pdf$/i.test(original.fileName||"")
+       ?original.fileName!:(original.label||"projeto")+"-documento.pdf";
+     const loaded=new File([blob],filename,{type:"application/pdf"});
+     const inspected=await inspectArchitecturalProjectPdf(loaded);
+     if(original.fileHash && /^[a-f0-9]{64}$/i.test(original.fileHash) &&
+       inspected.sha256.toLowerCase()!==original.fileHash.toLowerCase())
+       throw Error("INTEGRIDADE: SHA-256 diferente do arquivo oficialmente anexado. Leitura bloqueada.");
+     if(original.fileHash&&!/^[a-f0-9]{64}$/i.test(original.fileHash))
+       inspected.warnings.unshift("O anexo não possui SHA-256 cadastrado em formato verificável. Confira a versão no processo.");
+     setFile(loaded);setReport(inspected);
+     setDisplayPage(inspected.proposals[0]?.page||1);
+   }catch(error){
+     setFile(null);setReport(null);
+     setError((error instanceof Error?error.message:"Não foi possível acessar o documento")+
+       " Se houver problema com CORS do armazenamento, baixe o PDF na aba Documentos e selecione-o localmente.");
+   }finally{setBusy(false);}
+ };
  const inspect=async()=>{
    if(!file||busy||readOnly)return;
    setBusy(true);setReport(null);setError("");setChosen(null);setAck(false);setApplied([]);
@@ -41,8 +84,32 @@ export function UrbanProjectReaderPanel({readOnly,allowedMetrics,onConfirm}:Prop
      páginas e trechos para conferência. NÃO mede geometria desenhada, nem faz OCR de imagens
      digitalizadas, nem aprova o projeto. Conflitos bloqueiam o preenchimento automático.
    </p>
+   {candidateDocuments.length>0?<div data-urban-project-saved-documents="true"
+     className="mt-3 rounded-xl border border-sky-200 bg-white p-3 text-slate-950">
+     <p className="text-xs font-extrabold">Documentos já vinculados a este processo</p>
+     <p className="mt-1 text-xs">Não é necessário anexar novamente. O acesso é autorizado pelo servidor.</p>
+     <div className="mt-2 flex flex-wrap items-end gap-2">
+       <label className="min-w-0 flex-1 text-xs font-bold">PDF armazenado no protocolo
+         <select aria-label="Escolher PDF já anexado ao processo"
+           value={storedDocumentId} disabled={busy||readOnly}
+           onChange={e=>setStoredDocumentId(e.target.value)}
+           className="mt-1 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-950">
+           <option value="">Selecione o projeto arquitetônico...</option>
+           {candidateDocuments.map(item=><option key={item.id} value={item.id}>
+             {item.fileName||item.label} — v{item.version}
+           </option>)}
+         </select>
+       </label>
+       <button type="button" data-urban-inspect-saved-project="true"
+         disabled={!storedDocumentId||busy||readOnly}
+         onClick={()=>void inspectStored()}
+         className="sig-force-dark-action min-h-11 rounded-lg bg-sky-900 px-4 py-2 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-50">
+         {busy?"Lendo anexo…":"Ler documento do processo"}
+       </button>
+     </div>
+   </div>:null}
    <div className="mt-3 flex flex-wrap items-end gap-2">
-     <label className="min-w-0 flex-1 text-xs font-bold">PDF do projeto (até 80 MB)
+     <label className="min-w-0 flex-1 text-xs font-bold">Ou selecione um PDF local (até 80 MB)
        <input type="file" accept=".pdf,application/pdf" disabled={busy||readOnly}
          aria-label="PDF do projeto arquitetônico para leitura"
          onChange={event=>{setFile(event.target.files?.[0]||null);

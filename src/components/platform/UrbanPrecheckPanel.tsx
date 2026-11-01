@@ -198,6 +198,7 @@ export function UrbanPrecheckPanel({
       </div>
 
       <UrbanProjectReaderPanel readOnly={readOnly}
+        documents={process.documents}
         allowedMetrics={regulation?.rules.map(r=>r.metric)??[]}
         onConfirm={useProjectReading}/>
       <div className="mt-4 grid gap-3 md:grid-cols-3">
