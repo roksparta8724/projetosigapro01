@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ProcessRecord, ProcessDocument } from "@/lib/platform";
-import { getMissingRequiredDocuments, getMissingApprovalDocumentTypes, getPendingTriageDocuments } from "@/lib/triageReadiness";
+import { getMissingRequiredDocuments, getMissingApprovalDocumentTypes, getPendingTriageDocuments, hasPersistedProcessDocumentFile } from "@/lib/triageReadiness";
 
 const doc = (label: string, status: "aprovado" | "pendente" = "aprovado"): ProcessDocument => ({
   id: label, label, required: true, uploaded: true, signed: false,
@@ -43,4 +43,19 @@ describe("SIGAPRO triage readiness — document completeness", () => {
   it("blocks missing uploaded files despite a misleading approved status", () => {
     expect(getPendingTriageDocuments(process("Aprovação de Projeto", [{ ...complete()[0], uploaded: false }, ...complete().slice(1)]))).toBe(1);
   });
+  it("rejects database placeholders with no stored file reference", () => {
+    expect(hasPersistedProcessDocumentFile({ file_path: null, preview_url: "" })).toBe(false);
+    expect(hasPersistedProcessDocumentFile({ file_path: " ", preview_url: null })).toBe(false);
+    expect(hasPersistedProcessDocumentFile({ file_path: "municipalities/qa/document.pdf" })).toBe(true);
+    expect(hasPersistedProcessDocumentFile({ preview_url: "https://example.test/document.pdf" })).toBe(true);
+  });
+
+  it("does not approve phantom files even when flagged uploaded and reviewed", () => {
+    const docs = complete();
+    const withoutStorage = { ...docs[0], uploaded: true, filePath: undefined, previewUrl: "" };
+    const p = process("Aprovação de Projeto", [withoutStorage, ...docs.slice(1)]);
+    expect(getMissingRequiredDocuments(p)).toBeGreaterThan(0);
+    expect(getPendingTriageDocuments(p)).toBeGreaterThan(0);
+  });
+
 });

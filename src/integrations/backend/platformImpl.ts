@@ -2,6 +2,7 @@ import { databaseClient as db, neonAuthUrl } from "@/integrations/backend/databa
 import { isNeonBackend } from "@/integrations/backend/config";
 import { getLegacyProfileAvatarOpenUrl, getObjectKeyFromPublicUrl, uploadFile } from "@/integrations/r2/client";
 import { buildMunicipalityPortalUrl } from "@/lib/publicDomain";
+import { hasPersistedProcessDocumentFile } from "@/lib/triageReadiness";
 import {
   buildProcessDocuments,
   isOccupancyPermitProcessType,
@@ -1564,7 +1565,7 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
           id: document.id,
           label: document.title,
           required: Boolean(document.is_required),
-          uploaded: true,
+          uploaded: hasPersistedProcessDocumentFile(document),
           signed: false,
           reviewStatus: (document.review_status ?? "pendente") as "pendente" | "aprovado" | "rejeitado",
           // Identidade humana para exibicao; profile ID preservado separadamente para auditoria.

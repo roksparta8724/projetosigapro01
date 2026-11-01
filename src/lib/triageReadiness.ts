@@ -1,12 +1,27 @@
 import type { ProcessRecord } from "@/lib/platform";
 
+/** A database record isn't an attachment until a real file reference exists. */
+export function hasPersistedProcessDocumentFile(document: { file_path?: unknown; preview_url?: unknown }): boolean {
+  return [document.file_path, document.preview_url].some(
+    (value) => typeof value === "string" && value.trim().length > 0,
+  );
+}
+
+/** Validation must match the actual PDF/file availability, not just a boolean flag. */
+function hasReadyFile(document: ProcessRecord["documents"][number]): boolean {
+  return document.uploaded === true &&
+    [document.filePath, document.previewUrl].some(
+      (value) => typeof value === "string" && value.trim().length > 0,
+    );
+}
+
 function normalizeLabel(value: string) {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 }
 
 export function getMissingApprovalDocumentTypes(process: Pick<ProcessRecord, "type" | "documents">): string[] {
   if (!/(aprov|licenciament|arquitet|projeto)/i.test(process.type) || /habite.?se/i.test(process.type)) return [];
-  const labels = process.documents.filter((d) => d.required && d.uploaded && d.reviewStatus === "aprovado")
+  const labels = process.documents.filter((d) => d.required && hasReadyFile(d) && d.reviewStatus === "aprovado")
     .map((d) => normalizeLabel(d.label));
   return [
     { name: "Projeto Arquitetônico", matches: (x: string) => x.includes("projeto arquitetonico") },
@@ -17,19 +32,19 @@ export function getMissingApprovalDocumentTypes(process: Pick<ProcessRecord, "ty
 }
 
 export function getMissingRequiredDocuments(process: Pick<ProcessRecord, "type" | "documents">): number {
-  const missingFiles = process.documents.filter((d) => d.required && !d.uploaded).length;
+  const missingFiles = process.documents.filter((d) => d.required && !hasReadyFile(d)).length;
   const missingCategories = getMissingApprovalDocumentTypes(process).length;
-  const hasRequired = process.documents.some((d) => d.required && d.uploaded);
+  const hasRequired = process.documents.some((d) => d.required && hasReadyFile(d));
   if (!hasRequired) return Math.max(1, missingFiles, missingCategories);
   return Math.max(missingFiles, missingCategories);
 }
 
 export function getPendingTriageDocuments(process: Pick<ProcessRecord, "type" | "documents">): number {
   const pendingReview = process.documents.filter(
-    (d) => d.required && (!d.uploaded || d.reviewStatus !== "aprovado"),
+    (d) => d.required && (!hasReadyFile(d) || d.reviewStatus !== "aprovado"),
   ).length;
   const missingCategories = getMissingApprovalDocumentTypes(process).length;
-  const hasApprovedRequired = process.documents.some((d) => d.required && d.uploaded && d.reviewStatus === "aprovado");
+  const hasApprovedRequired = process.documents.some((d) => d.required && hasReadyFile(d) && d.reviewStatus === "aprovado");
   if (!hasApprovedRequired) return Math.max(1, pendingReview, missingCategories);
   return Math.max(pendingReview, missingCategories);
 }

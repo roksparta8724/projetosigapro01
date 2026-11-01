@@ -777,7 +777,11 @@ export function ProtocolDeskPage() {
       setProtocolActionStatus(
         status === "em_triagem"
           ? `Triagem iniciada para ${formatOfficialProcessNumber(process.protocol)}.`
-          : `Triagem concluída. Como a guia inicial já está compensada, o processo está pronto para despacho ao Urbanismo.`,
+          : getProcessPaymentGuides(process, tenantSettings).some(
+              (guide) => guide.kind === "protocolo" && guide.status === "compensada",
+            )
+            ? "Triagem concluída. Com a guia confirmada, o Protocolo pode despachar formalmente."
+            : "Triagem concluída. Aguarde a confirmação da guia antes do despacho formal.",
       );
     } catch (error) {
       setProtocolActionStatus(
@@ -830,18 +834,17 @@ export function ProtocolDeskPage() {
       return;
     }
 
-    if (process.triage.status !== "concluido") {
-      setProtocolActionStatus("Conclua a triagem documental antes de confirmar o pagamento do protocolo.");
-      return;
-    }
-
+    // A baixa financeira pode acontecer antes ou durante a triagem.
+    // Somente o despacho exige que ambas as etapas estejam concluídas.
     setProtocolActionBusy(`payment-${process.id}`);
     setProtocolActionStatus("");
 
     try {
       await markGuideAsPaid(process.id, session.name, "protocolo");
       setProtocolActionStatus(
-        "Pagamento confirmado. O processo continua no Protocolo e está pronto para despacho ao Urbanismo.",
+        process.triage.status === "concluido" && getPendingTriageDocuments(process) === 0
+          ? "Guia confirmada. Confira a atualização e faça o despacho formal ao Urbanismo."
+          : "Guia confirmada. O processo permanece no Protocolo até a conferência e conclusão da triagem.",
       );
     } catch (error) {
       setProtocolActionStatus(
