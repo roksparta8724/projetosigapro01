@@ -1086,6 +1086,30 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
         className="mt-3 min-h-11 rounded-xl border border-sky-800 bg-sky-800 px-4 py-2 text-sm font-bold text-white disabled:cursor-not-allowed">
         {visionBusy?"Analisando a tabela com IA…":"Executar leitura completa e diagnóstico com 2 IAs — sem salvar"}
       </button>
+      {directPdfEvidence?<details data-urban-original-pdf-text-qa="true"
+        className="mt-3 rounded-xl border border-sky-300 bg-sky-50 p-4 text-slate-950">
+        <summary className="cursor-pointer text-sm font-extrabold text-sky-950">
+          Fonte original do PDF — 13 campos extraídos diretamente (QA)
+        </summary>
+        <p className="mt-2 text-sm font-semibold leading-6 text-slate-800">
+          A camada textual da página 36 foi extraída com coordenadas das palavras,
+          conferida contra o SHA-256 deste arquivo e restrita a esta prefeitura.
+          Não depende de leitura visual por IA, não comprova a lei vigente e não aprova índices.
+        </p>
+        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+          {URBAN_VISION_FIELDS.map(([key,label])=><p key={key}
+            className="rounded-lg border border-sky-200 bg-white p-2 text-sm">
+            <strong>{label}:</strong> {directPdfEvidence.cells[key].raw}
+            <span className="ml-2 text-xs text-slate-500">
+              ({directPdfEvidence.cells[key].rects.length} trecho(s) do PDF)
+            </span>
+          </p>)}
+        </div>
+        <p className="mt-2 text-xs font-bold text-amber-950">
+          Evidência limitada à LC 379/2009 e à linha ZM-B(e) comercial.
+          A fonte e a vigência devem ser verificadas por profissional responsável.
+        </p>
+      </details>:null}
       {visionNotice?.kind==="error"&&visionFeedback?.recognized===0 && file && pageImage && consent
         ?<button type="button" data-urban-vision-literal-retry="true"
           data-sigapro-contrast="dark" disabled={visionBusy||busy}
