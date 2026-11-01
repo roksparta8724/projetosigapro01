@@ -16,6 +16,17 @@ AS $function$
         nullif(btrim(coalesce(p.pre_protocol_number,'')), '') IS NULL
         OR p.officialized_at IS NOT NULL
       )
+      AND (
+        EXISTS (
+          SELECT 1 FROM public.interdepartmental_dispatches d
+          WHERE d.process_id = p.id
+            AND public.operational_area_from_label(d.to_department) = 'analise'
+        )
+        OR (
+          p.created_at < TIMESTAMPTZ '2026-10-18 00:00:00+00'
+          AND p.analysis_started_at IS NOT NULL
+        )
+      )
       AND EXISTS (
         SELECT 1 FROM public.payment_guides g
         WHERE g.process_id = p.id
@@ -152,6 +163,14 @@ begin
   if not public.process_technical_release_verified_v1(_process_id)
      or not public.process_is_in_analysis_area(_process_id) then
     raise exception 'Análise bloqueada: guia inicial, triagem e encaminhamento devem estar concluídos.';
+  end if;
+
+  if not public.is_master()
+     and (
+       lower(coalesce(public.current_role_code(),'')) not in ('analista','analyst')
+       or public.profile_operational_area(_profile_id) <> 'analise'
+     ) then
+    raise exception 'Somente o Analista da Análise Urbanística pode iniciar a análise.';
   end if;
 
   if _from_status not in (
@@ -525,6 +544,42 @@ begin
 
     if _required_missing then
       raise exception 'Existem documentos obrigatórios pendentes. Conclua a entrega documental antes do encaminhamento.';
+    end if;
+
+    -- Não considerar lista vazia de documentos como "nenhuma pendência".
+    -- Para aprovação, exigir os quatro tipos mínimos, cada um com anexo real.
+    -- Habite-se possui documentos próprios e não usa as quatro categorias da aprovação.
+    if lower(coalesce(_process.process_type,'')) like '%habite%' then
+      if not exists (
+        select 1 from public.process_documents d
+        where d.process_id = _process_id
+          and d.is_required is true
+          and (
+            nullif(btrim(coalesce(d.file_path,'')),'') is not null
+            or nullif(btrim(coalesce(d.preview_url,'')),'') is not null
+          )
+      ) then
+        raise exception 'Habite-se: anexe a documentação obrigatória antes do encaminhamento.';
+      end if;
+    else
+      if (
+        select count(distinct case
+          when lower(d.title) ~ 'projeto arquitet[oô]nico' then 'projeto'
+          when lower(d.title) ~ 'memorial descritivo' then 'memorial'
+          when lower(d.title) ~ 'art|rrt' then 'art_rrt'
+          when lower(d.title) ~ 'matr[ií]cula|escritura' then 'matricula'
+          else null
+        end)
+        from public.process_documents d
+        where d.process_id = _process_id
+          and d.is_required is true
+          and (
+            nullif(btrim(coalesce(d.file_path,'')),'') is not null
+            or nullif(btrim(coalesce(d.preview_url,'')),'') is not null
+          )
+      ) < 4 then
+        raise exception 'Anexe os quatro documentos mínimos: Projeto Arquitetônico, Memorial Descritivo, ART/RRT e Escritura/Matrícula.';
+      end if;
     end if;
 
     if not _protocol_guide_paid then
