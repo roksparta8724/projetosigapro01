@@ -140,7 +140,7 @@ export function GovbrArGuideBridge({
   const importPdf = async () => {
     if (busy || !canImport) return;
     setStatus("");
-    if (!/^[A-Z0-9][A-Z0-9.\/_-]{2,79}$/.test(normalizedReference)) {
+    if (!/^[A-Z0-9][A-Z0-9./_-]{2,79}$/.test(normalizedReference)) {
       setStatus("Informe a referência oficial da guia municipal (3 a 80 caracteres, sem espaços).");
       return;
     }

@@ -737,7 +737,7 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
           sessionUser || event === "SIGNED_OUT"
             ? null
             : await backendClient.auth.getUser();
-        let authUser = sessionUser ?? userResult?.data.user ?? null;
+        const authUser = sessionUser ?? userResult?.data.user ?? null;
         if (!canApply()) return;
 
         // O SupabaseAuthAdapter do Neon pode emitir SIGNED_OUT enquanto restaura
@@ -991,12 +991,11 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
             "[Bootstrap] Não foi possível revogar a sessão anterior ao iniciar nova sessão do navegador",
             restartSignOutError,
           );
-        } finally {
-          if (!active) return;
-          explicitSignOutRef.current = false;
-          requireFreshLoginAfterBrowserRestartRef.current = false;
-          void runBootstrap("SIGNED_OUT", null);
         }
+        if (!active) return;
+        explicitSignOutRef.current = false;
+        requireFreshLoginAfterBrowserRestartRef.current = false;
+        void runBootstrap("SIGNED_OUT", null);
       })();
     }
 
