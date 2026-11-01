@@ -6,7 +6,13 @@ describe("Processo fictício 000004/2026 — fixture segura e explícita QA",()=
   const doc=await createUrbanQaProcess04Fixture();
   expect(doc.name).toContain("Processo_000004_2026");
   expect(doc.size).toBeGreaterThan(2000);
-  const sig=new TextDecoder().decode((await doc.arrayBuffer()).slice(0,5));
+  const bytes=await new Promise<ArrayBuffer>((resolve,reject)=>{
+    const reader=new FileReader();
+    reader.onload=()=>resolve(reader.result as ArrayBuffer);
+    reader.onerror=()=>reject(reader.error);
+    reader.readAsArrayBuffer(doc);
+  });
+  const sig=new TextDecoder().decode(bytes.slice(0,5));
   expect(sig).toBe("%PDF-");
  });
  it("somente o processo QA designado expõe o botão, sem gravar o PDF automaticamente",()=>{
