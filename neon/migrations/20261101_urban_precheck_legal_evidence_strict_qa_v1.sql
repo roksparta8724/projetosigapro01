@@ -83,6 +83,6 @@ BEGIN
 END;
 $function$;
 REVOKE ALL ON FUNCTION public.save_urban_precheck_run_v6(uuid,uuid,date,jsonb,jsonb,uuid) FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.save_urban_precheck_run_v6(uuid,uuid,date,jsonb,jsonb,uuid) FROM anon;
+-- QA Neon has no explicit anon role. PUBLIC includes all ungranted roles.
 GRANT EXECUTE ON FUNCTION public.save_urban_precheck_run_v6(uuid,uuid,date,jsonb,jsonb,uuid) TO authenticated;
 NOTIFY pgrst,'reload schema';

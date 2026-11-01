@@ -2,14 +2,16 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { evaluateUrbanPrecheck,selectUrbanRegulation,validateUrbanRules } from "@/lib/urbanPrecheck";
 describe("SIGAPRO IA: official database precheck contract and human-only decision",()=>{
-  it("requires the authorized, idempotent Neon v5 writer, never old v1",()=>{
+  it("requires the secure Neon v6 writer built on idempotent v5, never old v1",()=>{
     const client=readFileSync("src/integrations/backend/urbanPrecheckClient.ts","utf8");
     const panel=readFileSync("src/components/platform/UrbanPrecheckPanel.tsx","utf8");
-    expect(client).toContain('"save_urban_precheck_run_v5"');
+    expect(client).toContain('"save_urban_precheck_run_v6"');
+    const sql=readFileSync("neon/migrations/20261101_urban_precheck_legal_evidence_strict_qa_v1.sql","utf8");
+    expect(sql).toContain("public.save_urban_precheck_run_v5(");
     expect(client).not.toContain('invoke("save_urban_precheck_run_v1"');
     expect(client).toContain("_request_id: requestId");
     expect(client).toContain("_reference_date: referenceDate");
-    expect(client).toContain("document_scope_confirmed: false");
+    expect(client).toContain("document_scope_confirmed:legalReview.documentScopeConfirmed");
     expect(panel).toContain("crypto.randomUUID()");
     expect(panel).toContain("idempotencyRef.current?.snapshot===snapshot");
     expect(panel).toContain("idempotencyRef.current={snapshot,id:requestId}");

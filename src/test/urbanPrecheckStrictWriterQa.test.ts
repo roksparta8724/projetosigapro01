@@ -16,7 +16,8 @@ describe("SIGAPRO QA – database veto on ungrounded urbanistic prechecks",()=>{
  });
  it("keeps permissions and prevents anonymous callers",()=>{
   expect(sql).toContain("REVOKE ALL ON FUNCTION public.save_urban_precheck_run_v6");
-  expect(sql).toContain("FROM anon;");
+  expect(sql).toContain("FROM PUBLIC;");
+  expect(sql).not.toContain("FROM anon;");
   expect(sql).toContain("TO authenticated;");
  });
 });
