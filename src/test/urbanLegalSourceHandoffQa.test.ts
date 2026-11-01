@@ -17,6 +17,9 @@ describe("SIGAPRO QA — passagem segura da linha do Quadro I para fontes legais
    expect(panel).toContain("sourceContext.file");
    expect(panel).toContain("sourceContext.physicalPage");
    expect(panel).toContain("matchingLegalVersions.length===0");
+   expect(panel).toContain("(!sourceContext||matchingLegalVersions.some");
+   expect(panel).toContain("sourceContext?matchingLegalVersions:");
+   expect(panel).toContain("setTitle(sourceContext.file.name.replace(/\\.pdf$/i");
    expect(panel).toContain("versionsForScope.length===1?");
    expect(panel).not.toContain("setAttested(true)");
  });

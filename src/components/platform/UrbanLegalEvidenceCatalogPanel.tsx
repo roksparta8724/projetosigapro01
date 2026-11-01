@@ -39,7 +39,7 @@ export function UrbanLegalEvidenceCatalogPanel({municipalityId,canEdit,versions,
    if(!sourceContext)return;
    // File references stay only in the authenticated browser session.
    setFile(sourceContext.file);
-   setTitle(sourceContext.file.name.replace(/\\.pdf$/i,"").slice(0,180));
+   setTitle(sourceContext.file.name.replace(/\.pdf$/i,"").slice(0,180));
    setPage(String(sourceContext.physicalPage));
    setExcerpt("");setRepeatExcerpt("");setAttested(false);setMetric("");
    // Do not silently use an unrelated QA test version. Auto-pick only a
@@ -54,7 +54,9 @@ export function UrbanLegalEvidenceCatalogPanel({municipalityId,canEdit,versions,
    setNotice("");
  },[sourceContext,municipalityId,versions]);
  const selected=useMemo(()=>versions.find(x=>x.id===versionId&&x.municipality_id===municipalityId&&
-   (x.status==="active"||x.status==="draft"))??null,[versions,municipalityId,versionId]);
+   (x.status==="active"||x.status==="draft") &&
+   (!sourceContext||matchingLegalVersions.some(matched=>matched.id===x.id))
+  )??null,[versions,municipalityId,versionId,matchingLegalVersions,sourceContext]);
  const matching=useMemo(()=>{
    if(!selected)return [];
    const refDate=validDate(validFrom)?validFrom:selected.effective_from;
@@ -152,7 +154,8 @@ export function UrbanLegalEvidenceCatalogPanel({municipalityId,canEdit,versions,
       aria-label="Versão da norma para vincular evidências"
       className="mt-1 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-950">
       <option value="">Selecione a zona, o uso e a versão...</option>
-      {versions.filter(v=>v.municipality_id===municipalityId&&["active","draft"].includes(v.status))
+      {(sourceContext?matchingLegalVersions:
+        versions.filter(v=>v.municipality_id===municipalityId&&["active","draft"].includes(v.status)))
         .map(v=><option key={v.id} value={v.id}>
           {v.zone_code} · {v.use_code} · v{v.version} · {v.status==="draft"?"rascunho":"ativa"}
         </option>)}
