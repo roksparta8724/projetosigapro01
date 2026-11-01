@@ -8,6 +8,8 @@ describe("SIGAPRO QA — passagem segura da linha do Quadro I para fontes legais
    expect(ui).toContain("data-urban-go-to-legal-evidence");
    expect(ui).toContain("onSourceContextChange");
    expect(ui).toContain("pdfTableReading?.row");
+   expect(ui).toContain("Zero rótulos literais não significa");
+   expect(ui).toContain("availablePdfRows.length} linha(s) da tabela");
  });
  it("reuses source PDF/page/zone/use only from an exact selected row, not unrelated QA rules",()=>{
    const settings=readFileSync("src/components/platform/MunicipalUrbanRulesSettings.tsx","utf8");

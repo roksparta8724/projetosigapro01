@@ -1359,10 +1359,16 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved,onSourc
         <p className="text-sm font-bold text-slate-900">
           Página {pdfLayer.page} de {pdfLayer.totalPages} ·
           {" "}{pdfLayer.runCount} fragmentos de texto ·
-          {" "}{pdfLayer.zoneMatches.length} ocorrências completas da zona ·
-          {" "}{pdfLayer.usageMatches.length} ocorrências completas do uso.
+          {" "}{availablePdfRows.length} linha(s) da tabela identificadas para conferência.
+          <span className="mt-1 block text-xs font-medium text-slate-700">
+            Rótulos literais isolados: {pdfLayer.zoneMatches.length} zona,
+            {" "}{pdfLayer.usageMatches.length} uso. Zero rótulos literais não significa
+            falha se a tabela foi reconhecida por fragmentos e coordenadas.
+          </span>
         </p>
-        {pdfLayer.warnings.map((warning,i)=><p key={i}
+        {pdfLayer.warnings.filter(warning=>!(availablePdfRows.length>0 &&
+          warning.startsWith("Texto extraído, mas zona e uso não foram encontrados")))
+          .map((warning,i)=><p key={i}
           className="rounded-lg border border-amber-200 bg-amber-50 p-2 text-xs font-bold text-amber-950">
           {warning}
         </p>)}
