@@ -1,5 +1,5 @@
 import { describe,it,expect } from "vitest";
-import { discoverUrbanPdfRows, readUrbanTableRow } from "@/lib/urbanPdfTableRows";
+import { discoverUrbanPdfRows, inspectUrbanPdfRows, readUrbanTableRow } from "@/lib/urbanPdfTableRows";
 import type {UrbanPdfSourceLayer,PdfTextRun} from "@/lib/urbanPdfTextLayer";
 const p=(text:string,x:number,y:number,width:number,height=11):PdfTextRun=>({
  text,x,y,width,height,page:36,
@@ -101,6 +101,35 @@ describe("SIGAPRO QA — true line- and header-based PDF table extraction",()=>{
   const realPage=fixture(headers.concat(data,p("ZM-",40,248.5,30)));
   const rows=discoverUrbanPdfRows(realPage);
   expect(rows.some(row=>row.zone==="ZM-")).toBe(false);
+ });
+ it("rejects composite zones from the real physical page 36 instead of using only the first part",()=>{
+  const layer=fixture(headers.concat([
+    p("comercial",108.4,185.1,36.6),p("residencial",106.1,212.7,41.3),
+    p("ZONA",36.4,192.6,22.2,10.3),p("ZM-B(e)",60.9,192.6,29.4,10.3),
+    p("comercial",107.9,338.8,36.6),p("residencial",106.4,363.2,41.3),
+    p("ZM-BJ(A)",34.5,346.9,35,10.3),p("e",71.9,345.9,5,10.3),
+    p("ZM-",78.2,346.9,18,10.3),p("BJ(B)",53.1,356.6,30,10.3),
+    p("comercial",107.9,455.5,36.6),p("residencial",106.4,483.3,41.3),
+    p("ZM-MB(2)",34.0,479.0,40,10.3),p("e",72.4,479.0,5,10.3),
+    p("ZM·",78.7,479.0,18,10.3),p("MB(3)",53.1,488.1,28,10.3),
+  ]));
+  const report=inspectUrbanPdfRows(layer);
+  expect(report.rows.map(r=>[r.zone,r.usage])).toEqual([
+    ["ZM-B(e)","comercial"],["ZM-B(e)","residencial"],
+  ]);
+  expect(report.usageRowCount).toBe(6);
+  expect(report.ambiguousZoneUsageRows).toBe(4);
+  expect(report.unresolvedUsageRows).toBe(4);
+ });
+ it("does not assign a split or repeated printed zone label to a single zone",()=>{
+  const layer=fixture(headers.concat([
+    p("comercial",107.9,508.3,36.6),p("residencial",105.9,536.6,41.3),
+    p("ZM-MA",51.8,504.0,35,10.3),p("(1,",46.5,513.2,10,10.3),
+    p("ZM-MA",50.4,532.3,35,10.3),p("(1,",46.5,541.4,10,10.3),
+  ]));
+  const report=inspectUrbanPdfRows(layer);
+  expect(report.rows).toHaveLength(0);
+  expect(report.ambiguousZoneUsageRows).toBe(2);
  });
  it("never substitutes the next residential line or the same-zone commercial line",()=>{
   const layer=fixture(),row=discoverUrbanPdfRows(layer)[0];

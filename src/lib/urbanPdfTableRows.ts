@@ -28,6 +28,12 @@ export type UrbanTableReading={
  reason:string;page:number;row:TableRowCandidate|null;
  cells:UrbanTableCell[];recognized:number;
 };
+export type UrbanPdfRowDiscovery={
+ rows:TableRowCandidate[];
+ usageRowCount:number;
+ unresolvedUsageRows:number;
+ ambiguousZoneUsageRows:number;
+};
 function normalize(s:string):string{
  return s.normalize("NFD").replace(/[\u0300-\u036f]/g,"")
   .toUpperCase().replace(/\s+/g," ").trim();
@@ -82,10 +88,12 @@ function headersFor(layer:UrbanPdfSourceLayer):Header[]|null{
  * A printed zone can sit between its two usage rows; using only the most
  * recent ABOVE-zone silently assigns the next commercial row to the prior
  * zone. Never infer a zone for a group if two printed labels are too close. */
-export function discoverUrbanPdfRows(layer:UrbanPdfSourceLayer):TableRowCandidate[]{
- if(layer.textStatus!=="text_available")return [];
+export function inspectUrbanPdfRows(layer:UrbanPdfSourceLayer):UrbanPdfRowDiscovery{
+ const empty:UrbanPdfRowDiscovery={rows:[],usageRowCount:0,
+  unresolvedUsageRows:0,ambiguousZoneUsageRows:0};
+ if(layer.textStatus!=="text_available")return empty;
  const headers=headersFor(layer);
- if(!headers)return [];
+ if(!headers)return empty;
  const zoneRuns=layer.runs
   .filter(r=>r.x<headers[0].x-65&&printedZone(r)!==null)
   .sort((a,b)=>centerY(a)-centerY(b));
@@ -102,6 +110,7 @@ export function discoverUrbanPdfRows(layer:UrbanPdfSourceLayer):TableRowCandidat
   }else groups.push([first]);
  }
  const result:TableRowCandidate[]=[];
+ let ambiguousZoneUsageRows=0;
  for(const group of groups){
   const groupY=group.reduce((sum,r)=>sum+centerY(r),0)/group.length;
   const nearest=zoneRuns.map(run=>({run,distance:Math.abs(centerY(run)-groupY)}))
@@ -114,6 +123,18 @@ export function discoverUrbanPdfRows(layer:UrbanPdfSourceLayer):TableRowCandidat
     (second&&second.distance-best.distance<9))continue;
   const zone=printedZone(best.run);
   if(!zone||zone.length>40)continue;
+  // Some merged zone cells on the real PDF read "ZM-B3(A) e ZM-B3(B)".
+  // A valid first token plus extra fragments is NEVER a single-zone label.
+  const topY=Math.min(...group.map(centerY))-12;
+  const bottomY=Math.max(...group.map(centerY))+12;
+  const fragments=layer.runs.filter(run=>
+    run!==best.run && run.x<headers[0].x-65 &&
+    centerY(run)>=topY && centerY(run)<=bottomY &&
+    run.text.trim().length>0 && normalize(run.text)!=="ZONA");
+  if(fragments.length){
+   ambiguousZoneUsageRows+=group.length;
+   continue;
+  }
   for(const usageRun of group){
     const y=centerY(usageRun);
     result.push({id:layer.page+":"+Math.round(y*10),
@@ -122,7 +143,13 @@ export function discoverUrbanPdfRows(layer:UrbanPdfSourceLayer):TableRowCandidat
         " · linha "+(result.length+1)+" da página"});
   }
  }
- return result.slice(0,70);
+ const rows=result.slice(0,70);
+ return {rows,usageRowCount:usageRuns.length,
+   unresolvedUsageRows:Math.max(0,usageRuns.length-rows.length),
+   ambiguousZoneUsageRows};
+}
+export function discoverUrbanPdfRows(layer:UrbanPdfSourceLayer):TableRowCandidate[]{
+ return inspectUrbanPdfRows(layer).rows;
 }
 export function readUrbanTableRow(
  layer:UrbanPdfSourceLayer,rowId:string,
