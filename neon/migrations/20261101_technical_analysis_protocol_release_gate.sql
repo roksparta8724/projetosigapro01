@@ -561,7 +561,7 @@ begin
       ) then
         raise exception 'Habite-se: anexe a documentação obrigatória antes do encaminhamento.';
       end if;
-    else
+    elsif lower(coalesce(_process.process_type,'')) ~ '(aprov|licenciament|arquitet|projeto)' then
       if (
         select count(distinct case
           when lower(d.title) ~ 'projeto arquitet[oô]nico' then 'projeto'
@@ -580,6 +580,15 @@ begin
       ) < 4 then
         raise exception 'Anexe os quatro documentos mínimos: Projeto Arquitetônico, Memorial Descritivo, ART/RRT e Escritura/Matrícula.';
       end if;
+    elsif not exists (
+      select 1 from public.process_documents d
+      where d.process_id=_process_id
+        and (
+          nullif(btrim(coalesce(d.file_path,'')),'') is not null
+          or nullif(btrim(coalesce(d.preview_url,'')),'') is not null
+        )
+    ) then
+      raise exception 'Inclua e confira os documentos pertinentes a este serviço antes do despacho.';
     end if;
 
     if not _protocol_guide_paid then
@@ -696,3 +705,140 @@ $function$;
 
 REVOKE ALL ON FUNCTION public.authorize_technical_document_signing_v1(uuid) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.authorize_technical_document_signing_v1(uuid) TO authenticated;
+
+-- Narrow recovery for an official QA/municipal case incorrectly advanced to
+-- technical analysis without completing triage. Never overwrite payment or files.
+-- All permitted transitions require an authenticated municipal administrator,
+-- an explicit reason and an audit record created in the same transaction.
+CREATE OR REPLACE FUNCTION public.guard_analysis_process_update()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'pg_catalog','public'
+SET row_security TO 'off'
+AS $function$
+BEGIN
+  IF public.current_profile_id() IS NOT NULL
+    AND public.process_is_in_analysis_area(OLD.id)
+    AND (
+      NEW.status IS DISTINCT FROM OLD.status
+      OR NEW.current_department IS DISTINCT FROM OLD.current_department
+      OR NEW.current_queue IS DISTINCT FROM OLD.current_queue
+      OR NEW.analysis_assigned_to_profile_id IS DISTINCT FROM OLD.analysis_assigned_to_profile_id
+    )
+    AND NOT public.can_write_process_analysis(OLD.id) THEN
+
+    IF (public.is_master() OR lower(coalesce(public.current_role_code(),''))='prefeitura_admin')
+      AND OLD.status IN ('analise_tecnica'::public.process_status,'distribuicao'::public.process_status)
+      AND OLD.triage_status IN ('recebido','em_triagem')
+      AND NEW.triage_status IS NOT DISTINCT FROM OLD.triage_status
+      AND NEW.status = 'triagem'::public.process_status
+      AND NEW.current_department = 'Setor de Protocolo'
+      AND NEW.current_queue = 'Triagem de Protocolo'
+      AND NEW.analysis_assigned_to_profile_id IS NULL
+      AND NEW.analysis_started_at IS NULL
+      AND NOT EXISTS (
+        SELECT 1 FROM public.interdepartmental_dispatches d
+        WHERE d.process_id=OLD.id AND public.operational_area_from_label(d.to_department)='analise'
+      )
+      AND NOT EXISTS (SELECT 1 FROM public.process_analysis_sheets a WHERE a.process_id=OLD.id)
+      AND NOT EXISTS (SELECT 1 FROM public.process_requirements r WHERE r.process_id=OLD.id)
+      AND EXISTS (
+        SELECT 1 FROM public.process_audit_entries a
+        WHERE a.process_id=OLD.id
+          AND a.category='sistema'
+          AND a.title='Correção administrativa da triagem autorizada'
+          AND a.actor_profile_id=public.current_profile_id()
+          AND a.created_at >= clock_timestamp()-INTERVAL '30 seconds'
+      ) THEN
+      RETURN NEW;
+    END IF;
+
+    RAISE EXCEPTION 'Somente a equipe da Análise Urbanística desta Prefeitura pode alterar o fluxo desta etapa.';
+  END IF;
+  RETURN NEW;
+END;
+$function$;
+
+CREATE OR REPLACE FUNCTION public.reconcile_unreleased_process_triage_v1(
+  _process_id uuid, _reason text
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'pg_catalog','public'
+SET row_security TO 'off'
+AS $function$
+DECLARE
+  _actor uuid := public.current_profile_id();
+  _legacy_user_id uuid := public.current_legacy_user_id();
+  _process public.processes%rowtype;
+  _reason_text text := btrim(coalesce(_reason,''));
+BEGIN
+  IF _actor IS NULL OR NOT (public.is_master() OR lower(coalesce(public.current_role_code(),''))='prefeitura_admin') THEN
+    RAISE EXCEPTION 'Somente o administrador municipal pode solicitar a correção da etapa.';
+  END IF;
+  IF length(_reason_text) < 15 THEN
+    RAISE EXCEPTION 'Justifique a correção em ao menos 15 caracteres.';
+  END IF;
+  SELECT * INTO _process FROM public.processes WHERE id=_process_id FOR UPDATE;
+  IF _process.id IS NULL OR NOT public.has_process_access(_process_id) THEN
+    RAISE EXCEPTION 'Processo não encontrado ou fora do escopo da Prefeitura.';
+  END IF;
+  IF _process.officialized_at IS NULL
+    OR _process.status NOT IN ('analise_tecnica'::public.process_status,'distribuicao'::public.process_status)
+    OR _process.triage_status NOT IN ('recebido','em_triagem')
+    OR EXISTS (
+      SELECT 1 FROM public.interdepartmental_dispatches d
+      WHERE d.process_id=_process_id AND public.operational_area_from_label(d.to_department)='analise'
+    )
+    OR EXISTS (SELECT 1 FROM public.process_analysis_sheets a WHERE a.process_id=_process_id)
+    OR EXISTS (SELECT 1 FROM public.process_requirements r WHERE r.process_id=_process_id)
+  THEN
+    RAISE EXCEPTION 'Este processo não pode retornar automaticamente. Solicite revisão administrativa do histórico e documentos.';
+  END IF;
+
+  INSERT INTO public.process_audit_entries(
+    tenant_id, process_id, category, title, detail, visible_to_external,
+    municipality_id, actor_profile_id, actor_user_id
+  ) VALUES (
+    _process.tenant_id, _process_id, 'sistema',
+    'Correção administrativa da triagem autorizada',
+    'Reconciliação auditada: '||_reason_text||
+    '. Etapa anterior: '||_process.status::text||
+    '. Documentos, guias financeiras e histórico preservados.',
+    false, _process.municipality_id, _actor, _legacy_user_id
+  );
+
+  UPDATE public.processes SET
+    status='triagem'::public.process_status,
+    current_department='Setor de Protocolo',
+    current_queue='Triagem de Protocolo',
+    sla_stage='Triagem documental pendente',
+    process_checkpoint='Retornado à Triagem com auditoria',
+    triage_notes='Correção administrativa auditada: '||_reason_text,
+    analysis_assigned_to=NULL,
+    analysis_assigned_to_profile_id=NULL,
+    analysis_started_at=NULL,
+    updated_at=clock_timestamp()
+  WHERE id=_process_id;
+
+  INSERT INTO public.process_movements(
+    tenant_id,process_id,movement_type,from_status,to_status,description,
+    visible_to_external,municipality_id,actor_profile_id,actor_user_id
+  ) VALUES (
+    _process.tenant_id,_process_id,'status_change',_process.status,
+    'triagem'::public.process_status,
+    'Reconciliação de fluxo pelo administrador municipal: '||_reason_text,
+    false,_process.municipality_id,_actor,_legacy_user_id
+  );
+
+  RETURN jsonb_build_object('ok',true,'process_id',_process_id,
+    'previous_status',_process.status::text,'status','triagem',
+    'triage_status',_process.triage_status,
+    'payment_modified',false,'documents_modified',false);
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION public.reconcile_unreleased_process_triage_v1(uuid,text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.reconcile_unreleased_process_triage_v1(uuid,text) TO authenticated;
