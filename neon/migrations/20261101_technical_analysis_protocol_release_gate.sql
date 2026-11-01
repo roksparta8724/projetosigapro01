@@ -531,14 +531,24 @@ begin
         )
     ) into _protocol_guide_paid;
 
+    if not _protocol_guide_paid then
+      raise exception 'A Guia de Protocolo ainda não está compensada. Confirme o pagamento antes do encaminhamento.';
+    end if;
+
+    if coalesce(_process.triage_status,'recebido') <> 'concluido' then
+      raise exception 'Conclua a triagem documental antes de encaminhar para a Análise Urbanística.';
+    end if;
+
     select exists (
       select 1
       from public.process_documents doc
       where doc.process_id=_process_id
         and coalesce(doc.is_required,false)=true
         and (
-          nullif(btrim(coalesce(doc.file_path,'')),'') is null
-          and nullif(btrim(coalesce(doc.preview_url,'')),'') is null
+          (nullif(btrim(coalesce(doc.file_path,'')),'') is null
+           and nullif(btrim(coalesce(doc.preview_url,'')),'') is null)
+          or lower(coalesce(doc.review_status,'pendente')) <> 'aprovado'
+          or coalesce(doc.is_valid,true)=false
         )
     ) into _required_missing;
 
@@ -558,6 +568,8 @@ begin
             nullif(btrim(coalesce(d.file_path,'')),'') is not null
             or nullif(btrim(coalesce(d.preview_url,'')),'') is not null
           )
+          and lower(coalesce(d.review_status,'pendente'))='aprovado'
+          and coalesce(d.is_valid,true)=true
       ) then
         raise exception 'Habite-se: anexe a documentação obrigatória antes do encaminhamento.';
       end if;
@@ -577,6 +589,8 @@ begin
             nullif(btrim(coalesce(d.file_path,'')),'') is not null
             or nullif(btrim(coalesce(d.preview_url,'')),'') is not null
           )
+          and lower(coalesce(d.review_status,'pendente'))='aprovado'
+          and coalesce(d.is_valid,true)=true
       ) < 4 then
         raise exception 'Anexe os quatro documentos mínimos: Projeto Arquitetônico, Memorial Descritivo, ART/RRT e Escritura/Matrícula.';
       end if;
@@ -589,14 +603,6 @@ begin
         )
     ) then
       raise exception 'Inclua e confira os documentos pertinentes a este serviço antes do despacho.';
-    end if;
-
-    if not _protocol_guide_paid then
-      raise exception 'A Guia de Protocolo ainda não está compensada. Confirme o pagamento antes do encaminhamento.';
-    end if;
-
-    if coalesce(_process.triage_status,'recebido') <> 'concluido' then
-      raise exception 'Conclua a triagem documental antes de encaminhar para a Análise Urbanística.';
     end if;
 
     _next_status := 'distribuicao'::public.process_status;
