@@ -8,6 +8,7 @@ import { reconcileUrbanOcr, type OcrReconciliation } from "@/lib/urbanOcrReconci
 import { URBAN_VISION_FIELDS, type UrbanVisionFieldKey } from "@/lib/urbanVisionStructured";
 import { compareUrbanVisionDrafts, auditExpertAgainstArchivedRow, type UrbanDiagnosticRow } from "@/lib/urbanVisionDiagnostic";
 import { getQaPdfTextEvidence, compareQaSourceTextToVision } from "@/lib/urbanPdfDirectEvidenceQa";
+import { readUrbanPdfSourcePage, sourceLayerExcerpt, type UrbanPdfSourceLayer } from "@/lib/urbanPdfTextLayer";
 import { UrbanMatrixBatchReviewBoard } from "./UrbanMatrixBatchReviewBoard";
 import { UrbanMatrixArchivePanel, type UrbanStoredDraft } from "./UrbanMatrixArchivePanel";
 
@@ -318,6 +319,9 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
   const [expertDiagnostics,setExpertDiagnostics]=useState<UrbanDiagnosticRow[]|null>(null);
   const [expertStatus,setExpertStatus]=useState("");
   const [autoAuditPending,setAutoAuditPending]=useState(false);
+  const [pdfLayer,setPdfLayer]=useState<UrbanPdfSourceLayer|null>(null);
+  const [pdfLayerBusy,setPdfLayerBusy]=useState(false);
+  const [pdfLayerNotice,setPdfLayerNotice]=useState("");
   // Reject asynchronous OCR results if the document, image, selected zone,
   // usage or municipality changes while the provider is still processing.
   const currentVisionScope=useRef({municipalityId,file,pageImage,quadro:"I" as ImportQuadro,
@@ -539,6 +543,34 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
     setExpertDiagnostics(null);setExpertStatus("");setAutoAuditPending(false);
   },[municipalityId,file,pageImage,quadro,page,zone,usage]);
   currentVisionScope.current={municipalityId,file,pageImage,quadro,page,zone,usage};
+  useEffect(()=>{
+    setPdfLayer(null);setPdfLayerNotice("");
+  },[municipalityId,file,page,quadro,zone,usage]);
+  const inspectOriginalPdf=async()=>{
+    if(!file||!Number.isSafeInteger(Number(page))||Number(page)<1)return;
+    const requested=currentVisionScope.current;
+    setPdfLayerBusy(true);setPdfLayerNotice("Lendo a camada textual do PDF original, localmente...");
+    try{
+      const layer=await readUrbanPdfSourcePage(file,Number(page),zone,usage);
+      const current=currentVisionScope.current;
+      if(current.municipalityId!==requested.municipalityId||
+        current.file!==requested.file||current.page!==requested.page||
+        current.zone!==requested.zone||current.usage!==requested.usage)return;
+      setPdfLayer(layer);
+      setPdfLayerNotice(layer.textStatus==="text_available"
+        ?"Texto extraído do PDF local, com coordenadas da página. A identificação dos valores e a conferência jurídica continuam necessárias."
+        :layer.textStatus==="no_text_layer"
+          ?"Esta página não possui texto extraível; a IA visual pode auxiliar, mas campos desfocados continuam pendentes."
+          :"O texto está incompleto ou possivelmente corrompido. Não utilize números sem validar a página.");
+    }catch(err){
+      const current=currentVisionScope.current;
+      if(current.file===requested.file&&current.page===requested.page){
+        setPdfLayer(null);setPdfLayerNotice("Leitura local não concluída: "+
+          (err instanceof Error?err.message:"PDF incompatível")+
+          ". O PDF e o rascunho foram preservados.");
+      }
+    }finally{setPdfLayerBusy(false);}
+  };
   const readPageImage = async (visionMode:"structured"|"literal"|"focused"|"expert"="structured") => {
     const requestedScope=currentVisionScope.current;
     const scopeIsCurrent=()=>{
@@ -572,6 +604,11 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
         " em uma chamada individual. Nenhum valor será inserido automaticamente.");
     }
     try {
+      if(visionMode==="structured"){
+        // Read original PDF text first, before invoking any vision provider.
+        // This cannot overwrite user-supplied transcription or activate rules.
+        await inspectOriginalPdf();
+      }
       if(pageImage.size>12*1024*1024 || !["image/jpeg","image/png"].includes(pageImage.type))
         throw Error("Selecione uma imagem JPG/PNG de até 12 MB (antes de comprimir).");
       const bitmap=await createImageBitmap(pageImage);
@@ -1022,6 +1059,53 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
           target="_blank" rel="noreferrer">Abrir PDF na página solicitada</a>
       </div>
     </section>:null}
+    <section data-urban-pdf-native-reader="true"
+      className="mt-4 rounded-2xl border border-sky-300 bg-white p-4 text-slate-950">
+      <h5 className="text-base font-extrabold text-sky-950">
+        Leitor do PDF original — primeiro, sem IA
+      </h5>
+      <p className="mt-1 text-sm font-semibold leading-6 text-slate-800">
+        Procura a camada textual do arquivo original e registra a posição dos trechos
+        na página. A leitura é feita localmente no navegador; o PDF inteiro não é
+        enviado à Cloudflare. Funciona em PDFs com texto selecionável de qualquer
+        prefeitura. Em arquivos digitalizados sem texto, não inventa índices.
+      </p>
+      <button type="button" data-urban-pdf-native-run="true"
+        disabled={!file||!Number.isSafeInteger(Number(page))||Number(page)<1||pdfLayerBusy||visionBusy}
+        onClick={()=>void inspectOriginalPdf()} data-sigapro-contrast="dark"
+        className="mt-3 min-h-11 rounded-lg border border-sky-900 bg-sky-900 px-4 py-2 text-sm font-extrabold text-white disabled:opacity-60">
+        {pdfLayerBusy?"Lendo texto original…":"Ler página do PDF diretamente (sem custo de IA)"}
+      </button>
+      {pdfLayerNotice?<p data-urban-pdf-native-status="true"
+        className="mt-2 rounded-lg border border-sky-200 bg-slate-50 p-3 text-sm font-bold text-slate-900" role="status">
+        {pdfLayerNotice}
+      </p>:null}
+      {pdfLayer?<div data-urban-pdf-native-result="true" className="mt-3 space-y-2">
+        <p className="text-sm font-bold text-slate-900">
+          Página {pdfLayer.page} de {pdfLayer.totalPages} ·
+          {" "}{pdfLayer.runCount} fragmentos de texto ·
+          {" "}{pdfLayer.zoneMatches.length} ocorrências completas da zona ·
+          {" "}{pdfLayer.usageMatches.length} ocorrências completas do uso.
+        </p>
+        {pdfLayer.warnings.map((warning,i)=><p key={i}
+          className="rounded-lg border border-amber-200 bg-amber-50 p-2 text-xs font-bold text-amber-950">
+          {warning}
+        </p>)}
+        <details className="rounded-lg border border-slate-200 p-3">
+          <summary className="cursor-pointer text-sm font-extrabold text-sky-900">
+            Ver trechos textuais da página com origem no PDF
+          </summary>
+          <p data-urban-pdf-native-excerpt="true"
+            className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-slate-900">
+            {sourceLayerExcerpt(pdfLayer,1200)}
+          </p>
+          <p className="mt-2 text-xs font-semibold text-amber-950">
+            Ter texto disponível não comprova que a linha, coluna ou legislação
+            esteja correta. A identificação final continua obrigatória.
+          </p>
+        </details>
+      </div>:null}
+    </section>
     <div data-urban-matrix-ai-card="true" className="mt-4 rounded-xl border border-sky-200 bg-sky-50 p-4 text-slate-950">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
