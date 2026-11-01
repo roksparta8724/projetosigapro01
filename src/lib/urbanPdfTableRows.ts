@@ -125,10 +125,12 @@ export function inspectUrbanPdfRows(layer:UrbanPdfSourceLayer):UrbanPdfRowDiscov
   if(!zone||zone.length>40)continue;
   // Some merged zone cells on the real PDF read "ZM-B3(A) e ZM-B3(B)".
   // A valid first token plus extra fragments is NEVER a single-zone label.
+  // Use the CENTER of each fragment: 'residencial' begins at x≈106, but its
+  // center is in the USO column and MUST NOT be treated as a zone fragment.
   const topY=Math.min(...group.map(centerY))-12;
   const bottomY=Math.max(...group.map(centerY))+12;
   const fragments=layer.runs.filter(run=>
-    run!==best.run && run.x<headers[0].x-65 &&
+    run!==best.run && centerX(run)<headers[0].x-65 &&
     centerY(run)>=topY && centerY(run)<=bottomY &&
     run.text.trim().length>0 && normalize(run.text)!=="ZONA");
   if(fragments.length){
