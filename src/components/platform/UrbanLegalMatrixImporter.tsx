@@ -7,6 +7,7 @@ import { extractLiteralCandidates, parsedLiteralNumber, validateImportDate,
 import { reconcileUrbanOcr, type OcrReconciliation } from "@/lib/urbanOcrReconciliation";
 import { URBAN_VISION_FIELDS, type UrbanVisionFieldKey } from "@/lib/urbanVisionStructured";
 import { compareUrbanVisionDrafts, auditExpertAgainstArchivedRow, type UrbanDiagnosticRow } from "@/lib/urbanVisionDiagnostic";
+import { getQaPdfTextEvidence, compareQaSourceTextToVision } from "@/lib/urbanPdfDirectEvidenceQa";
 import { UrbanMatrixBatchReviewBoard } from "./UrbanMatrixBatchReviewBoard";
 import { UrbanMatrixArchivePanel, type UrbanStoredDraft } from "./UrbanMatrixArchivePanel";
 
@@ -380,6 +381,13 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
     : null;
   const historicalMatches=historicalExpertAudit?.filter(x=>x.status==="match").length??0;
   const historicalConflicts=historicalExpertAudit?.filter(x=>x.status==="divergent").length??0;
+  const directPdfEvidence=getQaPdfTextEvidence({
+    municipalityId,verifiedPackageSha:reviewPackage?.arquivo_sha256,
+    page:Number(page),zone,usage,originalScopeMatches:matchingOriginalScope,
+  });
+  const directTextReview=directPdfEvidence&&expertDiagnostics
+    ?compareQaSourceTextToVision(directPdfEvidence,expertDiagnostics.map(r=>
+      r.label+": "+(r.expert??"[ILEGÍVEL]")).join("\n")):null;
   const ocrReconciliation=ocrDraft && matchingOriginalScope && matchingOriginalRow
     ? reconcileUrbanOcr(text,matchingOriginalRow) : null;
   const ocrReconciliationBlocked=Boolean(ocrDraft && reviewPackage &&
