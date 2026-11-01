@@ -9,7 +9,10 @@ describe("premium process surface contract", () => {
     const polarity = read("src/styles/surface-polarity.css");
     const detail = read("src/pages/saas/ProcessDetailPage.tsx");
     const finalStart = polarity.indexOf("PROCESS DETAIL VISIBILITY LOCK V14");
-    const finalBlock = polarity.slice(finalStart);
+    // PROCESS contracts cannot target the topbar; later MASTER-only rules can.
+    const masterStart = polarity.indexOf("MASTER NAVIGATION VISUAL STABILITY", finalStart);
+    expect(masterStart).toBeGreaterThan(finalStart);
+    const finalBlock = polarity.slice(finalStart, masterStart);
 
     expect(detail).toContain('data-surface="fixed-dark"');
     expect(finalStart).toBeGreaterThanOrEqual(0);

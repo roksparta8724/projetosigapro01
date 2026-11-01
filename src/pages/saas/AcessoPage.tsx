@@ -63,6 +63,18 @@ export function AcessoPage() {
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [pendingRedirect, setPendingRedirect] = useState<string | null>(null);
+  const [syncSlow, setSyncSlow] = useState(false);
+
+  // Identity is already verified at this point. A background synchronization
+  // must never look like a second password-validation request.
+  useEffect(() => {
+    if (!pendingRedirect) {
+      setSyncSlow(false);
+      return;
+    }
+    const timer = window.setTimeout(() => setSyncSlow(true), 15000);
+    return () => window.clearTimeout(timer);
+  }, [pendingRedirect]);
 
   useEffect(() => {
     if (!pendingRedirect) return;
@@ -109,6 +121,8 @@ export function AcessoPage() {
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
+    if (submitting || pendingRedirect) return;
+    setSyncSlow(false);
     setSubmitting(true);
     setError("");
 
@@ -298,17 +312,37 @@ export function AcessoPage() {
                           </div>
 
                           {error ? (
-                            <div className="rounded-lg border border-amber-300/40 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+                            <div role="alert" className="rounded-lg border border-amber-300/40 bg-amber-50 px-4 py-3 text-sm text-amber-700">
                               {error}
+                            </div>
+                          ) : null}
+                          {pendingRedirect && !error ? (
+                            <div data-sigapro-login-sync="true" role="status" aria-live="polite"
+                              className="flex items-start gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs leading-5 text-slate-700">
+                              <span aria-hidden="true" className="mt-1 inline-block h-2 w-2 shrink-0 animate-pulse rounded-full bg-sky-600" />
+                              <div>
+                                <span className="font-semibold text-slate-900">
+                                  {syncSlow ? "Sua conta já foi autenticada." : "Acesso confirmado."}
+                                </span>{" "}
+                                {syncSlow
+                                  ? "A atualização dos dados da prefeitura está demorando. Não é necessário reenviar sua senha."
+                                  : "Preparando seu ambiente de trabalho…"}
+                                {syncSlow ? (
+                                  <button type="button" onClick={() => window.location.reload()}
+                                    className="ml-1 font-semibold text-sky-800 underline underline-offset-2">
+                                    Recarregar sessão
+                                  </button>
+                                ) : null}
+                              </div>
                             </div>
                           ) : null}
 
                           <Button
                             type="submit"
                             className="h-12 w-full rounded-lg bg-slate-900 text-white hover:bg-slate-800"
-                            disabled={submitting}
+                            disabled={submitting || Boolean(pendingRedirect)}
                           >
-                            {submitting ? "Validando acesso..." : "Acessar ambiente"}
+                            {pendingRedirect ? "Sincronizando acesso…" : submitting ? "Verificando credenciais…" : "Acessar ambiente"}
                           </Button>
 
                           <Button
@@ -320,15 +354,16 @@ export function AcessoPage() {
                             <Link to={`/criar-conta${tenantQuery}`}>Criar conta</Link>
                           </Button>
 
-                          <div className="mt-6 space-y-2 rounded-xl border bg-muted/40 p-4">
-                            <p className="text-sm font-medium">Acesso inicial</p>
-                            <p className="text-sm leading-relaxed text-muted-foreground">
-                              Profissionais externos podem criar a propria conta. Usuarios internos da
-                              Prefeitura sao cadastrados pelo administrador municipal. Contas existentes
-                              migradas para o novo ambiente devem usar "Esqueceu a senha?" uma unica vez
-                              para definir a nova senha de acesso.
+                          <details className="group mt-4 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                            <summary className="cursor-pointer font-semibold text-slate-700">
+                              Precisa de ajuda para acessar?
+                            </summary>
+                            <p className="mt-2 leading-relaxed">
+                              Profissionais externos podem criar a própria conta. Usuários internos são cadastrados
+                              pela Prefeitura. Caso sua conta tenha sido migrada e ainda não possua uma senha
+                              no novo ambiente, utilize “Esqueceu a senha?”.
                             </p>
-                          </div>
+                          </details>
 
                           <div className="mt-6 flex items-center justify-between text-xs text-muted-foreground">
                             <span>Ambiente institucional protegido</span>

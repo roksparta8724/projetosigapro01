@@ -13,7 +13,7 @@ type AvatarRecord = {
 };
 
 const PROFILE_AVATAR_OBJECT_KEY =
-  /^municipalities\/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/profiles\/avatars\/[a-zA-Z0-9_-]+\/[a-zA-Z0-9._-]+$/i;
+  /^(?:municipalities\/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}|platform)\/profiles\/avatars\/[a-zA-Z0-9_-]+\/[a-zA-Z0-9._-]+$/i;
 
 function stableR2AvatarUrl(ref: string): string {
   if (!ref.startsWith("r2:")) return "";

@@ -23,6 +23,12 @@ let cachedMasterHeaderSignedUrl = "";
 let cachedMasterHeaderSignedAt = 0;
 let cachedMasterFooterSignedUrl = "";
 let cachedMasterFooterSignedAt = 0;
+let cachedMasterHeaderSource = "";
+let cachedMasterFooterSource = "";
+// One stable platform snapshot across route remounts. Municipal branding is NOT cached here.
+type PlatformBrandingSnapshot = Awaited<ReturnType<typeof loadPlatformBranding>>;
+let sharedPlatformBranding: PlatformBrandingSnapshot | null = null;
+let sharedPlatformBrandingCheckedAt = 0;
 
 const isCacheValid = (ts: number) => Date.now() - ts < MASTER_SIGNED_CACHE_TTL_MS;
 
@@ -198,7 +204,9 @@ export function useInstitutionBranding(tenantId?: string | null) {
   const [resolvedMasterFooterLogoUrl, setResolvedMasterFooterLogoUrl] = useState<string>(
     () => getCachedMasterFooterUrl(),
   );
-  const [platformBranding, setPlatformBranding] = useState<Awaited<ReturnType<typeof loadPlatformBranding>> | null>(null);
+  const [platformBranding, setPlatformBranding] = useState<PlatformBrandingSnapshot | null>(
+    () => (isMaster ? sharedPlatformBranding : null),
+  );
   const stableTenantHeaderLogoRef = useRef<{ tenantId: string; url: string }>({ tenantId: "", url: "" });
   const stableTenantFooterLogoRef = useRef<{ tenantId: string; url: string }>({ tenantId: "", url: "" });
   const [resolvedTenantHeaderLogoState, setResolvedTenantHeaderLogo] = useState<{ tenantId: string; url: string }>({ tenantId: "", url: "" });
@@ -250,7 +258,14 @@ export function useInstitutionBranding(tenantId?: string | null) {
     const handler = () => {
       setMasterBrandingState(loadMasterBranding());
       if (shouldUseMasterBranding) {
-        loadPlatformBranding().then(setPlatformBranding).catch(() => setPlatformBranding(null));
+        sharedPlatformBrandingCheckedAt = 0;
+        loadPlatformBranding().then((remote) => {
+          sharedPlatformBranding = remote;
+          sharedPlatformBrandingCheckedAt = Date.now();
+          setPlatformBranding(remote);
+        }).catch(() => {
+          // Retain the last known platform branding on a transient API failure.
+        });
       }
     };
     window.addEventListener("sigapro-master-branding-updated", handler as EventListener);
@@ -260,18 +275,26 @@ export function useInstitutionBranding(tenantId?: string | null) {
   useEffect(() => {
     if (!shouldUseMasterBranding) return;
     let active = true;
+    // Navigation recreates PortalFrame. A fresh platform snapshot is reused
+    // without flickering through an empty logo or forcing another R2 signature.
+    if (sharedPlatformBranding && Date.now() - sharedPlatformBrandingCheckedAt < 120_000) {
+      setPlatformBranding(sharedPlatformBranding);
+      return () => { active = false; };
+    }
     const loadRemote = async () => {
       try {
         const remote = await loadPlatformBranding();
-        if (active) setPlatformBranding(remote);
+        if (!active) return;
+        const unchanged = JSON.stringify(remote) === JSON.stringify(sharedPlatformBranding);
+        sharedPlatformBranding = remote;
+        sharedPlatformBrandingCheckedAt = Date.now();
+        if (!unchanged) setPlatformBranding(remote);
       } catch {
-        if (active) setPlatformBranding(null);
+        // Never flash an empty platform logo just because refresh failed.
       }
     };
     void loadRemote();
-    return () => {
-      active = false;
-    };
+    return () => { active = false; };
   }, [shouldUseMasterBranding]);
 
   useEffect(() => {
@@ -294,6 +317,7 @@ export function useInstitutionBranding(tenantId?: string | null) {
         footerLogoFrameMode: platformBranding.footerLogoFrameMode,
         footerLogoFitMode: platformBranding.footerLogoFitMode,
       });
+      if (JSON.stringify(current) === JSON.stringify(next)) return current;
       saveMasterBranding(next);
       return next;
     });
@@ -356,26 +380,42 @@ export function useInstitutionBranding(tenantId?: string | null) {
       masterBrandingState.logoUrl ||
       "";
 
-    void resolveLogo(headerRaw, (value) => {
-      if (value) {
-        cachedMasterHeaderSignedUrl = value;
-        cachedMasterHeaderSignedAt = Date.now();
-      } else if (!headerRaw) {
-        cachedMasterHeaderSignedUrl = "";
-        cachedMasterHeaderSignedAt = 0;
-      }
-      setResolvedMasterHeaderLogoUrl(value || getCachedMasterHeaderUrl());
-    });
-    void resolveLogo(footerRaw, (value) => {
-      if (value) {
-        cachedMasterFooterSignedUrl = value;
-        cachedMasterFooterSignedAt = Date.now();
-      } else if (!footerRaw) {
-        cachedMasterFooterSignedUrl = "";
-        cachedMasterFooterSignedAt = 0;
-      }
-      setResolvedMasterFooterLogoUrl(value || getCachedMasterFooterUrl());
-    });
+    let active = true;
+    if (headerRaw === cachedMasterHeaderSource && getCachedMasterHeaderUrl()) {
+      setResolvedMasterHeaderLogoUrl(getCachedMasterHeaderUrl());
+    } else {
+      void resolveLogo(headerRaw, (value) => {
+        if (!active) return;
+        if (value) {
+          cachedMasterHeaderSignedUrl = value;
+          cachedMasterHeaderSignedAt = Date.now();
+          cachedMasterHeaderSource = headerRaw;
+        } else if (!headerRaw) {
+          cachedMasterHeaderSignedUrl = "";
+          cachedMasterHeaderSignedAt = 0;
+          cachedMasterHeaderSource = "";
+        }
+        setResolvedMasterHeaderLogoUrl(value || getCachedMasterHeaderUrl());
+      });
+    }
+    if (footerRaw === cachedMasterFooterSource && getCachedMasterFooterUrl()) {
+      setResolvedMasterFooterLogoUrl(getCachedMasterFooterUrl());
+    } else {
+      void resolveLogo(footerRaw, (value) => {
+        if (!active) return;
+        if (value) {
+          cachedMasterFooterSignedUrl = value;
+          cachedMasterFooterSignedAt = Date.now();
+          cachedMasterFooterSource = footerRaw;
+        } else if (!footerRaw) {
+          cachedMasterFooterSignedUrl = "";
+          cachedMasterFooterSignedAt = 0;
+          cachedMasterFooterSource = "";
+        }
+        setResolvedMasterFooterLogoUrl(value || getCachedMasterFooterUrl());
+      });
+    }
+    return () => {active = false;};
   }, [masterBrandingState.logoUrl, platformBranding, shouldUseMasterBranding]);
 
   useEffect(() => {

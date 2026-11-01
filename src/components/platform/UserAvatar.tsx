@@ -17,6 +17,28 @@ interface UserAvatarProps {
   title?: string;
 }
 
+// Avoid re-requesting a known dead legacy Supabase image every time the
+// topbar is remounted. A failure is temporary, never a database deletion.
+const LEGACY_AVATAR_FAILURE_TTL_MS=5*60*1000;
+const legacyAvatarFailures=new Map<string,number>();
+function isLegacyAvatarUrl(value:string) {
+  if(!value) return false;
+  try {
+    const url=new URL(value,typeof window!=="undefined"?window.location.origin:"https://sigapro.local");
+    return url.pathname==="/api/profile-avatar-open" && Boolean(url.searchParams.get("source")) ||
+      url.protocol==="https:" && /(^|\.)supabase\.co$/i.test(url.hostname) && url.pathname.includes("/storage/v1/object/public/avatars/");
+  } catch {return false;}
+}
+function failedLegacyRecently(value:string) {
+  if(!isLegacyAvatarUrl(value))return false;
+  const expiry=legacyAvatarFailures.get(value)||0;
+  if(expiry<=Date.now()) {legacyAvatarFailures.delete(value);return false;}
+  return true;
+}
+function rememberLegacyFailure(value:string) {
+  if(isLegacyAvatarUrl(value))legacyAvatarFailures.set(value,Date.now()+LEGACY_AVATAR_FAILURE_TTL_MS);
+}
+
 const sizeClasses: Record<UserAvatarSize, string> = {
   sm: "h-8 w-8 text-xs",
   md: "h-10 w-10 text-sm",
@@ -72,9 +94,8 @@ function alternateLegacyAvatarUrl(value: string) {
 
     if (current.pathname === "/api/profile-avatar-open") {
       const source = current.searchParams.get("source") || "";
-      if (/^https:\/\/[^/]+\.supabase\.co\/storage\/v1\/object\/public\/avatars\//i.test(source)) {
-        return source;
-      }
+      // The stable gateway already tried the source and the R2 recovery cache.
+      // Retrying the same dead Supabase domain in the browser causes flicker.
       return "";
     }
 
@@ -121,7 +142,9 @@ export function UserAvatar({
   title,
 }: UserAvatarProps) {
   const [failedImageUrl, setFailedImageUrl] = useState("");
-  const [stableImageUrl, setStableImageUrl] = useState(imageUrl ?? "");
+  const [stableImageUrl, setStableImageUrl] = useState(
+    () => imageUrl && !failedLegacyRecently(imageUrl) ? imageUrl : "",
+  );
   const [naturalSize, setNaturalSize] = useState(() => readCachedAvatarDimensions(imageUrl));
   const [recoveryImageUrl, setRecoveryImageUrl] = useState("");
   const attemptedRecoveryRef = useRef(new Set<string>());
@@ -157,7 +180,7 @@ export function UserAvatar({
 
     // A refresh may temporarily return no profile while the remote store is
     // revalidating. Keep the last valid avatar instead of flashing the fallback.
-    if (!imageUrl || imageUrl === stableImageUrl) return;
+    if (!imageUrl || imageUrl === stableImageUrl || failedLegacyRecently(imageUrl)) return;
 
     let cancelled = false;
     const preload = new Image();
@@ -185,6 +208,7 @@ export function UserAvatar({
     };
     preload.onerror = () => {
       if (cancelled) return;
+      rememberLegacyFailure(imageUrl || "");
       if (!stableImageUrl) setFailedImageUrl(imageUrl);
     };
     preload.src = imageUrl;
@@ -203,7 +227,8 @@ export function UserAvatar({
   }, []);
 
   const resolvedImageUrl = recoveryImageUrl || stableImageUrl || imageUrl || "";
-  const showImage = Boolean(resolvedImageUrl) && failedImageUrl !== resolvedImageUrl;
+  const showImage = Boolean(resolvedImageUrl) &&
+    failedImageUrl !== resolvedImageUrl && !failedLegacyRecently(resolvedImageUrl);
   const initials = userInitials(name);
   const sizePixels: Record<UserAvatarSize, number> = { sm: 32, md: 40, lg: 56, xl: 80 };
   const diameter = sizePixels[size];
@@ -270,6 +295,7 @@ export function UserAvatar({
               cacheAvatarDimensions(resolvedImageUrl, nextWidth, nextHeight);
             }}
             onError={() => {
+              rememberLegacyFailure(resolvedImageUrl);
               const alternate = alternateLegacyAvatarUrl(resolvedImageUrl);
               if (
                 alternate &&

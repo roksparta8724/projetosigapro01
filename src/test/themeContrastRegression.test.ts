@@ -146,7 +146,9 @@ describe("theme contrast authority", () => {
     const finalAuthorityStart = surfacePolarity.indexOf("PROCESS DETAIL VISIBILITY LOCK V14");
     expect(finalAuthorityStart).toBeGreaterThanOrEqual(0);
 
-    const finalContracts = surfacePolarity.slice(finalAuthorityStart);
+    const masterStart = surfacePolarity.indexOf("MASTER NAVIGATION VISUAL STABILITY", finalAuthorityStart);
+    expect(masterStart).toBeGreaterThan(finalAuthorityStart);
+    const finalContracts = surfacePolarity.slice(finalAuthorityStart, masterStart);
     expect(finalContracts).not.toContain(".sig-premium-topbar");
     expect(finalContracts).not.toContain(".sig-topbar-portal-host");
     expect(finalContracts).not.toContain(".sig-sidebar-shell");

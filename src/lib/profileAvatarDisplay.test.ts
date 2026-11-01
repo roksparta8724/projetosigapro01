@@ -4,6 +4,8 @@ import { resolveProfileAvatarDisplayUrl } from "./profileAvatarDisplay";
 const originalKey =
   "municipalities/49dac0b6-6352-4744-9aab-9ff91c59d970/profiles/avatars/bcd34ab4-5f8c-4df7-8539-8661a90a22d7/photo.png";
 const stable = `/api/profile-avatar-open?objectKey=${encodeURIComponent(originalKey)}`;
+const masterKey = "platform/profiles/avatars/4c72f8e0-241c-471c-8a6d-42b0bc832eff/photo.png";
+const masterOpen = `/api/profile-avatar-open?objectKey=${encodeURIComponent(masterKey)}`;
 
 describe("foto automática de todos os perfis SIGAPRO", () => {
   it("mostra foto mesmo quando a opção legada estava desativada", () => {
@@ -28,6 +30,12 @@ describe("foto automática de todos os perfis SIGAPRO", () => {
   it("mantém foto de cadastro legado com URL HTTPS", () => {
     expect(resolveProfileAvatarDisplayUrl({ avatarUrl: "https://legacy.example.test/avatar.png" }))
       .toBe("https://legacy.example.test/avatar.png");
+  });
+
+  it("mantém avatar do Master fora das pastas das prefeituras", () => {
+    expect(resolveProfileAvatarDisplayUrl({avatarUrl:`r2:${masterKey}`})).toBe(masterOpen);
+    expect(resolveProfileAvatarDisplayUrl({avatarStorageRef:`r2:${masterKey}`})).toBe(masterOpen);
+    expect(resolveProfileAvatarDisplayUrl({avatarUrl:"r2:platform/../municipalities/x"})).toBe("");
   });
 
   it("retorna iniciais quando a conta não possui foto ou sua referência é inválida", () => {

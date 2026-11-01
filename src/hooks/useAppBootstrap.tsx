@@ -1055,6 +1055,14 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
           return { ok: false, message: "Serviço de autenticação indisponível." };
         }
         const normalized = normalizeEmail(email);
+        // QA-only durations, never include user email, IDs, JWTs or password.
+        const qaDiagnostics = import.meta.env.VITE_SIGAPRO_URBAN_MATRIX_QA_ENABLED === "true";
+        const loginStartedAt = Date.now();
+        const measure = (step: string) => {
+          if (qaDiagnostics) console.info("[SIGAPRO][QA][Login]", step, {
+            elapsedMs: Date.now() - loginStartedAt,
+          });
+        };
         const clearIdentity = () => {
           writeBootstrapSnapshot(null);
           clearPlatformSessionSnapshot();
@@ -1109,6 +1117,7 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
             });
           }
 
+          measure("resposta_do_provedor_de_autenticacao");
           const { data, error: signInError } = signInResult;
           if (signInError || !data.user) {
             const rawMessage = signInError?.message || "Falha ao autenticar.";
@@ -1119,6 +1128,7 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
           }
 
           let nextProfile = await loadProfileByUserId(data.user.id);
+          measure("perfil_e_vinculo_municipal_resolvidos");
           nextProfile = await completePendingSignup(data.user, nextProfile, resolution);
           if (nextProfile?.accountStatus === "blocked" || nextProfile?.accountStatus === "inactive") {
             throw new Error("Esta conta foi bloqueada ou desativada por um administrador.");
@@ -1201,6 +1211,7 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
             cachedAt: Date.now(),
           });
 
+          measure("identidade_validada_pronta_para_sincronizacao");
           return { ok: true, role: mappedRole, municipalityId: nextProfile?.municipalityId ?? null };
         } catch (err) {
           const message = err instanceof Error ? err.message : "Falha ao autenticar.";

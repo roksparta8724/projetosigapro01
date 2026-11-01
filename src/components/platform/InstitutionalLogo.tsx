@@ -259,8 +259,11 @@ export function InstitutionalLogo({
     offsetX: branding.logoOffsetX,
     offsetY: branding.logoOffsetY,
   }, variant === "footer" ? "footer" : "header");
+  // Never compress the Master product mark during branding hydration or
+  // navigation. Values below 1 can make the product mark vanish inside a fixed
+  // 128px tile even when the original asset is not stretched.
   const scale = isMaster
-    ? Math.max(0.35, Math.min(5, configuredScale))
+    ? Math.max(1, Math.min(5, configuredScale))
     : municipalFrame.scale;
   const frameSize = variant === "header" ? 128 : 144;
   const frameRatio = frameSize / 160;
