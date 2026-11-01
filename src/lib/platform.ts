@@ -1256,6 +1256,21 @@ export function getProcessPaymentGuides(process: ProcessRecord, settings?: Tenan
   ];
 }
 
+/**
+ * Portaria de entrada da Análise Urbanística: a guia inicial deve estar
+ * compensada, a triagem concluída e o processo oficializado.
+ * Atribuição antiga ou status preenchido por teste não substituem essas provas.
+ */
+export function isProcessReleasedToUrbanAnalysis(process: ProcessRecord): boolean {
+  if (process.isOfficial === false || process.triage?.status !== "concluido" || !process.payment) {
+    return false;
+  }
+
+  return getProcessPaymentGuides(process).some(
+    (guide) => guide.kind === "protocolo" && guide.status === "compensada",
+  );
+}
+
 export function isProcessPaymentGuideSharedExternally(
   process: ProcessRecord,
   guide: PaymentGuideEntry,
@@ -2879,6 +2894,13 @@ export function canViewMunicipalProcessDocument(
   scopeId?: string | null,
 ) {
   if (session.accountStatus === "blocked" || session.accountStatus === "inactive") return false;
+  // A equipe técnica não pode abrir anexos na Análise antes da compensação,
+  // conclusão da triagem e despacho. Protocolo/Admin mantém seu acesso próprio.
+  if (
+    (session.role === "analista" || session.role === "prefeitura_supervisor") &&
+    resolveSessionOperationalArea(session) === "analise" &&
+    !isProcessReleasedToUrbanAnalysis(process)
+  ) return false;
   if (session.role !== "master_admin" && session.role !== "master_ops") {
     const actorScope = getOperationalScopeId(session);
     if (!actorScope || !matchesOperationalScope(actorScope, process)) return false;
@@ -3026,6 +3048,8 @@ export function canEditProcessAnalysis(
   if (session.accountStatus === "blocked" || session.accountStatus === "inactive") {
     return false;
   }
+
+  if (!isProcessReleasedToUrbanAnalysis(process)) return false;
 
   if (session.role === "prefeitura_admin") return false;
   if (session.role === "master_admin" || session.role === "master_ops") return true;
