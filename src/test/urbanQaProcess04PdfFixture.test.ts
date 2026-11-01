@@ -23,6 +23,8 @@ describe("Processo fictício 000004/2026 — fixture segura e explícita QA",()=
   expect(panel).toContain('data-urban-pilot-process-04="true"');
   expect(panel).toContain('data-urban-open-process04-fixture="true"');
   expect(panel).toContain("setReport(inspected)");
+  expect(panel).toContain("if(!showSyntheticPilot||busy)return;");
+  expect(panel).toContain("onClick={()=>void inspectSyntheticPilot()} disabled={busy}");
   expect(parent).toContain("processId={process.id}");
   expect(panel).toContain("não fica salvo nem vinculado ao R2");
  });

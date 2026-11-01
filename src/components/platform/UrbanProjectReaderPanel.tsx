@@ -67,7 +67,7 @@ export function UrbanProjectReaderPanel({readOnly,allowedMetrics,documents,proce
    }finally{setBusy(false);}
  };
  const inspectSyntheticPilot=async()=>{
-   if(!showSyntheticPilot||busy||readOnly)return;
+   if(!showSyntheticPilot||busy)return;
    setBusy(true);setReport(null);setError("");setChosen(null);setAck(false);setApplied([]);setVisitedPages([]);
    try{
      const {createUrbanQaProcess04Fixture}=await import("@/lib/urbanQaProcess04PdfFixture");
@@ -108,7 +108,7 @@ export function UrbanProjectReaderPanel({readOnly,allowedMetrics,documents,proce
        O PDF é criado apenas nesta sessão e não fica salvo nem vinculado ao R2.
      </p>
      <button type="button" data-urban-open-process04-fixture="true"
-       onClick={()=>void inspectSyntheticPilot()} disabled={busy||readOnly}
+       onClick={()=>void inspectSyntheticPilot()} disabled={busy}
        className="mt-3 min-h-11 rounded-lg border border-amber-800 bg-amber-900 px-4 py-2 text-sm font-extrabold text-white disabled:opacity-50">
        {busy?"Preparando simulação…":"Carregar e analisar projeto demonstrativo do processo 04"}
      </button>
