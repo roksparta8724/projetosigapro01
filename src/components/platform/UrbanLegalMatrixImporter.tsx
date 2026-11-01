@@ -9,6 +9,7 @@ import { URBAN_VISION_FIELDS, type UrbanVisionFieldKey } from "@/lib/urbanVision
 import { compareUrbanVisionDrafts, auditExpertAgainstArchivedRow, type UrbanDiagnosticRow } from "@/lib/urbanVisionDiagnostic";
 import { getQaPdfTextEvidence, compareQaSourceTextToVision } from "@/lib/urbanPdfDirectEvidenceQa";
 import { readUrbanPdfSourcePage, sourceLayerExcerpt, type UrbanPdfSourceLayer } from "@/lib/urbanPdfTextLayer";
+import { discoverUrbanPdfRows,readUrbanTableRow } from "@/lib/urbanPdfTableRows";
 import { UrbanMatrixBatchReviewBoard } from "./UrbanMatrixBatchReviewBoard";
 import { UrbanMatrixArchivePanel, type UrbanStoredDraft } from "./UrbanMatrixArchivePanel";
 
@@ -322,6 +323,7 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
   const [pdfLayer,setPdfLayer]=useState<UrbanPdfSourceLayer|null>(null);
   const [pdfLayerBusy,setPdfLayerBusy]=useState(false);
   const [pdfLayerNotice,setPdfLayerNotice]=useState("");
+  const [selectedPdfRowId,setSelectedPdfRowId]=useState("");
   const [adminAdvancedOpen,setAdminAdvancedOpen]=useState(false);
   // Reject asynchronous OCR results if the document, image, selected zone,
   // usage or municipality changes while the provider is still processing.
@@ -393,11 +395,18 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
   const directTextReview=directPdfEvidence&&expertDiagnostics
     ?compareQaSourceTextToVision(directPdfEvidence,expertDiagnostics.map(r=>
       r.label+": "+(r.expert??"[ILEGÍVEL]")).join("\n")):null;
+  const availablePdfRows=pdfLayer?discoverUrbanPdfRows(pdfLayer):[];
+  const pdfTableReading=pdfLayer&&selectedPdfRowId
+    ?readUrbanTableRow(pdfLayer,selectedPdfRowId):null;
   const adminFieldOverview=URBAN_VISION_FIELDS.map(([key,label])=>{
-    const direct=directPdfEvidence?.cells[key]?.raw??null;
+    const direct=pdfTableReading?.cells.find(c=>c.key===key&&c.status==="source_text")?.value
+      ??directPdfEvidence?.cells[key]?.raw??null;
     const opinion=expertDiagnostics?.find(entry=>entry.key===key);
     const ai=opinion?.expert??opinion?.primary??null;
-    const conflict=direct&&ai&&directTextReview?.find(x=>x.key===key)?.verdict==="text_conflict";
+    const sourceDiff=direct&&ai?compareUrbanVisionDrafts(label+": "+direct,label+": "+ai)
+      .find(x=>x.key===key)?.verdict==="conflict":false;
+    const conflict=Boolean(direct&&ai&&(sourceDiff||
+      directTextReview?.find(x=>x.key===key)?.verdict==="text_conflict"));
     const status=conflict?"conflict" as const:
       direct?"document" as const:
       opinion?.verdict==="agree"?"ai_agrees" as const:
@@ -559,8 +568,8 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
   },[municipalityId,file,pageImage,quadro,page,zone,usage]);
   currentVisionScope.current={municipalityId,file,pageImage,quadro,page,zone,usage};
   useEffect(()=>{
-    setPdfLayer(null);setPdfLayerNotice("");
-  },[municipalityId,file,page,quadro,zone,usage]);
+    setPdfLayer(null);setPdfLayerNotice("");setSelectedPdfRowId("");
+  },[municipalityId,file,page,quadro]);
   const inspectOriginalPdf=async()=>{
     if(!file||!Number.isSafeInteger(Number(page))||Number(page)<1)return;
     const requested=currentVisionScope.current;
@@ -571,8 +580,11 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
       if(current.municipalityId!==requested.municipalityId||
         current.file!==requested.file||current.page!==requested.page||
         current.zone!==requested.zone||current.usage!==requested.usage)return;
-      setPdfLayer(layer);
-      setPdfLayerNotice(layer.textStatus==="text_available"
+      setPdfLayer(layer);setSelectedPdfRowId("");
+      const available=discoverUrbanPdfRows(layer);
+      setPdfLayerNotice(layer.textStatus==="text_available"&&available.length
+        ?available.length+" linhas da tabela encontradas. Escolha uma linha específica abaixo para visualizar os parâmetros."
+        :layer.textStatus==="text_available"
         ?"Texto extraído do PDF local, com coordenadas da página. A identificação dos valores e a conferência jurídica continuam necessárias."
         :layer.textStatus==="no_text_layer"
           ?"Esta página não possui texto extraível; a IA visual pode auxiliar, mas campos desfocados continuam pendentes."
@@ -1010,11 +1022,34 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
           className="mt-3 min-h-12 w-full rounded-xl bg-sky-900 px-5 py-3 text-base font-extrabold text-white disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto">
           {pdfLayerBusy||visionBusy?"Analisando documento…":"Analisar documento"}
         </button>
+        {availablePdfRows.length>0?<label className="mt-3 block text-sm font-bold text-slate-900">
+          Escolha a linha exata encontrada no PDF
+          <select data-urban-admin-choose-pdf-row="true" value={selectedPdfRowId}
+            onChange={e=>{
+              const selected=availablePdfRows.find(r=>r.id===e.target.value);
+              setSelectedPdfRowId(e.target.value);
+              if(selected){setZone(selected.zone);setUsage(selected.usage);}
+              setOcrVerified(false);setCandidates([]);setChecked([]);
+            }}
+            className="mt-1 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-slate-950">
+            <option value="">Selecione a zona, o uso e a linha da tabela</option>
+            {availablePdfRows.map(row=><option key={row.id} value={row.id}>
+              {row.label}
+            </option>)}
+          </select>
+          <span className="mt-1 block text-xs font-semibold text-amber-900">
+            Uma mesma zona pode ter várias linhas. A seleção é obrigatória para evitar misturar índices.
+          </span>
+        </label>:null}
         <p data-urban-admin-reading-status="true" className="mt-3 text-sm font-semibold text-slate-700" role="status">
           {!file?"Selecione o PDF oficial para começar."
             :!page?"Informe a página que contém a tabela."
+            :pdfTableReading?.recognized
+              ?pdfTableReading.recognized+"/13 campos vinculados à linha selecionada. Confira cada valor na página original."
             :pdfLayer?.textStatus==="text_available"
-              ?"Texto encontrado no PDF. Confira a associação com zona e colunas na etapa seguinte."
+              ?availablePdfRows.length
+                ?"Tabela encontrada. Escolha a linha da zona e do uso para identificar os valores."
+                :"Texto encontrado, mas não foi possível reconhecer a estrutura completa desta tabela. Não utilize números soltos."
             :pdfLayer?.textStatus==="no_text_layer"
               ?"Esta página não tem texto extraível. A revisão por imagem está disponível nas opções avançadas."
             :pdfLayer?.textStatus==="low_quality_text"
@@ -1030,8 +1065,12 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
         <p className="text-xs font-extrabold uppercase tracking-wide text-sky-800">Etapa 3 de 3 · Conferência</p>
         <h5 className="mt-1 text-lg font-extrabold text-slate-950">Parâmetros da linha selecionada</h5>
         <p className="mt-1 text-sm text-slate-700">
-          Valores encontrados não são valores aprovados. Compare com a tabela e a lei vigente.
+          Valores encontrados não são valores aprovados. Confira a linha selecionada no PDF e a lei vigente.
         </p>
+        {pdfTableReading?.row?<p data-urban-admin-active-pdf-row="true"
+          className="mt-2 rounded-lg border border-sky-200 bg-sky-50 p-3 text-sm font-extrabold text-sky-950">
+          Linha do PDF: {pdfTableReading.row.zone} · {pdfTableReading.row.usage} · página {pdfTableReading.page}
+        </p>:null}
         <div className="mt-3 flex flex-wrap gap-2 text-sm font-bold">
           <span className="rounded-lg bg-slate-100 px-3 py-2 text-slate-900">
             {adminOverviewRead}/13 com leitura disponível
@@ -1081,8 +1120,11 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
             </p>
           </div>)}
         </div>:<p className="mt-3 rounded-lg bg-slate-50 p-3 text-sm text-slate-700">
-          A análise ainda não produziu valores vinculados às 13 colunas. A leitura
-          geral de texto não atribui números automaticamente às colunas.
+          {availablePdfRows.length
+            ?"Escolha a linha exata encontrada no PDF na etapa anterior para exibir os parâmetros."
+            :pdfLayer?.textStatus==="text_available"
+              ?"Foi possível ler palavras, mas os cabeçalhos da tabela não foram identificados com segurança. Confira o documento e use a análise assistida."
+              :"Selecione o PDF oficial e clique em Analisar documento para começar."}
         </p>}
         <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-950">
           Nenhum parâmetro foi aprovado. A conclusão exige conferir todos os valores
