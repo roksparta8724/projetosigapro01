@@ -21,6 +21,7 @@ describe("SIGAPRO: payment and triage must not deadlock", () => {
     const handler = protocol.slice(dispatchStart, dispatchEnd);
     expect(handler).toContain('if (process.triage.status !== "concluido")');
     expect(handler).toContain("getPendingTriageDocuments(process)");
-    expect(handler).toContain('process.status !== "pagamento_confirmado"');
+    expect(handler).toContain("hasCompensatedInitialGuide(process)");
+    expect(handler).not.toContain('process.status !== "pagamento_confirmado"');
   });
 });

@@ -55,7 +55,7 @@ import {
   type ProcessRecord,
   URBAN_ANALYSIS_DEPARTMENT,
 } from "@/lib/platform";
-import { getMissingRequiredDocuments, getPendingTriageDocuments } from "@/lib/triageReadiness";
+import { getMissingRequiredDocuments, getPendingTriageDocuments, hasCompensatedInitialGuide, isReadyForProtocolDispatch } from "@/lib/triageReadiness";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
@@ -458,12 +458,11 @@ export function ProtocolDeskPage() {
   };
 
   const dispatchSelectedToUrbanism = async (sourceItems: ProcessRecord[]) => {
-    const selected = sourceItems.filter(
-      (process) =>
-        selectedProcessIds.has(process.id) &&
-        process.status === "pagamento_confirmado" &&
-        isProcessOwnedBySessionDepartment(session, process),
+    const chosen = sourceItems.filter(
+      (process) => selectedProcessIds.has(process.id) && isProcessOwnedBySessionDepartment(session, process),
     );
+    const selected = chosen.filter(isReadyForProtocolDispatch);
+    const awaitingRequirements = chosen.length - selected.length;
 
     if (selected.length === 0) {
       setProtocolActionStatus("Nenhum dos processos selecionados está liberado para despacho ao Urbanismo.");
@@ -473,28 +472,35 @@ export function ProtocolDeskPage() {
     setProtocolActionBusy("bulk-dispatch");
     setProtocolActionStatus("");
 
+    const completedIds: string[] = [];
+    const rejected: string[] = [];
     try {
       for (const process of selected) {
-        await dispatchProcess({
-          processId: process.id,
-          actor: session.name,
-          from: "Setor de Protocolo",
-          to: URBAN_ANALYSIS_DEPARTMENT,
-          subject: "Encaminhamento para análise urbanística",
-          dueDate: "",
-          visibility: "misto",
-          priority: "media",
-        });
+        try {
+          await dispatchProcess({
+            processId: process.id,
+            actor: session.name,
+            from: "Setor de Protocolo",
+            to: URBAN_ANALYSIS_DEPARTMENT,
+            subject: "Encaminhamento para análise urbanística",
+            dueDate: "",
+            visibility: "misto",
+            priority: "media",
+          });
+          completedIds.push(process.id);
+        } catch (error) {
+          rejected.push(
+            `${formatOfficialProcessNumber(process.protocol)}: ${error instanceof Error ? error.message : "falha no despacho"}`,
+          );
+        }
       }
-      setSelectedProcessIds(new Set());
+      // Preserve non-dispatched selections for review/retry, not the successful ones.
+      setSelectedProcessIds((current) => new Set(
+        [...current].filter((id) => !completedIds.includes(id)),
+      ));
       setProtocolActionStatus(
-        `${selected.length} processo(s) despachado(s) para ${URBAN_ANALYSIS_DEPARTMENT}.`,
-      );
-    } catch (error) {
-      setProtocolActionStatus(
-        error instanceof Error
-          ? `Não foi possível concluir o despacho em lote: ${error.message}`
-          : "Não foi possível concluir o despacho em lote.",
+        `${completedIds.length} processo(s) encaminhado(s). ${awaitingRequirements} aguardando guia, triagem ou documentos. ${rejected.length} falha(s).` +
+        (rejected.length ? ` Verificar: ${rejected.slice(0, 3).join("; ")}` : ""),
       );
     } finally {
       setProtocolActionBusy("");
@@ -696,7 +702,7 @@ export function ProtocolDeskPage() {
                               Acompanhamento
                             </span>
                           ) : null}
-                          {ownedByProtocol && process.status === "pagamento_confirmado" ? (
+                          {ownedByProtocol && isReadyForProtocolDispatch(process) ? (
                             <Button
                               type="button"
                               className="h-9 rounded-xl bg-sky-700 text-white hover:bg-sky-800"
@@ -886,8 +892,8 @@ export function ProtocolDeskPage() {
       setProtocolActionStatus("Faltam anexos obrigatórios ou a conferência dos documentos. Consulte Documentos pendentes.");
       return;
     }
-    if (process.status !== "pagamento_confirmado") {
-      setProtocolActionStatus("Confirme primeiro a guia inicial antes de despachar para o Urbanismo.");
+    if (!hasCompensatedInitialGuide(process)) {
+      setProtocolActionStatus("A guia inicial ainda não está compensada. Confirme o pagamento antes do despacho.");
       return;
     }
 

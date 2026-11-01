@@ -1,4 +1,4 @@
-import type { ProcessRecord } from "@/lib/platform";
+import { getProcessPaymentGuides, type ProcessRecord } from "@/lib/platform";
 
 /** A database record isn't an attachment until a real file reference exists. */
 export function hasPersistedProcessDocumentFile(document: { file_path?: unknown; preview_url?: unknown }): boolean {
@@ -47,4 +47,18 @@ export function getPendingTriageDocuments(process: Pick<ProcessRecord, "type" | 
   const hasApprovedRequired = process.documents.some((d) => d.required && hasReadyFile(d) && d.reviewStatus === "aprovado");
   if (!hasApprovedRequired) return Math.max(1, pendingReview, missingCategories);
   return Math.max(pendingReview, missingCategories);
+}
+
+/** Gateway to dispatch: payment, document review and completed triage, independently ordered. */
+export function hasCompensatedInitialGuide(process: ProcessRecord): boolean {
+  return getProcessPaymentGuides(process).some(
+    (guide) => guide.kind === "protocolo" && guide.status === "compensada",
+  );
+}
+
+export function isReadyForProtocolDispatch(process: ProcessRecord): boolean {
+  return process.isOfficial !== false &&
+    process.triage?.status === "concluido" &&
+    getPendingTriageDocuments(process) === 0 &&
+    hasCompensatedInitialGuide(process);
 }
