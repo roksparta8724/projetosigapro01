@@ -9,12 +9,14 @@ import {getSignedUrlForObjectStrict} from "@/integrations/r2/client";
 
 type Props={
  readOnly:boolean;allowedMetrics:UrbanMetric[];
- documents:ProcessDocument[];
+ documents:ProcessDocument[];processId:string;
  onConfirm:(item:ProjectMeasure,source:{fileName:string;sha256:string})=>void;
 };
 const label=(metric:UrbanMetric)=>URBAN_METRICS.find(m=>m.key===metric)?.label||metric;
 /** No PDF is uploaded to AI or server. Reviewer must confirm each measurement. */
-export function UrbanProjectReaderPanel({readOnly,allowedMetrics,documents,onConfirm}:Props){
+export function UrbanProjectReaderPanel({readOnly,allowedMetrics,documents,processId,onConfirm}:Props){
+ const showSyntheticPilot=import.meta.env.VITE_SIGAPRO_URBAN_MATRIX_QA_ENABLED==="true" &&
+   processId==="915e1c63-ebda-4cdd-8e95-34316d9e0089";
  const [file,setFile]=useState<File|null>(null);
  const [storedDocumentId,setStoredDocumentId]=useState("");
  const candidateDocuments=documents.filter(item=>item.uploaded&&item.filePath&&
@@ -64,6 +66,19 @@ export function UrbanProjectReaderPanel({readOnly,allowedMetrics,documents,onCon
        " Se houver problema com CORS do armazenamento, baixe o PDF na aba Documentos e selecione-o localmente.");
    }finally{setBusy(false);}
  };
+ const inspectSyntheticPilot=async()=>{
+   if(!showSyntheticPilot||busy||readOnly)return;
+   setBusy(true);setReport(null);setError("");setChosen(null);setAck(false);setApplied([]);setVisitedPages([]);
+   try{
+     const {createUrbanQaProcess04Fixture}=await import("@/lib/urbanQaProcess04PdfFixture");
+     const generated=await createUrbanQaProcess04Fixture();
+     const inspected=await inspectArchitecturalProjectPdf(generated);
+     setFile(generated);setReport(inspected);
+     setDisplayPage(inspected.proposals[0]?.page||1);
+   }catch(error){
+     setError(error instanceof Error?error.message:"Falha ao preparar planta simulada.");
+   }finally{setBusy(false);}
+ };
  const inspect=async()=>{
    if(!file||busy||readOnly)return;
    setBusy(true);setReport(null);setError("");setChosen(null);setAck(false);setApplied([]);setVisitedPages([]);
@@ -85,6 +100,19 @@ export function UrbanProjectReaderPanel({readOnly,allowedMetrics,documents,onCon
      páginas e trechos para conferência. NÃO mede geometria desenhada, nem faz OCR de imagens
      digitalizadas, nem aprova o projeto. Conflitos bloqueiam o preenchimento automático.
    </p>
+   {showSyntheticPilot?<div data-urban-pilot-process-04="true"
+     className="mt-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-amber-950">
+     <p className="text-xs font-extrabold">Processo 000004/2026 — projeto fictício de demonstração</p>
+     <p className="mt-1 text-xs leading-5">
+       Exercite o leitor com três pranchas simuladas sem anexar documentos de cidadãos.
+       O PDF é criado apenas nesta sessão e não fica salvo nem vinculado ao R2.
+     </p>
+     <button type="button" data-urban-open-process04-fixture="true"
+       onClick={()=>void inspectSyntheticPilot()} disabled={busy||readOnly}
+       className="mt-3 min-h-11 rounded-lg border border-amber-800 bg-amber-900 px-4 py-2 text-sm font-extrabold text-white disabled:opacity-50">
+       {busy?"Preparando simulação…":"Carregar e analisar projeto demonstrativo do processo 04"}
+     </button>
+   </div>:null}
    {candidateDocuments.length>0?<div data-urban-project-saved-documents="true"
      className="mt-3 rounded-xl border border-sky-200 bg-white p-3 text-slate-950">
      <p className="text-xs font-extrabold">Documentos já vinculados a este processo</p>
