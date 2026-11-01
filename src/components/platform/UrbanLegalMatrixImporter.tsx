@@ -430,6 +430,7 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved,onSourc
     onSourceContextChange(confirmedScope?{
       file,physicalPage:Number(page),zone:pdfTableReading.row!.zone,
       usage:pdfTableReading.row!.usage,
+      cells:pdfTableReading.cells.map(cell=>({key:cell.key,value:cell.value,status:cell.status})),
     }:null);
   },[file,page,zone,usage,pdfLayer,selectedPdfRowId,municipalityId,onSourceContextChange]);
   const adminOverviewRead=adminFieldOverview.filter(v=>v.status!=="missing").length;

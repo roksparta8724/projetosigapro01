@@ -7,6 +7,7 @@ import { URBAN_METRICS, normalizeUrbanCode, type UrbanMetric, type UrbanRegulati
 import { municipalCivilDate } from "@/lib/municipalCivilDate";
 import { UrbanLegalMatrixImporter } from "./UrbanLegalMatrixImporter";
 import type { UrbanLegalSourceContext } from "@/lib/urbanLegalEvidenceRegistration";
+import { proposeUrbanRulesFromPdf } from "@/lib/urbanLegalDraftFromPdf";
 import { UrbanLegalEvidenceCatalogPanel } from "./UrbanLegalEvidenceCatalogPanel";
 
 type EditableValue = { limit: string; reference: string };
@@ -24,6 +25,8 @@ export function MunicipalUrbanRulesSettings({
   const [loading, setLoading] = useState(false);
   const [notice, setNotice] = useState("");
   const [legalSourceContext,setLegalSourceContext]=useState<UrbanLegalSourceContext|null>(null);
+  const [manualEditorOpen,setManualEditorOpen]=useState(false);
+  const [draftFromPdfCount,setDraftFromPdfCount]=useState(0);
 
   useEffect(() => {
     let active = true;
@@ -32,6 +35,7 @@ export function MunicipalUrbanRulesSettings({
     setZone("");
     setUsage("");
     setLegalSourceContext(null);
+    setDraftFromPdfCount(0);setManualEditorOpen(false);
     setNotice("");
     if (!municipalityId) return;
     setLoading(true);
@@ -78,6 +82,28 @@ export function MunicipalUrbanRulesSettings({
     } catch (error) {
       setNotice(String((error as Error)?.message || error));
     } finally { setBusy(false); }
+  };
+  const prepareDraftFromPdf = (context:UrbanLegalSourceContext) => {
+    if(!canEdit||busy||!municipalityId||context!==legalSourceContext)return;
+    const proposed=proposeUrbanRulesFromPdf(context);
+    if(!proposed.length){
+      setNotice("Nenhum índice numérico simples e inequívoco foi localizado nesta linha. Confira no PDF e use o cadastro manual somente com fonte legal.");
+      return;
+    }
+    const hasEdits=Boolean(zone.trim()||usage.trim()||
+      Object.values(draft).some(item=>Boolean(item?.limit?.trim()||item?.reference?.trim())));
+    if(hasEdits&&!window.confirm("Substituir os campos não salvos pelos índices numéricos extraídos desta linha do PDF? Nada será gravado nem ativado."))return;
+    const next:DraftInputs={};
+    for(const item of proposed){
+      // Crucial: no automatically invented article/reference.
+      next[item.metric]={limit:item.limit,reference:""};
+    }
+    setZone(normalizeUrbanCode(context.zone));setUsage(normalizeUrbanCode(context.usage));
+    setDraft(next);setDraftFromPdfCount(proposed.length);
+    // A PDF's date is not the legislation's current verified effective date.
+    setEffectiveFrom("");setManualEditorOpen(true);
+    setNotice(proposed.length+" valor(es) numérico(s) pré-preenchido(s) como proposta. Preencha a vigência e as referências oficiais por índice; nenhum rascunho foi salvo e nenhuma norma foi ativada.");
+    window.requestAnimationFrame(()=>document.getElementById("urban-manual-rule-editor")?.scrollIntoView({block:"start",behavior:"smooth"}));
   };
   const continueReview = (item: UrbanRegulationVersion) => {
     if (!canEdit || busy || loading || !municipalityId || item.municipality_id !== municipalityId || item.status !== "draft") return;
@@ -155,7 +181,9 @@ export function MunicipalUrbanRulesSettings({
           onSaved={reload} onSourceContextChange={setLegalSourceContext}/> : null}
 
       {canEdit && municipalityId ? (
-        <details data-urban-manual-rule-editor="true"
+        <details id="urban-manual-rule-editor" data-urban-manual-rule-editor="true"
+          open={manualEditorOpen}
+          onToggle={event=>setManualEditorOpen(event.currentTarget.open)}
           className="mt-5 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
           <summary className="cursor-pointer text-base font-extrabold text-sky-900 dark:text-sky-100">
             Cadastro manual de regras urbanísticas — uso excepcional
@@ -165,6 +193,13 @@ export function MunicipalUrbanRulesSettings({
             Esta seção é diferente da leitura assistida acima; os dados não são preenchidos
             automaticamente nem são ativados ao salvar.
           </p>
+          {draftFromPdfCount>0?<p data-urban-draft-from-pdf="true"
+            className="mt-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm font-bold leading-6 text-amber-950">
+            {draftFromPdfCount} índice(s) numérico(s) trazidos da camada textual da página {legalSourceContext?.physicalPage}.
+            São sugestões NÃO validadas: confirme cada número, informe a vigência e preencha
+            artigo e condições legais de cada regra. C.A. mínimo/básico, lote, testada, gabarito,
+            Quadro II e exceções continuam fora do cálculo automático.
+          </p>:null}
           <div className="mt-5 grid gap-3 md:grid-cols-3">
             <label className="text-xs font-bold text-slate-700 dark:text-slate-200">
               Código da zona
@@ -251,7 +286,8 @@ export function MunicipalUrbanRulesSettings({
       </div>
       {municipalityId ? <UrbanLegalEvidenceCatalogPanel
         municipalityId={municipalityId} canEdit={canEdit} versions={versions}
-        sourceContext={legalSourceContext}/> : null}
+        sourceContext={legalSourceContext}
+        onPrepareDraft={prepareDraftFromPdf}/> : null}
       {notice ? <p role="status" className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100">{notice}</p> : null}
     </section>
   );

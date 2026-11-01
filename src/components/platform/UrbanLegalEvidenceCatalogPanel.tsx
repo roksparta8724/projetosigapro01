@@ -12,9 +12,10 @@ import {verifyUrbanEvidenceInput,
 import {readUrbanPdfSourcePage} from "@/lib/urbanPdfTextLayer";
 
 type Props={municipalityId:string;canEdit:boolean;versions:UrbanRegulationVersion[];
-  sourceContext?:UrbanLegalSourceContext|null};
+  sourceContext?:UrbanLegalSourceContext|null;
+  onPrepareDraft?:(context:UrbanLegalSourceContext)=>void};
 const validDate=(v:string)=>/^\d{4}-\d{2}-\d{2}$/.test(v);
-export function UrbanLegalEvidenceCatalogPanel({municipalityId,canEdit,versions,sourceContext}:Props){
+export function UrbanLegalEvidenceCatalogPanel({municipalityId,canEdit,versions,sourceContext,onPrepareDraft}:Props){
  const [versionId,setVersionId]=useState("");
  const [metric,setMetric]=useState<UrbanMetric|"">("");
  const [file,setFile]=useState<File|null>(null);
@@ -143,11 +144,21 @@ export function UrbanLegalEvidenceCatalogPanel({municipalityId,canEdit,versions,
       </p>
       <p className="mt-1">Os dados da leitura são apenas uma referência para comparação:
         não ativam regras, não comprovam vigência e não substituem a conferência do administrador.</p>
-      {matchingLegalVersions.length===0?<p className="mt-2 font-extrabold text-amber-950">
-        Nenhuma versão cadastrada coincide com esta zona e uso. A versão de teste de outra zona
-        não pode receber estes índices. Confira primeiro o cadastro e crie um rascunho
-        fundamentado antes de vincular as evidências.
-      </p>:null}
+      {matchingLegalVersions.length===0?<div className="mt-2">
+        <p className="font-extrabold text-amber-950">
+          Nenhuma versão cadastrada coincide com esta zona e uso. A versão de teste de outra zona
+          não pode receber estes índices.
+        </p>
+        {canEdit&&onPrepareDraft?<button type="button"
+          data-urban-prepare-draft-from-reading="true"
+          onClick={()=>onPrepareDraft(sourceContext)}
+          className="mt-2 min-h-11 rounded-lg border border-sky-900 bg-sky-900 px-4 py-2 text-sm font-extrabold text-white">
+          Preparar rascunho com os índices numéricos da linha — sem salvar
+        </button>:null}
+        <p className="mt-2 font-semibold">O administrador ainda deverá confirmar artigo, data de
+          vigência, Quadro II, condições e exceções antes de registrar qualquer versão.
+        </p>
+      </div>:null}
      </div>:null}
    <label className="mt-3 block text-xs font-bold">Versão municipal
     <select value={versionId} onChange={e=>chooseVersion(e.target.value)} disabled={!canEdit||loading||saving}

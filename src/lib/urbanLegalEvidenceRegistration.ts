@@ -51,4 +51,6 @@ export type UrbanLegalSourceContext={
  physicalPage:number;
  zone:string;
  usage:string;
+ // Source evidence only. These values are NOT approved municipal parameters.
+ cells?: ReadonlyArray<{key:string;value:string|null;status:"source_text"|"missing"|"ambiguous"}>;
 };
