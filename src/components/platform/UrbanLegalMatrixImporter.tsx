@@ -10,6 +10,7 @@ import { compareUrbanVisionDrafts, auditExpertAgainstArchivedRow, type UrbanDiag
 import { getQaPdfTextEvidence, compareQaSourceTextToVision } from "@/lib/urbanPdfDirectEvidenceQa";
 import { readUrbanPdfSourcePage, sourceLayerExcerpt, type UrbanPdfSourceLayer } from "@/lib/urbanPdfTextLayer";
 import { discoverUrbanPdfRows,readUrbanTableRow } from "@/lib/urbanPdfTableRows";
+import { UrbanPdfPageCanvas } from "./UrbanPdfPageCanvas";
 import { UrbanMatrixBatchReviewBoard } from "./UrbanMatrixBatchReviewBoard";
 import { UrbanMatrixArchivePanel, type UrbanStoredDraft } from "./UrbanMatrixArchivePanel";
 
@@ -336,8 +337,7 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
   const [previewUrl,setPreviewUrl] = useState("");
   const [pdfViewerReload,setPdfViewerReload] = useState(0);
   const [openedRowNotice,setOpenedRowNotice]=useState("");
-  // The browser's native PDF reader does not reliably honor fragment changes
-  // in an already mounted iframe. Remount on page / document / manual refresh.
+  // PDF.js renders the requested physical page directly; no browser-dependent iframe fragments.
   // Preview writes must use an explicitly configured, non-production Neon pair.
   const authUrl=String(import.meta.env.VITE_NEON_AUTH_URL || "");
   const dataUrl=String(import.meta.env.VITE_NEON_DATA_API_URL || "");
@@ -1093,12 +1093,9 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
           </summary>
           <p className="mt-2 text-xs font-semibold text-amber-950">
             Confira a página, a zona, o uso e cada coluna no documento original;
-            o número da página pode precisar ser selecionado manualmente no leitor.
+            a página física é renderizada diretamente, mas a numeração impressa pode ser diferente.
           </p>
-          <iframe key={["guided",previewUrl,selectedPdfPage,pdfViewerReload].join(":")}
-            title={"PDF oficial para conferência guiada — página "+selectedPdfPage}
-            src={previewUrl+"#page="+selectedPdfPage}
-            className="mt-2 h-[330px] w-full rounded-lg border border-slate-300 bg-white"/>
+          <UrbanPdfPageCanvas file={file} pageNumber={selectedPdfPage} reloadToken={pdfViewerReload}/>
           <a href={previewUrl+"#page="+selectedPdfPage} target="_blank" rel="noreferrer"
             className="mt-2 inline-block text-sm font-bold text-sky-900 underline underline-offset-2">
             Abrir PDF original em outra guia
@@ -1276,14 +1273,10 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
           Recarregar página no leitor
         </button>
       </div>
-      <iframe key={[previewUrl,selectedPdfPage,pdfViewerReload].join(":")}
-        title={"Visualização local do PDF oficial — página solicitada "+selectedPdfPage}
-        src={previewUrl+"#page="+selectedPdfPage}
-        loading="lazy" className="h-[360px] w-full rounded-lg border border-slate-200"/>
+      <UrbanPdfPageCanvas file={file} pageNumber={selectedPdfPage} reloadToken={pdfViewerReload}/>
       <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
         <p className="max-w-xl text-xs font-semibold leading-5 text-amber-950">
-          Confira o número da página exibida no leitor: alguns navegadores ignoram a navegação automática.
-          Caso isso ocorra, abra o PDF abaixo e selecione a página manualmente.
+          A página física é renderizada diretamente pelo SIGAPRO. Confirme o número impresso na lei, a zona e o uso antes de validar índices.
         </p>
         <a className="text-sm font-bold text-sky-900 underline underline-offset-2"
           href={previewUrl+"#page="+selectedPdfPage}

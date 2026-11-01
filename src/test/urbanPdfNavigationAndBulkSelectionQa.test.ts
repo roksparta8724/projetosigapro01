@@ -7,12 +7,16 @@ const css=readFileSync("src/styles/surface-polarity.css","utf8");
 describe("SIGAPRO QA — paginação PDF e revisão premium",()=>{
  it("monta novamente o leitor quando o PDF, a página ou o refresh mudam",()=>{
    expect(ui).toContain('const selectedPdfPage=Number.isSafeInteger(Number(page)) && Number(page)>0');
-   expect(ui).toContain('key={[previewUrl,selectedPdfPage,pdfViewerReload].join(":")}');
-   expect(ui).toContain('src={previewUrl+"#page="+selectedPdfPage}');
+   expect(ui).toContain('<UrbanPdfPageCanvas file={file} pageNumber={selectedPdfPage} reloadToken={pdfViewerReload}/>');
+   expect(ui).not.toContain('<iframe');
+   const renderer=readFileSync("src/components/platform/UrbanPdfPageCanvas.tsx","utf8");
+   expect(renderer).toContain('await pdf.getPage(pageNumber)');
+   expect(renderer).toContain('page.render({canvasContext:ctx,viewport})');
+   expect(renderer).toContain('isEvalSupported:false');
    expect(ui).toContain('data-urban-pdf-reload="true"');
    expect(ui).toContain('setPdfViewerReload(n=>n+1)');
    expect(ui).toContain('data-urban-pdf-selected-page="true"');
-   expect(ui).toContain("alguns navegadores ignoram a navegação automática");
+   expect(ui).toContain("A página física é renderizada diretamente pelo SIGAPRO");
    expect(ui).toContain('target="_blank" rel="noreferrer"');
  });
  it("exibe estado concluído e não finge marcação antes da declaração humana",()=>{
