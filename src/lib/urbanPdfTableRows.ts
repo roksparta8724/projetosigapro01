@@ -55,7 +55,10 @@ function detectHeader(r:PdfTextRun):UrbanVisionFieldKey|null{
  if(x>480&&x<575&&/(GABARITO|ALTURA MAXIMA)/.test(word))return "gabarito";
  if(x>540&&x<610&&/(FRENTE|FRONTAL)/.test(word))return "recuo_frontal";
  if(x>580&&x<650&&/FUNDOS/.test(word))return "recuo_fundos";
- if(x>620&&x<690&&/LATERAL/.test(word))return "recuo_lateral";
+ // Distinguish the true LATERAL column from the printed margin note
+ // "(recuo lateral)" (also present on physical page 36 of quadros.pdf).
+ // The old substring match yielded TWO lateral headers and discarded all 13 cells.
+ if(x>620&&x<675&&word==="LATERAL")return "recuo_lateral";
  return null;
 }
 function headersFor(layer:UrbanPdfSourceLayer):Header[]|null{

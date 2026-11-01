@@ -16,6 +16,9 @@ describe("SIGAPRO QA — paginação PDF e revisão premium",()=>{
    expect(ui).toContain('data-urban-pdf-reload="true"');
    expect(ui).toContain('setPdfViewerReload(n=>n+1)');
    expect(ui).toContain('data-urban-pdf-selected-page="true"');
+   expect(ui).toContain('const exact=available.filter(row=>');
+   expect(ui).toContain('setPdfLayer(layer);setSelectedPdfRowId(selected?.id??"")');
+   expect(ui).toContain('if(selected&&!zone.trim()&&!usage.trim())');
    expect(ui).toContain("A página física é renderizada diretamente pelo SIGAPRO");
    expect(ui).toContain('target="_blank" rel="noreferrer"');
  });

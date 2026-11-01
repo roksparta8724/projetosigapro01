@@ -11,6 +11,9 @@ const headers:PdfTextRun[]=[
  p("LOTE",409.4,123.3,17.9),p("TESTADA",449.7,133.7,32.8),
  p("GABARITO",504.9,129.8,36.7),p("FRENTE",560.5,138.2,23.8),
  p("FUNDOS",594.1,137.6,25.2),p("LATERAL",630.6,137.8,27.6),
+ // Physical PDF page 36 contains another 'lateral)' in Obs. (recuo lateral),
+ // at x=675..694. This was misidentified as a second LATERAL header.
+ p("lateral)",675.5,145.0,19.0,8),
 ];
 const data:PdfTextRun[]=[
  p("comercial",108.4,185.1,36.6),p("ZONA",36.4,192.6,22.2,10.3),
@@ -46,6 +49,14 @@ describe("SIGAPRO QA — true line- and header-based PDF table extraction",()=>{
   const blank=readUrbanTableRow(fixture(),"");
   expect(blank.recognized).toBe(0);
   expect(blank.status).toBe("select_row");
+ });
+ it("does not confuse the PDF margin note '(recuo lateral)' with the LATERAL header",()=>{
+  const layer=fixture();
+  const rows=discoverUrbanPdfRows(layer);
+  expect(rows.length).toBeGreaterThan(0);
+  const result=readUrbanTableRow(layer,rows[0].id);
+  expect(result.recognized).toBe(13);
+  expect(result.cells.find(c=>c.key==="recuo_lateral")?.value).toBe("5");
  });
  it("recognizes all 13 cells from physical PDF word positions without AI",()=>{
   const layer=fixture(),row=discoverUrbanPdfRows(layer)[0];

@@ -584,10 +584,23 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
       if(current.municipalityId!==requested.municipalityId||
         current.file!==requested.file||current.page!==requested.page||
         current.zone!==requested.zone||current.usage!==requested.usage)return;
-      setPdfLayer(layer);setSelectedPdfRowId("");
       const available=discoverUrbanPdfRows(layer);
+      // Initial inspection should actually display its first grounded row.
+      // Never auto-save or approve: this is an unverified visual suggestion.
+      // When a zone/use was explicitly selected, only preselect a UNIQUE match.
+      const exact=available.filter(row=>
+        normalizeUrbanCode(row.zone)===normalizeUrbanCode(zone) &&
+        normalizeUrbanCode(row.usage)===normalizeUrbanCode(usage));
+      const selected=exact.length===1?exact[0]:
+        !zone.trim()&&!usage.trim()?available[0]:undefined;
+      setPdfLayer(layer);setSelectedPdfRowId(selected?.id??"");
+      if(selected&&!zone.trim()&&!usage.trim()){
+        setZone(selected.zone);setUsage(selected.usage);
+      }
       setPdfLayerNotice(layer.textStatus==="text_available"&&available.length
-        ?available.length+" linhas da tabela encontradas. Escolha uma linha específica abaixo para visualizar os parâmetros."
+        ?available.length+" linhas encontradas. "+
+          (selected?"Primeira linha exibida apenas para conferência; selecione outra quando necessário.":
+            "Escolha a linha exata da zona e do uso para visualizar os parâmetros.")
         :layer.textStatus==="text_available"
         ?"Texto extraído do PDF local, com coordenadas da página. A identificação dos valores e a conferência jurídica continuam necessárias."
         :layer.textStatus==="no_text_layer"
