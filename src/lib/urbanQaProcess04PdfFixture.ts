@@ -10,7 +10,7 @@ export async function createUrbanQaProcess04Fixture():Promise<File> {
  const dark=[15,48,71] as const,blue=[20,92,135] as const,gray=[83,103,118] as const;
  const text=(x:number,y:number,value:string,size=11,bold=false)=>{
    doc.setFont("helvetica",bold?"bold":"normal");doc.setFontSize(size);
-   doc.setTextColor(...(bold?dark:gray));doc.text(value,x,y);
+   const tone=bold?dark:gray;doc.setTextColor(tone[0],tone[1],tone[2]);doc.text(value,x,y);
  };
  const header=(page:number,title:string)=>{
    doc.setFillColor(...dark);doc.rect(0,0,W,89,"F");
