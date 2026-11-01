@@ -1,4 +1,5 @@
 import { backendClient } from "@/integrations/backend/databaseClient";
+import type {UrbanVerifiedLegalSource} from "@/lib/urbanLegalProof";
 import { normalizeUrbanCode, validateUrbanRules, type UrbanMeasurements, type UrbanRegulationVersion, type UrbanRule } from "@/lib/urbanPrecheck";
 
 async function invoke<T>(name: string, args: Record<string, unknown>): Promise<T> {
@@ -8,6 +9,12 @@ async function invoke<T>(name: string, args: Record<string, unknown>): Promise<T
   return data as T;
 }
 
+/** Only internal municipal profiles can read this RPC; no browser-chosen tenant is trusted by its SQL guard. */
+export async function listUrbanLegalEvidence(municipalityId:string):Promise<UrbanVerifiedLegalSource[]>{
+ const response=await invoke<unknown>("list_urban_legal_evidence_v2",{_municipality_id:municipalityId});
+ if(!Array.isArray(response))throw Error("Resposta inválida do acervo de evidências legais.");
+ return response as UrbanVerifiedLegalSource[];
+}
 export async function listUrbanRegulations(municipalityId: string): Promise<UrbanRegulationVersion[]> {
   const response = await invoke<unknown>("list_urban_regulation_versions_v1", { _municipality_id: municipalityId });
   if (!Array.isArray(response)) throw new Error("Resposta inválida do cadastro legal municipal.");
@@ -33,6 +40,7 @@ export async function activateUrbanRegulation(versionId: string): Promise<void> 
 export type UrbanPrecheckHistoryEntry = {
   id: string; municipality_id: string; process_id: string; regulation_version_id: string;
   measurements: UrbanMeasurements; reviewer_profile_id: string; created_at: string;
+  legal_review?: {evidence_ids?:string[];document_scope_confirmed?:boolean;note?:string};
 };
 export async function listUrbanPrecheckHistory(processId: string): Promise<UrbanPrecheckHistoryEntry[]> {
   const response = await invoke<unknown>("list_urban_prechecks_v1", { _process_id: processId });
@@ -49,15 +57,27 @@ export async function listUrbanPrecheckHistory(processId: string): Promise<Urban
 export async function saveUrbanPrecheckRun(
   processId: string, versionId: string, referenceDate: string, measurements: UrbanMeasurements,
   requestId: string,
+  legalReview:{evidenceIds:string[];documentScopeConfirmed:boolean;note:string},
 ): Promise<void> {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(referenceDate)) throw new Error("Data legal inválida.");
+  if (!legalReview.documentScopeConfirmed || legalReview.note.trim().length<20 ||
+    legalReview.note.length>1200 || !legalReview.evidenceIds.length ||
+    legalReview.evidenceIds.length>50 ||
+    new Set(legalReview.evidenceIds).size!==legalReview.evidenceIds.length ||
+    legalReview.evidenceIds.some(id=>!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(id))) {
+    throw new Error("Fontes oficiais por métrica e declaração de conferência obrigatórias.");
+  }
   if (!/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(requestId)) throw new Error("Identificador de gravação inválido.");
   await invoke("save_urban_precheck_run_v5", {
     _process_id: processId,
     _regulation_version_id: versionId,
     _reference_date: referenceDate,
     _measurements: measurements,
-    _legal_review: { evidence_ids: [], note: "", document_scope_confirmed: false },
+    _legal_review: {
+      evidence_ids:legalReview.evidenceIds,
+      note:legalReview.note.trim(),
+      document_scope_confirmed:legalReview.documentScopeConfirmed,
+    },
     _request_id: requestId,
   });
 }

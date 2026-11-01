@@ -3,7 +3,7 @@ import { AlertTriangle, BrainCircuit, CheckCircle2, ClipboardCheck, FileClock, L
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  listUrbanPrecheckHistory, listUrbanRegulations, saveUrbanPrecheckRun,
+  listUrbanLegalEvidence, listUrbanPrecheckHistory, listUrbanRegulations, saveUrbanPrecheckRun,
   type UrbanPrecheckHistoryEntry,
 } from "@/integrations/backend/urbanPrecheckClient";
 import {
@@ -11,6 +11,7 @@ import {
   type UrbanMetric, type UrbanMeasurements, type UrbanRegulationVersion,
 } from "@/lib/urbanPrecheck";
 import { municipalCivilDateFromValue } from "@/lib/municipalCivilDate";
+import {resolveUrbanLegalCoverage,type UrbanVerifiedLegalSource} from "@/lib/urbanLegalProof";
 import type { ProcessRecord } from "@/lib/platform";
 
 type Field = { value: string; evidence: string };
@@ -21,6 +22,8 @@ export function UrbanPrecheckPanel({
 }: { process: ProcessRecord; municipalityId: string; readOnly: boolean }) {
   const [versions, setVersions] = useState<UrbanRegulationVersion[]>([]);
   const [history, setHistory] = useState<UrbanPrecheckHistoryEntry[]>([]);
+  const [legalEvidence,setLegalEvidence]=useState<UrbanVerifiedLegalSource[]|null>(null);
+  const [legalAcknowledged,setLegalAcknowledged]=useState(false);
   const [zone, setZone] = useState("");
   const [usage, setUsage] = useState(process.property.usage || "");
   const [asOf, setAsOf] = useState(() => municipalCivilDateFromValue(process.officializedAt));
@@ -39,13 +42,16 @@ export function UrbanPrecheckPanel({
     idempotencyRef.current=null;
     setVersions([]);
     setHistory([]);
+    setLegalEvidence(null);
+    setLegalAcknowledged(false);
     setNotice("");
     setLoading(true);
     void Promise.all([
       listUrbanRegulations(municipalityId),
       listUrbanPrecheckHistory(process.id),
-    ]).then(([rules, past]) => {
-      if (active) { setVersions(rules); setHistory(past); }
+      listUrbanLegalEvidence(municipalityId),
+    ]).then(([rules, past, legal]) => {
+      if (active) { setVersions(rules); setHistory(past); setLegalEvidence(legal); }
     }).catch((error: unknown) => {
       if (active) setNotice("Normas ainda indisponíveis: " + String((error as Error)?.message || error));
     }).finally(() => { if (active) setLoading(false); });
@@ -57,6 +63,10 @@ export function UrbanPrecheckPanel({
     [versions, municipalityId, zone, usage, asOf],
   );
 
+  const legalCoverage=useMemo(
+    ()=>resolveUrbanLegalCoverage(regulation,legalEvidence,municipalityId,asOf),
+    [regulation,legalEvidence,municipalityId,asOf],
+  );
   const setField = (metric: UrbanMetric, field: keyof Field, text: string) => {
     setFields((previous) => ({
       ...previous,
@@ -89,12 +99,17 @@ export function UrbanPrecheckPanel({
     () => filterUrbanPrecheckHistoryForContext(history, municipalityId, process.id),
     [history, municipalityId, process.id],
   );
-  const canSave = !!regulation && !readOnly && !saving && findings.some(
+  const canSave = !!regulation && legalCoverage.status==="ready" && legalAcknowledged &&
+    !readOnly && !saving && findings.some(
     (finding) => finding.status !== "missing_evidence"
   );
 
   const save = async () => {
     if (!regulation || readOnly || saving) return;
+    if (legalCoverage.status!=="ready" || !legalAcknowledged) {
+      setNotice("Confirme todas as fontes legais por índice antes de registrar esta pré-conferência.");
+      return;
+    }
     const invalidEntered = regulation.rules.some((rule) => {
       const input = fields[rule.metric];
       if (!input?.value.trim() && !input?.evidence.trim()) return false;
@@ -120,11 +135,17 @@ export function UrbanPrecheckPanel({
     setSaving(true);
     setNotice("");
     try {
-      const snapshot=JSON.stringify({processId:process.id,municipalityId,versionId:regulation.id,referenceDate:asOf,measurements:complete});
+      const legalReview={
+        evidenceIds:legalCoverage.evidenceIds,
+        documentScopeConfirmed:true,
+        note:"Conferi a zona, o uso e a data de referência e as páginas das evidências legais vinculadas aos índices nesta pré-conferência consultiva.",
+      };
+      const snapshot=JSON.stringify({processId:process.id,municipalityId,
+        versionId:regulation.id,referenceDate:asOf,measurements:complete,legalReview});
       const requestId=idempotencyRef.current?.snapshot===snapshot
         ? idempotencyRef.current.id : crypto.randomUUID();
       idempotencyRef.current={snapshot,id:requestId};
-      await saveUrbanPrecheckRun(process.id, regulation.id, asOf, complete, requestId);
+      await saveUrbanPrecheckRun(process.id, regulation.id, asOf, complete, requestId, legalReview);
       const updated = await listUrbanPrecheckHistory(process.id);
       setHistory(updated);
       setNotice("Pré-conferência registrada no histórico. Não altera a aprovação nem a ficha oficial.");
@@ -158,15 +179,15 @@ export function UrbanPrecheckPanel({
       <div className="mt-4 grid gap-3 md:grid-cols-3">
         <label className="text-xs font-bold text-slate-700 dark:text-slate-200">Zona do imóvel
           <Input className="mt-1" placeholder="Ex.: ZR1" value={zone} maxLength={40}
-            onChange={(event) => setZone(normalizeUrbanCode(event.target.value))} />
+            onChange={(event) => {setZone(normalizeUrbanCode(event.target.value));setLegalAcknowledged(false);}} />
         </label>
         <label className="text-xs font-bold text-slate-700 dark:text-slate-200">Categoria de uso
           <Input className="mt-1" value={usage} maxLength={60} placeholder="Ex.: RESIDENCIAL"
-            onChange={(event) => setUsage(normalizeUrbanCode(event.target.value))} />
+            onChange={(event) => {setUsage(normalizeUrbanCode(event.target.value));setLegalAcknowledged(false);}} />
         </label>
         <label className="text-xs font-bold text-slate-700 dark:text-slate-200">Data de referência legal
           <Input className="mt-1" type="date" value={asOf}
-            onChange={(event) => setAsOf(event.target.value)} />
+            onChange={(event) => {setAsOf(event.target.value);setLegalAcknowledged(false);}} />
         </label>
       </div>
 
@@ -180,6 +201,29 @@ export function UrbanPrecheckPanel({
       ) : null}
       {regulation ? (
         <div className="mt-5">
+          <div data-sigapro-urban-legal-coverage="true"
+            className="mb-4 rounded-xl border border-amber-300 bg-amber-50 p-4 text-slate-950 dark:border-amber-700 dark:bg-amber-950/50 dark:text-white">
+            <p className="text-sm font-extrabold">
+              Fundamentação legal por índice: {legalCoverage.matched} de {legalCoverage.required} com fonte vinculada
+            </p>
+            <p className="mt-1 text-xs leading-5">
+              {legalCoverage.status==="ready"
+                ?"Referências verificadas encontradas para cada índice deste escopo. Confirme as páginas e a vigência antes de registrar."
+                :legalCoverage.status==="incomplete_catalog"
+                ?"O catálogo excede o limite da consulta; nenhuma conclusão de cobertura é permitida."
+                :"Faltam fontes oficiais vinculadas à zona, ao uso, à métrica e à data informada. O cadastro numérico, sozinho, não comprova vigência."}
+            </p>
+            {legalCoverage.missing.length>0?<p className="mt-2 text-xs font-semibold">
+              Índices sem fundamento vinculado: {legalCoverage.missing.map(key=>URBAN_METRICS.find(x=>x.key===key)?.label||key).join("; ")}
+            </p>:null}
+            {legalCoverage.status==="ready"?<label className="mt-3 flex items-start gap-2 text-xs font-semibold leading-5">
+              <input type="checkbox" className="mt-1 h-4 w-4 accent-sky-700"
+                checked={legalAcknowledged} disabled={readOnly}
+                onChange={event=>setLegalAcknowledged(event.target.checked)} />
+              Conferi as páginas citadas e o escopo legal desta zona, uso e data.
+              Esta declaração não aprova o projeto nem substitui o parecer técnico.
+            </label>:null}
+          </div>
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-sky-200 bg-sky-50 p-3 dark:border-sky-700 dark:bg-sky-950/40">
             <p className="text-sm font-bold text-sky-950 dark:text-sky-100">
               Norma ativa: {regulation.zone_code} · {regulation.use_code} · Versão {regulation.version}
@@ -201,13 +245,22 @@ export function UrbanPrecheckPanel({
                       "bg-slate-200 text-slate-800 dark:bg-slate-700 dark:text-slate-100"
                     )}>
                       {status === "attention" ? "Requer revisão" :
-                        status === "within_limit" ? "Dentro do limite informado" : "Sem evidência"}
+                        status === "within_limit" ? "Comparação numérica dentro do limite" : "Sem evidência"}
                     </span>
                   </div>
                   <p className="mt-1 text-xs leading-5 text-slate-600 dark:text-slate-300">
                     Limite: {definition.direction === "minimum" ? "mínimo " : "máximo "}{rule.limit}{definition.unit ? " " + definition.unit : ""}
                     {" · "}{rule.reference}
                   </p>
+                  {legalCoverage.sources[rule.metric]?<p data-sigapro-urban-cited-metric={rule.metric}
+                    className="mt-2 rounded-lg border border-sky-200 bg-sky-50 p-2 text-xs leading-5 text-sky-950 dark:border-sky-800 dark:bg-sky-950 dark:text-sky-100">
+                    Fonte catalogada: {legalCoverage.sources[rule.metric]!.documentTitle},
+                    página {legalCoverage.sources[rule.metric]!.page}.
+                    {" "}{legalCoverage.sources[rule.metric]!.excerpt}
+                  </p>:<p data-sigapro-urban-missing-metric={rule.metric}
+                    className="mt-2 text-xs font-semibold text-amber-800 dark:text-amber-200">
+                    Fonte oficial por índice não vinculada — registro bloqueado.
+                  </p>}
                   <div className="mt-3 grid gap-3 md:grid-cols-[minmax(100px,0.35fr)_minmax(220px,1fr)]">
                     <label className="text-xs font-bold text-slate-700 dark:text-slate-200">Medida informada
                       <Input className="mt-1" type="text" inputMode="decimal" disabled={readOnly}
@@ -235,7 +288,7 @@ export function UrbanPrecheckPanel({
             </p>
             <Button type="button" disabled={!canSave} onClick={() => void save()} className="rounded-xl bg-sky-700 text-white hover:bg-sky-800">
               {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-              Registrar pré-conferência
+              Registrar pré-conferência fundamentada
             </Button>
           </div>
         </div>
@@ -252,6 +305,8 @@ export function UrbanPrecheckPanel({
               version.id === entry.regulation_version_id && version.municipality_id === municipalityId,
             );
             const summary = summarizeUrbanPrecheckHistory(historicRules?.rules ?? null, entry.measurements);
+            const historicallyCited=Boolean(entry.legal_review?.document_scope_confirmed &&
+              Array.isArray(entry.legal_review.evidence_ids) && entry.legal_review.evidence_ids.length>0);
             return (
               <div key={entry.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 p-3 dark:border-slate-700">
                 <p className="text-xs text-slate-700 dark:text-slate-200">
@@ -259,12 +314,12 @@ export function UrbanPrecheckPanel({
                   {formatUrbanHistoryDate(entry.created_at)} · Versão {historicRules?.version || "arquivada"}
                 </p>
                 <p className="flex items-center gap-1 text-xs text-slate-700 dark:text-slate-200">
-                  {summary.status === "within_limit" ?
+                  {summary.status === "within_limit" && historicallyCited ?
                     <CheckCircle2 className="h-4 w-4 text-emerald-600" /> :
                     <AlertTriangle className="h-4 w-4 text-amber-600" />}
                   {summary.status === "unavailable"
                     ? "Norma histórica indisponível · sem avaliação"
-                    : `${summary.alertCount} alertas · ${summary.missingCount} sem comprovação · Registro consultivo`}
+                    : `${summary.alertCount} alertas · ${summary.missingCount} sem medida · ${historicallyCited?"Referências legais registradas":"Fundamentação não registrada"} · Consultivo`}
                 </p>
               </div>
             );
