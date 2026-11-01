@@ -1266,6 +1266,19 @@ export function isProcessReleasedToUrbanAnalysis(process: ProcessRecord): boolea
     return false;
   }
 
+  // A conclusão da triagem não significa que o Protocolo já despachou o caso.
+  // Evita filas técnicas prematuras em registros legados ou inconsistentes.
+  if ([
+    "rascunho",
+    "protocolo",
+    "triagem",
+    "guia_emitida",
+    "pagamento_pendente",
+    "pagamento_confirmado",
+  ].includes(process.status)) {
+    return false;
+  }
+
   return getProcessPaymentGuides(process).some(
     (guide) => guide.kind === "protocolo" && guide.status === "compensada",
   );
