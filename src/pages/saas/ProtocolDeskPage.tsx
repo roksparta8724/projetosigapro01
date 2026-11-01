@@ -55,6 +55,7 @@ import {
   type ProcessRecord,
   URBAN_ANALYSIS_DEPARTMENT,
 } from "@/lib/platform";
+import { getMissingRequiredDocuments, getPendingTriageDocuments } from "@/lib/triageReadiness";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
@@ -79,37 +80,6 @@ type ProtocolSection =
 
 function getOpeningDate(process: ProcessRecord) {
   return process.timeline[process.timeline.length - 1]?.at ?? process.payment.issuedAt ?? "-";
-}
-
-function normalizeDocumentLabel(value: string) {
-  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-}
-
-function getMissingApprovalDocumentTypes(process: ProcessRecord) {
-  if (!/(aprov|licenciament|arquitet|projeto)/i.test(process.type) || /habite.?se/i.test(process.type)) return [];
-  const labels = process.documents
-    .filter((document) => document.required && document.uploaded && document.reviewStatus === "aprovado")
-    .map((document) => normalizeDocumentLabel(document.label));
-  return [
-    { name: "Projeto Arquitetônico", matches: (label: string) => label.includes("projeto arquitetonico") },
-    { name: "Memorial Descritivo", matches: (label: string) => label.includes("memorial descritivo") },
-    { name: "ART/RRT", matches: (label: string) => /(^|[^a-z])(art|rrt)([^a-z]|$)/.test(label) },
-    { name: "Escritura/Matrícula", matches: (label: string) => /escritura|matricula/.test(label) },
-  ].filter((documentType) => !labels.some(documentType.matches)).map((documentType) => documentType.name);
-}
-
-function getMissingRequiredDocuments(process: ProcessRecord) {
-  const missingFiles = process.documents.filter((document) => document.required && !document.uploaded).length;
-  if (process.documents.length === 0) return Math.max(1, getMissingApprovalDocumentTypes(process).length);
-  return Math.max(missingFiles, getMissingApprovalDocumentTypes(process).length);
-}
-
-function getPendingTriageDocuments(process: ProcessRecord) {
-  const pendingReview = process.documents.filter(
-    (document) => document.required && (!document.uploaded || document.reviewStatus !== "aprovado"),
-  ).length;
-  if (process.documents.length === 0) return Math.max(1, getMissingApprovalDocumentTypes(process).length);
-  return Math.max(pendingReview, getMissingApprovalDocumentTypes(process).length);
 }
 
 export function ProtocolDeskPage() {
