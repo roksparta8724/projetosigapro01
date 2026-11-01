@@ -21,11 +21,11 @@ describe("SIGAPRO triage readiness — document completeness", () => {
     expect(getPendingTriageDocuments(p)).toBe(4);
   });
 
-  it("requires all four mandatory types and the review of each", () => {
+  it("requires all four delivered mandatory types without requiring technical approval", () => {
     expect(getMissingApprovalDocumentTypes(process("aprovacao_projeto", complete()))).toEqual([]);
     expect(getPendingTriageDocuments(process("aprovacao_projeto", complete()))).toBe(0);
     expect(getPendingTriageDocuments(process("Aprovação de Projeto", complete().slice(0, 3)))).toBe(1);
-    expect(getPendingTriageDocuments(process("Aprovação de Projeto", [ ...complete().slice(0,3), doc("Escritura/Matrícula", "pendente") ]))).toBe(1);
+    expect(getPendingTriageDocuments(process("Aprovação de Projeto", [ ...complete().slice(0,3), doc("Escritura/Matrícula", "pendente") ]))).toBe(0);
   });
 
   it("preserves Habite-se's own documentary requirements", () => {

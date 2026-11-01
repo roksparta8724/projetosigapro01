@@ -21,7 +21,9 @@ function normalizeLabel(value: string) {
 
 export function getMissingApprovalDocumentTypes(process: Pick<ProcessRecord, "type" | "documents">): string[] {
   if (!/(aprov|licenciament|arquitet|projeto)/i.test(process.type) || /habite.?se/i.test(process.type)) return [];
-  const labels = process.documents.filter((d) => d.required && hasReadyFile(d) && d.reviewStatus === "aprovado")
+  // A conferência do Protocolo verifica o arquivo recebido, NÃO o parecer técnico.
+  // reviewStatus pertence à Análise e só pode ser definido após despacho.
+  const labels = process.documents.filter((d) => d.required && hasReadyFile(d))
     .map((d) => normalizeLabel(d.label));
   return [
     { name: "Projeto Arquitetônico", matches: (x: string) => x.includes("projeto arquitetonico") },
@@ -39,14 +41,9 @@ export function getMissingRequiredDocuments(process: Pick<ProcessRecord, "type" 
   return Math.max(missingFiles, missingCategories);
 }
 
+/** A triagem confere entrega documental; não exige aprovação urbanística. */
 export function getPendingTriageDocuments(process: Pick<ProcessRecord, "type" | "documents">): number {
-  const pendingReview = process.documents.filter(
-    (d) => d.required && (!hasReadyFile(d) || d.reviewStatus !== "aprovado"),
-  ).length;
-  const missingCategories = getMissingApprovalDocumentTypes(process).length;
-  const hasApprovedRequired = process.documents.some((d) => d.required && hasReadyFile(d) && d.reviewStatus === "aprovado");
-  if (!hasApprovedRequired) return Math.max(1, pendingReview, missingCategories);
-  return Math.max(pendingReview, missingCategories);
+  return getMissingRequiredDocuments(process);
 }
 
 /** Gateway to dispatch: payment, document review and completed triage, independently ordered. */

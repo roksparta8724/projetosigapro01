@@ -761,7 +761,7 @@ export function ProtocolDeskPage() {
     const pendingReview = getPendingTriageDocuments(process);
     if (status === "concluido" && pendingReview > 0) {
       setProtocolActionStatus(
-        `A triagem não pode ser concluída: ${pendingReview} documento(s) obrigatório(s) ainda precisam ser enviados ou aprovados.`,
+        `A triagem não pode ser concluída: ${pendingReview} documento(s) obrigatório(s) ainda precisam ser enviados e conferidos quanto à presença do arquivo.`,
       );
       return;
     }
@@ -889,7 +889,7 @@ export function ProtocolDeskPage() {
       return;
     }
     if (getPendingTriageDocuments(process) > 0) {
-      setProtocolActionStatus("Faltam anexos obrigatórios ou a conferência dos documentos. Consulte Documentos pendentes.");
+      setProtocolActionStatus("Faltam anexos obrigatórios reais para a triagem. Consulte Documentos pendentes.");
       return;
     }
     if (!hasCompensatedInitialGuide(process)) {

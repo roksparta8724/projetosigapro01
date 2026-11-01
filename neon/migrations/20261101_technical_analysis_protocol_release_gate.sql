@@ -547,7 +547,6 @@ begin
         and (
           (nullif(btrim(coalesce(doc.file_path,'')),'') is null
            and nullif(btrim(coalesce(doc.preview_url,'')),'') is null)
-          or lower(coalesce(doc.review_status,'pendente')) <> 'aprovado'
           or coalesce(doc.is_valid,true)=false
         )
     ) into _required_missing;
@@ -564,11 +563,11 @@ begin
         select 1 from public.process_documents d
         where d.process_id = _process_id
           and d.is_required is true
+          and coalesce(d.is_valid,true)=true
           and (
             nullif(btrim(coalesce(d.file_path,'')),'') is not null
             or nullif(btrim(coalesce(d.preview_url,'')),'') is not null
           )
-          and lower(coalesce(d.review_status,'pendente'))='aprovado'
           and coalesce(d.is_valid,true)=true
       ) then
         raise exception 'Habite-se: anexe a documentação obrigatória antes do encaminhamento.';
@@ -589,7 +588,6 @@ begin
             nullif(btrim(coalesce(d.file_path,'')),'') is not null
             or nullif(btrim(coalesce(d.preview_url,'')),'') is not null
           )
-          and lower(coalesce(d.review_status,'pendente'))='aprovado'
           and coalesce(d.is_valid,true)=true
       ) < 4 then
         raise exception 'Anexe os quatro documentos mínimos: Projeto Arquitetônico, Memorial Descritivo, ART/RRT e Escritura/Matrícula.';
