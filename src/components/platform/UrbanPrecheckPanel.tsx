@@ -13,6 +13,8 @@ import {
 import { municipalCivilDateFromValue } from "@/lib/municipalCivilDate";
 import {resolveUrbanLegalCoverage,type UrbanVerifiedLegalSource} from "@/lib/urbanLegalProof";
 import type { ProcessRecord } from "@/lib/platform";
+import {UrbanProjectReaderPanel} from "./UrbanProjectReaderPanel";
+import type {ProjectMeasure} from "@/lib/urbanArchitecturalMeasures";
 
 type Field = { value: string; evidence: string };
 type Fields = Partial<Record<UrbanMetric, Field>>;
@@ -69,6 +71,14 @@ export function UrbanPrecheckPanel({
     ()=>resolveUrbanLegalCoverage(regulation,legalEvidence,municipalityId,asOf),
     [regulation,legalEvidence,municipalityId,asOf],
   );
+  const useProjectReading=(item:ProjectMeasure,source:{fileName:string;sha256:string})=>{
+    if(readOnly||!regulation||!regulation.rules.some(r=>r.metric===item.metric))return;
+    // Limit the evidence to the official writer's 500-char maximum.
+    const evidence=`PDF: ${source.fileName} · SHA-256 ${source.sha256} · ${item.excerpt} · pág. ${item.pages.join(",")}`.slice(0,500);
+    setFields(previous=>({...previous,[item.metric]:{value:String(item.value),evidence}}));
+    setLegalAcknowledged(false);setConditionalDirectivesReviewed(false);
+    setNotice("Medida declarada copiada com origem auditável. Verifique as normas antes de registrar qualquer análise.");
+  };
   const setField = (metric: UrbanMetric, field: keyof Field, text: string) => {
     setFields((previous) => ({
       ...previous,
@@ -174,8 +184,10 @@ export function UrbanPrecheckPanel({
         </span>
       </div>
       <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-950 dark:border-amber-500/40 dark:bg-amber-950/40 dark:text-amber-100">
-        A leitura automática de plantas por IA ainda não está habilitada. Verifique cada medida no projeto
-        original e identifique a prancha, a página ou o quadro de áreas utilizado. A legislação deve estar validada pela Prefeitura.
+        O leitor de PDFs agora identifica medidas textualmente declaradas e auxilia cálculos preliminares
+        com áreas explicitamente indicadas. Ele não reconhece automaticamente geometria desenhada
+        nem PDFs digitalizados sem texto: nesses casos, a leitura visual/OCR continua pendente.
+        O resultado requer confirmação do analista e legislação municipal validada.
       </div>
       <div data-sigapro-urban-exceptions-gate="true"
         className="mt-2 rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs font-semibold leading-5 text-amber-950 dark:border-amber-600 dark:bg-amber-950/30 dark:text-amber-100">
@@ -185,18 +197,21 @@ export function UrbanPrecheckPanel({
         Mesmo um índice numérico dentro do limite NÃO significa aprovação nem conformidade geral.
       </div>
 
+      <UrbanProjectReaderPanel readOnly={readOnly}
+        allowedMetrics={regulation?.rules.map(r=>r.metric)??[]}
+        onConfirm={useProjectReading}/>
       <div className="mt-4 grid gap-3 md:grid-cols-3">
         <label className="text-xs font-bold text-slate-700 dark:text-slate-200">Zona do imóvel
           <Input className="mt-1" placeholder="Ex.: ZR1" value={zone} maxLength={40}
-            onChange={(event) => {setZone(normalizeUrbanCode(event.target.value));setLegalAcknowledged(false);setConditionalDirectivesReviewed(false);}} />
+            onChange={(event) => {setZone(normalizeUrbanCode(event.target.value));setFields({});setLegalAcknowledged(false);setConditionalDirectivesReviewed(false);}} />
         </label>
         <label className="text-xs font-bold text-slate-700 dark:text-slate-200">Categoria de uso
           <Input className="mt-1" value={usage} maxLength={60} placeholder="Ex.: RESIDENCIAL"
-            onChange={(event) => {setUsage(normalizeUrbanCode(event.target.value));setLegalAcknowledged(false);setConditionalDirectivesReviewed(false);}} />
+            onChange={(event) => {setUsage(normalizeUrbanCode(event.target.value));setFields({});setLegalAcknowledged(false);setConditionalDirectivesReviewed(false);}} />
         </label>
         <label className="text-xs font-bold text-slate-700 dark:text-slate-200">Data de referência legal
           <Input className="mt-1" type="date" value={asOf}
-            onChange={(event) => {setAsOf(event.target.value);setLegalAcknowledged(false);setConditionalDirectivesReviewed(false);}} />
+            onChange={(event) => {setAsOf(event.target.value);setFields({});setLegalAcknowledged(false);setConditionalDirectivesReviewed(false);}} />
         </label>
       </div>
 
