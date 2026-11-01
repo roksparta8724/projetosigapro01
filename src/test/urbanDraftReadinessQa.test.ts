@@ -54,6 +54,10 @@ describe("SIGAPRO — não permite gravar sugestão sem fundamentação",()=>{
   expect(file).not.toContain("Ex.: Lei 123/2026");
   expect(file).toContain('data-urban-source-provenance="true"');
   expect(file).toContain('data-urban-qa-law-baseline="true"');
+  expect(file).toContain("pilotLc379DocumentVerified?");
+  expect(file).toContain('sha==="68c85d879011dbb323e288a935099b66b6aca3babdd059b8d1c993f98b5750e1"');
+  expect(file).toContain('crypto.subtle.digest("SHA-256",bytes)');
+  expect(file).not.toContain('legalSourceContext?.file.name.toLocaleLowerCase("pt-BR")==="quadros.pdf"?');
   expect(file).toContain("Preencha a vigência e as referências para salvar");
   const css=readFileSync("src/index.css","utf8");
   expect(css).toContain('button[data-sigapro-urban-rules-save="true"]:disabled');

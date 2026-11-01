@@ -28,6 +28,26 @@ export function MunicipalUrbanRulesSettings({
   const [legalSourceContext,setLegalSourceContext]=useState<UrbanLegalSourceContext|null>(null);
   const [manualEditorOpen,setManualEditorOpen]=useState(false);
   const [draftFromPdfCount,setDraftFromPdfCount]=useState(0);
+  const [pilotLc379DocumentVerified,setPilotLc379DocumentVerified]=useState(false);
+  // Identify the pilot's law document by its exact SOURCE BYTES, not just the
+  // filename. This software is multi-tenant: other "quadros.pdf" files are not
+  // automatically Campo Limpo Paulista's 2009 source.
+  useEffect(()=>{
+    let alive=true;
+    setPilotLc379DocumentVerified(false);
+    const pilot=legalSourceContext?.file;
+    if(import.meta.env.VITE_SIGAPRO_URBAN_MATRIX_QA_ENABLED!=="true"||
+      draftFromPdfCount===0||!pilot||pilot.name.toLocaleLowerCase("pt-BR")!=="quadros.pdf"||
+      pilot.size>5*1024*1024)return;
+    void pilot.arrayBuffer().then(bytes=>crypto.subtle.digest("SHA-256",bytes))
+      .then(digest=>{
+        if(!alive)return;
+        const sha=[...new Uint8Array(digest)].map(v=>v.toString(16).padStart(2,"0")).join("");
+        setPilotLc379DocumentVerified(
+          sha==="68c85d879011dbb323e288a935099b66b6aca3babdd059b8d1c993f98b5750e1");
+      }).catch(()=>{if(alive)setPilotLc379DocumentVerified(false);});
+    return ()=>{alive=false};
+  },[draftFromPdfCount,legalSourceContext?.file]);
 
   useEffect(() => {
     let active = true;
@@ -214,8 +234,7 @@ export function MunicipalUrbanRulesSettings({
               Fonte selecionada: {legalSourceContext.file.name}, página física {legalSourceContext.physicalPage},
               zona {legalSourceContext.zone}, uso {legalSourceContext.usage}.
             </p>:null}
-            {import.meta.env.VITE_SIGAPRO_URBAN_MATRIX_QA_ENABLED==="true" &&
-              legalSourceContext?.file.name.toLocaleLowerCase("pt-BR")==="quadros.pdf"?
+            {pilotLc379DocumentVerified?
               <p data-urban-qa-law-baseline="true" className="mt-1">
                 Base documental temporária desta homologação: LC nº 379/2009 (Campo Limpo Paulista).
                 O ano de 2009 não comprova a vigência atual nem preenche a data de início da regra.
