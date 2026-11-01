@@ -11038,3 +11038,23 @@ html body #root .sig-main-shell button[data-urban-direct-prepare-draft="true"]:f
   outline:3px solid #7dd3fc !important;
   outline-offset:2px;
 }
+
+/* QA urban draft: a blocked action must LOOK blocked, without losing contrast.
+   The global dark-button safeguards use !important, so explicitly override
+   the complete disabled state on this one control rather than affecting others. */
+html body .sig-main-shell button[data-sigapro-urban-rules-save="true"]:disabled,
+html body [data-layout-mode="inverse-main"] .sig-main-shell button[data-sigapro-urban-rules-save="true"]:disabled {
+  background-color:#e2e8f0 !important;
+  border-color:#94a3b8 !important;
+  color:#334155 !important;
+  -webkit-text-fill-color:#334155 !important;
+  box-shadow:none !important;
+  opacity:1 !important;
+  cursor:not-allowed !important;
+}
+html body .sig-main-shell button[data-sigapro-urban-rules-save="true"]:disabled :is(span,svg),
+html body [data-layout-mode="inverse-main"] .sig-main-shell button[data-sigapro-urban-rules-save="true"]:disabled :is(span,svg) {
+  color:#334155 !important;
+  -webkit-text-fill-color:#334155 !important;
+  stroke:currentColor !important;
+}

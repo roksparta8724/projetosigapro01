@@ -1,4 +1,5 @@
-import {URBAN_METRICS,type UrbanMetric} from "./urbanPrecheck";
+import {normalizeUrbanCode,URBAN_METRICS,type UrbanMetric} from "./urbanPrecheck";
+import {isSingleUrbanZone} from "./urbanLegalEvidenceRegistration";
 export type DraftEditableValue={limit:string;reference:string};
 export type UrbanDraftReadiness={canSave:boolean;reasons:string[];proposedCount:number;missingReferences:number;invalidValues:number};
 function validCivilDate(value:string){
@@ -13,7 +14,9 @@ export function assessUrbanDraftReadiness(input:{
  draft:Partial<Record<UrbanMetric,DraftEditableValue>>;
 }):UrbanDraftReadiness{
  const reasons:string[]=[];
- if(!input.zone.trim()||!input.usage.trim())reasons.push("informe zona e uso");
+ if(!isSingleUrbanZone(input.zone))reasons.push("confirme um código de zona individual e válido");
+ if(!/^[A-Z0-9][A-Z0-9_ -]{0,59}$/.test(normalizeUrbanCode(input.usage)))
+  reasons.push("informe uma categoria de uso válida");
  if(!validCivilDate(input.effectiveFrom))reasons.push("informe vigência válida");
  let proposedCount=0,missingReferences=0,invalidValues=0;
  for(const definition of URBAN_METRICS){
@@ -22,11 +25,16 @@ export function assessUrbanDraftReadiness(input:{
   proposedCount++;
   const limit=entry?.limit.trim()??"";
   const number=Number(limit.replace(",","."));
-  if(!/^\d{1,6}(?:[,.]\d{1,4})?$/.test(limit)||!Number.isFinite(number)||number<0)invalidValues++;
-  if(!entry?.reference.trim())missingReferences++;
+  const isPercentage=definition.key==="permeability_percent"||definition.key==="occupancy_percent";
+  const isCount=definition.key==="floor_count";
+  if(!/^\d{1,6}(?:[,.]\d{1,4})?$/.test(limit)||
+    !Number.isFinite(number)||number<0||number>100000||
+    (isPercentage&&number>100)||(isCount&&!Number.isInteger(number)))invalidValues++;
+  if(!entry?.reference.trim()||entry.reference.trim().length<6||
+    entry.reference.length>500)missingReferences++;
  }
  if(!proposedCount)reasons.push("informe pelo menos um índice");
  if(invalidValues)reasons.push(`${invalidValues} valor(es) inválido(s)`);
- if(missingReferences)reasons.push(`${missingReferences} referência(s) legais ainda vazias`);
+ if(missingReferences)reasons.push(`${missingReferences} referência(s) legais ausentes ou incompletas (mínimo 6 caracteres)`);
  return {canSave:reasons.length===0,reasons,proposedCount,missingReferences,invalidValues};
 }

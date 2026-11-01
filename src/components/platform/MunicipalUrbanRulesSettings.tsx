@@ -207,13 +207,26 @@ export function MunicipalUrbanRulesSettings({
               ?"Confira os índices sugeridos contra a página original e preencha referências e vigência. Nenhum dado foi salvo ou ativado."
               :"Abra somente para registrar manualmente valores já conferidos na legislação oficial. Nenhum dado é ativado ao salvar o rascunho."}
           </p>
-          {draftFromPdfCount>0?<p data-urban-draft-from-pdf="true"
-            className="mt-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm font-bold leading-6 text-amber-950">
-            {draftFromPdfCount} índice(s) numérico(s) trazidos da camada textual da página {legalSourceContext?.physicalPage}.
-            São sugestões NÃO validadas: confirme cada número, informe a vigência e preencha
-            artigo e condições legais de cada regra. C.A. mínimo/básico, lote, testada, gabarito,
-            Quadro II e exceções continuam fora do cálculo automático.
-          </p>:null}
+          {draftFromPdfCount>0?<div data-urban-draft-from-pdf="true"
+            className="mt-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm font-semibold leading-6 text-amber-950">
+            <p className="font-extrabold">Proposta em conferência — {draftFromPdfCount} índices numéricos, zero normas aprovadas</p>
+            {legalSourceContext?<p data-urban-source-provenance="true" className="mt-1 break-words">
+              Fonte selecionada: {legalSourceContext.file.name}, página física {legalSourceContext.physicalPage},
+              zona {legalSourceContext.zone}, uso {legalSourceContext.usage}.
+            </p>:null}
+            {import.meta.env.VITE_SIGAPRO_URBAN_MATRIX_QA_ENABLED==="true" &&
+              legalSourceContext?.file.name.toLocaleLowerCase("pt-BR")==="quadros.pdf"?
+              <p data-urban-qa-law-baseline="true" className="mt-1">
+                Base documental temporária desta homologação: LC nº 379/2009 (Campo Limpo Paulista).
+                O ano de 2009 não comprova a vigência atual nem preenche a data de início da regra.
+                Alterações posteriores devem ser revisadas em versões próprias.
+              </p>:null}
+            <p className="mt-1">
+              Confira cada número, informe a vigência e preencha a referência e condição legal
+              correspondente. C.A. mínimo/básico, lote, testada, gabarito, Quadro II e
+              exceções continuam fora da comparação numérica automática.
+            </p>
+          </div>:null}
           <div className="mt-5 grid gap-3 md:grid-cols-3">
             <label className="text-xs font-bold text-slate-700 dark:text-slate-200">
               Código da zona
@@ -262,7 +275,7 @@ export function MunicipalUrbanRulesSettings({
             <button
               type="button"
               data-sigapro-urban-rules-save="true"
-              aria-label="Salvar nova versão como rascunho"
+              aria-label={!draftReadiness.canSave?"Aguardando vigência e referências legais":"Salvar nova versão como rascunho"}
               aria-busy={busy}
               disabled={busy || loading || !draftReadiness.canSave}
               onClick={() => void save()}
@@ -270,8 +283,10 @@ export function MunicipalUrbanRulesSettings({
             >
               {busy ? <Loader2 aria-hidden="true" className="h-4 w-4 shrink-0 animate-spin" /> :
                 <Save aria-hidden="true" className="h-4 w-4 shrink-0" />}
-              <span data-sigapro-urban-rules-save-label="true" className="whitespace-normal text-center font-bold leading-5 text-white">
-                Salvar nova versão como rascunho
+              <span data-sigapro-urban-rules-save-label="true" className="whitespace-normal text-center font-bold leading-5">
+                {busy?"Registrando rascunho…":
+                  !draftReadiness.canSave?"Preencha a vigência e as referências para salvar":
+                  "Salvar nova versão como rascunho"}
               </span>
             </button>
           </div>
