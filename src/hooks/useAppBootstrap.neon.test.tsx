@@ -25,7 +25,7 @@ const neonMock = vi.hoisted(() => {
       }],
       error: null,
     };
-    const builder: any = {
+    const builder: {is: ReturnType<typeof vi.fn>; eq: ReturnType<typeof vi.fn>; then: (resolve: (value: typeof result) => unknown, reject?: (reason: unknown) => unknown) => Promise<unknown>} = {
       is: vi.fn(() => builder),
       eq: vi.fn(() => builder),
       then: (resolve: (value: typeof result) => unknown, reject?: (reason: unknown) => unknown) =>
@@ -34,7 +34,7 @@ const neonMock = vi.hoisted(() => {
     return builder;
   };
 
-  const client: any = {
+  const client = {
     auth: {
       getSession: vi.fn(async () => ({ data: { session: null } })),
       getUser: vi.fn(async () => ({ data: { user: null }, error: null })),

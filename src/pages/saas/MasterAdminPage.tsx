@@ -103,7 +103,7 @@ const withRetry = async <T,>(handler: () => Promise<T>, attempts = 3, baseDelay 
 const LEGACY_PENDING_SYNC_STORAGE_KEY = "sigapro:pending-tenant-sync";
 const ensureBackendAvailable = async () => {
   if (!backendClient) throw new Error("Banco oficial indisponível.");
-  const { error } = await withTimeout<any>(
+  const { error } = await withTimeout<{error?: {message?:string} | null}>(
     backendClient.from("municipalities").select("id").limit(1),
     8000,
   );
