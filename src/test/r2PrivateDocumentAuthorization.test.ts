@@ -19,11 +19,17 @@ describe("R2 signed GET municipal document access", () => {
     expect(mock).not.toHaveBeenCalled();
   });
   it("uses the authenticated and RLS-filtered process_documents row", async () => {
-    const mock = vi.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: async () => [{ id: "document", municipality_id: municipalityA, tenant_id: municipalityA }],
-    });
+    const mock = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => [{ id: "33333333-3333-4333-8333-333333333333", process_id: "44444444-4444-4444-8444-444444444444", municipality_id: municipalityA, tenant_id: municipalityA }],
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => true,
+      });
     vi.stubGlobal("fetch", mock);
     await expect(authorizePrivateR2DocumentRead(request("test-token"), objectKey, municipalityA))
       .resolves.toEqual({ ok: true });
@@ -32,7 +38,25 @@ describe("R2 signed GET municipal document access", () => {
     expect(String(url)).toContain("file_path=");
     expect(options.method).toBe("GET");
     expect(options.headers.Authorization).toBe("Bearer test-token");
+    const [rpcUrl, rpcOptions] = mock.mock.calls[1];
+    expect(String(rpcUrl)).toContain("/rpc/authorize_technical_document_signing_v1");
+    expect(rpcOptions.method).toBe("POST");
+    expect(rpcOptions.headers.Authorization).toBe("Bearer test-token");
   });
+  it("rejects private document signing before payment, triage and release", async () => {
+    const mock = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => [{ id: "33333333-3333-4333-8333-333333333333", process_id: "44444444-4444-4444-8444-444444444444", municipality_id: municipalityA, tenant_id: municipalityA }],
+      })
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => false });
+    vi.stubGlobal("fetch", mock);
+    await expect(authorizePrivateR2DocumentRead(request("test-token"), objectKey, municipalityA))
+      .resolves.toMatchObject({ ok: false, status: 403 });
+    expect(mock).toHaveBeenCalledTimes(2);
+  });
+
   it("rejects an RLS-invisible file without falling back to a public URL", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => [] }));
     await expect(authorizePrivateR2DocumentRead(request("test-token"), objectKey, municipalityA))
