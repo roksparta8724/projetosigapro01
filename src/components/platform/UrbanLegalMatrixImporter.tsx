@@ -9,7 +9,7 @@ import { URBAN_VISION_FIELDS, type UrbanVisionFieldKey } from "@/lib/urbanVision
 import { compareUrbanVisionDrafts, auditExpertAgainstArchivedRow, type UrbanDiagnosticRow } from "@/lib/urbanVisionDiagnostic";
 import { getQaPdfTextEvidence, compareQaSourceTextToVision } from "@/lib/urbanPdfDirectEvidenceQa";
 import { readUrbanPdfSourcePage, sourceLayerExcerpt, type UrbanPdfSourceLayer } from "@/lib/urbanPdfTextLayer";
-import { discoverUrbanPdfRows,readUrbanTableRow } from "@/lib/urbanPdfTableRows";
+import { discoverUrbanPdfRows,inspectUrbanPdfRows,readUrbanTableRow } from "@/lib/urbanPdfTableRows";
 import { UrbanPdfPageCanvas } from "./UrbanPdfPageCanvas";
 import { UrbanMatrixBatchReviewBoard } from "./UrbanMatrixBatchReviewBoard";
 import { UrbanMatrixArchivePanel, type UrbanStoredDraft } from "./UrbanMatrixArchivePanel";
@@ -584,7 +584,8 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
       if(current.municipalityId!==requested.municipalityId||
         current.file!==requested.file||current.page!==requested.page||
         current.zone!==requested.zone||current.usage!==requested.usage)return;
-      const available=discoverUrbanPdfRows(layer);
+      const discovery=inspectUrbanPdfRows(layer);
+      const available=discovery.rows;
       // Initial inspection should actually display its first grounded row.
       // Never auto-save or approve: this is an unverified visual suggestion.
       // When a zone/use was explicitly selected, only preselect a UNIQUE match.
@@ -597,12 +598,19 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
       if(selected&&!zone.trim()&&!usage.trim()){
         setZone(selected.zone);setUsage(selected.usage);
       }
+      const unresolvedNotice=discovery.unresolvedUsageRows>0
+        ?" Atenção: "+discovery.unresolvedUsageRows+" linha(s) sem identificação segura de zona; "+
+          discovery.ambiguousZoneUsageRows+" em zona composta ou fragmentada. "+
+          "Confira esses escopos na imagem, sem copiar índices de outra zona."
+        :"";
       setPdfLayerNotice(layer.textStatus==="text_available"&&available.length
-        ?available.length+" linhas encontradas. "+
-          (selected?"Primeira linha exibida apenas para conferência; selecione outra quando necessário.":
+        ?available.length+" linhas identificadas para conferência."+
+          unresolvedNotice+" "+
+          (selected?"Primeira linha apresentada SEM aprovação; confira o código da zona visualmente.":
             "Escolha a linha exata da zona e do uso para visualizar os parâmetros.")
         :layer.textStatus==="text_available"
-        ?"Texto extraído do PDF local, com coordenadas da página. A identificação dos valores e a conferência jurídica continuam necessárias."
+        ?"Texto extraído do PDF local; nenhuma linha identificada com segurança."+
+          unresolvedNotice+" Confira zona, uso e vigência diretamente na imagem."
         :layer.textStatus==="no_text_layer"
           ?"Esta página não possui texto extraível; a IA visual pode auxiliar, mas campos desfocados continuam pendentes."
           :"O texto está incompleto ou possivelmente corrompido. Não utilize números sem validar a página.");
@@ -1084,10 +1092,18 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
         <p className="mt-1 text-sm text-slate-700">
           Valores encontrados não são valores aprovados. Confira a linha selecionada no PDF e a lei vigente.
         </p>
-        {pdfTableReading?.row?<p data-urban-admin-active-pdf-row="true"
-          className="mt-2 rounded-lg border border-sky-200 bg-sky-50 p-3 text-sm font-extrabold text-sky-950">
-          Linha do PDF: {pdfTableReading.row.zone} · {pdfTableReading.row.usage} · página {pdfTableReading.page}
-        </p>:null}
+        {pdfTableReading?.row?<>
+          <p data-urban-admin-active-pdf-row="true"
+            className="mt-2 rounded-lg border border-sky-200 bg-sky-50 p-3 text-sm font-extrabold text-sky-950">
+            Linha textual identificada: {pdfTableReading.row.zone} · {pdfTableReading.row.usage} · página {pdfTableReading.page}
+          </p>
+          <p data-urban-zone-visual-warning="true"
+            className="mt-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs font-bold leading-5 text-amber-950">
+            A camada textual pode trocar letras por números (ex.: B por 8).
+            Confira o código exato da ZONA na imagem da lei antes de registrar.
+            13/13 significa leitura textual, nunca aprovação dos parâmetros.
+          </p>
+        </>:null}
         <div className="mt-3 flex flex-wrap gap-2 text-sm font-bold">
           <span className="rounded-lg bg-slate-100 px-3 py-2 text-slate-900">
             {adminOverviewRead}/13 com leitura disponível
