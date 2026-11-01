@@ -36,8 +36,8 @@ export function verifyUrbanEvidenceInput(args:{
  if(args.method==="visual_double_transcription" &&
    args.repeatExcerpt.trim()!==args.excerpt.trim())
    return "Repita exatamente o trecho da imagem original para confirmação.";
- if(args.method==="text_layer_verified"&&
-   (!args.textLayer||!normalizeLegalExcerpt(args.textLayer).includes(normalizeLegalExcerpt(args.excerpt))))
+ if(args.method==="text_layer_verified"&&typeof args.textLayer==="string"&&
+   !normalizeLegalExcerpt(args.textLayer).includes(normalizeLegalExcerpt(args.excerpt)))
    return "O trecho não corresponde à camada textual desta página. Use a conferência visual com dupla transcrição.";
  if(!realDate(args.from)||(args.until&&(!realDate(args.until)||args.until<args.from)))
    return "Informe datas civis válidas para a vigência da evidência.";

@@ -3,8 +3,7 @@ import {BookOpenCheck,FileCheck2,Loader2,ShieldAlert} from "lucide-react";
 import {Button} from "@/components/ui/button";
 import {Input} from "@/components/ui/input";
 import {UrbanPdfPageCanvas} from "./UrbanPdfPageCanvas";
-import {listUrbanLegalEvidence,saveScopedUrbanLegalEvidence,
-  type UrbanPrecheckHistoryEntry} from "@/integrations/backend/urbanPrecheckClient";
+import {listUrbanLegalEvidence,saveScopedUrbanLegalEvidence} from "@/integrations/backend/urbanPrecheckClient";
 import type {UrbanVerifiedLegalSource} from "@/lib/urbanLegalProof";
 import {URBAN_METRICS,normalizeUrbanCode,type UrbanMetric,type UrbanRegulationVersion}
   from "@/lib/urbanPrecheck";

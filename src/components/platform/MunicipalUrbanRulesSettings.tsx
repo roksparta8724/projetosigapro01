@@ -96,7 +96,7 @@ export function MunicipalUrbanRulesSettings({
   };
   const activate = async (id: string) => {
     if (!canEdit || busy || !window.confirm(
-      "Confirma que a legislação, a zona, o uso, a data de vigência e os artigos foram conferidos? Ativar substituirá a versão vigente somente para esta zona e uso."
+      "Confirma a lei oficialmente vigente, suas alterações, as condicionantes do Quadro II e a fonte individual de CADA índice? O banco recusará a ativação se faltarem evidências. A ativação valerá somente nesta zona e uso."
     )) return;
     setBusy(true);
     setNotice("");

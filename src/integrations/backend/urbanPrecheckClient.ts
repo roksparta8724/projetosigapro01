@@ -54,7 +54,7 @@ export async function saveUrbanRegulationDraft(
 }
 
 export async function activateUrbanRegulation(versionId: string): Promise<void> {
-  await invoke("activate_urban_regulation_v1", { _version_id: versionId });
+  await invoke("activate_urban_regulation_v2", { _version_id: versionId });
 }
 
 export type UrbanPrecheckHistoryEntry = {

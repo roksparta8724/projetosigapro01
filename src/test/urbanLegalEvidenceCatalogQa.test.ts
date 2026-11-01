@@ -34,6 +34,7 @@ describe("SIGAPRO QA — cadastro de evidência por regra real",()=>{
   expect(verifyUrbanEvidenceInput({...data,version:{...version,status:"superseded"}})).toMatch(/mesma versão/);
  });
  it("não permite o modo textual sem correspondência literal do trecho",()=>{
+  expect(verifyUrbanEvidenceInput({...data,method:"text_layer_verified"})).toBeNull();
   expect(verifyUrbanEvidenceInput({...data,method:"text_layer_verified",
     textLayer:"OUTROS ARTIGOS"})).toMatch(/não corresponde/);
   expect(verifyUrbanEvidenceInput({...data,method:"text_layer_verified",
