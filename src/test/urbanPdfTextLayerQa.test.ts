@@ -6,7 +6,7 @@ const fake=vi.hoisted(()=>({getDocument:vi.fn(),destroy:vi.fn(),cleanup:vi.fn()}
 vi.mock("pdfjs-dist",()=>({GlobalWorkerOptions:{workerSrc:""},
   getDocument:fake.getDocument,
 }));
-const pdf=()=>new File(["%PDF-1.7\n","x".repeat(120)],"original.pdf",{type:"application/pdf"});
+const pdf=()=>{const bytes=new TextEncoder().encode("%PDF-1.7\n"+"x".repeat(120));return {name:"original.pdf",size:bytes.byteLength,arrayBuffer:async()=>bytes.buffer} as File;};
 const item=(str:string,x:number,y:number)=>({str,width:str.length*5,height:10,
   transform:[1,0,0,10,x,y],dir:"ltr",fontName:"f1",hasEOL:false});
 describe("SIGAPRO — leitor local do texto PDF, antes de IA visual",()=>{
@@ -44,7 +44,7 @@ describe("SIGAPRO — leitor local do texto PDF, antes de IA visual",()=>{
  });
  it("rejeita pagina errada ou arquivo com assinatura falsa, sem inferir indices",async()=>{
    await expect(readUrbanPdfSourcePage(pdf(),111,"ZM-B(e)","comercial")).rejects.toThrow("não existe");
-   await expect(readUrbanPdfSourcePage(new File(["GIF89a"],"documento.pdf"),1,"ZM-B(e)","comercial"))
+   await expect(readUrbanPdfSourcePage(({name:"documento.pdf",size:6,arrayBuffer:async()=>new TextEncoder().encode("GIF89a").buffer} as File),1,"ZM-B(e)","comercial"))
      .rejects.toThrow("assinatura PDF");
    expect(fake.destroy).toHaveBeenCalledTimes(1);
  });
