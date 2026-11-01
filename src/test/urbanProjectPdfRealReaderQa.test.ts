@@ -76,6 +76,9 @@ describe("SIGAPRO QA: leitura documental de projeto real (candidato, não aprova
   expect(ui).toContain('data-urban-inspect-saved-project="true"');
   expect(ui).toContain("getSignedUrlForObjectStrict");
   expect(ui).toContain("original.fileHash.toLowerCase()");
+  expect(ui).toContain('data-urban-project-derived-source-page={page}');
+  expect(ui).toContain('data-urban-project-pages-unreviewed="true"');
+  expect(ui).toContain("picked.pages.some(page=>!visitedPages.includes(page))");
   expect(precheck).toContain("documents={process.documents}");
   expect(precheck).toContain("<UrbanProjectReaderPanel");
   expect(engine).toContain("isEvalSupported:false");

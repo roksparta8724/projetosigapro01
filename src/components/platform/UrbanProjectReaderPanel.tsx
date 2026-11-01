@@ -26,12 +26,13 @@ export function UrbanProjectReaderPanel({readOnly,allowedMetrics,documents,onCon
  const [chosen,setChosen]=useState<UrbanMetric|null>(null);
  const [ack,setAck]=useState(false);
  const [displayPage,setDisplayPage]=useState(1);
+ const [visitedPages,setVisitedPages]=useState<number[]>([]);
  const [applied,setApplied]=useState<UrbanMetric[]>([]);
  const inspectStored=async()=>{
    if(busy||readOnly)return;
    const original=candidateDocuments.find(d=>d.id===storedDocumentId);
    if(!original||!original.filePath)return;
-   setBusy(true);setReport(null);setError("");setChosen(null);setAck(false);setApplied([]);
+   setBusy(true);setReport(null);setError("");setChosen(null);setAck(false);setApplied([]);setVisitedPages([]);
    try{
      // Existing server-side signed-url endpoint verifies the current user's
      // right to the process document. Never construct a public R2 URL.
@@ -65,7 +66,7 @@ export function UrbanProjectReaderPanel({readOnly,allowedMetrics,documents,onCon
  };
  const inspect=async()=>{
    if(!file||busy||readOnly)return;
-   setBusy(true);setReport(null);setError("");setChosen(null);setAck(false);setApplied([]);
+   setBusy(true);setReport(null);setError("");setChosen(null);setAck(false);setApplied([]);setVisitedPages([]);
    try{
     const result=await inspectArchitecturalProjectPdf(file);
     setReport(result);
@@ -113,7 +114,7 @@ export function UrbanProjectReaderPanel({readOnly,allowedMetrics,documents,onCon
        <input type="file" accept=".pdf,application/pdf" disabled={busy||readOnly}
          aria-label="PDF do projeto arquitetônico para leitura"
          onChange={event=>{setFile(event.target.files?.[0]||null);
-           setReport(null);setError("");setChosen(null);setAck(false);setApplied([]);}}
+           setReport(null);setError("");setChosen(null);setAck(false);setApplied([]);setVisitedPages([]);}}
          className="mt-1 block min-h-11 w-full rounded-lg border border-slate-300 bg-white p-2 text-slate-950"/>
      </label>
      <button type="button" disabled={!file||busy||readOnly} onClick={()=>void inspect()}
@@ -144,7 +145,7 @@ export function UrbanProjectReaderPanel({readOnly,allowedMetrics,documents,onCon
        {report.proposals.map(item=><button type="button" key={item.metric}
          data-urban-project-candidate={item.metric}
          disabled={readOnly}
-         onClick={()=>{setChosen(item.metric);setAck(false);setDisplayPage(item.page);}}
+         onClick={()=>{setChosen(item.metric);setAck(false);setDisplayPage(item.page);setVisitedPages([item.page]);}}
          className={"min-w-0 rounded-lg border p-3 text-left text-xs leading-5 "+
            (chosen===item.metric?"border-sky-600 bg-sky-100 text-sky-950":
             "border-slate-300 bg-white text-slate-900")}>
@@ -156,19 +157,36 @@ export function UrbanProjectReaderPanel({readOnly,allowedMetrics,documents,onCon
      {picked&&file?<div data-urban-project-human-review="true"
        className="rounded-xl border border-sky-200 bg-white p-3 text-slate-950">
        <h5 className="text-xs font-extrabold">Conferência obrigatória — {label(picked.metric)}</h5>
+       {picked.pages.length>1?<div className="mt-2 flex flex-wrap gap-2">
+         {Array.from(new Set(picked.pages)).map(page=><button key={page} type="button"
+           data-urban-project-derived-source-page={page}
+           onClick={()=>{setDisplayPage(page);setVisitedPages(previous=>previous.includes(page)?previous:[...previous,page]);setAck(false);}}
+           className={"min-h-9 rounded-lg border px-3 py-1 text-xs font-bold "+
+             (displayPage===page?"border-sky-800 bg-sky-800 text-white":"border-slate-300 bg-slate-50 text-slate-900")}>
+           Ver página {page}{visitedPages.includes(page)?" · visualizada":""}
+         </button>)}
+       </div>:null}
        <UrbanPdfPageCanvas file={file} pageNumber={displayPage}/>
+       {picked.pages.some(page=>!visitedPages.includes(page))?
+         <p data-urban-project-pages-unreviewed="true"
+           className="mt-2 rounded-lg border border-amber-300 bg-amber-50 p-2 text-xs font-bold text-amber-950">
+           Confira também as páginas {picked.pages.filter(page=>!visitedPages.includes(page)).join(", ")}
+           antes de utilizar este cálculo derivado.
+         </p>:null}
        <p className="mt-2 text-xs font-medium leading-5">Verifique as cotas, unidades e áreas da prancha.
          Uma declaração pode representar parâmetro legal, área existente ou área proposta.
          Nenhuma dessas possibilidades é presumida pelo leitor.</p>
        <label className="mt-2 flex items-start gap-2 text-xs font-semibold">
-         <input type="checkbox" checked={ack} disabled={readOnly}
+         <input type="checkbox" checked={ack}
+           disabled={readOnly||picked.pages.some(page=>!visitedPages.includes(page))}
            data-urban-project-source-attested="true" onChange={e=>setAck(e.target.checked)}/>
          Conferi na página original que esta medida é do PROJETO analisado (não um limite de lei),
          corresponde ao índice selecionado e utiliza a unidade correta.
        </label>
        {allowedMetrics.includes(picked.metric)?
          <button type="button" data-urban-project-apply-confirmed="true"
-           disabled={!ack||readOnly||applied.includes(picked.metric)}
+           disabled={!ack||readOnly||applied.includes(picked.metric)||
+             picked.pages.some(page=>!visitedPages.includes(page))}
            onClick={()=>{onConfirm(picked,{fileName:report.fileName,sha256:report.sha256});
               setApplied(prev=>[...prev,picked.metric]);setAck(false);}}
            className="sig-force-dark-action mt-3 min-h-11 rounded-lg bg-sky-900 px-4 py-2 text-xs font-extrabold text-white disabled:cursor-not-allowed disabled:opacity-50">
