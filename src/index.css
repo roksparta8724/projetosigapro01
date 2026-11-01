@@ -11058,3 +11058,11 @@ html body [data-layout-mode="inverse-main"] .sig-main-shell button[data-sigapro-
   -webkit-text-fill-color:#334155 !important;
   stroke:currentColor !important;
 }
+
+/* Reduce the paint area on the account drawer opening. On a busy process
+   page, translucent backdrop blur + oversized shadow can delay the first
+   visual response of the profile trigger. Opaque existing theme colors remain. */
+.sig-topbar-account-dropdown {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}

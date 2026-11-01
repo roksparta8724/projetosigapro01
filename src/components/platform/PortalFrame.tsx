@@ -34,6 +34,7 @@
   X,
 } from "@/components/platform/PremiumIcons";
 import { useEffect, useMemo, useState } from "react";
+import {useProfileInteractionDiagnostic} from "@/hooks/useProfileInteractionDiagnostic";
 import { Network } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -264,6 +265,7 @@ function resolveBrandingLogoUrl(
 }
 
 export function PortalFrame({ title, eyebrow, children, focusMode = false }: PortalFrameProps) {
+  useProfileInteractionDiagnostic();
   const [commandOpen, setCommandOpen] = useState(false);
   const [commandQuery, setCommandQuery] = useState("");
   const [sidebarExpanded, setSidebarExpanded] = useState(() => {
@@ -519,7 +521,10 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
   const bannerMid = darken(primaryColor, -4);
   const activeBg = darken(primaryColor, -14);
 
-  const visibleNavItems = navItems
+  // Preserve menu identity across notification/profile dropdown interactions.
+  // Permissions are recalculated ONLY when the authenticated session,
+  // preferences or plan entitlement snapshot actually changes.
+  const visibleNavItems = useMemo(() => navItems
     .map((item) => {
       if ("internalOnly" in item && item.internalOnly && !isInternalRole(session.role)) return null;
 
@@ -564,8 +569,9 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
       if (item.key && !item.essential && !isItemVisible(item.key as MenuPreferenceKey)) return null;
       return { ...item, children: visibleChildren };
     })
-    .filter((item): item is NonNullable<typeof item> => Boolean(item));
-  const visibleNavItemsResolved = visibleNavItems.flatMap((item) => {
+    .filter((item): item is NonNullable<typeof item> => Boolean(item)),
+    [session, planEntitlements, isItemVisible]);
+  const visibleNavItemsResolved = useMemo(() => visibleNavItems.flatMap((item) => {
     if ((session.role === "master_admin" || session.role === "master_ops") && item.to === "/master") {
       return [{ ...item, label: "Cadastro e Gestão" }];
     }
@@ -585,7 +591,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
     }
 
     return [item];
-  });
+  }), [visibleNavItems, session.role]);
 
   const isAdministrativeSidebar =
     session.role === "master_admin" || session.role === "master_ops" || session.role === "prefeitura_admin";
@@ -616,14 +622,23 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
     { title: "Apoio", items: visibleSupportItems },
   ];
 
-  const visibleTenantProcesses = getVisibleProcessesByScope(session, activeInstitutionId, processes);
+  // Access checks traverse every process and can be expensive for municipalities
+  // with large protocol collections. A dropdown/notification repaint must not
+  // repeat that authorization walk. Never cache across a changed session/scope.
+  const visibleTenantProcesses = useMemo(
+    () => getVisibleProcessesByScope(session, activeInstitutionId, processes),
+    [session, activeInstitutionId, processes],
+  );
   const currentProcessRouteMatch = location.pathname.match(/^\/processos\/([^/?#]+)/);
   const currentProcessId = currentProcessRouteMatch?.[1] ? decodeURIComponent(currentProcessRouteMatch[1]) : "";
   const currentProcess = currentProcessId
     ? visibleTenantProcesses.find((process) => process.id === currentProcessId) ?? null
     : null;
   const currentProcessMarker = currentProcess?.tags?.[0] ? parseMarker(currentProcess.tags[0]) : null;
-  const bookmarkedProcesses = visibleTenantProcesses.filter((process) => (process.tags ?? []).length > 0);
+  const bookmarkedProcesses = useMemo(
+    () => visibleTenantProcesses.filter((process) => (process.tags ?? []).length > 0),
+    [visibleTenantProcesses],
+  );
   const bookmarkedMarkers = useMemo(
     () =>
       bookmarkedProcesses.map((process) => {
@@ -653,6 +668,9 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
   const selectedMarkerColorLabel =
     MARKER_COLOR_OPTIONS.find((option) => option.value === markerColor)?.label ?? "Cor personalizada";
   const globalSearchItems = useMemo(() => {
+    // Hidden command palette should not build the search index on each
+    // account-menu interaction. Rebuild immediately when it opens.
+    if (!commandOpen) return [];
     const items: {
       id: string;
       label: string;
@@ -724,7 +742,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
     });
 
     return items;
-  }, [institutions, navigate, session.role, visibleNavItemsResolved, visibleTenantProcesses]);
+  }, [commandOpen, institutions, navigate, session.role, visibleNavItemsResolved, visibleTenantProcesses]);
 
   const filteredSearchItems = useMemo(() => {
     const query = commandQuery.trim().toLowerCase();
@@ -2093,7 +2111,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                 collisionPadding={0}
                 style={{ "--sig-primary-deep": darken(primaryColor, 10) } as React.CSSProperties}
                 className={cn(
-                  "sig-topbar-account-dropdown w-[min(92vw,400px)] overflow-y-auto border p-3 shadow-[-18px_0_48px_rgba(15,23,42,0.20)] backdrop-blur-xl",
+                  "sig-topbar-account-dropdown w-[min(92vw,400px)] overflow-y-auto border p-3 shadow-[-12px_0_26px_rgba(15,23,42,0.14)]",
                   darkTopbar
                     ? "border-white/12 bg-[var(--sig-primary-deep)] text-slate-100"
                     : "border-slate-200/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.99)_0%,rgba(247,250,253,0.98)_100%)] text-slate-900",
