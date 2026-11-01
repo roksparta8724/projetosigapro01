@@ -6,6 +6,7 @@ import { activateUrbanRegulation, listUrbanRegulations, saveUrbanRegulationDraft
 import { URBAN_METRICS, normalizeUrbanCode, type UrbanMetric, type UrbanRegulationVersion, type UrbanRule } from "@/lib/urbanPrecheck";
 import { municipalCivilDate } from "@/lib/municipalCivilDate";
 import { UrbanLegalMatrixImporter } from "./UrbanLegalMatrixImporter";
+import { UrbanLegalEvidenceCatalogPanel } from "./UrbanLegalEvidenceCatalogPanel";
 
 type EditableValue = { limit: string; reference: string };
 type DraftInputs = Partial<Record<UrbanMetric, EditableValue>>;
@@ -244,6 +245,8 @@ export function MunicipalUrbanRulesSettings({
           ))}
         </div>
       </div>
+      {municipalityId ? <UrbanLegalEvidenceCatalogPanel
+        municipalityId={municipalityId} canEdit={canEdit} versions={versions}/> : null}
       {notice ? <p role="status" className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100">{notice}</p> : null}
     </section>
   );
