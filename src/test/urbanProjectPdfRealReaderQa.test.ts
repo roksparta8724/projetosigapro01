@@ -54,6 +54,16 @@ describe("SIGAPRO QA: leitura documental de projeto real (candidato, não aprova
   ]);
   expect(r.proposals).toEqual([]);
  });
+ it("não confunde milímetros ou índices legais com medições arquitetônicas",()=>{
+  const review=extractProjectMeasures([
+   {page:1,text:"RECUO FRONTAL: 5,00 mm"},
+   {page:1,text:"RECUO FRONTAL MÍNIMO 10 m"},
+   {page:2,text:"TAXA DE PERMEABILIDADE: 30 pontos"},
+   {page:2,text:"ÁREA DO TERRENO: 200 mm2"},
+  ]);
+  expect(review.proposals).toHaveLength(0);
+  expect(review.areaDeclarations).toHaveLength(0);
+ });
  it("integra no analista, exige clique de confirmação e não envia PDF ao modelo",()=>{
   const ui=readFileSync("src/components/platform/UrbanProjectReaderPanel.tsx","utf8");
   const engine=readFileSync("src/lib/urbanProjectPdfReader.ts","utf8");

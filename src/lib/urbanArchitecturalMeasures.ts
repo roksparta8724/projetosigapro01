@@ -43,38 +43,15 @@ function decimal(raw:string):number|null{
  const value=Number(v);
  return Number.isFinite(value)&&value>=0&&value<=1000000?value:null;
 }
-function numberAfter(label:string,line:string,unit:"m"|"%"|"count"|"ratio"):number|null{
- const suffix=line.slice(label.length);
- // Numbers must immediately follow a declared metric; never harvest unrelated
- // standalone dimensions from the drawing. Do not read minimum legal limits.
- const match=suffix.match(/^\s*(?:[:=–-]\s*)?(\d{1,6}(?:[,.]\d{1,3})?)\s*(m2|m²|m|%|pavimentos?)?\b?/i);
- if(!match)return null;
- const result=decimal(match[1]);
- if(result===null)return null;
- const reportedUnit=(match[2]||"").toLowerCase();
- if(unit==="m"&&reportedUnit!=="m")return null;
- if(unit==="%"&&reportedUnit!=="%")return null;
- if(unit==="count"&&(!Number.isInteger(result)||reportedUnit==="m"||reportedUnit==="%"))return null;
- if(unit==="ratio"&&reportedUnit)return null;
- if(unit==="%"&&result>100)return null;
- if(unit!=="ratio"&&unit!=="%"&&result>100000)return null;
- return result;
-}
 const LEGAL_TERMS=/\b(?:minim[oa]s?|maxim[oa]s?|permitid[oa]s?|exigid[oa]s?|limite|obrigatori[oa]s?|legislac[aã]o|zoneamento|normativ[oa]s?)\b/i;
 const PROJECT_NEGATIVE=/\b(?:exemplo|hipotetic[oa]|tabela\s+de\s+normas)\b/i;
-function labelMetric(line:string,rule:Rule):number|null{
- const label=rule.pattern.exec(line);
- if(!label)return null;
- return numberAfter(line.slice(0,label.index+label[0].length),
-   line.slice(label.index+label[0].length),rule.unit);
-}
 function declaredMetric(line:string,rule:Rule):number|null{
  const found=rule.pattern.exec(line);
  if(!found)return null;
  const tail=line.slice(found.index+found[0].length);
  if(LEGAL_TERMS.test(tail)||LEGAL_TERMS.test(line.slice(0,found.index))||
   PROJECT_NEGATIVE.test(line))return null;
- const match=tail.match(/^\s*(?:[:=–-]\s*)?(\d{1,6}(?:[,.]\d{1,3})?)\s*(m²|m2|m|%|pavimentos?)?/i);
+ const match=tail.match(/^\s*(?:[:=–-]\s*)?(\d{1,6}(?:[,.]\d{1,3})?)\s*(m²|m2|m\b|%|pavimentos?\b)?(?![a-z0-9])/i);
  if(!match)return null;
  const value=decimal(match[1]);
  if(value===null)return null;
@@ -92,7 +69,7 @@ function declaredArea(line:string,kind:AreaKind,pattern:RegExp):number|null{
  const match=pattern.exec(line);
  if(!match||LEGAL_TERMS.test(line))return null;
  const tail=line.slice(match.index+match[0].length);
- const value=tail.match(/^\s*(?:[:=–-]\s*)?(\d{1,7}(?:[,.]\d{1,3})?)\s*(m²|m2)\b?/i);
+ const value=tail.match(/^\s*(?:[:=–-]\s*)?(\d{1,7}(?:[,.]\d{1,3})?)\s*(m²|m2)(?![a-z0-9])/i);
  return value?decimal(value[1]):null;
 }
 const nearly=(a:number,b:number)=>Math.abs(a-b)<Math.max(0.000001,Math.min(a,b)*0.000001);
