@@ -105,6 +105,8 @@ export function MunicipalUrbanRulesSettings({
     setNotice(proposed.length+" valor(es) numérico(s) pré-preenchido(s) como proposta. Preencha a vigência e as referências oficiais por índice; nenhum rascunho foi salvo e nenhuma norma foi ativada.");
     window.requestAnimationFrame(()=>document.getElementById("urban-manual-rule-editor")?.scrollIntoView({block:"start",behavior:"smooth"}));
   };
+  const isSimulation=(item:UrbanRegulationVersion)=>
+    /^(?:QA[-_]|TEST[-_])/i.test(item.zone_code)||/^(?:QA[-_]|TEST[-_])/i.test(item.use_code);
   const continueReview = (item: UrbanRegulationVersion) => {
     if (!canEdit || busy || loading || !municipalityId || item.municipality_id !== municipalityId || item.status !== "draft") return;
     const hasCurrentEdits = Boolean(zone.trim() || usage.trim() ||
@@ -178,7 +180,11 @@ export function MunicipalUrbanRulesSettings({
         </p>
       </details>
       {canEdit && municipalityId ? <UrbanLegalMatrixImporter municipalityId={municipalityId} canEdit={canEdit}
-          onSaved={reload} onSourceContextChange={setLegalSourceContext}/> : null}
+          onSaved={reload} onSourceContextChange={setLegalSourceContext}
+          onPrepareDraftFromReading={()=>{
+            if(legalSourceContext)prepareDraftFromPdf(legalSourceContext);
+            else setNotice("Analise e selecione uma linha completa do PDF antes de preparar o rascunho.");
+          }}/> : null}
 
       {canEdit && municipalityId ? (
         <details id="urban-manual-rule-editor" data-urban-manual-rule-editor="true"
@@ -186,12 +192,14 @@ export function MunicipalUrbanRulesSettings({
           onToggle={event=>setManualEditorOpen(event.currentTarget.open)}
           className="mt-5 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
           <summary className="cursor-pointer text-base font-extrabold text-sky-900 dark:text-sky-100">
-            Cadastro manual de regras urbanísticas — uso excepcional
+            {draftFromPdfCount>0
+              ?"Revisar os índices sugeridos pelo PDF — proposta não salva"
+              :"Cadastro manual de regras urbanísticas — uso excepcional"}
           </summary>
           <p className="mt-2 text-sm leading-6 text-slate-700 dark:text-slate-200">
-            Abra somente para registrar manualmente valores já conferidos na legislação oficial.
-            Esta seção é diferente da leitura assistida acima; os dados não são preenchidos
-            automaticamente nem são ativados ao salvar.
+            {draftFromPdfCount>0
+              ?"Confira os índices sugeridos contra a página original e preencha referências e vigência. Nenhum dado foi salvo ou ativado."
+              :"Abra somente para registrar manualmente valores já conferidos na legislação oficial. Nenhum dado é ativado ao salvar o rascunho."}
           </p>
           {draftFromPdfCount>0?<p data-urban-draft-from-pdf="true"
             className="mt-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm font-bold leading-6 text-amber-950">
@@ -267,10 +275,18 @@ export function MunicipalUrbanRulesSettings({
             <article key={item.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-900">
               <div className="min-w-0 text-sm text-slate-950 dark:text-slate-100">
                 <p className="font-bold">{item.zone_code} · {item.use_code} · Versão {item.version}</p>
-                <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">Vigência: {item.effective_from} · {item.rules.length} parâmetros · {item.status === "active" ? "Vigente" : item.status === "draft" ? "Rascunho" : "Substituída"}</p>
+                <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
+                  Data informada: {item.effective_from} · {item.rules.length} parâmetro(s) ·
+                  {" "}{item.status === "active" ? "Ativa no banco" : item.status === "draft" ? "Rascunho" : "Substituída"}
+                </p>
+                {isSimulation(item)?<p data-urban-qa-test-version="true"
+                  className="mt-1 text-xs font-extrabold text-amber-900 dark:text-amber-200">
+                  REGISTRO DE TESTE QA — não representa legislação municipal homologada
+                </p>:null}
               </div>
               <div className="flex items-center gap-2">
-                {item.status === "active" ? <CheckCircle2 className="h-5 w-5 text-emerald-600" aria-label="Versão ativa" /> : null}
+                {item.status === "active" && !isSimulation(item) ?
+                  <CheckCircle2 className="h-5 w-5 text-emerald-600" aria-label="Versão ativa no banco, não aprovação jurídica" /> : null}
                 {item.status === "draft" && canEdit ? (
                   <>
                     <Button type="button" variant="outline" disabled={busy || loading}

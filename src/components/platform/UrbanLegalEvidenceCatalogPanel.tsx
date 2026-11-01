@@ -152,7 +152,7 @@ export function UrbanLegalEvidenceCatalogPanel({municipalityId,canEdit,versions,
         {canEdit&&onPrepareDraft?<button type="button"
           data-urban-prepare-draft-from-reading="true"
           onClick={()=>onPrepareDraft(sourceContext)}
-          className="mt-2 min-h-11 rounded-lg border border-sky-900 bg-sky-900 px-4 py-2 text-sm font-extrabold text-white">
+          className="sig-force-dark-action mt-2 inline-flex min-h-11 max-w-full items-center justify-center rounded-lg border border-sky-900 bg-sky-900 px-4 py-2 text-center text-sm font-extrabold text-white hover:bg-sky-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400">
           Preparar rascunho com os índices numéricos da linha — sem salvar
         </button>:null}
         <p className="mt-2 font-semibold">O administrador ainda deverá confirmar artigo, data de

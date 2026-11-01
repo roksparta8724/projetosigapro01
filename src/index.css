@@ -11016,3 +11016,25 @@ html body #root [data-urban-rules-settings="true"] button[data-sigapro-urban-rul
   border-style: dashed !important;
 }
 /* END URBAN RULES SAVE BUTTON READABILITY V2 */
+
+/* SIGAPRO QA urban legal flow — dark actions must be legible in both layout modes.
+   The outer shell has text-polarity overrides: scope this rule to the two
+   review actions so other controls retain their theme. */
+html body #root .sig-main-shell button[data-urban-prepare-draft-from-reading="true"],
+html body #root .sig-main-shell button[data-urban-direct-prepare-draft="true"] {
+  background-color:#0c426b !important;
+  border-color:#0c426b !important;
+  color:#ffffff !important;
+  -webkit-text-fill-color:#ffffff !important;
+  opacity:1 !important;
+}
+html body #root .sig-main-shell button[data-urban-prepare-draft-from-reading="true"]:hover,
+html body #root .sig-main-shell button[data-urban-direct-prepare-draft="true"]:hover {
+  background-color:#075985 !important;
+  border-color:#075985 !important;
+}
+html body #root .sig-main-shell button[data-urban-prepare-draft-from-reading="true"]:focus-visible,
+html body #root .sig-main-shell button[data-urban-direct-prepare-draft="true"]:focus-visible {
+  outline:3px solid #7dd3fc !important;
+  outline-offset:2px;
+}

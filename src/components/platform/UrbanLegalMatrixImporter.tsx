@@ -16,7 +16,8 @@ import { UrbanMatrixBatchReviewBoard } from "./UrbanMatrixBatchReviewBoard";
 import { UrbanMatrixArchivePanel, type UrbanStoredDraft } from "./UrbanMatrixArchivePanel";
 
 type Props = { municipalityId: string; canEdit: boolean; onSaved: () => Promise<void>;
-  onSourceContextChange?:(context:UrbanLegalSourceContext|null)=>void; };
+  onSourceContextChange?:(context:UrbanLegalSourceContext|null)=>void;
+  onPrepareDraftFromReading?:()=>void; };
 type SavedSnapshot = { id: string; version: number; quadro: ImportQuadro; zone_code: string;
   use_code: string; page_number: number; status: string; document_title: string };
 type ExtractionReply = { candidates?: unknown; error?: string; quadro?: ImportQuadro;
@@ -306,7 +307,7 @@ async function verifyPdfAndHash(file: File) {
   return Array.from(new Uint8Array(hashed)).map(b => b.toString(16).padStart(2,"0")).join("");
 }
 
-export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved,onSourceContextChange}: Props) {
+export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved,onSourceContextChange,onPrepareDraftFromReading}: Props) {
   const [file,setFile] = useState<File|null>(null);
   const [pageImage,setPageImage]=useState<File|null>(null);
   const [pageImagePreview,setPageImagePreview]=useState("");
@@ -1178,11 +1179,22 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved,onSourc
           Valide documento, zona, uso, índice, vigência e condições do Quadro II
           antes de criar ou ativar uma norma.
         </p>
-        {pdfTableReading?.row?<a href="#urban-legal-evidence-catalog"
-          data-urban-go-to-legal-evidence="true"
-          className="mt-3 inline-flex min-h-11 items-center rounded-lg border border-sky-900 bg-white px-4 py-2 text-sm font-extrabold text-sky-950 underline-offset-2 hover:underline">
-          Conferir e vincular fontes oficiais desta linha
-        </a>:null}
+        {pdfTableReading?.row?<div className="mt-3 flex flex-wrap items-center gap-2">
+          {onPrepareDraftFromReading?<button type="button"
+            data-urban-direct-prepare-draft="true"
+            onClick={onPrepareDraftFromReading}
+            className="sig-force-dark-action inline-flex min-h-11 max-w-full items-center justify-center rounded-lg border border-sky-900 bg-sky-900 px-4 py-2 text-center text-sm font-extrabold text-white hover:bg-sky-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400">
+            Preparar proposta de rascunho desta linha
+          </button>:null}
+          <a href="#urban-legal-evidence-catalog"
+            data-urban-go-to-legal-evidence="true"
+            className="inline-flex min-h-11 max-w-full items-center rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-extrabold text-sky-950 underline-offset-2 hover:underline">
+            Conferir e vincular fontes oficiais
+          </a>
+          <p className="w-full text-xs font-semibold leading-5 text-slate-700">
+            Preparar não salva nem ativa. A vigência, artigos, Quadro II e exceções exigem validação humana.
+          </p>
+        </div>:null}
       </div>
       <button type="button" data-urban-admin-advanced-toggle="true"
         aria-expanded={adminAdvancedOpen}

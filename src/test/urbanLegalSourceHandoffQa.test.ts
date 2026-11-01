@@ -12,6 +12,11 @@ describe("SIGAPRO QA — passagem segura da linha do Quadro I para fontes legais
    expect(ui).toContain("o mesmo arquivo da primeira etapa");
    expect(ui).toContain("Zero rótulos literais não significa");
    expect(ui).toContain("availablePdfRows.length} linha(s) da tabela");
+   expect(ui).toContain('data-urban-direct-prepare-draft="true"');
+   expect(ui).toContain("onPrepareDraftFromReading");
+   const css=readFileSync("src/index.css","utf8");
+   expect(css).toContain('button[data-urban-direct-prepare-draft="true"]');
+   expect(css).toContain("-webkit-text-fill-color:#ffffff !important;");
  });
  it("reuses source PDF/page/zone/use only from an exact selected row, not unrelated QA rules",()=>{
    const settings=readFileSync("src/components/platform/MunicipalUrbanRulesSettings.tsx","utf8");
@@ -28,6 +33,9 @@ describe("SIGAPRO QA — passagem segura da linha do Quadro I para fontes legais
    expect(panel).not.toContain("setAttested(true)");
    expect(panel).toContain('data-urban-prepare-draft-from-reading="true"');
    expect(settings).toContain("onPrepareDraft={prepareDraftFromPdf}");
+   expect(settings).toContain("onPrepareDraftFromReading={()");
+   expect(settings).toContain('data-urban-qa-test-version="true"');
+   expect(settings).toContain("Revisar os índices sugeridos pelo PDF");
    expect(settings).toContain('data-urban-draft-from-pdf="true"');
    expect(settings).toContain('setEffectiveFrom("");setManualEditorOpen(true);');
  });
