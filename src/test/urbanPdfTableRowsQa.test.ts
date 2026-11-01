@@ -123,12 +123,19 @@ describe("SIGAPRO QA — true line- and header-based PDF table extraction",()=>{
  });
  it("does not assign a split or repeated printed zone label to a single zone",()=>{
   const layer=fixture(headers.concat([
+    // Keep the real earlier row: the column headers are above the FIRST table
+    // row, not 350 points above this bottom-page split cell.
+    p("comercial",108.4,185.1,36.6),p("residencial",106.1,212.7,41.3),
+    p("ZONA",36.4,192.6,22.2,10.3),p("ZM-B(e)",60.9,192.6,29.4,10.3),
     p("comercial",107.9,508.3,36.6),p("residencial",105.9,536.6,41.3),
     p("ZM-MA",51.8,504.0,35,10.3),p("(1,",46.5,513.2,10,10.3),
     p("ZM-MA",50.4,532.3,35,10.3),p("(1,",46.5,541.4,10,10.3),
   ]));
   const report=inspectUrbanPdfRows(layer);
-  expect(report.rows).toHaveLength(0);
+  expect(report.rows.map(row=>[row.zone,row.usage])).toEqual([
+    ["ZM-B(e)","comercial"],["ZM-B(e)","residencial"],
+  ]);
+  expect(report.usageRowCount).toBe(4);
   expect(report.ambiguousZoneUsageRows).toBe(2);
  });
  it("never substitutes the next residential line or the same-zone commercial line",()=>{
