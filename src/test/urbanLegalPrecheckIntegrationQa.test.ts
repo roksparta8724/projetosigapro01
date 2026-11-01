@@ -48,6 +48,9 @@ describe("SIGAPRO – acervo legal fundamentando pré-conferência por zona, uso
   const writer=readFileSync("src/integrations/backend/urbanPrecheckClient.ts","utf8");
   expect(ui).toContain('data-sigapro-urban-legal-coverage="true"');
   expect(ui).toContain('legalCoverage.status==="ready" && legalAcknowledged');
+  expect(ui).toContain('conditionalDirectivesReviewed && !readOnly');
+  expect(ui).toContain('data-sigapro-urban-exceptions-gate="true"');
+  expect(ui).toContain('data-urban-conditional-directions-confirmation="true"');
   expect(ui).toContain("evidenceIds:legalCoverage.evidenceIds");
   expect(ui).toContain('data-sigapro-urban-cited-metric={rule.metric}');
   expect(writer).toContain("_legal_review: {");

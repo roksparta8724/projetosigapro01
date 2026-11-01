@@ -24,6 +24,7 @@ export function UrbanPrecheckPanel({
   const [history, setHistory] = useState<UrbanPrecheckHistoryEntry[]>([]);
   const [legalEvidence,setLegalEvidence]=useState<UrbanVerifiedLegalSource[]|null>(null);
   const [legalAcknowledged,setLegalAcknowledged]=useState(false);
+  const [conditionalDirectivesReviewed,setConditionalDirectivesReviewed]=useState(false);
   const [zone, setZone] = useState("");
   const [usage, setUsage] = useState(process.property.usage || "");
   const [asOf, setAsOf] = useState(() => municipalCivilDateFromValue(process.officializedAt));
@@ -44,6 +45,7 @@ export function UrbanPrecheckPanel({
     setHistory([]);
     setLegalEvidence(null);
     setLegalAcknowledged(false);
+    setConditionalDirectivesReviewed(false);
     setNotice("");
     setLoading(true);
     void Promise.all([
@@ -100,14 +102,14 @@ export function UrbanPrecheckPanel({
     [history, municipalityId, process.id],
   );
   const canSave = !!regulation && legalCoverage.status==="ready" && legalAcknowledged &&
-    !readOnly && !saving && findings.some(
+    conditionalDirectivesReviewed && !readOnly && !saving && findings.some(
     (finding) => finding.status !== "missing_evidence"
   );
 
   const save = async () => {
     if (!regulation || readOnly || saving) return;
-    if (legalCoverage.status!=="ready" || !legalAcknowledged) {
-      setNotice("Confirme todas as fontes legais por índice antes de registrar esta pré-conferência.");
+    if (legalCoverage.status!=="ready" || !legalAcknowledged || !conditionalDirectivesReviewed) {
+      setNotice("Confira todas as fontes legais, o Quadro II, os parâmetros complementares e as exceções antes de registrar.");
       return;
     }
     const invalidEntered = regulation.rules.some((rule) => {
@@ -138,7 +140,7 @@ export function UrbanPrecheckPanel({
       const legalReview={
         evidenceIds:legalCoverage.evidenceIds,
         documentScopeConfirmed:true,
-        note:"Conferi a zona, o uso e a data de referência e as páginas das evidências legais vinculadas aos índices nesta pré-conferência consultiva.",
+        note:"Declaração humana: conferi a zona, o uso, a data, as evidências por índice, as condições do Quadro II, os parâmetros complementares e as exceções. Registro consultivo, sem aprovação.",
       };
       const snapshot=JSON.stringify({processId:process.id,municipalityId,
         versionId:regulation.id,referenceDate:asOf,measurements:complete,legalReview});
@@ -175,19 +177,26 @@ export function UrbanPrecheckPanel({
         A leitura automática de plantas por IA ainda não está habilitada. Verifique cada medida no projeto
         original e identifique a prancha, a página ou o quadro de áreas utilizado. A legislação deve estar validada pela Prefeitura.
       </div>
+      <div data-sigapro-urban-exceptions-gate="true"
+        className="mt-2 rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs font-semibold leading-5 text-amber-950 dark:border-amber-600 dark:bg-amber-950/30 dark:text-amber-100">
+        Escopo parcial: esta calculadora NÃO verifica automaticamente C.A. mínimo e básico, lote mínimo,
+        testada, gabarito em função da largura da via, usos condicionados, notas de rodapé,
+        exceções, alterações legais e todas as disposições do Quadro II.
+        Mesmo um índice numérico dentro do limite NÃO significa aprovação nem conformidade geral.
+      </div>
 
       <div className="mt-4 grid gap-3 md:grid-cols-3">
         <label className="text-xs font-bold text-slate-700 dark:text-slate-200">Zona do imóvel
           <Input className="mt-1" placeholder="Ex.: ZR1" value={zone} maxLength={40}
-            onChange={(event) => {setZone(normalizeUrbanCode(event.target.value));setLegalAcknowledged(false);}} />
+            onChange={(event) => {setZone(normalizeUrbanCode(event.target.value));setLegalAcknowledged(false);setConditionalDirectivesReviewed(false);}} />
         </label>
         <label className="text-xs font-bold text-slate-700 dark:text-slate-200">Categoria de uso
           <Input className="mt-1" value={usage} maxLength={60} placeholder="Ex.: RESIDENCIAL"
-            onChange={(event) => {setUsage(normalizeUrbanCode(event.target.value));setLegalAcknowledged(false);}} />
+            onChange={(event) => {setUsage(normalizeUrbanCode(event.target.value));setLegalAcknowledged(false);setConditionalDirectivesReviewed(false);}} />
         </label>
         <label className="text-xs font-bold text-slate-700 dark:text-slate-200">Data de referência legal
           <Input className="mt-1" type="date" value={asOf}
-            onChange={(event) => {setAsOf(event.target.value);setLegalAcknowledged(false);}} />
+            onChange={(event) => {setAsOf(event.target.value);setLegalAcknowledged(false);setConditionalDirectivesReviewed(false);}} />
         </label>
       </div>
 
@@ -222,6 +231,16 @@ export function UrbanPrecheckPanel({
                 onChange={event=>setLegalAcknowledged(event.target.checked)} />
               Conferi as páginas citadas e o escopo legal desta zona, uso e data.
               Esta declaração não aprova o projeto nem substitui o parecer técnico.
+            </label>:null}
+            {legalCoverage.status==="ready"?<label className="mt-3 flex items-start gap-2 text-xs font-semibold leading-5">
+              <input type="checkbox" className="mt-1 h-4 w-4 accent-sky-700"
+                data-urban-conditional-directions-confirmation="true"
+                checked={conditionalDirectivesReviewed} disabled={readOnly}
+                onChange={event=>setConditionalDirectivesReviewed(event.target.checked)} />
+              Conferi no documento oficial os itens ainda não calculados pelo SIGAPRO:
+              Quadro II, permissões de uso, área e testada mínimas, gabarito especial,
+              C.A. mínimo/básico, notas, exceções e eventuais alterações vigentes.
+              Esta declaração é uma revisão humana e não uma avaliação automatizada.
             </label>:null}
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-sky-200 bg-sky-50 p-3 dark:border-sky-700 dark:bg-sky-950/40">
