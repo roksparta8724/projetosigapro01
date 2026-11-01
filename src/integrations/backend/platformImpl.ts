@@ -2641,6 +2641,13 @@ export async function setRemoteProcessTriage(input: {
   });
 }
 
+export async function reconcileRemoteProcessTriage(processId: string, reason: string) {
+  return callProcessRpc("reconcile_unreleased_process_triage_v1", {
+    _process_id: processId,
+    _reason: reason,
+  });
+}
+
 export async function setRemoteProcessCheckpoint(processId: string, checkpoint: string) {
   return callProcessRpc("set_process_checkpoint", {
     _process_id: processId,
