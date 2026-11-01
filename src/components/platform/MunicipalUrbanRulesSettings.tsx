@@ -131,6 +131,22 @@ export function MunicipalUrbanRulesSettings({
         a vigência da lei nem ativa parâmetros.
       </p>
 
+      <details data-urban-official-law-guidance="true"
+        className="mt-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-white">
+        <summary className="cursor-pointer text-sm font-extrabold text-sky-900 dark:text-sky-100">
+          Como conferir o documento e a vigência da lei
+        </summary>
+        <p className="mt-2 text-sm leading-6">
+          Identifique a <strong>zona real</strong> no mapa vigente, confira a categoria de uso e
+          consulte o quadro oficial de índices urbanísticos dessa combinação.
+          Registre lei, artigo, quadro, página e exceções aplicáveis.
+        </p>
+        <p className="mt-2 text-xs font-semibold leading-5">
+          Não use valores de exemplos, minutas de revisão ou propostas não promulgadas.
+          Se o parâmetro não foi confirmado, deixe o campo sem preencher e não ative a norma.
+          Confira alterações e vigência com o setor técnico responsável.
+        </p>
+      </details>
       {canEdit && municipalityId ? <UrbanLegalMatrixImporter municipalityId={municipalityId} canEdit={canEdit} onSaved={reload}/> : null}
 
       {canEdit && municipalityId ? (
