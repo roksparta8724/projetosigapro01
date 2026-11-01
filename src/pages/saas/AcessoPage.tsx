@@ -318,16 +318,22 @@ export function AcessoPage() {
                           ) : null}
                           {pendingRedirect && !error ? (
                             <div data-sigapro-login-sync="true" role="status" aria-live="polite"
-                              className="rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-sm leading-6 text-sky-950">
-                              {syncSlow
-                                ? "Conta autenticada. A sincronização institucional está demorando além do esperado; não é necessário digitar a senha novamente. Se permanecer assim, atualize a página para revalidar a sessão."
-                                : "Conta autenticada. Sincronizando permissões e dados institucionais com segurança…"}
-                              {syncSlow ? (
-                                <button type="button" onClick={() => window.location.reload()}
-                                  className="mt-2 block font-semibold underline underline-offset-2">
-                                  Revalidar esta sessão
-                                </button>
-                              ) : null}
+                              className="flex items-start gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs leading-5 text-slate-700">
+                              <span aria-hidden="true" className="mt-1 inline-block h-2 w-2 shrink-0 animate-pulse rounded-full bg-sky-600" />
+                              <div>
+                                <span className="font-semibold text-slate-900">
+                                  {syncSlow ? "Sua conta já foi autenticada." : "Acesso confirmado."}
+                                </span>{" "}
+                                {syncSlow
+                                  ? "A atualização dos dados da prefeitura está demorando. Não é necessário reenviar sua senha."
+                                  : "Preparando seu ambiente de trabalho…"}
+                                {syncSlow ? (
+                                  <button type="button" onClick={() => window.location.reload()}
+                                    className="ml-1 font-semibold text-sky-800 underline underline-offset-2">
+                                    Recarregar sessão
+                                  </button>
+                                ) : null}
+                              </div>
                             </div>
                           ) : null}
 
@@ -348,15 +354,16 @@ export function AcessoPage() {
                             <Link to={`/criar-conta${tenantQuery}`}>Criar conta</Link>
                           </Button>
 
-                          <div className="mt-6 space-y-2 rounded-xl border bg-muted/40 p-4">
-                            <p className="text-sm font-medium">Acesso inicial</p>
-                            <p className="text-sm leading-relaxed text-muted-foreground">
-                              Profissionais externos podem criar a propria conta. Usuarios internos da
-                              Prefeitura sao cadastrados pelo administrador municipal. Contas existentes
-                              migradas para o novo ambiente devem usar "Esqueceu a senha?" uma unica vez
-                              para definir a nova senha de acesso.
+                          <details className="group mt-4 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                            <summary className="cursor-pointer font-semibold text-slate-700">
+                              Precisa de ajuda para acessar?
+                            </summary>
+                            <p className="mt-2 leading-relaxed">
+                              Profissionais externos podem criar a própria conta. Usuários internos são cadastrados
+                              pela Prefeitura. Caso sua conta tenha sido migrada e ainda não possua uma senha
+                              no novo ambiente, utilize “Esqueceu a senha?”.
                             </p>
-                          </div>
+                          </details>
 
                           <div className="mt-6 flex items-center justify-between text-xs text-muted-foreground">
                             <span>Ambiente institucional protegido</span>

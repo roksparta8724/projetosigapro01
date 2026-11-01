@@ -26,7 +26,10 @@ describe("login remote-store regression", () => {
     expect(access).toContain('data-sigapro-login-sync="true"');
     expect(access).toContain('disabled={submitting || Boolean(pendingRedirect)}');
     expect(access).toContain('window.setTimeout(() => setSyncSlow(true), 15000)');
-    expect(access).toContain("Revalidar esta sessão");
+    expect(access).toContain("Recarregar sessão");
+    expect(access).toContain("Precisa de ajuda para acessar?");
+    expect(access).toContain("<details");
+    expect(access).not.toContain('className="mt-6 space-y-2 rounded-xl border bg-muted/40 p-4"');
     expect(access).toContain("!dataReadyForCurrentUser");
     expect(access).toContain("entitlements.isResolving");
     expect(bootstrap).toContain('measure("resposta_do_provedor_de_autenticacao")');
