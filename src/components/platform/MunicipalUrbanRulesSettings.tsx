@@ -8,6 +8,7 @@ import { municipalCivilDate } from "@/lib/municipalCivilDate";
 import { UrbanLegalMatrixImporter } from "./UrbanLegalMatrixImporter";
 import type { UrbanLegalSourceContext } from "@/lib/urbanLegalEvidenceRegistration";
 import { proposeUrbanRulesFromPdf } from "@/lib/urbanLegalDraftFromPdf";
+import {assessUrbanDraftReadiness} from "@/lib/urbanDraftReadiness";
 import { UrbanLegalEvidenceCatalogPanel } from "./UrbanLegalEvidenceCatalogPanel";
 
 type EditableValue = { limit: string; reference: string };
@@ -56,8 +57,13 @@ export function MunicipalUrbanRulesSettings({
         reference: previous[metric]?.reference || "", [field]: text },
     }));
   };
+  const draftReadiness=assessUrbanDraftReadiness({zone,usage,effectiveFrom,draft});
   const save = async () => {
     if (!canEdit || !municipalityId || busy) return;
+    if(!draftReadiness.canSave){
+      setNotice("Ainda não é possível salvar: "+draftReadiness.reasons.join(" · "));
+      return;
+    }
     const rules: UrbanRule[] = [];
     for (const definition of URBAN_METRICS) {
       const entry = draft[definition.key];
@@ -237,11 +243,20 @@ export function MunicipalUrbanRulesSettings({
                 <Input type="text" inputMode="decimal" aria-label={"Limite legal: " + metric.label}
                   placeholder="Não informado" value={draft[metric.key]?.limit || ""}
                   onChange={(event) => updateRule(metric.key, "limit", event.target.value)} />
-                <Input aria-label={"Referência legal: " + metric.label} placeholder="Ex.: Lei 123/2026, art. 15, § 2º"
+                <Input aria-label={"Referência legal: " + metric.label} placeholder="Lei, artigo, Quadro I e condição oficialmente conferidos"
                   maxLength={500} value={draft[metric.key]?.reference || ""}
                   onChange={(event) => updateRule(metric.key, "reference", event.target.value)} />
               </div>
             ))}
+          </div>
+          <div data-urban-draft-readiness="true" role="status" aria-live="polite"
+            className={draftReadiness.canSave
+              ?"mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs font-semibold leading-5 text-emerald-950"
+              :"mt-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs font-semibold leading-5 text-amber-950"}>
+            {draftReadiness.canSave
+              ?"Campos obrigatórios para o rascunho preenchidos. Ainda é necessário conferir a fundamentação jurídica."
+              :"Pendências antes de salvar: "+draftReadiness.reasons.join("; ")+
+                ". Os valores sugeridos continuam apenas nesta sessão."}
           </div>
           <div className="mt-4 flex justify-end">
             <button
@@ -249,7 +264,7 @@ export function MunicipalUrbanRulesSettings({
               data-sigapro-urban-rules-save="true"
               aria-label="Salvar nova versão como rascunho"
               aria-busy={busy}
-              disabled={busy || loading}
+              disabled={busy || loading || !draftReadiness.canSave}
               onClick={() => void save()}
               className="sig-force-dark-action sig-urban-rules-save-button inline-flex min-h-11 w-full max-w-full items-center justify-center gap-2 rounded-xl border border-slate-800 bg-slate-950 px-5 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 sm:w-auto"
             >
