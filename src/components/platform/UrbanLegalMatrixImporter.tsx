@@ -1195,19 +1195,21 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved,onSourc
       aria-hidden={!adminAdvancedOpen} className={adminAdvancedOpen?"mt-4 space-y-4":"hidden"}>
     <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-950">
       <ShieldAlert className="mr-1 inline h-4 w-4"/>
-      Faça download do PDF que está no R2 e selecione a mesma versão aqui; copie o texto
-      da página da tabela para o campo abaixo. Tabelas digitalizadas exigem transcrição
-      e dupla conferência humana. Nenhum PDF completo é enviado à IA: só o trecho autorizado.
+      O PDF oficial selecionado na primeira etapa é reutilizado aqui. Só para
+      páginas digitalizadas ou trechos ilegíveis: use o recorte da tabela, a IA visual
+      e a dupla conferência humana. Nunca atribua índice sem fonte verificável.
     </p>
     <UrbanMatrixArchivePanel municipalityId={municipalityId}
       qaWriteEnabled={qaWriteEnabled} canEdit={canEdit}
       reloadToken={archiveReloadToken} file={file}
       onRestore={restoreArchivedDraft}/>
     <div className="mt-4 grid gap-3 md:grid-cols-2">
-      <label className="text-xs font-bold text-slate-800 dark:text-white">Arquivo PDF oficial
-        <input type="file" accept=".pdf,application/pdf" className="mt-1 block w-full rounded-lg border border-slate-300 bg-white p-2 text-slate-900"
-          onChange={e=>{setFile(e.target.files?.[0]||null);setArchiveRestored(false);setReviewPackage(null);setReviewRowIndex(0);setPreparedManualText(null);setPageImage(null);setText("");setOcrDraft(false);setOcrVerified(false);setVisionFeedback(null);setVisionNotice(null);setVisionRawPreview("");visionSessionCache.current.clear();reset();}}/>
-      </label>
+      <div data-urban-advanced-reused-pdf="true"
+        className="rounded-lg border border-sky-200 bg-sky-50 p-3 text-xs font-semibold text-slate-900">
+        <p className="font-extrabold">PDF original</p>
+        {file?<p className="mt-1 break-all">{file.name} — o mesmo arquivo da primeira etapa.</p>:
+          <p className="mt-1">Nenhum PDF selecionado. Volte à primeira etapa e escolha o documento oficial.</p>}
+      </div>
       <label className="text-xs font-bold text-slate-800 dark:text-white">Quadro de origem
         <select value={quadro} onChange={e=>{setQuadro(e.target.value as ImportQuadro);setPreparedManualText(null);setText("");setOcrDraft(false);setOcrVerified(false);reset();}}
           className="mt-1 min-h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-slate-950">

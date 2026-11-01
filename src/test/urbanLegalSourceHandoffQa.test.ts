@@ -8,6 +8,8 @@ describe("SIGAPRO QA — passagem segura da linha do Quadro I para fontes legais
    expect(ui).toContain("data-urban-go-to-legal-evidence");
    expect(ui).toContain("onSourceContextChange");
    expect(ui).toContain("pdfTableReading?.row");
+   expect(ui).toContain('data-urban-advanced-reused-pdf="true"');
+   expect(ui).toContain("o mesmo arquivo da primeira etapa");
    expect(ui).toContain("Zero rótulos literais não significa");
    expect(ui).toContain("availablePdfRows.length} linha(s) da tabela");
  });
