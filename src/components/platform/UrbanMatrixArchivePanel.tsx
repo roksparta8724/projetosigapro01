@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { backendClient } from "@/integrations/backend/databaseClient";
-import type { BatchUrbanRow } from "@/lib/urbanBatchReview";
+import {auditArchivedUrbanBatch,type BatchUrbanRow} from "@/lib/urbanBatchReview";
 
 export type UrbanStoredDraft = {
   id:string; municipality_id:string; document_title:string; document_sha256:string;
@@ -10,7 +10,7 @@ export type UrbanStoredDraft = {
 type Summary = {id:string;version:number;document_title:string;document_sha256:string;
   total_rows:number;reviewed_rows:number;status:string;created_at:string};
 type Props = { municipalityId:string;qaWriteEnabled:boolean;canEdit:boolean;reloadToken:number;
-  file:File|null;onRestore:(draft:UrbanStoredDraft)=>Promise<void> };
+  file:File|null;onRestore:(draft:UrbanStoredDraft,rowIndex?:number)=>Promise<void> };
 const readableDate=(date:string)=>{
   const d=new Date(date);
   return Number.isFinite(d.getTime())?d.toLocaleString("pt-BR"):"Data não disponível";
@@ -23,6 +23,7 @@ export function UrbanMatrixArchivePanel({municipalityId,qaWriteEnabled,canEdit,r
   const [opened,setOpened]=useState<UrbanStoredDraft|null>(null);
   const [busyId,setBusyId]=useState("");
   const [notice,setNotice]=useState("");
+  const audit=opened?auditArchivedUrbanBatch(opened.source_rows,opened.reviewed_indexes):null;
   const refresh=useCallback(async()=>{
     if(!qaWriteEnabled||!municipalityId||!backendClient)return;
     setLoading(true);setError("");
@@ -47,6 +48,8 @@ export function UrbanMatrixArchivePanel({municipalityId,qaWriteEnabled,canEdit,r
       if(rpcError||!data||data.id!==id||data.municipality_id!==municipalityId||
         data.status!=="pending_legal_review"||!Array.isArray(data.source_rows)||
         !Array.isArray(data.reviewed_indexes))throw Error("Não foi possível recuperar este lote do acervo QA.");
+      const check=auditArchivedUrbanBatch(data.source_rows as BatchUrbanRow[],data.reviewed_indexes as number[]);
+      if(check.invalidIndexes.length)throw Error("O histórico contém conferências inconsistentes. Nenhuma linha foi aceita; verifique a auditoria do banco.");
       setOpened(data as UrbanStoredDraft);
     }catch(e){setNotice(e instanceof Error?e.message:"Não foi possível abrir o lote.");}
     finally{setBusyId("");}
@@ -92,6 +95,20 @@ export function UrbanMatrixArchivePanel({municipalityId,qaWriteEnabled,canEdit,r
         <p className="mt-1 text-sm font-medium text-slate-800">
           {opened.source_rows.length} linhas históricas. O original continua protegido pelo SHA-256; as conferências e exceções não se tornam regras ativas.
         </p>
+        {audit?<div data-urban-archive-audit="true" className="mt-3 grid gap-2 sm:grid-cols-3">
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+            <p className="text-xs font-semibold text-slate-700">Linhas históricas</p>
+            <strong className="text-xl text-slate-950">{audit.total}</strong>
+          </div>
+          <div className="rounded-lg border border-sky-200 bg-sky-50 p-3">
+            <p className="text-xs font-semibold text-sky-950">Marcação humana registrada</p>
+            <strong className="text-xl text-sky-950">{audit.attested}</strong>
+          </div>
+          <div className="rounded-lg border border-amber-300 bg-amber-50 p-3">
+            <p className="text-xs font-semibold text-amber-950">Revisões individuais pendentes</p>
+            <strong className="text-xl text-amber-950">{audit.pending}</strong>
+          </div>
+        </div>:null}
         <p className="mt-2 text-sm font-semibold text-amber-900">
           {file?"Com o PDF original selecionado, você pode continuar no editor após conferência do hash.":"Para continuar a análise no editor, selecione o PDF original no campo acima. Não é preciso recriar ou salvar novamente o JSON."}
         </p>
@@ -100,6 +117,32 @@ export function UrbanMatrixArchivePanel({municipalityId,qaWriteEnabled,canEdit,r
           className="mt-3 min-h-10 rounded-lg border border-sky-900 bg-sky-900 px-4 py-2 text-sm font-extrabold text-white">
           Continuar revisão do rascunho no editor
         </button>
+        {audit&&audit.unresolved.length>0?<section data-urban-archive-pending="true"
+          aria-label="Pendências da matriz histórica" className="mt-4 rounded-xl border border-amber-300 bg-amber-50 p-3">
+          <h6 className="text-sm font-extrabold text-amber-950">{audit.pending} linhas para revisão individual</h6>
+          <p className="mt-1 text-xs leading-5 font-semibold text-slate-800">
+            Verifique a anotação original, a vigência e o Quadro II. Marcação histórica não constitui aprovação legal.
+          </p>
+          <div className="mt-3 grid gap-2 lg:grid-cols-2">
+            {audit.unresolved.map(row=><article key={row.index} data-urban-archive-pending-row={row.index}
+              className="min-w-0 rounded-lg border border-amber-200 bg-white p-3">
+              <p className="text-sm font-extrabold text-slate-950">
+                Linha {row.index+1} · {row.zone} · {row.use}
+              </p>
+              <p className="text-xs font-medium text-slate-700">Página física {row.page}</p>
+              <p className="mt-2 text-xs font-semibold leading-5 text-amber-950">
+                {row.issues.length?row.issues.join("; "):"Sem declaração individual de conferência"}
+              </p>
+              <button type="button" data-urban-archive-open-pending={row.index}
+                disabled={!file||Boolean(busyId)||!canEdit}
+                onClick={()=>void onRestore(opened,row.index).catch(e=>
+                  setNotice(e instanceof Error?e.message:"Falha ao conferir o PDF original."))}
+                className="mt-2 min-h-10 rounded-lg border border-sky-900 bg-sky-900 px-3 py-2 text-xs font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-700">
+                Conferir esta linha no editor
+              </button>
+            </article>)}
+          </div>
+        </section>:null}
         <div className="mt-3 max-h-72 overflow-auto rounded-lg border border-slate-200" role="region" aria-label="Linhas do rascunho arquivado">
           <table className="w-full min-w-[600px] text-left text-sm text-slate-950">
             <thead className="sticky top-0 bg-slate-100 text-slate-950"><tr>

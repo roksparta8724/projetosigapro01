@@ -466,17 +466,18 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
     } catch(e) {setMessage("Pacote não carregado: "+(e instanceof Error?e.message:"erro desconhecido"));}
     finally {setReviewLoading(false);}
   };
-  const restoreArchivedDraft=async(draft:UrbanStoredDraft)=>{
+  const restoreArchivedDraft=async(draft:UrbanStoredDraft,rowIndex=0)=>{
     if(!file)throw Error("Selecione o PDF original para abrir o rascunho sem reenviar o JSON.");
     if(draft.municipality_id!==municipalityId||draft.status!=="pending_legal_review"||
       !/^[a-f0-9]{64}$/.test(draft.document_sha256)||
       !Array.isArray(draft.source_rows)||draft.source_rows.length<1||
-      draft.source_rows.length>500||!draft.source_rows.every(validReviewRow))
+      draft.source_rows.length>500||!draft.source_rows.every(validReviewRow)||
+      !Number.isSafeInteger(rowIndex)||rowIndex<0||rowIndex>=draft.source_rows.length)
       throw Error("Rascunho incompatível com a prefeitura ou com a estrutura de revisão.");
     const actualHash=await verifyPdfAndHash(file);
     if(actualHash!==draft.document_sha256)
       throw Error("O PDF enviado não corresponde ao rascunho arquivado (SHA-256). Nenhum dado foi alterado.");
-    const first=draft.source_rows[0]!;
+    const first=draft.source_rows[rowIndex]!;
     const restored:ReviewPackage={
       tipo:"sigapro_urban_matrix_original_lc379_2009_review",
       municipio:draft.source_municipality,
@@ -484,7 +485,7 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
       quadro_I:draft.source_rows,
       nao_ativar_regras_automaticamente:true,
     };
-    setReviewPackage(restored);setArchiveRestored(true);setReviewRowIndex(0);
+    setReviewPackage(restored);setArchiveRestored(true);setReviewRowIndex(rowIndex);
     setQuadro("I");setPage(String(first.pagina_pdf));
     setZone(normalizeUrbanCode(first.zona_conforme_tabela));
     setUsage(normalizeUrbanCode(first.uso_predominante_conforme_tabela));

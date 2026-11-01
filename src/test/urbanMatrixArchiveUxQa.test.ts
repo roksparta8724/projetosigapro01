@@ -14,6 +14,10 @@ describe("SIGAPRO QA – acervo visível, OCR liberado e contraste premium",()=>
     expect(archive).toContain('data-urban-archive-opened="true"');
     expect(archive).toContain('onRestore(opened)');
     expect(importer).toContain("verifyPdfAndHash(file)");
+    expect(archive).toContain('data-urban-archive-audit="true"');
+    expect(archive).toContain('data-urban-archive-pending="true"');
+    expect(archive).toContain('onRestore(opened,row.index)');
+    expect(importer).toContain('setReviewPackage(restored);setArchiveRestored(true);setReviewRowIndex(rowIndex)');
     expect(importer).toContain("actualHash!==draft.document_sha256");
     expect(importer).toContain("setArchiveReloadToken(previous=>previous+1)");
   });

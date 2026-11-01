@@ -72,3 +72,25 @@ export function makeUrbanBatchStaging(
   _legal_status:"pending_legal_review" as const,
  };
 }
+
+/** Read-only audit of the original QA archive; a checkbox is not legal approval. */
+export type ArchivedUrbanBatchAudit={
+ total:number;attested:number;pending:number;
+ invalidIndexes:number[];unresolved:BatchRowStatus[];
+};
+export function auditArchivedUrbanBatch(
+ rows:readonly BatchUrbanRow[],checked:readonly number[],
+):ArchivedUrbanBatchAudit{
+ const statuses=examineBatchRows(rows);
+ const unique=new Set<number>();
+ const invalidIndexes:number[]=[];
+ for(const value of checked){
+  const valid=Number.isSafeInteger(value)&&value>=0&&value<statuses.length&&
+   !unique.has(value)&&statuses[value].bulkEligible;
+  if(!valid){invalidIndexes.push(value);continue;}
+  unique.add(value);
+ }
+ const unresolved=statuses.filter(s=>!unique.has(s.index));
+ return {total:statuses.length,attested:unique.size,pending:unresolved.length,
+  invalidIndexes,unresolved};
+}
