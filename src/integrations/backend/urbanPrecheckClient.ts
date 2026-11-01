@@ -15,6 +15,26 @@ export async function listUrbanLegalEvidence(municipalityId:string):Promise<Urba
  if(!Array.isArray(response))throw Error("Resposta inválida do acervo de evidências legais.");
  return response as UrbanVerifiedLegalSource[];
 }
+/** The v4 SQL derives municipality, zone and usage from a verified regulation ID. */
+export async function saveScopedUrbanLegalEvidence(args:{
+ versionId:string;title:string;sha256:string;page:number;metric:string;excerpt:string;
+ from:string;until:string|null;method:"text_layer_verified"|"visual_double_transcription";
+}):Promise<string>{
+ const response=await invoke<{id?:string;status?:string}>("save_urban_legal_evidence_scoped_v4",{
+  _regulation_version_id:args.versionId,
+  _document_title:args.title,
+  _document_sha256:args.sha256,
+  _page_number:args.page,
+  _metric:args.metric,
+  _excerpt:args.excerpt,
+  _effective_from:args.from,
+  _effective_until:args.until,
+  _verification_method:args.method,
+ });
+ if(response?.status!=="verified_evidence"||!response.id)
+  throw Error("O banco não confirmou a vinculação da evidência.");
+ return response.id;
+}
 export async function listUrbanRegulations(municipalityId: string): Promise<UrbanRegulationVersion[]> {
   const response = await invoke<unknown>("list_urban_regulation_versions_v1", { _municipality_id: municipalityId });
   if (!Array.isArray(response)) throw new Error("Resposta inválida do cadastro legal municipal.");
