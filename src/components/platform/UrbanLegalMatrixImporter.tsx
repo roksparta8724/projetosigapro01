@@ -286,6 +286,7 @@ function OcrReferenceComparison({row,analysis,preparedText,onPrepareVerified,onI
         </div>
       </section> : null}
     </div>
+    </div>
   </section>;
 }
 const dateValid = (s: string) => validateImportDate(s);
@@ -322,6 +323,7 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
   const [pdfLayer,setPdfLayer]=useState<UrbanPdfSourceLayer|null>(null);
   const [pdfLayerBusy,setPdfLayerBusy]=useState(false);
   const [pdfLayerNotice,setPdfLayerNotice]=useState("");
+  const [adminAdvancedOpen,setAdminAdvancedOpen]=useState(false);
   // Reject asynchronous OCR results if the document, image, selected zone,
   // usage or municipality changes while the provider is still processing.
   const currentVisionScope=useRef({municipalityId,file,pageImage,quadro:"I" as ImportQuadro,
@@ -392,6 +394,20 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
   const directTextReview=directPdfEvidence&&expertDiagnostics
     ?compareQaSourceTextToVision(directPdfEvidence,expertDiagnostics.map(r=>
       r.label+": "+(r.expert??"[ILEGÍVEL]")).join("\n")):null;
+  const adminFieldOverview=URBAN_VISION_FIELDS.map(([key,label])=>{
+    const direct=directPdfEvidence?.cells[key]?.raw??null;
+    const opinion=expertDiagnostics?.find(entry=>entry.key===key);
+    const ai=opinion?.expert??opinion?.primary??null;
+    const conflict=direct&&ai&&directTextReview?.find(x=>x.key===key)?.verdict==="text_conflict";
+    const status=conflict?"conflict" as const:
+      direct?"document" as const:
+      opinion?.verdict==="agree"?"ai_agrees" as const:
+      ai?"ai_only" as const:"missing" as const;
+    return {key,label,value:direct??ai,status};
+  });
+  const adminOverviewRead=adminFieldOverview.filter(v=>v.status!=="missing").length;
+  const adminOverviewConflicts=adminFieldOverview.filter(v=>v.status==="conflict").length;
+  const adminOverviewUnconfirmed=adminFieldOverview.filter(v=>v.status!=="document").length;
   const ocrReconciliation=ocrDraft && matchingOriginalScope && matchingOriginalRow
     ? reconcileUrbanOcr(text,matchingOriginalRow) : null;
   const ocrReconciliationBlocked=Boolean(ocrDraft && reviewPackage &&
@@ -913,6 +929,156 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
         </p>
       </div>
     </div>
+    <div data-urban-admin-guided="true" className="mt-4 space-y-4 text-slate-950">
+      <div className="rounded-2xl border border-sky-200 bg-white p-4 shadow-sm">
+        <p className="text-xs font-extrabold uppercase tracking-wide text-sky-800">Etapa 1 de 3 · Documento</p>
+        <h5 className="mt-1 text-lg font-extrabold text-slate-950">Escolha a legislação e a linha a analisar</h5>
+        <p className="mt-1 text-sm text-slate-700">
+          Use sempre o PDF oficial. O sistema identifica o texto disponível antes de consultar a IA.
+        </p>
+        <div className="mt-3 grid gap-3 md:grid-cols-2">
+          <label className="text-sm font-bold text-slate-900">
+            PDF oficial
+            <input data-urban-admin-pdf="true" aria-label="PDF oficial para análise guiada"
+              type="file" accept=".pdf,application/pdf"
+              className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-2 text-sm text-slate-950"
+              onChange={e=>{
+                setFile(e.target.files?.[0]||null);setArchiveRestored(false);
+                setReviewPackage(null);setReviewRowIndex(0);setPreparedManualText(null);
+                setPageImage(null);setText("");setOcrDraft(false);setOcrVerified(false);
+                setVisionFeedback(null);setVisionNotice(null);setVisionRawPreview("");
+                visionSessionCache.current.clear();reset();
+              }}/>
+            {file?<span className="mt-1 block break-all text-xs font-semibold text-emerald-800">
+              Selecionado: {file.name}
+            </span>:null}
+          </label>
+          {reviewPackage?<label className="text-sm font-bold text-slate-900">
+            Zona e uso para conferir
+            <select data-urban-admin-row="true" value={reviewRowIndex}
+              aria-label="Linha para análise guiada"
+              onChange={e=>openBatchRow(Number(e.target.value))}
+              className="mt-1 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-slate-950">
+              {reviewPackage.quadro_I.map((row,i)=><option key={i} value={i}>
+                {row.zona_conforme_tabela} · {row.uso_predominante_conforme_tabela} · pág. {row.pagina_pdf}
+              </option>)}
+            </select>
+          </label>:<label className="text-sm font-bold text-slate-900">
+            Página do PDF
+            <input data-urban-admin-page="true" aria-label="Página para análise guiada"
+              type="number" min={1} max={10000} value={page}
+              onChange={e=>{
+                setPage(e.target.value);setText("");setPreparedManualText(null);
+                setOcrDraft(false);setOcrVerified(false);setVisionFeedback(null);
+                setVisionNotice(null);reset();
+              }}
+              className="mt-1 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-slate-950"/>
+          </label>}
+          {!reviewPackage?<label className="text-sm font-bold text-slate-900">
+            Zona da tabela
+            <input aria-label="Zona para análise guiada" value={zone}
+              maxLength={40} onChange={e=>{setZone(normalizeUrbanCode(e.target.value));reset();}}
+              placeholder="Ex.: ZM-B(e)"
+              className="mt-1 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-slate-950"/>
+          </label>:null}
+          {!reviewPackage?<label className="text-sm font-bold text-slate-900">
+            Uso da tabela
+            <input aria-label="Uso para análise guiada" value={usage}
+              maxLength={60} onChange={e=>{setUsage(normalizeUrbanCode(e.target.value));reset();}}
+              placeholder="Ex.: comercial"
+              className="mt-1 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-slate-950"/>
+          </label>:null}
+        </div>
+        <p className="mt-3 text-xs font-semibold text-slate-700">
+          {reviewPackage
+            ?"O rascunho recuperado serve de referência, não de lei validada."
+            :"Já possui um rascunho da prefeitura? Abra as opções avançadas para recuperá-lo. "}
+        </p>
+      </div>
+      <div className="rounded-2xl border border-sky-200 bg-white p-4 shadow-sm">
+        <p className="text-xs font-extrabold uppercase tracking-wide text-sky-800">Etapa 2 de 3 · Leitura</p>
+        <h5 className="mt-1 text-lg font-extrabold text-slate-950">Analisar o documento</h5>
+        <p className="mt-1 text-sm text-slate-700">
+          Primeiro procura palavras e posições no PDF. Se houver imagem recortada e autorização,
+          também faz a leitura pelas duas IAs. Nenhum parâmetro é gravado aqui.
+        </p>
+        <button data-urban-admin-analyze="true" data-sigapro-contrast="dark"
+          type="button" disabled={!file||!Number.isSafeInteger(Number(page))||Number(page)<1||
+            Number(page)>10000||pdfLayerBusy||visionBusy||busy}
+          onClick={()=>pageImage&&consent?void readPageImage("structured"):void inspectOriginalPdf()}
+          className="mt-3 min-h-12 w-full rounded-xl bg-sky-900 px-5 py-3 text-base font-extrabold text-white disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto">
+          {pdfLayerBusy||visionBusy?"Analisando documento…":"Analisar documento"}
+        </button>
+        <p data-urban-admin-reading-status="true" className="mt-3 text-sm font-semibold text-slate-700" role="status">
+          {!file?"Selecione o PDF oficial para começar."
+            :!page?"Informe a página que contém a tabela."
+            :pdfLayer?.textStatus==="text_available"
+              ?"Texto encontrado no PDF. Confira a associação com zona e colunas na etapa seguinte."
+            :pdfLayer?.textStatus==="no_text_layer"
+              ?"Esta página não tem texto extraível. A revisão por imagem está disponível nas opções avançadas."
+            :pdfLayer?.textStatus==="low_quality_text"
+              ?"Texto incompleto ou degradado: nenhuma leitura deve ser aprovada sem conferência."
+            :visionBusy||pdfLayerBusy?"Leitura em andamento…"
+            :"Pronto para ler a página original."}
+        </p>
+        {visionNotice?.kind==="error"?<p className="mt-2 text-sm font-bold text-rose-800" role="alert">
+          {visionNotice.message}
+        </p>:null}
+      </div>
+      <div className="rounded-2xl border border-sky-200 bg-white p-4 shadow-sm">
+        <p className="text-xs font-extrabold uppercase tracking-wide text-sky-800">Etapa 3 de 3 · Conferência</p>
+        <h5 className="mt-1 text-lg font-extrabold text-slate-950">Parâmetros da linha selecionada</h5>
+        <p className="mt-1 text-sm text-slate-700">
+          Valores encontrados não são valores aprovados. Compare com a tabela e a lei vigente.
+        </p>
+        <div className="mt-3 flex flex-wrap gap-2 text-sm font-bold">
+          <span className="rounded-lg bg-slate-100 px-3 py-2 text-slate-900">
+            {adminOverviewRead}/13 com leitura disponível
+          </span>
+          <span className="rounded-lg bg-amber-50 px-3 py-2 text-amber-950">
+            {adminOverviewUnconfirmed} sem evidência textual direta vinculada
+          </span>
+          {adminOverviewConflicts>0?<span className="rounded-lg bg-rose-50 px-3 py-2 text-rose-900">
+            {adminOverviewConflicts} divergência(s)
+          </span>:null}
+        </div>
+        {adminOverviewRead>0?<div data-urban-admin-field-grid="true"
+          className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+          {adminFieldOverview.map(field=><div key={field.key}
+            data-urban-admin-field={field.key}
+            className={"rounded-xl border p-3 "+(field.status==="conflict"?
+              "border-rose-300 bg-rose-50":field.status==="document"?
+              "border-sky-200 bg-sky-50":"border-amber-200 bg-amber-50")}>
+            <p className="text-xs font-bold text-slate-700">{field.label}</p>
+            <p className="mt-1 break-words text-base font-extrabold text-slate-950">
+              {field.value??"Não identificado"}
+            </p>
+            <p className={"mt-1 text-xs font-bold "+(field.status==="conflict"?
+              "text-rose-900":"text-slate-700")}>
+              {field.status==="conflict"?"Divergência: exige revisão":
+               field.status==="document"?"Camada textual do PDF — conferir":
+               field.status==="ai_agrees"?"Duas IAs concordam — conferir":
+               field.status==="ai_only"?"Sugestão da IA — pendente":"Pendente de leitura"}
+            </p>
+          </div>)}
+        </div>:<p className="mt-3 rounded-lg bg-slate-50 p-3 text-sm text-slate-700">
+          A análise ainda não produziu valores vinculados às 13 colunas. A leitura
+          geral de texto não atribui números automaticamente às colunas.
+        </p>}
+        <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-950">
+          Nenhum parâmetro foi aprovado. A conclusão exige conferir todos os valores
+          com o PDF oficial e verificar a vigência da legislação.
+        </p>
+      </div>
+      <button type="button" data-urban-admin-advanced-toggle="true"
+        aria-expanded={adminAdvancedOpen}
+        onClick={()=>setAdminAdvancedOpen(old=>!old)}
+        className="min-h-11 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-sky-900">
+        {adminAdvancedOpen?"Ocultar opções avançadas":"Abrir conferência detalhada e opções avançadas"}
+      </button>
+    </div>
+    <div data-urban-admin-advanced-content="true"
+      aria-hidden={!adminAdvancedOpen} className={adminAdvancedOpen?"mt-4 space-y-4":"hidden"}>
     <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-950">
       <ShieldAlert className="mr-1 inline h-4 w-4"/>
       Faça download do PDF que está no R2 e selecione a mesma versão aqui; copie o texto
