@@ -53,6 +53,7 @@ describe("SIGAPRO – acervo legal fundamentando pré-conferência por zona, uso
   expect(writer).toContain("_legal_review: {");
   expect(writer).toContain("evidence_ids:legalReview.evidenceIds");
   expect(writer).toContain('document_scope_confirmed:legalReview.documentScopeConfirmed');
-  expect(writer).not.toContain("activateUrbanRegulation(versionId");
+  expect(writer).toContain('"save_urban_precheck_run_v6"');
+  expect(writer).not.toContain('"save_urban_precheck_run_v1"');
  });
 });

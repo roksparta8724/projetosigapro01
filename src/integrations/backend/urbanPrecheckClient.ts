@@ -51,8 +51,8 @@ export async function listUrbanPrecheckHistory(processId: string): Promise<Urban
 /**
  * Production Neon uses the reviewed, idempotent v5 writer. The earlier v1
  * writer is intentionally REVOKED. Never fall back to it.
- * Review evidence is empty here because legal/exceptional cases require
- * a separate authenticated legal-evidence validation flow.
+ * A verified scope ID is required for EACH active rule metric.
+ * Neon v6 validates all legal citations again inside the transaction.
  */
 export async function saveUrbanPrecheckRun(
   processId: string, versionId: string, referenceDate: string, measurements: UrbanMeasurements,
@@ -68,7 +68,7 @@ export async function saveUrbanPrecheckRun(
     throw new Error("Fontes oficiais por métrica e declaração de conferência obrigatórias.");
   }
   if (!/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(requestId)) throw new Error("Identificador de gravação inválido.");
-  await invoke("save_urban_precheck_run_v5", {
+  await invoke("save_urban_precheck_run_v6", {
     _process_id: processId,
     _regulation_version_id: versionId,
     _reference_date: referenceDate,
