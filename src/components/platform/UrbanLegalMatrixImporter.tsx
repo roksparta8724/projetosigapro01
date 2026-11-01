@@ -396,7 +396,11 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
     ?compareQaSourceTextToVision(directPdfEvidence,expertDiagnostics.map(r=>
       r.label+": "+(r.expert??"[ILEGÍVEL]")).join("\n")):null;
   const availablePdfRows=pdfLayer?discoverUrbanPdfRows(pdfLayer):[];
-  const pdfTableReading=pdfLayer&&selectedPdfRowId
+  const selectedPdfRow=availablePdfRows.find(r=>r.id===selectedPdfRowId);
+  // Never show source values under a manually edited or different zoning scope.
+  const pdfTableReading=pdfLayer&&selectedPdfRow&&
+      normalizeUrbanCode(zone)===normalizeUrbanCode(selectedPdfRow.zone)&&
+      normalizeUrbanCode(usage)===normalizeUrbanCode(selectedPdfRow.usage)
     ?readUrbanTableRow(pdfLayer,selectedPdfRowId):null;
   const adminFieldOverview=URBAN_VISION_FIELDS.map(([key,label])=>{
     const direct=pdfTableReading?.cells.find(c=>c.key===key&&c.status==="source_text")?.value
@@ -990,14 +994,14 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
           {!reviewPackage?<label className="text-sm font-bold text-slate-900">
             Zona da tabela
             <input aria-label="Zona para análise guiada" value={zone}
-              maxLength={40} onChange={e=>{setZone(normalizeUrbanCode(e.target.value));reset();}}
+              maxLength={40} onChange={e=>{setZone(normalizeUrbanCode(e.target.value));setSelectedPdfRowId("");reset();}}
               placeholder="Ex.: ZM-B(e)"
               className="mt-1 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-slate-950"/>
           </label>:null}
           {!reviewPackage?<label className="text-sm font-bold text-slate-900">
             Uso da tabela
             <input aria-label="Uso para análise guiada" value={usage}
-              maxLength={60} onChange={e=>{setUsage(normalizeUrbanCode(e.target.value));reset();}}
+              maxLength={60} onChange={e=>{setUsage(normalizeUrbanCode(e.target.value));setSelectedPdfRowId("");reset();}}
               placeholder="Ex.: comercial"
               className="mt-1 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-slate-950"/>
           </label>:null}
@@ -1174,13 +1178,13 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
       </label>
       <label className="text-xs font-bold text-slate-800 dark:text-white">Código de zona validado
         <input aria-label="Código de zona do documento" value={zone} maxLength={40}
-          onChange={e=>{setZone(normalizeUrbanCode(e.target.value));reset();}}
+          onChange={e=>{setZone(normalizeUrbanCode(e.target.value));setSelectedPdfRowId("");reset();}}
           placeholder="Exatamente como no mapa vigente"
           className="mt-1 min-h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-slate-950"/>
       </label>
       <label className="text-xs font-bold text-slate-800 dark:text-white">Categoria de uso validada
         <input aria-label="Categoria de uso do documento" value={usage} maxLength={60}
-          onChange={e=>{setUsage(normalizeUrbanCode(e.target.value));reset();}}
+          onChange={e=>{setUsage(normalizeUrbanCode(e.target.value));setSelectedPdfRowId("");reset();}}
           placeholder="Exatamente como no quadro vigente"
           className="mt-1 min-h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-slate-950"/>
       </label>
