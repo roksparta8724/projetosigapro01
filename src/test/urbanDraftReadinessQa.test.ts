@@ -49,6 +49,8 @@ describe("SIGAPRO — não permite gravar sugestão sem fundamentação",()=>{
  it("expõe as pendências na interface e remove referência fictícia",()=>{
   const file=readFileSync("src/components/platform/MunicipalUrbanRulesSettings.tsx","utf8");
   expect(file).toContain('data-urban-draft-readiness="true"');
+  expect(file).toContain('aria-label="Salvar nova versão como rascunho"');
+  expect(file).toContain('aria-describedby="urban-draft-readiness-status"');
   expect(file).toContain("disabled={busy || loading || !draftReadiness.canSave}");
   expect(file).toContain("assessUrbanDraftReadiness({zone,usage,effectiveFrom,draft})");
   expect(file).not.toContain("Ex.: Lei 123/2026");

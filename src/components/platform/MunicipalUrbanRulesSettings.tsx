@@ -281,7 +281,7 @@ export function MunicipalUrbanRulesSettings({
               </div>
             ))}
           </div>
-          <div data-urban-draft-readiness="true" role="status" aria-live="polite"
+          <div id="urban-draft-readiness-status" data-urban-draft-readiness="true" role="status" aria-live="polite"
             className={draftReadiness.canSave
               ?"mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs font-semibold leading-5 text-emerald-950"
               :"mt-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs font-semibold leading-5 text-amber-950"}>
@@ -294,7 +294,8 @@ export function MunicipalUrbanRulesSettings({
             <button
               type="button"
               data-sigapro-urban-rules-save="true"
-              aria-label={!draftReadiness.canSave?"Aguardando vigência e referências legais":"Salvar nova versão como rascunho"}
+              aria-label="Salvar nova versão como rascunho"
+              aria-describedby="urban-draft-readiness-status"
               aria-busy={busy}
               disabled={busy || loading || !draftReadiness.canSave}
               onClick={() => void save()}
