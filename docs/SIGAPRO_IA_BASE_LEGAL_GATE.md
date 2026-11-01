@@ -18,6 +18,9 @@ O upload de uma lei em PDF não gera regras automaticamente. Mesmo com uma respo
 - duas RPCs existentes da base oficial, `list_urban_regulation_versions_v1` e `list_urban_legal_evidence_v2`, reforçam autorização de perfil interno e isolamento de tenants;
 - seleciona somente normas **ativas, vigentes e com limites numericamente validados**;
 - seleciona somente evidências verificadas, com hash SHA-256, página, zona, uso, período vigente e método documentado;
+- exige correspondência explícita de **município + zona + uso + métrica** entre cada índice de regra ativa e suas evidências; devolve contagem de métricas comprovadas e pendentes;
+- não mostra evidências de regras inativas, de outro escopo ou fora de vigência como fundamentação de uma regra ativa; se algum parâmetro ativo não tem evidência compatível, o estado é `missing_evidence`;
+- resultados possivelmente truncados pelos limites das RPCs não podem ser apresentados como inventário completo (`manual_review_available`);
 - apresenta até 6 evidências para conferência **humana**; a listagem de normas é limitada a 200 e evidências a 250 pelas RPCs do Neon. Se a página estiver cheia, o resultado indica truncamento potencial;
 - nunca invoca Cloudflare Workers AI, não expõe chave de API, não lê PDFs do R2, não grava no Neon e não retorna conclusão de conformidade;
 - falha sem mostrar dados quando sessão, perfil ou catálogo falham.

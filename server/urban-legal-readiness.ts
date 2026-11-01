@@ -1,4 +1,4 @@
-import { validateUrbanRules } from "../src/lib/urbanPrecheck.js";
+import { normalizeUrbanCode, validateUrbanRules } from "../src/lib/urbanPrecheck.js";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const SHA256 = /^[0-9a-f]{64}$/i;
@@ -12,6 +12,9 @@ export type UrbanLegalReadiness = {
   referenceDate: string;
   activeRegulations: number;
   scopedVerifiedEvidence: number;
+  // Coverage is computed ONLY from evidence matching active rule scope and metric.
+  // This never establishes that the law is current or a project is compliant.
+  matchedMetricCoverage: { required: number; matched: number; missing: number };
   resultLimits: { regulations: number; evidence: number; potentiallyTruncated: boolean };
   citedEvidence: Array<{
     title: string;
@@ -78,14 +81,32 @@ export function summarizeUrbanLegalReadiness(
     (entry.effective_until === null || entry.effective_until === undefined ||
       (validDate(entry.effective_until) && entry.effective_until >= referenceDate)),
   );
+  // A completely unrelated legal excerpt (other zone, other use or other
+  // metric) must NEVER make a municipality appear ready for legal review.
+  // Do not use the historical matrix staging records: only active versions.
+  const scopeMetric = (zone: string, usage: string, metric: string) =>
+    JSON.stringify([normalizeUrbanCode(zone), normalizeUrbanCode(usage), metric]);
+  const required = new Set<string>();
+  for (const version of active) {
+    for (const rule of version.rules) {
+      required.add(scopeMetric(version.zone_code, version.use_code, rule.metric));
+    }
+  }
+  const matchedEvidence = verified.filter((entry) =>
+    required.has(scopeMetric(entry.zone_code, entry.use_code, entry.metric)));
+  const matchedMetrics = new Set(matchedEvidence.map((entry) =>
+    scopeMetric(entry.zone_code, entry.use_code, entry.metric)));
+  const missing = Math.max(0, required.size - matchedMetrics.size);
+  const potentiallyTruncated = versions.length >= 200 || evidence.length >= 250;
   return {
     readiness: active.length === 0 ? "missing_regulations" :
-      verified.length === 0 ? "missing_evidence" : "manual_review_available",
+      missing > 0 || potentiallyTruncated ? "missing_evidence" : "manual_review_available",
     referenceDate,
     activeRegulations: active.length,
-    scopedVerifiedEvidence: verified.length,
-    resultLimits: { regulations: 200, evidence: 250, potentiallyTruncated: versions.length >= 200 || evidence.length >= 250 },
-    citedEvidence: verified.slice(0, 6).map((item) => ({
+    scopedVerifiedEvidence: matchedEvidence.length,
+    matchedMetricCoverage: { required: required.size, matched: matchedMetrics.size, missing },
+    resultLimits: { regulations: 200, evidence: 250, potentiallyTruncated },
+    citedEvidence: matchedEvidence.slice(0, 6).map((item) => ({
       title: asText(item.document_title, 180),
       page: item.page_number as number,
       metric: asText(item.metric, 80),

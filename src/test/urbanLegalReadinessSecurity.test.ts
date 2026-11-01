@@ -46,6 +46,7 @@ describe("SIGAPRO — municipal legal readiness is tenant-scoped and read-only",
     expect(r.result.readiness).toBe("manual_review_available");
     expect(r.result.activeRegulations).toBe(1);
     expect(r.result.scopedVerifiedEvidence).toBe(1);
+    expect(r.result.matchedMetricCoverage).toEqual({ required: 1, matched: 1, missing: 0 });
     expect(r.result.automatedCompliance).toBe(false);
     expect(r.result.cloudflareTransmission).toBe(false);
     expect(r.result.citedEvidence).toEqual([expect.objectContaining({title:"Lei Municipal 100/2025",page:3})]);
@@ -87,9 +88,45 @@ describe("SIGAPRO — municipal legal readiness is tenant-scoped and read-only",
       {...rules[0],status:"draft"}, {...rules[0],municipality_id:other},
     ],[evidence[0],{...evidence[0],municipality_id:other}],tenant,"2026-10-29");
     expect(answer.activeRegulations).toBe(0);
-    expect(answer.scopedVerifiedEvidence).toBe(1);
+    expect(answer.scopedVerifiedEvidence).toBe(0);
     expect(answer.readiness).toBe("missing_regulations");
-    expect(answer.citedEvidence).toHaveLength(1);
+    expect(answer.citedEvidence).toHaveLength(0);
+  });
+  it("fails closed on evidence from another zone, use or legal metric",()=>{
+    const variants = [
+      {...evidence[0],zone_code:"Z2"},
+      {...evidence[0],use_code:"COMERCIAL"},
+      {...evidence[0],metric:"side_setback_m"},
+    ];
+    for(const entry of variants){
+      const result=summarizeUrbanLegalReadiness(rules,[entry],tenant,"2026-10-29");
+      expect(result.readiness).toBe("missing_evidence");
+      expect(result.scopedVerifiedEvidence).toBe(0);
+      expect(result.citedEvidence).toEqual([]);
+      expect(result.matchedMetricCoverage).toEqual({required:1,matched:0,missing:1});
+    }
+  });
+  it("requires evidence for each active legal metric, not just one unrelated excerpt",()=>{
+    const expanded = [{...rules[0],rules:[
+      ...rules[0].rules,{metric:"side_setback_m",limit:2,reference:"Lei municipal 100/2025, art. 12"},
+    ]}];
+    const incomplete=summarizeUrbanLegalReadiness(expanded,evidence,tenant,"2026-10-29");
+    expect(incomplete.readiness).toBe("missing_evidence");
+    expect(incomplete.matchedMetricCoverage).toEqual({required:2,matched:1,missing:1});
+    const complete=summarizeUrbanLegalReadiness(expanded,[
+      ...evidence,{...evidence[0],evidence_id:"55555555-5555-4555-8555-555555555555",
+        metric:"side_setback_m",excerpt:"Recuo lateral mínimo de dois metros."},
+    ],tenant,"2026-10-29");
+    expect(complete.readiness).toBe("manual_review_available");
+    expect(complete.matchedMetricCoverage).toEqual({required:2,matched:2,missing:0});
+  });
+  it("does not treat a result at the Neon RPC cap as complete legal coverage",()=>{
+    const many=Array.from({length:250},(_,i)=>({
+      ...evidence[0],evidence_id:"44444444-4444-4444-8444-"+String(i).padStart(12,"0"),
+    }));
+    const result=summarizeUrbanLegalReadiness(rules,many,tenant,"2026-10-29");
+    expect(result.resultLimits.potentiallyTruncated).toBe(true);
+    expect(result.readiness).toBe("missing_evidence");
   });
   it("filters expired and unverified evidence and future legal effective dates",()=>{
     const answer=summarizeUrbanLegalReadiness(rules,[
