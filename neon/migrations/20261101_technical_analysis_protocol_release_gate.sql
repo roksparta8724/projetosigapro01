@@ -666,3 +666,33 @@ begin
   );
 end;
 $function$;
+
+
+-- Signed private document URLs cannot bypass the same release gate as the UI.
+CREATE OR REPLACE FUNCTION public.authorize_technical_document_signing_v1(_document_id uuid)
+RETURNS boolean
+LANGUAGE plpgsql
+STABLE SECURITY DEFINER
+SET search_path TO 'pg_catalog', 'public'
+SET row_security TO 'off'
+AS $function$
+DECLARE
+  _process_id uuid;
+  _actor uuid := public.current_profile_id();
+  _role text := lower(coalesce(public.current_role_code(),''));
+BEGIN
+  IF _actor IS NULL THEN RETURN false; END IF;
+  SELECT d.process_id INTO _process_id FROM public.process_documents d WHERE d.id=_document_id;
+  IF _process_id IS NULL OR NOT public.has_process_access(_process_id) THEN
+    RETURN false;
+  END IF;
+  IF _role IN ('analista','analyst','prefeitura_supervisor')
+     AND public.profile_operational_area(_actor)='analise' THEN
+    RETURN public.process_technical_release_verified_v1(_process_id);
+  END IF;
+  RETURN true;
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION public.authorize_technical_document_signing_v1(uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.authorize_technical_document_signing_v1(uuid) TO authenticated;
