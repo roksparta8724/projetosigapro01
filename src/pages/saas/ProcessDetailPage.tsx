@@ -2708,7 +2708,7 @@ export function ProcessDetailPage() {
     }
     await runProcessAction("qa04-import-project", async () => {
       const kit = createQa04DocumentKit().filter((entry) =>
-        qa04MissingFixtureLabels.includes(entry.label),
+        qa04MissingFixtureLabels.some((needed) => needed === entry.label),
       );
       for (const { label, file } of kit) {
         const uploaded = await uploadFileToStorage({
