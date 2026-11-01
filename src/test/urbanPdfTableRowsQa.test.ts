@@ -79,6 +79,29 @@ describe("SIGAPRO QA — true line- and header-based PDF table extraction",()=>{
   expect(val("recuo_lateral")).toBe("5");
   expect(read.cells.every(c=>c.evidence.length>0)).toBe(true);
  });
+ it("assigns a zone merged over TWO use rows to the correct pair, including its first row",()=>{
+  const realPage=fixture(headers.concat([
+    p("comercial",108.4,185.1,36.6),p("residencial",106.1,212.7,41.3),
+    p("ZONA",36.4,192.6,22.2,10.3),p("ZM-B(e)",60.9,192.6,29.4,10.3),
+    p("comercial",108.4,236.6,36.6),p("residencial",105.9,265.8,41.3),
+    // This is what PDF text extraction returns on physical page 36.
+    p("ZONAZM-81",39.3,248.5,54.4,10.3),
+    p("comercial",107.9,291.2,36.6),p("residencial",105.9,315.7,41.3),
+    p("ZM-82",51.3,291.3,36,10.3),
+  ]));
+  const rows=discoverUrbanPdfRows(realPage);
+  expect(rows.map(x=>[x.zone,x.usage])).toEqual([
+    ["ZM-B(e)","comercial"],["ZM-B(e)","residencial"],
+    ["ZM-81","comercial"],["ZM-81","residencial"],
+    ["ZM-82","comercial"],["ZM-82","residencial"],
+  ]);
+  expect(readUrbanTableRow(realPage,rows[2].id).cells.find(x=>x.key==="zona")?.value).toBe("ZM-81");
+ });
+ it("rejects an incomplete 'ZM-' fragment rather than assigning it to another zone",()=>{
+  const realPage=fixture(headers.concat(data,p("ZM-",40,248.5,30)));
+  const rows=discoverUrbanPdfRows(realPage);
+  expect(rows.some(row=>row.zone==="ZM-")).toBe(false);
+ });
  it("never substitutes the next residential line or the same-zone commercial line",()=>{
   const layer=fixture(),row=discoverUrbanPdfRows(layer)[0];
   const read=readUrbanTableRow(layer,row.id);

@@ -13,6 +13,9 @@ const COLUMNS:UrbanVisionFieldKey[]=[
 type Header={key:UrbanVisionFieldKey;x:number;y:number};
 export type TableRowCandidate={
  id:string;zone:string;usage:string;y:number;
+ // Actual source location of the merged/centred printed zone cell.
+ // A zone code can be BELOW the commercial row it governs.
+ zoneEvidenceY?:number;
  label:string;
 };
 export type UrbanTableCell={
@@ -34,11 +37,12 @@ const centerY=(r:PdfTextRun)=>r.y+r.height/2;
 const centerX=(r:PdfTextRun)=>r.x+r.width/2;
 const NUMBER=/^\d{1,6}(?:[,.]\d{1,3})?\s*(?:%|m²|m2|m)?$/i;
 const USES=/^(?:comercial|residencial|industrial|misto|mista|institucional|habitacional|servi[cç]os)$/i;
-const ZONE_CODE=/^(?:ZM|ZR|ZC|ZI|ZE|ZEU|ZUM|AIU)[-–]?[A-Z0-9().-]{1,28}$/i;
+const ZONE_CODE=/^(?:ZM|ZR|ZC|ZI|ZE|ZEU|ZUM|AIU)[-–]?[A-Z0-9][A-Z0-9().-]{0,27}$/i;
 function printedZone(r:PdfTextRun):string|null{
   // Some PDFs merge a printed "ZONA" heading and the actual zone into one
   // text run. Strip that heading ONLY when the remainder is a valid code.
-  const candidate=r.text.trim().replace(/^ZONA\s+/i,"").trim();
+  const candidate=r.text.trim().replace(/^ZONA\s*/i,"").trim();
+  // Fragment "ZM-" is not a complete zone code. Never invent its suffix.
   return ZONE_CODE.test(candidate)?candidate:null;
 }
 function detectHeader(r:PdfTextRun):UrbanVisionFieldKey|null{
@@ -74,7 +78,10 @@ function headersFor(layer:UrbanPdfSourceLayer):Header[]|null{
  if(headers.some((h,i)=>i>0&&h.x-headers[i-1].x<12))return null;
  return headers;
 }
-/** Discover concrete usage rows; select a row, never infer from zone+use alone. */
+/** Discover real rows, pairing commercial/residential under a centred merged-zone cell.
+ * A printed zone can sit between its two usage rows; using only the most
+ * recent ABOVE-zone silently assigns the next commercial row to the prior
+ * zone. Never infer a zone for a group if two printed labels are too close. */
 export function discoverUrbanPdfRows(layer:UrbanPdfSourceLayer):TableRowCandidate[]{
  if(layer.textStatus!=="text_available")return [];
  const headers=headersFor(layer);
@@ -86,22 +93,34 @@ export function discoverUrbanPdfRows(layer:UrbanPdfSourceLayer):TableRowCandidat
    r.x>70&&centerX(r)<headers[0].x-12&&USES.test(r.text.trim())&&
    r.y>Math.max(...headers.map(h=>h.y))+8)
   .sort((a,b)=>centerY(a)-centerY(b));
+ const groups:PdfTextRun[][]=[];
+ for(let i=0;i<usageRuns.length;i++){
+  const first=usageRuns[i],next=usageRuns[i+1];
+  if(next&&compact(first.text)==="COMERCIAL"&&compact(next.text)==="RESIDENCIAL"&&
+     centerY(next)-centerY(first)>10&&centerY(next)-centerY(first)<50){
+    groups.push([first,next]);i++;
+  }else groups.push([first]);
+ }
  const result:TableRowCandidate[]=[];
- for(const usageRun of usageRuns){
-  // A zone merged across several usage rows is assigned until the next
-  // explicit printed zone code; never to a row above the printed zone.
-  const y=centerY(usageRun);
-  const zones=zoneRuns.filter(z=>centerY(z)<=y+13);
-  if(zones.length<1)continue;
-  const zoneRun=zones[zones.length-1];
-  const nextZone=zoneRuns.find(z=>centerY(z)>centerY(zoneRun)+6);
-  if(nextZone&&y>=centerY(nextZone)-12)continue;
-  if(y-centerY(zoneRun)>145)continue;
-  const zone=printedZone(zoneRun),usage=usageRun.text.trim();
-  if(!zone)continue;
-  if(zone.length>40)continue;
-  result.push({id:layer.page+":"+Math.round(y*10),zone,usage,
-    y,label:zone+" · "+usage+" · linha "+(result.length+1)+" da página"});
+ for(const group of groups){
+  const groupY=group.reduce((sum,r)=>sum+centerY(r),0)/group.length;
+  const nearest=zoneRuns.map(run=>({run,distance:Math.abs(centerY(run)-groupY)}))
+    .sort((a,b)=>a.distance-b.distance);
+  const best=nearest[0],second=nearest[1];
+  // One printed zone may continue across additional rows, but never bridge
+  // an adjacent different zone. Ambiguous proximity means no association.
+  const maxDistance=zoneRuns.length===1?70:40;
+  if(!best||best.distance>maxDistance||
+    (second&&second.distance-best.distance<9))continue;
+  const zone=printedZone(best.run);
+  if(!zone||zone.length>40)continue;
+  for(const usageRun of group){
+    const y=centerY(usageRun);
+    result.push({id:layer.page+":"+Math.round(y*10),
+      zone,usage:usageRun.text.trim(),y,zoneEvidenceY:centerY(best.run),
+      label:zone+" · "+usageRun.text.trim()+
+        " · linha "+(result.length+1)+" da página"});
+  }
  }
  return result.slice(0,70);
 }
@@ -129,7 +148,8 @@ export function readUrbanTableRow(
    compact(r.text)===compact(row.usage)&&Math.abs(centerY(r)-center)<3);
  const zoneRuns=layer.runs.filter(r=>
    compact(printedZone(r)??"")===compact(row.zone)&&r.x<headers[0].x-65&&
-   centerY(r)<=center+13&&centerY(r)>center-145);
+   row.zoneEvidenceY!==undefined &&
+   Math.abs(centerY(r)-row.zoneEvidenceY)<0.75);
  const mapped:UrbanTableCell[]=URBAN_VISION_FIELDS.map(([key,label])=>{
    if(key==="zona"||key==="uso"){
      const runs=key==="zona"?zoneRuns:usageRuns;
