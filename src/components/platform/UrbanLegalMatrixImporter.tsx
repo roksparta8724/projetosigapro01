@@ -8,13 +8,15 @@ import { reconcileUrbanOcr, type OcrReconciliation } from "@/lib/urbanOcrReconci
 import { URBAN_VISION_FIELDS, type UrbanVisionFieldKey } from "@/lib/urbanVisionStructured";
 import { compareUrbanVisionDrafts, auditExpertAgainstArchivedRow, type UrbanDiagnosticRow } from "@/lib/urbanVisionDiagnostic";
 import { getQaPdfTextEvidence, compareQaSourceTextToVision } from "@/lib/urbanPdfDirectEvidenceQa";
+import type {UrbanLegalSourceContext} from "@/lib/urbanLegalEvidenceRegistration";
 import { readUrbanPdfSourcePage, sourceLayerExcerpt, type UrbanPdfSourceLayer } from "@/lib/urbanPdfTextLayer";
 import { discoverUrbanPdfRows,inspectUrbanPdfRows,readUrbanTableRow } from "@/lib/urbanPdfTableRows";
 import { UrbanPdfPageCanvas } from "./UrbanPdfPageCanvas";
 import { UrbanMatrixBatchReviewBoard } from "./UrbanMatrixBatchReviewBoard";
 import { UrbanMatrixArchivePanel, type UrbanStoredDraft } from "./UrbanMatrixArchivePanel";
 
-type Props = { municipalityId: string; canEdit: boolean; onSaved: () => Promise<void> };
+type Props = { municipalityId: string; canEdit: boolean; onSaved: () => Promise<void>;
+  onSourceContextChange?:(context:UrbanLegalSourceContext|null)=>void; };
 type SavedSnapshot = { id: string; version: number; quadro: ImportQuadro; zone_code: string;
   use_code: string; page_number: number; status: string; document_title: string };
 type ExtractionReply = { candidates?: unknown; error?: string; quadro?: ImportQuadro;
@@ -304,7 +306,7 @@ async function verifyPdfAndHash(file: File) {
   return Array.from(new Uint8Array(hashed)).map(b => b.toString(16).padStart(2,"0")).join("");
 }
 
-export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props) {
+export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved,onSourceContextChange}: Props) {
   const [file,setFile] = useState<File|null>(null);
   const [pageImage,setPageImage]=useState<File|null>(null);
   const [pageImagePreview,setPageImagePreview]=useState("");
@@ -417,6 +419,19 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
       ai?"ai_only" as const:"missing" as const;
     return {key,label,value:direct??ai,status};
   });
+  // The source can be reused by the evidence editor ONLY after an exact
+  // line is selected; do not pass guessed zones from incomplete/merged cells.
+  useEffect(()=>{
+    if(!onSourceContextChange)return;
+    const confirmedScope=file&&pdfTableReading?.row&&
+      Number.isSafeInteger(Number(page))&&Number(page)>0&&
+      pdfTableReading.row.zone===selectedPdfRow?.zone&&
+      pdfTableReading.row.usage===selectedPdfRow?.usage;
+    onSourceContextChange(confirmedScope?{
+      file,physicalPage:Number(page),zone:pdfTableReading.row!.zone,
+      usage:pdfTableReading.row!.usage,
+    }:null);
+  },[file,page,zone,usage,pdfLayer,selectedPdfRowId,municipalityId,onSourceContextChange]);
   const adminOverviewRead=adminFieldOverview.filter(v=>v.status!=="missing").length;
   const adminOverviewConflicts=adminFieldOverview.filter(v=>v.status==="conflict").length;
   const adminOverviewUnconfirmed=adminFieldOverview.filter(v=>v.status!=="document").length;
@@ -1071,7 +1086,7 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
           {!file?"Selecione o PDF oficial para começar."
             :!page?"Informe a página que contém a tabela."
             :pdfTableReading?.recognized
-              ?pdfTableReading.recognized+"/13 campos vinculados à linha selecionada. Confira cada valor na página original."
+              ?pdfTableReading.recognized+"/13 campos detectados no PDF; nenhum índice está legalmente homologado por esta leitura."
             :pdfLayer?.textStatus==="text_available"
               ?availablePdfRows.length
                 ?"Tabela encontrada. Escolha a linha da zona e do uso para identificar os valores."
@@ -1107,10 +1122,10 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
         </>:null}
         <div className="mt-3 flex flex-wrap gap-2 text-sm font-bold">
           <span className="rounded-lg bg-slate-100 px-3 py-2 text-slate-900">
-            {adminOverviewRead}/13 com leitura disponível
+            {adminOverviewRead}/13 campos reconhecidos na página
           </span>
           <span className="rounded-lg bg-amber-50 px-3 py-2 text-amber-950">
-            {adminOverviewUnconfirmed} sem evidência textual direta vinculada
+            {adminOverviewUnconfirmed} campos sem texto direto confiável
           </span>
           {adminOverviewConflicts>0?<span className="rounded-lg bg-rose-50 px-3 py-2 text-rose-900">
             {adminOverviewConflicts} divergência(s)
@@ -1157,10 +1172,16 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
               ?"Foi possível ler palavras, mas os cabeçalhos da tabela não foram identificados com segurança. Confira o documento e use a análise assistida."
               :"Selecione o PDF oficial e clique em Analisar documento para começar."}
         </p>}
-        <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-950">
-          Nenhum parâmetro foi aprovado. A conclusão exige conferir todos os valores
-          com o PDF oficial e verificar a vigência da legislação.
+        <p data-urban-legal-source-warning="true" className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-950">
+          Evidência textual ≠ evidência legal confirmada. Nenhum parâmetro foi aprovado.
+          Valide documento, zona, uso, índice, vigência e condições do Quadro II
+          antes de criar ou ativar uma norma.
         </p>
+        {pdfTableReading?.row?<a href="#urban-legal-evidence-catalog"
+          data-urban-go-to-legal-evidence="true"
+          className="mt-3 inline-flex min-h-11 items-center rounded-lg border border-sky-900 bg-white px-4 py-2 text-sm font-extrabold text-sky-950 underline-offset-2 hover:underline">
+          Conferir e vincular fontes oficiais desta linha
+        </a>:null}
       </div>
       <button type="button" data-urban-admin-advanced-toggle="true"
         aria-expanded={adminAdvancedOpen}

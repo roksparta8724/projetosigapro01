@@ -7,13 +7,14 @@ import {listUrbanLegalEvidence,saveScopedUrbanLegalEvidence} from "@/integration
 import type {UrbanVerifiedLegalSource} from "@/lib/urbanLegalProof";
 import {URBAN_METRICS,normalizeUrbanCode,type UrbanMetric,type UrbanRegulationVersion}
   from "@/lib/urbanPrecheck";
-import {normalizeLegalExcerpt,verifyUrbanEvidenceInput,
-  type UrbanEvidenceMethod} from "@/lib/urbanLegalEvidenceRegistration";
+import {verifyUrbanEvidenceInput,
+  type UrbanEvidenceMethod,type UrbanLegalSourceContext} from "@/lib/urbanLegalEvidenceRegistration";
 import {readUrbanPdfSourcePage} from "@/lib/urbanPdfTextLayer";
 
-type Props={municipalityId:string;canEdit:boolean;versions:UrbanRegulationVersion[]};
+type Props={municipalityId:string;canEdit:boolean;versions:UrbanRegulationVersion[];
+  sourceContext?:UrbanLegalSourceContext|null};
 const validDate=(v:string)=>/^\d{4}-\d{2}-\d{2}$/.test(v);
-export function UrbanLegalEvidenceCatalogPanel({municipalityId,canEdit,versions}:Props){
+export function UrbanLegalEvidenceCatalogPanel({municipalityId,canEdit,versions,sourceContext}:Props){
  const [versionId,setVersionId]=useState("");
  const [metric,setMetric]=useState<UrbanMetric|"">("");
  const [file,setFile]=useState<File|null>(null);
@@ -29,6 +30,29 @@ export function UrbanLegalEvidenceCatalogPanel({municipalityId,canEdit,versions}
  const [loading,setLoading]=useState(false);
  const [saving,setSaving]=useState(false);
  const [notice,setNotice]=useState("");
+ const matchingLegalVersions=useMemo(()=>sourceContext
+   ?versions.filter(v=>v.municipality_id===municipalityId&&["active","draft"].includes(v.status)&&
+      normalizeUrbanCode(v.zone_code)===normalizeUrbanCode(sourceContext.zone)&&
+      normalizeUrbanCode(v.use_code)===normalizeUrbanCode(sourceContext.usage))
+   :[],[versions,sourceContext,municipalityId]);
+ useEffect(()=>{
+   if(!sourceContext)return;
+   // File references stay only in the authenticated browser session.
+   setFile(sourceContext.file);
+   setTitle(sourceContext.file.name.replace(/\\.pdf$/i,"").slice(0,180));
+   setPage(String(sourceContext.physicalPage));
+   setExcerpt("");setRepeatExcerpt("");setAttested(false);setMetric("");
+   // Do not silently use an unrelated QA test version. Auto-pick only a
+   // uniquely matching real zone/use, otherwise require a human choice.
+   const versionsForScope=versions.filter(v=>v.municipality_id===municipalityId &&
+     ["active","draft"].includes(v.status)&&
+     normalizeUrbanCode(v.zone_code)===normalizeUrbanCode(sourceContext.zone)&&
+     normalizeUrbanCode(v.use_code)===normalizeUrbanCode(sourceContext.usage));
+   setVersionId(versionsForScope.length===1?versionsForScope[0].id:"");
+   setValidFrom(versionsForScope.length===1?versionsForScope[0].effective_from:"");
+   setValidUntil("");
+   setNotice("");
+ },[sourceContext,municipalityId,versions]);
  const selected=useMemo(()=>versions.find(x=>x.id===versionId&&x.municipality_id===municipalityId&&
    (x.status==="active"||x.status==="draft"))??null,[versions,municipalityId,versionId]);
  const matching=useMemo(()=>{
@@ -100,7 +124,7 @@ export function UrbanLegalEvidenceCatalogPanel({municipalityId,canEdit,versions}
    }catch(error){setNotice(error instanceof Error?error.message:"Falha ao vincular documento e índice.");}
    finally{setSaving(false);}
  };
- return <section data-urban-legal-evidence-catalog="true"
+ return <section id="urban-legal-evidence-catalog" data-urban-legal-evidence-catalog="true"
    className="mt-5 min-w-0 rounded-2xl border border-sky-200 bg-white p-4 text-slate-950 dark:border-sky-700 dark:bg-slate-900 dark:text-white">
    <h4 className="flex items-center gap-2 text-sm font-extrabold">
      <BookOpenCheck className="h-4 w-4"/> Fontes legais por zona, uso e índice
@@ -110,6 +134,19 @@ export function UrbanLegalEvidenceCatalogPanel({municipalityId,canEdit,versions}
      documento, SHA-256, página física, trecho e método de conferência. Não ativa parâmetros
      nem comprova, por si só, que a legislação continua vigente.
    </p>
+   {sourceContext?<div data-urban-source-context="true"
+     className="mt-3 rounded-lg border border-sky-200 bg-sky-50 p-3 text-xs font-semibold leading-5 text-sky-950">
+      <p>Origem reaproveitada da leitura: {sourceContext.file.name}, página física {sourceContext.physicalPage},
+        {" "}{sourceContext.zone} · {sourceContext.usage}.
+      </p>
+      <p className="mt-1">Os dados da leitura são apenas uma referência para comparação:
+        não ativam regras, não comprovam vigência e não substituem a conferência do administrador.</p>
+      {matchingLegalVersions.length===0?<p className="mt-2 font-extrabold text-amber-950">
+        Nenhuma versão cadastrada coincide com esta zona e uso. A versão de teste de outra zona
+        não pode receber estes índices. Confira primeiro o cadastro e crie um rascunho
+        fundamentado antes de vincular as evidências.
+      </p>:null}
+     </div>:null}
    <label className="mt-3 block text-xs font-bold">Versão municipal
     <select value={versionId} onChange={e=>chooseVersion(e.target.value)} disabled={!canEdit||loading||saving}
       aria-label="Versão da norma para vincular evidências"
@@ -124,7 +161,7 @@ export function UrbanLegalEvidenceCatalogPanel({municipalityId,canEdit,versions}
    {selected?<div className="mt-3 space-y-3">
       <div data-urban-legal-metric-coverage="true"
         className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-900">
-        <p className="font-extrabold">Índices cadastrados: {selected.rules.length} · Fontes vinculadas:
+        <p className="font-extrabold">Índices nesta versão municipal ({selected.status==="active"?"ativa":"rascunho"}): {selected.rules.length} · Fontes vinculadas:
          {" "}{selected.rules.filter(r=>matching.some(e=>e.metric===r.metric)).length} de {selected.rules.length}
         </p>
         <div className="mt-2 grid gap-1 sm:grid-cols-2">

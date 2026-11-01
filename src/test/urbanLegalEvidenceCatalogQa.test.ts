@@ -57,5 +57,8 @@ describe("SIGAPRO QA — cadastro de evidência por regra real",()=>{
   expect(component).toContain('crypto.subtle.digest("SHA-256",bytes)');
   expect(component).toContain("refreshed.some");
   expect(settings).toContain("<UrbanLegalEvidenceCatalogPanel");
+  expect(settings).toContain("sourceContext={legalSourceContext}");
+  expect(component).toContain('data-urban-source-context="true"');
+  expect(component).toContain("matchingLegalVersions.length===0");
  });
 });

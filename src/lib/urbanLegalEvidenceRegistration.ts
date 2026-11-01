@@ -44,3 +44,11 @@ export function verifyUrbanEvidenceInput(args:{
  if(!args.confirmed)return "Confira a lei, o artigo, a página e as alterações antes de declarar a evidência.";
  return null;
 }
+
+/** In-memory source context only. A text-layer match never approves the law. */
+export type UrbanLegalSourceContext={
+ file:File;
+ physicalPage:number;
+ zone:string;
+ usage:string;
+};

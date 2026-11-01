@@ -6,6 +6,7 @@ import { activateUrbanRegulation, listUrbanRegulations, saveUrbanRegulationDraft
 import { URBAN_METRICS, normalizeUrbanCode, type UrbanMetric, type UrbanRegulationVersion, type UrbanRule } from "@/lib/urbanPrecheck";
 import { municipalCivilDate } from "@/lib/municipalCivilDate";
 import { UrbanLegalMatrixImporter } from "./UrbanLegalMatrixImporter";
+import type { UrbanLegalSourceContext } from "@/lib/urbanLegalEvidenceRegistration";
 import { UrbanLegalEvidenceCatalogPanel } from "./UrbanLegalEvidenceCatalogPanel";
 
 type EditableValue = { limit: string; reference: string };
@@ -22,6 +23,7 @@ export function MunicipalUrbanRulesSettings({
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(false);
   const [notice, setNotice] = useState("");
+  const [legalSourceContext,setLegalSourceContext]=useState<UrbanLegalSourceContext|null>(null);
 
   useEffect(() => {
     let active = true;
@@ -29,6 +31,7 @@ export function MunicipalUrbanRulesSettings({
     setDraft({});
     setZone("");
     setUsage("");
+    setLegalSourceContext(null);
     setNotice("");
     if (!municipalityId) return;
     setLoading(true);
@@ -148,7 +151,8 @@ export function MunicipalUrbanRulesSettings({
           Confira alterações e vigência com o setor técnico responsável.
         </p>
       </details>
-      {canEdit && municipalityId ? <UrbanLegalMatrixImporter municipalityId={municipalityId} canEdit={canEdit} onSaved={reload}/> : null}
+      {canEdit && municipalityId ? <UrbanLegalMatrixImporter municipalityId={municipalityId} canEdit={canEdit}
+          onSaved={reload} onSourceContextChange={setLegalSourceContext}/> : null}
 
       {canEdit && municipalityId ? (
         <details data-urban-manual-rule-editor="true"
@@ -246,7 +250,8 @@ export function MunicipalUrbanRulesSettings({
         </div>
       </div>
       {municipalityId ? <UrbanLegalEvidenceCatalogPanel
-        municipalityId={municipalityId} canEdit={canEdit} versions={versions}/> : null}
+        municipalityId={municipalityId} canEdit={canEdit} versions={versions}
+        sourceContext={legalSourceContext}/> : null}
       {notice ? <p role="status" className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100">{notice}</p> : null}
     </section>
   );
