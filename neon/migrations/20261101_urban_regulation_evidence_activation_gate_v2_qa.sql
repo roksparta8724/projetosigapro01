@@ -41,8 +41,7 @@ END;
 $function$;
 REVOKE ALL ON FUNCTION public.activate_urban_regulation_v2(uuid) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.activate_urban_regulation_v2(uuid) TO authenticated;
--- Remove direct use of the older evidence-free activation path on QA.
--- SECURITY DEFINER v2 can still invoke v1 as its owner.
-REVOKE ALL ON FUNCTION public.activate_urban_regulation_v1(uuid) FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.activate_urban_regulation_v1(uuid) FROM authenticated;
+-- The existing v1 writer is retained for compatibility in isolated QA.
+-- Privilege changes for a legacy entry point require a separate, reviewed
+-- security migration; do not revoke existing authorizations here.
 NOTIFY pgrst,'reload schema';

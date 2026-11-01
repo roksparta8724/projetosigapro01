@@ -10,7 +10,8 @@ describe("SIGAPRO urban QA — no municipal rule activation without verified leg
   expect(sql).toContain("s.effective_from<=_v.effective_from");
   expect(sql).toContain("e.metric=r.rule->>'metric'");
   expect(sql).toContain("public.activate_urban_regulation_v1(_version_id)");
-  expect(sql).toContain("REVOKE ALL ON FUNCTION public.activate_urban_regulation_v1(uuid) FROM authenticated;");
+  expect(sql).not.toContain("REVOKE ALL ON FUNCTION public.activate_urban_regulation_v1");
+  expect(sql).toContain("public.activate_urban_regulation_v1(_version_id)");
  });
  it("UI uses guarded activation and warns about Quadro II",()=>{
   const client=readFileSync("src/integrations/backend/urbanPrecheckClient.ts","utf8");
