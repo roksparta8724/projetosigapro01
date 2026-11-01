@@ -64,6 +64,7 @@ import {
   type RecoverableProcessFile,
 } from "@/integrations/r2/client";
 import { uploadFileToStorage } from "@/integrations/r2/storage";
+import { createQa04ArchitecturalPdf, isQa04ArchitecturalImportAllowed } from "@/lib/qa04ArchitecturalFixture";
 import {
   buildProcessPath,
   buildProcessRouteKey,
@@ -990,6 +991,16 @@ export function ProcessDetailPage() {
   }, [activeTab, isExternalSession, session.role]);
 
   const canUploadProcessDocuments = session.role === "profissional_externo" && process?.status === "rascunho";
+  const canImportQa04Fixture = isQa04ArchitecturalImportAllowed({
+    isolatedQa: import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true",
+    role: session.role,
+    process,
+  });
+  const qa04FixtureAlreadyUploaded = process?.documents.some(
+    (document) => document.uploaded && document.filePath &&
+      document.label === "Projeto Arquitetônico" &&
+      document.fileName?.startsWith("SIGAPRO-QA04-PLANTA-"),
+  ) ?? false;
   const canRecoverStoredDocuments =
     canUploadProcessDocuments ||
     (
@@ -2682,6 +2693,46 @@ export function ProcessDetailPage() {
     }
   };
 
+  const handleImportQa04ArchitecturalFixture = async () => {
+    if (!canImportQa04Fixture) {
+      setProcessActionStatus("Importação disponível apenas ao administrador autorizado no Neon QA isolado.");
+      return;
+    }
+    if (qa04FixtureAlreadyUploaded) {
+      setProcessActionStatus("O projeto fictício já está anexado. Abra o documento na aba Documentos.");
+      return;
+    }
+    await runProcessAction("qa04-import-project", async () => {
+      const file = createQa04ArchitecturalPdf();
+      const uploaded = await uploadFileToStorage({
+        bucket: "process-documents",
+        tenantId: effectiveScopeId,
+        userId: session.id,
+        file,
+        folder: "qa-arquitetura",
+      });
+      const result = await appendProcessDocuments(process.id, [{
+        id: `doc-${crypto.randomUUID()}`,
+        label: "Projeto Arquitetônico",
+        required: true,
+        uploaded: true,
+        signed: false,
+        reviewStatus: "pendente",
+        annotations: [],
+        version: 1,
+        source: "prefeitura",
+        fileName: file.name,
+        filePath: uploaded.path,
+        mimeType: "application/pdf",
+        fileSizeBytes: file.size,
+        previewUrl: uploaded.publicUrl || undefined,
+      }], session.name);
+      if (Number(result.synced || 0) !== 1) {
+        throw new Error("Falha na vinculação auditada do PDF ao processo 04.");
+      }
+    }, "Projeto fictício importado para o processo 04. O PDF precisa passar pela triagem antes da análise.");
+  };
+
   const handleUploadMissingDocument = async (document: typeof process.documents[number]) => {
     if (!canUploadProcessDocuments) {
       setProcessActionStatus("Somente o profissional externo pode enviar documentos para o processo.");
@@ -3365,6 +3416,20 @@ export function ProcessDetailPage() {
               data-process-document-content="true"
               className="space-y-4 p-5 md:p-6"
             >
+              {canImportQa04Fixture ? (
+                <div className="rounded-2xl border border-sky-300 bg-sky-50 p-4 text-slate-900 dark:border-sky-600 dark:bg-slate-900 dark:text-slate-100">
+                  <p className="text-sm font-bold">Ensaio controlado de IA — Processo 04 fictício</p>
+                  <p className="mt-1 text-xs leading-5">Importa um projeto esquemático em PDF para este processo exclusivamente no banco isolado de QA. Não conclui a triagem, não registra pagamento e não libera a Análise. O documento ficará pendente de conferência.</p>
+                  <Button
+                    type="button"
+                    className="mt-3 bg-sky-700 text-white hover:bg-sky-800"
+                    disabled={qa04FixtureAlreadyUploaded || Boolean(processActionBusy)}
+                    onClick={() => void handleImportQa04ArchitecturalFixture()}
+                  >
+                    {qa04FixtureAlreadyUploaded ? "Projeto de QA já anexado" : processActionBusy === "qa04-import-project" ? "Importando PDF..." : "Importar projeto arquitetônico fictício"}
+                  </Button>
+                </div>
+              ) : null}
               {(!canUploadProcessDocuments && pendingExternalDocumentCount > 0) || recoverableStatus ? (
                 <div className="grid gap-2 lg:grid-cols-2">
                   {!canUploadProcessDocuments && pendingExternalDocumentCount > 0 ? (
