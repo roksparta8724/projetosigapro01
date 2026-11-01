@@ -286,7 +286,6 @@ function OcrReferenceComparison({row,analysis,preparedText,onPrepareVerified,onI
         </div>
       </section> : null}
     </div>
-    </div>
   </section>;
 }
 const dateValid = (s: string) => validateImportDate(s);
@@ -1718,6 +1717,7 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
         className="mt-2 rounded-lg border border-slate-200 bg-white p-2 text-xs text-slate-900">
         Quadro {item.quadro} · {item.zone_code}/{item.use_code} · página {item.page_number} · versão {item.version} · {item.status}
       </p>)}
+    </div>
     </div>
   </section>;
 }
