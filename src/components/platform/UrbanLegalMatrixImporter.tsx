@@ -1161,10 +1161,12 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
                 <th className="p-2">Parâmetro</th><th className="p-2">Moondream</th>
                 <th className="p-2">Gemma 4</th>
                 <th className="p-2">Rascunho histórico (não validado)</th>
+                <th className="p-2">Texto do PDF original (QA)</th>
                 <th className="p-2">Resultado e pendência</th>
               </tr></thead>
               <tbody>{expertDiagnostics.map(row=>{
                 const history=historicalExpertAudit?.find(h=>h.key===row.key);
+                const direct=directTextReview?.find(x=>x.key===row.key);
                 const historicLabel=history?.status==="match"?"Confere com o rascunho — conferir PDF":
                   history?.status==="divergent"?"DIVERGE DO RASCUNHO — verificar PDF":
                   history?.status==="unreadable"?"IA ilegível — pendente":
@@ -1178,6 +1180,15 @@ export function UrbanLegalMatrixImporter({municipalityId,canEdit,onSaved}: Props
                   <td className="p-2">{row.primary??"[ILEGÍVEL]"}</td>
                   <td className="p-2">{row.expert??"[ILEGÍVEL]"}</td>
                   <td className="p-2">{history?.reference??"Não disponível"}</td>
+                  <td data-urban-pdf-source-cell={row.key} className="p-2">
+                    {direct?.source??"Sem evidência direta para esta linha"}
+                    {direct?<p className={direct.verdict==="text_match"
+                      ?"text-xs font-bold text-emerald-900":"text-xs font-extrabold text-rose-900"}>
+                      {direct.verdict==="text_match"?"Mesmo texto — conferir PDF":
+                        direct.verdict==="text_conflict"?"DIVERGÊNCIA DA FONTE":
+                        "IA sem leitura confiável"}
+                    </p>:null}
+                  </td>
                   <td className="p-2">
                     <p className={row.verdict==="agree"?"font-bold text-emerald-800":"font-extrabold text-rose-900"}>
                       {row.verdict==="agree"?"IAs concordam":
