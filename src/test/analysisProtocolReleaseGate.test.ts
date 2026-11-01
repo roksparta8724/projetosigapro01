@@ -3,6 +3,8 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   canAnalyzeProcessDocument,
+  canEditAssignedAnalysisArtifact,
+  canSuperviseProcessAnalysis,
   canViewMunicipalProcessDocument,
   isProcessReleasedToUrbanAnalysis,
   type ProcessRecord,
@@ -73,6 +75,14 @@ describe("QA release gate: Protocolo -> Triagem -> Análise Urbanística", () =>
     expect(isProcessReleasedToUrbanAnalysis(process)).toBe(false);
     expect(canAnalyzeProcessDocument(analyst, process, tenantId)).toBe(false);
     expect(canViewMunicipalProcessDocument(analyst, process, tenantId)).toBe(false);
+  });
+
+  it("bloqueia retificação assinada e intervenção de diretor enquanto a triagem estiver pendente", () => {
+    const process = { ...processFixture(), triage: { status: "recebido" } } as ProcessRecord;
+    const supervisor = { ...analyst, id: "director-1", name: "Diretor", role: "prefeitura_supervisor", title: "Diretor de Urbanismo" } as SessionUser;
+    expect(canEditAssignedAnalysisArtifact(analyst, process, tenantId)).toBe(false);
+    expect(canSuperviseProcessAnalysis(supervisor, process)).toBe(false);
+    expect(canEditAssignedAnalysisArtifact(supervisor, process, tenantId)).toBe(false);
   });
 
   it("não libera antes da compensação da guia inicial, mesmo com triagem marcada como concluída", () => {
