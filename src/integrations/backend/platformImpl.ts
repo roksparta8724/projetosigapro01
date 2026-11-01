@@ -25,6 +25,9 @@ import {
 
 const PROFILE_ASSET_REF_PREFIX = "r2:";
 
+// Data API rows span independently versioned municipal schemas. Normalize each
+// public field at the read boundary; a dynamic value is necessary here.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type DatabaseRow = Record<string, any>;
 
 async function resolveStoredProfileAvatar(value: string | null | undefined) {

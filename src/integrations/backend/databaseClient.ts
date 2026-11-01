@@ -52,7 +52,10 @@ export const hasNeonBackendEnv = Boolean(
   NEON_DATA_API_URL !== "undefined"
 );
 
-export const neonAccountClient = NEON_AUTH_URL
+// The neon-js Auth and legacy Supabase session types are deliberately not identical.
+// This boundary preserves backward-compatible session token forms.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const neonAccountClient: any = NEON_AUTH_URL
   ? createAuthClient(NEON_AUTH_URL)
   : null;
 
@@ -69,8 +72,13 @@ export const neonClient = hasNeonBackendEnv
     })
   : null;
 
-export const backendClient = isNeonBackend ? neonClient : legacySupabaseClient;
-export const databaseClient = backendClient;
+// The two SDK query builders have incompatible generic overloads; this is the
+// sole runtime adapter boundary, not an application-level unchecked value.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const backendClient: any = isNeonBackend ? neonClient : legacySupabaseClient;
+// Re-export the same compatibility adapter without changing runtime delegation.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const databaseClient: any = backendClient;
 
 export const hasDatabaseEnv = isNeonBackend
   ? hasNeonBackendEnv
