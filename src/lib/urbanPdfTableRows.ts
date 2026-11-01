@@ -35,6 +35,12 @@ const centerX=(r:PdfTextRun)=>r.x+r.width/2;
 const NUMBER=/^\d{1,6}(?:[,.]\d{1,3})?\s*(?:%|m²|m2|m)?$/i;
 const USES=/^(?:comercial|residencial|industrial|misto|mista|institucional|habitacional|servi[cç]os)$/i;
 const ZONE_CODE=/^(?:ZM|ZR|ZC|ZI|ZE|ZEU|ZUM|AIU)[-–]?[A-Z0-9().-]{1,28}$/i;
+function printedZone(r:PdfTextRun):string|null{
+  // Some PDFs merge a printed "ZONA" heading and the actual zone into one
+  // text run. Strip that heading ONLY when the remainder is a valid code.
+  const candidate=r.text.trim().replace(/^ZONA\s+/i,"").trim();
+  return ZONE_CODE.test(candidate)?candidate:null;
+}
 function detectHeader(r:PdfTextRun):UrbanVisionFieldKey|null{
  const word=normalize(r.text);
  const x=centerX(r);
@@ -71,7 +77,7 @@ export function discoverUrbanPdfRows(layer:UrbanPdfSourceLayer):TableRowCandidat
  const headers=headersFor(layer);
  if(!headers)return [];
  const zoneRuns=layer.runs
-  .filter(r=>r.x<headers[0].x-65&&ZONE_CODE.test(r.text.trim()))
+  .filter(r=>r.x<headers[0].x-65&&printedZone(r)!==null)
   .sort((a,b)=>centerY(a)-centerY(b));
  const usageRuns=layer.runs.filter(r=>
    r.x>70&&centerX(r)<headers[0].x-12&&USES.test(r.text.trim())&&
@@ -88,7 +94,8 @@ export function discoverUrbanPdfRows(layer:UrbanPdfSourceLayer):TableRowCandidat
   const nextZone=zoneRuns.find(z=>centerY(z)>centerY(zoneRun)+6);
   if(nextZone&&y>=centerY(nextZone)-12)continue;
   if(y-centerY(zoneRun)>145)continue;
-  const zone=zoneRun.text.trim(),usage=usageRun.text.trim();
+  const zone=printedZone(zoneRun),usage=usageRun.text.trim();
+  if(!zone)continue;
   if(zone.length>40)continue;
   result.push({id:layer.page+":"+Math.round(y*10),zone,usage,
     y,label:zone+" · "+usage+" · linha "+(result.length+1)+" da página"});
@@ -118,12 +125,12 @@ export function readUrbanTableRow(
  const usageRuns=layer.runs.filter(r=>r.x>70&&r.x<headers[0].x-15&&
    compact(r.text)===compact(row.usage)&&Math.abs(centerY(r)-center)<3);
  const zoneRuns=layer.runs.filter(r=>
-   compact(r.text)===compact(row.zone)&&r.x<headers[0].x-65&&
+   compact(printedZone(r)??"")===compact(row.zone)&&r.x<headers[0].x-65&&
    centerY(r)<=center+13&&centerY(r)>center-145);
  const mapped:UrbanTableCell[]=URBAN_VISION_FIELDS.map(([key,label])=>{
    if(key==="zona"||key==="uso"){
      const runs=key==="zona"?zoneRuns:usageRuns;
-     return {key,label,value:runs.length===1?runs[0].text.trim():null,
+     return {key,label,value:runs.length===1?(key==="zona"?printedZone(runs[0]):runs[0].text.trim()):null,
        status:runs.length===1?"source_text" as const:
          runs.length>1?"ambiguous" as const:"missing" as const,evidence:runs};
    }

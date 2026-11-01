@@ -74,6 +74,13 @@ describe("SIGAPRO QA — true line- and header-based PDF table extraction",()=>{
   expect(read.cells.find(c=>c.key==="ca_minimo")?.value).toBe("0,05");
   expect(read.cells.find(c=>c.key==="ca_minimo")?.value).not.toBe("0,02");
  });
+ it("accepts PDF.js runs that combine ZONA heading and code without accepting an arbitrary zone",()=>{
+  const merged=fixture(headers.concat(data.filter(r=>!["ZONA","ZM-B(e)"].includes(r.text)),
+    p("ZONA ZM-B(e)",36.4,192.6,53.9,10.3)));
+  const row=discoverUrbanPdfRows(merged)[0];
+  expect(row.zone).toBe("ZM-B(e)");
+  expect(readUrbanTableRow(merged,row.id).cells.find(x=>x.key==="zona")?.value).toBe("ZM-B(e)");
+ });
  it("rejects missing headers and ambiguous numbers instead of inventing indices",()=>{
   const missingHeader=fixture(headers.filter(r=>r.text!=="TESTADA").concat(data));
   expect(discoverUrbanPdfRows(missingHeader)).toHaveLength(0);
