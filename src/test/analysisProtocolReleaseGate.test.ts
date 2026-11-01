@@ -62,6 +62,12 @@ describe("QA release gate: Protocolo -> Triagem -> Análise Urbanística", () =>
     expect(canViewMunicipalProcessDocument(analyst, process, tenantId)).toBe(true);
   });
 
+  it("não considera triagem concluída como despacho para Análise", () => {
+    const process = { ...processFixture(), status: "triagem" } as ProcessRecord;
+    expect(isProcessReleasedToUrbanAnalysis(process)).toBe(false);
+    expect(canAnalyzeProcessDocument(analyst, process, tenantId)).toBe(false);
+  });
+
   it("não confunde atribuição e status de Análise com liberação se a triagem está pendente", () => {
     const process = { ...processFixture(), triage: { status: "em_triagem" } } as ProcessRecord;
     expect(isProcessReleasedToUrbanAnalysis(process)).toBe(false);
@@ -89,6 +95,18 @@ describe("QA release gate: Protocolo -> Triagem -> Análise Urbanística", () =>
     const legacy = processFixture();
     legacy.payment.guides = [];
     expect(isProcessReleasedToUrbanAnalysis(legacy)).toBe(true);
+  });
+
+
+  it("possui defesa no banco em atribuição, início, escrita e despacho", () => {
+    const migration = readFileSync(resolve(process.cwd(), "neon/migrations/20261101_technical_analysis_protocol_release_gate.sql"), "utf8");
+    expect(migration).toContain("CREATE OR REPLACE FUNCTION public.process_technical_release_verified_v1");
+    expect(migration).toContain("REVOKE ALL ON FUNCTION public.process_technical_release_verified_v1(uuid) FROM PUBLIC");
+    expect(migration).toContain("if not public.process_technical_release_verified_v1(_process_id) then");
+    expect(migration).toContain("if not public.process_technical_release_verified_v1(_process_id)");
+    expect(migration).toContain("or not public.process_is_in_analysis_area(_process_id)");
+    expect(migration).toContain("if coalesce(_process.triage_status,'recebido') <> 'concluido' then");
+    expect(migration).toContain("raise exception 'Conclua a triagem documental antes de encaminhar");
   });
 
   it("impede que a fila técnica mostre processo prematuro por mera atribuição antiga", () => {
