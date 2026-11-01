@@ -63,6 +63,18 @@ export function AcessoPage() {
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [pendingRedirect, setPendingRedirect] = useState<string | null>(null);
+  const [syncSlow, setSyncSlow] = useState(false);
+
+  // Identity is already verified at this point. A background synchronization
+  // must never look like a second password-validation request.
+  useEffect(() => {
+    if (!pendingRedirect) {
+      setSyncSlow(false);
+      return;
+    }
+    const timer = window.setTimeout(() => setSyncSlow(true), 15000);
+    return () => window.clearTimeout(timer);
+  }, [pendingRedirect]);
 
   useEffect(() => {
     if (!pendingRedirect) return;
@@ -109,6 +121,8 @@ export function AcessoPage() {
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
+    if (submitting || pendingRedirect) return;
+    setSyncSlow(false);
     setSubmitting(true);
     setError("");
 
@@ -298,17 +312,31 @@ export function AcessoPage() {
                           </div>
 
                           {error ? (
-                            <div className="rounded-lg border border-amber-300/40 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+                            <div role="alert" className="rounded-lg border border-amber-300/40 bg-amber-50 px-4 py-3 text-sm text-amber-700">
                               {error}
+                            </div>
+                          ) : null}
+                          {pendingRedirect && !error ? (
+                            <div data-sigapro-login-sync="true" role="status" aria-live="polite"
+                              className="rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-sm leading-6 text-sky-950">
+                              {syncSlow
+                                ? "Conta autenticada. A sincronização institucional está demorando além do esperado; não é necessário digitar a senha novamente. Se permanecer assim, atualize a página para revalidar a sessão."
+                                : "Conta autenticada. Sincronizando permissões e dados institucionais com segurança…"}
+                              {syncSlow ? (
+                                <button type="button" onClick={() => window.location.reload()}
+                                  className="mt-2 block font-semibold underline underline-offset-2">
+                                  Revalidar esta sessão
+                                </button>
+                              ) : null}
                             </div>
                           ) : null}
 
                           <Button
                             type="submit"
                             className="h-12 w-full rounded-lg bg-slate-900 text-white hover:bg-slate-800"
-                            disabled={submitting}
+                            disabled={submitting || Boolean(pendingRedirect)}
                           >
-                            {submitting ? "Validando acesso..." : "Acessar ambiente"}
+                            {pendingRedirect ? "Sincronizando acesso…" : submitting ? "Verificando credenciais…" : "Acessar ambiente"}
                           </Button>
 
                           <Button

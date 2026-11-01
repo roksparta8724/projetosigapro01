@@ -957,6 +957,7 @@ async function loadRemotePlatformStoreWithRetry(focusProcessRouteKey?: string | 
   let lastError: unknown = null;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const attemptStarted = Date.now();
     try {
       return await loadRemotePlatformStore(focusProcessRouteKey);
     } catch (error) {
@@ -968,6 +969,13 @@ async function loadRemotePlatformStoreWithRetry(focusProcessRouteKey?: string | 
       // Logo após o sign-in o token e o Data API podem levar alguns instantes
       // para convergir. Retentamos apenas falhas transitórias; 401/403 nunca são mascarados.
       await new Promise((resolve) => window.setTimeout(resolve, 450 * attempt));
+    } finally {
+      if (import.meta.env.VITE_SIGAPRO_URBAN_MATRIX_QA_ENABLED === "true") {
+        console.info("[SIGAPRO][QA][Sincronizacao]", {
+          attempt,
+          elapsedMs: Date.now() - attemptStarted,
+        });
+      }
     }
   }
 
