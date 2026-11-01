@@ -27,7 +27,7 @@ export function useProfileInteractionDiagnostic() {
        });
      }
    });
-   try {observer.observe({type:"event",buffered:true,durationThreshold:104});}
+   try {observer.observe({type:"event",buffered:true});}
    catch {observer.disconnect();return;}
    return ()=>observer.disconnect();
  },[]);

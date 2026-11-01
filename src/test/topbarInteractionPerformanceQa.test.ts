@@ -26,6 +26,7 @@ describe("SIGAPRO QA — low-cost profile trigger and authorization-aware memoiz
  it("measures event delays locally, without transmitting personal data",()=>{
   expect(portal).toContain("useProfileInteractionDiagnostic();");
   expect(perf).toContain('observer.observe({type:"event"');
+  expect(perf).not.toContain("durationThreshold:");
   expect(perf).toContain('target.closest(".sig-topbar-profile-trigger")');
   expect(perf).toContain('needsImprovement:entry.duration>200');
   expect(perf).not.toContain("fetch(");
