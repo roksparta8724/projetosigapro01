@@ -56,6 +56,9 @@ export function PlanCapacityCard({
                     {metric.percentage.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%
                     {metric.overLimit ? " · acima do limite" : metric.percentage >= 100 ? " · limite atingido" : " utilizado"}
                   </p>
+                  <p className="mt-1 text-xs font-semibold text-slate-700 dark:text-slate-200" data-plan-remaining={metric.key}>
+                    {metric.remainingLabel}
+                  </p>
                 </>
               ) : <p className="mt-2 text-xs text-slate-600 dark:text-slate-300">
                 {row.configured ? "Uso sem limite percentual" : "Aguardando contratação"}

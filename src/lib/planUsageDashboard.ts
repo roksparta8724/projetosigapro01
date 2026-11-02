@@ -16,6 +16,8 @@ export type PlanCapacityMetric = {
   used: number;
   limit: number | null;
   percentage: number | null;
+  remaining: number | null;
+  remainingLabel: string | null;
   usedLabel: string;
   limitLabel: string;
   overLimit: boolean;
@@ -71,8 +73,12 @@ export function buildPlanCapacityMetrics(row: PlanUsageSnapshot): PlanCapacityMe
     const used = safeNumber(count);
     const limit = safeLimit(rawLimit);
     const percentage = limit === null ? null : limit === 0 ? (used > 0 ? 100 : 0) : Math.round((used / limit) * 1000) / 10;
+    const remaining = limit === null ? null : Math.max(0, limit - used);
+    const remainingLabel = remaining === null ? null : isStorage
+      ? `${gb(remaining)} GB restantes`
+      : key === "users" ? `${int(remaining)} vagas disponíveis` : `${int(remaining)} restantes`;
     return {
-      key, label, used, limit, percentage,
+      key, label, used, limit, percentage, remaining, remainingLabel,
       overLimit: limit !== null && used > limit,
       usedLabel: isStorage ? `${gb(used)} GB` : int(used),
       limitLabel: limit === null ? "Sem limite contratado" : isStorage ? `${gb(limit)} GB` : int(limit),

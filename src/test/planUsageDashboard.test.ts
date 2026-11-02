@@ -17,22 +17,32 @@ describe("real plan quotas and dashboard percentage", () => {
     expect(metrics.map((m) => m.percentage)).toEqual([75, 75, 50, 50]);
     expect(metrics[0].usedLabel).toBe("9");
     expect(metrics[0].limitLabel).toBe("12");
+    expect(metrics[0]).toMatchObject({ remaining: 3, remainingLabel: "3 vagas disponíveis" });
+    expect(metrics[1]).toMatchObject({ remaining: 25, remainingLabel: "25 restantes" });
     expect(metrics[3].usedLabel).toBe("1 GB");
   });
   it("changes all percentages immediately when the Master changes plan limits", () => {
     const old = parsePlanUsageDashboard([sample({ users: 12, processes: 100, departments: 4, storageGb: 2 })])[0];
     const changed = parsePlanUsageDashboard([sample({ users: 18, processes: 150, departments: 8, storageGb: 4 })])[0];
     expect(buildPlanCapacityMetrics(old)[0].percentage).toBe(75);
+    expect(buildPlanCapacityMetrics(old)[0].remaining).toBe(3);
+    expect(buildPlanCapacityMetrics(changed)[0].remaining).toBe(9);
     expect(buildPlanCapacityMetrics(changed)[0].percentage).toBe(50);
     expect(buildPlanCapacityMetrics(changed)[1].percentage).toBe(50);
   });
   it("does not invent a percentage for unlimited or missing contracts", () => {
     const [unlimited] = parsePlanUsageDashboard([sample({ users: null, processes: null, departments: null, storageGb: null })]);
     expect(buildPlanCapacityMetrics(unlimited).every((metric) => metric.percentage === null)).toBe(true);
+    expect(buildPlanCapacityMetrics(unlimited).every((metric) => metric.remaining === null && metric.remainingLabel === null)).toBe(true);
   });
   it("flags an over-limit count even if the progress bar must be visually capped", () => {
     const [row] = parsePlanUsageDashboard([sample({ users: 5, processes: 100, departments: 4, storageGb: 2 })]);
-    expect(buildPlanCapacityMetrics(row)[0]).toMatchObject({ percentage: 180, overLimit: true });
+    expect(buildPlanCapacityMetrics(row)[0]).toMatchObject({ percentage: 180, overLimit: true, remaining: 0, remainingLabel: "0 vagas disponíveis" });
+  });
+  it("shows remaining slots on the dashboard instead of only the used percentage", () => {
+    const card = readFileSync("src/components/platform/PlanCapacityCard.tsx", "utf8");
+    expect(card).toContain("metric.remainingLabel");
+    expect(card).toContain("data-plan-remaining={metric.key}");
   });
   it("rejects malformed server envelopes", () => {
     expect(() => parsePlanUsageDashboard({ users: 2 })).toThrow("inválida");
