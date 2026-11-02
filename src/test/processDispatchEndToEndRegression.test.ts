@@ -12,10 +12,11 @@ const analystDesk = read("src/pages/saas/AnalystDeskPage.tsx");
 const routeGuard = read("neon/migrations/20261018_protocol_dispatch_route_guard.sql");
 
 describe("process dispatch end-to-end workflow", () => {
-  it("allows governed municipal administration to forward through the official organogram", () => {
-    expect(page).toContain("{ allowMunicipalAdmin: true }");
+  it("keeps the municipal administrator in consultation without process dispatch", () => {
+    expect(page).not.toContain("{ allowMunicipalAdmin: true }");
     expect(page).toContain("Governança administrativa da Prefeitura");
-    expect(page).toContain("pode realizar o encaminhamento institucional pelo organograma");
+    expect(page).toContain("O Administrador acompanha todo o processo em modo somente leitura");
+    expect(page).toContain('session.role !== "prefeitura_admin" && ownsCurrentProcessStage');
   });
 
   it("keeps the dispatch button transactional and gives visible feedback", () => {
