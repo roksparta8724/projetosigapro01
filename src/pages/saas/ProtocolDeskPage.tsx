@@ -707,8 +707,8 @@ export function ProtocolDeskPage() {
                             <Button type="button" variant="outline"
                               className="h-9 rounded-xl border-sky-300 bg-white text-sky-950 hover:bg-sky-50"
                               disabled={Boolean(protocolActionBusy)}
-                              onClick={() => void handleTriageStatus(process, "em_triagem")}>
-                              {protocolActionBusy === `triage-em_triagem-${process.id}` ? "Iniciando..." : "Iniciar triagem"}
+                              onClick={() => void handleTriageStatus(process, "concluido")}>
+                              {protocolActionBusy === `triage-concluido-${process.id}` ? "Conferindo..." : "Conferir e concluir triagem"}
                             </Button>
                           ) : null}
                           {ownedByProtocol && process.triage.status === "em_triagem" ? (

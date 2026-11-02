@@ -60,6 +60,13 @@ BEGIN
 END;
 $$;
 REVOKE ALL ON FUNCTION public.audit_supplementary_response_v1() FROM PUBLIC;
-DROP TRIGGER IF EXISTS audit_supplementary_response_v1 ON public.process_requirements;
-CREATE TRIGGER audit_supplementary_response_v1 AFTER UPDATE OF status ON public.process_requirements
-FOR EACH ROW EXECUTE FUNCTION public.audit_supplementary_response_v1();
+-- Idempotente e sem remover gatilhos históricos da Prefeitura.
+DO $
+BEGIN
+ IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname='audit_supplementary_response_v1' AND NOT tgisinternal) THEN
+  CREATE TRIGGER audit_supplementary_response_v1
+  AFTER UPDATE OF status ON public.process_requirements
+  FOR EACH ROW EXECUTE FUNCTION public.audit_supplementary_response_v1();
+ END IF;
+END;
+$;

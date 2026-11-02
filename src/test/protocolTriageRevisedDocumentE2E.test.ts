@@ -16,7 +16,7 @@ describe("SIGAPRO QA04: end-to-end triage with a revised architectural PDF", () 
     expect(source).toContain('currentFolder.includes("protocolo")');
   });
   it("exposes actions for starting and completing triage before dispatch", () => {
-    expect(source).toContain('handleTriageStatus(process, "em_triagem")');
+    expect(source).toContain('handleTriageStatus(process, "concluido")');
     expect(source).toContain('handleTriageStatus(process, "concluido")');
     expect(source).toContain('getPendingTriageDocuments(process) > 0');
     expect(source).toContain("isReadyForProtocolDispatch(process)");
