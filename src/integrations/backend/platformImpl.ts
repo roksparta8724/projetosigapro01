@@ -2430,6 +2430,17 @@ async function callProcessRpc<T = Record<string, unknown>>(
   return data as T;
 }
 
+export async function upgradeRemoteQa04ArchitecturalPlanV2(
+  processId: string, filePath: string, fileName: string, fileSizeBytes: number,
+): Promise<{ ok: boolean; already_upgraded?: boolean; document_id: string; version: number }> {
+  return callProcessRpc("upgrade_qa04_architectural_plan_v2", {
+    _process_id: processId,
+    _file_path: filePath,
+    _file_name: fileName,
+    _file_size_bytes: fileSizeBytes,
+  });
+}
+
 export async function appendRemoteProcessDocuments(
   processId: string,
   documents: ProcessDocument[],
