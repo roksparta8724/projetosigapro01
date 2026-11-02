@@ -18,7 +18,7 @@ describe("QA 04 document fixture stays isolated", () => {
   });
   it("does not mistake drawn setbacks for municipal legal minima", () => {
     const code = readFileSync(resolve(process.cwd(), "src/lib/qa04ArchitecturalFixture.ts"), "utf8");
-    expect(code).toContain("RECUOS MINIMOS LEGAIS: NAO FORNECIDOS");
+    expect(code).toContain("RECUOS MINIMOS LEGAIS E ZONEAMENTO OFICIAL: NAO FORNECIDOS.");
     expect(code).toContain("Permeabilidade: NAO DETERMINADA");
     expect(code).toContain("SIGAPRO-QA04-PLANTA-IMPLANTACAO-V2.pdf");
     expect(code).toContain('pdf.addPage("a3", "landscape")');
