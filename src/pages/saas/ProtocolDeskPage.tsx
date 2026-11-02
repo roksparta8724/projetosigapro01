@@ -142,9 +142,8 @@ export function ProtocolDeskPage() {
   const protocolQueueProcesses = useMemo(
     () =>
       processes.filter((item) => {
-        // The Neon Protocolo RPC permits a scoped municipal admin to triage.
-        // Non-admins still require department ownership.
-        if (!isProcessOwnedBySessionDepartment(session, item) && session.role !== "prefeitura_admin") return false;
+        // Operational protocol queues require ownership by the responsible unit.
+        if (!isProcessOwnedBySessionDepartment(session, item)) return false;
         const currentFolder = (item.processControl?.currentFolder || "").toLowerCase();
         if (currentFolder) {
           return (
@@ -609,8 +608,7 @@ export function ProtocolDeskPage() {
                 (process.createdBy ? userById.get(process.createdBy) : undefined);
               const expanded = expandedProcessIds.has(process.id);
               const selected = selectedProcessIds.has(process.id);
-              const ownedByProtocol = isProcessOwnedBySessionDepartment(session, process) ||
-                (session.role === "prefeitura_admin" && protocolQueueProcesses.some((item) => item.id === process.id));
+              const ownedByProtocol = isProcessOwnedBySessionDepartment(session, process);
 
               return (
                 <div
@@ -1073,6 +1071,47 @@ export function ProtocolDeskPage() {
       </div>
     </SectionCard>
   );
+
+  // Governance roles can consult all municipal processes without editing them.
+  if (session.role === "prefeitura_admin") {
+    return (
+      <PortalFrame eyebrow="ADMINISTRAÇÃO DA PREFEITURA" title="Acompanhamento dos processos">
+        <PageShell>
+          <PageHeader
+            eyebrow="Consulta institucional"
+            title="Processos da Prefeitura — somente leitura"
+            description="Consulte protocolos, documentos, tramitação e histórico. Triagem, despachos, decisões e baixas financeiras são exclusivos dos setores responsáveis."
+            icon={ClipboardList}
+          />
+          <TableCard
+            title={`Todos os protocolos municipais (${processes.length})`}
+            description="Consulta restrita à Prefeitura da sessão, sem controles para alterar processos."
+            icon={ClipboardList}
+          >
+            <div data-municipal-admin-readonly="true" className="space-y-3">
+              {processes.length === 0 ? (
+                <p className="rounded-xl border border-dashed border-slate-300 px-4 py-6 text-sm text-slate-600">
+                  Nenhum protocolo registrado nesta Prefeitura.
+                </p>
+              ) : processes.map((item) => (
+                <div key={item.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-slate-950 dark:text-white">{formatOfficialProcessNumber(item.protocol)}</p>
+                    <p className="mt-1 text-sm text-slate-700 dark:text-slate-200">{formatOfficialProcessTitle({ title: item.title, type: item.type })}</p>
+                    <p className="mt-1 text-xs text-slate-500">Triagem: {item.triage.status} · Unidade: {item.processControl?.currentFolder || "Não informada"}</p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="outline" className={statusTone(item.status)}>{statusLabel(item.status)}</Badge>
+                    <Button asChild variant="outline" className="rounded-full"><Link to={buildProcessPath(item)}>Consultar processo</Link></Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </TableCard>
+        </PageShell>
+      </PortalFrame>
+    );
+  }
 
   return (
     <PortalFrame eyebrow="SETOR DE PROTOCOLO" title="Triagem municipal, atendimento e fluxo inicial">

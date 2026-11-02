@@ -8,9 +8,10 @@ const migration = readFileSync(
 );
 
 describe("SIGAPRO QA04: end-to-end triage with a revised architectural PDF", () => {
-  it("shows municipal admin their own protocol queue and action", () => {
-    expect(source).toContain('session.role !== "prefeitura_admin"');
-    expect(source).toContain('session.role === "prefeitura_admin" && protocolQueueProcesses.some');
+  it("shows municipal admin a read-only register, not protocol actions", () => {
+    expect(source).toContain('data-municipal-admin-readonly="true"');
+    expect(source).toContain('if (session.role === "prefeitura_admin") {');
+    expect(source).not.toContain('session.role === "prefeitura_admin" && protocolQueueProcesses.some');
     expect(source).toContain("matchesOperationalScope(effectiveScopeId, item)");
     expect(source).toContain('currentFolder.includes("protocolo")');
   });

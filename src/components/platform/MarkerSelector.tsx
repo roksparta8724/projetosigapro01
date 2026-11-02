@@ -12,6 +12,7 @@ import { usePlatformData } from "@/hooks/usePlatformData";
 
 type MarkerSelectorProps = {
   processId?: string;
+  readOnly?: boolean;
   tags?: string[];
   actor: string;
   subjectLabel?: string;
@@ -24,6 +25,7 @@ type MarkerSelectorProps = {
 
 export function MarkerSelector({
   processId,
+  readOnly = false,
   tags = [],
   actor,
   subjectLabel = "processo",
@@ -124,6 +126,7 @@ export function MarkerSelector({
         </span>
       ) : null}
 
+      {!readOnly ? (
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <button
@@ -299,6 +302,7 @@ export function MarkerSelector({
           </div>
         </PopoverContent>
       </Popover>
+      ) : null}
     </div>
   );
 }

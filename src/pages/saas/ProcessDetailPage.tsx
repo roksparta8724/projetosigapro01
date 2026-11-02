@@ -567,11 +567,11 @@ export function ProcessDetailPage() {
     session.role === "master_admin" ||
     session.role === "master_ops";
   const canProtocolOperate =
-    isMasterOperator || canAccessMunicipalArea(session, "protocolos");
+    session.role !== "prefeitura_admin" && (isMasterOperator || canAccessMunicipalArea(session, "protocolos"));
   const canAnalysisOperate =
-    isMasterOperator || canAccessMunicipalArea(session, "analise");
+    session.role !== "prefeitura_admin" && (isMasterOperator || canAccessMunicipalArea(session, "analise"));
   const canFinanceOperate =
-    isMasterOperator || canAccessMunicipalArea(session, "financeiro");
+    session.role !== "prefeitura_admin" && (isMasterOperator || canAccessMunicipalArea(session, "financeiro"));
   const stableTabAccessRef = useRef<CachedProcessTabAccess | null>(
     readCachedProcessTabAccess(session.id, processId ?? ""),
   );
@@ -996,7 +996,7 @@ export function ProcessDetailPage() {
     isolatedQa: import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true",
     role: session.role,
     process,
-  });
+  }) && session.role !== "prefeitura_admin";
   const qa04FixtureUploadedLabels = new Set(
     (process?.documents ?? [])
       .filter((document) => document.uploaded && document.filePath &&
@@ -2156,11 +2156,10 @@ export function ProcessDetailPage() {
     key: string,
     action: () => Promise<void>,
     successMessage: string,
-    options?: { allowMunicipalAdmin?: boolean },
   ) => {
-    if (session.role === "prefeitura_admin" && !options?.allowMunicipalAdmin) {
+    if (session.role === "prefeitura_admin") {
       setProcessActionStatus(
-        "Esta ação operacional pertence ao setor responsável. O Administrador da Prefeitura mantém governança do processo e pode executar o encaminhamento institucional quando necessário.",
+        "Administrador da Prefeitura: consulta somente. Toda alteração do processo deve ser realizada pelo setor responsável e registrada no histórico.",
       );
       return false;
     }
@@ -2565,7 +2564,6 @@ export function ProcessDetailPage() {
           visibility: dispatchVisibility,
         }),
       `Processo encaminhado com sucesso para ${selectedDestination.name}. A nova unidade já recebeu o trâmite no fluxo oficial.`,
-      { allowMunicipalAdmin: true },
     );
     if (ok) {
       setDispatchTo("");
@@ -2747,7 +2745,7 @@ export function ProcessDetailPage() {
           throw new Error(`Falha ao vincular ${label}. A importação pode ser retomada sem duplicar os já anexados.`);
         }
       }
-    }, "Kit fictício importado: projeto arquitetônico e três placeholders sem validade. Confira na Triagem antes do despacho.", { allowMunicipalAdmin: true });
+    }, "Kit fictício importado: projeto arquitetônico e três placeholders sem validade. Confira na Triagem antes do despacho.");
   };
 
   const handleUpgradeQa04ArchitecturalPlan = async () => {
@@ -2770,7 +2768,7 @@ export function ProcessDetailPage() {
       if (result.ok !== true) throw new Error("O Neon QA não confirmou a revisão V2.");
     },
     "Planta V2 com recuos cotados anexada. A V1 permanece no histórico e o novo documento aguarda conferência.",
-    { allowMunicipalAdmin: true });
+    );
     if (ok) await refreshCurrentProcessStore();
   };
 
@@ -2930,6 +2928,7 @@ export function ProcessDetailPage() {
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <MarkerSelector
+              readOnly={session.role === "prefeitura_admin"}
               processId={process.id}
               tags={process.tags}
               actor={session.name}
@@ -2963,7 +2962,7 @@ export function ProcessDetailPage() {
         <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900 dark:border-sky-500/30 dark:bg-sky-950/30 dark:text-sky-200">
           <p className="font-semibold">Governança administrativa da Prefeitura</p>
           <p className="mt-1 leading-6">
-            O Administrador acompanha todo o processo e pode realizar o encaminhamento institucional pelo organograma. Aprovação técnica, baixa financeira e demais atos especializados continuam restritos aos setores competentes.
+            O Administrador acompanha todo o processo em modo somente leitura. Triagem, despachos, alterações de documentos, decisões técnicas e baixas financeiras pertencem aos servidores responsáveis; as operações autorizadas permanecem registradas no histórico.
           </p>
         </div>
       ) : null}
@@ -3692,6 +3691,7 @@ export function ProcessDetailPage() {
 
                       <div className="flex flex-wrap items-center justify-end gap-2">
                         <MarkerSelector
+                          readOnly={session.role === "prefeitura_admin"}
                           tags={documentMarkerTags}
                           actor={session.name}
                           subjectLabel="documento"
@@ -5740,7 +5740,7 @@ export function ProcessDetailPage() {
                 </div>
               ) : null}
 
-{isInternalRole(session.role) && ownsCurrentProcessStage && !isProtocolTrackingOnly ? (
+{isInternalRole(session.role) && session.role !== "prefeitura_admin" && ownsCurrentProcessStage && !isProtocolTrackingOnly ? (
                 <form
                   id="despacho"
                   data-dispatch-panel="true"
