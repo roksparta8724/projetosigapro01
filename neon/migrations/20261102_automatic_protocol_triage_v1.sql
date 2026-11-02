@@ -135,7 +135,9 @@ BEGIN
      (SELECT pf.id FROM public.profiles pf WHERE pf.id=_p.created_by_profile_id
       AND pf.role='profissional_externo' AND pf.account_status='active' AND pf.deleted_at IS NULL)
    ) INTO _target;
-   IF _target IS NOT NULL THEN
+   -- Um único alerta na devolução inicial; uploads parciais apenas atualizam
+   -- o checklist e o histórico, evitando notificações repetidas por arquivo.
+   IF _target IS NOT NULL AND _previous<>'pendencia_documental'::public.process_status THEN
      PERFORM public.enqueue_notification_v1(_target,'Corrija a documentação da solicitação',
        _p.protocol_number||': '||_detail,'processo',_p.id,
        '/processos/'||_p.id::text||'?aba=documentos','documento','alta',
