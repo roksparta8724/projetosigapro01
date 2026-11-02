@@ -1085,6 +1085,7 @@ export function DashboardHomePage() {
           items={tabs}
           value={activeDashboardTab}
           onChange={(value) => navigate(value)}
+          persistInUrl={false}
         />
 
         {renderCurrentSection()}
