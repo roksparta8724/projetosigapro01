@@ -2738,7 +2738,7 @@ export function ProcessDetailPage() {
           throw new Error(`Falha ao vincular ${label}. A importação pode ser retomada sem duplicar os já anexados.`);
         }
       }
-    }, "Kit fictício importado: projeto arquitetônico e três placeholders sem validade. Confira na Triagem antes do despacho.");
+    }, "Kit fictício importado: projeto arquitetônico e três placeholders sem validade. Confira na Triagem antes do despacho.", { allowMunicipalAdmin: true });
   };
 
   const handleUploadMissingDocument = async (document: typeof process.documents[number]) => {
@@ -3430,12 +3430,22 @@ export function ProcessDetailPage() {
                   <p className="mt-1 text-xs leading-5">Importa um projeto arquitetônico de ensaio e três placeholders manifestamente fictícios. Apenas no Neon QA; não aprova documentos, não altera pagamento e não libera a Análise automaticamente. Os arquivos permanecerão pendentes de análise técnica.</p>
                   <Button
                     type="button"
-                    className="mt-3 bg-sky-700 text-white hover:bg-sky-800"
+                    className="mt-3 min-h-11 rounded-xl bg-[#075985] px-5 py-3 text-sm font-bold !text-white shadow-sm hover:bg-[#0369a1] hover:!text-white focus-visible:ring-2 focus-visible:ring-sky-500 disabled:cursor-not-allowed disabled:opacity-60 [&_*]:!text-white"
                     disabled={qa04MissingFixtureLabels.length === 0 || Boolean(processActionBusy)}
                     onClick={() => void handleImportQa04ArchitecturalFixture()}
                   >
                     {qa04MissingFixtureLabels.length === 0 ? "Kit fictício já anexado" : processActionBusy === "qa04-import-project" ? "Importando documentos..." : `Importar kit fictício (${qa04MissingFixtureLabels.length} arquivo(s))`}
                   </Button>
+                  {processActionBusy === "qa04-import-project" ? (
+                    <p role="status" aria-live="polite" className="mt-2 text-sm font-semibold text-sky-900 dark:text-sky-100">
+                      Importando os documentos fictícios no R2 e registrando no Neon QA...
+                    </p>
+                  ) : null}
+                  {processActionStatus ? (
+                    <p role="alert" className="mt-2 rounded-lg border border-sky-300 bg-white p-3 text-sm font-semibold text-slate-900 dark:border-sky-500 dark:bg-slate-800 dark:text-white">
+                      {processActionStatus}
+                    </p>
+                  ) : null}
                 </div>
               ) : null}
               {(!canUploadProcessDocuments && pendingExternalDocumentCount > 0) || recoverableStatus ? (
