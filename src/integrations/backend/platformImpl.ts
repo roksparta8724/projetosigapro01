@@ -2551,6 +2551,22 @@ export async function createRemoteProcessRequirement(input: {
   });
 }
 
+export async function correctMyPaidProtocol(input: {
+ processId: string; address?: string; areaM2?: number; ownerName?: string; technicalLead?: string;
+}) {
+ return callProcessRpc("correct_my_paid_protocol_v1", {
+   _process_id: input.processId,
+   _address: input.address?.trim() || null,
+   _area_m2: input.areaM2 ?? null,
+   _owner_name: input.ownerName?.trim() || null,
+   _technical_lead: input.technicalLead?.trim() || null,
+ });
+}
+
+export async function recheckMyAutomaticTriage(processId: string) {
+ return callProcessRpc("recheck_my_automatic_triage_v1", { _process_id: processId });
+}
+
 export async function requestRemoteSupplementaryDocument(input: {
   processId: string; documentName: string; reason: string; dueAt?: string | null; targetName?: string | null;
 }) {

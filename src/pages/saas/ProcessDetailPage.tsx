@@ -38,6 +38,7 @@ import { isSignedAnalysisArchiveDocument } from "@/lib/signedAnalysisArchive";
 import { resolveProcessDispatchAuthor } from "@/lib/dispatchActorIdentity";
 import { canReadInstitutionalHistory } from "@/lib/institutionalHistoryAccess";
 import { usePlatformData } from "@/hooks/usePlatformData";
+import { getMissingApprovalDocumentTypes } from "@/lib/triageReadiness";
 import { useLivePlatformRefresh } from "@/hooks/useLivePlatformRefresh";
 import {
   getRenderedMunicipalityLogoDataUrl,
@@ -65,7 +66,7 @@ import {
 } from "@/integrations/r2/client";
 import { uploadFileToStorage } from "@/integrations/r2/storage";
 import { createQa04ArchitecturalPdf, createQa04DocumentKit, isQa04ArchitecturalImportAllowed, QA04_DOCUMENT_LABELS } from "@/lib/qa04ArchitecturalFixture";
-import { upgradeRemoteQa04ArchitecturalPlanV2, requestRemoteSupplementaryDocument, completeRemoteSupplementaryDocument } from "@/integrations/backend/platformImpl";
+import { upgradeRemoteQa04ArchitecturalPlanV2, requestRemoteSupplementaryDocument, completeRemoteSupplementaryDocument, correctMyPaidProtocol } from "@/integrations/backend/platformImpl";
 import {
   buildProcessPath,
   buildProcessRouteKey,
@@ -706,6 +707,8 @@ export function ProcessDetailPage() {
   const [supplementaryName, setSupplementaryName] = useState("");
   const [supplementaryReason, setSupplementaryReason] = useState("");
   const [supplementaryDue, setSupplementaryDue] = useState("");
+  const [automaticTriageUploads, setAutomaticTriageUploads] = useState<Record<string, UploadedFileItem[]>>({});
+  const [automaticTriageCorrections, setAutomaticTriageCorrections] = useState({address:"", area:"", ownerName:"", technicalLead:""});
   const [dispatchTo, setDispatchTo] = useState("");
   const [dispatchSubject, setDispatchSubject] = useState("");
   const [dispatchDueDate, setDispatchDueDate] = useState(() => currentLocalDateValue());
@@ -994,7 +997,11 @@ export function ProcessDetailPage() {
     }
   }, [activeTab, isExternalSession, session.role]);
 
-  const canUploadProcessDocuments = session.role === "profissional_externo" && process?.status === "rascunho";
+  const canCorrectAutomaticTriage = session.role === "profissional_externo" &&
+    process?.status === "pendencia_documental" && processBelongsToExternalProfessional(session, process);
+  const canUploadProcessDocuments = session.role === "profissional_externo" &&
+    (process?.status === "rascunho" || canCorrectAutomaticTriage);
+  const automaticTriageMissingDocuments = process ? getMissingApprovalDocumentTypes(process) : [];
   const canImportQa04Fixture = isQa04ArchitecturalImportAllowed({
     isolatedQa: import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true",
     role: session.role,
@@ -2857,6 +2864,46 @@ export function ProcessDetailPage() {
     }
   };
 
+  const handleAutomaticTriageDocumentUpload = async (label: string) => {
+    if (!canCorrectAutomaticTriage) return;
+    const selected = automaticTriageUploads[label]?.[0];
+    if (!selected?.file) {setProcessActionStatus("Selecione um arquivo antes do envio."); return;}
+    const ok=await runProcessAction(`auto-triage-doc-${label}`,async()=>{
+      const uploaded=await uploadFileToStorage({
+        bucket:"process-documents", tenantId:effectiveScopeId,userId:session.id,
+        file:selected.file!,folder:"correcao-triagem-automatica",
+      });
+      const response=await appendProcessDocuments(process.id,[{
+        id:`doc-${crypto.randomUUID()}`,label,required:true,uploaded:true,signed:false,
+        reviewStatus:"pendente",annotations:[],version:1,source:"profissional",
+        fileName:selected.fileName,filePath:uploaded.path,mimeType:selected.mimeType,
+        sizeLabel:selected.sizeLabel,fileSizeBytes:selected.file.size,
+        previewUrl:uploaded.publicUrl||undefined,
+      }],session.name);
+      if(Number(response.synced||0)!==1)throw new Error("O banco não confirmou o anexo. O arquivo continua preservado.");
+      await refreshRemoteStore(process.id);
+    },"Documento enviado. O SIGAPRO reavaliou automaticamente a triagem.");
+    if(ok)setAutomaticTriageUploads(current=>{const next={...current};delete next[label];return next;});
+  };
+  const handleAutomaticTriageDataCorrection = async(event:FormEvent)=>{
+    event.preventDefault();
+    if(!canCorrectAutomaticTriage)return;
+    const form=automaticTriageCorrections;
+    const inputArea=form.area.trim();
+    const parsedArea=inputArea?Number(inputArea.replace(",",".")):undefined;
+    if(parsedArea!==undefined&&(!Number.isFinite(parsedArea)||parsedArea<=0)){
+      setProcessActionStatus("Informe uma área válida em m².");return;
+    }
+    const ok=await runProcessAction("auto-triage-cadastro",async()=>{
+      await correctMyPaidProtocol({
+        processId:process.id,address:form.address,areaM2:parsedArea,
+        ownerName:form.ownerName,technicalLead:form.technicalLead,
+      });
+      await refreshRemoteStore(process.id);
+    },"Dados corrigidos e triagem executada automaticamente.");
+    if(ok)setAutomaticTriageCorrections({address:"",area:"",ownerName:"",technicalLead:""});
+  };
+
   const handleRequirementAttachment = async (item: typeof process.requirements[number]) => {
     if (!canAttachToRequirement(item)) {
       setProcessActionStatus("O envio de anexos só fica disponível enquanto o comunique-se estiver aberto.");
@@ -3488,6 +3535,59 @@ export function ProcessDetailPage() {
               data-process-document-content="true"
               className="space-y-4 p-5 md:p-6"
             >
+              {canCorrectAutomaticTriage ? (
+                <div data-automatic-triage-corrections="true"
+                  className="space-y-4 rounded-2xl border border-amber-300 bg-amber-50/90 p-5 text-slate-900 dark:border-amber-500/40 dark:bg-amber-950/20 dark:text-white">
+                  <div>
+                    <p className="text-base font-bold">Correção solicitada pela triagem automática</p>
+                    <p className="mt-2 text-sm leading-6 text-slate-800 dark:text-amber-100">
+                      {process.triage?.notes || "Há dados ou documentos pendentes. Complete o cadastro ou reenvie os anexos abaixo."}
+                    </p>
+                    <p className="mt-2 text-xs text-slate-700 dark:text-slate-300">
+                      O número oficial e a guia já paga são preservados. Quando estiver completo, o SIGAPRO encaminhará automaticamente o processo ao Urbanismo.
+                    </p>
+                  </div>
+                  {automaticTriageMissingDocuments.length>0 ? (
+                    <div className="grid gap-3">
+                      {automaticTriageMissingDocuments.map(label=>(
+                        <div key={label} className="rounded-xl border border-amber-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+                          <p className="mb-3 text-sm font-semibold">{label} — anexo obrigatório pendente</p>
+                          <FileDropZone title={label} description="PDF ou imagem legível, vinculada ao processo existente."
+                            multiple={false} accept=".pdf,image/*" files={automaticTriageUploads[label]??[]}
+                            onFilesSelected={selected=>setAutomaticTriageUploads(current=>({...current,[label]:selected}))} />
+                          <Button type="button" className="mt-3 rounded-xl bg-sky-800 !text-white hover:bg-sky-700"
+                            disabled={Boolean(processActionBusy)||!automaticTriageUploads[label]?.[0]?.file}
+                            onClick={()=>void handleAutomaticTriageDocumentUpload(label)}>
+                            {processActionBusy===`auto-triage-doc-${label}`?"Enviando...":"Enviar e verificar automaticamente"}
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  ):null}
+                  <form onSubmit={handleAutomaticTriageDataCorrection} className="space-y-3 rounded-xl border border-amber-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+                    <p className="text-sm font-bold">Corrigir dados do cadastro</p>
+                    <p className="text-xs text-slate-500">Preencha apenas os campos que precisam de correção. Nenhum campo em branco substitui dados anteriores.</p>
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <div><label htmlFor="auto-address" className="text-xs font-semibold">Endereço completo do imóvel</label>
+                        <Input id="auto-address" value={automaticTriageCorrections.address} placeholder="Rua, número, bairro, cidade"
+                          onChange={e=>setAutomaticTriageCorrections(p=>({...p,address:e.target.value}))} /></div>
+                      <div><label htmlFor="auto-area" className="text-xs font-semibold">Área (m²)</label>
+                        <Input id="auto-area" inputMode="decimal" value={automaticTriageCorrections.area}
+                          placeholder="Ex.: 250,00" onChange={e=>setAutomaticTriageCorrections(p=>({...p,area:e.target.value}))} /></div>
+                      <div><label htmlFor="auto-owner" className="text-xs font-semibold">Nome do proprietário</label>
+                        <Input id="auto-owner" value={automaticTriageCorrections.ownerName}
+                          onChange={e=>setAutomaticTriageCorrections(p=>({...p,ownerName:e.target.value}))} /></div>
+                      <div><label htmlFor="auto-technical" className="text-xs font-semibold">Responsável técnico</label>
+                        <Input id="auto-technical" value={automaticTriageCorrections.technicalLead}
+                          onChange={e=>setAutomaticTriageCorrections(p=>({...p,technicalLead:e.target.value}))} /></div>
+                    </div>
+                    <Button type="submit" className="rounded-xl bg-sky-800 !text-white hover:bg-sky-700"
+                      disabled={Boolean(processActionBusy)||!Object.values(automaticTriageCorrections).some(v=>v.trim().length>0)}>
+                      {processActionBusy==="auto-triage-cadastro"?"Atualizando...":"Salvar correções e reanalisar"}
+                    </Button>
+                  </form>
+                </div>
+              ):null}
               {canImportQa04Fixture ? (
                 <div className="rounded-2xl border border-sky-300 bg-sky-50 p-4 text-slate-900 dark:border-sky-600 dark:bg-slate-900 dark:text-slate-100">
                   <p className="text-sm font-bold">Ensaio controlado de IA — Processo 04 fictício</p>

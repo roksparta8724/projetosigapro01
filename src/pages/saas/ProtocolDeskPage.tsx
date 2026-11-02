@@ -703,22 +703,10 @@ export function ProtocolDeskPage() {
                               Acompanhamento
                             </span>
                           ) : null}
-                          {ownedByProtocol && process.triage.status === "recebido" ? (
-                            <Button type="button" variant="outline"
-                              className="h-9 rounded-xl border-sky-300 bg-white text-sky-950 hover:bg-sky-50"
-                              disabled={Boolean(protocolActionBusy)}
-                              onClick={() => void handleTriageStatus(process, "concluido")}>
-                              {protocolActionBusy === `triage-concluido-${process.id}` ? "Conferindo..." : "Conferir e concluir triagem"}
-                            </Button>
-                          ) : null}
-                          {ownedByProtocol && process.triage.status === "em_triagem" ? (
-                            <Button type="button" variant="outline"
-                              className="h-9 rounded-xl border-emerald-300 bg-emerald-50 text-emerald-950 hover:bg-emerald-100"
-                              disabled={Boolean(protocolActionBusy) || getPendingTriageDocuments(process) > 0}
-                              title={getPendingTriageDocuments(process) > 0 ? "Existem anexos obrigatórios não entregues" : "Registrar conferência da entrega documental"}
-                              onClick={() => void handleTriageStatus(process, "concluido")}>
-                              {protocolActionBusy === `triage-concluido-${process.id}` ? "Concluindo..." : "Concluir triagem documental"}
-                            </Button>
+                          {process.status === "triagem" || process.status === "pendencia_documental" ? (
+                            <span data-automatic-triage="true" className="inline-flex min-h-9 items-center rounded-xl border border-sky-200 bg-sky-50 px-3 text-xs font-semibold text-sky-800">
+                              {process.status === "pendencia_documental" ? "Correção solicitada automaticamente" : "Conferência automática em andamento"}
+                            </span>
                           ) : null}
                           {ownedByProtocol && isReadyForProtocolDispatch(process) ? (
                             <Button
