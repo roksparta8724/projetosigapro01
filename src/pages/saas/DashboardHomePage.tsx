@@ -27,7 +27,7 @@ import { MetricCard } from "@/components/platform/MetricCard";
 import { SectionCard } from "@/components/platform/SectionCard";
 import { TableCard } from "@/components/platform/TableCard";
 import { EmptyState } from "@/components/platform/EmptyState";
-import { InternalTabs } from "@/components/platform/InternalTabs";
+import { InternalSectionNav } from "@/components/platform/PageLayout";
 import { Button } from "@/components/ui/button";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { PlanCapacityCard } from "@/components/platform/PlanCapacityCard";
@@ -719,9 +719,7 @@ export function DashboardHomePage() {
               { title: "Concluidos", value: `${completedCount}`, helper: "Processos finalizados ou encerrados.", icon: CheckCircle2, tone: "emerald" as const },
             ];
 
-  const renderOverview = () => (
-    <>
-      {showPlanCapacity ? (
+  const renderPlanCapacity = () => (
         <SectionCard title={isMaster ? "Capacidade contratada por Prefeitura" : "Meu plano e utilização"}
           description="Cadastros, processos, setores e armazenamento calculados pelo Neon. Atualiza quando o Master altera o plano, sem novo login."
           icon={Users2}>
@@ -746,7 +744,11 @@ export function DashboardHomePage() {
             </div>
           )}
         </SectionCard>
-      ) : null}
+  );
+
+  const renderOverview = () => (
+    <>
+      {showPlanCapacity && isMaster ? renderPlanCapacity() : null}
       <SectionCard
         title="Panorama estrategico"
         description={isMaster ? "Leitura consolidada da operacao SaaS, da base de clientes e da saude da plataforma." : `Resumo executivo do escopo atual em ${institutionName}, com foco em performance, risco e leitura institucional.`}
@@ -1081,11 +1083,12 @@ export function DashboardHomePage() {
       <PageShell>
         <PageHero eyebrow="Resumo executivo" title={headlineTitle} description={headlineDescription} icon={LayoutDashboard} actions={heroActions} />
 
-        <InternalTabs
+        {showPlanCapacity && !isMaster ? renderPlanCapacity() : null}
+
+        <InternalSectionNav
           items={tabs}
           value={activeDashboardTab}
           onChange={(value) => navigate(value)}
-          persistInUrl={false}
         />
 
         {renderCurrentSection()}

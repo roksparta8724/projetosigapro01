@@ -3,53 +3,65 @@ import { resolve } from "node:path";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter, useLocation, useNavigate } from "react-router-dom";
 import { describe, expect, it } from "vitest";
-import { InternalTabs } from "@/components/platform/InternalTabs";
+import { InternalSectionNav } from "@/components/platform/PageLayout";
 
 const paths = [
   { value: "/dashboard", label: "Visão geral", helper: "Resumo executivo" },
   { value: "/dashboard/processos", label: "Processos", helper: "Fluxo e distribuição" },
 ];
 
-function DashboardNavigationHarness() {
+function DashboardRouteHarness() {
   const navigate = useNavigate();
   const location = useLocation();
   return (
     <div>
-      <InternalTabs
-        items={paths}
-        value={location.pathname}
-        onChange={(path) => navigate(path)}
-        persistInUrl={false}
-      />
-      <output data-testid="current-route">{location.pathname}{location.search}</output>
+      <InternalSectionNav items={paths} value={location.pathname} onChange={(path) => navigate(path)} />
+      <output data-testid="route">{location.pathname}{location.search}</output>
     </div>
   );
 }
 
-describe("Dashboard Visão geral navigation", () => {
-  it("does not force the summary screen back to Processos", () => {
-    render(<MemoryRouter initialEntries={["/dashboard/processos"]}>
-      <DashboardNavigationHarness />
-    </MemoryRouter>);
+const read = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
 
+describe("dashboard nav must not redirect away from Visão geral", () => {
+  it("remains in Visão geral after selecting it from Processos", () => {
+    render(<MemoryRouter initialEntries={["/dashboard/processos"]}><DashboardRouteHarness /></MemoryRouter>);
     fireEvent.click(screen.getByRole("button", { name: /visão geral/i }));
-    expect(screen.getByTestId("current-route")).toHaveTextContent("/dashboard");
+    expect(screen.getByTestId("route")).toHaveTextContent("/dashboard");
     expect(screen.getByRole("button", { name: /visão geral/i })).toHaveAttribute("data-nav-active", "true");
   });
 
-  it("ignores stale secao query parameters, because routes own the selected tab", () => {
+  it("does not allow legacy secao search params to override a clicked tab", () => {
     render(<MemoryRouter initialEntries={["/dashboard?secao=%2Fdashboard%2Fprocessos"]}>
-      <DashboardNavigationHarness />
+      <DashboardRouteHarness />
     </MemoryRouter>);
     expect(screen.getByRole("button", { name: /visão geral/i })).toHaveAttribute("data-nav-active", "true");
     fireEvent.click(screen.getByRole("button", { name: /processos/i }));
-    expect(screen.getByTestId("current-route")).toHaveTextContent("/dashboard/processos");
+    expect(screen.getByTestId("route")).toHaveTextContent("/dashboard/processos");
+    fireEvent.click(screen.getByRole("button", { name: /visão geral/i }));
+    expect(screen.getByRole("button", { name: /visão geral/i })).toHaveAttribute("data-nav-active", "true");
   });
 
-  it("keeps the correction local to the dashboard instead of changing other InternalTabs users", () => {
-    const dashboard = readFileSync(resolve(process.cwd(), "src/pages/saas/DashboardHomePage.tsx"), "utf8");
-    expect(dashboard).toMatch(/<InternalTabs[\s\S]*?persistInUrl=\{false\}/);
-    const generic = readFileSync(resolve(process.cwd(), "src/components/platform/InternalTabs.tsx"), "utf8");
-    expect(generic).toContain("persistInUrl = true");
+  it("does not mount the InternalTabs auto-redirect on Dashboard", () => {
+    const dashboard = read("src/pages/saas/DashboardHomePage.tsx");
+    expect(dashboard).not.toContain("<InternalTabs");
+    expect(dashboard).toContain("<InternalSectionNav");
+    expect(dashboard).toContain("showPlanCapacity && !isMaster ? renderPlanCapacity() : null");
+    expect(dashboard.indexOf("showPlanCapacity && !isMaster ? renderPlanCapacity()"))
+      .toBeLessThan(dashboard.indexOf("<InternalSectionNav"));
+  });
+
+  it("still keeps one list of all municipal plans for Master on overview", () => {
+    const dashboard = read("src/pages/saas/DashboardHomePage.tsx");
+    expect(dashboard).toContain("showPlanCapacity && isMaster ? renderPlanCapacity() : null");
+    expect(dashboard).toContain("planCapacity.rows.map");
+    expect(dashboard).toContain("Capacidade contratada por Prefeitura");
+  });
+
+  it("shows remaining places and remaining percentage together", () => {
+    const card = read("src/components/platform/PlanCapacityCard.tsx");
+    expect(card).toContain("metric.remainingLabel");
+    expect(card).toContain("data-plan-remaining-percent={metric.key}");
+    expect(card).toContain("100 - metric.percentage");
   });
 });

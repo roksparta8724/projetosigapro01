@@ -43,6 +43,7 @@ describe("real plan quotas and dashboard percentage", () => {
     const card = readFileSync("src/components/platform/PlanCapacityCard.tsx", "utf8");
     expect(card).toContain("metric.remainingLabel");
     expect(card).toContain("data-plan-remaining={metric.key}");
+    expect(card).toContain("data-plan-remaining-percent={metric.key}");
   });
   it("rejects malformed server envelopes", () => {
     expect(() => parsePlanUsageDashboard({ users: 2 })).toThrow("inválida");
