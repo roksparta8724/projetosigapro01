@@ -30,20 +30,9 @@ export function InternalTabs({
       return;
     }
 
-    if (!requested) {
-      const currentItem = items.find((item) => item.value === value);
-      const currentIsSummary =
-        currentItem && /^(resumo|vis[aã]o geral)$/i.test(currentItem.label.trim());
-
-      if (currentIsSummary) {
-        const firstOperationalItem = items.find(
-          (item) => !/^(resumo|vis[aã]o geral)$/i.test(item.label.trim()),
-        );
-        if (firstOperationalItem && firstOperationalItem.value !== value) {
-          onChange(firstOperationalItem.value);
-        }
-      }
-    }
+    // Never force a Summary tab to a different operational tab.
+    // The user-selected route/section is authoritative; a query parameter is
+    // read only when it explicitly names an available tab.
   }, [items, location.search, onChange, persistInUrl, urlParam, value]);
 
   const handleChange = (next: string) => {
