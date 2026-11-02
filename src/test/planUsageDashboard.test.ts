@@ -38,6 +38,17 @@ describe("real plan quotas and dashboard percentage", () => {
     expect(() => parsePlanUsageDashboard({ users: 2 })).toThrow("inválida");
     expect(parsePlanUsageDashboard([null, {}, sample({ users: 10, processes: 100, departments: 3, storageGb: 1 })])).toHaveLength(1);
   });
+  it("refreshes cross-session entitlement state without requiring a new login", () => {
+    const portal = readFileSync("src/components/platform/PortalFrame.tsx", "utf8");
+    const live = readFileSync("src/hooks/usePlanCapacityLive.ts", "utf8");
+    const store = readFileSync("src/hooks/usePlatformData.tsx", "utf8");
+    expect(portal).toContain("useLivePlatformRefresh(refreshRemoteStore");
+    expect(portal).toContain("refreshOnMount: false");
+    expect(live).toContain('window.addEventListener("focus"');
+    expect(live).toContain('window.addEventListener("sigapro:data-changed"');
+    expect(store).toContain('window.dispatchEvent(new Event("sigapro:data-changed"))');
+  });
+
   it("restricts the authoritative RPC to admin roles and the current tenant", () => {
     const sql = readFileSync("neon/migrations/20261102_plan_usage_dashboard_v1.sql", "utf8");
     expect(sql).toContain("public.current_profile_id()");
