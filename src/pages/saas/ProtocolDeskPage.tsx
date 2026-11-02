@@ -1137,7 +1137,7 @@ export function ProtocolDeskPage() {
           onChange={(value) => setSection(value as ProtocolSection)}
         />
 
-        {session.role === "prefeitura_admin" && recoverableTriageCases.length > 0 ? (
+        {session.role === "master_admin" && recoverableTriageCases.length > 0 ? (
           <SectionCard title="Revisão de integridade da tramitação" description="Processos que avançaram à Análise sem concluir triagem ou despacho. A correção preserva guias, arquivos e histórico.">
             <div className="space-y-3">
               <Input value={triageRecoveryReason} onChange={(event) => setTriageRecoveryReason(event.target.value)}
@@ -1538,7 +1538,7 @@ export function ProtocolDeskPage() {
                       municipalityId={effectiveScopeId || selected.tenantId}
                       actorId={session.id}
                       actorName={session.name}
-                      canImport={session.role !== "prefeitura_admin" && session.id !== "unknown"}
+                      canImport={session.id !== "unknown"}
                       existingGuides={getProcessPaymentGuides(selected, tenantSettings)}
                       onAppend={async (document, reference, guideKind) => {
                         const result = await attachMunicipalCollectionGuide({
