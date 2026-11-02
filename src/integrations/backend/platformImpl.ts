@@ -2551,6 +2551,15 @@ export async function createRemoteProcessRequirement(input: {
   });
 }
 
+export async function requestRemoteSupplementaryDocument(input: {
+  processId: string; documentName: string; reason: string; dueAt?: string | null; targetName?: string | null;
+}) {
+  return callProcessRpc("request_supplementary_document_v1", {
+    _process_id: input.processId, _document_name: input.documentName.trim(),
+    _reason: input.reason.trim(), _due_at: input.dueAt || null, _target_name: input.targetName || null,
+  });
+}
+
 export async function respondRemoteProcessRequirement(requirementId: string, response: string) {
   return callProcessRpc("respond_process_requirement", {
     _requirement_id: requirementId,

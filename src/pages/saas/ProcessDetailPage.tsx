@@ -65,7 +65,7 @@ import {
 } from "@/integrations/r2/client";
 import { uploadFileToStorage } from "@/integrations/r2/storage";
 import { createQa04ArchitecturalPdf, createQa04DocumentKit, isQa04ArchitecturalImportAllowed, QA04_DOCUMENT_LABELS } from "@/lib/qa04ArchitecturalFixture";
-import { upgradeRemoteQa04ArchitecturalPlanV2 } from "@/integrations/backend/platformImpl";
+import { upgradeRemoteQa04ArchitecturalPlanV2, requestRemoteSupplementaryDocument } from "@/integrations/backend/platformImpl";
 import {
   buildProcessPath,
   buildProcessRouteKey,
@@ -703,6 +703,9 @@ export function ProcessDetailPage() {
   const [requirementDueDate, setRequirementDueDate] = useState("");
   const [requirementVisibility, setRequirementVisibility] = useState<"interno" | "externo" | "misto">("misto");
   const [requirementResponse, setRequirementResponse] = useState<Record<string, string>>({});
+  const [supplementaryName, setSupplementaryName] = useState("");
+  const [supplementaryReason, setSupplementaryReason] = useState("");
+  const [supplementaryDue, setSupplementaryDue] = useState("");
   const [dispatchTo, setDispatchTo] = useState("");
   const [dispatchSubject, setDispatchSubject] = useState("");
   const [dispatchDueDate, setDispatchDueDate] = useState(() => currentLocalDateValue());
@@ -1026,8 +1029,7 @@ export function ProcessDetailPage() {
     );
   const canAttachToRequirement = (item: ProcessRecord["requirements"][number]) =>
     item.status === "aberta" &&
-    session.role !== "prefeitura_admin" &&
-    (isInternalRole(session.role) || session.role === "profissional_externo" || session.role === "proprietario_consulta");
+    session.role === "profissional_externo" && processBelongsToExternalProfessional(session, process);
 
   const recoverableDocumentsFingerprint = (process?.documents ?? [])
     .map((document) =>
@@ -2525,6 +2527,31 @@ export function ProcessDetailPage() {
       setRequirementDueDate("");
     }
   };
+  const requestSupplementary = async (event: FormEvent) => {
+    event.preventDefault();
+    if (session.role !== "analista" || !canEditAssignedAnalysis) return;
+    const documentName = supplementaryName.trim(), reason = supplementaryReason.trim();
+    if (documentName.length < 3 || reason.length < 10) {
+      setProcessActionStatus("Informe o nome do documento e a justificativa para solicitá-lo.");
+      return;
+    }
+    const ok = await runProcessAction("supplementary-request", async () => {
+      await requestRemoteSupplementaryDocument({
+        processId: process.id, documentName, reason,
+        dueAt: supplementaryDue ? new Date(`${supplementaryDue}T23:59:59`).toISOString() : null,
+        targetName: externalRecipientName,
+      });
+      await refreshRemoteStore(process.id);
+    }, "Documento complementar solicitado. O pedido está no histórico e no portal do profissional.");
+    if (ok) { setSupplementaryName(""); setSupplementaryReason(""); setSupplementaryDue(""); }
+  };
+  const finishSupplementary = async (requirement: typeof process.requirements[number]) => {
+    if (session.role !== "analista" || !canEditAssignedAnalysis || requirement.status !== "respondida") return;
+    await runProcessAction(`supplementary-complete-${requirement.id}`,
+      () => completeRequirement({ processId: process.id, requirementId: requirement.id, actor: session.name }),
+      "Solicitação conferida pelo analista e registrada no histórico.");
+  };
+
   const handleDispatchSubmit = async (event: FormEvent) => {
     event.preventDefault();
     if (isProtocolTrackingOnly) {
@@ -2852,11 +2879,11 @@ export function ProcessDetailPage() {
           folder: "comunique-se",
         });
 
-        await appendProcessDocuments(
+        const confirmed = await appendProcessDocuments(
           process.id,
           [{
             id: `doc-${crypto.randomUUID()}`,
-            label: `Comunique-se: ${item.title}`,
+            label: `Documento complementar: ${item.title}`,
             required: false,
             uploaded: true,
             signed: false,
@@ -2873,8 +2900,12 @@ export function ProcessDetailPage() {
           }],
           session.name,
         );
+        if (Number(confirmed.synced || 0) !== 1) throw new Error("O banco não confirmou o arquivo complementar.");
+        await respondRequirement({ processId: process.id, requirementId: item.id,
+          response: requirementResponse[item.id]?.trim() || `Documento anexado: ${selected.fileName}`,
+          actor: session.name });
       },
-      "Arquivo anexado ao comunique-se.",
+      "Documento complementar anexado e enviado à conferência do analista.",
     );
 
     if (ok) {
@@ -2883,6 +2914,7 @@ export function ProcessDetailPage() {
         delete next[item.id];
         return next;
       });
+      setRequirementResponse((current) => { const next = { ...current }; delete next[item.id]; return next; });
     }
   };
 
@@ -3609,6 +3641,35 @@ export function ProcessDetailPage() {
                 </div>
               ) : null}
 
+              {isProjectProfessionalViewer && visibleRequirements.some(r=>r.title.startsWith("Documento complementar: ")) ? (
+                <div data-supplementary-professional="true" className="space-y-3 rounded-2xl border border-amber-300 bg-amber-50 p-4 dark:border-amber-600 dark:bg-slate-900">
+                  <h3 className="text-base font-bold">Documentos adicionais solicitados pela Análise</h3>
+                  <p className="text-sm text-slate-700 dark:text-slate-300">Responda na mesma solicitação, sem abrir outro processo ou gerar outra guia.</p>
+                  {visibleRequirements.filter(r=>r.title.startsWith("Documento complementar: ")).map(req=>(
+                    <div key={req.id} className="space-y-3 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-950">
+                      <p className="font-semibold">{req.title.replace(/^Documento complementar: /,"")}</p>
+                      <p className="text-sm text-slate-600 dark:text-slate-300">{req.description}</p>
+                      <p className="text-xs text-slate-500">Situação: {req.status} · Prazo: {req.dueDate||"Não estipulado"}</p>
+                      {canAttachToRequirement(req)?(
+                        <>
+                          <FileDropZone title="Anexar documento complementar" description="PDF ou imagem legível. Envio direto ao processo."
+                            accept=".pdf,image/*" multiple={false} files={requirementUploads[req.id]??[]}
+                            onFilesSelected={selected=>setRequirementUploads(current=>({...current,[req.id]:selected}))} />
+                          <textarea rows={2} maxLength={2000} value={requirementResponse[req.id]??""}
+                            onChange={e=>setRequirementResponse(current=>({...current,[req.id]:e.target.value}))}
+                            placeholder="Observação sobre o arquivo (opcional)" className="w-full rounded-xl border border-slate-300 bg-white p-3 text-sm text-slate-900 dark:bg-slate-950 dark:text-white" />
+                          <Button type="button" className="bg-sky-800 !text-white hover:bg-sky-700"
+                            disabled={Boolean(processActionBusy)||!requirementUploads[req.id]?.[0]?.file}
+                            onClick={()=>void handleRequirementAttachment(req)}>
+                            {processActionBusy===`requirement-upload-${req.id}`?"Enviando...":"Enviar documento complementar"}
+                          </Button>
+                        </>
+                      ):<p className="text-sm text-emerald-700">{req.status==="respondida"?"Recebido. Aguardando conferência do analista.":"Solicitação encerrada."}</p>}
+                    </div>
+                  ))}
+                </div>
+              ):null}
+
               {visibleDocumentRows.map((document, index) => {
                 const reviewVisual = getDocumentReviewVisual(document);
                 const isApproved = document.reviewStatus === "aprovado";
@@ -3973,6 +4034,49 @@ export function ProcessDetailPage() {
               ) : null}
             </>
           )}
+
+          {activeTab === "analise" && canUseMunicipalChecklist && !isExternalProcessViewer ? (
+            <Card data-supplementary-analyst="true" className={cardShell}>
+              <CardHeader>
+                <CardTitle className="text-slate-950 dark:text-white">Solicitação de documentos complementares</CardTitle>
+                <p className="text-sm text-slate-600 dark:text-slate-300">O analista pode solicitar um documento que não esteja no checklist inicial. O profissional entrega pelo próprio processo, sem nova guia.</p>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {canEditAssignedAnalysis && session.role === "analista" ? (
+                  <form onSubmit={requestSupplementary} className="grid gap-3 rounded-xl border border-sky-200 bg-sky-50 p-4 dark:border-sky-500/30 dark:bg-sky-950/20">
+                    <label htmlFor="supp-name" className="text-sm font-semibold">Documento solicitado</label>
+                    <Input id="supp-name" value={supplementaryName} onChange={e=>setSupplementaryName(e.target.value)}
+                      maxLength={160} placeholder="Ex.: Levantamento topográfico georreferenciado" required />
+                    <label htmlFor="supp-reason" className="text-sm font-semibold">Justificativa técnica</label>
+                    <textarea id="supp-reason" value={supplementaryReason} onChange={e=>setSupplementaryReason(e.target.value)}
+                      minLength={10} maxLength={2000} rows={3} required placeholder="Explique o que precisa ser apresentado"
+                      className="w-full rounded-xl border border-slate-300 bg-white p-3 text-sm text-slate-900 dark:bg-slate-950 dark:text-white" />
+                    <div className="flex flex-wrap items-end justify-between gap-3">
+                      <div><label htmlFor="supp-due" className="text-xs font-semibold">Prazo opcional</label>
+                        <Input id="supp-due" type="date" min={currentLocalDateValue()} value={supplementaryDue} onChange={e=>setSupplementaryDue(e.target.value)} /></div>
+                      <Button type="submit" className="rounded-xl bg-sky-800 !text-white hover:bg-sky-700"
+                        disabled={Boolean(processActionBusy) || supplementaryName.trim().length<3 || supplementaryReason.trim().length<10}>
+                        {processActionBusy==="supplementary-request"?"Solicitando...":"Solicitar ao profissional"}
+                      </Button>
+                    </div>
+                  </form>
+                ) : null}
+                {visibleRequirements.filter(r=>r.title.startsWith("Documento complementar: ")).map(req=>(
+                  <div key={req.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold">{req.title.replace(/^Documento complementar: /,"")}</p>
+                      <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{req.description}</p>
+                      <p className="mt-1 text-xs text-slate-500">Situação: {req.status} · Prazo: {req.dueDate||"Não estipulado"}</p>
+                      {req.response ? <p className="mt-1 text-sm text-emerald-700">Resposta: {req.response}</p>:null}
+                    </div>
+                    {canEditAssignedAnalysis && session.role==="analista" && req.status==="respondida" ? (
+                      <Button type="button" variant="outline" disabled={Boolean(processActionBusy)} onClick={()=>void finishSupplementary(req)}>Conferir e concluir</Button>
+                    ):null}
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          ) : null}
 
           {!isExternalProcessViewer && activeTab === "analise" && !isHabiteSeProcess && (
           <Card className={cardShell}>

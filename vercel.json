@@ -109,7 +109,8 @@
       "fix/habite-se-alvara-summary-contrast-20261020": false,
       "fix/vercel-serverless-esm-complete-no-deploy-20261020": false,
       "workbench/sigapro-consolidacao-p3-no-deploy-20261029": false,
-      "workbench/sigapro-admin-process-readonly-20261102": false
+      "workbench/sigapro-admin-process-readonly-20261102": false,
+      "workbench/sigapro-fluxo-triagem-documentos-20261102": false
     }
   }
 }

@@ -753,7 +753,7 @@ export function ProtocolarProjetoPage({
     () =>
       isHabiteSeMode
         ? [
-            { label: "Pré-protocolo", value: draftNumber },
+            { label: "Referência da solicitação (não é processo oficial)", value: draftNumber },
             { label: "Serviço", value: effectiveProcessType },
             { label: "Processo de aprovação", value: form.processoAprovacao || "Não informado" },
             { label: "Alvará de origem", value: form.numeroAlvara || "Não informado" },
@@ -762,7 +762,7 @@ export function ProtocolarProjetoPage({
             { label: "Imóvel", value: form.endereco || "Não preenchido" },
           ]
         : [
-            { label: "Pré-protocolo", value: draftNumber },
+            { label: "Referência da solicitação (não é processo oficial)", value: draftNumber },
             { label: "Projeto", value: form.titulo || "Não preenchido" },
             { label: "Tipo de processo", value: form.tipo || "Não preenchido" },
             { label: "Natureza da obra", value: form.tipoObra || "Não preenchido" },
@@ -1521,11 +1521,11 @@ export function ProtocolarProjetoPage({
 
   return (
     <PortalFrame
-      eyebrow={isCounterProtocol ? "Atendimento presencial da Prefeitura" : isHabiteSeMode ? "Novo protocolo independente" : "Novo protocolo"}
+      eyebrow={isCounterProtocol ? "Atendimento presencial da Prefeitura" : isHabiteSeMode ? "Solicitação de Habite-se" : "Solicitação de análise urbanística"}
       title={
         remotePreProtocolNumber
-          ? (isHabiteSeMode ? "Editar rascunho do Habite-se" : "Editar rascunho do projeto")
-          : (isCounterProtocol ? "Protocolar em balcão" : isHabiteSeMode ? "Solicitar Habite-se" : "Protocolar projeto")
+          ? (isHabiteSeMode ? "Revisar solicitação de Habite-se" : "Revisar solicitação de projeto")
+          : (isCounterProtocol ? "Registrar solicitação no balcão" : isHabiteSeMode ? "Solicitar Habite-se" : "Preparar solicitação de projeto")
       }
     >
       <PageShell>
@@ -1541,8 +1541,8 @@ export function ProtocolarProjetoPage({
           <PageHero
             eyebrow={
               remotePreProtocolNumber
-                ? "Pré-protocolo com guia pendente"
-                : (isHabiteSeMode ? "Abertura de Habite-se" : "Abertura de novo protocolo")
+                ? "Solicitação com guia pendente"
+                : (isHabiteSeMode ? "Abertura de Habite-se" : "Preparação da solicitação")
             }
             title={
               isHabiteSeMode
@@ -1551,7 +1551,7 @@ export function ProtocolarProjetoPage({
                     : "Abra o Habite-se como um novo processo, separado da aprovação do projeto")
                 : (remotePreProtocolNumber
                     ? "Revise o rascunho antes do pagamento da guia inicial"
-                    : isCounterProtocol ? "Registre o requerente e os dados do responsável técnico pela obra, anexe os documentos e gere o pré-protocolo assistido com rastreabilidade do servidor." : "Cadastre o projeto, envie os documentos e conclua o protocolo em uma única jornada")
+                    : isCounterProtocol ? "Registre o requerente e os dados do responsável técnico pela obra, anexe os documentos e gere o pré-protocolo assistido com rastreabilidade do servidor." : "Cadastre o projeto, envie os documentos e prepare a guia inicial em uma única jornada")
             }
             description={
               isHabiteSeMode
@@ -1571,7 +1571,7 @@ export function ProtocolarProjetoPage({
                 </Button>
                 <Button type="button" variant="outline" className="rounded-full" onClick={() => navigate(isCounterProtocol ? "/prefeitura/protocolos" : "/externo/controle")}>
                   <LogOut className="mr-2 h-4 w-4" />
-                  Sair do protocolo
+                  Sair da solicitação
                 </Button>
               </div>
             }
@@ -1599,7 +1599,7 @@ export function ProtocolarProjetoPage({
                   index === 0
                     ? "Progresso dos obrigatórios desta abertura"
                     : index === 1
-                      ? "Arquivos enviados para compor o protocolo"
+                      ? "Arquivos enviados para compor a solicitação"
                       : "Itens ainda exigidos antes da confirmação"
                 }
                 icon={index === 0 ? CheckCircle2 : index === 1 ? UploadCloud : AlertCircle}
@@ -2268,7 +2268,7 @@ export function ProtocolarProjetoPage({
                 disabled={savingDraft || submitting || hasPendingDocumentUpload}
               >
                 <LogOut className="mr-2 h-4 w-4" />
-                Sair do protocolo
+                Sair da solicitação
               </Button>
             </div>
 
@@ -2375,7 +2375,7 @@ export function ProtocolarProjetoPage({
                       ? "Carregando rascunho..."
                       : submitting
                         ? "Gerando pré-protocolo..."
-                        : "Gerar guia e pré-protocolo"}
+                        : "Emitir guia e registrar solicitação"}
                   </Button>
                 )}
               </div>

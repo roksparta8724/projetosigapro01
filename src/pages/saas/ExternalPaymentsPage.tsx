@@ -244,7 +244,7 @@ export function ExternalPaymentsPage() {
           numeroCadastro:
             process.property.registration ||
             process.preProtocol ||
-            "Pré-protocolo",
+            "Referência da solicitação",
         },
         guia: {
           numeroGuia: guide.code,
@@ -470,7 +470,7 @@ export function ExternalPaymentsPage() {
             >
 
               <div className="hidden rounded-[12px] border border-[#E5E7EB] bg-[#F8FAFC] px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 2xl:grid 2xl:grid-cols-[1.15fr_1fr_0.85fr_0.75fr_0.7fr_1.25fr] 2xl:gap-3">
-                <span>Pré-protocolo / Processo</span>
+                <span>Solicitação / Processo oficial</span>
                 <span>Projeto</span>
                 <span>Guia</span>
                 <span>Vencimento</span>

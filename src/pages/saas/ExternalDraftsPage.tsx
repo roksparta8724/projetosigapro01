@@ -113,8 +113,8 @@ export function ExternalDraftsPage() {
         ) : null}
 
         <SectionPanel
-          title="Processos em andamento"
-          description="Continue exatamente de onde parou. Rascunhos podem ser retomados; pré-protocolos enviados permanecem aqui até a compensação da guia inicial."
+          title="Solicitações em preparação"
+          description="Continue de onde parou. Rascunhos e pedidos com guia pendente não são processos oficiais; o número municipal só nasce após o pagamento confirmado."
           contentClassName="space-y-4"
         >
           {inProgressCount === 0 ? (
@@ -123,13 +123,13 @@ export function ExternalDraftsPage() {
                 <FilePenLine className="h-5 w-5" />
               </div>
               <p className="mt-4 text-base font-semibold text-slate-900 dark:text-white">
-                Nenhum processo em andamento
+                Nenhuma solicitação em preparação
               </p>
               <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-slate-600 dark:text-slate-300">
                 Quando você salvar um protocolo antes de concluir, ele aparecerá aqui para continuar depois sem perder os dados.
               </p>
               <Button asChild data-draft-dark-action="true" className="mt-5 rounded-full bg-slate-950 !text-white hover:bg-slate-900 [&_*]:!text-white">
-                <Link to="/externo/protocolar">Criar novo protocolo</Link>
+                <Link to="/externo/protocolar">Nova solicitação</Link>
               </Button>
             </div>
           ) : (

@@ -1118,8 +1118,8 @@ export function ProtocolDeskPage() {
       <PageShell>
         <PageHeader
           eyebrow="Operação de protocolo"
-          title="Recepção, conferência documental e despacho inicial"
-          description="Receba pedidos, faça a triagem documental, protocole atendimentos e confirme a guia inicial antes do envio ao Urbanismo."
+          title="Triagem documental de processos pagos"
+          description="Os processos são numerados somente após a confirmação da guia. Confira a entrega dos anexos obrigatórios e encaminhe à Análise sem cobrança nem conferência urbanística duplicada."
           icon={ClipboardList}
           actions={
             <Button asChild className="rounded-full bg-slate-950 hover:bg-slate-900">
