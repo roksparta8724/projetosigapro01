@@ -56,6 +56,7 @@ describe("real plan quotas and dashboard percentage", () => {
     expect(portal).toContain("useLivePlatformRefresh(refreshRemoteStore");
     expect(portal).toContain("refreshOnMount: false");
     expect(live).toContain('window.addEventListener("focus"');
+    expect(live).toContain("JSON.stringify(current.rows) === JSON.stringify(rows)");
     expect(live).toContain('window.addEventListener("sigapro:data-changed"');
     expect(store).toContain('window.dispatchEvent(new Event("sigapro:data-changed"))');
   });

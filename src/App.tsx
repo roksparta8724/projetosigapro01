@@ -134,49 +134,13 @@ const AppRoutes = () => {
         />
         <Route path="/inicio" element={<Navigate to="/" replace />} />
 
+        {/* One persistent dashboard route prevents chart/plan remounting on tab changes.
+            Contractual gates still protect restricted tab bodies in DashboardHomePage. */}
         <Route
-          path="/dashboard"
+          path="/dashboard/*"
           element={
             <PermissionRoute permission="manage_own_profile">
               <DashboardHomePage />
-            </PermissionRoute>
-          }
-        />
-        <Route
-          path="/dashboard/processos"
-          element={
-            <PermissionRoute permission="manage_own_profile">
-              <PlanModuleRoute module="Protocolo digital">
-                <DashboardHomePage />
-              </PlanModuleRoute>
-            </PermissionRoute>
-          }
-        />
-        <Route
-          path="/dashboard/financeiro"
-          element={
-            <PermissionRoute permission="manage_own_profile">
-              <PlanModuleRoute module="Financeiro">
-                <DashboardHomePage />
-              </PlanModuleRoute>
-            </PermissionRoute>
-          }
-        />
-        <Route
-          path="/dashboard/usuarios"
-          element={
-            <PermissionRoute permission="manage_own_profile">
-              <DashboardHomePage />
-            </PermissionRoute>
-          }
-        />
-        <Route
-          path="/dashboard/operacional"
-          element={
-            <PermissionRoute permission="manage_own_profile">
-              <PlanModuleRoute module="Protocolo digital">
-                <DashboardHomePage />
-              </PlanModuleRoute>
             </PermissionRoute>
           }
         />

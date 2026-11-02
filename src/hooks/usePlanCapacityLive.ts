@@ -37,14 +37,25 @@ export function usePlanCapacityLive(
       inFlight = true;
       try {
         const rows = await fetchPlanCapacityDashboard(municipalityId);
-        if (!disposed) setSnapshot({ key, rows, loaded: true, error: null });
+        if (!disposed) setSnapshot((current) => {
+          // Poll every interval, but never repaint charts/cards if usage did not change.
+          if (current.key === key && current.loaded && current.error === null &&
+              JSON.stringify(current.rows) === JSON.stringify(rows)) {
+            return current;
+          }
+          return { key, rows, loaded: true, error: null };
+        });
       } catch (err) {
         // Keep the last value only for the same tenant. Never show prior tenant data.
-        if (!disposed) setSnapshot((current) => ({
-          key, rows: current.key === key ? current.rows : [],
-          loaded: current.key === key && current.loaded,
-          error: err instanceof Error ? err.message : "Consumo do plano indisponível.",
-        }));
+        if (!disposed) setSnapshot((current) => {
+          const error = err instanceof Error ? err.message : "Consumo do plano indisponível.";
+          if (current.key === key && current.error === error) return current;
+          return {
+            key, rows: current.key === key ? current.rows : [],
+            loaded: current.key === key && current.loaded,
+            error,
+          };
+        });
       } finally { inFlight = false; }
     };
     const refresh = () => { void load(); };

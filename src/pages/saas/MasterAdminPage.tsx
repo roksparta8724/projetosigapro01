@@ -831,7 +831,7 @@ export function MasterAdminPage() {
             </div>
           }
         />
-        <InternalTabs value={workspaceView} onChange={(value) => setWorkspaceView(value as WorkspaceView)} urlParam="secao" persistInUrl items={[{ value: "visao-geral", label: "Visão geral", helper: "Resumo executivo" }, { value: "carteira", label: "Carteira", helper: "Prefeituras e contratos" }, { value: "cadastro", label: "Cadastro", helper: "Conta institucional" }, { value: "organograma", label: "Organograma", helper: "Estrutura da Prefeitura" }, { value: "usuarios", label: "Usuários", helper: "Acessos e perfis" }]} />
+        <InternalTabs value={workspaceView} onChange={(value) => setWorkspaceView(value as WorkspaceView)} urlParam="secao" persistInUrl summaryFirst items={[{ value: "visao-geral", label: "Visão geral", helper: "Resumo executivo" }, { value: "carteira", label: "Carteira", helper: "Prefeituras e contratos" }, { value: "cadastro", label: "Cadastro", helper: "Conta institucional" }, { value: "organograma", label: "Organograma", helper: "Estrutura da Prefeitura" }, { value: "usuarios", label: "Usuários", helper: "Acessos e perfis" }]} />
 
         {workspaceView === "visao-geral" || workspaceView === "carteira" ? (
           <SectionCard title="Capacidade e cadastros por Prefeitura"

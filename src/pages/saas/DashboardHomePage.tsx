@@ -28,6 +28,7 @@ import { SectionCard } from "@/components/platform/SectionCard";
 import { TableCard } from "@/components/platform/TableCard";
 import { EmptyState } from "@/components/platform/EmptyState";
 import { InternalSectionNav } from "@/components/platform/PageLayout";
+import { PlanModuleRoute } from "@/components/platform/PlanModuleRoute";
 import { Button } from "@/components/ui/button";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { PlanCapacityCard } from "@/components/platform/PlanCapacityCard";
@@ -1088,10 +1089,18 @@ export function DashboardHomePage() {
         <InternalSectionNav
           items={tabs}
           value={activeDashboardTab}
-          onChange={(value) => navigate(value)}
+          onChange={(value) => { if (value !== location.pathname) navigate(value); }}
+          summaryFirst
+          staticSelection
         />
 
-        {renderCurrentSection()}
+        {/* Keep the page shell, tabs and plan card mounted while switching modules.
+            The corresponding module gate continues to enforce the contract. */}
+        {section === "processos" || section === "operacional" ? (
+          <PlanModuleRoute module="Protocolo digital">{renderCurrentSection()}</PlanModuleRoute>
+        ) : section === "financeiro" ? (
+          <PlanModuleRoute module="Financeiro">{renderCurrentSection()}</PlanModuleRoute>
+        ) : renderCurrentSection()}
       </PageShell>
     </PortalFrame>
   );

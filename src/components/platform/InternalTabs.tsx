@@ -9,6 +9,7 @@ export function InternalTabs({
   className,
   urlParam = "secao",
   persistInUrl = true,
+  summaryFirst = false,
 }: {
   items: Array<{ value: string; label: string; helper?: string }>;
   value: string;
@@ -16,6 +17,7 @@ export function InternalTabs({
   className?: string;
   urlParam?: string;
   persistInUrl?: boolean;
+  summaryFirst?: boolean;
 }) {
   const location = useLocation();
   const navigate = useNavigate();
@@ -51,5 +53,5 @@ export function InternalTabs({
     onChange(next);
   };
 
-  return <InternalSectionNav items={items} value={value} onChange={handleChange} className={className} />;
+  return <InternalSectionNav items={items} value={value} onChange={handleChange} className={className} summaryFirst={summaryFirst} />;
 }

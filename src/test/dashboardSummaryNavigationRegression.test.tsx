@@ -17,7 +17,7 @@ function DashboardRouteHarness() {
   const location = useLocation();
   return (
     <div>
-      <InternalSectionNav items={paths} value={location.pathname} onChange={(path) => navigate(path)} />
+      <InternalSectionNav items={paths} value={location.pathname} onChange={(path) => navigate(path)} summaryFirst staticSelection />
       <output data-testid="route">{location.pathname}{location.search}</output>
     </div>
   );
@@ -36,6 +36,7 @@ function MasterTabHarness() {
         value={value}
         onChange={setValue}
         urlParam="secao"
+        summaryFirst
       />
       <output data-testid="master-section">{value}</output>
     </div>
@@ -50,6 +51,9 @@ describe("dashboard nav must not redirect away from Visão geral", () => {
     fireEvent.click(screen.getByRole("button", { name: /visão geral/i }));
     expect(screen.getByTestId("route")).toHaveTextContent("/dashboard");
     expect(screen.getByRole("button", { name: /visão geral/i })).toHaveAttribute("data-nav-active", "true");
+    const nav = screen.getByRole("button", { name: /visão geral/i }).closest("section");
+    expect(nav).toHaveAttribute("data-summary-first", "true");
+    expect(nav?.querySelector("button")?.textContent).toContain("Visão geral");
   });
 
   it("does not allow legacy secao search params to override a clicked tab", () => {
@@ -63,6 +67,18 @@ describe("dashboard nav must not redirect away from Visão geral", () => {
     expect(screen.getByRole("button", { name: /visão geral/i })).toHaveAttribute("data-nav-active", "true");
   });
 
+  it("keeps the dashboard mounted on one route while each operational module stays gated", () => {
+    const app = read("src/App.tsx");
+    const dashboard = read("src/pages/saas/DashboardHomePage.tsx");
+    expect(app).toContain('path="/dashboard/*"');
+    expect(app).not.toContain('path="/dashboard/processos"');
+    expect(app).not.toContain('path="/dashboard/financeiro"');
+    expect(dashboard).toContain('<PlanModuleRoute module="Protocolo digital">');
+    expect(dashboard).toContain('<PlanModuleRoute module="Financeiro">');
+    expect(dashboard).toContain("staticSelection");
+    expect(dashboard).toContain("summaryFirst");
+  });
+
   it("does not mount the InternalTabs auto-redirect on Dashboard", () => {
     const dashboard = read("src/pages/saas/DashboardHomePage.tsx");
     expect(dashboard).not.toContain("<InternalTabs");
@@ -70,6 +86,13 @@ describe("dashboard nav must not redirect away from Visão geral", () => {
     expect(dashboard).toContain("showPlanCapacity && !isMaster ? renderPlanCapacity() : null");
     expect(dashboard.indexOf("showPlanCapacity && !isMaster ? renderPlanCapacity()"))
       .toBeLessThan(dashboard.indexOf("<InternalSectionNav"));
+  });
+
+  it("renders Visão geral as the first tab also on the Master dashboard", () => {
+    render(<MemoryRouter initialEntries={["/master"]}><MasterTabHarness /></MemoryRouter>);
+    const nav = screen.getByRole("button", { name: /visão geral/i }).closest("section");
+    expect(nav).toHaveAttribute("data-summary-first", "true");
+    expect(nav?.querySelector("button")?.textContent).toContain("Visão geral");
   });
 
   it("keeps the Master Visão geral open with no query parameter", () => {
