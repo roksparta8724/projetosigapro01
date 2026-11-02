@@ -142,7 +142,9 @@ export function ProtocolDeskPage() {
   const protocolQueueProcesses = useMemo(
     () =>
       processes.filter((item) => {
-        if (!isProcessOwnedBySessionDepartment(session, item)) return false;
+        // The Neon Protocolo RPC permits a scoped municipal admin to triage.
+        // Non-admins still require department ownership.
+        if (!isProcessOwnedBySessionDepartment(session, item) && session.role !== "prefeitura_admin") return false;
         const currentFolder = (item.processControl?.currentFolder || "").toLowerCase();
         if (currentFolder) {
           return (
@@ -607,7 +609,8 @@ export function ProtocolDeskPage() {
                 (process.createdBy ? userById.get(process.createdBy) : undefined);
               const expanded = expandedProcessIds.has(process.id);
               const selected = selectedProcessIds.has(process.id);
-              const ownedByProtocol = isProcessOwnedBySessionDepartment(session, process);
+              const ownedByProtocol = isProcessOwnedBySessionDepartment(session, process) ||
+                (session.role === "prefeitura_admin" && protocolQueueProcesses.some((item) => item.id === process.id));
 
               return (
                 <div
@@ -701,6 +704,23 @@ export function ProtocolDeskPage() {
                             <span className="inline-flex h-8 items-center rounded-full border border-slate-200 bg-slate-50 px-3 text-[11px] font-medium text-slate-500">
                               Acompanhamento
                             </span>
+                          ) : null}
+                          {ownedByProtocol && process.triage.status === "recebido" ? (
+                            <Button type="button" variant="outline"
+                              className="h-9 rounded-xl border-sky-300 bg-white text-sky-950 hover:bg-sky-50"
+                              disabled={Boolean(protocolActionBusy)}
+                              onClick={() => void handleTriageStatus(process, "em_triagem")}>
+                              {protocolActionBusy === `triage-em_triagem-${process.id}` ? "Iniciando..." : "Iniciar triagem"}
+                            </Button>
+                          ) : null}
+                          {ownedByProtocol && process.triage.status === "em_triagem" ? (
+                            <Button type="button" variant="outline"
+                              className="h-9 rounded-xl border-emerald-300 bg-emerald-50 text-emerald-950 hover:bg-emerald-100"
+                              disabled={Boolean(protocolActionBusy) || getPendingTriageDocuments(process) > 0}
+                              title={getPendingTriageDocuments(process) > 0 ? "Existem anexos obrigatórios não entregues" : "Registrar conferência da entrega documental"}
+                              onClick={() => void handleTriageStatus(process, "concluido")}>
+                              {protocolActionBusy === `triage-concluido-${process.id}` ? "Concluindo..." : "Concluir triagem documental"}
+                            </Button>
                           ) : null}
                           {ownedByProtocol && isReadyForProtocolDispatch(process) ? (
                             <Button
