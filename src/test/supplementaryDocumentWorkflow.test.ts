@@ -16,6 +16,7 @@ describe("SIGAPRO: pagamento antes do processo e documentos complementares",()=>
     expect(d).toContain('data-supplementary-professional="true"');
     expect(d).toContain("await respondRequirement({");
     expect(d).toContain("requestRemoteSupplementaryDocument({");
+    expect(d).toContain("completeRemoteSupplementaryDocument(requirement.id)");
     expect(d).toContain("canEditAssignedAnalysis && session.role");
   });
   it("a exigência só é emitida pelo analista designado, depois da guia e da triagem",()=>{
@@ -24,6 +25,10 @@ describe("SIGAPRO: pagamento antes do processo e documentos complementares",()=>
     expect(sql).toContain("_p.officialized_at IS NULL");
     expect(sql).toContain("process_technical_release_verified_v1");
     expect(sql).toContain("process_audit_entries");
+    expect(sql).toContain("complete_supplementary_document_v1");
+    expect(sql).toContain("d.title=_req.title");
+    expect(sql).toContain("_p.analysis_assigned_to_profile_id IS DISTINCT FROM _actor");
+    expect(sql).not.toContain("DO $\\n");
     expect(sql).not.toContain("payment_guides");
   });
 });

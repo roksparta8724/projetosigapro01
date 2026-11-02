@@ -65,7 +65,7 @@ import {
 } from "@/integrations/r2/client";
 import { uploadFileToStorage } from "@/integrations/r2/storage";
 import { createQa04ArchitecturalPdf, createQa04DocumentKit, isQa04ArchitecturalImportAllowed, QA04_DOCUMENT_LABELS } from "@/lib/qa04ArchitecturalFixture";
-import { upgradeRemoteQa04ArchitecturalPlanV2, requestRemoteSupplementaryDocument } from "@/integrations/backend/platformImpl";
+import { upgradeRemoteQa04ArchitecturalPlanV2, requestRemoteSupplementaryDocument, completeRemoteSupplementaryDocument } from "@/integrations/backend/platformImpl";
 import {
   buildProcessPath,
   buildProcessRouteKey,
@@ -2548,7 +2548,7 @@ export function ProcessDetailPage() {
   const finishSupplementary = async (requirement: typeof process.requirements[number]) => {
     if (session.role !== "analista" || !canEditAssignedAnalysis || requirement.status !== "respondida") return;
     await runProcessAction(`supplementary-complete-${requirement.id}`,
-      () => completeRequirement({ processId: process.id, requirementId: requirement.id, actor: session.name }),
+      async () => { await completeRemoteSupplementaryDocument(requirement.id); await refreshRemoteStore(process.id); },
       "Solicitação conferida pelo analista e registrada no histórico.");
   };
 
@@ -2883,7 +2883,7 @@ export function ProcessDetailPage() {
           process.id,
           [{
             id: `doc-${crypto.randomUUID()}`,
-            label: `Documento complementar: ${item.title}`,
+            label: item.title,
             required: false,
             uploaded: true,
             signed: false,

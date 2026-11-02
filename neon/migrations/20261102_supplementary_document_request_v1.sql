@@ -61,7 +61,7 @@ END;
 $$;
 REVOKE ALL ON FUNCTION public.audit_supplementary_response_v1() FROM PUBLIC;
 -- Idempotente e sem remover gatilhos históricos da Prefeitura.
-DO $
+DO $guard$
 BEGIN
  IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname='audit_supplementary_response_v1' AND NOT tgisinternal) THEN
   CREATE TRIGGER audit_supplementary_response_v1
@@ -69,4 +69,49 @@ BEGIN
   FOR EACH ROW EXECUTE FUNCTION public.audit_supplementary_response_v1();
  END IF;
 END;
-$;
+$guard$;
+
+-- Somente o analista designado conclui o pedido; anexo do profissional é obrigatório.
+CREATE OR REPLACE FUNCTION public.complete_supplementary_document_v1(_requirement_id uuid)
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO pg_catalog,public SET row_security TO off
+AS $doc$
+DECLARE
+ _actor uuid:=public.current_profile_id();
+ _role text:=public.current_role_code();
+ _req public.process_requirements%rowtype;
+ _p public.processes%rowtype;
+BEGIN
+ IF _actor IS NULL OR _role <> 'analista' THEN
+   RAISE EXCEPTION 'Somente o analista designado pode concluir a solicitação documental';
+ END IF;
+ SELECT * INTO _req FROM public.process_requirements WHERE id=_requirement_id FOR UPDATE;
+ IF _req.id IS NULL OR _req.title NOT LIKE 'Documento complementar: %' OR _req.status<>'respondida' THEN
+   RAISE EXCEPTION 'Solicitação complementar não encontrada ou sem resposta para conferir';
+ END IF;
+ SELECT * INTO _p FROM public.processes WHERE id=_req.process_id FOR UPDATE;
+ IF _p.id IS NULL OR NOT public.has_process_access(_req.process_id)
+    OR _p.analysis_assigned_to_profile_id IS DISTINCT FROM _actor
+    OR NOT public.process_is_in_analysis_area(_req.process_id) THEN
+   RAISE EXCEPTION 'Somente o analista responsável por este processo pode concluir a conferência';
+ END IF;
+ IF NOT EXISTS (
+   SELECT 1 FROM public.process_documents d
+   WHERE d.process_id=_req.process_id AND d.title=_req.title
+     AND coalesce(d.is_valid,true)=true AND d.source='profissional'
+     AND nullif(btrim(coalesce(d.file_path,'')),'') IS NOT NULL
+ ) THEN
+   RAISE EXCEPTION 'Documento complementar ainda não foi efetivamente anexado pelo profissional';
+ END IF;
+ UPDATE public.process_requirements SET status='atendida' WHERE id=_req.id;
+ IF NOT EXISTS (
+   SELECT 1 FROM public.process_requirements r
+   WHERE r.process_id=_req.process_id AND r.status IN ('aberta','respondida')
+ ) THEN
+   UPDATE public.processes SET status='analise_tecnica'::public.process_status,updated_at=now()
+   WHERE id=_req.process_id AND status='exigencia'::public.process_status;
+ END IF;
+ RETURN jsonb_build_object('ok',true,'requirement_id',_req.id,'process_id',_req.process_id);
+END;
+$doc$;
+REVOKE ALL ON FUNCTION public.complete_supplementary_document_v1(uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.complete_supplementary_document_v1(uuid) TO authenticated;

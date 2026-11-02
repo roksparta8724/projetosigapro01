@@ -2560,6 +2560,12 @@ export async function requestRemoteSupplementaryDocument(input: {
   });
 }
 
+export async function completeRemoteSupplementaryDocument(requirementId: string) {
+  return callProcessRpc("complete_supplementary_document_v1", {
+    _requirement_id: requirementId,
+  });
+}
+
 export async function respondRemoteProcessRequirement(requirementId: string, response: string) {
   return callProcessRpc("respond_process_requirement", {
     _requirement_id: requirementId,
