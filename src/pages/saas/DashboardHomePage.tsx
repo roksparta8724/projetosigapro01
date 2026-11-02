@@ -378,8 +378,9 @@ export function DashboardHomePage() {
 
   const activeInstitutionId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
   const showPlanCapacity = isMaster || session.role === "prefeitura_admin";
-  const planCapacity = usePlanCapacityLive(isMaster ? null : activeInstitutionId, {
-    enabled: showPlanCapacity && (isMaster || Boolean(activeInstitutionId)),
+  const planMunicipalityId = session.municipalityId ?? session.tenantId ?? null;
+  const planCapacity = usePlanCapacityLive(isMaster ? null : planMunicipalityId, {
+    enabled: showPlanCapacity && (isMaster || Boolean(planMunicipalityId)),
     intervalMs: 8000,
   });
   const profile = getUserProfile(session.id, session.email);

@@ -269,8 +269,9 @@ export function TenantAdminPage() {
   const { municipality, scopeId, name: municipalityName } = useMunicipality();
   const { sessionUsers, institutions, createTenantUser, updateTenantUser, setUserAccountStatus, deleteUserAccount, processes, getUserProfile, getInstitutionSettings, refreshRemoteStore } = usePlatformData();
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
-  const planCapacity = usePlanCapacityLive(effectiveScopeId, {
-    enabled: Boolean(effectiveScopeId) && session.role === "prefeitura_admin",
+  const planMunicipalityId = session.municipalityId ?? session.tenantId ?? null;
+  const planCapacity = usePlanCapacityLive(planMunicipalityId, {
+    enabled: Boolean(planMunicipalityId) && session.role === "prefeitura_admin",
     intervalMs: 8000,
   });
   const activeUserProfile = getUserProfile(session.id, session.email);
