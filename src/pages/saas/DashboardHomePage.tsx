@@ -30,6 +30,8 @@ import { EmptyState } from "@/components/platform/EmptyState";
 import { InternalTabs } from "@/components/platform/InternalTabs";
 import { Button } from "@/components/ui/button";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import { PlanCapacityCard } from "@/components/platform/PlanCapacityCard";
+import { usePlanCapacityLive } from "@/hooks/usePlanCapacityLive";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
@@ -375,6 +377,11 @@ export function DashboardHomePage() {
   const isAnalyst = session.role === "analista" || session.role === "setor_intersetorial";
 
   const activeInstitutionId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
+  const showPlanCapacity = isMaster || session.role === "prefeitura_admin";
+  const planCapacity = usePlanCapacityLive(isMaster ? null : activeInstitutionId, {
+    enabled: showPlanCapacity && (isMaster || Boolean(activeInstitutionId)),
+    intervalMs: 8000,
+  });
   const profile = getUserProfile(session.id, session.email);
   const ownerDocument = normalizeOwnerDocument(profile?.cpfCnpj || "");
 
@@ -713,6 +720,32 @@ export function DashboardHomePage() {
 
   const renderOverview = () => (
     <>
+      {showPlanCapacity ? (
+        <SectionCard title={isMaster ? "Capacidade contratada por Prefeitura" : "Meu plano e utilização"}
+          description="Cadastros, processos, setores e armazenamento calculados pelo Neon. Atualiza quando o Master altera o plano, sem novo login."
+          icon={Users2}>
+          {planCapacity.error ? (
+            <p role="alert" className="mb-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:bg-slate-800 dark:text-amber-200">
+              {planCapacity.error}
+            </p>
+          ) : null}
+          {!planCapacity.loaded ? (
+            <p className="text-sm text-slate-600 dark:text-slate-300">Consultando limites contratados no Neon...</p>
+          ) : planCapacity.rows.length === 0 ? (
+            <p className="text-sm text-slate-600 dark:text-slate-300">Nenhum plano disponível para o contexto autenticado.</p>
+          ) : (
+            <div className={isMaster ? "grid gap-4 2xl:grid-cols-2" : "grid gap-4"}>
+              {planCapacity.rows.map((row) => (
+                <PlanCapacityCard key={row.municipalityId} row={row}
+                  municipalityName={isMaster
+                    ? institutions.find((item) => item.id === row.municipalityId)?.name ?? "Prefeitura"
+                    : institutionName}
+                />
+              ))}
+            </div>
+          )}
+        </SectionCard>
+      ) : null}
       <SectionCard
         title="Panorama estrategico"
         description={isMaster ? "Leitura consolidada da operacao SaaS, da base de clientes e da saude da plataforma." : `Resumo executivo do escopo atual em ${institutionName}, com foco em performance, risco e leitura institucional.`}

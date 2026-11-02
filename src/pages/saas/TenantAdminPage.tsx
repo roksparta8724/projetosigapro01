@@ -24,6 +24,9 @@ import { usePlatformData } from "@/hooks/usePlatformData";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { usePlanEntitlements } from "@/hooks/usePlanEntitlements";
+import { PlanCapacityCard } from "@/components/platform/PlanCapacityCard";
+import { usePlanCapacityLive } from "@/hooks/usePlanCapacityLive";
+
 import {
   assignRemoteProfileDepartment,
   listRemoteMunicipalDepartments,
@@ -266,6 +269,10 @@ export function TenantAdminPage() {
   const { municipality, scopeId, name: municipalityName } = useMunicipality();
   const { sessionUsers, institutions, createTenantUser, updateTenantUser, setUserAccountStatus, deleteUserAccount, processes, getUserProfile, getInstitutionSettings, refreshRemoteStore } = usePlatformData();
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
+  const planCapacity = usePlanCapacityLive(effectiveScopeId, {
+    enabled: Boolean(effectiveScopeId) && session.role === "prefeitura_admin",
+    intervalMs: 8000,
+  });
   const activeUserProfile = getUserProfile(session.id, session.email);
   const activeInstitution = municipality ?? institutions.find((item) => item.id === effectiveScopeId) ?? null;
   const tenantUsers = useMemo(() => sessionUsers.filter((user) => matchesOperationalScope(effectiveScopeId, user)), [effectiveScopeId, sessionUsers]);
@@ -1196,6 +1203,15 @@ export function TenantAdminPage() {
           ))}
         </PageStatsRow>
 
+        {session.role === "prefeitura_admin" ? (
+          <SectionCard title="Consumo do plano da Prefeitura"
+            description="Acompanhe o percentual de cadastros e outros limites do plano. A alteração feita pelo Master será carregada automaticamente.">
+            {planCapacity.error ? <p role="alert" className="mb-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">{planCapacity.error}</p> : null}
+            {planCapacity.loaded && planCapacity.rows[0] ? (
+              <PlanCapacityCard row={planCapacity.rows[0]} municipalityName={municipalityName || activeInstitution?.name} />
+            ) : <p className="text-sm text-slate-600">Consultando o contrato no Neon...</p>}
+          </SectionCard>
+        ) : null}
         <InternalTabs
           className="border-slate-200/90 shadow-[0_12px_30px_rgba(15,23,42,0.04)]"
           value={workspaceView}
