@@ -33,6 +33,7 @@ describe("SIGAPRO automated postpayment triage",()=>{
    expect(sql).toContain("NOT public.has_process_access(_p.id)");
    expect(sql).toContain("_p.created_by_profile_id IS DISTINCT FROM _actor");
    expect(sql).toContain("recheck_my_automatic_triage_v1");
+   expect(sql).toContain("INSERT INTO public.properties (tenant_id,municipality_id,iptu_code,address,area_m2)");
    const ui=read("src/pages/saas/ProcessDetailPage.tsx");
    const desk=read("src/pages/saas/ProtocolDeskPage.tsx");
    expect(ui).toContain('data-automatic-triage-corrections="true"');

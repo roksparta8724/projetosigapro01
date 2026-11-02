@@ -15,11 +15,12 @@ describe("SIGAPRO QA04: end-to-end triage with a revised architectural PDF", () 
     expect(source).toContain("matchesOperationalScope(effectiveScopeId, item)");
     expect(source).toContain('currentFolder.includes("protocolo")');
   });
-  it("exposes actions for starting and completing triage before dispatch", () => {
-    expect(source).toContain('handleTriageStatus(process, "concluido")');
-    expect(source).toContain('handleTriageStatus(process, "concluido")');
-    expect(source).toContain('getPendingTriageDocuments(process) > 0');
+  it("shows automatic status without requiring manual triage actions", () => {
+    expect(source).toContain('data-automatic-triage="true"');
+    expect(source).toContain("Correção solicitada automaticamente");
+    expect(source).toContain("Conferência automática em andamento");
     expect(source).toContain("isReadyForProtocolDispatch(process)");
+    expect(source).not.toContain('onClick={() => void handleTriageStatus(process, "concluido")}');
   });
   it("does not block a V2 document because the V1 is kept as inactive history", () => {
     expect(migration).toContain("CREATE OR REPLACE FUNCTION public.set_process_triage");

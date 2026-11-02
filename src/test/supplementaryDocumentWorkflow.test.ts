@@ -9,7 +9,7 @@ describe("SIGAPRO: pagamento antes do processo e documentos complementares",()=>
   it("rotula corretamente a solicitação anterior ao protocolo",()=>{
     expect(draft).toContain("Referência da solicitação (não é processo oficial)");
     expect(draft).toContain("Emitir guia e registrar solicitação");
-    expect(rd("src/pages/saas/ProtocolDeskPage.tsx")).toContain("Conferir e concluir triagem");
+    expect(rd("src/pages/saas/ProtocolDeskPage.tsx")).toContain("Conferência automática em andamento");
   });
   it("vincula novo documento, resposta externa e conferência do analista",()=>{
     expect(d).toContain('data-supplementary-analyst="true"');

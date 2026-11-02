@@ -253,8 +253,12 @@ BEGIN
  END IF;
  _property_id:=_p.property_id;
  IF _property_id IS NULL THEN
-   INSERT INTO public.properties (tenant_id,municipality_id,address,area_m2)
-   VALUES (_p.tenant_id,coalesce(_p.municipality_id,_p.tenant_id),_address_clean,_area_m2)
+   IF _address_clean IS NULL THEN
+     RAISE EXCEPTION 'Informe o endereço do imóvel antes de salvar o cadastro inicial';
+   END IF;
+   -- Banco municipal requer IPTU não nulo mesmo quando o campo está em branco.
+   INSERT INTO public.properties (tenant_id,municipality_id,iptu_code,address,area_m2)
+   VALUES (_p.tenant_id,coalesce(_p.municipality_id,_p.tenant_id),'',_address_clean,_area_m2)
    RETURNING id INTO _property_id;
    UPDATE public.processes SET property_id=_property_id WHERE id=_p.id;
  ELSE
