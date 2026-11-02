@@ -3383,7 +3383,16 @@ export function buildProcessDocuments(
       .replace(/[\u0300-\u036f]/g, "")
       .trim()
       .toLowerCase();
-  const uploadedByLabel = new Map(uploadedDocuments.map((document) => [normalizeLabel(document.label), document]));
+  // Use the highest document version per category. Earlier versions stay in
+  // the database history rather than replacing the current PDF on screen.
+  const uploadedByLabel = new Map<string, ProcessDocument>();
+  for (const document of uploadedDocuments) {
+    const key = normalizeLabel(document.label);
+    const previous = uploadedByLabel.get(key);
+    if (!previous || Number(document.version || 0) > Number(previous.version || 0)) {
+      uploadedByLabel.set(key, document);
+    }
+  }
 
   const fromTemplate = (template?.items ?? []).map((item) => {
     const existing = uploadedByLabel.get(normalizeLabel(item.label));
@@ -3402,7 +3411,7 @@ export function buildProcessDocuments(
     );
   });
 
-  const extras = uploadedDocuments.filter(
+  const extras = [...uploadedByLabel.values()].filter(
     (document) => !fromTemplate.some((item) => normalizeLabel(item.label) === normalizeLabel(document.label)),
   );
 
