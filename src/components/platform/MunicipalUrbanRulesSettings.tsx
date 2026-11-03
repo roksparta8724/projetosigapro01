@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { activateUrbanRegulation, listUrbanRegulations, saveUrbanRegulationDraft } from "@/integrations/backend/urbanPrecheckClient";
 import { UrbanLegalMatrixReviewPanel } from "@/components/platform/UrbanLegalMatrixReviewPanel";
+import { UrbanQuadroIIWorkspacePanel } from "@/components/platform/UrbanQuadroIIWorkspacePanel";
 import { URBAN_METRICS, isUrbanTestFixtureRule, normalizeUrbanCode, type UrbanMetric, type UrbanRegulationVersion, type UrbanRule } from "@/lib/urbanPrecheck";
 import { municipalCivilDate } from "@/lib/municipalCivilDate";
 
@@ -130,6 +131,7 @@ export function MunicipalUrbanRulesSettings({
 
       <div className="mt-5">
         <UrbanLegalMatrixReviewPanel municipalityId={municipalityId} canView={canEdit} />
+        <UrbanQuadroIIWorkspacePanel municipalityId={municipalityId} canEdit={canEdit} />
       </div>
       {canEdit && municipalityId ? (
         <>
