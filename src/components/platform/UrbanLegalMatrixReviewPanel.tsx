@@ -53,7 +53,7 @@ export function UrbanLegalMatrixReviewPanel({
     void Promise.allSettled([
       listUrbanMatrixBatches(municipalityId),
       listUrbanMatrixReadingAudit(municipalityId),
-    ]).then(([batchResult, auditResult]) => {
+    ]).then(async ([batchResult, auditResult]) => {
       if (!active) return;
       if (batchResult.status === "fulfilled") setBatches(batchResult.value);
       else setError(String((batchResult.reason as Error)?.message || batchResult.reason));
@@ -63,6 +63,26 @@ export function UrbanLegalMatrixReviewPanel({
       } else {
         setAuditAvailable(false);
         setNotice("A leitura dos lotes continua disponível. Os botões de revisão e arquivamento exigem a atualização de auditoria v2 no banco de homologação.");
+      }
+      // Keep the first active Quadro I source open by default so its 23
+      // records never look removed when the administrator enters the page.
+      if (batchResult.status === "fulfilled") {
+        const latestEvents = auditResult.status === "fulfilled"
+          ? auditResult.value.batch_events : [];
+        const firstActive = batchResult.value.find((batch) =>
+          latestEvents.find((event) => event.batch_id === batch.id)?.action !== "archive",
+        );
+        if (firstActive) {
+          setDetailLoading(true);
+          try {
+            const detail = await readUrbanMatrixBatch(municipalityId, firstActive.id);
+            if (active && detail) setSelected(detail);
+          } catch (err) {
+            if (active) setError(String((err as Error)?.message || err));
+          } finally {
+            if (active) setDetailLoading(false);
+          }
+        }
       }
     }).finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
@@ -174,7 +194,7 @@ export function UrbanLegalMatrixReviewPanel({
         <div className="min-w-0">
           <h4 className="flex items-center gap-2 text-sm font-extrabold text-slate-950 dark:text-white">
             <BookOpenCheck className="h-5 w-5 shrink-0 text-sky-800 dark:text-sky-300" />
-            Matriz assistida — importação dos limites legais
+            Quadro I — matriz de limites e índices urbanísticos
           </h4>
           <p className="mt-1 max-w-3xl text-xs leading-5 text-slate-700 dark:text-slate-300">
             Etapa 1: confira a transcrição por página. Etapa 2: valide a norma, as exceções e a vigência em cadastro próprio.
@@ -224,7 +244,7 @@ export function UrbanLegalMatrixReviewPanel({
               <span className="min-w-0 flex-1">
                 <strong className="block break-words text-sm text-slate-950 dark:text-white">{batch.document_title} · versão {batch.version}</strong>
                 <span className="block text-xs text-slate-600 dark:text-slate-300">
-                  {batch.total_rows} linhas importadas · {batch.reviewed_rows} conferências iniciais
+                  {batch.total_rows} linhas importadas · conferência inicial: {batch.reviewed_rows} · registros e revisões disponíveis abaixo
                 </span>
               </span>
               <span className="inline-flex shrink-0 items-center gap-1 text-xs font-bold text-sky-800 dark:text-sky-300">

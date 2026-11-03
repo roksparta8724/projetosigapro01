@@ -25,6 +25,7 @@ export function UrbanQuadroIIWorkspacePanel({
   const [draft, setDraft] = useState<UrbanQuadroIIDraftInput>(() => emptyDraft(38));
   const [confirmed, setConfirmed] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
+  const [retryToken, setRetryToken] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -38,11 +39,15 @@ export function UrbanQuadroIIWorkspacePanel({
     void listUrbanQuadroIIWorkspace(municipalityId)
       .then((data) => { if (active) setWorkspace(data); })
       .catch((err: unknown) => {
-        if (active) setError(String((err as Error)?.message || err));
+        if (!active) return;
+        const message = String((err as Error)?.message || err);
+        setError(/PGRST202|Could not find the function/i.test(message)
+          ? "A API municipal ainda não atualizou o cadastro do Quadro II. A função existe no Neon de homologação; tente atualizar a conexão."
+          : message);
       })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [municipalityId, canEdit]);
+  }, [municipalityId, canEdit, retryToken]);
 
   const draftCount = useMemo(
     () => workspace?.entries.length || 0, [workspace],
@@ -113,7 +118,16 @@ export function UrbanQuadroIIWorkspacePanel({
           <Loader2 className="h-4 w-4 animate-spin" /> Consultando o índice de páginas no Neon...
         </p>
       ) : null}
-      {error ? <p role="alert" className="mt-3 break-words rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-900">{error}</p> : null}
+      {error ? (
+        <div role="alert" className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-900">
+          <span className="min-w-0 flex-1 break-words">{error}</span>
+          <Button type="button" variant="outline" disabled={loading || saving}
+            onClick={() => setRetryToken((value) => value + 1)}
+            className="shrink-0 border-rose-200 bg-white text-rose-900">
+            Tentar novamente
+          </Button>
+        </div>
+      ) : null}
       {notice ? <p role="status" className="mt-3 break-words rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-900">{notice}</p> : null}
 
       {workspace?.status === "no_source" ? (

@@ -49,3 +49,24 @@ describe("SIGAPRO IA — Quadro II safe assisted transcription", () => {
     expect(panel).toContain("Este registro ficará apenas como rascunho");
   });
 });
+
+
+describe("SIGAPRO IA — Quadro I visible by default and Quadro II recoverable", () => {
+  it("opens the Quadro I first and preserves an independent Quadro II tab", () => {
+    const settings = read("src/components/platform/MunicipalUrbanRulesSettings.tsx");
+    const first = read("src/components/platform/UrbanLegalMatrixReviewPanel.tsx");
+    const second = read("src/components/platform/UrbanQuadroIIWorkspacePanel.tsx");
+    expect(settings).toContain('useState<"I" | "II">("I")');
+    expect(settings).toContain('setActiveQuadro("I")');
+    expect(settings).toContain('role="tablist"');
+    expect(settings).toContain('role="tabpanel"');
+    expect(settings).toContain("Quadro I — Índices urbanísticos");
+    expect(settings).toContain("Quadro II — Usos e localização");
+    expect(settings).toContain('activeQuadro === "I" ?');
+    expect(first).toContain('const firstActive = batchResult.value.find');
+    expect(first).toContain('if (active && detail) setSelected(detail)');
+    expect(first).toContain("Quadro I — matriz de limites e índices urbanísticos");
+    expect(second).toContain("Tentar novamente");
+    expect(second).toContain("PGRST202");
+  });
+});
