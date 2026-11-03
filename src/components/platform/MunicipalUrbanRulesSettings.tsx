@@ -134,21 +134,21 @@ export function MunicipalUrbanRulesSettings({
       <div className="mt-5 min-w-0" data-urban-quadros-workspace="true">
         <div role="tablist" aria-label="Quadros da legislação urbanística"
           className="grid grid-cols-1 gap-2 rounded-2xl border border-slate-200 bg-slate-100/80 p-2 dark:border-slate-700 dark:bg-slate-900 sm:grid-cols-2">
-          <button type="button" role="tab" id="sigapro-quadro-i-tab" aria-controls="sigapro-quadro-i-panel"
+          <button type="button" role="tab" data-urban-quadro-tab="true" id="sigapro-quadro-i-tab" aria-controls="sigapro-quadro-i-panel"
             aria-selected={activeQuadro === "I"} onClick={() => setActiveQuadro("I")}
             className={`min-w-0 rounded-xl border px-4 py-3 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-500 ${activeQuadro === "I"
               ? "border-sky-300 bg-[#0b3150] text-white shadow-sm"
               : "border-slate-200 bg-white text-slate-900 hover:bg-sky-50 dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100"}`}>
-            <span className="block text-sm font-extrabold">Quadro I — Índices urbanísticos</span>
-            <span className="mt-1 block text-xs opacity-90">Ver linhas importadas, conferências e pendências</span>
+            <span data-urban-quadro-tab-title="true" className="block text-sm font-extrabold">Quadro I — Índices urbanísticos</span>
+            <span data-urban-quadro-tab-detail="true" className="mt-1 block text-xs">Ver linhas importadas, conferências e pendências</span>
           </button>
-          <button type="button" role="tab" id="sigapro-quadro-ii-tab" aria-controls="sigapro-quadro-ii-panel"
+          <button type="button" role="tab" data-urban-quadro-tab="true" id="sigapro-quadro-ii-tab" aria-controls="sigapro-quadro-ii-panel"
             aria-selected={activeQuadro === "II"} onClick={() => setActiveQuadro("II")}
             className={`min-w-0 rounded-xl border px-4 py-3 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-500 ${activeQuadro === "II"
               ? "border-sky-300 bg-[#0b3150] text-white shadow-sm"
               : "border-slate-200 bg-white text-slate-900 hover:bg-sky-50 dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100"}`}>
-            <span className="block text-sm font-extrabold">Quadro II — Usos e localização</span>
-            <span className="mt-1 block text-xs opacity-90">Transcrição assistida, páginas 38 a 51</span>
+            <span data-urban-quadro-tab-title="true" className="block text-sm font-extrabold">Quadro II — Usos e localização</span>
+            <span data-urban-quadro-tab-detail="true" className="mt-1 block text-xs">Transcrição assistida, páginas 38 a 51</span>
           </button>
         </div>
         {activeQuadro === "I" ? (

@@ -72,3 +72,24 @@ describe("SIGAPRO IA — Quadro I visible by default and Quadro II recoverable",
     expect(second).toContain("PGRST202");
   });
 });
+
+
+describe("SIGAPRO IA — visual polarity for both Quadro tabs", () => {
+  it("enforces selected navy/white and unselected white/dark under inverse-main mode", () => {
+    const settings = read("src/components/platform/MunicipalUrbanRulesSettings.tsx");
+    const stylesheet = read("src/index.css");
+    expect((settings.match(/data-urban-quadro-tab="true"/g) || []).length).toBe(2);
+    expect((settings.match(/data-urban-quadro-tab-title="true"/g) || []).length).toBe(2);
+    expect((settings.match(/data-urban-quadro-tab-detail="true"/g) || []).length).toBe(2);
+    expect(settings).toContain('aria-selected={activeQuadro === "I"}');
+    expect(settings).toContain('aria-selected={activeQuadro === "II"}');
+    expect(stylesheet).toContain("SIGAPRO IA — QUADROS I/II PREMIUM TAB CONTRAST");
+    expect(stylesheet).toContain('button[data-urban-quadro-tab="true"][aria-selected="true"]');
+    expect(stylesheet).toContain('button[data-urban-quadro-tab="true"][aria-selected="false"]');
+    expect(stylesheet).toContain('[data-layout-mode="inverse-main"]');
+    expect(stylesheet).toContain("-webkit-text-fill-color: #fff !important;");
+    expect(stylesheet).toContain("background: #0b3150 !important;");
+    expect(stylesheet).toContain("background: #fff !important;");
+    expect(stylesheet).toContain("color: #152b43 !important;");
+  });
+});

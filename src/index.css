@@ -11016,3 +11016,84 @@ html body #root [data-urban-rules-settings="true"] button[data-sigapro-urban-rul
   border-style: dashed !important;
 }
 /* END URBAN RULES SAVE BUTTON READABILITY V2 */
+
+
+/* SIGAPRO IA — QUADROS I/II PREMIUM TAB CONTRAST (2026-11-03).
+   Override the older inverse-main rule that paints selected aria-tabs dark
+   regardless of their navy background. Scope to the legal matrix only.
+   Dark = white type; light = navy type, in every municipal theme. */
+html body #root [data-urban-rules-settings="true"] [data-urban-quadros-workspace="true"]
+button[data-urban-quadro-tab="true"][aria-selected="true"],
+html body #root [data-layout-mode="inverse-main"] [data-urban-rules-settings="true"]
+[data-urban-quadros-workspace="true"] button[data-urban-quadro-tab="true"][aria-selected="true"] {
+  background: #0b3150 !important;
+  background-color: #0b3150 !important;
+  background-image: none !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  border-color: #3286b8 !important;
+  opacity: 1 !important;
+  filter: none !important;
+  text-shadow: none !important;
+  mix-blend-mode: normal !important;
+}
+html body #root [data-urban-rules-settings="true"] [data-urban-quadros-workspace="true"]
+button[data-urban-quadro-tab="true"][aria-selected="true"] :is(
+  [data-urban-quadro-tab-title="true"], [data-urban-quadro-tab-detail="true"]
+),
+html body #root [data-layout-mode="inverse-main"] [data-urban-rules-settings="true"]
+[data-urban-quadros-workspace="true"] button[data-urban-quadro-tab="true"][aria-selected="true"] :is(
+  [data-urban-quadro-tab-title="true"], [data-urban-quadro-tab-detail="true"]
+) {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  filter: none !important;
+  text-shadow: none !important;
+  mix-blend-mode: normal !important;
+}
+html body #root [data-urban-rules-settings="true"] [data-urban-quadros-workspace="true"]
+button[data-urban-quadro-tab="true"][aria-selected="true"] [data-urban-quadro-tab-detail="true"] {
+  color: #e2edf7 !important;
+  -webkit-text-fill-color: #e2edf7 !important;
+}
+html body #root [data-urban-rules-settings="true"] [data-urban-quadros-workspace="true"]
+button[data-urban-quadro-tab="true"][aria-selected="false"],
+html body #root [data-layout-mode="inverse-main"] [data-urban-rules-settings="true"]
+[data-urban-quadros-workspace="true"] button[data-urban-quadro-tab="true"][aria-selected="false"] {
+  background: #fff !important;
+  background-color: #fff !important;
+  background-image: none !important;
+  color: #152b43 !important;
+  -webkit-text-fill-color: #152b43 !important;
+  border-color: #cbd5e1 !important;
+  opacity: 1 !important;
+  filter: none !important;
+}
+html body #root [data-urban-rules-settings="true"] [data-urban-quadros-workspace="true"]
+button[data-urban-quadro-tab="true"][aria-selected="false"] :is(
+  [data-urban-quadro-tab-title="true"], [data-urban-quadro-tab-detail="true"]
+) {
+  color: #152b43 !important;
+  -webkit-text-fill-color: #152b43 !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  filter: none !important;
+}
+html body #root [data-urban-rules-settings="true"] [data-urban-quadros-workspace="true"]
+button[data-urban-quadro-tab="true"][aria-selected="false"] [data-urban-quadro-tab-detail="true"] {
+  color: #475569 !important;
+  -webkit-text-fill-color: #475569 !important;
+}
+html body #root [data-urban-rules-settings="true"] [data-urban-quadros-workspace="true"]
+button[data-urban-quadro-tab="true"][aria-selected="false"]:hover {
+  background: #f0f8ff !important;
+  background-color: #f0f8ff !important;
+}
+html body #root [data-urban-rules-settings="true"] [data-urban-quadros-workspace="true"]
+button[data-urban-quadro-tab="true"]:focus-visible {
+  outline: 2px solid #0284c7 !important;
+  outline-offset: 3px !important;
+}
+/* END SIGAPRO IA QUADROS PREMIUM TAB CONTRAST */
