@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { BookOpenCheck, ChevronDown, FileWarning, Loader2, Save, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,6 +28,8 @@ export function UrbanQuadroIIWorkspacePanel({
   const [selectedSuggestion, setSelectedSuggestion] = useState<UrbanQuadroIISuggestion | null>(null);
   const [retryToken, setRetryToken] = useState(0);
   const editorRef = useRef<HTMLDivElement | null>(null);
+  const pageIndexRef = useRef<HTMLDivElement | null>(null);
+  const pageDetailRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -63,12 +65,22 @@ export function UrbanQuadroIIWorkspacePanel({
   );
   const pageCount = workspace?.pages.length || 0;
   const sourcePages = workspace?.pages.filter((page) => page.source_quality === "machine_unverified" && Boolean(page.source_evidence_text)).length || 0;
+  const selectedPage = workspace?.pages.find((page) => page.page_number === activePage);
+  const selectedIndex = workspace?.pages.findIndex((page) => page.page_number === activePage) ?? -1;
   const suggestions = workspace?.pages.reduce((count, page) => count + (page.proposals?.length || 0), 0) || 0;
   const valid = Boolean(
     draft.categoryCode.trim() && draft.useDescription.trim().length >= 5 &&
     draft.sourceExcerpt.trim().length >= 20 && confirmed &&
     workspace?.status === "pending_legal_review" && activePage === draft.pageNumber,
   );
+  // React paints one stable page-detail panel below a fixed page index.
+  // Align the new detail immediately after a page switch to avoid browser
+  // scroll anchoring jumps when the previous page had much taller content.
+  useLayoutEffect(() => {
+    if (activePage === null) return;
+    pageDetailRef.current?.scrollIntoView({ behavior: "auto", block: "start" });
+  }, [activePage]);
+
   const selectPage = (page: number) => {
     if (saving) return;
     if (activePage === page) { setActivePage(null); setFormOpen(false); setSelectedSuggestion(null); return; }
@@ -204,27 +216,73 @@ export function UrbanQuadroIIWorkspacePanel({
             zonas. Nenhuma sugestão é norma e nada entra na análise da IA sem revisão documental e jurídica.
           </div>
           <p className="mt-4 text-sm font-bold text-slate-900 dark:text-white">Índice de leitura — páginas 38 a 51</p>
-          <div className="mt-2 grid items-start gap-2 lg:grid-cols-2">
-            {workspace.pages.map((page) => {
-              const expanded = activePage === page.page_number;
-              const entries = workspace.entries.filter((item) => item.page_number === page.page_number);
-              return (
-                <div key={page.page_number}
-                  className={`min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-white text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-white ${expanded ? "lg:col-span-2" : ""}`}>
-                  <button type="button" aria-expanded={expanded}
-                    onClick={() => selectPage(page.page_number)}
-                    className="flex w-full min-w-0 items-center justify-between gap-3 p-3 text-left text-slate-900 hover:bg-sky-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-600 dark:text-white dark:hover:bg-slate-800">
-                    <span className="min-w-0">
-                      <strong className="block text-sm">Página {page.page_number} · {page.topic}</strong>
-                      <span className="mt-1 block text-xs text-slate-600 dark:text-slate-300">
-                        {page.draft_count} rascunho(s) · {page.proposals?.length || 0} sugestões · conferência legal pendente
-                      </span>
-                    </span>
-                    <span className="flex shrink-0 items-center gap-1 text-xs font-bold text-sky-800 dark:text-sky-300">
-                      {expanded ? "Ocultar" : "Abrir"} <ChevronDown className="h-4 w-4" />
-                    </span>
-                  </button>
-                  {expanded ? (
+          <div ref={pageIndexRef} data-urban-qii-index="true" className="scroll-mt-24">
+            <div role="group" aria-label="Selecionar página do Quadro II"
+              className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
+              {workspace.pages.map((item) => (
+                <button key={item.page_number} type="button"
+                  aria-pressed={activePage === item.page_number}
+                  aria-controls="sigapro-qii-selected-page"
+                  onClick={() => selectPage(item.page_number)}
+                  className={`min-w-0 rounded-xl border p-3 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-600
+                    ${activePage === item.page_number
+                      ? "border-sky-400 bg-sky-50 text-slate-950 ring-1 ring-sky-200"
+                      : "border-slate-200 bg-white text-slate-900 hover:bg-sky-50"}`}>
+                  <span className="block text-sm font-extrabold !text-slate-950">
+                    Página {item.page_number} · {item.topic}
+                  </span>
+                  <span className="mt-1 block text-xs !text-slate-600">
+                    {item.draft_count} rascunho(s) · {item.proposals?.length || 0} sugestões
+                  </span>
+                  <span className="mt-2 block text-xs font-bold text-sky-900">
+                    {activePage === item.page_number ? "Em leitura" : "Abrir página"}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+          {selectedPage ? (() => {
+            const page = selectedPage;
+            const entries = workspace.entries.filter((item) => item.page_number === page.page_number);
+            return (
+              <div id="sigapro-qii-selected-page" ref={pageDetailRef}
+                data-urban-qii-detail="true"
+                role="region" aria-label={`Leitura da página ${page.page_number} do Quadro II`}
+                className="mt-4 min-w-0 scroll-mt-24 overflow-hidden rounded-2xl border border-sky-200 bg-[#fbfdff] shadow-sm dark:border-sky-700 dark:bg-slate-900">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-sky-100 bg-white p-4 text-slate-900">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-wide text-sky-800">Leitura assistida — Quadro II</p>
+                    <h5 className="mt-1 text-base font-extrabold text-slate-950">
+                      Página {page.page_number} · {page.topic}
+                    </h5>
+                    <p className="mt-1 text-xs text-slate-600">
+                      {page.proposals?.length || 0} sugestões · conferência legal pendente
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button type="button" disabled={selectedIndex <= 0}
+                      onClick={() => {
+                        const prev = workspace.pages[selectedIndex - 1];
+                        if (prev) selectPage(prev.page_number);
+                      }}
+                      className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-900 hover:bg-sky-50 disabled:cursor-not-allowed disabled:opacity-50">
+                      Página anterior
+                    </button>
+                    <button type="button" disabled={selectedIndex >= workspace.pages.length - 1}
+                      onClick={() => {
+                        const next = workspace.pages[selectedIndex + 1];
+                        if (next) selectPage(next.page_number);
+                      }}
+                      className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-900 hover:bg-sky-50 disabled:cursor-not-allowed disabled:opacity-50">
+                      Próxima página
+                    </button>
+                    <button type="button"
+                      onClick={() => pageIndexRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
+                      className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs font-bold text-sky-950 hover:bg-sky-100">
+                      Ver índice
+                    </button>
+                  </div>
+                </div>
                     <div className="space-y-3 border-t border-slate-200 bg-[#fbfdff] p-3 dark:border-slate-700 dark:bg-slate-900 md:p-4">
                       {page.visual_warning ? (
                         <p className="rounded-lg border border-amber-200 bg-amber-50 p-2 text-xs text-amber-950">
@@ -418,11 +476,13 @@ export function UrbanQuadroIIWorkspacePanel({
                       </button>
 
                     </div>
-                  ) : null}
-                </div>
-              );
-            })}
-          </div>
+              </div>
+            );
+          })() : (
+            <p className="mt-3 rounded-xl border border-sky-100 bg-white px-4 py-3 text-sm text-slate-700">
+              Escolha uma página no índice para visualizar suas categorias e evidências, sem deslocamentos inesperados.
+            </p>
+          )}
         </>
       ) : null}
     </section>

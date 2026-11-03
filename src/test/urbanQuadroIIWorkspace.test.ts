@@ -158,7 +158,9 @@ describe("SIGAPRO IA — source-review form is visible and buttons maintain cont
     expect(editor).toBeGreaterThan(0);
     expect(editor).toBeLessThan(proposals);
     expect(panel).toContain("editorRef.current?.scrollIntoView");
-    expect(panel).toContain('expanded ? "lg:col-span-2"');
+    expect(panel).toContain('data-urban-qii-index="true"');
+    expect(panel).toContain('data-urban-qii-detail="true"');
+    expect(panel).toContain('pageDetailRef.current?.scrollIntoView({ behavior: "auto", block: "start" })');
     expect(panel).toContain('data-urban-qii-action="true"');
     expect(panel).toContain('data-urban-qii-action-label="true"');
     expect(panel).toContain("Pré-preencher e revisar");
@@ -186,5 +188,26 @@ describe("SIGAPRO IA — safe literal evidence and E1 group applicability", () =
     expect(seed).toContain("Creches; e similares.");
     expect(seed).toContain("document_sha256='68c85d879011dbb323e288a935099b66b6aca3babdd059b8d1c993f98b5750e1'");
     expect(seed).not.toContain("urban_regulation_versions");
+  });
+});
+
+
+describe("SIGAPRO IA — stable navigation between the 14 Quadro II pages", () => {
+  it("keeps the index fixed, renders only one detail and anchors each page switch", () => {
+    const panel = read("src/components/platform/UrbanQuadroIIWorkspacePanel.tsx");
+    const css = read("src/index.css");
+    expect(panel).toContain('role="group" aria-label="Selecionar página do Quadro II"');
+    expect(panel).toContain('aria-pressed={activePage === item.page_number}');
+    expect(panel).toContain('aria-controls="sigapro-qii-selected-page"');
+    expect(panel).toContain('data-urban-qii-detail="true"');
+    expect(panel).toContain('const page = selectedPage;');
+    expect(panel).toContain('useLayoutEffect(() => {');
+    expect(panel).toContain('pageDetailRef.current?.scrollIntoView({ behavior: "auto", block: "start" })');
+    expect(panel).toContain("Página anterior");
+    expect(panel).toContain("Próxima página");
+    expect(panel).toContain("Ver índice");
+    expect(panel).not.toContain('expanded ? "lg:col-span-2"');
+    expect(css).toContain("overflow-anchor: none;");
+    expect(css).toContain('[data-urban-qii-index="true"]');
   });
 });

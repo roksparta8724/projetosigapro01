@@ -11138,3 +11138,23 @@ html body #root [data-urban-quadro-ii="true"] button[data-urban-qii-action="true
   outline: 3px solid #0ea5e9 !important;
   outline-offset: 3px !important;
 }
+
+
+/* Quadro II: the page index remains stable as the single detail panel switches.
+   Disable scroll anchoring within the changing region to prevent viewport jumps
+   when switching from a tall E1 table to another source page. */
+html body #root [data-urban-quadro-ii="true"] [data-urban-qii-index="true"],
+html body #root [data-urban-quadro-ii="true"] [data-urban-qii-detail="true"] {
+  overflow-anchor: none;
+}
+html body #root [data-urban-quadro-ii="true"] [data-urban-qii-index="true"] button[aria-pressed="true"],
+html body #root [data-urban-quadro-ii="true"] [data-urban-qii-index="true"] button[aria-pressed="true"] * {
+  color: #0f253d !important;
+  -webkit-text-fill-color: #0f253d !important;
+  opacity: 1 !important;
+}
+html body #root [data-urban-quadro-ii="true"] [data-urban-qii-index="true"] button[aria-pressed="true"] {
+  background: #eff8ff !important;
+  background-color: #eff8ff !important;
+  border-color: #4a9ad2 !important;
+}
