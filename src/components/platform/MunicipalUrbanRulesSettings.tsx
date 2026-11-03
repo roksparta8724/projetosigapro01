@@ -132,31 +132,29 @@ export function MunicipalUrbanRulesSettings({
       </div>
 
       <div className="mt-5 min-w-0" data-urban-quadros-workspace="true">
-        <div role="tablist" aria-label="Quadros da legislação urbanística"
+        <div role="group" aria-label="Escolher quadro da legislação urbanística"
           className="grid grid-cols-1 gap-2 rounded-2xl border border-slate-200 bg-slate-100/80 p-2 dark:border-slate-700 dark:bg-slate-900 sm:grid-cols-2">
-          <button type="button" role="tab" data-urban-quadro-tab="true" id="sigapro-quadro-i-tab" aria-controls="sigapro-quadro-i-panel"
-            aria-selected={activeQuadro === "I"} onClick={() => setActiveQuadro("I")}
-            className={`min-w-0 rounded-xl border px-4 py-3 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-500 ${activeQuadro === "I"
-              ? "border-sky-300 bg-[#0b3150] text-white shadow-sm"
-              : "border-slate-200 bg-white text-slate-900 hover:bg-sky-50 dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100"}`}>
+          <button type="button" data-urban-quadro-tab="true" data-contrast-surface={activeQuadro === "I" ? "dark" : "light"}
+            id="sigapro-quadro-i-tab" aria-controls="sigapro-quadro-i-panel"
+            aria-pressed={activeQuadro === "I"} onClick={() => setActiveQuadro("I")}
+            className="min-w-0 rounded-xl border px-4 py-3 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-500">
             <span data-urban-quadro-tab-title="true" className="block text-sm font-extrabold">Quadro I — Índices urbanísticos</span>
             <span data-urban-quadro-tab-detail="true" className="mt-1 block text-xs">Ver linhas importadas, conferências e pendências</span>
           </button>
-          <button type="button" role="tab" data-urban-quadro-tab="true" id="sigapro-quadro-ii-tab" aria-controls="sigapro-quadro-ii-panel"
-            aria-selected={activeQuadro === "II"} onClick={() => setActiveQuadro("II")}
-            className={`min-w-0 rounded-xl border px-4 py-3 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-500 ${activeQuadro === "II"
-              ? "border-sky-300 bg-[#0b3150] text-white shadow-sm"
-              : "border-slate-200 bg-white text-slate-900 hover:bg-sky-50 dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100"}`}>
+          <button type="button" data-urban-quadro-tab="true" data-contrast-surface={activeQuadro === "II" ? "dark" : "light"}
+            id="sigapro-quadro-ii-tab" aria-controls="sigapro-quadro-ii-panel"
+            aria-pressed={activeQuadro === "II"} onClick={() => setActiveQuadro("II")}
+            className="min-w-0 rounded-xl border px-4 py-3 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-500">
             <span data-urban-quadro-tab-title="true" className="block text-sm font-extrabold">Quadro II — Usos e localização</span>
             <span data-urban-quadro-tab-detail="true" className="mt-1 block text-xs">Transcrição assistida, páginas 38 a 51</span>
           </button>
         </div>
         {activeQuadro === "I" ? (
-          <div id="sigapro-quadro-i-panel" role="tabpanel" aria-labelledby="sigapro-quadro-i-tab" className="min-w-0 pt-3">
+          <div id="sigapro-quadro-i-panel" role="region" aria-labelledby="sigapro-quadro-i-tab" className="min-w-0 pt-3">
             <UrbanLegalMatrixReviewPanel municipalityId={municipalityId} canView={canEdit} />
           </div>
         ) : (
-          <div id="sigapro-quadro-ii-panel" role="tabpanel" aria-labelledby="sigapro-quadro-ii-tab" className="min-w-0 pt-3">
+          <div id="sigapro-quadro-ii-panel" role="region" aria-labelledby="sigapro-quadro-ii-tab" className="min-w-0 pt-3">
             <UrbanQuadroIIWorkspacePanel municipalityId={municipalityId} canEdit={canEdit} />
           </div>
         )}

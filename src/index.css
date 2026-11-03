@@ -11018,78 +11018,79 @@ html body #root [data-urban-rules-settings="true"] button[data-sigapro-urban-rul
 /* END URBAN RULES SAVE BUTTON READABILITY V2 */
 
 
-/* SIGAPRO IA — QUADROS I/II PREMIUM TAB CONTRAST (2026-11-03).
-   Override the older inverse-main rule that paints selected aria-tabs dark
-   regardless of their navy background. Scope to the legal matrix only.
-   Dark = white type; light = navy type, in every municipal theme. */
+/* SIGAPRO IA — QUADROS I/II PREMIUM TAB CONTRAST: stable segmented selection.
+   The global inverse theme targets aria-selected and tab roles. This control
+   intentionally uses a labelled button group with aria-pressed to avoid that
+   unrelated global tab rule. Strictly scoped; all visual states are explicit. */
 html body #root [data-urban-rules-settings="true"] [data-urban-quadros-workspace="true"]
-button[data-urban-quadro-tab="true"][aria-selected="true"],
-html body #root [data-layout-mode="inverse-main"] [data-urban-rules-settings="true"]
-[data-urban-quadros-workspace="true"] button[data-urban-quadro-tab="true"][aria-selected="true"] {
+button[data-urban-quadro-tab="true"] {
+  min-height: 82px;
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 16px !important;
+  padding: 14px 18px !important;
+  filter: none !important;
+  opacity: 1 !important;
+  mix-blend-mode: normal !important;
+  text-shadow: none !important;
+  transition: background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+}
+html body #root [data-urban-rules-settings="true"] [data-urban-quadros-workspace="true"]
+button[data-urban-quadro-tab="true"][data-contrast-surface="dark"][aria-pressed="true"] {
   background: #0b3150 !important;
   background-color: #0b3150 !important;
   background-image: none !important;
-  color: #fff !important;
-  -webkit-text-fill-color: #fff !important;
-  border-color: #3286b8 !important;
-  opacity: 1 !important;
-  filter: none !important;
-  text-shadow: none !important;
-  mix-blend-mode: normal !important;
+  border-color: #1d739d !important;
+  box-shadow: 0 8px 22px rgba(11, 49, 80, .16) !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
 }
 html body #root [data-urban-rules-settings="true"] [data-urban-quadros-workspace="true"]
-button[data-urban-quadro-tab="true"][aria-selected="true"] :is(
-  [data-urban-quadro-tab-title="true"], [data-urban-quadro-tab-detail="true"]
-),
-html body #root [data-layout-mode="inverse-main"] [data-urban-rules-settings="true"]
-[data-urban-quadros-workspace="true"] button[data-urban-quadro-tab="true"][aria-selected="true"] :is(
-  [data-urban-quadro-tab-title="true"], [data-urban-quadro-tab-detail="true"]
-) {
-  color: #fff !important;
-  -webkit-text-fill-color: #fff !important;
+button[data-urban-quadro-tab="true"][data-contrast-surface="dark"][aria-pressed="true"]
+[data-urban-quadro-tab-title="true"] {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
   opacity: 1 !important;
   visibility: visible !important;
-  filter: none !important;
-  text-shadow: none !important;
-  mix-blend-mode: normal !important;
 }
 html body #root [data-urban-rules-settings="true"] [data-urban-quadros-workspace="true"]
-button[data-urban-quadro-tab="true"][aria-selected="true"] [data-urban-quadro-tab-detail="true"] {
-  color: #e2edf7 !important;
-  -webkit-text-fill-color: #e2edf7 !important;
+button[data-urban-quadro-tab="true"][data-contrast-surface="dark"][aria-pressed="true"]
+[data-urban-quadro-tab-detail="true"] {
+  color: #e4f2ff !important;
+  -webkit-text-fill-color: #e4f2ff !important;
+  opacity: 1 !important;
+  visibility: visible !important;
 }
 html body #root [data-urban-rules-settings="true"] [data-urban-quadros-workspace="true"]
-button[data-urban-quadro-tab="true"][aria-selected="false"],
-html body #root [data-layout-mode="inverse-main"] [data-urban-rules-settings="true"]
-[data-urban-quadros-workspace="true"] button[data-urban-quadro-tab="true"][aria-selected="false"] {
-  background: #fff !important;
-  background-color: #fff !important;
+button[data-urban-quadro-tab="true"][data-contrast-surface="light"][aria-pressed="false"] {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
   background-image: none !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: none !important;
   color: #152b43 !important;
   -webkit-text-fill-color: #152b43 !important;
-  border-color: #cbd5e1 !important;
-  opacity: 1 !important;
-  filter: none !important;
 }
 html body #root [data-urban-rules-settings="true"] [data-urban-quadros-workspace="true"]
-button[data-urban-quadro-tab="true"][aria-selected="false"] :is(
-  [data-urban-quadro-tab-title="true"], [data-urban-quadro-tab-detail="true"]
-) {
+button[data-urban-quadro-tab="true"][data-contrast-surface="light"][aria-pressed="false"]
+[data-urban-quadro-tab-title="true"] {
   color: #152b43 !important;
   -webkit-text-fill-color: #152b43 !important;
   opacity: 1 !important;
   visibility: visible !important;
-  filter: none !important;
 }
 html body #root [data-urban-rules-settings="true"] [data-urban-quadros-workspace="true"]
-button[data-urban-quadro-tab="true"][aria-selected="false"] [data-urban-quadro-tab-detail="true"] {
+button[data-urban-quadro-tab="true"][data-contrast-surface="light"][aria-pressed="false"]
+[data-urban-quadro-tab-detail="true"] {
   color: #475569 !important;
   -webkit-text-fill-color: #475569 !important;
+  opacity: 1 !important;
+  visibility: visible !important;
 }
 html body #root [data-urban-rules-settings="true"] [data-urban-quadros-workspace="true"]
-button[data-urban-quadro-tab="true"][aria-selected="false"]:hover {
+button[data-urban-quadro-tab="true"][data-contrast-surface="light"][aria-pressed="false"]:hover {
   background: #f0f8ff !important;
   background-color: #f0f8ff !important;
+  border-color: #93c5fd !important;
 }
 html body #root [data-urban-rules-settings="true"] [data-urban-quadros-workspace="true"]
 button[data-urban-quadro-tab="true"]:focus-visible {
