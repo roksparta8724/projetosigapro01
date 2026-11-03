@@ -11098,3 +11098,43 @@ button[data-urban-quadro-tab="true"]:focus-visible {
   outline-offset: 3px !important;
 }
 /* END SIGAPRO IA QUADROS PREMIUM TAB CONTRAST */
+
+
+/* Quadro II — high contrast actions independent of global inverse-main presets.
+   Prevent WebKit text-fill and nested-span rules from camouflaging active buttons. */
+html body #root [data-urban-quadro-ii="true"] button[data-urban-qii-action="true"],
+html body #root [data-urban-quadro-ii="true"] button[data-urban-qii-action="true"]:hover {
+  background: #0b3150 !important;
+  background-color: #0b3150 !important;
+  background-image: none !important;
+  border: 1px solid #5da5d1 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  font-weight: 750 !important;
+  text-shadow: none !important;
+  filter: none !important;
+  opacity: 1 !important;
+  box-shadow: 0 4px 11px rgba(10,43,69,.13) !important;
+}
+html body #root [data-urban-quadro-ii="true"] button[data-urban-qii-action="true"] > [data-urban-qii-action-label="true"] {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  filter: none !important;
+  text-shadow: none !important;
+  mix-blend-mode: normal !important;
+}
+html body #root [data-urban-quadro-ii="true"] button[data-urban-qii-action="true"]:disabled {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  background: #475569 !important;
+  background-color: #475569 !important;
+  opacity: 1 !important;
+  border-style: dashed !important;
+  cursor: not-allowed !important;
+}
+html body #root [data-urban-quadro-ii="true"] button[data-urban-qii-action="true"]:focus-visible {
+  outline: 3px solid #0ea5e9 !important;
+  outline-offset: 3px !important;
+}

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { BookOpenCheck, ChevronDown, FileWarning, Loader2, Save, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,6 +27,7 @@ export function UrbanQuadroIIWorkspacePanel({
   const [formOpen, setFormOpen] = useState(false);
   const [selectedSuggestion, setSelectedSuggestion] = useState<UrbanQuadroIISuggestion | null>(null);
   const [retryToken, setRetryToken] = useState(0);
+  const editorRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -50,6 +51,12 @@ export function UrbanQuadroIIWorkspacePanel({
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [municipalityId, canEdit, retryToken]);
+
+  // Keep the prepared form visible instead of leaving it below seven category cards.
+  useEffect(() => {
+    if (!formOpen || activePage === null) return;
+    editorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [activePage, formOpen, selectedSuggestion?.category_code]);
 
   const draftCount = useMemo(
     () => workspace?.entries.length || 0, [workspace],
@@ -196,12 +203,13 @@ export function UrbanQuadroIIWorkspacePanel({
             zonas. Nenhuma sugestão é norma e nada entra na análise da IA sem revisão documental e jurídica.
           </div>
           <p className="mt-4 text-sm font-bold text-slate-900 dark:text-white">Índice de leitura — páginas 38 a 51</p>
-          <div className="mt-2 grid gap-2 lg:grid-cols-2">
+          <div className="mt-2 grid items-start gap-2 lg:grid-cols-2">
             {workspace.pages.map((page) => {
               const expanded = activePage === page.page_number;
               const entries = workspace.entries.filter((item) => item.page_number === page.page_number);
               return (
-                <div key={page.page_number} className="min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-white text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-white">
+                <div key={page.page_number}
+                  className={`min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-white text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-white ${expanded ? "lg:col-span-2" : ""}`}>
                   <button type="button" aria-expanded={expanded}
                     onClick={() => selectPage(page.page_number)}
                     className="flex w-full min-w-0 items-center justify-between gap-3 p-3 text-left text-slate-900 hover:bg-sky-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-600 dark:text-white dark:hover:bg-slate-800">
@@ -216,86 +224,42 @@ export function UrbanQuadroIIWorkspacePanel({
                     </span>
                   </button>
                   {expanded ? (
-                    <div className="space-y-3 border-t border-slate-200 bg-[#fbfdff] p-3 dark:border-slate-700 dark:bg-slate-900">
+                    <div className="space-y-3 border-t border-slate-200 bg-[#fbfdff] p-3 dark:border-slate-700 dark:bg-slate-900 md:p-4">
                       {page.visual_warning ? (
                         <p className="rounded-lg border border-amber-200 bg-amber-50 p-2 text-xs text-amber-950">
                           <FileWarning className="mr-1 inline h-4 w-4" />
                           Página girada no original: examine a imagem antes de copiar qualquer número.
                         </p>
                       ) : null}
-                      {page.source_evidence_text ? (
-                        <details className="min-w-0 rounded-xl border border-sky-200 bg-white p-3 text-slate-900">
-                          <summary className="cursor-pointer text-xs font-bold text-sky-900">
-                            Exibir texto da página {page.page_number} extraído do PDF (não conferido)
-                          </summary>
-                          <p className="mt-2 text-xs leading-5 text-amber-900">
-                            {page.source_quality === "visual_required"
-                              ? "Esta página exige leitura visual. Não copie índices da extração automática."
-                              : "Extração automática: colunas e números podem estar fora de ordem. Compare com a imagem original."}
-                          </p>
-                          <p className="mt-2 max-h-64 overflow-y-auto whitespace-pre-wrap break-words rounded-lg bg-slate-50 p-3 font-mono text-xs leading-5 text-slate-800">
-                            {page.source_evidence_text}
-                          </p>
-                        </details>
-                      ) : null}
-                      {(page.proposals?.length || 0) > 0 ? (
-                        <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-3 text-slate-900">
-                          <p className="text-sm font-extrabold">Sugestões de categorias — requerem conferência</p>
-                          <p className="text-xs text-slate-600">
-                            A leitura assistida preenche os campos que encontrou no PDF, com indicação das
-                            páginas e dúvidas. Confira os números antes de salvar. Nada é ativado para a IA.
-                          </p>
-                          <div className="grid gap-2 sm:grid-cols-2">
-                            {page.proposals?.map((suggestion) => (
-                              <div key={suggestion.category_code} className="min-w-0 rounded-lg border border-slate-200 bg-slate-50 p-3">
-                                <strong className="block break-words text-xs text-slate-900">
-                                  {suggestion.category_code} — {suggestion.use_description}
-                                </strong>
-                                <p className="mt-1 break-words text-[11px] text-slate-600">
-                                  Fonte: páginas {suggestion.source_pages?.join(", ") || page.page_number} ·
-                                  leitura pendente de conferência
-                                </p>
-                                <p className="mt-1 break-words text-xs text-slate-700">
-                                  {suggestion.parking_requirement_text
-                                    ? `Vagas: ${suggestion.parking_requirement_text}`
-                                    : "Vagas: trecho ilegível ou não confirmado"}
-                                </p>
-                                <button type="button"
-                                  disabled={saving}
-                                  onClick={() => prepareSuggestion(page.page_number, suggestion)}
-                                  className="mt-2 rounded-lg border border-sky-200 bg-[#0b3150] px-3 py-2 text-xs font-bold !text-white hover:bg-sky-900 disabled:opacity-70">
-                                  <span className="!text-white">Pré-preencher campos</span>
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      ) : null}
-                      {entries.length > 0 ? entries.map((item) => (
-                        <article key={item.id} className="min-w-0 rounded-lg border border-slate-200 bg-white p-3 text-xs text-slate-800">
-                          <p className="font-bold">{item.category_code} · {item.use_description}</p>
-                          <p className="mt-1">Zonas: {item.permitted_zones_text || "Não transcritas"}</p>
-                          <p>Via: {item.road_hierarchy_text || "Não transcrita"}</p>
-                          <p>Estacionamento: {item.parking_requirement_text || "Não transcrito"}</p>
-                          <p className="mt-1 whitespace-pre-wrap break-words text-slate-600">Fonte literal: {item.source_excerpt}</p>
-                          <p className="mt-1 font-semibold text-amber-800">Rascunho — sem validação jurídica</p>
-                        </article>
-                      )) : (
-                        <p className="rounded-lg border border-slate-200 bg-white p-3 text-xs text-slate-600">
-                          Nenhuma categoria transcrita nesta página. Não presumir permissões.
-                        </p>
-                      )}
-                      <button type="button" onClick={() => { setFormOpen((value) => !value); setConfirmed(false); }}
-                        className="text-xs font-bold text-sky-800 underline underline-offset-4 dark:text-sky-300">
-                        {formOpen ? "Fechar formulário" : "Registrar categoria como rascunho"}
-                      </button>
                       {formOpen ? (
-                        <div className="space-y-3 rounded-xl border border-sky-200 bg-sky-50 p-3 text-slate-900">
+                        <div ref={editorRef} role="region" aria-label="Conferência assistida da categoria"
+                          data-urban-qii-editor="true"
+                          className="scroll-mt-24 space-y-4 rounded-2xl border-2 border-sky-300 bg-white p-4 text-slate-950 shadow-sm md:p-5">
+                          <div className="flex flex-wrap items-start justify-between gap-2">
+                            <div>
+                              <p className="text-xs font-bold uppercase tracking-wide text-sky-900">Conferência assistida · Página {page.page_number}</p>
+                              <h5 className="mt-1 text-lg font-extrabold text-slate-950">
+                                {selectedSuggestion ? `${draft.categoryCode} — ${draft.useDescription}` : "Nova categoria — rascunho manual"}
+                              </h5>
+                              <p className="mt-1 text-xs leading-5 text-slate-600">
+                                Campos sugeridos não são regras oficiais. Revise com a imagem do PDF antes de registrar.
+                              </p>
+                            </div>
+                            <button type="button" onClick={() => { setFormOpen(false); setSelectedSuggestion(null); }}
+                              className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-900 hover:bg-slate-100">
+                              Fechar conferência
+                            </button>
+                          </div>
+                          <div className="flex flex-wrap gap-2 text-xs font-semibold">
+                            <span className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-1.5 text-sky-950">1. Dados sugeridos</span>
+                            <span className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-amber-950">2. Conferir original</span>
+                            <span className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-slate-900">3. Salvar rascunho</span>
+                          </div>
                           <p className="text-xs leading-5 text-slate-700">
                             {selectedSuggestion
                               ? "Leitura automática carregada nos campos. Confira as zonas, a via, as vagas e as exceções no PDF original."
                               : "Cadastre uma categoria manualmente quando não houver leitura confiável."}
-                            {" "}Um rascunho não ativa normas urbanísticas.
+                            {" "}Quando um campo estiver em branco, o dado não foi confirmado e não deve ser inventado. Um rascunho não ativa normas urbanísticas.
                           </p>
                           {selectedSuggestion ? (
                             <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-950">
@@ -355,12 +319,88 @@ export function UrbanQuadroIIWorkspacePanel({
                             e exceções sugeridos. Este registro ficará somente como rascunho, sem aplicação automática.
                           </label>
                           <Button type="button" disabled={!valid || saving} onClick={() => void save()}
-                            className="sig-force-dark-action min-h-11 bg-slate-950 !text-white disabled:!text-white">
+                            data-urban-qii-action="true" className="sig-force-dark-action min-h-11 rounded-xl bg-[#0b3150] !text-white disabled:!text-white">
                             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                            <span className="!text-white">{saving ? "Salvando..." : "Salvar transcrição em rascunho"}</span>
+                            <span data-urban-qii-action-label="true" className="!text-white">{saving ? "Salvando..." : "Salvar transcrição em rascunho"}</span>
                           </Button>
                         </div>
                       ) : null}
+                      {page.source_evidence_text ? (
+                        <details className="min-w-0 rounded-xl border border-sky-200 bg-white p-3 text-slate-900">
+                          <summary className="cursor-pointer text-xs font-bold text-sky-900">
+                            Exibir texto da página {page.page_number} extraído do PDF (não conferido)
+                          </summary>
+                          <p className="mt-2 text-xs leading-5 text-amber-900">
+                            {page.source_quality === "visual_required"
+                              ? "Esta página exige leitura visual. Não copie índices da extração automática."
+                              : "Extração automática: colunas e números podem estar fora de ordem. Compare com a imagem original."}
+                          </p>
+                          <p className="mt-2 max-h-64 overflow-y-auto whitespace-pre-wrap break-words rounded-lg bg-slate-50 p-3 font-mono text-xs leading-5 text-slate-800">
+                            {page.source_evidence_text}
+                          </p>
+                        </details>
+                      ) : null}
+                      {(page.proposals?.length || 0) > 0 ? (
+                        <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-3 text-slate-900">
+                          <p className="text-sm font-extrabold">Sugestões de categorias — requerem conferência</p>
+                          <p className="text-xs text-slate-600">
+                            A leitura assistida preenche os campos que encontrou no PDF, com indicação das
+                            páginas e dúvidas. Confira os números antes de salvar. Nada é ativado para a IA.
+                          </p>
+                          <div className="grid gap-2 sm:grid-cols-2">
+                            {page.proposals?.map((suggestion) => (
+                              <div key={suggestion.category_code} className="min-w-0 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                                <strong className="block break-words text-xs text-slate-900">
+                                  {suggestion.category_code} — {suggestion.use_description}
+                                </strong>
+                                <p className="mt-1 break-words text-[11px] text-slate-600">
+                                  Fonte: páginas {suggestion.source_pages?.join(", ") || page.page_number} ·
+                                  leitura pendente de conferência
+                                </p>
+                                <p className="mt-1 break-words text-xs text-slate-700">
+                                  {suggestion.parking_requirement_text
+                                    ? `Vagas: ${suggestion.parking_requirement_text}`
+                                    : "Vagas: trecho ilegível ou não confirmado"}
+                                </p>
+                                <button type="button"
+                                  disabled={saving}
+                                  onClick={() => prepareSuggestion(page.page_number, suggestion)}
+                                  data-urban-qii-action="true"
+                                  className="mt-2 min-h-10 rounded-xl border border-sky-300 bg-[#0b3150] px-4 py-2.5 text-xs font-bold !text-white shadow-sm hover:bg-sky-900 disabled:opacity-70">
+                                  <span data-urban-qii-action-label="true" className="!text-white">Pré-preencher e revisar</span>
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null}
+                      {entries.length > 0 ? entries.map((item) => (
+                        <article key={item.id} className="min-w-0 rounded-lg border border-slate-200 bg-white p-3 text-xs text-slate-800">
+                          <p className="font-bold">{item.category_code} · {item.use_description}</p>
+                          <p className="mt-1">Zonas: {item.permitted_zones_text || "Não transcritas"}</p>
+                          <p>Via: {item.road_hierarchy_text || "Não transcrita"}</p>
+                          <p>Estacionamento: {item.parking_requirement_text || "Não transcrito"}</p>
+                          <p className="mt-1 whitespace-pre-wrap break-words text-slate-600">Fonte literal: {item.source_excerpt}</p>
+                          <p className="mt-1 font-semibold text-amber-800">Rascunho — sem validação jurídica</p>
+                        </article>
+                      )) : (
+                        <p className="rounded-lg border border-slate-200 bg-white p-3 text-xs text-slate-600">
+                          Nenhuma categoria transcrita nesta página. Não presumir permissões.
+                        </p>
+                      )}
+                      <button type="button" onClick={() => {
+                        const shouldOpen = !formOpen;
+                        if (shouldOpen) {
+                          setDraft(emptyDraft(page.page_number));
+                          setSelectedSuggestion(null);
+                        }
+                        setFormOpen(shouldOpen);
+                        setConfirmed(false);
+                      }}
+                        className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-sky-900 hover:bg-slate-50">
+                        {formOpen ? "Fechar formulário" : "Cadastrar outra categoria manualmente"}
+                      </button>
+
                     </div>
                   ) : null}
                 </div>

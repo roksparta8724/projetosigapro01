@@ -147,3 +147,25 @@ describe("SIGAPRO IA — assisted field auto-fill with legal safeguards", () => 
     expect(seed).not.toContain("activate_urban_regulation");
   });
 });
+
+
+describe("SIGAPRO IA — source-review form is visible and buttons maintain contrast", () => {
+  it("renders prepared editor above category cards and scrolls to the chosen source", () => {
+    const panel=read("src/components/platform/UrbanQuadroIIWorkspacePanel.tsx");
+    const css=read("src/index.css");
+    const editor=panel.indexOf('data-urban-qii-editor="true"');
+    const proposals=panel.indexOf("Sugestões de categorias — requerem conferência");
+    expect(editor).toBeGreaterThan(0);
+    expect(editor).toBeLessThan(proposals);
+    expect(panel).toContain("editorRef.current?.scrollIntoView");
+    expect(panel).toContain('expanded ? "lg:col-span-2"');
+    expect(panel).toContain('data-urban-qii-action="true"');
+    expect(panel).toContain('data-urban-qii-action-label="true"');
+    expect(panel).toContain("Pré-preencher e revisar");
+    expect(panel).toContain("Conferência assistida · Página");
+    expect(panel).toContain("setConfirmed(false); // Auto-fill is never a human confirmation.");
+    expect(css).toContain('button[data-urban-qii-action="true"] > [data-urban-qii-action-label="true"]');
+    expect(css).toContain("background: #0b3150 !important;");
+    expect(css).toContain("-webkit-text-fill-color: #ffffff !important;");
+  });
+});
