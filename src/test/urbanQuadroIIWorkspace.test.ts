@@ -348,3 +348,21 @@ describe("SIGAPRO IA — AIU(2) proportional card and optional correction", () =
     expect(matrix).not.toContain("space-y-1 rounded-xl border border-amber-300 bg-amber-50 p-3");
   });
 });
+
+
+describe("SIGAPRO IA — signed AIU2 exception is treated without false legal approval", () => {
+  it("counts documented exceptions as handled but not as verified coefficients", () => {
+    const calc=read("src/lib/urbanLegalMatrixReview.ts");
+    const panel=read("src/components/platform/UrbanLegalMatrixReviewPanel.tsx");
+    expect(calc).toContain("const handled = reviewed + needsCorrection");
+    expect(calc).toContain("const untreated = Math.max(0, total - handled)");
+    expect(calc).toContain("pending: Math.max(0, total - reviewed)");
+    expect(calc).toContain("handledPercentage:");
+    expect(panel).toContain('data-urban-matrix-reading-treated="true"');
+    expect(panel).toContain("Ressalvas já registradas (");
+    expect(panel).toContain("Não é necessário repetir a conferência da AIU(2).");
+    expect(panel).toContain("Salvar ressalva atualizada");
+    expect(panel).toContain("Revisei a evidência disponível e registrei a ressalva.");
+    expect(panel).toContain("A ressalva NÃO confirma o CA mínimo");
+  });
+});

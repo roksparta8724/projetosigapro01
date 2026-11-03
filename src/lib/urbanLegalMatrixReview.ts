@@ -32,10 +32,15 @@ export function calculateUrbanMatrixBatchProgress(
     };
   });
   const reviewed = rows.filter((row) => row.readingReviewed).length;
+  const needsCorrection = rows.filter((row) => row.needsCorrection).length;
+  // Recorded exceptions count as treated, never as source or legal verification.
+  const handled = reviewed + needsCorrection;
+  const untreated = Math.max(0, total - handled);
   return {
     total, reviewed, pending: Math.max(0, total - reviewed),
-    needsCorrection: rows.filter((row) => row.needsCorrection).length,
+    needsCorrection, handled, untreated,
     percentage: total === 0 ? 0 : Math.round(1000 * reviewed / total) / 10,
+    handledPercentage: total === 0 ? 0 : Math.round(1000 * handled / total) / 10,
     rows: rows.sort((a, b) => Number(a.readingReviewed) - Number(b.readingReviewed) || a.index - b.index),
   };
 }

@@ -150,7 +150,7 @@ export function UrbanLegalMatrixReviewPanel({
       setPageConfirmed(false);
       setNotice(decision === "reading_verified"
         ? "Leitura registrada e assinada no Neon. A vigência e a norma legal continuam pendentes."
-        : "Divergência registrada. Esta linha permanece pendente até nova conferência.");
+        : "Ressalva registrada no histórico. A leitura foi tratada administrativamente; o índice segue pendente de validação legal.");
     } catch (err) { setError(String((err as Error)?.message || err)); }
     finally { setSaving(false); }
   };
@@ -286,23 +286,33 @@ export function UrbanLegalMatrixReviewPanel({
       {detailLoading ? <p role="status" className="mt-3 flex items-center gap-2 text-xs text-slate-600"><Loader2 className="h-4 w-4 animate-spin" /> Carregando páginas e zonas...</p> : null}
       {selected && progress ? (
         <div className="mt-4 space-y-3" data-urban-matrix-progress="true">
-          <div className="grid gap-2 sm:grid-cols-3">
-            <div className="rounded-xl border border-slate-200 bg-white p-3 dark:bg-slate-950">
-              <p className="text-xs text-slate-600 dark:text-slate-300">Linhas extraídas</p>
-              <p className="text-xl font-black text-slate-950 dark:text-white">{progress.total}</p>
-            </div>
-            <div className="rounded-xl border border-slate-200 bg-white p-3 dark:bg-slate-950">
-              <p className="text-xs text-slate-600 dark:text-slate-300">Leitura conferida</p>
-              <p className="text-xl font-black text-emerald-700">{progress.reviewed}</p>
-            </div>
-            <div className="rounded-xl border border-amber-200 bg-white p-3 dark:bg-slate-950">
-              <p className="text-xs text-slate-600 dark:text-slate-300">Aguardando conferência</p>
-              <p className="text-xl font-black text-amber-800">{progress.pending}</p>
-            </div>
+          <div data-urban-matrix-handled-progress="true" className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+            {[
+              {label: "Linhas extraídas", count: progress.total},
+              {label: "Leituras conferidas", count: progress.reviewed},
+              {label: "Ressalvas documentadas", count: progress.needsCorrection},
+              {label: "Sem revisão", count: progress.untreated},
+            ].map((card) => (
+              <div key={card.label} className="min-w-0 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-950">
+                <p className="text-xs text-slate-600 dark:text-slate-300">{card.label}</p>
+                <p className="text-xl font-black text-slate-950 dark:text-white">{card.count}</p>
+              </div>
+            ))}
           </div>
-          <div aria-label="Progresso da revisão de leitura" className="h-2.5 overflow-hidden rounded-full bg-slate-200">
-            <div className="h-full rounded-full bg-sky-700" style={{ width: String(progress.percentage) + "%" }} />
+          <div aria-label="Progresso dos registros de leitura tratados" className="h-2.5 overflow-hidden rounded-full bg-slate-200">
+            <div className="h-full rounded-full bg-sky-700" style={{ width: String(progress.handledPercentage) + "%" }} />
           </div>
+          {progress.untreated === 0 && progress.needsCorrection > 0 ? (
+            <div data-urban-matrix-reading-treated="true"
+              className="rounded-xl border border-sky-200 bg-sky-50 p-3 text-xs leading-5 text-sky-950">
+              <strong className="block text-sm">
+                Etapa documental tratada: {progress.handled} de {progress.total} registros
+              </strong>
+              {progress.reviewed} leituras conferidas e {progress.needsCorrection} ressalva(s)
+              já registrada(s) no histórico. Não é necessário repetir a conferência da AIU(2).
+              A ressalva NÃO confirma o CA mínimo, não homologa a lei nem libera esse índice à IA.
+            </div>
+          ) : null}
           <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-950">
             <FileWarning className="mr-1 inline h-4 w-4" />
             Sem vigência comprovada: não ativar. Quadro II possui sugestões extraídas em lote independente,
@@ -312,7 +322,9 @@ export function UrbanLegalMatrixReviewPanel({
           <p className="break-all text-[11px] text-slate-500">Fonte: {selected.document_title} · SHA-256 {selected.document_sha256}</p>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-xs font-bold text-slate-700 dark:text-slate-300">
-              {showAll ? "Todas as linhas" : "Pendências para revisar (" + progress.pending + ")"}
+              {showAll ? "Todas as linhas" : progress.untreated === 0
+                ? "Ressalvas já registradas (" + progress.needsCorrection + ")"
+                : "Sem revisão: " + progress.untreated + " · ressalvas: " + progress.needsCorrection}
             </p>
             <button type="button" onClick={() => { setShowAll((v) => !v); setReviewingIndex(null); }}
               className="text-xs font-bold text-sky-800 underline underline-offset-4 dark:text-sky-300">
@@ -449,13 +461,13 @@ export function UrbanLegalMatrixReviewPanel({
                       ) : auditHistory}
                       <p className="font-semibold text-amber-800">
                         {entry.readingReviewed ? "Leitura conferida; vigência não comprovada."
-                          : entry.needsCorrection ? "Divergência já registrada; aguardando comprovação documental."
+                          : entry.needsCorrection ? "Ressalva já registrada: leitura tratada, comprovação legal pendente."
                             : "Aguardando revisão da leitura e das exceções."}
                       </p>
                       {pendingCa && entry.needsCorrection && reviewingIndex !== entry.index ? (
                         <p className="text-xs leading-5 text-slate-600 dark:text-slate-300">
-                          Não é necessário preencher novamente. Reabra somente se houver documento novo
-                          ou informação técnica que altere a observação.
+                          Não marque a caixa nem registre essa mesma observação novamente. A ressalva
+                          já consta no histórico; só edite se houver nova evidência técnica.
                         </p>
                       ) : null}
                       {!isArchived(selected.id) ? (
@@ -474,10 +486,12 @@ export function UrbanLegalMatrixReviewPanel({
                       {reviewingIndex === entry.index && !isArchived(selected.id) ? (
                         <div data-urban-matrix-reading-form="true" className="space-y-3 rounded-xl border border-sky-200 bg-sky-50 p-3 dark:border-sky-700 dark:bg-slate-900">
                           <p className="font-bold text-sky-950 dark:text-sky-200">
-                            Etapa de leitura: confira a página {row.page} do PDF {selected.document_title}
+                            {entry.needsCorrection ? "Edição opcional da ressalva já registrada" : "Conferência da leitura"} · página {row.page} do PDF {selected.document_title}
                           </p>
                           <p className="text-xs leading-5 text-slate-700 dark:text-slate-200">
-                            Confira os números e as observações no original. Isto não significa aprovação legal.
+                            {entry.needsCorrection
+                              ? "Esta ressalva já foi registrada. Feche o formulário se não houver informação nova; não é necessário reenviar."
+                              : "Confira os números e as observações no original. Isto não significa aprovação legal."}
                           </p>
                           <div className="grid gap-2 sm:grid-cols-2">
                             <label data-urban-matrix-reading-choice="true" className="flex min-w-0 items-start gap-2 rounded-lg border border-slate-200 bg-white p-3 text-xs font-semibold text-slate-900 dark:bg-slate-950 dark:text-white">
@@ -504,7 +518,9 @@ export function UrbanLegalMatrixReviewPanel({
                             placeholder="Informe o número/nota conferida ou descreva exatamente a divergência encontrada." />
                           <label className="flex items-start gap-2 text-xs font-medium text-slate-800 dark:text-slate-200">
                             <input type="checkbox" checked={pageConfirmed} onChange={(e) => setPageConfirmed(e.target.checked)} />
-                            Confirmei esta página no PDF original e registrei a observação. Sei que isso não comprova vigência.
+                            {decision === "needs_correction"
+                              ? "Revisei a evidência disponível e registrei a ressalva. Sei que isso não comprova o índice nem a vigência."
+                              : "Confirmei esta página no PDF original e registrei a observação. Sei que isso não comprova vigência."}
                           </label>
                           <div className="flex flex-wrap gap-2">
                             <Button type="button" disabled={saving || !pageConfirmed || reviewNote.trim().length < 20}
@@ -512,7 +528,8 @@ export function UrbanLegalMatrixReviewPanel({
                               data-urban-matrix-primary-action="true" aria-busy={saving}
                               className="sig-force-dark-action min-h-11 rounded-xl bg-slate-950 !text-white hover:bg-slate-800 disabled:!text-white disabled:opacity-100">
                               <span data-urban-matrix-primary-label="true" className="!text-white">
-                                {saving ? "Salvando..." : "Registrar conferência"}
+                                {saving ? "Salvando..." : decision === "needs_correction"
+                                  ? "Salvar ressalva atualizada" : "Registrar conferência"}
                               </span>
                             </Button>
                             <Button type="button" variant="outline" disabled={saving}
