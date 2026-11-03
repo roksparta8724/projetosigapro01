@@ -140,6 +140,13 @@ export type UrbanQuadroIISuggestion = {
   category_code: string;
   use_description: string;
   source_excerpt: string;
+  permitted_zones_text?: string;
+  road_hierarchy_text?: string;
+  parking_requirement_text?: string;
+  special_conditions_text?: string;
+  source_pages?: number[];
+  confidence?: "requires_visual_review" | "low_quality";
+  field_warnings?: string[];
   status: "proposal_unverified";
 };
 export type UrbanQuadroIIPage = {

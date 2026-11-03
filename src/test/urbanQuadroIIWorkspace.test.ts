@@ -111,8 +111,10 @@ describe("SIGAPRO IA — Quadro II PDF evidence suggestions remain unverified", 
     expect(seed).toContain("source_batch");
     expect(seed).toContain("ON CONFLICT (municipality_id,batch_id,page_number) DO NOTHING");
     expect(client).toContain('status: "proposal_unverified"');
-    expect(panel).toContain("Preparar rascunho");
-    expect(panel).toContain('sourceExcerpt: "", // Never mistake a suggested caption for a literal verified quotation.');
+    expect(panel).toContain("Pré-preencher campos");
+    expect(panel).toContain('sourceExcerpt: (proposal.source_excerpt || "").slice(0, 1600)');
+    expect(panel).toContain("setSelectedSuggestion(proposal)");
+    expect(panel).toContain("setConfirmed(false); // Auto-fill is never a human confirmation.");
     expect(panel).toContain('page.source_quality === "machine_unverified"');
     expect(panel).toContain("setConfirmed(false)");
     expect(panel).toContain("Texto extraído pode misturar colunas");
@@ -120,5 +122,28 @@ describe("SIGAPRO IA — Quadro II PDF evidence suggestions remain unverified", 
     expect(panel).toContain("Nenhuma sugestão é norma");
     expect(panel).toContain("Regras liberadas para IA");
     expect(panel).toContain('disabled={!valid || saving}');
+  });
+});
+
+
+describe("SIGAPRO IA — assisted field auto-fill with legal safeguards", () => {
+  it("prefills zoning, road, parking and source, but always requires manual evidence review", () => {
+    const panel=read("src/components/platform/UrbanQuadroIIWorkspacePanel.tsx");
+    const client=read("src/integrations/backend/urbanPrecheckClient.ts");
+    const seed=read("neon/qa-seeds/20261103_quadro_ii_autofill_candidates_qa.sql");
+    expect(client).toContain("permitted_zones_text?: string");
+    expect(client).toContain("source_pages?: number[]");
+    expect(panel).toContain('permittedZones: (proposal.permitted_zones_text || "").slice(0, 600)');
+    expect(panel).toContain('roadHierarchy: (proposal.road_hierarchy_text || "").slice(0, 600)');
+    expect(panel).toContain('parkingRequirement: (proposal.parking_requirement_text || "").slice(0, 600)');
+    expect(panel).toContain('specialConditions: (proposal.special_conditions_text || "").slice(0, 800)');
+    expect(panel).toContain('sourceExcerpt: (proposal.source_excerpt || "").slice(0, 1600)');
+    expect(panel).toContain('setConfirmed(false); // Auto-fill is never a human confirmation.');
+    expect(panel).toContain("selectedSuggestion.source_pages.join");
+    expect(panel).toContain("Não aprove o cadastro apenas pela aparência");
+    expect(panel).toContain('disabled={!valid || saving}');
+    expect(seed).toContain("68c85d879011dbb323e288a935099b66b6aca3babdd059b8d1c993f98b5750e1");
+    expect(seed).toContain("source_quality='machine_unverified'");
+    expect(seed).not.toContain("activate_urban_regulation");
   });
 });

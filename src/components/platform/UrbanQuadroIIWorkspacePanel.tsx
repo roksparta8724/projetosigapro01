@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
   listUrbanQuadroIIWorkspace, saveUrbanQuadroIIDraft,
-  type UrbanQuadroIIDraftInput, type UrbanQuadroIIWorkspace,
+  type UrbanQuadroIIDraftInput, type UrbanQuadroIISuggestion, type UrbanQuadroIIWorkspace,
 } from "@/integrations/backend/urbanPrecheckClient";
 
 const emptyDraft = (pageNumber: number): UrbanQuadroIIDraftInput => ({
@@ -25,6 +25,7 @@ export function UrbanQuadroIIWorkspacePanel({
   const [draft, setDraft] = useState<UrbanQuadroIIDraftInput>(() => emptyDraft(38));
   const [confirmed, setConfirmed] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
+  const [selectedSuggestion, setSelectedSuggestion] = useState<UrbanQuadroIISuggestion | null>(null);
   const [retryToken, setRetryToken] = useState(0);
 
   useEffect(() => {
@@ -34,6 +35,7 @@ export function UrbanQuadroIIWorkspacePanel({
     setNotice("");
     setActivePage(null);
     setFormOpen(false);
+    setSelectedSuggestion(null);
     if (!municipalityId || !canEdit) return () => { active = false; };
     setLoading(true);
     void listUrbanQuadroIIWorkspace(municipalityId)
@@ -62,9 +64,10 @@ export function UrbanQuadroIIWorkspacePanel({
   );
   const selectPage = (page: number) => {
     if (saving) return;
-    if (activePage === page) { setActivePage(null); setFormOpen(false); return; }
+    if (activePage === page) { setActivePage(null); setFormOpen(false); setSelectedSuggestion(null); return; }
     setActivePage(page);
     setDraft(emptyDraft(page));
+    setSelectedSuggestion(null);
     setConfirmed(false);
     setFormOpen(false);
     setNotice("");
@@ -82,6 +85,7 @@ export function UrbanQuadroIIWorkspacePanel({
       const next = await listUrbanQuadroIIWorkspace(municipalityId);
       setWorkspace(next);
       setDraft(emptyDraft(draft.pageNumber));
+      setSelectedSuggestion(null);
       setConfirmed(false);
       setFormOpen(false);
       setNotice("Transcrição salva como RASCUNHO SEM VALIDAÇÃO. Não foi criada regra ativa para a IA.");
@@ -90,6 +94,25 @@ export function UrbanQuadroIIWorkspacePanel({
     } finally {
       setSaving(false);
     }
+  };
+  const prepareSuggestion = (pageNumber: number, proposal: UrbanQuadroIISuggestion) => {
+    if (saving || proposal.status !== "proposal_unverified") return;
+    // Suggestions from old PDFs are untrusted. Clamp before showing them as editable text.
+    setDraft({
+      pageNumber,
+      categoryCode: proposal.category_code.slice(0, 32),
+      useDescription: proposal.use_description.slice(0, 200),
+      permittedZones: (proposal.permitted_zones_text || "").slice(0, 600),
+      roadHierarchy: (proposal.road_hierarchy_text || "").slice(0, 600),
+      parkingRequirement: (proposal.parking_requirement_text || "").slice(0, 600),
+      specialConditions: (proposal.special_conditions_text || "").slice(0, 800),
+      sourceExcerpt: (proposal.source_excerpt || "").slice(0, 1600),
+    });
+    setSelectedSuggestion(proposal);
+    setConfirmed(false); // Auto-fill is never a human confirmation.
+    setFormOpen(true);
+    setError("");
+    setNotice("Campos pré-preenchidos pela leitura do PDF. Confira as páginas indicadas e corrija os pontos duvidosos antes de registrar.");
   };
   const setField = (key: keyof Omit<UrbanQuadroIIDraftInput, "pageNumber">, value: string) => {
     setDraft((current) => ({ ...current, [key]: value }));
@@ -219,8 +242,8 @@ export function UrbanQuadroIIWorkspacePanel({
                         <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-3 text-slate-900">
                           <p className="text-sm font-extrabold">Sugestões de categorias — requerem conferência</p>
                           <p className="text-xs text-slate-600">
-                            Use como ponto de partida, sem importar zonas, vagas ou recuos por suposição.
-                            O registro somente será salvo depois de conferência humana no PDF.
+                            A leitura assistida preenche os campos que encontrou no PDF, com indicação das
+                            páginas e dúvidas. Confira os números antes de salvar. Nada é ativado para a IA.
                           </p>
                           <div className="grid gap-2 sm:grid-cols-2">
                             {page.proposals?.map((suggestion) => (
@@ -228,21 +251,20 @@ export function UrbanQuadroIIWorkspacePanel({
                                 <strong className="block break-words text-xs text-slate-900">
                                   {suggestion.category_code} — {suggestion.use_description}
                                 </strong>
+                                <p className="mt-1 break-words text-[11px] text-slate-600">
+                                  Fonte: páginas {suggestion.source_pages?.join(", ") || page.page_number} ·
+                                  leitura pendente de conferência
+                                </p>
+                                <p className="mt-1 break-words text-xs text-slate-700">
+                                  {suggestion.parking_requirement_text
+                                    ? `Vagas: ${suggestion.parking_requirement_text}`
+                                    : "Vagas: trecho ilegível ou não confirmado"}
+                                </p>
                                 <button type="button"
                                   disabled={saving}
-                                  onClick={() => {
-                                    setDraft({
-                                      ...emptyDraft(page.page_number),
-                                      categoryCode: suggestion.category_code,
-                                      useDescription: suggestion.use_description,
-                                      sourceExcerpt: "", // Never mistake a suggested caption for a literal verified quotation.
-                                    });
-                                    setConfirmed(false);
-                                    setFormOpen(true);
-                                    setNotice("");
-                                  }}
-                                  className="mt-2 rounded-lg border border-sky-200 bg-white px-3 py-2 text-xs font-bold text-sky-950 hover:bg-sky-50">
-                                  Preparar rascunho
+                                  onClick={() => prepareSuggestion(page.page_number, suggestion)}
+                                  className="mt-2 rounded-lg border border-sky-200 bg-[#0b3150] px-3 py-2 text-xs font-bold !text-white hover:bg-sky-900 disabled:opacity-70">
+                                  <span className="!text-white">Pré-preencher campos</span>
                                 </button>
                               </div>
                             ))}
@@ -270,10 +292,24 @@ export function UrbanQuadroIIWorkspacePanel({
                       {formOpen ? (
                         <div className="space-y-3 rounded-xl border border-sky-200 bg-sky-50 p-3 text-slate-900">
                           <p className="text-xs leading-5 text-slate-700">
-                            Transcreva uma categoria por vez. Sugestões pré-preenchidas não são conferência:
-                            verifique e corrija o trecho no PDF original antes de marcar a confirmação.
-                            Não deduza zonas, vagas ou restrições ilegíveis. Salvar não ativa normas urbanísticas.
+                            {selectedSuggestion
+                              ? "Leitura automática carregada nos campos. Confira as zonas, a via, as vagas e as exceções no PDF original."
+                              : "Cadastre uma categoria manualmente quando não houver leitura confiável."}
+                            {" "}Um rascunho não ativa normas urbanísticas.
                           </p>
+                          {selectedSuggestion ? (
+                            <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-950">
+                              <strong className="block">Conferência documental necessária</strong>
+                              <span className="block">Páginas para conferir: {selectedSuggestion.source_pages?.join(" e ") || page.page_number}</span>
+                              {selectedSuggestion.field_warnings?.map((warning, index) => (
+                                <p key={index} className="mt-1 break-words">{warning}</p>
+                              ))}
+                              <p className="mt-2 font-semibold">
+                                Os dados sugeridos ainda não são parâmetros oficialmente validados.
+                                Não aprove o cadastro apenas pela aparência do preenchimento.
+                              </p>
+                            </div>
+                          ) : null}
                           <div className="grid gap-3 sm:grid-cols-2">
                             <label className="text-xs font-semibold">Código da categoria
                               <Input className="mt-1 bg-white text-slate-900" value={draft.categoryCode}
@@ -305,7 +341,7 @@ export function UrbanQuadroIIWorkspacePanel({
                                 onChange={(e) => setField("specialConditions",e.target.value)} maxLength={800}
                                 placeholder="Notas, exigências e exceções da página" rows={2} />
                             </label>
-                            <label className="text-xs font-semibold sm:col-span-2">Trecho verificado na imagem do PDF (mínimo 20 caracteres)
+                            <label className="text-xs font-semibold sm:col-span-2">Trecho de evidência sugerido (confira e corrija no PDF; mínimo 20 caracteres)
                               <Textarea className="mt-1 bg-white text-slate-900" value={draft.sourceExcerpt}
                                 onChange={(e) => setField("sourceExcerpt",e.target.value)} maxLength={1600}
                                 placeholder="Copie a evidência visível na página, sem corrigir números por suposição" rows={3} />
@@ -313,8 +349,10 @@ export function UrbanQuadroIIWorkspacePanel({
                           </div>
                           <label className="flex items-start gap-2 text-xs font-semibold leading-5 text-slate-800">
                             <input type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} />
-                            Conferi a página {page.page_number} no PDF original.
-                            Este registro ficará apenas como rascunho, sem aplicação automática.
+                            Conferi {selectedSuggestion?.source_pages?.length
+                              ? `as páginas ${selectedSuggestion.source_pages.join(" e ")}`
+                              : `a página ${page.page_number}`} no PDF original, inclusive os números
+                            e exceções sugeridos. Este registro ficará somente como rascunho, sem aplicação automática.
                           </label>
                           <Button type="button" disabled={!valid || saving} onClick={() => void save()}
                             className="sig-force-dark-action min-h-11 bg-slate-950 !text-white disabled:!text-white">
