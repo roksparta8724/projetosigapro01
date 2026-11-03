@@ -36,7 +36,7 @@ describe("municipal institutional uploads stay readable in compact cards", () =>
     }
     expect(configSource).toContain("grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-2 2xl:grid-cols-3");
     expect(source).toContain('data-upload-layout={stacked ? "stacked" : "auto"}');
-    expect(source).toContain('stacked ? "sm:flex-col"');
+    expect(source).toContain('!stacked && "sm:flex-row sm:flex-wrap');
     expect(source).toContain('!stacked && "sm:w-auto"');
   });
 });
