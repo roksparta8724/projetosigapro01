@@ -32,7 +32,7 @@ describe("SIGAPRO IA — Quadro II safe assisted transcription", () => {
     expect(panel).toContain('workspace?.status === "pending_legal_review"');
     expect(panel).toContain('disabled={!valid || saving}');
     expect(panel).toContain('crypto.randomUUID()');
-    expect(panel).toContain("Conferi a página");
+    expect(panel).toContain("Conferi {selectedSuggestion?.source_pages?.length");
     expect(panel).toContain("sem validação jurídica");
     expect(settings).toContain("<UrbanLegalMatrixReviewPanel");
     expect(settings).toContain("<UrbanQuadroIIWorkspacePanel");
@@ -46,7 +46,7 @@ describe("SIGAPRO IA — Quadro II safe assisted transcription", () => {
     expect(panel).toContain('permittedZones: ""');
     expect(panel).toContain('parkingRequirement: ""');
     expect(panel).toContain("Deixe vazio se não confirmado");
-    expect(panel).toContain("Este registro ficará apenas como rascunho");
+    expect(panel).toContain("Este registro ficará somente como rascunho");
   });
 });
 
