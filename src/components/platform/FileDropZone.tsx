@@ -160,12 +160,12 @@ export function FileDropZone({
         }}
         onDrop={handleDrop}
       >
-        <div className={cn("flex min-w-0 flex-col gap-4", stacked ? "flex-col" : "xl:flex-row xl:items-start xl:justify-between")}>
+        <div className={cn("flex min-w-0 flex-col gap-4", !stacked && "xl:flex-row xl:items-start xl:justify-between")}>
           <div className="min-w-0 flex-1">
             <p className="break-words text-sm font-semibold leading-6 text-slate-900 dark:text-white sm:text-base">{title}</p>
             <p className="mt-1 max-w-2xl break-words text-sm leading-6 text-slate-500 dark:text-slate-300">{description}</p>
           </div>
-          <div className={cn("flex w-full flex-col gap-3 sm:flex-row sm:flex-wrap", stacked ? "sm:flex-col" : "xl:w-auto xl:max-w-[240px] xl:justify-end")}>
+          <div className={cn("flex w-full flex-col gap-3", !stacked && "sm:flex-row sm:flex-wrap xl:w-auto xl:max-w-[240px] xl:justify-end")}>
             <Button
               type="button"
               variant="outline"
