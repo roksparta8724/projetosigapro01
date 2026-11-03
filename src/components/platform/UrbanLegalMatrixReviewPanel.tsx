@@ -99,9 +99,9 @@ export function UrbanLegalMatrixReviewPanel({
     return showAll ? progress.rows : progress.rows.filter((row) => !row.readingReviewed);
   }, [progress, showAll]);
 
-  const startReview = (index: number, existingNote?: string) => {
+  const startReview = (index: number, existingNote?: string, hasReadingIssue = false) => {
     setReviewingIndex(index);
-    setDecision("reading_verified");
+    setDecision(hasReadingIssue ? "needs_correction" : "reading_verified");
     setReviewNote(existingNote || "");
     setPageConfirmed(false);
     setError("");
@@ -343,7 +343,7 @@ export function UrbanLegalMatrixReviewPanel({
                       </p>
                       {!isArchived(selected.id) ? (
                         <Button type="button" variant="outline" disabled={!auditAvailable || saving}
-                          onClick={() => startReview(entry.index, entry.review?.note)}
+                          onClick={() => startReview(entry.index, entry.review?.note, hasReadingIssue)}
                           className="min-h-10 border-sky-200 text-sky-900">
                           <ClipboardCheck className="mr-2 h-4 w-4" />
                           {entry.readingReviewed ? "Revisar novamente" : "Conferir esta linha"}
