@@ -1,4 +1,4 @@
-import type { UrbanMatrixBatchDetail } from "@/integrations/backend/urbanPrecheckClient";
+import type { UrbanMatrixBatchDetail, UrbanMatrixRowReadingAudit } from "@/integrations/backend/urbanPrecheckClient";
 
 type MatrixRow = Record<string, unknown>;
 export function formatUrbanMatrixSourceValue(value: unknown): string {
@@ -6,17 +6,36 @@ export function formatUrbanMatrixSourceValue(value: unknown): string {
   if (typeof value === "string" || typeof value === "number") return String(value);
   return "Exige conferência da fonte";
 }
-export function calculateUrbanMatrixBatchProgress(batch: UrbanMatrixBatchDetail) {
+export function calculateUrbanMatrixBatchProgress(
+  batch: UrbanMatrixBatchDetail,
+  rowReviews: UrbanMatrixRowReadingAudit[] = [],
+) {
   const total = batch.source_rows.length;
-  const reviewedSet = new Set(batch.reviewed_indexes.filter(
+  const legacyReviewed = new Set(batch.reviewed_indexes.filter(
     (index): index is number => Number.isInteger(index) && index >= 0 && index < total,
   ));
-  const rows = batch.source_rows.map((source, index) => ({
-    index, source, readingReviewed: reviewedSet.has(index),
-  }));
+  // Newer, signed reviews override the original snapshot without mutating it.
+  const latest = new Map<number, UrbanMatrixRowReadingAudit>();
+  for (const entry of [...rowReviews].sort(
+    (a, b) => (a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id)) * -1,
+  )) {
+    if (entry.batch_id !== batch.id || !Number.isInteger(entry.row_index) ||
+        entry.row_index < 0 || entry.row_index >= total || latest.has(entry.row_index)) continue;
+    latest.set(entry.row_index, entry);
+  }
+  const rows = batch.source_rows.map((source, index) => {
+    const review = latest.get(index);
+    return {
+      index, source, review,
+      readingReviewed: review ? review.action === "reading_verified" : legacyReviewed.has(index),
+      needsCorrection: review?.action === "needs_correction",
+    };
+  });
+  const reviewed = rows.filter((row) => row.readingReviewed).length;
   return {
-    total, reviewed: reviewedSet.size, pending: Math.max(0, total - reviewedSet.size),
-    percentage: total === 0 ? 0 : Math.round(1000 * reviewedSet.size / total) / 10,
+    total, reviewed, pending: Math.max(0, total - reviewed),
+    needsCorrection: rows.filter((row) => row.needsCorrection).length,
+    percentage: total === 0 ? 0 : Math.round(1000 * reviewed / total) / 10,
     rows: rows.sort((a, b) => Number(a.readingReviewed) - Number(b.readingReviewed) || a.index - b.index),
   };
 }
