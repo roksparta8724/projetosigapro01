@@ -30,6 +30,7 @@ export function UrbanQuadroIIWorkspacePanel({
   const editorRef = useRef<HTMLDivElement | null>(null);
   const pageIndexRef = useRef<HTMLDivElement | null>(null);
   const pageDetailRef = useRef<HTMLDivElement | null>(null);
+  const pageButtonRefs = useRef<Map<number, HTMLButtonElement>>(new Map());
 
   useEffect(() => {
     let active = true;
@@ -73,12 +74,21 @@ export function UrbanQuadroIIWorkspacePanel({
     draft.sourceExcerpt.trim().length >= 20 && confirmed &&
     workspace?.status === "pending_legal_review" && activePage === draft.pageNumber,
   );
-  // React paints one stable page-detail panel below a fixed page index.
-  // Align the new detail immediately after a page switch to avoid browser
-  // scroll anchoring jumps when the previous page had much taller content.
+  // Keep navigation in a stable horizontal strip; never auto-scroll the whole
+  // page down to a long detail panel merely because a page was selected.
   useLayoutEffect(() => {
     if (activePage === null) return;
-    pageDetailRef.current?.scrollIntoView({ behavior: "auto", block: "start" });
+    const index = pageIndexRef.current;
+    const activeButton = pageButtonRefs.current.get(activePage);
+    if (!index || !activeButton) return;
+    const left = activeButton.offsetLeft - index.offsetLeft;
+    const right = left + activeButton.offsetWidth;
+    if (left < index.scrollLeft || right > index.scrollLeft + index.clientWidth) {
+      index.scrollTo({
+        left: Math.max(0, left - Math.max(12, index.clientWidth / 3)),
+        behavior: "auto",
+      });
+    }
   }, [activePage]);
 
   const selectPage = (page: number) => {
@@ -216,31 +226,40 @@ export function UrbanQuadroIIWorkspacePanel({
             zonas. Nenhuma sugestão é norma e nada entra na análise da IA sem revisão documental e jurídica.
           </div>
           <p className="mt-4 text-sm font-bold text-slate-900 dark:text-white">Índice de leitura — páginas 38 a 51</p>
-          <div ref={pageIndexRef} data-urban-qii-index="true" className="scroll-mt-24">
+          <div ref={pageIndexRef} data-urban-qii-index="true"
+            className="mt-2 scroll-mt-24 overflow-x-auto overscroll-x-contain rounded-2xl border border-slate-200 bg-white p-2 dark:border-slate-700 dark:bg-slate-950">
             <div role="group" aria-label="Selecionar página do Quadro II"
-              className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
+              className="flex w-max min-w-full flex-nowrap gap-2">
               {workspace.pages.map((item) => (
                 <button key={item.page_number} type="button"
+                  ref={(node) => {
+                    if (node) pageButtonRefs.current.set(item.page_number, node);
+                    else pageButtonRefs.current.delete(item.page_number);
+                  }}
                   aria-pressed={activePage === item.page_number}
                   aria-controls="sigapro-qii-selected-page"
                   onClick={() => selectPage(item.page_number)}
-                  className={`min-w-0 rounded-xl border p-3 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-600
+                  className={`w-[160px] shrink-0 rounded-xl border px-3 py-2.5 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-600
                     ${activePage === item.page_number
                       ? "border-sky-400 bg-sky-50 text-slate-950 ring-1 ring-sky-200"
                       : "border-slate-200 bg-white text-slate-900 hover:bg-sky-50"}`}>
-                  <span className="block text-sm font-extrabold !text-slate-950">
-                    Página {item.page_number} · {item.topic}
+                  <span className="block truncate text-sm font-extrabold !text-slate-950">
+                    Página {item.page_number}
                   </span>
-                  <span className="mt-1 block text-xs !text-slate-600">
-                    {item.draft_count} rascunho(s) · {item.proposals?.length || 0} sugestões
+                  <span className="mt-1 block truncate text-xs !text-slate-600" title={item.topic}>
+                    {item.topic}
                   </span>
-                  <span className="mt-2 block text-xs font-bold text-sky-900">
-                    {activePage === item.page_number ? "Em leitura" : "Abrir página"}
+                  <span className="mt-1 block text-[11px] font-semibold text-sky-900">
+                    {activePage === item.page_number ? "Selecionada" : `${item.proposals?.length || 0} sugestões`}
                   </span>
                 </button>
               ))}
             </div>
           </div>
+          <p className="mt-2 text-xs leading-5 text-slate-600 dark:text-slate-300">
+            Escolha uma página acima ou use Anterior e Próxima. O conteúdo fica aqui,
+            sem deslocar a tela para o fim da lista.
+          </p>
           {selectedPage ? (() => {
             const page = selectedPage;
             const entries = workspace.entries.filter((item) => item.page_number === page.page_number);
@@ -277,7 +296,7 @@ export function UrbanQuadroIIWorkspacePanel({
                       Próxima página
                     </button>
                     <button type="button"
-                      onClick={() => pageIndexRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
+                      onClick={() => pageIndexRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" })}
                       className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs font-bold text-sky-950 hover:bg-sky-100">
                       Ver índice
                     </button>

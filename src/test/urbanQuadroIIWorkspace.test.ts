@@ -160,7 +160,8 @@ describe("SIGAPRO IA — source-review form is visible and buttons maintain cont
     expect(panel).toContain("editorRef.current?.scrollIntoView");
     expect(panel).toContain('data-urban-qii-index="true"');
     expect(panel).toContain('data-urban-qii-detail="true"');
-    expect(panel).toContain('pageDetailRef.current?.scrollIntoView({ behavior: "auto", block: "start" })');
+    expect(panel).not.toContain('pageDetailRef.current?.scrollIntoView({ behavior: "auto", block: "start" })');
+    expect(panel).toContain("pageButtonRefs.current.get(activePage)");
     expect(panel).toContain('data-urban-qii-action="true"');
     expect(panel).toContain('data-urban-qii-action-label="true"');
     expect(panel).toContain("Pré-preencher e revisar");
@@ -202,12 +203,29 @@ describe("SIGAPRO IA — stable navigation between the 14 Quadro II pages", () =
     expect(panel).toContain('data-urban-qii-detail="true"');
     expect(panel).toContain('const page = selectedPage;');
     expect(panel).toContain('useLayoutEffect(() => {');
-    expect(panel).toContain('pageDetailRef.current?.scrollIntoView({ behavior: "auto", block: "start" })');
+    expect(panel).not.toContain('pageDetailRef.current?.scrollIntoView({ behavior: "auto", block: "start" })');
+    expect(panel).toContain("pageButtonRefs.current.get(activePage)");
     expect(panel).toContain("Página anterior");
     expect(panel).toContain("Próxima página");
     expect(panel).toContain("Ver índice");
     expect(panel).not.toContain('expanded ? "lg:col-span-2"');
     expect(css).toContain("overflow-anchor: none;");
     expect(css).toContain('[data-urban-qii-index="true"]');
+  });
+});
+
+
+describe("SIGAPRO IA — stable compact navigation for all 14 pages", () => {
+  it("keeps selected details beside a one-row page index without forced vertical jumps", () => {
+    const panel = read("src/components/platform/UrbanQuadroIIWorkspacePanel.tsx");
+    expect(panel).toContain('className="flex w-max min-w-full flex-nowrap gap-2"');
+    expect(panel).toContain("overflow-x-auto overscroll-x-contain");
+    expect(panel).toContain("pageButtonRefs.current.get(activePage)");
+    expect(panel).toContain("index.scrollTo({");
+    expect(panel).not.toContain('pageDetailRef.current?.scrollIntoView({ behavior: "auto", block: "start" })');
+    expect(panel).toContain("selectedPage ? (() => {");
+    expect(panel).toContain("Página anterior");
+    expect(panel).toContain("Próxima página");
+    expect(panel).toContain("sem deslocar a tela para o fim da lista");
   });
 });
