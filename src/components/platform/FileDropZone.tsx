@@ -28,6 +28,8 @@ interface FileDropZoneProps {
   onFilesSelected: (files: UploadedFileItem[]) => void | Promise<void>;
   onFilesRemoved?: (files: UploadedFileItem[]) => void | Promise<void>;
   savedLabel?: string;
+  /** Stack the copy and picker when the upload is inside a narrow dashboard card. */
+  stacked?: boolean;
 }
 
 function sizeLabel(size: number) {
@@ -64,6 +66,7 @@ export function FileDropZone({
   onFilesSelected,
   onFilesRemoved,
   savedLabel = "Salvo no rascunho",
+  stacked = false,
 }: FileDropZoneProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const ownedPreviewUrlsRef = useRef<Set<string>>(new Set());
@@ -134,7 +137,7 @@ export function FileDropZone({
   };
 
   return (
-    <div className="min-w-0 space-y-4" data-upload-zone data-upload-busy={busy ? "true" : "false"}>
+    <div className="min-w-0 space-y-4" data-upload-zone data-upload-layout={stacked ? "stacked" : "auto"} data-upload-busy={busy ? "true" : "false"}>
       <div
         aria-busy={busy}
         className={cn(
@@ -157,16 +160,16 @@ export function FileDropZone({
         }}
         onDrop={handleDrop}
       >
-        <div className="flex min-w-0 flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+        <div className={cn("flex min-w-0 flex-col gap-4", stacked ? "flex-col" : "xl:flex-row xl:items-start xl:justify-between")}>
           <div className="min-w-0 flex-1">
             <p className="break-words text-sm font-semibold leading-6 text-slate-900 dark:text-white sm:text-base">{title}</p>
             <p className="mt-1 max-w-2xl break-words text-sm leading-6 text-slate-500 dark:text-slate-300">{description}</p>
           </div>
-          <div className="flex w-full flex-col gap-3 sm:flex-row sm:flex-wrap xl:w-auto xl:max-w-[240px] xl:justify-end">
+          <div className={cn("flex w-full flex-col gap-3 sm:flex-row sm:flex-wrap", stacked ? "sm:flex-col" : "xl:w-auto xl:max-w-[240px] xl:justify-end")}>
             <Button
               type="button"
               variant="outline"
-              className="min-h-[44px] w-full max-w-full rounded-full border-slate-200 px-4 py-2.5 text-slate-700 transition-colors duration-150 hover:border-slate-300 hover:bg-slate-50 dark:border-white/12 dark:bg-white/[0.02] dark:text-slate-100 dark:hover:bg-white/[0.06] sm:w-auto"
+              className={cn("min-h-[44px] w-full max-w-full rounded-full border-slate-200 px-4 py-2.5 text-slate-700 transition-colors duration-150 hover:border-slate-300 hover:bg-slate-50 dark:border-white/12 dark:bg-white/[0.02] dark:text-slate-100 dark:hover:bg-white/[0.06]", !stacked && "sm:w-auto")}
               onClick={openFilePicker}
               disabled={interactionLocked}
             >
