@@ -111,7 +111,7 @@ describe("SIGAPRO IA — Quadro II PDF evidence suggestions remain unverified", 
     expect(seed).toContain("source_batch");
     expect(seed).toContain("ON CONFLICT (municipality_id,batch_id,page_number) DO NOTHING");
     expect(client).toContain('status: "proposal_unverified"');
-    expect(panel).toContain("Pré-preencher campos");
+    expect(panel).toContain("Pré-preencher e revisar");
     expect(panel).toContain('sourceExcerpt: (proposal.source_excerpt || "").slice(0, 1600)');
     expect(panel).toContain("setSelectedSuggestion(proposal)");
     expect(panel).toContain("setConfirmed(false); // Auto-fill is never a human confirmation.");
