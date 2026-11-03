@@ -106,7 +106,7 @@ export function UrbanQuadroIIWorkspacePanel({
           </h4>
           <p className="mt-1 max-w-3xl text-xs leading-5 text-slate-700 dark:text-slate-200">
             Continuação independente do Quadro I. Confira cada categoria diretamente no PDF antes
-            de guardar a transcrição. O CA mínimo da AIU(2) permanece pendente no Quadro I.
+            de guardar a transcrição. Pendências do Quadro I permanecem isoladas nesta etapa.
           </p>
         </div>
         <span className="rounded-full border border-amber-300 bg-amber-50 px-3 py-1 text-xs font-bold text-amber-950">

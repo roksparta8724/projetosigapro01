@@ -140,7 +140,7 @@ export function MunicipalUrbanRulesSettings({
               ? "border-sky-300 bg-[#0b3150] text-white shadow-sm"
               : "border-slate-200 bg-white text-slate-900 hover:bg-sky-50 dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100"}`}>
             <span className="block text-sm font-extrabold">Quadro I — Índices urbanísticos</span>
-            <span className="mt-1 block text-xs opacity-90">Ver 23 registros, conferências e AIU(2) pendente</span>
+            <span className="mt-1 block text-xs opacity-90">Ver linhas importadas, conferências e pendências</span>
           </button>
           <button type="button" role="tab" id="sigapro-quadro-ii-tab" aria-controls="sigapro-quadro-ii-panel"
             aria-selected={activeQuadro === "II"} onClick={() => setActiveQuadro("II")}
@@ -163,6 +163,16 @@ export function MunicipalUrbanRulesSettings({
       </div>
       {canEdit && municipalityId ? (
         <>
+          <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-900">
+            <h4 className="text-sm font-extrabold text-slate-900 dark:text-white">
+              Cadastro jurídico de versões — etapa independente
+            </h4>
+            <p className="mt-1 text-xs leading-5 text-slate-700 dark:text-slate-200">
+              Os campos abaixo não são a transcrição dos Quadros I ou II.
+              Preencha somente parâmetros legalmente confirmados, com referências e vigência verificadas.
+              Salvar um rascunho não o ativa para a IA.
+            </p>
+          </div>
           <div className="mt-5 grid gap-3 md:grid-cols-3">
             <label className="text-xs font-bold text-slate-700 dark:text-slate-200">
               Código da zona

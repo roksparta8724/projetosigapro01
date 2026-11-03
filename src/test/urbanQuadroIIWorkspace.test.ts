@@ -27,7 +27,7 @@ describe("SIGAPRO IA — Quadro II safe assisted transcription", () => {
     expect(client).toContain('"save_urban_quadro_ii_draft_entry_v1"');
     expect(client).toContain('_document_sha256: documentSha256');
     expect(panel).toContain('data-urban-quadro-ii="true"');
-    expect(panel).toContain("CA mínimo da AIU(2) permanece pendente");
+    expect(panel).toContain("Pendências do Quadro I permanecem isoladas");
     expect(panel).toContain("Nenhuma categoria transcrita nesta página");
     expect(panel).toContain('workspace?.status === "pending_legal_review"');
     expect(panel).toContain('disabled={!valid || saving}');
@@ -62,6 +62,8 @@ describe("SIGAPRO IA — Quadro I visible by default and Quadro II recoverable",
     expect(settings).toContain('role="tabpanel"');
     expect(settings).toContain("Quadro I — Índices urbanísticos");
     expect(settings).toContain("Quadro II — Usos e localização");
+    expect(settings).toContain("Cadastro jurídico de versões — etapa independente");
+    expect(settings).not.toContain("Ver 23 registros");
     expect(settings).toContain('activeQuadro === "I" ?');
     expect(first).toContain('const firstActive = batchResult.value.find');
     expect(first).toContain('if (active && detail) setSelected(detail)');
