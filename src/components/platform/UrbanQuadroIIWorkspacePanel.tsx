@@ -447,11 +447,21 @@ export function UrbanQuadroIIWorkspacePanel({
                       {(page.proposals?.length || 0) === 0 ? (
                         <div data-urban-qii-unstructured="true"
                           className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-amber-950">
-                          <p className="text-sm font-extrabold">Página sem categorias estruturadas</p>
+                          <p className="text-sm font-extrabold">
+                            {page.page_number === 44 ? "Continuação das categorias S1 — serviços locais"
+                              : page.page_number === 49 ? "Continuação das categorias C2 — comércio diversificado"
+                                : page.page_number === 51 ? "Parcelamento do solo — modalidades habitacionais"
+                                  : "Página sem categorias estruturadas"}
+                          </p>
                           <p className="mt-1 text-xs leading-5">
-                            A extração de texto não constitui transcrição validada. Ainda faltam identificar
-                            categorias, zonas, vagas e exceções nesta página antes de propor regras.
-                            Não aplicar esta página à IA nem interpretar ausência de sugestões como ausência de exigências.
+                            {page.page_number === 44
+                              ? "As categorias S1.1 a S1.5 começam na página 43. A página 44 contém requisitos complementares de zonas, vias e vagas. Confira ambas antes de salvar."
+                              : page.page_number === 49
+                                ? "As categorias C2.1 a C2.7 começam na página 48. A página 49 contém condições e vagas que precisam ser conferidas junto à página anterior."
+                                : page.page_number === 51
+                                  ? "Esta página trata de modalidades de parcelamento, não de categorias de uso. Não registre modalidades UH como usos permitidos."
+                                  : "A extração de texto não constitui transcrição validada. Ainda faltam identificar categorias, zonas, vagas e exceções nesta página."}
+                            {" "}Não aplicar esta página à IA nem interpretar ausência de sugestões como ausência de exigências.
                           </p>
                         </div>
                       ) : null}

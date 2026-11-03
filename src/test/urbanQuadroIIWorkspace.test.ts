@@ -127,13 +127,14 @@ describe("SIGAPRO IA — Quadro II PDF evidence suggestions remain unverified", 
 
 
 describe("SIGAPRO IA — assisted field auto-fill with legal safeguards", () => {
-  it("prefills zoning, road, parking and source, but always requires manual evidence review", () => {
+  it("preserves zoning as unverified, prepares other fields and requires human evidence review", () => {
     const panel=read("src/components/platform/UrbanQuadroIIWorkspacePanel.tsx");
     const client=read("src/integrations/backend/urbanPrecheckClient.ts");
     const seed=read("neon/qa-seeds/20261103_quadro_ii_autofill_candidates_qa.sql");
     expect(client).toContain("permitted_zones_text?: string");
     expect(client).toContain("source_pages?: number[]");
-    expect(panel).toContain('permittedZones: (proposal.permitted_zones_text || "").slice(0, 600)');
+    expect(panel).toContain('permittedZones: ""');
+    expect(panel).toContain("Zonas detectadas automaticamente — NÃO confirmadas");
     expect(panel).toContain('roadHierarchy: (proposal.road_hierarchy_text || "").slice(0, 600)');
     expect(panel).toContain('parkingRequirement: (proposal.parking_requirement_text || "").slice(0, 600)');
     expect(panel).toContain('specialConditions: (proposal.special_conditions_text || "").slice(0, 800)');
@@ -278,5 +279,17 @@ describe("SIGAPRO IA — legal safety and premium review workflow", () => {
     expect(qii).toContain("propositalmente");
     expect(matrix).toContain('data-aiu2-conflicting-review="true"');
     expect(matrix).toContain("São informações conflitantes");
+  });
+});
+
+
+describe("SIGAPRO IA — Quadro II continuation pages", () => {
+  it("does not mistake a continuation or parcelamento modality for an empty use table", () => {
+    const panel=read("src/components/platform/UrbanQuadroIIWorkspacePanel.tsx");
+    expect(panel).toContain("Continuação das categorias S1 — serviços locais");
+    expect(panel).toContain("Continuação das categorias C2 — comércio diversificado");
+    expect(panel).toContain("Parcelamento do solo — modalidades habitacionais");
+    expect(panel).toContain("não de categorias de uso");
+    expect(panel).toContain("Não aplicar esta página à IA");
   });
 });
