@@ -51,3 +51,49 @@ describe("SIGAPRO IA — legal batch review and safe activation",()=>{
     expect(isUrbanTestFixtureRule({zone_code:"ZC",rules:[{reference:"LC 379/2009 art. 50"}]})).toBe(false);
   });
 });
+
+describe("SIGAPRO IA — individual reading reviews and source replacement",()=> {
+  it("keeps all 16 previous readings and counts only authenticated row attestations",()=>{
+    const initial=batch();
+    const audit=[
+      {id:"v1",batch_id:"qa",row_index:12,page_number:36,action:"reading_verified" as const,
+        note:"Conferi manualmente o quadro e a nota de recuo.",created_at:"2026-11-03T10:00:00Z",actor_profile_id:"reviewer"},
+      {id:"v2",batch_id:"qa",row_index:13,page_number:36,action:"reading_verified" as const,
+        note:"Conferi manualmente o quadro e a nota de recuo.",created_at:"2026-11-03T10:01:00Z",actor_profile_id:"reviewer"},
+      {id:"v3",batch_id:"qa",row_index:21,page_number:37,action:"needs_correction" as const,
+        note:"Coeficiente minimo ilegivel no documento fonte.",created_at:"2026-11-03T10:02:00Z",actor_profile_id:"reviewer"},
+    ];
+    const result=calculateUrbanMatrixBatchProgress(initial,audit);
+    expect(result).toMatchObject({total:23,reviewed:18,pending:5,needsCorrection:1});
+    expect(result.rows.find(x=>x.index===21)).toMatchObject({readingReviewed:false,needsCorrection:true});
+    expect(initial.reviewed_indexes).toHaveLength(16);
+  });
+  it("reopening a row overrides the legacy snapshot without modifying history",()=>{
+    const initial=batch();
+    const audit=[
+      {id:"a",batch_id:"qa",row_index:0,page_number:36,action:"reading_verified" as const,
+        note:"Conferido manualmente no PDF original.",created_at:"2026-11-03T09:00:00Z",actor_profile_id:"reviewer"},
+      {id:"b",batch_id:"qa",row_index:0,page_number:36,action:"needs_correction" as const,
+        note:"Reabertura por contraste na pagina original.",created_at:"2026-11-03T10:00:00Z",actor_profile_id:"reviewer"},
+    ];
+    expect(calculateUrbanMatrixBatchProgress(initial,audit)).toMatchObject({reviewed:15,pending:8,needsCorrection:1});
+    expect(calculateUrbanMatrixBatchProgress(initial,audit.filter(x=>x.batch_id==="outro-lote"))).toMatchObject({reviewed:16,pending:7});
+  });
+  it("shows explicit review and archive actions without automatically approving the law",()=>{
+    const panel=read("src/components/platform/UrbanLegalMatrixReviewPanel.tsx");
+    const client=read("src/integrations/backend/urbanPrecheckClient.ts");
+    const config=read("src/pages/saas/ConfiguracoesPage.tsx");
+    const migration=read("neon/migrations/20261103_urban_matrix_reading_audit_v2.sql");
+    expect(panel).toContain("Conferir esta linha");
+    expect(panel).toContain("Substituir ou remover PDF oficial");
+    expect(panel).toContain("Arquivar importação antiga");
+    expect(panel).toContain("Confirmei esta página no PDF original");
+    expect(panel).toContain("hasReadingIssue ? \"needs_correction\"");
+    expect(panel).toContain("A vigência e a norma legal continuam pendentes.");
+    expect(config).toContain('id="sigapro-legal-archive-upload"');
+    expect(client).toContain('"record_urban_matrix_reading_action_v2"');
+    expect(migration).toContain("is_urban_regulation_admin_v1");
+    expect(migration).toContain("pending_legal_review");
+    expect(migration).not.toContain("DELETE FROM public.urban_matrix_batch_staging_v1");
+  });
+});
