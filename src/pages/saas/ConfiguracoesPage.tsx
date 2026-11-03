@@ -3781,8 +3781,9 @@ export function ConfiguracoesPage() {
                   </span>
                 </div>
 
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-2 2xl:grid-cols-3">
                   <FileDropZone
+                    stacked
                     title="Brasão oficial"
                     description="Imagem usada em documentos, cabeçalhos e áreas institucionais."
                     accept="image/*"
@@ -3794,6 +3795,7 @@ export function ConfiguracoesPage() {
                     onFilesSelected={setBrasaoFiles}
                   />
                   <FileDropZone
+                    stacked
                     title="Bandeira municipal"
                     description="Imagem complementar da identidade visual da Prefeitura."
                     accept="image/*"
@@ -3805,6 +3807,7 @@ export function ConfiguracoesPage() {
                     onFilesSelected={setBandeiraFiles}
                   />
                   <FileDropZone
+                    stacked
                     title="Imagem do portal"
                     description="Imagem institucional utilizada no portal e nas áreas de apresentação."
                     accept="image/*"
