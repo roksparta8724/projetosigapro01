@@ -112,6 +112,8 @@ describe("SIGAPRO IA — Quadro II PDF evidence suggestions remain unverified", 
     expect(seed).toContain("ON CONFLICT (municipality_id,batch_id,page_number) DO NOTHING");
     expect(client).toContain('status: "proposal_unverified"');
     expect(panel).toContain("Preparar rascunho");
+    expect(panel).toContain('sourceExcerpt: "", // Never mistake a suggested caption for a literal verified quotation.');
+    expect(panel).toContain('page.source_quality === "machine_unverified"');
     expect(panel).toContain("setConfirmed(false)");
     expect(panel).toContain("Texto extraído pode misturar colunas");
     expect(panel).toContain('page.source_quality === "visual_required"');

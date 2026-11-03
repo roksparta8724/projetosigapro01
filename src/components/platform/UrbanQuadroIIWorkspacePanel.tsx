@@ -53,7 +53,7 @@ export function UrbanQuadroIIWorkspacePanel({
     () => workspace?.entries.length || 0, [workspace],
   );
   const pageCount = workspace?.pages.length || 0;
-  const sourcePages = workspace?.pages.filter((page) => Boolean(page.source_evidence_text)).length || 0;
+  const sourcePages = workspace?.pages.filter((page) => page.source_quality === "machine_unverified" && Boolean(page.source_evidence_text)).length || 0;
   const suggestions = workspace?.pages.reduce((count, page) => count + (page.proposals?.length || 0), 0) || 0;
   const valid = Boolean(
     draft.categoryCode.trim() && draft.useDescription.trim().length >= 5 &&
@@ -235,7 +235,7 @@ export function UrbanQuadroIIWorkspacePanel({
                                       ...emptyDraft(page.page_number),
                                       categoryCode: suggestion.category_code,
                                       useDescription: suggestion.use_description,
-                                      sourceExcerpt: suggestion.source_excerpt,
+                                      sourceExcerpt: "", // Never mistake a suggested caption for a literal verified quotation.
                                     });
                                     setConfirmed(false);
                                     setFormOpen(true);
@@ -305,7 +305,7 @@ export function UrbanQuadroIIWorkspacePanel({
                                 onChange={(e) => setField("specialConditions",e.target.value)} maxLength={800}
                                 placeholder="Notas, exigências e exceções da página" rows={2} />
                             </label>
-                            <label className="text-xs font-semibold sm:col-span-2">Trecho literal do PDF (mínimo 20 caracteres)
+                            <label className="text-xs font-semibold sm:col-span-2">Trecho verificado na imagem do PDF (mínimo 20 caracteres)
                               <Textarea className="mt-1 bg-white text-slate-900" value={draft.sourceExcerpt}
                                 onChange={(e) => setField("sourceExcerpt",e.target.value)} maxLength={1600}
                                 placeholder="Copie a evidência visível na página, sem corrigir números por suposição" rows={3} />
