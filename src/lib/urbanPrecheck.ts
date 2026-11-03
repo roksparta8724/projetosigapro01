@@ -42,6 +42,19 @@ export type UrbanPrecheckResult = {
   evidence: string;
 };
 
+/** Mark legacy synthetic QA records so no assistant reports them as official law.
+ * They remain in historical QA data for regression tests only. */
+export function isUrbanTestFixtureRule(value: unknown): boolean {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const entry = value as { zone_code?: unknown; rules?: unknown };
+  if (typeof entry.zone_code === "string" && /^QA[-_]/i.test(entry.zone_code.trim())) return true;
+  return Array.isArray(entry.rules) && entry.rules.some((raw: unknown) => {
+    if (!raw || typeof raw !== "object") return false;
+    const reference = (raw as { reference?: unknown }).reference;
+    return typeof reference === "string" && /LEI\s+FICT[IÍ]CIA\s+QA\s+SEM\s+VALIDADE/i.test(reference);
+  });
+}
+
 const allowed = new Set<string>(URBAN_METRICS.map((x) => x.key));
 export function normalizeUrbanCode(value: string): string {
   return value.normalize("NFKC").trim().toLocaleUpperCase("pt-BR");

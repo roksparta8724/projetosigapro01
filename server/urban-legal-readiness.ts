@@ -1,4 +1,4 @@
-import { validateUrbanRules } from "../src/lib/urbanPrecheck.js";
+import { isUrbanTestFixtureRule, validateUrbanRules } from "../src/lib/urbanPrecheck.js";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const SHA256 = /^[0-9a-f]{64}$/i;
@@ -56,7 +56,7 @@ export function summarizeUrbanLegalReadiness(
   // ensures that accidentally mixed or malformed rows never enter responses.
   const active = versions.filter((entry) =>
     isObject(entry) && entry.municipality_id === municipalityId &&
-    entry.status === "active" && validDate(entry.effective_from) &&
+    entry.status === "active" && !isUrbanTestFixtureRule(entry) && validDate(entry.effective_from) &&
     entry.effective_from <= referenceDate &&
     typeof entry.zone_code === "string" && entry.zone_code.trim().length > 0 &&
     typeof entry.use_code === "string" && entry.use_code.trim().length > 0 &&

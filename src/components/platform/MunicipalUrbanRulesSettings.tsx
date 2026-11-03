@@ -3,7 +3,8 @@ import { BookOpenCheck, CheckCircle2, Loader2, Save, ShieldAlert } from "lucide-
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { activateUrbanRegulation, listUrbanRegulations, saveUrbanRegulationDraft } from "@/integrations/backend/urbanPrecheckClient";
-import { URBAN_METRICS, normalizeUrbanCode, type UrbanMetric, type UrbanRegulationVersion, type UrbanRule } from "@/lib/urbanPrecheck";
+import { UrbanLegalMatrixReviewPanel } from "@/components/platform/UrbanLegalMatrixReviewPanel";
+import { URBAN_METRICS, isUrbanTestFixtureRule, normalizeUrbanCode, type UrbanMetric, type UrbanRegulationVersion, type UrbanRule } from "@/lib/urbanPrecheck";
 import { municipalCivilDate } from "@/lib/municipalCivilDate";
 
 type EditableValue = { limit: string; reference: string };
@@ -77,7 +78,7 @@ export function MunicipalUrbanRulesSettings({
   };
   const activate = async (id: string) => {
     if (!canEdit || busy || !window.confirm(
-      "Confirma que a legislação, a zona, o uso, a data de vigência e os artigos foram conferidos? Ativar substituirá a versão vigente somente para esta zona e uso."
+      "Confirma que a legislação vigente, o quadro, as exceções, a zona, o uso, a data de vigência e as evidências oficiais com página e hash foram conferidos? Sem evidências verificadas, a ativação será negada."
     )) return;
     setBusy(true);
     setNotice("");
@@ -127,6 +128,9 @@ export function MunicipalUrbanRulesSettings({
         </p>
       </div>
 
+      <div className="mt-5">
+        <UrbanLegalMatrixReviewPanel municipalityId={municipalityId} canView={canEdit} />
+      </div>
       {canEdit && municipalityId ? (
         <>
           <div className="mt-5 grid gap-3 md:grid-cols-3">
@@ -195,11 +199,15 @@ export function MunicipalUrbanRulesSettings({
             <article key={item.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-900">
               <div className="min-w-0 text-sm text-slate-950 dark:text-slate-100">
                 <p className="font-bold">{item.zone_code} · {item.use_code} · Versão {item.version}</p>
-                <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">Vigência: {item.effective_from} · {item.rules.length} parâmetros · {item.status === "active" ? "Vigente" : item.status === "draft" ? "Rascunho" : "Substituída"}</p>
+                <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
+                  Vigência informada: {item.effective_from} · {item.rules.length} parâmetros ·{" "}
+                  {isUrbanTestFixtureRule(item) ? "Regra fictícia de teste — sem validade jurídica" :
+                    item.status === "active" ? "Ativa no cadastro" : item.status === "draft" ? "Rascunho" : "Substituída"}
+                </p>
               </div>
               <div className="flex items-center gap-2">
-                {item.status === "active" ? <CheckCircle2 className="h-5 w-5 text-emerald-600" aria-label="Versão ativa" /> : null}
-                {item.status === "draft" && canEdit ?
+                {item.status === "active" && !isUrbanTestFixtureRule(item) ? <CheckCircle2 className="h-5 w-5 text-emerald-600" aria-label="Versão ativa" /> : null}
+                {item.status === "draft" && canEdit && !isUrbanTestFixtureRule(item) ?
                   <Button type="button" variant="outline" disabled={busy} onClick={() => void activate(item.id)}>Validar e ativar</Button> : null}
               </div>
             </article>

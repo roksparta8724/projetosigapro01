@@ -27,7 +27,47 @@ export async function saveUrbanRegulationDraft(
 }
 
 export async function activateUrbanRegulation(versionId: string): Promise<void> {
-  await invoke("activate_urban_regulation_v1", { _version_id: versionId });
+  await invoke("activate_urban_regulation_v2", { _version_id: versionId });
+}
+
+/** Urban matrix staging is an administrative, tenant-scoped read-only preview.
+ * Only the Neon RPC may decide which municipality the caller may inspect. */
+export type UrbanMatrixBatchSummary = {
+  id: string; document_title: string; document_sha256: string;
+  source_municipality: string; version: number; status: string;
+  total_rows: number; reviewed_rows: number; created_at: string;
+};
+
+export type UrbanMatrixBatchDetail = {
+  id: string; municipality_id: string; document_title: string;
+  document_sha256: string; source_municipality: string;
+  source_rows: Array<Record<string, unknown>>;
+  reviewed_indexes: number[]; status: string; version: number;
+};
+
+export async function listUrbanMatrixBatches(municipalityId: string): Promise<UrbanMatrixBatchSummary[]> {
+  if (!municipalityId) return [];
+  const result = await invoke<unknown>("list_urban_matrix_batch_staging_v1", { _municipality_id: municipalityId });
+  if (!Array.isArray(result)) throw new Error("O histórico de importação retornou um formato inválido.");
+  return result as UrbanMatrixBatchSummary[];
+}
+
+export async function readUrbanMatrixBatch(
+  municipalityId: string, batchId: string,
+): Promise<UrbanMatrixBatchDetail | null> {
+  const result = await invoke<unknown>("get_urban_matrix_batch_staging_v1", {
+    _municipality_id: municipalityId, _batch_id: batchId,
+  });
+  if (result === null) return null;
+  if (!result || typeof result !== "object" || Array.isArray(result)) {
+    throw new Error("Não foi possível conferir a origem das linhas do lote.");
+  }
+  const item = result as Partial<UrbanMatrixBatchDetail>;
+  if (item.municipality_id !== municipalityId || item.id !== batchId ||
+      !Array.isArray(item.source_rows) || !Array.isArray(item.reviewed_indexes)) {
+    throw new Error("O lote não pertence à prefeitura selecionada ou contém dados incompletos.");
+  }
+  return item as UrbanMatrixBatchDetail;
 }
 
 export type UrbanPrecheckHistoryEntry = {
