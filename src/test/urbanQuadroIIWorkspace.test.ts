@@ -229,3 +229,32 @@ describe("SIGAPRO IA — stable compact navigation for all 14 pages", () => {
     expect(panel).toContain("sem deslocar a tela para o fim da lista");
   });
 });
+
+
+describe("SIGAPRO IA — AIU2 analyst instruction and Quadro II scope accuracy", () => {
+  it("preserves original ambiguous OCR and labels CA 1 only as reported guidance", () => {
+    const client=read("src/integrations/backend/urbanPrecheckClient.ts");
+    const matrix=read("src/components/platform/UrbanLegalMatrixReviewPanel.tsx");
+    const migration=read("neon/migrations/20261103_aiu2_analyst_guidance_qa_v1.sql");
+    const seed=read("neon/qa-seeds/20261103_aiu2_analyst_reported_ca_1_qa.sql");
+    expect(client).toContain("analyst_guidance?: UrbanMatrixAnalystGuidance[]");
+    expect(matrix).toContain('data-urban-matrix-analyst-guidance="true"');
+    expect(matrix).toContain("CA mínimo sugerido pelo analista");
+    expect(matrix).toContain("pending_documentary_confirmation");
+    expect(migration).toContain("ENABLE ROW LEVEL SECURITY");
+    expect(migration).toContain("REVOKE ALL ON public.urban_matrix_analyst_guidance_v1 FROM authenticated");
+    expect(migration).toContain("'analyst_guidance',_guidance");
+    expect(seed).toContain("'01'");
+    expect(seed).not.toContain("UPDATE public.urban_matrix_batch_staging_v1");
+  });
+  it("keeps pages 41-51 explicitly pending instead of claiming no restrictions", () => {
+    const qii=read("src/components/platform/UrbanQuadroIIWorkspacePanel.tsx");
+    const scope=read("neon/qa-seeds/20261103_quadro_ii_scope_review_refinements_qa.sql");
+    expect(qii).toContain('data-urban-qii-unstructured="true"');
+    expect(qii).toContain("Página sem categorias estruturadas");
+    expect(qii).toContain("Não aplicar esta página à IA");
+    expect(scope).toContain("art. 43, IV(a)");
+    expect(scope).toContain("OU lotação");
+    expect(scope).toContain("2.500 m²");
+  });
+});

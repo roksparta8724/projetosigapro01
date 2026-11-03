@@ -38,11 +38,22 @@ export type UrbanMatrixBatchSummary = {
   total_rows: number; reviewed_rows: number; created_at: string;
 };
 
+export type UrbanMatrixAnalystGuidance = {
+  row_index: number;
+  field_code: "ca_minimo_original";
+  proposed_value: number;
+  original_ocr_text: string;
+  attribution: "reported_by_user_as_analyst_guidance";
+  source_note: string;
+  status: "pending_documentary_confirmation";
+  created_at: string;
+};
 export type UrbanMatrixBatchDetail = {
   id: string; municipality_id: string; document_title: string;
   document_sha256: string; source_municipality: string;
   source_rows: Array<Record<string, unknown>>;
   reviewed_indexes: number[]; status: string; version: number;
+  analyst_guidance?: UrbanMatrixAnalystGuidance[];
 };
 
 export async function listUrbanMatrixBatches(municipalityId: string): Promise<UrbanMatrixBatchSummary[]> {

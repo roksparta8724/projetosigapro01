@@ -430,6 +430,17 @@ export function UrbanQuadroIIWorkspacePanel({
                           </p>
                         </details>
                       ) : null}
+                      {(page.proposals?.length || 0) === 0 ? (
+                        <div data-urban-qii-unstructured="true"
+                          className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-amber-950">
+                          <p className="text-sm font-extrabold">Página sem categorias estruturadas</p>
+                          <p className="mt-1 text-xs leading-5">
+                            A extração de texto não constitui transcrição validada. Ainda faltam identificar
+                            categorias, zonas, vagas e exceções nesta página antes de propor regras.
+                            Não aplicar esta página à IA nem interpretar ausência de sugestões como ausência de exigências.
+                          </p>
+                        </div>
+                      ) : null}
                       {(page.proposals?.length || 0) > 0 ? (
                         <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-3 text-slate-900">
                           <p className="text-sm font-extrabold">Sugestões de categorias — requerem conferência</p>

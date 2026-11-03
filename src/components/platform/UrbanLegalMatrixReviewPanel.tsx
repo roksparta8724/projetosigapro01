@@ -305,8 +305,9 @@ export function UrbanLegalMatrixReviewPanel({
           </div>
           <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-950">
             <FileWarning className="mr-1 inline h-4 w-4" />
-            Sem vigência comprovada: não ativar. Quadro II (categorias de uso, localização e vagas) ainda não está transcrito neste lote.
-            Mesmo que a leitura chegue a 100%, os índices só poderão ser usados após validação legal independente.
+            Sem vigência comprovada: não ativar. Quadro II possui sugestões extraídas em lote independente,
+            mas ainda não passou por conferência legal integral. Mesmo que a leitura chegue a 100%,
+            os índices só poderão ser usados após validação legal independente.
           </div>
           <p className="break-all text-[11px] text-slate-500">Fonte: {selected.document_title} · SHA-256 {selected.document_sha256}</p>
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -328,6 +329,11 @@ export function UrbanLegalMatrixReviewPanel({
                 const row = describeUrbanMatrixRow(entry.source);
                 const page = Number(entry.source.pagina_pdf);
                 const hasReadingIssue = Boolean(row.pending.trim());
+                const analystGuidance = selected.analyst_guidance?.find((g) =>
+                  g.row_index === entry.index &&
+                  g.field_code === "ca_minimo_original" &&
+                  g.status === "pending_documentary_confirmation"
+                );
                 return (
                   <details key={entry.index} data-urban-matrix-row="true"
                     className="group min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-950">
@@ -350,6 +356,20 @@ export function UrbanLegalMatrixReviewPanel({
                           </p>
                         ))}
                       </div>
+                      {analystGuidance ? (
+                        <div data-urban-matrix-analyst-guidance="true"
+                          className="space-y-1 rounded-xl border border-amber-300 bg-amber-50 p-3 text-amber-950">
+                          <strong className="block text-sm">
+                            AIU(2): CA mínimo sugerido pelo analista — {Number(analystGuidance.proposed_value).toLocaleString("pt-BR")}
+                          </strong>
+                          <p className="leading-5">
+                            Informação relatada pelo solicitante. O original digitalizado registra
+                            “{analystGuidance.original_ocr_text}”. O valor original permanece preservado;
+                            ainda não é uma conferência documental nem libera a regra para a IA.
+                          </p>
+                          <p className="text-xs leading-5">{analystGuidance.source_note}</p>
+                        </div>
+                      ) : null}
                       {row.notes ? <p className="rounded-lg bg-amber-50 p-2 leading-5 text-amber-950">Exceção / observação: {row.notes}</p> : null}
                       {row.pending ? <p className="rounded-lg bg-rose-50 p-2 leading-5 text-rose-900">Leitura inconclusiva: {row.pending}</p> : null}
                       {entry.review ? (
