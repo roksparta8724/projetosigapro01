@@ -26,6 +26,7 @@ export function UrbanLegalMatrixReviewPanel({
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [showAll, setShowAll] = useState(false);
+  const [showRegisteredCaveats, setShowRegisteredCaveats] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const [reviewingIndex, setReviewingIndex] = useState<number | null>(null);
   const [decision, setDecision] = useState<ReviewDecision>("reading_verified");
@@ -46,6 +47,7 @@ export function UrbanLegalMatrixReviewPanel({
     setNotice("");
     setShowArchived(false);
     setShowAll(false);
+    setShowRegisteredCaveats(false);
     setReviewingIndex(null);
     setManageId(null);
     if (!municipalityId || !canView) return () => { active = false; };
@@ -106,6 +108,7 @@ export function UrbanLegalMatrixReviewPanel({
       if (!detail) throw new Error("Lote não encontrado no escopo municipal.");
       setSelected(detail);
       setShowAll(false);
+      setShowRegisteredCaveats(false);
     } catch (err) { setError(String((err as Error)?.message || err)); }
     finally { setDetailLoading(false); }
   };
@@ -114,10 +117,13 @@ export function UrbanLegalMatrixReviewPanel({
     () => selected ? calculateUrbanMatrixBatchProgress(selected, audit.row_reviews) : null,
     [selected, audit],
   );
+  // Ressalvas já registradas (histórico) ficam recolhidas na visão inicial.
   const displayedRows = useMemo(() => {
     if (!progress) return [];
-    return showAll ? progress.rows : progress.rows.filter((row) => !row.readingReviewed);
-  }, [progress, showAll]);
+    return showAll ? progress.rows : progress.rows.filter((row) =>
+      !row.readingReviewed && (!row.needsCorrection || showRegisteredCaveats),
+    );
+  }, [progress, showAll, showRegisteredCaveats]);
 
   const startReview = (index: number, existingNote?: string, hasReadingIssue = false) => {
     setReviewingIndex(index);
@@ -320,20 +326,47 @@ export function UrbanLegalMatrixReviewPanel({
             os índices só poderão ser usados após validação legal independente.
           </div>
           <p className="break-all text-[11px] text-slate-500">Fonte: {selected.document_title} · SHA-256 {selected.document_sha256}</p>
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-xs font-bold text-slate-700 dark:text-slate-300">
-              {showAll ? "Todas as linhas" : progress.untreated === 0
-                ? "Ressalvas já registradas (" + progress.needsCorrection + ")"
-                : "Sem revisão: " + progress.untreated + " · ressalvas: " + progress.needsCorrection}
-            </p>
-            <button type="button" onClick={() => { setShowAll((v) => !v); setReviewingIndex(null); }}
-              className="text-xs font-bold text-sky-800 underline underline-offset-4 dark:text-sky-300">
-              {showAll ? "Mostrar somente pendentes" : "Ver todas as linhas"}
-            </button>
+          <div data-urban-matrix-summary-actions="true"
+            className="flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-950">
+            <div className="min-w-0 flex-1">
+              <p className="break-words text-xs font-extrabold text-slate-950 dark:text-white">
+                {progress.untreated === 0
+                  ? "Nenhuma nova revisão de leitura necessária"
+                  : "Faltam " + progress.untreated + " registro(s) de conferência"}
+              </p>
+              <p className="mt-1 break-words text-xs leading-5 text-slate-600 dark:text-slate-300">
+                {progress.needsCorrection > 0
+                  ? progress.needsCorrection + " ressalva(s) registrada(s) e preservada(s) para consulta. A comprovação legal continua pendente."
+                  : "A conferência da leitura não substitui a verificação jurídica nem comprova vigência."}
+              </p>
+            </div>
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              {progress.needsCorrection > 0 ? (
+                <button type="button" data-urban-matrix-caveats-toggle="true"
+                  aria-expanded={!showAll && showRegisteredCaveats}
+                  onClick={() => {
+                    setShowRegisteredCaveats((value) => !value);
+                    setShowAll(false);
+                    setReviewingIndex(null);
+                  }}
+                  className="min-h-9 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-950 hover:bg-amber-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-500">
+                  {!showAll && showRegisteredCaveats
+                    ? "Ocultar ressalvas"
+                    : "Ver ressalvas registradas (" + progress.needsCorrection + ")"}
+                </button>
+              ) : null}
+              <button type="button" onClick={() => { setShowAll((value) => !value); setReviewingIndex(null); }}
+                className="min-h-9 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs font-bold text-sky-950 hover:bg-sky-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-500">
+                {showAll ? "Voltar à visão resumida" : "Ver todas as linhas"}
+              </button>
+            </div>
           </div>
           {displayedRows.length === 0 ? (
-            <p className="rounded-xl bg-white p-3 text-xs text-slate-700">
-              Todas as leituras foram conferidas. A validação legal, as exceções e a vigência continuam obrigatórias.
+            <p data-urban-matrix-no-unreviewed="true"
+              className="rounded-xl border border-sky-100 bg-white p-3 text-xs leading-5 text-slate-700 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200">
+              {progress.untreated === 0
+                ? "A etapa de leitura está tratada. Consulte as ressalvas apenas se houver nova evidência. Falta a comprovação jurídica e da vigência antes de liberar índices para a IA."
+                : "Nenhuma linha disponível neste filtro. Consulte todas as linhas para revisar os registros."}
             </p>
           ) : (
             <div className="space-y-2">

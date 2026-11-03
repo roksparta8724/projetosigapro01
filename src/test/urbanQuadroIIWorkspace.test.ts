@@ -366,3 +366,18 @@ describe("SIGAPRO IA — signed AIU2 exception is treated without false legal ap
     expect(panel).toContain("A ressalva NÃO confirma o CA mínimo");
   });
 });
+
+describe("SIGAPRO IA — handled AIU(2) caveat stays collapsed by default", () => {
+  it("shows no redundant review form until the history is explicitly requested", () => {
+    const panel=read("src/components/platform/UrbanLegalMatrixReviewPanel.tsx");
+    expect(panel).toContain("showRegisteredCaveats");
+    expect(panel).toContain("!row.needsCorrection || showRegisteredCaveats");
+    expect(panel).toContain('data-urban-matrix-caveats-toggle="true"');
+    expect(panel).toContain('data-urban-matrix-summary-actions="true"');
+    expect(panel).toContain('data-urban-matrix-no-unreviewed="true"');
+    expect(panel).toContain("Nenhuma nova revisão de leitura necessária");
+    expect(panel).toContain("Falta a comprovação jurídica e da vigência");
+    expect(panel).toContain("setShowRegisteredCaveats(false)");
+    expect(panel).toContain("A ressalva NÃO confirma o CA mínimo");
+  });
+});
