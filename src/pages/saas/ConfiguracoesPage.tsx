@@ -3821,7 +3821,7 @@ export function ConfiguracoesPage() {
                 </div>
               </div>
 
-              <div className="rounded-[28px] border border-sky-200 bg-[linear-gradient(180deg,#f9fcff_0%,#f2f8ff_100%)] p-4 shadow-[0_16px_38px_rgba(14,165,233,0.07)] md:p-5">
+              <div id="sigapro-legal-archive-upload" className="scroll-mt-24 rounded-[28px] border border-sky-200 bg-[linear-gradient(180deg,#f9fcff_0%,#f2f8ff_100%)] p-4 shadow-[0_16px_38px_rgba(14,165,233,0.07)] md:p-5">
                 <div className="mb-4 flex flex-col gap-3 border-b border-sky-100 pb-4 lg:flex-row lg:items-center lg:justify-between">
                   <div>
                     <div className="flex items-center gap-2">
@@ -3829,7 +3829,7 @@ export function ConfiguracoesPage() {
                       <p className="text-sm font-bold text-slate-950">Acervo legal municipal</p>
                     </div>
                     <p className="mt-1 max-w-3xl text-xs leading-5 text-slate-500">
-                      Estes arquivos alimentam o módulo Legislação. Use leis promulgadas e anexos oficiais; minutas e propostas não são normas vigentes. Cada campo aceita um PDF oficial de até 100 MB; PDFs maiores são enviados diretamente ao armazenamento, sem passar pela função da Vercel.
+                      Estes arquivos alimentam o módulo Legislação. Use leis promulgadas e anexos oficiais; minutas e propostas não são normas vigentes. Cada campo aceita um PDF oficial de até 100 MB; PDFs maiores são enviados diretamente ao armazenamento, sem passar pela função da Vercel. Para trocar o documento salvo, clique em Substituir; para desvincular, clique em Excluir. Em ambos os casos, confirme em Salvar arquivos oficiais. O histórico de importações permanece separado e deve ser arquivado na matriz, se não for mais utilizado.
                     </p>
                   </div>
                   <span className="w-fit rounded-full border border-sky-200 bg-white px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-sky-700">
