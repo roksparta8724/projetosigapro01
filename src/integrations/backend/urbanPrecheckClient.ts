@@ -134,6 +134,91 @@ export async function recordUrbanMatrixReadingAction(
   });
 }
 
+
+/** Quadro II remains an unverified transcription workspace, never an active legal rule. */
+export type UrbanQuadroIIPage = {
+  page_number: number;
+  topic: string;
+  visual_warning: boolean;
+  draft_count: number;
+};
+export type UrbanQuadroIIDraft = {
+  id: string;
+  page_number: number;
+  category_code: string;
+  use_description: string;
+  permitted_zones_text: string;
+  road_hierarchy_text: string;
+  parking_requirement_text: string;
+  special_conditions_text: string;
+  source_excerpt: string;
+  status: "draft_unverified";
+  created_by_profile_id: string;
+  created_at: string;
+};
+export type UrbanQuadroIIWorkspace = {
+  status: "no_source" | "archived_source" | "pending_legal_review";
+  batch_id?: string;
+  document_title?: string;
+  document_sha256?: string;
+  pages: UrbanQuadroIIPage[];
+  entries: UrbanQuadroIIDraft[];
+  legal_approval?: false;
+  ready_for_ai?: false;
+};
+export type UrbanQuadroIIDraftInput = {
+  pageNumber: number;
+  categoryCode: string;
+  useDescription: string;
+  permittedZones: string;
+  roadHierarchy: string;
+  parkingRequirement: string;
+  specialConditions: string;
+  sourceExcerpt: string;
+};
+export async function listUrbanQuadroIIWorkspace(municipalityId: string): Promise<UrbanQuadroIIWorkspace> {
+  if (!municipalityId) throw new Error("Selecione uma prefeitura antes de acessar o Quadro II.");
+  const raw = await invoke<unknown>("list_urban_quadro_ii_workspace_v1", { _municipality_id: municipalityId });
+  if (!raw || Array.isArray(raw) || typeof raw !== "object") throw new Error("Resposta inválida da matriz Quadro II.");
+  const result = raw as Partial<UrbanQuadroIIWorkspace>;
+  if (!["no_source", "archived_source", "pending_legal_review"].includes(String(result.status)) ||
+      !Array.isArray(result.pages) || !Array.isArray(result.entries)) {
+    throw new Error("O acervo do Quadro II não retornou a estrutura esperada.");
+  }
+  if (result.status === "pending_legal_review" &&
+    (!result.batch_id || !/^[a-f0-9]{64}$/.test(result.document_sha256 || ""))) {
+    throw new Error("Quadro II sem vínculo verificável com documento oficial.");
+  }
+  return result as UrbanQuadroIIWorkspace;
+}
+export async function saveUrbanQuadroIIDraft(
+  municipalityId: string, batchId: string, documentSha256: string,
+  entry: UrbanQuadroIIDraftInput, requestId: string,
+): Promise<void> {
+  if (!municipalityId || !batchId || !/^[a-f0-9]{64}$/.test(documentSha256) ||
+    !Number.isInteger(entry.pageNumber) || entry.pageNumber < 38 || entry.pageNumber > 51 ||
+    !entry.categoryCode.trim() || entry.categoryCode.trim().length > 32 ||
+    entry.useDescription.trim().length < 5 || entry.useDescription.trim().length > 200 ||
+    entry.sourceExcerpt.trim().length < 20 || entry.sourceExcerpt.trim().length > 1600 ||
+    !/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(requestId)) {
+    throw new Error("Confira página, classificação, descrição e trecho literal no PDF antes de arquivar.");
+  }
+  await invoke("save_urban_quadro_ii_draft_entry_v1", {
+    _municipality_id: municipalityId,
+    _batch_id: batchId,
+    _document_sha256: documentSha256,
+    _page_number: entry.pageNumber,
+    _category_code: entry.categoryCode.trim(),
+    _use_description: entry.useDescription.trim(),
+    _permitted_zones_text: entry.permittedZones.trim(),
+    _road_hierarchy_text: entry.roadHierarchy.trim(),
+    _parking_requirement_text: entry.parkingRequirement.trim(),
+    _special_conditions_text: entry.specialConditions.trim(),
+    _source_excerpt: entry.sourceExcerpt.trim(),
+    _request_id: requestId,
+  });
+}
+
 export type UrbanPrecheckHistoryEntry = {
   id: string; municipality_id: string; process_id: string; regulation_version_id: string;
   measurements: UrbanMeasurements; reviewer_profile_id: string; created_at: string;
