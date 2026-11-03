@@ -14,6 +14,10 @@ export function MunicipalUrbanRulesSettings({
   municipalityId, canEdit,
 }: { municipalityId: string; canEdit: boolean }) {
   const [versions, setVersions] = useState<UrbanRegulationVersion[]>([]);
+  const officialActiveCount = versions.filter((version) =>
+    version.status === "active" && !isUrbanTestFixtureRule(version),
+  ).length;
+  const fixtureCount = versions.filter(isUrbanTestFixtureRule).length;
   const [zone, setZone] = useState("");
   const [usage, setUsage] = useState("");
   const [effectiveFrom, setEffectiveFrom] = useState("");
@@ -240,6 +244,19 @@ export function MunicipalUrbanRulesSettings({
 
       <div className="mt-6 border-t border-slate-200 pt-4 dark:border-slate-700">
         <h4 className="text-sm font-bold text-slate-950 dark:text-white">Versões cadastradas neste município</h4>
+        {!loading && fixtureCount > 0 ? (
+          <p data-urban-qa-fixtures="true" className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 font-semibold text-amber-950">
+            {fixtureCount} registro(s) fictício(s) de QA nesta prefeitura. Não têm validade jurídica
+            e não comprovam parâmetros oficiais, mesmo quando constam como ativos na base de testes.
+          </p>
+        ) : null}
+        {!loading && officialActiveCount === 0 ? (
+          <p data-urban-official-active="none" className="mt-3 rounded-xl border border-sky-200 bg-sky-50 p-3 text-xs leading-5 text-sky-950">
+            Nenhuma versão ativa não fictícia encontrada neste cadastro.
+            Para aprovar regras oficiais, confirme a lei consolidada, suas alterações,
+            vigência e a evidência de cada índice com o setor urbanístico responsável.
+          </p>
+        ) : null}
         {loading ? <p role="status" className="mt-3 text-sm text-slate-500">Carregando normas oficiais...</p> : null}
         {!loading && versions.length === 0 ? <p className="mt-3 text-sm text-slate-500 dark:text-slate-300">
           Não há regras cadastradas. A análise automática ficará indisponível até a ativação de uma versão válida.

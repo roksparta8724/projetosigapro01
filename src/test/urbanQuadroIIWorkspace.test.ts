@@ -381,3 +381,31 @@ describe("SIGAPRO IA — handled AIU(2) caveat stays collapsed by default", () =
     expect(panel).toContain("A ressalva NÃO confirma o CA mínimo");
   });
 });
+
+describe("SIGAPRO IA — Quadro II source and duplicate protection", () => {
+  it("distinguishes OCR provisional from visual-only pages and scopes imported rules", () => {
+    const qii=read("src/components/platform/UrbanQuadroIIWorkspacePanel.tsx");
+    expect(qii).toContain('data-urban-qii-readiness="true"');
+    expect(qii).toContain('source_quality === "visual_required"');
+    expect(qii).toContain("Páginas com OCR (não validado)");
+    expect(qii).toContain("Regras liberadas para IA por esta importação");
+    expect(qii).toContain("Exige conferência visual");
+    expect(qii).toContain("Campos ilegíveis ficam vazios");
+  });
+  it("blocks resubmitting an existing category from the same page", () => {
+    const qii=read("src/components/platform/UrbanQuadroIIWorkspacePanel.tsx");
+    expect(qii).toContain("const existingCategoryDraft =");
+    expect(qii).toContain("!existingCategoryDraft");
+    expect(qii).toContain('data-urban-qii-duplicate="true"');
+    expect(qii).toContain("Rascunho já registrado nesta página. Não duplicar.");
+    expect(qii).toContain("Rascunho existente");
+  });
+  it("never presents synthetic active QA records as legal urban rules", () => {
+    const settings=read("src/components/platform/MunicipalUrbanRulesSettings.tsx");
+    expect(settings).toContain("const officialActiveCount =");
+    expect(settings).toContain("!isUrbanTestFixtureRule(version)");
+    expect(settings).toContain('data-urban-qa-fixtures="true"');
+    expect(settings).toContain('data-urban-official-active="none"');
+    expect(settings).toContain("lei consolidada, suas alterações");
+  });
+});

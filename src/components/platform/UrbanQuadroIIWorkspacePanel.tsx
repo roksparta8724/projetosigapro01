@@ -66,12 +66,20 @@ export function UrbanQuadroIIWorkspacePanel({
   );
   const pageCount = workspace?.pages.length || 0;
   const sourcePages = workspace?.pages.filter((page) => page.source_quality === "machine_unverified" && Boolean(page.source_evidence_text)).length || 0;
+  const visualOnlyPages = workspace?.pages.filter((page) => page.source_quality === "visual_required").length || 0;
+  // Idempotency at the API covers request IDs, not repeated manual submissions
+  // with fresh IDs. Block an existing category on the same source page in the UI.
+  const existingCategoryDraft = Boolean(workspace?.entries.some((entry) =>
+    entry.page_number === draft.pageNumber &&
+    entry.category_code.normalize("NFKC").trim().toLocaleUpperCase("pt-BR") ===
+      draft.categoryCode.normalize("NFKC").trim().toLocaleUpperCase("pt-BR"),
+  ));
   const selectedPage = workspace?.pages.find((page) => page.page_number === activePage);
   const selectedIndex = workspace?.pages.findIndex((page) => page.page_number === activePage) ?? -1;
   const suggestions = workspace?.pages.reduce((count, page) => count + (page.proposals?.length || 0), 0) || 0;
   const valid = Boolean(
     draft.categoryCode.trim() && draft.useDescription.trim().length >= 5 &&
-    draft.sourceExcerpt.trim().length >= 20 && confirmed &&
+    draft.sourceExcerpt.trim().length >= 20 && confirmed && !existingCategoryDraft &&
     workspace?.status === "pending_legal_review" && activePage === draft.pageNumber,
   );
   // Keep navigation in a stable horizontal strip; never auto-scroll the whole
@@ -208,7 +216,7 @@ export function UrbanQuadroIIWorkspacePanel({
               <strong className="text-xl font-extrabold">{pageCount}</strong>
             </div>
             <div className="rounded-xl border border-slate-200 bg-white p-3 text-slate-900">
-              <p className="text-xs text-slate-600">Páginas com texto-fonte</p>
+              <p className="text-xs text-slate-600">Páginas com OCR (não validado)</p>
               <strong className="text-xl font-extrabold">{sourcePages}/{pageCount}</strong>
             </div>
             <div className="rounded-xl border border-slate-200 bg-white p-3 text-slate-900">
@@ -216,9 +224,31 @@ export function UrbanQuadroIIWorkspacePanel({
               <strong className="text-xl font-extrabold">{draftCount}</strong>
             </div>
             <div className="rounded-xl border border-amber-200 bg-white p-3 text-slate-900">
-              <p className="text-xs text-slate-600">Regras liberadas para IA</p>
+              <p className="text-xs text-slate-600">Regras liberadas para IA por esta importação</p>
               <strong className="text-xl font-extrabold text-amber-800">0</strong>
             </div>
+          </div>
+          <div data-urban-qii-readiness="true"
+            className="mt-3 min-w-0 rounded-2xl border border-sky-200 bg-white p-3 text-xs leading-5 text-slate-800 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100">
+            <p className="font-extrabold text-sky-950 dark:text-sky-200">
+              Conferência da lei: o que falta para a IA usar estes parâmetros?
+            </p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <span className="rounded-lg bg-slate-100 px-2.5 py-1 text-slate-800 dark:bg-slate-800 dark:text-white">
+                {sourcePages} páginas com OCR provisório
+              </span>
+              <span className="rounded-lg bg-amber-50 px-2.5 py-1 font-semibold text-amber-900">
+                {visualOnlyPages} página(s) sem OCR confiável — leitura visual
+              </span>
+              <span className="rounded-lg bg-sky-50 px-2.5 py-1 text-sky-900">
+                {draftCount} transcrições em rascunho
+              </span>
+            </div>
+            <p className="mt-2 text-slate-700 dark:text-slate-300">
+              Selecione a categoria, compare com a imagem do PDF original e registre somente
+              texto comprovado. Campos ilegíveis ficam vazios. Depois, confira as leis alteradoras,
+              o zoneamento, as exceções e a vigência no cadastro jurídico; salvar rascunho não ativa a IA.
+            </p>
           </div>
           <p className="mt-3 break-all text-[11px] leading-5 text-slate-600 dark:text-slate-300">
             Documento: {workspace.document_title} · SHA-256 {workspace.document_sha256}
@@ -254,7 +284,11 @@ export function UrbanQuadroIIWorkspacePanel({
                     {item.topic}
                   </span>
                   <span className="mt-1 block text-[11px] font-semibold text-sky-900">
-                    {activePage === item.page_number ? "Selecionada" : `${item.proposals?.length || 0} sugestões`}
+                    {item.source_quality === "visual_required"
+                      ? "Exige conferência visual"
+                      : activePage === item.page_number
+                        ? "Selecionada"
+                        : `${item.proposals?.length || 0} sugestões`}
                   </span>
                 </button>
               ))}
@@ -422,6 +456,13 @@ export function UrbanQuadroIIWorkspacePanel({
                               : `a página ${page.page_number}`} no PDF original, inclusive os números
                             e exceções sugeridos. Este registro ficará somente como rascunho, sem aplicação automática.
                           </label>
+                          {existingCategoryDraft ? (
+                            <p data-urban-qii-duplicate="true" role="status"
+                              className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-semibold text-amber-950">
+                              Esta categoria já possui rascunho nesta página. Consulte o registro abaixo;
+                              não envie outra cópia com um novo identificador.
+                            </p>
+                          ) : null}
                           <Button type="button" disabled={!valid || saving} onClick={() => void save()}
                             data-urban-qii-action="true" className="sig-force-dark-action min-h-11 rounded-xl bg-[#0b3150] !text-white disabled:!text-white">
                             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
@@ -490,12 +531,23 @@ export function UrbanQuadroIIWorkspacePanel({
                                     ? `Vagas: ${suggestion.parking_requirement_text}`
                                     : "Vagas: trecho ilegível ou não confirmado"}
                                 </p>
+                                {entries.some((entry) => entry.category_code.trim().toLocaleUpperCase("pt-BR") ===
+                                  suggestion.category_code.trim().toLocaleUpperCase("pt-BR")) ? (
+                                  <p className="mt-2 text-[11px] font-semibold text-amber-900">
+                                    Rascunho já registrado nesta página. Não duplicar.
+                                  </p>
+                                ) : null}
                                 <button type="button"
-                                  disabled={saving}
+                                  disabled={saving || entries.some((entry) => entry.category_code.trim().toLocaleUpperCase("pt-BR") ===
+                                    suggestion.category_code.trim().toLocaleUpperCase("pt-BR"))}
                                   onClick={() => prepareSuggestion(page.page_number, suggestion)}
                                   data-urban-qii-action="true"
                                   className="mt-2 min-h-10 rounded-xl border border-sky-300 bg-[#0b3150] px-4 py-2.5 text-xs font-bold !text-white shadow-sm hover:bg-sky-900 disabled:opacity-70">
-                                  <span data-urban-qii-action-label="true" className="!text-white">Pré-preencher e revisar</span>
+                                  <span data-urban-qii-action-label="true" className="!text-white">
+                                    {entries.some((entry) => entry.category_code.trim().toLocaleUpperCase("pt-BR") ===
+                                      suggestion.category_code.trim().toLocaleUpperCase("pt-BR"))
+                                      ? "Rascunho existente" : "Pré-preencher e revisar"}
+                                  </span>
                                 </button>
                               </div>
                             ))}
