@@ -314,3 +314,20 @@ describe("SIGAPRO IA — pending AIU2 value does not silently become law", () =>
     expect(css).toContain('[data-urban-matrix-ca-pending="true"] > span');
   });
 });
+
+
+describe("SIGAPRO IA — compact AIU(2) review with full audit retained", () => {
+  it("keeps previous review details available without expanding the card by default", () => {
+    const matrix=read("src/components/platform/UrbanLegalMatrixReviewPanel.tsx");
+    expect(matrix).toContain('data-urban-matrix-compact-history="true"');
+    expect(matrix).toContain('const auditHistory = (');
+    expect(matrix).toContain(") : auditHistory}");
+    expect(matrix).toContain("Histórico e justificativas da AIU(2)");
+    expect(matrix).toContain("Ver registro detalhado da orientação");
+    expect(matrix).toContain("Ver pendência da leitura automática original");
+    expect(matrix).toContain("Última revisão:");
+    expect(matrix).toContain('entry.needsCorrection ? "Atualizar divergência"');
+    expect(matrix).toContain('reviewingIndex === entry.index');
+    expect(matrix).not.toContain('<details data-urban-matrix-compact-history="true" open');
+  });
+});

@@ -335,51 +335,10 @@ export function UrbanLegalMatrixReviewPanel({
                   g.status === "pending_documentary_confirmation"
                 );
                 const pendingCa = describePendingAnalystCa(analystGuidance);
-                return (
-                  <details key={entry.index} data-urban-matrix-row="true"
-                    className="group min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-950">
-                    <summary className="flex cursor-pointer list-none flex-wrap items-center gap-2 text-sm [&::-webkit-details-marker]:hidden">
-                      {entry.readingReviewed ? <FileCheck2 className="h-4 w-4 shrink-0 text-emerald-600" /> : <FileWarning className="h-4 w-4 shrink-0 text-amber-700" />}
-                      <strong className="min-w-0 flex-1 break-words text-slate-950 dark:text-white">
-                        {row.zone} · {row.usage}
-                      </strong>
-                      {pendingCa ? (
-                        <span data-urban-matrix-ca-chip="true"
-                          className="max-w-full break-words rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-950">
-                          CA mínimo proposto: {pendingCa.formatted} · pendente
-                        </span>
-                      ) : null}
-                      <span className="text-xs text-slate-500">Quadro {row.quadro} · pág. {row.page}</span>
-                      <span className="inline-flex items-center gap-1 text-xs font-semibold text-sky-800 dark:text-sky-300">
-                        Ver índices <ChevronDown className="h-3.5 w-3.5" />
-                      </span>
-                    </summary>
-                    <div className="mt-3 space-y-3 border-t border-slate-200 pt-3 text-xs text-slate-700 dark:text-slate-200">
-                      <div className="grid gap-x-4 gap-y-3 sm:grid-cols-2 xl:grid-cols-3">
-                        {row.metrics.map((metric) => (
-                          <div key={metric.label}
-                            className={pendingCa && metric.label === "CA mínimo"
-                              ? "min-w-0 space-y-1 rounded-xl border border-amber-300 bg-amber-50 p-3"
-                              : "min-w-0 break-words"}>
-                            <span className={pendingCa && metric.label === "CA mínimo"
-                              ? "block font-bold text-amber-950"
-                              : "block text-slate-500 dark:text-slate-400"}>{metric.label}</span>
-                            {pendingCa && metric.label === "CA mínimo" ? (
-                              <div data-urban-matrix-ca-pending="true" className="space-y-1">
-                                <strong className="block text-2xl font-black text-slate-950">{pendingCa.formatted}</strong>
-                                <span className="block text-xs font-bold text-amber-950">
-                                  Proposta do analista — não homologada
-                                </span>
-                                <span className="block text-[11px] leading-5 text-slate-800">
-                                  OCR original: “{pendingCa.sourceOcr}” · leitura documental não confirmada
-                                </span>
-                              </div>
-                            ) : (
-                              <strong className="font-semibold">{formatUrbanMatrixSourceValue(metric.value)}</strong>
-                            )}
-                          </div>
-                        ))}
-                      </div>
+                // Keep the legal evidence and audit log, but avoid turning a
+                // single AIU(2) pending item into a several-screen-tall card.
+                const auditHistory = (
+                  <div className="space-y-3">
                       {pendingCa && /0[,.]1/.test(row.pending) ? (
                         <p data-aiu2-conflicting-review="true"
                           className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-950">
@@ -427,6 +386,70 @@ export function UrbanLegalMatrixReviewPanel({
                           <p className="mt-1 text-slate-500">Registrada em {new Date(entry.review.created_at).toLocaleString("pt-BR")}</p>
                         </div>
                       ) : null}
+                  </div>
+                );
+                return (
+                  <details key={entry.index} data-urban-matrix-row="true"
+                    className="group min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-950">
+                    <summary className="flex cursor-pointer list-none flex-wrap items-center gap-2 text-sm [&::-webkit-details-marker]:hidden">
+                      {entry.readingReviewed ? <FileCheck2 className="h-4 w-4 shrink-0 text-emerald-600" /> : <FileWarning className="h-4 w-4 shrink-0 text-amber-700" />}
+                      <strong className="min-w-0 flex-1 break-words text-slate-950 dark:text-white">
+                        {row.zone} · {row.usage}
+                      </strong>
+                      {pendingCa ? (
+                        <span data-urban-matrix-ca-chip="true"
+                          className="max-w-full break-words rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-950">
+                          CA mínimo proposto: {pendingCa.formatted} · pendente
+                        </span>
+                      ) : null}
+                      <span className="text-xs text-slate-500">Quadro {row.quadro} · pág. {row.page}</span>
+                      <span className="inline-flex items-center gap-1 text-xs font-semibold text-sky-800 dark:text-sky-300">
+                        Ver índices <ChevronDown className="h-3.5 w-3.5" />
+                      </span>
+                    </summary>
+                    <div className="mt-3 space-y-3 border-t border-slate-200 pt-3 text-xs text-slate-700 dark:text-slate-200">
+                      <div className="grid gap-x-4 gap-y-3 sm:grid-cols-2 xl:grid-cols-3">
+                        {row.metrics.map((metric) => (
+                          <div key={metric.label}
+                            className={pendingCa && metric.label === "CA mínimo"
+                              ? "min-w-0 space-y-1 rounded-xl border border-amber-300 bg-amber-50 p-3"
+                              : "min-w-0 break-words"}>
+                            <span className={pendingCa && metric.label === "CA mínimo"
+                              ? "block font-bold text-amber-950"
+                              : "block text-slate-500 dark:text-slate-400"}>{metric.label}</span>
+                            {pendingCa && metric.label === "CA mínimo" ? (
+                              <div data-urban-matrix-ca-pending="true" className="space-y-1">
+                                <strong className="block text-2xl font-black text-slate-950">{pendingCa.formatted}</strong>
+                                <span className="block text-xs font-bold text-amber-950">
+                                  Proposta do analista — não homologada
+                                </span>
+                                <span className="block text-[11px] leading-5 text-slate-800">
+                                  OCR original: “{pendingCa.sourceOcr}” · leitura documental não confirmada
+                                </span>
+                              </div>
+                            ) : (
+                              <strong className="font-semibold">{formatUrbanMatrixSourceValue(metric.value)}</strong>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                      {pendingCa ? (
+                        <details data-urban-matrix-compact-history="true"
+                          className="group min-w-0 rounded-xl border border-slate-200 bg-slate-50 text-slate-900">
+                          <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-2 px-3 py-3 text-xs font-bold text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-500 [&::-webkit-details-marker]:hidden">
+                            <span className="inline-flex items-center gap-2">
+                              <BookOpenCheck className="h-4 w-4 shrink-0 text-sky-800" />
+                              Histórico e justificativas da AIU(2)
+                            </span>
+                            <span className="inline-flex items-center gap-1 font-semibold text-sky-900">
+                              Abrir detalhes <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
+                            </span>
+                          </summary>
+                          <div className="border-t border-slate-200 p-3">
+                            {auditHistory}
+                          </div>
+                        </details>
+                      ) : auditHistory}
                       <p className="font-semibold text-amber-800">
                         {entry.readingReviewed ? "Leitura conferida; vigência não comprovada."
                           : entry.needsCorrection ? "Divergência registrada: permanece pendente."
@@ -437,7 +460,7 @@ export function UrbanLegalMatrixReviewPanel({
                           onClick={() => startReview(entry.index, entry.review?.note, hasReadingIssue)}
                           className="min-h-10 border-sky-200 text-sky-900">
                           <ClipboardCheck className="mr-2 h-4 w-4" />
-                          {entry.readingReviewed ? "Revisar novamente" : "Conferir esta linha"}
+                          {entry.readingReviewed ? "Revisar novamente" : entry.needsCorrection ? "Atualizar divergência" : "Conferir esta linha"}
                         </Button>
                       ) : null}
                       {reviewingIndex === entry.index && !isArchived(selected.id) ? (
