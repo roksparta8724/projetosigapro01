@@ -136,7 +136,8 @@ describe("SIGAPRO IA — assisted field auto-fill with legal safeguards", () => 
     expect(panel).toContain('permittedZones: ""');
     expect(panel).toContain("Zonas detectadas automaticamente — NÃO confirmadas");
     expect(panel).toContain('roadHierarchy: (proposal.road_hierarchy_text || "").slice(0, 600)');
-    expect(panel).toContain('parkingRequirement: (proposal.parking_requirement_text || "").slice(0, 600)');
+    expect(panel).toContain('parkingRequirement: proposal.field_warnings?.some((note) =>');
+    expect(panel).toContain(') ? "" : (proposal.parking_requirement_text || "").slice(0, 600)');
     expect(panel).toContain('specialConditions: (proposal.special_conditions_text || "").slice(0, 800)');
     expect(panel).toContain('sourceExcerpt: (proposal.literal_source_excerpt || "").slice(0, 1600)');
     expect(panel).toContain('setConfirmed(false); // Auto-fill is never a human confirmation.');
