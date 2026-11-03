@@ -2770,3 +2770,65 @@ html body #root [data-layout-mode="default"] .sig-main-shell
   overflow-wrap:anywhere;
 }
 /* HABITE-SE ALVARA SUMMARY CONTRAST V22 END */
+
+
+/* SIGAPRO URBAN MATRIX — local high-contrast contract (2026-11-03).
+   Scope exclusively to legal-reading review. Never recolor global buttons/cards.
+   Dark actions stay white-on-navy even while disabled; pale inputs stay dark-on-white.
+   A disabled action remains disabled (contrast does not bypass validation). */
+html body #root [data-urban-matrix-review="true"] button[data-urban-matrix-primary-action="true"],
+html body #root [data-urban-matrix-review="true"] button[data-urban-matrix-primary-action="true"]:hover,
+html body #root [data-urban-matrix-review="true"] button[data-urban-matrix-primary-action="true"]:focus-visible {
+  background: #0b2340 !important;
+  background-color: #0b2340 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  border-color: #0b2340 !important;
+  opacity: 1 !important;
+  filter: none !important;
+  mix-blend-mode: normal !important;
+  text-shadow: none !important;
+}
+html body #root [data-urban-matrix-review="true"] button[data-urban-matrix-primary-action="true"] :is(span,strong,svg) {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  opacity: 1 !important;
+  stroke: currentColor;
+}
+html body #root [data-urban-matrix-review="true"] button[data-urban-matrix-primary-action="true"]:disabled {
+  background: #475569 !important;
+  background-color: #475569 !important;
+  border-color: #475569 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  opacity: 1 !important;
+  cursor: not-allowed;
+}
+html body #root [data-urban-matrix-review="true"] [data-urban-matrix-reading-form="true"] {
+  background: #edf7ff !important;
+  background-color: #edf7ff !important;
+  color: #10243b !important;
+  -webkit-text-fill-color: #10243b !important;
+  border-color: #b5dfff !important;
+}
+html body #root [data-urban-matrix-review="true"] [data-urban-matrix-reading-form="true"] > :is(p,label) {
+  color: #10243b !important;
+  -webkit-text-fill-color: #10243b !important;
+}
+html body #root [data-urban-matrix-review="true"] [data-urban-matrix-reading-choice="true"],
+html body #root [data-urban-matrix-review="true"] [data-urban-matrix-reading-field="true"] {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  color: #172b45 !important;
+  -webkit-text-fill-color: #172b45 !important;
+  border-color: #cbd5e1 !important;
+  opacity: 1 !important;
+}
+html body #root [data-urban-matrix-review="true"] [data-urban-matrix-reading-field="true"]::placeholder {
+  color: #64748b !important;
+  -webkit-text-fill-color: #64748b !important;
+}
+html body #root [data-urban-matrix-review="true"] [data-urban-matrix-reading-choice="true"] input {
+  accent-color: #0369a1;
+}
+/* END SIGAPRO URBAN MATRIX HIGH CONTRAST */

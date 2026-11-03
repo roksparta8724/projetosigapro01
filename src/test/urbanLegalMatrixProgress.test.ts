@@ -97,3 +97,24 @@ describe("SIGAPRO IA — individual reading reviews and source replacement",()=>
     expect(migration).not.toContain("DELETE FROM public.urban_matrix_batch_staging_v1");
   });
 });
+
+
+describe("SIGAPRO IA — matrix review premium visual contrast", () => {
+  it("preserves the dark-button light-text and light-card dark-text contract", () => {
+    const panel = read("src/components/platform/UrbanLegalMatrixReviewPanel.tsx");
+    const css = read("src/styles/surface-polarity.css");
+    expect((panel.match(/data-urban-matrix-primary-action="true"/g) || []).length).toBe(2);
+    expect(panel).toContain("sig-force-dark-action");
+    expect(panel).toContain('data-urban-matrix-reading-form="true"');
+    expect((panel.match(/data-urban-matrix-reading-choice="true"/g) || []).length).toBe(2);
+    expect(panel).toContain('data-urban-matrix-reading-field="true"');
+    expect(css).toContain('button[data-urban-matrix-primary-action="true"]:disabled');
+    expect(css).toContain("color: #ffffff !important;");
+    expect(css).toContain("background: #475569 !important;");
+    expect(css).toContain('html body #root [data-urban-matrix-review="true"] [data-urban-matrix-reading-choice="true"]');
+    expect(css).toContain("color: #172b45 !important;");
+    // Colors never bypass the actual reading/identity authorization gates.
+    expect(panel).toContain('disabled={saving || !pageConfirmed || reviewNote.trim().length < 20}');
+    expect(panel).toContain('disabled={saving || manageNote.trim().length < 20}');
+  });
+});

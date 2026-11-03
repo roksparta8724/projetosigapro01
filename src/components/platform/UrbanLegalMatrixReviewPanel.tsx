@@ -249,7 +249,8 @@ export function UrbanLegalMatrixReviewPanel({
                   className="min-h-[76px] w-full bg-white text-sm text-slate-900 dark:bg-slate-950 dark:text-white" />
                 <div className="flex flex-wrap gap-2">
                   <Button type="button" disabled={saving || manageNote.trim().length < 20}
-                    onClick={() => void saveManage(batch)} className="bg-slate-950 text-white hover:bg-slate-800">
+                    onClick={() => void saveManage(batch)} data-urban-matrix-primary-action="true" aria-busy={saving}
+                    className="sig-force-dark-action min-h-11 rounded-xl bg-slate-950 !text-white hover:bg-slate-800 disabled:!text-white disabled:opacity-100">
                     {saving ? "Registrando..." : "Confirmar " + (manageAction === "archive" ? "arquivamento" : "restauro")}
                   </Button>
                   <Button type="button" variant="outline" disabled={saving} onClick={() => setManageId(null)}>Cancelar</Button>
@@ -350,7 +351,7 @@ export function UrbanLegalMatrixReviewPanel({
                         </Button>
                       ) : null}
                       {reviewingIndex === entry.index && !isArchived(selected.id) ? (
-                        <div className="space-y-3 rounded-xl border border-sky-200 bg-sky-50 p-3 dark:border-sky-700 dark:bg-slate-900">
+                        <div data-urban-matrix-reading-form="true" className="space-y-3 rounded-xl border border-sky-200 bg-sky-50 p-3 dark:border-sky-700 dark:bg-slate-900">
                           <p className="font-bold text-sky-950 dark:text-sky-200">
                             Etapa de leitura: confira a página {row.page} do PDF {selected.document_title}
                           </p>
@@ -358,12 +359,12 @@ export function UrbanLegalMatrixReviewPanel({
                             Confira os números e as observações no original. Isto não significa aprovação legal.
                           </p>
                           <div className="grid gap-2 sm:grid-cols-2">
-                            <label className="flex min-w-0 items-start gap-2 rounded-lg border border-slate-200 bg-white p-3 text-xs font-semibold text-slate-900 dark:bg-slate-950 dark:text-white">
+                            <label data-urban-matrix-reading-choice="true" className="flex min-w-0 items-start gap-2 rounded-lg border border-slate-200 bg-white p-3 text-xs font-semibold text-slate-900 dark:bg-slate-950 dark:text-white">
                               <input type="radio" checked={decision === "reading_verified"}
                                 disabled={hasReadingIssue} onChange={() => setDecision("reading_verified")} name={"reading-decision-" + entry.index} />
                               Números e observações conferidos com o original
                             </label>
-                            <label className="flex min-w-0 items-start gap-2 rounded-lg border border-slate-200 bg-white p-3 text-xs font-semibold text-slate-900 dark:bg-slate-950 dark:text-white">
+                            <label data-urban-matrix-reading-choice="true" className="flex min-w-0 items-start gap-2 rounded-lg border border-slate-200 bg-white p-3 text-xs font-semibold text-slate-900 dark:bg-slate-950 dark:text-white">
                               <input type="radio" checked={decision === "needs_correction"}
                                 onChange={() => setDecision("needs_correction")} name={"reading-decision-" + entry.index} />
                               Existe divergência ou trecho ilegível
@@ -378,7 +379,7 @@ export function UrbanLegalMatrixReviewPanel({
                             Observação da conferência (mínimo 20 caracteres)
                           </label>
                           <Textarea value={reviewNote} onChange={(e) => setReviewNote(e.target.value)}
-                            maxLength={1200} rows={3} className="w-full bg-white text-slate-900 dark:bg-slate-950 dark:text-white"
+                            maxLength={1200} rows={3} data-urban-matrix-reading-field="true" className="w-full bg-white text-slate-900 dark:bg-slate-950 dark:text-white"
                             placeholder="Informe o número/nota conferida ou descreva exatamente a divergência encontrada." />
                           <label className="flex items-start gap-2 text-xs font-medium text-slate-800 dark:text-slate-200">
                             <input type="checkbox" checked={pageConfirmed} onChange={(e) => setPageConfirmed(e.target.checked)} />
@@ -387,7 +388,8 @@ export function UrbanLegalMatrixReviewPanel({
                           <div className="flex flex-wrap gap-2">
                             <Button type="button" disabled={saving || !pageConfirmed || reviewNote.trim().length < 20}
                               onClick={() => void saveReview(entry.index, page, hasReadingIssue)}
-                              className="bg-slate-950 text-white hover:bg-slate-800">
+                              data-urban-matrix-primary-action="true" aria-busy={saving}
+                              className="sig-force-dark-action min-h-11 rounded-xl bg-slate-950 !text-white hover:bg-slate-800 disabled:!text-white disabled:opacity-100">
                               {saving ? "Salvando..." : "Registrar conferência"}
                             </Button>
                             <Button type="button" variant="outline" disabled={saving}
