@@ -356,6 +356,15 @@ export function UrbanLegalMatrixReviewPanel({
                           </p>
                         ))}
                       </div>
+                      {analystGuidance && /0[,\.]1/.test(entry.review?.note || "") &&
+                        Number(analystGuidance.proposed_value) === 1 ? (
+                        <p data-aiu2-conflicting-review="true"
+                          className="rounded-xl border border-rose-300 bg-rose-50 p-3 font-semibold text-rose-950">
+                          Atenção: a revisão anterior menciona 0,1, mas a orientação posterior do analista
+                          indica 1,0. São informações conflitantes. O CA mínimo continua sem valor legal
+                          confirmado até apresentação de evidência documental oficial.
+                        </p>
+                      ) : null}
                       {analystGuidance ? (
                         <div data-urban-matrix-analyst-guidance="true"
                           className="space-y-1 rounded-xl border border-amber-300 bg-amber-50 p-3 text-amber-950">

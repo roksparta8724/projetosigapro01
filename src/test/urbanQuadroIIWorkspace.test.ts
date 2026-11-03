@@ -258,3 +258,25 @@ describe("SIGAPRO IA — AIU2 analyst instruction and Quadro II scope accuracy",
     expect(scope).toContain("2.500 m²");
   });
 });
+
+
+describe("SIGAPRO IA — legal safety and premium review workflow", () => {
+  it("never assumes today's date as the effective date of a law, and keeps the manual editor collapsed", () => {
+    const settings = read("src/components/platform/MunicipalUrbanRulesSettings.tsx");
+    expect(settings).toContain('const [effectiveFrom, setEffectiveFrom] = useState("");');
+    expect(settings).not.toContain('municipalCivilDate()');
+    expect(settings).toContain('data-urban-legal-editor="true"');
+    expect(settings).toContain("a data do cadastro ou a de hoje não comprova vigência");
+    expect(settings).toContain("data de início de vigência comprovada");
+  });
+  it("never fills unreadable zoning automatically or certifies a conflicting AIU2 observation", () => {
+    const qii = read("src/components/platform/UrbanQuadroIIWorkspacePanel.tsx");
+    const matrix = read("src/components/platform/UrbanLegalMatrixReviewPanel.tsx");
+    expect(qii).toContain('permittedZones: ""');
+    expect(qii).toContain("Zonas detectadas automaticamente — NÃO confirmadas");
+    expect(qii).toContain("O campo de zonas ficou vazio propositalmente");
+    expect(qii).toContain("propositalmente");
+    expect(matrix).toContain('data-aiu2-conflicting-review="true"');
+    expect(matrix).toContain("São informações conflitantes");
+  });
+});

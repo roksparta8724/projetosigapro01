@@ -6,7 +6,6 @@ import { activateUrbanRegulation, listUrbanRegulations, saveUrbanRegulationDraft
 import { UrbanLegalMatrixReviewPanel } from "@/components/platform/UrbanLegalMatrixReviewPanel";
 import { UrbanQuadroIIWorkspacePanel } from "@/components/platform/UrbanQuadroIIWorkspacePanel";
 import { URBAN_METRICS, isUrbanTestFixtureRule, normalizeUrbanCode, type UrbanMetric, type UrbanRegulationVersion, type UrbanRule } from "@/lib/urbanPrecheck";
-import { municipalCivilDate } from "@/lib/municipalCivilDate";
 
 type EditableValue = { limit: string; reference: string };
 type DraftInputs = Partial<Record<UrbanMetric, EditableValue>>;
@@ -17,7 +16,7 @@ export function MunicipalUrbanRulesSettings({
   const [versions, setVersions] = useState<UrbanRegulationVersion[]>([]);
   const [zone, setZone] = useState("");
   const [usage, setUsage] = useState("");
-  const [effectiveFrom, setEffectiveFrom] = useState(() => municipalCivilDate());
+  const [effectiveFrom, setEffectiveFrom] = useState("");
   const [draft, setDraft] = useState<DraftInputs>({});
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -30,6 +29,7 @@ export function MunicipalUrbanRulesSettings({
     setDraft({});
     setZone("");
     setUsage("");
+    setEffectiveFrom("");
     setNotice("");
     setActiveQuadro("I");
     if (!municipalityId) return;
@@ -53,6 +53,12 @@ export function MunicipalUrbanRulesSettings({
   };
   const save = async () => {
     if (!canEdit || !municipalityId || busy) return;
+    // The date of registration is not the effective date of a municipal law.
+    // Never quietly date a legal rule as "today".
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(effectiveFrom)) {
+      setNotice("Informe a data de início de vigência comprovada pela norma oficial; não use a data atual por padrão.");
+      return;
+    }
     const rules: UrbanRule[] = [];
     for (const definition of URBAN_METRICS) {
       const entry = draft[definition.key];
@@ -74,6 +80,7 @@ export function MunicipalUrbanRulesSettings({
       await saveUrbanRegulationDraft(municipalityId, zone, usage, effectiveFrom, rules);
       await reload();
       setDraft({});
+      setEffectiveFrom("");
       setNotice("Nova versão registrada como RASCUNHO. Confira os artigos e ative quando validada.");
     } catch (error) {
       setNotice(String((error as Error)?.message || error));
@@ -161,16 +168,19 @@ export function MunicipalUrbanRulesSettings({
       </div>
       {canEdit && municipalityId ? (
         <>
-          <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-900">
-            <h4 className="text-sm font-extrabold text-slate-900 dark:text-white">
-              Cadastro jurídico de versões — etapa independente
-            </h4>
-            <p className="mt-1 text-xs leading-5 text-slate-700 dark:text-slate-200">
-              Os campos abaixo não são a transcrição dos Quadros I ou II.
-              Preencha somente parâmetros legalmente confirmados, com referências e vigência verificadas.
-              Salvar um rascunho não o ativa para a IA.
-            </p>
-          </div>
+          <details data-urban-legal-editor="true"
+            className="mt-6 min-w-0 rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-950">
+            <summary className="cursor-pointer select-none rounded-2xl bg-slate-50 px-4 py-4 text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-500 dark:bg-slate-900 dark:text-white">
+              <strong className="block text-sm">Cadastro jurídico de versões — etapa independente</strong>
+              <span className="mt-1 block text-xs leading-5 text-slate-600 dark:text-slate-200">
+                Abra apenas depois da conferência documental da lei. Não é necessário repetir os dados dos Quadros I e II.
+              </span>
+            </summary>
+            <div className="px-4 pb-5">
+              <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-950">
+                Salvar cria apenas rascunho. Confirme artigo, versão, exceções e data real de início da vigência;
+                a data do cadastro ou a de hoje não comprova vigência.
+              </p>
           <div className="mt-5 grid gap-3 md:grid-cols-3">
             <label className="text-xs font-bold text-slate-700 dark:text-slate-200">
               Código da zona
@@ -183,7 +193,7 @@ export function MunicipalUrbanRulesSettings({
                 onChange={(event) => setUsage(normalizeUrbanCode(event.target.value))} />
             </label>
             <label className="text-xs font-bold text-slate-700 dark:text-slate-200">
-              Vigência a partir de
+              Vigência legal comprovada (obrigatória)
               <Input aria-label="Início de vigência" className="mt-1" type="date" value={effectiveFrom}
                 onChange={(event) => setEffectiveFrom(event.target.value)} />
             </label>
@@ -223,6 +233,8 @@ export function MunicipalUrbanRulesSettings({
               </span>
             </button>
           </div>
+            </div>
+          </details>
         </>
       ) : null}
 

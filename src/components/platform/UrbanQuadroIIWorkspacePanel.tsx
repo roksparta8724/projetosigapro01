@@ -131,9 +131,13 @@ export function UrbanQuadroIIWorkspacePanel({
       pageNumber,
       categoryCode: proposal.category_code.slice(0, 32),
       useDescription: proposal.use_description.slice(0, 200),
-      permittedZones: (proposal.permitted_zones_text || "").slice(0, 600),
+      // Zone abbreviations in the scanned table are not consistently legible.
+      // Keep any OCR candidates visible below but NEVER paste them as legal permissions.
+      permittedZones: "",
       roadHierarchy: (proposal.road_hierarchy_text || "").slice(0, 600),
-      parkingRequirement: (proposal.parking_requirement_text || "").slice(0, 600),
+      parkingRequirement: proposal.field_warnings?.some((note) =>
+        /estacionamento|vagas.*(borrad|ileg[ií]vel|impress[aã]o)|propor[cç][aã]o.*vaga|raz[aã]o.*vaga/i.test(note),
+      ) ? "" : (proposal.parking_requirement_text || "").slice(0, 600),
       specialConditions: (proposal.special_conditions_text || "").slice(0, 800),
       // Joined table-cell summaries must never appear as literal legal evidence.
       sourceExcerpt: (proposal.literal_source_excerpt || "").slice(0, 1600),
@@ -306,7 +310,7 @@ export function UrbanQuadroIIWorkspacePanel({
                       {page.visual_warning ? (
                         <p className="rounded-lg border border-amber-200 bg-amber-50 p-2 text-xs text-amber-950">
                           <FileWarning className="mr-1 inline h-4 w-4" />
-                          Página girada no original: examine a imagem antes de copiar qualquer número.
+                          Página girada no original: gire a visualização do PDF para ler a tabela S1. Não copie índices de texto extraído sem conferir.
                         </p>
                       ) : null}
                       {formOpen ? (
@@ -335,7 +339,7 @@ export function UrbanQuadroIIWorkspacePanel({
                           </div>
                           <p className="text-xs leading-5 text-slate-700">
                             {selectedSuggestion
-                              ? "Leitura automática carregada nos campos. Confira as zonas, a via, as vagas e as exceções no PDF original."
+                              ? "A IA preparou um rascunho, não uma regra. Zonas ilegíveis e exigências de vagas duvidosas permanecem em branco até você conferir o PDF original."
                               : "Cadastre uma categoria manualmente quando não houver leitura confiável."}
                             {" "}Quando um campo estiver em branco, o dado não foi confirmado e não deve ser inventado.
                             No campo de evidência, registre um trecho literal do original (não um resumo de colunas).
@@ -348,6 +352,16 @@ export function UrbanQuadroIIWorkspacePanel({
                               {selectedSuggestion.field_warnings?.map((warning, index) => (
                                 <p key={index} className="mt-1 break-words">{warning}</p>
                               ))}
+                              {selectedSuggestion.permitted_zones_text ? (
+                                <p className="mt-2 rounded-xl border border-amber-300 bg-white p-3 text-slate-900">
+                                  <strong className="block text-xs text-amber-900">Zonas detectadas automaticamente — NÃO confirmadas</strong>
+                                  <span className="block break-words">{selectedSuggestion.permitted_zones_text}</span>
+                                  <span className="mt-1 block text-xs text-amber-900">
+                                    O campo de zonas ficou vazio propositalmente. Confira a coluna no Quadro II e o mapa
+                                    de zoneamento vigente antes de inserir qualquer zona permitida.
+                                  </span>
+                                </p>
+                              ) : null}
                               {selectedSuggestion.group_scope_text ? (
                                 <p className="mt-2 rounded-lg border border-amber-300 bg-white px-3 py-2 font-semibold text-slate-900">
                                   Enquadramento geral da categoria: {selectedSuggestion.group_scope_text}
@@ -375,7 +389,7 @@ export function UrbanQuadroIIWorkspacePanel({
                                 onChange={(e) => setField("useDescription",e.target.value)} maxLength={200}
                                 placeholder="Conforme a tabela original" />
                             </label>
-                            <label className="text-xs font-semibold">Zonas permitidas (texto literal)
+                            <label className="text-xs font-semibold">Zonas permitidas (somente após conferir no PDF e no mapa)
                               <Input className="mt-1 bg-white text-slate-900" value={draft.permittedZones}
                                 onChange={(e) => setField("permittedZones",e.target.value)} maxLength={600}
                                 placeholder="Deixe vazio se não confirmado" />
