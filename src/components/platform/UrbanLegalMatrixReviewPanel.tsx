@@ -354,8 +354,8 @@ export function UrbanLegalMatrixReviewPanel({
                           className="space-y-2 rounded-xl border border-sky-200 bg-sky-50 p-3 text-slate-900">
                           <strong className="block text-sm text-sky-950">Origem da proposta e situação legal</strong>
                           <p className="leading-5">
-                            Orientação do analista relatada pelo solicitante. O documento digitalizado
-                            apresenta “{pendingCa.sourceOcr}”; a extração original foi preservada.
+                            Orientação do analista relatada pelo solicitante.
+                            OCR original: “{pendingCa.sourceOcr}”. A extração original foi preservada.
                           </p>
                           <p className="font-semibold text-amber-950">
                             {pendingCa.status}. Não ativado para análise automática.
@@ -412,19 +412,16 @@ export function UrbanLegalMatrixReviewPanel({
                         {row.metrics.map((metric) => (
                           <div key={metric.label}
                             className={pendingCa && metric.label === "CA mínimo"
-                              ? "min-w-0 space-y-1 rounded-xl border border-amber-300 bg-amber-50 p-3"
+                              ? "min-w-0 break-words border-l-[3px] border-amber-400 pl-3"
                               : "min-w-0 break-words"}>
                             <span className={pendingCa && metric.label === "CA mínimo"
                               ? "block font-bold text-amber-950"
                               : "block text-slate-500 dark:text-slate-400"}>{metric.label}</span>
                             {pendingCa && metric.label === "CA mínimo" ? (
-                              <div data-urban-matrix-ca-pending="true" className="space-y-1">
-                                <strong className="block text-2xl font-black text-slate-950">{pendingCa.formatted}</strong>
-                                <span className="block text-xs font-bold text-amber-950">
+                              <div data-urban-matrix-ca-pending="true" className="space-y-0.5">
+                                <strong className="block text-lg font-extrabold text-slate-950">{pendingCa.formatted}</strong>
+                                <span className="block text-[11px] font-bold leading-4 text-amber-950">
                                   Proposta do analista — não homologada
-                                </span>
-                                <span className="block text-[11px] leading-5 text-slate-800">
-                                  OCR original: “{pendingCa.sourceOcr}” · leitura documental não confirmada
                                 </span>
                               </div>
                             ) : (
@@ -435,14 +432,14 @@ export function UrbanLegalMatrixReviewPanel({
                       </div>
                       {pendingCa ? (
                         <details data-urban-matrix-compact-history="true"
-                          className="group min-w-0 rounded-xl border border-slate-200 bg-slate-50 text-slate-900">
+                          className="group/history min-w-0 rounded-xl border border-slate-200 bg-slate-50 text-slate-900">
                           <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-2 px-3 py-3 text-xs font-bold text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-500 [&::-webkit-details-marker]:hidden">
                             <span className="inline-flex items-center gap-2">
                               <BookOpenCheck className="h-4 w-4 shrink-0 text-sky-800" />
                               Histórico e justificativas da AIU(2)
                             </span>
                             <span className="inline-flex items-center gap-1 font-semibold text-sky-900">
-                              Abrir detalhes <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
+                              Ver histórico <ChevronDown className="h-4 w-4 transition-transform group-open/history:rotate-180" />
                             </span>
                           </summary>
                           <div className="border-t border-slate-200 p-3">
@@ -452,15 +449,26 @@ export function UrbanLegalMatrixReviewPanel({
                       ) : auditHistory}
                       <p className="font-semibold text-amber-800">
                         {entry.readingReviewed ? "Leitura conferida; vigência não comprovada."
-                          : entry.needsCorrection ? "Divergência registrada: permanece pendente."
+                          : entry.needsCorrection ? "Divergência já registrada; aguardando comprovação documental."
                             : "Aguardando revisão da leitura e das exceções."}
                       </p>
+                      {pendingCa && entry.needsCorrection && reviewingIndex !== entry.index ? (
+                        <p className="text-xs leading-5 text-slate-600 dark:text-slate-300">
+                          Não é necessário preencher novamente. Reabra somente se houver documento novo
+                          ou informação técnica que altere a observação.
+                        </p>
+                      ) : null}
                       {!isArchived(selected.id) ? (
                         <Button type="button" variant="outline" disabled={!auditAvailable || saving}
-                          onClick={() => startReview(entry.index, entry.review?.note, hasReadingIssue)}
+                          onClick={() => reviewingIndex === entry.index
+                             ? setReviewingIndex(null)
+                             : startReview(entry.index, entry.review?.note, hasReadingIssue)}
                           className="min-h-10 border-sky-200 text-sky-900">
                           <ClipboardCheck className="mr-2 h-4 w-4" />
-                          {entry.readingReviewed ? "Revisar novamente" : entry.needsCorrection ? "Atualizar divergência" : "Conferir esta linha"}
+                          {reviewingIndex === entry.index ? "Fechar conferência"
+                             : entry.readingReviewed ? "Revisar novamente"
+                             : entry.needsCorrection ? "Editar observação, se necessário"
+                             : "Conferir esta linha"}
                         </Button>
                       ) : null}
                       {reviewingIndex === entry.index && !isArchived(selected.id) ? (

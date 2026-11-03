@@ -326,8 +326,25 @@ describe("SIGAPRO IA — compact AIU(2) review with full audit retained", () => 
     expect(matrix).toContain("Ver registro detalhado da orientação");
     expect(matrix).toContain("Ver pendência da leitura automática original");
     expect(matrix).toContain("Última revisão:");
-    expect(matrix).toContain('entry.needsCorrection ? "Atualizar divergência"');
+    expect(matrix).toContain('entry.needsCorrection ? "Editar observação, se necessário"');
     expect(matrix).toContain('reviewingIndex === entry.index');
     expect(matrix).not.toContain('<details data-urban-matrix-compact-history="true" open');
+  });
+});
+
+
+describe("SIGAPRO IA — AIU(2) proportional card and optional correction", () => {
+  it("keeps long OCR history collapsed and stops prompting duplicate reviews", () => {
+    const matrix=read("src/components/platform/UrbanLegalMatrixReviewPanel.tsx");
+    expect(matrix).toContain("min-w-0 break-words border-l-[3px] border-amber-400 pl-3");
+    expect(matrix).toContain("Não é necessário preencher novamente.");
+    expect(matrix).toContain("Editar observação, se necessário");
+    expect(matrix).toContain('reviewingIndex === entry.index ? "Fechar conferência"');
+    expect(matrix).toContain("Ver histórico");
+    expect(matrix).toContain("group-open/history:rotate-180");
+    expect(matrix).toContain('className="group/history');
+    expect(matrix).toContain("OCR original:");
+    expect(matrix).toContain("A extração original foi preservada.");
+    expect(matrix).not.toContain("space-y-1 rounded-xl border border-amber-300 bg-amber-50 p-3");
   });
 });
