@@ -112,7 +112,7 @@ describe("SIGAPRO IA — Quadro II PDF evidence suggestions remain unverified", 
     expect(seed).toContain("ON CONFLICT (municipality_id,batch_id,page_number) DO NOTHING");
     expect(client).toContain('status: "proposal_unverified"');
     expect(panel).toContain("Pré-preencher e revisar");
-    expect(panel).toContain('sourceExcerpt: (proposal.source_excerpt || "").slice(0, 1600)');
+    expect(panel).toContain('sourceExcerpt: (proposal.literal_source_excerpt || "").slice(0, 1600)');
     expect(panel).toContain("setSelectedSuggestion(proposal)");
     expect(panel).toContain("setConfirmed(false); // Auto-fill is never a human confirmation.");
     expect(panel).toContain('page.source_quality === "machine_unverified"');
@@ -137,7 +137,7 @@ describe("SIGAPRO IA — assisted field auto-fill with legal safeguards", () => 
     expect(panel).toContain('roadHierarchy: (proposal.road_hierarchy_text || "").slice(0, 600)');
     expect(panel).toContain('parkingRequirement: (proposal.parking_requirement_text || "").slice(0, 600)');
     expect(panel).toContain('specialConditions: (proposal.special_conditions_text || "").slice(0, 800)');
-    expect(panel).toContain('sourceExcerpt: (proposal.source_excerpt || "").slice(0, 1600)');
+    expect(panel).toContain('sourceExcerpt: (proposal.literal_source_excerpt || "").slice(0, 1600)');
     expect(panel).toContain('setConfirmed(false); // Auto-fill is never a human confirmation.');
     expect(panel).toContain("selectedSuggestion.source_pages.join");
     expect(panel).toContain("Não aprove o cadastro apenas pela aparência");
@@ -167,5 +167,24 @@ describe("SIGAPRO IA — source-review form is visible and buttons maintain cont
     expect(css).toContain('button[data-urban-qii-action="true"] > [data-urban-qii-action-label="true"]');
     expect(css).toContain("background: #0b3150 !important;");
     expect(css).toContain("-webkit-text-fill-color: #ffffff !important;");
+  });
+});
+
+
+describe("SIGAPRO IA — safe literal evidence and E1 group applicability", () => {
+  it("keeps E1 group scope and activities visible while rejecting composed excerpts as literal evidence", () => {
+    const panel=read("src/components/platform/UrbanQuadroIIWorkspacePanel.tsx");
+    const client=read("src/integrations/backend/urbanPrecheckClient.ts");
+    const seed=read("neon/qa-seeds/20261103_quadro_ii_e1_scope_and_evidence_qa.sql");
+    expect(panel).toContain("Enquadramento geral da categoria:");
+    expect(panel).toContain("Atividades abrangidas na fonte:");
+    expect(panel).toContain('sourceExcerpt: (proposal.literal_source_excerpt || "").slice(0, 1600)');
+    expect(panel).toContain("Resumos automáticos de várias colunas não são prova documental.");
+    expect(client).toContain("literal_source_excerpt?: string;");
+    expect(client).toContain("group_scope_text?: string;");
+    expect(seed).toContain("área construída de até 250 m²");
+    expect(seed).toContain("Creches; e similares.");
+    expect(seed).toContain("document_sha256='68c85d879011dbb323e288a935099b66b6aca3babdd059b8d1c993f98b5750e1'");
+    expect(seed).not.toContain("urban_regulation_versions");
   });
 });

@@ -147,6 +147,9 @@ export type UrbanQuadroIISuggestion = {
   source_pages?: number[];
   confidence?: "requires_visual_review" | "low_quality";
   field_warnings?: string[];
+  group_scope_text?: string;
+  example_activities_text?: string;
+  literal_source_excerpt?: string;
   status: "proposal_unverified";
 };
 export type UrbanQuadroIIPage = {

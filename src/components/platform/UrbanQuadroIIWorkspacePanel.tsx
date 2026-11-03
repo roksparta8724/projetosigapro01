@@ -113,7 +113,8 @@ export function UrbanQuadroIIWorkspacePanel({
       roadHierarchy: (proposal.road_hierarchy_text || "").slice(0, 600),
       parkingRequirement: (proposal.parking_requirement_text || "").slice(0, 600),
       specialConditions: (proposal.special_conditions_text || "").slice(0, 800),
-      sourceExcerpt: (proposal.source_excerpt || "").slice(0, 1600),
+      // Joined table-cell summaries must never appear as literal legal evidence.
+      sourceExcerpt: (proposal.literal_source_excerpt || "").slice(0, 1600),
     });
     setSelectedSuggestion(proposal);
     setConfirmed(false); // Auto-fill is never a human confirmation.
@@ -259,7 +260,9 @@ export function UrbanQuadroIIWorkspacePanel({
                             {selectedSuggestion
                               ? "Leitura automática carregada nos campos. Confira as zonas, a via, as vagas e as exceções no PDF original."
                               : "Cadastre uma categoria manualmente quando não houver leitura confiável."}
-                            {" "}Quando um campo estiver em branco, o dado não foi confirmado e não deve ser inventado. Um rascunho não ativa normas urbanísticas.
+                            {" "}Quando um campo estiver em branco, o dado não foi confirmado e não deve ser inventado.
+                            No campo de evidência, registre um trecho literal do original (não um resumo de colunas).
+                            Um rascunho não ativa normas urbanísticas.
                           </p>
                           {selectedSuggestion ? (
                             <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-950">
@@ -268,6 +271,16 @@ export function UrbanQuadroIIWorkspacePanel({
                               {selectedSuggestion.field_warnings?.map((warning, index) => (
                                 <p key={index} className="mt-1 break-words">{warning}</p>
                               ))}
+                              {selectedSuggestion.group_scope_text ? (
+                                <p className="mt-2 rounded-lg border border-amber-300 bg-white px-3 py-2 font-semibold text-slate-900">
+                                  Enquadramento geral da categoria: {selectedSuggestion.group_scope_text}
+                                </p>
+                              ) : null}
+                              {selectedSuggestion.example_activities_text ? (
+                                <p className="mt-2 rounded-lg border border-amber-200 bg-white px-3 py-2 text-slate-900">
+                                  Atividades abrangidas na fonte: {selectedSuggestion.example_activities_text}
+                                </p>
+                              ) : null}
                               <p className="mt-2 font-semibold">
                                 Os dados sugeridos ainda não são parâmetros oficialmente validados.
                                 Não aprove o cadastro apenas pela aparência do preenchimento.
@@ -305,10 +318,10 @@ export function UrbanQuadroIIWorkspacePanel({
                                 onChange={(e) => setField("specialConditions",e.target.value)} maxLength={800}
                                 placeholder="Notas, exigências e exceções da página" rows={2} />
                             </label>
-                            <label className="text-xs font-semibold sm:col-span-2">Trecho de evidência sugerido (confira e corrija no PDF; mínimo 20 caracteres)
+                            <label className="text-xs font-semibold sm:col-span-2">Trecho literal da fonte (conferir no PDF; mínimo 20 caracteres)
                               <Textarea className="mt-1 bg-white text-slate-900" value={draft.sourceExcerpt}
                                 onChange={(e) => setField("sourceExcerpt",e.target.value)} maxLength={1600}
-                                placeholder="Copie a evidência visível na página, sem corrigir números por suposição" rows={3} />
+                                placeholder="Transcreva um trecho literal da tabela. Resumos automáticos de várias colunas não são prova documental." rows={3} />
                             </label>
                           </div>
                           <label className="flex items-start gap-2 text-xs font-semibold leading-5 text-slate-800">
@@ -353,6 +366,9 @@ export function UrbanQuadroIIWorkspacePanel({
                                 <strong className="block break-words text-xs text-slate-900">
                                   {suggestion.category_code} — {suggestion.use_description}
                                 </strong>
+                                {suggestion.group_scope_text ? (
+                                  <p className="mt-1 break-words text-[11px] text-slate-700">{suggestion.group_scope_text}</p>
+                                ) : null}
                                 <p className="mt-1 break-words text-[11px] text-slate-600">
                                   Fonte: páginas {suggestion.source_pages?.join(", ") || page.page_number} ·
                                   leitura pendente de conferência
