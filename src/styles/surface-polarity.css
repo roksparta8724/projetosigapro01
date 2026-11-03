@@ -2832,3 +2832,23 @@ html body #root [data-urban-matrix-review="true"] [data-urban-matrix-reading-cho
   accent-color: #0369a1;
 }
 /* END SIGAPRO URBAN MATRIX HIGH CONTRAST */
+
+
+/* Final AI matrix contrast rule. Explicit text element prevents inherited disabled
+   button foreground (including theme-specific span overrides) from fading. */
+html body #root [data-urban-matrix-review="true"] button[data-urban-matrix-primary-action="true"]:disabled,
+html body #root [data-urban-matrix-review="true"] button[data-urban-matrix-primary-action="true"]:disabled > [data-urban-matrix-primary-label="true"],
+html body #root [data-urban-matrix-review="true"] button[data-urban-matrix-primary-action="true"] > [data-urban-matrix-primary-label="true"] {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  opacity: 1 !important;
+  filter: none !important;
+  text-shadow: none !important;
+  visibility: visible !important;
+}
+html body #root [data-urban-matrix-review="true"] button[data-urban-matrix-primary-action="true"]:disabled {
+  background: #334155 !important;
+  background-color: #334155 !important;
+  border: 1px dashed #94a3b8 !important;
+  cursor: not-allowed;
+}

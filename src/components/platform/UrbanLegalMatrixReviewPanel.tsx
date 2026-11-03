@@ -251,7 +251,9 @@ export function UrbanLegalMatrixReviewPanel({
                   <Button type="button" disabled={saving || manageNote.trim().length < 20}
                     onClick={() => void saveManage(batch)} data-urban-matrix-primary-action="true" aria-busy={saving}
                     className="sig-force-dark-action min-h-11 rounded-xl bg-slate-950 !text-white hover:bg-slate-800 disabled:!text-white disabled:opacity-100">
-                    {saving ? "Registrando..." : "Confirmar " + (manageAction === "archive" ? "arquivamento" : "restauro")}
+                    <span data-urban-matrix-primary-label="true" className="!text-white">
+                      {saving ? "Registrando..." : "Confirmar " + (manageAction === "archive" ? "arquivamento" : "restauro")}
+                    </span>
                   </Button>
                   <Button type="button" variant="outline" disabled={saving} onClick={() => setManageId(null)}>Cancelar</Button>
                 </div>
@@ -390,7 +392,9 @@ export function UrbanLegalMatrixReviewPanel({
                               onClick={() => void saveReview(entry.index, page, hasReadingIssue)}
                               data-urban-matrix-primary-action="true" aria-busy={saving}
                               className="sig-force-dark-action min-h-11 rounded-xl bg-slate-950 !text-white hover:bg-slate-800 disabled:!text-white disabled:opacity-100">
-                              {saving ? "Salvando..." : "Registrar conferência"}
+                              <span data-urban-matrix-primary-label="true" className="!text-white">
+                                {saving ? "Salvando..." : "Registrar conferência"}
+                              </span>
                             </Button>
                             <Button type="button" variant="outline" disabled={saving}
                               onClick={() => setReviewingIndex(null)}>Cancelar</Button>

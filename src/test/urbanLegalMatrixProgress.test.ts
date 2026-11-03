@@ -118,3 +118,18 @@ describe("SIGAPRO IA — matrix review premium visual contrast", () => {
     expect(panel).toContain('disabled={saving || manageNote.trim().length < 20}');
   });
 });
+
+
+describe("SIGAPRO IA — visually legible disabled primary actions", () => {
+  it("keeps both primary labels white and uses a dark background when disabled", () => {
+    const panel = read("src/components/platform/UrbanLegalMatrixReviewPanel.tsx");
+    const css = read("src/styles/surface-polarity.css");
+    const button = read("src/components/ui/button.tsx");
+    expect((panel.match(/data-urban-matrix-primary-label="true"/g) || []).length).toBe(2);
+    expect(css).toContain('button[data-urban-matrix-primary-action="true"]:disabled > [data-urban-matrix-primary-label="true"]');
+    expect(css).toContain("background: #334155 !important;");
+    expect(css).toContain("-webkit-text-fill-color: #ffffff !important;");
+    expect(button).not.toContain("disabled:text-slate-400");
+    expect(panel).toContain('disabled={saving || !pageConfirmed || reviewNote.trim().length < 20}');
+  });
+});
