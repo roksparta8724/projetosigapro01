@@ -228,6 +228,57 @@ function applyMunicipalDepartmentSelection<
 type UserSegment = "todos" | "externos" | "analistas" | "fiscal" | "financeiro" | "administradores" | "outros";
 type WorkspaceView = "visao-geral" | "fila" | "usuarios" | "organograma" | "historico";
 
+type MunicipalActivityItem = {
+  processId: string;
+  protocol: string;
+  title: string;
+  detail: string;
+  actor: string;
+  at: string;
+  status: ProcessRecord["status"];
+};
+
+function municipalActivityTitle(title: string) {
+  const label = title.trim();
+  const eventLabels: Record<string, string> = {
+    triagem_automatica: "Triagem automática",
+    processo_oficializado: "Processo oficializado",
+    status_change: "Alteração de situação",
+    processo_atualizado: "Processo atualizado",
+    documento_anexado: "Documento anexado",
+  };
+  return eventLabels[label.toLowerCase()] ??
+    (label.includes("_") ? label.replace(/_/g, " ").replace(/^./, (s) => s.toUpperCase()) : label);
+}
+
+function MunicipalActivityCard({ item }: { item: MunicipalActivityItem }) {
+  return (
+    <article data-municipal-activity-card="true"
+      className="min-w-0 max-w-full overflow-hidden rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm [overflow-wrap:anywhere]">
+      <div className="min-w-0 max-w-full">
+        <div className="flex min-w-0 flex-wrap items-start gap-2">
+          <p className="min-w-0 max-w-full break-words text-sm font-semibold text-slate-950 [overflow-wrap:anywhere]"
+            title={item.protocol}>{item.protocol}</p>
+          <Badge variant="outline" className={`${statusTone(item.status)} max-w-full whitespace-normal break-words text-left [overflow-wrap:anywhere]`}>
+            {statusLabel(item.status)}
+          </Badge>
+        </div>
+        <p className="mt-2 min-w-0 max-w-full break-words text-sm font-medium leading-5 text-slate-800 [overflow-wrap:anywhere]"
+           title={item.title}>{municipalActivityTitle(item.title)}</p>
+        <p className="mt-1 min-w-0 max-w-full whitespace-normal break-words text-sm leading-5 text-slate-600 [overflow-wrap:anywhere]"
+           title={item.detail}>{item.detail}</p>
+      </div>
+      <footer className="mt-3 flex min-w-0 flex-wrap items-start justify-between gap-x-3 gap-y-1 border-t border-slate-100 pt-2.5 text-xs text-slate-600 [overflow-wrap:anywhere]">
+        <span className="min-w-0 max-w-full break-words [overflow-wrap:anywhere]" title={item.actor}>
+          {item.actor || "Sistema SIGAPRO"}
+        </span>
+        <time className="min-w-0 max-w-full break-words tabular-nums [overflow-wrap:anywhere]"
+          title={item.at}>{item.at}</time>
+      </footer>
+    </article>
+  );
+}
+
 function getStatusTone(status: AccountStatus) {
   if (status === "blocked") return "border-red-500/20 bg-red-500/10 text-red-600 dark:text-red-400";
   if (status === "inactive") return "border-slate-300 bg-slate-100 text-slate-600";
@@ -756,16 +807,16 @@ export function TenantAdminPage() {
           aria-hidden="true"
         />
 
-        <div className="grid min-w-0 gap-4 px-4 py-4 pl-5 lg:grid-cols-[minmax(260px,1.55fr)_minmax(150px,0.72fr)_minmax(140px,0.68fr)_minmax(115px,0.52fr)_auto] lg:items-center">
+        <div className="grid min-w-0 max-w-full grid-cols-1 gap-4 px-4 py-4 pl-5 sm:grid-cols-2 min-[1750px]:grid-cols-[minmax(0,1.35fr)_minmax(0,0.85fr)_minmax(0,0.82fr)] min-[2050px]:grid-cols-[minmax(0,1.5fr)_minmax(0,0.75fr)_minmax(0,0.75fr)_minmax(0,0.7fr)_auto] [overflow-wrap:anywhere]">
           <div className="min-w-0">
             <div className="flex min-w-0 flex-wrap items-center gap-2">
               <p
-                className="max-w-full truncate text-sm font-black tracking-[-0.01em] text-slate-950"
+                className="min-w-0 max-w-full break-words text-sm font-black tracking-[-0.01em] text-slate-950 [overflow-wrap:anywhere]"
                 title={process.protocol}
               >
                 {process.protocol}
               </p>
-              <Badge variant="outline" className={statusTone(process.status)}>
+              <Badge variant="outline" className={`${statusTone(process.status)} max-w-full whitespace-normal break-words [overflow-wrap:anywhere]`}>
                 {statusLabel(process.status)}
               </Badge>
               <Badge className={`shrink-0 rounded-full border text-[10px] ${getPriorityTone(process)}`}>
@@ -773,16 +824,16 @@ export function TenantAdminPage() {
               </Badge>
             </div>
             <p
-              className="mt-1.5 truncate text-sm font-semibold text-slate-800"
+              className="mt-1.5 min-w-0 max-w-full break-words text-sm font-semibold text-slate-800 [overflow-wrap:anywhere]"
               title={process.title}
             >
               {process.title}
             </p>
-            <div className="mt-1 flex min-w-0 flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
-              <span className="truncate" title={process.ownerName}>
+            <div className="mt-1 flex min-w-0 flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 [overflow-wrap:anywhere]">
+              <span className="min-w-0 max-w-full break-words [overflow-wrap:anywhere]" title={process.ownerName}>
                 {process.ownerName || "Responsável não informado"}
               </span>
-              <span className="truncate" title={process.property.iptu}>
+              <span className="min-w-0 max-w-full break-words [overflow-wrap:anywhere]" title={process.property.iptu}>
                 IPTU {process.property.iptu || "não informado"}
               </span>
             </div>
@@ -793,7 +844,7 @@ export function TenantAdminPage() {
               Etapa atual
             </p>
             <p
-              className="mt-1 line-clamp-2 text-xs font-semibold leading-5 text-slate-700"
+              className="mt-1 max-w-full break-words text-xs font-semibold leading-5 text-slate-700 [overflow-wrap:anywhere]"
               title={process.sla.currentStage}
             >
               {process.sla.currentStage || "Não informada"}
@@ -805,12 +856,12 @@ export function TenantAdminPage() {
               Responsável
             </p>
             <p
-              className="mt-1 truncate text-xs font-semibold text-slate-700"
+              className="mt-1 max-w-full break-words text-xs font-semibold text-slate-700 [overflow-wrap:anywhere]"
               title={process.technicalLead}
             >
               {process.technicalLead || "Não atribuído"}
             </p>
-            <p className="mt-1 truncate text-[11px] text-slate-400" title={process.sla.dueDate}>
+            <p className="mt-1 max-w-full break-words text-[11px] text-slate-500 [overflow-wrap:anywhere]" title={process.sla.dueDate}>
               Prazo: {process.sla.dueDate || "não informado"}
             </p>
           </div>
@@ -828,18 +879,18 @@ export function TenantAdminPage() {
               </span>
             </div>
             <p
-              className="mt-1 truncate text-[10px] text-slate-400"
+              className="mt-1 max-w-full break-words text-[10px] text-slate-500 [overflow-wrap:anywhere]"
               title={protocolGuide?.code || ""}
             >
               {protocolGuide?.code ? `Inicial ${protocolGuide.code}` : "Sem guia inicial"}
             </p>
           </div>
 
-          <div className="flex items-center justify-end">
+          <div className="flex min-w-0 items-center justify-start sm:justify-end min-[1750px]:col-span-3 min-[2050px]:col-span-1">
             <Button
               type="button"
               variant="outline"
-              className="h-9 rounded-xl border-slate-300 bg-white px-3 text-xs font-bold text-slate-700 hover:bg-slate-50"
+              className="h-auto min-h-9 min-w-0 max-w-full whitespace-normal break-words rounded-xl border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 [overflow-wrap:anywhere]"
               onClick={() => navigate(buildProcessPath(process))}
             >
               Abrir processo
@@ -1233,7 +1284,7 @@ export function TenantAdminPage() {
         ) : null}
 
         {workspaceView === "visao-geral" ? (
-          <PageMainGrid className="xl:grid-cols-[minmax(0,1.72fr)_minmax(320px,0.88fr)]">
+          <PageMainGrid className="xl:grid-cols-[minmax(0,1.65fr)_minmax(300px,0.85fr)]">
             <PageMainContent>
               <SectionCard
                 title="Centro operacional da Prefeitura"
@@ -1242,7 +1293,7 @@ export function TenantAdminPage() {
                 className="shadow-[0_12px_30px_rgba(15,23,42,0.05)]"
                 contentClassName="space-y-5"
               >
-                <div className="grid gap-4 lg:grid-cols-3">
+                <div className="grid min-w-0 gap-4 sm:grid-cols-2 min-[1750px]:grid-cols-3 [overflow-wrap:anywhere]">
                   <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
                     <p className="text-xs uppercase tracking-[0.14em] text-slate-500">Em análise</p>
                     <p className="mt-2 text-lg font-semibold text-slate-950">{metrics.inAnalysis}</p>
@@ -1270,7 +1321,7 @@ export function TenantAdminPage() {
                 </div>
               </SectionCard>
 
-              <div className="grid gap-6 xl:grid-cols-[minmax(0,1.25fr)_minmax(300px,0.9fr)]">
+              <div className="grid min-w-0 gap-5 2xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
                 <TableCard
                   title="Atividade institucional recente"
                   description="Leitura curta das últimas movimentações relevantes da operação municipal."
@@ -1283,22 +1334,7 @@ export function TenantAdminPage() {
                       </div>
                     ) : (
                       recentActivity.slice(0, 5).map((item, index) => (
-                        <div key={`${item.processId}-${index}`} className="rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm">
-                          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                            <div className="min-w-0">
-                              <div className="flex flex-wrap items-center gap-2">
-                                <p className="text-sm font-semibold text-slate-950">{item.protocol}</p>
-                                <Badge variant="outline" className={statusTone(item.status)}>{statusLabel(item.status)}</Badge>
-                              </div>
-                              <p className="mt-1 text-sm font-medium text-slate-800">{item.title}</p>
-                              <p className="mt-1 line-clamp-2 text-sm text-slate-500">{item.detail}</p>
-                            </div>
-                            <div className="text-sm text-slate-500">
-                              <p>{item.actor}</p>
-                              <p>{item.at}</p>
-                            </div>
-                          </div>
-                        </div>
+                        <MunicipalActivityCard key={`${item.processId}-${index}`} item={item} />
                       ))
                     )}
                   </div>
@@ -1312,10 +1348,10 @@ export function TenantAdminPage() {
                   contentClassName="space-y-3"
                 >
                   {unitSummary.map((item) => (
-                    <div key={item.label} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
+                    <div key={item.label} className="min-w-0 max-w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 [overflow-wrap:anywhere]">
                       <p className="text-xs uppercase tracking-[0.14em] text-slate-500">{item.label}</p>
                       <p className="mt-2 text-lg font-semibold text-slate-950">{item.value}</p>
-                      <p className="mt-1 text-sm text-slate-500">{item.helper}</p>
+                      <p className="mt-1 max-w-full break-words text-sm text-slate-600 [overflow-wrap:anywhere]">{item.helper}</p>
                     </div>
                   ))}
                 </SectionCard>
@@ -1523,7 +1559,7 @@ export function TenantAdminPage() {
           </PageMainGrid>
         ) : null}
 
-        {workspaceView === "historico" ? <PageMainGrid className="xl:grid-cols-[minmax(0,1.9fr)_minmax(300px,0.8fr)]"><PageMainContent><TableCard title="Movimentações recentes" description="Trilha curta de trâmites, pareceres e ações da operação municipal." icon={Clock3}><div className="space-y-3">{recentActivity.length === 0 ? <div className="rounded-[24px] border border-dashed border-slate-300 bg-slate-50 p-6 text-sm leading-6 text-slate-600">Nenhuma movimentação recente encontrada.</div> : recentActivity.map((item, index) => <div key={`${item.processId}-${index}`} className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm"><div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><p className="text-sm font-semibold text-slate-950">{item.protocol}</p><Badge variant="outline" className={statusTone(item.status)}>{statusLabel(item.status)}</Badge></div><p className="mt-1 text-sm font-medium text-slate-800">{item.title}</p><p className="mt-1 line-clamp-2 text-sm text-slate-500">{item.detail}</p></div><div className="text-sm text-slate-500"><p>{item.actor}</p><p>{item.at}</p></div></div></div>)}</div></TableCard></PageMainContent><PageSideContent><SectionCard title="Aprovações recentes" description="Deferimentos já concluídos e liberados pela operação municipal." icon={CheckCircle2} contentClassName="space-y-3">{recentApprovals.length === 0 ? <div className="rounded-2xl border border-slate-200 bg-white p-4 text-sm leading-6 text-slate-600">Nenhum deferimento recente encontrado.</div> : recentApprovals.map((process) => <div key={process.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><p className="text-sm font-semibold text-slate-950">{process.protocol}</p><p className="mt-1 text-sm text-slate-800">{process.title}</p><p className="mt-1 text-sm text-slate-500">{process.ownerName}</p></div>)}</SectionCard></PageSideContent></PageMainGrid> : null}
+        {workspaceView === "historico" ? <PageMainGrid className="xl:grid-cols-[minmax(0,1.9fr)_minmax(300px,0.8fr)]"><PageMainContent><TableCard title="Movimentações recentes" description="Trilha curta de trâmites, pareceres e ações da operação municipal." icon={Clock3}><div className="space-y-3">{recentActivity.length === 0 ? <div className="rounded-[24px] border border-dashed border-slate-300 bg-slate-50 p-6 text-sm leading-6 text-slate-600">Nenhuma movimentação recente encontrada.</div> : recentActivity.map((item, index) => <MunicipalActivityCard key={`${item.processId}-${index}`} item={item} />)}</div></TableCard></PageMainContent><PageSideContent><SectionCard title="Aprovações recentes" description="Deferimentos já concluídos e liberados pela operação municipal." icon={CheckCircle2} contentClassName="space-y-3">{recentApprovals.length === 0 ? <div className="rounded-2xl border border-slate-200 bg-white p-4 text-sm leading-6 text-slate-600">Nenhum deferimento recente encontrado.</div> : recentApprovals.map((process) => <div key={process.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><p className="text-sm font-semibold text-slate-950">{process.protocol}</p><p className="mt-1 text-sm text-slate-800">{process.title}</p><p className="mt-1 text-sm text-slate-500">{process.ownerName}</p></div>)}</SectionCard></PageSideContent></PageMainGrid> : null}
       </PageShell>
     </PortalFrame>
   );

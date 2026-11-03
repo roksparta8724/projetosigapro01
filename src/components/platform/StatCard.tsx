@@ -26,7 +26,7 @@ export function StatCard({
       data-premium-surface="metric"
       data-tone={tone}
       className={cn(
-        "sig-stat-card group flex h-full min-h-[140px] min-w-0 flex-col overflow-hidden rounded-[20px] border border-slate-200/80 bg-white p-4 shadow-[0_10px_24px_rgba(15,23,42,0.06)] transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-[1px] hover:shadow-[0_14px_28px_rgba(15,23,42,0.08)] sm:min-h-[152px] sm:rounded-[22px] sm:p-5",
+        "sig-stat-card group flex h-full min-h-[140px] min-w-0 flex-col overflow-hidden [overflow-wrap:anywhere] rounded-[20px] border border-slate-200/80 bg-white p-4 shadow-[0_10px_24px_rgba(15,23,42,0.06)] transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-[1px] hover:shadow-[0_14px_28px_rgba(15,23,42,0.08)] sm:min-h-[152px] sm:rounded-[22px] sm:p-5",
       )}
     >
       <div className="flex h-full items-start justify-between gap-4">
@@ -34,14 +34,14 @@ export function StatCard({
           <p className="sig-fit-title text-[11px] uppercase tracking-[0.14em] text-slate-500" title={label}>{label}</p>
           <p
             className={cn(
-              "sig-stat-value mt-2 min-w-0 max-w-full sig-fit-title text-[1.18rem] font-semibold leading-[1.18] tracking-[-0.015em] text-slate-950 sm:text-[1.28rem]",
+              "sig-stat-value mt-2 min-w-0 max-w-full break-words [overflow-wrap:anywhere] sig-fit-title text-[1.18rem] font-semibold leading-[1.18] tracking-[-0.015em] text-slate-950 sm:text-[1.28rem]",
               valueClassName,
             )}
             title={valueTitle ?? value}
           >
             {value}
           </p>
-          <p className="sig-fit-copy mt-auto max-w-full pt-2 text-[12px] font-normal leading-5 text-slate-500 sm:text-sm sm:leading-6" title={description}>{description}</p>
+          <p className="sig-fit-copy mt-auto max-w-full break-words [overflow-wrap:anywhere] pt-2 text-[12px] font-normal leading-5 text-slate-500 sm:text-sm sm:leading-6" title={description}>{description}</p>
         </div>
         <div
           className={cn(

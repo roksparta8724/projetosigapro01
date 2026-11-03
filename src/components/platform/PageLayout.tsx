@@ -124,7 +124,7 @@ export function SectionCard({
       data-surface="adaptive-card"
       data-premium-surface="section"
       className={cn(
-        "sig-section-card flex h-full min-w-0 flex-col overflow-hidden rounded-[22px] border border-slate-200/80 bg-white p-4 shadow-[0_10px_22px_rgba(15,23,42,0.055)] transition-[transform,box-shadow,border-color] duration-200 md:p-5",
+        "sig-section-card flex h-full min-w-0 flex-col overflow-hidden [overflow-wrap:anywhere] rounded-[22px] border border-slate-200/80 bg-white p-4 shadow-[0_10px_22px_rgba(15,23,42,0.055)] transition-[transform,box-shadow,border-color] duration-200 md:p-5",
         className,
       )}
     >
@@ -136,9 +136,9 @@ export function SectionCard({
                 <AppIcon icon={Icon} className="h-4.5 w-4.5" />
               </div>
             ) : null}
-            <div className="min-w-0 sig-text-wrap">
-              <h2 className="sig-section-title line-clamp-3 max-w-[42ch]" title={title}>{title}</h2>
-              {description ? <p className="sig-subtitle mt-1 line-clamp-3 max-w-[72ch]" title={description}>{description}</p> : null}
+            <div className="min-w-0 max-w-full flex-1 sig-text-wrap [overflow-wrap:anywhere]">
+              <h2 className="sig-section-title max-w-full break-words [overflow-wrap:anywhere]" title={title}>{title}</h2>
+              {description ? <p className="sig-subtitle mt-1 max-w-full break-words [overflow-wrap:anywhere]" title={description}>{description}</p> : null}
             </div>
           </div>
         </div>
@@ -148,7 +148,7 @@ export function SectionCard({
           </div>
         ) : null}
       </div>
-      <div className={cn("min-w-0 flex-1 pt-4", contentClassName)}>{children}</div>
+      <div className={cn("min-w-0 max-w-full flex-1 pt-4 [overflow-wrap:anywhere]", contentClassName)}>{children}</div>
     </section>
   );
 }
@@ -212,7 +212,7 @@ export function InternalSectionNav({
   const operationalItems = items.filter((item) => !summary(item));
   const orderedItems = summaryFirst
     ? [...summaryItems, ...operationalItems]
-    : [...operationalItems, ...summaryItems];
+    : items;
 
   return (
     <section
