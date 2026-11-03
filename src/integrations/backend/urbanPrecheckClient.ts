@@ -136,11 +136,20 @@ export async function recordUrbanMatrixReadingAction(
 
 
 /** Quadro II remains an unverified transcription workspace, never an active legal rule. */
+export type UrbanQuadroIISuggestion = {
+  category_code: string;
+  use_description: string;
+  source_excerpt: string;
+  status: "proposal_unverified";
+};
 export type UrbanQuadroIIPage = {
   page_number: number;
   topic: string;
   visual_warning: boolean;
   draft_count: number;
+  source_evidence_text?: string | null;
+  source_quality?: "machine_unverified" | "visual_required" | null;
+  proposals?: UrbanQuadroIISuggestion[];
 };
 export type UrbanQuadroIIDraft = {
   id: string;

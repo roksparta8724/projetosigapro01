@@ -53,6 +53,8 @@ export function UrbanQuadroIIWorkspacePanel({
     () => workspace?.entries.length || 0, [workspace],
   );
   const pageCount = workspace?.pages.length || 0;
+  const sourcePages = workspace?.pages.filter((page) => Boolean(page.source_evidence_text)).length || 0;
+  const suggestions = workspace?.pages.reduce((count, page) => count + (page.proposals?.length || 0), 0) || 0;
   const valid = Boolean(
     draft.categoryCode.trim() && draft.useDescription.trim().length >= 5 &&
     draft.sourceExcerpt.trim().length >= 20 && confirmed &&
@@ -143,10 +145,14 @@ export function UrbanQuadroIIWorkspacePanel({
 
       {workspace?.status === "pending_legal_review" ? (
         <>
-          <div className="mt-3 grid gap-2 sm:grid-cols-3">
+          <div className="mt-3 grid gap-2 sm:grid-cols-4">
             <div className="rounded-xl border border-slate-200 bg-white p-3 text-slate-900">
               <p className="text-xs text-slate-600">Páginas identificadas</p>
               <strong className="text-xl font-extrabold">{pageCount}</strong>
+            </div>
+            <div className="rounded-xl border border-slate-200 bg-white p-3 text-slate-900">
+              <p className="text-xs text-slate-600">Páginas com texto-fonte</p>
+              <strong className="text-xl font-extrabold">{sourcePages}/{pageCount}</strong>
             </div>
             <div className="rounded-xl border border-slate-200 bg-white p-3 text-slate-900">
               <p className="text-xs text-slate-600">Rascunhos de categorias</p>
@@ -162,9 +168,9 @@ export function UrbanQuadroIIWorkspacePanel({
           </p>
           <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-950">
             <ShieldAlert className="mr-1 inline h-4 w-4" />
-            14 páginas identificadas não significam 14 páginas transcritas ou conferidas.
-            Nenhuma categoria pode ser aplicada automaticamente até confirmação da fonte,
-            das exceções e da legislação vigente. O cadastro abaixo é somente um rascunho auditável.
+            O PDF contém {sourcePages} páginas com evidência de leitura em preparação e {suggestions} sugestões
+            de categorias ainda não conferidas. Texto extraído pode misturar colunas, especialmente estacionamento e
+            zonas. Nenhuma sugestão é norma e nada entra na análise da IA sem revisão documental e jurídica.
           </div>
           <p className="mt-4 text-sm font-bold text-slate-900 dark:text-white">Índice de leitura — páginas 38 a 51</p>
           <div className="mt-2 grid gap-2 lg:grid-cols-2">
@@ -179,7 +185,7 @@ export function UrbanQuadroIIWorkspacePanel({
                     <span className="min-w-0">
                       <strong className="block text-sm">Página {page.page_number} · {page.topic}</strong>
                       <span className="mt-1 block text-xs text-slate-600 dark:text-slate-300">
-                        {page.draft_count} rascunho(s) · conferência legal pendente
+                        {page.draft_count} rascunho(s) · {page.proposals?.length || 0} sugestões · conferência legal pendente
                       </span>
                     </span>
                     <span className="flex shrink-0 items-center gap-1 text-xs font-bold text-sky-800 dark:text-sky-300">
@@ -193,6 +199,55 @@ export function UrbanQuadroIIWorkspacePanel({
                           <FileWarning className="mr-1 inline h-4 w-4" />
                           Página girada no original: examine a imagem antes de copiar qualquer número.
                         </p>
+                      ) : null}
+                      {page.source_evidence_text ? (
+                        <details className="min-w-0 rounded-xl border border-sky-200 bg-white p-3 text-slate-900">
+                          <summary className="cursor-pointer text-xs font-bold text-sky-900">
+                            Exibir texto da página {page.page_number} extraído do PDF (não conferido)
+                          </summary>
+                          <p className="mt-2 text-xs leading-5 text-amber-900">
+                            {page.source_quality === "visual_required"
+                              ? "Esta página exige leitura visual. Não copie índices da extração automática."
+                              : "Extração automática: colunas e números podem estar fora de ordem. Compare com a imagem original."}
+                          </p>
+                          <p className="mt-2 max-h-64 overflow-y-auto whitespace-pre-wrap break-words rounded-lg bg-slate-50 p-3 font-mono text-xs leading-5 text-slate-800">
+                            {page.source_evidence_text}
+                          </p>
+                        </details>
+                      ) : null}
+                      {(page.proposals?.length || 0) > 0 ? (
+                        <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-3 text-slate-900">
+                          <p className="text-sm font-extrabold">Sugestões de categorias — requerem conferência</p>
+                          <p className="text-xs text-slate-600">
+                            Use como ponto de partida, sem importar zonas, vagas ou recuos por suposição.
+                            O registro somente será salvo depois de conferência humana no PDF.
+                          </p>
+                          <div className="grid gap-2 sm:grid-cols-2">
+                            {page.proposals?.map((suggestion) => (
+                              <div key={suggestion.category_code} className="min-w-0 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                                <strong className="block break-words text-xs text-slate-900">
+                                  {suggestion.category_code} — {suggestion.use_description}
+                                </strong>
+                                <button type="button"
+                                  disabled={saving}
+                                  onClick={() => {
+                                    setDraft({
+                                      ...emptyDraft(page.page_number),
+                                      categoryCode: suggestion.category_code,
+                                      useDescription: suggestion.use_description,
+                                      sourceExcerpt: suggestion.source_excerpt,
+                                    });
+                                    setConfirmed(false);
+                                    setFormOpen(true);
+                                    setNotice("");
+                                  }}
+                                  className="mt-2 rounded-lg border border-sky-200 bg-white px-3 py-2 text-xs font-bold text-sky-950 hover:bg-sky-50">
+                                  Preparar rascunho
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
                       ) : null}
                       {entries.length > 0 ? entries.map((item) => (
                         <article key={item.id} className="min-w-0 rounded-lg border border-slate-200 bg-white p-3 text-xs text-slate-800">
@@ -215,8 +270,9 @@ export function UrbanQuadroIIWorkspacePanel({
                       {formOpen ? (
                         <div className="space-y-3 rounded-xl border border-sky-200 bg-sky-50 p-3 text-slate-900">
                           <p className="text-xs leading-5 text-slate-700">
-                            Transcreva uma categoria por vez. Não deduza zonas, vagas ou restrições
-                            que estejam ilegíveis. O botão não ativa regras urbanísticas.
+                            Transcreva uma categoria por vez. Sugestões pré-preenchidas não são conferência:
+                            verifique e corrija o trecho no PDF original antes de marcar a confirmação.
+                            Não deduza zonas, vagas ou restrições ilegíveis. Salvar não ativa normas urbanísticas.
                           </p>
                           <div className="grid gap-3 sm:grid-cols-2">
                             <label className="text-xs font-semibold">Código da categoria

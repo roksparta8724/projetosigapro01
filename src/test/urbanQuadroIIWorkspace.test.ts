@@ -94,3 +94,29 @@ describe("SIGAPRO IA — visual polarity for both Quadro tabs", () => {
     expect(stylesheet).toContain("color: #152b43 !important;");
   });
 });
+
+
+describe("SIGAPRO IA — Quadro II PDF evidence suggestions remain unverified", () => {
+  it("loads only provenance-linked text and proposals without auto-activating rules", () => {
+    const migration=read("neon/migrations/20261103_quadro_ii_source_evidence_qa_v1.sql");
+    const seed=read("neon/qa-seeds/20261103_quadro_ii_pdf_evidence_qa.sql");
+    const client=read("src/integrations/backend/urbanPrecheckClient.ts");
+    const panel=read("src/components/platform/UrbanQuadroIIWorkspacePanel.tsx");
+    expect(migration).toContain("ENABLE ROW LEVEL SECURITY");
+    expect(migration).toContain("REVOKE ALL ON public.urban_quadro_ii_source_evidence_v1 FROM authenticated");
+    expect(migration).toContain("'source_evidence_text'");
+    expect(migration).toContain("'source_quality'");
+    expect(migration).toContain("'proposals'");
+    expect(seed).toContain("68c85d879011dbb323e288a935099b66b6aca3babdd059b8d1c993f98b5750e1");
+    expect(seed).toContain("source_batch");
+    expect(seed).toContain("ON CONFLICT (municipality_id,batch_id,page_number) DO NOTHING");
+    expect(client).toContain('status: "proposal_unverified"');
+    expect(panel).toContain("Preparar rascunho");
+    expect(panel).toContain("setConfirmed(false)");
+    expect(panel).toContain("Texto extraído pode misturar colunas");
+    expect(panel).toContain('page.source_quality === "visual_required"');
+    expect(panel).toContain("Nenhuma sugestão é norma");
+    expect(panel).toContain("Regras liberadas para IA");
+    expect(panel).toContain('disabled={!valid || saving}');
+  });
+});
