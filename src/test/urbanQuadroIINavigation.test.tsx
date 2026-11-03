@@ -36,7 +36,7 @@ describe("SIGAPRO IA — changing Quadro II pages without scroll jumps", () => {
     });
   });
 
-  it("keeps one fixed index and reuses a single anchored detail while switching pages", async () => {
+  it("keeps a compact index stable and never scrolls the viewport when switching pages", async () => {
     const { container } = render(
       <UrbanQuadroIIWorkspacePanel
         municipalityId="6c1eaac6-1f5a-43f3-979e-2a7682b88a1a"
@@ -55,7 +55,7 @@ describe("SIGAPRO IA — changing Quadro II pages without scroll jumps", () => {
     fireEvent.click(page38);
     expect(page38).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("region", { name: /Leitura da página 38/ })).toBeInTheDocument();
-    expect(HTMLElement.prototype.scrollIntoView).toHaveBeenCalled();
+    expect(HTMLElement.prototype.scrollIntoView).not.toHaveBeenCalled();
 
     fireEvent.click(page39);
     expect(page38).toHaveAttribute("aria-pressed", "false");
