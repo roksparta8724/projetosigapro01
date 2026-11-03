@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { activateUrbanRegulation, listUrbanRegulations, saveUrbanRegulationDraft } from "@/integrations/backend/urbanPrecheckClient";
 import { UrbanLegalMatrixReviewPanel } from "@/components/platform/UrbanLegalMatrixReviewPanel";
 import { UrbanQuadroIIWorkspacePanel } from "@/components/platform/UrbanQuadroIIWorkspacePanel";
+import { UrbanOfficialLegalSourcesPanel } from "@/components/platform/UrbanOfficialLegalSourcesPanel";
 import { URBAN_METRICS, isUrbanTestFixtureRule, normalizeUrbanCode, type UrbanMetric, type UrbanRegulationVersion, type UrbanRule } from "@/lib/urbanPrecheck";
 
 type EditableValue = { limit: string; reference: string };
@@ -141,6 +142,8 @@ export function MunicipalUrbanRulesSettings({
           Verifique alterações e vigência com o setor técnico responsável.
         </p>
       </div>
+
+      <UrbanOfficialLegalSourcesPanel municipalityId={municipalityId} />
 
       <div className="mt-5 min-w-0" data-urban-quadros-workspace="true">
         <div role="group" aria-label="Escolher quadro da legislação urbanística"
