@@ -70,6 +70,70 @@ export async function readUrbanMatrixBatch(
   return item as UrbanMatrixBatchDetail;
 }
 
+
+export type UrbanMatrixReadingAction = "reading_verified" | "needs_correction" | "archive" | "restore";
+export type UrbanMatrixRowReadingAudit = {
+  id: string;
+  batch_id: string;
+  row_index: number;
+  page_number: number;
+  action: "reading_verified" | "needs_correction";
+  note: string;
+  created_at: string;
+  actor_profile_id: string;
+};
+export type UrbanMatrixBatchEvent = {
+  id: string; batch_id: string; action: "archive" | "restore";
+  note: string; created_at: string; actor_profile_id: string;
+};
+export type UrbanMatrixReadingAudit = {
+  row_reviews: UrbanMatrixRowReadingAudit[];
+  batch_events: UrbanMatrixBatchEvent[];
+};
+
+export async function listUrbanMatrixReadingAudit(municipalityId: string): Promise<UrbanMatrixReadingAudit> {
+  const raw = await invoke<unknown>("list_urban_matrix_reading_audit_v2", {
+    _municipality_id: municipalityId,
+  });
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    throw new Error("A trilha de conferencia do documento retornou formato invalido.");
+  }
+  const data = raw as Partial<UrbanMatrixReadingAudit>;
+  if (!Array.isArray(data.row_reviews) || !Array.isArray(data.batch_events)) {
+    throw new Error("Historico de conferencias ainda nao esta disponivel neste banco.");
+  }
+  return data as UrbanMatrixReadingAudit;
+}
+
+export async function recordUrbanMatrixReadingAction(
+  municipalityId: string, batchId: string, documentSha256: string,
+  action: UrbanMatrixReadingAction, rowIndex: number | null,
+  pageNumber: number | null, note: string,
+): Promise<void> {
+  if (!municipalityId || !batchId || !/^[a-f0-9]{64}$/.test(documentSha256) ||
+    !["reading_verified", "needs_correction", "archive", "restore"].includes(action) ||
+    note.trim().length < 20 || note.trim().length > 1200) {
+    throw new Error("Confira o documento e informe uma justificativa de 20 a 1200 caracteres.");
+  }
+  if (action === "reading_verified" || action === "needs_correction") {
+    if (!Number.isInteger(rowIndex) || rowIndex === null || rowIndex < 0 ||
+      !Number.isInteger(pageNumber) || pageNumber === null || pageNumber < 1) {
+      throw new Error("Informe a linha e pagina exatas do documento-fonte.");
+    }
+  } else if (rowIndex !== null || pageNumber !== null) {
+    throw new Error("Arquivamento e restauracao nao alteram indices individuais.");
+  }
+  await invoke("record_urban_matrix_reading_action_v2", {
+    _municipality_id: municipalityId,
+    _batch_id: batchId,
+    _document_sha256: documentSha256,
+    _action: action,
+    _row_index: rowIndex,
+    _page_number: pageNumber,
+    _note: note.trim(),
+  });
+}
+
 export type UrbanPrecheckHistoryEntry = {
   id: string; municipality_id: string; process_id: string; regulation_version_id: string;
   measurements: UrbanMeasurements; reviewer_profile_id: string; created_at: string;
