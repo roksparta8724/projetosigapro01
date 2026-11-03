@@ -22,3 +22,21 @@ describe("FileDropZone PDF preview", () => {
     expect(source).not.toContain("PDF pronto para visualização sem carregar dentro do card");
   });
 });
+
+
+describe("municipal institutional uploads stay readable in compact cards", () => {
+  const configSource = readFileSync(
+    resolve(process.cwd(), "src/pages/saas/ConfiguracoesPage.tsx"),
+    "utf8",
+  );
+
+  it("stacks title, description and picker in all three official identity cards", () => {
+    for (const title of ["Brasão oficial", "Bandeira municipal", "Imagem do portal"]) {
+      expect(configSource).toContain(`<FileDropZone\\n                    stacked\\n                    title="${title}"`);
+    }
+    expect(configSource).toContain("grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-2 2xl:grid-cols-3");
+    expect(source).toContain('data-upload-layout={stacked ? "stacked" : "auto"}');
+    expect(source).toContain('stacked ? "sm:flex-col"');
+    expect(source).toContain('!stacked && "sm:w-auto"');
+  });
+});
