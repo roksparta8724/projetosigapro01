@@ -32,7 +32,7 @@ describe("municipal institutional uploads stay readable in compact cards", () =>
 
   it("stacks title, description and picker in all three official identity cards", () => {
     for (const title of ["Brasão oficial", "Bandeira municipal", "Imagem do portal"]) {
-      expect(configSource).toContain(`<FileDropZone\\n                    stacked\\n                    title="${title}"`);
+      expect(configSource).toContain(`<FileDropZone\n                    stacked\n                    title="${title}"`);
     }
     expect(configSource).toContain("grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-2 2xl:grid-cols-3");
     expect(source).toContain('data-upload-layout={stacked ? "stacked" : "auto"}');
