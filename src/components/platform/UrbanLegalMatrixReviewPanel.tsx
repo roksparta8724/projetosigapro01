@@ -356,7 +356,7 @@ export function UrbanLegalMatrixReviewPanel({
                           </p>
                         ))}
                       </div>
-                      {analystGuidance && /0[,\.]1/.test(entry.review?.note || "") &&
+                      {analystGuidance && /0[,.]1/.test(entry.review?.note || "") &&
                         Number(analystGuidance.proposed_value) === 1 ? (
                         <p data-aiu2-conflicting-review="true"
                           className="rounded-xl border border-rose-300 bg-rose-50 p-3 font-semibold text-rose-950">
