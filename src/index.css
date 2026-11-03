@@ -11163,3 +11163,19 @@ html body #root [data-urban-quadro-ii="true"] [data-urban-qii-index="true"] butt
   background-color: #eff8ff !important;
   border-color: #4a9ad2 !important;
 }
+
+
+/* Quadro I / AIU(2): dark lettering on light status cards, even in inverse municipality themes. */
+html body #root [data-urban-matrix-review="true"] [data-urban-matrix-ca-chip="true"] {
+  background: #fffbeb !important;
+  border-color: #d6a544 !important;
+  color: #172334 !important;
+  -webkit-text-fill-color: #172334 !important;
+  opacity: 1 !important;
+}
+html body #root [data-urban-matrix-review="true"] [data-urban-matrix-ca-pending="true"] > strong,
+html body #root [data-urban-matrix-review="true"] [data-urban-matrix-ca-pending="true"] > span {
+  color: #172334 !important;
+  -webkit-text-fill-color: #172334 !important;
+  opacity: 1 !important;
+}

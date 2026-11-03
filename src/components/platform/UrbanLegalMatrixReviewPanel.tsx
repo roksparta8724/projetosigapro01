@@ -6,7 +6,7 @@ import {
   type UrbanMatrixBatchDetail, type UrbanMatrixBatchSummary,
   type UrbanMatrixReadingAudit, type UrbanMatrixReadingAction,
 } from "@/integrations/backend/urbanPrecheckClient";
-import { calculateUrbanMatrixBatchProgress, describeUrbanMatrixRow, formatUrbanMatrixSourceValue } from "@/lib/urbanLegalMatrixReview";
+import { calculateUrbanMatrixBatchProgress, describePendingAnalystCa, describeUrbanMatrixRow, formatUrbanMatrixSourceValue } from "@/lib/urbanLegalMatrixReview";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -334,6 +334,7 @@ export function UrbanLegalMatrixReviewPanel({
                   g.field_code === "ca_minimo_original" &&
                   g.status === "pending_documentary_confirmation"
                 );
+                const pendingCa = describePendingAnalystCa(analystGuidance);
                 return (
                   <details key={entry.index} data-urban-matrix-row="true"
                     className="group min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-950">
@@ -342,6 +343,12 @@ export function UrbanLegalMatrixReviewPanel({
                       <strong className="min-w-0 flex-1 break-words text-slate-950 dark:text-white">
                         {row.zone} · {row.usage}
                       </strong>
+                      {pendingCa ? (
+                        <span data-urban-matrix-ca-chip="true"
+                          className="max-w-full break-words rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-950">
+                          CA mínimo proposto: {pendingCa.formatted} · pendente
+                        </span>
+                      ) : null}
                       <span className="text-xs text-slate-500">Quadro {row.quadro} · pág. {row.page}</span>
                       <span className="inline-flex items-center gap-1 text-xs font-semibold text-sky-800 dark:text-sky-300">
                         Ver índices <ChevronDown className="h-3.5 w-3.5" />
@@ -350,37 +357,69 @@ export function UrbanLegalMatrixReviewPanel({
                     <div className="mt-3 space-y-3 border-t border-slate-200 pt-3 text-xs text-slate-700 dark:text-slate-200">
                       <div className="grid gap-x-4 gap-y-3 sm:grid-cols-2 xl:grid-cols-3">
                         {row.metrics.map((metric) => (
-                          <p key={metric.label} className="min-w-0 break-words">
-                            <span className="block text-slate-500 dark:text-slate-400">{metric.label}</span>
-                            <strong className="font-semibold">{formatUrbanMatrixSourceValue(metric.value)}</strong>
-                          </p>
+                          <div key={metric.label}
+                            className={pendingCa && metric.label === "CA mínimo"
+                              ? "min-w-0 space-y-1 rounded-xl border border-amber-300 bg-amber-50 p-3"
+                              : "min-w-0 break-words"}>
+                            <span className={pendingCa && metric.label === "CA mínimo"
+                              ? "block font-bold text-amber-950"
+                              : "block text-slate-500 dark:text-slate-400"}>{metric.label}</span>
+                            {pendingCa && metric.label === "CA mínimo" ? (
+                              <div data-urban-matrix-ca-pending="true" className="space-y-1">
+                                <strong className="block text-2xl font-black text-slate-950">{pendingCa.formatted}</strong>
+                                <span className="block text-xs font-bold text-amber-950">
+                                  Proposta do analista — não homologada
+                                </span>
+                                <span className="block text-[11px] leading-5 text-slate-800">
+                                  OCR original: “{pendingCa.sourceOcr}” · leitura documental não confirmada
+                                </span>
+                              </div>
+                            ) : (
+                              <strong className="font-semibold">{formatUrbanMatrixSourceValue(metric.value)}</strong>
+                            )}
+                          </div>
                         ))}
                       </div>
-                      {analystGuidance && /0[,.]1/.test(entry.review?.note || "") &&
-                        Number(analystGuidance.proposed_value) === 1 ? (
+                      {pendingCa && /0[,.]1/.test(row.pending) ? (
                         <p data-aiu2-conflicting-review="true"
-                          className="rounded-xl border border-rose-300 bg-rose-50 p-3 font-semibold text-rose-950">
-                          Atenção: a revisão anterior menciona 0,1, mas a orientação posterior do analista
-                          indica 1,0. São informações conflitantes. O CA mínimo continua sem valor legal
-                          confirmado até apresentação de evidência documental oficial.
+                          className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-950">
+                          <strong className="block">Por que a AIU(2) continua pendente?</strong>
+                          A extração antiga levantou a hipótese de 0,1 sem confirmação.
+                          O analista orientou {pendingCa.formatted}. São informações conflitantes
+                          na leitura, não duas normas válidas. É necessária comprovação documental
+                          para liberar o índice à IA.
                         </p>
                       ) : null}
-                      {analystGuidance ? (
+                      {pendingCa && analystGuidance ? (
                         <div data-urban-matrix-analyst-guidance="true"
-                          className="space-y-1 rounded-xl border border-amber-300 bg-amber-50 p-3 text-amber-950">
-                          <strong className="block text-sm">
-                            AIU(2): CA mínimo sugerido pelo analista — {Number(analystGuidance.proposed_value).toLocaleString("pt-BR")}
-                          </strong>
+                          className="space-y-2 rounded-xl border border-sky-200 bg-sky-50 p-3 text-slate-900">
+                          <strong className="block text-sm text-sky-950">Origem da proposta e situação legal</strong>
                           <p className="leading-5">
-                            Informação relatada pelo solicitante. O original digitalizado registra
-                            “{analystGuidance.original_ocr_text}”. O valor original permanece preservado;
-                            ainda não é uma conferência documental nem libera a regra para a IA.
+                            Orientação do analista relatada pelo solicitante. O documento digitalizado
+                            apresenta “{pendingCa.sourceOcr}”; a extração original foi preservada.
                           </p>
-                          <p className="text-xs leading-5">{analystGuidance.source_note}</p>
+                          <p className="font-semibold text-amber-950">
+                            {pendingCa.status}. Não ativado para análise automática.
+                          </p>
+                          <details className="rounded-lg border border-sky-200 bg-white px-3 py-2">
+                            <summary className="cursor-pointer font-bold text-sky-950">
+                              Ver registro detalhado da orientação
+                            </summary>
+                            <p className="mt-2 break-words text-xs leading-5 text-slate-800">
+                              {analystGuidance.source_note}
+                            </p>
+                          </details>
                         </div>
                       ) : null}
                       {row.notes ? <p className="rounded-lg bg-amber-50 p-2 leading-5 text-amber-950">Exceção / observação: {row.notes}</p> : null}
-                      {row.pending ? <p className="rounded-lg bg-rose-50 p-2 leading-5 text-rose-900">Leitura inconclusiva: {row.pending}</p> : null}
+                      {row.pending ? (
+                        <details className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-slate-900">
+                          <summary className="cursor-pointer text-xs font-semibold text-slate-800">
+                            {pendingCa ? "Ver pendência da leitura automática original" : "Leitura inconclusiva"}
+                          </summary>
+                          <p className="mt-2 break-words text-xs leading-5">{row.pending}</p>
+                        </details>
+                      ) : null}
                       {entry.review ? (
                         <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
                           <strong>Última revisão: {entry.review.action === "reading_verified" ? "transcrição conferida" : "divergência registrada"}</strong>

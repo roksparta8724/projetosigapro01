@@ -241,7 +241,8 @@ describe("SIGAPRO IA — AIU2 analyst instruction and Quadro II scope accuracy",
     const seed=read("neon/qa-seeds/20261103_aiu2_analyst_reported_ca_1_qa.sql");
     expect(client).toContain("analyst_guidance?: UrbanMatrixAnalystGuidance[]");
     expect(matrix).toContain('data-urban-matrix-analyst-guidance="true"');
-    expect(matrix).toContain("CA mínimo sugerido pelo analista");
+    expect(matrix).toContain("CA mínimo proposto:");
+    expect(matrix).toContain("Proposta do analista — não homologada");
     expect(matrix).toContain("pending_documentary_confirmation");
     expect(migration).toContain("ENABLE ROW LEVEL SECURITY");
     expect(migration).toContain("REVOKE ALL ON public.urban_matrix_analyst_guidance_v1 FROM authenticated");
@@ -292,5 +293,24 @@ describe("SIGAPRO IA — Quadro II continuation pages", () => {
     expect(panel).toContain("Parcelamento do solo — modalidades habitacionais");
     expect(panel).toContain("não de categorias de uso");
     expect(panel).toContain("Não aplicar esta página à IA");
+  });
+});
+
+
+describe("SIGAPRO IA — pending AIU2 value does not silently become law", () => {
+  it("visibly separates analyst proposal from unverified OCR and keeps review pending", () => {
+    const matrix=read("src/components/platform/UrbanLegalMatrixReviewPanel.tsx");
+    const lib=read("src/lib/urbanLegalMatrixReview.ts");
+    const css=read("src/index.css");
+    expect(lib).toContain("describePendingAnalystCa");
+    expect(lib).toContain("pending_documentary_confirmation");
+    expect(lib).toContain("minimumFractionDigits: 2");
+    expect(matrix).toContain('data-urban-matrix-ca-chip="true"');
+    expect(matrix).toContain('data-urban-matrix-ca-pending="true"');
+    expect(matrix).toContain("OCR original:");
+    expect(matrix).toContain("Ver pendência da leitura automática original");
+    expect(matrix).toContain("Não ativado para análise automática.");
+    expect(matrix).toContain("g.row_index === entry.index");
+    expect(css).toContain('[data-urban-matrix-ca-pending="true"] > span');
   });
 });

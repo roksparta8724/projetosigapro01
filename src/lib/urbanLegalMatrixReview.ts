@@ -1,4 +1,4 @@
-import type { UrbanMatrixBatchDetail, UrbanMatrixRowReadingAudit } from "@/integrations/backend/urbanPrecheckClient";
+import type { UrbanMatrixAnalystGuidance, UrbanMatrixBatchDetail, UrbanMatrixRowReadingAudit } from "@/integrations/backend/urbanPrecheckClient";
 
 type MatrixRow = Record<string, unknown>;
 export function formatUrbanMatrixSourceValue(value: unknown): string {
@@ -37,6 +37,18 @@ export function calculateUrbanMatrixBatchProgress(
     needsCorrection: rows.filter((row) => row.needsCorrection).length,
     percentage: total === 0 ? 0 : Math.round(1000 * reviewed / total) / 10,
     rows: rows.sort((a, b) => Number(a.readingReviewed) - Number(b.readingReviewed) || a.index - b.index),
+  };
+}
+/** Analyst guidance is neither source OCR nor a legally validated regulation. */
+export function describePendingAnalystCa(guidance?: UrbanMatrixAnalystGuidance) {
+  if (!guidance || guidance.field_code !== "ca_minimo_original" ||
+      guidance.status !== "pending_documentary_confirmation") return null;
+  const value = Number(guidance.proposed_value);
+  if (!Number.isFinite(value) || value < 0) return null;
+  return {
+    formatted: value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+    sourceOcr: String(guidance.original_ocr_text || "ilegível").slice(0, 100),
+    status: "Aguardando comprovação documental",
   };
 }
 export function describeUrbanMatrixRow(source: MatrixRow) {
