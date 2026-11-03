@@ -337,7 +337,7 @@ describe("SIGAPRO IA — AIU(2) proportional card and optional correction", () =
   it("keeps long OCR history collapsed and stops prompting duplicate reviews", () => {
     const matrix=read("src/components/platform/UrbanLegalMatrixReviewPanel.tsx");
     expect(matrix).toContain("min-w-0 break-words border-l-[3px] border-amber-400 pl-3");
-    expect(matrix).toContain("Não é necessário preencher novamente.");
+    expect(matrix).toContain("Não marque a caixa nem registre essa mesma observação novamente.");
     expect(matrix).toContain("Editar observação, se necessário");
     expect(matrix).toContain('reviewingIndex === entry.index ? "Fechar conferência"');
     expect(matrix).toContain("Ver histórico");
