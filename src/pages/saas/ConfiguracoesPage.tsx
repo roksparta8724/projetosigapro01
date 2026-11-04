@@ -3348,7 +3348,7 @@ export function ConfiguracoesPage({ legislationWorkspace = false }: { legislatio
               </p>
               <Button type="button" variant="outline"
                 className="min-h-10 max-w-full shrink-0 rounded-xl border-slate-300 bg-white px-3 text-xs font-bold text-slate-800 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
-                onClick={() => navigate(isMasterRole ? "/master" : "/configuracoes")}>
+                onClick={() => navigate("/configuracoes")}>
                 Voltar ao Cadastro e Gestão
               </Button>
             </div>

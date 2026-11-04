@@ -26,6 +26,7 @@ describe("SIGAPRO — gestão legislativa sem cabeçalhos ou menus duplicados", 
     expect(page).not.toContain("<PageHeader");
     expect(page).toContain('data-urban-legislation-dedicated-page="true"');
     expect(page).toContain("Acervo legal oficial");
+    expect(page).toContain('onClick={() => navigate("/configuracoes")}');
     expect(page).not.toContain("Acervo municipal e parametrização");
     expect(page).toContain("selectedTenantId ? legalArchiveWorkspace");
   });
