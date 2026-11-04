@@ -2471,11 +2471,6 @@ export function ConfiguracoesPage({ legislationWorkspace = false }: { legislatio
       folder,
     });
 
-    const previewBucket =
-      bucket === "process-documents"
-        ? "process-documents"
-        : "institutional-branding";
-
     // Branding municipal não depende de domínio público nem de URL assinada
     // temporária. A rota estável lê o objeto privado do R2 pelo object key.
     const previewUrl =

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { readFileSync } from "node:fs";
 const mock = vi.hoisted(() => ({ rpc: vi.fn() }));
 vi.mock("@/integrations/backend/databaseClient", () => ({
   backendClient: { rpc: mock.rpc },
@@ -24,7 +25,7 @@ describe("municipal legal archive preflight", () => {
     await expect(assertUrbanLegislationWriteAccess("invalid")).rejects.toThrow("identificar a Prefeitura");
   });
   it("keeps the legacy PDF batch uncommitted until the database confirms all files", () => {
-    const settings = require("node:fs").readFileSync("src/pages/saas/ConfiguracoesPage.tsx","utf8") as string;
+    const settings = readFileSync("src/pages/saas/ConfiguracoesPage.tsx","utf8") as string;
     const start = settings.indexOf('const handleSaveInstitutionalAssets = async');
     const before = settings.slice(start,settings.indexOf('if (hasBackendEnv) {\n        await withTimeout(',start));
     expect(before).not.toContain("setPlanoDiretorFiles(nextPlanoDiretorFiles)");
