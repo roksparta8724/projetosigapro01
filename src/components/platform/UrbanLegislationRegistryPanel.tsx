@@ -46,6 +46,14 @@ async function computePdfSha256(file: File) {
     .map((value) => value.toString(16).padStart(2, "0")).join("");
 }
 
+function describeRegistryError(error: unknown): string {
+  const message = String((error as Error)?.message || error);
+  if (/PGRST202|schema cache|Could not find the function|list_urban_legislation_documents_v1/i.test(message)) {
+    return "O acervo legislativo está em sincronização com o banco deste ambiente. Atualize a página e tente novamente; os documentos anteriores continuam preservados.";
+  }
+  return message;
+}
+
 export function UrbanLegislationRegistryPanel({
   municipalityId,
 }: { municipalityId: string | null | undefined }) {
@@ -86,7 +94,7 @@ export function UrbanLegislationRegistryPanel({
         setRecords(page.items); setTotal(page.total); setNextOffset(page.next_offset);
       })
       .catch((err: unknown) => {
-        if (request === generation.current) setError(String((err as Error).message || err));
+        if (request === generation.current) setError(describeRegistryError(err));
       })
       .finally(() => {
         if (request === generation.current) setLoading(false);
@@ -112,7 +120,7 @@ export function UrbanLegislationRegistryPanel({
       setRecords((old) => [...old, ...page.items]);
       setTotal(page.total); setNextOffset(page.next_offset);
     } catch (err) {
-      if (request === generation.current) setError(String((err as Error).message || err));
+      if (request === generation.current) setError(describeRegistryError(err));
     } finally { if (request === generation.current) setLoading(false); }
   }
 
@@ -196,7 +204,7 @@ export function UrbanLegislationRegistryPanel({
       const extra = pendingUpload.current
         ? " O PDF já foi enviado ao R2. Corrija o problema e tente salvar novamente; o envio não será repetido enquanto o mesmo arquivo estiver selecionado."
         : "";
-      setError(String((err as Error).message || err) + extra);
+      setError(describeRegistryError(err) + extra);
     } finally { setSaving(false); }
   }
 
@@ -212,7 +220,7 @@ export function UrbanLegislationRegistryPanel({
       await refresh();
       setNotice("Registro " + (item.archived ? "restaurado" : "arquivado") +
         " com auditoria. O PDF original foi preservado.");
-    } catch (err) { setError(String((err as Error).message || err)); }
+    } catch (err) { setError(describeRegistryError(err)); }
     finally { setSaving(false); }
   }
 
@@ -383,9 +391,16 @@ export function UrbanLegislationRegistryPanel({
         </div>
       ) : null}
 
-      {error ? <p role="alert" className="mt-3 break-words rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs leading-5 text-rose-900">
-        {error}
-      </p> : null}
+      {error ? (
+        <div role="alert" className="mt-3 min-w-0 rounded-xl border border-rose-200 bg-rose-50 p-3">
+          <p className="min-w-0 break-words text-xs leading-5 text-rose-900 [overflow-wrap:anywhere]">{error}</p>
+          <button type="button" disabled={loading || saving}
+            onClick={() => void refresh().then(() => setError("")).catch((err: unknown) => setError(describeRegistryError(err)))}
+            className="mt-2 min-h-9 rounded-lg border border-rose-300 bg-white px-3 py-1.5 text-xs font-bold text-rose-900 disabled:opacity-50">
+            Recarregar acervo
+          </button>
+        </div>
+      ) : null}
       {notice ? <p role="status" className="mt-3 break-words rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs leading-5 text-emerald-950">
         {notice}
       </p> : null}
