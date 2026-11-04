@@ -27,6 +27,10 @@ export function ArchitecturalPdfAiPanel({
   const [id,setId]=useState("");
   const [consent,setConsent]=useState(false);
   const [loading,setLoading]=useState(false);
+  const [availability,setAvailability]=useState<{
+    status:"checking"|"ready"|"disabled";message:string;
+  }>({status:"checking",message:"Verificando se o provedor de IA está configurado..."});
+
   const [error,setError]=useState("");
   const [draft,setDraft]=useState<ApiResult|null>(null);
   const [checked,setChecked]=useState<Partial<Record<UrbanMetric,boolean>>>({});
@@ -37,19 +41,44 @@ export function ArchitecturalPdfAiPanel({
     setDraft(null);setChecked({});setError("");setNotice("");
   },[process.id,plans[0]?.id]);
 
+  useEffect(()=>{
+    let current=true;
+    if(readOnly){
+      setAvailability({status:"disabled",message:"A leitura visual está disponível apenas para o analista autorizado."});
+      return;
+    }
+    setAvailability({status:"checking",message:"Verificando provedor visual da homologação..."});
+    void (async()=>{
+      const session=(await backendClient.auth.getSession()).data?.session;
+      const jwt=session?.access_token||session?.accessToken||session?.token||"";
+      if(!jwt)throw new Error("Sessão expirada. Entre novamente no SIGAPRO.");
+      const res=await fetch("/api/ai-assistant?action=project-extract",{
+        method:"GET",cache:"no-store",headers:{Authorization:"Bearer "+jwt},
+      });
+      const value=await res.json() as {enabled?:boolean;message?:string;error?:string};
+      if(!res.ok)throw new Error(value.error||"Não foi possível confirmar a disponibilidade da IA.");
+      if(current)setAvailability({status:value.enabled?"ready":"disabled",
+        message:value.message||"Leitor visual indisponível."});
+    })().catch((err:unknown)=>{
+      if(current)setAvailability({status:"disabled",
+        message:String((err as Error)?.message||err)});
+    });
+    return()=>{current=false;};
+  },[process.id,readOnly]);
+
   const selected=plans.find(doc=>doc.id===id);
   const latest=plans[0]?.id===id;
   const applied=draft?.readings.filter(row=>
     row.usableForReview && checked[row.metric] &&
     activeMetrics.includes(row.metric))||[];
   async function scan(){
-    if(readOnly||!selected||!latest||!consent||loading)return;
+    if(readOnly||!selected||!latest||!consent||loading||availability.status!=="ready")return;
     setDraft(null);setChecked({});setError("");setNotice("");setLoading(true);
     try{
       const session=(await backendClient.auth.getSession()).data?.session;
       const jwt=session?.access_token||session?.accessToken||session?.token||"";
       if(!jwt)throw new Error("Sessão expirada. Entre novamente no SIGAPRO.");
-      const response=await fetch("/api/ai-project-extract",{
+      const response=await fetch("/api/ai-assistant?action=project-extract",{
         method:"POST",cache:"no-store",
         headers:{"Content-Type":"application/json",Authorization:"Bearer "+jwt},
         body:JSON.stringify({processId:process.id,documentId:selected.id,confirmedTransfer:true}),
@@ -118,8 +147,15 @@ export function ArchitecturalPdfAiPanel({
         extração assistida das cotas. Sei que a IA pode interpretar a planta incorretamente
         e que nenhuma decisão nem mudança de processo será automática.
       </label>
+      <p role="status" data-sigapro-ai-pdf-provider-status={availability.status}
+        className={"mt-3 text-xs font-semibold leading-5 "+(
+          availability.status==="ready"?"text-emerald-800 dark:text-emerald-300":
+          "text-amber-800 dark:text-amber-200")}>
+        {availability.message}
+      </p>
       <Button type="button" data-sigapro-ai-read-project="true"
-        className="mt-3 min-h-11 bg-slate-950 !text-white" disabled={readOnly||!consent||!latest||loading}
+        className="mt-3 min-h-11 bg-slate-950 !text-white"
+        disabled={readOnly||!consent||!latest||loading||availability.status!=="ready"}
         onClick={()=>void scan()}>
         {loading?<Loader2 className="mr-2 h-4 w-4 animate-spin"/>:<FileText className="mr-2 h-4 w-4"/>}
         {loading?"Lendo prancha com IA...":"Ler projeto arquitetônico com IA"}

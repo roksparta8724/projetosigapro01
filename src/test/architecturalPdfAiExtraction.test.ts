@@ -46,7 +46,7 @@ describe("SIGAPRO IA — PDF architectural drawing extraction, fail closed",()=>
   expect(()=>makeReviewedDrawingEvidence("projeto.pdf",null,"frontal")).toThrow();
  });
  it("connects visual PDF extraction to the actual precheck without bypassing confirmed legal evidence",()=>{
-  const endpoint=readFileSync("api/ai-project-extract.ts","utf8");
+  const endpoint=readFileSync("server/ai-project-extract.ts","utf8");
   const panel=readFileSync("src/components/platform/ArchitecturalPdfAiPanel.tsx","utf8");
   const precheck=readFileSync("src/components/platform/UrbanPrecheckPanel.tsx","utf8");
   expect(endpoint).toContain('process.env.VERCEL_ENV!=="preview"');
@@ -56,6 +56,8 @@ describe("SIGAPRO IA — PDF architectural drawing extraction, fail closed",()=>
   expect(endpoint).toContain("SIGAPRO_AI_PDF_ENABLED");
   expect(endpoint).toContain('store:false');
   expect(endpoint).toContain('text:{format:{type:"json_schema"');
+  const aiRoute=readFileSync("api/ai-assistant.ts","utf8");
+  expect(aiRoute).toContain('action === "project-extract"');
   expect(panel).toContain('confirmedTransfer:true');
   expect(panel).toContain('data-sigapro-ai-apply-reviewed="true"');
   expect(panel).toContain("row.usableForReview && checked[row.metric]");

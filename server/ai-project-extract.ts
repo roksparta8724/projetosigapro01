@@ -1,7 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { GetObjectCommand, HeadObjectCommand, S3Client } from "@aws-sdk/client-s3";
-import { getR2EndpointCandidates } from "../server/r2-runtime.js";
-import { callDataApiRpc, getDataApiUrl, readBearer, readEnv, resolveMunicipalDocumentTarget } from "../server/municipal-storage.js";
+import { getR2EndpointCandidates } from "./r2-runtime.js";
+import { callDataApiRpc, getDataApiUrl, readBearer, readEnv, resolveMunicipalDocumentTarget } from "./municipal-storage.js";
 import { normalizeArchitecturalPdfExtraction } from "../src/lib/architecturalPdfReadings.js";
 import { URBAN_METRICS } from "../src/lib/urbanPrecheck.js";
 
@@ -150,6 +150,26 @@ async function readWithVisualAI(bytes:Uint8Array,name:string,key:string){
   }finally{clearTimeout(timeout);}
 }
 export default async function handler(req:Req,res:Res){
+  if(req.method==="GET"){
+    if(!sameOrigin(req))return json(res,403,{error:"Origem não autorizada."});
+    if(!readBearer(req))return json(res,401,{error:"Entre na sua conta SIGAPRO."});
+    if(process.env.VERCEL_ENV!=="preview")return json(res,200,{
+      enabled:false,message:"A leitura visual só pode ser habilitada na homologação."
+    });
+    const auth=await callDataApiRpc<Record<string,unknown>>(req,"get_current_profile_context",{});
+    const user=auth.payload;
+    if(!auth.ok||!user||user.account_status!=="active"||user.deleted_at||
+      user.is_master===true||!UUID.test(String(user.municipality_id||""))||
+      !["analista","prefeitura_supervisor"].includes(String(user.role||""))||
+      (user.tenant_id&&user.tenant_id!==user.municipality_id))
+      return json(res,403,{error:"Consulta reservada ao analista municipal."});
+    const enabled=readEnv("SIGAPRO_AI_PDF_ENABLED")==="true"&&Boolean(readEnv("OPENAI_API_KEY"));
+    return json(res,200,{
+      enabled,maxPdfMb:8,
+      message:enabled?"Leitor visual disponível para revisão supervisionada.":
+        "Leitor visual ainda não ativado na prévia: configure OPENAI_API_KEY e SIGAPRO_AI_PDF_ENABLED=true.",
+    });
+  }
   if(req.method!=="POST")return json(res,405,{error:"Método não permitido."});
   if(!sameOrigin(req))return json(res,403,{error:"Origem não autorizada."});
   if(process.env.VERCEL_ENV!=="preview")return json(res,403,{
