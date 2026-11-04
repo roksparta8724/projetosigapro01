@@ -292,9 +292,15 @@ export async function saveUrbanQuadroIIDraft(
   });
 }
 
+export type UrbanPrecheckLegalReview = {
+  evidenceIds: string[];
+  note: string;
+  documentScopeConfirmed: boolean;
+};
 export type UrbanPrecheckHistoryEntry = {
   id: string; municipality_id: string; process_id: string; regulation_version_id: string;
   measurements: UrbanMeasurements; reviewer_profile_id: string; created_at: string;
+  legal_review?: { evidence_ids?: string[]; note?: string; document_scope_confirmed?: boolean } | null;
 };
 export async function listUrbanPrecheckHistory(processId: string): Promise<UrbanPrecheckHistoryEntry[]> {
   const response = await invoke<unknown>("list_urban_prechecks_v1", { _process_id: processId });
@@ -303,23 +309,38 @@ export async function listUrbanPrecheckHistory(processId: string): Promise<Urban
 }
 
 /**
- * Production Neon uses the reviewed, idempotent v5 writer. The earlier v1
- * writer is intentionally REVOKED. Never fall back to it.
- * Review evidence is empty here because legal/exceptional cases require
- * a separate authenticated legal-evidence validation flow.
+ * The v6 writer validates all municipal legal scope IDs and an explicit human
+ * attestation before delegating to the idempotent historical v5 writer.
+ * Legacy v4/v5 entrypoints are revoked from authenticated callers in Neon.
  */
 export async function saveUrbanPrecheckRun(
   processId: string, versionId: string, referenceDate: string, measurements: UrbanMeasurements,
-  requestId: string,
+  requestId: string, legalReview: UrbanPrecheckLegalReview,
 ): Promise<void> {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(referenceDate)) throw new Error("Data legal inválida.");
-  if (!/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(requestId)) throw new Error("Identificador de gravação inválido.");
-  await invoke("save_urban_precheck_run_v5", {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(requestId)) {
+    throw new Error("Identificador de gravação inválido.");
+  }
+  const ids = legalReview?.evidenceIds;
+  if (!legalReview?.documentScopeConfirmed || !Array.isArray(ids) ||
+    ids.length < 1 || ids.length > 50 || new Set(ids).size !== ids.length ||
+    ids.some((id) => !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) ||
+    !legalReview.note || legalReview.note.trim().length < 20 || legalReview.note.trim().length > 1200) {
+    throw new Error("Confirme cada fonte legal e registre a justificativa de revisão humana (20 a 1200 caracteres).");
+  }
+  const response = await invoke<{id: string; status: string; signed: boolean}>("save_urban_precheck_run_v6", {
     _process_id: processId,
     _regulation_version_id: versionId,
     _reference_date: referenceDate,
     _measurements: measurements,
-    _legal_review: { evidence_ids: [], note: "", document_scope_confirmed: false },
+    _legal_review: {
+      evidence_ids: ids,
+      note: legalReview.note.trim(),
+      document_scope_confirmed: true,
+    },
     _request_id: requestId,
   });
+  if (!response || !response.id || response.status !== "advisory" || response.signed !== false) {
+    throw new Error("O Neon não confirmou o histórico consultivo. Consulte o processo antes de reenviar.");
+  }
 }
