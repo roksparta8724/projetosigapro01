@@ -211,20 +211,20 @@ export function UrbanQuadroIIWorkspacePanel({
       {workspace?.status === "pending_legal_review" ? (
         <>
           <div className="mt-3 grid gap-2 sm:grid-cols-4">
-            <div className="rounded-xl border border-slate-200 bg-white p-3 text-slate-900">
-              <p className="text-xs text-slate-600">Páginas identificadas</p>
+            <div data-urban-qii-metric="true" className="min-w-0 rounded-xl border border-slate-200 bg-white p-3 text-slate-900 dark:border-slate-600 dark:bg-slate-950 dark:text-white">
+              <p className="text-xs text-slate-600 dark:text-slate-200">Páginas identificadas</p>
               <strong className="text-xl font-extrabold">{pageCount}</strong>
             </div>
-            <div className="rounded-xl border border-slate-200 bg-white p-3 text-slate-900">
-              <p className="text-xs text-slate-600">Páginas com OCR (não validado)</p>
+            <div data-urban-qii-metric="true" className="min-w-0 rounded-xl border border-slate-200 bg-white p-3 text-slate-900 dark:border-slate-600 dark:bg-slate-950 dark:text-white">
+              <p className="text-xs text-slate-600 dark:text-slate-200">Páginas com OCR (não validado)</p>
               <strong className="text-xl font-extrabold">{sourcePages}/{pageCount}</strong>
             </div>
-            <div className="rounded-xl border border-slate-200 bg-white p-3 text-slate-900">
-              <p className="text-xs text-slate-600">Rascunhos de categorias</p>
+            <div data-urban-qii-metric="true" className="min-w-0 rounded-xl border border-slate-200 bg-white p-3 text-slate-900 dark:border-slate-600 dark:bg-slate-950 dark:text-white">
+              <p className="text-xs text-slate-600 dark:text-slate-200">Rascunhos de categorias</p>
               <strong className="text-xl font-extrabold">{draftCount}</strong>
             </div>
-            <div className="rounded-xl border border-amber-200 bg-white p-3 text-slate-900">
-              <p className="text-xs text-slate-600">Regras liberadas para IA por esta importação</p>
+            <div data-urban-qii-metric="true" className="min-w-0 rounded-xl border border-amber-200 bg-white p-3 text-slate-900 dark:border-amber-700 dark:bg-slate-950 dark:text-white">
+              <p className="text-xs text-slate-600 dark:text-slate-200">Regras liberadas para IA por esta importação</p>
               <strong className="text-xl font-extrabold text-amber-800">0</strong>
             </div>
           </div>
@@ -261,7 +261,7 @@ export function UrbanQuadroIIWorkspacePanel({
           </div>
           <p className="mt-4 text-sm font-bold text-slate-900 dark:text-white">Índice de leitura — páginas 38 a 51</p>
           <div ref={pageIndexRef} data-urban-qii-index="true"
-            className="mt-2 scroll-mt-24 overflow-x-auto overscroll-x-contain rounded-2xl border border-slate-200 bg-white p-2 dark:border-slate-700 dark:bg-slate-950">
+            className="mt-2 scroll-mt-24 overflow-x-auto overscroll-x-contain rounded-2xl border border-slate-200 bg-white p-2 dark:border-slate-600 dark:bg-slate-950">
             <div role="group" aria-label="Selecionar página do Quadro II"
               className="flex w-max min-w-full flex-nowrap gap-2">
               {workspace.pages.map((item) => (
@@ -273,14 +273,15 @@ export function UrbanQuadroIIWorkspacePanel({
                   aria-pressed={activePage === item.page_number}
                   aria-controls="sigapro-qii-selected-page"
                   onClick={() => selectPage(item.page_number)}
+                  data-urban-qii-page-card="true"
                   className={`w-[160px] shrink-0 rounded-xl border px-3 py-2.5 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-600
                     ${activePage === item.page_number
-                      ? "border-sky-400 bg-sky-50 text-slate-950 ring-1 ring-sky-200"
-                      : "border-slate-200 bg-white text-slate-900 hover:bg-sky-50"}`}>
-                  <span className="block truncate text-sm font-extrabold !text-slate-950">
+                      ? "border-sky-400 bg-sky-50 text-slate-950 ring-1 ring-sky-200 dark:border-sky-400 dark:bg-sky-900 dark:text-white dark:ring-sky-600"
+                      : "border-slate-200 bg-white text-slate-900 hover:bg-sky-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800"}`}>
+                  <span data-urban-qii-page-title="true" className="block truncate text-sm font-extrabold !text-slate-950 dark:!text-white">
                     Página {item.page_number}
                   </span>
-                  <span className="mt-1 block truncate text-xs !text-slate-600" title={item.topic}>
+                  <span data-urban-qii-page-detail="true" className="mt-1 block truncate text-xs !text-slate-600 dark:!text-slate-200" title={item.topic}>
                     {item.topic}
                   </span>
                   <span className="mt-1 block text-[11px] font-semibold text-sky-900">
@@ -509,7 +510,7 @@ export function UrbanQuadroIIWorkspacePanel({
                       {(page.proposals?.length || 0) > 0 ? (
                         <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-3 text-slate-900">
                           <p className="text-sm font-extrabold">Sugestões de categorias — requerem conferência</p>
-                          <p className="text-xs text-slate-600">
+                          <p className="text-xs text-slate-600 dark:text-slate-200">
                             A leitura assistida preenche os campos que encontrou no PDF, com indicação das
                             páginas e dúvidas. Confira os números antes de salvar. Nada é ativado para a IA.
                           </p>

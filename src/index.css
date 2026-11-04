@@ -11229,3 +11229,104 @@ html body #root [data-urban-matrix-review="true"] [data-urban-matrix-ca-pending=
   color: #f0f6ff !important;
   -webkit-text-fill-color: #f0f6ff !important;
 }
+
+
+/* SIGAPRO LEGAL / DARK-CARD CONTRAST
+ * Restrained to Cadastro e Gestão -> legislação only.
+ * Historic PDF artwork is NOT inverted. WCAG AA (> 4.5:1) text pairs.
+ * The inverse main theme can remap bg-white surfaces to dark without applying
+ * Tailwind's dark: classes, so surface and foreground must be bound together.
+ */
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+[data-legal-management-workspace="true"]
+:is([data-urban-rules-settings="true"],
+    [data-urban-matrix-review="true"],
+    [data-urban-quadro-ii="true"],
+    [data-urban-work-preservation="true"],
+    [data-urban-legislation-registry="true"]) {
+  background: #10253a !important;
+  background-image: none !important;
+  border-color: #46617b !important;
+  color: #f2f7ff !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+[data-legal-management-workspace="true"]
+:is([data-urban-rules-settings="true"],
+    [data-urban-matrix-review="true"],
+    [data-urban-quadro-ii="true"],
+    [data-urban-work-preservation="true"],
+    [data-urban-legislation-registry="true"])
+:is(div,section,article,details)[class~="bg-white"],
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+[data-legal-management-workspace="true"]
+:is([data-urban-rules-settings="true"],
+    [data-urban-matrix-review="true"],
+    [data-urban-quadro-ii="true"],
+    [data-urban-work-preservation="true"],
+    [data-urban-legislation-registry="true"])
+:is(div,section,article,details)[class~="bg-slate-50"] {
+  background: #152b43 !important;
+  background-image: none !important;
+  border-color: #48627e !important;
+  color: #f2f7ff !important;
+}
+/* Summary metrics must carry readable text in both genuine .dark and inverse. */
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+[data-legal-management-workspace="true"] [data-urban-qii-metric="true"] {
+  background: #0e2136 !important;
+  border-color: #496781 !important;
+  color: #f8fbff !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+[data-legal-management-workspace="true"] [data-urban-qii-metric="true"] :is(p,strong,span) {
+  color: #ecf4ff !important;
+  -webkit-text-fill-color: #ecf4ff !important;
+  opacity: 1 !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+[data-legal-management-workspace="true"] [data-urban-qii-page-card="true"] {
+  background: #162c43 !important;
+  border-color: #46617b !important;
+  color: #f8fbff !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+[data-legal-management-workspace="true"] [data-urban-qii-page-card="true"][aria-pressed="true"] {
+  background: #0b3150 !important;
+  border-color: #59b5e5 !important;
+  box-shadow: inset 0 0 0 1px #59b5e5 !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+[data-legal-management-workspace="true"] [data-urban-qii-page-card="true"]
+:is([data-urban-qii-page-title="true"],[data-urban-qii-page-detail="true"]) {
+  color: #f1f7ff !important;
+  -webkit-text-fill-color: #f1f7ff !important;
+  opacity: 1 !important;
+}
+/* Text that is slate-600 in the light theme remains legible when cards invert. */
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+[data-legal-management-workspace="true"]
+:is([data-urban-rules-settings="true"],[data-urban-matrix-review="true"],
+    [data-urban-quadro-ii="true"],[data-urban-work-preservation="true"],
+    [data-urban-legislation-registry="true"])
+:is(.text-slate-700,.text-slate-600,.text-slate-500,.text-slate-400) {
+  color: #d8e5f4 !important;
+  -webkit-text-fill-color: #d8e5f4 !important;
+  opacity: 1 !important;
+}
+/* Buttons with dark backgrounds always keep white foreground, including
+   descendants affected by global inverse-main typography selectors. */
+html body #root [data-legal-management-workspace="true"]
+:is(button,a)[class~="bg-slate-950"],
+html body #root [data-legal-management-workspace="true"]
+:is(button,a)[class~="bg-sky-900"] {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body #root [data-legal-management-workspace="true"]
+:is(button,a)[class~="bg-slate-950"] :is(span,strong,svg),
+html body #root [data-legal-management-workspace="true"]
+:is(button,a)[class~="bg-sky-900"] :is(span,strong,svg) {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+/* Keep official PDF preview artwork, iframe and canvas color values unchanged. */

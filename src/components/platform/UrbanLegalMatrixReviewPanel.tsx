@@ -221,11 +221,11 @@ export function UrbanLegalMatrixReviewPanel({
         Use Arquivar importação para retirar um lote antigo da fila sem apagar sua rastreabilidade.
       </div>
 
-      {loading ? <p role="status" className="mt-3 flex items-center gap-2 text-sm text-slate-600"><Loader2 className="h-4 w-4 animate-spin" /> Consultando lotes importados...</p> : null}
+      {loading ? <p role="status" className="mt-3 flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300"><Loader2 className="h-4 w-4 animate-spin" /> Consultando lotes importados...</p> : null}
       {error ? <p role="alert" className="mt-3 break-words rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800">{error}</p> : null}
       {notice ? <p role="status" className="mt-3 break-words rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-950">{notice}</p> : null}
       {!loading && !error && batches.length === 0 ? (
-        <p className="mt-3 rounded-xl border border-dashed border-slate-300 bg-white p-3 text-xs text-slate-600">Nenhum lote de parâmetros legais ainda foi salvo nesta Prefeitura.</p>
+        <p className="mt-3 rounded-xl border border-dashed border-slate-300 bg-white p-3 text-xs text-slate-600 dark:border-slate-600 dark:bg-slate-950 dark:text-slate-200">Nenhum lote de parâmetros legais ainda foi salvo nesta Prefeitura.</p>
       ) : null}
 
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
@@ -240,7 +240,7 @@ export function UrbanLegalMatrixReviewPanel({
         ) : null}
       </div>
       {!loading && batches.length > 0 && visibleBatches.length === 0 ? (
-        <p className="mt-2 rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-600">
+        <p className="mt-2 rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-600 dark:border-slate-600 dark:bg-slate-950 dark:text-slate-200">
           Nenhum lote nesta situação. Alterações anteriores continuam preservadas.
         </p>
       ) : null}
@@ -292,7 +292,7 @@ export function UrbanLegalMatrixReviewPanel({
         ))}
       </div>
 
-      {detailLoading ? <p role="status" className="mt-3 flex items-center gap-2 text-xs text-slate-600"><Loader2 className="h-4 w-4 animate-spin" /> Carregando páginas e zonas...</p> : null}
+      {detailLoading ? <p role="status" className="mt-3 flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300"><Loader2 className="h-4 w-4 animate-spin" /> Carregando páginas e zonas...</p> : null}
       {selected && progress ? (
         <div className="mt-4 space-y-3" data-urban-matrix-progress="true">
           <div data-urban-matrix-handled-progress="true" className="grid grid-cols-2 gap-2 lg:grid-cols-4">
