@@ -12,6 +12,10 @@ describe("FileDropZone PDF preview", () => {
     expect(source).toContain("buildPdfPreviewUrl");
     expect(source).toContain('data-file-preview="true"');
     expect(source).toContain("<iframe");
+    expect(source).toContain('data-file-preview-toggle="true"');
+    expect(source).toContain('open={!previewInitiallyCollapsed}');
+    expect(source).toContain('data-file-preview-header="true"');
+    expect(source).not.toContain('from-white/90');
     expect(source).toContain("Pré-visualização do documento anexado");
     expect(source).toContain("#page=1&toolbar=0&navpanes=0&scrollbar=0&view=FitH");
   });

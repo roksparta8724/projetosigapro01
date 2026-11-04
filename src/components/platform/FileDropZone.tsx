@@ -30,6 +30,10 @@ interface FileDropZoneProps {
   savedLabel?: string;
   /** Stack the copy and picker when the upload is inside a narrow dashboard card. */
   stacked?: boolean;
+  /** Dedicated municipal legislation appearance: only affects inverse/dark main themes. */
+  appearance?: "default" | "legal";
+  /** Long official PDFs stay collapsed until deliberately opened, avoiding giant white sheets. */
+  previewInitiallyCollapsed?: boolean;
 }
 
 function sizeLabel(size: number) {
@@ -67,6 +71,8 @@ export function FileDropZone({
   onFilesRemoved,
   savedLabel = "Salvo no rascunho",
   stacked = false,
+  appearance = "default",
+  previewInitiallyCollapsed = false,
 }: FileDropZoneProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const ownedPreviewUrlsRef = useRef<Set<string>>(new Set());
@@ -137,9 +143,10 @@ export function FileDropZone({
   };
 
   return (
-    <div className="min-w-0 space-y-4" data-upload-zone data-upload-layout={stacked ? "stacked" : "auto"} data-upload-busy={busy ? "true" : "false"}>
+    <div className="min-w-0 space-y-4" data-upload-appearance={appearance} data-upload-layout={stacked ? "stacked" : "auto"} data-upload-busy={busy ? "true" : "false"}>
       <div
         aria-busy={busy}
+        data-upload-zone
         className={cn(
           "min-w-0 overflow-hidden rounded-[24px] border border-dashed p-4 transition-colors duration-150 sm:p-5 lg:p-6",
           dragging
@@ -195,7 +202,7 @@ export function FileDropZone({
       {files.length > 0 ? (
         <div className="grid gap-4">
           {files.map((file) => (
-            <div key={file.id} className="min-w-0 overflow-hidden rounded-2xl border border-slate-200 p-4 dark:border-white/12 dark:bg-white/[0.03]">
+            <div key={file.id} data-upload-file-card="true" className="min-w-0 max-w-full overflow-hidden rounded-2xl border border-slate-200 p-4 [overflow-wrap:anywhere] dark:border-white/12 dark:bg-white/[0.03]">
               <div className="flex min-w-0 flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
                 <div className="flex min-w-0 items-start gap-3">
                   {file.mimeType.startsWith("image/") ? (
@@ -268,14 +275,21 @@ export function FileDropZone({
               </div>
 
               {allowPreview ? (
-                <div
+                <details
                   data-file-preview="true"
-                  className="mt-4 overflow-hidden rounded-[20px] border border-slate-200 bg-white shadow-[0_10px_28px_rgba(15,23,42,0.06)] dark:border-white/12 dark:bg-slate-950"
+                  open={!previewInitiallyCollapsed}
+                  className="mt-4 min-w-0 overflow-hidden rounded-[20px] border border-slate-200 bg-white shadow-[0_10px_28px_rgba(15,23,42,0.06)] dark:border-white/12 dark:bg-slate-950"
                 >
+                  {previewInitiallyCollapsed ? (
+                    <summary data-file-preview-toggle="true"
+                      className="cursor-pointer select-none px-4 py-3 text-xs font-bold leading-5 text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-500 dark:text-slate-100">
+                      Pré-visualizar {file.fileName} (abrir apenas quando necessário)
+                    </summary>
+                  ) : null}
                   {file.previewUrl ? (
                     file.mimeType === "application/pdf" ? (
                       <>
-                        <div className="flex min-w-0 items-center justify-between gap-3 border-b border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbfe_100%)] px-4 py-3 dark:border-white/10 dark:bg-slate-900">
+                        <div data-file-preview-header="true" className="flex min-w-0 items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3 dark:border-white/10 dark:bg-slate-900">
                           <div className="min-w-0">
                             <p className="text-[10px] font-black uppercase tracking-[0.12em] text-sky-700 dark:text-sky-300">
                               Pré-visualização do documento anexado
@@ -289,7 +303,7 @@ export function FileDropZone({
                           </span>
                         </div>
 
-                        <div className="relative h-72 overflow-hidden bg-[#eef2f6] sm:h-[360px] dark:bg-slate-900">
+                        <div data-file-preview-paper="true" className="relative h-72 overflow-hidden bg-[#eef2f6] sm:h-[360px] dark:bg-slate-900">
                           <iframe
                             src={buildPdfPreviewUrl(file.previewUrl)}
                             title={`Pré-visualização de ${file.fileName}`}
@@ -298,11 +312,11 @@ export function FileDropZone({
                           />
                           <div
                             aria-hidden="true"
-                            className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-white/90 to-transparent dark:from-slate-950/75"
+                            className="pointer-events-none absolute inset-x-0 bottom-0 h-3 bg-gradient-to-t from-slate-950/35 to-transparent"
                           />
                         </div>
 
-                        <div className="flex flex-col gap-3 border-t border-slate-200 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between dark:border-white/10 dark:bg-slate-950">
+                        <div data-file-preview-footer="true" className="flex flex-col gap-3 border-t border-slate-200 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between dark:border-white/10 dark:bg-slate-950">
                           <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">
                             Confira o documento anexado aqui. Para leitura completa, abra o PDF.
                           </p>
@@ -332,7 +346,7 @@ export function FileDropZone({
                       Pré-visualização indisponível para este arquivo.
                     </div>
                   )}
-                </div>
+                </details>
               ) : null}
             </div>
           ))}

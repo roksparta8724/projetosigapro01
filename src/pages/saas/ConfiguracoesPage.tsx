@@ -9,6 +9,7 @@ import { ImageFrameEditor } from "@/components/platform/ImageFrameEditor";
 import { InstitutionalLogo } from "@/components/platform/InstitutionalLogo";
 import { MunicipalStorageSettings } from "@/components/platform/MunicipalStorageSettings";
 import { MunicipalUrbanRulesSettings } from "@/components/platform/MunicipalUrbanRulesSettings";
+import { UrbanLegislationRegistryPanel } from "@/components/platform/UrbanLegislationRegistryPanel";
 import { MunicipalPaymentSettings } from "@/components/platform/MunicipalPaymentSettings";
 import { InternalTabs } from "@/components/platform/InternalTabs";
 import { PageHeader } from "@/components/platform/PageHeader";
@@ -3215,16 +3216,40 @@ export function ConfiguracoesPage({ legislationWorkspace = false }: { legislatio
               };
 
   const legalArchiveWorkspace = (
-    <div className="min-w-0 space-y-5">
-                    <div id="sigapro-legal-archive-upload" className="scroll-mt-24 rounded-[28px] border border-sky-200 bg-[linear-gradient(180deg,#f9fcff_0%,#f2f8ff_100%)] p-4 shadow-[0_16px_38px_rgba(14,165,233,0.07)] md:p-5">
+    <div className="min-w-0 space-y-5" data-legal-management-workspace="true">
+      <div className="min-w-0 rounded-[22px] border border-sky-200 bg-sky-50 p-4 shadow-sm dark:border-slate-600 dark:bg-slate-900 md:p-5">
+        <div className="min-w-0">
+          <p className="break-words text-base font-extrabold text-slate-950 dark:text-white">
+            Documentos complementares — cadastro individual e sem limite fixo de campos
+          </p>
+          <p className="mt-2 max-w-4xl break-words text-sm leading-6 text-slate-700 dark:text-slate-200">
+            Para anexar a LC 440/2011, a LC 473/2014, outras leis, decretos, mapas e anexos,
+            use o cadastro abaixo. Clique em <strong>Cadastrar lei / PDF</strong> para cada documento.
+            Cada arquivo é identificado por tipo, número, ano e revisão, sem substituir os anteriores.
+          </p>
+          <p className="mt-2 text-xs font-semibold leading-5 text-slate-600 dark:text-slate-300">
+            O campo antigo de Leis Complementares, mais abaixo, é apenas o arquivo único legado.
+            A conferência jurídica continua obrigatória antes de liberar qualquer regra para a IA.
+          </p>
+        </div>
+      </div>
+      {selectedTenantId ? (
+        <UrbanLegislationRegistryPanel municipalityId={selectedTenantId} />
+      ) : null}
+      <div id="sigapro-legal-archive-upload" data-legal-archive="true"
+        className="scroll-mt-24 min-w-0 overflow-hidden rounded-[28px] border border-sky-200 bg-[linear-gradient(180deg,#f9fcff_0%,#f2f8ff_100%)] p-4 shadow-[0_16px_38px_rgba(14,165,233,0.07)] dark:border-slate-700 dark:bg-slate-900 md:p-5">
                 <div className="mb-4 flex flex-col gap-3 border-b border-sky-100 pb-4 lg:flex-row lg:items-center lg:justify-between">
                   <div>
                     <div className="flex items-center gap-2">
                       <ScrollText className="h-4 w-4 text-sky-700" />
-                      <p className="text-sm font-bold text-slate-950">Acervo legal municipal</p>
+                      <p className="text-sm font-bold text-slate-950 dark:text-white">Arquivos institucionais existentes (legado)</p>
                     </div>
                     <p className="mt-1 max-w-3xl text-xs leading-5 text-slate-500">
-                      Estes arquivos alimentam o módulo Legislação. Use leis promulgadas e anexos oficiais; minutas e propostas não são normas vigentes. Cada campo aceita um PDF oficial de até 100 MB; PDFs maiores são enviados diretamente ao armazenamento, sem passar pela função da Vercel. Para trocar o documento salvo, clique em Substituir; para desvincular, clique em Excluir. Em ambos os casos, confirme em Salvar arquivos oficiais. O histórico de importações permanece separado e deve ser arquivado na matriz, se não for mais utilizado.
+                      Estes quatro campos mantêm os PDFs institucionais já utilizados pela Prefeitura e alimentam
+                      as consultas antigas do módulo Legislação. Cada campo armazena somente um PDF,
+                      inclusive o campo legado de Leis Complementares. Para acrescentar quantas leis,
+                      decretos e anexos forem necessários, use o cadastro individual destacado acima.
+                      Os documentos existentes são preservados. Minutas e propostas não são normas vigentes.
                     </p>
                   </div>
                   <span className="w-fit rounded-full border border-sky-200 bg-white px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-sky-700">
@@ -3239,6 +3264,8 @@ export function ConfiguracoesPage({ legislationWorkspace = false }: { legislatio
                     accept="application/pdf,.pdf"
                     multiple={false}
                     allowPreview
+                    previewInitiallyCollapsed
+                    appearance="legal"
                     busy={institutionalAssetsSaving}
                     disabled={!canManageLegislation}
                     savedLabel="Salvo no armazenamento oficial"
@@ -3251,6 +3278,8 @@ export function ConfiguracoesPage({ legislationWorkspace = false }: { legislatio
                     accept="application/pdf,.pdf"
                     multiple={false}
                     allowPreview
+                    previewInitiallyCollapsed
+                    appearance="legal"
                     busy={institutionalAssetsSaving}
                     disabled={!canManageLegislation}
                     savedLabel="Salvo no armazenamento oficial"
@@ -3263,6 +3292,8 @@ export function ConfiguracoesPage({ legislationWorkspace = false }: { legislatio
                     accept="application/pdf,.pdf"
                     multiple={false}
                     allowPreview
+                    previewInitiallyCollapsed
+                    appearance="legal"
                     busy={institutionalAssetsSaving}
                     disabled={!canManageLegislation}
                     savedLabel="Salvo no armazenamento oficial"
@@ -3270,11 +3301,13 @@ export function ConfiguracoesPage({ legislationWorkspace = false }: { legislatio
                     onFilesSelected={setZoneamentoFiles}
                   />
                   <FileDropZone
-                    title="Leis complementares"
-                    description="PDF com leis, decretos e normas complementares vinculadas ao licenciamento."
+                    title="Leis complementares — arquivo único legado"
+                    description="Compatibilidade com o cadastro antigo (1 PDF). Cadastre novas leis, decretos e anexos separadamente no acervo individual acima."
                     accept="application/pdf,.pdf"
                     multiple={false}
                     allowPreview
+                    previewInitiallyCollapsed
+                    appearance="legal"
                     busy={institutionalAssetsSaving}
                     disabled={!canManageLegislation}
                     savedLabel="Salvo no armazenamento oficial"

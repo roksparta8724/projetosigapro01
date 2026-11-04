@@ -60,7 +60,7 @@ describe("SIGAPRO — municipal legislation registry", () => {
     const settings = read("src/components/platform/MunicipalUrbanRulesSettings.tsx");
     const page = read("src/pages/saas/LegislationPage.tsx");
     const editor = read("src/components/platform/UrbanLegislationRegistryPanel.tsx");
-    expect(settings).toContain("<UrbanLegislationRegistryPanel municipalityId={municipalityId} />");
+    expect(settings).not.toContain("<UrbanLegislationRegistryPanel municipalityId={municipalityId} />");
     const app = read("src/App.tsx");
     const config = read("src/pages/saas/ConfiguracoesPage.tsx");
     expect(page).not.toContain("<UrbanLegislationRegistryPanel municipalityId={effectiveScopeId} />");
@@ -68,6 +68,7 @@ describe("SIGAPRO — municipal legislation registry", () => {
     expect(app).toContain("<ConfiguracoesPage legislationWorkspace />");
     expect(app).toContain('path="/cadastro-gestao/legislacao"');
     expect(config).toContain("if (legislationWorkspace) {");
+    expect(config).toContain("<UrbanLegislationRegistryPanel municipalityId={selectedTenantId} />");
     expect(editor).toContain('folder: "legislation-registry"');
     expect(editor).toContain("await computePdfSha256(file)");
     expect(editor).toContain("await uploadFileToStorage(");

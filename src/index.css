@@ -11179,3 +11179,53 @@ html body #root [data-urban-matrix-review="true"] [data-urban-matrix-ca-pending=
   -webkit-text-fill-color: #172334 !important;
   opacity: 1 !important;
 }
+
+
+/* SIGAPRO PREMIUM LEGAL DOCUMENT UPLOAD - INVERSE THEME / NO WHITE MASK
+   Do not invert or recolor the PDF itself: zoning map colors must remain faithful.
+   This only themes the surrounding cards, preview header, controls and borders. */
+[data-layout-mode="inverse-main"] .sig-main-shell [data-upload-appearance="legal"] [data-upload-zone],
+[data-layout-mode="inverse-main"] .sig-main-shell [data-upload-appearance="legal"] [data-upload-file-card="true"],
+[data-layout-mode="inverse-main"] .sig-main-shell [data-upload-appearance="legal"] [data-file-preview="true"] {
+  background: #0e1a2c !important;
+  background-image: none !important;
+  border-color: #38516f !important;
+  color: #f1f7ff !important;
+  box-shadow: none !important;
+}
+[data-layout-mode="inverse-main"] .sig-main-shell [data-upload-appearance="legal"] [data-file-preview-header="true"],
+[data-layout-mode="inverse-main"] .sig-main-shell [data-upload-appearance="legal"] [data-file-preview-footer="true"] {
+  background: #14263d !important;
+  background-image: none !important;
+  border-color: #38516f !important;
+  color: #f1f7ff !important;
+}
+[data-layout-mode="inverse-main"] .sig-main-shell [data-upload-appearance="legal"] [data-file-preview-paper="true"] {
+  background: #091425 !important;
+}
+[data-layout-mode="inverse-main"] .sig-main-shell [data-upload-appearance="legal"] p,
+[data-layout-mode="inverse-main"] .sig-main-shell [data-upload-appearance="legal"] summary {
+  color: #edf4ff !important;
+  -webkit-text-fill-color: #edf4ff !important;
+  opacity: 1 !important;
+}
+[data-layout-mode="inverse-main"] .sig-main-shell [data-upload-appearance="legal"] button,
+[data-layout-mode="inverse-main"] .sig-main-shell [data-upload-appearance="legal"] [data-file-preview="true"] a {
+  background: #1a304a !important;
+  border-color: #45607b !important;
+  color: #f8fbff !important;
+  -webkit-text-fill-color: #f8fbff !important;
+}
+[data-layout-mode="inverse-main"] .sig-main-shell [data-upload-appearance="legal"] button:disabled {
+  opacity: .58 !important;
+}
+[data-layout-mode="inverse-main"] .sig-main-shell [data-legal-archive="true"] {
+  background: #142239 !important;
+  background-image: none !important;
+  border-color: #38516f !important;
+}
+[data-layout-mode="inverse-main"] .sig-main-shell [data-legal-archive="true"] > div > div > p,
+[data-layout-mode="inverse-main"] .sig-main-shell [data-legal-archive="true"] > div > div > div > p {
+  color: #f0f6ff !important;
+  -webkit-text-fill-color: #f0f6ff !important;
+}

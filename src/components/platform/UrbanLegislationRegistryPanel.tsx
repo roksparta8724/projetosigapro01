@@ -240,8 +240,8 @@ export function UrbanLegislationRegistryPanel({
             Cadastro e gestão de legislação urbanística
           </h3>
           <p className="mt-1 max-w-3xl text-xs leading-5 text-slate-600 dark:text-slate-300">
-            Registro individual de leis, decretos, mapas e anexos por prefeitura.
-            Cada novo PDF preserva as revisões anteriores, com SHA-256 e histórico auditável.
+            Adicione quantas leis, decretos, mapas e anexos forem necessários, um PDF por registro.
+            Cada documento preserva suas revisões anteriores, com SHA-256 e histórico auditável.
           </p>
         </div>
         {canWrite ? (
@@ -249,7 +249,7 @@ export function UrbanLegislationRegistryPanel({
             onClick={() => setFormOpen((old) => !old)}
             className="sig-force-dark-action inline-flex min-h-11 items-center gap-2 rounded-xl bg-slate-950 px-4 py-2 text-sm font-bold !text-white hover:bg-slate-800">
             <FilePlus2 className="h-4 w-4" />
-            {formOpen ? "Fechar cadastro" : "Cadastrar lei / PDF"}
+            {formOpen ? "Fechar cadastro" : "Cadastrar lei / PDF adicional"}
           </button>
         ) : (
           <span className="rounded-full bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-700">
