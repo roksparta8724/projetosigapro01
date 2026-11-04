@@ -4,6 +4,7 @@ import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { uploadFileToStorage } from "@/integrations/r2/storage";
 import { getLegislationOpenUrl } from "@/integrations/r2/client";
 import { getMunicipalOfficialUrbanSources } from "@/lib/urbanOfficialLegalSources";
+import { canEditUrbanLegislationManagement, canViewUrbanLegislationManagement } from "@/lib/urbanLegislationAccess";
 import {
   LAW_KINDS, LAW_SCOPES, LAW_RELATIONS, listLawRegistry, registerLaw,
   setLawArchived, validateLawRegistryInput, type LawKind, type LawScope,
@@ -74,9 +75,7 @@ export function UrbanLegislationRegistryPanel({
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [referenceChoice, setReferenceChoice] = useState("");
-  const canWrite = Boolean(municipalityId && (
-    session.role === "master_admin" || session.role === "master_ops" ||
-    session.role === "prefeitura_supervisor"));
+  const canWrite = Boolean(municipalityId && canEditUrbanLegislationManagement(session.role));
   const officialSources = useMemo(() =>
     getMunicipalOfficialUrbanSources(municipalityId), [municipalityId]);
 
@@ -86,7 +85,7 @@ export function UrbanLegislationRegistryPanel({
     setError(""); setNotice(""); setSearch(""); setFormOpen(false);
     setDraft(newLaw()); setFile(null); setReferenceChoice("");
     pendingUpload.current = null;
-    if (!keyValid(municipalityId)) return;
+    if (!keyValid(municipalityId) || !canViewUrbanLegislationManagement(session.role)) return;
     setLoading(true);
     void listLawRegistry(municipalityId!)
       .then((page) => {
@@ -100,7 +99,7 @@ export function UrbanLegislationRegistryPanel({
         if (request === generation.current) setLoading(false);
       });
     return () => { ++generation.current; };
-  }, [municipalityId]);
+  }, [municipalityId, session.role]);
 
   async function refresh() {
     if (!municipalityId) return;
@@ -229,7 +228,7 @@ export function UrbanLegislationRegistryPanel({
     return !term || [entry.title, entry.document_number, entry.document_year,
       entry.document_kind].join(" ").toLocaleLowerCase("pt-BR").includes(term);
   });
-  if (!municipalityId || !keyValid(municipalityId)) return null;
+  if (!municipalityId || !keyValid(municipalityId) || !canViewUrbanLegislationManagement(session.role)) return null;
 
   return (
     <section data-urban-legislation-registry="true"

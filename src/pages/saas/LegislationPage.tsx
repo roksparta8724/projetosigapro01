@@ -248,20 +248,6 @@ export function LegislationPage() {
           />
         </PageStatsRow>
 
-        <div className="min-w-0 overflow-hidden rounded-2xl border border-sky-200 bg-gradient-to-r from-sky-50 to-white p-4 shadow-sm md:p-5">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="min-w-0 flex-1">
-              <p className="break-words text-sm font-extrabold text-slate-950">Acervo individual e parâmetros urbanísticos</p>
-              <p className="mt-1 max-w-3xl text-xs leading-5 text-slate-700">
-                Cadastro de PDFs, alterações, histórico, Quadros I e II e conferência legal agora ficam
-                em uma subpágina própria, sem sobrecarregar a visão geral.
-              </p>
-            </div>
-            <Button type="button" asChild className="sig-force-dark-action min-h-11 rounded-xl bg-slate-950 px-4 !text-white">
-              <Link to="/legislacao/gestao">Abrir gestão de leis e parâmetros</Link>
-            </Button>
-          </div>
-        </div>
         <InternalTabs
           items={tabs as unknown as Array<{ value: string; label: string; helper?: string }>}
           value={view}

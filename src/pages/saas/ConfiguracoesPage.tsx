@@ -3,6 +3,7 @@ import { FormEvent, useEffect, useMemo, useState, type Dispatch, type SetStateAc
 import { useRef } from "react";
 import { ArrowLeft, Bell, Building2, Calculator, CheckCircle2, Flag, Image as ImageIcon, Landmark, Link2, MonitorCog, Palette, ReceiptText, RefreshCw, ScrollText, ShieldPlus, Wallet } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { canEditUrbanLegislationManagement } from "@/lib/urbanLegislationAccess";
 import { FileDropZone, type UploadedFileItem } from "@/components/platform/FileDropZone";
 import { ImageFrameEditor } from "@/components/platform/ImageFrameEditor";
 import { InstitutionalLogo } from "@/components/platform/InstitutionalLogo";
@@ -234,7 +235,7 @@ export function ConfiguracoesPage({ legislationWorkspace = false }: { legislatio
   const { headerBranding, footerBranding } = useInstitutionBranding(selectedTenantId || scopeId || session.tenantId);
   const userProfile = getUserProfile(session.id, authenticatedEmail ?? session.email);
   const canManageTenantSettings = can(session, "manage_tenant_branding");
-  const canManageLegislation = ["master_admin", "master_ops", "prefeitura_supervisor"].includes(session.role);
+  const canManageLegislation = canEditUrbanLegislationManagement(session.role);
   const isMasterRole =
     bootstrap.scopeType === "platform" ||
     session.role === "master_admin" ||
@@ -3319,10 +3320,10 @@ export function ConfiguracoesPage({ legislationWorkspace = false }: { legislatio
 
   if (legislationWorkspace) {
     return (
-      <PortalFrame eyebrow="Legislação urbanística" title="Gestão de leis e parâmetros">
+      <PortalFrame eyebrow="Cadastro e Gestão" title="Gestão de leis e parâmetros">
         <PageShell>
           <PageHeader
-            eyebrow="Legislação | Gestão"
+            eyebrow="Cadastro e Gestão | Legislação"
             title="Gestão de leis e parâmetros urbanísticos"
             description="Arquivos oficiais, versões, evidências e conferência para IA em espaço próprio, sem misturar legislação com identidade visual."
             icon={Landmark}
@@ -3336,8 +3337,8 @@ export function ConfiguracoesPage({ legislationWorkspace = false }: { legislatio
                 </p>
               </div>
               <Button type="button" variant="outline" className="min-h-10 rounded-xl"
-                onClick={() => navigate("/legislacao")}>
-                Voltar à visão geral
+                onClick={() => navigate("/configuracoes")}>
+                Voltar ao Cadastro e Gestão
               </Button>
             </div>
             {isMasterRole && !session.tenantId ? (
@@ -3981,7 +3982,7 @@ export function ConfiguracoesPage({ legislationWorkspace = false }: { legislatio
                 </div>
                 <Button type="button" variant="outline"
                   className="mt-3 min-h-10 rounded-xl"
-                  onClick={() => navigate("/legislacao/gestao")}>
+                  onClick={() => navigate("/cadastro-gestao/legislacao")}>
                   Abrir gestão de legislação
                 </Button>
               </div>

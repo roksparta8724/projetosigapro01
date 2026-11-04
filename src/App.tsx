@@ -45,6 +45,7 @@ import { ConfiguracoesPage } from "@/pages/saas/ConfiguracoesPage";
 import { NotificationsPage } from "@/pages/saas/NotificationsPage";
 import { MovementHistoryPage } from "@/pages/saas/MovementHistoryPage";
 import { LegislationPage } from "@/pages/saas/LegislationPage";
+import { URBAN_LEGISLATION_VIEW_ROLES } from "@/lib/urbanLegislationAccess";
 import { ZoningPage } from "@/pages/saas/ZoningPage";
 import { GlobalSearchPage } from "@/pages/saas/GlobalSearchPage";
 import { NotFoundPage } from "@/pages/saas/NotFoundPage";
@@ -288,10 +289,18 @@ const AppRoutes = () => {
           }
         />
         <Route
+          path="/cadastro-gestao/legislacao"
+          element={
+            <PermissionRoute permission="manage_own_profile" allowedRoles={URBAN_LEGISLATION_VIEW_ROLES}>
+              <ConfiguracoesPage legislationWorkspace />
+            </PermissionRoute>
+          }
+        />
+        <Route
           path="/legislacao/gestao"
           element={
-            <PermissionRoute permission="manage_own_profile">
-              <ConfiguracoesPage legislationWorkspace />
+            <PermissionRoute permission="manage_own_profile" allowedRoles={URBAN_LEGISLATION_VIEW_ROLES}>
+              <Navigate to="/cadastro-gestao/legislacao" replace />
             </PermissionRoute>
           }
         />

@@ -10,10 +10,13 @@ const navigation = read("src/components/platform/PortalFrame.tsx");
 const registry = read("src/components/platform/UrbanLegislationRegistryPanel.tsx");
 
 describe("SIGAPRO premium legal page separation", () => {
-  it("routes laws to a standalone subpage visible under Legislação", () => {
-    expect(app).toContain('path="/legislacao/gestao"');
+  it("routes legal management only under Cadastro e Gestão", () => {
+    expect(app).toContain('path="/cadastro-gestao/legislacao"');
     expect(app).toContain("<ConfiguracoesPage legislationWorkspace />");
-    expect(navigation).toContain('{ to: "/legislacao/gestao", label: "Gestão de leis e parâmetros", icon: ScrollText }');
+    expect(navigation).toContain('{ to: "/cadastro-gestao/legislacao", label: "Gestão de leis e parâmetros", icon: ScrollText }');
+    expect(navigation).not.toContain('{ to: "/legislacao/gestao",');
+    expect(navigation).toContain('to: "/configuracoes",');
+    expect(navigation).toContain('to: "/master",');
     expect(config).toContain("if (legislationWorkspace) {");
     expect(config).toContain("Gestão de leis e parâmetros urbanísticos");
   });
@@ -23,7 +26,7 @@ describe("SIGAPRO premium legal page separation", () => {
     expect(brandingReturn).not.toContain('id="sigapro-legal-archive-upload"');
     expect(brandingReturn).not.toContain("<MunicipalUrbanRulesSettings");
     expect(brandingReturn).toContain("Salvar identidade visual");
-    expect(brandingReturn).toContain('navigate("/legislacao/gestao")');
+    expect(brandingReturn).toContain('navigate("/cadastro-gestao/legislacao")');
   });
   it("saves logos separately without overwriting legal PDFs, and vice versa", () => {
     expect(config).toContain('handleSaveInstitutionalAssets("branding")');
@@ -35,7 +38,8 @@ describe("SIGAPRO premium legal page separation", () => {
   });
   it("does not cram the legal registry into the home summary or a narrow sidebar", () => {
     expect(page).not.toContain("<UrbanLegislationRegistryPanel");
-    expect(page).toContain('to="/legislacao/gestao"');
+    expect(page).not.toContain('to="/cadastro-gestao/legislacao"');
+    expect(page).not.toContain('to="/legislacao/gestao"');
     expect(page).toContain('grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 2xl:grid-cols-3');
     expect(page).toContain("overflow-hidden rounded-[20px]");
     expect(page).toContain('title={item.fileName || "Sem arquivo oficial"}');
@@ -43,7 +47,8 @@ describe("SIGAPRO premium legal page separation", () => {
     expect(registry).toContain("[overflow-wrap:anywhere]");
   });
   it("keeps municipal admin read-only within legal management", () => {
-    expect(config).toContain('const canManageLegislation = ["master_admin", "master_ops", "prefeitura_supervisor"]');
+    expect(config).toContain('const canManageLegislation = canEditUrbanLegislationManagement(session.role)');
+    expect(app).toContain('allowedRoles={URBAN_LEGISLATION_VIEW_ROLES}');
     expect(config).toContain('canEdit={canManageLegislation}');
   });
 });

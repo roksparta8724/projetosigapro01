@@ -47,6 +47,10 @@ describe("SIGAPRO — municipal legislation registry", () => {
     const client = read("src/integrations/r2/client.ts");
     expect(sql).toContain("can_manage_urban_legislation_registry_v1");
     expect(sql).toContain("current_role_code()='prefeitura_supervisor'");
+    const restrictive = read("neon/migrations/20261104_urban_legislation_admin_only_v1.sql");
+    expect(restrictive).toContain("can_manage_urban_legislation_registry_v1");
+    expect(restrictive).toContain("public.is_internal_municipality_role()");
+    expect(restrictive).toContain("prefeitura_admin");
     expect(server).toContain("can_manage_urban_legislation_registry_v1");
     expect(server).toContain("input.registryUpload");
     expect(client).toContain("legislation-registry");
@@ -60,8 +64,9 @@ describe("SIGAPRO — municipal legislation registry", () => {
     const app = read("src/App.tsx");
     const config = read("src/pages/saas/ConfiguracoesPage.tsx");
     expect(page).not.toContain("<UrbanLegislationRegistryPanel municipalityId={effectiveScopeId} />");
-    expect(page).toContain('to="/legislacao/gestao"');
+    expect(page).not.toContain('to="/cadastro-gestao/legislacao"');
     expect(app).toContain("<ConfiguracoesPage legislationWorkspace />");
+    expect(app).toContain('path="/cadastro-gestao/legislacao"');
     expect(config).toContain("if (legislationWorkspace) {");
     expect(editor).toContain('folder: "legislation-registry"');
     expect(editor).toContain("await computePdfSha256(file)");
