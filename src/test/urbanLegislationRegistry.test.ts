@@ -53,7 +53,8 @@ describe("SIGAPRO — municipal legislation registry", () => {
     expect(restrictive).toContain("prefeitura_admin");
     expect(server).toContain("can_manage_urban_legislation_registry_v1");
     expect(server).toContain("authorize(req, input.municipalityId, input.fileSize)");
-    expect(client).toContain("legislation-registry");
+    expect(read("server/api/r2-legal-proxy-upload.ts")).toContain("validateLegalUploadInput");
+    expect(read("server/api/r2-legal-sign-put.ts")).toContain("legislation-registry");
     expect(client).toContain("isDirectLegalPdfUpload");
     expect(client).toContain('/api/r2?action=legal-proxy-upload');
     expect(client).toContain("LEGAL_PROXY_CHUNK_BYTES");
