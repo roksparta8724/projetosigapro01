@@ -230,8 +230,15 @@ export async function getSignedUrlForObject(input: {
   objectKey: string;
   expiresIn?: number;
 }) {
+  // Public fallback is only for municipal legislation explicitly intended for public access.
+  // Never turn an auth/RLS failure for a private process PDF (or profile assets)
+  // into a public bucket URL even when the compatibility flag is enabled.
+  const publicLegislationKey =
+    /^municipalities\/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/legislation(?:[-/]|$)/i.test(input.objectKey);
   const allowPublicFallback =
-    String(import.meta.env.VITE_R2_PUBLIC_FALLBACK || "").toLowerCase() === "true";
+    String(import.meta.env.VITE_R2_PUBLIC_FALLBACK || "").toLowerCase() === "true" &&
+    normalizeClientBucket(input.bucket) === "process-documents" &&
+    publicLegislationKey;
   const expiresIn = typeof input.expiresIn === "number" && Number.isFinite(input.expiresIn)
     ? input.expiresIn
     : 21600;
@@ -279,7 +286,63 @@ export async function getSignedUrlForObjectStrict(input: {
   return payload.signedUrl || "";
 }
 
-async function fileToBase64(file: File) {
+// A 3 MiB PDF base64 request stays below the Vercel 4.5 MB function payload limit.
+const LARGE_LEGAL_PDF_THRESHOLD = 3 * 1024 * 1024;
+const LEGAL_PROXY_CHUNK_BYTES = 2 * 1024 * 1024;
+const LEGAL_PDF_KEY = /^municipalities\/[0-9a-f-]{36}\/legislation-(?:plano-diretor|uso-solo|zoneamento|leis-complementares|registry)\//i;
+
+/** Larger PDFs are sent in authenticated pieces to the SIGAPRO server; no browser R2 CORS. */
+export function isDirectLegalPdfUpload(bucket: string, objectKey: string, file: { name: string; size: number }) {
+  return normalizeClientBucket(bucket) === "process-documents" &&
+    LEGAL_PDF_KEY.test(objectKey) &&
+    /\.pdf$/i.test(file.name) &&
+    file.size > LARGE_LEGAL_PDF_THRESHOLD;
+}
+
+async function uploadLargeLegalPdf(input: {bucket:string;objectKey:string;file:File}){
+ const headers=await getAuthorizationHeaders();
+ if(!("Authorization" in headers))throw Error("Faça login novamente para enviar a legislação.");
+ if(input.file.size>100*1024*1024)throw Error("O PDF oficial excede o limite de 100 MB.");
+ const marker=String.fromCharCode(...new Uint8Array(await input.file.slice(0,5).arrayBuffer()));
+ if(marker!=="%PDF-")throw Error("O arquivo não contém um cabeçalho PDF válido.");
+ if(!crypto.subtle)throw Error("Este navegador não permite verificar a integridade do PDF.");
+ const hash=async(b:Blob)=>Array.from(new Uint8Array(
+  await crypto.subtle.digest("SHA-256",await b.arrayBuffer()),
+ )).map(v=>v.toString(16).padStart(2,"0")).join("");
+ const fileSha256=await hash(input.file),uploadId=crypto.randomUUID();
+ const base={bucket:"process-documents",objectKey:input.objectKey,fileSize:input.file.size,
+  contentType:"application/pdf",uploadId};
+ const controller=new AbortController();
+ const timeout=window.setTimeout(()=>controller.abort(),12*60_000);
+ async function send(payload:Record<string,unknown>){
+  const response=await fetch(buildApiUrl("/api/r2?action=legal-proxy-upload"),{
+   method:"POST",headers:{"Content-Type":"application/json",...headers},
+   credentials:"same-origin",body:JSON.stringify({...base,...payload}),signal:controller.signal,
+  });
+  const result=await response.json().catch(()=>({})) as {ok?:boolean;error?:string;objectKey?:string};
+  if(!response.ok||result.ok!==true)
+   throw Error(result.error||"Não foi possível gravar o PDF no servidor do SIGAPRO (HTTP "+response.status+").");
+  return result;
+ }
+ try{
+  const parts=Math.ceil(input.file.size/LEGAL_PROXY_CHUNK_BYTES);
+  for(let index=0;index<parts;index++){
+   const slice=input.file.slice(index*LEGAL_PROXY_CHUNK_BYTES,
+    Math.min(input.file.size,(index+1)*LEGAL_PROXY_CHUNK_BYTES));
+   await send({action:"chunk",chunkIndex:index,chunkSha256:await hash(slice),
+    base64:await fileToBase64(slice)});
+  }
+  const completed=await send({action:"finalize",fileSha256});
+  if(completed.objectKey!==input.objectKey)
+   throw Error("O servidor não confirmou o documento original no armazenamento.");
+  return {bucket:"process-documents",objectKey:input.objectKey,publicUrl:""} satisfies R2UploadResult;
+ }catch(err){
+  if(controller.signal.aborted)throw Error("Tempo limite ao enviar o PDF; o original foi preservado.");
+  throw err;
+ }finally{window.clearTimeout(timeout);}
+}
+
+async function fileToBase64(file: Blob) {
   const dataUrl = await new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result || ""));
@@ -295,6 +358,9 @@ export async function uploadFile(input: {
   objectKey: string;
   file: File;
 }) {
+  if (isDirectLegalPdfUpload(input.bucket, input.objectKey, input.file)) {
+    return uploadLargeLegalPdf(input);
+  }
   const controller = new AbortController();
   const timeout = window.setTimeout(() => {
     controller.abort();
@@ -324,7 +390,8 @@ export async function uploadFile(input: {
       body: JSON.stringify({
         bucket: normalizeClientBucket(input.bucket),
         objectKey: input.objectKey,
-        contentType: input.file.type || "application/octet-stream",
+        contentType: normalizeClientBucket(input.bucket) === "process-documents" && LEGAL_PDF_KEY.test(input.objectKey)
+          ? "application/pdf" : input.file.type || "application/octet-stream",
         fileName: input.file.name,
         base64,
       }),

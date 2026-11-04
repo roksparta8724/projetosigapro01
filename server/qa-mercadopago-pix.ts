@@ -119,8 +119,15 @@ export async function qaMercadoPagoPix(
       stored.guideCode!==input.guideCode)) throw new Error("O PIX QA não corresponde à guia original.");
   if(stored?.state==="issued") return response(stored);
 
+  type MercadoPagoQaOrder = {
+    id?: string; message?: string; error?: string; external_reference?: string;
+    total_amount?: string | number; status?: string;
+    transactions?: { payments?: Array<{ id?: string; status?: string; payment_method?: {
+      id?: string; type?: string; qr_code?: string;
+    } }> };
+  };
   const externalReference=input.guideCode+"-PIX-QA";
-  let order: Record<string,any> | null = null;
+  let order: MercadoPagoQaOrder | null = null;
   if(stored?.orderId){
     // Recover an already-created order, never create a second one.
     const res=await fetch("https://api.mercadopago.com/v1/orders/"+encodeURIComponent(stored.orderId),{

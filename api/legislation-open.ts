@@ -1,3 +1,4 @@
+import { getR2EndpointCandidates, resolveR2Endpoint } from "../server/r2-runtime.js";
 /**
  * Public municipal legislation opener.
  *
@@ -16,39 +17,6 @@ type Res = import("http").ServerResponse;
 function readEnv(key: string) {
   const raw = process.env[key];
   return raw ? String(raw).replace(/^['"]|['"]$/g, "").trim() : "";
-}
-
-function getR2EndpointCandidates() {
-  const candidates: string[] = [];
-
-  // R2_ENDPOINT is the endpoint actually used by upload flows. Keep it first so
-  // read/sign operations never drift to a stale R2_ACCOUNT_ID from another account.
-  const rawEndpoint = readEnv("R2_ENDPOINT");
-  if (rawEndpoint) {
-    try {
-      const parsed = new URL(
-        /^https?:\/\//i.test(rawEndpoint) ? rawEndpoint : `https://${rawEndpoint}`,
-      );
-      candidates.push(`${parsed.protocol}//${parsed.host}`);
-    } catch {
-      candidates.push(rawEndpoint.replace(/\/+$/, ""));
-    }
-  }
-
-  const accountId = readEnv("R2_ACCOUNT_ID")
-    .replace(/^https?:\/\//i, "")
-    .replace(/\.r2\.cloudflarestorage\.com.*$/i, "")
-    .replace(/[^a-zA-Z0-9]/g, "");
-
-  if (accountId && !/^sua_?account_?id$/i.test(accountId)) {
-    candidates.push(`https://${accountId}.r2.cloudflarestorage.com`);
-  }
-
-  return Array.from(new Set(candidates.filter(Boolean)));
-}
-
-function resolveR2Endpoint() {
-  return getR2EndpointCandidates()[0] || "";
 }
 
 function isMunicipalLegislationObject(objectKey: string) {

@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { backendClient } from "@/integrations/backend/databaseClient";
+import { municipalCollectionApiRequest } from "@/lib/municipalCollectionApi";
 import { isCollectionSuccessMessage, municipalCollectionError } from "@/lib/collectionDiagnostics";
 
 type PaymentConnection = {
@@ -39,44 +39,17 @@ type PaymentConnection = {
   pixAvailable?: boolean;
 };
 
-async function authorizationHeaders() {
-  try {
-    const result = await backendClient?.auth?.getSession?.();
-    const session = result?.data?.session ?? null;
-    const token =
-      session?.access_token ||
-      session?.accessToken ||
-      session?.token ||
-      "";
-    return token ? { Authorization: `Bearer ${token}` } : {};
-  } catch {
-    return {};
-  }
-}
-
 async function paymentRequest(
   municipalityId: string,
   action: string,
   payload: Record<string, unknown> = {},
 ) {
-  const response = await fetch("/api/payment-connection", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(await authorizationHeaders()),
-    },
-    body: JSON.stringify({ municipalityId, action, ...payload }),
-  });
-
-  const body = (await response.json().catch(() => ({}))) as PaymentConnection & {
-    error?: string;
-  };
-  if (!response.ok) {
-    throw new Error(
-      body.error || "Não foi possível concluir a configuração de pagamentos.",
-    );
-  }
-  return body;
+  return municipalCollectionApiRequest<PaymentConnection>(
+    "payment-connection",
+    municipalityId,
+    action,
+    payload,
+  );
 }
 
 function providerLabel(provider?: PaymentConnection["provider"]) {
@@ -96,6 +69,7 @@ export function MunicipalPaymentSettings({
   const [connection, setConnection] = useState<PaymentConnection | null>(null);
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState("");
+  const [loadFailed, setLoadFailed] = useState(false);
   const [form, setForm] = useState({
     provider: "mercado_pago" as "mercado_pago" | "bank_direct" | "manual",
     environment: "test" as "test" | "production",
@@ -107,6 +81,15 @@ export function MunicipalPaymentSettings({
   const isActive = connectionMatchesForm && connection?.status === "active";
   const hasValidTest = connectionMatchesForm && connection?.last_test_status === "ok";
   const provider = form.provider;
+  const sameCredentialScope = connectionMatchesForm && form.provider === "mercado_pago";
+  const hasAccessToken = Boolean(form.accessToken.trim()) ||
+    Boolean(sameCredentialScope && connection?.credentials_configured);
+  const hasWebhookSecret = Boolean(form.webhookSecret.trim()) ||
+    Boolean(sameCredentialScope && connection?.webhook_configured);
+  const hasUnsavedCredentials = Boolean(form.accessToken.trim() || form.webhookSecret.trim());
+  const selectionReady = form.provider !== "mercado_pago" ||
+    (hasAccessToken && (form.environment !== "production" || hasWebhookSecret));
+  const webhookUrl = `https://sigapromunicipal.com.br/api/mercadopago-webhook?municipality_id=${encodeURIComponent(municipalityId)}`;
 
   const statusLabel = useMemo(() => {
     if (!connection) return busy === "load" ? "Carregando configuração" : "Conexão não verificada";
@@ -121,6 +104,7 @@ export function MunicipalPaymentSettings({
     const generation = ++requestGeneration.current;
     // A response from another municipality must never populate this account.
     setConnection(null);
+    setLoadFailed(false);
     setForm({ provider: "mercado_pago", environment: "test", accessToken: "", webhookSecret: "" });
     setMessage("");
     if (!municipalityId) { setBusy(""); return; }
@@ -129,6 +113,7 @@ export function MunicipalPaymentSettings({
       const current = await paymentRequest(municipalityId, "get");
       if (generation !== requestGeneration.current) return;
       setConnection(current);
+      setLoadFailed(false);
       setForm({
         provider: current.provider || "mercado_pago",
         environment: current.environment || "test",
@@ -136,7 +121,10 @@ export function MunicipalPaymentSettings({
         webhookSecret: "",
       });
     } catch (error) {
-      if (generation === requestGeneration.current) setMessage(municipalCollectionError(error));
+      if (generation === requestGeneration.current) {
+        setLoadFailed(true);
+        setMessage(municipalCollectionError(error));
+      }
     } finally {
       if (generation === requestGeneration.current) setBusy("");
     }
@@ -148,6 +136,13 @@ export function MunicipalPaymentSettings({
   }, [municipalityId]);
 
   const save = async () => {
+    if (loadFailed || !connection) return;
+    if (!selectionReady) {
+      setMessage(form.environment === "production"
+        ? "Informe o Access Token e a chave do Webhook de produção. Credenciais de teste não podem ser reutilizadas."
+        : "Informe o Access Token do ambiente escolhido antes de salvar.");
+      return;
+    }
     const generation = requestGeneration.current;
     setBusy("save");
     setMessage("");
@@ -174,6 +169,7 @@ export function MunicipalPaymentSettings({
   };
 
   const test = async () => {
+    if (loadFailed || !connection) return;
     const generation = requestGeneration.current;
     setBusy("test");
     setMessage("");
@@ -195,6 +191,7 @@ export function MunicipalPaymentSettings({
   };
 
   const activate = async () => {
+    if (loadFailed || !connection) return;
     const generation = requestGeneration.current;
     setBusy("activate");
     setMessage("");
@@ -353,6 +350,8 @@ export function MunicipalPaymentSettings({
                 setForm((current) => ({
                   ...current,
                   provider: value as typeof current.provider,
+                  accessToken: "",
+                  webhookSecret: "",
                 }))
               }
             >
@@ -374,6 +373,8 @@ export function MunicipalPaymentSettings({
                 setForm((current) => ({
                   ...current,
                   environment: value as typeof current.environment,
+                  accessToken: "",
+                  webhookSecret: "",
                 }))
               }
             >
@@ -402,8 +403,8 @@ export function MunicipalPaymentSettings({
                     }))
                   }
                   placeholder={
-                    connection?.credentials_configured
-                      ? "Deixe vazio para manter o token atual"
+                    sameCredentialScope && connection?.credentials_configured
+                      ? "Deixe vazio para manter o token deste ambiente"
                       : "Access Token da Prefeitura"
                   }
                 />
@@ -424,8 +425,8 @@ export function MunicipalPaymentSettings({
                     }))
                   }
                   placeholder={
-                    connection?.webhook_configured
-                      ? "Deixe vazio para manter a chave atual"
+                    sameCredentialScope && connection?.webhook_configured
+                      ? "Deixe vazio para manter a chave deste ambiente"
                       : "Secret signature do Mercado Pago"
                   }
                 />
@@ -437,6 +438,39 @@ export function MunicipalPaymentSettings({
           ) : null}
         </div>
 
+        {form.provider === "mercado_pago" && form.environment === "production" ? (
+          <div data-municipal-bank-webhook-setup="true" className="mt-4 space-y-2 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <p className="text-sm font-semibold text-slate-900">URL oficial para notificações de pagamento</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <Input aria-label="URL de Webhook da Prefeitura" readOnly value={webhookUrl} className="min-w-0 flex-1 font-mono text-xs" />
+              <Button type="button" variant="outline" onClick={() => {
+                void navigator.clipboard.writeText(webhookUrl)
+                  .then(() => setMessage("URL oficial do Webhook copiada. Configure-a na aplicação Mercado Pago da Prefeitura."))
+                  .catch(() => setMessage("Selecione a URL exibida e copie-a manualmente."));
+              }}>Copiar URL</Button>
+            </div>
+            <p className="text-xs leading-5 text-slate-600">
+              Cadastre esta URL na aplicação Mercado Pago da Prefeitura para notificações de Orders (order).
+              Copie a chave secreta desse Webhook para o campo protegido acima.
+            </p>
+            {!connectionMatchesForm ? (
+              <p className="text-xs font-semibold text-amber-800">
+                Novo provedor ou ambiente: as credenciais anteriores não serão reaproveitadas.
+              </p>
+            ) : null}
+            {form.environment === "production" && !hasWebhookSecret ? (
+              <p className="text-xs font-semibold text-amber-800">
+                A produção exige segredo de Webhook para ativação e baixa automática.
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+        {form.provider === "mercado_pago" && form.environment === "test" ? (
+          <p data-bank-test-webhook-note="true" className="mt-3 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-xs leading-5 text-sky-900">
+            Homologação: use somente credenciais de teste. A URL acima é apresentada apenas em produção,
+            pois o webhook oficial exige notificações de pagamentos reais e não aceita eventos simulados.
+          </p>
+        ) : null}
         <div role="status" data-municipal-provider-capabilities="true" className="mt-4 rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm leading-6 text-sky-950">
           {form.provider === "mercado_pago"
             ? "Mercado Pago: utilize a conta de testes na homologação. A conexão técnica verifica a credencial, mas não confirma uma cobrança real, conciliação ou titularidade municipal. Tokens antigos do ambiente local não são vinculados automaticamente a uma Prefeitura."
@@ -456,12 +490,13 @@ export function MunicipalPaymentSettings({
           </div>
         ) : null}
 
+        {loadFailed ? <div role="alert" className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm font-semibold text-amber-950"><span>Conexão do provedor não confirmada. Credenciais anteriores protegidas; nenhum salvamento foi realizado.</span><Button type="button" variant="outline" disabled={!!busy} onClick={() => void load()}>Tentar conectar novamente</Button></div> : null}
         <div className="mt-5 flex flex-wrap justify-end gap-2">
           <Button
             type="button"
             variant="outline"
             className="rounded-full"
-            disabled={Boolean(busy)}
+            disabled={Boolean(busy) || loadFailed || !connection}
             onClick={() => void save()}
           >
             {busy === "save" ? "Salvando..." : "Salvar conexão"}
@@ -471,9 +506,9 @@ export function MunicipalPaymentSettings({
             variant="outline"
             className="rounded-full"
             disabled={
-              Boolean(busy) ||
-              form.provider !== "mercado_pago" ||
-              !connection?.credentials_configured
+              Boolean(busy) || loadFailed || !connection ||
+              form.provider !== "mercado_pago" || !connectionMatchesForm ||
+              hasUnsavedCredentials || !connection?.credentials_configured
             }
             onClick={() => void test()}
           >
@@ -484,8 +519,12 @@ export function MunicipalPaymentSettings({
             type="button"
             className="sig-collection-payment-activate rounded-full bg-slate-950 px-5 !text-white hover:bg-slate-900"
             disabled={
-              Boolean(busy) ||
-              (form.provider !== "manual" && !hasValidTest) ||
+              Boolean(busy) || loadFailed || !connection ||
+              !connectionMatchesForm || hasUnsavedCredentials ||
+              form.provider === "bank_direct" ||
+              (form.provider === "mercado_pago" &&
+                (!hasValidTest || !connection.credentials_configured ||
+                (form.environment === "production" && !connection.webhook_configured))) ||
               isActive
             }
             onClick={() => void activate()}

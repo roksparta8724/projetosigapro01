@@ -33,6 +33,22 @@ export function getDataApiUrl() {
   if (process.env.VERCEL_ENV === "production") {
     return VALIDATED_NEON_DATA_API_URL;
   }
+  if (process.env.VERCEL_ENV === "preview") {
+    // Isolated QA must fail closed rather than silently target production.
+    const frontendData = readEnv("VITE_NEON_DATA_API_URL");
+    const backendData = readEnv("R2_AUTH_DATA_API_URL");
+    const auth = readEnv("VITE_NEON_AUTH_URL");
+    const authHost = neonBranchHost(auth, "neonauth");
+    const dataHost = neonBranchHost(frontendData, "apirest");
+    const serverHost = neonBranchHost(backendData, "apirest");
+    const productionHost = neonBranchHost(VALIDATED_NEON_DATA_API_URL, "apirest");
+    if (readEnv("VITE_SIGAPRO_NEON_ISOLATED") !== "true" ||
+        !authHost || authHost === productionHost ||
+        authHost !== dataHost || authHost !== serverHost) {
+      throw new Error("Ambiente de homologação inválido: Neon Auth e Data API devem apontar para a mesma branch QA, nunca produção.");
+    }
+    return backendData.replace(/\/+$/, "");
+  }
   // Vite localhost signs in with the official Neon Auth by default.
   // Do NOT honor an arbitrary Data API override independently: that creates
   // "jwk not found" by sending a production JWT to a QA branch (or vice versa).
@@ -43,14 +59,15 @@ export function getDataApiUrl() {
     const authHost = neonBranchHost(localAuth, "neonauth");
     const dataHost = neonBranchHost(localData, "apirest");
     if (isolatedRequested) {
-      if (!authHost || authHost !== dataHost) {
+      if (!authHost || authHost !== dataHost ||
+          dataHost === neonBranchHost(VALIDATED_NEON_DATA_API_URL, "apirest")) {
         throw new Error("Homologação Neon local inválida: informe Auth e Data API HTTPS da MESMA branch.");
       }
       return localData.replace(/\/+$/, "");
     }
     return VALIDATED_NEON_DATA_API_URL;
   }
-  // Production / preview retain their explicitly configured data source.
+  // Development and other explicit environments may override the validated URL.
   return (
     readEnv("R2_AUTH_DATA_API_URL") ||
     readEnv("VITE_NEON_DATA_API_URL") ||

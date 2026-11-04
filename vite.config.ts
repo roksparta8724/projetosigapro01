@@ -11,7 +11,7 @@ import { handleQaDocumentRequest } from "./server/qa-document-store";
 import { qaMercadoPagoPix } from "./server/qa-mercadopago-pix";
 import { callDataApiRpc } from "./server/municipal-storage";
 import handleProfileAvatarOpen from "./server/api/profile-avatar-open";
-import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand, HeadBucketCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand, HeadBucketCommand, type GetObjectCommandOutput } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 dns.setDefaultResultOrder("verbatim");
@@ -89,7 +89,7 @@ function isR2CredentialError(error: unknown) {
     /signature.*does not match|invalid access key|access denied/i.test(message);
 }
 
-async function sendR2WithFallback<T>(command: any): Promise<T> {
+async function sendR2WithFallback<T = unknown>(command: PutObjectCommand | DeleteObjectCommand | GetObjectCommand | HeadBucketCommand): Promise<T> {
   const endpoints = getR2EndpointCandidates();
   if (endpoints.length === 0) {
     throw new Error("Endpoint R2 não configurado.");
@@ -705,7 +705,7 @@ function createR2DevApiPlugin(): Plugin {
               res.end("Logo inválido.");
               return;
             }
-            const object = await sendR2WithFallback<any>(new GetObjectCommand({
+            const object = await sendR2WithFallback<GetObjectCommandOutput>(new GetObjectCommand({
               Bucket: readEnvValue("R2_BUCKET_LOGOS"),
               Key: objectKey,
             }));

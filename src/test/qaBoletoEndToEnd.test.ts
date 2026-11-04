@@ -126,7 +126,7 @@ describe("one complete sandbox-only SIGAPRO bank issuance", () => {
   });
 
   it("does not create a second charge when an order reference already exists", async () => {
-    mocks.read.mockResolvedValue({...original,bank_reference:"MP-ORDER-SANDBOX"});
+    mocks.read.mockResolvedValue({...original,bank_reference:"MP-ORDER-SANDBOX",payment_provider:"mercado_pago",provider_environment:"test"});
     mocks.sync.mockResolvedValue(undefined);
     mocks.write.mockImplementation(async (_req,_guide,charge)=>({...charge,ok:true}));
     const result=await createMercadoPagoGuideBoleto(input,req,opts);
