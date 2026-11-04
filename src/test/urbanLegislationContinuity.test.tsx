@@ -106,13 +106,15 @@ describe("SIGAPRO — documentos e trabalhos anteriores não desaparecem na nova
     await waitFor(() => expect(listUrbanMatrixBatches).toHaveBeenCalledTimes(2));
   });
 
-  it("preserves read-only access for Admin Prefeitura without edit/archiving actions", () => {
+  it("preserves tenant-scoped municipal editing and blocks edits for consultation-only profiles", () => {
     const root = "src/components/platform/";
     const settings = readFileSync(root + "MunicipalUrbanRulesSettings.tsx", "utf8");
     const quadroI = readFileSync(root + "UrbanLegalMatrixReviewPanel.tsx", "utf8");
     const quadroII = readFileSync(root + "UrbanQuadroIIWorkspacePanel.tsx", "utf8");
     const config = readFileSync("src/pages/saas/ConfiguracoesPage.tsx", "utf8");
-    expect(settings).toContain("<UrbanLegalMatrixReviewPanel municipalityId={municipalityId} canView canEdit={canEdit} />");
+    expect(settings).toContain("<UrbanLegalMatrixReviewPanel municipalityId={municipalityId} canView canEdit={canEdit}");
+    expect(settings).toContain("onPrepareDraft={prepareFromMatrix}");
+    expect(quadroI).toContain("entry.readingReviewed && !entry.needsCorrection");
     expect(settings).toContain("<UrbanQuadroIIWorkspacePanel municipalityId={municipalityId} canView canEdit={canEdit} />");
     expect(quadroI).toContain("if (!canEdit) return;");
     expect(quadroI).toContain("{canEdit && !isArchived(selected.id) ? (");

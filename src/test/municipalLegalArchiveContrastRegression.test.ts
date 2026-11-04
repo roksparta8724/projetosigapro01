@@ -38,7 +38,9 @@ describe("SIGAPRO municipal legal archive premium layout",()=>{
   it("preserves explicit human verification and existing upload/save flows",()=>{
     expect(rules).toContain('await saveUrbanRegulationDraft(');
     expect(rules).toContain('await activateUrbanRegulation(');
-    expect(settings).toContain('<MunicipalUrbanRulesSettings municipalityId={selectedTenantId} canEdit={canManageLegislation} />');
+    expect(settings).toContain('<MunicipalUrbanRulesSettings municipalityId={selectedTenantId} canEdit={canManageLegislation}');
+    expect(settings).toContain('documentFiles={{');
+    expect(rules).toContain('<UrbanAiReadinessPanel');
     expect(settings).toContain('const legalArchiveWorkspace = (');
     expect(settings).toContain('if (legislationWorkspace) {');
     expect(settings).toContain('Salvar documentos jurídicos');
