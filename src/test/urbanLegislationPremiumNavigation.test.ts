@@ -36,7 +36,8 @@ describe("SIGAPRO premium legal page separation", () => {
     expect(config).toContain('handleSaveInstitutionalAssets("legislation")');
     expect(config).toContain('...(kind === "branding" ? {');
     expect(config).toContain('...(kind === "legislation" ? {');
-    expect(config).toContain('skipMunicipalityBranding: kind === "legislation"');
+    expect(config).toContain('saveMunicipalLegacyLegalAssets(savedTenantId, legalChanges, crypto.randomUUID())');
+    expect(config).not.toContain('skipMunicipalityBranding: kind === "legislation"');
     expect(config).toContain('disabled={!canManageLegislation}');
   });
   it("does not cram the legal registry into the home summary or a narrow sidebar", () => {

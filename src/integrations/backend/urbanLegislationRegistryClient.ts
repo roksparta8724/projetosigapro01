@@ -187,3 +187,31 @@ export async function setLawArchived(
     _reason: reason.trim(), _request_id: crypto.randomUUID(),
   });
 }
+
+export type MunicipalLegacyLegalAssetSlot =
+  | "plano_diretor" | "uso_solo" | "zoneamento" | "leis_complementares";
+export type MunicipalLegacyLegalAssetChange = {
+  slot: MunicipalLegacyLegalAssetSlot;
+  fileName: string;
+  fileRef: string;
+};
+/** Atomic, audited JSONB-only patch: never rewrite finance, logo, plan or process settings. */
+export async function saveMunicipalLegacyLegalAssets(
+  municipalityId: string, changes: MunicipalLegacyLegalAssetChange[], requestId: string,
+): Promise<{ok: true; changed: number}> {
+  if (!changes.length || changes.length > 4 ||
+      new Set(changes.map((change) => change.slot)).size !== changes.length) {
+    throw new Error("Selecione os documentos jurídicos que deseja alterar.");
+  }
+  const result = await rpc<{ok:boolean;changed:number}>(
+    "save_municipal_legacy_legal_assets_v1", {
+      _municipality_id: municipalityId,
+      _changes: changes,
+      _request_id: requestId,
+    },
+  );
+  if (result?.ok !== true || !Number.isInteger(result.changed)) {
+    throw new Error("O banco não confirmou a gravação dos documentos jurídicos. O cadastro anterior foi preservado.");
+  }
+  return {ok: true, changed: result.changed};
+}

@@ -27,7 +27,7 @@ describe("municipal legal archive preflight", () => {
   it("keeps the legacy PDF batch uncommitted until the database confirms all files", () => {
     const settings = readFileSync("src/pages/saas/ConfiguracoesPage.tsx","utf8") as string;
     const start = settings.indexOf('const handleSaveInstitutionalAssets = async');
-    const before = settings.slice(start,settings.indexOf('if (hasBackendEnv) {\n        await withTimeout(',start));
+    const before = settings.slice(start,settings.indexOf('const legalChanges:',start));
     expect(before).not.toContain("setPlanoDiretorFiles(nextPlanoDiretorFiles)");
     expect(before).not.toContain("setUsoSoloFiles(nextUsoSoloFiles)");
     expect(settings).toContain("stagedLegalUploadsRef.current");

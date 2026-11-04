@@ -56,7 +56,10 @@ import {
 } from "@/lib/municipalLogoFraming";
 import { getLegislationOpenUrl, getStableMunicipalLegislationReference, getMunicipalityLogoOpenUrl, getObjectKeyFromPublicUrl, getPublicUrl, getSignedUrlForObject, getSignedUrlForObjectStrict } from "@/integrations/r2/client";
 import { uploadFileToStorage } from "@/integrations/r2/storage";
-import { assertUrbanLegislationWriteAccess } from "@/integrations/backend/urbanLegislationRegistryClient";
+import {
+  assertUrbanLegislationWriteAccess, saveMunicipalLegacyLegalAssets,
+  type MunicipalLegacyLegalAssetChange,
+} from "@/integrations/backend/urbanLegislationRegistryClient";
 import {
   getMasterInstitutionBranding,
   loadMasterBranding,
@@ -2482,7 +2485,9 @@ export function ConfiguracoesPage({ legislationWorkspace = false }: { legislatio
     const savedItem: UploadedFileItem = {
       ...item,
       previewUrl,
-      persistentRef: uploaded.publicUrl || `r2:${uploaded.path}`,
+      persistentRef: bucket === "process-documents"
+        ? `r2:${uploaded.path}`
+        : uploaded.publicUrl || `r2:${uploaded.path}`,
       storagePath: uploaded.path,
       file: undefined,
       fileSizeBytes: item.fileSizeBytes ?? item.file.size,
@@ -2581,12 +2586,43 @@ export function ConfiguracoesPage({ legislationWorkspace = false }: { legislatio
         } : {}),
       };
 
+      // Legal attachments update ONLY their own JSONB keys, transactionally,
+      // and are audited by Neon. Never resave the entire municipal configuration
+      // (banking, fee rules, institution fields) from a potentially stale snapshot.
+      const legalChanges: MunicipalLegacyLegalAssetChange[] = kind === "legislation"
+        ? ([
+            { slot: "plano_diretor" as const, selected: planoDiretorFiles,
+              uploaded: nextPlanoDiretorFiles, oldName: baseSettings.planoDiretorArquivoNome,
+              oldRef: baseSettings.planoDiretorArquivoUrl },
+            { slot: "uso_solo" as const, selected: usoSoloFiles,
+              uploaded: nextUsoSoloFiles, oldName: baseSettings.usoSoloArquivoNome,
+              oldRef: baseSettings.usoSoloArquivoUrl },
+            { slot: "zoneamento" as const, selected: zoneamentoFiles,
+              uploaded: nextZoneamentoFiles, oldName: baseSettings.zoneamentoArquivoNome,
+              oldRef: baseSettings.zoneamentoArquivoUrl },
+            { slot: "leis_complementares" as const, selected: leisFiles,
+              uploaded: nextLeisFiles, oldName: baseSettings.leisArquivoNome,
+              oldRef: baseSettings.leisArquivoUrl },
+          ]).filter(({ selected, oldName, oldRef }) =>
+            Boolean(selected[0]?.file) ||
+            (selected.length === 0 && Boolean(oldName || oldRef)),
+          ).map(({ slot, uploaded }) => ({
+            slot, fileName: uploaded[0]?.fileName || "",
+            fileRef: uploaded[0]?.persistentRef || "",
+          }))
+        : [];
+      if (kind === "legislation" && legalChanges.length === 0) {
+        setInstitutionalAssetsStatus("Nenhuma alteração selecionada. Os documentos oficiais existentes continuam preservados.");
+        return;
+      }
+
       if (hasBackendEnv) {
         await withTimeout(
-          saveRemoteInstitutionSettings(nextSettings, {
-            skipMunicipalityUpdate: true,
-            skipMunicipalityBranding: kind === "legislation",
-          }),
+          kind === "legislation"
+            ? saveMunicipalLegacyLegalAssets(savedTenantId, legalChanges, crypto.randomUUID())
+            : saveRemoteInstitutionSettings(nextSettings, {
+                skipMunicipalityUpdate: true,
+              }),
           "Tempo limite ao salvar os arquivos institucionais no banco oficial.",
         );
       }
