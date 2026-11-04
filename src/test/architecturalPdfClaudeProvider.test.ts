@@ -17,6 +17,13 @@ describe("SIGAPRO — Claude PDF visual via stored R2 attachments",()=>{
       expect(provider.provider.model).toBe("claude-sonnet-5-5");
     }
   });
+  it("automatically reuses an existing QA Claude key without another flag",()=>{
+    const cfg=resolveVisualPdfProvider(env({ANTHROPIC_API_KEY:KEY}));
+    expect(cfg.enabled).toBe(true);
+    if(cfg.enabled)expect(cfg.provider.kind).toBe("claude");
+    const alternate=resolveVisualPdfProvider(env({SIGAPRO_CLAUDE_API_KEY:KEY}));
+    expect(alternate.enabled).toBe(true);
+  });
   it("does not mistake R2 or chat-only Workers AI credentials for a PDF vision provider",()=>{
     expect(resolveVisualPdfProvider(env({R2_ACCESS_KEY_ID:"secret",R2_SECRET_ACCESS_KEY:"r2secret"})).enabled)
       .toBe(false);

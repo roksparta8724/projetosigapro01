@@ -24,13 +24,17 @@ export function resolveVisualPdfProvider(
   const configuredProvider = (get("SIGAPRO_AI_PDF_PROVIDER") ||
     get("SIGAPRO_AI_PROVIDER") || "").trim().toLowerCase();
   const enabledSetting = get("SIGAPRO_AI_PDF_ENABLED").trim().toLowerCase();
-  const claudeKey = get("ANTHROPIC_API_KEY") || get("SIGAPRO_ANTHROPIC_API_KEY");
+  const claudeKey = get("ANTHROPIC_API_KEY") || get("SIGAPRO_ANTHROPIC_API_KEY") ||
+    get("SIGAPRO_CLAUDE_API_KEY") || get("CLAUDE_API_KEY");
   const openaiKey = get("OPENAI_API_KEY");
   if (enabledSetting === "false") return {enabled:false,provider:null,
     message:"Leitura visual desativada explicitamente neste ambiente."};
   // A previously selected Claude provider is an explicit opt-in when paired
   // with its configured key. Cloudflare R2 credentials are NEVER AI credentials.
-  const optIn = enabledSetting === "true" ||
+  // In isolated QA, an existing Anthropic API credential is also an opt-in
+  // for DISPLAYING the reader; sending a PDF still requires analyst consent.
+  // An explicit false setting always takes precedence.
+  const optIn = enabledSetting === "true" || Boolean(claudeKey) ||
     configuredProvider === "claude" || configuredProvider === "anthropic";
   if (!optIn) return {enabled:false,provider:null,
     message:"O R2 está disponível para arquivos, mas não há provedor de leitura visual de projetos habilitado nesta prévia."};
