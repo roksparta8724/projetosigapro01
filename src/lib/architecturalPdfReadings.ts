@@ -52,6 +52,7 @@ export function normalizeArchitecturalPdfExtraction(raw: unknown): DrawingExtrac
     group.push(value);
     groups.set(value.metric, group);
   }
+  const setbacks = new Set<UrbanMetric>(["front_setback_m","side_setback_m","rear_setback_m"]);
   const readings = URBAN_METRICS.map(({key}) => {
     const rawMatches = groups.get(key) || [];
     const item = rawMatches.length === 1 ? rawMatches[0] : null;
@@ -66,9 +67,11 @@ export function normalizeArchitecturalPdfExtraction(raw: unknown): DrawingExtrac
       item?.confidence === "high" || item?.confidence === "medium" ||
       item?.confidence === "low" ? item.confidence : "not_found";
     const usableForReview = documentType === "architectural_plan" &&
+      (hasSitePlan || !setbacks.has(key)) &&
       rawMatches.length === 1 && value !== null && page !== null && quote.length >= 8 &&
       (confidence === "high" || confidence === "medium");
     const reason = rawMatches.length > 1 ? "Leituras conflitantes: revisar manualmente." :
+      (!hasSitePlan && setbacks.has(key)) ? "Sem planta de implantação confirmada: recuo não verificável." :
       documentType !== "architectural_plan" ? "O PDF não foi reconhecido com segurança como projeto arquitetônico." :
       value === null ? "Medida não localizada ou numericamente inválida." :
       page === null || quote.length < 8 ? "Sem página e trecho verificáveis." :
