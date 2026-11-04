@@ -3217,22 +3217,6 @@ export function ConfiguracoesPage({ legislationWorkspace = false }: { legislatio
 
   const legalArchiveWorkspace = (
     <div className="min-w-0 space-y-5" data-legal-management-workspace="true">
-      <div className="min-w-0 rounded-[22px] border border-sky-200 bg-sky-50 p-4 shadow-sm dark:border-slate-600 dark:bg-slate-900 md:p-5">
-        <div className="min-w-0">
-          <p className="break-words text-base font-extrabold text-slate-950 dark:text-white">
-            Documentos complementares — cadastro individual e sem limite fixo de campos
-          </p>
-          <p className="mt-2 max-w-4xl break-words text-sm leading-6 text-slate-700 dark:text-slate-200">
-            Para anexar a LC 440/2011, a LC 473/2014, outras leis, decretos, mapas e anexos,
-            use o cadastro abaixo. Clique em <strong>Cadastrar lei / PDF</strong> para cada documento.
-            Cada arquivo é identificado por tipo, número, ano e revisão, sem substituir os anteriores.
-          </p>
-          <p className="mt-2 text-xs font-semibold leading-5 text-slate-600 dark:text-slate-300">
-            O campo antigo de Leis Complementares, mais abaixo, é apenas o arquivo único legado.
-            A conferência jurídica continua obrigatória antes de liberar qualquer regra para a IA.
-          </p>
-        </div>
-      </div>
       {selectedTenantId ? (
         <UrbanLegislationRegistryPanel municipalityId={selectedTenantId} />
       ) : null}
@@ -3354,47 +3338,43 @@ export function ConfiguracoesPage({ legislationWorkspace = false }: { legislatio
   if (legislationWorkspace) {
     return (
       <PortalFrame eyebrow="Cadastro e Gestão" title="Gestão de leis e parâmetros">
-        <PageShell>
-          <PageHeader
-            eyebrow="Cadastro e Gestão | Legislação"
-            title="Gestão de leis e parâmetros urbanísticos"
-            description="Arquivos oficiais, versões, evidências e conferência para IA em espaço próprio, sem misturar legislação com identidade visual."
-            icon={Landmark}
-          />
-          <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:p-5">
-            <div className="flex flex-wrap items-end justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-sm font-extrabold text-slate-950">Acervo municipal e parametrização</p>
-                <p className="mt-1 text-xs text-slate-600">
-                  Cada prefeitura possui seus próprios documentos, regras e histórico.
-                </p>
-              </div>
-              <Button type="button" variant="outline" className="min-h-10 rounded-xl"
+        <PageShell className="min-w-0">
+          <section aria-label="Gerenciar o acervo legal da Prefeitura" data-urban-legislation-dedicated-page="true"
+            className="min-w-0 space-y-4">
+            <div className="flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-[20px] border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-700 dark:bg-slate-900 md:px-5">
+              <p className="min-w-0 break-words text-xs font-semibold leading-5 text-slate-600 dark:text-slate-200">
+                Acervo legal oficial <span aria-hidden="true" className="px-1 text-slate-400">•</span>
+                PDFs, histórico, versões e parâmetros urbanísticos
+              </p>
+              <Button type="button" variant="outline"
+                className="min-h-10 max-w-full shrink-0 rounded-xl border-slate-300 bg-white px-3 text-xs font-bold text-slate-800 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
                 onClick={() => navigate(isMasterRole ? "/master" : "/configuracoes")}>
                 Voltar ao Cadastro e Gestão
               </Button>
             </div>
             {isMasterRole && !session.tenantId ? (
-              <div className="mt-4 min-w-0 max-w-xl">
-                <Label>Prefeitura a consultar</Label>
-                <Select value={selectedTenantId} onValueChange={setSelectedTenantId}>
-                  <SelectTrigger className="mt-1 min-h-11 rounded-xl">
-                    <SelectValue placeholder="Selecione uma Prefeitura" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableInstitutions.map((item) => (
-                      <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="min-w-0 rounded-[18px] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+                <div className="min-w-0 max-w-xl">
+                  <Label className="text-slate-800 dark:text-slate-100">Prefeitura a consultar</Label>
+                  <Select value={selectedTenantId} onValueChange={setSelectedTenantId}>
+                    <SelectTrigger className="mt-1 min-h-11 min-w-0 rounded-xl border-slate-300 bg-white text-slate-950 dark:border-slate-600 dark:bg-slate-950 dark:text-white">
+                      <SelectValue placeholder="Selecione uma Prefeitura" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableInstitutions.map((item) => (
+                        <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             ) : null}
-          </div>
-          {selectedTenantId ? legalArchiveWorkspace : (
-            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
-              Selecione uma Prefeitura para conferir a legislação.
-            </div>
-          )}
+            {selectedTenantId ? legalArchiveWorkspace : (
+              <div role="status" className="min-w-0 rounded-[18px] border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+                Selecione uma Prefeitura para conferir a legislação.
+              </div>
+            )}
+          </section>
         </PageShell>
       </PortalFrame>
     );

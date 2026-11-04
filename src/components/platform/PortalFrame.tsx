@@ -130,10 +130,6 @@ const navItems = [
     permission: "view_master_dashboard" as Permission,
     essential: true,
     module: undefined as PlanModuleName | undefined,
-    children: [
-      { to: "/master", label: "Visão geral", icon: LayoutDashboard },
-      { to: "/cadastro-gestao/legislacao", label: "Gestão de leis e parâmetros", icon: ScrollText },
-    ],
   },
   { key: "master-plans", to: "/master/planos", label: "Planos e níveis", icon: AccountCard, permission: "manage_commercial_plans" as Permission, essential: true, module: undefined as PlanModuleName | undefined },
   {

@@ -18,7 +18,9 @@ describe("SIGAPRO premium legal page separation", () => {
     expect(navigation).toContain('to: "/configuracoes",');
     expect(navigation).toContain('to: "/master",');
     expect(config).toContain("if (legislationWorkspace) {");
-    expect(config).toContain("Gestão de leis e parâmetros urbanísticos");
+    expect(config).toContain('data-urban-legislation-dedicated-page="true"');
+    expect(config).not.toContain('title="Gestão de leis e parâmetros urbanísticos"');
+    expect(config).toContain("Acervo legal oficial");
   });
   it("keeps the existing institutional legacy PDFs and urban rules outside branding", () => {
     expect(config).toContain('const legalArchiveWorkspace = (');

@@ -40,6 +40,12 @@ describe("SIGAPRO admin-only legal management", () => {
     expect(guard).toContain("hasValidRefreshContinuity() && !allowedRoles");
     expect(sidebar).toContain('key: "dashboard-master"');
     expect(sidebar).toContain('key: "settings"');
+    const dashboardMaster = sidebar.slice(sidebar.indexOf('key: "dashboard-master"'), sidebar.indexOf('key: "master-plans"'));
+    const settingsNav = sidebar.slice(sidebar.indexOf('key: "settings"'), sidebar.indexOf('key: "collection"'));
+    expect(dashboardMaster).not.toContain('Gestão de leis e parâmetros');
+    expect(dashboardMaster).not.toContain('children: [');
+    expect(settingsNav).toContain('to: "/cadastro-gestao/legislacao"');
+    expect(sidebar.match(/to: "\/cadastro-gestao\/legislacao"/g)).toHaveLength(1);
     expect(sidebar).not.toContain('{ to: "/legislacao/gestao",');
     expect(registry).toContain("canViewUrbanLegislationManagement(session.role)");
     expect(registry).toContain("canEditUrbanLegislationManagement(session.role)");
