@@ -9,7 +9,10 @@ export const URBAN_METRICS = [
   { key: "rear_setback_m", label: "Recuo de fundos", unit: "m", direction: "minimum" },
   { key: "permeability_percent", label: "Taxa de permeabilidade", unit: "%", direction: "minimum" },
   { key: "occupancy_percent", label: "Taxa de ocupação", unit: "%", direction: "maximum" },
-  { key: "floor_area_ratio", label: "Coeficiente de aproveitamento", unit: "", direction: "maximum" },
+  { key: "floor_area_ratio", label: "CA máximo", unit: "", direction: "maximum" },
+  { key: "floor_area_ratio_min", label: "CA mínimo", unit: "", direction: "minimum" },
+  { key: "lot_area_m2", label: "Área mínima do lote", unit: "m²", direction: "minimum" },
+  { key: "lot_frontage_m", label: "Testada mínima do lote", unit: "m", direction: "minimum" },
   { key: "height_m", label: "Altura da edificação", unit: "m", direction: "maximum" },
   { key: "floor_count", label: "Quantidade de pavimentos", unit: "", direction: "maximum" },
 ] as const;

@@ -26,6 +26,21 @@ describe("SIGAPRO urbanismo: pré-conferência informativa, sem aprovação auto
       .toBe("missing_evidence");
     expect(evaluateUrbanPrecheck(rules, {})[1].status).toBe("missing_evidence");
   });
+  it("compara CA mínimo, área do lote e testada com evidência do projeto, sem aprovação automática", () => {
+    const additional = [
+      { metric: "floor_area_ratio_min" as const, limit: 0.25, reference: "LC hipotética, Quadro I, p. 37" },
+      { metric: "lot_area_m2" as const, limit: 250, reference: "LC hipotética, Quadro I, p. 37" },
+      { metric: "lot_frontage_m" as const, limit: 10, reference: "LC hipotética, Quadro I, p. 37" },
+    ];
+    expect(validateUrbanRules(additional)).toBe(true);
+    const findings = evaluateUrbanPrecheck(additional,{
+      floor_area_ratio_min: { value: 0.2, evidence: "Quadro de áreas, prancha 02" },
+      lot_area_m2: { value: 300, evidence: "Matrícula e levantamento topográfico" },
+      lot_frontage_m: { value: 9.5, evidence: "Cota do levantamento topográfico" },
+    });
+    expect(findings.map((x) => x.status)).toEqual(["attention", "within_limit", "attention"]);
+    expect(evaluateUrbanPrecheck(additional, {})[0].status).toBe("missing_evidence");
+  });
   it("não importa legislação de outra prefeitura, outra zona ou outra vigência", () => {
     expect(selectUrbanRegulation([regulation], "municipio-B", "ZR1", "RESIDENCIAL", "2026-10-23")).toBeNull();
     expect(selectUrbanRegulation([regulation], "municipio-A", "ZC", "RESIDENCIAL", "2026-10-23")).toBeNull();

@@ -44,6 +44,9 @@ export function prepareUrbanRuleDraftFromReviewedRow(
     ["permeability_percent","taxa_permeabilidade_minima_pct"],
     ["occupancy_percent","taxa_ocupacao_maxima_pct"],
     ["floor_area_ratio","ca_maximo_original"],
+    ["floor_area_ratio_min","ca_minimo_original"],
+    ["lot_area_m2","lote_minimo_m2"],
+    ["lot_frontage_m","testada_minima_m"],
   ];
   for (const [metric, key] of mapping) {
     const value = verifiedNumber(source[key]);

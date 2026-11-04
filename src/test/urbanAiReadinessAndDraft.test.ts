@@ -59,6 +59,9 @@ describe("SIGAPRO IA — completude jurídica e rascunho sem ativação", () => 
     expect(result?.zone).toBe("ZM-B(E)");
     expect(result?.fields.floor_area_ratio?.limit).toBe("1");
     expect(result?.fields.front_setback_m?.limit).toBe("10");
+    expect(result?.fields.floor_area_ratio_min?.limit).toBe("0,05");
+    expect(result?.fields.lot_area_m2?.limit).toBe("3000");
+    expect(result?.fields.lot_frontage_m?.limit).toBe("30");
     expect(result?.otherLegalFields.join(" ")).toContain("CA mínimo: 0,05");
     expect(result?.otherLegalFields.join(" ")).toContain("Testada mínima (m): 30");
     expect(result?.warning).toContain("Nenhuma regra foi ativada");
