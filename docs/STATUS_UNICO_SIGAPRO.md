@@ -46,3 +46,10 @@
 5. Ao concluir o aceite, fazer merge seguro e implantar **uma única release de produção** com rollback documentado. Depois usar `main` como ramo único contínuo e uma branch QA apenas para testes controlados.
 
 **Regra do produto:** nunca inventar valores urbanísticos nem afirmar 100% de aprovação sem evidência, nunca dar permissão de escrita ao Master em normas municipais, nem conceder assinatura/baixa financeira automática com dados fictícios.
+
+
+## Ensaio de publicação 04/11/2026
+
+Foi obtida autorização para excluir **somente duas branches descartáveis**, e elas foram excluídas com verificação prévia. Backup oficial criado no Neon: `br-small-silence-b40dbpym`; ensaio da produção: `br-lucky-credit-b4evfnn0`. O ensaio comprovou 117→127 tabelas e 280→312 funções, sem alterar os 3 processos, as 6 guias, os 16 documentos nem seus status. Migrações registradas e ensaiadas; Quality Gate e validação Neon aprovados no SHA `651b5fb0028f40240e8087ab8d0607ef24909c95`.
+
+**Consulte a ordem exata, a estratégia de segurança e o rollback:** [RELEASE_SIGAPRO_20261104.md](./RELEASE_SIGAPRO_20261104.md). Não alterar a branch Neon `production` ou mesclar na `main` antes da autorização de migração de funções/triggers e dos gates de integridade. Site oficial permanece anterior.
