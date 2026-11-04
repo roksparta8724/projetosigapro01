@@ -14,8 +14,8 @@ const emptyDraft = (pageNumber: number): UrbanQuadroIIDraftInput => ({
 });
 
 export function UrbanQuadroIIWorkspacePanel({
-  municipalityId, canEdit,
-}: { municipalityId: string; canEdit: boolean }) {
+  municipalityId, canEdit, canView = canEdit,
+}: { municipalityId: string; canEdit: boolean; canView?: boolean }) {
   const [workspace, setWorkspace] = useState<UrbanQuadroIIWorkspace | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -40,7 +40,7 @@ export function UrbanQuadroIIWorkspacePanel({
     setActivePage(null);
     setFormOpen(false);
     setSelectedSuggestion(null);
-    if (!municipalityId || !canEdit) return () => { active = false; };
+    if (!municipalityId || !canView) return () => { active = false; };
     setLoading(true);
     void listUrbanQuadroIIWorkspace(municipalityId)
       .then((data) => { if (active) setWorkspace(data); })
@@ -53,7 +53,7 @@ export function UrbanQuadroIIWorkspacePanel({
       })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [municipalityId, canEdit, retryToken]);
+  }, [municipalityId, canView, retryToken]);
 
   // Keep the prepared form visible instead of leaving it below seven category cards.
   useEffect(() => {
@@ -133,7 +133,7 @@ export function UrbanQuadroIIWorkspacePanel({
     }
   };
   const prepareSuggestion = (pageNumber: number, proposal: UrbanQuadroIISuggestion) => {
-    if (saving || proposal.status !== "proposal_unverified") return;
+    if (!canEdit || saving || proposal.status !== "proposal_unverified") return;
     // Suggestions from old PDFs are untrusted. Clamp before showing them as editable text.
     setDraft({
       pageNumber,
@@ -161,7 +161,7 @@ export function UrbanQuadroIIWorkspacePanel({
     setConfirmed(false);
   };
 
-  if (!canEdit || !municipalityId) return null;
+  if (!canView || !municipalityId) return null;
   return (
     <section data-urban-quadro-ii="true"
       className="mt-5 min-w-0 rounded-[22px] border border-sky-200 bg-[#f3f9fe] p-4 dark:border-sky-700 dark:bg-slate-900 md:p-5">
@@ -347,7 +347,7 @@ export function UrbanQuadroIIWorkspacePanel({
                           Página girada no original: gire a visualização do PDF para ler a tabela S1. Não copie índices de texto extraído sem conferir.
                         </p>
                       ) : null}
-                      {formOpen ? (
+                      {canEdit && formOpen ? (
                         <div ref={editorRef} role="region" aria-label="Conferência assistida da categoria"
                           data-urban-qii-editor="true"
                           className="scroll-mt-24 space-y-4 rounded-2xl border-2 border-sky-300 bg-white p-4 text-slate-950 shadow-sm md:p-5">
@@ -538,7 +538,7 @@ export function UrbanQuadroIIWorkspacePanel({
                                   </p>
                                 ) : null}
                                 <button type="button"
-                                  disabled={saving || entries.some((entry) => entry.category_code.trim().toLocaleUpperCase("pt-BR") ===
+                                  disabled={!canEdit || saving || entries.some((entry) => entry.category_code.trim().toLocaleUpperCase("pt-BR") ===
                                     suggestion.category_code.trim().toLocaleUpperCase("pt-BR"))}
                                   onClick={() => prepareSuggestion(page.page_number, suggestion)}
                                   data-urban-qii-action="true"
@@ -546,7 +546,7 @@ export function UrbanQuadroIIWorkspacePanel({
                                   <span data-urban-qii-action-label="true" className="!text-white">
                                     {entries.some((entry) => entry.category_code.trim().toLocaleUpperCase("pt-BR") ===
                                       suggestion.category_code.trim().toLocaleUpperCase("pt-BR"))
-                                      ? "Rascunho existente" : "Pré-preencher e revisar"}
+                                      ? "Rascunho existente" : !canEdit ? "Somente consulta" : "Pré-preencher e revisar"}
                                   </span>
                                 </button>
                               </div>

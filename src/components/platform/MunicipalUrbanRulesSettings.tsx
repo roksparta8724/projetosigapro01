@@ -165,11 +165,11 @@ export function MunicipalUrbanRulesSettings({
         </div>
         {activeQuadro === "I" ? (
           <div id="sigapro-quadro-i-panel" role="region" aria-labelledby="sigapro-quadro-i-tab" className="min-w-0 pt-3">
-            <UrbanLegalMatrixReviewPanel municipalityId={municipalityId} canView={canEdit} />
+            <UrbanLegalMatrixReviewPanel municipalityId={municipalityId} canView canEdit={canEdit} />
           </div>
         ) : (
           <div id="sigapro-quadro-ii-panel" role="region" aria-labelledby="sigapro-quadro-ii-tab" className="min-w-0 pt-3">
-            <UrbanQuadroIIWorkspacePanel municipalityId={municipalityId} canEdit={canEdit} />
+            <UrbanQuadroIIWorkspacePanel municipalityId={municipalityId} canView canEdit={canEdit} />
           </div>
         )}
       </div>

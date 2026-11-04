@@ -10,6 +10,7 @@ import { InstitutionalLogo } from "@/components/platform/InstitutionalLogo";
 import { MunicipalStorageSettings } from "@/components/platform/MunicipalStorageSettings";
 import { MunicipalUrbanRulesSettings } from "@/components/platform/MunicipalUrbanRulesSettings";
 import { UrbanLegislationRegistryPanel } from "@/components/platform/UrbanLegislationRegistryPanel";
+import { UrbanLegislationContinuityPanel } from "@/components/platform/UrbanLegislationContinuityPanel";
 import { MunicipalPaymentSettings } from "@/components/platform/MunicipalPaymentSettings";
 import { InternalTabs } from "@/components/platform/InternalTabs";
 import { PageHeader } from "@/components/platform/PageHeader";
@@ -3217,6 +3218,17 @@ export function ConfiguracoesPage({ legislationWorkspace = false }: { legislatio
 
   const legalArchiveWorkspace = (
     <div className="min-w-0 space-y-5" data-legal-management-workspace="true">
+      {selectedTenantId ? (
+        <UrbanLegislationContinuityPanel
+          municipalityId={selectedTenantId}
+          legacyFiles={[
+            ...planoDiretorFiles.map((file) => ({ label: "Plano Diretor", name: file.fileName, stored: Boolean(file.persistentRef || file.storagePath) })),
+            ...usoSoloFiles.map((file) => ({ label: "Uso e ocupação", name: file.fileName, stored: Boolean(file.persistentRef || file.storagePath) })),
+            ...zoneamentoFiles.map((file) => ({ label: "Zoneamento", name: file.fileName, stored: Boolean(file.persistentRef || file.storagePath) })),
+            ...leisFiles.map((file) => ({ label: "Leis complementares (legado)", name: file.fileName, stored: Boolean(file.persistentRef || file.storagePath) })),
+          ].filter((file) => file.stored && file.name).map(({ label, name }) => ({ label, name }))}
+        />
+      ) : null}
       {selectedTenantId ? (
         <UrbanLegislationRegistryPanel municipalityId={selectedTenantId} />
       ) : null}

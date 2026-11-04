@@ -15,8 +15,8 @@ type ReviewDecision = "reading_verified" | "needs_correction";
 
 /** A transcricao assinada nao comprova vigencia nem ativa normas. */
 export function UrbanLegalMatrixReviewPanel({
-  municipalityId, canView,
-}: { municipalityId: string; canView: boolean }) {
+  municipalityId, canView, canEdit = false,
+}: { municipalityId: string; canView: boolean; canEdit?: boolean }) {
   const [batches, setBatches] = useState<UrbanMatrixBatchSummary[]>([]);
   const [selected, setSelected] = useState<UrbanMatrixBatchDetail | null>(null);
   const [audit, setAudit] = useState<UrbanMatrixReadingAudit>(EMPTY_AUDIT);
@@ -126,6 +126,7 @@ export function UrbanLegalMatrixReviewPanel({
   }, [progress, showAll, showRegisteredCaveats]);
 
   const startReview = (index: number, existingNote?: string, hasReadingIssue = false) => {
+    if (!canEdit) return;
     setReviewingIndex(index);
     setDecision(hasReadingIssue ? "needs_correction" : "reading_verified");
     setReviewNote(existingNote || "");
@@ -135,7 +136,7 @@ export function UrbanLegalMatrixReviewPanel({
   };
 
   const saveReview = async (index: number, page: number, hasReadingIssue: boolean) => {
-    if (!selected || !auditAvailable || saving) return;
+    if (!canEdit || !selected || !auditAvailable || saving) return;
     if (decision === "reading_verified" && hasReadingIssue) {
       setError("Esta linha contém trecho ilegível ou duvidoso. Registre a divergência; não confirme números incertos.");
       return;
@@ -162,6 +163,7 @@ export function UrbanLegalMatrixReviewPanel({
   };
 
   const beginManage = (batch: UrbanMatrixBatchSummary, action: "archive" | "restore") => {
+    if (!canEdit) return;
     setManageId(batch.id);
     setManageAction(action);
     setManageNote("");
@@ -169,6 +171,7 @@ export function UrbanLegalMatrixReviewPanel({
     setNotice("");
   };
   const saveManage = async (batch: UrbanMatrixBatchSummary) => {
+    if (!canEdit) return;
     if (!auditAvailable || saving || manageNote.trim().length < 20) {
       setError("Informe o motivo com pelo menos 20 caracteres. O histórico será preservado.");
       return;
@@ -258,14 +261,14 @@ export function UrbanLegalMatrixReviewPanel({
                 <ChevronDown className="h-4 w-4" />
               </span>
             </button>
-            <div className="flex flex-wrap items-center justify-end gap-3 border-t border-slate-100 px-3 py-2 dark:border-slate-800">
+            {canEdit ? <div className="flex flex-wrap items-center justify-end gap-3 border-t border-slate-100 px-3 py-2 dark:border-slate-800">
               <button type="button" disabled={!auditAvailable || saving} onClick={() => beginManage(batch, showArchived ? "restore" : "archive")}
                 className="inline-flex min-h-9 items-center gap-2 rounded-lg px-3 text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-50 dark:text-slate-200 dark:hover:bg-slate-800">
                 {showArchived ? <RotateCcw className="h-4 w-4" /> : <Archive className="h-4 w-4" />}
                 {showArchived ? "Restaurar importação" : "Arquivar importação antiga"}
               </button>
-            </div>
-            {manageId === batch.id ? (
+            </div> : null}
+            {canEdit && manageId === batch.id ? (
               <div className="space-y-3 border-t border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-900">
                 <label className="block text-xs font-semibold text-slate-800 dark:text-slate-200">
                   Motivo do {manageAction === "archive" ? "arquivamento" : "restauro"} (mínimo 20 caracteres)
@@ -503,7 +506,7 @@ export function UrbanLegalMatrixReviewPanel({
                           já consta no histórico; só edite se houver nova evidência técnica.
                         </p>
                       ) : null}
-                      {!isArchived(selected.id) ? (
+                      {canEdit && !isArchived(selected.id) ? (
                         <Button type="button" variant="outline" disabled={!auditAvailable || saving}
                           onClick={() => reviewingIndex === entry.index
                              ? setReviewingIndex(null)
@@ -516,7 +519,7 @@ export function UrbanLegalMatrixReviewPanel({
                              : "Conferir esta linha"}
                         </Button>
                       ) : null}
-                      {reviewingIndex === entry.index && !isArchived(selected.id) ? (
+                      {canEdit && reviewingIndex === entry.index && !isArchived(selected.id) ? (
                         <div data-urban-matrix-reading-form="true" className="space-y-3 rounded-xl border border-sky-200 bg-sky-50 p-3 dark:border-sky-700 dark:bg-slate-900">
                           <p className="font-bold text-sky-950 dark:text-sky-200">
                             {entry.needsCorrection ? "Edição opcional da ressalva já registrada" : "Conferência da leitura"} · página {row.page} do PDF {selected.document_title}
