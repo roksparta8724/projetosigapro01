@@ -24,6 +24,8 @@ interface FileDropZoneProps {
   preparePreviewUrl?: boolean;
   busy?: boolean;
   disabled?: boolean;
+  /** Consultation is not a disabled uploader: keep PDF downloads but hide edit controls. */
+  readOnly?: boolean;
   files: UploadedFileItem[];
   onFilesSelected: (files: UploadedFileItem[]) => void | Promise<void>;
   onFilesRemoved?: (files: UploadedFileItem[]) => void | Promise<void>;
@@ -66,6 +68,7 @@ export function FileDropZone({
   preparePreviewUrl = false,
   busy = false,
   disabled = false,
+  readOnly = false,
   files,
   onFilesSelected,
   onFilesRemoved,
@@ -77,7 +80,7 @@ export function FileDropZone({
   const inputRef = useRef<HTMLInputElement | null>(null);
   const ownedPreviewUrlsRef = useRef<Set<string>>(new Set());
   const [dragging, setDragging] = useState(false);
-  const interactionLocked = busy || disabled;
+  const interactionLocked = busy || disabled || readOnly;
 
   useEffect(
     () => () => {
@@ -143,7 +146,7 @@ export function FileDropZone({
   };
 
   return (
-    <div className="min-w-0 space-y-4" data-upload-appearance={appearance} data-upload-layout={stacked ? "stacked" : "auto"} data-upload-busy={busy ? "true" : "false"}>
+    <div className="min-w-0 space-y-4" data-upload-appearance={appearance} data-upload-layout={stacked ? "stacked" : "auto"} data-upload-busy={busy ? "true" : "false"} data-upload-read-only={readOnly ? "true" : "false"}>
       <div
         aria-busy={busy}
         data-upload-zone
@@ -172,6 +175,12 @@ export function FileDropZone({
             <p className="break-words text-sm font-semibold leading-6 text-slate-900 dark:text-white sm:text-base">{title}</p>
             <p className="mt-1 max-w-2xl break-words text-sm leading-6 text-slate-500 dark:text-slate-300">{description}</p>
           </div>
+          {readOnly ? (
+            <span data-upload-consultation="true"
+              className="inline-flex min-h-10 max-w-full items-center justify-center rounded-full border border-slate-300 bg-slate-100 px-4 py-2 text-center text-xs font-bold text-slate-800 dark:border-slate-600 dark:bg-slate-800 dark:text-white">
+              Somente consulta — edição pelo Master
+            </span>
+          ) : (
           <div className={cn("flex w-full flex-col gap-3", !stacked && "sm:flex-row sm:flex-wrap xl:w-auto xl:max-w-[240px] xl:justify-end")}>
             <Button
               type="button"
@@ -184,9 +193,10 @@ export function FileDropZone({
               <span className="whitespace-normal text-center sm:whitespace-nowrap">Selecionar arquivo</span>
             </Button>
           </div>
+          )}
         </div>
 
-        <input
+        {!readOnly ? <input
           ref={inputRef}
           type="file"
           accept={accept}
@@ -196,9 +206,15 @@ export function FileDropZone({
             const selectedFiles = event.currentTarget.files;
             void processFiles(selectedFiles);
           }}
-        />
+        /> : null}
       </div>
 
+      {readOnly && files.length === 0 ? (
+        <p data-upload-empty-read-only="true"
+          className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-3 text-xs font-medium leading-5 text-slate-700 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200">
+          Nenhum PDF vinculado a este campo. O Master pode cadastrar o documento oficial; esta conta possui acesso de consulta.
+        </p>
+      ) : null}
       {files.length > 0 ? (
         <div className="grid gap-4">
           {files.map((file) => (
@@ -251,7 +267,7 @@ export function FileDropZone({
                       <span className="whitespace-normal text-center sm:whitespace-nowrap">Download</span>
                     </Button>
                   )}
-                  <Button
+                  {!readOnly ? <Button
                     type="button"
                     variant="outline"
                     className="min-h-[42px] w-full rounded-full text-slate-700 transition-colors duration-150 dark:border-white/12 dark:text-slate-100 dark:hover:bg-white/[0.06] sm:w-auto"
@@ -260,8 +276,8 @@ export function FileDropZone({
                   >
                     <RefreshCcw className="mr-2 h-4 w-4 shrink-0 text-sky-600 dark:text-sky-200" />
                     <span className="whitespace-normal text-center sm:whitespace-nowrap">Substituir</span>
-                  </Button>
-                  <Button
+                  </Button> : null}
+                  {!readOnly ? <Button
                     type="button"
                     variant="outline"
                     className="min-h-[42px] w-full rounded-full text-red-600 transition-colors duration-150 dark:border-white/12 dark:text-red-300 dark:hover:bg-white/[0.06] sm:w-auto"
@@ -270,7 +286,7 @@ export function FileDropZone({
                   >
                     <Trash2 className="mr-2 h-4 w-4 shrink-0" />
                     <span className="whitespace-normal text-center sm:whitespace-nowrap">Excluir</span>
-                  </Button>
+                  </Button> : null}
                 </div>
               </div>
 

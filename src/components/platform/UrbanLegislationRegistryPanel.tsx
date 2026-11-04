@@ -253,7 +253,7 @@ export function UrbanLegislationRegistryPanel({
           </button>
         ) : (
           <span className="rounded-full bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-700">
-            Consulta — sem permissão de alteração
+            Consulta — o Master cadastra as leis
           </span>
         )}
       </div>
@@ -425,7 +425,9 @@ export function UrbanLegislationRegistryPanel({
       {!loading && !records.length && !error ? (
         <p className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-700">
           Nenhuma lei cadastrada neste módulo. Os PDFs do acervo institucional anterior
-          são preservados separadamente; registre aqui cada nova norma individualmente.
+          são preservados separadamente. {canWrite
+            ? "Para importar novas normas, use Cadastrar lei / PDF adicional, uma lei ou decreto por arquivo."
+            : "O Master deve registrar as normas adicionais; elas aparecerão aqui para consulta quando forem cadastradas."}
         </p>
       ) : null}
       <div className="mt-3 grid min-w-0 gap-2 xl:grid-cols-2">

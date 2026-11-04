@@ -3240,7 +3240,7 @@ export function ConfiguracoesPage({ legislationWorkspace = false }: { legislatio
                       <ScrollText className="h-4 w-4 text-sky-700" />
                       <p className="text-sm font-bold text-slate-950 dark:text-white">Arquivos institucionais existentes (legado)</p>
                     </div>
-                    <p className="mt-1 max-w-3xl text-xs leading-5 text-slate-500">
+                    <p className="mt-1 max-w-3xl text-xs leading-5 text-slate-600 dark:text-slate-200">
                       Estes quatro campos mantêm os PDFs institucionais já utilizados pela Prefeitura e alimentam
                       as consultas antigas do módulo Legislação. Cada campo armazena somente um PDF,
                       inclusive o campo legado de Leis Complementares. Para acrescentar quantas leis,
@@ -3253,6 +3253,12 @@ export function ConfiguracoesPage({ legislationWorkspace = false }: { legislatio
                   </span>
                 </div>
 
+                <p data-legal-upload-permission="true"
+                  className="mb-4 min-w-0 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-xs font-semibold leading-5 text-slate-900 dark:border-sky-700 dark:bg-slate-950 dark:text-slate-100">
+                  {canManageLegislation
+                    ? "Perfil Master: você pode anexar PDFs oficiais nos campos que ainda estiverem vazios. Para cada nova lei complementar, decreto ou alteração, utilize o cadastro individual acima; não substitua os PDFs históricos."
+                    : "Somente consulta: o cadastro, a substituição e a exclusão destes PDFs são exclusivos do Master. Os arquivos salvos permanecem disponíveis para visualização e download nesta Prefeitura."}
+                </p>
                 <div className="grid min-w-0 grid-cols-1 gap-5 lg:grid-cols-2">
                   <FileDropZone
                     title="Plano Diretor"
@@ -3264,6 +3270,7 @@ export function ConfiguracoesPage({ legislationWorkspace = false }: { legislatio
                     appearance="legal"
                     busy={institutionalAssetsSaving}
                     disabled={!canManageLegislation}
+                    readOnly={!canManageLegislation}
                     savedLabel="Salvo no armazenamento oficial"
                     files={planoDiretorFiles}
                     onFilesSelected={setPlanoDiretorFiles}
@@ -3278,6 +3285,7 @@ export function ConfiguracoesPage({ legislationWorkspace = false }: { legislatio
                     appearance="legal"
                     busy={institutionalAssetsSaving}
                     disabled={!canManageLegislation}
+                    readOnly={!canManageLegislation}
                     savedLabel="Salvo no armazenamento oficial"
                     files={usoSoloFiles}
                     onFilesSelected={setUsoSoloFiles}
@@ -3292,6 +3300,7 @@ export function ConfiguracoesPage({ legislationWorkspace = false }: { legislatio
                     appearance="legal"
                     busy={institutionalAssetsSaving}
                     disabled={!canManageLegislation}
+                    readOnly={!canManageLegislation}
                     savedLabel="Salvo no armazenamento oficial"
                     files={zoneamentoFiles}
                     onFilesSelected={setZoneamentoFiles}
@@ -3306,6 +3315,7 @@ export function ConfiguracoesPage({ legislationWorkspace = false }: { legislatio
                     appearance="legal"
                     busy={institutionalAssetsSaving}
                     disabled={!canManageLegislation}
+                    readOnly={!canManageLegislation}
                     savedLabel="Salvo no armazenamento oficial"
                     files={leisFiles}
                     onFilesSelected={setLeisFiles}
@@ -3314,9 +3324,11 @@ export function ConfiguracoesPage({ legislationWorkspace = false }: { legislatio
 
                 <div className="mt-5 flex flex-col gap-3 rounded-[22px] border border-sky-200 bg-white p-4 lg:flex-row lg:items-center lg:justify-between">
                   <div className="min-w-0">
-                    <p className="text-sm font-bold text-slate-950">Salvar documentos jurídicos</p>
-                    <p className="mt-1 text-xs leading-5 text-slate-500">
-                      O SIGAPRO envia os arquivos ao armazenamento oficial e grava os vínculos no banco da Prefeitura. Depois disso, os PDFs aparecem automaticamente em Legislação.
+                    <p className="text-sm font-bold text-slate-950 dark:text-white">Salvar documentos jurídicos</p>
+                    <p className="mt-1 text-xs leading-5 text-slate-600 dark:text-slate-200">
+                      {canManageLegislation
+                        ? "O SIGAPRO envia os arquivos ao armazenamento oficial e grava os vínculos no banco da Prefeitura. Salve somente arquivos escolhidos nesta sessão; os PDFs existentes são preservados."
+                        : "Área de consulta. O Master faz o cadastro de documentos oficiais; eles ficam disponíveis para o Administrador da Prefeitura sem necessidade de outro upload."}
                     </p>
                     {institutionalAssetsStatus ? (
                       <p
@@ -3331,14 +3343,20 @@ export function ConfiguracoesPage({ legislationWorkspace = false }: { legislatio
                       </p>
                     ) : null}
                   </div>
-                  <Button
-                    type="button"
-                    className="sig-force-dark-action h-11 shrink-0 rounded-2xl bg-slate-950 px-5 !text-white hover:bg-slate-900"
-                    onClick={() => void handleSaveInstitutionalAssets("legislation")}
-                    disabled={institutionalAssetsSaving || !canManageLegislation}
-                  >
-                    {institutionalAssetsSaving ? "Salvando arquivos..." : "Salvar arquivos oficiais"}
-                  </Button>
+                  {canManageLegislation ? (
+                    <Button
+                      type="button"
+                      className="sig-force-dark-action h-11 shrink-0 rounded-2xl bg-slate-950 px-5 !text-white hover:bg-slate-900"
+                      onClick={() => void handleSaveInstitutionalAssets("legislation")}
+                      disabled={institutionalAssetsSaving}
+                    >
+                      {institutionalAssetsSaving ? "Salvando arquivos..." : "Salvar arquivos oficiais"}
+                    </Button>
+                  ) : (
+                    <span className="min-w-0 rounded-full border border-sky-200 bg-sky-50 px-4 py-2 text-xs font-bold text-sky-900 dark:border-sky-700 dark:bg-slate-800 dark:text-white">
+                      Consulta autorizada — sem edição
+                    </span>
+                  )}
                 </div>
               </div>
               {selectedTenantId ? (
