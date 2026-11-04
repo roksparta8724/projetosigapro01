@@ -14,6 +14,19 @@ export async function listUrbanRegulations(municipalityId: string): Promise<Urba
   return response as UrbanRegulationVersion[];
 }
 
+/** Tenant-scoped, read-only inputs to the AI legal-readiness audit. */
+export async function listUrbanLegalMatrixImports(municipalityId: string): Promise<Array<{ quadro: string; status: string }>> {
+  const data = await invoke<unknown>("list_urban_legal_matrix_imports_v1", { _municipality_id: municipalityId });
+  if (!Array.isArray(data)) throw new Error("Matriz jurídica sem resposta verificável.");
+  return data as Array<{ quadro: string; status: string }>;
+}
+
+export async function listUrbanVerifiedEvidenceScopes(municipalityId: string): Promise<Array<{ id: string; metric: string }>> {
+  const data = await invoke<unknown>("list_urban_legal_evidence_v2", { _municipality_id: municipalityId });
+  if (!Array.isArray(data)) throw new Error("Evidências jurídicas sem resposta verificável.");
+  return data as Array<{ id: string; metric: string }>;
+}
+
 export async function saveUrbanRegulationDraft(
   municipalityId: string, zone: string, usage: string, effectiveFrom: string, rules: UrbanRule[],
 ): Promise<void> {

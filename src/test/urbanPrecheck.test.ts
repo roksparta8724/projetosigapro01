@@ -38,6 +38,13 @@ describe("SIGAPRO urbanismo: pré-conferência informativa, sem aprovação auto
     expect(validateUrbanRules([...rules, rules[0]])).toBe(false);
     expect(validateUrbanRules([{ metric: "occupancy_percent", limit: 120, reference: "Lei hipotética 01" }])).toBe(false);
   });
+  it("não permite que uma regra fictícia de QA sirva a um processo real", () => {
+    const fixture = { ...regulation, zone_code: "QA-URBAN-E2E-20261024",
+      rules: [{ metric: "front_setback_m" as const, limit: 5,
+        reference: "LEI FICTICIA QA SEM VALIDADE LEGAL" }] };
+    expect(selectUrbanRegulation([fixture], "municipio-A",
+      "QA-URBAN-E2E-20261024", "RESIDENCIAL", "2026-10-23")).toBeNull();
+  });
   it("não aceita rascunho como norma vigente", () => {
     expect(selectUrbanRegulation([{ ...regulation, status: "draft" }], "municipio-A", "ZR1", "RESIDENCIAL", "2026-10-23")).toBeNull();
   });

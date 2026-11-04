@@ -87,6 +87,7 @@ export function selectUrbanRegulation(
   const matched = versions.filter((rule) =>
     rule.municipality_id === municipalityId &&
     rule.status === "active" &&
+    !isUrbanTestFixtureRule(rule) &&
     normalizeUrbanCode(rule.zone_code) === normalizeUrbanCode(zone) &&
     normalizeUrbanCode(rule.use_code) === normalizeUrbanCode(usage) &&
     rule.effective_from <= asOf &&

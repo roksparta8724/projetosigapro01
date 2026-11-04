@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { BookOpenCheck, CheckCircle2, Loader2, Save, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,14 +6,19 @@ import { activateUrbanRegulation, listUrbanRegulations, saveUrbanRegulationDraft
 import { UrbanLegalMatrixReviewPanel } from "@/components/platform/UrbanLegalMatrixReviewPanel";
 import { UrbanQuadroIIWorkspacePanel } from "@/components/platform/UrbanQuadroIIWorkspacePanel";
 import { UrbanOfficialLegalSourcesPanel } from "@/components/platform/UrbanOfficialLegalSourcesPanel";
+import { UrbanAiReadinessPanel } from "@/components/platform/UrbanAiReadinessPanel";
+import type { MunicipalLegalFiles } from "@/lib/urbanAiReadiness";
+import type { PreparedUrbanMatrixDraft } from "@/lib/urbanMatrixDraftPreparation";
 import { URBAN_METRICS, isUrbanTestFixtureRule, normalizeUrbanCode, type UrbanMetric, type UrbanRegulationVersion, type UrbanRule } from "@/lib/urbanPrecheck";
 
 type EditableValue = { limit: string; reference: string };
 type DraftInputs = Partial<Record<UrbanMetric, EditableValue>>;
 
 export function MunicipalUrbanRulesSettings({
-  municipalityId, canEdit,
-}: { municipalityId: string; canEdit: boolean }) {
+  municipalityId, canEdit, documentFiles,
+}: { municipalityId: string; canEdit: boolean; documentFiles?: MunicipalLegalFiles }) {
+  const editorRef = useRef<HTMLDetailsElement>(null);
+  const [sourceContext, setSourceContext] = useState<string[]>([]);
   const [versions, setVersions] = useState<UrbanRegulationVersion[]>([]);
   const officialActiveCount = versions.filter((version) =>
     version.status === "active" && !isUrbanTestFixtureRule(version),
@@ -37,6 +42,7 @@ export function MunicipalUrbanRulesSettings({
     setEffectiveFrom("");
     setNotice("");
     setActiveQuadro("I");
+    setSourceContext([]);
     if (!municipalityId) return;
     setLoading(true);
     void listUrbanRegulations(municipalityId)
@@ -56,6 +62,17 @@ export function MunicipalUrbanRulesSettings({
         reference: previous[metric]?.reference || "", [field]: text },
     }));
   };
+  const prepareFromMatrix = (prepared: PreparedUrbanMatrixDraft) => {
+    if (!canEdit) return;
+    setZone(prepared.zone);
+    setUsage(prepared.usage);
+    setEffectiveFrom("");
+    setDraft(prepared.fields);
+    setSourceContext(prepared.otherLegalFields);
+    if (editorRef.current) editorRef.current.open = true;
+    setNotice(prepared.warning + " Abra o cadastro jurídico de versões abaixo, confirme os índices e informe a vigência legal.");
+  };
+
   const save = async () => {
     if (!canEdit || !municipalityId || busy) return;
     // The date of registration is not the effective date of a municipal law.
@@ -86,6 +103,7 @@ export function MunicipalUrbanRulesSettings({
       await reload();
       setDraft({});
       setEffectiveFrom("");
+      setSourceContext([]);
       setNotice("Nova versão registrada como RASCUNHO. Confira os artigos e ative quando validada.");
     } catch (error) {
       setNotice(String((error as Error)?.message || error));
@@ -143,6 +161,9 @@ export function MunicipalUrbanRulesSettings({
         </p>
       </div>
 
+      <UrbanAiReadinessPanel municipalityId={municipalityId}
+        documents={documentFiles ?? { usoSolo: "", zoneamento: "", planoDiretor: "", leisComplementares: "" }}
+        onOpenQuadro={setActiveQuadro} />
       <UrbanOfficialLegalSourcesPanel municipalityId={municipalityId} />
 
       <div className="mt-5 min-w-0" data-urban-quadros-workspace="true">
@@ -165,7 +186,8 @@ export function MunicipalUrbanRulesSettings({
         </div>
         {activeQuadro === "I" ? (
           <div id="sigapro-quadro-i-panel" role="region" aria-labelledby="sigapro-quadro-i-tab" className="min-w-0 pt-3">
-            <UrbanLegalMatrixReviewPanel municipalityId={municipalityId} canView canEdit={canEdit} />
+            <UrbanLegalMatrixReviewPanel municipalityId={municipalityId} canView canEdit={canEdit}
+                onPrepareDraft={prepareFromMatrix} />
           </div>
         ) : (
           <div id="sigapro-quadro-ii-panel" role="region" aria-labelledby="sigapro-quadro-ii-tab" className="min-w-0 pt-3">
@@ -175,7 +197,7 @@ export function MunicipalUrbanRulesSettings({
       </div>
       {canEdit && municipalityId ? (
         <>
-          <details data-urban-legal-editor="true"
+          <details ref={editorRef} data-urban-legal-editor="true"
             className="mt-6 min-w-0 rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-950">
             <summary className="cursor-pointer select-none rounded-2xl bg-slate-50 px-4 py-4 text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-500 dark:bg-slate-900 dark:text-white">
               <strong className="block text-sm">Cadastro jurídico de versões — etapa independente</strong>
@@ -184,6 +206,14 @@ export function MunicipalUrbanRulesSettings({
               </span>
             </summary>
             <div className="px-4 pb-5">
+              {sourceContext.length > 0 ? (
+                <div data-urban-prepared-legal-context="true"
+                  className="mt-3 rounded-xl border border-sky-200 bg-sky-50 p-3 text-xs leading-5 text-slate-900 dark:border-sky-700 dark:bg-slate-900 dark:text-white">
+                  <strong className="block">Informações do Quadro I que não foram convertidas em limites automáticos</strong>
+                  {sourceContext.map((item) => <p key={item} className="mt-1 break-words">{item}</p>)}
+                  <p className="mt-2 font-semibold">Confirme essas condições no original. Nenhuma regra foi ativada.</p>
+                </div>
+              ) : null}
               <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-950">
                 Salvar cria apenas rascunho. Confirme artigo, versão, exceções e data real de início da vigência;
                 a data do cadastro ou a de hoje não comprova vigência.

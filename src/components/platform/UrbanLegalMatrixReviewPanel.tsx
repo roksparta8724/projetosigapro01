@@ -7,6 +7,7 @@ import {
   type UrbanMatrixReadingAudit, type UrbanMatrixReadingAction,
 } from "@/integrations/backend/urbanPrecheckClient";
 import { calculateUrbanMatrixBatchProgress, describePendingAnalystCa, describeUrbanMatrixRow, formatUrbanMatrixSourceValue } from "@/lib/urbanLegalMatrixReview";
+import { prepareUrbanRuleDraftFromReviewedRow, type PreparedUrbanMatrixDraft } from "@/lib/urbanMatrixDraftPreparation";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -15,8 +16,9 @@ type ReviewDecision = "reading_verified" | "needs_correction";
 
 /** A transcricao assinada nao comprova vigencia nem ativa normas. */
 export function UrbanLegalMatrixReviewPanel({
-  municipalityId, canView, canEdit = false,
-}: { municipalityId: string; canView: boolean; canEdit?: boolean }) {
+  municipalityId, canView, canEdit = false, onPrepareDraft,
+}: { municipalityId: string; canView: boolean; canEdit?: boolean;
+  onPrepareDraft?: (draft: PreparedUrbanMatrixDraft) => void }) {
   const [batches, setBatches] = useState<UrbanMatrixBatchSummary[]>([]);
   const [selected, setSelected] = useState<UrbanMatrixBatchDetail | null>(null);
   const [audit, setAudit] = useState<UrbanMatrixReadingAudit>(EMPTY_AUDIT);
@@ -517,6 +519,24 @@ export function UrbanLegalMatrixReviewPanel({
                              : entry.readingReviewed ? "Revisar novamente"
                              : entry.needsCorrection ? "Editar observação, se necessário"
                              : "Conferir esta linha"}
+                        </Button>
+                      ) : null}
+                      {canEdit && onPrepareDraft && entry.readingReviewed && !entry.needsCorrection &&
+                        !hasReadingIssue && !isArchived(selected.id) ? (
+                        <Button type="button" variant="outline"
+                          data-urban-matrix-prepare-draft="true"
+                          className="min-h-10 border-sky-300 text-sky-900"
+                          onClick={() => {
+                            const prepared = prepareUrbanRuleDraftFromReviewedRow(
+                              entry.source, selected.document_title, true);
+                            if (!prepared) {
+                              setError("Esta linha não contém limites numéricos seguros para pré-preencher.");
+                              return;
+                            }
+                            onPrepareDraft(prepared);
+                            setNotice("Rascunho preparado no cadastro jurídico abaixo. Confira a vigência e os artigos antes de salvar.");
+                          }}>
+                          Preparar rascunho — sem ativar IA
                         </Button>
                       ) : null}
                       {canEdit && reviewingIndex === entry.index && !isArchived(selected.id) ? (

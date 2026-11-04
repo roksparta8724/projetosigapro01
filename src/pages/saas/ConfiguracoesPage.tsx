@@ -3410,7 +3410,13 @@ export function ConfiguracoesPage({ legislationWorkspace = false }: { legislatio
                 </div>
               </div>
               {selectedTenantId ? (
-                <MunicipalUrbanRulesSettings municipalityId={selectedTenantId} canEdit={canManageLegislation} />
+                <MunicipalUrbanRulesSettings municipalityId={selectedTenantId} canEdit={canManageLegislation}
+                      documentFiles={{
+                        usoSolo: settings?.usoSoloArquivoNome || "",
+                        zoneamento: settings?.zoneamentoArquivoNome || "",
+                        planoDiretor: settings?.planoDiretorArquivoNome || "",
+                        leisComplementares: settings?.leisArquivoNome || "",
+                      }} />
               ) : null}
     </div>
   );
