@@ -1,0 +1,64 @@
+name: SIGAPRO - Ultima Verificacao de Alertas NPM (QA)
+on:
+  push:
+    branches: [workbench/sigapro-consolidacao-p3-no-deploy-20261029]
+    paths: [.github/workflows/sigapro-final-audit-zero.yml]
+permissions:
+  contents: write
+jobs:
+  final-audit:
+    if: github.ref == 'refs/heads/workbench/sigapro-consolidacao-p3-no-deploy-20261029'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Aplicar somente patches compativeis e manter se auditoria melhorar
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci --legacy-peer-deps --no-fund --no-audit
+          npm audit fix --package-lock-only --legacy-peer-deps --no-fund || true
+          npm install --package-lock-only --legacy-peer-deps --save-dev --save-exact --no-fund --no-audit '@types/node@22.16.5' '@testing-library/dom@10.4.1'
+          npm ci --legacy-peer-deps --no-fund --no-audit
+          npm run typecheck
+          npm test
+          npm run build
+          npm audit --omit=dev --json > "$RUNNER_TEMP/runtime.json" || true
+          npm audit --json > "$RUNNER_TEMP/all.json" || true
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const runtime=JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+'/runtime.json','utf8'));
+          const all=JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+'/all.json','utf8'));
+          const r=runtime.metadata?.vulnerabilities||{};
+          const a=all.metadata?.vulnerabilities||{};
+          console.log('SIGAPRO_FINAL_NPM_AUDIT '+JSON.stringify({runtime:r,all:a}));
+          const remain=Object.entries(all.vulnerabilities||{}).map(([name,v])=>({
+            name,severity:v.severity,fixAvailable:v.fixAvailable
+          }));
+          console.log('SIGAPRO_FINAL_REMAINING_PACKAGES '+JSON.stringify(remain));
+          const isSafe=Number(a.critical||0)===0 && Number(a.high||0)===0;
+          const isImproved=Number(a.total||0)<12;
+          fs.writeFileSync(process.env.RUNNER_TEMP+'/can-commit',isSafe&&isImproved?'yes':'no');
+          if(isSafe&&isImproved)fs.writeFileSync('docs/SIGAPRO_DEPENDENCY_SECURITY_REMEDIATION.md',[
+            '# SIGAPRO - Resultado consolidado da auditoria npm',
+            'Branch QA. Testes, typecheck e build aprovados.',
+            'Runtime: '+JSON.stringify(r),
+            'Completa: '+JSON.stringify(a),
+            'Alertas restantes: '+JSON.stringify(remain),
+            'A liberação operacional depende de testes reais de autenticação, pagamentos e assinaturas.'
+          ].join('\n'));
+          NODE
+          if [ "$(cat "$RUNNER_TEMP/can-commit")" != yes ]; then
+            echo 'No safer patch-only state; preserving last validated QA lockfile.'
+            exit 0
+          fi
+          git config user.name "sigapro-security-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json docs/SIGAPRO_DEPENDENCY_SECURITY_REMEDIATION.md
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "security(deps): apply final compatible npm fixes [skip ci]"
+          git push origin HEAD:refs/heads/workbench/sigapro-consolidacao-p3-no-deploy-20261029

@@ -8,15 +8,17 @@ import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { useTenant } from "@/hooks/useTenant";
 import { can, canAccessMunicipalArea, getRoleLandingPath, isInternalRole } from "@/lib/platform";
-import type { Permission, SessionUser } from "@/lib/platform";
+import type { Permission, SessionUser, UserRole } from "@/lib/platform";
 import { hasValidRefreshContinuity } from "@/lib/refreshContinuity";
 
 export function PermissionRoute({
   permission,
   children,
+  allowedRoles,
 }: {
   permission: Permission;
   children: React.ReactNode;
+  allowedRoles?: readonly UserRole[];
 }) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -49,7 +51,7 @@ export function PermissionRoute({
   if (isInitialAccessResolution) {
     // F5/reload da MESMA conta e MESMA rota: nunca desmontar a árvore real.
     // A identidade continua sendo revalidada pelo bootstrap em segundo plano.
-    if (hasValidRefreshContinuity()) {
+    if (hasValidRefreshContinuity() && !allowedRoles) {
       return <>{children}</>;
     }
 
@@ -189,7 +191,8 @@ export function PermissionRoute({
     (!isAdminOnlyMunicipalPath &&
       (!requiredOperationalArea || canAccessMunicipalArea(session, requiredOperationalArea)));
 
-  if (!isActuallyBlocked && can(session, permission) && departmentRouteAllowed) {
+  if (!isActuallyBlocked && can(session, permission) && departmentRouteAllowed &&
+      (!allowedRoles || allowedRoles.includes(session.role))) {
     return <>{children}</>;
   }
 

@@ -27,9 +27,12 @@ import { MetricCard } from "@/components/platform/MetricCard";
 import { SectionCard } from "@/components/platform/SectionCard";
 import { TableCard } from "@/components/platform/TableCard";
 import { EmptyState } from "@/components/platform/EmptyState";
-import { InternalTabs } from "@/components/platform/InternalTabs";
+import { InternalSectionNav } from "@/components/platform/PageLayout";
+import { PlanModuleRoute } from "@/components/platform/PlanModuleRoute";
 import { Button } from "@/components/ui/button";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import { PlanCapacityCard } from "@/components/platform/PlanCapacityCard";
+import { usePlanCapacityLive } from "@/hooks/usePlanCapacityLive";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
@@ -375,6 +378,12 @@ export function DashboardHomePage() {
   const isAnalyst = session.role === "analista" || session.role === "setor_intersetorial";
 
   const activeInstitutionId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
+  const showPlanCapacity = isMaster || session.role === "prefeitura_admin";
+  const planMunicipalityId = session.municipalityId ?? session.tenantId ?? null;
+  const planCapacity = usePlanCapacityLive(isMaster ? null : planMunicipalityId, {
+    enabled: showPlanCapacity && (isMaster || Boolean(planMunicipalityId)),
+    intervalMs: 8000,
+  });
   const profile = getUserProfile(session.id, session.email);
   const ownerDocument = normalizeOwnerDocument(profile?.cpfCnpj || "");
 
@@ -711,8 +720,36 @@ export function DashboardHomePage() {
               { title: "Concluidos", value: `${completedCount}`, helper: "Processos finalizados ou encerrados.", icon: CheckCircle2, tone: "emerald" as const },
             ];
 
+  const renderPlanCapacity = () => (
+        <SectionCard title={isMaster ? "Capacidade contratada por Prefeitura" : "Meu plano e utilização"}
+          description="Cadastros, processos, setores e armazenamento calculados pelo Neon. Atualiza quando o Master altera o plano, sem novo login."
+          icon={Users2}>
+          {planCapacity.error ? (
+            <p role="alert" className="mb-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:bg-slate-800 dark:text-amber-200">
+              {planCapacity.error}
+            </p>
+          ) : null}
+          {!planCapacity.loaded ? (
+            <p className="text-sm text-slate-600 dark:text-slate-300">Consultando limites contratados no Neon...</p>
+          ) : planCapacity.rows.length === 0 ? (
+            <p className="text-sm text-slate-600 dark:text-slate-300">Nenhum plano disponível para o contexto autenticado.</p>
+          ) : (
+            <div className={isMaster ? "grid gap-4 2xl:grid-cols-2" : "grid gap-4"}>
+              {planCapacity.rows.map((row) => (
+                <PlanCapacityCard key={row.municipalityId} row={row}
+                  municipalityName={isMaster
+                    ? institutions.find((item) => item.id === row.municipalityId)?.name ?? "Prefeitura"
+                    : institutionName}
+                />
+              ))}
+            </div>
+          )}
+        </SectionCard>
+  );
+
   const renderOverview = () => (
     <>
+      {showPlanCapacity && isMaster ? renderPlanCapacity() : null}
       <SectionCard
         title="Panorama estrategico"
         description={isMaster ? "Leitura consolidada da operacao SaaS, da base de clientes e da saude da plataforma." : `Resumo executivo do escopo atual em ${institutionName}, com foco em performance, risco e leitura institucional.`}
@@ -1047,13 +1084,23 @@ export function DashboardHomePage() {
       <PageShell>
         <PageHero eyebrow="Resumo executivo" title={headlineTitle} description={headlineDescription} icon={LayoutDashboard} actions={heroActions} />
 
-        <InternalTabs
+        {showPlanCapacity && !isMaster ? renderPlanCapacity() : null}
+
+        <InternalSectionNav
           items={tabs}
           value={activeDashboardTab}
-          onChange={(value) => navigate(value)}
+          onChange={(value) => { if (value !== location.pathname) navigate(value); }}
+          summaryFirst
+          staticSelection
         />
 
-        {renderCurrentSection()}
+        {/* Keep the page shell, tabs and plan card mounted while switching modules.
+            The corresponding module gate continues to enforce the contract. */}
+        {section === "processos" || section === "operacional" ? (
+          <PlanModuleRoute module="Protocolo digital">{renderCurrentSection()}</PlanModuleRoute>
+        ) : section === "financeiro" ? (
+          <PlanModuleRoute module="Financeiro">{renderCurrentSection()}</PlanModuleRoute>
+        ) : renderCurrentSection()}
       </PageShell>
     </PortalFrame>
   );

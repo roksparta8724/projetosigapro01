@@ -17,6 +17,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { PlanCapacityCard } from "@/components/platform/PlanCapacityCard";
+import { usePlanCapacityLive } from "@/hooks/usePlanCapacityLive";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { backendClient, hasBackendEnv } from "@/integrations/backend/databaseClient";
 import { loadMunicipalityCatalog } from "@/integrations/backend/municipality";
@@ -103,7 +105,7 @@ const withRetry = async <T,>(handler: () => Promise<T>, attempts = 3, baseDelay 
 const LEGACY_PENDING_SYNC_STORAGE_KEY = "sigapro:pending-tenant-sync";
 const ensureBackendAvailable = async () => {
   if (!backendClient) throw new Error("Banco oficial indisponível.");
-  const { error } = await withTimeout<any>(
+  const { error } = await withTimeout<{error?: {message?:string} | null}>(
     backendClient.from("municipalities").select("id").limit(1),
     8000,
   );
@@ -130,6 +132,7 @@ export function MasterAdminPage() {
     saveClientPlanAssignment,
     getUserProfile,
   } = usePlatformData();
+  const planCapacity = usePlanCapacityLive(null, { enabled: true, intervalMs: 8000 });
   const [remoteInstitutions, setRemoteInstitutions] = useState<Institution[]>([]);
   const [selectedTenantId, setSelectedTenantId] = useState<string>(institutions[0]?.id ?? "");
   const [isCreatingNewInstitution, setIsCreatingNewInstitution] = useState(false);
@@ -828,7 +831,26 @@ export function MasterAdminPage() {
             </div>
           }
         />
-        <InternalTabs value={workspaceView} onChange={(value) => setWorkspaceView(value as WorkspaceView)} urlParam="secao" persistInUrl items={[{ value: "visao-geral", label: "Visão geral", helper: "Resumo executivo" }, { value: "carteira", label: "Carteira", helper: "Prefeituras e contratos" }, { value: "cadastro", label: "Cadastro", helper: "Conta institucional" }, { value: "organograma", label: "Organograma", helper: "Estrutura da Prefeitura" }, { value: "usuarios", label: "Usuários", helper: "Acessos e perfis" }]} />
+        <InternalTabs value={workspaceView} onChange={(value) => setWorkspaceView(value as WorkspaceView)} urlParam="secao" persistInUrl summaryFirst items={[{ value: "visao-geral", label: "Visão geral", helper: "Resumo executivo" }, { value: "carteira", label: "Carteira", helper: "Prefeituras e contratos" }, { value: "cadastro", label: "Cadastro", helper: "Conta institucional" }, { value: "organograma", label: "Organograma", helper: "Estrutura da Prefeitura" }, { value: "usuarios", label: "Usuários", helper: "Acessos e perfis" }]} />
+
+        {workspaceView === "visao-geral" || workspaceView === "carteira" ? (
+          <SectionCard title="Capacidade e cadastros por Prefeitura"
+            description="Consumo real por município: plano atribuído, usuários internos, processos, departamentos e documentos. Valores atualizados diretamente do Neon.">
+            {planCapacity.error ? <p role="alert" className="mb-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">{planCapacity.error}</p> : null}
+            {!planCapacity.loaded ? (
+              <p className="text-sm text-slate-600">Carregando consumo dos contratos...</p>
+            ) : planCapacity.rows.length === 0 ? (
+              <p className="text-sm text-slate-600">Nenhuma prefeitura encontrada na consulta de planos.</p>
+            ) : (
+              <div className="grid gap-4 2xl:grid-cols-2">
+                {planCapacity.rows.map((row) => (
+                  <PlanCapacityCard key={row.municipalityId} row={row}
+                    municipalityName={institutionCatalog.find((item) => item.id === row.municipalityId)?.name ?? "Prefeitura"} />
+                ))}
+              </div>
+            )}
+          </SectionCard>
+        ) : null}
 
         {workspaceView === "visao-geral" ? <><PageStatsRow className="xl:grid-cols-4"><MetricCard title="Prefeituras ativas" value={String(activeInstitutionCount)} helper="Carteira em operação" icon={Landmark} tone="blue" /><MetricCard title="Usuários ativos" value={String(activeUsersCount)} helper="Contas habilitadas" icon={Users2} tone="emerald" /><MetricCard title="Planos ativos" value={String(activePlansCount)} helper="Recorrência mensal" icon={CreditCard} tone="amber" /><MetricCard title="Receita mensal" value={formatCurrency(monthlyRevenue)} helper="Base institucional ativa" icon={Zap} tone="rose" valueTitle={monthlyRevenue.toString()} /></PageStatsRow><PageMainGrid><PageMainContent><TableCard title="Carteira institucional" description="Prefeituras prioritárias e leitura comercial da operação." icon={Building2}><div className="space-y-4">{overviewInstitutions.length === 0 ? <div className="rounded-[24px] border border-dashed border-slate-300 bg-slate-50 p-6 text-sm leading-6 text-slate-600">Nenhuma Prefeitura ativa cadastrada ainda. Use o cadastro para abrir a primeira conta institucional.</div> : null}{overviewInstitutions.map((tenant) => renderInstitutionCard(tenant))}</div></TableCard></PageMainContent><PageSideContent><SectionCard title="Painel master" description="Alertas, atividade curta e leitura comercial."><div className="space-y-4"><div className="space-y-3">{platformAlerts.slice(0, 3).map((alert) => <AlertCard key={alert.id} title={alert.title} description={alert.description} tone={alert.tone} />)}</div><div className="grid gap-3"><div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"><p className="text-xs uppercase tracking-[0.14em] text-slate-500">Base total</p><p className="mt-2 text-lg font-semibold text-slate-950">{institutionCatalog.length}</p></div><div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"><p className="text-xs uppercase tracking-[0.14em] text-slate-500">Receita média</p><p className="mt-2 text-lg font-semibold text-slate-950">{institutionCatalog.length > 0 ? formatCurrency(monthlyRevenue / institutionCatalog.length) : formatCurrency(0)}</p></div></div><div className="space-y-3">{recentActivity.slice(0, 3).map((user) => { const profile = getUserProfile(user.id, user.email); return <div key={user.id} className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-white p-3"><UserAvatar name={user.name} imageUrl={profile?.avatarUrl} crop={profile ? { scale: profile.avatarScale ?? 1, offsetX: profile.avatarOffsetX ?? 0, offsetY: profile.avatarOffsetY ?? 0, editorSize: 320 } : undefined} size="sm" /><div className="min-w-0"><p className="sig-fit-title text-sm font-semibold text-slate-950">{user.name}</p><p className="sig-fit-copy text-xs text-slate-500">{roleLabels[user.role]}</p></div></div>; })}</div></div></SectionCard></PageSideContent></PageMainGrid></> : null}
 

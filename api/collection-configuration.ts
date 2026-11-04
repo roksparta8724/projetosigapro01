@@ -1,6 +1,6 @@
 import { callDataApiRpc } from "../server/municipal-storage.js";
 import { encryptMunicipalCollectionSecret, municipalCollectionSecretFingerprint } from "../server/municipal-payment.js";
-import { getMunicipalCollectionAdapter } from "../server/municipal-collection-adapters.js";
+import { getMunicipalCollectionAdapter, describeMunicipalCollectionAdapter } from "../server/municipal-collection-adapters.js";
 
 type Req = import("http").IncomingMessage & { method?: string; body?: Record<string, unknown> };
 type Res = import("http").ServerResponse;
@@ -15,6 +15,14 @@ export default async function handler(req: Req, res: Res) {
     const input = await body(req); const municipalityId = uuid(input.municipalityId); const action = String(input.action || "get");
     if (action === "get") return json(res, 200, await rpc(req, "get_municipal_collection_configuration_v1", { _municipality_id: municipalityId }) || {});
     if (action === "effective") return json(res, 200, await rpc(req, "get_active_municipal_collection_configuration_v1", { _municipality_id: municipalityId }) || {});
+    if (action === "provider_status") {
+      // Verify this authenticated municipal admin using the existing SQL RLS/RPC.
+      await rpc(req, "get_municipal_collection_configuration_v1", { _municipality_id: municipalityId });
+      const supplierCode=String(input.supplierCode||"").trim().toLowerCase();
+      if(!/^[a-z0-9_-]{1,64}$/.test(supplierCode))
+        throw new Error("Identificador do banco/fornecedor inválido.");
+      return json(res,200,describeMunicipalCollectionAdapter(supplierCode));
+    }
     if (action === "bank_get") return json(res, 200, await rpc(req, "get_municipal_collection_bank_details_v1", { _municipality_id: municipalityId }) || {});
     if (action === "bank_save") {
       const fields = input.fields && typeof input.fields === "object" && !Array.isArray(input.fields) ? input.fields : null;
@@ -28,10 +36,25 @@ export default async function handler(req: Req, res: Res) {
       let capabilities = input.capabilities && typeof input.capabilities === "object" && !Array.isArray(input.capabilities)
         ? { ...(input.capabilities as Record<string, unknown>) }
         : {};
+      if (mode === "municipal_system" && integrationType === "automatic") {
+        const adapter = getMunicipalCollectionAdapter(String(input.supplierCode || ""));
+        // The administrator selects a provider, never grants capabilities.
+        // Unimplemented suppliers are draft-only and must not collect tokens.
+        // Operational flags are derived exclusively from certified adapters.
+        if (!adapter) {
+          if (secret) throw new Error("Não envie credenciais: este fornecedor ainda não tem conector automático homologado. Use importação controlada.");
+          capabilities = { query:false, pdf:false, payment:false, reissue:false, cancel:false };
+        } else {
+          capabilities = Object.fromEntries(
+            (["query","pdf","payment","reissue","cancel"] as const)
+              .map(operation => [operation, capabilities[operation] === true && adapter.operations.includes(operation)])
+          );
+        }
+      }
       if (mode === "sigapro") {
         // Capabilities belong to the ACTIVE municipal provider, not the UI
         // checkboxes. Manual/unknown banks must never advertise bank callbacks.
-        const payment = await rpc<Record<string, any>>(
+        const payment = await rpc<Record<string, unknown>>(
           req, "get_municipal_payment_connection_v1", { _municipality_id: municipalityId },
         );
         if (payment?.provider !== "mercado_pago" ||
@@ -52,10 +75,10 @@ export default async function handler(req: Req, res: Res) {
       return json(res, 200, saved || {});
     }
     if (action === "validate") {
-      const config = await rpc<Record<string, any>>(req, "get_municipal_collection_secret_admin_v1", { _municipality_id: municipalityId });
+      const config = await rpc<Record<string, unknown> & { capabilities?: { query?: boolean; payment?: boolean } }>(req, "get_municipal_collection_secret_admin_v1", { _municipality_id: municipalityId });
       if (!config) throw new Error("Configuração não encontrada.");
       if (config.mode === "sigapro") {
-        const provider = await rpc<Record<string, any>>(req, "get_municipal_payment_connection_v1", { _municipality_id: municipalityId });
+        const provider = await rpc<Record<string, unknown>>(req, "get_municipal_payment_connection_v1", { _municipality_id: municipalityId });
         if (provider?.status !== "active") throw new Error("Ative e teste o provedor da Guia SIGAPRO antes de validar a modalidade.");
         if (provider.environment !== config.environment) {
           throw new Error("Ambientes incompatíveis: a modalidade SIGAPRO e o provedor bancário devem usar a mesma homologação ou produção.");
@@ -71,7 +94,7 @@ export default async function handler(req: Req, res: Res) {
           throw new Error("Provedor bancário não homologado para emissão de guias.");
         }
         if (config.environment === "production") {
-          const bank = await rpc<Record<string, any>>(req, "get_municipal_collection_bank_details_v1", { _municipality_id: municipalityId });
+          const bank = await rpc<Record<string, unknown>>(req, "get_municipal_collection_bank_details_v1", { _municipality_id: municipalityId });
           const document = String(bank?.bankBeneficiaryDocument || "").replace(/\D/g, "");
           if (!/^\d{14}$/.test(document) || !String(bank?.beneficiarioArrecadacao || "").trim()) {
             throw new Error("Produção bloqueada: informe o CNPJ e o beneficiário oficial da conta arrecadadora da Prefeitura.");

@@ -1,0 +1,33 @@
+import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { QRCodeSVG } from "qrcode.react";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { buildPixPayload, isValidPixPayload } from "@/lib/pix";
+
+const documentSource = readFileSync(resolve(process.cwd(), "src/components/platform/OfficialPaymentGuideDocument.tsx"), "utf8");
+
+describe("official guide PIX authenticity", () => {
+  it("renders a real QR encoder and never a pseudo-random payment matrix", () => {
+    expect(documentSource).toContain("QRCodeSVG");
+    expect(documentSource).toContain("isValidPixPayload(value)");
+    expect(documentSource).not.toContain("hashSeed");
+    expect(documentSource).not.toContain("data.bank.pixPayload || data.bank.digitableLine");
+  });
+
+  it("encodes the same valid EMV payload shown in the copy-and-paste field", () => {
+    const payload = buildPixPayload({
+      key: "teste@prefeitura.example",
+      merchantName: "PREFEITURA TESTE",
+      merchantCity: "TESTE",
+      amount: 35.24,
+      txid: "DAMTESTE123",
+    });
+    expect(isValidPixPayload(payload)).toBe(true);
+    const markup = renderToStaticMarkup(createElement(QRCodeSVG, { value: payload, size: 132, level: "M", marginSize: 2 }));
+    expect(markup).toContain("<svg");
+    expect(markup).toContain("<path");
+    expect(markup).not.toContain("hashSeed");
+  });
+});

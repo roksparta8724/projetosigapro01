@@ -1,0 +1,79 @@
+name: SIGAPRO - Zero npm advisories candidate (isolated QA)
+on:
+  push:
+    branches:
+      - workbench/sigapro-consolidacao-p3-no-deploy-20261029
+    paths:
+      - .github/workflows/sigapro-zero-npm-candidate.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sigapro-zero-audit-qa
+  cancel-in-progress: false
+
+jobs:
+  validate-single-candidate:
+    if: github.ref == 'refs/heads/workbench/sigapro-consolidacao-p3-no-deploy-20261029'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout isolated branch
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Repair all three remaining advisory roots, without deploying
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const pkg=JSON.parse(fs.readFileSync('package.json','utf8'));
+          pkg.dependencies['react-router-dom']='7.18.5';
+          pkg.overrides={...pkg.overrides,
+            'postcss-selector-parser':'6.1.5',
+            'html-to-text':'10.0.1'
+          };
+          fs.writeFileSync('package.json',JSON.stringify(pkg,null,2)+'\n');
+          NODE
+          npm install --package-lock-only --legacy-peer-deps --no-audit --no-fund
+          npm ci --legacy-peer-deps --no-audit --no-fund
+          npm ls react-router-dom postcss-selector-parser html-to-text --all || true
+          npm audit --json > "$RUNNER_TEMP/sigapro-audit.json" || true
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const data=JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+'/sigapro-audit.json','utf8'));
+          const counts=data.metadata?.vulnerabilities||{};
+          const details=Object.entries(data.vulnerabilities||{}).map(([name,v])=>
+            ({name,severity:v.severity,via:v.via?.map?.(x=>typeof x==='string'?x:x.title),fixAvailable:v.fixAvailable}));
+          console.log('SIGAPRO_ZERO_AUDIT_COUNTS '+JSON.stringify(counts));
+          console.log('SIGAPRO_ZERO_AUDIT_REMAINING '+JSON.stringify(details));
+          if(Number(counts.total||0)!==0)
+            throw Error('No publish, no commit: audit still reports '+counts.total+' vulnerabilities');
+          NODE
+          npm run typecheck
+          npm test
+          npm run build
+          npm audit --omit=dev --json > "$RUNNER_TEMP/sigapro-runtime-audit.json" || true
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const a=JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+'/sigapro-runtime-audit.json','utf8'));
+          const total=Number(a.metadata?.vulnerabilities?.total||0);
+          console.log('SIGAPRO_RUNTIME_AUDIT_TOTAL '+total);
+          if(total!==0)throw Error('Runtime audit still reports vulnerabilities.');
+          NODE
+          git config user.name 'sigapro-qa-security-bot'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add package.json package-lock.json
+          if git diff --cached --quiet; then
+            echo 'Already using the validated zero-advisory dependency graph.'
+          else
+            git commit -m 'security(deps): eliminate remaining npm advisories with validated upgrades [skip ci]'
+            git push origin HEAD:refs/heads/workbench/sigapro-consolidacao-p3-no-deploy-20261029
+          fi

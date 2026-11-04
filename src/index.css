@@ -10964,3 +10964,500 @@ html body #root .sig-main-shell
   border-color: #334155 !important;
 }
 /* ===== END HABITE-SE INSPECTION LEGEND CONTRAST LOCK ===== */
+
+
+/* SIGAPRO IA: the urban-rules draft action stays legible in every layout mode.
+   This scoped guard fixes the invisible dark-on-dark label observed on 29 Oct 2026. */
+html body .sig-main-shell button[data-sigapro-urban-rules-save="true"],
+html body .sig-main-shell button[data-sigapro-urban-rules-save="true"]:hover,
+html body .sig-main-shell button[data-sigapro-urban-rules-save="true"]:disabled {
+  background-color: #0f172a !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  opacity: 1;
+}
+html body .sig-main-shell button[data-sigapro-urban-rules-save="true"] :is(span,svg),
+html body .sig-main-shell button[data-sigapro-urban-rules-save="true"]:disabled :is(span,svg) {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  stroke: currentColor !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+
+/* Urban legislation editor action: independent of the generic Button's
+   disabled:text-slate-400 and disabled:opacity-50 utility styles.
+   Works whether or not a particular page uses .sig-main-shell. */
+html body #root [data-urban-rules-settings="true"] button[data-sigapro-urban-rules-save="true"],
+html body #root [data-urban-rules-settings="true"] button[data-sigapro-urban-rules-save="true"]:disabled,
+html body #root [data-urban-rules-settings="true"] button[data-sigapro-urban-rules-save="true"]:hover,
+html body #root [data-urban-rules-settings="true"] button[data-sigapro-urban-rules-save="true"]:focus-visible {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  background: #0f172a !important;
+  border-color: #1e293b !important;
+  opacity: 1 !important;
+  filter: none !important;
+  mix-blend-mode: normal !important;
+}
+html body #root [data-urban-rules-settings="true"] button[data-sigapro-urban-rules-save="true"] :is(span,svg),
+html body #root [data-urban-rules-settings="true"] button[data-sigapro-urban-rules-save="true"]:disabled :is(span,svg) {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  filter: none !important;
+  text-shadow: none !important;
+  mix-blend-mode: normal !important;
+}
+html body #root [data-urban-rules-settings="true"] button[data-sigapro-urban-rules-save="true"]:disabled {
+  cursor: not-allowed;
+  border-style: dashed !important;
+}
+/* END URBAN RULES SAVE BUTTON READABILITY V2 */
+
+
+/* SIGAPRO IA — QUADROS I/II PREMIUM TAB CONTRAST: stable segmented selection.
+   The global inverse theme targets aria-selected and tab roles. This control
+   intentionally uses a labelled button group with aria-pressed to avoid that
+   unrelated global tab rule. Strictly scoped; all visual states are explicit. */
+html body #root [data-urban-rules-settings="true"] [data-urban-quadros-workspace="true"]
+button[data-urban-quadro-tab="true"] {
+  min-height: 82px;
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 16px !important;
+  padding: 14px 18px !important;
+  filter: none !important;
+  opacity: 1 !important;
+  mix-blend-mode: normal !important;
+  text-shadow: none !important;
+  transition: background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+}
+html body #root [data-urban-rules-settings="true"] [data-urban-quadros-workspace="true"]
+button[data-urban-quadro-tab="true"][data-contrast-surface="dark"][aria-pressed="true"] {
+  background: #0b3150 !important;
+  background-color: #0b3150 !important;
+  background-image: none !important;
+  border-color: #1d739d !important;
+  box-shadow: 0 8px 22px rgba(11, 49, 80, .16) !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body #root [data-urban-rules-settings="true"] [data-urban-quadros-workspace="true"]
+button[data-urban-quadro-tab="true"][data-contrast-surface="dark"][aria-pressed="true"]
+[data-urban-quadro-tab-title="true"] {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+html body #root [data-urban-rules-settings="true"] [data-urban-quadros-workspace="true"]
+button[data-urban-quadro-tab="true"][data-contrast-surface="dark"][aria-pressed="true"]
+[data-urban-quadro-tab-detail="true"] {
+  color: #e4f2ff !important;
+  -webkit-text-fill-color: #e4f2ff !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+html body #root [data-urban-rules-settings="true"] [data-urban-quadros-workspace="true"]
+button[data-urban-quadro-tab="true"][data-contrast-surface="light"][aria-pressed="false"] {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  background-image: none !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: none !important;
+  color: #152b43 !important;
+  -webkit-text-fill-color: #152b43 !important;
+}
+html body #root [data-urban-rules-settings="true"] [data-urban-quadros-workspace="true"]
+button[data-urban-quadro-tab="true"][data-contrast-surface="light"][aria-pressed="false"]
+[data-urban-quadro-tab-title="true"] {
+  color: #152b43 !important;
+  -webkit-text-fill-color: #152b43 !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+html body #root [data-urban-rules-settings="true"] [data-urban-quadros-workspace="true"]
+button[data-urban-quadro-tab="true"][data-contrast-surface="light"][aria-pressed="false"]
+[data-urban-quadro-tab-detail="true"] {
+  color: #475569 !important;
+  -webkit-text-fill-color: #475569 !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+html body #root [data-urban-rules-settings="true"] [data-urban-quadros-workspace="true"]
+button[data-urban-quadro-tab="true"][data-contrast-surface="light"][aria-pressed="false"]:hover {
+  background: #f0f8ff !important;
+  background-color: #f0f8ff !important;
+  border-color: #93c5fd !important;
+}
+html body #root [data-urban-rules-settings="true"] [data-urban-quadros-workspace="true"]
+button[data-urban-quadro-tab="true"]:focus-visible {
+  outline: 2px solid #0284c7 !important;
+  outline-offset: 3px !important;
+}
+/* END SIGAPRO IA QUADROS PREMIUM TAB CONTRAST */
+
+
+/* Quadro II — high contrast actions independent of global inverse-main presets.
+   Prevent WebKit text-fill and nested-span rules from camouflaging active buttons. */
+html body #root [data-urban-quadro-ii="true"] button[data-urban-qii-action="true"],
+html body #root [data-urban-quadro-ii="true"] button[data-urban-qii-action="true"]:hover {
+  background: #0b3150 !important;
+  background-color: #0b3150 !important;
+  background-image: none !important;
+  border: 1px solid #5da5d1 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  font-weight: 750 !important;
+  text-shadow: none !important;
+  filter: none !important;
+  opacity: 1 !important;
+  box-shadow: 0 4px 11px rgba(10,43,69,.13) !important;
+}
+html body #root [data-urban-quadro-ii="true"] button[data-urban-qii-action="true"] > [data-urban-qii-action-label="true"] {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  filter: none !important;
+  text-shadow: none !important;
+  mix-blend-mode: normal !important;
+}
+html body #root [data-urban-quadro-ii="true"] button[data-urban-qii-action="true"]:disabled {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  background: #475569 !important;
+  background-color: #475569 !important;
+  opacity: 1 !important;
+  border-style: dashed !important;
+  cursor: not-allowed !important;
+}
+html body #root [data-urban-quadro-ii="true"] button[data-urban-qii-action="true"]:focus-visible {
+  outline: 3px solid #0ea5e9 !important;
+  outline-offset: 3px !important;
+}
+
+
+/* Quadro II: the page index remains stable as the single detail panel switches.
+   Disable scroll anchoring within the changing region to prevent viewport jumps
+   when switching from a tall E1 table to another source page. */
+html body #root [data-urban-quadro-ii="true"] [data-urban-qii-index="true"],
+html body #root [data-urban-quadro-ii="true"] [data-urban-qii-detail="true"] {
+  overflow-anchor: none;
+}
+html body #root [data-urban-quadro-ii="true"] [data-urban-qii-index="true"] {
+  scrollbar-width: thin;
+  scrollbar-color: #94a3b8 #f1f5f9;
+  -webkit-overflow-scrolling: touch;
+}
+html body #root [data-urban-quadro-ii="true"] [data-urban-qii-index="true"] button[aria-pressed="true"],
+html body #root [data-urban-quadro-ii="true"] [data-urban-qii-index="true"] button[aria-pressed="true"] * {
+  color: #0f253d !important;
+  -webkit-text-fill-color: #0f253d !important;
+  opacity: 1 !important;
+}
+html body #root [data-urban-quadro-ii="true"] [data-urban-qii-index="true"] button[aria-pressed="true"] {
+  background: #eff8ff !important;
+  background-color: #eff8ff !important;
+  border-color: #4a9ad2 !important;
+}
+
+
+/* Quadro I / AIU(2): dark lettering on light status cards, even in inverse municipality themes. */
+html body #root [data-urban-matrix-review="true"] [data-urban-matrix-ca-chip="true"] {
+  background: #fffbeb !important;
+  border-color: #d6a544 !important;
+  color: #172334 !important;
+  -webkit-text-fill-color: #172334 !important;
+  opacity: 1 !important;
+}
+html body #root [data-urban-matrix-review="true"] [data-urban-matrix-ca-pending="true"] > strong,
+html body #root [data-urban-matrix-review="true"] [data-urban-matrix-ca-pending="true"] > span {
+  color: #172334 !important;
+  -webkit-text-fill-color: #172334 !important;
+  opacity: 1 !important;
+}
+
+
+/* SIGAPRO PREMIUM LEGAL DOCUMENT UPLOAD - INVERSE THEME / NO WHITE MASK
+   Do not invert or recolor the PDF itself: zoning map colors must remain faithful.
+   This only themes the surrounding cards, preview header, controls and borders. */
+[data-layout-mode="inverse-main"] .sig-main-shell [data-upload-appearance="legal"] [data-upload-zone],
+[data-layout-mode="inverse-main"] .sig-main-shell [data-upload-appearance="legal"] [data-upload-file-card="true"],
+[data-layout-mode="inverse-main"] .sig-main-shell [data-upload-appearance="legal"] [data-file-preview="true"] {
+  background: #0e1a2c !important;
+  background-image: none !important;
+  border-color: #38516f !important;
+  color: #f1f7ff !important;
+  box-shadow: none !important;
+}
+[data-layout-mode="inverse-main"] .sig-main-shell [data-upload-appearance="legal"] [data-file-preview-header="true"],
+[data-layout-mode="inverse-main"] .sig-main-shell [data-upload-appearance="legal"] [data-file-preview-footer="true"] {
+  background: #14263d !important;
+  background-image: none !important;
+  border-color: #38516f !important;
+  color: #f1f7ff !important;
+}
+[data-layout-mode="inverse-main"] .sig-main-shell [data-upload-appearance="legal"] [data-file-preview-paper="true"] {
+  background: #091425 !important;
+}
+[data-layout-mode="inverse-main"] .sig-main-shell [data-upload-appearance="legal"] p,
+[data-layout-mode="inverse-main"] .sig-main-shell [data-upload-appearance="legal"] summary {
+  color: #edf4ff !important;
+  -webkit-text-fill-color: #edf4ff !important;
+  opacity: 1 !important;
+}
+[data-layout-mode="inverse-main"] .sig-main-shell [data-upload-appearance="legal"] button,
+[data-layout-mode="inverse-main"] .sig-main-shell [data-upload-appearance="legal"] [data-file-preview="true"] a {
+  background: #1a304a !important;
+  border-color: #45607b !important;
+  color: #f8fbff !important;
+  -webkit-text-fill-color: #f8fbff !important;
+}
+[data-layout-mode="inverse-main"] .sig-main-shell [data-upload-appearance="legal"] button:disabled {
+  opacity: .58 !important;
+}
+[data-layout-mode="inverse-main"] .sig-main-shell [data-legal-archive="true"] {
+  background: #142239 !important;
+  background-image: none !important;
+  border-color: #38516f !important;
+}
+[data-layout-mode="inverse-main"] .sig-main-shell [data-legal-archive="true"] > div > div > p,
+[data-layout-mode="inverse-main"] .sig-main-shell [data-legal-archive="true"] > div > div > div > p {
+  color: #f0f6ff !important;
+  -webkit-text-fill-color: #f0f6ff !important;
+}
+
+
+/* SIGAPRO LEGAL / DARK-CARD CONTRAST
+ * Restrained to Cadastro e Gestão -> legislação only.
+ * Historic PDF artwork is NOT inverted. WCAG AA (> 4.5:1) text pairs.
+ * The inverse main theme can remap bg-white surfaces to dark without applying
+ * Tailwind's dark: classes, so surface and foreground must be bound together.
+ */
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+[data-legal-management-workspace="true"]
+:is([data-urban-rules-settings="true"],
+    [data-urban-matrix-review="true"],
+    [data-urban-quadro-ii="true"],
+    [data-urban-work-preservation="true"],
+    [data-urban-legislation-registry="true"]) {
+  background: #10253a !important;
+  background-image: none !important;
+  border-color: #46617b !important;
+  color: #f2f7ff !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+[data-legal-management-workspace="true"]
+:is([data-urban-rules-settings="true"],
+    [data-urban-matrix-review="true"],
+    [data-urban-quadro-ii="true"],
+    [data-urban-work-preservation="true"],
+    [data-urban-legislation-registry="true"])
+:is(div,section,article,details)[class~="bg-white"],
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+[data-legal-management-workspace="true"]
+:is([data-urban-rules-settings="true"],
+    [data-urban-matrix-review="true"],
+    [data-urban-quadro-ii="true"],
+    [data-urban-work-preservation="true"],
+    [data-urban-legislation-registry="true"])
+:is(div,section,article,details)[class~="bg-slate-50"] {
+  background: #152b43 !important;
+  background-image: none !important;
+  border-color: #48627e !important;
+  color: #f2f7ff !important;
+}
+/* Summary metrics must carry readable text in both genuine .dark and inverse. */
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+[data-legal-management-workspace="true"] [data-urban-qii-metric="true"] {
+  background: #0e2136 !important;
+  border-color: #496781 !important;
+  color: #f8fbff !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+[data-legal-management-workspace="true"] [data-urban-qii-metric="true"] :is(p,strong,span) {
+  color: #ecf4ff !important;
+  -webkit-text-fill-color: #ecf4ff !important;
+  opacity: 1 !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+[data-legal-management-workspace="true"] [data-urban-qii-page-card="true"] {
+  background: #162c43 !important;
+  border-color: #46617b !important;
+  color: #f8fbff !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+[data-legal-management-workspace="true"] [data-urban-qii-page-card="true"][aria-pressed="true"] {
+  background: #0b3150 !important;
+  border-color: #59b5e5 !important;
+  box-shadow: inset 0 0 0 1px #59b5e5 !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+[data-legal-management-workspace="true"] [data-urban-qii-page-card="true"]
+:is([data-urban-qii-page-title="true"],[data-urban-qii-page-detail="true"]) {
+  color: #f1f7ff !important;
+  -webkit-text-fill-color: #f1f7ff !important;
+  opacity: 1 !important;
+}
+/* Text that is slate-600 in the light theme remains legible when cards invert. */
+html body [data-layout-mode="inverse-main"] .sig-main-shell
+[data-legal-management-workspace="true"]
+:is([data-urban-rules-settings="true"],[data-urban-matrix-review="true"],
+    [data-urban-quadro-ii="true"],[data-urban-work-preservation="true"],
+    [data-urban-legislation-registry="true"])
+:is(.text-slate-700,.text-slate-600,.text-slate-500,.text-slate-400) {
+  color: #d8e5f4 !important;
+  -webkit-text-fill-color: #d8e5f4 !important;
+  opacity: 1 !important;
+}
+/* Buttons with dark backgrounds always keep white foreground, including
+   descendants affected by global inverse-main typography selectors. */
+html body #root [data-legal-management-workspace="true"]
+:is(button,a)[class~="bg-slate-950"],
+html body #root [data-legal-management-workspace="true"]
+:is(button,a)[class~="bg-sky-900"] {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body #root [data-legal-management-workspace="true"]
+:is(button,a)[class~="bg-slate-950"] :is(span,strong,svg),
+html body #root [data-legal-management-workspace="true"]
+:is(button,a)[class~="bg-sky-900"] :is(span,strong,svg) {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+/* Keep official PDF preview artwork, iframe and canvas color values unchanged. */
+
+/* Performance: the account menu is a narrow fixed panel. A full-screen
+   backdrop filter on its portal amplifies paint delay during open/close.
+   Preserve contrast and shadow, but avoid repeated blur compositing. */
+.sig-topbar-account-dropdown {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+
+/* SIGAPRO Master commercial layout: contrast + overflow scoped to the plans page. */
+html body #root .sig-main-shell .sig-master-plans-page [data-master-commercial-preview-hero="true"] {
+  background: radial-gradient(circle at 14% 0%, rgba(56,189,248,.24), transparent 34%),linear-gradient(135deg,#081a30 0%,#123653 58%,#0d615e 100%) !important;
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
+}
+html body #root .sig-main-shell .sig-master-plans-page [data-master-commercial-preview-hero="true"] :is(h1,h2,h3,h4,p,span,strong) {
+  color: #f1f7ff !important;
+  -webkit-text-fill-color: #f1f7ff !important;
+  opacity: 1 !important;
+}
+html body #root .sig-main-shell .sig-master-plans-page [data-master-commercial-preview-hero="true"] [data-master-preview-monogram="true"] {
+  background: #fff !important;
+  color: #0f513e !important;
+  -webkit-text-fill-color: #0f513e !important;
+}
+html body #root .sig-main-shell .sig-master-plans-page :is([data-master-plan-card="true"],[data-master-commercial-plan-card="true"],[data-master-commercial-preview="true"]) {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  overflow-wrap: anywhere;
+}
+[data-layout-mode="inverse-main"] .sig-main-shell .sig-master-plans-page :is([data-master-plan-card="true"],[data-master-commercial-plan-card="true"]) {
+  background: #12263c !important;
+  background-image: none !important;
+  border-color: #4a6482 !important;
+  color: #f1f7ff !important;
+}
+[data-layout-mode="inverse-main"] .sig-main-shell .sig-master-plans-page :is([data-master-plan-price-box="true"],[data-master-plan-limits="true"]) {
+  background: #0c1d30 !important;
+  border-color: #46637e !important;
+  color: #f0f6ff !important;
+}
+html body [data-layout-mode="inverse-main"] .sig-main-shell .sig-master-plans-page :is([data-master-plan-card="true"],[data-master-commercial-plan-card="true"]) :is(.text-slate-950,.text-slate-900,.text-slate-800,.text-slate-700,.text-slate-600,.text-slate-500) {
+  color: #e4edf8 !important;
+  -webkit-text-fill-color: #e4edf8 !important;
+  opacity: 1 !important;
+}
+[data-layout-mode="inverse-main"] .sig-main-shell .sig-master-plans-page [data-master-plan-status="inactive"] {
+  background: #273b52 !important;
+  border-color: #59708b !important;
+  color: #e4edf8 !important;
+}
+[data-layout-mode="inverse-main"] .sig-main-shell .sig-master-plans-page [data-master-plan-status="active"] {
+  background: #0d493e !important;
+  border-color: #35a58c !important;
+  color: #ebfff8 !important;
+}
+[data-layout-mode="inverse-main"] .sig-main-shell .sig-master-plans-page [data-master-commercial-plan-card="true"][data-selected="true"] {
+  background: #113b54 !important;
+  border-color: #55bade !important;
+  box-shadow: inset 0 0 0 1px #55bade !important;
+}
+
+
+/* SIGAPRO Master commercial format cards: persistent selected text contrast.
+   Bind foreground to background, independent of inverse-main/light-card overrides.
+   Scoped to the format selector: no impact on official PDFs or pricing logic. */
+html body #root .sig-main-shell .sig-master-plans-page button[data-master-commercial-format-card="true"] {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  overflow-wrap: anywhere;
+}
+html body #root .sig-main-shell .sig-master-plans-page button[data-master-commercial-format-card="true"][data-selected="true"] {
+  background: #0b1730 !important;
+  background-image: none !important;
+  border-color: #3aaee1 !important;
+  color: #f8fbff !important;
+  -webkit-text-fill-color: #f8fbff !important;
+  box-shadow: inset 0 0 0 1px rgba(56,189,248,.48), 0 10px 24px rgba(6,26,47,.12) !important;
+}
+html body #root .sig-main-shell .sig-master-plans-page button[data-master-commercial-format-card="true"][data-selected="true"] [data-master-commercial-format-title="true"] {
+  color: #f8fbff !important;
+  -webkit-text-fill-color: #f8fbff !important;
+  opacity: 1 !important;
+}
+html body #root .sig-main-shell .sig-master-plans-page button[data-master-commercial-format-card="true"][data-selected="true"] [data-master-commercial-format-description="true"] {
+  color: #dce9fc !important;
+  -webkit-text-fill-color: #dce9fc !important;
+  opacity: 1 !important;
+}
+html body #root .sig-main-shell .sig-master-plans-page button[data-master-commercial-format-card="true"][data-selected="true"] [data-master-commercial-format-icon="true"] {
+  color: #7dd3fc !important;
+  opacity: 1 !important;
+}
+html body #root .sig-main-shell .sig-master-plans-page button[data-master-commercial-format-card="true"][data-selected="false"] {
+  background: #ffffff !important;
+  background-image: none !important;
+  border-color: #d9e2ec !important;
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+html body #root .sig-main-shell .sig-master-plans-page button[data-master-commercial-format-card="true"][data-selected="false"] [data-master-commercial-format-title="true"] {
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+  opacity: 1 !important;
+}
+html body #root .sig-main-shell .sig-master-plans-page button[data-master-commercial-format-card="true"][data-selected="false"] [data-master-commercial-format-description="true"] {
+  color: #475569 !important;
+  -webkit-text-fill-color: #475569 !important;
+  opacity: 1 !important;
+}
+html body #root .sig-main-shell .sig-master-plans-page button[data-master-commercial-format-card="true"][data-selected="false"] [data-master-commercial-format-icon="true"] {
+  color: #0369a1 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-master-plans-page button[data-master-commercial-format-card="true"][data-selected="false"] {
+  background: #14263d !important;
+  border-color: #48627e !important;
+  color: #f1f7ff !important;
+  -webkit-text-fill-color: #f1f7ff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-master-plans-page button[data-master-commercial-format-card="true"][data-selected="false"] [data-master-commercial-format-title="true"] {
+  color: #f1f7ff !important;
+  -webkit-text-fill-color: #f1f7ff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-master-plans-page button[data-master-commercial-format-card="true"][data-selected="false"] [data-master-commercial-format-description="true"] {
+  color: #cfe3ff !important;
+  -webkit-text-fill-color: #cfe3ff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-master-plans-page button[data-master-commercial-format-card="true"][data-selected="false"] [data-master-commercial-format-icon="true"] {
+  color: #7dd3fc !important;
+}

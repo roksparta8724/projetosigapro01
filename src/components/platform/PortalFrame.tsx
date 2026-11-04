@@ -66,6 +66,7 @@ import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useUserMenuPreferences, type MenuPreferenceKey } from "@/hooks/useUserMenuPreferences";
 import { usePlanEntitlements } from "@/hooks/usePlanEntitlements";
+import { useLivePlatformRefresh } from "@/hooks/useLivePlatformRefresh";
 import { getPublicAssetUrl } from "@/lib/assetUrl";
 import { formatDisplayText, humanizeRoleLabel } from "@/lib/displayText";
 import { buildProcessPath, can, canAccessMunicipalArea,
@@ -121,7 +122,15 @@ const navItems = [
   { key: "dashboard", to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, permission: "manage_own_profile" as Permission, essential: true, module: undefined as PlanModuleName | undefined },
   { key: "dashboard-tenant", to: "/prefeitura", label: "Prefeitura", icon: Landmark, permission: "manage_tenant_users" as Permission, essential: true, module: undefined as PlanModuleName | undefined },
   { key: "municipal-organogram", to: "/prefeitura/organograma", label: "Organograma", icon: Network, permission: "manage_own_profile" as Permission, essential: true, module: undefined as PlanModuleName | undefined },
-  { key: "dashboard-master", to: "/master", label: "Administrador Geral", icon: MonitorCog, permission: "view_master_dashboard" as Permission, essential: true, module: undefined as PlanModuleName | undefined },
+  {
+    key: "dashboard-master",
+    to: "/master",
+    label: "Administrador Geral",
+    icon: MonitorCog,
+    permission: "view_master_dashboard" as Permission,
+    essential: true,
+    module: undefined as PlanModuleName | undefined,
+  },
   { key: "master-plans", to: "/master/planos", label: "Planos e níveis", icon: AccountCard, permission: "manage_commercial_plans" as Permission, essential: true, module: undefined as PlanModuleName | undefined },
   {
     key: "protocols",
@@ -180,7 +189,19 @@ const navItems = [
         { to: "/externo", label: "Resumo da conta", icon: LayoutDashboard },
       ],
     },
-  { key: "settings", to: "/configuracoes", label: "Cadastro e Gestão", icon: Building2, permission: "manage_tenant_branding" as Permission, essential: true, module: "Configurações" as PlanModuleName },
+  {
+    key: "settings",
+    to: "/configuracoes",
+    label: "Cadastro e Gestão",
+    icon: Building2,
+    permission: "manage_tenant_branding" as Permission,
+    essential: true,
+    module: "Configurações" as PlanModuleName,
+    children: [
+      { to: "/configuracoes", label: "Visão geral", icon: LayoutDashboard },
+      { to: "/cadastro-gestao/legislacao", label: "Gestão de leis e parâmetros", icon: ScrollText },
+    ],
+  },
   { key: "collection", to: "/prefeitura/arrecadacao", label: "Guias e Arrecadação", icon: Landmark, permission: "view_collection_settings" as Permission, essential: true, module: "Configurações" as PlanModuleName },
 ];
 
@@ -329,6 +350,13 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
     addProcessMarkerWithColor,
     removeProcessMarker,
   } = usePlatformData();
+  // Revalidate permissions across logged-in devices after Master changes a contract.
+  // This is a background refresh: never replace a visible page with a loading shell.
+  useLivePlatformRefresh(refreshRemoteStore, {
+    enabled: session.id !== "unknown" && Boolean(session.role),
+    intervalMs: 20000,
+    refreshOnMount: false,
+  });
   const { isItemVisible } = useUserMenuPreferences();
   const planEntitlements = usePlanEntitlements();
   const { presets: markerPresets, addPreset, updatePreset, togglePresetActive, removePreset } = useMarkerPresets();
@@ -2051,7 +2079,9 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                 aria-hidden="true"
               />
 
-              <DropdownMenu>
+              {/* Non-modal: opening the account menu does not synchronously block
+                  outside pointer events / trap focus in the full 120 KB shell. */}
+              <DropdownMenu modal={false}>
                 <DropdownMenuTrigger asChild>
                   <button
                     type="button"
@@ -2080,7 +2110,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                 collisionPadding={0}
                 style={{ "--sig-primary-deep": darken(primaryColor, 10) } as React.CSSProperties}
                 className={cn(
-                  "sig-topbar-account-dropdown w-[min(92vw,400px)] overflow-y-auto border p-3 shadow-[-18px_0_48px_rgba(15,23,42,0.20)] backdrop-blur-xl",
+                  "sig-topbar-account-dropdown w-[min(92vw,400px)] overflow-y-auto border p-3 shadow-[-14px_0_30px_rgba(15,23,42,0.16)]",
                   darkTopbar
                     ? "border-white/12 bg-[var(--sig-primary-deep)] text-slate-100"
                     : "border-slate-200/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.99)_0%,rgba(247,250,253,0.98)_100%)] text-slate-900",

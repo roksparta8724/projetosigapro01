@@ -1,0 +1,31 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { describe, expect, it } from "vitest";
+
+const source = readFileSync(resolve(process.cwd(), "src/pages/saas/ProtocolDeskPage.tsx"), "utf8");
+const migration = readFileSync(
+  resolve(process.cwd(), "neon/migrations/20261102_archived_document_history_protocol_guard.sql"), "utf8",
+);
+
+describe("SIGAPRO QA04: end-to-end triage with a revised architectural PDF", () => {
+  it("shows municipal admin their own protocol queue and action", () => {
+    expect(source).toContain('session.role !== "prefeitura_admin"');
+    expect(source).toContain('session.role === "prefeitura_admin" && protocolQueueProcesses.some');
+    expect(source).toContain("matchesOperationalScope(effectiveScopeId, item)");
+    expect(source).toContain('currentFolder.includes("protocolo")');
+  });
+  it("exposes actions for starting and completing triage before dispatch", () => {
+    expect(source).toContain('handleTriageStatus(process, "em_triagem")');
+    expect(source).toContain('handleTriageStatus(process, "concluido")');
+    expect(source).toContain('getPendingTriageDocuments(process) > 0');
+    expect(source).toContain("isReadyForProtocolDispatch(process)");
+  });
+  it("does not block a V2 document because the V1 is kept as inactive history", () => {
+    expect(migration).toContain("CREATE OR REPLACE FUNCTION public.set_process_triage");
+    expect(migration).toContain("CREATE OR REPLACE FUNCTION public.create_process_dispatch");
+    expect(migration).toContain("coalesce(d.is_valid,true)=true");
+    expect(migration).toContain("coalesce(doc.is_valid,true)=true");
+    expect(migration).not.toContain("OR coalesce(d.is_valid,true)=false");
+    expect(migration).not.toContain("or coalesce(doc.is_valid,true)=false");
+  });
+});

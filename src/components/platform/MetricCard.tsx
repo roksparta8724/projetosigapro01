@@ -24,7 +24,7 @@ export function MetricCard({
       data-surface="adaptive-card"
       data-premium-surface="metric"
       className={cn(
-        "sig-metric-card group flex h-full min-h-[150px] min-w-0 flex-col overflow-hidden rounded-[22px] border border-slate-200/80 bg-white p-4.5 shadow-[0_12px_26px_rgba(15,23,42,0.075)] transition-[transform,box-shadow,border-color] duration-200",
+        "sig-metric-card group flex h-full min-h-[150px] min-w-0 flex-col overflow-hidden [overflow-wrap:anywhere] rounded-[22px] border border-slate-200/80 bg-white p-4.5 shadow-[0_12px_26px_rgba(15,23,42,0.075)] transition-[transform,box-shadow,border-color] duration-200",
       )}
     >
       <div className="flex h-full min-w-0 items-start justify-between gap-4">
@@ -34,14 +34,14 @@ export function MetricCard({
           </p>
           <p
             className={cn(
-              "sig-metric-value mt-2 min-w-0 max-w-full font-semibold tracking-[-0.018em] text-slate-950",
+              "sig-metric-value mt-2 min-w-0 max-w-full break-words [overflow-wrap:anywhere] font-semibold tracking-[-0.018em] text-slate-950",
               valueClassName,
             )}
             title={valueTitle ?? value}
           >
             {value}
           </p>
-          <p className="sig-metric-helper mt-auto max-w-full pt-2 text-[13px] font-normal leading-5.5 text-slate-500" title={helper}>
+          <p className="sig-metric-helper mt-auto max-w-full break-words [overflow-wrap:anywhere] pt-2 text-[13px] font-normal leading-5.5 text-slate-500" title={helper}>
             {helper}
           </p>
         </div>

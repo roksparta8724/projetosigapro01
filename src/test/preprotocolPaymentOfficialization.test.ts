@@ -213,7 +213,7 @@ describe("payment-first pre-protocol officialization", () => {
     );
     expect(hardeningMigration).toContain("Pronto para Despacho");
     expect(protocolDesk).toContain(
-      "Como a guia inicial já está compensada, o processo está pronto para despacho ao Urbanismo",
+      "Triagem concluída. Com a guia confirmada, o Protocolo pode despachar formalmente.",
     );
   });
 });
