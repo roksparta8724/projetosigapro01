@@ -130,4 +130,21 @@ describe("SIGAPRO — direct secure legal PDF upload", () => {
     mock.send.mockResolvedValueOnce({ContentLength:5,ContentType:"application/pdf"});
     expect((await call({ body:{...body,action:"verify"} })).status).toBe(409);
   });
+  it("requires a separate municipal legal-editor role for registry PDF uploads", async () => {
+    const key = objectKey.replace("legislation-plano-diretor", "legislation-registry");
+    expect(validateLegalUploadInput({ ...body, objectKey: key })?.registryUpload).toBe(true);
+    mock.rpc.mockImplementation(async (_req: unknown, fn: string) => ({
+      ok: true, status: 200,
+      payload: fn === "can_manage_urban_legislation_registry_v1" ? false : true,
+    }));
+    expect((await call({ body: { ...body, objectKey: key } })).status).toBe(403);
+    expect(mock.sign).not.toHaveBeenCalled();
+    mock.rpc.mockImplementation(async () => ({ ok: true, status: 200, payload: true }));
+    expect((await call({ body: { ...body, objectKey: key } })).status).toBe(200);
+    expect(mock.rpc).toHaveBeenCalledWith(
+      expect.anything(), "can_manage_urban_legislation_registry_v1",
+      { _municipality_id: tenant },
+    );
+  });
+
 });

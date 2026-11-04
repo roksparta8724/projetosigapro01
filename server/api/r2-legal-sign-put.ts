@@ -11,7 +11,7 @@ export const MAX_OFFICIAL_LEGAL_PDF_BYTES = 100 * ONE_MIB;
 const PDF_BUCKET = "process-documents";
 const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}";
 const LEGAL_KEY = new RegExp(
-  "^municipalities/(" + UUID + ")/legislation-(?:plano-diretor|uso-solo|zoneamento|leis-complementares)/" +
+  "^municipalities/(" + UUID + ")/legislation-(?:plano-diretor|uso-solo|zoneamento|leis-complementares|registry)/" +
   "([A-Za-z0-9_-]{3,128})/(" + UUID + ")-([A-Za-z0-9._-]{1,200}\\.pdf)$", "i",
 );
 function env(key: string) {
@@ -41,6 +41,7 @@ export function validateLegalUploadInput(body: unknown) {
     municipalityId: match[1].toLowerCase(),
     objectKey: b.objectKey,
     fileSize: Number(b.fileSize),
+    registryUpload: /\/legislation-registry\//i.test(b.objectKey),
   } : null;
 }
 async function readBody(req: Req): Promise<unknown> {
@@ -65,15 +66,24 @@ function sameOrigin(req: Req) {
         /^localhost(?::|$)/.test(host)));
   } catch { return false; }
 }
-async function authorize(req: Req, municipalityId: string, fileSize: number) {
-  const [tenant, admin, master] = await Promise.all([
-    callDataApiRpc<unknown>(req, "has_tenant_access", { target_tenant: municipalityId }),
-    callDataApiRpc<unknown>(req, "is_municipality_admin", {}),
-    callDataApiRpc<unknown>(req, "is_master", {}),
-  ]);
-  if (!tenant.ok || !booleanResult(tenant.payload) ||
-    !(admin.ok && booleanResult(admin.payload)) &&
-      !(master.ok && booleanResult(master.payload))) return false;
+async function authorize(req: Req, municipalityId: string, fileSize: number, registryUpload: boolean) {
+  if (registryUpload) {
+    // Municipal admin has read-only access to the legal registry.
+    // Neon is the authority for which municipal roles can write.
+    const grant = await callDataApiRpc<unknown>(
+      req, "can_manage_urban_legislation_registry_v1", { _municipality_id: municipalityId },
+    );
+    if (!grant.ok || !booleanResult(grant.payload)) return false;
+  } else {
+    const [tenant, admin, master] = await Promise.all([
+      callDataApiRpc<unknown>(req, "has_tenant_access", { target_tenant: municipalityId }),
+      callDataApiRpc<unknown>(req, "is_municipality_admin", {}),
+      callDataApiRpc<unknown>(req, "is_master", {}),
+    ]);
+    if (!tenant.ok || !booleanResult(tenant.payload) ||
+      !(admin.ok && booleanResult(admin.payload)) &&
+        !(master.ok && booleanResult(master.payload))) return false;
+  }
   const allowance = await callDataApiRpc(req, "assert_municipality_entitlement_v1", {
     _municipality_id: municipalityId,
     _capability: "storage_bytes",
@@ -91,7 +101,7 @@ export default async function handler(req: Req, res: Res) {
   if (!input) return json(res, 400, {
     error: "Somente PDF oficial de legislação, até 100 MB, com chave municipal válida.",
   });
-  if (!await authorize(req, input.municipalityId, input.fileSize)) return json(res, 403, {
+  if (!await authorize(req, input.municipalityId, input.fileSize, input.registryUpload)) return json(res, 403, {
     error: "Usuário sem permissão administrativa ou limite de armazenamento municipal excedido.",
   });
   try {

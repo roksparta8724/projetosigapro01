@@ -287,13 +287,14 @@ export async function getSignedUrlForObjectStrict(input: {
 }
 
 const LARGE_LEGAL_PDF_THRESHOLD = 2 * 1024 * 1024;
-const LEGAL_PDF_KEY = /^municipalities\/[0-9a-f-]{36}\/legislation-(?:plano-diretor|uso-solo|zoneamento|leis-complementares)\//i;
+const LEGAL_PDF_KEY = /^municipalities\/[0-9a-f-]{36}\/legislation-(?:plano-diretor|uso-solo|zoneamento|leis-complementares|registry)\//i;
 
 /** PDFs above ~2 MiB cannot reliably transit Vercel as Base64 JSON. */
 export function isDirectLegalPdfUpload(bucket: string, objectKey: string, file: { name: string; size: number }) {
   return normalizeClientBucket(bucket) === "process-documents" &&
     LEGAL_PDF_KEY.test(objectKey) &&
-    /\.pdf$/i.test(file.name) && file.size > LARGE_LEGAL_PDF_THRESHOLD;
+    /\.pdf$/i.test(file.name) &&
+    (file.size > LARGE_LEGAL_PDF_THRESHOLD || /\/legislation-registry\//i.test(objectKey));
 }
 
 async function uploadLargeLegalPdf(input: {bucket: string; objectKey: string; file: File}) {

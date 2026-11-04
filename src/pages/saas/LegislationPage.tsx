@@ -14,6 +14,7 @@ import {
 } from "@/components/platform/PageShell";
 import { PortalFrame } from "@/components/platform/PortalFrame";
 import { UrbanOfficialLegalSourcesPanel } from "@/components/platform/UrbanOfficialLegalSourcesPanel";
+import { UrbanLegislationRegistryPanel } from "@/components/platform/UrbanLegislationRegistryPanel";
 import { QuickActionsCard } from "@/components/platform/QuickActionsCard";
 import { SectionCard } from "@/components/platform/SectionCard";
 import { SummaryCard } from "@/components/platform/SummaryCard";
@@ -253,6 +254,10 @@ export function LegislationPage() {
           value={view}
           onChange={(value) => setView(value as LegislationView)}
         />
+
+        {(view === "visao-geral" || view === "referencias") ? (
+          <UrbanLegislationRegistryPanel municipalityId={effectiveScopeId} />
+        ) : null}
 
         {(view === "visao-geral" || view === "referencias") ? (
           <UrbanOfficialLegalSourcesPanel municipalityId={effectiveScopeId} />
