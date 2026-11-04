@@ -242,7 +242,7 @@ export type UrbanQuadroIIWorkspace = {
   document_sha256?: string;
   pages: UrbanQuadroIIPage[];
   entries: UrbanQuadroIIDraft[];
-  legal_approval?: false;
+  legal_approval?: boolean; // Remains false in unapproved Quadro II workspace; never infer approval.
   ready_for_ai?: false;
 };
 export type UrbanQuadroIIDraftInput = {
