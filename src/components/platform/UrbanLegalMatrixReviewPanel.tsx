@@ -8,6 +8,8 @@ import {
 } from "@/integrations/backend/urbanPrecheckClient";
 import { calculateUrbanMatrixBatchProgress, describePendingAnalystCa, describeUrbanMatrixRow, formatUrbanMatrixSourceValue } from "@/lib/urbanLegalMatrixReview";
 import { prepareUrbanRuleDraftFromReviewedRow, type PreparedUrbanMatrixDraft } from "@/lib/urbanMatrixDraftPreparation";
+import { getAiu2ProvisionalCriterion } from "@/lib/urbanAiu2Provisional";
+import { Aiu2ProvisionalComparison } from "@/components/platform/Aiu2ProvisionalComparison";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -385,6 +387,7 @@ export function UrbanLegalMatrixReviewPanel({
                   g.status === "pending_documentary_confirmation"
                 );
                 const pendingCa = describePendingAnalystCa(analystGuidance);
+                const provisionalCa = getAiu2ProvisionalCriterion(entry.source, entry.index, analystGuidance);
                 // Keep the legal evidence and audit log, but avoid turning a
                 // single AIU(2) pending item into a several-screen-tall card.
                 const auditHistory = (
@@ -395,21 +398,30 @@ export function UrbanLegalMatrixReviewPanel({
                           <strong className="block">Por que a AIU(2) continua pendente?</strong>
                           A extração antiga levantou a hipótese de 0,1 sem confirmação.
                           O analista orientou {pendingCa.formatted}. São informações conflitantes
-                          na leitura, não duas normas válidas. É necessária comprovação documental
-                          para liberar o índice à IA.
+                          na leitura, não duas normas válidas. {provisionalCa
+                            ? "A Prefeitura utiliza 1 como critério técnico transitório na revisão manual, enquanto aguarda o CONCIDADE."
+                            : "É necessária comprovação documental para liberar o índice à IA."}
                         </p>
                       ) : null}
                       {pendingCa && analystGuidance ? (
                         <div data-urban-matrix-analyst-guidance="true"
                           className="space-y-2 rounded-xl border border-sky-200 bg-sky-50 p-3 text-slate-900">
                           <strong className="block text-sm text-sky-950">Origem da proposta e situação legal</strong>
+                          {provisionalCa ? <p data-aiu2-provisional-label="true"
+                            className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm font-extrabold text-amber-950">
+                            CA mínimo = 1,00 · critério técnico provisório da Prefeitura.
+                            CONCIDADE ainda não deliberou; revisão da lei pendente.
+                            Somente simulação manual, não aprovação automática.
+                          </p> : null}
                           <p className="leading-5">
                             Orientação do analista relatada pelo solicitante.
                             OCR original: “{pendingCa.sourceOcr}”. A extração original foi preservada.
                           </p>
                           <p className="font-semibold text-amber-950">
-                            {pendingCa.status}. Não ativado para análise automática.
+                            {provisionalCa ? "Critério técnico provisório, sem homologação jurídica" : pendingCa.status}.
+                            Não ativado para análise automática.
                           </p>
+                          {provisionalCa ? <Aiu2ProvisionalComparison criterion={provisionalCa} /> : null}
                           <details className="rounded-lg border border-sky-200 bg-white px-3 py-2">
                             <summary className="cursor-pointer font-bold text-sky-950">
                               Ver registro detalhado da orientação
@@ -449,7 +461,9 @@ export function UrbanLegalMatrixReviewPanel({
                       {pendingCa ? (
                         <span data-urban-matrix-ca-chip="true"
                           className="max-w-full break-words rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-950">
-                          CA mínimo proposto: {pendingCa.formatted} · pendente
+                          {provisionalCa
+                            ? "CA mínimo provisório: 1,00 · CONCIDADE pendente"
+                            : `CA mínimo proposto: ${pendingCa.formatted} · pendente`}
                         </span>
                       ) : null}
                       <span className="text-xs text-slate-500">Quadro {row.quadro} · pág. {row.page}</span>

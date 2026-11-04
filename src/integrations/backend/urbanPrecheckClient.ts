@@ -95,6 +95,10 @@ export type UrbanMatrixAnalystGuidance = {
   attribution: "reported_by_user_as_analyst_guidance";
   source_note: string;
   status: "pending_documentary_confirmation";
+  provisional_manual_value?: number | null;
+  provisional_status?: "manual_only_pending_concidade" | "withdrawn" | null;
+  provisional_note?: string | null;
+  provisional_version?: number | null;
   created_at: string;
 };
 export type UrbanMatrixBatchDetail = {
