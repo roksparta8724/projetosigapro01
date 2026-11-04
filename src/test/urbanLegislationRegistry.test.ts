@@ -52,9 +52,10 @@ describe("SIGAPRO — municipal legislation registry", () => {
     expect(restrictive).toContain("public.is_internal_municipality_role()");
     expect(restrictive).toContain("prefeitura_admin");
     expect(server).toContain("can_manage_urban_legislation_registry_v1");
-    expect(server).toContain("input.registryUpload");
+    expect(server).toContain("authorize(req, input.municipalityId, input.fileSize)");
     expect(client).toContain("legislation-registry");
     expect(client).toContain("isDirectLegalPdfUpload");
+    expect(read("neon/migrations/20261104_urban_legislation_prefeitura_admin_writer_v2.sql")).toContain("prefeitura_admin");
   });
   it("shows the individual register only on the dedicated management subpage", () => {
     const settings = read("src/components/platform/MunicipalUrbanRulesSettings.tsx");

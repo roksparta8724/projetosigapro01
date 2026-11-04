@@ -75,7 +75,8 @@ export function UrbanLegislationRegistryPanel({
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [referenceChoice, setReferenceChoice] = useState("");
-  const canWrite = Boolean(municipalityId && canEditUrbanLegislationManagement(session.role));
+  const canWrite = Boolean(municipalityId && session.tenantId === municipalityId &&
+    canEditUrbanLegislationManagement(session.role));
   const officialSources = useMemo(() =>
     getMunicipalOfficialUrbanSources(municipalityId), [municipalityId]);
 
@@ -253,7 +254,7 @@ export function UrbanLegislationRegistryPanel({
           </button>
         ) : (
           <span className="rounded-full bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-700">
-            Consulta — o Master cadastra as leis
+            Consulta — cadastro pelo Admin da Prefeitura
           </span>
         )}
       </div>
@@ -262,7 +263,7 @@ export function UrbanLegislationRegistryPanel({
         <ShieldAlert className="mr-1 inline h-4 w-4" />
         Salvar documento não comprova vigência nem ativa regras para a IA.
         As leis relacionadas são apenas referências documentais até a conferência jurídica.
-        O administrador da Prefeitura pode consultar, mas não modificar esta base.
+        O Admin da Prefeitura cadastra os documentos; a conferência jurídica é necessária antes de liberar parâmetros para a IA.
       </p>
 
       {formOpen && canWrite ? (
@@ -427,7 +428,7 @@ export function UrbanLegislationRegistryPanel({
           Nenhuma lei cadastrada neste módulo. Os PDFs do acervo institucional anterior
           são preservados separadamente. {canWrite
             ? "Para importar novas normas, use Cadastrar lei / PDF adicional, uma lei ou decreto por arquivo."
-            : "O Master deve registrar as normas adicionais; elas aparecerão aqui para consulta quando forem cadastradas."}
+            : "O administrador da Prefeitura deve registrar as normas adicionais; elas aparecerão aqui para consulta."}
         </p>
       ) : null}
       <div className="mt-3 grid min-w-0 gap-2 xl:grid-cols-2">

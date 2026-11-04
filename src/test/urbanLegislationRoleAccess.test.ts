@@ -22,11 +22,9 @@ describe("SIGAPRO admin-only legal management", () => {
     }
     expect(canViewUrbanLegislationManagement(null)).toBe(false);
   });
-  it("Admin Prefeitura is strictly read-only; supervisor and employees cannot edit", () => {
+  it("only Prefeitura Admin edits municipal legislation", () => {
     for (const role of allRoles) {
-      expect(canEditUrbanLegislationManagement(role)).toBe(
-        role === "master_admin" || role === "master_ops",
-      );
+      expect(canEditUrbanLegislationManagement(role)).toBe(role === "prefeitura_admin");
     }
   });
   it("protects the route even if a user manually enters its URL or loads from F5", () => {

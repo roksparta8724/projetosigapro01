@@ -325,6 +325,24 @@ export default async function handler(req: Req, res: Res) {
       ? await resolveMunicipalDocumentTarget(req, municipalityId, bucket, objectKey)
       : null;
 
+    // Base64 uploads of small legal PDFs must match the signed-upload policy.
+    const isLegalDocumentUpload = municipalityId &&
+      bucket === (readEnv("R2_BUCKET_DOCUMENTOS") || "sigapro-documentos") &&
+      /^municipalities\/[0-9a-f-]{36}\/legislation-(?:plano-diretor|uso-solo|zoneamento|leis-complementares|registry)\//i.test(objectKey);
+    if (isLegalDocumentUpload) {
+      if (contentType !== "application/pdf" || buffer.subarray(0, 5).toString() !== "%PDF-") {
+        json(res, 400, { error: "Somente PDFs oficiais podem integrar o acervo legal." });
+        return;
+      }
+      const grant = await callDataApiRpc(req, "can_manage_urban_legislation_registry_v1", {
+        _municipality_id: municipalityId,
+      });
+      if (!grant.ok || (grant.payload !== true && grant.payload !== "true")) {
+        json(res, 403, { error: "Somente o administrador desta Prefeitura pode enviar sua legislação." });
+        return;
+      }
+    }
+
     if (municipalityId) {
       const accessCheck = await callDataApiRpc(req, "has_tenant_access", {
         target_tenant: municipalityId,

@@ -178,7 +178,7 @@ export function FileDropZone({
           {readOnly ? (
             <span data-upload-consultation="true"
               className="inline-flex min-h-10 max-w-full items-center justify-center rounded-full border border-slate-300 bg-slate-100 px-4 py-2 text-center text-xs font-bold text-slate-800 dark:border-slate-600 dark:bg-slate-800 dark:text-white">
-              Somente consulta — edição pelo Master
+              {appearance === "legal" ? "Somente consulta — edição pela Prefeitura" : "Somente consulta"}
             </span>
           ) : (
           <div className={cn("flex w-full flex-col gap-3", !stacked && "sm:flex-row sm:flex-wrap xl:w-auto xl:max-w-[240px] xl:justify-end")}>
@@ -212,7 +212,7 @@ export function FileDropZone({
       {readOnly && files.length === 0 ? (
         <p data-upload-empty-read-only="true"
           className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-3 text-xs font-medium leading-5 text-slate-700 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200">
-          Nenhum PDF vinculado a este campo. O Master pode cadastrar o documento oficial; esta conta possui acesso de consulta.
+          Nenhum PDF vinculado a este campo. {appearance === "legal" ? "O administrador da Prefeitura pode cadastrar este documento." : "Solicite o cadastro à equipe responsável."} Esta conta possui acesso de consulta.
         </p>
       ) : null}
       {files.length > 0 ? (

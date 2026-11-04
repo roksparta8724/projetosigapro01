@@ -237,7 +237,8 @@ export function ConfiguracoesPage({ legislationWorkspace = false }: { legislatio
   const { headerBranding, footerBranding } = useInstitutionBranding(selectedTenantId || scopeId || session.tenantId);
   const userProfile = getUserProfile(session.id, authenticatedEmail ?? session.email);
   const canManageTenantSettings = can(session, "manage_tenant_branding");
-  const canManageLegislation = canEditUrbanLegislationManagement(session.role);
+  const canManageLegislation = canEditUrbanLegislationManagement(session.role) &&
+    Boolean(session.tenantId && selectedTenantId === session.tenantId);
   const isMasterRole =
     bootstrap.scopeType === "platform" ||
     session.role === "master_admin" ||
@@ -2505,6 +2506,9 @@ export function ConfiguracoesPage({ legislationWorkspace = false }: { legislatio
       if (!savedTenantId) {
         throw new Error("Selecione uma Prefeitura válida antes de salvar os arquivos institucionais.");
       }
+      if (kind === "legislation" && (!canManageLegislation || savedTenantId !== session.tenantId)) {
+        throw new Error("Somente o administrador desta Prefeitura pode cadastrar sua legislação.");
+      }
 
       const nextBrasaoFiles = kind === "branding" ? await uploadInstitutionalAssetList(
         brasaoFiles, "branding/brasao", savedTenantId,
@@ -3256,8 +3260,8 @@ export function ConfiguracoesPage({ legislationWorkspace = false }: { legislatio
                 <p data-legal-upload-permission="true"
                   className="mb-4 min-w-0 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-xs font-semibold leading-5 text-slate-900 dark:border-sky-700 dark:bg-slate-950 dark:text-slate-100">
                   {canManageLegislation
-                    ? "Perfil Master: você pode anexar PDFs oficiais nos campos que ainda estiverem vazios. Para cada nova lei complementar, decreto ou alteração, utilize o cadastro individual acima; não substitua os PDFs históricos."
-                    : "Somente consulta: o cadastro, a substituição e a exclusão destes PDFs são exclusivos do Master. Os arquivos salvos permanecem disponíveis para visualização e download nesta Prefeitura."}
+                    ? "Admin da Prefeitura: cadastre os PDFs oficiais do seu município. Para novas leis, decretos e alterações, use o acervo individual acima e preserve as versões históricas."
+                    : "Somente consulta: o cadastro e a atualização da legislação são responsabilidade do administrador da própria Prefeitura."}
                 </p>
                 <div className="grid min-w-0 grid-cols-1 gap-5 lg:grid-cols-2">
                   <FileDropZone
@@ -3328,7 +3332,7 @@ export function ConfiguracoesPage({ legislationWorkspace = false }: { legislatio
                     <p className="mt-1 text-xs leading-5 text-slate-600 dark:text-slate-200">
                       {canManageLegislation
                         ? "O SIGAPRO envia os arquivos ao armazenamento oficial e grava os vínculos no banco da Prefeitura. Salve somente arquivos escolhidos nesta sessão; os PDFs existentes são preservados."
-                        : "Área de consulta. O Master faz o cadastro de documentos oficiais; eles ficam disponíveis para o Administrador da Prefeitura sem necessidade de outro upload."}
+                        : "Somente consulta. O administrador da Prefeitura cadastra os documentos; o Master acompanha o acervo."}
                     </p>
                     {institutionalAssetsStatus ? (
                       <p
@@ -3354,7 +3358,7 @@ export function ConfiguracoesPage({ legislationWorkspace = false }: { legislatio
                     </Button>
                   ) : (
                     <span className="min-w-0 rounded-full border border-sky-200 bg-sky-50 px-4 py-2 text-xs font-bold text-sky-900 dark:border-sky-700 dark:bg-slate-800 dark:text-white">
-                      Consulta autorizada — sem edição
+                      Consulta autorizada — edição pela Prefeitura
                     </span>
                   )}
                 </div>

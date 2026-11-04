@@ -49,7 +49,7 @@ describe("SIGAPRO premium legal page separation", () => {
     expect(registry).toContain("max-w-full overflow-hidden");
     expect(registry).toContain("[overflow-wrap:anywhere]");
   });
-  it("keeps municipal admin read-only within legal management", () => {
+  it("allows municipal legislation edits without modifying process permissions", () => {
     expect(config).toContain('const canManageLegislation = canEditUrbanLegislationManagement(session.role)');
     expect(app).toContain('allowedRoles={URBAN_LEGISLATION_VIEW_ROLES}');
     expect(config).toContain('canEdit={canManageLegislation}');
