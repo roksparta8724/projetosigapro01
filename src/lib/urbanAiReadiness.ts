@@ -1,5 +1,6 @@
 import { calculateUrbanMatrixBatchProgress } from "@/lib/urbanLegalMatrixReview";
 import { isUrbanTestFixtureRule, type UrbanRegulationVersion } from "@/lib/urbanPrecheck";
+import { countCoveredUrbanMetrics, type UrbanLegalEvidenceScope } from "@/lib/urbanEvidenceCoverage";
 import type {
   UrbanMatrixBatchDetail, UrbanMatrixRowReadingAudit, UrbanQuadroIIWorkspace,
 } from "@/integrations/backend/urbanPrecheckClient";
@@ -13,7 +14,7 @@ export type UrbanReadinessInput = {
   audits: UrbanMatrixRowReadingAudit[];
   quadroII: UrbanQuadroIIWorkspace | null;
   matrixImports: Array<{ quadro: string; status: string }>;
-  verifiedEvidence: Array<{ id: string; metric: string }>;
+  verifiedEvidence: UrbanLegalEvidenceScope[];
   regulations: UrbanRegulationVersion[];
   versionedLawCount: number;
 };
@@ -27,7 +28,7 @@ export type UrbanReadinessSummary = {
   quadroII: { pages: number; draftEntries: number; machineProposals: number };
   counts: {
     versionedLaws: number; numericImports: number; useImports: number;
-    verifiedEvidence: number; officialActive: number; fictitiousQA: number;
+    verifiedEvidence: number; officialActive: number; evidencedActive: number; fictitiousQA: number;
   };
   checks: UrbanReadinessCheck[];
 };
@@ -56,6 +57,12 @@ export function assessUrbanAiReadiness(data: UrbanReadinessInput): UrbanReadines
   const useImports = data.matrixImports.filter((row) => row.quadro === "II").length;
   const verifiedEvidence = data.verifiedEvidence.filter((row) =>
     Boolean(row.id && row.metric)).length;
+  // Do not mistake one unrelated citation for full legal coverage. Evidence
+  // must match every metric of the same municipality, zone, use and period.
+  const evidencedActive = data.regulations.filter((version) =>
+    version.status === "active" && !isUrbanTestFixtureRule(version) &&
+    version.rules.length > 0 &&
+    countCoveredUrbanMetrics(version, data.verifiedEvidence) === version.rules.length).length;
   const pages = data.quadroII?.pages.length ?? 0;
   const draftEntries = data.quadroII?.entries.length ?? 0;
   const machineProposals = (data.quadroII?.pages ?? []).reduce(
@@ -99,14 +106,15 @@ export function assessUrbanAiReadiness(data: UrbanReadinessInput): UrbanReadines
     },
     {
       code: "evidence", title: "Evidências por regra e vigência",
-      detail: verifiedEvidence + " evidência(s) com escopo legal. É necessária cobertura por índice, zona e uso.",
-      passed: verifiedEvidence > 0, quadro: null,
+      detail: verifiedEvidence + " evidência(s) registradas; " +
+        evidencedActive + " versão(ões) real(is) com cobertura de todos os índices, zona, uso e vigência.",
+      passed: evidencedActive > 0, quadro: null,
     },
     {
       code: "active", title: "Versões oficiais para pré-conferência",
       detail: officialActive + " versão(ões) não fictícia(s) ativa(s); " +
         fictitiousQA + " regra(s) de teste isolada(s).",
-      passed: officialActive > 0 && verifiedEvidence > 0, quadro: null,
+      passed: evidencedActive > 0, quadro: null,
     },
   ];
   return {
@@ -114,7 +122,7 @@ export function assessUrbanAiReadiness(data: UrbanReadinessInput): UrbanReadines
     reading,
     quadroII: { pages, draftEntries, machineProposals },
     counts: { versionedLaws: data.versionedLawCount, numericImports,
-      useImports, verifiedEvidence, officialActive, fictitiousQA },
+      useImports, verifiedEvidence, officialActive, evidencedActive, fictitiousQA },
     checks,
   };
 }

@@ -3416,7 +3416,7 @@ export function ConfiguracoesPage({ legislationWorkspace = false }: { legislatio
                         zoneamento: settings?.zoneamentoArquivoNome || "",
                         planoDiretor: settings?.planoDiretorArquivoNome || "",
                         leisComplementares: settings?.leisArquivoNome || "",
-                      }} />
+                      }} documentRef={settings?.usoSoloArquivoUrl || ""} />
               ) : null}
     </div>
   );

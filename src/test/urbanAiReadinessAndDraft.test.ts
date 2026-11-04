@@ -83,5 +83,6 @@ describe("SIGAPRO IA — completude jurídica e rascunho sem ativação", () => 
     expect(rules).toContain('setEffectiveFrom("")');
     expect(selector).toContain("!isUrbanTestFixtureRule(rule)");
     expect(readiness).toContain("listUrbanVerifiedEvidenceScopes");
+    expect(rules).toContain("<UrbanRegulationEvidencePanel");
   });
 });

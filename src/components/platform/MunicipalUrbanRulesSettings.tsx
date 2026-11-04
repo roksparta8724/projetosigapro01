@@ -7,6 +7,7 @@ import { UrbanLegalMatrixReviewPanel } from "@/components/platform/UrbanLegalMat
 import { UrbanQuadroIIWorkspacePanel } from "@/components/platform/UrbanQuadroIIWorkspacePanel";
 import { UrbanOfficialLegalSourcesPanel } from "@/components/platform/UrbanOfficialLegalSourcesPanel";
 import { UrbanAiReadinessPanel } from "@/components/platform/UrbanAiReadinessPanel";
+import { UrbanRegulationEvidencePanel } from "@/components/platform/UrbanRegulationEvidencePanel";
 import type { MunicipalLegalFiles } from "@/lib/urbanAiReadiness";
 import type { PreparedUrbanMatrixDraft } from "@/lib/urbanMatrixDraftPreparation";
 import { URBAN_METRICS, isUrbanTestFixtureRule, normalizeUrbanCode, type UrbanMetric, type UrbanRegulationVersion, type UrbanRule } from "@/lib/urbanPrecheck";
@@ -15,8 +16,9 @@ type EditableValue = { limit: string; reference: string };
 type DraftInputs = Partial<Record<UrbanMetric, EditableValue>>;
 
 export function MunicipalUrbanRulesSettings({
-  municipalityId, canEdit, documentFiles,
-}: { municipalityId: string; canEdit: boolean; documentFiles?: MunicipalLegalFiles }) {
+  municipalityId, canEdit, documentFiles, documentRef,
+}: { municipalityId: string; canEdit: boolean; documentFiles?: MunicipalLegalFiles;
+  documentRef?: string }) {
   const editorRef = useRef<HTMLDetailsElement>(null);
   const [sourceContext, setSourceContext] = useState<string[]>([]);
   const [versions, setVersions] = useState<UrbanRegulationVersion[]>([]);
@@ -307,9 +309,17 @@ export function MunicipalUrbanRulesSettings({
               </div>
               <div className="flex items-center gap-2">
                 {item.status === "active" && !isUrbanTestFixtureRule(item) ? <CheckCircle2 className="h-5 w-5 text-emerald-600" aria-label="Versão ativa" /> : null}
-                {item.status === "draft" && canEdit && !isUrbanTestFixtureRule(item) ?
-                  <Button type="button" variant="outline" disabled={busy} onClick={() => void activate(item.id)}>Validar e ativar</Button> : null}
+                {item.status === "draft" && !isUrbanTestFixtureRule(item) ?
+                  <span className="text-xs font-semibold text-amber-800 dark:text-amber-200">
+                    Evidência legal obrigatória antes da ativação
+                  </span> : null}
               </div>
+              {!isUrbanTestFixtureRule(item) && (item.status === "draft" || item.status === "active") ? (
+                <UrbanRegulationEvidencePanel version={item} municipalityId={municipalityId}
+                  canEdit={canEdit} sourceRef={documentRef}
+                  sourceFileName={documentFiles?.usoSolo}
+                  onActivate={() => void activate(item.id)} />
+              ) : null}
             </article>
           ))}
         </div>

@@ -1,4 +1,5 @@
 import { backendClient } from "@/integrations/backend/databaseClient";
+import type { UrbanLegalEvidenceScope } from "@/lib/urbanEvidenceCoverage";
 import { normalizeUrbanCode, validateUrbanRules, type UrbanMeasurements, type UrbanRegulationVersion, type UrbanRule } from "@/lib/urbanPrecheck";
 
 async function invoke<T>(name: string, args: Record<string, unknown>): Promise<T> {
@@ -21,10 +22,39 @@ export async function listUrbanLegalMatrixImports(municipalityId: string): Promi
   return data as Array<{ quadro: string; status: string }>;
 }
 
-export async function listUrbanVerifiedEvidenceScopes(municipalityId: string): Promise<Array<{ id: string; metric: string }>> {
+export async function listUrbanVerifiedEvidenceScopes(municipalityId: string): Promise<UrbanLegalEvidenceScope[]> {
   const data = await invoke<unknown>("list_urban_legal_evidence_v2", { _municipality_id: municipalityId });
   if (!Array.isArray(data)) throw new Error("Evidências jurídicas sem resposta verificável.");
-  return data as Array<{ id: string; metric: string }>;
+  return data as UrbanLegalEvidenceScope[];
+}
+
+/** Each normative index requires an official literal excerpt and an authenticated municipal reviewer. */
+export async function saveUrbanScopedLegalEvidence(input: {
+  versionId: string; municipalityId: string; documentTitle: string;
+  documentSha256: string; metric: string; pageNumber: number; excerpt: string;
+  effectiveFrom: string; verificationMethod: "text_layer_verified" | "visual_double_transcription";
+}): Promise<{ id: string; status: string }> {
+  if (!/^[0-9a-f-]{36}$/i.test(input.versionId) ||
+    !/^[0-9a-f-]{36}$/i.test(input.municipalityId) ||
+    !/^[a-f0-9]{64}$/i.test(input.documentSha256) ||
+    !Number.isInteger(input.pageNumber) || input.pageNumber < 1 || input.pageNumber > 10000 ||
+    input.documentTitle.trim().length < 4 || input.documentTitle.length > 180 ||
+    input.excerpt.trim().length < 15 || input.excerpt.trim().length > 500 ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(input.effectiveFrom) || !input.metric) {
+    throw new Error("Documento, SHA-256, página, vigência ou trecho literal inválido.");
+  }
+  const result = await invoke<{ id: string; status: string }>("save_urban_legal_evidence_scoped_v4", {
+    _regulation_version_id: input.versionId,
+    _document_title: input.documentTitle.trim(),
+    _document_sha256: input.documentSha256.toLowerCase(),
+    _page_number: input.pageNumber, _metric: input.metric,
+    _excerpt: input.excerpt.trim(), _effective_from: input.effectiveFrom,
+    _effective_until: null, _verification_method: input.verificationMethod,
+  });
+  if (!result || result.status !== "verified_evidence" || !result.id) {
+    throw new Error("O banco não confirmou a evidência jurídica desta regra.");
+  }
+  return result;
 }
 
 export async function saveUrbanRegulationDraft(
