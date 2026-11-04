@@ -115,7 +115,7 @@ export default async function handler(req: Req, res: Res) {
     error: "Somente PDF oficial de legislação, até 100 MB, com chave municipal válida.",
   });
   const gate = await authorize(req, input.municipalityId, input.fileSize);
-  if (!gate.ok) return json(res, gate.status, { code: gate.code, error: gate.error });
+  if (gate.ok === false) return json(res, gate.status, { code: gate.code, error: gate.error });
   try {
     const target = await resolveMunicipalDocumentTarget(req, input.municipalityId,
       env("R2_BUCKET_DOCUMENTOS") || "sigapro-documentos", input.objectKey);
