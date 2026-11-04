@@ -93,7 +93,7 @@ describe("SIGAPRO — direct secure legal PDF upload", () => {
     mock.rpc.mockImplementation(async (_req:unknown,fn:string) => ({
       ok:fn !== "assert_municipality_entitlement_v1",status:409,payload:true,
     }));
-    expect((await call()).status).toBe(403);
+    expect((await call()).status).toBe(409);
     expect(mock.sign).not.toHaveBeenCalled();
   });
   it("runs an authorized, read-only CORS preflight against signed R2 endpoint without exposing URL", async () => {

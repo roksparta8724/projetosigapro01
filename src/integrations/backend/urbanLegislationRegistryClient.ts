@@ -1,5 +1,38 @@
 import { backendClient } from "@/integrations/backend/databaseClient";
 
+
+/**
+ * Refuse an upload before using R2 when the authenticated municipality
+ * cannot write official legislation in the active Neon/Data API environment.
+ * Never fall back to Master credentials or to another municipality.
+ */
+export async function assertUrbanLegislationWriteAccess(municipalityId: string): Promise<void> {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(municipalityId)) {
+    throw new Error("Não foi possível identificar a Prefeitura para registrar esta legislação.");
+  }
+  if (!backendClient) {
+    throw new Error("O banco municipal deste ambiente não está conectado. Nenhum PDF foi publicado.");
+  }
+  let result: Awaited<ReturnType<typeof backendClient.rpc>>;
+  try {
+    result = await backendClient.rpc("can_manage_urban_legislation_registry_v1", {
+      _municipality_id: municipalityId,
+    });
+  } catch {
+    throw new Error("Não foi possível consultar a autorização de legislação no banco de homologação. Nenhum PDF foi publicado.");
+  }
+  if (result.error) {
+    const details = [result.error.code, result.error.message].filter(Boolean).join(" ");
+    if (/PGRST202|schema cache|could not find|does not exist|not found/i.test(details)) {
+      throw new Error("O banco deste ambiente ainda não possui a autorização de cadastro de legislação. É necessário sincronizar a migração municipal da homologação antes de enviar documentos.");
+    }
+    throw new Error("A consulta de autorização do acervo legal falhou no banco. Nenhum PDF foi publicado; confira a configuração da homologação.");
+  }
+  if (result.data !== true) {
+    throw new Error("O banco não autorizou o cadastro de legislação para esta conta e Prefeitura. Confira o vínculo municipal e as permissões da homologação; nenhum PDF foi publicado.");
+  }
+}
+
 export const LAW_KINDS = [
   { value: "lei_complementar", label: "Lei complementar" },
   { value: "lei_ordinaria", label: "Lei ordinária" },

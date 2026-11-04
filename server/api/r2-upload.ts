@@ -337,8 +337,22 @@ export default async function handler(req: Req, res: Res) {
       const grant = await callDataApiRpc(req, "can_manage_urban_legislation_registry_v1", {
         _municipality_id: municipalityId,
       });
-      if (!grant.ok || (grant.payload !== true && grant.payload !== "true")) {
-        json(res, 403, { error: "Somente o administrador desta Prefeitura pode enviar sua legislação." });
+      if (!grant.ok) {
+        const missing = grant.status === 404 ||
+          /PGRST202|schema cache|could not find|does not exist/i.test(grant.error);
+        json(res, missing ? 503 : grant.status === 403 ? 403 : 503, {
+          code: missing ? "LEGAL_AUTH_SCHEMA_MISSING" : "LEGAL_AUTH_UNAVAILABLE",
+          error: missing
+            ? "A autorização de legislação não está instalada no banco deste ambiente de homologação."
+            : "A autorização de legislação da Prefeitura não pôde ser verificada.",
+        });
+        return;
+      }
+      if (grant.payload !== true && grant.payload !== "true") {
+        json(res, 403, {
+          code: "LEGAL_ROLE_DENIED",
+          error: "Esta conta não está autorizada a cadastrar legislação nesta Prefeitura.",
+        });
         return;
       }
     }

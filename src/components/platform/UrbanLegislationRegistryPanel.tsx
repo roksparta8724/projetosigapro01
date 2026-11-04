@@ -6,7 +6,7 @@ import { getLegislationOpenUrl } from "@/integrations/r2/client";
 import { getMunicipalOfficialUrbanSources } from "@/lib/urbanOfficialLegalSources";
 import { canEditUrbanLegislationManagement, canViewUrbanLegislationManagement } from "@/lib/urbanLegislationAccess";
 import {
-  LAW_KINDS, LAW_SCOPES, LAW_RELATIONS, listLawRegistry, registerLaw,
+  LAW_KINDS, LAW_SCOPES, LAW_RELATIONS, assertUrbanLegislationWriteAccess, listLawRegistry, registerLaw,
   setLawArchived, validateLawRegistryInput, type LawKind, type LawScope,
   type LawRegistryItem, type LawRegistryInput,
 } from "@/integrations/backend/urbanLegislationRegistryClient";
@@ -180,6 +180,7 @@ export function UrbanLegislationRegistryPanel({
     if (validation) { setError(validation); return; }
     setSaving(true);
     try {
+      await assertUrbanLegislationWriteAccess(municipalityId);
       let uploaded = pendingUpload.current?.file === file ? pendingUpload.current : null;
       if (!uploaded) {
         const sha256 = await computePdfSha256(file);
@@ -216,6 +217,7 @@ export function UrbanLegislationRegistryPanel({
     if (reason === null) return;
     setSaving(true); setError(""); setNotice("");
     try {
+      await assertUrbanLegislationWriteAccess(municipalityId);
       await setLawArchived(municipalityId, item.id, !item.archived, reason);
       await refresh();
       setNotice("Registro " + (item.archived ? "restaurado" : "arquivado") +

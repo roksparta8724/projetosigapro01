@@ -56,6 +56,7 @@ import {
 } from "@/lib/municipalLogoFraming";
 import { getLegislationOpenUrl, getStableMunicipalLegislationReference, getMunicipalityLogoOpenUrl, getObjectKeyFromPublicUrl, getPublicUrl, getSignedUrlForObject, getSignedUrlForObjectStrict } from "@/integrations/r2/client";
 import { uploadFileToStorage } from "@/integrations/r2/storage";
+import { assertUrbanLegislationWriteAccess } from "@/integrations/backend/urbanLegislationRegistryClient";
 import {
   getMasterInstitutionBranding,
   loadMasterBranding,
@@ -990,6 +991,7 @@ export function ConfiguracoesPage({ legislationWorkspace = false }: { legislatio
   const [brasaoFiles, setBrasaoFiles] = useState<UploadedFileItem[]>(imageFiles(settings?.brasaoUrl ?? "", "brasao"));
   const [bandeiraFiles, setBandeiraFiles] = useState<UploadedFileItem[]>(imageFiles(settings?.bandeiraUrl ?? "", "bandeira"));
   const [heroFiles, setHeroFiles] = useState<UploadedFileItem[]>(imageFiles(settings?.imagemHeroUrl ?? "", "imagem institucional"));
+  const stagedLegalUploadsRef = useRef(new Map<File, UploadedFileItem>());
   const [planoDiretorFiles, setPlanoDiretorFiles] = useState<UploadedFileItem[]>(() =>
     storedInstitutionalDocument(
       settings?.planoDiretorArquivoUrl,
@@ -2441,6 +2443,12 @@ export function ConfiguracoesPage({ legislationWorkspace = false }: { legislatio
     if (!item?.file) {
       return files;
     }
+    // Reuse already uploaded (but not yet database-committed) files on retry.
+    // A failed second PDF must not create another object for the first PDF.
+    const staged = bucket === "process-documents" ? stagedLegalUploadsRef.current.get(item.file) : undefined;
+    if (staged?.storagePath?.startsWith("municipalities/" + savedTenantId + "/")) {
+      return [staged];
+    }
 
     const mimeType = item.file.type || item.mimeType || "application/octet-stream";
     const isAllowed = mimeType === "application/pdf" || mimeType.startsWith("image/");
@@ -2474,22 +2482,20 @@ export function ConfiguracoesPage({ legislationWorkspace = false }: { legislatio
       uploaded.publicUrl ||
       (bucket === "institutional-branding"
         ? getMunicipalityLogoOpenUrl(uploaded.path)
-        : await getSignedUrlForObjectStrict({
-            bucket: previewBucket,
-            objectKey: uploaded.path,
-            expiresIn: 21600,
-          }));
+        : getLegislationOpenUrl(`r2:${uploaded.path}`));
 
-    return [
-      {
-        ...item,
-        previewUrl,
-        persistentRef: uploaded.publicUrl || `r2:${uploaded.path}`,
-        storagePath: uploaded.path,
-        file: undefined,
-        fileSizeBytes: item.fileSizeBytes ?? item.file.size,
-      },
-    ];
+    const savedItem: UploadedFileItem = {
+      ...item,
+      previewUrl,
+      persistentRef: uploaded.publicUrl || `r2:${uploaded.path}`,
+      storagePath: uploaded.path,
+      file: undefined,
+      fileSizeBytes: item.fileSizeBytes ?? item.file.size,
+    };
+    if (bucket === "process-documents") {
+      stagedLegalUploadsRef.current.set(item.file, savedItem);
+    }
+    return [savedItem];
   };
 
   const handleSaveInstitutionalAssets = async (kind: "branding" | "legislation") => {
@@ -2506,44 +2512,45 @@ export function ConfiguracoesPage({ legislationWorkspace = false }: { legislatio
       if (!savedTenantId) {
         throw new Error("Selecione uma Prefeitura válida antes de salvar os arquivos institucionais.");
       }
-      if (kind === "legislation" && (!canManageLegislation || savedTenantId !== session.tenantId)) {
-        throw new Error("Somente o administrador desta Prefeitura pode cadastrar sua legislação.");
+      if (kind === "legislation") {
+        if (!canManageLegislation || savedTenantId !== session.tenantId) {
+          throw new Error("Somente o administrador desta Prefeitura pode cadastrar sua legislação.");
+        }
+        if (!hasBackendEnv) {
+          throw new Error("O banco de homologação não está conectado. Não é possível publicar leis apenas no navegador.");
+        }
+        // Preflight before the first PDF: a missing/mismatched DB migration
+        // must never leave a misleading partially uploaded legal batch.
+        await assertUrbanLegislationWriteAccess(savedTenantId);
       }
 
       const nextBrasaoFiles = kind === "branding" ? await uploadInstitutionalAssetList(
         brasaoFiles, "branding/brasao", savedTenantId,
       ) : brasaoFiles;
-      setBrasaoFiles(nextBrasaoFiles);
 
       const nextBandeiraFiles = kind === "branding" ? await uploadInstitutionalAssetList(
         bandeiraFiles, "branding/bandeira", savedTenantId,
       ) : bandeiraFiles;
-      setBandeiraFiles(nextBandeiraFiles);
 
       const nextHeroFiles = kind === "branding" ? await uploadInstitutionalAssetList(
         heroFiles, "branding/portal", savedTenantId,
       ) : heroFiles;
-      setHeroFiles(nextHeroFiles);
 
       const nextPlanoDiretorFiles = kind === "legislation" ? await uploadInstitutionalAssetList(
         planoDiretorFiles, "legislation/plano-diretor", savedTenantId, "process-documents",
       ) : planoDiretorFiles;
-      setPlanoDiretorFiles(nextPlanoDiretorFiles);
 
       const nextUsoSoloFiles = kind === "legislation" ? await uploadInstitutionalAssetList(
         usoSoloFiles, "legislation/uso-solo", savedTenantId, "process-documents",
       ) : usoSoloFiles;
-      setUsoSoloFiles(nextUsoSoloFiles);
 
       const nextZoneamentoFiles = kind === "legislation" ? await uploadInstitutionalAssetList(
         zoneamentoFiles, "legislation/zoneamento", savedTenantId, "process-documents",
       ) : zoneamentoFiles;
-      setZoneamentoFiles(nextZoneamentoFiles);
 
       const nextLeisFiles = kind === "legislation" ? await uploadInstitutionalAssetList(
         leisFiles, "legislation/leis-complementares", savedTenantId, "process-documents",
       ) : leisFiles;
-      setLeisFiles(nextLeisFiles);
 
       const baseSettings =
         buildTenantSettingsFromMunicipality(
@@ -2595,6 +2602,9 @@ export function ConfiguracoesPage({ legislationWorkspace = false }: { legislatio
         await bootstrap.refreshMunicipalityBundle(savedTenantId);
       }
 
+      if (kind === "legislation") {
+        stagedLegalUploadsRef.current.clear();
+      }
       if (typeof window !== "undefined") {
         window.dispatchEvent(
           new CustomEvent("sigapro-municipality-settings-updated", {
@@ -2618,9 +2628,10 @@ export function ConfiguracoesPage({ legislationWorkspace = false }: { legislatio
       );;
     } catch (error) {
       setInstitutionalAssetsStatus(
-        error instanceof Error
+        (error instanceof Error
           ? error.message
-          : "Não foi possível salvar os arquivos institucionais.",
+          : "Não foi possível salvar os arquivos institucionais.") +
+          (kind === "legislation" ? " Confira no acervo antes de reenviar: uma tentativa interrompida não confirma o vínculo do documento no banco." : ""),
       );
     } finally {
       setInstitutionalAssetsSaving(false);
@@ -3247,9 +3258,13 @@ export function ConfiguracoesPage({ legislationWorkspace = false }: { legislatio
                     <p className="mt-1 max-w-3xl text-xs leading-5 text-slate-600 dark:text-slate-200">
                       Estes quatro campos mantêm os PDFs institucionais já utilizados pela Prefeitura e alimentam
                       as consultas antigas do módulo Legislação. Cada campo armazena somente um PDF,
-                      inclusive o campo legado de Leis Complementares. Para acrescentar quantas leis,
+                      inclusive o campo legado de Leis Complementares. Um PDF só com os quadros não substitui a lei que os instituiu:
+                      cadastre a LC 379/2009 e cada Quadro oficial como documentos vinculados no acervo individual,
+                      com suas alterações e vigência conferidas. Para acrescentar quantas leis,
                       decretos e anexos forem necessários, use o cadastro individual destacado acima.
-                      Os documentos existentes são preservados. Minutas e propostas não são normas vigentes.
+                      Os arquivos anteriores não são excluídos do armazenamento por este formulário; o vínculo exibido
+                      no cadastro legado é atualizado. Para histórico auditável de versões, use o acervo individual.
+                      Minutas e propostas não são normas vigentes.
                     </p>
                   </div>
                   <span className="w-fit rounded-full border border-sky-200 bg-white px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-sky-700">
