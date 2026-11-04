@@ -2619,7 +2619,7 @@ export function ConfiguracoesPage({ legislationWorkspace = false }: { legislatio
       if (hasBackendEnv) {
         await withTimeout(
           kind === "legislation"
-            ? saveMunicipalLegacyLegalAssets(savedTenantId, legalChanges, crypto.randomUUID())
+            ? saveMunicipalLegacyLegalAssets(savedTenantId, legalChanges, crypto.randomUUID()).then(() => undefined)
             : saveRemoteInstitutionSettings(nextSettings, {
                 skipMunicipalityUpdate: true,
               }),
