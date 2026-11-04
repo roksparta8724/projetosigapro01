@@ -207,7 +207,7 @@ BEGIN
     'audit',to_jsonb(_audit)
   );
 END;
-$function$
+$function$;
 
 CREATE OR REPLACE FUNCTION public.create_process_dispatch(_process_id uuid, _from_department text, _to_department text, _subject text, _due_at timestamp with time zone DEFAULT NULL::timestamp with time zone, _visibility text DEFAULT 'interno'::text, _priority text DEFAULT 'media'::text, _assigned_to text DEFAULT NULL::text)
  RETURNS jsonb
@@ -489,4 +489,4 @@ begin
     'audit',to_jsonb(_audit)
   );
 end;
-$function$
+$function$;
