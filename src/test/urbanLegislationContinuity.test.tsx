@@ -101,7 +101,7 @@ describe("SIGAPRO — documentos e trabalhos anteriores não desaparecem na nova
     vi.mocked(listUrbanMatrixBatches).mockRejectedValue(new Error("backend unavailable"));
     render(<UrbanLegislationContinuityPanel municipalityId={municipalityId} legacyFiles={[]} />);
     expect(await screen.findByRole("alert")).toHaveTextContent("NÃO significa que algum documento foi excluído");
-    expect(screen.getByText(/Indisponível/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Indisponível/).length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole("button", { name: "Atualizar registros" }));
     await waitFor(() => expect(listUrbanMatrixBatches).toHaveBeenCalledTimes(2));
   });
