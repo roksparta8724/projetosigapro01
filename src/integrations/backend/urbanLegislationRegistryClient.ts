@@ -145,7 +145,13 @@ export function validateLawRegistryInput(
 async function rpc<T>(name: string, args: Record<string, unknown>): Promise<T> {
   if (!backendClient) throw new Error("Banco municipal indisponível.");
   const { data, error } = await backendClient.rpc(name, args);
-  if (error) throw new Error(error.message || String(error));
+  if (error) {
+    const details = [error.code, error.message].filter(Boolean).join(" ");
+    if (/PGRST202|without parameters|schema cache/i.test(details)) {
+      throw new Error("O cadastro jurídico não está disponível na conexão Neon deste ambiente. Confira a branch QA e a atualização do esquema; nenhum documento foi substituído.");
+    }
+    throw new Error(error.message || String(error));
+  }
   return data as T;
 }
 export async function listLawRegistry(

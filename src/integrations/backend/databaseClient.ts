@@ -15,8 +15,11 @@ const isLocalNeonRuntime =
 // Local QA must be explicitly enabled with BOTH auth and data URLs from the
 // SAME Neon branch. Otherwise localhost uses the official pair, never a mix.
 // The server enforces the matching data URL independently.
-const localIsolatedRequested =
-  isLocalNeonRuntime && import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true";
+const qaIsolationFlag = import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true";
+const localIsolatedRequested = isLocalNeonRuntime && qaIsolationFlag;
+// Every SIGAPRO Vercel preview must use explicitly paired Auth + Data API of
+// a non-production Neon branch. Never allow an implicit production fallback.
+const qaIsolationRequired = isNeonPreview || localIsolatedRequested;
 const localAuthOverride = String(import.meta.env.VITE_NEON_AUTH_URL || "").replace(/\/+$/, "");
 const localDataOverride = String(import.meta.env.VITE_NEON_DATA_API_URL || "").replace(/\/+$/, "");
 function neonEndpointIdentity(raw: string) {
@@ -25,21 +28,30 @@ function neonEndpointIdentity(raw: string) {
     return host.match(/^(ep-[^.]+)\.(?:neonauth|apirest)\./)?.[1] || "";
   } catch { return ""; }
 }
-const localIsolatedReady =
-  localIsolatedRequested &&
+const qaIsolatedReady =
+  qaIsolationRequired && qaIsolationFlag &&
   !!neonEndpointIdentity(localAuthOverride) &&
-  neonEndpointIdentity(localAuthOverride) === neonEndpointIdentity(localDataOverride);
+  neonEndpointIdentity(localAuthOverride) === neonEndpointIdentity(localDataOverride) &&
+  neonEndpointIdentity(localAuthOverride) !== neonEndpointIdentity(VALIDATED_NEON_AUTH_URL);
 
 const NEON_AUTH_URL = String(
-  isNeonProduction || (isLocalNeonRuntime && !localIsolatedReady)
+  isNeonProduction
     ? VALIDATED_NEON_AUTH_URL
-    : import.meta.env.VITE_NEON_AUTH_URL || (isNeonPreview ? VALIDATED_NEON_AUTH_URL : ""),
+    : qaIsolationRequired
+      ? (qaIsolatedReady ? localAuthOverride : "")
+      : isLocalNeonRuntime
+        ? VALIDATED_NEON_AUTH_URL
+        : localAuthOverride,
 ).replace(/\/+$/, "");
 
 const NEON_DATA_API_URL = String(
-  isNeonProduction || (isLocalNeonRuntime && !localIsolatedReady)
+  isNeonProduction
     ? VALIDATED_NEON_DATA_API_URL
-    : import.meta.env.VITE_NEON_DATA_API_URL || (isNeonPreview ? VALIDATED_NEON_DATA_API_URL : ""),
+    : qaIsolationRequired
+      ? (qaIsolatedReady ? localDataOverride : "")
+      : isLocalNeonRuntime
+        ? VALIDATED_NEON_DATA_API_URL
+        : localDataOverride,
 ).replace(/\/+$/, "");
 
 export const neonAuthUrl = NEON_AUTH_URL;
