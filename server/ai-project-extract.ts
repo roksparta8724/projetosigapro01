@@ -10,7 +10,8 @@ type Res = ServerResponse;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MAX_PDF_BYTES = 8 * 1024 * 1024;
 type DocumentRow = {id:string;process_id:string;municipality_id:string;tenant_id?:string;
-  title:string;file_name:string;file_path:string;mime_type:string;file_size_bytes?:string|number;version:number};
+  title:string;file_name:string;file_path:string;mime_type:string;file_size_bytes?:string|number;
+  version:number;is_valid:boolean;invalidated_at:string|null;};
 
 function json(res:Res,status:number,body:unknown){
   res.statusCode=status;res.setHeader("Content-Type","application/json; charset=utf-8");
@@ -38,7 +39,7 @@ async function readBody(req:Req):Promise<Record<string,unknown>>{
 async function verifiedDocument(req:Req,tenant:string,processId:string,documentId:string){
   const query=new URLSearchParams({
     id:"eq."+documentId,
-    select:"id,process_id,municipality_id,tenant_id,title,file_name,file_path,mime_type,file_size_bytes,version",
+    select:"id,process_id,municipality_id,tenant_id,title,file_name,file_path,mime_type,file_size_bytes,version,is_valid,invalidated_at",
     limit:"1",
   });
   const res=await fetch(getDataApiUrl()+"/process_documents?"+query.toString(),{
@@ -49,6 +50,7 @@ async function verifiedDocument(req:Req,tenant:string,processId:string,documentI
   const data:unknown=await res.json();
   const doc=Array.isArray(data)?data[0] as DocumentRow|undefined:undefined;
   if(!doc||doc.id!==documentId||doc.process_id!==processId||
+    doc.is_valid!==true||doc.invalidated_at!==null||
     doc.municipality_id!==tenant||!doc.file_path?.startsWith("municipalities/"+tenant+"/")||
     doc.file_path.includes("..")||doc.file_path.includes("\\")||
     !/\.pdf$/i.test(doc.file_path)||!/\.pdf$/i.test(doc.file_name||"")||
@@ -143,6 +145,11 @@ export default async function handler(req:Req,res:Res){
     });
     const pdf=await pdfBytes(req,tenant,doc.file_path);
     const extracted=await extractVisualPdf(pdf,doc.file_name,available.provider);
+    // A revised/invalidated PDF must NEVER yield accepted observations.
+    // Recheck ownership and immutable object version after AI inference.
+    const sameDocument=await verifiedDocument(req,tenant,processId,documentId);
+    if(!sameDocument||sameDocument.file_path!==doc.file_path||
+      sameDocument.version!==doc.version)throw new Error("AI_DOCUMENT_REVISED");
     return json(res,200,{...extracted,processId:doc.process_id,
       documentId:doc.id,documentVersion:doc.version,fileName:doc.file_name,
       legalConformity:"not_evaluated",humanReviewRequired:true,
@@ -155,6 +162,8 @@ export default async function handler(req:Req,res:Res){
     if(code==="AI_RATE_LIMIT")return json(res,429,{code,error:"Limite do provedor de IA atingido."});
     if(code==="AI_PROVIDER_CREDENTIALS")return json(res,503,{code,
       error:"A autenticação do provedor visual está inválida ou não foi autorizada."});
+    if(code==="AI_DOCUMENT_REVISED")return json(res,409,{code,
+      error:"O projeto foi substituído ou invalidado durante a leitura. Confira a versão atual e tente novamente."});
     if(code==="AI_INCOMPLETE"||code==="AI_INVALID_JSON"||code==="AI_EMPTY")
       return json(res,502,{code:"AI_READING_INCOMPLETE",
         error:"A leitura visual não foi concluída com segurança. Nenhuma medida foi gravada."});

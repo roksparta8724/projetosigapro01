@@ -1,4 +1,5 @@
 import { describe, expect, it, vi, afterEach } from "vitest";
+import { readFileSync } from "node:fs";
 import { resolveVisualPdfProvider, extractVisualPdf } from "../../server/architectural-pdf-provider";
 
 const KEY="sk-ant-test-a-long-secret-key-not-real-123456789";
@@ -33,6 +34,18 @@ describe("SIGAPRO — Claude PDF visual via stored R2 attachments",()=>{
       .toBe(false);
     expect(resolveVisualPdfProvider(env({SIGAPRO_AI_PROVIDER:"claude",ANTHROPIC_API_KEY:KEY,
       SIGAPRO_AI_PDF_ENABLED:"false"})).enabled).toBe(false);
+  });
+  it("prioritizes an existing Claude PDF credential when chat uses OpenAI",()=>{
+    const detected=resolveVisualPdfProvider(env({
+      SIGAPRO_AI_PROVIDER:"openai",ANTHROPIC_API_KEY:KEY,
+    }));
+    expect(detected.enabled).toBe(true);
+    if(detected.enabled)expect(detected.provider.kind).toBe("claude");
+    const forced=resolveVisualPdfProvider(env({
+      SIGAPRO_AI_PROVIDER:"openai",ANTHROPIC_API_KEY:KEY,
+      SIGAPRO_AI_PDF_PROVIDER:"openai",SIGAPRO_AI_PDF_ENABLED:"true",
+    }));
+    expect(forced.enabled).toBe(false);
   });
   it("supports opt-in Claude independent of the chat provider",()=>{
     const cfg=resolveVisualPdfProvider(env({
@@ -83,6 +96,13 @@ describe("SIGAPRO — Claude PDF visual via stored R2 attachments",()=>{
     await expect(extractVisualPdf(new TextEncoder().encode("%PDF-"),
       "planta.pdf",{kind:"claude",model:"claude-sonnet-5-5",key:KEY}))
       .rejects.toThrow("AI_INCOMPLETE");
+  });
+  it("blocks invalidated architectural drawings, even when a document ID is known",()=>{
+    const route=readFileSync("server/ai-project-extract.ts","utf8");
+    expect(route).toContain("doc.is_valid!==true");
+    expect(route).toContain("doc.invalidated_at!==null");
+    expect(route).toContain('sameDocument.version!==doc.version');
+    expect(route).toContain('AI_DOCUMENT_REVISED');
   });
   it("blocks setbacks when the site implantation drawing was not recognized",async()=>{
     const {normalizeArchitecturalPdfExtraction}=await import("@/lib/architecturalPdfReadings");

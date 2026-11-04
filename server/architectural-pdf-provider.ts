@@ -21,7 +21,8 @@ const MODEL_OPENAI = /^gpt-(?:4\.1|4o|5(?:\.\d+)?)(?:-(?:mini|nano))?$/;
 export function resolveVisualPdfProvider(
   get: (name: string) => string,
 ): VisualPdfAvailability {
-  const configuredProvider = (get("SIGAPRO_AI_PDF_PROVIDER") ||
+  const explicitPdfProvider = get("SIGAPRO_AI_PDF_PROVIDER").trim().toLowerCase();
+  const configuredProvider = (explicitPdfProvider ||
     get("SIGAPRO_AI_PROVIDER") || "").trim().toLowerCase();
   const enabledSetting = get("SIGAPRO_AI_PDF_ENABLED").trim().toLowerCase();
   const claudeKey = get("ANTHROPIC_API_KEY") || get("SIGAPRO_ANTHROPIC_API_KEY") ||
@@ -38,11 +39,16 @@ export function resolveVisualPdfProvider(
     configuredProvider === "claude" || configuredProvider === "anthropic";
   if (!optIn) return {enabled:false,provider:null,
     message:"O R2 está disponível para arquivos, mas não há provedor de leitura visual de projetos habilitado nesta prévia."};
-  const chosen = configuredProvider === "claude" || configuredProvider === "anthropic"
+  // An explicitly chosen PDF provider outranks the chat provider.
+  // Otherwise reuse the only available credential instead of requiring a
+  // separate set of PDF variables (do not silently switch explicit PDFs).
+  const requested = explicitPdfProvider || configuredProvider;
+  const chosen = requested === "claude" || requested === "anthropic"
     ? "claude"
-    : configuredProvider === "openai"
+    : explicitPdfProvider === "openai"
       ? "openai"
-      : claudeKey ? "claude" : "openai";
+      : claudeKey && !openaiKey ? "claude"
+      : requested === "openai" ? "openai" : claudeKey ? "claude" : "openai";
   const key = chosen === "claude" ? claudeKey : openaiKey;
   if (!key || key.trim().length < 20) return {enabled:false,provider:null,
     message:chosen === "claude"
