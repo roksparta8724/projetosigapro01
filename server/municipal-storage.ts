@@ -33,6 +33,22 @@ export function getDataApiUrl() {
   if (process.env.VERCEL_ENV === "production") {
     return VALIDATED_NEON_DATA_API_URL;
   }
+  if (process.env.VERCEL_ENV === "preview") {
+    // Isolated QA must fail closed rather than silently target production.
+    const frontendData = readEnv("VITE_NEON_DATA_API_URL");
+    const backendData = readEnv("R2_AUTH_DATA_API_URL");
+    const auth = readEnv("VITE_NEON_AUTH_URL");
+    const authHost = neonBranchHost(auth, "neonauth");
+    const dataHost = neonBranchHost(frontendData, "apirest");
+    const serverHost = neonBranchHost(backendData, "apirest");
+    const productionHost = neonBranchHost(VALIDATED_NEON_DATA_API_URL, "apirest");
+    if (readEnv("VITE_SIGAPRO_NEON_ISOLATED") !== "true" ||
+        !authHost || authHost === productionHost ||
+        authHost !== dataHost || authHost !== serverHost) {
+      throw new Error("Ambiente de homologação inválido: Neon Auth e Data API devem apontar para a mesma branch QA, nunca produção.");
+    }
+    return backendData.replace(/\/+$/, "");
+  }
   // Vite localhost signs in with the official Neon Auth by default.
   // Do NOT honor an arbitrary Data API override independently: that creates
   // "jwk not found" by sending a production JWT to a QA branch (or vice versa).
@@ -50,22 +66,6 @@ export function getDataApiUrl() {
       return localData.replace(/\/+$/, "");
     }
     return VALIDATED_NEON_DATA_API_URL;
-  }
-  if (process.env.VERCEL_ENV === "preview") {
-    // Isolated QA must fail closed rather than silently target production.
-    const frontendData = readEnv("VITE_NEON_DATA_API_URL");
-    const backendData = readEnv("R2_AUTH_DATA_API_URL");
-    const auth = readEnv("VITE_NEON_AUTH_URL");
-    const authHost = neonBranchHost(auth, "neonauth");
-    const dataHost = neonBranchHost(frontendData, "apirest");
-    const serverHost = neonBranchHost(backendData, "apirest");
-    const productionHost = neonBranchHost(VALIDATED_NEON_DATA_API_URL, "apirest");
-    if (readEnv("VITE_SIGAPRO_NEON_ISOLATED") !== "true" ||
-        !authHost || authHost === productionHost ||
-        authHost !== dataHost || authHost !== serverHost) {
-      throw new Error("Ambiente de homologação inválido: Neon Auth e Data API devem apontar para a mesma branch QA, nunca produção.");
-    }
-    return backendData.replace(/\/+$/, "");
   }
   // Development and other explicit environments may override the validated URL.
   return (
