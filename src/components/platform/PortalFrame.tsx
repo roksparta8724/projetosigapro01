@@ -2079,7 +2079,9 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                 aria-hidden="true"
               />
 
-              <DropdownMenu>
+              {/* Non-modal: opening the account menu does not synchronously block
+                  outside pointer events / trap focus in the full 120 KB shell. */}
+              <DropdownMenu modal={false}>
                 <DropdownMenuTrigger asChild>
                   <button
                     type="button"
@@ -2108,7 +2110,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                 collisionPadding={0}
                 style={{ "--sig-primary-deep": darken(primaryColor, 10) } as React.CSSProperties}
                 className={cn(
-                  "sig-topbar-account-dropdown w-[min(92vw,400px)] overflow-y-auto border p-3 shadow-[-18px_0_48px_rgba(15,23,42,0.20)] backdrop-blur-xl",
+                  "sig-topbar-account-dropdown w-[min(92vw,400px)] overflow-y-auto border p-3 shadow-[-14px_0_30px_rgba(15,23,42,0.16)]",
                   darkTopbar
                     ? "border-white/12 bg-[var(--sig-primary-deep)] text-slate-100"
                     : "border-slate-200/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.99)_0%,rgba(247,250,253,0.98)_100%)] text-slate-900",

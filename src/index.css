@@ -11330,3 +11330,11 @@ html body #root [data-legal-management-workspace="true"]
   -webkit-text-fill-color: #ffffff !important;
 }
 /* Keep official PDF preview artwork, iframe and canvas color values unchanged. */
+
+/* Performance: the account menu is a narrow fixed panel. A full-screen
+   backdrop filter on its portal amplifies paint delay during open/close.
+   Preserve contrast and shadow, but avoid repeated blur compositing. */
+.sig-topbar-account-dropdown {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
