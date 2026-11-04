@@ -23,7 +23,7 @@ describe("commercial plan enforcement", () => {
     const data = read("src/hooks/usePlatformData.tsx");
 
     expect(data).toContain("dataReadyForCurrentUser");
-    expect(data).toContain("remoteContextUserId === authenticatedUserId");
+    expect(data).toContain("isConfirmedStoreIdentity(remoteContextUserId, authenticatedUserId, authenticatedProfileId)");
     expect(hook).toContain("isResolving");
     expect(hook).toContain("!dataReadyForCurrentUser");
     expect(hook).toContain("isBackgroundRefreshing");

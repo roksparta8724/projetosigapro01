@@ -66,6 +66,7 @@ import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useUserMenuPreferences, type MenuPreferenceKey } from "@/hooks/useUserMenuPreferences";
 import { usePlanEntitlements } from "@/hooks/usePlanEntitlements";
+import { useLivePlatformRefresh } from "@/hooks/useLivePlatformRefresh";
 import { getPublicAssetUrl } from "@/lib/assetUrl";
 import { formatDisplayText, humanizeRoleLabel } from "@/lib/displayText";
 import { buildProcessPath, can, canAccessMunicipalArea,
@@ -121,7 +122,15 @@ const navItems = [
   { key: "dashboard", to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, permission: "manage_own_profile" as Permission, essential: true, module: undefined as PlanModuleName | undefined },
   { key: "dashboard-tenant", to: "/prefeitura", label: "Prefeitura", icon: Landmark, permission: "manage_tenant_users" as Permission, essential: true, module: undefined as PlanModuleName | undefined },
   { key: "municipal-organogram", to: "/prefeitura/organograma", label: "Organograma", icon: Network, permission: "manage_own_profile" as Permission, essential: true, module: undefined as PlanModuleName | undefined },
-  { key: "dashboard-master", to: "/master", label: "Administrador Geral", icon: MonitorCog, permission: "view_master_dashboard" as Permission, essential: true, module: undefined as PlanModuleName | undefined },
+  {
+    key: "dashboard-master",
+    to: "/master",
+    label: "Administrador Geral",
+    icon: MonitorCog,
+    permission: "view_master_dashboard" as Permission,
+    essential: true,
+    module: undefined as PlanModuleName | undefined,
+  },
   { key: "master-plans", to: "/master/planos", label: "Planos e níveis", icon: AccountCard, permission: "manage_commercial_plans" as Permission, essential: true, module: undefined as PlanModuleName | undefined },
   {
     key: "protocols",
@@ -180,10 +189,23 @@ const navItems = [
         { to: "/externo", label: "Resumo da conta", icon: LayoutDashboard },
       ],
     },
-  { key: "settings", to: "/configuracoes", label: "Cadastro e Gestão", icon: Building2, permission: "manage_tenant_branding" as Permission, essential: true, module: "Configurações" as PlanModuleName },
+  {
+    key: "settings",
+    to: "/configuracoes",
+    label: "Cadastro e Gestão",
+    icon: Building2,
+    permission: "manage_tenant_branding" as Permission,
+    essential: true,
+    module: "Configurações" as PlanModuleName,
+    children: [
+      { to: "/configuracoes", label: "Visão geral", icon: LayoutDashboard },
+      { to: "/cadastro-gestao/legislacao", label: "Gestão de leis e parâmetros", icon: ScrollText },
+    ],
+  },
+  { key: "collection", to: "/prefeitura/arrecadacao", label: "Guias e Arrecadação", icon: Landmark, permission: "view_collection_settings" as Permission, essential: true, module: "Configurações" as PlanModuleName },
 ];
 
-const managementNavItems = ["/master", "/master/planos", "/prefeitura", "/prefeitura/organograma", "/configuracoes"];
+const managementNavItems = ["/master", "/master/planos", "/prefeitura", "/prefeitura/organograma", "/prefeitura/arrecadacao", "/configuracoes"];
 
 const operationalNavItems = [
   "/dashboard",
@@ -328,6 +350,13 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
     addProcessMarkerWithColor,
     removeProcessMarker,
   } = usePlatformData();
+  // Revalidate permissions across logged-in devices after Master changes a contract.
+  // This is a background refresh: never replace a visible page with a loading shell.
+  useLivePlatformRefresh(refreshRemoteStore, {
+    enabled: session.id !== "unknown" && Boolean(session.role),
+    intervalMs: 20000,
+    refreshOnMount: false,
+  });
   const { isItemVisible } = useUserMenuPreferences();
   const planEntitlements = usePlanEntitlements();
   const { presets: markerPresets, addPreset, updatePreset, togglePresetActive, removePreset } = useMarkerPresets();
@@ -2050,7 +2079,9 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                 aria-hidden="true"
               />
 
-              <DropdownMenu>
+              {/* Non-modal: opening the account menu does not synchronously block
+                  outside pointer events / trap focus in the full 120 KB shell. */}
+              <DropdownMenu modal={false}>
                 <DropdownMenuTrigger asChild>
                   <button
                     type="button"
@@ -2079,7 +2110,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                 collisionPadding={0}
                 style={{ "--sig-primary-deep": darken(primaryColor, 10) } as React.CSSProperties}
                 className={cn(
-                  "sig-topbar-account-dropdown w-[min(92vw,400px)] overflow-y-auto border p-3 shadow-[-18px_0_48px_rgba(15,23,42,0.20)] backdrop-blur-xl",
+                  "sig-topbar-account-dropdown w-[min(92vw,400px)] overflow-y-auto border p-3 shadow-[-14px_0_30px_rgba(15,23,42,0.16)]",
                   darkTopbar
                     ? "border-white/12 bg-[var(--sig-primary-deep)] text-slate-100"
                     : "border-slate-200/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.99)_0%,rgba(247,250,253,0.98)_100%)] text-slate-900",
@@ -2482,22 +2513,22 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
           }}
         >
           <div className="px-8 py-8 lg:px-12 lg:py-10">
-            <div className="grid items-center gap-8 md:grid-cols-2 xl:grid-cols-[220px_minmax(0,1.2fr)_minmax(0,0.95fr)_minmax(0,0.95fr)]">
-              <div className="flex justify-center xl:justify-start xl:pl-3">
+            <div data-sig-footer-grid="true" className="grid min-w-0 items-start gap-x-6 gap-y-8 sm:grid-cols-2 2xl:grid-cols-4">
+              <div data-sig-footer-logo-cell="true" className="flex min-w-0 items-center justify-center 2xl:justify-start 2xl:pl-3">
                 <InstitutionalLogo
                   branding={stableFooterBranding}
                   fallbackLabel={institutionDisplayName}
                   variant="footer"
                   contextScope={isMasterUser ? "master" : "municipality"}
-                  className="mt-3"
+                  className="!m-0 !shrink-0"
                 />
               </div>
 
-              <div className="flex items-start gap-4 xl:pl-2">
+              <div data-sig-footer-column="true" className="flex min-w-0 items-start gap-3 2xl:pl-2">
                 <div className="mt-1 rounded-[14px] border border-white/14 bg-white/10 p-3">
                   <Building2 className="h-5 w-5 text-white" />
                 </div>
-                <div className="space-y-2.5">
+                <div className="min-w-0 flex-1 space-y-2.5">
                   <p className="text-xs font-normal uppercase tracking-[0.08em] text-white">Secretaria</p>
                   <p className="max-w-[560px] text-sm font-medium leading-6 text-[#F8FBFF] lg:text-[15px]">
                     {institutionFooterTitle}
@@ -2508,14 +2539,14 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                 </div>
               </div>
 
-              <div className="flex items-start gap-4 xl:justify-center">
+              <div data-sig-footer-column="true" className="flex min-w-0 items-start gap-3 2xl:justify-center">
                 <div className="mt-1 rounded-[14px] border border-white/14 bg-white/10 p-3">
                   <MapPin className="h-5 w-5 text-white" />
                 </div>
-                <div className="space-y-2.5">
+                <div className="min-w-0 flex-1 space-y-2.5">
                   <p className="text-xs font-normal uppercase tracking-[0.08em] text-white">Endereço</p>
                   <p
-                    className="whitespace-nowrap text-sm font-medium leading-6 text-[#F8FBFF] lg:text-[15px]"
+                    className="min-w-0 max-w-full whitespace-normal break-words text-sm font-medium leading-6 text-[#F8FBFF] lg:text-[15px]"
                     title={tenantSettings?.endereco || "Endereço não informado"}
                   >
                     {tenantSettings?.endereco || "Endereço não informado"}
@@ -2529,18 +2560,18 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                 </div>
               </div>
 
-              <div className="flex items-start gap-4 xl:justify-end">
+              <div data-sig-footer-column="true" className="flex min-w-0 items-start gap-3 2xl:justify-end">
                 <div className="mt-1 rounded-[14px] border border-white/14 bg-white/10 p-3">
                   <Phone className="h-5 w-5 text-white" />
                 </div>
-                <div className="space-y-2.5">
+                <div className="min-w-0 flex-1 space-y-2.5">
                   <p className="text-xs font-normal uppercase tracking-[0.08em] text-white">Contato</p>
                   <p className="text-sm font-medium leading-6 text-[#F8FBFF] lg:text-[15px]">
                     {institutionFooterPhone}
                   </p>
                   <div className="flex min-w-0 items-center gap-2 text-sm font-normal leading-6 text-[#D6E7F4] lg:text-[14px]">
                     <Mail className="h-4 w-4 shrink-0 text-white/72" />
-                    <span className="sig-fit-copy block text-[#D6E7F4]" title={institutionFooterEmail}>
+                    <span className="sig-fit-copy block min-w-0 max-w-full whitespace-normal break-words text-[#D6E7F4]" title={institutionFooterEmail}>
                       {institutionFooterEmail}
                     </span>
                   </div>

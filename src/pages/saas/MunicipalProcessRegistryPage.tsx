@@ -38,7 +38,7 @@ export function MunicipalProcessRegistryPage() {
   const { municipality, scopeId } = useMunicipality();
   const { processes: allProcesses, refreshRemoteStore } = usePlatformData();
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
-  useLivePlatformRefresh(refreshRemoteStore, { intervalMs: 8000 });
+  useLivePlatformRefresh(refreshRemoteStore, { intervalMs: 8000, refreshOnMount: false });
 
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<RegistryFilter>("todos");

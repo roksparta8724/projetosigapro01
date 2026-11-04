@@ -24,6 +24,7 @@ export type Permission =
   | "view_platform_metrics"
   | "manage_tenant_users"
   | "manage_tenant_branding"
+  | "view_collection_settings"
   | "manage_protocols"
   | "manage_own_profile"
   | "review_processes"
@@ -635,6 +636,7 @@ export interface PaymentGuideEntry {
   digitableLine?: string;
   bankReference?: string;
   bankPaymentId?: string;
+  ticketUrl?: string;
   bankStatus?: string;
   bankStatusDetail?: string;
   bankAuthenticatedAt?: string;
@@ -650,6 +652,7 @@ export interface ProcessDocument {
   signed: boolean;
   reviewStatus?: "pendente" | "aprovado" | "rejeitado";
   reviewedBy?: string;
+  reviewedByProfileId?: string;
   annotations?: Array<{
     id: string;
     kind?: "text" | "highlight";
@@ -691,6 +694,8 @@ export interface TimelineEntry {
   detail: string;
   actor: string;
   at: string;
+  /** Only explicitly public movements may be shown in the external history. */
+  visibleToExternal?: boolean;
 }
 
 export interface AuditEntry {
@@ -1251,6 +1256,34 @@ export function getProcessPaymentGuides(process: ProcessRecord, settings?: Tenan
   ];
 }
 
+/**
+ * Portaria de entrada da Análise Urbanística: a guia inicial deve estar
+ * compensada, a triagem concluída e o processo oficializado.
+ * Atribuição antiga ou status preenchido por teste não substituem essas provas.
+ */
+export function isProcessReleasedToUrbanAnalysis(process: ProcessRecord): boolean {
+  if (process.isOfficial === false || process.triage?.status !== "concluido" || !process.payment) {
+    return false;
+  }
+
+  // A conclusão da triagem não significa que o Protocolo já despachou o caso.
+  // Evita filas técnicas prematuras em registros legados ou inconsistentes.
+  if ([
+    "rascunho",
+    "protocolo",
+    "triagem",
+    "guia_emitida",
+    "pagamento_pendente",
+    "pagamento_confirmado",
+  ].includes(process.status)) {
+    return false;
+  }
+
+  return getProcessPaymentGuides(process).some(
+    (guide) => guide.kind === "protocolo" && guide.status === "compensada",
+  );
+}
+
 export function isProcessPaymentGuideSharedExternally(
   process: ProcessRecord,
   guide: PaymentGuideEntry,
@@ -1351,12 +1384,13 @@ const rolePermissions: Record<UserRole, Permission[]> = {
     "manage_tenant_branding",
     "manage_own_profile",
     "view_own_processes",
+    "view_collection_settings",
   ],
-  prefeitura_supervisor: ["manage_protocols", "review_processes", "dispatch_interdepartmental", "manage_fiscal_financial", "sign_documents", "manage_own_profile", "view_own_processes"],
-  analista: ["manage_protocols", "review_processes", "dispatch_interdepartmental", "sign_documents", "manage_own_profile", "view_own_processes"],
-  financeiro: ["manage_financial", "manage_fiscal_financial", "sign_documents", "manage_own_profile", "view_own_processes"],
-  setor_intersetorial: ["manage_protocols", "dispatch_interdepartmental", "sign_documents", "manage_own_profile", "view_own_processes"],
-  fiscal: ["review_processes", "manage_fiscal_financial", "manage_own_profile", "view_own_processes"],
+  prefeitura_supervisor: ["manage_protocols", "review_processes", "dispatch_interdepartmental", "manage_fiscal_financial", "sign_documents", "manage_own_profile", "view_own_processes", "view_collection_settings"],
+  analista: ["manage_protocols", "review_processes", "dispatch_interdepartmental", "sign_documents", "manage_own_profile", "view_own_processes", "view_collection_settings"],
+  financeiro: ["manage_financial", "manage_fiscal_financial", "sign_documents", "manage_own_profile", "view_own_processes", "view_collection_settings"],
+  setor_intersetorial: ["manage_protocols", "dispatch_interdepartmental", "sign_documents", "manage_own_profile", "view_own_processes", "view_collection_settings"],
+  fiscal: ["review_processes", "manage_fiscal_financial", "manage_own_profile", "view_own_processes", "view_collection_settings"],
   profissional_externo: ["submit_processes", "view_own_processes", "sign_documents", "manage_own_profile"],
   property_owner: ["view_own_processes", "manage_own_profile"],
   proprietario_consulta: ["view_own_processes", "manage_own_profile"],
@@ -2530,6 +2564,7 @@ export function can(session: SessionUser, permission: Permission) {
   // Funcionários internos recebem capacidades somente dentro da própria pasta.
   // Isso também protege acesso por URL direta; não basta esconder o item no menu.
   if (isInternalRole(session.role)) {
+    if (permission === "view_collection_settings") return true;
     if (permission === "manage_tenant_users" || permission === "manage_tenant_branding") return false;
     if (permission === "manage_own_profile" || permission === "view_own_processes") return true;
 
@@ -2865,6 +2900,33 @@ export function canTrackProcess(session: SessionUser, process: ProcessRecord, sc
   return true;
 }
 
+/** Consulta documental autorizada, sem herdar privilegios de escrita. */
+export function canViewMunicipalProcessDocument(
+  session: SessionUser,
+  process: ProcessRecord,
+  scopeId?: string | null,
+) {
+  if (session.accountStatus === "blocked" || session.accountStatus === "inactive") return false;
+  // A equipe técnica não pode abrir anexos na Análise antes da compensação,
+  // conclusão da triagem e despacho. Protocolo/Admin mantém seu acesso próprio.
+  if (
+    (session.role === "analista" || session.role === "prefeitura_supervisor") &&
+    resolveSessionOperationalArea(session) === "analise" &&
+    !isProcessReleasedToUrbanAnalysis(process)
+  ) return false;
+  if (session.role !== "master_admin" && session.role !== "master_ops") {
+    const actorScope = getOperationalScopeId(session);
+    if (!actorScope || !matchesOperationalScope(actorScope, process)) return false;
+  }
+  if (!canTrackProcess(session, process, scopeId)) return false;
+  if (canAccessProcess(session, process, scopeId)) return true;
+  if (!isInternalRole(session.role)) return false;
+  // A lotacao no organograma precisa identificar a area de Analise/Urbanismo.
+  if (resolveSessionOperationalArea(session) !== "analise") return false;
+  return session.role === "analista" || session.role === "prefeitura_supervisor" ||
+    /diretor|diretora|secretari[oa]/i.test(session.title || "");
+}
+
 export function canAccessProcess(session: SessionUser, process: ProcessRecord, scopeId?: string | null) {
   if (session.role === "master_admin" || session.role === "master_ops") {
     return true;
@@ -2981,6 +3043,7 @@ export function canSuperviseProcessAnalysis(
   process: ProcessRecord,
 ) {
   if (session.accountStatus === "blocked" || session.accountStatus === "inactive") return false;
+  if (!isProcessReleasedToUrbanAnalysis(process)) return false;
   if (session.role === "master_admin" || session.role === "master_ops") return true;
   if (!isAnalysisSupervisor(session)) return false;
 
@@ -2999,6 +3062,8 @@ export function canEditProcessAnalysis(
   if (session.accountStatus === "blocked" || session.accountStatus === "inactive") {
     return false;
   }
+
+  if (!isProcessReleasedToUrbanAnalysis(process)) return false;
 
   if (session.role === "prefeitura_admin") return false;
   if (session.role === "master_admin" || session.role === "master_ops") return true;
@@ -3066,6 +3131,8 @@ export function canEditAssignedAnalysisArtifact(
   if (session.accountStatus === "blocked" || session.accountStatus === "inactive") {
     return false;
   }
+
+  if (!isProcessReleasedToUrbanAnalysis(process)) return false;
 
   if (session.role === "master_admin" || session.role === "master_ops") return true;
   if (session.role !== "analista" && session.role !== "prefeitura_supervisor") return false;
@@ -3316,7 +3383,16 @@ export function buildProcessDocuments(
       .replace(/[\u0300-\u036f]/g, "")
       .trim()
       .toLowerCase();
-  const uploadedByLabel = new Map(uploadedDocuments.map((document) => [normalizeLabel(document.label), document]));
+  // Use the highest document version per category. Earlier versions stay in
+  // the database history rather than replacing the current PDF on screen.
+  const uploadedByLabel = new Map<string, ProcessDocument>();
+  for (const document of uploadedDocuments) {
+    const key = normalizeLabel(document.label);
+    const previous = uploadedByLabel.get(key);
+    if (!previous || Number(document.version || 0) > Number(previous.version || 0)) {
+      uploadedByLabel.set(key, document);
+    }
+  }
 
   const fromTemplate = (template?.items ?? []).map((item) => {
     const existing = uploadedByLabel.get(normalizeLabel(item.label));
@@ -3335,7 +3411,7 @@ export function buildProcessDocuments(
     );
   });
 
-  const extras = uploadedDocuments.filter(
+  const extras = [...uploadedByLabel.values()].filter(
     (document) => !fromTemplate.some((item) => normalizeLabel(item.label) === normalizeLabel(document.label)),
   );
 

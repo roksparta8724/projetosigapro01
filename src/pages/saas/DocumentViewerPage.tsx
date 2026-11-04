@@ -20,7 +20,7 @@ import { consumeDocumentWorkspaceAccessUrl } from "@/lib/documentWorkspaceAccess
 import { getSignedUrlForObjectStrict } from "@/integrations/r2/client";
 import {
   canAnalyzeProcessDocument,
-  canAccessProcess,
+  canViewMunicipalProcessDocument,
   buildProcessPath,
   formatOfficialProcessNumber,
   resolveProcessRoute,
@@ -107,7 +107,7 @@ export function DocumentViewerPage() {
     process &&
       document &&
       document.uploaded &&
-      canAccessProcess(session, process, effectiveScopeId),
+      canViewMunicipalProcessDocument(session, process, effectiveScopeId),
   );
 
   const canAnalyzeDocument = Boolean(

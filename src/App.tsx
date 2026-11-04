@@ -20,6 +20,7 @@ import { TenantNotFoundPage } from "@/pages/saas/TenantNotFoundPage";
 import { shouldShowPublicLanding } from "@/lib/tenant";
 import { MasterAdminPage } from "@/pages/saas/MasterAdminPage";
 import { TenantAdminPage } from "@/pages/saas/TenantAdminPage";
+import { CollectionSettingsPage } from "@/pages/saas/CollectionSettingsPage";
 import { MunicipalOrganizationPage } from "@/pages/saas/MunicipalOrganizationPage";
 import { MunicipalProcessRegistryPage } from "@/pages/saas/MunicipalProcessRegistryPage";
 import { DashboardHomePage } from "@/pages/saas/DashboardHomePage";
@@ -44,6 +45,7 @@ import { ConfiguracoesPage } from "@/pages/saas/ConfiguracoesPage";
 import { NotificationsPage } from "@/pages/saas/NotificationsPage";
 import { MovementHistoryPage } from "@/pages/saas/MovementHistoryPage";
 import { LegislationPage } from "@/pages/saas/LegislationPage";
+import { URBAN_LEGISLATION_VIEW_ROLES } from "@/lib/urbanLegislationAccess";
 import { ZoningPage } from "@/pages/saas/ZoningPage";
 import { GlobalSearchPage } from "@/pages/saas/GlobalSearchPage";
 import { NotFoundPage } from "@/pages/saas/NotFoundPage";
@@ -88,27 +90,10 @@ const AppRoutes = () => {
   const pathname = location.pathname;
 
   useLayoutEffect(() => {
-    const isLandingRoute =
-      pathname === "/" ||
-      pathname === "/inicio" ||
-      pathname === "/apresentacao";
-    const isPublicVerificationRoute =
-      pathname.startsWith("/v/") ||
-      pathname === "/verificar-assinatura";
-    const isFullDocumentRoute =
-      /\/processos\/[^/]+\/documentos\/[^/]+\/(visualizar|analisar)$/.test(pathname);
-
-    const zoom = isLandingRoute || isFullDocumentRoute || isPublicVerificationRoute ? "1" : "0.85";
-    document.documentElement.style.zoom = zoom;
+    document.documentElement.style.zoom = "1";
     document.body.style.zoom = "1";
-    document.documentElement.dataset.pageZoom =
-      isLandingRoute || isPublicVerificationRoute ? "100" : "85";
-
-    return () => {
-      document.documentElement.style.zoom = "";
-      delete document.documentElement.dataset.pageZoom;
-    };
-  }, [pathname]);
+    document.documentElement.dataset.pageZoom = "100";
+  }, []);
   const isPublicEntryPath =
     pathname === "/" ||
     pathname === "/inicio" ||
@@ -150,49 +135,13 @@ const AppRoutes = () => {
         />
         <Route path="/inicio" element={<Navigate to="/" replace />} />
 
+        {/* One persistent dashboard route prevents chart/plan remounting on tab changes.
+            Contractual gates still protect restricted tab bodies in DashboardHomePage. */}
         <Route
-          path="/dashboard"
+          path="/dashboard/*"
           element={
             <PermissionRoute permission="manage_own_profile">
               <DashboardHomePage />
-            </PermissionRoute>
-          }
-        />
-        <Route
-          path="/dashboard/processos"
-          element={
-            <PermissionRoute permission="manage_own_profile">
-              <PlanModuleRoute module="Protocolo digital">
-                <DashboardHomePage />
-              </PlanModuleRoute>
-            </PermissionRoute>
-          }
-        />
-        <Route
-          path="/dashboard/financeiro"
-          element={
-            <PermissionRoute permission="manage_own_profile">
-              <PlanModuleRoute module="Financeiro">
-                <DashboardHomePage />
-              </PlanModuleRoute>
-            </PermissionRoute>
-          }
-        />
-        <Route
-          path="/dashboard/usuarios"
-          element={
-            <PermissionRoute permission="manage_own_profile">
-              <DashboardHomePage />
-            </PermissionRoute>
-          }
-        />
-        <Route
-          path="/dashboard/operacional"
-          element={
-            <PermissionRoute permission="manage_own_profile">
-              <PlanModuleRoute module="Protocolo digital">
-                <DashboardHomePage />
-              </PlanModuleRoute>
             </PermissionRoute>
           }
         />
@@ -230,6 +179,7 @@ const AppRoutes = () => {
             </PermissionRoute>
           }
         />
+        <Route path="/prefeitura/arrecadacao" element={<PermissionRoute permission="view_collection_settings"><PlanModuleRoute module="Configurações"><CollectionSettingsPage /></PlanModuleRoute></PermissionRoute>} />
         <Route
           path="/prefeitura/processos"
           element={
@@ -335,6 +285,22 @@ const AppRoutes = () => {
           element={
             <PermissionRoute permission="manage_own_profile">
               <LegislationPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="/cadastro-gestao/legislacao"
+          element={
+            <PermissionRoute permission="manage_own_profile" allowedRoles={URBAN_LEGISLATION_VIEW_ROLES}>
+              <ConfiguracoesPage legislationWorkspace />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="/legislacao/gestao"
+          element={
+            <PermissionRoute permission="manage_own_profile" allowedRoles={URBAN_LEGISLATION_VIEW_ROLES}>
+              <Navigate to="/cadastro-gestao/legislacao" replace />
             </PermissionRoute>
           }
         />

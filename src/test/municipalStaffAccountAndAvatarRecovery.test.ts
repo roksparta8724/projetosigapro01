@@ -89,7 +89,9 @@ describe("municipal staff account and avatar recovery regressions", () => {
   });
 
   it("keeps production avatar recovery on the same origin and falls back both ways", () => {
-    expect(r2Client).toContain('return \`/api/profile-avatar-open?source=\${encodeURIComponent(raw)}\`;');
+    expect(r2Client).toContain("return raw;");
+    expect(r2Client).toContain("UserAvatar mantém /api/profile-avatar-open como fallback");
+    expect(avatar).toContain("return `/api/profile-avatar-open?source=${encodeURIComponent(current.toString())}`;");
     expect(r2Client).not.toContain("return isLocalBrowser ? route : buildApiUrl(route)");
     expect(avatar).toContain("alternateLegacyAvatarUrl");
     expect(avatar).toContain("recoveryImageUrl");
@@ -121,7 +123,8 @@ describe("municipal staff account and avatar recovery regressions", () => {
 
   it("recovers old Supabase avatars and caches them in the current R2 storage", () => {
     expect(backend).toContain("getLegacyProfileAvatarOpenUrl");
-    expect(r2Client).toContain("/api/profile-avatar-open?source=");
+    expect(r2Client).toContain("getLegacyProfileAvatarOpenUrl");
+    expect(avatar).toContain("/api/profile-avatar-open?source=");
     expect(r2Router).toContain('action === "profile-avatar-open"');
     expect(legacyAvatar).toContain("legacy-profile-avatars/");
     expect(legacyAvatar).toContain("PutObjectCommand");

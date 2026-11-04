@@ -40,7 +40,7 @@ describe("live process identity and operational freshness", () => {
     expect(processDetail).toContain("useLivePlatformRefresh(refreshCurrentProcessStore, { intervalMs: 1800 })");
     expect(documentAnalysis).toContain("useLivePlatformRefresh(refreshRemoteStore, { intervalMs: 5000 })");
     expect(financeDesk).toContain("useLivePlatformRefresh(refreshRemoteStore, { intervalMs: 8000 })");
-    expect(registry).toContain("useLivePlatformRefresh(refreshRemoteStore, { intervalMs: 8000 })");
+    expect(registry).toContain("useLivePlatformRefresh(refreshRemoteStore, { intervalMs: 8000, refreshOnMount: false })");
   });
 
   it("does not replace unchanged remote-store references during heartbeat refreshes", () => {
@@ -51,8 +51,11 @@ describe("live process identity and operational freshness", () => {
   });
 
   it("does not repaint the analysis desk just to advance a heartbeat timestamp", () => {
-    expect(analystDesk).toContain("setLiveSyncAt((current) => current || new Date().toISOString())");
-    expect(analystDesk).toContain('setLiveSyncError((current) => (current ? "" : current))');
+    // This desk keeps its own silent refresh loop and does not repaint the
+    // whole desk merely to update a live-sync timestamp.
+    expect(analystDesk).toContain("const refreshAnalysisDesk = useCallback(async () =>");
+    expect(analystDesk).toContain("const timer = window.setInterval(sync, 5000)");
+    expect(analystDesk).toContain('document.visibilityState !== "visible"');
   });
 
   it("does not restart the previous-upload lookup when only the process object reference changes", () => {

@@ -33,6 +33,9 @@ import {
   PageStatsRow,
 } from "@/components/platform/PageShell";
 import { PortalFrame } from "@/components/platform/PortalFrame";
+import { attachMunicipalCollectionGuide } from "@/lib/municipalCollectionBridge";
+import { GovbrArGuideBridge } from "@/components/platform/GovbrArGuideBridge";
+import { useEffectiveCollectionMode } from "@/hooks/useEffectiveCollectionMode";
 import { SectionCard } from "@/components/platform/SectionCard";
 import { StatCard } from "@/components/platform/StatCard";
 import { TableCard } from "@/components/platform/TableCard";
@@ -52,12 +55,14 @@ import {
   type ProcessRecord,
   URBAN_ANALYSIS_DEPARTMENT,
 } from "@/lib/platform";
+import { getMissingRequiredDocuments, getPendingTriageDocuments, hasCompensatedInitialGuide, isReadyForProtocolDispatch } from "@/lib/triageReadiness";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { useMarkerPresets } from "@/hooks/useMarkerPresets";
 import {
   confirmRemotePreprotocolPayment,
+  reconcileRemoteProcessTriage,
   listRemotePendingPreprotocolPayments,
   type PendingPreprotocolPayment,
 } from "@/integrations/backend/platform";
@@ -77,18 +82,6 @@ function getOpeningDate(process: ProcessRecord) {
   return process.timeline[process.timeline.length - 1]?.at ?? process.payment.issuedAt ?? "-";
 }
 
-function getMissingRequiredDocuments(process: ProcessRecord) {
-  return process.documents.filter((document) => document.required && !document.uploaded).length;
-}
-
-function getPendingTriageDocuments(process: ProcessRecord) {
-  return process.documents.filter(
-    (document) =>
-      document.required &&
-      (!document.uploaded || document.reviewStatus !== "aprovado"),
-  ).length;
-}
-
 export function ProtocolDeskPage() {
   const { session } = usePlatformSession();
   const {
@@ -100,6 +93,7 @@ export function ProtocolDeskPage() {
     dispatchProcess,
     getUserProfile,
     refreshRemoteStore,
+    sendProcessMessage,
   } = usePlatformData();
   const { municipality, scopeId, institutionSettingsCompat } = useMunicipality();
   // Para funcionário municipal, a Prefeitura vinculada à conta é a fonte
@@ -111,6 +105,8 @@ export function ProtocolDeskPage() {
     municipality?.id ??
     scopeId ??
     null;
+
+  const { canImportMunicipalGuide, configuration: collectionConfig } = useEffectiveCollectionMode(effectiveScopeId);
 
   const userById = useMemo(
     () => new Map(sessionUsers.map((user) => [user.id, user])),
@@ -134,10 +130,21 @@ export function ProtocolDeskPage() {
     [allProcesses, effectiveScopeId],
   );
 
+  // A guia inicial do Cadastro Eventual pode nascer no pré-protocolo.
+  // Incluir o pré-protocolo apenas no seletor GOVBR, sem oficializar o
+  // livro de protocolos nem confirmar pagamento.
+  const govbrEligibleProcesses = useMemo(
+    () => allProcesses.filter((item) =>
+      Boolean(effectiveScopeId) && matchesOperationalScope(effectiveScopeId, item)),
+    [allProcesses, effectiveScopeId],
+  );
+
   const protocolQueueProcesses = useMemo(
     () =>
       processes.filter((item) => {
-        if (!isProcessOwnedBySessionDepartment(session, item)) return false;
+        // The Neon Protocolo RPC permits a scoped municipal admin to triage.
+        // Non-admins still require department ownership.
+        if (!isProcessOwnedBySessionDepartment(session, item) && session.role !== "prefeitura_admin") return false;
         const currentFolder = (item.processControl?.currentFolder || "").toLowerCase();
         if (currentFolder) {
           return (
@@ -162,11 +169,23 @@ export function ProtocolDeskPage() {
     [processes, session],
   );
 
+  const recoverableTriageCases = useMemo(() =>
+    processes.filter((item) =>
+      ["analise_tecnica", "distribuicao"].includes(item.status) &&
+      item.triage.status !== "concluido" &&
+      !(item.dispatches || []).some((d) => /urbanis|an[aá]lise/i.test(d.to))
+    ),
+    [processes],
+  );
+
   const tenantSettings =
     institutionSettingsCompat ?? getInstitutionSettings(effectiveScopeId ?? session.tenantId);
 
   const { presets: markerPresets } = useMarkerPresets();
   const [protocolQuery, setProtocolQuery] = useState("");
+  const [govbrProtocolQuery, setGovbrProtocolQuery] = useState("");
+  const [govbrProtocolId, setGovbrProtocolId] = useState("");
+  const [triageRecoveryReason, setTriageRecoveryReason] = useState("");
   const [protocolActionStatus, setProtocolActionStatus] = useState("");
   const [protocolActionBusy, setProtocolActionBusy] = useState("");
   const [markerFilter, setMarkerFilter] = useState("todos");
@@ -441,12 +460,11 @@ export function ProtocolDeskPage() {
   };
 
   const dispatchSelectedToUrbanism = async (sourceItems: ProcessRecord[]) => {
-    const selected = sourceItems.filter(
-      (process) =>
-        selectedProcessIds.has(process.id) &&
-        process.status === "pagamento_confirmado" &&
-        isProcessOwnedBySessionDepartment(session, process),
+    const chosen = sourceItems.filter(
+      (process) => selectedProcessIds.has(process.id) && isProcessOwnedBySessionDepartment(session, process),
     );
+    const selected = chosen.filter(isReadyForProtocolDispatch);
+    const awaitingRequirements = chosen.length - selected.length;
 
     if (selected.length === 0) {
       setProtocolActionStatus("Nenhum dos processos selecionados está liberado para despacho ao Urbanismo.");
@@ -456,28 +474,35 @@ export function ProtocolDeskPage() {
     setProtocolActionBusy("bulk-dispatch");
     setProtocolActionStatus("");
 
+    const completedIds: string[] = [];
+    const rejected: string[] = [];
     try {
       for (const process of selected) {
-        await dispatchProcess({
-          processId: process.id,
-          actor: session.name,
-          from: "Setor de Protocolo",
-          to: URBAN_ANALYSIS_DEPARTMENT,
-          subject: "Encaminhamento para análise urbanística",
-          dueDate: "",
-          visibility: "misto",
-          priority: "media",
-        });
+        try {
+          await dispatchProcess({
+            processId: process.id,
+            actor: session.name,
+            from: "Setor de Protocolo",
+            to: URBAN_ANALYSIS_DEPARTMENT,
+            subject: "Encaminhamento para análise urbanística",
+            dueDate: "",
+            visibility: "misto",
+            priority: "media",
+          });
+          completedIds.push(process.id);
+        } catch (error) {
+          rejected.push(
+            `${formatOfficialProcessNumber(process.protocol)}: ${error instanceof Error ? error.message : "falha no despacho"}`,
+          );
+        }
       }
-      setSelectedProcessIds(new Set());
+      // Preserve non-dispatched selections for review/retry, not the successful ones.
+      setSelectedProcessIds((current) => new Set(
+        [...current].filter((id) => !completedIds.includes(id)),
+      ));
       setProtocolActionStatus(
-        `${selected.length} processo(s) despachado(s) para ${URBAN_ANALYSIS_DEPARTMENT}.`,
-      );
-    } catch (error) {
-      setProtocolActionStatus(
-        error instanceof Error
-          ? `Não foi possível concluir o despacho em lote: ${error.message}`
-          : "Não foi possível concluir o despacho em lote.",
+        `${completedIds.length} processo(s) encaminhado(s). ${awaitingRequirements} aguardando guia, triagem ou documentos. ${rejected.length} falha(s).` +
+        (rejected.length ? ` Verificar: ${rejected.slice(0, 3).join("; ")}` : ""),
       );
     } finally {
       setProtocolActionBusy("");
@@ -584,7 +609,8 @@ export function ProtocolDeskPage() {
                 (process.createdBy ? userById.get(process.createdBy) : undefined);
               const expanded = expandedProcessIds.has(process.id);
               const selected = selectedProcessIds.has(process.id);
-              const ownedByProtocol = isProcessOwnedBySessionDepartment(session, process);
+              const ownedByProtocol = isProcessOwnedBySessionDepartment(session, process) ||
+                (session.role === "prefeitura_admin" && protocolQueueProcesses.some((item) => item.id === process.id));
 
               return (
                 <div
@@ -679,7 +705,24 @@ export function ProtocolDeskPage() {
                               Acompanhamento
                             </span>
                           ) : null}
-                          {ownedByProtocol && process.status === "pagamento_confirmado" ? (
+                          {ownedByProtocol && process.triage.status === "recebido" ? (
+                            <Button type="button" variant="outline"
+                              className="h-9 rounded-xl border-sky-300 bg-white text-sky-950 hover:bg-sky-50"
+                              disabled={Boolean(protocolActionBusy)}
+                              onClick={() => void handleTriageStatus(process, "em_triagem")}>
+                              {protocolActionBusy === `triage-em_triagem-${process.id}` ? "Iniciando..." : "Iniciar triagem"}
+                            </Button>
+                          ) : null}
+                          {ownedByProtocol && process.triage.status === "em_triagem" ? (
+                            <Button type="button" variant="outline"
+                              className="h-9 rounded-xl border-emerald-300 bg-emerald-50 text-emerald-950 hover:bg-emerald-100"
+                              disabled={Boolean(protocolActionBusy) || getPendingTriageDocuments(process) > 0}
+                              title={getPendingTriageDocuments(process) > 0 ? "Existem anexos obrigatórios não entregues" : "Registrar conferência da entrega documental"}
+                              onClick={() => void handleTriageStatus(process, "concluido")}>
+                              {protocolActionBusy === `triage-concluido-${process.id}` ? "Concluindo..." : "Concluir triagem documental"}
+                            </Button>
+                          ) : null}
+                          {ownedByProtocol && isReadyForProtocolDispatch(process) ? (
                             <Button
                               type="button"
                               className="h-9 rounded-xl bg-sky-700 text-white hover:bg-sky-800"
@@ -738,7 +781,7 @@ export function ProtocolDeskPage() {
     const pendingReview = getPendingTriageDocuments(process);
     if (status === "concluido" && pendingReview > 0) {
       setProtocolActionStatus(
-        `A triagem não pode ser concluída: ${pendingReview} documento(s) obrigatório(s) ainda precisam ser enviados ou aprovados.`,
+        `A triagem não pode ser concluída: ${pendingReview} documento(s) obrigatório(s) ainda precisam ser enviados e conferidos quanto à presença do arquivo.`,
       );
       return;
     }
@@ -760,7 +803,11 @@ export function ProtocolDeskPage() {
       setProtocolActionStatus(
         status === "em_triagem"
           ? `Triagem iniciada para ${formatOfficialProcessNumber(process.protocol)}.`
-          : `Triagem concluída. Como a guia inicial já está compensada, o processo está pronto para despacho ao Urbanismo.`,
+          : getProcessPaymentGuides(process, tenantSettings).some(
+              (guide) => guide.kind === "protocolo" && guide.status === "compensada",
+            )
+            ? "Triagem concluída. Com a guia confirmada, o Protocolo pode despachar formalmente."
+            : "Triagem concluída. Aguarde a confirmação da guia antes do despacho formal.",
       );
     } catch (error) {
       setProtocolActionStatus(
@@ -813,18 +860,17 @@ export function ProtocolDeskPage() {
       return;
     }
 
-    if (process.triage.status !== "concluido") {
-      setProtocolActionStatus("Conclua a triagem documental antes de confirmar o pagamento do protocolo.");
-      return;
-    }
-
+    // A baixa financeira pode acontecer antes ou durante a triagem.
+    // Somente o despacho exige que ambas as etapas estejam concluídas.
     setProtocolActionBusy(`payment-${process.id}`);
     setProtocolActionStatus("");
 
     try {
       await markGuideAsPaid(process.id, session.name, "protocolo");
       setProtocolActionStatus(
-        "Pagamento confirmado. O processo continua no Protocolo e está pronto para despacho ao Urbanismo.",
+        process.triage.status === "concluido" && getPendingTriageDocuments(process) === 0
+          ? "Guia confirmada. Confira a atualização e faça o despacho formal ao Urbanismo."
+          : "Guia confirmada. O processo permanece no Protocolo até a conferência e conclusão da triagem.",
       );
     } catch (error) {
       setProtocolActionStatus(
@@ -837,9 +883,37 @@ export function ProtocolDeskPage() {
     }
   };
 
+  const handleRecoverPrematureAnalysis = async (process: ProcessRecord) => {
+    const reason = triageRecoveryReason.trim();
+    if (reason.length < 15) {
+      setProtocolActionStatus("Informe uma justificativa de pelo menos 15 caracteres para a correção auditada.");
+      return;
+    }
+    const key = `reconcile-${process.id}`;
+    setProtocolActionBusy(key);
+    setProtocolActionStatus("");
+    try {
+      await reconcileRemoteProcessTriage(process.id, reason);
+      await refreshRemoteStore();
+      setTriageRecoveryReason("");
+      setProtocolActionStatus(`${formatOfficialProcessNumber(process.protocol)} retornou à Triagem com histórico preservado. Confira os anexos e conclua a triagem normalmente.`);
+    } catch (error) {
+      setProtocolActionStatus(error instanceof Error ? `Não foi possível reconciliar a etapa: ${error.message}` : "Não foi possível corrigir a etapa no Neon.");
+    } finally {
+      setProtocolActionBusy("");
+    }
+  };
   const handleDispatchToUrbanism = async (process: ProcessRecord) => {
-    if (process.status !== "pagamento_confirmado") {
-      setProtocolActionStatus("Confirme primeiro a guia inicial antes de despachar para o Urbanismo.");
+    if (process.triage.status !== "concluido") {
+      setProtocolActionStatus("Conclua a triagem documental antes do encaminhamento.");
+      return;
+    }
+    if (getPendingTriageDocuments(process) > 0) {
+      setProtocolActionStatus("Faltam anexos obrigatórios reais para a triagem. Consulte Documentos pendentes.");
+      return;
+    }
+    if (!hasCompensatedInitialGuide(process)) {
+      setProtocolActionStatus("A guia inicial ainda não está compensada. Confirme o pagamento antes do despacho.");
       return;
     }
 
@@ -915,7 +989,9 @@ export function ProtocolDeskPage() {
                 (guide) => guide.kind === "protocolo",
               )?.status === "compensada" ? (
                 <div className="inline-flex min-h-10 items-center rounded-full border border-sky-200 bg-sky-50 px-4 text-sm font-medium text-sky-800">
-                  Encaminhado automaticamente para {URBAN_ANALYSIS_DEPARTMENT}
+                  {matchedProcess.dispatches.some((d) => /urbanis|an[aá]lise/i.test(d.to))
+                     ? `Encaminhado formalmente para ${URBAN_ANALYSIS_DEPARTMENT}`
+                     : "Guia compensada. Aguarda triagem concluída e despacho formal."}
                 </div>
               ) : null}
             </div>
@@ -1021,6 +1097,29 @@ export function ProtocolDeskPage() {
           value={section}
           onChange={(value) => setSection(value as ProtocolSection)}
         />
+
+        {session.role === "prefeitura_admin" && recoverableTriageCases.length > 0 ? (
+          <SectionCard title="Revisão de integridade da tramitação" description="Processos que avançaram à Análise sem concluir triagem ou despacho. A correção preserva guias, arquivos e histórico.">
+            <div className="space-y-3">
+              <Input value={triageRecoveryReason} onChange={(event) => setTriageRecoveryReason(event.target.value)}
+                placeholder="Justificativa para retorno auditado à Triagem (mín. 15 caracteres)"
+                className="border-slate-300 bg-white text-slate-900 dark:bg-slate-900 dark:text-white" />
+              {recoverableTriageCases.map((process) => (
+                <div key={process.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-white p-4 dark:border-amber-700 dark:bg-slate-900">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900 dark:text-white">{formatOfficialProcessNumber(process.protocol)}</p>
+                    <p className="text-xs text-slate-600 dark:text-slate-300">Triagem: {process.triage.status} · Situação: {statusLabel(process.status)}. Guias e anexos não serão alterados.</p>
+                  </div>
+                  <Button type="button" variant="outline"
+                    disabled={triageRecoveryReason.trim().length < 15 || Boolean(protocolActionBusy)}
+                    onClick={() => void handleRecoverPrematureAnalysis(process)}>
+                    {protocolActionBusy === `reconcile-${process.id}` ? "Corrigindo..." : "Devolver à Triagem com auditoria"}
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </SectionCard>
+        ) : null}
 
         {section === "visao-geral" ? (
           <>
@@ -1365,6 +1464,66 @@ export function ProtocolDeskPage() {
         {section === "pagamentos" ? (
           <PageMainGrid>
             <PageMainContent>
+              {canImportMunicipalGuide ? <SectionCard
+                title="Recebimento direto de guia oficial municipal"
+                description="A guia continua sendo emitida no sistema escolhido pela Prefeitura. Depois, importe o PDF oficial diretamente no processo e comunique o profissional pelo SIGAPRO."
+              >
+                <div className="space-y-4">
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <div>
+                      <label htmlFor="govbr-protocol-search" className="text-xs font-bold uppercase tracking-[0.12em] text-slate-600 dark:text-slate-300">Localizar processo oficial</label>
+                      <Input id="govbr-protocol-search" className="mt-2 h-11" value={govbrProtocolQuery} onChange={(event) => setGovbrProtocolQuery(event.target.value)}
+                        placeholder="Número do processo ou proprietário" />
+                    </div>
+                    <div>
+                      <label htmlFor="govbr-protocol-select" className="text-xs font-bold uppercase tracking-[0.12em] text-slate-600 dark:text-slate-300">Processo para receber o PDF</label>
+                      <select id="govbr-protocol-select" className="mt-2 h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-950 dark:border-slate-600 dark:bg-slate-950 dark:text-white"
+                        value={govbrProtocolId} onChange={(event) => setGovbrProtocolId(event.target.value)}>
+                        <option value="">Selecione o processo</option>
+                        {govbrEligibleProcesses.filter((item) => {
+                          const q = govbrProtocolQuery.trim().toLocaleLowerCase("pt-BR");
+                          return !q || `${item.protocol} ${item.ownerName} ${item.externalProtocol}`.toLocaleLowerCase("pt-BR").includes(q);
+                        }).slice(0, 30).map((item) => (
+                          <option key={item.id} value={item.id}>{item.protocol} • {item.ownerName}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  {govbrEligibleProcesses.find((item) => item.id === govbrProtocolId) ? (() => {
+                    const selected = govbrEligibleProcesses.find((item) => item.id === govbrProtocolId)!;
+                    return <GovbrArGuideBridge
+                      scope="protocolo"
+                      supplierCode={collectionConfig.supplier_code || ""}
+                      supplierName={collectionConfig.supplier_name || "Sistema da Prefeitura"}
+                      process={selected}
+                      municipalityId={effectiveScopeId || selected.tenantId}
+                      actorId={session.id}
+                      actorName={session.name}
+                      canImport={session.role !== "prefeitura_admin" && session.id !== "unknown"}
+                      existingGuides={getProcessPaymentGuides(selected, tenantSettings)}
+                      onAppend={async (document, reference, guideKind) => {
+                        const result = await attachMunicipalCollectionGuide({
+                          municipalityId: effectiveScopeId || selected.tenantId,
+                          processId: selected.id, reference, guideKind, document,
+                        });
+                        await refreshRemoteStore();
+                        return result;
+                      }}
+                      onNotify={(message) => sendProcessMessage({
+                        processId: selected.id,
+                        senderName: session.name,
+                        senderRole: session.role,
+                        audience: "externo",
+                        message,
+                      })}
+                    />;
+                  })() : (
+                    <p className="rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm text-slate-700">
+                      Selecione um processo ou pré-protocolo já registrado no SIGAPRO. Importar a guia do GOVBR não confirma pagamento, não atribui número oficial e não altera a etapa da triagem.
+                    </p>
+                  )}
+                </div>
+              </SectionCard> : null}
               <TableCard
                 title="Pré-protocolos aguardando pagamento"
                 description="Antes da compensação existe somente o pré-protocolo e a guia inicial. Ao confirmar o pagamento, o SIGAPRO atribui o número oficial de forma atômica e abre o processo na Triagem de Protocolo."

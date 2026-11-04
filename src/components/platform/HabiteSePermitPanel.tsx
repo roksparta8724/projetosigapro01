@@ -899,21 +899,21 @@ export function HabiteSePermitPanel({
 
         <CardContent className="space-y-5 p-5">
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <div className="rounded-[18px] border border-slate-200 bg-[linear-gradient(145deg,#ffffff_0%,#f8fafc_100%)] p-4 shadow-[0_8px_20px_rgba(15,23,42,0.04)] dark:border-slate-700 dark:bg-[linear-gradient(145deg,#0f172a_0%,#111827_100%)]">
-              <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-500">Número</p>
-              <p className="mt-2 font-black text-slate-950 dark:text-white">{permit?.permitNumber || "Gerado ao salvar"}</p>
+            <div data-habite-se-permit-metric="true" className="min-w-0 rounded-[18px] border border-slate-200 bg-[linear-gradient(145deg,#ffffff_0%,#f8fafc_100%)] p-4 shadow-[0_8px_20px_rgba(15,23,42,0.04)] dark:border-slate-700 dark:bg-[linear-gradient(145deg,#0f172a_0%,#111827_100%)]">
+              <p data-habite-se-permit-metric-label="true" className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-500">Número</p>
+              <p data-habite-se-permit-metric-value="true" className="mt-2 break-words text-sm font-black leading-5 text-slate-950 dark:text-white">{permit?.permitNumber || "Gerado ao salvar"}</p>
             </div>
-            <div className="rounded-[18px] border border-slate-200 bg-[linear-gradient(145deg,#ffffff_0%,#f8fafc_100%)] p-4 shadow-[0_8px_20px_rgba(15,23,42,0.04)] dark:border-slate-700 dark:bg-[linear-gradient(145deg,#0f172a_0%,#111827_100%)]">
-              <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-500">Área certificada</p>
-              <p className="mt-2 font-black text-slate-950 dark:text-white">{Number(process.property.area || 0).toLocaleString("pt-BR")} m²</p>
+            <div data-habite-se-permit-metric="true" className="min-w-0 rounded-[18px] border border-slate-200 bg-[linear-gradient(145deg,#ffffff_0%,#f8fafc_100%)] p-4 shadow-[0_8px_20px_rgba(15,23,42,0.04)] dark:border-slate-700 dark:bg-[linear-gradient(145deg,#0f172a_0%,#111827_100%)]">
+              <p data-habite-se-permit-metric-label="true" className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-500">Área certificada</p>
+              <p data-habite-se-permit-metric-value="true" className="mt-2 break-words text-sm font-black leading-5 text-slate-950 dark:text-white">{Number(process.property.area || 0).toLocaleString("pt-BR")} m²</p>
             </div>
-            <div className="rounded-[18px] border border-slate-200 bg-[linear-gradient(145deg,#ffffff_0%,#f8fafc_100%)] p-4 shadow-[0_8px_20px_rgba(15,23,42,0.04)] dark:border-slate-700 dark:bg-[linear-gradient(145deg,#0f172a_0%,#111827_100%)]">
-              <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-500">Analista responsável</p>
-              <p className="mt-2 font-black text-slate-950 dark:text-white">{permit?.analystName || process.analysis?.assignedTo || "Aguardando"}</p>
+            <div data-habite-se-permit-metric="true" className="min-w-0 rounded-[18px] border border-slate-200 bg-[linear-gradient(145deg,#ffffff_0%,#f8fafc_100%)] p-4 shadow-[0_8px_20px_rgba(15,23,42,0.04)] dark:border-slate-700 dark:bg-[linear-gradient(145deg,#0f172a_0%,#111827_100%)]">
+              <p data-habite-se-permit-metric-label="true" className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-500">Analista responsável</p>
+              <p data-habite-se-permit-metric-value="true" className="mt-2 break-words text-sm font-black leading-5 text-slate-950 dark:text-white">{permit?.analystName || process.analysis?.assignedTo || "Aguardando"}</p>
             </div>
-            <div className="rounded-[18px] border border-slate-200 bg-[linear-gradient(145deg,#ffffff_0%,#f8fafc_100%)] p-4 shadow-[0_8px_20px_rgba(15,23,42,0.04)] dark:border-slate-700 dark:bg-[linear-gradient(145deg,#0f172a_0%,#111827_100%)]">
-              <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-500">Diretoria</p>
-              <p className="mt-2 font-black text-slate-950 dark:text-white">{effectiveDirectorName || (directorRequestPending ? "Assinatura pendente" : "Aguardando encaminhamento")}</p>
+            <div data-habite-se-permit-metric="true" className="min-w-0 rounded-[18px] border border-slate-200 bg-[linear-gradient(145deg,#ffffff_0%,#f8fafc_100%)] p-4 shadow-[0_8px_20px_rgba(15,23,42,0.04)] dark:border-slate-700 dark:bg-[linear-gradient(145deg,#0f172a_0%,#111827_100%)]">
+              <p data-habite-se-permit-metric-label="true" className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-500">Diretoria</p>
+              <p data-habite-se-permit-metric-value="true" className="mt-2 break-words text-sm font-black leading-5 text-slate-950 dark:text-white">{effectiveDirectorName || (directorRequestPending ? "Assinatura pendente" : "Aguardando encaminhamento")}</p>
             </div>
           </div>
 

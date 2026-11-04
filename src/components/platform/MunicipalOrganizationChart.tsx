@@ -1,7 +1,6 @@
 import { Building2, Network } from "lucide-react";
 import type { MunicipalDepartmentRecord } from "@/integrations/backend/platform";
 import { cn } from "@/lib/utils";
-import { OrganogramAcronymGlyph } from "@/components/platform/OrganogramAcronymGlyph";
 
 const STOP_WORDS = new Set(["de", "da", "do", "das", "dos", "e", "para", "por", "em", "na", "no"]);
 
@@ -142,14 +141,14 @@ function UnitNode({
                 data-organogram-level-badge="true"
                 data-organogram-code-surface="blue"
                 data-contrast-surface="dark"
-                className="sig-organogram-code-badge sig-organogram-blue-code inline-flex min-w-11 items-center justify-center rounded-lg border border-sky-400/45 bg-[linear-gradient(135deg,#075985_0%,#0b6f9f_100%)] px-2 py-1 text-[10px] font-black tracking-[0.12em] shadow-[0_5px_14px_rgba(3,55,84,0.22)]"
+                className="sig-organogram-code-badge sig-organogram-blue-code inline-flex min-h-7 min-w-[54px] items-center justify-center rounded-lg border border-sky-400/45 bg-[linear-gradient(135deg,#075985_0%,#0b6f9f_100%)] px-2 py-1 text-[10px] font-black tracking-[0.12em] shadow-[0_5px_14px_rgba(3,55,84,0.22)]"
                 title={identity.label}
               >
-                <OrganogramAcronymGlyph code={identity.short} className="h-4 w-10" />
+                <strong data-organogram-code-text="true" className="block whitespace-nowrap text-[12px] font-extrabold leading-4 tracking-[0.04em] text-white">{identity.short}</strong>
               </span>
               <span
                 data-organogram-level-label="true"
-                className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-300"
+                className="text-[12px] font-semibold uppercase tracking-[0.06em] text-slate-500 dark:text-slate-300"
               >
                 {identity.label}
               </span>
@@ -159,7 +158,7 @@ function UnitNode({
               data-organogram-acronym="true"
               className={cn(
                 "mt-2 font-black tracking-[-0.02em] text-slate-950 dark:text-white",
-                isRoot ? "text-[22px] leading-7" : "text-[16px] leading-6",
+                isRoot ? "text-[22px] leading-7" : "text-[18px] leading-6",
               )}
               title={department.name}
             >
@@ -169,7 +168,7 @@ function UnitNode({
               data-organogram-name="true"
               className={cn(
                 "mt-0.5 truncate text-slate-500 dark:text-slate-300",
-                isRoot ? "text-xs" : "text-[11px]",
+                isRoot ? "text-[13px]" : "text-[12px]",
               )}
               title={department.name}
             >
@@ -261,7 +260,7 @@ export function MunicipalOrganizationChart({
                 data-organogram-code-surface="blue"
                 data-contrast-surface="dark"
                 data-unit-type={type}
-                className="sig-organogram-code-badge sig-organogram-blue-code rounded-lg border border-sky-400/45 bg-[linear-gradient(135deg,#075985_0%,#0b6f9f_100%)] px-2 py-1 text-[9px] font-black tracking-[0.1em] shadow-[0_5px_14px_rgba(3,55,84,0.20)]"
+                className="sig-organogram-code-badge sig-organogram-blue-code inline-flex min-h-7 items-center justify-center rounded-lg border border-sky-400/45 bg-[linear-gradient(135deg,#075985_0%,#0b6f9f_100%)] px-2 py-1 text-[12px] font-black tracking-[0.04em] shadow-[0_5px_14px_rgba(3,55,84,0.20)]"
                 title={identity.label}
               >
                 <strong
@@ -272,7 +271,7 @@ export function MunicipalOrganizationChart({
                     opacity: 1,
                     fontWeight: 900,
                   }}
-                  className="block !text-white"
+                  className="block whitespace-nowrap text-[12px] font-extrabold leading-4 tracking-[0.04em] !text-white"
                 >
                   {identity.short}
                 </strong>

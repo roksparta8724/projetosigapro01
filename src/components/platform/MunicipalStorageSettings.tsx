@@ -187,7 +187,7 @@ export function MunicipalStorageSettings({
     }
   };
 
-  const useSigapro = async () => {
+  const activateSigaproR2 = async () => {
     setBusy("sigapro");
     setMessage("");
     try {
@@ -278,7 +278,7 @@ export function MunicipalStorageSettings({
               variant="outline"
               className="mt-5 w-full rounded-full"
               disabled={Boolean(busy)}
-              onClick={() => void useSigapro()}
+              onClick={() => void activateSigaproR2()}
             >
               Voltar a usar R2 do SIGAPRO
             </Button>

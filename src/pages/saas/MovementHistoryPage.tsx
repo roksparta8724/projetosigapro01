@@ -1,6 +1,6 @@
 import { ArrowRightLeft, CheckCheck, Clock3, Filter, History, Inbox, PauseCircle, Search, Send, ShieldCheck, Undo2, UserRoundCheck, Workflow } from "lucide-react";
 import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,9 +14,23 @@ import { StatCard } from "@/components/platform/StatCard";
 import { TableCard } from "@/components/platform/TableCard";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
+import { useLivePlatformRefresh } from "@/hooks/useLivePlatformRefresh";
+import { canOperateInstitutionalHistoryProcess, canReadInstitutionalHistory, getInstitutionalHistoryProcesses, historicTimestamp } from "@/lib/institutionalHistoryAccess";
+import { resolveProcessDispatchAuthor } from "@/lib/dispatchActorIdentity";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import {
-  buildProcessPath, formatOfficialProcessNumber, getVisibleProcessesByScope, isInternalRole, statusLabel } from "@/lib/platform";
+  buildProcessPath, formatOfficialProcessNumber, statusLabel } from "@/lib/platform";
+
+function formatSIGAPROHistoryTitle(title: string): string {
+  const names: Record<string, string> = {
+    habite_se_completed: "Habite-se concluído",
+    payment_confirmed: "Pagamento confirmado",
+    guia_emitida: "Guia de pagamento emitida",
+    dispatch: "Despacho administrativo",
+    status_change: "Alteração da situação",
+  };
+  return names[title] || title.replace(/_/g, " ");
+}
 
 type ControlTab = "visao-geral" | "recebidos" | "gerados" | "despachos" | "historico";
 type DispatchPriority = "baixa" | "media" | "alta" | "critica";
@@ -24,7 +38,8 @@ type DispatchPriority = "baixa" | "media" | "alta" | "critica";
 export function MovementHistoryPage() {
   const { session } = usePlatformSession();
   const { municipality, scopeId } = useMunicipality();
-  const { processes: allProcesses, sessionUsers, documentTemplates, dispatchProcess, acknowledgeDispatchReceipt, completeDispatches, returnDispatches, setProcessCheckpoint, setProcessOnHold } = usePlatformData();
+  const { processes: allProcesses, sessionUsers, refreshRemoteStore, documentTemplates, dispatchProcess, acknowledgeDispatchReceipt, completeDispatches, returnDispatches, setProcessCheckpoint, setProcessOnHold } = usePlatformData();
+  useLivePlatformRefresh(refreshRemoteStore, { intervalMs: 8000 });
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState<ControlTab>("visao-geral");
   const [selectedProcessIds, setSelectedProcessIds] = useState<string[]>([]);
@@ -44,8 +59,16 @@ export function MovementHistoryPage() {
   const [operationStatus, setOperationStatus] = useState("");
 
   const currentUnit = session.department || session.title || "Unidade atual";
-  const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
-  const processes = useMemo(() => getVisibleProcessesByScope(session, effectiveScopeId, allProcesses), [allProcesses, effectiveScopeId, session]);
+  const effectiveScopeId = session.role === "master_admin" || session.role === "master_ops"
+    ? municipality?.id ?? scopeId ?? session.municipalityId ?? session.tenantId ?? null
+    : session.municipalityId ?? session.tenantId ?? municipality?.id ?? scopeId ?? null;
+  const processes = useMemo(() => getInstitutionalHistoryProcesses(session, effectiveScopeId, allProcesses), [allProcesses, effectiveScopeId, session]);
+  const mayOperate = (processId: string) => {
+    const process = processes.find((item) => item.id === processId);
+    return Boolean(process && canOperateInstitutionalHistoryProcess(session, process, effectiveScopeId));
+  };
+  const actionableSelectedProcessIds = selectedProcessIds.filter(mayOperate);
+  const hasActionableProcesses = processes.some((process) => canOperateInstitutionalHistoryProcess(session, process, effectiveScopeId));
 
   const sectorOptions = useMemo(() => Array.from(new Set([currentUnit, ...processes.flatMap((process) => [process.processControl?.currentFolder, ...process.dispatches.flatMap((dispatch) => [dispatch.from, dispatch.to])])].filter(Boolean) as string[])), [currentUnit, processes]);
 
@@ -63,14 +86,16 @@ export function MovementHistoryPage() {
     visibility: dispatch.visibility || "interno",
     priority: dispatch.priority || "media",
     assignedTo: dispatch.assignedTo || "",
+    createdBy: resolveProcessDispatchAuthor(dispatch, sessionUsers),
+    createdAt: dispatch.createdAt || "",
     currentFolder: process.processControl?.currentFolder || dispatch.to || process.sla.currentStage,
     externalTransitView: process.processControl?.externalTransitView ?? "completo",
-  }))), [processes]);
+  }))).sort((a, b) => historicTimestamp(b.createdAt) - historicTimestamp(a.createdAt)), [processes, sessionUsers]);
 
   const markerOptions = useMemo(() => Array.from(new Set(processes.flatMap((process) => process.tags.map((tag) => (tag.includes("::") ? tag.split("::")[0] : tag))))), [processes]);
 
   const filterDispatchRow = (item: (typeof dispatchRows)[number]) => {
-    const matchesSearch = `${item.protocol} ${item.subject} ${item.from} ${item.to} ${item.title} ${item.assignedTo}`.toLowerCase().includes(search.toLowerCase());
+    const matchesSearch = `${item.protocol} ${item.subject} ${item.from} ${item.to} ${item.title} ${item.assignedTo} ${item.createdBy || ""}`.toLowerCase().includes(search.toLowerCase());
     const matchesPriority = priorityFilter === "todas" || item.priority === priorityFilter;
     const matchesUnit = unitFilter === "todas" || item.from === unitFilter || item.to === unitFilter || item.currentFolder === unitFilter;
     const process = processes.find((entry) => entry.id === item.processId);
@@ -89,8 +114,19 @@ export function MovementHistoryPage() {
   const restrictedProcesses = processes.filter((process) => (process.processControl?.externalTransitView ?? "completo") === "restrito");
   const dispatchTemplates = documentTemplates.filter((template) => template.type === "despacho");
   const unitUsers = sessionUsers.filter((user) => !batchTargetUnit || (user.department || user.title || "").toLowerCase().includes(batchTargetUnit.toLowerCase()) || batchTargetUnit.toLowerCase().includes((user.department || user.title || "").toLowerCase()));
-  const historyRows = useMemo(() => processes.flatMap((process) => [...process.timeline.map((entry) => ({ id: `${process.id}-${entry.id}`, processId: process.id, protocol: process.protocol, title: entry.title, detail: entry.detail, actor: entry.actor, at: entry.at })), ...process.auditTrail.filter((entry) => entry.visibleToExternal || isInternalRole(session.role)).map((entry) => ({ id: `${process.id}-${entry.id}`, processId: process.id, protocol: process.protocol, title: entry.title, detail: entry.detail, actor: entry.actor, at: entry.at }))]), [processes, session.role]);
-  const filteredHistory = historyRows.filter((item) => `${item.protocol} ${item.title} ${item.detail} ${item.actor}`.toLowerCase().includes(search.toLowerCase()));
+  const historyRows = useMemo(() => processes.flatMap((process) => [...process.timeline.map((entry) => ({ id: `${process.id}-${entry.id}`, processId: process.id, protocol: process.protocol, title: entry.title, detail: entry.detail, actor: entry.actor, at: entry.at })), ...process.auditTrail.filter((entry) => entry.visibleToExternal || canReadInstitutionalHistory(session)).map((entry) => ({ id: `${process.id}-${entry.id}`, processId: process.id, protocol: process.protocol, title: entry.title, detail: entry.detail, actor: entry.actor, at: entry.at }))]), [processes, session.role, session.accountStatus]);
+  const historySeen = new Set<string>();
+  const filteredHistory = [...historyRows].sort((a, b) => historicTimestamp(b.at) - historicTimestamp(a.at)).filter((item) => {
+    if (!`${item.protocol} ${item.title} ${item.detail} ${item.actor}`.toLowerCase().includes(search.toLowerCase())) return false;
+    const detail = String(item.detail ?? '').trim().toLocaleLowerCase('pt-BR').replace(/\s+/g, ' ');
+    const stamp = String(item.at ?? '').trim();
+    if (!detail || !stamp) return true;
+    const actor = String(item.actor ?? '').trim().toLocaleLowerCase('pt-BR');
+    const identity = JSON.stringify([item.processId, stamp, detail, actor]);
+    if (historySeen.has(identity)) return false;
+    historySeen.add(identity);
+    return true;
+  });
   const processBoxes = useMemo(() => sectorOptions.map((sector) => ({ sector, received: dispatchRows.filter((item) => item.to === sector).length, generated: dispatchRows.filter((item) => item.from === sector).length, awaiting: dispatchRows.filter((item) => item.currentFolder === sector && item.dispatchStatus === "aguardando").length })), [dispatchRows, sectorOptions]);
   const responsibleSummary = useMemo(() => Array.from(dispatchRows.reduce((map, item) => { const key = item.assignedTo || "Sem atribuição"; const current = map.get(key) || { name: key, total: 0, pending: 0, critical: 0 }; current.total += 1; if (item.dispatchStatus === "aguardando") current.pending += 1; if (item.priority === "alta" || item.priority === "critica") current.critical += 1; map.set(key, current); return map; }, new Map<string, { name: string; total: number; pending: number; critical: number }>())).map(([, value]) => value).sort((a, b) => b.pending - a.pending || b.critical - a.critical || b.total - a.total).slice(0, 6), [dispatchRows]);
   const tabs = [
@@ -101,12 +137,15 @@ export function MovementHistoryPage() {
     { value: "historico", label: "Histórico", helper: "Trilha e auditoria" },
   ] as const;
   const showFilters = activeTab !== "visao-geral";
-  const showBatchPanel = activeTab === "despachos";
+  const showBatchPanel = activeTab === "despachos" && hasActionableProcesses;
 
-  const toggleSelection = (processId: string) => setSelectedProcessIds((current) => current.includes(processId) ? current.filter((item) => item !== processId) : [...current, processId]);
+  const toggleSelection = (processId: string) => {
+    if (!mayOperate(processId)) return;
+    setSelectedProcessIds((current) => current.includes(processId) ? current.filter((item) => item !== processId) : [...current, processId]);
+  };
   const clearSelection = () => setSelectedProcessIds([]);
   const getVisibleRowsByTab = () => activeTab === "recebidos" ? filteredReceived : activeTab === "gerados" ? filteredGenerated : activeTab === "despachos" ? filteredDispatches : filteredReceived.slice(0, 6);
-  const selectAllVisible = () => setSelectedProcessIds(Array.from(new Set(getVisibleRowsByTab().map((item) => item.processId))));
+  const selectAllVisible = () => setSelectedProcessIds(Array.from(new Set(getVisibleRowsByTab().map((item) => item.processId).filter(mayOperate))));
 
   const runWorkflowAction = async (
     successMessage: string,
@@ -134,12 +173,12 @@ export function MovementHistoryPage() {
   };
 
   const handleBatchReceive = async () => {
-    if (selectedProcessIds.length === 0) return;
+    if (actionableSelectedProcessIds.length === 0) return;
     await runWorkflowAction(
       "Recebimento registrado no banco oficial.",
       () =>
         acknowledgeDispatchReceipt({
-          processIds: selectedProcessIds,
+          processIds: actionableSelectedProcessIds,
           actor: session.name,
           unit: currentUnit,
         }),
@@ -149,7 +188,7 @@ export function MovementHistoryPage() {
 
   const handleBatchDispatch = async () => {
     if (
-      selectedProcessIds.length === 0 ||
+      actionableSelectedProcessIds.length === 0 ||
       !batchTargetUnit.trim() ||
       !batchSubject.trim() ||
       !batchDueDate
@@ -159,7 +198,7 @@ export function MovementHistoryPage() {
       "Despacho registrado no banco oficial.",
       async () => {
         await Promise.all(
-          selectedProcessIds.map((processId) =>
+          actionableSelectedProcessIds.map((processId) =>
             dispatchProcess({
               processId,
               actor: session.name,
@@ -187,12 +226,12 @@ export function MovementHistoryPage() {
   };
 
   const handleBatchComplete = async () => {
-    if (selectedProcessIds.length === 0) return;
+    if (actionableSelectedProcessIds.length === 0) return;
     await runWorkflowAction(
       "Despacho concluído no banco oficial.",
       () =>
         completeDispatches({
-          processIds: selectedProcessIds,
+          processIds: actionableSelectedProcessIds,
           actor: session.name,
           unit: currentUnit,
         }),
@@ -201,12 +240,12 @@ export function MovementHistoryPage() {
   };
 
   const handleBatchReturn = async () => {
-    if (selectedProcessIds.length === 0) return;
+    if (actionableSelectedProcessIds.length === 0) return;
     await runWorkflowAction(
       "Devolução registrada no banco oficial.",
       () =>
         returnDispatches({
-          processIds: selectedProcessIds,
+          processIds: actionableSelectedProcessIds,
           actor: session.name,
           unit: currentUnit,
           reason: returnReason,
@@ -219,12 +258,12 @@ export function MovementHistoryPage() {
   };
 
   const handleSetCheckpoint = async () => {
-    if (selectedProcessIds.length === 0 || !checkpoint.trim()) return;
+    if (actionableSelectedProcessIds.length === 0 || !checkpoint.trim()) return;
     await runWorkflowAction(
       "Checkpoint salvo no banco oficial.",
       () =>
         setProcessCheckpoint({
-          processIds: selectedProcessIds,
+          processIds: actionableSelectedProcessIds,
           actor: session.name,
           checkpoint,
         }),
@@ -236,14 +275,14 @@ export function MovementHistoryPage() {
   };
 
   const handleOnHold = async (onHold: boolean) => {
-    if (selectedProcessIds.length === 0) return;
+    if (actionableSelectedProcessIds.length === 0) return;
     await runWorkflowAction(
       onHold
         ? "Processo(s) sobrestado(s) no banco oficial."
         : "Sobrestamento removido no banco oficial.",
       () =>
         setProcessOnHold({
-          processIds: selectedProcessIds,
+          processIds: actionableSelectedProcessIds,
           actor: session.name,
           onHold,
           reason: holdReason,
@@ -264,7 +303,7 @@ export function MovementHistoryPage() {
           <div key={item.id} className="sig-dark-panel rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="flex min-w-0 items-start gap-3">
-                {hideSelection ? null : <input type="checkbox" checked={selectedProcessIds.includes(item.processId)} onChange={() => toggleSelection(item.processId)} className="mt-1 h-4 w-4 rounded border-slate-300" />}
+                {hideSelection || !mayOperate(item.processId) ? null : <input type="checkbox" aria-label={`Selecionar ${formatOfficialProcessNumber(item.protocol)}`} checked={selectedProcessIds.includes(item.processId)} onChange={() => toggleSelection(item.processId)} className="mt-1 h-4 w-4 rounded border-slate-300" />}
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="text-sm font-semibold text-slate-950">{formatOfficialProcessNumber(item.protocol)}</p>
@@ -273,6 +312,7 @@ export function MovementHistoryPage() {
                   </div>
                   <p className="mt-2 text-sm font-medium text-slate-900">{item.subject}</p>
                   <p className="mt-1 text-sm text-slate-600">{item.from} <span className="px-1 text-slate-400">→</span> {item.to}</p>
+                  <p className="mt-1 text-xs font-medium text-slate-600">Despachado por: {item.createdBy || "identificação não registrada"}</p>
                   <p className="sig-fit-copy mt-1 text-sm leading-6 text-slate-500">{item.title}</p>
                 </div>
               </div>
@@ -304,7 +344,7 @@ export function MovementHistoryPage() {
                 <p className="text-sm font-semibold text-slate-950">{formatOfficialProcessNumber(item.protocol)}</p>
                 <p className="text-xs uppercase tracking-[0.18em] text-slate-400">{item.at}</p>
               </div>
-              <p className="mt-2 text-sm font-medium text-slate-900">{item.title}</p>
+              <p className="mt-2 text-sm font-medium text-slate-900">{formatSIGAPROHistoryTitle(item.title)}</p>
               <p className="mt-2 text-sm leading-6 text-slate-600">{item.detail}</p>
               <p className="mt-2 text-xs uppercase tracking-[0.18em] text-slate-400">{item.actor}</p>
             </div>
@@ -326,6 +366,10 @@ export function MovementHistoryPage() {
       {operationStatus}
     </div>
   ) : null;
+
+  if (!canReadInstitutionalHistory(session)) {
+    return <Navigate to={session.role === "profissional_externo" ? "/externo/historico" : session.role === "property_owner" || session.role === "proprietario_consulta" ? "/proprietario" : "/acesso"} replace />;
+  }
 
   return (
     <PortalFrame eyebrow="Controle de processos" title="Mesa institucional de tramitação">
@@ -362,9 +406,9 @@ export function MovementHistoryPage() {
           <SectionCard title="Operação em lote" description="Receba, devolva, atribua e despache múltiplos processos sem misturar essa área com a visão executiva." icon={ArrowRightLeft} actions={<div className="flex flex-wrap gap-2"><Button type="button" variant="outline" className="sig-history-outline-btn sig-history-muted-btn rounded-full" onClick={selectAllVisible}>Selecionar visíveis</Button><Button type="button" variant="outline" className="sig-history-outline-btn sig-history-muted-btn rounded-full" onClick={clearSelection}>Limpar seleção</Button></div>}>
             <div className="space-y-3">
               <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto_auto]">
-                <div className="sig-dark-panel rounded-2xl border border-slate-200 bg-slate-50 p-4"><p className="sig-label">Selecionados</p><p className="mt-2 text-base font-semibold text-slate-950">{selectedProcessIds.length}</p><p className="mt-1 text-sm text-slate-500">Processos prontos para ação em lote.</p></div>
-                <Button type="button" variant="outline" className="sig-history-outline-btn sig-history-action-btn rounded-full" onClick={() => void handleBatchReceive()} disabled={operationBusy || selectedProcessIds.length === 0}><CheckCheck className="mr-2 h-4 w-4" />Receber em lote</Button>
-                <Button type="button" variant="outline" className="sig-history-outline-btn sig-history-action-btn rounded-full" onClick={() => void handleBatchComplete()} disabled={operationBusy || selectedProcessIds.length === 0}>Concluir despacho</Button>
+                <div className="sig-dark-panel rounded-2xl border border-slate-200 bg-slate-50 p-4"><p className="sig-label">Selecionados</p><p className="mt-2 text-base font-semibold text-slate-950">{actionableSelectedProcessIds.length}</p><p className="mt-1 text-sm text-slate-500">Processos prontos para ação em lote.</p></div>
+                <Button type="button" variant="outline" className="sig-history-outline-btn sig-history-action-btn rounded-full" onClick={() => void handleBatchReceive()} disabled={operationBusy || actionableSelectedProcessIds.length === 0}><CheckCheck className="mr-2 h-4 w-4" />Receber em lote</Button>
+                <Button type="button" variant="outline" className="sig-history-outline-btn sig-history-action-btn rounded-full" onClick={() => void handleBatchComplete()} disabled={operationBusy || actionableSelectedProcessIds.length === 0}>Concluir despacho</Button>
               </div>
               <div className="grid gap-3 xl:grid-cols-2">
                 <Select value={selectedTemplateId} onValueChange={(value) => { setSelectedTemplateId(value); const template = dispatchTemplates.find((item) => item.id === value); if (template) setBatchSubject(template.title); }}><SelectTrigger className="sig-dispatch-field rounded-2xl"><SelectValue placeholder="Texto padrão do despacho" /></SelectTrigger><SelectContent>{dispatchTemplates.map((template) => <SelectItem key={template.id} value={template.id}>{template.title}</SelectItem>)}</SelectContent></Select>
@@ -375,18 +419,18 @@ export function MovementHistoryPage() {
                 <Input value={batchSubject} onChange={(event) => setBatchSubject(event.target.value)} placeholder="Assunto institucional do despacho" className="sig-dispatch-field" />
                 <Select value={batchAssignedTo} onValueChange={(value) => setBatchAssignedTo(value === "__sem_atribuicao__" ? "" : value)}><SelectTrigger className="sig-dispatch-field rounded-2xl"><SelectValue placeholder="Responsável de destino" /></SelectTrigger><SelectContent><SelectItem value="__sem_atribuicao__">Sem atribuição imediata</SelectItem>{unitUsers.map((user) => <SelectItem key={user.id} value={user.name}>{user.name} - {user.title}</SelectItem>)}</SelectContent></Select>
                 <Input type="date" value={batchDueDate} onChange={(event) => setBatchDueDate(event.target.value)} className="sig-dispatch-field" />
-                <Button type="button" className="sig-history-primary-btn sig-history-action-btn rounded-full bg-slate-950 hover:bg-slate-900" onClick={() => void handleBatchDispatch()} disabled={operationBusy || selectedProcessIds.length === 0 || !batchTargetUnit || !batchSubject || !batchDueDate}><Send className="mr-2 h-4 w-4" />Despachar</Button>
+                <Button type="button" className="sig-history-primary-btn sig-history-action-btn rounded-full bg-slate-950 hover:bg-slate-900" onClick={() => void handleBatchDispatch()} disabled={operationBusy || actionableSelectedProcessIds.length === 0 || !batchTargetUnit || !batchSubject || !batchDueDate}><Send className="mr-2 h-4 w-4" />Despachar</Button>
               </div>
               <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto_auto]">
                 <Input value={checkpoint} onChange={(event) => setCheckpoint(event.target.value)} placeholder="Definir ponto de controle" className="sig-dispatch-field" />
                 <Input value={returnReason} onChange={(event) => setReturnReason(event.target.value)} placeholder="Motivo da devolução" className="sig-dispatch-field" />
-                <Button type="button" variant="outline" className="sig-history-outline-btn sig-history-action-btn rounded-full" onClick={() => void handleSetCheckpoint()} disabled={operationBusy || selectedProcessIds.length === 0 || !checkpoint.trim()}><Workflow className="mr-2 h-4 w-4" />Ponto de controle</Button>
-                <Button type="button" variant="outline" className="sig-history-outline-btn sig-history-action-btn rounded-full" onClick={() => void handleBatchReturn()} disabled={operationBusy || selectedProcessIds.length === 0}><Undo2 className="mr-2 h-4 w-4" />Devolver</Button>
+                <Button type="button" variant="outline" className="sig-history-outline-btn sig-history-action-btn rounded-full" onClick={() => void handleSetCheckpoint()} disabled={operationBusy || actionableSelectedProcessIds.length === 0 || !checkpoint.trim()}><Workflow className="mr-2 h-4 w-4" />Ponto de controle</Button>
+                <Button type="button" variant="outline" className="sig-history-outline-btn sig-history-action-btn rounded-full" onClick={() => void handleBatchReturn()} disabled={operationBusy || actionableSelectedProcessIds.length === 0}><Undo2 className="mr-2 h-4 w-4" />Devolver</Button>
               </div>
               <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto_auto]">
                 <Input value={holdReason} onChange={(event) => setHoldReason(event.target.value)} placeholder="Motivo do sobrestamento administrativo" className="sig-dispatch-field" />
-                <Button type="button" variant="outline" className="sig-history-outline-btn sig-history-action-btn rounded-full" onClick={() => void handleOnHold(true)} disabled={operationBusy || selectedProcessIds.length === 0}><PauseCircle className="mr-2 h-4 w-4" />Sobrestar</Button>
-                <Button type="button" variant="outline" className="sig-history-outline-btn sig-history-action-btn rounded-full" onClick={() => void handleOnHold(false)} disabled={operationBusy || selectedProcessIds.length === 0}>Reativar fluxo</Button>
+                <Button type="button" variant="outline" className="sig-history-outline-btn sig-history-action-btn rounded-full" onClick={() => void handleOnHold(true)} disabled={operationBusy || actionableSelectedProcessIds.length === 0}><PauseCircle className="mr-2 h-4 w-4" />Sobrestar</Button>
+                <Button type="button" variant="outline" className="sig-history-outline-btn sig-history-action-btn rounded-full" onClick={() => void handleOnHold(false)} disabled={operationBusy || actionableSelectedProcessIds.length === 0}>Reativar fluxo</Button>
               </div>
             </div>
           </SectionCard>
