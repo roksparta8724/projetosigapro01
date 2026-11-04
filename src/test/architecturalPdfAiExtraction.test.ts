@@ -1,0 +1,67 @@
+import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import { makeReviewedDrawingEvidence, normalizeArchitecturalPdfExtraction } from "@/lib/architecturalPdfReadings";
+
+describe("SIGAPRO IA — PDF architectural drawing extraction, fail closed",()=>{
+ it("recognizes exact page and quote and never claims automatic municipal approval",()=>{
+  const out=normalizeArchitecturalPdfExtraction({
+    document_type:"architectural_plan",has_site_plan:true,
+    metrics:[
+      {metric:"front_setback_m",value:5,page:2,quote:"Recuo frontal 5,00 m",confidence:"high"},
+      {metric:"lot_area_m2",value:250,page:1,quote:"Área do terreno 250 m²",confidence:"medium"},
+      {metric:"permeability_percent",value:120,page:1,quote:"taxa? 120%",confidence:"low"},
+    ],warnings:[],
+  });
+  expect(out.automaticallyApproved).toBe(false);
+  expect(out.source).toBe("ai_pdf_visual");
+  expect(out.readings).toHaveLength(11);
+  expect(out.readings.find(x=>x.metric==="front_setback_m")).toMatchObject({
+    value:5,page:2,usableForReview:true,
+  });
+  expect(out.readings.find(x=>x.metric==="permeability_percent")?.usableForReview).toBe(false);
+  expect(out.readings.find(x=>x.metric==="permeability_percent")?.value).toBeNull();
+  expect(out.readings.find(x=>x.metric==="rear_setback_m")?.usableForReview).toBe(false);
+ });
+ it("blocks duplicate, unreferenced, uncertain or nonarchitectural values",()=>{
+  const duplicate=normalizeArchitecturalPdfExtraction({
+    document_type:"architectural_plan",has_site_plan:true,warnings:[],
+    metrics:[
+      {metric:"side_setback_m",value:1.5,page:1,quote:"Lateral esquerda 1,50 m",confidence:"high"},
+      {metric:"side_setback_m",value:2,page:2,quote:"Lateral direita 2,00 m",confidence:"high"},
+      {metric:"height_m",value:12,page:null,quote:"Altura máxima 12,00 m",confidence:"high"},
+    ],
+  });
+  expect(duplicate.readings.find(x=>x.metric==="side_setback_m")?.usableForReview).toBe(false);
+  expect(duplicate.readings.find(x=>x.metric==="height_m")?.usableForReview).toBe(false);
+  const other=normalizeArchitecturalPdfExtraction({
+    document_type:"other",has_site_plan:true,metrics:[{
+      metric:"front_setback_m",value:100,page:1,quote:"Recuo de cem metros",confidence:"high",
+    }],warnings:[],
+  });
+  expect(other.hasSitePlan).toBe(false);
+  expect(other.readings.every(x=>!x.usableForReview)).toBe(true);
+ });
+ it("protects the source identifier in analyst-reviewed measurement citations",()=>{
+  expect(makeReviewedDrawingEvidence("projeto.pdf",3,"Recuo frontal 5,00 m")).toContain("página 3");
+  expect(()=>makeReviewedDrawingEvidence("projeto.pdf",null,"frontal")).toThrow();
+ });
+ it("connects visual PDF extraction to the actual precheck without bypassing confirmed legal evidence",()=>{
+  const endpoint=readFileSync("api/ai-project-extract.ts","utf8");
+  const panel=readFileSync("src/components/platform/ArchitecturalPdfAiPanel.tsx","utf8");
+  const precheck=readFileSync("src/components/platform/UrbanPrecheckPanel.tsx","utf8");
+  expect(endpoint).toContain('process.env.VERCEL_ENV!=="preview"');
+  expect(endpoint).toContain("authorize_technical_document_signing_v1");
+  expect(endpoint).toContain("get_current_profile_context");
+  expect(endpoint).toContain("OPENAI_API_KEY");
+  expect(endpoint).toContain("SIGAPRO_AI_PDF_ENABLED");
+  expect(endpoint).toContain('store:false');
+  expect(endpoint).toContain('text:{format:{type:"json_schema"');
+  expect(panel).toContain('confirmedTransfer:true');
+  expect(panel).toContain('data-sigapro-ai-apply-reviewed="true"');
+  expect(panel).toContain("row.usableForReview && checked[row.metric]");
+  expect(precheck).toContain("<ArchitecturalPdfAiPanel");
+  expect(precheck).toContain("setLegalReviewConfirmed(false)");
+  expect(precheck).toContain('data-urban-precheck-legal-review="true"');
+  expect(precheck).toContain("legalScopesReady && legalReviewConfirmed");
+ });
+});

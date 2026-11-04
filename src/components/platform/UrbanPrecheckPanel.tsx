@@ -13,6 +13,7 @@ import {
 import { municipalCivilDateFromValue } from "@/lib/municipalCivilDate";
 import { evidenceCoversUrbanRule, type UrbanLegalEvidenceScope } from "@/lib/urbanEvidenceCoverage";
 import { Textarea } from "@/components/ui/textarea";
+import { ArchitecturalPdfAiPanel } from "@/components/platform/ArchitecturalPdfAiPanel";
 import type { ProcessRecord } from "@/lib/platform";
 
 type Field = { value: string; evidence: string };
@@ -200,10 +201,21 @@ export function UrbanPrecheckPanel({
         </span>
       </div>
       <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-950 dark:border-amber-500/40 dark:bg-amber-950/40 dark:text-amber-100">
-        A leitura automática de plantas por IA ainda não está habilitada. Verifique cada medida no projeto
-        original e identifique a prancha, a página ou o quadro de áreas utilizado. A legislação deve estar validada pela Prefeitura.
+        A leitura visual é experimental na homologação e depende de provedor habilitado.
+        Verifique todas as cotas no PDF antes de utilizar as sugestões; a legislação municipal
+        também precisa estar validada. Nunca há aprovação automática.
       </div>
 
+      <ArchitecturalPdfAiPanel
+        process={process} readOnly={readOnly}
+        activeMetrics={regulation?.rules.map((rule) => rule.metric) ?? []}
+        onApply={(reviewed) => {
+          setFields((current) => ({...current, ...reviewed}));
+          setLegalReviewConfirmed(false);
+          idempotencyRef.current = null;
+          setNotice("Medidas conferidas copiadas. Confira os resultados e as evidências legais antes de registrar.");
+        }}
+      />
       <div className="mt-4 grid gap-3 md:grid-cols-3">
         <label className="text-xs font-bold text-slate-700 dark:text-slate-200">Zona do imóvel
           <Input className="mt-1" placeholder="Ex.: ZR1" value={zone} maxLength={40}
