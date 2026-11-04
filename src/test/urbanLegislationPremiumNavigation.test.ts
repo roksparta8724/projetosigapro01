@@ -26,7 +26,8 @@ describe("SIGAPRO premium legal page separation", () => {
     expect(brandingReturn).not.toContain('id="sigapro-legal-archive-upload"');
     expect(brandingReturn).not.toContain("<MunicipalUrbanRulesSettings");
     expect(brandingReturn).toContain("Salvar identidade visual");
-    expect(brandingReturn).toContain('navigate("/cadastro-gestao/legislacao")');
+    expect(brandingReturn).not.toContain('navigate("/cadastro-gestao/legislacao")');
+    expect(config).toContain('navigate(isMasterRole ? "/master" : "/configuracoes")');
   });
   it("saves logos separately without overwriting legal PDFs, and vice versa", () => {
     expect(config).toContain('handleSaveInstitutionalAssets("branding")');

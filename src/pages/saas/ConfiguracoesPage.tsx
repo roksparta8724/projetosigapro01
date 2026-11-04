@@ -3337,7 +3337,7 @@ export function ConfiguracoesPage({ legislationWorkspace = false }: { legislatio
                 </p>
               </div>
               <Button type="button" variant="outline" className="min-h-10 rounded-xl"
-                onClick={() => navigate("/configuracoes")}>
+                onClick={() => navigate(isMasterRole ? "/master" : "/configuracoes")}>
                 Voltar ao Cadastro e Gestão
               </Button>
             </div>
@@ -3980,11 +3980,6 @@ export function ConfiguracoesPage({ legislationWorkspace = false }: { legislatio
                     {institutionalAssetsSaving ? "Salvando..." : "Salvar identidade visual"}
                   </Button>
                 </div>
-                <Button type="button" variant="outline"
-                  className="mt-3 min-h-10 rounded-xl"
-                  onClick={() => navigate("/cadastro-gestao/legislacao")}>
-                  Abrir gestão de legislação
-                </Button>
               </div>
             </div>
             ) : (
