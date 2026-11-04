@@ -1,4 +1,4 @@
-import { URBAN_METRICS, type UrbanMetric } from "./urbanPrecheck";
+import { URBAN_METRICS, type UrbanMetric } from "./urbanPrecheck.js";
 
 const allMetrics = new Set<string>(URBAN_METRICS.map((x) => x.key));
 const percentMetrics = new Set<string>(["occupancy_percent", "permeability_percent"]);
