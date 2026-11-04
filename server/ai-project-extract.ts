@@ -9,6 +9,15 @@ type Req = IncomingMessage & { method?: string; body?: unknown };
 type Res = ServerResponse;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MAX_PDF_BYTES = 8 * 1024 * 1024;
+/**
+ * Production PDF reading stays disabled until its own explicit, server-side
+ * release flag is set after the real-project and legal/financial QA gates.
+ * The preview remains available to authorized analysts for homologation.
+ */
+function productionPdfAiOptIn():boolean {
+  return process.env.VERCEL_ENV==="production" &&
+    readEnv("SIGAPRO_PDF_AI_PROD_ENABLED").trim().toLowerCase()==="true";
+}
 type DocumentRow = {id:string;process_id:string;municipality_id:string;tenant_id?:string;
   title:string;file_name:string;file_path:string;mime_type:string;file_size_bytes?:string|number;
   version:number;is_valid:boolean;invalidated_at:string|null;};
@@ -96,8 +105,8 @@ export default async function handler(req:Req,res:Res){
   if(req.method==="GET"){
     if(!sameOrigin(req))return json(res,403,{error:"Origem não autorizada."});
     if(!readBearer(req))return json(res,401,{error:"Entre na sua conta SIGAPRO."});
-    if(process.env.VERCEL_ENV!=="preview")return json(res,200,{
-      enabled:false,message:"A leitura visual só pode ser habilitada na homologação."
+    if(process.env.VERCEL_ENV!=="preview" && !productionPdfAiOptIn())return json(res,200,{
+      enabled:false,message:"Leitura de projetos desativada neste ambiente. Em produção depende de homologação e habilitação expressa."
     });
     const auth=await callDataApiRpc<Record<string,unknown>>(req,"get_current_profile_context",{});
     const user=auth.payload;
@@ -115,8 +124,8 @@ export default async function handler(req:Req,res:Res){
   }
   if(req.method!=="POST")return json(res,405,{error:"Método não permitido."});
   if(!sameOrigin(req))return json(res,403,{error:"Origem não autorizada."});
-  if(process.env.VERCEL_ENV!=="preview")return json(res,403,{
-    code:"QA_ONLY",error:"Leitura visual disponível somente na homologação."
+  if(process.env.VERCEL_ENV!=="preview" && !productionPdfAiOptIn())return json(res,403,{
+    code:"AI_ENV_DISABLED",error:"Leitura de projetos desativada neste ambiente até habilitação expressa."
   });
   if(!readBearer(req))return json(res,401,{error:"É necessário entrar no SIGAPRO."});
   let body:Record<string,unknown>;
