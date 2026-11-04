@@ -481,8 +481,9 @@ async function loadProfileByUserId(userId: string): Promise<AppBootstrapProfile 
     });
   }
 
-  const memberships = (membershipResult.data ?? []).filter((item: any) => item.role_id);
-  const roleIds = Array.from(new Set(memberships.map((item: any) => item.role_id).filter(Boolean)));
+  type MembershipRow = { role_id?: string | null; tenant_id?: string | null; level_name?: string | null };
+  const memberships = ((membershipResult.data ?? []) as MembershipRow[]).filter((item) => Boolean(item.role_id));
+  const roleIds = Array.from(new Set(memberships.map((item) => item.role_id).filter((id): id is string => Boolean(id))));
   let roleCodeFromMembership: string | null = null;
   let municipalityIdFromMembership: string | null = null;
   let accessLevelFromMembership: 1 | 2 | 3 | null = null;
@@ -490,14 +491,14 @@ async function loadProfileByUserId(userId: string): Promise<AppBootstrapProfile 
   if (roleIds.length > 0) {
     const rolesResult = await backendClient.from("roles").select("id, code").in("id", roleIds);
     if (!rolesResult.error) {
-      const rolesById = new Map((rolesResult.data ?? []).map((item: any) => [item.id, item.code]));
+      const rolesById = new Map<string, string>(((rolesResult.data ?? []) as Array<{ id: string; code: string }>).map((item) => [item.id, item.code]));
       const rankedMembership = memberships
-        .map((item: any) => ({
+        .map((item) => ({
           tenantId: item.tenant_id as string | null,
-          roleCode: rolesById.get(item.role_id) ?? null,
+          roleCode: rolesById.get(item.role_id || "") ?? null,
           levelName: item.level_name as string | null,
         }))
-        .sort((left: any, right: any) => {
+        .sort((left, right) => {
           const rank = (roleCode: string | null) => {
             const mapped = mapDbRoleCodeToAppRole(roleCode);
             if (mapped === "master_admin" || mapped === "master_ops" || mapped === "prefeitura_admin") return 4;
@@ -737,7 +738,7 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
           sessionUser || event === "SIGNED_OUT"
             ? null
             : await backendClient.auth.getUser();
-        let authUser = sessionUser ?? userResult?.data.user ?? null;
+        const authUser = sessionUser ?? userResult?.data.user ?? null;
         if (!canApply()) return;
 
         // O SupabaseAuthAdapter do Neon pode emitir SIGNED_OUT enquanto restaura
@@ -991,12 +992,11 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
             "[Bootstrap] Não foi possível revogar a sessão anterior ao iniciar nova sessão do navegador",
             restartSignOutError,
           );
-        } finally {
-          if (!active) return;
-          explicitSignOutRef.current = false;
-          requireFreshLoginAfterBrowserRestartRef.current = false;
-          void runBootstrap("SIGNED_OUT", null);
         }
+        if (!active) return;
+        explicitSignOutRef.current = false;
+        requireFreshLoginAfterBrowserRestartRef.current = false;
+        void runBootstrap("SIGNED_OUT", null);
       })();
     }
 

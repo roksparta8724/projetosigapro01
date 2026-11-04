@@ -57,7 +57,7 @@ export async function authorizePrivateR2DocumentRead(
   try {
     const query = new URLSearchParams({
       file_path: `eq.${objectKey}`,
-      select: "id,municipality_id,tenant_id",
+      select: "id,process_id,municipality_id,tenant_id",
       limit: "1",
     });
     const result = await fetch(`${getDataApiUrl()}/process_documents?${query.toString()}`, {
@@ -74,12 +74,31 @@ export async function authorizePrivateR2DocumentRead(
     }
     const rows: unknown = await result.json();
     const document = Array.isArray(rows) ? rows[0] as
-      | { municipality_id?: unknown; tenant_id?: unknown }
+      | { id?: unknown; process_id?: unknown; municipality_id?: unknown; tenant_id?: unknown }
       | undefined : undefined;
     if (!document) return { ok: false, status: 403, error: "Documento não disponível para este usuário." };
     const documentMunicipalityId = String(document.municipality_id || document.tenant_id || "").toLowerCase();
     if (keyMunicipalityId && documentMunicipalityId !== keyMunicipalityId.toLowerCase()) {
       return { ok: false, status: 403, error: "Documento fora do município autorizado." };
+    }
+    // Fail closed on direct signed-URL requests, not merely on the UI.
+    // The RPC checks the viewer's role, process affiliation and technical release.
+    const documentId = String(document.id || "");
+    if (!/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(documentId) || !document.process_id) {
+      return { ok: false, status: 403, error: "Vínculo do documento com o processo não confirmado." };
+    }
+    const release = await callDataApiRpc<boolean>(req, "authorize_technical_document_signing_v1", {
+      _document_id: documentId,
+    });
+    if (!release.ok) {
+      return {
+        ok: false,
+        status: release.status === 401 ? 401 : release.status >= 500 ? 503 : 403,
+        error: "Não foi possível confirmar a autorização técnica do documento.",
+      };
+    }
+    if (release.payload !== true) {
+      return { ok: false, status: 403, error: "Documento ainda não liberado para consulta técnica." };
     }
     return { ok: true };
   } catch {

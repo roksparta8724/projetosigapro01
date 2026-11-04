@@ -25,7 +25,11 @@ describe("municipal legislation assets", () => {
     expect(settings).toContain('"process-documents"');
     expect(settings).toContain("persistentRef");
     expect(settings).toContain("Salvar arquivos oficiais");
-    expect(settings).toContain("Acervo legal municipal");
+    expect(settings).toContain("Arquivos institucionais existentes (legado)");
+    expect(settings).toContain("<UrbanLegislationRegistryPanel municipalityId={selectedTenantId} />");
+    expect(settings).toContain('data-urban-legislation-dedicated-page="true"');
+    expect(settings).toContain("<UrbanLegislationRegistryPanel municipalityId={selectedTenantId} />");
+    expect(settings).not.toContain("Documentos complementares — cadastro individual e sem limite fixo de campos");
     expect(settings).toContain('title="Zoneamento"');
     expect(settings).toContain("zoneamentoFiles");
   });

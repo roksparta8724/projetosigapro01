@@ -39,7 +39,8 @@ beforeEach(() => {
   mock.send.mockResolvedValue({ ContentLength: body.fileSize, ContentType: "application/pdf" });
   mock.rpc.mockImplementation(async (_req: unknown, fn: string) => ({
     ok: true, status: 200,
-    payload: fn === "has_tenant_access" || fn === "is_municipality_admin" || fn === "is_master" ? true : null,
+    payload: fn === "can_manage_urban_legislation_registry_v1" ? true :
+      fn === "assert_municipality_entitlement_v1" ? { allowed: true } : false,
   }));
   vi.stubEnv("R2_ACCESS_KEY_ID", "fake-not-real");
   vi.stubEnv("R2_SECRET_ACCESS_KEY", "fake-not-real");
@@ -58,7 +59,7 @@ describe("SIGAPRO — direct secure legal PDF upload", () => {
     expect(r.status).toBe(200);
     expect(r.output.uploadUrl).toContain("https://");
     expect(mock.sign).toHaveBeenCalledTimes(1);
-    expect(mock.rpc).toHaveBeenCalledWith(expect.anything(), "has_tenant_access", {target_tenant: tenant});
+    expect(mock.rpc).toHaveBeenCalledWith(expect.anything(), "can_manage_urban_legislation_registry_v1", {_municipality_id: tenant});
     expect(mock.rpc).toHaveBeenCalledWith(expect.anything(), "assert_municipality_entitlement_v1",
       {_municipality_id: tenant, _capability:"storage_bytes", _increment:body.fileSize});
   });
@@ -68,22 +69,31 @@ describe("SIGAPRO — direct secure legal PDF upload", () => {
     expect((await call({ method:"GET" })).status).toBe(405);
     expect(mock.sign).not.toHaveBeenCalled();
   });
-  it("denies tenantless users and users without municipal administrative role", async () => {
+  it("denies Master, cross-tenant accounts and users without the municipal legal-editor role", async () => {
+    // A Master or a profile from another municipality cannot pass the
+    // DB-managed can_manage_urban_legislation_registry_v1 own-tenant guard.
     mock.rpc.mockImplementation(async (_req: unknown, fn: string) => ({
-      ok: true, payload: fn === "has_tenant_access" ? false : true, status: 200,
+      ok: true, status: 200,
+      payload: fn === "can_manage_urban_legislation_registry_v1" ? false : true,
     }));
     expect((await call()).status).toBe(403);
+    expect(mock.sign).not.toHaveBeenCalled();
+    expect(mock.rpc).toHaveBeenCalledWith(expect.anything(),
+      "can_manage_urban_legislation_registry_v1", { _municipality_id: tenant });
+    // A failed RPC or missing membership must also fail closed.
     mock.rpc.mockImplementation(async (_req: unknown, fn: string) => ({
-      ok:true,status:200,payload:fn === "has_tenant_access" ? true :
-        fn === "assert_municipality_entitlement_v1" ? {} : false,
+      ok: fn !== "can_manage_urban_legislation_registry_v1",
+      status: fn === "can_manage_urban_legislation_registry_v1" ? 403 : 200,
+      payload: fn === "can_manage_urban_legislation_registry_v1" ? null : true,
     }));
     expect((await call()).status).toBe(403);
+    expect(mock.sign).not.toHaveBeenCalled();
   });
   it("prevents exceeding the municipal storage allowance", async () => {
     mock.rpc.mockImplementation(async (_req:unknown,fn:string) => ({
       ok:fn !== "assert_municipality_entitlement_v1",status:409,payload:true,
     }));
-    expect((await call()).status).toBe(403);
+    expect((await call()).status).toBe(409);
     expect(mock.sign).not.toHaveBeenCalled();
   });
   it("runs an authorized, read-only CORS preflight against signed R2 endpoint without exposing URL", async () => {
@@ -130,4 +140,21 @@ describe("SIGAPRO — direct secure legal PDF upload", () => {
     mock.send.mockResolvedValueOnce({ContentLength:5,ContentType:"application/pdf"});
     expect((await call({ body:{...body,action:"verify"} })).status).toBe(409);
   });
+  it("requires a separate municipal legal-editor role for registry PDF uploads", async () => {
+    const key = objectKey.replace("legislation-plano-diretor", "legislation-registry");
+    expect(validateLegalUploadInput({ ...body, objectKey: key })?.registryUpload).toBe(true);
+    mock.rpc.mockImplementation(async (_req: unknown, fn: string) => ({
+      ok: true, status: 200,
+      payload: fn === "can_manage_urban_legislation_registry_v1" ? false : true,
+    }));
+    expect((await call({ body: { ...body, objectKey: key } })).status).toBe(403);
+    expect(mock.sign).not.toHaveBeenCalled();
+    mock.rpc.mockImplementation(async () => ({ ok: true, status: 200, payload: true }));
+    expect((await call({ body: { ...body, objectKey: key } })).status).toBe(200);
+    expect(mock.rpc).toHaveBeenCalledWith(
+      expect.anything(), "can_manage_urban_legislation_registry_v1",
+      { _municipality_id: tenant },
+    );
+  });
+
 });

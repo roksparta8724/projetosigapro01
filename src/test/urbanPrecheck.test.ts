@@ -26,6 +26,21 @@ describe("SIGAPRO urbanismo: pré-conferência informativa, sem aprovação auto
       .toBe("missing_evidence");
     expect(evaluateUrbanPrecheck(rules, {})[1].status).toBe("missing_evidence");
   });
+  it("compara CA mínimo, área do lote e testada com evidência do projeto, sem aprovação automática", () => {
+    const additional = [
+      { metric: "floor_area_ratio_min" as const, limit: 0.25, reference: "LC hipotética, Quadro I, p. 37" },
+      { metric: "lot_area_m2" as const, limit: 250, reference: "LC hipotética, Quadro I, p. 37" },
+      { metric: "lot_frontage_m" as const, limit: 10, reference: "LC hipotética, Quadro I, p. 37" },
+    ];
+    expect(validateUrbanRules(additional)).toBe(true);
+    const findings = evaluateUrbanPrecheck(additional,{
+      floor_area_ratio_min: { value: 0.2, evidence: "Quadro de áreas, prancha 02" },
+      lot_area_m2: { value: 300, evidence: "Matrícula e levantamento topográfico" },
+      lot_frontage_m: { value: 9.5, evidence: "Cota do levantamento topográfico" },
+    });
+    expect(findings.map((x) => x.status)).toEqual(["attention", "within_limit", "attention"]);
+    expect(evaluateUrbanPrecheck(additional, {})[0].status).toBe("missing_evidence");
+  });
   it("não importa legislação de outra prefeitura, outra zona ou outra vigência", () => {
     expect(selectUrbanRegulation([regulation], "municipio-B", "ZR1", "RESIDENCIAL", "2026-10-23")).toBeNull();
     expect(selectUrbanRegulation([regulation], "municipio-A", "ZC", "RESIDENCIAL", "2026-10-23")).toBeNull();
@@ -37,6 +52,13 @@ describe("SIGAPRO urbanismo: pré-conferência informativa, sem aprovação auto
     expect(validateUrbanRules([{ metric: "front_setback_m", limit: 5, reference: "" }])).toBe(false);
     expect(validateUrbanRules([...rules, rules[0]])).toBe(false);
     expect(validateUrbanRules([{ metric: "occupancy_percent", limit: 120, reference: "Lei hipotética 01" }])).toBe(false);
+  });
+  it("não permite que uma regra fictícia de QA sirva a um processo real", () => {
+    const fixture = { ...regulation, zone_code: "QA-URBAN-E2E-20261024",
+      rules: [{ metric: "front_setback_m" as const, limit: 5,
+        reference: "LEI FICTICIA QA SEM VALIDADE LEGAL" }] };
+    expect(selectUrbanRegulation([fixture], "municipio-A",
+      "QA-URBAN-E2E-20261024", "RESIDENCIAL", "2026-10-23")).toBeNull();
   });
   it("não aceita rascunho como norma vigente", () => {
     expect(selectUrbanRegulation([{ ...regulation, status: "draft" }], "municipio-A", "ZR1", "RESIDENCIAL", "2026-10-23")).toBeNull();

@@ -1256,6 +1256,34 @@ export function getProcessPaymentGuides(process: ProcessRecord, settings?: Tenan
   ];
 }
 
+/**
+ * Portaria de entrada da Análise Urbanística: a guia inicial deve estar
+ * compensada, a triagem concluída e o processo oficializado.
+ * Atribuição antiga ou status preenchido por teste não substituem essas provas.
+ */
+export function isProcessReleasedToUrbanAnalysis(process: ProcessRecord): boolean {
+  if (process.isOfficial === false || process.triage?.status !== "concluido" || !process.payment) {
+    return false;
+  }
+
+  // A conclusão da triagem não significa que o Protocolo já despachou o caso.
+  // Evita filas técnicas prematuras em registros legados ou inconsistentes.
+  if ([
+    "rascunho",
+    "protocolo",
+    "triagem",
+    "guia_emitida",
+    "pagamento_pendente",
+    "pagamento_confirmado",
+  ].includes(process.status)) {
+    return false;
+  }
+
+  return getProcessPaymentGuides(process).some(
+    (guide) => guide.kind === "protocolo" && guide.status === "compensada",
+  );
+}
+
 export function isProcessPaymentGuideSharedExternally(
   process: ProcessRecord,
   guide: PaymentGuideEntry,
@@ -2879,6 +2907,13 @@ export function canViewMunicipalProcessDocument(
   scopeId?: string | null,
 ) {
   if (session.accountStatus === "blocked" || session.accountStatus === "inactive") return false;
+  // A equipe técnica não pode abrir anexos na Análise antes da compensação,
+  // conclusão da triagem e despacho. Protocolo/Admin mantém seu acesso próprio.
+  if (
+    (session.role === "analista" || session.role === "prefeitura_supervisor") &&
+    resolveSessionOperationalArea(session) === "analise" &&
+    !isProcessReleasedToUrbanAnalysis(process)
+  ) return false;
   if (session.role !== "master_admin" && session.role !== "master_ops") {
     const actorScope = getOperationalScopeId(session);
     if (!actorScope || !matchesOperationalScope(actorScope, process)) return false;
@@ -3008,6 +3043,7 @@ export function canSuperviseProcessAnalysis(
   process: ProcessRecord,
 ) {
   if (session.accountStatus === "blocked" || session.accountStatus === "inactive") return false;
+  if (!isProcessReleasedToUrbanAnalysis(process)) return false;
   if (session.role === "master_admin" || session.role === "master_ops") return true;
   if (!isAnalysisSupervisor(session)) return false;
 
@@ -3026,6 +3062,8 @@ export function canEditProcessAnalysis(
   if (session.accountStatus === "blocked" || session.accountStatus === "inactive") {
     return false;
   }
+
+  if (!isProcessReleasedToUrbanAnalysis(process)) return false;
 
   if (session.role === "prefeitura_admin") return false;
   if (session.role === "master_admin" || session.role === "master_ops") return true;
@@ -3093,6 +3131,8 @@ export function canEditAssignedAnalysisArtifact(
   if (session.accountStatus === "blocked" || session.accountStatus === "inactive") {
     return false;
   }
+
+  if (!isProcessReleasedToUrbanAnalysis(process)) return false;
 
   if (session.role === "master_admin" || session.role === "master_ops") return true;
   if (session.role !== "analista" && session.role !== "prefeitura_supervisor") return false;
@@ -3343,7 +3383,16 @@ export function buildProcessDocuments(
       .replace(/[\u0300-\u036f]/g, "")
       .trim()
       .toLowerCase();
-  const uploadedByLabel = new Map(uploadedDocuments.map((document) => [normalizeLabel(document.label), document]));
+  // Use the highest document version per category. Earlier versions stay in
+  // the database history rather than replacing the current PDF on screen.
+  const uploadedByLabel = new Map<string, ProcessDocument>();
+  for (const document of uploadedDocuments) {
+    const key = normalizeLabel(document.label);
+    const previous = uploadedByLabel.get(key);
+    if (!previous || Number(document.version || 0) > Number(previous.version || 0)) {
+      uploadedByLabel.set(key, document);
+    }
+  }
 
   const fromTemplate = (template?.items ?? []).map((item) => {
     const existing = uploadedByLabel.get(normalizeLabel(item.label));
@@ -3362,7 +3411,7 @@ export function buildProcessDocuments(
     );
   });
 
-  const extras = uploadedDocuments.filter(
+  const extras = [...uploadedByLabel.values()].filter(
     (document) => !fromTemplate.some((item) => normalizeLabel(item.label) === normalizeLabel(document.label)),
   );
 

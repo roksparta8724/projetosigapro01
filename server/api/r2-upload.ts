@@ -325,6 +325,38 @@ export default async function handler(req: Req, res: Res) {
       ? await resolveMunicipalDocumentTarget(req, municipalityId, bucket, objectKey)
       : null;
 
+    // Base64 uploads of small legal PDFs must match the signed-upload policy.
+    const isLegalDocumentUpload = municipalityId &&
+      bucket === (readEnv("R2_BUCKET_DOCUMENTOS") || "sigapro-documentos") &&
+      /^municipalities\/[0-9a-f-]{36}\/legislation-(?:plano-diretor|uso-solo|zoneamento|leis-complementares|registry)\//i.test(objectKey);
+    if (isLegalDocumentUpload) {
+      if (contentType !== "application/pdf" || buffer.subarray(0, 5).toString() !== "%PDF-") {
+        json(res, 400, { error: "Somente PDFs oficiais podem integrar o acervo legal." });
+        return;
+      }
+      const grant = await callDataApiRpc(req, "can_manage_urban_legislation_registry_v1", {
+        _municipality_id: municipalityId,
+      });
+      if (!grant.ok) {
+        const missing = grant.status === 404 ||
+          /PGRST202|schema cache|could not find|does not exist/i.test(grant.error);
+        json(res, missing ? 503 : grant.status === 403 ? 403 : 503, {
+          code: missing ? "LEGAL_AUTH_SCHEMA_MISSING" : "LEGAL_AUTH_UNAVAILABLE",
+          error: missing
+            ? "A autorização de legislação não está instalada no banco deste ambiente de homologação."
+            : "A autorização de legislação da Prefeitura não pôde ser verificada.",
+        });
+        return;
+      }
+      if (grant.payload !== true && grant.payload !== "true") {
+        json(res, 403, {
+          code: "LEGAL_ROLE_DENIED",
+          error: "Esta conta não está autorizada a cadastrar legislação nesta Prefeitura.",
+        });
+        return;
+      }
+    }
+
     if (municipalityId) {
       const accessCheck = await callDataApiRpc(req, "has_tenant_access", {
         target_tenant: municipalityId,

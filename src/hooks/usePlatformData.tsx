@@ -1594,6 +1594,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         };
       });
 
+      if (typeof window !== "undefined") window.dispatchEvent(new Event("sigapro:data-changed"));
       return nextPlan;
     };
 
@@ -1672,6 +1673,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         return { ...current, planAssignments, tenants };
       });
 
+      if (typeof window !== "undefined") window.dispatchEvent(new Event("sigapro:data-changed"));
       return nextAssignment;
     };
 

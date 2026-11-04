@@ -2,14 +2,20 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { evaluateUrbanPrecheck,selectUrbanRegulation,validateUrbanRules } from "@/lib/urbanPrecheck";
 describe("SIGAPRO IA: official database precheck contract and human-only decision",()=>{
-  it("requires the authorized, idempotent Neon v5 writer, never old v1",()=>{
+  it("requires authenticated legal evidence and the secure Neon v6 writer, never legacy RPCs",()=>{
     const client=readFileSync("src/integrations/backend/urbanPrecheckClient.ts","utf8");
     const panel=readFileSync("src/components/platform/UrbanPrecheckPanel.tsx","utf8");
-    expect(client).toContain('"save_urban_precheck_run_v5"');
+    expect(client).toContain('"save_urban_precheck_run_v6"');
+    expect(client).not.toContain('invoke("save_urban_precheck_run_v5"');
+    expect(client).not.toContain('invoke("save_urban_precheck_run_v4"');
     expect(client).not.toContain('invoke("save_urban_precheck_run_v1"');
     expect(client).toContain("_request_id: requestId");
     expect(client).toContain("_reference_date: referenceDate");
-    expect(client).toContain("document_scope_confirmed: false");
+    expect(client).toContain("document_scope_confirmed: true");
+    expect(panel).toContain('data-urban-precheck-legal-review="true"');
+    expect(panel).toContain("legalScopesReady && legalReviewConfirmed");
+    expect(panel).toContain("evidenceCoversUrbanRule");
+    expect(panel).toContain("Registro legado sem comprovação jurídica completa");
     expect(panel).toContain("crypto.randomUUID()");
     expect(panel).toContain("idempotencyRef.current?.snapshot===snapshot");
     expect(panel).toContain("idempotencyRef.current={snapshot,id:requestId}");

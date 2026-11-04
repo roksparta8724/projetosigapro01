@@ -54,7 +54,7 @@ export default async function handler(req: Req, res: Res) {
       if (mode === "sigapro") {
         // Capabilities belong to the ACTIVE municipal provider, not the UI
         // checkboxes. Manual/unknown banks must never advertise bank callbacks.
-        const payment = await rpc<Record<string, any>>(
+        const payment = await rpc<Record<string, unknown>>(
           req, "get_municipal_payment_connection_v1", { _municipality_id: municipalityId },
         );
         if (payment?.provider !== "mercado_pago" ||
@@ -75,10 +75,10 @@ export default async function handler(req: Req, res: Res) {
       return json(res, 200, saved || {});
     }
     if (action === "validate") {
-      const config = await rpc<Record<string, any>>(req, "get_municipal_collection_secret_admin_v1", { _municipality_id: municipalityId });
+      const config = await rpc<Record<string, unknown> & { capabilities?: { query?: boolean; payment?: boolean } }>(req, "get_municipal_collection_secret_admin_v1", { _municipality_id: municipalityId });
       if (!config) throw new Error("Configuração não encontrada.");
       if (config.mode === "sigapro") {
-        const provider = await rpc<Record<string, any>>(req, "get_municipal_payment_connection_v1", { _municipality_id: municipalityId });
+        const provider = await rpc<Record<string, unknown>>(req, "get_municipal_payment_connection_v1", { _municipality_id: municipalityId });
         if (provider?.status !== "active") throw new Error("Ative e teste o provedor da Guia SIGAPRO antes de validar a modalidade.");
         if (provider.environment !== config.environment) {
           throw new Error("Ambientes incompatíveis: a modalidade SIGAPRO e o provedor bancário devem usar a mesma homologação ou produção.");
@@ -94,7 +94,7 @@ export default async function handler(req: Req, res: Res) {
           throw new Error("Provedor bancário não homologado para emissão de guias.");
         }
         if (config.environment === "production") {
-          const bank = await rpc<Record<string, any>>(req, "get_municipal_collection_bank_details_v1", { _municipality_id: municipalityId });
+          const bank = await rpc<Record<string, unknown>>(req, "get_municipal_collection_bank_details_v1", { _municipality_id: municipalityId });
           const document = String(bank?.bankBeneficiaryDocument || "").replace(/\D/g, "");
           if (!/^\d{14}$/.test(document) || !String(bank?.beneficiarioArrecadacao || "").trim()) {
             throw new Error("Produção bloqueada: informe o CNPJ e o beneficiário oficial da conta arrecadadora da Prefeitura.");

@@ -31,14 +31,18 @@ describe("SIGAPRO municipal legal archive premium layout",()=>{
   it("keeps legal document cards readable with two desktop columns rather than four cramped columns",()=>{
     expect(settings).toContain('grid min-w-0 grid-cols-1 gap-5 lg:grid-cols-2');
     expect(settings).not.toContain('md:grid-cols-2 2xl:grid-cols-4');
-    expect(settings).toContain('minutas e propostas não são normas vigentes');
-    for(const title of ['Plano Diretor','Lei de Uso e Ocupação do Solo','Zoneamento','Leis complementares'])
+    expect(settings).toContain('Minutas e propostas não são normas vigentes');
+    for(const title of ['Plano Diretor','Lei de Uso e Ocupação do Solo','Zoneamento','Leis complementares — arquivo único legado'])
       expect(settings).toContain('title="'+title+'"');
   });
   it("preserves explicit human verification and existing upload/save flows",()=>{
     expect(rules).toContain('await saveUrbanRegulationDraft(');
     expect(rules).toContain('await activateUrbanRegulation(');
-    expect(settings).toContain('<MunicipalUrbanRulesSettings municipalityId={selectedTenantId} canEdit={canManageTenantSettings} />');
-    expect(settings).toContain('Salvar arquivos oficiais');
+    expect(settings).toContain('<MunicipalUrbanRulesSettings municipalityId={selectedTenantId} canEdit={canManageLegislation}');
+    expect(settings).toContain('documentFiles={{');
+    expect(rules).toContain('<UrbanAiReadinessPanel');
+    expect(settings).toContain('const legalArchiveWorkspace = (');
+    expect(settings).toContain('if (legislationWorkspace) {');
+    expect(settings).toContain('Salvar documentos jurídicos');
   });
 });

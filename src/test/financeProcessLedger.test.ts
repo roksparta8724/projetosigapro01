@@ -68,7 +68,7 @@ describe("finance process accounting ledger", () => {
   it("keeps the clicked ledger row bound to the exact guide instead of falling back to another guide in the same process", () => {
     expect(desk).toContain('&guia=${encodeURIComponent(guide.code)}#guia-selecionada');
     expect(desk).toMatch(
-      /key=\{\`\$\{process\.id\}-\$\{guide\.kind\}-\$\{guide\.code\}\`\}[\s\S]{0,380}to=\{\`\$\{buildProcessPath\(process, "financeiro"\)\}&guia=\$\{encodeURIComponent\(guide\.code\)\}#guia-selecionada\`\}/,
+      /key=\{`\$\{process\.id\}-\$\{guide\.kind\}-\$\{guide\.code\}`\}[\s\S]{0,380}to=\{`\$\{buildProcessPath\(process, "financeiro"\)\}&guia=\$\{encodeURIComponent\(guide\.code\)\}#guia-selecionada`\}/,
     );
     expect(detail).toContain('new URLSearchParams(location.search).get("guia")');
     expect(detail).toContain("paymentGuides.find((guide) => guide.code === requestedGuideCode)");

@@ -46,6 +46,7 @@ import {
   formatOfficialProcessTitle,
   getChecklistTemplate,
   getProcessPaymentGuides,
+  isProcessReleasedToUrbanAnalysis,
   getVisibleProcessesByScope,
   matchesOperationalScope,
   parseMarker,
@@ -143,7 +144,10 @@ export function AnalystDeskPage() {
       ? session.department || session.title || URBAN_ANALYSIS_DEPARTMENT
       : URBAN_ANALYSIS_DEPARTMENT;
 
-  const departmentProcesses = getVisibleProcessesByScope(session, effectiveScopeId, allProcesses);
+  // Somente processos oficialmente liberados entram na fila operacional.
+  // A existência de atribuição antiga não supre pagamento ou triagem.
+  const departmentProcesses = getVisibleProcessesByScope(session, effectiveScopeId, allProcesses)
+    .filter(isProcessReleasedToUrbanAnalysis);
 
   const refreshRemoteStoreRef = useRef(refreshRemoteStore);
 
@@ -185,6 +189,7 @@ export function AnalystDeskPage() {
   // ao Financeiro ou a outra unidade.
   const analysisRegistryBase = allProcesses.filter((item) => {
     if (!matchesOperationalScope(effectiveScopeId, item)) return false;
+    if (!isProcessReleasedToUrbanAnalysis(item)) return false;
     const isCurrentlyVisible = departmentProcesses.some((current) => current.id === item.id);
     const wasAnalyzed = Boolean(item.analysis?.startedAt || item.analysis?.assignedTo || item.analysis?.assignedProfileId);
     return isCurrentlyVisible || wasAnalyzed;

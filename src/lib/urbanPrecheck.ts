@@ -9,7 +9,10 @@ export const URBAN_METRICS = [
   { key: "rear_setback_m", label: "Recuo de fundos", unit: "m", direction: "minimum" },
   { key: "permeability_percent", label: "Taxa de permeabilidade", unit: "%", direction: "minimum" },
   { key: "occupancy_percent", label: "Taxa de ocupação", unit: "%", direction: "maximum" },
-  { key: "floor_area_ratio", label: "Coeficiente de aproveitamento", unit: "", direction: "maximum" },
+  { key: "floor_area_ratio", label: "CA máximo", unit: "", direction: "maximum" },
+  { key: "floor_area_ratio_min", label: "CA mínimo", unit: "", direction: "minimum" },
+  { key: "lot_area_m2", label: "Área mínima do lote", unit: "m²", direction: "minimum" },
+  { key: "lot_frontage_m", label: "Testada mínima do lote", unit: "m", direction: "minimum" },
   { key: "height_m", label: "Altura da edificação", unit: "m", direction: "maximum" },
   { key: "floor_count", label: "Quantidade de pavimentos", unit: "", direction: "maximum" },
 ] as const;
@@ -41,6 +44,19 @@ export type UrbanPrecheckResult = {
   reference: string;
   evidence: string;
 };
+
+/** Mark legacy synthetic QA records so no assistant reports them as official law.
+ * They remain in historical QA data for regression tests only. */
+export function isUrbanTestFixtureRule(value: unknown): boolean {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const entry = value as { zone_code?: unknown; rules?: unknown };
+  if (typeof entry.zone_code === "string" && /^QA[-_]/i.test(entry.zone_code.trim())) return true;
+  return Array.isArray(entry.rules) && entry.rules.some((raw: unknown) => {
+    if (!raw || typeof raw !== "object") return false;
+    const reference = (raw as { reference?: unknown }).reference;
+    return typeof reference === "string" && /LEI\s+FICT[IÍ]CIA\s+QA\s+SEM\s+VALIDADE/i.test(reference);
+  });
+}
 
 const allowed = new Set<string>(URBAN_METRICS.map((x) => x.key));
 export function normalizeUrbanCode(value: string): string {
@@ -74,6 +90,7 @@ export function selectUrbanRegulation(
   const matched = versions.filter((rule) =>
     rule.municipality_id === municipalityId &&
     rule.status === "active" &&
+    !isUrbanTestFixtureRule(rule) &&
     normalizeUrbanCode(rule.zone_code) === normalizeUrbanCode(zone) &&
     normalizeUrbanCode(rule.use_code) === normalizeUrbanCode(usage) &&
     rule.effective_from <= asOf &&

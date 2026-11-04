@@ -1,5 +1,5 @@
 import { archiveAndOpenGuide, openLegacyGuideOriginal, openStoredGuide, readGuideOriginal } from "@/lib/guideOriginal";
-﻿import { FormEvent, MouseEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, MouseEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, ArrowRightLeft, Building2, CheckCircle2, Clock3, Download, Eye, FileBadge2, FileCheck2, FileKey2, FileStack, Landmark, LogOut, Maximize2, MessageSquareMore, PencilLine, Printer, ReceiptText, Route, ShieldAlert, Signature, UserRound, Wallet, Workflow, ZoomIn, ZoomOut } from "lucide-react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
@@ -64,6 +64,8 @@ import {
   type RecoverableProcessFile,
 } from "@/integrations/r2/client";
 import { uploadFileToStorage } from "@/integrations/r2/storage";
+import { createQa04ArchitecturalPdf, createQa04DocumentKit, isQa04ArchitecturalImportAllowed, QA04_DOCUMENT_LABELS } from "@/lib/qa04ArchitecturalFixture";
+import { upgradeRemoteQa04ArchitecturalPlanV2 } from "@/integrations/backend/platformImpl";
 import {
   buildProcessPath,
   buildProcessRouteKey,
@@ -990,6 +992,28 @@ export function ProcessDetailPage() {
   }, [activeTab, isExternalSession, session.role]);
 
   const canUploadProcessDocuments = session.role === "profissional_externo" && process?.status === "rascunho";
+  const canImportQa04Fixture = isQa04ArchitecturalImportAllowed({
+    isolatedQa: import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true",
+    role: session.role,
+    process,
+  });
+  const qa04FixtureUploadedLabels = new Set(
+    (process?.documents ?? [])
+      .filter((document) => document.uploaded && document.filePath &&
+        document.fileName?.startsWith("SIGAPRO-QA04-"))
+      .map((document) => document.label),
+  );
+  const qa04MissingFixtureLabels = QA04_DOCUMENT_LABELS.filter(
+    (label) => !qa04FixtureUploadedLabels.has(label),
+  );
+  const qa04HasOutdatedPlan = (process?.documents ?? []).some((document) =>
+    document.label === "Projeto Arquitetônico" && document.uploaded &&
+    document.fileName === "SIGAPRO-QA04-PLANTA-FICTICIA.pdf" && Boolean(document.filePath),
+  );
+  const qa04HasRevisedPlan = (process?.documents ?? []).some((document) =>
+    document.label === "Projeto Arquitetônico" && document.uploaded &&
+    document.fileName === "SIGAPRO-QA04-PLANTA-IMPLANTACAO-V2.pdf" && Boolean(document.filePath),
+  );
   const canRecoverStoredDocuments =
     canUploadProcessDocuments ||
     (
@@ -2682,6 +2706,74 @@ export function ProcessDetailPage() {
     }
   };
 
+  const handleImportQa04ArchitecturalFixture = async () => {
+    if (!canImportQa04Fixture) {
+      setProcessActionStatus("Importação disponível apenas ao administrador autorizado no Neon QA isolado.");
+      return;
+    }
+    if (qa04MissingFixtureLabels.length === 0) {
+      setProcessActionStatus("Os quatro documentos fictícios já estão anexados ao processo.");
+      return;
+    }
+    await runProcessAction("qa04-import-project", async () => {
+      const kit = createQa04DocumentKit().filter((entry) =>
+        qa04MissingFixtureLabels.some((needed) => needed === entry.label),
+      );
+      for (const { label, file } of kit) {
+        const uploaded = await uploadFileToStorage({
+          bucket: "process-documents",
+          tenantId: effectiveScopeId,
+          userId: session.id,
+          file,
+          folder: "qa-arquitetura",
+        });
+        const result = await appendProcessDocuments(process.id, [{
+          id: `doc-${crypto.randomUUID()}`,
+          label,
+          required: true,
+          uploaded: true,
+          signed: false,
+          reviewStatus: "pendente",
+          annotations: [],
+          version: file.name === "SIGAPRO-QA04-PLANTA-IMPLANTACAO-V2.pdf" ? 2 : 1,
+          source: "prefeitura",
+          fileName: file.name,
+          filePath: uploaded.path,
+          mimeType: "application/pdf",
+          fileSizeBytes: file.size,
+          previewUrl: uploaded.publicUrl || undefined,
+        }], session.name);
+        if (Number(result.synced || 0) !== 1) {
+          throw new Error(`Falha ao vincular ${label}. A importação pode ser retomada sem duplicar os já anexados.`);
+        }
+      }
+    }, "Kit fictício importado: projeto arquitetônico e três placeholders sem validade. Confira na Triagem antes do despacho.", { allowMunicipalAdmin: true });
+  };
+
+  const handleUpgradeQa04ArchitecturalPlan = async () => {
+    if (!canImportQa04Fixture || !qa04HasOutdatedPlan || qa04HasRevisedPlan) {
+      setProcessActionStatus("Planta V2 não permitida ou já anexada a este processo fictício.");
+      return;
+    }
+    const ok = await runProcessAction("qa04-upgrade-plan", async () => {
+      const file = createQa04ArchitecturalPdf();
+      const uploaded = await uploadFileToStorage({
+        bucket: "process-documents",
+        tenantId: effectiveScopeId,
+        userId: session.id,
+        file,
+        folder: "qa-arquitetura",
+      });
+      const result = await upgradeRemoteQa04ArchitecturalPlanV2(
+        process.id, uploaded.path, file.name, file.size,
+      );
+      if (result.ok !== true) throw new Error("O Neon QA não confirmou a revisão V2.");
+    },
+    "Planta V2 com recuos cotados anexada. A V1 permanece no histórico e o novo documento aguarda conferência.",
+    { allowMunicipalAdmin: true });
+    if (ok) await refreshCurrentProcessStore();
+  };
+
   const handleUploadMissingDocument = async (document: typeof process.documents[number]) => {
     if (!canUploadProcessDocuments) {
       setProcessActionStatus("Somente o profissional externo pode enviar documentos para o processo.");
@@ -3365,6 +3457,51 @@ export function ProcessDetailPage() {
               data-process-document-content="true"
               className="space-y-4 p-5 md:p-6"
             >
+              {canImportQa04Fixture ? (
+                <div className="rounded-2xl border border-sky-300 bg-sky-50 p-4 text-slate-900 dark:border-sky-600 dark:bg-slate-900 dark:text-slate-100">
+                  <p className="text-sm font-bold">Ensaio controlado de IA — Processo 04 fictício</p>
+                  <p className="mt-1 text-xs leading-5">Importa um projeto arquitetônico de ensaio e três placeholders manifestamente fictícios. Apenas no Neon QA; não aprova documentos, não altera pagamento e não libera a Análise automaticamente. Os arquivos permanecerão pendentes de análise técnica.</p>
+                  <Button
+                    type="button"
+                    className="mt-3 min-h-11 rounded-xl bg-[#075985] px-5 py-3 text-sm font-bold !text-white shadow-sm hover:bg-[#0369a1] hover:!text-white focus-visible:ring-2 focus-visible:ring-sky-500 disabled:cursor-not-allowed disabled:opacity-60 [&_*]:!text-white"
+                    disabled={qa04MissingFixtureLabels.length === 0 || Boolean(processActionBusy)}
+                    onClick={() => void handleImportQa04ArchitecturalFixture()}
+                  >
+                    {qa04MissingFixtureLabels.length === 0 ? "Kit fictício já anexado" : processActionBusy === "qa04-import-project" ? "Importando documentos..." : `Importar kit fictício (${qa04MissingFixtureLabels.length} arquivo(s))`}
+                  </Button>
+                  {qa04HasOutdatedPlan && !qa04HasRevisedPlan ? (
+                    <Button type="button" variant="outline"
+                      className="ml-2 mt-3 min-h-11 rounded-xl border-sky-700 bg-white px-5 py-3 text-sm font-bold text-sky-950 hover:bg-sky-100 dark:bg-slate-800 dark:text-white"
+                      disabled={Boolean(processActionBusy)}
+                      onClick={() => void handleUpgradeQa04ArchitecturalPlan()}
+                    >
+                      {processActionBusy === "qa04-upgrade-plan"
+                        ? "Atualizando implantação..."
+                        : "Atualizar planta com recuos (V2)"}
+                    </Button>
+                  ) : null}
+                  {qa04HasRevisedPlan ? (
+                    <p className="mt-2 text-sm font-semibold text-emerald-900 dark:text-emerald-200">
+                      Planta V2 disponível. Abra Projeto Arquitetônico para visualizar os recuos.
+                    </p>
+                  ) : null}
+                  {processActionBusy === "qa04-upgrade-plan" ? (
+                    <p role="status" aria-live="polite" className="mt-2 text-sm font-semibold text-sky-900 dark:text-sky-100">
+                      Enviando a planta cotada ao R2 e registrando a revisão auditada no Neon QA...
+                    </p>
+                  ) : null}
+                  {processActionBusy === "qa04-import-project" ? (
+                    <p role="status" aria-live="polite" className="mt-2 text-sm font-semibold text-sky-900 dark:text-sky-100">
+                      Importando os documentos fictícios no R2 e registrando no Neon QA...
+                    </p>
+                  ) : null}
+                  {processActionStatus ? (
+                    <p role="alert" className="mt-2 rounded-lg border border-sky-300 bg-white p-3 text-sm font-semibold text-slate-900 dark:border-sky-500 dark:bg-slate-800 dark:text-white">
+                      {processActionStatus}
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
               {(!canUploadProcessDocuments && pendingExternalDocumentCount > 0) || recoverableStatus ? (
                 <div className="grid gap-2 lg:grid-cols-2">
                   {!canUploadProcessDocuments && pendingExternalDocumentCount > 0 ? (

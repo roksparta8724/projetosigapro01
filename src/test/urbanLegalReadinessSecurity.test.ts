@@ -100,6 +100,17 @@ describe("SIGAPRO — municipal legal readiness is tenant-scoped and read-only",
     expect(answer.scopedVerifiedEvidence).toBe(0);
     expect(answer.readiness).toBe("missing_evidence");
   });
+  it("excludes active QA test rules with explicitly fictitious legal references",()=>{
+    const fake = [
+      {...rules[0],zone_code:"QA-URBAN-E2E-20261024",use_code:"QA_RES",
+        rules:[{metric:"front_setback_m",limit:5,reference:"LEI FICTICIA QA SEM VALIDADE LEGAL"}]},
+      {...rules[0],zone_code:"QA-TESTE",use_code:"R"},
+    ];
+    const answer = summarizeUrbanLegalReadiness(fake,[],tenant,"2026-11-03");
+    expect(answer.activeRegulations).toBe(0);
+    expect(answer.readiness).toBe("missing_regulations");
+    expect(answer.citedEvidence).toHaveLength(0);
+  });
   it("reports empty official municipal catalogs without inventing legal compliance",()=>{
     const answer=summarizeUrbanLegalReadiness([],[],tenant,"2026-10-29");
     expect(answer.readiness).toBe("missing_regulations");

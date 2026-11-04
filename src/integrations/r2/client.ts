@@ -286,110 +286,63 @@ export async function getSignedUrlForObjectStrict(input: {
   return payload.signedUrl || "";
 }
 
-const LARGE_LEGAL_PDF_THRESHOLD = 2 * 1024 * 1024;
-const LEGAL_PDF_KEY = /^municipalities\/[0-9a-f-]{36}\/legislation-(?:plano-diretor|uso-solo|zoneamento|leis-complementares)\//i;
+// A 3 MiB PDF base64 request stays below the Vercel 4.5 MB function payload limit.
+const LARGE_LEGAL_PDF_THRESHOLD = 3 * 1024 * 1024;
+const LEGAL_PROXY_CHUNK_BYTES = 2 * 1024 * 1024;
+const LEGAL_PDF_KEY = /^municipalities\/[0-9a-f-]{36}\/legislation-(?:plano-diretor|uso-solo|zoneamento|leis-complementares|registry)\//i;
 
-/** PDFs above ~2 MiB cannot reliably transit Vercel as Base64 JSON. */
+/** Larger PDFs are sent in authenticated pieces to the SIGAPRO server; no browser R2 CORS. */
 export function isDirectLegalPdfUpload(bucket: string, objectKey: string, file: { name: string; size: number }) {
   return normalizeClientBucket(bucket) === "process-documents" &&
     LEGAL_PDF_KEY.test(objectKey) &&
-    /\.pdf$/i.test(file.name) && file.size > LARGE_LEGAL_PDF_THRESHOLD;
+    /\.pdf$/i.test(file.name) &&
+    file.size > LARGE_LEGAL_PDF_THRESHOLD;
 }
 
-async function uploadLargeLegalPdf(input: {bucket: string; objectKey: string; file: File}) {
-  const tokenHeaders = await getAuthorizationHeaders();
-  if (!("Authorization" in tokenHeaders)) throw new Error("Faça login novamente para enviar a legislação.");
-  if (input.file.size > 100 * 1024 * 1024) throw new Error(
-    "O PDF oficial excede 100 MB. Otimize o arquivo original ou solicite um plano específico de armazenamento.",
-  );
-  const signature = await input.file.slice(0, 5).arrayBuffer();
-  const pdfMarker = String.fromCharCode(...new Uint8Array(signature));
-  if (pdfMarker !== "%PDF-") throw new Error("O arquivo não possui cabeçalho PDF válido.");
-
-  const request = {
-    bucket: "process-documents", objectKey: input.objectKey,
-    contentType: "application/pdf", fileSize: input.file.size,
-  };
-  async function send(action: "sign" | "verify" | "diagnose") {
-    const response = await fetch(buildApiUrl("/api/r2?action=legal-sign-put"), {
-      method:"POST",
-      headers: {"Content-Type":"application/json", ...tokenHeaders},
-      credentials:"same-origin",
-      body:JSON.stringify({ ...request, action }),
-    });
-    const result = await response.json().catch(() => ({})) as {
-      error?: string; uploadUrl?: string; requiredHeaders?: Record<string,string>;
-      objectKey?: string; publicUrl?: string; ok?: boolean;
-      diagnosis?: "R2_CORS_PREFLIGHT_OK" | "R2_CORS_PREFLIGHT_DENIED" | "R2_PREFLIGHT_UNAVAILABLE";
-      storage?: "municipal_s3" | "sigapro_r2"; httpStatus?: number;
-    };
-    if (!response.ok) throw new Error(result.error || "Não foi possível autorizar o PDF no armazenamento.");
-    return result;
+async function uploadLargeLegalPdf(input: {bucket:string;objectKey:string;file:File}){
+ const headers=await getAuthorizationHeaders();
+ if(!("Authorization" in headers))throw Error("Faça login novamente para enviar a legislação.");
+ if(input.file.size>100*1024*1024)throw Error("O PDF oficial excede o limite de 100 MB.");
+ const marker=String.fromCharCode(...new Uint8Array(await input.file.slice(0,5).arrayBuffer()));
+ if(marker!=="%PDF-")throw Error("O arquivo não contém um cabeçalho PDF válido.");
+ if(!crypto.subtle)throw Error("Este navegador não permite verificar a integridade do PDF.");
+ const hash=async(b:Blob)=>Array.from(new Uint8Array(
+  await crypto.subtle.digest("SHA-256",await b.arrayBuffer()),
+ )).map(v=>v.toString(16).padStart(2,"0")).join("");
+ const fileSha256=await hash(input.file),uploadId=crypto.randomUUID();
+ const base={bucket:"process-documents",objectKey:input.objectKey,fileSize:input.file.size,
+  contentType:"application/pdf",uploadId};
+ const controller=new AbortController();
+ const timeout=window.setTimeout(()=>controller.abort(),12*60_000);
+ async function send(payload:Record<string,unknown>){
+  const response=await fetch(buildApiUrl("/api/r2?action=legal-proxy-upload"),{
+   method:"POST",headers:{"Content-Type":"application/json",...headers},
+   credentials:"same-origin",body:JSON.stringify({...base,...payload}),signal:controller.signal,
+  });
+  const result=await response.json().catch(()=>({})) as {ok?:boolean;error?:string;objectKey?:string};
+  if(!response.ok||result.ok!==true)
+   throw Error(result.error||"Não foi possível gravar o PDF no servidor do SIGAPRO (HTTP "+response.status+").");
+  return result;
+ }
+ try{
+  const parts=Math.ceil(input.file.size/LEGAL_PROXY_CHUNK_BYTES);
+  for(let index=0;index<parts;index++){
+   const slice=input.file.slice(index*LEGAL_PROXY_CHUNK_BYTES,
+    Math.min(input.file.size,(index+1)*LEGAL_PROXY_CHUNK_BYTES));
+   await send({action:"chunk",chunkIndex:index,chunkSha256:await hash(slice),
+    base64:await fileToBase64(slice)});
   }
-  const signed = await send("sign");
-  if (!signed.uploadUrl || !signed.requiredHeaders ||
-    signed.objectKey !== input.objectKey) throw new Error("Assinatura de upload inválida.");
-  const target = new URL(signed.uploadUrl);
-  if (target.protocol !== "https:" || target.username || target.password)
-    throw new Error("URL de upload insegura.");
-  const controller = new AbortController();
-  const timeout = window.setTimeout(() => controller.abort(), 7 * 60_000);
-  try {
-    let uploaded: Response;
-    try {
-      uploaded = await fetch(target.toString(), {
-        method:"PUT",
-        headers:signed.requiredHeaders,
-        body:input.file,
-        mode:"cors",
-        redirect:"error",
-        signal:controller.signal,
-      });
-    } catch {
-      // The browser may hide a successful PUT response. Confirm with an
-      // authenticated HEAD before treating that as an unsuccessful upload.
-      try {
-        const stored = await send("verify");
-        if (stored.ok && stored.objectKey === input.objectKey) {
-          return { bucket:"process-documents", objectKey:input.objectKey, publicUrl:"" } satisfies R2UploadResult;
-        }
-      } catch { /* HEAD was unavailable or the object was not stored. */ }
-
-      let reason = "Não foi possível concluir o upload direto ao armazenamento.";
-      if (controller.signal.aborted) {
-        reason = "O envio ultrapassou o tempo limite. Tente novamente com uma conexão mais estável.";
-      } else {
-        try {
-          const diagnostic = await send("diagnose");
-          if (diagnostic.diagnosis === "R2_CORS_PREFLIGHT_DENIED") {
-            reason = "R2_CORS_PREFLIGHT_DENIED: o armazenamento não autorizou o preflight do navegador. Verifique o domínio exato e a política CORS do bucket de documentos indicado.";
-          } else if (diagnostic.diagnosis === "R2_CORS_PREFLIGHT_OK") {
-            reason = "R2_CORS_PREFLIGHT_OK: a política CORS respondeu corretamente, mas o PUT falhou. Verifique a assinatura, o destino e as permissões de gravação do R2. Não altere a política CORS por enquanto.";
-          } else {
-            reason = "R2_PREFLIGHT_UNAVAILABLE: não foi possível testar a comunicação com o armazenamento. Confirme a conexão e o endpoint institucional.";
-          }
-        } catch {
-          reason = "R2_DIAGNOSTIC_UNAVAILABLE: o arquivo não foi confirmado no R2. A verificação automática do destino também falhou.";
-        }
-      }
-      throw new Error(reason + " O PDF anterior não foi substituído.");
-    }
-    if (!uploaded.ok) {
-      throw new Error(uploaded.status === 412
-        ? "Esta versão do PDF já existe no R2. Reenvie como uma nova revisão."
-        : `Falha de envio direto do PDF ao armazenamento (HTTP ${uploaded.status}).`);
-    }
-    const verified = await send("verify");
-    if (!verified.ok || verified.objectKey !== input.objectKey) {
-      throw new Error("O armazenamento não confirmou a integridade do PDF enviado.");
-    }
-    return { bucket:"process-documents", objectKey: input.objectKey, publicUrl:"" } satisfies R2UploadResult;
-  } finally {
-    window.clearTimeout(timeout);
-  }
+  const completed=await send({action:"finalize",fileSha256});
+  if(completed.objectKey!==input.objectKey)
+   throw Error("O servidor não confirmou o documento original no armazenamento.");
+  return {bucket:"process-documents",objectKey:input.objectKey,publicUrl:""} satisfies R2UploadResult;
+ }catch(err){
+  if(controller.signal.aborted)throw Error("Tempo limite ao enviar o PDF; o original foi preservado.");
+  throw err;
+ }finally{window.clearTimeout(timeout);}
 }
 
-async function fileToBase64(file: File) {
+async function fileToBase64(file: Blob) {
   const dataUrl = await new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result || ""));
@@ -437,7 +390,8 @@ export async function uploadFile(input: {
       body: JSON.stringify({
         bucket: normalizeClientBucket(input.bucket),
         objectKey: input.objectKey,
-        contentType: input.file.type || "application/octet-stream",
+        contentType: normalizeClientBucket(input.bucket) === "process-documents" && LEGAL_PDF_KEY.test(input.objectKey)
+          ? "application/pdf" : input.file.type || "application/octet-stream",
         fileName: input.file.name,
         base64,
       }),

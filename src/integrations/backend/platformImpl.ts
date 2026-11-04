@@ -2,6 +2,7 @@ import { databaseClient as db, neonAuthUrl } from "@/integrations/backend/databa
 import { isNeonBackend } from "@/integrations/backend/config";
 import { getLegacyProfileAvatarOpenUrl, getObjectKeyFromPublicUrl, uploadFile } from "@/integrations/r2/client";
 import { buildMunicipalityPortalUrl } from "@/lib/publicDomain";
+import { hasPersistedProcessDocumentFile } from "@/lib/triageReadiness";
 import {
   buildProcessDocuments,
   isOccupancyPermitProcessType,
@@ -25,6 +26,9 @@ import {
 
 const PROFILE_ASSET_REF_PREFIX = "r2:";
 
+// Data API rows span independently versioned municipal schemas. Normalize each
+// public field at the read boundary; a dynamic value is necessary here.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type DatabaseRow = Record<string, any>;
 
 async function resolveStoredProfileAvatar(value: string | null | undefined) {
@@ -543,7 +547,7 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
     isNeonBackend
       ? db.rpc("list_visible_process_event_authors_v1")
       : Promise.resolve({ data: [], error: null }),
-  ])) as any[];
+  ])) as DatabaseRow[];
 
   if (profilesResult.error) {
     console.warn("SIGAPRO: falha ao carregar profiles.", profilesResult.error);
@@ -558,13 +562,13 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
   // Processos são o núcleo operacional. Se o SELECT REST falhar ou voltar vazio
   // por uma inconsistência transitória de schema/cache, consulta a RPC canônica
   // escopada pelo mesmo has_process_access usado nas políticas do banco.
-  let processRows = [...(processesResult.data ?? [])] as any[];
+  let processRows = [...(processesResult.data ?? [])] as DatabaseRow[];
   let processLoadError: unknown = processesResult.error ?? null;
 
   if (isNeonBackend && (processLoadError || processRows.length === 0)) {
     const fallback = await db.rpc("list_visible_processes_v1");
     if (!fallback.error) {
-      processRows = [...(fallback.data ?? [])] as any[];
+      processRows = [...(fallback.data ?? [])] as DatabaseRow[];
       processLoadError = null;
     } else if (processLoadError) {
       console.error("[SIGAPRO][Processos] SELECT e fallback RPC falharam.", {
@@ -627,7 +631,7 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
   // SECURITY DEFINER, que valida o acesso de cada processo antes de retornar
   // o registro. Assim uma restricao de infraestrutura do Alvara nao derruba
   // todo o store oficial nem faz o fluxo visual regredir.
-  const constructionPermitRows = [...(constructionPermitsResult.data ?? [])] as any[];
+  const constructionPermitRows = [...(constructionPermitsResult.data ?? [])] as DatabaseRow[];
   if (isNeonBackend) {
     const visibleProcessIds = processRows
       .filter((process) => Boolean(process.officialized_at))
@@ -650,7 +654,7 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
             return null;
           }
 
-          const payload = (data ?? {}) as { permit?: any | null };
+          const payload = (data ?? {}) as { permit?: DatabaseRow | null };
           return payload.permit ?? null;
         }),
       );
@@ -1561,7 +1565,7 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
           id: document.id,
           label: document.title,
           required: Boolean(document.is_required),
-          uploaded: true,
+          uploaded: hasPersistedProcessDocumentFile(document),
           signed: false,
           reviewStatus: (document.review_status ?? "pendente") as "pendente" | "aprovado" | "rejeitado",
           // Identidade humana para exibicao; profile ID preservado separadamente para auditoria.
@@ -1901,7 +1905,7 @@ export async function createRemoteOwnerRequestByProtocol(input: {
 
   if (error) throw error;
 
-  const payload = data as Record<string, any> | null;
+  const payload = data as DatabaseRow | null;
   const row = payload?.request ?? null;
   const processRow = payload?.process ?? null;
   if (!row?.id) {
@@ -1953,7 +1957,7 @@ export async function respondRemoteOwnerRequest(input: {
     });
     if (error) throw error;
 
-    const payload = data as Record<string, any> | null;
+    const payload = data as DatabaseRow | null;
     const row = payload?.request ?? null;
     const linkRow = payload?.link ?? null;
     if (!row?.id) throw new Error("Falha ao atualizar solicitação de responsável.");
@@ -2001,7 +2005,7 @@ export async function respondRemoteOwnerRequest(input: {
   const requestRow = Array.isArray(requestData) ? requestData[0] : null;
   if (!requestRow) throw new Error("Falha ao atualizar solicitacao de responsavel.");
 
-  let linkData: Record<string, any> | null = null;
+  let linkData: DatabaseRow | null = null;
 
   if (input.status === "approved") {
     const { data, error } = await db
@@ -2063,7 +2067,7 @@ export async function setRemoteOwnerChatEnabled(input: {
     });
     if (error) throw error;
 
-    const row = data as Record<string, any> | null;
+    const row = data as DatabaseRow | null;
     if (!row?.id) throw new Error("Falha ao atualizar chat do responsável.");
 
     return {
@@ -2123,7 +2127,7 @@ export async function createRemoteOwnerMessage(input: {
     });
     if (error) throw error;
 
-    const row = data as Record<string, any> | null;
+    const row = data as DatabaseRow | null;
     if (!row?.id) throw new Error("Falha ao criar mensagem de responsável.");
 
     return {
@@ -2280,8 +2284,8 @@ export async function getRemoteExternalPreprotocolDraft(
     throw new Error(formatDatabaseError(error));
   }
 
-  const row = (data ?? {}) as Record<string, any>;
-  const guide = (row.guide ?? {}) as Record<string, any>;
+  const row = (data ?? {}) as DatabaseRow;
+  const guide = (row.guide ?? {}) as DatabaseRow;
 
   return {
     processId: String(row.process_id ?? ""),
@@ -2424,6 +2428,17 @@ async function callProcessRpc<T = Record<string, unknown>>(
   const { data, error } = await db.rpc(fn, args);
   if (error) throw new Error(formatDatabaseError(error));
   return data as T;
+}
+
+export async function upgradeRemoteQa04ArchitecturalPlanV2(
+  processId: string, filePath: string, fileName: string, fileSizeBytes: number,
+): Promise<{ ok: boolean; already_upgraded?: boolean; document_id: string; version: number }> {
+  return callProcessRpc("upgrade_qa04_architectural_plan_v2", {
+    _process_id: processId,
+    _file_path: filePath,
+    _file_name: fileName,
+    _file_size_bytes: fileSizeBytes,
+  });
 }
 
 export async function appendRemoteProcessDocuments(
@@ -2638,6 +2653,13 @@ export async function setRemoteProcessTriage(input: {
     _process_id: input.processId,
     _triage_status: input.status,
     _notes: input.notes || null,
+  });
+}
+
+export async function reconcileRemoteProcessTriage(processId: string, reason: string) {
+  return callProcessRpc("reconcile_unreleased_process_triage_v1", {
+    _process_id: processId,
+    _reason: reason,
   });
 }
 
