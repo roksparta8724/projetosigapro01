@@ -424,7 +424,7 @@ export function UrbanLegislationRegistryPanel({
                   {entry.title}
                 </p>
                 <p className="mt-1 text-xs font-semibold text-slate-600 dark:text-slate-300">
-                  {entry.document_kind.replaceAll("_", " ")} · {entry.document_number}/{entry.document_year}
+                  {entry.document_kind.replace(/_/g, " ")} · {entry.document_number}/{entry.document_year}
                   {" "}· revisão {entry.revision}
                 </p>
               </div>
