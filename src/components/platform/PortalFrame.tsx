@@ -161,6 +161,7 @@ const navItems = [
     module: undefined as PlanModuleName | undefined,
     children: [
       { to: "/legislacao", label: "Visão geral", icon: BookOpenText },
+      { to: "/legislacao/gestao", label: "Gestão de leis e parâmetros", icon: ScrollText },
       { to: "/legislacao/zoneamento", label: "Zoneamento", icon: Layers },
     ],
   },

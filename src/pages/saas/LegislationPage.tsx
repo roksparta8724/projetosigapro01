@@ -14,7 +14,6 @@ import {
 } from "@/components/platform/PageShell";
 import { PortalFrame } from "@/components/platform/PortalFrame";
 import { UrbanOfficialLegalSourcesPanel } from "@/components/platform/UrbanOfficialLegalSourcesPanel";
-import { UrbanLegislationRegistryPanel } from "@/components/platform/UrbanLegislationRegistryPanel";
 import { QuickActionsCard } from "@/components/platform/QuickActionsCard";
 import { SectionCard } from "@/components/platform/SectionCard";
 import { SummaryCard } from "@/components/platform/SummaryCard";
@@ -249,17 +248,27 @@ export function LegislationPage() {
           />
         </PageStatsRow>
 
+        <div className="min-w-0 overflow-hidden rounded-2xl border border-sky-200 bg-gradient-to-r from-sky-50 to-white p-4 shadow-sm md:p-5">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="min-w-0 flex-1">
+              <p className="break-words text-sm font-extrabold text-slate-950">Acervo individual e parâmetros urbanísticos</p>
+              <p className="mt-1 max-w-3xl text-xs leading-5 text-slate-700">
+                Cadastro de PDFs, alterações, histórico, Quadros I e II e conferência legal agora ficam
+                em uma subpágina própria, sem sobrecarregar a visão geral.
+              </p>
+            </div>
+            <Button type="button" asChild className="sig-force-dark-action min-h-11 rounded-xl bg-slate-950 px-4 !text-white">
+              <Link to="/legislacao/gestao">Abrir gestão de leis e parâmetros</Link>
+            </Button>
+          </div>
+        </div>
         <InternalTabs
           items={tabs as unknown as Array<{ value: string; label: string; helper?: string }>}
           value={view}
           onChange={(value) => setView(value as LegislationView)}
         />
 
-        {(view === "visao-geral" || view === "referencias") ? (
-          <UrbanLegislationRegistryPanel municipalityId={effectiveScopeId} />
-        ) : null}
-
-        {(view === "visao-geral" || view === "referencias") ? (
+        {view === "referencias" ? (
           <UrbanOfficialLegalSourcesPanel municipalityId={effectiveScopeId} />
         ) : null}
 
@@ -271,20 +280,20 @@ export function LegislationPage() {
                 description="Os principais conjuntos normativos foram separados para reduzir ruído e facilitar consulta técnica."
                 icon={Landmark}
               >
-                <div className="grid gap-4 xl:grid-cols-3">
+                <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 2xl:grid-cols-3">
                   {items.map((item) => (
-                    <div key={item.title} className="rounded-[22px] border border-slate-200 bg-white p-5 shadow-sm">
-                      <p className="text-base font-semibold text-slate-950">{item.title}</p>
-                      <p className="mt-2 line-clamp-3 text-sm leading-6 text-slate-600">{item.detail}</p>
-                      <div className="mt-4 flex items-center justify-between gap-3">
-                        <p className="text-xs uppercase tracking-[0.14em] text-slate-400">
+                    <div key={item.title} className="flex min-w-0 flex-col overflow-hidden rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm [overflow-wrap:anywhere]">
+                      <p className="min-w-0 max-w-full break-words text-sm font-bold leading-5 text-slate-950">{item.title}</p>
+                      <p className="mt-2 min-w-0 break-words text-xs leading-5 text-slate-600 [overflow-wrap:anywhere]">{item.detail}</p>
+                      <div className="mt-auto flex min-w-0 flex-wrap items-center justify-between gap-2 pt-4">
+                        <p className="min-w-0 max-w-full flex-1 break-all text-[11px] font-medium uppercase tracking-wide text-slate-500" title={item.fileName || "Sem arquivo oficial"}>
                           {item.fileName || "Sem arquivo oficial"}
                         </p>
                         {item.fileUrl ? (
                           <Button
                             type="button"
                             variant="outline"
-                            className="h-9 rounded-full border-slate-200 bg-slate-50 px-3 text-xs font-semibold text-slate-700 hover:border-sky-200 hover:bg-sky-50 hover:text-sky-700"
+                            className="min-h-9 shrink-0 rounded-xl border-slate-200 bg-slate-50 px-3 text-xs font-semibold text-slate-700 hover:border-sky-200 hover:bg-sky-50 hover:text-sky-700"
                             onClick={() => openOfficialDocument(item)}
                           >
                             <ExternalLink className="mr-2 h-3.5 w-3.5" />

@@ -225,7 +225,7 @@ export function UrbanLegislationRegistryPanel({
 
   return (
     <section data-urban-legislation-registry="true"
-      className="mt-5 min-w-0 overflow-hidden rounded-[22px] border border-sky-200 bg-white p-4 shadow-sm dark:border-sky-700 dark:bg-slate-950 md:p-5">
+      className="mt-5 w-full min-w-0 max-w-full overflow-hidden rounded-[22px] border border-sky-200 bg-white p-4 shadow-sm [overflow-wrap:anywhere] dark:border-sky-700 dark:bg-slate-950 md:p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <h3 className="flex items-center gap-2 text-base font-extrabold text-slate-950 dark:text-white">
@@ -417,7 +417,7 @@ export function UrbanLegislationRegistryPanel({
       <div className="mt-3 grid min-w-0 gap-2 xl:grid-cols-2">
         {shown.map((entry) => (
           <article key={entry.id}
-            className="min-w-0 rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-900">
+            className="min-w-0 max-w-full overflow-hidden rounded-xl border border-slate-200 bg-slate-50 p-3 [overflow-wrap:anywhere] dark:border-slate-700 dark:bg-slate-900">
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div className="min-w-0 flex-1">
                 <p className="break-words text-sm font-extrabold text-slate-950 dark:text-white">
@@ -443,10 +443,10 @@ export function UrbanLegislationRegistryPanel({
             <p className="mt-1 break-all text-[11px] leading-5 text-slate-500 dark:text-slate-400">
               PDF: {entry.file_name} · SHA-256 {entry.sha256.slice(0, 16)}...
             </p>
-            <div className="mt-3 flex flex-wrap items-center gap-2">
+            <div className="mt-3 flex min-w-0 flex-wrap items-center gap-2">
               <a href={getLegislationOpenUrl("r2:" + entry.storage_key)}
                 target="_blank" rel="noopener noreferrer"
-                className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-slate-900 bg-slate-950 px-3 py-2 text-xs font-bold text-white hover:bg-slate-800">
+                className="inline-flex min-h-9 max-w-full items-center gap-1.5 rounded-lg border border-slate-900 bg-slate-950 px-3 py-2 text-xs font-bold text-white hover:bg-slate-800">
                 <ExternalLink className="h-3.5 w-3.5" /> Abrir PDF
               </a>
               {entry.official_source_url ? (

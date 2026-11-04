@@ -288,6 +288,14 @@ const AppRoutes = () => {
           }
         />
         <Route
+          path="/legislacao/gestao"
+          element={
+            <PermissionRoute permission="manage_own_profile">
+              <ConfiguracoesPage legislationWorkspace />
+            </PermissionRoute>
+          }
+        />
+        <Route
           path="/legislacao/zoneamento"
           element={
             <PermissionRoute permission="manage_own_profile">
