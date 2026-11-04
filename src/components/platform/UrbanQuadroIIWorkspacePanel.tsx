@@ -3,6 +3,7 @@ import { BookOpenCheck, ChevronDown, FileWarning, Loader2, Save, ShieldAlert } f
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { UrbanQuadroIILegalReviewPanel } from "@/components/platform/UrbanQuadroIILegalReviewPanel";
 import {
   listUrbanQuadroIIWorkspace, saveUrbanQuadroIIDraft,
   type UrbanQuadroIIDraftInput, type UrbanQuadroIISuggestion, type UrbanQuadroIIWorkspace,
@@ -554,6 +555,14 @@ export function UrbanQuadroIIWorkspacePanel({
                             ))}
                           </div>
                         </div>
+                      ) : null}
+                      {entries.length > 0 ? (
+                        <UrbanQuadroIILegalReviewPanel
+                          municipalityId={municipalityId}
+                          canEdit={canEdit}
+                          workspace={workspace}
+                          entries={entries}
+                        />
                       ) : null}
                       {entries.length > 0 ? entries.map((item) => (
                         <article key={item.id} className="min-w-0 rounded-lg border border-slate-200 bg-white p-3 text-xs text-slate-800">

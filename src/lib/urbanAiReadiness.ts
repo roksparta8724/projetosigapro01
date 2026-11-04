@@ -34,8 +34,8 @@ export type UrbanReadinessSummary = {
 };
 
 export const OTHER_REQUIRED_URBAN_FIELDS = [
-  "CA mínimo e CA básico (informação jurídica contextual)",
-  "Área mínima do lote, frente ou testada e fração ideal",
+  "CA básico (informação contextual, com condições e exceções)",
+  "Fração ideal e parâmetros condicionais de parcelamento",
   "Gabarito condicionado à largura da via",
   "Usos permitidos, permissíveis e proibidos por zona",
   "Vagas, acessos e condições especiais do Quadro II",
@@ -97,7 +97,10 @@ export function assessUrbanAiReadiness(data: UrbanReadinessInput): UrbanReadines
       code: "quadro-ii", title: "Quadro II — usos, vagas e condições",
       detail: pages + " página(s), " + machineProposals + " sugestão(ões) não verificadas e " +
         draftEntries + " rascunho(s) registrado(s).",
-      passed: pages > 0 && draftEntries > 0 && useImports > 0, quadro: "II",
+      // Reviewed drafts are NOT a final approval of uses and exceptions.
+      // The upstream Quadro II source explicitly reports legal_approval=false.
+      passed: pages > 0 && draftEntries > 0 && useImports > 0 &&
+        data.quadroII?.legal_approval === true, quadro: "II",
     },
     {
       code: "imports", title: "Importações jurídicas com fonte",

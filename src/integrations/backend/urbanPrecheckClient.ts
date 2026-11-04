@@ -16,10 +16,16 @@ export async function listUrbanRegulations(municipalityId: string): Promise<Urba
 }
 
 /** Tenant-scoped, read-only inputs to the AI legal-readiness audit. */
-export async function listUrbanLegalMatrixImports(municipalityId: string): Promise<Array<{ quadro: string; status: string }>> {
+export type UrbanReviewedMatrixImport = {
+  id: string; municipality_id: string; document_title: string;
+  document_sha256: string; page_number: number; quadro: "I" | "II";
+  zone_code: string; use_code: string; effective_from: string;
+  version: number; status: "reviewed_draft"; created_at: string;
+};
+export async function listUrbanLegalMatrixImports(municipalityId: string): Promise<UrbanReviewedMatrixImport[]> {
   const data = await invoke<unknown>("list_urban_legal_matrix_imports_v1", { _municipality_id: municipalityId });
   if (!Array.isArray(data)) throw new Error("Matriz jurídica sem resposta verificável.");
-  return data as Array<{ quadro: string; status: string }>;
+  return data as UrbanReviewedMatrixImport[];
 }
 
 export async function listUrbanVerifiedEvidenceScopes(municipalityId: string): Promise<UrbanLegalEvidenceScope[]> {
@@ -297,6 +303,63 @@ export type UrbanPrecheckLegalReview = {
   note: string;
   documentScopeConfirmed: boolean;
 };
+/** Persist an attested, versioned Quadro II use condition as a DRAFT ONLY.
+ * The documented PDF excerpt must be part of a municipality-scoped source
+ * entry and be independently reconfirmed by the municipal administrator.
+ * This never creates an active use permission or an AI compliance rule. */
+export async function saveUrbanQuadroIIReviewedImport(input: {
+  municipalityId: string; documentTitle: string; documentSha256: string;
+  pageNumber: number; categoryCode: string; zoneCode: string;
+  useDescription: string; permittedZones: string; roadHierarchy: string;
+  parkingRequirement: string; specialConditions: string;
+  effectiveFrom: string; sourceExcerpt: string; literalExcerpt: string;
+}): Promise<{id: string; version: number; status: "reviewed_draft"}> {
+  const zone = normalizeUrbanCode(input.zoneCode);
+  const useCode = normalizeUrbanCode(input.categoryCode);
+  if (!/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(input.municipalityId) ||
+      !/^[a-f0-9]{64}$/i.test(input.documentSha256) ||
+      input.documentTitle.trim().length < 4 || input.documentTitle.length > 180 ||
+      !Number.isInteger(input.pageNumber) || input.pageNumber < 38 || input.pageNumber > 51 ||
+      !/^[A-Z0-9_()/.-]{1,40}$/.test(zone) ||
+      !/^[A-Z0-9_. -]{1,60}$/.test(useCode) ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(input.effectiveFrom) ||
+      input.sourceExcerpt.trim().length < 20 || input.sourceExcerpt.length > 6000 ||
+      input.literalExcerpt.trim().length < 20 || input.literalExcerpt.trim().length > 500 ||
+      !input.sourceExcerpt.includes(input.literalExcerpt.trim())) {
+    throw new Error("Revise a zona individual, categoria, vigência e citação literal do Quadro II.");
+  }
+  const excerpt = input.literalExcerpt.trim();
+  const result = await invoke<{id: string;version: number;status: "reviewed_draft"}>(
+    "save_urban_legal_matrix_import_v1", {
+      _municipality_id: input.municipalityId,
+      _document_title: input.documentTitle.trim(),
+      _document_sha256: input.documentSha256.toLowerCase(),
+      _page_number: input.pageNumber,
+      _quadro: "II",
+      _zone_code: zone,
+      _use_code: useCode,
+      _effective_from: input.effectiveFrom,
+      _source_excerpt: input.sourceExcerpt.trim(),
+      _reviewed_entries: [{
+        kind: "use_condition",
+        source_excerpt: excerpt,
+        category_code: input.categoryCode.trim(),
+        use_description: input.useDescription.trim(),
+        permitted_zones_text: input.permittedZones.trim(),
+        road_hierarchy_text: input.roadHierarchy.trim(),
+        parking_requirement_text: input.parkingRequirement.trim(),
+        special_conditions_text: input.specialConditions.trim(),
+      }],
+      _verification_method: "visual_double_transcription",
+    },
+  );
+  if (!result || !result.id || result.status !== "reviewed_draft" ||
+    !Number.isInteger(result.version) || result.version < 1) {
+    throw new Error("O banco não confirmou a versão revisada do Quadro II.");
+  }
+  return result;
+}
+
 export type UrbanPrecheckHistoryEntry = {
   id: string; municipality_id: string; process_id: string; regulation_version_id: string;
   measurements: UrbanMeasurements; reviewer_profile_id: string; created_at: string;
