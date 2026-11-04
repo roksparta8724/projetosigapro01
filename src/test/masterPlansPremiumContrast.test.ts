@@ -34,3 +34,28 @@ describe("Master Plans premium readability and bounded cards",()=>{
   expect(page).toContain("await saveRemoteCommercialMaterial");
  });
 });
+
+describe("Master commercial format selector visibility", () => {
+  const page = read("src/pages/saas/MasterPlansPage.tsx");
+  const css = read("src/index.css");
+  const scoped = css.slice(css.lastIndexOf("/* SIGAPRO Master commercial format cards: persistent selected text contrast"));
+  it("marks each material option and exposes the selected state accessibly", () => {
+    expect(page).toContain('data-master-commercial-format-card="true"');
+    expect(page).toContain('aria-pressed={commercialMaterialType === material.id}');
+    expect(page).toContain('data-master-commercial-format-title="true"');
+    expect(page).toContain('data-master-commercial-format-description="true"');
+    expect(page).toContain('data-master-commercial-format-icon="true"');
+  });
+  it("keeps the selected dark format readable in both themes", () => {
+    expect(scoped).toContain('[data-selected="true"] [data-master-commercial-format-title="true"]');
+    expect(scoped).toContain('[data-selected="true"] [data-master-commercial-format-description="true"]');
+    expect(contrast("#f8fbff", "#0b1730")).toBeGreaterThan(7);
+    expect(contrast("#dce9fc", "#0b1730")).toBeGreaterThan(7);
+  });
+  it("keeps unselected options readable in light and inverse themes", () => {
+    expect(scoped).toContain('[data-selected="false"] [data-master-commercial-format-title="true"]');
+    expect(scoped).toContain('[data-layout-mode="inverse-main"]');
+    expect(contrast("#0f172a", "#ffffff")).toBeGreaterThan(7);
+    expect(contrast("#cfe3ff", "#14263d")).toBeGreaterThan(7);
+  });
+});

@@ -11392,3 +11392,72 @@ html body [data-layout-mode="inverse-main"] .sig-main-shell .sig-master-plans-pa
   border-color: #55bade !important;
   box-shadow: inset 0 0 0 1px #55bade !important;
 }
+
+
+/* SIGAPRO Master commercial format cards: persistent selected text contrast.
+   Bind foreground to background, independent of inverse-main/light-card overrides.
+   Scoped to the format selector: no impact on official PDFs or pricing logic. */
+html body #root .sig-main-shell .sig-master-plans-page button[data-master-commercial-format-card="true"] {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  overflow-wrap: anywhere;
+}
+html body #root .sig-main-shell .sig-master-plans-page button[data-master-commercial-format-card="true"][data-selected="true"] {
+  background: #0b1730 !important;
+  background-image: none !important;
+  border-color: #3aaee1 !important;
+  color: #f8fbff !important;
+  -webkit-text-fill-color: #f8fbff !important;
+  box-shadow: inset 0 0 0 1px rgba(56,189,248,.48), 0 10px 24px rgba(6,26,47,.12) !important;
+}
+html body #root .sig-main-shell .sig-master-plans-page button[data-master-commercial-format-card="true"][data-selected="true"] [data-master-commercial-format-title="true"] {
+  color: #f8fbff !important;
+  -webkit-text-fill-color: #f8fbff !important;
+  opacity: 1 !important;
+}
+html body #root .sig-main-shell .sig-master-plans-page button[data-master-commercial-format-card="true"][data-selected="true"] [data-master-commercial-format-description="true"] {
+  color: #dce9fc !important;
+  -webkit-text-fill-color: #dce9fc !important;
+  opacity: 1 !important;
+}
+html body #root .sig-main-shell .sig-master-plans-page button[data-master-commercial-format-card="true"][data-selected="true"] [data-master-commercial-format-icon="true"] {
+  color: #7dd3fc !important;
+  opacity: 1 !important;
+}
+html body #root .sig-main-shell .sig-master-plans-page button[data-master-commercial-format-card="true"][data-selected="false"] {
+  background: #ffffff !important;
+  background-image: none !important;
+  border-color: #d9e2ec !important;
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+html body #root .sig-main-shell .sig-master-plans-page button[data-master-commercial-format-card="true"][data-selected="false"] [data-master-commercial-format-title="true"] {
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+  opacity: 1 !important;
+}
+html body #root .sig-main-shell .sig-master-plans-page button[data-master-commercial-format-card="true"][data-selected="false"] [data-master-commercial-format-description="true"] {
+  color: #475569 !important;
+  -webkit-text-fill-color: #475569 !important;
+  opacity: 1 !important;
+}
+html body #root .sig-main-shell .sig-master-plans-page button[data-master-commercial-format-card="true"][data-selected="false"] [data-master-commercial-format-icon="true"] {
+  color: #0369a1 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-master-plans-page button[data-master-commercial-format-card="true"][data-selected="false"] {
+  background: #14263d !important;
+  border-color: #48627e !important;
+  color: #f1f7ff !important;
+  -webkit-text-fill-color: #f1f7ff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-master-plans-page button[data-master-commercial-format-card="true"][data-selected="false"] [data-master-commercial-format-title="true"] {
+  color: #f1f7ff !important;
+  -webkit-text-fill-color: #f1f7ff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-master-plans-page button[data-master-commercial-format-card="true"][data-selected="false"] [data-master-commercial-format-description="true"] {
+  color: #cfe3ff !important;
+  -webkit-text-fill-color: #cfe3ff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-master-plans-page button[data-master-commercial-format-card="true"][data-selected="false"] [data-master-commercial-format-icon="true"] {
+  color: #7dd3fc !important;
+}

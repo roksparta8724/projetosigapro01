@@ -1467,15 +1467,18 @@ export function MasterPlansPage() {
                           <button
                             key={material.id}
                             type="button"
+                            data-master-commercial-format-card="true"
+                            data-selected={commercialMaterialType === material.id ? "true" : "false"}
+                            aria-pressed={commercialMaterialType === material.id}
                             className={cn(
-                              "min-w-0 rounded-[24px] border p-4 text-left transition hover:-translate-y-0.5",
+                              "min-w-0 max-w-full rounded-[24px] border p-4 text-left transition [overflow-wrap:anywhere] hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2",
                               commercialMaterialType === material.id ? "border-slate-950 bg-slate-950 text-white" : "border-slate-200 bg-white text-slate-950",
                             )}
                             onClick={() => setCommercialMaterialType(material.id)}
                           >
-                            <Icon className={cn("h-5 w-5", commercialMaterialType === material.id ? "text-sky-200" : "text-sky-600")} />
-                            <p className="mt-4 font-semibold">{material.title}</p>
-                            <p className={cn("mt-2 text-sm leading-5", commercialMaterialType === material.id ? "text-slate-300" : "text-slate-600")}>{material.description}</p>
+                            <Icon data-master-commercial-format-icon="true" className={cn("h-5 w-5", commercialMaterialType === material.id ? "text-sky-200" : "text-sky-600")} />
+                            <p data-master-commercial-format-title="true" className="mt-4 font-semibold">{material.title}</p>
+                            <p data-master-commercial-format-description="true" className={cn("mt-2 text-sm leading-5", commercialMaterialType === material.id ? "text-slate-300" : "text-slate-600")}>{material.description}</p>
                           </button>
                         );
                       })}
