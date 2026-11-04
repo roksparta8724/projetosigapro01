@@ -18,6 +18,18 @@ describe("SIGAPRO — Claude PDF visual via stored R2 attachments",()=>{
       expect(provider.provider.model).toBe("claude-sonnet-5-5");
     }
   });
+  it("selects the existing Cloudflare Workers AI REST credentials without a new API key",()=>{
+    const cfg=resolveVisualPdfProvider(env({
+      SIGAPRO_AI_PROVIDER:"cloudflare",
+      SIGAPRO_CF_ACCOUNT_ID:"a".repeat(32),
+      SIGAPRO_CF_API_TOKEN:KEY,
+    }));
+    expect(cfg.enabled).toBe(true);
+    if(cfg.enabled){
+      expect(cfg.provider.kind).toBe("cloudflare");
+      expect(cfg.provider.model).toBe("@cf/zai-org/glm-4.7-flash");
+    }
+  });
   it("automatically reuses an existing QA Claude key without another flag",()=>{
     const cfg=resolveVisualPdfProvider(env({ANTHROPIC_API_KEY:KEY}));
     expect(cfg.enabled).toBe(true);

@@ -87,7 +87,7 @@ export function ArchitecturalPdfAiPanel({
       if(!response.ok)throw new Error(result.error||"Não foi possível ler o projeto.");
       if(result.processId!==process.id||result.documentId!==selected.id||
         result.documentVersion!==selected.version||
-        !Array.isArray(result.readings)||result.source!=="ai_pdf_visual"||
+        !Array.isArray(result.readings)||!["ai_pdf_visual","ai_pdf_text"].includes(result.source)||
         result.automaticallyApproved!==false||result.legalConformity!=="not_evaluated")
         throw new Error("Leitura retornada com vínculo incorreto. Nenhuma medida foi aplicada.");
       setDraft(result as ApiResult);
@@ -165,6 +165,11 @@ export function ArchitecturalPdfAiPanel({
       {error}
     </p>:null}
     {draft? <div className="mt-4 space-y-3">
+      {draft.source==="ai_pdf_text"?<p role="status"
+        className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs font-semibold text-amber-950">
+        Workers AI converteu o PDF em texto. Recuos e geometria não foram validados:
+        apenas informações com trecho literal podem ser conferidas no documento original.
+      </p>:null}
       <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-white">
         <strong>{draft.documentType==="architectural_plan"?"Projeto identificado pela IA":"Identificação do documento incerta"}</strong>
         <p className="mt-1">Planta de implantação reconhecida: {draft.hasSitePlan?"sim":"não confirmada"}.
