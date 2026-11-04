@@ -55,6 +55,9 @@ describe("SIGAPRO — municipal legislation registry", () => {
     expect(server).toContain("authorize(req, input.municipalityId, input.fileSize)");
     expect(client).toContain("legislation-registry");
     expect(client).toContain("isDirectLegalPdfUpload");
+    expect(client).toContain('/api/r2?action=legal-proxy-upload');
+    expect(client).toContain("LEGAL_PROXY_CHUNK_BYTES");
+    expect(client).not.toContain("R2_CORS_PREFLIGHT_DENIED");
     expect(read("neon/migrations/20261104_urban_legislation_prefeitura_admin_writer_v2.sql")).toContain("prefeitura_admin");
   });
   it("shows the individual register only on the dedicated management subpage", () => {
