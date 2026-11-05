@@ -23,6 +23,15 @@ export function UrbanPrecheckPanel({
   process, municipalityId, readOnly,
 }: { process: ProcessRecord; municipalityId: string; readOnly: boolean }) {
   const [versions, setVersions] = useState<UrbanRegulationVersion[]>([]);
+  useEffect(() => {
+    if (window.location.hash !== "#sigapro-urban-precheck") return;
+    const raf = window.requestAnimationFrame(() => {
+      document.getElementById("sigapro-urban-precheck")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+    return () => window.cancelAnimationFrame(raf);
+  }, [process.id]);
+
   const [history, setHistory] = useState<UrbanPrecheckHistoryEntry[]>([]);
   const [legalEvidence, setLegalEvidence] = useState<UrbanLegalEvidenceScope[]>([]);
   const [legalEvidenceError, setLegalEvidenceError] = useState("");
@@ -184,7 +193,7 @@ export function UrbanPrecheckPanel({
   };
 
   return (
-    <section data-sigapro-urban-precheck="true" className="my-5 min-w-0 overflow-hidden rounded-[26px] border border-sky-200 bg-white p-4 shadow-sm dark:border-sky-700 dark:bg-slate-950 md:p-6">
+    <section id="sigapro-urban-precheck" data-sigapro-urban-precheck="true" className="my-5 min-w-0 scroll-mt-24 overflow-hidden rounded-[26px] border border-sky-200 bg-white p-4 shadow-sm dark:border-sky-700 dark:bg-slate-950 md:p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h3 className="flex items-center gap-2 text-base font-extrabold text-slate-950 dark:text-white">
@@ -201,10 +210,19 @@ export function UrbanPrecheckPanel({
         </span>
       </div>
       <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-950 dark:border-amber-500/40 dark:bg-amber-950/40 dark:text-amber-100">
+        Para utilizar: selecione a planta mais recente, confirme o envio ao provedor e clique em
+        "Ler projeto arquitetônico com IA". Depois confira cada medida antes de aplicá-la.
         A leitura visual é experimental na homologação e depende de provedor habilitado.
         Verifique todas as cotas no PDF antes de utilizar as sugestões; a legislação municipal
         também precisa estar validada. Nunca há aprovação automática.
       </div>
+
+      {readOnly ? (
+        <p role="note" className="mt-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs font-semibold leading-5 text-amber-950 dark:border-amber-500/40 dark:bg-slate-900 dark:text-amber-200">
+          Esta tela está em modo de consulta. A leitura por IA só pode ser iniciada pelo
+          analista com permissão de edição após assumir ou receber a análise do processo.
+        </p>
+      ) : null}
 
       <ArchitecturalPdfAiPanel
         process={process} readOnly={readOnly}

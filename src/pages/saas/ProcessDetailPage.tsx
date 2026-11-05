@@ -1,6 +1,6 @@
 import { archiveAndOpenGuide, openLegacyGuideOriginal, openStoredGuide, readGuideOriginal } from "@/lib/guideOriginal";
 import { FormEvent, MouseEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, ArrowRightLeft, Building2, CheckCircle2, Clock3, Download, Eye, FileBadge2, FileCheck2, FileKey2, FileStack, Landmark, LogOut, Maximize2, MessageSquareMore, PencilLine, Printer, ReceiptText, Route, ShieldAlert, Signature, UserRound, Wallet, Workflow, ZoomIn, ZoomOut } from "lucide-react";
+import { ArrowLeft, ArrowRightLeft, BrainCircuit, Building2, CheckCircle2, Clock3, Download, Eye, FileBadge2, FileCheck2, FileKey2, FileStack, Landmark, LogOut, Maximize2, MessageSquareMore, PencilLine, Printer, ReceiptText, Route, ShieldAlert, Signature, UserRound, Wallet, Workflow, ZoomIn, ZoomOut } from "lucide-react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -3738,6 +3738,22 @@ export function ProcessDetailPage() {
                             <Maximize2 className="h-4 w-4" />
                             {openingDocumentId === document.id ? "Abrindo..." : "Abrir documento"}
                           </button>
+                        ) : null}
+                        {document.uploaded &&
+                          document.label === "Projeto Arquitetônico" &&
+                          canUseMunicipalChecklist &&
+                          canEditAnalysisChecklist &&
+                          stableAnalysisAccess ? (
+                          <Link
+                            data-sigapro-ai-review-shortcut="true"
+                            data-primary-action="document"
+                            to={`${buildProcessPath(process, "analise")}#sigapro-urban-precheck`}
+                            className="inline-flex min-h-10 max-w-full items-center justify-center gap-2 rounded-full border border-sky-500 bg-[#075985] px-4 py-2 text-center text-xs font-bold !text-white shadow-sm hover:bg-[#0c4a6e] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500 [&_*]:!text-white"
+                            title="Ir à pré-conferência com IA. Este atalho não envia o PDF e não gera cobrança."
+                          >
+                            <BrainCircuit className="h-4 w-4 shrink-0" />
+                            Ir para leitura com IA
+                          </Link>
                         ) : null}
                       </div>
                     </div>
