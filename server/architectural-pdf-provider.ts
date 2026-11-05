@@ -113,6 +113,12 @@ const INSTRUCTIONS =
   "Consulte também a IMAGEM da página, não apenas a camada de texto. " +
   "Extraia APENAS as 11 métricas do schema quando expressamente declaradas ou cotadas. " +
   "Registre página real do PDF, trecho LITERAL que justifica cada número e confiança. " +
+  "Para aceitar valor: a citação LITERAL deve conter o rótulo da medida, o número e a unidade como impressos; " +
+  "recuos, testada e altura em metros, área do lote em m², TO/TP em %, CA sem unidade, pavimentos em quantidade. " +
+  "Use vírgula decimal brasileira quando estiver impressa; não altere 0,25 para 25%, " +
+  "não trate cm como m e não confunda milhar com separador decimal. " +
+  "Quando coluna e valor estiverem separados, ilegíveis ou sem legenda inequívoca, retorne value=null, " +
+  "confidence='low' e explique em warnings. NÃO crie trecho literal combinando células distantes. " +
   "Nunca invente medidas; NÃO meça pelo tamanho dos pixels ou escala de imagem. " +
   "Não infira afastamento de limites do lote, largura de vias ou distância entre construções. " +
   "Recuos frontal, lateral e fundos exigem cotas inequívocas na implantação. " +
