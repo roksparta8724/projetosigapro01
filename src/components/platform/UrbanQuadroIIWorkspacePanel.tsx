@@ -113,9 +113,16 @@ export function UrbanQuadroIIWorkspacePanel({
     selectedPage?.source_quality === "visual_required";
   const readyForBatch = pageBatchCandidates.filter(({assisted}) =>
     !pageNeedsVisualReview && assisted.hasLiteralCandidate &&
-    assisted.sourceExcerpt.length >= 20 && !assisted.requiresFocusedReview);
+    assisted.sourceExcerpt.length >= 20 &&
+    // A quoted activity is not enough to attest a completed table row:
+    // blank road/parking cannot be bulk-saved as "conferido".
+    assisted.roadHierarchy.trim().length > 0 &&
+    assisted.parkingRequirement.trim().length > 0 &&
+    !assisted.requiresFocusedReview);
   const needsIndividualReview = pageBatchCandidates.filter(({assisted}) =>
-    pageNeedsVisualReview || !assisted.hasLiteralCandidate || assisted.requiresFocusedReview);
+    pageNeedsVisualReview || !assisted.hasLiteralCandidate ||
+    !assisted.roadHierarchy.trim() || !assisted.parkingRequirement.trim() ||
+    assisted.requiresFocusedReview);
   // Start empty: showing a machine suggestion is never a user's attestation.
   // Include the page in the selection key so category codes from a different
   // page can never be accidentally submitted.
@@ -235,7 +242,7 @@ export function UrbanQuadroIIWorkspacePanel({
     setDraft({
       pageNumber,
       categoryCode: proposal.category_code.slice(0, 32),
-      useDescription: proposal.use_description.slice(0, 200),
+      useDescription: (assisted.useDescriptionCandidate || proposal.use_description).slice(0, 200),
       // Zone abbreviations in the scanned table are not consistently legible.
       // Keep any OCR candidates visible below but NEVER paste them as legal permissions.
       permittedZones: "",
@@ -632,9 +639,25 @@ export function UrbanQuadroIIWorkspacePanel({
                               <strong className="block">Pré-preenchimento do PDF original · ainda sem validação jurídica</strong>
                               <p>Páginas de origem: {selectedAssisted.pages.join(", ")}.
                                 {" "}{selectedAssisted.hasLiteralCandidate
-                                  ? "Trecho literal candidato já preenchido. Confira a coluna e a página."
+                                  ? "Trecho candidato preenchido. Confirme a coluna e a página."
                                   : "Trecho literal não comprovado; exige conferência visual antes de salvar."}
                               </p>
+                              {selectedAssisted.sourceZonesCandidate ? (
+                                <p data-sigapro-source-zones-candidate="true" className="mt-1 break-words">
+                                  Zonas impressas no PDF (somente candidato de leitura):
+                                  {" "}{selectedAssisted.sourceZonesCandidate}. O campo legal permanece vazio
+                                  até confirmação da vigência, mapa e exceções.
+                                </p>
+                              ) : null}
+                              {selectedSuggestion?.category_code === "C2.7" ? (
+                                <p role="note" data-sigapro-c27-blank-rate="true"
+                                  className="mt-2 rounded-lg border border-amber-300 bg-amber-50 p-3 font-bold text-amber-950">
+                                  C2.7: o PDF imprime Centro de compras e Shopping Center em linhas distintas.
+                                  Na continuação da página 49, as células de estacionamento e carga
+                                  estão vazias. Deixe os campos vazios; isto não significa isenção
+                                  e exige consulta às regras complementares antes do diagnóstico.
+                                </p>
+                              ) : null}
                               {selectedAssisted.requiresFocusedReview ? (
                                 <div role="note" data-sigapro-qii-focused-literal="true"
                                   className="mt-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-amber-950">
@@ -761,20 +784,21 @@ export function UrbanQuadroIIWorkspacePanel({
                             <div className="flex flex-wrap items-center justify-between gap-2">
                               <strong className="text-sm">Conferência por página — sem redigitar cada categoria</strong>
                               <span className="text-[11px] font-bold">
-                                {readyForBatch.length}/{pendingForPage.length} rascunho(s) sem alerta de cota ambígua
+                                {readyForBatch.length}/{pendingForPage.length} rascunho(s) com trecho, via e vagas verificáveis
                               </span>
                             </div>
                             <p className="mt-1 text-xs leading-5">
-                              Valores localizados no PDF já aparecem preparados, mas ainda exigem conferência.
-                              O lote inclui apenas itens sem dúvida numérica explícita.
-                              Valores ilegíveis, páginas giradas ou exceções incertas são separados
-                              para revisão individual. Nada é ativado como legislação.
+                              Valores do PDF já preparados ainda exigem conferência.
+                              Só entram no lote os itens que apresentam trecho, hierarquia e
+                              taxa de vagas legíveis, sem dúvida explícita.
+                              Subcolunas diferentes, taxas ausentes e páginas giradas
+                              exigem revisão individual. Nada é ativado como legislação.
                             </p>
                             {needsIndividualReview.length > 0 ? (
                               <div data-sigapro-quadro-ii-focused-review="true"
                                 className="mt-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs font-semibold leading-5 text-amber-950">
-                                {needsIndividualReview.length} categoria(s) fora do lote por falta de
-                                trecho suficiente, tabela girada ou dúvida numérica:
+                                {needsIndividualReview.length} categoria(s) fora do lote por ausência de
+                                trecho, via ou vaga, tabela girada ou condição distinta:
                                 {" "}{needsIndividualReview.map(item => item.proposal.category_code).join(", ")}.
                                 Abra essas categorias individualmente e confira a célula original.
                                 Nenhuma informação foi descartada.
@@ -917,6 +941,34 @@ export function UrbanQuadroIIWorkspacePanel({
                           <p>Estacionamento: {item.parking_requirement_text || "Não transcrito"}</p>
                           <p className="mt-1 whitespace-pre-wrap break-words text-slate-600">Fonte literal: {item.source_excerpt}</p>
                           <p className="mt-1 font-semibold text-amber-800">Rascunho — sem validação jurídica</p>
+                          {sourceCheck && (
+                            (Boolean(sourceCheck.roadHierarchy.trim()) && !item.road_hierarchy_text.trim()) ||
+                            (Boolean(sourceCheck.parkingRequirement.trim()) && !item.parking_requirement_text.trim()) ||
+                            Boolean(sourceCheck.useDescriptionCandidate) &&
+                              sourceCheck.useDescriptionCandidate.trim() !== item.use_description.trim()
+                          ) ? (
+                            <div role="note" data-sigapro-saved-draft-incomplete={item.category_code}
+                              className="mt-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-[11px] leading-5 text-amber-950">
+                              <strong className="block">Rascunho salvo, mas incompleto em relação à fonte original</strong>
+                              <p>Os dados registrados foram preservados. A leitura das páginas
+                                {" "}{sourceCheck.pages.join(", ")} identificou campos adicionais para revisão.
+                                Não considerar esta categoria homologada nem preencher automaticamente
+                                por cima do registro existente.</p>
+                              {sourceCheck.roadHierarchy && !item.road_hierarchy_text ? (
+                                <p className="mt-1 break-words">Via candidata: {sourceCheck.roadHierarchy}</p>
+                              ) : null}
+                              {sourceCheck.parkingRequirement && !item.parking_requirement_text ? (
+                                <p className="mt-1 break-words">Estacionamento candidato: {sourceCheck.parkingRequirement}</p>
+                              ) : null}
+                              {sourceCheck.useDescriptionCandidate &&
+                                sourceCheck.useDescriptionCandidate.trim() !== item.use_description.trim() ? (
+                                <p className="mt-1 break-words">Descrição sugerida para revisar:
+                                  {" "}{sourceCheck.useDescriptionCandidate}</p>
+                              ) : null}
+                              <p className="mt-1 font-semibold">Correção documental pendente de
+                                versão retificada e conferência humana; nenhuma regra ativa foi criada.</p>
+                            </div>
+                          ) : null}
                           {sourceCheck?.requiresFocusedReview ? (
                             <div role="note" data-sigapro-saved-draft-source-warning={item.category_code}
                               className="mt-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-[11px] leading-5 text-amber-950">
