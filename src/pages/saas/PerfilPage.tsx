@@ -998,7 +998,7 @@ export function PerfilPage() {
 
       if (avatarUploadFile) {
         try {
-          setStatus("Enviando a foto ao armazenamento institucional R2...");
+          setStatus("Enviando a foto ao SIGAPRO Nuvem...");
           const uploaded = await uploadFileToStorage({
             bucket: "profile-assets",
             tenantId: activeInstitutionId,
@@ -1009,7 +1009,7 @@ export function PerfilPage() {
           avatarStorageRef = uploaded.persistentRef;
           avatarUrl = uploaded.publicUrl || effectiveAvatarFiles[0]?.previewUrl || form.avatarUrl;
         } catch (error) {
-          setStatus(error instanceof Error ? error.message : "Falha ao enviar a foto para o R2.");
+          setStatus(error instanceof Error ? error.message : "Falha ao enviar a foto ao armazenamento SIGAPRO.");
           return;
         }
       }
@@ -1062,7 +1062,7 @@ export function PerfilPage() {
         });
       }
 
-      setStatus("Confirmando foto e preferências no banco Neon...");
+      setStatus("Confirmando foto e preferências no SIGAPRO...");
       const savedProfile = await saveUserProfile(nextProfile);
       const savedAvatarUrl = savedProfile.avatarUrl || avatarUrl;
       // Novo upload só é sucesso quando a imagem gravada volta a abrir, sem
