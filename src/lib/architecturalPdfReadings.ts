@@ -36,24 +36,24 @@ function record(value: unknown): Record<string, unknown> | null {
  * A valid quote STILL requires visual inspection by an authorized analyst.
  */
 const metricLabels: Record<UrbanMetric, RegExp> = {
-  front_setback_m: /(?:recuo|afastamento)\\s+(?:minimo\\s+)?(?:frontal|da\\s+frente)\\b/,
-  side_setback_m: /(?:recuo|afastamento)\\s+(?:minimo\\s+)?(?:lateral|dos\\s+lados)\\b/,
-  rear_setback_m: /(?:recuo|afastamento)\\s+(?:minimo\\s+)?(?:de\\s+)?(?:fundos|fundo|posterior)\\b/,
-  permeability_percent: /\\b(?:taxa\\s+de\\s+)?permeabilidade\\b/,
-  occupancy_percent: /\\b(?:taxa\\s+de\\s+)?ocupacao\\b/,
-  floor_area_ratio: /\\b(?:ca|c\\.?\\s*a\\.?|coeficiente\\s+de\\s+aproveitamento)\\b/,
-  floor_area_ratio_min: /\\b(?:ca|c\\.?\\s*a\\.?|coeficiente\\s+de\\s+aproveitamento)\\b/,
-  lot_area_m2: /\\b(?:area\\s+(?:total\\s+)?(?:do\\s+)?(?:lote|terreno)|superficie\\s+do\\s+terreno)\\b/,
-  lot_frontage_m: /\\b(?:testada|frente\\s+do\\s+lote|largura\\s+do\\s+lote)\\b/,
-  height_m: /\\b(?:altura\\s+(?:total\\s+)?(?:da\\s+edificacao|do\\s+predio)?|gabarito)\\b/,
-  floor_count: /\\b(?:pavimentos?|andares?|numero\\s+de\\s+pavimentos?)\\b/,
+  front_setback_m: /(?:recuo|afastamento)\s+(?:minimo\s+)?(?:frontal|da\s+frente)\b/,
+  side_setback_m: /(?:recuo|afastamento)\s+(?:minimo\s+)?(?:lateral|dos\s+lados)\b/,
+  rear_setback_m: /(?:recuo|afastamento)\s+(?:minimo\s+)?(?:de\s+)?(?:fundos|fundo|posterior)\b/,
+  permeability_percent: /\b(?:taxa\s+de\s+)?permeabilidade\b/,
+  occupancy_percent: /\b(?:taxa\s+de\s+)?ocupacao\b/,
+  floor_area_ratio: /\b(?:ca|c\.?\s*a\.?|coeficiente\s+de\s+aproveitamento)\b/,
+  floor_area_ratio_min: /\b(?:ca|c\.?\s*a\.?|coeficiente\s+de\s+aproveitamento)\b/,
+  lot_area_m2: /\b(?:area\s+(?:total\s+)?(?:do\s+)?(?:lote|terreno)|superficie\s+do\s+terreno)\b/,
+  lot_frontage_m: /\b(?:testada|frente\s+do\s+lote|largura\s+do\s+lote)\b/,
+  height_m: /\b(?:altura\s+(?:total\s+)?(?:da\s+edificacao|do\s+predio)?|gabarito)\b/,
+  floor_count: /\b(?:pavimentos?|andares?|numero\s+de\s+pavimentos?)\b/,
 };
 
 function quotedNumber(raw: string): number | null {
-  if (!/^\\d+(?:[.,]\\d+)*$/.test(raw)) return null;
+  if (!/^\d+(?:[.,]\d+)*$/.test(raw)) return null;
   let normalized = raw;
-  if (/^\\d{1,3}(?:\\.\\d{3})+(?:,\\d+)?$/.test(raw)) {
-    normalized = raw.replace(/\\./g, "").replace(",", ".");
+  if (/^\d{1,3}(?:\.\d{3})+(?:,\d+)?$/.test(raw)) {
+    normalized = raw.replace(/\./g, "").replace(",", ".");
   } else if (raw.includes(",") && raw.includes(".")) {
     const separator = Math.max(raw.lastIndexOf(","), raw.lastIndexOf("."));
     normalized = raw.slice(0, separator).replace(/[.,]/g, "") + "." +
@@ -70,27 +70,27 @@ export function quoteSupportsArchitecturalReading(
   metric: UrbanMetric, value: number, quote: string,
 ): boolean {
   if (!Number.isFinite(value) || value < 0 || !quote) return false;
-  const normalized = quote.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "")
-    .replace(/\\s+/g, " ").trim().toLowerCase();
+  const normalized = quote.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ").trim().toLowerCase();
   const label = metricLabels[metric].exec(normalized);
   if (!label) return false;
   const following = normalized.slice(label.index + label[0].length).slice(0, 64);
-  const found = /\\d+(?:[.,]\\d+)*/.exec(following);
+  const found = /\d+(?:[.,]\d+)*/.exec(following);
   if (!found || found.index > 32) return false;
   const quoted = quotedNumber(found[0]);
   if (quoted === null || Math.abs(quoted - value) > 0.000001) return false;
   const suffix = following.slice(found.index + found[0].length);
   if (metric === "occupancy_percent" || metric === "permeability_percent") {
-    return /^\\s*(?:%|por\\s+cento\\b)/.test(suffix);
+    return /^\s*(?:%|por\s+cento\b)/.test(suffix);
   }
   if (metric === "lot_area_m2") {
-    return /^\\s*(?:m\\s*(?:²|2|\\^2)\\b?|metros?\\s+quadrados?\\b)/.test(suffix);
+    return /^\s*(?:m\s*(?:²|2|\^2)(?![a-z0-9])|metros?\s+quadrados?\b)/.test(suffix);
   }
   if (["front_setback_m","side_setback_m","rear_setback_m","lot_frontage_m","height_m"].includes(metric)) {
-    return /^\\s*(?:m\\b(?!\\s*(?:2|²|\\^2))|metros?\\b)(?!\\s*(?:²|2|\\^2))/.test(suffix);
+    return /^\s*(?:m\b(?!\s*(?:2|²|\^2))|metros?\b)(?!\s*(?:²|2|\^2))/.test(suffix);
   }
   // CA is dimensionless and floors are an integer count, never a length or rate.
-  return !/^\\s*(?:%|m\\b|metros?\\b)/.test(suffix);
+  return !/^\s*(?:%|m\b|metros?\b)/.test(suffix);
 }
 
 /**
