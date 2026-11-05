@@ -832,6 +832,17 @@ export function DocumentAnalysisPage() {
 
           {isPdf ? (
             <>
+              {isQa04SetbackFixture ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  data-sigapro-qa04-recuos-page="2"
+                  className="h-auto min-h-9 max-w-full rounded-xl border-sky-200 bg-sky-50 px-3 py-2 text-center text-xs font-semibold text-sky-900 whitespace-normal break-words hover:bg-sky-100 [overflow-wrap:anywhere]"
+                  onClick={() => setPage(2)}
+                >
+                  Ver prancha 02 · Recuos
+                </Button>
+              ) : null}
               <Button
                 type="button"
                 size="icon"
