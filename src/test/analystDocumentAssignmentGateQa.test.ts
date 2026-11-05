@@ -43,6 +43,7 @@ describe("SIGAPRO QA — acesso à edição documental após atribuição",()=>{
     const viewer=read("src/pages/saas/DocumentViewerPage.tsx");
     expect(viewer).toContain('data-sigapro-document-info-sidebar="true"');
     expect(viewer).toContain('data-sigapro-analysis-error="true"');
+    expect(viewer).toContain('data-sigapro-analysis-error-mobile="true"');
     expect(viewer).toContain('max-w-full overflow-hidden rounded-2xl');
     expect(viewer).toContain('min-w-0 flex-1 whitespace-normal break-words');
     expect(viewer).toContain('[overflow-wrap:anywhere]');
@@ -58,5 +59,20 @@ describe("SIGAPRO QA — acesso à edição documental após atribuição",()=>{
     expect(desk).toContain('startProcessAnalysis(process.id)');
     expect(desk).toContain('assignProcessAnalysis({ processId: process.id, targetProfileId })');
     expect(desk).toContain("!text-white");
+  });
+  it("corrige o gatilho de início de análise sem permitir UPDATE direto",()=>{
+    const migration=read("neon/migrations/20261105_analyst_start_rpc_trigger_guard_v1.sql");
+    expect(migration).toContain("CREATE OR REPLACE FUNCTION public.start_process_analysis");
+    expect(migration).toContain("CREATE OR REPLACE FUNCTION public.guard_analysis_process_update");
+    expect(migration).toContain("set_config('sigapro.analysis_start_process_id', _process_id::text, true)");
+    expect(migration).toContain("set_config('sigapro.analysis_start_process_id', '', true)");
+    expect(migration).toContain("current_setting('sigapro.analysis_start_process_id', true) = OLD.id::text");
+    expect(migration).toContain("NEW.analysis_assigned_to_profile_id = public.current_profile_id()");
+    expect(migration).toContain("public.profile_operational_area(public.current_profile_id()) = 'analise'");
+    expect(migration).toContain("public.process_technical_release_verified_v1(OLD.id)");
+    expect(migration).toContain("NEW.municipality_id IS NOT DISTINCT FROM OLD.municipality_id");
+    expect(migration).toContain("AND NOT public.can_write_process_analysis(OLD.id)");
+    expect(migration).toContain("RAISE EXCEPTION 'Somente a equipe da Análise Urbanística");
+    expect(migration).not.toContain("DISABLE TRIGGER");
   });
 });
