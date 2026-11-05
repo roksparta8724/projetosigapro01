@@ -7,6 +7,7 @@ import { UrbanQuadroIILegalReviewPanel } from "@/components/platform/UrbanQuadro
 import { buildUrbanQuadroIIReviewQueue, type QuadroIIQueueItem } from "@/lib/urbanQuadroIIReviewQueue";
 import { getMunicipalOfficialUrbanSources } from "@/lib/urbanOfficialLegalSources";
 import { prepareQuadroIIPdfAssistedPrefill } from "@/lib/urbanQuadroIIPdfAssistedPrefill";
+import { UrbanParcelamentoPage51Panel } from "@/components/platform/UrbanParcelamentoPage51Panel";
 import {
   listUrbanQuadroIIWorkspace, saveUrbanQuadroIIDraft,
   type UrbanQuadroIIDraftInput, type UrbanQuadroIISuggestion, type UrbanQuadroIIWorkspace,
@@ -777,6 +778,29 @@ export function UrbanQuadroIIWorkspacePanel({
                           </p>
                         </div>
                       ) : null}
+                      {page.page_number === 51 ? (
+                        <UrbanParcelamentoPage51Panel
+                          municipalityId={municipalityId}
+                          documentSha256={workspace?.document_sha256 || ""}
+                        />
+                      ) : null}
+                      {page.page_number === 48 && entries.length > 0 ? (
+                        <div data-sigapro-c2-saved-audit="true"
+                          className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs leading-5 text-amber-950">
+                          <strong className="block">Auditoria automática dos rascunhos C2 já registrados</strong>
+                          <p className="mt-1">
+                            A página 49 continua a tabela C2 e contém exigências de via e estacionamento.
+                            Os rascunhos existentes não foram alterados automaticamente. Confira
+                            as propostas complementares mostradas em cada cartão antes de solicitar
+                            uma retificação ou validar a categoria.
+                          </p>
+                          <p className="mt-1 font-semibold">
+                            C2.4 tem duas subcolunas regulatórias diferentes.
+                            C2.7 não apresenta taxa de vagas e carga nas células impressas;
+                            células vazias não equivalem a isenção.
+                          </p>
+                        </div>
+                      ) : null}
                       {(page.proposals?.length || 0) > 0 ? (
                         <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-3 text-slate-900">
                           <div data-sigapro-quadro-ii-batch-prefill="true"
@@ -987,18 +1011,20 @@ export function UrbanQuadroIIWorkspacePanel({
                           Nenhuma categoria transcrita nesta página. Não presumir permissões.
                         </p>
                       )}
-                      <button type="button" onClick={() => {
-                        const shouldOpen = !formOpen;
-                        if (shouldOpen) {
-                          setDraft(emptyDraft(page.page_number));
-                          setSelectedSuggestion(null);
-                        }
-                        setFormOpen(shouldOpen);
-                        setConfirmed(false);
-                      }}
-                        className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-sky-900 hover:bg-slate-50">
-                        {formOpen ? "Fechar formulário" : "Cadastrar outra categoria manualmente"}
-                      </button>
+                      {(page.proposals?.length || 0) > 0 ? (
+                        <button type="button" onClick={() => {
+                          const shouldOpen = !formOpen;
+                          if (shouldOpen) {
+                            setDraft(emptyDraft(page.page_number));
+                            setSelectedSuggestion(null);
+                          }
+                          setFormOpen(shouldOpen);
+                          setConfirmed(false);
+                        }}
+                          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-sky-900 hover:bg-slate-50">
+                          {formOpen ? "Fechar formulário" : "Cadastrar outra categoria manualmente"}
+                        </button>
+                      ) : null}
 
                     </div>
               </div>
