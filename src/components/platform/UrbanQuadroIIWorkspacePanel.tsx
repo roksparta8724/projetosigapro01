@@ -222,12 +222,14 @@ export function UrbanQuadroIIWorkspacePanel({
       specialConditions: (proposal.special_conditions_text || "").slice(0, 800),
       // Joined table-cell summaries must never appear as literal legal evidence.
       sourceExcerpt: (proposal.literal_source_excerpt || "").slice(0, 1600),
-      // Curated text from the PDF original improves the draft, never the
-      // legal approval status or active zoning permissions.
-      roadHierarchy: assisted.roadHierarchy,
-      parkingRequirement: assisted.parkingRequirement,
-      specialConditions: assisted.specialConditions,
-      sourceExcerpt: assisted.sourceExcerpt,
+      // Overlay curated PDF candidates without mutating source OCR, municipality
+      // bindings or legal activation status.
+      ...{
+        roadHierarchy: assisted.roadHierarchy,
+        parkingRequirement: assisted.parkingRequirement,
+        specialConditions: assisted.specialConditions,
+        sourceExcerpt: assisted.sourceExcerpt,
+      },
     });
     setSelectedSuggestion(proposal);
     setConfirmed(false); // Auto-fill is never a human confirmation.
