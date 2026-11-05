@@ -216,13 +216,27 @@ export default async function handler(req:Req,res:Res){
     if(code==="AI_PROVIDER_MODEL_UNAVAILABLE")return json(res,503,{code,
       error:"O modelo de leitura de PDF não está disponível para esta chave. Confira o identificador no servidor."});
     if(code==="AI_PROVIDER_CREDENTIALS")return json(res,503,{code,
-      error:"A autenticação do provedor visual está inválida ou não foi autorizada."});
+      error:textRequested
+        ?"A autenticação da Cloudflare não está autorizada para este serviço."
+        :"A autenticação do provedor visual está inválida ou não foi autorizada."});
+    if(code==="CLOUDFLARE_PDF_CONVERSION_FAILED")return json(res,422,{code,
+      error:"A Cloudflare não conseguiu converter esta versão do PDF em texto. Verifique se o PDF abre corretamente; nenhuma medida foi aplicada."});
+    if(code==="CLOUDFLARE_PDF_TEXT_EMPTY")return json(res,422,{code,
+      error:"A conversão Cloudflare não encontrou texto utilizável neste PDF. Se as cotas estiverem apenas no desenho, será necessária leitura visual; nenhum valor foi inventado."});
+    if(code==="CLOUDFLARE_PDF_TEXT_OVERSIZE")return json(res,413,{code,
+      error:"O texto extraído ultrapassou o limite seguro. Divida as pranchas para revisão. Nenhuma medida foi gravada."});
+    if(code==="CLOUDFLARE_MODEL_JSON_SCHEMA_REJECTED")return json(res,502,{code,
+      error:"O modelo Cloudflare rejeitou o formato estruturado da interpretação. O PDF não foi aprovado nem teve medidas registradas."});
+    if(code==="CLOUDFLARE_MODEL_EMPTY"||code==="CLOUDFLARE_MODEL_INVALID_JSON")
+      return json(res,502,{code,error:"O modelo Cloudflare não devolveu uma interpretação estruturada válida. Nenhuma medida foi gravada."});
     if(code==="AI_DOCUMENT_REVISED")return json(res,409,{code,
       error:"O projeto foi substituído ou invalidado durante a leitura. Confira a versão atual e tente novamente."});
     if(code==="AI_INCOMPLETE"||code==="AI_INVALID_JSON"||code==="AI_EMPTY")
       return json(res,502,{code:"AI_READING_INCOMPLETE",
         error:"A leitura visual não foi concluída com segurança. Nenhuma medida foi gravada."});
     return json(res,503,{code:"PROJECT_AI_UNAVAILABLE",
-      error:"Não foi possível ler a planta. Nenhuma medida foi gravada."});
+      error:textRequested
+        ?"A leitura textual Cloudflare está indisponível neste momento. Nenhuma medida foi gravada."
+        :"Não foi possível ler a planta. Nenhuma medida foi gravada."});
   }
 }
