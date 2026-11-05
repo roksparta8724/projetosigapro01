@@ -105,6 +105,11 @@ describe("SIGAPRO PDF — pré-preenchimento por tabela, página e documento ori
     expect(panel).toContain("saveUrbanQuadroIIDraft(");
     expect(panel).not.toContain('activate_urban_regulation');
     expect(panel).toContain("Nenhuma norma foi ativada");
+    expect(panel).toContain("data-sigapro-qii-parking-source");
+    expect(panel).toContain('"saved-draft" : "candidate"');
+    expect(panel).toContain("savedEntry.parking_requirement_text");
+    expect(panel).toContain("Vagas (rascunho salvo)");
+    expect(panel).toContain("pré-leitura automática ainda não conferida");
     expect(panel).toContain("data-sigapro-saved-draft-source-warning");
     expect(panel).toContain("sourceCheck?.requiresFocusedReview");
     expect(panel).toContain("Não precisa cadastrá-lo novamente");
