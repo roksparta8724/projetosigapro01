@@ -911,7 +911,7 @@ export function ProtocolDeskPage() {
       setTriageRecoveryReason("");
       setProtocolActionStatus(`${formatOfficialProcessNumber(process.protocol)} retornou à Triagem com histórico preservado. Confira os anexos e conclua a triagem normalmente.`);
     } catch (error) {
-      setProtocolActionStatus(error instanceof Error ? `Não foi possível reconciliar a etapa: ${error.message}` : "Não foi possível corrigir a etapa no Neon.");
+      setProtocolActionStatus(error instanceof Error ? `Não foi possível reconciliar a etapa: ${error.message}` : "Não foi possível corrigir a etapa no SIGAPRO.");
     } finally {
       setProtocolActionBusy("");
     }
