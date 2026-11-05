@@ -116,9 +116,36 @@ export default async function handler(req:Req,res:Res){
       (user.tenant_id&&user.tenant_id!==user.municipality_id))
       return json(res,403,{error:"Consulta reservada ao analista municipal."});
     const available=resolveVisualPdfProvider(readEnv);
+    // Preview-only, read-only readiness check. It applies the EXACT same
+    // municipal/document/technical-stage authorization as POST, without
+    // fetching the PDF or sending anything to an AI provider.
+    const url=new URL(req.url||"/","https://sigapro.internal");
+    const processId=url.searchParams.get("processId")||"";
+    const documentId=url.searchParams.get("documentId")||"";
+    let documentReady:boolean|null=null;
+    if(processId||documentId){
+      if(!UUID.test(processId)||!UUID.test(documentId))return json(res,400,{
+        error:"Identificação do processo ou do documento inválida.",
+      });
+      try{
+        documentReady=Boolean(await verifiedDocument(req,
+          String(user.municipality_id),processId,documentId));
+      }catch{
+        // Do not reveal foreign-tenant metadata or storage credentials.
+        documentReady=false;
+      }
+    }
     return json(res,200,{
       enabled:available.enabled, maxPdfMb:8,
       provider:available.enabled?available.provider.kind:"none",
+      mode:available.enabled
+        ?available.provider.kind==="cloudflare"?"text_only":"visual":"disabled",
+      documentReady,
+      documentMessage:documentReady===null
+        ?"Selecione a versão atual da planta para verificar a liberação técnica."
+        :documentReady
+          ?"PDF vigente vinculado ao processo e liberado para leitura técnica."
+          :"O documento ainda não está liberado para análise técnica. Confira a triagem, a versão válida e as permissões do analista.",
       message:available.message,
     });
   }

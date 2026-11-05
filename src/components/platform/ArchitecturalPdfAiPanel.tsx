@@ -30,7 +30,11 @@ export function ArchitecturalPdfAiPanel({
   const [availability,setAvailability]=useState<{
     status:"checking"|"ready"|"disabled";message:string;
     provider:"cloudflare"|"claude"|"openai"|"none";
-  }>({status:"checking",message:"Verificando se o provedor de IA está configurado...",provider:"none"});
+    mode:"visual"|"text_only"|"disabled";
+    documentReady:boolean|null;
+    documentMessage:string;
+  }>({status:"checking",message:"Verificando se o provedor de IA está configurado...",
+    provider:"none",mode:"disabled",documentReady:null,documentMessage:""});
 
   const [error,setError]=useState("");
   const [draft,setDraft]=useState<ApiResult|null>(null);
@@ -45,31 +49,46 @@ export function ArchitecturalPdfAiPanel({
   useEffect(()=>{
     let current=true;
     if(readOnly){
-      setAvailability({status:"disabled",provider:"none",
+      setAvailability({status:"disabled",provider:"none",mode:"disabled",
+        documentReady:null,documentMessage:"",
         message:"A leitura assistida está disponível apenas para o analista autorizado."});
       return;
     }
-    setAvailability({status:"checking",provider:"none",
-      message:"Verificando provedor de leitura da homologação..."});
+    setAvailability({status:"checking",provider:"none",mode:"disabled",
+      documentReady:null,documentMessage:"",
+      message:"Verificando provedor e liberação técnica do PDF na homologação..."});
     void (async()=>{
       const session=(await backendClient.auth.getSession()).data?.session;
       const jwt=session?.access_token||session?.accessToken||session?.token||"";
       if(!jwt)throw new Error("Sessão expirada. Entre novamente no SIGAPRO.");
-      const res=await fetch("/api/ai-assistant?action=project-extract",{
+      const selectedDocumentId=id||plans[0]?.id||"";
+      const query=new URLSearchParams({action:"project-extract"});
+      if(selectedDocumentId){
+        query.set("processId",process.id);
+        query.set("documentId",selectedDocumentId);
+      }
+      const res=await fetch("/api/ai-assistant?"+query.toString(),{
         method:"GET",cache:"no-store",headers:{Authorization:"Bearer "+jwt},
       });
-      const value=await res.json() as {enabled?:boolean;provider?:string;message?:string;error?:string};
+      const value=await res.json() as {
+        enabled?:boolean;provider?:string;mode?:string;message?:string;error?:string;
+        documentReady?:boolean|null;documentMessage?:string;
+      };
       if(!res.ok)throw new Error(value.error||"Não foi possível confirmar a disponibilidade da IA.");
       if(current)setAvailability({status:value.enabled?"ready":"disabled",
         provider:value.provider==="cloudflare"||value.provider==="claude"||value.provider==="openai"
           ?value.provider:"none",
+        mode:value.mode==="visual"||value.mode==="text_only"?value.mode:"disabled",
+        documentReady:typeof value.documentReady==="boolean"?value.documentReady:null,
+        documentMessage:value.documentMessage||"",
         message:value.message||"Leitor assistido indisponível."});
     })().catch((err:unknown)=>{
-      if(current)setAvailability({status:"disabled",provider:"none",
+      if(current)setAvailability({status:"disabled",provider:"none",mode:"disabled",
+        documentReady:null,documentMessage:"",
         message:String((err as Error)?.message||err)});
     });
     return()=>{current=false;};
-  },[process.id,readOnly]);
+  },[process.id,readOnly,id,plans]);
 
   const selected=plans.find(doc=>doc.id===id);
   const latest=plans[0]?.id===id;
@@ -77,7 +96,8 @@ export function ArchitecturalPdfAiPanel({
     row.usableForReview && checked[row.metric] &&
     activeMetrics.includes(row.metric))||[];
   async function scan(){
-    if(readOnly||!selected||!latest||!consent||loading||availability.status!=="ready")return;
+    if(readOnly||!selected||!latest||!consent||loading||
+      availability.status!=="ready"||availability.documentReady!==true)return;
     setDraft(null);setChecked({});setError("");setNotice("");setLoading(true);
     try{
       const session=(await backendClient.auth.getSession()).data?.session;
@@ -159,6 +179,31 @@ export function ArchitecturalPdfAiPanel({
           "text-amber-800 dark:text-amber-200")}>
         {availability.message}
       </p>
+      {selected && availability.status!=="checking" ? (
+        <div role="status" data-sigapro-pdf-technical-preflight={
+            availability.documentReady===true?"ready":
+            availability.documentReady===false?"blocked":"unknown"}
+          className={"mt-2 rounded-xl border p-3 text-xs font-semibold leading-5 "+(
+            availability.documentReady===true
+              ?"border-emerald-200 bg-emerald-50 text-emerald-950"
+              :"border-amber-300 bg-amber-50 text-amber-950")}>
+          {availability.documentMessage || "Não foi possível verificar a liberação técnica do documento."}
+          {availability.documentReady===false ?
+            <p className="mt-1">A leitura não será enviada ao provedor.
+              Conclua a triagem e libere a versão válida para Análise Técnica
+              pelo fluxo municipal; não é necessário alterar o banco manualmente.</p> : null}
+        </div>
+      ) : null}
+      {availability.mode==="text_only"&&availability.status==="ready"?(
+        <p role="note" data-sigapro-pdf-visual-provider-needed="true"
+          className="mt-2 rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs font-semibold leading-5 text-amber-950">
+          Para homologar a leitura visual de recuos, configure exclusivamente no servidor
+          Preview desta branch um provedor de PDF com visão (por exemplo,
+          SIGAPRO_AI_PDF_PROVIDER=claude e a credencial ANTHROPIC_API_KEY).
+          A Cloudflare disponível neste ambiente é somente textual: não prova geometria.
+          Nunca inclua a chave no formulário, no código ou na conversa.
+        </p>
+      ):null}
       {availability.provider==="cloudflare"&&availability.status==="ready"?<p
         data-sigapro-pdf-text-only="true" role="status"
         className="mt-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-semibold leading-5 text-amber-950 dark:border-amber-600 dark:bg-slate-900 dark:text-amber-200">
@@ -167,7 +212,8 @@ export function ArchitecturalPdfAiPanel({
       </p>:null}
       <Button type="button" data-sigapro-ai-read-project="true"
         className="mt-3 min-h-11 bg-slate-950 !text-white"
-        disabled={readOnly||!consent||!latest||loading||availability.status!=="ready"}
+        disabled={readOnly||!consent||!latest||loading||
+          availability.status!=="ready"||availability.documentReady!==true}
         onClick={()=>void scan()}>
         {loading?<Loader2 className="mr-2 h-4 w-4 animate-spin"/>:<FileText className="mr-2 h-4 w-4"/>}
         {loading
