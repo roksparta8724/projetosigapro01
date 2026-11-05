@@ -1,6 +1,6 @@
 import { describe,expect,it } from "vitest";
 import { readFileSync } from "node:fs";
-import { resolveVisualPdfProvider } from "../../server/architectural-pdf-provider";
+import { classifyVisualPdfHttpFailure, resolveVisualPdfProvider } from "../../server/architectural-pdf-provider";
 const file=(name:string)=>readFileSync(name,"utf8");
 const config=(vars:Record<string,string>)=>(key:string)=>vars[key]||"";
 describe("SIGAPRO QA — preflight técnico do PDF com controle de custo e autorização",()=>{
@@ -40,6 +40,42 @@ describe("SIGAPRO QA — preflight técnico do PDF com controle de custo e autor
     expect(authorization).toContain('doc.municipality_id!==tenant');
     expect(authorization).toContain('doc.invalidated_at!==null');
     expect(api).toContain('process.env.VERCEL_ENV!=="preview" && !productionPdfAiOptIn()');
+  });
+  it("diferencia credencial configurada de crédito de API sem realizar chamada real",()=>{
+    const api=file("server/ai-project-extract.ts");
+    const ui=file("src/components/platform/ArchitecturalPdfAiPanel.tsx");
+    expect(api).toContain('providerConfiguredOnly:true');
+    expect(api).toContain('billingVerified:false');
+    expect(ui).toContain('data-sigapro-claude-credit-not-verified="true"');
+    expect(api).toContain('code==="AI_PROVIDER_BILLING"');
+    expect(api).toContain('nenhuma medida foi aplicada');
+  });
+  it("identifica 402 e limite de gastos 400 sem confundir com token inválido",()=>{
+    expect(classifyVisualPdfHttpFailure(402,"claude")).toBe("AI_PROVIDER_BILLING");
+    expect(classifyVisualPdfHttpFailure(400,"claude",{
+      error:{type:"invalid_request_error",
+        message:"Your credit balance is too low to access the Anthropic API."},
+    })).toBe("AI_PROVIDER_BILLING");
+    expect(classifyVisualPdfHttpFailure(400,"claude",{
+      error:{type:"invalid_request_error",message:"Workspace spend limit reached."},
+    })).toBe("AI_PROVIDER_BILLING");
+    expect(classifyVisualPdfHttpFailure(400,"claude",{
+      error:{type:"invalid_request_error",message:"Schema is invalid."},
+    })).toBe("PROVIDER_UNAVAILABLE");
+    expect(classifyVisualPdfHttpFailure(401,"claude")).toBe("AI_PROVIDER_CREDENTIALS");
+    expect(classifyVisualPdfHttpFailure(403,"claude")).toBe("AI_PROVIDER_CREDENTIALS");
+    expect(classifyVisualPdfHttpFailure(429,"claude")).toBe("AI_RATE_LIMIT");
+    expect(classifyVisualPdfHttpFailure(404,"claude")).toBe("AI_PROVIDER_MODEL_UNAVAILABLE");
+    expect(classifyVisualPdfHttpFailure(503,"claude")).toBe("PROVIDER_UNAVAILABLE");
+  });
+  it("aceita modelo Claude major-only 5 sem mudar o modelo configurado por padrão",()=>{
+    const result=resolveVisualPdfProvider(config({
+      SIGAPRO_AI_PDF_PROVIDER:"claude",SIGAPRO_AI_PDF_ENABLED:"true",
+      ANTHROPIC_API_KEY:"fake-key-for-pure-qa-test-without-network",
+      SIGAPRO_AI_PDF_MODEL:"claude-sonnet-5",
+    }));
+    expect(result.enabled).toBe(true);
+    if(result.enabled)expect(result.provider.model).toBe("claude-sonnet-5");
   });
   it("não permite POST nem uso de métrica sem documento liberado e consentimento",()=>{
     const panel=file("src/components/platform/ArchitecturalPdfAiPanel.tsx");

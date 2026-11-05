@@ -147,6 +147,8 @@ export default async function handler(req:Req,res:Res){
           ?"PDF vigente vinculado ao processo e liberado para leitura técnica."
           :"O documento ainda não está liberado para análise técnica. Confira a triagem, a versão válida e as permissões do analista.",
       message:available.message,
+      providerConfiguredOnly:true,
+      billingVerified:false,
     });
   }
   if(req.method!=="POST")return json(res,405,{error:"Método não permitido."});
@@ -196,6 +198,10 @@ export default async function handler(req:Req,res:Res){
     if(code==="PDF_LIMIT")return json(res,413,{code,error:"PDF acima de 8 MB. Separe as pranchas."});
     if(code==="PDF_INVALID")return json(res,422,{code,error:"O PDF está incompleto ou inválido."});
     if(code==="AI_RATE_LIMIT")return json(res,429,{code,error:"Limite do provedor de IA atingido."});
+    if(code==="AI_PROVIDER_BILLING")return json(res,402,{code,
+      error:"Claude configurado, porém a API não tem créditos disponíveis ou atingiu o limite de gastos. Confira o faturamento da Anthropic; nenhuma medida foi aplicada."});
+    if(code==="AI_PROVIDER_MODEL_UNAVAILABLE")return json(res,503,{code,
+      error:"O modelo de leitura de PDF não está disponível para esta chave. Confira o identificador no servidor."});
     if(code==="AI_PROVIDER_CREDENTIALS")return json(res,503,{code,
       error:"A autenticação do provedor visual está inválida ou não foi autorizada."});
     if(code==="AI_DOCUMENT_REVISED")return json(res,409,{code,

@@ -17,7 +17,7 @@ export type VisualPdfAvailability =
   | { enabled: true; provider: VisualPdfProvider; message: string }
   | { enabled: false; provider: null; message: string };
 
-const MODEL_CLAUDE = /^claude-(?:sonnet|opus|haiku)-\d+(?:-\d+){1,3}$/;
+const MODEL_CLAUDE = /^claude-(?:sonnet|opus|haiku)-\d+(?:-\d+){0,3}$/;
 const MODEL_OPENAI = /^gpt-(?:4\.1|4o|5(?:\.\d+)?)(?:-(?:mini|nano))?$/;
 
 export function resolveVisualPdfProvider(
@@ -85,6 +85,27 @@ export function resolveVisualPdfProvider(
       ? "Claude PDF visual habilitado para revisão assistida e supervisionada."
       : "Leitor OpenAI PDF visual habilitado para revisão assistida e supervisionada.",
   };
+}
+
+/** Translate provider failures to stable codes without exposing raw API error bodies. */
+export function classifyVisualPdfHttpFailure(
+  status:number, kind:VisualPdfProvider["kind"], payload:unknown=null,
+):string {
+  const object=payload&&typeof payload==="object"&&!Array.isArray(payload)
+    ?payload as Record<string,unknown>:null;
+  const detail=object?.error&&typeof object.error==="object"
+    ?object.error as Record<string,unknown>:null;
+  const type=typeof detail?.type==="string"?detail.type:"";
+  const message=typeof detail?.message==="string"?detail.message.slice(0,400):"";
+  if(status===402||type==="billing_error"||
+    (kind==="claude"&&status===400 &&
+      /(?:credit|balance|saldo|billing|spend.{0,16}limit|purchase.{0,16}credit)/i.test(message)))
+    return "AI_PROVIDER_BILLING";
+  if(status===429)return "AI_RATE_LIMIT";
+  if(status===401||status===403)return "AI_PROVIDER_CREDENTIALS";
+  if(status===413)return "PDF_LIMIT";
+  if(status===404)return "AI_PROVIDER_MODEL_UNAVAILABLE";
+  return "PROVIDER_UNAVAILABLE";
 }
 
 const SCHEMA = {
@@ -266,11 +287,15 @@ export async function extractVisualPdf(
       body:JSON.stringify(requestBody),
     });
     if (!response.ok) {
-      if (response.status === 429) throw new Error("AI_RATE_LIMIT");
-      if (response.status === 401 || response.status === 403)
-        throw new Error("AI_PROVIDER_CREDENTIALS");
-      if (response.status === 413) throw new Error("PDF_LIMIT");
-      throw new Error("PROVIDER_UNAVAILABLE");
+      // Anthropic can report insufficient prepaid credits as HTTP 402, or
+      // as HTTP 400 after a workspace spend cap. Never expose provider text
+      // in the client response; no retry or second paid request is attempted.
+      let errorPayload:unknown=null;
+      if (provider.kind==="claude" && [400,402].includes(response.status)) {
+        try {errorPayload=await response.json();}catch { /* no body */ }
+      }
+      throw new Error(classifyVisualPdfHttpFailure(
+        response.status,provider.kind,errorPayload));
     }
     let payload:unknown;
     try {payload = await response.json();}

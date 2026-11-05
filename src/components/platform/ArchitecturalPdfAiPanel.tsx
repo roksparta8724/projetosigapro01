@@ -194,6 +194,15 @@ export function ArchitecturalPdfAiPanel({
               pelo fluxo municipal; não é necessário alterar o banco manualmente.</p> : null}
         </div>
       ) : null}
+      {availability.provider==="claude"&&availability.status==="ready"?(
+        <p role="note" data-sigapro-claude-credit-not-verified="true"
+          className="mt-2 rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs font-semibold leading-5 text-amber-950">
+          Claude configurado no servidor, mas o saldo da API ainda não foi confirmado.
+          Esta verificação não envia o PDF e não gera cobrança. Se a Anthropic
+          estiver sem créditos ou com limite de gastos atingido, a leitura será
+          interrompida com aviso específico, sem aplicar nenhuma medida.
+        </p>
+      ):null}
       {availability.mode==="text_only"&&availability.status==="ready"?(
         <p role="note" data-sigapro-pdf-visual-provider-needed="true"
           className="mt-2 rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs font-semibold leading-5 text-amber-950">
