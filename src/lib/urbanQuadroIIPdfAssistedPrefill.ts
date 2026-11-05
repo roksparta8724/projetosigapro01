@@ -69,8 +69,21 @@ const reviewedPdfCandidates: Record<string, Correction> = {
   },
 
   "45:S2.1": {quote:"Lab. análises clínicas, químicas",parking:"1 vaga por 50 m² ou fração.",road:"N2, E2"},
-  "45:S2.2": {quote:"Cartório e registro civil",parking:"1 vaga por 50 m² ou fração.",road:"N2, E2",conditions:"Carga e descarga: no mínimo 1 vaga."},
-  "45:S2.3": {quote:"Academia de ginástica e esporte",parking:"1 vaga por 25 m² ou fração.",road:"N2, E2, E1(T)",conditions:"Carga e descarga: 1 vaga por 100 m² de administração e serviço; embarque/desembarque mínimo 1 vaga."},
+  "45:S2.2": {
+    quote:"Cartório e registro civil",parking:"1 vaga por 50 m² ou fração.",
+    road:"N2, E2",conditions:"Carga e descarga: no mínimo 1 vaga.",
+    description:"S2.2 — agências bancárias, cartórios, editoras, idiomas e serviços listados",
+    focusedReview:true,
+    warning:"A descrição genérica do rascunho S2.2 não pode limitar a categoria a serviços bancários: a coluna da página 45 também contém cartórios, editoras e cursos de idiomas. Conferir todas as atividades antes de certificar a categoria.",
+  },
+  "45:S2.3": {
+    quote:"Academia de ginástica e esporte",parking:"1 vaga por 25 m² ou fração.",
+    road:"N2, E2, E1(T)",
+    conditions:"Carga e descarga: 1 vaga por 100 m² de administração e serviço; embarque/desembarque mínimo 1 vaga.",
+    description:"S2.3 — hotéis, motéis, pousadas, academias, festas e dança",
+    focusedReview:true,
+    warning:"A descrição genérica do rascunho S2.3 como hospedagem não cobre academia, dança e salão de festas, que também constam da coluna S2.3 da página 45. Conferir todas as atividades antes de certificar a categoria.",
+  },
   "45:S2.4": {quote:"Diversões eletrônicas",parking:"1 vaga por 50 m² ou fração.",road:"N2, E2",conditions:"Carga e descarga: no mínimo 1 vaga."},
   "45:S2.5": {quote:"Oficinas de reparos e prestação de serviço",parking:"1 vaga por 100 m² ou fração, mínimo 1.",road:"N2, E2",conditions:"Carga e descarga: no mínimo 1 vaga."},
 
