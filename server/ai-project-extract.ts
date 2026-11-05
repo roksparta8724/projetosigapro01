@@ -150,7 +150,9 @@ export default async function handler(req:Req,res:Res){
         :documentReady
           ?"PDF vigente vinculado ao processo e liberado para leitura técnica."
           :"O documento ainda não está liberado para análise técnica. Confira a triagem, a versão válida e as permissões do analista.",
-      message:available.message,
+      message:available.enabled
+        ?"SIGAPRO IA habilitado para o tipo de leitura configurado."
+        :"O módulo SIGAPRO IA não está configurado neste ambiente.",
       providerConfiguredOnly:true,
       billingVerified:false,
       textAlternativeAvailable:textAlternative?.enabled===true,
@@ -192,7 +194,8 @@ export default async function handler(req:Req,res:Res){
     const available=resolveVisualPdfProvider(readEnv,
       textRequested?"cloudflare_text":undefined);
     if(!available.enabled)return json(res,503,{
-      code:"SIGAPRO_PDF_AI_NOT_CONFIGURED",error:available.message,
+      code:"SIGAPRO_PDF_AI_NOT_CONFIGURED",
+      error:"O módulo SIGAPRO IA selecionado não está disponível. Solicite ao administrador a verificação da integração.",
     });
     const pdf=await pdfBytes(req,tenant,doc.file_path);
     const extracted=await extractVisualPdf(pdf,doc.file_name,available.provider);
@@ -212,23 +215,23 @@ export default async function handler(req:Req,res:Res){
     if(code==="PDF_INVALID")return json(res,422,{code,error:"O PDF está incompleto ou inválido."});
     if(code==="AI_RATE_LIMIT")return json(res,429,{code,error:"Limite do provedor de IA atingido."});
     if(code==="AI_PROVIDER_BILLING")return json(res,402,{code,
-      error:"A API visual do Claude está sem saldo ou atingiu o limite de gastos; nenhuma medida foi aplicada. Na homologação, você pode escolher separadamente a leitura textual Cloudflare, que não comprova recuos geométricos."});
+      error:"O SIGAPRO IA · Leitura Visual está sem créditos ou atingiu o limite do serviço contratado; nenhuma medida foi aplicada. Na homologação, você pode selecionar a Leitura Documental, que não comprova recuos geométricos."});
     if(code==="AI_PROVIDER_MODEL_UNAVAILABLE")return json(res,503,{code,
       error:"O modelo de leitura de PDF não está disponível para esta chave. Confira o identificador no servidor."});
     if(code==="AI_PROVIDER_CREDENTIALS")return json(res,503,{code,
       error:textRequested
-        ?"A autenticação da Cloudflare não está autorizada para este serviço."
+        ?"A autenticação do módulo SIGAPRO IA · Leitura Documental está indisponível."
         :"A autenticação do provedor visual está inválida ou não foi autorizada."});
     if(code==="CLOUDFLARE_PDF_CONVERSION_FAILED")return json(res,422,{code,
-      error:"A Cloudflare não conseguiu converter esta versão do PDF em texto. Verifique se o PDF abre corretamente; nenhuma medida foi aplicada."});
+      error:"O SIGAPRO IA · Leitura Documental não conseguiu converter esta versão do PDF em texto. Verifique o arquivo original; nenhuma medida foi aplicada."});
     if(code==="CLOUDFLARE_PDF_TEXT_EMPTY")return json(res,422,{code,
-      error:"A conversão Cloudflare não encontrou texto utilizável neste PDF. Se as cotas estiverem apenas no desenho, será necessária leitura visual; nenhum valor foi inventado."});
+      error:"O SIGAPRO IA · Leitura Documental não encontrou texto utilizável neste PDF. Se as cotas estiverem somente desenhadas, será necessária leitura visual; nenhum valor foi inventado."});
     if(code==="CLOUDFLARE_PDF_TEXT_OVERSIZE")return json(res,413,{code,
       error:"O texto extraído ultrapassou o limite seguro. Divida as pranchas para revisão. Nenhuma medida foi gravada."});
     if(code==="CLOUDFLARE_MODEL_JSON_SCHEMA_REJECTED")return json(res,502,{code,
-      error:"O modelo Cloudflare rejeitou o formato estruturado da interpretação. O PDF não foi aprovado nem teve medidas registradas."});
+      error:"A Leitura Documental não conseguiu estruturar a interpretação do PDF. Nenhuma medida foi registrada ou aprovada."});
     if(code==="CLOUDFLARE_MODEL_EMPTY"||code==="CLOUDFLARE_MODEL_INVALID_JSON")
-      return json(res,502,{code,error:"O modelo Cloudflare não devolveu uma interpretação estruturada válida. Nenhuma medida foi gravada."});
+      return json(res,502,{code,error:"A Leitura Documental não devolveu interpretação estruturada válida. Nenhuma medida foi gravada."});
     if(code==="AI_DOCUMENT_REVISED")return json(res,409,{code,
       error:"O projeto foi substituído ou invalidado durante a leitura. Confira a versão atual e tente novamente."});
     if(code==="AI_INCOMPLETE"||code==="AI_INVALID_JSON"||code==="AI_EMPTY")
@@ -236,7 +239,7 @@ export default async function handler(req:Req,res:Res){
         error:"A leitura visual não foi concluída com segurança. Nenhuma medida foi gravada."});
     return json(res,503,{code:"PROJECT_AI_UNAVAILABLE",
       error:textRequested
-        ?"A leitura textual Cloudflare está indisponível neste momento. Nenhuma medida foi gravada."
+        ?"O módulo SIGAPRO IA · Leitura Documental está indisponível neste momento. Nenhuma medida foi gravada."
         :"Não foi possível ler a planta. Nenhuma medida foi gravada."});
   }
 }
