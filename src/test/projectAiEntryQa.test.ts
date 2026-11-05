@@ -33,7 +33,7 @@ describe("SIGAPRO QA - orientação ao analista e recuos do projeto 04",()=>{
     const provider=read("server/architectural-pdf-provider.ts");
     const api=read("server/ai-project-extract.ts");
     expect(provider).toContain("R2 provides bytes, not an AI provider.");
-    expect(aiPanel).toContain("Claude configurado no servidor, mas o saldo da API ainda não foi confirmado.");
+    expect(aiPanel).toContain("A Leitura Visual está configurada, mas o saldo do prestador ainda não foi confirmado.");
     expect(api).toContain("billingVerified:false");
     expect(aiPanel).toContain("confirmedTransfer:true");
     expect(api).toContain("humanReviewRequired:true");
