@@ -184,9 +184,14 @@ async function extractCloudflarePdf(
   const converted = await markdownResponse.json() as {
     success?:boolean;result?:Array<{format?:string;data?:string;error?:string}>;
   };
+  // Cloudflare returns format='error' for per-file conversion failures even when
+  // the envelope reports HTTP 200 / success:true. Keep the stage explicit.
   const source=converted.result?.find(x=>x.format==="markdown"&&typeof x.data==="string");
-  if(!converted.success||!source?.data||source.data.length>120000||
-    source.data.trim().length<20)throw new Error("AI_INCOMPLETE");
+  const failedFile=converted.result?.some(x=>x.format==="error");
+  if(!converted.success||failedFile)throw new Error("CLOUDFLARE_PDF_CONVERSION_FAILED");
+  if(!source?.data||source.data.trim().length<20)
+    throw new Error("CLOUDFLARE_PDF_TEXT_EMPTY");
+  if(source.data.length>120000)throw new Error("CLOUDFLARE_PDF_TEXT_OVERSIZE");
   const markdown=source.data.slice(0,40000);
   // A fixed free-eligible model handles the recovered text. Paid Kimi models
   // are NOT selected automatically; the Cloudflare chat config allow-lists
@@ -206,12 +211,18 @@ async function extractCloudflarePdf(
         {role:"user",content:INSTRUCTIONS+
           "\n\nTEXTO RECUPERADO DO PDF (não representa a planta visual):\n"+markdown},
       ],
-      response_format:{type:"json_schema",json_schema:SCHEMA},
+      // Cloudflare's OpenAI-compatible endpoint requires the named
+      // json_schema envelope, not a bare schema object.
+      response_format:{type:"json_schema",json_schema:{
+        name:"sigapro_architectural_text_v1",strict:true,schema:SCHEMA,
+      }},
     }),
   });
   if(!response.ok){
     if(response.status===429)throw new Error("AI_RATE_LIMIT");
     if([401,403].includes(response.status))throw new Error("AI_PROVIDER_CREDENTIALS");
+    if(response.status===400||response.status===422)
+      throw new Error("CLOUDFLARE_MODEL_JSON_SCHEMA_REJECTED");
     throw new Error("PROVIDER_UNAVAILABLE");
   }
   const parsed=await response.json() as {
@@ -219,9 +230,9 @@ async function extractCloudflarePdf(
   };
   const body=parsed.choices?.[0]?.message?.content;
   if(typeof body!=="string"||body.length>65000||!body.trim())
-    throw new Error("AI_EMPTY");
+    throw new Error("CLOUDFLARE_MODEL_EMPTY");
   let raw:unknown;
-  try{raw=JSON.parse(body);}catch{throw new Error("AI_INVALID_JSON");}
+  try{raw=JSON.parse(body);}catch{throw new Error("CLOUDFLARE_MODEL_INVALID_JSON");}
   // Provenance check: if the alleged quoted evidence is not literally present
   // in Cloudflare's extracted PDF text, reject the measurement.
   // Any setback remains pending because a text conversion doesn't measure CAD
