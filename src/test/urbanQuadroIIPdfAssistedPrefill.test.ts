@@ -104,12 +104,57 @@ describe("SIGAPRO PDF — pré-preenchimento por tabela, página e documento ori
       CAMPO_LIMPO_PAULISTA_MUNICIPALITY_ID,"b".repeat(64),43,
       proposal("S1.5")).sourceExcerpt).toBe("");
   });
-  it("mantém falta de trecho literal explícita em C2.7, sem inventar índice",()=>{
+  it("resolve C2.7 com as duas linhas literais do PDF, sem criar vagas fictícias",()=>{
     const result=prepareQuadroIIPdfAssistedPrefill(
       CAMPO_LIMPO_PAULISTA_MUNICIPALITY_ID,LC379_QUADRO_II_SHA,48,proposal("C2.7"));
-    expect(result.hasLiteralCandidate).toBe(false);
-    expect(result.sourceExcerpt).toBe("");
-    expect(result.warnings.some(w=>w.includes("Trecho literal insuficiente"))).toBe(true);
+    expect(result.hasLiteralCandidate).toBe(true);
+    expect(result.sourceExcerpt).toBe("Centro de compras\nShopping Center");
+    expect(result.pages).toEqual([48,49]);
+    expect(result.useDescriptionCandidate).toContain("Centro de compras");
+    expect(result.roadHierarchy).toBe("N1");
+    expect(result.sourceZonesCandidate).toBe("ZC / ZM-MA");
+    expect(result.parkingRequirement).toBe("");
+    expect(result.specialConditions).toBe("");
+    expect(result.requiresFocusedReview).toBe(true);
+    expect(result.focusedReviewReasons.join(" ")).toContain("EM BRANCO");
+    expect(result.manualReviewRequired).toBe(true);
+    const otherCity=prepareQuadroIIPdfAssistedPrefill(
+      "outra-prefeitura",LC379_QUADRO_II_SHA,48,proposal("C2.7"));
+    expect(otherCity.sourceExcerpt).toBe("");
+  });
+  it("compara por coluna da página 49 os requisitos C2.1 a C2.6",()=>{
+    const cases = [
+      ["C2.1","N3, E2","25 m²","250 m²"],
+      ["C2.2","N3, E2","75 m²","250 m²"],
+      ["C2.3","N2, E1","20 m²","100 m²"],
+      ["C2.5","N2, E2","50 m²","250 m²"],
+      ["C2.6","N1, E1","100 m²","250 m²"],
+    ] as const;
+    for(const [code,road,parking,cargo] of cases){
+      const row=prepareQuadroIIPdfAssistedPrefill(
+        CAMPO_LIMPO_PAULISTA_MUNICIPALITY_ID,LC379_QUADRO_II_SHA,48,proposal(code));
+      expect(row.pages).toEqual([48,49]);
+      expect(row.roadHierarchy).toBe(road);
+      expect(row.parkingRequirement).toContain(parking);
+      expect(row.specialConditions).toContain(cargo);
+      expect(row.sourceZonesCandidate.length).toBeGreaterThan(0);
+    }
+    const split=prepareQuadroIIPdfAssistedPrefill(
+      CAMPO_LIMPO_PAULISTA_MUNICIPALITY_ID,LC379_QUADRO_II_SHA,48,proposal("C2.4"));
+    expect(split.hasLiteralCandidate).toBe(true);
+    expect(split.parkingRequirement).toBe("");
+    expect(split.roadHierarchy).toBe("");
+    expect(split.requiresFocusedReview).toBe(true);
+    expect(split.focusedReviewReasons.join(" ")).toContain("duas subcolunas");
+  });
+  it("não apresenta descrição genérica de S2.2/S2.3 como enquadramento legal completo",()=>{
+    for(const code of ["S2.2","S2.3"]){
+      const row=prepareQuadroIIPdfAssistedPrefill(
+        CAMPO_LIMPO_PAULISTA_MUNICIPALITY_ID,LC379_QUADRO_II_SHA,45,proposal(code));
+      expect(row.requiresFocusedReview).toBe(true);
+      expect(row.useDescriptionCandidate).toContain(code);
+      expect(row.focusedReviewReasons.length).toBeGreaterThan(0);
+    }
   });
   it("não faz aprovação ou gravação automática; só salva após confirmação de página pelo usuário",()=>{
     const panel=read("src/components/platform/UrbanQuadroIIWorkspacePanel.tsx");
@@ -131,6 +176,17 @@ describe("SIGAPRO PDF — pré-preenchimento por tabela, página e documento ori
     expect(panel).toContain("pré-leitura automática ainda não conferida");
     expect(panel).toContain('data-sigapro-qii-literal-blocker="true"');
     expect(panel).toContain('data-sigapro-qii-focused-literal="true"');
+    expect(panel).toContain('data-sigapro-c27-blank-rate="true"');
+    expect(panel).toContain('data-sigapro-source-zones-candidate="true"');
+    expect(panel).toContain('data-sigapro-saved-draft-incomplete={item.category_code}');
+    expect(panel).toContain("assisted.roadHierarchy.trim().length > 0");
+    expect(panel).toContain("assisted.parkingRequirement.trim().length > 0");
+    expect(panel).toContain("UrbanParcelamentoPage51Panel");
+    expect(panel).toContain('data-sigapro-c2-saved-audit="true"');
+    const parcelamento=read("src/components/platform/UrbanParcelamentoPage51Panel.tsx");
+    expect(parcelamento).toContain('data-sigapro-page51-parcelamento-matrix="true"');
+    expect(parcelamento).toContain("30% das UH");
+    expect(parcelamento).toContain("não são, por si sós, autorização ou proibição");
     expect(panel).toContain("data-sigapro-saved-draft-source-warning");
     expect(panel).toContain("sourceCheck?.requiresFocusedReview");
     expect(panel).toContain("Não precisa cadastrá-lo novamente");
