@@ -87,4 +87,50 @@ describe("SIGAPRO QA — preflight técnico do PDF com controle de custo e autor
     expect(panel).toContain('legalConformity:"not_evaluated"');
     expect(panel).toContain('setConsent(false)');
   });
+  it("oferece Cloudflare textual apenas por seleção explícita sem mexer no Claude padrão",()=>{
+    const env=config({
+      SIGAPRO_AI_PROVIDER:"cloudflare",
+      SIGAPRO_AI_PDF_PROVIDER:"claude",
+      SIGAPRO_AI_PDF_ENABLED:"true",
+      ANTHROPIC_API_KEY:"fake-key-for-pure-qa-test-without-network",
+      SIGAPRO_CF_ACCOUNT_ID:"a".repeat(32),
+      SIGAPRO_CF_API_TOKEN:"fake-cloudflare-token-for-unit-testing-12345",
+    });
+    const configured=resolveVisualPdfProvider(env);
+    expect(configured.enabled).toBe(true);
+    if(configured.enabled)expect(configured.provider.kind).toBe("claude");
+    const textual=resolveVisualPdfProvider(env,"cloudflare_text");
+    expect(textual.enabled).toBe(true);
+    if(textual.enabled){
+      expect(textual.provider.kind).toBe("cloudflare");
+      expect(textual.provider.model).toBe("@cf/zai-org/glm-4.7-flash");
+    }
+    const disabled=resolveVisualPdfProvider(config({
+      SIGAPRO_AI_PDF_ENABLED:"false",
+      SIGAPRO_CF_ACCOUNT_ID:"a".repeat(32),
+      SIGAPRO_CF_API_TOKEN:"fake-cloudflare-token-for-unit-testing-12345",
+    }),"cloudflare_text");
+    expect(disabled.enabled).toBe(false);
+  });
+  it("não troca de fornecedor automaticamente sem novo aceite ou isolamento preview",()=>{
+    const api=file("server/ai-project-extract.ts");
+    const ui=file("src/components/platform/ArchitecturalPdfAiPanel.tsx");
+    expect(api).toContain('const textRequested=body.readingMode==="cloudflare_text"');
+    expect(api).toContain('if(textRequested && process.env.VERCEL_ENV!=="preview")');
+    expect(api).toContain('body.confirmedTransfer!==true');
+    expect(api).toContain('textAlternativeAvailable:textAlternative?.enabled===true');
+    expect(api).toContain('textRequested?"cloudflare_text":undefined');
+    expect(api).toContain('get_current_profile_context');
+    expect(api).toContain('verifiedDocument(req,tenant,processId,documentId)');
+    expect(ui).toContain('data-sigapro-ai-mode-visual="true"');
+    expect(ui).toContain('data-sigapro-ai-mode-cloudflare-text="true"');
+    expect(ui).toContain('setReadingMode(next);setConsent(false);setDraft(null)');
+    expect(ui).toContain('confirmedTransfer:true,readingMode');
+    expect(ui).toContain('data-sigapro-ai-credit-alternative="true"');
+    expect(ui).toContain('readingMode==="cloudflare_text"&&');
+    expect(ui).toContain('result.source!=="ai_pdf_text"||result.aiProvider!=="cloudflare"');
+    expect(ui).toContain('Nenhuma decisão nem mudança de processo será automática.');
+    expect(ui).toContain('[overflow-wrap:anywhere]');
+  });
+
 });
