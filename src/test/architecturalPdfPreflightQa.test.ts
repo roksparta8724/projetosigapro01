@@ -129,7 +129,8 @@ describe("SIGAPRO QA — preflight técnico do PDF com controle de custo e autor
     expect(ui).toContain('data-sigapro-ai-credit-alternative="true"');
     expect(ui).toContain('readingMode==="cloudflare_text"&&');
     expect(ui).toContain('result.source!=="ai_pdf_text"||result.aiProvider!=="cloudflare"');
-    expect(ui).toContain('nenhuma decisão nem mudança de processo será automática.');
+    expect(ui).toContain('nenhuma decisão nem mudança');
+    expect(ui).toContain('no processo será automática.');
     expect(ui).toContain('[overflow-wrap:anywhere]');
   });
 
