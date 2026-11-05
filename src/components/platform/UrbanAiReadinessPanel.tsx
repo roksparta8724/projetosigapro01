@@ -53,7 +53,7 @@ export function UrbanAiReadinessPanel({
     })().then((next) => {
       if (!cancelled) setReport(next);
     }).catch((cause: unknown) => {
-      if (!cancelled) setError("Não foi possível consultar todas as fontes do Neon: " +
+      if (!cancelled) setError("Não foi possível consultar todas as fontes do banco municipal: " +
         String((cause as Error)?.message || cause));
     }).finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
