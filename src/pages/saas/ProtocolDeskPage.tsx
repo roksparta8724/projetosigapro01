@@ -712,16 +712,16 @@ export function ProtocolDeskPage() {
                             </span>
                           ) : null}
                           {ownedByProtocol && process.triage.status === "recebido" ? (
-                            <Button type="button" variant="outline"
-                              className="h-9 rounded-xl border-sky-300 bg-white text-sky-950 hover:bg-sky-50"
+                            <Button type="button" variant="outline" data-sigapro-triage-action="start"
+                              className="min-h-10 max-w-full whitespace-normal break-words rounded-xl border-sky-300 bg-white px-4 text-sky-950 hover:bg-sky-50"
                               disabled={Boolean(protocolActionBusy)}
                               onClick={() => void handleTriageStatus(process, "em_triagem")}>
                               {protocolActionBusy === `triage-em_triagem-${process.id}` ? "Iniciando..." : "Iniciar triagem"}
                             </Button>
                           ) : null}
                           {ownedByProtocol && process.triage.status === "em_triagem" ? (
-                            <Button type="button" variant="outline"
-                              className="h-9 rounded-xl border-emerald-300 bg-emerald-50 text-emerald-950 hover:bg-emerald-100"
+                            <Button type="button" variant="outline" data-sigapro-triage-action="complete"
+                              className="min-h-10 max-w-full whitespace-normal break-words rounded-xl border-emerald-300 bg-emerald-50 px-4 text-emerald-950 hover:bg-emerald-100"
                               disabled={Boolean(protocolActionBusy) || getPendingTriageDocuments(process) > 0}
                               title={getPendingTriageDocuments(process) > 0 ? "Existem anexos obrigatórios não entregues" : "Registrar conferência da entrega documental"}
                               onClick={() => void handleTriageStatus(process, "concluido")}>
@@ -731,11 +731,14 @@ export function ProtocolDeskPage() {
                           {ownedByProtocol && isReadyForProtocolDispatch(process) ? (
                             <Button
                               type="button"
-                              className="h-9 rounded-xl bg-sky-700 text-white hover:bg-sky-800"
+                              data-sigapro-triage-action="dispatch"
+                              className="min-h-10 max-w-full whitespace-normal break-words rounded-xl bg-sky-700 px-4 !text-white hover:bg-sky-800 [&_*]:!text-white"
                               disabled={protocolActionBusy === `dispatch-${process.id}`}
                               onClick={() => void handleDispatchToUrbanism(process)}
                             >
-                              {protocolActionBusy === `dispatch-${process.id}` ? "Despachando..." : "Despachar para Urbanismo"}
+                              <span data-sigapro-triage-dispatch-label="true">
+                                {protocolActionBusy === `dispatch-${process.id}` ? "Despachando..." : "Despachar para Urbanismo"}
+                              </span>
                             </Button>
                           ) : null}
                         </div>
