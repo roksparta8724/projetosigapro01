@@ -284,7 +284,7 @@ export function MasterAdminPage() {
     return [
       { id: "suspended", title: "Contas suspensas", description: suspendedCount > 0 ? `${suspendedCount} prefeitura${suspendedCount > 1 ? "s" : ""} com status suspenso.` : "Nenhuma Prefeitura suspensa no momento.", tone: suspendedCount > 0 ? ("danger" as const) : ("success" as const) },
       { id: "without-admin", title: "Gestão sem administrador", description: withoutAdmin > 0 ? `${withoutAdmin} prefeitura${withoutAdmin > 1 ? "s" : ""} sem administrador principal vinculado.` : "Todas as prefeituras possuem gestor principal.", tone: withoutAdmin > 0 ? ("warning" as const) : ("success" as const) },
-      { id: "environment", title: "Ambiente da plataforma", description: hasBackendEnv ? "Neon conectado e persistência oficial ativa." : "Backend oficial indisponível; ambiente local de homologação ativo.", tone: hasBackendEnv ? ("success" as const) : ("default" as const) },
+      { id: "environment", title: "Ambiente da plataforma", description: hasBackendEnv ? "Banco SIGAPRO conectado e persistência ativa." : "Backend oficial indisponível; ambiente local de homologação ativo.", tone: hasBackendEnv ? ("success" as const) : ("default" as const) },
     ];
   }, [getInstitutionSettings, institutionCatalog, knownAdministrativeUsers]);
 
@@ -835,7 +835,7 @@ export function MasterAdminPage() {
 
         {workspaceView === "visao-geral" || workspaceView === "carteira" ? (
           <SectionCard title="Capacidade e cadastros por Prefeitura"
-            description="Consumo real por município: plano atribuído, usuários internos, processos, departamentos e documentos. Valores atualizados diretamente do Neon.">
+            description="Consumo por município: plano, usuários internos, processos, departamentos e documentos. Dados atualizados pelo núcleo SIGAPRO.">
             {planCapacity.error ? <p role="alert" className="mb-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">{planCapacity.error}</p> : null}
             {!planCapacity.loaded ? (
               <p className="text-sm text-slate-600">Carregando consumo dos contratos...</p>
@@ -1164,7 +1164,7 @@ export function MasterAdminPage() {
                       <Workflow className="h-4 w-4 text-sky-200" />
                       Sincronização
                     </div>
-                    <p className="mt-3 text-sm leading-6 text-slate-500">{hasBackendEnv ? "Neon conectado para contas, branding e persistência comercial." : "Backend oficial indisponível; ambiente local de homologação ativo."}</p>
+                    <p className="mt-3 text-sm leading-6 text-slate-500">{hasBackendEnv ? "Núcleo de dados SIGAPRO conectado para contas, identidade visual e gestão comercial." : "Backend oficial indisponível; ambiente local de homologação ativo."}</p>
                   </div>
                 </div>
               </SectionCard>
