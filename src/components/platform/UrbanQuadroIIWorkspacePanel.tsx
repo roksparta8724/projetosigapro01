@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { UrbanQuadroIILegalReviewPanel } from "@/components/platform/UrbanQuadroIILegalReviewPanel";
 import { buildUrbanQuadroIIReviewQueue, type QuadroIIQueueItem } from "@/lib/urbanQuadroIIReviewQueue";
 import { getMunicipalOfficialUrbanSources } from "@/lib/urbanOfficialLegalSources";
+import { prepareQuadroIIPdfAssistedPrefill } from "@/lib/urbanQuadroIIPdfAssistedPrefill";
 import {
   listUrbanQuadroIIWorkspace, saveUrbanQuadroIIDraft,
   type UrbanQuadroIIDraftInput, type UrbanQuadroIISuggestion, type UrbanQuadroIIWorkspace,
@@ -31,6 +32,7 @@ export function UrbanQuadroIIWorkspacePanel({
   const [selectedSuggestion, setSelectedSuggestion] = useState<UrbanQuadroIISuggestion | null>(null);
   const [showReviewQueue, setShowReviewQueue] = useState(false);
   const [queueFilter, setQueueFilter] = useState<"pending" | "all">("pending");
+  const [batchReviewed, setBatchReviewed] = useState(false);
   const [retryToken, setRetryToken] = useState(0);
   const editorRef = useRef<HTMLDivElement | null>(null);
   const pageIndexRef = useRef<HTMLDivElement | null>(null);
@@ -86,6 +88,22 @@ export function UrbanQuadroIIWorkspacePanel({
   ));
   const selectedPage = workspace?.pages.find((page) => page.page_number === activePage);
   const selectedIndex = workspace?.pages.findIndex((page) => page.page_number === activePage) ?? -1;
+  // Prepared proposals are already persisted as QA candidates; drafts are a
+  // separate, human-initiated, municipality-scoped write with no AI activation.
+  const pendingForPage = (selectedPage?.proposals || []).filter((proposal) =>
+    proposal.status === "proposal_unverified" &&
+    !workspace?.entries.some((entry) => entry.page_number === selectedPage?.page_number &&
+      entry.category_code.trim().toUpperCase() === proposal.category_code.trim().toUpperCase()));
+  const readyForBatch = pendingForPage.map((proposal) => ({
+    proposal,
+    assisted: prepareQuadroIIPdfAssistedPrefill(
+      municipalityId, workspace?.document_sha256 || "", selectedPage?.page_number || 0, proposal,
+    ),
+  })).filter(({assisted}) => assisted.hasLiteralCandidate && assisted.sourceExcerpt.length >= 20);
+  const selectedAssisted = selectedSuggestion && selectedPage
+    ? prepareQuadroIIPdfAssistedPrefill(municipalityId, workspace?.document_sha256 || "",
+        selectedPage.page_number, selectedSuggestion)
+    : null;
   const suggestions = workspace?.pages.reduce((count, page) => count + (page.proposals?.length || 0), 0) || 0;
   const valid = Boolean(
     draft.categoryCode.trim() && draft.useDescription.trim().length >= 5 &&
@@ -116,6 +134,7 @@ export function UrbanQuadroIIWorkspacePanel({
     setDraft(emptyDraft(page));
     setSelectedSuggestion(null);
     setConfirmed(false);
+    setBatchReviewed(false);
     setFormOpen(false);
     setNotice("");
     setError("");
@@ -142,9 +161,53 @@ export function UrbanQuadroIIWorkspacePanel({
       setSaving(false);
     }
   };
+  const savePageDrafts = async () => {
+    if (!canEdit || saving || !batchReviewed || !selectedPage ||
+        !workspace?.batch_id || !workspace.document_sha256 ||
+        workspace.status !== "pending_legal_review" || readyForBatch.length === 0) return;
+    setSaving(true);
+    setError("");
+    setNotice("");
+    let success = 0;
+    const failed: string[] = [];
+    // Serial writes avoid spiking the municipal RPC and keep each request
+    // idempotent. Never claim full success when any one row failed.
+    for (const {proposal, assisted} of readyForBatch) {
+      try {
+        await saveUrbanQuadroIIDraft(municipalityId, workspace.batch_id,
+          workspace.document_sha256, {
+            pageNumber: selectedPage.page_number,
+            categoryCode: proposal.category_code,
+            useDescription: proposal.use_description,
+            // Map-derived legal permissions remain intentionally blank.
+            permittedZones: "",
+            roadHierarchy: assisted.roadHierarchy,
+            parkingRequirement: assisted.parkingRequirement,
+            specialConditions: assisted.specialConditions,
+            sourceExcerpt: assisted.sourceExcerpt,
+          }, crypto.randomUUID());
+        success += 1;
+      } catch (cause: unknown) {
+        failed.push(proposal.category_code + ": " + String((cause as Error)?.message || cause));
+      }
+    }
+    try {
+      setWorkspace(await listUrbanQuadroIIWorkspace(municipalityId));
+    } catch (cause: unknown) {
+      failed.push("Atualização da listagem: " + String((cause as Error)?.message || cause));
+    }
+    setBatchReviewed(false);
+    setSaving(false);
+    setNotice(success + " rascunho(s) assistido(s) salvo(s). Nenhuma norma foi ativada.");
+    if (failed.length) setError("Alguns itens exigem nova conferência: " + failed.join(" | ").slice(0,1200));
+  };
   const prepareSuggestion = (pageNumber: number, proposal: UrbanQuadroIISuggestion) => {
     if (!canEdit || saving || proposal.status !== "proposal_unverified") return;
-    // Suggestions from old PDFs are untrusted. Clamp before showing them as editable text.
+    // Original PDF SHA + municipality are checked before applying any curated
+    // transcription. Suggestions remain unverified until analyst review.
+    const assisted = prepareQuadroIIPdfAssistedPrefill(
+      municipalityId, workspace?.document_sha256 || "", pageNumber, proposal,
+    );
     setDraft({
       pageNumber,
       categoryCode: proposal.category_code.slice(0, 32),
@@ -159,6 +222,12 @@ export function UrbanQuadroIIWorkspacePanel({
       specialConditions: (proposal.special_conditions_text || "").slice(0, 800),
       // Joined table-cell summaries must never appear as literal legal evidence.
       sourceExcerpt: (proposal.literal_source_excerpt || "").slice(0, 1600),
+      // Curated text from the PDF original improves the draft, never the
+      // legal approval status or active zoning permissions.
+      roadHierarchy: assisted.roadHierarchy,
+      parkingRequirement: assisted.parkingRequirement,
+      specialConditions: assisted.specialConditions,
+      sourceExcerpt: assisted.sourceExcerpt,
     });
     setSelectedSuggestion(proposal);
     setConfirmed(false); // Auto-fill is never a human confirmation.
@@ -527,6 +596,19 @@ export function UrbanQuadroIIWorkspacePanel({
                               </p>
                             </div>
                           ) : null}
+                          {selectedAssisted ? (
+                            <div data-sigapro-automated-pdf-prefill="true"
+                              className="rounded-xl border border-sky-200 bg-sky-50 p-3 text-xs leading-5 text-sky-950">
+                              <strong className="block">Pré-preenchimento do PDF original · ainda sem validação jurídica</strong>
+                              <p>Páginas de origem: {selectedAssisted.pages.join(", ")}.
+                                {" "}{selectedAssisted.hasLiteralCandidate
+                                  ? "Trecho literal candidato já preenchido. Confira a coluna e a página."
+                                  : "Trecho literal não comprovado; exige conferência visual antes de salvar."}
+                              </p>
+                              {selectedAssisted.warnings.slice(0,4).map((warning,index) =>
+                                <p key={index} className="mt-1 break-words">• {warning}</p>)}
+                            </div>
+                          ) : null}
                           <div className="grid gap-3 sm:grid-cols-2">
                             <label className="text-xs font-semibold">Código da categoria
                               <Input className="mt-1 bg-white text-slate-900" value={draft.categoryCode}
@@ -542,6 +624,13 @@ export function UrbanQuadroIIWorkspacePanel({
                               <Input className="mt-1 bg-white text-slate-900" value={draft.permittedZones}
                                 onChange={(e) => setField("permittedZones",e.target.value)} maxLength={600}
                                 placeholder="Deixe vazio se não confirmado" />
+                              {selectedSuggestion?.permitted_zones_text ? (
+                                <button type="button" onClick={() => setField("permittedZones",
+                                    selectedSuggestion.permitted_zones_text || "")}
+                                  className="mt-1 min-h-8 text-left text-[11px] font-semibold text-sky-900 underline underline-offset-2">
+                                  Copiar zonas candidatas do PDF (exige conferir o mapa)
+                                </button>
+                              ) : null}
                             </label>
                             <label className="text-xs font-semibold">Hierarquia de via
                               <Input className="mt-1 bg-white text-slate-900" value={draft.roadHierarchy}
@@ -623,6 +712,37 @@ export function UrbanQuadroIIWorkspacePanel({
                       ) : null}
                       {(page.proposals?.length || 0) > 0 ? (
                         <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-3 text-slate-900">
+                          <div data-sigapro-quadro-ii-batch-prefill="true"
+                            className="rounded-xl border border-sky-200 bg-sky-50 p-3 text-sky-950">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <strong className="text-sm">Conferência por página — sem redigitar cada categoria</strong>
+                              <span className="text-[11px] font-bold">
+                                {readyForBatch.length}/{pendingForPage.length} rascunho(s) com trecho candidato
+                              </span>
+                            </div>
+                            <p className="mt-1 text-xs leading-5">
+                              Valores legíveis da tabela original já aparecem preparados.
+                              Revise a página original (e páginas de continuação) uma vez.
+                              Os itens com trecho insuficiente permanecem pendentes; nenhuma lei será ativada.
+                            </p>
+                            {canEdit && readyForBatch.length > 0 ? (
+                              <>
+                                <label className="mt-2 flex items-start gap-2 text-xs font-semibold">
+                                  <input type="checkbox" checked={batchReviewed} disabled={saving}
+                                    onChange={event => setBatchReviewed(event.target.checked)} />
+                                  Conferi as páginas originais indicadas e autorizo salvar apenas
+                                  rascunhos não homologados desta página, sem ativar parâmetros para IA.
+                                </label>
+                                <Button type="button" size="sm"
+                                  disabled={!batchReviewed || saving}
+                                  onClick={() => void savePageDrafts()}
+                                  className="mt-2 bg-[#0b3150] !text-white">
+                                  {saving ? "Salvando rascunhos..." :
+                                    "Salvar em lote " + readyForBatch.length + " rascunho(s) desta página"}
+                                </Button>
+                              </>
+                            ) : null}
+                          </div>
                           <p className="text-sm font-extrabold">Sugestões de categorias — requerem conferência</p>
                           <p className="text-xs text-slate-600 dark:text-slate-200">
                             A leitura assistida preenche os campos que encontrou no PDF, com indicação das
