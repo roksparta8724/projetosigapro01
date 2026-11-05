@@ -29,7 +29,8 @@ export function ArchitecturalPdfAiPanel({
   const [loading,setLoading]=useState(false);
   const [availability,setAvailability]=useState<{
     status:"checking"|"ready"|"disabled";message:string;
-  }>({status:"checking",message:"Verificando se o provedor de IA está configurado..."});
+    provider:"cloudflare"|"claude"|"openai"|"none";
+  }>({status:"checking",message:"Verificando se o provedor de IA está configurado...",provider:"none"});
 
   const [error,setError]=useState("");
   const [draft,setDraft]=useState<ApiResult|null>(null);
@@ -44,10 +45,12 @@ export function ArchitecturalPdfAiPanel({
   useEffect(()=>{
     let current=true;
     if(readOnly){
-      setAvailability({status:"disabled",message:"A leitura visual está disponível apenas para o analista autorizado."});
+      setAvailability({status:"disabled",provider:"none",
+        message:"A leitura assistida está disponível apenas para o analista autorizado."});
       return;
     }
-    setAvailability({status:"checking",message:"Verificando provedor visual da homologação..."});
+    setAvailability({status:"checking",provider:"none",
+      message:"Verificando provedor de leitura da homologação..."});
     void (async()=>{
       const session=(await backendClient.auth.getSession()).data?.session;
       const jwt=session?.access_token||session?.accessToken||session?.token||"";
@@ -55,12 +58,14 @@ export function ArchitecturalPdfAiPanel({
       const res=await fetch("/api/ai-assistant?action=project-extract",{
         method:"GET",cache:"no-store",headers:{Authorization:"Bearer "+jwt},
       });
-      const value=await res.json() as {enabled?:boolean;message?:string;error?:string};
+      const value=await res.json() as {enabled?:boolean;provider?:string;message?:string;error?:string};
       if(!res.ok)throw new Error(value.error||"Não foi possível confirmar a disponibilidade da IA.");
       if(current)setAvailability({status:value.enabled?"ready":"disabled",
-        message:value.message||"Leitor visual indisponível."});
+        provider:value.provider==="cloudflare"||value.provider==="claude"||value.provider==="openai"
+          ?value.provider:"none",
+        message:value.message||"Leitor assistido indisponível."});
     })().catch((err:unknown)=>{
-      if(current)setAvailability({status:"disabled",
+      if(current)setAvailability({status:"disabled",provider:"none",
         message:String((err as Error)?.message||err)});
     });
     return()=>{current=false;};
@@ -116,16 +121,16 @@ export function ArchitecturalPdfAiPanel({
     <div className="flex flex-wrap items-center justify-between gap-2">
       <h4 className="flex items-center gap-2 text-sm font-extrabold">
         <BrainCircuit className="h-5 w-5 text-sky-700 dark:text-sky-300"/>
-        Leitor visual do projeto arquitetônico — versão de homologação
+        Leitura assistida do projeto arquitetônico — homologação
       </h4>
       <span className="rounded-full bg-amber-100 px-2 py-1 text-[11px] font-bold text-amber-950">
         Sem aprovação automática
       </span>
     </div>
     <p className="mt-2 text-xs leading-5 text-slate-700 dark:text-slate-200">
-      Lê cotas e quadros de áreas do PDF por IA visual e apresenta a página de origem.
-      A leitura pode errar: cada valor deve ser comparado com a prancha original
-      antes de entrar no diagnóstico normativo.
+      O modo visual exige provedor com leitura de imagens configurado. O Cloudflare Workers AI
+      extrai texto do PDF, mas não comprova cotas geométricas nem recuos. Toda medida
+      exige página, valor, unidade e citação consistentes, com conferência humana.
     </p>
     {!plans.length?<p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-950">
       Nenhum projeto arquitetônico PDF foi encontrado como documento armazenado neste processo.
@@ -149,16 +154,25 @@ export function ArchitecturalPdfAiPanel({
       </label>
       <p role="status" data-sigapro-ai-pdf-provider-status={availability.status}
         className={"mt-3 text-xs font-semibold leading-5 "+(
-          availability.status==="ready"?"text-emerald-800 dark:text-emerald-300":
+          availability.status==="ready"&&availability.provider!=="cloudflare"
+            ?"text-emerald-800 dark:text-emerald-300":
           "text-amber-800 dark:text-amber-200")}>
         {availability.message}
       </p>
+      {availability.provider==="cloudflare"&&availability.status==="ready"?<p
+        data-sigapro-pdf-text-only="true" role="status"
+        className="mt-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-semibold leading-5 text-amber-950 dark:border-amber-600 dark:bg-slate-900 dark:text-amber-200">
+        Modo somente texto: sem validação geométrica de recuos ou reconhecimento visual das pranchas.
+        Não usar a extração textual como diagnóstico urbanístico.
+      </p>:null}
       <Button type="button" data-sigapro-ai-read-project="true"
         className="mt-3 min-h-11 bg-slate-950 !text-white"
         disabled={readOnly||!consent||!latest||loading||availability.status!=="ready"}
         onClick={()=>void scan()}>
         {loading?<Loader2 className="mr-2 h-4 w-4 animate-spin"/>:<FileText className="mr-2 h-4 w-4"/>}
-        {loading?"Lendo prancha com IA...":"Ler projeto arquitetônico com IA"}
+        {loading
+          ? availability.provider==="cloudflare"?"Extraindo texto do PDF...":"Lendo prancha com IA..."
+          : availability.provider==="cloudflare"?"Extrair texto do PDF com IA":"Ler projeto arquitetônico com IA"}
       </Button>
     </>}
     {error?<p role="alert" className="mt-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs leading-5 text-rose-900 dark:bg-slate-900 dark:text-rose-100">
