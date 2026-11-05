@@ -53,7 +53,16 @@ const reviewedPdfCandidates: Record<string, Correction> = {
   "43:S1.2": {quote:"Escritórios técnicos profissionais",parking:"1 vaga a cada 75 m² ou fração, mínimo 1 (página 44).",road:"N3, E3",conditions:"Carga: 0; desembarque sem exigência indicada na célula.",pages:[43,44]},
   "43:S1.3": {quote:"Oficinas de reparos e consertos de: aparelhos eletroeletrônicos",parking:"1 vaga a cada 75 m² ou fração, mínimo 1 (página 44).",road:"N3, E3",conditions:"Carga: no mínimo 1 vaga (página 44).",pages:[43,44]},
   "43:S1.4": {quote:"Associações comunitárias de vizinhança",parking:"1 vaga a cada 100 m² ou fração, mínimo 1 (página 44).",road:"N3, E3",conditions:"Carga: 0 (página 44).",pages:[43,44]},
-  "43:S1.5": {parking:"1 vaga a cada 50 m² ou fração, mínimo 1 (página 44).",road:"N3, E2, E1(T)",conditions:"Carga: no mínimo 1 vaga (página 44).",pages:[43,44],warning:"Na página 43 as únicas linhas desta coluna são Pensões e Pousada; confirmar trecho literal antes de salvar."},
+  "43:S1.5": {
+    // Verbatim GROUP scope, printed on page 43; Pensões and Pousada are the
+    // two short category cells. Never claim this group text proves legal use.
+    quote:"Serviços de âmbito local área até 250 m2",
+    parking:"1 vaga a cada 50 m² ou fração, mínimo 1 (página 44).",
+    road:"N3, E2, E1(T)",
+    conditions:"Carga: no mínimo 1 vaga (página 44).",
+    pages:[43,44],
+    warning:"Trecho literal da página 43 pertence ao grupo S1 (serviços de âmbito local), e não comprova sozinho S1.5. Conferir as células 'Pensões' e 'Pousada' na página 43 e a célula de estacionamento e carga na página 44 antes de salvar. Não ativar como norma.",
+  },
 
   "45:S2.1": {quote:"Lab. análises clínicas, químicas",parking:"1 vaga por 50 m² ou fração.",road:"N2, E2"},
   "45:S2.2": {quote:"Cartório e registro civil",parking:"1 vaga por 50 m² ou fração.",road:"N2, E2",conditions:"Carga e descarga: no mínimo 1 vaga."},
