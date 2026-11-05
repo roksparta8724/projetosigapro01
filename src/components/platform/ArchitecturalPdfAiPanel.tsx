@@ -16,16 +16,20 @@ type ApiResult = DrawingExtraction & {
 const normalized = (value:string)=>value.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
 
 export function ArchitecturalPdfAiPanel({
-  process,readOnly,activeMetrics,onApply,
+  process,readOnly,activeMetrics,onApply,documentId,compact=false,
 }:{
   process:ProcessRecord; readOnly:boolean; activeMetrics:readonly UrbanMetric[];
   onApply:(reviewed:Prepared)=>void;
+  documentId?:string;compact?:boolean;
 }) {
-  const plans=useMemo(()=>process.documents.filter(doc=>
+  const availablePlans=useMemo(()=>process.documents.filter(doc=>
     doc.uploaded && Boolean(doc.filePath) &&
     /\.pdf$/i.test(doc.fileName||"") &&
     /projeto arquitetonico/.test(normalized(doc.label))
   ).sort((a,b)=>b.version-a.version),[process.documents]);
+  const plans=useMemo(()=>documentId
+    ?availablePlans.filter(doc=>doc.id===documentId)
+    :availablePlans,[availablePlans,documentId]);
   const [id,setId]=useState("");
   const [consent,setConsent]=useState(false);
   const [readingMode,setReadingMode]=useState<ReadingMode>("visual");
@@ -99,7 +103,7 @@ export function ArchitecturalPdfAiPanel({
   },[process.id,readOnly,id,plans]);
 
   const selected=plans.find(doc=>doc.id===id);
-  const latest=plans[0]?.id===id;
+  const latest=availablePlans[0]?.id===id;
   const readyForSelectedMode=readingMode==="cloudflare_text"
     ?availability.textAlternativeAvailable
     :availability.status==="ready"&&availability.mode==="visual";
@@ -163,7 +167,8 @@ export function ArchitecturalPdfAiPanel({
     setNotice("Somente as medidas conferidas foram copiadas ao formulário. Recalcule e examine o diagnóstico antes de registrar.");
   }
   return <section data-sigapro-project-pdf-ai="true"
-    className="mt-5 min-w-0 rounded-2xl border border-sky-200 bg-white p-4 text-slate-900 dark:border-sky-700 dark:bg-slate-950 dark:text-white">
+    data-sigapro-document-ai-embedded={compact?"true":"false"}
+    className={`min-w-0 max-w-full overflow-hidden rounded-2xl border border-sky-200 bg-white text-slate-900 dark:border-sky-700 dark:bg-slate-950 dark:text-white ${compact?"p-3":"mt-5 p-4"}`}>
     <div className="flex flex-wrap items-center justify-between gap-2">
       <h4 className="flex items-center gap-2 text-sm font-extrabold">
         <BrainCircuit className="h-5 w-5 text-sky-700 dark:text-sky-300"/>
@@ -183,7 +188,7 @@ export function ArchitecturalPdfAiPanel({
     </p>:<>
       <label className="mt-3 block text-xs font-semibold">Projeto arquitetônico do processo
         <select className="mt-1 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-slate-900 dark:bg-slate-900 dark:text-white"
-          value={id} disabled={readOnly||loading}
+          value={id} disabled={readOnly||loading||Boolean(documentId)}
           onChange={event=>{setId(event.target.value);setDraft(null);setChecked({});setConsent(false);}}>
           {plans.map(doc=><option key={doc.id} value={doc.id}>{doc.fileName} · versão {doc.version}</option>)}
         </select>
@@ -192,7 +197,7 @@ export function ArchitecturalPdfAiPanel({
         Uma versão mais recente está disponível. Use a versão atual do projeto.
       </p>:null}
       <div role="group" aria-label="Escolha o tipo de leitura do PDF"
-        className="mt-3 grid min-w-0 gap-2 md:grid-cols-2">
+        className={`mt-3 grid min-w-0 gap-2 ${compact?"grid-cols-1":"md:grid-cols-2"}`}>
         <button type="button" data-sigapro-ai-mode-visual="true"
           aria-pressed={readingMode==="visual"} disabled={readOnly||loading}
           onClick={()=>changeReadingMode("visual")}
@@ -333,7 +338,7 @@ export function ArchitecturalPdfAiPanel({
           <AlertTriangle className="h-3.5 w-3.5 shrink-0"/>{warning}
         </p>)}
       </div>
-      <div className="grid min-w-0 gap-2 md:grid-cols-2">
+      <div className={`grid min-w-0 gap-2 ${compact?"grid-cols-1":"md:grid-cols-2"}`}>
         {draft.readings.map(row=>{
           const meta=URBAN_METRICS.find(m=>m.key===row.metric)!;
           const canUse=row.usableForReview && activeMetrics.includes(row.metric) &&
@@ -367,10 +372,10 @@ export function ArchitecturalPdfAiPanel({
         })}
       </div>
       <Button type="button" data-sigapro-ai-apply-reviewed="true"
-        className="min-h-11 bg-slate-950 !text-white" disabled={!applied.length||readOnly}
+        className="h-auto min-h-11 min-w-0 max-w-full whitespace-normal break-words bg-slate-950 py-2 !text-white [overflow-wrap:anywhere]" disabled={!applied.length||readOnly}
         onClick={apply}>
         <CheckCircle2 className="mr-2 h-4 w-4"/>
-        Aplicar {applied.length} medida(s) conferida(s) à pré-análise
+        Enviar {applied.length} medida(s) conferida(s) à pré-conferência
       </Button>
       {!activeMetrics.length?<p className="text-xs font-semibold text-amber-800">
         Nenhuma regra oficial ativa para esta zona e uso. A extração não pode produzir diagnóstico legal.
