@@ -178,11 +178,11 @@ BEGIN
       OR NEW.analysis_assigned_to_profile_id IS DISTINCT FROM OLD.analysis_assigned_to_profile_id
     )
     AND NOT public.can_write_process_analysis(OLD.id)
-    AND NOT (
+    AND NOT COALESCE((
       -- Exceção mínima para o início por RPC: antes da primeira atribuição,
       -- can_write_process_analysis(OLD.id) corretamente retorna false.
       -- Nenhum UPDATE direto fora da transação autenticada recebe esse contexto.
-      current_setting('sigapro.analysis_start_process_id', true) = OLD.id::text
+      coalesce(current_setting('sigapro.analysis_start_process_id', true),'') = OLD.id::text
       AND OLD.status IN ('distribuicao'::public.process_status, 'reapresentacao'::public.process_status)
       AND OLD.analysis_assigned_to_profile_id IS NULL
       AND OLD.analysis_started_at IS NULL
@@ -205,7 +205,7 @@ BEGIN
       )
       AND public.process_technical_release_verified_v1(OLD.id)
       AND public.process_is_in_analysis_area(OLD.id)
-    ) THEN
+    ), false) THEN
 
     IF (public.is_master() OR lower(coalesce(public.current_role_code(),''))='prefeitura_admin')
       AND OLD.status IN ('analise_tecnica'::public.process_status,'distribuicao'::public.process_status)
