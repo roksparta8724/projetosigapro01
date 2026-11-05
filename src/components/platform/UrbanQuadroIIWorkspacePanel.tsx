@@ -33,6 +33,7 @@ export function UrbanQuadroIIWorkspacePanel({
   const [showReviewQueue, setShowReviewQueue] = useState(false);
   const [queueFilter, setQueueFilter] = useState<"pending" | "all">("pending");
   const [batchReviewed, setBatchReviewed] = useState(false);
+  const [selectedBatchCodes, setSelectedBatchCodes] = useState<string[]>([]);
   const [retryToken, setRetryToken] = useState(0);
   const editorRef = useRef<HTMLDivElement | null>(null);
   const pageIndexRef = useRef<HTMLDivElement | null>(null);
@@ -47,6 +48,8 @@ export function UrbanQuadroIIWorkspacePanel({
     setActivePage(null);
     setFormOpen(false);
     setSelectedSuggestion(null);
+    setSelectedBatchCodes([]);
+    setBatchReviewed(false);
     if (!municipalityId || !canView) return () => { active = false; };
     setLoading(true);
     void listUrbanQuadroIIWorkspace(municipalityId)
@@ -113,6 +116,12 @@ export function UrbanQuadroIIWorkspacePanel({
     assisted.sourceExcerpt.length >= 20 && !assisted.requiresFocusedReview);
   const needsIndividualReview = pageBatchCandidates.filter(({assisted}) =>
     pageNeedsVisualReview || !assisted.hasLiteralCandidate || assisted.requiresFocusedReview);
+  // Start empty: showing a machine suggestion is never a user's attestation.
+  // Include the page in the selection key so category codes from a different
+  // page can never be accidentally submitted.
+  const selectedForBatch = readyForBatch.filter(({proposal}) =>
+    selectedBatchCodes.includes(String(selectedPage?.page_number) + ":" +
+      proposal.category_code.normalize("NFKC").trim().toUpperCase()));
   const selectedAssisted = selectedSuggestion && selectedPage
     ? prepareQuadroIIPdfAssistedPrefill(municipalityId, workspace?.document_sha256 || "",
         selectedPage.page_number, selectedSuggestion)
@@ -148,6 +157,7 @@ export function UrbanQuadroIIWorkspacePanel({
     setSelectedSuggestion(null);
     setConfirmed(false);
     setBatchReviewed(false);
+    setSelectedBatchCodes([]);
     setFormOpen(false);
     setNotice("");
     setError("");
@@ -177,7 +187,7 @@ export function UrbanQuadroIIWorkspacePanel({
   const savePageDrafts = async () => {
     if (!canEdit || saving || !batchReviewed || !selectedPage ||
         !workspace?.batch_id || !workspace.document_sha256 ||
-        workspace.status !== "pending_legal_review" || readyForBatch.length === 0) return;
+        workspace.status !== "pending_legal_review" || selectedForBatch.length === 0) return;
     setSaving(true);
     setError("");
     setNotice("");
@@ -185,7 +195,7 @@ export function UrbanQuadroIIWorkspacePanel({
     const failed: string[] = [];
     // Serial writes avoid spiking the municipal RPC and keep each request
     // idempotent. Never claim full success when any one row failed.
-    for (const {proposal, assisted} of readyForBatch) {
+    for (const {proposal, assisted} of selectedForBatch) {
       try {
         await saveUrbanQuadroIIDraft(municipalityId, workspace.batch_id,
           workspace.document_sha256, {
@@ -210,6 +220,7 @@ export function UrbanQuadroIIWorkspacePanel({
       failed.push("Atualização da listagem: " + String((cause as Error)?.message || cause));
     }
     setBatchReviewed(false);
+    setSelectedBatchCodes([]);
     setSaving(false);
     setNotice(success + " rascunho(s) assistido(s) salvo(s). Nenhuma norma foi ativada.");
     if (failed.length) setError("Alguns itens exigem nova conferência: " + failed.join(" | ").slice(0,1200));
@@ -253,6 +264,7 @@ export function UrbanQuadroIIWorkspacePanel({
   const openQueueItem = (item: QuadroIIQueueItem) => {
     if (saving) return;
     setBatchReviewed(false); // Page changes invalidate any prior batch attestation.
+    setSelectedBatchCodes([]);
     if (item.status === "draft_unverified") {
       setActivePage(item.pageNumber);
       setFormOpen(false);
@@ -759,18 +771,56 @@ export function UrbanQuadroIIWorkspacePanel({
                             ) : null}
                             {canEdit && readyForBatch.length > 0 ? (
                               <>
+                                <div data-sigapro-quadro-ii-selective-batch="true"
+                                  className="mt-2 rounded-lg border border-sky-200 bg-white p-3">
+                                  <strong className="block text-xs text-sky-950">
+                                    Selecione apenas as categorias que você conferiu
+                                  </strong>
+                                  <p className="mt-1 text-xs leading-5 text-slate-700">
+                                    Você pode salvar três categorias e deixar as outras pendentes.
+                                    Zonas não confirmadas podem permanecer vazias no rascunho.
+                                  </p>
+                                  <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                                    {readyForBatch.map(({proposal}) => {
+                                      const key = String(selectedPage?.page_number) + ":" +
+                                        proposal.category_code.normalize("NFKC").trim().toUpperCase();
+                                      return (
+                                        <label key={key} className="flex min-w-0 cursor-pointer items-start gap-2
+                                          rounded-lg border border-slate-200 bg-slate-50 p-2
+                                          text-xs font-semibold text-slate-900">
+                                          <input type="checkbox" disabled={saving}
+                                            checked={selectedBatchCodes.includes(key)}
+                                            onChange={event => {
+                                              setSelectedBatchCodes(current =>
+                                                event.target.checked
+                                                  ? [...current.filter(code => code !== key),key]
+                                                  : current.filter(code => code !== key));
+                                              setBatchReviewed(false);
+                                            }} />
+                                          <span className="min-w-0 break-words">
+                                            {proposal.category_code} — {proposal.use_description}
+                                          </span>
+                                        </label>
+                                      );
+                                    })}
+                                  </div>
+                                  <p className="mt-2 text-xs font-bold text-sky-950">
+                                    {selectedForBatch.length} selecionada(s) para salvar como rascunho.
+                                  </p>
+                                </div>
                                 <label className="mt-2 flex items-start gap-2 text-xs font-semibold">
                                   <input type="checkbox" checked={batchReviewed} disabled={saving}
                                     onChange={event => setBatchReviewed(event.target.checked)} />
-                                  Conferi as páginas originais indicadas e autorizo salvar apenas
-                                  rascunhos não homologados desta página, sem ativar parâmetros para IA.
+                                  Conferi no PDF original as categorias selecionadas e autorizo
+                                  salvar apenas esses rascunhos, sem ativar parâmetros para a IA.
+                                  Campos de zonas não confirmados permanecerão vazios.
                                 </label>
                                 <Button type="button" size="sm"
-                                  disabled={!batchReviewed || saving}
+                                  disabled={!batchReviewed || saving || selectedForBatch.length === 0}
                                   onClick={() => void savePageDrafts()}
                                   className="mt-2 bg-[#0b3150] !text-white">
                                   {saving ? "Salvando rascunhos..." :
-                                    "Salvar em lote " + readyForBatch.length + " rascunho(s) desta página"}
+                                    "Salvar " + selectedForBatch.length + " rascunho(s) selecionado(s)"}
                                 </Button>
                               </>
                             ) : null}
