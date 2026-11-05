@@ -722,7 +722,7 @@ export function DashboardHomePage() {
 
   const renderPlanCapacity = () => (
         <SectionCard title={isMaster ? "Capacidade contratada por Prefeitura" : "Meu plano e utilização"}
-          description="Cadastros, processos, setores e armazenamento calculados pelo Neon. Atualiza quando o Master altera o plano, sem novo login."
+          description="Cadastros, processos, setores e armazenamento calculados pelo SIGAPRO. Atualiza quando o Master altera o plano, sem novo login."
           icon={Users2}>
           {planCapacity.error ? (
             <p role="alert" className="mb-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:bg-slate-800 dark:text-amber-200">
@@ -730,7 +730,7 @@ export function DashboardHomePage() {
             </p>
           ) : null}
           {!planCapacity.loaded ? (
-            <p className="text-sm text-slate-600 dark:text-slate-300">Consultando limites contratados no Neon...</p>
+            <p className="text-sm text-slate-600 dark:text-slate-300">Consultando limites contratados no SIGAPRO...</p>
           ) : planCapacity.rows.length === 0 ? (
             <p className="text-sm text-slate-600 dark:text-slate-300">Nenhum plano disponível para o contexto autenticado.</p>
           ) : (
