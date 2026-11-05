@@ -1918,7 +1918,7 @@ export function ProcessDetailPage() {
     }
     const paidGuide = false;
     const issuedAt = selectedGuide.issuedAt;
-    if (!issuedAt) throw new Error("Data original da guia ausente no Neon.");
+    if (!issuedAt) throw new Error("Data original da guia ausente nos registros SIGAPRO.");
     const year = new Date(issuedAt).getFullYear().toString();
     const approvalBreakdown = !paidGuide && selectedGuide.kind === "aprovacao_final"
         ? calculateApprovalGuideBreakdown(
@@ -2709,7 +2709,7 @@ export function ProcessDetailPage() {
 
   const handleImportQa04ArchitecturalFixture = async () => {
     if (!canImportQa04Fixture) {
-      setProcessActionStatus("Importação disponível apenas ao administrador autorizado no Neon QA isolado.");
+      setProcessActionStatus("Importação disponível apenas ao administrador autorizado no ambiente de testes SIGAPRO.");
       return;
     }
     if (qa04MissingFixtureLabels.length === 0) {
@@ -2768,7 +2768,7 @@ export function ProcessDetailPage() {
       const result = await upgradeRemoteQa04ArchitecturalPlanV2(
         process.id, uploaded.path, file.name, file.size,
       );
-      if (result.ok !== true) throw new Error("O Neon QA não confirmou a revisão V2.");
+      if (result.ok !== true) throw new Error("O ambiente de testes SIGAPRO não confirmou a revisão V2.");
     },
     "Planta V2 com recuos cotados anexada. A V1 permanece no histórico e o novo documento aguarda conferência.",
     { allowMunicipalAdmin: true });
@@ -3479,7 +3479,7 @@ export function ProcessDetailPage() {
               {canImportQa04Fixture ? (
                 <div className="rounded-2xl border border-sky-300 bg-sky-50 p-4 text-slate-900 dark:border-sky-600 dark:bg-slate-900 dark:text-slate-100">
                   <p className="text-sm font-bold">Ensaio controlado de IA — Processo 04 fictício</p>
-                  <p className="mt-1 text-xs leading-5">Importa um projeto arquitetônico de ensaio e três placeholders manifestamente fictícios. Apenas no Neon QA; não aprova documentos, não altera pagamento e não libera a Análise automaticamente. Os arquivos permanecerão pendentes de análise técnica.</p>
+                  <p className="mt-1 text-xs leading-5">Importa um projeto arquitetônico de ensaio e três placeholders manifestamente fictícios. Somente no ambiente de testes SIGAPRO; não aprova documentos, não altera pagamento e não libera a Análise automaticamente. Os arquivos permanecerão pendentes de análise técnica.</p>
                   <Button
                     type="button"
                     className="mt-3 min-h-11 rounded-xl bg-[#075985] px-5 py-3 text-sm font-bold !text-white shadow-sm hover:bg-[#0369a1] hover:!text-white focus-visible:ring-2 focus-visible:ring-sky-500 disabled:cursor-not-allowed disabled:opacity-60 [&_*]:!text-white"
@@ -3506,12 +3506,12 @@ export function ProcessDetailPage() {
                   ) : null}
                   {processActionBusy === "qa04-upgrade-plan" ? (
                     <p role="status" aria-live="polite" className="mt-2 text-sm font-semibold text-sky-900 dark:text-sky-100">
-                      Enviando a planta cotada ao R2 e registrando a revisão auditada no Neon QA...
+                      Armazenando a planta cotada no SIGAPRO Nuvem e registrando a revisão auditada nos testes...
                     </p>
                   ) : null}
                   {processActionBusy === "qa04-import-project" ? (
                     <p role="status" aria-live="polite" className="mt-2 text-sm font-semibold text-sky-900 dark:text-sky-100">
-                      Importando os documentos fictícios no R2 e registrando no Neon QA...
+                      Importando os documentos fictícios no SIGAPRO Nuvem e registrando nos testes...
                     </p>
                   ) : null}
                   {processActionStatus ? (
