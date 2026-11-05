@@ -133,7 +133,9 @@ export function normalizeArchitecturalPdfExtraction(raw: unknown): DrawingExtrac
     const quoteConsistent = candidate !== null && quoteSupportsArchitecturalReading(key, candidate, quote);
     // Never return a usable number to the UI without literal, unit-consistent,
     // page-specific evidence; extractions remain advisory, not project approval.
-    const value = rawMatches.length === 1 && page !== null && quote.length >= 8 &&
+    const value = documentType === "architectural_plan" &&
+      (hasSitePlan || !setbacks.has(key)) && rawMatches.length === 1 &&
+      page !== null && quote.length >= 8 &&
       quoteConsistent && (confidence === "high" || confidence === "medium") ? candidate : null;
     const usableForReview = documentType === "architectural_plan" &&
       (hasSitePlan || !setbacks.has(key)) && value !== null;
