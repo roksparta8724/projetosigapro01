@@ -90,5 +90,8 @@ describe("SIGAPRO PDF — pré-preenchimento por tabela, página e documento ori
     expect(panel).toContain("saveUrbanQuadroIIDraft(");
     expect(panel).not.toContain('activate_urban_regulation');
     expect(panel).toContain("Nenhuma norma foi ativada");
+    expect(panel).toContain("data-sigapro-saved-draft-source-warning");
+    expect(panel).toContain("sourceCheck?.requiresFocusedReview");
+    expect(panel).toContain("Não precisa cadastrá-lo novamente");
   });
 });
