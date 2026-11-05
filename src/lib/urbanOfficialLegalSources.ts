@@ -13,7 +13,7 @@ export const CAMPO_LIMPO_PAULISTA_MUNICIPALITY_ID =
 export type UrbanOfficialLegalSource = {
   id: string;
   title: string;
-  kind: "base" | "alteracao" | "procedimento_especial" | "proposta_sem_vigencia";
+  kind: "base" | "alteracao" | "restauracao_vigencia" | "procedimento_especial" | "proposta_sem_vigencia";
   documentLabel: string;
   pdfUrl: string | null;
   officialPageUrl: string;
@@ -51,6 +51,26 @@ export const CAMPO_LIMPO_OFFICIAL_URBAN_SOURCES: readonly UrbanOfficialLegalSour
     officialPageUrl: "https://www.camaracampolimpo.sp.gov.br/legislacao/detalhe/1928/altera-a-lei-complementar-de-parcelamento-uso-e-ocupacao-do-solo-do-municipio-de-campo-limpo-paulista-instituida-pela-lei-complementar-n-379-de-24-de-novembro-de-2009-com-suas-alteracoes/",
     scopeNote: "Altera definições e dispositivos sobre parcelamento e habitação de interesse social.",
     readingNote: "Consolidar artigo por artigo; conferir ZEIS e condições específicas com o texto vigente.",
+  },
+  {
+    id: "lc-501-2016",
+    title: "LC 501/2016 — Alteração do artigo 76 da LC 379/2009",
+    kind: "alteracao",
+    documentLabel: "PDF original da Câmara; alteração dos incisos I e II do artigo 76",
+    pdfUrl: "https://www.camaracampolimpo.sp.gov.br/public/legislacao/download-lei/1948/",
+    officialPageUrl: "https://www.camaracampolimpo.sp.gov.br/legislacao/detalhe/1948/altera-os-incisos-i-e-ii-do-artigo-76-da-lei-complementar-no-379-de-24-de-novembro-de-2009-que-instituiu-as-normas-de-parcelamento-uso-e-ocupacao-do-solo-de-campo-limpo-paulista/",
+    scopeNote: "Altera os incisos I e II do artigo 76 sobre loteamentos e controle de acesso.",
+    readingNote: "Aplicar somente ao dispositivo e modalidade pertinentes; não substituir índices do Quadro I.",
+  },
+  {
+    id: "lc-566-2022",
+    title: "LC 566/2022 — Revogação de 535/2019 e 548/2019 e restauração normativa",
+    kind: "restauracao_vigencia",
+    documentLabel: "PDF da Câmara; art. 1º sobre revogação e repristinação",
+    pdfUrl: "https://www.camaracampolimpo.sp.gov.br/legislacao/download-lei/2024/",
+    officialPageUrl: "https://www.camaracampolimpo.sp.gov.br/legislacao/detalhe/2024/revoga-a-lei-complementar-n-535-de-17-de-maio-de-2019-e-sua-alteracao-processada-pela-lei-complementar-n-548-de-13-de-dezembro-de-2019-que-institui-o-novo-plano-diretor-e-uso-e-ocupacao-do-solo-do-municipio-de-campo-limpo-paulista-nos-termos-do-artigo-182-da-constituicao-federal-e-do-ca/",
+    scopeNote: "Restaura a LC 379/2009 e alterações referidas no art. 1º, inclusive 440/2011 e 501/2016, após revogação das LCs 535 e 548/2019.",
+    readingNote: "Usar para investigar a vigência histórica; não presumir redação consolidada ou eliminar a verificação da LC 613/2023.",
   },
   {
     id: "lc-613-2023",
