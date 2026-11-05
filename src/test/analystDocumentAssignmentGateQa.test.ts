@@ -19,7 +19,7 @@ describe("SIGAPRO QA — acesso à edição documental após atribuição",()=>{
     const detail=read("src/pages/saas/ProcessDetailPage.tsx");
     expect(viewer).toContain('data-sigapro-analyst-viewer-readonly="true"');
     expect(viewer).toContain("O processo chegou ao Urbanismo, mas ainda não foi assumido ou distribuído");
-    expect(viewer).toContain("Adicionar marcador organiza o documento");
+    expect(viewer).toContain("Marcadores organizam arquivos. As correções da planta são feitas no editor.");
     expect(viewer).toContain('data-sigapro-go-analysis-assignment="true"');
     expect(detail).toContain('data-sigapro-document-editor-locked="true"');
     expect(detail).toContain('data-sigapro-open-analyst-assignment="true"');
@@ -38,6 +38,16 @@ describe("SIGAPRO QA — acesso à edição documental após atribuição",()=>{
     expect(viewer).toContain("await startProcessAnalysis(process.id)");
     expect(viewer).toContain('ferramenta=highlight');
     expect(viewer).toContain("catch (actionError)");
+  });
+  it("impede estouro de texto e botão no card de marcações",()=>{
+    const viewer=read("src/pages/saas/DocumentViewerPage.tsx");
+    expect(viewer).toContain('data-sigapro-document-info-sidebar="true"');
+    expect(viewer).toContain('data-sigapro-analysis-error="true"');
+    expect(viewer).toContain('max-w-full overflow-hidden rounded-2xl');
+    expect(viewer).toContain('min-w-0 flex-1 whitespace-normal break-words');
+    expect(viewer).toContain('[overflow-wrap:anywhere]');
+    expect(viewer).toContain('describeAnalysisStartError(actionError)');
+    expect(viewer).toContain('Ir à fila de análise');
   });
   it("mostra assumir análise na própria linha e usa workflow existente",()=>{
     const desk=read("src/pages/saas/AnalystDeskPage.tsx");
