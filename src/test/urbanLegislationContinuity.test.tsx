@@ -119,7 +119,10 @@ describe("SIGAPRO — documentos e trabalhos anteriores não desaparecem na nova
     expect(quadroI).toContain("if (!canEdit) return;");
     expect(quadroI).toContain("{canEdit && !isArchived(selected.id) ? (");
     expect(quadroII).toContain('if (!canView || !municipalityId) return null');
-    expect(quadroII).toContain('disabled={!canEdit || saving || entries.some');
+    expect(quadroII).toContain('disabled={!canEdit || saving || Boolean(savedEntry)}');
+    expect(quadroII).toContain('const savedEntry = entries.find(entry =>');
+    expect(quadroII).toContain('entry.category_code.normalize("NFKC")');
+    expect(quadroII).toContain('disabled={!batchReviewed || saving || selectedForBatch.length === 0}');
     expect(config).toContain("<UrbanLegislationContinuityPanel");
     expect(config).toContain("zoneamentoFiles.map");
   });
