@@ -35,7 +35,7 @@ describe("guide opening experience", () => {
     const migration = read("supabase/migrations/20261019134500_persist_payment_guide_provider_charge.sql");
 
     expect(processPage).toContain("const issuedAt = selectedGuide.issuedAt;");
-    expect(processPage).toContain('if (!issuedAt) throw new Error("Data original da guia ausente no Neon.")');
+    expect(processPage).toContain('if (!issuedAt) throw new Error("Data original da guia ausente nos registros SIGAPRO.")');
     expect(processPage).not.toContain("selectedGuide.issuedAt || new Date().toISOString()");
     expect(processPage).toContain("original.created_at");
     // The signed, municipality-scoped v2 persistence runs inside the
