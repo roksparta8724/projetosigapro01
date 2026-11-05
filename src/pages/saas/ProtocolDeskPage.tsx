@@ -56,6 +56,7 @@ import {
   URBAN_ANALYSIS_DEPARTMENT,
 } from "@/lib/platform";
 import { getMissingRequiredDocuments, getPendingTriageDocuments, hasCompensatedInitialGuide, isReadyForProtocolDispatch } from "@/lib/triageReadiness";
+import { isSyntheticQaProtocolGuideCode, protocolPaymentEvidenceLabel } from "@/lib/qaPaymentEvidence";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
@@ -748,7 +749,7 @@ export function ProtocolDeskPage() {
                         <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-700 dark:bg-slate-900">
                           <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">Pagamento</p>
                           <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">
-                            {protocolGuide?.status === "compensada" ? "Confirmado" : "Pendente"}
+                            {protocolPaymentEvidenceLabel(protocolGuide)}
                           </p>
                         </div>
                         <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-700 dark:bg-slate-900">
@@ -806,7 +807,11 @@ export function ProtocolDeskPage() {
           : getProcessPaymentGuides(process, tenantSettings).some(
               (guide) => guide.kind === "protocolo" && guide.status === "compensada",
             )
-            ? "Triagem concluída. Com a guia confirmada, o Protocolo pode despachar formalmente."
+            ? getProcessPaymentGuides(process, tenantSettings).some(
+                guide => guide.kind === "protocolo" &&
+                  isSyntheticQaProtocolGuideCode(guide.code))
+              ? "Triagem concluída apenas para ensaio QA. A guia é fictícia e não comprova pagamento bancário."
+              : "Triagem concluída. Com a guia confirmada, o Protocolo pode despachar formalmente."
             : "Triagem concluída. Aguarde a confirmação da guia antes do despacho formal.",
       );
     } catch (error) {
