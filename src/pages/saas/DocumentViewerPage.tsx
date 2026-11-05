@@ -39,6 +39,20 @@ function inferMimeType(fileName?: string, mimeType?: string) {
   return "application/octet-stream";
 }
 
+function describeAnalysisStartError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error || "");
+  if (/Somente a equipe da Análise Urbanística|P0001/i.test(message)) {
+    return "Não foi possível registrar a atribuição. Verifique se seu perfil está vinculado à equipe de Análise Urbanística desta Prefeitura.";
+  }
+  if (/Sessão|autenticad|login|token|expirad/i.test(message)) {
+    return "Sua sessão precisa ser renovada. Entre novamente antes de assumir a análise.";
+  }
+  const detail = message.replace(/\s*\|\s*(?:P\d{4}|\d{3}).*$/i, "").trim();
+  return detail
+    ? `Não foi possível assumir a análise. ${detail.slice(0, 220)}`
+    : "Não foi possível assumir a análise. Confira seu acesso e tente novamente.";
+}
+
 function formatFileSize(value?: number) {
   if (!value || value <= 0) return "";
   if (value < 1024) return `${value} B`;
@@ -167,9 +181,7 @@ export function DocumentViewerPage() {
         },
       });
     } catch (actionError) {
-      setAssumeAnalysisError(actionError instanceof Error
-        ? `Não foi possível assumir a análise: ${actionError.message}`
-        : "Não foi possível assumir a análise. Verifique sua atribuição na fila.");
+      setAssumeAnalysisError(describeAnalysisStartError(actionError));
     } finally {
       setAssumingAnalysis(false);
     }
@@ -475,7 +487,7 @@ export function DocumentViewerPage() {
           </div>
         </section>
 
-        <aside className="hidden min-h-0 overflow-y-auto border-l border-slate-200 bg-white xl:block">
+        <aside data-sigapro-document-info-sidebar="true" className="hidden min-h-0 min-w-0 overflow-x-hidden overflow-y-auto border-l border-slate-200 bg-white xl:block">
           <div className="border-b border-slate-200 px-5 py-4">
             <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">
               Documento
@@ -483,8 +495,8 @@ export function DocumentViewerPage() {
             <p className="mt-1 text-sm font-semibold text-slate-950">{document.label}</p>
           </div>
 
-          <div className="space-y-4 p-5">
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+          <div className="min-w-0 space-y-4 p-4">
+            <div className="min-w-0 max-w-full rounded-2xl border border-slate-200 bg-slate-50 p-4">
               <div className="flex items-center gap-2">
                 <Info className="h-4 w-4 text-sky-700" />
                 <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">
@@ -494,11 +506,11 @@ export function DocumentViewerPage() {
               <dl className="mt-4 space-y-3 text-sm">
                 <div>
                   <dt className="text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-400">Arquivo</dt>
-                  <dd className="mt-1 break-words font-medium text-slate-800">{document.fileName || "Não informado"}</dd>
+                  <dd className="mt-1 min-w-0 break-words font-medium text-slate-800 [overflow-wrap:anywhere]">{document.fileName || "Não informado"}</dd>
                 </div>
                 <div>
                   <dt className="text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-400">Tipo</dt>
-                  <dd className="mt-1 font-medium text-slate-800">{mimeType}</dd>
+                  <dd className="mt-1 min-w-0 break-words font-medium text-slate-800 [overflow-wrap:anywhere]">{mimeType}</dd>
                 </div>
                 {fileSize ? (
                   <div>
@@ -606,29 +618,49 @@ export function DocumentViewerPage() {
                 </Button>
               ) : (session.role === "analista" || session.role === "prefeitura_supervisor") ? (
                 <div data-sigapro-analyst-viewer-readonly="true" role="note"
-                  className="mt-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-amber-950">
-                  <p className="text-xs font-extrabold">Edição do PDF ainda não autorizada</p>
-                  <p className="mt-1 text-xs leading-5">
-                    {process.analysis?.assignedProfileId || process.analysis?.assignedTo
-                      ? "Este processo já tem um responsável técnico. Somente o analista designado ou o supervisor autorizado pode marcar o PDF; uma troca exige redistribuição formal."
-                      : "O processo chegou ao Urbanismo, mas ainda não foi assumido ou distribuído. Abra a fila e use Assumir análise (analista) ou Distribuir análise (supervisor)."}
-                  </p>
-                  <p className="mt-1 text-xs leading-5">
-                    Adicionar marcador organiza o documento; não equivale ao marca-texto nem a apontamentos na planta.
-                  </p>
+                  className="mt-3 w-full min-w-0 max-w-full overflow-hidden rounded-2xl border border-amber-200 bg-[#fffaf0] p-3.5 text-amber-950 shadow-sm">
+                  <div className="min-w-0 space-y-1.5">
+                    <p className="break-words text-xs font-extrabold leading-5 [overflow-wrap:anywhere]">
+                      {process.analysis?.assignedProfileId || process.analysis?.assignedTo
+                        ? "Documento em acompanhamento"
+                        : "Pronto para atribuição técnica"}
+                    </p>
+                    <p className="break-words text-xs leading-5 text-slate-700 [overflow-wrap:anywhere]">
+                      {process.analysis?.assignedProfileId || process.analysis?.assignedTo
+                        ? "Este processo tem um analista responsável. Para editar, solicite redistribuição formal à Diretoria."
+                        : "O processo chegou ao Urbanismo, mas ainda não foi assumido ou distribuído. Assuma a análise para abrir o editor de marcações."}
+                    </p>
+                    <p className="break-words text-[11px] leading-5 text-slate-500 [overflow-wrap:anywhere]">
+                      Marcadores organizam arquivos. As correções da planta são feitas no editor.
+                    </p>
+                  </div>
                   {canAssumeAnalysisFromViewer ? (
-                    <Button type="button" data-sigapro-assume-analysis-in-viewer-aside="true"
+                    <Button
+                      type="button"
+                      data-sigapro-assume-analysis-in-viewer-aside="true"
                       disabled={assumingAnalysis}
-                      className="mt-3 min-h-10 w-full rounded-xl bg-[#075985] !text-white hover:bg-[#0c4a6e] [&_*]:!text-white"
-                      onClick={() => void assumeAnalysisAndOpenEditor()}>
-                      {assumingAnalysis ? "Assumindo análise..." : "Assumir análise e abrir editor"}
+                      className="mt-3 flex h-auto min-h-11 w-full min-w-0 max-w-full items-center justify-center rounded-xl bg-[#075985] px-3 py-2.5 text-center leading-5 !text-white hover:bg-[#0c4a6e] [&_*]:!text-white"
+                      onClick={() => void assumeAnalysisAndOpenEditor()}
+                    >
+                      <span className="min-w-0 flex-1 whitespace-normal break-words text-center [overflow-wrap:anywhere]">
+                        {assumingAnalysis ? "Assumindo análise..." : "Assumir análise e abrir editor"}
+                      </span>
                     </Button>
                   ) : null}
-                  {assumeAnalysisError ? <p role="alert" className="mt-2 text-xs font-semibold text-rose-800">{assumeAnalysisError}</p> : null}
+                  {assumeAnalysisError ? (
+                    <p role="alert" data-sigapro-analysis-error="true"
+                      className="mt-3 w-full min-w-0 max-w-full rounded-lg border border-rose-200 bg-rose-50 p-2.5 text-xs font-semibold leading-5 text-rose-900 whitespace-normal break-words [overflow-wrap:anywhere]">
+                      {assumeAnalysisError}
+                    </p>
+                  ) : null}
                   <Button type="button" data-sigapro-go-analysis-assignment="true"
-                    className="mt-3 min-h-10 w-full rounded-xl bg-[#075985] !text-white hover:bg-[#0c4a6e] [&_*]:!text-white"
-                    onClick={() => navigate("/prefeitura/analise?secao=fila")}>
-                    Abrir fila para assumir ou distribuir
+                    variant="outline"
+                    className="mt-2.5 flex h-auto min-h-11 w-full min-w-0 max-w-full items-center justify-center rounded-xl border-slate-200 bg-white px-3 py-2.5 text-center leading-5 text-slate-800 hover:bg-slate-50 hover:text-slate-950"
+                    onClick={() => navigate("/prefeitura/analise?secao=fila")}
+                  >
+                    <span className="min-w-0 flex-1 whitespace-normal break-words text-center [overflow-wrap:anywhere]">
+                      Ir à fila de análise
+                    </span>
                   </Button>
                 </div>
               ) : (
