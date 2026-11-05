@@ -239,6 +239,7 @@ export function UrbanQuadroIIWorkspacePanel({
   };
   const openQueueItem = (item: QuadroIIQueueItem) => {
     if (saving) return;
+    setBatchReviewed(false); // Page changes invalidate any prior batch attestation.
     if (item.status === "draft_unverified") {
       setActivePage(item.pageNumber);
       setFormOpen(false);
