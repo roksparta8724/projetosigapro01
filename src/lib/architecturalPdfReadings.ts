@@ -30,6 +30,70 @@ function record(value: unknown): Record<string, unknown> | null {
 }
 
 /**
+ * Quoted evidence must explicitly name the measurement and reproduce its number
+ * with the same unit. This prevents a model from silently changing 0,25 into 25%,
+ * reading a lot area as a setback, or interpreting centimetres as metres.
+ * A valid quote STILL requires visual inspection by an authorized analyst.
+ */
+const metricLabels: Record<UrbanMetric, RegExp> = {
+  front_setback_m: /(?:recuo|afastamento)\\s+(?:minimo\\s+)?(?:frontal|da\\s+frente)\\b/,
+  side_setback_m: /(?:recuo|afastamento)\\s+(?:minimo\\s+)?(?:lateral|dos\\s+lados)\\b/,
+  rear_setback_m: /(?:recuo|afastamento)\\s+(?:minimo\\s+)?(?:de\\s+)?(?:fundos|fundo|posterior)\\b/,
+  permeability_percent: /\\b(?:taxa\\s+de\\s+)?permeabilidade\\b/,
+  occupancy_percent: /\\b(?:taxa\\s+de\\s+)?ocupacao\\b/,
+  floor_area_ratio: /\\b(?:ca|c\\.?\\s*a\\.?|coeficiente\\s+de\\s+aproveitamento)\\b/,
+  floor_area_ratio_min: /\\b(?:ca|c\\.?\\s*a\\.?|coeficiente\\s+de\\s+aproveitamento)\\b/,
+  lot_area_m2: /\\b(?:area\\s+(?:total\\s+)?(?:do\\s+)?(?:lote|terreno)|superficie\\s+do\\s+terreno)\\b/,
+  lot_frontage_m: /\\b(?:testada|frente\\s+do\\s+lote|largura\\s+do\\s+lote)\\b/,
+  height_m: /\\b(?:altura\\s+(?:total\\s+)?(?:da\\s+edificacao|do\\s+predio)?|gabarito)\\b/,
+  floor_count: /\\b(?:pavimentos?|andares?|numero\\s+de\\s+pavimentos?)\\b/,
+};
+
+function quotedNumber(raw: string): number | null {
+  if (!/^\\d+(?:[.,]\\d+)*$/.test(raw)) return null;
+  let normalized = raw;
+  if (/^\\d{1,3}(?:\\.\\d{3})+(?:,\\d+)?$/.test(raw)) {
+    normalized = raw.replace(/\\./g, "").replace(",", ".");
+  } else if (raw.includes(",") && raw.includes(".")) {
+    const separator = Math.max(raw.lastIndexOf(","), raw.lastIndexOf("."));
+    normalized = raw.slice(0, separator).replace(/[.,]/g, "") + "." +
+      raw.slice(separator + 1);
+  } else {
+    normalized = raw.replace(",", ".");
+  }
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+/** Reject on uncertainty instead of applying an unverified number to a process. */
+export function quoteSupportsArchitecturalReading(
+  metric: UrbanMetric, value: number, quote: string,
+): boolean {
+  if (!Number.isFinite(value) || value < 0 || !quote) return false;
+  const normalized = quote.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "")
+    .replace(/\\s+/g, " ").trim().toLowerCase();
+  const label = metricLabels[metric].exec(normalized);
+  if (!label) return false;
+  const following = normalized.slice(label.index + label[0].length).slice(0, 64);
+  const found = /\\d+(?:[.,]\\d+)*/.exec(following);
+  if (!found || found.index > 32) return false;
+  const quoted = quotedNumber(found[0]);
+  if (quoted === null || Math.abs(quoted - value) > 0.000001) return false;
+  const suffix = following.slice(found.index + found[0].length);
+  if (metric === "occupancy_percent" || metric === "permeability_percent") {
+    return /^\\s*(?:%|por\\s+cento\\b)/.test(suffix);
+  }
+  if (metric === "lot_area_m2") {
+    return /^\\s*(?:m\\s*(?:²|2|\\^2)\\b?|metros?\\s+quadrados?\\b)/.test(suffix);
+  }
+  if (["front_setback_m","side_setback_m","rear_setback_m","lot_frontage_m","height_m"].includes(metric)) {
+    return /^\\s*(?:m\\b(?!\\s*(?:2|²|\\^2))|metros?\\b)(?!\\s*(?:²|2|\\^2))/.test(suffix);
+  }
+  // CA is dimensionless and floors are an integer count, never a length or rate.
+  return !/^\\s*(?:%|m\\b|metros?\\b)/.test(suffix);
+}
+
+/**
  * Zero hallucination-by-default UI contract: missing / ambiguous / conflicting
  * numbers never become measurements, and a reviewed excerpt is still not proof
  * of the underlying CAD geometry. The analyst must inspect each PDF page.
@@ -57,7 +121,7 @@ export function normalizeArchitecturalPdfExtraction(raw: unknown): DrawingExtrac
     const rawMatches = groups.get(key) || [];
     const item = rawMatches.length === 1 ? rawMatches[0] : null;
     const n = item?.value;
-    const value = typeof n === "number" && Number.isFinite(n) && n >= 0 && n <= 100000 &&
+    const candidate = typeof n === "number" && Number.isFinite(n) && n >= 0 && n <= 100000 &&
       (!percentMetrics.has(key) || n <= 100) &&
       (key !== "floor_count" || Number.isInteger(n)) ? n : null;
     const p = item?.page;
@@ -66,17 +130,22 @@ export function normalizeArchitecturalPdfExtraction(raw: unknown): DrawingExtrac
     const confidence: DrawingReading["confidence"] =
       item?.confidence === "high" || item?.confidence === "medium" ||
       item?.confidence === "low" ? item.confidence : "not_found";
+    const quoteConsistent = candidate !== null && quoteSupportsArchitecturalReading(key, candidate, quote);
+    // Never return a usable number to the UI without literal, unit-consistent,
+    // page-specific evidence; extractions remain advisory, not project approval.
+    const value = rawMatches.length === 1 && page !== null && quote.length >= 8 &&
+      quoteConsistent && (confidence === "high" || confidence === "medium") ? candidate : null;
     const usableForReview = documentType === "architectural_plan" &&
-      (hasSitePlan || !setbacks.has(key)) &&
-      rawMatches.length === 1 && value !== null && page !== null && quote.length >= 8 &&
-      (confidence === "high" || confidence === "medium");
+      (hasSitePlan || !setbacks.has(key)) && value !== null;
     const reason = rawMatches.length > 1 ? "Leituras conflitantes: revisar manualmente." :
       (!hasSitePlan && setbacks.has(key)) ? "Sem planta de implantação confirmada: recuo não verificável." :
       documentType !== "architectural_plan" ? "O PDF não foi reconhecido com segurança como projeto arquitetônico." :
-      value === null ? "Medida não localizada ou numericamente inválida." :
+      candidate === null ? "Medida não localizada ou numericamente inválida." :
       page === null || quote.length < 8 ? "Sem página e trecho verificáveis." :
       confidence === "low" ? "Leitura incerta: confirmar na planta original." :
-      confidence === "not_found" ? "Medida não localizada." : "Aguardando conferência do analista.";
+      confidence === "not_found" ? "Medida não localizada." :
+      !quoteConsistent ? "Citação, valor ou unidade incompatíveis: conferir no PDF original." :
+      "Aguardando conferência do analista.";
     return { metric: key, value, page, quote, confidence, usableForReview, reason };
   });
   if (documentType !== "architectural_plan") {
