@@ -7,9 +7,11 @@ import { URBAN_METRICS, type UrbanMetric } from "@/lib/urbanPrecheck";
 import type { ProcessRecord } from "@/lib/platform";
 
 type Prepared = Partial<Record<UrbanMetric,{value:string;evidence:string}>>;
+type ReadingMode = "visual" | "cloudflare_text";
 type ApiResult = DrawingExtraction & {
   processId:string; documentId:string; documentVersion:number; fileName:string;
   legalConformity:"not_evaluated"; humanReviewRequired:true;
+  aiProvider:"cloudflare"|"claude"|"openai";
 };
 const normalized = (value:string)=>value.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
 
@@ -26,6 +28,8 @@ export function ArchitecturalPdfAiPanel({
   ).sort((a,b)=>b.version-a.version),[process.documents]);
   const [id,setId]=useState("");
   const [consent,setConsent]=useState(false);
+  const [readingMode,setReadingMode]=useState<ReadingMode>("visual");
+  const [billingUnavailable,setBillingUnavailable]=useState(false);
   const [loading,setLoading]=useState(false);
   const [availability,setAvailability]=useState<{
     status:"checking"|"ready"|"disabled";message:string;
@@ -33,8 +37,10 @@ export function ArchitecturalPdfAiPanel({
     mode:"visual"|"text_only"|"disabled";
     documentReady:boolean|null;
     documentMessage:string;
+    textAlternativeAvailable:boolean;
   }>({status:"checking",message:"Verificando se o provedor de IA está configurado...",
-    provider:"none",mode:"disabled",documentReady:null,documentMessage:""});
+    provider:"none",mode:"disabled",documentReady:null,documentMessage:"",
+    textAlternativeAvailable:false});
 
   const [error,setError]=useState("");
   const [draft,setDraft]=useState<ApiResult|null>(null);
@@ -42,20 +48,20 @@ export function ArchitecturalPdfAiPanel({
   const [notice,setNotice]=useState("");
 
   useEffect(()=>{
-    setId(plans[0]?.id||"");setConsent(false);
-    setDraft(null);setChecked({});setError("");setNotice("");
+    setId(plans[0]?.id||"");setConsent(false);setReadingMode("visual");
+    setBillingUnavailable(false);setDraft(null);setChecked({});setError("");setNotice("");
   },[process.id,plans[0]?.id]);
 
   useEffect(()=>{
     let current=true;
     if(readOnly){
       setAvailability({status:"disabled",provider:"none",mode:"disabled",
-        documentReady:null,documentMessage:"",
+        documentReady:null,documentMessage:"",textAlternativeAvailable:false,
         message:"A leitura assistida está disponível apenas para o analista autorizado."});
       return;
     }
     setAvailability({status:"checking",provider:"none",mode:"disabled",
-      documentReady:null,documentMessage:"",
+      documentReady:null,documentMessage:"",textAlternativeAvailable:false,
       message:"Verificando provedor e liberação técnica do PDF na homologação..."});
     void (async()=>{
       const session=(await backendClient.auth.getSession()).data?.session;
@@ -73,6 +79,7 @@ export function ArchitecturalPdfAiPanel({
       const value=await res.json() as {
         enabled?:boolean;provider?:string;mode?:string;message?:string;error?:string;
         documentReady?:boolean|null;documentMessage?:string;
+        textAlternativeAvailable?:boolean;
       };
       if(!res.ok)throw new Error(value.error||"Não foi possível confirmar a disponibilidade da IA.");
       if(current)setAvailability({status:value.enabled?"ready":"disabled",
@@ -81,10 +88,11 @@ export function ArchitecturalPdfAiPanel({
         mode:value.mode==="visual"||value.mode==="text_only"?value.mode:"disabled",
         documentReady:typeof value.documentReady==="boolean"?value.documentReady:null,
         documentMessage:value.documentMessage||"",
+        textAlternativeAvailable:value.textAlternativeAvailable===true,
         message:value.message||"Leitor assistido indisponível."});
     })().catch((err:unknown)=>{
       if(current)setAvailability({status:"disabled",provider:"none",mode:"disabled",
-        documentReady:null,documentMessage:"",
+        documentReady:null,documentMessage:"",textAlternativeAvailable:false,
         message:String((err as Error)?.message||err)});
     });
     return()=>{current=false;};
@@ -92,12 +100,20 @@ export function ArchitecturalPdfAiPanel({
 
   const selected=plans.find(doc=>doc.id===id);
   const latest=plans[0]?.id===id;
+  const readyForSelectedMode=readingMode==="cloudflare_text"
+    ?availability.textAlternativeAvailable
+    :availability.status==="ready"&&availability.mode==="visual";
+  const changeReadingMode=(next:ReadingMode)=>{
+    if(readOnly||loading||next===readingMode)return;
+    setReadingMode(next);setConsent(false);setDraft(null);
+    setChecked({});setError("");setNotice("");
+  };
   const applied=draft?.readings.filter(row=>
     row.usableForReview && checked[row.metric] &&
     activeMetrics.includes(row.metric))||[];
   async function scan(){
     if(readOnly||!selected||!latest||!consent||loading||
-      availability.status!=="ready"||availability.documentReady!==true)return;
+      !readyForSelectedMode||availability.documentReady!==true)return;
     setDraft(null);setChecked({});setError("");setNotice("");setLoading(true);
     try{
       const session=(await backendClient.auth.getSession()).data?.session;
@@ -106,17 +122,27 @@ export function ArchitecturalPdfAiPanel({
       const response=await fetch("/api/ai-assistant?action=project-extract",{
         method:"POST",cache:"no-store",
         headers:{"Content-Type":"application/json",Authorization:"Bearer "+jwt},
-        body:JSON.stringify({processId:process.id,documentId:selected.id,confirmedTransfer:true}),
+        body:JSON.stringify({processId:process.id,documentId:selected.id,
+          confirmedTransfer:true,readingMode}),
       });
       const result=await response.json() as Partial<ApiResult>&{error?:string;code?:string};
-      if(!response.ok)throw new Error(result.error||"Não foi possível ler o projeto.");
+      if(!response.ok){
+        if(result.code==="AI_PROVIDER_BILLING")setBillingUnavailable(true);
+        throw new Error(result.error||"Não foi possível ler o projeto.");
+      }
       if(result.processId!==process.id||result.documentId!==selected.id||
         result.documentVersion!==selected.version||
         !Array.isArray(result.readings)||!["ai_pdf_visual","ai_pdf_text"].includes(result.source)||
-        result.automaticallyApproved!==false||result.legalConformity!=="not_evaluated")
+        result.automaticallyApproved!==false||result.legalConformity!=="not_evaluated"||
+        (readingMode==="cloudflare_text"&&
+          (result.source!=="ai_pdf_text"||result.aiProvider!=="cloudflare"))||
+        (readingMode==="visual"&&result.source!=="ai_pdf_visual"))
         throw new Error("Leitura retornada com vínculo incorreto. Nenhuma medida foi aplicada.");
       setDraft(result as ApiResult);
-      setNotice("Extração concluída. Confira cada página original antes de aproveitar uma medida.");
+      if(readingMode==="visual")setBillingUnavailable(false);
+      setNotice(readingMode==="cloudflare_text"
+        ?"Texto extraído pelo Cloudflare. Recuos geométricos não foram verificados. Confira cada dado no PDF original."
+        :"Extração visual concluída. Confira cada página original antes de aproveitar uma medida.");
     }catch(cause){setError(String((cause as Error)?.message||cause));}
     finally{setLoading(false);}
   }
@@ -165,12 +191,47 @@ export function ArchitecturalPdfAiPanel({
       {!latest?<p role="alert" className="mt-2 text-xs font-semibold text-amber-800">
         Uma versão mais recente está disponível. Use a versão atual do projeto.
       </p>:null}
-      <label className="mt-3 flex items-start gap-2 rounded-xl border border-sky-200 bg-sky-50 p-3 text-xs font-semibold text-sky-950 dark:border-sky-700 dark:bg-slate-900 dark:text-white">
+      <div role="group" aria-label="Escolha o tipo de leitura do PDF"
+        className="mt-3 grid min-w-0 gap-2 md:grid-cols-2">
+        <button type="button" data-sigapro-ai-mode-visual="true"
+          aria-pressed={readingMode==="visual"} disabled={readOnly||loading}
+          onClick={()=>changeReadingMode("visual")}
+          className={`min-w-0 max-w-full rounded-xl border p-3 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-600 ${readingMode==="visual"
+            ?"border-sky-500 bg-sky-50 ring-1 ring-sky-300 dark:bg-sky-950"
+            :"border-slate-200 bg-white hover:border-sky-300 dark:border-slate-700 dark:bg-slate-900"}`}>
+          <span className="block break-words text-xs font-extrabold leading-5 [overflow-wrap:anywhere]">
+            Leitura visual · Claude
+          </span>
+          <span className="mt-1 block break-words text-[11px] leading-5 text-slate-600 dark:text-slate-300 [overflow-wrap:anywhere]">
+            Examina a prancha, mas requer saldo na API Anthropic. Não aprova projetos.
+          </span>
+        </button>
+        {availability.textAlternativeAvailable?(
+          <button type="button" data-sigapro-ai-mode-cloudflare-text="true"
+            aria-pressed={readingMode==="cloudflare_text"} disabled={readOnly||loading}
+            onClick={()=>changeReadingMode("cloudflare_text")}
+            className={`min-w-0 max-w-full rounded-xl border p-3 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-600 ${readingMode==="cloudflare_text"
+              ?"border-sky-500 bg-sky-50 ring-1 ring-sky-300 dark:bg-sky-950"
+              :"border-slate-200 bg-white hover:border-sky-300 dark:border-slate-700 dark:bg-slate-900"}`}>
+            <span className="block break-words text-xs font-extrabold leading-5 [overflow-wrap:anywhere]">
+              Leitura textual · Cloudflare
+            </span>
+            <span className="mt-1 block break-words text-[11px] leading-5 text-slate-600 dark:text-slate-300 [overflow-wrap:anywhere]">
+              Usa a cota Workers AI disponível; extrai texto, sem conferir a geometria dos recuos.
+            </span>
+          </button>
+        ):null}
+      </div>
+      <label className="mt-3 flex min-w-0 items-start gap-2 rounded-xl border border-sky-200 bg-sky-50 p-3 text-xs font-semibold text-sky-950 dark:border-sky-700 dark:bg-slate-900 dark:text-white">
         <input type="checkbox" checked={consent} disabled={readOnly||loading}
           onChange={event=>setConsent(event.target.checked)} />
-        Autorizo o envio deste PDF ao provedor de IA configurado, exclusivamente para
-        extração assistida das cotas. Sei que a IA pode interpretar a planta incorretamente
-        e que nenhuma decisão nem mudança de processo será automática.
+        <span className="min-w-0 break-words leading-5 [overflow-wrap:anywhere]">
+          Autorizo o envio deste PDF ao {readingMode==="cloudflare_text"
+            ?"Cloudflare Workers AI para extração exclusivamente textual"
+            :"Claude/Anthropic para leitura visual assistida"}.
+          Sei que a leitura pode falhar ou interpretar o documento incorretamente;
+          nenhuma decisão nem mudança de processo será automática.
+        </span>
       </label>
       <p role="status" data-sigapro-ai-pdf-provider-status={availability.status}
         className={"mt-3 text-xs font-semibold leading-5 "+(
@@ -194,7 +255,7 @@ export function ArchitecturalPdfAiPanel({
               pelo fluxo municipal; não é necessário alterar o banco manualmente.</p> : null}
         </div>
       ) : null}
-      {availability.provider==="claude"&&availability.status==="ready"?(
+      {availability.provider==="claude"&&availability.status==="ready"&&readingMode==="visual"?(
         <p role="note" data-sigapro-claude-credit-not-verified="true"
           className="mt-2 rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs font-semibold leading-5 text-amber-950">
           Claude configurado no servidor, mas o saldo da API ainda não foi confirmado.
@@ -203,7 +264,8 @@ export function ArchitecturalPdfAiPanel({
           interrompida com aviso específico, sem aplicar nenhuma medida.
         </p>
       ):null}
-      {availability.mode==="text_only"&&availability.status==="ready"?(
+      {availability.mode==="text_only"&&availability.status==="ready"&&
+        !availability.textAlternativeAvailable?(
         <p role="note" data-sigapro-pdf-visual-provider-needed="true"
           className="mt-2 rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs font-semibold leading-5 text-amber-950">
           Para homologar a leitura visual de recuos, configure exclusivamente no servidor
@@ -213,24 +275,32 @@ export function ArchitecturalPdfAiPanel({
           Nunca inclua a chave no formulário, no código ou na conversa.
         </p>
       ):null}
-      {availability.provider==="cloudflare"&&availability.status==="ready"?<p
+      {readingMode==="cloudflare_text"&&availability.textAlternativeAvailable?<p
         data-sigapro-pdf-text-only="true" role="status"
         className="mt-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-semibold leading-5 text-amber-950 dark:border-amber-600 dark:bg-slate-900 dark:text-amber-200">
         Modo somente texto: sem validação geométrica de recuos ou reconhecimento visual das pranchas.
         Não usar a extração textual como diagnóstico urbanístico.
       </p>:null}
+      {billingUnavailable&&availability.textAlternativeAvailable&&readingMode==="visual"?(
+        <p role="note" data-sigapro-ai-credit-alternative="true"
+          className="mt-3 min-w-0 max-w-full rounded-xl border border-sky-200 bg-sky-50 p-3 text-xs font-semibold leading-5 text-sky-950 break-words [overflow-wrap:anywhere]">
+          Não há saldo disponível no Claude. Para testar a interpretação de textos do PDF,
+          selecione acima “Leitura textual · Cloudflare” e autorize o novo envio.
+          Essa alternativa não verifica a geometria dos recuos.
+        </p>
+      ):null}
       <Button type="button" data-sigapro-ai-read-project="true"
-        className="mt-3 min-h-11 bg-slate-950 !text-white"
+        className="mt-3 h-auto min-h-11 min-w-0 max-w-full whitespace-normal break-words bg-slate-950 px-4 py-2 !text-white [overflow-wrap:anywhere]"
         disabled={readOnly||!consent||!latest||loading||
-          availability.status!=="ready"||availability.documentReady!==true}
+          !readyForSelectedMode||availability.documentReady!==true}
         onClick={()=>void scan()}>
         {loading?<Loader2 className="mr-2 h-4 w-4 animate-spin"/>:<FileText className="mr-2 h-4 w-4"/>}
         {loading
-          ? availability.provider==="cloudflare"?"Extraindo texto do PDF...":"Lendo prancha com IA..."
-          : availability.provider==="cloudflare"?"Extrair texto do PDF com IA":"Ler projeto arquitetônico com IA"}
+          ? readingMode==="cloudflare_text"?"Extraindo texto com Cloudflare...":"Lendo prancha com Claude..."
+          : readingMode==="cloudflare_text"?"Extrair texto com Cloudflare":"Ler projeto visualmente com Claude"}
       </Button>
     </>}
-    {error?<p role="alert" className="mt-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs leading-5 text-rose-900 dark:bg-slate-900 dark:text-rose-100">
+    {error?<p role="alert" className="mt-3 min-w-0 max-w-full rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs leading-5 text-rose-900 break-words [overflow-wrap:anywhere] dark:bg-slate-900 dark:text-rose-100">
       {error}
     </p>:null}
     {draft? <div className="mt-4 space-y-3">
