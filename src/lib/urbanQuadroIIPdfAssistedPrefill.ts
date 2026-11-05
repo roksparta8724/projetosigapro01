@@ -88,6 +88,9 @@ export type AssistedQuadroIIPrefill = {
   pages: number[];
   hasLiteralCandidate: boolean;
   manualReviewRequired: true;
+  /** Explicit doubts about quantities or relationships cannot be included in a page-wide batch. */
+  requiresFocusedReview: boolean;
+  focusedReviewReasons: string[];
   warnings: string[];
 };
 
@@ -107,6 +110,21 @@ export function prepareQuadroIIPdfAssistedPrefill(
   const preferred = override?.quote ||
     (proposal.literal_source_excerpt || "").trim();
   const hasLiteralCandidate = preferred.length >= 20 && !isSyntheticSummary(preferred);
+  // A candidate text fragment alone is not proof that every value in the
+  // associated table column is legible. Prioritize individual human review
+  // whenever the scan explicitly warns about ambiguous numeric evidence.
+  const ambiguity = /parcialmente|encobert|borrad|ileg[ií]vel|denominador|raz[aã]o.*vaga|c[eé]lula de estacionamento|impress[aã]o|fra[cç][aã]o impressa/i;
+  const focusedReviewReasons = [
+    ...(override?.warning && ambiguity.test(override.warning) ? [override.warning] : []),
+    ...((proposal.field_warnings || []).filter(note => ambiguity.test(note))),
+    ...(override?.parking === "" && Boolean((proposal.parking_requirement_text || "").trim())
+      ? ["A proposta do OCR apresentou uma taxa de estacionamento que foi retirada do pré-preenchimento por falta de confirmação."]
+      : []),
+    ...((override?.parking || "").toLowerCase().includes("conferir") ?
+      ["A proporção de estacionamento ainda contém uma ressalva de conferência visual."] : []),
+    ...((override?.conditions || "").toLowerCase().includes("carga exige conferir") ?
+      ["A condição de carga exige leitura separada da célula original."] : []),
+  ];
   return {
     sourceExcerpt: hasLiteralCandidate ? preferred.slice(0,1600) : "",
     roadHierarchy: (override?.road ?? proposal.road_hierarchy_text ?? "").slice(0,600),
@@ -115,6 +133,8 @@ export function prepareQuadroIIPdfAssistedPrefill(
     pages: [...(override?.pages || proposal.source_pages || [pageNumber])],
     hasLiteralCandidate,
     manualReviewRequired:true,
+    requiresFocusedReview: focusedReviewReasons.length > 0,
+    focusedReviewReasons: [...new Set(focusedReviewReasons)],
     warnings: [
       ...(override?.warning ? [override.warning] : []),
       ...(proposal.field_warnings || []),
