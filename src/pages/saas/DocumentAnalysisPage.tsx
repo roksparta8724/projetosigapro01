@@ -1,5 +1,6 @@
 import {
   ArrowLeft,
+  BrainCircuit,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
@@ -294,6 +295,12 @@ export function DocumentAnalysisPage() {
   const isPdf =
     document?.mimeType === "application/pdf" ||
     document?.fileName?.toLowerCase().endsWith(".pdf");
+  // O processo fictício QA04 tem as cotas de implantação na segunda prancha.
+  const isQa04SetbackFixture = Boolean(
+    import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true" &&
+    document?.fileName === "SIGAPRO-QA04-PLANTA-IMPLANTACAO-V2.pdf" &&
+    isPdf,
+  );
 
   const previewUrl = useMemo(() => {
     if (!accessUrl) return "";
@@ -433,6 +440,17 @@ export function DocumentAnalysisPage() {
         ? `Rascunho salvo com ${draftAnnotations.length} apontamento(s). Nada foi enviado ao profissional.`
         : "Rascunho salvo sem apontamentos.",
     );
+  };
+
+  const openProjectAi = () => {
+    if (!process) return;
+    // Preserve o rascunho existente; não perder observação que está sendo digitada.
+    if (draft) {
+      setStatus("Conclua ou cancele a observação em edição antes de abrir a IA.");
+      return;
+    }
+    if (draftAnnotations.length) saveReviewDraft();
+    navigate(buildProcessPath(process, "analise") + "#sigapro-urban-precheck");
   };
 
   const removeDraftAnnotation = (annotationId: string) => {
@@ -664,6 +682,16 @@ export function DocumentAnalysisPage() {
         </div>
 
         <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+          <Button
+            type="button"
+            data-sigapro-open-project-ai="true"
+            title="Abrir a leitura assistida do projeto na guia Análise do processo"
+            className="h-auto min-h-9 max-w-full min-w-0 rounded-xl border border-sky-300/40 bg-sky-700 px-3 py-2 text-xs font-semibold !text-white hover:bg-sky-600 [&_*]:!text-white"
+            onClick={openProjectAi}
+          >
+            <BrainCircuit className="mr-2 h-4 w-4 shrink-0" />
+            <span className="min-w-0 whitespace-normal break-words [overflow-wrap:anywhere]">Analisar com IA</span>
+          </Button>
           <MarkerSelector
             tags={documentMarkerTags}
             actor={session.name}
