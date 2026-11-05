@@ -368,10 +368,12 @@ export function DocumentViewerPage() {
               data-sigapro-assume-analysis-in-viewer="true"
               disabled={assumingAnalysis}
               onClick={() => void assumeAnalysisAndOpenEditor()}
-              className="min-h-10 max-w-full rounded-xl border border-sky-300/40 bg-[#075985] px-4 !text-white hover:bg-[#0c4a6e] [&_*]:!text-white"
+              className="h-auto min-h-10 max-w-full min-w-0 rounded-xl border border-sky-300/40 bg-[#075985] px-3 py-2 whitespace-normal break-words !text-white hover:bg-[#0c4a6e] [&_*]:!text-white"
             >
-              <PenTool className="mr-2 h-4 w-4" />
-              {assumingAnalysis ? "Assumindo análise..." : "Assumir análise e marcar PDF"}
+              <PenTool className="mr-2 h-4 w-4 shrink-0" />
+              <span className="min-w-0 max-w-full whitespace-normal break-words text-center leading-5 [overflow-wrap:anywhere]">
+                {assumingAnalysis ? "Assumindo análise..." : "Assumir análise e marcar PDF"}
+              </span>
             </Button>
           ) : null}
           {canAnalyzeDocument ? (
@@ -387,6 +389,13 @@ export function DocumentViewerPage() {
 
         </div>
       </header>
+
+      {assumeAnalysisError ? (
+        <div data-sigapro-analysis-error-mobile="true" role="alert"
+          className="mx-3 mt-2 w-[calc(100%-1.5rem)] min-w-0 max-w-full shrink-0 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-semibold leading-5 text-rose-900 whitespace-normal break-words [overflow-wrap:anywhere] xl:hidden">
+          {assumeAnalysisError}
+        </div>
+      ) : null}
 
       <div className="flex min-h-[52px] shrink-0 items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 shadow-[0_4px_18px_rgba(15,23,42,0.05)]">
         <div className="flex min-w-0 items-center gap-2">
