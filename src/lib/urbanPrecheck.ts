@@ -108,8 +108,10 @@ export function evaluateUrbanPrecheck(
   return rules.map((rule) => {
     const definition = URBAN_METRICS.find((item) => item.key === rule.metric)!;
     const item = measurements[rule.metric];
+    const isPercent = rule.metric === "occupancy_percent" || rule.metric === "permeability_percent";
     const validValue = item && typeof item.value === "number" &&
-      Number.isFinite(item.value) && item.value >= 0 &&
+      Number.isFinite(item.value) && item.value >= 0 && item.value <= 100000 &&
+      (!isPercent || item.value <= 100) &&
       (rule.metric !== "floor_count" || Number.isInteger(item.value));
     const evidence = typeof item?.evidence === "string" ? item.evidence.trim().slice(0, 500) : "";
     // A numeric value without an identified source is NOT proof of compliance.
