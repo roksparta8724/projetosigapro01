@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildUrbanQuadroIIReviewQueue } from "@/lib/urbanQuadroIIReviewQueue";
+import { LC379_QUADRO_II_SHA } from "@/lib/urbanQuadroIIPdfAssistedPrefill";
+import { CAMPO_LIMPO_PAULISTA_MUNICIPALITY_ID } from "@/lib/urbanOfficialLegalSources";
 import type { UrbanQuadroIIWorkspace } from "@/integrations/backend/urbanPrecheckClient";
 
 const suggestion = (category_code: string, literal_source_excerpt?: string) => ({
@@ -30,7 +32,7 @@ describe("SIGAPRO — fila QA de conferência urbanística do Quadro II",()=>{
   it("organiza candidatos, identifica OCR não comprovado e nunca habilita legislação automaticamente",()=>{
     const result=buildUrbanQuadroIIReviewQueue(workspace());
     expect(result).toMatchObject({
-      total:4,drafts:0,visualRequired:2,literalCandidates:1,missingLiteral:1,
+      total:4,drafts:0,visualRequired:2,literalCandidates:2,missingLiteral:2,
       legallyActive:0,
     });
     expect(result.items.map(item=>item.categoryCode)).toEqual(["E1.1","E1.2","S1.1","S1.2"]);
@@ -47,8 +49,18 @@ describe("SIGAPRO — fila QA de conferência urbanística do Quadro II",()=>{
       status:"draft_unverified",created_by_profile_id:"analyst",created_at:"2026-11-04T00:00:00Z",
     }];
     const result=buildUrbanQuadroIIReviewQueue(source);
-    expect(result).toMatchObject({total:4,drafts:1,literalCandidates:0,legallyActive:0});
+    expect(result).toMatchObject({total:4,drafts:1,literalCandidates:1,missingLiteral:2,legallyActive:0});
     expect(result.items.find(item=>item.categoryCode==="E1.1")?.status).toBe("draft_unverified");
+  });
+  it("conta a leitura assistida do PDF original mesmo com página girada; 4 candidatos não significam 4 regras",()=>{
+    const source=workspace();
+    source.document_sha256=LC379_QUADRO_II_SHA;
+    const result=buildUrbanQuadroIIReviewQueue(source,CAMPO_LIMPO_PAULISTA_MUNICIPALITY_ID);
+    expect(result).toMatchObject({total:4,drafts:0,literalCandidates:4,missingLiteral:0,
+      visualRequired:2,legallyActive:0});
+    expect(result.items.find(item=>item.categoryCode==="S1.2")?.status).toBe("visual_required");
+    expect(result.items.find(item=>item.categoryCode==="E1.2")?.status).toBe("literal_candidate");
+    expect(buildUrbanQuadroIIReviewQueue(source,"outra-prefeitura").literalCandidates).toBe(2);
   });
   it("não considera fontes arquivadas nem listas incompletas como prontas",()=>{
     const source=workspace();
