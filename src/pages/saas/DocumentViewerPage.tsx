@@ -20,7 +20,9 @@ import { consumeDocumentWorkspaceAccessUrl } from "@/lib/documentWorkspaceAccess
 import { getSignedUrlForObjectStrict } from "@/integrations/r2/client";
 import {
   canAnalyzeProcessDocument,
+  canAccessMunicipalArea,
   canViewMunicipalProcessDocument,
+  isProcessReleasedToUrbanAnalysis,
   buildProcessPath,
   formatOfficialProcessNumber,
   resolveProcessRoute,
@@ -62,6 +64,7 @@ export function DocumentViewerPage() {
     processes,
     loading: platformDataLoading,
     dataReadyForCurrentUser,
+    startProcessAnalysis,
   } = usePlatformData();
   const { session } = usePlatformSession();
   const { municipality, scopeId } = useMunicipality();
@@ -79,6 +82,8 @@ export function DocumentViewerPage() {
     null;
   const [accessUrl, setAccessUrl] = useState(prefetchedDocumentAccessUrl);
   const [error, setError] = useState("");
+  const [assumingAnalysis, setAssumingAnalysis] = useState(false);
+  const [assumeAnalysisError, setAssumeAnalysisError] = useState("");
   const document = useMemo(
     () => process?.documents.find((item) => item.id === documentId),
     [documentId, process],
@@ -131,6 +136,43 @@ export function DocumentViewerPage() {
         },
       },
     );
+  };
+
+  // Nunca dar permissão por visualização: o servidor registra a atribuição oficial.
+  // O atalho aparece somente para o analista da área, em processo liberado e sem responsável.
+  const canAssumeAnalysisFromViewer = Boolean(
+    allowed &&
+    process &&
+    document &&
+    session.role === "analista" &&
+    canAccessMunicipalArea(session, "analise") &&
+    isProcessReleasedToUrbanAnalysis(process) &&
+    !process.analysis?.assignedProfileId &&
+    !process.analysis?.assignedTo &&
+    !process.analysis?.startedAt,
+  );
+
+  const assumeAnalysisAndOpenEditor = async () => {
+    if (!process || !document || !canAssumeAnalysisFromViewer || assumingAnalysis) return;
+    setAssumingAnalysis(true);
+    setAssumeAnalysisError("");
+    try {
+      // Mesmo fluxo autorizado de "Assumir análise" da fila. Sem gravação direta em tabelas.
+      await startProcessAnalysis(process.id);
+      navigate(`${buildProcessPath(process)}/documentos/${document.id}/analisar?ferramenta=highlight`, {
+        replace: true,
+        state: {
+          documentAccessUrl: accessUrl || prefetchedDocumentAccessUrl,
+          returnTo: routeState.returnTo || buildProcessPath(process, "documentos"),
+        },
+      });
+    } catch (actionError) {
+      setAssumeAnalysisError(actionError instanceof Error
+        ? `Não foi possível assumir a análise: ${actionError.message}`
+        : "Não foi possível assumir a análise. Verifique sua atribuição na fila.");
+    } finally {
+      setAssumingAnalysis(false);
+    }
   };
 
   const replaceAnalystViewerWithAnalysis = canAnalyzeDocument && Boolean(process && document);
@@ -308,6 +350,18 @@ export function DocumentViewerPage() {
               documentMarkers.removeMarker(process.id, document.id, tag)
             }
           />
+          {canAssumeAnalysisFromViewer ? (
+            <Button
+              type="button"
+              data-sigapro-assume-analysis-in-viewer="true"
+              disabled={assumingAnalysis}
+              onClick={() => void assumeAnalysisAndOpenEditor()}
+              className="min-h-10 max-w-full rounded-xl border border-sky-300/40 bg-[#075985] px-4 !text-white hover:bg-[#0c4a6e] [&_*]:!text-white"
+            >
+              <PenTool className="mr-2 h-4 w-4" />
+              {assumingAnalysis ? "Assumindo análise..." : "Assumir análise e marcar PDF"}
+            </Button>
+          ) : null}
           {canAnalyzeDocument ? (
             <Button
               type="button"
@@ -562,6 +616,15 @@ export function DocumentViewerPage() {
                   <p className="mt-1 text-xs leading-5">
                     Adicionar marcador organiza o documento; não equivale ao marca-texto nem a apontamentos na planta.
                   </p>
+                  {canAssumeAnalysisFromViewer ? (
+                    <Button type="button" data-sigapro-assume-analysis-in-viewer-aside="true"
+                      disabled={assumingAnalysis}
+                      className="mt-3 min-h-10 w-full rounded-xl bg-[#075985] !text-white hover:bg-[#0c4a6e] [&_*]:!text-white"
+                      onClick={() => void assumeAnalysisAndOpenEditor()}>
+                      {assumingAnalysis ? "Assumindo análise..." : "Assumir análise e abrir editor"}
+                    </Button>
+                  ) : null}
+                  {assumeAnalysisError ? <p role="alert" className="mt-2 text-xs font-semibold text-rose-800">{assumeAnalysisError}</p> : null}
                   <Button type="button" data-sigapro-go-analysis-assignment="true"
                     className="mt-3 min-h-10 w-full rounded-xl bg-[#075985] !text-white hover:bg-[#0c4a6e] [&_*]:!text-white"
                     onClick={() => navigate("/prefeitura/analise?secao=fila")}>
