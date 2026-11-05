@@ -38,4 +38,31 @@ describe("SIGAPRO QA - orientação ao analista e recuos do projeto 04",()=>{
     expect(aiPanel).toContain("confirmedTransfer:true");
     expect(api).toContain("humanReviewRequired:true");
   });
+
+  it("identifica recursos SIGAPRO sem confundir rótulos com prestadores externos",()=>{
+    const panel=read("src/components/platform/ArchitecturalPdfAiPanel.tsx");
+    const api=read("server/ai-project-extract.ts");
+    const storage=read("src/components/platform/MunicipalStorageSettings.tsx");
+    const assistant=read("src/pages/saas/AiAssistantPage.tsx");
+    const master=read("src/pages/saas/MasterAdminPage.tsx");
+    const dashboard=read("src/pages/saas/DashboardHomePage.tsx");
+    expect(panel).toContain("SIGAPRO IA · Leitura Técnica do Projeto");
+    expect(panel).toContain("SIGAPRO IA · Leitura Visual");
+    expect(panel).toContain("SIGAPRO IA · Leitura Documental");
+    expect(panel).toContain('data-sigapro-ai-processor-disclosure="true"');
+    expect(panel).toContain("Prestador: Cloudflare Workers AI (extração textual).");
+    expect(panel).toContain("Prestador: Anthropic, serviço Claude (leitura visual).");
+    expect(panel).not.toContain("Leitura visual · Claude");
+    expect(panel).not.toContain("Leitura textual · Cloudflare");
+    expect(panel).not.toContain("Extraindo texto com Cloudflare...");
+    expect(panel).toContain("setReadingMode(next);setConsent(false);setDraft(null)");
+    expect(api).toContain("O SIGAPRO IA · Leitura Visual está sem créditos");
+    expect(api).toContain("SIGAPRO IA · Leitura Documental");
+    expect(storage).toContain("SIGAPRO Nuvem · Arquivos Oficiais");
+    expect(storage).toContain('data-sigapro-storage-infrastructure="true"');
+    expect(assistant).toContain('title="SIGAPRO IA · Assistente"');
+    expect(master).toContain("Banco SIGAPRO conectado");
+    expect(dashboard).toContain("Consultando limites contratados no SIGAPRO...");
+  });
+
 });
