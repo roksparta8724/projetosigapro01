@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { UrbanQuadroIILegalReviewPanel } from "@/components/platform/UrbanQuadroIILegalReviewPanel";
 import { buildUrbanQuadroIIReviewQueue, type QuadroIIQueueItem } from "@/lib/urbanQuadroIIReviewQueue";
+import { getMunicipalOfficialUrbanSources } from "@/lib/urbanOfficialLegalSources";
 import {
   listUrbanQuadroIIWorkspace, saveUrbanQuadroIIDraft,
   type UrbanQuadroIIDraftInput, type UrbanQuadroIISuggestion, type UrbanQuadroIIWorkspace,
@@ -69,6 +70,8 @@ export function UrbanQuadroIIWorkspacePanel({
     () => workspace?.entries.length || 0, [workspace],
   );
   const reviewQueue = useMemo(() => buildUrbanQuadroIIReviewQueue(workspace), [workspace]);
+  const originalLawPdf = useMemo(() => getMunicipalOfficialUrbanSources(municipalityId)
+    .find(source => source.id === "lc-379-2009")?.pdfUrl || null, [municipalityId]);
   const pendingQueue = reviewQueue.items.filter(item => item.status !== "draft_unverified");
   const visibleQueue = queueFilter === "pending" ? pendingQueue : reviewQueue.items;
   const pageCount = workspace?.pages.length || 0;
@@ -166,7 +169,10 @@ export function UrbanQuadroIIWorkspacePanel({
   const openQueueItem = (item: QuadroIIQueueItem) => {
     if (saving) return;
     if (item.status === "draft_unverified") {
-      selectPage(item.pageNumber);
+      setActivePage(item.pageNumber);
+      setFormOpen(false);
+      setSelectedSuggestion(null);
+      setNotice("");
       return;
     }
     setActivePage(item.pageNumber);
@@ -416,6 +422,14 @@ export function UrbanQuadroIIWorkspacePanel({
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-2">
+                    {originalLawPdf ? (
+                      <a href={originalLawPdf + "#page=" + page.page_number}
+                        target="_blank" rel="noopener noreferrer"
+                        data-urban-qii-original-pdf="true"
+                        className="inline-flex min-h-9 items-center rounded-lg border border-sky-300 bg-sky-50 px-3 py-2 text-xs font-bold text-sky-950 hover:bg-sky-100">
+                        PDF original · pág. {page.page_number}
+                      </a>
+                    ) : null}
                     <button type="button" disabled={selectedIndex <= 0}
                       onClick={() => {
                         const prev = workspace.pages[selectedIndex - 1];
@@ -443,7 +457,9 @@ export function UrbanQuadroIIWorkspacePanel({
                       {page.visual_warning ? (
                         <p className="rounded-lg border border-amber-200 bg-amber-50 p-2 text-xs text-amber-950">
                           <FileWarning className="mr-1 inline h-4 w-4" />
-                          Página girada no original: gire a visualização do PDF para ler a tabela S1. Não copie índices de texto extraído sem conferir.
+                          Página 43 do original foi digitalizada na horizontal, com a tabela girada. Use o botão
+                          PDF original e gire a página no visualizador para conferir S1.1 a S1.5.
+                          A página 44 complementa zonas, vias e vagas; não copie o OCR como norma.
                         </p>
                       ) : null}
                       {canEdit && formOpen ? (
