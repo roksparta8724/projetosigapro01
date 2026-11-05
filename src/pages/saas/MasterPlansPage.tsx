@@ -1074,12 +1074,12 @@ export function MasterPlansPage() {
       storageMeta = { pdfUrl: uploaded.publicUrl, objectKey: uploaded.objectKey };
       setRemoteError("");
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Falha ao enviar o PDF para o R2.";
+      const message = error instanceof Error ? error.message : "Falha ao armazenar o PDF no repositório SIGAPRO.";
       setRemoteError(message);
     }
 
     await handleSaveCommercialMaterial(storageMeta);
-    setStatusMessage(storageMeta.pdfUrl ? "PDF gerado, enviado ao R2 e salvo no historico comercial." : "PDF gerado e salvo; envio ao R2 ficou pendente.");
+    setStatusMessage(storageMeta.pdfUrl ? "PDF gerado, arquivado no SIGAPRO e salvo no histórico comercial." : "PDF gerado e salvo; arquivamento no SIGAPRO pendente.");
   };
 
   const renderPlanCard = (rawPlan: PlanItem, editable = true) => {
