@@ -4,6 +4,7 @@ import { getMunicipalOfficialUrbanSources } from "@/lib/urbanOfficialLegalSource
 const kindLabel = {
   base: "Base normativa",
   alteracao: "Alteração da lei",
+  restauracao_vigencia: "Restabelecimento de vigência",
   procedimento_especial: "Procedimento especial",
   proposta_sem_vigencia: "Sem validade normativa",
 } as const;
@@ -26,7 +27,7 @@ export function UrbanOfficialLegalSourcesPanel({
             <span className="min-w-0">
               <strong className="block text-sm font-extrabold">Fontes oficiais para leitura — Campo Limpo Paulista</strong>
               <span className="mt-1 block text-xs leading-5 text-slate-600 dark:text-slate-300">
-                {pdfCount} normas com acesso ao PDF oficial · alterações de 2011/2014 · normas especiais de 2026
+                {pdfCount} fontes com acesso ao PDF oficial · alterações de 2011/2014/2016 · restauração em 2022 · normas especiais de 2026
               </span>
             </span>
           </span>
