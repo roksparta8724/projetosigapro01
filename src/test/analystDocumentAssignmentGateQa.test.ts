@@ -66,7 +66,8 @@ describe("SIGAPRO QA — acesso à edição documental após atribuição",()=>{
     expect(migration).toContain("CREATE OR REPLACE FUNCTION public.guard_analysis_process_update");
     expect(migration).toContain("set_config('sigapro.analysis_start_process_id', _process_id::text, true)");
     expect(migration).toContain("set_config('sigapro.analysis_start_process_id', '', true)");
-    expect(migration).toContain("current_setting('sigapro.analysis_start_process_id', true) = OLD.id::text");
+    expect(migration).toContain("coalesce(current_setting('sigapro.analysis_start_process_id', true),'') = OLD.id::text");
+    expect(migration).toContain("AND NOT COALESCE((");
     expect(migration).toContain("NEW.analysis_assigned_to_profile_id = public.current_profile_id()");
     expect(migration).toContain("public.profile_operational_area(public.current_profile_id()) = 'analise'");
     expect(migration).toContain("public.process_technical_release_verified_v1(OLD.id)");
