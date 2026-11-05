@@ -17,6 +17,11 @@ describe("Workers AI PDF conversion with existing SIGAPRO R2 and Cloudflare conf
     expect(url).toContain("/ai/v1/chat/completions");
     const req=JSON.parse(String(options.body));
     expect(req.model).toBe("@cf/zai-org/glm-4.7-flash");
+    expect(req.response_format).toMatchObject({
+      type:"json_schema",
+      json_schema:{name:"sigapro_architectural_text_v1",strict:true,
+        schema:{type:"object",required:["document_type","has_site_plan","metrics","warnings"]}},
+    });
     expect(JSON.stringify(req)).not.toContain("api.anthropic.com");
     return {ok:true,json:async()=>({choices:[{message:{content:JSON.stringify({
       document_type:"architectural_plan",has_site_plan:true,warnings:[],
@@ -44,6 +49,43 @@ describe("Workers AI PDF conversion with existing SIGAPRO R2 and Cloudflare conf
   vi.stubGlobal("fetch",vi.fn(async()=>({ok:true,json:async()=>({success:true,result:[]})})));
   await expect(extractVisualPdf(new TextEncoder().encode("%PDF-"),"planta.pdf",{
     kind:"cloudflare",key,accountId:account,model:"@cf/zai-org/glm-4.7-flash"
-  })).rejects.toThrow("AI_INCOMPLETE");
+  })).rejects.toThrow("CLOUDFLARE_PDF_TEXT_EMPTY");
  });
+ it("diferencia falha de conversão PDF reportada por arquivo da ausência de texto",async()=>{
+  vi.stubGlobal("fetch",vi.fn(async()=>({ok:true,json:async()=>({
+    success:true,result:[{format:"error",error:"conversion failed"}],
+  })})));
+  await expect(extractVisualPdf(new TextEncoder().encode("%PDF-"),"planta.pdf",{
+    kind:"cloudflare",key,accountId:account,model:"@cf/zai-org/glm-4.7-flash",
+  })).rejects.toThrow("CLOUDFLARE_PDF_CONVERSION_FAILED");
+ });
+ it("identifica quando o modelo Cloudflare não aceita resposta estruturada",async()=>{
+  let called=0;
+  vi.stubGlobal("fetch",vi.fn(async()=>{
+    called++;
+    if(called===1)return {ok:true,status:200,json:async()=>({
+      success:true,result:[{format:"markdown",data:"Área do lote 250 m². Edificação fictícia declarada."}],
+    })};
+    return {ok:false,status:400,json:async()=>({error:"invalid schema"})};
+  }));
+  await expect(extractVisualPdf(new TextEncoder().encode("%PDF-"),"planta.pdf",{
+    kind:"cloudflare",key,accountId:account,model:"@cf/zai-org/glm-4.7-flash",
+  })).rejects.toThrow("CLOUDFLARE_MODEL_JSON_SCHEMA_REJECTED");
+  expect(called).toBe(2);
+ });
+ it("recusa interpretação vazia sem inventar recuos ou gravação",async()=>{
+  let called=0;
+  vi.stubGlobal("fetch",vi.fn(async()=>{
+    called++;
+    if(called===1)return {ok:true,status:200,json:async()=>({
+      success:true,result:[{format:"markdown",data:"Recuos projetados na prancha 02; teste de leitura."}],
+    })};
+    return {ok:true,status:200,json:async()=>({choices:[{message:{content:""}}]})};
+  }));
+  await expect(extractVisualPdf(new TextEncoder().encode("%PDF-"),"planta.pdf",{
+    kind:"cloudflare",key,accountId:account,model:"@cf/zai-org/glm-4.7-flash",
+  })).rejects.toThrow("CLOUDFLARE_MODEL_EMPTY");
+  expect(called).toBe(2);
+ });
+
 });
