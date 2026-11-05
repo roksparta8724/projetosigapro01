@@ -22,8 +22,12 @@ const MODEL_OPENAI = /^gpt-(?:4\.1|4o|5(?:\.\d+)?)(?:-(?:mini|nano))?$/;
 
 export function resolveVisualPdfProvider(
   get: (name: string) => string,
+  // Preview-only opt-in selected by the authenticated user. Never used as a
+  // silent billing fallback; the calling endpoint must enforce consent and scope.
+  requestedMode?: "cloudflare_text",
 ): VisualPdfAvailability {
-  const explicitPdfProvider = get("SIGAPRO_AI_PDF_PROVIDER").trim().toLowerCase();
+  const explicitPdfProvider = requestedMode === "cloudflare_text"
+    ? "cloudflare" : get("SIGAPRO_AI_PDF_PROVIDER").trim().toLowerCase();
   const configuredProvider = (explicitPdfProvider ||
     get("SIGAPRO_AI_PROVIDER") || "").trim().toLowerCase();
   const enabledSetting = get("SIGAPRO_AI_PDF_ENABLED").trim().toLowerCase();
@@ -34,7 +38,7 @@ export function resolveVisualPdfProvider(
     message:"Leitura visual desativada explicitamente neste ambiente."};
   // Reuse the user's existing Cloudflare account and Workers AI REST token.
   // R2 access keys are NEVER used to authenticate Workers AI.
-  if (configuredProvider === "cloudflare" && !explicitPdfProvider) {
+  if (configuredProvider === "cloudflare" && (!explicitPdfProvider || requestedMode === "cloudflare_text")) {
     const config=resolveCloudflareAiConfig({
       accountId:get("SIGAPRO_CF_ACCOUNT_ID"),
       token:get("SIGAPRO_CF_API_TOKEN"),
