@@ -1300,7 +1300,7 @@ export function TenantAdminPage() {
             {planCapacity.error ? <p role="alert" className="mb-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">{planCapacity.error}</p> : null}
             {planCapacity.loaded && planCapacity.rows[0] ? (
               <PlanCapacityCard row={planCapacity.rows[0]} municipalityName={municipalityName || activeInstitution?.name} />
-            ) : <p className="text-sm text-slate-600">Consultando o contrato no Neon...</p>}
+            ) : <p className="text-sm text-slate-600">Consultando o contrato no SIGAPRO...</p>}
           </SectionCard>
         ) : null}
         <InternalTabs
