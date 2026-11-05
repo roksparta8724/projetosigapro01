@@ -879,7 +879,17 @@ export function UrbanQuadroIIWorkspacePanel({
                           entries={entries}
                         />
                       ) : null}
-                      {entries.length > 0 ? entries.map((item) => (
+                      {entries.length > 0 ? entries.map((item) => {
+                        const matchingProposal = page.proposals?.find(proposal =>
+                          proposal.category_code.normalize("NFKC").trim().toLocaleUpperCase("pt-BR") ===
+                            item.category_code.normalize("NFKC").trim().toLocaleUpperCase("pt-BR"));
+                        const sourceCheck = matchingProposal
+                          ? prepareQuadroIIPdfAssistedPrefill(
+                            municipalityId, workspace.document_sha256,
+                            item.page_number, matchingProposal,
+                          )
+                          : null;
+                        return (
                         <article key={item.id} className="min-w-0 rounded-lg border border-slate-200 bg-white p-3 text-xs text-slate-800">
                           <p className="font-bold">{item.category_code} · {item.use_description}</p>
                           <p className="mt-1">Zonas: {item.permitted_zones_text || "Não transcritas"}</p>
@@ -887,8 +897,20 @@ export function UrbanQuadroIIWorkspacePanel({
                           <p>Estacionamento: {item.parking_requirement_text || "Não transcrito"}</p>
                           <p className="mt-1 whitespace-pre-wrap break-words text-slate-600">Fonte literal: {item.source_excerpt}</p>
                           <p className="mt-1 font-semibold text-amber-800">Rascunho — sem validação jurídica</p>
+                          {sourceCheck?.requiresFocusedReview ? (
+                            <div role="note" data-sigapro-saved-draft-source-warning={item.category_code}
+                              className="mt-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-[11px] leading-5 text-amber-950">
+                              <strong className="block">Revisão focalizada do original ainda necessária</strong>
+                              <p>O rascunho está salvo. Não precisa cadastrá-lo novamente.
+                                A conferência da fonte e das ressalvas deve ser concluída antes da validação jurídica.</p>
+                              {sourceCheck.focusedReviewReasons.slice(0,2).map((reason,index) => (
+                                <p key={index} className="mt-1 break-words">{reason}</p>
+                              ))}
+                            </div>
+                          ) : null}
                         </article>
-                      )) : (
+                        );
+                      }) : (
                         <p className="rounded-lg border border-slate-200 bg-white p-3 text-xs text-slate-600">
                           Nenhuma categoria transcrita nesta página. Não presumir permissões.
                         </p>
