@@ -16,6 +16,7 @@ import {
 import { FileDropZone, type UploadedFileItem } from "@/components/platform/FileDropZone";
 import { PageHero } from "@/components/platform/PageHero";
 import { PageShell, PageStatsRow } from "@/components/platform/PageShell";
+import { formatProcessSlaDeadline } from "@/lib/processSlaPresentation";
 import { PixQrCode } from "@/components/platform/PixQrCode";
 import { GuidePixShareCard } from "@/components/platform/GuidePixShareCard";
 import { PortalFrame } from "@/components/platform/PortalFrame";
@@ -1874,7 +1875,7 @@ export function ProcessDetailPage() {
   const showPrimaryDetailColumn = ["imovel", "documentos", "analise", "financeiro", "alvara", "historico"].includes(activeTab);
   const showSecondaryDetailColumn = ["analise", "financeiro"].includes(activeTab);
   const useSplitDetailLayout = false;
-  const cardShell = "sig-process-card min-w-0 rounded-[20px] border border-slate-200 bg-white shadow-[0_14px_34px_rgba(15,23,42,0.08)] dark:border-slate-700 dark:bg-slate-900";
+  const cardShell = "sig-process-card min-w-0 max-w-full rounded-[20px] border border-slate-200 bg-white shadow-[0_14px_34px_rgba(15,23,42,0.08)] dark:border-slate-700 dark:bg-slate-900";
   const printGuide = async (
     guideKind: PaymentGuideKind = "protocolo",
     autoPrint = true,
@@ -3093,12 +3094,12 @@ export function ProcessDetailPage() {
               <Badge variant="outline" className={statusTone(process.status)}>
                 {statusLabel(process.status)}
               </Badge>
-              <Badge variant="outline" className="rounded-full">
+              <Badge variant="outline" className="max-w-full whitespace-normal break-words rounded-full">
                 {process.type}
               </Badge>
             </div>
-            <p className="mt-4 text-sm leading-6 text-slate-600" title={process.address}>{process.address}</p>
-            <p className="mt-2 text-sm leading-6 text-slate-500" title={`Protocolo oficial ${process.externalProtocol} - ${officialMunicipalityLabel(tenant?.name || municipalityName)}`}>
+            <p data-sigapro-contained-text="true" className="mt-4 text-sm leading-6 text-slate-600" title={process.address}>{process.address}</p>
+            <p data-sigapro-contained-text="true" className="mt-2 text-sm leading-6 text-slate-500" title={`Protocolo oficial ${process.externalProtocol} - ${officialMunicipalityLabel(tenant?.name || municipalityName)}`}>
               Protocolo oficial {process.externalProtocol} - {officialMunicipalityLabel(tenant?.name || municipalityName)}
             </p>
           </CardContent>
@@ -3112,9 +3113,9 @@ export function ProcessDetailPage() {
                   ? "Guia de ISSQN / Projeto"
                   : "Guia de protocolo"}
             </p>
-            <p className="sig-fit-title mt-3 text-lg font-medium leading-7 text-slate-900" title={displayGuide?.code || "Sem guia"}>{displayGuide?.code || "Sem guia"}</p>
+            <p data-sigapro-contained-text="true" className="sig-fit-title mt-3 text-lg font-medium leading-7 text-slate-900" title={displayGuide?.code || "Sem guia"}>{displayGuide?.code || "Sem guia"}</p>
             <p className="mt-2 text-base font-medium leading-6 text-slate-700">{displayGuide ? formatCurrency(displayGuide.amount) : "Não emitida"}</p>
-            <p className="sig-field-help sig-fit-copy mt-1" title={tenantSettings?.beneficiarioArrecadacao || tenant?.name || ""}>{tenantSettings?.beneficiarioArrecadacao || tenant?.name}</p>
+            <p data-sigapro-contained-text="true" className="sig-field-help sig-fit-copy mt-1" title={tenantSettings?.beneficiarioArrecadacao || tenant?.name || ""}>{tenantSettings?.beneficiarioArrecadacao || tenant?.name}</p>
             {displayGuide ? (
               <div className="mt-4 flex flex-wrap gap-2">
                 <Button
@@ -3155,7 +3156,7 @@ export function ProcessDetailPage() {
             <p className="mt-3 text-lg font-medium leading-7 text-slate-900 dark:text-slate-100">
               {uploadedCount}/{regularProcessDocuments.length}
             </p>
-            <p className="sig-field-help mt-2">Checklist com versão, nome do arquivo e assinatura</p>
+            <p data-sigapro-contained-text="true" className="sig-field-help mt-2">Checklist com versão, nome do arquivo e assinatura</p>
           </CardContent>
         </Card>
 
@@ -3165,7 +3166,7 @@ export function ProcessDetailPage() {
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="sig-label">{isHabiteSeProcess ? "Habite-se" : "Alvará de Construção"}</p>
-                  <p className="mt-3 text-lg font-bold leading-7 text-slate-950 dark:text-white">
+                  <p data-sigapro-contained-text="true" className="mt-3 text-lg font-bold leading-7 text-slate-950 dark:text-white">
                     {isHabiteSeProcess
                       ? formatOfficialProcessNumber(process.protocol)
                       : constructionPermit?.permitNumber || "Em preparação"}
@@ -3217,8 +3218,8 @@ export function ProcessDetailPage() {
           <Card data-process-summary-card="true" data-summary-tone="amber" className={`${cardShell} sig-premium-summary-card sig-summary-amber h-full`}>
             <CardContent className="p-5">
               <p className="sig-label">SLA atual</p>
-              <p className="mt-3 text-lg font-medium leading-7 text-slate-900" title={effectiveSlaStage}>{effectiveSlaStage}</p>
-              <p className="sig-field-help mt-2" title={`Prazo ${process.sla.dueDate} - ${process.sla.hoursRemaining}h restantes`}>Prazo {process.sla.dueDate} - {process.sla.hoursRemaining}h restantes</p>
+              <p data-sigapro-contained-text="true" className="mt-3 text-lg font-medium leading-7 text-slate-900" title={effectiveSlaStage}>{effectiveSlaStage}</p>
+              <p data-sigapro-contained-text="true" data-sigapro-sla-date-consistency="true" className="sig-field-help mt-2" title={formatProcessSlaDeadline(process.sla.dueDate, process.sla.hoursRemaining)}>{formatProcessSlaDeadline(process.sla.dueDate, process.sla.hoursRemaining)}</p>
               {process.sla.breached ? <p className="mt-2 text-sm font-medium text-rose-600">Prazo estourado</p> : null}
             </CardContent>
           </Card>

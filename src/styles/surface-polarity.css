@@ -2852,3 +2852,31 @@ html body #root [data-urban-matrix-review="true"] button[data-urban-matrix-prima
   border: 1px dashed #94a3b8 !important;
   cursor: not-allowed;
 }
+
+
+/* SIGAPRO PREMIUM TEXT CONTAINMENT QA V1 — scoped to process/triage cards.
+   No ellipsis or hiding essential operational content. */
+html body #root .sig-process-detail-premium [data-process-summary-card="true"],
+html body #root [data-sigapro-protocol-queue-list="true"] [data-process-premium-card="true"] {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+html body #root .sig-process-detail-premium [data-process-summary-card="true"]
+[data-sigapro-contained-text="true"],
+html body #root [data-sigapro-protocol-queue-list="true"] [data-process-premium-card="true"]
+[data-sigapro-contained-text="true"] {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: normal;
+  white-space: normal;
+  text-overflow: clip;
+}
+html body #root [data-sigapro-protocol-queue-list="true"] [data-process-premium-card="true"]
+[data-sigapro-triage-actions-toggle="true"] {
+  min-width: 0;
+  max-width: 100%;
+}
+/* END SIGAPRO PREMIUM TEXT CONTAINMENT QA V1 */

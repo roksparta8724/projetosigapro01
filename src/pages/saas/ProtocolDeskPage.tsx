@@ -597,7 +597,7 @@ export function ProtocolDeskPage() {
             {normalizedQuery ? "Nenhum processo encontrado para esta pesquisa." : emptyMessage}
           </div>
         ) : (
-          <div className="overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-[0_14px_36px_rgba(15,23,42,0.07)] dark:border-slate-700 dark:bg-slate-900 dark:shadow-[0_18px_44px_rgba(0,0,0,0.24)]">
+          <div data-sigapro-protocol-queue-list="true" className="min-w-0 max-w-full overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-[0_14px_36px_rgba(15,23,42,0.07)] dark:border-slate-700 dark:bg-slate-900 dark:shadow-[0_18px_44px_rgba(0,0,0,0.24)]">
             {visibleItems.map((process, index) => {
               const guides = getProcessPaymentGuides(process, tenantSettings);
               const protocolGuide = guides.find((guide) => guide.kind === "protocolo");
@@ -617,9 +617,9 @@ export function ProtocolDeskPage() {
                 <div
                   key={process.id}
                   data-process-premium-card="true"
-                  className={`${index > 0 ? "border-t border-slate-200 dark:border-slate-700" : ""} ${selected ? "bg-sky-50/70 dark:bg-sky-950/30" : "bg-white dark:bg-slate-900"} transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/70`}
+                  className={`min-w-0 max-w-full ${index > 0 ? "border-t border-slate-200 dark:border-slate-700" : ""} ${selected ? "bg-sky-50/70 dark:bg-sky-950/30" : "bg-white dark:bg-slate-900"} transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/70`}
                 >
-                  <div className="flex min-h-[68px] items-center gap-3 px-4 py-3">
+                  <div className="flex min-h-[68px] flex-wrap items-center gap-3 px-4 py-3 sm:flex-nowrap">
                     <input
                       type="checkbox"
                       checked={selected}
@@ -631,16 +631,21 @@ export function ProtocolDeskPage() {
 
                     <button
                       type="button"
+                      data-sigapro-triage-actions-toggle="true"
+                      aria-expanded={expanded}
+                      aria-label={`${expanded ? "Fechar" : "Ver"} ações da triagem do ${formatOfficialProcessNumber(process.protocol)}`}
+                      title="Clique para ver as ações da triagem sem abrir o protocolo"
                       onClick={() => toggleProcessExpanded(process.id)}
-                      className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                      className="flex min-w-0 flex-[1_1_250px] items-center gap-2 text-left sm:gap-3"
                     >
-                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-500 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-sky-200 bg-sky-50 text-sky-800 shadow-sm dark:border-sky-700 dark:bg-sky-950 dark:text-sky-100">
                         {expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                       </span>
+                      <span className="hidden shrink-0 text-[11px] font-bold text-sky-900 dark:text-sky-200 md:inline">{expanded ? "Fechar ações" : "Ver ações"}</span>
 
                       <span className="min-w-0 flex-1">
                         <span className="flex flex-wrap items-center gap-2">
-                          <span className="font-semibold text-slate-950 dark:text-white">
+                          <span data-sigapro-contained-text="true" className="font-semibold text-slate-950 dark:text-white">
                             {formatOfficialProcessNumber(process.protocol)}
                           </span>
                           <Badge variant="outline" className={statusTone(process.status)}>
@@ -663,17 +668,17 @@ export function ProtocolDeskPage() {
                             </Badge>
                           ) : null}
                         </span>
-                        <span className="mt-1 block truncate text-sm font-medium text-slate-700">
+                        <span data-sigapro-contained-text="true" className="mt-1 block text-sm font-medium text-slate-700 dark:text-slate-200">
                           {formatOfficialProcessTitle({ title: process.title, type: process.type })}
                         </span>
-                        <span className="mt-0.5 block truncate text-xs text-slate-500">
+                        <span data-sigapro-contained-text="true" className="mt-0.5 block text-xs text-slate-500 dark:text-slate-300">
                           {process.ownerName} • {process.address} • {externalSubmission ? "Online — profissional externo" : isDeskFlow ? "Balcão" : "Online"}
                           {externalSubmission && creator?.name ? ` • Enviado por ${creator.name}` : ""}
                         </span>
                       </span>
                     </button>
 
-                    <Button asChild className="h-9 shrink-0 rounded-xl bg-[linear-gradient(135deg,#0b5e93_0%,#0f78b8_100%)] px-4 font-semibold !text-white shadow-[0_8px_20px_rgba(14,116,181,0.22)] hover:brightness-105 [&_*]:!text-white">
+                    <Button asChild className="ml-auto h-9 max-w-full shrink-0 rounded-xl bg-[linear-gradient(135deg,#0b5e93_0%,#0f78b8_100%)] px-4 font-semibold !text-white shadow-[0_8px_20px_rgba(14,116,181,0.22)] hover:brightness-105 [&_*]:!text-white">
                       <Link to={buildProcessPath(process)}>Abrir protocolo</Link>
                     </Button>
                   </div>
@@ -688,8 +693,8 @@ export function ProtocolDeskPage() {
                             size="sm"
                           />
                           <div className="min-w-0">
-                            <p className="font-medium text-slate-900">{process.ownerName}</p>
-                            <p className="truncate text-sm text-slate-500">{process.address}</p>
+                            <p data-sigapro-contained-text="true" className="font-medium text-slate-900 dark:text-slate-100">{process.ownerName}</p>
+                            <p data-sigapro-contained-text="true" className="text-sm text-slate-500 dark:text-slate-300">{process.address}</p>
                           </div>
                         </div>
 
@@ -739,22 +744,22 @@ export function ProtocolDeskPage() {
                       <div className="sig-responsive-data-grid mt-4">
                         <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-700 dark:bg-slate-900">
                           <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">Abertura</p>
-                          <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">{getOpeningDate(process)}</p>
+                          <p data-sigapro-contained-text="true" className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">{getOpeningDate(process)}</p>
                         </div>
                         <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-700 dark:bg-slate-900">
                           <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">Guia principal</p>
-                          <p className="mt-1 truncate text-sm font-semibold text-slate-900 dark:text-slate-100">{protocolGuide?.code || "Não emitida"}</p>
+                          <p data-sigapro-contained-text="true" className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">{protocolGuide?.code || "Não emitida"}</p>
                           <p className="mt-1 text-xs text-slate-500">{formatCurrency(protocolGuide?.amount || 0)}</p>
                         </div>
                         <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-700 dark:bg-slate-900">
                           <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">Pagamento</p>
-                          <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">
+                          <p data-sigapro-contained-text="true" className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">
                             {protocolPaymentEvidenceLabel(protocolGuide)}
                           </p>
                         </div>
                         <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-700 dark:bg-slate-900">
                           <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">Responsável</p>
-                          <p className="mt-1 truncate text-sm font-semibold text-slate-900 dark:text-slate-100">{process.technicalLead || "Não informado"}</p>
+                          <p data-sigapro-contained-text="true" className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">{process.technicalLead || "Não informado"}</p>
                         </div>
                         <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-700 dark:bg-slate-900">
                           <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">Fluxo atual</p>
