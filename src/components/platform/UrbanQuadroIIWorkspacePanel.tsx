@@ -71,7 +71,10 @@ export function UrbanQuadroIIWorkspacePanel({
   const draftCount = useMemo(
     () => workspace?.entries.length || 0, [workspace],
   );
-  const reviewQueue = useMemo(() => buildUrbanQuadroIIReviewQueue(workspace), [workspace]);
+  const reviewQueue = useMemo(
+    () => buildUrbanQuadroIIReviewQueue(workspace, municipalityId),
+    [workspace, municipalityId],
+  );
   const originalLawPdf = useMemo(() => getMunicipalOfficialUrbanSources(municipalityId)
     .find(source => source.id === "lc-379-2009")?.pdfUrl || null, [municipalityId]);
   const pendingQueue = reviewQueue.items.filter(item => item.status !== "draft_unverified");
@@ -381,9 +384,9 @@ export function UrbanQuadroIIWorkspacePanel({
             </div>
             <div className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-4">
               {([
-                ["Sugestões identificadas", reviewQueue.total],
-                ["Rascunhos sem homologação", reviewQueue.drafts],
-                ["Aguardam transcrição literal", reviewQueue.missingLiteral],
+                ["Categorias identificadas", reviewQueue.total],
+                ["Trechos candidatos preparados", reviewQueue.literalCandidates],
+                ["Sem trecho candidato", reviewQueue.missingLiteral],
                 ["Exigem inspeção visual", reviewQueue.visualRequired],
               ] as const).map(([label, count]) => (
                 <div key={label} className="min-w-0 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-900">
@@ -394,8 +397,10 @@ export function UrbanQuadroIIWorkspacePanel({
             </div>
             <p data-urban-qii-literal-count="true"
               className="mt-2 text-xs font-semibold leading-5 text-amber-900 dark:text-amber-200">
-              {reviewQueue.literalCandidates} trecho(s) extraído(s) com tamanho suficiente para conferência,
-              ainda não validado(s). Todos os demais exigem transcrição visual do PDF original.
+              {reviewQueue.drafts} rascunho(s) registrado(s), sem homologação legal.
+              Os {reviewQueue.literalCandidates} trechos candidatos incluem leituras de páginas
+              que exigem inspeção visual; as contagens se sobrepõem.
+              Um trecho candidato não é citação legal confirmada: confira colunas, números e páginas no original.
             </p>
             {showReviewQueue ? (
               <div className="mt-3">
@@ -608,8 +613,11 @@ export function UrbanQuadroIIWorkspacePanel({
                                   ? "Trecho literal candidato já preenchido. Confira a coluna e a página."
                                   : "Trecho literal não comprovado; exige conferência visual antes de salvar."}
                               </p>
-                              {selectedAssisted.warnings.slice(0,4).map((warning,index) =>
-                                <p key={index} className="mt-1 break-words">• {warning}</p>)}
+                              <p className="mt-1 font-semibold">
+                                {selectedAssisted.warnings.length} observação(ões) de leitura.
+                                Os alertas documentais estão detalhados no quadro amarelo acima;
+                                não é necessário repeti-los aqui.
+                              </p>
                             </div>
                           ) : null}
                           <div className="grid gap-3 sm:grid-cols-2">
