@@ -85,6 +85,25 @@ describe("SIGAPRO PDF — pré-preenchimento por tabela, página e documento ori
       expect(item.parkingRequirement).toBe("");
     }
   });
+  it("S1.5 usa exclusivamente texto impresso do grupo S1 da página 43; confirma duas páginas",()=>{
+    const item=prepareQuadroIIPdfAssistedPrefill(
+      CAMPO_LIMPO_PAULISTA_MUNICIPALITY_ID,LC379_QUADRO_II_SHA,43,proposal("S1.5"));
+    expect(item.pages).toEqual([43,44]);
+    expect(item.hasLiteralCandidate).toBe(true);
+    expect(item.sourceExcerpt).toBe("Serviços de âmbito local área até 250 m2");
+    expect(item.sourceExcerpt.length).toBeGreaterThanOrEqual(20);
+    expect(item.parkingRequirement).toContain("50 m²");
+    expect(item.specialConditions).toContain("Carga: no mínimo 1 vaga");
+    expect(item.requiresFocusedReview).toBe(true);
+    expect(item.focusedReviewReasons.join(" ")).toContain("não comprova sozinho S1.5");
+    expect(item.manualReviewRequired).toBe(true);
+    // The group quotation cannot be reused across another municipality or PDF.
+    expect(prepareQuadroIIPdfAssistedPrefill("outra-prefeitura",
+      LC379_QUADRO_II_SHA,43,proposal("S1.5")).sourceExcerpt).toBe("");
+    expect(prepareQuadroIIPdfAssistedPrefill(
+      CAMPO_LIMPO_PAULISTA_MUNICIPALITY_ID,"b".repeat(64),43,
+      proposal("S1.5")).sourceExcerpt).toBe("");
+  });
   it("mantém falta de trecho literal explícita em C2.7, sem inventar índice",()=>{
     const result=prepareQuadroIIPdfAssistedPrefill(
       CAMPO_LIMPO_PAULISTA_MUNICIPALITY_ID,LC379_QUADRO_II_SHA,48,proposal("C2.7"));
@@ -110,6 +129,8 @@ describe("SIGAPRO PDF — pré-preenchimento por tabela, página e documento ori
     expect(panel).toContain("savedEntry.parking_requirement_text");
     expect(panel).toContain("Vagas (rascunho salvo)");
     expect(panel).toContain("pré-leitura automática ainda não conferida");
+    expect(panel).toContain('data-sigapro-qii-literal-blocker="true"');
+    expect(panel).toContain('data-sigapro-qii-focused-literal="true"');
     expect(panel).toContain("data-sigapro-saved-draft-source-warning");
     expect(panel).toContain("sourceCheck?.requiresFocusedReview");
     expect(panel).toContain("Não precisa cadastrá-lo novamente");
