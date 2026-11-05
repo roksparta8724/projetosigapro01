@@ -635,11 +635,15 @@ export function UrbanQuadroIIWorkspacePanel({
                                   ? "Trecho literal candidato já preenchido. Confira a coluna e a página."
                                   : "Trecho literal não comprovado; exige conferência visual antes de salvar."}
                               </p>
-                              <p className="mt-1 font-semibold">
-                                {selectedAssisted.warnings.length} observação(ões) de leitura.
-                                Os alertas documentais estão detalhados no quadro amarelo acima;
-                                não é necessário repeti-los aqui.
-                              </p>
+                              {selectedAssisted.requiresFocusedReview ? (
+                                <div role="note" data-sigapro-qii-focused-literal="true"
+                                  className="mt-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-amber-950">
+                                  <strong>Conferência específica obrigatória</strong>
+                                  {selectedAssisted.focusedReviewReasons.slice(0,2).map((reason,index) => (
+                                    <p key={index} className="mt-1 break-words">{reason}</p>
+                                  ))}
+                                </div>
+                              ) : null}
                             </div>
                           ) : null}
                           <div className="grid gap-3 sm:grid-cols-2">
@@ -684,6 +688,13 @@ export function UrbanQuadroIIWorkspacePanel({
                               <Textarea className="mt-1 bg-white text-slate-900" value={draft.sourceExcerpt}
                                 onChange={(e) => setField("sourceExcerpt",e.target.value)} maxLength={1600}
                                 placeholder="Transcreva um trecho literal da tabela. Resumos automáticos de várias colunas não são prova documental." rows={3} />
+                              {draft.sourceExcerpt.trim().length < 20 ? (
+                                <p data-sigapro-qii-literal-blocker="true" role="status"
+                                  className="mt-1 text-xs font-bold text-amber-900 dark:text-amber-200">
+                                  Falta trecho literal de 20 caracteres do PDF original. O botão Salvar ficará
+                                  desabilitado até preencher e conferir esse campo. Não invente texto da lei.
+                                </p>
+                              ) : null}
                             </label>
                           </div>
                           <label className="flex items-start gap-2 text-xs font-semibold leading-5 text-slate-800">
