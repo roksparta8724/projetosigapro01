@@ -212,7 +212,7 @@ export default async function handler(req:Req,res:Res){
     if(code==="PDF_INVALID")return json(res,422,{code,error:"O PDF está incompleto ou inválido."});
     if(code==="AI_RATE_LIMIT")return json(res,429,{code,error:"Limite do provedor de IA atingido."});
     if(code==="AI_PROVIDER_BILLING")return json(res,402,{code,
-      error:"A API visual do Claude está sem saldo ou atingiu o limite de gastos. Nenhuma medida foi aplicada. Na homologação, você pode escolher separadamente a leitura textual Cloudflare, que não comprova recuos geométricos."});
+      error:"A API visual do Claude está sem saldo ou atingiu o limite de gastos; nenhuma medida foi aplicada. Na homologação, você pode escolher separadamente a leitura textual Cloudflare, que não comprova recuos geométricos."});
     if(code==="AI_PROVIDER_MODEL_UNAVAILABLE")return json(res,503,{code,
       error:"O modelo de leitura de PDF não está disponível para esta chave. Confira o identificador no servidor."});
     if(code==="AI_PROVIDER_CREDENTIALS")return json(res,503,{code,
