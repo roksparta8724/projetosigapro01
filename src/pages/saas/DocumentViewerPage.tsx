@@ -550,6 +550,24 @@ export function DocumentViewerPage() {
                   <PenTool className="mr-2 h-4 w-4" />
                   Abrir mesa de análise
                 </Button>
+              ) : (session.role === "analista" || session.role === "prefeitura_supervisor") ? (
+                <div data-sigapro-analyst-viewer-readonly="true" role="note"
+                  className="mt-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-amber-950">
+                  <p className="text-xs font-extrabold">Edição do PDF ainda não autorizada</p>
+                  <p className="mt-1 text-xs leading-5">
+                    {process.analysis?.assignedProfileId || process.analysis?.assignedTo
+                      ? "Este processo já tem um responsável técnico. Somente o analista designado ou o supervisor autorizado pode marcar o PDF; uma troca exige redistribuição formal."
+                      : "O processo chegou ao Urbanismo, mas ainda não foi assumido ou distribuído. Abra a fila e use Assumir análise (analista) ou Distribuir análise (supervisor)."}
+                  </p>
+                  <p className="mt-1 text-xs leading-5">
+                    Adicionar marcador organiza o documento; não equivale ao marca-texto nem a apontamentos na planta.
+                  </p>
+                  <Button type="button" data-sigapro-go-analysis-assignment="true"
+                    className="mt-3 min-h-10 w-full rounded-xl bg-[#075985] !text-white hover:bg-[#0c4a6e] [&_*]:!text-white"
+                    onClick={() => navigate("/prefeitura/analise?secao=fila")}>
+                    Abrir fila para assumir ou distribuir
+                  </Button>
+                </div>
               ) : (
                 <p className="mt-3 text-xs leading-5 text-slate-500">
                   Quando houver apontamentos enviados pela Prefeitura, eles aparecerão acima com a página e a correção solicitada.

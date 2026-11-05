@@ -758,6 +758,17 @@ export function AnalystDeskPage() {
                 </div>
 
                 <div data-analysis-process-actions="true" className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
+                  {session.role === "analista" &&
+                    canAccessMunicipalArea(session, "analise") &&
+                    !hasAssignedAnalyst && !analysisStarted ? (
+                    <Button type="button" data-sigapro-assume-analysis-direct="true"
+                      className="min-h-10 max-w-full rounded-xl bg-[#075985] px-4 !text-white hover:bg-[#0c4a6e] [&_*]:!text-white"
+                      disabled={Boolean(actionBusy)}
+                      onClick={() => void handleStartAnalysis(process)}>
+                      <UserPlus className="mr-2 h-4 w-4" />
+                      {actionBusy === `start-${process.id}` ? "Iniciando..." : "Assumir análise e abrir editor"}
+                    </Button>
+                  ) : null}
                   {canEditAnalysis && analysisStarted ? (
                     <Button type="button" variant="outline" size="sm"
                       className="h-10 rounded-xl border-sky-400/25 bg-sky-400/10 px-3 text-xs font-semibold text-sky-100 hover:bg-sky-400/20"

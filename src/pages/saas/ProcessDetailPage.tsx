@@ -3458,6 +3458,24 @@ export function ProcessDetailPage() {
               data-process-document-content="true"
               className="space-y-4 p-5 md:p-6"
             >
+              {(session.role === "analista" || session.role === "prefeitura_supervisor") &&
+               !canReviewDocuments ? (
+                <div data-sigapro-document-editor-locked="true" role="note"
+                  className="flex flex-wrap items-start justify-between gap-3 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-amber-950 dark:border-amber-600 dark:bg-amber-950/30 dark:text-amber-100">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-extrabold">Para editar e marcar o PDF, assuma ou distribua a análise</p>
+                    <p className="mt-1 text-xs leading-5">
+                      A entrega dos documentos está concluída, mas a mesa técnica exige um responsável autorizado.
+                      Abrir documento é somente visualização; Adicionar marcador não cria apontamentos no PDF.
+                    </p>
+                  </div>
+                  <Button type="button" data-sigapro-open-analyst-assignment="true"
+                    className="min-h-10 max-w-full rounded-xl bg-[#075985] px-4 !text-white hover:bg-[#0c4a6e] [&_*]:!text-white"
+                    onClick={() => navigate("/prefeitura/analise?secao=fila")}>
+                    Ir à fila para assumir análise
+                  </Button>
+                </div>
+              ) : null}
               {canImportQa04Fixture ? (
                 <div className="rounded-2xl border border-sky-300 bg-sky-50 p-4 text-slate-900 dark:border-sky-600 dark:bg-slate-900 dark:text-slate-100">
                   <p className="text-sm font-bold">Ensaio controlado de IA — Processo 04 fictício</p>
