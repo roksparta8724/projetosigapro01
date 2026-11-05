@@ -45,6 +45,31 @@ describe("SIGAPRO PDF — pré-preenchimento por tabela, página e documento ori
       "b".repeat(64),38,proposal("E1.2","Trecho literal cadastrado e pendente de conferência"));
     expect(quoted.hasLiteralCandidate).toBe(true);
   });
+  it("não coloca em lote taxas de estacionamento com números ou células ambíguas",()=>{
+    for(const [pageNumber, categoryCode] of [
+      [39,"E2.2"], [39,"E2.5"], [40,"E3.1"], [40,"E3.2"], [40,"E3.3"],
+      [39,"E2.7"],
+    ] as const) {
+      const result=prepareQuadroIIPdfAssistedPrefill(
+        CAMPO_LIMPO_PAULISTA_MUNICIPALITY_ID,LC379_QUADRO_II_SHA,pageNumber,
+        proposal(categoryCode));
+      expect(result.requiresFocusedReview).toBe(true);
+      expect(result.focusedReviewReasons.length).toBeGreaterThan(0);
+      expect(result.manualReviewRequired).toBe(true);
+    }
+    const clear=prepareQuadroIIPdfAssistedPrefill(
+      CAMPO_LIMPO_PAULISTA_MUNICIPALITY_ID,LC379_QUADRO_II_SHA,38,
+      proposal("E1.1"));
+    expect(clear.requiresFocusedReview).toBe(false);
+  });
+  it("preserva aviso do OCR de proporção borrada mesmo que haja trecho candidato",()=>{
+    const uncertain=proposal("E1.2");
+    uncertain.field_warnings=["A proporção de vagas está borrada no original."];
+    const result=prepareQuadroIIPdfAssistedPrefill(
+      CAMPO_LIMPO_PAULISTA_MUNICIPALITY_ID,LC379_QUADRO_II_SHA,38,uncertain);
+    expect(result.hasLiteralCandidate).toBe(true);
+    expect(result.requiresFocusedReview).toBe(true);
+  });
   it("mantém falta de trecho literal explícita em C2.7, sem inventar índice",()=>{
     const result=prepareQuadroIIPdfAssistedPrefill(
       CAMPO_LIMPO_PAULISTA_MUNICIPALITY_ID,LC379_QUADRO_II_SHA,48,proposal("C2.7"));
@@ -59,6 +84,9 @@ describe("SIGAPRO PDF — pré-preenchimento por tabela, página e documento ori
     expect(panel).toContain("!batchReviewed");
     expect(panel).toContain('permittedZones: ""');
     expect(panel).toContain("setBatchReviewed(false)");
+    expect(panel).toContain("!assisted.requiresFocusedReview");
+    expect(panel).toContain("needsIndividualReview");
+    expect(panel).toContain("pageNeedsVisualReview");
     expect(panel).toContain("saveUrbanQuadroIIDraft(");
     expect(panel).not.toContain('activate_urban_regulation');
     expect(panel).toContain("Nenhuma norma foi ativada");
