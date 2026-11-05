@@ -141,7 +141,7 @@ export function ArchitecturalPdfAiPanel({
       setDraft(result as ApiResult);
       if(readingMode==="visual")setBillingUnavailable(false);
       setNotice(readingMode==="cloudflare_text"
-        ?"Texto extraído pelo Cloudflare. Recuos geométricos não foram verificados. Confira cada dado no PDF original."
+        ?"Leitura Documental concluída pelo SIGAPRO IA. Recuos geométricos não foram verificados. Confira cada dado no PDF original."
         :"Extração visual concluída. Confira cada página original antes de aproveitar uma medida.");
     }catch(cause){setError(String((cause as Error)?.message||cause));}
     finally{setLoading(false);}
