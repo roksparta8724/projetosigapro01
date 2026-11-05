@@ -41,8 +41,8 @@ const reviewedPdfCandidates: Record<string, Correction> = {
   "39:E2.7": {quote:"1 vaga para cada 75m2, ou fração",parking:"1 vaga para cada 75 m² ou fração",road:"N2, E2",conditions:"Embarque e desembarque: no mínimo 1 vaga. Carga exige conferir a célula original.",pages:[39,40]},
 
   "40:E3.1": {quote:"Faculdade Universidade E similares",parking:"1 vaga para cada 15 m² de área computável em salas de aula (conferir relação impressa)",road:"N2, E1, E1(T)",conditions:"Carga: 1 vaga para cada 100 m² de área administrativa. Embarque: 1 vaga por 500 m² de área construída ou fração.",warning:"Aplicabilidade de E3: lotação acima de 500 pessoas e/ou área construída acima de 2.500 m²."},
-  "40:E3.2": {quote:"Auditório para convenções, congressos e conferências",parking:"",road:"N2, E1, E1(T)",conditions:"Carga: 1 vaga a cada 250 m², mínimo 1. Embarque: no mínimo 1 vaga.",warning:"Conferir no PDF o denominador por pessoa e o símbolo de m²; não aplicar antes da revisão."},
-  "40:E3.3": {quote:"Estádio Esportivo E similares",parking:"",road:"N2, E1, E1(T)",conditions:"Carga: 1 vaga para cada 500 m², mínimo 4. Embarque: mínimo 3 vagas.",warning:"Célula de estacionamento exige confirmação visual."},
+  "40:E3.2": {quote:"Auditório para convenções, congressos e conferências",parking:"",road:"N2, E1, E1(T)",conditions:"Carga: 1 vaga a cada 250 m², mínimo 1. Embarque: no mínimo 1 vaga.",warning:"Ambiguidade na própria tabela original (página 40): a célula E3.2 imprime '1:15 m²' junto de '(pessoas de capacidade de lotação máxima)'. Unidade de área e referência a pessoas estão misturadas; exigir interpretação jurídica/técnica formal. Não calcular vagas automaticamente."},
+  "40:E3.3": {quote:"Estádio Esportivo E similares",parking:"",road:"N2, E1, E1(T)",conditions:"Carga: 1 vaga para cada 500 m², mínimo 4. Embarque: mínimo 3 vagas.",warning:"Ambiguidade na própria tabela original (página 40): a célula E3.3 imprime '1:15 m² pessoas sentadas'. A unidade m² conflita com a referência a pessoas; exigir interpretação jurídica/técnica formal. Não calcular vagas automaticamente."},
 
   "41:I1": {quote:"Sabões e velas, Condimentos, exceto quando consistir apenas em mistura e embalagem",parking:"Produção: 1 vaga/100 m²; administração: 1 vaga/100 m².",road:"N3 / E1 / E2 (verificar nota *)",conditions:"Carga e descarga: 1 vaga/500 m², mínimo 1. Conferir condições de zoneamento e REPAIIV."},
   "41:I2": {quote:"Indústrias alimentícias, fabricação de material cerâmico, fabricação de artigos de fibrocimento e gesso",parking:"Produção: 1 vaga/100 m²; administração: 1 vaga/50 m².",road:"N3 / E1",conditions:"Carga e descarga: 1 vaga/300 m², mínimo 1. Aplicação excepcional em zona assinalada com * depende do relatório de impacto."},
@@ -113,7 +113,7 @@ export function prepareQuadroIIPdfAssistedPrefill(
   // A candidate text fragment alone is not proof that every value in the
   // associated table column is legible. Prioritize individual human review
   // whenever the scan explicitly warns about ambiguous numeric evidence.
-  const ambiguity = /parcialmente|encobert|borrad|ileg[ií]vel|denominador|raz[aã]o.*vaga|c[eé]lula de estacionamento|impress[aã]o|fra[cç][aã]o impressa/i;
+  const ambiguity = /parcialmente|encobert|borrad|ileg[ií]vel|denominador|raz[aã]o.*vaga|c[eé]lula de estacionamento|impress[aã]o|fra[cç][aã]o impressa|ambiguidade|unidade.*conflit|n[aã]o calcular vagas/i;
   const focusedReviewReasons = [
     ...(override?.warning && ambiguity.test(override.warning) ? [override.warning] : []),
     ...((proposal.field_warnings || []).filter(note => ambiguity.test(note))),
