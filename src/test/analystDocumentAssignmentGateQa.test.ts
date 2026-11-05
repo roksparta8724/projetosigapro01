@@ -26,6 +26,19 @@ describe("SIGAPRO QA — acesso à edição documental após atribuição",()=>{
     expect(viewer).toContain('navigate("/prefeitura/analise?secao=fila")');
     expect(detail).toContain('navigate("/prefeitura/analise?secao=fila")');
   });
+  it("permite ao analista assumir diretamente do visualizador sem afrouxar o gate",()=>{
+    const viewer=read("src/pages/saas/DocumentViewerPage.tsx");
+    expect(viewer).toContain('data-sigapro-assume-analysis-in-viewer="true"');
+    expect(viewer).toContain('data-sigapro-assume-analysis-in-viewer-aside="true"');
+    expect(viewer).toContain('session.role === "analista"');
+    expect(viewer).toContain('canAccessMunicipalArea(session, "analise")');
+    expect(viewer).toContain("isProcessReleasedToUrbanAnalysis(process)");
+    expect(viewer).toContain("!process.analysis?.assignedProfileId");
+    expect(viewer).toContain("!process.analysis?.startedAt");
+    expect(viewer).toContain("await startProcessAnalysis(process.id)");
+    expect(viewer).toContain('ferramenta=highlight');
+    expect(viewer).toContain("catch (actionError)");
+  });
   it("mostra assumir análise na própria linha e usa workflow existente",()=>{
     const desk=read("src/pages/saas/AnalystDeskPage.tsx");
     expect(desk).toContain('data-sigapro-assume-analysis-direct="true"');
