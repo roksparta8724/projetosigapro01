@@ -70,6 +70,21 @@ describe("SIGAPRO PDF — pré-preenchimento por tabela, página e documento ori
     expect(result.hasLiteralCandidate).toBe(true);
     expect(result.requiresFocusedReview).toBe(true);
   });
+  it("mantém a unidade contraditória do PDF como pendência técnica, sem conversão inventada",()=>{
+    const auditorium=prepareQuadroIIPdfAssistedPrefill(
+      CAMPO_LIMPO_PAULISTA_MUNICIPALITY_ID,LC379_QUADRO_II_SHA,40,proposal("E3.2"));
+    const stadium=prepareQuadroIIPdfAssistedPrefill(
+      CAMPO_LIMPO_PAULISTA_MUNICIPALITY_ID,LC379_QUADRO_II_SHA,40,proposal("E3.3"));
+    for(const item of [auditorium,stadium]) {
+      expect(item.requiresFocusedReview).toBe(true);
+      expect(item.focusedReviewReasons.join(" ")).toContain("Ambiguidade na própria tabela original");
+      expect(item.focusedReviewReasons.join(" ")).toContain("1:15 m²");
+      expect(item.focusedReviewReasons.join(" ")).toContain("Não calcular vagas automaticamente.");
+      // A quote containing only the activity name is NOT evidence of the parking number.
+      expect(item.sourceExcerpt).not.toContain("1:15");
+      expect(item.parkingRequirement).toBe("");
+    }
+  });
   it("mantém falta de trecho literal explícita em C2.7, sem inventar índice",()=>{
     const result=prepareQuadroIIPdfAssistedPrefill(
       CAMPO_LIMPO_PAULISTA_MUNICIPALITY_ID,LC379_QUADRO_II_SHA,48,proposal("C2.7"));
