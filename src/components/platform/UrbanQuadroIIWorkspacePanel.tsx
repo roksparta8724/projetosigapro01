@@ -831,7 +831,16 @@ export function UrbanQuadroIIWorkspacePanel({
                             páginas e dúvidas. Confira os números antes de salvar. Nada é ativado para a IA.
                           </p>
                           <div className="grid gap-2 sm:grid-cols-2">
-                            {page.proposals?.map((suggestion) => (
+                            {page.proposals?.map((suggestion) => {
+                              const categoryCode = suggestion.category_code.normalize("NFKC").trim().toLocaleUpperCase("pt-BR");
+                              const savedEntry = entries.find(entry =>
+                                entry.category_code.normalize("NFKC").trim().toLocaleUpperCase("pt-BR") === categoryCode);
+                              const candidate = savedEntry ? null : prepareQuadroIIPdfAssistedPrefill(
+                                municipalityId, workspace?.document_sha256 || "", page.page_number, suggestion);
+                              const parkingValue = savedEntry
+                                ? savedEntry.parking_requirement_text
+                                : candidate?.parkingRequirement || suggestion.parking_requirement_text || "";
+                              return (
                               <div key={suggestion.category_code} className="min-w-0 rounded-lg border border-slate-200 bg-slate-50 p-3">
                                 <strong className="block break-words text-xs text-slate-900">
                                   {suggestion.category_code} — {suggestion.use_description}
@@ -841,33 +850,33 @@ export function UrbanQuadroIIWorkspacePanel({
                                 ) : null}
                                 <p className="mt-1 break-words text-[11px] text-slate-600">
                                   Fonte: páginas {suggestion.source_pages?.join(", ") || page.page_number} ·
-                                  leitura pendente de conferência
+                                  {savedEntry ? "rascunho salvo no Neon, validação jurídica pendente" :
+                                    "pré-leitura automática ainda não conferida"}
                                 </p>
-                                <p className="mt-1 break-words text-xs text-slate-700">
-                                  {suggestion.parking_requirement_text
-                                    ? `Vagas: ${suggestion.parking_requirement_text}`
-                                    : "Vagas: trecho ilegível ou não confirmado"}
+                                <p data-sigapro-qii-parking-source={savedEntry ? "saved-draft" : "candidate"}
+                                  className="mt-1 break-words text-xs text-slate-700">
+                                  {parkingValue
+                                    ? `${savedEntry ? "Vagas (rascunho salvo)" : "Vagas (candidatas, conferir)"}: ${parkingValue}`
+                                    : "Vagas: não confirmadas no PDF original"}
                                 </p>
-                                {entries.some((entry) => entry.category_code.trim().toLocaleUpperCase("pt-BR") ===
-                                  suggestion.category_code.trim().toLocaleUpperCase("pt-BR")) ? (
+                                {savedEntry ? (
                                   <p className="mt-2 text-[11px] font-semibold text-amber-900">
                                     Rascunho já registrado nesta página. Não duplicar.
                                   </p>
                                 ) : null}
                                 <button type="button"
-                                  disabled={!canEdit || saving || entries.some((entry) => entry.category_code.trim().toLocaleUpperCase("pt-BR") ===
-                                    suggestion.category_code.trim().toLocaleUpperCase("pt-BR"))}
+                                  disabled={!canEdit || saving || Boolean(savedEntry)}
                                   onClick={() => prepareSuggestion(page.page_number, suggestion)}
                                   data-urban-qii-action="true"
                                   className="mt-2 min-h-10 rounded-xl border border-sky-300 bg-[#0b3150] px-4 py-2.5 text-xs font-bold !text-white shadow-sm hover:bg-sky-900 disabled:opacity-70">
                                   <span data-urban-qii-action-label="true" className="!text-white">
-                                    {entries.some((entry) => entry.category_code.trim().toLocaleUpperCase("pt-BR") ===
-                                      suggestion.category_code.trim().toLocaleUpperCase("pt-BR"))
+                                    {savedEntry
                                       ? "Rascunho existente" : !canEdit ? "Somente consulta" : "Pré-preencher e revisar"}
                                   </span>
                                 </button>
                               </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         </div>
                       ) : null}
