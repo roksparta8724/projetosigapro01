@@ -234,11 +234,12 @@ export function ArchitecturalPdfAiPanel({
         </span>
       </label>
       <p role="status" data-sigapro-ai-pdf-provider-status={availability.status}
-        className={"mt-3 text-xs font-semibold leading-5 "+(
-          availability.status==="ready"&&availability.provider!=="cloudflare"
-            ?"text-emerald-800 dark:text-emerald-300":
+        className={"mt-3 min-w-0 max-w-full break-words text-xs font-semibold leading-5 [overflow-wrap:anywhere] "+(
+          readyForSelectedMode?"text-emerald-800 dark:text-emerald-300":
           "text-amber-800 dark:text-amber-200")}>
-        {availability.message}
+        {readingMode==="cloudflare_text"&&availability.textAlternativeAvailable
+          ?"Cloudflare Workers AI disponível nesta prévia para extração textual, sujeita à cota de uso. Este modo não mede recuos."
+          :availability.message}
       </p>
       {selected && availability.status!=="checking" ? (
         <div role="status" data-sigapro-pdf-technical-preflight={
