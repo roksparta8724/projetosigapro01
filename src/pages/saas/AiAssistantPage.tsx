@@ -123,7 +123,7 @@ export function AiAssistantPage() {
   };
 
   return (
-    <PortalFrame eyebrow="Produtividade" title="Assistente IA">
+    <PortalFrame eyebrow="Produtividade" title="SIGAPRO IA · Assistente">
       <div className="space-y-4">
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-start gap-3">
@@ -199,7 +199,7 @@ export function AiAssistantPage() {
               ) : null}
               <p className="text-xs leading-5 text-slate-600">
                 Referências para conferência humana. Não são parecer, aprovação,
-                prova de geometria ou resposta gerada pela Cloudflare.
+                prova de geometria ou resposta gerada pelo assistente.
               </p>
             </div>
           ) : null}
