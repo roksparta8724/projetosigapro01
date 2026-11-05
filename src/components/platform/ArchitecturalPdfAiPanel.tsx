@@ -167,16 +167,16 @@ export function ArchitecturalPdfAiPanel({
     <div className="flex flex-wrap items-center justify-between gap-2">
       <h4 className="flex items-center gap-2 text-sm font-extrabold">
         <BrainCircuit className="h-5 w-5 text-sky-700 dark:text-sky-300"/>
-        Leitura assistida do projeto arquitetônico — homologação
+        SIGAPRO IA · Leitura Técnica do Projeto
       </h4>
       <span className="rounded-full bg-amber-100 px-2 py-1 text-[11px] font-bold text-amber-950">
         Sem aprovação automática
       </span>
     </div>
     <p className="mt-2 text-xs leading-5 text-slate-700 dark:text-slate-200">
-      O modo visual exige provedor com leitura de imagens configurado. O Cloudflare Workers AI
-      extrai texto do PDF, mas não comprova cotas geométricas nem recuos. Toda medida
-      exige página, valor, unidade e citação consistentes, com conferência humana.
+      O SIGAPRO IA reúne leitura visual das pranchas e extração textual de documentos.
+      Os recursos são complementares: somente a leitura visual inspeciona os desenhos.
+      Nenhuma modalidade comprova conformidade legal automaticamente; confira cada cota.
     </p>
     {!plans.length?<p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-950">
       Nenhum projeto arquitetônico PDF foi encontrado como documento armazenado neste processo.
@@ -200,10 +200,10 @@ export function ArchitecturalPdfAiPanel({
             ?"border-sky-500 bg-sky-50 ring-1 ring-sky-300 dark:bg-sky-950"
             :"border-slate-200 bg-white hover:border-sky-300 dark:border-slate-700 dark:bg-slate-900"}`}>
           <span className="block break-words text-xs font-extrabold leading-5 [overflow-wrap:anywhere]">
-            Leitura visual · Claude
+            SIGAPRO IA · Leitura Visual
           </span>
           <span className="mt-1 block break-words text-[11px] leading-5 text-slate-600 dark:text-slate-300 [overflow-wrap:anywhere]">
-            Examina a prancha, mas requer saldo na API Anthropic. Não aprova projetos.
+            Analisa pranchas e cotas identificadas. Requer disponibilidade de créditos no serviço contratado.
           </span>
         </button>
         {availability.textAlternativeAvailable?(
@@ -214,10 +214,10 @@ export function ArchitecturalPdfAiPanel({
               ?"border-sky-500 bg-sky-50 ring-1 ring-sky-300 dark:bg-sky-950"
               :"border-slate-200 bg-white hover:border-sky-300 dark:border-slate-700 dark:bg-slate-900"}`}>
             <span className="block break-words text-xs font-extrabold leading-5 [overflow-wrap:anywhere]">
-              Leitura textual · Cloudflare
+              SIGAPRO IA · Leitura Documental
             </span>
             <span className="mt-1 block break-words text-[11px] leading-5 text-slate-600 dark:text-slate-300 [overflow-wrap:anywhere]">
-              Usa a cota Workers AI disponível; extrai texto, sem conferir a geometria dos recuos.
+              Extrai o conteúdo escrito do PDF, sujeito à cota disponível; não verifica a geometria dos recuos.
             </span>
           </button>
         ):null}
@@ -226,20 +226,37 @@ export function ArchitecturalPdfAiPanel({
         <input type="checkbox" checked={consent} disabled={readOnly||loading}
           onChange={event=>setConsent(event.target.checked)} />
         <span className="min-w-0 break-words leading-5 [overflow-wrap:anywhere]">
-          Autorizo o envio deste PDF ao {readingMode==="cloudflare_text"
-            ?"Cloudflare Workers AI para extração exclusivamente textual"
-            :"Claude/Anthropic para leitura visual assistida"}.
-          Sei que a leitura pode falhar ou interpretar o documento incorretamente;
-          nenhuma decisão nem mudança de processo será automática.
+          Autorizo o envio deste PDF ao prestador externo de processamento correspondente
+          à modalidade SIGAPRO IA selecionada. Sei que a leitura pode falhar
+          e que nenhuma decisão nem mudança no processo será automática.
+          O prestador está identificado em “Informações sobre o processamento” abaixo.
         </span>
       </label>
+      <details data-sigapro-ai-processor-disclosure="true"
+        className="mt-2 min-w-0 max-w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
+        <summary className="cursor-pointer break-words font-semibold [overflow-wrap:anywhere]">
+          Informações sobre o processamento
+        </summary>
+        <p className="mt-2 break-words leading-5 [overflow-wrap:anywhere]">
+          O PDF será transmitido a um prestador externo exclusivamente para o recurso
+          selecionado, após sua autorização.
+          {readingMode==="cloudflare_text"
+            ?" Prestador: Cloudflare Workers AI (extração textual)."
+            :" Prestador: Anthropic, serviço Claude (leitura visual)."}
+          Consulte as condições de privacidade e contratação aplicáveis à Prefeitura.
+        </p>
+      </details>
       <p role="status" data-sigapro-ai-pdf-provider-status={availability.status}
         className={"mt-3 min-w-0 max-w-full break-words text-xs font-semibold leading-5 [overflow-wrap:anywhere] "+(
           readyForSelectedMode?"text-emerald-800 dark:text-emerald-300":
           "text-amber-800 dark:text-amber-200")}>
-        {readingMode==="cloudflare_text"&&availability.textAlternativeAvailable
-          ?"Cloudflare Workers AI disponível nesta prévia para extração textual, sujeita à cota de uso. Este modo não mede recuos."
-          :availability.message}
+        {availability.status==="checking"
+          ?"Verificando a disponibilidade do SIGAPRO IA..."
+          :readyForSelectedMode
+            ?readingMode==="cloudflare_text"
+              ?"Leitura Documental disponível, sujeita à cota de uso. Este modo não mede recuos."
+              :"Leitura Visual configurada. A execução depende dos créditos do serviço de processamento."
+            :"Módulo de leitura indisponível. Solicite a conferência das configurações e permissões."}
       </p>
       {selected && availability.status!=="checking" ? (
         <div role="status" data-sigapro-pdf-technical-preflight={
@@ -259,21 +276,19 @@ export function ArchitecturalPdfAiPanel({
       {availability.provider==="claude"&&availability.status==="ready"&&readingMode==="visual"?(
         <p role="note" data-sigapro-claude-credit-not-verified="true"
           className="mt-2 rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs font-semibold leading-5 text-amber-950">
-          Claude configurado no servidor, mas o saldo da API ainda não foi confirmado.
-          Esta verificação não envia o PDF e não gera cobrança. Se a Anthropic
-          estiver sem créditos ou com limite de gastos atingido, a leitura será
-          interrompida com aviso específico, sem aplicar nenhuma medida.
+          A Leitura Visual está configurada, mas o saldo do prestador ainda não foi confirmado.
+          Esta verificação não transmite o PDF nem gera cobrança. Se o limite de
+          processamento for atingido, a operação será interrompida sem aplicar medidas.
         </p>
       ):null}
       {availability.mode==="text_only"&&availability.status==="ready"&&
         !availability.textAlternativeAvailable?(
         <p role="note" data-sigapro-pdf-visual-provider-needed="true"
           className="mt-2 rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs font-semibold leading-5 text-amber-950">
-          Para homologar a leitura visual de recuos, configure exclusivamente no servidor
-          Preview desta branch um provedor de PDF com visão (por exemplo,
-          SIGAPRO_AI_PDF_PROVIDER=claude e a credencial ANTHROPIC_API_KEY).
-          A Cloudflare disponível neste ambiente é somente textual: não prova geometria.
-          Nunca inclua a chave no formulário, no código ou na conversa.
+          Para homologar a leitura visual de recuos, o administrador técnico deve habilitar
+          o serviço de análise de PDFs com suporte a imagens no ambiente de testes.
+          A Leitura Documental extrai apenas texto e não comprova geometria.
+          Nunca informe credenciais em formulários ou mensagens.
         </p>
       ):null}
       {readingMode==="cloudflare_text"&&availability.textAlternativeAvailable?<p
@@ -285,9 +300,9 @@ export function ArchitecturalPdfAiPanel({
       {billingUnavailable&&availability.textAlternativeAvailable&&readingMode==="visual"?(
         <p role="note" data-sigapro-ai-credit-alternative="true"
           className="mt-3 min-w-0 max-w-full rounded-xl border border-sky-200 bg-sky-50 p-3 text-xs font-semibold leading-5 text-sky-950 break-words [overflow-wrap:anywhere]">
-          Não há saldo disponível no Claude. Para testar a interpretação de textos do PDF,
-          selecione acima “Leitura textual · Cloudflare” e autorize o novo envio.
-          Essa alternativa não verifica a geometria dos recuos.
+          O serviço de Leitura Visual está sem créditos disponíveis.
+          Para testar a extração de texto, selecione “SIGAPRO IA · Leitura Documental”
+          e autorize o novo envio. A alternativa não verifica a geometria dos recuos.
         </p>
       ):null}
       <Button type="button" data-sigapro-ai-read-project="true"
@@ -297,8 +312,8 @@ export function ArchitecturalPdfAiPanel({
         onClick={()=>void scan()}>
         {loading?<Loader2 className="mr-2 h-4 w-4 animate-spin"/>:<FileText className="mr-2 h-4 w-4"/>}
         {loading
-          ? readingMode==="cloudflare_text"?"Extraindo texto com Cloudflare...":"Lendo prancha com Claude..."
-          : readingMode==="cloudflare_text"?"Extrair texto com Cloudflare":"Ler projeto visualmente com Claude"}
+          ? readingMode==="cloudflare_text"?"SIGAPRO IA · Extraindo texto...":"SIGAPRO IA · Analisando prancha..."
+          : readingMode==="cloudflare_text"?"Extrair texto com SIGAPRO IA":"Analisar prancha com SIGAPRO IA"}
       </Button>
     </>}
     {error?<p role="alert" className="mt-3 min-w-0 max-w-full rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs leading-5 text-rose-900 break-words [overflow-wrap:anywhere] dark:bg-slate-900 dark:text-rose-100">
@@ -307,8 +322,8 @@ export function ArchitecturalPdfAiPanel({
     {draft? <div className="mt-4 space-y-3">
       {draft.source==="ai_pdf_text"?<p role="status"
         className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs font-semibold text-amber-950">
-        Workers AI converteu o PDF em texto. Recuos e geometria não foram validados:
-        apenas informações com trecho literal podem ser conferidas no documento original.
+        A Leitura Documental converteu o PDF em texto. Recuos e geometria não foram
+        validados: somente trechos verificáveis podem ser conferidos no PDF original.
       </p>:null}
       <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-white">
         <strong>{draft.documentType==="architectural_plan"?"Projeto identificado pela IA":"Identificação do documento incerta"}</strong>
