@@ -885,7 +885,7 @@ export function UrbanQuadroIIWorkspacePanel({
                             item.category_code.normalize("NFKC").trim().toLocaleUpperCase("pt-BR"));
                         const sourceCheck = matchingProposal
                           ? prepareQuadroIIPdfAssistedPrefill(
-                            municipalityId, workspace.document_sha256,
+                            municipalityId, workspace?.document_sha256 || "",
                             item.page_number, matchingProposal,
                           )
                           : null;
