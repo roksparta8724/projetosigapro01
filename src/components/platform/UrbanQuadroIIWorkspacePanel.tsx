@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { UrbanQuadroIILegalReviewPanel } from "@/components/platform/UrbanQuadroIILegalReviewPanel";
+import { buildUrbanQuadroIIReviewQueue, type QuadroIIQueueItem } from "@/lib/urbanQuadroIIReviewQueue";
 import {
   listUrbanQuadroIIWorkspace, saveUrbanQuadroIIDraft,
   type UrbanQuadroIIDraftInput, type UrbanQuadroIISuggestion, type UrbanQuadroIIWorkspace,
@@ -27,6 +28,8 @@ export function UrbanQuadroIIWorkspacePanel({
   const [confirmed, setConfirmed] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [selectedSuggestion, setSelectedSuggestion] = useState<UrbanQuadroIISuggestion | null>(null);
+  const [showReviewQueue, setShowReviewQueue] = useState(false);
+  const [queueFilter, setQueueFilter] = useState<"pending" | "all">("pending");
   const [retryToken, setRetryToken] = useState(0);
   const editorRef = useRef<HTMLDivElement | null>(null);
   const pageIndexRef = useRef<HTMLDivElement | null>(null);
@@ -65,6 +68,9 @@ export function UrbanQuadroIIWorkspacePanel({
   const draftCount = useMemo(
     () => workspace?.entries.length || 0, [workspace],
   );
+  const reviewQueue = useMemo(() => buildUrbanQuadroIIReviewQueue(workspace), [workspace]);
+  const pendingQueue = reviewQueue.items.filter(item => item.status !== "draft_unverified");
+  const visibleQueue = queueFilter === "pending" ? pendingQueue : reviewQueue.items;
   const pageCount = workspace?.pages.length || 0;
   const sourcePages = workspace?.pages.filter((page) => page.source_quality === "machine_unverified" && Boolean(page.source_evidence_text)).length || 0;
   const visualOnlyPages = workspace?.pages.filter((page) => page.source_quality === "visual_required").length || 0;
@@ -156,6 +162,20 @@ export function UrbanQuadroIIWorkspacePanel({
     setFormOpen(true);
     setError("");
     setNotice("Campos pré-preenchidos pela leitura do PDF. Confira as páginas indicadas e corrija os pontos duvidosos antes de registrar.");
+  };
+  const openQueueItem = (item: QuadroIIQueueItem) => {
+    if (saving) return;
+    if (item.status === "draft_unverified") {
+      selectPage(item.pageNumber);
+      return;
+    }
+    setActivePage(item.pageNumber);
+    if (canEdit) prepareSuggestion(item.pageNumber, item.proposal);
+    else {
+      setFormOpen(false);
+      setSelectedSuggestion(null);
+      setDraft(emptyDraft(item.pageNumber));
+    }
   };
   const setField = (key: keyof Omit<UrbanQuadroIIDraftInput, "pageNumber">, value: string) => {
     setDraft((current) => ({ ...current, [key]: value }));
@@ -259,6 +279,83 @@ export function UrbanQuadroIIWorkspacePanel({
             O PDF contém {sourcePages} páginas com evidência de leitura em preparação e {suggestions} sugestões
             de categorias ainda não conferidas. Texto extraído pode misturar colunas, especialmente estacionamento e
             zonas. Nenhuma sugestão é norma e nada entra na análise da IA sem revisão documental e jurídica.
+          </div>
+          <div data-urban-qii-review-queue="true"
+            className="mt-3 min-w-0 rounded-2xl border border-sky-200 bg-white p-4 text-slate-900 dark:border-sky-700 dark:bg-slate-950 dark:text-white">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h5 className="text-sm font-extrabold text-slate-950 dark:text-white">Fila de conferência — todas as categorias</h5>
+                <p className="mt-1 text-xs leading-5 text-slate-600 dark:text-slate-200">
+                  Organizada por página e categoria. Um rascunho nunca é licença, norma ativa ou evidência jurídica.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" variant="outline" size="sm"
+                  aria-expanded={showReviewQueue} onClick={() => setShowReviewQueue(value => !value)}>
+                  {showReviewQueue ? "Ocultar fila" : "Ver fila completa"}
+                </Button>
+                <Button type="button" size="sm" disabled={!canEdit || saving || pendingQueue.length === 0}
+                  onClick={() => {const next = pendingQueue[0]; if (next) openQueueItem(next);}}
+                  className="bg-[#0b3150] !text-white">
+                  Revisar próxima pendência
+                </Button>
+              </div>
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-4">
+              {([
+                ["Sugestões identificadas", reviewQueue.total],
+                ["Rascunhos sem homologação", reviewQueue.drafts],
+                ["Aguardam transcrição literal", reviewQueue.missingLiteral],
+                ["Exigem inspeção visual", reviewQueue.visualRequired],
+              ] as const).map(([label, count]) => (
+                <div key={label} className="min-w-0 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-900">
+                  <p className="text-[11px] leading-4 text-slate-600 dark:text-slate-200">{label}</p>
+                  <strong className="mt-1 block text-lg tabular-nums text-slate-950 dark:text-white">{count}</strong>
+                </div>
+              ))}
+            </div>
+            <p data-urban-qii-literal-count="true"
+              className="mt-2 text-xs font-semibold leading-5 text-amber-900 dark:text-amber-200">
+              {reviewQueue.literalCandidates} trecho(s) extraído(s) com tamanho suficiente para conferência,
+              ainda não validado(s). Todos os demais exigem transcrição visual do PDF original.
+            </p>
+            {showReviewQueue ? (
+              <div className="mt-3">
+                <div className="flex flex-wrap gap-2" role="group" aria-label="Filtrar categorias do Quadro II">
+                  <button type="button" aria-pressed={queueFilter === "pending"}
+                    className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs font-bold text-sky-950"
+                    onClick={() => setQueueFilter("pending")}>Pendentes ({pendingQueue.length})</button>
+                  <button type="button" aria-pressed={queueFilter === "all"}
+                    className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-900"
+                    onClick={() => setQueueFilter("all")}>Todas ({reviewQueue.total})</button>
+                </div>
+                <div className="mt-2 max-h-72 space-y-2 overflow-y-auto overscroll-contain rounded-xl border border-slate-200 p-2 dark:border-slate-700">
+                  {visibleQueue.length === 0 ? <p className="p-2 text-xs text-slate-600 dark:text-slate-200">
+                    Não há sugestões nesta categoria de filtro.
+                  </p> : visibleQueue.map(item => (
+                    <div key={item.pageNumber + ":" + item.categoryCode}
+                      className="flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 bg-slate-50 p-2 dark:border-slate-700 dark:bg-slate-900">
+                      <div className="min-w-0 flex-1">
+                        <p className="break-words text-xs font-bold text-slate-900 dark:text-white">
+                          Pág. {item.pageNumber} · {item.categoryCode} — {item.description}
+                        </p>
+                        <p className="mt-1 text-[11px] text-slate-600 dark:text-slate-200">
+                          {item.status === "draft_unverified" ? "Rascunho registrado; sem validação legal"
+                            : item.status === "visual_required" ? "PDF girado ou extração insuficiente; conferência visual obrigatória"
+                            : item.status === "literal_candidate" ? "Trecho candidato disponível; verificar literalmente no PDF"
+                            : "Trecho literal ausente; transcrever a fonte original"}
+                        </p>
+                      </div>
+                      <button type="button" disabled={saving}
+                        onClick={() => openQueueItem(item)}
+                        className="shrink-0 rounded-lg border border-sky-300 bg-white px-3 py-2 text-xs font-bold text-sky-950 disabled:opacity-50 dark:border-sky-500 dark:bg-slate-800 dark:text-white">
+                        {item.status === "draft_unverified" ? "Ver registro" : canEdit ? "Preparar revisão" : "Ver página"}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
           </div>
           <p className="mt-4 text-sm font-bold text-slate-900 dark:text-white">Índice de leitura — páginas 38 a 51</p>
           <div ref={pageIndexRef} data-urban-qii-index="true"
