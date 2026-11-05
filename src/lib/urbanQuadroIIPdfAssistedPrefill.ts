@@ -15,11 +15,15 @@ export const LC379_QUADRO_II_SHA =
 
 type Correction = {
   quote?: string;
+  description?: string;
+  /** Printed zoning candidates; never copied into legal permissions automatically. */
+  sourceZones?: string;
   parking?: string;
   road?: string;
   conditions?: string;
   pages?: readonly number[];
   warning?: string;
+  focusedReview?: boolean;
 };
 
 // Key is the page of the CATEGORY, not necessarily the page of its values.
@@ -77,13 +81,57 @@ const reviewedPdfCandidates: Record<string, Correction> = {
   "47:C1.1": {quote:"Mercearia, laticínios",parking:"1 vaga a cada 75 m² ou fração.",road:"N3, E3",conditions:"Carga: no mínimo 1 vaga. Nota: área construída de até 50 m² admite condição especial para via E4, com mitigação de impactos."},
   "47:C1.2": {quote:"Confeitaria, doceira, bomboniere, sorveteria, rotisserie",parking:"1 vaga a cada 75 m² ou fração.",road:"N3, E3",conditions:"Carga: no mínimo 1 vaga. Nota: área construída de até 50 m² admite condição especial para via E4, com mitigação de impactos."},
 
-  "48:C2.1": {quote:"Artigos esportivos e recreativos"},
-  "48:C2.2": {quote:"Pet-shop, produtos de agropecuária"},
-  "48:C2.3": {quote:"Comércio e dep. De materiais de construção"},
-  "48:C2.4": {quote:"Concessionária de veículos (agência e oficina)"},
-  "48:C2.5": {quote:"Postos de Abastecimento e serviços automobilísticos"},
-  "48:C2.6": {quote:"Artefatos de borracha, plástico, carvão"},
-  "48:C2.7": {parking:"",warning:"Descrição Centro de compras / Shopping Center em células distintas. Validar literalmente as colunas e valores na página 49 antes de preencher vagas.",pages:[48,49]},
+  // The C2 category names/activities are on p.48; the regulatory rows
+  // continue on p.49. Inspect column boundaries before copying any ratio.
+  // These are candidates for review, NOT active zoning rules.
+  "48:C2.1": {
+    quote:"Artigos esportivos e recreativos", pages:[48,49],
+    road:"N3, E2", sourceZones:"ZC / ZM-MA / ZM-MB",
+    parking:"1 vaga para cada 25 m² ou fração.",
+    conditions:"Carga e descarga: 1 vaga para cada 250 m² ou fração; mínimo 1 vaga.",
+  },
+  "48:C2.2": {
+    quote:"Pet-shop, produtos de agropecuária", pages:[48,49],
+    road:"N3, E2", sourceZones:"ZC / ZM-MA / ZM-MB",
+    parking:"1 vaga para cada 75 m² ou fração.",
+    conditions:"Carga e descarga: 1 vaga para cada 250 m² ou fração; mínimo 1 vaga.",
+  },
+  "48:C2.3": {
+    quote:"Comércio e dep. De materiais de construção", pages:[48,49],
+    road:"N2, E1", sourceZones:"ZC / ZM-MA",
+    parking:"1 vaga para cada 20 m² de área de venda ou fração.",
+    conditions:"Carga e descarga: 1 vaga para cada 100 m² ou fração.",
+  },
+  "48:C2.4": {
+    quote:"Concessionária de veículos (agência e oficina)", pages:[48,49],
+    // The original C2.4 header spans TWO different regulatory subcolumns.
+    // A single parking number, zone or road here would misrepresent the law.
+    road:"", parking:"", sourceZones:"",
+    conditions:"DUAS SUBCOLUNAS no original: concessionária/veículos: via N2, E1; estacionamento da frota ou veículos à venda + 1 vaga para cada 100 m² de administração/serviço; carga 0. Alimentação/restaurantes: via N3, E2, E1(T); estacionamento 1 vaga/25 m² ou fração; carga 1 vaga/250 m² ou fração. Não unificar sem subtipo da atividade.",
+    focusedReview:true,
+    warning:"C2.4 abrange duas subcolunas com zoneamento, vias e índices de estacionamento distintos na página 49. Requer vínculo de cada atividade à subcoluna e revisão jurídica individual; não produzir uma exigência única.",
+  },
+  "48:C2.5": {
+    quote:"Postos de Abastecimento e serviços automobilísticos", pages:[48,49],
+    road:"N2, E2", sourceZones:"ZM-MA / ZM-MB / ZC / ZM B / ZM B(e)",
+    parking:"1 vaga para cada 50 m² de área de venda ou fração.",
+    conditions:"Carga e descarga: 1 vaga para cada 250 m² ou fração.",
+  },
+  "48:C2.6": {
+    quote:"Artefatos de borracha, plástico, carvão", pages:[48,49],
+    road:"N1, E1", sourceZones:"ZC / ZM-MA",
+    parking:"1 vaga para cada 100 m² ou fração.",
+    conditions:"Carga e descarga: 1 vaga para cada 250 m² ou fração.",
+  },
+  "48:C2.7": {
+    // These are two separate printed cells under C2.7 on p.48,
+    // joined only with a newline. Never present as a single verbatim sentence.
+    quote:"Centro de compras\nShopping Center", description:"Centro de compras e shopping centers (C2.7)",
+    pages:[48,49], road:"N1", sourceZones:"ZC / ZM-MA",
+    parking:"", conditions:"",
+    focusedReview:true,
+    warning:"'Centro de compras' e 'Shopping Center' são linhas distintas da mesma coluna C2.7 (p.48). Na página 49, a hierarquia é N1, mas as células de estacionamento e carga estão EM BRANCO no original. Não interpretar branco como isenção nem inventar taxas. Conferir a legislação complementar e o enquadramento antes de homologar.",
+  },
 
   "50:C3.1": {quote:"Comercio atacadista de produtos alimentícios, vestuários",parking:"1 vaga a cada 20 m² de área de venda ou fração.",road:"N2, E1",conditions:"Carga e descarga: 1 vaga para cada 250 m² ou fração."},
   "50:C3.2": {quote:"Alcool, armazenamento de petróleo, carvão, combustível, gás",parking:"1 vaga a cada 50 m² ou fração.",road:"N1",conditions:"Zona impressa: ZI. Carga e descarga: 1 vaga para cada 250 m² ou fração."},
@@ -91,6 +139,9 @@ const reviewedPdfCandidates: Record<string, Correction> = {
 
 export type AssistedQuadroIIPrefill = {
   sourceExcerpt: string;
+  /** Exact municipality/scanned document provenance required. */
+  sourceZonesCandidate: string;
+  useDescriptionCandidate: string;
   roadHierarchy: string;
   parkingRequirement: string;
   specialConditions: string;
@@ -124,6 +175,7 @@ export function prepareQuadroIIPdfAssistedPrefill(
   // whenever the scan explicitly warns about ambiguous numeric evidence.
   const ambiguity = /parcialmente|encobert|borrad|ileg[ií]vel|denominador|raz[aã]o.*vaga|c[eé]lula de estacionamento|impress[aã]o|fra[cç][aã]o impressa|ambiguidade|unidade.*conflit|n[aã]o calcular vagas/i;
   const focusedReviewReasons = [
+    ...(override?.focusedReview && override.warning ? [override.warning] : []),
     ...(override?.warning && ambiguity.test(override.warning) ? [override.warning] : []),
     ...((proposal.field_warnings || []).filter(note => ambiguity.test(note))),
     ...(override?.parking === "" && Boolean((proposal.parking_requirement_text || "").trim())
@@ -136,6 +188,8 @@ export function prepareQuadroIIPdfAssistedPrefill(
   ];
   return {
     sourceExcerpt: hasLiteralCandidate ? preferred.slice(0,1600) : "",
+    sourceZonesCandidate: (override?.sourceZones || "").slice(0,600),
+    useDescriptionCandidate: (override?.description || "").slice(0,200),
     roadHierarchy: (override?.road ?? proposal.road_hierarchy_text ?? "").slice(0,600),
     parkingRequirement: (override?.parking ?? proposal.parking_requirement_text ?? "").slice(0,600),
     specialConditions: (override?.conditions ?? proposal.special_conditions_text ?? "").slice(0,800),
