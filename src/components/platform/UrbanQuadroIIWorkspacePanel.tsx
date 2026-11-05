@@ -97,12 +97,22 @@ export function UrbanQuadroIIWorkspacePanel({
     proposal.status === "proposal_unverified" &&
     !workspace?.entries.some((entry) => entry.page_number === selectedPage?.page_number &&
       entry.category_code.trim().toUpperCase() === proposal.category_code.trim().toUpperCase()));
-  const readyForBatch = pendingForPage.map((proposal) => ({
+  const pageBatchCandidates = pendingForPage.map((proposal) => ({
     proposal,
     assisted: prepareQuadroIIPdfAssistedPrefill(
       municipalityId, workspace?.document_sha256 || "", selectedPage?.page_number || 0, proposal,
     ),
-  })).filter(({assisted}) => assisted.hasLiteralCandidate && assisted.sourceExcerpt.length >= 20);
+  }));
+  // A fragment of source text does not resolve an illegible numeric table
+  // cell. Never include numeric doubts or visually rotated pages in a bulk
+  // action whose checkbox says the whole page was checked.
+  const pageNeedsVisualReview = selectedPage?.visual_warning ||
+    selectedPage?.source_quality === "visual_required";
+  const readyForBatch = pageBatchCandidates.filter(({assisted}) =>
+    !pageNeedsVisualReview && assisted.hasLiteralCandidate &&
+    assisted.sourceExcerpt.length >= 20 && !assisted.requiresFocusedReview);
+  const needsIndividualReview = pageBatchCandidates.filter(({assisted}) =>
+    pageNeedsVisualReview || !assisted.hasLiteralCandidate || assisted.requiresFocusedReview);
   const selectedAssisted = selectedSuggestion && selectedPage
     ? prepareQuadroIIPdfAssistedPrefill(municipalityId, workspace?.document_sha256 || "",
         selectedPage.page_number, selectedSuggestion)
@@ -728,14 +738,25 @@ export function UrbanQuadroIIWorkspacePanel({
                             <div className="flex flex-wrap items-center justify-between gap-2">
                               <strong className="text-sm">Conferência por página — sem redigitar cada categoria</strong>
                               <span className="text-[11px] font-bold">
-                                {readyForBatch.length}/{pendingForPage.length} rascunho(s) com trecho candidato
+                                {readyForBatch.length}/{pendingForPage.length} rascunho(s) sem alerta de cota ambígua
                               </span>
                             </div>
                             <p className="mt-1 text-xs leading-5">
-                              Valores legíveis da tabela original já aparecem preparados.
-                              Revise a página original (e páginas de continuação) uma vez.
-                              Os itens com trecho insuficiente permanecem pendentes; nenhuma lei será ativada.
+                              Valores localizados no PDF já aparecem preparados, mas ainda exigem conferência.
+                              O lote inclui apenas itens sem dúvida numérica explícita.
+                              Valores ilegíveis, páginas giradas ou exceções incertas são separados
+                              para revisão individual. Nada é ativado como legislação.
                             </p>
+                            {needsIndividualReview.length > 0 ? (
+                              <div data-sigapro-quadro-ii-focused-review="true"
+                                className="mt-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs font-semibold leading-5 text-amber-950">
+                                {needsIndividualReview.length} categoria(s) fora do lote por falta de
+                                trecho suficiente, tabela girada ou dúvida numérica:
+                                {" "}{needsIndividualReview.map(item => item.proposal.category_code).join(", ")}.
+                                Abra essas categorias individualmente e confira a célula original.
+                                Nenhuma informação foi descartada.
+                              </div>
+                            ) : null}
                             {canEdit && readyForBatch.length > 0 ? (
                               <>
                                 <label className="mt-2 flex items-start gap-2 text-xs font-semibold">
