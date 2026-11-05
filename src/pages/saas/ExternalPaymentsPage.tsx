@@ -100,7 +100,7 @@ export function ExternalPaymentsPage() {
         throw new Error("O provedor não confirmou uma order exclusiva do ambiente de testes.");
       }
       setQaCharges((prev) => ({ ...prev, [guide.code]: charge }));
-      setGuideActionStatus("Boleto de homologação registrado no Neon de testes. Clique em Visualizar guia para conferir os dados. NÃO PAGAR.");
+      setGuideActionStatus("Boleto de homologação registrado no ambiente de testes SIGAPRO. Clique em Visualizar guia para conferir os dados. NÃO PAGAR.");
       await refreshRemoteStore();
     } catch (error) {
       setGuideActionStatus(error instanceof Error ? error.message : "Erro na emissão bancária de homologação.");
@@ -417,7 +417,7 @@ export function ExternalPaymentsPage() {
         {import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true" ? (
           <div role="status" data-qa-payment-preview="true" className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm font-semibold leading-6 text-amber-950">
             HOMOLOGAÇÃO SIGAPRO — Utilize "Emitir boleto de TESTE" e "Gerar PIX de TESTE" para obter exclusivamente dados de cobrança simulada do Mercado Pago; depois clique em "Visualizar guia".
-            NÃO PAGAR. Nenhum PIX estático da Prefeitura é usado. R2 oficial, cobranças reais e baixas automáticas permanecem desativados.
+            NÃO PAGAR. Nenhum PIX estático da Prefeitura é usado. Arquivamento oficial, cobranças reais e baixas automáticas permanecem desativados.
           </div>
         ) : null}
         <InternalTabs
