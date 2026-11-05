@@ -158,7 +158,7 @@ begin
     'audit', to_jsonb(_audit)
   );
 end;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.guard_analysis_process_update()
@@ -237,5 +237,5 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$function$
+$function$;
 
