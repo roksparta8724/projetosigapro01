@@ -167,3 +167,88 @@ export function makeReviewedDrawingEvidence(
   return ("Prancha/PDF " + name + ", página " + page +
     "; leitura de IA conferida pelo analista: " + plain(quote, 230)).slice(0, 500);
 }
+
+/**
+ * The document analyst may pass individually checked drawing readings into the
+ * municipal legal precheck through same-origin router history state.
+ * This is not a backend approval, saved result, or a legal-source attestation.
+ */
+export type ReviewedDrawingFields = Partial<Record<UrbanMetric, {value:string;evidence:string}>>;
+export type ReviewedDrawingHandoff = {
+  kind:"sigapro.ai.reviewed-drawing.v1";
+  processId:string;
+  municipalityId:string;
+  documentId:string;
+  documentVersion:number;
+  documentName:string;
+  createdAt:number;
+  reviewed:ReviewedDrawingFields;
+};
+
+export function createReviewedDrawingHandoff(input: {
+  processId:string;municipalityId:string;
+  document:{id:string;version:number;fileName:string};
+  reviewed:ReviewedDrawingFields;
+}): {sigaproReviewedDrawing:ReviewedDrawingHandoff} | null {
+  if(!input.processId||!input.municipalityId||!input.document.id||
+    !Number.isSafeInteger(input.document.version)||input.document.version<1||
+    !input.document.fileName.trim())return null;
+  const reviewed:ReviewedDrawingFields={};
+  for(const {key} of URBAN_METRICS){
+    const item=input.reviewed[key];
+    if(!item)continue;
+    if(typeof item.value!=="string"||typeof item.evidence!=="string"||
+      !/^\\d+(?:[.,]\\d+)?$/.test(item.value.trim())||
+      !Number.isFinite(Number(item.value.replace(",",".")))||
+      item.evidence.length>500||
+      !item.evidence.includes(input.document.fileName)||
+      !/página \\d+/i.test(item.evidence))return null;
+    reviewed[key]={value:item.value,evidence:item.evidence};
+  }
+  if(!Object.keys(reviewed).length)return null;
+  return {sigaproReviewedDrawing:{
+    kind:"sigapro.ai.reviewed-drawing.v1",processId:input.processId,
+    municipalityId:input.municipalityId,
+    documentId:input.document.id,documentVersion:input.document.version,
+    documentName:input.document.fileName,createdAt:Date.now(),reviewed,
+  }};
+}
+
+export function readReviewedDrawingHandoff(
+  state:unknown,
+  context:{
+    processId:string;municipalityId:string;
+    documents:readonly {id:string;version:number;fileName:string;uploaded:boolean}[];
+  },
+  now=Date.now(),
+):ReviewedDrawingFields|null {
+  const stateObject=record(state);
+  const raw=record(stateObject?.sigaproReviewedDrawing);
+  if(!raw||raw.kind!=="sigapro.ai.reviewed-drawing.v1"||
+    raw.processId!==context.processId||
+    raw.municipalityId!==context.municipalityId||
+    typeof raw.documentId!=="string"||
+    typeof raw.documentName!=="string"||
+    typeof raw.documentVersion!=="number"||
+    typeof raw.createdAt!=="number"||
+    raw.createdAt>now+60000||now-raw.createdAt>15*60000)return null;
+  const doc=context.documents.find(item=>item.id===raw.documentId &&
+    item.version===raw.documentVersion && item.fileName===raw.documentName &&
+    item.uploaded===true);
+  if(!doc)return null;
+  const rows=record(raw.reviewed);
+  if(!rows||!Object.keys(rows).length||Object.keys(rows).length>URBAN_METRICS.length)return null;
+  const reviewed:ReviewedDrawingFields={};
+  for(const [metric,rawValue] of Object.entries(rows)){
+    if(!allMetrics.has(metric))return null;
+    const field=record(rawValue);
+    if(!field||typeof field.value!=="string"||typeof field.evidence!=="string"||
+      !/^\\d+(?:[.,]\\d+)?$/.test(field.value.trim())||
+      !Number.isFinite(Number(field.value.replace(",",".")))||
+      field.evidence.length>500||field.evidence.length<12||
+      !field.evidence.includes(doc.fileName)||
+      !/página \\d+/i.test(field.evidence))return null;
+    reviewed[metric as UrbanMetric]={value:field.value,evidence:field.evidence};
+  }
+  return reviewed;
+}
