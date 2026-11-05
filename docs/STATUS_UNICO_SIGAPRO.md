@@ -127,3 +127,5 @@ Foi obtida autorização para excluir **somente duas branches descartáveis**, e
 - Revisão de regressão em `src/test/projectAiEntryQa.test.ts`, prévia QA na branch única `fix/qa-triagem-analise-pagamento-20261101`; PR #118 draft, sem merge; Neon produção e domínio oficial intocados. Confirmar checks, build READY e teste humano após publicação.
 
 - Publicação final desta revisão inclui também rótulos SIGAPRO no dashboard, cadastro, perfil, protocolo, processo 04, guias, páginas de armazenamento, configuração financeira e respostas do assistente. Identificações técnicas de gateways permanecem selecionáveis no painel administrativo e nos documentos de cobrança; prestadores de tratamento de PDF continuam visíveis nos detalhes de consentimento. Build/QA dedicados com marcador de implantação da branch; produção permanece bloqueada.
+
+- Revisão final de CI: os três testes que comparavam literalmente mensagens antigas foram atualizados para os novos textos da marca SIGAPRO (autorização da IA e preservação da data original das guias). O código funcional e as proteções do banco não foram alterados nesta correção; reexecutar TypeScript, testes e build da QA. [deploy-qa]
