@@ -7,6 +7,7 @@ import { UrbanLegalMatrixReviewPanel } from "@/components/platform/UrbanLegalMat
 import { UrbanQuadroIIWorkspacePanel } from "@/components/platform/UrbanQuadroIIWorkspacePanel";
 import { UrbanOfficialLegalSourcesPanel } from "@/components/platform/UrbanOfficialLegalSourcesPanel";
 import { UrbanAiReadinessPanel } from "@/components/platform/UrbanAiReadinessPanel";
+import { UrbanZoningMapManagerPanel } from "@/components/platform/UrbanZoningMapManagerPanel";
 import { UrbanRegulationEvidencePanel } from "@/components/platform/UrbanRegulationEvidencePanel";
 import type { MunicipalLegalFiles } from "@/lib/urbanAiReadiness";
 import type { PreparedUrbanMatrixDraft } from "@/lib/urbanMatrixDraftPreparation";
@@ -276,6 +277,8 @@ export function MunicipalUrbanRulesSettings({
           </details>
         </>
       ) : null}
+
+      <UrbanZoningMapManagerPanel municipalityId={municipalityId} canEdit={canEdit} />
 
       <div className="mt-6 border-t border-slate-200 pt-4 dark:border-slate-700">
         <h4 className="text-sm font-bold text-slate-950 dark:text-white">Versões cadastradas neste município</h4>
