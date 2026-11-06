@@ -66,11 +66,9 @@ export function UrbanQuadroIIWorkspacePanel({
     return () => { active = false; };
   }, [municipalityId, canView, retryToken]);
 
-  // Keep the prepared form visible instead of leaving it below seven category cards.
-  useEffect(() => {
-    if (!formOpen || activePage === null) return;
-    editorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, [activePage, formOpen, selectedSuggestion?.category_code]);
+  // Never scroll the whole page in a state effect: changing the PDF page or
+  // selecting a suggested row can otherwise jump across long legal tables.
+  // Scrolling to the editor is an explicit user action below.
 
   const draftCount = useMemo(
     () => workspace?.entries.length || 0, [workspace],
@@ -510,6 +508,13 @@ export function UrbanQuadroIIWorkspacePanel({
             Escolha uma página acima ou use Anterior e Próxima. O conteúdo fica aqui,
             sem deslocar a tela para o fim da lista.
           </p>
+          {formOpen ? (
+            <button type="button" data-urban-qii-go-editor="true"
+              onClick={() => editorRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" })}
+              className="mt-2 min-h-9 rounded-lg border border-sky-300 bg-sky-50 px-3 py-2 text-xs font-bold text-sky-950 hover:bg-sky-100 dark:border-sky-600 dark:bg-[#16334a] dark:text-white">
+              Abrir formulário de conferência desta página
+            </button>
+          ) : null}
           {selectedPage ? (() => {
             const page = selectedPage;
             const entries = workspace.entries.filter((item) => item.page_number === page.page_number);
@@ -517,7 +522,7 @@ export function UrbanQuadroIIWorkspacePanel({
               <div id="sigapro-qii-selected-page" ref={pageDetailRef}
                 data-urban-qii-detail="true"
                 role="region" aria-label={`Leitura da página ${page.page_number} do Quadro II`}
-                className="mt-4 min-w-0 scroll-mt-24 overflow-hidden rounded-2xl border border-sky-200 bg-[#fbfdff] shadow-sm dark:border-sky-700 dark:bg-slate-900">
+                className="mt-4 min-w-0 scroll-mt-24 overflow-hidden [overflow-anchor:none] rounded-2xl border border-sky-200 bg-[#fbfdff] shadow-sm dark:border-sky-700 dark:bg-slate-900"
                 <div className="flex flex-wrap items-center justify-between gap-3 border-b border-sky-100 bg-white p-4 text-slate-900">
                   <div>
                     <p className="text-xs font-bold uppercase tracking-wide text-sky-800">Leitura assistida — Quadro II</p>
