@@ -62,6 +62,8 @@ export function createArchitecturalReadingReportPdf(input: {
   const kind=input.extraction.source;
   const modeName=kind==="pdf_text_local"?"EXTRACAO LOCAL DE COTAS":
     kind==="ai_pdf_text"?"INTERPRETACAO DE TEXTO POR IA":"LEITURA VISUAL POR IA";
+  const ACCENT: [number,number,number]=kind==="pdf_text_local"
+    ?[20,137,117]:kind==="ai_pdf_text"?[191,123,38]:[32,160,190];
   const method=kind==="pdf_text_local"
     ?"Extracao de texto selecionavel sem chamada a provedor externo."
     :kind==="ai_pdf_text"
@@ -77,7 +79,7 @@ export function createArchitecturalReadingReportPdf(input: {
   const head=(first:boolean)=>{
     pdf.setFillColor(...NAVY);
     pdf.rect(0,0,210,first?36:18,"F");
-    pdf.setFillColor(32,160,190);
+    pdf.setFillColor(...ACCENT);
     pdf.rect(0,first?35:17,210,1.3,"F");
     const mark=input.municipalityLogoDataUrl;
     if(first&&typeof mark==="string"&&mark.length<950000&&
@@ -195,6 +197,12 @@ export function createArchitecturalReadingReportPdf(input: {
   small("Emissao",(input.generatedAt||new Date()).toLocaleString("pt-BR"));
   small("Modalidade",method);
   if(input.extraction.aiProvider?.trim())small("Provedor",input.extraction.aiProvider);
+  const distinctScope=kind==="pdf_text_local"
+    ?"A camada textual das paginas foi pesquisada. Desenhos, hachuras e cotas graficas sem texto selecionavel NAO foram interpretados."
+    :kind==="ai_pdf_text"
+      ?"O prestador interpretou texto convertido do PDF. Esse modo NAO confirma distancias pelo desenho nem substitui a leitura visual."
+      :"O provedor recebeu o PDF para analise visual assistida. Apenas cotas com pagina e trecho coerentes sao devolvidas para revisao humana.";
+  banner("ESCOPO EXATO DESTA MODALIDADE",distinctScope,kind==="pdf_text_local");
   const found=input.extraction.readings.filter(x=>x.value!==null&&x.usableForReview);
   const missing=input.extraction.readings.filter(x=>x.value===null||!x.usableForReview);
   section("Resultado executivo da leitura");
@@ -251,9 +259,14 @@ export function createArchitecturalReadingReportPdf(input: {
   }
   section("Indices que ainda exigem verificacao");
   if(missing.length){
-    const labels=missing.map(x=>URBAN_METRICS.find(m=>m.key===x.metric)?.label||x.metric);
-    body(labels.join("  |  "),8.6);
-    body("Nao identificados NAO significa fora da lei. Podem faltar na prancha, estar ilegiveis ou exigir verificacao visual.",8,MUTED);
+    const undiscovered=missing.filter(x=>x.reason.includes("nao localizada")||
+      x.reason.includes("não localizada")||x.reason.includes("não localizado"));
+    const uncertain=missing.filter(x=>!undiscovered.includes(x));
+    if(undiscovered.length)body("Nao declarados ou nao reconhecidos: "+
+      undiscovered.map(row=>URBAN_METRICS.find(m=>m.key===row.metric)?.label||row.metric).join("; "),8.6);
+    if(uncertain.length)body("Evidencia insuficiente ou a conferir: "+
+      uncertain.map(row=>URBAN_METRICS.find(m=>m.key===row.metric)?.label||row.metric).join("; "),8.6);
+    body("Nao identificado NAO significa fora da lei. A ausencia de cota exige conferencia e nao autoriza juizo de conformidade.",8,MUTED);
   }else body("Todos os indices retornados tem cota candidata, sem dispensar conferencia humana.",8,MUTED);
   section("Situacao territorial e zoneamento");
   const t=input.territorial;
