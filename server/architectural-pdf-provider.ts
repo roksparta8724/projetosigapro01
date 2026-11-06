@@ -4,6 +4,7 @@
  * independently, explicitly configured. Fixed HTTPS endpoints only.
  */
 import { normalizeArchitecturalPdfExtraction, type DrawingExtraction } from "../src/lib/architecturalPdfReadings.js";
+import {parseOnePdfReadingJson} from "../src/lib/aiStructuredJson.js";
 import { URBAN_METRICS } from "../src/lib/urbanPrecheck.js";
 import { resolveCloudflareAiConfig } from "./cloudflare-ai-provider.js";
 
@@ -239,6 +240,8 @@ async function extractCloudflarePdf(
           "Retorne SOMENTE um objeto JSON válido sem markdown ou texto adicional, com as chaves "+
           "document_type (architectural_plan|other|uncertain), has_site_plan (boolean), "+
           "metrics (array de objetos metric,value,page,quote,confidence) e warnings (array de strings). "+
+          "Inclua no máximo 11 métricas com medidas reais, até 5 avisos curtos, sem repetir o texto da planta. "+
+          "Não acrescente texto antes ou depois do JSON; omita métricas ausentes. "+
           "Para métricas ausentes, retorne metrics=[]; nunca invente cotas ou números. "+
           "Cite trechos LITERAIS do texto. Não afirme conformidade jurídica. "+
           "Se a origem da página não for inequívoca, use page=null."},
@@ -259,18 +262,16 @@ async function extractCloudflarePdf(
     throw new Error("CLOUDFLARE_MODEL_UNAVAILABLE");
   }
   const parsed=await response.json() as {
-    choices?:Array<{message?:{content?:string}}>;
+    choices?:Array<{message?:{content?:string};finish_reason?:string}>;
   };
-  const body=parsed.choices?.[0]?.message?.content;
+  const selected=parsed.choices?.[0];
+  if(selected?.finish_reason==="length")throw new Error("CLOUDFLARE_MODEL_INCOMPLETE");
+  const body=selected?.message?.content;
   if(typeof body!=="string"||body.length>65000||!body.trim())
     throw new Error("CLOUDFLARE_MODEL_EMPTY");
-  let raw:unknown;
-  // A fenced JSON object is unambiguous and safe to parse; arbitrary prose is
-  // not accepted as a machine-readable measurement result.
-  const pureJson=body.trim();
-  const fenced=/^```(?:json)?\s*([\s\S]*?)\s*```$/i.exec(pureJson);
-  try{raw=JSON.parse((fenced?.[1]||pureJson).trim());}
-  catch{throw new Error("CLOUDFLARE_MODEL_INVALID_JSON");}
+  // Permit one fully valid JSON object inside a fence or short explanation.
+  // Never repair truncated syntax, select between two outputs or infer values.
+  const raw=parseOnePdfReadingJson(body);
   // Provenance check: if the alleged quoted evidence is not literally present
   // in Cloudflare's extracted PDF text, reject the measurement.
   // Any setback remains pending because a text conversion doesn't measure CAD
