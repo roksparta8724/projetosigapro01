@@ -2935,3 +2935,38 @@ html body #root [data-sigapro-protocol-queue-list="true"]
   border-color: #86efac !important;
 }
 /* END SIGAPRO TRIAGE ACTION CONTRAST LOCK V1 */
+
+/* SIGAPRO IA PROJECT SHORTCUT CONTRAST LOCK V1 — 2026-11-06.
+   The document card's light/inverse theme typography rules have stronger
+   specificity than generic .text-white and can paint the label dark on blue.
+   Restrict this correction to the architectural PDF AI shortcut, preserving
+   all document cards, billing, navigation and municipal theme settings. */
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-process-document-card="true"] button[data-sigapro-ai-review-shortcut="true"],
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-process-document-card="true"] button[data-sigapro-ai-review-shortcut="true"]:is(:hover,:focus-visible,:active,:disabled) {
+  background: linear-gradient(135deg,#075985 0%,#0b76b2 100%) !important;
+  background-color: #075985 !important;
+  border-color: #0b6fa8 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  text-shadow: none !important;
+  mix-blend-mode: normal !important;
+}
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-process-document-card="true"] button[data-sigapro-ai-review-shortcut="true"]
+:is([data-sigapro-ai-review-label="true"],[data-sigapro-ai-review-icon="true"],svg,svg *) {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  stroke: currentColor !important;
+  opacity: 1 !important;
+  filter: none !important;
+  mix-blend-mode: normal !important;
+}
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-process-document-card="true"] button[data-sigapro-ai-review-shortcut="true"]:disabled
+[data-sigapro-ai-review-label="true"] {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+/* END SIGAPRO IA PROJECT SHORTCUT CONTRAST LOCK V1 */
