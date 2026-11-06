@@ -51,13 +51,14 @@ export function ArchitecturalPdfAiPanel({
     geminiQaFixture:false,geminiQaAvailable:false});
 
   const [error,setError]=useState("");
+  const [errorCode,setErrorCode]=useState("");
   const [draft,setDraft]=useState<ApiResult|null>(null);
   const [checked,setChecked]=useState<Partial<Record<UrbanMetric,boolean>>>({});
   const [notice,setNotice]=useState("");
 
   useEffect(()=>{
     setId(plans[0]?.id||"");setConsent(false);setReadingMode("visual");
-    setBillingUnavailable(false);setDraft(null);setChecked({});setError("");setNotice("");
+    setBillingUnavailable(false);setDraft(null);setChecked({});setError("");setErrorCode("");setNotice("");
   },[process.id,plans[0]?.id]);
 
   useEffect(()=>{
@@ -129,7 +130,7 @@ export function ArchitecturalPdfAiPanel({
   const changeReadingMode=(next:ReadingMode)=>{
     if(readOnly||loading||next===readingMode)return;
     setReadingMode(next);setConsent(false);setDraft(null);
-    setChecked({});setError("");setNotice("");
+    setChecked({});setError("");setErrorCode("");setNotice("");
   };
   const applied=draft?.readings.filter(row=>
     row.usableForReview && checked[row.metric] &&
@@ -137,7 +138,7 @@ export function ArchitecturalPdfAiPanel({
   async function scan(){
     if(readOnly||!selected||!latest||!consent||loading||
       !readyForSelectedMode||availability.documentReady!==true)return;
-    setDraft(null);setChecked({});setError("");setNotice("");setLoading(true);
+    setDraft(null);setChecked({});setError("");setErrorCode("");setNotice("");setLoading(true);
     try{
       const session=(await backendClient.auth.getSession()).data?.session;
       const jwt=session?.access_token||session?.accessToken||session?.token||"";
@@ -151,6 +152,8 @@ export function ArchitecturalPdfAiPanel({
       const result=await response.json() as Partial<ApiResult>&{error?:string;code?:string};
       if(!response.ok){
         if(result.code==="AI_PROVIDER_BILLING")setBillingUnavailable(true);
+        if(typeof result.code==="string"&&/^[A-Z][A-Z0-9_]{2,60}$/.test(result.code))
+          setErrorCode(result.code);
         throw new Error(result.error||"Não foi possível ler o projeto.");
       }
       if(result.processId!==process.id||result.documentId!==selected.id||
@@ -322,7 +325,7 @@ export function ArchitecturalPdfAiPanel({
           ?"Verificando a disponibilidade do SIGAPRO IA..."
           :readyForSelectedMode
             ?readingMode==="cloudflare_text"
-              ?"Leitura Documental disponível, sujeita à cota de uso. Este modo não mede recuos."
+              ?"Integração textual configurada, mas a conexão e a cota só serão confirmadas na execução. Este modo não mede recuos."
               :readingMode==="openai_visual"
                 ?"Leitura Avançada configurada. As pranchas serão processadas com imagens em alta definição; depende de créditos da API."
                 :readingMode==="gemini_qa"
@@ -393,9 +396,16 @@ export function ArchitecturalPdfAiPanel({
             readingMode==="gemini_qa"?"Executar ensaio visual do projeto 04":"Analisar prancha com SIGAPRO IA"}
       </Button>
     </>}
-    {error?<p role="alert" className="mt-3 min-w-0 max-w-full rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs leading-5 text-rose-900 break-words [overflow-wrap:anywhere] dark:bg-slate-900 dark:text-rose-100">
-      {error}
-    </p>:null}
+    {error?<div data-sigapro-ai-reading-error="true"
+      className="mt-3 min-w-0 max-w-full rounded-xl border border-rose-300 bg-rose-50 p-3 text-xs leading-5 text-rose-950 dark:border-rose-600 dark:bg-rose-950 dark:text-rose-100 [overflow-wrap:anywhere]">
+      <p role="alert" className="break-words font-semibold">{error}</p>
+      {errorCode?<details className="mt-2 text-[11px]">
+        <summary className="cursor-pointer font-semibold underline-offset-2">
+          Detalhes técnicos para o suporte
+        </summary>
+        <code data-sigapro-ai-diagnostic-code="true" className="mt-1 block break-all">{errorCode}</code>
+      </details>:null}
+    </div>:null}
     {draft? <div className="mt-4 space-y-3">
       {draft.source==="ai_pdf_text"?<p role="status"
         className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs font-semibold text-amber-950">
