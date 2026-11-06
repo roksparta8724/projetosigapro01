@@ -705,7 +705,7 @@ export function ArchitecturalPdfAiPanel({
         </p>)}
       </details>
       <div className={`grid min-w-0 gap-2 ${compact?"grid-cols-1":"md:grid-cols-2"}`}>
-        {draft.readings.map(row=>{
+        {draft.readings.filter(row=>row.value!==null&&row.usableForReview).map(row=>{
           const meta=URBAN_METRICS.find(m=>m.key===row.metric)!;
           const canUse=row.usableForReview && activeMetrics.includes(row.metric) &&
             !readOnly && draft.documentId===id;
@@ -732,9 +732,19 @@ export function ArchitecturalPdfAiPanel({
               <summary className="cursor-pointer text-xs font-semibold">Por que ainda não foi confirmado?</summary>
               <p className="mt-1 text-[13px] leading-5">{row.reason}</p>
             </details>:null}
-            {canUse?<label className="mt-2 flex min-w-0 items-start gap-2 text-xs font-semibold text-slate-950 dark:text-slate-100">
-              <input type="checkbox" checked={Boolean(checked[row.metric])}
-                onChange={e=>setChecked(v=>({...v,[row.metric]:e.target.checked}))}/>
+            {canUse?<label
+              className="mt-3 flex min-w-0 cursor-pointer items-start gap-2 rounded-lg border border-sky-200 bg-sky-50 px-2.5 py-2.5 text-xs font-semibold leading-5 text-sky-950 dark:border-sky-700 dark:bg-[#15324b] dark:text-white">
+              <input type="checkbox" className="peer sr-only"
+                data-sigapro-ai-metric-review-checkbox={row.metric}
+                checked={Boolean(checked[row.metric])}
+                onChange={e=>setChecked(v=>({...v,[row.metric]:e.target.checked}))}
+                aria-label={"Conferi "+meta.label+" na prancha original"}/>
+              <span aria-hidden="true"
+                className={"flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 peer-focus-visible:ring-2 peer-focus-visible:ring-sky-400 "+
+                  (checked[row.metric]?"border-sky-700 bg-sky-700 text-white dark:border-sky-300 dark:bg-sky-500"
+                    :"border-slate-700 bg-white dark:border-white dark:bg-[#0f2234]")}>
+                {checked[row.metric]?<Check className="h-3.5 w-3.5 text-white"/>:null}
+              </span>
               Conferi a medida e a página no PDF original; usar na pré-análise
             </label>:null}
             {row.usableForReview&&!activeMetrics.includes(row.metric)?
@@ -744,6 +754,36 @@ export function ArchitecturalPdfAiPanel({
           </div>;
         })}
       </div>
+      {draft.readings.every(row=>row.value===null||!row.usableForReview)?(
+        <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-xs font-semibold leading-5 text-amber-950 dark:border-amber-700 dark:bg-[#392d16] dark:text-white">
+          Nenhuma medida ficou pronta para conferência. Verifique a fonte do PDF
+          e as páginas originais antes de repetir a leitura.
+        </p>
+      ):null}
+      {draft.readings.some(row=>row.value===null||!row.usableForReview)?(
+        <details data-sigapro-ai-unidentified-measures="true"
+          className="min-w-0 rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-slate-900 dark:border-slate-600 dark:bg-[#1a3049] dark:text-white">
+          <summary className="cursor-pointer text-[13px] font-semibold">
+            Índices não identificados ou pendentes · {draft.readings.filter(row=>row.value===null||!row.usableForReview).length}
+          </summary>
+          <div className="mt-3 grid gap-2">
+            {draft.readings.filter(row=>row.value===null||!row.usableForReview).map(row=>{
+              const meta=URBAN_METRICS.find(m=>m.key===row.metric)!;
+              return <div key={row.metric} data-sigapro-pdf-measure={row.metric}
+                className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-slate-900 dark:border-slate-600 dark:bg-[#23374d] dark:text-white">
+                <p className="text-xs font-bold">{meta.label} · {row.value===null?"Não identificado":"Exige revisão"}</p>
+                {row.reason?<p className="mt-1 text-xs leading-5">{row.reason}</p>:null}
+                {row.page!==null&&onGoToPage?(
+                  <button type="button" data-sigapro-ai-go-to-page={row.page}
+                    className="mt-1 rounded-md border border-sky-300 bg-white px-2 py-1 text-xs font-bold text-sky-950 dark:border-sky-600 dark:bg-[#163b5b] dark:text-white"
+                    onClick={()=>onGoToPage(row.page!)}>Abrir prancha {row.page}</button>
+                ):null}
+                {row.quote?<p className="mt-1 break-words text-xs italic">Citação: {row.quote}</p>:null}
+              </div>;
+            })}
+          </div>
+        </details>
+      ):null}
       <Button type="button" data-sigapro-ai-apply-reviewed="true"
         className="h-auto min-h-11 min-w-0 max-w-full whitespace-normal break-words bg-slate-950 py-2 !text-white [overflow-wrap:anywhere]" disabled={!applied.length||readOnly}
         onClick={apply}>
