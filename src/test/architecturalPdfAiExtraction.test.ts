@@ -67,7 +67,10 @@ describe("SIGAPRO IA — PDF architectural drawing extraction, fail closed",()=>
   expect(panel).toContain('confirmedTransfer:true');
   expect(panel).toContain('data-sigapro-ai-apply-reviewed="true"');
   expect(panel).toContain("row.usableForReview && checked[row.metric]");
-  expect(precheck).toContain("<ArchitecturalPdfAiPanel");
+  const documentWorkspace=readFileSync("src/pages/saas/DocumentAnalysisPage.tsx","utf8");
+  expect(documentWorkspace).toContain("<ArchitecturalPdfAiPanel");
+  expect(precheck).not.toContain("<ArchitecturalPdfAiPanel");
+  expect(precheck).toContain("readReviewedDrawingHandoff");
   expect(precheck).toContain("setLegalReviewConfirmed(false)");
   expect(precheck).toContain('data-urban-precheck-legal-review="true"');
   expect(precheck).toContain("legalScopesReady && legalReviewConfirmed");
