@@ -184,4 +184,18 @@ describe("Workers AI PDF conversion with existing SIGAPRO R2 and Cloudflare conf
   expect(extraction.source).toBe("ai_pdf_text");
  });
 
+ it("bloqueia texto superior à janela em vez de omitir páginas do PDF sem aviso",async()=>{
+  let requests=0;
+  vi.stubGlobal("fetch",vi.fn(async()=>{
+    requests++;
+    return {ok:true,status:200,json:async()=>({
+      success:true,result:[{format:"markdown",data:"PÁGINA 1\n"+"Texto de planta. ".repeat(2100)}],
+    })};
+  }));
+  await expect(extractVisualPdf(new TextEncoder().encode("%PDF- arquivo PDF"),"plantas-mais-paginas.pdf",{
+    kind:"cloudflare",key,accountId:account,model:"@cf/zai-org/glm-4.7-flash",
+  })).rejects.toThrow("CLOUDFLARE_PDF_TEXT_PARTIAL");
+  expect(requests).toBe(1); // No paid interpretation, fallback or silent truncate.
+ });
+
 });
