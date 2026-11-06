@@ -3770,11 +3770,11 @@ export function ProcessDetailPage() {
                             data-primary-action="document"
                             disabled={Boolean(openingDocumentId)}
                             onClick={() => openDocumentWorkspace(document.id, true, true)}
-                            className="inline-flex min-h-10 min-w-0 max-w-full items-center justify-center gap-2 rounded-full border border-sky-500 bg-[#075985] px-4 py-2 text-center text-xs font-bold !text-white shadow-sm hover:bg-[#0c4a6e] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500 disabled:opacity-50 [&_*]:!text-white"
+                            className="sig-primary-document-action inline-flex min-h-10 min-w-0 max-w-full items-center justify-center gap-2 rounded-full border border-sky-500 bg-[#075985] px-4 py-2 text-center text-xs font-bold !text-white shadow-sm transition-colors hover:bg-[#0c4a6e] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500 disabled:cursor-wait disabled:opacity-80 [&_*]:!text-white"
                             title="Abrir esta planta na mesa de análise, com o painel SIGAPRO IA ao lado. Não envia o PDF automaticamente."
                           >
-                            <BrainCircuit className="h-4 w-4 shrink-0" />
-                            <span className="min-w-0 whitespace-normal break-words [overflow-wrap:anywhere]">
+                            <BrainCircuit data-sigapro-ai-review-icon="true" className="h-4 w-4 shrink-0 !text-white" aria-hidden="true" />
+                            <span data-sigapro-ai-review-label="true" className="min-w-0 whitespace-normal break-words !text-white [overflow-wrap:anywhere]">
                               SIGAPRO IA · Ler projeto
                             </span>
                           </button>
