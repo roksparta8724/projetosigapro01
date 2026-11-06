@@ -60,8 +60,8 @@ describe("SIGAPRO QA - orientação ao analista e recuos do projeto 04",()=>{
     expect(panel).toContain('data-sigapro-ai-mode-cloudflare-text="true"');
     expect(panel).toContain('data-sigapro-ai-processor-disclosure="true"');
     expect(panel).toContain('data-sigapro-ai-consent-checkbox="true"');
-    expect(panel).toContain('"Cloudflare"');
-    expect(panel).toContain('"Anthropic Claude"');
+    expect(panel).toContain('"Cloudflare Workers AI"');
+    expect(panel).toContain('"Anthropic"');
     expect(panel).not.toContain("Leitura visual · Claude");
     expect(panel).not.toContain("Leitura textual · Cloudflare");
     expect(panel).not.toContain("Extraindo texto com Cloudflare...");
