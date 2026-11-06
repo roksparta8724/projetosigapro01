@@ -7,7 +7,7 @@ describe("SIGAPRO QA - orientação ao analista e recuos do projeto 04",()=>{
     const editor=read("src/pages/saas/DocumentAnalysisPage.tsx");
     const precheck=read("src/components/platform/UrbanPrecheckPanel.tsx");
     expect(editor).toContain('data-sigapro-open-project-ai="true"');
-    expect(editor).toContain("navigate(buildProcessPath(process, \"analise\") + \"#sigapro-urban-precheck\")");
+    expect(editor).toContain('navigate(buildProcessPath(process, "analise") + "#sigapro-urban-precheck",');
     expect(editor).toContain('setStatus("Conclua ou cancele a observação em edição antes de abrir a IA.")');
     expect(editor).toContain("if (draftAnnotations.length && !showProjectAi) saveReviewDraft()");
     const openAi=editor.slice(editor.indexOf("const openProjectAi ="),
