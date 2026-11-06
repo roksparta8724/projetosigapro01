@@ -9,9 +9,16 @@ describe("SIGAPRO QA - orientação ao analista e recuos do projeto 04",()=>{
     expect(editor).toContain('data-sigapro-open-project-ai="true"');
     expect(editor).toContain("navigate(buildProcessPath(process, \"analise\") + \"#sigapro-urban-precheck\")");
     expect(editor).toContain('setStatus("Conclua ou cancele a observação em edição antes de abrir a IA.")');
-    expect(editor).toContain("if (draftAnnotations.length) saveReviewDraft()");
+    expect(editor).toContain("if (draftAnnotations.length && !showProjectAi) saveReviewDraft()");
+    const openAi=editor.slice(editor.indexOf("const openProjectAi ="),
+      editor.indexOf("const sendReviewedDrawingToPrecheck ="));
+    expect(openAi).toContain("setShowProjectAi");
+    expect(openAi).not.toContain("navigate(");
     expect(precheck).toContain('id="sigapro-urban-precheck"');
-    expect(precheck).toContain("<ArchitecturalPdfAiPanel");
+    expect(editor).toContain("<ArchitecturalPdfAiPanel");
+    expect(precheck).not.toContain("<ArchitecturalPdfAiPanel");
+    expect(editor).toContain('data-sigapro-project-reader-workspace="true"');
+    expect(editor).toContain('data-sigapro-ai-in-document="true"');
     expect(precheck).toContain("window.location.hash");
   });
 
