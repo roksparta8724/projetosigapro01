@@ -62,8 +62,9 @@ describe("SIGAPRO - relatório A4 institucional de leitura por modalidade",()=>{
     expect(str).toContain("NAO AVALIADA");
     expect(pdf.getNumberOfPages()).toBeGreaterThanOrEqual(2);
     expect(pdf.getNumberOfPages()).toBeLessThanOrEqual(8);
+    const pages=pdf.internal.pages as unknown as string[][];
     for(let i=1;i<=pdf.getNumberOfPages();i++){
-      expect(pdf.internal.pages[i].join("\n")).toContain("SIGAPRO");
+      expect(pages[i].join("\n")).toContain("SIGAPRO");
       expect(pdf.internal.pages[i].join("\n")).toContain("Leitura preliminar, sem efeito de aprovacao");
     }
   });
@@ -94,7 +95,7 @@ describe("SIGAPRO - relatório A4 institucional de leitura por modalidade",()=>{
     expect(pdf.getNumberOfPages()).toBeGreaterThanOrEqual(2);
     expect(pdf.getNumberOfPages()).toBeLessThan(12);
     for(let i=1;i<=pdf.getNumberOfPages();i++){
-      const content=pdf.internal.pages[i].join("\n");
+      const content=(pdf.internal.pages as unknown as string[][])[i].join("\n");
       expect(content).toContain("SIGAPRO");
       expect(content).toContain("Leitura preliminar, sem efeito de aprovacao");
     }
