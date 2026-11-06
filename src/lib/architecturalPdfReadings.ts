@@ -27,6 +27,12 @@ export type DrawingExtraction = {
     pagesWithText:number[];
     pagesWithoutText:number[];
   };
+  /** Declared drawing values outside the eleven municipal legal metrics. */
+  supplementaryFacts?: Array<{
+    kind:"built_area_m2"|"uncovered_area_m2"|"side_left_m"|"side_right_m";
+    label:string;
+    value:number;unit:"m"|"m²";page:number;quote:string;
+  }>;
 };
 
 function plain(value: unknown, max = 220): string {
