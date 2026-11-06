@@ -283,3 +283,13 @@ Confirmação na Neon branch `br-summer-surf-b4s88rv5` (produção), sem qualque
 - `src/test/aiStructuredJsonQa.test.ts` cobre resposta pura, cercada, JSON em texto explicativo, múltiplos objetos, truncamento, limite de tamanho, citações e `finish_reason=length` sem segunda chamada à IA.
 - `src/test/architecturalPremiumReaderControlsQa.test.ts` confere `iframe key={accessUrl}` e fragmento `src={previewUrl}` sem remontagem de página nem `view=FitH` duplicado.
 - **Continuam obrigatórios**: validação E2E autenticada com modelo real e créditos próprios; inspeção visual de toda prancha, imóvel cadastral, mapa GIS oficial e parâmetros jurídicos vigentes. Não publicar em produção sem essa comprovação.
+
+
+## Release QA — consolidação após revisão do vídeo (06/11/2026)
+
+- Branch: `fix/qa-triagem-analise-pagamento-20261101` · PR #118 DRAFT.
+- SHA de código validado: `afb466e0638924a9b3fc1d4535dcd955779037e8`.
+- GitHub: Quality Gate sucesso, **245 arquivos de teste e 1.406 testes aprovados**, validação Neon sucesso. Deploy de homologação só com commit contendo `[deploy-qa]`, em razão do Ignored Build Step do Vercel.
+- Melhorias: cartas/cards premium na Leitura Técnica, PDF com fragmento único e chave estável ao mudar de prancha/zoom, botão para abrir prancha citada, cancelamento e timeout da IA e parser de resposta JSON única, estrita e rastreável para Cloudflare. Não há alteração de processo, produção, permissões, regras legais ou cadastro municipal.
+- Leitura de projeto REAL: **não homologada**. Claude visual pode exigir saldo externo; Cloudflare retornou `CLOUDFLARE_MODEL_INVALID_JSON` no vídeo; parser foi corrigido em código, mas chamadas remotas após essa correção ainda exigem teste autenticado. Documentos legais continuam em `municipality_settings.general_settings` na QA. Sem perímetros GIS, vínculo cadastral QA04 e regulações reais ativas, nenhum parecer legal deve ser apresentado como conformidade.
+- O primeiro deploy manual do SHA validado foi cancelado apenas porque o commit não tinha `[deploy-qa]` (mensagem Vercel: Ignored Build Step returned exit code 0). O próximo commit de release usa o marcador correto. Não confundir cancelamento com erro de build.
