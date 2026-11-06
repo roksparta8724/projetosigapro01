@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, BrainCircuit, CheckCircle2, FileText, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { backendClient } from "@/integrations/backend/databaseClient";
-import { makeReviewedDrawingEvidence, type DrawingExtraction } from "@/lib/architecturalPdfReadings";
+import { benchmarkQa04ArchitecturalReadings, makeReviewedDrawingEvidence, type DrawingExtraction } from "@/lib/architecturalPdfReadings";
 import { URBAN_METRICS, type UrbanMetric } from "@/lib/urbanPrecheck";
 import type { ProcessRecord } from "@/lib/platform";
 
@@ -402,6 +402,27 @@ export function ArchitecturalPdfAiPanel({
         A Leitura Documental converteu o PDF em texto. Recuos e geometria não foram
         validados: somente trechos verificáveis podem ser conferidos no PDF original.
       </p>:null}
+      {readingMode==="gemini_qa"&&draft.aiProvider==="gemini"?(
+        <section data-sigapro-qa04-benchmark="true"
+          className="min-w-0 max-w-full rounded-xl border border-sky-300 bg-sky-50 p-3 text-xs text-sky-950 dark:border-sky-500 dark:bg-[#103b5e] dark:text-sky-100 [overflow-wrap:anywhere]">
+          <strong className="block text-sm">Conferência do ensaio fictício · QA04</strong>
+          <p className="mt-1">
+            {benchmarkQa04ArchitecturalReadings(draft.readings).passed} de 3 recuos
+            identificados corretamente na página 2, com citação e unidade.
+          </p>
+          {benchmarkQa04ArchitecturalReadings(draft.readings).cases.map(item=>(
+            <p key={item.metric} className="mt-1 break-words">
+              {item.verified?"✓":"–"} {item.label}: esperado {item.expected.toFixed(2).replace(".",",")} m
+              · lido {item.readValue===null?"não comprovado":item.readValue.toFixed(2).replace(".",",")+" m"}
+              {item.readPage!==null?" · página "+item.readPage:""}.
+            </p>
+          ))}
+          <p className="mt-2 font-semibold">
+            Teste de extração documental fictícia: não comprova precisão em projetos reais
+            e não valida zoneamento, legislação ou aprovação municipal.
+          </p>
+        </section>
+      ):null}
       <div className="min-w-0 rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-900 dark:border-slate-600 dark:bg-[#17283d] dark:text-slate-100 [overflow-wrap:anywhere]">
         <strong>{draft.documentType==="architectural_plan"?"Projeto identificado pela IA":"Identificação do documento incerta"}</strong>
         <p className="mt-1">Planta de implantação reconhecida: {draft.hasSitePlan?"sim":"não confirmada"}.
