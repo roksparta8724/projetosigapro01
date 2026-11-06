@@ -25,7 +25,7 @@ function decodePdfString(value:string){
   });
   // Simple 8-bit strings cover the V2 fixture and selectable Latin-based
   // drawings. Complex CID/ToUnicode fonts require a dedicated PDF library.
-  return escaped.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g,"").trim().slice(0,500);
+  return Array.from(escaped).filter(ch=>ch.charCodeAt(0)>=32).join("").trim().slice(0,500);
 }
 function contentStreams(pdf:Uint8Array):PdfPage[]{
   if(pdf.byteLength<100||pdf.byteLength>MAX_BYTES||
