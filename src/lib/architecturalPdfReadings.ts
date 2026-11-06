@@ -21,6 +21,12 @@ export type DrawingExtraction = {
   source: "ai_pdf_visual" | "ai_pdf_text" | "pdf_text_local";
   automaticallyApproved: false;
   pageAudit?: ArchitecturalPdfPageAudit;
+  /** Coverage of selectable PDF text only; never visual page certification. */
+  textCoverage?: {
+    pagesRead:number;
+    pagesWithText:number[];
+    pagesWithoutText:number[];
+  };
 };
 
 function plain(value: unknown, max = 220): string {
