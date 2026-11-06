@@ -686,7 +686,7 @@ export function DocumentAnalysisPage() {
     <main className="flex h-screen w-screen flex-col overflow-hidden bg-[#e4e9ef] text-slate-950">
       <header className="flex min-h-[68px] shrink-0 items-center justify-between gap-4 border-b border-white/10 bg-[linear-gradient(135deg,#071525_0%,#102a43_55%,#123a58_100%)] px-5 py-3 text-white lg:px-6">
         <div className="flex min-w-0 items-center gap-3">
-          <Button
+          {searchParams.get("janela") !== "1" ? <Button
             type="button"
             variant="outline"
             className="h-9 shrink-0 rounded-full border-white/15 bg-white/5 px-3 text-white hover:bg-white/10 hover:text-white"
@@ -698,9 +698,9 @@ export function DocumentAnalysisPage() {
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
             Voltar ao processo
-          </Button>
+          </Button> : null}
 
-          <div className="hidden h-8 w-px bg-white/10 sm:block" />
+          {searchParams.get("janela") !== "1" ? <div className="hidden h-8 w-px bg-white/10 sm:block" /> : null}
 
           <div className="min-w-0">
             <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-sky-200/70">
