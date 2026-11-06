@@ -63,7 +63,7 @@ describe("SIGAPRO QA - orientação ao analista e recuos do projeto 04",()=>{
     expect(panel).not.toContain("Leitura textual · Cloudflare");
     expect(panel).not.toContain("Extraindo texto com Cloudflare...");
     expect(panel).toContain("setReadingMode(next);setConsent(false);setDraft(null)");
-    expect(api).toContain("O SIGAPRO IA · Leitura Visual está sem créditos");
+    expect(api).toContain("A modalidade visual selecionada está sem créditos");
     expect(api).toContain("SIGAPRO IA · Leitura Documental");
     expect(storage).toContain("SIGAPRO Nuvem · Arquivos Oficiais");
     expect(storage).toContain('data-sigapro-storage-infrastructure="true"');
