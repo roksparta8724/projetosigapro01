@@ -1,5 +1,6 @@
 import { jsPDF } from "jspdf";
 import type { DrawingExtraction } from "./architecturalPdfReadings.js";
+import type { UrbanTerritorialReadiness } from "./urbanTerritorialReadiness.js";
 import { URBAN_METRICS } from "./urbanPrecheck.js";
 
 /**
@@ -13,6 +14,7 @@ export function createArchitecturalReadingReportPdf(input: {
   documentId: string;
   documentVersion: number;
   fileName: string;
+  territorial?: UrbanTerritorialReadiness | null;
   generatedAt?: Date;
 }) {
   if (!input.processId || !input.documentId ||
@@ -84,6 +86,19 @@ export function createArchitecturalReadingReportPdf(input: {
     "Nao comprova a geometria CAD, a autenticidade da prancha, o zoneamento, a vigencia das leis, " +
     "o atendimento aos indices urbanisticos nem a regularidade do projeto. " +
     "O analista deve conferir cada medida no arquivo original.");
+  heading("Identificacao territorial e zoneamento");
+  const territory=input.territorial;
+  paragraph("Vinculo cadastral do processo: " +
+    (territory?.cadastralLink === "linked" ? "encontrado; dados cadastrais nao equivalem a validacao de zoneamento" :
+      territory?.cadastralLink === "missing" ? "AUSENTE - processo sem imovel vinculado" :
+      "nao verificado pelo cadastro municipal"));
+  paragraph("Endereco do imovel: " + (territory?.address || "NAO COMPROVADO no cadastro vinculado."));
+  paragraph("Inscricao cadastral: " + (territory?.registration || territory?.iptu || "NAO COMPROVADA."));
+  paragraph("Lote/quadra: " + ((territory?.lot || "nao informado") + " / " +
+    (territory?.block || "nao informado")));
+  paragraph("Zona cadastrada, NAO homologada: " + (territory?.zoneCandidate || "NAO IDENTIFICADA."));
+  paragraph("Zoneamento oficial por geometria georreferenciada e lei vigente: NAO VERIFICADO.");
+  for (const reason of territory?.reasons || []) paragraph("- " + reason, 8);
   heading("Medidas observadas e pendencias");
   for (const metric of URBAN_METRICS) {
     const row = input.extraction.readings.find(reading => reading.metric === metric.key);
