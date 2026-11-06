@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, BrainCircuit, CheckCircle2, FileText, Loader2 } from "lucide-react";
+import { AlertTriangle, BrainCircuit, Check, CheckCircle2, FileText, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { backendClient } from "@/integrations/backend/databaseClient";
 import { benchmarkQa04ArchitecturalReadings, makeReviewedDrawingEvidence, type DrawingExtraction } from "@/lib/architecturalPdfReadings";
@@ -298,130 +298,120 @@ export function ArchitecturalPdfAiPanel({
       {!latest?<p role="alert" className="mt-2 text-xs font-semibold text-amber-900 dark:text-amber-200">
         Uma versão mais recente está disponível. Use a versão atual do projeto.
       </p>:null}
-      <details data-sigapro-ai-method-selector="true"
-        open={readingMode!=="native_text" ? true : undefined}
-        className="mt-3 min-w-0 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-600 dark:bg-[#192c42]">
-        <summary className="cursor-pointer text-[13px] font-extrabold text-slate-950 dark:text-white">
-          Método: {readingMode==="native_text"?"leitura local sem custo":
-            readingMode==="cloudflare_text"?"interpretação de texto":
-            readingMode==="gemini_qa"?"ensaio visual QA04":"leitura visual com IA"} · alterar
-        </summary>
       <div role="group" aria-label="Escolha o tipo de leitura do PDF"
-        className={`mt-3 grid min-w-0 gap-2 ${compact?"grid-cols-1":"md:grid-cols-2"}`}>
+        data-sigapro-ai-method-selector="true"
+        className="mt-3 grid min-w-0 grid-cols-2 gap-2">
         <button type="button" data-sigapro-ai-mode-native-text="true"
           aria-pressed={readingMode==="native_text"} disabled={readOnly||loading}
           onClick={()=>changeReadingMode("native_text")}
-          className={`min-w-0 max-w-full rounded-xl border p-3 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-600 ${readingMode==="native_text"
-            ?"border-emerald-500 bg-emerald-50 !text-emerald-950 ring-1 ring-emerald-300 dark:border-emerald-400 dark:bg-[#103d38] dark:!text-white"
-            :"border-slate-300 bg-white !text-slate-950 dark:border-slate-600 dark:bg-[#17283d] dark:!text-white"}`}>
-          <span className="block break-words text-xs font-extrabold leading-5 !text-slate-950 dark:!text-white [overflow-wrap:anywhere]">
-            SIGAPRO · Leitura Local de Cotas
-          </span>
-          <span className="mt-1 block break-words text-[11px] leading-5 !text-slate-700 dark:!text-slate-100 [overflow-wrap:anywhere]">
-            Lê texto selecionável do PDF real sem usar IA, créditos nem serviços externos.
-            Identifica cotas e páginas; não mede desenhos ou avalia a lei.
-          </span>
+          className={"min-w-0 rounded-xl border px-3 py-3 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-600 disabled:opacity-60 " +
+            (readingMode==="native_text"
+              ?"border-emerald-600 bg-emerald-50 text-emerald-950 ring-1 ring-emerald-400 dark:border-emerald-400 dark:bg-[#153c36] dark:text-white"
+              :"border-slate-300 bg-white text-slate-900 hover:border-sky-400 dark:border-slate-500 dark:bg-[#1a3049] dark:text-white")}>
+          <span className="block text-[13px] font-extrabold">Leitura Local</span>
+          <span className="mt-1 block text-xs leading-5">Texto e cotas · sem custo externo</span>
         </button>
         <button type="button" data-sigapro-ai-mode-visual="true"
           aria-pressed={readingMode==="visual"} disabled={readOnly||loading}
           onClick={()=>changeReadingMode("visual")}
-          className={`min-w-0 max-w-full rounded-xl border p-3 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-600 ${readingMode==="visual"
-            ?"border-sky-500 bg-sky-50 !text-sky-950 ring-1 ring-sky-300 dark:border-sky-400 dark:bg-[#103b5e] dark:!text-white"
-            :"border-slate-300 bg-white !text-slate-950 hover:border-sky-300 dark:border-slate-600 dark:bg-[#17283d] dark:!text-white dark:hover:border-sky-400"}`}>
-          <span className="block break-words text-xs font-extrabold leading-5 !text-slate-950 dark:!text-white [overflow-wrap:anywhere]">
-            SIGAPRO IA · Leitura Visual
-          </span>
-          <span className="mt-1 block break-words text-[11px] leading-5 !text-slate-700 dark:!text-slate-100 [overflow-wrap:anywhere]">
-            Analisa pranchas e cotas identificadas. Requer disponibilidade de créditos no serviço contratado.
-          </span>
+          className={"min-w-0 rounded-xl border px-3 py-3 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-600 disabled:opacity-60 " +
+            (readingMode==="visual"
+              ?"border-sky-600 bg-sky-50 text-sky-950 ring-1 ring-sky-400 dark:border-sky-400 dark:bg-[#123b57] dark:text-white"
+              :"border-slate-300 bg-white text-slate-900 hover:border-sky-400 dark:border-slate-500 dark:bg-[#1a3049] dark:text-white")}>
+          <span className="block text-[13px] font-extrabold">IA Visual</span>
+          <span className="mt-1 block text-xs leading-5">Pranchas · serviço externo</span>
         </button>
         {availability.textAlternativeAvailable?(
           <button type="button" data-sigapro-ai-mode-cloudflare-text="true"
             aria-pressed={readingMode==="cloudflare_text"} disabled={readOnly||loading}
             onClick={()=>changeReadingMode("cloudflare_text")}
-            className={`min-w-0 max-w-full rounded-xl border p-3 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-600 ${readingMode==="cloudflare_text"
-              ?"border-sky-500 bg-sky-50 !text-sky-950 ring-1 ring-sky-300 dark:border-sky-400 dark:bg-[#103b5e] dark:!text-white"
-              :"border-slate-300 bg-white !text-slate-950 hover:border-sky-300 dark:border-slate-600 dark:bg-[#17283d] dark:!text-white dark:hover:border-sky-400"}`}>
-            <span className="block break-words text-xs font-extrabold leading-5 !text-slate-950 dark:!text-white [overflow-wrap:anywhere]">
-              SIGAPRO IA · Leitura Documental
-            </span>
-            <span className="mt-1 block break-words text-[11px] leading-5 !text-slate-700 dark:!text-slate-100 [overflow-wrap:anywhere]">
-              Extrai o conteúdo escrito do PDF, sujeito à cota disponível; não verifica a geometria dos recuos.
-            </span>
-          </button>
-        ):null}
-        {availability.openaiVisualAlternativeAvailable?(
-          <button type="button" data-sigapro-ai-mode-openai-visual="true"
-            aria-pressed={readingMode==="openai_visual"} disabled={readOnly||loading}
-            onClick={()=>changeReadingMode("openai_visual")}
-            className={`min-w-0 max-w-full rounded-xl border p-3 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-600 ${readingMode==="openai_visual"
-              ?"border-sky-500 bg-sky-50 !text-sky-950 ring-1 ring-sky-300 dark:border-sky-400 dark:bg-[#103b5e] dark:!text-white"
-              :"border-slate-300 bg-white !text-slate-950 hover:border-sky-300 dark:border-slate-600 dark:bg-[#17283d] dark:!text-white dark:hover:border-sky-400"}`}>
-            <span className="block break-words text-xs font-extrabold leading-5 !text-slate-950 dark:!text-white [overflow-wrap:anywhere]">
-              SIGAPRO IA · Leitura Avançada
-            </span>
-            <span className="mt-1 block break-words text-[11px] leading-5 !text-slate-700 dark:!text-slate-100 [overflow-wrap:anywhere]">
-              Examina o PDF visualmente, incluindo imagens das pranchas em alta definição.
-              Requer API independente contratada.
-            </span>
-          </button>
-        ):null}
-        {availability.geminiQaFixture?(
-          <button type="button" data-sigapro-ai-mode-gemini-qa="true"
-            aria-pressed={readingMode==="gemini_qa"} disabled={readOnly||loading}
-            onClick={()=>changeReadingMode("gemini_qa")}
-            className={`min-w-0 max-w-full rounded-xl border p-3 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-600 ${readingMode==="gemini_qa"
-              ?"border-sky-500 bg-sky-50 !text-sky-950 ring-1 ring-sky-300 dark:border-sky-400 dark:bg-[#103b5e] dark:!text-white"
-              :"border-slate-300 bg-white !text-slate-950 dark:border-slate-600 dark:bg-[#17283d] dark:!text-white"}`}>
-            <span className="block text-xs font-extrabold !text-slate-950 dark:!text-white">
-              SIGAPRO IA · Ensaio Visual Gratuito
-            </span>
-            <span className="mt-1 block break-words text-[11px] leading-5 !text-slate-700 dark:!text-slate-100 [overflow-wrap:anywhere]">
-              Exclusivo para a planta fictícia 04. Visualiza desenhos do PDF,
-              depende da chave gratuita do ambiente de testes e da cota do serviço.
-              {availability.geminiQaAvailable?" Pronto para solicitar a análise.":" Aguardando habilitação pelo administrador."}
-            </span>
+            className={"col-span-2 min-w-0 rounded-xl border px-3 py-2.5 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-600 disabled:opacity-60 " +
+              (readingMode==="cloudflare_text"
+                ?"border-sky-600 bg-sky-50 text-sky-950 ring-1 ring-sky-400 dark:border-sky-400 dark:bg-[#123b57] dark:text-white"
+                :"border-slate-300 bg-white text-slate-900 hover:border-sky-400 dark:border-slate-500 dark:bg-[#1a3049] dark:text-white")}>
+            <span className="text-[13px] font-extrabold">IA Documental</span>
+            <span className="ml-2 text-xs">Extrai texto; não comprova recuos geométricos</span>
           </button>
         ):null}
       </div>
-      </details>
+      {(availability.openaiVisualAlternativeAvailable||availability.geminiQaFixture)?(
+        <details data-sigapro-ai-other-modes="true"
+          className="mt-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-slate-900 dark:border-slate-600 dark:bg-[#1a3049] dark:text-white">
+          <summary className="cursor-pointer text-xs font-bold">Outras modalidades de teste</summary>
+          <div className="mt-2 grid gap-2">
+            {availability.openaiVisualAlternativeAvailable?(
+              <button type="button" data-sigapro-ai-mode-openai-visual="true"
+                aria-pressed={readingMode==="openai_visual"} disabled={readOnly||loading}
+                onClick={()=>changeReadingMode("openai_visual")}
+                className={"rounded-lg border p-2.5 text-left text-[13px] font-semibold " +
+                  (readingMode==="openai_visual"
+                    ?"border-sky-500 bg-sky-50 text-sky-950 dark:bg-[#123b57] dark:text-white"
+                    :"border-slate-300 bg-slate-50 text-slate-900 dark:border-slate-500 dark:bg-[#20374f] dark:text-white")}>
+                Leitura Avançada · OpenAI API (créditos separados do ChatGPT)
+              </button>
+            ):null}
+            {availability.geminiQaFixture?(
+              <button type="button" data-sigapro-ai-mode-gemini-qa="true"
+                aria-pressed={readingMode==="gemini_qa"} disabled={readOnly||loading}
+                onClick={()=>changeReadingMode("gemini_qa")}
+                className={"rounded-lg border p-2.5 text-left text-[13px] font-semibold " +
+                  (readingMode==="gemini_qa"
+                    ?"border-sky-500 bg-sky-50 text-sky-950 dark:bg-[#123b57] dark:text-white"
+                    :"border-slate-300 bg-slate-50 text-slate-900 dark:border-slate-500 dark:bg-[#20374f] dark:text-white")}>
+                Ensaio Visual Gratuito · somente PDF fictício 04
+                {availability.geminiQaAvailable?" · disponível":" · ainda não habilitado"}
+              </button>
+            ):null}
+          </div>
+        </details>
+      ):null}
       {readingMode!=="native_text"?(<>
-      <label className="mt-3 flex min-w-0 items-start gap-2 rounded-xl border border-sky-300 bg-sky-50 p-3 text-xs font-semibold !text-sky-950 dark:border-sky-500 dark:bg-[#103b5e] dark:!text-sky-50">
-        <input type="checkbox" checked={consent} disabled={readOnly||loading}
-          onChange={event=>setConsent(event.target.checked)} />
-        <span className="min-w-0 break-words leading-5 [overflow-wrap:anywhere]">
-          Autorizo o envio deste PDF ao prestador externo de processamento correspondente
-          à modalidade SIGAPRO IA selecionada. Sei que a leitura pode falhar
-          e que nenhuma decisão nem mudança no processo será automática.
-          O prestador está identificado em “Informações sobre o processamento” abaixo.
-          {readingMode==="gemini_qa"
-            ?" O nível gratuito pode utilizar os dados para aprimorar serviços do fornecedor; esta opção aceita somente o PDF fictício de ensaio."
-            :null}
-        </span>
-      </label>
-      <details data-sigapro-ai-processor-disclosure="true"
-        className="mt-2 min-w-0 max-w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 text-xs !text-slate-800 dark:border-slate-600 dark:bg-[#17283d] dark:!text-slate-100">
-        <summary className="cursor-pointer break-words font-semibold [overflow-wrap:anywhere]">
-          Informações sobre o processamento
-        </summary>
-        <p className="mt-2 break-words leading-5 [overflow-wrap:anywhere]">
-          O PDF será transmitido a um prestador externo exclusivamente para o recurso
-          selecionado, após sua autorização.
-          {readingMode==="cloudflare_text"
-            ?" Prestador: Cloudflare Workers AI (extração textual)."
-            :readingMode==="gemini_qa"
-              ?" Prestador: Google Gemini API, nível gratuito. O fornecedor informa que dados desse nível podem ser usados para melhoria dos produtos. Não utilize documentos reais ou confidenciais."
-            :readingMode==="openai_visual"||availability.provider==="openai"
-              ?" Prestador: OpenAI (API de leitura visual de PDF, faturada separadamente do ChatGPT Plus)."
-              :" Prestador: Anthropic, serviço Claude (leitura visual)."}
-          Consulte as condições de privacidade e contratação aplicáveis à Prefeitura.
-        </p>
-      </details>
+        <div data-sigapro-ai-consent-zone="true" className="mt-3 min-w-0">
+          <label data-sigapro-ai-consent-card="true"
+            className={"flex min-w-0 cursor-pointer items-center gap-3 rounded-2xl border-2 px-3.5 py-3.5 transition-colors " +
+              (consent
+                ?"border-emerald-600 bg-emerald-50 text-emerald-950 dark:border-emerald-400 dark:bg-[#153c36] dark:text-white"
+                :"border-sky-500 bg-[#f0f8ff] text-slate-950 hover:bg-sky-100 dark:border-sky-400 dark:bg-[#15324b] dark:text-white")}>
+            <input type="checkbox" data-sigapro-ai-consent-checkbox="true"
+              className="peer sr-only" checked={consent} disabled={readOnly||loading}
+              onChange={event=>setConsent(event.target.checked)}
+              aria-label="Aceito o envio deste PDF ao prestador externo selecionado"/>
+            <span aria-hidden="true" data-sigapro-ai-consent-indicator="true"
+              className={"flex h-7 w-7 shrink-0 items-center justify-center rounded-[7px] border-2 shadow-sm peer-focus-visible:ring-4 peer-focus-visible:ring-sky-400 " +
+                (consent?"border-emerald-700 bg-emerald-700 text-white dark:border-emerald-300 dark:bg-emerald-500"
+                  :"border-slate-700 bg-white dark:border-white dark:bg-[#0f2234]")}>
+              {consent?<Check className="h-5 w-5 stroke-[3] text-white"/>:null}
+            </span>
+            <span className="min-w-0">
+              <strong className="block text-sm font-extrabold leading-5">
+                {consent?"Aceite confirmado":"ACEITO o envio deste PDF à IA externa"}
+              </strong>
+              <span className="mt-0.5 block text-xs leading-5">
+                {readingMode==="cloudflare_text"?"Cloudflare":
+                  readingMode==="gemini_qa"?"Google Gemini (apenas teste fictício)":
+                  readingMode==="openai_visual"||availability.provider==="openai"?"OpenAI API":"Anthropic Claude"}
+                {" "}· envio somente após clicar em Iniciar extração.
+              </span>
+            </span>
+          </label>
+          <details data-sigapro-ai-processor-disclosure="true"
+            className="mt-2 min-w-0 rounded-xl border border-slate-200 bg-white px-3 py-2 text-slate-800 dark:border-slate-600 dark:bg-[#1a3049] dark:text-slate-100">
+            <summary className="cursor-pointer text-xs font-semibold">Privacidade e condições do processamento</summary>
+            <p className="mt-2 text-xs leading-5">
+              Autorizo o envio deste PDF ao prestador externo de processamento correspondente
+              à modalidade SIGAPRO IA selecionada. Sei que a leitura pode falhar e que
+              nenhuma decisão nem mudança no processo será automática.
+              {readingMode==="gemini_qa"
+                ?" O nível gratuito pode utilizar os dados para aprimorar serviços do fornecedor; esta opção aceita somente o PDF fictício de ensaio."
+                :null}
+              {" "}Consulte as condições de privacidade e contratação aplicáveis à Prefeitura.
+            </p>
+          </details>
+        </div>
       </>):(
         <p data-sigapro-ai-no-external-transfer="true" role="status"
-          className="mt-3 min-w-0 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs font-semibold leading-5 text-emerald-950 dark:border-emerald-500 dark:bg-emerald-950 dark:text-emerald-100">
-          Leitura executada no servidor do SIGAPRO, sem envio do documento a modelos ou APIs de IA.
-          Disponível para PDFs com textos selecionáveis e exige conferência técnica humana.
+          className="mt-3 text-xs font-semibold leading-5 text-emerald-900 dark:text-emerald-200">
+          Leitura local no SIGAPRO: não envia o PDF a prestadores externos de IA.
         </p>
       )}
       <p role="status" data-sigapro-ai-pdf-provider-status={availability.status}
