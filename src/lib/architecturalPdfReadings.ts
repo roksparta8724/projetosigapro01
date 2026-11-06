@@ -252,3 +252,27 @@ export function readReviewedDrawingHandoff(
   }
   return reviewed;
 }
+
+/** SIGAPRO_QA04_RECUOS_BENCHMARK
+ * A benchmark of a *synthetic* drawing. Success is not evidence of municipal
+ * legality or of model reliability on another architectural plan.
+ */
+export const QA04_RECUOS_BENCHMARK = [
+  {metric:"front_setback_m",label:"Frontal",expected:5,page:2},
+  {metric:"side_setback_m",label:"Lateral",expected:1,page:2},
+  {metric:"rear_setback_m",label:"Fundos",expected:12,page:2},
+] as const;
+
+export function benchmarkQa04ArchitecturalReadings(readings:readonly DrawingReading[]){
+  const cases=QA04_RECUOS_BENCHMARK.map(item=>{
+    const reading=readings.find(row=>row.metric===item.metric);
+    const verified=Boolean(reading?.usableForReview &&
+      reading.page===item.page &&
+      typeof reading.value==="number" &&
+      Math.abs(reading.value-item.expected)<0.01 &&
+      reading.quote.length>=8);
+    return {...item,readValue:reading?.value??null,
+      readPage:reading?.page??null,verified};
+  });
+  return {total:cases.length,passed:cases.filter(item=>item.verified).length,cases};
+}
