@@ -193,6 +193,13 @@ export function createArchitecturalReadingReportPdf(input: {
     body(audit.note,8,MUTED);
   }else body("Inventario estrutural nao fornecido. A verificacao integral da planta nao foi comprovada.",8,MUTED);
   body("A contagem e a extracao textual nao equivalem a leitura visual nem a conferencia de todas as pranchas.",8,GOLD);
+  if(input.extraction.source==="pdf_text_local"&&input.extraction.textCoverage){
+    const c=input.extraction.textCoverage;
+    small("Paginas varridas pelo extrator de texto",String(c.pagesRead));
+    small("Com texto selecionavel",c.pagesWithText.join(", ")||"Nenhuma");
+    small("Sem texto selecionavel",c.pagesWithoutText.join(", ")||"Nenhuma");
+    body("Uma pagina com texto pode ter desenhos e cotas visuais que esta modalidade nao consegue examinar.",8,MUTED);
+  }
   section("Quadro de medidas identificadas");
   if(!found.length)body("Nenhuma medida foi comprovada nesta modalidade. O analista deve consultar o desenho original.");
   for(const row of found){
