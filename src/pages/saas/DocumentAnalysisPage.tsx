@@ -1214,6 +1214,10 @@ export function DocumentAnalysisPage() {
               <ArchitecturalPdfAiPanel
                 onGoToPage={(nextPage) => { if (Number.isInteger(nextPage) && nextPage>=1 && nextPage<=2000) setPage(nextPage); }}
                 process={process}
+                municipalityName={
+                  municipality?.id===(process.municipalityId||process.tenantId)
+                    ?municipality.name:undefined
+                }
                 documentId={document.id}
                 compact
                 readOnly={!canUseAnalysis}
