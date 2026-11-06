@@ -106,8 +106,10 @@ export function classifyVisualPdfHttpFailure(
   const detail=object?.error&&typeof object.error==="object"
     ?object.error as Record<string,unknown>:null;
   const type=typeof detail?.type==="string"?detail.type:"";
+  const errorCode=typeof detail?.code==="string"?detail.code:"";
   const message=typeof detail?.message==="string"?detail.message.slice(0,400):"";
   if(status===402||type==="billing_error"||
+    (kind==="openai"&&/(?:insufficient_quota|credit_balance_exhausted|billing_hard_limit)/i.test(type+" "+errorCode))||
     (kind==="claude"&&status===400 &&
       /(?:credit|balance|saldo|billing|spend.{0,16}limit|purchase.{0,16}credit)/i.test(message)))
     return "AI_PROVIDER_BILLING";
@@ -328,7 +330,8 @@ export async function extractVisualPdf(
       // as HTTP 400 after a workspace spend cap. Never expose provider text
       // in the client response; no retry or second paid request is attempted.
       let errorPayload:unknown=null;
-      if (provider.kind==="claude" && [400,402].includes(response.status)) {
+      if ((provider.kind==="claude" && [400,402].includes(response.status)) ||
+          (provider.kind==="openai" && [400,402,429].includes(response.status))) {
         try {errorPayload=await response.json();}catch { /* no body */ }
       }
       throw new Error(classifyVisualPdfHttpFailure(
