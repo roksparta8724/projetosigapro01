@@ -1953,7 +1953,7 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
                 ["Data Emissão", formatDateBR(guia.dataDocumento), "(+) Acresc.", formatCurrency(outrosAcrescimos)],
                 ["Pagador", contribuinte.nome, "(+) Juros", formatCurrency(totalJuros)],
                 ["Endereço", contribuinte.endereco, "(+) Multa", formatCurrency(totalMulta)],
-                ["Identificação", guia.numeroGuia, "(=) Valor", formatCurrency(valorCobrado)],
+                ["Natureza", guideMeta.shortLabel, "(=) Valor", formatCurrency(valorCobrado)],
               ] as [string, string | undefined, string, string][]).map(([leftLabel,leftValue,rightLabel,rightValue]) => (
                 <div key={leftLabel} className="dam-receipt-body-row">
                   <div className="dam-receipt-body-left">
