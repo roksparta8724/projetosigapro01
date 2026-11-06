@@ -85,6 +85,7 @@ export function DocumentAnalysisPage() {
   const documentMarkers = useDocumentMarkerAssignments();
   const {
     processes,
+    institutions,
     refreshRemoteStore,
     loading: platformDataLoading,
     dataReadyForCurrentUser,
@@ -1216,7 +1217,8 @@ export function DocumentAnalysisPage() {
                 process={process}
                 municipalityName={
                   municipality?.id===(process.municipalityId||process.tenantId)
-                    ?municipality.name:undefined
+                    ?municipality.name
+                    :institutions.find(tenant=>tenant.id===(process.municipalityId||process.tenantId))?.name
                 }
                 documentId={document.id}
                 compact
