@@ -165,7 +165,7 @@ export function makeReviewedDrawingEvidence(
     throw new Error("Documento, página e trecho necessários para conferência.");
   }
   return ("Prancha/PDF " + name + ", página " + page +
-    "; leitura de IA conferida pelo analista: " + plain(quote, 230)).slice(0, 500);
+    "; cota do PDF conferida pelo analista: " + plain(quote, 230)).slice(0, 500);
 }
 
 /**
