@@ -1898,7 +1898,7 @@ export function ProcessDetailPage() {
         selectedGuide.kind === "protocolo" &&
         isSyntheticQaProtocolGuideCode(selectedGuide.code) &&
         Number(selectedGuide.amount) === 0) {
-      const issuedDate = selectedGuide.issuedAt || process.createdAt;
+      const issuedDate = selectedGuide.issuedAt || process.officializedAt || new Date().toISOString();
       const preview: GuiaRecolhimentoOficialProps = {
         prefeitura: {
           nome: municipalityName || tenant?.name || "Prefeitura Municipal",
