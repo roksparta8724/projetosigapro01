@@ -937,6 +937,8 @@ function getStyles() {
       white-space: normal;
     }
 
+    .dam-receipt-note-full { width: 100%; min-width: 0; background: #fbfcfe; }
+    .dam-receipt-note-full .dam-note { padding: 2mm 2.5mm; font-size: 6.7px; line-height: 1.2; overflow-wrap: anywhere; }
     .dam-receipt-extras {
       display: grid;
       grid-template-columns: minmax(0, 1fr) 58mm;
@@ -1966,8 +1968,7 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
                   </div>
                 </div>
               ))}
-              <div className="dam-receipt-extras">
-                <div className="dam-receipt-extras-left">
+              <div className="dam-receipt-note-full">
                 <div className="dam-note">
                   {guia.bankAgency || guia.bankAccount || guia.bankBeneficiary ? (
                     <div data-dam-municipal-bank="true" style={{ marginBottom: 3, fontSize: "6px", lineHeight: 1.35, overflowWrap: "anywhere" }}>
@@ -1995,7 +1996,9 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
                     </div>
                   ) : null}
                 </div>
-
+              </div>
+              <div className="dam-receipt-extras">
+                <div className="dam-receipt-extras-left">
                 <div className="dam-auth">
                   <div className="dam-auth-label">
                     {nonPayable ? "Emissão bancária" : guia.paymentProvider === "mercado_pago" ? "Validação eletrônica" : "Autenticação / baixa"}
