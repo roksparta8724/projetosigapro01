@@ -20,12 +20,12 @@ type ApiResult = DrawingExtraction & {
 const normalized = (value:string)=>value.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
 
 export function ArchitecturalPdfAiPanel({
-  process,readOnly,activeMetrics,onApply,onGoToPage,documentId,compact=false,municipalityName,
+  process,readOnly,activeMetrics,onApply,onGoToPage,documentId,compact=false,municipalityName,municipalityLogoUrl,
 }:{
   process:ProcessRecord; readOnly:boolean; activeMetrics:readonly UrbanMetric[];
   onApply:(reviewed:Prepared)=>void;
   onGoToPage?:(page:number)=>void;
-  documentId?:string;compact?:boolean;municipalityName?:string;
+  documentId?:string;compact?:boolean;municipalityName?:string;municipalityLogoUrl?:string;
 }) {
   const availablePlans=useMemo(()=>process.documents.filter(doc=>
     doc.uploaded && Boolean(doc.filePath) &&
@@ -253,7 +253,40 @@ export function ArchitecturalPdfAiPanel({
       draft.documentVersion!==selected.version||readOnly)return;
     try{
       const {createArchitecturalReadingReportPdf}=await import("@/lib/architecturalReadingReportPdf");
+      let municipalityLogoDataUrl:string|undefined;
+      if(municipalityLogoUrl){
+        try{
+          const address=new URL(municipalityLogoUrl,window.location.origin);
+          if(address.protocol==="https:"||address.origin===window.location.origin){
+            const logoController=new AbortController();
+            const logoTimeout=setTimeout(()=>logoController.abort(),4500);
+            try{
+              const response=await fetch(address.href,{
+                credentials:"omit",signal:logoController.signal,cache:"force-cache",
+              });
+              const type=response.headers.get("content-type")||"";
+              const length=Number(response.headers.get("content-length")||0);
+              if(response.ok&&/^image\/(?:png|jpeg)(?:;|$)/i.test(type)&&
+                length<700000){
+                const blob=await response.blob();
+                if(blob.size<700000){
+                  const data=await new Promise<string>((resolve,reject)=>{
+                    const reader=new FileReader();
+                    reader.onload=()=>resolve(String(reader.result||""));
+                    reader.onerror=()=>reject(reader.error);
+                    reader.readAsDataURL(blob);
+                  });
+                  if(/^data:image\/(?:png|jpeg);base64,/.test(data))municipalityLogoDataUrl=data;
+                }
+              }
+            }finally{clearTimeout(logoTimeout);}
+          }
+        }catch{
+          // Printed municipal identity remains available without a logo.
+        }
+      }
       const pdf=createArchitecturalReadingReportPdf({
+        municipalityLogoDataUrl,
         extraction:draft,processId:process.id,documentId:draft.documentId,
         documentVersion:draft.documentVersion,fileName:draft.fileName,
         identification:{
