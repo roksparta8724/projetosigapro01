@@ -481,7 +481,7 @@ export function ArchitecturalPdfAiPanel({
         </section>
       ):null}
       <div className="min-w-0 rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-900 dark:border-slate-600 dark:bg-[#17283d] dark:text-slate-100 [overflow-wrap:anywhere]">
-        <strong>{draft.documentType==="architectural_plan"?"Projeto identificado pela IA":"Identificação do documento incerta"}</strong>
+        <strong>{draft.documentType==="architectural_plan"?(draft.source==="pdf_text_local"?"Projeto com texto identificável no PDF":"Projeto identificado pela IA"):"Identificação do documento incerta"}</strong>
         <p className="mt-1">Planta de implantação reconhecida: {draft.hasSitePlan?"sim":"não confirmada"}.
           A IA não determinou conformidade jurídica.</p>
         {draft.warnings.map((warning,i)=><p key={i} className="mt-1 flex gap-2">
