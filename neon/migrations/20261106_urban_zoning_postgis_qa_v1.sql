@@ -324,3 +324,59 @@ GRANT EXECUTE ON FUNCTION public.urban_zoning_verify_map_v1(uuid,text) TO authen
 GRANT EXECUTE ON FUNCTION public.urban_zoning_stage_parcel_v1(uuid,jsonb,text,text) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.urban_zoning_verify_parcel_v1(uuid,text) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.urban_zoning_resolve_process_v1(uuid) TO authenticated;
+
+
+-- Painel legal: leitura do catálogo e busca cadastral restritas à própria Prefeitura.
+CREATE OR REPLACE FUNCTION public.urban_zoning_list_maps_v1(_municipality_id uuid)
+ RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER
+ SET search_path TO pg_catalog,public SET row_security TO off AS $$
+BEGIN
+  IF NOT public.can_manage_urban_legislation_registry_v1(_municipality_id) THEN
+    RAISE EXCEPTION 'Consulta cartografica nao autorizada';
+  END IF;
+  RETURN COALESCE((
+    SELECT jsonb_agg(jsonb_build_object(
+      'id',m.id,'version_label',m.version_label,'legal_reference',m.legal_reference,
+      'status',m.status,'official_source_url',m.official_source_url,
+      'effective_from',m.effective_from,'effective_until',m.effective_until,
+      'feature_count',(SELECT count(*) FROM public.urban_zoning_zone_geometries_v1 z WHERE z.map_id=m.id),
+      'verified_at',m.verified_at
+    ) ORDER BY m.created_at DESC)
+    FROM public.urban_zoning_map_versions_v1 m WHERE m.municipality_id=_municipality_id
+  ),'[]'::jsonb);
+END;$$;
+
+CREATE OR REPLACE FUNCTION public.urban_zoning_lookup_properties_v1(
+ _municipality_id uuid,_search text
+) RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER
+ SET search_path TO pg_catalog,public SET row_security TO off AS $$
+DECLARE _like text;
+BEGIN
+  IF NOT public.can_manage_urban_legislation_registry_v1(_municipality_id) THEN
+    RAISE EXCEPTION 'Consulta cadastral nao autorizada';
+  END IF;
+  IF length(btrim(coalesce(_search,'')))<3 OR length(_search)>90 THEN
+    RETURN '[]'::jsonb;
+  END IF;
+  _like:='%'||replace(replace(replace(btrim(_search),E'\\',E'\\\\'),'%','\%'),'_','\_')||'%';
+  RETURN COALESCE((
+   SELECT jsonb_agg(jsonb_build_object(
+    'id',q.id,'address',q.address,'iptu_code',q.iptu_code,
+    'registry_code',q.registry_code,'lot',q.lot,'block',q.block
+   ) ORDER BY q.address)
+   FROM (
+     SELECT p.id,p.address,p.iptu_code,p.registry_code,p.lot,p.block
+     FROM public.properties p
+     WHERE p.municipality_id=_municipality_id AND p.tenant_id=_municipality_id
+       AND (p.iptu_code ILIKE _like ESCAPE '\' OR
+            coalesce(p.registry_code,'') ILIKE _like ESCAPE '\' OR
+            p.address ILIKE _like ESCAPE '\')
+     ORDER BY p.address LIMIT 30
+   ) q
+  ),'[]'::jsonb);
+END;$$;
+
+REVOKE ALL ON FUNCTION public.urban_zoning_list_maps_v1(uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.urban_zoning_lookup_properties_v1(uuid,text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.urban_zoning_list_maps_v1(uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.urban_zoning_lookup_properties_v1(uuid,text) TO authenticated;
