@@ -14,6 +14,7 @@ import { municipalCivilDateFromValue } from "@/lib/municipalCivilDate";
 import { evidenceCoversUrbanRule, type UrbanLegalEvidenceScope } from "@/lib/urbanEvidenceCoverage";
 import { Textarea } from "@/components/ui/textarea";
 import { readReviewedDrawingHandoff } from "@/lib/architecturalPdfReadings";
+import { backendClient } from "@/integrations/backend/databaseClient";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { buildProcessPath } from "@/lib/platform";
 import type { ProcessRecord } from "@/lib/platform";
@@ -44,6 +45,10 @@ export function UrbanPrecheckPanel({
   const [legalReviewNote, setLegalReviewNote] = useState("");
   const [legalReviewConfirmed, setLegalReviewConfirmed] = useState(false);
   const [zone, setZone] = useState("");
+  const [spatial, setSpatial] = useState<{
+    status: string; zoneVerified:boolean;zoneCode?:string;mapVersion?:string;legalReference?:string;
+  } | null>(null);
+  const [spatialChecking,setSpatialChecking]=useState(true);
   const [usage, setUsage] = useState(process.property.usage || "");
   const [asOf, setAsOf] = useState(() => municipalCivilDateFromValue(process.officializedAt));
   const [fields, setFields] = useState<Fields>({});
@@ -86,6 +91,34 @@ export function UrbanPrecheckPanel({
     }).finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [municipalityId, process.id, process.property.usage, process.officializedAt]);
+
+  // A verified municipal map+parcel match is the only automatic source of a zone.
+  // Textual address, screenshot, cadastral zone_code and manual typing are not proofs.
+  useEffect(() => {
+    let active=true;
+    setSpatial(null);
+    setSpatialChecking(true);
+    if(readOnly){setSpatialChecking(false);return;}
+    void backendClient.rpc("urban_zoning_resolve_process_v1",{
+      _process_id:process.id,
+    }).then(({data,error})=>{
+      if(!active)return;
+      const value=(!error && data && typeof data==="object" && !Array.isArray(data))
+        ?data as {status?:string;zoneVerified?:boolean;zoneCode?:string;mapVersion?:string;legalReference?:string}
+        :null;
+      if(value?.status==="verified" && value.zoneVerified===true &&
+        /^[A-Z0-9][A-Z0-9_(). /-]{0,79}$/.test(value.zoneCode||"")){
+        setSpatial({status:"verified",zoneVerified:true,zoneCode:value.zoneCode,
+          mapVersion:value.mapVersion,legalReference:value.legalReference});
+        setZone(value.zoneCode||"");
+      }else {
+        setSpatial({status:value?.status||"spatial_service_unavailable",zoneVerified:false});
+      }
+    }).catch(()=>{
+      if(active)setSpatial({status:"spatial_service_unavailable",zoneVerified:false});
+    }).finally(()=>{if(active)setSpatialChecking(false);});
+    return()=>{active=false;};
+  },[process.id,municipalityId,readOnly]);
 
   // Only transport individually checked drawing values from the same process,
   // municipality and exact PDF revision. Never attach legal evidence automatically.
@@ -160,12 +193,18 @@ export function UrbanPrecheckPanel({
     () => filterUrbanPrecheckHistoryForContext(history, municipalityId, process.id),
     [history, municipalityId, process.id],
   );
-  const canSave = !!regulation && !readOnly && !saving && !loading &&
+  const geographicReady=spatial?.zoneVerified===true &&
+    spatial?.zoneCode===zone && !spatialChecking;
+  const canSave = geographicReady && !!regulation && !readOnly && !saving && !loading &&
     !legalEvidenceError && legalScopesReady && legalReviewConfirmed &&
     legalReviewNote.trim().length >= 20 && legalReviewNote.trim().length <= 1200 &&
     findings.some((finding) => finding.status !== "missing_evidence");
 
   const save = async () => {
+    if(!geographicReady || !regulation) {
+      setNotice("Não é possível registrar a pré-conferência: o zoneamento do lote não foi validado por perímetro e mapa oficial.");
+      return;
+    }
     if (!regulation || readOnly || saving) return;
     if (!canSave) {
       setNotice("Selecione a evidência legal para cada índice, confirme a revisão e informe uma justificativa antes de registrar.");
@@ -265,9 +304,22 @@ export function UrbanPrecheckPanel({
           não classificação geográfica automática. Sem documento oficial, página,
           vigência e evidência por índice, a conferência permanece bloqueada.</p>
       </div>
+      <p data-sigapro-geo-resolution={spatial?.status||"checking"}
+        className={"mt-2 min-w-0 rounded-xl border p-3 text-xs font-semibold leading-5 [overflow-wrap:anywhere] "+(
+          geographicReady?"border-emerald-300 bg-emerald-50 text-emerald-950 dark:border-emerald-700 dark:bg-emerald-950 dark:text-emerald-100":
+          "border-amber-300 bg-amber-50 text-amber-950 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100")}>
+        {spatialChecking?"Conferindo o perímetro cadastral e o mapa oficial da Prefeitura...":
+        geographicReady
+          ?"Zona geograficamente conferida: "+spatial?.zoneCode+
+            " · Mapa "+(spatial?.mapVersion||"versão não identificada")+
+            ". A conferência jurídica por uso e índices continua obrigatória."
+          :"Zoneamento não comprovado ("+(spatial?.status||"indisponível")+
+            "). O campo de zona pode ser usado para consulta exploratória, mas não permite salvar um diagnóstico."}
+      </p>
       <div className="mt-4 grid gap-3 md:grid-cols-3">
         <label className="text-xs font-bold text-slate-700 dark:text-slate-200">Zona do imóvel
           <Input className="mt-1" placeholder="Ex.: ZR1" value={zone} maxLength={40}
+            readOnly={geographicReady}
             onChange={(event) => setZone(normalizeUrbanCode(event.target.value))} />
         </label>
         <label className="text-xs font-bold text-slate-700 dark:text-slate-200">Categoria de uso
