@@ -40,7 +40,6 @@ export function ArchitecturalPdfAiPanel({
   const [readingMode,setReadingMode]=useState<ReadingMode>("native_text");
   const [billingUnavailable,setBillingUnavailable]=useState(false);
   const [loading,setLoading]=useState(false);
-  const [scanStarted,setScanStarted]=useState(false);
   const scanController=useRef<AbortController|null>(null);
   const scanSequence=useRef(0);
   const [availability,setAvailability]=useState<{
@@ -72,7 +71,7 @@ export function ArchitecturalPdfAiPanel({
     scanSequence.current++;
     scanController.current.abort();
     scanController.current=null;
-    setLoading(false);setScanStarted(false);
+    setLoading(false);
     setNotice("Leitura interrompida pelo analista. O PDF e as medidas conferidas anteriormente foram preservados.");
   }
 
@@ -176,7 +175,7 @@ export function ArchitecturalPdfAiPanel({
     if(readOnly||!selected||!latest||
       (readingMode!=="native_text"&&!consent)||loading||
       !readyForSelectedMode||availability.documentReady!==true)return;
-    setChecked({});setError("");setErrorCode("");setNotice("");setLoading(true);setScanStarted(true);
+    setChecked({});setError("");setErrorCode("");setNotice("");setLoading(true);
     const controller=new AbortController();
     const operation=++scanSequence.current;
     scanController.current=controller;
@@ -457,9 +456,17 @@ export function ArchitecturalPdfAiPanel({
               pelo fluxo municipal; não é necessário alterar o banco manualmente.</p> : null}
         </div>
       ) : null}
-      {territorial?<div data-sigapro-territorial-readiness={territorial.cadastralLink}
-        className="mt-2 min-w-0 rounded-xl border border-amber-300 bg-amber-50 p-3 text-amber-950 dark:border-amber-600 dark:bg-[#392d16] dark:text-amber-100 [overflow-wrap:anywhere]">
-        <p className="text-xs font-extrabold">Cadastro do imóvel e zoneamento — verificação independente</p>
+      {territorial?<details data-sigapro-territorial-readiness={territorial.cadastralLink}
+        className="mt-3 min-w-0 rounded-2xl border border-slate-200 bg-white p-3.5 text-slate-900 shadow-sm dark:border-slate-600 dark:bg-[#1a3049] dark:text-white [overflow-wrap:anywhere]">
+        <summary className="flex cursor-pointer flex-wrap items-center justify-between gap-2 text-[13px] font-extrabold text-slate-950 dark:text-white">
+          <span>Imóvel e zoneamento</span>
+          <span className={territorial.zoneVerified
+            ?"rounded-full bg-emerald-100 px-2 py-1 text-xs text-emerald-950 dark:bg-emerald-900 dark:text-white"
+            :"rounded-full bg-amber-100 px-2 py-1 text-xs text-amber-950 dark:bg-amber-900 dark:text-white"}>
+            {territorial.zoneVerified?"Zona conferida":"Pendente"}
+          </span>
+        </summary>
+        <div className="mt-3 border-t border-slate-200 pt-2 text-[13px] leading-5 dark:border-slate-600">
         <p className="mt-1 text-xs leading-5">
           {territorial.cadastralLink==="missing"
             ?"Este processo ainda não tem imóvel cadastral vinculado. Sem esse vínculo, endereço e zona não são comprovados."
@@ -479,10 +486,19 @@ export function ArchitecturalPdfAiPanel({
         <p className="mt-1 text-xs leading-5">A leitura de cotas não identifica, por si só,
           a localização legal do lote. É necessário cruzamento com cadastro municipal,
           mapa oficial georreferenciado e normas vigentes.</p>
-      </div>:null}
+        </div>
+      </details>:null}
       {legalBaseline?<section data-sigapro-existing-legal-baseline="true"
-        className="mt-2 min-w-0 rounded-xl border border-sky-300 bg-sky-50 p-3 text-sky-950 dark:border-sky-600 dark:bg-[#112a43] dark:text-sky-100 [overflow-wrap:anywhere]">
-        <p className="text-xs font-extrabold">Base urbanística anterior recuperada do Neon — sem perda dos rascunhos</p>
+        className="mt-3 min-w-0 rounded-2xl border border-slate-200 bg-white p-3.5 text-slate-900 shadow-sm dark:border-slate-600 dark:bg-[#1a3049] dark:text-white [overflow-wrap:anywhere]">
+        <details data-sigapro-legal-history-details="true">
+          <summary className="flex cursor-pointer flex-wrap items-center justify-between gap-2 text-[13px] font-extrabold text-slate-950 dark:text-white">
+            <span>Base urbanística recuperada</span>
+            <span className="rounded-full bg-sky-100 px-2 py-1 text-xs text-sky-950 dark:bg-sky-900 dark:text-white">
+              {legalBaseline.quadroI.reviewed}/{legalBaseline.quadroI.rows} · {legalBaseline.quadroII.draftEntries} rascunhos
+            </span>
+          </summary>
+          <div className="mt-3 border-t border-slate-200 pt-2 text-[13px] leading-5 dark:border-slate-600">
+            <p className="font-semibold text-slate-800 dark:text-slate-100">Histórico existente no Neon — sem perda de conferências</p>
         <p className="mt-1 text-xs leading-5">
           Quadro I: <strong>{legalBaseline.quadroI.reviewed}/{legalBaseline.quadroI.rows}</strong> leituras conferidas;
           {" "}{legalBaseline.quadroI.needsCorrection} ressalva(s). Quadro II:
@@ -501,6 +517,8 @@ export function ArchitecturalPdfAiPanel({
         {legalBaseline.quadroI.sourceDocument?
           <p className="mt-1 text-[11px]">Origem da matriz: {legalBaseline.quadroI.sourceDocument} · SHA-256
             {" "}{legalBaseline.quadroI.sourceSha256.slice(0,14)}…</p>:null}
+          </div>
+        </details>
       </section>:null}
       {((availability.provider==="claude"&&availability.status==="ready"&&readingMode==="visual")||
         (readingMode==="openai_visual"&&availability.openaiVisualAlternativeAvailable))?(
@@ -642,14 +660,19 @@ export function ArchitecturalPdfAiPanel({
           </p>
         </section>
       ):null}
-      <div className="min-w-0 rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-900 dark:border-slate-600 dark:bg-[#17283d] dark:text-slate-100 [overflow-wrap:anywhere]">
-        <strong>{draft.documentType==="architectural_plan"?(draft.source==="pdf_text_local"?"Projeto com texto identificável no PDF":"Projeto identificado pela IA"):"Identificação do documento incerta"}</strong>
-        <p className="mt-1">Planta de implantação reconhecida: {draft.hasSitePlan?"sim":"não confirmada"}.
-          A IA não determinou conformidade jurídica.</p>
-        {draft.warnings.map((warning,i)=><p key={i} className="mt-1 flex gap-2">
-          <AlertTriangle className="h-3.5 w-3.5 shrink-0"/>{warning}
+      <details data-sigapro-ai-evidence-alerts="true"
+        className="min-w-0 rounded-2xl border border-slate-200 bg-white p-3.5 text-slate-900 shadow-sm dark:border-slate-600 dark:bg-[#1a3049] dark:text-white [overflow-wrap:anywhere]">
+        <summary className="cursor-pointer text-[13px] font-extrabold text-slate-950 dark:text-white">
+          Alertas da leitura · {draft.warnings.length} aviso(s)
+        </summary>
+        <p className="mt-2 text-[13px] leading-5">
+          {draft.documentType==="architectural_plan"?"Projeto reconhecido":"Documento não confirmado"} ·
+          Implantação {draft.hasSitePlan?"identificada":"não confirmada"} · conformidade jurídica não avaliada.
+        </p>
+        {draft.warnings.map((warning,i)=><p key={i} className="mt-2 flex gap-2 text-[13px] leading-5">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-700 dark:text-amber-200"/>{warning}
         </p>)}
-      </div>
+      </details>
       <div className={`grid min-w-0 gap-2 ${compact?"grid-cols-1":"md:grid-cols-2"}`}>
         {draft.readings.map(row=>{
           const meta=URBAN_METRICS.find(m=>m.key===row.metric)!;
@@ -657,7 +680,7 @@ export function ArchitecturalPdfAiPanel({
             !readOnly && draft.documentId===id;
           return <div key={row.metric}
             data-sigapro-pdf-measure={row.metric}
-            className="min-w-0 rounded-xl border border-slate-300 bg-white p-3 text-slate-900 dark:border-slate-600 dark:bg-[#17283d] dark:text-slate-100 [overflow-wrap:anywhere]">
+            className="min-w-0 rounded-xl border border-slate-200 bg-white p-3.5 text-slate-900 shadow-sm dark:border-slate-600 dark:bg-[#1a3049] dark:text-slate-100 [overflow-wrap:anywhere]">
             <strong className="text-xs text-slate-950 dark:text-white">{meta.label}</strong>
             <p className="mt-1 text-sm font-bold text-slate-900 dark:text-slate-100">
               {row.value===null?"Não identificado":String(row.value)+" "+meta.unit}
@@ -674,9 +697,10 @@ export function ArchitecturalPdfAiPanel({
                 “{row.quote}”
               </p>
             </details>:null}
-            {!row.usableForReview?<p className="mt-1 text-xs text-amber-900 dark:text-amber-200">
-              {row.reason}
-            </p>:null}
+            {!row.usableForReview?<details className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-amber-950 dark:border-amber-700 dark:bg-[#3a2d1d] dark:text-amber-100">
+              <summary className="cursor-pointer text-xs font-semibold">Por que ainda não foi confirmado?</summary>
+              <p className="mt-1 text-[13px] leading-5">{row.reason}</p>
+            </details>:null}
             {canUse?<label className="mt-2 flex min-w-0 items-start gap-2 text-xs font-semibold text-slate-950 dark:text-slate-100">
               <input type="checkbox" checked={Boolean(checked[row.metric])}
                 onChange={e=>setChecked(v=>({...v,[row.metric]:e.target.checked}))}/>
