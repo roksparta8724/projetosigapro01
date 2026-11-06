@@ -5,7 +5,8 @@ import {batchesOfZoneFeatures,parseParcelGeoJson,parseZoningGeoJson} from "@/lib
 
 type MapRecord={
   id:string;version_label:string;legal_reference:string;status:string;
-  official_source_url:string;effective_from:string;feature_count:number;
+  official_source_url:string;official_source_sha256:string;effective_from:string;
+  effective_until:string|null;feature_count:number;
 };
 type PropertyRecord={id:string;address:string;iptu_code:string;registry_code:string|null};
 const field="mt-1 min-h-11 w-full min-w-0 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 dark:border-slate-600 dark:bg-[#17283d] dark:text-white";
@@ -75,6 +76,9 @@ export function UrbanZoningMapManagerPanel({
         throw new Error("Informe versão, lei/anexo, URL oficial e data de vigência comprovada.");
       const {source,sha}=await readGeoFile(mapFile);
       const features=parseZoningGeoJson(source);
+      const existing=maps.find(item=>item.id===mapDraftId);
+      if(existing && existing.official_source_sha256!==sha)
+        throw new Error("O arquivo difere do SHA-256 do mapa iniciado. Não é permitido misturar versões.");
       const id=mapDraftId||await rpc<string>("urban_zoning_create_map_draft_v1",{
         _municipality_id:municipalityId,
         _version_label:version.trim(),
@@ -176,6 +180,15 @@ export function UrbanZoningMapManagerPanel({
           </p>:maps.map(map=><p key={map.id} className="mt-2 break-words text-xs text-slate-700 dark:text-slate-200">
             <strong>{map.version_label}</strong> · {map.status==="verified"?"Conferido":"Rascunho"} ·
             {map.feature_count} feições · vigência {map.effective_from} · {map.legal_reference}
+            {map.status==="draft_unverified"?<button type="button"
+              className="ml-2 rounded-md border border-sky-600 px-2 py-1 text-xs font-bold text-sky-900 dark:text-sky-200"
+              onClick={()=>{
+                setMapDraftId(map.id);setVersion(map.version_label);
+                setLegal(map.legal_reference);setSourceUrl(map.official_source_url);
+                setValidFrom(map.effective_from);setValidUntil(map.effective_until||"");
+                setMapConfirm(false);setReviewNote("");
+                setInfo("Rascunho retomado. Use o mesmo arquivo digital original, com SHA-256 "+map.official_source_sha256.slice(0,12)+"… .");
+              }}>Retomar rascunho</button>:null}
           </p>)}
       </div>
       <section className="mt-4 grid gap-3 rounded-xl border border-slate-200 p-3 dark:border-slate-700">
