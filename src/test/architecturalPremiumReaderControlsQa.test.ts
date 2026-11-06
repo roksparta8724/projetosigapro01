@@ -23,6 +23,10 @@ describe("SIGAPRO — mesa de análise premium a partir do vídeo QA04",()=>{
     expect(analysis).toContain('data-sigapro-pdf-synced-page={page}');
     expect(analysis).toContain('data-sigapro-pdf-synced-zoom={Math.round(zoom*100)}');
     expect(analysis).toContain('page=$'+'{page}&zoom=$'+'{Math.round(zoom*100)}');
+    expect(analysis).toContain('key={accessUrl}');
+    expect(analysis).toContain('src={previewUrl}');
+    expect(analysis).not.toContain('key={previewUrl}');
+    expect(analysis).not.toContain('view=FitH');
     expect(analysis).toContain('onGoToPage={(nextPage)');
     expect(reader).toContain('data-sigapro-ai-go-to-page={row.page}');
     expect(reader).toContain('onClick={()=>onGoToPage(row.page!)}');
