@@ -17,11 +17,9 @@ describe("Workers AI PDF conversion with existing SIGAPRO R2 and Cloudflare conf
     expect(url).toContain("/ai/v1/chat/completions");
     const req=JSON.parse(String(options.body));
     expect(req.model).toBe("@cf/zai-org/glm-4.7-flash");
-    expect(req.response_format).toMatchObject({
-      type:"json_schema",
-      json_schema:{name:"sigapro_architectural_text_v1",strict:true,
-        schema:{type:"object",required:["document_type","has_site_plan","metrics","warnings"]}},
-    });
+    expect(req).not.toHaveProperty("response_format");
+    expect(req.messages[0].content).toContain("objeto JSON válido");
+    expect(req.max_completion_tokens).toBeGreaterThanOrEqual(3000);
     expect(JSON.stringify(req)).not.toContain("api.anthropic.com");
     return {ok:true,json:async()=>({choices:[{message:{content:JSON.stringify({
       document_type:"architectural_plan",has_site_plan:true,warnings:[],
@@ -70,7 +68,7 @@ describe("Workers AI PDF conversion with existing SIGAPRO R2 and Cloudflare conf
   }));
   await expect(extractVisualPdf(new TextEncoder().encode("%PDF-"),"planta.pdf",{
     kind:"cloudflare",key,accountId:account,model:"@cf/zai-org/glm-4.7-flash",
-  })).rejects.toThrow("CLOUDFLARE_MODEL_JSON_SCHEMA_REJECTED");
+  })).rejects.toThrow("CLOUDFLARE_MODEL_REQUEST_REJECTED");
   expect(called).toBe(2);
  });
  it("recusa interpretação vazia sem inventar recuos ou gravação",async()=>{
@@ -86,6 +84,44 @@ describe("Workers AI PDF conversion with existing SIGAPRO R2 and Cloudflare conf
     kind:"cloudflare",key,accountId:account,model:"@cf/zai-org/glm-4.7-flash",
   })).rejects.toThrow("CLOUDFLARE_MODEL_EMPTY");
   expect(called).toBe(2);
+ });
+
+ it("não aproveita medida textual cujo PDF não tem paginação inequívoca",async()=>{
+  let n=0;
+  vi.stubGlobal("fetch",vi.fn(async()=>{
+    n++;
+    if(n===1)return {ok:true,status:200,json:async()=>({
+      success:true,result:[{format:"markdown",
+        data:"Área do lote 250 m². Projeto arquitetônico cadastrado no município."}],
+    })};
+    return {ok:true,status:200,json:async()=>({choices:[{message:{content:JSON.stringify({
+      document_type:"architectural_plan",has_site_plan:true,warnings:[],
+      metrics:[{metric:"lot_area_m2",value:250,page:1,quote:"Área do lote 250 m²",confidence:"high"}],
+    })}}]})};
+  }));
+  const result=await extractVisualPdf(new TextEncoder().encode("%PDF- test"),
+    "planta.pdf",{kind:"cloudflare",key,accountId:account,model:"@cf/zai-org/glm-4.7-flash"});
+  expect(n).toBe(2);
+  expect(result.readings.find(x=>x.metric==="lot_area_m2")?.value).toBeNull();
+  expect(result.hasSitePlan).toBe(false);
+  expect(result.warnings.join(" ")).toContain("marcador de página");
+ });
+ it("aceita a resposta JSON cercada de markdown sem confiar em qualquer geometria",async()=>{
+  let n=0;
+  vi.stubGlobal("fetch",vi.fn(async()=>{
+    n++;
+    if(n===1)return {ok:true,json:async()=>({success:true,result:[{
+      format:"markdown",data:"## Página 1\\nÁrea do lote 250 m²\\nRecuo frontal 5 m",
+    }]})};
+    return {ok:true,json:async()=>({choices:[{message:{content:
+      "```json\\n"+JSON.stringify({document_type:"architectural_plan",has_site_plan:true,
+        warnings:[],metrics:[{metric:"lot_area_m2",value:250,page:1,
+          quote:"Área do lote 250 m²",confidence:"high"}]})+"\\n```"}}]})};
+  }));
+  const result=await extractVisualPdf(new TextEncoder().encode("%PDF-"),"a.pdf",{
+    kind:"cloudflare",key,accountId:account,model:"@cf/zai-org/glm-4.7-flash",
+  });
+  expect(result.readings.find(x=>x.metric==="lot_area_m2")?.value).toBe(250);
  });
 
 });
