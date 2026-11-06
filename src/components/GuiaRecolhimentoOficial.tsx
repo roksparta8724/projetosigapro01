@@ -1898,7 +1898,7 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
                   ) : null}
                   <div>
                     {nonPayable
-                      ? `Provedor selecionado para homologação: ${guia.bankName || "não informado"}. Nenhuma cobrança bancária emitida; não efetuar pagamento.`
+                      ? "PRÉVIA ADMINISTRATIVA SEM COBRANÇA. Nenhuma integração bancária foi acionada; não efetuar pagamento."
                       : guia.bankName
                         ? `Provedor de cobrança: ${guia.bankName}${guia.bankAgreement ? ` • Convênio ${guia.bankAgreement}` : ""}. Não receber após o vencimento.`
                         : "Pagamento pelos canais oficiais indicados pela Prefeitura. Não receber após o vencimento."}
@@ -1917,7 +1917,7 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
                     {nonPayable ? "Emissão bancária" : guia.paymentProvider === "mercado_pago" ? "Validação eletrônica" : "Autenticação / baixa"}
                   </div>
                   <div className="dam-auth-value">
-                    {guia.paymentProvider === "mercado_pago" ? (
+                    {nonPayable ? bankAuth.title : guia.paymentProvider === "mercado_pago" ? (
                       <>
                         {bankAuth.title}
                         {guia.bankPaymentId ? <> • Payment {guia.bankPaymentId}</> : null}
@@ -2050,7 +2050,7 @@ export const GuiaRecolhimentoOficial = React.forwardRef<
                     : "Guia vinculada ao processo administrativo e ao provedor oficial de cobrança."}
                 </div>
                 <div className="dam-final-box">
-                  <div><strong>Provedor:</strong> {guia.bankName || "Arrecadação municipal"}</div>
+                  <div><strong>Emissão:</strong> {nonPayable ? "Simulação documental, sem integração bancária" : guia.bankName || "Arrecadação municipal"}</div>
                   <div><strong>Situação:</strong> {bankAuth.title}</div>
                   {guia.bankReference ? <div><strong>Order:</strong> {guia.bankReference}</div> : null}
                   {guia.bankPaymentId ? <div><strong>Payment:</strong> {guia.bankPaymentId}</div> : null}
