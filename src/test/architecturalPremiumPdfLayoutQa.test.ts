@@ -75,7 +75,7 @@ describe("SIGAPRO - relatório A4 institucional de leitura por modalidade",()=>{
     expect(local).toContain("Com texto selecionavel");
     expect(local).toContain("Outras cotas declaradas nas pranchas");
     expect(text).toContain("INTERPRETACAO DE TEXTO POR IA");
-    expect(text).toContain("camada textual");
+    expect(text).toContain("texto convertido do PDF");
     expect(visual).toContain("LEITURA VISUAL POR IA");
     expect(visual).toContain("analise visual assistida");
     expect(local).not.toBe(text);
@@ -83,10 +83,10 @@ describe("SIGAPRO - relatório A4 institucional de leitura por modalidade",()=>{
   });
   it("usa tabela compacta com páginas e não infere taxas e CA ausentes",()=>{
     const content=printed(specimen("pdf_text_local"));
-    expect(content).toContain("Pavimentos");
+    expect(content).toContain("Quantidade de pavimentos");
     expect(content).toContain("Area construida declarada");
     expect(content).toContain("300");
-    expect(content).toContain("nao equivale");
+    expect(content).toContain("NAO equivale");
     expect(content).not.toContain("APROVADO AUTOMATICAMENTE");
   });
   it("não rompe a paginação com nomes e avisos longos",()=>{
