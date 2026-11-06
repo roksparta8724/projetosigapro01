@@ -3,6 +3,7 @@ import { GetObjectCommand, HeadObjectCommand, S3Client } from "@aws-sdk/client-s
 import { getR2EndpointCandidates } from "./r2-runtime.js";
 import { callDataApiRpc, getDataApiUrl, readBearer, readEnv, resolveMunicipalDocumentTarget } from "./municipal-storage.js";
 import { extractVisualPdf, resolveVisualPdfProvider } from "./architectural-pdf-provider.js";
+import { extractNativeArchitecturalPdf } from "./native-architectural-pdf.js";
 
 export const maxDuration = 60;
 type Req = IncomingMessage & { method?: string; body?: unknown };
@@ -178,6 +179,7 @@ export default async function handler(req:Req,res:Res){
       openaiVisualAlternativeAvailable:advancedVisual?.enabled===true,
       geminiQaFixture:geminiFixtureReady,
       geminiQaAvailable:geminiFixtureReady&&freeVisual?.enabled===true,
+      nativeTextAvailable:process.env.VERCEL_ENV==="preview"&&documentReady===true,
     });
   }
   if(req.method!=="POST")return json(res,405,{error:"Método não permitido."});
@@ -195,9 +197,10 @@ export default async function handler(req:Req,res:Res){
   const textRequested=body.readingMode==="cloudflare_text";
   const openaiVisualRequested=body.readingMode==="openai_visual";
   const geminiQaRequested=body.readingMode==="gemini_qa";
-  if(body.readingMode!==undefined && !["visual","cloudflare_text","openai_visual","gemini_qa"].includes(String(body.readingMode)))
+  const nativeTextRequested=body.readingMode==="native_text";
+  if(body.readingMode!==undefined && !["visual","cloudflare_text","openai_visual","gemini_qa","native_text"].includes(String(body.readingMode)))
     return json(res,400,{error:"Modo de leitura não reconhecido."});
-  if((textRequested||openaiVisualRequested||geminiQaRequested) && process.env.VERCEL_ENV!=="preview")
+  if((textRequested||openaiVisualRequested||geminiQaRequested||nativeTextRequested) && process.env.VERCEL_ENV!=="preview")
     return json(res,403,{code:"AI_ENV_DISABLED",error:"Modalidades alternativas disponíveis somente em homologação."});
   if(typeof processId!=="string"||!UUID.test(processId)||
     typeof documentId!=="string"||!UUID.test(documentId)||body.confirmedTransfer!==true)
@@ -223,7 +226,7 @@ export default async function handler(req:Req,res:Res){
       textRequested?"cloudflare_text":
         openaiVisualRequested?"openai_visual":
         geminiQaRequested?"gemini_qa":undefined);
-    if(!available.enabled)return json(res,503,{
+    if(!nativeTextRequested&&!available.enabled)return json(res,503,{
       code:"SIGAPRO_PDF_AI_NOT_CONFIGURED",
       error:"O módulo SIGAPRO IA selecionado não está disponível. Solicite ao administrador a verificação da integração.",
     });
@@ -232,7 +235,14 @@ export default async function handler(req:Req,res:Res){
       code:"AI_QA_FIXTURE_MISMATCH",
       error:"Este PDF não contém os marcadores do ensaio fictício 04. Nenhum arquivo foi transmitido."
     });
-    const extracted=await extractVisualPdf(pdf,doc.file_name,available.provider);
+    // First-party layer handles selectable-vector PDFs without an external AI
+    // request, credits, provider fallback, or a second long-running model call.
+    const extracted=nativeTextRequested
+      ?extractNativeArchitecturalPdf(pdf)
+      :available.enabled
+        ?await extractVisualPdf(pdf,doc.file_name,available.provider)
+        :null;
+    if(!extracted)throw new Error("AI_PROVIDER_MODEL_UNAVAILABLE");
     // A revised/invalidated PDF must NEVER yield accepted observations.
     // Recheck ownership and immutable object version after AI inference.
     const sameDocument=await verifiedDocument(req,tenant,processId,documentId);
@@ -241,12 +251,19 @@ export default async function handler(req:Req,res:Res){
     return json(res,200,{...extracted,processId:doc.process_id,
       documentId:doc.id,documentVersion:doc.version,fileName:doc.file_name,
       legalConformity:"not_evaluated",humanReviewRequired:true,
-      aiProvider:available.provider.kind,
-      pdfSharedWithConfiguredAiProvider:true});
+      aiProvider:nativeTextRequested?"sigapro_local":available.enabled?available.provider.kind:"none",
+      pdfSharedWithConfiguredAiProvider:!nativeTextRequested});
   }catch(e){
     const code=e instanceof Error?e.message:"";
     if(code==="PDF_LIMIT")return json(res,413,{code,error:"PDF acima de 8 MB. Separe as pranchas."});
     if(code==="PDF_INVALID")return json(res,422,{code,error:"O PDF está incompleto ou inválido."});
+    if(code.startsWith("PDF_NATIVE_"))return json(res,422,{code,error:
+      code==="PDF_NATIVE_UNSUPPORTED_ENCODING"||code==="PDF_NATIVE_COMPLEX"
+        ?"O PDF usa uma codificação de texto não suportada pela leitura local. Use uma leitura visual autorizada ou exporte a planta com texto selecionável."
+        :code==="PDF_NATIVE_PAGE_COUNT"
+          ?"Não foi possível identificar as páginas do PDF. Confira a exportação original."
+          :"O PDF está incompleto ou não pôde ser validado. Nenhum dado foi gravado."
+    });
     if(code==="AI_RATE_LIMIT")return json(res,429,{code,
       error:"A cota gratuita ou o limite de requisições do serviço de leitura foi atingido. Nenhum dado foi gravado."});
     if(code==="AI_PROVIDER_BILLING")return json(res,402,{code,
