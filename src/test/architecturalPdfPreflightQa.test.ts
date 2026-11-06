@@ -116,7 +116,7 @@ describe("SIGAPRO QA — preflight técnico do PDF com controle de custo e autor
     const api=file("server/ai-project-extract.ts");
     const ui=file("src/components/platform/ArchitecturalPdfAiPanel.tsx");
     expect(api).toContain('const textRequested=body.readingMode==="cloudflare_text"');
-    expect(api).toContain('if((textRequested||openaiVisualRequested) && process.env.VERCEL_ENV!=="preview")');
+    expect(api).toContain('if((textRequested||openaiVisualRequested||geminiQaRequested) && process.env.VERCEL_ENV!=="preview")');
     expect(api).toContain('body.confirmedTransfer!==true');
     expect(api).toContain('textAlternativeAvailable:textAlternative?.enabled===true');
     expect(api).toContain('geminiQaRequested?"gemini_qa":undefined');
