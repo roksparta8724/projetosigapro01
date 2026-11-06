@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { backendClient } from "@/integrations/backend/databaseClient";
 import { benchmarkQa04ArchitecturalReadings, makeReviewedDrawingEvidence, type DrawingExtraction } from "@/lib/architecturalPdfReadings";
 import { URBAN_METRICS, type UrbanMetric } from "@/lib/urbanPrecheck";
+import type { UrbanTerritorialReadiness } from "@/lib/urbanTerritorialReadiness";
 import type { ProcessRecord } from "@/lib/platform";
 
 type Prepared = Partial<Record<UrbanMetric,{value:string;evidence:string}>>;
@@ -12,6 +13,7 @@ type ApiResult = DrawingExtraction & {
   processId:string; documentId:string; documentVersion:number; fileName:string;
   legalConformity:"not_evaluated"; humanReviewRequired:true;
   aiProvider:"sigapro_local"|"cloudflare"|"claude"|"openai"|"gemini";
+  territorialContext?:UrbanTerritorialReadiness|null;
 };
 const normalized = (value:string)=>value.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
 
@@ -51,6 +53,7 @@ export function ArchitecturalPdfAiPanel({
     textAlternativeAvailable:false,openaiVisualAlternativeAvailable:false,
     geminiQaFixture:false,geminiQaAvailable:false,nativeTextAvailable:false});
 
+  const [territorial,setTerritorial]=useState<UrbanTerritorialReadiness|null>(null);
   const [error,setError]=useState("");
   const [errorCode,setErrorCode]=useState("");
   const [draft,setDraft]=useState<ApiResult|null>(null);
@@ -59,7 +62,7 @@ export function ArchitecturalPdfAiPanel({
 
   useEffect(()=>{
     setId(plans[0]?.id||"");setConsent(false);setReadingMode("native_text");
-    setBillingUnavailable(false);setDraft(null);setChecked({});setError("");setErrorCode("");setNotice("");
+    setBillingUnavailable(false);setDraft(null);setTerritorial(null);setChecked({});setError("");setErrorCode("");setNotice("");
   },[process.id,plans[0]?.id]);
 
   useEffect(()=>{
@@ -99,8 +102,10 @@ export function ArchitecturalPdfAiPanel({
         openaiVisualAlternativeAvailable?:boolean;
         geminiQaFixture?:boolean;geminiQaAvailable?:boolean;
         nativeTextAvailable?:boolean;
+        territorialContext?:UrbanTerritorialReadiness|null;
       };
       if(!res.ok)throw new Error(value.error||"Não foi possível confirmar a disponibilidade da IA.");
+      if(current)setTerritorial(value.territorialContext??null);
       if(current)setAvailability({status:(value.enabled||value.nativeTextAvailable===true)?"ready":"disabled",
         provider:value.provider==="cloudflare"||value.provider==="claude"||value.provider==="openai"
           ?value.provider:"none",
@@ -180,6 +185,7 @@ export function ArchitecturalPdfAiPanel({
           (result.source!=="ai_pdf_visual"||result.aiProvider!=="gemini")))
         throw new Error("Leitura retornada com vínculo incorreto. Nenhuma medida foi aplicada.");
       setDraft(result as ApiResult);
+      setTerritorial(result.territorialContext??null);
       if(readingMode!=="cloudflare_text")setBillingUnavailable(false);
       setNotice(readingMode==="native_text"
         ?"Texto do PDF lido localmente, sem IA e sem fornecedor externo. Confira a geometria e cada cota na prancha original."
@@ -197,6 +203,7 @@ export function ArchitecturalPdfAiPanel({
       const pdf=createArchitecturalReadingReportPdf({
         extraction:draft,processId:process.id,documentId:draft.documentId,
         documentVersion:draft.documentVersion,fileName:draft.fileName,
+        territorial:draft.territorialContext??territorial,
       });
       pdf.save("SIGAPRO-leitura-"+process.id.slice(0,8)+"-v"+selected.version+".pdf");
       setNotice("Relatório preliminar de leitura gerado em PDF. As medidas exigem conferência humana; não é um parecer de conformidade.");
@@ -400,6 +407,23 @@ export function ArchitecturalPdfAiPanel({
               pelo fluxo municipal; não é necessário alterar o banco manualmente.</p> : null}
         </div>
       ) : null}
+      {territorial?<div data-sigapro-territorial-readiness={territorial.cadastralLink}
+        className="mt-2 min-w-0 rounded-xl border border-amber-300 bg-amber-50 p-3 text-amber-950 dark:border-amber-600 dark:bg-[#392d16] dark:text-amber-100 [overflow-wrap:anywhere]">
+        <p className="text-xs font-extrabold">Cadastro do imóvel e zoneamento — verificação independente</p>
+        <p className="mt-1 text-xs leading-5">
+          {territorial.cadastralLink==="missing"
+            ?"Este processo ainda não tem imóvel cadastral vinculado. Sem esse vínculo, endereço e zona não são comprovados."
+            :territorial.cadastralLink==="unverified"
+              ?"O vínculo ao cadastro imobiliário não pôde ser verificado. Não presumir zona pela planta ou pelo endereço."
+              :"Imóvel vinculado ao cadastro. O endereço e a zona declarada ainda dependem de confirmação cartográfica e legal."}
+        </p>
+        {territorial.address?<p className="mt-1 break-words text-xs">Endereço cadastral informado: {territorial.address}</p>:null}
+        <p className="mt-1 text-xs">Zona declarada no cadastro: <strong>{territorial.zoneCandidate||"não informada"}</strong>.
+          Zona oficial verificada: <strong>não</strong>.</p>
+        <p className="mt-1 text-xs leading-5">A leitura de cotas não identifica, por si só,
+          a localização legal do lote. É necessário cruzamento com cadastro municipal,
+          mapa oficial georreferenciado e normas vigentes.</p>
+      </div>:null}
       {((availability.provider==="claude"&&availability.status==="ready"&&readingMode==="visual")||
         (readingMode==="openai_visual"&&availability.openaiVisualAlternativeAvailable))?(
         <p role="note" data-sigapro-claude-credit-not-verified="true"
