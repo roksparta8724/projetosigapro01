@@ -9,6 +9,17 @@ type Req = IncomingMessage & { method?: string; body?: unknown };
 type Res = ServerResponse;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MAX_PDF_BYTES = 8 * 1024 * 1024;
+const QA_ARCHITECTURAL_FILENAME="SIGAPRO-QA04-PLANTA-IMPLANTACAO-V2.pdf";
+/** Free external AI must never receive real municipal project documents. */
+function isSyntheticQa04Pdf(doc:DocumentRow,bytes?:Uint8Array):boolean{
+  if(doc.file_name!==QA_ARCHITECTURAL_FILENAME)return false;
+  if(!bytes)return true;
+  // The deterministic jsPDF QA fixture includes both markers as plain text
+  // when generated. If compressed/replaced, fail closed rather than guessing.
+  const raw=Buffer.from(bytes).toString("latin1");
+  return raw.includes("FICTICIO / QA") &&
+    raw.includes("PROCESSO FICTICIO 000004/2026");
+}
 /**
  * Production PDF reading stays disabled until its own explicit, server-side
  * release flag is set after the real-project and legal/financial QA gates.
@@ -122,6 +133,8 @@ export default async function handler(req:Req,res:Res){
       ?resolveVisualPdfProvider(readEnv,"cloudflare_text"):null;
     const advancedVisual=process.env.VERCEL_ENV==="preview"
       ?resolveVisualPdfProvider(readEnv,"openai_visual"):null;
+    const freeVisual=process.env.VERCEL_ENV==="preview"
+      ?resolveVisualPdfProvider(readEnv,"gemini_qa"):null;
     // Preview-only, read-only readiness check. It applies the EXACT same
     // municipal/document/technical-stage authorization as POST, without
     // fetching the PDF or sending anything to an AI provider.
@@ -129,13 +142,16 @@ export default async function handler(req:Req,res:Res){
     const processId=url.searchParams.get("processId")||"";
     const documentId=url.searchParams.get("documentId")||"";
     let documentReady:boolean|null=null;
+    let geminiFixtureReady=false;
     if(processId||documentId){
       if(!UUID.test(processId)||!UUID.test(documentId))return json(res,400,{
         error:"Identificação do processo ou do documento inválida.",
       });
       try{
-        documentReady=Boolean(await verifiedDocument(req,
-          String(user.municipality_id),processId,documentId));
+        const doc=await verifiedDocument(req,
+          String(user.municipality_id),processId,documentId);
+        documentReady=Boolean(doc);
+        geminiFixtureReady=Boolean(doc&&isSyntheticQa04Pdf(doc));
       }catch{
         // Do not reveal foreign-tenant metadata or storage credentials.
         documentReady=false;
@@ -159,6 +175,8 @@ export default async function handler(req:Req,res:Res){
       billingVerified:false,
       textAlternativeAvailable:textAlternative?.enabled===true,
       openaiVisualAlternativeAvailable:advancedVisual?.enabled===true,
+      geminiQaFixture:geminiFixtureReady,
+      geminiQaAvailable:geminiFixtureReady&&freeVisual?.enabled===true,
     });
   }
   if(req.method!=="POST")return json(res,405,{error:"Método não permitido."});
@@ -175,9 +193,10 @@ export default async function handler(req:Req,res:Res){
   // The analyst must explicitly choose Cloudflare and re-confirm PDF transfer.
   const textRequested=body.readingMode==="cloudflare_text";
   const openaiVisualRequested=body.readingMode==="openai_visual";
-  if(body.readingMode!==undefined && !["visual","cloudflare_text","openai_visual"].includes(String(body.readingMode)))
+  const geminiQaRequested=body.readingMode==="gemini_qa";
+  if(body.readingMode!==undefined && !["visual","cloudflare_text","openai_visual","gemini_qa"].includes(String(body.readingMode)))
     return json(res,400,{error:"Modo de leitura não reconhecido."});
-  if((textRequested||openaiVisualRequested) && process.env.VERCEL_ENV!=="preview")
+  if((textRequested||openaiVisualRequested||geminiQaRequested) && process.env.VERCEL_ENV!=="preview")
     return json(res,403,{code:"AI_ENV_DISABLED",error:"Modalidades alternativas disponíveis somente em homologação."});
   if(typeof processId!=="string"||!UUID.test(processId)||
     typeof documentId!=="string"||!UUID.test(documentId)||body.confirmedTransfer!==true)
@@ -195,13 +214,23 @@ export default async function handler(req:Req,res:Res){
     if(!doc)return json(res,403,{
       error:"O projeto não está liberado para análise técnica neste município."
     });
+    if(geminiQaRequested&&!isSyntheticQa04Pdf(doc))return json(res,403,{
+      code:"AI_QA_FICTITIOUS_ONLY",
+      error:"O teste gratuito aceita exclusivamente o projeto fictício 04, nunca arquivos reais."
+    });
     const available=resolveVisualPdfProvider(readEnv,
-      textRequested?"cloudflare_text":openaiVisualRequested?"openai_visual":undefined);
+      textRequested?"cloudflare_text":
+        openaiVisualRequested?"openai_visual":
+        geminiQaRequested?"gemini_qa":undefined);
     if(!available.enabled)return json(res,503,{
       code:"SIGAPRO_PDF_AI_NOT_CONFIGURED",
       error:"O módulo SIGAPRO IA selecionado não está disponível. Solicite ao administrador a verificação da integração.",
     });
     const pdf=await pdfBytes(req,tenant,doc.file_path);
+    if(geminiQaRequested&&!isSyntheticQa04Pdf(doc,pdf))return json(res,403,{
+      code:"AI_QA_FIXTURE_MISMATCH",
+      error:"Este PDF não contém os marcadores do ensaio fictício 04. Nenhum arquivo foi transmitido."
+    });
     const extracted=await extractVisualPdf(pdf,doc.file_name,available.provider);
     // A revised/invalidated PDF must NEVER yield accepted observations.
     // Recheck ownership and immutable object version after AI inference.
@@ -217,7 +246,8 @@ export default async function handler(req:Req,res:Res){
     const code=e instanceof Error?e.message:"";
     if(code==="PDF_LIMIT")return json(res,413,{code,error:"PDF acima de 8 MB. Separe as pranchas."});
     if(code==="PDF_INVALID")return json(res,422,{code,error:"O PDF está incompleto ou inválido."});
-    if(code==="AI_RATE_LIMIT")return json(res,429,{code,error:"Limite do provedor de IA atingido."});
+    if(code==="AI_RATE_LIMIT")return json(res,429,{code,
+      error:"A cota gratuita ou o limite de requisições do serviço de leitura foi atingido. Nenhum dado foi gravado."});
     if(code==="AI_PROVIDER_BILLING")return json(res,402,{code,
       error:"A modalidade visual selecionada está sem créditos ou atingiu o limite de gastos da API contratada. Nenhuma medida foi aplicada. A Leitura Documental não comprova recuos geométricos."});
     if(code==="AI_PROVIDER_MODEL_UNAVAILABLE")return json(res,503,{code,
