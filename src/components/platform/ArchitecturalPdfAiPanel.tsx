@@ -168,13 +168,13 @@ export function ArchitecturalPdfAiPanel({
   }
   return <section data-sigapro-project-pdf-ai="true"
     data-sigapro-document-ai-embedded={compact?"true":"false"}
-    className={`min-w-0 max-w-full overflow-hidden rounded-2xl border border-sky-200 bg-white text-slate-900 dark:border-sky-700 dark:bg-slate-950 dark:text-white ${compact?"p-3":"mt-5 p-4"}`}>
+    className={`min-w-0 max-w-full overflow-hidden rounded-2xl border border-sky-200 bg-white !text-slate-950 dark:border-sky-500 dark:bg-[#0b172a] dark:!text-slate-100 ${compact?"p-3":"mt-5 p-4"}`}>
     <div className="flex flex-wrap items-center justify-between gap-2">
-      <h4 className="flex items-center gap-2 text-sm font-extrabold">
+      <h4 className="flex min-w-0 items-center gap-2 break-words text-sm font-extrabold text-slate-950 dark:text-white [overflow-wrap:anywhere]">
         <BrainCircuit className="h-5 w-5 text-sky-700 dark:text-sky-300"/>
         SIGAPRO IA · Leitura Técnica do Projeto
       </h4>
-      <span className="rounded-full bg-amber-100 px-2 py-1 text-[11px] font-bold text-amber-950">
+      <span className="max-w-full rounded-full bg-amber-100 px-2 py-1 text-[11px] font-bold !text-amber-950 dark:bg-amber-950 dark:!text-amber-100">
         Sem aprovação automática
       </span>
     </div>
@@ -186,14 +186,14 @@ export function ArchitecturalPdfAiPanel({
     {!plans.length?<p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-950">
       Nenhum projeto arquitetônico PDF foi encontrado como documento armazenado neste processo.
     </p>:<>
-      <label className="mt-3 block text-xs font-semibold">Projeto arquitetônico do processo
-        <select className="mt-1 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-slate-900 dark:bg-slate-900 dark:text-white"
+      <label className="mt-3 block break-words text-xs font-semibold text-slate-900 dark:text-white">Projeto arquitetônico do processo
+        <select className="mt-1 min-h-11 w-full min-w-0 rounded-xl border border-slate-300 bg-white px-3 !text-slate-950 dark:border-slate-600 dark:bg-[#17283d] dark:!text-white"
           value={id} disabled={readOnly||loading||Boolean(documentId)}
           onChange={event=>{setId(event.target.value);setDraft(null);setChecked({});setConsent(false);}}>
           {plans.map(doc=><option key={doc.id} value={doc.id}>{doc.fileName} · versão {doc.version}</option>)}
         </select>
       </label>
-      {!latest?<p role="alert" className="mt-2 text-xs font-semibold text-amber-800">
+      {!latest?<p role="alert" className="mt-2 text-xs font-semibold text-amber-900 dark:text-amber-200">
         Uma versão mais recente está disponível. Use a versão atual do projeto.
       </p>:null}
       <div role="group" aria-label="Escolha o tipo de leitura do PDF"
@@ -202,12 +202,12 @@ export function ArchitecturalPdfAiPanel({
           aria-pressed={readingMode==="visual"} disabled={readOnly||loading}
           onClick={()=>changeReadingMode("visual")}
           className={`min-w-0 max-w-full rounded-xl border p-3 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-600 ${readingMode==="visual"
-            ?"border-sky-500 bg-sky-50 ring-1 ring-sky-300 dark:bg-sky-950"
-            :"border-slate-200 bg-white hover:border-sky-300 dark:border-slate-700 dark:bg-slate-900"}`}>
-          <span className="block break-words text-xs font-extrabold leading-5 [overflow-wrap:anywhere]">
+            ?"border-sky-500 bg-sky-50 !text-sky-950 ring-1 ring-sky-300 dark:border-sky-400 dark:bg-[#103b5e] dark:!text-white"
+            :"border-slate-300 bg-white !text-slate-950 hover:border-sky-300 dark:border-slate-600 dark:bg-[#17283d] dark:!text-white dark:hover:border-sky-400"}`}>
+          <span className="block break-words text-xs font-extrabold leading-5 !text-slate-950 dark:!text-white [overflow-wrap:anywhere]">
             SIGAPRO IA · Leitura Visual
           </span>
-          <span className="mt-1 block break-words text-[11px] leading-5 text-slate-600 dark:text-slate-300 [overflow-wrap:anywhere]">
+          <span className="mt-1 block break-words text-[11px] leading-5 !text-slate-700 dark:!text-slate-100 [overflow-wrap:anywhere]">
             Analisa pranchas e cotas identificadas. Requer disponibilidade de créditos no serviço contratado.
           </span>
         </button>
@@ -216,18 +216,18 @@ export function ArchitecturalPdfAiPanel({
             aria-pressed={readingMode==="cloudflare_text"} disabled={readOnly||loading}
             onClick={()=>changeReadingMode("cloudflare_text")}
             className={`min-w-0 max-w-full rounded-xl border p-3 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-600 ${readingMode==="cloudflare_text"
-              ?"border-sky-500 bg-sky-50 ring-1 ring-sky-300 dark:bg-sky-950"
-              :"border-slate-200 bg-white hover:border-sky-300 dark:border-slate-700 dark:bg-slate-900"}`}>
-            <span className="block break-words text-xs font-extrabold leading-5 [overflow-wrap:anywhere]">
+              ?"border-sky-500 bg-sky-50 !text-sky-950 ring-1 ring-sky-300 dark:border-sky-400 dark:bg-[#103b5e] dark:!text-white"
+              :"border-slate-300 bg-white !text-slate-950 hover:border-sky-300 dark:border-slate-600 dark:bg-[#17283d] dark:!text-white dark:hover:border-sky-400"}`}>
+            <span className="block break-words text-xs font-extrabold leading-5 !text-slate-950 dark:!text-white [overflow-wrap:anywhere]">
               SIGAPRO IA · Leitura Documental
             </span>
-            <span className="mt-1 block break-words text-[11px] leading-5 text-slate-600 dark:text-slate-300 [overflow-wrap:anywhere]">
+            <span className="mt-1 block break-words text-[11px] leading-5 !text-slate-700 dark:!text-slate-100 [overflow-wrap:anywhere]">
               Extrai o conteúdo escrito do PDF, sujeito à cota disponível; não verifica a geometria dos recuos.
             </span>
           </button>
         ):null}
       </div>
-      <label className="mt-3 flex min-w-0 items-start gap-2 rounded-xl border border-sky-200 bg-sky-50 p-3 text-xs font-semibold text-sky-950 dark:border-sky-700 dark:bg-slate-900 dark:text-white">
+      <label className="mt-3 flex min-w-0 items-start gap-2 rounded-xl border border-sky-300 bg-sky-50 p-3 text-xs font-semibold !text-sky-950 dark:border-sky-500 dark:bg-[#103b5e] dark:!text-sky-50">
         <input type="checkbox" checked={consent} disabled={readOnly||loading}
           onChange={event=>setConsent(event.target.checked)} />
         <span className="min-w-0 break-words leading-5 [overflow-wrap:anywhere]">
@@ -238,7 +238,7 @@ export function ArchitecturalPdfAiPanel({
         </span>
       </label>
       <details data-sigapro-ai-processor-disclosure="true"
-        className="mt-2 min-w-0 max-w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
+        className="mt-2 min-w-0 max-w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 text-xs !text-slate-800 dark:border-slate-600 dark:bg-[#17283d] dark:!text-slate-100">
         <summary className="cursor-pointer break-words font-semibold [overflow-wrap:anywhere]">
           Informações sobre o processamento
         </summary>
@@ -269,8 +269,8 @@ export function ArchitecturalPdfAiPanel({
             availability.documentReady===false?"blocked":"unknown"}
           className={"mt-2 rounded-xl border p-3 text-xs font-semibold leading-5 "+(
             availability.documentReady===true
-              ?"border-emerald-200 bg-emerald-50 text-emerald-950"
-              :"border-amber-300 bg-amber-50 text-amber-950")}>
+              ?"border-emerald-200 bg-emerald-50 text-emerald-950 dark:border-emerald-600 dark:bg-emerald-950 dark:text-emerald-100"
+              :"border-amber-300 bg-amber-50 text-amber-950 dark:border-amber-600 dark:bg-amber-950 dark:text-amber-100")}>
           {availability.documentMessage || "Não foi possível verificar a liberação técnica do documento."}
           {availability.documentReady===false ?
             <p className="mt-1">A leitura não será enviada ao provedor.
@@ -280,7 +280,7 @@ export function ArchitecturalPdfAiPanel({
       ) : null}
       {availability.provider==="claude"&&availability.status==="ready"&&readingMode==="visual"?(
         <p role="note" data-sigapro-claude-credit-not-verified="true"
-          className="mt-2 rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs font-semibold leading-5 text-amber-950">
+          className="mt-2 rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs font-semibold leading-5 text-amber-950 dark:border-amber-500 dark:bg-amber-950 dark:text-amber-100">
           A Leitura Visual está configurada, mas o saldo do prestador ainda não foi confirmado.
           Esta verificação não transmite o PDF nem gera cobrança. Se o limite de
           processamento for atingido, a operação será interrompida sem aplicar medidas.
@@ -289,7 +289,7 @@ export function ArchitecturalPdfAiPanel({
       {availability.mode==="text_only"&&availability.status==="ready"&&
         !availability.textAlternativeAvailable?(
         <p role="note" data-sigapro-pdf-visual-provider-needed="true"
-          className="mt-2 rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs font-semibold leading-5 text-amber-950">
+          className="mt-2 rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs font-semibold leading-5 text-amber-950 dark:border-amber-500 dark:bg-amber-950 dark:text-amber-100">
           Para homologar a leitura visual de recuos, o administrador técnico deve habilitar
           o serviço de análise de PDFs com suporte a imagens no ambiente de testes.
           A Leitura Documental extrai apenas texto e não comprova geometria.
@@ -304,7 +304,7 @@ export function ArchitecturalPdfAiPanel({
       </p>:null}
       {billingUnavailable&&availability.textAlternativeAvailable&&readingMode==="visual"?(
         <p role="note" data-sigapro-ai-credit-alternative="true"
-          className="mt-3 min-w-0 max-w-full rounded-xl border border-sky-200 bg-sky-50 p-3 text-xs font-semibold leading-5 text-sky-950 break-words [overflow-wrap:anywhere]">
+          className="mt-3 min-w-0 max-w-full rounded-xl border border-sky-200 bg-sky-50 p-3 text-xs font-semibold leading-5 text-sky-950 break-words dark:border-sky-600 dark:bg-sky-950 dark:text-sky-100 [overflow-wrap:anywhere]">
           O serviço de Leitura Visual está sem créditos disponíveis.
           Para testar a extração de texto, selecione “SIGAPRO IA · Leitura Documental”
           e autorize o novo envio. A alternativa não verifica a geometria dos recuos.
@@ -330,7 +330,7 @@ export function ArchitecturalPdfAiPanel({
         A Leitura Documental converteu o PDF em texto. Recuos e geometria não foram
         validados: somente trechos verificáveis podem ser conferidos no PDF original.
       </p>:null}
-      <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-white">
+      <div className="min-w-0 rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-900 dark:border-slate-600 dark:bg-[#17283d] dark:text-slate-100 [overflow-wrap:anywhere]">
         <strong>{draft.documentType==="architectural_plan"?"Projeto identificado pela IA":"Identificação do documento incerta"}</strong>
         <p className="mt-1">Planta de implantação reconhecida: {draft.hasSitePlan?"sim":"não confirmada"}.
           A IA não determinou conformidade jurídica.</p>
@@ -345,7 +345,7 @@ export function ArchitecturalPdfAiPanel({
             !readOnly && draft.documentId===id;
           return <div key={row.metric}
             data-sigapro-pdf-measure={row.metric}
-            className="min-w-0 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
+            className="min-w-0 rounded-xl border border-slate-300 bg-white p-3 text-slate-900 dark:border-slate-600 dark:bg-[#17283d] dark:text-slate-100 [overflow-wrap:anywhere]">
             <strong className="text-xs text-slate-950 dark:text-white">{meta.label}</strong>
             <p className="mt-1 text-sm font-bold text-slate-900 dark:text-slate-100">
               {row.value===null?"Não identificado":String(row.value)+" "+meta.unit}
@@ -356,16 +356,16 @@ export function ArchitecturalPdfAiPanel({
             {row.quote?<p className="mt-1 break-words text-xs italic text-slate-600 dark:text-slate-300">
               Trecho identificado: “{row.quote}”
             </p>:null}
-            {!row.usableForReview?<p className="mt-1 text-xs text-amber-800 dark:text-amber-200">
+            {!row.usableForReview?<p className="mt-1 text-xs text-amber-900 dark:text-amber-200">
               {row.reason}
             </p>:null}
-            {canUse?<label className="mt-2 flex items-start gap-2 text-xs font-semibold">
+            {canUse?<label className="mt-2 flex min-w-0 items-start gap-2 text-xs font-semibold text-slate-950 dark:text-slate-100">
               <input type="checkbox" checked={Boolean(checked[row.metric])}
                 onChange={e=>setChecked(v=>({...v,[row.metric]:e.target.checked}))}/>
               Conferi a medida e a página no PDF original; usar na pré-análise
             </label>:null}
             {row.usableForReview&&!activeMetrics.includes(row.metric)?
-              <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
+              <p className="mt-1 text-xs text-slate-700 dark:text-slate-200">
                 Sem norma validada correspondente a este índice; apenas informativo.
               </p>:null}
           </div>;
@@ -381,7 +381,7 @@ export function ArchitecturalPdfAiPanel({
         Nenhuma regra oficial ativa para esta zona e uso. A extração não pode produzir diagnóstico legal.
       </p>:null}
     </div>:null}
-    {notice?<p role="status" className="mt-3 rounded-xl border border-sky-200 bg-sky-50 p-3 text-xs text-sky-950 dark:bg-slate-900 dark:text-sky-100">
+    {notice?<p role="status" className="mt-3 rounded-xl border border-sky-200 bg-sky-50 p-3 text-xs text-sky-950 dark:border-sky-500 dark:bg-[#103b5e] dark:text-sky-100">
       {notice}
     </p>:null}
   </section>;
