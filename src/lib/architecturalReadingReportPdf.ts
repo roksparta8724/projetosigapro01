@@ -215,6 +215,15 @@ export function createArchitecturalReadingReportPdf(input: {
     y+=12;
     body("Fonte textual da cota: "+row.quote,8,MUTED);
   }
+  if(input.extraction.supplementaryFacts?.length){
+    section("Outras cotas declaradas nas pranchas");
+    body("Valores complementares para verificacao; nao sao indices legais nem aprovacao.",8,MUTED);
+    for(const fact of input.extraction.supplementaryFacts.slice(0,12)){
+      body(fact.label+": "+fact.value.toLocaleString("pt-BR")+" "+fact.unit+
+        "  |  Pagina "+fact.page,9,INK);
+      body("Trecho: "+fact.quote,8,MUTED);
+    }
+  }
   section("Indices que ainda exigem verificacao");
   if(missing.length){
     const labels=missing.map(x=>URBAN_METRICS.find(m=>m.key===x.metric)?.label||x.metric);
