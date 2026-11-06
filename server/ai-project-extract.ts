@@ -257,6 +257,18 @@ export default async function handler(req:Req,res:Res){
       error:textRequested
         ?"A autenticação do módulo SIGAPRO IA · Leitura Documental está indisponível."
         :"A autenticação do provedor visual está inválida ou não foi autorizada."});
+    if(code==="CLOUDFLARE_PDF_CONVERSION_TIMEOUT")return json(res,504,{code,
+      error:"A conversão do PDF em texto excedeu o tempo permitido. O serviço externo não concluiu essa etapa; nenhuma medida foi registrada. Para recuos desenhados, utilize uma leitura visual habilitada."});
+    if(code==="CLOUDFLARE_MODEL_TIMEOUT")return json(res,504,{code,
+      error:"O PDF foi convertido, mas a interpretação textual excedeu o tempo permitido. Nenhuma medida foi registrada; tente novamente somente após conferir os limites do serviço."});
+    if(code==="CLOUDFLARE_PDF_CONVERSION_REJECTED")return json(res,422,{code,
+      error:"O serviço de conversão recusou o formato ou tamanho do PDF. Verifique esta versão do arquivo; nenhuma medida foi registrada."});
+    if(code==="CLOUDFLARE_PDF_CONVERSION_UNAVAILABLE"||code==="CLOUDFLARE_PDF_CONVERSION_NETWORK")
+      return json(res,503,{code,
+        error:"O serviço de conversão de PDF está indisponível ou não respondeu. Nenhuma medida foi registrada. A leitura visual exige um prestador próprio habilitado."});
+    if(code==="CLOUDFLARE_MODEL_UNAVAILABLE"||code==="CLOUDFLARE_MODEL_NETWORK")
+      return json(res,503,{code,
+        error:"A conversão do PDF foi realizada, mas o modelo de interpretação não respondeu. Nenhuma medida foi registrada."});
     if(code==="CLOUDFLARE_PDF_CONVERSION_FAILED")return json(res,422,{code,
       error:"O SIGAPRO IA · Leitura Documental não conseguiu converter esta versão do PDF em texto. Verifique o arquivo original; nenhuma medida foi aplicada."});
     if(code==="CLOUDFLARE_PDF_TEXT_EMPTY")return json(res,422,{code,
