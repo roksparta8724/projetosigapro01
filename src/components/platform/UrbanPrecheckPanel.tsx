@@ -255,6 +255,16 @@ export function UrbanPrecheckPanel({
           permissão de analista e fontes legais válidas.
         </p>
       ) : null}
+      <div data-sigapro-urban-territorial-warning="true"
+        className="mt-3 min-w-0 rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs leading-5 text-amber-950 dark:border-amber-600 dark:bg-[#392d16] dark:text-amber-100 [overflow-wrap:anywhere]">
+        <p className="font-extrabold">Zona do lote: precisa de prova cadastral e cartográfica</p>
+        <p className="mt-1 break-words">Endereço informado no processo: {process.address?.trim()||"não informado"}.
+          O endereço, a planta e a sigla digitada abaixo não comprovam a delimitação oficial da zona.
+          Confirme a inscrição imobiliária e o mapa oficial vigente antes da comparação legal.</p>
+        <p className="mt-1">A zona preenchida aqui é uma hipótese de seleção de norma,
+          não classificação geográfica automática. Sem documento oficial, página,
+          vigência e evidência por índice, a conferência permanece bloqueada.</p>
+      </div>
       <div className="mt-4 grid gap-3 md:grid-cols-3">
         <label className="text-xs font-bold text-slate-700 dark:text-slate-200">Zona do imóvel
           <Input className="mt-1" placeholder="Ex.: ZR1" value={zone} maxLength={40}
