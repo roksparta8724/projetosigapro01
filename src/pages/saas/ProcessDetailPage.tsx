@@ -1,4 +1,5 @@
 import { archiveAndOpenGuide, openLegacyGuideOriginal, openStoredGuide, readGuideOriginal } from "@/lib/guideOriginal";
+import { isSyntheticQaProtocolGuideCode } from "@/lib/qaPaymentEvidence";
 import { FormEvent, MouseEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, ArrowRightLeft, BrainCircuit, Building2, CheckCircle2, Clock3, Download, Eye, FileBadge2, FileCheck2, FileKey2, FileStack, Landmark, LogOut, Maximize2, MessageSquareMore, PencilLine, Printer, ReceiptText, Route, ShieldAlert, Signature, UserRound, Wallet, Workflow, ZoomIn, ZoomOut } from "lucide-react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
@@ -1888,6 +1889,68 @@ export function ProcessDetailPage() {
       visiblePaymentGuides.find((guide) => guide.kind === guideKind);
     if (!selectedGuide) return;
 
+    // A historical QA guide is an administrative fixture, not an actual bank
+    // claim. The old path tried get_payment_guide_original_v1 and rejected it as
+    // "compensada sem PDF original": there is deliberately no original or PIX.
+    // This view must never call banking/provider, freeze an original, or issue
+    // a charge. In production the branch is disabled by the isolated-QA flag.
+    if (import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true" &&
+        selectedGuide.kind === "protocolo" &&
+        isSyntheticQaProtocolGuideCode(selectedGuide.code) &&
+        Number(selectedGuide.amount) === 0) {
+      const issuedDate = selectedGuide.issuedAt || process.createdAt;
+      const preview: GuiaRecolhimentoOficialProps = {
+        prefeitura: {
+          nome: municipalityName || tenant?.name || "Prefeitura Municipal",
+          secretaria: tenantSettings?.secretariaResponsavel || "Secretaria responsável",
+          endereco: tenantSettings?.endereco || "",
+          telefone: tenantSettings?.telefone || "",
+          logoUrl: preparedGuideLogoUrl || getRenderedMunicipalityLogoDataUrl() ||
+            stableGuideLogoUrl || tenantSettings?.brasaoUrl || "",
+        },
+        contribuinte: {
+          nome: process.ownerName || "Não informado no cadastro",
+          cpfCnpj: process.ownerDocument || "",
+          endereco: process.address || "Não informado no cadastro",
+          numeroCadastro: process.property.registration || process.protocol,
+        },
+        guia: {
+          numeroGuia: selectedGuide.code,
+          exercicio: new Date(issuedDate).getFullYear(),
+          dataDocumento: issuedDate,
+          vencimento: selectedGuide.dueDate,
+          observacao: "DOCUMENTO FICTÍCIO DE HOMOLOGAÇÃO. NÃO É GUIA BANCÁRIA E NÃO DEVE SER PAGO.",
+          funcionarioResponsavel: selectedGuide.issuedBy || session.name,
+          proprietario: process.ownerName || "",
+          profissionalResponsavel: process.technicalLead || "",
+          areaObra: process.property.area || undefined,
+          usoObra: process.property.usage || "",
+          nonPayablePreview: true,
+          bankEnvironment: "test",
+          paymentProvider: "manual",
+          bankName: "",
+          codigoBarras: "",
+          linhaDigitavel: "",
+          pixPayload: "",
+          qrCodePixUrl: "",
+          valorDocumento: 0,
+          valorCobrado: 0,
+        },
+        itens: [{
+          ano: new Date(issuedDate).getFullYear(),
+          divida: "Protocolo administrativo - prévia de homologação sem cobrança",
+          tabela: "QA - NÃO PAGAR",
+          principal: 0,
+          multa: 0, juros: 0, correcao: 0, total: 0,
+        }],
+      };
+      const opened = openGuiaRecolhimentoOficialWindow(preview, {
+        title: "Prévia administrativa - sem cobrança - " + selectedGuide.code,
+        autoPrint,
+      });
+      if (!opened) setProcessActionStatus("O navegador bloqueou a prévia da guia. Permita a abertura de guias do SIGAPRO.");
+      return;
+    }
 
     const reservedGuideWindow = reserveGuiaRecolhimentoOficialWindow(
       "Guia " + selectedGuide.code,
