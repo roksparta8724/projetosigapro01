@@ -19,7 +19,7 @@ describe("Workers AI PDF conversion with existing SIGAPRO R2 and Cloudflare conf
     expect(req.model).toBe("@cf/zai-org/glm-4.7-flash");
     expect(req).not.toHaveProperty("response_format");
     expect(req.messages[0].content).toContain("objeto JSON válido");
-    expect(req.max_completion_tokens).toBeGreaterThanOrEqual(3000);
+    expect(req.max_completion_tokens).toBeLessThanOrEqual(1500);
     expect(JSON.stringify(req)).not.toContain("api.anthropic.com");
     return {ok:true,json:async()=>({choices:[{message:{content:JSON.stringify({
       document_type:"architectural_plan",has_site_plan:true,warnings:[],
@@ -122,6 +122,66 @@ describe("Workers AI PDF conversion with existing SIGAPRO R2 and Cloudflare conf
     kind:"cloudflare",key,accountId:account,model:"@cf/zai-org/glm-4.7-flash",
   });
   expect(result.readings.find(x=>x.metric==="lot_area_m2")?.value).toBe(250);
+ });
+
+ it("identifica o timeout da conversão em vez de notificar falha genérica",async()=>{
+  vi.stubGlobal("fetch",vi.fn(async()=>{
+    const error=new Error("cancelled");error.name="AbortError";throw error;
+  }));
+  await expect(extractVisualPdf(new TextEncoder().encode("%PDF-"),"teste.pdf",{
+    kind:"cloudflare",key,accountId:account,model:"@cf/zai-org/glm-4.7-flash",
+  })).rejects.toThrow("CLOUDFLARE_PDF_CONVERSION_TIMEOUT");
+ });
+ it("identifica o timeout do modelo APÓS converter o PDF",async()=>{
+  let calls=0;
+  vi.stubGlobal("fetch",vi.fn(async()=>{
+    calls++;
+    if(calls===1)return {ok:true,status:200,json:async()=>({
+      success:true,result:[{format:"markdown",data:"Página 2: Área do lote: 300 m2 e recuos na prancha."}],
+    })};
+    const error=new Error("timeout");error.name="AbortError";throw error;
+  }));
+  await expect(extractVisualPdf(new TextEncoder().encode("%PDF-"),"teste.pdf",{
+    kind:"cloudflare",key,accountId:account,model:"@cf/zai-org/glm-4.7-flash",
+  })).rejects.toThrow("CLOUDFLARE_MODEL_TIMEOUT");
+  expect(calls).toBe(2);
+ });
+ it("diferencia falha externa da conversão e do modelo sem revelar resposta do fornecedor",async()=>{
+  vi.stubGlobal("fetch",vi.fn(async()=>({ok:false,status:503})));
+  await expect(extractVisualPdf(new TextEncoder().encode("%PDF-"),"teste.pdf",{
+    kind:"cloudflare",key,accountId:account,model:"@cf/zai-org/glm-4.7-flash",
+  })).rejects.toThrow("CLOUDFLARE_PDF_CONVERSION_UNAVAILABLE");
+  let n=0;
+  vi.stubGlobal("fetch",vi.fn(async()=>{
+    n++;
+    return n===1?{ok:true,json:async()=>({success:true,result:[{
+      format:"markdown",data:"Página 2: área do lote 300,00 m2 e recuos cotados.",
+    }]})}:{ok:false,status:503};
+  }));
+  await expect(extractVisualPdf(new TextEncoder().encode("%PDF-"),"teste.pdf",{
+    kind:"cloudflare",key,accountId:account,model:"@cf/zai-org/glm-4.7-flash",
+  })).rejects.toThrow("CLOUDFLARE_MODEL_UNAVAILABLE");
+ });
+ it("desativa raciocínio prolongado na interpretação de texto e limita a resposta",async()=>{
+  let n=0;
+  vi.stubGlobal("fetch",vi.fn(async(url:string,options:RequestInit)=>{
+    n++;
+    if(n===1)return {ok:true,json:async()=>({success:true,result:[{
+      format:"markdown",data:"## Página 2\\nÁrea do lote 300,00 m2.",
+    }]})};
+    expect(url).toContain("/ai/v1/chat/completions");
+    const request=JSON.parse(String(options.body));
+    expect(request.chat_template_kwargs).toEqual({enable_thinking:false});
+    expect(request.max_completion_tokens).toBeLessThanOrEqual(1500);
+    return {ok:true,json:async()=>({choices:[{message:{content:JSON.stringify({
+      document_type:"architectural_plan",has_site_plan:false,warnings:[],metrics:[],
+    })}}]})};
+  }));
+  const extraction=await extractVisualPdf(new TextEncoder().encode("%PDF-"),"qa.pdf",{
+    kind:"cloudflare",key,accountId:account,model:"@cf/zai-org/glm-4.7-flash",
+  });
+  expect(n).toBe(2);
+  expect(extraction.source).toBe("ai_pdf_text");
  });
 
 });
