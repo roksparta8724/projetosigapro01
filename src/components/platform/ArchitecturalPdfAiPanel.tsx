@@ -101,7 +101,7 @@ export function ArchitecturalPdfAiPanel({
         nativeTextAvailable?:boolean;
       };
       if(!res.ok)throw new Error(value.error||"Não foi possível confirmar a disponibilidade da IA.");
-      if(current)setAvailability({status:value.enabled?"ready":"disabled",
+      if(current)setAvailability({status:(value.enabled||value.nativeTextAvailable===true)?"ready":"disabled",
         provider:value.provider==="cloudflare"||value.provider==="claude"||value.provider==="openai"
           ?value.provider:"none",
         mode:value.mode==="visual"||value.mode==="text_only"?value.mode:"disabled",
@@ -188,6 +188,21 @@ export function ArchitecturalPdfAiPanel({
           :"Extração visual concluída. Confira cada página original antes de aproveitar uma medida.");
     }catch(cause){setError(String((cause as Error)?.message||cause));}
     finally{setLoading(false);}
+  }
+  async function downloadReadingReport(){
+    if(!draft||!selected||!latest||draft.documentId!==selected.id||
+      draft.documentVersion!==selected.version||readOnly)return;
+    try{
+      const {createArchitecturalReadingReportPdf}=await import("@/lib/architecturalReadingReportPdf");
+      const pdf=createArchitecturalReadingReportPdf({
+        extraction:draft,processId:process.id,documentId:draft.documentId,
+        documentVersion:draft.documentVersion,fileName:draft.fileName,
+      });
+      pdf.save("SIGAPRO-leitura-"+process.id.slice(0,8)+"-v"+selected.version+".pdf");
+      setNotice("Relatório preliminar de leitura gerado em PDF. As medidas exigem conferência humana; não é um parecer de conformidade.");
+    }catch{
+      setError("Não foi possível gerar o relatório PDF da leitura. A análise não foi alterada.");
+    }
   }
   function apply(){
     if(!draft||readOnly||!selected||draft.documentId!==selected.id||
@@ -446,6 +461,20 @@ export function ArchitecturalPdfAiPanel({
       </details>:null}
     </div>:null}
     {draft? <div className="mt-4 space-y-3">
+      <div data-sigapro-reading-report="true"
+        className="min-w-0 rounded-xl border border-sky-300 bg-sky-50 p-3 text-sky-950 dark:border-sky-600 dark:bg-[#103b5e] dark:text-white">
+        <p className="text-sm font-extrabold">Relatório técnico da leitura</p>
+        <p className="mt-1 break-words text-xs leading-5">
+          Gere um PDF rastreável com todas as medidas, páginas, trechos e pendências desta versão
+          do projeto. É um relatório preliminar de extração, sem avaliação de zoneamento e sem aprovação automática.
+        </p>
+        <Button type="button" data-sigapro-download-reading-report="true"
+          className="mt-2 h-auto min-h-11 w-full whitespace-normal break-words bg-slate-950 px-3 py-2 !text-white"
+          disabled={!latest||readOnly||draft.documentVersion!==selected?.version}
+          onClick={()=>void downloadReadingReport()}>
+          <FileText className="mr-2 h-4 w-4"/>Gerar relatório da leitura (PDF)
+        </Button>
+      </div>
       {draft.source==="pdf_text_local"?<p role="status"
         data-sigapro-native-pdf-evidence="true"
         className="rounded-xl border border-emerald-300 bg-emerald-50 p-3 text-xs font-semibold leading-5 text-emerald-950 dark:border-emerald-500 dark:bg-emerald-950 dark:text-emerald-100">
