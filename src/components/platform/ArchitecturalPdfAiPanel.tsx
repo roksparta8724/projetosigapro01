@@ -520,6 +520,27 @@ export function ArchitecturalPdfAiPanel({
       </details>:null}
     </div>:null}
     {draft? <div className="mt-4 space-y-3">
+      <section data-sigapro-pdf-page-audit="true"
+        className="min-w-0 rounded-xl border border-sky-300 bg-sky-50 p-3 text-sky-950 dark:border-sky-600 dark:bg-[#122d43] dark:text-white [overflow-wrap:anywhere]">
+        <p className="text-sm font-extrabold">Inventário de páginas do projeto</p>
+        <p className="mt-1 text-xs leading-5">
+          {draft.pageAudit?.countVerified
+            ? "PDF: "+draft.pageAudit.count+" página(s) · Medidas com evidência citada em "+
+                draft.pageAudit.evidencePages.length+" página(s)."
+            : "Número de páginas não comprovado por esta leitura; confira o PDF original."}
+        </p>
+        {draft.pageAudit?.countVerified&&draft.pageAudit.pagesWithoutMeasurementEvidence.length>0?
+          <p className="mt-1 text-xs leading-5">
+            Páginas sem medidas comprovadas: {draft.pageAudit.pagesWithoutMeasurementEvidence
+              .slice(0,15).join(", ")}
+            {draft.pageAudit.pagesWithoutMeasurementEvidence.length>15?" e outras":""}.
+            Elas não foram descartadas: exigem revisão da prancha original.
+          </p>:null}
+        <p className="mt-1 text-xs leading-5">
+          {draft.pageAudit?.note||
+            "Não existe certificado de inspeção integral da geometria. Cada prancha deve ser revisada pelo analista."}
+        </p>
+      </section>
       <div data-sigapro-reading-report="true"
         className="min-w-0 rounded-xl border border-sky-300 bg-sky-50 p-3 text-sky-950 dark:border-sky-600 dark:bg-[#103b5e] dark:text-white">
         <p className="text-sm font-extrabold">Relatório técnico da leitura</p>
