@@ -196,7 +196,6 @@ export function createArchitecturalReadingReportPdf(input: {
   small("Identificador",input.documentId);
   small("Emissao",(input.generatedAt||new Date()).toLocaleString("pt-BR"));
   small("Modalidade",method);
-  if(input.extraction.aiProvider?.trim())small("Provedor",input.extraction.aiProvider);
   const distinctScope=kind==="pdf_text_local"
     ?"A camada textual das paginas foi pesquisada. Desenhos, hachuras e cotas graficas sem texto selecionavel NAO foram interpretados."
     :kind==="ai_pdf_text"
