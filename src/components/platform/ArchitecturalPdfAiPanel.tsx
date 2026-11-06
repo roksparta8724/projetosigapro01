@@ -381,8 +381,8 @@ export function ArchitecturalPdfAiPanel({
             (readingMode==="native_text"
               ?"border-emerald-600 bg-emerald-50 text-emerald-950 ring-1 ring-emerald-400 dark:border-emerald-400 dark:bg-[#153c36] dark:text-white"
               :"border-slate-300 bg-white text-slate-900 hover:border-sky-400 dark:border-slate-500 dark:bg-[#1a3049] dark:text-white")}>
-          <span className="block text-[13px] font-extrabold">Leitura Local</span>
-          <span className="mt-1 block text-xs leading-5">Texto e cotas · sem custo externo</span>
+          <span className="block text-[13px] font-extrabold">Leitura Local · Grátis</span>
+          <span className="mt-1 block text-xs leading-5">Cotas declaradas · sem créditos de IA</span>
         </button>
         <button type="button" data-sigapro-ai-mode-visual="true"
           aria-pressed={readingMode==="visual"} disabled={readOnly||loading}
@@ -392,7 +392,7 @@ export function ArchitecturalPdfAiPanel({
               ?"border-sky-600 bg-sky-50 text-sky-950 ring-1 ring-sky-400 dark:border-sky-400 dark:bg-[#123b57] dark:text-white"
               :"border-slate-300 bg-white text-slate-900 hover:border-sky-400 dark:border-slate-500 dark:bg-[#1a3049] dark:text-white")}>
           <span className="block text-[13px] font-extrabold">IA Visual</span>
-          <span className="mt-1 block text-xs leading-5">Pranchas · serviço externo</span>
+          <span className="mt-1 block text-xs leading-5">Desenhos e pranchas · requer créditos do serviço</span>
         </button>
         {availability.textAlternativeAvailable?(
           <button type="button" data-sigapro-ai-mode-cloudflare-text="true"
@@ -420,7 +420,7 @@ export function ArchitecturalPdfAiPanel({
                   (readingMode==="openai_visual"
                     ?"border-sky-500 bg-sky-50 text-sky-950 dark:bg-[#123b57] dark:text-white"
                     :"border-slate-300 bg-slate-50 text-slate-900 dark:border-slate-500 dark:bg-[#20374f] dark:text-white")}>
-                Leitura Avançada · OpenAI API (créditos separados do ChatGPT)
+                Leitura Avançada · serviço visual opcional
               </button>
             ):null}
             {availability.geminiQaFixture?(
@@ -431,7 +431,7 @@ export function ArchitecturalPdfAiPanel({
                   (readingMode==="gemini_qa"
                     ?"border-sky-500 bg-sky-50 text-sky-950 dark:bg-[#123b57] dark:text-white"
                     :"border-slate-300 bg-slate-50 text-slate-900 dark:border-slate-500 dark:bg-[#20374f] dark:text-white")}>
-                Ensaio Visual Gratuito · somente PDF fictício 04
+                Ensaio Visual QA · somente PDF fictício 04
                 {availability.geminiQaAvailable?" · disponível":" · ainda não habilitado"}
               </button>
             ):null}
@@ -460,10 +460,7 @@ export function ArchitecturalPdfAiPanel({
                 {consent?"Aceite confirmado":"ACEITO o envio deste PDF à IA externa"}
               </strong>
               <span className="mt-0.5 block text-xs leading-5">
-                {readingMode==="cloudflare_text"?"Cloudflare":
-                  readingMode==="gemini_qa"?"Google Gemini (apenas teste fictício)":
-                  readingMode==="openai_visual"||availability.provider==="openai"?"OpenAI API":"Anthropic Claude"}
-                {" "}· envio somente após clicar em Iniciar extração.
+                Processamento externo autorizado · envio somente após clicar em Iniciar extração.
               </span>
             </span>
           </label>
@@ -471,6 +468,9 @@ export function ArchitecturalPdfAiPanel({
             className="mt-2 min-w-0 rounded-xl border border-slate-200 bg-white px-3 py-2 text-slate-800 dark:border-slate-600 dark:bg-[#1a3049] dark:text-slate-100">
             <summary className="cursor-pointer text-xs font-semibold">Privacidade e condições do processamento</summary>
             <p className="mt-2 text-xs leading-5">
+              <strong>Prestador externo selecionado: {readingMode==="cloudflare_text"?"Cloudflare Workers AI":
+                readingMode==="gemini_qa"?"Google Gemini":
+                readingMode==="openai_visual"||availability.provider==="openai"?"OpenAI":"Anthropic"}.</strong>{" "}
               Autorizo o envio deste PDF ao prestador externo de processamento correspondente
               à modalidade SIGAPRO IA selecionada. Sei que a leitura pode falhar e que
               nenhuma decisão nem mudança no processo será automática.
@@ -658,8 +658,8 @@ export function ArchitecturalPdfAiPanel({
         <p role="note" data-sigapro-ai-credit-alternative="true"
           className="mt-3 min-w-0 max-w-full rounded-xl border border-sky-200 bg-sky-50 p-3 text-xs font-semibold leading-5 text-sky-950 break-words dark:border-sky-600 dark:bg-sky-950 dark:text-sky-100 [overflow-wrap:anywhere]">
           O serviço de Leitura Visual está sem créditos disponíveis.
-          Para testar a extração de texto, selecione “SIGAPRO IA · Leitura Documental”
-          e autorize o novo envio. A alternativa não verifica a geometria dos recuos.
+          Para testar sem créditos externos, escolha “Leitura Local · Grátis”.
+          Ela reconhece textos e cotas declaradas, mas não mede a geometria dos desenhos.
         </p>
       ):null}
         </div>
