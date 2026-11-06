@@ -73,6 +73,7 @@ export function ArchitecturalPdfAiPanel({
     setAvailability({status:"checking",provider:"none",mode:"disabled",
       documentReady:null,documentMessage:"",textAlternativeAvailable:false,
       openaiVisualAlternativeAvailable:false,
+      geminiQaFixture:false,geminiQaAvailable:false,
       message:"Verificando provedor e liberação técnica do PDF na homologação..."});
     void (async()=>{
       const session=(await backendClient.auth.getSession()).data?.session;
