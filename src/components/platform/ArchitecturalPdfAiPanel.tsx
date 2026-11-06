@@ -626,39 +626,33 @@ export function ArchitecturalPdfAiPanel({
         {draft.readings.filter(row=>row.value!==null&&row.usableForReview).length} de {draft.readings.length}
         {" "}medidas com evidência aproveitável para conferência humana · decisão urbanística não avaliada
       </p>
-      <section data-sigapro-pdf-page-audit="true"
-        className="min-w-0 rounded-xl border border-sky-300 bg-sky-50 p-3 text-sky-950 dark:border-sky-600 dark:bg-[#122d43] dark:text-white [overflow-wrap:anywhere]">
-        <p className="text-sm font-extrabold">Inventário de páginas do projeto</p>
-        <p className="mt-1 text-xs leading-5">
-          {draft.pageAudit?.countVerified
-            ? "PDF: "+draft.pageAudit.count+" página(s) · Medidas com evidência citada em "+
-                draft.pageAudit.evidencePages.length+" página(s)."
-            : "Número de páginas não comprovado por esta leitura; confira o PDF original."}
+      <details data-sigapro-pdf-page-audit="true"
+        className="min-w-0 rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-slate-900 dark:border-slate-600 dark:bg-[#1a3049] dark:text-white">
+        <summary className="cursor-pointer text-[13px] font-bold">
+          Páginas do projeto · {draft.pageAudit?.countVerified
+            ?draft.pageAudit.count+" no PDF, "+draft.pageAudit.evidencePages.length+" com cotas documentadas"
+            :"total não comprovado"}
+        </summary>
+        <p className="mt-2 text-xs leading-5">
+          {draft.pageAudit?.note||
+            "O PDF ainda não tem inventário de páginas comprovado. Confira cada prancha original."}
         </p>
         {draft.pageAudit?.countVerified&&draft.pageAudit.pagesWithoutMeasurementEvidence.length>0?
-          <p className="mt-1 text-xs leading-5">
-            Páginas sem medidas comprovadas: {draft.pageAudit.pagesWithoutMeasurementEvidence
+          <p className="mt-2 text-xs leading-5">
+            Sem medidas documentadas: páginas {draft.pageAudit.pagesWithoutMeasurementEvidence
               .slice(0,15).join(", ")}
             {draft.pageAudit.pagesWithoutMeasurementEvidence.length>15?" e outras":""}.
-            Elas não foram descartadas: exigem revisão da prancha original.
+            Isso não significa que não tenham desenhos ou informação relevante.
           </p>:null}
-        <p className="mt-1 text-xs leading-5">
-          {draft.pageAudit?.note||
-            "Não existe certificado de inspeção integral da geometria. Cada prancha deve ser revisada pelo analista."}
-        </p>
-      </section>
+      </details>
       <div data-sigapro-reading-report="true"
-        className="min-w-0 rounded-xl border border-sky-300 bg-sky-50 p-3 text-sky-950 dark:border-sky-600 dark:bg-[#103b5e] dark:text-white">
-        <p className="text-sm font-extrabold">Relatório técnico da leitura</p>
-        <p className="mt-1 break-words text-xs leading-5">
-          Gere um PDF rastreável com todas as medidas, páginas, trechos e pendências desta versão
-          do projeto. É um relatório preliminar de extração, sem avaliação de zoneamento e sem aprovação automática.
-        </p>
+        className="flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white p-3 text-slate-900 dark:border-slate-600 dark:bg-[#1a3049] dark:text-white">
+        <span className="text-xs font-semibold">Relatório preliminar · sem aprovação automática</span>
         <Button type="button" data-sigapro-download-reading-report="true"
-          className="mt-2 h-auto min-h-11 w-full whitespace-normal break-words bg-slate-950 px-3 py-2 !text-white"
+          className="h-auto min-h-10 whitespace-normal rounded-lg bg-slate-950 px-3 py-2 text-xs !text-white dark:bg-[#17476b]"
           disabled={!latest||readOnly||draft.documentVersion!==selected?.version}
           onClick={()=>void downloadReadingReport()}>
-          <FileText className="mr-2 h-4 w-4"/>Gerar relatório da leitura (PDF)
+          <FileText className="mr-1.5 h-4 w-4"/>Gerar relatório (PDF)
         </Button>
       </div>
       {draft.source==="pdf_text_local"?<p role="status"
@@ -672,11 +666,13 @@ export function ArchitecturalPdfAiPanel({
         A Leitura Documental converteu o PDF em texto. Recuos e geometria não foram
         validados: somente trechos verificáveis podem ser conferidos no PDF original.
       </p>:null}
-      {(readingMode==="gemini_qa"&&draft.aiProvider==="gemini")||
-        (readingMode==="native_text"&&draft.aiProvider==="sigapro_local")?(
-        <section data-sigapro-qa04-benchmark="true"
+      {(import.meta.env.VITE_SIGAPRO_NEON_ISOLATED==="true" &&
+        selected?.fileName==="SIGAPRO-QA04-PLANTA-IMPLANTACAO-V2.pdf" &&
+        ((readingMode==="gemini_qa"&&draft.aiProvider==="gemini")||
+        (readingMode==="native_text"&&draft.aiProvider==="sigapro_local")))?(
+        <details data-sigapro-qa04-benchmark="true"
           className="min-w-0 max-w-full rounded-xl border border-sky-300 bg-sky-50 p-3 text-xs text-sky-950 dark:border-sky-500 dark:bg-[#103b5e] dark:text-sky-100 [overflow-wrap:anywhere]">
-          <strong className="block text-sm">Conferência do ensaio fictício · QA04</strong>
+          <summary className="cursor-pointer text-sm font-bold">Conferência do ensaio fictício · QA04</summary>
           <p className="mt-1">
             {benchmarkQa04ArchitecturalReadings(draft.readings).passed} de 3 recuos
             identificados corretamente na página 2, com citação e unidade
@@ -693,7 +689,7 @@ export function ArchitecturalPdfAiPanel({
             Teste de extração documental fictícia: não comprova precisão em projetos reais
             e não valida zoneamento, legislação ou aprovação municipal.
           </p>
-        </section>
+        </details>
       ):null}
       <details data-sigapro-ai-evidence-alerts="true"
         className="min-w-0 rounded-2xl border border-slate-200 bg-white p-3.5 text-slate-900 shadow-sm dark:border-slate-600 dark:bg-[#1a3049] dark:text-white [overflow-wrap:anywhere]">
