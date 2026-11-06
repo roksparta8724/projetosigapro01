@@ -97,7 +97,18 @@ export function createArchitecturalReadingReportPdf(input: {
   paragraph("Lote/quadra: " + ((territory?.lot || "nao informado") + " / " +
     (territory?.block || "nao informado")));
   paragraph("Zona cadastrada, NAO homologada: " + (territory?.zoneCandidate || "NAO IDENTIFICADA."));
-  paragraph("Zoneamento oficial por geometria georreferenciada e lei vigente: NAO VERIFICADO.");
+  paragraph("Zona espacial determinada: " +
+    (territory?.zoneVerified && territory.zoneCode
+      ? territory.zoneCode + " - mapa oficial revisto, lei urbanistica ainda nao avaliada"
+      : "NAO VERIFICADA por geometria cadastrada."));
+  if(territory?.zoneVerified){
+    paragraph("Versao cartografica: "+(territory.mapVersion||"indeterminada"));
+    paragraph("Base legal declarada do mapa: "+(territory.mapLegalReference||"nao informada"));
+    paragraph("Hash SHA-256 mapa: "+(territory.mapSha256||"indisponivel"));
+    paragraph("Hash SHA-256 lote: "+(territory.parcelSha256||"indisponivel"));
+    paragraph("Fonte cartografica: "+(territory.mapSourceUrl||"nao informada"));
+  }
+  paragraph("Comparacao urbanistica juridica: NAO AVALIADA ate existir norma vigente e evidencias validas por zona, uso e indice.");
   for (const reason of territory?.reasons || []) paragraph("- " + reason, 8);
   heading("Medidas observadas e pendencias");
   for (const metric of URBAN_METRICS) {
