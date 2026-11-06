@@ -584,6 +584,12 @@ export function ArchitecturalPdfAiPanel({
     {error?<div data-sigapro-ai-reading-error="true"
       className="mt-3 min-w-0 max-w-full rounded-xl border border-rose-300 bg-rose-50 p-3 text-xs leading-5 text-rose-950 dark:border-rose-600 dark:bg-rose-950 dark:text-rose-100 [overflow-wrap:anywhere]">
       <p role="alert" className="break-words font-semibold">{error}</p>
+      {(errorCode.startsWith("CLOUDFLARE_")||billingUnavailable)&&availability.nativeTextAvailable?
+        <Button type="button" variant="outline" data-sigapro-ai-fallback-local-action="true"
+          className="mt-3 h-auto min-h-11 w-full whitespace-normal rounded-xl border-sky-300 bg-white px-3 py-2 text-[13px] font-bold text-sky-950 hover:bg-sky-50"
+          onClick={()=>changeReadingMode("native_text")}>
+          Usar Leitura Local de Cotas (sem custo externo)
+        </Button>:null}
       {errorCode?<details className="mt-2 text-[11px]">
         <summary className="cursor-pointer font-semibold underline-offset-2">
           Detalhes técnicos para o suporte
