@@ -251,4 +251,38 @@ describe("SIGAPRO — Claude PDF visual via stored R2 attachments",()=>{
      .rejects.toThrow("AI_INCOMPLETE");
  });
 
+ it("pontua recuos da prancha 02 da fixture e reprova divergência sem criar aprovação",async()=>{
+   const {normalizeArchitecturalPdfExtraction,benchmarkQa04ArchitecturalReadings}=await import(
+     "@/lib/architecturalPdfReadings");
+   const {QA04_SITE_GEOMETRY}=await import("@/lib/qa04ArchitecturalFixture");
+   const raw={
+     document_type:"architectural_plan",has_site_plan:true,warnings:[],
+     metrics:[
+       {metric:"front_setback_m",value:5,page:2,
+         quote:"Recuo frontal proposto: 5,00 m",confidence:"high"},
+       {metric:"side_setback_m",value:1,page:2,
+         quote:"Recuo lateral esquerdo: 1,00 m",confidence:"high"},
+       {metric:"rear_setback_m",value:12,page:2,
+         quote:"Recuo de fundos proposto: 12,00 m",confidence:"high"},
+     ],
+   };
+   expect(QA04_SITE_GEOMETRY.frontSetbackM).toBe(5);
+   expect(QA04_SITE_GEOMETRY.leftSetbackM).toBe(1);
+   expect(QA04_SITE_GEOMETRY.rearSetbackM).toBe(12);
+   const extraction=normalizeArchitecturalPdfExtraction(raw);
+   const result=benchmarkQa04ArchitecturalReadings(extraction.readings);
+   expect(result.passed).toBe(3);
+   expect(extraction.automaticallyApproved).toBe(false);
+   const misleading=normalizeArchitecturalPdfExtraction({...raw,metrics:[
+     ...raw.metrics.slice(0,2),
+     {metric:"rear_setback_m",value:20,page:2,
+       quote:"Recuo de fundos proposto: 20,00 m",confidence:"high"},
+   ]});
+   expect(benchmarkQa04ArchitecturalReadings(misleading.readings).passed).toBe(2);
+   const wrongPage=normalizeArchitecturalPdfExtraction({...raw,metrics:[
+     {...raw.metrics[0],page:3},...raw.metrics.slice(1),
+   ]});
+   expect(benchmarkQa04ArchitecturalReadings(wrongPage.readings).passed).toBe(2);
+ });
+
 });
