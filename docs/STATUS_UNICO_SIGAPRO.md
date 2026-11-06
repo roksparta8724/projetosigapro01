@@ -240,3 +240,12 @@ Foi obtida autorização para excluir **somente duas branches descartáveis**, e
 - Ao mudar de conversa, usar SEMPRE esta documentação + PR #118 + branch QA como estado persistente; não criar novamente matrizes, tabelas, PDFs ou parâmetros que já existem.
 - Esta revisão será publicada **somente Preview QA**, com commit marcador `[deploy-qa]`. Não mesclar na `main` ou atualizar produção automaticamente. O aceite final exige ensaio autenticado da abertura R2, leitura real, geometria e confronto legal pelo analista.
 
+
+
+### Conciliação com produção — somente leitura (06/11/2026)
+
+Confirmação na Neon branch `br-summer-surf-b4s88rv5` (produção), sem qualquer escrita: o cadastro de arquivos municipais **também usa `municipality_settings.general_settings`**, e não a tabela legada `tenant_settings`:
+- Produção: `uso_solo_arquivo_nome = lei complementar.pdf`; `zoneamento_arquivo_nome = zoneamento clp.pdf`; `plano_diretor_arquivo_nome = lei complementar 613.pdf`; `leis_arquivo_nome` vazio.
+- QA: `uso_solo_arquivo_nome = quadros.pdf`; `zoneamento_arquivo_nome = zoneamento clp.pdf`; `leis_arquivo_nome = 440-2011.pdf`; `plano_diretor_arquivo_nome` vazio.
+- As referências possuem formatos históricos diferentes, inclusive URL de visualização antiga e `r2:`; isso NÃO significa perda do arquivo. Necessário comprovar o acesso aos bytes antes de migrar/restaurar um vínculo; não copiar nem sobrescrever entre produção/QA automaticamente.
+- **Fonte única de continuidade para próximas conversas:** esta seção, PR #118, commit de publicação QA `ca7654d82674cd5ae06f51b782eb1f1673d97b91`. Os materiais já estão salvos em locais distintos; NÃO solicitar novamente upload ou preenchimento dos 23 índices sem confirmar a necessidade exata.
