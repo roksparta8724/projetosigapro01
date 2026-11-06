@@ -13,7 +13,7 @@ describe("SIGAPRO QA — origem CLOUDFLARE_MODEL_INVALID_JSON do vídeo 18h43",(
   it("aceita só um JSON válido, também se envolto em cerca ou texto explicativo",()=>{
     const plain=JSON.stringify(object);
     expect(parseOnePdfReadingJson(plain)).toEqual(object);
-    expect(parseOnePdfReadingJson("Resultado estruturado:\n\`\`\`json\n"+plain+"\n\`\`\`\nFim da extração.")).toEqual(object);
+    expect(parseOnePdfReadingJson("Resultado estruturado:\n```json\n"+plain+"\n```\nFim da extração.")).toEqual(object);
   });
   it("preserva texto com aspas e chaves e não interpreta o conteúdo como outra estrutura",()=>{
     const doc={...object,warnings:['Texto literal: "{recuo} 5,00 m"']};
