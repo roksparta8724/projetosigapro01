@@ -4,6 +4,7 @@ import { getR2EndpointCandidates } from "./r2-runtime.js";
 import { callDataApiRpc, getDataApiUrl, readBearer, readEnv, resolveMunicipalDocumentTarget } from "./municipal-storage.js";
 import { extractVisualPdf, resolveVisualPdfProvider } from "./architectural-pdf-provider.js";
 import { extractNativeArchitecturalPdf } from "./native-architectural-pdf.js";
+import { inspectProcessTerritory } from "./urban-territorial-context.js";
 
 export const maxDuration = 60;
 type Req = IncomingMessage & { method?: string; body?: unknown };
@@ -145,6 +146,7 @@ export default async function handler(req:Req,res:Res){
     const documentId=url.searchParams.get("documentId")||"";
     let documentReady:boolean|null=null;
     let geminiFixtureReady=false;
+    let territorialContext=null;
     if(processId||documentId){
       if(!UUID.test(processId)||!UUID.test(documentId))return json(res,400,{
         error:"Identificação do processo ou do documento inválida.",
@@ -153,6 +155,7 @@ export default async function handler(req:Req,res:Res){
         const doc=await verifiedDocument(req,
           String(user.municipality_id),processId,documentId);
         documentReady=Boolean(doc);
+        if(doc)territorialContext=await inspectProcessTerritory(req,String(user.municipality_id),processId);
         geminiFixtureReady=Boolean(doc&&isSyntheticQa04Pdf(doc));
       }catch{
         // Do not reveal foreign-tenant metadata or storage credentials.
@@ -180,6 +183,7 @@ export default async function handler(req:Req,res:Res){
       geminiQaFixture:geminiFixtureReady,
       geminiQaAvailable:geminiFixtureReady&&freeVisual?.enabled===true,
       nativeTextAvailable:process.env.VERCEL_ENV==="preview"&&documentReady===true,
+      territorialContext,
     });
   }
   if(req.method!=="POST")return json(res,405,{error:"Método não permitido."});
@@ -230,6 +234,7 @@ export default async function handler(req:Req,res:Res){
       code:"SIGAPRO_PDF_AI_NOT_CONFIGURED",
       error:"O módulo SIGAPRO IA selecionado não está disponível. Solicite ao administrador a verificação da integração.",
     });
+    const territorialContext=await inspectProcessTerritory(req,tenant,processId);
     const pdf=await pdfBytes(req,tenant,doc.file_path);
     if(geminiQaRequested&&!isSyntheticQa04Pdf(doc,pdf))return json(res,403,{
       code:"AI_QA_FIXTURE_MISMATCH",
@@ -252,7 +257,8 @@ export default async function handler(req:Req,res:Res){
       documentId:doc.id,documentVersion:doc.version,fileName:doc.file_name,
       legalConformity:"not_evaluated",humanReviewRequired:true,
       aiProvider:nativeTextRequested?"sigapro_local":available.enabled?available.provider.kind:"none",
-      pdfSharedWithConfiguredAiProvider:!nativeTextRequested});
+      pdfSharedWithConfiguredAiProvider:!nativeTextRequested,
+      territorialContext});
   }catch(e){
     const code=e instanceof Error?e.message:"";
     if(code==="PDF_LIMIT")return json(res,413,{code,error:"PDF acima de 8 MB. Separe as pranchas."});
