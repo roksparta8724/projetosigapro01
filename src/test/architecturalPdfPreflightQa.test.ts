@@ -119,7 +119,7 @@ describe("SIGAPRO QA — preflight técnico do PDF com controle de custo e autor
     expect(api).toContain('if((textRequested||openaiVisualRequested) && process.env.VERCEL_ENV!=="preview")');
     expect(api).toContain('body.confirmedTransfer!==true');
     expect(api).toContain('textAlternativeAvailable:textAlternative?.enabled===true');
-    expect(api).toContain('textRequested?"cloudflare_text":openaiVisualRequested?"openai_visual":undefined');
+    expect(api).toContain('geminiQaRequested?"gemini_qa":undefined');
     expect(api).toContain('get_current_profile_context');
     expect(api).toContain('verifiedDocument(req,tenant,processId,documentId)');
     expect(ui).toContain('data-sigapro-ai-mode-visual="true"');
@@ -158,7 +158,7 @@ describe("SIGAPRO QA — preflight técnico do PDF com controle de custo e autor
     const ui=file("src/components/platform/ArchitecturalPdfAiPanel.tsx");
     expect(server).toContain('const openaiVisualRequested=body.readingMode==="openai_visual"');
     expect(server).toContain("openaiVisualAlternativeAvailable:advancedVisual?.enabled===true");
-    expect(server).toContain('textRequested?"cloudflare_text":openaiVisualRequested?"openai_visual":undefined');
+    expect(server).toContain('geminiQaRequested?"gemini_qa":undefined');
     expect(ui).toContain('data-sigapro-ai-mode-openai-visual="true"');
     expect(ui).toContain('result.aiProvider!=="openai"');
     expect(ui).toContain("setConsent(false)");
@@ -173,6 +173,28 @@ describe("SIGAPRO QA — preflight técnico do PDF com controle de custo e autor
     expect(panel).toContain('[overflow-wrap:anywhere]');
     expect(panel).toContain('dark:text-amber-100');
     expect(panel).toContain('dark:text-emerald-100');
+  });
+
+  it("proíbe envio gratuito de documentos reais e exige ensaio fictício QA04",()=>{
+    const api=file("server/ai-project-extract.ts");
+    const provider=file("server/architectural-pdf-provider.ts");
+    const ui=file("src/components/platform/ArchitecturalPdfAiPanel.tsx");
+    expect(api).toContain('const geminiQaRequested=body.readingMode==="gemini_qa"');
+    expect(api).toContain('geminiQaRequested) && process.env.VERCEL_ENV!=="preview"');
+    expect(api).toContain('doc.process_id!=="915e1c63-ebda-4cdd-8e95-34316d9e0089"');
+    expect(api).toContain('doc.file_name!==QA_ARCHITECTURAL_FILENAME');
+    expect(api).toContain('raw.includes("FICTICIO / QA")');
+    expect(api).toContain('raw.includes("PROCESSO FICTICIO 000004/2026")');
+    expect(api).toContain('geminiQaRequested&&!isSyntheticQa04Pdf(doc,pdf)');
+    expect(api).toContain('code:"AI_QA_FIXTURE_MISMATCH"');
+    expect(api).toContain('geminiQaAvailable:geminiFixtureReady&&freeVisual?.enabled===true');
+    expect(provider).toContain('SIGAPRO_GEMINI_QA_API_KEY');
+    expect(provider).toContain('SIGAPRO_GEMINI_QA_ENABLED');
+    expect(provider).toContain('models/gemini-2.5-flash:generateContent');
+    expect(ui).toContain('data-sigapro-ai-mode-gemini-qa="true"');
+    expect(ui).toContain('result.aiProvider!=="gemini"');
+    expect(ui).toContain("setReadingMode(next);setConsent(false);setDraft(null)");
+    expect(ui).toContain("O nível gratuito pode utilizar os dados para aprimorar serviços do fornecedor");
   });
 
 });
