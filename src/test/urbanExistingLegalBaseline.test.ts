@@ -38,8 +38,9 @@ describe("SIGAPRO: reutilização segura de Quadros e PDFs anteriores",()=>{
     const rpc=readFileSync("neon/migrations/20261106_urban_existing_work_baseline_qa_v1.sql","utf8");
     const frontend=readFileSync("src/components/platform/ArchitecturalPdfAiPanel.tsx","utf8");
     expect(server).toContain('"get_urban_process_legal_baseline_v1"');
-    expect(server.indexOf("const doc=await verifiedDocument(req,tenant,processId,documentId)"))
-      .toBeLessThan(server.indexOf('"get_urban_process_legal_baseline_v1",{_process_id:processId}'));
+    const post=server.slice(server.indexOf("const doc=await verifiedDocument(req,tenant,processId,documentId)"));
+    expect(post.indexOf("const doc=await verifiedDocument(req,tenant,processId,documentId)"))
+      .toBeLessThan(post.indexOf('"get_urban_process_legal_baseline_v1",{_process_id:processId}'));
     expect(rpc).toContain("public.has_process_access(_process_id)");
     expect(rpc).toContain("public.current_profile_id()");
     expect(rpc).toContain("municipality_id=_p.municipality_id");
