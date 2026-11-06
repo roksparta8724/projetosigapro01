@@ -17,7 +17,7 @@ export type DrawingExtraction = {
   hasSitePlan: boolean;
   readings: DrawingReading[];
   warnings: string[];
-  source: "ai_pdf_visual" | "ai_pdf_text";
+  source: "ai_pdf_visual" | "ai_pdf_text" | "pdf_text_local";
   automaticallyApproved: false;
 };
 
