@@ -187,4 +187,68 @@ describe("SIGAPRO — Claude PDF visual via stored R2 attachments",()=>{
     expect(output.readings.find(x=>x.metric==="front_setback_m")?.value).toBeNull();
   });
 
+ it("só habilita Gemini gratuito em QA com chave e opt-in, sem substituir Claude",()=>{
+   const off=resolveVisualPdfProvider(env({
+     SIGAPRO_GEMINI_QA_API_KEY:"fixture-only-fake-gemini-credential-for-unit-tests",
+   }),"gemini_qa");
+   expect(off.enabled).toBe(false);
+   const cfg=resolveVisualPdfProvider(env({
+     SIGAPRO_AI_PDF_PROVIDER:"claude",ANTHROPIC_API_KEY:KEY,
+     SIGAPRO_GEMINI_QA_ENABLED:"true",
+     SIGAPRO_GEMINI_QA_API_KEY:"fixture-only-fake-gemini-credential-for-unit-tests",
+   }),"gemini_qa");
+   const unchanged=resolveVisualPdfProvider(env({
+     SIGAPRO_AI_PDF_PROVIDER:"claude",ANTHROPIC_API_KEY:KEY,
+     SIGAPRO_GEMINI_QA_ENABLED:"true",
+     SIGAPRO_GEMINI_QA_API_KEY:"fixture-only-fake-gemini-credential-for-unit-tests",
+   }));
+   expect(cfg.enabled).toBe(true);
+   if(cfg.enabled)expect(cfg.provider).toMatchObject({kind:"gemini",model:"gemini-2.5-flash"});
+   expect(unchanged.enabled).toBe(true);
+   if(unchanged.enabled)expect(unchanged.provider.kind).toBe("claude");
+ });
+ it("extrai cotas de prancha fictícia multimodal, com JSON e página, sem aprovação legal",async()=>{
+   const key="fixture-only-fake-gemini-credential-for-unit-tests";
+   const raw=JSON.stringify({
+     document_type:"architectural_plan",has_site_plan:true,warnings:[],
+     metrics:[
+       {metric:"front_setback_m",value:5,page:2,
+         quote:"Recuo frontal proposto: 5,00 m",confidence:"high"},
+       {metric:"rear_setback_m",value:12,page:2,
+         quote:"Recuo de fundos proposto: 12,00 m",confidence:"high"},
+       {metric:"permeability_percent",value:30,page:2,
+         quote:"Taxa de permeabilidade não fornecida",confidence:"high"},
+     ],
+   });
+   const request=vi.fn(async(url:string,opts:RequestInit)=>{
+     expect(url).toBe("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent");
+     expect(opts.redirect).toBe("error");
+     expect((opts.headers as Record<string,string>)["x-goog-api-key"]).toBe(key);
+     expect(JSON.stringify(opts.headers)).not.toContain("Authorization");
+     const body=JSON.parse(String(opts.body));
+     expect(body.contents[0].parts[0]).toEqual({
+       inline_data:{mime_type:"application/pdf",data:Buffer.from("%PDF-qa04").toString("base64")},
+     });
+     expect(body.generationConfig.responseMimeType).toBe("application/json");
+     return {ok:true,json:async()=>({candidates:[{finishReason:"STOP",
+       content:{parts:[{text:raw}]}}]})};
+   });
+   vi.stubGlobal("fetch",request);
+   const result=await extractVisualPdf(new TextEncoder().encode("%PDF-qa04"),
+     "SIGAPRO-QA04-PLANTA-IMPLANTACAO-V2.pdf",{kind:"gemini",key,model:"gemini-2.5-flash"});
+   expect(request).toHaveBeenCalledOnce();
+   expect(result.automaticallyApproved).toBe(false);
+   expect(result.readings.find(x=>x.metric==="front_setback_m")).toMatchObject({value:5,page:2,usableForReview:true});
+   expect(result.readings.find(x=>x.metric==="rear_setback_m")).toMatchObject({value:12,page:2,usableForReview:true});
+   expect(result.readings.find(x=>x.metric==="permeability_percent")?.value).toBeNull();
+ });
+ it("rejeita resposta Gemini interrompida sem inventar cota",async()=>{
+   vi.stubGlobal("fetch",vi.fn(async()=>({ok:true,json:async()=>({candidates:[{
+     finishReason:"MAX_TOKENS",content:{parts:[{text:"{}"}]},
+   }]})})));
+   await expect(extractVisualPdf(new TextEncoder().encode("%PDF-"),"teste.pdf",
+     {kind:"gemini",key:"fake-gemini-token",model:"gemini-2.5-flash"}))
+     .rejects.toThrow("AI_INCOMPLETE");
+ });
+
 });
