@@ -17,7 +17,12 @@ function parse(b:Uint8Array,page:number){
 describe("SIGAPRO QA — inventário seguro de todas as páginas do PDF",()=>{
   it("conta todas as três pranchas do ensaio real e mostra páginas sem evidências de medidas",async()=>{
     const file=createQa04ArchitecturalPdf();
-    const buffer=new Uint8Array(await file.arrayBuffer());
+    const buffer=await new Promise<Uint8Array>((resolve,reject)=>{
+      const reader=new FileReader();
+      reader.onload=()=>resolve(new Uint8Array(reader.result as ArrayBuffer));
+      reader.onerror=()=>reject(reader.error);
+      reader.readAsArrayBuffer(file);
+    });
     const audited=auditArchitecturalPdfPages(buffer,extractNativeArchitecturalPdf(buffer));
     expect(audited.pageAudit).toMatchObject({
       count:3,countVerified:true,visualInspectionVerified:false,
