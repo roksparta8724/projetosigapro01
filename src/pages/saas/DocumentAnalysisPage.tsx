@@ -956,7 +956,7 @@ export function DocumentAnalysisPage() {
       </div>
 
       <div className={`grid min-h-0 flex-1 grid-cols-1 ${showProjectAi && isArchitecturalPdf
-        ? "xl:grid-cols-[72px_minmax(0,1fr)_540px]"
+        ? "grid-rows-[minmax(220px,44vh)_minmax(0,1fr)] xl:grid-rows-1 xl:grid-cols-[72px_minmax(0,1fr)_540px]"
         : "xl:grid-cols-[72px_minmax(0,1fr)_420px]"}`}>
         <aside className="hidden border-r border-slate-200 bg-[linear-gradient(180deg,#f8fafc_0%,#eef4f8_100%)] py-4 shadow-[8px_0_26px_rgba(15,23,42,0.04)] xl:flex xl:flex-col xl:items-center xl:gap-3">
           <button
