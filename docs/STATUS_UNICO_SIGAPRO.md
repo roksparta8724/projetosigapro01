@@ -249,3 +249,15 @@ Confirmação na Neon branch `br-summer-surf-b4s88rv5` (produção), sem qualque
 - QA: `uso_solo_arquivo_nome = quadros.pdf`; `zoneamento_arquivo_nome = zoneamento clp.pdf`; `leis_arquivo_nome = 440-2011.pdf`; `plano_diretor_arquivo_nome` vazio.
 - As referências possuem formatos históricos diferentes, inclusive URL de visualização antiga e `r2:`; isso NÃO significa perda do arquivo. Necessário comprovar o acesso aos bytes antes de migrar/restaurar um vínculo; não copiar nem sobrescrever entre produção/QA automaticamente.
 - **Fonte única de continuidade para próximas conversas:** esta seção, PR #118, commit de publicação QA `ca7654d82674cd5ae06f51b782eb1f1673d97b91`. Os materiais já estão salvos em locais distintos; NÃO solicitar novamente upload ou preenchimento dos 23 índices sem confirmar a necessidade exata.
+
+## Upgrade consolidado do leitor de projetos — 06/11/2026 (QA)
+
+**Prioridades:** aproveitar matriz histórica Quadro I 22/23, Quadro II 45 rascunhos e PDFs R2 existentes, impedir diagnósticos baseados em PDFs truncados e explicitar paginação do projeto.
+
+- Nova auditoria independente `src/lib/architecturalPdfPageAudit.ts` valida o número de páginas contra o dicionário `/Pages /Count` do PDF clássico. Se não for possível confirmar (PDF com objetos comprimidos, estruturas ambíguas etc.), retorna `count=null`; **não inventa total** e **não equivale a inspeção visual**.
+- Após a extração, `server/ai-project-extract.ts` aplica `auditArchitecturalPdfPages` antes de enviar qualquer cota à tela. Citações a páginas além do total comprovado são recusadas (medida, página, uso na pré-análise), com aviso. O `pageAudit` apresenta o total verificável, páginas que sustentam medidas e páginas sem evidência de cotas. Ausência de cota não significa ausência de desenho.
+- `ArchitecturalPdfAiPanel.tsx` mostra Inventário de páginas do projeto. `architecturalReadingReportPdf.ts` imprime o mesmo inventário e suas limitações no relatório preliminar.
+- **Falha de origem corrigida no Cloudflare:** `server/architectural-pdf-provider.ts` fazia `.slice(0,24000)` após converter o PDF, com risco de omissão silenciosa de páginas finais. Agora recusa `CLOUDFLARE_PDF_TEXT_PARTIAL` sem segunda chamada ao modelo e sem registrar dados. O servidor informa claramente que não houve leitura integral. Um leitor de PDFs longos exige paginação rastreável e tratamento explícito de todas as partes, não truncamento.
+- Testes `architecturalPdfPageAuditQa.test.ts` e `architecturalPdfCloudflareReuse.test.ts` cobrem PDF QA04 de três pranchas, citações inválidas, contagem inconclusiva e corte de texto longo sem nova inferência paga. Esses testes não são aceite visual com planta real.
+- O modo `native_text` permanece textual e limitado: não interpreta CAD nem prova geometria. Análise visual real exige provedor habilitado, consentimento e ensaio autorizado; zoneamento e normas jurídicas homologados são verificações independentes. A conformidade continua `not_evaluated`.
+- A release segue somente Vercel Preview QA. Produção, main e Neon production não são alterados; PR #118 DRAFT. Próximo commit de preview identificado com `[deploy-qa]` depois dos testes.
