@@ -232,7 +232,7 @@ export function ArchitecturalPdfAiPanel({
       clearTimeout(timeLimit);
       if(operation===scanSequence.current){
         scanController.current=null;
-        setLoading(false);setScanStarted(false);
+        setLoading(false);
       }
     }
   }
