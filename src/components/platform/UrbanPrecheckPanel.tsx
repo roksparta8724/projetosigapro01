@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, BrainCircuit, CheckCircle2, ClipboardCheck, FileClock, Loader2, Save } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ClipboardCheck, FileClock, Loader2, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -13,7 +13,9 @@ import {
 import { municipalCivilDateFromValue } from "@/lib/municipalCivilDate";
 import { evidenceCoversUrbanRule, type UrbanLegalEvidenceScope } from "@/lib/urbanEvidenceCoverage";
 import { Textarea } from "@/components/ui/textarea";
-import { ArchitecturalPdfAiPanel } from "@/components/platform/ArchitecturalPdfAiPanel";
+import { readReviewedDrawingHandoff } from "@/lib/architecturalPdfReadings";
+import { useLocation, useNavigate } from "react-router-dom";
+import { buildProcessPath } from "@/lib/platform";
 import type { ProcessRecord } from "@/lib/platform";
 
 type Field = { value: string; evidence: string };
@@ -22,6 +24,8 @@ type Fields = Partial<Record<UrbanMetric, Field>>;
 export function UrbanPrecheckPanel({
   process, municipalityId, readOnly,
 }: { process: ProcessRecord; municipalityId: string; readOnly: boolean }) {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [versions, setVersions] = useState<UrbanRegulationVersion[]>([]);
   useEffect(() => {
     if (window.location.hash !== "#sigapro-urban-precheck") return;
@@ -82,6 +86,27 @@ export function UrbanPrecheckPanel({
     }).finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [municipalityId, process.id, process.property.usage, process.officializedAt]);
+
+  // Only transport individually checked drawing values from the same process,
+  // municipality and exact PDF revision. Never attach legal evidence automatically.
+  useEffect(() => {
+    if (readOnly || !location.state) return;
+    const reviewed = readReviewedDrawingHandoff(location.state, {
+      processId: process.id, municipalityId,
+      documents: process.documents,
+    });
+    if (!reviewed) return;
+    setFields((current) => ({...current,...reviewed}));
+    setLegalReviewConfirmed(false);
+    idempotencyRef.current = null;
+    setNotice(
+      `${Object.keys(reviewed).length} medida(s) conferida(s) recebida(s) do Projeto Arquitetônico.
+      Confira as fontes legais antes de registrar qualquer pré-conferência.`,
+    );
+    // Do not replay the payload after a refresh or later navigation.
+    navigate(location.pathname + location.search + location.hash,
+      {replace:true,state:null});
+  }, [location.state, municipalityId, process.id, readOnly, navigate]);
 
   const regulation = useMemo(
     () => selectUrbanRegulation(versions, municipalityId, zone, usage, asOf),
@@ -197,8 +222,8 @@ export function UrbanPrecheckPanel({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h3 className="flex items-center gap-2 text-base font-extrabold text-slate-950 dark:text-white">
-            <BrainCircuit className="h-5 w-5 text-sky-700 dark:text-sky-300" />
-            SIGAPRO IA — Pré-conferência urbanística
+            <ClipboardCheck className="h-5 w-5 text-sky-700 dark:text-sky-300" />
+            SIGAPRO · Pré-conferência urbanística
           </h3>
           <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-300">
             Comparação técnica de medições informadas com limites oficialmente cadastrados.
@@ -209,31 +234,27 @@ export function UrbanPrecheckPanel({
           Nunca aprova automaticamente
         </span>
       </div>
-      <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-950 dark:border-amber-500/40 dark:bg-amber-950/40 dark:text-amber-100">
-        Para utilizar: selecione a planta mais recente, confirme o envio ao provedor e clique em
-        "Ler projeto arquitetônico com IA". Depois confira cada medida antes de aplicá-la.
-        A leitura visual é experimental na homologação e depende de provedor habilitado.
-        Verifique todas as cotas no PDF antes de utilizar as sugestões; a legislação municipal
-        também precisa estar validada. Nunca há aprovação automática.
+      <div data-sigapro-ai-source-document="true"
+        className="mt-4 min-w-0 rounded-xl border border-sky-200 bg-sky-50 p-3 text-xs leading-5 text-sky-950 dark:border-sky-700 dark:bg-slate-900 dark:text-sky-100">
+        <p className="font-bold">Leitura do projeto: na pasta Documentos</p>
+        <p className="mt-1 break-words [overflow-wrap:anywhere]">
+          Abra <strong>Documentos → Projeto Arquitetônico → SIGAPRO IA · Ler projeto</strong>
+          para examinar as pranchas ao lado da leitura assistida. Somente as medidas
+          conferidas pelo analista podem ser encaminhadas a esta pré-conferência.
+          Nenhuma leitura representa aprovação automática.
+        </p>
+        <a href={buildProcessPath(process, "documentos")}
+          className="mt-2 inline-flex min-h-9 max-w-full items-center rounded-lg border border-sky-400 bg-white px-3 py-2 font-bold text-sky-900 underline-offset-2 hover:underline dark:bg-slate-800 dark:text-white">
+          Abrir documentos do processo
+        </a>
       </div>
 
       {readOnly ? (
         <p role="note" className="mt-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs font-semibold leading-5 text-amber-950 dark:border-amber-500/40 dark:bg-slate-900 dark:text-amber-200">
-          Esta tela está em modo de consulta. A leitura por IA só pode ser iniciada pelo
-          analista com permissão de edição após assumir ou receber a análise do processo.
+          Esta pré-conferência está em modo de consulta. Registros técnicos exigem
+          permissão de analista e fontes legais válidas.
         </p>
       ) : null}
-
-      <ArchitecturalPdfAiPanel
-        process={process} readOnly={readOnly}
-        activeMetrics={regulation?.rules.map((rule) => rule.metric) ?? []}
-        onApply={(reviewed) => {
-          setFields((current) => ({...current, ...reviewed}));
-          setLegalReviewConfirmed(false);
-          idempotencyRef.current = null;
-          setNotice("Medidas conferidas copiadas. Confira os resultados e as evidências legais antes de registrar.");
-        }}
-      />
       <div className="mt-4 grid gap-3 md:grid-cols-3">
         <label className="text-xs font-bold text-slate-700 dark:text-slate-200">Zona do imóvel
           <Input className="mt-1" placeholder="Ex.: ZR1" value={zone} maxLength={40}
