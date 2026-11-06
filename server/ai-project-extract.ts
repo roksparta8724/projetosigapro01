@@ -12,7 +12,8 @@ const MAX_PDF_BYTES = 8 * 1024 * 1024;
 const QA_ARCHITECTURAL_FILENAME="SIGAPRO-QA04-PLANTA-IMPLANTACAO-V2.pdf";
 /** Free external AI must never receive real municipal project documents. */
 function isSyntheticQa04Pdf(doc:DocumentRow,bytes?:Uint8Array):boolean{
-  if(doc.file_name!==QA_ARCHITECTURAL_FILENAME)return false;
+  if(doc.process_id!=="915e1c63-ebda-4cdd-8e95-34316d9e0089"||
+    doc.file_name!==QA_ARCHITECTURAL_FILENAME)return false;
   if(!bytes)return true;
   // The deterministic jsPDF QA fixture includes both markers as plain text
   // when generated. If compressed/replaced, fail closed rather than guessing.
