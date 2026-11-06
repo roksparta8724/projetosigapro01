@@ -120,6 +120,8 @@ export default async function handler(req:Req,res:Res){
     // This check does not transmit the PDF, expose credentials or charge usage.
     const textAlternative=process.env.VERCEL_ENV==="preview"
       ?resolveVisualPdfProvider(readEnv,"cloudflare_text"):null;
+    const advancedVisual=process.env.VERCEL_ENV==="preview"
+      ?resolveVisualPdfProvider(readEnv,"openai_visual"):null;
     // Preview-only, read-only readiness check. It applies the EXACT same
     // municipal/document/technical-stage authorization as POST, without
     // fetching the PDF or sending anything to an AI provider.
@@ -156,6 +158,7 @@ export default async function handler(req:Req,res:Res){
       providerConfiguredOnly:true,
       billingVerified:false,
       textAlternativeAvailable:textAlternative?.enabled===true,
+      openaiVisualAlternativeAvailable:advancedVisual?.enabled===true,
     });
   }
   if(req.method!=="POST")return json(res,405,{error:"Método não permitido."});
@@ -171,10 +174,11 @@ export default async function handler(req:Req,res:Res){
   // Never auto-switch visual analysis to text when Anthropic returns an error.
   // The analyst must explicitly choose Cloudflare and re-confirm PDF transfer.
   const textRequested=body.readingMode==="cloudflare_text";
-  if(body.readingMode!==undefined && !["visual","cloudflare_text"].includes(String(body.readingMode)))
+  const openaiVisualRequested=body.readingMode==="openai_visual";
+  if(body.readingMode!==undefined && !["visual","cloudflare_text","openai_visual"].includes(String(body.readingMode)))
     return json(res,400,{error:"Modo de leitura não reconhecido."});
-  if(textRequested && process.env.VERCEL_ENV!=="preview")
-    return json(res,403,{code:"AI_ENV_DISABLED",error:"Leitura textual alternativa disponível somente em homologação."});
+  if((textRequested||openaiVisualRequested) && process.env.VERCEL_ENV!=="preview")
+    return json(res,403,{code:"AI_ENV_DISABLED",error:"Modalidades alternativas disponíveis somente em homologação."});
   if(typeof processId!=="string"||!UUID.test(processId)||
     typeof documentId!=="string"||!UUID.test(documentId)||body.confirmedTransfer!==true)
     return json(res,400,{error:"Selecione o projeto e confirme o envio para leitura assistida."});
@@ -192,7 +196,7 @@ export default async function handler(req:Req,res:Res){
       error:"O projeto não está liberado para análise técnica neste município."
     });
     const available=resolveVisualPdfProvider(readEnv,
-      textRequested?"cloudflare_text":undefined);
+      textRequested?"cloudflare_text":openaiVisualRequested?"openai_visual":undefined);
     if(!available.enabled)return json(res,503,{
       code:"SIGAPRO_PDF_AI_NOT_CONFIGURED",
       error:"O módulo SIGAPRO IA selecionado não está disponível. Solicite ao administrador a verificação da integração.",
@@ -215,7 +219,7 @@ export default async function handler(req:Req,res:Res){
     if(code==="PDF_INVALID")return json(res,422,{code,error:"O PDF está incompleto ou inválido."});
     if(code==="AI_RATE_LIMIT")return json(res,429,{code,error:"Limite do provedor de IA atingido."});
     if(code==="AI_PROVIDER_BILLING")return json(res,402,{code,
-      error:"O SIGAPRO IA · Leitura Visual está sem créditos ou atingiu o limite do serviço contratado; nenhuma medida foi aplicada. Na homologação, você pode selecionar a Leitura Documental, que não comprova recuos geométricos."});
+      error:"A modalidade visual selecionada está sem créditos ou atingiu o limite de gastos da API contratada. Nenhuma medida foi aplicada. A Leitura Documental não comprova recuos geométricos."});
     if(code==="AI_PROVIDER_MODEL_UNAVAILABLE")return json(res,503,{code,
       error:"O modelo de leitura de PDF não está disponível para esta chave. Confira o identificador no servidor."});
     if(code==="AI_PROVIDER_CREDENTIALS")return json(res,503,{code,
