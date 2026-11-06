@@ -7,11 +7,11 @@ import { URBAN_METRICS, type UrbanMetric } from "@/lib/urbanPrecheck";
 import type { ProcessRecord } from "@/lib/platform";
 
 type Prepared = Partial<Record<UrbanMetric,{value:string;evidence:string}>>;
-type ReadingMode = "visual" | "cloudflare_text" | "openai_visual";
+type ReadingMode = "visual" | "cloudflare_text" | "openai_visual" | "gemini_qa";
 type ApiResult = DrawingExtraction & {
   processId:string; documentId:string; documentVersion:number; fileName:string;
   legalConformity:"not_evaluated"; humanReviewRequired:true;
-  aiProvider:"cloudflare"|"claude"|"openai";
+  aiProvider:"cloudflare"|"claude"|"openai"|"gemini";
 };
 const normalized = (value:string)=>value.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
 
@@ -43,9 +43,12 @@ export function ArchitecturalPdfAiPanel({
     documentMessage:string;
     textAlternativeAvailable:boolean;
     openaiVisualAlternativeAvailable:boolean;
+    geminiQaFixture:boolean;
+    geminiQaAvailable:boolean;
   }>({status:"checking",message:"Verificando se o provedor de IA está configurado...",
     provider:"none",mode:"disabled",documentReady:null,documentMessage:"",
-    textAlternativeAvailable:false,openaiVisualAlternativeAvailable:false});
+    textAlternativeAvailable:false,openaiVisualAlternativeAvailable:false,
+    geminiQaFixture:false,geminiQaAvailable:false});
 
   const [error,setError]=useState("");
   const [draft,setDraft]=useState<ApiResult|null>(null);
@@ -63,6 +66,7 @@ export function ArchitecturalPdfAiPanel({
       setAvailability({status:"disabled",provider:"none",mode:"disabled",
         documentReady:null,documentMessage:"",textAlternativeAvailable:false,
         openaiVisualAlternativeAvailable:false,
+        geminiQaFixture:false,geminiQaAvailable:false,
         message:"A leitura assistida está disponível apenas para o analista autorizado."});
       return;
     }
@@ -88,6 +92,7 @@ export function ArchitecturalPdfAiPanel({
         documentReady?:boolean|null;documentMessage?:string;
         textAlternativeAvailable?:boolean;
         openaiVisualAlternativeAvailable?:boolean;
+        geminiQaFixture?:boolean;geminiQaAvailable?:boolean;
       };
       if(!res.ok)throw new Error(value.error||"Não foi possível confirmar a disponibilidade da IA.");
       if(current)setAvailability({status:value.enabled?"ready":"disabled",
@@ -98,11 +103,14 @@ export function ArchitecturalPdfAiPanel({
         documentMessage:value.documentMessage||"",
         textAlternativeAvailable:value.textAlternativeAvailable===true,
         openaiVisualAlternativeAvailable:value.openaiVisualAlternativeAvailable===true,
+        geminiQaFixture:value.geminiQaFixture===true,
+        geminiQaAvailable:value.geminiQaAvailable===true,
         message:value.message||"Leitor assistido indisponível."});
     })().catch((err:unknown)=>{
       if(current)setAvailability({status:"disabled",provider:"none",mode:"disabled",
         documentReady:null,documentMessage:"",textAlternativeAvailable:false,
         openaiVisualAlternativeAvailable:false,
+        geminiQaFixture:false,geminiQaAvailable:false,
         message:String((err as Error)?.message||err)});
     });
     return()=>{current=false;};
@@ -114,6 +122,8 @@ export function ArchitecturalPdfAiPanel({
     ?availability.textAlternativeAvailable
     :readingMode==="openai_visual"
       ?availability.openaiVisualAlternativeAvailable
+      :readingMode==="gemini_qa"
+        ?availability.geminiQaAvailable
       :availability.status==="ready"&&availability.mode==="visual";
   const changeReadingMode=(next:ReadingMode)=>{
     if(readOnly||loading||next===readingMode)return;
@@ -150,7 +160,9 @@ export function ArchitecturalPdfAiPanel({
           (result.source!=="ai_pdf_text"||result.aiProvider!=="cloudflare"))||
         (readingMode==="visual"&&result.source!=="ai_pdf_visual")||
         (readingMode==="openai_visual"&&
-          (result.source!=="ai_pdf_visual"||result.aiProvider!=="openai")))
+          (result.source!=="ai_pdf_visual"||result.aiProvider!=="openai"))||
+        (readingMode==="gemini_qa"&&
+          (result.source!=="ai_pdf_visual"||result.aiProvider!=="gemini")))
         throw new Error("Leitura retornada com vínculo incorreto. Nenhuma medida foi aplicada.");
       setDraft(result as ApiResult);
       if(readingMode!=="cloudflare_text")setBillingUnavailable(false);
@@ -252,6 +264,23 @@ export function ArchitecturalPdfAiPanel({
             </span>
           </button>
         ):null}
+        {availability.geminiQaFixture?(
+          <button type="button" data-sigapro-ai-mode-gemini-qa="true"
+            aria-pressed={readingMode==="gemini_qa"} disabled={readOnly||loading}
+            onClick={()=>changeReadingMode("gemini_qa")}
+            className={`min-w-0 max-w-full rounded-xl border p-3 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-600 ${readingMode==="gemini_qa"
+              ?"border-sky-500 bg-sky-50 !text-sky-950 ring-1 ring-sky-300 dark:border-sky-400 dark:bg-[#103b5e] dark:!text-white"
+              :"border-slate-300 bg-white !text-slate-950 dark:border-slate-600 dark:bg-[#17283d] dark:!text-white"}`}>
+            <span className="block text-xs font-extrabold !text-slate-950 dark:!text-white">
+              SIGAPRO IA · Ensaio Visual Gratuito
+            </span>
+            <span className="mt-1 block break-words text-[11px] leading-5 !text-slate-700 dark:!text-slate-100 [overflow-wrap:anywhere]">
+              Exclusivo para a planta fictícia 04. Visualiza desenhos do PDF,
+              depende da chave gratuita do ambiente de testes e da cota do serviço.
+              {availability.geminiQaAvailable?" Pronto para solicitar a análise.":" Aguardando habilitação pelo administrador."}
+            </span>
+          </button>
+        ):null}
       </div>
       <label className="mt-3 flex min-w-0 items-start gap-2 rounded-xl border border-sky-300 bg-sky-50 p-3 text-xs font-semibold !text-sky-950 dark:border-sky-500 dark:bg-[#103b5e] dark:!text-sky-50">
         <input type="checkbox" checked={consent} disabled={readOnly||loading}
@@ -261,6 +290,9 @@ export function ArchitecturalPdfAiPanel({
           à modalidade SIGAPRO IA selecionada. Sei que a leitura pode falhar
           e que nenhuma decisão nem mudança no processo será automática.
           O prestador está identificado em “Informações sobre o processamento” abaixo.
+          {readingMode==="gemini_qa"
+            ?" O nível gratuito pode utilizar os dados para aprimorar serviços do fornecedor; esta opção aceita somente o PDF fictício de ensaio."
+            :null}
         </span>
       </label>
       <details data-sigapro-ai-processor-disclosure="true"
@@ -273,6 +305,8 @@ export function ArchitecturalPdfAiPanel({
           selecionado, após sua autorização.
           {readingMode==="cloudflare_text"
             ?" Prestador: Cloudflare Workers AI (extração textual)."
+            :readingMode==="gemini_qa"
+              ?" Prestador: Google Gemini API, nível gratuito. O fornecedor informa que dados desse nível podem ser usados para melhoria dos produtos. Não utilize documentos reais ou confidenciais."
             :readingMode==="openai_visual"||availability.provider==="openai"
               ?" Prestador: OpenAI (API de leitura visual de PDF, faturada separadamente do ChatGPT Plus)."
               :" Prestador: Anthropic, serviço Claude (leitura visual)."}
@@ -290,7 +324,9 @@ export function ArchitecturalPdfAiPanel({
               ?"Leitura Documental disponível, sujeita à cota de uso. Este modo não mede recuos."
               :readingMode==="openai_visual"
                 ?"Leitura Avançada configurada. As pranchas serão processadas com imagens em alta definição; depende de créditos da API."
-                :"Leitura Visual configurada. A execução depende dos créditos do serviço de processamento."
+                :readingMode==="gemini_qa"
+                  ?"Ensaio visual gratuito habilitado somente para o projeto fictício 04, sujeito à cota diária do prestador."
+                  :"Leitura Visual configurada. A execução depende dos créditos do serviço de processamento."
             :"Módulo de leitura indisponível. Solicite a conferência das configurações e permissões."}
       </p>
       {selected && availability.status!=="checking" ? (
@@ -349,9 +385,11 @@ export function ArchitecturalPdfAiPanel({
         {loading?<Loader2 className="mr-2 h-4 w-4 animate-spin"/>:<FileText className="mr-2 h-4 w-4"/>}
         {loading
           ? readingMode==="cloudflare_text"?"SIGAPRO IA · Extraindo texto...":
-            readingMode==="openai_visual"?"SIGAPRO IA · Examinando PDF em alta definição...":"SIGAPRO IA · Analisando prancha..."
+            readingMode==="openai_visual"?"SIGAPRO IA · Examinando PDF em alta definição...":
+            readingMode==="gemini_qa"?"SIGAPRO IA · Testando planta fictícia...":"SIGAPRO IA · Analisando prancha..."
           : readingMode==="cloudflare_text"?"Extrair texto com SIGAPRO IA":
-            readingMode==="openai_visual"?"Analisar PDF com Leitura Avançada":"Analisar prancha com SIGAPRO IA"}
+            readingMode==="openai_visual"?"Analisar PDF com Leitura Avançada":
+            readingMode==="gemini_qa"?"Executar ensaio visual do projeto 04":"Analisar prancha com SIGAPRO IA"}
       </Button>
     </>}
     {error?<p role="alert" className="mt-3 min-w-0 max-w-full rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs leading-5 text-rose-900 break-words [overflow-wrap:anywhere] dark:bg-slate-900 dark:text-rose-100">
