@@ -1072,8 +1072,8 @@ export function DocumentAnalysisPage() {
                 <iframe
                   data-sigapro-pdf-synced-page={page}
                   data-sigapro-pdf-synced-zoom={Math.round(zoom*100)}
-                  key={previewUrl}
-                  src={`${previewUrl.split("#")[0]}#toolbar=0&navpanes=0&page=${page}&zoom=${Math.round(zoom*100)}`}
+                  key={accessUrl}
+                  src={previewUrl}
                   title={document.fileName || document.label}
                   className="h-[calc(100vh-164px)] min-h-[700px] w-full border-0 bg-[#2f343b]"
                   style={{ pointerEvents: tool === "navigate" ? "auto" : "none" }}
