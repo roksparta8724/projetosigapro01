@@ -293,6 +293,8 @@ export default async function handler(req:Req,res:Res){
         :"A autenticação do provedor visual está inválida ou não foi autorizada."});
     if(code==="CLOUDFLARE_PDF_CONVERSION_TIMEOUT")return json(res,504,{code,
       error:"A conversão do PDF em texto excedeu o tempo permitido. O serviço externo não concluiu essa etapa; nenhuma medida foi registrada. Para recuos desenhados, utilize uma leitura visual habilitada."});
+    if(code==="CLOUDFLARE_MODEL_INCOMPLETE")return json(res,502,{code,
+      error:"O modelo de leitura interrompeu sua resposta antes de concluir o JSON. O SIGAPRO recusou esse resultado, sem inventar medidas. Para o PDF de teste, a Leitura Local pode extrair cotas já escritas nas pranchas."});
     if(code==="CLOUDFLARE_MODEL_TIMEOUT")return json(res,504,{code,
       error:"O PDF foi convertido, mas a interpretação textual excedeu o tempo permitido. Nenhuma medida foi registrada; tente novamente somente após conferir os limites do serviço."});
     if(code==="CLOUDFLARE_PDF_CONVERSION_REJECTED")return json(res,422,{code,
