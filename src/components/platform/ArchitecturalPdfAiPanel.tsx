@@ -415,11 +415,17 @@ export function ArchitecturalPdfAiPanel({
             ?"Este processo ainda não tem imóvel cadastral vinculado. Sem esse vínculo, endereço e zona não são comprovados."
             :territorial.cadastralLink==="unverified"
               ?"O vínculo ao cadastro imobiliário não pôde ser verificado. Não presumir zona pela planta ou pelo endereço."
-              :"Imóvel vinculado ao cadastro. O endereço e a zona declarada ainda dependem de confirmação cartográfica e legal."}
+              :territorial.zoneVerified
+                ?"Perímetro do imóvel conferido no mapa municipal validado. A lei e o atendimento aos índices ainda exigem revisão."
+                :"Imóvel vinculado ao cadastro. O endereço e a zona declarada ainda dependem de confirmação cartográfica e legal."}
         </p>
         {territorial.address?<p className="mt-1 break-words text-xs">Endereço cadastral informado: {territorial.address}</p>:null}
         <p className="mt-1 text-xs">Zona declarada no cadastro: <strong>{territorial.zoneCandidate||"não informada"}</strong>.
-          Zona oficial verificada: <strong>não</strong>.</p>
+          Zona geográfica pelo mapa revisado: <strong>{territorial.zoneVerified?territorial.zoneCode:"não verificada"}</strong>.</p>
+        {territorial.zoneVerified?<p className="mt-1 break-words text-xs">
+          Fonte cartográfica: {territorial.mapLegalReference} · {territorial.mapVersion}
+          · SHA-256 mapa {territorial.mapSha256.slice(0,12)}…
+        </p>:null}
         <p className="mt-1 text-xs leading-5">A leitura de cotas não identifica, por si só,
           a localização legal do lote. É necessário cruzamento com cadastro municipal,
           mapa oficial georreferenciado e normas vigentes.</p>
