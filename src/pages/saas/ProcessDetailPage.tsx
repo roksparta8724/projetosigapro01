@@ -3176,10 +3176,16 @@ export function ProcessDetailPage() {
                 ? "Guia de aprovação / Alvará"
                 : constructionGuide
                   ? "Guia de ISSQN / Projeto"
-                  : "Guia de protocolo"}
+                  : displayGuide && isSyntheticQaProtocolGuideCode(displayGuide.code) && import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true"
+                    ? "Prévia de protocolo — homologação"
+                    : "Guia de protocolo"}
             </p>
             <p data-sigapro-contained-text="true" className="sig-fit-title mt-3 text-lg font-medium leading-7 text-slate-900" title={displayGuide?.code || "Sem guia"}>{displayGuide?.code || "Sem guia"}</p>
-            <p className="mt-2 text-base font-medium leading-6 text-slate-700">{displayGuide ? formatCurrency(displayGuide.amount) : "Não emitida"}</p>
+            <p className="mt-2 text-base font-medium leading-6 text-slate-700" data-sigapro-guide-qa-preview={displayGuide && isSyntheticQaProtocolGuideCode(displayGuide.code) && import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true" ? "true" : undefined}>
+              {displayGuide && isSyntheticQaProtocolGuideCode(displayGuide.code) && import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true"
+                ? "Prévia sem cobrança — não pagar"
+                : displayGuide ? formatCurrency(displayGuide.amount) : "Não emitida"}
+            </p>
             <p data-sigapro-contained-text="true" className="sig-field-help sig-fit-copy mt-1" title={tenantSettings?.beneficiarioArrecadacao || tenant?.name || ""}>{tenantSettings?.beneficiarioArrecadacao || tenant?.name}</p>
             {displayGuide ? (
               <div className="mt-4 flex flex-wrap gap-2">
@@ -3195,7 +3201,7 @@ export function ProcessDetailPage() {
                                 ) : (
                                   <Eye className="mr-2 h-4 w-4" />
                                 )}
-                                {guideBillingBusyKey ? "Preparando guia..." : "Visualizar guia"}
+                                {guideBillingBusyKey ? "Preparando guia..." : displayGuide && isSyntheticQaProtocolGuideCode(displayGuide.code) && import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true" ? "Visualizar prévia" : "Visualizar guia"}
                 </Button>
                 <Button
                   type="button"
@@ -3209,7 +3215,7 @@ export function ProcessDetailPage() {
                                 ) : (
                                   <Printer className="mr-2 h-4 w-4" />
                                 )}
-                                {guideBillingBusyKey ? "Preparando guia..." : "Imprimir guia"}
+                                {guideBillingBusyKey ? "Preparando guia..." : displayGuide && isSyntheticQaProtocolGuideCode(displayGuide.code) && import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true" ? "Imprimir prévia" : "Imprimir guia"}
                 </Button>
               </div>
             ) : null}
