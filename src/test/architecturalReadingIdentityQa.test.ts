@@ -56,7 +56,7 @@ describe("SIGAPRO — relatório documental personalizado e sem reprovação fic
     expect(commands).toContain("PENDENTE DE VINCULO IMOBILIARIO");
     expect(commands).toContain("NAO AVALIADA");
     expect(commands).toContain("nao e irregularidade comprovada");
-    expect(commands).toContain("NAO significa nao conformidade");
+    expect(commands).toContain("NAO equivale");
   });
   it("usa campos do processo e muda o nome do arquivo pelo método real",()=>{
     const client=readFileSync("src/components/platform/ArchitecturalPdfAiPanel.tsx","utf8");
