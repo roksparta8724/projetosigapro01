@@ -198,11 +198,11 @@ export function createReviewedDrawingHandoff(input: {
     const item=input.reviewed[key];
     if(!item)continue;
     if(typeof item.value!=="string"||typeof item.evidence!=="string"||
-      !/^\\d+(?:[.,]\\d+)?$/.test(item.value.trim())||
+      !/^\d+(?:[.,]\d+)?$/.test(item.value.trim())||
       !Number.isFinite(Number(item.value.replace(",",".")))||
       item.evidence.length>500||
       !item.evidence.includes(input.document.fileName)||
-      !/página \\d+/i.test(item.evidence))return null;
+      !/página \d+/i.test(item.evidence))return null;
     reviewed[key]={value:item.value,evidence:item.evidence};
   }
   if(!Object.keys(reviewed).length)return null;
@@ -243,11 +243,11 @@ export function readReviewedDrawingHandoff(
     if(!allMetrics.has(metric))return null;
     const field=record(rawValue);
     if(!field||typeof field.value!=="string"||typeof field.evidence!=="string"||
-      !/^\\d+(?:[.,]\\d+)?$/.test(field.value.trim())||
+      !/^\d+(?:[.,]\d+)?$/.test(field.value.trim())||
       !Number.isFinite(Number(field.value.replace(",",".")))||
       field.evidence.length>500||field.evidence.length<12||
       !field.evidence.includes(doc.fileName)||
-      !/página \\d+/i.test(field.evidence))return null;
+      !/página \d+/i.test(field.evidence))return null;
     reviewed[metric as UrbanMetric]={value:field.value,evidence:field.evidence};
   }
   return reviewed;
