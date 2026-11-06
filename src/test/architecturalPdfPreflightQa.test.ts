@@ -134,4 +134,45 @@ describe("SIGAPRO QA — preflight técnico do PDF com controle de custo e autor
     expect(ui).toContain('[overflow-wrap:anywhere]');
   });
 
+  it("oferece leitor visual OpenAI somente na QA e com chave de API independente",()=>{
+    const configVars=config({
+      SIGAPRO_AI_PDF_PROVIDER:"claude",
+      SIGAPRO_AI_PDF_ENABLED:"true",
+      ANTHROPIC_API_KEY:"fake-long-claude-token-without-real-provider-call",
+      OPENAI_API_KEY:"fake-long-openai-token-without-real-provider-call",
+      SIGAPRO_AI_PDF_MODEL:"claude-sonnet-5-5",
+      SIGAPRO_OPENAI_PDF_MODEL:"gpt-6.1-sol",
+    });
+    const primary=resolveVisualPdfProvider(configVars);
+    const advanced=resolveVisualPdfProvider(configVars,"openai_visual");
+    expect(primary.enabled).toBe(true);
+    if(primary.enabled)expect(primary.provider.kind).toBe("claude");
+    expect(advanced.enabled).toBe(true);
+    if(advanced.enabled)expect(advanced.provider).toMatchObject({kind:"openai",model:"gpt-6.1-sol"});
+    const denied=resolveVisualPdfProvider(config({
+      SIGAPRO_AI_PDF_PROVIDER:"claude",
+      ANTHROPIC_API_KEY:"fake-long-claude-token-without-real-provider-call",
+    }),"openai_visual");
+    expect(denied.enabled).toBe(false);
+    const server=file("server/ai-project-extract.ts");
+    const ui=file("src/components/platform/ArchitecturalPdfAiPanel.tsx");
+    expect(server).toContain('const openaiVisualRequested=body.readingMode==="openai_visual"');
+    expect(server).toContain("openaiVisualAlternativeAvailable:advancedVisual?.enabled===true");
+    expect(server).toContain('textRequested?"cloudflare_text":openaiVisualRequested?"openai_visual":undefined');
+    expect(ui).toContain('data-sigapro-ai-mode-openai-visual="true"');
+    expect(ui).toContain('result.aiProvider!=="openai"');
+    expect(ui).toContain("setConsent(false)");
+  });
+  it("garante contraste explícito em cartões do leitor e em diferentes temas",()=>{
+    const panel=file("src/components/platform/ArchitecturalPdfAiPanel.tsx");
+    expect(panel).toContain('dark:!text-white');
+    expect(panel).toContain('dark:!text-slate-100');
+    expect(panel).toContain('dark:bg-[#103b5e]');
+    expect(panel).toContain('dark:bg-[#17283d]');
+    expect(panel).toContain('data-sigapro-document-ai-embedded');
+    expect(panel).toContain('[overflow-wrap:anywhere]');
+    expect(panel).toContain('dark:text-amber-100');
+    expect(panel).toContain('dark:text-emerald-100');
+  });
+
 });
