@@ -127,4 +127,64 @@ describe("SIGAPRO — Claude PDF visual via stored R2 attachments",()=>{
     expect(output.readings.find(x=>x.metric==="front_setback_m")?.usableForReview).toBe(false);
     expect(output.readings.find(x=>x.metric==="floor_area_ratio")?.usableForReview).toBe(true);
   });
+  it("exige credencial independente para a Leitura Avançada visual, sem usar ChatGPT Plus",()=>{
+    const denied=resolveVisualPdfProvider(env({SIGAPRO_AI_PDF_PROVIDER:"claude",
+      ANTHROPIC_API_KEY:KEY}),"openai_visual");
+    expect(denied.enabled).toBe(false);
+    const cfg=resolveVisualPdfProvider(env({
+      SIGAPRO_AI_PDF_PROVIDER:"claude",SIGAPRO_AI_PDF_MODEL:"claude-sonnet-5-5",
+      OPENAI_API_KEY:"sk-test-only-fake-openai-credential-00000000001",
+      SIGAPRO_OPENAI_PDF_MODEL:"gpt-6.1-sol",
+    }),"openai_visual");
+    expect(cfg.enabled).toBe(true);
+    if(cfg.enabled)expect(cfg.provider).toMatchObject({kind:"openai",model:"gpt-6.1-sol"});
+    expect(resolveVisualPdfProvider(env({
+      OPENAI_API_KEY:"sk-test-only-fake-openai-credential-00000000001",
+      SIGAPRO_OPENAI_PDF_MODEL:"http://untrusted-provider.example",
+    }),"openai_visual").enabled).toBe(false);
+  });
+  it("envia PDF com imagens em alta definição ao endpoint fixo OpenAI Responses e valida JSON",async()=>{
+    const token="sk-test-only-fake-openai-credential-00000000001";
+    const fetchMock=vi.fn(async(url:string,opts:RequestInit)=>{
+      expect(url).toBe("https://api.openai.com/v1/responses");
+      expect(opts.redirect).toBe("error");
+      expect((opts.headers as Record<string,string>).Authorization).toBe("Bearer "+token);
+      const body=JSON.parse(String(opts.body));
+      expect(body.store).toBe(false);
+      expect(body.model).toBe("gpt-6.1-sol");
+      expect(body.input[0].content[0]).toMatchObject({
+        type:"input_file",filename:"projeto.pdf",detail:"high",
+        file_data:"data:application/pdf;base64,"+Buffer.from("%PDF- fake").toString("base64"),
+      });
+      expect(body.text.format).toMatchObject({type:"json_schema",
+        name:"sigapro_architectural_readings_v1",strict:true});
+      return {ok:true,json:async()=>({status:"completed",output:[{type:"message",
+        content:[{type:"output_text",text:JSON.stringify({
+          document_type:"architectural_plan",has_site_plan:true,warnings:[],
+          metrics:[{metric:"rear_setback_m",value:12,page:2,
+            quote:"Recuo de fundos 12,00 m",confidence:"high"}],
+        })}]}]})};
+    });
+    vi.stubGlobal("fetch",fetchMock);
+    const output=await extractVisualPdf(new TextEncoder().encode("%PDF- fake"),
+      "projeto.pdf",{kind:"openai",key:token,model:"gpt-6.1-sol"});
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(output.readings.find(x=>x.metric==="rear_setback_m")).toMatchObject({
+      value:12,page:2,usableForReview:true,
+    });
+    expect(output.automaticallyApproved).toBe(false);
+  });
+  it("bloqueia falsas leituras visuais em vez de preencher recuos sem fonte",async()=>{
+    const token="sk-test-only-fake-openai-credential-00000000001";
+    vi.stubGlobal("fetch",vi.fn(async()=>({ok:true,json:async()=>({
+      status:"completed",output:[{type:"message",content:[{type:"output_text",
+        text:JSON.stringify({document_type:"architectural_plan",has_site_plan:true,
+          warnings:[],metrics:[{metric:"front_setback_m",value:3,page:1,
+            quote:"Área do lote 250 m²",confidence:"high"}]})}]}],
+    })})));
+    const output=await extractVisualPdf(new TextEncoder().encode("%PDF- fake"),
+      "projeto.pdf",{kind:"openai",key:token,model:"gpt-4.1"});
+    expect(output.readings.find(x=>x.metric==="front_setback_m")?.value).toBeNull();
+  });
+
 });
