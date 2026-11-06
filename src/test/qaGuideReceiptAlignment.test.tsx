@@ -56,6 +56,7 @@ describe("Guia de homologação A4 — alinhamento de linhas e bordas",()=>{
     expect(receipt).toContain("Valor Doc.");
     expect(receipt).toContain("Natureza");
     expect(receipt).toContain("(=) Valor");
+    expect(receipt).toContain("dam-receipt-note-full");
     expect(receipt).toContain("dam-receipt-extras-left");
     expect(receipt).toContain("dam-receipt-extras-right");
   });
@@ -69,6 +70,7 @@ describe("Guia de homologação A4 — alinhamento de linhas e bordas",()=>{
     expect(html).toMatch(/\.dam-receipt-body-row\s*\{[^}]*border-bottom:\s*1px solid #000000/);
     expect(html).toContain("overflow-wrap: anywhere;");
     expect(html).toContain("break-inside: avoid;");
+    expect(html).toMatch(/\.dam-receipt-note-full \.dam-note\s*\{[^}]*padding:\s*2mm 2\.5mm/);
   });
   it("não recorta o código longo da guia nem cria boleto na prévia",()=>{
     const html=buildGuiaRecolhimentoOficialHtml(guide,{autoPrint:false});
