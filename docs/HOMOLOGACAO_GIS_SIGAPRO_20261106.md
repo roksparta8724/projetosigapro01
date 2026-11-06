@@ -53,3 +53,11 @@ Somente branch `br-solitary-sound-b4xlbvs6` do projeto `red-sunset-21120522`:
 - A migração `20261106_urban_precheck_geozone_gate_v7_qa.sql` foi aplicada somente à branch Neon QA; consulta de privilégios: authenticated v6=false, v7=true. Caso QA04 sem property_id continua bloqueado.
 - A CI apontou dois testes legados que verificavam literalmente a chamada `v6`; ambos foram corrigidos para exigir `v7` sem retirar proteção funcional.
 - A migração está auditável em arquivo e o endereço canônico de homologação deve permanecer vinculado apenas ao HEAD QA depois do Gate, sem promoção para produção. Este marcador permite exclusivamente o build do preview; não substitui aceite autenticado. [deploy-qa]
+
+## Publicação coordenada — inventário de páginas do projeto
+
+- Novas medidas e citações são confrontadas com o total de páginas comprovado no PDF clássico, usando `auditArchitecturalPdfPages`. Referência a uma página inexistente não entra na pré-conferência.
+- A UI e o relatório de leitura apresentam os números das páginas com medidas documentadas e das páginas sem essas evidências. Isso não prova que todas as imagens foram interpretadas.
+- Leitor Cloudflare não pode mais truncar silenciosamente o texto convertido acima de 24 mil caracteres; devolve `CLOUDFLARE_PDF_TEXT_PARTIAL` e nenhuma medição.
+- A base anterior preserva Quadro I (22/23 revisados), Quadro II (45 rascunhos) e as referências R2 legadas. Nenhum arquivo é substituído, nenhuma norma é ativada, e nenhuma aprovação é automatizada.
+- Esta publicação é EXCLUSIVAMENTE preview QA. A leitura visual completa de projetos reais e a classificação territorial oficial ainda dependem de ensaio autenticado com o analista, provedor visual habilitado e mapa/perímetro homologados.
