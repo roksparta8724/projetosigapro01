@@ -522,7 +522,7 @@ export function UrbanQuadroIIWorkspacePanel({
               <div id="sigapro-qii-selected-page" ref={pageDetailRef}
                 data-urban-qii-detail="true"
                 role="region" aria-label={`Leitura da página ${page.page_number} do Quadro II`}
-                className="mt-4 min-w-0 scroll-mt-24 overflow-hidden [overflow-anchor:none] rounded-2xl border border-sky-200 bg-[#fbfdff] shadow-sm dark:border-sky-700 dark:bg-slate-900"
+                className="mt-4 min-w-0 scroll-mt-24 overflow-hidden [overflow-anchor:none] rounded-2xl border border-sky-200 bg-[#fbfdff] shadow-sm dark:border-sky-700 dark:bg-slate-900">
                 <div className="flex flex-wrap items-center justify-between gap-3 border-b border-sky-100 bg-white p-4 text-slate-900">
                   <div>
                     <p className="text-xs font-bold uppercase tracking-wide text-sky-800">Leitura assistida — Quadro II</p>
