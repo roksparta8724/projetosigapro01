@@ -326,3 +326,11 @@ Confirmação na Neon branch `br-summer-surf-b4s88rv5` (produção), sem qualque
 - SIGAPRO QA04 `915e1c63-ebda-4cdd-8e95-34316d9e0089` permanece com `property_id=NULL`. As tabelas de mapas, geometrias zonais e lotes oficiais na Neon QA continuam zeradas, assim como as regras legais reais ativas. Este bloqueio não pode ser sanado por inferência de endereço da planta: exige cadastro oficial do imóvel e mapa georreferenciado/homologado. A IA pode ler o PDF, mas **não pode concluir conformidade jurídica**.
 - A seleção de IA visual e de modalidades extras depende de credenciais/saldo do provedor contratado, teste visual real e aceite explícito. O painel de aceite de checkbox grande foi implementado em commit QA anterior `1b87fd6c...` e o código atual o preserva; a versão do vídeo é anterior, não a UI nova.
 - Quality Gate da implementação `247c27b38b0fd389dec0ec896c1b59b471db672e` aprovado: **247 arquivos de teste / 1.414 testes**, build, TS, lint e zero vulnerabilidades npm conhecidas. Validação Neon aprovada. Próximo commit é apenas documento de release `[deploy-qa]`. Publicar Preview, nunca main nem produção; conferir SHA do alias na Vercel antes de declarar interface publicada.
+
+### Publicação QA — atualização institucional do PDF (06/11/2026)
+
+- SHA do código com fallback de município por tenant e relatório por modalidade: `af2887323a173baf25dc20a64dc6da464cb44efb`.
+- O primeiro Quality Gate/Neon aprovado desta atualização foi `247c27b38b0fd389dec0ec896c1b59b471db672e` (247 arquivos / 1.414 testes). Validar novamente QA/Neon no SHA final desta publicação; document-only commit não promove regra.
+- Esta publicação inclui o aceite visível com checkbox e CTA, relatórios separados para leitura local/documental/visual, dados do município e partes processuais quando existem e separação de conformidade **não avaliada** versus não conforme.
+- A Vercel Preview usa `[deploy-qa]` no commit, somente branch `fix/qa-triagem-analise-pagamento-20261101`. Não mesclar PR #118 na main, não publicar produção. O alias QA atual precisa apontar para este SHA antes do aceite. Se o limite 402 persistir, a verificação programada deve tentar uma vez após liberar a cota.
+- Evidências oficiais cartográficas, perímetro do lote e regras legais reais ativas ainda ausentes na Neon QA: não fingir homologação de parecer jurídico. Nenhuma mutação em produção.
