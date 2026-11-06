@@ -14,7 +14,7 @@ import { municipalCivilDateFromValue } from "@/lib/municipalCivilDate";
 import { evidenceCoversUrbanRule, type UrbanLegalEvidenceScope } from "@/lib/urbanEvidenceCoverage";
 import { Textarea } from "@/components/ui/textarea";
 import { readReviewedDrawingHandoff } from "@/lib/architecturalPdfReadings";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { buildProcessPath } from "@/lib/platform";
 import type { ProcessRecord } from "@/lib/platform";
 
@@ -243,10 +243,10 @@ export function UrbanPrecheckPanel({
           conferidas pelo analista podem ser encaminhadas a esta pré-conferência.
           Nenhuma leitura representa aprovação automática.
         </p>
-        <a href={buildProcessPath(process, "documentos")}
+        <Link to={buildProcessPath(process, "documentos")}
           className="mt-2 inline-flex min-h-9 max-w-full items-center rounded-lg border border-sky-400 bg-white px-3 py-2 font-bold text-sky-900 underline-offset-2 hover:underline dark:bg-slate-800 dark:text-white">
           Abrir documentos do processo
-        </a>
+        </Link>
       </div>
 
       {readOnly ? (
