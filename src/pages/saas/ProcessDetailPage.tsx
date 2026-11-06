@@ -2587,7 +2587,7 @@ export function ProcessDetailPage() {
       "Visibilidade de tramitação atualizada.",
     );
   };
-  const openDocumentWorkspace = (documentId: string, forceAnalysis = false) => {
+  const openDocumentWorkspace = (documentId: string, forceAnalysis = false, openAi = false) => {
     const selectedDocument = process.documents.find((item) => item.id === documentId);
     if (!selectedDocument || openingDocumentId) return;
 
@@ -2596,7 +2596,9 @@ export function ProcessDetailPage() {
     const shouldAnalyze = Boolean((forceAnalysis || canReviewDocuments) &&
       canAnalyzeProcessDocument(session, process, effectiveScopeId));
     const route = shouldAnalyze ? "analisar" : "visualizar";
-    const query = shouldAnalyze ? "?ferramenta=highlight" : "";
+    const query = shouldAnalyze
+      ? openAi ? "?ferramenta=navigate&painel=ia" : "?ferramenta=highlight"
+      : "";
     const workspaceUrl =
       `${window.location.origin}${buildProcessPath(process)}/documentos/${documentId}/${route}${query}`;
 
@@ -3762,16 +3764,20 @@ export function ProcessDetailPage() {
                           canUseMunicipalChecklist &&
                           canEditAnalysisChecklist &&
                           stableAnalysisAccess ? (
-                          <Link
+                          <button
+                            type="button"
                             data-sigapro-ai-review-shortcut="true"
                             data-primary-action="document"
-                            to={`${buildProcessPath(process, "analise")}#sigapro-urban-precheck`}
-                            className="inline-flex min-h-10 max-w-full items-center justify-center gap-2 rounded-full border border-sky-500 bg-[#075985] px-4 py-2 text-center text-xs font-bold !text-white shadow-sm hover:bg-[#0c4a6e] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500 [&_*]:!text-white"
-                            title="Ir à pré-conferência com IA. Este atalho não envia o PDF e não gera cobrança."
+                            disabled={Boolean(openingDocumentId)}
+                            onClick={() => openDocumentWorkspace(document.id, true, true)}
+                            className="inline-flex min-h-10 min-w-0 max-w-full items-center justify-center gap-2 rounded-full border border-sky-500 bg-[#075985] px-4 py-2 text-center text-xs font-bold !text-white shadow-sm hover:bg-[#0c4a6e] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500 disabled:opacity-50 [&_*]:!text-white"
+                            title="Abrir esta planta na mesa de análise, com o painel SIGAPRO IA ao lado. Não envia o PDF automaticamente."
                           >
                             <BrainCircuit className="h-4 w-4 shrink-0" />
-                            Ir para leitura com IA
-                          </Link>
+                            <span className="min-w-0 whitespace-normal break-words [overflow-wrap:anywhere]">
+                              SIGAPRO IA · Ler projeto
+                            </span>
+                          </button>
                         ) : null}
                       </div>
                     </div>
