@@ -166,9 +166,11 @@ describe("SIGAPRO QA — preflight técnico do PDF com controle de custo e autor
   it("garante contraste explícito em cartões do leitor e em diferentes temas",()=>{
     const panel=file("src/components/platform/ArchitecturalPdfAiPanel.tsx");
     expect(panel).toContain('dark:!text-white');
-    expect(panel).toContain('dark:!text-slate-100');
-    expect(panel).toContain('dark:bg-[#103b5e]');
-    expect(panel).toContain('dark:bg-[#17283d]');
+    expect(panel).toContain('dark:text-white');
+    expect(panel).toContain('dark:bg-[#1a3049]');
+    expect(panel).toContain('data-sigapro-ai-consent-card="true"');
+    expect(panel).toContain('data-sigapro-ai-consent-indicator="true"');
+    expect(panel).toContain('peer-focus-visible:ring-4');
     expect(panel).toContain('data-sigapro-document-ai-embedded');
     expect(panel).toContain('[overflow-wrap:anywhere]');
     expect(panel).toContain('dark:text-amber-100');
