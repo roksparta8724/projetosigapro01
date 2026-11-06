@@ -564,7 +564,7 @@ export function ArchitecturalPdfAiPanel({
           onClick={cancelScan}>Cancelar</Button>
       </div>:null}
       <Button type="button" data-sigapro-ai-read-project="true"
-        className="mt-3 h-auto min-h-11 min-w-0 max-w-full whitespace-normal break-words bg-slate-950 px-4 py-2 !text-white [overflow-wrap:anywhere]"
+        className="mt-3 h-auto min-h-12 min-w-0 max-w-full whitespace-normal break-words bg-[#092742] px-4 py-2 text-[13px] font-extrabold !text-white shadow-sm hover:bg-[#124a70] disabled:cursor-not-allowed disabled:bg-slate-200 disabled:!text-slate-700 disabled:opacity-100 dark:disabled:bg-slate-700 dark:disabled:!text-white [overflow-wrap:anywhere]"
         disabled={readOnly||(readingMode!=="native_text"&&!consent)||!latest||loading||
           !readyForSelectedMode||availability.documentReady!==true}
         onClick={()=>void scan()}>
@@ -591,6 +591,11 @@ export function ArchitecturalPdfAiPanel({
       </details>:null}
     </div>:null}
     {draft? <div className="mt-4 space-y-3">
+      <p data-sigapro-ai-metrics-summary="true"
+        className="rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-[13px] font-semibold text-slate-900 dark:border-slate-600 dark:bg-[#1a3049] dark:text-white">
+        {draft.readings.filter(row=>row.value!==null&&row.usableForReview).length} de {draft.readings.length}
+        {" "}medidas com evidência aproveitável para conferência humana · decisão urbanística não avaliada
+      </p>
       <section data-sigapro-pdf-page-audit="true"
         className="min-w-0 rounded-xl border border-sky-300 bg-sky-50 p-3 text-sky-950 dark:border-sky-600 dark:bg-[#122d43] dark:text-white [overflow-wrap:anywhere]">
         <p className="text-sm font-extrabold">Inventário de páginas do projeto</p>
