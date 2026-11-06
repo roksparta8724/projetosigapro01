@@ -5,6 +5,7 @@ import { callDataApiRpc, getDataApiUrl, readBearer, readEnv, resolveMunicipalDoc
 import { extractVisualPdf, resolveVisualPdfProvider } from "./architectural-pdf-provider.js";
 import { extractNativeArchitecturalPdf } from "./native-architectural-pdf.js";
 import { inspectProcessTerritory } from "./urban-territorial-context.js";
+import {auditArchitecturalPdfPages} from "../src/lib/architecturalPdfPageAudit.js";
 import {verifiedUrbanBaseline,type UrbanExistingLegalBaseline} from "../src/lib/urbanExistingLegalBaseline.js";
 
 export const maxDuration = 60;
@@ -257,12 +258,13 @@ export default async function handler(req:Req,res:Res){
         ?await extractVisualPdf(pdf,doc.file_name,available.provider)
         :null;
     if(!extracted)throw new Error("AI_PROVIDER_MODEL_UNAVAILABLE");
+    const audited=auditArchitecturalPdfPages(pdf,extracted);
     // A revised/invalidated PDF must NEVER yield accepted observations.
     // Recheck ownership and immutable object version after AI inference.
     const sameDocument=await verifiedDocument(req,tenant,processId,documentId);
     if(!sameDocument||sameDocument.file_path!==doc.file_path||
       sameDocument.version!==doc.version)throw new Error("AI_DOCUMENT_REVISED");
-    return json(res,200,{...extracted,processId:doc.process_id,
+    return json(res,200,{...audited,processId:doc.process_id,
       documentId:doc.id,documentVersion:doc.version,fileName:doc.file_name,
       legalConformity:"not_evaluated",humanReviewRequired:true,
       aiProvider:nativeTextRequested?"sigapro_local":available.enabled?available.provider.kind:"none",
