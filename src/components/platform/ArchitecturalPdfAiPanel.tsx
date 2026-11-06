@@ -5,6 +5,7 @@ import { backendClient } from "@/integrations/backend/databaseClient";
 import { benchmarkQa04ArchitecturalReadings, makeReviewedDrawingEvidence, type DrawingExtraction } from "@/lib/architecturalPdfReadings";
 import { URBAN_METRICS, type UrbanMetric } from "@/lib/urbanPrecheck";
 import type { UrbanTerritorialReadiness } from "@/lib/urbanTerritorialReadiness";
+import {verifiedUrbanBaseline,type UrbanExistingLegalBaseline} from "@/lib/urbanExistingLegalBaseline";
 import type { ProcessRecord } from "@/lib/platform";
 
 type Prepared = Partial<Record<UrbanMetric,{value:string;evidence:string}>>;
@@ -14,6 +15,7 @@ type ApiResult = DrawingExtraction & {
   legalConformity:"not_evaluated"; humanReviewRequired:true;
   aiProvider:"sigapro_local"|"cloudflare"|"claude"|"openai"|"gemini";
   territorialContext?:UrbanTerritorialReadiness|null;
+  legalBaseline?:UrbanExistingLegalBaseline|null;
 };
 const normalized = (value:string)=>value.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
 
@@ -54,6 +56,7 @@ export function ArchitecturalPdfAiPanel({
     geminiQaFixture:false,geminiQaAvailable:false,nativeTextAvailable:false});
 
   const [territorial,setTerritorial]=useState<UrbanTerritorialReadiness|null>(null);
+  const [legalBaseline,setLegalBaseline]=useState<UrbanExistingLegalBaseline|null>(null);
   const [error,setError]=useState("");
   const [errorCode,setErrorCode]=useState("");
   const [draft,setDraft]=useState<ApiResult|null>(null);
@@ -62,7 +65,7 @@ export function ArchitecturalPdfAiPanel({
 
   useEffect(()=>{
     setId(plans[0]?.id||"");setConsent(false);setReadingMode("native_text");
-    setBillingUnavailable(false);setDraft(null);setTerritorial(null);setChecked({});setError("");setErrorCode("");setNotice("");
+    setBillingUnavailable(false);setDraft(null);setTerritorial(null);setLegalBaseline(null);setChecked({});setError("");setErrorCode("");setNotice("");
   },[process.id,plans[0]?.id]);
 
   useEffect(()=>{
@@ -103,9 +106,11 @@ export function ArchitecturalPdfAiPanel({
         geminiQaFixture?:boolean;geminiQaAvailable?:boolean;
         nativeTextAvailable?:boolean;
         territorialContext?:UrbanTerritorialReadiness|null;
+        legalBaseline?:UrbanExistingLegalBaseline|null;
       };
       if(!res.ok)throw new Error(value.error||"Não foi possível confirmar a disponibilidade da IA.");
       if(current)setTerritorial(value.territorialContext??null);
+      if(current)setLegalBaseline(verifiedUrbanBaseline(value.legalBaseline,process.tenantId));
       if(current)setAvailability({status:(value.enabled||value.nativeTextAvailable===true)?"ready":"disabled",
         provider:value.provider==="cloudflare"||value.provider==="claude"||value.provider==="openai"
           ?value.provider:"none",
@@ -186,6 +191,7 @@ export function ArchitecturalPdfAiPanel({
         throw new Error("Leitura retornada com vínculo incorreto. Nenhuma medida foi aplicada.");
       setDraft(result as ApiResult);
       setTerritorial(result.territorialContext??null);
+      setLegalBaseline(verifiedUrbanBaseline(result.legalBaseline,process.tenantId));
       if(readingMode!=="cloudflare_text")setBillingUnavailable(false);
       setNotice(readingMode==="native_text"
         ?"Texto do PDF lido localmente, sem IA e sem fornecedor externo. Confira a geometria e cada cota na prancha original."
@@ -204,6 +210,7 @@ export function ArchitecturalPdfAiPanel({
         extraction:draft,processId:process.id,documentId:draft.documentId,
         documentVersion:draft.documentVersion,fileName:draft.fileName,
         territorial:draft.territorialContext??territorial,
+        legalBaseline:verifiedUrbanBaseline(draft.legalBaseline,process.tenantId)??legalBaseline,
       });
       pdf.save("SIGAPRO-leitura-"+process.id.slice(0,8)+"-v"+selected.version+".pdf");
       setNotice("Relatório preliminar de leitura gerado em PDF. As medidas exigem conferência humana; não é um parecer de conformidade.");
@@ -430,6 +437,28 @@ export function ArchitecturalPdfAiPanel({
           a localização legal do lote. É necessário cruzamento com cadastro municipal,
           mapa oficial georreferenciado e normas vigentes.</p>
       </div>:null}
+      {legalBaseline?<section data-sigapro-existing-legal-baseline="true"
+        className="mt-2 min-w-0 rounded-xl border border-sky-300 bg-sky-50 p-3 text-sky-950 dark:border-sky-600 dark:bg-[#112a43] dark:text-sky-100 [overflow-wrap:anywhere]">
+        <p className="text-xs font-extrabold">Base urbanística anterior recuperada do Neon — sem perda dos rascunhos</p>
+        <p className="mt-1 text-xs leading-5">
+          Quadro I: <strong>{legalBaseline.quadroI.reviewed}/{legalBaseline.quadroI.rows}</strong> leituras conferidas;
+          {" "}{legalBaseline.quadroI.needsCorrection} ressalva(s). Quadro II:
+          {" "}<strong>{legalBaseline.quadroII.draftEntries}</strong> rascunhos em
+          {" "}{legalBaseline.quadroII.pages} página(s) preservadas.
+        </p>
+        {legalBaseline.documents.length>0?<p className="mt-1 break-words text-xs leading-5">
+          PDFs registrados: {legalBaseline.documents.map(item=>item.name).join(" · ")}.
+          A referência cadastral não comprova, sozinha, a abertura do objeto no R2.
+        </p>:<p className="mt-1 text-xs">Sem referências PDF confirmadas neste acervo; verifique a configuração municipal.</p>}
+        <p className="mt-1 text-xs leading-5">
+          Normas reais ativas: <strong>{legalBaseline.activeRealRegulations}</strong>.
+          Evidências jurídicas por zona/uso: <strong>{legalBaseline.verifiedLegalScopes}</strong>.
+          A leitura de projeto NÃO converte rascunhos nem trechos OCR em norma vigente.
+        </p>
+        {legalBaseline.quadroI.sourceDocument?
+          <p className="mt-1 text-[11px]">Origem da matriz: {legalBaseline.quadroI.sourceDocument} · SHA-256
+            {" "}{legalBaseline.quadroI.sourceSha256.slice(0,14)}…</p>:null}
+      </section>:null}
       {((availability.provider==="claude"&&availability.status==="ready"&&readingMode==="visual")||
         (readingMode==="openai_visual"&&availability.openaiVisualAlternativeAvailable))?(
         <p role="note" data-sigapro-claude-credit-not-verified="true"
