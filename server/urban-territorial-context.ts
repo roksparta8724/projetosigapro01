@@ -1,8 +1,9 @@
 import type { IncomingMessage } from "node:http";
-import { getDataApiUrl, readBearer } from "./municipal-storage.js";
+import { callDataApiRpc, getDataApiUrl, readBearer } from "./municipal-storage.js";
 import {
   buildUrbanTerritorialReadiness,
   type UrbanTerritorialReadiness,
+  type UrbanSpatialResolution,
 } from "../src/lib/urbanTerritorialReadiness.js";
 
 /** After the same-document authorization gate, read only the cadastral
@@ -45,7 +46,16 @@ export async function inspectProcessTerritory(
     const property=Array.isArray(properties)?properties[0]:null;
     if(!property||property.id!==process.property_id||property.municipality_id!==municipalityId)
       return fallback();
-    return buildUrbanTerritorialReadiness("linked",property);
+    // The spatial resolver executes in Neon with RLS-aware profile/municipality
+    // guards, official source hashes, map effective dates and PostGIS geometry.
+    // Never geocode from an address or trust the zone_code written in properties.
+    const spatial=await callDataApiRpc<UrbanSpatialResolution>(
+      req,"urban_zoning_resolve_process_v1",{_process_id:processId}
+    );
+    if(!spatial.ok||!spatial.payload){
+      return buildUrbanTerritorialReadiness("linked",property,{status:"spatial_service_unavailable"});
+    }
+    return buildUrbanTerritorialReadiness("linked",property,spatial.payload);
   } catch {
     return fallback();
   }
