@@ -8,7 +8,7 @@ import { URBAN_METRICS } from "../src/lib/urbanPrecheck.js";
 import { resolveCloudflareAiConfig } from "./cloudflare-ai-provider.js";
 
 export type VisualPdfProvider = {
-  kind: "claude" | "openai" | "cloudflare";
+  kind: "claude" | "openai" | "cloudflare" | "gemini";
   accountId?: string;
   key: string;
   model: string;
@@ -24,11 +24,12 @@ export function resolveVisualPdfProvider(
   get: (name: string) => string,
   // Preview-only opt-in selected by the authenticated user. Never used as a
   // silent billing fallback; the calling endpoint must enforce consent and scope.
-  requestedMode?: "cloudflare_text" | "openai_visual",
+  requestedMode?: "cloudflare_text" | "openai_visual" | "gemini_qa",
 ): VisualPdfAvailability {
   const explicitPdfProvider = requestedMode === "cloudflare_text"
     ? "cloudflare" : requestedMode === "openai_visual"
-      ? "openai" : get("SIGAPRO_AI_PDF_PROVIDER").trim().toLowerCase();
+      ? "openai" : requestedMode === "gemini_qa"
+        ? "gemini" : get("SIGAPRO_AI_PDF_PROVIDER").trim().toLowerCase();
   const configuredProvider = (explicitPdfProvider ||
     get("SIGAPRO_AI_PROVIDER") || "").trim().toLowerCase();
   const enabledSetting = get("SIGAPRO_AI_PDF_ENABLED").trim().toLowerCase();
@@ -37,6 +38,16 @@ export function resolveVisualPdfProvider(
   const openaiKey = get("OPENAI_API_KEY");
   if (enabledSetting === "false") return {enabled:false,provider:null,
     message:"Leitura visual desativada explicitamente neste ambiente."};
+  // Isolated free-tier experiment: never selected implicitly and never
+  // available in Production, even with the preview credential present.
+  if(requestedMode==="gemini_qa"){
+    const key=get("SIGAPRO_GEMINI_QA_API_KEY").trim();
+    if(get("SIGAPRO_GEMINI_QA_ENABLED").trim()!=="true"||key.length<20)
+      return {enabled:false,provider:null,
+        message:"Leitura experimental gratuita aguardando chave e habilitação na homologação."};
+    return {enabled:true,provider:{kind:"gemini",key,model:"gemini-2.5-flash"},
+      message:"Leitura experimental do projeto fictício disponível no ambiente de homologação."};
+  }
   // Reuse the user's existing Cloudflare account and Workers AI REST token.
   // R2 access keys are NEVER used to authenticate Workers AI.
   if (configuredProvider === "cloudflare" && (!explicitPdfProvider || requestedMode === "cloudflare_text")) {
@@ -297,6 +308,39 @@ export async function extractVisualPdf(
   const encoded = provider.kind === "cloudflare" ? "" : Buffer.from(bytes).toString("base64");
   try {
     if(provider.kind==="cloudflare")return await extractCloudflarePdf(bytes,fileName,provider,controller.signal);
+    if(provider.kind==="gemini"){
+      // Native PDF vision. Do not call Files API (which would retain an uploaded
+      // copy), retry, store data or send data to an untrusted endpoint.
+      const response=await fetch(
+        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",{
+          method:"POST",signal:controller.signal,redirect:"error",
+          headers:{"Content-Type":"application/json","x-goog-api-key":provider.key},
+          body:JSON.stringify({
+            contents:[{role:"user",parts:[
+              {inline_data:{mime_type:"application/pdf",data:encoded}},
+              {text:INSTRUCTIONS+" Retorne um objeto JSON com as chaves document_type, "+
+                "has_site_plan, metrics e warnings. Cada métrica contém metric, value, "+
+                "page, quote, confidence. Cite a cota conforme aparece na prancha."},
+            ]}],
+            generationConfig:{responseMimeType:"application/json",
+              temperature:0,maxOutputTokens:3500},
+          }),
+        },
+      );
+      if(!response.ok)throw new Error(classifyVisualPdfHttpFailure(response.status,"gemini"));
+      let result:unknown;
+      try{result=await response.json();}catch{throw new Error("AI_INVALID_JSON");}
+      const value=result&&typeof result==="object"?result as Record<string,unknown>:null;
+      const candidates=Array.isArray(value?.candidates)?value.candidates:[];
+      const first=candidates[0] as {finishReason?:string;content?:{parts?:Array<{text?:string}>}}|undefined;
+      if(!first||first.finishReason!=="STOP"||!Array.isArray(first.content?.parts))
+        throw new Error("AI_INCOMPLETE");
+      const raw=first.content.parts.map(item=>item?.text||"").join("").trim();
+      if(!raw||raw.length>65000)throw new Error("AI_EMPTY");
+      let parsed:unknown;
+      try{parsed=JSON.parse(raw);}catch{throw new Error("AI_INVALID_JSON");}
+      return normalizeArchitecturalPdfExtraction(parsed);
+    }
     const isClaude = provider.kind === "claude";
     const endpoint = isClaude ? "https://api.anthropic.com/v1/messages" :
       "https://api.openai.com/v1/responses";
