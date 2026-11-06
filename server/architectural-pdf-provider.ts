@@ -182,6 +182,10 @@ async function extractCloudflarePdf(
 ): Promise<DrawingExtraction> {
   const account = provider.accountId || "";
   if (!/^[a-f0-9]{32}$/i.test(account)) throw new Error("AI_PROVIDER_CREDENTIALS");
+  let stage:"conversion"|"interpretation"="conversion";
+  const startTime=Date.now();
+  // This function never logs PDF bytes, file names, municipal IDs or API secrets.
+  try {
   // Official Workers AI Markdown Conversion REST endpoint accepts PDF
   // multipart upload. It extracts TEXT, not reliable geometrical measurements.
   const blobBytes = new ArrayBuffer(bytes.byteLength);
@@ -198,7 +202,8 @@ async function extractCloudflarePdf(
   if (!markdownResponse.ok) {
     if (markdownResponse.status===429)throw new Error("AI_RATE_LIMIT");
     if ([401,403].includes(markdownResponse.status))throw new Error("AI_PROVIDER_CREDENTIALS");
-    throw new Error("PROVIDER_UNAVAILABLE");
+    if ([400,413,422].includes(markdownResponse.status))throw new Error("CLOUDFLARE_PDF_CONVERSION_REJECTED");
+    throw new Error("CLOUDFLARE_PDF_CONVERSION_UNAVAILABLE");
   }
   const converted = await markdownResponse.json() as {
     success?:boolean;result?:Array<{format?:string;data?:string;error?:string}>;
@@ -211,7 +216,8 @@ async function extractCloudflarePdf(
   if(!source?.data||source.data.trim().length<20)
     throw new Error("CLOUDFLARE_PDF_TEXT_EMPTY");
   if(source.data.length>120000)throw new Error("CLOUDFLARE_PDF_TEXT_OVERSIZE");
-  const markdown=source.data.slice(0,40000);
+  const markdown=source.data.slice(0,24000);
+  stage="interpretation";
   // A fixed free-eligible model handles the recovered text. Paid Kimi models
   // are NOT selected automatically; the Cloudflare chat config allow-lists
   // only approved models to avoid surprise billing.
@@ -219,7 +225,8 @@ async function extractCloudflarePdf(
     method:"POST",signal,redirect:"error",
     headers:{"Content-Type":"application/json",Authorization:auth},
     body:JSON.stringify({
-      model:provider.model,temperature:0,max_completion_tokens:3500,
+      model:provider.model,temperature:0,max_completion_tokens:1450,
+      chat_template_kwargs:{enable_thinking:false},
       messages:[
         {role:"system",content:
           "Interprete somente o texto recuperado de um PDF de arquitetura. "+
@@ -234,10 +241,10 @@ async function extractCloudflarePdf(
         {role:"user",content:INSTRUCTIONS+
           "\n\nTEXTO RECUPERADO DO PDF (não representa a planta visual):\n"+markdown},
       ],
-      // GLM-4.7-Flash is not listed among the Workers AI JSON Mode models.
-      // Do not pass unsupported schema-constrained response_format. The
-      // model is asked for JSON and every returned value is checked locally.
-      // No paid or fallback model is invoked behind the analyst's consent.
+      // Avoid a potentially incompatible strict schema and locally validate
+      // the compact response. No paid fallback or automatic retries.
+      // Workers AI supports chat_template_kwargs in the model interface,
+      // allowing low-latency interpretation without prolonged reasoning.
     }),
   });
   if(!response.ok){
@@ -245,7 +252,7 @@ async function extractCloudflarePdf(
     if([401,403].includes(response.status))throw new Error("AI_PROVIDER_CREDENTIALS");
     if(response.status===400||response.status===422)
       throw new Error("CLOUDFLARE_MODEL_REQUEST_REJECTED");
-    throw new Error("PROVIDER_UNAVAILABLE");
+    throw new Error("CLOUDFLARE_MODEL_UNAVAILABLE");
   }
   const parsed=await response.json() as {
     choices?:Array<{message?:{content?:string}}>;
@@ -297,7 +304,26 @@ async function extractCloudflarePdf(
       ...(Array.isArray(object.warnings)?object.warnings:[]),
     ].slice(0,12);
   }
-  return {...normalizeArchitecturalPdfExtraction(raw),source:"ai_pdf_text"};
+  const output={...normalizeArchitecturalPdfExtraction(raw),source:"ai_pdf_text" as const};
+  if(process.env.VERCEL_ENV==="preview")
+    console.info("[SIGAPRO_PDF_AI_QA]",JSON.stringify({
+      stage:"completed",code:"OK",elapsedMs:Date.now()-startTime,
+    }));
+  return output;
+  } catch (cause) {
+    const isAbort=signal.aborted||
+      (cause instanceof Error && (cause.name==="AbortError"||cause.name==="TimeoutError"));
+    const code=isAbort
+      ?stage==="conversion"?"CLOUDFLARE_PDF_CONVERSION_TIMEOUT":"CLOUDFLARE_MODEL_TIMEOUT"
+      :cause instanceof Error && /^(?:AI_|CLOUDFLARE_)/.test(cause.message)
+        ?cause.message
+        :stage==="conversion"?"CLOUDFLARE_PDF_CONVERSION_NETWORK":"CLOUDFLARE_MODEL_NETWORK";
+    if(process.env.VERCEL_ENV==="preview")
+      console.warn("[SIGAPRO_PDF_AI_QA]",JSON.stringify({
+        stage,code,elapsedMs:Date.now()-startTime,
+      }));
+    throw new Error(code);
+  }
 }
 
 export async function extractVisualPdf(
