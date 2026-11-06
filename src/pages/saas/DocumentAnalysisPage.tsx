@@ -862,7 +862,7 @@ export function DocumentAnalysisPage() {
             </Button>
             <Button
               type="button"
-              className="h-9 rounded-xl bg-[linear-gradient(135deg,#9a3412_0%,#c65d0e_55%,#e07a12_100%)] px-3 text-[11px] font-bold text-white shadow-[0_8px_18px_rgba(180,83,9,0.22)] hover:brightness-105"
+              className="h-9 rounded-xl bg-[#9a3412] px-3 text-[11px] font-bold !text-white shadow-sm hover:bg-[#7c2d12] disabled:cursor-not-allowed disabled:border disabled:border-slate-300 disabled:bg-slate-100 disabled:!text-slate-600 disabled:shadow-none"
               disabled={busy === "send-draft" || draftAnnotations.length === 0 || !comuniqueDueDate}
               onClick={() => void sendDraftToProfessional()}
             >
@@ -956,7 +956,7 @@ export function DocumentAnalysisPage() {
       </div>
 
       <div className={`grid min-h-0 flex-1 grid-cols-1 ${showProjectAi && isArchitecturalPdf
-        ? "grid-rows-[minmax(220px,44vh)_minmax(0,1fr)] xl:grid-rows-1 xl:grid-cols-[72px_minmax(0,1fr)_540px]"
+        ? "grid-rows-[minmax(220px,44vh)_minmax(0,1fr)] xl:grid-rows-1 xl:grid-cols-[64px_minmax(0,1fr)_minmax(420px,540px)]"
         : "xl:grid-cols-[72px_minmax(0,1fr)_420px]"}`}>
         <aside className="hidden border-r border-slate-200 bg-[linear-gradient(180deg,#f8fafc_0%,#eef4f8_100%)] py-4 shadow-[8px_0_26px_rgba(15,23,42,0.04)] xl:flex xl:flex-col xl:items-center xl:gap-3">
           <button
@@ -1070,8 +1070,10 @@ export function DocumentAnalysisPage() {
                 )
               ) : isPdf ? (
                 <iframe
+                  data-sigapro-pdf-synced-page={page}
+                  data-sigapro-pdf-synced-zoom={Math.round(zoom*100)}
                   key={previewUrl}
-                  src={`${previewUrl}${previewUrl.includes("#") ? "&" : "#"}toolbar=0&navpanes=0&view=FitH`}
+                  src={`${previewUrl.split("#")[0]}#toolbar=0&navpanes=0&page=${page}&zoom=${Math.round(zoom*100)}`}
                   title={document.fileName || document.label}
                   className="h-[calc(100vh-164px)] min-h-[700px] w-full border-0 bg-[#2f343b]"
                   style={{ pointerEvents: tool === "navigate" ? "auto" : "none" }}
@@ -1210,6 +1212,7 @@ export function DocumentAnalysisPage() {
                 orientativa e não altera o documento ou o andamento do processo.
               </p>
               <ArchitecturalPdfAiPanel
+                onGoToPage={(nextPage) => { if (Number.isInteger(nextPage) && nextPage>=1 && nextPage<=2000) setPage(nextPage); }}
                 process={process}
                 documentId={document.id}
                 compact
