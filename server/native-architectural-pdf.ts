@@ -145,6 +145,38 @@ export function extractNativeArchitecturalPdf(pdf:Uint8Array):DrawingExtraction 
   // Nem todas as 11 chaves do confronto urbanistico sao dados da planta.
   // Em especial "CA minimo" e limite legal e NAO deve ser lido ou inferido
   // do desenho; so um CA observado explicitamente declarado e candidato.
+  // Auxiliary project declarations are useful to the analyst but must never
+  // be fed into the eleven statutory-limit fields or treated as legal proof.
+  const extras:Array<{
+    kind:"built_area_m2"|"uncovered_area_m2"|"side_left_m"|"side_right_m";
+    label:string;value:number;unit:"m"|"m²";page:number;quote:string;
+  }>=[];
+  const extraPatterns=[
+    {kind:"built_area_m2" as const,label:"Area edificada declarada",unit:"m²" as const,
+      pattern:/\barea\s+construida(?:\s+declarada)?\s*:\s*(\d{1,5}(?:[,.]\d{1,3})?)\s*m\s*2\b/},
+    {kind:"uncovered_area_m2" as const,label:"Area descoberta declarada",unit:"m²" as const,
+      pattern:/\barea\s+descoberta\s*:\s*(\d{1,5}(?:[,.]\d{1,3})?)\s*m\s*2\b/},
+    {kind:"side_left_m" as const,label:"Recuo lateral esquerdo declarado",unit:"m" as const,
+      pattern:/\brecuo\s+lateral\s+(?:esq\.?|esquerdo)\s*:\s*(\d{1,5}(?:[,.]\d{1,3})?)\s*m\b/},
+    {kind:"side_right_m" as const,label:"Recuo lateral direito declarado",unit:"m" as const,
+      pattern:/\brecuo\s+lateral\s+(?:dir\.?|direito)\s*:\s*(\d{1,5}(?:[,.]\d{1,3})?)\s*m\b/},
+  ];
+  for(const spec of extraPatterns){
+    const found=lines.map(line=>{
+      const hit=spec.pattern.exec(line.text);
+      const value=hit?parseNumber(hit[1]):null;
+      return value===null?null:{...spec,value,page:line.page,quote:line.quote};
+    }).filter((x):x is NonNullable<typeof x>=>x!==null);
+    // Duplicates with the same value are okay. Contradictions remain blank.
+    if(new Set(found.map(x=>x.value.toFixed(3))).size>1){
+      warnings.push("Valor auxiliar conflitante: "+spec.label+". Revisar no PDF original.");
+      continue;
+    }
+    if(found[0])extras.push({
+      kind:spec.kind,label:spec.label,unit:spec.unit,value:found[0].value,
+      page:found[0].page,quote:found[0].quote,
+    });
+  }
   const output=normalizeArchitecturalPdfExtraction({
     document_type:documentType,
     has_site_plan:hasSitePlan,
@@ -152,6 +184,7 @@ export function extractNativeArchitecturalPdf(pdf:Uint8Array):DrawingExtraction 
   });
   return {
     ...output,source:"pdf_text_local",automaticallyApproved:false,
+    supplementaryFacts:extras,
     textCoverage:{
       pagesRead:pages.length,
       pagesWithText:pages.filter(page=>page.lines.length>0).map(page=>page.number),
