@@ -309,6 +309,8 @@ export default async function handler(req:Req,res:Res){
       error:"O SIGAPRO IA · Leitura Documental não encontrou texto utilizável neste PDF. Se as cotas estiverem somente desenhadas, será necessária leitura visual; nenhum valor foi inventado."});
     if(code==="CLOUDFLARE_PDF_TEXT_OVERSIZE")return json(res,413,{code,
       error:"O texto extraído ultrapassou o limite seguro. Divida as pranchas para revisão. Nenhuma medida foi gravada."});
+    if(code==="CLOUDFLARE_PDF_TEXT_PARTIAL")return json(res,413,{code,
+      error:"O PDF contém mais texto que esta modalidade consegue examinar integralmente. O SIGAPRO recusou uma leitura parcial e não ocultou páginas. Selecione leitura visual autorizada para o documento completo; nenhuma medida foi registrada."});
     if(code==="CLOUDFLARE_MODEL_REQUEST_REJECTED")return json(res,502,{code,
       error:"O serviço de Leitura Documental rejeitou a solicitação do modelo. Não foi emitido diagnóstico nem registrada medida."});
     if(code==="CLOUDFLARE_MODEL_EMPTY"||code==="CLOUDFLARE_MODEL_INVALID_JSON")
