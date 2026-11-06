@@ -150,5 +150,12 @@ export function extractNativeArchitecturalPdf(pdf:Uint8Array):DrawingExtraction 
     has_site_plan:hasSitePlan,
     warnings,metrics:candidates,
   });
-  return {...output,source:"pdf_text_local",automaticallyApproved:false};
+  return {
+    ...output,source:"pdf_text_local",automaticallyApproved:false,
+    textCoverage:{
+      pagesRead:pages.length,
+      pagesWithText:pages.filter(page=>page.lines.length>0).map(page=>page.number),
+      pagesWithoutText:pages.filter(page=>page.lines.length===0).map(page=>page.number),
+    },
+  };
 }
