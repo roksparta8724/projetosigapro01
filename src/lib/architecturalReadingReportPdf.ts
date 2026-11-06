@@ -15,6 +15,20 @@ export function createArchitecturalReadingReportPdf(input: {
   documentId: string;
   documentVersion: number;
   fileName: string;
+  /** Data declared in the process record, never certified by this report. */
+  identification?: {
+    municipalityId?: string;
+    municipalityName?: string;
+    protocol?: string;
+    ownerName?: string;
+    ownerDocument?: string;
+    professionalName?: string;
+    propertyAddress?: string;
+    propertyRegistration?: string;
+    lot?: string;
+    block?: string;
+    declaredUse?: string;
+  };
   territorial?: UrbanTerritorialReadiness | null;
   legalBaseline?: UrbanExistingLegalBaseline | null;
   generatedAt?: Date;
@@ -68,10 +82,28 @@ export function createArchitecturalReadingReportPdf(input: {
   y += 7;
   pdf.setFontSize(10);
   pdf.setTextColor(153, 72, 21);
-  pdf.text("RELATORIO DE EXTRAÇÃO - RASCUNHO SEM APROVACAO", left, y);
+  pdf.text(input.extraction.source === "pdf_text_local"
+    ? "EXTRACAO LOCAL DE COTAS - SEM APROVACAO"
+    : input.extraction.source === "ai_pdf_text"
+      ? "INTERPRETACAO DE TEXTO POR IA - SEM APROVACAO"
+      : "LEITURA VISUAL POR IA - SEM APROVACAO", left, y);
   y += 9;
   paragraph("Emitido em: " + (input.generatedAt ?? new Date()).toLocaleString("pt-BR"));
-  paragraph("Processo: " + input.processId);
+  paragraph("Processo administrativo: " + (input.identification?.protocol?.trim() || input.processId));
+  heading("Identificacao do processo e das partes");
+  paragraph("Prefeitura: " + (input.identification?.municipalityName?.trim() || "nao identificada neste contexto") +
+    "  |  Codigo municipal: " + (input.identification?.municipalityId || "nao informado"));
+  paragraph("Proprietario: " + (input.identification?.ownerName?.trim() || "nao informado no processo") +
+    (input.identification?.ownerDocument?.trim() ? "  |  Documento declarado: " + input.identification.ownerDocument : ""));
+  paragraph("Responsavel tecnico: " + (input.identification?.professionalName?.trim() || "nao informado no processo"));
+  paragraph("Endereco declarado do imovel: " + (input.identification?.propertyAddress?.trim() || "nao informado no processo"));
+  paragraph("Inscricao declarada: " + (input.identification?.propertyRegistration?.trim() || "nao informada") +
+    "  |  Lote/quadra: " + (input.identification?.lot?.trim() || "n/i") + " / " +
+      (input.identification?.block?.trim() || "n/i"));
+  if(input.identification?.declaredUse?.trim())
+    paragraph("Uso informado: " + input.identification.declaredUse);
+  paragraph("Identificacao obtida do cadastro processual. Nao prova matricula, titularidade ou localizacao georreferenciada.",8);
+  heading("Documento e metodo de leitura");
   paragraph("Documento: " + input.fileName);
   paragraph("Identificador: " + input.documentId + "  |  Versao: " + input.documentVersion);
   paragraph("Metodo: " + (input.extraction.source === "pdf_text_local"
@@ -79,7 +111,7 @@ export function createArchitecturalReadingReportPdf(input: {
     : input.extraction.source === "ai_pdf_text"
       ? "interpretacao automatizada de texto; sem leitura geometrica"
       : "leitura visual por provedor externo, sujeita a revisao"));
-  heading("Resumo e limite do exame");
+  heading("Resultado da extracao (sem juizo de conformidade)");
   paragraph("Projeto arquitetonico reconhecido: " +
     (input.extraction.documentType === "architectural_plan" ? "sim" : "nao comprovado") +
     ". Planta de implantacao confirmada: " +
@@ -103,17 +135,20 @@ export function createArchitecturalReadingReportPdf(input: {
     paragraph("Inventario de paginas nao fornecido. A verificacao integral da planta nao foi comprovada.");
   }
   paragraph("A contagem e a extracao textual nao equivalem a leitura visual nem a conferencia de todas as pranchas.");
-  heading("Identificacao territorial e zoneamento");
+  heading("Cadastro territorial e zoneamento");
   const territory=input.territorial;
+  paragraph("Situacao: " + (territory?.cadastralLink === "linked"
+    ? "cadastro vinculado - validar a geometria do lote e a zona oficial"
+    : "PENDENTE DE VINCULO IMOBILIARIO; nao e irregularidade comprovada."));
   paragraph("Vinculo cadastral do processo: " +
     (territory?.cadastralLink === "linked" ? "encontrado; dados cadastrais nao equivalem a validacao de zoneamento" :
       territory?.cadastralLink === "missing" ? "AUSENTE - processo sem imovel vinculado" :
       "nao verificado pelo cadastro municipal"));
-  paragraph("Endereco do imovel: " + (territory?.address || "NAO COMPROVADO no cadastro vinculado."));
-  paragraph("Inscricao cadastral: " + (territory?.registration || territory?.iptu || "NAO COMPROVADA."));
+  paragraph("Endereco comprovado no cadastro territorial: " + (territory?.address || "ainda nao disponivel."));
+  paragraph("Inscricao territorial vinculada: " + (territory?.registration || territory?.iptu || "ainda nao disponivel."));
   paragraph("Lote/quadra: " + ((territory?.lot || "nao informado") + " / " +
     (territory?.block || "nao informado")));
-  paragraph("Zona cadastrada, NAO homologada: " + (territory?.zoneCandidate || "NAO IDENTIFICADA."));
+  paragraph("Zona declarada sem homologacao: " + (territory?.zoneCandidate || "nao identificada."));
   paragraph("Zona espacial determinada: " +
     (territory?.zoneVerified && territory.zoneCode
       ? territory.zoneCode + " - mapa oficial revisto, lei urbanistica ainda nao avaliada"
@@ -125,7 +160,7 @@ export function createArchitecturalReadingReportPdf(input: {
     paragraph("Hash SHA-256 lote: "+(territory.parcelSha256||"indisponivel"));
     paragraph("Fonte cartografica: "+(territory.mapSourceUrl||"nao informada"));
   }
-  paragraph("Comparacao urbanistica juridica: NAO AVALIADA ate existir norma vigente e evidencias validas por zona, uso e indice.");
+  paragraph("Conformidade urbanistica: NAO AVALIADA. Pendencia de vinculo do lote, poligono oficial, uso e norma vigente com evidencias legais. Ausencia desses dados NAO equivale a nao conformidade.");
   for (const reason of territory?.reasons || []) paragraph("- " + reason, 8);
   heading("Acervo municipal anteriormente cadastrado");
   const base=input.legalBaseline;
@@ -146,26 +181,27 @@ export function createArchitecturalReadingReportPdf(input: {
   }else{
     paragraph("A base legal municipal historica nao foi verificada nesta leitura. Isso NAO demonstra exclusao dos arquivos ou das conferencias anteriores.");
   }
-  heading("Medidas observadas e pendencias");
-  for (const metric of URBAN_METRICS) {
-    const row = input.extraction.readings.find(reading => reading.metric === metric.key);
-    if (y > 250) page();
-    pdf.setFont("helvetica", "bold");
-    pdf.setFontSize(9.5);
-    pdf.setTextColor(21, 42, 63);
-    pdf.text(clean(metric.label), left, y);
-    y += 5;
-    paragraph(row && row.value !== null && row.usableForReview
-      ? "Resultado candidato: " + row.value.toLocaleString("pt-BR") + " " + metric.unit +
-        " | Pagina do PDF: " + row.page + " | Estado: requer conferencia humana."
-      : "Resultado: nao comprovado. " + (row?.reason ?? "Sem leitura verificavel."), 8.5);
-    if (row?.quote) paragraph("Trecho da fonte: " + row.quote, 8, [76, 88, 101]);
+  heading("Cotas identificadas nas pranchas");
+  const measured=input.extraction.readings.filter(row=>row.value!==null&&row.usableForReview);
+  if(!measured.length)paragraph("Nenhuma medida foi comprovada nesta tentativa. Consulte as pranchas e o modo de leitura.");
+  for (const row of measured) {
+    const metric=URBAN_METRICS.find(item=>item.key===row.metric);
+    if(!metric)continue;
+    paragraph(metric.label+": "+row.value!.toLocaleString("pt-BR")+" "+metric.unit+
+      "  |  Prancha: "+row.page+"  |  Conferencia humana: pendente.");
+    if(row.quote)paragraph("Trecho de origem: "+row.quote,8,[76,88,101]);
   }
+  const missing=input.extraction.readings.filter(row=>row.value===null||!row.usableForReview);
+  heading("Indices ainda sem leitura comprovada");
+  if(missing.length){
+    paragraph(missing.map(row=>URBAN_METRICS.find(item=>item.key===row.metric)?.label||row.metric).join("  |  "),8.5);
+    paragraph("Nao identificados NAO significa fora da lei. Exigem documento, planta ou verificacao do analista.",8);
+  }else paragraph("Todos os indices retornados possuem uma cota candidata, ainda dependente de conferencia humana.");
   heading("Alertas da leitura");
   if (input.extraction.warnings.length === 0) paragraph("Sem alertas adicionais registrados.");
   for (const warning of input.extraction.warnings) paragraph("- " + warning, 8.5);
   heading("Situacao da conformidade urbanistica");
-  paragraph("NAO AVALIADA. Sem cruzamento juridico validado por municipio, zona, uso, " +
+  paragraph("NAO AVALIADA (nao significa NAO CONFORME). Sem cruzamento juridico validado por municipio, zona, uso, " +
     "data, norma oficial, artigo e pagina. Nao emitir parecer de deferimento, indeferimento ou alvara " +
     "a partir deste relatorio.");
   paragraph("Documento informativo para conferencia tecnica. Nenhum dado foi aplicado ou " +
