@@ -12,7 +12,7 @@ describe("Workers AI PDF conversion with existing SIGAPRO R2 and Cloudflare conf
       expect(options.body).toBeInstanceOf(FormData);
       expect((options.headers as Record<string,string>).Authorization).toBe("Bearer "+key);
       return {ok:true,json:async()=>({success:true,result:[{format:"markdown",
-        data:"## Página 1\\nÁrea do lote 250 m²\\nCA informado: 1,20\\nRecuo frontal: 5 metros"}]})};
+        data:"## Página 1\nÁrea do lote 250 m²\nCA informado: 1,20\nRecuo frontal: 5 metros"}]})};
     }
     expect(url).toContain("/ai/v1/chat/completions");
     const req=JSON.parse(String(options.body));
@@ -111,12 +111,12 @@ describe("Workers AI PDF conversion with existing SIGAPRO R2 and Cloudflare conf
   vi.stubGlobal("fetch",vi.fn(async()=>{
     n++;
     if(n===1)return {ok:true,json:async()=>({success:true,result:[{
-      format:"markdown",data:"## Página 1\\nÁrea do lote 250 m²\\nRecuo frontal 5 m",
+      format:"markdown",data:"## Página 1\nÁrea do lote 250 m²\nRecuo frontal 5 m",
     }]})};
     return {ok:true,json:async()=>({choices:[{message:{content:
-      "```json\\n"+JSON.stringify({document_type:"architectural_plan",has_site_plan:true,
+      "```json\n"+JSON.stringify({document_type:"architectural_plan",has_site_plan:true,
         warnings:[],metrics:[{metric:"lot_area_m2",value:250,page:1,
-          quote:"Área do lote 250 m²",confidence:"high"}]})+"\\n```"}}]})};
+          quote:"Área do lote 250 m²",confidence:"high"}]})+"\n```"}}]})};
   }));
   const result=await extractVisualPdf(new TextEncoder().encode("%PDF-"),"a.pdf",{
     kind:"cloudflare",key,accountId:account,model:"@cf/zai-org/glm-4.7-flash",
