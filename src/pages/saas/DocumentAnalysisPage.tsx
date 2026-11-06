@@ -81,7 +81,7 @@ export function DocumentAnalysisPage() {
     return consumeDocumentWorkspaceAccessUrl(processId, documentId);
   });
   const { session } = usePlatformSession();
-  const { municipality, scopeId } = useMunicipality();
+  const { municipality, branding, scopeId } = useMunicipality();
   const documentMarkers = useDocumentMarkerAssignments();
   const {
     processes,
@@ -1215,6 +1215,11 @@ export function DocumentAnalysisPage() {
               <ArchitecturalPdfAiPanel
                 onGoToPage={(nextPage) => { if (Number.isInteger(nextPage) && nextPage>=1 && nextPage<=2000) setPage(nextPage); }}
                 process={process}
+                municipalityLogoUrl={
+                  branding?.municipalityId===(process.municipalityId||process.tenantId)
+                    ?(branding.coatOfArmsUrl||branding.headerLogoUrl||branding.logoUrl)
+                    :undefined
+                }
                 municipalityName={
                   municipality?.id===(process.municipalityId||process.tenantId)
                     ?municipality.name
