@@ -88,6 +88,21 @@ export function createArchitecturalReadingReportPdf(input: {
     "Nao comprova a geometria CAD, a autenticidade da prancha, o zoneamento, a vigencia das leis, " +
     "o atendimento aos indices urbanisticos nem a regularidade do projeto. " +
     "O analista deve conferir cada medida no arquivo original.");
+  heading("Inventario de paginas e escopo verificado");
+  const audit=input.extraction.pageAudit;
+  if(audit){
+    paragraph("Total de paginas confirmado pela estrutura do PDF: "+
+      (audit.countVerified?audit.count:"nao comprovado")+".");
+    paragraph("Paginas com medidas citadas: "+
+      (audit.evidencePages.join(", ")||"nenhuma")+".");
+    if(audit.pagesWithoutMeasurementEvidence.length)
+      paragraph("Paginas sem evidencias de medidas confirmadas: "+
+        audit.pagesWithoutMeasurementEvidence.join(", ")+".");
+    paragraph(audit.note);
+  }else{
+    paragraph("Inventario de paginas nao fornecido. A verificacao integral da planta nao foi comprovada.");
+  }
+  paragraph("A contagem e a extracao textual nao equivalem a leitura visual nem a conferencia de todas as pranchas.");
   heading("Identificacao territorial e zoneamento");
   const territory=input.territorial;
   paragraph("Vinculo cadastral do processo: " +
