@@ -45,3 +45,11 @@ Somente branch `br-solitary-sound-b4xlbvs6` do projeto `red-sunset-21120522`:
 - Testes unitários reproduzem ausência de inscrição, CRS incompatível, zona sem código, duplicatas, parcelamento em lotes, fonte hash inválida e proibição de conclusão legal automática.
 - Falta aceite E2E autenticado: upload oficial do geodado, perímetro cadastral próprio, comparação real com mapa revisado, perfis autorizados e relatório de conformidade com legislação vigente por zona/uso/índice.
 - PR #118 permanece DRAFT. Não mesclar em main, não alterar Neon production, não publicar sigapromunicipal.com.br sem aceite explícito da release.
+
+
+## Gate adicional de segurança e publicação QA
+
+- A gravação consultiva agora usa exclusivamente `save_urban_precheck_run_v7`; a versão anterior `v6` foi revogada para `authenticated`. A `v7` exige que o mapa e o perímetro estejam comprovados pelo PostGIS, com zona idêntica à regra normativa, data aplicável e evidências jurídicas por índice (verificação ainda delegada a `v6` internamente).
+- A migração `20261106_urban_precheck_geozone_gate_v7_qa.sql` foi aplicada somente à branch Neon QA; consulta de privilégios: authenticated v6=false, v7=true. Caso QA04 sem property_id continua bloqueado.
+- A CI apontou dois testes legados que verificavam literalmente a chamada `v6`; ambos foram corrigidos para exigir `v7` sem retirar proteção funcional.
+- A migração está auditável em arquivo e o endereço canônico de homologação deve permanecer vinculado apenas ao HEAD QA depois do Gate, sem promoção para produção. Este marcador permite exclusivamente o build do preview; não substitui aceite autenticado. [deploy-qa]
