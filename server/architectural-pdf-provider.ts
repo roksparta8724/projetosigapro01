@@ -216,7 +216,11 @@ async function extractCloudflarePdf(
   if(!source?.data||source.data.trim().length<20)
     throw new Error("CLOUDFLARE_PDF_TEXT_EMPTY");
   if(source.data.length>120000)throw new Error("CLOUDFLARE_PDF_TEXT_OVERSIZE");
-  const markdown=source.data.slice(0,24000);
+  // Never silently omit later pages. The model context was limited to 24k;
+  // splitting or retrying could create conflicting measurements or surprise fees.
+  // Reject safely until an explicitly paginated/full-document reader is enabled.
+  if(source.data.length>24000)throw new Error("CLOUDFLARE_PDF_TEXT_PARTIAL");
+  const markdown=source.data;
   stage="interpretation";
   // A fixed free-eligible model handles the recovered text. Paid Kimi models
   // are NOT selected automatically; the Cloudflare chat config allow-lists
