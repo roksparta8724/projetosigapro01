@@ -92,6 +92,14 @@ const patterns:Array<{metric:string;pattern:RegExp}>=[
   {metric:"rear_setback_m",pattern:/\brecuo\s+(?:de\s+)?fundos(?:\s+proposto)?\s*:\s*(\d{1,5}(?:[,.]\d{1,3})?)\s*m\b/},
   {metric:"lot_area_m2",pattern:/\barea\s+(?:do\s+)?(?:terreno|lote)\s*:\s*(\d{1,5}(?:[,.]\d{1,3})?)\s*m\s*2\b/},
   {metric:"occupancy_percent",pattern:/\btaxa\s+(?:de\s+)?ocupacao(?:\s+(?:geometrica|calculada))?\s*:\s*(\d{1,3}(?:[,.]\d{1,3})?)\s*%/},
+  // O projeto QA04 declara pavimentos na prancha 1; antes o leitor ignorava
+  // completamente esse campo apesar de existir em URBAN_METRICS.
+  {metric:"floor_count",pattern:/\b(?:numero\s+de\s+)?pavimentos?\s*:\s*0*(\d{1,3})\b/},
+  {metric:"permeability_percent",pattern:/\b(?:taxa\s+(?:de\s+)?)?permeabilidade(?:\s+(?:declarada|calculada))?\s*:\s*(\d{1,3}(?:[,.]\d{1,3})?)\s*%/},
+  {metric:"lot_frontage_m",pattern:/\b(?:testada(?:\s+(?:do\s+)?lote)?|largura\s+do\s+lote|frente\s+do\s+lote)\s*:\s*(\d{1,5}(?:[,.]\d{1,3})?)\s*m\b/},
+  {metric:"height_m",pattern:/\b(?:altura(?:\s+(?:total\s+)?(?:da\s+)?edificacao)?|gabarito)\s*:\s*(\d{1,5}(?:[,.]\d{1,3})?)\s*m\b/},
+  {metric:"floor_area_ratio",pattern:/\b(?:ca|coeficiente\s+de\s+aproveitamento)(?:\s+(?:do\s+projeto|proposto))?\s*:\s*(\d{1,5}(?:[,.]\d{1,3})?)\b/},
+
 ];
 export function extractNativeArchitecturalPdf(pdf:Uint8Array):DrawingExtraction {
   const pages=contentStreams(pdf);
@@ -134,6 +142,9 @@ export function extractNativeArchitecturalPdf(pdf:Uint8Array):DrawingExtraction 
   const hasSitePlan=documentType==="architectural_plan"&&sitePage!==undefined&&
     candidates.some(item=>item.page===sitePage&&item.metric==="front_setback_m")&&
     candidates.some(item=>item.page===sitePage&&item.metric==="rear_setback_m");
+  // Nem todas as 11 chaves do confronto urbanistico sao dados da planta.
+  // Em especial "CA minimo" e limite legal e NAO deve ser lido ou inferido
+  // do desenho; so um CA observado explicitamente declarado e candidato.
   const output=normalizeArchitecturalPdfExtraction({
     document_type:documentType,
     has_site_plan:hasSitePlan,
