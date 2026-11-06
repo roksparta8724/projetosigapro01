@@ -218,7 +218,7 @@ export function readReviewedDrawingHandoff(
   state:unknown,
   context:{
     processId:string;municipalityId:string;
-    documents:readonly {id:string;version:number;fileName:string;uploaded:boolean}[];
+    documents:readonly {id:string;version:number;fileName?:string;uploaded:boolean}[];
   },
   now=Date.now(),
 ):ReviewedDrawingFields|null {
@@ -235,7 +235,7 @@ export function readReviewedDrawingHandoff(
   const doc=context.documents.find(item=>item.id===raw.documentId &&
     item.version===raw.documentVersion && item.fileName===raw.documentName &&
     item.uploaded===true);
-  if(!doc)return null;
+  if(!doc?.fileName)return null;
   const rows=record(raw.reviewed);
   if(!rows||!Object.keys(rows).length||Object.keys(rows).length>URBAN_METRICS.length)return null;
   const reviewed:ReviewedDrawingFields={};
