@@ -152,3 +152,10 @@ Foi obtida autorização para excluir **somente duas branches descartáveis**, e
 [deploy-qa]
 
 - QA CI após a primeira rodada identificou quatro asserções de regressão relacionadas ao novo contrato: amostras Cloudflare simulavam caracteres \\n literais em vez de quebras de página, o leitor exige paginação verdadeira, e testes antigos conferiam textos/rotas substituídos. Corrigidos **dados dos testes** e respectivas expectativas; a exigência de página e a autorização por provedor permanecem. Reexecutar suíte completa e Vercel Preview antes de afirmar qualquer homologação real de leitura. [deploy-qa]
+
+## QA — contraste do atalho azul SIGAPRO IA no cartão do projeto (06/11/2026)
+
+- Print do analista documentou o botão azul **SIGAPRO IA · Ler projeto** com texto e ícone pretos, embora o botão vizinho estivesse legível. Trata-se do **atalho do card do Projeto Arquitetônico em `src/pages/saas/ProcessDetailPage.tsx`**, não do comando interno do `ArchitecturalPdfAiPanel.tsx`. Não solicitar edição manual ao usuário.
+- Causa localizada: estilos de `src/index.css` para `[data-surface="adaptive-card"] span` com `!important` e especificidade superior à classe Tailwind `!text-white`. Corrigido no próprio componente com `sig-primary-document-action`, `data-sigapro-ai-review-label` e `data-sigapro-ai-review-icon` e no final de `src/styles/surface-polarity.css` com seletor específico do card e do atalho em ambas as modalidades, impondo `color:#fff`, `-webkit-text-fill-color:#fff` e `stroke:currentColor`, incluindo estados hover/focus/disabled. Não muda o layout de card, outros botões nem fluxo documental.
+- Teste de regressão adicionado a `src/test/premiumSurfaceAndPdfRegression.test.ts`; exige correspondência entre seletor CSS e atributos do botão e prioridade sobre estilos globais.
+- **Apenas QA**, branch `fix/qa-triagem-analise-pagamento-20261101`, PR #118 DRAFT sem merge; Vercel Preview deve completar build e CI antes de considerar publicada. Produção, pagamentos, leis e Neon não alterados.
