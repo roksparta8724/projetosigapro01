@@ -9,7 +9,12 @@ function pdfBytes(pdf:jsPDF){return new Uint8Array(pdf.output("arraybuffer"));}
 describe("SIGAPRO QA — leitura real do PDF sem chamadas a IA externa",()=>{
   it("lê os BYTES reais do documento fictício 04 e confere três recuos na prancha 2",async()=>{
     const fixture=createQa04ArchitecturalPdf();
-    const actual=new Uint8Array(await fixture.arrayBuffer());
+    const actual=await new Promise<Uint8Array>((resolve,reject)=>{
+      const reader=new FileReader();
+      reader.onload=()=>resolve(new Uint8Array(reader.result as ArrayBuffer));
+      reader.onerror=()=>reject(reader.error);
+      reader.readAsArrayBuffer(fixture);
+    });
     expect(Buffer.from(actual.subarray(0,5)).toString("ascii")).toBe("%PDF-");
     const result=extractNativeArchitecturalPdf(actual);
     expect(result.source).toBe("pdf_text_local");
