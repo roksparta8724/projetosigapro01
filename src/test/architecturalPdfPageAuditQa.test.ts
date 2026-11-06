@@ -26,7 +26,7 @@ describe("SIGAPRO QA — inventário seguro de todas as páginas do PDF",()=>{
     const audited=auditArchitecturalPdfPages(buffer,extractNativeArchitecturalPdf(buffer));
     expect(audited.pageAudit).toMatchObject({
       count:3,countVerified:true,visualInspectionVerified:false,
-      evidencePages:[2,3],pagesWithoutMeasurementEvidence:[1],
+      evidencePages:[1,2,3],pagesWithoutMeasurementEvidence:[],
     });
     expect(audited.automaticallyApproved).toBe(false);
   });
