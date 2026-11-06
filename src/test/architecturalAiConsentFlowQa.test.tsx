@@ -123,8 +123,9 @@ describe("SIGAPRO QA: aceite inequívoco e extração operacional",()=>{
       documentMessage:"A triagem ainda não liberou este PDF para análise.",
       nativeTextAvailable:false,
     });
-    setup();
-    await waitFor(()=>expect(screen.getByText(/A triagem ainda não liberou este PDF/)).toBeInTheDocument());
+    const view=setup();
+    await waitFor(()=>expect(view.container.querySelector('[data-sigapro-ai-disabled-reason="true"]'))
+      .toHaveTextContent("A triagem ainda não liberou este PDF"));
     fireEvent.click(screen.getByRole("button",{name:/IA Visual/}));
     fireEvent.click(screen.getByText(/ACEITO o envio deste PDF à IA externa/));
     expect(start()).toBeDisabled();
