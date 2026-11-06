@@ -20,12 +20,12 @@ type ApiResult = DrawingExtraction & {
 const normalized = (value:string)=>value.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
 
 export function ArchitecturalPdfAiPanel({
-  process,readOnly,activeMetrics,onApply,onGoToPage,documentId,compact=false,
+  process,readOnly,activeMetrics,onApply,onGoToPage,documentId,compact=false,municipalityName,
 }:{
   process:ProcessRecord; readOnly:boolean; activeMetrics:readonly UrbanMetric[];
   onApply:(reviewed:Prepared)=>void;
   onGoToPage?:(page:number)=>void;
-  documentId?:string;compact?:boolean;
+  documentId?:string;compact?:boolean;municipalityName?:string;
 }) {
   const availablePlans=useMemo(()=>process.documents.filter(doc=>
     doc.uploaded && Boolean(doc.filePath) &&
@@ -256,11 +256,27 @@ export function ArchitecturalPdfAiPanel({
       const pdf=createArchitecturalReadingReportPdf({
         extraction:draft,processId:process.id,documentId:draft.documentId,
         documentVersion:draft.documentVersion,fileName:draft.fileName,
+        identification:{
+          municipalityId:process.municipalityId||process.tenantId,
+          municipalityName,
+          protocol:process.protocol||process.externalProtocol||process.id,
+          ownerName:process.ownerName,
+          ownerDocument:process.ownerDocument,
+          professionalName:process.technicalLead,
+          propertyAddress:process.address,
+          propertyRegistration:process.property?.registration||process.property?.iptu,
+          lot:process.property?.lot,
+          block:process.property?.block,
+          declaredUse:process.property?.usage,
+        },
         territorial:draft.territorialContext??territorial,
         legalBaseline:verifiedUrbanBaseline(draft.legalBaseline,process.tenantId)??legalBaseline,
       });
-      pdf.save("SIGAPRO-leitura-"+process.id.slice(0,8)+"-v"+selected.version+".pdf");
-      setNotice("Relatório preliminar de leitura gerado em PDF. As medidas exigem conferência humana; não é um parecer de conformidade.");
+      const method=draft.source==="pdf_text_local"?"extracao-local"
+        :draft.source==="ai_pdf_text"?"interpretacao-texto-ia":"leitura-visual-ia";
+      pdf.save("SIGAPRO-"+method+"-"+(process.protocol||process.id.slice(0,8))
+        .replace(/[^A-Za-z0-9_-]/g,"-")+"-v"+selected.version+".pdf");
+      setNotice("Relatório do método "+method+" gerado com os dados declarados do processo. É preliminar e não substitui conferência humana ou parecer urbanístico.");
     }catch{
       setError("Não foi possível gerar o relatório PDF da leitura. A análise não foi alterada.");
     }
