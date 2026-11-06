@@ -175,7 +175,7 @@ export function ArchitecturalPdfAiPanel({
     if(readOnly||!selected||!latest||
       (readingMode!=="native_text"&&!consent)||loading||
       !readyForSelectedMode||availability.documentReady!==true)return;
-    setChecked({});setError("");setErrorCode("");setNotice("");setLoading(true);
+    setError("");setErrorCode("");setNotice("");setLoading(true);
     const controller=new AbortController();
     const operation=++scanSequence.current;
     scanController.current=controller;
@@ -212,6 +212,7 @@ export function ArchitecturalPdfAiPanel({
         (readingMode==="gemini_qa"&&
           (result.source!=="ai_pdf_visual"||result.aiProvider!=="gemini")))
         throw new Error("Leitura retornada com vínculo incorreto. Nenhuma medida foi aplicada.");
+      setChecked({});
       setDraft(result as ApiResult);
       setTerritorial(result.territorialContext??null);
       setLegalBaseline(verifiedUrbanBaseline(result.legalBaseline,process.tenantId));
