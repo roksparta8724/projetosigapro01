@@ -143,9 +143,17 @@ BEGIN
       RAISE EXCEPTION 'Geometria fora do Brasil, invalida ou em CRS diferente de EPSG:4326';
     END IF;
     _shape:=ST_Multi(_geometry);
+    -- Idempotent recovery: a replayed same file is allowed; any modified
+    -- geometry under the same key fails instead of rewriting a legal source.
+    IF EXISTS(SELECT 1 FROM public.urban_zoning_zone_geometries_v1 z
+      WHERE z.map_id=_map.id AND z.feature_key=_key
+        AND (z.zone_code<>_zone OR NOT ST_Equals(z.footprint,_shape))) THEN
+      RAISE EXCEPTION 'Feicao existente diferente do original: revisao necessaria';
+    END IF;
     INSERT INTO public.urban_zoning_zone_geometries_v1(
       map_id,municipality_id,zone_code,feature_key,footprint
-    ) VALUES(_map.id,_map.municipality_id,_zone,_key,_shape);
+    ) VALUES(_map.id,_map.municipality_id,_zone,_key,_shape)
+    ON CONFLICT (map_id,feature_key) DO NOTHING;
     _count:=_count+1;
   END LOOP;
   RETURN _count;
@@ -338,6 +346,7 @@ BEGIN
     SELECT jsonb_agg(jsonb_build_object(
       'id',m.id,'version_label',m.version_label,'legal_reference',m.legal_reference,
       'status',m.status,'official_source_url',m.official_source_url,
+      'official_source_sha256',m.official_source_sha256,
       'effective_from',m.effective_from,'effective_until',m.effective_until,
       'feature_count',(SELECT count(*) FROM public.urban_zoning_zone_geometries_v1 z WHERE z.map_id=m.id),
       'verified_at',m.verified_at
