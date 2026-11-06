@@ -313,6 +313,18 @@ export function ArchitecturalPdfAiPanel({
       Leia as cotas do PDF, confira as páginas e encaminhe apenas as medidas verificadas.
       A análise legal e geométrica exige validação técnica independente.
     </p>
+    <div data-sigapro-ai-process-summary="true" className="mt-3 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-[13px] text-slate-800 dark:border-slate-600 dark:bg-[#1a3049] dark:text-slate-100">
+      <span className="font-extrabold">{process.protocol||"Processo "+process.id.slice(0,8)}</span>
+      <span className="ml-2 break-words">{municipalityName||"Município não identificado neste contexto"}</span>
+    </div>
+    {territorial?.cadastralLink==="missing"?(
+      <p role="status" data-sigapro-ai-missing-property="true"
+        className="mt-2 rounded-xl border border-amber-300 bg-amber-50 px-3.5 py-2.5 text-[13px] leading-5 text-amber-950 dark:border-amber-600 dark:bg-[#382d1a] dark:text-white">
+        <strong>Conformidade urbanística ainda não avaliável.</strong>{" "}
+        O processo não possui imóvel municipal vinculado.
+        As cotas do PDF podem ser extraídas para conferência; isso não reprova o projeto.
+      </p>
+    ):null}
     {!plans.length?<p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-950">
       Nenhum projeto arquitetônico PDF foi encontrado como documento armazenado neste processo.
     </p>:<>
