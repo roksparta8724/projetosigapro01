@@ -65,7 +65,7 @@ describe("SIGAPRO - relatório A4 institucional de leitura por modalidade",()=>{
     const pages=pdf.internal.pages as unknown as string[][];
     for(let i=1;i<=pdf.getNumberOfPages();i++){
       expect(pages[i].join("\n")).toContain("SIGAPRO");
-      expect(pdf.internal.pages[i].join("\n")).toContain("Leitura preliminar, sem efeito de aprovacao");
+      expect(pages[i].join("\n")).toContain("Leitura preliminar, sem efeito de aprovacao");
     }
   });
   it("documenta exatamente a diferença de fonte entre as três modalidades",()=>{
