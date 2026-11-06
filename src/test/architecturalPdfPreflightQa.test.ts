@@ -116,7 +116,7 @@ describe("SIGAPRO QA — preflight técnico do PDF com controle de custo e autor
     const api=file("server/ai-project-extract.ts");
     const ui=file("src/components/platform/ArchitecturalPdfAiPanel.tsx");
     expect(api).toContain('const textRequested=body.readingMode==="cloudflare_text"');
-    expect(api).toContain('if((textRequested||openaiVisualRequested||geminiQaRequested) && process.env.VERCEL_ENV!=="preview")');
+    expect(api).toContain('if((textRequested||openaiVisualRequested||geminiQaRequested||nativeTextRequested) && process.env.VERCEL_ENV!=="preview")');
     expect(api).toContain('body.confirmedTransfer!==true');
     expect(api).toContain('textAlternativeAvailable:textAlternative?.enabled===true');
     expect(api).toContain('geminiQaRequested?"gemini_qa":undefined');
@@ -180,7 +180,7 @@ describe("SIGAPRO QA — preflight técnico do PDF com controle de custo e autor
     const provider=file("server/architectural-pdf-provider.ts");
     const ui=file("src/components/platform/ArchitecturalPdfAiPanel.tsx");
     expect(api).toContain('const geminiQaRequested=body.readingMode==="gemini_qa"');
-    expect(api).toContain('geminiQaRequested) && process.env.VERCEL_ENV!=="preview"');
+    expect(api).toContain('geminiQaRequested||nativeTextRequested) && process.env.VERCEL_ENV!=="preview"');
     expect(api).toContain('doc.process_id!=="915e1c63-ebda-4cdd-8e95-34316d9e0089"');
     expect(api).toContain('doc.file_name!==QA_ARCHITECTURAL_FILENAME');
     expect(api).toContain('raw.includes("FICTICIO / QA")');
@@ -195,6 +195,25 @@ describe("SIGAPRO QA — preflight técnico do PDF com controle de custo e autor
     expect(ui).toContain('result.aiProvider!=="gemini"');
     expect(ui).toContain("setReadingMode(next);setConsent(false);setDraft(null)");
     expect(ui).toContain("O nível gratuito pode utilizar os dados para aprimorar serviços do fornecedor");
+  });
+
+  it("permite leitura de cotas do PDF sem provedor externo nem credencial",()=>{
+    const api=file("server/ai-project-extract.ts");
+    const panel=file("src/components/platform/ArchitecturalPdfAiPanel.tsx");
+    const parser=file("server/native-architectural-pdf.ts");
+    expect(api).toContain('const nativeTextRequested=body.readingMode==="native_text"');
+    expect(api).toContain('nativeTextAvailable:process.env.VERCEL_ENV==="preview"&&documentReady===true');
+    expect(api).toContain("extractNativeArchitecturalPdf(pdf)");
+    expect(api).toContain('aiProvider:nativeTextRequested?"sigapro_local"');
+    expect(api).toContain("pdfSharedWithConfiguredAiProvider:!nativeTextRequested");
+    expect(panel).toContain('useState<ReadingMode>("native_text")');
+    expect(panel).toContain('data-sigapro-ai-mode-native-text="true"');
+    expect(panel).toContain('data-sigapro-ai-no-external-transfer="true"');
+    expect(panel).toContain('result.source!=="pdf_text_local"||result.aiProvider!=="sigapro_local"');
+    expect(parser).not.toContain("https://");
+    expect(parser).not.toContain("fetch(");
+    expect(parser).toContain("normalizeArchitecturalPdfExtraction");
+    expect(parser).toContain("contentStreams(pdf)");
   });
 
 });
