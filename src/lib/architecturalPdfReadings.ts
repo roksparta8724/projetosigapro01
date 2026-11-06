@@ -1,4 +1,5 @@
 import { URBAN_METRICS, type UrbanMetric } from "./urbanPrecheck.js";
+import type { ArchitecturalPdfPageAudit } from "./architecturalPdfPageAudit.js";
 
 const allMetrics = new Set<string>(URBAN_METRICS.map((x) => x.key));
 const percentMetrics = new Set<string>(["occupancy_percent", "permeability_percent"]);
@@ -19,6 +20,7 @@ export type DrawingExtraction = {
   warnings: string[];
   source: "ai_pdf_visual" | "ai_pdf_text" | "pdf_text_local";
   automaticallyApproved: false;
+  pageAudit?: ArchitecturalPdfPageAudit;
 };
 
 function plain(value: unknown, max = 220): string {
