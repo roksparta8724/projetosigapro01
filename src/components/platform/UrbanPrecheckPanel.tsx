@@ -46,7 +46,7 @@ export function UrbanPrecheckPanel({
   const [legalReviewConfirmed, setLegalReviewConfirmed] = useState(false);
   const [zone, setZone] = useState("");
   const [spatial, setSpatial] = useState<{
-    status: string; zoneVerified:boolean;zoneCode?:string;mapVersion?:string;legalReference?:string;
+    status: string; zoneVerified:boolean;zoneCode?:string;mapVersion?:string;legalReference?:string;asOf?:string;
   } | null>(null);
   const [spatialChecking,setSpatialChecking]=useState(true);
   const [usage, setUsage] = useState(process.property.usage || "");
@@ -104,13 +104,14 @@ export function UrbanPrecheckPanel({
     }).then(({data,error})=>{
       if(!active)return;
       const value=(!error && data && typeof data==="object" && !Array.isArray(data))
-        ?data as {status?:string;zoneVerified?:boolean;zoneCode?:string;mapVersion?:string;legalReference?:string}
+        ?data as {status?:string;zoneVerified?:boolean;zoneCode?:string;mapVersion?:string;legalReference?:string;asOf?:string}
         :null;
       if(value?.status==="verified" && value.zoneVerified===true &&
         /^[A-Z0-9][A-Z0-9_(). /-]{0,79}$/.test(value.zoneCode||"")){
         setSpatial({status:"verified",zoneVerified:true,zoneCode:value.zoneCode,
-          mapVersion:value.mapVersion,legalReference:value.legalReference});
+          mapVersion:value.mapVersion,legalReference:value.legalReference,asOf:value.asOf});
         setZone(value.zoneCode||"");
+        if(value.asOf && /^\d{4}-\d{2}-\d{2}$/.test(value.asOf))setAsOf(value.asOf);
       }else {
         setSpatial({status:value?.status||"spatial_service_unavailable",zoneVerified:false});
       }
@@ -327,7 +328,7 @@ export function UrbanPrecheckPanel({
             onChange={(event) => setUsage(normalizeUrbanCode(event.target.value))} />
         </label>
         <label className="text-xs font-bold text-slate-700 dark:text-slate-200">Data de referência legal
-          <Input className="mt-1" type="date" value={asOf}
+          <Input className="mt-1" type="date" value={asOf} readOnly={geographicReady}
             onChange={(event) => setAsOf(event.target.value)} />
         </label>
       </div>
