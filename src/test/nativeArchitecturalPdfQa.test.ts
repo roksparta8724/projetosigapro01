@@ -28,6 +28,14 @@ describe("SIGAPRO QA — leitura real do PDF sem chamadas a IA externa",()=>{
     expect(report.passed).toBe(3);
     expect(report.cases.map(x=>x.readPage)).toEqual([2,2,2]);
     expect(result.warnings.join(" ")).toContain("Conformidade");
+    expect(result.textCoverage).toMatchObject({
+      pagesRead:3,pagesWithText:[1,2,3],pagesWithoutText:[],
+    });
+    expect(result.readings.find(r=>r.metric==="floor_count")).toMatchObject({
+      value:1,page:1,usableForReview:true,
+    });
+    expect(result.readings.find(r=>r.metric==="permeability_percent")?.value).toBeNull();
+    expect(result.readings.find(r=>r.metric==="floor_area_ratio_min")?.value).toBeNull();
   });
   it("lê PDF com stream de texto compactado e mantém página real",()=>{
     const pdf=new jsPDF({compress:true});
