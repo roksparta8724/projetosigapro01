@@ -34,6 +34,8 @@ export function createArchitecturalReadingReportPdf(input: {
   documentVersion: number;
   fileName: string;
   identification?: ArchitecturalReportIdentification;
+  /** Optional official municipal brand image loaded from the current tenant. */
+  municipalityLogoDataUrl?: string;
   territorial?: UrbanTerritorialReadiness | null;
   legalBaseline?: UrbanExistingLegalBaseline | null;
   generatedAt?: Date;
@@ -77,11 +79,29 @@ export function createArchitecturalReadingReportPdf(input: {
     pdf.rect(0,0,210,first?36:18,"F");
     pdf.setFillColor(32,160,190);
     pdf.rect(0,first?35:17,210,1.3,"F");
+    const mark=input.municipalityLogoDataUrl;
+    if(first&&typeof mark==="string"&&mark.length<950000&&
+      /^data:image\/(?:png|jpeg);base64,[A-Za-z0-9+/=]+$/.test(mark)){
+      try{
+        const info=pdf.getImageProperties(mark);
+        if(info.width>0&&info.height>0){
+          const ratio=info.width/info.height;
+          const fitW=ratio>=1?20:20*ratio;
+          const fitH=ratio<1?20:20/ratio;
+          const type=mark.startsWith("data:image/png")?"PNG":"JPEG";
+          pdf.addImage(mark,type,RIGHT-fitW,7+(20-fitH)/2,fitW,fitH);
+        }
+      }catch{
+        // An invalid or unavailable tenant image never blocks a legal report.
+      }
+    }
+
     font(first?18:11,true,[255,255,255]);
     pdf.text("SIGAPRO",LEFT,first?15:11.5);
     if(first){
       font(9.5,true,[221,239,248]);
-      pdf.text(clean(municipality,68),LEFT,23);
+      const municipalHeader=(pdf.splitTextToSize(clean(municipality,120),140) as string[])[0]||"";
+      pdf.text(municipalHeader,LEFT,23);
       font(9,true,[255,255,255]);
       pdf.text(modeName,LEFT,30);
     }else{
@@ -205,10 +225,15 @@ export function createArchitecturalReadingReportPdf(input: {
   for(const row of found){
     const metric=URBAN_METRICS.find(m=>m.key===row.metric);
     if(!metric)continue;
+    const observedLabel=row.metric==="lot_area_m2"?"Area declarada do lote"
+      :row.metric==="lot_frontage_m"?"Testada declarada do lote"
+      :row.metric==="floor_area_ratio"?"CA observado no projeto"
+      :row.metric==="floor_area_ratio_min"?"CA do projeto (confronto minimo)"
+      :metric.label;
     ensure(22);
     pdf.setFillColor(...GRAY);
     pdf.roundedRect(LEFT,y,WIDTH,9.5,1.6,1.6,"F");
-    font(9,true,NAVY);pdf.text(clean(metric.label,48),LEFT+3,y+6);
+    font(9,true,NAVY);pdf.text(clean(observedLabel,48),LEFT+3,y+6);
     const reading=row.value!.toLocaleString("pt-BR")+" "+metric.unit;
     font(9.4,true,BLUE);pdf.text(clean(reading,27),RIGHT-44,y+6);
     font(8,false,MUTED);pdf.text("p. "+row.page,RIGHT-3,y+6,{align:"right"});
