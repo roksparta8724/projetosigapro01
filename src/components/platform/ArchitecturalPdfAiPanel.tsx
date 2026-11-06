@@ -168,6 +168,18 @@ export function ArchitecturalPdfAiPanel({
     setReadingMode(next);setConsent(false);setDraft(null);
     setChecked({});setError("");setErrorCode("");setNotice("");
   };
+  const extractionBlockedReason=readOnly
+    ?"Somente o analista autorizado pode executar a extração."
+    :!selected?"Selecione um projeto arquitetônico válido."
+    :!latest?"Selecione a versão mais recente do projeto."
+    :loading?"Leitura em andamento; é possível cancelar."
+    :availability.status==="checking"?"Conferindo a disponibilidade do documento."
+    :availability.documentReady!==true
+      ?(availability.documentMessage||"O PDF ainda não foi liberado para análise técnica.")
+    :!readyForSelectedMode?"Esta modalidade de IA não está habilitada neste ambiente. Escolha outra leitura."
+    :readingMode!=="native_text"&&!consent
+      ?"Para habilitar a extração externa, marque ACEITO o envio deste PDF."
+    :"";
   const applied=draft?.readings.filter(row=>
     row.usableForReview && checked[row.metric] &&
     activeMetrics.includes(row.metric))||[];
@@ -414,6 +426,51 @@ export function ArchitecturalPdfAiPanel({
           Leitura local no SIGAPRO: não envia o PDF a prestadores externos de IA.
         </p>
       )}
+      <div data-sigapro-ai-primary-action="true"
+        className="mt-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-600 dark:bg-[#1a3049]">
+      {loading?<div role="status" data-sigapro-ai-loading-stage="true"
+        className="mt-3 flex min-w-0 items-center justify-between gap-3 rounded-xl border border-sky-200 bg-sky-50 p-3 text-sky-950 dark:border-sky-600 dark:bg-[#19354d] dark:text-white">
+        <div className="min-w-0">
+          <p className="text-[13px] font-bold">Leitura em andamento</p>
+          <p className="mt-1 text-xs leading-5">Verificando o PDF e as evidências. A operação tem limite de tempo e pode ser cancelada sem alterar o processo.</p>
+        </div>
+        <Button type="button" variant="outline" data-sigapro-ai-cancel-reading="true"
+          className="min-h-10 shrink-0 border-slate-300 bg-white text-slate-900 hover:bg-slate-100"
+          onClick={cancelScan}>Cancelar</Button>
+      </div>:null}
+      <Button type="button" data-sigapro-ai-read-project="true"
+        className="mt-3 h-auto min-h-12 w-full min-w-0 max-w-full whitespace-normal break-words bg-[#092742] px-4 py-2 text-[13px] font-extrabold !text-white shadow-sm hover:bg-[#124a70] disabled:cursor-not-allowed disabled:bg-slate-200 disabled:!text-slate-700 disabled:opacity-100 dark:disabled:bg-slate-700 dark:disabled:!text-white [overflow-wrap:anywhere]"
+        disabled={readOnly||(readingMode!=="native_text"&&!consent)||!latest||loading||
+          !readyForSelectedMode||availability.documentReady!==true}
+        onClick={()=>void scan()}>
+        {loading?<Loader2 className="mr-2 h-4 w-4 animate-spin"/>:<FileText className="mr-2 h-4 w-4"/>}
+        {loading
+          ? readingMode==="native_text"?"SIGAPRO · Lendo cotas no PDF...":
+            readingMode==="cloudflare_text"?"SIGAPRO IA · Extraindo texto...":
+            readingMode==="openai_visual"?"SIGAPRO IA · Examinando PDF em alta definição...":
+            readingMode==="gemini_qa"?"SIGAPRO IA · Testando planta fictícia...":"SIGAPRO IA · Analisando prancha..."
+          : readingMode==="native_text"?"Ler cotas do PDF sem IA":
+            readingMode==="cloudflare_text"?"Extrair texto com SIGAPRO IA":
+            readingMode==="openai_visual"?"Analisar PDF com Leitura Avançada":
+            readingMode==="gemini_qa"?"Executar ensaio visual do projeto 04":"Analisar prancha com SIGAPRO IA"}
+      </Button>
+        {extractionBlockedReason?<p data-sigapro-ai-disabled-reason="true" role="status"
+          className="mt-2 text-xs font-semibold leading-5 text-amber-900 dark:text-amber-200">
+          {extractionBlockedReason}
+        </p>:null}
+        {!extractionBlockedReason&&readingMode!=="native_text"?(
+          <p className="mt-2 text-xs leading-5 text-slate-600 dark:text-slate-300">
+            Sua autorização foi registrada nesta tela. O saldo e os limites do prestador
+            só serão confirmados na execução da leitura externa.
+          </p>
+        ):null}
+      </div>
+      <details data-sigapro-ai-diagnostics-details="true"
+        className="mt-3 rounded-xl border border-slate-200 bg-white px-3 py-2 dark:border-slate-600 dark:bg-[#1a3049]">
+        <summary className="cursor-pointer text-xs font-semibold text-slate-700 dark:text-slate-100">
+          Conferência cadastral, histórico de legislação e detalhes técnicos
+        </summary>
+        <div className="mt-2 border-t border-slate-200 pt-2 dark:border-slate-600">
       <p role="status" data-sigapro-ai-pdf-provider-status={availability.status}
         className={"mt-3 min-w-0 max-w-full break-words text-xs font-semibold leading-5 [overflow-wrap:anywhere] "+(
           readyForSelectedMode?"text-emerald-800 dark:text-emerald-300":
@@ -544,32 +601,8 @@ export function ArchitecturalPdfAiPanel({
           e autorize o novo envio. A alternativa não verifica a geometria dos recuos.
         </p>
       ):null}
-      {loading?<div role="status" data-sigapro-ai-loading-stage="true"
-        className="mt-3 flex min-w-0 items-center justify-between gap-3 rounded-xl border border-sky-200 bg-sky-50 p-3 text-sky-950 dark:border-sky-600 dark:bg-[#19354d] dark:text-white">
-        <div className="min-w-0">
-          <p className="text-[13px] font-bold">Leitura em andamento</p>
-          <p className="mt-1 text-xs leading-5">Verificando o PDF e as evidências. A operação tem limite de tempo e pode ser cancelada sem alterar o processo.</p>
         </div>
-        <Button type="button" variant="outline" data-sigapro-ai-cancel-reading="true"
-          className="min-h-10 shrink-0 border-slate-300 bg-white text-slate-900 hover:bg-slate-100"
-          onClick={cancelScan}>Cancelar</Button>
-      </div>:null}
-      <Button type="button" data-sigapro-ai-read-project="true"
-        className="mt-3 h-auto min-h-12 min-w-0 max-w-full whitespace-normal break-words bg-[#092742] px-4 py-2 text-[13px] font-extrabold !text-white shadow-sm hover:bg-[#124a70] disabled:cursor-not-allowed disabled:bg-slate-200 disabled:!text-slate-700 disabled:opacity-100 dark:disabled:bg-slate-700 dark:disabled:!text-white [overflow-wrap:anywhere]"
-        disabled={readOnly||(readingMode!=="native_text"&&!consent)||!latest||loading||
-          !readyForSelectedMode||availability.documentReady!==true}
-        onClick={()=>void scan()}>
-        {loading?<Loader2 className="mr-2 h-4 w-4 animate-spin"/>:<FileText className="mr-2 h-4 w-4"/>}
-        {loading
-          ? readingMode==="native_text"?"SIGAPRO · Lendo cotas no PDF...":
-            readingMode==="cloudflare_text"?"SIGAPRO IA · Extraindo texto...":
-            readingMode==="openai_visual"?"SIGAPRO IA · Examinando PDF em alta definição...":
-            readingMode==="gemini_qa"?"SIGAPRO IA · Testando planta fictícia...":"SIGAPRO IA · Analisando prancha..."
-          : readingMode==="native_text"?"Ler cotas do PDF sem IA":
-            readingMode==="cloudflare_text"?"Extrair texto com SIGAPRO IA":
-            readingMode==="openai_visual"?"Analisar PDF com Leitura Avançada":
-            readingMode==="gemini_qa"?"Executar ensaio visual do projeto 04":"Analisar prancha com SIGAPRO IA"}
-      </Button>
+      </details>
     </>}
     {error?<div data-sigapro-ai-reading-error="true"
       className="mt-3 min-w-0 max-w-full rounded-xl border border-rose-300 bg-rose-50 p-3 text-xs leading-5 text-rose-950 dark:border-rose-600 dark:bg-rose-950 dark:text-rose-100 [overflow-wrap:anywhere]">
