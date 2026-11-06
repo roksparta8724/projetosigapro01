@@ -2942,9 +2942,9 @@ html body #root [data-sigapro-protocol-queue-list="true"]
    Restrict this correction to the architectural PDF AI shortcut, preserving
    all document cards, billing, navigation and municipal theme settings. */
 html body #root .sig-main-shell .sig-process-detail-premium
-[data-process-document-card="true"] button[data-sigapro-ai-review-shortcut="true"],
+[data-process-document-card="true"][data-surface="adaptive-card"][data-force-card-contrast="adaptive"] button.sig-primary-document-action[data-sigapro-ai-review-shortcut="true"],
 html body #root .sig-main-shell .sig-process-detail-premium
-[data-process-document-card="true"] button[data-sigapro-ai-review-shortcut="true"]:is(:hover,:focus-visible,:active,:disabled) {
+[data-process-document-card="true"][data-surface="adaptive-card"][data-force-card-contrast="adaptive"] button.sig-primary-document-action[data-sigapro-ai-review-shortcut="true"]:is(:hover,:focus-visible,:active,:disabled) {
   background: linear-gradient(135deg,#075985 0%,#0b76b2 100%) !important;
   background-color: #075985 !important;
   border-color: #0b6fa8 !important;
@@ -2954,7 +2954,7 @@ html body #root .sig-main-shell .sig-process-detail-premium
   mix-blend-mode: normal !important;
 }
 html body #root .sig-main-shell .sig-process-detail-premium
-[data-process-document-card="true"] button[data-sigapro-ai-review-shortcut="true"]
+[data-process-document-card="true"][data-surface="adaptive-card"][data-force-card-contrast="adaptive"] button.sig-primary-document-action[data-sigapro-ai-review-shortcut="true"]
 :is([data-sigapro-ai-review-label="true"],[data-sigapro-ai-review-icon="true"],svg,svg *) {
   color: #ffffff !important;
   -webkit-text-fill-color: #ffffff !important;
@@ -2964,7 +2964,7 @@ html body #root .sig-main-shell .sig-process-detail-premium
   mix-blend-mode: normal !important;
 }
 html body #root .sig-main-shell .sig-process-detail-premium
-[data-process-document-card="true"] button[data-sigapro-ai-review-shortcut="true"]:disabled
+[data-process-document-card="true"][data-surface="adaptive-card"][data-force-card-contrast="adaptive"] button.sig-primary-document-action[data-sigapro-ai-review-shortcut="true"]:disabled
 [data-sigapro-ai-review-label="true"] {
   color: #ffffff !important;
   -webkit-text-fill-color: #ffffff !important;
