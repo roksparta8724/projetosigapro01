@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, BrainCircuit, CheckCircle2, FileText, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { backendClient } from "@/integrations/backend/databaseClient";
@@ -20,10 +20,11 @@ type ApiResult = DrawingExtraction & {
 const normalized = (value:string)=>value.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
 
 export function ArchitecturalPdfAiPanel({
-  process,readOnly,activeMetrics,onApply,documentId,compact=false,
+  process,readOnly,activeMetrics,onApply,onGoToPage,documentId,compact=false,
 }:{
   process:ProcessRecord; readOnly:boolean; activeMetrics:readonly UrbanMetric[];
   onApply:(reviewed:Prepared)=>void;
+  onGoToPage?:(page:number)=>void;
   documentId?:string;compact?:boolean;
 }) {
   const availablePlans=useMemo(()=>process.documents.filter(doc=>
@@ -39,6 +40,9 @@ export function ArchitecturalPdfAiPanel({
   const [readingMode,setReadingMode]=useState<ReadingMode>("native_text");
   const [billingUnavailable,setBillingUnavailable]=useState(false);
   const [loading,setLoading]=useState(false);
+  const [scanStarted,setScanStarted]=useState(false);
+  const scanController=useRef<AbortController|null>(null);
+  const scanSequence=useRef(0);
   const [availability,setAvailability]=useState<{
     status:"checking"|"ready"|"disabled";message:string;
     provider:"cloudflare"|"claude"|"openai"|"none";
@@ -62,6 +66,15 @@ export function ArchitecturalPdfAiPanel({
   const [draft,setDraft]=useState<ApiResult|null>(null);
   const [checked,setChecked]=useState<Partial<Record<UrbanMetric,boolean>>>({});
   const [notice,setNotice]=useState("");
+  useEffect(()=>()=>{scanSequence.current++;scanController.current?.abort();},[]);
+  function cancelScan(){
+    if(!scanController.current)return;
+    scanSequence.current++;
+    scanController.current.abort();
+    scanController.current=null;
+    setLoading(false);setScanStarted(false);
+    setNotice("Leitura interrompida pelo analista. O PDF e as medidas conferidas anteriormente foram preservados.");
+  }
 
   useEffect(()=>{
     setId(plans[0]?.id||"");setConsent(false);setReadingMode("native_text");
@@ -70,7 +83,10 @@ export function ArchitecturalPdfAiPanel({
 
   useEffect(()=>{
     let current=true;
+    const checkingController=new AbortController();
+    const checkingTimeout=setTimeout(()=>checkingController.abort(),18000);
     if(readOnly){
+      clearTimeout(checkingTimeout);
       setAvailability({status:"disabled",provider:"none",mode:"disabled",
         documentReady:null,documentMessage:"",textAlternativeAvailable:false,
         openaiVisualAlternativeAvailable:false,
@@ -96,7 +112,8 @@ export function ArchitecturalPdfAiPanel({
         query.set("documentId",selectedDocumentId);
       }
       const res=await fetch("/api/ai-assistant?"+query.toString(),{
-        method:"GET",cache:"no-store",headers:{Authorization:"Bearer "+jwt},
+        method:"GET",cache:"no-store",signal:checkingController.signal,
+        headers:{Authorization:"Bearer "+jwt},
       });
       const value=await res.json() as {
         enabled?:boolean;provider?:string;mode?:string;message?:string;error?:string;
@@ -129,9 +146,11 @@ export function ArchitecturalPdfAiPanel({
         openaiVisualAlternativeAvailable:false,
         geminiQaFixture:false,geminiQaAvailable:false,
         nativeTextAvailable:false,
-        message:String((err as Error)?.message||err)});
-    });
-    return()=>{current=false;};
+        message:checkingController.signal.aborted
+          ?"A verificação de disponibilidade excedeu o tempo limite. Reabra o leitor para tentar novamente."
+          :String((err as Error)?.message||err)});
+    }).finally(()=>clearTimeout(checkingTimeout));
+    return()=>{current=false;clearTimeout(checkingTimeout);checkingController.abort();};
   },[process.id,readOnly,id,plans]);
 
   const selected=plans.find(doc=>doc.id===id);
@@ -157,18 +176,23 @@ export function ArchitecturalPdfAiPanel({
     if(readOnly||!selected||!latest||
       (readingMode!=="native_text"&&!consent)||loading||
       !readyForSelectedMode||availability.documentReady!==true)return;
-    setDraft(null);setChecked({});setError("");setErrorCode("");setNotice("");setLoading(true);
+    setChecked({});setError("");setErrorCode("");setNotice("");setLoading(true);setScanStarted(true);
+    const controller=new AbortController();
+    const operation=++scanSequence.current;
+    scanController.current=controller;
+    const timeLimit=setTimeout(()=>controller.abort(),67000);
     try{
       const session=(await backendClient.auth.getSession()).data?.session;
       const jwt=session?.access_token||session?.accessToken||session?.token||"";
       if(!jwt)throw new Error("Sessão expirada. Entre novamente no SIGAPRO.");
       const response=await fetch("/api/ai-assistant?action=project-extract",{
-        method:"POST",cache:"no-store",
+        method:"POST",cache:"no-store",signal:controller.signal,
         headers:{"Content-Type":"application/json",Authorization:"Bearer "+jwt},
         body:JSON.stringify({processId:process.id,documentId:selected.id,
           confirmedTransfer:true,readingMode}),
       });
       const result=await response.json() as Partial<ApiResult>&{error?:string;code?:string};
+      if(operation!==scanSequence.current)return;
       if(!response.ok){
         if(result.code==="AI_PROVIDER_BILLING")setBillingUnavailable(true);
         if(typeof result.code==="string"&&/^[A-Z][A-Z0-9_]{2,60}$/.test(result.code))
@@ -198,8 +222,19 @@ export function ArchitecturalPdfAiPanel({
         :readingMode==="cloudflare_text"
           ?"Leitura Documental concluída pelo SIGAPRO IA. Recuos geométricos não foram verificados. Confira cada dado no PDF original."
           :"Extração visual concluída. Confira cada página original antes de aproveitar uma medida.");
-    }catch(cause){setError(String((cause as Error)?.message||cause));}
-    finally{setLoading(false);}
+    }catch(cause){
+      if(operation===scanSequence.current){
+        setError(controller.signal.aborted
+          ?"O tempo máximo da leitura foi atingido. Nenhuma medida nova foi aplicada; tente a Leitura Local ou confira a disponibilidade do provedor."
+          :String((cause as Error)?.message||cause));
+      }
+    }finally{
+      clearTimeout(timeLimit);
+      if(operation===scanSequence.current){
+        scanController.current=null;
+        setLoading(false);setScanStarted(false);
+      }
+    }
   }
   async function downloadReadingReport(){
     if(!draft||!selected||!latest||draft.documentId!==selected.id||
@@ -236,20 +271,19 @@ export function ArchitecturalPdfAiPanel({
   }
   return <section data-sigapro-project-pdf-ai="true"
     data-sigapro-document-ai-embedded={compact?"true":"false"}
-    className={`min-w-0 max-w-full overflow-hidden rounded-2xl border border-sky-200 bg-white !text-slate-950 dark:border-sky-500 dark:bg-[#0b172a] dark:!text-slate-100 ${compact?"p-3":"mt-5 p-4"}`}>
-    <div className="flex flex-wrap items-center justify-between gap-2">
-      <h4 className="flex min-w-0 items-center gap-2 break-words text-sm font-extrabold text-slate-950 dark:text-white [overflow-wrap:anywhere]">
-        <BrainCircuit className="h-5 w-5 text-sky-700 dark:text-sky-300"/>
+    className={`min-w-0 max-w-full overflow-hidden rounded-[22px] border border-slate-200 bg-[#f8fafc] !text-slate-950 shadow-[0_8px_28px_rgba(15,23,42,0.06)] dark:border-slate-600 dark:bg-[#101e30] dark:!text-white ${compact?"p-3":"mt-5 p-4"}`}>
+    <div data-sigapro-premium-ai-header="true" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-[linear-gradient(125deg,#0b233c_0%,#14517a_100%)] px-4 py-4 text-white shadow-sm">
+      <h4 className="flex min-w-0 items-center gap-2 break-words text-sm font-extrabold !text-white [overflow-wrap:anywhere]">
+        <BrainCircuit className="h-5 w-5 text-sky-200"/>
         SIGAPRO IA · Leitura Técnica do Projeto
       </h4>
-      <span className="max-w-full rounded-full bg-amber-100 px-2 py-1 text-[11px] font-bold !text-amber-950 dark:bg-amber-950 dark:!text-amber-100">
+      <span className="max-w-full rounded-full border border-white/30 bg-white/15 px-2.5 py-1 text-xs font-bold !text-white">
         Sem aprovação automática
       </span>
     </div>
-    <p className="mt-2 text-xs leading-5 text-slate-700 dark:text-slate-200">
-      O SIGAPRO IA reúne leitura visual das pranchas e extração textual de documentos.
-      Os recursos são complementares: somente a leitura visual inspeciona os desenhos.
-      Nenhuma modalidade comprova conformidade legal automaticamente; confira cada cota.
+    <p className="mt-3 px-1 text-[13px] leading-6 text-slate-700 dark:text-slate-200">
+      Leia as cotas do PDF, confira as páginas e encaminhe apenas as medidas verificadas.
+      A análise legal e geométrica exige validação técnica independente.
     </p>
     {!plans.length?<p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-950">
       Nenhum projeto arquitetônico PDF foi encontrado como documento armazenado neste processo.
@@ -264,6 +298,14 @@ export function ArchitecturalPdfAiPanel({
       {!latest?<p role="alert" className="mt-2 text-xs font-semibold text-amber-900 dark:text-amber-200">
         Uma versão mais recente está disponível. Use a versão atual do projeto.
       </p>:null}
+      <details data-sigapro-ai-method-selector="true"
+        open={readingMode!=="native_text" ? true : undefined}
+        className="mt-3 min-w-0 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-600 dark:bg-[#192c42]">
+        <summary className="cursor-pointer text-[13px] font-extrabold text-slate-950 dark:text-white">
+          Método: {readingMode==="native_text"?"leitura local sem custo":
+            readingMode==="cloudflare_text"?"interpretação de texto":
+            readingMode==="gemini_qa"?"ensaio visual QA04":"leitura visual com IA"} · alterar
+        </summary>
       <div role="group" aria-label="Escolha o tipo de leitura do PDF"
         className={`mt-3 grid min-w-0 gap-2 ${compact?"grid-cols-1":"md:grid-cols-2"}`}>
         <button type="button" data-sigapro-ai-mode-native-text="true"
@@ -342,6 +384,7 @@ export function ArchitecturalPdfAiPanel({
           </button>
         ):null}
       </div>
+      </details>
       {readingMode!=="native_text"?(<>
       <label className="mt-3 flex min-w-0 items-start gap-2 rounded-xl border border-sky-300 bg-sky-50 p-3 text-xs font-semibold !text-sky-950 dark:border-sky-500 dark:bg-[#103b5e] dark:!text-sky-50">
         <input type="checkbox" checked={consent} disabled={readOnly||loading}
@@ -492,6 +535,16 @@ export function ArchitecturalPdfAiPanel({
           e autorize o novo envio. A alternativa não verifica a geometria dos recuos.
         </p>
       ):null}
+      {loading?<div role="status" data-sigapro-ai-loading-stage="true"
+        className="mt-3 flex min-w-0 items-center justify-between gap-3 rounded-xl border border-sky-200 bg-sky-50 p-3 text-sky-950 dark:border-sky-600 dark:bg-[#19354d] dark:text-white">
+        <div className="min-w-0">
+          <p className="text-[13px] font-bold">Leitura em andamento</p>
+          <p className="mt-1 text-xs leading-5">Verificando o PDF e as evidências. A operação tem limite de tempo e pode ser cancelada sem alterar o processo.</p>
+        </div>
+        <Button type="button" variant="outline" data-sigapro-ai-cancel-reading="true"
+          className="min-h-10 shrink-0 border-slate-300 bg-white text-slate-900 hover:bg-slate-100"
+          onClick={cancelScan}>Cancelar</Button>
+      </div>:null}
       <Button type="button" data-sigapro-ai-read-project="true"
         className="mt-3 h-auto min-h-11 min-w-0 max-w-full whitespace-normal break-words bg-slate-950 px-4 py-2 !text-white [overflow-wrap:anywhere]"
         disabled={readOnly||(readingMode!=="native_text"&&!consent)||!latest||loading||
@@ -609,12 +662,18 @@ export function ArchitecturalPdfAiPanel({
             <p className="mt-1 text-sm font-bold text-slate-900 dark:text-slate-100">
               {row.value===null?"Não identificado":String(row.value)+" "+meta.unit}
             </p>
-            {row.page!==null?<p className="mt-1 text-xs text-slate-700 dark:text-slate-200">
-              Página {row.page} · {row.confidence==="high"?"leitura nítida":"leitura a conferir"}
-            </p>:null}
-            {row.quote?<p className="mt-1 break-words text-xs italic text-slate-600 dark:text-slate-300">
-              Trecho identificado: “{row.quote}”
-            </p>:null}
+            {row.page!==null?<div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-700 dark:text-slate-100">
+              <span>Página {row.page} · {row.confidence==="high"?"cota identificada":"conferir cota"}</span>
+              {onGoToPage?<button type="button" data-sigapro-ai-go-to-page={row.page}
+                className="rounded-md border border-sky-300 bg-sky-50 px-2 py-1 font-bold text-sky-950 hover:bg-sky-100 dark:border-sky-500 dark:bg-[#163b5b] dark:text-white"
+                onClick={()=>onGoToPage(row.page!)}>Abrir prancha</button>:null}
+            </div>:null}
+            {row.quote?<details className="mt-2 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 dark:border-slate-600 dark:bg-[#22364d]">
+              <summary className="cursor-pointer text-xs font-semibold text-slate-700 dark:text-slate-100">Ver citação original</summary>
+              <p className="mt-2 break-words text-[13px] italic leading-5 text-slate-800 dark:text-white">
+                “{row.quote}”
+              </p>
+            </details>:null}
             {!row.usableForReview?<p className="mt-1 text-xs text-amber-900 dark:text-amber-200">
               {row.reason}
             </p>:null}
