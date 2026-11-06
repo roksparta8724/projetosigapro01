@@ -208,3 +208,35 @@ Foi obtida autorização para excluir **somente duas branches descartáveis**, e
 - Defesa em profundidade: `save_urban_precheck_run_v7` verifica **no banco** perímetro GIS, mapa, única zona, data de oficialização, mesma versão de lei por município/zona, e então aciona `v6` com revisão legal por artigo/página/índice. `v6` perdeu EXECUTE para authenticated; `v7` é a única entrada da UI. Sem mapa e evidência jurídica a gravação é barrada, mesmo se tentarem forçar o frontend.
 - QA tests: parser GeoJSON reprova CRS não EPSG4326, feições sem zone_code, duplicatas e associações forâneas; casos da geometria, RLS e controle de declaração. Teste real **autenticado e assinado com arquivo vetorial oficial e imóvel cadastrado**, confrontação jurídica por índice e regras vigentes **ainda pendente**.
 - PR #118 permanece DRAFT. A implantação desta revisão é apenas Preview, não domínio oficial. [deploy-qa]
+
+
+## QA — Reaproveitamento integral da base anterior e correção da continuidade (06/11/2026)
+
+**Origem da verdade, confirmada por SQL READ-ONLY na Neon QA:** projeto `red-sunset-21120522`, branch `br-solitary-sound-b4xlbvs6`, banco `sigapro_migration_stage_20260923`. Município `49dac0b6-6352-4744-9aab-9ff91c59d970` (Campo Limpo Paulista).
+
+**IMPORTANTE: Não declarar perda de PDFs por consultar `tenant_settings` ou `urban_legislation_documents_v1`.** O acervo já carregado por usuário está em `municipality_settings.general_settings`, com referências R2 restritas ao município:
+- `uso_solo_arquivo_nome = quadros.pdf` (ref `r2:municipalities/<municipio>/legislation-uso-solo/...`)
+- `zoneamento_arquivo_nome = zoneamento clp.pdf` (ref `r2:municipalities/<municipio>/legislation-zoneamento/...`)
+- `leis_arquivo_nome = 440-2011.pdf` (ref `r2:municipalities/<municipio>/legislation-leis-complementares/...`)
+- Eventos de troca do acervo: 2 registros `municipal_legacy_legal_asset_events_v1`, incluindo substituição de `lei complementar.pdf` por `quadros.pdf` em 04/11/2026.
+- Vínculos salvos NÃO equivalem à comprovação da existência física dos bytes do R2. O teste autenticado de abertura precisa ser realizado no SIGAPRO.
+
+**Matriz jurídica histórica, confirmada:**
+- `urban_matrix_batch_staging_v1`: 1 lote `quadros.pdf`, SHA-256 começa com `68c85d879011dbb323e2`, 23 linhas Quadro I, status `pending_legal_review`, 16 índices antigos conferidos.
+- `urban_matrix_reading_audit_v2`: 6 `reading_verified` adicionais (linhas 12,13,16,17,20,22) e 1 `needs_correction` (linha 21) = **22/23 leituras conferidas** e **1 pendência AIU(2)**.
+- `urban_matrix_analyst_guidance_v1` e `urban_matrix_analyst_provisional_criteria_v1`: CA mínimo AIU(2) 1, status `manual_only_pending_concidade`, NÃO convertido para regra vigente, sem CONCIDADE ainda regulamentado.
+- `urban_quadro_ii_draft_entries_v1`: **45** categorias não verificadas, páginas 38–50.
+- `urban_quadro_ii_source_evidence_v1`: **14 páginas (38–51)**, com OCR `machine_unverified`, página 43 `visual_required`.
+- `zonas_urbanisticas`: 8 linhas de cadastro LEGADO, sem versão jurídica/auditoria para serem reativadas silenciosamente.
+- `urban_regulation_versions`: uma regra sintética `QA-URBAN-E2E-20261024`, 0 reais ativas; `urban_legal_evidence_scopes`: 0. Não presumir que parâmetros históricos estejam perdidos nem que estejam homologados.
+
+**Implementação corrigida nesta PR #118:**
+- Migração `neon/migrations/20261106_urban_existing_work_baseline_qa_v1.sql` cria RPC autenticada READ-ONLY `get_urban_process_legal_baseline_v1`: valida analista, processo, municipalidade, perfil ativo e acesso, busca PDF legados nos campos CORRETOS de `municipality_settings.general_settings`; devolve somente filenames, totais e hashes de matriz, sem R2 keys, sem modificar processo/regras. Consulta anônima testada: `access_denied`.
+- `server/ai-project-extract.ts` retorna `legalBaseline` APENAS após autorização do documento vigente. A interface `ArchitecturalPdfAiPanel` exibe os PDFs existentes, 22/23 e 45 rascunhos, quantidade de regras realmente ativas e provas legais, sem repetir upload e sem confundir leitura com conformidade.
+- `architecturalReadingReportPdf.ts` inclui essa origem histórica e a ressalva legal, sem modificar registros. Proteções de PDF/tenant/versão e conferência humana preservadas.
+- `UrbanQuadroIIWorkspacePanel.tsx`: removido `useEffect` que rolava automaticamente a tela ao abrir categorias; botão explícito “Abrir formulário de conferência desta página”; área paginada desliga ancoragem automática para evitar salto de posição. A navegação 38→39→40 permanece na mesma faixa.
+- Teste `urbanExistingLegalBaseline.test.ts` cobre origem municipal, rejeição de dados contraditórios, hierarquia de autorização, UI e navegação.
+- **NÃO significa leitura visual CAD de plantas reais**: leitor local extrai apenas texto selecionável. Prova de geometria precisa de provedor visual autorizado e teste HTTP autenticado. A base geográfica PostGIS permanece vazia (0 mapas e perímetros homologados); sem cadastro do lote do processo QA04 e fonte cartográfica válida, conformidade deve continuar `not_evaluated`.
+- Ao mudar de conversa, usar SEMPRE esta documentação + PR #118 + branch QA como estado persistente; não criar novamente matrizes, tabelas, PDFs ou parâmetros que já existem.
+- Esta revisão será publicada **somente Preview QA**, com commit marcador `[deploy-qa]`. Não mesclar na `main` ou atualizar produção automaticamente. O aceite final exige ensaio autenticado da abertura R2, leitura real, geometria e confronto legal pelo analista.
+
