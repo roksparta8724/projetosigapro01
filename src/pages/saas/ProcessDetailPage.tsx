@@ -2663,7 +2663,7 @@ export function ProcessDetailPage() {
       ? openAi ? "?ferramenta=navigate&painel=ia" : "?ferramenta=highlight"
       : "";
     const workspaceUrl =
-      `${window.location.origin}${buildProcessPath(process)}/documentos/${documentId}/${route}${query}`;
+      `${window.location.origin}${buildProcessPath(process)}/documentos/${documentId}/${route}${query}${query ? "&" : "?"}janela=1`;
 
     setOpeningDocumentId(documentId);
     setProcessActionStatus("");
