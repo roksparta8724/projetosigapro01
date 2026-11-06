@@ -36,6 +36,15 @@ describe("SIGAPRO QA — leitura real do PDF sem chamadas a IA externa",()=>{
     });
     expect(result.readings.find(r=>r.metric==="permeability_percent")?.value).toBeNull();
     expect(result.readings.find(r=>r.metric==="floor_area_ratio_min")?.value).toBeNull();
+    expect(result.supplementaryFacts?.map(row=>row.kind)).toEqual([
+      "built_area_m2","uncovered_area_m2","side_left_m","side_right_m",
+    ]);
+    expect(result.supplementaryFacts?.find(row=>row.kind==="built_area_m2")).toMatchObject({
+      value:80,page:3,
+    });
+    expect(result.supplementaryFacts?.find(row=>row.kind==="uncovered_area_m2")).toMatchObject({
+      value:220,page:2,
+    });
   });
   it("lê PDF com stream de texto compactado e mantém página real",()=>{
     const pdf=new jsPDF({compress:true});
