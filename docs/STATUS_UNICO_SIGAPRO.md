@@ -305,3 +305,10 @@ Confirmação na Neon branch `br-summer-surf-b4s88rv5` (produção), sem qualque
 - `src/test/architecturalAiConsentFlowQa.test.tsx` executa interações React/JSDOM: local sem consentimento externo, Cloudflare bloqueado até checkbox marcado, POST com modo/documento/consentimento correto, zero tentativas POST antes do aceite, troca de modo revoga consentimento e triagem impede extração mesmo com consentimento. Testes antigos de rótulo e contraste atualizados para o novo padrão sem retirar travas.
 - Quality Gate do commit de implementação `4a24ddce3e1ce714fe3381ea8415d0407ef3c2f3` aprovado: 246 arquivos e 1.410 testes, build, TypeScript, lint e auditoria npm sem vulnerabilidades conhecidas. Confirmar separadamente Neon migration validation e release Preview QA antes de declarar publicação.
 - **Restrições externas já conhecidas:** GitHub CI não valida a integração real com o provedor nem demonstra que uma planta é corretamente interpretada; Vercel Hobby relatou limite 100 deploys/24h (HTTP 402). Não editar produção, não mesclar `main`, não mascarar falta de créditos; homologação territorial e legal continuam separadas do UX. A automação existente de publicação pendente deve apontar para o SHA de release mais recente, nunca tentar publicar uma versão anterior.
+
+### Publicação consolidada do aceite na homologação
+
+- Último código validado com Quality Gate e Neon migration validation aprovados: `4a24ddce3e1ce714fe3381ea8415d0407ef3c2f3` (246 arquivos / 1410 testes). Alteração documental intermediária preservada na mesma branch.
+- O novo commit de publicação contém o marcador `[deploy-qa]` exigido pelo Ignored Build Step da Vercel. Publicar APENAS preview branch QA; PR #118 permanece DRAFT; produção inalterada.
+- Antes do aceite final, verificar que o alias de homologação serve o mesmo SHA do release e executar teste autenticado de aceite → extração com uma modalidade habilitada; cartão visual validado por CI não é prova de deploy.
+- Existe automação de publicação previamente criada para 07/11/2026. O SHA-alvo precisa ser atualizado para ESTE commit de release, nunca para `4ba64935` anterior. Não criar automação duplicada.
