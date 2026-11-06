@@ -18,16 +18,17 @@ export type VisualPdfAvailability =
   | { enabled: false; provider: null; message: string };
 
 const MODEL_CLAUDE = /^claude-(?:sonnet|opus|haiku)-\d+(?:-\d+){0,3}$/;
-const MODEL_OPENAI = /^gpt-(?:4\.1|4o|5(?:\.\d+)?)(?:-(?:mini|nano))?$/;
+const MODEL_OPENAI = /^gpt-(?:(?:4\.1|4o|5(?:\.\d+)?)(?:-(?:mini|nano))?|6-astra|6-luna|6\.1-sol)$/;
 
 export function resolveVisualPdfProvider(
   get: (name: string) => string,
   // Preview-only opt-in selected by the authenticated user. Never used as a
   // silent billing fallback; the calling endpoint must enforce consent and scope.
-  requestedMode?: "cloudflare_text",
+  requestedMode?: "cloudflare_text" | "openai_visual",
 ): VisualPdfAvailability {
   const explicitPdfProvider = requestedMode === "cloudflare_text"
-    ? "cloudflare" : get("SIGAPRO_AI_PDF_PROVIDER").trim().toLowerCase();
+    ? "cloudflare" : requestedMode === "openai_visual"
+      ? "openai" : get("SIGAPRO_AI_PDF_PROVIDER").trim().toLowerCase();
   const configuredProvider = (explicitPdfProvider ||
     get("SIGAPRO_AI_PROVIDER") || "").trim().toLowerCase();
   const enabledSetting = get("SIGAPRO_AI_PDF_ENABLED").trim().toLowerCase();
@@ -57,6 +58,7 @@ export function resolveVisualPdfProvider(
   // for DISPLAYING the reader; sending a PDF still requires analyst consent.
   // An explicit false setting always takes precedence.
   const optIn = enabledSetting === "true" || Boolean(claudeKey) ||
+    (requestedMode === "openai_visual" && Boolean(openaiKey)) ||
     configuredProvider === "claude" || configuredProvider === "anthropic";
   if (!optIn) return {enabled:false,provider:null,
     message:"O R2 está disponível para arquivos, mas não há provedor de leitura visual de projetos habilitado nesta prévia."};
@@ -75,7 +77,11 @@ export function resolveVisualPdfProvider(
     message:chosen === "claude"
       ? "Claude selecionado, mas a credencial Anthropic não está disponível no servidor desta prévia."
       : "OpenAI selecionada, mas a credencial da API não está disponível no servidor desta prévia."};
-  const envModel = get("SIGAPRO_AI_PDF_MODEL").trim();
+  const envModel = requestedMode === "openai_visual"
+    ? get("SIGAPRO_OPENAI_PDF_MODEL").trim()
+    : get("SIGAPRO_AI_PDF_MODEL").trim();
+  // Never reuse the Claude model name for an explicitly selected OpenAI
+  // service; it has an independent allow-listed model setting.
   const model = envModel ||
     (chosen === "claude" ? "claude-sonnet-5-5" : "gpt-4.1");
   if (!(chosen === "claude" ? MODEL_CLAUDE : MODEL_OPENAI).test(model)) {
@@ -306,7 +312,7 @@ export async function extractVisualPdf(
       } : {
         model:provider.model,store:false,max_output_tokens:3500,
         input:[{role:"user",content:[
-          {type:"input_file",filename:fileName,
+          {type:"input_file",filename:fileName,detail:"high",
             file_data:"data:application/pdf;base64,"+encoded},
           {type:"input_text",text:INSTRUCTIONS},
         ]}],
