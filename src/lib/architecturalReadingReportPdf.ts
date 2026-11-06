@@ -1,6 +1,7 @@
 import { jsPDF } from "jspdf";
 import type { DrawingExtraction } from "./architecturalPdfReadings.js";
 import type { UrbanTerritorialReadiness } from "./urbanTerritorialReadiness.js";
+import type { UrbanExistingLegalBaseline } from "./urbanExistingLegalBaseline.js";
 import { URBAN_METRICS } from "./urbanPrecheck.js";
 
 /**
@@ -15,6 +16,7 @@ export function createArchitecturalReadingReportPdf(input: {
   documentVersion: number;
   fileName: string;
   territorial?: UrbanTerritorialReadiness | null;
+  legalBaseline?: UrbanExistingLegalBaseline | null;
   generatedAt?: Date;
 }) {
   if (!input.processId || !input.documentId ||
@@ -110,6 +112,25 @@ export function createArchitecturalReadingReportPdf(input: {
   }
   paragraph("Comparacao urbanistica juridica: NAO AVALIADA ate existir norma vigente e evidencias validas por zona, uso e indice.");
   for (const reason of territory?.reasons || []) paragraph("- " + reason, 8);
+  heading("Acervo municipal anteriormente cadastrado");
+  const base=input.legalBaseline;
+  if(base?.status==="available"){
+    paragraph("Quadro I: "+base.quadroI.reviewed+"/"+base.quadroI.rows+
+      " leituras humanas conferidas; "+base.quadroI.needsCorrection+
+      " ressalva(s); "+base.quadroI.pending+" pendencia(s).");
+    paragraph("Quadro II: "+base.quadroII.draftEntries+
+      " rascunhos, "+base.quadroII.pages+
+      " paginas de evidencias; leitura sem vigencia legal confirmada.");
+    paragraph("Fontes documentais registradas no acervo legado: "+
+      (base.documents.map(item=>item.name).join("; ")||"nenhuma vinculada."));
+    paragraph("Regulamentacoes oficiais ativas: "+base.activeRealRegulations+
+      "; escopos juridicos validados: "+base.verifiedLegalScopes+".");
+    if(base.quadroI.sourceSha256)
+      paragraph("SHA-256 da matriz original: "+base.quadroI.sourceSha256);
+    paragraph("Esses registros sao preparacoes historicas e NAO demonstram vigencia, aplicabilidade territorial ou regularidade deste projeto.");
+  }else{
+    paragraph("A base legal municipal historica nao foi verificada nesta leitura. Isso NAO demonstra exclusao dos arquivos ou das conferencias anteriores.");
+  }
   heading("Medidas observadas e pendencias");
   for (const metric of URBAN_METRICS) {
     const row = input.extraction.readings.find(reading => reading.metric === metric.key);
