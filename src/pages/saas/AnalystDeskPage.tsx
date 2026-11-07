@@ -171,15 +171,18 @@ export function AnalystDeskPage() {
       void refreshAnalysisDesk();
     };
 
-    sync();
-    const timer = window.setInterval(sync, 5000);
+    // Initial data is loaded by PlatformDataProvider. A second full load on
+    // mount caused duplicate requests; data-change/focus still refresh now.
+    const timer = window.setInterval(sync, 30000);
     window.addEventListener("focus", sync);
+    window.addEventListener("sigapro:data-changed", sync);
     document.addEventListener("visibilitychange", sync);
 
     return () => {
       disposed = true;
       window.clearInterval(timer);
       window.removeEventListener("focus", sync);
+      window.removeEventListener("sigapro:data-changed", sync);
       document.removeEventListener("visibilitychange", sync);
     };
   }, [refreshAnalysisDesk]);
