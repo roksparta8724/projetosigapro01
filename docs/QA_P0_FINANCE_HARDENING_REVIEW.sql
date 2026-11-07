@@ -85,26 +85,31 @@ begin
     raise exception 'Guia inicial nao encontrada';
   end if;
 
+  -- Prevent manual finalization even if an externally linked guide was
+  -- previously marked paid. Provider-attested credits are officialized by
+  -- the payment trigger; any paid-but-unofficial bank guide needs audit,
+  -- never a manual rescue through this SECURITY DEFINER function.
+  -- Stop manual marking of bank-connected charges. Only the provider
+  -- verified/attested settlement worker may confirm those payments.
+  if nullif(btrim(coalesce(_guide.bank_reference,'')),'') is not null
+     or nullif(btrim(coalesce(_guide.bank_payment_id,'')),'') is not null
+     or nullif(btrim(coalesce(_guide.bank_status,'')),'') is not null
+     or nullif(btrim(coalesce(_guide.bank_status_detail,'')),'') is not null
+     or _guide.bank_authenticated_at is not null
+     or _guide.provider_charge_saved_at is not null
+     or nullif(btrim(coalesce(_guide.ticket_url,'')),'') is not null
+     or nullif(btrim(coalesce(_guide.barcode,'')),'') is not null
+     or nullif(btrim(coalesce(_guide.digitable_line,'')),'') is not null
+     or nullif(btrim(coalesce(_guide.provider_environment,'')),'') is not null
+     or (nullif(btrim(coalesce(_guide.payment_provider,'')),'') is not null
+         and lower(btrim(_guide.payment_provider)) not in ('manual','municipal_system')) then
+    raise exception 'Guia vinculada a provedor bancario: aguarde a conciliacao autenticada.';
+  end if;
+
   if coalesce(_guide.paid,false)
      or lower(coalesce(_guide.status,'')) in ('compensada','confirmed','paid','pago','confirmado') then
     perform public.officialize_preprotocol_v1(_process.id,_guide.id);
   else
-    -- Stop manual marking of bank-connected charges. Only the provider
-    -- verified/attested settlement worker may confirm those payments.
-    if nullif(btrim(coalesce(_guide.bank_reference,'')),'') is not null
-       or nullif(btrim(coalesce(_guide.bank_payment_id,'')),'') is not null
-       or nullif(btrim(coalesce(_guide.bank_status,'')),'') is not null
-       or nullif(btrim(coalesce(_guide.bank_status_detail,'')),'') is not null
-       or _guide.bank_authenticated_at is not null
-       or _guide.provider_charge_saved_at is not null
-       or nullif(btrim(coalesce(_guide.ticket_url,'')),'') is not null
-       or nullif(btrim(coalesce(_guide.barcode,'')),'') is not null
-       or nullif(btrim(coalesce(_guide.digitable_line,'')),'') is not null
-       or nullif(btrim(coalesce(_guide.provider_environment,'')),'') is not null
-       or (nullif(btrim(coalesce(_guide.payment_provider,'')),'') is not null
-           and lower(btrim(_guide.payment_provider)) not in ('manual','municipal_system')) then
-      raise exception 'Guia vinculada a provedor bancario: aguarde a conciliacao autenticada.';
-    end if;
     update public.payment_guides
        set paid=true,
            paid_at=now(),
