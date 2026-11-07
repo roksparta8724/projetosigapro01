@@ -461,3 +461,19 @@ Confirmação na Neon branch `br-summer-surf-b4s88rv5` (produção), sem qualque
 5. **Release e governança:** sem deploy para produção, sem alterações em Neon/R2, sem compra de VPS ou ativação de IA. A versão atualmente servida pelo alias de homologação deve ser verificada por SHA; a última confirmação anterior ao presente release era `61a8c3edd0617ff40caace8553b43f1ed535c5a2`, anterior às melhorias e bloqueada pelo limite diário `api-deployments-free-per-day` da Vercel. Publicar em **Preview QA somente** a revisão exata identificada pelo commit `[deploy-qa]`, com uma tentativa após liberação da cota; confirmar SHA e READY antes de alegar resultado visual.
 
 **Faltam para habilitar comercialização:** (a) dois municípios com testes IDOR/RLS reais; (b) bateria de plantas e escaneados com gabarito conferido; (c) relatório e guias A4/PIX abertos e arquivados; (d) webhook/baixa idempotente em ambiente bancário autorizado; (e) MFA/gestão de chaves/retencão LGPD; (f) backup/restauração testada; (g) teste visual autenticado com a versão correta. Nenhum desses itens foi falsamente marcado como concluído.
+
+
+## 07/11/2026 — entrega consolidada: leitor documental nativo + integridade financeira
+
+**Objetivo:** evitar correções pequenas e publicações repetitivas; implementar, testar e liberar um lote com escopo delimitado, sem alterar produção.
+
+**Código validado:** \`01f7f23bfc682c78d24b9797364ec7e18f38ceff\` (Quality Gate SUCCESS: **1.463 testes em 259 arquivos**, TypeScript, lint, npm audit e build; Neon migration validation SUCCESS).
+
+1. \`server/native-architectural-pdf.ts\`: ordenação comprovada de pranchas pela árvore real \`/Catalog → /Pages → /Kids\`, detecção de árvores inválidas/cíclicas/contagens divergentes sem inventar página; suporte a texto hexadecimal ASCII/UTF-16BE em \`Tj\` e \`TJ\`, rejeitando glifos inseguros; interpretação dos milhares BR em áreas como \`1.200,00 m²\`; reconhecimento parcial de planta de implantação com apenas uma cota explicitamente citada sem preencher outras por inferência.
+2. \`server/guide-persistence.ts\`: comparação financeira estrita de valores de provedor em **centavos**, recusando \`1.001\`, \`1e0\`, decimais com três casas, zero, formatos ambíguos e valores de guia que precisariam de arredondamento; mantém todas as restrições já implementadas de prefeitura, ordem, ambiente e guia quitada.
+3. Novos testes em \`src/test/nativeArchitecturalPdfExtendedCoverage.test.ts\` e \`src/test/bankChargeExactCentavosQa.test.ts\`: numeração alterada de Kids, PDF inválido, texto hex/UTF-16/TJ, cotas faltantes, números localizados e vínculo monetário; nenhum documento municipal real transmitido a IA durante testes.
+4. Documentação detalhada em \`docs/LOTE_QA_INTEGRIDADE_PDF_FINANCEIRO.md\`. A matriz \`docs/MATRIZ_ACEITE_PRODUCAO_SIGAPRO.md\` continua a fonte de critérios de aceite.
+
+**Limites da entrega:** leitor local gratuito não reconhece desenhos puramente raster, geometrias sem texto selecionável nem fontes sem mapeamento Unicode; não mede cotas de pixels, não aprova obras, não prova legislação municipal por si só. Bancos diretos dependem de conector/convênio e teste financeiro real autorizado; não houve movimentação bancária. Backups/RTO, auditoria externa LGPD e teste visual autenticado ainda pendentes.
+
+**Publicação:** este commit de documentação com \`[deploy-qa]\` marca **uma única versão Preview QA**; confirmar \`READY\` + SHA exato no alias fixo antes de afirmar que o código está visível. PR #118 deve permanecer DRAFT; não dar merge em main nem mexer no domínio oficial.
