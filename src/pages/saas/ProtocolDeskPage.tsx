@@ -1091,7 +1091,7 @@ export function ProtocolDeskPage() {
   // de triagem, confirmação de guia, despacho, GOVBR, importação, marcador
   // ou reconciliação pode ser montada neste perfil. As RPCs mantêm sua
   // própria autorização; esta barreira é defesa adicional de interface.
-  if (session.role === "prefeitura_admin") {
+  if (["prefeitura_admin"].includes(session.role)) {
     const query = processListQuery.trim().toLocaleLowerCase("pt-BR");
     const visible = processes.filter((process) =>
       !query || [
