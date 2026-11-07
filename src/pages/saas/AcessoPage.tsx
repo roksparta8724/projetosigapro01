@@ -17,7 +17,7 @@ import { useAuthGateway } from "@/hooks/useAuthGateway";
 import { useTenant } from "@/hooks/useTenant";
 import { getRoleLandingPath } from "@/lib/platform";
 import { preloadLoginLanding, verifyLoginLandingAccess } from "@/lib/loginLandingAccess";
-import { backendClient, hasBackendEnv as hasSupabaseEnv } from "@/integrations/backend/databaseClient";
+import { backendClient } from "@/integrations/backend/databaseClient";
 import { SigaproLogo } from "@/components/platform/SigaproLogo";
 
 const institutionalHighlights = [
@@ -53,8 +53,8 @@ export function AcessoPage() {
   const tenantQuery =
     tenant.mode === "tenant" || !tenantSlug ? "" : `?tenant=${tenantSlug}`;
 
-  const [email, setEmail] = useState(hasSupabaseEnv ? "" : "roksparta02@gmail.com");
-  const [password, setPassword] = useState(hasSupabaseEnv ? "" : "Sigapro@2026");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
