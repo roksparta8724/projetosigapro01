@@ -68,4 +68,23 @@ describe("SIGAPRO Master — enquadramento estável na navegação", () => {
       logoOffsetY: 1,
     });
   });
+
+  it("reutiliza o branding remoto do Master entre rotas sem retornar ao default", () => {
+    const hook = readFileSync(resolve(process.cwd(), "src/hooks/useInstitutionBranding.ts"), "utf8");
+    expect(hook).toContain("let lastMasterPlatformBranding");
+    expect(hook).toContain("MASTER_BRANDING_REVALIDATE_MS");
+    expect(hook).toContain("loadStableMasterPlatformBranding()");
+    expect(hook).toContain("useState<PlatformBrandingSnapshot | null>(() => lastMasterPlatformBranding)");
+    expect(hook).not.toContain("setPlatformBranding(null)");
+  });
+
+  it("ignora respostas atrasadas de logos R2 e acompanha edições nas duas variantes", () => {
+    const hook = readFileSync(resolve(process.cwd(), "src/hooks/useInstitutionBranding.ts"), "utf8");
+    const masterResolve = hook.slice(hook.indexOf("const resolveLogo = async"), hook.indexOf("const headerBranding = useMemo"));
+    expect(masterResolve).toContain("let active = true");
+    expect(masterResolve).toContain("if (!active) return;");
+    expect(masterResolve).toContain("return () => { active = false; };");
+    expect(masterResolve).toContain("masterBrandingState.headerLogoUrl");
+    expect(masterResolve).toContain("masterBrandingState.footerLogoUrl");
+  });
 });
