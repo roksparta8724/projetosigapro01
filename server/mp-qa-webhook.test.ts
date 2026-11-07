@@ -138,6 +138,13 @@ describe("SIGAPRO — roteamento publico fail-closed",()=>{
     await handleQaMpWebhook({method:"GET",headers:{}} as IncomingMessage,health.res);
     expect(health.res.statusCode).toBe(200);
     expect(health.body().configured).toBe(false);
+    expect(health.body().encryptionConfigured).toBe(false);
+    const blocked=mockResponse();
+    await handleQaMpWebhook({method:"POST",headers:{}} as IncomingMessage,blocked.res);
+    expect(blocked.res.statusCode).toBe(503);
+    expect(blocked.body().code).toBe("QA_WEBHOOK_CREDENTIALS_NOT_CONFIGURED");
+    vi.stubEnv("MUNICIPAL_PAYMENT_MASTER_KEY","SYNTHETIC_KEY_NEVER_USE_FOR_REAL_PAYMENTS");
+    vi.stubEnv("SIGAPRO_QA_MP_WEBHOOK_DATABASE_URL",env.SIGAPRO_QA_MP_WEBHOOK_DATABASE_URL);
     const reject=mockResponse();
     await handleQaMpWebhook({
       method:"POST",headers:{},
