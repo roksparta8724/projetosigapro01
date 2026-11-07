@@ -14,6 +14,7 @@ import {
   testMercadoPagoToken,
 } from "../server/municipal-payment.js";
 import { callDataApiRpc } from "../server/municipal-storage.js";
+import handleQaMpWebhook from "../server/mp-qa-webhook.js";
 import { assertMunicipalCredentialSave, assertMunicipalCredentialActivation } from "../server/municipal-payment-credential-validation.js";
 
 type Req = import("http").IncomingMessage & {
@@ -69,6 +70,13 @@ async function rpcOrThrow<T>(
 export default async function handler(req: Req, res: Res) {
   const requestUrl = new URL(req.url || "/api/mercadopago", "https://sigapro.local");
   const action = requestUrl.searchParams.get("action") || "health";
+
+  // Reuse the existing Mercado Pago serverless function: the Vercel Hobby
+  // project has a 12-function limit. The QA callback retains its own
+  // fail-closed Preview/branch/role/HMAC gate in the isolated handler.
+  if (action === "qa-webhook") {
+    return handleQaMpWebhook(req, res);
+  }
 
   if (action === "health") {
     if (req.method !== "GET") {
