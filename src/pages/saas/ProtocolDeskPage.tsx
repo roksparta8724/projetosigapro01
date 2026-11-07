@@ -1087,6 +1087,71 @@ export function ProtocolDeskPage() {
     </SectionCard>
   );
 
+  // Admin da Prefeitura é estritamente de acompanhamento: nenhuma ação
+  // de triagem, confirmação de guia, despacho, GOVBR, importação, marcador
+  // ou reconciliação pode ser montada neste perfil. As RPCs mantêm sua
+  // própria autorização; esta barreira é defesa adicional de interface.
+  if (session.role === "prefeitura_admin") {
+    const query = processListQuery.trim().toLocaleLowerCase("pt-BR");
+    const visible = processes.filter((process) =>
+      !query || [
+        process.protocol,
+        process.externalProtocol,
+        process.title,
+        process.ownerName,
+        process.technicalLead,
+        process.address,
+      ].filter(Boolean).join(" ").toLocaleLowerCase("pt-BR").includes(query),
+    );
+    return (
+      <PortalFrame eyebrow="CONSULTA INSTITUCIONAL" title="Protocolos da Prefeitura — somente leitura">
+        <PageShell>
+          <PageHeader
+            eyebrow="Administração municipal"
+            title="Consulta de processos e protocolos"
+            description="Acompanhamento institucional. A triagem, os despachos, a baixa financeira e a regularização de processos são exclusivos dos setores operacionais autorizados."
+            icon={ClipboardList}
+          />
+          <SectionCard title="Livro de protocolos" description="Consulta sem permissão para alterar processos, documentos, guias ou etapas.">
+            <div data-sigapro-prefeitura-admin-readonly="true" className="space-y-3">
+              <Input
+                value={processListQuery}
+                onChange={(event) => setProcessListQuery(event.target.value)}
+                placeholder="Pesquisar por protocolo, projeto, proprietário ou endereço"
+                className="border-slate-300 bg-white text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+                aria-label="Pesquisar protocolos sem edição"
+              />
+              <p className="text-sm text-slate-600 dark:text-slate-300">
+                {visible.length} protocolo(s) encontrado(s). Exibindo até 75 resultados por consulta.
+              </p>
+              {visible.length === 0 ? (
+                <p className="rounded-xl border border-dashed border-slate-300 p-4 text-sm text-slate-600 dark:text-slate-300">
+                  Nenhum protocolo encontrado para os filtros informados.
+                </p>
+              ) : visible.slice(0, 75).map((process) => (
+                <div key={process.id} className="flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+                  <div className="min-w-0">
+                    <p data-sigapro-contained-text="true" className="font-semibold text-slate-950 dark:text-white">
+                      {formatOfficialProcessNumber(process.protocol)}
+                    </p>
+                    <p data-sigapro-contained-text="true" className="break-words text-sm text-slate-700 dark:text-slate-200">{process.title}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-300">{statusLabel(process.status)}</p>
+                  </div>
+                  <Link
+                    to={buildProcessPath(process)}
+                    className="inline-flex min-h-9 items-center rounded-xl border border-slate-300 px-3 text-sm font-semibold text-slate-800 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-100"
+                  >
+                    Consultar processo
+                  </Link>
+                </div>
+              ))}
+            </div>
+          </SectionCard>
+        </PageShell>
+      </PortalFrame>
+    );
+  }
+
   return (
     <PortalFrame eyebrow="SETOR DE PROTOCOLO" title="Triagem municipal, atendimento e fluxo inicial">
       <PageShell>
