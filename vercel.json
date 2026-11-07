@@ -56,6 +56,10 @@
       "destination": "/api/mercadopago?action=payment-connection"
     },
     {
+      "source": "/api/mp-qa-webhook",
+      "destination": "/api/mercadopago?action=qa-webhook"
+    },
+    {
       "source": "/api/mercadopago/health",
       "destination": "/api/mercadopago?action=health"
     },
