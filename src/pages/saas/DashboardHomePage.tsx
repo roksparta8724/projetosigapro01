@@ -32,6 +32,7 @@ import { PlanModuleRoute } from "@/components/platform/PlanModuleRoute";
 import { Button } from "@/components/ui/button";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { PlanCapacityCard } from "@/components/platform/PlanCapacityCard";
+import { displayDashboardCategoryLabel } from "@/lib/dashboardPresentation";
 import { usePlanCapacityLive } from "@/hooks/usePlanCapacityLive";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
@@ -380,8 +381,8 @@ export function DistributionCard({
                 aria-live="polite"
                 aria-atomic="true"
               >
-                <p className="line-clamp-2 max-w-full break-words text-xs font-semibold leading-4 text-slate-700 dark:text-slate-100" title={activeDatum?.label || "Total de registros"}>
-                  {activeDatum?.label || "Todos os registros"}
+                <p className="line-clamp-2 max-w-full break-words text-xs font-semibold leading-4 text-slate-700 dark:text-slate-100" title={activeDatum ? displayDashboardCategoryLabel(activeDatum.label) : "Total de registros"}>
+                  {activeDatum ? displayDashboardCategoryLabel(activeDatum.label) : "Todos os registros"}
                 </p>
                 <p className="mt-0.5 text-[11px] font-medium tabular-nums text-slate-500 dark:text-slate-300">
                   {activeDatum
@@ -396,7 +397,7 @@ export function DistributionCard({
                   key={item.label}
                   type="button"
                   aria-pressed={activeSegment === index}
-                  aria-label={`${item.label}: ${item.total.toLocaleString("pt-BR")} registros`}
+                  aria-label={`${displayDashboardCategoryLabel(item.label)}: ${item.total.toLocaleString("pt-BR")} registros`}
                   onMouseEnter={() => setActiveSegment(index)}
                   onMouseLeave={() => setActiveSegment(null)}
                   onFocus={() => setActiveSegment(index)}
@@ -409,7 +410,7 @@ export function DistributionCard({
                   }`}
                 >
                   <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: accentPalette[index % accentPalette.length] }} aria-hidden="true" />
-                  <span className="min-w-0 flex-1 break-words text-xs font-medium leading-4 text-slate-700 dark:text-slate-100">{item.label}</span>
+                  <span className="min-w-0 flex-1 break-words text-xs font-medium leading-4 text-slate-700 dark:text-slate-100">{displayDashboardCategoryLabel(item.label)}</span>
                   <span className="shrink-0 text-xs font-semibold tabular-nums text-slate-950 dark:text-white">{item.total.toLocaleString("pt-BR")}</span>
                 </button>
               ))}
@@ -856,7 +857,7 @@ export function DashboardHomePage() {
 
           <div className="grid gap-6 2xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
             <DistributionCard
-              title="Distribuicao por status"
+              title="Distribuição por status"
               description="Leitura sintetica do volume atual por etapa do fluxo."
               icon={BarChart3}
               data={statusChart}
@@ -941,11 +942,11 @@ export function DashboardHomePage() {
       <PageMainGrid className="xl:grid-cols-[minmax(0,1.65fr)_minmax(280px,0.82fr)]">
         <PageMainContent>
           <div className="grid gap-6 2xl:grid-cols-2">
-            <DistributionCard title="Distribuicao por status" description="Volume atual por etapa macro do fluxo processual." icon={BarChart3} data={statusChart} />
-            <DistributionCard title="Distribuicao por tipo" description="Tipos mais frequentes na operacao atual." icon={LayoutDashboard} data={typeChart} />
+            <DistributionCard title="Distribuição por status" description="Volume atual por etapa macro do fluxo processual." icon={BarChart3} data={statusChart} />
+            <DistributionCard title="Distribuição por tipo" description="Tipos mais frequentes na operação atual." icon={LayoutDashboard} data={typeChart} />
           </div>
 
-          <TableCard title="Evolucao de movimentacoes" description="Ritmo recente da carteira de processos no escopo atual." icon={LineChartIcon}>
+          <TableCard title="Evolução de movimentações" description="Ritmo recente da carteira de processos no escopo atual." icon={LineChartIcon}>
             {activitySeries.every((item) => item.total === 0) ? (
               <EmptyState title="Sem evolucao registrada" description="Ainda nao ha eventos suficientes para compor a leitura temporal." icon={Activity} />
             ) : (
@@ -971,7 +972,7 @@ export function DashboardHomePage() {
         </PageMainContent>
 
         <PageSideContent>
-          <DistributionCard title="Concentracao por etapa critica" description="Etapas com maior peso no fluxo atual." icon={Timer} data={stageChart} />
+          <DistributionCard title="Concentração por etapa crítica" description="Etapas com maior peso no fluxo atual." icon={Timer} data={stageChart} />
           <SectionCard title="Movimentacoes recentes" description="Protocolos com atualizacoes mais recentes no escopo." icon={Activity}>
             {recentProcesses.length === 0 ? (
               <EmptyState title="Sem movimentacoes recentes" description="A lista sera preenchida conforme novos eventos forem registrados." icon={LineChartIcon} />
