@@ -14,7 +14,11 @@ const PUBLIC_LEGISLATION = new RegExp(
 export function isSafeR2ObjectKey(value: unknown): value is string {
   if (typeof value !== "string" || !value || value.length > 1024 ||
       value !== value.trim() || value.startsWith("/") || value.endsWith("/") ||
-      /[\\%?#\x00-\x1f\x7f]/.test(value) || value.includes("//")) return false;
+      /[\\%?#]/.test(value) || value.includes("//") ||
+      [...value].some(ch => {
+        const code = ch.charCodeAt(0);
+        return code < 32 || code === 127;
+      })) return false;
   return value.split("/").every(segment =>
     segment.length > 0 && segment.length <= 255 &&
     segment !== "." && segment !== ".." && !segment.includes(".."),
