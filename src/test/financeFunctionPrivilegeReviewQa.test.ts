@@ -29,6 +29,8 @@ describe("SIGAPRO QA — correção financeira preparada, NÃO aplicada em banco
     const source = read();
     expect(source).toContain("_guide.bank_reference");
     expect(source).toContain("_guide.payment_provider");
+    expect(source).toContain("lower(btrim(_guide.payment_provider)) NOT IN ('manual','municipal_system')");
+    expect(source).not.toContain("'bank_direct','municipal_system'");
     expect(source).toContain("aguarde a conciliacao autenticada");
     expect(source).toContain("REVIEW ONLY");
     // The SQL belongs to docs for explicit review, not live migrations.
