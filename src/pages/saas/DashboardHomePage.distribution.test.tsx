@@ -31,11 +31,17 @@ describe("Dashboard SIGAPRO — distribuição premium responsiva e hover", () =
     );
 
     expect(css).toContain("container-type: inline-size;");
-    expect(css).toContain("@container (min-width: 380px)");
-    expect(css).toContain("minmax(150px, 0.84fr) minmax(190px, 1.16fr)");
+    expect(css).toContain("@container (min-width: 520px)");
+    expect(css).toContain("minmax(200px, 0.9fr) minmax(250px, 1.1fr)");
     expect(distribution).toContain('className="sig-dashboard-distribution-layout"');
     expect(distribution).not.toContain("xl:grid-cols-[minmax(0,0.95fr)_minmax(220px,0.85fr)]");
     expect(distribution).not.toContain("<ChartTooltip");
+    expect(distribution).toContain('ratio={1} minHeight={200} maxHeight={272}');
+    expect(distribution).toContain("displayDashboardCategoryLabel(item.label)");
+    expect(dashboard).toContain('min-[2150px]:grid-cols-2');
+    expect(dashboard).toContain('position={{ x: 12, y: 12 }}');
+    expect(dashboard).toContain('title="Distribuição por perfil"');
+    expect(dashboard).toContain('title="Situação financeira"');
     expect(distribution).toContain("onMouseEnter={(_, index) => setActiveSegment(index)}");
   });
 
