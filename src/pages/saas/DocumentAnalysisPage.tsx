@@ -94,7 +94,7 @@ export function DocumentAnalysisPage() {
     reopenProcessDocumentAnalysis,
     createRequirement,
   } = usePlatformData();
-  useLivePlatformRefresh(refreshRemoteStore, { intervalMs: 5000 });
+  useLivePlatformRefresh(refreshRemoteStore, { intervalMs: 30000, refreshOnMount: false });
 
   const process = resolveProcessRoute(processes, processId);
   const document = process?.documents.find((item) => item.id === documentId);
