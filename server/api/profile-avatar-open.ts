@@ -28,7 +28,7 @@ function resolveR2Clients() {
   );
 }
 
-function parseAvatarRequest(req: Req) {
+export function parseAvatarRequest(req: Req) {
   const requestUrl = new URL(req.url || "/api/profile-avatar-open", "https://sigapro.local");
   const objectKey = String(requestUrl.searchParams.get("objectKey") || "")
     .trim()
