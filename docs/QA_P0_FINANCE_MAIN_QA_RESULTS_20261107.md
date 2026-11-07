@@ -71,3 +71,13 @@ Não é seguro usar a conta legada com privilégios elevados; o código do webho
 - Liberação produtiva e 10 gates comerciais de `docs/QA_COMMERCIAL_ACCEPTANCE.json` (todos ainda `pending`).
 
 **Resultado específico:** P0 financeiro nas duas rotinas manuais **corrigido e comprovado em SQL na QA principal**, com backups, rollback e isolamento municipal. **Não significa software liberado comercialmente nem conciliação de banco comprovada.**
+
+## 7. Verificação adicional do webhook de homologação
+
+A definição de `mp_qa_webhook_settle_v1` foi inspecionada no Neon QA principal. Sua ACL concede EXECUTE somente ao proprietário e ao `sigapro_qa_webhook_worker`, não aos usuários de interface `authenticated`. A rotina exige recibo previamente registrado com assinatura verificada, consulta bem-sucedida ao provedor, estado `processed/accredited`, conciliação vinculada à Prefeitura e guia, valores coerentes e PDF original arquivado com SHA; duplicatas usam evidência e retorno idempotente.
+
+**Teste SQL negativo executado e aprovado:** tentativa de liquidar com IDs sintéticos e sem recibo assinado persistido devolveu `manual_review`, `matched=false`. Essa verificação não fez pagamento nem registrou crédito.
+
+**Inventário agregado sem dados sensíveis:** existem **2 guias Mercado Pago** na QA principal, sendo **1 paga e 1 pendente**. Uma apresenta chave e SHA do PDF original, snapshot documental e carimbo de autenticação bancária; as duas têm identificador de pagamento externo. O resultado comprova a existência de metadados, **não** a disponibilidade do objeto R2, a correspondência do PDF ou a verificação de webhook real.
+
+O teste HTTP com callback genuinamente assinado pelo Mercado Pago no sandbox, checagem em tempo real de crédito e reenvio duplicado **continua pendente**, assim como a retirada de privilégios do worker legado (tarefa administrativa separada).
