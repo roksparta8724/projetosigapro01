@@ -96,7 +96,7 @@ export function AcessoPage() {
         // Page chunk downloads while Neon validates the current role/contract.
         preloadLoginLanding(landingPath),
       ]);
-      if (!decision.ok) {
+      if (decision.ok === false) {
         setError(decision.message);
         return;
       }
