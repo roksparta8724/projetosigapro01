@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 const code = readFileSync("src/pages/saas/ProtocolDeskPage.tsx", "utf8");
-const start = code.indexOf('if (session.role === "prefeitura_admin") {\n    const query = processListQuery');
+const start = code.indexOf('if (["prefeitura_admin"].includes(session.role)) {\n    const query = processListQuery');
 const end = code.indexOf('  return (\n    <PortalFrame eyebrow="SETOR DE PROTOCOLO"', start);
 const readonlyBranch = code.slice(start, end);
 
