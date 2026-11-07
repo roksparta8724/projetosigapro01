@@ -39,6 +39,50 @@ describe("SIGAPRO QA — leitura gratuita de pranchas com paginação real e nú
     expect(out.readings.find(x=>x.metric==="front_setback_m")?.page).toBe(1);
     expect(out.textCoverage?.pagesRead).toBe(2);
   });
+  it("lê hexadecimal PDF Tj com texto ASCII e com BOM UTF-16BE",()=>{
+    const sentence="Recuo frontal proposto: 5,00 m";
+    const p=new jsPDF();
+    p.text("PROJETO ARQUITETONICO",10,15);
+    p.text("PLANTA DE IMPLANTACAO",10,20);
+    p.text(sentence,10,30);
+    const original=p.output();
+    const command="("+sentence+") Tj";
+    expect(original).toContain(command);
+    const asciiHex=Buffer.from(sentence,"latin1").toString("hex").toUpperCase();
+    const rawAscii=original.replace(command,"<"+asciiHex+"> Tj");
+    const plain=extractNativeArchitecturalPdf(Buffer.from(rawAscii,"latin1"));
+    expect(plain.readings.find(x=>x.metric==="front_setback_m")).toMatchObject({
+      value:5,page:1,usableForReview:true,
+    });
+    const encoded=Buffer.from(sentence,"utf16le");
+    let utf16be="FEFF";
+    for(let i=0;i<encoded.length;i+=2){
+      utf16be+=encoded[i+1].toString(16).padStart(2,"0").toUpperCase();
+      utf16be+=encoded[i].toString(16).padStart(2,"0").toUpperCase();
+    }
+    const rawUnicode=original.replace(command,"<"+utf16be+"> Tj");
+    const unicode=extractNativeArchitecturalPdf(Buffer.from(rawUnicode,"latin1"));
+    expect(unicode.readings.find(x=>x.metric==="front_setback_m")).toMatchObject({
+      value:5,page:1,usableForReview:true,
+    });
+  });
+  it("reconstitui strings de texto divididas entre tokens de um array TJ",()=>{
+    const sentence="Recuo frontal proposto: 5,00 m";
+    const p=new jsPDF();
+    p.text("PROJETO ARQUITETONICO",10,15);
+    p.text("PLANTA DE IMPLANTACAO",10,20);
+    p.text(sentence,10,30);
+    const original=p.output();
+    const command="("+sentence+") Tj";
+    expect(original).toContain(command);
+    const h1=Buffer.from("Recuo frontal proposto: ","latin1").toString("hex");
+    const h2=Buffer.from("5,00 m","latin1").toString("hex");
+    const contents=original.replace(command,"[<"+h1+"> 50 <"+h2+">] TJ");
+    const out=extractNativeArchitecturalPdf(Buffer.from(contents,"latin1"));
+    expect(out.readings.find(x=>x.metric==="front_setback_m")).toMatchObject({
+      value:5,page:1,usableForReview:true,
+    });
+  });
   it("recusa arvore ciclica/inconsistente sem atribuir paginas falsas",()=>{
     const p=new jsPDF();
     p.text("PROJETO ARQUITETONICO",10,15);
