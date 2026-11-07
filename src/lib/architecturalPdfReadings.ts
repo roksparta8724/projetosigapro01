@@ -88,17 +88,31 @@ export function quoteSupportsArchitecturalReading(
     .replace(/\s+/g, " ").trim().toLowerCase();
   const label = metricLabels[metric].exec(normalized);
   if (!label) return false;
-  // A legal LIMIT printed next to a metric is not evidence that the project
-  // actually HAS that dimension. Require an explicitly observed/projected
-  // value before accepting a citation that also contains a legal threshold.
-  const regulatoryOnly =
-    /\b(?:limite\s+legal|parametro\s+urbanistico|indice\s+urbanistico|exigid[oa]\s+pel[ao]\s+lei|exigid[oa]\s+pel[ao]\s+plano\s+diretor|conforme\s+(?:a\s+)?legislacao|obrigatori[oa]s?|maxim[oa]\s+permitid[oa]|minim[oa]\s+(?:permitid[oa]|legal|exigid[oa]))\b/.test(normalized);
-  const clearlyProjectValue =
-    /\b(?:propost[oa]|projetad[oa]|calculad[oa]|medid[oa]|previst[oa]|executad[oa]|existente)\b/.test(normalized);
-  if (regulatoryOnly && !clearlyProjectValue) return false;
+  // Read the first numeric value attached to THIS metric, not an arbitrary
+  // number found later in the OCR excerpt. A legal minimum/maximum is a rule,
+  // never evidence that a particular building actually meets that rule.
   const following = normalized.slice(label.index + label[0].length).slice(0, 64);
   const found = /\d+(?:[.,]\d+)*/.exec(following);
   if (!found || found.index > 32) return false;
+
+  // Context must belong to the first number itself. Searching for "proposed"
+  // across the entire quote is unsafe: "minimum legal 5m; proposed 4m" used
+  // to allow the first (legal) number to masquerade as the observed setback.
+  const preValue = normalized.slice(Math.max(0, label.index - 45),
+    label.index + label[0].length) + following.slice(0, found.index);
+  const afterValue = following.slice(found.index + found[0].length);
+  const projectContext = preValue + afterValue.slice(0, 20);
+  const projectValueNearMetric =
+    /\b(?:propost[oa]s?|projetad[oa]s?|calculad[oa]s?|medid[oa]s?|previst[oa]s?|executad[oa]s?|existente)\b/.test(projectContext);
+  const legalRequirementBeforeValue =
+    /\b(?:minim[oa]s?|maxim[oa]s?|obrigatori[oa]s?|exigid[oa]s?|permitid[oa]s?|requerid[oa]s?|normativ[oa]s?|legal|legais|legislacao|zoneamento|limite|parametro(?:s)?|plano\s+diretor|lei)\b/.test(preValue);
+  const legalRequirementImmediatelyAfterValue =
+    /^\s*(?:[,:;(/)\-–]*\s*)*(?:minim[oa]s?|maxim[oa]s?|obrigatori[oa]s?|exigid[oa]s?|permitid[oa]s?|legal|legais|permitid[oa]s?|limite)\b/.test(afterValue);
+  const regulatoryOnly =
+    /\b(?:limite\s+legal|parametro\s+urbanistico|indice\s+urbanistico|exigid[oa]\s+pel[ao]\s+lei|exigid[oa]\s+pel[ao]\s+plano\s+diretor|conforme\s+(?:a\s+)?legislacao|obrigatori[oa]s?|maxim[oa]\s+permitid[oa]|minim[oa]\s+(?:permitid[oa]|legal|exigid[oa]))\b/.test(normalized);
+  if (legalRequirementBeforeValue ||
+      (legalRequirementImmediatelyAfterValue && !projectValueNearMetric) ||
+      (regulatoryOnly && !projectValueNearMetric)) return false;
   const quoted = quotedNumber(found[0]);
   if (quoted === null || Math.abs(quoted - value) > 0.000001) return false;
   const suffix = following.slice(found.index + found[0].length);
