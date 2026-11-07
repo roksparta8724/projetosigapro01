@@ -204,11 +204,12 @@ BEGIN
   -- SECURITY: bank-connected guides are paid exclusively by an authenticated
   -- provider callback with verified credit; the manual Financeiro button must
   -- never bypass HMAC, original PDF, amount or idempotency attestations.
-  IF NULLIF(btrim(coalesce(_guide.payment_provider,'')),'') = 'mercado_pago'
-     OR (NULLIF(btrim(coalesce(_guide.bank_reference,'')),'') IS NOT NULL
-         AND NULLIF(btrim(coalesce(_guide.payment_provider,'')),'') IS NULL)
+  -- Fail closed for ANY externally linked charge. A "bank_direct"
+  -- provider with bank_reference is still a bank transaction, not manual
+  -- cash desk receipt. The provider webhook must attest the settlement.
+  IF NULLIF(btrim(coalesce(_guide.bank_reference,'')),'') IS NOT NULL
      OR (NULLIF(btrim(coalesce(_guide.payment_provider,'')),'') IS NOT NULL
-         AND _guide.payment_provider NOT IN ('manual','bank_direct','municipal_system'))
+         AND lower(btrim(_guide.payment_provider)) NOT IN ('manual','municipal_system'))
   THEN
     RAISE EXCEPTION 'Pagamento bancario vinculado: confirmacao manual bloqueada. Aguarde conciliacao autenticada do provedor.';
   END IF;
