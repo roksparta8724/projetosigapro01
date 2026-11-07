@@ -54,7 +54,7 @@ describe("SIGAPRO QA — recuperação de avatar legado sem SSRF nem imagem ativ
   it("busca cache R2 antes de permitir rede; impede redirects e respostas enormes", () => {
     const code = readFileSync("server/api/profile-avatar-open.ts","utf8");
     expect(code.indexOf("streamAvatarFromAnyClient(clients, bucket, cacheKey, res)"))
-      .toBeLessThan(code.indexOf("legacyAvatarNetworkAllowed(source"));
+      .toBeLessThan(code.indexOf("if (!legacyAvatarNetworkAllowed(source"));
     expect(code).toContain('readEnv("SIGAPRO_LEGACY_AVATAR_SOURCE_ORIGIN")');
     expect(code).toContain('redirect: "error"');
     expect(code).not.toContain('redirect: "follow"');
