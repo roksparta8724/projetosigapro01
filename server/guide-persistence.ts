@@ -83,6 +83,22 @@ export function storedGuideCharge(guide: StoredGuide): MercadoPagoGuideBoletoRes
   };
 }
 
+/** Strict centavos conversion. Bank/provider money is an exact decimal, not
+ * a float that may silently round fractions of a cent into a real payment. */
+export function exactChargeCents(value:unknown):number|null{
+  if(typeof value!=="string"||!/^(?:0|[1-9]\d{0,9})(?:\.\d{1,2})?$/.test(value))
+    return null;
+  const parts=value.split(".");
+  const cents=Number(parts[0])*100+Number((parts[1]||"").padEnd(2,"0"));
+  return Number.isSafeInteger(cents)&&cents>0?cents:null;
+}
+function guideCents(value:unknown):number|null{
+  if(typeof value!=="number"||!Number.isFinite(value)||value<=0)return null;
+  const cents=Math.round(value*100);
+  return Number.isSafeInteger(cents)&&
+    Math.abs(value*100-cents)<0.000001?cents:null;
+}
+
 /**
  * Independent server-side check; neither a client response nor a test webhook
  * may bind an unrelated amount, environment or order to a municipal guide.
@@ -118,11 +134,9 @@ export function assertProviderChargeMatchesGuide(
   if (guide.bank_reference && guide.bank_reference !== charge.orderId) {
     throw new Error("Guia já vinculada a outra cobrança; é proibido trocar a ordem bancária.");
   }
-  const amount = Number(charge.amount);
-  const original = Number(guide.amount);
-  if (!Number.isFinite(amount) || !Number.isFinite(original) ||
-      amount <= 0 || original <= 0 ||
-      Math.round(amount * 100) !== Math.round(original * 100)) {
+  const amount = exactChargeCents(charge.amount);
+  const original = guideCents(guide.amount);
+  if (amount===null || original===null || amount!==original) {
     throw new Error("Valor da cobrança não corresponde ao valor imutável da guia.");
   }
 }
