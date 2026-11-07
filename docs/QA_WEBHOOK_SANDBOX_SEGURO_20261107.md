@@ -1,0 +1,113 @@
+# SIGAPRO — webhook Mercado Pago Orders em homologação QA
+
+**Escopo:** somente Vercel **Preview** da branch
+`fix/qa-triagem-analise-pagamento-20261101`, Neon QA
+`br-solitary-sound-b4xlbvs6`, database
+`sigapro_migration_stage_20260923`. Nada neste fluxo pode usar
+`main`, a branch Neon de produção ou credenciais de produção.
+
+## Implementação
+
+O callback é acessível em
+`/api/mp-qa-webhook?municipality_id=<uuid>&type=order&data.id=<orderId>`.
+A entrada é reescrita em `vercel.json` para
+`/api/mercadopago?action=qa-webhook`, compartilhando a função
+serverless Mercado Pago existente. Isso mantém o projeto dentro do
+limite de **12 funções** no Vercel Hobby, sem introduzir um 13º arquivo
+serverless. A regra `git.deploymentEnabled` continua `false` na
+branch QA para evitar builds desnecessários.
+
+O handler `server/mp-qa-webhook.ts` exige:
+
+1. **Ambiente restrito:** `VERCEL_ENV=preview` e
+   `VERCEL_GIT_COMMIT_REF` igual ao nome exato da branch QA.
+2. **Banco fixo:** `SIGAPRO_QA_MP_WEBHOOK_DATABASE_URL` com role
+   `sigapro_qa_webhook_worker`, host do endpoint exclusivo
+   `ep-misty-breeze-b4ri8ig0[ -pooler]` e banco QA indicado. SSL
+   `verify-full`, sem comandos de role/opções extras na string.
+3. **Auditoria por conexão:** antes de ler as credenciais municipais,
+   executar `assertQaWorkerLeastPrivilege` na própria sessão PG;
+   recusar `BYPASSRLS`, superuser, membros privilegiados, acesso
+   direto a perfis/documentos/processos ou escrita financeira.
+   `sigapro_prod_webhook_worker` **nunca** é aceito na QA.
+4. **Credenciais por Prefeitura:** recuperar somente a conexão
+   `mercado_pago/test/active` da Prefeitura indicada, por
+   `mp_qa_webhook_connection_v1`; decifrar em memória com
+   `MUNICIPAL_PAYMENT_MASTER_KEY`. Nunca usar token global.
+5. **Assinatura e origem:** aceitar apenas `live_mode=false`, tópico
+   Orders e evento HMAC-SHA256 válido com `x-signature`,
+   `x-request-id`, `data.id` da URL/corpo e timestamp recente.
+   Mercado Pago documenta essa validação. Evento sem prova é
+   recusado antes da leitura bancária.
+6. **Consulta independente:** refazer GET de Orders na API oficial
+   do Mercado Pago com a credencial municipal da QA. O helper existente
+   valida identificadores, método PIX/boleto, moeda BRL, centavos,
+   estado `processed/accredited`, ausência de estornos e coerência
+   da transação.
+7. **Recibo e baixa condicionada:** gravar recibo via
+   `mp_qa_webhook_ingest_v1`; somente com recibo casado, crédito
+   efetivo e dados válidos chamar `mp_qa_webhook_settle_v1`. A
+   função do Neon confere Prefeitura, guia, identificadores
+   bancários, objeto PDF original/sha256, valores, prova do
+   pedido PIX, assinatura e idempotência. Sem PDF original,
+   a compensação permanece bloqueada.
+8. **Confidencialidade:** logs genéricos, sem registrar corpo,
+   dados pessoais, JWT, credenciais, chaves criptográficas ou
+   conteúdo do projeto.
+
+## Configuração verificada sem ler segredos
+
+Na Vercel, as três variáveis abaixo foram verificadas como
+**Preview / branch QA atual**:
+
+- `SIGAPRO_QA_MP_WEBHOOK_DATABASE_URL`: **criada** para o worker
+  restrito do Neon QA, tipo `sensitive`, sem expor a senha.
+- `MUNICIPAL_PAYMENT_MASTER_KEY`: escopo da variável **existente**
+  movido da branch QA antiga para a branch ativa. O valor foi
+  preservado, sem leitura nem troca.
+- `SIGAPRO_BANK_CHARGE_SIGNING_SECRET`: escopo da variável
+  **existente** movido da branch QA antiga para a branch ativa.
+  O valor foi preservado, sem leitura nem troca.
+
+A branch de Preview antiga
+`qa/sigapro-ia-logo-integrado-20261023` deixa de receber essas
+duas variáveis nas **novas implantações**; os deployments antigos
+já publicados não foram reimplantados nem alterados. As configurações
+de **production não foram modificadas**.
+
+O `GET /api/mp-qa-webhook` indica se a URL restrita do worker e a
+chave de criptografia estão presentes (`configured`), sem revelar
+seus conteúdos; isso não atesta que a Prefeitura possua conexão
+`mercado_pago/test/active`, saldo no provedor ou crédito real.
+
+## Testes automáticos
+
+`server/mp-qa-webhook.test.ts` valida: gate de branch/ambiente,
+URL fixa de banco, role QA específico, SSL, recusa de opções de
+conexão privilegiadas, falta de credencial, proibição de `live_mode`
+produtivo, validação HMAC e reconsulta ao provedor por contrato,
+campos obrigatórios para liquidação, health fail-closed,
+roteamento no mesmo endpoint e não ultrapassar 12 funções.
+`server/mp-webhook-signature.test.ts` e os testes existentes de
+centavos e integridade cobrem partes adicionais.
+
+## Critérios ainda não comprovados
+
+- **Webhook realmente enviado pelo Mercado Pago em sandbox**,
+  assinado pela conta municipal, com observação de uma ordem
+  `processed/accredited` e nova baixa `pending -> paid`.
+  Exige credencial de teste ativa e notificação real.
+- Reenvio de evento assinado duplicado, estorno e falhas de rede,
+  verificados contra a API real e o recibo no banco.
+- PDF original R2 existente e recuperável, não apenas metadados.
+- Confirmar que as duas variáveis de criptografia preservadas
+  correspondem às credenciais já cifradas na QA por meio de
+  um ensaio efetivo. Sem esse teste, não afirmar funcionamento.
+- Rolagem do endpoint em Preview **READY** do SHA que inclui
+  esta implementação e `GET` de saúde. O Preview anterior
+  `b5cc7d1` ainda não contém a rota.
+
+**Não habilitar webhook ou conexão na produção por esta etapa.**
+A função `officialize_preprotocol_v1` da produção ainda exige
+tratamento P0 controlado, e os dez aceites comerciais não estão
+aprovados.
