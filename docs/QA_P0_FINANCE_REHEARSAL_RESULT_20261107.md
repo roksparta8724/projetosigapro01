@@ -51,9 +51,9 @@ O primeiro ensaio com guia já paga não conseguiu alterar a guia por **proteç�
 
 O fato de a produção ainda permitir chamada direta de oficialização é **um risco de autorização por corrigir**, não evidência de exploração ou incidente.
 
-## Reversão pronta na branch de ensaio
+## Reversão ensaiada e comprovada na branch de ensaio
 
-As definições anteriores estão no banco isolado em `sigapro_qa_p0_20261107.function_backup`, preservadas com hash e ACL. Para reverter **apenas essa branch**, restaurar os dois corpos de função via `definition` e reproduzir o `proacl` salvo para a oficialização. Não executar restauração sobre QA principal ou produção. Não excluir a branch automaticamente; ela já existia e pode servir a outros ensaios.
+As definições anteriores estão no banco isolado em `sigapro_qa_p0_20261107.function_backup`, preservadas com hash e ACL. **Ensaio de reversão executado e aprovado:** em uma subtransação PL/pgSQL, as três definições originais foram recriadas via `CREATE OR REPLACE FUNCTION`, cada hash MD5 foi conferido e os privilégios `EXECUTE` originais da oficialização foram restaurados provisoriamente. Uma exceção controlada reverteu toda a restauração; imediatamente depois, conferi novamente os hashes das duas funções corrigidas e confirmei a ausência de `EXECUTE` para `PUBLIC`/`authenticated`. O estado endurecido permaneceu intacto. Nenhuma alteração atingiu QA principal ou produção. Para reverter **apenas essa branch**, restaurar os dois corpos de função via `definition` e reproduzir o `proacl` salvo para a oficialização. Não executar restauração sobre QA principal ou produção. Não excluir a branch automaticamente; ela já existia e pode servir a outros ensaios.
 
 ## Critérios ainda NÃO cumpridos para entrega comercial
 
