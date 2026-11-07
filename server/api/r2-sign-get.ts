@@ -94,6 +94,7 @@ export async function authorizePrivateR2DocumentRead(
       method: "GET",
       headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
       cache: "no-store",
+      redirect: "error",
     });
     if (!result.ok) {
       return {
@@ -283,22 +284,32 @@ export default async function handler(req: Req, res: Res) {
       : null;
 
     if (municipalTarget) {
-      const signedUrl = await getSignedUrl(
-        municipalTarget.client,
-        new GetObjectCommand({
+      try {
+        // BYOS credentials can sign a non-existent object offline. Check the
+        // original BEFORE reporting success to the PDF viewer.
+        await municipalTarget.client.send(new HeadObjectCommand({
           Bucket: municipalTarget.bucket,
           Key: municipalTarget.objectKey,
-        }),
-        { expiresIn: ttl },
-      );
-      json(res, 200, {
-        signedUrl,
-        bucket: requestedBucket,
-        resolvedBucket: bucket,
-        objectKey,
-        storageProvider: "municipal_s3",
-      });
-      return;
+        }));
+        const signedUrl = await getSignedUrl(
+          municipalTarget.client,
+          new GetObjectCommand({
+            Bucket: municipalTarget.bucket,
+            Key: municipalTarget.objectKey,
+          }),
+          { expiresIn: ttl },
+        );
+        json(res, 200, {
+          signedUrl,
+          bucket: requestedBucket,
+          resolvedBucket: bucket,
+          objectKey,
+          storageProvider: "municipal_s3",
+        });
+        return;
+      } finally {
+        municipalTarget.client.destroy();
+      }
     }
 
     if (!envOk) {
@@ -340,6 +351,8 @@ export default async function handler(req: Req, res: Res) {
         break;
       } catch (error) {
         lastError = error;
+      } finally {
+        client.destroy();
       }
     }
 
