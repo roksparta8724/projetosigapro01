@@ -92,8 +92,17 @@ begin
     -- Stop manual marking of bank-connected charges. Only the provider
     -- verified/attested settlement worker may confirm those payments.
     if nullif(btrim(coalesce(_guide.bank_reference,'')),'') is not null
-       or nullif(btrim(coalesce(_guide.payment_provider,'')),'')
-          not in ('manual','municipal_system') then
+       or nullif(btrim(coalesce(_guide.bank_payment_id,'')),'') is not null
+       or nullif(btrim(coalesce(_guide.bank_status,'')),'') is not null
+       or nullif(btrim(coalesce(_guide.bank_status_detail,'')),'') is not null
+       or _guide.bank_authenticated_at is not null
+       or _guide.provider_charge_saved_at is not null
+       or nullif(btrim(coalesce(_guide.ticket_url,'')),'') is not null
+       or nullif(btrim(coalesce(_guide.barcode,'')),'') is not null
+       or nullif(btrim(coalesce(_guide.digitable_line,'')),'') is not null
+       or nullif(btrim(coalesce(_guide.provider_environment,'')),'') is not null
+       or (nullif(btrim(coalesce(_guide.payment_provider,'')),'') is not null
+           and lower(btrim(_guide.payment_provider)) not in ('manual','municipal_system')) then
       raise exception 'Guia vinculada a provedor bancario: aguarde a conciliacao autenticada.';
     end if;
     update public.payment_guides
@@ -207,9 +216,18 @@ BEGIN
   -- Fail closed for ANY externally linked charge. A "bank_direct"
   -- provider with bank_reference is still a bank transaction, not manual
   -- cash desk receipt. The provider webhook must attest the settlement.
-  IF NULLIF(btrim(coalesce(_guide.bank_reference,'')),'') IS NOT NULL
-     OR (NULLIF(btrim(coalesce(_guide.payment_provider,'')),'') IS NOT NULL
-         AND lower(btrim(_guide.payment_provider)) NOT IN ('manual','municipal_system'))
+  IF nullif(btrim(coalesce(_guide.bank_reference,'')),'') IS NOT NULL
+     OR nullif(btrim(coalesce(_guide.bank_payment_id,'')),'') IS NOT NULL
+     OR nullif(btrim(coalesce(_guide.bank_status,'')),'') IS NOT NULL
+     OR nullif(btrim(coalesce(_guide.bank_status_detail,'')),'') IS NOT NULL
+     OR _guide.bank_authenticated_at IS NOT NULL
+     OR _guide.provider_charge_saved_at IS NOT NULL
+     OR nullif(btrim(coalesce(_guide.ticket_url,'')),'') IS NOT NULL
+     OR nullif(btrim(coalesce(_guide.barcode,'')),'') IS NOT NULL
+     OR nullif(btrim(coalesce(_guide.digitable_line,'')),'') IS NOT NULL
+     OR nullif(btrim(coalesce(_guide.provider_environment,'')),'') IS NOT NULL
+     OR (nullif(btrim(coalesce(_guide.payment_provider,'')),'') IS NOT NULL
+           AND lower(btrim(_guide.payment_provider)) NOT IN ('manual','municipal_system'))
   THEN
     RAISE EXCEPTION 'Pagamento bancario vinculado: confirmacao manual bloqueada. Aguarde conciliacao autenticada do provedor.';
   END IF;
