@@ -61,9 +61,7 @@ function useAuthGatewayValue(): AuthGatewayContextValue {
       updateEmail: bootstrap.updateEmail,
       updatePassword: bootstrap.updatePassword,
       signOut: async () => {
-        console.log("[Logout] signOut start");
         await bootstrap.signOut();
-        console.log("[Logout] signOut result");
         if (typeof window !== "undefined") {
           try {
             const transientKeys = [
