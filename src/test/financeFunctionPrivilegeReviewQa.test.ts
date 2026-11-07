@@ -46,6 +46,14 @@ describe("SIGAPRO QA — correção financeira preparada, NÃO aplicada em banco
     ]) {
       expect(source.split(bankEvidence).length).toBeGreaterThanOrEqual(3);
     }
+    // A guia com status pago, mas sem processo oficial, nao pode
+    // contornar a verificacao de banco pela condicao "already paid".
+    const pre = source.slice(
+      source.indexOf("CREATE OR REPLACE FUNCTION public.confirm_preprotocol_payment_v1("),
+      source.indexOf("CREATE OR REPLACE FUNCTION public.confirm_process_payment_guide("),
+    );
+    expect(pre.indexOf("if nullif(btrim(coalesce(_guide.bank_reference"))
+      .toBeLessThan(pre.indexOf("if coalesce(_guide.paid,false)"));
     expect(source).toContain("aguarde a conciliacao autenticada");
     expect(source).toContain("REVIEW ONLY");
     // The SQL belongs to docs for explicit review, not live migrations.
