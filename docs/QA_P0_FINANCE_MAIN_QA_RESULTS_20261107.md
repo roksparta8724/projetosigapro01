@@ -81,3 +81,18 @@ A definição de `mp_qa_webhook_settle_v1` foi inspecionada no Neon QA principal
 **Inventário agregado sem dados sensíveis:** existem **2 guias Mercado Pago** na QA principal, sendo **1 paga e 1 pendente**. Uma apresenta chave e SHA do PDF original, snapshot documental e carimbo de autenticação bancária; as duas têm identificador de pagamento externo. O resultado comprova a existência de metadados, **não** a disponibilidade do objeto R2, a correspondência do PDF ou a verificação de webhook real.
 
 O teste HTTP com callback genuinamente assinado pelo Mercado Pago no sandbox, checagem em tempo real de crédito e reenvio duplicado **continua pendente**, assim como a retirada de privilégios do worker legado (tarefa administrativa separada).
+
+## 8. Integridade dos registros históricos (somente leitura)
+
+Auditoria adicional executada na QA principal, após a implantação, sem coletar identificação pessoal e sem alterar registros:
+
+| Verificação | Resultado |
+|---|---:|
+| Guias com Prefeitura diferente do processo vinculado | **0** |
+| Documentos com Prefeitura diferente do processo vinculado | **0** |
+| Números oficiais duplicados por Prefeitura | **0** |
+| Guia de protocolo marcada paga mas processo não oficializado | **0** |
+| Processos oficiais antigos sem `officialized_by_payment_guide_id` | **2** |
+| Desses, processos com exatamente uma guia de protocolo marcada paga | **2** |
+
+Os dois registros antigos são **candidatos a reconciliação, não prova suficiente de crédito bancário**. Um único `paid=true` legado não comprova, por si só, assinatura do provedor, valor creditado ou autenticidade do PDF original. **Não foi feito preenchimento retroativo automático.** A reparação exigirá evidência bancária/documental, verificação de auditoria, conferência da guia original e um procedimento versionado que não altere o número oficial histórico.
