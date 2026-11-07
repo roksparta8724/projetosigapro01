@@ -197,11 +197,18 @@ async function handleSignedTestNotice(req:Req,res:Res){
 export default async function handleQaMpWebhook(req:Req,res:Res){
  if(!isQaMpWebhookEnvironment())
    return respond(res,503,{ok:false,code:"QA_PREVIEW_ONLY"});
+ const workerConfigured=Boolean(process.env.SIGAPRO_QA_MP_WEBHOOK_DATABASE_URL);
+ const encryptionConfigured=Boolean(String(process.env.MUNICIPAL_PAYMENT_MASTER_KEY||"").trim());
  if(req.method==="GET")
    return respond(res,200,{ok:true,environment:"qa",
-     configured:Boolean(process.env.SIGAPRO_QA_MP_WEBHOOK_DATABASE_URL),
+     configured:workerConfigured&&encryptionConfigured,
+     workerConfigured,encryptionConfigured,
      policy:"signed_test_order_after_original_pdf"});
  if(req.method!=="POST")
    return respond(res,405,{ok:false,code:"METHOD_NOT_ALLOWED"});
+ // A missing encryption key must be shown as an actionable QA issue,
+ // never become an opaque timeout or silently fall back to production.
+ if(!workerConfigured||!encryptionConfigured)
+   return respond(res,503,{ok:false,code:"QA_WEBHOOK_CREDENTIALS_NOT_CONFIGURED"});
  return handleSignedTestNotice(req,res);
 }
