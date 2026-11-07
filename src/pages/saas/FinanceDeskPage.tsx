@@ -93,7 +93,7 @@ export function FinanceDeskPage() {
     markGuideAsPaid,
   } = usePlatformData();
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
-  useLivePlatformRefresh(refreshRemoteStore, { intervalMs: 8000 });
+  useLivePlatformRefresh(refreshRemoteStore, { intervalMs: 20000, refreshOnMount: false });
   const processes = getVisibleProcessesByScope(session, effectiveScopeId, allProcesses);
   const financeLedgerProcesses = useMemo(
     () =>
