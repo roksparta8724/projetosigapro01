@@ -38,7 +38,7 @@ export function parseAvatarRequest(req: Req) {
     const validProfileObject =
       // A mesma lista de caminhos permitidos deve valer no browser e servidor.
       // Não expor os demais arquivos da plataforma (documentos, marcas, etc.).
-      /^(?:municipalities\\/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}|platform)\\/profiles\\/avatars\\/[a-zA-Z0-9_-]+\\/[a-zA-Z0-9._-]+$/i.test(
+      /^(?:municipalities\/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}|platform)\/profiles\/avatars\/[a-zA-Z0-9_-]+\/[a-zA-Z0-9._-]+$/i.test(
         objectKey,
       );
     if (!validProfileObject) {
