@@ -6,6 +6,7 @@ import { extractVisualPdf, resolveVisualPdfProvider } from "./architectural-pdf-
 import { extractNativeArchitecturalPdf } from "./native-architectural-pdf.js";
 import { inspectProcessTerritory } from "./urban-territorial-context.js";
 import {auditArchitecturalPdfPages} from "../src/lib/architecturalPdfPageAudit.js";
+import { isEligibleArchitecturalDocument, type ArchitecturalDocumentRow } from "./architectural-document-guard.js";
 import {verifiedUrbanBaseline,type UrbanExistingLegalBaseline} from "../src/lib/urbanExistingLegalBaseline.js";
 
 export const maxDuration = 60;
@@ -34,9 +35,7 @@ function productionPdfAiOptIn():boolean {
   return process.env.VERCEL_ENV==="production" &&
     readEnv("SIGAPRO_PDF_AI_PROD_ENABLED").trim().toLowerCase()==="true";
 }
-type DocumentRow = {id:string;process_id:string;municipality_id:string;tenant_id?:string;
-  title:string;file_name:string;file_path:string;mime_type:string;file_size_bytes?:string|number;
-  version:number;is_valid:boolean;invalidated_at:string|null;};
+type DocumentRow = ArchitecturalDocumentRow;
 
 function json(res:Res,status:number,body:unknown){
   res.statusCode=status;res.setHeader("Content-Type","application/json; charset=utf-8");
@@ -52,8 +51,13 @@ function sameOrigin(req:Req){
   }catch{return false;}
 }
 async function readBody(req:Req):Promise<Record<string,unknown>>{
-  if(req.body&&typeof req.body==="object"&&!Array.isArray(req.body))
-    return req.body as Record<string,unknown>;
+  if(req.body&&typeof req.body==="object"&&!Array.isArray(req.body)){
+    // Vercel may preparse JSON before this handler. Apply the same 2 KB limit
+    // to the object as to a raw stream; otherwise the limit is bypassed.
+    const parsed=req.body as Record<string,unknown>;
+    if(Buffer.byteLength(JSON.stringify(parsed),"utf8")>2048)throw new Error("BODY_LIMIT");
+    return parsed;
+  }
   const chunks:Buffer[]=[];let count=0;
   for await(const chunk of req){count+=chunk.length;
     if(count>2048)throw new Error("BODY_LIMIT");chunks.push(Buffer.from(chunk));}
@@ -74,7 +78,8 @@ async function verifiedDocument(req:Req,tenant:string,processId:string,documentI
   if(!res.ok)return null;
   const data:unknown=await res.json();
   const doc=Array.isArray(data)?data[0] as DocumentRow|undefined:undefined;
-  if(!doc||doc.id!==documentId||doc.process_id!==processId||
+  if(!doc||!isEligibleArchitecturalDocument(doc,tenant,processId,documentId)||
+    doc.id!==documentId||doc.process_id!==processId||
     doc.is_valid!==true||doc.invalidated_at!==null||
     doc.municipality_id!==tenant||!doc.file_path?.startsWith("municipalities/"+tenant+"/")||
     doc.file_path.includes("..")||doc.file_path.includes("\\")||
