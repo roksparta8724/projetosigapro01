@@ -61,6 +61,14 @@ function originalObjectKey(original: GuideOriginal, sha256: string) {
 }
 
 function guideCentavos(amount:unknown):number|null{
+  // Neon NUMERIC can be deserialized as a decimal string by the Data API.
+  // Disallow locale separators, exponent notation and fractional cents.
+  if(typeof amount==="string"){
+    if(!/^(?:0|[1-9]\d{0,9})(?:\.\d{1,2})?$/.test(amount))return null;
+    const [whole,fraction=""]=amount.split(".");
+    const cents=Number(whole)*100+Number(fraction.padEnd(2,"0"));
+    return Number.isSafeInteger(cents)&&cents>0?cents:null;
+  }
   if(typeof amount!=="number"||!Number.isFinite(amount)||amount<=0)return null;
   const cents=Math.round(amount*100);
   return Number.isSafeInteger(cents)&&Math.abs(amount*100-cents)<0.000001?cents:null;

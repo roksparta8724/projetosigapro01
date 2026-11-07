@@ -30,7 +30,7 @@ describe("SIGAPRO QR PIX — integridade EMV e valor da guia",()=>{
   });
   it("aceita valor ausente apenas como QR dinâmico, nunca como R$ 0,00",()=>{
     const withoutAmount=valid.replace("540535.24","");
-    const dynamic=withCrc(withoutAmount.slice(0,-8));
+    const dynamic=withCrc(withoutAmount.slice(0,-4));
     expect(isValidPixPayload(dynamic)).toBe(true);
     expect(pixPayloadAmountCents(dynamic)).toBeNull();
   });
