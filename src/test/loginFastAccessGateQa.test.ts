@@ -77,7 +77,7 @@ describe("SIGAPRO QA — entrada rápida com autorização institucional real", 
     const unavailable=vi.fn<LoginAccessRpc>().mockRejectedValue(new Error("Secret in message"));
     const result=await verifyLoginLandingAccess("financeiro",city,unavailable);
     expect(result).toMatchObject({ok:false});
-    if (!result.ok) expect(result.message).not.toContain("Secret");
+    if (result.ok === false) expect(result.message).not.toContain("Secret");
   });
 
   it("mantém autorização de rota/API e remove espera artificial por store completo", () => {
