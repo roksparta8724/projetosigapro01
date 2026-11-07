@@ -366,7 +366,7 @@ export function DistributionCard({
                   </PieChart>
                 </ChartContainer>
                 <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center" aria-hidden="true">
-                  <span className="text-[clamp(1.25rem,2.7vw,1.9rem)] font-bold leading-none tabular-nums tracking-tight text-slate-950 dark:text-white">
+                  <span className="text-[clamp(1.125rem,2vw,1.5rem)] font-bold leading-none tabular-nums tracking-tight text-slate-950 dark:text-white">
                     {(activeDatum?.total ?? totalVolume).toLocaleString("pt-BR")}
                   </span>
                   <span className="mt-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">
@@ -375,7 +375,7 @@ export function DistributionCard({
                 </div>
               </div>
               <div
-                className="mt-2 flex min-h-[58px] min-w-0 flex-col items-center justify-center rounded-xl border border-slate-200/70 bg-slate-50/70 px-3 py-2 text-center dark:border-white/10 dark:bg-white/[0.035]"
+                className="mt-2 flex h-[68px] min-w-0 flex-col items-center justify-center overflow-hidden rounded-xl border border-slate-200/70 bg-slate-50/70 px-3 py-2 text-center dark:border-white/10 dark:bg-white/[0.035]"
                 role="status"
                 aria-live="polite"
                 aria-atomic="true"
