@@ -101,5 +101,13 @@ describe("SIGAPRO QA — R2: não assinar objeto municipal sem autorização da 
     expect(api).toContain("MAX_SIGN_REQUEST_BYTES = 4096");
     expect(api).not.toContain('console.log("[ProdAudit][R2Sign] env"');
     expect(api).not.toContain('error: rawMessage');
+    const legislation = readFileSync("api/legislation-open.ts", "utf8");
+    expect(legislation).toContain("isPublicLegislationPdfKey(objectKey)");
+    expect(legislation).toContain("getR2EndpointCandidates()");
+    expect(legislation).toContain("HeadObjectCommand");
+    expect(legislation).not.toContain("error.message");
+    const config = readFileSync("vitest.config.ts", "utf8");
+    expect(config).toContain('"server/**/*.{test,spec}.{ts,tsx}"');
+
   });
 });
