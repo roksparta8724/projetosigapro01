@@ -345,7 +345,7 @@ export function DistributionCard({
           <div className="sig-dashboard-distribution-layout">
             <div className="min-w-0">
               <div className="sig-dashboard-distribution-chart relative">
-                <ChartContainer config={chartConfig} className="mx-auto w-full" ratio={1} minHeight={188} maxHeight={248}>
+                <ChartContainer config={chartConfig} className="mx-auto w-full" ratio={1} minHeight={200} maxHeight={272}>
                   <PieChart>
                     <Pie
                       data={data}
@@ -863,8 +863,8 @@ export function DashboardHomePage() {
               data={statusChart}
             />
             <DistributionCard
-              title={isMaster ? "Volume por prefeitura" : "Distribuicao por tipo"}
-              description={isMaster ? "Clientes com maior concentracao de processos." : "Tipos de processo mais representativos no recorte atual."}
+              title={isMaster ? "Volume por prefeitura" : "Distribuição por tipo"}
+              description={isMaster ? "Clientes com maior concentração de processos." : "Tipos de processo mais representativos no recorte atual."}
               icon={TrendingUp}
               data={isMaster ? tenantVolumeChart : typeChart}
             />
