@@ -6,8 +6,8 @@
 const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}";
 const PUBLIC_LEGISLATION = new RegExp(
   "^municipalities/" + UUID +
-  "/legislation(?:/(?:[a-z0-9_ ()-]+/)*[a-z0-9_ ()-]+\\.pdf" +
-  "|-(?:plano-diretor|uso-solo|zoneamento|leis-complementares|registry)/(?:[a-z0-9_ ()-]+/)*[a-z0-9_ ()-]+\\.pdf)$",
+  "/legislation(?:/(?:[a-z0-9_. ()-]+/)*[a-z0-9_. ()-]+\\.pdf" +
+  "|-(?:plano-diretor|uso-solo|zoneamento|leis-complementares|registry)/(?:[a-z0-9_. ()-]+/)*[a-z0-9_. ()-]+\\.pdf)$",
   "i",
 );
 
