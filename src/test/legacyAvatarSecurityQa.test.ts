@@ -59,6 +59,7 @@ describe("SIGAPRO QA — recuperação de avatar legado sem SSRF nem imagem ativ
     expect(code).toContain('redirect: "error"');
     expect(code).not.toContain('redirect: "follow"');
     expect(code).toContain("totalBytes > MAX_AVATAR_BYTES");
+    expect(code.lastIndexOf("clearTimeout(timeout);")).toBeGreaterThan(code.lastIndexOf("res.end(bytes);"));
     expect(code).toContain('res.setHeader("X-Content-Type-Options", "nosniff")');
     expect(code).not.toContain('console.error("[SIGAPRO][AvatarLegacy] Falha ao recuperar foto antiga."');
   });
