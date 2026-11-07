@@ -31,6 +31,21 @@ describe("SIGAPRO QA — correção financeira preparada, NÃO aplicada em banco
     expect(source).toContain("_guide.payment_provider");
     expect(source).toContain("lower(btrim(_guide.payment_provider)) NOT IN ('manual','municipal_system')");
     expect(source).not.toContain("'bank_direct','municipal_system'");
+    // A guia pode ter sido registrada parcialmente pelo provedor.
+    // Qualquer sinal de cobrança externa deve impedir a baixa manual.
+    for (const bankEvidence of [
+      "_guide.bank_payment_id",
+      "_guide.bank_status",
+      "_guide.bank_status_detail",
+      "_guide.bank_authenticated_at",
+      "_guide.provider_charge_saved_at",
+      "_guide.ticket_url",
+      "_guide.barcode",
+      "_guide.digitable_line",
+      "_guide.provider_environment",
+    ]) {
+      expect(source.split(bankEvidence).length).toBeGreaterThanOrEqual(3);
+    }
     expect(source).toContain("aguarde a conciliacao autenticada");
     expect(source).toContain("REVIEW ONLY");
     // The SQL belongs to docs for explicit review, not live migrations.
