@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   Activity,
@@ -316,7 +316,7 @@ function HealthBar({
   );
 }
 
-function DistributionCard({
+export function DistributionCard({
   title,
   description,
   icon,
@@ -327,36 +327,93 @@ function DistributionCard({
   icon: LucideIcon;
   data: Array<{ label: string; total: number }>;
 }) {
+  const [activeSegment, setActiveSegment] = useState<number | null>(null);
   const chartConfig = { total: { label: "Volume", color: "#60a5fa" } };
+  const totalVolume = data.reduce((sum, item) => sum + item.total, 0);
+  const activeDatum = activeSegment === null ? null : data[activeSegment] ?? null;
+  const activePercent = activeDatum && totalVolume > 0
+    ? Math.round((activeDatum.total / totalVolume) * 100)
+    : 0;
 
   return (
     <TableCard title={title} description={description} icon={icon}>
       {data.length === 0 ? (
-        <EmptyState title="Sem dados para distribuicao" description="Assim que houver volume suficiente, o grafico sera preenchido automaticamente." icon={AlertTriangle} />
+        <EmptyState title="Sem dados para distribuição" description="Assim que houver volume suficiente, o gráfico será preenchido automaticamente." icon={AlertTriangle} />
       ) : (
-        <div className="grid gap-5 xl:grid-cols-[minmax(0,0.95fr)_minmax(220px,0.85fr)] xl:items-center">
-          <div className="min-w-0">
-            <ChartContainer config={chartConfig} className="mx-auto w-full max-w-[320px]" ratio={1} minHeight={240} maxHeight={320}>
-              <PieChart>
-                <Pie data={data} dataKey="total" nameKey="label" innerRadius="52%" outerRadius="84%" paddingAngle={3}>
-                  {data.map((entry, index) => (
-                    <Cell key={entry.label} fill={accentPalette[index % accentPalette.length]} />
-                  ))}
-                </Pie>
-                <ChartTooltip content={<ChartTooltipContent hideLabel indicator="dot" />} cursor={false} />
-              </PieChart>
-            </ChartContainer>
-          </div>
-          <div className="min-w-0 space-y-3">
-            {data.map((item, index) => (
-              <div key={item.label} className="flex min-w-0 items-center justify-between gap-3 rounded-2xl border border-slate-200/70 bg-slate-50/80 px-4 py-3 dark:border-white/10 dark:bg-white/[0.03]">
-                <div className="flex min-w-0 items-center gap-3">
-                  <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: accentPalette[index % accentPalette.length] }} />
-                  <p className="min-w-0 break-words text-sm font-medium text-slate-700 dark:text-slate-100">{item.label}</p>
+        <div className="sig-dashboard-distribution-container">
+          <div className="sig-dashboard-distribution-layout">
+            <div className="min-w-0">
+              <div className="sig-dashboard-distribution-chart relative">
+                <ChartContainer config={chartConfig} className="mx-auto w-full" ratio={1} minHeight={188} maxHeight={248}>
+                  <PieChart>
+                    <Pie
+                      data={data}
+                      dataKey="total"
+                      nameKey="label"
+                      innerRadius="54%"
+                      outerRadius="84%"
+                      paddingAngle={3}
+                      onMouseEnter={(_, index) => setActiveSegment(index)}
+                      onMouseLeave={() => setActiveSegment(null)}
+                    >
+                      {data.map((entry, index) => (
+                        <Cell key={entry.label} fill={accentPalette[index % accentPalette.length]} />
+                      ))}
+                    </Pie>
+                    {/* Não usar tooltip flutuante aqui. Em cards estreitos, o Recharts
+                        comprimia palavras letra por letra e o overflow ocultava o balão.
+                        Os dados do hover aparecem no centro e na faixa fixa abaixo. */}
+                  </PieChart>
+                </ChartContainer>
+                <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center" aria-hidden="true">
+                  <span className="text-[clamp(1.25rem,2.7vw,1.9rem)] font-bold leading-none tabular-nums tracking-tight text-slate-950 dark:text-white">
+                    {(activeDatum?.total ?? totalVolume).toLocaleString("pt-BR")}
+                  </span>
+                  <span className="mt-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">
+                    {activeDatum ? "Selecionado" : "Total"}
+                  </span>
                 </div>
-                <p className="shrink-0 text-sm font-semibold text-slate-950 dark:text-white">{item.total}</p>
               </div>
-            ))}
+              <div
+                className="mt-2 flex min-h-[58px] min-w-0 flex-col items-center justify-center rounded-xl border border-slate-200/70 bg-slate-50/70 px-3 py-2 text-center dark:border-white/10 dark:bg-white/[0.035]"
+                role="status"
+                aria-live="polite"
+                aria-atomic="true"
+              >
+                <p className="line-clamp-2 max-w-full break-words text-xs font-semibold leading-4 text-slate-700 dark:text-slate-100" title={activeDatum?.label || "Total de registros"}>
+                  {activeDatum?.label || "Todos os registros"}
+                </p>
+                <p className="mt-0.5 text-[11px] font-medium tabular-nums text-slate-500 dark:text-slate-300">
+                  {activeDatum
+                    ? `${activeDatum.total.toLocaleString("pt-BR")} de ${totalVolume.toLocaleString("pt-BR")} · ${activePercent}%`
+                    : `${totalVolume.toLocaleString("pt-BR")} registros no recorte`}
+                </p>
+              </div>
+            </div>
+            <div className="sig-dashboard-distribution-legend">
+              {data.map((item, index) => (
+                <button
+                  key={item.label}
+                  type="button"
+                  aria-pressed={activeSegment === index}
+                  aria-label={`${item.label}: ${item.total.toLocaleString("pt-BR")} registros`}
+                  onMouseEnter={() => setActiveSegment(index)}
+                  onMouseLeave={() => setActiveSegment(null)}
+                  onFocus={() => setActiveSegment(index)}
+                  onBlur={() => setActiveSegment(null)}
+                  onClick={() => setActiveSegment(index)}
+                  className={`flex w-full min-w-0 items-center justify-between gap-2.5 rounded-xl border px-3 py-2.5 text-left transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/70 ${
+                    activeSegment === index
+                      ? "border-sky-400/60 bg-sky-50/90 dark:border-sky-400/45 dark:bg-sky-400/10"
+                      : "border-slate-200/70 bg-slate-50/80 hover:border-sky-300/60 hover:bg-sky-50/60 dark:border-white/10 dark:bg-white/[0.03] dark:hover:border-sky-400/35 dark:hover:bg-white/[0.075]"
+                  }`}
+                >
+                  <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: accentPalette[index % accentPalette.length] }} aria-hidden="true" />
+                  <span className="min-w-0 flex-1 break-words text-xs font-medium leading-4 text-slate-700 dark:text-slate-100">{item.label}</span>
+                  <span className="shrink-0 text-xs font-semibold tabular-nums text-slate-950 dark:text-white">{item.total.toLocaleString("pt-BR")}</span>
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       )}
