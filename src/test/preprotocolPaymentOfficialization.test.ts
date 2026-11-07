@@ -140,7 +140,7 @@ describe("payment-first pre-protocol officialization", () => {
   });
 
   it("polls payment state and keeps a provisional item editable without opening it as an official process", () => {
-    expect(paymentsPage).toContain("setInterval(refresh, 8000)");
+    expect(paymentsPage).toContain("setInterval(refresh, 15000)");
     expect(paymentsPage).toContain("process.isOfficial === false");
     expect(paymentsPage).toContain('data-preprotocol-edit-action="true"');
     expect(paymentsPage).toContain('data-preprotocol-guide-action="true"');
