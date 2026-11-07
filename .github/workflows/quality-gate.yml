@@ -71,5 +71,11 @@ jobs:
       - name: Private AI gateway tests without GPU
         run: node --test infra/private-ai/gateway/gateway.test.mjs
 
+      - name: Commercial acceptance self-tests (pending evidence is NOT approval)
+        run: node --test scripts/qa-commercial-acceptance.test.mjs
+
+      - name: Commercial acceptance readiness (informational, not a release)
+        run: node scripts/qa-commercial-acceptance.mjs --report
+
       - name: Production build
         run: npm run build
