@@ -1,5 +1,5 @@
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
-import { useLayoutEffect } from "react";
+import { lazy, Suspense, useLayoutEffect } from "react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -18,42 +18,42 @@ import { CriarContaPage } from "@/pages/saas/CriarContaPage";
 import { AppErrorBoundary } from "@/components/platform/AppErrorBoundary";
 import { TenantNotFoundPage } from "@/pages/saas/TenantNotFoundPage";
 import { shouldShowPublicLanding } from "@/lib/tenant";
-import { MasterAdminPage } from "@/pages/saas/MasterAdminPage";
-import { TenantAdminPage } from "@/pages/saas/TenantAdminPage";
-import { CollectionSettingsPage } from "@/pages/saas/CollectionSettingsPage";
-import { MunicipalOrganizationPage } from "@/pages/saas/MunicipalOrganizationPage";
-import { MunicipalProcessRegistryPage } from "@/pages/saas/MunicipalProcessRegistryPage";
-import { DashboardHomePage } from "@/pages/saas/DashboardHomePage";
-import { AnalystDeskPage } from "@/pages/saas/AnalystDeskPage";
-import { FinanceDeskPage } from "@/pages/saas/FinanceDeskPage";
-import { FinanceProtocolsPage } from "@/pages/saas/FinanceProtocolsPage";
-import { ProtocolDeskPage } from "@/pages/saas/ProtocolDeskPage";
-import { IptuDeskPage } from "@/pages/saas/IptuDeskPage";
-import { ExternalPortalPage } from "@/pages/saas/ExternalPortalPage";
-import { ExternalProcessControlPage } from "@/pages/saas/ExternalProcessControlPage";
-import { ExternalDraftsPage } from "@/pages/saas/ExternalDraftsPage";
-import { ExternalPaymentsPage } from "@/pages/saas/ExternalPaymentsPage";
-import { ExternalHistoryPage } from "@/pages/saas/ExternalHistoryPage";
-import { ExternalMessagesPage } from "@/pages/saas/ExternalMessagesPage";
-import { OwnerPortalPage } from "@/pages/saas/OwnerPortalPage";
-import { ProtocolarProjetoPage } from "@/pages/saas/ProtocolarProjetoPage";
-import { ProcessDetailPage } from "@/pages/saas/ProcessDetailPage";
-import { DocumentAnalysisPage } from "@/pages/saas/DocumentAnalysisPage";
-import { DocumentViewerPage } from "@/pages/saas/DocumentViewerPage";
-import { PerfilPage } from "@/pages/saas/PerfilPage";
-import { ConfiguracoesPage } from "@/pages/saas/ConfiguracoesPage";
-import { NotificationsPage } from "@/pages/saas/NotificationsPage";
-import { MovementHistoryPage } from "@/pages/saas/MovementHistoryPage";
-import { LegislationPage } from "@/pages/saas/LegislationPage";
+const MasterAdminPage = lazy(() => import("@/pages/saas/MasterAdminPage").then((module) => ({ default: module.MasterAdminPage })));
+const TenantAdminPage = lazy(() => import("@/pages/saas/TenantAdminPage").then((module) => ({ default: module.TenantAdminPage })));
+const CollectionSettingsPage = lazy(() => import("@/pages/saas/CollectionSettingsPage").then((module) => ({ default: module.CollectionSettingsPage })));
+const MunicipalOrganizationPage = lazy(() => import("@/pages/saas/MunicipalOrganizationPage").then((module) => ({ default: module.MunicipalOrganizationPage })));
+const MunicipalProcessRegistryPage = lazy(() => import("@/pages/saas/MunicipalProcessRegistryPage").then((module) => ({ default: module.MunicipalProcessRegistryPage })));
+const DashboardHomePage = lazy(() => import("@/pages/saas/DashboardHomePage").then((module) => ({ default: module.DashboardHomePage })));
+const AnalystDeskPage = lazy(() => import("@/pages/saas/AnalystDeskPage").then((module) => ({ default: module.AnalystDeskPage })));
+const FinanceDeskPage = lazy(() => import("@/pages/saas/FinanceDeskPage").then((module) => ({ default: module.FinanceDeskPage })));
+const FinanceProtocolsPage = lazy(() => import("@/pages/saas/FinanceProtocolsPage").then((module) => ({ default: module.FinanceProtocolsPage })));
+const ProtocolDeskPage = lazy(() => import("@/pages/saas/ProtocolDeskPage").then((module) => ({ default: module.ProtocolDeskPage })));
+const IptuDeskPage = lazy(() => import("@/pages/saas/IptuDeskPage").then((module) => ({ default: module.IptuDeskPage })));
+const ExternalPortalPage = lazy(() => import("@/pages/saas/ExternalPortalPage").then((module) => ({ default: module.ExternalPortalPage })));
+const ExternalProcessControlPage = lazy(() => import("@/pages/saas/ExternalProcessControlPage").then((module) => ({ default: module.ExternalProcessControlPage })));
+const ExternalDraftsPage = lazy(() => import("@/pages/saas/ExternalDraftsPage").then((module) => ({ default: module.ExternalDraftsPage })));
+const ExternalPaymentsPage = lazy(() => import("@/pages/saas/ExternalPaymentsPage").then((module) => ({ default: module.ExternalPaymentsPage })));
+const ExternalHistoryPage = lazy(() => import("@/pages/saas/ExternalHistoryPage").then((module) => ({ default: module.ExternalHistoryPage })));
+const ExternalMessagesPage = lazy(() => import("@/pages/saas/ExternalMessagesPage").then((module) => ({ default: module.ExternalMessagesPage })));
+const OwnerPortalPage = lazy(() => import("@/pages/saas/OwnerPortalPage").then((module) => ({ default: module.OwnerPortalPage })));
+const ProtocolarProjetoPage = lazy(() => import("@/pages/saas/ProtocolarProjetoPage").then((module) => ({ default: module.ProtocolarProjetoPage })));
+const ProcessDetailPage = lazy(() => import("@/pages/saas/ProcessDetailPage").then((module) => ({ default: module.ProcessDetailPage })));
+const DocumentAnalysisPage = lazy(() => import("@/pages/saas/DocumentAnalysisPage").then((module) => ({ default: module.DocumentAnalysisPage })));
+const DocumentViewerPage = lazy(() => import("@/pages/saas/DocumentViewerPage").then((module) => ({ default: module.DocumentViewerPage })));
+const PerfilPage = lazy(() => import("@/pages/saas/PerfilPage").then((module) => ({ default: module.PerfilPage })));
+const ConfiguracoesPage = lazy(() => import("@/pages/saas/ConfiguracoesPage").then((module) => ({ default: module.ConfiguracoesPage })));
+const NotificationsPage = lazy(() => import("@/pages/saas/NotificationsPage").then((module) => ({ default: module.NotificationsPage })));
+const MovementHistoryPage = lazy(() => import("@/pages/saas/MovementHistoryPage").then((module) => ({ default: module.MovementHistoryPage })));
+const LegislationPage = lazy(() => import("@/pages/saas/LegislationPage").then((module) => ({ default: module.LegislationPage })));
 import { URBAN_LEGISLATION_VIEW_ROLES } from "@/lib/urbanLegislationAccess";
-import { ZoningPage } from "@/pages/saas/ZoningPage";
-import { GlobalSearchPage } from "@/pages/saas/GlobalSearchPage";
+const ZoningPage = lazy(() => import("@/pages/saas/ZoningPage").then((module) => ({ default: module.ZoningPage })));
+const GlobalSearchPage = lazy(() => import("@/pages/saas/GlobalSearchPage").then((module) => ({ default: module.GlobalSearchPage })));
 import { NotFoundPage } from "@/pages/saas/NotFoundPage";
-import { ClientePortalPage } from "@/pages/saas/ClientePortalPage";
-import { MasterPlansPage } from "@/pages/saas/MasterPlansPage";
+const ClientePortalPage = lazy(() => import("@/pages/saas/ClientePortalPage").then((module) => ({ default: module.ClientePortalPage })));
+const MasterPlansPage = lazy(() => import("@/pages/saas/MasterPlansPage").then((module) => ({ default: module.MasterPlansPage })));
 import { PublicPlansPage } from "@/pages/saas/PublicPlansPage";
 import { PublicSignatureVerificationPage } from "@/pages/saas/PublicSignatureVerificationPage";
-import { AiAssistantPage } from "@/pages/saas/AiAssistantPage";
+const AiAssistantPage = lazy(() => import("@/pages/saas/AiAssistantPage").then((module) => ({ default: module.AiAssistantPage })));
 
 const App = () => {
   return (
@@ -117,6 +117,7 @@ const AppRoutes = () => {
 
   // Nunca renderizar fallback full-screen no root: as rotas reais permanecem montadas no refresh.
   return (
+    <Suspense fallback={null}>
       <Routes>
         <Route
           path="/"
@@ -452,5 +453,6 @@ const AppRoutes = () => {
         />
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
+    </Suspense>
   );
 };
