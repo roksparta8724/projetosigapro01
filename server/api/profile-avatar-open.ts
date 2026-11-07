@@ -237,20 +237,17 @@ export default async function handler(req: Req, res: Res) {
     return;
   }
 
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 12000);
   try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 12000);
-    let response: Response;
-    try {
-      response = await fetch(source.toString(), {
-        method: "GET",
-        redirect: "error",
-        signal: controller.signal,
-        headers: { Accept: "image/png,image/jpeg,image/webp,image/gif,image/avif" },
-      });
-    } finally {
-      clearTimeout(timeout);
-    }
+    // Keep the deadline active through the entire response body, not only
+    // through HTTP headers: a slow stream must not pin a Vercel function.
+    const response = await fetch(source.toString(), {
+      method: "GET",
+      redirect: "error",
+      signal: controller.signal,
+      headers: { Accept: "image/png,image/jpeg,image/webp,image/gif,image/avif" },
+    });
 
     const contentType = response.headers.get("content-type") || "";
     const contentLength = Number(response.headers.get("content-length") || "0");
@@ -339,5 +336,7 @@ export default async function handler(req: Req, res: Res) {
     // Never emit old source URLs, raw provider errors or user identifiers.
     console.warn("[SIGAPRO][AvatarLegacy] Fonte antiga indisponível; referência R2 preservada.");
     json(res, 502, { error: "Foto antiga temporariamente indisponível. O cadastro continua preservado." });
+  } finally {
+    clearTimeout(timeout);
   }
 }
