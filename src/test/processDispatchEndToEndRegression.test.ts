@@ -43,7 +43,7 @@ describe("process dispatch end-to-end workflow", () => {
   it("shows unassigned arrivals in the Analysis registry and refreshes that queue continuously", () => {
     expect(analystDesk).toContain("analysisRegistryProcesses");
     expect(analystDesk).toContain("Aguardando distribuição");
-    expect(analystDesk).toContain("window.setInterval(sync, 5000)");
+    expect(analystDesk).toContain("window.setInterval(sync, 30000)");
     expect(analystDesk).toContain("Gerenciador de distribuição da Análise");
   });
 
