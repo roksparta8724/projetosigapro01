@@ -24,16 +24,25 @@ import { getMasterInstitutionBranding, loadMasterBranding, saveMasterBranding, u
 // Compartilhar apenas em memória desta aba; nunca compartilhar entre tenants.
 type PlatformBrandingSnapshot = Awaited<ReturnType<typeof loadPlatformBranding>>;
 let lastMasterPlatformBranding: PlatformBrandingSnapshot | null = null;
+let lastMasterPlatformBrandingAt = 0;
 let pendingMasterPlatformBranding: Promise<PlatformBrandingSnapshot | null> | null = null;
+const MASTER_BRANDING_REVALIDATE_MS = 60_000;
 
 function loadStableMasterPlatformBranding(forceRefresh = false): Promise<PlatformBrandingSnapshot | null> {
-  if (!forceRefresh && lastMasterPlatformBranding) {
+  if (
+    !forceRefresh &&
+    lastMasterPlatformBranding &&
+    Date.now() - lastMasterPlatformBrandingAt < MASTER_BRANDING_REVALIDATE_MS
+  ) {
     return Promise.resolve(lastMasterPlatformBranding);
   }
   if (pendingMasterPlatformBranding) return pendingMasterPlatformBranding;
   pendingMasterPlatformBranding = loadPlatformBranding()
     .then((value) => {
-      if (value) lastMasterPlatformBranding = value;
+      if (value) {
+        lastMasterPlatformBranding = value;
+        lastMasterPlatformBrandingAt = Date.now();
+      }
       return value;
     })
     .catch(() => null)
