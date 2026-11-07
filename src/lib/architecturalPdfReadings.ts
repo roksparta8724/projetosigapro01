@@ -88,6 +88,14 @@ export function quoteSupportsArchitecturalReading(
     .replace(/\s+/g, " ").trim().toLowerCase();
   const label = metricLabels[metric].exec(normalized);
   if (!label) return false;
+  // A legal LIMIT printed next to a metric is not evidence that the project
+  // actually HAS that dimension. Require an explicitly observed/projected
+  // value before accepting a citation that also contains a legal threshold.
+  const regulatoryOnly =
+    /\b(?:limite\s+legal|parametro\s+urbanistico|indice\s+urbanistico|exigid[oa]\s+pel[ao]\s+lei|exigid[oa]\s+pel[ao]\s+plano\s+diretor|conforme\s+(?:a\s+)?legislacao|obrigator[io]a?|maxim[oa]\s+permitid[oa]|minim[oa]\s+(?:permitid[oa]|legal|exigid[oa]))\b/.test(normalized);
+  const clearlyProjectValue =
+    /\b(?:propost[oa]|projetad[oa]|calculad[oa]|medid[oa]|previst[oa]|executad[oa]|existente)\b/.test(normalized);
+  if (regulatoryOnly && !clearlyProjectValue) return false;
   const following = normalized.slice(label.index + label[0].length).slice(0, 64);
   const found = /\d+(?:[.,]\d+)*/.exec(following);
   if (!found || found.index > 32) return false;
