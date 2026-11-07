@@ -18,6 +18,45 @@ import { CriarContaPage } from "@/pages/saas/CriarContaPage";
 import { AppErrorBoundary } from "@/components/platform/AppErrorBoundary";
 import { TenantNotFoundPage } from "@/pages/saas/TenantNotFoundPage";
 import { shouldShowPublicLanding } from "@/lib/tenant";
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+import { URBAN_LEGISLATION_VIEW_ROLES } from "@/lib/urbanLegislationAccess";
+
+
+import { NotFoundPage } from "@/pages/saas/NotFoundPage";
+
+
+import { PublicPlansPage } from "@/pages/saas/PublicPlansPage";
+import { PublicSignatureVerificationPage } from "@/pages/saas/PublicSignatureVerificationPage";
+
+
+// Lazy import isolates heavy analytics, PDFs and operational pages from /acesso.
+// Component identity stays stable: never define lazy routes inside AppRoutes.
 const MasterAdminPage = lazy(() => import("@/pages/saas/MasterAdminPage").then((module) => ({ default: module.MasterAdminPage })));
 const TenantAdminPage = lazy(() => import("@/pages/saas/TenantAdminPage").then((module) => ({ default: module.TenantAdminPage })));
 const CollectionSettingsPage = lazy(() => import("@/pages/saas/CollectionSettingsPage").then((module) => ({ default: module.CollectionSettingsPage })));
@@ -45,14 +84,10 @@ const ConfiguracoesPage = lazy(() => import("@/pages/saas/ConfiguracoesPage").th
 const NotificationsPage = lazy(() => import("@/pages/saas/NotificationsPage").then((module) => ({ default: module.NotificationsPage })));
 const MovementHistoryPage = lazy(() => import("@/pages/saas/MovementHistoryPage").then((module) => ({ default: module.MovementHistoryPage })));
 const LegislationPage = lazy(() => import("@/pages/saas/LegislationPage").then((module) => ({ default: module.LegislationPage })));
-import { URBAN_LEGISLATION_VIEW_ROLES } from "@/lib/urbanLegislationAccess";
 const ZoningPage = lazy(() => import("@/pages/saas/ZoningPage").then((module) => ({ default: module.ZoningPage })));
 const GlobalSearchPage = lazy(() => import("@/pages/saas/GlobalSearchPage").then((module) => ({ default: module.GlobalSearchPage })));
-import { NotFoundPage } from "@/pages/saas/NotFoundPage";
 const ClientePortalPage = lazy(() => import("@/pages/saas/ClientePortalPage").then((module) => ({ default: module.ClientePortalPage })));
 const MasterPlansPage = lazy(() => import("@/pages/saas/MasterPlansPage").then((module) => ({ default: module.MasterPlansPage })));
-import { PublicPlansPage } from "@/pages/saas/PublicPlansPage";
-import { PublicSignatureVerificationPage } from "@/pages/saas/PublicSignatureVerificationPage";
 const AiAssistantPage = lazy(() => import("@/pages/saas/AiAssistantPage").then((module) => ({ default: module.AiAssistantPage })));
 
 const App = () => {
