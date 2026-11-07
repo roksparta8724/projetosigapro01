@@ -1002,6 +1002,7 @@ export function PerfilPage() {
           const uploaded = await uploadFileToStorage({
             bucket: "profile-assets",
             tenantId: activeInstitutionId,
+            platformScope: isMasterRole,
             userId,
             file: avatarUploadFile,
             folder: "avatars",
