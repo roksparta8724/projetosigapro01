@@ -17,8 +17,8 @@ Origem: `docs/QA_P0_FINANCE_HARDENING_REVIEW.sql`, revisado antes da aplicação
 
 1. Criado `sigapro_qa_p0_20261107.function_backup` com as três definições anteriores, proprietário e ACL originais. Verificação final: **3 backups íntegros** por MD5.
 2. Revogado `EXECUTE` direto de `PUBLIC` e `authenticated` na função `officialize_preprotocol_v1(uuid,uuid)`. O acionamento interno pelo trigger continua disponível ao proprietário `neondb_owner`.
-3. Revisada `confirm_preprotocol_payment_v1`: somente servidor do Protocolo com vínculo/perfil ativo e `profile_operational_area='protocolos'` pode confirmar guias **manuais**. Qualquer `bank_reference` ou provedor diferente de `manual`/`municipal_system` exige conciliação autenticada.
-4. Revisada `confirm_process_payment_guide`: baixa inicial pelo Protocolo e demais guias pelo Financeiro, cada qual no setor correto. **Correção adicional na revisão:** `bank_direct` também é tratado como provedor bancário; qualquer referência de banco ou provedor diferente de `manual`/`municipal_system` impede a baixa manual, mesmo quando o papel Financeiro é válido.
+3. Revisada `confirm_preprotocol_payment_v1`: somente servidor do Protocolo com vínculo/perfil ativo e `profile_operational_area='protocolos'` pode confirmar guias **manuais**. Qualquer referência, identificador, status ou documento bancário, mesmo com campos de provedor incompletos, exige conciliação autenticada. Somente cobranças estritamente manuais sem indício bancário podem ser baixadas pelo Protocolo.
+4. Revisada `confirm_process_payment_guide`: baixa inicial pelo Protocolo e demais guias pelo Financeiro, cada qual no setor correto. **Correção adicional na revisão:** `bank_direct` também é tratado como provedor bancário; além da referência e do provedor, os campos `bank_payment_id`, `bank_status`, `bank_status_detail`, `bank_authenticated_at`, `provider_charge_saved_at`, `ticket_url`, `barcode`, `digitable_line` e `provider_environment` bloqueiam baixa manual isoladamente. Mesmo um Financeiro autorizado não pode compensar cobrança bancária sem conciliação autenticada.
 
 ## Ensaios executados contra as funções reais na branch isolada
 
@@ -30,6 +30,8 @@ Origem: `docs/QA_P0_FINANCE_HARDENING_REVIEW.sql`, revisado antes da aplicação
 | Protocolo confirma guia inicial manual sintética | **PASSOU — processo oficializado após guia paga** | Gerou referência oficial vinculada, histórico e manteve triagem/pendência documental conforme falta de anexos; ensaio revertido |
 | Financeiro tenta baixar guia vinculada a provedor | **PASSOU — cinco variantes negadas** | `bank_direct` com/sem referência, Mercado Pago, `manual` com referência e referência sem provedor; tudo revertido |
 | Protocolo tenta baixar pré-protocolo vinculado a banco | **PASSOU — cinco variantes negadas** | Mesmos cenários, sem números oficiais persistidos |
+| Comprovantes e metadados bancários incompletos | **PASSOU — mais 18 variantes negadas** | Nove indicadores isolados em dois fluxos (Protocolo e Financeiro), sem `bank_reference` e sem `payment_provider`; todos os registros foram revertidos |
+| Fluxos manuais legítimos após o reforço dos indicadores bancários | **PASSOU — 2 caminhos completos** | Confirmadas novamente as operações de Protocolo e Financeiro, com auditoria e rollback de registros sintéticos |
 | Financeiro tenta baixar guia inicial; Protocolo tenta baixar ISS | **PASSOU — papéis cruzados negados** | Nenhuma alteração de dados |
 | Analista, Financeiro, Master e profissional externo tentam confirmar pré-protocolo fora da função | **PASSOU — todos negados** | Perfis/identidades existentes na cópia; nenhuma alteração |
 | Repetição de confirmação de guia já paga | **PASSOU — pagamento duplicado negado** | Financeiro e Protocolo |
@@ -46,14 +48,14 @@ O primeiro ensaio com guia já paga não conseguiu alterar a guia por **proteç�
 | Função | Rehearsal (corrigida) | QA principal (intacta) | Produção (intacta) |
 |---|---|---|---|
 | `officialize_preprotocol_v1`: EXECUTE por `authenticated`/`PUBLIC` | **não/não** | **não/não** | **sim/sim — P0 pendente** |
-| `confirm_preprotocol_payment_v1`: hash | `dd909642e465827dce0d77a3401f2ffa` | `dfe14fed9aa673ea0f07a8dab4107ac1` | `dfe14fed9aa673ea0f07a8dab4107ac1` |
-| `confirm_process_payment_guide`: hash | `4b8331052e26fd3369e125f296fa9891` | `09171c21ab3afa7e52262fa642fef844` | `09171c21ab3afa7e52262fa642fef844` |
+| `confirm_preprotocol_payment_v1`: hash | `0d3a524026b165add9e6b20c10691725` | `dfe14fed9aa673ea0f07a8dab4107ac1` | `dfe14fed9aa673ea0f07a8dab4107ac1` |
+| `confirm_process_payment_guide`: hash | `1656ac3eed5cf5e44693340515d1b795` | `09171c21ab3afa7e52262fa642fef844` | `09171c21ab3afa7e52262fa642fef844` |
 
 O fato de a produção ainda permitir chamada direta de oficialização é **um risco de autorização por corrigir**, não evidência de exploração ou incidente.
 
 ## Reversão ensaiada e comprovada na branch de ensaio
 
-As definições anteriores estão no banco isolado em `sigapro_qa_p0_20261107.function_backup`, preservadas com hash e ACL. **Ensaio de reversão executado e aprovado:** em uma subtransação PL/pgSQL, as três definições originais foram recriadas via `CREATE OR REPLACE FUNCTION`, cada hash MD5 foi conferido e os privilégios `EXECUTE` originais da oficialização foram restaurados provisoriamente. Uma exceção controlada reverteu toda a restauração; imediatamente depois, conferi novamente os hashes das duas funções corrigidas e confirmei a ausência de `EXECUTE` para `PUBLIC`/`authenticated`. O estado endurecido permaneceu intacto. Nenhuma alteração atingiu QA principal ou produção. Para reverter **apenas essa branch**, restaurar os dois corpos de função via `definition` e reproduzir o `proacl` salvo para a oficialização. Não executar restauração sobre QA principal ou produção. Não excluir a branch automaticamente; ela já existia e pode servir a outros ensaios.
+As definições anteriores estão no banco isolado em `sigapro_qa_p0_20261107.function_backup`, preservadas com hash e ACL. **Ensaio de reversão executado e aprovado:** em uma subtransação PL/pgSQL, as três definições originais foram recriadas via `CREATE OR REPLACE FUNCTION`, cada hash MD5 foi conferido e os privilégios `EXECUTE` originais da oficialização foram restaurados provisoriamente. Uma exceção controlada reverteu toda a restauração; imediatamente depois, conferi novamente os hashes das duas funções corrigidas e confirmei a ausência de `EXECUTE` para `PUBLIC`/`authenticated`. O estado endurecido permaneceu intacto. **A restauração e reversão foram repetidas com a versão final que verifica os nove indicadores bancários e passaram novamente.** Nenhuma alteração atingiu QA principal ou produção. Para reverter **apenas essa branch**, restaurar os dois corpos de função via `definition` e reproduzir o `proacl` salvo para a oficialização. Não executar restauração sobre QA principal ou produção. Não excluir a branch automaticamente; ela já existia e pode servir a outros ensaios.
 
 ## Critérios ainda NÃO cumpridos para entrega comercial
 
