@@ -102,3 +102,27 @@ export function isPixConfigured(key: string | null | undefined) {
   const normalized = key?.trim() ?? "";
   return normalized.length > 0 && normalized.length <= 77;
 }
+
+/** Reads the amount only from an authenticated-CRC top-level TLV tag 54.
+ * An absent amount is null, not an assertion that the charge is free. */
+export function pixPayloadAmountCents(payload:string|null|undefined):number|null{
+  if(!isValidPixPayload(payload))return null;
+  const raw=String(payload).trim();
+  let offset=0;
+  while(offset+4<=raw.length){
+    const id=raw.slice(offset,offset+2);
+    const lengthText=raw.slice(offset+2,offset+4);
+    if(!/^\d{2}$/.test(id)||!/^\d{2}$/.test(lengthText))return null;
+    const length=Number(lengthText),start=offset+4,end=start+length;
+    if(end>raw.length)return null;
+    const value=raw.slice(start,end);
+    if(id==="54"){
+      if(!/^(?:0|[1-9]\d{0,9})\.\d{2}$/.test(value))return null;
+      const [whole,fraction]=value.split(".");
+      const cents=Number(whole)*100+Number(fraction);
+      return Number.isSafeInteger(cents)&&cents>0?cents:null;
+    }
+    offset=end;
+  }
+  return null;
+}

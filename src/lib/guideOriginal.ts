@@ -3,7 +3,7 @@ import { backendClient } from "@/integrations/backend/databaseClient";
 import { getSignedUrlForObjectStrict, uploadFile } from "@/integrations/r2/client";
 import { type GuiaRecolhimentoOficialProps } from "@/components/GuiaRecolhimentoOficial";
 import type { ProcessDocument } from "@/lib/platform";
-import { isValidPixPayload } from "@/lib/pix";
+import { isValidPixPayload, pixPayloadAmountCents } from "@/lib/pix";
 
 export async function openLegacyGuideOriginal(documents: ProcessDocument[], code: string, target: Window) {
   const matches = documents.filter((doc) => doc.uploaded && doc.filePath &&
@@ -25,6 +25,7 @@ export type GuideOriginal = {
   process_id: string;
   guide_number: string;
   status: string;
+  paid?: boolean | null;
   collection_mode_snapshot?: "sigapro" | "municipal_system" | null;
   amount: number;
   created_at: string;
@@ -58,12 +59,53 @@ function originalObjectKey(original: GuideOriginal, sha256: string) {
   return `municipalities/${original.municipality_id}/processes/${original.process_id}/dam-originals/${original.id}/${sha256}.pdf`;
 }
 
+function guideCentavos(amount:unknown):number|null{
+  if(typeof amount!=="number"||!Number.isFinite(amount)||amount<=0)return null;
+  const cents=Math.round(amount*100);
+  return Number.isSafeInteger(cents)&&Math.abs(amount*100-cents)<0.000001?cents:null;
+}
+
+/** Don't trust the caller's PDF props or a misrouted Data API row. */
+export function assertOriginalGuideIdentity(original:GuideOriginal,municipalityId:string,guideCode:string):void{
+  if(original.municipality_id!==municipalityId||
+      original.guide_number!==guideCode||
+      !/^[A-Za-z0-9_-]{1,100}$/.test(original.id)||
+      !/^[A-Za-z0-9_-]{1,100}$/.test(original.process_id)||
+      !/^[A-Za-z0-9_-]{1,100}$/.test(municipalityId)||
+      guideCentavos(original.amount)===null){
+    throw new Error("Guia inconsistente com a Prefeitura, processo ou valor no Neon.");
+  }
+}
+
+export function assertOfficialGuideDocument(
+  original:GuideOriginal,props:GuiaRecolhimentoOficialProps,municipalityId:string,
+):void{
+  assertOriginalGuideIdentity(original,municipalityId,props.guia.numeroGuia);
+  if(props.guia.nonPayablePreview)
+    throw new Error("A prévia não pagável não pode ser arquivada como guia oficial.");
+  const payable=props.guia.valorCobrado??props.guia.valorDocumento;
+  if(guideCentavos(payable)!==guideCentavos(original.amount))
+    throw new Error("O valor do PDF difere do valor persistido da guia no Neon.");
+  const pix=props.guia.pixPayload;
+  if(!isValidPixPayload(pix))
+    throw new Error("PIX Copia e Cola inválido; a DAM não será arquivada.");
+  const amount=pixPayloadAmountCents(pix);
+  if(amount===null){
+    // Dynamic PIX may omit the amount; only a bank-registered charge can
+    // bind it to the immutable guide amount via its own order reference.
+    if(!original.bank_reference||!original.payment_provider)
+      throw new Error("PIX sem valor exige cobrança bancária registrada e vinculada à guia.");
+  } else if(amount!==guideCentavos(original.amount))
+    throw new Error("Valor do PIX divergente da guia original registrada no Neon.");
+}
+
 async function guideRpc(name: string, municipalityId: string, guideCode: string, extra = {}) {
   if (!backendClient || !municipalityId || !guideCode) throw new Error("Guia sem identificação municipal persistente.");
   const { data, error } = await backendClient.rpc(name, {
     _municipality_id: municipalityId, _guide_code: guideCode, ...extra,
   });
   if (error || !data?.id) throw new Error(error?.message || "Guia original não encontrada no Neon.");
+  assertOriginalGuideIdentity(data as GuideOriginal, municipalityId, guideCode);
   return data as GuideOriginal;
 }
 
@@ -88,12 +130,14 @@ export async function archiveAndOpenGuide(
   const code = props.guia.numeroGuia;
   let original = await readGuideOriginal(municipalityId, code);
   if (await openStoredGuide(original, target)) return;
-  if (original.status === "compensada") throw new Error("Guia compensada sem PDF original arquivado. Não será recriada.");
-  if (!isValidPixPayload(props.guia.pixPayload)) throw new Error("PIX Copia e Cola inválido; a DAM não será arquivada sem QR Code oficial verificável.");
+  if (isGuideSettled(original)) throw new Error("Guia paga sem PDF original arquivado. Não será recriada.");
+  assertOfficialGuideDocument(original,props,municipalityId);
   original = await guideRpc("freeze_payment_guide_document_v1", municipalityId, code, { _snapshot: props });
   if (await openStoredGuide(original, target)) return;
+  if (isGuideSettled(original))
+    throw new Error("Guia paga sem PDF original arquivado. Não será recriada.");
   if (!original.document_snapshot) throw new Error("Snapshot original não persistido.");
-  if (!isValidPixPayload(original.document_snapshot.guia.pixPayload)) throw new Error("O snapshot persistido não contém PIX oficial válido.");
+  assertOfficialGuideDocument(original,original.document_snapshot,municipalityId);
   const pdf = await renderGuideOriginalPdf(original.document_snapshot);
   const bytes = await pdf.arrayBuffer();
   const digest = await crypto.subtle.digest("SHA-256", bytes);
