@@ -73,3 +73,43 @@ arquivos R2, autenticação, links e integridade de dados.
 - Recuperação completa exige backup externo R2 e ensaio medido.
 - Dashboards requerem sessão autenticada em cada perfil e captura
   visual; não basta o deploy READY nem testes DOM.
+
+## Reforço do gate bancário — 07/11/2026 (continuação)
+
+A consulta **somente de leitura** no Neon QA, filtrando exclusivamente
+o nome do role e privilégios, confirmou:
+- `sigapro_prod_webhook_worker` tem `rolbypassrls=true`;
+- é membro de papel elevado;
+- tem acesso direto a `profiles` (tabela/colunas) e `process_documents`;
+- tem permissão de escrita direta em `payment_guides`.
+
+Essas constatações não indicam ataque nem mostram acesso aos dados em si.
+
+**Correção de código somente na branch QA:** o pré-gate
+`server/mp-webhook-worker-privilege.ts` rejeita agora também
+permissões amplas `SELECT/INSERT/UPDATE/DELETE` sobre perfis, documentos
+e processos, privilégios por coluna, escritas diretas nos registros
+financeiros/auditoria e herança de `pg_read_all_data` ou
+`pg_write_all_data`. O worker continua podendo usar as RPCs específicas
+e consultar o registro de recibos assinados quando seu login for
+corretamente reduzido. Nenhuma função de liquidação foi liberada por
+esta alteração: conexão insegura é rejeitada **antes** de ler o segredo
+bancário.
+
+**Validação SQL:** a nova consulta executou sem erro de sintaxe no Neon
+QA usando conexão proprietária (retornou todos os controles sensíveis
+como verdadeiros, portanto rejeitável). A tentativa de executar como
+`sigapro_prod_webhook_worker` não completou: Neon recusou por falta
+de senha de login desse papel. Portanto **não há smoke autenticado do
+worker restrito**; o CI cobre as decisões do gate com entradas simuladas.
+A prova integral depende de credenciais/role reais configurados
+por canal seguro, sem repassar segredos ao ChatGPT.
+
+**Para destravar sem diminuir a segurança:** em cópia isolada, definir
+um role dedicado sem heranças administrativas e sem grants diretos
+sobre tabelas sensíveis, conceder somente `EXECUTE` das RPCs bancárias
+estritamente necessárias e `SELECT` da visão de recibos usada na
+reconciliação; testar a assinatura do webhook, pagamento duplicado,
+acesso cruzado e rollback; depois aprovar aplicação planejada na
+infraestrutura oficial. **Não executar GRANT/REVOKE na produção sem
+ensaiar e autorizar.**
