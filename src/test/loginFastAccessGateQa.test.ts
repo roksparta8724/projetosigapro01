@@ -93,6 +93,14 @@ describe("SIGAPRO QA — entrada rápida com autorização institucional real", 
     expect(auth).toContain('backendClient.rpc("get_current_profile_context")');
   });
 
+  it("nunca expõe credenciais de demonstração na tela de acesso pública", () => {
+    const code=readFileSync("src/pages/saas/AcessoPage.tsx","utf8");
+    expect(code).toContain('const [email, setEmail] = useState("");');
+    expect(code).toContain('const [password, setPassword] = useState("");');
+    expect(code).not.toMatch(/useState\(hasSupabaseEnv/);
+    expect(code).not.toMatch(/useState\(hasBackendEnv/);
+  });
+
   it("evita downloads de 32 páginas restritas no bundle público de /acesso", () => {
     const src=readFileSync("src/App.tsx","utf8");
     for (const name of [
