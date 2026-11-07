@@ -32,3 +32,13 @@ O arquivo fica deliberadamente **fora das migrações executáveis**, com teste 
 5. Fazer backup e aprovar janela de produção com rollback validado antes de qualquer permissão produtiva.
 
 **Status comercial:** `docs/QA_COMMERCIAL_ACCEPTANCE.json` permanece com 10 itens `pending`. A inclusão deste documento na PR não autoriza produção, não declara baixa bancária homologada e não comprova incidentes de segurança.
+
+## Atualização posterior: correção aplicada à QA principal
+
+A seção histórica acima registra o diagnóstico e a proposta **antes** da aplicação. A cronologia foi atualizada após a aprovação do ensaio isolado e o comando de continuidade do usuário.
+
+- **QA principal `br-solitary-sound-b4xlbvs6`:** aplicada em transação auditada, com três backups de função/ACL em `sigapro_qa_p0_main_20261107.function_backup`; duas rotinas manuais corrigidas e `officialize_preprotocol_v1` sem EXECUTE direto público.
+- **Teste SQL na QA:** papéis Admin, Financeiro e Protocolo, duas prefeituras, pagamento manual positivo com rollback, guia Mercado Pago pendente negada, guia já oficializada idempotente, restauração de funções ensaiada. **8 processos/11 guias** antes e depois.
+- **Produção:** NÃO modificada. A função de oficialização ainda está executável por `PUBLIC`/`authenticated` na produção, logo o risco P0 produtivo segue aberto.
+- **Worker legado no Neon QA:** tentativa de retirar `BYPASSRLS` e herança administrativa negada por falta de `CREATEROLE`/`ADMIN OPTION` (**42501**); transação revertida. A conta dedicada de QA permanece corretamente restrita. Exige administração autorizada do Neon.
+- **Relatório atual canônico:** `docs/QA_P0_FINANCE_MAIN_QA_RESULTS_20261107.md`. Essa validação é restrita a SQL e não substitui webhook real, conexão HTTP, testes de duas contas no navegador ou aceite comercial.
