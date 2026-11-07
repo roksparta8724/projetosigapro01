@@ -1,0 +1,56 @@
+name: SIGAPRO OCR isolado - QA
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'tools/ocr/**'
+      - '.github/workflows/qa-ocr-worker.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  ocr:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Python worker unit checks
+        run: python3 -m unittest tools/ocr/test_scan_pdf.py -v
+      - name: Install offline OCR tools for synthetic fixture only
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends poppler-utils tesseract-ocr tesseract-ocr-por tesseract-ocr-eng
+          python3 -m pip install --no-cache-dir 'Pillow==11.3.0'
+      - name: Generate synthetic raster PDF and perform real OCR
+        run: |
+          python3 - <<'PY'
+          from PIL import Image, ImageDraw, ImageFont
+          i=Image.new("RGB",(1500,2000),"white")
+          d=ImageDraw.Draw(i)
+          f=ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",45)
+          d.text((110,200),"PROJETO ARQUITETONICO - QA SINTETICO",font=f,fill="black")
+          d.text((110,320),"PLANTA DE IMPLANTACAO",font=f,fill="black")
+          d.text((110,470),"Recuo frontal proposto: 5,00 m",font=f,fill="black")
+          d.text((110,600),"Area do terreno: 1.200,00 m2",font=f,fill="black")
+          i.save("/tmp/sigapro-qa-ocr-raster.pdf","PDF",resolution=120)
+          PY
+          python3 tools/ocr/scan_pdf.py /tmp/sigapro-qa-ocr-raster.pdf --output /tmp/sigapro-qa-ocr-result.json
+          python3 - <<'PY'
+          import json
+          with open("/tmp/sigapro-qa-ocr-result.json") as fp: r=json.load(fp)
+          assert r["page_count"]==1
+          assert r["source"]=="sigapro_local_ocr_text_only"
+          assert r["automaticallyApproved"] is False
+          assert r["measurementsVerified"] is False
+          assert r["pages"][0]["requires_visual_review"] is True
+          s=r["pages"][0]["text"].lower()
+          assert "planta de implantacao" in s, "OCR synthetic fixture lost page title"
+          assert "recuo frontal proposto: 5,00 m" in s, "OCR synthetic fixture lost dimension text"
+          print("SIGAPRO_OCR_QA_SYNTHETIC_PASS: 1 page, never auto-approves")
+          PY
+          rm -f /tmp/sigapro-qa-ocr-raster.pdf /tmp/sigapro-qa-ocr-result.json

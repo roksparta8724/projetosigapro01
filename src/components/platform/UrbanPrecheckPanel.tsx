@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, BrainCircuit, CheckCircle2, ClipboardCheck, FileClock, Loader2, Save } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ClipboardCheck, FileClock, Loader2, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -13,7 +13,10 @@ import {
 import { municipalCivilDateFromValue } from "@/lib/municipalCivilDate";
 import { evidenceCoversUrbanRule, type UrbanLegalEvidenceScope } from "@/lib/urbanEvidenceCoverage";
 import { Textarea } from "@/components/ui/textarea";
-import { ArchitecturalPdfAiPanel } from "@/components/platform/ArchitecturalPdfAiPanel";
+import { readReviewedDrawingHandoff } from "@/lib/architecturalPdfReadings";
+import { backendClient } from "@/integrations/backend/databaseClient";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { buildProcessPath } from "@/lib/platform";
 import type { ProcessRecord } from "@/lib/platform";
 
 type Field = { value: string; evidence: string };
@@ -22,7 +25,18 @@ type Fields = Partial<Record<UrbanMetric, Field>>;
 export function UrbanPrecheckPanel({
   process, municipalityId, readOnly,
 }: { process: ProcessRecord; municipalityId: string; readOnly: boolean }) {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [versions, setVersions] = useState<UrbanRegulationVersion[]>([]);
+  useEffect(() => {
+    if (window.location.hash !== "#sigapro-urban-precheck") return;
+    const raf = window.requestAnimationFrame(() => {
+      document.getElementById("sigapro-urban-precheck")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+    return () => window.cancelAnimationFrame(raf);
+  }, [process.id]);
+
   const [history, setHistory] = useState<UrbanPrecheckHistoryEntry[]>([]);
   const [legalEvidence, setLegalEvidence] = useState<UrbanLegalEvidenceScope[]>([]);
   const [legalEvidenceError, setLegalEvidenceError] = useState("");
@@ -31,6 +45,10 @@ export function UrbanPrecheckPanel({
   const [legalReviewNote, setLegalReviewNote] = useState("");
   const [legalReviewConfirmed, setLegalReviewConfirmed] = useState(false);
   const [zone, setZone] = useState("");
+  const [spatial, setSpatial] = useState<{
+    status: string; zoneVerified:boolean;zoneCode?:string;mapVersion?:string;legalReference?:string;asOf?:string;
+  } | null>(null);
+  const [spatialChecking,setSpatialChecking]=useState(true);
   const [usage, setUsage] = useState(process.property.usage || "");
   const [asOf, setAsOf] = useState(() => municipalCivilDateFromValue(process.officializedAt));
   const [fields, setFields] = useState<Fields>({});
@@ -73,6 +91,56 @@ export function UrbanPrecheckPanel({
     }).finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [municipalityId, process.id, process.property.usage, process.officializedAt]);
+
+  // A verified municipal map+parcel match is the only automatic source of a zone.
+  // Textual address, screenshot, cadastral zone_code and manual typing are not proofs.
+  useEffect(() => {
+    let active=true;
+    setSpatial(null);
+    setSpatialChecking(true);
+    if(readOnly){setSpatialChecking(false);return;}
+    void backendClient.rpc("urban_zoning_resolve_process_v1",{
+      _process_id:process.id,
+    }).then(({data,error})=>{
+      if(!active)return;
+      const value=(!error && data && typeof data==="object" && !Array.isArray(data))
+        ?data as {status?:string;zoneVerified?:boolean;zoneCode?:string;mapVersion?:string;legalReference?:string;asOf?:string}
+        :null;
+      if(value?.status==="verified" && value.zoneVerified===true &&
+        /^[A-Z0-9][A-Z0-9_(). /-]{0,79}$/.test(value.zoneCode||"")){
+        setSpatial({status:"verified",zoneVerified:true,zoneCode:value.zoneCode,
+          mapVersion:value.mapVersion,legalReference:value.legalReference,asOf:value.asOf});
+        setZone(value.zoneCode||"");
+        if(value.asOf && /^\d{4}-\d{2}-\d{2}$/.test(value.asOf))setAsOf(value.asOf);
+      }else {
+        setSpatial({status:value?.status||"spatial_service_unavailable",zoneVerified:false});
+      }
+    }).catch(()=>{
+      if(active)setSpatial({status:"spatial_service_unavailable",zoneVerified:false});
+    }).finally(()=>{if(active)setSpatialChecking(false);});
+    return()=>{active=false;};
+  },[process.id,municipalityId,readOnly]);
+
+  // Only transport individually checked drawing values from the same process,
+  // municipality and exact PDF revision. Never attach legal evidence automatically.
+  useEffect(() => {
+    if (readOnly || !location.state) return;
+    const reviewed = readReviewedDrawingHandoff(location.state, {
+      processId: process.id, municipalityId,
+      documents: process.documents,
+    });
+    if (!reviewed) return;
+    setFields((current) => ({...current,...reviewed}));
+    setLegalReviewConfirmed(false);
+    idempotencyRef.current = null;
+    setNotice(
+      `${Object.keys(reviewed).length} medida(s) conferida(s) recebida(s) do Projeto Arquitetônico.
+      Confira as fontes legais antes de registrar qualquer pré-conferência.`,
+    );
+    // Do not replay the payload after a refresh or later navigation.
+    navigate(location.pathname + location.search + location.hash,
+      {replace:true,state:null});
+  }, [location.state, municipalityId, process.id, readOnly, navigate]);
 
   const regulation = useMemo(
     () => selectUrbanRegulation(versions, municipalityId, zone, usage, asOf),
@@ -126,12 +194,18 @@ export function UrbanPrecheckPanel({
     () => filterUrbanPrecheckHistoryForContext(history, municipalityId, process.id),
     [history, municipalityId, process.id],
   );
-  const canSave = !!regulation && !readOnly && !saving && !loading &&
+  const geographicReady=spatial?.zoneVerified===true &&
+    spatial?.zoneCode===zone && !spatialChecking;
+  const canSave = geographicReady && !!regulation && !readOnly && !saving && !loading &&
     !legalEvidenceError && legalScopesReady && legalReviewConfirmed &&
     legalReviewNote.trim().length >= 20 && legalReviewNote.trim().length <= 1200 &&
     findings.some((finding) => finding.status !== "missing_evidence");
 
   const save = async () => {
+    if(!geographicReady || !regulation) {
+      setNotice("Não é possível registrar a pré-conferência: o zoneamento do lote não foi validado por perímetro e mapa oficial.");
+      return;
+    }
     if (!regulation || readOnly || saving) return;
     if (!canSave) {
       setNotice("Selecione a evidência legal para cada índice, confirme a revisão e informe uma justificativa antes de registrar.");
@@ -184,12 +258,12 @@ export function UrbanPrecheckPanel({
   };
 
   return (
-    <section data-sigapro-urban-precheck="true" className="my-5 min-w-0 overflow-hidden rounded-[26px] border border-sky-200 bg-white p-4 shadow-sm dark:border-sky-700 dark:bg-slate-950 md:p-6">
+    <section id="sigapro-urban-precheck" data-sigapro-urban-precheck="true" className="my-5 min-w-0 scroll-mt-24 overflow-hidden rounded-[26px] border border-sky-200 bg-white p-4 shadow-sm dark:border-sky-700 dark:bg-slate-950 md:p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h3 className="flex items-center gap-2 text-base font-extrabold text-slate-950 dark:text-white">
-            <BrainCircuit className="h-5 w-5 text-sky-700 dark:text-sky-300" />
-            SIGAPRO IA — Pré-conferência urbanística
+            <ClipboardCheck className="h-5 w-5 text-sky-700 dark:text-sky-300" />
+            SIGAPRO · Pré-conferência urbanística
           </h3>
           <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-300">
             Comparação técnica de medições informadas com limites oficialmente cadastrados.
@@ -200,25 +274,53 @@ export function UrbanPrecheckPanel({
           Nunca aprova automaticamente
         </span>
       </div>
-      <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-950 dark:border-amber-500/40 dark:bg-amber-950/40 dark:text-amber-100">
-        A leitura visual é experimental na homologação e depende de provedor habilitado.
-        Verifique todas as cotas no PDF antes de utilizar as sugestões; a legislação municipal
-        também precisa estar validada. Nunca há aprovação automática.
+      <div data-sigapro-ai-source-document="true"
+        className="mt-4 min-w-0 rounded-xl border border-sky-200 bg-sky-50 p-3 text-xs leading-5 text-sky-950 dark:border-sky-700 dark:bg-slate-900 dark:text-sky-100">
+        <p className="font-bold">Leitura do projeto: na pasta Documentos</p>
+        <p className="mt-1 break-words [overflow-wrap:anywhere]">
+          Abra <strong>Documentos → Projeto Arquitetônico → SIGAPRO IA · Ler projeto</strong>
+          para examinar as pranchas ao lado da leitura assistida. Somente as medidas
+          conferidas pelo analista podem ser encaminhadas a esta pré-conferência.
+          Nenhuma leitura representa aprovação automática.
+        </p>
+        <Link to={buildProcessPath(process, "documentos")}
+          className="mt-2 inline-flex min-h-9 max-w-full items-center rounded-lg border border-sky-400 bg-white px-3 py-2 font-bold text-sky-900 underline-offset-2 hover:underline dark:bg-slate-800 dark:text-white">
+          Abrir documentos do processo
+        </Link>
       </div>
 
-      <ArchitecturalPdfAiPanel
-        process={process} readOnly={readOnly}
-        activeMetrics={regulation?.rules.map((rule) => rule.metric) ?? []}
-        onApply={(reviewed) => {
-          setFields((current) => ({...current, ...reviewed}));
-          setLegalReviewConfirmed(false);
-          idempotencyRef.current = null;
-          setNotice("Medidas conferidas copiadas. Confira os resultados e as evidências legais antes de registrar.");
-        }}
-      />
+      {readOnly ? (
+        <p role="note" className="mt-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs font-semibold leading-5 text-amber-950 dark:border-amber-500/40 dark:bg-slate-900 dark:text-amber-200">
+          Esta pré-conferência está em modo de consulta. Registros técnicos exigem
+          permissão de analista e fontes legais válidas.
+        </p>
+      ) : null}
+      <div data-sigapro-urban-territorial-warning="true"
+        className="mt-3 min-w-0 rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs leading-5 text-amber-950 dark:border-amber-600 dark:bg-[#392d16] dark:text-amber-100 [overflow-wrap:anywhere]">
+        <p className="font-extrabold">Zona do lote: precisa de prova cadastral e cartográfica</p>
+        <p className="mt-1 break-words">Endereço informado no processo: {process.address?.trim()||"não informado"}.
+          O endereço, a planta e a sigla digitada abaixo não comprovam a delimitação oficial da zona.
+          Confirme a inscrição imobiliária e o mapa oficial vigente antes da comparação legal.</p>
+        <p className="mt-1">A zona preenchida aqui é uma hipótese de seleção de norma,
+          não classificação geográfica automática. Sem documento oficial, página,
+          vigência e evidência por índice, a conferência permanece bloqueada.</p>
+      </div>
+      <p data-sigapro-geo-resolution={spatial?.status||"checking"}
+        className={"mt-2 min-w-0 rounded-xl border p-3 text-xs font-semibold leading-5 [overflow-wrap:anywhere] "+(
+          geographicReady?"border-emerald-300 bg-emerald-50 text-emerald-950 dark:border-emerald-700 dark:bg-emerald-950 dark:text-emerald-100":
+          "border-amber-300 bg-amber-50 text-amber-950 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100")}>
+        {spatialChecking?"Conferindo o perímetro cadastral e o mapa oficial da Prefeitura...":
+        geographicReady
+          ?"Zona geograficamente conferida: "+spatial?.zoneCode+
+            " · Mapa "+(spatial?.mapVersion||"versão não identificada")+
+            ". A conferência jurídica por uso e índices continua obrigatória."
+          :"Zoneamento não comprovado ("+(spatial?.status||"indisponível")+
+            "). O campo de zona pode ser usado para consulta exploratória, mas não permite salvar um diagnóstico."}
+      </p>
       <div className="mt-4 grid gap-3 md:grid-cols-3">
         <label className="text-xs font-bold text-slate-700 dark:text-slate-200">Zona do imóvel
           <Input className="mt-1" placeholder="Ex.: ZR1" value={zone} maxLength={40}
+            readOnly={geographicReady}
             onChange={(event) => setZone(normalizeUrbanCode(event.target.value))} />
         </label>
         <label className="text-xs font-bold text-slate-700 dark:text-slate-200">Categoria de uso
@@ -226,7 +328,7 @@ export function UrbanPrecheckPanel({
             onChange={(event) => setUsage(normalizeUrbanCode(event.target.value))} />
         </label>
         <label className="text-xs font-bold text-slate-700 dark:text-slate-200">Data de referência legal
-          <Input className="mt-1" type="date" value={asOf}
+          <Input className="mt-1" type="date" value={asOf} readOnly={geographicReady}
             onChange={(event) => setAsOf(event.target.value)} />
         </label>
       </div>

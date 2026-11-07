@@ -56,6 +56,7 @@ import {
   URBAN_ANALYSIS_DEPARTMENT,
 } from "@/lib/platform";
 import { getMissingRequiredDocuments, getPendingTriageDocuments, hasCompensatedInitialGuide, isReadyForProtocolDispatch } from "@/lib/triageReadiness";
+import { isSyntheticQaProtocolGuideCode, protocolPaymentEvidenceLabel } from "@/lib/qaPaymentEvidence";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
@@ -596,7 +597,7 @@ export function ProtocolDeskPage() {
             {normalizedQuery ? "Nenhum processo encontrado para esta pesquisa." : emptyMessage}
           </div>
         ) : (
-          <div className="overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-[0_14px_36px_rgba(15,23,42,0.07)] dark:border-slate-700 dark:bg-slate-900 dark:shadow-[0_18px_44px_rgba(0,0,0,0.24)]">
+          <div data-sigapro-protocol-queue-list="true" className="min-w-0 max-w-full overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-[0_14px_36px_rgba(15,23,42,0.07)] dark:border-slate-700 dark:bg-slate-900 dark:shadow-[0_18px_44px_rgba(0,0,0,0.24)]">
             {visibleItems.map((process, index) => {
               const guides = getProcessPaymentGuides(process, tenantSettings);
               const protocolGuide = guides.find((guide) => guide.kind === "protocolo");
@@ -616,9 +617,9 @@ export function ProtocolDeskPage() {
                 <div
                   key={process.id}
                   data-process-premium-card="true"
-                  className={`${index > 0 ? "border-t border-slate-200 dark:border-slate-700" : ""} ${selected ? "bg-sky-50/70 dark:bg-sky-950/30" : "bg-white dark:bg-slate-900"} transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/70`}
+                  className={`min-w-0 max-w-full ${index > 0 ? "border-t border-slate-200 dark:border-slate-700" : ""} ${selected ? "bg-sky-50/70 dark:bg-sky-950/30" : "bg-white dark:bg-slate-900"} transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/70`}
                 >
-                  <div className="flex min-h-[68px] items-center gap-3 px-4 py-3">
+                  <div className="flex min-h-[68px] flex-wrap items-center gap-3 px-4 py-3 sm:flex-nowrap">
                     <input
                       type="checkbox"
                       checked={selected}
@@ -630,16 +631,21 @@ export function ProtocolDeskPage() {
 
                     <button
                       type="button"
+                      data-sigapro-triage-actions-toggle="true"
+                      aria-expanded={expanded}
+                      aria-label={`${expanded ? "Fechar" : "Ver"} ações da triagem do ${formatOfficialProcessNumber(process.protocol)}`}
+                      title="Clique para ver as ações da triagem sem abrir o protocolo"
                       onClick={() => toggleProcessExpanded(process.id)}
-                      className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                      className="flex min-w-0 flex-[1_1_250px] items-center gap-2 text-left sm:gap-3"
                     >
-                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-500 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-sky-200 bg-sky-50 text-sky-800 shadow-sm dark:border-sky-700 dark:bg-sky-950 dark:text-sky-100">
                         {expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                       </span>
+                      <span className="hidden shrink-0 text-[11px] font-bold text-sky-900 dark:text-sky-200 md:inline">{expanded ? "Fechar ações" : "Ver ações"}</span>
 
                       <span className="min-w-0 flex-1">
                         <span className="flex flex-wrap items-center gap-2">
-                          <span className="font-semibold text-slate-950 dark:text-white">
+                          <span data-sigapro-contained-text="true" className="font-semibold text-slate-950 dark:text-white">
                             {formatOfficialProcessNumber(process.protocol)}
                           </span>
                           <Badge variant="outline" className={statusTone(process.status)}>
@@ -662,17 +668,17 @@ export function ProtocolDeskPage() {
                             </Badge>
                           ) : null}
                         </span>
-                        <span className="mt-1 block truncate text-sm font-medium text-slate-700">
+                        <span data-sigapro-contained-text="true" className="mt-1 block text-sm font-medium text-slate-700 dark:text-slate-200">
                           {formatOfficialProcessTitle({ title: process.title, type: process.type })}
                         </span>
-                        <span className="mt-0.5 block truncate text-xs text-slate-500">
+                        <span data-sigapro-contained-text="true" className="mt-0.5 block text-xs text-slate-500 dark:text-slate-300">
                           {process.ownerName} • {process.address} • {externalSubmission ? "Online — profissional externo" : isDeskFlow ? "Balcão" : "Online"}
                           {externalSubmission && creator?.name ? ` • Enviado por ${creator.name}` : ""}
                         </span>
                       </span>
                     </button>
 
-                    <Button asChild className="h-9 shrink-0 rounded-xl bg-[linear-gradient(135deg,#0b5e93_0%,#0f78b8_100%)] px-4 font-semibold !text-white shadow-[0_8px_20px_rgba(14,116,181,0.22)] hover:brightness-105 [&_*]:!text-white">
+                    <Button asChild className="ml-auto h-9 max-w-full shrink-0 rounded-xl bg-[linear-gradient(135deg,#0b5e93_0%,#0f78b8_100%)] px-4 font-semibold !text-white shadow-[0_8px_20px_rgba(14,116,181,0.22)] hover:brightness-105 [&_*]:!text-white">
                       <Link to={buildProcessPath(process)}>Abrir protocolo</Link>
                     </Button>
                   </div>
@@ -687,8 +693,8 @@ export function ProtocolDeskPage() {
                             size="sm"
                           />
                           <div className="min-w-0">
-                            <p className="font-medium text-slate-900">{process.ownerName}</p>
-                            <p className="truncate text-sm text-slate-500">{process.address}</p>
+                            <p data-sigapro-contained-text="true" className="font-medium text-slate-900 dark:text-slate-100">{process.ownerName}</p>
+                            <p data-sigapro-contained-text="true" className="text-sm text-slate-500 dark:text-slate-300">{process.address}</p>
                           </div>
                         </div>
 
@@ -706,16 +712,16 @@ export function ProtocolDeskPage() {
                             </span>
                           ) : null}
                           {ownedByProtocol && process.triage.status === "recebido" ? (
-                            <Button type="button" variant="outline"
-                              className="h-9 rounded-xl border-sky-300 bg-white text-sky-950 hover:bg-sky-50"
+                            <Button type="button" variant="outline" data-sigapro-triage-action="start"
+                              className="min-h-10 max-w-full whitespace-normal break-words rounded-xl border-sky-300 bg-white px-4 text-sky-950 hover:bg-sky-50"
                               disabled={Boolean(protocolActionBusy)}
                               onClick={() => void handleTriageStatus(process, "em_triagem")}>
                               {protocolActionBusy === `triage-em_triagem-${process.id}` ? "Iniciando..." : "Iniciar triagem"}
                             </Button>
                           ) : null}
                           {ownedByProtocol && process.triage.status === "em_triagem" ? (
-                            <Button type="button" variant="outline"
-                              className="h-9 rounded-xl border-emerald-300 bg-emerald-50 text-emerald-950 hover:bg-emerald-100"
+                            <Button type="button" variant="outline" data-sigapro-triage-action="complete"
+                              className="min-h-10 max-w-full whitespace-normal break-words rounded-xl border-emerald-300 bg-emerald-50 px-4 text-emerald-950 hover:bg-emerald-100"
                               disabled={Boolean(protocolActionBusy) || getPendingTriageDocuments(process) > 0}
                               title={getPendingTriageDocuments(process) > 0 ? "Existem anexos obrigatórios não entregues" : "Registrar conferência da entrega documental"}
                               onClick={() => void handleTriageStatus(process, "concluido")}>
@@ -725,11 +731,14 @@ export function ProtocolDeskPage() {
                           {ownedByProtocol && isReadyForProtocolDispatch(process) ? (
                             <Button
                               type="button"
-                              className="h-9 rounded-xl bg-sky-700 text-white hover:bg-sky-800"
+                              data-sigapro-triage-action="dispatch"
+                              className="min-h-10 max-w-full whitespace-normal break-words rounded-xl bg-sky-700 px-4 !text-white hover:bg-sky-800 [&_*]:!text-white"
                               disabled={protocolActionBusy === `dispatch-${process.id}`}
                               onClick={() => void handleDispatchToUrbanism(process)}
                             >
-                              {protocolActionBusy === `dispatch-${process.id}` ? "Despachando..." : "Despachar para Urbanismo"}
+                              <span data-sigapro-triage-dispatch-label="true">
+                                {protocolActionBusy === `dispatch-${process.id}` ? "Despachando..." : "Despachar para Urbanismo"}
+                              </span>
                             </Button>
                           ) : null}
                         </div>
@@ -738,22 +747,22 @@ export function ProtocolDeskPage() {
                       <div className="sig-responsive-data-grid mt-4">
                         <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-700 dark:bg-slate-900">
                           <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">Abertura</p>
-                          <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">{getOpeningDate(process)}</p>
+                          <p data-sigapro-contained-text="true" className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">{getOpeningDate(process)}</p>
                         </div>
                         <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-700 dark:bg-slate-900">
                           <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">Guia principal</p>
-                          <p className="mt-1 truncate text-sm font-semibold text-slate-900 dark:text-slate-100">{protocolGuide?.code || "Não emitida"}</p>
+                          <p data-sigapro-contained-text="true" className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">{protocolGuide?.code || "Não emitida"}</p>
                           <p className="mt-1 text-xs text-slate-500">{formatCurrency(protocolGuide?.amount || 0)}</p>
                         </div>
                         <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-700 dark:bg-slate-900">
                           <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">Pagamento</p>
-                          <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">
-                            {protocolGuide?.status === "compensada" ? "Confirmado" : "Pendente"}
+                          <p data-sigapro-contained-text="true" className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">
+                            {protocolPaymentEvidenceLabel(protocolGuide)}
                           </p>
                         </div>
                         <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-700 dark:bg-slate-900">
                           <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">Responsável</p>
-                          <p className="mt-1 truncate text-sm font-semibold text-slate-900 dark:text-slate-100">{process.technicalLead || "Não informado"}</p>
+                          <p data-sigapro-contained-text="true" className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">{process.technicalLead || "Não informado"}</p>
                         </div>
                         <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-700 dark:bg-slate-900">
                           <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">Fluxo atual</p>
@@ -806,7 +815,11 @@ export function ProtocolDeskPage() {
           : getProcessPaymentGuides(process, tenantSettings).some(
               (guide) => guide.kind === "protocolo" && guide.status === "compensada",
             )
-            ? "Triagem concluída. Com a guia confirmada, o Protocolo pode despachar formalmente."
+            ? getProcessPaymentGuides(process, tenantSettings).some(
+                guide => guide.kind === "protocolo" &&
+                  isSyntheticQaProtocolGuideCode(guide.code))
+              ? "Triagem concluída apenas para ensaio QA. A guia é fictícia e não comprova pagamento bancário."
+              : "Triagem concluída. Com a guia confirmada, o Protocolo pode despachar formalmente."
             : "Triagem concluída. Aguarde a confirmação da guia antes do despacho formal.",
       );
     } catch (error) {
@@ -898,7 +911,7 @@ export function ProtocolDeskPage() {
       setTriageRecoveryReason("");
       setProtocolActionStatus(`${formatOfficialProcessNumber(process.protocol)} retornou à Triagem com histórico preservado. Confira os anexos e conclua a triagem normalmente.`);
     } catch (error) {
-      setProtocolActionStatus(error instanceof Error ? `Não foi possível reconciliar a etapa: ${error.message}` : "Não foi possível corrigir a etapa no Neon.");
+      setProtocolActionStatus(error instanceof Error ? `Não foi possível reconciliar a etapa: ${error.message}` : "Não foi possível corrigir a etapa no SIGAPRO.");
     } finally {
       setProtocolActionBusy("");
     }

@@ -83,6 +83,64 @@ export function storedGuideCharge(guide: StoredGuide): MercadoPagoGuideBoletoRes
   };
 }
 
+/** Strict centavos conversion. Bank/provider money is an exact decimal, not
+ * a float that may silently round fractions of a cent into a real payment. */
+export function exactChargeCents(value:unknown):number|null{
+  if(typeof value!=="string"||!/^(?:0|[1-9]\d{0,9})(?:\.\d{1,2})?$/.test(value))
+    return null;
+  const parts=value.split(".");
+  const cents=Number(parts[0])*100+Number((parts[1]||"").padEnd(2,"0"));
+  return Number.isSafeInteger(cents)&&cents>0?cents:null;
+}
+function guideCents(value:unknown):number|null{
+  if(typeof value!=="number"||!Number.isFinite(value)||value<=0)return null;
+  const cents=Math.round(value*100);
+  return Number.isSafeInteger(cents)&&
+    Math.abs(value*100-cents)<0.000001?cents:null;
+}
+
+/**
+ * Independent server-side check; neither a client response nor a test webhook
+ * may bind an unrelated amount, environment or order to a municipal guide.
+ * Persistence in Neon remains the final authoritative validation.
+ */
+export function assertProviderChargeMatchesGuide(
+  guide: StoredGuide,
+  charge: MercadoPagoGuideBoletoResult,
+  sandboxOnly = false,
+): void {
+  if (guide.collection_mode_snapshot === "municipal_system") {
+    throw new Error("Cobrança pertence ao sistema bancário próprio da Prefeitura.");
+  }
+  if (guide.paid === true ||
+      ["compensada", "pago", "paid", "confirmed", "confirmado"].includes(
+        String(guide.status || "").trim().toLowerCase(),
+      )) {
+    throw new Error("Guia já compensada não permite vincular outra cobrança.");
+  }
+  if (!charge.ok || !guide.guide_number || !charge.orderId ||
+      charge.externalReference !== guide.guide_number) {
+    throw new Error("Somente cobrança bancária confirmada e vinculada à guia original pode ser persistida.");
+  }
+  if (charge.environment !== "test" && charge.environment !== "production") {
+    throw new Error("Ambiente bancário inválido.");
+  }
+  if (sandboxOnly && charge.environment !== "test") {
+    throw new Error("Homologação isolada não aceita credencial ou retorno bancário de produção.");
+  }
+  if (guide.provider_environment && guide.provider_environment !== charge.environment) {
+    throw new Error("Ambiente da cobrança não corresponde ao ambiente bancário da guia.");
+  }
+  if (guide.bank_reference && guide.bank_reference !== charge.orderId) {
+    throw new Error("Guia já vinculada a outra cobrança; é proibido trocar a ordem bancária.");
+  }
+  const amount = exactChargeCents(charge.amount);
+  const original = guideCents(guide.amount);
+  if (amount===null || original===null || amount!==original) {
+    throw new Error("Valor da cobrança não corresponde ao valor imutável da guia.");
+  }
+}
+
 /** Only the API server signs a bank/provider reply. Browsers never receive the signing key. */
 export function assertBankChargeAttestationReady(): string {
   const secret = String(process.env.SIGAPRO_BANK_CHARGE_SIGNING_SECRET || "").trim();
@@ -93,11 +151,7 @@ export function assertBankChargeAttestationReady(): string {
 }
 
 export function signVerifiedBankCharge(guide: StoredGuide, charge: MercadoPagoGuideBoletoResult) {
-  if (!charge.ok || !charge.orderId || charge.externalReference !== guide.guide_number ||
-      !Number.isFinite(Number(charge.amount)) ||
-      Math.round(Number(charge.amount) * 100) !== Math.round(Number(guide.amount) * 100)) {
-    throw new Error("Somente resposta bancária coerente com a guia pode ser assinada.");
-  }
+  assertProviderChargeMatchesGuide(guide, charge);
   const secret = assertBankChargeAttestationReady();
   const stamp = String(Math.floor(Date.now() / 1000));
   const fields = [
@@ -118,10 +172,7 @@ export function signVerifiedBankCharge(guide: StoredGuide, charge: MercadoPagoGu
 }
 
 export async function persistGuideCharge(req: ApiReq, guide: StoredGuide, charge: MercadoPagoGuideBoletoResult, sandboxOnly = false) {
-  if (!charge.orderId) throw new Error("A cobrança não retornou referência bancária persistível.");
-  if (charge.externalReference !== guide.guide_number || !Number.isFinite(Number(charge.amount)) || Math.round(Number(charge.amount) * 100) !== Math.round(Number(guide.amount) * 100)) {
-    throw new Error("A cobrança retornada não corresponde ao número e valor originais da guia.");
-  }
+  assertProviderChargeMatchesGuide(guide, charge, sandboxOnly);
   const saved = await callDataApiRpc(req, sandboxOnly
     ? "qa_persist_payment_guide_provider_charge_v1"
     : "persist_payment_guide_provider_charge_v2", {

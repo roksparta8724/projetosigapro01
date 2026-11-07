@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
-import { makeReviewedDrawingEvidence, normalizeArchitecturalPdfExtraction } from "@/lib/architecturalPdfReadings";
+import { createReviewedDrawingHandoff, readReviewedDrawingHandoff, makeReviewedDrawingEvidence, normalizeArchitecturalPdfExtraction } from "@/lib/architecturalPdfReadings";
 
 describe("SIGAPRO IA — PDF architectural drawing extraction, fail closed",()=>{
  it("recognizes exact page and quote and never claims automatic municipal approval",()=>{
@@ -67,9 +67,54 @@ describe("SIGAPRO IA — PDF architectural drawing extraction, fail closed",()=>
   expect(panel).toContain('confirmedTransfer:true');
   expect(panel).toContain('data-sigapro-ai-apply-reviewed="true"');
   expect(panel).toContain("row.usableForReview && checked[row.metric]");
-  expect(precheck).toContain("<ArchitecturalPdfAiPanel");
+  const documentWorkspace=readFileSync("src/pages/saas/DocumentAnalysisPage.tsx","utf8");
+  expect(documentWorkspace).toContain("<ArchitecturalPdfAiPanel");
+  expect(precheck).not.toContain("<ArchitecturalPdfAiPanel");
+  expect(precheck).toContain("readReviewedDrawingHandoff");
   expect(precheck).toContain("setLegalReviewConfirmed(false)");
   expect(precheck).toContain('data-urban-precheck-legal-review="true"');
   expect(precheck).toContain("legalScopesReady && legalReviewConfirmed");
  });
+ it("transporta apenas a medida conferida do PDF original para o processo correto",()=>{
+   const fileName="SIGAPRO-QA04-PLANTA-IMPLANTACAO-V2.pdf";
+   const handoff=createReviewedDrawingHandoff({
+     processId:"proc-04",municipalityId:"municipio-qa",
+     document:{id:"doc-v2",version:2,fileName},
+     reviewed:{lot_area_m2:{
+       value:"250,00",evidence:makeReviewedDrawingEvidence(fileName,2,"Área do lote: 250,00 m²"),
+     }},
+   });
+   expect(handoff).not.toBeNull();
+   const context={processId:"proc-04",municipalityId:"municipio-qa",
+     documents:[{id:"doc-v2",version:2,fileName,uploaded:true}]};
+   expect(readReviewedDrawingHandoff(handoff,context)).toEqual({
+     lot_area_m2:{value:"250,00",
+       evidence:makeReviewedDrawingEvidence(fileName,2,"Área do lote: 250,00 m²")},
+   });
+   expect(readReviewedDrawingHandoff(handoff,{...context,municipalityId:"municipio-externo"})).toBeNull();
+   expect(readReviewedDrawingHandoff(handoff,{...context,processId:"outro-processo"})).toBeNull();
+   expect(readReviewedDrawingHandoff(handoff,{...context,
+     documents:[{...context.documents[0],version:3}]})).toBeNull();
+   expect(readReviewedDrawingHandoff(handoff,{...context,
+     documents:[{...context.documents[0],uploaded:false}]})).toBeNull();
+   expect(readReviewedDrawingHandoff(handoff,context,Date.now()+16*60000)).toBeNull();
+ });
+ it("rejeita citações sem prancha, valores não numéricos e campos forjados",()=>{
+   const document={id:"doc-v2",version:2,fileName:"projeto.pdf"};
+   expect(createReviewedDrawingHandoff({processId:"p",municipalityId:"m",document,
+     reviewed:{lot_area_m2:{value:"250",evidence:"texto sem página"}}})).toBeNull();
+   expect(createReviewedDrawingHandoff({processId:"p",municipalityId:"m",document,
+     reviewed:{lot_area_m2:{value:"250m²",
+       evidence:"Prancha/PDF projeto.pdf, página 2; medição"}}})).toBeNull();
+   const valid=createReviewedDrawingHandoff({processId:"p",municipalityId:"m",document,
+     reviewed:{lot_area_m2:{value:"250",evidence:"Prancha/PDF projeto.pdf, página 2; medição"}}});
+   expect(valid).not.toBeNull();
+   if(!valid)return;
+   const context={processId:"p",municipalityId:"m",
+     documents:[{...document,uploaded:true}]};
+   const forged={sigaproReviewedDrawing:{...valid.sigaproReviewedDrawing,
+     reviewed:{not_an_urban_metric:{value:"123",evidence:"Prancha/PDF projeto.pdf, página 2"}}}};
+   expect(readReviewedDrawingHandoff(forged,context)).toBeNull();
+ });
+
 });

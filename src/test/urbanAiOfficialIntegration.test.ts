@@ -2,10 +2,11 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { evaluateUrbanPrecheck,selectUrbanRegulation,validateUrbanRules } from "@/lib/urbanPrecheck";
 describe("SIGAPRO IA: official database precheck contract and human-only decision",()=>{
-  it("requires authenticated legal evidence and the secure Neon v6 writer, never legacy RPCs",()=>{
+  it("requires authenticated legal evidence and the secure Neon v7 writer with GIS evidence, never legacy RPCs",()=>{
     const client=readFileSync("src/integrations/backend/urbanPrecheckClient.ts","utf8");
     const panel=readFileSync("src/components/platform/UrbanPrecheckPanel.tsx","utf8");
-    expect(client).toContain('"save_urban_precheck_run_v6"');
+    expect(client).toContain('"save_urban_precheck_run_v7"');
+    expect(client).not.toContain('invoke("save_urban_precheck_run_v6"');
     expect(client).not.toContain('invoke("save_urban_precheck_run_v5"');
     expect(client).not.toContain('invoke("save_urban_precheck_run_v4"');
     expect(client).not.toContain('invoke("save_urban_precheck_run_v1"');
@@ -14,6 +15,8 @@ describe("SIGAPRO IA: official database precheck contract and human-only decisio
     expect(client).toContain("document_scope_confirmed: true");
     expect(panel).toContain('data-urban-precheck-legal-review="true"');
     expect(panel).toContain("legalScopesReady && legalReviewConfirmed");
+    expect(panel).toContain("geographicReady");
+    expect(panel).toContain("urban_zoning_resolve_process_v1");
     expect(panel).toContain("evidenceCoversUrbanRule");
     expect(panel).toContain("Registro legado sem comprovação jurídica completa");
     expect(panel).toContain("crypto.randomUUID()");

@@ -376,8 +376,8 @@ export async function listUrbanPrecheckHistory(processId: string): Promise<Urban
 }
 
 /**
- * The v6 writer validates all municipal legal scope IDs and an explicit human
- * attestation before delegating to the idempotent historical v5 writer.
+ * The v7 writer first proves the municipal parcel sits in exactly one legally
+ * verified map zone, then delegates to v6 for evidence-by-index validation.
  * Legacy v4/v5 entrypoints are revoked from authenticated callers in Neon.
  */
 export async function saveUrbanPrecheckRun(
@@ -395,7 +395,7 @@ export async function saveUrbanPrecheckRun(
     !legalReview.note || legalReview.note.trim().length < 20 || legalReview.note.trim().length > 1200) {
     throw new Error("Confirme cada fonte legal e registre a justificativa de revisão humana (20 a 1200 caracteres).");
   }
-  const response = await invoke<{id: string; status: string; signed: boolean}>("save_urban_precheck_run_v6", {
+  const response = await invoke<{id: string; status: string; signed: boolean}>("save_urban_precheck_run_v7", {
     _process_id: processId,
     _regulation_version_id: versionId,
     _reference_date: referenceDate,

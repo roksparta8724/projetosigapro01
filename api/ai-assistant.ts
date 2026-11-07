@@ -123,7 +123,7 @@ export default async function handler(req: Req, res: Res) {
   }) : null;
   if (provider === "cloudflare" && !cloudflareConfig) return json(res,503,{
     code:"SIGAPRO_CLOUDFLARE_AI_NOT_CONFIGURED",
-    error:"A IA Cloudflare do SIGAPRO ainda não foi configurada. Confira as variáveis protegidas na Vercel.",
+    error:"O SIGAPRO IA · Assistente não está configurado neste ambiente. Solicite a verificação ao administrador técnico.",
   });
   if (provider !== "private" && provider !== "openai" && provider !== "cloudflare") return json(res,503,{
     code:"SIGAPRO_AI_PROVIDER_INVALID",
@@ -161,15 +161,15 @@ export default async function handler(req: Req, res: Res) {
     if (!response.ok) {
       if (provider === "cloudflare" && response.status === 429) return json(res,429,{
         code:"SIGAPRO_CLOUDFLARE_AI_LIMIT",
-        error:"A franquia diária ou a capacidade da IA Cloudflare foi atingida. Tente novamente mais tarde.",
+        error:"O limite diário ou a capacidade do SIGAPRO IA · Assistente foi atingido. Tente novamente mais tarde.",
       });
-      return json(res,502,{error:"O provedor de IA não respondeu corretamente. Consulte a configuração e tente novamente."});
+      return json(res,502,{error:"O SIGAPRO IA · Assistente não conseguiu concluir a resposta. Verifique a conexão e tente novamente."});
     }
     const payload = await response.json() as {choices?:Array<{message?:{content?:string}}>;usage?:unknown;model?:string};
     const content = payload.choices?.[0]?.message?.content;
     if (typeof content !== "string" || !content.trim())
-      return json(res,502,{error:"O provedor de IA retornou uma resposta vazia."});
-    return json(res,200,{message:content.trim(),model:payload.model||selectedModel});
+      return json(res,502,{error:"O SIGAPRO IA · Assistente não gerou uma resposta válida."});
+    return json(res,200,{message:content.trim()});
   } catch {
     return json(res,504,{error:"A consulta ao assistente expirou ou falhou. Nenhum processo foi modificado."});
   } finally {clearTimeout(timer);}

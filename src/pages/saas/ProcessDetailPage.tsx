@@ -1,7 +1,8 @@
 import { archiveAndOpenGuide, openLegacyGuideOriginal, openStoredGuide, readGuideOriginal } from "@/lib/guideOriginal";
+import { isSyntheticQaProtocolGuideCode } from "@/lib/qaPaymentEvidence";
 import { FormEvent, MouseEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, ArrowRightLeft, Building2, CheckCircle2, Clock3, Download, Eye, FileBadge2, FileCheck2, FileKey2, FileStack, Landmark, LogOut, Maximize2, MessageSquareMore, PencilLine, Printer, ReceiptText, Route, ShieldAlert, Signature, UserRound, Wallet, Workflow, ZoomIn, ZoomOut } from "lucide-react";
-import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { ArrowLeft, ArrowRightLeft, BrainCircuit, Building2, CheckCircle2, Clock3, Download, Eye, FileBadge2, FileCheck2, FileKey2, FileStack, Landmark, LogOut, Maximize2, MessageSquareMore, PencilLine, Printer, ReceiptText, Route, ShieldAlert, Signature, UserRound, Wallet, Workflow, ZoomIn, ZoomOut } from "lucide-react";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,6 +17,7 @@ import {
 import { FileDropZone, type UploadedFileItem } from "@/components/platform/FileDropZone";
 import { PageHero } from "@/components/platform/PageHero";
 import { PageShell, PageStatsRow } from "@/components/platform/PageShell";
+import { formatProcessSlaDeadline } from "@/lib/processSlaPresentation";
 import { PixQrCode } from "@/components/platform/PixQrCode";
 import { GuidePixShareCard } from "@/components/platform/GuidePixShareCard";
 import { PortalFrame } from "@/components/platform/PortalFrame";
@@ -1874,7 +1876,7 @@ export function ProcessDetailPage() {
   const showPrimaryDetailColumn = ["imovel", "documentos", "analise", "financeiro", "alvara", "historico"].includes(activeTab);
   const showSecondaryDetailColumn = ["analise", "financeiro"].includes(activeTab);
   const useSplitDetailLayout = false;
-  const cardShell = "sig-process-card min-w-0 rounded-[20px] border border-slate-200 bg-white shadow-[0_14px_34px_rgba(15,23,42,0.08)] dark:border-slate-700 dark:bg-slate-900";
+  const cardShell = "sig-process-card min-w-0 max-w-full rounded-[20px] border border-slate-200 bg-white shadow-[0_14px_34px_rgba(15,23,42,0.08)] dark:border-slate-700 dark:bg-slate-900";
   const printGuide = async (
     guideKind: PaymentGuideKind = "protocolo",
     autoPrint = true,
@@ -1887,6 +1889,68 @@ export function ProcessDetailPage() {
       visiblePaymentGuides.find((guide) => guide.kind === guideKind);
     if (!selectedGuide) return;
 
+    // A historical QA guide is an administrative fixture, not an actual bank
+    // claim. The old path tried get_payment_guide_original_v1 and rejected it as
+    // "compensada sem PDF original": there is deliberately no original or PIX.
+    // This view must never call banking/provider, freeze an original, or issue
+    // a charge. In production the branch is disabled by the isolated-QA flag.
+    if (import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true" &&
+        selectedGuide.kind === "protocolo" &&
+        isSyntheticQaProtocolGuideCode(selectedGuide.code) &&
+        Number(selectedGuide.amount) === 0) {
+      const issuedDate = selectedGuide.issuedAt || process.officializedAt || new Date().toISOString();
+      const preview: GuiaRecolhimentoOficialProps = {
+        prefeitura: {
+          nome: municipalityName || tenant?.name || "Prefeitura Municipal",
+          secretaria: tenantSettings?.secretariaResponsavel || "Secretaria responsável",
+          endereco: tenantSettings?.endereco || "",
+          telefone: tenantSettings?.telefone || "",
+          logoUrl: preparedGuideLogoUrl || getRenderedMunicipalityLogoDataUrl() ||
+            stableGuideLogoUrl || tenantSettings?.brasaoUrl || "",
+        },
+        contribuinte: {
+          nome: process.ownerName || "Não informado no cadastro",
+          cpfCnpj: process.ownerDocument || "",
+          endereco: process.address || "Não informado no cadastro",
+          numeroCadastro: process.property.registration || process.protocol,
+        },
+        guia: {
+          numeroGuia: selectedGuide.code,
+          exercicio: new Date(issuedDate).getFullYear(),
+          dataDocumento: issuedDate,
+          vencimento: selectedGuide.dueDate,
+          observacao: "DOCUMENTO FICTÍCIO DE HOMOLOGAÇÃO. NÃO É GUIA BANCÁRIA E NÃO DEVE SER PAGO.",
+          funcionarioResponsavel: selectedGuide.issuedBy || session.name,
+          proprietario: process.ownerName || "",
+          profissionalResponsavel: process.technicalLead || "",
+          areaObra: process.property.area || undefined,
+          usoObra: process.property.usage || "",
+          nonPayablePreview: true,
+          bankEnvironment: "test",
+          paymentProvider: "manual",
+          bankName: "",
+          codigoBarras: "",
+          linhaDigitavel: "",
+          pixPayload: "",
+          qrCodePixUrl: "",
+          valorDocumento: 0,
+          valorCobrado: 0,
+        },
+        itens: [{
+          ano: new Date(issuedDate).getFullYear(),
+          divida: "Protocolo administrativo - prévia de homologação sem cobrança",
+          tabela: "QA - NÃO PAGAR",
+          principal: 0,
+          multa: 0, juros: 0, correcao: 0, total: 0,
+        }],
+      };
+      const opened = openGuiaRecolhimentoOficialWindow(preview, {
+        title: "Prévia administrativa - sem cobrança - " + selectedGuide.code,
+        autoPrint,
+      });
+      if (!opened) setProcessActionStatus("O navegador bloqueou a prévia da guia. Permita a abertura de guias do SIGAPRO.");
+      return;
+    }
 
     const reservedGuideWindow = reserveGuiaRecolhimentoOficialWindow(
       "Guia " + selectedGuide.code,
@@ -1917,7 +1981,7 @@ export function ProcessDetailPage() {
     }
     const paidGuide = false;
     const issuedAt = selectedGuide.issuedAt;
-    if (!issuedAt) throw new Error("Data original da guia ausente no Neon.");
+    if (!issuedAt) throw new Error("Data original da guia ausente nos registros SIGAPRO.");
     const year = new Date(issuedAt).getFullYear().toString();
     const approvalBreakdown = !paidGuide && selectedGuide.kind === "aprovacao_final"
         ? calculateApprovalGuideBreakdown(
@@ -2586,7 +2650,7 @@ export function ProcessDetailPage() {
       "Visibilidade de tramitação atualizada.",
     );
   };
-  const openDocumentWorkspace = (documentId: string, forceAnalysis = false) => {
+  const openDocumentWorkspace = (documentId: string, forceAnalysis = false, openAi = false) => {
     const selectedDocument = process.documents.find((item) => item.id === documentId);
     if (!selectedDocument || openingDocumentId) return;
 
@@ -2595,9 +2659,11 @@ export function ProcessDetailPage() {
     const shouldAnalyze = Boolean((forceAnalysis || canReviewDocuments) &&
       canAnalyzeProcessDocument(session, process, effectiveScopeId));
     const route = shouldAnalyze ? "analisar" : "visualizar";
-    const query = shouldAnalyze ? "?ferramenta=highlight" : "";
+    const query = shouldAnalyze
+      ? openAi ? "?ferramenta=navigate&painel=ia" : "?ferramenta=highlight"
+      : "";
     const workspaceUrl =
-      `${window.location.origin}${buildProcessPath(process)}/documentos/${documentId}/${route}${query}`;
+      `${window.location.origin}${buildProcessPath(process)}/documentos/${documentId}/${route}${query}${query ? "&" : "?"}janela=1`;
 
     setOpeningDocumentId(documentId);
     setProcessActionStatus("");
@@ -2708,7 +2774,7 @@ export function ProcessDetailPage() {
 
   const handleImportQa04ArchitecturalFixture = async () => {
     if (!canImportQa04Fixture) {
-      setProcessActionStatus("Importação disponível apenas ao administrador autorizado no Neon QA isolado.");
+      setProcessActionStatus("Importação disponível apenas ao administrador autorizado no ambiente de testes SIGAPRO.");
       return;
     }
     if (qa04MissingFixtureLabels.length === 0) {
@@ -2767,7 +2833,7 @@ export function ProcessDetailPage() {
       const result = await upgradeRemoteQa04ArchitecturalPlanV2(
         process.id, uploaded.path, file.name, file.size,
       );
-      if (result.ok !== true) throw new Error("O Neon QA não confirmou a revisão V2.");
+      if (result.ok !== true) throw new Error("O ambiente de testes SIGAPRO não confirmou a revisão V2.");
     },
     "Planta V2 com recuos cotados anexada. A V1 permanece no histórico e o novo documento aguarda conferência.",
     { allowMunicipalAdmin: true });
@@ -3093,12 +3159,12 @@ export function ProcessDetailPage() {
               <Badge variant="outline" className={statusTone(process.status)}>
                 {statusLabel(process.status)}
               </Badge>
-              <Badge variant="outline" className="rounded-full">
+              <Badge variant="outline" className="max-w-full whitespace-normal break-words rounded-full">
                 {process.type}
               </Badge>
             </div>
-            <p className="mt-4 text-sm leading-6 text-slate-600" title={process.address}>{process.address}</p>
-            <p className="mt-2 text-sm leading-6 text-slate-500" title={`Protocolo oficial ${process.externalProtocol} - ${officialMunicipalityLabel(tenant?.name || municipalityName)}`}>
+            <p data-sigapro-contained-text="true" className="mt-4 text-sm leading-6 text-slate-600" title={process.address}>{process.address}</p>
+            <p data-sigapro-contained-text="true" className="mt-2 text-sm leading-6 text-slate-500" title={`Protocolo oficial ${process.externalProtocol} - ${officialMunicipalityLabel(tenant?.name || municipalityName)}`}>
               Protocolo oficial {process.externalProtocol} - {officialMunicipalityLabel(tenant?.name || municipalityName)}
             </p>
           </CardContent>
@@ -3110,11 +3176,17 @@ export function ProcessDetailPage() {
                 ? "Guia de aprovação / Alvará"
                 : constructionGuide
                   ? "Guia de ISSQN / Projeto"
-                  : "Guia de protocolo"}
+                  : displayGuide && isSyntheticQaProtocolGuideCode(displayGuide.code) && import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true"
+                    ? "Prévia de protocolo — homologação"
+                    : "Guia de protocolo"}
             </p>
-            <p className="sig-fit-title mt-3 text-lg font-medium leading-7 text-slate-900" title={displayGuide?.code || "Sem guia"}>{displayGuide?.code || "Sem guia"}</p>
-            <p className="mt-2 text-base font-medium leading-6 text-slate-700">{displayGuide ? formatCurrency(displayGuide.amount) : "Não emitida"}</p>
-            <p className="sig-field-help sig-fit-copy mt-1" title={tenantSettings?.beneficiarioArrecadacao || tenant?.name || ""}>{tenantSettings?.beneficiarioArrecadacao || tenant?.name}</p>
+            <p data-sigapro-contained-text="true" className="sig-fit-title mt-3 text-lg font-medium leading-7 text-slate-900" title={displayGuide?.code || "Sem guia"}>{displayGuide?.code || "Sem guia"}</p>
+            <p className="mt-2 text-base font-medium leading-6 text-slate-700" data-sigapro-guide-qa-preview={displayGuide && isSyntheticQaProtocolGuideCode(displayGuide.code) && import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true" ? "true" : undefined}>
+              {displayGuide && isSyntheticQaProtocolGuideCode(displayGuide.code) && import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true"
+                ? "Prévia sem cobrança — não pagar"
+                : displayGuide ? formatCurrency(displayGuide.amount) : "Não emitida"}
+            </p>
+            <p data-sigapro-contained-text="true" className="sig-field-help sig-fit-copy mt-1" title={tenantSettings?.beneficiarioArrecadacao || tenant?.name || ""}>{tenantSettings?.beneficiarioArrecadacao || tenant?.name}</p>
             {displayGuide ? (
               <div className="mt-4 flex flex-wrap gap-2">
                 <Button
@@ -3129,7 +3201,7 @@ export function ProcessDetailPage() {
                                 ) : (
                                   <Eye className="mr-2 h-4 w-4" />
                                 )}
-                                {guideBillingBusyKey ? "Preparando guia..." : "Visualizar guia"}
+                                {guideBillingBusyKey ? "Preparando guia..." : displayGuide && isSyntheticQaProtocolGuideCode(displayGuide.code) && import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true" ? "Visualizar prévia" : "Visualizar guia"}
                 </Button>
                 <Button
                   type="button"
@@ -3143,7 +3215,7 @@ export function ProcessDetailPage() {
                                 ) : (
                                   <Printer className="mr-2 h-4 w-4" />
                                 )}
-                                {guideBillingBusyKey ? "Preparando guia..." : "Imprimir guia"}
+                                {guideBillingBusyKey ? "Preparando guia..." : displayGuide && isSyntheticQaProtocolGuideCode(displayGuide.code) && import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true" ? "Imprimir prévia" : "Imprimir guia"}
                 </Button>
               </div>
             ) : null}
@@ -3155,7 +3227,7 @@ export function ProcessDetailPage() {
             <p className="mt-3 text-lg font-medium leading-7 text-slate-900 dark:text-slate-100">
               {uploadedCount}/{regularProcessDocuments.length}
             </p>
-            <p className="sig-field-help mt-2">Checklist com versão, nome do arquivo e assinatura</p>
+            <p data-sigapro-contained-text="true" className="sig-field-help mt-2">Checklist com versão, nome do arquivo e assinatura</p>
           </CardContent>
         </Card>
 
@@ -3165,7 +3237,7 @@ export function ProcessDetailPage() {
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="sig-label">{isHabiteSeProcess ? "Habite-se" : "Alvará de Construção"}</p>
-                  <p className="mt-3 text-lg font-bold leading-7 text-slate-950 dark:text-white">
+                  <p data-sigapro-contained-text="true" className="mt-3 text-lg font-bold leading-7 text-slate-950 dark:text-white">
                     {isHabiteSeProcess
                       ? formatOfficialProcessNumber(process.protocol)
                       : constructionPermit?.permitNumber || "Em preparação"}
@@ -3217,8 +3289,8 @@ export function ProcessDetailPage() {
           <Card data-process-summary-card="true" data-summary-tone="amber" className={`${cardShell} sig-premium-summary-card sig-summary-amber h-full`}>
             <CardContent className="p-5">
               <p className="sig-label">SLA atual</p>
-              <p className="mt-3 text-lg font-medium leading-7 text-slate-900" title={effectiveSlaStage}>{effectiveSlaStage}</p>
-              <p className="sig-field-help mt-2" title={`Prazo ${process.sla.dueDate} - ${process.sla.hoursRemaining}h restantes`}>Prazo {process.sla.dueDate} - {process.sla.hoursRemaining}h restantes</p>
+              <p data-sigapro-contained-text="true" className="mt-3 text-lg font-medium leading-7 text-slate-900" title={effectiveSlaStage}>{effectiveSlaStage}</p>
+              <p data-sigapro-contained-text="true" data-sigapro-sla-date-consistency="true" className="sig-field-help mt-2" title={formatProcessSlaDeadline(process.sla.dueDate, process.sla.hoursRemaining)}>{formatProcessSlaDeadline(process.sla.dueDate, process.sla.hoursRemaining)}</p>
               {process.sla.breached ? <p className="mt-2 text-sm font-medium text-rose-600">Prazo estourado</p> : null}
             </CardContent>
           </Card>
@@ -3457,10 +3529,28 @@ export function ProcessDetailPage() {
               data-process-document-content="true"
               className="space-y-4 p-5 md:p-6"
             >
+              {(session.role === "analista" || session.role === "prefeitura_supervisor") &&
+               !canReviewDocuments ? (
+                <div data-sigapro-document-editor-locked="true" role="note"
+                  className="flex flex-wrap items-start justify-between gap-3 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-amber-950 dark:border-amber-600 dark:bg-amber-950/30 dark:text-amber-100">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-extrabold">Para editar e marcar o PDF, assuma ou distribua a análise</p>
+                    <p className="mt-1 text-xs leading-5">
+                      A entrega dos documentos está concluída, mas a mesa técnica exige um responsável autorizado.
+                      Abrir documento é somente visualização; Adicionar marcador não cria apontamentos no PDF.
+                    </p>
+                  </div>
+                  <Button type="button" data-sigapro-open-analyst-assignment="true"
+                    className="min-h-10 max-w-full rounded-xl bg-[#075985] px-4 !text-white hover:bg-[#0c4a6e] [&_*]:!text-white"
+                    onClick={() => navigate("/prefeitura/analise?secao=fila")}>
+                    Ir à fila para assumir análise
+                  </Button>
+                </div>
+              ) : null}
               {canImportQa04Fixture ? (
                 <div className="rounded-2xl border border-sky-300 bg-sky-50 p-4 text-slate-900 dark:border-sky-600 dark:bg-slate-900 dark:text-slate-100">
                   <p className="text-sm font-bold">Ensaio controlado de IA — Processo 04 fictício</p>
-                  <p className="mt-1 text-xs leading-5">Importa um projeto arquitetônico de ensaio e três placeholders manifestamente fictícios. Apenas no Neon QA; não aprova documentos, não altera pagamento e não libera a Análise automaticamente. Os arquivos permanecerão pendentes de análise técnica.</p>
+                  <p className="mt-1 text-xs leading-5">Importa um projeto arquitetônico de ensaio e três placeholders manifestamente fictícios. Somente no ambiente de testes SIGAPRO; não aprova documentos, não altera pagamento e não libera a Análise automaticamente. Os arquivos permanecerão pendentes de análise técnica.</p>
                   <Button
                     type="button"
                     className="mt-3 min-h-11 rounded-xl bg-[#075985] px-5 py-3 text-sm font-bold !text-white shadow-sm hover:bg-[#0369a1] hover:!text-white focus-visible:ring-2 focus-visible:ring-sky-500 disabled:cursor-not-allowed disabled:opacity-60 [&_*]:!text-white"
@@ -3487,12 +3577,12 @@ export function ProcessDetailPage() {
                   ) : null}
                   {processActionBusy === "qa04-upgrade-plan" ? (
                     <p role="status" aria-live="polite" className="mt-2 text-sm font-semibold text-sky-900 dark:text-sky-100">
-                      Enviando a planta cotada ao R2 e registrando a revisão auditada no Neon QA...
+                      Armazenando a planta cotada no SIGAPRO Nuvem e registrando a revisão auditada nos testes...
                     </p>
                   ) : null}
                   {processActionBusy === "qa04-import-project" ? (
                     <p role="status" aria-live="polite" className="mt-2 text-sm font-semibold text-sky-900 dark:text-sky-100">
-                      Importando os documentos fictícios no R2 e registrando no Neon QA...
+                      Importando os documentos fictícios no SIGAPRO Nuvem e registrando nos testes...
                     </p>
                   ) : null}
                   {processActionStatus ? (
@@ -3736,6 +3826,26 @@ export function ProcessDetailPage() {
                           >
                             <Maximize2 className="h-4 w-4" />
                             {openingDocumentId === document.id ? "Abrindo..." : "Abrir documento"}
+                          </button>
+                        ) : null}
+                        {document.uploaded &&
+                          document.label === "Projeto Arquitetônico" &&
+                          canUseMunicipalChecklist &&
+                          canEditAnalysisChecklist &&
+                          stableAnalysisAccess ? (
+                          <button
+                            type="button"
+                            data-sigapro-ai-review-shortcut="true"
+                            data-primary-action="document"
+                            disabled={Boolean(openingDocumentId)}
+                            onClick={() => openDocumentWorkspace(document.id, true, true)}
+                            className="sig-primary-document-action inline-flex min-h-10 min-w-0 max-w-full items-center justify-center gap-2 rounded-full border border-sky-500 bg-[#075985] px-4 py-2 text-center text-xs font-bold !text-white shadow-sm transition-colors hover:bg-[#0c4a6e] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500 disabled:cursor-wait disabled:opacity-80 [&_*]:!text-white"
+                            title="Abrir esta planta na mesa de análise, com o painel SIGAPRO IA ao lado. Não envia o PDF automaticamente."
+                          >
+                            <BrainCircuit data-sigapro-ai-review-icon="true" className="h-4 w-4 shrink-0 !text-white" aria-hidden="true" />
+                            <span data-sigapro-ai-review-label="true" className="min-w-0 whitespace-normal break-words !text-white [overflow-wrap:anywhere]">
+                              SIGAPRO IA · Ler projeto
+                            </span>
                           </button>
                         ) : null}
                       </div>

@@ -128,7 +128,7 @@ export function GovbrArGuideBridge({
         bucket: "process-documents",
         objectKey: document.filePath.replace(/^r2:/, ""),
       });
-      if (!signedUrl) throw new Error("Arquivo oficial indisponível no R2.");
+      if (!signedUrl) throw new Error("Arquivo oficial indisponível no repositório SIGAPRO.");
       target.opener = null;
       target.location.replace(signedUrl);
     } catch (error) {
@@ -168,7 +168,7 @@ export function GovbrArGuideBridge({
         file: pdf,
         folder: "govbr-ar",
       });
-      if (!uploaded.path) throw new Error("O R2 não confirmou o armazenamento do PDF GOVBR/AR.");
+      if (!uploaded.path) throw new Error("O SIGAPRO Nuvem não confirmou o armazenamento do PDF da guia municipal.");
       const guideLabel = formatGovbrArGuideLabel(normalizedReference, guideKind, supplierCode);
       const document: ProcessDocument = {
         id: `doc-${crypto.randomUUID()}`,
@@ -189,18 +189,18 @@ export function GovbrArGuideBridge({
       };
       const saved = await onAppend(document, normalizedReference, guideKind);
       if (Number(saved.synced) !== 1) {
-        throw new Error("O PDF foi enviado ao R2, mas a vinculação ao processo não foi confirmada no Neon.");
+        throw new Error("O PDF foi armazenado, mas a vinculação ao processo ainda não foi confirmada no SIGAPRO.");
       }
       setPdf(null);
       if (pdfInputRef.current) pdfInputRef.current.value = "";
       setReference("");
       setVerifiedByClerk(false);
-      setStatus(`Guia oficial ${normalizedReference} armazenada no R2 e vinculada ao processo. Nenhuma nova cobrança foi emitida.`);
+      setStatus(`Guia oficial ${normalizedReference} armazenada no SIGAPRO Nuvem e vinculada ao processo. Nenhuma nova cobrança foi emitida.`);
       try {
         await onNotify(`Guia oficial do sistema municipal ${normalizedReference} (${guideLabel}) anexada ao processo pela equipe da Prefeitura (responsável: ${actorName}). Acesse o SIGAPRO, na área Financeiro ou Documentos, para consultar o PDF emitido pela Prefeitura.`);
         setStatus(`Guia municipal ${normalizedReference} vinculada ao processo e comunicação registrada para o profissional no SIGAPRO. Nenhuma cobrança nova foi criada.`);
       } catch {
-        setStatus(`Guia municipal ${normalizedReference} SALVA no processo e no R2. A comunicação ao profissional não foi confirmada; use as mensagens do processo sem importar a guia novamente.`);
+        setStatus(`Guia municipal ${normalizedReference} SALVA no processo e no SIGAPRO Nuvem. A comunicação ao profissional não foi confirmada; use as mensagens do processo sem importar a guia novamente.`);
       }
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Não foi possível concluir o recebimento da guia GOVBR/AR.");

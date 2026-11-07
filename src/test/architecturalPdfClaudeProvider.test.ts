@@ -127,4 +127,162 @@ describe("SIGAPRO — Claude PDF visual via stored R2 attachments",()=>{
     expect(output.readings.find(x=>x.metric==="front_setback_m")?.usableForReview).toBe(false);
     expect(output.readings.find(x=>x.metric==="floor_area_ratio")?.usableForReview).toBe(true);
   });
+  it("exige credencial independente para a Leitura Avançada visual, sem usar ChatGPT Plus",()=>{
+    const denied=resolveVisualPdfProvider(env({SIGAPRO_AI_PDF_PROVIDER:"claude",
+      ANTHROPIC_API_KEY:KEY}),"openai_visual");
+    expect(denied.enabled).toBe(false);
+    const cfg=resolveVisualPdfProvider(env({
+      SIGAPRO_AI_PDF_PROVIDER:"claude",SIGAPRO_AI_PDF_MODEL:"claude-sonnet-5-5",
+      OPENAI_API_KEY:"sk-test-only-fake-openai-credential-00000000001",
+      SIGAPRO_OPENAI_PDF_MODEL:"gpt-6.1-sol",
+    }),"openai_visual");
+    expect(cfg.enabled).toBe(true);
+    if(cfg.enabled)expect(cfg.provider).toMatchObject({kind:"openai",model:"gpt-6.1-sol"});
+    expect(resolveVisualPdfProvider(env({
+      OPENAI_API_KEY:"sk-test-only-fake-openai-credential-00000000001",
+      SIGAPRO_OPENAI_PDF_MODEL:"http://untrusted-provider.example",
+    }),"openai_visual").enabled).toBe(false);
+  });
+  it("envia PDF com imagens em alta definição ao endpoint fixo OpenAI Responses e valida JSON",async()=>{
+    const token="sk-test-only-fake-openai-credential-00000000001";
+    const fetchMock=vi.fn(async(url:string,opts:RequestInit)=>{
+      expect(url).toBe("https://api.openai.com/v1/responses");
+      expect(opts.redirect).toBe("error");
+      expect((opts.headers as Record<string,string>).Authorization).toBe("Bearer "+token);
+      const body=JSON.parse(String(opts.body));
+      expect(body.store).toBe(false);
+      expect(body.model).toBe("gpt-6.1-sol");
+      expect(body.input[0].content[0]).toMatchObject({
+        type:"input_file",filename:"projeto.pdf",detail:"high",
+        file_data:"data:application/pdf;base64,"+Buffer.from("%PDF- fake").toString("base64"),
+      });
+      expect(body.text.format).toMatchObject({type:"json_schema",
+        name:"sigapro_architectural_readings_v1",strict:true});
+      return {ok:true,json:async()=>({status:"completed",output:[{type:"message",
+        content:[{type:"output_text",text:JSON.stringify({
+          document_type:"architectural_plan",has_site_plan:true,warnings:[],
+          metrics:[{metric:"rear_setback_m",value:12,page:2,
+            quote:"Recuo de fundos 12,00 m",confidence:"high"}],
+        })}]}]})};
+    });
+    vi.stubGlobal("fetch",fetchMock);
+    const output=await extractVisualPdf(new TextEncoder().encode("%PDF- fake"),
+      "projeto.pdf",{kind:"openai",key:token,model:"gpt-6.1-sol"});
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(output.readings.find(x=>x.metric==="rear_setback_m")).toMatchObject({
+      value:12,page:2,usableForReview:true,
+    });
+    expect(output.automaticallyApproved).toBe(false);
+  });
+  it("bloqueia falsas leituras visuais em vez de preencher recuos sem fonte",async()=>{
+    const token="sk-test-only-fake-openai-credential-00000000001";
+    vi.stubGlobal("fetch",vi.fn(async()=>({ok:true,json:async()=>({
+      status:"completed",output:[{type:"message",content:[{type:"output_text",
+        text:JSON.stringify({document_type:"architectural_plan",has_site_plan:true,
+          warnings:[],metrics:[{metric:"front_setback_m",value:3,page:1,
+            quote:"Área do lote 250 m²",confidence:"high"}]})}]}],
+    })})));
+    const output=await extractVisualPdf(new TextEncoder().encode("%PDF- fake"),
+      "projeto.pdf",{kind:"openai",key:token,model:"gpt-4.1"});
+    expect(output.readings.find(x=>x.metric==="front_setback_m")?.value).toBeNull();
+  });
+
+ it("só habilita Gemini gratuito em QA com chave e opt-in, sem substituir Claude",()=>{
+   const off=resolveVisualPdfProvider(env({
+     SIGAPRO_GEMINI_QA_API_KEY:"fixture-only-fake-gemini-credential-for-unit-tests",
+   }),"gemini_qa");
+   expect(off.enabled).toBe(false);
+   const cfg=resolveVisualPdfProvider(env({
+     SIGAPRO_AI_PDF_PROVIDER:"claude",ANTHROPIC_API_KEY:KEY,
+     SIGAPRO_GEMINI_QA_ENABLED:"true",
+     SIGAPRO_GEMINI_QA_API_KEY:"fixture-only-fake-gemini-credential-for-unit-tests",
+   }),"gemini_qa");
+   const unchanged=resolveVisualPdfProvider(env({
+     SIGAPRO_AI_PDF_PROVIDER:"claude",ANTHROPIC_API_KEY:KEY,
+     SIGAPRO_GEMINI_QA_ENABLED:"true",
+     SIGAPRO_GEMINI_QA_API_KEY:"fixture-only-fake-gemini-credential-for-unit-tests",
+   }));
+   expect(cfg.enabled).toBe(true);
+   if(cfg.enabled)expect(cfg.provider).toMatchObject({kind:"gemini",model:"gemini-2.5-flash"});
+   expect(unchanged.enabled).toBe(true);
+   if(unchanged.enabled)expect(unchanged.provider.kind).toBe("claude");
+ });
+ it("extrai cotas de prancha fictícia multimodal, com JSON e página, sem aprovação legal",async()=>{
+   const key="fixture-only-fake-gemini-credential-for-unit-tests";
+   const raw=JSON.stringify({
+     document_type:"architectural_plan",has_site_plan:true,warnings:[],
+     metrics:[
+       {metric:"front_setback_m",value:5,page:2,
+         quote:"Recuo frontal proposto: 5,00 m",confidence:"high"},
+       {metric:"rear_setback_m",value:12,page:2,
+         quote:"Recuo de fundos proposto: 12,00 m",confidence:"high"},
+       {metric:"permeability_percent",value:30,page:2,
+         quote:"Taxa de permeabilidade não fornecida",confidence:"high"},
+     ],
+   });
+   const request=vi.fn(async(url:string,opts:RequestInit)=>{
+     expect(url).toBe("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent");
+     expect(opts.redirect).toBe("error");
+     expect((opts.headers as Record<string,string>)["x-goog-api-key"]).toBe(key);
+     expect(JSON.stringify(opts.headers)).not.toContain("Authorization");
+     const body=JSON.parse(String(opts.body));
+     expect(body.contents[0].parts[0]).toEqual({
+       inline_data:{mime_type:"application/pdf",data:Buffer.from("%PDF-qa04").toString("base64")},
+     });
+     expect(body.generationConfig.responseMimeType).toBe("application/json");
+     return {ok:true,json:async()=>({candidates:[{finishReason:"STOP",
+       content:{parts:[{text:raw}]}}]})};
+   });
+   vi.stubGlobal("fetch",request);
+   const result=await extractVisualPdf(new TextEncoder().encode("%PDF-qa04"),
+     "SIGAPRO-QA04-PLANTA-IMPLANTACAO-V2.pdf",{kind:"gemini",key,model:"gemini-2.5-flash"});
+   expect(request).toHaveBeenCalledOnce();
+   expect(result.automaticallyApproved).toBe(false);
+   expect(result.readings.find(x=>x.metric==="front_setback_m")).toMatchObject({value:5,page:2,usableForReview:true});
+   expect(result.readings.find(x=>x.metric==="rear_setback_m")).toMatchObject({value:12,page:2,usableForReview:true});
+   expect(result.readings.find(x=>x.metric==="permeability_percent")?.value).toBeNull();
+ });
+ it("rejeita resposta Gemini interrompida sem inventar cota",async()=>{
+   vi.stubGlobal("fetch",vi.fn(async()=>({ok:true,json:async()=>({candidates:[{
+     finishReason:"MAX_TOKENS",content:{parts:[{text:"{}"}]},
+   }]})})));
+   await expect(extractVisualPdf(new TextEncoder().encode("%PDF-"),"teste.pdf",
+     {kind:"gemini",key:"fake-gemini-token",model:"gemini-2.5-flash"}))
+     .rejects.toThrow("AI_INCOMPLETE");
+ });
+
+ it("pontua recuos da prancha 02 da fixture e reprova divergência sem criar aprovação",async()=>{
+   const {normalizeArchitecturalPdfExtraction,benchmarkQa04ArchitecturalReadings}=await import(
+     "@/lib/architecturalPdfReadings");
+   const {QA04_SITE_GEOMETRY}=await import("@/lib/qa04ArchitecturalFixture");
+   const raw={
+     document_type:"architectural_plan",has_site_plan:true,warnings:[],
+     metrics:[
+       {metric:"front_setback_m",value:5,page:2,
+         quote:"Recuo frontal proposto: 5,00 m",confidence:"high"},
+       {metric:"side_setback_m",value:1,page:2,
+         quote:"Recuo lateral esquerdo: 1,00 m",confidence:"high"},
+       {metric:"rear_setback_m",value:12,page:2,
+         quote:"Recuo de fundos proposto: 12,00 m",confidence:"high"},
+     ],
+   };
+   expect(QA04_SITE_GEOMETRY.frontSetbackM).toBe(5);
+   expect(QA04_SITE_GEOMETRY.leftSetbackM).toBe(1);
+   expect(QA04_SITE_GEOMETRY.rearSetbackM).toBe(12);
+   const extraction=normalizeArchitecturalPdfExtraction(raw);
+   const result=benchmarkQa04ArchitecturalReadings(extraction.readings);
+   expect(result.passed).toBe(3);
+   expect(extraction.automaticallyApproved).toBe(false);
+   const misleading=normalizeArchitecturalPdfExtraction({...raw,metrics:[
+     ...raw.metrics.slice(0,2),
+     {metric:"rear_setback_m",value:20,page:2,
+       quote:"Recuo de fundos proposto: 20,00 m",confidence:"high"},
+   ]});
+   expect(benchmarkQa04ArchitecturalReadings(misleading.readings).passed).toBe(2);
+   const wrongPage=normalizeArchitecturalPdfExtraction({...raw,metrics:[
+     {...raw.metrics[0],page:3},...raw.metrics.slice(1),
+   ]});
+   expect(benchmarkQa04ArchitecturalReadings(wrongPage.readings).passed).toBe(2);
+ });
+
 });

@@ -7,16 +7,24 @@ const read = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8"
 
 describe("SIGAPRO — official urban law reading catalog", () => {
   it("isolates sources to Campo Limpo Paulista instead of leaking across municipalities", () => {
-    expect(getMunicipalOfficialUrbanSources(CAMPO_LIMPO_PAULISTA_MUNICIPALITY_ID)).toHaveLength(9);
+    expect(getMunicipalOfficialUrbanSources(CAMPO_LIMPO_PAULISTA_MUNICIPALITY_ID)).toHaveLength(11);
     expect(getMunicipalOfficialUrbanSources("00000000-0000-4000-8000-000000000000")).toEqual([]);
     expect(getMunicipalOfficialUrbanSources(null)).toEqual([]);
   });
   it("keeps the original 2009 law, subsequent amendments and Plan Director independently", () => {
     const ids = CAMPO_LIMPO_OFFICIAL_URBAN_SOURCES.map((item) => item.id);
-    expect(ids).toEqual(expect.arrayContaining(["lc-379-2009", "lc-440-2011", "lc-473-2014", "lc-613-2023"]));
-    expect(CAMPO_LIMPO_OFFICIAL_URBAN_SOURCES.filter((item) => item.pdfUrl)).toHaveLength(8);
+    expect(ids).toEqual(expect.arrayContaining(["lc-379-2009", "lc-440-2011", "lc-473-2014", "lc-501-2016", "lc-566-2022", "lc-613-2023"]));
+    expect(CAMPO_LIMPO_OFFICIAL_URBAN_SOURCES.filter((item) => item.pdfUrl)).toHaveLength(10);
     expect(CAMPO_LIMPO_OFFICIAL_URBAN_SOURCES.every((item) =>
       item.officialPageUrl.startsWith("https://"))).toBe(true);
+  });
+  it("registra a restauração legal de 2022 sem inventar vigência consolidada", () => {
+    const restoration=CAMPO_LIMPO_OFFICIAL_URBAN_SOURCES.find(item=>item.id==="lc-566-2022");
+    expect(restoration?.kind).toBe("restauracao_vigencia");
+    expect(restoration?.scopeNote).toContain("440/2011");
+    expect(restoration?.scopeNote).toContain("501/2016");
+    expect(CAMPO_LIMPO_OFFICIAL_URBAN_SOURCES.find(item=>item.id==="lc-501-2016")?.scopeNote)
+      .toContain("artigo 76");
   });
   it("keeps 2026 extraordinary regularization separate from ordinary building permits", () => {
     const exceptional = CAMPO_LIMPO_OFFICIAL_URBAN_SOURCES.filter((item) =>

@@ -187,7 +187,10 @@ describe("analyst PDF markup entry", () => {
     expect(viewer).toContain("analisar?ferramenta=highlight");
     expect(detail).toContain("openDocumentWorkspace");
     expect(detail).toContain('const route = shouldAnalyze ? "analisar" : "visualizar"');
-    expect(detail).toContain('const query = shouldAnalyze ? "?ferramenta=highlight" : ""');
+    expect(detail).toContain("const query = shouldAnalyze");
+    expect(detail).toContain('"?ferramenta=highlight"');
+    expect(detail).toContain('"?ferramenta=navigate&painel=ia"');
+    expect(detail).toContain("const route = shouldAnalyze");
     expect(detail).toContain('window.open(workspaceUrl, "sigapro-document-workspace")');
   });
 

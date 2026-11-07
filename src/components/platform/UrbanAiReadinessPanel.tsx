@@ -53,7 +53,7 @@ export function UrbanAiReadinessPanel({
     })().then((next) => {
       if (!cancelled) setReport(next);
     }).catch((cause: unknown) => {
-      if (!cancelled) setError("Não foi possível consultar todas as fontes do Neon: " +
+      if (!cancelled) setError("Não foi possível consultar todas as fontes do banco municipal: " +
         String((cause as Error)?.message || cause));
     }).finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
@@ -104,6 +104,38 @@ export function UrbanAiReadinessPanel({
             {" "}Regras reais ativas: {report.counts.officialActive}.
           </p>
         </div>
+        <details data-sigapro-urban-metric-inventory="true"
+          className="mt-3 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
+          <summary className="cursor-pointer text-xs font-extrabold text-slate-950 dark:text-white">
+            Comparador implementado: {report.metrics.length} índices numéricos ·
+            {" "}{report.metrics.filter(item => item.legalScopesReady > 0).length} com escopo legal integralmente comprovado
+          </summary>
+          <p className="mt-2 text-xs leading-5 text-slate-700 dark:text-slate-200">
+            Os cálculos podem ser exercitados em testes isolados. No uso municipal,
+            nenhum limite fica apto à IA sem lei vigente, zona, uso e evidências por página.
+            CA básico, exceções e exigências condicionais continuam com conferência jurídica própria.
+          </p>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {report.metrics.map(item => (
+              <div key={item.metric} data-sigapro-urban-metric-status={item.metric}
+                className="min-w-0 rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-950">
+                <p className="break-words text-xs font-bold text-slate-950 dark:text-white">{item.label}</p>
+                <p className="mt-1 text-[11px] leading-5 text-slate-700 dark:text-slate-200">
+                  {item.direction === "minimum" ? "Limite mínimo" : "Limite máximo"}
+                  {item.unit ? " · " + item.unit : ""}
+                </p>
+                <p className={"mt-1 text-[11px] font-semibold " + (
+                  item.legalScopesReady > 0
+                    ? "text-emerald-800 dark:text-emerald-300"
+                    : "text-amber-800 dark:text-amber-200")}>
+                  {item.legalScopesReady > 0
+                    ? item.legalScopesReady + " escopo(s) ativo(s) com evidência integral"
+                    : "Sem escopo legal comprovado — não liberar diagnóstico"}
+                </p>
+              </div>
+            ))}
+          </div>
+        </details>
         <div className="mt-3 grid min-w-0 gap-2 md:grid-cols-2">
           {report.checks.map((check) => <article key={check.code}
             data-urban-ai-readiness-step={check.code} data-ready={String(check.passed)}

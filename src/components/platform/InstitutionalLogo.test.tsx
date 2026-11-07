@@ -164,6 +164,45 @@ describe("InstitutionalLogo", () => {
     }
   });
 
+  it("keeps the validated Master logo fixed while route remount hydrates branding", () => {
+    const activeMaster = { ...branding, tenantId: "master", logoUrl: "/platform/custom-master-logo.png" };
+    const initial = render(<InstitutionalLogo branding={activeMaster} variant="header" contextScope="master" />);
+    fireEvent.load(screen.getByRole("img", { name: "Logo da prefeitura A" }));
+    initial.unmount();
+
+    const originalImage = window.Image;
+    const preloads: Array<{ onload: (() => void) | null; onerror: (() => void) | null; src: string }> = [];
+    class ProbeImage {
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      src = "";
+      decoding = "auto";
+      complete = false;
+      naturalWidth = 0;
+      constructor() { preloads.push(this); }
+    }
+    Object.defineProperty(window, "Image", { configurable: true, writable: true, value: ProbeImage });
+    try {
+      const { rerender, container } = render(
+        <InstitutionalLogo branding={{ ...activeMaster, logoUrl: "" }} variant="header" contextScope="master" />,
+      );
+      expect(screen.getByRole("img", { name: "Logo da prefeitura A" }))
+        .toHaveAttribute("src", expect.stringContaining("/platform/custom-master-logo.png"));
+      // O fallback genérico não pode entrar na fila de pré-carga para
+      // sobrepor uma imagem institucional já validada na mesma sessão.
+      expect(preloads).toHaveLength(0);
+      expect(container.querySelectorAll("img")).toHaveLength(1);
+
+      // A URL oficial pode chegar depois sem trocar o que já está correto.
+      rerender(<InstitutionalLogo branding={activeMaster} variant="header" contextScope="master" />);
+      expect(screen.getByRole("img", { name: "Logo da prefeitura A" }))
+        .toHaveAttribute("src", expect.stringContaining("/platform/custom-master-logo.png"));
+      expect(preloads).toHaveLength(0);
+    } finally {
+      Object.defineProperty(window, "Image", { configurable: true, writable: true, value: originalImage });
+    }
+  });
+
   it("uses the official local asset for an unconfigured master logo", () => {
     const { container } = render(<InstitutionalLogo branding={{ ...branding, tenantId: "master", logoUrl: "" }} fallbackLabel="SIGAPRO" />);
     const image = screen.getByRole("img", { name: "Logo da prefeitura A" });

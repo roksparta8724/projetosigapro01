@@ -295,7 +295,7 @@ export function FinanceProtocolsPage() {
       providerEnvironment: original.provider_environment, bankReference: original.bank_reference,
       bankPaymentId: original.bank_payment_id, bankStatus: original.bank_status,
       bankStatusDetail: original.bank_status_detail, bankAuthenticatedAt: original.bank_authenticated_at };
-    if (!canonicalGuide.issuedAt) throw new Error("Data original da guia ausente no Neon.");
+    if (!canonicalGuide.issuedAt) throw new Error("Data original da guia ausente nos registros SIGAPRO.");
     const banking = resolveGuideBankingData({
       settings: tenantSettings,
       guide: canonicalGuide,
@@ -308,7 +308,7 @@ export function FinanceProtocolsPage() {
 
     if (!banking.barcode || !banking.digitableLine) {
       setGuideBillingBusyKey(billingKey);
-      setFinancialStatus("Gerando cobrança Mercado Pago para esta guia...");
+      setFinancialStatus("Preparando cobrança para esta guia...");
       try {
         providerCharge = await ensureMercadoPagoGuideCharge({
           municipalityId: effectiveScopeId,
@@ -318,13 +318,13 @@ export function FinanceProtocolsPage() {
           description: `${guideKindLabel(canonicalGuide.kind)} · ${match.process.protocol}`,
         });
         setFinancialStatus(
-          "Cobrança Mercado Pago vinculada à própria guia do SIGAPRO. Linha digitável e código de barras foram incorporados à DAM.",
+          "Cobrança vinculada à guia oficial SIGAPRO. Linha digitável e código de barras incorporados à DAM.",
         );
       } catch (error) {
         const message =
           error instanceof Error
-            ? `Não foi possível obter a cobrança Mercado Pago desta guia: ${error.message}`
-            : "Não foi possível obter a cobrança Mercado Pago desta guia.";
+            ? `Não foi possível obter a cobrança desta guia: ${error.message}`
+            : "Não foi possível obter a cobrança desta guia.";
         setFinancialStatus(message);
         target.close();
         return;

@@ -4588,12 +4588,12 @@ export function ConfiguracoesPage({ legislationWorkspace = false }: { legislatio
                       </div>
                       <p className="mt-2 text-sm font-semibold text-slate-900">
                         {mercadoPagoChecking
-                          ? "Verificando Mercado Pago..."
+                          ? "Verificando integração de pagamentos..."
                           : mercadoPagoHealth?.ok
-                            ? "Mercado Pago conectado"
+                            ? "SIGAPRO Pagamentos conectado"
                             : mercadoPagoHealth?.configured
-                              ? "Mercado Pago com erro"
-                              : "Mercado Pago não conectado"}
+                              ? "SIGAPRO Pagamentos com erro"
+                              : "SIGAPRO Pagamentos não configurado"}
                       </p>
                       <p className="mt-1 text-xs leading-5 text-slate-600">
                         {mercadoPagoHealth?.ok
@@ -4626,7 +4626,7 @@ export function ConfiguracoesPage({ legislationWorkspace = false }: { legislatio
                         {mercadoPagoChecking
                           ? "Consultando meios de pagamento..."
                           : mercadoPagoHealth?.ok && mercadoPagoHealth.boletoAvailable
-                            ? "Boleto disponível no Mercado Pago"
+                            ? "Boleto disponível no SIGAPRO Pagamentos"
                             : mercadoPagoHealth?.ok
                               ? "Boleto não retornado nesta credencial"
                               : "Aguardando conexão com o provedor"}
@@ -4634,9 +4634,9 @@ export function ConfiguracoesPage({ legislationWorkspace = false }: { legislatio
                       <p className="mt-1 text-xs leading-5 text-slate-600">
                         {mercadoPagoHealth?.ok
                           ? mercadoPagoHealth.boletoAvailable
-                            ? "Ao abrir uma guia sem dados bancários, o SIGAPRO solicita a cobrança ao Mercado Pago e incorpora a linha digitável e o código de barras na própria DAM."
+                            ? "Ao abrir uma guia sem dados bancários, o SIGAPRO solicita a cobrança pelo provedor habilitado e incorpora a linha digitável e o código de barras na própria DAM."
                             : `PIX: ${mercadoPagoHealth.pixAvailable ? "disponível" : "não retornado"} · Boleto: não retornado`
-                          : "O código de barras será usado somente quando vier da cobrança oficial do Mercado Pago."}
+                          : "O código de barras será utilizado somente quando fornecido pela cobrança oficial do provedor contratado."}
                       </p>
                     </div>
                   </div>
@@ -4792,7 +4792,7 @@ export function ConfiguracoesPage({ legislationWorkspace = false }: { legislatio
 
                   {mercadoPagoHealth?.ok && settingsForm.paymentProvider === "mercado_pago" ? (
                     <div className="rounded-[18px] border border-sky-200 bg-sky-50/70 px-4 py-3 text-xs leading-5 text-sky-900">
-                      <strong>Mercado Pago conectado em ambiente {mercadoPagoHealth.environment === "test" ? "de teste" : "de produção"}.</strong>{" "}
+                      <strong>SIGAPRO Pagamentos conectado em ambiente {mercadoPagoHealth.environment === "test" ? "de teste" : "de produção"}.</strong>{" "}
                       Para o teste via Mercado Pago, os campos de banco/convênio abaixo não são obrigatórios; eles ficam disponíveis para uma futura integração bancária direta.
                     </div>
                   ) : null}

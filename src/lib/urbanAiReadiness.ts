@@ -1,5 +1,5 @@
 import { calculateUrbanMatrixBatchProgress } from "@/lib/urbanLegalMatrixReview";
-import { isUrbanTestFixtureRule, type UrbanRegulationVersion } from "@/lib/urbanPrecheck";
+import { URBAN_METRICS, isUrbanTestFixtureRule, type UrbanRegulationVersion, type UrbanMetric } from "@/lib/urbanPrecheck";
 import { countCoveredUrbanMetrics, type UrbanLegalEvidenceScope } from "@/lib/urbanEvidenceCoverage";
 import type {
   UrbanMatrixBatchDetail, UrbanMatrixRowReadingAudit, UrbanQuadroIIWorkspace,
@@ -31,6 +31,7 @@ export type UrbanReadinessSummary = {
     verifiedEvidence: number; officialActive: number; evidencedActive: number; fictitiousQA: number;
   };
   checks: UrbanReadinessCheck[];
+  metrics: Array<{ metric: UrbanMetric; label: string; unit: string; direction: "minimum" | "maximum"; legalScopesReady: number }>;
 };
 
 export const OTHER_REQUIRED_URBAN_FIELDS = [
@@ -59,10 +60,18 @@ export function assessUrbanAiReadiness(data: UrbanReadinessInput): UrbanReadines
     Boolean(row.id && row.metric)).length;
   // Do not mistake one unrelated citation for full legal coverage. Evidence
   // must match every metric of the same municipality, zone, use and period.
-  const evidencedActive = data.regulations.filter((version) =>
+  const fullyEvidencedVersions = data.regulations.filter((version) =>
     version.status === "active" && !isUrbanTestFixtureRule(version) &&
     version.rules.length > 0 &&
-    countCoveredUrbanMetrics(version, data.verifiedEvidence) === version.rules.length).length;
+    countCoveredUrbanMetrics(version, data.verifiedEvidence) === version.rules.length);
+  const evidencedActive = fullyEvidencedVersions.length;
+  const metrics = URBAN_METRICS.map((metric) => ({
+    metric: metric.key,
+    label: metric.label, unit: metric.unit, direction: metric.direction,
+    // A metric is legally available only inside a fully evidenced active version.
+    legalScopesReady: fullyEvidencedVersions.filter(version =>
+      version.rules.some(rule => rule.metric === metric.key)).length,
+  }));
   const pages = data.quadroII?.pages.length ?? 0;
   const draftEntries = data.quadroII?.entries.length ?? 0;
   const machineProposals = (data.quadroII?.pages ?? []).reduce(
@@ -123,6 +132,7 @@ export function assessUrbanAiReadiness(data: UrbanReadinessInput): UrbanReadines
   return {
     readyForHumanAssistedPrecheck: checks.every((step) => step.passed),
     reading,
+    metrics,
     quadroII: { pages, draftEntries, machineProposals },
     counts: { versionedLaws: data.versionedLawCount, numericImports,
       useImports, verifiedEvidence, officialActive, evidencedActive, fictitiousQA },

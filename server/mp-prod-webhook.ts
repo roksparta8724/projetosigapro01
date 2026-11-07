@@ -9,6 +9,7 @@ import {fetchMunicipalMpOrder} from "./mp-prod-order-observation.js";
 import {decryptPaymentAccessToken,decryptPaymentWebhookSecret} from "./municipal-payment.js";
 import {readStoredGuide} from "./guide-persistence.js";
 import {readBearer} from "./municipal-storage.js";
+import {assertMpWorkerLeastPrivilege} from "./mp-webhook-worker-privilege.js";
 
 type Req=IncomingMessage & {body?:unknown};
 type Res=ServerResponse;
@@ -49,7 +50,10 @@ async function connect<T>(fn:(client:Db)=>Promise<T>):Promise<T>{
  const client=new pg.Client({connectionString:prodDatabaseUrl(),
   connectionTimeoutMillis:4500,statement_timeout:9500,query_timeout:9500});
  await client.connect();
- try{return await fn(client)}finally{await client.end()}
+ try{
+  await assertMpWorkerLeastPrivilege(client);
+  return await fn(client);
+ }finally{await client.end()}
 }
 async function readJson(req:Req,max:number){
  if(req.body!==undefined){

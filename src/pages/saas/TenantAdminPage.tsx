@@ -1300,7 +1300,7 @@ export function TenantAdminPage() {
             {planCapacity.error ? <p role="alert" className="mb-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">{planCapacity.error}</p> : null}
             {planCapacity.loaded && planCapacity.rows[0] ? (
               <PlanCapacityCard row={planCapacity.rows[0]} municipalityName={municipalityName || activeInstitution?.name} />
-            ) : <p className="text-sm text-slate-600">Consultando o contrato no Neon...</p>}
+            ) : <p className="text-sm text-slate-600">Consultando o contrato no SIGAPRO...</p>}
           </SectionCard>
         ) : null}
         <InternalTabs
@@ -1332,7 +1332,7 @@ export function TenantAdminPage() {
                 className="shadow-[0_12px_30px_rgba(15,23,42,0.05)]"
                 contentClassName="space-y-5"
               >
-                <div className="grid min-w-0 gap-4 sm:grid-cols-2 min-[1750px]:grid-cols-3 [overflow-wrap:anywhere]">
+                <div className="grid min-w-0 gap-4 sm:grid-cols-2 min-[2200px]:grid-cols-3 [overflow-wrap:anywhere]">
                   <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
                     <p className="text-xs uppercase tracking-[0.14em] text-slate-500">Em análise</p>
                     <p className="mt-2 text-lg font-semibold text-slate-950">{metrics.inAnalysis}</p>
@@ -1360,7 +1360,7 @@ export function TenantAdminPage() {
                 </div>
               </SectionCard>
 
-              <div className="grid min-w-0 gap-5 2xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
+              <div className="grid min-w-0 gap-5 min-[2150px]:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
                 <TableCard
                   title="Atividade institucional recente"
                   description="Últimos eventos. Clique em Ver detalhes para expandir a movimentação."
