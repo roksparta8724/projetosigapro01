@@ -61,8 +61,12 @@ function useAuthGatewayValue(): AuthGatewayContextValue {
       updateEmail: bootstrap.updateEmail,
       updatePassword: bootstrap.updatePassword,
       signOut: async () => {
-        await bootstrap.signOut();
-        if (typeof window !== "undefined") {
+        try {
+          await bootstrap.signOut();
+        } finally {
+          // A falha de rede ao revogar a sessão nunca pode impedir que as
+          // credenciais/cache visuais locais sejam eliminados.
+          if (typeof window !== "undefined") {
           try {
             const transientKeys = [
               "sigapro.platform.session.v1",
@@ -93,6 +97,7 @@ function useAuthGatewayValue(): AuthGatewayContextValue {
             // ignore
           }
           // A navegacao e responsabilidade da rota chamadora. Nunca descarregar o documento aqui.
+          }
         }
       },
     }),
