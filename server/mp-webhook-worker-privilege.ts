@@ -82,3 +82,27 @@ export async function assertMpWorkerLeastPrivilege(
     throw new Error("MP_WORKER_EXCESSIVE_PRIVILEGES");
   }
 }
+
+/**
+ * QA owns its own narrowly scoped account and bank RPCs. Never re-use the
+ * production-named worker copied into the QA database: that legacy account
+ * is still privileged on the QA branch and would fail this audit.
+ */
+export const MP_QA_WORKER_ROLE = "sigapro_qa_webhook_worker";
+
+export function qaWorkerHasLeastPrivilege(
+  raw: MpWorkerPrivilegeEvidence | null | undefined,
+): boolean {
+  return raw?.role_name === MP_QA_WORKER_ROLE &&
+    workerHasLeastPrivilege({...raw, role_name: MP_WORKER_ROLE});
+}
+
+export async function assertQaWorkerLeastPrivilege(
+  db: { query(sql: string, args: unknown[]): Promise<{ rows: Array<Record<string, unknown>> }> },
+): Promise<void> {
+  const result = await db.query(MP_WORKER_PRIVILEGE_AUDIT_SQL, []);
+  if (result.rows.length !== 1 ||
+      !qaWorkerHasLeastPrivilege(result.rows[0] as MpWorkerPrivilegeEvidence | undefined)) {
+    throw new Error("QA_WORKER_EXCESSIVE_PRIVILEGES");
+  }
+}
