@@ -99,6 +99,11 @@ describe("SIGAPRO QA — R2: não assinar objeto municipal sem autorização da 
     expect(api).toContain('select: "id,process_id,municipality_id,tenant_id,file_path,version,is_valid,invalidated_at"');
     expect(api).toContain('limit: "2"');
     expect(api).toContain("MAX_SIGN_REQUEST_BYTES = 4096");
+    expect(api).toContain("await municipalTarget.client.send(new HeadObjectCommand");
+    expect(api).toContain("municipalTarget.client.destroy();");
+    expect(api).toContain("client.destroy();");
+    expect(api).toContain('redirect: "error"');
+
     expect(api).not.toContain('console.log("[ProdAudit][R2Sign] env"');
     expect(api).not.toContain('error: rawMessage');
     const legislation = readFileSync("api/legislation-open.ts", "utf8");
