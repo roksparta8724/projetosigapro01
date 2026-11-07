@@ -59,7 +59,8 @@ describe("municipal legislation assets", () => {
     expect(legislation).toContain('window.open(targetUrl, "_blank", "noopener,noreferrer")');
     expect(r2Client).toContain("getLegislationOpenUrl");
     expect(r2Client).toContain("/api/legislation-open?objectKey=");
-    expect(legislationOpenApi).toContain("isMunicipalLegislationObject");
+    expect(legislationOpenApi).toContain("isPublicLegislationPdfKey(objectKey)");
+    expect(legislationOpenApi).toContain("HeadObjectCommand");
     expect(legislationOpenApi).toContain("ResponseContentDisposition: \"inline\"");
     expect(legislationOpenApi).toContain('res.setHeader("Location", signedUrl)');
     expect(legislation).toContain("Abrir guia");
