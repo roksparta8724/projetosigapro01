@@ -1,8 +1,19 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { readFileSync } from "node:fs";
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { DistributionCard } from "./DashboardHomePage";
 import { BarChart3 } from "lucide-react";
+
+// jsdom não fornece o ResizeObserver exigido pelo ResponsiveContainer
+// do Recharts. Simula apenas a API de observação, sem ocultar DOM ou hover.
+class MockResizeObserver {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+
+beforeAll(() => vi.stubGlobal("ResizeObserver", MockResizeObserver));
+afterAll(() => vi.unstubAllGlobals());
 
 const sample = [
   { label: "Análise técnica", total: 2 },
