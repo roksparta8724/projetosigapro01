@@ -113,3 +113,31 @@ reconciliação; testar a assinatura do webhook, pagamento duplicado,
 acesso cruzado e rollback; depois aprovar aplicação planejada na
 infraestrutura oficial. **Não executar GRANT/REVOKE na produção sem
 ensaiar e autorizar.**
+
+## Contraprova de privilégios na produção — consulta somente leitura
+
+A branch Neon **production** `br-summer-surf-b4s88rv5`, no mesmo projeto,
+foi consultada exclusivamente por metadados do papel PostgreSQL. O role
+`sigapro_prod_webhook_worker` **já difere do ambiente QA**:
+
+| Controle de metadados do role | QA | Produção |
+|---|---|---|
+| BYPASSRLS | Sim | **Não** |
+| SUPERUSER | Não | Não |
+| Herança de `neon_superuser`, `pg_read_all_data` ou `pg_write_all_data` | Sim | **Não** |
+| Grant direto SELECT/INSERT/UPDATE/DELETE em `profiles`, `process_documents` ou `processes` | Sim | **Não** |
+| Privilégios SELECT/INSERT/UPDATE por coluna nas mesmas relações | Sim | **Não** |
+| Escrita direta em `payment_guides`, `process_audit_entries` ou `municipalities` | Sim (ao menos guia) | **Não** |
+
+Essa avaliação é **de permissões declaradas**, feita via conexão de
+administração **sem login pelo role de produção, sem consultar informações
+pessoais e sem executar transação financeira**. Não substitui o smoke real
+do webhook nem prova que as RPCs têm apenas os grants necessários.
+Portanto, **não alterar privilégios da produção para corrigir um achado
+existente apenas na QA**. A correção adequada é configurar um worker
+restrito **na QA** para o ensaio, sem usar credenciais oficiais.
+
+Gate do código aprovado no commit `38c9bff458fd64bef418f9d9ad4158ae9c5eecbf`:
+GitHub Quality Gate **260 arquivos/1.477 testes**, TypeScript, ESLint,
+build e Neon migration validation: sucesso. O serviço OCR isolado também
+passou em CI. Aceite comercial continua **10/10 pendente**.
