@@ -85,8 +85,16 @@ describe("SIGAPRO — callback Mercado Pago no sandbox, nunca no banco PROD",()=
   });
   it("o codigo verifica HMAC, credencial municipal, provedor GET e ORIGINAL antes da baixa",()=>{
     const handler=readFileSync("server/mp-qa-webhook.ts","utf8");
-    const route=readFileSync("api/mp-qa-webhook.ts","utf8");
-    expect(route).toContain("handleQaMpWebhook");
+    const route=readFileSync("api/mercadopago.ts","utf8");
+    const vercel=JSON.parse(readFileSync("vercel.json","utf8")) as {
+      rewrites: Array<{source:string;destination:string}>;
+    };
+    expect(route).toContain('if (action === "qa-webhook")');
+    expect(route).toContain("return handleQaMpWebhook(req, res);");
+    expect(vercel.rewrites).toContainEqual({
+      source:"/api/mp-qa-webhook",
+      destination:"/api/mercadopago?action=qa-webhook",
+    });
     expect(handler).toContain("notice.live_mode!==false");
     expect(handler).toContain("verifyMercadoPagoOrderWebhook");
     expect(handler).toContain("fetchMunicipalMpOrder(signed.orderId,auth.token)");
