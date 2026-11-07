@@ -101,6 +101,15 @@ describe("SIGAPRO QA — entrada rápida com autorização institucional real", 
     expect(code).not.toMatch(/useState\(hasBackendEnv/);
   });
 
+  it("não deixa timer de logout pendente nem logs de depuração após sair", () => {
+    const bootstrap=readFileSync("src/hooks/useAppBootstrap.tsx","utf8");
+    const gateway=readFileSync("src/hooks/useAuthGateway.tsx","utf8");
+    expect(bootstrap).toContain("if (timeoutId !== null) clearTimeout(timeoutId)");
+    expect(bootstrap).not.toContain('console.warn("[Logout] signOut timeout fallback")');
+    expect(gateway).not.toContain('console.log("[Logout] signOut start")');
+    expect(gateway).not.toContain('console.log("[Logout] signOut result")');
+  });
+
   it("evita downloads de 32 páginas restritas no bundle público de /acesso", () => {
     const src=readFileSync("src/App.tsx","utf8");
     for (const name of [
