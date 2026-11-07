@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 
 const read = () => readFileSync("docs/QA_P0_FINANCE_HARDENING_REVIEW.sql","utf8");
 
-describe("SIGAPRO QA — correção financeira preparada, NÃO aplicada em banco", () => {
+describe("SIGAPRO QA — especificação auditável de autorização financeira (produção não alterada)", () => {
   it("não expõe a oficialização SECURITY DEFINER diretamente ao authenticated nem PUBLIC", () => {
     const source = read();
     expect(source).toContain("REVOKE EXECUTE ON FUNCTION public.officialize_preprotocol_v1(uuid,uuid)");
