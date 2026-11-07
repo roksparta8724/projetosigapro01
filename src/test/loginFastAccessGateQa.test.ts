@@ -108,6 +108,8 @@ describe("SIGAPRO QA — entrada rápida com autorização institucional real", 
     expect(bootstrap).not.toContain('console.warn("[Logout] signOut timeout fallback")');
     expect(gateway).not.toContain('console.log("[Logout] signOut start")');
     expect(gateway).not.toContain('console.log("[Logout] signOut result")');
+    expect(gateway).toContain("} finally {");
+    expect(gateway).toContain("transientKeys.forEach((key) => localStorage.removeItem(key))");
   });
 
   it("evita downloads de 32 páginas restritas no bundle público de /acesso", () => {
