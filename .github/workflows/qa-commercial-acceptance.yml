@@ -1,20 +1,64 @@
 name: SIGAPRO Commercial Acceptance QA
 on:
   workflow_dispatch:
+    inputs:
+      release_sha:
+        description: "SHA de 40 caracteres do Preview QA efetivamente testado"
+        required: true
+        type: string
+      evidence_run_id:
+        description: "Run ID do artifact revisado que contem somente provas sanitizadas"
+        required: true
+        type: string
+
 permissions:
   contents: read
+  actions: read
+
 jobs:
   go-no-go:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
+    # Configure required reviewers for this environment in GitHub Settings.
+    environment: qa-commercial-approval
+    env:
+      SIGAPRO_QA_RELEASE_SHA: ${{ inputs.release_sha }}
+      SIGAPRO_QA_EVIDENCE_DIR: ${{ runner.temp }}/sigapro-qa-evidence
+      RELEASE_REF: ${{ github.ref }}
+      EVIDENCE_RUN_ID: ${{ inputs.evidence_run_id }}
     steps:
+      - name: Verify the SHA, run number and protected QA source branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_REF" == "refs/heads/fix/qa-triagem-analise-pagamento-20261101" ]] || {
+            echo "::error::Commercial acceptance must execute on the protected QA branch."
+            exit 2
+          }
+          [[ "$SIGAPRO_QA_RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]] || {
+            echo "::error::A full, immutable Git SHA is mandatory."
+            exit 2
+          }
+          [[ "$EVIDENCE_RUN_ID" =~ ^[0-9]+$ ]] || {
+            echo "::error::Evidence run ID must be numeric."
+            exit 2
+          }
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - run: node --test scripts/qa-commercial-acceptance.test.mjs
-      - run: node scripts/qa-commercial-acceptance.mjs --report
-      - name: Reject pending, stale or unverified evidence
+      - name: Download sanitized private evidence artifact from reviewed run
+        uses: actions/download-artifact@v4
+        with:
+          name: sigapro-qa-evidence-${{ inputs.release_sha }}
+          run-id: ${{ inputs.evidence_run_id }}
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/sigapro-qa-evidence
+      - name: Test the acceptance validator
+        run: node --test scripts/qa-commercial-acceptance.test.mjs
+      - name: Public outstanding-check report (not an approval)
+        run: node scripts/qa-commercial-acceptance.mjs --report
+      - name: Enforce ten reviewed private proofs for the tested SHA
         run: node scripts/qa-commercial-acceptance.mjs --enforce
