@@ -338,7 +338,9 @@ export function ExternalPaymentsPage() {
       }
     };
 
-    const timer = window.setInterval(refresh, 8000);
+    // Payment status still refreshes when returning to this tab; this avoids
+    // re-fetching every operational table from every external session each 8s.
+    const timer = window.setInterval(refresh, 15000);
     window.addEventListener("focus", refresh);
     document.addEventListener("visibilitychange", refresh);
 
