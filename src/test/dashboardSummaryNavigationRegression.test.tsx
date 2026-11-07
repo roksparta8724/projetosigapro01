@@ -134,7 +134,8 @@ describe("dashboard nav must not redirect away from Visão geral", () => {
     expect(tenant).toContain("data-municipal-activity-card");
     expect(tenant).toContain("MunicipalActivityCard key=");
     expect(tenant).toContain("municipalActivityTitle(item.title)");
-    expect(tenant).toContain("2xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]");
+    expect(tenant).toContain("min-[2150px]:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]");
+    expect(tenant).toContain("sm:grid-cols-2 min-[2200px]:grid-cols-3");
     expect(tenant).not.toContain("lg:grid-cols-[minmax(260px,1.55fr)");
     expect(cards).toContain("[overflow-wrap:anywhere]");
     expect(history).toContain("min-[2050px]:grid-cols-");
