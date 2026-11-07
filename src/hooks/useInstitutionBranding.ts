@@ -460,9 +460,9 @@ export function useInstitutionBranding(tenantId?: string | null) {
       return {
         ...masterBranding,
         logoUrl: resolvedMasterHeaderLogoUrl || masterBranding.logoUrl,
-        ...(platformBranding?.headerLogoFileName.endsWith("-enquadrado.png")
-          ? { logoScale: 1, logoOffsetX: 0, logoOffsetY: 0 }
-          : {}),
+        // Nunca substituir o enquadramento salvo ao receber metadados remotos.
+        // A chegada assíncrona de "-enquadrado.png" fazia o logo do Master
+        // encolher durante a troca de páginas, apesar da fonte não mudar.
       };
     }
     const base = getInstitutionBranding(
@@ -528,7 +528,6 @@ export function useInstitutionBranding(tenantId?: string | null) {
     scopedMunicipality?.name,
     institutionSettings,
     masterBrandingState,
-    platformBranding?.headerLogoFileName,
     resolvedMasterHeaderLogoUrl,
     resolvedTenantHeaderLogoState,
     resolvedInstitutionId,
@@ -547,9 +546,8 @@ export function useInstitutionBranding(tenantId?: string | null) {
       return {
         ...masterBranding,
         logoUrl: resolvedMasterFooterLogoUrl || masterBranding.logoUrl,
-        ...(platformBranding?.footerLogoFileName.endsWith("-enquadrado.png")
-          ? { logoScale: 1, logoOffsetX: 0, logoOffsetY: 0 }
-          : {}),
+        // O rodapé segue o seu próprio enquadramento salvo; a atualização
+        // assíncrona do nome do arquivo não pode recalibrar sua escala.
       };
     }
     const base = getInstitutionBranding(
@@ -614,7 +612,6 @@ export function useInstitutionBranding(tenantId?: string | null) {
     scopedMunicipality?.name,
     institutionSettings,
     masterBrandingState,
-    platformBranding?.footerLogoFileName,
     resolvedMasterFooterLogoUrl,
     resolvedTenantFooterLogoState,
     resolvedInstitutionId,
