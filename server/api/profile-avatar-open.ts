@@ -51,13 +51,14 @@ export function parseAvatarRequest(req: Req) {
   if (!raw) throw new Error("Origem da foto não informada.");
 
   const source = new URL(raw);
-  const allowedHost = /(^|\.)supabase\.co$/i.test(source.hostname);
+  const allowedHost = /^[a-z0-9-]+\.supabase\.co$/i.test(source.hostname);
   const allowedPath = source.pathname.startsWith("/storage/v1/object/public/avatars/");
 
   if (
     source.protocol !== "https:" ||
     source.username ||
     source.password ||
+    source.port ||
     !allowedHost ||
     !allowedPath
   ) {
@@ -77,6 +78,43 @@ function getCacheKey(source: URL) {
   const stableIdentity = `${source.hostname}${source.pathname}`;
   const digest = createHash("sha256").update(stableIdentity).digest("hex");
   return `legacy-profile-avatars/${digest}.${resolveExtension(source)}`;
+}
+
+/**
+ * Archived public avatar URLs can be read from our R2 cache without any
+ * outgoing request. Uncached legacy recovery is opt-in for one exact origin:
+ * a random *.supabase.co host or an HTTP redirect must never let a public
+ * image route become a server-side request proxy.
+ *
+ * Configure SIGAPRO_LEGACY_AVATAR_SOURCE_ORIGIN to an HTTPS origin after
+ * confirming that the historic Supabase project is reachable. Default: off.
+ */
+export function legacyAvatarNetworkAllowed(source: URL, configuredOrigin: string): boolean {
+  if (!configuredOrigin) return false;
+  try {
+    const allowed = new URL(configuredOrigin);
+    return allowed.protocol === "https:" &&
+      allowed.port === "" && !allowed.username && !allowed.password &&
+      allowed.pathname === "/" && !allowed.search && !allowed.hash &&
+      /^[a-z0-9-]+\.supabase\.co$/i.test(allowed.hostname) &&
+      source.protocol === "https:" && source.port === "" &&
+      source.origin === allowed.origin;
+  } catch {
+    return false;
+  }
+}
+
+/** Never serve SVG, HTML or a spoofed image Content-Type as a public avatar. */
+export function safeAvatarMime(bytes: Uint8Array): string | null {
+  const b = Buffer.from(bytes);
+  if (b.length < 12) return null;
+  if (b.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))) return "image/png";
+  if (b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return "image/jpeg";
+  if (b.toString("ascii",0,6) === "GIF87a" || b.toString("ascii",0,6) === "GIF89a") return "image/gif";
+  if (b.toString("ascii",0,4) === "RIFF" && b.toString("ascii",8,12) === "WEBP") return "image/webp";
+  if (b.toString("ascii",4,8) === "ftyp" &&
+      ["avif","avis"].includes(b.toString("ascii",8,12))) return "image/avif";
+  return null;
 }
 
 function setCors(res: Res) {
@@ -121,13 +159,13 @@ async function streamCachedAvatar(
     if (!object.Body) return false;
     const bytes = Buffer.from(await object.Body.transformToByteArray());
     if (!bytes.length || bytes.length > MAX_AVATAR_BYTES) return false;
+    const verifiedMime = safeAvatarMime(bytes);
+    if (!verifiedMime) return false;
 
     setCors(res);
     res.statusCode = 200;
-    res.setHeader(
-      "Content-Type",
-      object.ContentType?.startsWith("image/") ? object.ContentType : "image/jpeg",
-    );
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("Content-Type", verifiedMime);
     res.setHeader("Cache-Control", "private, max-age=21600, stale-while-revalidate=86400");
     res.end(bytes);
     return true;
@@ -191,16 +229,28 @@ export default async function handler(req: Req, res: Res) {
     return;
   }
 
+  // Do not repeatedly query historic DNS names that have been retired; this
+  // prevents SSRF and avoids making an unreachable former provider part of
+  // the critical avatar rendering path.
+  if (!legacyAvatarNetworkAllowed(source, readEnv("SIGAPRO_LEGACY_AVATAR_SOURCE_ORIGIN"))) {
+    json(res, 404, { error: "Foto legada não arquivada. A foto atual no R2 permanece disponível." });
+    return;
+  }
+
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 12000);
-    const response = await fetch(source.toString(), {
-      method: "GET",
-      redirect: "follow",
-      signal: controller.signal,
-      headers: { Accept: "image/*" },
-    });
-    clearTimeout(timeout);
+    let response: Response;
+    try {
+      response = await fetch(source.toString(), {
+        method: "GET",
+        redirect: "error",
+        signal: controller.signal,
+        headers: { Accept: "image/png,image/jpeg,image/webp,image/gif,image/avif" },
+      });
+    } finally {
+      clearTimeout(timeout);
+    }
 
     const contentType = response.headers.get("content-type") || "";
     const contentLength = Number(response.headers.get("content-length") || "0");
@@ -212,8 +262,8 @@ export default async function handler(req: Req, res: Res) {
       return;
     }
 
-    if (!contentType.toLowerCase().startsWith("image/")) {
-      json(res, 415, { error: "O arquivo legado não é uma imagem válida." });
+    if (!/^(?:image\/png|image\/jpeg|image\/webp|image\/gif|image\/avif)$/i.test(contentType.split(";")[0].trim())) {
+      json(res, 415, { error: "O arquivo legado não é uma imagem raster segura." });
       return;
     }
 
@@ -222,9 +272,32 @@ export default async function handler(req: Req, res: Res) {
       return;
     }
 
-    const bytes = Buffer.from(await response.arrayBuffer());
-    if (!bytes.length || bytes.length > MAX_AVATAR_BYTES) {
-      json(res, 413, { error: "Foto de perfil inválida ou muito grande." });
+    const reader = response.body?.getReader();
+    if (!reader) {
+      json(res, 502, { error: "Resposta de foto incompleta." });
+      return;
+    }
+    const chunks: Buffer[] = [];
+    let totalBytes = 0;
+    try {
+      while (true) {
+        const part = await reader.read();
+        if (part.done) break;
+        totalBytes += part.value.byteLength;
+        if (totalBytes > MAX_AVATAR_BYTES) {
+          await reader.cancel().catch(() => {});
+          json(res, 413, { error: "Foto de perfil inválida ou muito grande." });
+          return;
+        }
+        chunks.push(Buffer.from(part.value));
+      }
+    } finally {
+      reader.releaseLock();
+    }
+    const bytes = Buffer.concat(chunks, totalBytes);
+    const verifiedMime = safeAvatarMime(bytes);
+    if (!verifiedMime || !bytes.length) {
+      json(res, 415, { error: "A foto antiga não contém uma imagem raster válida." });
       return;
     }
 
@@ -238,7 +311,7 @@ export default async function handler(req: Req, res: Res) {
               Bucket: bucket,
               Key: cacheKey,
               Body: bytes,
-              ContentType: contentType,
+              ContentType: verifiedMime,
               CacheControl: "private, max-age=21600",
             }),
           );
@@ -258,11 +331,13 @@ export default async function handler(req: Req, res: Res) {
 
     setCors(res);
     res.statusCode = 200;
-    res.setHeader("Content-Type", contentType);
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("Content-Type", verifiedMime);
     res.setHeader("Cache-Control", "private, max-age=21600, stale-while-revalidate=86400");
     res.end(bytes);
-  } catch (error) {
-    console.error("[SIGAPRO][AvatarLegacy] Falha ao recuperar foto antiga.", error);
-    json(res, 502, { error: "Não foi possível recuperar a foto de perfil." });
+  } catch {
+    // Never emit old source URLs, raw provider errors or user identifiers.
+    console.warn("[SIGAPRO][AvatarLegacy] Fonte antiga indisponível; referência R2 preservada.");
+    json(res, 502, { error: "Foto antiga temporariamente indisponível. O cadastro continua preservado." });
   }
 }
