@@ -106,8 +106,12 @@ export function quoteSupportsArchitecturalReading(
     /\b(?:propost[oa]s?|projetad[oa]s?|calculad[oa]s?|medid[oa]s?|previst[oa]s?|executad[oa]s?|existente)\b/.test(projectContext);
   const legalRequirementBeforeValue =
     /\b(?:minim[oa]s?|maxim[oa]s?|obrigatori[oa]s?|exigid[oa]s?|permitid[oa]s?|requerid[oa]s?|normativ[oa]s?|legal|legais|legislacao|zoneamento|limite|parametro(?:s)?|plano\s+diretor|lei)\b/.test(preValue);
+  // A unit may sit between the number and "(minimum permitted)".
+  // Do not consume an unrelated metric label when checking the suffix.
+  const qualifierAfterUnit = afterValue.replace(
+    /^\s*(?:m(?:\s*(?:²|2|\^2))?|metros?|%|por\s+cento)?\s*/, "");
   const legalRequirementImmediatelyAfterValue =
-    /^\s*(?:[,:;(/)\-–]*\s*)*(?:minim[oa]s?|maxim[oa]s?|obrigatori[oa]s?|exigid[oa]s?|permitid[oa]s?|legal|legais|permitid[oa]s?|limite)\b/.test(afterValue);
+    /^(?:[,:;(/)\-–]*\s*)*(?:minim[oa]s?|maxim[oa]s?|obrigatori[oa]s?|exigid[oa]s?|permitid[oa]s?|legal|legais|limite)\b/.test(qualifierAfterUnit);
   const regulatoryOnly =
     /\b(?:limite\s+legal|parametro\s+urbanistico|indice\s+urbanistico|exigid[oa]\s+pel[ao]\s+lei|exigid[oa]\s+pel[ao]\s+plano\s+diretor|conforme\s+(?:a\s+)?legislacao|obrigatori[oa]s?|maxim[oa]\s+permitid[oa]|minim[oa]\s+(?:permitid[oa]|legal|exigid[oa]))\b/.test(normalized);
   if (legalRequirementBeforeValue ||
