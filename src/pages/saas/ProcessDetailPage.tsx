@@ -353,7 +353,7 @@ export function ProcessDetailPage() {
     () => refreshRemoteStore(processId ?? null),
     [processId, refreshRemoteStore],
   );
-  useLivePlatformRefresh(refreshCurrentProcessStore, { intervalMs: 1800 });
+  useLivePlatformRefresh(refreshCurrentProcessStore, { intervalMs: 30000, refreshOnMount: false });
 
   const liveProcess = resolveProcessRoute(processes, processId);
   const [cachedProcessVisual, setCachedProcessVisual] = useState<ProcessRecord | undefined>(() =>
@@ -531,7 +531,8 @@ export function ProcessDetailPage() {
     };
 
     void syncExactProcess();
-    const timer = window.setInterval(() => void syncExactProcess(), 1500);
+    // This query reads only the current process, not the entire municipal store.
+    const timer = window.setInterval(() => void syncExactProcess(), 8000);
     window.addEventListener("focus", syncExactProcess);
     window.addEventListener("pageshow", syncExactProcess);
     window.addEventListener("online", syncExactProcess);
