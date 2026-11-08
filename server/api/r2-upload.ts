@@ -10,6 +10,7 @@ import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { createHash } from "node:crypto";
 import { getDataApiUrl, resolveMunicipalDocumentTarget } from "../municipal-storage.js";
 import { safeAvatarMime } from "./profile-avatar-open.js";
+import { authorizeProcessAttachmentWrite } from "../process-attachment-write-authorization.js";
 
 type Req = import("http").IncomingMessage & { method?: string; body?: unknown };
 type Res = import("http").ServerResponse;
@@ -387,6 +388,20 @@ export default async function handler(req: Req, res: Res) {
       if (!platformPermission.ok || platformPermission.payload !== true) {
         json(res, platformPermission.status === 401 ? 401 : 403, {
           error: "Somente o administrador geral pode enviar arquivos sem identificação municipal.",
+        });
+        return;
+      }
+    }
+    // A municipality-admin or Master may consult a process but must not
+    // silently modify its files through the generic upload API.
+    // Official DAM originals and municipal legislation have separate gates.
+    if (bucket === (readEnv("R2_BUCKET_DOCUMENTOS") || "sigapro-documentos") &&
+        /^municipalities\/[a-f0-9-]{36}\/(?:protocols|habite-se|attachments|analysis|documents|comunique-se|qa-arquitetura)(?:\/|$)/i.test(objectKey)) {
+      const permission = await authorizeProcessAttachmentWrite(req, objectKey);
+      if (permission.ok === false) {
+        json(res, permission.status, {
+          code: permission.code,
+          error: "Este perfil não está autorizado a modificar anexos do processo.",
         });
         return;
       }
