@@ -124,7 +124,10 @@ export function assessUrbanAiReadiness(data: UrbanReadinessInput): UrbanReadines
     {
       code: "quadro-ii", title: "Quadro II — usos, vagas e condições",
       detail: pages + " página(s), " + machineProposals + " sugestão(ões) não verificadas e " +
-        draftEntries + " rascunho(s) registrado(s).",
+        draftEntries + " rascunho(s) registrado(s). " +
+        (data.quadroII?.legal_approval === true
+          ? "Homologação jurídica indicada pela fonte; verificar escopo das importações."
+          : "Sem homologação jurídica do Quadro II: rascunhos não autorizam usos por zona."),
       // Reviewed drafts are NOT a final approval of uses and exceptions.
       // The upstream Quadro II source explicitly reports legal_approval=false.
       passed: pages > 0 && draftEntries > 0 && useImports > 0 &&
