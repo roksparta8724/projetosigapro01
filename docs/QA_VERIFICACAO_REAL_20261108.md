@@ -19,9 +19,16 @@ autorização para produção ou homologação comercial.
   transferência bancária). GET nas rotas de upload, exclusão e
   assinatura de documentos = 405, com respostas JSON; tela de
   acesso e subpáginas municipais = 200, com HTML PT-BR.
-  O novo `scripts/qa-preview-live-smoke.mjs` registra essas
-  verificações de transporte reais no Quality Gate de PRs,
-  com resumo de tempos HTTP. **Não mede tempo de login**.
+  O novo `scripts/qa-preview-live-smoke.mjs` registra verificações
+  de transporte e respostas negativas de escrita sem credenciais. O
+  executor GitHub não tem acesso automático ao Preview protegido pela
+  Vercel: na primeira execução, recebeu 401 nas 11 rotas **antes de
+  alcançar o aplicativo**. O script agora informa explicitamente
+  `NOT_VERIFIED_VERCEL_DEPLOYMENT_PROTECTION`, em vez de atribuir a
+  falha ao SIGAPRO ou contar qualquer teste como aprovado. Para
+  exercitar o Preview autenticado é necessária uma identidade Vercel
+  autorizada (conector oficial ou token OIDC de curta duração).
+  **Não mede tempo de login** nem relaxa a proteção de implantação.
 - Vercel Runtime Errors (janela de 24 h): nenhum cluster de erro retornado
   pela consulta; logs individuais de 24h não ficam retidos no
   plano Hobby. A ausência de logs não prova ausência de falhas.
