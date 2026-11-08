@@ -105,13 +105,13 @@ export function prepareUrbanRuleDraftFromReviewedRow(
   const floors = /^(\d+)\s+pavimentos?$/i.exec(gabarito);
   if (floors) fields.floor_count = {limit:floors[1],reference};
   if (!Object.keys(fields).length) return null;
+  // Show only fields not already represented in the editable metric grid.
+  // Duplicating CA minimum, lot area and frontage made the legal workflow
+  // visually overwhelming and suggested some values had not been imported.
   const otherLegalFields = [
-    ["CA mínimo",source.ca_minimo_original],
-    ["CA básico",source.ca_basico_original],
-    ["Área mínima do lote (m²)",source.lote_minimo_m2],
-    ["Testada mínima (m)",source.testada_minima_m],
-    ["Gabarito/altura",source.gabarito_original],
-    ["Ressalvas",source.observacoes_especificas],
+    ["CA básico (referência, sem cálculo automático)", source.ca_basico_original],
+    ...(!floors ? [["Gabarito/altura condicionado", source.gabarito_original]] : []),
+    ["Condições e ressalvas do Quadro I", source.observacoes_especificas],
   ].filter(([,value]) => display(value)).map(([label,value]) =>
     String(label) + ": " + display(value));
   return {
