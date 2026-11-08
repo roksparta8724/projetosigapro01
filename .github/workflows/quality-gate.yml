@@ -77,6 +77,12 @@ jobs:
       - name: Commercial acceptance readiness (informational, not a release)
         run: node scripts/qa-commercial-acceptance.mjs --report
 
+      # This is a real HTTP probe of the currently deployed Preview, not
+      # evidence of authenticated release acceptance for this candidate SHA.
+      - name: Deployed Preview anonymous HTTP smoke (real network)
+        if: github.event_name == 'pull_request'
+        run: node scripts/qa-preview-live-smoke.mjs
+
       - name: Production build
         run: npm run build
 
