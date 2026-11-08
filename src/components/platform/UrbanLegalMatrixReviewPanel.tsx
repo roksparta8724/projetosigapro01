@@ -7,6 +7,7 @@ import {
   type UrbanMatrixReadingAudit, type UrbanMatrixReadingAction,
 } from "@/integrations/backend/urbanPrecheckClient";
 import { calculateUrbanMatrixBatchProgress, describePendingAnalystCa, describeUrbanMatrixRow, formatUrbanMatrixSourceValue } from "@/lib/urbanLegalMatrixReview";
+import { isUrbanMatrixBatchArchived, latestUrbanMatrixBatchEvent } from "@/lib/urbanMatrixBatchStatus";
 import { prepareUrbanRuleDraftFromReviewedRow, type PreparedUrbanMatrixDraft } from "@/lib/urbanMatrixDraftPreparation";
 import { getAiu2ProvisionalCriterion } from "@/lib/urbanAiu2Provisional";
 import { Aiu2ProvisionalComparison } from "@/components/platform/Aiu2ProvisionalComparison";
@@ -77,7 +78,7 @@ export function UrbanLegalMatrixReviewPanel({
         const latestEvents = auditResult.status === "fulfilled"
           ? auditResult.value.batch_events : [];
         const firstActive = batchResult.value.find((batch) =>
-          latestEvents.find((event) => event.batch_id === batch.id)?.action !== "archive",
+          !isUrbanMatrixBatchArchived(latestEvents, batch.id),
         );
         if (firstActive) {
           setDetailLoading(true);
@@ -95,7 +96,7 @@ export function UrbanLegalMatrixReviewPanel({
     return () => { active = false; };
   }, [municipalityId, canView]);
 
-  const batchEvent = (id: string) => audit.batch_events.find((event) => event.batch_id === id);
+  const batchEvent = (id: string) => latestUrbanMatrixBatchEvent(audit.batch_events, id);
   const isArchived = (id: string) => batchEvent(id)?.action === "archive";
   const archivedCount = batches.filter((batch) => isArchived(batch.id)).length;
   const visibleBatches = batches.filter((batch) => isArchived(batch.id) === showArchived);
