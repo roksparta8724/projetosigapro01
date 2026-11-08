@@ -85,7 +85,7 @@ export function CompactProcessRegistry({
       data-sei-process-registry="true"
       className="overflow-hidden rounded-[18px] border border-slate-200 bg-white shadow-[0_10px_26px_rgba(15,23,42,0.055)] dark:border-slate-700 dark:bg-slate-950/50"
     >
-      <div className="hidden min-h-9 grid-cols-[30px_minmax(165px,1.15fr)_minmax(190px,1.35fr)_minmax(145px,.85fr)_minmax(120px,.75fr)_104px_112px] items-center gap-2 border-b border-slate-200 bg-slate-50/95 px-3 text-[9px] font-black uppercase tracking-[0.11em] text-slate-500 lg:grid dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-400">
+      <div className="hidden min-h-9 grid-cols-[30px_minmax(165px,1.15fr)_minmax(190px,1.35fr)_minmax(145px,.85fr)_minmax(120px,.75fr)_104px_112px] items-center gap-2 border-b border-slate-200 bg-slate-50/95 px-3 text-[9px] font-black uppercase tracking-[0.11em] text-slate-500 xl:grid dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-400">
         <span className="text-center">Marc.</span>
         <span>Processo</span>
         <span>Interessado / assunto</span>
@@ -108,12 +108,12 @@ export function CompactProcessRegistry({
               key={process.id}
               data-sei-process-row="true"
               className={cn(
-                "group grid gap-2 px-3 py-2.5 transition-colors hover:bg-sky-50/55 lg:grid-cols-[30px_minmax(165px,1.15fr)_minmax(190px,1.35fr)_minmax(145px,.85fr)_minmax(120px,.75fr)_104px_112px] lg:items-center dark:hover:bg-sky-950/15",
+                "group grid gap-2 px-3 py-2.5 transition-colors hover:bg-sky-50/55 xl:grid-cols-[30px_minmax(165px,1.15fr)_minmax(190px,1.35fr)_minmax(145px,.85fr)_minmax(120px,.75fr)_104px_112px] xl:items-center dark:hover:bg-sky-950/15",
                 archived && "bg-slate-50/70 opacity-80 dark:bg-slate-900/35",
               )}
             >
-              <div className="flex items-center gap-2 lg:justify-center">
-                <span className="lg:hidden text-[9px] font-bold uppercase tracking-[0.1em] text-slate-400">
+              <div className="flex items-center gap-2 xl:justify-center">
+                <span className="xl:hidden text-[9px] font-bold uppercase tracking-[0.1em] text-slate-400">
                   Marcador
                 </span>
                 {marker ? (
