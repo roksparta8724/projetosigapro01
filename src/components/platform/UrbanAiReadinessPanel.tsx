@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { AlertTriangle, BookOpenCheck, CheckCircle2, Loader2, RefreshCcw } from "lucide-react";
+import { AlertTriangle, BookOpenCheck, CheckCircle2, Loader2, RefreshCcw, ArrowRight, ClipboardList } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { subscribeUrbanLegalAuditInvalidations } from "@/lib/urbanLegalAuditEvents";
 import { CAMPO_LIMPO_LPUOS_REVIEW, CAMPO_LIMPO_PAULISTA_MUNICIPALITY_ID } from "@/lib/urbanOfficialLegalSources";
@@ -61,6 +61,24 @@ export function UrbanAiReadinessPanel({
         node = document.querySelector('[data-legal-archive="true"]');
       } else if (target === "registry") {
         node = document.querySelector('[data-urban-legislation-registry="true"]');
+        if (node) {
+          const baseLaw = node.querySelector<HTMLButtonElement>(
+            '[data-urban-register-base-law-action="true"]',
+          );
+          if (baseLaw) {
+            // One explicit click, no backend write. Prefills the official-law
+            // metadata and opens the actual editor; the PDF is still required.
+            baseLaw.click();
+          } else if (!node.querySelector('[data-urban-legislation-editor="true"]')) {
+            const toggle = node.querySelector<HTMLButtonElement>(
+              '[data-urban-legislation-toggle="true"]',
+            );
+            if (toggle) toggle.click();
+            else setNavigationNotice(
+              "Este perfil pode consultar o acervo, mas o cadastro do PDF oficial é responsabilidade do Admin da Prefeitura.",
+            );
+          }
+        }
       } else if (target === "quadros-i" || target === "quadros-ii") {
         node = document.querySelector('[data-urban-quadros-workspace="true"]');
       } else {
@@ -155,8 +173,17 @@ export function UrbanAiReadinessPanel({
         </Button>
       </div>
       {municipalityId === CAMPO_LIMPO_PAULISTA_MUNICIPALITY_ID ? (
-        <div data-urban-law-awaiting-review="true"
-          className="mt-4 flex min-w-0 flex-wrap items-start justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50/80 p-4 text-slate-900 dark:border-amber-800 dark:bg-amber-950/25 dark:text-white">
+        <details data-urban-law-awaiting-review="true"
+          className="mt-4 min-w-0 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-white">
+          <summary className="flex cursor-pointer flex-wrap items-center justify-between gap-2 px-4 py-3 text-xs leading-5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-500">
+            <span className="font-extrabold">
+              Lei-base identificada: LC 379/2009 · Plano Diretor: LC 613/2023
+            </span>
+            <span className="rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 font-bold text-amber-950 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100">
+              Aguardando conferência da vigência
+            </span>
+          </summary>
+          <div className="flex min-w-0 flex-wrap items-start justify-between gap-3 border-t border-slate-200 p-4 dark:border-slate-700">
           <div className="min-w-0 flex-1">
             <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-800 dark:text-amber-300">
               Referência documental · consulta {CAMPO_LIMPO_LPUOS_REVIEW.checkedOn}
@@ -200,7 +227,7 @@ export function UrbanAiReadinessPanel({
               Conferir alterações
             </button>
           </div>
-        </div>
+        </details>
       ) : null}
       {loading ? <p role="status" className="mt-4 flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
         <Loader2 className="h-4 w-4 animate-spin" /> Consultando o banco municipal...
@@ -230,22 +257,79 @@ export function UrbanAiReadinessPanel({
             {" "}Regras reais ativas: {report.counts.officialActive}.
           </p>
         </div>
-        <div data-urban-readiness-progress="true"
-          className="mt-3 flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3 text-xs dark:border-slate-700">
-          <p className="font-semibold text-slate-700 dark:text-slate-200">
-            {report.checks.filter((item) => item.passed).length} de {report.checks.length} etapas documentais atendidas
-            {" · "}Os itens restantes exigem conferência por servidor habilitado.
-          </p>
-          {report.checks.find((item) => !item.passed && NEXT_ACTIONS[item.code]) ? (
-            <button type="button" data-urban-readiness-primary-action="true"
-              className="min-h-9 max-w-full rounded-lg border border-sky-200 bg-white px-3 text-left text-xs font-bold text-sky-900 hover:bg-sky-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-600 dark:border-sky-700 dark:bg-slate-900 dark:text-sky-100"
-              onClick={() => {
-                const next = report.checks.find((item) => !item.passed && NEXT_ACTIONS[item.code]);
-                if (next) openNextStep(NEXT_ACTIONS[next.code].target);
-              }}>
-              Próximo passo: {NEXT_ACTIONS[report.checks.find((item) => !item.passed && NEXT_ACTIONS[item.code])!.code].label}
-            </button>
-          ) : null}
+        <div data-urban-readiness-progress="true" data-urban-guided-workflow="true"
+          className="mt-4 min-w-0 overflow-hidden rounded-2xl border border-sky-200 bg-white shadow-sm dark:border-sky-700 dark:bg-slate-900">
+          <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-950">
+            <div className="min-w-0">
+              <p className="flex items-center gap-2 text-sm font-extrabold text-slate-950 dark:text-white">
+                <ClipboardList className="h-4 w-4 text-sky-700 dark:text-sky-300" />
+                Preparação orientada da legislação
+              </p>
+              <p className="mt-1 text-xs leading-5 text-slate-600 dark:text-slate-300">
+                Os dados extraídos já estão preservados. Siga apenas a próxima etapa; o restante fica disponível para auditoria.
+              </p>
+            </div>
+            <span className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-800 dark:border-slate-700 dark:bg-slate-900 dark:text-white">
+              {report.checks.filter((item) => item.passed).length} de {report.checks.length} etapas
+            </span>
+          </div>
+          <div className="grid gap-0 border-b border-slate-200 text-xs dark:border-slate-700 sm:grid-cols-3">
+            <div className="min-w-0 border-b border-slate-100 px-4 py-3 dark:border-slate-700 sm:border-b-0 sm:border-r">
+              <p className="font-semibold text-slate-500 dark:text-slate-300">Quadro I</p>
+              <p className="mt-1 font-extrabold text-slate-900 dark:text-white">
+                {report.reading.verified}/{report.reading.total} leituras conferidas
+              </p>
+              <p className="mt-1 text-[11px] text-slate-600 dark:text-slate-300">
+                {report.reading.needsCorrection} ressalva(s) preservada(s)
+              </p>
+            </div>
+            <div className="min-w-0 border-b border-slate-100 px-4 py-3 dark:border-slate-700 sm:border-b-0 sm:border-r">
+              <p className="font-semibold text-slate-500 dark:text-slate-300">Quadro II</p>
+              <p className="mt-1 font-extrabold text-slate-900 dark:text-white">
+                {report.quadroII.draftEntries} rascunho(s) preparados
+              </p>
+              <p className="mt-1 text-[11px] text-slate-600 dark:text-slate-300">
+                Sem homologação automática dos usos
+              </p>
+            </div>
+            <div className="min-w-0 px-4 py-3">
+              <p className="font-semibold text-slate-500 dark:text-slate-300">Acervo jurídico</p>
+              <p className="mt-1 font-extrabold text-slate-900 dark:text-white">
+                {report.counts.versionedLaws} norma(s) com PDF registrado
+              </p>
+              <p className="mt-1 text-[11px] text-slate-600 dark:text-slate-300">
+                Cadastro documentado, separado da validação
+              </p>
+            </div>
+          </div>
+          <div className="flex min-w-0 flex-wrap items-center justify-between gap-3 px-4 py-4">
+            <div className="min-w-0 flex-1">
+              <p className="text-[11px] font-bold uppercase tracking-wide text-sky-800 dark:text-sky-300">
+                Próxima ação recomendada
+              </p>
+              <p className="mt-1 text-sm font-extrabold text-slate-950 dark:text-white">
+                {report.checks.find((item) => !item.passed && NEXT_ACTIONS[item.code])
+                  ? NEXT_ACTIONS[report.checks.find((item) => !item.passed && NEXT_ACTIONS[item.code])!.code].label
+                  : "Conferências documentais atendidas"}
+              </p>
+              {report.checks.find((item) => !item.passed && NEXT_ACTIONS[item.code]) ? (
+                <p className="mt-1 text-xs leading-5 text-slate-600 dark:text-slate-300">
+                  Responsável: {NEXT_ACTIONS[report.checks.find((item) => !item.passed && NEXT_ACTIONS[item.code])!.code].owner}.
+                  {" "}O sistema prepara as informações; a documentação e a decisão jurídica precisam ser confirmadas.
+                </p>
+              ) : null}
+            </div>
+            {report.checks.find((item) => !item.passed && NEXT_ACTIONS[item.code]) ? (
+              <button type="button" data-urban-readiness-primary-action="true"
+                className="inline-flex min-h-11 max-w-full items-center justify-center gap-2 rounded-xl bg-sky-900 px-4 py-2 text-left text-xs font-bold text-white shadow-sm hover:bg-sky-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-500 dark:bg-sky-700 dark:hover:bg-sky-600"
+                onClick={() => {
+                  const next = report.checks.find((item) => !item.passed && NEXT_ACTIONS[item.code]);
+                  if (next) openNextStep(NEXT_ACTIONS[next.code].target);
+                }}>
+                Abrir próxima etapa <ArrowRight className="h-4 w-4 shrink-0" />
+              </button>
+            ) : null}
+          </div>
         </div>
         {report.readingIssues.length > 0 ? (
           <details data-urban-reading-reservations="true"
@@ -364,7 +448,12 @@ export function UrbanAiReadinessPanel({
             ))}
           </div>
         </details>
-        <div className="mt-3 grid min-w-0 gap-2 md:grid-cols-2">
+        <details data-urban-readiness-all-checks="true"
+          className="mt-3 min-w-0 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-950">
+          <summary className="cursor-pointer text-xs font-extrabold leading-5 text-slate-900 dark:text-white">
+            Consultar auditoria completa · {report.checks.filter((item) => !item.passed).length} etapa(s) ainda pendente(s)
+          </summary>
+          <div className="mt-3 grid min-w-0 gap-2 md:grid-cols-2">
           {report.checks.map((check) => <article key={check.code}
             data-urban-ai-readiness-step={check.code} data-ready={String(check.passed)}
             className="min-w-0 rounded-xl border border-slate-200 bg-slate-50 p-3 text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-white">
@@ -400,7 +489,8 @@ export function UrbanAiReadinessPanel({
               </div>
             </div>
           </article>)}
-        </div>
+          </div>
+        </details>
         <details className="mt-3 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
           <summary className="cursor-pointer text-xs font-bold text-slate-950 dark:text-white">
             Parâmetros jurídicos condicionais ainda fora da comparação numérica automática
