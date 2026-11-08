@@ -1238,43 +1238,6 @@ export function TenantAdminPage() {
       <PageShell>
         {workspaceView === "visao-geral" ? (
           <>
-        <section className="sig-dark-panel overflow-hidden rounded-[30px] border border-slate-200/90 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.08),transparent_24%),radial-gradient(circle_at_bottom_right,rgba(16,185,129,0.06),transparent_22%),linear-gradient(135deg,#fcfdff_0%,#f7fafc_56%,#eef4f8_100%)] shadow-[0_18px_42px_rgba(15,23,42,0.06)]">
-          <div>
-            <div className="p-5 md:p-6 lg:p-7">
-              <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
-                <div className="min-w-0">
-                  <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Administração da Prefeitura</p>
-                  <h1 className="mt-2 max-w-[36ch] text-2xl font-semibold leading-tight text-slate-950">
-                    {municipalityName || activeInstitution?.name || "Administração da Prefeitura"}
-                  </h1>
-                  <p className="mt-2 max-w-[64ch] text-sm leading-6 text-slate-500">
-                    Centro institucional da operação municipal, com governança de usuários, processos e prioridades da Prefeitura.
-                  </p>
-                </div>
-                <div className="inline-flex items-center gap-3 rounded-full border border-slate-200 bg-white px-3.5 py-2.5 shadow-[0_8px_20px_rgba(15,23,42,0.05)]">
-                  <UserAvatar
-                    key={`${session.id}:${effectiveScopeId || "global"}`}
-                    name={session.name}
-                    imageUrl={resolveProfileAvatarDisplayUrl(activeUserProfile)}
-                    crop={activeUserProfile ? {
-                      scale: activeUserProfile.avatarScale ?? 1,
-                      offsetX: activeUserProfile.avatarOffsetX ?? 0,
-                      offsetY: activeUserProfile.avatarOffsetY ?? 0,
-                      editorSize: DEFAULT_AVATAR_EDITOR_DIAMETER,
-                    } : undefined}
-                    size="sm"
-                  />
-                  <div className="min-w-0">
-                    <p className="sig-fit-title text-sm font-semibold text-slate-900">{session.name}</p>
-                    <p className="sig-fit-copy text-xs text-slate-500">{session.title || "Responsável institucional"}</p>
-                  </div>
-                </div>
-              </div>
-
-            </div>
-          </div>
-        </section>
-
         <PageStatsRow className="xl:grid-cols-4">
           {executiveCards.map((item) => (
             <StatCard
