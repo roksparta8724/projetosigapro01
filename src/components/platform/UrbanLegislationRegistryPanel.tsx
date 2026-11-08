@@ -133,7 +133,7 @@ export function UrbanLegislationRegistryPanel({
   function prefillFromOfficialSource(id: string) {
     setReferenceChoice(id);
     const source = officialSources.find((entry) => entry.id === id);
-    if (!source || source.kind === "proposta_sem_vigencia") return;
+    if (!source || source.kind === "proposta_sem_vigencia" || source.kind === "historica_revogada") return;
     const tokens = /^(lc|decreto|plc)-([0-9]+)-([0-9]{4})$/.exec(source.id);
     const kind: LawKind = tokens?.[1] === "decreto" ? "decreto" :
       tokens?.[1] === "plc" ? "projeto_de_lei" : "lei_complementar";
@@ -143,19 +143,22 @@ export function UrbanLegislationRegistryPanel({
       source.id === "lc-656-2026" || source.id === "decreto-7550-2026"
         ? "regularizacao" :
       kind === "projeto_de_lei" ? "historico" : "aprovacao_ordinaria";
-    const parentNumber = source.id === "lc-440-2011" || source.id === "lc-473-2014"
-      ? "379" : source.id === "decreto-7548-2026" ? "655" :
+    const parentNumber = source.id === "lc-440-2011" ? "379" :
+      source.id === "lc-507-2017" ? "473" :
+      source.id === "decreto-7548-2026" ? "655" :
         source.id === "decreto-7550-2026" ? "656" : "";
     const parent = records.find((entry) => !entry.archived &&
       entry.document_kind === "lei_complementar" &&
       entry.document_number === parentNumber &&
-      entry.document_year === (parentNumber === "379" ? 2009 : 2026));
+      entry.document_year === (parentNumber === "379" ? 2009 :
+        parentNumber === "473" ? 2014 : 2026));
     setDraft({
       kind, number: tokens?.[2] || "", year: tokens?.[3] || "",
       title: source.title, scope, sourceUrl: source.officialPageUrl,
       publication: "", effective: "",
       relatedId: parent?.id || "",
-      relationType: parent ? (kind === "decreto" ? "regulamenta" : "altera") : "",
+      relationType: parent ? (source.id === "lc-507-2017" ? "revoga" :
+        kind === "decreto" ? "regulamenta" : "altera") : "",
     });
     setFormOpen(true);
     setError("");
@@ -288,7 +291,8 @@ export function UrbanLegislationRegistryPanel({
               <select className={fieldStyle} value={referenceChoice}
                 onChange={(event) => prefillFromOfficialSource(event.target.value)}>
                 <option value="">Escolha um documento para preencher os metadados</option>
-                {officialSources.filter((source) => source.kind !== "proposta_sem_vigencia").map((source) => (
+                {officialSources.filter((source) =>
+                  source.kind !== "proposta_sem_vigencia" && source.kind !== "historica_revogada").map((source) => (
                   <option key={source.id} value={source.id}>{source.title}</option>
                 ))}
               </select>
