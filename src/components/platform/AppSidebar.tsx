@@ -2,6 +2,7 @@ import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { ChevronDownIcon, ChevronRightIcon, CloseIcon } from "@/components/platform/PremiumIcons";
 import { cn } from "@/lib/utils";
+import { isMunicipalOverviewSubpagePath } from "@/lib/municipalOverviewSubpages";
 
 export type AppSidebarItem = {
   to: string;
@@ -30,10 +31,16 @@ type SidebarInnerProps = {
 };
 
 function isRouteActive(pathname: string, route: string) {
-  if (route === "/dashboard") {
-    return pathname === "/dashboard" || pathname.startsWith("/dashboard/");
+  const currentPath = pathname.replace(/\/+$/, "") || "/";
+  // A Visão geral possui URLs próprias. Não tratar todas as rotas /prefeitura/*
+  // como ativas: Organograma, Protocolo e Financeiro têm entradas independentes.
+  if (route === "/prefeitura") {
+    return isMunicipalOverviewSubpagePath(currentPath);
   }
-  return pathname === route;
+  if (route === "/dashboard") {
+    return currentPath === "/dashboard" || currentPath.startsWith("/dashboard/");
+  }
+  return currentPath === route;
 }
 
 function isParentActive(pathname: string, routeGroup: string) {
@@ -204,6 +211,7 @@ function SidebarInner({
                           to={item.to}
                           onClick={onNavigate}
                           title={!expanded ? item.label : undefined}
+                          aria-current={parentActive ? "page" : undefined}
                           data-sidebar-active={parentActive ? "true" : "false"}
                           data-sidebar-collapsed={expanded ? "false" : "true"}
                           className={itemClassName}
