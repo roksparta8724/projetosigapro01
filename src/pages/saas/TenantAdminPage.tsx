@@ -1270,22 +1270,7 @@ export function TenantAdminPage() {
                   </div>
                 </div>
               </div>
-              <div className="mt-5 grid gap-3 md:grid-cols-3">
-                <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
-                  <p className="text-xs uppercase tracking-[0.14em] text-slate-500">Secretaria</p>
-                  <p className="mt-2 sig-fit-title text-sm font-semibold text-slate-900">{currentUnit}</p>
-                </div>
-                <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
-                  <p className="text-xs uppercase tracking-[0.14em] text-slate-500">SLA crítico</p>
-                  <p className="mt-2 text-sm font-semibold text-slate-900">
-                    {criticalAlerts.length > 0 ? `${criticalAlerts.length} item(ns) com urgência` : "Sem urgência crítica"}
-                  </p>
-                </div>
-                <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
-                  <p className="text-xs uppercase tracking-[0.14em] text-slate-500">Fluxo restrito</p>
-                  <p className="mt-2 text-sm font-semibold text-slate-900">{restrictedTransitCount} processo(s) com trâmite interno restrito</p>
-                </div>
-              </div>
+
             </div>
           </div>
         </section>
@@ -1343,22 +1328,17 @@ export function TenantAdminPage() {
                 className="shadow-[0_12px_30px_rgba(15,23,42,0.05)]"
                 contentClassName="space-y-5"
               >
-                <div className="grid min-w-0 gap-4 sm:grid-cols-2 min-[2200px]:grid-cols-3 [overflow-wrap:anywhere]">
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
-                    <p className="text-xs uppercase tracking-[0.14em] text-slate-500">Em análise</p>
-                    <p className="mt-2 text-lg font-semibold text-slate-950">{metrics.inAnalysis}</p>
-                    <p className="mt-1 text-sm text-slate-500">Parecer técnico e reapresentação.</p>
-                  </div>
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
-                    <p className="text-xs uppercase tracking-[0.14em] text-slate-500">Financeiro</p>
-                    <p className="mt-2 text-lg font-semibold text-slate-950">{metrics.pendingPayments}</p>
-                    <p className="mt-1 text-sm text-slate-500">Guias ainda sem compensação.</p>
-                  </div>
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
-                    <p className="text-xs uppercase tracking-[0.14em] text-slate-500">Aprovados</p>
-                    <p className="mt-2 text-lg font-semibold text-slate-950">{metrics.approved}</p>
-                    <p className="mt-1 text-sm text-slate-500">Processos já concluídos.</p>
-                  </div>
+                <div data-sigapro-overview-quickfacts="true" className="grid min-w-0 gap-2 border-b border-slate-200 pb-4 sm:grid-cols-3">
+                  {[
+                    { label: "Em análise", value: metrics.inAnalysis },
+                    { label: "Guias pendentes", value: metrics.pendingPayments },
+                    { label: "Concluídos", value: metrics.approved },
+                  ].map((item) => (
+                    <div key={item.label} className="flex min-w-0 items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2">
+                      <span className="truncate text-xs font-medium text-slate-600" title={item.label}>{item.label}</span>
+                      <span className="shrink-0 text-base font-bold tabular-nums text-slate-950">{item.value}</span>
+                    </div>
+                  ))}
                 </div>
                 <div className="space-y-4">
                   {mainQueue.length === 0 ? (
@@ -1366,7 +1346,22 @@ export function TenantAdminPage() {
                       Nenhum protocolo operacional encontrado para esta Prefeitura.
                     </div>
                   ) : (
-                    mainQueue.slice(0, 3).map((process) => renderQueueCard(process))
+                    mainQueue.slice(0, 3).map((process) => (
+                      <div key={process.id} className="flex min-w-0 flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-xs font-semibold text-sky-900" title={process.protocol}>{process.protocol}</p>
+                          <p className="mt-0.5 truncate text-sm font-medium text-slate-900" title={process.title}>{process.title}</p>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-2">
+                          <Badge variant="outline" className={getPriorityTone(process)}>
+                            {process.sla.breached ? "Vencido" : process.sla.hoursRemaining <= 12 ? "Urgente" : "No prazo"}
+                          </Badge>
+                          <Button type="button" size="sm" variant="outline"
+                            className="rounded-lg border-slate-300 bg-white text-slate-900"
+                            onClick={() => openMunicipalProcess(process.id)}>Abrir</Button>
+                        </div>
+                      </div>
+                    ))
                   )}
                 </div>
               </SectionCard>
@@ -1400,13 +1395,17 @@ export function TenantAdminPage() {
                   className="shadow-[0_12px_30px_rgba(15,23,42,0.05)]"
                   contentClassName="space-y-3"
                 >
-                  {unitSummary.map((item) => (
-                    <div key={item.label} className="min-w-0 max-w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 [overflow-wrap:anywhere]">
-                      <p className="text-xs uppercase tracking-[0.14em] text-slate-500">{item.label}</p>
-                      <p className="mt-2 text-lg font-semibold text-slate-950">{item.value}</p>
-                      <p className="mt-1 max-w-full break-words text-sm text-slate-600 [overflow-wrap:anywhere]">{item.helper}</p>
-                    </div>
-                  ))}
+                  <div data-sigapro-overview-unit-summary="compact" className="divide-y divide-slate-200 rounded-xl border border-slate-200 bg-slate-50">
+                    {unitSummary.map((item) => (
+                      <div key={item.label} className="flex min-w-0 items-center justify-between gap-3 px-4 py-3">
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-slate-900">{item.label}</p>
+                          <p className="truncate text-xs text-slate-500" title={item.helper}>{item.helper}</p>
+                        </div>
+                        <span className="shrink-0 text-lg font-semibold tabular-nums text-slate-950">{item.value}</span>
+                      </div>
+                    ))}
+                  </div>
                 </SectionCard>
               </div>
             </PageMainContent>
@@ -1455,45 +1454,10 @@ export function TenantAdminPage() {
                     <Users2 className="mr-2 h-4 w-4 text-sky-200" />
                     Gerenciar usuários
                   </Button>
-                </div>
-              </SectionCard>
 
-              <SectionCard
-                title="Brasão oficial"
-                description="Identidade institucional vinculada exclusivamente a esta Prefeitura."
-                icon={Building2}
-              >
-                <div className="space-y-4">
-                  <div className="flex min-h-[118px] items-center gap-4 rounded-2xl border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] p-4">
-                    <div className="flex h-[86px] w-[86px] shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
-                      {coatOfArmsPreviewUrl ? (
-                        <img
-                          src={coatOfArmsPreviewUrl}
-                          alt={`Brasão oficial de ${municipalityName || activeInstitution?.name || "Prefeitura"}`}
-                          className="block h-full w-full object-contain"
-                          decoding="async"
-                        />
-                      ) : (
-                        <Building2 className="h-8 w-8 text-slate-400" aria-hidden="true" />
-                      )}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-bold text-slate-950">
-                        {coatOfArmsPreviewUrl ? "Brasão salvo" : "Brasão ainda não cadastrado"}
-                      </p>
-                      <p className="mt-1 text-xs leading-5 text-slate-500">
-                        O arquivo salvo é reutilizado nos documentos oficiais e como fallback institucional.
-                      </p>
-                    </div>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="sig-dark-action-btn h-11 w-full justify-start rounded-2xl text-slate-50"
-                    onClick={() => navigate("/configuracoes?secao=branding")}
-                  >
-                    <Building2 className="mr-2 h-4 w-4 text-sky-200" />
-                    Alterar ou salvar brasão
+                  <Button type="button" variant="outline" className="sig-dark-action-btn h-11 w-full justify-start rounded-2xl text-slate-50"
+                    onClick={() => navigate("/configuracoes?secao=branding")}>
+                    <Building2 className="mr-2 h-4 w-4 text-sky-200" />Identidade visual
                   </Button>
                 </div>
               </SectionCard>
