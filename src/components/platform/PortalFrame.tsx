@@ -414,7 +414,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
   // remote profile refresh is in progress. The fallback is bound to the
   // authenticated account, never to the municipality being viewed.
   const cachedHeaderProfile = authenticatedAvatarOwnerId && !userProfile
-    ? readCachedProfileAvatar(authenticatedAvatarOwnerId, authenticatedEmail)
+    ? readCachedProfileAvatar(signedInProfileId, authenticatedEmail)
     : null;
   const displayProfile = userProfile || cachedHeaderProfile;
   const canonicalSignedInUser =
