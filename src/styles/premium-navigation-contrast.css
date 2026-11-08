@@ -100,8 +100,36 @@ a[data-sigapro-overview-tab="inactive"]
 html body #root .sig-main-shell
 [aria-label="Filtrar situação dos processos"]
 button[aria-pressed="true"] {
+  /* Texto e fundo são um único contrato: evita branco sobre branco no tema claro. */
+  background: #0c4a6e !important;
+  background-color: #0c4a6e !important;
+  border-color: #075985 !important;
   color: #ffffff !important;
   -webkit-text-fill-color: #ffffff !important;
+}
+html body #root .sig-main-shell
+[aria-label="Filtrar situação dos processos"]
+button[aria-pressed="true"]:hover {
+  background: #075985 !important;
+  background-color: #075985 !important;
+}
+
+/* No modo claro, filtros não selecionados continuam brancos e legíveis.
+   Não modificar outros botões nem sobrescrever o tema inverso. */
+html body #root [data-layout-mode="default"] .sig-main-shell
+[aria-label="Filtrar situação dos processos"]
+button[aria-pressed="false"] {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #1e293b !important;
+  -webkit-text-fill-color: #1e293b !important;
+}
+html body #root [data-layout-mode="default"] .sig-main-shell
+[aria-label="Filtrar situação dos processos"]
+button[aria-pressed="false"]:hover {
+  background: #f1f5f9 !important;
+  background-color: #f1f5f9 !important;
 }
 html body #root .sig-main-shell
 [aria-label="Filtrar situação dos processos"]
