@@ -198,7 +198,14 @@ async function streamCachedAvatar(
     res.statusCode = 200;
     res.setHeader("X-Content-Type-Options", "nosniff");
     res.setHeader("Content-Type", verifiedMime);
-    res.setHeader("Cache-Control", "private, max-age=21600, stale-while-revalidate=86400");
+    if (res.getHeader("Cross-Origin-Resource-Policy") === "same-origin") {
+      // An authenticated photo must not survive logout in the HTTP cache or
+      // become readable by another origin via wildcard CORS.
+      res.removeHeader("Access-Control-Allow-Origin");
+      res.setHeader("Cache-Control", "private, no-store");
+    } else {
+      res.setHeader("Cache-Control", "private, max-age=21600, stale-while-revalidate=86400");
+    }
     res.end(bytes);
     return true;
   } catch (error) {
