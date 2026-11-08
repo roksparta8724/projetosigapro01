@@ -38,8 +38,8 @@ describe("SIGAPRO QA — PDF DAM imutável e retry idempotente",()=>{
   it("não permite metadado forjado, mudança de bytes ou reaproveitamento para outro documento",async()=>{
     const existing=client({ContentLength:body.length,ContentType:"application/pdf",Metadata:{sha256:sha}});
     expect(await verifyExistingDamOriginal(existing as never,{...good,body:Buffer.from("fake")})).toBe(false);
-    expect(await verifyExistingDamOriginal(existing,{...good,metadata:{sha256:"a".repeat(64)}})).toBe(false);
-    expect(await verifyExistingDamOriginal(existing,{...good,objectKey:good.objectKey.replace("/dam-originals/","/process-documents/")})).toBe(false);
+    expect(await verifyExistingDamOriginal(existing as never,{...good,metadata:{sha256:"a".repeat(64)}})).toBe(false);
+    expect(await verifyExistingDamOriginal(existing as never,{...good,objectKey:good.objectKey.replace("/dam-originals/","/process-documents/")})).toBe(false);
   });
   it("obriga verificação tanto em armazenamento municipal próprio quanto no R2 do SIGAPRO",()=>{
     const source=readFileSync("server/api/r2-upload.ts","utf8");
