@@ -406,7 +406,9 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
     activeInstitution && "theme" in activeInstitution
       ? activeInstitution.theme
       : null;
-  const authenticatedAvatarOwnerId = authenticatedProfileId || authenticatedUserId || "";
+  // Auth identity survives profile hydration and municipal route switches.
+  const authenticatedAvatarOwnerId = authenticatedUserId || authenticatedProfileId || "";
+  const signedInProfileId = authenticatedProfileId || authenticatedUserId || "";
   const userProfile = getUserProfile(authenticatedProfileId || session.id, authenticatedEmail || session.email);
   // Route-level PortalFrame mounts must not blank the Master avatar while the
   // remote profile refresh is in progress. The fallback is bound to the
