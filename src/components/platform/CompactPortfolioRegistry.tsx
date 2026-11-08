@@ -61,8 +61,10 @@ export function CompactPortfolioRegistry({ institutions, renderDetails, pageSize
                       <td className="max-w-0 px-4 py-3"><p className="truncate text-slate-700" title={institution.plan}>{institution.plan || "A definir"}</p></td>
                       <td className="px-4 py-3">
                         <span className={"inline-flex rounded-full border px-2 py-1 text-[11px] font-semibold " +
-                          (institution.status === "ativo" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-amber-200 bg-amber-50 text-amber-900")}>
-                          {institution.status === "ativo" ? "Ativa" : "Em implantação"}
+                          (institution.status === "ativo" ? "border-emerald-200 bg-emerald-50 text-emerald-800" :
+                           institution.status === "suspenso" ? "border-rose-200 bg-rose-50 text-rose-800" :
+                           "border-amber-200 bg-amber-50 text-amber-900")}>
+                          {institution.status === "ativo" ? "Ativa" : institution.status === "suspenso" ? "Suspensa" : "Em implantação"}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-right">
