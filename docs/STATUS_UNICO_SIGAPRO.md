@@ -1333,3 +1333,10 @@ navegador autenticado.
 - O lote de correção visual foi verificado no SHA `94327d09247ca635f66ed8d26729bdcaa0224d07`: `SIGAPRO Quality Gate`, `Neon migration validation` e `SIGAPRO OCR isolado - QA` encerraram com `success`; novos testes de menu e marcadores passaram.
 - O primeiro deploy manual da QA com esse SHA foi **cancelado pelo Vercel**, não por erro de compilação: o comando Ignored Build Step exige explicitamente `[deploy-qa]` no título do commit. Alias estável permaneceu na versão antiga. Esta publicação controlada usa a convenção aprovada, sem habilitar deploy automático na branch, sem tocar na `main` nem na produção.
 - Depois deste commit de liberação, verificar os gates no SHA final, estado `READY` do deploy e alias de QA antes de declarar que o navegador mostra as alterações.
+
+
+## QA 08/11/2026 — correção do filtro Todos invisível no tema claro
+- Captura fornecida: `image(20261108-181636).png`, Visão geral da Prefeitura → Processos. O botão `Todos`, quando selecionado, aparecia como uma cápsula branca vazia; o filtro estava com `aria-pressed=true` e texto forçado em branco pelo CSS de contraste, mas sem garantia de fundo azul (o tema/variante outline sobrepunha a classe Tailwind).
+- Corrigida a raiz no CSS isolado `src/styles/premium-navigation-contrast.css`: filtro selecionado usa explicitamente fundo azul `#0c4a6e`, borda `#075985` e texto branco; no hover usa `#075985` e texto branco. No tema claro, filtros inativos mantêm fundo branco e texto `#1e293b`; não substitui o tema inverso nem afeta filtros de outras áreas.
+- Testes de regressão em `src/test/premiumNavigationContrastQa.test.tsx` verificam o contrato de fundo/texto, a identificação `Todos`/seleção do painel e a razão de contraste WCAG AA. Nenhuma alteração no fluxo de processo, perfis, regras urbanísticas, banco, PIX/boleto, PDFs ou produção.
+- O commit de liberação da prévia deve conservar `[deploy-qa]`; exigir CI de SHA final + Vercel `READY` e alias correto antes de anunciar a publicação. PR #118 deve permanecer em draft, `main` preservada.
