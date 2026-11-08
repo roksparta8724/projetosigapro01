@@ -15,6 +15,12 @@ const CASES = Object.freeze([
   { id:"health",path:"/api/health",status:200,kind:"json",key:"service",equal:"sigapro" },
   { id:"mercado_pago_qa_health",path:"/api/mp-qa-webhook",status:200,kind:"json",key:"environment",equal:"qa" },
   { id:"r2_chunk_get_denied",path:"/api/r2-process-proxy-upload",status:405,kind:"json" },
+  { id:"r2_chunk_anonymous_write_denied",path:"/api/r2-process-proxy-upload",
+    method:"POST",headers:{"Content-Type":"application/json"},body:"{}",status:401,kind:"json" },
+  { id:"r2_chunk_foreign_origin_denied",path:"/api/r2-process-proxy-upload",
+    method:"POST",headers:{"Content-Type":"application/json",
+      "Authorization":"Bearer INVALID_FAKE_QA_TOKEN",
+      "Origin":"https://invalid-origin.example"},body:"{}",status:403,kind:"json" },
   { id:"r2_upload_get_denied",path:"/api/r2-upload",status:405,kind:"json" },
   { id:"r2_delete_get_denied",path:"/api/r2-delete",status:405,kind:"json" },
   { id:"r2_sign_get_denied",path:"/api/r2-sign-get",status:405,kind:"json" },
@@ -34,9 +40,12 @@ async function probe(spec) {
   const controller=new AbortController();
   const timer=setTimeout(()=>controller.abort(),15000);
   try {
-    const response=await fetch(url,{method:"GET",redirect:"error",cache:"no-store",
-      headers:{"Accept":"application/json,text/html"},
-      signal:controller.signal});
+    const response=await fetch(url,{
+      method:spec.method || "GET",redirect:"error",cache:"no-store",
+      headers:{"Accept":"application/json,text/html",...(spec.headers||{})},
+      ...(spec.body ? {body:spec.body} : {}),
+      signal:controller.signal,
+    });
     const elapsedMs=Math.round(performance.now()-started);
     const contentType=response.headers.get("content-type") || "";
     const text=await response.text();
