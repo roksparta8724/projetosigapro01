@@ -18,9 +18,10 @@ type ReviewDecision = "reading_verified" | "needs_correction";
 
 /** A transcricao assinada nao comprova vigencia nem ativa normas. */
 export function UrbanLegalMatrixReviewPanel({
-  municipalityId, canView, canEdit = false, onPrepareDraft,
+  municipalityId, canView, canEdit = false, onPrepareDraft, onDataChanged,
 }: { municipalityId: string; canView: boolean; canEdit?: boolean;
-  onPrepareDraft?: (draft: PreparedUrbanMatrixDraft) => void }) {
+  onPrepareDraft?: (draft: PreparedUrbanMatrixDraft) => void;
+  onDataChanged?: () => void }) {
   const [batches, setBatches] = useState<UrbanMatrixBatchSummary[]>([]);
   const [selected, setSelected] = useState<UrbanMatrixBatchDetail | null>(null);
   const [audit, setAudit] = useState<UrbanMatrixReadingAudit>(EMPTY_AUDIT);
@@ -156,6 +157,7 @@ export function UrbanLegalMatrixReviewPanel({
         municipalityId, selected.id, selected.document_sha256, decision, index, page, reviewNote,
       );
       setAudit(await listUrbanMatrixReadingAudit(municipalityId));
+      onDataChanged?.();
       setReviewingIndex(null);
       setReviewNote("");
       setPageConfirmed(false);
@@ -191,6 +193,7 @@ export function UrbanLegalMatrixReviewPanel({
         manageAction as UrbanMatrixReadingAction, null, null, manageNote,
       );
       setAudit(await listUrbanMatrixReadingAudit(municipalityId));
+      onDataChanged?.();
       setSelected(null);
       setManageId(null);
       setNotice(manageAction === "archive"
