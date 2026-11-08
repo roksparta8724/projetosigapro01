@@ -214,6 +214,22 @@ export function avatarUploadContentIsValid(
   return safeAvatarMime(bytes) === claimed;
 }
 
+/**
+ * Uploading your own avatar is NOT a municipal settings operation.
+ * Keep active-contract and storage-quota enforcement, but only institutional
+ * branding needs the "Configurações" module entitlement.
+ */
+export function getR2UploadEntitlement(
+  bucket: string,
+  bytes: number,
+  avatarUpload: boolean,
+): { capability: "storage_bytes" | "module:Configurações"; increment: number } {
+  const documentBucket = readEnv("R2_BUCKET_DOCUMENTOS") || "sigapro-documentos";
+  if (bucket === documentBucket || avatarUpload)
+    return { capability: "storage_bytes", increment: bytes };
+  return { capability: "module:Configurações", increment: 0 };
+}
+
 export function buildPublicUrl(bucket: string, objectKey: string) {
   // A configured public CDN for logos/legislation does not authorize publishing
   // payment originals, signed technical reports or private process attachments.
@@ -463,9 +479,8 @@ export default async function handler(req: Req, res: Res) {
       // Quando a Prefeitura usa armazenamento próprio, os bytes deixam de consumir
       // a franquia física do R2 do SIGAPRO. As demais regras contratuais continuam.
       if (!municipalTarget || bucket !== documentBucket) {
-        const capability =
-          bucket === documentBucket ? "storage_bytes" : "module:Configurações";
-        const increment = bucket === documentBucket ? buffer.byteLength : 0;
+        const { capability, increment } =
+          getR2UploadEntitlement(bucket, buffer.byteLength, avatarUpload);
         const entitlement = await callDataApiRpc(req, "assert_municipality_entitlement_v1", {
           _municipality_id: municipalityId,
           _capability: capability,
