@@ -817,3 +817,40 @@ Commits: `d1e425ba`, `ddbb0814`, `6898ff96`,
 
 **Critério de validação de código deste lote:** novo HEAD precisa dos três
 workflows bem-sucedidos, incluindo testes Vitest, TypeScript, lint e build.
+
+## 07/11/2026 — QA: causa raiz de avatar que some após salvar no Perfil
+
+**Causa comprovada no código:** `src/pages/saas/PerfilPage.tsx` recebia o
+upload do R2 com `persistentRef=r2:...`, mas fazia
+`avatarUrl = uploaded.publicUrl || effectiveAvatarFiles[0]?.previewUrl || form.avatarUrl`.
+Como foto privada não deve gerar CDN público, `uploaded.publicUrl` vem
+vazio e o campo `avatarUrl` passava a conter a prévia local `blob:`.
+Uma URL `blob:` não é persistente entre F5/sessões e não prova que o
+arquivo está legível no R2. Isso explica um mecanismo real de foto que
+parece salva e desaparece depois, sem precisar supor erro no Neon.
+
+**Correção QA:** depois do upload, a página constrói `avatarUrl` a partir
+da `persistentRef` do R2 usando
+`resolveProfileAvatarDisplayUrl({ avatarStorageRef })` e rejeita chave
+inválida em vez de persistir a prévia. Também trata registros antigos com
+`avatarStorageRef` e `avatarUrl` vazio/temporário ao montar a imagem,
+e reconstrói o endereço de leitura de `savedProfile` priorizando a chave
+R2. Quando o avatar for salvo, `confirmSavedAvatarReadable` testa a
+URL estável real; uma foto escolhida e exibida apenas via `blob:` deixa
+de ser apresentada como prova de gravação. Fotos removidas permanecem
+removidas, e outros dados do perfil não são zerados.
+
+**Regressão:** `src/test/profileAvatarPersistenceQa.test.ts` cobre
+preferência de R2 ante `blob:`/URL assinada expirada, perfil com somente
+`avatarStorageRef` e integração estática da página com a confirmação
+real de leitura. Commits: `d423a07c` e `e478916e`.
+
+**Validações e limites:** o código de fotos e permissões do lote anterior
+passou Quality Gate em `2c0d1121`: 281 arquivos / 1.585 testes,
+TypeScript, lint e build aprovados; os três workflows da documentação
+`beb0c0ca` também passaram. Os workflows do novo HEAD ainda precisam
+concluir antes de declarar este último ajuste aprovado. Nenhuma sessão
+real, upload físico, R2 HEAD ou validação visual Master/Prefeitura foi
+executada neste lote; Preview permanece em commit mais antigo. A rota
+GET de avatar sem autenticação permanece uma pendência de privacidade
+separada, a resolver em migração coordenada de leitor e backend.
