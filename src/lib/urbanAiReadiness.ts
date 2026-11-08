@@ -31,6 +31,10 @@ export type UrbanReadinessSummary = {
     verifiedEvidence: number; officialActive: number; evidencedActive: number; fictitiousQA: number;
   };
   checks: UrbanReadinessCheck[];
+  readingIssues: Array<{
+    line: number; page: number | null; zone: string;
+    status: "needs_correction" | "untreated"; reason: string;
+  }>;
   metrics: Array<{ metric: UrbanMetric; label: string; unit: string; direction: "minimum" | "maximum"; legalScopesReady: number }>;
 };
 
@@ -82,6 +86,21 @@ export function assessUrbanAiReadiness(data: UrbanReadinessInput): UrbanReadines
     needsCorrection: progress?.needsCorrection ?? 0,
     untreated: progress?.untreated ?? 0,
   };
+  // Only cite rows from the current active source. A reservation, including
+  // AIU 2's provisional criterion, is NOT a legally validated parameter.
+  const readingIssues = (progress?.rows ?? [])
+    .filter((row) => row.needsCorrection || !row.readingReviewed)
+    .map((row) => {
+      const pageRaw = Number(row.source.pagina_pdf);
+      const rawReason = row.review?.note || row.source.pendencias_de_leitura;
+      return {
+        line: row.index + 1,
+        page: Number.isInteger(pageRaw) && pageRaw > 0 ? pageRaw : null,
+        zone: String(row.source.zona_conforme_tabela || "Zona não identificada").slice(0, 70),
+        status: row.needsCorrection ? "needs_correction" as const : "untreated" as const,
+        reason: String(rawReason || "Conferência documental pendente").slice(0, 200),
+      };
+    });
   const checks: UrbanReadinessCheck[] = [
     {
       code: "pdf", title: "Fontes municipais anexadas",
@@ -132,6 +151,7 @@ export function assessUrbanAiReadiness(data: UrbanReadinessInput): UrbanReadines
   return {
     readyForHumanAssistedPrecheck: checks.every((step) => step.passed),
     reading,
+    readingIssues,
     metrics,
     quadroII: { pages, draftEntries, machineProposals },
     counts: { versionedLaws: data.versionedLawCount, numericImports,
