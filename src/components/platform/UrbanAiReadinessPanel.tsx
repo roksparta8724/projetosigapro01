@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { AlertTriangle, BookOpenCheck, CheckCircle2, Loader2, RefreshCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { subscribeUrbanLegalAuditInvalidations } from "@/lib/urbanLegalAuditEvents";
 import { listLawRegistry } from "@/integrations/backend/urbanLegislationRegistryClient";
 import {
   listUrbanMatrixBatches, readUrbanMatrixBatch, listUrbanMatrixReadingAudit,
@@ -37,6 +38,10 @@ export function UrbanAiReadinessPanel({
   const [report, setReport] = useState<UrbanReadinessSummary | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => subscribeUrbanLegalAuditInvalidations((changedMunicipalityId) => {
+    if (changedMunicipalityId === municipalityId) setRefresh((value) => value + 1);
+  }), [municipalityId]);
 
   const openNextStep = (target: "registry" | "quadros-i" | "quadros-ii" | "versions") => {
     if (target === "quadros-i" || target === "quadros-ii") {
