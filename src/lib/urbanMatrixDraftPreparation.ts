@@ -117,7 +117,7 @@ export function prepareUrbanRuleDraftFromReviewedRow(
   return {
     zone: /(?:\se\s|,)/i.test(zone) ? "" : zone,
     usage, fields, otherLegalFields, documentarySource,
-    warning: "Índices preenchidos do Quadro I original para revisão. A lei e suas alterações NÃO estão consolidadas neste rascunho. Confirme zoneamento, vigência, artigo, exceções e evidência antes de registrar uma norma. Nada foi ativado.",
+    warning: "Índices preenchidos do Quadro I original para revisão. A lei e suas alterações NÃO estão consolidadas neste rascunho. Confirme zoneamento, vigência, artigo, exceções e evidência antes de registrar uma norma. Nenhuma regra foi ativada.",
   };
 }
 
