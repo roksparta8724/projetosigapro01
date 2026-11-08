@@ -176,7 +176,13 @@ export function MunicipalUrbanRulesSettings({
           Conferência humana obrigatória
         </span>
       </div>
-      <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-950 dark:border-amber-500/40 dark:bg-amber-950/40 dark:text-amber-100">
+      <details data-urban-legal-help="true"
+        className="mt-4 min-w-0 rounded-xl border border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-900">
+        <summary className="cursor-pointer px-4 py-3 text-xs font-extrabold text-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-500 dark:text-slate-100">
+          Orientações de preenchimento e segurança jurídica
+        </summary>
+        <div className="px-3 pb-3">
+      <div className="mt-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-950 dark:border-amber-500/40 dark:bg-amber-950/40 dark:text-amber-100">
         <ShieldAlert className="mr-1 inline h-4 w-4" />
         O upload de PDFs do acervo legal não cria regras automaticamente. Informe os parâmetros
         somente após leitura da legislação oficial; situações especiais exigem avaliação jurídica e urbanística.
@@ -196,6 +202,8 @@ export function MunicipalUrbanRulesSettings({
         </p>
       </div>
 
+        </div>
+      </details>
       <UrbanAiReadinessPanel municipalityId={municipalityId}
         documents={documentFiles ?? { usoSolo: "", zoneamento: "", planoDiretor: "", leisComplementares: "" }}
         onOpenQuadro={openReviewQuadro} revision={auditRevision} />
