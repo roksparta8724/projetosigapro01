@@ -83,7 +83,7 @@ describe("dashboard nav must not redirect away from Visão geral", () => {
     const dashboard = read("src/pages/saas/DashboardHomePage.tsx");
     expect(dashboard).not.toContain("<InternalTabs");
     expect(dashboard).toContain("<InternalSectionNav");
-    expect(dashboard).toContain("showPlanCapacity && !isMaster ? renderPlanCapacity() : null");
+    expect(dashboard).toContain('section === "visao-geral" && showPlanCapacity && !isMaster ? renderPlanCapacity() : null');
     expect(dashboard.indexOf("showPlanCapacity && !isMaster ? renderPlanCapacity()"))
       .toBeLessThan(dashboard.indexOf("<InternalSectionNav"));
   });
