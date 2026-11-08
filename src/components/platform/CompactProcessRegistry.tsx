@@ -9,6 +9,8 @@ import {
   Workflow,
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { paginateMunicipalItems } from "@/lib/municipalListPagination";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -64,6 +66,12 @@ export function CompactProcessRegistry({
   canDispatchProcess = () => true,
   detailPathSuffix = "",
 }: CompactProcessRegistryProps) {
+  const [page, setPage] = useState(1);
+  const pageData = useMemo(() => paginateMunicipalItems(processes, page, 25), [processes, page]);
+  useEffect(() => {
+    if (page !== pageData.page) setPage(pageData.page);
+  }, [page, pageData.page]);
+
   if (processes.length === 0) {
     return (
       <div className="rounded-[16px] border border-dashed border-slate-300 bg-slate-50/80 px-5 py-7 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-300">
@@ -88,7 +96,7 @@ export function CompactProcessRegistry({
       </div>
 
       <div className="divide-y divide-slate-200 dark:divide-slate-800">
-        {processes.map((process) => {
+        {pageData.items.map((process) => {
           const marker = process.tags?.[0] ? parseMarker(process.tags[0]) : null;
           const archived = archivedProcessIds.includes(process.id);
           const flow = currentFlowLabel(process);
@@ -264,6 +272,26 @@ export function CompactProcessRegistry({
           );
         })}
       </div>
+      {pageData.totalPages > 1 ? (
+        <nav data-sigapro-process-pagination="true" aria-label="Paginação de processos"
+          className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-slate-50/80 px-4 py-3 text-xs text-slate-600 dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-300">
+          <span aria-live="polite">
+            Processos {pageData.start + 1}–{pageData.end} de {pageData.total.toLocaleString("pt-BR")} · Página {pageData.page} de {pageData.totalPages}
+          </span>
+          <div className="flex items-center gap-2">
+            <Button type="button" variant="outline" size="sm" disabled={pageData.page <= 1}
+              onClick={() => setPage(pageData.page - 1)}
+              className="rounded-lg border-slate-300 bg-white text-slate-900 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100">
+              Anterior
+            </Button>
+            <Button type="button" variant="outline" size="sm" disabled={pageData.page >= pageData.totalPages}
+              onClick={() => setPage(pageData.page + 1)}
+              className="rounded-lg border-slate-300 bg-white text-slate-900 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100">
+              Próxima
+            </Button>
+          </div>
+        </nav>
+      ) : null}
     </div>
   );
 }
