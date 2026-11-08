@@ -44,4 +44,23 @@ describe("SIGAPRO QA — 2.000 processos não criam 2.000 linhas no DOM", () => 
     expect(container.querySelectorAll("[data-sei-process-row]")).toHaveLength(5);
     expect(screen.queryByRole("navigation", { name: "Paginação de processos" })).not.toBeInTheDocument();
   });
+  it("mantém coluna de marcador legível e etiquetas longas dentro da linha", () => {
+    const longMarker = "Prioridade especial para conferência documental e análise urbanística complementar";
+    const process = { ...records[0], tags: [longMarker + "::orange"] } as ProcessRecord;
+    const { container } = render(
+      <MemoryRouter>
+        <CompactProcessRegistry processes={[process]} showArchiveAction={false} />
+      </MemoryRouter>,
+    );
+    const registry = container.querySelector('[data-sei-process-registry="true"]');
+    const header = registry?.querySelector('[title="Marcador"]');
+    const row = registry?.querySelector('[data-sei-process-row="true"]');
+    expect(header?.querySelector(".sr-only")).toHaveTextContent("Marcador");
+    expect(header?.querySelector("svg")).toBeInTheDocument();
+    expect(row?.className).toContain("xl:grid-cols-[44px_");
+    expect(row?.querySelectorAll('[title="' + longMarker + '"]')).toHaveLength(2);
+    expect(row?.querySelector(".flex-wrap")).toBeInTheDocument();
+    expect(row?.querySelector(".max-w-full.truncate")).toBeInTheDocument();
+  });
+
 });
