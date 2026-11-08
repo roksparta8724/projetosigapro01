@@ -4,6 +4,7 @@ import {
   avatarUploadContentIsValid,
   buildPublicUrl,
   profileAvatarUploadAuthorized,
+  validateR2UploadJson,
 } from "../../server/api/r2-upload";
 
 const city = "49dac0b6-6352-4744-9aab-9ff91c59d970";
@@ -52,6 +53,25 @@ describe("SIGAPRO QA — gravação de avatar vinculada à identidade real", () 
   it("não fornece URL CDN pública para avatar em nenhum escopo", () => {
     expect(buildPublicUrl(logosBucket, avatar(city, owner))).toBe("");
     expect(buildPublicUrl(logosBucket, masterAvatar)).toBe("");
+  });
+
+  it("recusa payloads inválidos e limita o corpo de upload antes da escrita", () => {
+    expect(validateR2UploadJson({bucket:"profile-assets",objectKey:masterAvatar})).toMatchObject({
+      bucket:"profile-assets",
+    });
+    expect(() => validateR2UploadJson(null)).toThrow("R2_BODY_INVALID");
+    expect(() => validateR2UploadJson([])).toThrow("R2_BODY_INVALID");
+    expect(() => validateR2UploadJson({base64:"x".repeat(6 * 1024 * 1024 + 1)}))
+      .toThrow("R2_BODY_LIMIT");
+    const server = readFileSync("server/api/r2-upload.ts","utf8");
+    const client = readFileSync("src/integrations/r2/client.ts","utf8");
+    expect(server).toContain("count > MAX_R2_UPLOAD_REQUEST_BYTES");
+    expect(server).toContain("if (errorCode === \"R2_BODY_LIMIT\")");
+    expect(server).not.toContain("rawMessage");
+    expect(server).not.toContain('[ProdAudit][R2Upload] env');
+    expect(client).not.toContain("objectKey: input.objectKey,\n      fileName:");
+    expect(client).not.toContain('console.warn("[SIGAPRO][R2] resposta upload"');
+    expect(client).not.toContain('console.error("[SIGAPRO][R2] falha no upload", error)');
   });
 
   it("exige perfil autenticado e validação ANTES de gravar bytes no R2", () => {
