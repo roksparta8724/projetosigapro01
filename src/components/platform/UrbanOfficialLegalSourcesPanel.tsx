@@ -5,6 +5,8 @@ import { CampoLimpoQuadroIOriginalPanel } from "@/components/platform/CampoLimpo
 const kindLabel = {
   base: "Base normativa",
   alteracao: "Alteração da lei",
+  revogacao: "Revogação expressa",
+  historica_revogada: "Lei revogada — histórico",
   restauracao_vigencia: "Restabelecimento de vigência",
   procedimento_especial: "Procedimento especial",
   proposta_sem_vigencia: "Sem validade normativa",
@@ -28,7 +30,7 @@ export function UrbanOfficialLegalSourcesPanel({
             <span className="min-w-0">
               <strong className="block text-sm font-extrabold">Fontes oficiais para leitura — Campo Limpo Paulista</strong>
               <span className="mt-1 block text-xs leading-5 text-slate-600 dark:text-slate-300">
-                {pdfCount} fontes com acesso ao PDF oficial · alterações de 2011/2014/2016 · restauração em 2022 · normas especiais de 2026
+                {pdfCount} fontes com acesso ao PDF oficial · LC 507/2017 revoga LC 473/2014 · minuta de 2026 ainda sem vigência
               </span>
             </span>
           </span>
@@ -54,7 +56,7 @@ export function UrbanOfficialLegalSourcesPanel({
                 <strong className="min-w-0 flex-1 text-sm leading-5 text-slate-950 dark:text-white">
                   {item.title}
                 </strong>
-                <span className={item.kind === "proposta_sem_vigencia"
+                <span className={item.kind === "proposta_sem_vigencia" || item.kind === "historica_revogada"
                   ? "shrink-0 rounded-md bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-900"
                   : item.kind === "procedimento_especial"
                     ? "shrink-0 rounded-md bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-950"
