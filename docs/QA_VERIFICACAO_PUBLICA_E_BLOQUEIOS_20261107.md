@@ -28,3 +28,16 @@ O teste `src/test/publicHealthDisclosureQa.test.ts` impede que o endpoint públi
 7. **Aceite comercial:** `docs/QA_COMMERCIAL_ACCEPTANCE.json` ainda registra **10/10 pending**. O verificador privado exige artefatos concretos e SHA imutável; não alterar artificialmente os status.
 
 **Conclusão:** código QA com avanços verificáveis e webhook de sandbox instalado, mas o sistema não pode ser anunciado como integralmente homologado e liberado para atos oficiais sem evidências de banco, IA, PDFs e recuperação. Proteger a superfície pública e continuar testes de funcionamento sem comprometer dados nem conceder privilégios excessivos.
+
+## Pós-publicação: redução da exposição e teste HTTP real
+
+**Lote publicado somente no Preview QA.** Commit excepcional `bd423ecb8a18b226b474d6c964245f4c56628017`, Vercel deployment `dpl_5Qm2sizNWhKG3oWbwDS5YWZC2zA8` com estado **READY**. O alias QA foi consultado **após** a restauração de `vercel.json` e permaneceu apontando para esse SHA: `https://projetosigapro01-git-fix-qa-tria-c25603-roksparta8724s-projects.vercel.app`. O autodeploy foi restaurado para `false` no commit `620e1a7de2c43a148984276a418a7360b83c42e8`, preservando o site oficial, a branch main, bancos, credenciais e guias de produção.
+
+**Evidência de requisições reais na nova publicação:**
+- `GET /api/health` → HTTP **200**, corpo JSON exato `{"ok":true,"service":"sigapro","status":"alive"}` (sem inventário de chaves/serviços), headers `Cache-Control: no-store` e `X-Content-Type-Options: nosniff`.
+- `GET /api/mp-qa-webhook` → HTTP **200**, `environment=qa`, `configured=true`, `workerConfigured=true`, `encryptionConfigured=true`, sem segredo revelado. **Não comprova crédito bancário.**
+- `GET /acesso` → HTTP **200**, HTML institucional com `lang=pt-BR`. **Não equivale a teste autenticado de login.**
+- SELECT executado com a conta técnica efetiva `sigapro_qa_webhook_worker`: `BYPASSRLS=false`, sem herança de `neon_superuser`, nenhuma escrita direta em `payment_guides`, `EXECUTE` autorizado nas RPCs próprias `mp_qa_webhook_ingest_v1` e `mp_qa_webhook_settle_v1`. Isso não regulariza o role legado excessivo da QA.
+- GitHub Quality Gate, Neon migrations e OCR isolado do SHA de implementação `92dd3ab3eb903b7aac862f8baffa1bee420097f1`: **SUCCESS**. O commit excepcional com autodeploy temporariamente habilitado pode reprovar testes intencionais de política de Preview; o commit posterior de restauração deve ser verificado antes de considerá-lo estado final do branch. O Preview READY foi inspecionado por SHA próprio.
+
+**Não confundir:** a superfície pública ficou mais discreta e o endpoint respondeu; ainda faltam os dez comprovantes de aceite municipal, callback real do banco, projeto arquitetônico real, R2 restaurado e teste de quatro perfis com duas prefeituras. A produção **continua separada**, e a ACL de oficialização produtiva continua P0.
