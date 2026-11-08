@@ -1039,3 +1039,71 @@ apenas após CI verde e disponibilidade de quota de Vercel; verificar
 a nova URL/SHA, capturar o layout em desktop (1280/1440/1920), tablet,
 mobile e zoom 125/150%, e comprovar que o cabeçalho aparece uma única
 vez. **Não houve deploy nem alteração da produção nesta etapa.**
+
+## 08/11/2026 — Visão Geral da Prefeitura com subpáginas reais, sem crescimento de cards
+
+**Solicitação:** a visão geral da Prefeitura deve continuar legível mesmo com
+milhares de processos, preservando o visual premium e os fluxos municipais
+existentes. Não publicar em produção nem alterar dados reais.
+
+**Implementação na PR #118 DRAFT, branch de QA única:**
+
+- `/prefeitura` permanece o **Resumo**, sem quebrar URLs ou permissões
+  antigas. Novo `MunicipalOverviewSubnav` apresenta links diretos:
+  `/prefeitura/visao-geral/processos`,
+  `/prefeitura/visao-geral/pendencias`,
+  `/prefeitura/visao-geral/atividades`.
+  As três rotas usam o MESMO controle de acesso de `/prefeitura`
+  (`manage_tenant_users` e módulo `Configurações`).
+  `InternalTabs` permanece para Fila operacional, Usuários, Organograma
+  e Histórico; clicar em outra aba desde uma subpágina retorna à rota
+  municipal correspondente, e links diretos/voltar/avançar sincronizam
+  a subpágina atual. Rota de subpágina desconhecida retorna ao Resumo.
+- **Processos:** pesquisa por protocolo, assunto, interessado e responsável;
+  filtros Todos, Em andamento, Com pendências e Concluídos.
+  `CompactProcessRegistry` monta somente **25 linhas por página**
+  com acesso ao processo/histórico; ações de despacho e arquivamento
+  da lista estão desligadas na visão da administração. Inclui TODOS os
+  processos visíveis no município e permite buscar concluídos;
+  estes deixam de contar como fila operacional ativa.
+- **Pendências:** processos ativos com prazo urgente/vencido,
+  exigências/documentação ou guia não compensada, com busca específica,
+  contadores curtos e **25 linhas por página**. Não inclui processos
+  concluídos indevidamente nas urgências.
+- **Atividades:** últimos movimentos ordenados por data efetiva, com
+  **15 linhas por página**, detalhe expandido apenas sob demanda,
+  data inválida tratada como "Data não informada" e botão para
+  consultar o processo de origem. Não é uma lista infinita de cards.
+- **Resumo:** contém apenas os quatro indicadores superiores,
+  três prioridades resumidas e três movimentações recentes, com
+  atalhos "Ver processos", "Ver todas" e "Todas as atividades".
+  O consumo do plano é uma **faixa compacta** com nome do plano,
+  limite/consumo de cadastros e percentual disponível; o
+  `PlanCapacityCard` completo só aparece quando expandido.
+  Indicador de atenção substitui contador duplicado da fila.
+- **Desempenho:** removida computação não utilizada `productivity`
+  que efetuava duas buscas sobre todos os processos para cada
+  servidor (complexidade O(usuários × processos)) em todas as
+  visitas da Prefeitura. Para listas exibidas, permanece filtragem
+  de dados já carregados em memória e paginação local; **não é
+  paginação no servidor** e não comprova capacidade do Neon com
+  milhares de processos reais.
+- **Código e testes:** `src/lib/municipalOverviewSubpages.ts`,
+  `src/components/platform/MunicipalOverviewSubnav.tsx`,
+  `src/pages/saas/TenantAdminPage.tsx`,
+  `src/App.tsx` e regressões
+  `src/test/municipalOverviewSubpagesQa.test.tsx`.
+  Testes anteriores de 2.000 processos, 3.000 usuários e
+  240 municípios continuam na suíte.
+- **Limites:** a versão pública no Preview permanece em commit
+  antigo até deploy controlado. Homologação operacional exige
+  navegar com conta de prefeitura, voltar/avançar, busca, links,
+  visibilidade em 1280/1440/1920, tablets e mobile, tema escuro,
+  isolamento entre duas prefeituras, teste de volume real e
+  plano/cota atualizados. Nada deve ser descrito como liberado
+  para produção só porque passou Vitest/TypeScript/build.
+
+**Ponto de continuidade:** conferir que os três workflows do SHA
+final desta alteração (`Quality Gate`, `Neon migration validation`,
+`OCR isolado`) estejam `success`; corrigir qualquer falha
+antes de deploy ou merge. PR #118 continua rascunho.
