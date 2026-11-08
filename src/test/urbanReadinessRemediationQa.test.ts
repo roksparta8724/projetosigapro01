@@ -11,7 +11,8 @@ const readiness = readFileSync("src/lib/urbanAiReadiness.ts", "utf8");
 describe("SIGAPRO QA — remediação jurídica auditável sem aprovação fictícia", () => {
   it("identifica os 7 bloqueios e aponta o setor e o lugar correto de conferência", () => {
     for (const code of ["pdf", "registry", "quadro-i", "quadro-ii", "imports", "evidence", "active"]) {
-      expect(panel).toContain(code + ": { label:");
+      const property = code.startsWith("quadro-") ? '"' + code + '"' : code;
+      expect(panel).toContain(property + ": { label:");
     }
     expect(panel).toContain("data-urban-readiness-next={check.code}");
     expect(panel).toContain("Responsável: {NEXT_ACTIONS[check.code].owner}");
