@@ -187,18 +187,18 @@ async function handleSignedTestNotice(req:Req,res:Res){
  try{
    const response=await withQaWorker(async db=>{
      const auth=await credentials(db,municipalityId);
-     if(!auth)return {code:"MUNICIPAL_QA_PROVIDER_NOT_ACTIVE",http:503};
+     if(!auth)return {code:"MUNICIPAL_QA_PROVIDER_NOT_ACTIVE",http:503,settled:false};
      const signed=verifyMercadoPagoOrderWebhook({
        rawQueryId:order,queryTopic:url.searchParams.get("type"),
        headerSignature:sig,requestId:rid,
        notification:notice as MPOrderNotice,secret:auth.signingSecret,
      });
-     if(!signed.ok)return {code:"INVALID_WEBHOOK_SIGNATURE",http:401};
+     if(!signed.ok)return {code:"INVALID_WEBHOOK_SIGNATURE",http:401,settled:false};
      let observation;
      try{observation=await fetchMunicipalMpOrder(signed.orderId,auth.token);}
-     catch{return {code:"BANK_FETCH_UNAVAILABLE",http:503};}
+     catch{return {code:"BANK_FETCH_UNAVAILABLE",http:503,settled:false};}
      if(!observation.fetched)
-       return {code:"BANK_FETCH_UNAVAILABLE",http:503};
+       return {code:"BANK_FETCH_UNAVAILABLE",http:503,settled:false};
      return recordAndMaybeSettleQa(db,{
        municipalityId,orderId:signed.orderId,requestId:rid,
        notificationId:String(notice.id||rid).slice(0,128),
