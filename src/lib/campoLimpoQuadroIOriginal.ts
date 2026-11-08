@@ -85,5 +85,8 @@ export const CAMPO_LIMPO_QUADRO_I_READING_CAVEATS = [
   "ZEIS e ZEPAM remetem à legislação específica, sem parâmetros numéricos gerais no Quadro I.",
   "As quatro observações de recuos após a tabela e o Anexo III podem alterar a aplicação de um valor a um caso concreto.",
   "A expressão 'largura da via da testada + recuo' não representa altura fixa em metros.",
+  "A LC 440/2011, art. 69-B, prevê análise excepcional de recuos para determinados imóveis existentes com lote ou testada abaixo do mínimo; não substituir os valores do Quadro I sem confirmar o enquadramento.",
+  "A LC 440/2011, art. 77-A, traz hipótese excepcional de hierarquia viária condicionada à análise municipal e oitiva do Conselho das Cidades.",
+  "A LC 473/2014 trata de ZEIS, habitação de interesse social e outras condições especiais, cuja aplicabilidade após a LC 566/2022 necessita avaliação jurídica específica.",
   "Este é o texto original de 2009, NÃO uma consolidação da vigência após as alterações municipais.",
 ] as const;
