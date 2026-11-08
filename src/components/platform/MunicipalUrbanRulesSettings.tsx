@@ -83,8 +83,14 @@ export function MunicipalUrbanRulesSettings({
     setDraft(prepared.fields);
     setSourceContext(prepared.otherLegalFields);
     setSimulationOnly(Boolean(prepared.simulationOnly));
-    if (editorRef.current) editorRef.current.open = true;
-    setNotice(prepared.warning + " Abra o cadastro jurídico de versões abaixo, confirme os índices e informe a vigência legal.");
+    if (editorRef.current) {
+      editorRef.current.open = true;
+      // This scroll is user-initiated via "Preencher campos para conferência".
+      // Route changes and background refreshes must never move the viewport.
+      window.requestAnimationFrame(() =>
+        editorRef.current?.scrollIntoView?.({ behavior: "smooth", block: "start" }));
+    }
+    setNotice(prepared.warning + " Os dados estão no formulário aberto. Confira a fonte, vigência e o status antes de qualquer gravação.");
   };
 
   const save = async () => {
