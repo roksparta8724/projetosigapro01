@@ -50,7 +50,7 @@ export const CAMPO_LIMPO_OFFICIAL_URBAN_SOURCES: readonly UrbanOfficialLegalSour
     pdfUrl: "https://www.camaracampolimpo.sp.gov.br/legislacao/download-lei/1928/",
     officialPageUrl: "https://www.camaracampolimpo.sp.gov.br/legislacao/detalhe/1928/altera-a-lei-complementar-de-parcelamento-uso-e-ocupacao-do-solo-do-municipio-de-campo-limpo-paulista-instituida-pela-lei-complementar-n-379-de-24-de-novembro-de-2009-com-suas-alteracoes/",
     scopeNote: "Altera definições e dispositivos sobre parcelamento e habitação de interesse social.",
-    readingNote: "Consolidar artigo por artigo; conferir ZEIS e condições específicas com o texto vigente.",
+    readingNote: "Altera definições e dispositivos sobre parcelamento e ZEIS. A LC 566/2022 não a cita expressamente na lista de alterações repristinadas; manter ressalva de enquadramento até conferência jurídica."
   },
   {
     id: "lc-501-2016",
@@ -69,7 +69,7 @@ export const CAMPO_LIMPO_OFFICIAL_URBAN_SOURCES: readonly UrbanOfficialLegalSour
     documentLabel: "PDF da Câmara; art. 1º sobre revogação e repristinação",
     pdfUrl: "https://www.camaracampolimpo.sp.gov.br/legislacao/download-lei/2024/",
     officialPageUrl: "https://www.camaracampolimpo.sp.gov.br/legislacao/detalhe/2024/revoga-a-lei-complementar-n-535-de-17-de-maio-de-2019-e-sua-alteracao-processada-pela-lei-complementar-n-548-de-13-de-dezembro-de-2019-que-institui-o-novo-plano-diretor-e-uso-e-ocupacao-do-solo-do-municipio-de-campo-limpo-paulista-nos-termos-do-artigo-182-da-constituicao-federal-e-do-ca/",
-    scopeNote: "Restaura a LC 379/2009 e alterações referidas no art. 1º, inclusive 440/2011 e 501/2016, após revogação das LCs 535 e 548/2019.",
+    scopeNote: "Art. 1º revoga as LCs 535 e 548/2019 e restaura expressamente a LC 379/2009, com 440/2011 e 501/2016. A situação da LC 473/2014 precisa ser conferida individualmente, pois não é citada nessa enumeração."
     readingNote: "Usar para investigar a vigência histórica; não presumir redação consolidada ou eliminar a verificação da LC 613/2023.",
   },
   {
@@ -121,6 +121,16 @@ export const CAMPO_LIMPO_OFFICIAL_URBAN_SOURCES: readonly UrbanOfficialLegalSour
     officialPageUrl: "https://www.dosp.com.br/leituratexto?p=Mjc1MTkyNg%3D%3D",
     scopeNote: "Regulamenta o programa extraordinário da LC 656/2026.",
     readingNote: "Não mudar os índices gerais e o workflow de aprovação ordinária por este decreto.",
+  },
+  {
+    id: "minuta-lpuos-2026",
+    title: "Minuta municipal 2026 — revisão proposta da LPUOS",
+    kind: "proposta_sem_vigencia",
+    documentLabel: "Minuta e quadros de revisão divulgados pela Prefeitura; sem lei promulgada comprovada.",
+    pdfUrl: null,
+    officialPageUrl: "https://www.campolimpopaulista.sp.gov.br/leis-urbanisticas",
+    scopeNote: "MATERIAL DE DISCUSSÃO: o portal municipal identifica expressamente como MINUTA 2026.",
+    readingNote: "Não utilizar quadros ou mapas desta minuta como índice legal vigente nem confundir com a LC 379/2009.",
   },
   {
     id: "plc-795-2024",
