@@ -1298,7 +1298,7 @@ export function TenantAdminPage() {
 
   const executiveCards = [
     { label: "Processos ativos", value: `${metrics.protocolsInProgress}`, description: "Processos municipais em andamento", icon: ClipboardList, tone: "blue" as const },
-    { label: "Fila operacional", value: `${mainQueue.length}`, description: "Itens priorizados para coordenação", icon: Clock3, tone: "amber" as const },
+    { label: "Exigem atenção", value: `${actionRequired.length}`, description: "Prazos, exigências e guias em aberto", icon: Clock3, tone: "amber" as const },
     { label: "Usuários", value: `${tenantUsers.length}`, description: "Equipe vinculada à Prefeitura", icon: Users2, tone: "emerald" as const },
     { label: "Pendências financeiras", value: `${metrics.pendingPayments}`, description: "Processos com guia emitida pendente", icon: Wallet, tone: "rose" as const },
   ];
@@ -1322,13 +1322,32 @@ export function TenantAdminPage() {
         </PageStatsRow>
 
         {session.role === "prefeitura_admin" ? (
-          <SectionCard title="Consumo do plano da Prefeitura"
-            description="Acompanhe o percentual de cadastros e outros limites do plano. A alteração feita pelo Master será carregada automaticamente.">
-            {planCapacity.error ? <p role="alert" className="mb-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">{planCapacity.error}</p> : null}
-            {planCapacity.loaded && planCapacity.rows[0] ? (
-              <PlanCapacityCard row={planCapacity.rows[0]} municipalityName={municipalityName || activeInstitution?.name} />
-            ) : <p className="text-sm text-slate-600">Consultando o contrato no SIGAPRO...</p>}
-          </SectionCard>
+          <details data-sigapro-plan-overview="compact"
+            className="group min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_8px_18px_rgba(15,23,42,0.045)] dark:border-slate-700 dark:bg-slate-900">
+            <summary className="flex min-h-16 cursor-pointer list-none flex-wrap items-center justify-between gap-3 px-4 py-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600 sm:px-5 [&::-webkit-details-marker]:hidden">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-slate-950 dark:text-white">Consumo do plano da Prefeitura</p>
+                <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-300">
+                  {planSnapshot?.planName || (planCapacity.loaded ? "Plano não vinculado" : "Consultando contrato")}
+                  {planUsersMetric ? ` · ${planUsersMetric.usedLabel} de ${planUsersMetric.limitLabel} cadastros` : ""}
+                  {planUsersMetric?.percentage !== null && planUsersMetric?.percentage !== undefined
+                    ? ` · ${Math.max(0, 100 - planUsersMetric.percentage).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}% disponível`
+                    : ""}
+                </p>
+              </div>
+              <span className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs font-semibold text-sky-900">
+                <span className="group-open:hidden">Ver limites</span>
+                <span className="hidden group-open:inline">Ocultar limites</span>
+                <ChevronDown aria-hidden="true" className="h-4 w-4 transition-transform group-open:rotate-180" />
+              </span>
+            </summary>
+            <div className="border-t border-slate-200 px-4 py-4 dark:border-slate-700">
+              {planCapacity.error ? <p role="alert" className="mb-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">{planCapacity.error}</p> : null}
+              {planSnapshot ? (
+                <PlanCapacityCard row={planSnapshot} municipalityName={municipalityName || activeInstitution?.name} />
+              ) : <p className="text-sm text-slate-600">Consultando o contrato no SIGAPRO...</p>}
+            </div>
+          </details>
         ) : null}
           </>
         ) : null}
