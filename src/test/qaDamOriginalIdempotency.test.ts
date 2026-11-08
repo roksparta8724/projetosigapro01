@@ -16,13 +16,13 @@ function client(head:Record<string,unknown>|null) {
     if(!head)throw Object.assign(new Error("Not found"),{$metadata:{httpStatusCode:404}});
     return head;
   });
-  return {send} as never;
+  return {send};
 }
 
 describe("SIGAPRO QA — PDF DAM imutável e retry idempotente",()=>{
   it("reconhece retry apenas quando SHA, tamanho e tipo do original coincidem",async()=>{
     const c=client({ContentLength:body.length,ContentType:"application/pdf",Metadata:{sha256:sha}});
-    expect(await verifyExistingDamOriginal(c,good)).toBe(true);
+    expect(await verifyExistingDamOriginal(c as never,good)).toBe(true);
     expect(c.send).toHaveBeenCalledOnce();
   });
   it("nunca informa sucesso quando objeto existente possui tamanho, hash ou MIME diferente",async()=>{
@@ -33,11 +33,11 @@ describe("SIGAPRO QA — PDF DAM imutável e retry idempotente",()=>{
       {ContentLength:body.length,ContentType:"application/pdf",Metadata:{}},
       null,
     ];
-    for(const state of corrupt)expect(await verifyExistingDamOriginal(client(state),good)).toBe(false);
+    for(const state of corrupt)expect(await verifyExistingDamOriginal(client(state) as never,good)).toBe(false);
   });
   it("não permite metadado forjado, mudança de bytes ou reaproveitamento para outro documento",async()=>{
     const existing=client({ContentLength:body.length,ContentType:"application/pdf",Metadata:{sha256:sha}});
-    expect(await verifyExistingDamOriginal(existing,{...good,body:Buffer.from("fake")})).toBe(false);
+    expect(await verifyExistingDamOriginal(existing as never,{...good,body:Buffer.from("fake")})).toBe(false);
     expect(await verifyExistingDamOriginal(existing,{...good,metadata:{sha256:"a".repeat(64)}})).toBe(false);
     expect(await verifyExistingDamOriginal(existing,{...good,objectKey:good.objectKey.replace("/dam-originals/","/process-documents/")})).toBe(false);
   });
