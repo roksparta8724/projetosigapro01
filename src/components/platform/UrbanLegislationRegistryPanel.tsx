@@ -133,7 +133,7 @@ export function UrbanLegislationRegistryPanel({
   function prefillFromOfficialSource(id: string) {
     setReferenceChoice(id);
     const source = officialSources.find((entry) => entry.id === id);
-    if (!source) return;
+    if (!source || source.kind === "proposta_sem_vigencia") return;
     const tokens = /^(lc|decreto|plc)-([0-9]+)-([0-9]{4})$/.exec(source.id);
     const kind: LawKind = tokens?.[1] === "decreto" ? "decreto" :
       tokens?.[1] === "plc" ? "projeto_de_lei" : "lei_complementar";
@@ -288,7 +288,7 @@ export function UrbanLegislationRegistryPanel({
               <select className={fieldStyle} value={referenceChoice}
                 onChange={(event) => prefillFromOfficialSource(event.target.value)}>
                 <option value="">Escolha um documento para preencher os metadados</option>
-                {officialSources.map((source) => (
+                {officialSources.filter((source) => source.kind !== "proposta_sem_vigencia").map((source) => (
                   <option key={source.id} value={source.id}>{source.title}</option>
                 ))}
               </select>
