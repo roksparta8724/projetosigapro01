@@ -939,3 +939,78 @@ verificar HAR sem JWT em URL e zero cache HTTP para foto protegida,
 medir P50/P95 de login e tráfego de avatares. Registro de testes
 automatizados não substitui esses ensaios. Os dez gates comerciais
 continuam pendentes.
+
+## 07/11/2026 — revisão premium estrutural das visões gerais (QA, sem deploy)
+
+**Origem do pedido:** vídeo da Administração da Prefeitura demonstrando
+`/prefeitura?secao=usuarios` com cards grandes por cadastro, coluna lateral
+de criação de servidores aberta em tempo integral, indicadores replicados
+entre abas e pouco espaço para consultar a listagem. O desenho inicial não
+escalaria com 3.000 servidores nem com milhares de processos.
+
+**Arquitetura visual implementada na branch única de QA:**
+
+1. `src/components/platform/CompactUserRegistry.tsx`: tabela de usuários
+   com nome/e-mail, perfil/nível, lotação, situação, acesso e botão acessível
+   de detalhes; quebra de texto por truncamento com `title`; rolagem
+   horizontal em larguras pequenas; paginação em memória de **20 registros**
+   por página, limitando o DOM; só instancia a ficha pesada do cadastro
+   escolhido. Filtros existentes permanecem funcionando. Teste com 3.000
+   usuários, incluindo troca de página, lista vazia e abertura seletiva.
+2. `src/pages/saas/TenantAdminPage.tsx`: pasta Usuários ocupa a largura
+   principal, sem painel lateral persistente. Criação de servidor acessível
+   por botão `Criar servidor`, formulário fechado por padrão. Quadro
+   executivo e consumo do plano deixam de se repetir em todas as abas e
+   aparecem na `Visão geral`. Nesta, remova repetição visual de contadores
+   no cabeçalho, transforme os três indicadores internos em faixa compacta,
+   liste apenas três prioridades em linhas acionáveis, mantenha resumo de
+   fluxo por linha e troque o grande card de brasão por link direto para
+   `/configuracoes?secao=branding`, exibindo o sinal `brasão salvo`.
+3. `src/pages/saas/MasterAdminPage.tsx`: aba Usuários usa o mesmo
+   `CompactUserRegistry`; carteira de prefeituras usa tabela paginada
+   (`CompactPortfolioRegistry`, **12 linhas**), cada ficha expandida só
+   quando solicitada. A `Visão geral` Master não coloca três fichas
+   institucionais inteiras uma embaixo da outra, mas linhas curtas que levam
+   à `Carteira`. Contratos de capacidade: apenas dois cards por página
+   com próximo/anterior na Carteira e duas amostras no resumo executivo.
+   Seletor de usuário para lotação inclui busca por nome/e-mail, no máximo
+   50 sugestões iniciais e preserva o selecionado; datalist de e-mails de
+   administradores limita as sugestões a 25 para cada campo, permitindo
+   pesquisar todos os registros ao digitar.
+4. `src/pages/saas/DashboardHomePage.tsx`: panorama executivo virou
+   faixa responsiva de informações resumidas, sem card aninhado por métrica.
+   Contratos Master exibem no máximo duas prefeituras em destaque e link
+   para `/master?secao=carteira`. Capacidade do plano municipal aparece
+   exclusivamente na Visão Geral, não sobre todas as páginas de processo,
+   financeiro e usuários.
+5. `src/components/platform/CompactProcessRegistry.tsx`: paginação
+   em memória de **25 processos** por tela, preservando links ao processo,
+   histórico, despacho, marcadores e arquivos. Fila municipal anterior
+   permanece paginada em lotes de 20 onde já tinha paginação própria.
+   Cenário de regressão com 2.000 processos verifica contagem de linhas.
+6. `src/components/platform/CompactPortfolioRegistry.tsx` diferencia
+   corretamente `ativo`, `implantacao` e `suspenso`; teste com 240
+   municípios verifica 12 por página, uma ficha aberta e paginação.
+
+**Qualidade, limites e riscos:**
+- As mudanças são **código de QA em PR #118 DRAFT**, sem merge em main,
+  alteração de produção, pagamentos, guias ou banco. O Preview implantado
+  ainda pode estar no commit anterior; não confundir CI com aceite visual.
+- A paginação de usuários/processos/municipalidades é apenas de **exibição
+  de dados já carregados em memória**. Ela evita milhares de elementos
+  no DOM, mas **não substitui paginação no servidor** nem testes reais
+  de tempo de resposta, índices ou carga no Neon quando as prefeituras
+  acumularem milhares de cadastros.
+- Acessibilidade e layout móvel devem ser conferidos em navegador real,
+  inclusive largura 1280, 1440, tablets e mobile, zoom 125% e 150%,
+  textos longos, tema escuro, filtros, troca de aba, edição, bloqueios,
+  criação, registros com datas inválidas e contas de outras prefeituras.
+- Novos testes Vitest: `CompactUserRegistry.test.tsx` (3 mil usuários),
+  `CompactPortfolioRegistry.test.tsx` (240 prefeituras) e
+  `CompactProcessRegistry.test.tsx` (2 mil processos). Atualizadas
+  regressões de overview e de gerenciamento do brasão. Exigir todos os
+  três workflows verdes no SHA final antes de aceite técnico.
+- **Não declarar homologação comercial integral**: ainda faltam prova
+  de autenticação, pagamento sandbox assinado, PDF original arquivado e
+  reaberto no R2, leitura de planta real e zoneamento oficial, testes
+  multi-tenant em sessão e recuperação de banco/storage.
