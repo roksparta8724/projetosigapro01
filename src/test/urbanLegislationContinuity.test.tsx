@@ -115,7 +115,7 @@ describe("SIGAPRO — documentos e trabalhos anteriores não desaparecem na nova
     expect(settings).toContain("<UrbanLegalMatrixReviewPanel municipalityId={municipalityId} canView canEdit={canEdit}");
     expect(settings).toContain("onPrepareDraft={prepareFromMatrix}");
     expect(quadroI).toContain("entry.readingReviewed && !entry.needsCorrection");
-    expect(settings).toContain("<UrbanQuadroIIWorkspacePanel municipalityId={municipalityId} canView canEdit={canEdit} />");
+    expect(settings).toContain("<UrbanQuadroIIWorkspacePanel municipalityId={municipalityId} canView canEdit={canEdit} onDataChanged={markAuditChanged} />");
     expect(quadroI).toContain("if (!canEdit) return;");
     expect(quadroI).toContain("{canEdit && !isArchived(selected.id) ? (");
     expect(quadroII).toContain('if (!canView || !municipalityId) return null');
