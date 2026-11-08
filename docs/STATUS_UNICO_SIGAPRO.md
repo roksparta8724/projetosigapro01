@@ -1014,3 +1014,28 @@ escalaria com 3.000 servidores nem com milhares de processos.
   de autenticação, pagamento sandbox assinado, PDF original arquivado e
   reaberto no R2, leitura de planta real e zoneamento oficial, testes
   multi-tenant em sessão e recuperação de banco/storage.
+
+## 07/11/2026 — inspeção de captura de tela e causa do cabeçalho duplicado
+
+O usuário enviou captura do Preview de homologação
+`projetosigapro01-git-fix-qa-tria-c25603-roksparta8724s-projects.vercel.app/prefeitura`.
+Ela mostra dois painéis institucionais consecutivos, o mesmo nome da Prefeitura
+repetido, três cards de secretaria/SLA/fluxo e quatro indicadores executivos
+antes do conteúdo útil. **A captura refere-se ao Preview implantado no commit
+`bd423ecb8a18b226b474d6c964245f4c56628017`**, não ao código recente
+da PR #118. Não afirmar visualização atualizada no endereço antigo.
+
+**Correção da raiz na QA:** `PortalFrame.tsx` já fornece o cabeçalho
+institucional com brasão, identificação municipal e secretaria. Em
+`TenantAdminPage.tsx`, retirar o segundo `section.sig-dark-panel` que
+repetia o mesmo título, subtítulo e avatar da sessão. Preservar
+`PortalFrame`, identificação oficial, acesso ao perfil pelo topbar, quatro
+indicadores de operação e card de capacidade do plano. Teste de regressão
+`src/test/municipalOverviewSingleHeader.test.ts` protege a remoção dessa
+duplicidade e manutenção de usuários/identidade visual.
+
+**Pendência de conferência visual:** executar deploy controlado de Preview
+apenas após CI verde e disponibilidade de quota de Vercel; verificar
+a nova URL/SHA, capturar o layout em desktop (1280/1440/1920), tablet,
+mobile e zoom 125/150%, e comprovar que o cabeçalho aparece uma única
+vez. **Não houve deploy nem alteração da produção nesta etapa.**
