@@ -3,6 +3,7 @@ import type {IncomingMessage,ServerResponse} from "node:http";
 import {readFileSync} from "node:fs";
 import handleQaMpWebhook,{
   isQaMpWebhookEnvironment,qaMpWebhookDatabaseUrl,shouldAttemptQaSettlement,
+  recordAndMaybeSettleQa,
 } from "./mp-qa-webhook";
 import {
   assertQaWorkerLeastPrivilege,qaWorkerHasLeastPrivilege,
@@ -152,5 +153,79 @@ describe("SIGAPRO — roteamento publico fail-closed",()=>{
     } as IncomingMessage,reject.res);
     expect(reject.res.statusCode).toBe(401);
     expect(reject.body().code).toBe("INVALID_WEBHOOK_HEADER");
+  });
+});
+
+describe("SIGAPRO QA — recibo bancário e baixa testáveis sem provedor real",()=>{
+  const input={
+    municipalityId:"10000000-0000-4000-8000-000000000001",
+    orderId:"ORDER_TEST_12345",
+    requestId:"REQUEST_TEST_12345",
+    notificationId:"EVENT_TEST_12345",
+    digest:"a".repeat(64),
+    observation:{
+      fetched:true,status:"processed",statusDetail:"accredited",
+      reference:"DAM-QA-12345",currency:"BRL",amount:1.23,paidAmount:1.23,
+      paymentId:"PAYMENT_TEST_12345",
+      transactionStatus:"processed",transactionStatusDetail:"accredited",
+      transactionAmount:1.23,transactionPaidAmount:1.23,accredited:true,
+    },
+  };
+  const receipt={receipt_id:"10000000-0000-4000-8000-000000000002",
+    status:"verified_manual_review"};
+  it("recusa observacao nao obtida no provedor sem sequer abrir recibo",async()=>{
+    const db={query:vi.fn()};
+    await expect(recordAndMaybeSettleQa(db,{
+      ...input,observation:{...input.observation,fetched:false},
+    })).rejects.toThrow("QA_BANK_OBSERVATION_REQUIRED");
+    expect(db.query).not.toHaveBeenCalled();
+  });
+  it("guarda recibo assinado mas NAO baixa transacao pendente",async()=>{
+    const db={query:vi.fn().mockResolvedValueOnce({
+      rows:[{receipt:{...receipt,status:"unmatched_manual_review"}}],
+    })};
+    const out=await recordAndMaybeSettleQa(db,{
+      ...input,observation:{...input.observation,accredited:false,status:"pending"},
+    });
+    expect(out).toEqual({code:"unmatched_manual_review",http:200,settled:false});
+    expect(db.query).toHaveBeenCalledTimes(1);
+    const args=db.query.mock.calls[0][1];
+    expect(args[0]).toBe(input.municipalityId);
+    expect(args[1]).toBe(input.orderId);
+    expect(args[4]).toMatch(/^[a-f0-9]{64}$/);
+    expect(args[5]).toBe(true);
+  });
+  it("somente recibo casado + credito atestado chegam a RPC restrita com valores exatos",async()=>{
+    const db={query:vi.fn()
+      .mockResolvedValueOnce({rows:[{receipt}]})
+      .mockResolvedValueOnce({rows:[{result:{status:"settled_qa",matched:true}}]})};
+    const out=await recordAndMaybeSettleQa(db,input);
+    expect(out).toEqual({code:"settled_qa",http:200,settled:true});
+    expect(db.query).toHaveBeenCalledTimes(2);
+    expect(db.query.mock.calls[1][0]).toContain("mp_qa_webhook_settle_v1");
+    expect(db.query.mock.calls[1][1]).toEqual([
+      receipt.receipt_id,input.municipalityId,input.orderId,input.observation.paymentId,
+      1.23,"accredited","processed","accredited",1.23,1.23,
+    ]);
+  });
+  it("PDF original ausente devolve 503; a conta nunca confirma por atalho",async()=>{
+    const db={query:vi.fn()
+      .mockResolvedValueOnce({rows:[{receipt}]})
+      .mockResolvedValueOnce({rows:[{result:{status:"awaiting_original_pdf"}}]})};
+    const out=await recordAndMaybeSettleQa(db,input);
+    expect(out).toEqual({code:"awaiting_original_pdf",http:503,settled:false});
+  });
+  it("reenvio idem é marcado como ja conciliado sem gerar outro credito",async()=>{
+    const db={query:vi.fn()
+      .mockResolvedValueOnce({rows:[{receipt}]})
+      .mockResolvedValueOnce({rows:[{result:{status:"already_settled_qa"}}]})};
+    expect(await recordAndMaybeSettleQa(db,input))
+      .toEqual({code:"already_settled_qa",http:200,settled:true});
+  });
+  it("recibo ausente ou resposta indecidivel nunca recebe status de sucesso",async()=>{
+    const db={query:vi.fn().mockResolvedValueOnce({rows:[{}]})};
+    await expect(recordAndMaybeSettleQa(db,input))
+      .rejects.toThrow("QA_RECEIPT_NOT_RECORDED");
+    expect(db.query).toHaveBeenCalledTimes(1);
   });
 });
