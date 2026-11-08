@@ -92,7 +92,10 @@ export function assessUrbanAiReadiness(data: UrbanReadinessInput): UrbanReadines
     .filter((row) => row.needsCorrection || !row.readingReviewed)
     .map((row) => {
       const pageRaw = Number(row.source.pagina_pdf);
-      const rawReason = row.review?.note || row.source.pendencias_de_leitura;
+      const sourceIssue = String(row.source.pendencias_de_leitura || "").trim();
+      const auditNote = String(row.review?.note || "").trim();
+      const rawReason = [sourceIssue, auditNote && auditNote !== sourceIssue ? auditNote : ""]
+        .filter(Boolean).join(" · ") || "Conferência documental pendente";
       return {
         line: row.index + 1,
         page: Number.isInteger(pageRaw) && pageRaw > 0 ? pageRaw : null,
