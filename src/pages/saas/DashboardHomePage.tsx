@@ -793,13 +793,20 @@ export function DashboardHomePage() {
             <p className="text-sm text-slate-600 dark:text-slate-300">Nenhum plano disponível para o contexto autenticado.</p>
           ) : (
             <div className={isMaster ? "grid gap-4 2xl:grid-cols-2" : "grid gap-4"}>
-              {planCapacity.rows.map((row) => (
+              {planCapacity.rows.slice(0, isMaster ? 2 : undefined).map((row) => (
                 <PlanCapacityCard key={row.municipalityId} row={row}
                   municipalityName={isMaster
                     ? institutions.find((item) => item.id === row.municipalityId)?.name ?? "Prefeitura"
                     : institutionName}
                 />
               ))}
+              {isMaster && planCapacity.rows.length > 2 ? (
+                <div className="flex min-w-0 flex-col gap-3 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900 sm:flex-row sm:items-center sm:justify-between 2xl:col-span-2">
+                  <span>2 de {planCapacity.rows.length} contratos em destaque. Consulte a carteira para ver todas as prefeituras.</span>
+                  <Button type="button" variant="outline" className="shrink-0 rounded-xl border-sky-300 bg-white text-sky-900"
+                    onClick={() => navigate("/master?secao=carteira")}>Ver carteira</Button>
+                </div>
+              ) : null}
             </div>
           )}
         </SectionCard>
@@ -808,16 +815,18 @@ export function DashboardHomePage() {
   const renderOverview = () => (
     <>
       {showPlanCapacity && isMaster ? renderPlanCapacity() : null}
-      <SectionCard
-        title="Panorama estrategico"
-        description={isMaster ? "Leitura consolidada da operacao SaaS, da base de clientes e da saude da plataforma." : `Resumo executivo do escopo atual em ${institutionName}, com foco em performance, risco e leitura institucional.`}
-        icon={Sparkles}
-        contentClassName="grid gap-4 md:grid-cols-2 xl:grid-cols-4"
-      >
+      <div data-sigapro-overview-strip="compact" aria-label="Panorama estratégico"
+        className="grid min-w-0 gap-2 sm:grid-cols-2 xl:grid-cols-4">
         {executiveSignals.map((item) => (
-          <ExecutiveSignal key={item.label} {...item} />
+          <div key={item.label} className="flex min-w-0 items-center justify-between gap-3 rounded-xl border border-slate-200/80 bg-white px-3 py-3 shadow-[0_6px_16px_rgba(15,23,42,0.035)] dark:border-white/10 dark:bg-slate-900/80">
+            <div className="min-w-0">
+              <p className="truncate text-xs font-semibold text-slate-800 dark:text-slate-100" title={item.label}>{item.label}</p>
+              <p className="mt-0.5 truncate text-[11px] text-slate-500 dark:text-slate-300" title={item.helper}>{item.helper}</p>
+            </div>
+            <span className="shrink-0 text-lg font-bold tabular-nums text-slate-950 dark:text-white">{item.value}</span>
+          </div>
         ))}
-      </SectionCard>
+      </div>
 
       <PageStatsRow>
         {overviewMetrics.map((item) => (
