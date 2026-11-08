@@ -117,6 +117,54 @@ export function shouldAttemptQaSettlement(input:{
    typeof input.receiptId==="string"&&reqUuid.test(input.receiptId);
 }
 
+/**
+ * Deterministic, testable handoff after the HMAC and independent provider GET.
+ * Never marks a guide paid directly. Neon owns original-PDF/idempotency checks.
+ */
+export async function recordAndMaybeSettleQa(
+  db:Pick<Db,"query">,
+  input:{
+    municipalityId:string;orderId:string;requestId:string;notificationId:string;
+    digest:string;observation:Awaited<ReturnType<typeof fetchMunicipalMpOrder>>;
+  },
+):Promise<{code:string;http:number;settled:boolean}>{
+  const {municipalityId,orderId,requestId:rid,notificationId,digest,observation}=input;
+  if(!observation.fetched)throw Error("QA_BANK_OBSERVATION_REQUIRED");
+     const args=[
+       municipalityId,orderId,rid,
+       notificationId,digest,true,
+       observation.status,observation.reference,observation.currency,
+       observation.amount,
+     ];
+     const logged=await db.query(
+       `SELECT public.mp_qa_webhook_ingest_v1(
+          $1::uuid,$2::text,$3::text,$4::text,$5::text,$6::boolean,
+          $7::text,$8::text,$9::text,$10::numeric) AS receipt`,args);
+     const receipt=logged.rows[0]?.receipt as Record<string,unknown>|undefined;
+     if(!receipt||typeof receipt.status!=="string")
+       throw Error("QA_RECEIPT_NOT_RECORDED");
+     if(!shouldAttemptQaSettlement({
+       status:receipt.status,accredited:observation.accredited,
+       paymentId:observation.paymentId,receiptId:receipt.receipt_id,
+     }))return {code:String(receipt.status),http:200,settled:false};
+
+     const settled=await db.query(
+       `SELECT public.mp_qa_webhook_settle_v1(
+         $1::uuid,$2::uuid,$3::text,$4::text,$5::numeric,$6::text,
+         $7::text,$8::text,$9::numeric,$10::numeric) AS result`,[
+        receipt.receipt_id,municipalityId,orderId,observation.paymentId,
+        observation.paidAmount??null,observation.statusDetail||"",
+        observation.transactionStatus||"",observation.transactionStatusDetail||"",
+        observation.transactionAmount??null,observation.transactionPaidAmount??null,
+       ]);
+     const outcome=settled.rows[0]?.result as Record<string,unknown>|undefined;
+     if(!outcome||typeof outcome.status!=="string")
+       throw Error("QA_SETTLEMENT_NOT_RECORDED");
+     return {code:String(outcome.status),
+       http:outcome.status==="awaiting_original_pdf"?503:200,
+       settled:outcome.status==="settled_qa"||outcome.status==="already_settled_qa"};
+}
+
 async function handleSignedTestNotice(req:Req,res:Res){
  const url=new URL(req.url||"/","https://sigapro.qa.invalid");
  const municipalityId=url.searchParams.get("municipality_id")||"";
@@ -151,39 +199,11 @@ async function handleSignedTestNotice(req:Req,res:Res){
      catch{return {code:"BANK_FETCH_UNAVAILABLE",http:503};}
      if(!observation.fetched)
        return {code:"BANK_FETCH_UNAVAILABLE",http:503};
-     const args=[
-       municipalityId,signed.orderId,rid,
-       String(notice.id||rid).slice(0,128),digest,true,
-       observation.status,observation.reference,observation.currency,
-       observation.amount,
-     ];
-     const logged=await db.query(
-       `SELECT public.mp_qa_webhook_ingest_v1(
-          $1::uuid,$2::text,$3::text,$4::text,$5::text,$6::boolean,
-          $7::text,$8::text,$9::text,$10::numeric) AS receipt`,args);
-     const receipt=logged.rows[0]?.receipt as Record<string,unknown>|undefined;
-     if(!receipt||typeof receipt.status!=="string")
-       throw Error("QA_RECEIPT_NOT_RECORDED");
-     if(!shouldAttemptQaSettlement({
-       status:receipt.status,accredited:observation.accredited,
-       paymentId:observation.paymentId,receiptId:receipt.receipt_id,
-     }))return {code:String(receipt.status),http:200,settled:false};
-
-     const settled=await db.query(
-       `SELECT public.mp_qa_webhook_settle_v1(
-         $1::uuid,$2::uuid,$3::text,$4::text,$5::numeric,$6::text,
-         $7::text,$8::text,$9::numeric,$10::numeric) AS result`,[
-        receipt.receipt_id,municipalityId,signed.orderId,observation.paymentId,
-        observation.paidAmount??null,observation.statusDetail||"",
-        observation.transactionStatus||"",observation.transactionStatusDetail||"",
-        observation.transactionAmount??null,observation.transactionPaidAmount??null,
-       ]);
-     const outcome=settled.rows[0]?.result as Record<string,unknown>|undefined;
-     if(!outcome||typeof outcome.status!=="string")
-       throw Error("QA_SETTLEMENT_NOT_RECORDED");
-     return {code:String(outcome.status),
-       http:outcome.status==="awaiting_original_pdf"?503:200,
-       settled:outcome.status==="settled_qa"||outcome.status==="already_settled_qa"};
+     return recordAndMaybeSettleQa(db,{
+       municipalityId,orderId:signed.orderId,requestId:rid,
+       notificationId:String(notice.id||rid).slice(0,128),
+       digest,observation,
+     });
    });
    return respond(res,response.http,{ok:response.http===200,
       code:response.code,automaticallySettled:response.settled===true});
