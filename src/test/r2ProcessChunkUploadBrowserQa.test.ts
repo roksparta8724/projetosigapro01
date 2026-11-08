@@ -83,7 +83,7 @@ describe("SIGAPRO QA — upload real do navegador em partes sem chave R2", () =>
 
   it("documentos acima do limite são recusados antes de criar qualquer cobrança",async()=>{
     const authSpy=vi.fn(auth);
-    const file=fakePdf(1);
+    const file=fakePdf(8);
     const tooLarge={...file,size:40*1024*1024+1};
     await expect(uploadLargeProcessAttachment({
       bucket:"process-documents",objectKey,file:tooLarge as unknown as File,
