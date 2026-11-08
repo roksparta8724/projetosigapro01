@@ -55,6 +55,10 @@ describe("SIGAPRO QA — ciclo de vida de documentos legais e auditoria guiada",
     expect(audit).toContain('details[data-urban-regulation-evidence="true"]');
     expect(audit).toContain('details[data-urban-legal-editor="true"]');
     expect(audit).toContain("data-urban-navigation-feedback");
+    const settings = readFileSync("src/components/platform/MunicipalUrbanRulesSettings.tsx", "utf8");
+    const matrix = readFileSync("src/components/platform/UrbanLegalMatrixReviewPanel.tsx", "utf8");
+    expect(settings).toContain("focusRegisteredCaveats={reviewCaveatFocus}");
+    expect(matrix).toContain("setShowRegisteredCaveats(true)");
     expect(audit).not.toContain("activateUrbanRegulation(");
   });
 });
