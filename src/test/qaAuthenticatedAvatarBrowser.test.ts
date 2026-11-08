@@ -45,7 +45,7 @@ describe("SIGAPRO QA — renderização privada no navegador sem expor token em 
   });
 
   it("envia Bearer somente ao endpoint same-origin, cria blob e revoga após uso", async () => {
-    const fetchSpy = vi.fn(async () => ({
+    const fetchSpy = vi.fn(async (_url: string, _init?: RequestInit) => ({
       ok:true,
       headers: {get:(header:string)=> header.toLowerCase()==="content-type" ? "image/png" : "12"},
       blob: async () => new Blob([png],{type:"image/png"}),
