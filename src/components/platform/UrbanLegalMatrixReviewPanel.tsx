@@ -19,10 +19,10 @@ type ReviewDecision = "reading_verified" | "needs_correction";
 
 /** A transcricao assinada nao comprova vigencia nem ativa normas. */
 export function UrbanLegalMatrixReviewPanel({
-  municipalityId, canView, canEdit = false, onPrepareDraft, onDataChanged,
+  municipalityId, canView, canEdit = false, onPrepareDraft, onDataChanged, focusRegisteredCaveats = 0,
 }: { municipalityId: string; canView: boolean; canEdit?: boolean;
   onPrepareDraft?: (draft: PreparedUrbanMatrixDraft) => void;
-  onDataChanged?: () => void }) {
+  onDataChanged?: () => void; focusRegisteredCaveats?: number }) {
   const [batches, setBatches] = useState<UrbanMatrixBatchSummary[]>([]);
   const [selected, setSelected] = useState<UrbanMatrixBatchDetail | null>(null);
   const [audit, setAudit] = useState<UrbanMatrixReadingAudit>(EMPTY_AUDIT);
@@ -42,6 +42,12 @@ export function UrbanLegalMatrixReviewPanel({
   const [manageAction, setManageAction] = useState<"archive" | "restore">("archive");
   const [manageNote, setManageNote] = useState("");
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!focusRegisteredCaveats) return;
+    setShowAll(false);
+    setShowRegisteredCaveats(true);
+  }, [focusRegisteredCaveats]);
 
   useEffect(() => {
     let active = true;
