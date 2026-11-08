@@ -208,6 +208,16 @@ const AppRoutes = () => {
           }
         />
         <Route
+          path="/prefeitura/visao-geral/:subpage"
+          element={
+            <PermissionRoute permission="manage_tenant_users">
+              <PlanModuleRoute module="Configurações">
+                <TenantAdminPage />
+              </PlanModuleRoute>
+            </PermissionRoute>
+          }
+        />
+        <Route
           path="/prefeitura/organograma"
           element={
             <PermissionRoute permission="manage_own_profile">
