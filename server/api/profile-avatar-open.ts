@@ -13,6 +13,32 @@ function readEnv(key: string) {
   return String(raw).replace(/^['"]|['"]$/g, "").trim();
 }
 
+/**
+ * Reject oversized R2 objects before allocating their full body. R2 usually
+ * sends ContentLength, but untrusted/missing metadata must not bypass the
+ * streaming size cap. for-await closes the stream on early return.
+ */
+export async function readBoundedR2Avatar(
+  body: AsyncIterable<Uint8Array>,
+  contentLength?: number,
+): Promise<Buffer | null> {
+  if (typeof contentLength === "number" &&
+      (!Number.isFinite(contentLength) || contentLength < 0 ||
+       contentLength > MAX_AVATAR_BYTES)) return null;
+  const chunks: Buffer[] = [];
+  let total = 0;
+  try {
+    for await (const chunk of body) {
+      total += chunk.byteLength;
+      if (total > MAX_AVATAR_BYTES) return null;
+      chunks.push(Buffer.from(chunk));
+    }
+  } catch {
+    return null;
+  }
+  return total > 0 ? Buffer.concat(chunks, total) : null;
+}
+
 function resolveR2Clients() {
   const accessKeyId = readEnv("R2_ACCESS_KEY_ID");
   const secretAccessKey = readEnv("R2_SECRET_ACCESS_KEY");
@@ -157,8 +183,13 @@ async function streamCachedAvatar(
     );
 
     if (!object.Body) return false;
-    const bytes = Buffer.from(await object.Body.transformToByteArray());
-    if (!bytes.length || bytes.length > MAX_AVATAR_BYTES) return false;
+    // Read R2 bodies incrementally. Checking size only after
+    // transformToByteArray() would already allocate an oversized object.
+    const bytes = await readBoundedR2Avatar(
+      object.Body as AsyncIterable<Uint8Array>,
+      object.ContentLength,
+    );
+    if (!bytes) return false;
     const verifiedMime = safeAvatarMime(bytes);
     if (!verifiedMime) return false;
 
