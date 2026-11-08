@@ -340,7 +340,6 @@ export function TenantAdminPage() {
     enabled: Boolean(planMunicipalityId) && session.role === "prefeitura_admin",
     intervalMs: 8000,
   });
-  const activeUserProfile = getUserProfile(session.id, session.email);
   const activeInstitution = municipality ?? institutions.find((item) => item.id === effectiveScopeId) ?? null;
   const tenantUsers = useMemo(() => sessionUsers.filter((user) => matchesOperationalScope(effectiveScopeId, user)), [effectiveScopeId, sessionUsers]);
   const tenantProcesses = useMemo(() => processes.filter((process) => matchesOperationalScope(effectiveScopeId, process)), [effectiveScopeId, processes]);
