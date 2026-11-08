@@ -227,6 +227,7 @@ export function UrbanAiReadinessPanel({
               Conferir alterações
             </button>
           </div>
+          </div>
         </details>
       ) : null}
       {loading ? <p role="status" className="mt-4 flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
