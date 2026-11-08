@@ -15,14 +15,14 @@ import {
 } from "@/lib/urbanAiReadiness";
 
 const NEXT_ACTIONS: Record<string, {
-  label: string; owner: string; target: "registry" | "quadros-i" | "quadros-ii" | "versions";
+  label: string; owner: string; target: "pdfs" | "registry" | "quadros-i" | "quadros-ii" | "versions" | "evidence";
 }> = {
-  pdf: { label: "Conferir documentos oficiais", owner: "Admin da Prefeitura", target: "registry" },
+  pdf: { label: "Conferir documentos oficiais", owner: "Admin da Prefeitura", target: "pdfs" },
   registry: { label: "Cadastrar lei e alterações", owner: "Admin da Prefeitura", target: "registry" },
   "quadro-i": { label: "Conferir linhas com ressalva", owner: "Setor urbanístico", target: "quadros-i" },
   "quadro-ii": { label: "Revisar usos e condições", owner: "Setor urbanístico / jurídico", target: "quadros-ii" },
-  imports: { label: "Preparar matriz com fonte", owner: "Setor urbanístico", target: "quadros-i" },
-  evidence: { label: "Abrir versões e evidências", owner: "Setor urbanístico / jurídico", target: "versions" },
+  imports: { label: "Conferir e versionar por zona", owner: "Setor urbanístico / jurídico", target: "quadros-ii" },
+  evidence: { label: "Conferir evidências por índice", owner: "Setor urbanístico / jurídico", target: "evidence" },
   active: { label: "Verificar ativação supervisionada", owner: "Responsável legal habilitado", target: "versions" },
 };
 
@@ -39,21 +39,61 @@ export function UrbanAiReadinessPanel({
   const [report, setReport] = useState<UrbanReadinessSummary | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [navigationNotice, setNavigationNotice] = useState("");
 
   useEffect(() => subscribeUrbanLegalAuditInvalidations((changedMunicipalityId) => {
     if (changedMunicipalityId === municipalityId) setRefresh((value) => value + 1);
   }), [municipalityId]);
 
-  const openNextStep = (target: "registry" | "quadros-i" | "quadros-ii" | "versions") => {
+  const openNextStep = (
+    target: "pdfs" | "registry" | "quadros-i" | "quadros-ii" | "versions" | "evidence",
+  ) => {
+    setNavigationNotice("");
     if (target === "quadros-i" || target === "quadros-ii") {
       onOpenQuadro(target === "quadros-i" ? "I" : "II");
     }
-    const selector = target === "registry" ? '[data-urban-legislation-registry="true"]'
-      : target === "versions" ? '[data-urban-regulation-versions="true"]'
-        : '[data-urban-quadros-workspace="true"]';
-    // Explicit button click only; data refresh must never scroll the page.
+    // Navigation is intentionally user-initiated. Never scroll on polling or
+    // execute legal writes just because a task was opened.
     window.requestAnimationFrame(() => {
-      document.querySelector(selector)?.scrollIntoView({ behavior: "smooth", block: "start" });
+      let node: Element | null = null;
+      if (target === "pdfs") {
+        node = document.querySelector('[data-legal-archive="true"]');
+      } else if (target === "registry") {
+        node = document.querySelector('[data-urban-legislation-registry="true"]');
+      } else if (target === "quadros-i" || target === "quadros-ii") {
+        node = document.querySelector('[data-urban-quadros-workspace="true"]');
+      } else {
+        const versions = document.querySelector('[data-urban-regulation-versions="true"]');
+        const evidence = document.querySelector<HTMLDetailsElement>(
+          'details[data-urban-regulation-evidence="true"]',
+        );
+        if (target === "evidence" && evidence) {
+          evidence.open = true;
+          node = evidence;
+        } else {
+          // Without a real legal version, the evidence form cannot exist.
+          // Point authorized staff to the DRAFT editor instead of a dead end.
+          const editor = document.querySelector<HTMLDetailsElement>(
+            'details[data-urban-legal-editor="true"]',
+          );
+          if (!evidence && editor) {
+            editor.open = true;
+            node = editor;
+            setNavigationNotice(
+              "Cadastre primeiro uma versão jurídica em rascunho. Depois vincule os trechos e páginas oficiais a cada índice, sem ativar automaticamente.",
+            );
+          } else {
+            node = versions;
+          }
+        }
+      }
+      if (!node) {
+        setNavigationNotice(
+          "Esta etapa não está disponível para o perfil ou o município selecionado. Consulte o administrador da Prefeitura ou atualize a página de legislação.",
+        );
+        return;
+      }
+      node.scrollIntoView?.({ behavior: "smooth", block: "start" });
     });
   };
 
@@ -116,6 +156,10 @@ export function UrbanAiReadinessPanel({
       {loading ? <p role="status" className="mt-4 flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
         <Loader2 className="h-4 w-4 animate-spin" /> Consultando o banco municipal...
       </p> : null}
+      {navigationNotice ? <p role="status" data-urban-navigation-feedback="true"
+        className="mt-3 rounded-lg border border-sky-200 bg-sky-50 p-3 text-xs leading-5 text-sky-950 dark:border-sky-700 dark:bg-slate-900 dark:text-sky-100">
+        {navigationNotice}
+      </p> : null}
       {error ? <p role="alert" className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs leading-5 text-rose-950 dark:border-rose-500/50 dark:bg-slate-900 dark:text-rose-200">
         {error} Nenhuma conferência pode ser dada como concluída com consultas incompletas.
       </p> : null}
@@ -136,6 +180,23 @@ export function UrbanAiReadinessPanel({
             {" "}Quadro II: {report.quadroII.draftEntries} rascunhos.
             {" "}Regras reais ativas: {report.counts.officialActive}.
           </p>
+        </div>
+        <div data-urban-readiness-progress="true"
+          className="mt-3 flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3 text-xs dark:border-slate-700">
+          <p className="font-semibold text-slate-700 dark:text-slate-200">
+            {report.checks.filter((item) => item.passed).length} de {report.checks.length} etapas documentais atendidas
+            {" · "}Os itens restantes exigem conferência por servidor habilitado.
+          </p>
+          {report.checks.find((item) => !item.passed && NEXT_ACTIONS[item.code]) ? (
+            <button type="button" data-urban-readiness-primary-action="true"
+              className="min-h-9 max-w-full rounded-lg border border-sky-200 bg-white px-3 text-left text-xs font-bold text-sky-900 hover:bg-sky-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-600 dark:border-sky-700 dark:bg-slate-900 dark:text-sky-100"
+              onClick={() => {
+                const next = report.checks.find((item) => !item.passed && NEXT_ACTIONS[item.code]);
+                if (next) openNextStep(NEXT_ACTIONS[next.code].target);
+              }}>
+              Próximo passo: {NEXT_ACTIONS[report.checks.find((item) => !item.passed && NEXT_ACTIONS[item.code])!.code].label}
+            </button>
+          ) : null}
         </div>
         {report.readingIssues.length > 0 ? (
           <details data-urban-reading-reservations="true"
@@ -203,7 +264,7 @@ export function UrbanAiReadinessPanel({
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-700 dark:text-amber-300" />}
               <div className="min-w-0 flex-1">
                 <p className="break-words text-xs font-extrabold text-slate-950 dark:text-white">
-                  {check.title} — {check.passed ? "Registrado" : "Pendente"}
+                  {check.title} — {check.passed ? "Etapa atendida" : "Pendente"}
                 </p>
                 <p className="mt-1 break-words text-xs leading-5 text-slate-700 dark:text-slate-200">
                   {check.detail}
