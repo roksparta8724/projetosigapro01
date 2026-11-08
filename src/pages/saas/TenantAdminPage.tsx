@@ -1558,7 +1558,7 @@ export function TenantAdminPage() {
         ) : null}
 
         {workspaceView === "usuarios" ? (
-          <PageMainContent className="min-w-0 gap-5" data-sigapro-users-workspace="compact">
+          <PageMainContent className="min-w-0 gap-5">
             <PageStatsRow className="md:grid-cols-3 [&>*]:min-w-0">
               <StatCard label="Equipe" value={String(tenantUsers.length)} description="Usuários vinculados à Prefeitura" icon={Users2} tone="blue" />
               <StatCard label="Administradores" value={String(tenantUsers.filter((user) => user.role === "prefeitura_admin").length)} description="Perfis de gestão ativos" icon={ShieldCheck} tone="emerald" />
