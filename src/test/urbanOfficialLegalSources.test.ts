@@ -7,7 +7,7 @@ const read = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8"
 
 describe("SIGAPRO — official urban law reading catalog", () => {
   it("isolates sources to Campo Limpo Paulista instead of leaking across municipalities", () => {
-    expect(getMunicipalOfficialUrbanSources(CAMPO_LIMPO_PAULISTA_MUNICIPALITY_ID)).toHaveLength(11);
+    expect(getMunicipalOfficialUrbanSources(CAMPO_LIMPO_PAULISTA_MUNICIPALITY_ID)).toHaveLength(12);
     expect(getMunicipalOfficialUrbanSources("00000000-0000-4000-8000-000000000000")).toEqual([]);
     expect(getMunicipalOfficialUrbanSources(null)).toEqual([]);
   });
@@ -23,6 +23,8 @@ describe("SIGAPRO — official urban law reading catalog", () => {
     expect(restoration?.kind).toBe("restauracao_vigencia");
     expect(restoration?.scopeNote).toContain("440/2011");
     expect(restoration?.scopeNote).toContain("501/2016");
+    expect(restoration?.scopeNote).toContain("473/2014");
+    expect(restoration?.scopeNote).toContain("conferida individualmente");
     expect(CAMPO_LIMPO_OFFICIAL_URBAN_SOURCES.find(item=>item.id==="lc-501-2016")?.scopeNote)
       .toContain("artigo 76");
   });
@@ -39,6 +41,10 @@ describe("SIGAPRO — official urban law reading catalog", () => {
     const withdrawn = CAMPO_LIMPO_OFFICIAL_URBAN_SOURCES.find((item) => item.id === "plc-795-2024");
     expect(withdrawn?.kind).toBe("proposta_sem_vigencia");
     expect(withdrawn?.pdfUrl).toBeNull();
+    const draft2026 = CAMPO_LIMPO_OFFICIAL_URBAN_SOURCES.find(item=>item.id==="minuta-lpuos-2026");
+    expect(draft2026?.kind).toBe("proposta_sem_vigencia");
+    expect(draft2026?.pdfUrl).toBeNull();
+    expect(draft2026?.scopeNote).toContain("MINUTA 2026");
     const panel = read("src/components/platform/UrbanOfficialLegalSourcesPanel.tsx");
     expect(panel).toContain('item.kind === "proposta_sem_vigencia"');
     expect(panel).toContain("Não é lei vigente");
