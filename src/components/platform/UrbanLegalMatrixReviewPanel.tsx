@@ -44,12 +44,6 @@ export function UrbanLegalMatrixReviewPanel({
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (!focusRegisteredCaveats) return;
-    setShowAll(false);
-    setShowRegisteredCaveats(true);
-  }, [focusRegisteredCaveats]);
-
-  useEffect(() => {
     let active = true;
     setBatches([]);
     setSelected(null);
@@ -101,6 +95,12 @@ export function UrbanLegalMatrixReviewPanel({
     }).finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [municipalityId, canView]);
+
+  useEffect(() => {
+    if (!focusRegisteredCaveats) return;
+    setShowAll(false);
+    setShowRegisteredCaveats(true);
+  }, [focusRegisteredCaveats]);
 
   const batchEvent = (id: string) => latestUrbanMatrixBatchEvent(audit.batch_events, id);
   const isArchived = (id: string) => batchEvent(id)?.action === "archive";
