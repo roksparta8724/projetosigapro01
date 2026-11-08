@@ -1130,3 +1130,82 @@ criar um **Preview** da mesma branch por Git Source, confirmar
 de homologação antes de divulgar o link. Não alterar a regra de ignorar
 build, não forçar deployment para produção e não afirmar validação
 de interfaces autenticadas sem teste no navegador.
+
+## 08/11/2026 — revisão de lançamento QA e envio de anexos grandes
+
+**Auditoria de homologação somente de leitura (Neon QA `br-solitary-sound-b4xlbvs6`):**
+2 municípios, 10 perfis, 8 processos distribuídos pelos dois municípios,
+28 documentos vinculados a processos e 11 guias de recolhimento.
+Somente uma dessas onze guias possui a chave `original_pdf_key` e o hash
+`original_pdf_sha256` preenchidos simultaneamente; isso **não prova que o
+PDF físico existe ou reabre no R2**. Existem duas pré-análises
+urbanísticas e zero registros em `process_analysis_sheets` nesta cópia.
+Não houve INSERT, UPDATE, DELETE, migração ou mutação dos dados.
+
+**Bloqueio funcional identificado:** o upload comum de PDF técnico
+usava JSON/base64 pela função `/api/r2-upload` com teto de 4 MiB
+de corpo HTTP. Plantas e anexos reais de tamanho maior falhavam
+antes da gravação. O sistema jurídico já tinha mecanismo de
+multipart para legislações oficiais, mas não para processos.
+
+**Solução implementada para documentos de processos:**
+- Novo `server/api/r2-process-proxy-upload.ts` e rota central
+  `api/r2.ts?action=process-proxy-upload`, com rewrite
+  explícito `/api/r2-process-proxy-upload` no `vercel.json`.
+  Apenas uploads `process-documents`, de **mais de 2 MiB até 40 MiB**,
+  em pastas de processo permitidas e extensões PDF/PNG/JPEG/WebP.
+  Não permite subir guia DAM original, avatar, legislação ou branding
+  por esse endpoint.
+- Cada requisição usa bloco de **2 MiB**, base64 abaixo do limite
+  da Vercel; exige Bearer, perfil canônico idêntico ao dono da
+  chave, vínculo com o município e franquia contratual de
+  `storage_bytes`. Chunks temporários são privados, individualmente
+  comparados pelo SHA-256 e protegidos contra sobrescrita.
+  O servidor monta multipart em R2 com `IfNoneMatch: "*"`,
+  confere hash do arquivo inteiro, MIME, tamanho, assinatura
+  inicial e resposta de HEAD antes de responder sucesso.
+  Tenta apagar staging ao concluir e admite abort autenticado.
+- `src/integrations/r2/processChunkUpload.ts` prepara digest
+  no navegador, transmite sequencialmente os blocos, preserva
+  JWT somente no cabeçalho same-origin, não publica a URL de
+  um arquivo privado, aborta staging quando um bloco falha.
+  `src/integrations/r2/client.ts` usa essa via **somente** para
+  anexos de processo acima de 2.500.000 bytes. Arquivos menores,
+  brasões, fotos de perfil e as leis seguem seus fluxos atuais.
+  Arquivos de processo maiores que 40 MB são recusados
+  antecipadamente com explicação explícita.
+- Regressões `r2ProcessChunkUploadSecurityQa.test.ts`,
+  `r2ProcessChunkUploadBrowserQa.test.ts` e
+  `r2ProcessChunkUploadGateQa.test.ts`: 2.5MB de amostra, hashes,
+  roteamento Vercel, fim da carga, limpeza, URL sem token,
+  caminhos bancários proibidos, autenticação, titularidade,
+  vínculo da prefeitura, quota e bloqueio anônimo.
+  Commit-base de implementação `3a961097228ee65f44bb9dfa723ec35f328cc7b4`
+  aprovado nos três workflows em QA.
+
+**Limitações honestas:** os testes automatizados não gravam arquivo de
+40 MB fisicamente no R2 nem simulam um browser com sessão real.
+É indispensável testar um PDF arquitetônico de 5–20 MB com
+usuário profissional autorizado, verificar o arquivo exato
+no R2, abrir o documento depois de F5 e conferir o SHA-256 e
+o acesso isolado das duas Prefeituras. Um upload interrompido
+pode deixar blocos temporários até limpeza/rotina de retenção
+institucional; incluir conferência no teste de restauração.
+Páginas de cadastro continuam com dados carregados em memória
+e não comprovam paginação no backend sob milhares de linhas.
+
+**Próximos gates prioritários:** teste completo de processo
+(cadastro→guia paga→triagem→análise→comunique-se→assinatura→PDF
+original→arquivamento), webhook sandbox bancário assinado e idempotente,
+planta real contra legislação conferida, duas Prefeituras com sessão
+simultânea, restore Neon + R2 e aprovação por perfil.
+Os dez critérios do `docs/QA_COMMERCIAL_ACCEPTANCE.md` seguem
+pendentes até evidências humanas revisadas; CI e Preview não autorizam
+produção.
+
+**Publicação de QA solicitada:** todas as mudanças aprovadas devem
+aparecer no Preview, sem mesclar `main` nem alterar variáveis ou banco.
+Este commit documental tem a marca de liberação permitida pelo
+projeto para Vercel Preview; publicar apenas depois de conferir o
+SHA do commit e os workflows. Esta marca é específica do
+lançamento em homologação: **[deploy-qa]**.
