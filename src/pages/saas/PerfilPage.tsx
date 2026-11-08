@@ -491,14 +491,17 @@ export function PerfilPage() {
 
     if (avatarDraftDirty || avatarFrameDirtyRef.current || saving) return;
 
-    if (profile.avatarUrl) {
+    // O registro persistente no R2 é a fonte de verdade, inclusive quando
+    // avatar_url legado está vazio ou contém uma prévia temporária do navegador.
+    const savedAvatarDisplayUrl = resolveProfileAvatarDisplayUrl(profile);
+    if (savedAvatarDisplayUrl && !/^(?:blob:|data:)/i.test(savedAvatarDisplayUrl)) {
       setAvatarFiles([
         {
           id: "avatar-atual",
           fileName: "foto-perfil",
           mimeType: "image/*",
           sizeLabel: "imagem salva",
-          previewUrl: profile.avatarUrl,
+          previewUrl: savedAvatarDisplayUrl,
         },
       ]);
     } else {
@@ -1008,12 +1011,25 @@ export function PerfilPage() {
             folder: "avatars",
           });
           avatarStorageRef = uploaded.persistentRef;
-          avatarUrl = uploaded.publicUrl || effectiveAvatarFiles[0]?.previewUrl || form.avatarUrl;
+          // Nunca persistir blob:/data: do preview local como URL de foto.
+          // O backend não publica avatares no CDN; a referência R2 é estável.
+          avatarUrl = resolveProfileAvatarDisplayUrl({ avatarStorageRef });
+          if (!avatarUrl) {
+            throw new Error("Não foi possível validar a referência permanente da foto enviada.");
+          }
         } catch (error) {
           setStatus(error instanceof Error ? error.message : "Falha ao enviar a foto ao armazenamento SIGAPRO.");
           return;
         }
       }
+
+      // Recuperar também perfis históricos cujo avatar_url não foi preenchido,
+      // sem gravar outro blob temporário quando o usuário editar dados ou enquadramento.
+      if (!avatarUploadFile) {
+        const stableAvatarUrl = resolveProfileAvatarDisplayUrl({ avatarStorageRef });
+        if (stableAvatarUrl) avatarUrl = stableAvatarUrl;
+      }
+      if (/^(?:blob:|data:)/i.test(avatarUrl)) avatarUrl = "";
 
       const resolvedFullName = form.fullName.trim() || profile?.fullName || session.name || "Usuário autenticado";
       const resolvedEmail = normalizeProfileEmail(form.email || profile?.email || authenticatedEmail || session.email);
@@ -1065,7 +1081,10 @@ export function PerfilPage() {
 
       setStatus("Confirmando foto e preferências no SIGAPRO...");
       const savedProfile = await saveUserProfile(nextProfile);
-      const savedAvatarUrl = savedProfile.avatarUrl || avatarUrl;
+      const savedAvatarUrl = resolveProfileAvatarDisplayUrl({
+        avatarStorageRef: savedProfile.avatarStorageRef || avatarStorageRef,
+        avatarUrl: savedProfile.avatarUrl || avatarUrl,
+      });
       // Novo upload só é sucesso quando a imagem gravada volta a abrir, sem
       // usar blob local como prova. Alterações apenas do enquadramento não
       // precisam repetir a consulta da imagem.
