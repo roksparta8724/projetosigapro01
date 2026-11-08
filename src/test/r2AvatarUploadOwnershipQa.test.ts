@@ -77,7 +77,7 @@ describe("SIGAPRO QA — gravação de avatar vinculada à identidade real", () 
     });
     expect(() => validateR2UploadJson(null)).toThrow("R2_BODY_INVALID");
     expect(() => validateR2UploadJson([])).toThrow("R2_BODY_INVALID");
-    expect(() => validateR2UploadJson({base64:"x".repeat(6 * 1024 * 1024 + 1)}))
+    expect(() => validateR2UploadJson({base64:"x".repeat(4 * 1024 * 1024 + 1)}))
       .toThrow("R2_BODY_LIMIT");
     const server = readFileSync("server/api/r2-upload.ts","utf8");
     const client = readFileSync("src/integrations/r2/client.ts","utf8");
