@@ -69,7 +69,7 @@ export const CAMPO_LIMPO_OFFICIAL_URBAN_SOURCES: readonly UrbanOfficialLegalSour
     documentLabel: "PDF da Câmara; art. 1º sobre revogação e repristinação",
     pdfUrl: "https://www.camaracampolimpo.sp.gov.br/legislacao/download-lei/2024/",
     officialPageUrl: "https://www.camaracampolimpo.sp.gov.br/legislacao/detalhe/2024/revoga-a-lei-complementar-n-535-de-17-de-maio-de-2019-e-sua-alteracao-processada-pela-lei-complementar-n-548-de-13-de-dezembro-de-2019-que-institui-o-novo-plano-diretor-e-uso-e-ocupacao-do-solo-do-municipio-de-campo-limpo-paulista-nos-termos-do-artigo-182-da-constituicao-federal-e-do-ca/",
-    scopeNote: "Art. 1º revoga as LCs 535 e 548/2019 e restaura expressamente a LC 379/2009, com 440/2011 e 501/2016. A situação da LC 473/2014 precisa ser conferida individualmente, pois não é citada nessa enumeração."
+    scopeNote: "Art. 1º revoga as LCs 535 e 548/2019 e restaura expressamente a LC 379/2009, com 440/2011 e 501/2016. A situação da LC 473/2014 precisa ser conferida individualmente, pois não é citada nessa enumeração.",
     readingNote: "Usar para investigar a vigência histórica; não presumir redação consolidada ou eliminar a verificação da LC 613/2023.",
   },
   {
