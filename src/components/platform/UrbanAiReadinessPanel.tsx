@@ -222,6 +222,46 @@ export function UrbanAiReadinessPanel({
             </div>
           </details>
         ) : null}
+        {report.originalComparison ? (
+          <details data-urban-original-comparison="true"
+            className="mt-3 min-w-0 rounded-xl border border-sky-200 bg-sky-50/60 p-3 text-slate-900 dark:border-sky-700 dark:bg-slate-900 dark:text-white">
+            <summary className="cursor-pointer text-xs font-extrabold">
+              Comparação com o Quadro I original da Câmara · {report.originalComparison.comparedFields} campo(s) confrontado(s)
+              {" · "}{report.originalComparison.differences.length} divergência(s) ou dado(s) não extraído(s)
+            </summary>
+            <p className="mt-2 text-xs leading-5 text-slate-700 dark:text-slate-200">
+              {report.originalComparison.scopeNotice}
+              {" "}O CA mínimo da AIU (2) continua fora da comparação numérica por ambiguidade no original.
+              Mesmo que duas transcrições coincidam, isso não comprova vigência.
+            </p>
+            {report.originalComparison.differences.length > 0 ? (
+              <div className="mt-3 max-h-80 space-y-2 overflow-y-auto pr-1" role="list" aria-label="Divergências de leitura original">
+                {report.originalComparison.differences.slice(0, 40).map((issue, index) => (
+                  <div role="listitem" key={issue.ordinal + ":" + issue.field + ":" + index}
+                    className="min-w-0 rounded-lg border border-amber-200 bg-white px-3 py-2 text-xs leading-5 text-slate-900 dark:border-amber-700 dark:bg-slate-950 dark:text-slate-100">
+                    <p className="break-words font-bold">
+                      {issue.ordinal ? "Linha " + issue.ordinal + " · " : ""}{issue.zone} · {issue.use}
+                    </p>
+                    <p className="break-words">
+                      {issue.field} · Original: <strong>{issue.original}</strong>
+                      {" · "}Importação: <strong>{issue.imported}</strong>
+                    </p>
+                  </div>
+                ))}
+                {report.originalComparison.differences.length > 40 ? (
+                  <p className="text-xs font-semibold">
+                    Exibindo 40 divergências. Refaça a comparação no PDF original antes da liberação.
+                  </p>
+                ) : null}
+              </div>
+            ) : (
+              <p className="mt-2 text-xs font-semibold text-sky-900 dark:text-sky-100">
+                Nenhuma divergência entre os campos comparáveis. Isso não resolve a ressalva da AIU (2),
+                nem substitui verificação de artigos, zoneamento e vigência.
+              </p>
+            )}
+          </details>
+        ) : null}
         <details data-sigapro-urban-metric-inventory="true"
           className="mt-3 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
           <summary className="cursor-pointer text-xs font-extrabold text-slate-950 dark:text-white">
