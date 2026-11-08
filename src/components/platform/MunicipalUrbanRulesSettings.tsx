@@ -22,6 +22,7 @@ export function MunicipalUrbanRulesSettings({
   documentRef?: string }) {
   const editorRef = useRef<HTMLDetailsElement>(null);
   const [sourceContext, setSourceContext] = useState<string[]>([]);
+  const [simulationOnly, setSimulationOnly] = useState(false);
   const [versions, setVersions] = useState<UrbanRegulationVersion[]>([]);
   const officialActiveCount = versions.filter((version) =>
     version.status === "active" && !isUrbanTestFixtureRule(version),
@@ -47,6 +48,7 @@ export function MunicipalUrbanRulesSettings({
     let active = true;
     setVersions([]);
     setDraft({});
+    setSimulationOnly(false);
     setZone("");
     setUsage("");
     setEffectiveFrom("");
@@ -80,12 +82,19 @@ export function MunicipalUrbanRulesSettings({
     setEffectiveFrom("");
     setDraft(prepared.fields);
     setSourceContext(prepared.otherLegalFields);
+    setSimulationOnly(Boolean(prepared.simulationOnly));
     if (editorRef.current) editorRef.current.open = true;
     setNotice(prepared.warning + " Abra o cadastro jurídico de versões abaixo, confirme os índices e informe a vigência legal.");
   };
 
   const save = async () => {
     if (!canEdit || !municipalityId || busy) return;
+    // Provisional AIU2 = 1 is authorized for QA calculation only. It is never
+    // a juridical value, even if someone manually provides an effective date.
+    if (simulationOnly) {
+      setNotice("AIU (2): CA mínimo 1,00 é somente simulação técnica. Nenhuma versão legal foi gravada. Aguarde confirmação documental/CONCIDADE.");
+      return;
+    }
     // The date of registration is not the effective date of a municipal law.
     // Never quietly date a legal rule as "today".
     if (!/^\d{4}-\d{2}-\d{2}$/.test(effectiveFrom)) {
@@ -113,6 +122,7 @@ export function MunicipalUrbanRulesSettings({
       await saveUrbanRegulationDraft(municipalityId, zone, usage, effectiveFrom, rules);
       await reload();
       setDraft({});
+      setSimulationOnly(false);
       setEffectiveFrom("");
       setSourceContext([]);
       setNotice("Nova versão registrada como RASCUNHO. Confira os artigos e ative quando validada.");
@@ -218,6 +228,24 @@ export function MunicipalUrbanRulesSettings({
               </span>
             </summary>
             <div className="px-4 pb-5">
+              {simulationOnly ? (
+                <div data-urban-aiu2-autofill-preview="true"
+                  className="mt-3 flex flex-wrap items-start justify-between gap-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm leading-5 text-amber-950 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-100">
+                  <div className="min-w-0 flex-1">
+                    <strong className="block">AIU (2) — CA mínimo = 1,00 preenchido para teste</strong>
+                    <p className="mt-1 text-xs">
+                      Critério técnico provisório, pendente de CONCIDADE. O PDF original apresenta “01” e não comprova a vigência de 1,00.
+                      Os campos podem ser usados para simulação, mas o salvamento jurídico permanece bloqueado.
+                    </p>
+                  </div>
+                  <button type="button" onClick={() => {
+                    setSimulationOnly(false); setDraft({}); setZone(""); setUsage(""); setEffectiveFrom("");
+                    setSourceContext([]); setNotice("Simulação descartada; nenhuma norma foi gravada.");
+                  }} className="min-h-9 rounded-lg border border-amber-300 bg-white px-3 py-2 text-xs font-bold text-amber-950 hover:bg-amber-100">
+                    Descartar simulação
+                  </button>
+                </div>
+              ) : null}
               {sourceContext.length > 0 ? (
                 <div data-urban-prepared-legal-context="true"
                   className="mt-3 rounded-xl border border-sky-200 bg-sky-50 p-3 text-xs leading-5 text-slate-900 dark:border-sky-700 dark:bg-slate-900 dark:text-white">
@@ -271,14 +299,14 @@ export function MunicipalUrbanRulesSettings({
               data-sigapro-urban-rules-save="true"
               aria-label="Salvar nova versão como rascunho"
               aria-busy={busy}
-              disabled={busy || loading}
+              disabled={busy || loading || simulationOnly}
               onClick={() => void save()}
               className="sig-force-dark-action sig-urban-rules-save-button inline-flex min-h-11 w-full max-w-full items-center justify-center gap-2 rounded-xl border border-slate-800 bg-slate-950 px-5 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 sm:w-auto"
             >
               {busy ? <Loader2 aria-hidden="true" className="h-4 w-4 shrink-0 animate-spin" /> :
                 <Save aria-hidden="true" className="h-4 w-4 shrink-0" />}
               <span data-sigapro-urban-rules-save-label="true" className="whitespace-normal text-center font-bold leading-5 text-white">
-                Salvar nova versão como rascunho
+                {simulationOnly ? "Simulação: salvamento jurídico bloqueado" : "Salvar nova versão como rascunho"}
               </span>
             </button>
           </div>
