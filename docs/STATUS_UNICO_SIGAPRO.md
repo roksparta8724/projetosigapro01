@@ -1,5 +1,5 @@
 # SIGAPRO — STATUS ÚNICO E PLANO DE ENTREGA
-> Atualizado em **04/11/2026**. Este documento é a **fonte oficial de continuidade do desenvolvimento**. Mantenha-o sincronizado após cada alteração relevante. Nunca dependa exclusivamente do histórico de conversas do ChatGPT.
+> Linha-base inicial de **04/11/2026**; continuidade da QA atualizada até **08/11/2026**. Este documento é a **fonte oficial de continuidade do desenvolvimento**. Mantenha-o sincronizado após cada alteração relevante. Nunca dependa exclusivamente do histórico de conversas do ChatGPT.
 
 ## Ambientes, links e escopo
 - **Repositório:** https://github.com/roksparta8724/projetosigapro01
@@ -1319,3 +1319,11 @@ confirmar SHA da prévia e reinspecionar as quatro subpáginas e
 guias principais em tema claro e escuro. **Não fazer merge nem
 deploy de produção.** O CI não substitui o aceite visual em
 navegador autenticado.
+
+
+## QA 08/11/2026 — menu lateral e marcadores compactos
+- Evidência: captura `image(20261108-173859).png` e vídeo `20261108-1739-06.7853843.mp4`, página `/prefeitura/visao-geral/processos`. O item `Prefeitura` permanecia inativo no menu escuro porque a seleção era por igualdade estrita com `/prefeitura`; a coluna de marcador com 30 px quebrava visualmente seu título.
+- Correção em `src/components/platform/AppSidebar.tsx`: realçar `Prefeitura` em `/prefeitura` e nas três subpáginas oficiais `/prefeitura/visao-geral/{processos,pendencias,atividades}`, sem realçar indevidamente `Organograma`, `Financeiro`, `Protocolos` ou outros setores. `aria-current=page` nas entradas ativas. Seleção de `Dashboard` preservada inclusive nas rotas internas.
+- Correção em `src/components/platform/CompactProcessRegistry.tsx`: coluna de marcadores de 44 px com ícone no cabeçalho em vez de texto que quebrava; bandeira com geometria consistente; status e etiqueta longa permitem quebra controlada e truncamento dentro de seus limites; paginação existente de 25 processos preservada.
+- Regressões adicionadas/atualizadas: `src/test/municipalSidebarActiveQa.test.tsx`, `src/components/platform/CompactProcessRegistry.test.tsx` e `src/test/municipalOverviewSubpagesQa.test.tsx`. Não alterar permissões, banco, dados de processos, pagamento, IA ou PDF neste lote.
+- **Fluxo:** PR de trabalho atual é a [#118](https://github.com/roksparta8724/projetosigapro01/pull/118) em DRAFT. Não mesclar na `main`, nem publicar no domínio oficial. Só considerar a prévia QA apta após CI do SHA final e Vercel `READY`. A PR #117 do contexto histórico já havia sido integrada anteriormente; as seções antigas documentam o estágio daquela data.
