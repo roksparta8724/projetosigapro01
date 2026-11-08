@@ -404,8 +404,12 @@ export function TenantAdminPage() {
   // A direct link, browser back/forward, or copied URL must always display the
   // requested overview subpage instead of a previously selected operational tab.
   useEffect(() => {
+    if (location.pathname.startsWith("/prefeitura/visao-geral/") && !isNestedOverview) {
+      navigate("/prefeitura", { replace: true });
+      return;
+    }
     if (isNestedOverview) setWorkspaceView("visao-geral");
-  }, [isNestedOverview, location.pathname]);
+  }, [isNestedOverview, location.pathname, navigate]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"todos" | AccountStatus>("todos");
   const [roleFilter, setRoleFilter] = useState<"todos" | UserRole>("todos");
