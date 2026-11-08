@@ -234,7 +234,7 @@ export function UrbanLegislationRegistryPanel({
   if (!municipalityId || !keyValid(municipalityId) || !canViewUrbanLegislationManagement(session.role)) return null;
 
   return (
-    <section data-urban-legislation-registry="true"
+    <section id="sigapro-urban-legislation-registry" data-urban-legislation-registry="true"
       className="mt-5 w-full min-w-0 max-w-full overflow-hidden rounded-[22px] border border-sky-200 bg-white p-4 shadow-sm [overflow-wrap:anywhere] dark:border-sky-700 dark:bg-slate-950 md:p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
