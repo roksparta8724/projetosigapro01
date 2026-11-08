@@ -83,7 +83,7 @@ describe("SIGAPRO QA — renderização privada no navegador sem expor token em 
     const avatar = readFileSync("src/components/platform/UserAvatar.tsx","utf8");
     const profilePage = readFileSync("src/pages/saas/PerfilPage.tsx","utf8");
     const hook = readFileSync("src/hooks/useAuthorizedAvatarUrl.ts","utf8");
-    expect(avatar).toContain("useAuthorizedAvatarUrl(props.imageUrl)");
+    expect(avatar).toContain("useAuthorizedAvatarUrl(props.imageUrl, props.authenticatedOwnerId)");
     expect(profilePage).toContain("useAuthorizedAvatarUrl(avatarPreviewSourceUrl)");
     expect(profilePage).toContain("asset = await resolveAuthorizedAvatarUrl(url)");
     expect(profilePage).toContain("asset.revoke()");
