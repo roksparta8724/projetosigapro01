@@ -133,8 +133,12 @@ export function UrbanQuadroIILegalReviewPanel({
               aria-pressed={chosen === entry.id}
               disabled={!canEdit || saving}
               onClick={() => {
-                setChosen(entry.id);setZone("");setEffectiveFrom("");setExcerpt("");
+                setChosen(entry.id);setZone("");setEffectiveFrom("");
+                // Pre-fill only a source candidate; do NOT pre-fill the independent
+                // double transcription, an official zone, or effective date.
+                setExcerpt(entry.source_excerpt.trim().slice(0, 500));
                 setRepeatExcerpt("");setConfirmed(false);setError("");setNotice("");
+                setNotice("Trecho candidato pré-preenchido a partir do lote municipal. Confira o PDF original, digite a segunda transcrição e valide zona e vigência.");
               }}
               className={"min-w-0 rounded-xl border p-3 text-left text-xs transition-colors " +
                 (chosen === entry.id
@@ -180,7 +184,13 @@ export function UrbanQuadroIILegalReviewPanel({
                 onChange={(e) => {setEffectiveFrom(e.target.value);setConfirmed(false);}} />
             </label>
           </div>
-          <label className="block text-xs font-semibold">Trecho literal conferido no PDF (20–500 caracteres)
+          <p data-urban-qii-autofill-candidate="true"
+            className="rounded-lg border border-sky-200 bg-sky-50 p-3 text-xs leading-5 text-sky-950 dark:border-sky-700 dark:bg-slate-950 dark:text-sky-100">
+            A primeira transcrição foi preenchida automaticamente do rascunho do Quadro II.
+            Ela não equivale a uma leitura jurídica conferida. O campo seguinte fica vazio
+            para comparação independente; zona e vigência exigem prova oficial.
+          </p>
+          <label className="block text-xs font-semibold">Trecho candidato a conferir no PDF (20–500 caracteres)
             <Textarea value={excerpt} maxLength={500} rows={3}
               className="mt-1 bg-white text-slate-900 dark:bg-slate-950 dark:text-white"
               onChange={(e) => {setExcerpt(e.target.value);setConfirmed(false);}} />
