@@ -38,7 +38,7 @@ function isRouteActive(pathname: string, route: string) {
     return currentPath === "/prefeitura" || isMunicipalOverviewSubpagePath(currentPath);
   }
   if (route === "/dashboard") {
-    return currentPath === "/dashboard" || currentPath.startsWith("/dashboard/");
+    return currentPath === "/dashboard" || pathname.startsWith("/dashboard/");
   }
   return currentPath === route;
 }
