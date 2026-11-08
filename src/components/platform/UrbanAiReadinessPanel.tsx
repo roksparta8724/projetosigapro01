@@ -229,6 +229,27 @@ export function UrbanAiReadinessPanel({
               Comparação com o Quadro I original da Câmara · {report.originalComparison.comparedFields} campo(s) confrontado(s)
               {" · "}{report.originalComparison.differences.length} divergência(s) ou dado(s) não extraído(s)
             </summary>
+            <button type="button" data-urban-open-original-quadro-i="true"
+              className="mt-3 min-h-9 rounded-lg border border-sky-200 bg-white px-3 text-xs font-bold text-sky-900 hover:bg-sky-50 dark:border-sky-700 dark:bg-slate-950 dark:text-sky-100"
+              onClick={() => {
+                const sources = document.querySelector<HTMLDetailsElement>(
+                  'details[data-sigapro-urban-official-sources="true"]',
+                );
+                const original = document.querySelector<HTMLDetailsElement>(
+                  'details[data-urban-original-quadro-i="true"]',
+                );
+                if (!sources || !original) {
+                  setNavigationNotice("A tabela histórica está indisponível para este município ou perfil.");
+                  return;
+                }
+                sources.open = true;
+                original.open = true;
+                window.requestAnimationFrame(() => {
+                  original.scrollIntoView?.({ behavior: "smooth", block: "start" });
+                });
+              }}>
+              Abrir tabela original e fonte oficial
+            </button>
             <p className="mt-2 text-xs leading-5 text-slate-700 dark:text-slate-200">
               {report.originalComparison.scopeNotice}
               {" "}O CA mínimo da AIU (2) continua fora da comparação numérica por ambiguidade no original.
