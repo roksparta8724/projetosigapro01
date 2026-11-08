@@ -31,6 +31,11 @@ describe("SIGAPRO QA — fonte jurídica identificada por tenant e hash", () => 
     expect(result?.fields.lot_area_m2?.limit).toBe("3000");
     expect(result?.fields.lot_frontage_m?.limit).toBe("30");
     expect(result?.fields.height_m).toBeUndefined();
+    expect(result?.otherLegalFields.join(" | ")).toContain("CA básico");
+    expect(result?.otherLegalFields.join(" | ")).toContain("Gabarito/altura condicionado");
+    expect(result?.otherLegalFields.join(" | ")).not.toContain("Área mínima do lote");
+    expect(result?.otherLegalFields.join(" | ")).not.toContain("CA mínimo:");
+    expect(result?.otherLegalFields.join(" | ")).not.toContain("Testada mínima");
     expect(result?.documentarySource).toMatchObject({
       lawNumber: "LC 379/2009", page: 36, status: "original_not_legally_consolidated",
       documentSha256: LC379_QUADRO_II_SHA,
