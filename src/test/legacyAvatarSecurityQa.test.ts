@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import {
+  readBoundedR2Avatar,
   legacyAvatarNetworkAllowed,
   parseAvatarRequest,
   safeAvatarMime,
@@ -49,6 +50,35 @@ describe("SIGAPRO QA — recuperação de avatar legado sem SSRF nem imagem ativ
     expect(safeAvatarMime(Buffer.from("<svg onload='alert(1)'>"))).toBeNull();
     expect(safeAvatarMime(Buffer.from("<html><script>alert(1)</script>"))).toBeNull();
     expect(safeAvatarMime(Buffer.alloc(0))).toBeNull();
+  });
+
+  it("consome avatares R2 em streaming com limite, mesmo sem Content-Length", async () => {
+    const png = Buffer.from([137,80,78,71,13,10,26,10,0,0,0,0]);
+    async function* valid() {
+      yield png.subarray(0, 5);
+      yield png.subarray(5);
+    }
+    expect(await readBoundedR2Avatar(valid())).toEqual(png);
+
+    let readUnexpectedBody = false;
+    async function* shouldNotRead() {
+      readUnexpectedBody = true;
+      yield png;
+    }
+    expect(await readBoundedR2Avatar(shouldNotRead(), 12 * 1024 * 1024 + 1)).toBeNull();
+    expect(readUnexpectedBody).toBe(false);
+
+    async function* oversizedWithoutLength() {
+      yield Buffer.alloc(8 * 1024 * 1024);
+      yield Buffer.alloc(5 * 1024 * 1024);
+    }
+    expect(await readBoundedR2Avatar(oversizedWithoutLength())).toBeNull();
+
+    async function* interrupted() {
+      yield png;
+      throw new Error("R2_STREAM_INTERRUPTED");
+    }
+    expect(await readBoundedR2Avatar(interrupted())).toBeNull();
   });
 
   it("busca cache R2 antes de permitir rede; impede redirects e respostas enormes", () => {
