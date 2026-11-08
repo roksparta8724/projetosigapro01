@@ -256,7 +256,7 @@ export function UrbanLegislationRegistryPanel({
           </p>
         </div>
         {canWrite ? (
-          <button type="button" disabled={saving}
+          <button type="button" data-urban-legislation-toggle="true" disabled={saving}
             onClick={() => setFormOpen((old) => !old)}
             className="sig-force-dark-action inline-flex min-h-11 items-center gap-2 rounded-xl bg-slate-950 px-4 py-2 text-sm font-bold !text-white hover:bg-slate-800">
             <FilePlus2 className="h-4 w-4" />
@@ -269,6 +269,23 @@ export function UrbanLegislationRegistryPanel({
         )}
       </div>
 
+      {canWrite && !loading && total === 0 && officialSources.some((source) => source.id === "lc-379-2009") ? (
+        <div data-urban-first-law-guidance="true"
+          className="mt-3 flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-slate-900 dark:border-sky-700 dark:bg-slate-900 dark:text-white">
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-extrabold">Primeiro documento: LC nº 379/2009</p>
+            <p className="mt-1 text-xs leading-5 text-slate-700 dark:text-slate-200">
+              Número, ano, título e endereço da Câmara podem ser preenchidos automaticamente.
+              Selecione o PDF oficial antes de registrar; nenhuma norma será ativada.
+            </p>
+          </div>
+          <button type="button" data-urban-register-base-law-action="true"
+            onClick={() => prefillFromOfficialSource("lc-379-2009")}
+            className="min-h-10 max-w-full rounded-xl bg-sky-900 px-4 py-2 text-xs font-bold text-white hover:bg-sky-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-500">
+            Preparar cadastro da LC 379/2009
+          </button>
+        </div>
+      ) : null}
       <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-950">
         <ShieldAlert className="mr-1 inline h-4 w-4" />
         Salvar documento não comprova vigência nem ativa regras para a IA.
@@ -301,6 +318,14 @@ export function UrbanLegislationRegistryPanel({
               <span className={explainStyle}>
                 O preenchimento não importa nem confere o arquivo: selecione também o PDF oficial.
               </span>
+              {officialSources.find((source) => source.id === referenceChoice)?.pdfUrl ? (
+                <a data-urban-open-source-pdf="true"
+                  href={officialSources.find((source) => source.id === referenceChoice)?.pdfUrl || ""}
+                  target="_blank" rel="noopener noreferrer"
+                  className="mt-2 inline-flex min-h-9 items-center gap-2 rounded-lg border border-sky-200 bg-white px-3 py-2 text-xs font-bold text-sky-900 hover:bg-sky-100 dark:border-sky-700 dark:bg-slate-950 dark:text-sky-100">
+                  <ExternalLink className="h-4 w-4" /> Abrir PDF original para conferir
+                </a>
+              ) : null}
             </label>
           ) : null}
 
