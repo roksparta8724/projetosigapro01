@@ -35,6 +35,19 @@ const originalFields = [
 const nameKey = (s: unknown) => String(s ?? "").normalize("NFKD")
   .replace(/[\u0300-\u036f]/g, "").toLocaleUpperCase("pt-BR")
   .replace(/^ZONA\s+/, "").replace(/[^A-Z0-9]/g, "");
+/**
+ * Actual municipal staging labels may include the state suffix "- SP".
+ * Accept only the specific municipality, not any string that happens to
+ * contain "Campo Limpo Paulista" or any other city/state combination.
+ */
+function isCampoLimpoOriginalSource(label: unknown): boolean {
+  const value = nameKey(label);
+  return value === "CAMPOLIMPOPAULISTA" ||
+    value === "CAMPOLIMPOPAULISTASP" ||
+    value === "PREFEITURADECAMPOLIMPOPAULISTA" ||
+    value === "PREFEITURAMUNICIPALDECAMPOLIMPOPAULISTA" ||
+    value === "PREFEITURAMUNICIPALDECAMPOLIMPOPAULISTASP";
+}
 function asNumeric(s: unknown): number | null {
   if (typeof s !== "string" && typeof s !== "number") return null;
   const raw = String(s).trim().replace(",", ".");
@@ -60,7 +73,7 @@ export function compareCampoLimpoQuadroIOriginal(
     scopeNotice: "Comparação com o Quadro I ORIGINAL de 2009, sem consolidação das alterações. Exige revisão jurídica antes de qualquer diagnóstico.",
   };
   if (!batch) return comparison;
-  if (nameKey(batch.source_municipality) !== "CAMPOLIMPOPAULISTA") {
+  if (!isCampoLimpoOriginalSource(batch.source_municipality)) {
     comparison.differences.push({
       ordinal: 0, zone: "Município", use: "Origem documental",
       field: "Município do lote", original: "Campo Limpo Paulista",
