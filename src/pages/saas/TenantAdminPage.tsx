@@ -467,11 +467,6 @@ export function TenantAdminPage() {
     (process.sla.breached || process.sla.hoursRemaining <= 12)
   ), [tenantProcesses]);
   const pendingSectorItems = useMemo(() => [{ label: "Triagem", value: tenantProcesses.filter((process) => process.triage.status !== "concluido").length, helper: "Entradas aguardando conferência documental" }, { label: "Análise", value: tenantProcesses.filter((process) => process.status === "analise_tecnica").length, helper: "Processos em parecer técnico" }, { label: "Financeiro", value: tenantProcesses.filter((process) => hasPendingGuide(process)).length, helper: "Processos com guia emitida ainda sem compensação" }], [tenantProcesses, tenantSettings]);
-  const actionRequired = useMemo(() => tenantProcesses.filter((process) =>
-    !["deferido", "indeferido", "arquivado"].includes(process.status) &&
-    (process.requirements.some((item) => item.status === "aberta" || item.status === "respondida") ||
-      process.sla.breached || process.sla.hoursRemaining <= 12 || hasPendingGuide(process))
-  ), [tenantProcesses, tenantSettings]);
   const recentActivity = useMemo(() => tenantProcesses.flatMap((process) => process.timeline.slice(0, 2).map((entry) => ({ processId: process.id, protocol: process.protocol, title: entry.title, detail: entry.detail, actor: entry.actor, at: entry.at, status: process.status }))).sort((a, b) => {
     const aTime = Date.parse(a.at);
     const bTime = Date.parse(b.at);
@@ -490,6 +485,11 @@ export function TenantAdminPage() {
   const mainQueue = useMemo(() => orderedAllProcesses.filter((process) =>
     !["deferido", "indeferido", "arquivado"].includes(process.status)
   ), [orderedAllProcesses]);
+  const actionRequired = useMemo(() => orderedAllProcesses.filter((process) =>
+    !["deferido", "indeferido", "arquivado"].includes(process.status) &&
+    (process.requirements.some((item) => item.status === "aberta" || item.status === "respondida") ||
+      process.sla.breached || process.sla.hoursRemaining <= 12 || hasPendingGuide(process))
+  ), [orderedAllProcesses, tenantSettings]);
   const filteredQueue = useMemo(() => {
     const term = queueSearch.trim().toLocaleLowerCase("pt-BR");
     return term ? mainQueue.filter((process) =>
