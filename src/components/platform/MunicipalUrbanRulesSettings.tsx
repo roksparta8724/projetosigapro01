@@ -36,6 +36,11 @@ export function MunicipalUrbanRulesSettings({
   const [notice, setNotice] = useState("");
   const [activeQuadro, setActiveQuadro] = useState<"I" | "II">("I");
   const [auditRevision, setAuditRevision] = useState(0);
+  const [reviewCaveatFocus, setReviewCaveatFocus] = useState(0);
+  const openReviewQuadro = (quadro: "I" | "II") => {
+    setActiveQuadro(quadro);
+    if (quadro === "I") setReviewCaveatFocus((value) => value + 1);
+  };
   const markAuditChanged = () => setAuditRevision((revision) => revision + 1);
 
   useEffect(() => {
@@ -169,7 +174,7 @@ export function MunicipalUrbanRulesSettings({
 
       <UrbanAiReadinessPanel municipalityId={municipalityId}
         documents={documentFiles ?? { usoSolo: "", zoneamento: "", planoDiretor: "", leisComplementares: "" }}
-        onOpenQuadro={setActiveQuadro} revision={auditRevision} />
+        onOpenQuadro={openReviewQuadro} revision={auditRevision} />
       <UrbanOfficialLegalSourcesPanel municipalityId={municipalityId} />
 
       <div className="mt-5 min-w-0 scroll-mt-24" data-urban-quadros-workspace="true">
@@ -193,7 +198,8 @@ export function MunicipalUrbanRulesSettings({
         {activeQuadro === "I" ? (
           <div id="sigapro-quadro-i-panel" role="region" aria-labelledby="sigapro-quadro-i-tab" className="min-w-0 pt-3">
             <UrbanLegalMatrixReviewPanel municipalityId={municipalityId} canView canEdit={canEdit}
-                onPrepareDraft={prepareFromMatrix} onDataChanged={markAuditChanged} />
+                onPrepareDraft={prepareFromMatrix} onDataChanged={markAuditChanged}
+                focusRegisteredCaveats={reviewCaveatFocus} />
           </div>
         ) : (
           <div id="sigapro-quadro-ii-panel" role="region" aria-labelledby="sigapro-quadro-ii-tab" className="min-w-0 pt-3">
