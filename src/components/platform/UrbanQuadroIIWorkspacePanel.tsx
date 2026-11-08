@@ -19,8 +19,8 @@ const emptyDraft = (pageNumber: number): UrbanQuadroIIDraftInput => ({
 });
 
 export function UrbanQuadroIIWorkspacePanel({
-  municipalityId, canEdit, canView = canEdit,
-}: { municipalityId: string; canEdit: boolean; canView?: boolean }) {
+  municipalityId, canEdit, canView = canEdit, onDataChanged,
+}: { municipalityId: string; canEdit: boolean; canView?: boolean; onDataChanged?: () => void }) {
   const [workspace, setWorkspace] = useState<UrbanQuadroIIWorkspace | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -179,6 +179,7 @@ export function UrbanQuadroIIWorkspacePanel({
       );
       const next = await listUrbanQuadroIIWorkspace(municipalityId);
       setWorkspace(next);
+      onDataChanged?.();
       setDraft(emptyDraft(draft.pageNumber));
       setSelectedSuggestion(null);
       setConfirmed(false);
@@ -228,6 +229,7 @@ export function UrbanQuadroIIWorkspacePanel({
     setBatchReviewed(false);
     setSelectedBatchCodes([]);
     setSaving(false);
+    if (success > 0) onDataChanged?.();
     setNotice(success + " rascunho(s) assistido(s) salvo(s). Nenhuma norma foi ativada.");
     if (failed.length) setError("Alguns itens exigem nova conferência: " + failed.join(" | ").slice(0,1200));
   };
