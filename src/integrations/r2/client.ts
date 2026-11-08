@@ -372,15 +372,6 @@ export async function uploadFile(input: {
       throw new Error("Arquivo inválido para upload.");
     }
 
-    console.warn("[SIGAPRO][R2] upload iniciado", {
-      endpoint: "/api/r2-upload",
-      bucket: normalizeClientBucket(input.bucket),
-      objectKey: input.objectKey,
-      fileName: input.file.name,
-      fileSize: input.file.size,
-      mimeType: input.file.type || "application/octet-stream",
-    });
-
     const response = await fetch(buildApiUrl("/api/r2-upload"), {
       method: "POST",
       headers: {
@@ -405,12 +396,6 @@ export async function uploadFile(input: {
       error?: string;
     };
 
-    console.warn("[SIGAPRO][R2] resposta upload", {
-      status: response.status,
-      ok: response.ok,
-      payload,
-    });
-
     if (!response.ok) {
       const message = payload?.error || "Falha ao enviar o arquivo.";
       throw new Error(message);
@@ -425,7 +410,6 @@ export async function uploadFile(input: {
     if (error instanceof DOMException && error.name === "AbortError") {
       throw new Error("Tempo limite no upload para o R2.");
     }
-    console.error("[SIGAPRO][R2] falha no upload", error);
     throw error;
   } finally {
     window.clearTimeout(timeout);
