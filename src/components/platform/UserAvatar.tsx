@@ -2,6 +2,7 @@ import { type CSSProperties, useEffect, useRef, useState } from "react";
 import { Avatar } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { DEFAULT_AVATAR_EDITOR_DIAMETER, resolveCircularAvatarGeometry } from "@/lib/avatarCropGeometry";
+import { useAuthorizedAvatarUrl } from "@/hooks/useAuthorizedAvatarUrl";
 
 type UserAvatarSize = "sm" | "md" | "lg" | "xl";
 
@@ -109,7 +110,14 @@ function userInitials(name?: string | null) {
   return `${first}${last}`.toLocaleUpperCase("pt-BR") || "?";
 }
 
-export function UserAvatar({
+export function UserAvatar(props: UserAvatarProps) {
+  const privateImageUrl = useAuthorizedAvatarUrl(props.imageUrl);
+  // A different profile must never display the preceding account's photo
+  // during authorization or asynchronous decoding.
+  return <UserAvatarPresentation key={props.imageUrl || ""} {...props} imageUrl={privateImageUrl} />;
+}
+
+function UserAvatarPresentation({
   name,
   imageUrl,
   size = "md",
