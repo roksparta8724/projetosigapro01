@@ -323,6 +323,7 @@ export function MunicipalUrbanRulesSettings({
               {!isUrbanTestFixtureRule(item) && (item.status === "draft" || item.status === "active") ? (
                 <UrbanRegulationEvidencePanel version={item} municipalityId={municipalityId}
                   canEdit={canEdit} sourceRef={documentRef}
+                  onDataChanged={markAuditChanged}
                   sourceFileName={documentFiles?.usoSolo}
                   onActivate={() => void activate(item.id)} />
               ) : null}
