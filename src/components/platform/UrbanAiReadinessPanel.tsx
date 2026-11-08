@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { AlertTriangle, BookOpenCheck, CheckCircle2, Loader2, RefreshCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { subscribeUrbanLegalAuditInvalidations } from "@/lib/urbanLegalAuditEvents";
+import { isUrbanMatrixBatchArchived } from "@/lib/urbanMatrixBatchStatus";
 import { listLawRegistry } from "@/integrations/backend/urbanLegislationRegistryClient";
 import {
   listUrbanMatrixBatches, readUrbanMatrixBatch, listUrbanMatrixReadingAudit,
@@ -73,8 +74,8 @@ export function UrbanAiReadinessPanel({
           listUrbanRegulations(municipalityId),
           listLawRegistry(municipalityId),
         ]);
-      const activeBatch = batches.find((batch) => !audit.batch_events.some(
-        (event) => event.batch_id === batch.id && event.action === "archive")) ?? null;
+      const activeBatch = batches.find((batch) =>
+        !isUrbanMatrixBatchArchived(audit.batch_events, batch.id)) ?? null;
       const source = activeBatch
         ? await readUrbanMatrixBatch(municipalityId, activeBatch.id) : null;
       return assessUrbanAiReadiness({
