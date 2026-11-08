@@ -35,7 +35,7 @@ function isRouteActive(pathname: string, route: string) {
   // A Visão geral possui URLs próprias. Não tratar todas as rotas /prefeitura/*
   // como ativas: Organograma, Protocolo e Financeiro têm entradas independentes.
   if (route === "/prefeitura") {
-    return isMunicipalOverviewSubpagePath(currentPath);
+    return currentPath === "/prefeitura" || isMunicipalOverviewSubpagePath(currentPath);
   }
   if (route === "/dashboard") {
     return currentPath === "/dashboard" || currentPath.startsWith("/dashboard/");
