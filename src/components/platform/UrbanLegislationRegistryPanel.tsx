@@ -2,6 +2,7 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Archive, BookOpenCheck, ExternalLink, FilePlus2, Loader2, RotateCcw, ShieldAlert } from "lucide-react";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { uploadFileToStorage } from "@/integrations/r2/storage";
+import { notifyUrbanLegalAuditInvalidation } from "@/lib/urbanLegalAuditEvents";
 import { getLegislationOpenUrl } from "@/integrations/r2/client";
 import { getMunicipalOfficialUrbanSources } from "@/lib/urbanOfficialLegalSources";
 import { canEditUrbanLegislationManagement, canViewUrbanLegislationManagement } from "@/lib/urbanLegislationAccess";
@@ -194,6 +195,7 @@ export function UrbanLegislationRegistryPanel({
       const result = await registerLaw(municipalityId, {
         ...sample, storageKey: uploaded.storageKey, sha256: uploaded.sha256,
       }, crypto.randomUUID());
+      notifyUrbanLegalAuditInvalidation(municipalityId);
       setNotice("PDF e cadastro registrados no Neon/R2, revisão " + result.revision +
         ". A norma continua pendente de conferência e NÃO está ativa para a IA.");
       pendingUpload.current = null;
@@ -219,6 +221,7 @@ export function UrbanLegislationRegistryPanel({
     try {
       await assertUrbanLegislationWriteAccess(municipalityId);
       await setLawArchived(municipalityId, item.id, !item.archived, reason);
+      notifyUrbanLegalAuditInvalidation(municipalityId);
       await refresh();
       setNotice("Registro " + (item.archived ? "restaurado" : "arquivado") +
         " com auditoria. O PDF original foi preservado.");
@@ -235,7 +238,7 @@ export function UrbanLegislationRegistryPanel({
 
   return (
     <section id="sigapro-urban-legislation-registry" data-urban-legislation-registry="true"
-      className="mt-5 w-full min-w-0 max-w-full overflow-hidden rounded-[22px] border border-sky-200 bg-white p-4 shadow-sm [overflow-wrap:anywhere] dark:border-sky-700 dark:bg-slate-950 md:p-5">
+      className="mt-5 w-full min-w-0 max-w-full scroll-mt-24 overflow-hidden rounded-[22px] border border-sky-200 bg-white p-4 shadow-sm [overflow-wrap:anywhere] dark:border-sky-700 dark:bg-slate-950 md:p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <h3 className="flex items-center gap-2 text-base font-extrabold text-slate-950 dark:text-white">
