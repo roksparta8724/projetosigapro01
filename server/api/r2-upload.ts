@@ -9,6 +9,7 @@ import { getR2EndpointCandidates, resolveR2Endpoint } from "../r2-runtime.js";
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { createHash } from "node:crypto";
 import { getDataApiUrl, resolveMunicipalDocumentTarget } from "../municipal-storage.js";
+import { safeAvatarMime } from "./profile-avatar-open.js";
 
 type Req = import("http").IncomingMessage & { method?: string; body?: unknown };
 type Res = import("http").ServerResponse;
@@ -125,8 +126,8 @@ async function callDataApiRpc(req: Req, fn: string, body: Record<string, unknown
   }
 }
 
-async function requireAuthenticatedProfile(req: Req) {
-  if (!isR2AuthRequired()) {
+async function requireAuthenticatedProfile(req: Req, force = false) {
+  if (!force && !isR2AuthRequired()) {
     return { ok: true as const, profileId: null as string | null };
   }
 
@@ -177,10 +178,48 @@ function resolveRequestedBucket(value: string) {
   return "";
 }
 
+const PROFILE_AVATAR_PATH =
+  /^(?:platform|municipalities\/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\/profiles\/avatars\/([a-zA-Z0-9_-]+)\/([a-zA-Z0-9._-]+)$/i;
+const AVATAR_BYTES_MAX = 12 * 1024 * 1024;
+
+/**
+ * An authenticated municipality membership does not permit overwriting a
+ * different user's profile photo. Master avatars also require self-ownership.
+ */
+export function profileAvatarUploadAuthorized(
+  requestedBucket: string,
+  resolvedBucket: string,
+  objectKey: string,
+  profileId: string | null,
+): boolean {
+  const logosBucket = readEnv("R2_BUCKET_LOGOS") || "sigapro-logos";
+  const match = PROFILE_AVATAR_PATH.exec(objectKey);
+  return resolvedBucket === logosBucket &&
+    match !== null &&
+    typeof profileId === "string" &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(profileId) &&
+    match[1].toLowerCase() === profileId.toLowerCase() &&
+    /\.(?:png|jpe?g|gif|webp|avif)$/i.test(match[2]) &&
+    (requestedBucket === "profile-assets" ||
+      requestedBucket === "institutional-branding" ||
+      requestedBucket === logosBucket);
+}
+
+export function avatarUploadContentIsValid(
+  contentType: unknown,
+  bytes: Buffer,
+): boolean {
+  if (!bytes.length || bytes.length > AVATAR_BYTES_MAX) return false;
+  const claimed = typeof contentType === "string" ? contentType.trim().toLowerCase() : "";
+  return safeAvatarMime(bytes) === claimed;
+}
+
 export function buildPublicUrl(bucket: string, objectKey: string) {
   // A configured public CDN for logos/legislation does not authorize publishing
   // payment originals, signed technical reports or private process attachments.
   const documentsBucket = readEnv("R2_BUCKET_DOCUMENTOS") || "sigapro-documentos";
+  // No public CDN URL for user avatars sharing the branding bucket.
+  if (/\/profiles\/avatars\//i.test(objectKey)) return "";
   const publicLegalKey =
     /^municipalities\/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/legislation(?:[-/]|$)/i.test(objectKey);
   if (bucket === documentsBucket && !publicLegalKey) return "";
@@ -291,8 +330,35 @@ export default async function handler(req: Req, res: Res) {
     }
 
     conflictObjectKey = objectKey;
-    const buffer = Buffer.from(base64, "base64");
     const municipalityId = extractMunicipalityId(objectKey);
+    // Require a real profile identity for every avatar upload, regardless
+    // of legacy QA's general R2_REQUIRE_AUTH setting or bucket alias.
+    const avatarUpload =
+      requestedBucket === "profile-assets" ||
+      /\/profiles\/avatars\//i.test(objectKey);
+    if (avatarUpload) {
+      const avatarIdentity = auth.profileId
+        ? auth
+        : await requireAuthenticatedProfile(req, true);
+      if (!avatarIdentity.ok) {
+        json(res, avatarIdentity.status, { error: avatarIdentity.error });
+        return;
+      }
+      if (!profileAvatarUploadAuthorized(
+        String(requestedBucket), bucket, objectKey, avatarIdentity.profileId,
+      )) {
+        json(res, 403, { error: "A foto de perfil só pode ser enviada pelo próprio usuário." });
+        return;
+      }
+    }
+
+    const buffer = Buffer.from(base64, "base64");
+    if (avatarUpload && !avatarUploadContentIsValid(contentType, buffer)) {
+      json(res, 415, {
+        error: "Foto inválida. Envie PNG, JPEG, GIF, WebP ou AVIF de até 12 MB.",
+      });
+      return;
+    }
     // Tenantless/legacy keys are never writable by ordinary municipal accounts.
     // This also prevents malformed municipality paths from bypassing tenant checks.
     if (!municipalityId) {
