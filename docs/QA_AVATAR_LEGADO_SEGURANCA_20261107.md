@@ -43,7 +43,7 @@ Esse log **não prova perda de dados** nem autoriza sobrescrever fotos no banco.
 
 ## Testes e próximos gates
 
-- Testes `server/api/profile-avatar-open.security.test.ts` cobrem host
+- Testes `src/test/legacyAvatarSecurityQa.test.ts` cobrem host
   exato, URLs proibidas, assinatura do arquivo, SSRF, `redirect:error`, prioridade
   de cache e tamanho de resposta.
 - Executar CI do HEAD QA e confirmar a publicação Vercel Preview por SHA;
@@ -58,3 +58,22 @@ Esse log **não prova perda de dados** nem autoriza sobrescrever fotos no banco.
   imagens que não estão no R2; o usuário autorizado deverá fornecer uma nova foto.
 - Não habilitar permissão externa automaticamente, não reativar legado para
   produção sem validação, não alterar `main`, Neon production ou o domínio oficial.
+
+## Revisão complementar de segurança do cache R2 — 07/11/2026
+
+O caminho de cache R2 também foi protegido: anteriormente chamava
+`object.Body.transformToByteArray()` **antes** de conferir
+`MAX_AVATAR_BYTES`, permitindo alocação integral de um objeto acima do
+limite, se o serviço devolvesse objeto grande ou metadados inconsistentes.
+
+A função `readBoundedR2Avatar` passa a rejeitar `ContentLength` acima
+de 12 MiB antes de começar a leitura e verifica o total de bytes em streaming,
+inclusive quando o tamanho não foi informado. Falhas de leitura não exibem
+bytes incompletos; a validação de formato PNG/JPEG/GIF/WebP/AVIF permanece.
+Testes em `src/test/legacyAvatarSecurityQa.test.ts` cobrem caminhos válidos,
+metadados grandes, stream sem tamanho e interrupção.
+
+**Escopo comprovado:** commits `817e6deb` e `f71a203a`, exclusivamente
+na branch QA. Não foram alteradas fotos, credenciais, bancos, configuração
+Vercel, `main` ou domínio oficial. O CI e a publicação de Preview devem
+ser conferidos por SHA antes de declarar o reparo operacional.
