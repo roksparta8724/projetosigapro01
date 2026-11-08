@@ -34,6 +34,18 @@ describe("SIGAPRO QA — cotejo da transcrição com fonte oficial, sem aprovar 
     expect(result.scopeNotice).toContain("sem consolidação");
   });
 
+  it("reconhece o nome real do lote QA: Campo Limpo Paulista - SP", () => {
+    const batch = sample();
+    batch.source_municipality = "Campo Limpo Paulista - SP";
+    const result = compareCampoLimpoQuadroIOriginal(batch);
+    expect(result.comparedFields).toBe(229);
+    expect(result.differences).toHaveLength(0);
+    expect(result.ambiguous).toEqual([22]);
+    const another = sample();
+    another.source_municipality = "Outro município - SP";
+    expect(compareCampoLimpoQuadroIOriginal(another).comparedFields).toBe(0);
+  });
+
   it("detecta mudança real no recuo e não sobrescreve dados do lote", () => {
     const batch = sample();
     batch.source_rows[21].recuo_frontal_m = "5";
