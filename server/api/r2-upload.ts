@@ -244,21 +244,32 @@ function json(res: Res, status: number, body: unknown) {
   res.end(JSON.stringify(body));
 }
 
-async function readJsonBody(req: Req) {
-  if (req.body && typeof req.body === "object") return req.body;
-  return new Promise<Record<string, unknown>>((resolve, reject) => {
-    const chunks: Buffer[] = [];
-    req.on("data", (chunk) => chunks.push(Buffer.from(chunk)));
-    req.on("end", () => {
-      try {
-        const raw = Buffer.concat(chunks).toString("utf8");
-        resolve(raw ? (JSON.parse(raw) as Record<string, unknown>) : {});
-      } catch (error) {
-        reject(error);
-      }
-    });
-    req.on("error", reject);
-  });
+const MAX_R2_UPLOAD_REQUEST_BYTES = 6 * 1024 * 1024;
+
+export function validateR2UploadJson(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== "object" || Array.isArray(value))
+    throw new Error("R2_BODY_INVALID");
+  if (Buffer.byteLength(JSON.stringify(value), "utf8") > MAX_R2_UPLOAD_REQUEST_BYTES)
+    throw new Error("R2_BODY_LIMIT");
+  return value as Record<string, unknown>;
+}
+
+async function readJsonBody(req: Req): Promise<Record<string, unknown>> {
+  if (req.body !== undefined) return validateR2UploadJson(req.body);
+  const chunks: Buffer[] = [];
+  let count = 0;
+  for await (const part of req) {
+    const data = Buffer.from(part as Uint8Array);
+    count += data.byteLength;
+    if (count > MAX_R2_UPLOAD_REQUEST_BYTES) throw new Error("R2_BODY_LIMIT");
+    chunks.push(data);
+  }
+  try {
+    return validateR2UploadJson(JSON.parse(Buffer.concat(chunks).toString("utf8")));
+  } catch (error) {
+    if (error instanceof Error && error.message === "R2_BODY_LIMIT") throw error;
+    throw new Error("R2_BODY_INVALID");
+  }
 }
 
 export default async function handler(req: Req, res: Res) {
@@ -286,13 +297,6 @@ export default async function handler(req: Req, res: Res) {
     const accessKeyId = readEnv("R2_ACCESS_KEY_ID");
     const secretAccessKey = readEnv("R2_SECRET_ACCESS_KEY");
     const envOk = Boolean(endpoint && accessKeyId && secretAccessKey);
-
-    console.log("[ProdAudit][R2Upload] env", {
-      hasEndpoint: Boolean(endpoint),
-      hasAccessKeyId: Boolean(accessKeyId),
-      hasSecret: Boolean(secretAccessKey),
-      accessKeyLength: accessKeyId.length,
-    });
 
     const body = (await readJsonBody(req)) as {
       bucket?: unknown;
@@ -540,15 +544,26 @@ export default async function handler(req: Req, res: Res) {
       }
       return;
     }
-    const rawMessage = error instanceof Error ? error.message : "Erro ao enviar o arquivo.";
+    const errorCode = error instanceof Error ? error.message : "";
+    if (errorCode === "R2_BODY_LIMIT") {
+      json(res, 413, { error: "Envio maior que o limite permitido. Use o fluxo de arquivo grande.", code: "R2_BODY_LIMIT" });
+      return;
+    }
+    if (errorCode === "R2_BODY_INVALID") {
+      json(res, 400, { error: "Corpo da solicitação inválido.", code: "R2_BODY_INVALID" });
+      return;
+    }
     const signatureMismatch = isR2CredentialError(error);
-    const message = signatureMismatch
-      ? "Falha de autenticação no armazenamento R2. O endpoint e as credenciais precisam pertencer à mesma conta."
-      : rawMessage;
-    console.error("[SIGAPRO][R2] Falha no upload", { error: rawMessage });
-    json(res, 500, {
-      error: message,
-      code: signatureMismatch ? "R2_SIGNATURE_MISMATCH" : "R2_ERROR",
+    // Never include raw S3/AWS errors, signed URLs, filenames, object keys or
+    // provider endpoint details in public responses and operational logs.
+    console.warn("[SIGAPRO][R2] upload_failed", {
+      code: signatureMismatch ? "R2_SIGNATURE_MISMATCH" : "R2_UNAVAILABLE",
+    });
+    json(res, 503, {
+      error: signatureMismatch
+        ? "O armazenamento de arquivos está temporariamente indisponível por autenticação."
+        : "Não foi possível completar o envio ao armazenamento. Tente novamente.",
+      code: signatureMismatch ? "R2_SIGNATURE_MISMATCH" : "R2_UNAVAILABLE",
     });
   }
 }
