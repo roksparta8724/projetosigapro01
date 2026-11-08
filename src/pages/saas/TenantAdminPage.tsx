@@ -1510,6 +1510,173 @@ export function TenantAdminPage() {
           </PageMainGrid>
         ) : null}
 
+
+        {workspaceView === "visao-geral" && overviewSubpage === "processos" ? (
+          <PageMainContent className="min-w-0 gap-4">
+            <TableCard title="Processos da Prefeitura"
+              description="Todos os processos visíveis neste município, organizados por prioridade. A lista é compacta e paginada, mesmo quando existem milhares de registros."
+              icon={ClipboardList}
+              actions={
+                <Button type="button" variant="outline"
+                  className="min-h-9 rounded-xl border-sky-200 bg-white text-sky-900 hover:bg-sky-50"
+                  onClick={() => navigate("/prefeitura/processos")}>
+                  Abrir gestão de processos
+                </Button>
+              }>
+              <div className="min-w-0 space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-slate-600">
+                  <p className="font-medium">{overviewProcesses.length.toLocaleString("pt-BR")} registros encontrados</p>
+                  <span className="text-xs">25 por página · clique no número para consultar</span>
+                </div>
+                <div className="relative">
+                  <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                  <Input aria-label="Pesquisar processos da Visão Geral"
+                    value={queueSearch} onChange={(event) => setQueueSearch(event.target.value)}
+                    placeholder="Número, assunto, interessado ou responsável"
+                    className="h-11 min-w-0 rounded-xl border-slate-300 bg-white pl-10 text-slate-900" />
+                </div>
+                <div role="group" aria-label="Filtrar situação dos processos" className="flex flex-wrap gap-2">
+                  {([
+                    ["todos", "Todos"],
+                    ["andamento", "Em andamento"],
+                    ["pendentes", "Com pendências"],
+                    ["concluidos", "Concluídos"],
+                  ] as const).map(([key, label]) => (
+                    <Button key={key} type="button" size="sm"
+                      aria-pressed={overviewProcessStatus === key}
+                      variant="outline" onClick={() => setOverviewProcessStatus(key)}
+                      className={overviewProcessStatus === key
+                        ? "rounded-xl border-sky-800 bg-sky-900 text-white hover:bg-sky-800 hover:text-white"
+                        : "rounded-xl border-slate-300 bg-white text-slate-800 hover:bg-slate-50"}>
+                      {label}
+                    </Button>
+                  ))}
+                </div>
+                <CompactProcessRegistry
+                  key={overviewProcessStatus + ":" + queueSearch + ":" + (effectiveScopeId || "")}
+                  processes={overviewProcesses}
+                  showArchiveAction={false}
+                  canDispatchProcess={() => false}
+                  emptyMessage="Não há processos para os filtros selecionados."
+                />
+              </div>
+            </TableCard>
+          </PageMainContent>
+        ) : null}
+
+        {workspaceView === "visao-geral" && overviewSubpage === "pendencias" ? (
+          <PageMainContent className="min-w-0 gap-4">
+            <TableCard title="Pendências e prazos"
+              description="Processos que exigem atenção por prazo, documentação, exigência técnica ou guia pendente. Consulta separada do resumo executivo."
+              icon={AlertTriangle}>
+              <div className="min-w-0 space-y-4">
+                <div className="grid gap-2 sm:grid-cols-3">
+                  {[
+                    { label: "Exigem atenção", value: actionRequired.length },
+                    { label: "SLA crítico", value: criticalAlerts.length },
+                    { label: "Guias pendentes", value: metrics.pendingPayments },
+                  ].map((item) => (
+                    <div key={item.label} className="flex min-w-0 items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                      <span className="truncate text-sm font-medium text-slate-700" title={item.label}>{item.label}</span>
+                      <span className="shrink-0 text-xl font-bold tabular-nums text-slate-950">{item.value.toLocaleString("pt-BR")}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="relative">
+                  <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                  <Input aria-label="Pesquisar pendências municipais"
+                    value={overviewPendingSearch}
+                    onChange={(event) => setOverviewPendingSearch(event.target.value)}
+                    placeholder="Pesquisar número, interessado ou assunto"
+                    className="h-11 min-w-0 rounded-xl border-slate-300 bg-white pl-10 text-slate-900" />
+                </div>
+                <p className="text-xs text-slate-600" aria-live="polite">
+                  {overviewPendingProcesses.length.toLocaleString("pt-BR")} processo(s) encontrados · 25 por página
+                </p>
+                <CompactProcessRegistry
+                  key={overviewPendingSearch + ":" + (effectiveScopeId || "")}
+                  processes={overviewPendingProcesses}
+                  showArchiveAction={false}
+                  canDispatchProcess={() => false}
+                  emptyMessage="Nenhuma pendência encontrada para esta Prefeitura."
+                />
+              </div>
+            </TableCard>
+          </PageMainContent>
+        ) : null}
+
+        {workspaceView === "visao-geral" && overviewSubpage === "atividades" ? (
+          <PageMainContent className="min-w-0 gap-4">
+            <TableCard title="Movimentações e atividades"
+              description="Histórico municipal em ordem cronológica, exibindo apenas 15 eventos por página. Abra uma linha para ver o conteúdo completo."
+              icon={Clock3}>
+              <div className="min-w-0 space-y-4">
+                {overviewActivityPageData.total === 0 ? (
+                  <p role="status" className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-600">
+                    Não há movimentações registradas para esta Prefeitura.
+                  </p>
+                ) : (
+                  <>
+                    <div data-sigapro-overview-activities="compact"
+                      className="divide-y divide-slate-200 overflow-hidden rounded-xl border border-slate-200 bg-white">
+                      {overviewActivityPageData.items.map((item, index) => {
+                        const timestamp = Date.parse(item.at);
+                        const displayedAt = Number.isFinite(timestamp)
+                          ? new Date(timestamp).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })
+                          : "Data não informada";
+                        return (
+                          <details key={item.processId + ":" + (overviewActivityPageData.start + index)}
+                            data-sigapro-overview-activity-row="true"
+                            className="group min-w-0 open:bg-sky-50/40">
+                            <summary className="flex min-w-0 cursor-pointer list-none flex-col gap-2 px-4 py-3 outline-offset-2 focus-visible:outline-2 focus-visible:outline-sky-600 sm:flex-row sm:items-center [&::-webkit-details-marker]:hidden">
+                              <div className="flex min-w-0 flex-1 flex-col gap-1 sm:flex-row sm:items-center sm:gap-4">
+                                <span className="shrink-0 text-xs font-semibold text-sky-900">{item.protocol}</span>
+                                <span className="min-w-0 truncate text-sm font-medium text-slate-900" title={item.title}>
+                                  {municipalActivityTitle(item.title)}
+                                </span>
+                              </div>
+                              <div className="flex shrink-0 items-center justify-between gap-3 sm:justify-end">
+                                <time className="text-xs tabular-nums text-slate-600">{displayedAt}</time>
+                                <ChevronDown aria-hidden="true" className="h-4 w-4 text-slate-600 transition-transform group-open:rotate-180" />
+                              </div>
+                            </summary>
+                            <div className="min-w-0 space-y-2 border-t border-slate-200 bg-slate-50 px-4 py-3">
+                              <p className="whitespace-pre-wrap break-words text-sm text-slate-700">{item.detail || "Sem descrição adicional."}</p>
+                              <div className="flex flex-wrap items-center justify-between gap-3">
+                                <span className="text-xs text-slate-600">Registrado por: {item.actor || "SIGAPRO"}</span>
+                                <Button type="button" size="sm" variant="outline"
+                                  className="rounded-lg border-slate-300 bg-white text-sky-900"
+                                  onClick={() => openMunicipalProcess(item.processId)}>Consultar processo</Button>
+                              </div>
+                            </div>
+                          </details>
+                        );
+                      })}
+                    </div>
+                    <nav aria-label="Paginação de atividades da Visão Geral"
+                      className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-3">
+                      <span aria-live="polite" className="text-xs text-slate-600">
+                        Eventos {overviewActivityPageData.start + 1}–{overviewActivityPageData.end} de {overviewActivityPageData.total.toLocaleString("pt-BR")}
+                        {" · "}Página {overviewActivityPageData.page} de {overviewActivityPageData.totalPages}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <Button type="button" size="sm" variant="outline"
+                          disabled={overviewActivityPageData.page <= 1}
+                          onClick={() => setOverviewActivityPage(overviewActivityPageData.page - 1)}
+                          className="rounded-lg border-slate-300 bg-white text-slate-900">Anterior</Button>
+                        <Button type="button" size="sm" variant="outline"
+                          disabled={overviewActivityPageData.page >= overviewActivityPageData.totalPages}
+                          onClick={() => setOverviewActivityPage(overviewActivityPageData.page + 1)}
+                          className="rounded-lg border-slate-300 bg-white text-slate-900">Próxima</Button>
+                      </div>
+                    </nav>
+                  </>
+                )}
+              </div>
+            </TableCard>
+          </PageMainContent>
+        ) : null}
+
         {workspaceView === "fila" ? (
           <TableCard title="Fila operacional" description="Consulte os processos por número, assunto ou responsável. Detalhes aparecem somente quando solicitados." icon={ClipboardList}>
             <div className="space-y-4">
