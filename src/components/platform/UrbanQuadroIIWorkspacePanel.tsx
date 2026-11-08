@@ -948,6 +948,7 @@ export function UrbanQuadroIIWorkspacePanel({
                       ) : null}
                       {entries.length > 0 ? (
                         <UrbanQuadroIILegalReviewPanel
+                          onDataChanged={onDataChanged}
                           municipalityId={municipalityId}
                           canEdit={canEdit}
                           workspace={workspace}
