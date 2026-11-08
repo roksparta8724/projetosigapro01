@@ -68,10 +68,8 @@ describe("SIGAPRO IA — completude jurídica e rascunho sem ativação", () => 
     expect(result?.fields.floor_area_ratio_min?.limit).toBe("0,05");
     expect(result?.fields.lot_area_m2?.limit).toBe("3000");
     expect(result?.fields.lot_frontage_m?.limit).toBe("30");
-    // CA mínimo agora aparece no próprio campo editável, não duplicado no resumo.
-    expect(result?.fields.floor_area_ratio_min?.limit).toBe("0,05");
+    // CA mínimo e testada já aparecem em campos editáveis; não duplicar no resumo.
     expect(result?.otherLegalFields.join(" ")).not.toContain("CA mínimo:");
-    expect(result?.fields.lot_frontage_m?.limit).toBe("30");
     expect(result?.otherLegalFields.join(" ")).not.toContain("Testada mínima (m):");
     expect(result?.warning).toContain("Nenhuma regra foi ativada");
     expect(prepareUrbanRuleDraftFromReviewedRow(row,"quadros.pdf",false)).toBeNull();
