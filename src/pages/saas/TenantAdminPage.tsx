@@ -1457,7 +1457,7 @@ export function TenantAdminPage() {
 
                   <Button type="button" variant="outline" className="sig-dark-action-btn h-11 w-full justify-start rounded-2xl text-slate-50"
                     onClick={() => navigate("/configuracoes?secao=branding")}>
-                    <Building2 className="mr-2 h-4 w-4 text-sky-200" />Identidade visual
+                    <Building2 className="mr-2 h-4 w-4 text-sky-200" />{coatOfArmsPreviewUrl ? "Identidade visual • brasão salvo" : "Identidade visual"}
                   </Button>
                 </div>
               </SectionCard>
