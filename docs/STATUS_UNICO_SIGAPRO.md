@@ -1209,3 +1209,69 @@ Este commit documental tem a marca de liberação permitida pelo
 projeto para Vercel Preview; publicar apenas depois de conferir o
 SHA do commit e os workflows. Esta marca é específica do
 lançamento em homologação: **[deploy-qa]**.
+
+## 08/11/2026 — fechamento progressivo: autorização de anexos e DAM original (QA)
+
+**Escopo:** remover bloqueios reais sem desativar verificações financeiras,
+de autenticação ou separação por Prefeitura. Na prévia anterior o deploy
+`e82c533fbcb8a502cf6cc7fad28524bae302150c` estava READY
+e tinha os três workflows verdes. Essas alterações seguintes não atingem
+a produção e não devem ser dadas como publicadas antes de um Preview
+confirmado com o novo SHA.
+
+**1. Admin prefeitura e Master não escrevem em processos por API.**
+O controle anterior de upload de R2 verificava o vínculo com o
+município, porém o vínculo por si só também existe para contas de
+consulta. O novo
+`server/process-attachment-write-authorization.ts` exige:
+- `current_profile_id` canônico correspondente à pasta de usuário;
+- `has_tenant_access` ativo para o município da chave;
+- `is_municipality_admin=false` e `is_master=false`;
+- caminho estrito `municipalities/{municipio}/{pasta-processual}/{perfil}/{uuid}-{nome}`,
+  sem dot-segments, fora do acervo financeiro e das legislações.
+
+O mesmo gate é usado por `server/api/r2-upload.ts` e
+`server/api/r2-process-proxy-upload.ts`. Uma recusa ou falha
+de permissão resulta em HTTP 403/503 antes de escrever o arquivo.
+O Admin continua autorizado a cadastrar **legislações oficiais**
+pelo fluxo e RPC específicos; não há mudança nas permissões de
+consulta a processos. A via de PDF original DAM continua com
+`authorize_payment_guide_original_upload_v2` e não herda permissões
+do upload processual.
+
+**2. Original DAM em R2/S3:** anteriormente o
+`IfNoneMatch="*"` podia responder 412 para uma chave de DAM já
+existente e o backend devolver sucesso sem conferir o objeto original.
+A nova `verifyExistingDamOriginal` exige HEAD do mesmo objeto,
+tamanho exato, `ContentType=application/pdf`, hash SHA-256
+do corpo recebido e metadado SHA-256 idêntico ao original.
+Se qualquer prova divergir, permanece conflito 409 e não
+há sobrescrita; aplica-se tanto ao R2 SIGAPRO quanto ao
+armazenamento S3 municipal configurado. O hash no HEAD é
+metadado controlado por quem fez o upload, logo **não substitui
+verificação física de leitura/bytes no R2** durante aceite.
+
+**Testes novos ou adaptados:**
+`src/test/processAttachmentWriteAuthorizationQa.test.ts`,
+`src/test/r2ProcessChunkUploadGateQa.test.ts`,
+`src/test/r2ProcessChunkUploadSecurityQa.test.ts`,
+`src/test/qaDamOriginalIdempotency.test.ts`.
+São regressões de código/autorização e não provas de pagamento
+real, leitura IA de planta real ou funcionamento de contas
+autenticadas em todas as telas.
+
+**Pendências comerciais que permanecem explícitas:** execução
+real de cobrança sandbox assinada e baixada de forma idempotente,
+reabertura binária do PDF original, análise técnica concluída no
+banco (QA tinha zero linhas em `process_analysis_sheets`),
+prova de leitura e zoneamento com projeto técnico real,
+testes autenticados de quatro perfis em duas Prefeituras,
+restauração Neon e R2, e carga/performance do backend.
+A liberação comercial exige os dez aceites do documento
+`docs/QA_COMMERCIAL_ACCEPTANCE.md` e autorização específica
+para produção.
+
+**Publicação solicitada pelo responsável:** ao concluir os três
+workflows sem falhas, publicar apenas Preview da branch QA
+com a marca exigida pelo Vercel **[deploy-qa]**;
+não editar `main`, produção, credenciais ou dados municipais.
