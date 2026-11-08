@@ -1,4 +1,5 @@
 import { calculateUrbanMatrixBatchProgress } from "@/lib/urbanLegalMatrixReview";
+import { compareCampoLimpoQuadroIOriginal, type OriginalQuadroIComparison } from "@/lib/compareCampoLimpoQuadroIOriginal";
 import { URBAN_METRICS, isUrbanTestFixtureRule, type UrbanRegulationVersion, type UrbanMetric } from "@/lib/urbanPrecheck";
 import { countCoveredUrbanMetrics, type UrbanLegalEvidenceScope } from "@/lib/urbanEvidenceCoverage";
 import type {
@@ -25,6 +26,7 @@ export type UrbanReadinessCheck = {
 export type UrbanReadinessSummary = {
   readyForHumanAssistedPrecheck: boolean;
   reading: { total: number; verified: number; needsCorrection: number; untreated: number };
+  originalComparison: OriginalQuadroIComparison | null;
   quadroII: { pages: number; draftEntries: number; machineProposals: number };
   counts: {
     versionedLaws: number; numericImports: number; useImports: number;
@@ -157,6 +159,12 @@ export function assessUrbanAiReadiness(data: UrbanReadinessInput): UrbanReadines
   return {
     readyForHumanAssistedPrecheck: checks.every((step) => step.passed),
     reading,
+    originalComparison: data.source &&
+      String(data.source.source_municipality || "").normalize("NFKD")
+        .replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR")
+        .includes("campo limpo paulista")
+      ? compareCampoLimpoQuadroIOriginal(data.source)
+      : null,
     readingIssues,
     metrics,
     quadroII: { pages, draftEntries, machineProposals },
