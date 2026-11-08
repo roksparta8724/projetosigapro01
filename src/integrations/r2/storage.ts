@@ -1,4 +1,5 @@
 import { deleteFile, uploadFile } from "@/integrations/r2/client";
+import { prepareProfileAvatarForUpload } from "@/lib/profileAvatarUpload";
 
 type MunicipalityFileBucket = "process-documents" | "profile-assets" | "institutional-branding";
 
@@ -67,7 +68,12 @@ export async function uploadFileToStorage(input: {
     throw new Error("Usuario invalido para upload.");
   }
 
-  const safeName = sanitizeFileName(input.file.name);
+  // Grandes fotos são otimizadas antes de entrar no payload JSON/base64.
+  // Nunca redimensionar documentos e PDFs assinados.
+  const uploadSource = input.bucket === "profile-assets"
+    ? await prepareProfileAvatarForUpload(input.file)
+    : input.file;
+  const safeName = sanitizeFileName(uploadSource.name);
   const folder = normalizeFolder(input.folder, input.bucket);
   const objectKey = isPlatformAvatar
     ? `platform/profiles/avatars/${safeUserId}/${crypto.randomUUID()}-${safeName}`
@@ -79,7 +85,7 @@ export async function uploadFileToStorage(input: {
         ? "profile-assets"
         : "institutional-branding";
 
-  const uploaded = await uploadFile({ bucket, objectKey, file: input.file });
+  const uploaded = await uploadFile({ bucket, objectKey, file: uploadSource });
   return {
     path: uploaded.objectKey,
     publicUrl: uploaded.publicUrl,
