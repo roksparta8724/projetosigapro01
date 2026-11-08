@@ -1,6 +1,7 @@
 import { getR2EndpointCandidates } from "../r2-runtime.js";
 import { createHash } from "node:crypto";
 import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { authorizePrivateAvatarRead, enforceAuthenticatedAvatarRead } from "../avatar-access.js";
 
 type Req = import("http").IncomingMessage & { method?: string };
 type Res = import("http").ServerResponse;
@@ -237,9 +238,20 @@ export default async function handler(req: Req, res: Res) {
   }
 
   const clients = resolveR2Clients();
+  try {
   const bucket = readEnv("R2_BUCKET_LOGOS") || "sigapro-logos";
 
   if (request.kind === "r2") {
+    if (enforceAuthenticatedAvatarRead()) {
+      const access = await authorizePrivateAvatarRead(req, request.objectKey);
+      if (!access.ok) {
+        json(res, access.status, { error: access.error });
+        return;
+      }
+      // Never permit cross-origin embedding of authenticated user photos.
+      res.setHeader("Cross-Origin-Resource-Policy", "same-origin");
+      res.setHeader("Referrer-Policy", "no-referrer");
+    }
     if (!clients.length) {
       json(res, 503, { error: "Armazenamento de fotos indisponível." });
       return;
@@ -369,5 +381,8 @@ export default async function handler(req: Req, res: Res) {
     json(res, 502, { error: "Foto antiga temporariamente indisponível. O cadastro continua preservado." });
   } finally {
     clearTimeout(timeout);
+  }
+  } finally {
+    for (const client of clients) client.destroy();
   }
 }
