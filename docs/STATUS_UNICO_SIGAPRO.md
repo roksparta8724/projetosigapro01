@@ -1327,3 +1327,9 @@ navegador autenticado.
 - Correção em `src/components/platform/CompactProcessRegistry.tsx`: coluna de marcadores de 44 px com ícone no cabeçalho em vez de texto que quebrava; bandeira com geometria consistente; status e etiqueta longa permitem quebra controlada e truncamento dentro de seus limites; paginação existente de 25 processos preservada.
 - Regressões adicionadas/atualizadas: `src/test/municipalSidebarActiveQa.test.tsx`, `src/components/platform/CompactProcessRegistry.test.tsx` e `src/test/municipalOverviewSubpagesQa.test.tsx`. Não alterar permissões, banco, dados de processos, pagamento, IA ou PDF neste lote.
 - **Fluxo:** PR de trabalho atual é a [#118](https://github.com/roksparta8724/projetosigapro01/pull/118) em DRAFT. Não mesclar na `main`, nem publicar no domínio oficial. Só considerar a prévia QA apta após CI do SHA final e Vercel `READY`. A PR #117 do contexto histórico já havia sido integrada anteriormente; as seções antigas documentam o estágio daquela data.
+
+
+## Liberação visual QA 08/11/2026 — gate do Vercel
+- O lote de correção visual foi verificado no SHA `94327d09247ca635f66ed8d26729bdcaa0224d07`: `SIGAPRO Quality Gate`, `Neon migration validation` e `SIGAPRO OCR isolado - QA` encerraram com `success`; novos testes de menu e marcadores passaram.
+- O primeiro deploy manual da QA com esse SHA foi **cancelado pelo Vercel**, não por erro de compilação: o comando Ignored Build Step exige explicitamente `[deploy-qa]` no título do commit. Alias estável permaneceu na versão antiga. Esta publicação controlada usa a convenção aprovada, sem habilitar deploy automático na branch, sem tocar na `main` nem na produção.
+- Depois deste commit de liberação, verificar os gates no SHA final, estado `READY` do deploy e alias de QA antes de declarar que o navegador mostra as alterações.
