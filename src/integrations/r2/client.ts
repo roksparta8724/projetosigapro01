@@ -1,4 +1,5 @@
 import { backendClient } from "@/integrations/backend/databaseClient";
+import { largeProcessAttachmentMime, PROCESS_INLINE_MAX_BYTES, uploadLargeProcessAttachment } from "@/integrations/r2/processChunkUpload";
 
 export type R2UploadResult = {
   bucket: string;
@@ -360,6 +361,18 @@ export async function uploadFile(input: {
 }) {
   if (isDirectLegalPdfUpload(input.bucket, input.objectKey, input.file)) {
     return uploadLargeLegalPdf(input);
+  }
+  // Avoid Vercel's ~4.5 MiB request limit: 2.5 MiB binary becomes 3.3 MiB
+  // base64. Mandatory project drawings must use the validated chunk path.
+  if (normalizeClientBucket(input.bucket) === "process-documents" &&
+      input.file.size > PROCESS_INLINE_MAX_BYTES) {
+    if (!largeProcessAttachmentMime({...input,bucket:"process-documents"})) {
+      throw new Error("Anexo grande deve ser PDF, PNG, JPEG ou WebP, com referência municipal válida.");
+    }
+    return uploadLargeProcessAttachment({...input,bucket:"process-documents"},async () => {
+      const headers = await getAuthorizationHeaders();
+      return headers;
+    });
   }
   const controller = new AbortController();
   const timeout = window.setTimeout(() => {
