@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { AlertTriangle, BookOpenCheck, CheckCircle2, Loader2, RefreshCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { subscribeUrbanLegalAuditInvalidations } from "@/lib/urbanLegalAuditEvents";
+import { CAMPO_LIMPO_LPUOS_REVIEW, CAMPO_LIMPO_PAULISTA_MUNICIPALITY_ID } from "@/lib/urbanOfficialLegalSources";
 import { isUrbanMatrixBatchArchived } from "@/lib/urbanMatrixBatchStatus";
 import { listLawRegistry } from "@/integrations/backend/urbanLegislationRegistryClient";
 import {
@@ -153,6 +154,54 @@ export function UrbanAiReadinessPanel({
           <RefreshCcw className="mr-2 h-4 w-4" /> Atualizar auditoria
         </Button>
       </div>
+      {municipalityId === CAMPO_LIMPO_PAULISTA_MUNICIPALITY_ID ? (
+        <div data-urban-law-awaiting-review="true"
+          className="mt-4 flex min-w-0 flex-wrap items-start justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50/80 p-4 text-slate-900 dark:border-amber-800 dark:bg-amber-950/25 dark:text-white">
+          <div className="min-w-0 flex-1">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-800 dark:text-amber-300">
+              Referência documental · consulta {CAMPO_LIMPO_LPUOS_REVIEW.checkedOn}
+            </p>
+            <p className="mt-1 text-sm font-extrabold">
+              Lei-base: {CAMPO_LIMPO_LPUOS_REVIEW.baseLawLabel}
+              {" · "}Plano Diretor: {CAMPO_LIMPO_LPUOS_REVIEW.planLawLabel}
+            </p>
+            <p className="mt-1 text-xs font-bold text-amber-900 dark:text-amber-200">
+              {CAMPO_LIMPO_LPUOS_REVIEW.reviewStatus}
+            </p>
+            <p className="mt-1 text-xs leading-5 text-slate-700 dark:text-slate-200">
+              {CAMPO_LIMPO_LPUOS_REVIEW.revisionStatus}
+              {" "}{CAMPO_LIMPO_LPUOS_REVIEW.revisionDetail}
+            </p>
+            <p className="mt-1 text-xs leading-5 text-slate-700 dark:text-slate-200">
+              Histórico a confrontar: {CAMPO_LIMPO_LPUOS_REVIEW.amendmentChain}.
+              Nenhuma regra será ativada por este registro de referência.
+            </p>
+          </div>
+          <div className="flex shrink-0 flex-wrap gap-2">
+            <a href={CAMPO_LIMPO_LPUOS_REVIEW.officialLawUrl}
+              target="_blank" rel="noopener noreferrer"
+              className="inline-flex min-h-9 items-center rounded-lg border border-amber-300 bg-white px-3 py-2 text-xs font-bold text-amber-950 hover:bg-amber-100 dark:border-amber-700 dark:bg-slate-900 dark:text-white">
+              Abrir lei nº 379/2009
+            </a>
+            <button type="button"
+              onClick={() => {
+                const catalog = document.querySelector<HTMLDetailsElement>(
+                  'details[data-sigapro-urban-official-sources="true"]',
+                );
+                if (!catalog) {
+                  setNavigationNotice("Catálogo de fontes oficiais indisponível para esta conta.");
+                  return;
+                }
+                catalog.open = true;
+                window.requestAnimationFrame(() =>
+                  catalog.scrollIntoView?.({ behavior: "smooth", block: "start" }));
+              }}
+              className="min-h-9 rounded-lg border border-amber-300 bg-white px-3 py-2 text-xs font-bold text-amber-950 hover:bg-amber-100 dark:border-amber-700 dark:bg-slate-900 dark:text-white">
+              Conferir alterações
+            </button>
+          </div>
+        </div>
+      ) : null}
       {loading ? <p role="status" className="mt-4 flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
         <Loader2 className="h-4 w-4 animate-spin" /> Consultando o banco municipal...
       </p> : null}
