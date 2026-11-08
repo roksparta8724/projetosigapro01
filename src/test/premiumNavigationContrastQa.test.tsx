@@ -94,4 +94,24 @@ describe("SIGAPRO Premium — letras claras nas máscaras azuis dos dois temas",
     expect(style).toContain('[data-layout-mode="inverse-main"]');
     expect(style).not.toContain("a:not([aria-current");
   });
+  it("não deixa Todos invisível: filtro ativo tem fundo azul escuro e texto branco no tema claro", () => {
+    const tenant = readFileSync("src/pages/saas/TenantAdminPage.tsx", "utf8");
+    expect(tenant).toContain('["todos", "Todos"]');
+    expect(tenant).toContain('aria-pressed={overviewProcessStatus === key}');
+    expect(style).toContain('[aria-label="Filtrar situação dos processos"]');
+    expect(style).toMatch(
+      /button\\[aria-pressed="true"\\] \\{[\\s\\S]*?background-color: #0c4a6e !important;[\\s\\S]*?-webkit-text-fill-color: #ffffff !important;/,
+    );
+    expect(contrast("#ffffff", "#0c4a6e")).toBeGreaterThanOrEqual(4.5);
+    expect(contrast("#ffffff", "#075985")).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("mantém demais filtros legíveis e não afeta o modo inverso", () => {
+    expect(style).toMatch(
+      /\\[data-layout-mode="default"\\] \\.sig-main-shell\\s+\\[aria-label="Filtrar situação dos processos"\\]\\s+button\\[aria-pressed="false"\\] \\{[\\s\\S]*?background-color: #ffffff !important;[\\s\\S]*?color: #1e293b !important;/,
+    );
+    expect(contrast("#1e293b", "#ffffff")).toBeGreaterThanOrEqual(4.5);
+    expect(style).not.toContain('[data-layout-mode="inverse-main"] .sig-main-shell\\n[aria-label="Filtrar situação dos processos"]\\nbutton[aria-pressed="false"]');
+  });
+
 });
