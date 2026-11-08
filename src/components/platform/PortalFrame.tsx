@@ -58,6 +58,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { DEFAULT_AVATAR_EDITOR_DIAMETER } from "@/lib/avatarCropGeometry";
 import { resolveProfileAvatarDisplayUrl } from "@/lib/profileAvatarDisplay";
+import { readCachedProfileAvatar } from "@/lib/profileAvatarCache";
 import { useAuthGateway } from "@/hooks/useAuthGateway";
 import { useInstitutionBranding } from "@/hooks/useInstitutionBranding";
 import { useMunicipality } from "@/hooks/useMunicipality";
@@ -322,7 +323,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
   const navigate = useNavigate();
   const location = useLocation();
   const isConfigPage = location.pathname.startsWith("/configuracoes");
-  const { signOut, authenticatedProfileId, authenticatedEmail } = useAuthGateway();
+  const { signOut, authenticatedProfileId, authenticatedUserId, authenticatedEmail } = useAuthGateway();
   const { session, sessions, setActiveSession } = usePlatformSession();
   const { unreadCount: notificationCount } = useNotifications({
     includeItems: false,
@@ -405,7 +406,15 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
     activeInstitution && "theme" in activeInstitution
       ? activeInstitution.theme
       : null;
+  const authenticatedAvatarOwnerId = authenticatedProfileId || authenticatedUserId || "";
   const userProfile = getUserProfile(authenticatedProfileId || session.id, authenticatedEmail || session.email);
+  // Route-level PortalFrame mounts must not blank the Master avatar while the
+  // remote profile refresh is in progress. The fallback is bound to the
+  // authenticated account, never to the municipality being viewed.
+  const cachedHeaderProfile = authenticatedAvatarOwnerId && !userProfile
+    ? readCachedProfileAvatar(authenticatedAvatarOwnerId, authenticatedEmail)
+    : null;
+  const displayProfile = userProfile || cachedHeaderProfile;
   const canonicalSignedInUser =
     sessionUsers.find((item) => item.id === session.id) ??
     sessionUsers.find(
@@ -772,7 +781,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
     return Array.from(groups.entries());
   }, [filteredSearchItems]);
 
-  const fullUserName = userProfile?.fullName?.trim() || session.name || "Usuário institucional";
+  const fullUserName = displayProfile?.fullName?.trim() || session.name || "Usuário institucional";
   const displayUserName = formatDisplayText(fullUserName, "name", {
     fallback: "Usuário institucional",
     maxLength: 34,
@@ -780,16 +789,16 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
   // A foto cadastrada é a identidade visual da conta em toda a plataforma.
   // Cadastros antigos podem ter useAvatarInHeader=false mesmo com foto R2
   // válida; esse campo legado não deve ocultar uma imagem já salva.
-  const topbarAvatarImageUrl = resolveProfileAvatarDisplayUrl(userProfile) || null;
+  const topbarAvatarImageUrl = resolveProfileAvatarDisplayUrl(displayProfile) || null;
   const topbarAvatarCrop = useMemo(() => {
     if (!topbarAvatarImageUrl) return undefined;
     return {
-      scale: Number(userProfile?.avatarScale ?? 1),
-      offsetX: Number(userProfile?.avatarOffsetX ?? 0),
-      offsetY: Number(userProfile?.avatarOffsetY ?? 0),
+      scale: Number(displayProfile?.avatarScale ?? 1),
+      offsetX: Number(displayProfile?.avatarOffsetX ?? 0),
+      offsetY: Number(displayProfile?.avatarOffsetY ?? 0),
       editorSize: DEFAULT_AVATAR_EDITOR_DIAMETER,
     };
-  }, [topbarAvatarImageUrl, userProfile?.avatarOffsetX, userProfile?.avatarOffsetY, userProfile?.avatarScale]);
+  }, [topbarAvatarImageUrl, displayProfile?.avatarOffsetX, displayProfile?.avatarOffsetY, displayProfile?.avatarScale]);
   const roleLabel = humanizeRoleLabel(userProfile?.professionalType?.trim() || roleLabels[session.role], "Usuário");
   const displaySessionEmail = formatDisplayText(session.email, "email", {
     fallback: "E-mail não informado",
@@ -1458,7 +1467,8 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                   aria-label="Abrir conta do usuário"
                 >
                   <UserAvatar
-                    key={`${authenticatedProfileId || session.id}:${activeInstitutionId || "global"}`}
+                    key={authenticatedAvatarOwnerId || session.id}
+                    authenticatedOwnerId={authenticatedAvatarOwnerId}
                     name={displayUserName}
                     imageUrl={topbarAvatarImageUrl}
                     crop={topbarAvatarCrop}
@@ -2093,7 +2103,8 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                     title={fullUserName}
                   >
                     <UserAvatar
-                      key={`${authenticatedProfileId || session.id}:${activeInstitutionId || "global"}`}
+                      key={authenticatedAvatarOwnerId || session.id}
+                    authenticatedOwnerId={authenticatedAvatarOwnerId}
                       name={displayUserName}
                       imageUrl={topbarAvatarImageUrl}
                       crop={topbarAvatarCrop}
@@ -2128,7 +2139,8 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                     <div className="flex items-start gap-3.5">
                       <div className="relative shrink-0">
                         <UserAvatar
-                          key={`${authenticatedProfileId || session.id}:${activeInstitutionId || "global"}`}
+                          key={authenticatedAvatarOwnerId || session.id}
+                    authenticatedOwnerId={authenticatedAvatarOwnerId}
                           name={displayUserName}
                           imageUrl={topbarAvatarImageUrl}
                           crop={topbarAvatarCrop}
