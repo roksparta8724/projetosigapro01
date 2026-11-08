@@ -756,3 +756,64 @@ próprio/caminho de outro perfil, abertura de avatar, login P50/P95, PDF R2,
 webhook de sandbox, IA em planta real e restauro. Os dez gates comerciais
 seguem pendentes. Nenhum destes dados exige divulgação de documentos
 pessoais ou segredos.
+
+## 07/11/2026 — QA: fotos pessoais sem exigência do módulo Configurações; upload local otimizado
+
+**Continuidade técnica após HEAD `1a791ae7`:** as três verificações automáticas
+desse commit foram **SUCCESS** (Quality Gate, Neon migration validation, OCR
+isolado). A branch QA continua única e a PR #118 continua DRAFT. Nenhum
+deploy, alteração de banco ou merge de produção foi realizado.
+
+**Falha funcional descoberta na revisão do servidor:** `r2-upload` verificava
+`assert_municipality_entitlement_v1('module:Configurações')` para qualquer
+arquivo do bucket compartilhado de logos, inclusive foto pessoal. Uma conta
+sem o módulo administrativo da Prefeitura podia, portanto, ser impedida de
+atualizar sua própria imagem mesmo com vínculo e identificação válidos.
+
+**Correção aplicada apenas ao código QA:**
+- `getR2UploadEntitlement`: fotos pessoais vinculadas ao perfil autenticado
+  exigem plano ativo e passam pelo limite contratual de `storage_bytes`,
+  com `_increment=buffer.byteLength`. A checagem do proprietário e da
+  prefeitura permanece no servidor; o usuário não ganha permissão para
+  identidade institucional.
+- Brasões, logos e demais arquivos de branding permanecem sujeitos ao
+  módulo `Configurações`; documentos e PDFs continuam classificados em
+  `storage_bytes`.
+- Confirmação read-only da função SQL do Neon QA: a capacidade
+  `storage_bytes` verifica `contractActive` e
+  `usage.storageBytes + _increment` versus `limits.storageGb`.
+  Não houve execução do procedimento para gravar dados nem troca de plano.
+
+**Tratamento automático de fotos grandes:** o arquivo com até 2.500.000 bytes
+é mantido íntegro. Imagens estáticas entre esse valor e 12 MiB são
+dimensionadas proporcionalmente no navegador e codificadas WebP em tentativas
+progressivas de 1800/1450/1100/900 px, com qualidade 0,90/0,84/0,76/0,70;
+se o browser não oferecer decodificação/canvas compatíveis, o usuário recebe
+erro específico, sem enviar bytes inválidos. O upload base64 foi limitado a
+4 MiB de corpo HTTP para permanecer abaixo do teto de ~4,5 MB da Vercel.
+Documentos, guias, assinaturas e PDFs NÃO são redimensionados.
+Código: `src/lib/profileAvatarUpload.ts`,
+`src/integrations/r2/storage.ts`, `server/api/r2-upload.ts`.
+Regressões: `src/test/profileAvatarUploadQa.test.ts`,
+`src/test/r2AvatarUploadOwnershipQa.test.ts`.
+Commits: `d1e425ba`, `ddbb0814`, `6898ff96`,
+`ed9a7281`, `15d5f4a4`, `4eedcbf5`, `2c0d1121`.
+
+**Limitações que NÃO podem ser marcadas como homologadas:**
+- Necessária prova com login real de Master, profissional, analista e
+  funcionário da Prefeitura, incluindo recarga de avatar e consistência
+  visual após navegar; testes de Node/Vitest não representam sessão
+  autenticada nem upload físico de R2.
+- O GET público legado do avatar R2 permanece sem autenticação; foto não
+  está provada privada só com a proteção de upload e ausência de CDN na
+  resposta. Migrar primeiro o leitor para URL assinada e testar em QA antes
+  de bloquear GET, evitando fotos invisíveis.
+- O fluxo de PDF técnico maior que o limite inline precisa de via própria de
+  upload em partes e prova real; não submeter PDFs via otimizador de avatar.
+- Reavaliar cota contratual e contabilização física de avatars do bucket
+  logos na prova operacional.
+- Os dez gates de aceite comercial continuam `pending` até evidências
+  reais, isoladas e autenticadas; não publicar produção.
+
+**Critério de validação de código deste lote:** novo HEAD precisa dos três
+workflows bem-sucedidos, incluindo testes Vitest, TypeScript, lint e build.
