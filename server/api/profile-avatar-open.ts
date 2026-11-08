@@ -369,10 +369,9 @@ export default async function handler(req: Req, res: Res) {
         }
       }
       if (!cached && lastCacheError) {
-        console.warn("[SIGAPRO][AvatarLegacy] Não foi possível cachear a foto no R2.", {
-          cacheKey,
-          error: lastCacheError,
-        });
+        // Provider exceptions can contain internal endpoints and credentials.
+        // They must never be printed alongside a persistent object identity.
+        console.warn("[SIGAPRO][AvatarLegacy] cache_unavailable");
       }
     }
 
