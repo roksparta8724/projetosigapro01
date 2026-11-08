@@ -1,6 +1,6 @@
 ﻿import { FormEvent, useEffect, useMemo, useState } from "react";
 import { AlertTriangle, ArrowLeft, Building2, CheckCircle2, ClipboardList, Clock3, ChevronDown, FileText, Network, PencilLine, Plus, Search, ShieldAlert, ShieldCheck, Undo2, UserCog, UserRoundCog, UserX, Users2, Wallet } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,6 +28,10 @@ import { PlanCapacityCard } from "@/components/platform/PlanCapacityCard";
 import { usePlanCapacityLive } from "@/hooks/usePlanCapacityLive";
 import { paginateMunicipalItems } from "@/lib/municipalListPagination";
 import { CompactUserRegistry } from "@/components/platform/CompactUserRegistry";
+import { CompactProcessRegistry } from "@/components/platform/CompactProcessRegistry";
+import { MunicipalOverviewSubnav } from "@/components/platform/MunicipalOverviewSubnav";
+import { isMunicipalOverviewSubpagePath, municipalOverviewSubpageFromPath } from "@/lib/municipalOverviewSubpages";
+import { buildPlanCapacityMetrics } from "@/lib/planUsageDashboard";
 
 import {
   assignRemoteProfileDepartment,
@@ -330,6 +334,9 @@ function resolveMunicipalCoatOfArmsPreview(reference?: string | null) {
 
 export function TenantAdminPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const overviewSubpage = municipalOverviewSubpageFromPath(location.pathname);
+  const isNestedOverview = isMunicipalOverviewSubpagePath(location.pathname);
   const { session } = usePlatformSession();
   const planEntitlements = usePlanEntitlements();
   const { municipality, scopeId, name: municipalityName } = useMunicipality();
@@ -384,11 +391,19 @@ export function TenantAdminPage() {
   const [savingUserId, setSavingUserId] = useState<string | null>(null);
   const [workspaceView, setWorkspaceView] = useState<WorkspaceView>("visao-geral");
   const [queueSearch, setQueueSearch] = useState("");
+  const [overviewProcessStatus, setOverviewProcessStatus] = useState<"todos" | "andamento" | "pendentes" | "concluidos">("todos");
+  const [overviewActivityPage, setOverviewActivityPage] = useState(1);
   const [queuePage, setQueuePage] = useState(1);
   const [historyPage, setHistoryPage] = useState(1);
   const [segment, setSegment] = useState<UserSegment>("todos");
   const [userPage, setUserPage] = useState(1);
   const [createUserOpen, setCreateUserOpen] = useState(false);
+
+  // A direct link, browser back/forward, or copied URL must always display the
+  // requested overview subpage instead of a previously selected operational tab.
+  useEffect(() => {
+    if (isNestedOverview) setWorkspaceView("visao-geral");
+  }, [isNestedOverview, location.pathname]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"todos" | AccountStatus>("todos");
   const [roleFilter, setRoleFilter] = useState<"todos" | UserRole>("todos");
@@ -447,8 +462,12 @@ export function TenantAdminPage() {
   const metrics = useMemo(() => ({ protocolsInProgress: tenantProcesses.filter((process) => !["deferido", "indeferido", "arquivado"].includes(process.status)).length, inAnalysis: tenantProcesses.filter((process) => ["analise_tecnica", "reapresentacao", "exigencia"].includes(process.status)).length, pendingPayments: tenantProcesses.filter((process) => hasPendingGuide(process)).length, approved: tenantProcesses.filter((process) => process.status === "deferido").length }), [tenantProcesses, tenantSettings]);
   const criticalAlerts = useMemo(() => tenantProcesses.filter((process) => process.sla.breached || process.sla.hoursRemaining <= 12), [tenantProcesses]);
   const pendingSectorItems = useMemo(() => [{ label: "Triagem", value: tenantProcesses.filter((process) => process.triage.status !== "concluido").length, helper: "Entradas aguardando conferência documental" }, { label: "Análise", value: tenantProcesses.filter((process) => process.status === "analise_tecnica").length, helper: "Processos em parecer técnico" }, { label: "Financeiro", value: tenantProcesses.filter((process) => hasPendingGuide(process)).length, helper: "Processos com guia emitida ainda sem compensação" }], [tenantProcesses, tenantSettings]);
-  const actionRequired = useMemo(() => tenantProcesses.filter((process) => process.requirements.some((item) => item.status === "aberta" || item.status === "respondida") || process.sla.breached || hasPendingGuide(process)).slice(0, 6), [tenantProcesses, tenantSettings]);
-  const recentActivity = useMemo(() => tenantProcesses.flatMap((process) => process.timeline.slice(0, 2).map((entry) => ({ processId: process.id, protocol: process.protocol, title: entry.title, detail: entry.detail, actor: entry.actor, at: entry.at, status: process.status }))), [tenantProcesses]);
+  const actionRequired = useMemo(() => tenantProcesses.filter((process) => process.requirements.some((item) => item.status === "aberta" || item.status === "respondida") || process.sla.breached || process.sla.hoursRemaining <= 12 || hasPendingGuide(process)), [tenantProcesses, tenantSettings]);
+  const recentActivity = useMemo(() => tenantProcesses.flatMap((process) => process.timeline.slice(0, 2).map((entry) => ({ processId: process.id, protocol: process.protocol, title: entry.title, detail: entry.detail, actor: entry.actor, at: entry.at, status: process.status }))).sort((a, b) => {
+    const aTime = Date.parse(a.at);
+    const bTime = Date.parse(b.at);
+    return (Number.isFinite(bTime) ? bTime : 0) - (Number.isFinite(aTime) ? aTime : 0);
+  }), [tenantProcesses]);
   const recentApprovals = useMemo(() => tenantProcesses.filter((process) => process.status === "deferido").slice(0, 5), [tenantProcesses]);
   const mainQueue = useMemo(() => [...tenantProcesses].sort((a, b) => { const aPriority = a.sla.breached ? 2 : a.sla.hoursRemaining <= 12 ? 1 : 0; const bPriority = b.sla.breached ? 2 : b.sla.hoursRemaining <= 12 ? 1 : 0; if (aPriority !== bPriority) return bPriority - aPriority; return a.sla.hoursRemaining - b.sla.hoursRemaining; }), [tenantProcesses]);
   const filteredQueue = useMemo(() => {
@@ -457,6 +476,21 @@ export function TenantAdminPage() {
       [process.protocol, process.title, process.ownerName, process.technicalLead, process.address]
         .some((value) => String(value || "").toLocaleLowerCase("pt-BR").includes(term))) : mainQueue;
   }, [mainQueue, queueSearch]);
+  const overviewProcesses = useMemo(() => filteredQueue.filter((process) => {
+    const completed = ["deferido", "indeferido", "arquivado"].includes(process.status);
+    if (overviewProcessStatus === "concluidos") return completed;
+    if (overviewProcessStatus === "andamento") return !completed;
+    if (overviewProcessStatus === "pendentes") return !completed && (
+      process.sla.breached || process.sla.hoursRemaining <= 12 ||
+      ["exigencia", "pendencia_documental", "pagamento_pendente"].includes(process.status) ||
+      process.requirements.some((item) => item.status === "aberta" || item.status === "respondida") ||
+      hasPendingGuide(process)
+    );
+    return true;
+  }), [filteredQueue, overviewProcessStatus, tenantSettings]);
+  const overviewActivityPageData = paginateMunicipalItems(recentActivity, overviewActivityPage, 15);
+  const planSnapshot = planCapacity.rows[0];
+  const planUsersMetric = planSnapshot ? buildPlanCapacityMetrics(planSnapshot).find((item) => item.key === "users") : null;
   const queuePageData = paginateMunicipalItems(filteredQueue, queuePage, 20);
   const historyPageData = paginateMunicipalItems(recentActivity, historyPage, 20);
   const openMunicipalProcess = (processId: string) => {
