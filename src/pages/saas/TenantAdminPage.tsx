@@ -392,6 +392,7 @@ export function TenantAdminPage() {
   const [workspaceView, setWorkspaceView] = useState<WorkspaceView>("visao-geral");
   const [queueSearch, setQueueSearch] = useState("");
   const [overviewProcessStatus, setOverviewProcessStatus] = useState<"todos" | "andamento" | "pendentes" | "concluidos">("todos");
+  const [overviewProcessSearch, setOverviewProcessSearch] = useState("");
   const [overviewActivityPage, setOverviewActivityPage] = useState(1);
   const [overviewPendingSearch, setOverviewPendingSearch] = useState("");
   const [queuePage, setQueuePage] = useState(1);
@@ -461,23 +462,45 @@ export function TenantAdminPage() {
   }, [roleFilter, search, segment, statusFilter, tenantUsers]);
 
   const metrics = useMemo(() => ({ protocolsInProgress: tenantProcesses.filter((process) => !["deferido", "indeferido", "arquivado"].includes(process.status)).length, inAnalysis: tenantProcesses.filter((process) => ["analise_tecnica", "reapresentacao", "exigencia"].includes(process.status)).length, pendingPayments: tenantProcesses.filter((process) => hasPendingGuide(process)).length, approved: tenantProcesses.filter((process) => process.status === "deferido").length }), [tenantProcesses, tenantSettings]);
-  const criticalAlerts = useMemo(() => tenantProcesses.filter((process) => process.sla.breached || process.sla.hoursRemaining <= 12), [tenantProcesses]);
+  const criticalAlerts = useMemo(() => tenantProcesses.filter((process) =>
+    !["deferido", "indeferido", "arquivado"].includes(process.status) &&
+    (process.sla.breached || process.sla.hoursRemaining <= 12)
+  ), [tenantProcesses]);
   const pendingSectorItems = useMemo(() => [{ label: "Triagem", value: tenantProcesses.filter((process) => process.triage.status !== "concluido").length, helper: "Entradas aguardando conferência documental" }, { label: "Análise", value: tenantProcesses.filter((process) => process.status === "analise_tecnica").length, helper: "Processos em parecer técnico" }, { label: "Financeiro", value: tenantProcesses.filter((process) => hasPendingGuide(process)).length, helper: "Processos com guia emitida ainda sem compensação" }], [tenantProcesses, tenantSettings]);
-  const actionRequired = useMemo(() => tenantProcesses.filter((process) => process.requirements.some((item) => item.status === "aberta" || item.status === "respondida") || process.sla.breached || process.sla.hoursRemaining <= 12 || hasPendingGuide(process)), [tenantProcesses, tenantSettings]);
+  const actionRequired = useMemo(() => tenantProcesses.filter((process) =>
+    !["deferido", "indeferido", "arquivado"].includes(process.status) &&
+    (process.requirements.some((item) => item.status === "aberta" || item.status === "respondida") ||
+      process.sla.breached || process.sla.hoursRemaining <= 12 || hasPendingGuide(process))
+  ), [tenantProcesses, tenantSettings]);
   const recentActivity = useMemo(() => tenantProcesses.flatMap((process) => process.timeline.slice(0, 2).map((entry) => ({ processId: process.id, protocol: process.protocol, title: entry.title, detail: entry.detail, actor: entry.actor, at: entry.at, status: process.status }))).sort((a, b) => {
     const aTime = Date.parse(a.at);
     const bTime = Date.parse(b.at);
     return (Number.isFinite(bTime) ? bTime : 0) - (Number.isFinite(aTime) ? aTime : 0);
   }), [tenantProcesses]);
   const recentApprovals = useMemo(() => tenantProcesses.filter((process) => process.status === "deferido").slice(0, 5), [tenantProcesses]);
-  const mainQueue = useMemo(() => [...tenantProcesses].sort((a, b) => { const aPriority = a.sla.breached ? 2 : a.sla.hoursRemaining <= 12 ? 1 : 0; const bPriority = b.sla.breached ? 2 : b.sla.hoursRemaining <= 12 ? 1 : 0; if (aPriority !== bPriority) return bPriority - aPriority; return a.sla.hoursRemaining - b.sla.hoursRemaining; }), [tenantProcesses]);
+  const orderedAllProcesses = useMemo(() => [...tenantProcesses].sort((a, b) => {
+    const aClosed = ["deferido", "indeferido", "arquivado"].includes(a.status);
+    const bClosed = ["deferido", "indeferido", "arquivado"].includes(b.status);
+    if (aClosed !== bClosed) return Number(aClosed) - Number(bClosed);
+    const aPriority = a.sla.breached ? 2 : a.sla.hoursRemaining <= 12 ? 1 : 0;
+    const bPriority = b.sla.breached ? 2 : b.sla.hoursRemaining <= 12 ? 1 : 0;
+    if (aPriority !== bPriority) return bPriority - aPriority;
+    return a.sla.hoursRemaining - b.sla.hoursRemaining;
+  }), [tenantProcesses]);
+  const mainQueue = useMemo(() => orderedAllProcesses.filter((process) =>
+    !["deferido", "indeferido", "arquivado"].includes(process.status)
+  ), [orderedAllProcesses]);
   const filteredQueue = useMemo(() => {
     const term = queueSearch.trim().toLocaleLowerCase("pt-BR");
     return term ? mainQueue.filter((process) =>
       [process.protocol, process.title, process.ownerName, process.technicalLead, process.address]
         .some((value) => String(value || "").toLocaleLowerCase("pt-BR").includes(term))) : mainQueue;
   }, [mainQueue, queueSearch]);
-  const overviewProcesses = useMemo(() => filteredQueue.filter((process) => {
+  const overviewProcesses = useMemo(() => orderedAllProcesses.filter((process) => {
+    const term = overviewProcessSearch.trim().toLocaleLowerCase("pt-BR");
+    const matchesSearch = !term || [process.protocol, process.title, process.ownerName, process.technicalLead, process.address]
+      .some((value) => String(value || "").toLocaleLowerCase("pt-BR").includes(term));
+    if (!matchesSearch) return false;
     const completed = ["deferido", "indeferido", "arquivado"].includes(process.status);
     if (overviewProcessStatus === "concluidos") return completed;
     if (overviewProcessStatus === "andamento") return !completed;
@@ -488,7 +511,7 @@ export function TenantAdminPage() {
       hasPendingGuide(process)
     );
     return true;
-  }), [filteredQueue, overviewProcessStatus, tenantSettings]);
+  }), [orderedAllProcesses, overviewProcessSearch, overviewProcessStatus, tenantSettings]);
   const overviewPendingProcesses = useMemo(() => {
     const term = overviewPendingSearch.trim().toLocaleLowerCase("pt-BR");
     return term ? actionRequired.filter((process) =>
@@ -505,6 +528,7 @@ export function TenantAdminPage() {
     setOverviewActivityPage(1);
     setOverviewPendingSearch("");
     setOverviewProcessStatus("todos");
+    setOverviewProcessSearch("");
   }, [effectiveScopeId]);
   const openMunicipalProcess = (processId: string) => {
     const found = tenantProcesses.find((process) => process.id === processId);
@@ -1531,7 +1555,7 @@ export function TenantAdminPage() {
                 <div className="relative">
                   <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
                   <Input aria-label="Pesquisar processos da Visão Geral"
-                    value={queueSearch} onChange={(event) => setQueueSearch(event.target.value)}
+                    value={overviewProcessSearch} onChange={(event) => setOverviewProcessSearch(event.target.value)}
                     placeholder="Número, assunto, interessado ou responsável"
                     className="h-11 min-w-0 rounded-xl border-slate-300 bg-white pl-10 text-slate-900" />
                 </div>
@@ -1553,7 +1577,7 @@ export function TenantAdminPage() {
                   ))}
                 </div>
                 <CompactProcessRegistry
-                  key={overviewProcessStatus + ":" + queueSearch + ":" + (effectiveScopeId || "")}
+                  key={overviewProcessStatus + ":" + overviewProcessSearch + ":" + (effectiveScopeId || "")}
                   processes={overviewProcesses}
                   showArchiveAction={false}
                   canDispatchProcess={() => false}
