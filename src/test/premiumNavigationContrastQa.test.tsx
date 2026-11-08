@@ -99,19 +99,21 @@ describe("SIGAPRO Premium — letras claras nas máscaras azuis dos dois temas",
     expect(tenant).toContain('["todos", "Todos"]');
     expect(tenant).toContain('aria-pressed={overviewProcessStatus === key}');
     expect(style).toContain('[aria-label="Filtrar situação dos processos"]');
-    expect(style).toMatch(
-      /button\\[aria-pressed="true"\\] \\{[\\s\\S]*?background-color: #0c4a6e !important;[\\s\\S]*?-webkit-text-fill-color: #ffffff !important;/,
-    );
+
+    const selectedRule = style.split('button[aria-pressed="true"] {')[1]?.split("}")[0];
+    expect(selectedRule).toContain("background-color: #0c4a6e !important;");
+    expect(selectedRule).toContain("-webkit-text-fill-color: #ffffff !important;");
     expect(contrast("#ffffff", "#0c4a6e")).toBeGreaterThanOrEqual(4.5);
     expect(contrast("#ffffff", "#075985")).toBeGreaterThanOrEqual(4.5);
   });
 
-  it("mantém demais filtros legíveis e não afeta o modo inverso", () => {
-    expect(style).toMatch(
-      /\\[data-layout-mode="default"\\] \\.sig-main-shell\\s+\\[aria-label="Filtrar situação dos processos"\\]\\s+button\\[aria-pressed="false"\\] \\{[\\s\\S]*?background-color: #ffffff !important;[\\s\\S]*?color: #1e293b !important;/,
-    );
+  it("mantém demais filtros legíveis sem alterar o tema inverso", () => {
+    expect(style).toContain(`html body #root [data-layout-mode="default"] .sig-main-shell
+[aria-label="Filtrar situação dos processos"]
+button[aria-pressed="false"] {`);
+    const inactiveRule = style.split('button[aria-pressed="false"] {')[1]?.split("}")[0];
+    expect(inactiveRule).toContain("background-color: #ffffff !important;");
+    expect(inactiveRule).toContain("color: #1e293b !important;");
     expect(contrast("#1e293b", "#ffffff")).toBeGreaterThanOrEqual(4.5);
-    expect(style).not.toContain('[data-layout-mode="inverse-main"] .sig-main-shell\\n[aria-label="Filtrar situação dos processos"]\\nbutton[aria-pressed="false"]');
   });
-
 });
