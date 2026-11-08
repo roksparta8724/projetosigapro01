@@ -75,12 +75,13 @@ describe("SIGAPRO QA — auth de anexos grandes falha fechado antes do R2", () =
     vi.mocked(callDataApiRpc)
       .mockResolvedValueOnce(valid(other))
       .mockResolvedValueOnce(valid(true))
-      .mockResolvedValueOnce(valid(true));
+      .mockResolvedValueOnce(valid(false))
+      .mockResolvedValueOnce(valid(false));
     const result=await run(payload,"FAKE_QA");
     expect(result.statusCode).toBe(403);
     expect(resolveMunicipalDocumentTarget).not.toHaveBeenCalled();
     expect(vi.mocked(callDataApiRpc).mock.calls.map(x=>x[1])).toEqual([
-      "current_profile_id","has_tenant_access","assert_municipality_entitlement_v1",
+      "current_profile_id","has_tenant_access","is_municipality_admin","is_master",
     ]);
   });
 
@@ -88,15 +89,32 @@ describe("SIGAPRO QA — auth de anexos grandes falha fechado antes do R2", () =
     vi.mocked(callDataApiRpc)
       .mockResolvedValueOnce(valid(owner))
       .mockResolvedValueOnce(valid(false))
-      .mockResolvedValueOnce(valid(true));
+      .mockResolvedValueOnce(valid(false))
+      .mockResolvedValueOnce(valid(false));
     expect((await run(payload,"FAKE_QA")).statusCode).toBe(403);
     expect(resolveMunicipalDocumentTarget).not.toHaveBeenCalled();
+  });
+
+  it("Admin da Prefeitura e Master podem consultar, mas nunca anexar documentos", async()=>{
+    for (const forbiddenRole of ["is_municipality_admin","is_master"]) {
+      vi.mocked(callDataApiRpc).mockReset();
+      vi.mocked(callDataApiRpc)
+        .mockResolvedValueOnce(valid(owner))
+        .mockResolvedValueOnce(valid(true))
+        .mockResolvedValueOnce(valid(forbiddenRole==="is_municipality_admin"))
+        .mockResolvedValueOnce(valid(forbiddenRole==="is_master"));
+      const response = await run(payload,"FAKE_QA");
+      expect(response.statusCode).toBe(403);
+      expect(resolveMunicipalDocumentTarget).not.toHaveBeenCalled();
+    }
   });
 
   it("nega limites de plano expirado antes de qualquer escrita",async()=>{
     vi.mocked(callDataApiRpc)
       .mockResolvedValueOnce(valid(owner))
       .mockResolvedValueOnce(valid(true))
+      .mockResolvedValueOnce(valid(false))
+      .mockResolvedValueOnce(valid(false))
       .mockResolvedValueOnce({ok:false,status:409,payload:null,error:"quota"});
     expect((await run(payload,"FAKE_QA")).statusCode).toBe(409);
     expect(resolveMunicipalDocumentTarget).not.toHaveBeenCalled();
