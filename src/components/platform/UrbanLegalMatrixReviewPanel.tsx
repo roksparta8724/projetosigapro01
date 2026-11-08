@@ -165,10 +165,12 @@ export function UrbanLegalMatrixReviewPanel({
       row.row_index === index && row.field_code === "ca_minimo_original");
     const provisional = getAiu2ProvisionalCriterion(source, index, guidance);
     const prepared = provisional
-      ? prepareAiu2ProvisionalSimulation(source, selected.document_title, index, guidance)
+      ? prepareAiu2ProvisionalSimulation(source, selected.document_title, index, guidance,
+          { municipalityId, documentSha256: selected.document_sha256 })
       : prepareUrbanRuleDraftFromReviewedRow(
           source, selected.document_title,
           Boolean(reviewed?.readingReviewed && !reviewed.needsCorrection),
+          { municipalityId, documentSha256: selected.document_sha256 },
         );
     if (!prepared) {
       setError("A linha selecionada não tem dados seguros para pré-preencher.");
@@ -631,7 +633,8 @@ export function UrbanLegalMatrixReviewPanel({
                           className="min-h-10 border-sky-300 text-sky-900"
                           onClick={() => {
                             const prepared = prepareUrbanRuleDraftFromReviewedRow(
-                              entry.source, selected.document_title, true);
+                              entry.source, selected.document_title, true,
+                              { municipalityId, documentSha256: selected.document_sha256 });
                             if (!prepared) {
                               setError("Esta linha não contém limites numéricos seguros para pré-preencher.");
                               return;
