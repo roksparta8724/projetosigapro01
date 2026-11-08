@@ -109,7 +109,7 @@ export function MunicipalUrbanRulesSettings({
     // The date of registration is not the effective date of a municipal law.
     // Never quietly date a legal rule as "today".
     if (!/^\d{4}-\d{2}-\d{2}$/.test(effectiveFrom)) {
-      setNotice("A data de vigência ainda não está comprovada. Consulte a publicação e suas alterações; não use a data do cadastro.");
+      setNotice("Informe a data de início de vigência comprovada pela norma oficial. Consulte a publicação e suas alterações; não use a data do cadastro.");
       effectiveFromRef.current?.focus();
       effectiveFromRef.current?.scrollIntoView?.({ behavior: "smooth", block: "center" });
       return;
