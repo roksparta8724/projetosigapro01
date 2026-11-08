@@ -244,7 +244,7 @@ export default async function handler(req: Req, res: Res) {
   if (request.kind === "r2") {
     if (enforceAuthenticatedAvatarRead()) {
       const access = await authorizePrivateAvatarRead(req, request.objectKey);
-      if (!access.ok) {
+      if (access.ok === false) {
         json(res, access.status, { error: access.error });
         return;
       }
