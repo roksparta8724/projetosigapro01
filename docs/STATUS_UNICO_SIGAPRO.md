@@ -1275,3 +1275,47 @@ para produção.
 workflows sem falhas, publicar apenas Preview da branch QA
 com a marca exigida pelo Vercel **[deploy-qa]**;
 não editar `main`, produção, credenciais ou dados municipais.
+
+## 08/11/2026 — correção de contraste azul no projeto (captura da Prefeitura)
+
+**Origem do problema:** captura do usuário na rota
+`/prefeitura/visao-geral/atividades` mostra fundo azul escuro e
+título `Atividades` e descrição com caracteres pretos no tema claro.
+O usuário pediu **alterar o software**, não criar imagem ilustrativa.
+
+**Causa de código confirmada:** a navegação usa
+`text-white`/`text-sky-100` em componentes React, porém existem
+cascatas globais muito específicas que forçam o `color` e o
+`-webkit-text-fill-color` escuros nos textos do modo claro.
+Classes Tailwind individuais não asseguravam precedência e o
+resultado era texto preto sobre botão azul. O mesmo padrão poderia
+atingir abas principais e filtros de processos.
+
+**Correção estrutural apenas na QA:**
+- `src/components/platform/MunicipalOverviewSubnav.tsx` marca
+  estado e elementos semânticos das abas Resumo, Processos,
+  Pendências e Atividades (título, descrição, contador).
+- `src/components/platform/PageLayout.tsx` identifica a aba
+  principal selecionada com `aria-current="page"`, preservando
+  `data-nav-active` anterior.
+- `src/styles/premium-navigation-contrast.css` reforça
+  **somente os controles selecionados com fundo azul** usando
+  seletores explícitos de estado, `color` e
+  `-webkit-text-fill-color` em branco e azul muito claro. Inclui
+  contadores e filtros ativos; as abas inativas mantêm texto
+  escuro no tema claro e claro no tema escuro.
+- `src/main.tsx` importa o CSS de contraste **depois** dos
+  estilos globais `index.css` e `surface-polarity.css`.
+  Não altera cores nem conteúdos dos documentos, R2, guias ou
+  permissões.
+- Testes `src/test/premiumNavigationContrastQa.test.tsx`
+  verificam estado da navegação, escopo da regra, ordenação
+  dos estilos, descrição e contador ativo e contraste mínimo
+  WCAG AA dos textos brancos/azuis sobre o gradiente.
+
+**Liberação:** publicar exclusivamente Preview após os três
+workflows verdes, com commit de QA contendo `[deploy-qa]`,
+confirmar SHA da prévia e reinspecionar as quatro subpáginas e
+guias principais em tema claro e escuro. **Não fazer merge nem
+deploy de produção.** O CI não substitui o aceite visual em
+navegador autenticado.
