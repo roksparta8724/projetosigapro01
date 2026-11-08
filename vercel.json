@@ -76,6 +76,10 @@
       "destination": "/api/r2?action=upload"
     },
     {
+      "source": "/api/r2-process-proxy-upload",
+      "destination": "/api/r2?action=process-proxy-upload"
+    },
+    {
       "source": "/api/r2-delete",
       "destination": "/api/r2?action=delete"
     },
