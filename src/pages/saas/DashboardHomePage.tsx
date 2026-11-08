@@ -1151,7 +1151,7 @@ export function DashboardHomePage() {
       <PageShell>
         <PageHero eyebrow="Resumo executivo" title={headlineTitle} description={headlineDescription} icon={LayoutDashboard} actions={heroActions} />
 
-        {showPlanCapacity && !isMaster ? renderPlanCapacity() : null}
+        {section === "visao-geral" && showPlanCapacity && !isMaster ? renderPlanCapacity() : null}
 
         <InternalSectionNav
           items={tabs}
