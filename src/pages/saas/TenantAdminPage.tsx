@@ -1390,8 +1390,11 @@ export function TenantAdminPage() {
             <PageMainContent>
               <SectionCard
                 title="Centro operacional da Prefeitura"
-                description="Resumo executivo da operação municipal, com leitura da fila principal e prioridades da coordenação."
+                description="Somente as três prioridades principais. O histórico completo fica na subpágina Processos."
                 icon={ClipboardList}
+                actions={<Button type="button" variant="outline" size="sm"
+                  className="rounded-xl border-sky-200 bg-white text-sky-900"
+                  onClick={() => navigate("/prefeitura/visao-geral/processos")}>Ver processos</Button>}
                 className="shadow-[0_12px_30px_rgba(15,23,42,0.05)]"
                 contentClassName="space-y-5"
               >
@@ -1439,7 +1442,7 @@ export function TenantAdminPage() {
                   description="Últimos eventos. Clique em Ver detalhes para expandir a movimentação."
                   icon={Clock3}
                   actions={<Button type="button" variant="outline" className="rounded-xl border-sky-200 text-sky-800"
-                    onClick={() => setWorkspaceView("historico")}>Ver histórico</Button>}
+                    onClick={() => navigate("/prefeitura/visao-geral/atividades")}>Todas as atividades</Button>}
                 >
                   <div className="space-y-3">
                     {recentActivity.length === 0 ? (
@@ -1447,7 +1450,7 @@ export function TenantAdminPage() {
                         Nenhuma movimentação recente encontrada.
                       </div>
                     ) : (
-                      recentActivity.slice(0, 5).map((item, index) => (
+                      recentActivity.slice(0, 3).map((item, index) => (
                         <MunicipalActivityCard key={`${item.processId}-${index}`} item={item}
                           onOpenProcess={() => openMunicipalProcess(item.processId)} />
                       ))
@@ -1478,7 +1481,11 @@ export function TenantAdminPage() {
             </PageMainContent>
 
             <PageSideContent>
-              <SectionCard title="Pendências críticas" description="Alertas e gargalos que exigem decisão imediata." icon={AlertTriangle}>
+              <SectionCard title="Pendências críticas" description="Alertas e gargalos que exigem decisão imediata."
+                icon={AlertTriangle}
+                actions={<Button type="button" size="sm" variant="outline"
+                  className="rounded-xl border-sky-200 bg-white text-sky-900"
+                  onClick={() => navigate("/prefeitura/visao-geral/pendencias")}>Ver todas</Button>}>
                 <div className="space-y-4">
                   <AlertCard
                     title="SLA crítico"
@@ -1494,7 +1501,7 @@ export function TenantAdminPage() {
                       Nenhuma prioridade crítica adicional encontrada.
                     </div>
                   ) : (
-                    actionRequired.slice(0, 3).map((process) => (
+                    actionRequired.slice(0, 2).map((process) => (
                       <div key={process.id} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
