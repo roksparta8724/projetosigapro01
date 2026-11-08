@@ -55,8 +55,18 @@ async function probe(spec) {
     const elapsedMs=Math.round(performance.now()-started);
     const contentType=response.headers.get("content-type") || "";
     const text=await response.text();
-    if (response.status !== spec.status) throw Error(
-      "Unexpected status ("+response.status+" vs "+spec.status+")");
+    if (response.status !== spec.status) {
+      // Only a recognisable Vercel Authentication page may skip an
+      // untrusted external runner. A JSON 401 from our own /api/health
+      // remains a genuine application failure and must fail the job.
+      const protectedByVercel = response.status===401 &&
+        contentType.toLowerCase().includes("text/html") &&
+        /vercel|authentication required|deployment protection/i.test(text);
+      if (protectedByVercel)
+        return {id:spec.id,ok:false,protectedByVercel:true,
+          error:"Vercel Deployment Protection requires a trusted caller"};
+      throw Error("Unexpected status ("+response.status+" vs "+spec.status+")");
+    }
     if (spec.kind==="json") {
       if (!contentType.includes("application/json")) throw Error("Expected JSON content-type");
       const obj=JSON.parse(text);
@@ -76,7 +86,7 @@ async function probe(spec) {
 // application; recording it as a failed SIGAPRO test would be false evidence.
 // The Vercel-authorized connector is used for separate real GET checks.
 const preflight=await probe(CASES[0]);
-if (!preflight.ok && /Unexpected status \(401 vs 200\)/.test(preflight.error||"") && !trustedToken) {
+if (preflight.protectedByVercel === true && !trustedToken) {
   console.log("SIGAPRO_QA_LIVE_HTTP_SMOKE "+JSON.stringify({
     environment:"preview",
     target:BASE.origin,
