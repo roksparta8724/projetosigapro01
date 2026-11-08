@@ -8,7 +8,7 @@ import {
 } from "@/integrations/backend/urbanPrecheckClient";
 import { calculateUrbanMatrixBatchProgress, describePendingAnalystCa, describeUrbanMatrixRow, formatUrbanMatrixSourceValue } from "@/lib/urbanLegalMatrixReview";
 import { isUrbanMatrixBatchArchived, latestUrbanMatrixBatchEvent } from "@/lib/urbanMatrixBatchStatus";
-import { prepareUrbanRuleDraftFromReviewedRow, type PreparedUrbanMatrixDraft } from "@/lib/urbanMatrixDraftPreparation";
+import { prepareAiu2ProvisionalSimulation, prepareUrbanRuleDraftFromReviewedRow, type PreparedUrbanMatrixDraft } from "@/lib/urbanMatrixDraftPreparation";
 import { getAiu2ProvisionalCriterion } from "@/lib/urbanAiu2Provisional";
 import { Aiu2ProvisionalComparison } from "@/components/platform/Aiu2ProvisionalComparison";
 import { Button } from "@/components/ui/button";
@@ -32,6 +32,7 @@ export function UrbanLegalMatrixReviewPanel({
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [showAll, setShowAll] = useState(false);
+  const [autoFillRowIndex, setAutoFillRowIndex] = useState("");
   const [showRegisteredCaveats, setShowRegisteredCaveats] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const [reviewingIndex, setReviewingIndex] = useState<number | null>(null);
@@ -53,6 +54,7 @@ export function UrbanLegalMatrixReviewPanel({
     setNotice("");
     setShowArchived(false);
     setShowAll(false);
+    setAutoFillRowIndex("");
     setShowRegisteredCaveats(false);
     setReviewingIndex(null);
     setManageId(null);
@@ -120,6 +122,7 @@ export function UrbanLegalMatrixReviewPanel({
       if (!detail) throw new Error("Lote não encontrado no escopo municipal.");
       setSelected(detail);
       setShowAll(false);
+      setAutoFillRowIndex("");
       setShowRegisteredCaveats(false);
     } catch (err) { setError(String((err as Error)?.message || err)); }
     finally { setDetailLoading(false); }
@@ -129,6 +132,54 @@ export function UrbanLegalMatrixReviewPanel({
     () => selected ? calculateUrbanMatrixBatchProgress(selected, audit.row_reviews) : null,
     [selected, audit],
   );
+  // Read-only technical prefill. All rows come from this municipality's
+  // staged PDF; a verified reading is not a juridical approval.
+  const autoFillOptions = useMemo(() => {
+    if (!selected || !progress || selected.status !== "pending_legal_review") return [];
+    return selected.source_rows.flatMap((source, index) => {
+      const reviewed = progress.rows.find((row) => row.index === index);
+      const guidance = selected.analyst_guidance?.find((row) =>
+        row.row_index === index && row.field_code === "ca_minimo_original");
+      const provisional = getAiu2ProvisionalCriterion(source, index, guidance);
+      const verified = Boolean(reviewed?.readingReviewed && !reviewed?.needsCorrection &&
+        !String(source.pendencias_de_leitura || "").trim());
+      if (!verified && !provisional) return [];
+      return [{
+        index,
+        provisional: Boolean(provisional),
+        label: "Linha " + (index + 1) + " · " +
+          String(source.zona_conforme_tabela || "?") + " · " +
+          String(source.uso_predominante_conforme_tabela || "?") +
+          (provisional ? " — CA 1,00 SOMENTE SIMULAÇÃO" : " — transcrição conferida"),
+      }];
+    });
+  }, [selected, progress]);
+  const performAutoFill = () => {
+    if (!canEdit || !selected || !progress || !onPrepareDraft || isArchived(selected.id)) return;
+    const index = autoFillOptions.find((option) => String(option.index) === autoFillRowIndex)?.index
+      ?? autoFillOptions[0]?.index;
+    if (index === undefined) return;
+    const source = selected.source_rows[index];
+    const reviewed = progress.rows.find((row) => row.index === index);
+    const guidance = selected.analyst_guidance?.find((row) =>
+      row.row_index === index && row.field_code === "ca_minimo_original");
+    const provisional = getAiu2ProvisionalCriterion(source, index, guidance);
+    const prepared = provisional
+      ? prepareAiu2ProvisionalSimulation(source, selected.document_title, index, guidance)
+      : prepareUrbanRuleDraftFromReviewedRow(
+          source, selected.document_title,
+          Boolean(reviewed?.readingReviewed && !reviewed.needsCorrection),
+        );
+    if (!prepared) {
+      setError("A linha selecionada não tem dados seguros para pré-preencher.");
+      return;
+    }
+    onPrepareDraft(prepared);
+    setNotice(provisional
+      ? "AIU (2): preenchidos os campos técnicos com CA mínimo = 1,00 para SIMULAÇÃO. Gravação jurídica bloqueada."
+      : "Os índices do Quadro I foram preenchidos automaticamente para conferência no cadastro de versões. Sem ativação.");
+  };
+
   // Ressalvas já registradas (histórico) ficam recolhidas na visão inicial.
   const displayedRows = useMemo(() => {
     if (!progress) return [];
@@ -342,6 +393,32 @@ export function UrbanLegalMatrixReviewPanel({
             mas ainda não passou por conferência legal integral. Mesmo que a leitura chegue a 100%,
             os índices só poderão ser usados após validação legal independente.
           </div>
+          {canEdit && onPrepareDraft && !isArchived(selected.id) && autoFillOptions.length > 0 ? (
+            <div data-urban-matrix-autofill="true"
+              className="flex min-w-0 flex-wrap items-end gap-3 rounded-xl border border-sky-300 bg-sky-50 p-4 text-slate-950 dark:border-sky-700 dark:bg-slate-900 dark:text-white">
+              <label className="min-w-[210px] flex-1 text-xs font-bold">
+                Pré-preencher automaticamente por zona e uso ({autoFillOptions.length} opções)
+                <select data-urban-matrix-autofill-select="true"
+                  value={autoFillRowIndex || String(autoFillOptions[0].index)}
+                  onChange={(event) => setAutoFillRowIndex(event.target.value)}
+                  className="mt-2 min-h-11 w-full max-w-full rounded-lg border border-sky-200 bg-white px-3 py-2 text-xs text-slate-950 dark:border-sky-700 dark:bg-slate-950 dark:text-white">
+                  {autoFillOptions.map((item) => (
+                    <option key={item.index} value={String(item.index)}>{item.label}</option>
+                  ))}
+                </select>
+              </label>
+              <button type="button" data-urban-matrix-autofill-action="true"
+                onClick={performAutoFill} disabled={detailLoading || saving}
+                className="min-h-11 rounded-xl bg-sky-900 px-4 py-2 text-xs font-bold text-white hover:bg-sky-800 disabled:opacity-60">
+                Preencher campos para conferência
+              </button>
+              <p className="w-full text-xs leading-5 text-slate-700 dark:text-slate-200">
+                Os dados são lidos do lote municipal; o formulário será completado sem redigitação.
+                AIU (2) usa 1,00 apenas para simulação, com salvamento jurídico bloqueado.
+                Vigência e artigos precisam ser confirmados antes de cadastrar qualquer regra oficial.
+              </p>
+            </div>
+          ) : null}
           <p className="break-all text-[11px] text-slate-500">Fonte: {selected.document_title} · SHA-256 {selected.document_sha256}</p>
           <div data-urban-matrix-summary-actions="true"
             className="flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-950">
