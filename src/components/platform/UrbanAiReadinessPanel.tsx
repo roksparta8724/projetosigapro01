@@ -12,18 +12,45 @@ import {
   type MunicipalLegalFiles, type UrbanReadinessSummary,
 } from "@/lib/urbanAiReadiness";
 
+const NEXT_ACTIONS: Record<string, {
+  label: string; owner: string; target: "registry" | "quadros-i" | "quadros-ii" | "versions";
+}> = {
+  pdf: { label: "Conferir documentos oficiais", owner: "Admin da Prefeitura", target: "registry" },
+  registry: { label: "Cadastrar lei e alterações", owner: "Admin da Prefeitura", target: "registry" },
+  "quadro-i": { label: "Conferir linhas com ressalva", owner: "Setor urbanístico", target: "quadros-i" },
+  "quadro-ii": { label: "Revisar usos e condições", owner: "Setor urbanístico / jurídico", target: "quadros-ii" },
+  imports: { label: "Preparar matriz com fonte", owner: "Setor urbanístico", target: "quadros-i" },
+  evidence: { label: "Abrir versões e evidências", owner: "Setor urbanístico / jurídico", target: "versions" },
+  active: { label: "Verificar ativação supervisionada", owner: "Responsável legal habilitado", target: "versions" },
+};
+
 /** Read-only, live, tenant-scoped audit. Never writes or activates a law. */
 export function UrbanAiReadinessPanel({
-  municipalityId, documents, onOpenQuadro,
+  municipalityId, documents, onOpenQuadro, revision = 0,
 }: {
   municipalityId: string;
   documents: MunicipalLegalFiles;
   onOpenQuadro: (quadro: "I" | "II") => void;
+  revision?: number;
 }) {
   const [refresh, setRefresh] = useState(0);
   const [report, setReport] = useState<UrbanReadinessSummary | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const openNextStep = (target: "registry" | "quadros-i" | "quadros-ii" | "versions") => {
+    if (target === "quadros-i" || target === "quadros-ii") {
+      onOpenQuadro(target === "quadros-i" ? "I" : "II");
+    }
+    const selector = target === "registry" ? '[data-urban-legislation-registry="true"]'
+      : target === "versions" ? '[data-urban-regulation-versions="true"]'
+        : '[data-urban-quadros-workspace="true"]';
+    // Explicit button click only; data refresh must never scroll the page.
+    window.requestAnimationFrame(() => {
+      document.querySelector(selector)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  };
+
   useEffect(() => {
     let cancelled = false;
     setReport(null);
@@ -57,9 +84,9 @@ export function UrbanAiReadinessPanel({
         String((cause as Error)?.message || cause));
     }).finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-    // The document labels are a snapshot. Refresh explicitly or switch tenant.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [municipalityId, refresh]);
+    // Document replacements and reviewed rows must invalidate the audit.
+  }, [municipalityId, documents.usoSolo, documents.zoneamento,
+    documents.planoDiretor, documents.leisComplementares, refresh, revision]);
 
   return (
     <section data-urban-ai-readiness="true"
@@ -104,6 +131,30 @@ export function UrbanAiReadinessPanel({
             {" "}Regras reais ativas: {report.counts.officialActive}.
           </p>
         </div>
+        {report.readingIssues.length > 0 ? (
+          <details data-urban-reading-reservations="true"
+            className="mt-3 rounded-xl border border-amber-200 bg-amber-50/80 p-3 text-amber-950 dark:border-amber-600/40 dark:bg-amber-950/30 dark:text-amber-100">
+            <summary className="cursor-pointer text-xs font-extrabold">
+              Quadro I — {report.readingIssues.length} linha(s) exigem comprovação documental
+            </summary>
+            <div className="mt-3 space-y-2">
+              {report.readingIssues.map((issue) => (
+                <div key={issue.line} className="min-w-0 rounded-lg border border-amber-200 bg-white px-3 py-2 text-xs leading-5 text-slate-800 dark:border-amber-800 dark:bg-slate-900 dark:text-slate-100">
+                  <p className="font-bold">
+                    Linha {issue.line} · {issue.zone}
+                    {issue.page ? " · Página " + issue.page : ""}
+                    {" · "}{issue.status === "needs_correction" ? "Ressalva registrada" : "Leitura sem conferência"}
+                  </p>
+                  <p className="mt-1 break-words">{issue.reason}</p>
+                </div>
+              ))}
+              <button type="button" onClick={() => openNextStep("quadros-i")}
+                className="min-h-9 rounded-lg border border-amber-300 bg-white px-3 text-xs font-bold text-slate-900 hover:bg-amber-100 dark:border-amber-700 dark:bg-slate-900 dark:text-white">
+                Consultar origem e conferência
+              </button>
+            </div>
+          </details>
+        ) : null}
         <details data-sigapro-urban-metric-inventory="true"
           className="mt-3 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
           <summary className="cursor-pointer text-xs font-extrabold text-slate-950 dark:text-white">
@@ -151,11 +202,18 @@ export function UrbanAiReadinessPanel({
                 <p className="mt-1 break-words text-xs leading-5 text-slate-700 dark:text-slate-200">
                   {check.detail}
                 </p>
-                {check.quadro ? <button type="button"
-                  className="mt-2 min-h-8 text-xs font-bold text-sky-800 underline underline-offset-2 dark:text-sky-300"
-                  onClick={() => onOpenQuadro(check.quadro!)}>
-                  Abrir Quadro {check.quadro}
-                </button> : null}
+                {!check.passed && NEXT_ACTIONS[check.code] ? (
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <button type="button" data-urban-readiness-next={check.code}
+                      className="min-h-9 rounded-lg border border-sky-200 bg-white px-3 py-1 text-xs font-bold text-sky-900 underline-offset-2 hover:bg-sky-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-600 dark:border-sky-700 dark:bg-slate-950 dark:text-sky-100"
+                      onClick={() => openNextStep(NEXT_ACTIONS[check.code].target)}>
+                      {NEXT_ACTIONS[check.code].label}
+                    </button>
+                    <span className="break-words text-[11px] text-slate-600 dark:text-slate-300">
+                      Responsável: {NEXT_ACTIONS[check.code].owner}
+                    </span>
+                  </div>
+                ) : null}
               </div>
             </div>
           </article>)}
