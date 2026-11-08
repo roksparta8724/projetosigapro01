@@ -137,7 +137,9 @@ export function UrbanLegislationRegistryPanel({
     const tokens = /^(lc|decreto|plc)-([0-9]+)-([0-9]{4})$/.exec(source.id);
     const kind: LawKind = tokens?.[1] === "decreto" ? "decreto" :
       tokens?.[1] === "plc" ? "projeto_de_lei" : "lei_complementar";
-    const scope: LawScope = source.id === "lc-613-2023" ? "plano_diretor" :
+    const scope: LawScope = source.id === "lc-507-2017" ||
+      source.id === "lc-566-2022" ? "historico" :
+      source.id === "lc-613-2023" ? "plano_diretor" :
       source.id === "lc-655-2026" || source.id === "decreto-7548-2026"
         ? "direito_real_laje" :
       source.id === "lc-656-2026" || source.id === "decreto-7550-2026"
