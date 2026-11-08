@@ -111,3 +111,36 @@ centavos e integridade cobrem partes adicionais.
 A função `officialize_preprotocol_v1` da produção ainda exige
 tratamento P0 controlado, e os dez aceites comerciais não estão
 aprovados.
+
+## Verificação adicional: conexão efetiva com o worker QA
+
+Foi executado **SELECT real com login `sigapro_qa_webhook_worker`** no Neon
+QA, não apenas consulta de metadados como administrador. O banco retornou
+`current_user=sigapro_qa_webhook_worker`, `BYPASSRLS=false`,
+`INHERIT=false`, ausência de membro `neon_superuser`, sem acesso direto
+a `profiles` ou escrita em `payment_guides`, e `EXECUTE=true`
+somente nas RPCs de ingestão e liquidação esperadas. A query **exata**
+`MP_WORKER_PRIVILEGE_AUDIT_SQL` do servidor foi executada usando a
+mesma credencial de papel e todos os oito controles retornaram `false`
+(valor permitido). Isso reduz o bloqueio sobre a conta técnica ativa.
+Não regulariza a conta legada de produção copiada na QA.
+
+**Inventário agregado em QA:** uma conexão municipal
+`mercado_pago/test/active`, com token cifrado e segredo HMAC cifrado.
+Nenhum valor de segredo, CPF ou dado bancário foi lido ou registrado.
+O dado indica preparação, **não** que os bytes cifrados já tenham sido
+decifrados com sucesso no novo Preview.
+
+**Limite Hobby corrigido:** a primeira entrada independente
+`api/mp-qa-webhook.ts` elevaria de 12 para 13 funções e foi
+**retirada**; a rota existe agora como rewrite em `vercel.json` para
+`api/mercadopago.ts?action=qa-webhook`, sem alterar a API produtiva.
+Os testes de regressão de orçamento serverless passaram no commit
+que integrou a rota. O código final também inclui testes de
+recibo/credito/reenvio/PDF original feitos com objetos simulados;
+eles não substituem a conferência pelo próprio Mercado Pago.
+
+**Pendência de operação:** a Vercel só aplica novas variáveis e rotas
+em uma **nova versão READY**. O Preview anterior `b5cc7d1` não possui
+esta implementação. Conferir CI, publicar somente QA e verificar
+`GET /api/mp-qa-webhook` antes de anunciar o endpoint como ativo.
