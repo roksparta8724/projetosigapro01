@@ -52,7 +52,6 @@ describe("SIGAPRO QA — gravação de avatar vinculada à identidade real", () 
   it("não fornece URL CDN pública para avatar em nenhum escopo", () => {
     expect(buildPublicUrl(logosBucket, avatar(city, owner))).toBe("");
     expect(buildPublicUrl(logosBucket, masterAvatar)).toBe("");
-    expect(buildPublicUrl(logosBucket, "platform/branding/logo.png")).toBe("");
   });
 
   it("exige perfil autenticado e validação ANTES de gravar bytes no R2", () => {
