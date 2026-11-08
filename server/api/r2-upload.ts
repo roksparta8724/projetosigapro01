@@ -6,7 +6,7 @@ import { getR2EndpointCandidates, resolveR2Endpoint } from "../r2-runtime.js";
  * Retorna { bucket, objectKey, publicUrl }
  */
 
-import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { HeadObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { createHash } from "node:crypto";
 import { getDataApiUrl, resolveMunicipalDocumentTarget } from "../municipal-storage.js";
 import { safeAvatarMime } from "./profile-avatar-open.js";
@@ -29,6 +29,33 @@ function isR2CredentialError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error || "");
   return /SignatureDoesNotMatch|InvalidAccessKeyId|AccessDenied/i.test(name) ||
     /signature.*does not match|invalid access key|access denied/i.test(message);
+}
+
+/**
+ * A conditional 412 on an immutable DAM original is NOT a successful upload.
+ * Accept an idempotent retry only when the existing object has the expected
+ * immutable sha256, exact byte count and PDF MIME. Otherwise propagate 412.
+ */
+export async function verifyExistingDamOriginal(
+  client: S3Client,
+  input: {
+    bucket: string; objectKey: string; body: Buffer;
+    contentType: string; metadata?: Record<string, string>;
+  },
+): Promise<boolean> {
+  const expected = input.metadata?.sha256 || "";
+  if (!input.objectKey.includes("/dam-originals/") ||
+      !/^[a-f0-9]{64}$/.test(expected) ||
+      input.contentType !== "application/pdf") return false;
+  try {
+    const found = await client.send(new HeadObjectCommand({
+      Bucket: input.bucket, Key: input.objectKey,
+    }));
+    return found.ContentLength === input.body.length &&
+      found.ContentType === "application/pdf" &&
+      String(found.Metadata?.sha256 || "").toLowerCase() === expected &&
+      createHash("sha256").update(input.body).digest("hex") === expected;
+  } catch { return false; }
 }
 
 export function isCreateOnlyDocumentBucket(bucket: string) {
@@ -69,7 +96,8 @@ async function putR2ObjectWithFallback(input: {
       }));
       return;
     } catch (error) {
-      if (input.objectKey.includes("/dam-originals/") && (error as { $metadata?: { httpStatusCode?: number } })?.$metadata?.httpStatusCode === 412) return;
+      if ((error as { $metadata?: { httpStatusCode?: number } })?.$metadata?.httpStatusCode === 412 &&
+          await verifyExistingDamOriginal(client, input)) return;
       lastError = error;
       if (!isR2CredentialError(error)) throw error;
     }
@@ -530,8 +558,13 @@ export default async function handler(req: Req, res: Res) {
         Metadata: damOriginalMetadata,
         // Municipal S3 must preserve old document revisions as well.
         ...(isCreateOnlyDocumentBucket(bucket) ? { IfNoneMatch: "*" } : {}),
-      })).catch((error) => {
-        if (objectKey.includes("/dam-originals/") && error?.$metadata?.httpStatusCode === 412) return;
+      })).catch(async (error) => {
+        if (error?.$metadata?.httpStatusCode === 412 &&
+            await verifyExistingDamOriginal(municipalTarget.client, {
+              bucket: municipalTarget.bucket, objectKey: municipalTarget.objectKey,
+              body: buffer, contentType: resolvedContentType,
+              metadata: damOriginalMetadata,
+            })) return;
         throw error;
       });
 
