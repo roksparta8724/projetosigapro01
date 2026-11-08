@@ -39,7 +39,7 @@ export const CAMPO_LIMPO_OFFICIAL_URBAN_SOURCES: readonly UrbanOfficialLegalSour
     documentLabel: "PDF original da Câmara (11 páginas)",
     pdfUrl: "https://www.camaracampolimpo.sp.gov.br/legislacao/download-lei/1889/",
     officialPageUrl: "https://www.camaracampolimpo.sp.gov.br/legislacao/detalhe/1889/altera-a-lei-complementar-de-parcelamento-uso-e-ocupacao-do-solo-do-municipio-de-campo-limpo-paulista-instituida-pela-lei-complementar-n-379-de-24-de-novembro-de-2009-/",
-    scopeNote: "Altera artigos da lei de parcelamento, incluindo condições de declividade e parcelamento.",
+    scopeNote: "Altera parcelamento e inclui situações especiais: arts. 69-B/69-C (recuos de imóveis específicos) e 77-A (exceção de hierarquia viária sob análise municipal).",
     readingNote: "Não usar a redação original de artigo que foi alterado sem confrontar este PDF.",
   },
   {
