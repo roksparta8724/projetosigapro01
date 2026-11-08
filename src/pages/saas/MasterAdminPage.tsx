@@ -12,6 +12,7 @@ import { TableCard } from "@/components/platform/TableCard";
 import { UserAvatar } from "@/components/platform/UserAvatar";
 import { CompactUserRegistry } from "@/components/platform/CompactUserRegistry";
 import { CompactPortfolioRegistry } from "@/components/platform/CompactPortfolioRegistry";
+import { paginateMunicipalItems } from "@/lib/municipalListPagination";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -163,6 +164,8 @@ export function MasterAdminPage() {
     phone: "",
   });
   const [assignmentUserId, setAssignmentUserId] = useState("");
+  const [assignmentUserSearch, setAssignmentUserSearch] = useState("");
+  const [contractCapacityPage, setContractCapacityPage] = useState(1);
   const [assignmentDepartmentId, setAssignmentDepartmentId] = useState("");
   const formRef = useRef<HTMLDivElement | null>(null);
 
@@ -203,6 +206,7 @@ export function MasterAdminPage() {
 
     return Array.from(merged.values()).sort((left, right) => left.name.localeCompare(right.name, "pt-BR"));
   }, [institutions, remoteInstitutions]);
+  const capacityPageData = paginateMunicipalItems(planCapacity.rows, contractCapacityPage, 2);
   const activeTenant = institutionCatalog.find((item) => item.id === selectedTenantId) ?? null;
   const activeCommercialPlans = useMemo(
     () => plans.filter((plan) => plan.isActive && plan.isVisibleInMaster),
@@ -212,6 +216,18 @@ export function MasterAdminPage() {
     () => sessionUsers.filter((user) => user.tenantId === selectedTenantId || user.municipalityId === selectedTenantId),
     [selectedTenantId, sessionUsers],
   );
+  const matchingAssignmentUsers = useMemo(() => {
+    const term = assignmentUserSearch.trim().toLocaleLowerCase("pt-BR");
+    const choices = activeTenantUsers
+      .filter((user) => !term || [user.name, user.email, user.title, user.department]
+        .some((value) => String(value || "").toLocaleLowerCase("pt-BR").includes(term)))
+      .slice(0, 50);
+    const selected = activeTenantUsers.find((user) => user.id === assignmentUserId);
+    return selected && !choices.some((user) => user.id === selected.id)
+      ? [selected, ...choices]
+      : choices;
+  }, [activeTenantUsers, assignmentUserId, assignmentUserSearch]);
+
   const activeMasterDepartments = useMemo(
     () => masterDepartments.filter((item) => item.isActive).sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, "pt-BR")),
     [masterDepartments],
@@ -851,10 +867,22 @@ export function MasterAdminPage() {
               <p className="text-sm text-slate-600">Nenhuma prefeitura encontrada na consulta de planos.</p>
             ) : (
               <div className="grid gap-4 2xl:grid-cols-2">
-                {planCapacity.rows.slice(0, workspaceView === "visao-geral" ? 2 : undefined).map((row) => (
+                {(workspaceView === "visao-geral" ? planCapacity.rows.slice(0, 2) : capacityPageData.items).map((row) => (
                   <PlanCapacityCard key={row.municipalityId} row={row}
                     municipalityName={institutionCatalog.find((item) => item.id === row.municipalityId)?.name ?? "Prefeitura"} />
                 ))}
+                {workspaceView === "carteira" && planCapacity.rows.length > 2 ? (
+                  <nav aria-label="Paginação de contratos municipais"
+                    className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-600 2xl:col-span-2">
+                    <span>Contratos {capacityPageData.start + 1}–{capacityPageData.end} de {capacityPageData.total} · Página {capacityPageData.page} de {capacityPageData.totalPages}</span>
+                    <div className="flex gap-2">
+                      <Button type="button" size="sm" variant="outline" className="border-slate-300 bg-white"
+                        disabled={capacityPageData.page <= 1} onClick={() => setContractCapacityPage(capacityPageData.page - 1)}>Anterior</Button>
+                      <Button type="button" size="sm" variant="outline" className="border-slate-300 bg-white"
+                        disabled={capacityPageData.page >= capacityPageData.totalPages} onClick={() => setContractCapacityPage(capacityPageData.page + 1)}>Próxima</Button>
+                    </div>
+                  </nav>
+                ) : null}
                 {workspaceView === "visao-geral" && planCapacity.rows.length > 2 ? (
                   <div className="flex min-w-0 items-center justify-between gap-3 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900 2xl:col-span-2">
                     <span>Exibindo 2 de {planCapacity.rows.length} prefeituras. Os demais contratos continuam disponíveis na Carteira.</span>
@@ -1121,7 +1149,11 @@ export function MasterAdminPage() {
                               <Label>E-mail</Label>
                               <Input list={`admin-email-options-${admin.id}`} value={admin.email} onChange={(event) => updateAdminRow(admin.id, "email", event.target.value)} onBlur={(event) => applyKnownAdminEmail(admin.id, event.target.value)} className="sig-admin-input" />
                               <datalist id={`admin-email-options-${admin.id}`}>
-                                {availableKnownUsers.map((user) => (
+                                {availableKnownUsers
+                                  .filter((user) => !admin.email.trim() ||
+                                    user.email.toLocaleLowerCase("pt-BR").includes(admin.email.trim().toLocaleLowerCase("pt-BR")))
+                                  .slice(0, 25)
+                                  .map((user) => (
                                   <option key={user.id} value={user.email} />
                                 ))}
                               </datalist>
@@ -1259,11 +1291,17 @@ export function MasterAdminPage() {
                   <div className="grid gap-3 lg:grid-cols-[1fr_1fr_auto] lg:items-end">
                     <div className="space-y-2">
                       <Label>Usuário</Label>
+                      <Input value={assignmentUserSearch}
+                        onChange={(event) => setAssignmentUserSearch(event.target.value)}
+                        placeholder="Pesquisar nome ou e-mail do servidor"
+                        aria-label="Pesquisar servidor para lotação"
+                        className="h-10 rounded-xl bg-white" />
+                      <p className="text-xs text-slate-500">{matchingAssignmentUsers.length} opção(ões) exibida(s) de {activeTenantUsers.length} usuários. Refine a pesquisa para localizar qualquer cadastro.</p>
                       <Select value={assignmentUserId || "__none"} onValueChange={(value) => setAssignmentUserId(value === "__none" ? "" : value)}>
                         <SelectTrigger className="h-11 rounded-2xl"><SelectValue placeholder="Escolha um usuário" /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="__none">Selecione</SelectItem>
-                          {activeTenantUsers.map((user) => <SelectItem key={user.id} value={user.id}>{user.name} • {user.email}</SelectItem>)}
+                          {matchingAssignmentUsers.map((user) => <SelectItem key={user.id} value={user.id}>{user.name} • {user.email}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     </div>
