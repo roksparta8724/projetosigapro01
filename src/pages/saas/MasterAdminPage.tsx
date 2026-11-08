@@ -10,6 +10,7 @@ import { PortalFrame } from "@/components/platform/PortalFrame";
 import { SectionCard } from "@/components/platform/SectionCard";
 import { TableCard } from "@/components/platform/TableCard";
 import { UserAvatar } from "@/components/platform/UserAvatar";
+import { CompactUserRegistry } from "@/components/platform/CompactUserRegistry";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -146,6 +147,7 @@ export function MasterAdminPage() {
   const [saving, setSaving] = useState(false);
   const [savingUserId, setSavingUserId] = useState<string | null>(null);
   const [userSearch, setUserSearch] = useState("");
+  const [systemUserPage, setSystemUserPage] = useState(1);
   const [userStatusFilter, setUserStatusFilter] = useState<"todos" | AccountStatus>("todos");
   const [userRoleFilter, setUserRoleFilter] = useState<"todos" | UserRole>("todos");
   const [userGroup, setUserGroup] = useState<UserGroup>("todos");
@@ -288,6 +290,10 @@ export function MasterAdminPage() {
       { id: "environment", title: "Ambiente da plataforma", description: hasBackendEnv ? "Banco SIGAPRO conectado e persistência ativa." : "Backend oficial indisponível; ambiente local de homologação ativo.", tone: hasBackendEnv ? ("success" as const) : ("default" as const) },
     ];
   }, [getInstitutionSettings, institutionCatalog, knownAdministrativeUsers]);
+
+  useEffect(() => {
+    setSystemUserPage(1);
+  }, [userSearch, userStatusFilter, userRoleFilter, userGroup]);
 
   const filteredSystemUsers = useMemo(() => {
     const term = userSearch.trim().toLowerCase();
@@ -844,10 +850,17 @@ export function MasterAdminPage() {
               <p className="text-sm text-slate-600">Nenhuma prefeitura encontrada na consulta de planos.</p>
             ) : (
               <div className="grid gap-4 2xl:grid-cols-2">
-                {planCapacity.rows.map((row) => (
+                {planCapacity.rows.slice(0, workspaceView === "visao-geral" ? 2 : undefined).map((row) => (
                   <PlanCapacityCard key={row.municipalityId} row={row}
                     municipalityName={institutionCatalog.find((item) => item.id === row.municipalityId)?.name ?? "Prefeitura"} />
                 ))}
+                {workspaceView === "visao-geral" && planCapacity.rows.length > 2 ? (
+                  <div className="flex min-w-0 items-center justify-between gap-3 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900 2xl:col-span-2">
+                    <span>Exibindo 2 de {planCapacity.rows.length} prefeituras. Os demais contratos continuam disponíveis na Carteira.</span>
+                    <Button type="button" variant="outline" className="shrink-0 rounded-xl border-sky-300 bg-white text-sky-900"
+                      onClick={() => setWorkspaceView("carteira")}>Ver todas</Button>
+                  </div>
+                ) : null}
               </div>
             )}
           </SectionCard>
@@ -1318,7 +1331,10 @@ export function MasterAdminPage() {
           )
         ) : null}
 
-        {workspaceView === "usuarios" ? <PageMainContent className="gap-6"><SectionCard title="Governança de acessos" description="Leitura consolidada da base, dos acessos críticos e da saúde operacional da plataforma." icon={ShieldPlus} className="shadow-[0_14px_32px_rgba(15,23,42,0.06)]" contentClassName="space-y-0"><div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4"><div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4"><p className="text-xs uppercase tracking-[0.14em] text-slate-500">Base total</p><p className="mt-2 text-2xl font-semibold text-slate-950">{sessionUsers.length}</p><p className="mt-1 text-sm text-slate-500">Contas monitoradas na operação SaaS.</p></div><div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4"><p className="text-xs uppercase tracking-[0.14em] text-slate-500">Contas ativas</p><p className="mt-2 text-2xl font-semibold text-slate-950">{activeUsersCount}</p><p className="mt-1 text-sm text-slate-500">Acessos habilitados e em uso.</p></div><div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4"><p className="text-xs uppercase tracking-[0.14em] text-slate-500">Administradores</p><p className="mt-2 text-2xl font-semibold text-slate-950">{adminUsersCount}</p><p className="mt-1 text-sm text-slate-500">Perfis de governança ativos.</p></div><div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4"><p className="text-xs uppercase tracking-[0.14em] text-slate-500">Bloqueados</p><p className="mt-2 text-2xl font-semibold text-slate-950">{blockedUsersCount}</p><p className="mt-1 text-sm text-slate-500">Contas com restrição administrativa.</p></div></div></SectionCard><TableCard title="Usuários do sistema" description="Governança de contas, acessos e perfis da operação SaaS." icon={Users2} className="shadow-[0_14px_32px_rgba(15,23,42,0.06)]"><div className="space-y-5"><Tabs value={userGroup} onValueChange={(value) => setUserGroup(value as UserGroup)}><TabsList className="flex h-auto flex-wrap justify-start gap-2 rounded-2xl bg-slate-100 p-1.5"><TabsTrigger value="todos">Todos</TabsTrigger><TabsTrigger value="internos">Internos</TabsTrigger><TabsTrigger value="externos">Externos</TabsTrigger><TabsTrigger value="administradores">Administradores</TabsTrigger></TabsList></Tabs><div className="grid gap-3 xl:grid-cols-[minmax(0,1.35fr)_minmax(240px,0.8fr)_minmax(240px,0.8fr)] xl:items-center"><div className="relative"><Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><Input value={userSearch} onChange={(event) => setUserSearch(event.target.value)} placeholder="Buscar nome, e-mail, setor ou tipo" className="h-11 rounded-2xl pl-11" /></div><Select value={userStatusFilter} onValueChange={(value) => setUserStatusFilter(value as "todos" | AccountStatus)}><SelectTrigger className="h-11 rounded-2xl"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="todos">Todos os status</SelectItem><SelectItem value="active">Ativos</SelectItem><SelectItem value="blocked">Bloqueados</SelectItem><SelectItem value="inactive">Inativos</SelectItem></SelectContent></Select><Select value={userRoleFilter} onValueChange={(value) => setUserRoleFilter(value as "todos" | UserRole)}><SelectTrigger className="h-11 rounded-2xl"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="todos">Todos os perfis</SelectItem>{Object.entries(roleLabels).map(([role, label]) => <SelectItem key={role} value={role}>{label}</SelectItem>)}</SelectContent></Select></div><div className="space-y-4">{filteredSystemUsers.length === 0 ? <div className="rounded-[24px] border border-dashed border-slate-300 bg-slate-50 p-6 text-sm leading-6 text-slate-600">Nenhum usuário encontrado com os filtros atuais.</div> : null}{filteredSystemUsers.map((user) => renderUserCard(user))}</div></div></TableCard></PageMainContent> : null}
+        {workspaceView === "usuarios" ? <PageMainContent className="gap-6"><SectionCard title="Governança de acessos" description="Leitura consolidada da base, dos acessos críticos e da saúde operacional da plataforma." icon={ShieldPlus} className="shadow-[0_14px_32px_rgba(15,23,42,0.06)]" contentClassName="space-y-0"><div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4"><div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4"><p className="text-xs uppercase tracking-[0.14em] text-slate-500">Base total</p><p className="mt-2 text-2xl font-semibold text-slate-950">{sessionUsers.length}</p><p className="mt-1 text-sm text-slate-500">Contas monitoradas na operação SaaS.</p></div><div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4"><p className="text-xs uppercase tracking-[0.14em] text-slate-500">Contas ativas</p><p className="mt-2 text-2xl font-semibold text-slate-950">{activeUsersCount}</p><p className="mt-1 text-sm text-slate-500">Acessos habilitados e em uso.</p></div><div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4"><p className="text-xs uppercase tracking-[0.14em] text-slate-500">Administradores</p><p className="mt-2 text-2xl font-semibold text-slate-950">{adminUsersCount}</p><p className="mt-1 text-sm text-slate-500">Perfis de governança ativos.</p></div><div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4"><p className="text-xs uppercase tracking-[0.14em] text-slate-500">Bloqueados</p><p className="mt-2 text-2xl font-semibold text-slate-950">{blockedUsersCount}</p><p className="mt-1 text-sm text-slate-500">Contas com restrição administrativa.</p></div></div></SectionCard><TableCard title="Usuários do sistema" description="Governança de contas, acessos e perfis da operação SaaS." icon={Users2} className="shadow-[0_14px_32px_rgba(15,23,42,0.06)]"><div className="space-y-5"><Tabs value={userGroup} onValueChange={(value) => setUserGroup(value as UserGroup)}><TabsList className="flex h-auto flex-wrap justify-start gap-2 rounded-2xl bg-slate-100 p-1.5"><TabsTrigger value="todos">Todos</TabsTrigger><TabsTrigger value="internos">Internos</TabsTrigger><TabsTrigger value="externos">Externos</TabsTrigger><TabsTrigger value="administradores">Administradores</TabsTrigger></TabsList></Tabs><div className="grid gap-3 xl:grid-cols-[minmax(0,1.35fr)_minmax(240px,0.8fr)_minmax(240px,0.8fr)] xl:items-center"><div className="relative"><Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><Input value={userSearch} onChange={(event) => setUserSearch(event.target.value)} placeholder="Buscar nome, e-mail, setor ou tipo" className="h-11 rounded-2xl pl-11" /></div><Select value={userStatusFilter} onValueChange={(value) => setUserStatusFilter(value as "todos" | AccountStatus)}><SelectTrigger className="h-11 rounded-2xl"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="todos">Todos os status</SelectItem><SelectItem value="active">Ativos</SelectItem><SelectItem value="blocked">Bloqueados</SelectItem><SelectItem value="inactive">Inativos</SelectItem></SelectContent></Select><Select value={userRoleFilter} onValueChange={(value) => setUserRoleFilter(value as "todos" | UserRole)}><SelectTrigger className="h-11 rounded-2xl"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="todos">Todos os perfis</SelectItem>{Object.entries(roleLabels).map(([role, label]) => <SelectItem key={role} value={role}>{label}</SelectItem>)}</SelectContent></Select></div><CompactUserRegistry users={filteredSystemUsers} page={systemUserPage}
+          onPageChange={setSystemUserPage}
+          filterKey={[userSearch, userStatusFilter, userRoleFilter, userGroup].join(":")}
+          renderDetails={renderUserCard} label="Usuários da plataforma SIGAPRO" /></div></TableCard></PageMainContent> : null}
       </PageShell>
     </PortalFrame>
   );
