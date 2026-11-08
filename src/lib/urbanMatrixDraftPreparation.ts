@@ -1,4 +1,6 @@
 import { normalizeUrbanCode, type UrbanMetric } from "@/lib/urbanPrecheck";
+import { getAiu2ProvisionalCriterion } from "@/lib/urbanAiu2Provisional";
+import type { UrbanMatrixAnalystGuidance } from "@/integrations/backend/urbanPrecheckClient";
 
 export type PreparedUrbanMatrixDraft = {
   zone: string;
@@ -6,6 +8,8 @@ export type PreparedUrbanMatrixDraft = {
   fields: Partial<Record<UrbanMetric, { limit: string; reference: string }>>;
   otherLegalFields: string[];
   warning: string;
+  /** QA-only value, never save as a legal version. */
+  simulationOnly?: boolean;
 };
 
 function verifiedNumber(raw: unknown): number | null {
@@ -70,5 +74,44 @@ export function prepareUrbanRuleDraftFromReviewedRow(
     zone: /(?:\se\s|,)/i.test(zone) ? "" : zone,
     usage, fields, otherLegalFields,
     warning: "Pré-preenchimento de RASCUNHO, sem aprovação legal. Confirme zona real, uso, vigência, fontes, artigo e exceções. Nenhuma regra foi ativada.",
+  };
+}
+
+/**
+ * User-requested interim AIU(2) CA minimum = 1 for technical simulation.
+ * Source text still says "01" and the legal audit remains open.
+ * Never use this object in a write API; UI save is explicitly blocked.
+ */
+export function prepareAiu2ProvisionalSimulation(
+  source: Record<string, unknown>,
+  documentTitle: string,
+  index: number,
+  guidance: UrbanMatrixAnalystGuidance | undefined,
+): PreparedUrbanMatrixDraft | null {
+  const criterion = getAiu2ProvisionalCriterion(source, index, guidance);
+  if (!criterion) return null;
+  const prepared = prepareUrbanRuleDraftFromReviewedRow({
+    ...source,
+    pendencias_de_leitura: "",
+    ca_minimo_original: "1",
+  }, documentTitle, true);
+  if (!prepared) return null;
+  return {
+    ...prepared,
+    simulationOnly: true,
+    fields: {
+      ...prepared.fields,
+      floor_area_ratio_min: {
+        limit: "1",
+        reference: "AIU (2), CA mínimo 1,00 — critério OPERACIONAL PROVISÓRIO, pendente de CONCIDADE; não é lei vigente.",
+      },
+    },
+    otherLegalFields: [
+      ...prepared.otherLegalFields.filter((row) => !row.startsWith("CA mínimo:")),
+      "CA mínimo original: leitura literal '01', inconclusiva.",
+      "CA mínimo de teste: 1,00, somente simulação manual.",
+      "Sem ativação automática e sem registro como norma oficial.",
+    ],
+    warning: "SIMULAÇÃO AIU(2) com CA mínimo 1,00 preenchida. O texto original '01' é ambíguo e aguarda CONCIDADE. Não é permitido salvar ou ativar esta simulação como legislação.",
   };
 }
