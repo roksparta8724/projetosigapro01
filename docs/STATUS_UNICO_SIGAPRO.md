@@ -695,3 +695,64 @@ assinado com comprovante e baixa, PDF original no R2 e recuperação,
 IA em planta real e matriz jurídica com evidências, restauração Neon+R2,
 correção P0 financeira de produção sob janela autorizada. Os dez critérios
 de aceite comercial continuam pendentes; não liberar produção.
+
+## 07/11/2026 — QA: correção estrutural de upload R2 e proteção de identidade
+
+**Ciclo de continuidade na mesma branch QA**, PR #118 DRAFT. Sem merge em
+`main`, sem alteração de dados ou roles Neon, sem pagamento e sem novo
+deployment Vercel. Todos os patches abaixo são apenas de código QA até a
+publicação explícita de um Preview no SHA exato.
+
+**Vulnerabilidade corrigida no código de escrita:** o endpoint de upload de
+avatares exigia associação municipal mas não comparava o identificador da
+pasta de foto com `current_profile_id` da sessão autenticada. Agora toda
+requisição com bucket `profile-assets` ou chave `/profiles/avatars/` exige
+perfil realmente autenticado, independentemente do legado `R2_REQUIRE_AUTH`,
+e valida a correspondência exata entre pasta e perfil do usuário, inclusive
+Master. Nomes de bucket físicos e aliases não permitem contornar a política.
+Arquivos SVG, MIME discordante, chave sem extensão raster válida e imagem
+maior que 12 MiB são rejeitados. Nenhuma foto foi sobrescrita.
+
+**Prevenção de vazamento:** `buildPublicUrl` retorna string vazia para
+avatares, mesmo quando `R2_PUBLIC_BASE_URL` existe. O upload serverless
+passou a limitar corpo JSON a 6 MiB e devolve HTTP 400/413 controlados em
+payload inválido ou grande, sem stack, segredo, URL assinada, nome de arquivo,
+objeto ou mensagem bruta de S3 nas respostas. Logs operacionais do navegador
+deixaram de imprimir nomes, caminhos e payloads inteiros de uploads.
+Arquivos alterados:
+`server/api/r2-upload.ts`, `src/integrations/r2/client.ts`;
+regressão `src/test/r2AvatarUploadOwnershipQa.test.ts`.
+Commits deste lote: `8cda7771`, `5087d1f1`, `496377c1`,
+`21c2cadf`, `848f3030`, `9d801b50`.
+
+**Compatibilidade:** `useAppBootstrap` define o ID de perfil a partir do
+`profile_id` canônico e `usePlatformSession` o prefere ao auth user ID.
+Auditoria agregada Neon QA encontrou 10 perfis, sendo 4 com
+`profiles.id != profiles.user_id`. Por isso **não** autorizar uploads
+comparando cegamente `user_id` legado com o ID do perfil. Exigir prova
+autenticada por perfil também na confirmação operacional do Preview.
+
+**Limitação de privacidade ainda aberta:** o endpoint antigo
+`GET /api/profile-avatar-open?objectKey=...` não exige token HTTP de leitura;
+não declarar as fotos totalmente privadas. Substituir o carregamento direto
+por fluxo de assinatura curta com autorização da sessão e só então fechar o
+endpoint direto, após teste do `UserAvatar` nas telas Master, Prefeitura,
+Analista e Profissional e revisão de política de acesso ao bucket R2/CDN.
+Não bloquear esse GET isoladamente antes de migrar os componentes visuais:
+isso esconderia as fotos. O novo bloqueio de URL pública em uploads não
+equivale a tornar inacessíveis objetos já publicados pelo próprio bucket.
+
+**Auditoria financeira só de leitura no Neon QA:** 11 guias totais;
+2 ligadas a Mercado Pago no ambiente `test`: 1 compensada com
+metadados de PDF original e 1 pendente sem metadados de PDF original.
+Outras guias são registros manuais/QA. Metadado não comprova bytes físicos
+em R2, crédito real de provedor ou callback assinado. Não oficializar guias
+por inferência, não copiar dados QA para produção.
+
+**Verificação exigida:** só considerar esse lote aprovado no código quando
+Quality Gate, validação de migrações e OCR isolado estiverem `success`
+no SHA final. Na operação, ainda são exigidos testes autenticados de upload
+próprio/caminho de outro perfil, abertura de avatar, login P50/P95, PDF R2,
+webhook de sandbox, IA em planta real e restauro. Os dez gates comerciais
+seguem pendentes. Nenhum destes dados exige divulgação de documentos
+pessoais ou segredos.
