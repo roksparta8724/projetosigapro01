@@ -35,6 +35,8 @@ export function MunicipalUrbanRulesSettings({
   const [loading, setLoading] = useState(false);
   const [notice, setNotice] = useState("");
   const [activeQuadro, setActiveQuadro] = useState<"I" | "II">("I");
+  const [auditRevision, setAuditRevision] = useState(0);
+  const markAuditChanged = () => setAuditRevision((revision) => revision + 1);
 
   useEffect(() => {
     let active = true;
@@ -58,6 +60,7 @@ export function MunicipalUrbanRulesSettings({
   const reload = async () => {
     const updated = await listUrbanRegulations(municipalityId);
     setVersions(updated);
+    markAuditChanged();
   };
   const updateRule = (metric: UrbanMetric, field: keyof EditableValue, text: string) => {
     setDraft((previous) => ({
@@ -166,10 +169,10 @@ export function MunicipalUrbanRulesSettings({
 
       <UrbanAiReadinessPanel municipalityId={municipalityId}
         documents={documentFiles ?? { usoSolo: "", zoneamento: "", planoDiretor: "", leisComplementares: "" }}
-        onOpenQuadro={setActiveQuadro} />
+        onOpenQuadro={setActiveQuadro} revision={auditRevision} />
       <UrbanOfficialLegalSourcesPanel municipalityId={municipalityId} />
 
-      <div className="mt-5 min-w-0" data-urban-quadros-workspace="true">
+      <div className="mt-5 min-w-0 scroll-mt-24" data-urban-quadros-workspace="true">
         <div role="group" aria-label="Escolher quadro da legislação urbanística"
           className="grid grid-cols-1 gap-2 rounded-2xl border border-slate-200 bg-slate-100/80 p-2 dark:border-slate-700 dark:bg-slate-900 sm:grid-cols-2">
           <button type="button" data-urban-quadro-tab="true" data-contrast-surface={activeQuadro === "I" ? "dark" : "light"}
@@ -190,11 +193,11 @@ export function MunicipalUrbanRulesSettings({
         {activeQuadro === "I" ? (
           <div id="sigapro-quadro-i-panel" role="region" aria-labelledby="sigapro-quadro-i-tab" className="min-w-0 pt-3">
             <UrbanLegalMatrixReviewPanel municipalityId={municipalityId} canView canEdit={canEdit}
-                onPrepareDraft={prepareFromMatrix} />
+                onPrepareDraft={prepareFromMatrix} onDataChanged={markAuditChanged} />
           </div>
         ) : (
           <div id="sigapro-quadro-ii-panel" role="region" aria-labelledby="sigapro-quadro-ii-tab" className="min-w-0 pt-3">
-            <UrbanQuadroIIWorkspacePanel municipalityId={municipalityId} canView canEdit={canEdit} />
+            <UrbanQuadroIIWorkspacePanel municipalityId={municipalityId} canView canEdit={canEdit} onDataChanged={markAuditChanged} />
           </div>
         )}
       </div>
@@ -280,7 +283,7 @@ export function MunicipalUrbanRulesSettings({
 
       <UrbanZoningMapManagerPanel municipalityId={municipalityId} canEdit={canEdit} />
 
-      <div className="mt-6 border-t border-slate-200 pt-4 dark:border-slate-700">
+      <div data-urban-regulation-versions="true" className="mt-6 scroll-mt-24 border-t border-slate-200 pt-4 dark:border-slate-700">
         <h4 className="text-sm font-bold text-slate-950 dark:text-white">Versões cadastradas neste município</h4>
         {!loading && fixtureCount > 0 ? (
           <p data-urban-qa-fixtures="true" className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 font-semibold text-amber-950">
