@@ -384,7 +384,9 @@ export function UrbanLegalMatrixReviewPanel({
               </strong>
               {progress.reviewed} leituras conferidas e {progress.needsCorrection} ressalva(s)
               já registrada(s) no histórico. Não é necessário repetir a conferência da AIU(2).
-              A ressalva NÃO confirma o CA mínimo, não homologa a lei nem libera esse índice à IA.
+              Para simulação de homologação, a AIU (2) utiliza CA mínimo 1,00 conforme orientação técnica
+              provisória. A ressalva NÃO confirma esse valor como lei, não homologa o Quadro I
+              nem libera o índice à IA para decisão oficial.
             </div>
           ) : null}
           <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-950">
