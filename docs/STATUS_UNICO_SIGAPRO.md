@@ -649,3 +649,49 @@ Relatório completo com casos, resultados, limitações e reversão: `docs/QA_P0
 **Aceite comercial sem ciclo Git:** `scripts/qa-commercial-acceptance.mjs` deixa de considerar o checklist versionado como prova `--enforce`. O aceite agora exige manifesto e dez artefatos privados, sanitizados, com hash SHA-256 e SHA imutável do Preview; o workflow manual exige SHA explícito, identificador de artifact/revisão e branch QA. Isso elimina a dependência circular de atualizar um arquivo versionado depois de fixar o SHA a testar. Os dez itens permanecem `pending`, e a proteção do branch `main` como status requerido ainda depende de configuração administrativa GitHub.
 
 **Documentação canônica:** `docs/QA_WEBHOOK_SANDBOX_SEGURO_20261107.md`, `docs/QA_COMMERCIAL_ACCEPTANCE.md` e este status. **Ainda não homologados:** callback real assinado de sandbox, entrada/baixa com dinheiro de teste atestada pelo provedor, PDF físico no R2, recuperação integral Neon+R2, gabarito IA de projeto real e dashboards autenticados em duas Prefeituras. Produção mantém P0 de EXECUTE direto de oficialização, não alterar sem janela e aceite.
+
+## 07/11/2026 — Retomada: auditoria QA e limite de leitura de avatares R2
+
+**Escopo:** inspeção e correções na branch única de QA; sem merge da PR #118
+(DRAFT), sem migração ou alteração de produção, sem deploy Vercel novo.
+
+**Banco Neon QA principal — SELECT read-only:** `br-solitary-sound-b4xlbvs6`,
+database `sigapro_migration_stage_20260923`: 8 processos, 11 guias,
+10 perfis e 2 municípios. `officialize_preprotocol_v1(uuid,uuid)`
+não concede EXECUTE a `authenticated` nem a `PUBLIC` nessa branch.
+`sigapro_qa_webhook_worker`: `rolbypassrls=false`;
+`sigapro_prod_webhook_worker` legado: `rolbypassrls=true`
+(**pendência operacional**, não corrigir automaticamente).
+Há 2 versões urbanísticas ativas com zona `QA-URBAN-E2E-20261024` e
+uso `QA_RES`: **somente regras fictícias de ensaio**, não aprovação legal.
+
+**Observabilidade Vercel:** relatório agregado de erros de 24 h contém
+sete falhas históricas de recuperação de avatar legado Supabase em função
+do domínio antigo indisponível por DNS; associadas a deployment da main,
+não ao Preview QA recente. O código QA já restringia o fetch legado à
+origem HTTPS explicitamente autorizada e evitava redirecionamentos.
+Não afirmar que a correção está na produção.
+
+**Correção de defesa em profundidade aplicada à QA:** o cache de foto
+R2 carregava `transformToByteArray()` antes de conferir limite de 12 MiB.
+`server/api/profile-avatar-open.ts` agora usa leitura em streaming
+com rejeição antecipada por `ContentLength` e verificação incremental
+mesmo sem metadados. `src/test/legacyAvatarSecurityQa.test.ts` cobre
+tamanho, interrupção e imagem válida. Commits de implementação/teste:
+`817e6deb` e `f71a203a`. Evidência:
+`docs/QA_AVATAR_LEGADO_SEGURANCA_20261107.md`.
+Confirmar Quality Gate, migration validation e OCR isolado no HEAD final
+antes de considerar o código validado.
+
+**Publicação:** o alias estável da QA continuava apontando ao Preview
+READY `bd423ecb8a18b226b474d6c964245f4c56628017`, anterior a este
+ajuste. Autodeploy da branch QA permanece desligado em `vercel.json`;
+não presumir que o código recém-commitado esteja no site. Nenhum arquivo
+ou dado pessoal é incluído neste relatório.
+
+**Gates restantes:** sessão real de login com medição P50/P95, 4 painéis
+autenticados e 2 Prefeituras, webhook Orders do Mercado Pago sandbox
+assinado com comprovante e baixa, PDF original no R2 e recuperação,
+IA em planta real e matriz jurídica com evidências, restauração Neon+R2,
+correção P0 financeira de produção sob janela autorizada. Os dez critérios
+de aceite comercial continuam pendentes; não liberar produção.
