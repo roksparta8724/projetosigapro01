@@ -42,6 +42,12 @@ describe("SIGAPRO IA — completude jurídica e rascunho sem ativação", () => 
           reference:"LEI FICTICIA QA SEM VALIDADE LEGAL"}],created_at:"2026-10-24T10:00:00Z"}],
     });
     expect(result.reading).toMatchObject({total:23,verified:22,needsCorrection:1,untreated:0});
+    // The 1 unresolved row must be exposed with its authentic source location.
+    expect(result.readingIssues).toEqual([expect.objectContaining({
+      line: 22, page: 37, zone: "AIU(2)", status: "needs_correction",
+    })]);
+    expect(result.readingIssues[0].reason).toContain("Conferência do original");
+    expect(result.readyForHumanAssistedPrecheck).toBe(false);
     expect(result.quadroII).toMatchObject({pages:14,draftEntries:0,machineProposals:14});
     expect(result.counts).toMatchObject({officialActive:0,fictitiousQA:1,numericImports:0,
       verifiedEvidence:0,versionedLaws:0});
