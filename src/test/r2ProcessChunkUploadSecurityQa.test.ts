@@ -78,6 +78,16 @@ describe("SIGAPRO QA — anexos maiores que o limite HTTP, sem alterar PDFs banc
   });
 
   it("confere assinaturas, perfil, tenant, quota, staging e revisão imutável", () => {
+    const router = readFileSync("api/r2.ts","utf8");
+    const rewrites = JSON.parse(readFileSync("vercel.json","utf8")) as {
+      rewrites: Array<{source:string,destination:string}>;
+    };
+    expect(router).toContain('action === "process-proxy-upload"');
+    expect(router).toContain('handleProcessProxyUpload(req as never, res)');
+    expect(rewrites.rewrites).toContainEqual({
+      source:"/api/r2-process-proxy-upload",
+      destination:"/api/r2?action=process-proxy-upload",
+    });
     const server = readFileSync("server/api/r2-process-proxy-upload.ts","utf8");
     const client = readFileSync("src/integrations/r2/client.ts","utf8");
     const raw = readFileSync("src/integrations/r2/processChunkUpload.ts","utf8");
