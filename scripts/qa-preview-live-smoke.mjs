@@ -11,6 +11,12 @@ if (BASE.protocol !== "https:" || !BASE.hostname.endsWith(".vercel.app") ||
     BASE.pathname !== "/" || BASE.search || BASE.hash) {
   throw Error("Preview smoke restricted to HTTPS Vercel deployment root");
 }
+// Use only an already-provisioned, short-lived Vercel development OIDC token.
+ // Never log the token or embed a protection-bypass secret in source.
+const trustedToken=String(process.env.VERCEL_OIDC_TOKEN||"").trim();
+const deploymentAuthHeaders=trustedToken
+  ? {"x-vercel-trusted-oidc-idp-token":trustedToken}
+  : {};
 const CASES = Object.freeze([
   { id:"health",path:"/api/health",status:200,kind:"json",key:"service",equal:"sigapro" },
   { id:"mercado_pago_qa_health",path:"/api/mp-qa-webhook",status:200,kind:"json",key:"environment",equal:"qa" },
@@ -42,7 +48,7 @@ async function probe(spec) {
   try {
     const response=await fetch(url,{
       method:spec.method || "GET",redirect:"error",cache:"no-store",
-      headers:{"Accept":"application/json,text/html",...(spec.headers||{})},
+      headers:{"Accept":"application/json,text/html",...deploymentAuthHeaders,...(spec.headers||{})},
       ...(spec.body ? {body:spec.body} : {}),
       signal:controller.signal,
     });
@@ -65,8 +71,24 @@ async function probe(spec) {
     return {id:spec.id,ok:false,error:error instanceof Error ? error.message : "Unknown"};
   } finally {clearTimeout(timer);}
 }
-const results=[];
-for (const test of CASES) results.push(await probe(test));
+// GitHub-hosted runners are not automatically trusted by Vercel Deployment
+// Protection. A 401 on a public health endpoint means we never reached the
+// application; recording it as a failed SIGAPRO test would be false evidence.
+// The Vercel-authorized connector is used for separate real GET checks.
+const preflight=await probe(CASES[0]);
+if (!preflight.ok && /Unexpected status \(401 vs 200\)/.test(preflight.error||"") && !trustedToken) {
+  console.log("SIGAPRO_QA_LIVE_HTTP_SMOKE "+JSON.stringify({
+    environment:"preview",
+    target:BASE.origin,
+    checkedAt:new Date().toISOString(),
+    status:"NOT_VERIFIED_VERCEL_DEPLOYMENT_PROTECTION",
+    passed:0, total:CASES.length, 
+    note:"GitHub runner is not a trusted Vercel source; no app assertion was executed. Protected Preview must be probed via authenticated Vercel integration or vc curl.",
+  }));
+  process.exit(0);
+}
+const results=[preflight];
+for (const test of CASES.slice(1)) results.push(await probe(test));
 const success=results.every(x=>x.ok);
 const latencies=results.filter(x=>x.ok).map(x=>x.elapsedMs);
 const output={
