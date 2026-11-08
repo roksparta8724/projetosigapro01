@@ -1,5 +1,6 @@
 import { BookOpenCheck, ExternalLink, FileWarning, ShieldAlert } from "lucide-react";
 import { getMunicipalOfficialUrbanSources } from "@/lib/urbanOfficialLegalSources";
+import { CampoLimpoQuadroIOriginalPanel } from "@/components/platform/CampoLimpoQuadroIOriginalPanel";
 
 const kindLabel = {
   base: "Base normativa",
@@ -90,6 +91,7 @@ export function UrbanOfficialLegalSourcesPanel({
             </article>
           ))}
         </div>
+        <CampoLimpoQuadroIOriginalPanel />
         <div className="mt-3 rounded-xl border border-sky-200 bg-sky-50 p-3 text-xs leading-5 text-sky-950">
           <strong>Critério de homologação:</strong> aprovação de obra nova exige norma consolidada,
           mapa oficial, unidade correta e evidência por índice. Direito real de laje e
