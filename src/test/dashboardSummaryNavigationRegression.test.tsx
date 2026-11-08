@@ -128,6 +128,7 @@ describe("dashboard nav must not redirect away from Visão geral", () => {
   });
 
   it("keeps municipal overview responsive while removing duplicate KPI cards", () => {
+    const dashboard = read("src/pages/saas/DashboardHomePage.tsx");
     const tenant = read("src/pages/saas/TenantAdminPage.tsx");
     const cards = read("src/components/platform/PageLayout.tsx");
     const history = read("src/pages/saas/TenantAdminPage.tsx");
