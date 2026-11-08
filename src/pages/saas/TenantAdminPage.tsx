@@ -1269,7 +1269,7 @@ export function TenantAdminPage() {
   return (
     <PortalFrame eyebrow="Administração da Prefeitura" title={municipalityName || activeInstitution?.name || "Administração da Prefeitura"}>
       <PageShell>
-        {workspaceView === "visao-geral" ? (
+        {workspaceView === "visao-geral" && overviewSubpage === "resumo" ? (
           <>
         <PageStatsRow className="xl:grid-cols-4">
           {executiveCards.map((item) => (
@@ -1298,7 +1298,14 @@ export function TenantAdminPage() {
         <InternalTabs
           className="border-slate-200/90 shadow-[0_12px_30px_rgba(15,23,42,0.04)]"
           value={workspaceView}
-          onChange={(value) => setWorkspaceView(value as WorkspaceView)}
+          onChange={(value) => {
+            const next = value as WorkspaceView;
+            setWorkspaceView(next);
+            if (isNestedOverview) {
+              navigate(next === "visao-geral" ? "/prefeitura" : `/prefeitura?secao=${encodeURIComponent(next)}`);
+            }
+          }}
+          persistInUrl={!isNestedOverview}
           items={[
             { value: "visao-geral", label: "Visão geral", helper: "Resumo executivo" },
             { value: "fila", label: "Fila operacional", helper: "Protocolos e prioridades" },
@@ -1308,13 +1315,21 @@ export function TenantAdminPage() {
           ]}
         />
 
+        {workspaceView === "visao-geral" ? (
+          <MunicipalOverviewSubnav active={overviewSubpage} counts={{
+            processos: tenantProcesses.length,
+            pendencias: actionRequired.length,
+            atividades: recentActivity.length,
+          }} />
+        ) : null}
+
         {statusMessage ? (
           <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-sm leading-6 text-emerald-700">
             {statusMessage}
           </div>
         ) : null}
 
-        {workspaceView === "visao-geral" ? (
+        {workspaceView === "visao-geral" && overviewSubpage === "resumo" ? (
           <PageMainGrid className="xl:grid-cols-[minmax(0,1.65fr)_minmax(300px,0.85fr)]">
             <PageMainContent>
               <SectionCard
