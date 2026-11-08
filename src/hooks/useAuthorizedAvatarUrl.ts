@@ -54,7 +54,9 @@ export function useAuthorizedAvatarUrl(
     };
   }, [objectKey, raw, owner]);
 
+  // For account-scoped images, only use the live cache. A blob revoked on
+  // logout must never be returned from a stale React state.
   return objectKey
-    ? (cacheHit || (loaded.source === raw && loaded.owner === owner ? loaded.url : ""))
+    ? (owner ? cacheHit : (loaded.source === raw && loaded.owner === "" ? loaded.url : ""))
     : raw;
 }
