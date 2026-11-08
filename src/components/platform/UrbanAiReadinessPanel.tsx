@@ -202,6 +202,12 @@ export function UrbanAiReadinessPanel({
                 <p className="mt-1 break-words text-xs leading-5 text-slate-700 dark:text-slate-200">
                   {check.detail}
                 </p>
+                {check.passed && check.quadro ? (
+                  <button type="button" onClick={() => openNextStep(check.quadro === "I" ? "quadros-i" : "quadros-ii")}
+                    className="mt-2 min-h-9 text-xs font-semibold text-sky-800 underline underline-offset-2 dark:text-sky-300">
+                    Consultar Quadro {check.quadro}
+                  </button>
+                ) : null}
                 {!check.passed && NEXT_ACTIONS[check.code] ? (
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     <button type="button" data-urban-readiness-next={check.code}
