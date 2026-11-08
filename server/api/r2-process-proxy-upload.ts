@@ -17,6 +17,7 @@ import {
   HeadObjectCommand, PutObjectCommand, S3Client, UploadPartCommand,
 } from "@aws-sdk/client-s3";
 import { callDataApiRpc, readBearer, resolveMunicipalDocumentTarget } from "../municipal-storage.js";
+import { authorizeProcessAttachmentWrite } from "../process-attachment-write-authorization.js";
 import { resolveR2Endpoint } from "../r2-runtime.js";
 import { isSafeR2ObjectKey } from "../r2-object-key-validation.js";
 
@@ -164,18 +165,16 @@ export default async function handler(req: Req, res: Res) {
   if (!input) return respond(res, 400, { error: "Tipo, tamanho ou referência do documento inválida." });
   const v = input;
 
-  // All requests, including finalize and abort, must verify the exact owner,
-  // municipal membership and current subscription storage allowance.
-  const [identity, tenant, quota] = await Promise.all([
-    callDataApiRpc<unknown>(req, "current_profile_id", {}),
-    callDataApiRpc<boolean>(req, "has_tenant_access", { target_tenant: v.municipalityId }),
-    callDataApiRpc<unknown>(req, "assert_municipality_entitlement_v1", {
-      _municipality_id: v.municipalityId, _capability: "storage_bytes", _increment: v.fileSize,
-    }),
-  ]);
-  if (!identity.ok || String(identity.payload || "").toLowerCase() !== v.actorId ||
-      !tenant.ok || tenant.payload !== true)
-    return respond(res, 403, { error: "Sem permissão para enviar documentos desta Prefeitura." });
+  // Membership alone must never grant the power to edit a process. This
+  // role-and-owner policy is shared with ordinary (small) R2 attachments.
+  const grant = await authorizeProcessAttachmentWrite(req, v.objectKey);
+  if (grant.ok === false) return respond(res, grant.status, {
+    code: grant.code,
+    error: "Este perfil não tem autorização para anexar documentos ao processo.",
+  });
+  const quota = await callDataApiRpc<unknown>(req, "assert_municipality_entitlement_v1", {
+    _municipality_id: v.municipalityId, _capability: "storage_bytes", _increment: v.fileSize,
+  });
   if (!quota.ok)
     return respond(res, 409, { error: "Plano ou franquia de armazenamento não autorizou este arquivo." });
   const documentBucket = env("R2_BUCKET_DOCUMENTOS") || "sigapro-documentos";
