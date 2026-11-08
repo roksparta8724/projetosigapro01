@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import {
   avatarUploadContentIsValid,
   buildPublicUrl,
+  getR2UploadEntitlement,
   profileAvatarUploadAuthorized,
   validateR2UploadJson,
 } from "../../server/api/r2-upload";
@@ -37,6 +38,21 @@ describe("SIGAPRO QA — gravação de avatar vinculada à identidade real", () 
     expect(profileAvatarUploadAuthorized("profile-assets", logosBucket, avatar(city, owner, "../other.png"), owner)).toBe(false);
     expect(profileAvatarUploadAuthorized("profile-assets", logosBucket, avatar(city, owner, "photo.svg"), owner)).toBe(false);
     expect(profileAvatarUploadAuthorized("profile-assets", logosBucket, "platform/branding/logo.png", owner)).toBe(false);
+  });
+
+  it("avatar pessoal usa quota de armazenamento, sem exigir o módulo administrativo", () => {
+    const ownAvatar = getR2UploadEntitlement(logosBucket, 24576, true);
+    expect(ownAvatar).toEqual({ capability: "storage_bytes", increment: 24576 });
+    expect(getR2UploadEntitlement("sigapro-documentos", 500, false))
+      .toEqual({ capability: "storage_bytes", increment: 500 });
+    expect(getR2UploadEntitlement(logosBucket, 500, false))
+      .toEqual({ capability: "module:Configurações", increment: 0 });
+
+    const server = readFileSync("server/api/r2-upload.ts", "utf8");
+    expect(server).toContain("getR2UploadEntitlement(bucket, buffer.byteLength, avatarUpload)");
+    expect(server).toContain('callDataApiRpc(req, "assert_municipality_entitlement_v1"');
+    expect(server).toContain('callDataApiRpc(req, "has_tenant_access"');
+    expect(server).toContain("profileAvatarUploadAuthorized(");
   });
 
   it("verifica a assinatura real da imagem e limita tamanho", () => {
