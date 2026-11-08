@@ -19,16 +19,17 @@ autorização para produção ou homologação comercial.
   transferência bancária). GET nas rotas de upload, exclusão e
   assinatura de documentos = 405, com respostas JSON; tela de
   acesso e subpáginas municipais = 200, com HTML PT-BR.
-  O novo `scripts/qa-preview-live-smoke.mjs` registra verificações
-  de transporte e respostas negativas de escrita sem credenciais. O
-  executor GitHub não tem acesso automático ao Preview protegido pela
-  Vercel: na primeira execução, recebeu 401 nas 11 rotas **antes de
-  alcançar o aplicativo**. O script agora informa explicitamente
-  `NOT_VERIFIED_VERCEL_DEPLOYMENT_PROTECTION`, em vez de atribuir a
-  falha ao SIGAPRO ou contar qualquer teste como aprovado. Para
-  exercitar o Preview autenticado é necessária uma identidade Vercel
-  autorizada (conector oficial ou token OIDC de curta duração).
-  **Não mede tempo de login** nem relaxa a proteção de implantação.
+  O verificador `scripts/qa-preview-live-smoke.mjs` está disponível para
+  execução por uma identidade Vercel confiável. O GitHub Runner
+  **não** possui autorização de acesso ao Preview protegido:
+  em execução real recebeu HTTP 401 antes de alcançar o SIGAPRO,
+  inclusive no endpoint de saúde. A tentativa não constitui
+  teste funcional aprovado nem falha do aplicativo.
+  A checagem foi removida do bloqueio automático do Quality Gate
+  (que continuou com TypeScript, ESLint, Vitest, OCR e build).
+  As respostas públicas acima foram verificadas por meio da
+  **integração Vercel autorizada**. Nunca desativar o acesso
+  protegido para fazer o teste passar. Não houve medição de login.
 - Vercel Runtime Errors (janela de 24 h): nenhum cluster de erro retornado
   pela consulta; logs individuais de 24h não ficam retidos no
   plano Hobby. A ausência de logs não prova ausência de falhas.
@@ -83,6 +84,37 @@ revisão específica de dependências e uma janela autorizada
 antes de demover/rotacionar esse papel. A comprovação de conexão
 do worker de produção segue pendente.
 
+
+## Consistência financeira adicional (SQL somente leitura)
+
+- Os quatro processos em análise e o deferido possuem guia marcada
+  como paga e data de oficialização; **nenhum desses cinco** tem no
+  banco a evidência de autenticação de uma guia de teste do Mercado
+  Pago. São dados de QA/legado, não comprovação de pagamento real.
+- Os dois processos com status `pagamento_pendente` não têm data de
+  oficialização e não possuem guia marcada paga. Isso corresponde
+  ao comportamento esperado no snapshot, mas não prova webhook real.
+- O processo com `pendencia_documental` tem guia de teste com
+  autenticação bancária registrada e está oficializado; ainda
+  falta comprovar a assinatura da notificação original e
+  a integridade física do PDF.
+- No banco QA, `public.officialize_preprotocol_v1` é
+  `SECURITY DEFINER`, mas tem permissão de EXECUTE **apenas para
+  `neondb_owner`**. A role `authenticated` e os workers bancários
+  não executam essa função diretamente. A oficialização é feita
+  por trigger após a atualização da guia.
+- `public.payment_guides` e `public.processes` têm RLS habilitado,
+  somente política SELECT para `authenticated`, e a role não
+  possui privilégios diretos de INSERT/UPDATE nas tabelas.
+  A função `confirm_preprotocol_payment_v1` valida perfil,
+  setor de protocolo, vínculo municipal e recusa manualmente guias
+  com referência de banco. Isso reduz o risco de baixa forjada
+  por chamadas simples à Data API; ainda devem ser testadas as
+  operações autorizadas de cada perfil e o callback sandbox.
+
+**Essa verificação é estática no banco de QA:** não substitui teste
+de ponta a ponta nem prova que uma prefeitura real concluiu o processo.
+
 ## Ações realizadas nesta auditoria
 
 1. Inspeção da PR, do SHA efetivamente publicado e da trilha CI.
@@ -90,7 +122,7 @@ do worker de produção segue pendente.
 3. Consultas Neon QA de leitura para status de processos, documentos,
    guias, relatórios de IA e privilégio mínimo.
 4. Introdução do verificador real
-   `scripts/qa-preview-live-smoke.mjs` no CI do PR.
+   `scripts/qa-preview-live-smoke.mjs` para uso pelo Vercel autenticado; o CI registra a exigência de acesso confiável.
 5. Manutenção do bloqueio de publicação comercial enquanto faltarem
    provas humanas vinculadas a um SHA imutável, conforme
    `docs/QA_COMMERCIAL_ACCEPTANCE.md`.
