@@ -260,7 +260,8 @@ function json(res: Res, status: number, body: unknown) {
   res.end(JSON.stringify(body));
 }
 
-const MAX_R2_UPLOAD_REQUEST_BYTES = 6 * 1024 * 1024;
+// Base64 increases payload by ~33%; keep below Vercel's ~4.5 MB request ceiling.
+const MAX_R2_UPLOAD_REQUEST_BYTES = 4 * 1024 * 1024;
 
 export function validateR2UploadJson(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value))
