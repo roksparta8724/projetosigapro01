@@ -11,6 +11,7 @@ import { isPublicLegislationPdfKey, isSafeR2ObjectKey, signedR2Ttl } from "../r2
 import { GetObjectCommand, HeadObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { callDataApiRpc, getDataApiUrl, readBearer, resolveMunicipalDocumentTarget } from "../municipal-storage.js";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { authorizePrivateAvatarRead, isAvatarStoragePath } from "../avatar-access.js";
 
 type Req = import("http").IncomingMessage & { method?: string; body?: unknown };
 type Res = import("http").ServerResponse;
@@ -133,6 +134,7 @@ export async function authorizePrivateR2DocumentRead(
 /** Authorization for a presigned identity asset; URLs are bearer credentials. */
 export async function authorizeR2LogoRead(req: Req, key: string) {
   // Logos are public; private avatars and other objects are not.
+  if (isAvatarStoragePath(key)) return authorizePrivateAvatarRead(req, key);
   const publicBrand =
     /^platform\/branding\/[a-zA-Z0-9/_-]+\.(?:png|webp|jpe?g)$/i.test(key) ||
     /^municipalities\/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/branding\/[a-zA-Z0-9/_ .()-]+\.(?:png|webp|jpe?g)$/i.test(key);
