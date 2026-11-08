@@ -119,14 +119,15 @@ describe("dashboard nav must not redirect away from Visão geral", () => {
     expect(screen.getByRole("button", { name: /usuários/i })).toHaveAttribute("data-nav-active", "true");
   });
 
-  it("still keeps one list of all municipal plans for Master on overview", () => {
+  it("limits Master overview contract cards and preserves navigation to the full portfolio", () => {
     const dashboard = read("src/pages/saas/DashboardHomePage.tsx");
     expect(dashboard).toContain("showPlanCapacity && isMaster ? renderPlanCapacity() : null");
-    expect(dashboard).toContain("planCapacity.rows.map");
+    expect(dashboard).toContain("planCapacity.rows.slice(0, isMaster ? 2 : undefined)");
+    expect(dashboard).toContain('navigate("/master?secao=carteira")');
     expect(dashboard).toContain("Capacidade contratada por Prefeitura");
   });
 
-  it("keeps municipal overview text inside responsive premium cards", () => {
+  it("keeps municipal overview responsive while removing duplicate KPI cards", () => {
     const tenant = read("src/pages/saas/TenantAdminPage.tsx");
     const cards = read("src/components/platform/PageLayout.tsx");
     const history = read("src/pages/saas/TenantAdminPage.tsx");
@@ -135,7 +136,10 @@ describe("dashboard nav must not redirect away from Visão geral", () => {
     expect(tenant).toContain("MunicipalActivityCard key=");
     expect(tenant).toContain("municipalActivityTitle(item.title)");
     expect(tenant).toContain("min-[2150px]:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]");
-    expect(tenant).toContain("sm:grid-cols-2 min-[2200px]:grid-cols-3");
+    expect(tenant).toContain('data-sigapro-overview-quickfacts="true"');
+    expect(tenant).toContain('data-sigapro-overview-unit-summary="compact"');
+    expect(tenant).toContain('mainQueue.slice(0, 3).map((process) => (');
+    expect(dashboard).toContain('data-sigapro-overview-strip="compact"');
     expect(tenant).not.toContain("lg:grid-cols-[minmax(260px,1.55fr)");
     expect(cards).toContain("[overflow-wrap:anywhere]");
     expect(history).toContain("min-[2050px]:grid-cols-");
