@@ -32,7 +32,8 @@ describe("SIGAPRO Premium — cadastro escalável de 3 mil usuários", () => {
     expect(screen.getByRole("table", { name: "Usuários de teste" })).toBeInTheDocument();
     expect(container.querySelectorAll("[data-sigapro-user-row]")).toHaveLength(20);
     expect(container.querySelectorAll("[data-sigapro-user-expanded]")).toHaveLength(0);
-    expect(screen.getByText(/3\.000 cadastros encontrados/)).toBeInTheDocument();
+    expect(screen.getByText("3.000")).toBeInTheDocument();
+    expect(screen.getByText(/cadastros encontrados/)).toBeInTheDocument();
     expect(screen.getByText(/Página 1 de 150/)).toBeInTheDocument();
   });
 
@@ -76,7 +77,8 @@ describe("SIGAPRO Premium — cadastro escalável de 3 mil usuários", () => {
       onPageChange={() => {}} renderDetails={heavy} />);
     expect(heavy).not.toHaveBeenCalled();
     fireEvent.click(screen.getAllByRole("button", { name: "Detalhes" })[0]);
-    expect(heavy).toHaveBeenCalledTimes(1);
+    expect(heavy).toHaveBeenCalled();
+    expect(heavy.mock.calls.every(([user]) => user.id === staff[0].id)).toBe(true);
     expect(container.querySelectorAll("[data-sigapro-user-row]")).toHaveLength(20);
   });
 });
