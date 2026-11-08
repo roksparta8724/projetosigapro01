@@ -92,8 +92,12 @@ describe("SIGAPRO QA — anexos maiores que o limite HTTP, sem alterar PDFs banc
     const client = readFileSync("src/integrations/r2/client.ts","utf8");
     const raw = readFileSync("src/integrations/r2/processChunkUpload.ts","utf8");
     expect(server).toContain('readBearer(req)');
-    expect(server).toContain('"current_profile_id"');
-    expect(server).toContain('"has_tenant_access"');
+    const auth = readFileSync("server/process-attachment-write-authorization.ts","utf8");
+    expect(server).toContain("authorizeProcessAttachmentWrite(req, v.objectKey)");
+    expect(auth).toContain('"current_profile_id"');
+    expect(auth).toContain('"has_tenant_access"');
+    expect(auth).toContain('"is_municipality_admin"');
+    expect(auth).toContain('"is_master"');
     expect(server).toContain('"assert_municipality_entitlement_v1"');
     expect(server).toContain('private-process-staging/');
     expect(server).toContain('IfNoneMatch:"*"');
