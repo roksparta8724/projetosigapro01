@@ -14,12 +14,16 @@ const municipalSource: UrbanReadinessInput = {
     legal_approval: false,
     pages: Array.from({ length: 14 }, (_, i) => ({
       page_number: 38 + i,
-      topic: "Quadro II", source_quality: "visual_required", visual_warning: true,
+      topic: "Quadro II", source_quality: "visual_required",
+      visual_warning: true, draft_count: 0,
       proposals: [],
     })),
     entries: Array.from({ length: 45 }, (_, i) => ({
       id: "draft-" + i, category_code: "C" + i, page_number: 38,
+      use_description: "Uso candidato", permitted_zones_text: "",
+      road_hierarchy_text: "", parking_requirement_text: "", special_conditions_text: "",
       status: "draft_unverified", source_excerpt: "Leitura candidata sem homologação legal",
+      created_by_profile_id: "qa-reviewer", created_at: "2026-11-08T10:00:00Z",
     })),
   },
   matrixImports: [], verifiedEvidence: [], regulations: [], versionedLawCount: 0,
