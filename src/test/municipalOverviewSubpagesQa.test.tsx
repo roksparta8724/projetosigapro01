@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
@@ -37,8 +37,9 @@ describe("SIGAPRO QA — Visão Geral da Prefeitura com subpáginas reais", () =
     expect(screen.getByText("2.000")).toBeInTheDocument();
     expect(screen.getByText("3.000")).toBeInTheDocument();
     expect(container.querySelectorAll("[data-sigapro-overview-subpages]")).toHaveLength(1);
-    fireEvent.click(screen.getByRole("link", { name: /Pendências/ }));
-    expect(window.location.hash).not.toContain("token");
+    expect(screen.getByRole("link", { name: /Pendências/ })).toHaveAttribute(
+      "href", "/prefeitura/visao-geral/pendencias",
+    );
   });
 
   it("preserva os mesmos guardas municipais nas rotas novas, sem conceder edição ao administrador", () => {
@@ -68,7 +69,7 @@ describe("SIGAPRO QA — Visão Geral da Prefeitura com subpáginas reais", () =
     expect(page).toContain("orderedAllProcesses");
     expect(page).toContain("overviewProcessStatus === \"concluidos\"");
     expect(page).toContain("const mainQueue = useMemo(() => orderedAllProcesses.filter");
-    expect(page).toContain('pageData.items.map((process) => {'.replace("pageData", "pageData") === "" ? "" : "overviewActivityPageData.items.map");
+    expect(page).toContain("overviewActivityPageData.items.map");
     expect(page).toContain("paginateMunicipalItems(recentActivity, overviewActivityPage, 15)");
     expect(list).toContain("paginateMunicipalItems(processes, page, 25)");
     expect(list).toContain("pageData.items.map((process)");
