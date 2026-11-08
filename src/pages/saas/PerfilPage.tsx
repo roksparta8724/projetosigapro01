@@ -37,6 +37,8 @@ import { formatDisplayText, humanizeRoleLabel } from "@/lib/displayText";
 import { cn } from "@/lib/utils";
 import { DEFAULT_AVATAR_EDITOR_DIAMETER } from "@/lib/avatarCropGeometry";
 import { resolveProfileAvatarDisplayUrl } from "@/lib/profileAvatarDisplay";
+import { useAuthorizedAvatarUrl } from "@/hooks/useAuthorizedAvatarUrl";
+import { resolveAuthorizedAvatarUrl } from "@/lib/privateAvatarRead";
 import { calculateMasterLogoCrop, findOpaqueWhiteFooterHeight } from "@/lib/masterLogoCrop";
 import type { InstitutionalLogoConfigVariant } from "@/lib/institutionBranding";
 import {
@@ -181,6 +183,16 @@ async function confirmSavedAvatarReadable(url: string): Promise<boolean> {
     return false;
   }
 
+  // The stable R2 path is never loaded anonymously or saved as a blob URL.
+  // Only this check creates a disposable, same-origin image URL.
+  let asset: Awaited<ReturnType<typeof resolveAuthorizedAvatarUrl>>;
+  try {
+    asset = await resolveAuthorizedAvatarUrl(url);
+  } catch {
+    return false;
+  }
+
+  try {
   for (let attempt = 0; attempt < 3; attempt += 1) {
     const readable = await new Promise<boolean>((resolve) => {
       const image = new Image();
@@ -196,13 +208,16 @@ async function confirmSavedAvatarReadable(url: string): Promise<boolean> {
       const timeout = window.setTimeout(() => complete(false), 8000);
       image.onload = () => complete(image.naturalWidth > 0 && image.naturalHeight > 0);
       image.onerror = () => complete(false);
-      image.src = url;
+      image.src = asset.url;
     });
     if (readable) return true;
     if (attempt < 2) await new Promise<void>((resolve) => window.setTimeout(resolve, 250 * (attempt + 1)));
   }
 
   return false;
+  } finally {
+    asset.revoke();
+  }
 }
 
 export function PerfilPage() {
@@ -1148,7 +1163,7 @@ export function PerfilPage() {
     { value: "historico", label: "Histórico", helper: "Ações recentes da conta" },
   ] as const;
 
-  const avatarPreviewUrl =
+  const avatarPreviewSourceUrl =
     avatarFiles[0]?.previewUrl ||
     (avatarDraftDirty
       ? ""
@@ -1156,6 +1171,7 @@ export function PerfilPage() {
           avatarUrl: form.avatarUrl,
           avatarStorageRef: profile?.avatarStorageRef,
         }));
+  const avatarPreviewUrl = useAuthorizedAvatarUrl(avatarPreviewSourceUrl);
   const avatarPreviewCrop = useMemo(
     () => ({
       scale: form.avatarScale,
