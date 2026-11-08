@@ -1107,3 +1107,26 @@ existentes. Não publicar em produção nem alterar dados reais.
 final desta alteração (`Quality Gate`, `Neon migration validation`,
 `OCR isolado`) estejam `success`; corrigir qualquer falha
 antes de deploy ou merge. PR #118 continua rascunho.
+
+## 08/11/2026 — autorização explícita para publicar Preview atualizado
+
+O responsável pelo SIGAPRO solicitou a publicação de **todas as melhorias
+consolidadas da QA na prévia**, para avaliação visual e operacional. A
+PR #118 deve continuar em rascunho, sem merge em `main`, sem deploy de
+produção e sem modificar bancos ou variáveis de ambiente.
+
+**Versão-base aprovada:** `9b3b5445199f5522271c9c3e171de3157483a3d1`,
+com os três workflows em `success`. A primeira tentativa de deploy manual
+da mesma versão foi cancelada por regra de `Ignored Build Step`: o
+projeto Vercel exige a marca `[deploy-qa]` na mensagem do último commit
+em conjunto com `VERCEL_ENV=preview` e o nome exato da branch. O
+cancelamento foi intencional e protegeu a branch, não indicou falha
+de build.
+
+**Procedimento autorizado:** criar este commit documental de autorização
+com a marca `[deploy-qa]`, aguardar CI verde para o SHA definitivo,
+criar um **Preview** da mesma branch por Git Source, confirmar
+`readyState=READY` e `meta.githubCommitSha`, e verificar o alias
+de homologação antes de divulgar o link. Não alterar a regra de ignorar
+build, não forçar deployment para produção e não afirmar validação
+de interfaces autenticadas sem teste no navegador.
