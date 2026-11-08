@@ -14,10 +14,11 @@ import {
  * appends an immutable reviewed_draft. No use permissions are activated.
  */
 export function UrbanQuadroIILegalReviewPanel({
-  municipalityId, canEdit, workspace, entries,
+  municipalityId, canEdit, workspace, entries, onDataChanged,
 }: {
   municipalityId: string; canEdit: boolean;
   workspace: UrbanQuadroIIWorkspace; entries: UrbanQuadroIIDraft[];
+  onDataChanged?: () => void;
 }) {
   const [opened, setOpened] = useState(false);
   const [retries, setRetries] = useState(0);
@@ -90,6 +91,7 @@ export function UrbanQuadroIILegalReviewPanel({
       }
       setImports(next.filter((item) =>
         item.quadro === "II" && item.document_sha256 === workspace.document_sha256));
+      onDataChanged?.();
       setChosen(""); setZone(""); setEffectiveFrom(""); setExcerpt(""); setRepeatExcerpt(""); setConfirmed(false);
       setNotice("Versão jurídica conferida registrada como RASCUNHO. Nenhuma permissão de uso foi ativada.");
     } catch (cause) {
