@@ -393,6 +393,7 @@ export function TenantAdminPage() {
   const [queueSearch, setQueueSearch] = useState("");
   const [overviewProcessStatus, setOverviewProcessStatus] = useState<"todos" | "andamento" | "pendentes" | "concluidos">("todos");
   const [overviewActivityPage, setOverviewActivityPage] = useState(1);
+  const [overviewPendingSearch, setOverviewPendingSearch] = useState("");
   const [queuePage, setQueuePage] = useState(1);
   const [historyPage, setHistoryPage] = useState(1);
   const [segment, setSegment] = useState<UserSegment>("todos");
@@ -488,11 +489,23 @@ export function TenantAdminPage() {
     );
     return true;
   }), [filteredQueue, overviewProcessStatus, tenantSettings]);
+  const overviewPendingProcesses = useMemo(() => {
+    const term = overviewPendingSearch.trim().toLocaleLowerCase("pt-BR");
+    return term ? actionRequired.filter((process) =>
+      [process.protocol, process.title, process.ownerName, process.technicalLead, process.address]
+        .some((value) => String(value || "").toLocaleLowerCase("pt-BR").includes(term))
+    ) : actionRequired;
+  }, [actionRequired, overviewPendingSearch]);
   const overviewActivityPageData = paginateMunicipalItems(recentActivity, overviewActivityPage, 15);
   const planSnapshot = planCapacity.rows[0];
   const planUsersMetric = planSnapshot ? buildPlanCapacityMetrics(planSnapshot).find((item) => item.key === "users") : null;
   const queuePageData = paginateMunicipalItems(filteredQueue, queuePage, 20);
   const historyPageData = paginateMunicipalItems(recentActivity, historyPage, 20);
+  useEffect(() => {
+    setOverviewActivityPage(1);
+    setOverviewPendingSearch("");
+    setOverviewProcessStatus("todos");
+  }, [effectiveScopeId]);
   const openMunicipalProcess = (processId: string) => {
     const found = tenantProcesses.find((process) => process.id === processId);
     if (found) navigate(buildProcessPath(found));
