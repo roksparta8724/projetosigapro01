@@ -854,3 +854,88 @@ real, upload físico, R2 HEAD ou validação visual Master/Prefeitura foi
 executada neste lote; Preview permanece em commit mais antigo. A rota
 GET de avatar sem autenticação permanece uma pendência de privacidade
 separada, a resolver em migração coordenada de leitor e backend.
+
+## 07/11/2026 — QA: autorização de LEITURA de avatares, não só gravação
+
+**Estado e limites:** Alterações exclusivamente em
+`fix/qa-triagem-analise-pagamento-20261101` (PR #118 DRAFT).
+Nenhum merge em `main`, implantação em produção ou mutação das bases
+Neon foi autorizado neste lote. Preview existente utiliza SHA anterior;
+código QA requer publicação controlada no SHA final antes do aceite
+operacional. Não chamar essas verificações de teste real no navegador.
+
+**Risco identificado:** A rota antiga
+`GET /api/profile-avatar-open?objectKey=...` entregava avatares R2
+sem Bearer, embora os uploads já verificassem o proprietário. Também a
+assinatura `r2-sign-get` aceitava acesso municipal amplo a qualquer
+avatar no bucket compartilhado. Não bastava esconder o link público:
+era necessário conferir a sessão antes de ler ou assinar o objeto.
+
+**Proteções implementadas em código:**
+- `server/avatar-access.ts`: parser de chaves estritas
+  `platform/profiles/avatars/{perfil}/{arquivo}` ou
+  `municipalities/{prefeitura}/profiles/avatars/{perfil}/{arquivo}`,
+  sem traversal. `authorizePrivateAvatarRead` exige token Bearer e
+  `current_profile_id` canônico; autoriza o dono, Master, ou admin
+  municipal **com vínculo ativo na prefeitura alvo**. Qualquer falha de
+  autenticação/RPC é negada, sem escalar permissões.
+- `server/api/r2-sign-get.ts`: assinaturas de fotos privadas usam
+  obrigatoriamente esse guard; identidade visual pública e PDF de
+  processo conservam verificações próprias. Nenhum outro documento
+  torna-se automaticamente visível.
+- `server/api/profile-avatar-open.ts`: **em Preview da branch QA exata**,
+  GET de objeto R2 exige a política acima antes de abrir o R2. Respostas
+  autenticadas não podem ter `Access-Control-Allow-Origin: *`, carregam
+  `Cross-Origin-Resource-Policy: same-origin`,
+  `Referrer-Policy: no-referrer` e `Cache-Control: private, no-store`.
+  Todos os clientes S3 usados na tentativa são destruídos no `finally`,
+  evitando acumular sockets por foto. A recuperação pública legada de
+  fontes Supabase continua somente com whitelist e não foi reclassificada
+  como privacidade de conteúdo que já era público.
+- `src/lib/privateAvatarRead.ts` e
+  `src/hooks/useAuthorizedAvatarUrl.ts`: busca da imagem usando
+  `Authorization: Bearer` **apenas no endpoint relativo same-origin**.
+  Não coloca JWT na URL nem guarda o blob no Neon. Valida MIME/tamanho;
+  oferece object URL temporária, same-origin (compatível com canvas),
+  revogada ao trocar de perfil, sair da tela ou cancelar a leitura.
+  O backend de autenticação é importado somente se uma imagem R2 privada
+  realmente precisar ser aberta.
+- `src/components/platform/UserAvatar.tsx`: não apresenta o avatar de
+  outra conta durante a troca de perfil.
+  `src/pages/saas/PerfilPage.tsx`: editor e confirmação pós-salvamento
+  usam carregamento autorizado e revogam o blob depois da conferência.
+  `src/pages/saas/MasterAdminPage.tsx`: lista de funcionários recupera
+  a referência permanente R2 mesmo quando o `avatar_url` legado estava
+  vazio/expirado; preserva corte e proporções.
+- Logs do cache legado deixam de imprimir erros brutos do provedor e chave
+  de armazenamento no mesmo evento.
+
+**Testes adicionais:** `src/test/qaAvatarReadAuthorization.test.ts`
+(perfil proprietário, Master, admin municipal, vínculo incorreto,
+anônimo, serviço indisponível, chaves malformadas e proteção do signer);
+`src/test/qaAuthenticatedAvatarBrowser.test.ts` (Bearer apenas no
+same-origin, MIME, token fora da URL, revogação, integração de editor e
+componentes). A suíte anterior de segurança de avatar permanece ativa.
+Os novos testes e os três workflows devem estar concluídos com
+`success` no SHA final, sem pular falhas.
+
+**Ativação progressiva deliberada:** a exigência do Bearer no GET
+de avatar é automática **somente** quando
+`VERCEL_ENV=preview` e
+`VERCEL_GIT_COMMIT_REF=fix/qa-triagem-analise-pagamento-20261101`.
+Este controle evita quebrar a produção antiga antes de testar o novo
+leitor nos perfis Master, Admin prefeitura, Analista e Profissional.
+Ao liberar produção posteriormente, a política deve ser ativada nela
+depois de comprovar todos os pontos de uso de fotos. Até então a
+vulnerabilidade de leitura da versão já publicada não pode ser dada
+como resolvida. Igualmente, só o provedor Cloudflare pode comprovar
+que bucket/CDN não fornecem acesso público independente da API.
+
+**Aceite operacional que ainda falta:** publicar o Preview do SHA exato;
+testar F5 da foto já salva e troca de conta, manutenção do crop, recusa
+401/403 a outro usuário, abrir imagem no Master e no Admin da própria
+prefeitura, acesso permitido pelo titular, recusa em outro município,
+verificar HAR sem JWT em URL e zero cache HTTP para foto protegida,
+medir P50/P95 de login e tráfego de avatares. Registro de testes
+automatizados não substitui esses ensaios. Os dez gates comerciais
+continuam pendentes.
