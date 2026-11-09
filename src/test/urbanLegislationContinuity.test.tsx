@@ -119,7 +119,13 @@ describe("SIGAPRO — documentos e trabalhos anteriores não desaparecem na nova
     expect(quadroI).toContain("if (!canEdit) return;");
     expect(quadroI).toContain("{canEdit && !isArchived(selected.id) ? (");
     expect(quadroII).toContain('if (!canView || !municipalityId) return null');
-    expect(quadroII).toContain('disabled={!canEdit || saving || Boolean(savedEntry)}');
+    // Saved drafts are now clickable for read/review, but never resubmitted.
+    expect(quadroII).toContain('disabled={!canEdit || saving}');
+    expect(quadroII).toContain('const existingCategoryDraft =');
+    expect(quadroII).toContain('!existingCategoryDraft');
+    expect(quadroII).toContain('savedEntry\n                                    ? openQueueItem({');
+    expect(quadroII).toContain('status: "draft_unverified"');
+    expect(quadroII).toContain('Rascunho existente — conferir');
     expect(quadroII).toContain('const savedEntry = entries.find(entry =>');
     expect(quadroII).toContain('entry.category_code.normalize("NFKC")');
     expect(quadroII).toContain('disabled={!batchReviewed || saving || selectedForBatch.length === 0}');
