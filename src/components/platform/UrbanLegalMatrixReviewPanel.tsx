@@ -454,8 +454,9 @@ export function UrbanLegalMatrixReviewPanel({
                 </button>
               ) : null}
               <button type="button" onClick={() => { setShowAll((value) => !value); setReviewingIndex(null); }}
+                aria-expanded={showAll} aria-controls="sigapro-urban-reading-rows"
                 className="min-h-9 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs font-bold text-sky-950 hover:bg-sky-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-500">
-                {showAll ? "Voltar à visão resumida" : "Ver todas as linhas"}
+                {showAll ? "Voltar à visão resumida" : "Consultar todas as linhas"}
               </button>
             </div>
           </div>
@@ -467,7 +468,17 @@ export function UrbanLegalMatrixReviewPanel({
                 : "Nenhuma linha disponível neste filtro. Consulte todas as linhas para revisar os registros."}
             </p>
           ) : (
-            <div className="space-y-2">
+            <div id="sigapro-urban-reading-rows" data-urban-matrix-rows-viewport="true"
+              tabIndex={showAll ? 0 : undefined}
+              aria-label={showAll ? "Linhas conferidas do Quadro I: role dentro desta lista" : undefined}
+              className={showAll
+                ? "max-h-[65vh] min-w-0 space-y-2 overflow-y-auto overscroll-contain rounded-xl border border-slate-200 bg-slate-50 p-2 pr-3 dark:border-slate-700 dark:bg-slate-900"
+                : "min-w-0 space-y-2"}>
+              {showAll ? (
+                <p className="sticky top-0 z-10 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs font-semibold text-sky-950 shadow-sm dark:border-sky-700 dark:bg-slate-950 dark:text-sky-100">
+                  Consulta de {progress.total} linhas. Role dentro desta lista; não é preciso refazer as leituras já documentadas.
+                </p>
+              ) : null}
               {displayedRows.map((entry) => {
                 const row = describeUrbanMatrixRow(entry.source);
                 const page = Number(entry.source.pagina_pdf);
