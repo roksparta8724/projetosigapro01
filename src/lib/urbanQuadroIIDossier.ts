@@ -24,7 +24,12 @@ export function createQuadroIIDossier(
  function text(value:string,size=8,bold=false,color:[number,number,number]=dark){
    pdf.setFont("helvetica",bold?"bold":"normal");pdf.setFontSize(size);
    pdf.setTextColor(...color);
-   const normalized=value.replace(/[\u0000-\u001f\u007f]/g," ").replace(/\s+/g," ").slice(0,2500);
+   // Convert control codepoints before folding whitespace; preserve UTF-8 accents.
+   // Avoid regex control character ranges disallowed by the release lint gate.
+   const normalized=Array.from(value.slice(0,2500),ch=>{
+     const code=ch.codePointAt(0)??0;
+     return code<32||code===127?" ":ch;
+   }).join("").replace(/\s+/g," ");
    for(const row of pdf.splitTextToSize(normalized,181) as string[]){
      if(y>271)next();
      pdf.text(row||" ",14,y);y+=size>=10?5.5:4.3;

@@ -1483,3 +1483,7 @@ navegador autenticado.
 - **Exclusivamente** quando `VERCEL_ENV=preview` e `VERCEL_GIT_COMMIT_REF=fix/qa-triagem-analise-pagamento-20261101`, a compilação Vercel deve executar `tsc --noEmit`, ESLint do projeto e 18 suítes críticas (leitura de pranchas reais de ensaio, laboratório QA, legal/Quadro II, RLS/perfis, geozoneamento, fintech e webhooks). Se qualquer etapa falhar ou expirar, o processo aborta e o alias não deve migrar para a nova versão.
 - Em produção/main/outras branches o comportamento de build permanece `vite build` sem dependência desse mecanismo QA. Esse gate não consulta bancos, provedores financeiros, arquivos reais nem executa testes E2E autenticados. Ele não substitui os gates comerciais, o GitHub Actions e os testes com prefeitura/banco/lei oficiais.
 - Evidências do resultado estarão exclusivamente no build log Vercel do commit alvo. É incorreto anunciar a prévia como testada até o marcador `PASS focused preview gate` e o status READY.
+
+### 09/11/2026 — bloqueio de ESLint resolvido pelo gate Preview
+- Primeiro ensaio do novo gate: `tsc --noEmit` passou; ESLint detectou **1 erro** `no-control-regex` em `src/lib/urbanQuadroIIDossier.ts:27` e 48 advertências não bloqueantes preexistentes. O deploy `dpl_8HHTYnofKMAVDf3nDEJ1DyJoxddc` falhou corretamente em vez de atualizar o alias.
+- Substituída a regex de caracteres de controle por filtragem segura de codepoints Unicode antes da normalização de espaços. O gate completo de 18 suítes ainda precisa passar no novo build; esta observação não é homologação comercial.
