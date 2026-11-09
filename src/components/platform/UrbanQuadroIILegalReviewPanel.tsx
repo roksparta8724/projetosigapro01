@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { BookOpenCheck, CheckCircle2, Loader2, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,13 +35,15 @@ export function UrbanQuadroIILegalReviewPanel({
   const [confirmed, setConfirmed] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const lastAppliedFocusToken = useRef<number | null>(null);
 
   // Directly open the existing saved category, never create a duplicate.
   // This effect responds to an explicit button click in the Quadro II queue.
   useEffect(() => {
-    if (!focusRequest || !canEdit) return;
+    if (!focusRequest || !canEdit || lastAppliedFocusToken.current === focusRequest.token) return;
     const existing = entries.find(entry => entry.id === focusRequest.id);
     if (!existing) return;
+    lastAppliedFocusToken.current = focusRequest.token;
     setOpened(true);
     setChosen(existing.id);
     setZone("");
