@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { subscribeUrbanLegalAuditInvalidations } from "@/lib/urbanLegalAuditEvents";
 import { CAMPO_LIMPO_LPUOS_REVIEW, CAMPO_LIMPO_PAULISTA_MUNICIPALITY_ID } from "@/lib/urbanOfficialLegalSources";
 import { isUrbanMatrixBatchArchived } from "@/lib/urbanMatrixBatchStatus";
+import { nextUrbanReadinessAction } from "@/lib/urbanReadinessNextStep";
 import { listLawRegistry } from "@/integrations/backend/urbanLegislationRegistryClient";
 import {
   listUrbanMatrixBatches, readUrbanMatrixBatch, listUrbanMatrixReadingAudit,
@@ -153,6 +154,10 @@ export function UrbanAiReadinessPanel({
   }, [municipalityId, documents.usoSolo, documents.zoneamento,
     documents.planoDiretor, documents.leisComplementares, refresh, revision]);
 
+  // A recorded AIU(2) caveat is a real legal blocker, but it is not another
+  // OCR review task. Lead to Quadro II (or subsequent legal evidence) instead.
+  const recommended = report ? nextUrbanReadinessAction(report) : null;
+
   return (
     <section data-urban-ai-readiness="true"
       className="mt-5 min-w-0 overflow-hidden rounded-2xl border border-sky-200 bg-white p-4 text-slate-900 shadow-sm dark:border-sky-700 dark:bg-slate-950 dark:text-white md:p-5">
@@ -278,10 +283,10 @@ export function UrbanAiReadinessPanel({
             <div className="min-w-0 border-b border-slate-100 px-4 py-3 dark:border-slate-700 sm:border-b-0 sm:border-r">
               <p className="font-semibold text-slate-500 dark:text-slate-300">Quadro I</p>
               <p className="mt-1 font-extrabold text-slate-900 dark:text-white">
-                {report.reading.verified}/{report.reading.total} leituras conferidas
+                {report.reading.verified + report.reading.needsCorrection}/{report.reading.total} registros tratados
               </p>
               <p className="mt-1 text-[11px] text-slate-600 dark:text-slate-300">
-                {report.reading.needsCorrection} ressalva(s) preservada(s)
+                {report.reading.verified} leitura(s) conferida(s) · {report.reading.needsCorrection} ressalva(s) documentada(s)
               </p>
             </div>
             <div className="min-w-0 border-b border-slate-100 px-4 py-3 dark:border-slate-700 sm:border-b-0 sm:border-r">
@@ -309,23 +314,24 @@ export function UrbanAiReadinessPanel({
                 Próxima ação recomendada
               </p>
               <p className="mt-1 text-sm font-extrabold text-slate-950 dark:text-white">
-                {report.checks.find((item) => !item.passed && NEXT_ACTIONS[item.code])
-                  ? NEXT_ACTIONS[report.checks.find((item) => !item.passed && NEXT_ACTIONS[item.code])!.code].label
-                  : "Conferências documentais atendidas"}
+                {recommended && NEXT_ACTIONS[recommended.code]
+                  ? NEXT_ACTIONS[recommended.code].label
+                  : report.checks.some((item) => !item.passed)
+                    ? "Aguardando comprovação jurídica das ressalvas"
+                    : "Conferências documentais atendidas"}
               </p>
-              {report.checks.find((item) => !item.passed && NEXT_ACTIONS[item.code]) ? (
+              {recommended && NEXT_ACTIONS[recommended.code] ? (
                 <p className="mt-1 text-xs leading-5 text-slate-600 dark:text-slate-300">
-                  Responsável: {NEXT_ACTIONS[report.checks.find((item) => !item.passed && NEXT_ACTIONS[item.code])!.code].owner}.
-                  {" "}O sistema prepara as informações; a documentação e a decisão jurídica precisam ser confirmadas.
+                  Responsável: {NEXT_ACTIONS[recommended.code].owner}.
+                  {" "}O Quadro I documentalmente tratado não precisa de nova leitura; sua ressalva legal permanece registrada.
                 </p>
               ) : null}
             </div>
-            {report.checks.find((item) => !item.passed && NEXT_ACTIONS[item.code]) ? (
+            {recommended && NEXT_ACTIONS[recommended.code] ? (
               <button type="button" data-urban-readiness-primary-action="true"
                 className="inline-flex min-h-11 max-w-full items-center justify-center gap-2 rounded-xl bg-sky-900 px-4 py-2 text-left text-xs font-bold text-white shadow-sm hover:bg-sky-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-500 dark:bg-sky-700 dark:hover:bg-sky-600"
                 onClick={() => {
-                  const next = report.checks.find((item) => !item.passed && NEXT_ACTIONS[item.code]);
-                  if (next) openNextStep(NEXT_ACTIONS[next.code].target);
+                  if (recommended) openNextStep(NEXT_ACTIONS[recommended.code].target);
                 }}>
                 Abrir próxima etapa <ArrowRight className="h-4 w-4 shrink-0" />
               </button>
