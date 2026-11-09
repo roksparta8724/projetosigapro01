@@ -35,6 +35,8 @@ export type FinancialGuideEvidence = {
   bankStatus?:string|null;
   providerEnvironment?:string|null;
   amount?:number|null;
+  /** Legacy internal flag alone never proves settlement from the provider. */
+  paid?:boolean|null;
   bankReference?:string|null;
   bankPaymentId?:string|null;
   bankStatusDetail?:string|null;
