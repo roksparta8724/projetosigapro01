@@ -1477,3 +1477,9 @@ navegador autenticado.
 ### QA — laboratório acessível fora de processos em triagem
 - O ensaio do PDF fictício também está no primeiro painel da **Mesa Técnica > Visão Geral** do perfil `analista` ou `prefeitura_supervisor`, exclusivamente quando `VITE_SIGAPRO_NEON_ISOLATED=true`. Assim o laboratório é acessível mesmo que o processo fictício 04 não tenha saído da triagem; não precisa abrir a mesa documental do processo bloqueado.
 - A fila oficial continua filtrando `isProcessReleasedToUrbanAnalysis`; não houve desvio de pagamento, triagem nem autorização do backend. Teste estático de regressão confirma o ponto de entrada e a separação.
+
+## 09/11/2026 — Gate alternativo de qualidade obrigatório na compilação da Preview QA
+- GitHub Actions passou a devolver falhas sem criar jobs; este é um bloqueio externo de agendamento, não aprovação técnica. Foi adicionado o script `scripts/qa-preview-build-gate.mjs`, chamado antes do `vite build`.
+- **Exclusivamente** quando `VERCEL_ENV=preview` e `VERCEL_GIT_COMMIT_REF=fix/qa-triagem-analise-pagamento-20261101`, a compilação Vercel deve executar `tsc --noEmit`, ESLint do projeto e 18 suítes críticas (leitura de pranchas reais de ensaio, laboratório QA, legal/Quadro II, RLS/perfis, geozoneamento, fintech e webhooks). Se qualquer etapa falhar ou expirar, o processo aborta e o alias não deve migrar para a nova versão.
+- Em produção/main/outras branches o comportamento de build permanece `vite build` sem dependência desse mecanismo QA. Esse gate não consulta bancos, provedores financeiros, arquivos reais nem executa testes E2E autenticados. Ele não substitui os gates comerciais, o GitHub Actions e os testes com prefeitura/banco/lei oficiais.
+- Evidências do resultado estarão exclusivamente no build log Vercel do commit alvo. É incorreto anunciar a prévia como testada até o marcador `PASS focused preview gate` e o status READY.
