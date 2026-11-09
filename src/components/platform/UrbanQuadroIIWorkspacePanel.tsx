@@ -36,6 +36,7 @@ export function UrbanQuadroIIWorkspacePanel({
   const [batchReviewed, setBatchReviewed] = useState(false);
   const [selectedBatchCodes, setSelectedBatchCodes] = useState<string[]>([]);
   const [retryToken, setRetryToken] = useState(0);
+  const [legalReviewRequest, setLegalReviewRequest] = useState<{ id: string; token: number } | null>(null);
   const editorRef = useRef<HTMLDivElement | null>(null);
   const pageIndexRef = useRef<HTMLDivElement | null>(null);
   const pageDetailRef = useRef<HTMLDivElement | null>(null);
@@ -51,6 +52,7 @@ export function UrbanQuadroIIWorkspacePanel({
     setSelectedSuggestion(null);
     setSelectedBatchCodes([]);
     setBatchReviewed(false);
+    setLegalReviewRequest(null);
     if (!municipalityId || !canView) return () => { active = false; };
     setLoading(true);
     void listUrbanQuadroIIWorkspace(municipalityId)
@@ -79,7 +81,8 @@ export function UrbanQuadroIIWorkspacePanel({
   );
   const originalLawPdf = useMemo(() => getMunicipalOfficialUrbanSources(municipalityId)
     .find(source => source.id === "lc-379-2009")?.pdfUrl || null, [municipalityId]);
-  const pendingQueue = reviewQueue.items.filter(item => item.status !== "draft_unverified");
+  // A saved, unverified draft remains actionable until legal review.
+  const pendingQueue = reviewQueue.items;
   const visibleQueue = queueFilter === "pending" ? pendingQueue : reviewQueue.items;
   const pageCount = workspace?.pages.length || 0;
   const sourcePages = workspace?.pages.filter((page) => page.source_quality === "machine_unverified" && Boolean(page.source_evidence_text)).length || 0;
@@ -157,6 +160,7 @@ export function UrbanQuadroIIWorkspacePanel({
 
   const selectPage = (page: number) => {
     if (saving) return;
+    setLegalReviewRequest(null);
     if (activePage === page) { setActivePage(null); setFormOpen(false); setSelectedSuggestion(null); return; }
     setActivePage(page);
     setDraft(emptyDraft(page));
@@ -274,10 +278,20 @@ export function UrbanQuadroIIWorkspacePanel({
     setBatchReviewed(false); // Page changes invalidate any prior batch attestation.
     setSelectedBatchCodes([]);
     if (item.status === "draft_unverified") {
+      const saved = workspace?.entries.find(entry =>
+        entry.page_number === item.pageNumber &&
+        entry.category_code.normalize("NFKC").trim().toLocaleUpperCase("pt-BR") ===
+          item.categoryCode.normalize("NFKC").trim().toLocaleUpperCase("pt-BR"));
       setActivePage(item.pageNumber);
       setFormOpen(false);
       setSelectedSuggestion(null);
       setNotice("");
+      if (saved && canEdit) {
+        // Select the existing, unverified draft; never create a duplicate.
+        setLegalReviewRequest(current => ({ id: saved.id, token: (current?.token ?? 0) + 1 }));
+      } else if (!saved) {
+        setError("Rascunho não encontrado. Atualize o lote; não crie registro duplicado.");
+      }
       return;
     }
     setActivePage(item.pageNumber);
@@ -408,16 +422,16 @@ export function UrbanQuadroIIWorkspacePanel({
                 <Button type="button" size="sm" disabled={!canEdit || saving || pendingQueue.length === 0}
                   onClick={() => {const next = pendingQueue[0]; if (next) openQueueItem(next);}}
                   className="bg-[#0b3150] !text-white">
-                  Revisar próxima pendência
+                  Revisar próxima categoria
                 </Button>
               </div>
             </div>
             <div className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-4">
               {([
                 ["Categorias identificadas", reviewQueue.total],
-                ["Trechos candidatos preparados", reviewQueue.literalCandidates],
-                ["Sem trecho candidato", reviewQueue.missingLiteral],
-                ["Exigem inspeção visual", reviewQueue.visualRequired],
+                ["Rascunhos aguardando revisão", reviewQueue.drafts],
+                ["Páginas com OCR provisório", sourcePages],
+                ["Páginas com revisão visual", visualOnlyPages],
               ] as const).map(([label, count]) => (
                 <div key={label} className="min-w-0 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-900">
                   <p className="text-[11px] leading-4 text-slate-600 dark:text-slate-200">{label}</p>
@@ -427,10 +441,9 @@ export function UrbanQuadroIIWorkspacePanel({
             </div>
             <p data-urban-qii-literal-count="true"
               className="mt-2 text-xs font-semibold leading-5 text-amber-900 dark:text-amber-200">
-              {reviewQueue.drafts} rascunho(s) registrado(s), sem homologação legal.
-              Os {reviewQueue.literalCandidates} trechos candidatos incluem leituras de páginas
-              que exigem inspeção visual; as contagens se sobrepõem.
-              Um trecho candidato não é citação legal confirmada: confira colunas, números e páginas no original.
+              {reviewQueue.drafts} rascunho(s) preservado(s), aguardando conferência jurídica.
+              Um rascunho salvo continua pendente: compare texto, via, vagas, zona e vigência no
+              PDF original antes de registrar uma versão jurídica. Nenhuma regra é ativada automaticamente.
             </p>
             {showReviewQueue ? (
               <div className="mt-3">
@@ -462,7 +475,7 @@ export function UrbanQuadroIIWorkspacePanel({
                       <button type="button" disabled={saving}
                         onClick={() => openQueueItem(item)}
                         className="shrink-0 rounded-lg border border-sky-300 bg-white px-3 py-2 text-xs font-bold text-sky-950 disabled:opacity-50 dark:border-sky-500 dark:bg-slate-800 dark:text-white">
-                        {item.status === "draft_unverified" ? "Ver registro" : canEdit ? "Preparar revisão" : "Ver página"}
+                        {item.status === "draft_unverified" ? canEdit ? "Conferir rascunho" : "Ver página" : canEdit ? "Preparar revisão" : "Ver página"}
                       </button>
                     </div>
                   ))}
@@ -953,6 +966,7 @@ export function UrbanQuadroIIWorkspacePanel({
                           canEdit={canEdit}
                           workspace={workspace}
                           entries={entries}
+                          focusRequest={legalReviewRequest}
                         />
                       ) : null}
                       {entries.length > 0 ? entries.map((item) => {
