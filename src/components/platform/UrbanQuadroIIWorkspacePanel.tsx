@@ -32,6 +32,7 @@ export function UrbanQuadroIIWorkspacePanel({
   const [formOpen, setFormOpen] = useState(false);
   const [selectedSuggestion, setSelectedSuggestion] = useState<UrbanQuadroIISuggestion | null>(null);
   const [showReviewQueue, setShowReviewQueue] = useState(false);
+  const [reviewCursor, setReviewCursor] = useState(0);
   const [queueFilter, setQueueFilter] = useState<"pending" | "all">("pending");
   const [batchReviewed, setBatchReviewed] = useState(false);
   const [selectedBatchCodes, setSelectedBatchCodes] = useState<string[]>([]);
@@ -53,6 +54,7 @@ export function UrbanQuadroIIWorkspacePanel({
     setSelectedBatchCodes([]);
     setBatchReviewed(false);
     setLegalReviewRequest(null);
+    setReviewCursor(0);
     if (!municipalityId || !canView) return () => { active = false; };
     setLoading(true);
     void listUrbanQuadroIIWorkspace(municipalityId)
@@ -420,7 +422,15 @@ export function UrbanQuadroIIWorkspacePanel({
                   {showReviewQueue ? "Ocultar fila" : "Ver fila completa"}
                 </Button>
                 <Button type="button" size="sm" disabled={!canEdit || saving || pendingQueue.length === 0}
-                  onClick={() => {const next = pendingQueue[0]; if (next) openQueueItem(next);}}
+                  onClick={() => {
+                    if (pendingQueue.length === 0) return;
+                    const next = pendingQueue[reviewCursor % pendingQueue.length];
+                    if (next) {
+                      openQueueItem(next);
+                      // Navigation only: never mark a draft as legally validated.
+                      setReviewCursor(value => value + 1);
+                    }
+                  }}
                   className="bg-[#0b3150] !text-white">
                   Revisar próxima categoria
                 </Button>
