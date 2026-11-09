@@ -14,11 +14,12 @@ import {
  * appends an immutable reviewed_draft. No use permissions are activated.
  */
 export function UrbanQuadroIILegalReviewPanel({
-  municipalityId, canEdit, workspace, entries, onDataChanged,
+  municipalityId, canEdit, workspace, entries, onDataChanged, focusRequest,
 }: {
   municipalityId: string; canEdit: boolean;
   workspace: UrbanQuadroIIWorkspace; entries: UrbanQuadroIIDraft[];
   onDataChanged?: () => void;
+  focusRequest?: { id: string; token: number } | null;
 }) {
   const [opened, setOpened] = useState(false);
   const [retries, setRetries] = useState(0);
@@ -33,6 +34,31 @@ export function UrbanQuadroIILegalReviewPanel({
   const [confirmed, setConfirmed] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+
+  // Directly open the existing saved category, never create a duplicate.
+  // This effect responds to an explicit button click in the Quadro II queue.
+  useEffect(() => {
+    if (!focusRequest || !canEdit) return;
+    const existing = entries.find(entry => entry.id === focusRequest.id);
+    if (!existing) return;
+    setOpened(true);
+    setChosen(existing.id);
+    setZone("");
+    setEffectiveFrom("");
+    setExcerpt(existing.source_excerpt.trim().slice(0, 500));
+    setRepeatExcerpt("");
+    setConfirmed(false);
+    setError("");
+    setNotice("Rascunho já salvo. Confira o trecho no PDF original; zona e vigência não são preenchidas por suposição.");
+  }, [focusRequest?.token, focusRequest?.id, canEdit, entries]);
+
+  useEffect(() => {
+    if (!focusRequest || !opened || chosen !== focusRequest.id) return;
+    window.requestAnimationFrame(() => {
+      document.querySelector('[data-urban-quadro-ii-legal-import="true"]')
+        ?.scrollIntoView?.({ behavior: "smooth", block: "start" });
+    });
+  }, [focusRequest?.token, focusRequest?.id, opened, chosen]);
 
   useEffect(() => {
     let alive = true;
@@ -101,7 +127,7 @@ export function UrbanQuadroIILegalReviewPanel({
 
   return (
     <div data-urban-quadro-ii-legal-import="true"
-      className="min-w-0 rounded-2xl border border-sky-200 bg-sky-50 p-3 text-slate-900 dark:border-sky-700 dark:bg-slate-950 dark:text-white">
+      className="min-w-0 scroll-mt-24 rounded-2xl border border-sky-200 bg-sky-50 p-3 text-slate-900 dark:border-sky-700 dark:bg-slate-950 dark:text-white">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="flex items-center gap-2 text-sm font-extrabold text-sky-950 dark:text-sky-100">
@@ -123,8 +149,14 @@ export function UrbanQuadroIILegalReviewPanel({
         </p> : null}
         <p className="text-xs font-semibold">
           {imports.length} importação(ões) jurídica(s) versionada(s) no PDF; apenas rascunhos.
+          Selecione uma categoria por vez, sem recadastrar rascunhos existentes.
         </p>
-        <div className="grid gap-2 sm:grid-cols-2">
+        <details data-urban-qii-legal-category-picker="true"
+          className="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-950">
+          <summary className="cursor-pointer text-xs font-bold text-slate-900 dark:text-white">
+            Escolher outra categoria ({entries.length} rascunho(s) nesta página)
+          </summary>
+          <div className="mt-3 grid max-h-60 gap-2 overflow-y-auto sm:grid-cols-2">
           {entries.map((entry) => {
             const n=imports.filter((row) =>
               row.page_number === entry.page_number &&
@@ -150,7 +182,8 @@ export function UrbanQuadroIILegalReviewPanel({
               </span>
             </button>;
           })}
-        </div>
+          </div>
+        </details>
         {current && canEdit ? <div data-urban-quadro-ii-legal-form="true"
           className="space-y-3 rounded-xl border border-sky-200 bg-white p-3 text-slate-900 dark:border-sky-700 dark:bg-slate-900 dark:text-white">
           <p className="text-sm font-extrabold">
