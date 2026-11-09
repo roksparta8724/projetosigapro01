@@ -65,6 +65,8 @@ describe("SIGAPRO QA — continuar 45 rascunhos do Quadro II", () => {
     expect(form).toContain("setConfirmed(false)");
     expect(form).toContain("current.source_excerpt.includes(excerpt.trim())");
     expect(form).toContain('data-urban-quadro-ii-reviewed-save="true"');
+    expect(form).toContain('data-urban-qii-review-original-pdf="true"');
+    expect(form).toContain("originalPdfUrl + \"#page=\" + current.page_number");
     expect(form).not.toContain("activateUrbanRegulation(");
   });
 
