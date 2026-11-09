@@ -975,6 +975,7 @@ export function UrbanQuadroIIWorkspacePanel({
                           workspace={workspace}
                           entries={entries}
                           focusRequest={legalReviewRequest}
+                          originalPdfUrl={originalLawPdf}
                         />
                       ) : null}
                       <details data-urban-qii-saved-records="true"
