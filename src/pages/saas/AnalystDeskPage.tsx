@@ -24,6 +24,7 @@ import { InternalTabs } from "@/components/platform/InternalTabs";
 import { PageHeader } from "@/components/platform/PageHeader";
 import { MarkerSelector } from "@/components/platform/MarkerSelector";
 import { PortalFrame } from "@/components/platform/PortalFrame";
+import { QaArchitecturalLab } from "@/components/platform/QaArchitecturalLab";
 import { SectionCard } from "@/components/platform/SectionCard";
 import { TableCard } from "@/components/platform/TableCard";
 import {
@@ -1216,6 +1217,10 @@ export function AnalystDeskPage() {
 
         {section === "visao-geral" && (
           <>
+            {import.meta.env.VITE_SIGAPRO_NEON_ISOLATED==="true" &&
+              (session.role==="analista"||session.role==="prefeitura_supervisor") ? (
+                <QaArchitecturalLab />
+              ) : null}
             <PageStatsRow>
               <StatCard label="Em análise" value={String(inReview.length)} description="Pareceres em andamento" icon={Stamp} tone="blue" />
               <StatCard label="Pendências" value={String(requirementsOpen)} description="Exigências abertas" icon={Clock3} tone="amber" />

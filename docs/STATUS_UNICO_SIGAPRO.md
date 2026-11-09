@@ -1473,3 +1473,7 @@ navegador autenticado.
 - **Vercel**: a tentativa da versão `06370876` foi `CANCELED` pelo Ignored Build Step porque faltava `[deploy-qa]` no commit, não por erro de compilação. Esta atualização documental usa esse marcador para uma única compilação e implantação Preview QA, jamais `main`, produção ou banco `production`. Verificar o SHA final e READY antes de declarar publicação.
 - **Critérios de aceite pendentes**: execução autenticada do laboratório e extração do PDF arquivado R2 com processo em Análise Técnica (sem burlar triagem), revisão legal municipal, georreferenciamento e webhook bancário assinado. Não confundir os recursos novos de ensaio/documentação com homologação legal ou bancária.
 
+
+### QA — laboratório acessível fora de processos em triagem
+- O ensaio do PDF fictício também está no primeiro painel da **Mesa Técnica > Visão Geral** do perfil `analista` ou `prefeitura_supervisor`, exclusivamente quando `VITE_SIGAPRO_NEON_ISOLATED=true`. Assim o laboratório é acessível mesmo que o processo fictício 04 não tenha saído da triagem; não precisa abrir a mesa documental do processo bloqueado.
+- A fila oficial continua filtrando `isProcessReleasedToUrbanAnalysis`; não houve desvio de pagamento, triagem nem autorização do backend. Teste estático de regressão confirma o ponto de entrada e a separação.
