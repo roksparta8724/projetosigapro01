@@ -944,13 +944,21 @@ export function UrbanQuadroIIWorkspacePanel({
                                   </p>
                                 ) : null}
                                 <button type="button"
-                                  disabled={!canEdit || saving || Boolean(savedEntry)}
-                                  onClick={() => prepareSuggestion(page.page_number, suggestion)}
+                                  disabled={!canEdit || saving}
+                                  onClick={() => savedEntry
+                                    ? openQueueItem({
+                                        pageNumber: page.page_number,
+                                        categoryCode: suggestion.category_code,
+                                        description: suggestion.use_description,
+                                        proposal: suggestion,
+                                        status: "draft_unverified",
+                                      })
+                                    : prepareSuggestion(page.page_number, suggestion)}
                                   data-urban-qii-action="true"
                                   className="mt-2 min-h-10 rounded-xl border border-sky-300 bg-[#0b3150] px-4 py-2.5 text-xs font-bold !text-white shadow-sm hover:bg-sky-900 disabled:opacity-70">
                                   <span data-urban-qii-action-label="true" className="!text-white">
                                     {savedEntry
-                                      ? "Rascunho existente" : !canEdit ? "Somente consulta" : "Pré-preencher e revisar"}
+                                      ? "Rascunho existente — conferir" : !canEdit ? "Somente consulta" : "Pré-preencher e revisar"}
                                   </span>
                                 </button>
                               </div>
@@ -969,6 +977,12 @@ export function UrbanQuadroIIWorkspacePanel({
                           focusRequest={legalReviewRequest}
                         />
                       ) : null}
+                      <details data-urban-qii-saved-records="true"
+                        className="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-950">
+                        <summary className="cursor-pointer text-xs font-bold text-slate-900 dark:text-white">
+                          Consultar rascunhos salvos nesta página ({entries.length}) — sem duplicação
+                        </summary>
+                        <div className="mt-3 max-h-[55vh] space-y-2 overflow-y-auto overscroll-contain">
                       {entries.length > 0 ? entries.map((item) => {
                         const matchingProposal = page.proposals?.find(proposal =>
                           proposal.category_code.normalize("NFKC").trim().toLocaleUpperCase("pt-BR") ===
@@ -1033,6 +1047,8 @@ export function UrbanQuadroIIWorkspacePanel({
                           Nenhuma categoria transcrita nesta página. Não presumir permissões.
                         </p>
                       )}
+                        </div>
+                      </details>
                       {(page.proposals?.length || 0) > 0 ? (
                         <button type="button" onClick={() => {
                           const shouldOpen = !formOpen;
