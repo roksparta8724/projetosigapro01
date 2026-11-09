@@ -27,6 +27,7 @@ const TESTS=[
   "src/test/urbanTerritorialReadiness.test.ts",
   "src/test/municipalCollectionApi.test.ts",
   "src/test/mpProdWebhookReleaseReadiness.test.ts",
+  "src/test/qaPreviewBuildGate.test.ts",
 ];
 function run(label,args){
   console.log("[SIGAPRO_QA_BUILD_GATE] START "+label);
@@ -50,7 +51,7 @@ if(process.env.VERCEL_ENV==="preview"&&process.env.VERCEL_GIT_COMMIT_REF===BRANC
   run("typecheck",["node_modules/typescript/bin/tsc","-p","tsconfig.app.json","--noEmit"]);
   run("eslint",["node_modules/eslint/bin/eslint.js","."]);
   run("focused-tests",["node_modules/vitest/vitest.mjs","run",
-      "--maxWorkers=2","--minWorkers=1",...TESTS]);
+      "--maxWorkers=2",...TESTS]);
   console.log("[SIGAPRO_QA_BUILD_GATE] PASS focused preview gate; "+
     "commercial E2E/official regulation/bank confirmation remain separately required.");
 }

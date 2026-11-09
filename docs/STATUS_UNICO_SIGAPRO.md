@@ -1487,3 +1487,8 @@ navegador autenticado.
 ### 09/11/2026 — bloqueio de ESLint resolvido pelo gate Preview
 - Primeiro ensaio do novo gate: `tsc --noEmit` passou; ESLint detectou **1 erro** `no-control-regex` em `src/lib/urbanQuadroIIDossier.ts:27` e 48 advertências não bloqueantes preexistentes. O deploy `dpl_8HHTYnofKMAVDf3nDEJ1DyJoxddc` falhou corretamente em vez de atualizar o alias.
 - Substituída a regex de caracteres de controle por filtragem segura de codepoints Unicode antes da normalização de espaços. O gate completo de 18 suítes ainda precisa passar no novo build; esta observação não é homologação comercial.
+
+### 09/11/2026 — gate de testes: compatibilidade de versão
+- Novo ensaio: `dpl_3hB4ZquoS8Vj26LPUwuwzvrQTf9T` **PASSOU** no TypeScript e no ESLint (48 avisos preexistentes; zero erro) e bloqueou o deploy no início do Vitest devido à opção `--minWorkers` não suportada pelo binário instalado. Foi removida a opção; `--maxWorkers=2` permanece para limitar concorrência em 2 CPUs.
+- A suíte específica do próprio gate agora integra as verificações, totalizando 19 arquivos de testes focados. Corrigido seu detector de atribuição de variáveis ambientais para não confundir `===` com `=`. A validação ainda depende do próximo build.
+- Observação apenas leitura Neon QA do mesmo dia: processo `PM-2026-00004` atualmente em `analise_tecnica` e `triage_status=concluido`; 5 anexos (4 válidos), uma guia com estado registrado como compensado/confirmado. Isso corrige notas históricas de etapa antiga, mas não comprova pagamento bancário externo. Não foi feito bypass de triagem.

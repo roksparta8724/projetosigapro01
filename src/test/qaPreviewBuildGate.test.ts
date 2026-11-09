@@ -16,7 +16,7 @@ describe("QA Vercel build is fail-closed for the isolated branch",()=>{
    expect(file).toContain('process.exit(result.status&&result.status>0?result.status:1)');
  });
  it("does not alter secrets, databases, process state or bank settlement",()=>{
-   expect(file).not.toMatch(/process\.env\.\w+\s*=/);
+   expect(file).not.toMatch(/process\.env\.\w+\s*=(?!=)/);
    expect(file).not.toContain('DATABASE_URL');
    expect(file).not.toContain('updateProcessStatus');
    expect(file).not.toContain('settlePayment');
