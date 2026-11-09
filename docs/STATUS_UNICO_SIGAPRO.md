@@ -1451,3 +1451,8 @@ navegador autenticado.
 - [Relatório de QA — legislação, zoneamento, pagamentos, IA, segurança e gates](./AUDITORIA_INTEGRADA_20261109.md). Consultas somente leitura no Neon QA; testados os limites do Quadro II, com CI de código `1582932b`: Quality Gate, Neon migration validation e OCR QA **SUCCESS**.
 - **Esta publicação é exclusivamente de Prévia QA**. A revisão jurídica e as provas de pagamentos/IA continuam pendentes; não confundir com homologação comercial nem promover para `main`.
 
+
+## QA — laboratório de PDF para ensaio técnico isolado
+- Novo endpoint `POST /api/ai-assistant?action=qa-architectural-benchmark`, somente na branch Preview exata, JWT de analista/supervisor ativo, origem verificada. Utiliza os bytes do PDF QA04 fictício de três páginas produzidos em memória; nenhum arquivo real é consultado ou transmitido.
+- O ensaio exige 3/3 recuos textuais com referência à página 2; não altera processo, pagamento, lei, zona ou estado da triagem. UI na mesa do analista, somente `VITE_SIGAPRO_NEON_ISOLATED=true`. Não é avaliação visual, de precisão em planta real nem parecer jurídico.
+- Testes de sessão, perfis, isolamento da branch e resultado do parser + UI. A análise do documento oficial continua bloqueada até o fluxo correto.

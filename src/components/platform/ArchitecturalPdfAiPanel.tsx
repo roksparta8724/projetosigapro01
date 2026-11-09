@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, BrainCircuit, Check, CheckCircle2, FileText, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { QaArchitecturalLab } from "@/components/platform/QaArchitecturalLab";
 import { backendClient } from "@/integrations/backend/databaseClient";
 import { benchmarkQa04ArchitecturalReadings, makeReviewedDrawingEvidence, type DrawingExtraction } from "@/lib/architecturalPdfReadings";
 import { URBAN_METRICS, type UrbanMetric } from "@/lib/urbanPrecheck";
@@ -665,6 +666,8 @@ export function ArchitecturalPdfAiPanel({
         </div>
       </details>
     </>}
+    {!readOnly&&import.meta.env.VITE_SIGAPRO_NEON_ISOLATED==="true"
+      ?<QaArchitecturalLab/>:null}
     {error?<div data-sigapro-ai-reading-error="true"
       className="mt-3 min-w-0 max-w-full rounded-xl border border-rose-300 bg-rose-50 p-3 text-xs leading-5 text-rose-950 dark:border-rose-600 dark:bg-rose-950 dark:text-rose-100 [overflow-wrap:anywhere]">
       <p role="alert" className="break-words font-semibold">{error}</p>
