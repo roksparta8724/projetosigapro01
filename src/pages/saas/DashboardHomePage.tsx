@@ -33,7 +33,7 @@ import { Button } from "@/components/ui/button";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { PlanCapacityCard } from "@/components/platform/PlanCapacityCard";
 import { displayDashboardCategoryLabel } from "@/lib/dashboardPresentation";
-import {isFinancialTestGuide,summarizeFinancialGuideEvidence} from "@/lib/qaPaymentEvidence";
+import {isFinancialTestGuide,isPendingFinancialGuide,isReportedCompensatedGuide,summarizeFinancialGuideEvidence} from "@/lib/qaPaymentEvidence";
 import { usePlanCapacityLive } from "@/hooks/usePlanCapacityLive";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
@@ -511,7 +511,7 @@ export function DashboardHomePage() {
     process, guides:processGuides(process),
   }));
   const pendingPayments = processGuideRows.filter(({guides}) =>
-    guides.some((guide)=>guide.status==="pendente"&&!isFinancialTestGuide(guide)),
+    guides.some(isPendingFinancialGuide),
   ).length;
   const openRequirements = displayProcesses.filter((process) => getOpenRequirements(process) > 0).length;
   const totalMessages = displayProcesses.reduce((sum, process) => sum + process.messages.length, 0);
@@ -551,8 +551,8 @@ export function DashboardHomePage() {
   }, [institutions, sessionUsers.length, getInstitutionSettings]);
 
   const financeMetrics = {
-    pending: tenantGuides.filter((guide) => guide.status === "pendente").length,
-    confirmed: tenantGuides.filter((guide) => guide.status === "compensada").length,
+    pending: tenantGuides.filter(isPendingFinancialGuide).length,
+    confirmed: tenantGuides.filter(isReportedCompensatedGuide).length,
     issued: tenantGuides.length,
   };
 
@@ -589,8 +589,8 @@ export function DashboardHomePage() {
     [scopedUsers.length, activeUsers, blockedUsers],
   );
   const financeSituationChart = [
-    { label: "Pendentes", total: displayGuides.filter((guide) => guide.status === "pendente").length },
-    { label: "Compensadas", total: displayGuides.filter((guide) => guide.status === "compensada").length },
+    { label: "Pendentes", total: displayGuides.filter(isPendingFinancialGuide).length },
+    { label: "Compensadas", total: displayGuides.filter(isReportedCompensatedGuide).length },
   ].filter((item) => item.total > 0);
 
   const chartConfig = { total: { label: "Volume", color: "#60a5fa" } };
@@ -1014,8 +1014,8 @@ export function DashboardHomePage() {
     <div className="space-y-6">
       <PageStatsRow>
         <MetricCard title="Guias emitidas" value={`${totalGuides}`} helper="Guias não simuladas no recorte atual." icon={Wallet} tone="amber" />
-        <MetricCard title="Pagamentos pendentes" value={`${displayGuides.filter((guide)=>guide.status==="pendente").length}`} helper="Guias não simuladas aguardando compensação." icon={AlertTriangle} tone="rose" />
-        <MetricCard title="Compensadas no sistema" value={`${displayGuides.filter((guide)=>guide.status==="compensada").length}`} helper="Registros não simulados; conferir comprovantes." icon={CheckCircle2} tone="emerald" />
+        <MetricCard title="Pagamentos pendentes" value={`${displayGuides.filter(isPendingFinancialGuide).length}`} helper="Guias não simuladas aguardando compensação." icon={AlertTriangle} tone="rose" />
+        <MetricCard title="Compensadas no sistema" value={`${displayGuides.filter(isReportedCompensatedGuide).length}`} helper="Registros não simulados; conferir comprovantes." icon={CheckCircle2} tone="emerald" />
         <MetricCard title="Volume financeiro" value={formatCurrency(paymentVolume)} helper="Montante de guias não simuladas." icon={TrendingUp} tone="blue" />
       </PageStatsRow>
       {simulatedGuideCount>0?(

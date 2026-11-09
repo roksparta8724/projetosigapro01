@@ -79,6 +79,12 @@ export function validateUrbanRules(value: unknown): value is UrbanRule[] {
   return true;
 }
 
+export function isValidUrbanCivilDate(value:unknown):value is string{
+  if(typeof value!=="string"||!/^\d{4}-\d{2}-\d{2}$/.test(value))return false;
+  const date=new Date(value+"T00:00:00.000Z");
+  return Number.isFinite(date.getTime())&&date.toISOString().slice(0,10)===value;
+}
+
 export function selectUrbanRegulation(
   versions: UrbanRegulationVersion[],
   municipalityId: string,
@@ -86,13 +92,14 @@ export function selectUrbanRegulation(
   usage: string,
   asOf: string,
 ): UrbanRegulationVersion | null {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(asOf)) return null;
+  if (!isValidUrbanCivilDate(asOf)) return null;
   const matched = versions.filter((rule) =>
     rule.municipality_id === municipalityId &&
     rule.status === "active" &&
     !isUrbanTestFixtureRule(rule) &&
     normalizeUrbanCode(rule.zone_code) === normalizeUrbanCode(zone) &&
     normalizeUrbanCode(rule.use_code) === normalizeUrbanCode(usage) &&
+    isValidUrbanCivilDate(rule.effective_from) &&
     rule.effective_from <= asOf &&
     validateUrbanRules(rule.rules),
   );

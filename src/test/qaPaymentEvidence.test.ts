@@ -2,7 +2,7 @@ import {describe,expect,it} from "vitest";
 import {
   isSyntheticQaProtocolGuideCode, protocolPaymentEvidenceLabel,
   isFinancialTestGuide,isReportedCompensatedGuide,guideFinancialEvidenceLabel,
-  summarizeFinancialGuideEvidence,
+  summarizeFinancialGuideEvidence,normalizeFinancialGuideStatus,isPendingFinancialGuide,
 } from "@/lib/qaPaymentEvidence";
 import {readFileSync} from "node:fs";
 
@@ -21,7 +21,7 @@ describe("guia fictícia QA não é confirmação bancária",()=>{
     })).toContain("sem pagamento bancário");
     expect(protocolPaymentEvidenceLabel({
       code:"REAL-001",status:"compensada",
-    })).toBe("Confirmado");
+    })).toBe("Compensada no sistema");
     expect(protocolPaymentEvidenceLabel({
       code:"REAL-001",status:"pendente",
     })).toBe("Pendente");
@@ -56,7 +56,7 @@ describe("classificação financeira sem arrecadação fictícia",()=>{
     expect(dashboard).toContain("simulatedGuideCount");
     expect(dashboard).toContain("financialOverview = summarizeFinancialGuideEvidence");
     expect(dashboard).toContain("paymentVolume = financialOverview.issuedAmount");
-    expect(dashboard).toContain('guides.some((guide)=>guide.status==="pendente"&&!isFinancialTestGuide(guide))');
+    expect(dashboard).toContain("guides.some(isPendingFinancialGuide)");
   });
 });
 
@@ -120,4 +120,38 @@ describe("etiquetas de pagamento em todos os perfis do SIGAPRO",()=>{
     expect(readFileSync(paths[2],"utf8")).toContain("financialSnapshot.compensatedCount");
     expect(readFileSync(paths[3],"utf8")).toContain("não paga em banco");
   });
+});
+
+
+describe("SIGAPRO — integridade de estados financeiros legados",()=>{
+ it("normaliza sem falsear confirmação bancária",()=>{
+  expect(normalizeFinancialGuideStatus("confirmed")).toBe("compensada");
+  expect(normalizeFinancialGuideStatus("paid")).toBe("compensada");
+  expect(normalizeFinancialGuideStatus("pending")).toBe("pendente");
+  expect(normalizeFinancialGuideStatus("canceled")).toBe("cancelada");
+  expect(normalizeFinancialGuideStatus("unknown")).toBe("desconhecida");
+  expect(protocolPaymentEvidenceLabel({status:"confirmed"})).toBe("Compensada no sistema");
+ });
+ it("exclui QA e sandbox mesmo com estado confirmed",()=>{
+  for(const env of ["qa","test","sandbox","hml","homologacao"]){
+    const guide={status:"confirmed",providerEnvironment:env,amount:100};
+    expect(isFinancialTestGuide(guide)).toBe(true);
+    expect(isReportedCompensatedGuide(guide)).toBe(false);
+  }
+  expect(isFinancialTestGuide({bankStatus:"qa_synthetic_not_bank_paid"})).toBe(true);
+ });
+ it("reconcilia lançamentos legados e mostra estados desconhecidos",()=>{
+  const result=summarizeFinancialGuideEvidence([
+    {status:"confirmed",amount:100},{status:"compensada",amount:50},
+    {status:"pending",amount:20},{status:"pendente",amount:30},
+    {status:"cancelada",amount:10},{status:"unknown",amount:3},
+    {status:"confirmed",providerEnvironment:"qa",amount:9999},
+  ]);
+  expect(result.compensatedCount).toBe(2);
+  expect(result.pendingCount).toBe(2);
+  expect(result.unknownCount).toBe(1);
+  expect(result.issuedAmount).toBe(213);
+  expect(result.synthetic).toHaveLength(1);
+  expect(isPendingFinancialGuide({status:"pending"})).toBe(true);
+ });
 });

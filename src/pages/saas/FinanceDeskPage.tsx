@@ -61,7 +61,7 @@ import {
   isIssFeeConfigured,
 } from "@/lib/platform";
 import { collectionModeLabel } from "@/lib/paymentCollection";
-import {isFinancialTestGuide,isReportedCompensatedGuide,guideFinancialEvidenceLabel,summarizeFinancialGuideEvidence} from "@/lib/qaPaymentEvidence";
+import {isFinancialTestGuide,isPendingFinancialGuide,isReportedCompensatedGuide,guideFinancialEvidenceLabel,summarizeFinancialGuideEvidence} from "@/lib/qaPaymentEvidence";
 import { resolveProcessDispatchAuthor } from "@/lib/dispatchActorIdentity";
 import {
   type MunicipalFeeRule,
@@ -142,7 +142,7 @@ export function FinanceDeskPage() {
   const issGuides = guides.filter(({ guide }) => guide.kind === "iss_obra");
   const approvalGuides = guides.filter(({ guide }) => guide.kind === "aprovacao_final");
   const settledGuides = guides.filter(({guide})=>isReportedCompensatedGuide(guide));
-  const pendingGuides = guides.filter(({guide})=>guide.status==="pendente"&&!isFinancialTestGuide(guide));
+  const pendingGuides = guides.filter(({guide})=>isPendingFinancialGuide(guide));
   const controlFinancialSummary = summarizeFinancialGuideEvidence(
     controlGuides.map(({guide})=>guide),
   );
@@ -325,7 +325,7 @@ export function FinanceDeskPage() {
   const controlSettledValue = controlFinancialSummary.compensatedAmount;
 
   const inconsistencyCount = guides.filter(({ process, guide }) => {
-    if (guide.status !== "pendente" || isFinancialTestGuide(guide)) return false;
+    if (!isPendingFinancialGuide(guide)) return false;
     return process.status === "deferido" || process.status === "arquivado";
   }).length;
 
@@ -905,7 +905,7 @@ export function FinanceDeskPage() {
                                 className={
                                   isFinancialTestGuide(guide)
                                     ? "h-5 shrink-0 rounded-full border-sky-200 bg-sky-50 px-2 text-[9px] font-bold text-sky-800 dark:border-sky-600 dark:bg-sky-950/40 dark:text-sky-200"
-                                    : guide.status === "compensada"
+                                    : isReportedCompensatedGuide(guide)
                                       ? "h-5 shrink-0 rounded-full border-emerald-200 bg-emerald-50 px-2 text-[9px] font-bold text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-950/30 dark:text-emerald-300"
                                       : "h-5 shrink-0 rounded-full border-amber-200 bg-amber-50 px-2 text-[9px] font-bold text-amber-700 dark:border-amber-500/30 dark:bg-amber-950/30 dark:text-amber-300"
                                 }

@@ -39,7 +39,7 @@ import { prepareGuideInstitutionalLogo } from "@/lib/guideAssets";
 import { ensureMercadoPagoGuideCharge, requestQaPixCharge, type QaPixCharge, type MercadoPagoGuideCharge } from "@/lib/mercadoPagoGuide";
 import { normalizeOfficialBanking } from "@/lib/bankCodes";
 import { resolveGuideBankingData } from "@/lib/paymentCollection";
-import {isFinancialTestGuide,summarizeFinancialGuideEvidence} from "@/lib/qaPaymentEvidence";
+import {isFinancialTestGuide,isPendingFinancialGuide,isReportedCompensatedGuide,summarizeFinancialGuideEvidence} from "@/lib/qaPaymentEvidence";
 
 const paymentStatusOptions = [
   { value: "todos", label: "Todos os status" },
@@ -49,7 +49,7 @@ const paymentStatusOptions = [
 ];
 
 function getGuideStatus(guide: { status: string; dueDate: string }) {
-  if (guide.status === "compensada") return "compensada";
+  if (isReportedCompensatedGuide(guide)) return "compensada";
   const due = new Date(guide.dueDate);
   if (!Number.isNaN(due.getTime()) && due.getTime() < Date.now()) return "vencida";
   return "pendente";
@@ -398,7 +398,7 @@ export function ExternalPaymentsPage() {
   }, [guides, search, statusFilter]);
 
   const financialSnapshot=summarizeFinancialGuideEvidence(guides.map(item=>item.guide));
-  const pendingCount=guides.filter(item=>item.status==="pendente"&&!isFinancialTestGuide(item.guide)).length;
+  const pendingCount=guides.filter(item=>isPendingFinancialGuide(item.guide)).length;
   const overdueCount=guides.filter(item=>item.status==="vencida"&&!isFinancialTestGuide(item.guide)).length;
   const paidCount=financialSnapshot.compensatedCount;
   const totalValue=financialSnapshot.issuedAmount;

@@ -1522,3 +1522,12 @@ navegador autenticado.
 ### QA — regressão de etiqueta financeira atualizada
 - Quality Gate completo do commit b486e3dd executou 1.734 testes, com 1 falha de asserção textual antiga no histórico financeiro do profissional; 1.733 passaram. A falha veio da expectativa literal 'Pago / compensado', agora substituída por classificação segura de simulação ou compensação do sistema.
 - O teste agora exige que guia sintética não seja rotulada como dinheiro recebido, sem alterar registros, pagamentos, autorização de perfil ou processos. Reexecutar gates completos antes de anunciar publicação final.
+
+
+## 09/11/2026 — continuidade autenticada: auditoria do banco e integridade transversal
+- Vídeo `20261109-2136-00.9413257.mp4` (10,13 s) mostra conversa anterior, não interação com a interface; não é evidência E2E.
+- Antes deste lote, PR #117 mesclada e PR #118 draft no commit `720ae7fc27af6f5364677bfdc29e1261508fd6d8`. GitHub Quality Gate, Neon migration validation e OCR QA aprovados nesse SHA; deployment Preview `dpl_HkmdPuy8yqKHHXa6svJbYLCozy91` READY no alias estável. Produção não recebe este lote.
+- Leitura Neon QA, branch `br-solitary-sound-b4xlbvs6`: 8 processos, 11 guias, 28 documentos de processos, 45 rascunhos do Quadro II sem homologação, 1 documento legal pendente de revisão, 0 escopos de evidência jurídica, 0 geometrias de zoneamento, 2 regras ativas que são fixtures `QA-URBAN-E2E-20261024` sem validade legal. Não inferir conformidade dessas regras.
+- Este lote corrige **o modelo de leitura dos pagamentos**: inglês legado (confirmed/pending/paid) e português, separa situações desconhecidas, exclui sandbox/QA da receita e usa somente a classificação comum nos indicadores de Dashboard, Financeiro e pagamentos externos. Não altera banco, conciliação, autorização ou estado da guia. `Compensada no sistema` não significa crédito bancário comprovado.
+- O seletor de vigência urbanística passa a rejeitar datas civis impossíveis e regras de teste; regressões passam pelo gate do Preview QA. Falta validação do novo SHA, CI e Vercel READY antes de anunciar conclusão técnica.
+- Bloqueios reais da homologação comercial: leitura autenticada do PDF R2 por analista, confirmação da legislação e usos por página/município/vigência, mapa GIS oficial cadastrado, webhook assinado e baixa bancária real, perfis de duas prefeituras e ensaio de restauração/rollback. Sem merge PR #118, sem deploy oficial e sem modificar dados do Neon neste ciclo.

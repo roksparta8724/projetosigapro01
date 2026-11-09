@@ -29,6 +29,7 @@ const TESTS=[
   "src/test/mpProdWebhookReleaseReadiness.test.ts",
   "src/test/qaPreviewBuildGate.test.ts",
   "src/test/qaPaymentEvidence.test.ts",
+  "src/test/urbanAiOfficialIntegration.test.ts",
   "src/test/urbanEvidenceTemporalGate.test.ts",
   "src/test/workflowUnknownStageQa.test.ts",
   "src/test/qa04StoredPdfAudit.test.tsx",
