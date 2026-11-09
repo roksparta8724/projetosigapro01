@@ -33,7 +33,7 @@ import { Button } from "@/components/ui/button";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { PlanCapacityCard } from "@/components/platform/PlanCapacityCard";
 import { displayDashboardCategoryLabel } from "@/lib/dashboardPresentation";
-import {isFinancialTestGuide,isPendingFinancialGuide,isReportedCompensatedGuide,summarizeFinancialGuideEvidence} from "@/lib/qaPaymentEvidence";
+import {isFinancialTestGuide,isPendingFinancialGuide,isReportedCompensatedGuide,isBankVerifiedFinancialGuide,summarizeFinancialGuideEvidence} from "@/lib/qaPaymentEvidence";
 import { usePlanCapacityLive } from "@/hooks/usePlanCapacityLive";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
@@ -552,7 +552,7 @@ export function DashboardHomePage() {
 
   const financeMetrics = {
     pending: tenantGuides.filter(isPendingFinancialGuide).length,
-    confirmed: tenantGuides.filter(isReportedCompensatedGuide).length,
+    verified: tenantGuides.filter(isBankVerifiedFinancialGuide).length,
     issued: tenantGuides.length,
   };
 
@@ -590,7 +590,8 @@ export function DashboardHomePage() {
   );
   const financeSituationChart = [
     { label: "Pendentes", total: displayGuides.filter(isPendingFinancialGuide).length },
-    { label: "Compensadas", total: displayGuides.filter(isReportedCompensatedGuide).length },
+    { label: "Compensadas sem prova", total: financialOverview.unverifiedCompensatedCount },
+    { label: "Liquidadas no banco", total: financialOverview.bankVerifiedCount },
   ].filter((item) => item.total > 0);
 
   const chartConfig = { total: { label: "Volume", color: "#60a5fa" } };
@@ -768,7 +769,7 @@ export function DashboardHomePage() {
         ? [
             { title: "Guias pendentes", value: `${financeMetrics.pending}`, helper: "Aguardando compensacao.", icon: AlertTriangle, tone: "rose" as const },
             { title: "Guias emitidas", value: `${financeMetrics.issued}`, helper: "Guias geradas para contribuinte.", icon: Wallet, tone: "amber" as const },
-            { title: "Pagamentos confirmados", value: `${financeMetrics.confirmed}`, helper: "Guias não simuladas compensadas no sistema.", icon: CheckCircle2, tone: "emerald" as const },
+            { title: "Liquidações bancárias", value: `${financeMetrics.verified}`, helper: "Baixas reais com evidência externa.", icon: CheckCircle2, tone: "emerald" as const },
             { title: "Volume financeiro", value: formatCurrency(paymentVolume), helper: "Montante de guias não simuladas.", icon: TrendingUp, tone: "blue" as const },
           ]
         : isAnalyst
@@ -1015,9 +1016,15 @@ export function DashboardHomePage() {
       <PageStatsRow>
         <MetricCard title="Guias emitidas" value={`${totalGuides}`} helper="Guias não simuladas no recorte atual." icon={Wallet} tone="amber" />
         <MetricCard title="Pagamentos pendentes" value={`${displayGuides.filter(isPendingFinancialGuide).length}`} helper="Guias não simuladas aguardando compensação." icon={AlertTriangle} tone="rose" />
-        <MetricCard title="Compensadas no sistema" value={`${displayGuides.filter(isReportedCompensatedGuide).length}`} helper="Registros não simulados; conferir comprovantes." icon={CheckCircle2} tone="emerald" />
+        <MetricCard title="Liquidadas pelo banco" value={`${financialOverview.bankVerifiedCount}`} helper="Apenas liquidações com evidência bancária." icon={CheckCircle2} tone="emerald" />
         <MetricCard title="Volume financeiro" value={formatCurrency(paymentVolume)} helper="Montante de guias não simuladas." icon={TrendingUp} tone="blue" />
       </PageStatsRow>
+      {financialOverview.unverifiedCompensatedCount>0?(
+        <p data-dashboard-unverified-finance="true" className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-950 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-100">
+          {financialOverview.unverifiedCompensatedCount} guia(s) constam como compensadas no sistema,
+          mas ainda não possuem evidência de liquidação bancária.
+        </p>
+      ):null}
       {simulatedGuideCount>0?(
         <p data-dashboard-synthetic-finance="true"
           className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs font-semibold text-sky-950 dark:border-sky-700 dark:bg-[#17344e] dark:text-sky-100">
@@ -1029,7 +1036,7 @@ export function DashboardHomePage() {
       <PageMainGrid className="xl:grid-cols-[minmax(0,1.58fr)_minmax(280px,0.88fr)]">
         <PageMainContent>
           <div className="grid min-w-0 gap-6 min-[2150px]:grid-cols-2">
-            <DistributionCard title="Situação financeira" description="Guias não simuladas pendentes e compensadas no sistema." icon={Wallet} data={financeSituationChart} />
+            <DistributionCard title="Situação financeira" description="Pendentes, compensadas sem prova bancária e liquidadas pelo banco." icon={Wallet} data={financeSituationChart} />
             <TableCard title="Comparativo de guias" description="Volume financeiro por situacao do fluxo de arrecadacao." icon={BarChart3}>
               {financeSituationChart.length === 0 ? (
                 <EmptyState title="Sem informacoes financeiras" description="Nao ha guias suficientes para compor o painel comparativo." icon={Wallet} />

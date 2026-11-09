@@ -578,14 +578,22 @@ export function FinanceDeskPage() {
                 valueClassName="text-xl md:text-2xl"
               />
               <StatCard
-                label="Compensado no sistema"
-                value={formatCurrency(controlSettledValue)}
-                description="Registros não simulados; sujeitos à conferência bancária"
+                label="Liquidado pelo banco"
+                value={formatCurrency(controlFinancialSummary.bankVerifiedAmount)}
+                description="Baixas com evidência externa; simulações e lançamentos manuais excluídos"
                 icon={Landmark}
                 tone="emerald"
                 valueClassName="text-xl md:text-2xl"
               />
             </PageStatsRow>
+            {controlFinancialSummary.unverifiedCompensatedCount>0?(
+              <p data-finance-unverified-settlement="true"
+                className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-950 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-100">
+                {controlFinancialSummary.unverifiedCompensatedCount} guia(s), no total de {formatCurrency(controlSettledValue-controlFinancialSummary.bankVerifiedAmount)},
+                estão compensadas no cadastro, mas sem comprovação de baixa bancária.
+                Esses valores não integram a arrecadação verificada.
+              </p>
+            ):null}
             {simulatedGuideCount>0?(
               <p data-finance-synthetic-guides="true"
                 className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs font-semibold text-sky-950 dark:border-sky-700 dark:bg-[#17344e] dark:text-sky-100">
@@ -1089,9 +1097,14 @@ export function FinanceDeskPage() {
                     tone={settledGuides.length > 0 ? "success" : "default"}
                   />
                   <AlertCard
-                    title="Compensação registrada"
-                    description={formatCurrency(settledValue)}
-                    tone="default"
+                    title="Liquidação bancária comprovada"
+                    description={formatCurrency(controlFinancialSummary.bankVerifiedAmount)}
+                    tone={controlFinancialSummary.bankVerifiedCount>0?"success":"default"}
+                  />
+                  <AlertCard
+                    title="Compensação sem comprovante bancário"
+                    description={formatCurrency(settledValue-controlFinancialSummary.bankVerifiedAmount)}
+                    tone={settledGuides.length>controlFinancialSummary.bankVerifiedCount?"warning":"default"}
                   />
                 </div>
               </SectionCard>

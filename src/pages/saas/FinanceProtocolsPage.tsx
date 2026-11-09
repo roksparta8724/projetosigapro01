@@ -66,6 +66,8 @@ type ProcessLedger = {
   guides: PaymentGuideEntry[];
   totalIssued: number;
   totalPaid: number;
+  totalBankVerified: number;
+  bankVerifiedCount: number;
   totalPending: number;
   paidCount: number;
   pendingCount: number;
@@ -159,6 +161,8 @@ export function FinanceProtocolsPage() {
             guides,
             totalIssued,
             totalPaid: paidGuides.reduce((sum, guide) => sum + guide.amount, 0),
+            totalBankVerified: financial.bankVerifiedAmount,
+            bankVerifiedCount: financial.bankVerifiedCount,
             totalPending: pendingGuides.reduce((sum, guide) => sum + guide.amount, 0),
             paidCount: paidGuides.length,
             pendingCount: pendingGuides.length,
@@ -202,6 +206,7 @@ export function FinanceProtocolsPage() {
   const totalIssued = ledgers.reduce((sum, ledger) => sum + ledger.totalIssued, 0);
   const totalPending = ledgers.reduce((sum, ledger) => sum + ledger.totalPending, 0);
   const totalPaid = ledgers.reduce((sum, ledger) => sum + ledger.totalPaid, 0);
+  const totalBankVerified = ledgers.reduce((sum, ledger) => sum + ledger.totalBankVerified, 0);
 
   const visibleLedgers = useMemo(() => {
     const normalizedSearch = search.trim().toLocaleLowerCase("pt-BR");
@@ -499,20 +504,26 @@ export function FinanceProtocolsPage() {
             valueClassName="text-xl md:text-2xl"
           />
           <StatCard
-            label="Arrecadado"
-            value={formatCurrency(totalPaid)}
-            description="Valores já compensados"
+            label="Liquidado pelo banco"
+            value={formatCurrency(totalBankVerified)}
+            description="Apenas baixas com evidência bancária verificável"
             icon={Landmark}
             tone="emerald"
             valueClassName="text-xl md:text-2xl"
           />
         </PageStatsRow>
+        {totalPaid>totalBankVerified?(
+          <p data-finance-protocol-unverified="true" className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-xs font-semibold text-amber-950 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-100">
+            {formatCurrency(totalPaid-totalBankVerified)} constam como compensados no cadastro,
+            mas sem comprovante de liquidação bancária. O total arrecadado verificado não inclui esses registros.
+          </p>
+        ):null}
 
         <PageMainGrid className="grid-cols-1 xl:grid-cols-1">
           <PageMainContent>
             <SectionCard
               title="Controle financeiro por protocolo"
-              description="Cada processo possui sua própria conta: valores lançados, pagos, pendentes e guias vinculadas. Protocolos ativos aparecem mesmo antes de existir uma cobrança financeira."
+              description="Cada processo possui sua conta: valores emitidos, compensados no cadastro, conciliados com banco e pendentes. Protocolos ativos aparecem mesmo antes da cobrança."
             >
               <div className="mb-5 rounded-[22px] border border-slate-200 bg-[linear-gradient(135deg,#ffffff_0%,#f8fbff_100%)] p-4 shadow-sm dark:border-slate-700 dark:bg-none dark:bg-slate-950/45">
                 <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
@@ -713,10 +724,13 @@ export function FinanceProtocolsPage() {
                             </div>
                             <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4 dark:border-emerald-500/30 dark:bg-emerald-950/20">
                               <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-emerald-600 dark:text-emerald-300">
-                                Pago
+                                Compensado no cadastro
                               </p>
                               <p className="mt-2 text-xl font-black text-emerald-800 dark:text-emerald-100">
                                 {formatCurrency(ledger.totalPaid)}
+                              </p>
+                              <p className="mt-1 text-[11px] text-emerald-800 dark:text-emerald-200">
+                                Banco verificado: {formatCurrency(ledger.totalBankVerified)}
                               </p>
                             </div>
                             <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4 dark:border-amber-500/30 dark:bg-amber-950/20">
@@ -735,7 +749,7 @@ export function FinanceProtocolsPage() {
                                 {guides.length}
                               </p>
                               <p className="mt-1 text-[11px] text-sky-700 dark:text-sky-300">
-                                {ledger.paidCount} paga(s) · {ledger.pendingCount} pendente(s)
+                                {ledger.paidCount} compensada(s) · {ledger.bankVerifiedCount} com baixa bancária · {ledger.pendingCount} pendente(s)
                               </p>
                             </div>
                           </div>

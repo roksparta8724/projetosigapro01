@@ -2,7 +2,7 @@ import {describe,expect,it} from "vitest";
 import {
   isSyntheticQaProtocolGuideCode, protocolPaymentEvidenceLabel,
   isFinancialTestGuide,isReportedCompensatedGuide,guideFinancialEvidenceLabel,
-  summarizeFinancialGuideEvidence,normalizeFinancialGuideStatus,isPendingFinancialGuide,
+  summarizeFinancialGuideEvidence,normalizeFinancialGuideStatus,isPendingFinancialGuide,isBankVerifiedFinancialGuide,
 } from "@/lib/qaPaymentEvidence";
 import {readFileSync} from "node:fs";
 
@@ -154,4 +154,46 @@ describe("SIGAPRO — integridade de estados financeiros legados",()=>{
   expect(result.synthetic).toHaveLength(1);
   expect(isPendingFinancialGuide({status:"pending"})).toBe(true);
  });
+});
+
+describe("SIGAPRO — liquidação bancária real distinta da compensação interna",()=>{
+  const settled={status:"compensada",amount:125,bankStatus:"processed",
+    bankStatusDetail:"accredited",bankReference:"ORDER-BR-000001",
+    bankPaymentId:"PAY-BR-000001",bankAuthenticatedAt:"2026-11-09T14:00:00Z",
+    paymentProvider:"mercado_pago",providerEnvironment:"production"};
+  it("exige proveniência de banco, ambiente real, ordem e autenticação",()=>{
+    expect(isBankVerifiedFinancialGuide(settled)).toBe(true);
+    for(const patch of [
+      {bankStatus:"action_required"},{bankStatusDetail:"pending"},
+      {bankPaymentId:""},{bankReference:""},
+      {bankAuthenticatedAt:"invalido"},{bankAuthenticatedAt:undefined},
+      {providerEnvironment:"test"},{providerEnvironment:"qa"},
+      {providerEnvironment:undefined},{paymentProvider:"manual"},
+      {paymentProvider:"bank_direct"},{status:"pendente"},
+    ])expect(isBankVerifiedFinancialGuide({...settled,...patch})).toBe(false);
+    expect(isBankVerifiedFinancialGuide({status:"compensada",paid:true})).toBe(false);
+  });
+  it("preserva o histórico sem incorporar compensações não verificadas à arrecadação real",()=>{
+    const data=summarizeFinancialGuideEvidence([
+      settled,{status:"compensada",amount:80,paid:true},
+      {status:"confirmed",amount:20,bankStatus:"processed"},
+      {...settled,amount:9999,providerEnvironment:"test"},
+    ]);
+    expect(data.compensatedCount).toBe(3);
+    expect(data.bankVerifiedCount).toBe(1);
+    expect(data.bankVerifiedAmount).toBe(125);
+    expect(data.unverifiedCompensatedCount).toBe(2);
+    expect(data.unverifiedCompensatedAmount).toBe(100);
+    expect(data.synthetic).toHaveLength(1);
+  });
+  it("mantém as quatro áreas coerentes e sem arrecadação fictícia",()=>{
+    const finance=readFileSync("src/pages/saas/FinanceDeskPage.tsx","utf8");
+    const ledger=readFileSync("src/pages/saas/FinanceProtocolsPage.tsx","utf8");
+    const dash=readFileSync("src/pages/saas/DashboardHomePage.tsx","utf8");
+    const external=readFileSync("src/pages/saas/ExternalPaymentsPage.tsx","utf8");
+    expect(finance).toContain("controlFinancialSummary.bankVerifiedAmount");
+    expect(ledger).toContain("totalBankVerified");
+    expect(dash).toContain("financialOverview.bankVerifiedCount");
+    expect(external).toContain("financialSnapshot.bankVerifiedCount");
+  });
 });

@@ -436,7 +436,7 @@ export function ExternalPaymentsPage() {
         <StatsCards>
           <MetricCard title="Pendentes" value={String(pendingCount)} helper="Guias aguardando" icon={Calendar} tone="amber" />
           <MetricCard title="Vencidas" value={String(overdueCount)} helper="Requer atenção" icon={Calendar} tone="rose" />
-          <MetricCard title="Compensadas no sistema" value={String(paidCount)} helper="Não simuladas; conferir comprovação bancária" icon={CreditCard} tone="emerald" />
+          <MetricCard title="Compensadas no sistema" value={String(paidCount)} helper={`${financialSnapshot.bankVerifiedCount} com baixa bancária verificada; demais aguardam comprovante`} icon={CreditCard} tone="emerald" />
           <MetricCard title="Total emitido" value={formatCurrency(totalValue)} helper="Montante de guias não simuladas" icon={CreditCard} tone="blue" />
         </StatsCards>
 
