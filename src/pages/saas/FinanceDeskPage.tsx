@@ -61,7 +61,7 @@ import {
   isIssFeeConfigured,
 } from "@/lib/platform";
 import { collectionModeLabel } from "@/lib/paymentCollection";
-import {isFinancialTestGuide,isPendingFinancialGuide,isReportedCompensatedGuide,guideFinancialEvidenceLabel,summarizeFinancialGuideEvidence} from "@/lib/qaPaymentEvidence";
+import {isFinancialTestGuide,isPendingFinancialGuide,isReportedCompensatedGuide,isBankVerifiedFinancialGuide,guideFinancialEvidenceLabel,summarizeFinancialGuideEvidence} from "@/lib/qaPaymentEvidence";
 import { resolveProcessDispatchAuthor } from "@/lib/dispatchActorIdentity";
 import {
   type MunicipalFeeRule,
@@ -317,6 +317,9 @@ export function FinanceDeskPage() {
   const totalValue = guides.filter(({guide})=>!isFinancialTestGuide(guide))
     .reduce((sum, { guide }) => sum + guide.amount, 0);
   const settledValue = settledGuides.reduce((sum, { guide }) => sum + guide.amount, 0);
+  const settledBankVerifiedValue=settledGuides
+    .filter(({guide})=>isBankVerifiedFinancialGuide(guide))
+    .reduce((sum,{guide})=>sum+guide.amount,0);
   const openProcessCount = processes.filter(
     (process) => !["rascunho", "deferido", "indeferido", "arquivado"].includes(process.status),
   ).length;
@@ -1103,7 +1106,7 @@ export function FinanceDeskPage() {
                   />
                   <AlertCard
                     title="Compensação sem comprovante bancário"
-                    description={formatCurrency(settledValue-controlFinancialSummary.bankVerifiedAmount)}
+                    description={formatCurrency(settledValue-settledBankVerifiedValue)}
                     tone={settledGuides.length>controlFinancialSummary.bankVerifiedCount?"warning":"default"}
                   />
                 </div>

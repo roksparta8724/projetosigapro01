@@ -33,7 +33,7 @@ import { Button } from "@/components/ui/button";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { PlanCapacityCard } from "@/components/platform/PlanCapacityCard";
 import { displayDashboardCategoryLabel } from "@/lib/dashboardPresentation";
-import {isFinancialTestGuide,isPendingFinancialGuide,isReportedCompensatedGuide,isBankVerifiedFinancialGuide,summarizeFinancialGuideEvidence} from "@/lib/qaPaymentEvidence";
+import {isFinancialTestGuide,isPendingFinancialGuide,isBankVerifiedFinancialGuide,summarizeFinancialGuideEvidence} from "@/lib/qaPaymentEvidence";
 import { usePlanCapacityLive } from "@/hooks/usePlanCapacityLive";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
