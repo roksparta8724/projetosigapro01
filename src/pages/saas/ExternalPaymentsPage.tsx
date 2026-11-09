@@ -39,6 +39,7 @@ import { prepareGuideInstitutionalLogo } from "@/lib/guideAssets";
 import { ensureMercadoPagoGuideCharge, requestQaPixCharge, type QaPixCharge, type MercadoPagoGuideCharge } from "@/lib/mercadoPagoGuide";
 import { normalizeOfficialBanking } from "@/lib/bankCodes";
 import { resolveGuideBankingData } from "@/lib/paymentCollection";
+import {isFinancialTestGuide,summarizeFinancialGuideEvidence} from "@/lib/qaPaymentEvidence";
 
 const paymentStatusOptions = [
   { value: "todos", label: "Todos os status" },
@@ -396,10 +397,11 @@ export function ExternalPaymentsPage() {
     });
   }, [guides, search, statusFilter]);
 
-  const pendingCount = guides.filter((item) => item.status === "pendente").length;
-  const overdueCount = guides.filter((item) => item.status === "vencida").length;
-  const paidCount = guides.filter((item) => item.status === "compensada").length;
-  const totalValue = guides.reduce((sum, item) => sum + item.guide.amount, 0);
+  const financialSnapshot=summarizeFinancialGuideEvidence(guides.map(item=>item.guide));
+  const pendingCount=guides.filter(item=>item.status==="pendente"&&!isFinancialTestGuide(item.guide)).length;
+  const overdueCount=guides.filter(item=>item.status==="vencida"&&!isFinancialTestGuide(item.guide)).length;
+  const paidCount=financialSnapshot.compensatedCount;
+  const totalValue=financialSnapshot.issuedAmount;
 
   return (
     <PortalFrame eyebrow="Acesso Externo" title="Pagamentos">
@@ -434,8 +436,8 @@ export function ExternalPaymentsPage() {
         <StatsCards>
           <MetricCard title="Pendentes" value={String(pendingCount)} helper="Guias aguardando" icon={Calendar} tone="amber" />
           <MetricCard title="Vencidas" value={String(overdueCount)} helper="Requer atenção" icon={Calendar} tone="rose" />
-          <MetricCard title="Compensadas" value={String(paidCount)} helper="Pagamentos confirmados" icon={CreditCard} tone="emerald" />
-          <MetricCard title="Total emitido" value={formatCurrency(totalValue)} helper="Guias vinculadas" icon={CreditCard} tone="blue" />
+          <MetricCard title="Compensadas no sistema" value={String(paidCount)} helper="Não simuladas; conferir comprovação bancária" icon={CreditCard} tone="emerald" />
+          <MetricCard title="Total emitido" value={formatCurrency(totalValue)} helper="Montante de guias não simuladas" icon={CreditCard} tone="blue" />
         </StatsCards>
 
         <MainGrid>
@@ -546,14 +548,19 @@ export function ExternalPaymentsPage() {
                         <Badge
                           variant="outline"
                           className={`rounded-full px-3 py-1 text-[12px] ${
-                            status === "compensada"
-                              ? "border-emerald-200 bg-emerald-50 text-emerald-600"
+                            isFinancialTestGuide(guide)
+                               ? "border-sky-200 bg-sky-50 text-sky-800"
+                               : status === "compensada"
+                                 ? "border-emerald-200 bg-emerald-50 text-emerald-600"
                               : status === "vencida"
                                 ? "border-rose-200 bg-rose-50 text-rose-600"
                                 : "border-amber-200 bg-amber-50 text-amber-600"
                           }`}
                         >
-                          {status === "compensada" ? "Compensada" : status === "vencida" ? "Vencida" : "Pendente"}
+                          {isFinancialTestGuide(guide)
+                             ? "Simulação QA — sem pagamento bancário"
+                             : status === "compensada" ? "Compensada no sistema"
+                               : status === "vencida" ? "Vencida" : "Pendente"}
                         </Badge>
                       </div>
                       <div
