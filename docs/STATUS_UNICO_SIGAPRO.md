@@ -1513,3 +1513,8 @@ navegador autenticado.
 - Cobertura de evidências jurídicas exige documento identificável e datas civis válidas (ex.: 2026-02-30 é rejeitada), limite temporal coerente, hash, página, trecho, município, zona e uso coincidentes. Não ativa qualquer lei e não substitui conferência jurídica.
 - Códigos de etapa desconhecidos retornam progresso desconhecido, nunca "Cadastro" falsamente confirmado. Permissões e transições reais do backend não foram alteradas.
 - Regressões QA de finanças, validade legal e integridade de fluxo foram incorporadas ao gate da prévia. Validar TypeScript, lint, suíte completa, integridade Neon e OCR antes de publicar; sem deploy em produção.
+
+### Continuidade QA — evidência financeira por perfil
+- Protocolo, livro financeiro, acesso externo e histórico de guias exibem Simulação QA quando o banco marca QA_SYNTHETIC_NOT_BANK_PAID ou o provedor está em ambiente test, mesmo que o status interno seja compensada para fins de ensaio.
+- Nenhuma regra de transição, confirmação financeira, segregação entre prefeituras ou banco de dados foi alterada; as guias de QA continuam preservadas e rastreáveis.
+- Compensada no sistema não equivale a comprovação de crédito em conta. Testes de regressão cobrem as telas.

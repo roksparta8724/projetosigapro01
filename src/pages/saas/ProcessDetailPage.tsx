@@ -1,5 +1,5 @@
 import { archiveAndOpenGuide, openLegacyGuideOriginal, openStoredGuide, readGuideOriginal } from "@/lib/guideOriginal";
-import { isSyntheticQaProtocolGuideCode } from "@/lib/qaPaymentEvidence";
+import { isSyntheticQaProtocolGuideCode, isFinancialTestGuide } from "@/lib/qaPaymentEvidence";
 import { FormEvent, MouseEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, ArrowRightLeft, BrainCircuit, Building2, CheckCircle2, Clock3, Download, Eye, FileBadge2, FileCheck2, FileKey2, FileStack, Landmark, LogOut, Maximize2, MessageSquareMore, PencilLine, Printer, ReceiptText, Route, ShieldAlert, Signature, UserRound, Wallet, Workflow, ZoomIn, ZoomOut } from "lucide-react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
@@ -4780,12 +4780,16 @@ export function ProcessDetailPage() {
                             <Badge
                               variant="outline"
                               className={`rounded-full ${
-                                guide.status === "compensada"
-                                  ? "border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-500/40 dark:bg-emerald-950/40 dark:text-emerald-300"
+                                isFinancialTestGuide(guide)
+                                  ? "border-sky-300 bg-sky-50 text-sky-900 dark:border-sky-600 dark:bg-sky-950/40 dark:text-sky-200"
+                                  : guide.status === "compensada"
+                                    ? "border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-500/40 dark:bg-emerald-950/40 dark:text-emerald-300"
                                   : "border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-500/40 dark:bg-amber-950/40 dark:text-amber-300"
                               }`}
                             >
-                              {guide.status === "compensada" ? "Pago / compensado" : "Em aberto"}
+                              {isFinancialTestGuide(guide)
+                                ? "Simulação QA — não paga em banco"
+                                : guide.status === "compensada" ? "Compensada no sistema" : "Em aberto"}
                             </Badge>
                           </div>
                           <p className="mt-2 text-sm font-medium text-slate-700 dark:text-slate-200">
@@ -4920,14 +4924,17 @@ export function ProcessDetailPage() {
                 <Badge
                   variant="outline"
                   className={
-                    protocolGuide?.status === "compensada"
-                      ? "w-fit rounded-full border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-500/40 dark:bg-emerald-950/35 dark:text-emerald-300"
+                    protocolGuide && isFinancialTestGuide(protocolGuide)
+                      ? "w-fit rounded-full border-sky-300 bg-sky-50 text-sky-900 dark:border-sky-600 dark:bg-sky-950/40 dark:text-sky-200"
+                      : protocolGuide?.status === "compensada"
+                        ? "w-fit rounded-full border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-500/40 dark:bg-emerald-950/35 dark:text-emerald-300"
                       : "w-fit rounded-full border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-500/40 dark:bg-amber-950/35 dark:text-amber-300"
                   }
                 >
-                  {protocolGuide?.status === "compensada"
-                    ? "Protocolo pago"
-                    : "Pagamento inicial pendente"}
+                  {protocolGuide && isFinancialTestGuide(protocolGuide)
+                    ? "Protocolo de ensaio QA — sem baixa bancária"
+                    : protocolGuide?.status === "compensada"
+                      ? "Compensada no sistema" : "Pagamento inicial pendente"}
                 </Badge>
               </div>
             </CardHeader>

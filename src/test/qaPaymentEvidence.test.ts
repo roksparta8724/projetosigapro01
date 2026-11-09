@@ -105,3 +105,19 @@ describe("protocolo não confunde baixa interna e pagamento bancário",()=>{
     })).toContain("sem pagamento bancário");
   });
 });
+
+describe("etiquetas de pagamento em todos os perfis do SIGAPRO",()=>{
+  it("não mostra uma transação de teste como baixa real em nenhum histórico",()=>{
+    const paths=[
+      "src/pages/saas/ProtocolDeskPage.tsx",
+      "src/pages/saas/FinanceProtocolsPage.tsx",
+      "src/pages/saas/ExternalPaymentsPage.tsx",
+      "src/pages/saas/ProcessDetailPage.tsx",
+    ];
+    for(const path of paths)expect(readFileSync(path,"utf8")).toContain("isFinancialTestGuide");
+    expect(readFileSync(paths[0],"utf8")).toContain("protocolPaymentEvidenceLabel(guide)");
+    expect(readFileSync(paths[1],"utf8")).toContain("summarizeFinancialGuideEvidence(guides)");
+    expect(readFileSync(paths[2],"utf8")).toContain("financialSnapshot.compensatedCount");
+    expect(readFileSync(paths[3],"utf8")).toContain("não paga em banco");
+  });
+});
