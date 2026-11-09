@@ -334,6 +334,18 @@ export function UrbanQuadroIIWorkspacePanel({
       setDraft(emptyDraft(item.pageNumber));
     }
   };
+  const downloadDossier = async () => {
+    if(!canView||!workspace||workspace.status!=="pending_legal_review")return;
+    try{
+      const {createQuadroIIDossier}=await import("@/lib/urbanQuadroIIDossier");
+      const pdf=createQuadroIIDossier(workspace,municipalityId,legalImports,
+        !legalImportsError&&!legalImportsLoading);
+      pdf.save("SIGAPRO-Quadro-II-Dossie-"+(workspace.document_sha256||"").slice(0,12)+".pdf");
+      setNotice("Dossiê de conferência preparado. Rascunhos não são normas vigentes.");
+    }catch(cause){
+      setError("Não foi possível exportar o dossiê: "+String((cause as Error)?.message||cause));
+    }
+  };
   const setField = (key: keyof Omit<UrbanQuadroIIDraftInput, "pageNumber">, value: string) => {
     setDraft((current) => ({ ...current, [key]: value }));
     setConfirmed(false);
@@ -447,6 +459,11 @@ export function UrbanQuadroIIWorkspacePanel({
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
+                <Button type="button" variant="outline" size="sm"
+                  data-urban-qii-export-dossier="true"
+                  disabled={saving||!workspace.entries.length} onClick={()=>void downloadDossier()}>
+                  Baixar dossiê único (PDF)
+                </Button>
                 <Button type="button" variant="outline" size="sm"
                   aria-expanded={showReviewQueue} onClick={() => setShowReviewQueue(value => !value)}>
                   {showReviewQueue ? "Ocultar fila" : "Ver fila completa"}

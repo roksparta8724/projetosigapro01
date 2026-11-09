@@ -1456,3 +1456,7 @@ navegador autenticado.
 - Novo endpoint `POST /api/ai-assistant?action=qa-architectural-benchmark`, somente na branch Preview exata, JWT de analista/supervisor ativo, origem verificada. Utiliza os bytes do PDF QA04 fictício de três páginas produzidos em memória; nenhum arquivo real é consultado ou transmitido.
 - O ensaio exige 3/3 recuos textuais com referência à página 2; não altera processo, pagamento, lei, zona ou estado da triagem. UI na mesa do analista, somente `VITE_SIGAPRO_NEON_ISOLATED=true`. Não é avaliação visual, de precisão em planta real nem parecer jurídico.
 - Testes de sessão, perfis, isolamento da branch e resultado do parser + UI. A análise do documento oficial continua bloqueada até o fluxo correto.
+
+## QA — Dossiê único do Quadro II
+- Nova exportação em PDF A4, em um clique, de todos os rascunhos persistidos (45 na consulta de 09/11). Inclui separação por páginas, SHA-256, trecho candidato, uso, vias, vagas, campos pendentes e ressalvas de OCR. Não confirma lei, vigência, zonas ou regras para IA.
+- Resultado gerado somente no navegador de um usuário autorizado para a prefeitura, sem modificar os dados do banco. Se histórico jurídico não estiver disponível, o documento declara a limitação em vez de alegar inexistência de revisão.
