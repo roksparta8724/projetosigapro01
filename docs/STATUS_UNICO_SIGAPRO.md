@@ -1518,3 +1518,7 @@ navegador autenticado.
 - Protocolo, livro financeiro, acesso externo e histórico de guias exibem Simulação QA quando o banco marca QA_SYNTHETIC_NOT_BANK_PAID ou o provedor está em ambiente test, mesmo que o status interno seja compensada para fins de ensaio.
 - Nenhuma regra de transição, confirmação financeira, segregação entre prefeituras ou banco de dados foi alterada; as guias de QA continuam preservadas e rastreáveis.
 - Compensada no sistema não equivale a comprovação de crédito em conta. Testes de regressão cobrem as telas.
+
+### QA — regressão de etiqueta financeira atualizada
+- Quality Gate completo do commit b486e3dd executou 1.734 testes, com 1 falha de asserção textual antiga no histórico financeiro do profissional; 1.733 passaram. A falha veio da expectativa literal 'Pago / compensado', agora substituída por classificação segura de simulação ou compensação do sistema.
+- O teste agora exige que guia sintética não seja rotulada como dinheiro recebido, sem alterar registros, pagamentos, autorização de perfil ou processos. Reexecutar gates completos antes de anunciar publicação final.
