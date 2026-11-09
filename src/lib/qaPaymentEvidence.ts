@@ -24,6 +24,7 @@ export type FinancialGuideEvidence = {
   status?:string|null;
   bankStatus?:string|null;
   providerEnvironment?:string|null;
+  amount?:number|null;
 };
 export function isFinancialTestGuide(guide:FinancialGuideEvidence|null|undefined):boolean{
   if(!guide)return false;
@@ -38,4 +39,24 @@ export function isReportedCompensatedGuide(guide:FinancialGuideEvidence|null|und
 export function guideFinancialEvidenceLabel(guide:FinancialGuideEvidence|null|undefined):string{
   if(isFinancialTestGuide(guide))return "Simulação QA — sem arrecadação real";
   return guide?.status==="compensada"?"Compensada no sistema":"Pendente";
+}
+
+/** One non-mutating financial ledger view shared by every dashboard. */
+export function summarizeFinancialGuideEvidence<T extends FinancialGuideEvidence>(
+  guides:readonly T[],
+){
+  const actual=guides.filter(guide=>!isFinancialTestGuide(guide));
+  const synthetic=guides.filter(isFinancialTestGuide);
+  const pending=actual.filter(guide=>guide.status==="pendente");
+  const compensated=actual.filter(guide=>guide.status==="compensada");
+  const amount=(guide:T)=>typeof guide.amount==="number"&&
+    Number.isFinite(guide.amount)&&guide.amount>=0?guide.amount:0;
+  return {
+    actual,synthetic,pending,compensated,
+    issuedCount:actual.length,pendingCount:pending.length,
+    compensatedCount:compensated.length,
+    issuedAmount:actual.reduce((sum,guide)=>sum+amount(guide),0),
+    pendingAmount:pending.reduce((sum,guide)=>sum+amount(guide),0),
+    compensatedAmount:compensated.reduce((sum,guide)=>sum+amount(guide),0),
+  };
 }

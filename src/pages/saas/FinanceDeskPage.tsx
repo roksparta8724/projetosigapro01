@@ -61,7 +61,7 @@ import {
   isIssFeeConfigured,
 } from "@/lib/platform";
 import { collectionModeLabel } from "@/lib/paymentCollection";
-import {isFinancialTestGuide,isReportedCompensatedGuide,guideFinancialEvidenceLabel} from "@/lib/qaPaymentEvidence";
+import {isFinancialTestGuide,isReportedCompensatedGuide,guideFinancialEvidenceLabel,summarizeFinancialGuideEvidence} from "@/lib/qaPaymentEvidence";
 import { resolveProcessDispatchAuthor } from "@/lib/dispatchActorIdentity";
 import {
   type MunicipalFeeRule,
@@ -143,7 +143,10 @@ export function FinanceDeskPage() {
   const approvalGuides = guides.filter(({ guide }) => guide.kind === "aprovacao_final");
   const settledGuides = guides.filter(({guide})=>isReportedCompensatedGuide(guide));
   const pendingGuides = guides.filter(({guide})=>guide.status==="pendente"&&!isFinancialTestGuide(guide));
-  const simulatedGuideCount=controlGuides.filter(({guide})=>isFinancialTestGuide(guide)).length;
+  const controlFinancialSummary = summarizeFinancialGuideEvidence(
+    controlGuides.map(({guide})=>guide),
+  );
+  const simulatedGuideCount=controlFinancialSummary.synthetic.length;
   const pendingConstructionGuideProcesses = financeCanIssueConstructionGuide
     ? processes.filter((process) => {
         if (isOccupancyPermitProcessType(process.type)) return false;
@@ -317,17 +320,12 @@ export function FinanceDeskPage() {
   const openProcessCount = processes.filter(
     (process) => !["rascunho", "deferido", "indeferido", "arquivado"].includes(process.status),
   ).length;
-  const controlIssuedValue = controlGuides.filter(({guide})=>!isFinancialTestGuide(guide))
-    .reduce((sum, { guide }) => sum + guide.amount, 0);
-  const controlPendingValue = controlGuides
-    .filter(({guide})=>guide.status==="pendente"&&!isFinancialTestGuide(guide))
-    .reduce((sum, {guide}) => sum + guide.amount, 0);
-  const controlSettledValue = controlGuides
-    .filter(({guide})=>isReportedCompensatedGuide(guide))
-    .reduce((sum, {guide}) => sum + guide.amount, 0);
+  const controlIssuedValue = controlFinancialSummary.issuedAmount;
+  const controlPendingValue = controlFinancialSummary.pendingAmount;
+  const controlSettledValue = controlFinancialSummary.compensatedAmount;
 
   const inconsistencyCount = guides.filter(({ process, guide }) => {
-    if (guide.status !== "pendente") return false;
+    if (guide.status !== "pendente" || isFinancialTestGuide(guide)) return false;
     return process.status === "deferido" || process.status === "arquivado";
   }).length;
 

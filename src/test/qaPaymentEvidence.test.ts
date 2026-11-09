@@ -2,6 +2,7 @@ import {describe,expect,it} from "vitest";
 import {
   isSyntheticQaProtocolGuideCode, protocolPaymentEvidenceLabel,
   isFinancialTestGuide,isReportedCompensatedGuide,guideFinancialEvidenceLabel,
+  summarizeFinancialGuideEvidence,
 } from "@/lib/qaPaymentEvidence";
 import {readFileSync} from "node:fs";
 
@@ -53,7 +54,43 @@ describe("classificação financeira sem arrecadação fictícia",()=>{
     expect(finance).toContain("isReportedCompensatedGuide(guide)");
     expect(finance).toContain("guideFinancialEvidenceLabel(guide)");
     expect(dashboard).toContain("simulatedGuideCount");
-    expect(dashboard).toContain("displayGuides = allDisplayGuides.filter");
-    expect(dashboard).toContain("paymentVolume = displayGuides.reduce");
+    expect(dashboard).toContain("financialOverview = summarizeFinancialGuideEvidence");
+    expect(dashboard).toContain("paymentVolume = financialOverview.issuedAmount");
+    expect(dashboard).toContain('guides.some((guide)=>guide.status==="pendente"&&!isFinancialTestGuide(guide))');
+  });
+});
+
+describe("resumo financeiro unificado entre perfis",()=>{
+  it("exclui QA de totais e pendências independentemente do status",()=>{
+    const summary=summarizeFinancialGuideEvidence([
+      {code:"QA-FICTICIA-SEM-COBRANCA-04",status:"compensada",amount:5000},
+      {code:"G-002",status:"compensada",amount:120,bankStatus:"QA_SYNTHETIC_NOT_BANK_PAID"},
+      {code:"G-003",status:"pendente",amount:99,providerEnvironment:"test"},
+      {code:"G-004",status:"pendente",amount:180,providerEnvironment:"production"},
+      {code:"G-005",status:"compensada",amount:450,providerEnvironment:"production"},
+    ]);
+    expect(summary.synthetic).toHaveLength(3);
+    expect(summary.issuedCount).toBe(2);
+    expect(summary.pendingCount).toBe(1);
+    expect(summary.compensatedCount).toBe(1);
+    expect(summary.issuedAmount).toBe(630);
+    expect(summary.pendingAmount).toBe(180);
+    expect(summary.compensatedAmount).toBe(450);
+  });
+  it("ignora números inválidos sem corromper os gráficos",()=>{
+    const summary=summarizeFinancialGuideEvidence([
+      {code:"G-1",status:"pendente",amount:Number.NaN},
+      {code:"G-2",status:"compensada",amount:Number.POSITIVE_INFINITY},
+      {code:"G-3",status:"compensada",amount:-100},
+      {code:"G-4",status:"compensada",amount:18.5},
+    ]);
+    expect(summary.issuedCount).toBe(4);
+    expect(summary.issuedAmount).toBe(18.5);
+    expect(summary.compensatedAmount).toBe(18.5);
+  });
+  it("impede alertas de divergência gerados por fixtures",()=>{
+    const source=readFileSync("src/pages/saas/FinanceDeskPage.tsx","utf8");
+    expect(source).toContain('guide.status !== "pendente" || isFinancialTestGuide(guide)');
+    expect(source).toContain("controlFinancialSummary.compensatedAmount");
   });
 });

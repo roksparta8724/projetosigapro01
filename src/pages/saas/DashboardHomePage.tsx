@@ -33,7 +33,7 @@ import { Button } from "@/components/ui/button";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { PlanCapacityCard } from "@/components/platform/PlanCapacityCard";
 import { displayDashboardCategoryLabel } from "@/lib/dashboardPresentation";
-import {isFinancialTestGuide} from "@/lib/qaPaymentEvidence";
+import {isFinancialTestGuide,summarizeFinancialGuideEvidence} from "@/lib/qaPaymentEvidence";
 import { usePlanCapacityLive } from "@/hooks/usePlanCapacityLive";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
@@ -506,19 +506,25 @@ export function DashboardHomePage() {
       process,
       getInstitutionSettings(process.municipalityId ?? process.tenantId),
     );
-  const pendingPayments = displayProcesses.filter((process) =>
-    processGuides(process).some((guide) => guide.status === "pendente"),
+  // Reuse one guide read per displayed process; never count synthetic QA money.
+  const processGuideRows = displayProcesses.map((process) => ({
+    process, guides:processGuides(process),
+  }));
+  const pendingPayments = processGuideRows.filter(({guides}) =>
+    guides.some((guide)=>guide.status==="pendente"&&!isFinancialTestGuide(guide)),
   ).length;
   const openRequirements = displayProcesses.filter((process) => getOpenRequirements(process) > 0).length;
   const totalMessages = displayProcesses.reduce((sum, process) => sum + process.messages.length, 0);
   const totalDispatches = displayProcesses.reduce((sum, process) => sum + process.dispatches.length, 0);
-  const allDisplayGuides = displayProcesses.flatMap((process) => processGuides(process));
-  const simulatedGuideCount = allDisplayGuides.filter(isFinancialTestGuide).length;
-  const displayGuides = allDisplayGuides.filter((guide) => !isFinancialTestGuide(guide));
-  const tenantGuides = tenantProcesses.flatMap((process) => processGuides(process))
-    .filter((guide) => !isFinancialTestGuide(guide));
-  const paymentVolume = displayGuides.reduce((sum, guide) => sum + Number(guide.amount || 0), 0);
-  const totalGuides = displayGuides.length;
+  const allDisplayGuides = processGuideRows.flatMap(({guides})=>guides);
+  const financialOverview = summarizeFinancialGuideEvidence(allDisplayGuides);
+  const simulatedGuideCount = financialOverview.synthetic.length;
+  const displayGuides = financialOverview.actual;
+  const tenantGuides = summarizeFinancialGuideEvidence(
+    tenantProcesses.flatMap((process) => processGuides(process)),
+  ).actual;
+  const paymentVolume = financialOverview.issuedAmount;
+  const totalGuides = financialOverview.issuedCount;
   const averageTimelineDepth =
     displayProcesses.length === 0
       ? 0
