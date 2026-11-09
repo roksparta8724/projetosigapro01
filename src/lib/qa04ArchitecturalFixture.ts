@@ -1,5 +1,5 @@
 import { jsPDF } from "jspdf";
-import type { ProcessRecord, UserRole } from "@/lib/platform";
+import type { ProcessRecord, UserRole } from "./platform.js";
 
 const QA04_ID = "915e1c63-ebda-4cdd-8e95-34316d9e0089";
 const QA04_TITLE = "QA-URBAN-E2E-20261024 PROCESSO A FICTÍCIO";
