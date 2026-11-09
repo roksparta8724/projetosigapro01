@@ -28,6 +28,9 @@ const TESTS=[
   "src/test/municipalCollectionApi.test.ts",
   "src/test/mpProdWebhookReleaseReadiness.test.ts",
   "src/test/qaPreviewBuildGate.test.ts",
+  "src/test/qaPaymentEvidence.test.ts",
+  "src/test/urbanEvidenceTemporalGate.test.ts",
+  "src/test/workflowUnknownStageQa.test.ts",
   "src/test/qa04StoredPdfAudit.test.tsx",
 ];
 function run(label,args){

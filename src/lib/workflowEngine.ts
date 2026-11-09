@@ -54,8 +54,12 @@ export function getWorkflowProgress(
 ): WorkflowProgressSnapshot {
   const orderedStages = [...stages].sort((a, b) => a.orderIndex - b.orderIndex);
   const currentIndex = orderedStages.findIndex((stage) => stage.code === currentStageCode);
-  const safeIndex = currentIndex >= 0 ? currentIndex : 0;
-  const current = orderedStages[safeIndex] ?? null;
+  // An unknown stage must never be disguised as a valid opening stage.
+  if(currentIndex<0)return {
+    current:null,completed:[],upcoming:orderedStages,progressPercent:0,
+  };
+  const safeIndex=currentIndex;
+  const current=orderedStages[safeIndex]??null;
   const completed = orderedStages.slice(0, safeIndex);
   const upcoming = orderedStages.slice(safeIndex + 1);
   const progressPercent = orderedStages.length > 1 ? Math.round((safeIndex / (orderedStages.length - 1)) * 100) : 0;

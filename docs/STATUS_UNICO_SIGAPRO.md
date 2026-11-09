@@ -1507,3 +1507,9 @@ navegador autenticado.
 - Campos de simulação `bankStatus=QA_SYNTHETIC_NOT_BANK_PAID`, códigos `QA-FICTICIA-SEM-COBRANCA` e transações `providerEnvironment=test` são excluídos de totais, gráficos e indicadores financeiros, mesmo com status `compensada` para ensaio técnico.
 - Dashboard e Financeiro mantêm os registros no histórico, com etiqueta `Simulação QA — sem arrecadação real`, sem alterar `status` no Neon, as guias originais ou a habilitação de Análise Técnica. Os valores compensados não simulados ficam rotulados como `Compensado no sistema`, sem presumir prova de crédito bancário.
 - Testes de classificação e regressão do livro financeiro adicionados; a mudança não executa nenhuma operação bancária nem toca a produção.
+
+## 09/11/2026 — integridade transversal da homologação QA
+- A apuração financeira compartilha um único sumário puro e não mutável entre Dashboard e Financeiro, incluindo valores finitos, pendências por processo e divergências. Nenhuma guia QA é contada como arrecadação; os históricos permanecem intactos.
+- Cobertura de evidências jurídicas exige documento identificável e datas civis válidas (ex.: 2026-02-30 é rejeitada), limite temporal coerente, hash, página, trecho, município, zona e uso coincidentes. Não ativa qualquer lei e não substitui conferência jurídica.
+- Códigos de etapa desconhecidos retornam progresso desconhecido, nunca "Cadastro" falsamente confirmado. Permissões e transições reais do backend não foram alteradas.
+- Regressões QA de finanças, validade legal e integridade de fluxo foram incorporadas ao gate da prévia. Validar TypeScript, lint, suíte completa, integridade Neon e OCR antes de publicar; sem deploy em produção.
