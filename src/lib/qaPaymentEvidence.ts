@@ -8,9 +8,10 @@ export function isSyntheticQaProtocolGuideCode(code:unknown):boolean{
 }
 
 export function protocolPaymentEvidenceLabel(
-  guide:{code?:string;status?:string}|null|undefined,
+  guide:{code?:string;status?:string;bankStatus?:string|null;
+    providerEnvironment?:string|null}|null|undefined,
 ):string{
-  if(isSyntheticQaProtocolGuideCode(guide?.code))
+  if(isFinancialTestGuide(guide))
     return "Simulação QA — sem pagamento bancário";
   return guide?.status==="compensada"?"Confirmado":"Pendente";
 }

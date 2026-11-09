@@ -56,7 +56,7 @@ import {
   URBAN_ANALYSIS_DEPARTMENT,
 } from "@/lib/platform";
 import { getMissingRequiredDocuments, getPendingTriageDocuments, hasCompensatedInitialGuide, isReadyForProtocolDispatch } from "@/lib/triageReadiness";
-import { isSyntheticQaProtocolGuideCode, protocolPaymentEvidenceLabel } from "@/lib/qaPaymentEvidence";
+import { isFinancialTestGuide, protocolPaymentEvidenceLabel } from "@/lib/qaPaymentEvidence";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
@@ -817,7 +817,7 @@ export function ProtocolDeskPage() {
             )
             ? getProcessPaymentGuides(process, tenantSettings).some(
                 guide => guide.kind === "protocolo" &&
-                  isSyntheticQaProtocolGuideCode(guide.code))
+                  isFinancialTestGuide(guide))
               ? "Triagem concluída apenas para ensaio QA. A guia é fictícia e não comprova pagamento bancário."
               : "Triagem concluída. Com a guia confirmada, o Protocolo pode despachar formalmente."
             : "Triagem concluída. Aguarde a confirmação da guia antes do despacho formal.",
@@ -1063,10 +1063,12 @@ export function ProtocolDeskPage() {
                   <p className="mt-1 text-xs text-slate-500">Vencimento {guide.dueDate}</p>
                   <p
                     className={`mt-2 text-[11px] font-semibold uppercase tracking-[0.14em] ${
-                      guide.status === "compensada" ? "text-green-600 dark:text-green-400" : "text-amber-600 dark:text-amber-400"
+                      guide.status === "compensada" && !isFinancialTestGuide(guide)
+                         ? "text-green-600 dark:text-green-400"
+                         : "text-amber-600 dark:text-amber-400"
                     }`}
                   >
-                    {guide.status === "compensada" ? "Confirmado" : "Pendente"}
+                    {protocolPaymentEvidenceLabel(guide)}
                   </p>
                 </div>
               ))}

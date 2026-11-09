@@ -29,7 +29,7 @@ describe("guia fictícia QA não é confirmação bancária",()=>{
   it("mantém identificadas simulações também nas mensagens da triagem",()=>{
     const source=readFileSync("src/pages/saas/ProtocolDeskPage.tsx","utf8");
     expect(source).toContain('protocolPaymentEvidenceLabel(protocolGuide)');
-    expect(source).toContain('isSyntheticQaProtocolGuideCode(guide.code)');
+    expect(source).toContain('isFinancialTestGuide(guide)');
     expect(source).toContain('não comprova pagamento bancário');
   });
 });
@@ -92,5 +92,16 @@ describe("resumo financeiro unificado entre perfis",()=>{
     const source=readFileSync("src/pages/saas/FinanceDeskPage.tsx","utf8");
     expect(source).toContain('guide.status !== "pendente" || isFinancialTestGuide(guide)');
     expect(source).toContain("controlFinancialSummary.compensatedAmount");
+  });
+});
+
+describe("protocolo não confunde baixa interna e pagamento bancário",()=>{
+  it("um bancoStatus sintético sobrepõe código genérico e status compensado",()=>{
+    expect(protocolPaymentEvidenceLabel({
+      code:"DAM-PRE-QA04",status:"compensada",bankStatus:"QA_SYNTHETIC_NOT_BANK_PAID",
+    })).toContain("sem pagamento bancário");
+    expect(protocolPaymentEvidenceLabel({
+      code:"MP-TEST-05",status:"compensada",providerEnvironment:"test",
+    })).toContain("sem pagamento bancário");
   });
 });
