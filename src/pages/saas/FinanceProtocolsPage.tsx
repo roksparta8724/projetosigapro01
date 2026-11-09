@@ -52,6 +52,7 @@ import {
 import { prepareGuideInstitutionalLogo } from "@/lib/guideAssets";
 import { ensureMercadoPagoGuideCharge } from "@/lib/mercadoPagoGuide";
 import { resolveGuideBankingData } from "@/lib/paymentCollection";
+import { summarizeFinancialGuideEvidence,isFinancialTestGuide,guideFinancialEvidenceLabel } from "@/lib/qaPaymentEvidence";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { useInstitutionBranding } from "@/hooks/useInstitutionBranding";
 import { getMunicipalityLogoOpenUrl } from "@/integrations/r2/client";
@@ -148,9 +149,10 @@ export function FinanceProtocolsPage() {
       scopedProcesses
         .map((process) => {
           const guides = getProcessPaymentGuides(process, tenantSettings);
-          const totalIssued = guides.reduce((sum, guide) => sum + guide.amount, 0);
-          const paidGuides = guides.filter((guide) => guide.status === "compensada");
-          const pendingGuides = guides.filter((guide) => guide.status === "pendente");
+          const financial = summarizeFinancialGuideEvidence(guides);
+          const totalIssued = financial.issuedAmount;
+          const paidGuides = financial.compensated;
+          const pendingGuides = financial.pending;
 
           return {
             process,
@@ -807,12 +809,14 @@ export function FinanceProtocolsPage() {
                                             <Badge
                                               variant="outline"
                                               className={
-                                                guide.status === "compensada"
-                                                  ? "rounded-full border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-950/20 dark:text-emerald-300"
-                                                  : "rounded-full border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-950/20 dark:text-amber-300"
+                                                isFinancialTestGuide(guide)
+                                                  ? "rounded-full border-sky-200 bg-sky-50 text-sky-800 dark:border-sky-600 dark:bg-sky-950/30 dark:text-sky-200"
+                                                  : guide.status === "compensada"
+                                                    ? "rounded-full border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-950/20 dark:text-emerald-300"
+                                                    : "rounded-full border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-950/20 dark:text-amber-300"
                                               }
                                             >
-                                              {guide.status === "compensada" ? "Paga" : "Pendente"}
+                                              {guideFinancialEvidenceLabel(guide)}
                                             </Badge>
                                             {isProtocolGuide ? (
                                               <Badge
