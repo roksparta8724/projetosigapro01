@@ -135,6 +135,9 @@ describe("SIGAPRO — roteamento publico fail-closed",()=>{
     vi.stubEnv("VERCEL_ENV","preview");
     vi.stubEnv("VERCEL_GIT_COMMIT_REF",QA);
     vi.stubEnv("SIGAPRO_QA_MP_WEBHOOK_DATABASE_URL","");
+    // Explicitly isolate both prerequisites: Preview may have a REAL encrypted
+    // test credential even when this unit test expects a missing-key response.
+    vi.stubEnv("MUNICIPAL_PAYMENT_MASTER_KEY","");
     const health=mockResponse();
     await handleQaMpWebhook({method:"GET",headers:{}} as IncomingMessage,health.res);
     expect(health.res.statusCode).toBe(200);
