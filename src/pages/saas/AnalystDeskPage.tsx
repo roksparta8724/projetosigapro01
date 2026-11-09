@@ -1219,7 +1219,7 @@ export function AnalystDeskPage() {
           <>
             {import.meta.env.VITE_SIGAPRO_NEON_ISOLATED==="true" &&
               (session.role==="analista"||session.role==="prefeitura_supervisor") ? (
-                <QaArchitecturalLab />
+                <QaArchitecturalLab municipalityId={effectiveScopeId} />
               ) : null}
             <PageStatsRow>
               <StatCard label="Em análise" value={String(inReview.length)} description="Pareceres em andamento" icon={Stamp} tone="blue" />

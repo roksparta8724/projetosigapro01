@@ -5,7 +5,7 @@ describe("SIGAPRO QA: isolated PDF laboratory is reachable outside process analy
   const view=readFileSync("src/pages/saas/AnalystDeskPage.tsx","utf8");
   expect(view).toContain('import { QaArchitecturalLab } from "@/components/platform/QaArchitecturalLab"');
   expect(view).toContain('section === "visao-geral"');
-  expect(view).toContain('<QaArchitecturalLab />');
+  expect(view).toContain('<QaArchitecturalLab municipalityId={effectiveScopeId} />');
   expect(view).toContain('session.role==="analista"||session.role==="prefeitura_supervisor"');
   expect(view).toContain('import.meta.env.VITE_SIGAPRO_NEON_ISOLATED==="true"');
   // The legitimate queue still uses the paid/triaged process guard independently.

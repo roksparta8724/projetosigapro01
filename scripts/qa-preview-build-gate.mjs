@@ -28,6 +28,7 @@ const TESTS=[
   "src/test/municipalCollectionApi.test.ts",
   "src/test/mpProdWebhookReleaseReadiness.test.ts",
   "src/test/qaPreviewBuildGate.test.ts",
+  "src/test/qa04StoredPdfAudit.test.tsx",
 ];
 function run(label,args){
   console.log("[SIGAPRO_QA_BUILD_GATE] START "+label);
