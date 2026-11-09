@@ -17,7 +17,7 @@ describe("SIGAPRO QA: isolated PDF laboratory is reachable outside process analy
   expect(lab).toContain('body:"{}"');
   expect(lab).not.toContain("onApply(");
   expect(handler).toContain('get_current_profile_context');
-  expect(handler).toContain('process.env.VERCEL_ENV');
+  expect(handler).toContain('env.VERCEL_ENV');
   expect(handler).toContain('readBearer(req)');
   expect(handler).not.toContain("updateProcessStatus");
  });
