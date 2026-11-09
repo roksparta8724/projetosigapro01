@@ -50,6 +50,8 @@ describe("SIGAPRO QA — continuar 45 rascunhos do Quadro II", () => {
     expect(view).toContain("Revisar próxima categoria");
     expect(view).toContain('status: "draft_unverified"');
     expect(view).toContain("setLegalReviewRequest(current =>");
+    expect(view).toContain("reviewCursor % pendingQueue.length");
+    expect(view).toContain("setReviewCursor(value => value + 1)");
     expect(view).toContain("focusRequest={legalReviewRequest}");
     expect(view).toContain("Rascunho existente — conferir");
     expect(view).not.toContain('pendingQueue = reviewQueue.items.filter(item => item.status !== "draft_unverified")');
