@@ -5,12 +5,14 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { UrbanQuadroIILegalReviewPanel } from "@/components/platform/UrbanQuadroIILegalReviewPanel";
 import { buildUrbanQuadroIIReviewQueue, type QuadroIIQueueItem } from "@/lib/urbanQuadroIIReviewQueue";
+import { summarizeQuadroIIReviewProgress } from "@/lib/urbanQuadroIIReviewProgress";
 import { getMunicipalOfficialUrbanSources } from "@/lib/urbanOfficialLegalSources";
 import { prepareQuadroIIPdfAssistedPrefill } from "@/lib/urbanQuadroIIPdfAssistedPrefill";
 import { UrbanParcelamentoPage51Panel } from "@/components/platform/UrbanParcelamentoPage51Panel";
 import {
-  listUrbanQuadroIIWorkspace, saveUrbanQuadroIIDraft,
+  listUrbanQuadroIIWorkspace, listUrbanLegalMatrixImports, saveUrbanQuadroIIDraft,
   type UrbanQuadroIIDraftInput, type UrbanQuadroIISuggestion, type UrbanQuadroIIWorkspace,
+  type UrbanReviewedMatrixImport,
 } from "@/integrations/backend/urbanPrecheckClient";
 
 const emptyDraft = (pageNumber: number): UrbanQuadroIIDraftInput => ({
@@ -38,6 +40,10 @@ export function UrbanQuadroIIWorkspacePanel({
   const [selectedBatchCodes, setSelectedBatchCodes] = useState<string[]>([]);
   const [retryToken, setRetryToken] = useState(0);
   const [legalReviewRequest, setLegalReviewRequest] = useState<{ id: string; token: number } | null>(null);
+  const [legalImports, setLegalImports] = useState<UrbanReviewedMatrixImport[]>([]);
+  const [legalImportsLoading, setLegalImportsLoading] = useState(false);
+  const [legalImportsError, setLegalImportsError] = useState(false);
+  const [legalImportRefresh, setLegalImportRefresh] = useState(0);
   const editorRef = useRef<HTMLDivElement | null>(null);
   const pageIndexRef = useRef<HTMLDivElement | null>(null);
   const pageDetailRef = useRef<HTMLDivElement | null>(null);
@@ -70,6 +76,26 @@ export function UrbanQuadroIIWorkspacePanel({
     return () => { active = false; };
   }, [municipalityId, canView, retryToken]);
 
+  // A failed read-back must never falsely mark an unverified OCR draft as reviewed.
+  useEffect(() => {
+    let active = true;
+    setLegalImports([]);
+    setLegalImportsError(false);
+    setLegalImportsLoading(false);
+    if (!municipalityId || !canView || !workspace?.document_sha256) return () => { active = false; };
+    setLegalImportsLoading(true);
+    void listUrbanLegalMatrixImports(municipalityId)
+      .then(rows => {
+        if (active) setLegalImports(rows.filter(row =>
+          row.municipality_id === municipalityId &&
+          row.quadro === "II" && row.status === "reviewed_draft" &&
+          row.document_sha256 === workspace.document_sha256));
+      })
+      .catch(() => { if (active) setLegalImportsError(true); })
+      .finally(() => { if (active) setLegalImportsLoading(false); });
+    return () => { active = false; };
+  }, [municipalityId, canView, workspace?.document_sha256, legalImportRefresh]);
+
   // Never scroll the whole page in a state effect: changing the PDF page or
   // selecting a suggested row can otherwise jump across long legal tables.
   // Scrolling to the editor is an explicit user action below.
@@ -83,8 +109,12 @@ export function UrbanQuadroIIWorkspacePanel({
   );
   const originalLawPdf = useMemo(() => getMunicipalOfficialUrbanSources(municipalityId)
     .find(source => source.id === "lc-379-2009")?.pdfUrl || null, [municipalityId]);
-  // A saved, unverified draft remains actionable until legal review.
-  const pendingQueue = reviewQueue.items;
+  // Independent read-back of legal reviews: no OCR transcription counts as approval.
+  const legalProgress = useMemo(() => summarizeQuadroIIReviewProgress(
+    reviewQueue.items, legalImports, municipalityId, workspace?.document_sha256 || ""),
+    [reviewQueue.items, legalImports, municipalityId, workspace?.document_sha256],
+  );
+  const pendingQueue = legalProgress.withoutFirstReview;
   const visibleQueue = queueFilter === "pending" ? pendingQueue : reviewQueue.items;
   const pageCount = workspace?.pages.length || 0;
   const sourcePages = workspace?.pages.filter((page) => page.source_quality === "machine_unverified" && Boolean(page.source_evidence_text)).length || 0;
@@ -421,7 +451,7 @@ export function UrbanQuadroIIWorkspacePanel({
                   aria-expanded={showReviewQueue} onClick={() => setShowReviewQueue(value => !value)}>
                   {showReviewQueue ? "Ocultar fila" : "Ver fila completa"}
                 </Button>
-                <Button type="button" size="sm" disabled={!canEdit || saving || pendingQueue.length === 0}
+                <Button type="button" size="sm" disabled={!canEdit || saving || legalImportsLoading || pendingQueue.length === 0}
                   onClick={() => {
                     if (pendingQueue.length === 0) return;
                     const next = pendingQueue[reviewCursor % pendingQueue.length];
@@ -439,7 +469,7 @@ export function UrbanQuadroIIWorkspacePanel({
             <div className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-4">
               {([
                 ["Categorias identificadas", reviewQueue.total],
-                ["Rascunhos aguardando revisão", reviewQueue.drafts],
+                ["Sem primeira revisão jurídica", pendingQueue.length],
                 ["Páginas com OCR provisório", sourcePages],
                 ["Páginas com revisão visual", visualOnlyPages],
               ] as const).map(([label, count]) => (
@@ -451,9 +481,12 @@ export function UrbanQuadroIIWorkspacePanel({
             </div>
             <p data-urban-qii-literal-count="true"
               className="mt-2 text-xs font-semibold leading-5 text-amber-900 dark:text-amber-200">
-              {reviewQueue.drafts} rascunho(s) preservado(s), aguardando conferência jurídica.
-              Um rascunho salvo continua pendente: compare texto, via, vagas, zona e vigência no
-              PDF original antes de registrar uma versão jurídica. Nenhuma regra é ativada automaticamente.
+              {reviewQueue.drafts} rascunho(s) preservado(s); {pendingQueue.length} categoria(s) sem primeira revisão
+              jurídica e {legalProgress.withFirstReview.length} com alguma revisão preliminar registrada.
+              Uma revisão de uma zona não comprova todas as zonas, vigências ou exceções.
+              Nenhuma regra é ativada automaticamente.
+              {legalImportsLoading ? " Consultando revisões..." : ""}
+              {legalImportsError ? " Histórico indisponível: contagem conservadora." : ""}
             </p>
             {showReviewQueue ? (
               <div className="mt-3">
@@ -476,7 +509,9 @@ export function UrbanQuadroIIWorkspacePanel({
                           Pág. {item.pageNumber} · {item.categoryCode} — {item.description}
                         </p>
                         <p className="mt-1 text-[11px] text-slate-600 dark:text-slate-200">
-                          {item.status === "draft_unverified" ? "Rascunho registrado; sem validação legal"
+                          {legalProgress.reviewedKeys.has(String(item.pageNumber) + ":" + item.categoryCode.normalize("NFKC").trim().toLocaleUpperCase("pt-BR"))
+                           ? "Versão preliminar registrada para alguma zona — sem liberação legal"
+                           : item.status === "draft_unverified" ? "Rascunho registrado; sem validação legal"
                             : item.status === "visual_required" ? "PDF girado ou extração insuficiente; conferência visual obrigatória"
                             : item.status === "literal_candidate" ? "Trecho candidato disponível; verificar literalmente no PDF"
                             : "Trecho literal ausente; transcrever a fonte original"}
@@ -979,7 +1014,10 @@ export function UrbanQuadroIIWorkspacePanel({
                       ) : null}
                       {entries.length > 0 ? (
                         <UrbanQuadroIILegalReviewPanel
-                          onDataChanged={onDataChanged}
+                          onDataChanged={() => {
+                            setLegalImportRefresh(v => v + 1);
+                            onDataChanged?.();
+                          }}
                           municipalityId={municipalityId}
                           canEdit={canEdit}
                           workspace={workspace}
