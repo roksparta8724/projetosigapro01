@@ -61,6 +61,7 @@ import {
   isIssFeeConfigured,
 } from "@/lib/platform";
 import { collectionModeLabel } from "@/lib/paymentCollection";
+import {isFinancialTestGuide,isReportedCompensatedGuide,guideFinancialEvidenceLabel} from "@/lib/qaPaymentEvidence";
 import { resolveProcessDispatchAuthor } from "@/lib/dispatchActorIdentity";
 import {
   type MunicipalFeeRule,
@@ -140,8 +141,9 @@ export function FinanceDeskPage() {
   const guides = controlGuides.filter(({ guide }) => guide.kind !== "protocolo");
   const issGuides = guides.filter(({ guide }) => guide.kind === "iss_obra");
   const approvalGuides = guides.filter(({ guide }) => guide.kind === "aprovacao_final");
-  const settledGuides = guides.filter(({ guide }) => guide.status === "compensada");
-  const pendingGuides = guides.filter(({ guide }) => guide.status === "pendente");
+  const settledGuides = guides.filter(({guide})=>isReportedCompensatedGuide(guide));
+  const pendingGuides = guides.filter(({guide})=>guide.status==="pendente"&&!isFinancialTestGuide(guide));
+  const simulatedGuideCount=controlGuides.filter(({guide})=>isFinancialTestGuide(guide)).length;
   const pendingConstructionGuideProcesses = financeCanIssueConstructionGuide
     ? processes.filter((process) => {
         if (isOccupancyPermitProcessType(process.type)) return false;
@@ -309,21 +311,20 @@ export function FinanceDeskPage() {
     }
   };
 
-  const totalValue = guides.reduce((sum, { guide }) => sum + guide.amount, 0);
+  const totalValue = guides.filter(({guide})=>!isFinancialTestGuide(guide))
+    .reduce((sum, { guide }) => sum + guide.amount, 0);
   const settledValue = settledGuides.reduce((sum, { guide }) => sum + guide.amount, 0);
   const openProcessCount = processes.filter(
     (process) => !["rascunho", "deferido", "indeferido", "arquivado"].includes(process.status),
   ).length;
-  const controlIssuedValue = controlGuides.reduce(
-    (sum, { guide }) => sum + guide.amount,
-    0,
-  );
+  const controlIssuedValue = controlGuides.filter(({guide})=>!isFinancialTestGuide(guide))
+    .reduce((sum, { guide }) => sum + guide.amount, 0);
   const controlPendingValue = controlGuides
-    .filter(({ guide }) => guide.status === "pendente")
-    .reduce((sum, { guide }) => sum + guide.amount, 0);
+    .filter(({guide})=>guide.status==="pendente"&&!isFinancialTestGuide(guide))
+    .reduce((sum, {guide}) => sum + guide.amount, 0);
   const controlSettledValue = controlGuides
-    .filter(({ guide }) => guide.status === "compensada")
-    .reduce((sum, { guide }) => sum + guide.amount, 0);
+    .filter(({guide})=>isReportedCompensatedGuide(guide))
+    .reduce((sum, {guide}) => sum + guide.amount, 0);
 
   const inconsistencyCount = guides.filter(({ process, guide }) => {
     if (guide.status !== "pendente") return false;
@@ -579,14 +580,21 @@ export function FinanceDeskPage() {
                 valueClassName="text-xl md:text-2xl"
               />
               <StatCard
-                label="Arrecadado"
+                label="Compensado no sistema"
                 value={formatCurrency(controlSettledValue)}
-                description="Total já compensado"
+                description="Registros não simulados; sujeitos à conferência bancária"
                 icon={Landmark}
                 tone="emerald"
                 valueClassName="text-xl md:text-2xl"
               />
             </PageStatsRow>
+            {simulatedGuideCount>0?(
+              <p data-finance-synthetic-guides="true"
+                className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs font-semibold text-sky-950 dark:border-sky-700 dark:bg-[#17344e] dark:text-sky-100">
+                {simulatedGuideCount} guia(s) de simulação QA permanecem no histórico,
+                mas não entram nos totais de compensação e arrecadação.
+              </p>
+            ):null}
 
             <PageMainGrid>
               <PageMainContent>
@@ -897,12 +905,14 @@ export function FinanceDeskPage() {
                               <Badge
                                 variant="outline"
                                 className={
-                                  guide.status === "compensada"
-                                    ? "h-5 shrink-0 rounded-full border-emerald-200 bg-emerald-50 px-2 text-[9px] font-bold text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-950/30 dark:text-emerald-300"
-                                    : "h-5 shrink-0 rounded-full border-amber-200 bg-amber-50 px-2 text-[9px] font-bold text-amber-700 dark:border-amber-500/30 dark:bg-amber-950/30 dark:text-amber-300"
+                                  isFinancialTestGuide(guide)
+                                    ? "h-5 shrink-0 rounded-full border-sky-200 bg-sky-50 px-2 text-[9px] font-bold text-sky-800 dark:border-sky-600 dark:bg-sky-950/40 dark:text-sky-200"
+                                    : guide.status === "compensada"
+                                      ? "h-5 shrink-0 rounded-full border-emerald-200 bg-emerald-50 px-2 text-[9px] font-bold text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-950/30 dark:text-emerald-300"
+                                      : "h-5 shrink-0 rounded-full border-amber-200 bg-amber-50 px-2 text-[9px] font-bold text-amber-700 dark:border-amber-500/30 dark:bg-amber-950/30 dark:text-amber-300"
                                 }
                               >
-                                {guide.status === "compensada" ? "Compensada" : "Pendente"}
+                                {guideFinancialEvidenceLabel(guide)}
                               </Badge>
                             </div>
                             <p className="mt-0.5 truncate text-[10px] font-medium text-slate-500 dark:text-slate-400" title={guide.label}>
@@ -1076,12 +1086,12 @@ export function FinanceDeskPage() {
                     tone={pendingGuides.length > 0 ? "warning" : "success"}
                   />
                   <AlertCard
-                    title="Confirmados"
-                    description={`${settledGuides.length} guia(s) já foram compensadas.`}
+                    title="Compensadas no sistema"
+                    description={`${settledGuides.length} guia(s) não simuladas compensadas; verificar recibos.`}
                     tone={settledGuides.length > 0 ? "success" : "default"}
                   />
                   <AlertCard
-                    title="Valor arrecadado"
+                    title="Compensação registrada"
                     description={formatCurrency(settledValue)}
                     tone="default"
                   />

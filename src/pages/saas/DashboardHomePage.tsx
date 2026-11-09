@@ -33,6 +33,7 @@ import { Button } from "@/components/ui/button";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { PlanCapacityCard } from "@/components/platform/PlanCapacityCard";
 import { displayDashboardCategoryLabel } from "@/lib/dashboardPresentation";
+import {isFinancialTestGuide} from "@/lib/qaPaymentEvidence";
 import { usePlanCapacityLive } from "@/hooks/usePlanCapacityLive";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
@@ -511,13 +512,13 @@ export function DashboardHomePage() {
   const openRequirements = displayProcesses.filter((process) => getOpenRequirements(process) > 0).length;
   const totalMessages = displayProcesses.reduce((sum, process) => sum + process.messages.length, 0);
   const totalDispatches = displayProcesses.reduce((sum, process) => sum + process.dispatches.length, 0);
-  const paymentVolume = displayProcesses.reduce(
-    (sum, process) => sum + processGuides(process).reduce((guideSum, guide) => guideSum + Number(guide.amount || 0), 0),
-    0,
-  );
-  const totalGuides = displayProcesses.reduce((sum, process) => sum + processGuides(process).length, 0);
-  const displayGuides = displayProcesses.flatMap((process) => processGuides(process));
-  const tenantGuides = tenantProcesses.flatMap((process) => processGuides(process));
+  const allDisplayGuides = displayProcesses.flatMap((process) => processGuides(process));
+  const simulatedGuideCount = allDisplayGuides.filter(isFinancialTestGuide).length;
+  const displayGuides = allDisplayGuides.filter((guide) => !isFinancialTestGuide(guide));
+  const tenantGuides = tenantProcesses.flatMap((process) => processGuides(process))
+    .filter((guide) => !isFinancialTestGuide(guide));
+  const paymentVolume = displayGuides.reduce((sum, guide) => sum + Number(guide.amount || 0), 0);
+  const totalGuides = displayGuides.length;
   const averageTimelineDepth =
     displayProcesses.length === 0
       ? 0
@@ -761,8 +762,8 @@ export function DashboardHomePage() {
         ? [
             { title: "Guias pendentes", value: `${financeMetrics.pending}`, helper: "Aguardando compensacao.", icon: AlertTriangle, tone: "rose" as const },
             { title: "Guias emitidas", value: `${financeMetrics.issued}`, helper: "Guias geradas para contribuinte.", icon: Wallet, tone: "amber" as const },
-            { title: "Pagamentos confirmados", value: `${financeMetrics.confirmed}`, helper: "Guias compensadas no sistema.", icon: CheckCircle2, tone: "emerald" as const },
-            { title: "Volume financeiro", value: formatCurrency(paymentVolume), helper: "Montante financeiro do recorte.", icon: TrendingUp, tone: "blue" as const },
+            { title: "Pagamentos confirmados", value: `${financeMetrics.confirmed}`, helper: "Guias não simuladas compensadas no sistema.", icon: CheckCircle2, tone: "emerald" as const },
+            { title: "Volume financeiro", value: formatCurrency(paymentVolume), helper: "Montante de guias não simuladas.", icon: TrendingUp, tone: "blue" as const },
           ]
         : isAnalyst
           ? [
@@ -1006,16 +1007,23 @@ export function DashboardHomePage() {
   const renderFinance = () => (
     <div className="space-y-6">
       <PageStatsRow>
-        <MetricCard title="Guias emitidas" value={`${displayProcesses.filter((process) => process.status === "guia_emitida").length}`} helper="Guias geradas no recorte atual." icon={Wallet} tone="amber" />
-        <MetricCard title="Pagamentos pendentes" value={`${pendingPayments}`} helper="Aguardando compensacao no sistema." icon={AlertTriangle} tone="rose" />
-        <MetricCard title="Pagamentos confirmados" value={`${displayProcesses.filter((process) => process.status === "pagamento_confirmado").length}`} helper="Guias compensadas e registradas." icon={CheckCircle2} tone="emerald" />
-        <MetricCard title="Volume financeiro" value={formatCurrency(paymentVolume)} helper="Montante financeiro total monitorado." icon={TrendingUp} tone="blue" />
+        <MetricCard title="Guias emitidas" value={`${totalGuides}`} helper="Guias não simuladas no recorte atual." icon={Wallet} tone="amber" />
+        <MetricCard title="Pagamentos pendentes" value={`${displayGuides.filter((guide)=>guide.status==="pendente").length}`} helper="Guias não simuladas aguardando compensação." icon={AlertTriangle} tone="rose" />
+        <MetricCard title="Compensadas no sistema" value={`${displayGuides.filter((guide)=>guide.status==="compensada").length}`} helper="Registros não simulados; conferir comprovantes." icon={CheckCircle2} tone="emerald" />
+        <MetricCard title="Volume financeiro" value={formatCurrency(paymentVolume)} helper="Montante de guias não simuladas." icon={TrendingUp} tone="blue" />
       </PageStatsRow>
+      {simulatedGuideCount>0?(
+        <p data-dashboard-synthetic-finance="true"
+          className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs font-semibold text-sky-950 dark:border-sky-700 dark:bg-[#17344e] dark:text-sky-100">
+          {simulatedGuideCount} guia(s) de simulação QA não entram nos indicadores financeiros.
+          Compensação registrada ainda exige comprovação bancária.
+        </p>
+      ):null}
 
       <PageMainGrid className="xl:grid-cols-[minmax(0,1.58fr)_minmax(280px,0.88fr)]">
         <PageMainContent>
           <div className="grid min-w-0 gap-6 min-[2150px]:grid-cols-2">
-            <DistributionCard title="Situação financeira" description="Comparativo entre guias emitidas, pendentes e compensadas." icon={Wallet} data={financeSituationChart} />
+            <DistributionCard title="Situação financeira" description="Guias não simuladas pendentes e compensadas no sistema." icon={Wallet} data={financeSituationChart} />
             <TableCard title="Comparativo de guias" description="Volume financeiro por situacao do fluxo de arrecadacao." icon={BarChart3}>
               {financeSituationChart.length === 0 ? (
                 <EmptyState title="Sem informacoes financeiras" description="Nao ha guias suficientes para compor o painel comparativo." icon={Wallet} />

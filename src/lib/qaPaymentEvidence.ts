@@ -14,3 +14,28 @@ export function protocolPaymentEvidenceLabel(
     return "Simulação QA — sem pagamento bancário";
   return guide?.status==="compensada"?"Confirmado":"Pendente";
 }
+
+/**
+ * Test-mode charges never represent real municipal revenue. The classifier is
+ * display/reporting only: it must NOT change triage, settlement, or bank state.
+ */
+export type FinancialGuideEvidence = {
+  code?:string|null;
+  status?:string|null;
+  bankStatus?:string|null;
+  providerEnvironment?:string|null;
+};
+export function isFinancialTestGuide(guide:FinancialGuideEvidence|null|undefined):boolean{
+  if(!guide)return false;
+  return isSyntheticQaProtocolGuideCode(guide.code)||
+    guide.bankStatus==="QA_SYNTHETIC_NOT_BANK_PAID"||
+    guide.bankStatus==="QA_FIXTURE_NOT_BANK_PAID"||
+    guide.providerEnvironment==="test";
+}
+export function isReportedCompensatedGuide(guide:FinancialGuideEvidence|null|undefined):boolean{
+  return guide?.status==="compensada"&&!isFinancialTestGuide(guide);
+}
+export function guideFinancialEvidenceLabel(guide:FinancialGuideEvidence|null|undefined):string{
+  if(isFinancialTestGuide(guide))return "Simulação QA — sem arrecadação real";
+  return guide?.status==="compensada"?"Compensada no sistema":"Pendente";
+}
