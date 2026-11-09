@@ -1447,3 +1447,7 @@ navegador autenticado.
 - Código QA distingue rascunho OCR de versão jurídica `reviewed_draft`, agrupando por município, SHA, página e categoria. Próxima categoria só percorre as que não possuem primeira revisão; a fila completa permanece consultável. A leitura é revalidada após o registro; indisponibilidade da API conserva estado pendente.
 - Regra de segurança: uma revisão de zona NÃO é aprovação de todas as zonas nem ativação da IA; dados legais, publicação/vigência e georreferenciamento exigem evidência municipal. PR #118 continua draft, sem publicação em produção.
 
+### Auditoria técnica integrada de 09/11/2026
+- [Relatório de QA — legislação, zoneamento, pagamentos, IA, segurança e gates](./AUDITORIA_INTEGRADA_20261109.md). Consultas somente leitura no Neon QA; testados os limites do Quadro II, com CI de código `1582932b`: Quality Gate, Neon migration validation e OCR QA **SUCCESS**.
+- **Esta publicação é exclusivamente de Prévia QA**. A revisão jurídica e as provas de pagamentos/IA continuam pendentes; não confundir com homologação comercial nem promover para `main`.
+
