@@ -14,12 +14,13 @@ import {
  * appends an immutable reviewed_draft. No use permissions are activated.
  */
 export function UrbanQuadroIILegalReviewPanel({
-  municipalityId, canEdit, workspace, entries, onDataChanged, focusRequest,
+  municipalityId, canEdit, workspace, entries, onDataChanged, focusRequest, originalPdfUrl,
 }: {
   municipalityId: string; canEdit: boolean;
   workspace: UrbanQuadroIIWorkspace; entries: UrbanQuadroIIDraft[];
   onDataChanged?: () => void;
   focusRequest?: { id: string; token: number } | null;
+  originalPdfUrl?: string | null;
 }) {
   const [opened, setOpened] = useState(false);
   const [retries, setRetries] = useState(0);
@@ -186,8 +187,22 @@ export function UrbanQuadroIILegalReviewPanel({
         </details>
         {current && canEdit ? <div data-urban-quadro-ii-legal-form="true"
           className="space-y-3 rounded-xl border border-sky-200 bg-white p-3 text-slate-900 dark:border-sky-700 dark:bg-slate-900 dark:text-white">
-          <p className="text-sm font-extrabold">
-            Revisar {current.category_code} — página {current.page_number}
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm font-extrabold">
+              Revisar {current.category_code} — página {current.page_number}
+            </p>
+            {originalPdfUrl ? (
+              <a href={originalPdfUrl + "#page=" + current.page_number}
+                target="_blank" rel="noopener noreferrer"
+                data-urban-qii-review-original-pdf="true"
+                className="inline-flex min-h-9 items-center rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs font-bold text-sky-950 hover:bg-sky-100 dark:border-sky-700 dark:bg-slate-950 dark:text-sky-100">
+                Conferir página no PDF original
+              </a>
+            ) : null}
+          </div>
+          <p className="text-xs text-slate-700 dark:text-slate-200">
+            A publicação original é referência documental; confirme alterações posteriores,
+            uso e vigência antes de registrar uma matriz jurídica.
           </p>
           {alreadyRegistered.length > 0 ? <p className="text-xs text-amber-800 dark:text-amber-200">
             Já há versões conferidas desta categoria. Registre outra apenas se houver nova
