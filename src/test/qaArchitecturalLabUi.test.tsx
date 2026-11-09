@@ -11,7 +11,7 @@ describe("QA laboratory is separate from municipality processes",()=>{
  } as never));
  afterEach(()=>vi.unstubAllGlobals());
  it("shows only synthetic results; sends no process or payment identifiers",async()=>{
-  const fetchMock=vi.fn(async()=>({ok:true,json:async()=>({
+  const fetchMock=vi.fn(async (_url:string,_options?:RequestInit)=>({ok:true,json:async()=>({
    kind:"sigapro.qa04.synthetic-pdf.v1",status:"passed",
    summary:{passed:3,total:3,pagesRead:3},
    cases:[{metric:"front_setback_m",label:"Frontal",expected:5,readValue:5,readPage:2,verified:true},
