@@ -38,7 +38,9 @@ describe("SIGAPRO QA — ciclo de vida de documentos legais e auditoria guiada",
     const evidence = readFileSync("src/components/platform/UrbanRegulationEvidencePanel.tsx", "utf8");
     const settings = readFileSync("src/components/platform/MunicipalUrbanRulesSettings.tsx", "utf8");
     expect(review).toContain("onDataChanged?.()");
-    expect(workspace).toContain("onDataChanged={onDataChanged}");
+    expect(workspace).toContain("setLegalImportRefresh(v => v + 1)");
+    expect(workspace).toContain("onDataChanged?.()");
+    expect(workspace).toContain("onDataChanged={() =>");
     expect(evidence).toContain("onDataChanged?.()");
     expect(settings).toContain("onDataChanged={markAuditChanged}");
     expect(review).toContain("RASCUNHO");

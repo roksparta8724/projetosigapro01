@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { buildUrbanQuadroIIReviewQueue } from "@/lib/urbanQuadroIIReviewQueue";
+import { summarizeQuadroIIReviewProgress } from "@/lib/urbanQuadroIIReviewProgress";
 import type { UrbanQuadroIIWorkspace } from "@/integrations/backend/urbanPrecheckClient";
 
 const entries = Array.from({ length: 45 }, (_, i) => ({
@@ -46,7 +47,12 @@ describe("SIGAPRO QA — continuar 45 rascunhos do Quadro II", () => {
 
   it("faz o botão de continuidade aceitar rascunhos existentes em vez de ficar desabilitado", () => {
     const view = readFileSync("src/components/platform/UrbanQuadroIIWorkspacePanel.tsx", "utf8");
-    expect(view).toContain("const pendingQueue = reviewQueue.items;");
+    expect(view).toContain("const pendingQueue = legalProgress.withoutFirstReview;");
+    // Saving OCR drafts must still leave categories in the actionable queue;
+    // only an independently recorded preliminary legal review changes this count.
+    const progress = summarizeQuadroIIReviewProgress(buildUrbanQuadroIIReviewQueue(workspace).items,
+      [], "municipality", workspace.document_sha256);
+    expect(progress.withoutFirstReview).toHaveLength(45);
     expect(view).toContain("Revisar próxima categoria");
     expect(view).toContain('status: "draft_unverified"');
     expect(view).toContain("setLegalReviewRequest(current =>");
@@ -74,7 +80,9 @@ describe("SIGAPRO QA — continuar 45 rascunhos do Quadro II", () => {
 
   it("resume 45 rascunhos com contagens honestas e cards compactos", () => {
     const view = readFileSync("src/components/platform/UrbanQuadroIIWorkspacePanel.tsx", "utf8");
-    expect(view).toContain('["Rascunhos aguardando revisão", reviewQueue.drafts]');
+    expect(view).toContain('["Sem primeira revisão jurídica", pendingQueue.length]');
+    expect(view).toContain("legalProgress.withFirstReview.length");
+    expect(view).toContain("{reviewQueue.drafts} rascunho(s) preservado(s)");
     expect(view).toContain('["Páginas com revisão visual", visualOnlyPages]');
     expect(view).toContain('data-urban-qii-saved-records="true"');
     expect(view).toContain("max-h-[55vh]");

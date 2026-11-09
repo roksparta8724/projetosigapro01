@@ -1,10 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { UrbanQuadroIIWorkspacePanel } from "@/components/platform/UrbanQuadroIIWorkspacePanel";
-import { listUrbanQuadroIIWorkspace } from "@/integrations/backend/urbanPrecheckClient";
+import { listUrbanQuadroIIWorkspace, listUrbanLegalMatrixImports } from "@/integrations/backend/urbanPrecheckClient";
 
 vi.mock("@/integrations/backend/urbanPrecheckClient", () => ({
   listUrbanQuadroIIWorkspace: vi.fn(),
+  listUrbanLegalMatrixImports: vi.fn(),
   saveUrbanQuadroIIDraft: vi.fn(),
 }));
 
@@ -19,6 +20,7 @@ const pages = [38, 39, 40].map((page_number) => ({
 describe("SIGAPRO IA — changing Quadro II pages without scroll jumps", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(listUrbanLegalMatrixImports).mockResolvedValue([]);
     Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
       configurable: true,
       writable: true,
