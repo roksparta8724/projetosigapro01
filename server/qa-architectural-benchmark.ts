@@ -1,7 +1,7 @@
 /** QA-only benchmark of a real three-page synthetic PDF, no R2 or money. */
 import type {IncomingMessage,ServerResponse} from "node:http";
 import {callDataApiRpc,readBearer} from "./municipal-storage.js";
-import {createQa04ArchitecturalPdf} from "../src/lib/qa04ArchitecturalFixture.js";
+import {createQa04ArchitecturalPdfBytes} from "../src/lib/qa04ArchitecturalFixture.js";
 import {extractNativeArchitecturalPdf} from "./native-architectural-pdf.js";
 import {benchmarkQa04ArchitecturalReadings} from "../src/lib/architecturalPdfReadings.js";
 import {auditArchitecturalPdfPages} from "../src/lib/architecturalPdfPageAudit.js";
@@ -38,8 +38,9 @@ export default async function handle(req:Req,res:ServerResponse){
    (actor.tenant_id&&actor.tenant_id!==actor.municipality_id))
   return respond(res,403,{error:"Ensaio reservado ao analista municipal."});
  try{
-  const file=createQa04ArchitecturalPdf();
-  const pdf=new Uint8Array(await file.arrayBuffer());
+  // Direct arraybuffer avoids File/FileReader differences in Node vs browsers;
+  // the front-end fixture uses exactly these bytes for its File wrapper.
+  const pdf=new Uint8Array(createQa04ArchitecturalPdfBytes());
   const reading=auditArchitecturalPdfPages(pdf,extractNativeArchitecturalPdf(pdf));
   const report=benchmarkQa04ArchitecturalReadings(reading.readings);
   const passed=report.passed===3&&report.total===3&&

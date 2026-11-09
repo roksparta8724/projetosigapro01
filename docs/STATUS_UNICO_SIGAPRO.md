@@ -1460,3 +1460,7 @@ navegador autenticado.
 ## QA — Dossiê único do Quadro II
 - Nova exportação em PDF A4, em um clique, de todos os rascunhos persistidos (45 na consulta de 09/11). Inclui separação por páginas, SHA-256, trecho candidato, uso, vias, vagas, campos pendentes e ressalvas de OCR. Não confirma lei, vigência, zonas ou regras para IA.
 - Resultado gerado somente no navegador de um usuário autorizado para a prefeitura, sem modificar os dados do banco. Se histórico jurídico não estiver disponível, o documento declara a limitação em vez de alegar inexistência de revisão.
+
+### QA — correção da geração de bytes e prova HTTP de proteção
+- O PDF QA04 agora expõe uma única função `createQa04ArchitecturalPdfBytes()` utilizada tanto pelo upload de arquivo fictício quanto pelo laboratório de backend. Evita `File.arrayBuffer()` indisponível em alguns runtimes de teste e mantém exatamente os mesmos bytes das 3 pranchas.
+- Smoke HTTP de QA verifica que `POST /api/ai-assistant?action=qa-architectural-benchmark` sem JWT não permite ensaio. A proteção Vercel requer identidade confiável para executar esse smoke remoto, sem desproteger a prévia.

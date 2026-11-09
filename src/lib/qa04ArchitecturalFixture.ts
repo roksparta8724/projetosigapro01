@@ -43,7 +43,7 @@ export function getQa04GeometryChecks() {
 }
 
 /** Three A3 QA sheets: ground floor, dimensioned site placement, and evidence notes. */
-export function createQa04ArchitecturalPdf(): File {
+export function createQa04ArchitecturalPdfBytes(): ArrayBuffer {
   const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a3" });
   pdf.setProperties({
     title: "SIGAPRO QA 04 - Projeto ficticio com recuos de implantacao - V2",
@@ -201,7 +201,11 @@ export function createQa04ArchitecturalPdf(): File {
     "A IA NAO DEVE INVENTAR NORMAS, RECUOS MINIMOS OU TAXA PERMEAVEL.",
     "NENHUMA CONCLUSAO DE APROVACAO PODE SER EMITIDA COM ESTE ENSAIO.",
   ].forEach((line, i) => pdf.text(line, 22, 71 + i * 15));
-  return new File([pdf.output("blob")],
+  return pdf.output("arraybuffer");
+}
+/** Reuse precisely the same bytes for UI uploads and a separate backend QA test. */
+export function createQa04ArchitecturalPdf(): File {
+  return new File([createQa04ArchitecturalPdfBytes()],
     "SIGAPRO-QA04-PLANTA-IMPLANTACAO-V2.pdf", { type: "application/pdf" });
 }
 
