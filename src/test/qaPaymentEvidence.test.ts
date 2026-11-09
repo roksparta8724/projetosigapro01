@@ -90,7 +90,7 @@ describe("resumo financeiro unificado entre perfis",()=>{
   });
   it("impede alertas de divergência gerados por fixtures",()=>{
     const source=readFileSync("src/pages/saas/FinanceDeskPage.tsx","utf8");
-    expect(source).toContain('guide.status !== "pendente" || isFinancialTestGuide(guide)');
+    expect(source).toContain("!isPendingFinancialGuide(guide)");
     expect(source).toContain("controlFinancialSummary.compensatedAmount");
   });
 });
