@@ -39,7 +39,7 @@ import { prepareGuideInstitutionalLogo } from "@/lib/guideAssets";
 import { ensureMercadoPagoGuideCharge, requestQaPixCharge, type QaPixCharge, type MercadoPagoGuideCharge } from "@/lib/mercadoPagoGuide";
 import { normalizeOfficialBanking } from "@/lib/bankCodes";
 import { resolveGuideBankingData } from "@/lib/paymentCollection";
-import { archiveAndOpenGuide, readGuideOriginal, isGuideSettled } from "@/lib/guideOriginal";
+import { archiveAndOpenGuide, readGuideOriginal, openStoredGuide, isGuideSettled } from "@/lib/guideOriginal";
 import {isFinancialTestGuide,isPendingFinancialGuide,isReportedCompensatedGuide,summarizeFinancialGuideEvidence} from "@/lib/qaPaymentEvidence";
 
 const paymentStatusOptions = [
@@ -184,9 +184,8 @@ export function ExternalPaymentsPage() {
       if (persisted?.original_pdf_key) {
         // Viewing an issued guide must not call the bank again, not even to
         // refresh boleto metadata. Reopen only the immutable original.
-        await archiveAndOpenGuide(effectiveScopeId, {
-          guia: { numeroGuia: guide.code },
-        } as GuiaRecolhimentoOficialProps, officialWindow!);
+        if (!await openStoredGuide(persisted, officialWindow!))
+          throw new Error("O original autorizado não foi localizado no armazenamento.");
         return;
       }
       const banking = resolveGuideBankingData({
