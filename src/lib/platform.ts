@@ -134,26 +134,43 @@ const PROCESS_UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
- * Process numbers are local to a municipality. A Master can see the same
- * official number in different tenants, so use the immutable process UUID
- * in every modern navigation URL, while keeping the official number legible.
+ * The compact base-36 encoding is a reversible URL identifier, NOT an
+ * authorization secret. Every process access remains enforced by backend RLS.
+ * It avoids exposing raw UUID formatting and preserves the municipal number.
  */
+function processIdentityToken(id: string): string | null {
+  if (!PROCESS_UUID_PATTERN.test(id)) return null;
+  return BigInt("0x" + id.replace(/-/g, "")).toString(36).padStart(25, "0");
+}
+
+function processUuidFromToken(token: string): string | null {
+  if (!/^[0-9a-z]{25}$/i.test(token)) return null;
+  let value = 0n;
+  for (const char of token.toLowerCase()) {
+    value = value * 36n + BigInt(parseInt(char, 36));
+  }
+  if (value >= (1n << 128n)) return null;
+  const hex = value.toString(16).padStart(32, "0");
+  return [
+    hex.slice(0, 8), hex.slice(8, 12), hex.slice(12, 16),
+    hex.slice(16, 20), hex.slice(20),
+  ].join("-");
+}
+
+/** Process numbers repeat in different municipalities: the URL must not. */
 export function buildProcessIdentityRouteKey(
   process: Pick<ProcessRecord, "id" | "protocol">,
 ) {
   const normalized = buildProcessRouteKey(process.protocol, process.id);
-  const id = String(process.id || "").trim();
-  return normalized && PROCESS_UUID_PATTERN.test(id)
-    ? `${normalized}--${id}`
-    : normalized;
+  const token = processIdentityToken(String(process.id || "").trim());
+  return normalized && token ? `${normalized}--${token}` : normalized;
 }
 
-/** Safely parse the immutable identity suffix from a modern process URL. */
+/** Parse the immutable, formatted-UUID-free suffix. */
 export function parseProcessIdentityRouteKey(routeValue: string) {
-  const match = String(routeValue || "").match(
-    /^(.+)--([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i,
-  );
-  return match ? { protocolKey: match[1], id: match[2] } : null;
+  const match = String(routeValue || "").match(/^(.+)--([0-9a-z]{25})$/i);
+  const id = match ? processUuidFromToken(match[2]) : null;
+  return match && id ? { protocolKey: match[1], id } : null;
 }
 
 export function buildProcessPath(

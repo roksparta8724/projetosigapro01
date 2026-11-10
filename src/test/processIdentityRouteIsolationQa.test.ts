@@ -23,7 +23,8 @@ const second = {
 describe("SIGAPRO QA — rota de protocolo com colisão real entre prefeituras",()=>{
   it("a nova URL resolve o processo por ID imutável, independente da ordenação do Master",()=>{
     const route=buildProcessPath(second,"analise");
-    expect(route).toContain("PM-2026-00001--a16b5fa2-e6b1-4814-8dc3-7fa6d265fe72");
+    expect(route).toMatch(/^\\/processos\\/PM-2026-00001--[a-z0-9]{25}\\?aba=analise$/);
+    expect(route).not.toContain(second.id);
     expect(route).toContain("?aba=analise");
     const key=route.split("/processos/")[1].split("?")[0];
     expect(parseProcessIdentityRouteKey(key)).toEqual({
@@ -40,7 +41,7 @@ describe("SIGAPRO QA — rota de protocolo com colisão real entre prefeituras",
   it("número duplicado não abre um município diferente por acidente",()=>{
     expect(resolveProcessRoute([first,second],"PM-2026-00001")).toBeUndefined();
     expect(resolveProcessRoute([first,second],
-      "PM-2026-99999--a16b5fa2-e6b1-4814-8dc3-7fa6d265fe72")).toBeUndefined();
+      buildProcessIdentityRouteKey(second).replace("PM-2026-00001", "PM-2026-99999"))).toBeUndefined();
     expect(resolveProcessRoute([first],
       buildProcessIdentityRouteKey(second))).toBeUndefined();
   });

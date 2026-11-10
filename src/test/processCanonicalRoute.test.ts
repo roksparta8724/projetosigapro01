@@ -12,13 +12,12 @@ const process = {
 } as ProcessRecord;
 
 describe("process public route", () => {
-  it("never exposes the internal UUID when a protocol exists", () => {
+  it("never exposes the raw internal UUID when a protocol exists", () => {
     expect(buildProcessRouteKey(process.protocol, process.id)).toBe("PM-2026-00001");
-    expect(buildProcessPath(process)).toBe("/processos/PM-2026-00001");
-    expect(buildProcessPath(process, "financeiro")).toBe(
-      "/processos/PM-2026-00001?aba=financeiro",
-    );
-    expect(buildProcessPath(process)).not.toContain("33333333");
+    const path = buildProcessPath(process);
+    expect(path).toMatch(/^\\/processos\\/PM-2026-00001--[0-9a-z]{25}$/);
+    expect(path).not.toContain(process.id);
+    expect(buildProcessPath(process, "financeiro")).toBe(path + "?aba=financeiro");
   });
 
   it("accepts both the canonical protocol route and old UUID links", () => {

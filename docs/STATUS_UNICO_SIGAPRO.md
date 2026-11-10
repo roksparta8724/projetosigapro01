@@ -1611,3 +1611,5 @@ navegador autenticado.
 - Testes abrangem a colisão efetiva `PM-2026-00001` em dois municípios, ordem invertida e URL com prefixo fraudado. Suíte incluída no gate Preview QA. Sem merge na `main`, sem alterações no Neon e sem deploy oficial.
 
 - Complemento: o refetch silencioso em `loadProcessRowsForStore` também reconhece a chave composta e busca por UUID (não pelo número duplicado); valida o prefixo antes de mesclar uma linha fora do conjunto ativo. O carregamento normal de dados e documentos continua sob RLS. Regressão cobre a correspondência entre gerador de URL, resolução e busca remota.
+
+- O Quality Gate completo detectou contrato legado exigindo URL sem UUID literal (1 falha entre 1771 testes). A rota foi refinada com token base-36 compacto reversível, que mantém o protocolo legível, sem mostrar o UUID bruto; o token nunca autoriza acesso (RLS permanece obrigatória). O teste canônico foi atualizado para validar ausência de UUID em claro, além dos testes de isolamento de tenant. Reteste completo obrigatório antes de certificação.
