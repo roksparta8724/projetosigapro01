@@ -84,6 +84,31 @@ O projeto **ainda não tem** uma execução comprovada de upload de evidências
 que cubra os dez critérios, portanto o workflow deve continuar falhando
 fechado até que essa etapa seja provida de maneira segura.
 
+## Revisão de integridade do pacote de provas — 10/11/2026
+
+O workflow agora faz checkout do **SHA exato do release QA**, verifica que
+esse commit integra a branch protegida, e consulta a API do GitHub para
+validar o `evidence_run_id`: mesma organização e repositório (sem fork),
+mesmo SHA, branch QA, execução concluída com sucesso e evento permitido
+(`workflow_dispatch` ou `push`). Um artifact de outro PR, commit, branch
+ou repositório é negado **antes** do download. A suíte independente
+`scripts/qa-commercial-evidence-provenance.test.mjs` integra o Quality Gate.
+
+**Limitação honesta:** a identidade textual `reviewer` no manifesto não
+equivale a assinatura digital. O environment
+`qa-commercial-approval` precisa de revisores obrigatórios habilitados
+no GitHub e de comprovação dos atos técnicos/financeiros. Provas de
+integridade em uma transação Neon com rollback são úteis e repetíveis, mas
+não substituem inspeção de R2 físico, webhook bancário ponta a ponta,
+planta real com gabarito, versões oficiais de lei e uso autenticado no portal.
+
+**Armazenamento R2:** a auditoria da Vercel revelou as mesmas variáveis
+institucionais de bucket e credenciais disponíveis para Preview e produção.
+Isso não é demonstração de isolamento físico. Por segurança, uploads e
+exclusões nos ambientes publicados exigem autenticação; a segregação de
+bucket, conta ou prefixo deve ser comprovada antes de manipular documentos
+reais de prefeituras nos testes. Nenhuma credencial foi alterada ou exposta.
+
 ## Dez provas exigidas
 
 1. Duas Prefeituras reais de QA autenticadas e isolamento de todos os dados e ações.
