@@ -6,8 +6,9 @@
  * create-once semantics, and never return a public URL. The browser NEVER
  * sends more than 2 MiB of original file data to a Vercel function per call.
  *
- * This endpoint is deliberately separate from official municipal legislation,
- * bank originals, payment receipts, signatures, avatars, and public branding.
+ * Also supports the strictly canonical SHA-named original DAM PDF, but ONLY
+ * after the same scoped bank-original RPC authorization as a small upload.
+ * Payment receipts, signatures, avatars, and legislation stay separate.
  */
 import { createHash } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
@@ -20,6 +21,7 @@ import { callDataApiRpc, readBearer, resolveMunicipalDocumentTarget } from "../m
 import { authorizeProcessAttachmentWrite } from "../process-attachment-write-authorization.js";
 import { resolveR2Endpoint } from "../r2-runtime.js";
 import { isSafeR2ObjectKey } from "../r2-object-key-validation.js";
+import { assertStoredDamOriginal, DAM_ORIGINAL_KEY, DAM_ORIGINAL_MAX_BYTES } from "../dam-original-integrity.js";
 
 type Req = IncomingMessage & { body?: unknown; method?: string };
 type Res = ServerResponse;
@@ -95,6 +97,7 @@ export type ProcessChunkPayload = {
   base64: string | null;
   chunkSha256: string | null;
   fileSha256: string | null;
+  damOriginal: null | { processId:string; guideId:string; sha256:string };
 };
 export function validateProcessChunkPayload(raw: unknown): ProcessChunkPayload | null {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
@@ -106,10 +109,12 @@ export function validateProcessChunkPayload(raw: unknown): ProcessChunkPayload |
       typeof v.fileSize !== "number" || !Number.isSafeInteger(v.fileSize) ||
       v.fileSize <= PROCESS_CHUNK_BYTES || v.fileSize > MAX_PROCESS_ATTACHMENT_BYTES) return null;
   const key = PROCESS_KEY.exec(v.objectKey);
-  if (!key) return null;
-  const ext = key[5].split(".").pop()?.toLowerCase() || "";
+  const dam = DAM_ORIGINAL_KEY.exec(v.objectKey);
+  if (!key && !dam) return null;
+  const ext = key ? (key[5].split(".").pop()?.toLowerCase() || "") : "pdf";
   const mime = FILE_MIME[ext];
-  if (!mime || mime !== v.contentType) return null;
+  if (!mime || mime !== v.contentType ||
+      (dam && (v.fileSize > DAM_ORIGINAL_MAX_BYTES || mime !== "application/pdf"))) return null;
   const count = Math.ceil(v.fileSize / PROCESS_CHUNK_BYTES);
   if (!count || count > MAX_CHUNKS) return null;
   if (v.action === "chunk") {
@@ -119,13 +124,14 @@ export function validateProcessChunkPayload(raw: unknown): ProcessChunkPayload |
         !/^[A-Za-z0-9+/]+={0,2}$/.test(v.base64) ||
         typeof v.chunkSha256 !== "string" || !HEX_RX.test(v.chunkSha256)) return null;
   } else if (v.action === "finalize") {
-    if (typeof v.fileSha256 !== "string" || !HEX_RX.test(v.fileSha256)) return null;
+    if (typeof v.fileSha256 !== "string" || !HEX_RX.test(v.fileSha256) ||
+        (dam && v.fileSha256.toLowerCase() !== dam[4].toLowerCase())) return null;
   }
   return {
     action: v.action,
     bucket: "process-documents",
-    municipalityId: key[1].toLowerCase(),
-    actorId: key[3].toLowerCase(),
+    municipalityId: String(key?.[1] || dam?.[1]).toLowerCase(),
+    actorId: String(key?.[3] || dam?.[3]).toLowerCase(),
     objectKey: v.objectKey,
     uploadId: v.uploadId.toLowerCase(),
     fileSize: v.fileSize,
@@ -135,6 +141,11 @@ export function validateProcessChunkPayload(raw: unknown): ProcessChunkPayload |
     base64: v.action === "chunk" ? String(v.base64) : null,
     chunkSha256: v.action === "chunk" ? String(v.chunkSha256).toLowerCase() : null,
     fileSha256: v.action === "finalize" ? String(v.fileSha256).toLowerCase() : null,
+    damOriginal: dam ? {
+      processId: dam[2].toLowerCase(),
+      guideId: dam[3].toLowerCase(),
+      sha256: dam[4].toLowerCase(),
+    } : null,
   };
 }
 function stageKey(v: ProcessChunkPayload, index: number): string {
@@ -165,13 +176,27 @@ export default async function handler(req: Req, res: Res) {
   if (!input) return respond(res, 400, { error: "Tipo, tamanho ou referência do documento inválida." });
   const v = input;
 
-  // Membership alone must never grant the power to edit a process. This
-  // role-and-owner policy is shared with ordinary (small) R2 attachments.
-  const grant = await authorizeProcessAttachmentWrite(req, v.objectKey);
-  if (grant.ok === false) return respond(res, grant.status, {
-    code: grant.code,
-    error: "Este perfil não tem autorização para anexar documentos ao processo.",
-  });
+  // Membership alone never authorizes a write. Original DAMs have a stricter
+  // immutable financial-document RPC, not the generic attachment permission.
+  if (v.damOriginal) {
+    const grant = await callDataApiRpc<boolean>(
+      req, "authorize_payment_guide_original_upload_v2", {
+        _guide_id: v.damOriginal.guideId,
+        _municipality_id: v.municipalityId,
+        _process_id: v.damOriginal.processId,
+      },
+    );
+    if (!grant.ok || grant.payload !== true)
+      return respond(res,grant.status === 401 ? 401 : 403,{
+        error:"A guia não autoriza o envio do PDF original. Uma guia paga não pode ser substituída.",
+      });
+  } else {
+    const grant = await authorizeProcessAttachmentWrite(req, v.objectKey);
+    if (grant.ok === false) return respond(res, grant.status, {
+      code: grant.code,
+      error: "Este perfil não tem autorização para anexar documentos ao processo.",
+    });
+  }
   const quota = await callDataApiRpc<unknown>(req, "assert_municipality_entitlement_v1", {
     _municipality_id: v.municipalityId, _capability: "storage_bytes", _increment: v.fileSize,
   });
@@ -230,8 +255,16 @@ export default async function handler(req: Req, res: Res) {
     try {
       const exists = await client.send(new HeadObjectCommand({Bucket:bucket,Key:official}));
       if (exists.ContentLength === v.fileSize && exists.ContentType === v.contentType &&
-          exists.Metadata?.sha256 === v.fileSha256)
+          exists.Metadata?.sha256 === v.fileSha256) {
+        if (v.damOriginal) {
+          // A matching S3 HEAD is insufficient for a bank-original retry.
+          await assertStoredDamOriginal(client,{
+            bucket,objectKey:official,logicalObjectKey:v.objectKey,
+            expectedSha256:v.damOriginal.sha256,expectedBytes:v.fileSize,
+          });
+        }
         return respond(res,200,{ok:true,objectKey:v.objectKey,publicUrl:"",resumed:true});
+      }
       return respond(res,409,{error:"A revisão já existe e não pode ser sobrescrita."});
     } catch(error) { if (statusOf(error) !== 404) throw error; }
 
@@ -287,6 +320,14 @@ export default async function handler(req: Req, res: Res) {
     if (verified.ContentLength !== v.fileSize || verified.ContentType !== v.contentType ||
         verified.Metadata?.sha256 !== v.fileSha256)
       return respond(res,502,{error:"O armazenamento não confirmou a integridade do documento."});
+    if (v.damOriginal) {
+      // Payable originals are accepted only when the R2/BYOS actual bytes
+      // match the canonical key. Never present a merely signed PDF URL.
+      await assertStoredDamOriginal(client,{
+        bucket,objectKey:official,logicalObjectKey:v.objectKey,
+        expectedSha256:v.damOriginal.sha256,expectedBytes:v.fileSize,
+      });
+    }
     await client.send(new DeleteObjectsCommand({Bucket:bucket,Delete:{
       Objects:Array.from({length:v.count},(_,i)=>({Key:partKey(i)})),Quiet:true,
     }})).catch(()=>undefined);
