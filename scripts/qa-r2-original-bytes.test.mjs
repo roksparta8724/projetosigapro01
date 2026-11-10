@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import {Readable} from "node:stream";
 import {createHash} from "node:crypto";
 import {expectedDamKey,qaDatabaseEndpointMatches,verifyPdfStream,
-  inspectExistingQaDam,MAX_BYTES} from "./qa-r2-original-bytes.mjs";
+  inspectExistingQaDam,MAX_BYTES,classifyR2ReadFailure} from "./qa-r2-original-bytes.mjs";
 const sha=createHash("sha256").update("%PDF-1.7\nExample private synthetic content\n").digest("hex");
 const city="49dac0b6-6352-4744-9aab-9ff91c59d970";
 const processId="1244ccaa-1111-4111-8111-123456abcdef";
@@ -63,4 +63,16 @@ test("QA bank worker can query only the one-row integrity probe, not raw municip
   assert.ok(!sql.includes("GRANT SELECT ON public.payment_guides"));
   assert.ok(!sql.includes("UPDATE public.payment_guides"));
   assert.ok(!sql.includes("DELETE FROM public.payment_guides"));
+});
+
+test("storage diagnostics distinguish missing PDF, denied access and unavailable storage safely",()=>{
+  assert.equal(classifyR2ReadFailure({name:"NoSuchKey",$metadata:{httpStatusCode:404}}),
+    "NOT_VERIFIED_STORAGE_MISSING");
+  assert.equal(classifyR2ReadFailure({name:"InvalidAccessKeyId",$metadata:{httpStatusCode:403}}),
+    "NOT_VERIFIED_STORAGE_CREDENTIALS");
+  assert.equal(classifyR2ReadFailure({name:"AccessDenied",$metadata:{httpStatusCode:403}}),
+    "NOT_VERIFIED_STORAGE_FORBIDDEN");
+  assert.equal(classifyR2ReadFailure({name:"AbortError"}),"NOT_VERIFIED_STORAGE_TIMEOUT");
+  assert.equal(classifyR2ReadFailure(new Error("SECRET/BUCKET/PRIVATE-PATH")),
+    "NOT_VERIFIED_STORAGE_UNAVAILABLE");
 });
