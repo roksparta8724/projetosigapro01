@@ -27,6 +27,7 @@ import { usePlanEntitlements } from "@/hooks/usePlanEntitlements";
 import { PlanCapacityCard } from "@/components/platform/PlanCapacityCard";
 import { usePlanCapacityLive } from "@/hooks/usePlanCapacityLive";
 import { paginateMunicipalItems } from "@/lib/municipalListPagination";
+import {hasPrematureAnalysisStage,isAdministrativelyClosed,isVerifiedTechnicalAnalysis} from "@/lib/processOperationalIntegrity";
 import { CompactUserRegistry } from "@/components/platform/CompactUserRegistry";
 import { CompactProcessRegistry } from "@/components/platform/CompactProcessRegistry";
 import { MunicipalOverviewSubnav } from "@/components/platform/MunicipalOverviewSubnav";
@@ -465,12 +466,14 @@ export function TenantAdminPage() {
     });
   }, [roleFilter, search, segment, statusFilter, tenantUsers]);
 
-  const metrics = useMemo(() => ({ protocolsInProgress: tenantProcesses.filter((process) => !["deferido", "indeferido", "arquivado"].includes(process.status)).length, inAnalysis: tenantProcesses.filter((process) => ["analise_tecnica", "reapresentacao", "exigencia"].includes(process.status)).length, pendingPayments: tenantProcesses.filter((process) => hasPendingGuide(process)).length, approved: tenantProcesses.filter((process) => process.status === "deferido").length }), [tenantProcesses, tenantSettings]);
+  const metrics = useMemo(() => ({ protocolsInProgress: tenantProcesses.filter((process) => !isAdministrativelyClosed(process)).length, inAnalysis: tenantProcesses.filter(isVerifiedTechnicalAnalysis).length, pendingPayments: tenantProcesses.filter((process) => hasPendingGuide(process)).length, approved: tenantProcesses.filter((process) => process.status === "deferido").length }), [tenantProcesses, tenantSettings]);
+  const inconsistentTriageCount = useMemo(() =>
+    tenantProcesses.filter(hasPrematureAnalysisStage).length, [tenantProcesses]);
   const criticalAlerts = useMemo(() => tenantProcesses.filter((process) =>
-    !["deferido", "indeferido", "arquivado"].includes(process.status) &&
+    !isAdministrativelyClosed(process) &&
     (process.sla.breached || process.sla.hoursRemaining <= 12)
   ), [tenantProcesses]);
-  const pendingSectorItems = useMemo(() => [{ label: "Triagem", value: tenantProcesses.filter((process) => process.triage.status !== "concluido").length, helper: "Entradas aguardando conferência documental" }, { label: "Análise", value: tenantProcesses.filter((process) => process.status === "analise_tecnica").length, helper: "Processos em parecer técnico" }, { label: "Financeiro", value: tenantProcesses.filter((process) => hasPendingGuide(process)).length, helper: "Processos com guia emitida ainda sem compensação" }], [tenantProcesses, tenantSettings]);
+  const pendingSectorItems = useMemo(() => [{ label: "Triagem", value: tenantProcesses.filter((process) => process.triage.status !== "concluido").length, helper: "Entradas aguardando conferência documental" }, { label: "Análise", value: tenantProcesses.filter(isVerifiedTechnicalAnalysis).length, helper: "Processos em parecer técnico" }, { label: "Financeiro", value: tenantProcesses.filter((process) => hasPendingGuide(process)).length, helper: "Processos com guia emitida ainda sem compensação" }], [tenantProcesses, tenantSettings]);
   const recentActivity = useMemo(() => tenantProcesses.flatMap((process) => process.timeline.slice(0, 2).map((entry) => ({ processId: process.id, protocol: process.protocol, title: entry.title, detail: entry.detail, actor: entry.actor, at: entry.at, status: process.status }))).sort((a, b) => {
     const aTime = Date.parse(a.at);
     const bTime = Date.parse(b.at);
@@ -478,8 +481,8 @@ export function TenantAdminPage() {
   }), [tenantProcesses]);
   const recentApprovals = useMemo(() => tenantProcesses.filter((process) => process.status === "deferido").slice(0, 5), [tenantProcesses]);
   const orderedAllProcesses = useMemo(() => [...tenantProcesses].sort((a, b) => {
-    const aClosed = ["deferido", "indeferido", "arquivado"].includes(a.status);
-    const bClosed = ["deferido", "indeferido", "arquivado"].includes(b.status);
+    const aClosed = isAdministrativelyClosed(a);
+    const bClosed = isAdministrativelyClosed(b);
     if (aClosed !== bClosed) return Number(aClosed) - Number(bClosed);
     const aPriority = a.sla.breached ? 2 : a.sla.hoursRemaining <= 12 ? 1 : 0;
     const bPriority = b.sla.breached ? 2 : b.sla.hoursRemaining <= 12 ? 1 : 0;
@@ -487,10 +490,10 @@ export function TenantAdminPage() {
     return a.sla.hoursRemaining - b.sla.hoursRemaining;
   }), [tenantProcesses]);
   const mainQueue = useMemo(() => orderedAllProcesses.filter((process) =>
-    !["deferido", "indeferido", "arquivado"].includes(process.status)
+    !isAdministrativelyClosed(process)
   ), [orderedAllProcesses]);
   const actionRequired = useMemo(() => orderedAllProcesses.filter((process) =>
-    !["deferido", "indeferido", "arquivado"].includes(process.status) &&
+    !isAdministrativelyClosed(process) &&
     (process.requirements.some((item) => item.status === "aberta" || item.status === "respondida") ||
       process.sla.breached || process.sla.hoursRemaining <= 12 || hasPendingGuide(process))
   ), [orderedAllProcesses, tenantSettings]);
@@ -505,7 +508,7 @@ export function TenantAdminPage() {
     const matchesSearch = !term || [process.protocol, process.title, process.ownerName, process.technicalLead, process.address]
       .some((value) => String(value || "").toLocaleLowerCase("pt-BR").includes(term));
     if (!matchesSearch) return false;
-    const completed = ["deferido", "indeferido", "arquivado"].includes(process.status);
+    const completed = isAdministrativelyClosed(process);
     if (overviewProcessStatus === "concluidos") return completed;
     if (overviewProcessStatus === "andamento") return !completed;
     if (overviewProcessStatus === "pendentes") return !completed && (
@@ -1499,6 +1502,13 @@ export function TenantAdminPage() {
                     }
                     tone={criticalAlerts.length > 0 ? "danger" : "success"}
                   />
+                  {inconsistentTriageCount > 0 ? (
+                    <p data-municipal-triage-divergence="true"
+                      className="rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-950">
+                      {inconsistentTriageCount} processo(s) estão indicados como análise sem triagem concluída.
+                      Não são contados como análise regular; corrigir pelo fluxo municipal autorizado.
+                    </p>
+                  ) : null}
                   {actionRequired.length === 0 ? (
                     <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm leading-6 text-slate-600">
                       Nenhuma prioridade crítica adicional encontrada.

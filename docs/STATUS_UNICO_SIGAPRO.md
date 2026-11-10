@@ -1596,3 +1596,10 @@ navegador autenticado.
 - Teste de documento binário `habiteSeSignedPdfBytesQa.test.ts`: gera um **PDF A4 real** a partir do artefato assinado, simula mudança posterior de proprietário, endereço e protocolo e verifica que os valores assinados aparecem no arquivo, sem os alterados. Incluído no QA Preview build gate.
 
 - Refinamento de UX para prova documental: se o registro possui status `emitido` mas o navegador ainda não validou o artefato assinado, a interface mostra **Conferência da assinatura**, não **Emitido pela Diretoria**. A métrica da área no painel do Alvará passa a usar o snapshot da assinatura quando validado; impressão exige refetch autenticado.
+
+
+## 10/11/2026 — consistência dos indicadores da homologação geral (sem editar processos)
+- Auditoria read-only do Neon QA encontrou 8 processos e 11 guias; 1 processo legado com `status=analise_tecnica` porém `triage_status=recebido`, pasta de Triagem e `analysis_started_at=NULL`. O RPC `start_process_analysis` exige `process_technical_release_verified_v1` e área correta; não foi comprovado bypass. Registro original preservado para conferência municipal.
+- Corrigido o Dashboard e a Visão Geral municipal na mesma branch QA: **Concluídos = somente `arquivado`**; `deferido`/`indeferido` são decisões, não arquivamento. **Em análise = status técnico com triagem concluída**. Divergências permanecem visíveis em aviso/indicador próprio, sem reclassificar nem alterar a fonte de dados no banco.
+- Os painéis executivo, analista, prefeitura e filtros municipais compartilham as funções puras de verdade operacional; casos de triagem divergente recebem prioridade de conferência. Regressão nova incluída no gate da Prévia QA.
+- Esta correção é de apresentação e prevenção de falsa conclusão: não constitui certificação de banco real, IA geométrica ou legislação. Nenhum merge em `main`, nenhum SQL de escrita ou publicação no domínio oficial.

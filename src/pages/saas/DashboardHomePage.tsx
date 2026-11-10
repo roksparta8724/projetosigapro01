@@ -33,6 +33,7 @@ import { Button } from "@/components/ui/button";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { PlanCapacityCard } from "@/components/platform/PlanCapacityCard";
 import { displayDashboardCategoryLabel } from "@/lib/dashboardPresentation";
+import {hasPrematureAnalysisStage,isAdministrativelyClosed,isVerifiedTechnicalAnalysis} from "@/lib/processOperationalIntegrity";
 import {isFinancialTestGuide,isPendingFinancialGuide,isBankVerifiedFinancialGuide,summarizeFinancialGuideEvidence} from "@/lib/qaPaymentEvidence";
 import { usePlanCapacityLive } from "@/hooks/usePlanCapacityLive";
 import { useMunicipality } from "@/hooks/useMunicipality";
@@ -71,7 +72,6 @@ const roleLabels: Record<string, string> = {
   proprietario_consulta: "Consulta do proprietario",
 };
 
-const completedStatuses = new Set<ProcessStatus>(["deferido", "indeferido", "arquivado"]);
 const attentionStatuses = new Set<ProcessStatus>(["pendencia_documental", "exigencia", "pagamento_pendente"]);
 const financeStatuses = new Set<ProcessStatus>(["guia_emitida", "pagamento_pendente", "pagamento_confirmado"]);
 const accentPalette = ["#60a5fa", "#34d399", "#fbbf24", "#fb7185", "#818cf8", "#22d3ee", "#f97316"];
@@ -114,15 +114,28 @@ function formatCompactDate(date: Date) {
 
 function buildStatusChart(processes: ProcessRecord[]) {
   const totals = new Map<ProcessStatus, number>();
-  processes.forEach((process) => totals.set(process.status, (totals.get(process.status) ?? 0) + 1));
-
-  return (Object.keys(statusLabels) as ProcessStatus[])
+  let divergentTriage = 0;
+  processes.forEach((process) => {
+    if (hasPrematureAnalysisStage(process)) {
+      divergentTriage += 1;
+      return;
+    }
+    totals.set(process.status, (totals.get(process.status) ?? 0) + 1);
+  });
+  const chart = (Object.keys(statusLabels) as ProcessStatus[])
     .map((status) => ({
       status,
       label: statusLabels[status],
       total: totals.get(status) ?? 0,
     }))
     .filter((item) => item.total > 0);
+  // Preserve the anomalous record, but keep it outside confirmed analysis.
+  if (divergentTriage > 0) chart.push({
+    status: "analise_tecnica",
+    label: "Conferir triagem",
+    total: divergentTriage,
+  });
+  return chart;
 }
 
 function buildGroupChart(values: string[], limit = 6) {
@@ -202,6 +215,7 @@ function pickRecent(processes: ProcessRecord[], count = 6) {
 function buildPriorityScore(process: ProcessRecord) {
   let score = 0;
   if (process.sla.breached) score += 5;
+  if (hasPrematureAnalysisStage(process)) score += 6;
   if (process.processControl?.onHold) score += 4;
   if (attentionStatuses.has(process.status)) score += 3;
   if (getOpenRequirements(process) > 0) score += 2;
@@ -213,6 +227,7 @@ function buildPriorityScore(process: ProcessRecord) {
 function buildPriorityReason(process: ProcessRecord) {
   if (process.sla.breached) return "SLA vencido";
   if (process.processControl?.onHold) return "Fluxo sobrestado";
+  if (hasPrematureAnalysisStage(process)) return "Inconsistência: análise sem triagem concluída";
   if (process.status === "pagamento_pendente") return "Pagamento aguardando compensacao";
   if (process.status === "pendencia_documental") return "Documentacao pendente";
   if (process.status === "exigencia") return "Exigencia em aberto";
@@ -498,8 +513,9 @@ export function DashboardHomePage() {
   const institutionName =
     municipality?.name || institutions.find((institution) => institution.id === activeInstitutionId)?.name || "SIGAPRO";
 
-  const completedCount = displayProcesses.filter((process) => completedStatuses.has(process.status)).length;
+  const completedCount = displayProcesses.filter(isAdministrativelyClosed).length;
   const inProgressCount = displayProcesses.length - completedCount;
+  const inconsistentTriageCount = displayProcesses.filter(hasPrematureAnalysisStage).length;
   const breachedCount = displayProcesses.filter((process) => process.sla.breached).length;
   const processGuides = (process: ProcessRecord) =>
     getProcessPaymentGuides(
@@ -557,7 +573,7 @@ export function DashboardHomePage() {
   };
 
   const analystMetrics = useMemo(() => {
-    const inReview = tenantProcesses.filter((process) => process.status === "analise_tecnica").length;
+    const inReview = tenantProcesses.filter(isVerifiedTechnicalAnalysis).length;
     const pendingDocs = tenantProcesses.filter((process) => process.status === "pendencia_documental").length;
     const requirements = tenantProcesses.filter((process) => process.status === "exigencia").length;
     return { inReview, pendingDocs, requirements };
@@ -781,7 +797,7 @@ export function DashboardHomePage() {
             ]
           : [
               { title: "Protocolos ativos", value: `${inProgressCount}`, helper: "Processos em acompanhamento na prefeitura.", icon: FileText, tone: "blue" as const },
-              { title: "Em analise", value: `${displayProcesses.filter((process) => process.status === "analise_tecnica").length}`, helper: "Processos aguardando parecer tecnico.", icon: Timer, tone: "amber" as const },
+              { title: "Em analise", value: `${displayProcesses.filter(isVerifiedTechnicalAnalysis).length}`, helper: "Processos aguardando parecer tecnico.", icon: Timer, tone: "amber" as const },
               { title: "Exigencias", value: `${displayProcesses.filter((process) => process.status === "exigencia").length}`, helper: "Pendencias em aberto.", icon: AlertTriangle, tone: "rose" as const },
               { title: "Concluidos", value: `${completedCount}`, helper: "Processos finalizados ou encerrados.", icon: CheckCircle2, tone: "emerald" as const },
             ];
@@ -934,7 +950,7 @@ export function DashboardHomePage() {
                         <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{buildPriorityReason(process)}</p>
                       </div>
                       <span className="rounded-full bg-slate-900 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-white dark:bg-sky-400/12 dark:text-sky-200">
-                        {statusLabels[process.status] ?? process.status}
+                        {hasPrematureAnalysisStage(process) ? "Conferir triagem" : statusLabels[process.status] ?? process.status}
                       </span>
                     </div>
                   </div>
@@ -1181,6 +1197,14 @@ export function DashboardHomePage() {
           summaryFirst
           staticSelection
         />
+        {!isExternal && inconsistentTriageCount > 0 ? (
+          <p data-dashboard-triage-divergence="true"
+            className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-950 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-100">
+            {inconsistentTriageCount} registro(s) estão marcados como análise técnica sem triagem concluída.
+            Permanecem rastreáveis no histórico, mas não entram na contagem de análises regulares.
+            A regularização exige tramitação por perfil autorizado.
+          </p>
+        ) : null}
 
         {/* Keep the page shell, tabs and plan card mounted while switching modules.
             The corresponding module gate continues to enforce the contract. */}
