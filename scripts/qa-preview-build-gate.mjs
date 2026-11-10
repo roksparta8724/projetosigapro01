@@ -34,6 +34,7 @@ const TESTS=[
   "src/test/workflowUnknownStageQa.test.ts",
   "src/test/qaFullJourneyIntegrated.test.ts",
   "src/test/habiteSeCompletionRealRpcRegression.test.ts",
+  "src/test/closedProcessLifecycleQa.test.ts",
   "src/test/habiteSeCanonicalSignedPdfQa.test.ts",
   "src/test/habiteSeSignedSnapshotQa.test.ts",
   "src/test/habiteSeSignedPdfBytesQa.test.ts",
