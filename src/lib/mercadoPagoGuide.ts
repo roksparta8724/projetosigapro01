@@ -55,12 +55,24 @@ export async function requestQaPixCharge(input: {
   return result;
 }
 
+/** Collected explicitly by the payer; never cache or log these private fields. */
+export type BoletoPayerForm = {
+  email:string;
+  street_name:string;
+  street_number:string;
+  zip_code:string;
+  neighborhood:string;
+  city:string;
+  state:string;
+};
+
 export type MercadoPagoGuideChargeInput = {
   municipalityId?: string | null;
   guideCode: string;
   amount: number;
   dueDate?: string;
   description?: string;
+  payer?: BoletoPayerForm;
 };
 
 function cacheKey(input: MercadoPagoGuideChargeInput) {
