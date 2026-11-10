@@ -39,6 +39,7 @@ import { prepareGuideInstitutionalLogo } from "@/lib/guideAssets";
 import { ensureMercadoPagoGuideCharge, requestQaPixCharge, type QaPixCharge, type MercadoPagoGuideCharge } from "@/lib/mercadoPagoGuide";
 import { normalizeOfficialBanking } from "@/lib/bankCodes";
 import { resolveGuideBankingData } from "@/lib/paymentCollection";
+import { archiveAndOpenGuide, readGuideOriginal, isGuideSettled } from "@/lib/guideOriginal";
 import {isFinancialTestGuide,isPendingFinancialGuide,isReportedCompensatedGuide,summarizeFinancialGuideEvidence} from "@/lib/qaPaymentEvidence";
 
 const paymentStatusOptions = [
@@ -165,7 +166,21 @@ export function ExternalPaymentsPage() {
     setStatusGuideKey(actionKey);
     setGuideActionStatus("");
 
+    // Reserve the real-PDF tab synchronously during the user's click, before
+    // any network request; browsers otherwise block window.open after await.
+    // QA keeps its unmistakably NON-PAYABLE preview in the existing viewer.
+    const officialWindow = isolatedQaMode ? null : window.open("", "_blank");
+    if (officialWindow) officialWindow.opener = null;
     try {
+      if (!isolatedQaMode && !officialWindow)
+        throw new Error("O navegador bloqueou a guia oficial. Permita a nova aba do SIGAPRO.");
+      const persisted = !isolatedQaMode
+        ? await readGuideOriginal(effectiveScopeId, guide.code)
+        : null;
+      // A guide with paid=true MUST reopen its original. If missing, it
+      // cannot print a new or merely illustrative payable invoice.
+      if (persisted && isGuideSettled(persisted) && !persisted.original_pdf_key)
+        throw new Error("Guia quitada sem arquivo original recuperável. Encaminhe ao Financeiro; é proibido regenerá-la.");
       const banking = resolveGuideBankingData({
         settings: tenantSettings,
         guide,
@@ -222,8 +237,12 @@ export function ExternalPaymentsPage() {
         tenantSettings?.brasaoUrl,
       );
 
-      const issuedAt = guide.issuedAt || new Date().toISOString();
-      const year = new Date(issuedAt).getFullYear() || new Date().getFullYear();
+      const issuedAt = isolatedQaMode
+        ? (guide.issuedAt || new Date().toISOString())
+        : persisted?.created_at;
+      if (!issuedAt || Number.isNaN(new Date(issuedAt).getTime()))
+        throw new Error("A guia oficial não possui data de emissão válida no Neon.");
+      const year = new Date(issuedAt).getFullYear();
 
       const guideDocument: GuiaRecolhimentoOficialProps = {
         prefeitura: {
@@ -259,7 +278,10 @@ export function ExternalPaymentsPage() {
             guide.professionalName || process.technicalLead,
           codigoBarras: barcode,
           linhaDigitavel: digitableLine,
-          pixPayload: isolatedQa ? "" : banking.pixPayload,
+          // Do not silently manufacture a payable PIX from institutional
+          // settings: this guide is archived as a registered boleto only.
+          // PIX Orders need their own verified, persisted provider payload.
+          pixPayload: "",
           qaSandboxPixPayload: isolatedQa && sandboxPix?.ok && sandboxPix.environment==="test"
             ? sandboxPix.qrCode || "" : "",
           bankName: isolatedQa
@@ -308,17 +330,23 @@ export function ExternalPaymentsPage() {
         ],
       };
 
-      const opened = openGuiaRecolhimentoOficialWindow(guideDocument, {
-        title: isolatedQa ? (sandboxIssued ? `BOLETO DE TESTE — NÃO PAGAR · ${guide.code}` : `PRÉVIA NÃO PAGÁVEL · ${guide.code}`) : `Guia ${guide.code}`,
-        autoPrint: false,
-      });
-
-      if (!opened) {
-        throw new Error(
-          "O navegador bloqueou a abertura da guia. Permita a nova guia do SIGAPRO e tente novamente.",
-        );
+      if (isolatedQa) {
+        const opened = openGuiaRecolhimentoOficialWindow(guideDocument, {
+          title: sandboxIssued
+            ? `BOLETO DE TESTE — NÃO PAGAR · ${guide.code}`
+            : `PRÉVIA NÃO PAGÁVEL · ${guide.code}`,
+          autoPrint: false,
+        });
+        if (!opened)
+          throw new Error("O navegador bloqueou a prévia de homologação.");
+      } else {
+        // The only real-world viewing route: canonical Neon guide →
+        // immutable PDF bytes in R2/S3 → signed, municipality-authorized GET.
+        // Never expose a live payable HTML facsimile as the official record.
+        await archiveAndOpenGuide(effectiveScopeId, guideDocument, officialWindow!);
       }
     } catch (error) {
+      if (officialWindow && !officialWindow.closed) officialWindow.close();
       setGuideActionStatus(
         error instanceof Error
           ? error.message
