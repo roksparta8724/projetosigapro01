@@ -5,6 +5,7 @@ import { resolveMercadoPagoMunicipalAccessToken } from "./municipal-payment.js";
 import { assertBankChargeAttestationReady, assertGuideProviderSyncAccess, assertGuideProviderWriteAccess, persistGuideCharge, readStoredGuide, storedGuideCharge } from "./guide-persistence.js";
 import { normalizeOfficialBanking } from "../src/lib/bankCodes.js";
 import { buildProductionBoletoPayer, assertProductionBankIssueAllowed } from "./mercadopago-payer.js";
+import {assertIsolatedQaBankRuntime} from "./qa-hosted-bank-guard.js";
 type MercadoPagoEnvironment = "test" | "production";
 
 export type MercadoPagoConnectionCheck = {
@@ -417,12 +418,8 @@ export async function createMercadoPagoGuideBoleto(
   options?: { isolatedSandboxOnly?: boolean },
 ): Promise<MercadoPagoGuideBoletoResult> {
   if (options?.isolatedSandboxOnly) {
-    if (
-      !req ||
-      process.env.SIGAPRO_LOCAL_QA_LAUNCH !== "true" ||
-      process.env.SIGAPRO_LOCAL_QA_BLOCK_EXTERNAL_WRITES !== "true" ||
-      process.env.VITE_SIGAPRO_NEON_ISOLATED !== "true"
-    ) throw new Error("Boleto de teste disponível apenas no localhost:8081 isolado.");
+    if(!req)throw new Error("Emissão QA exige sessão autenticada.");
+    assertIsolatedQaBankRuntime();
     const sandboxConnection = await resolveMercadoPagoMunicipalAccessToken(req, input.municipalityId);
     if (sandboxConnection.environment !== "test") {
       throw new Error("Conta de produção bloqueada: utilize exclusivamente as credenciais de homologação do Mercado Pago.");
