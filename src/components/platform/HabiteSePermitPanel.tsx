@@ -248,7 +248,10 @@ export function HabiteSePermitPanel({
     () => mergeAutomaticPermitForm(process, null, initialVisual?.form),
   );
   // Permissão operacional continua sendo revalidada no banco.
-  const [canManage, setCanManage] = useState(false);
+  const [canManageFromServer, setCanManage] = useState(false);
+  // O administrador da Prefeitura consulta processos; não assina, altera ou arquiva.
+  const isReadOnlyMunicipalAdmin = ["prefeitura_admin", "admin_prefeitura", "admin_municipality"].includes(session.role);
+  const canManage = canManageFromServer && !isReadOnlyMunicipalAdmin;
   const [signatureState, setSignatureState] = useState<ArtifactSignatureSnapshot>(
     () => initialVisual?.signatureState ?? { block: null, signers: [] },
   );
@@ -330,9 +333,11 @@ export function HabiteSePermitPanel({
   const isDirector = userCanSignPermitAsDirector(session);
   const isSecretary = userCanSignPermitAsSecretary(session);
   const canCloseProcess =
-    canManage ||
-    isDirector ||
-    ["prefeitura_admin", "prefeitura_supervisor", "master_admin", "master_ops"].includes(session.role);
+    !isReadOnlyMunicipalAdmin && (
+      canManage ||
+      isDirector ||
+      ["prefeitura_supervisor", "master_admin", "master_ops"].includes(session.role)
+    );
 
   const refresh = async () => {
     const snapshot = await getHabiteSePermit(process.id);
