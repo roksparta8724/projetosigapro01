@@ -18,6 +18,13 @@ describe("Habite-se: conclusão oficial via RPC transacional",()=>{
   expect(panel).toContain('setLifecycleStatus("arquivado")');
   expect(panel).not.toContain('await onCompleteProcess();\n      setLifecycleStatus("deferido");');
  });
+ it("administrador municipal é somente leitura também na tela do Alvará",()=>{
+  expect(panel).toContain('const isReadOnlyMunicipalAdmin = ["prefeitura_admin", "admin_prefeitura", "admin_municipality"]');
+  expect(panel).toContain("const canManage = canManageFromServer && !isReadOnlyMunicipalAdmin;");
+  expect(panel).toContain("const canCloseProcess =");
+  expect(panel).toContain("!isReadOnlyMunicipalAdmin && (");
+  expect(panel).not.toContain('["prefeitura_admin", "prefeitura_supervisor", "master_admin", "master_ops"]');
+ });
  it("a RPC devolve arquivado para o mesmo processo",async()=>{
   vi.mocked(backendClient.rpc).mockResolvedValueOnce({data:{
     ok:true,process_id:"qa-process-id",status:"arquivado",already_completed:false},error:null});
