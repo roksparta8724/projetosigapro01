@@ -8,6 +8,11 @@ export type StoredGuide = {
   municipality_id: string;
   process_id: string;
   guide_number: string;
+  /** Immutable payer identity, persisted on the guide by Neon. */
+  contribuinte_nome?: string;
+  contribuinte_cpf?: string;
+  owner_name_snapshot?: string;
+  owner_document_snapshot?: string;
   amount: number;
   due_date: string;
   created_at: string;
