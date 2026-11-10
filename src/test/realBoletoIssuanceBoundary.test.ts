@@ -62,6 +62,8 @@ describe("SIGAPRO: boleto real exige titular e cobrança explícita",()=>{
     const detail=source("src/pages/saas/ProcessDetailPage.tsx");
     const body=page.slice(page.indexOf("const openExternalGuide = async"),page.indexOf("  // Enquanto existe guia inicial pendente"));
     expect(page).toContain('data-prod-issue-boleto="true"');
+    expect(page).toContain('data-prod-issue-boleto-official-process="true"');
+    expect(page).toContain('data-official-guide-view="true"');
     expect(page).toContain("const issueRealBoleto = async");
     expect(page).toContain("onConfirm={issueRealBoleto}");
     expect(body).not.toContain("ensureMercadoPagoGuideCharge(");
