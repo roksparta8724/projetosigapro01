@@ -109,9 +109,12 @@ async function putR2ObjectWithFallback(input: {
 }
 
 export function isR2AuthRequired() {
-  // Never allow a stale test override to disable auth in production.
-  if (readEnv("VERCEL_ENV").toLowerCase() === "production") return true;
-  return readEnv("R2_REQUIRE_AUTH").toLowerCase() === "true";
+  // A preview can share cloud credentials with production. NEVER let a
+  // legacy QA flag bypass authentication on a deployed environment.
+  // Local development may explicitly opt out using R2_REQUIRE_AUTH=false.
+  const deployedEnvironment = readEnv("VERCEL_ENV").toLowerCase();
+  if (deployedEnvironment === "production" || deployedEnvironment === "preview") return true;
+  return readEnv("R2_REQUIRE_AUTH").toLowerCase() !== "false";
 }
 
 function readBearer(req: Req) {
