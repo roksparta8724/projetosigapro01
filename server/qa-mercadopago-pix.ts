@@ -162,7 +162,9 @@ export async function qaMercadoPagoPix(
       id?: string; type?: string; qr_code?: string;
     } }> };
   };
-  const externalReference=input.guideCode+"-PIX-QA";
+  // Provider callback and Neon receipt reconciliation require the exact persisted
+  // guide_number. The former -PIX-QA suffix made every signed event unmatched.
+  const externalReference=input.guideCode;
   let order: MercadoPagoQaOrder | null = null;
   if(stored?.orderId){
     // Recover an already-created order, never create a second one.
