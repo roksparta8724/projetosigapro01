@@ -1720,3 +1720,11 @@ navegador autenticado.
 - `src/test/realBoletoIssuanceBoundary.test.ts` e `guideOpeningExperience.test.ts` cobrem CPF inválido, documento divergente, endereço/email incompleto, permissão de produção, guia de prefeitura própria, fluxo de emissão explícita e proibição de cobrança na leitura. Integrados ao gate Vercel QA.
 - O R2 institucional segue com um original histórico de sandbox não localizado: **não modificar o registro do banco nem substituir por arquivo diferente do SHA**. A investigação continua por chaves compatíveis e backups auditáveis.
 - PR #118 continua em rascunho no mesmo repositório e branch QA; **nenhuma promoção/alteração de produção foi realizada**.
+
+
+### 10/11/2026 — validação do novo formulário real de boleto
+- Teste de preview da primeira compilação detectou uma regra de ESLint `no-control-regex` no sanitizador da identificação do pagador; corrigido com verificação explícita de códigos de caracteres, sem relaxar os critérios.
+- Interface de pagamentos usa formulário próprio com dados obrigatórios do pagador; guia oficial só é emitida após comando explícito. `ProcessDetailPage` não faz POST ao banco ao visualizar DAM.
+- O backend usa o nome e CPF/CNPJ registrados no Neon e rejeita documentos com dígitos verificadores inválidos, dados conflitantes, CEP/UF incompletos e sessões não autorizadas.
+- Ativação de produção bancária exige autorização operacional separada `SIGAPRO_PROD_BANK_CHARGES_ENABLED=true`, Vercel PROD, credenciais próprias da Prefeitura de produção e assinatura bancária; **nenhuma dessas condições é presumida por build aprovado**.
+- Esta documentação apenas acompanha o release QA. Sem alteração de produção, nenhuma emissão bancária real foi provocada.
