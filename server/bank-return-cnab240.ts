@@ -82,7 +82,7 @@ export function parseCnab240CollectionReturn(
   options: { expectedBankCode: string; maxEntries?: number },
 ): Cnab240Preview {
   if (typeof input !== "string" || input.length < 480 || input.length > 600_000 ||
-      /[\u0000\u000b\u000c]/.test(input)) {
+      [...input].some(char => [0, 11, 12].includes(char.charCodeAt(0)))) {
     throw new Error("Arquivo CNAB240 ausente, excessivo ou com caracteres inválidos.");
   }
   const lines = input.replace(/^\uFEFF/, "").split(/\r\n|\n|\r/);
