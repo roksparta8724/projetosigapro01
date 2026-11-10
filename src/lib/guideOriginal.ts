@@ -126,6 +126,9 @@ export function assertOfficialGuideDocument(
     props.guia.qaSandboxPixPayload===original.pix_code &&
     isValidPixPayload(original.pix_code)
   );
+  if(original.provider_environment==="test" && !qaPixMatches && pix){
+    throw new Error("PIX de teste exige order, pagamento e QR reais vinculados à guia no Neon.");
+  }
   if(!pix){
     if(!bankMatches)
       throw new Error("DAM sem PIX só pode ser emitida com boleto bancário registrado e conferido no Neon.");
