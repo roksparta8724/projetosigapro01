@@ -109,6 +109,23 @@ export function assertOfficialGuideDocument(
     storedBank.barcode && storedBank.digitableLine &&
     storedBank.barcode===printedBank.barcode &&
     storedBank.digitableLine===printedBank.digitableLine);
+  // An actual Mercado Pago sandbox PIX order can be archived as a visibly
+  // watermarked QA original, never as a production receivable. Its QR,
+  // order, payment ID and amount must already be bound to the canonical
+  // Neon guide by the restricted hosted PIX worker.
+  const qaPixMatches=Boolean(
+    original.provider_environment==="test" &&
+    original.payment_provider==="mercado_pago" &&
+    original.bank_reference && original.bank_payment_id &&
+    original.pix_code &&
+    props.guia.bankEnvironment==="test" &&
+    props.guia.paymentProvider==="mercado_pago" &&
+    props.guia.bankReference===original.bank_reference &&
+    props.guia.bankPaymentId===original.bank_payment_id &&
+    props.guia.pixPayload===original.pix_code &&
+    props.guia.qaSandboxPixPayload===original.pix_code &&
+    isValidPixPayload(original.pix_code)
+  );
   if(!pix){
     if(!bankMatches)
       throw new Error("DAM sem PIX só pode ser emitida com boleto bancário registrado e conferido no Neon.");
@@ -119,7 +136,7 @@ export function assertOfficialGuideDocument(
   const amount=pixPayloadAmountCents(pix);
   if(amount===null){
     // A dynamic PIX without embedded amount requires a bank-registered charge.
-    if(!bankMatches)
+    if(!bankMatches && !qaPixMatches)
       throw new Error("PIX sem valor exige cobrança bancária registrada e vinculada à guia.");
   } else if(amount!==guideCentavos(original.amount))
     throw new Error("Valor do PIX divergente da guia original registrada no Neon.");
