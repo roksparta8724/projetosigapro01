@@ -46,9 +46,32 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+          fetch-depth: 0
+          # Execute the validator from the EXACT immutable Preview SHA.
+          ref: ${{ inputs.release_sha }}
+      - name: Verify checked-out code is the requested commit from QA branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(git rev-parse HEAD)"
+          [[ "$actual" == "$SIGAPRO_QA_RELEASE_SHA" ]] || {
+            echo "::error::QA code does not match the approved release SHA."
+            exit 2
+          }
+          git fetch --no-tags origin "+refs/heads/fix/qa-triagem-analise-pagamento-20261101:refs/remotes/origin/qa-release-acceptance"
+          git merge-base --is-ancestor "$actual" refs/remotes/origin/qa-release-acceptance || {
+            echo "::error::Evidence code is not an ancestor of the QA release branch."
+            exit 2
+          }
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+      - name: Test source-run provenance validator
+        run: node --test scripts/qa-commercial-evidence-provenance.test.mjs
+      - name: Require sanitized evidence source to be this same reviewed QA SHA
+        run: node scripts/qa-commercial-evidence-provenance.mjs
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
       - name: Download sanitized private evidence artifact from reviewed run
         uses: actions/download-artifact@v4
         with:
