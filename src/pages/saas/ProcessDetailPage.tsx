@@ -48,7 +48,6 @@ import {
 } from "@/lib/guideAssets";
 import { cacheDocumentWorkspaceAccessUrl } from "@/lib/documentWorkspaceAccess";
 import {
-  ensureMercadoPagoGuideCharge,
   type MercadoPagoGuideCharge,
 } from "@/lib/mercadoPagoGuide";
 import { buildGuidePixPayload, resolveGuideBankingData } from "@/lib/paymentCollection";
@@ -2083,10 +2082,9 @@ export function ProcessDetailPage() {
       municipalityName: municipalityName || tenant?.name,
       municipalityCity: tenantSettings?.pixMerchantCity || tenant?.city,
     });
-    const providerCharge = banking.barcode && banking.digitableLine ? null : await ensureMercadoPagoGuideCharge({
-      municipalityId: effectiveScopeId, guideCode: selectedGuide.code, amount: selectedGuide.amount,
-      dueDate: selectedGuide.dueDate, description: selectedGuide.label + " · " + process.protocol,
-    });
+    // Opening a guide is READ-ONLY. Issuing a financial order requires the
+    // explicit payer checkout in the external payments portal, never this view.
+    const providerCharge = preparedGuideCharges[selectedGuide.code] || null;
     const digitableLine = providerCharge?.digitableLine || banking.digitableLine;
     const barcode = providerCharge?.barcodeContent || banking.barcode;
 
@@ -2094,8 +2092,9 @@ export function ProcessDetailPage() {
       setProcessActionStatus(
         guidePreparationError
           ? `A guia não foi aberta porque os dados bancários ainda não estão válidos: ${guidePreparationError}`
-          : "A guia ainda está sendo preparada. Aguarde a conclusão dos dados bancários antes de abrir.",
+          : "É necessário emitir e registrar o boleto oficial antes de visualizar a guia. Use a tela Pagamentos.",
       );
+      reservedGuideWindow.close();
       return;
     }
 
