@@ -60,6 +60,10 @@
       "destination": "/api/mercadopago?action=qa-webhook"
     },
     {
+      "source": "/api/qa/mercadopago/guide-boleto",
+      "destination": "/api/mercadopago?action=qa-boleto"
+    },
+    {
       "source": "/api/mercadopago/health",
       "destination": "/api/mercadopago?action=health"
     },
