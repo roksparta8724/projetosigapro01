@@ -1553,3 +1553,8 @@ navegador autenticado.
 
 
 - Refinamento não destrutivo do gatilho: `notifications`, `process_markers`, `profile_process_archives` e `integration_sync_runs` são registros de caixa de notificações, preferências pessoais e log de conector — não alterações ao processo. Os gatilhos continuam instalados para auditoria, mas a função permite essas operações específicas. A edição de documentos, guias, parecer, assinatura, vistoria, alvará e status do processo continua negada ao admin municipal.
+
+## 10/11/2026 — reprodução independente da instalação e bloqueio de dependências
+- Em sandbox Git isolado reproduziu-se a falha de `npm ci` sem a configuração de peers legados: dependências de integração Neon beta não estavam incluídas no lockfile no modo peer padrão; `npm ci --legacy-peer-deps` instalou corretamente 834 pacotes e permitiu testes. É risco de divergência entre CI, preview e máquina do desenvolvedor.
+- Adicionada configuração local `.npmrc` compatível com a versão beta fixada do Neon (`legacy-peer-deps=true`). CI Quality e Neon passam a executar **`npm ci`**, com lockfile imutável; workflow Neon não tem mais permissão de escrita nem sincroniza o lockfile por commit automático depois de testes. Uma futura atualização do SDK pode remover essa configuração mediante validação do novo lockfile.
+- Isto comprova instalação reprodutível sob o contrato declarado, não comprova login de usuário municipal nem evento real de compensação bancária.
