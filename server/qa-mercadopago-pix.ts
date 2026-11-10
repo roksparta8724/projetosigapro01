@@ -1,7 +1,8 @@
 /**
- * Localhost:8081 ONLY: independent Mercado Pago PIX sandbox order for a DAM
- * already issued as a boleto. No production charge, R2 write or paid status.
- * The PIX response is kept only in an isolated per-Neon-branch local file.
+ * SIGAPRO isolated QA ONLY: independent Mercado Pago PIX sandbox order for
+ * a DAM previously issued as a test boleto. No production charges or R2 writes.
+ * Localhost:8081 persists a private local file; hosted QA uses a dedicated
+ * Neon SECURITY DEFINER receipt via the restricted QA bank worker.
  */
 import { createHash } from "node:crypto";
 import {createRequire} from "node:module";
