@@ -6,6 +6,26 @@ import {
   type MunicipalWorkflowTransition,
 } from "@/lib/govtech";
 
+export type MunicipalWorkflowKind="aprovacao"|"habite_se";
+/**
+ * Two independent protocols: an approval does not automatically proceed into
+ * habite-se. Preserve a single registry of stage codes for existing adapters.
+ */
+export function buildMunicipalWorkflowForKind(kind:MunicipalWorkflowKind){
+  const included=new Set<import("@/lib/govtech").MunicipalStageCode>(
+    kind==="habite_se"
+      ?["protocol_initial","initial_fee","initial_settlement","document_screening","occupancy_permit","completed"]
+      :["protocol_initial","initial_fee","initial_settlement","document_screening","technical_analysis",
+         "formal_requirement","resubmission","approval","complementary_fee","completed"],
+  );
+  return {
+    stages:defaultMunicipalWorkflowStages.filter(s=>included.has(s.code))
+      .sort((a,b)=>a.orderIndex-b.orderIndex),
+    transitions:defaultMunicipalWorkflowTransitions.filter(
+      t=>included.has(t.fromStageCode)&&included.has(t.toStageCode)),
+  };
+}
+
 export interface WorkflowRuntimeContext {
   currentStageCode: MunicipalStageCode;
   completedRules: string[];
