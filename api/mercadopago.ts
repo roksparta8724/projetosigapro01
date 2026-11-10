@@ -15,6 +15,7 @@ import {
 } from "../server/municipal-payment.js";
 import { callDataApiRpc } from "../server/municipal-storage.js";
 import handleQaMpWebhook from "../server/mp-qa-webhook.js";
+import {assertIsolatedQaBankRuntime} from "../server/qa-hosted-bank-guard.js";
 import { assertMunicipalCredentialSave, assertMunicipalCredentialActivation } from "../server/municipal-payment-credential-validation.js";
 
 type Req = import("http").IncomingMessage & {
@@ -76,6 +77,24 @@ export default async function handler(req: Req, res: Res) {
   // fail-closed Preview/branch/role/HMAC gate in the isolated handler.
   if (action === "qa-webhook") {
     return handleQaMpWebhook(req, res);
+  }
+
+  if (action === "qa-boleto") {
+    if (req.method!=="POST") return json(res,405,{ok:false,sandboxOnly:true,error:"Método não permitido."});
+    try {
+      assertIsolatedQaBankRuntime();
+      const body=await readJsonBody(req);
+      const result=await createMercadoPagoGuideBoleto({
+        municipalityId:body.municipalityId?String(body.municipalityId):undefined,
+        guideCode:String(body.guideCode||""),
+        amount:Number(body.amount||0),
+        description:"SIGAPRO — boleto de HOMOLOGAÇÃO, NÃO PAGAR",
+      },req,{isolatedSandboxOnly:true});
+      return json(res,result.ok?200:422,{...result,sandboxOnly:true});
+    }catch(error){
+      return json(res,403,{ok:false,sandboxOnly:true,
+        error:error instanceof Error?error.message:"Emissão de boleto QA não autorizada."});
+    }
   }
 
   if (action === "health") {
