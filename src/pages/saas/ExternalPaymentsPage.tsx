@@ -181,6 +181,14 @@ export function ExternalPaymentsPage() {
       // cannot print a new or merely illustrative payable invoice.
       if (persisted && isGuideSettled(persisted) && !persisted.original_pdf_key)
         throw new Error("Guia quitada sem arquivo original recuperável. Encaminhe ao Financeiro; é proibido regenerá-la.");
+      if (persisted?.original_pdf_key) {
+        // Viewing an issued guide must not call the bank again, not even to
+        // refresh boleto metadata. Reopen only the immutable original.
+        await archiveAndOpenGuide(effectiveScopeId, {
+          guia: { numeroGuia: guide.code },
+        } as GuiaRecolhimentoOficialProps, officialWindow!);
+        return;
+      }
       const banking = resolveGuideBankingData({
         settings: tenantSettings,
         guide,
