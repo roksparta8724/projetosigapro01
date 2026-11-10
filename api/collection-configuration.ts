@@ -58,6 +58,8 @@ export default async function handler(req: Req, res: Res) {
           !["test", "production"].includes(String(config.environment || "")) ||
           typeof config.secret_ciphertext !== "string" || !config.secret_ciphertext)
         throw new Error("Configure a API GOVBR/AR para esta Prefeitura antes de testar a leitura.");
+      if (config.environment === "production" && process.env.VERCEL_ENV !== "production")
+        throw new Error("Consultas GOVBR de produção não podem ser executadas pela homologação isolada do SIGAPRO.");
       const adapter = getMunicipalCollectionAdapter("govbr_ar");
       if (!adapter) throw new Error("Conector de leitura GOVBR/AR indisponível.");
       const read = await adapter.execute("query", {
