@@ -262,7 +262,9 @@ export function HabiteSePermitPanel({
   const [lifecycleStatus, setLifecycleStatus] = useState<ProcessRecord["status"]>(process.status);
   const [reopenDialogOpen, setReopenDialogOpen] = useState(false);
   const [reopenReason, setReopenReason] = useState("");
-  const lifecycleCompleted = ["deferido", "arquivado"].includes(lifecycleStatus);
+  // Emitido/deferido não significa encerramento administrativo. Somente a RPC
+  // complete_habite_se_process_v1 pode registrar a fase terminal arquivado.
+  const lifecycleCompleted = lifecycleStatus === "arquivado";
 
   useEffect(() => {
     setLifecycleStatus(process.status);

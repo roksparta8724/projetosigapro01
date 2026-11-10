@@ -1,6 +1,7 @@
 import {readFileSync} from "node:fs";
 import {describe,expect,it} from "vitest";
 const sql=readFileSync("neon/migrations/20261110_habite_se_signed_document_and_completion.sql","utf8");
+const panel=readFileSync("src/components/platform/HabiteSePermitPanel.tsx","utf8");
 
 describe("SIGAPRO Habite-se: signed document is immutable evidence",()=>{
  it("an issued permit displays the EXACT director-signed form, never current defaults",()=>{
@@ -27,4 +28,11 @@ describe("SIGAPRO Habite-se: signed document is immutable evidence",()=>{
   expect(sql).toContain("COMMIT;");
   expect(sql).not.toMatch(/DROP TABLE|DELETE FROM public|TRUNCATE/);
  });
+  it("never labels the legacy deferred/issued process as administratively completed",()=>{
+    expect(panel).toContain('const lifecycleCompleted = lifecycleStatus === "arquivado"');
+    expect(panel).not.toContain('["deferido", "arquivado"].includes(lifecycleStatus)');
+    expect(panel).toContain("Processo concluído com êxito");
+    expect(panel).toContain('setLifecycleStatus("arquivado")');
+    expect(sql).toContain("status='arquivado'::public.process_status");
+  });
 });

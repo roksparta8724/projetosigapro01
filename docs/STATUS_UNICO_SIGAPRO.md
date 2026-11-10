@@ -1581,3 +1581,9 @@ navegador autenticado.
 ### QA 04: retirar todos os bypasses de admin municipal, inclusive fixtures
 - A suíte completa detectou duas exceções remanescentes `allowMunicipalAdmin:true` na importação de documentos sintéticos e na revisão V2 do Processo 04. Mesmo na homologação, uma prefeitura_admin não deve conseguir gravar dados operacionais.
 - Removidas ambas as exceções e o parâmetro permissivo do executor genérico, restringindo o kit QA à operação `master_admin/master_ops` no processo e ambiente exatos. Isso preserva a funcionalidade do laboratório e os triggers de bloqueio do admin municipal. Testes QA e de despacho atualizados para verificar que não existe bypass.
+
+### QA 10/11/2026 — Verdade operacional do status final no Habite-se
+- Corrigido bug de falsa conclusão: `HabiteSePermitPanel` exibia **Processo concluído com êxito** quando o processo estava somente `deferido` (status legado com Alvará emitido). Agora só `arquivado` representa encerramento administrativo efetivo, confirmado pela RPC atômica, assinatura verificável e auditoria. Regressão adicionada à suíte canônica do Habite-se.
+- Ensaio no banco QA com identidade ativa de Analista municipal: a RPC completou o processo real de homologação de Habite-se, alterando status para `arquivado`, inserindo movimentação e auditoria. **Rollback intencional** após assertivas: processo original permanece inalterado.
+- Ensaio de acesso negativo no banco QA: Admin da Prefeitura e Profissional externo foram recusados na conclusão; Analista de outro tenant foi recusado ao ler e ao concluir Habite-se de Campo Limpo Paulista.
+- Consulta de documento no banco QA: `get_habite_se_permit_v1` devolve o texto exatamente da versão assinada pela Diretoria, incluindo as observações, sem reconstruir o conteúdo emitido com parâmetros atuais.
