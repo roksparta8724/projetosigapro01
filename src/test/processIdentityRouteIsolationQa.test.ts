@@ -23,7 +23,7 @@ const second = {
 describe("SIGAPRO QA — rota de protocolo com colisão real entre prefeituras",()=>{
   it("a nova URL resolve o processo por ID imutável, independente da ordenação do Master",()=>{
     const route=buildProcessPath(second,"analise");
-    expect(route).toMatch(/^\\/processos\\/PM-2026-00001--[a-z0-9]{25}\\?aba=analise$/);
+    expect(route).toMatch(/^[/]processos[/]PM-2026-00001--[a-z0-9]{25}[?]aba=analise$/);
     expect(route).not.toContain(second.id);
     expect(route).toContain("?aba=analise");
     const key=route.split("/processos/")[1].split("?")[0];
