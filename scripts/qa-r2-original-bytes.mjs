@@ -9,7 +9,7 @@
  */
 import {createHash} from "node:crypto";
 import pg from "pg";
-import {GetObjectCommand,S3Client} from "@aws-sdk/client-s3";
+import {GetObjectCommand,HeadBucketCommand,ListObjectsV2Command,S3Client} from "@aws-sdk/client-s3";
 import {fileURLToPath} from "node:url";
 import {resolve} from "node:path";
 
@@ -69,6 +69,32 @@ export function classifyR2ReadFailure(error) {
   return "NOT_VERIFIED_STORAGE_UNAVAILABLE";
 }
 
+/** Pinpoint the storage layer without printing a bucket, key or tenant ID. */
+export async function diagnoseR2MissingObject(client,bucket,objectKey) {
+  if(!/^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/.test(bucket) ||
+     !/^municipalities\/[a-f0-9-]{36}\/processes\/[a-f0-9-]{36}\/dam-originals\/[a-f0-9-]{36}\/[a-f0-9]{64}\.pdf$/.test(objectKey))
+    return "NOT_VERIFIED_STORAGE_MISSING";
+  try {
+    await client.send(new HeadBucketCommand({Bucket:bucket}));
+  } catch(error) {
+    const status=error?.$metadata?.httpStatusCode;
+    if(status===404||error?.name==="NoSuchBucket")
+      return "NOT_VERIFIED_BUCKET_MISSING";
+    if(status===403||error?.name==="AccessDenied")
+      return "NOT_VERIFIED_BUCKET_ACCESS_DENIED";
+    return "NOT_VERIFIED_STORAGE_MISSING";
+  }
+  try {
+    const prefix=objectKey.slice(0,objectKey.lastIndexOf("/")+1);
+    const listed=await client.send(new ListObjectsV2Command({
+      Bucket:bucket,Prefix:prefix,MaxKeys:1,
+    }));
+    return Array.isArray(listed.Contents)&&listed.Contents.length
+      ? "NOT_VERIFIED_ORIGINAL_KEY_MISMATCH"
+      : "NOT_VERIFIED_ORIGINAL_OBJECT_MISSING";
+  } catch { return "NOT_VERIFIED_STORAGE_MISSING"; }
+}
+
 export async function inspectExistingQaDam(env=process.env) {
   if(env.VERCEL_ENV!=="preview" ||
      env.VERCEL_GIT_COMMIT_REF!=="fix/qa-triagem-analise-pagamento-20261101")
@@ -117,7 +143,12 @@ export async function inspectExistingQaDam(env=process.env) {
     }),{abortSignal:controller.signal});
     const verified=await verifyPdfStream(response.Body,row.original_pdf_sha256);
     return verified?"PASS":"INTEGRITY_MISMATCH";
-  }catch(error){return classifyR2ReadFailure(error);}
+  }catch(error){
+    const code=classifyR2ReadFailure(error);
+    if(code==="NOT_VERIFIED_STORAGE_MISSING")
+      return diagnoseR2MissingObject(storage,bucket,row.original_pdf_key);
+    return code;
+  }
   finally{clearTimeout(deadline);storage.destroy()}
 }
 
