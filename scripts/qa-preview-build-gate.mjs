@@ -68,6 +68,7 @@ if(process.env.VERCEL_ENV==="preview"&&process.env.VERCEL_GIT_COMMIT_REF===BRANC
   // Only local static checks; none of these routines call a real provider.
   run("typecheck",["node_modules/typescript/bin/tsc","-p","tsconfig.app.json","--noEmit"]);
   run("eslint",["node_modules/eslint/bin/eslint.js","."]);
+  run("commercial-evidence-provenance-tests",["--test","scripts/qa-commercial-acceptance.test.mjs","scripts/qa-commercial-evidence-provenance.test.mjs"]);
   run("focused-tests",["node_modules/vitest/vitest.mjs","run",
       "--maxWorkers=2",...TESTS]);
   console.log("[SIGAPRO_QA_BUILD_GATE] PASS focused preview gate; "+
