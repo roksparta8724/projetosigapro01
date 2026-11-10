@@ -273,6 +273,9 @@ export default async function handler(req: Req, res: Res) {
           amount: Number(body.amount || 0),
           dueDate: body.dueDate ? String(body.dueDate) : undefined,
           description: body.description ? String(body.description) : undefined,
+          // Treated as untrusted until the backend binds CPF/CNPJ and name
+          // to the canonical Neon guide, then validates email + address.
+          payer: body.payer,
         },
         req,
       );
