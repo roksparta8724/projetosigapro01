@@ -3,8 +3,9 @@
  *
  * Temporary in-build validation while GitHub Actions cannot schedule runners.
  * This runs only on the protected Vercel QA branch; other previews and
- * production keep their existing build behavior. It never opens a database,
- * uses credentials, changes payment records or sends documents anywhere.
+ * production keep their existing build behavior. The R2 inspection performs
+ * a read-only QA SQL SELECT and a read-only S3 GET, hashing bytes in memory;
+ * it never writes, logs document contents, or submits data to an AI provider.
  */
 import { spawnSync } from "node:child_process";
 const BRANCH="fix/qa-triagem-analise-pagamento-20261101";
@@ -68,9 +69,12 @@ if(process.env.VERCEL_ENV==="preview"&&process.env.VERCEL_GIT_COMMIT_REF===BRANC
   // Only local static checks; none of these routines call a real provider.
   run("typecheck",["node_modules/typescript/bin/tsc","-p","tsconfig.app.json","--noEmit"]);
   run("eslint",["node_modules/eslint/bin/eslint.js","."]);
-  run("commercial-evidence-provenance-tests",["--test","scripts/qa-commercial-acceptance.test.mjs","scripts/qa-commercial-evidence-provenance.test.mjs"]);
+  run("proof-control-tests",["--test","scripts/qa-commercial-acceptance.test.mjs","scripts/qa-commercial-evidence-provenance.test.mjs","scripts/qa-r2-original-bytes.test.mjs"]);
   run("focused-tests",["node_modules/vitest/vitest.mjs","run",
       "--maxWorkers=2",...TESTS]);
+  // Best-effort inspection; missing private credentials do not count as acceptance.
+  // A concrete mismatch between stored PDF bytes and its immutable SHA fails closed.
+  run("read-only-r2-original-byte-integrity",["scripts/qa-r2-original-bytes.mjs"]);
   console.log("[SIGAPRO_QA_BUILD_GATE] PASS focused preview gate; "+
     "commercial E2E/official regulation/bank confirmation remain separately required.");
 }
