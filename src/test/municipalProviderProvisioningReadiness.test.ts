@@ -3,8 +3,11 @@ import {readFileSync} from "node:fs";
 import {describeMunicipalCollectionAdapter} from "../../server/municipal-collection-adapters";
 const read=(path:string)=>readFileSync(path,"utf8");
 describe("SIGAPRO - bank connector provisioning must be genuine and municipality isolated",()=>{
- it("does not confuse a catalogue entry with an installed, bank-verified connector",()=>{
-  for(const code of ["govbr_ar","santander_033","itau_341","banco_brasil_001"]){
+ it("keeps GOVBR read-only installed while other banks remain unimplemented",()=>{
+  const govbr=describeMunicipalCollectionAdapter("govbr_ar");
+  expect(govbr).toMatchObject({supplierCode:"govbr_ar",connectorInstalled:true,credentialVerified:false,
+    bankSettlementEnabled:false,mode:"connector_installed_pending_credential_validation",operations:["query"]});
+  for(const code of ["santander_033","itau_341","banco_brasil_001"]){
    const v=describeMunicipalCollectionAdapter(code);
    expect(v).toMatchObject({supplierCode:code,connectorInstalled:false,credentialVerified:false,
     bankSettlementEnabled:false,mode:"controlled_import_only",operations:[]});
