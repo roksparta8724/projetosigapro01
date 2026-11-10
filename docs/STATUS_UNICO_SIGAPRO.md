@@ -1768,3 +1768,14 @@ navegador autenticado.
 - **Gate Vercel:** a prévia desta revisão deve ser acionada com o marcador `[deploy-qa]` no commit conforme o Ignored Build Step do projeto; a tentativa sem marcador é cancelada intencionalmente. O código já foi validado em Quality Gate na branch QA, sem alterar produção.
 
 - Consolidação final da interface: `MunicipalBankDetailsSettings.tsx` contém o único leitor bancário; o cartão duplicado foi removido de `MunicipalCollectionSettings.tsx`. Teste de isolamento e fluxo foi atualizado para exigir essa disposição. Versão liberada somente em Preview com marcadores explícitos e gates aprovados; não habilitar produção financeira automaticamente.
+
+
+## 10/11/2026 — GOVBR/AR preparado para integração GET sem API pública documentada
+
+- **Identificação correta:** GOVBR — GovernançaBrasil Administração de Receitas (AR), solução municipal terceirizada, NÃO confundir com GOV.BR federal ou GOB Soluções. Não há endpoints bancários oficiais confirmados para supor rotas.
+- **Implementação QA:** `server/govbr-ar-readonly.ts` — conector de diagnóstico estritamente GET; URL informada pela prefeitura, domínio limitado a `govbr.com.br` ou `govbr.cloud`, HTTPS e porta 443, caminho GET declarado, autenticação Bearer ou X-Api-Key, sem redirecionamento, timeout de 8s e corpo JSON no máximo 64KiB. O conteúdo bruto não é retornado, logado nem gravado; somente metadados de formato/campos/contagens.
+- **Isolamento:** `api/collection-configuration.ts` ação `govbr_read_preview` usa exclusivamente a configuração mais recente com `municipality_id` e `supplier_code=govbr_ar` autorizada via RPC `get_municipal_collection_secret_admin_v1`. Chave cifrada no Neon, descriptografada somente no backend; URL/credencial do navegador não são aceitas no teste.
+- **Configuração:** `MunicipalCollectionSettings.tsx` permite salvar URL, cabeçalho de autenticação, rota GET e segredo por prefeitura, em modalidade `municipal_system / automatic` de homologação ainda INATIVA, com botão explícito de teste de GET. O banco já bloqueia ativação de todos os fornecedores municipais automáticos; o conector só declara `operations=[query]`, sem emissão, PDF ou baixa.
+- **Contrato GOVBR pendente:** somente com URL real, documentação de GET/autenticação e credenciais de homologação da prefeitura será possível fazer o teste remoto. SOAP/mTLS/OAuth, emissão de DAM, PIX/boleto, geração de PDF e baixa exigem documentos e adaptadores específicos da GOVBR. A simples inserção de uma chave não faz esses fluxos funcionarem.
+- **Testes:** novos `server/govbr-ar-readonly.test.ts` e `src/test/govbrArApiIsolationQa.test.ts` cobrem hosts perigosos, segredo em header, JSON sem dados pessoais, proibição de redirecionar, falta de autenticação, limitações, inatividade financeira e isolamento.
+- Manual de solicitação/ativação: `docs/GOVBR_AR_API_PREPARACAO_QA.md`. Nenhuma chave de API real foi adicionada e nenhuma guia, arrecadação ou dado da produção foi alterado.
