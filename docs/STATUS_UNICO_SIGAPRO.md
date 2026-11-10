@@ -1739,3 +1739,9 @@ navegador autenticado.
 - Migration `neon/migrations/20261110_qa_hosted_pix_orders_durable_v1.sql` aplicada SOMENTE no Neon QA. Verificados: worker possui EXECUTE, anônimo não, e worker não possui SELECT direto na tabela. A produção não foi alterada.
 - `src/test/qaHostedBankPaymentRoutes.test.ts` verifica vínculo de branch/Neon, roteamento real Vercel, persistência da order, proibição de acesso amplo e separação entre cobrança real e sandbox. Incluído no gate Preview.
 - **Não há confirmação de transação bancária real nem de restituição do objeto histórico ausente** apenas com testes automatizados: para isso ainda são necessárias evidências externas; não alegar aceite comercial sem elas.
+
+
+## 10/11/2026 — revisão de regressão da emissão explícita
+- O candidato QA prévio publicou READY e o mesmo endereço fixo apontou para o commit correto; consulta GET em ambas as rotas recém-publicadas de sandbox `/api/qa/mercadopago/guide-pix` e `/api/qa/mercadopago/guide-boleto` retornou HTTP **405** JSON padronizado (antes eram rotas inexistentes na Vercel). A primeira versão teve 4 arquivos de testes legados reprovados (9 casos) porque exigiam emissão financeira automática durante a visualização e mensagem antiga de localhost.
+- Testes `server/qa-mercadopago-pix.test.ts`, `src/test/qaBoletoEndToEnd.test.ts`, `src/test/issuedIssGuideFollowUp.test.ts`, `src/test/municipalBankingFlow.test.ts` foram alinhados à nova regra: operação de boleto real **somente mediante confirmação explícita do pagador**; visualização não cria ordem; QA hospedado em branch e banco isolados, além de localhost isolado.
+- A validação subsequente executa pipeline completo e publicação de Preview; produção segue intocada.
