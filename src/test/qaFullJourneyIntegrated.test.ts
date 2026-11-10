@@ -51,7 +51,7 @@ describe("SIGAPRO — ensaio integrado de fluxo sem quebrar numeração e respon
    ["technical_analysis","formal_requirement","analista",["checklist_started"]],
    ["formal_requirement","resubmission","profissional_externo",["requirement_answered"]],
    ["resubmission","technical_analysis","atendimento_balcao",["replacement_documents_valid"]],
-   ["technical_analysis","approval","analista",["checklist_completed","no_open_requirements","legal_review_verified"]],
+   ["technical_analysis","approval","analista",["approval_protocol","checklist_completed","no_open_requirements","legal_review_verified"]],
    ["approval","complementary_fee","financeiro",["approval_granted"]],
    ["complementary_fee","completed","diretor",["final_guide_compensated","construction_permit_signed"]],
   ];
@@ -65,13 +65,19 @@ describe("SIGAPRO — ensaio integrado de fluxo sem quebrar numeração e respon
  it("habite-se tem novo protocolo, sua própria guia, vistoria e assinatura",()=>{
   const flow=buildMunicipalWorkflowForKind("habite_se");
   expect(flow.stages.map(x=>x.code)).toEqual([
-   "protocol_initial","initial_fee","initial_settlement","document_screening","occupancy_permit","completed",
+   "protocol_initial","initial_fee","initial_settlement","document_screening","technical_analysis",
+   "formal_requirement","resubmission","habite_se_inspection","habite_se_fee","occupancy_permit","completed",
   ]);
   act("protocol_initial","initial_fee","profissional_externo",["protocol_data_completed","required_documents_present"]);
   act("initial_fee","initial_settlement","financeiro",["guide_issued","original_pdf_archived"]);
   act("initial_settlement","document_screening","financeiro",["guide_compensated","protocol_officialized"]);
-  act("document_screening","occupancy_permit","prefeitura_supervisor",
+  act("document_screening","technical_analysis","prefeitura_supervisor",
    ["habite_se_protocol","triage_completed","required_documents_present"]);
+  act("technical_analysis","habite_se_inspection","analista",
+   ["habite_se_protocol","checklist_completed","no_open_requirements"]);
+  act("habite_se_inspection","habite_se_fee","analista",["inspection_completed"]);
+  act("habite_se_fee","occupancy_permit","financeiro",
+   ["habite_se_guide_issued","habite_se_guide_shared","habite_se_guide_compensated"]);
   act("occupancy_permit","completed","diretor",
    ["inspection_completed","habite_se_guide_compensated","occupancy_permit_signed"]);
   expect(flow.transitions.find(x=>x.fromStageCode==="complementary_fee")).toBeUndefined();
@@ -90,6 +96,10 @@ describe("SIGAPRO — ensaio integrado de fluxo sem quebrar numeração e respon
    .not.toContain("approval");
   expect(resolveAllowedTransitions({currentStageCode:"complementary_fee",role:"financeiro",
    completedRules:["final_guide_compensated"]})).toHaveLength(0);
+  expect(resolveAllowedTransitions({currentStageCode:"habite_se_inspection",role:"analista",
+   completedRules:[]})).toHaveLength(0);
+  expect(resolveAllowedTransitions({currentStageCode:"habite_se_fee",role:"financeiro",
+   completedRules:["habite_se_guide_issued"]})).toHaveLength(0);
   expect(resolveAllowedTransitions({currentStageCode:"occupancy_permit",role:"diretor",
    completedRules:["inspection_completed","habite_se_guide_compensated"]})).toHaveLength(0);
  });

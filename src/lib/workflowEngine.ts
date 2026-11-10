@@ -14,7 +14,8 @@ export type MunicipalWorkflowKind="aprovacao"|"habite_se";
 export function buildMunicipalWorkflowForKind(kind:MunicipalWorkflowKind){
   const included=new Set<import("@/lib/govtech").MunicipalStageCode>(
     kind==="habite_se"
-      ?["protocol_initial","initial_fee","initial_settlement","document_screening","occupancy_permit","completed"]
+      ?["protocol_initial","initial_fee","initial_settlement","document_screening","technical_analysis",
+        "formal_requirement","resubmission","habite_se_inspection","habite_se_fee","occupancy_permit","completed"]
       :["protocol_initial","initial_fee","initial_settlement","document_screening","technical_analysis",
          "formal_requirement","resubmission","approval","complementary_fee","completed"],
   );

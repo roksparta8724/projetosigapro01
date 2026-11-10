@@ -8,6 +8,8 @@ export type MunicipalStageCode =
   | "resubmission"
   | "approval"
   | "complementary_fee"
+  | "habite_se_inspection"
+  | "habite_se_fee"
   | "occupancy_permit"
   | "completed";
 
@@ -219,16 +221,28 @@ export const defaultMunicipalWorkflowStages: MunicipalWorkflowStage[] = [
     queueCode:"financial",stageType:"financial",orderIndex:9,requiresPayment:true,
   },
   {
+    id:"stage-habite-inspection",code:"habite_se_inspection",
+    label:"Habite-se — vistoria e evidências",
+    description:"Após análise documental: vistoria, checklist e fotos, com registro de conformidade ou pendências.",
+    queueCode:"occupancy",stageType:"technical",orderIndex:10,requiresChecklist:true,allowsRequirement:true,
+  },
+  {
+    id:"stage-habite-finance",code:"habite_se_fee",
+    label:"Habite-se — guia e baixa",
+    description:"Financeiro emite e envia a guia ao profissional; somente a compensação libera o alvará.",
+    queueCode:"financial",stageType:"financial",orderIndex:11,requiresPayment:true,
+  },
+  {
     id:"stage-occupancy-permit",code:"occupancy_permit",
-    label:"Habite-se — protocolo independente",
-    description:"Fluxo de habite-se próprio: vistoria, relatório, guia e assinatura do diretor.",
-    queueCode:"occupancy",stageType:"approval",orderIndex:10,
+    label:"Habite-se — alvará e assinatura",
+    description:"Elaboração do documento após pagamento; assinatura da Diretoria e arquivamento.",
+    queueCode:"occupancy",stageType:"approval",orderIndex:12,
   },
   {
     id:"stage-completed",code:"completed",
     label:"Concluído e arquivado",
     description:"Encerramento rastreável do protocolo correspondente com documentos originais preservados.",
-    queueCode:"approval",stageType:"approval",orderIndex:11,terminal:true,
+    queueCode:"approval",stageType:"approval",orderIndex:13,terminal:true,
   },
 ];
 
@@ -263,8 +277,8 @@ export const defaultMunicipalWorkflowTransitions: MunicipalWorkflowTransition[] 
     validationRules:["approval_protocol","triage_completed","required_documents_present"],
   },
   {
-    id:"triage-to-habite-se",fromStageCode:"document_screening",toStageCode:"occupancy_permit",
-    actionLabel:"Liberar habite-se para vistoria",
+    id:"triage-to-habite-analysis",fromStageCode:"document_screening",toStageCode:"technical_analysis",
+    actionLabel:"Liberar habite-se para análise documental",
     allowedRoles:["atendimento_balcao","prefeitura_supervisor"],
     validationRules:["habite_se_protocol","triage_completed","required_documents_present"],
   },
@@ -290,7 +304,25 @@ export const defaultMunicipalWorkflowTransitions: MunicipalWorkflowTransition[] 
     id:"analysis-to-approval",fromStageCode:"technical_analysis",toStageCode:"approval",
     actionLabel:"Concluir análise técnica",
     allowedRoles:["analista","prefeitura_supervisor"],
-    validationRules:["checklist_completed","no_open_requirements","legal_review_verified"],
+    validationRules:["approval_protocol","checklist_completed","no_open_requirements","legal_review_verified"],
+  },
+  {
+    id:"analysis-to-habite-inspection",fromStageCode:"technical_analysis",toStageCode:"habite_se_inspection",
+    actionLabel:"Encaminhar habite-se à vistoria",
+    allowedRoles:["analista","prefeitura_supervisor"],
+    validationRules:["habite_se_protocol","checklist_completed","no_open_requirements"],
+  },
+  {
+    id:"habite-inspection-to-fee",fromStageCode:"habite_se_inspection",toStageCode:"habite_se_fee",
+    actionLabel:"Solicitar guia do habite-se",
+    allowedRoles:["analista","prefeitura_supervisor"],
+    validationRules:["inspection_completed"],
+  },
+  {
+    id:"habite-fee-to-permit",fromStageCode:"habite_se_fee",toStageCode:"occupancy_permit",
+    actionLabel:"Devolver habite-se à análise para alvará",
+    allowedRoles:["financeiro"],
+    validationRules:["habite_se_guide_issued","habite_se_guide_shared","habite_se_guide_compensated"],
   },
   {
     id:"approval-to-fees",fromStageCode:"approval",toStageCode:"complementary_fee",
@@ -307,7 +339,7 @@ export const defaultMunicipalWorkflowTransitions: MunicipalWorkflowTransition[] 
   {
     id:"habite-se-to-completed",fromStageCode:"occupancy_permit",toStageCode:"completed",
     actionLabel:"Arquivar habite-se",
-    allowedRoles:["diretor","fiscal"],
+    allowedRoles:["diretor"],
     validationRules:["inspection_completed","habite_se_guide_compensated","occupancy_permit_signed"],
   },
 ];

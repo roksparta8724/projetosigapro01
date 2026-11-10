@@ -1539,3 +1539,8 @@ navegador autenticado.
 - Transições de referência deixam de dar permissão de movimentação ao admin municipal. Mudanças de autorização efetiva continuam estritamente nas RPCs/RLS do Neon; o modelo React não concede permissões no servidor.
 - Ensaio `src/test/qaFullJourneyIntegrated.test.ts` executa funções reais de fluxo, bloqueios por condição/papel, ambas as trajetórias e parsing real do PDF fictício com 3 pranchas, sem falsificar pagamento ou lei. Isto é ensaio funcional determinístico, **não** uma sessão autenticada E2E de prefeitura.
 - Novo teste integra o gate de build Preview QA; publicar apenas se TypeScript, lint, focused gate, todos os testes e Vercel READY aprovarem no mesmo SHA.
+
+
+### Complemento — sequência oficial específica do Habite-se
+- Conferidos os procedimentos efetivos na migração `neon/migrations/20261018_habite_se_completion_workflow.sql` e nos testes de vistoria: análise documental → **vistoria e evidências** → solicitação e envio da guia de Habite-se → compensação → retorno à análise/Alvará → assinatura da Diretoria → conclusão.
+- O modelo de referência QA agora possui os estágios próprios `habite_se_inspection` e `habite_se_fee`, em vez de saltar diretamente da triagem ao Alvará. O teste percorre cada etapa de ponta a ponta com regras de avanço explícitas; a autorização real permanece nas RPCs do banco.
