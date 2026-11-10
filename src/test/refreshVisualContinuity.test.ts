@@ -157,8 +157,9 @@ describe("F5, logout and topbar visual continuity", () => {
     expect(analystDesk).toContain("const currentAnalyst = resolveAssignedAnalystName(process)");
   });
 
-  it("keeps concluded processes visible and archives only per profile", () => {
-    expect(processDetail).toContain('status: "deferido"');
+  it("archives the official Habite-se through its RPC, independently of each user's list archive", () => {
+    expect(processDetail).toContain("completeHabiteSeProcess(process.id)");
+    expect(habitePermit).toContain('setLifecycleStatus("arquivado")');
     expect(analystDesk).toContain('"concluidos"');
     expect(analystDesk).toContain('"profile_process_archives"');
     expect(analystDesk).toContain("Arquivar da minha lista");
