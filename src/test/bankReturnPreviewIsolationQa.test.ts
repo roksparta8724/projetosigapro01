@@ -32,7 +32,7 @@ describe("SIGAPRO - multi-bank CNAB return can never bypass a municipal bank att
     expect(settings).not.toContain("<BankReturnPreviewPanel");
     expect(ui).toContain("inspectBankFile(text, bankCode)");
     expect(ui).toContain("local?.format !== \"cnab240\"");
-    expect(adapters).toContain("const adapters = new Map<string, MunicipalCollectionAdapter>()");
+    expect(adapters).toContain('const adapters = new Map<string, MunicipalCollectionAdapter>([["govbr_ar", govbrArReadOnlyAdapter]])');
     expect(adapters).not.toMatch(/adapters\.set\("(santander|itau|govbr_ar)/);
   });
 });
