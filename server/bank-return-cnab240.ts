@@ -74,7 +74,7 @@ function reference(value: string): string | null {
  * Strict fixed-width validation, T/U pairing and integer-cent readings.
  * Generic position offsets follow FEBRABAN's cobrança T/U conventions.
  * Banks can customize Segment T. Consequently references and nominal
- * amounts are extracted only for reviewed 041 layout, and even those
+ * amounts are extracted only for documented 041/033 layouts, and even those
  * NEVER create evidence of real settlement.
  */
 export function parseCnab240CollectionReturn(
@@ -137,9 +137,19 @@ export function parseCnab240CollectionReturn(
       const paidCents = readCents(field(line, 78, 92), "valor pago");
       const netCents = readCents(field(line, 93, 107), "valor líquido");
       const classified = pending.movement === "06" ? "possible_liquidation" : "other_event";
-      const nominal = bankCode === "041" ? readCents(field(pending.line, 82, 96), "valor nominal") : null;
-      const ownReference = bankCode === "041" ? reference(field(pending.line, 106, 130)) : null;
-      const bankReference = bankCode === "041" ? reference(field(pending.line, 38, 57)) : null;
+      // Source layouts: FEBRABAN/Banrisul 041 (T 82-96,106-130,38-57)
+      // and Santander 033 H7815 v8.3 (T 78-92,101-125,41-53).
+      // Both are still untrusted files until the municipality's bank contract is verified.
+      const knownTLayout = bankCode === "041" || bankCode === "033";
+      const nominal = knownTLayout
+        ? readCents(bankCode === "033" ? field(pending.line, 78, 92) : field(pending.line, 82, 96), "valor nominal")
+        : null;
+      const ownReference = knownTLayout
+        ? reference(bankCode === "033" ? field(pending.line, 101, 125) : field(pending.line, 106, 130))
+        : null;
+      const bankReference = knownTLayout
+        ? reference(bankCode === "033" ? field(pending.line, 41, 53) : field(pending.line, 38, 57))
+        : null;
       const next: CnabReturnCandidate = {
         bankCode, lot, sequence: pending.seq, movement: pending.movement,
         paidCents, netCents,
