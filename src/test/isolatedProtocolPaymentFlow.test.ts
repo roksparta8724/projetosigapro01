@@ -31,7 +31,8 @@ describe("SIGAPRO isolated pre-protocol to non-payable guide", () => {
     expect(paymentPage).toContain('data-qa-issue-boleto="true"');
     expect(paymentPage).toContain('isolatedSandboxOnly: true');
     expect(paymentPage).toContain('nonPayablePreview: previewOnly');
-    expect(paymentPage).toContain('pixPayload: isolatedQa ? ""');
+    expect(paymentPage).toContain('pixPayload: ""');
+    expect(paymentPage).not.toContain('pixPayload: isolatedQa ? "" : banking.pixPayload');
     expect(paymentPage).toContain('bankEnvironment: isolatedQa ? "test"');
   });
 
