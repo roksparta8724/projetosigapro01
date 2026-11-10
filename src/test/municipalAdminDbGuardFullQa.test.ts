@@ -21,6 +21,10 @@ describe("SIGAPRO — proteção final do Admin municipal nas tabelas de process
   expect(sql).toContain("BEFORE INSERT OR UPDATE OR DELETE");
   expect(sql).toContain("FOR EACH ROW EXECUTE FUNCTION public.prevent_municipal_admin_process_write_v1()");
   expect(sql).toContain("IF NOT EXISTS");
+  expect(sql).toContain("TG_TABLE_NAME IN");
+  for(const personal of ["notifications","process_markers","profile_process_archives","integration_sync_runs"]){
+   expect(sql).toContain("'"+personal+"'");
+  }
  });
  it("preserva a competência do Admin municipal para legislações, não processos",()=>{
   for(const legal of ["urban_legislation_documents","urban_legal_evidence_scopes",

@@ -1550,3 +1550,6 @@ navegador autenticado.
 - A auditoria Neon encontrou proteção de escrita `municipal_admin_process_readonly_v1` em 8 tabelas principais, mas as auxiliares de parecer, alvará, habite-se e assinaturas ainda estavam sem esse gatilho, embora algumas RPCs citassem `prefeitura_admin` como opção. A autorização efetiva exige blindagem no banco, não somente nos botões.
 - Migração aditiva `20261109_complete_prefeitura_admin_process_readonly_qa.sql`: mantém o `SECURITY DEFINER` com `search_path` seguro e amplia o gatilho a 27 tabelas processuais, cobrindo inserção, atualização e exclusão; contempla aliases legados de admin. Legislação municipal, perfis e gestão institucional permanecem fora desse bloqueio.
 - Sem tocar na produção. Conferir aplicação em Neon QA e os 27 gatilhos efetivos antes de alegar proteção operacional final.
+
+
+- Refinamento não destrutivo do gatilho: `notifications`, `process_markers`, `profile_process_archives` e `integration_sync_runs` são registros de caixa de notificações, preferências pessoais e log de conector — não alterações ao processo. Os gatilhos continuam instalados para auditoria, mas a função permite essas operações específicas. A edição de documentos, guias, parecer, assinatura, vistoria, alvará e status do processo continua negada ao admin municipal.

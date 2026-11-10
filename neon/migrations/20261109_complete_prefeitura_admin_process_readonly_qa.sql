@@ -12,6 +12,15 @@ AS $function$
 DECLARE
   _role text := lower(coalesce(public.current_role_code(),''));
 BEGIN
+  -- These are personal UI preferences, notification inbox and connector logs.
+  -- They do not edit the process itself. Admins must still be able to mark
+  -- their own notifications as read and save read-only list preferences.
+  IF TG_TABLE_NAME IN (
+    'notifications','process_markers','profile_process_archives','integration_sync_runs'
+  ) THEN
+    IF TG_OP='DELETE' THEN RETURN OLD; END IF;
+    RETURN NEW;
+  END IF;
   IF _role IN ('prefeitura_admin','admin_prefeitura','admin_municipality') THEN
     RAISE EXCEPTION USING
       ERRCODE='42501',
