@@ -1,4 +1,4 @@
-import { archiveAndOpenGuide, openLegacyGuideOriginal, openStoredGuide, readGuideOriginal } from "@/lib/guideOriginal";
+import { archiveAndOpenGuide, openLegacyGuideOriginal, openStoredGuide, readGuideOriginal, isGuideSettled } from "@/lib/guideOriginal";
 import { completeHabiteSeProcess } from "@/integrations/permits/habiteSePermitClient";
 import { isSyntheticQaProtocolGuideCode, isFinancialTestGuide } from "@/lib/qaPaymentEvidence";
 import { FormEvent, MouseEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -1962,14 +1962,18 @@ export function ProcessDetailPage() {
       return;
     }
     try {
-    if (await openLegacyGuideOriginal(process.documents, selectedGuide.code, reservedGuideWindow)) return;
+    // Never open a legacy process attachment in place of a bank-issued DAM:
+    // the canonical Neon guide and permanent PDF always take precedence.
     const original = await readGuideOriginal(effectiveScopeId, selectedGuide.code);
     if (await openStoredGuide(original, reservedGuideWindow)) return;
-    if (original.status === "compensada") {
-      throw new Error("Guia compensada sem PDF original arquivado. A guia não será recriada nem cobrada novamente.");
+    if (isGuideSettled(original)) {
+      throw new Error("Guia quitada sem PDF original arquivado. Solicite recuperação ao Financeiro; a guia não será recriada.");
     }
     if (original.collection_mode_snapshot === "municipal_system") {
-      throw new Error("Esta guia pertence ao sistema próprio da Prefeitura. Receba ou abra o PDF oficial importado; o SIGAPRO não criará outra cobrança.");
+      // A municipality-owned collection may have one explicitly imported
+      // official PDF, but SIGAPRO cannot create a competing bank charge.
+      if (await openLegacyGuideOriginal(process.documents, selectedGuide.code, reservedGuideWindow)) return;
+      throw new Error("Esta guia pertence ao sistema próprio da Prefeitura. Importe o PDF oficial antes de exibir a cobrança.");
     }
     selectedGuide = { ...selectedGuide, code: original.guide_number, amount: Number(original.amount),
       issuedAt: original.created_at, dueDate: original.due_date,
