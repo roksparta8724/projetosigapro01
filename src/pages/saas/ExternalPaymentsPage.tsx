@@ -150,6 +150,7 @@ export function ExternalPaymentsPage() {
         throw new Error("O Mercado Pago não retornou um QR PIX válido de homologação.");
       }
       setQaPixCharges(prev=>({...prev,[guide.code]:result}));
+      await refreshRemoteStore();
       setGuideActionStatus("PIX de TESTE emitido para esta guia. Visualize a guia para conferir o QR de homologação. NÃO PAGAR.");
     } catch(error) {
       setGuideActionStatus(error instanceof Error ? error.message : "Falha na emissão do PIX de teste.");
@@ -204,17 +205,17 @@ export function ExternalPaymentsPage() {
     setStatusGuideKey(actionKey);
     setGuideActionStatus("");
 
-    // Reserve the real-PDF tab synchronously during the user's click, before
-    // any network request; browsers otherwise block window.open after await.
-    // QA keeps its unmistakably NON-PAYABLE preview in the existing viewer.
-    const officialWindow = isolatedQaMode ? null : window.open("", "_blank");
+    // Reserve the output tab synchronously in both environments. An issued
+    // QA PIX opens its immutable watermarked PDF; an unissued guide retains
+    // the explicit NON-PAYABLE HTML preview using this same reserved tab.
+    const officialWindow = window.open("", "_blank");
     if (officialWindow) officialWindow.opener = null;
     try {
-      if (!isolatedQaMode && !officialWindow)
-        throw new Error("O navegador bloqueou a guia oficial. Permita a nova aba do SIGAPRO.");
-      const persisted = !isolatedQaMode
-        ? await readGuideOriginal(effectiveScopeId, guide.code)
-        : null;
+      if (!officialWindow)
+        throw new Error("O navegador bloqueou a guia. Permita a nova aba do SIGAPRO.");
+      // Both production and sandbox PDF issuance use the same canonical
+      // payment guide (never a client-side amount or an unsaved QR).
+      const persisted = await readGuideOriginal(effectiveScopeId, guide.code);
       // A guide with paid=true MUST reopen its original. If missing, it
       // cannot print a new or merely illustrative payable invoice.
       if (persisted && isGuideSettled(persisted) && !persisted.original_pdf_key)
@@ -236,9 +237,30 @@ export function ExternalPaymentsPage() {
       // QA has two states: an unissued NON-PAYABLE administrative preview or
       // a VERIFIED, provider-issued TEST boleto. Never infer issuance from the
       // saved bank/PIX configuration. Test orders are initiated via explicit CTA.
-      const isolatedQa = import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true";
+      const isolatedQa = isolatedQaMode;
       const tested = qaCharges[guide.code];
       const candidate = normalizeOfficialBanking(tested?.barcodeContent, tested?.digitableLine);
+      // A previously issued QA PIX is read without creating a second order.
+      // It may only become an immutable QA PDF if both the bank ledger and
+      // the canonical Neon guide identify the same order, payment and QR.
+      let sandboxPix: QaPixCharge | undefined = qaPixCharges[guide.code];
+      if (isolatedQa && !sandboxPix?.ok) {
+        try {
+          const result = await requestQaPixCharge({
+            municipalityId:effectiveScopeId,guideCode:guide.code,action:"get",
+          });
+          if (result.ok) sandboxPix=result;
+        } catch { /* A non-payable preview must remain accessible. */ }
+      }
+      const qaPixBound = Boolean(isolatedQa &&
+        persisted.payment_provider === "mercado_pago" &&
+        persisted.provider_environment === "test" &&
+        persisted.bank_reference && persisted.bank_payment_id &&
+        persisted.pix_code && isValidPixPayload(persisted.pix_code) &&
+        sandboxPix?.ok && sandboxPix.environment === "test" &&
+        sandboxPix.qrCode === persisted.pix_code &&
+        sandboxPix.orderId === persisted.bank_reference &&
+        sandboxPix.paymentId === persisted.bank_payment_id);
       const savedSandbox = Boolean(
         isolatedQa && guide.providerEnvironment === "test" &&
         guide.paymentProvider === "mercado_pago" && guide.bankReference &&
@@ -249,36 +271,23 @@ export function ExternalPaymentsPage() {
         candidate.barcode && candidate.digitableLine);
       const sandboxIssued = savedSandbox || newlyIssued;
       const charge = isolatedQa && newlyIssued ? tested : null;
-      const storedBank = persisted
-        ? normalizeOfficialBanking(persisted.barcode,persisted.digitable_line)
-        : {barcode:"",digitableLine:""};
+      const storedBank = normalizeOfficialBanking(persisted.barcode,persisted.digitable_line);
       const barcode = isolatedQa
         ? (sandboxIssued ? (charge?.barcodeContent || banking.barcode) : "")
         : storedBank.barcode;
       const digitableLine = isolatedQa
         ? (sandboxIssued ? (charge?.digitableLine || banking.digitableLine) : "")
         : storedBank.digitableLine;
-      const previewOnly = isolatedQa && !sandboxIssued;
+      const previewOnly = isolatedQa && !sandboxIssued && !qaPixBound;
       if (!isolatedQa && (!barcode || !digitableLine)) {
         throw new Error("Primeiro emita o boleto oficial com os dados reais do pagador. Visualizar guia nunca cria uma cobrança.");
-      }
-
-      // Read the independent PIX sandbox order without creating a charge on document open.
-      let sandboxPix: QaPixCharge | undefined = qaPixCharges[guide.code];
-      if (isolatedQa && !sandboxPix?.ok) {
-        try {
-          const result=await requestQaPixCharge({municipalityId:effectiveScopeId,guideCode:guide.code,action:"get"});
-          if (result.ok) sandboxPix=result;
-        } catch { /* The boleto PDF must stay available when PIX is unavailable. */ }
       }
       const logoUrl = await prepareGuideInstitutionalLogo(
         tenantSettings?.logoUrl,
         tenantSettings?.brasaoUrl,
       );
 
-      const issuedAt = isolatedQaMode
-        ? (guide.issuedAt || new Date().toISOString())
-        : persisted?.created_at;
+      const issuedAt = persisted.created_at;
       if (!issuedAt || Number.isNaN(new Date(issuedAt).getTime()))
         throw new Error("A guia oficial não possui data de emissão válida no Neon.");
       const year = new Date(issuedAt).getFullYear();
@@ -306,11 +315,11 @@ export function ExternalPaymentsPage() {
             "Pré-protocolo",
         },
         guia: {
-          numeroGuia: isolatedQa ? guide.code : (persisted?.guide_number||guide.code),
+          numeroGuia: persisted.guide_number,
           nonPayablePreview: previewOnly,
           exercicio: year,
           dataDocumento: issuedAt,
-          vencimento: isolatedQa ? guide.dueDate : (persisted?.due_date||guide.dueDate),
+          vencimento: persisted.due_date || guide.dueDate,
           observacao: getGuideObservation(guide.kind),
           proprietario: guide.ownerName || process.ownerName,
           profissionalResponsavel:
@@ -320,9 +329,8 @@ export function ExternalPaymentsPage() {
           // Do not silently manufacture a payable PIX from institutional
           // settings: this guide is archived as a registered boleto only.
           // PIX Orders need their own verified, persisted provider payload.
-          pixPayload: "",
-          qaSandboxPixPayload: isolatedQa && sandboxPix?.ok && sandboxPix.environment==="test"
-            ? sandboxPix.qrCode || "" : "",
+          pixPayload: qaPixBound ? persisted.pix_code || "" : "",
+          qaSandboxPixPayload: qaPixBound ? persisted.pix_code || "" : "",
           bankName: isolatedQa
             ? (sandboxIssued ? (charge?.financialInstitution || "Mercado Pago — teste") : "Mercado Pago (conexão de teste)")
             : charge?.financialInstitution || banking.bankName || "Mercado Pago",
@@ -339,19 +347,19 @@ export function ExternalPaymentsPage() {
               ? "BOLETO DE HOMOLOGAÇÃO — dados fornecidos pelo Mercado Pago em ambiente de TESTE. NÃO EFETUAR PAGAMENTO."
               : "HOMOLOGAÇÃO SIGAPRO — DOCUMENTO NÃO PAGÁVEL. Nenhuma cobrança foi registrada no banco.")
             : banking.bankInstructions,
-          bankReference: previewOnly ? undefined : (isolatedQa ? (charge?.orderId || guide.bankReference) : persisted?.bank_reference),
-          bankPaymentId: previewOnly ? undefined : (isolatedQa ? (charge?.paymentId || guide.bankPaymentId) : persisted?.bank_payment_id),
-          bankStatus: previewOnly ? undefined : (isolatedQa ? (charge?.status || guide.bankStatus) : persisted?.bank_status),
-          bankStatusDetail: previewOnly ? undefined : (isolatedQa ? (charge?.statusDetail || guide.bankStatusDetail) : persisted?.bank_status_detail),
-          bankAuthenticatedAt: previewOnly ? undefined : (isolatedQa ? (charge?.authenticatedAt || guide.bankAuthenticatedAt) : persisted?.bank_authenticated_at),
-          bankEnvironment: isolatedQa ? "test" : persisted?.provider_environment,
-          paymentProvider: isolatedQa
+          bankReference: previewOnly ? undefined : (qaPixBound ? persisted.bank_reference : (isolatedQa ? (charge?.orderId || guide.bankReference) : persisted.bank_reference)),
+          bankPaymentId: previewOnly ? undefined : (qaPixBound ? persisted.bank_payment_id : (isolatedQa ? (charge?.paymentId || guide.bankPaymentId) : persisted.bank_payment_id)),
+          bankStatus: previewOnly ? undefined : (qaPixBound ? persisted.bank_status : (isolatedQa ? (charge?.status || guide.bankStatus) : persisted.bank_status)),
+          bankStatusDetail: previewOnly ? undefined : (qaPixBound ? persisted.bank_status_detail : (isolatedQa ? (charge?.statusDetail || guide.bankStatusDetail) : persisted.bank_status_detail)),
+          bankAuthenticatedAt: previewOnly ? undefined : (isolatedQa ? undefined : persisted.bank_authenticated_at),
+          bankEnvironment: isolatedQa ? "test" : persisted.provider_environment,
+          paymentProvider: qaPixBound ? "mercado_pago" : (isolatedQa
             ? (guide.paymentProvider || tenantSettings?.paymentProvider || "mercado_pago")
-            : persisted?.payment_provider || "mercado_pago",
-          valorDocumento: isolatedQa ? guide.amount : Number(persisted!.amount),
+            : persisted.payment_provider || "mercado_pago"),
+          valorDocumento: Number(persisted.amount),
           descontos: 0,
           outrosAcrescimos: 0,
-          valorCobrado: isolatedQa ? guide.amount : Number(persisted!.amount),
+          valorCobrado: Number(persisted.amount),
           referencia: getGuideReference(guide.kind),
         },
         itens: [
@@ -359,22 +367,28 @@ export function ExternalPaymentsPage() {
             ano: year,
             divida: guide.label,
             tabela: tenantSettings?.guiaPrefixo || "DAM",
-            principal: isolatedQa ? guide.amount : Number(persisted!.amount),
+            principal: Number(persisted.amount),
             multa: 0,
             juros: 0,
             correcao: 0,
-            total: isolatedQa ? guide.amount : Number(persisted!.amount),
+            total: Number(persisted.amount),
           },
         ],
       };
 
-      if (isolatedQa) {
+      if (isolatedQa && qaPixBound) {
+        // This is a provider-issued sandbox QR with a matching Neon record,
+        // not a synthetic QR or a production receivable. Freeze the exact
+        // watermarked QA PDF before a signed webhook can finalize the test.
+        await archiveAndOpenGuide(effectiveScopeId,guideDocument,officialWindow);
+        setGuideActionStatus("PDF original de PIX em homologação arquivado e reaberto. Pagamento ainda depende de notificação bancária assinada.");
+      } else if (isolatedQa) {
         const opened = openGuiaRecolhimentoOficialWindow(guideDocument, {
           title: sandboxIssued
             ? `BOLETO DE TESTE — NÃO PAGAR · ${guide.code}`
             : `PRÉVIA NÃO PAGÁVEL · ${guide.code}`,
           autoPrint: false,
-        });
+        },officialWindow);
         if (!opened)
           throw new Error("O navegador bloqueou a prévia de homologação.");
       } else {
