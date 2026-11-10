@@ -83,10 +83,10 @@ describe("isolated Mercado Pago PIX and existing boleto remain independent",()=>
       .rejects.toThrow(/autorização/);
     expect(fetch).not.toHaveBeenCalled();
   });
-  it("does not issue outside localhost isolated QA",async()=>{
+  it("does not issue outside strictly isolated local or hosted QA",async()=>{
     vi.stubEnv("SIGAPRO_LOCAL_QA_LAUNCH","");
     await expect(qaMercadoPagoPix(request,{municipalityId,guideCode,action:"issue"}))
-      .rejects.toThrow(/isolado/);
+      .rejects.toThrow(/isolad/);
     expect(fetch).not.toHaveBeenCalled();
   });
   it("reuses the exact provider idempotency key for an unresolved POST without duplicating the order",async()=>{
