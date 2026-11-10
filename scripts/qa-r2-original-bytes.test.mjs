@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import {Readable} from "node:stream";
 import {createHash} from "node:crypto";
 import {expectedDamKey,qaDatabaseEndpointMatches,verifyPdfStream,
-  inspectExistingQaDam,MAX_BYTES,classifyR2ReadFailure} from "./qa-r2-original-bytes.mjs";
+  inspectExistingQaDam,MAX_BYTES,classifyR2ReadFailure,diagnoseR2MissingObject} from "./qa-r2-original-bytes.mjs";
 const sha=createHash("sha256").update("%PDF-1.7\nExample private synthetic content\n").digest("hex");
 const city="49dac0b6-6352-4744-9aab-9ff91c59d970";
 const processId="1244ccaa-1111-4111-8111-123456abcdef";
@@ -75,4 +75,24 @@ test("storage diagnostics distinguish missing PDF, denied access and unavailable
   assert.equal(classifyR2ReadFailure({name:"AbortError"}),"NOT_VERIFIED_STORAGE_TIMEOUT");
   assert.equal(classifyR2ReadFailure(new Error("SECRET/BUCKET/PRIVATE-PATH")),
     "NOT_VERIFIED_STORAGE_UNAVAILABLE");
+});
+
+test("only read-only R2 calls distinguish bucket missing, object missing and wrong SHA path",async()=>{
+  const entry=expectedDamKey(row);
+  const calls=[];
+  const fakeClient={send:async command=>{
+    calls.push(command.constructor.name);
+    if(command.constructor.name==="HeadBucketCommand")return {};
+    if(command.constructor.name==="ListObjectsV2Command")return {Contents:[]};
+    throw Error("Unexpected storage call");
+  }};
+  assert.equal(await diagnoseR2MissingObject(fakeClient,"sigapro-documentos",entry),
+    "NOT_VERIFIED_ORIGINAL_OBJECT_MISSING");
+  assert.deepEqual(calls,["HeadBucketCommand","ListObjectsV2Command"]);
+  assert.equal(await diagnoseR2MissingObject({send:async()=>{
+    throw {name:"NoSuchBucket",$metadata:{httpStatusCode:404}};
+  }},"sigapro-documentos",entry),"NOT_VERIFIED_BUCKET_MISSING");
+  assert.equal(await diagnoseR2MissingObject({send:async command=>
+    command.constructor.name==="HeadBucketCommand"?{}:{Contents:[{Key:entry.replace(sha,"f".repeat(64))}]}
+  },"sigapro-documentos",entry),"NOT_VERIFIED_ORIGINAL_KEY_MISMATCH");
 });
