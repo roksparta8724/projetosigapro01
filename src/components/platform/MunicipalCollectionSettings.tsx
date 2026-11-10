@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { municipalCollectionApiRequest } from "@/lib/municipalCollectionApi";
 import { MunicipalPaymentSettings } from "@/components/platform/MunicipalPaymentSettings";
 import { MunicipalBankDetailsSettings } from "@/components/platform/MunicipalBankDetailsSettings";
+import { BankReturnPreviewPanel } from "@/components/platform/BankReturnPreviewPanel";
 import { isCollectionSuccessMessage, municipalCollectionError } from "@/lib/collectionDiagnostics";
 import { MUNICIPAL_INTEGRATION_PROFILES, getMunicipalIntegrationProfile } from "@/lib/municipalIntegrationCatalog";
 
@@ -102,6 +103,7 @@ export function MunicipalCollectionSettings({ municipalityId, municipalityName, 
     {busy === "load" ? <p role="status" className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-950">Confirmando sessão e carregando as configurações da Prefeitura...</p> : null}
     {!loadFailed && configuration && busy !== "load" && (form.mode === "sigapro" ? <div className="space-y-5">
       <MunicipalBankDetailsSettings municipalityId={municipalityId} readOnly={readOnly} />
+      <BankReturnPreviewPanel municipalityId={municipalityId} readOnly={readOnly} />
       {readOnly ? <p className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-700">Credenciais bancárias: alteração restrita ao administrador municipal.</p> : <MunicipalPaymentSettings municipalityId={municipalityId} municipalityName={municipalityName}/>}
     </div> : <div className="rounded-[26px] border border-slate-200 bg-white p-6 shadow-sm">
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-sky-200 bg-sky-50 p-4">
