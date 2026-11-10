@@ -43,7 +43,9 @@ function validCnpj(s:string){
 function clean(value:unknown,max:number){
   if(typeof value!=="string")return "";
   const s=value.trim().replace(/\s+/g," ");
-  return s.length<=max&&!/[<>\x00-\x1f\x7f]/.test(s)?s:"";
+  return s.length<=max&&!/[<>]/.test(s)&&
+    ![...s].some(char=>{const code=char.charCodeAt(0);return code<32||code===127;})
+    ?s:"";
 }
 function payerDocumentFromGuide(guide:StoredGuide){
   const docs=[guide.owner_document_snapshot,guide.contribuinte_cpf]
