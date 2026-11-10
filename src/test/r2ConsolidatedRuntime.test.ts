@@ -3,6 +3,8 @@ import { getR2EndpointCandidates, resolveR2Endpoint } from "../../server/r2-runt
 import { authorizeR2LogoRead } from "../../server/api/r2-sign-get";
 import { getDataApiUrl } from "../../server/municipal-storage";
 import { readFileSync } from "node:fs";
+import { isR2AuthRequired as isR2UploadAuthRequired } from "../../server/api/r2-upload";
+import { isR2AuthRequired as isR2DeleteAuthRequired } from "../../server/api/r2-delete";
 const tenant = "11111111-1111-4111-8111-111111111111";
 const req = (token = "") =>
   ({ headers: token ? { authorization: `Bearer ${token}` } : {} } as Parameters<typeof authorizeR2LogoRead>[0]);
@@ -20,6 +22,21 @@ describe("SIGAPRO consolidated R2 runtime", () => {
     vi.stubEnv("R2_ENDPOINT","http://bad.example");
     vi.stubEnv("R2_ACCOUNT_ID","safe");
     expect(resolveR2Endpoint()).toBe("https://safe.r2.cloudflarestorage.com");
+  });
+  it("authenticates ALL remote R2 uploads and deletes even when legacy QA disables auth", () => {
+    for (const environment of ["preview", "production"]) {
+      vi.stubEnv("VERCEL_ENV", environment);
+      vi.stubEnv("R2_REQUIRE_AUTH", "false");
+      expect(isR2UploadAuthRequired()).toBe(true);
+      expect(isR2DeleteAuthRequired()).toBe(true);
+    }
+    vi.stubEnv("VERCEL_ENV", "development");
+    vi.stubEnv("R2_REQUIRE_AUTH", "");
+    expect(isR2UploadAuthRequired()).toBe(true);
+    expect(isR2DeleteAuthRequired()).toBe(true);
+    vi.stubEnv("R2_REQUIRE_AUTH", "false");
+    expect(isR2UploadAuthRequired()).toBe(false);
+    expect(isR2DeleteAuthRequired()).toBe(false);
   });
   it("never uses QA Neon Data API on production even if legacy variables exist", () => {
     vi.stubEnv("VERCEL_ENV","production");
