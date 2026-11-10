@@ -1,3 +1,4 @@
+import {readFileSync} from "node:fs";
 import {test} from "node:test";
 import assert from "node:assert/strict";
 import {QA_BRANCH,validateEvidenceRunProvenance,verifyRunViaGitHub}
@@ -58,4 +59,12 @@ test("network failure, unauthorized response and missing token never become appr
   await assert.rejects(()=>verifyRunViaGitHub({...opts,token:"x"},
     async()=>({ok:true,json:async()=>({...valid(),head_sha:"c".repeat(40)})})),
     /PROVENANCE_REJECTED/);
+});
+
+test("production acceptance always re-tests the current QA branch head, never a stale SHA",()=>{
+  const workflow=readFileSync(".github/workflows/qa-commercial-acceptance.yml","utf8");
+  assert.match(workflow,/ref: \$\\{\\{ inputs\\.release_sha \\}\\}/);
+  assert.ok(workflow.includes('branch_head="$(git rev-parse refs/remotes/origin/qa-release-acceptance)"'));
+  assert.ok(workflow.includes('[[ "$actual" == "$branch_head" ]]'));
+  assert.ok(workflow.includes("qa-commercial-evidence-provenance.mjs"));
 });
