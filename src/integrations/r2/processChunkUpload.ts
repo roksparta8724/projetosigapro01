@@ -8,6 +8,10 @@ export const PROCESS_UPLOAD_MAX_BYTES = 40 * 1024 * 1024;
 export const PROCESS_INLINE_MAX_BYTES = 2_500_000;
 
 const PROCESS_KEY = /^municipalities\/[a-f0-9-]{36}\/(?:protocols|habite-se|attachments|analysis|documents|comunique-se|qa-arquitetura)\/[a-f0-9-]{36}\/[a-f0-9-]{36}-[a-zA-Z0-9._-]{1,180}$/i;
+const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}";
+const DAM_ORIGINAL_KEY = new RegExp("^municipalities/"+UUID+"/processes/"+UUID+
+  "/dam-originals/"+UUID+"/([a-f0-9]{64})\\.pdf$","i");
+const DAM_ORIGINAL_MAX_BYTES = 25 * 1024 * 1024;
 const MIME: Record<string,string> = {
   pdf:"application/pdf", png:"image/png",
   jpg:"image/jpeg", jpeg:"image/jpeg", webp:"image/webp",
@@ -19,7 +23,10 @@ export function largeProcessAttachmentMime(input: {
 }): string | null {
   if (input.bucket !== "process-documents" ||
       input.file.size <= PROCESS_INLINE_MAX_BYTES) return null;
-  if (!PROCESS_KEY.test(input.objectKey)) return null;
+  const isProcess = PROCESS_KEY.test(input.objectKey);
+  const isDam = DAM_ORIGINAL_KEY.test(input.objectKey);
+  if (!isProcess && !isDam) return null;
+  if (isDam && input.file.size > DAM_ORIGINAL_MAX_BYTES) return null;
   const ext = input.objectKey.split(".").pop()?.toLowerCase() || "";
   const mime = MIME[ext];
   return mime && (!input.file.type || input.file.type === mime) ? mime : null;
@@ -90,6 +97,9 @@ export async function uploadLargeProcessAttachment(
   // Compute the whole-document digest before any writes. A mismatch at
   // finalize never turns an incomplete file into an official process annex.
   const fileSha256 = await hexSha256(await input.file.arrayBuffer());
+  const dam = DAM_ORIGINAL_KEY.exec(input.objectKey);
+  if (dam && dam[1].toLowerCase() !== fileSha256)
+    throw new Error("A identidade SHA-256 da DAM original não corresponde aos bytes do PDF.");
   try {
     for (let i=0;i<count;i++) {
       const slice = input.file.slice(i*PROCESS_UPLOAD_CHUNK_BYTES,(i+1)*PROCESS_UPLOAD_CHUNK_BYTES);
