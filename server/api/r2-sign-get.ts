@@ -253,6 +253,10 @@ export default async function handler(req: Req, res: Res) {
     }
 
     const documentsBucket = readEnv("R2_BUCKET_DOCUMENTOS") || "sigapro-documentos";
+    if (objectKey.includes("/dam-originals/") && bucket !== documentsBucket) {
+      json(res,400,{code:"DAM_WRONG_BUCKET",error:"Originais DAM somente no armazenamento privativo de documentos."});
+      return;
+    }
     const ttl = signedR2Ttl(expiresIn, bucket === documentsBucket);
 
     const municipalityId = extractMunicipalityId(objectKey);
