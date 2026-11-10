@@ -470,6 +470,7 @@ export function ExternalPaymentsPage() {
   const totalValue=financialSnapshot.issuedAmount;
 
   return (
+    <>
     <PortalFrame eyebrow="Acesso Externo" title="Pagamentos">
       <PageContainer>
         <PageIntro
@@ -677,6 +678,23 @@ export function ExternalPaymentsPage() {
                                 Gerar PIX de TESTE
                               </Button>
                             ) : null}
+                            {!isolatedQaMode && !isGuideSettled(guide) &&
+                            (guide.paymentProvider || tenantSettings?.paymentProvider || "mercado_pago")==="mercado_pago" ? (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                data-prod-issue-boleto="true"
+                                className="rounded-full border-sky-600 px-4 text-[12px] font-semibold text-sky-800 hover:bg-sky-50 dark:border-sky-500 dark:text-sky-200"
+                                disabled={Boolean(busyGuideAction)}
+                                onClick={()=>{
+                                  setRealBoletoError("");
+                                  setRealBoletoTarget({process,guide});
+                                }}
+                              >
+                                <CreditCard className="mr-1.5 size-3.5" />
+                                Emitir boleto oficial
+                              </Button>
+                            ) : null}
                             <Button
                               type="button"
                               data-preprotocol-guide-action="true"
@@ -768,5 +786,15 @@ export function ExternalPaymentsPage() {
         </MainGrid>
       </PageContainer>
     </PortalFrame>
+    <RealBoletoPayerDialog
+      open={Boolean(realBoletoTarget)}
+      onOpenChange={open=>{if(!open){setRealBoletoTarget(null);setRealBoletoError("");}}}
+      guideCode={realBoletoTarget?.guide.code||""}
+      payerName={realBoletoTarget?.process.ownerName||""}
+      busy={Boolean(busyGuideAction&&busyGuideAction.action==="boleto")}
+      error={realBoletoError}
+      onConfirm={issueRealBoleto}
+    />
+    </>
   );
 }
