@@ -41,6 +41,7 @@ const TESTS=[
   "src/test/qaDamOriginalIdempotency.test.ts",
   "src/test/qaLargeDamOriginalUpload.test.ts",
   "src/test/realBankDamOriginalGate.test.ts",
+  "src/test/r2DamSignedByteIntegrity.test.ts",
   "src/test/r2ProcessChunkUploadGateQa.test.ts",
   "src/test/r2ProcessChunkUploadSecurityQa.test.ts",
   "src/test/r2UploadAccessSecurity.test.ts",
