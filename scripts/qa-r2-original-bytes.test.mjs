@@ -1,3 +1,4 @@
+import {readFileSync} from "node:fs";
 import {test} from "node:test";
 import assert from "node:assert/strict";
 import {Readable} from "node:stream";
@@ -45,4 +46,21 @@ test("never contacts QA bank or storage outside a protected preview",async()=>{
   assert.equal(await inspectExistingQaDam({VERCEL_ENV:"preview",
     VERCEL_GIT_COMMIT_REF:"fix/qa-triagem-analise-pagamento-20261101"}),
     "NOT_VERIFIED_CONFIG");
+});
+
+test("QA bank worker can query only the one-row integrity probe, not raw municipal tables",()=>{
+  const sql=readFileSync("neon/migrations/20261110_qa_r2_original_probe_least_privilege_v1.sql","utf8");
+  const source=readFileSync("scripts/qa-r2-original-bytes.mjs","utf8");
+  assert.ok(source.includes("public.qa_r2_original_integrity_probe_v1()"));
+  assert.ok(!source.includes("FROM public.payment_guides"));
+  assert.ok(sql.includes("SECURITY DEFINER"));
+  assert.ok(sql.includes("LIMIT 1;"));
+  assert.ok(sql.includes("g.provider_environment='test'"));
+  assert.ok(sql.includes("qa.guide_id=g.id"));
+  assert.ok(sql.includes("session_user IN ('sigapro_qa_webhook_worker','neondb_owner')"));
+  assert.ok(sql.includes("REVOKE ALL ON FUNCTION public.qa_r2_original_integrity_probe_v1() FROM PUBLIC"));
+  assert.ok(sql.includes("GRANT EXECUTE ON FUNCTION public.qa_r2_original_integrity_probe_v1() TO sigapro_qa_webhook_worker"));
+  assert.ok(!sql.includes("GRANT SELECT ON public.payment_guides"));
+  assert.ok(!sql.includes("UPDATE public.payment_guides"));
+  assert.ok(!sql.includes("DELETE FROM public.payment_guides"));
 });
