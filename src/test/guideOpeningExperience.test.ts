@@ -23,7 +23,12 @@ describe("guide opening experience", () => {
 
     expect(processPage).toContain("preparedGuideCharges");
     expect(processPage).toContain("preparedGuideLogoUrl");
-    expect(processPage).toContain("ensureMercadoPagoGuideCharge");
+    // Viewing a guide must never create a monetary order. Issuance is now
+    // a deliberate, payer-confirmed action in the external payments portal.
+    expect(processPage).not.toContain("await ensureMercadoPagoGuideCharge(");
+    const externalPage = read("src/pages/saas/ExternalPaymentsPage.tsx");
+    expect(externalPage).toContain("issueRealBoleto");
+    expect(externalPage).toContain('data-prod-issue-boleto="true"');
     expect(processPage).toContain('setGuideBillingBusyKey("preparing-guides")');
     expect(processPage).not.toContain("showGuiaRecolhimentoError");
     expect(processPage).not.toContain("reserveGuiaRecolhimentoWindow");
