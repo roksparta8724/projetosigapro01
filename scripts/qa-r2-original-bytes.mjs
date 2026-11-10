@@ -53,6 +53,22 @@ export async function verifyPdfStream(body,expectedHash) {
     hash.digest("hex")===expectedHash;
 }
 
+/** Only fixed status codes; provider messages may embed confidential URLs. */
+export function classifyR2ReadFailure(error) {
+  const e=error&&typeof error==="object"?error:{};
+  const status=e.$metadata?.httpStatusCode;
+  const name=String(e.name||"");
+  if(status===404||["NoSuchKey","NoSuchBucket","NotFound"].includes(name))
+    return "NOT_VERIFIED_STORAGE_MISSING";
+  if(name==="InvalidAccessKeyId"||name==="SignatureDoesNotMatch")
+    return "NOT_VERIFIED_STORAGE_CREDENTIALS";
+  if(status===403||name==="AccessDenied"||name==="Forbidden")
+    return "NOT_VERIFIED_STORAGE_FORBIDDEN";
+  if(name==="AbortError"||name==="TimeoutError"||name==="RequestTimeout")
+    return "NOT_VERIFIED_STORAGE_TIMEOUT";
+  return "NOT_VERIFIED_STORAGE_UNAVAILABLE";
+}
+
 export async function inspectExistingQaDam(env=process.env) {
   if(env.VERCEL_ENV!=="preview" ||
      env.VERCEL_GIT_COMMIT_REF!=="fix/qa-triagem-analise-pagamento-20261101")
@@ -101,7 +117,7 @@ export async function inspectExistingQaDam(env=process.env) {
     }),{abortSignal:controller.signal});
     const verified=await verifyPdfStream(response.Body,row.original_pdf_sha256);
     return verified?"PASS":"INTEGRITY_MISMATCH";
-  }catch{return "NOT_VERIFIED_STORAGE";}
+  }catch(error){return classifyR2ReadFailure(error);}
   finally{clearTimeout(deadline);storage.destroy()}
 }
 
