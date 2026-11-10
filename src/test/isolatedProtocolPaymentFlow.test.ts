@@ -25,13 +25,15 @@ describe("SIGAPRO isolated pre-protocol to non-payable guide", () => {
   it("always labels isolated protocol and payment preview as not payable", () => {
     expect(protocolPage).toContain('data-qa-protocol-sandbox="true"');
     expect(protocolPage).toContain("NÃO PAGÁVEL");
-    expect(paymentPage).toContain("const isolatedQa = import.meta.env.VITE_SIGAPRO_NEON_ISOLATED");
+    expect(paymentPage).toContain("const isolatedQa = isolatedQaMode;");
+    expect(paymentPage).toContain("const qaPixBound = Boolean(");
     expect(paymentPage).toContain('const sandboxIssued = savedSandbox || newlyIssued');
     expect(paymentPage).toContain('const barcode = isolatedQa');
     expect(paymentPage).toContain('data-qa-issue-boleto="true"');
     expect(paymentPage).toContain('isolatedSandboxOnly: true');
     expect(paymentPage).toContain('nonPayablePreview: previewOnly');
-    expect(paymentPage).toContain('pixPayload: ""');
+    expect(paymentPage).toContain('pixPayload: qaPixBound ? persisted.pix_code || "" : ""');
+    expect(paymentPage).toContain('qaSandboxPixPayload: qaPixBound ? persisted.pix_code || "" : ""');
     expect(paymentPage).not.toContain('pixPayload: isolatedQa ? "" : banking.pixPayload');
     expect(paymentPage).toContain('bankEnvironment: isolatedQa ? "test"');
   });
