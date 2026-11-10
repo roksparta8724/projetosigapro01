@@ -95,7 +95,7 @@ describe("SIGAPRO: PDFs assinados e integridade documental", () => {
   it("mantém PDFs assinados fora do checklist obrigatório e disponíveis em pasta própria", () => {
     const detail = file("src/pages/saas/ProcessDetailPage.tsx");
     const folder = file("src/components/platform/SignedAnalysisArchiveFolder.tsx");
-    expect(detail).toContain("const regularProcessDocuments = process.documents.filter((document) => !verifiedArchiveIds.has(document.id))");
+    expect(detail).toContain("const regularProcessDocuments = documentSlots.filter((document) => !verifiedArchiveIds.has(document.id))");
     expect(detail).toContain("onVerifiedArchiveIds={updateVerifiedSignedArchive}");
     const platform = file("src/integrations/backend/platformImpl.ts");
     expect(platform).toContain("fileHash: document.file_hash ?? undefined");
