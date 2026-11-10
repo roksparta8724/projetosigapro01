@@ -22,12 +22,16 @@ describe("SIGAPRO - multi-bank CNAB return can never bypass a municipal bank att
     const reader = read("server/bank-return-cnab240.ts");
     const ui = read("src/components/platform/BankReturnPreviewPanel.tsx");
     const settings = read("src/components/platform/MunicipalCollectionSettings.tsx");
+    const bankSettings = read("src/components/platform/MunicipalBankDetailsSettings.tsx");
     const adapters = read("server/municipal-collection-adapters.ts");
     expect(reader).toContain("automaticSettlementAllowed: false");
     expect(reader).toContain("bankAuthenticated: false");
     expect(ui).toContain('"bank_return_preview"');
     expect(ui).toContain("Nenhum crédito bancário foi autenticado");
-    expect(settings).toContain("<BankReturnPreviewPanel municipalityId={municipalityId} readOnly={readOnly} />");
+    expect(bankSettings).toContain("<BankReturnPreviewPanel municipalityId={municipalityId} bankCode={form.bankCode} readOnly={readOnly}/>");
+    expect(settings).not.toContain("<BankReturnPreviewPanel");
+    expect(ui).toContain("inspectBankFile(text, bankCode)");
+    expect(ui).toContain("local?.format !== \"cnab240\"");
     expect(adapters).toContain("const adapters = new Map<string, MunicipalCollectionAdapter>()");
     expect(adapters).not.toMatch(/adapters\.set\("(santander|itau|govbr_ar)/);
   });
