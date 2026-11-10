@@ -148,6 +148,14 @@ export function buildProcessIdentityRouteKey(
     : normalized;
 }
 
+/** Safely parse the immutable identity suffix from a modern process URL. */
+export function parseProcessIdentityRouteKey(routeValue: string) {
+  const match = String(routeValue || "").match(
+    /^(.+)--([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i,
+  );
+  return match ? { protocolKey: match[1], id: match[2] } : null;
+}
+
 export function buildProcessPath(
   process: Pick<ProcessRecord, "id" | "protocol">,
   tab?: string,
@@ -175,11 +183,9 @@ export function resolveProcessRoute(
 
   // New links are exact, even when two municipalities own identical numbers.
   // Never match a process from another municipality on a guessed prefix.
-  const identityMatch = decoded.match(
-    /^(.*)--([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i,
-  );
+  const identityMatch = parseProcessIdentityRouteKey(decoded);
   if (identityMatch) {
-    const [, requestedNumber, requestedId] = identityMatch;
+    const { protocolKey: requestedNumber, id: requestedId } = identityMatch;
     return processes.find((item) =>
       String(item.id).toLowerCase() === requestedId.toLowerCase() &&
       buildProcessRouteKey(item.protocol, item.id).toLocaleLowerCase("pt-BR") ===
