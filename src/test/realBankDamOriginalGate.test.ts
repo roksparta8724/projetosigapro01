@@ -77,8 +77,12 @@ describe("SIGAPRO: cobrança real somente com DAM original persistida",()=>{
     expect(page).toContain("await readGuideOriginal(effectiveScopeId, guide.code)");
     expect(page).toContain("if (persisted?.original_pdf_key)");
     expect(page).toContain("await archiveAndOpenGuide(effectiveScopeId");
-    expect(page).toContain("pixPayload: \"\"");
-    expect(page).toContain("if (isolatedQa) {");
+    // Live issuance must not invent PIX. An already-issued sandbox QR
+    // may be archived only when the canonical Neon order+payment+QR match.
+    expect(page).toContain('pixPayload: qaPixBound ? persisted.pix_code || "" : ""');
+    expect(page).toContain("if (isolatedQa && qaPixBound)");
+    expect(page).toContain("if (isolatedQa && qaPixBound) {");
+    expect(page).toContain("sandboxPix.paymentId === persisted.bank_payment_id");
     expect(page).toContain("const opened = openGuiaRecolhimentoOficialWindow(");
     expect(page).toContain("if (officialWindow && !officialWindow.closed) officialWindow.close()");
     expect(page).not.toContain("pixPayload: isolatedQa ? \"\" : banking.pixPayload");
