@@ -17,7 +17,7 @@ describe("process dispatch end-to-end workflow", () => {
     expect(page).toContain("O Administrador acompanha o processo em modo de consulta.");
     expect(page).toContain('session.role !== "prefeitura_admin" && ownsCurrentProcessStage');
     expect(page).toContain("O Administrador da Prefeitura pode consultar, mas não encaminhar ou modificar processos.");
-    expect(page).not.toContain("{ allowMunicipalAdmin: true }");
+    expect(page).not.toContain("allowMunicipalAdmin");
     expect(page).toContain("dispatchProcess({");
   });
 

@@ -2222,11 +2222,10 @@ export function ProcessDetailPage() {
     key: string,
     action: () => Promise<void>,
     successMessage: string,
-    options?: { allowMunicipalAdmin?: boolean },
   ) => {
-    if (session.role === "prefeitura_admin" && !options?.allowMunicipalAdmin) {
+    if (session.role === "prefeitura_admin") {
       setProcessActionStatus(
-        "Esta ação operacional pertence ao setor responsável. O Administrador da Prefeitura mantém governança do processo e pode executar o encaminhamento institucional quando necessário.",
+        "Esta ação operacional pertence ao setor responsável. O Administrador da Prefeitura acompanha os processos somente em consulta.",
       );
       return false;
     }
@@ -2779,7 +2778,7 @@ export function ProcessDetailPage() {
 
   const handleImportQa04ArchitecturalFixture = async () => {
     if (!canImportQa04Fixture) {
-      setProcessActionStatus("Importação disponível apenas ao administrador autorizado no ambiente de testes SIGAPRO.");
+      setProcessActionStatus("Importação disponível apenas ao master no ambiente de testes SIGAPRO.");
       return;
     }
     if (qa04MissingFixtureLabels.length === 0) {
@@ -2818,7 +2817,7 @@ export function ProcessDetailPage() {
           throw new Error(`Falha ao vincular ${label}. A importação pode ser retomada sem duplicar os já anexados.`);
         }
       }
-    }, "Kit fictício importado: projeto arquitetônico e três placeholders sem validade. Confira na Triagem antes do despacho.", { allowMunicipalAdmin: true });
+    }, "Kit fictício importado: projeto arquitetônico e três placeholders sem validade. Confira na Triagem antes do despacho.");
   };
 
   const handleUpgradeQa04ArchitecturalPlan = async () => {
@@ -2841,7 +2840,7 @@ export function ProcessDetailPage() {
       if (result.ok !== true) throw new Error("O ambiente de testes SIGAPRO não confirmou a revisão V2.");
     },
     "Planta V2 com recuos cotados anexada. A V1 permanece no histórico e o novo documento aguarda conferência.",
-    { allowMunicipalAdmin: true });
+    );
     if (ok) await refreshCurrentProcessStore();
   };
 

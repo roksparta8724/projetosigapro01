@@ -15,5 +15,6 @@ describe("SIGAPRO — administrador municipal é somente consulta em TODO proces
   expect(detail).toContain('isInternalRole(session.role) && session.role !== "prefeitura_admin" && ownsCurrentProcessStage');
   expect(detail).toContain("O Administrador acompanha o processo em modo de consulta.");
   expect(detail).not.toContain("pode realizar o encaminhamento institucional pelo organograma");
+  expect(detail).not.toContain("allowMunicipalAdmin");
  });
 });

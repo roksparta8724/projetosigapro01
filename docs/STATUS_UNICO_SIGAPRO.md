@@ -1576,3 +1576,8 @@ navegador autenticado.
 ### Contrato do administrador municipal, inclusive na tela do processo
 - A auditoria do formulário `ProcessDetailPage` encontrou exceção explícita `allowMunicipalAdmin:true` no encaminhamento por organograma e texto que prometia ao admin poder despachar processos. Isso contrariava a regra consultiva e os 27 bloqueios do Neon.
 - Removida a exceção, formulário ocultado para `prefeitura_admin`, adicionada recusa defensiva no handler e corrigido o aviso institucional. Teste de regressão adicionado ao QA Preview. A gestão de legislações, identidade institucional e usuários permanece nas telas administrativas próprias.
+
+
+### QA 04: retirar todos os bypasses de admin municipal, inclusive fixtures
+- A suíte completa detectou duas exceções remanescentes `allowMunicipalAdmin:true` na importação de documentos sintéticos e na revisão V2 do Processo 04. Mesmo na homologação, uma prefeitura_admin não deve conseguir gravar dados operacionais.
+- Removidas ambas as exceções e o parâmetro permissivo do executor genérico, restringindo o kit QA à operação `master_admin/master_ops` no processo e ambiente exatos. Isso preserva a funcionalidade do laboratório e os triggers de bloqueio do admin municipal. Testes QA e de despacho atualizados para verificar que não existe bypass.

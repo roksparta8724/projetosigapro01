@@ -11,7 +11,7 @@ export function isQa04ArchitecturalImportAllowed(input: {
   process: ProcessRecord | null | undefined;
 }): boolean {
   return input.isolatedQa === true &&
-    ["prefeitura_admin", "master_admin", "master_ops"].includes(input.role) &&
+    ["master_admin", "master_ops"].includes(input.role) &&
     input.process?.id === QA04_ID &&
     input.process?.protocol === "PM-2026-00004" &&
     input.process?.title === QA04_TITLE;
