@@ -23,6 +23,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { backendClient } from "@/integrations/backend/databaseClient";
 import type { ProcessRecord, SessionUser } from "@/lib/platform";
+import { resolveVerifiedHabiteSePrint } from "@/lib/habiteSeSignedSnapshot";
 import { userCanSignPermitAsDirector, userCanSignPermitAsSecretary } from "@/lib/constructionPermit";
 import {
   openHabiteSePermitPdf,
@@ -495,16 +496,24 @@ export function HabiteSePermitPanel({
     [form, permit, process],
   );
   const signedPayload = signatureState.block?.payload ?? null;
-  const signatureMatchesCurrent =
-    Boolean(currentPayload && signedPayload) &&
-    stableStringify(currentPayload) === stableStringify(signedPayload);
-  const directorSigner = signatureMatchesCurrent
-    ? signatureState.signers.find((item) => item.slot === "diretoria")
-    : undefined;
-  const secretarySigner = signatureMatchesCurrent
-    ? signatureState.signers.find((item) => item.slot === "secretaria")
-    : undefined;
-  const directorSigned = Boolean(directorSigner) || permit?.status === "emitido";
+  const verifiedIssuedPrint = permit?.status === "emitido"
+    ? resolveVerifiedHabiteSePrint(process, permit, signatureState)
+    : null;
+  const signatureMatchesCurrent = permit?.status === "emitido"
+    ? Boolean(verifiedIssuedPrint)
+    : Boolean(currentPayload && signedPayload) &&
+      stableStringify(currentPayload) === stableStringify(signedPayload);
+  const directorSigner = permit?.status === "emitido"
+    ? verifiedIssuedPrint?.director
+    : signatureMatchesCurrent
+      ? signatureState.signers.find((item) => item.slot === "diretoria")
+      : undefined;
+  const secretarySigner = permit?.status === "emitido"
+    ? verifiedIssuedPrint?.secretary ?? undefined
+    : signatureMatchesCurrent
+      ? signatureState.signers.find((item) => item.slot === "secretaria")
+      : undefined;
+  const directorSigned = Boolean(directorSigner);
   const secretarySigned = Boolean(secretarySigner);
   const effectivePermitStatus = directorSigned ? "emitido" : permit?.status || "rascunho";
   const effectiveDirectorName =
@@ -753,7 +762,7 @@ export function HabiteSePermitPanel({
 
   const openOfficialDocument = async (autoPrint = false) => {
     if (!permit) return;
-
+    const issued = permit.status === "emitido";
     const reservedWindow = reserveHabiteSePermitPdfWindow({
       permit,
       process,
@@ -770,10 +779,28 @@ export function HabiteSePermitPanel({
     setNotice("");
 
     try {
+      // Never sign or print a stale client cache as though it were the
+      // official director-signed version. Refresh BOTH server snapshots.
+      const official = issued
+        ? await Promise.all([
+            getHabiteSePermit(process.id),
+            getProcessArtifactSignatures(process.id, ARTIFACT_KEY),
+          ]).then(([saved, signature]) =>
+            resolveVerifiedHabiteSePrint(process, saved.permit, signature))
+        : null;
+      if (issued && !official) {
+        throw new Error(
+          "PDF oficial bloqueado: não foi possível conferir a versão assinada pela Diretoria. O documento não será reconstruído.",
+        );
+      }
+      const pdfPermit = official?.permit ?? permit;
+      const pdfProcess = official?.process ?? process;
+      const officialDirector = official?.director ?? directorSigner;
+      const officialSecretary = official?.secretary ?? secretarySigner;
       await openHabiteSePermitPdf(
         {
-          permit,
-          process,
+          permit: pdfPermit,
+          process: pdfProcess,
           municipalityName: municipalityName || "Prefeitura Municipal",
           municipalityLogoUrl,
           municipalityAddress,
@@ -781,30 +808,28 @@ export function HabiteSePermitPanel({
           municipalityEmail,
           secretariat,
           directorate,
-          directorSignature: directorSigner
+          directorSignature: officialDirector
             ? {
-                name: directorSigner.name,
-                role: directorSigner.role,
-                title: directorSigner.title,
-                registration: directorSigner.registration,
-                signedAt: directorSigner.signed_at,
+                name: officialDirector.name,
+                role: officialDirector.role,
+                title: officialDirector.title,
+                registration: officialDirector.registration,
+                signedAt: officialDirector.signed_at,
               }
             : null,
-          secretarySignature: secretarySigner
+          secretarySignature: officialSecretary
             ? {
-                name: secretarySigner.name,
-                role: secretarySigner.role,
-                title: secretarySigner.title,
-                registration: secretarySigner.registration,
-                signedAt: secretarySigner.signed_at,
+                name: officialSecretary.name,
+                role: officialSecretary.role,
+                title: officialSecretary.title,
+                registration: officialSecretary.registration,
+                signedAt: officialSecretary.signed_at,
               }
             : null,
-          verificationCode: signatureMatchesCurrent
-            ? signatureState.block?.verification_code
-            : null,
-          evidenceHash: signatureMatchesCurrent
-            ? signatureState.block?.artifact_hash
-            : null,
+          verificationCode: official?.verificationCode ??
+            (signatureMatchesCurrent ? signatureState.block?.verification_code : null),
+          evidenceHash: official?.evidenceHash ??
+            (signatureMatchesCurrent ? signatureState.block?.artifact_hash : null),
         },
         reservedWindow,
       );
@@ -822,6 +847,7 @@ export function HabiteSePermitPanel({
         }, 900);
       }
     } catch (error) {
+      if (issued && reservedWindow && !reservedWindow.closed) reservedWindow.close();
       setNotice(
         error instanceof Error
           ? error.message
