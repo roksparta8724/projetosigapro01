@@ -21,6 +21,7 @@ describe("SIGAPRO GOVBR/AR read-only onboarding — tenant isolation and no paym
     expect(probe).toContain("config.municipality_id !== municipalityId");
     expect(probe).toContain('config.supplier_code !== "govbr_ar"');
     expect(probe).toContain('config.integration_type !== "automatic"');
+    expect(probe).toContain('config.environment === "production" && process.env.VERCEL_ENV !== "production"');
     expect(probe).toContain("decryptPaymentAccessToken(config.secret_ciphertext)");
     expect(probe).toContain('adapter.execute("query"');
     expect(probe).not.toContain("input.secret");
