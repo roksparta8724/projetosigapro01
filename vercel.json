@@ -64,6 +64,10 @@
       "destination": "/api/mercadopago?action=qa-boleto"
     },
     {
+      "source": "/api/qa/mercadopago/guide-pix",
+      "destination": "/api/mercadopago?action=qa-pix"
+    },
+    {
       "source": "/api/mercadopago/health",
       "destination": "/api/mercadopago?action=health"
     },
