@@ -42,6 +42,7 @@ const TESTS=[
   "src/test/qaLargeDamOriginalUpload.test.ts",
   "src/test/realBankDamOriginalGate.test.ts",
   "src/test/realBoletoIssuanceBoundary.test.ts",
+  "src/test/qaHostedBankPaymentRoutes.test.ts",
   "src/test/guideOpeningExperience.test.ts",
   "src/test/r2DamSignedByteIntegrity.test.ts",
   "src/test/r2ProcessChunkUploadGateQa.test.ts",
