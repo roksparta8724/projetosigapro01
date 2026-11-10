@@ -19,9 +19,16 @@ function row(bank: string, kind: string, lot = "0000", seq = "00000", segment = 
 function fixture(bank = "041", paidCents = "000000000012345") {
   const header = row(bank, "0");
   const t = row(bank, "3", "0001", "00001", "T");
-  t.put(38, "NOSSO-2026          ");
-  t.put(82, "000000000012345");
-  t.put(106, "DAM-PRE-2026-123         ");
+  if (bank === "033") {
+    // Santander H7815 v8.3 return T: 41-53, 78-92, 101-125.
+    t.put(41, "NOSSO-2026   ");
+    t.put(78, "000000000012345");
+    t.put(101, "DAM-PRE-2026-123         ");
+  } else {
+    t.put(38, "NOSSO-2026          ");
+    t.put(82, "000000000012345");
+    t.put(106, "DAM-PRE-2026-123         ");
+  }
   const u = row(bank, "3", "0001", "00002", "U");
   u.put(78, paidCents);
   u.put(93, "000000000012000");
@@ -61,9 +68,19 @@ describe("SIGAPRO bank return reader — CNAB240 read-only", () => {
       guide_number: "DAM-PRE-2026-123", amount: "123.46",
     })).toMatchObject({ amountMatches: false, canAutomaticallySettle: false, status: "manual_investigation_required" });
   });
+  it("extracts Santander H7815 v8.3 references but never assumes authenticated settlement", () => {
+    const result = parseCnab240CollectionReturn(fixture("033"), { expectedBankCode: "033" });
+    expect(result.entries[0]).toMatchObject({
+      nominalCents: 12345,
+      reference: "DAM-PRE-2026-123", bankReference: "NOSSO-2026",
+      paidCents: 12345, requiresBankReview: true,
+    });
+    expect(result.bankAuthenticated).toBe(false);
+    expect(result.automaticSettlementAllowed).toBe(false);
+  });
   it("keeps unknown-bank references unavailable rather than guessing positions", () => {
-    const entry = parseCnab240CollectionReturn(fixture("033"), { expectedBankCode: "033" }).entries[0];
-    expect(entry).toMatchObject({ bankCode: "033", reference: null, nominalCents: null, requiresBankReview: true });
+    const entry = parseCnab240CollectionReturn(fixture("341"), { expectedBankCode: "341" }).entries[0];
+    expect(entry).toMatchObject({ bankCode: "341", reference: null, nominalCents: null, requiresBankReview: true });
   });
   it("blocks cross-bank files, malformed sizes and partial paired records", () => {
     expect(() => parseCnab240CollectionReturn(fixture(), { expectedBankCode: "033" })).toThrow(/diverge/);
