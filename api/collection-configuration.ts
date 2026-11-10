@@ -1,11 +1,31 @@
 import { callDataApiRpc } from "../server/municipal-storage.js";
 import { encryptMunicipalCollectionSecret, municipalCollectionSecretFingerprint } from "../server/municipal-payment.js";
 import { getMunicipalCollectionAdapter, describeMunicipalCollectionAdapter } from "../server/municipal-collection-adapters.js";
+import { parseCnab240CollectionReturn, compareCnabCandidateToGuide } from "../server/bank-return-cnab240.js";
+import { readStoredGuide } from "../server/guide-persistence.js";
 
 type Req = import("http").IncomingMessage & { method?: string; body?: Record<string, unknown> };
 type Res = import("http").ServerResponse;
 const json = (res: Res, status: number, body: unknown) => { res.statusCode = status; res.setHeader("Content-Type", "application/json; charset=utf-8"); res.setHeader("Cache-Control", "no-store"); res.end(JSON.stringify(body)); };
-async function body(req: Req) { if (req.body && typeof req.body === "object") return req.body; return await new Promise<Record<string, unknown>>((resolve, reject) => { const chunks: Buffer[] = []; req.on("data", c => chunks.push(Buffer.from(c))); req.on("end", () => { try { resolve(JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}")); } catch (e) { reject(e); } }); req.on("error", reject); }); }
+async function body(req: Req) {
+  // Preserve the bank-return file in memory only; reject oversized payloads before JSON parsing.
+  const limit = 750_000;
+  if (req.body && typeof req.body === "object") {
+    if (Buffer.byteLength(JSON.stringify(req.body), "utf8") > limit) throw new Error("Arquivo bancário excede o tamanho permitido.");
+    return req.body;
+  }
+  return await new Promise<Record<string, unknown>>((resolve, reject) => {
+    let bytes = 0; let rejected = false; const chunks: Buffer[] = [];
+    req.on("data", c => {
+      if (rejected) return;
+      const part = Buffer.from(c); bytes += part.length;
+      if (bytes > limit) { rejected = true; req.pause(); reject(new Error("Arquivo bancário excede o tamanho permitido.")); return; }
+      chunks.push(part);
+    });
+    req.on("end", () => { if (!rejected) { try { resolve(JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}")); } catch (e) { reject(e); } } });
+    req.on("error", reject);
+  });
+}
 function uuid(value: unknown) { const id = String(value || "").trim(); if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)) throw new Error("Prefeitura inválida."); return id; }
 async function rpc<T>(req: Req, fn: string, args: Record<string, unknown>) { const result = await callDataApiRpc<T>(req, fn, args); if (!result.ok) throw new Error(result.error || "Operação não autorizada."); return result.payload; }
 
@@ -24,6 +44,34 @@ export default async function handler(req: Req, res: Res) {
       return json(res,200,describeMunicipalCollectionAdapter(supplierCode));
     }
     if (action === "bank_get") return json(res, 200, await rpc(req, "get_municipal_collection_bank_details_v1", { _municipality_id: municipalityId }) || {});
+    if (action === "bank_return_preview") {
+      // Strictly read-only. No guide is marked paid and no CNAB bytes are logged or stored.
+      // The existing RPC applies user + municipality authorization before the file is interpreted.
+      await rpc(req, "get_municipal_collection_configuration_v1", { _municipality_id: municipalityId });
+      const bank = await rpc<Record<string, unknown>>(
+        req, "get_municipal_collection_bank_details_v1", { _municipality_id: municipalityId },
+      );
+      const bankCode = String(bank?.bankCode || "").trim();
+      if (!/^[0-9]{3}$/.test(bankCode) || bankCode === "000")
+        throw new Error("Configure primeiro o código oficial do banco arrecadador desta Prefeitura.");
+      if (typeof input.fileContent !== "string" || Buffer.byteLength(input.fileContent, "utf8") > 600_000)
+        throw new Error("Envie um arquivo CNAB240 de texto com até 600 KB.");
+      const preview = parseCnab240CollectionReturn(input.fileContent, {
+        expectedBankCode: bankCode, maxEntries: 100,
+      });
+      const guideCode = typeof input.guideCode === "string" ? input.guideCode.trim() : "";
+      if (guideCode && !/^[a-zA-Z0-9_-]{1,120}$/.test(guideCode))
+        throw new Error("Número da guia inválido.");
+      if (!guideCode) return json(res, 200, preview);
+      // A comparison requires the live municipality-scoped Neon guide, never an arbitrary
+      // guide/amount supplied by the browser. This still grants ZERO settlement authority.
+      const guide = await readStoredGuide(req, municipalityId, guideCode);
+      const matches = preview.entries.map(entry => compareCnabCandidateToGuide(entry, guide));
+      return json(res, 200, { ...preview, guideCode,
+        guideComparison: matches,
+        independentBankProofRequired: true,
+      });
+    }
     if (action === "bank_save") {
       const fields = input.fields && typeof input.fields === "object" && !Array.isArray(input.fields) ? input.fields : null;
       if (!fields) throw new Error("Dados bancários inválidos.");
