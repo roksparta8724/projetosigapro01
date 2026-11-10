@@ -1564,3 +1564,10 @@ navegador autenticado.
 - Erro real: em `ProcessDetailPage.tsx` o comando `onCompleteProcess` escrevia genericamente `status=deferido`; no painel o status local também permanecia `deferido`. A aplicação não chamava a função existente `complete_habite_se_process_v1`, deixando o processo fora do arquivo administrativo.
 - Corrigido: chamada pela `completeHabiteSeProcess` do cliente, com resultado obrigatoriamente `arquivado`; a RPC Neon verifica acesso e Alvará e grava processo, movimentação e auditoria na mesma transação. O painel agora marca `arquivado` apenas após sucesso efetivo.
 - Prova de banco com identidade do analista: a RPC concluiu e gerou movimentação/auditoria, com rollback intencional preservando o processo original. Novo teste de regressão integra o gate Preview QA.
+
+
+### Habite-se emitido — identidade exata do PDF assinado e bloqueio de arquivamento indevido
+- Constatou-se em QA que o alvará registrado como emitido tinha `form_data` persistido diferente do conteúdo da versão 2 assinada pela Diretoria (observações preenchidas apenas no artefato assinado). `get_habite_se_permit_v1` regenerava o conteúdo usando parâmetros mutáveis da Prefeitura e podia mostrar dados diferentes da versão assinada.
+- Migration `20261110_habite_se_signed_document_and_completion.sql` faz o documento **emitido** carregar diretamente o `formData` da última versão assinada pela Diretoria, com identificação do Alvará e código verificador. Sem assinatura verificável, bloqueia abertura em vez de apresentar conteúdo incerto.
+- `complete_habite_se_process_v1` agora valida o artefato assinado e a guia do Habite-se efetivamente compensada. Guias bancárias exigem retorno autenticado, ambiente de produção e referência ao PDF original. Admin municipal é explicitamente consultivo, sem conclusão de processos.
+- Implantar e provar na QA, sem reescrever documentos emitidos ou pagamentos legados; nenhum dado da produção alterado.
