@@ -324,8 +324,10 @@ export function ExternalPaymentsPage() {
           proprietario: guide.ownerName || process.ownerName,
           profissionalResponsavel:
             guide.professionalName || process.technicalLead,
-          codigoBarras: barcode,
-          linhaDigitavel: digitableLine,
+          // PIX-only: preserve NULL rather than an invented empty barcode.
+          // The Neon freeze RPC compares exact nullable banking fields.
+          codigoBarras: qaPixBound ? (persisted.barcode || undefined) : barcode,
+          linhaDigitavel: qaPixBound ? (persisted.digitable_line || undefined) : digitableLine,
           // Do not silently manufacture a payable PIX from institutional
           // settings: this guide is archived as a registered boleto only.
           // PIX Orders need their own verified, persisted provider payload.
