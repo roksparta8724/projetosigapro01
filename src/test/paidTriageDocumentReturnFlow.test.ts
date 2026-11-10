@@ -26,6 +26,8 @@ describe("SIGAPRO: paid protocol automatically returned for document correction"
     expect(detail).toContain('isInternalRole(session.role) || canUploadProcessDocuments');
     expect(detail).toContain('canRecoverStoredDocuments && !document.uploaded');
     expect(detail).toContain('handleUploadMissingDocument(document)');
+    expect(detail).toContain("const canRecoverStoredDocuments =");
+    expect(detail).toContain("canUploadProcessDocuments ||");
   });
   it("persists uploaded bytes and process record; never skips official triage", () => {
     const start=detail.indexOf("const handleUploadMissingDocument = async");
