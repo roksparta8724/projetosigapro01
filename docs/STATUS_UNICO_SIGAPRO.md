@@ -1783,3 +1783,11 @@ navegador autenticado.
 - Prévia QA da preparação GET GOVBR/AR: executar `npm run build`, Quality Gate, validação Neon e OCR isolado no commit marcado `[deploy-qa]`. Nenhum segredo GOVBR foi fornecido ou injetado. A ativação automática permanece negada pela RPC Neon. 
 
 - **Separação absoluta:** a ação GOVBR/AR de teste recusa qualquer configuração com `environment=production` quando executada na Vercel Preview. Não testar credenciais de produção do fornecedor pela homologação QA. Nenhum evento financeiro é gravado pelo teste.
+
+## 10/11/2026 — auditoria final de prontidão comercial (inventário de fatos)
+
+- Consolidação com SQL read-only de Neon QA e PROD, sem tocar em guias ou processos: [INVENTARIO_LIBERACAO_SIGAPRO_20261110.md](./INVENTARIO_LIBERACAO_SIGAPRO_20261110.md).
+- QA: **8 processos, 11 guias, 8 marcadas pagas, apenas 1 com bank_authenticated_at e 1 com metadados originais; 0 fichas de análise, 0 evidências jurídicas, 0 regras urbanísticas reais ativas**. Duas versões ativas zone_code=QA-URBAN-E2E-20261024 são fictícias; `save_urban_precheck_run_v7` e o painel de baseline oficial já excluem zone_code QA, preservar essa proteção.
+- PROD somente leitura: 3 processos, 6 guias, 5 paid=true, 0 metadados de PDF original, 0 versões urbanísticas. Não presumir que registros legados representem pagamento autenticado. 
+- Qualidade: reforço `scripts/qa-preview-build-gate.mjs` para que publicação da branch execute regressões reais de leitura OFX/CNAB240 e preparação GOVBR/AR além dos gates já existentes.
+- O gate de aceite comercial continua 0/10 evidências aprovadas; **CI verde e Vercel READY não devem ser vendidos como homologação bancária, de IA ou jurídica**. Nenhuma migração ou mutação em PROD nesta auditoria.
