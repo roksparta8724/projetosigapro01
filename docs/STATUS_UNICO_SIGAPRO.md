@@ -1728,3 +1728,14 @@ navegador autenticado.
 - O backend usa o nome e CPF/CNPJ registrados no Neon e rejeita documentos com dígitos verificadores inválidos, dados conflitantes, CEP/UF incompletos e sessões não autorizadas.
 - Ativação de produção bancária exige autorização operacional separada `SIGAPRO_PROD_BANK_CHARGES_ENABLED=true`, Vercel PROD, credenciais próprias da Prefeitura de produção e assinatura bancária; **nenhuma dessas condições é presumida por build aprovado**.
 - Esta documentação apenas acompanha o release QA. Sem alteração de produção, nenhuma emissão bancária real foi provocada.
+
+
+## 10/11/2026 — PIX e boleto de sandbox passam a funcionar na Vercel QA
+- **Causa do erro nas prévias:** o cliente apontava `/api/qa/mercadopago/guide-boleto` e `/api/qa/mercadopago/guide-pix` para rotas que existiam exclusivamente no `vite.config.ts` local; o `vercel.json` não as publicava.
+- Corrigido o roteamento `vercel.json` para a função consolidada `api/mercadopago.ts` (`qa-boleto`, `qa-pix`), sem aumentar a quantidade de funções do plano Vercel.
+- `server/qa-hosted-bank-guard.ts` exige `VERCEL_ENV=preview`, a branch QA exata, flag Neon isolado e identidade PostgreSQL compatível com a Data API QA. Ambiente de produção e preview aleatório são bloqueados. Os emissores exigem autorização municipal do guia e credencial Mercado Pago de **teste**, nunca da conta real.
+- PIX de teste hospedado precisava de persistência durável: substituído o uso de pasta local efêmera na Vercel por tabela `qa_pix_sandbox_orders_v1` na branch Neon QA e função `qa_pix_sandbox_order_v1` EXECUTE exclusivamente por `sigapro_qa_webhook_worker`/owner. O mesmo login não possui SELECT direto na tabela; RLS ativo e revogação de PUBLIC, anonymous, authenticated.
+- O banco mantém para cada guia a mesma chave de idempotência, valor, referência da order e QR de sandbox. Ao repetir o pedido, consulta a ordem existente ou usa a mesma chave idempotente; nunca troca uma ordem por outra. O fluxo local 8081 continua com arquivo local isolado.
+- Migration `neon/migrations/20261110_qa_hosted_pix_orders_durable_v1.sql` aplicada SOMENTE no Neon QA. Verificados: worker possui EXECUTE, anônimo não, e worker não possui SELECT direto na tabela. A produção não foi alterada.
+- `src/test/qaHostedBankPaymentRoutes.test.ts` verifica vínculo de branch/Neon, roteamento real Vercel, persistência da order, proibição de acesso amplo e separação entre cobrança real e sandbox. Incluído no gate Preview.
+- **Não há confirmação de transação bancária real nem de restituição do objeto histórico ausente** apenas com testes automatizados: para isso ainda são necessárias evidências externas; não alegar aceite comercial sem elas.
