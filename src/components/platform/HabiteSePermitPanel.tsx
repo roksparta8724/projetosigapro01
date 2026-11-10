@@ -703,7 +703,7 @@ export function HabiteSePermitPanel({
     setNotice("");
     try {
       await onCompleteProcess();
-      setLifecycleStatus("deferido");
+      setLifecycleStatus("arquivado");
       window.dispatchEvent(new Event("sigapro:data-changed"));
       await onProcessRefresh?.();
       setNotice("");

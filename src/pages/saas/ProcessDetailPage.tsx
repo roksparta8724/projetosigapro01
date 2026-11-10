@@ -1,4 +1,5 @@
 import { archiveAndOpenGuide, openLegacyGuideOriginal, openStoredGuide, readGuideOriginal } from "@/lib/guideOriginal";
+import { completeHabiteSeProcess } from "@/integrations/permits/habiteSePermitClient";
 import { isSyntheticQaProtocolGuideCode, isFinancialTestGuide } from "@/lib/qaPaymentEvidence";
 import { FormEvent, MouseEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, ArrowRightLeft, BrainCircuit, Building2, CheckCircle2, Clock3, Download, Eye, FileBadge2, FileCheck2, FileKey2, FileStack, Landmark, LogOut, Maximize2, MessageSquareMore, PencilLine, Printer, ReceiptText, Route, ShieldAlert, Signature, UserRound, Wallet, Workflow, ZoomIn, ZoomOut } from "lucide-react";
@@ -4437,14 +4438,12 @@ export function ProcessDetailPage() {
                 }
                 onProcessRefresh={() => refreshRemoteStore()}
                 onCompleteProcess={async () => {
-                  await updateProcessStatus({
-                    processId: process.id,
-                    status: "deferido",
-                    actor: session.name,
-                    title: "Processo de Habite-se concluído",
-                    detail:
-                      "Alvará de Habite-se emitido com assinatura eletrônica válida da Diretoria. Processo concluído administrativamente pelo responsável autorizado, permanecendo visível na pasta de concluídos e no histórico oficial.",
-                  });
+                  // Arquivamento real: autorização, Alvará, status e auditoria
+                  // ficam na mesma transação Neon, não no update genérico.
+                  const result = await completeHabiteSeProcess(process.id);
+                  if (!result.ok || result.status !== "arquivado") {
+                    throw new Error("O banco não confirmou o arquivamento do Habite-se.");
+                  }
                   await refreshRemoteStore(process.id);
                   window.dispatchEvent(new Event("sigapro:data-changed"));
                 }}

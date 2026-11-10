@@ -1558,3 +1558,9 @@ navegador autenticado.
 - Em sandbox Git isolado reproduziu-se a falha de `npm ci` sem a configuração de peers legados: dependências de integração Neon beta não estavam incluídas no lockfile no modo peer padrão; `npm ci --legacy-peer-deps` instalou corretamente 834 pacotes e permitiu testes. É risco de divergência entre CI, preview e máquina do desenvolvedor.
 - Adicionada configuração local `.npmrc` compatível com a versão beta fixada do Neon (`legacy-peer-deps=true`). CI Quality e Neon passam a executar **`npm ci`**, com lockfile imutável; workflow Neon não tem mais permissão de escrita nem sincroniza o lockfile por commit automático depois de testes. Uma futura atualização do SDK pode remover essa configuração mediante validação do novo lockfile.
 - Isto comprova instalação reprodutível sob o contrato declarado, não comprova login de usuário municipal nem evento real de compensação bancária.
+
+
+## 10/11/2026 — correção estrutural do encerramento administrativo do Habite-se
+- Erro real: em `ProcessDetailPage.tsx` o comando `onCompleteProcess` escrevia genericamente `status=deferido`; no painel o status local também permanecia `deferido`. A aplicação não chamava a função existente `complete_habite_se_process_v1`, deixando o processo fora do arquivo administrativo.
+- Corrigido: chamada pela `completeHabiteSeProcess` do cliente, com resultado obrigatoriamente `arquivado`; a RPC Neon verifica acesso e Alvará e grava processo, movimentação e auditoria na mesma transação. O painel agora marca `arquivado` apenas após sucesso efetivo.
+- Prova de banco com identidade do analista: a RPC concluiu e gerou movimentação/auditoria, com rollback intencional preservando o processo original. Novo teste de regressão integra o gate Preview QA.
