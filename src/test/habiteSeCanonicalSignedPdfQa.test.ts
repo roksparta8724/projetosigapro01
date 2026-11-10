@@ -33,6 +33,11 @@ describe("SIGAPRO Habite-se: signed document is immutable evidence",()=>{
     expect(panel).not.toContain('["deferido", "arquivado"].includes(lifecycleStatus)');
     expect(panel).toContain("Processo concluído com êxito");
     expect(panel).toContain('setLifecycleStatus("arquivado")');
+    expect(panel).toContain('const issuedSignatureUnverified = permit?.status === "emitido" && !directorSigned');
+    expect(panel).toContain('effectivePermitStatus === "verificacao_pendente"');
+    expect(panel).toContain('verifiedIssuedPrint?.process.property.area ?? process.property.area ?? 0');
+    expect(panel).toContain("a cópia assinada ainda não foi validada");
+
     expect(sql).toContain("status='arquivado'::public.process_status");
   });
 });

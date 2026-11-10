@@ -515,9 +515,12 @@ export function HabiteSePermitPanel({
       : undefined;
   const directorSigned = Boolean(directorSigner);
   const secretarySigned = Boolean(secretarySigner);
-  const effectivePermitStatus = directorSigned ? "emitido" : permit?.status || "rascunho";
-  const effectiveDirectorName =
-    directorSigner?.name || permit?.directorName || null;
+  const issuedSignatureUnverified = permit?.status === "emitido" && !directorSigned;
+  const effectivePermitStatus = issuedSignatureUnverified
+    ? "verificacao_pendente"
+    : directorSigned ? "emitido" : permit?.status || "rascunho";
+  const effectiveDirectorName = issuedSignatureUnverified
+    ? null : directorSigner?.name || permit?.directorName || null;
 
   useEffect(() => {
     if (
@@ -919,13 +922,20 @@ export function HabiteSePermitPanel({
                   ? "Emitido pela Diretoria"
                   : effectivePermitStatus === "aguardando_diretor"
                     ? "Aguardando Diretoria"
-                    : "Em elaboração"}
+                    : effectivePermitStatus === "verificacao_pendente"
+                      ? "Conferência da assinatura"
+                      : "Em elaboração"}
               </span>
             </Badge>
           </div>
         </CardHeader>
 
         <CardContent className="space-y-5 p-5">
+          {issuedSignatureUnverified ? (
+            <div role="status" className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm font-medium text-amber-950 dark:border-amber-500/50 dark:bg-amber-950/40 dark:text-amber-100">
+              A emissão está registrada, mas a cópia assinada ainda não foi validada nesta sessão. Para consultar o documento oficial, use Abrir PDF oficial; o SIGAPRO verificará novamente a versão e a assinatura no servidor antes da abertura.
+            </div>
+          ) : null}
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <div data-habite-se-permit-metric="true" className="min-w-0 rounded-[18px] border border-slate-200 bg-[linear-gradient(145deg,#ffffff_0%,#f8fafc_100%)] p-4 shadow-[0_8px_20px_rgba(15,23,42,0.04)] dark:border-slate-700 dark:bg-[linear-gradient(145deg,#0f172a_0%,#111827_100%)]">
               <p data-habite-se-permit-metric-label="true" className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-500">Número</p>
@@ -933,7 +943,7 @@ export function HabiteSePermitPanel({
             </div>
             <div data-habite-se-permit-metric="true" className="min-w-0 rounded-[18px] border border-slate-200 bg-[linear-gradient(145deg,#ffffff_0%,#f8fafc_100%)] p-4 shadow-[0_8px_20px_rgba(15,23,42,0.04)] dark:border-slate-700 dark:bg-[linear-gradient(145deg,#0f172a_0%,#111827_100%)]">
               <p data-habite-se-permit-metric-label="true" className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-500">Área certificada</p>
-              <p data-habite-se-permit-metric-value="true" className="mt-2 break-words text-sm font-black leading-5 text-slate-950 dark:text-white">{Number(process.property.area || 0).toLocaleString("pt-BR")} m²</p>
+              <p data-habite-se-permit-metric-value="true" className="mt-2 break-words text-sm font-black leading-5 text-slate-950 dark:text-white">{issuedSignatureUnverified ? "Aguardando conferência" : Number(verifiedIssuedPrint?.process.property.area ?? process.property.area ?? 0).toLocaleString("pt-BR") + " m²"}</p>
             </div>
             <div data-habite-se-permit-metric="true" className="min-w-0 rounded-[18px] border border-slate-200 bg-[linear-gradient(145deg,#ffffff_0%,#f8fafc_100%)] p-4 shadow-[0_8px_20px_rgba(15,23,42,0.04)] dark:border-slate-700 dark:bg-[linear-gradient(145deg,#0f172a_0%,#111827_100%)]">
               <p data-habite-se-permit-metric-label="true" className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-500">Analista responsável</p>

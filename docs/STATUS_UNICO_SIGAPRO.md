@@ -1594,3 +1594,5 @@ navegador autenticado.
 - A abertura de um alvará emitido agora obtém **novas cópias autenticadas** do alvará e das assinaturas no backend, sem confiar na visualização em cache do navegador; teste de regressão reproduz alteração posterior de proprietário, área e endereço e verifica identidade documental.
 
 - Teste de documento binário `habiteSeSignedPdfBytesQa.test.ts`: gera um **PDF A4 real** a partir do artefato assinado, simula mudança posterior de proprietário, endereço e protocolo e verifica que os valores assinados aparecem no arquivo, sem os alterados. Incluído no QA Preview build gate.
+
+- Refinamento de UX para prova documental: se o registro possui status `emitido` mas o navegador ainda não validou o artefato assinado, a interface mostra **Conferência da assinatura**, não **Emitido pela Diretoria**. A métrica da área no painel do Alvará passa a usar o snapshot da assinatura quando validado; impressão exige refetch autenticado.
