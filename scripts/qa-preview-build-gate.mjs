@@ -36,6 +36,7 @@ const TESTS=[
   "src/test/habiteSeCompletionRealRpcRegression.test.ts",
   "src/test/habiteSeCanonicalSignedPdfQa.test.ts",
   "src/test/municipalAdminDbGuardFullQa.test.ts",
+  "src/test/prefeituraAdminDispatchFailClosedQa.test.ts",
   "src/test/qa04StoredPdfAudit.test.tsx",
 ];
 function run(label,args){

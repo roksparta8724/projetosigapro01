@@ -1571,3 +1571,8 @@ navegador autenticado.
 - Migration `20261110_habite_se_signed_document_and_completion.sql` faz o documento **emitido** carregar diretamente o `formData` da última versão assinada pela Diretoria, com identificação do Alvará e código verificador. Sem assinatura verificável, bloqueia abertura em vez de apresentar conteúdo incerto.
 - `complete_habite_se_process_v1` agora valida o artefato assinado e a guia do Habite-se efetivamente compensada. Guias bancárias exigem retorno autenticado, ambiente de produção e referência ao PDF original. Admin municipal é explicitamente consultivo, sem conclusão de processos.
 - Implantar e provar na QA, sem reescrever documentos emitidos ou pagamentos legados; nenhum dado da produção alterado.
+
+
+### Contrato do administrador municipal, inclusive na tela do processo
+- A auditoria do formulário `ProcessDetailPage` encontrou exceção explícita `allowMunicipalAdmin:true` no encaminhamento por organograma e texto que prometia ao admin poder despachar processos. Isso contrariava a regra consultiva e os 27 bloqueios do Neon.
+- Removida a exceção, formulário ocultado para `prefeitura_admin`, adicionada recusa defensiva no handler e corrigido o aviso institucional. Teste de regressão adicionado ao QA Preview. A gestão de legislações, identidade institucional e usuários permanece nas telas administrativas próprias.

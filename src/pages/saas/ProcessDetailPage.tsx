@@ -2594,6 +2594,10 @@ export function ProcessDetailPage() {
   };
   const handleDispatchSubmit = async (event: FormEvent) => {
     event.preventDefault();
+    if (session.role === "prefeitura_admin") {
+      setProcessActionStatus("O Administrador da Prefeitura pode consultar, mas não encaminhar ou modificar processos.");
+      return;
+    }
     if (isProtocolTrackingOnly) {
       setProcessActionStatus("O Protocolo está apenas acompanhando este processo e não pode despachá-lo nesta etapa.");
       return;
@@ -2631,7 +2635,6 @@ export function ProcessDetailPage() {
           visibility: dispatchVisibility,
         }),
       `Processo encaminhado com sucesso para ${selectedDestination.name}. A nova unidade já recebeu o trâmite no fluxo oficial.`,
-      { allowMunicipalAdmin: true },
     );
     if (ok) {
       setDispatchTo("");
@@ -3031,7 +3034,7 @@ export function ProcessDetailPage() {
         <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900 dark:border-sky-500/30 dark:bg-sky-950/30 dark:text-sky-200">
           <p className="font-semibold">Governança administrativa da Prefeitura</p>
           <p className="mt-1 leading-6">
-            O Administrador acompanha todo o processo e pode realizar o encaminhamento institucional pelo organograma. Aprovação técnica, baixa financeira e demais atos especializados continuam restritos aos setores competentes.
+            O Administrador acompanha o processo em modo de consulta. Encaminhamentos, baixa financeira, análise, assinaturas e alterações do processo pertencem exclusivamente aos setores competentes.
           </p>
         </div>
       ) : null}
@@ -5857,7 +5860,7 @@ export function ProcessDetailPage() {
                 </div>
               ) : null}
 
-{isInternalRole(session.role) && ownsCurrentProcessStage && !isProtocolTrackingOnly ? (
+{isInternalRole(session.role) && session.role !== "prefeitura_admin" && ownsCurrentProcessStage && !isProtocolTrackingOnly ? (
                 <form
                   id="despacho"
                   data-dispatch-panel="true"
