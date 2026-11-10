@@ -59,8 +59,9 @@ jobs:
             exit 2
           }
           git fetch --no-tags origin "+refs/heads/fix/qa-triagem-analise-pagamento-20261101:refs/remotes/origin/qa-release-acceptance"
-          git merge-base --is-ancestor "$actual" refs/remotes/origin/qa-release-acceptance || {
-            echo "::error::Evidence code is not an ancestor of the QA release branch."
+          branch_head="$(git rev-parse refs/remotes/origin/qa-release-acceptance)"
+          [[ "$actual" == "$branch_head" ]] || {
+            echo "::error::The QA branch moved after this evidence release. Re-test and re-approve the latest exact SHA."
             exit 2
           }
       - uses: actions/setup-node@v4
