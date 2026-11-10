@@ -9,7 +9,11 @@ describe("SIGAPRO - multi-municipality provider selection and fail-closed onboar
       const profile=getMunicipalIntegrationProfile(code);
       expect(profile?.requirements.length).toBeGreaterThan(1);
       expect(profile?.recommendation).toMatch(/(adaptador|conector|integração)/i);
-      expect(getMunicipalCollectionAdapter(code)).toBeNull();
+      if (code === "govbr_ar") {
+        expect(getMunicipalCollectionAdapter(code)?.operations).toEqual(["query"]);
+      } else {
+        expect(getMunicipalCollectionAdapter(code)).toBeNull();
+      }
     }
     expect(getMunicipalIntegrationProfile("unknown bank")).toBeNull();
     expect(MUNICIPAL_INTEGRATION_PROFILES.map(p=>p.code).length).toBe(new Set(MUNICIPAL_INTEGRATION_PROFILES.map(p=>p.code)).size);
@@ -25,6 +29,7 @@ describe("SIGAPRO - multi-municipality provider selection and fail-closed onboar
     expect(api).toContain('if (mode === "municipal_system" && integrationType === "automatic")');
     expect(api).toContain('if (!adapter)');
     expect(api).toContain('if (secret) throw new Error');
+    expect(api).toContain('action === "govbr_read_preview"');
     expect(api).toContain('adapter.operations.includes(operation)');
     expect(api).toContain('Fornecedor ainda sem adaptador homologado');
   });
