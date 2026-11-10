@@ -59,6 +59,18 @@ describe("SIGAPRO: cobrança real somente com DAM original persistida",()=>{
       ...props,guia:{...props.guia,valorCobrado:301},
     },"m1")).toThrow(/valor do PDF difere/);
   });
+  it("detalhe do processo não substitui uma guia paga por anexo PDF legado",()=>{
+    const detail=readFileSync("src/pages/saas/ProcessDetailPage.tsx","utf8");
+    const start=detail.indexOf("const original = await readGuideOriginal(effectiveScopeId, selectedGuide.code);");
+    const paid=detail.indexOf("if (isGuideSettled(original))",start);
+    const stored=detail.indexOf("if (await openStoredGuide(original, reservedGuideWindow)) return;",start);
+    const legacy=detail.indexOf("await openLegacyGuideOriginal(process.documents, selectedGuide.code, reservedGuideWindow)",start);
+    expect(start).toBeGreaterThan(0);
+    expect(stored).toBeGreaterThan(start);
+    expect(paid).toBeGreaterThan(stored);
+    expect(legacy).toBeGreaterThan(paid);
+    expect(detail).toContain('original.collection_mode_snapshot === "municipal_system"');
+  });
   it("portal externo não abre guia pagável transitória nem chama banco para reabrir original",()=>{
     const page=readFileSync("src/pages/saas/ExternalPaymentsPage.tsx","utf8");
     expect(page).toContain('window.open("", "_blank")');
