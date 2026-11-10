@@ -1703,3 +1703,9 @@ navegador autenticado.
 - `SIGAPRO Quality Gate` executou o typecheck da primeira versão e detectou identificadores duplicados `barcode` e `digitable_line` no tipo de `src/lib/guideOriginal.ts`. Erro corrigido removendo declarações redundantes; os campos originais já existiam.
 - Correções unificadas permanecem restritas à branch QA e PR #118. A rotina de recuperação de R2 apenas DIAGNOSTICA os objetos antigos, não modifica documentos nem produz novas guias.
 - Condição de aceite: nova execução da PR aprovar TypeScript, ESLint, testes gerais, segurança e build, além de preview READY no link fixo. Para produção comercial permanecem necessários teste bancário autêntico e comprovado, restauração de R2, zoneamento georreferenciado e matriz jurídica conferida com responsabilidade municipal.
+
+
+### 10/11/2026 — alinhamento do gate completo de testes
+- A bateria GitHub do candidato anterior aprovou 1807 testes e reprovou 1 teste textual legado que exigia a expressão `pixPayload: isolatedQa ? ""` na página externa. O código reforçou o bloqueio de PIX estático para todas as cobranças bancárias; o teste obsoleto foi atualizado para exigir a regra mais segura, preservando a prévia QA não pagável.
+- O TypeScript e os testes focados da Vercel passaram; a auditoria física da DAM histórica identificou `NOT_VERIFIED_ORIGINAL_OBJECT_MISSING`: **bucket existe, referência SHA canônica não tem objeto**, sem recuperar o conteúdo. Isso exige backup/origem autorizada; jamais regenerar uma guia paga e chamá-la de original.
+- Nova publicação exige validação completa no mesmo HEAD; manter PR #118 Draft e produção intocada até aceites reais.
