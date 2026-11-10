@@ -11,7 +11,7 @@ import { isCollectionSuccessMessage, municipalCollectionError } from "@/lib/coll
 import { MUNICIPAL_INTEGRATION_PROFILES, getMunicipalIntegrationProfile } from "@/lib/municipalIntegrationCatalog";
 
 type Mode = "sigapro" | "municipal_system";
-type Configuration = { public_parameters?: { govbrAr?: { authMode?: "bearer" | "x-api-key"; readPath?: string } }; secret_configured?: boolean; mode?: Mode; status?: "not_configured"|"homologation"|"validated"|"active"|"error"; supplier_code?: string; supplier_name?: string; api_base_url?: string; environment?: "test"|"production"; integration_type?: "automatic"|"controlled_import"; secret_configured?: boolean; secret_fingerprint?: string; validation_message?: string; version?: number };
+type Configuration = { public_parameters?: { govbrAr?: { authMode?: "bearer" | "x-api-key"; readPath?: string } }; mode?: Mode; status?: "not_configured"|"homologation"|"validated"|"active"|"error"; supplier_code?: string; supplier_name?: string; api_base_url?: string; environment?: "test"|"production"; integration_type?: "automatic"|"controlled_import"; secret_configured?: boolean; secret_fingerprint?: string; validation_message?: string; version?: number };
 type GovbrReadResult = { ok: boolean; supplierCode: string; readOnly: true; method: "GET"; kind: string; fields: string[]; recordCount?: number; arrays?: Array<{ field: string; recordCount: number }>; exampleValuesExposed: false; automaticSettlementAvailable: false };
 type ProviderStatus = { supplierCode: string; connectorInstalled: boolean; credentialVerified: boolean; bankSettlementEnabled: boolean; operations: string[]; mode: string };
 async function requestProviderStatus(municipalityId:string,supplierCode:string) {
