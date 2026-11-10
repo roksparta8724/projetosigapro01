@@ -37,8 +37,6 @@ export type GuideOriginal = {
   provider_environment?: "test" | "production";
   payment_provider?: "mercado_pago" | "bank_direct" | "manual" | null;
   bank_reference?: string;
-  barcode?: string;
-  digitable_line?: string;
   bank_payment_id?: string;
   bank_status?: string;
   bank_status_detail?: string;
