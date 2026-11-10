@@ -4,6 +4,7 @@ import { getSignedUrlForObjectStrict, uploadFile } from "@/integrations/r2/clien
 import { type GuiaRecolhimentoOficialProps } from "@/components/GuiaRecolhimentoOficial";
 import type { ProcessDocument } from "@/lib/platform";
 import { isValidPixPayload, pixPayloadAmountCents } from "@/lib/pix";
+import { normalizeOfficialBanking } from "@/lib/bankCodes";
 
 export async function openLegacyGuideOriginal(documents: ProcessDocument[], code: string, target: Window) {
   const matches = documents.filter((doc) => doc.uploaded && doc.filePath &&
@@ -36,6 +37,8 @@ export type GuideOriginal = {
   provider_environment?: "test" | "production";
   payment_provider?: "mercado_pago" | "bank_direct" | "manual" | null;
   bank_reference?: string;
+  barcode?: string;
+  digitable_line?: string;
   bank_payment_id?: string;
   bank_status?: string;
   bank_status_detail?: string;
@@ -95,14 +98,30 @@ export function assertOfficialGuideDocument(
   const payable=props.guia.valorCobrado??props.guia.valorDocumento;
   if(guideCentavos(payable)!==guideCentavos(original.amount))
     throw new Error("O valor do PDF difere do valor persistido da guia no Neon.");
-  const pix=props.guia.pixPayload;
+  const pix=String(props.guia.pixPayload||"").trim();
+  const storedBank=normalizeOfficialBanking(original.barcode,original.digitable_line);
+  const printedBank=normalizeOfficialBanking(props.guia.codigoBarras,props.guia.linhaDigitavel);
+  // Boleto-only DAMs are valid: PIX is NOT mandatory if the registered bank
+  // charge, barcode, line and order reference exactly match the Neon record.
+  // A municipality's static PIX key is never a substitute for bank attestation.
+  const bankMatches=Boolean(original.bank_reference &&
+    original.payment_provider==="mercado_pago" &&
+    original.provider_environment==="production" &&
+    props.guia.bankReference===original.bank_reference &&
+    storedBank.barcode && storedBank.digitableLine &&
+    storedBank.barcode===printedBank.barcode &&
+    storedBank.digitableLine===printedBank.digitableLine);
+  if(!pix){
+    if(!bankMatches)
+      throw new Error("DAM sem PIX só pode ser emitida com boleto bancário registrado e conferido no Neon.");
+    return;
+  }
   if(!isValidPixPayload(pix))
     throw new Error("PIX Copia e Cola inválido; a DAM não será arquivada.");
   const amount=pixPayloadAmountCents(pix);
   if(amount===null){
-    // Dynamic PIX may omit the amount; only a bank-registered charge can
-    // bind it to the immutable guide amount via its own order reference.
-    if(!original.bank_reference||!original.payment_provider)
+    // A dynamic PIX without embedded amount requires a bank-registered charge.
+    if(!bankMatches)
       throw new Error("PIX sem valor exige cobrança bancária registrada e vinculada à guia.");
   } else if(amount!==guideCentavos(original.amount))
     throw new Error("Valor do PIX divergente da guia original registrada no Neon.");
