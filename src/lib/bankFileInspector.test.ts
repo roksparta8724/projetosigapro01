@@ -39,12 +39,16 @@ describe("SIGAPRO bank file recognition - never settlement",()=>{
   expect(()=>inspectBankFile("x".repeat(2_000_001))).toThrow(/2 MB/);
   expect(()=>inspectBankFile(cnab240("033","0")+"\n"+cnab400("9"))).toThrow(/Formato não reconhecido/);
  });
- it("keeps browser local: no statements uploaded or bank credit mutations",()=>{
-  const cmp=readFileSync("src/components/platform/MunicipalBankFileInspector.tsx","utf8");
+ it("uses one local OFX/CNAB inspector, with an explicit scoped CNAB240 comparison action",()=>{
+  const cmp=readFileSync("src/components/platform/BankReturnPreviewPanel.tsx","utf8");
   const bank=readFileSync("src/components/platform/MunicipalBankDetailsSettings.tsx","utf8");
-  expect(cmp).toContain("await file.text()");
-  expect(cmp).not.toContain("fetch(");
+  const config=readFileSync("src/components/platform/MunicipalCollectionSettings.tsx","utf8");
+  expect(cmp).toContain("inspectBankFile(text, bankCode)");
+  expect(cmp).toContain('local?.format !== "cnab240"');
+  expect(cmp).toContain('"bank_return_preview"');
   expect(cmp).not.toContain("uploadFileToStorage");
-  expect(bank).toContain("<MunicipalBankFileInspector");
+  expect(bank).toContain("<BankReturnPreviewPanel");
+  expect(config).not.toContain("<BankReturnPreviewPanel");
+  expect(readFileSync("api/collection-configuration.ts","utf8")).not.toContain('action === "bank_return_settle"');
  });
 });
