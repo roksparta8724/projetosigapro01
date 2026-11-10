@@ -4,6 +4,7 @@ import type { ApiReq } from "./municipal-storage.js";
 import { resolveMercadoPagoMunicipalAccessToken } from "./municipal-payment.js";
 import { assertBankChargeAttestationReady, assertGuideProviderSyncAccess, assertGuideProviderWriteAccess, persistGuideCharge, readStoredGuide, storedGuideCharge } from "./guide-persistence.js";
 import { normalizeOfficialBanking } from "../src/lib/bankCodes.js";
+import { buildProductionBoletoPayer, assertProductionBankIssueAllowed, type BoletoPayerForm } from "./mercadopago-payer.js";
 type MercadoPagoEnvironment = "test" | "production";
 
 export type MercadoPagoConnectionCheck = {
@@ -177,6 +178,7 @@ export type MercadoPagoGuideBoletoInput = {
   amount: number;
   dueDate?: string;
   description?: string;
+  payer?: BoletoPayerForm;
 };
 
 export type MercadoPagoGuideBoletoResult = {
@@ -506,37 +508,25 @@ export async function createMercadoPagoGuideBoleto(
       type: "ticket",
     },
   };
-  // No sandbox do Mercado Pago usamos apenas dados de comprador de teste.
-  // Em produção, a integração deverá usar os dados reais do contribuinte.
-  const payer =
-    environment === "test"
-      ? {
-          email: "test@testuser.com",
-          first_name: "John",
-          last_name: "Doe",
-          identification: {
-            type: "CPF",
-            number: "99999999999",
-          },
-          address: {
-            street_name: "Av. das Nacoes Unidas",
-            street_number: "3003",
-            zip_code: "06233903",
-            neighborhood: "Bonfim",
-            state: "SP",
-            city: "Osasco",
-          },
-        }
-      : undefined;
-
-  if (environment !== "test") {
-    return {
-      ok: false,
-      environment,
-      error:
-        "A cobrança real ainda está bloqueada. Primeiro valide o fluxo completo no ambiente de teste.",
-    };
+  // Never submit a fictional buyer to a production bank order. Live payer
+  // identification comes from the persisted municipal guide. Only address
+  // and email are filled explicitly by the user in the real checkout form.
+  if (environment === "production") {
+    assertProductionBankIssueAllowed(stored || undefined);
+    assertBankChargeAttestationReady();
   }
+  const payer = environment === "test"
+    ? {
+        email: "test@testuser.com",
+        first_name: "John",
+        last_name: "Doe",
+        identification: {type:"CPF",number:"99999999999"},
+        address: {
+          street_name:"Av. das Nacoes Unidas",street_number:"3003",
+          zip_code:"06233903",neighborhood:"Bonfim",state:"SP",city:"Osasco",
+        },
+      }
+    : buildProductionBoletoPayer(stored!,input.payer);
 
   const body: Record<string, unknown> = {
     type: "online",
@@ -546,6 +536,7 @@ export async function createMercadoPagoGuideBoleto(
     description:
       String(input.description || `SIGAPRO - ${guideCode}`).slice(0, 120),
     payer,
+    ...(environment==="production" ? {config:{location:{state_id:"BR-"+payer.address.state}}} : {}),
     transactions: {
       payments: [payment],
     },
