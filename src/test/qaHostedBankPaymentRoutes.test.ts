@@ -28,6 +28,15 @@ describe("SIGAPRO QA real provider TEST without production leakage",()=>{
       {SIGAPRO_QA_MP_WEBHOOK_DATABASE_URL:"postgresql://qa@ep-blue-cloud.c-6.us-east-2.aws.neon.tech/other"},
       {VITE_NEON_DATA_API_URL:"https://ep-blue-cloud.apirest.c-6.us-east-2.aws.neon.tech/rest/v1"},
     ])expect(isIsolatedQaBankRuntime({...valid,...variant})).toBe(false);
+    expect(isIsolatedQaBankRuntime({
+      ...valid,VERCEL_GIT_COMMIT_REF:"main",
+      SIGAPRO_LOCAL_QA_LAUNCH:"true",
+      SIGAPRO_LOCAL_QA_BLOCK_EXTERNAL_WRITES:"true",
+    })).toBe(false);
+    expect(isIsolatedQaBankRuntime({
+      ...valid,SIGAPRO_QA_MP_WEBHOOK_DATABASE_URL:
+      "postgresql://other:x@ep-misty-breeze-b4ri8ig0.c-6.us-east-2.aws.neon.tech/sigapro_migration_stage_20260923?sslmode=require",
+    })).toBe(false);
   });
   it("publishes BOTH sandbox routes without adding any new Vercel function",()=>{
     const config=JSON.parse(read("vercel.json")) as {rewrites:Array<{source:string,destination:string}>};
