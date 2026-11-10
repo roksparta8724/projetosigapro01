@@ -70,6 +70,7 @@ import { createQa04ArchitecturalPdf, createQa04DocumentKit, isQa04ArchitecturalI
 import { upgradeRemoteQa04ArchitecturalPlanV2 } from "@/integrations/backend/platformImpl";
 import {
   buildProcessPath,
+  buildProcessDocuments,
   buildProcessIdentityRouteKey,
   calculateApprovalGuideBreakdown,
   calculateHabiteSeGuideBreakdown,
@@ -994,7 +995,15 @@ export function ProcessDetailPage() {
     }
   }, [activeTab, isExternalSession, session.role]);
 
-  const canUploadProcessDocuments = session.role === "profissional_externo" && process?.status === "rascunho";
+  // Automatic triage returns a paid process to its professional for missing
+  // documents. A draft-only condition trapped the professional permanently:
+  // no upload => no recheck => no analyst dispatch. Keep this owner/scope-
+  // restricted and never reopen documents for unrelated or closed processes.
+  const canUploadProcessDocuments = session.role === "profissional_externo" &&
+    !!process &&
+    processBelongsToExternalProfessional(session, process) &&
+    matchesOperationalScope(effectiveScopeId, process) &&
+    (process.status === "rascunho" || process.status === "pendencia_documental");
   const canImportQa04Fixture = isQa04ArchitecturalImportAllowed({
     isolatedQa: import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true",
     role: session.role,
@@ -1244,7 +1253,13 @@ export function ProcessDetailPage() {
   const verifiedArchiveIds = new Set(
     verifiedSignedArchive.processId === process.id ? verifiedSignedArchive.ids : [],
   );
-  const regularProcessDocuments = process.documents.filter((document) => !verifiedArchiveIds.has(document.id));
+  // Older paid pre-protocols may have zero rows in process_documents.
+  // Render the official checklist as *pending slots*, never as uploaded
+  // or legally verified records, so the professional can submit them.
+  const documentSlots = process.documents.length
+    ? process.documents
+    : buildProcessDocuments(process.type, [], process.tenantId, effectiveScopeId);
+  const regularProcessDocuments = documentSlots.filter((document) => !verifiedArchiveIds.has(document.id));
   const uploadedCount = regularProcessDocuments.filter((document) => document.uploaded).length;
   const protocolGuide = visiblePaymentGuides.find((guide) => guide.kind === "protocolo");
   const pixPayload = protocolGuide
@@ -1329,7 +1344,7 @@ export function ProcessDetailPage() {
   const visibleDocumentRows =
     isProtocolTrackingOnly
       ? []
-      : isInternalRole(session.role)
+      : isInternalRole(session.role) || canUploadProcessDocuments
         ? regularProcessDocuments
         : regularProcessDocuments.filter((document) => document.uploaded);
   const approvedDocumentCount = regularProcessDocuments.filter(
@@ -2849,7 +2864,7 @@ export function ProcessDetailPage() {
 
   const handleUploadMissingDocument = async (document: typeof process.documents[number]) => {
     if (!canUploadProcessDocuments) {
-      setProcessActionStatus("Somente o profissional externo pode enviar documentos para o processo.");
+      setProcessActionStatus("Somente o profissional responsável, em rascunho ou correção documental, pode enviar documentos.");
       return;
     }
     const selected = documentUploads[document.id]?.[0];
