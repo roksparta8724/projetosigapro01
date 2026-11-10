@@ -6,7 +6,7 @@ import { getR2EndpointCandidates, resolveR2Endpoint } from "../r2-runtime.js";
  * Retorna { bucket, objectKey, publicUrl }
  */
 
-import { HeadObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { createHash } from "node:crypto";
 import { assertStoredDamOriginal } from "../dam-original-integrity.js";
 import { getDataApiUrl, resolveMunicipalDocumentTarget } from "../municipal-storage.js";
