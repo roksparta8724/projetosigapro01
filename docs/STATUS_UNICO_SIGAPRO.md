@@ -1781,3 +1781,5 @@ navegador autenticado.
 - Manual de solicitação/ativação: `docs/GOVBR_AR_API_PREPARACAO_QA.md`. Nenhuma chave de API real foi adicionada e nenhuma guia, arrecadação ou dado da produção foi alterado.
 
 - Prévia QA da preparação GET GOVBR/AR: executar `npm run build`, Quality Gate, validação Neon e OCR isolado no commit marcado `[deploy-qa]`. Nenhum segredo GOVBR foi fornecido ou injetado. A ativação automática permanece negada pela RPC Neon. 
+
+- **Separação absoluta:** a ação GOVBR/AR de teste recusa qualquer configuração com `environment=production` quando executada na Vercel Preview. Não testar credenciais de produção do fornecedor pela homologação QA. Nenhum evento financeiro é gravado pelo teste.
