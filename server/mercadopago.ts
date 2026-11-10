@@ -4,7 +4,7 @@ import type { ApiReq } from "./municipal-storage.js";
 import { resolveMercadoPagoMunicipalAccessToken } from "./municipal-payment.js";
 import { assertBankChargeAttestationReady, assertGuideProviderSyncAccess, assertGuideProviderWriteAccess, persistGuideCharge, readStoredGuide, storedGuideCharge } from "./guide-persistence.js";
 import { normalizeOfficialBanking } from "../src/lib/bankCodes.js";
-import { buildProductionBoletoPayer, assertProductionBankIssueAllowed, type BoletoPayerForm } from "./mercadopago-payer.js";
+import { buildProductionBoletoPayer, assertProductionBankIssueAllowed } from "./mercadopago-payer.js";
 type MercadoPagoEnvironment = "test" | "production";
 
 export type MercadoPagoConnectionCheck = {
@@ -178,7 +178,7 @@ export type MercadoPagoGuideBoletoInput = {
   amount: number;
   dueDate?: string;
   description?: string;
-  payer?: BoletoPayerForm;
+  payer?: unknown;
 };
 
 export type MercadoPagoGuideBoletoResult = {
