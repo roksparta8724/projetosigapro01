@@ -4,7 +4,7 @@
 ## Ambientes, links e escopo
 - **Repositório:** https://github.com/roksparta8724/projetosigapro01
 - **Ramificação ÚNICA de trabalho e homologação:** `fix/qa-triagem-analise-pagamento-20261101`
-- **Pull request central de integração e entrega:** https://github.com/roksparta8724/projetosigapro01/pull/117 (**draft**, NÃO mesclar automaticamente).
+- **Pull request central de integração e entrega:** https://github.com/roksparta8724/projetosigapro01/pull/118 (**draft**, NÃO mesclar automaticamente). PR #117 é histórico; as alterações atuais permanecem na PR #118.
 - **ENDEREÇO ESTÁVEL da homologação (alias automático da Vercel, acompanha os novos commits da mesma branch):** https://projetosigapro01-git-fix-qa-tria-c25603-roksparta8724s-projects.vercel.app
 - **Projeto Vercel:** `projetosigapro01`; produção oficial `main` → `sigapromunicipal.com.br`.
 - **Neon QA usado nas conferências e migrações:** projeto `red-sunset-21120522`; branch `br-solitary-sound-b4xlbvs6`; banco `sigapro_migration_stage_20260923`. **NÃO confundir com Neon de produção sem verificar a conexão.**
@@ -1653,3 +1653,10 @@ navegador autenticado.
 - O workflow de aceite comercial passou a exigir o **commit atualmente no HEAD da branch QA**, além do código e do artifact de evidências para esse mesmo SHA. Mudança de código invalida aprovações de release anterior; testes Node do verificador foram incluídos também no gate de build Vercel.
 - Auditoria Vercel: os nomes e credenciais do R2 institucional continuam como variáveis compartilhadas de Preview e produção. O browser QA dispõe de Auth e Data API Neon QA de endpoint próprio (sem fallback ao banco de produção nas prévias). **R2 precisa ser segregado de verdade**, e o original existente deve ser migrado/validado sem alteração ou exclusão do arquivo histórico. Não configurar bucket fictício nem fazer movimentos cegos em produção.
 - Resultados de testes com identidades reais em transações revertidas são comprovações técnicas, não assinaturas comerciais. Falta aceite privado dos dez critérios e homologação operacional autenticada. A QA deste lote está apta para demonstração técnica controlada, jamais para introduzir dados privados de novos clientes sem os controles pendentes.
+
+
+## 10/11/2026 — última verificação da preparação comercial e do PDF R2
+- O endereço FIXO de homologação continua: https://projetosigapro01-git-fix-qa-tria-c25603-roksparta8724s-projects.vercel.app/acesso. Confirmado que ele aponta para a versão QA, não para a produção.
+- Banco QA conferido novamente: 2 prefeituras, 8 processos, 11 guias, 27 anexos válidos e um registro de conciliação Mercado Pago sandbox. **O banco tem 0 evidências legais conferidas (catálogo e escopos) e 0 geometrias de zoneamento e parcela.** Há registros de regras ativas que não equivalem a conformidade legal conferida.
+- Novo diagnóstico de integridade física: `scripts/qa-r2-original-bytes.mjs`, executado pelo gate Vercel exclusivamente na branch QA. Conecta ao banco QA apenas por SELECT, compara identidade do endpoint PostgreSQL ao endpoint Data API QA e baixa **um** original DAM do R2 via GET, computando SHA-256 em memória (máximo 25 MB). Nunca registra PDF, chave de objeto, login, credenciais, município ou dados pessoais. `PASS` confirma os bytes do objeto amostrado; `NOT_VERIFIED_*` não é aprovação; `INTEGRITY_MISMATCH` interrompe a publicação. Não prova restauração de backup nem segregação física de todos os objetos.
+- Segurança: **nenhum aceite comercial é inferido** do sucesso de um build. Antes de receber cliente com processo, documentação e pagamento reais, seguem obrigatórias: isolamento físico comprovado do R2, restauração conjunta Neon+R2, jornada real E2E por perfil, demonstração com planta verdadeira/gabarito técnico e leis oficiais com escopos, e prova bancária integral por provedor habilitado. A produção continua intocada.
