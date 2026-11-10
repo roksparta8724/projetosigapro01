@@ -1544,3 +1544,9 @@ navegador autenticado.
 ### Complemento — sequência oficial específica do Habite-se
 - Conferidos os procedimentos efetivos na migração `neon/migrations/20261018_habite_se_completion_workflow.sql` e nos testes de vistoria: análise documental → **vistoria e evidências** → solicitação e envio da guia de Habite-se → compensação → retorno à análise/Alvará → assinatura da Diretoria → conclusão.
 - O modelo de referência QA agora possui os estágios próprios `habite_se_inspection` e `habite_se_fee`, em vez de saltar diretamente da triagem ao Alvará. O teste percorre cada etapa de ponta a ponta com regras de avanço explícitas; a autorização real permanece nas RPCs do banco.
+
+
+### Proteção operacional completa — Admin da Prefeitura / QA
+- A auditoria Neon encontrou proteção de escrita `municipal_admin_process_readonly_v1` em 8 tabelas principais, mas as auxiliares de parecer, alvará, habite-se e assinaturas ainda estavam sem esse gatilho, embora algumas RPCs citassem `prefeitura_admin` como opção. A autorização efetiva exige blindagem no banco, não somente nos botões.
+- Migração aditiva `20261109_complete_prefeitura_admin_process_readonly_qa.sql`: mantém o `SECURITY DEFINER` com `search_path` seguro e amplia o gatilho a 27 tabelas processuais, cobrindo inserção, atualização e exclusão; contempla aliases legados de admin. Legislação municipal, perfis e gestão institucional permanecem fora desse bloqueio.
+- Sem tocar na produção. Conferir aplicação em Neon QA e os 27 gatilhos efetivos antes de alegar proteção operacional final.

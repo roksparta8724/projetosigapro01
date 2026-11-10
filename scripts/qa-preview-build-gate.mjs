@@ -33,6 +33,7 @@ const TESTS=[
   "src/test/urbanEvidenceTemporalGate.test.ts",
   "src/test/workflowUnknownStageQa.test.ts",
   "src/test/qaFullJourneyIntegrated.test.ts",
+  "src/test/municipalAdminDbGuardFullQa.test.ts",
   "src/test/qa04StoredPdfAudit.test.tsx",
 ];
 function run(label,args){
