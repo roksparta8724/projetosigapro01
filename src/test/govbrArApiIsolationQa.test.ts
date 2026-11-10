@@ -31,7 +31,7 @@ describe("SIGAPRO GOVBR/AR read-only onboarding — tenant isolation and no paym
     expect(probe).not.toContain("UPDATE ");
   });
   it("keeps financial activation blocked in SQL, even if GET succeeds", () => {
-    const sql = file("neon/migrations/20261028_municipal_collection_modes_v1.sql");
+    const sql = file("neon/migrations/20261022_collection_activation_bank_guard.sql");
     expect(sql).toContain("automatic");
     expect(sql).toContain("municipal_system");
     const api=file("api/collection-configuration.ts");
