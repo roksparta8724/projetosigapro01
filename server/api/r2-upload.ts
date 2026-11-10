@@ -8,6 +8,7 @@ import { getR2EndpointCandidates, resolveR2Endpoint } from "../r2-runtime.js";
 
 import { HeadObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { createHash } from "node:crypto";
+import { assertStoredDamOriginal } from "../dam-original-integrity.js";
 import { getDataApiUrl, resolveMunicipalDocumentTarget } from "../municipal-storage.js";
 import { safeAvatarMime } from "./profile-avatar-open.js";
 import { authorizeProcessAttachmentWrite } from "../process-attachment-write-authorization.js";
@@ -47,14 +48,13 @@ export async function verifyExistingDamOriginal(
   if (!input.objectKey.includes("/dam-originals/") ||
       !/^[a-f0-9]{64}$/.test(expected) ||
       input.contentType !== "application/pdf") return false;
+  if (createHash("sha256").update(input.body).digest("hex") !== expected) return false;
   try {
-    const found = await client.send(new HeadObjectCommand({
-      Bucket: input.bucket, Key: input.objectKey,
-    }));
-    return found.ContentLength === input.body.length &&
-      found.ContentType === "application/pdf" &&
-      String(found.Metadata?.sha256 || "").toLowerCase() === expected &&
-      createHash("sha256").update(input.body).digest("hex") === expected;
+    await assertStoredDamOriginal(client, {
+      bucket: input.bucket, objectKey: input.objectKey,
+      expectedSha256: expected, expectedBytes: input.body.length,
+    });
+    return true;
   } catch { return false; }
 }
 
@@ -94,6 +94,14 @@ async function putR2ObjectWithFallback(input: {
         // Every process document is create-once, including ordinary attachments.
         ...(isCreateOnlyDocumentBucket(input.bucket) ? { IfNoneMatch: "*" } : {}),
       }));
+      if (input.metadata?.sha256 && input.objectKey.includes("/dam-originals/")) {
+        // A successful PUT alone does not prove the archive was durably stored.
+        // HEAD + GET + actual bytes/hash are mandatory before returning HTTP 200.
+        await assertStoredDamOriginal(client, {
+          bucket: input.bucket, objectKey: input.objectKey,
+          expectedSha256: input.metadata.sha256, expectedBytes: input.body.length,
+        });
+      }
       return;
     } catch (error) {
       if ((error as { $metadata?: { httpStatusCode?: number } })?.$metadata?.httpStatusCode === 412 &&
@@ -562,14 +570,24 @@ export default async function handler(req: Req, res: Res) {
         // Municipal S3 must preserve old document revisions as well.
         ...(isCreateOnlyDocumentBucket(bucket) ? { IfNoneMatch: "*" } : {}),
       })).catch(async (error) => {
-        if (error?.$metadata?.httpStatusCode === 412 &&
-            await verifyExistingDamOriginal(municipalTarget.client, {
-              bucket: municipalTarget.bucket, objectKey: municipalTarget.objectKey,
-              body: buffer, contentType: resolvedContentType,
-              metadata: damOriginalMetadata,
-            })) return;
+        if (error?.$metadata?.httpStatusCode === 412 && damOriginalMetadata) {
+          // The BYOS physical key may include a protected municipal base path.
+          await assertStoredDamOriginal(municipalTarget.client, {
+            bucket: municipalTarget.bucket, objectKey: municipalTarget.objectKey,
+            logicalObjectKey: objectKey,
+            expectedSha256: damOriginalMetadata.sha256, expectedBytes: buffer.length,
+          });
+          return;
+        }
         throw error;
       });
+      if (damOriginalMetadata) {
+        await assertStoredDamOriginal(municipalTarget.client, {
+          bucket: municipalTarget.bucket, objectKey: municipalTarget.objectKey,
+          logicalObjectKey: objectKey,
+          expectedSha256: damOriginalMetadata.sha256, expectedBytes: buffer.length,
+        });
+      }
 
       json(res, 200, {
         bucket: requestedBucket,
