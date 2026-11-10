@@ -1779,3 +1779,5 @@ navegador autenticado.
 - **Contrato GOVBR pendente:** somente com URL real, documentação de GET/autenticação e credenciais de homologação da prefeitura será possível fazer o teste remoto. SOAP/mTLS/OAuth, emissão de DAM, PIX/boleto, geração de PDF e baixa exigem documentos e adaptadores específicos da GOVBR. A simples inserção de uma chave não faz esses fluxos funcionarem.
 - **Testes:** novos `server/govbr-ar-readonly.test.ts` e `src/test/govbrArApiIsolationQa.test.ts` cobrem hosts perigosos, segredo em header, JSON sem dados pessoais, proibição de redirecionar, falta de autenticação, limitações, inatividade financeira e isolamento.
 - Manual de solicitação/ativação: `docs/GOVBR_AR_API_PREPARACAO_QA.md`. Nenhuma chave de API real foi adicionada e nenhuma guia, arrecadação ou dado da produção foi alterado.
+
+- Prévia QA da preparação GET GOVBR/AR: executar `npm run build`, Quality Gate, validação Neon e OCR isolado no commit marcado `[deploy-qa]`. Nenhum segredo GOVBR foi fornecido ou injetado. A ativação automática permanece negada pela RPC Neon. 
