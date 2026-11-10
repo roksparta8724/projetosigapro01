@@ -711,9 +711,37 @@ export function ExternalPaymentsPage() {
                             </Button>
                           </>
                         ) : (
-                          <Button asChild variant="outline" className="rounded-full text-[13px]">
-                            <Link to={processTarget}>Ver processo</Link>
-                          </Button>
+                          <>
+                            <Button asChild variant="outline" className="rounded-full text-[13px]">
+                              <Link to={processTarget}>Ver processo</Link>
+                            </Button>
+                            {!isolatedQaMode && !isGuideSettled(guide) &&
+                            (guide.paymentProvider || tenantSettings?.paymentProvider || "mercado_pago")==="mercado_pago" ? (
+                              <Button
+                                type="button" variant="outline"
+                                data-prod-issue-boleto-official-process="true"
+                                className="rounded-full border-sky-600 px-4 text-[12px] font-semibold text-sky-800 dark:border-sky-500 dark:text-sky-200"
+                                disabled={Boolean(busyGuideAction)}
+                                onClick={()=>{setRealBoletoError("");setRealBoletoTarget({process,guide});}}
+                              >
+                                <CreditCard className="mr-1.5 size-3.5"/>
+                                Emitir boleto oficial
+                              </Button>
+                            ) : null}
+                            <Button
+                              type="button" variant="outline"
+                              data-official-guide-view="true"
+                              className="rounded-full px-4 text-[12px] font-semibold"
+                              disabled={Boolean(busyGuideAction)}
+                              onClick={()=>void openExternalGuide(process,guide)}
+                            >
+                              {busyGuideAction?.key===`${process.id}:${guide.code}` &&
+                               busyGuideAction.action==="guide"
+                                ? <Loader2 className="mr-1.5 size-3.5 animate-spin"/>
+                                : <Eye className="mr-1.5 size-3.5"/>}
+                              Visualizar guia
+                            </Button>
+                          </>
                         )}
                         {statusGuideKey === `${process.id}:${guide.code}` && guideActionStatus ? (
                           <div role="status" aria-live="polite"
