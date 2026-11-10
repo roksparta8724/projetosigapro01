@@ -3,6 +3,7 @@ import { encryptMunicipalCollectionSecret, municipalCollectionSecretFingerprint 
 import { getMunicipalCollectionAdapter, describeMunicipalCollectionAdapter } from "../server/municipal-collection-adapters.js";
 import { parseCnab240CollectionReturn, compareCnabCandidateToGuide } from "../server/bank-return-cnab240.js";
 import { readStoredGuide } from "../server/guide-persistence.js";
+import { decryptPaymentAccessToken } from "../server/municipal-payment.js";
 
 type Req = import("http").IncomingMessage & { method?: string; body?: Record<string, unknown> };
 type Res = import("http").ServerResponse;
@@ -42,6 +43,32 @@ export default async function handler(req: Req, res: Res) {
       if(!/^[a-z0-9_-]{1,64}$/.test(supplierCode))
         throw new Error("Identificador do banco/fornecedor inválido.");
       return json(res,200,describeMunicipalCollectionAdapter(supplierCode));
+    }
+    if (action === "govbr_read_preview") {
+      // Authenticated municipal payment administrator only. Database RPC never
+      // exposes this decrypted secret to the browser or an unrelated tenant.
+      const config = await rpc<Record<string, unknown>>(
+        req, "get_municipal_collection_secret_admin_v1",
+        { _municipality_id: municipalityId },
+      );
+      if (!config || config.municipality_id !== municipalityId ||
+          config.mode !== "municipal_system" || config.supplier_code !== "govbr_ar" ||
+          config.integration_type !== "automatic" ||
+          !["homologation", "validated"].includes(String(config.status || "")) ||
+          !["test", "production"].includes(String(config.environment || "")) ||
+          typeof config.secret_ciphertext !== "string" || !config.secret_ciphertext)
+        throw new Error("Configure a API GOVBR/AR para esta Prefeitura antes de testar a leitura.");
+      const adapter = getMunicipalCollectionAdapter("govbr_ar");
+      if (!adapter) throw new Error("Conector de leitura GOVBR/AR indisponível.");
+      const read = await adapter.execute("query", {
+        municipalityId, environment: config.environment as "test" | "production",
+        baseUrl: String(config.api_base_url || ""),
+        secret: decryptPaymentAccessToken(config.secret_ciphertext),
+        parameters: config.public_parameters && typeof config.public_parameters === "object" &&
+          !Array.isArray(config.public_parameters) ? config.public_parameters as Record<string, unknown> : {},
+      }, {});
+      // Only anonymized metadata returns. No provider payload, secret or payer data.
+      return json(res, 200, read);
     }
     if (action === "bank_get") return json(res, 200, await rpc(req, "get_municipal_collection_bank_details_v1", { _municipality_id: municipalityId }) || {});
     if (action === "bank_return_preview") {
@@ -162,6 +189,7 @@ export default async function handler(req: Req, res: Res) {
       }
       const adapter = getMunicipalCollectionAdapter(String(config.supplier_code || ""));
       if (!adapter) throw new Error("Fornecedor ainda sem adaptador homologado no SIGAPRO. A configuração permanecerá pendente.");
+      if (config.supplier_code === "govbr_ar") throw new Error("GOVBR/AR possui apenas consulta GET de diagnóstico. Utilize Testar leitura GOVBR; não é possível habilitar emissão ou baixa financeira.");
       throw new Error("O adaptador existe, mas o teste real exige credenciais homologadas e execução específica do fornecedor.");
     }
     if (action === "attach") {
