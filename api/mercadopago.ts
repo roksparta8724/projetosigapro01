@@ -16,6 +16,7 @@ import {
 import { callDataApiRpc } from "../server/municipal-storage.js";
 import handleQaMpWebhook from "../server/mp-qa-webhook.js";
 import {assertIsolatedQaBankRuntime} from "../server/qa-hosted-bank-guard.js";
+import {qaMercadoPagoPix} from "../server/qa-mercadopago-pix.js";
 import { assertMunicipalCredentialSave, assertMunicipalCredentialActivation } from "../server/municipal-payment-credential-validation.js";
 
 type Req = import("http").IncomingMessage & {
@@ -77,6 +78,25 @@ export default async function handler(req: Req, res: Res) {
   // fail-closed Preview/branch/role/HMAC gate in the isolated handler.
   if (action === "qa-webhook") {
     return handleQaMpWebhook(req, res);
+  }
+
+  if (action === "qa-pix") {
+    if(req.method!=="POST")return json(res,405,{ok:false,sandboxOnly:true,error:"Método não permitido."});
+    try{
+      assertIsolatedQaBankRuntime();
+      const body=await readJsonBody(req);
+      if(body.action!=="get"&&body.action!=="issue")
+        return json(res,400,{ok:false,sandboxOnly:true,error:"Ação PIX QA inválida."});
+      const result=await qaMercadoPagoPix(req,{
+        municipalityId:String(body.municipalityId||""),
+        guideCode:String(body.guideCode||""),
+        action:body.action,
+      });
+      return json(res,result.ok?200:422,result);
+    }catch(error){
+      return json(res,403,{ok:false,sandboxOnly:true,
+        error:error instanceof Error?error.message:"PIX de homologação não autorizado."});
+    }
   }
 
   if (action === "qa-boleto") {
