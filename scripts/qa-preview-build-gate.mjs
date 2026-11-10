@@ -38,6 +38,8 @@ const TESTS=[
   "src/test/closedProcessLifecycleQa.test.ts",
   "src/test/qaTriageAuthorizedRecoveryQa.test.ts",
   "src/test/qaOriginalPdfCanonicalAuthorization.test.ts",
+  "src/test/qaDamOriginalIdempotency.test.ts",
+  "src/test/r2UploadAccessSecurity.test.ts",
   "src/test/r2ConsolidatedRuntime.test.ts",
   "src/test/habiteSeCanonicalSignedPdfQa.test.ts",
   "src/test/habiteSeSignedSnapshotQa.test.ts",
