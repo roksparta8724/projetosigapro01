@@ -143,8 +143,8 @@ export function ProtocolDeskPage() {
   const protocolQueueProcesses = useMemo(
     () =>
       processes.filter((item) => {
-        // The Neon Protocolo RPC permits a scoped municipal admin to triage.
-        // Non-admins still require department ownership.
+        // A Prefeitura Admin somente consulta. Operadores de Protocolo
+        // precisam possuir a pasta; nunca usar privilégio consultivo para despacho.
         if (!isProcessOwnedBySessionDepartment(session, item) && session.role !== "prefeitura_admin") return false;
         const currentFolder = (item.processControl?.currentFolder || "").toLowerCase();
         if (currentFolder) {
@@ -172,11 +172,18 @@ export function ProtocolDeskPage() {
 
   const recoverableTriageCases = useMemo(() =>
     processes.filter((item) =>
+      // Somente o Protocolo responsável ou Master podem acionar a correção
+      // formal; a RPC verifica escopo e autorização no Neon novamente.
+      session.role !== "prefeitura_admin" &&
+      (
+        ["master_admin", "master_ops"].includes(session.role) ||
+        isProcessOwnedBySessionDepartment(session, item)
+      ) &&
       ["analise_tecnica", "distribuicao"].includes(item.status) &&
       item.triage.status !== "concluido" &&
       !(item.dispatches || []).some((d) => /urbanis|an[aá]lise/i.test(d.to))
     ),
-    [processes],
+    [processes, session],
   );
 
   const tenantSettings =
@@ -897,6 +904,10 @@ export function ProtocolDeskPage() {
   };
 
   const handleRecoverPrematureAnalysis = async (process: ProcessRecord) => {
+    if (session.role === "prefeitura_admin" || !recoverableTriageCases.some((item) => item.id === process.id)) {
+      setProtocolActionStatus("Somente o setor de Protocolo responsável pode solicitar correção auditada da triagem.");
+      return;
+    }
     const reason = triageRecoveryReason.trim();
     if (reason.length < 15) {
       setProtocolActionStatus("Informe uma justificativa de pelo menos 15 caracteres para a correção auditada.");
@@ -1178,8 +1189,8 @@ export function ProtocolDeskPage() {
           onChange={(value) => setSection(value as ProtocolSection)}
         />
 
-        {session.role === "prefeitura_admin" && recoverableTriageCases.length > 0 ? (
-          <SectionCard title="Revisão de integridade da tramitação" description="Processos que avançaram à Análise sem concluir triagem ou despacho. A correção preserva guias, arquivos e histórico.">
+        {session.role !== "prefeitura_admin" && recoverableTriageCases.length > 0 ? (
+          <SectionCard title="Revisão de integridade da tramitação" description="Regularização auditada pelo Protocolo autorizado para processos que avançaram sem triagem concluída. Guias, arquivos e histórico são preservados.">
             <div className="space-y-3">
               <Input value={triageRecoveryReason} onChange={(event) => setTriageRecoveryReason(event.target.value)}
                 placeholder="Justificativa para retorno auditado à Triagem (mín. 15 caracteres)"
