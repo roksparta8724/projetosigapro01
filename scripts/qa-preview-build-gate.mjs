@@ -43,6 +43,7 @@ const TESTS=[
   "src/test/realBankDamOriginalGate.test.ts",
   "src/test/realBoletoIssuanceBoundary.test.ts",
   "src/test/qaHostedBankPaymentRoutes.test.ts",
+  "src/test/qaPixBankEndToEndBridge.test.ts",
   "server/govbr-ar-readonly.test.ts",
   "src/test/govbrArApiIsolationQa.test.ts",
   "server/bank-return-cnab240.test.ts",
