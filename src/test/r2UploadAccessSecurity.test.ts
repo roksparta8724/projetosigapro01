@@ -17,14 +17,18 @@ describe("SIGAPRO R2: production authentication and private URL policy", () => {
     expect(deleteRequiresAuth()).toBe(true);
   });
 
-  it("keeps ordinary preview/local override behavior outside production", () => {
+  it("preview is always authenticated; only explicit local development may opt out", () => {
     vi.stubEnv("VERCEL_ENV", "preview");
+    vi.stubEnv("R2_REQUIRE_AUTH", "false");
+    expect(uploadRequiresAuth()).toBe(true);
+    expect(deleteRequiresAuth()).toBe(true);
+    vi.stubEnv("VERCEL_ENV", "development");
+    vi.stubEnv("R2_REQUIRE_AUTH", "");
+    expect(uploadRequiresAuth()).toBe(true);
+    expect(deleteRequiresAuth()).toBe(true);
     vi.stubEnv("R2_REQUIRE_AUTH", "false");
     expect(uploadRequiresAuth()).toBe(false);
     expect(deleteRequiresAuth()).toBe(false);
-    vi.stubEnv("R2_REQUIRE_AUTH", "true");
-    expect(uploadRequiresAuth()).toBe(true);
-    expect(deleteRequiresAuth()).toBe(true);
   });
 
   it("never publishes private process PDFs through the R2 public-base setting", () => {
