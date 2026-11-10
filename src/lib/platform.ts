@@ -130,11 +130,29 @@ export function buildProcessRouteKey(
   return normalized || String(fallbackId || "").trim();
 }
 
+const PROCESS_UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Process numbers are local to a municipality. A Master can see the same
+ * official number in different tenants, so use the immutable process UUID
+ * in every modern navigation URL, while keeping the official number legible.
+ */
+export function buildProcessIdentityRouteKey(
+  process: Pick<ProcessRecord, "id" | "protocol">,
+) {
+  const normalized = buildProcessRouteKey(process.protocol, process.id);
+  const id = String(process.id || "").trim();
+  return normalized && PROCESS_UUID_PATTERN.test(id)
+    ? `${normalized}--${id}`
+    : normalized;
+}
+
 export function buildProcessPath(
   process: Pick<ProcessRecord, "id" | "protocol">,
   tab?: string,
 ) {
-  const routeKey = buildProcessRouteKey(process.protocol, process.id);
+  const routeKey = buildProcessIdentityRouteKey(process);
   const search = tab ? `?aba=${encodeURIComponent(tab)}` : "";
   return `/processos/${encodeURIComponent(routeKey)}${search}`;
 }
@@ -155,14 +173,31 @@ export function resolveProcessRoute(
   const byId = getProcessById(decoded, processes);
   if (byId) return byId;
 
+  // New links are exact, even when two municipalities own identical numbers.
+  // Never match a process from another municipality on a guessed prefix.
+  const identityMatch = decoded.match(
+    /^(.*)--([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i,
+  );
+  if (identityMatch) {
+    const [, requestedNumber, requestedId] = identityMatch;
+    return processes.find((item) =>
+      String(item.id).toLowerCase() === requestedId.toLowerCase() &&
+      buildProcessRouteKey(item.protocol, item.id).toLocaleLowerCase("pt-BR") ===
+        requestedNumber.toLocaleLowerCase("pt-BR"),
+    );
+  }
+
+  // Historical number-only bookmarks work if unambiguous. In a Master view,
+  // a collision must fail closed rather than silently open another tenant.
   const normalized = decoded.toLocaleLowerCase("pt-BR");
-  return processes.find((item) => {
+  const matches = processes.filter((item) => {
     const protocol = String(item.protocol || "");
     return (
       protocol.toLocaleLowerCase("pt-BR") === normalized ||
       buildProcessRouteKey(protocol, item.id).toLocaleLowerCase("pt-BR") === normalized
     );
   });
+  return matches.length === 1 ? matches[0] : undefined;
 }
 
 export function formatProfessionalProcessType(type?: string | null) {

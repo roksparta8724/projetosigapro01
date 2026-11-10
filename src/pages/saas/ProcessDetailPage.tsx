@@ -71,7 +71,7 @@ import { createQa04ArchitecturalPdf, createQa04DocumentKit, isQa04ArchitecturalI
 import { upgradeRemoteQa04ArchitecturalPlanV2 } from "@/integrations/backend/platformImpl";
 import {
   buildProcessPath,
-  buildProcessRouteKey,
+  buildProcessIdentityRouteKey,
   calculateApprovalGuideBreakdown,
   calculateHabiteSeGuideBreakdown,
   calculateIssGuideAmount,
@@ -916,7 +916,7 @@ export function ProcessDetailPage() {
   useEffect(() => {
     if (!process || !processId) return;
 
-    const canonicalRouteKey = buildProcessRouteKey(process.protocol, process.id);
+    const canonicalRouteKey = buildProcessIdentityRouteKey(process);
     if (!canonicalRouteKey) return;
 
     let currentRouteKey = processId;

@@ -1603,3 +1603,9 @@ navegador autenticado.
 - Corrigido o Dashboard e a Visão Geral municipal na mesma branch QA: **Concluídos = somente `arquivado`**; `deferido`/`indeferido` são decisões, não arquivamento. **Em análise = status técnico com triagem concluída**. Divergências permanecem visíveis em aviso/indicador próprio, sem reclassificar nem alterar a fonte de dados no banco.
 - Os painéis executivo, analista, prefeitura e filtros municipais compartilham as funções puras de verdade operacional; casos de triagem divergente recebem prioridade de conferência. Regressão nova incluída no gate da Prévia QA.
 - Esta correção é de apresentação e prevenção de falsa conclusão: não constitui certificação de banco real, IA geométrica ou legislação. Nenhum merge em `main`, nenhum SQL de escrita ou publicação no domínio oficial.
+
+
+## 10/11/2026 — colisão de protocolo entre municípios: correção de isolamento da navegação
+- Auditoria read-only Neon QA confirmou duas linhas reais com `protocol_number=PM-2026-00001`, cada uma com `municipality_id` e `id` distintos. Isso é esperado para sequência municipal, mas a URL anterior `/processos/PM-2026-00001` abria o primeiro registro encontrado na lista combinada, potencialmente o processo de outro município para Master.
+- `buildProcessIdentityRouteKey` agora combina número legível com UUID imutável; `buildProcessPath` usa a chave inequívoca. `resolveProcessRoute` valida tanto o ID quanto o prefixo e **não abre nenhuma linha** se um link legado de número único for ambíguo. URLs existentes sem colisão e URLs por ID permanecem válidas. A página de detalhes normaliza a rota canônica sem alterar os dados, a numeração oficial, a RLS ou permissões.
+- Testes abrangem a colisão efetiva `PM-2026-00001` em dois municípios, ordem invertida e URL com prefixo fraudado. Suíte incluída no gate Preview QA. Sem merge na `main`, sem alterações no Neon e sem deploy oficial.
