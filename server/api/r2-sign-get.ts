@@ -12,6 +12,7 @@ import { GetObjectCommand, HeadObjectCommand, S3Client } from "@aws-sdk/client-s
 import { callDataApiRpc, getDataApiUrl, readBearer, resolveMunicipalDocumentTarget } from "../municipal-storage.js";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { authorizePrivateAvatarRead, isAvatarStoragePath } from "../avatar-access.js";
+import { assertStoredDamOriginal, DAM_ORIGINAL_KEY } from "../dam-original-integrity.js";
 
 type Req = import("http").IncomingMessage & { method?: string; body?: unknown };
 type Res = import("http").ServerResponse;
@@ -273,6 +274,10 @@ export default async function handler(req: Req, res: Res) {
     // DAM originals have their own immutable-guide authorization RPC above.
     // A public municipal legal rule is the only other unregistered exception.
     const isGuideOriginal = objectKey.includes("/dam-originals/");
+    // An original is identified by the SHA in its canonical immutable key.
+    // Never rely on an HTTP 200 HEAD response as proof that the PDF still
+    // contains the exact signed bytes acknowledged by the municipal ledger.
+    const expectedDamSha = isGuideOriginal ? (DAM_ORIGINAL_KEY.exec(objectKey)?.[4] || "") : "";
     if (bucket === documentsBucket && !isGuideOriginal && !isPublicLegislationPdfKey(objectKey)) {
       const permission = await authorizePrivateR2DocumentRead(req, objectKey, municipalityId);
       if (permission.ok === false) {
@@ -289,10 +294,17 @@ export default async function handler(req: Req, res: Res) {
       try {
         // BYOS credentials can sign a non-existent object offline. Check the
         // original BEFORE reporting success to the PDF viewer.
-        await municipalTarget.client.send(new HeadObjectCommand({
+        const head = await municipalTarget.client.send(new HeadObjectCommand({
           Bucket: municipalTarget.bucket,
           Key: municipalTarget.objectKey,
         }));
+        if (isGuideOriginal) {
+          await assertStoredDamOriginal(municipalTarget.client,{
+            bucket:municipalTarget.bucket,objectKey:municipalTarget.objectKey,
+            logicalObjectKey:objectKey,expectedSha256:expectedDamSha,
+            expectedBytes:Number(head.ContentLength||0),
+          });
+        }
         const signedUrl = await getSignedUrl(
           municipalTarget.client,
           new GetObjectCommand({
@@ -335,12 +347,18 @@ export default async function handler(req: Req, res: Res) {
         // O upload já possui fallback entre endpoints. A leitura precisa localizar
         // fisicamente o MESMO objeto antes de assinar, ou uma URL válida pode
         // apontar para a conta errada e retornar 404 somente em produção.
-        await client.send(
+        const head = await client.send(
           new HeadObjectCommand({
             Bucket: bucket,
             Key: objectKey,
           }),
         );
+        if (isGuideOriginal) {
+          await assertStoredDamOriginal(client,{
+            bucket,objectKey,expectedSha256:expectedDamSha,
+            expectedBytes:Number(head.ContentLength||0),
+          });
+        }
 
         signedUrl = await getSignedUrl(
           client,
