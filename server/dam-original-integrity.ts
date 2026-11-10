@@ -16,6 +16,8 @@ const HASH=/^[a-f0-9]{64}$/;
 export type StoredDamIntegrityInput={
   bucket:string;
   objectKey:string;
+  /** Municipal BYOS may prepend a server-resolved, private base path. */
+  logicalObjectKey?:string;
   expectedSha256:string;
   expectedBytes:number;
 };
@@ -24,9 +26,12 @@ export type StoredDamIntegrityInput={
 export async function assertStoredDamOriginal(
   client:S3Client,input:StoredDamIntegrityInput,
 ):Promise<void>{
-  const match=DAM_ORIGINAL_KEY.exec(input.objectKey);
+  const logical=input.logicalObjectKey||input.objectKey;
+  const match=DAM_ORIGINAL_KEY.exec(logical);
   const sha=String(input.expectedSha256||"").toLowerCase();
-  if(!match || !HASH.test(sha) || match[4].toLowerCase()!==sha ||
+  if(!match ||
+     !(input.objectKey===logical || input.objectKey.endsWith('/'+logical)) ||
+     !HASH.test(sha) || match[4].toLowerCase()!==sha ||
      !Number.isSafeInteger(input.expectedBytes) ||
      input.expectedBytes<=5 || input.expectedBytes>DAM_ORIGINAL_MAX_BYTES ||
      !input.bucket)throw new Error("DAM_ORIGINAL_INVALID_CONTRACT");
