@@ -6,7 +6,7 @@ import { getR2EndpointCandidates, resolveR2Endpoint } from "../r2-runtime.js";
  * Retorna { bucket, objectKey, publicUrl }
  */
 
-import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { HeadObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { createHash } from "node:crypto";
 import { assertStoredDamOriginal } from "../dam-original-integrity.js";
 import { getDataApiUrl, resolveMunicipalDocumentTarget } from "../municipal-storage.js";
@@ -101,6 +101,15 @@ async function putR2ObjectWithFallback(input: {
           bucket: input.bucket, objectKey: input.objectKey,
           expectedSha256: input.metadata.sha256, expectedBytes: input.body.length,
         });
+      } else if (isCreateOnlyDocumentBucket(input.bucket)) {
+        // Every other municipal document must be physically readable, too.
+        const head = await client.send(new HeadObjectCommand({
+          Bucket: input.bucket, Key: input.objectKey,
+        }));
+        if (head.ContentLength !== input.body.length ||
+            String(head.ContentType || "").toLowerCase() !== input.contentType.toLowerCase()) {
+          throw new Error("R2_DOCUMENT_OBJECT_NOT_CONFIRMED");
+        }
       }
       return;
     } catch (error) {
@@ -587,6 +596,14 @@ export default async function handler(req: Req, res: Res) {
           logicalObjectKey: objectKey,
           expectedSha256: damOriginalMetadata.sha256, expectedBytes: buffer.length,
         });
+      } else if (isCreateOnlyDocumentBucket(bucket)) {
+        const head = await municipalTarget.client.send(new HeadObjectCommand({
+          Bucket: municipalTarget.bucket, Key: municipalTarget.objectKey,
+        }));
+        if (head.ContentLength !== buffer.length ||
+            String(head.ContentType || "").toLowerCase() !== resolvedContentType.toLowerCase()) {
+          throw new Error("R2_DOCUMENT_OBJECT_NOT_CONFIRMED");
+        }
       }
 
       json(res, 200, {
