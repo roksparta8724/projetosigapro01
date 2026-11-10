@@ -17,7 +17,7 @@ export const MUNICIPAL_INTEGRATION_PROFILES: readonly MunicipalIntegrationProfil
     name: "GOVBR — Administração de Receitas (AR)",
     kind: "municipal_erp",
     requirements: ["API de arrecadação oficialmente disponibilizada ao município", "credenciais, homologação e contratos do fornecedor", "rotinas de emissão, PDF, consulta e baixa documentadas"],
-    recommendation: "A importação do PDF da guia oficial já é prevista. Emissão e baixa automáticas dependem da API e do adaptador GOVBR/AR."
+    recommendation: "O SIGAPRO possui preparação de leitura GET para a API GOVBR/AR, mediante URL, rota e chave oficiais. Importação controlada do PDF disponível; emissão e baixa exigem API documentada e homologação próprias."
   },
   {
     code: "santander_033",
