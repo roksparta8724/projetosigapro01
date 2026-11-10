@@ -36,6 +36,7 @@ const TESTS=[
   "src/test/habiteSeCompletionRealRpcRegression.test.ts",
   "src/test/closedProcessLifecycleQa.test.ts",
   "src/test/qaTriageAuthorizedRecoveryQa.test.ts",
+  "src/test/qaOriginalPdfCanonicalAuthorization.test.ts",
   "src/test/habiteSeCanonicalSignedPdfQa.test.ts",
   "src/test/habiteSeSignedSnapshotQa.test.ts",
   "src/test/habiteSeSignedPdfBytesQa.test.ts",
