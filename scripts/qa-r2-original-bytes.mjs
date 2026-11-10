@@ -73,11 +73,10 @@ export async function inspectExistingQaDam(env=process.env) {
       query_timeout:7500,statement_timeout:7500,application_name:"sigapro_qa_r2_byte_audit"});
     await db.connect();
     const result=await db.query({
-      text:"SELECT g.id,g.municipality_id,g.process_id,g.original_pdf_key,g.original_pdf_sha256 "+
-        "FROM public.payment_guides g JOIN public.processes p ON p.id=g.process_id "+
-        "WHERE g.original_pdf_key IS NOT NULL AND g.original_pdf_sha256 IS NOT NULL "+
-        "AND p.tenant_id=g.municipality_id AND p.municipality_id=g.municipality_id "+
-        "ORDER BY g.created_at DESC LIMIT 1",rowMode:"array",
+      // The bank webhook worker has NO direct SELECT privileges on municipal
+      // tables. Use a narrowly scoped, one-row SECURITY DEFINER QA probe.
+      text:"SELECT id,municipality_id,process_id,original_pdf_key,original_pdf_sha256 "+
+        "FROM public.qa_r2_original_integrity_probe_v1()",rowMode:"array",
     });
     const values=result.rows?.[0];
     row=values?Object.fromEntries(
