@@ -162,7 +162,7 @@ describe("municipal bank and payment guide flow", () => {
 
   it("requests provider banking data whenever the DAM has no barcode or digitable line", () => {
     expect(finance).toContain("if (!banking.barcode || !banking.digitableLine)");
-    expect(processDetail).toContain("banking.barcode && banking.digitableLine ? null");
+    expect(processDetail).toContain("const providerCharge = preparedGuideCharges[selectedGuide.code] || null");
     expect(finance).toContain("if (!barcode || !digitableLine)");
     expect(processDetail).toContain("if (!paidGuide && (!barcode || !digitableLine))");
     expect(finance).not.toContain('match.guide.status !== "compensada" &&');
@@ -184,8 +184,8 @@ describe("municipal bank and payment guide flow", () => {
     expect(processDetail).not.toContain('await ensureMercadoPagoGuideCharge({');
     expect(processDetail).toContain("await archiveAndOpenGuide(effectiveScopeId, guideDocument, reservedGuideWindow)");
     expect(processDetail).toContain("preparedGuideCharges");
-    expect(processDetail).toContain("guideCode: selectedGuide.code");
-    expect(processDetail).toContain("amount: selectedGuide.amount");
+    expect(read("src/pages/saas/ExternalPaymentsPage.tsx")).toContain("guideCode:stored.guide_number");
+    expect(read("src/pages/saas/ExternalPaymentsPage.tsx")).toContain("amount:Number(stored.amount)");
     expect(read("src/pages/saas/ExternalPaymentsPage.tsx")).toContain("description:");
     expect(processDetail).toContain('codigoBarras: barcode');
     expect(processDetail).toContain('linhaDigitavel: digitableLine');
