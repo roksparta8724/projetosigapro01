@@ -1865,3 +1865,28 @@ O teste de rede **PASSOU (1/1)**, assim como a suite de prévia **65 arquivos / 
 **Segurança/escopo:** o modo textual é opcional e pede aceite explícito do analista; o modelo visual Claude só volta a funcionar após saldo/contrato de API. Não usar chave secreta nem PDF do cliente em logs. A chamada externa de prova só ocorreu no commit marcado `[cf-text-qa-once]`. Próximos commits devem remover o marcador da mensagem de commit para manter builds sem consumo recorrente de IA.
 
 **Aceite técnico desta capacidade:** leitura textual assistida por IA externa em PDF selecionável **comprovada por uma chamada real**. Aceite comercial integral continua dependente de provedor bancário de produção, atos/assinaturas autenticados com perfis municipais, análise visual geométrica, legislação oficial conferida e cutover coordenado da função SHA-256 no PROD.
+
+
+## 11/11/2026 — prontidão comercial por Prefeitura, com dois caminhos bancários e fontes legais oficiais
+
+**Motivo:** PR #118 possui testes QA verdes e leitura documental Cloudflare REAL comprovada, mas a liberação comercial não é uma flag global. Produção ainda sem conexão de banco ativa ou leis confirmadas. A nova estrutura expõe os **dados de cada prefeitura, com autorização real**, em vez de confundir testes com liberação.
+
+**Implementação QA aplicada:**
+- `neon/migrations/20261111_municipal_commercial_readiness_v1.sql`: função estável e de leitura `get_municipal_commercial_readiness_v1(uuid)`, protegida por `can_read_municipal_collection_v1`, sem retornar segredos, dados pessoais, PDFs, cobranças ou documentos. Inclui estado do provedor de produção, evidências de pagamento bancário real com metadados de original, normas confirmadas por artigo/página/hash, versões urbanísticas ativas não fictícias e contagens de assinaturas históricas. Expõe `commercialReleaseCertified=false`, `independentR2ByteAuditVerified=false`, `newAuthenticatedEndToEndVerified=false`, `officialMunicipalAcceptanceVerified=false`, sem inventar certificação.
+- Permissões no **Neon QA** verificadas: `anonymous EXECUTE=false`, `authenticated EXECUTE=true` sujeito à checagem municipal interna; execução sem JWT foi recusada pelo banco. Nenhum dado histórico atualizado. Nenhuma migração PROD aplicada.
+- `api/collection-configuration.ts`: ação autenticada `commercial_readiness` usa a função com escopo municipal e valida `kind` + `municipalityId`.
+- `src/components/platform/MunicipalCommercialReadiness.tsx`: painel premium e responsivo, somente leitura, em `/prefeitura/arrecadacao` da QA; botão Atualizar comprovações; evidências explicadas sem confundir contagem histórica com certificação. Painel restrito à branch de homologação enquanto a função ainda não foi migrada para PROD.
+- **Dois caminhos válidos de implantação:** (a) SIGAPRO com provedor Mercado Pago municipal em `production` e webhook/baixa assinada realmente homologada; (b) `municipal_system` com `controlled_import` em `production`: emissão oficial no banco/sistema da Prefeitura, importação do PDF original e conferência humana pela Tesouraria, sem afirmar existir emissão ou baixa automática pelo SIGAPRO. Não usar sandbox MP como pagamento real, não exigir Mercado Pago para uma Prefeitura que tem sistema oficial próprio.
+- `src/pages/saas/CollectionSettingsPage.tsx`: aviso de QA corrigido; não afirma mais falsamente que todos os uploads R2 e PIX de teste estão bloqueados. Provas de produção preservadas.
+- `src/test/municipalCommercialReadinessQa.test.tsx`: testes de acesso, escopo, falhas, não certificação e importação controlada, incluindo o caminho de banco externo, adicionados ao gate Preview.
+
+**Auditoria do banco, 11/11/2026:** QA possuía Mercado Pago de TESTE ativo (1), 1 guia paga com evidências bancárias e PDF original registrados, 0 evidências jurídicas oficiais; duas versões urbanísticas ativas apenas fictícias. PROD possuía 0 provedores em ambiente produção, 0 guias com pagamento bancário + PDF comprovados, 0 evidências jurídicas oficiais e 0 versões de parâmetros ativadas.
+
+**Fontes jurídicas oficiais encontradas para Campo Limpo Paulista (referência de revisão, sem ativação automática):**
+- Câmara Municipal: LC nº 379/2009, cadastrada como ativa, sem revogação expressa registrada: https://camaracampolimpo.sp.gov.br/legislacao/detalhe/1830/institui-a-lei-complementar-de-parcelamento-uso-e-ocupacao-do-solo-de-campo-limpo-paulista/
+- Prefeitura: documentos e anexos da LC 379/2009: https://campolimpopaulista.sp.gov.br/leis-urbanisticas
+- Prefeitura: Plano Diretor Estratégico LC 613/2023 e revogação do antigo LC 302/2006: https://campolimpopaulista.sp.gov.br/prefeitura/plano-diretor-estrategico
+- A revisão LPUOS proposta em 2024 não é, somente por sua publicação como minuta, uma nova lei aprovada: https://campolimpopaulista.sp.gov.br/lei-de-parcelamento-uso-e-ocupacao-do-solo-e-apresentada-na-camara-municipal
+- Em 2026 existem também normas específicas de regularização de edificações, a verificar quanto ao objeto e vigência por analista jurídico municipal. Não confundir regularização extraordinária com aprovação de projeto novo.
+
+**Próximo cutover (não executar sem provas):** Prefeitura piloto confirma conta e fornecedor oficial ou escolhe importação controlada; equipe do município confere documentos, zoneamento e aplicação temporal das normas; profissional/analista/diretoria realizam nova jornada real e assinam; fiscal/tesouraria validam origem/baixa; só então aplicar migrações versionadas e promover build de produção com rollback disponível. A existência deste painel e testes automatizados não é aceite funcional de terceiros.
