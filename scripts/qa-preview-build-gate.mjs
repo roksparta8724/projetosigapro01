@@ -60,6 +60,7 @@ const TESTS=[
   "src/test/bankReturnPreviewIsolationQa.test.ts",
   "src/lib/bankFileInspector.test.ts",
   "src/test/municipalProviderProvisioningReadiness.test.ts",
+  "src/test/municipalCommercialReadinessQa.test.tsx",
   "src/test/municipalIntegrationCatalog.test.ts",
   "src/test/guideOpeningExperience.test.ts",
   "src/test/r2DamSignedByteIntegrity.test.ts",
