@@ -10,7 +10,7 @@ permissions:
   contents: read
 jobs:
   ocr:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
@@ -23,8 +23,10 @@ jobs:
         run: python3 -m unittest tools/ocr/test_scan_pdf.py -v
       - name: Install offline OCR tools for synthetic fixture only
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends poppler-utils tesseract-ocr tesseract-ocr-por tesseract-ocr-eng
+          # Fixed LTS runner avoids ubuntu-latest resolute mirror resolution regressions.
+          # Retry temporary mirror/DNS failures with bounded HTTP timeouts.
+          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 update -qq
+          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 install -y --no-install-recommends poppler-utils tesseract-ocr tesseract-ocr-por tesseract-ocr-eng
           python3 -m pip install --no-cache-dir 'Pillow==11.3.0'
       - name: Generate synthetic raster PDF and perform real OCR
         run: |
