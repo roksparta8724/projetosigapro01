@@ -176,5 +176,5 @@ begin
   );
 end;
 $function$;
-REVOKE ALL ON FUNCTION public.sync_process_documents(uuid,jsonb) FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.sync_process_documents(uuid,jsonb) FROM PUBLIC, anonymous;
 GRANT EXECUTE ON FUNCTION public.sync_process_documents(uuid,jsonb) TO authenticated;
