@@ -93,6 +93,9 @@ describe("SIGAPRO: closing the real QA PIX issuance / signed-settlement loop",()
     expect(frontend).toContain("persisted.bank_reference && persisted.bank_payment_id");
     expect(frontend).toContain("sandboxPix.orderId === persisted.bank_reference");
     expect(frontend).toContain("sandboxPix.paymentId === persisted.bank_payment_id");
+    // Reserve a tab in the user gesture and archive the actual QA DAM after the provider responds.
+    expect(frontend).toContain("const pixWindow = window.open");
+    expect(frontend).toContain("openExternalGuide(process,guide,pixWindow)");
     expect(frontend).toContain("if (isolatedQa && qaPixBound)");
     expect(frontend).toContain("await archiveAndOpenGuide(effectiveScopeId,guideDocument,officialWindow)");
     expect(frontend).toContain("openGuiaRecolhimentoOficialWindow(guideDocument,");
