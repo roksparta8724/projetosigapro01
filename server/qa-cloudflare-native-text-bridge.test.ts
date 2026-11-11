@@ -33,7 +33,7 @@ describe("SIGAPRO: real selectable PDF text -> Workers AI with page evidence",()
       expect(input.messages[1].content).toContain("Página: 1");
       expect(input.messages[1].content).toContain("Página: 2");
       expect(input.messages[1].content).toContain("Area do terreno: 300 m2");
-      expect(JSON.stringify(opts.headers)).not.toContain("qa-synthetic-not-real-token");
+      expect((opts.headers as Record<string,string>).Authorization).toBe("Bearer "+provider.key);
       return {ok:true,status:200,json:async()=>({
         choices:[{finish_reason:"stop",message:{content:JSON.stringify({
           document_type:"architectural_plan",has_site_plan:true,warnings:[],
