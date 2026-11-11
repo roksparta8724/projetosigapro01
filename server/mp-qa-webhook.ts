@@ -217,6 +217,38 @@ async function handleSignedTestNotice(req:Req,res:Res){
 }
 
 /**
+ * Testable, fail-closed reconciliation of an already authenticated bank event.
+ * The only possible financial write is the existing restricted worker RPC,
+ * and only after independent provider GET and matching original identifiers.
+ */
+export async function reconcilePreviouslySignedQa(
+ db:Pick<Db,"query">,
+ input:{municipalityId:string;orderId:string;paymentId:string;
+   fetchOrder:()=>Promise<Awaited<ReturnType<typeof fetchMunicipalMpOrder>>>},
+):Promise<{code:string;http:number;settled:boolean}>{
+ const {municipalityId,orderId,paymentId}=input;
+ const prior=await db.query(
+   "SELECT public.mp_qa_webhook_signed_receipt_v1($1::uuid,$2::text) AS receipt",
+   [municipalityId,orderId],
+ );
+ const signed=prior.rows[0]?.receipt as Record<string,unknown>|null|undefined;
+ const rid=String(signed?.request_id||"");
+ const notificationId=String(signed?.notification_id||"");
+ const digest=String(signed?.payload_sha256||"");
+ if(!requestId.test(rid)||!notificationId||notificationId.length>128 ||
+    !/^[a-f0-9]{64}$/.test(digest))
+   return {code:"SIGNED_BANK_EVENT_REQUIRED",http:409,settled:false};
+ let observation;
+ try{observation=await input.fetchOrder();}
+ catch{return {code:"BANK_FETCH_UNAVAILABLE",http:503,settled:false};}
+ if(!observation.fetched)return {code:"BANK_FETCH_UNAVAILABLE",http:503,settled:false};
+ if(observation.paymentId!==paymentId)
+   return {code:"BANK_PAYMENT_MISMATCH",http:409,settled:false};
+ return recordAndMaybeSettleQa(db,{municipalityId,orderId,
+   requestId:rid,notificationId,digest,observation});
+}
+
+/**
  * Resolve a real race: Mercado Pago test APRO can send an approved, signed
  * event before the immutable DAM has been archived. The original handler
  * correctly returns awaiting_original_pdf and must NOT settle then.
@@ -254,27 +286,10 @@ async function reconcileAfterQaPdf(req:Req,res:Res){
      if(!auth)return respond(res,503,{ok:false,code:"MUNICIPAL_QA_PROVIDER_NOT_ACTIVE"});
      // This RPC never invents an event; its source must be a previously
      // HMAC-verified webhook associated with this exact canonical order.
-     const prior=await db.query(
-       "SELECT public.mp_qa_webhook_signed_receipt_v1($1::uuid,$2::text) AS receipt",
-       [municipalityId,guide.bank_reference],
-     );
-     const signed=prior.rows[0]?.receipt as Record<string,unknown>|null|undefined;
-     const rid=String(signed?.request_id||"");
-     const notificationId=String(signed?.notification_id||"");
-     const digest=String(signed?.payload_sha256||"");
-     if(!requestId.test(rid)||!notificationId||notificationId.length>128 ||
-        !/^[a-f0-9]{64}$/.test(digest))
-       return respond(res,409,{ok:false,code:"SIGNED_BANK_EVENT_REQUIRED"});
-     let observation;
-     try{observation=await fetchMunicipalMpOrder(guide.bank_reference!,auth.token);}
-     catch{return respond(res,503,{ok:false,code:"BANK_FETCH_UNAVAILABLE"});}
-     if(!observation.fetched)
-       return respond(res,503,{ok:false,code:"BANK_FETCH_UNAVAILABLE"});
-     if(observation.paymentId!==guide.bank_payment_id)
-       return respond(res,409,{ok:false,code:"BANK_PAYMENT_MISMATCH"});
-     const outcome=await recordAndMaybeSettleQa(db,{
-       municipalityId,orderId:guide.bank_reference,requestId:rid,
-       notificationId,digest,observation,
+     const outcome=await reconcilePreviouslySignedQa(db,{
+       municipalityId,orderId:guide.bank_reference,
+       paymentId:guide.bank_payment_id,
+       fetchOrder:()=>fetchMunicipalMpOrder(guide.bank_reference!,auth.token),
      });
      return respond(res,outcome.http,{ok:outcome.http===200,
        code:outcome.code,automaticallySettled:outcome.settled});
