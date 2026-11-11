@@ -13,6 +13,7 @@ const TESTS=[
   "server/qa-architectural-benchmark.test.ts",
   "server/architectural-document-guard.test.ts",
   "server/mp-qa-webhook.test.ts",
+  "server/qa-mercadopago-pix.test.ts",
   "server/mp-webhook-worker-privilege.test.ts",
   "server/municipal-payment.test.ts",
   "src/test/qaArchitecturalLabUi.test.tsx",
