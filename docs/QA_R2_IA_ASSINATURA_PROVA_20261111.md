@@ -21,3 +21,15 @@
 ## 11/11/2026 — Correção do gate de prova física
 
 O primeiro build de prova R2 sinalizou `NOT_VERIFIED_SCOPE` e mostrou que `vite build` ainda podia passar sem comprovação real. O gate foi alterado para reutilizar `qaDatabaseEndpointMatches`, que identifica a própria base Neon QA sem presumir formato fixo do hostname, e **qualquer resultado diferente de PASS impede a publicação**. A versão deve ser publicada com a marca de commit `[deploy-qa]` exigida pelo projeto e os logs do Vercel precisam mostrar `SIGAPRO_QA_R2_ROUNDTRIP PASS`. Até lá, R2 permanece NÃO COMPROVADO.
+
+## Comprovações reais executadas em 11/11/2026
+
+**R2 — gravar, ler, conferir e apagar:** Build Vercel `dpl_7bEir95RHMUyhPUE2LsVTecfZLAC`, commit `cd7f0f623d5ecd2fda6f4504e625ee5b914eac9a`, log literal `SIGAPRO_QA_R2_ROUNDTRIP PASS`. Foi executada escrita R2 de PDF descartável, HEAD/GET, SHA-256 e DELETE confirmado no prefixo efêmero QA. A leitura histórica de um PDF DAM antigo segue `NOT_VERIFIED_ORIGINAL_OBJECT_MISSING` e NÃO pode ser rotulada de recuperada.
+
+**Leitura de PDF real no SIGAPRO:** GET `/api/ai-assistant?action=qa-r2-reading-proof` na prévia autenticada por Vercel retornou `status=verified`, `r2BytesVerified=true`, `aiLocalReadVerified=true`, `pagesRead=3/3`, `setbacksPassed=3/3`: frente 5 m, lateral 1 m e fundos 12 m, todos iguais ao gabarito da planta QA04. Modo `native_text`, sem chamadas a fornecedor externo, **não é prova de modelo visual IA pago nem aprovação legal**.
+
+**Assinatura:** Neon QA contém `PM-2026-00002` com `process_construction_permits.status=signed`, assinatura eletrônica de Analista e Diretoria, hash SHA idêntico ao dos blocos, identidade municipal consistente e reautenticação registrada. Função pública `verify_process_artifact_signature_public_v1` confirmou alvará assinado. Agregado da base QA: 3 assinaturas técnicas e 4 diretoria, sete com reautenticação+hash. Não se trata de nova cerimônia assinada na sessão do chat.
+
+**Proteção adicional implementada em QA:** `neon/migrations/20261111_public_signature_verifier_requires_signed_proof_qa.sql` agora bloqueia publicamente blocos `concluido` sem assinatura real no livro `signatures` com SHA, tenant, município e `reauthenticated_at`. Exercício transacional de documento forjado foi rejeitado tanto na solicitação de alvará quanto na verificação pública; todos os dados fictícios revertidos.
+
+**O que continua não comprovado:** leitura de um documento novo pelo modelo visual de IA externo após login de Analista; nova cerimônia de assinatura no navegador; PDF DAM histórico ausente. Nenhuma dessas três lacunas deve ser camuflada com testes unitários, dados fabricados ou declarações de liberação comercial integral.
