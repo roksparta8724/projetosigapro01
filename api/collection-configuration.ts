@@ -36,6 +36,16 @@ export default async function handler(req: Req, res: Res) {
     const input = await body(req); const municipalityId = uuid(input.municipalityId); const action = String(input.action || "get");
     if (action === "get") return json(res, 200, await rpc(req, "get_municipal_collection_configuration_v1", { _municipality_id: municipalityId }) || {});
     if (action === "effective") return json(res, 200, await rpc(req, "get_active_municipal_collection_configuration_v1", { _municipality_id: municipalityId }) || {});
+    if (action === "commercial_readiness") {
+      // Evidence-only, read-only municipal scoped RPC. Never grant production
+      // bank settlement, legal approval or permit issuance on this response.
+      const result=await rpc<Record<string,unknown>>(req,
+        "get_municipal_commercial_readiness_v1",{_municipality_id:municipalityId});
+      if(result?.kind!=="sigapro.municipal.commercial-readiness.v1" ||
+         result?.municipalityId!==municipalityId)
+        throw new Error("A auditoria de liberacao nao confirmou o escopo desta Prefeitura.");
+      return json(res,200,result);
+    }
     if (action === "provider_status") {
       // Verify this authenticated municipal admin using the existing SQL RLS/RPC.
       await rpc(req, "get_municipal_collection_configuration_v1", { _municipality_id: municipalityId });
