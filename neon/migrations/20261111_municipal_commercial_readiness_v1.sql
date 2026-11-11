@@ -74,8 +74,7 @@ BEGIN
     AND v.activated_by_profile_id IS NOT NULL
     AND v.effective_from<=current_date
     AND v.zone_code !~* '^QA([_-]|$)'
-    AND jsonb_typeof(v.rules)='array'
-    AND jsonb_array_length(v.rules)>0
+    AND (CASE WHEN jsonb_typeof(v.rules)='array' THEN jsonb_array_length(v.rules)>0 ELSE false END)
     AND v.rules::text !~* '(lei ficticia|qa sem validade legal|synthetic fixture)';
 
   -- Historical signed evidence is NOT a new end-to-end municipal acceptance.
