@@ -21,9 +21,18 @@ describe("SIGAPRO: paid protocol automatically returned for document correction"
       expect(slot?.uploaded).toBe(false);
       expect(slot?.reviewStatus).toBe("pendente");
     }
-    expect(detail).toContain('const documentSlots = process.documents.length');
-    expect(detail).toContain('buildProcessDocuments(process.type, [], process.tenantId, effectiveScopeId)');
+    expect(detail).toContain('const documentSlots = buildProcessDocuments(');
+    expect(detail).toContain('process.type, process.documents, process.tenantId, effectiveScopeId');
     expect(detail).toContain('isInternalRole(session.role) || canUploadProcessDocuments');
+    // Regression: uploading one document must not erase the other pending slots.
+    const partial = buildProcessDocuments("Aprovação de Projeto Comercial", [{
+      id: "doc1", label: "Projeto arquitetonico", required: true, uploaded: true,
+      signed: false, reviewStatus: "pendente", version: 1, source: "profissional",
+      filePath: "municipalities/scope/protocols/owner/doc1.pdf",
+    }]);
+    expect(partial.find(d => d.label === "Projeto arquitetonico")?.uploaded).toBe(true);
+    expect(partial.find(d => d.label === "Memorial descritivo")?.uploaded).toBe(false);
+    expect(partial.find(d => d.label === "ART ou RRT")?.uploaded).toBe(false);
     expect(detail).toContain('canRecoverStoredDocuments && !document.uploaded');
     expect(detail).toContain('handleUploadMissingDocument(document)');
     expect(detail).toContain("const canRecoverStoredDocuments =");
