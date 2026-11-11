@@ -33,3 +33,11 @@ O primeiro build de prova R2 sinalizou `NOT_VERIFIED_SCOPE` e mostrou que `vite 
 **Proteção adicional implementada em QA:** `neon/migrations/20261111_public_signature_verifier_requires_signed_proof_qa.sql` agora bloqueia publicamente blocos `concluido` sem assinatura real no livro `signatures` com SHA, tenant, município e `reauthenticated_at`. Exercício transacional de documento forjado foi rejeitado tanto na solicitação de alvará quanto na verificação pública; todos os dados fictícios revertidos.
 
 **O que continua não comprovado:** leitura de um documento novo pelo modelo visual de IA externo após login de Analista; nova cerimônia de assinatura no navegador; PDF DAM histórico ausente. Nenhuma dessas três lacunas deve ser camuflada com testes unitários, dados fabricados ou declarações de liberação comercial integral.
+
+## 11/11/2026 — busca por origem histórica com SHA idêntico
+
+A guia `DAM-PRE-QA-20261028-PIXHMLG2` apresenta hash e `original_pdf_key` no Neon QA, mas o GET do objeto nessa chave retornou ausente. A recuperação só será considerada válida se for encontrada **uma cópia preexistente dos mesmos bytes**, com o SHA-256 completo idêntico ao hash arquivado. Um PDF recém-gerado, ainda que contenha os mesmos dados, não substitui a prova original.
+
+A rotina `scripts/qa-r2-dam-exact-recovery.mjs` procura objetos candidatos **somente sob o prefixo municipal** no R2, limitando quantidade e tamanho, validando todos os bytes e verificando novamente o arquivo na chave canônica. A gravação usa `IfNoneMatch: "*"` para não sobrescrever um objeto já existente. Se não houver cópia provada, ela registra `EXACT_SHA_SOURCE_NOT_FOUND` e preserva a evidência do problema; se a varredura for insuficiente, retorna `SCAN_LIMIT` ou `SCAN_UNCERTAIN`. O script não altera guias ou pagamentos no banco.
+
+**Leitura por IA externa:** a prévia tem `SIGAPRO_AI_PDF_PROVIDER=claude` e o leitor local de PDF fica disponível como opção gratuita; não há comprovação de chamada visual externa autenticada/concluída. Jamais utilizar o ensaio local como evidência de custo, créditos ou processamento remoto. As chaves de API nunca são incluídas em logs ou nos relatórios.
