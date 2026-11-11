@@ -16,7 +16,7 @@ const data=(municipalityId=tenantA,parts:Record<string,unknown>={})=>({
   municipalityId,checkedAt:"2026-11-11T18:00:00Z",
   financialProvider:{provider:"not_configured",environment:"not_configured",
     activeAndTestedForProduction:false},
-  municipalCollection:{mode:"not_configured",environment:"not_configured",active:false},
+  municipalCollection:{mode:"not_configured",environment:"not_configured",active:false,integrationType:"not_configured",controlledImportActive:false},
   bankAuthenticatedOriginalsProduction:0,officialLegalEvidenceCount:0,
   activatedNonFixtureUrbanRules:0,historicalAnalystSignatures:0,
   historicalDirectorSignatures:0,independentR2ByteAuditVerified:false,
@@ -56,6 +56,22 @@ describe("SIGAPRO: one municipal commercial readiness evidence source",()=>{
     expect(screen.getByText(/registros anteriores de analista e diretoria/i)).toBeInTheDocument();
     expect(screen.getByText(/auditoria independente dos bytes/)).toBeInTheDocument();
     expect(screen.getByText(/aceite formal da Prefeitura/)).toBeInTheDocument();
+  });
+
+  it("allows the municipal controlled-import pilot path without inventing bank webhooks",async()=>{
+    mocks.request.mockResolvedValue(data(tenantA,{
+      municipalCollection:{mode:"municipal_system",environment:"production",
+        active:true,integrationType:"controlled_import",controlledImportActive:true},
+      financialProvider:{provider:"not_configured",environment:"not_configured",
+        activeAndTestedForProduction:false},
+      bankAuthenticatedOriginalsProduction:0,
+    }));
+    view();
+    await screen.findByText(/Liberação comercial não certificada/);
+    expect(screen.getByText("Importação controlada da Prefeitura")).toBeInTheDocument();
+    expect(screen.getByText("Guia oficial e conferência da Tesouraria")).toBeInTheDocument();
+    expect(screen.getByText(/Não há emissão ou baixa automática no SIGAPRO/)).toBeInTheDocument();
+    expect(screen.getByText(/não existe webhook bancário automático nesta modalidade/)).toBeInTheDocument();
   });
 
   it("denies mismatched tenant response and does not show unrelated data",async()=>{
