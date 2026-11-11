@@ -37,7 +37,7 @@ BEGIN
     _provider.has_webhook,
     false
   );
-  SELECT c.mode,c.environment,c.status,c.version
+  SELECT c.mode,c.environment,c.status,c.version,c.integration_type
     INTO _collection
   FROM public.municipal_collection_configurations c
   WHERE c.municipality_id=_municipality_id
@@ -102,7 +102,13 @@ BEGIN
     'municipalCollection',jsonb_build_object(
       'mode',coalesce(_collection.mode,'not_configured'),
       'environment',coalesce(_collection.environment,'not_configured'),
-      'active',coalesce(_collection.status='active',false)
+      'active',coalesce(_collection.status='active',false),
+      'integrationType',coalesce(_collection.integration_type,'not_configured'),
+      'controlledImportActive',coalesce(
+        _collection.mode='municipal_system' AND
+        _collection.environment='production' AND
+        _collection.status='active' AND
+        _collection.integration_type='controlled_import',false)
     ),
     'bankAuthenticatedOriginalsProduction',_paid_evidence,
     'officialLegalEvidenceCount',_law_evidence,
