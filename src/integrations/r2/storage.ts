@@ -86,9 +86,16 @@ export async function uploadFileToStorage(input: {
         : "institutional-branding";
 
   const uploaded = await uploadFile({ bucket, objectKey, file: uploadSource });
+  if (bucket === "process-documents" &&
+      (!/^[a-f0-9]{64}$/i.test(String(uploaded.sha256 || "")) ||
+       (uploaded.fileSizeBytes != null && uploaded.fileSizeBytes !== uploadSource.size))) {
+    throw new Error("O armazenamento não confirmou o SHA-256 e o tamanho reais do documento. Registro bloqueado.");
+  }
   return {
     path: uploaded.objectKey,
     publicUrl: uploaded.publicUrl,
+    fileHash: uploaded.sha256,
+    fileSizeBytes: uploaded.fileSizeBytes ?? uploadSource.size,
     persistentRef: input.bucket === "profile-assets" ? `r2:${uploaded.objectKey}` : uploaded.publicUrl || `r2:${uploaded.objectKey}`,
   };
 }
