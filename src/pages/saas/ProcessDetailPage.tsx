@@ -743,6 +743,9 @@ export function ProcessDetailPage() {
   const [annotationDraft, setAnnotationDraft] = useState("");
   const [annotationPoint, setAnnotationPoint] = useState<{ x: number; y: number } | null>(null);
   const [processActionStatus, setProcessActionStatus] = useState("");
+  const [triageCorrection, setTriageCorrection] = useState({
+    address: "", area: "", ownerName: "", technicalLead: "",
+  });
   const [processActionBusy, setProcessActionBusy] = useState("");
   const [supervisorActionStatus, setSupervisorActionStatus] = useState("");
   const [supervisorActionBusy, setSupervisorActionBusy] = useState(false);
@@ -858,6 +861,15 @@ export function ProcessDetailPage() {
   useEffect(() => {
     if (!process) return;
     setConstructionAreaInput(process.property.area > 0 ? String(process.property.area) : "");
+    setTriageCorrection({
+      address: process.address && !/^(?:não informado|nao informado|endereço não informado)$/i.test(process.address.trim())
+        ? process.address : "",
+      area: process.property.area > 0 ? String(process.property.area) : "",
+      ownerName: process.ownerName && !/^(?:não informado|nao informado)$/i.test(process.ownerName.trim())
+        ? process.ownerName : "",
+      technicalLead: process.technicalLead && !/^(?:não informado|nao informado)$/i.test(process.technicalLead.trim())
+        ? process.technicalLead : "",
+    });
     setConstructionUsageInput(process.property.usage || "");
     setWorkTypeInput(process.property.workType || "");
     setHabiteSeConstructionStandardInput(process.property.constructionStandard || "");
@@ -2862,6 +2874,36 @@ export function ProcessDetailPage() {
     if (ok) await refreshCurrentProcessStore();
   };
 
+  const handleCorrectPaidTriageIdentity = async () => {
+    if (!canUploadProcessDocuments || process.status !== "pendencia_documental") {
+      setProcessActionStatus("Somente o profissional vinculado pode completar uma pendência documental.");
+      return;
+    }
+    const payload = {
+      address: triageCorrection.address.trim(),
+      area: triageCorrection.area.trim().replace(",", "."),
+      ownerName: triageCorrection.ownerName.trim(),
+      technicalLead: triageCorrection.technicalLead.trim(),
+    };
+    if (payload.address.length < 10 ||
+        !/^[0-9]{1,8}(?:\.[0-9]{1,2})?$/.test(payload.area) ||
+        Number(payload.area) <= 0 ||
+        payload.ownerName.length < 3 || payload.technicalLead.length < 3) {
+      setProcessActionStatus("Informe endereço completo, área positiva em m², proprietário e responsável técnico para reenviar à triagem.");
+      return;
+    }
+    const ok = await runProcessAction("correct-paid-triage", async () => {
+      const { data, error } = await backendClient.rpc("correct_paid_triage_identity_v1", {
+        _process_id: process.id,
+        _payload: payload,
+      });
+      if (error) throw new Error(error.message || "Falha ao gravar a complementação cadastral.");
+      if (!data || typeof data !== "object" || !("ok" in data) || data.ok !== true)
+        throw new Error("O banco não confirmou a atualização cadastral.");
+    }, "Dados cadastrais registrados e triagem reavaliada. Envie os anexos exigidos abaixo; nenhuma guia foi recriada.");
+    if (ok) await refreshCurrentProcessStore();
+  };
+
   const handleUploadMissingDocument = async (document: typeof process.documents[number]) => {
     if (!canUploadProcessDocuments) {
       setProcessActionStatus("Somente o profissional responsável, em rascunho ou correção documental, pode enviar documentos.");
@@ -3551,6 +3593,54 @@ export function ProcessDetailPage() {
               data-process-document-content="true"
               className="space-y-4 p-5 md:p-6"
             >
+              {canUploadProcessDocuments && process.status === "pendencia_documental" ? (
+                <section data-paid-triage-correction="true" className="space-y-4 rounded-2xl border border-sky-200 bg-sky-50 p-5 text-slate-900">
+                  <div>
+                    <h3 className="font-bold text-sky-950">Completar cadastro para liberar a triagem</h3>
+                    <p className="mt-1 text-sm leading-6 text-slate-700">
+                      Seu protocolo já foi criado. Complete os dados verdadeiros do imóvel e das partes;
+                      os documentos obrigatórios são enviados logo abaixo. Nenhum pagamento será refeito.
+                    </p>
+                  </div>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <label className="space-y-1.5 text-sm font-semibold" htmlFor="triage-property-address">
+                      Endereço completo do imóvel
+                      <Input id="triage-property-address" autoComplete="street-address"
+                        value={triageCorrection.address} maxLength={240}
+                        onChange={e=>setTriageCorrection(v=>({...v,address:e.target.value}))}
+                        placeholder="Rua, número, bairro e município" className="bg-white text-slate-950" />
+                    </label>
+                    <label className="space-y-1.5 text-sm font-semibold" htmlFor="triage-property-area">
+                      Área do imóvel/obra (m²)
+                      <Input id="triage-property-area" inputMode="decimal"
+                        value={triageCorrection.area} maxLength={12}
+                        onChange={e=>setTriageCorrection(v=>({...v,area:e.target.value}))}
+                        placeholder="Ex.: 250,50" className="bg-white text-slate-950" />
+                    </label>
+                    <label className="space-y-1.5 text-sm font-semibold" htmlFor="triage-owner-name">
+                      Nome completo do proprietário
+                      <Input id="triage-owner-name" autoComplete="name"
+                        value={triageCorrection.ownerName} maxLength={160}
+                        onChange={e=>setTriageCorrection(v=>({...v,ownerName:e.target.value}))}
+                        className="bg-white text-slate-950" />
+                    </label>
+                    <label className="space-y-1.5 text-sm font-semibold" htmlFor="triage-professional-name">
+                      Nome do responsável técnico
+                      <Input id="triage-professional-name"
+                        value={triageCorrection.technicalLead} maxLength={160}
+                        onChange={e=>setTriageCorrection(v=>({...v,technicalLead:e.target.value}))}
+                        className="bg-white text-slate-950" />
+                    </label>
+                  </div>
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <p className="max-w-xl text-xs text-slate-700">Depois de salvar, o sistema confere a documentação e encaminha à análise somente quando todos os requisitos estiverem atendidos.</p>
+                    <Button type="button" disabled={Boolean(processActionBusy)} onClick={()=>void handleCorrectPaidTriageIdentity()}
+                      className="rounded-full bg-sky-900 px-5 text-white hover:bg-sky-800">
+                      {processActionBusy==="correct-paid-triage" ? "Salvando e conferindo..." : "Salvar dados e revalidar triagem"}
+                    </Button>
+                  </div>
+                </section>
+              ) : null}
               {(session.role === "analista" || session.role === "prefeitura_supervisor") &&
                !canReviewDocuments ? (
                 <div data-sigapro-document-editor-locked="true" role="note"
