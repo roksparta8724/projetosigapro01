@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
+import { getChecklistTemplate } from "@/lib/platform";
 
 const read=(path:string)=>readFileSync(path,"utf8");
 const correction=read("neon/migrations/20261110_paid_triage_correction_v1.sql");
@@ -47,6 +48,25 @@ describe("SIGAPRO paid-triage data repair — real records, authorized writers",
     expect(sync).toContain("_existing_review IN ('aprovado','rejeitado')");
     expect(sync).toContain("reviewStatus','pendente");
     expect(sync).toContain("annotations','[]'");
+  });
+  it("requires the same four core files in intake and paid triage, never seven by default",()=>{
+    for(const kind of [
+      "Aprovação de Projeto Comercial","Aprovação de projeto residencial",
+      "Aprovação de Projeto Industrial","Aprovação de Projeto Institucional",
+    ]) {
+      const template=getChecklistTemplate(kind);
+      expect(template).toBeDefined();
+      const required=template!.items.filter(x=>x.required).map(x=>x.label);
+      expect(required).toHaveLength(4);
+      expect(required.some(x=>/projeto arquitetonico/i.test(x))).toBe(true);
+      expect(required.some(x=>/memorial descritivo/i.test(x))).toBe(true);
+      expect(required.some(x=>/art ou rrt/i.test(x))).toBe(true);
+      expect(required.some(x=>/matricula do imovel/i.test(x))).toBe(true);
+    }
+    const intake=read("src/pages/saas/ProtocolarProjetoPage.tsx");
+    expect(intake).toContain('label: "RG e CPF ou CNH do Proprietário", required: false');
+    expect(intake).toContain('label: "IPTU", required: false');
+    expect(intake).toContain('label: "Levantamento Planialtimétrico", required: false');
   });
   it("shows real correction fields and keeps outstanding documents visible after uploads",()=>{
     expect(page).toContain('data-paid-triage-correction="true"');
