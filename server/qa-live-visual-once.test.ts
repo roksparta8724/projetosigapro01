@@ -12,7 +12,7 @@ import {benchmarkQa04ArchitecturalReadings} from "../src/lib/architecturalPdfRea
 const runOnce=process.env.VERCEL_ENV==="preview" &&
   process.env.VERCEL_GIT_COMMIT_REF==="fix/qa-triagem-analise-pagamento-20261101" &&
   process.env.VITE_SIGAPRO_NEON_ISOLATED==="true" &&
-  String(process.env.VERCEL_GIT_COMMIT_MESSAGE||"").includes("[visual-qa-once]");
+  process.env.SIGAPRO_QA_REAL_VISUAL_PROBE_ONCE==="true";
 const FIXED_QA_PDF=
   "municipalities/49dac0b6-6352-4744-9aab-9ff91c59d970/qa-arquitetura/"+
   "d5434b4e-e1f5-46fd-a95c-dedc9631d9d2/"+
