@@ -28,6 +28,7 @@ DECLARE
   _before_docs bigint;
   _before_parties bigint;
   _before_property boolean;
+  _fake_signature_code text := upper(substr(replace(gen_random_uuid()::text,'-',''),1,20));
 BEGIN
   SELECT p.id,p.tenant_id,p.created_by_profile_id,p.status::text,
          p.property_id IS NOT NULL
@@ -158,12 +159,18 @@ BEGIN
     -- subtransaction: absence of real reauth + signatures must still deny.
     INSERT INTO public.signature_blocks(
       tenant_id,municipality_id,process_id,title,status,
-      artifact_type,artifact_key,evidence_hash,evidence
+      artifact_type,artifact_key,evidence_hash,evidence,verification_code
     ) VALUES (
       _tenant,_tenant,_id,'FICHA FICTICIA SEM ASSINATURA','concluido',
       'urban_analysis_checklist','urban-analysis-checklist',
-      repeat('a',64),'{"qaFake":true}'::jsonb
+      repeat('a',64),'{"qaFake":true}'::jsonb,_fake_signature_code
     );
+    IF (public.verify_process_artifact_signature_public_v1(_fake_signature_code)->>'valid')::boolean
+      IS DISTINCT FROM false THEN
+      RAISE EXCEPTION 'UNSAFE: public verifier accepted forged completed signature block';
+    END IF;
+    _details:=_details||jsonb_build_array(jsonb_build_object(
+      'stage','public-signature-verifier-rejects-forged-block','rejected',true));
     BEGIN
       PERFORM public.request_construction_permit_director_signature_v1(_id);
       RAISE EXCEPTION 'UNSAFE: forged completed block bypassed real technical signature';
