@@ -2176,10 +2176,13 @@ export const processTypeCatalog = [
   "Aprovação de Projeto de Condomínio",
 ];
 
+// The universal pre-protocol baseline has four compulsory technical records:
+ // architectural project, descriptive memorial, ART/RRT and title deed.
+ // Additional municipal obligations must be explicitly configured per city.
 const checklistPadraoProjeto = [
-  { id: "base-1", label: "RG ou CNH do proprietario", required: true },
-  { id: "base-2", label: "CPF do proprietario", required: true },
-  { id: "base-3", label: "IPTU", required: true },
+  { id: "base-1", label: "RG ou CNH do proprietario", required: false },
+  { id: "base-2", label: "CPF do proprietario", required: false },
+  { id: "base-3", label: "IPTU", required: false },
   { id: "base-4", label: "Matricula do imovel", required: true },
   { id: "base-5", label: "Projeto arquitetonico", required: true },
   { id: "base-6", label: "Memorial descritivo", required: true },
@@ -2220,9 +2223,9 @@ export const checklistTemplates: ChecklistTemplate[] = [
     tenantId: null,
     processType: "Aprovação de projeto residencial",
     items: [
-      { id: "res-1", label: "RG ou CNH do proprietario", required: true },
-      { id: "res-2", label: "CPF do proprietario", required: true },
-      { id: "res-3", label: "IPTU", required: true },
+      { id: "res-1", label: "RG ou CNH do proprietario", required: false },
+      { id: "res-2", label: "CPF do proprietario", required: false },
+      { id: "res-3", label: "IPTU", required: false },
       { id: "res-4", label: "Matricula do imovel", required: true },
       { id: "res-5", label: "Projeto arquitetonico", required: true },
       { id: "res-6", label: "Memorial descritivo", required: true },
