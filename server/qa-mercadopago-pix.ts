@@ -205,7 +205,9 @@ export async function qaMercadoPagoPix(
         processing_mode:"automatic",
         external_reference:externalReference,
         total_amount:amount,
-        payer:{email:"test_payer@example.com"},
+        // Mercado Pago official Orders sandbox: APRO triggers an approved Pix
+        // transition without real funds. This handler is QA TEST-only.
+        payer:{email:"test_payer@example.com",first_name:"APRO"},
         transactions:{payments:[{amount,payment_method:{id:"pix",type:"bank_transfer"}}]},
       }),
     });
