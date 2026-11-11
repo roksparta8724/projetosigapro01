@@ -4,9 +4,10 @@ const script=readFileSync("scripts/qa-r2-roundtrip.mjs","utf8");
 describe("R2 QA live-byte roundtrip release gate",()=>{
  it("restricts live writes to isolated Vercel preview branch",()=>{
    expect(script).toContain('env.VERCEL_ENV==="preview"');
-   expect(script).toContain('git==="fix/qa-triagem-analise-pagamento-20261101"');
-   expect(script).toContain('env.VITE_SIGAPRO_NEON_ISOLATED==="true"');
-   expect(script).toContain('!String(env.VITE_NEON_DATA_API_URL||"").includes("blue-cloud")');
+   expect(script).toContain('env.VERCEL_GIT_COMMIT_REF==="fix/qa-triagem-analise-pagamento-20261101"');
+   expect(script).toContain('qaDatabaseEndpointMatches(');
+   expect(script).toContain('SIGAPRO_QA_MP_WEBHOOK_DATABASE_URL');
+   expect(script).toContain('VITE_NEON_DATA_API_URL');
    expect(script).toContain('"NOT_VERIFIED_CONFIG"');
  });
  it("proves real R2 PDF bytes, metadata, SHA and deletion",()=>{
@@ -19,7 +20,7 @@ describe("R2 QA live-byte roundtrip release gate",()=>{
  });
  it("does not accept missing credentials or storage failure as a pass",()=>{
    expect(script).toContain('if(readiness!=="READY")return readiness');
-   expect(script).toContain('if(status.startsWith("FAIL"))process.exitCode=2');
+   expect(script).toContain('if(status!=="PASS")process.exitCode=2');
    expect(script).toContain("FAIL_CLEANUP");
  });
 });
