@@ -106,6 +106,21 @@ if(process.env.VERCEL_ENV==="preview"&&process.env.VERCEL_GIT_COMMIT_REF===BRANC
   // Real isolated R2 PUT/HEAD/GET/sha256/DELETE on a disposable QA key.
   // Never writes into a municipal document prefix or production bucket.
   run("live-qa-r2-byte-roundtrip-and-cleanup",["scripts/qa-r2-roundtrip.mjs"]);
+  // One deliberately marked, single-build QA test; never call a chargeable
+  // external vision model in ordinary CI, every-preview builds or production.
+  const marked=String(process.env.VERCEL_GIT_COMMIT_MESSAGE||"").includes("[visual-qa-once]") ||
+    String(spawnSync("git",["log","-1","--pretty=%s"],{
+      cwd:process.cwd(),encoding:"utf8",
+    }).stdout||"").includes("[visual-qa-once]");
+  if(marked){
+    process.env.SIGAPRO_QA_REAL_VISUAL_PROBE_ONCE="true";
+    run("single-real-Claude-vision-on-qa-synthetic-pdf",[
+      "node_modules/vitest/vitest.mjs","run",
+      "server/qa-live-visual-once.test.ts","--maxWorkers=1",
+    ]);
+    delete process.env.SIGAPRO_QA_REAL_VISUAL_PROBE_ONCE;
+  }
+
   console.log("[SIGAPRO_QA_BUILD_GATE] PASS focused preview gate; "+
     "commercial E2E/official regulation/bank confirmation remain separately required.");
 }
