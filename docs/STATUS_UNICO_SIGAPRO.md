@@ -1849,3 +1849,19 @@ navegador autenticado.
 - **Critério comercial:** não confundir 1.874 testes de software com produção pronta. Faltam prova bancária da conta de produção, parâmetro legal municipal conferido, nova assinatura por perfis, workflow browser autenticado e modelo visual de IA com resposta real. Não retirar controles ou marcar `QA_COMMERCIAL_ACCEPTANCE.json` como `passed` por vontade ou por dados sintéticos. Não reemitir DAM de teste ausente como documento original de produção.
 
 **Política de publicação:** após essas duas execuções únicas, o próximo commit sem os marcadores `[visual-qa-once]` e `[cf-text-qa-once]` deve reconstruir a prévia estável. A branch QA continua fonte única da PR #118; nenhum merge em `main`, migração PROD, cobrança real ou exclusão de testes foi executado.
+
+
+## 11/11/2026 — leitura documental Cloudflare REAL comprovada, sem créditos Claude e sem conversor PDF
+
+**Problema anterior reproduzido:** Anthropic Claude visual respondeu `AI_PROVIDER_BILLING`; Cloudflare `/ai/tomarkdown` rejeitou o PDF sintético QA com `CLOUDFLARE_PDF_CONVERSION_REJECTED`. As duas tentativas anteriores são registros reais, não simulações. O formato multipart do SIGAPRO corresponde à documentação oficial do Cloudflare; não há comprovação de defeito exclusivo do formulário.
+
+**Solução implementada nesta PR:** o modo de leitura documental `cloudflare_text`, quando encontra texto selecionável completo no PDF, lê os bytes R2 localmente com o parser nativo do SIGAPRO, percorre a árvore real de páginas, limita o texto a 23 mil caracteres, identifica cada página e envia somente o texto para a API de chat Workers AI. Não chama `tomarkdown` nesse caso. PDFs sem texto, parcialmente digitalizados, cifrados ou estruturalmente incompatíveis não geram medições falsas: mantêm o fluxo de conversão/erro autorizado. As citações da IA devem corresponder ao texto presente **naquela mesma página**; não basta existir em outra página. Todo recuo textual continua marcado como `value=null` para fins de comprovação geométrica, independentemente do modelo. Nunca aprova um processo ou conformidade automaticamente.
+
+**EVIDÊNCIA VIVA POSITIVA:** commit de prova única `396bec24e93beafdec57b115cb572cebeca7b511`, Preview Vercel `dpl_GfsyXmsug85vtnAZHDq8HFZnDD9x` atingiu `READY`. Teste de produção protegida `server/qa-live-cloudflare-text-once.test.ts` executado contra o PDF QA04 V2 de **16575 bytes** (R2, SHA prefixo `5dff09d72383`, fixture sintética), no Cloudflare de fato, com resultado:
+`SIGAPRO_PDF_AI_QA {"stage":"completed","code":"OK","elapsedMs":14386}`
+`SIGAPRO_QA_CLOUDFLARE_REAL_TEXT {"provider":"cloudflare","source":"ai_pdf_text","documentType":"architectural_plan","quotedMeasurements":11,"visualGeometryVerified":false,"legallyApproved":false}`.
+O teste de rede **PASSOU (1/1)**, assim como a suite de prévia **65 arquivos / 325 testes PASS** e o R2 real PUT/HEAD/GET/hash/DELETE em chave descartável. `quotedMeasurements:11` é o tamanho do vetor normalizado de campos, **não** 11 medidas de confiança alta e **não** uma aprovação. Permissões, histórico QA04 no Neon, prova oficial de zoneamento, pagamento bancário real e IA visual continuam separados.
+
+**Segurança/escopo:** o modo textual é opcional e pede aceite explícito do analista; o modelo visual Claude só volta a funcionar após saldo/contrato de API. Não usar chave secreta nem PDF do cliente em logs. A chamada externa de prova só ocorreu no commit marcado `[cf-text-qa-once]`. Próximos commits devem remover o marcador da mensagem de commit para manter builds sem consumo recorrente de IA.
+
+**Aceite técnico desta capacidade:** leitura textual assistida por IA externa em PDF selecionável **comprovada por uma chamada real**. Aceite comercial integral continua dependente de provedor bancário de produção, atos/assinaturas autenticados com perfis municipais, análise visual geométrica, legislação oficial conferida e cutover coordenado da função SHA-256 no PROD.
