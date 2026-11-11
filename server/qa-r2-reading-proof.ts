@@ -8,6 +8,7 @@
  */
 import type {IncomingMessage,ServerResponse} from "node:http";
 import {createHash} from "node:crypto";
+import {verifyPersistedPdfIntegrity} from "./document-pdf-integrity.js";
 import {GetObjectCommand,HeadObjectCommand,S3Client} from "@aws-sdk/client-s3";
 import {getR2EndpointCandidates} from "./r2-runtime.js";
 import {extractNativeArchitecturalPdf} from "./native-architectural-pdf.js";
@@ -17,6 +18,9 @@ import {benchmarkQa04ArchitecturalReadings} from "../src/lib/architecturalPdfRea
 const REF="fix/qa-triagem-analise-pagamento-20261101";
 const DOCUMENT_KEY="municipalities/49dac0b6-6352-4744-9aab-9ff91c59d970/qa-arquitetura/d5434b4e-e1f5-46fd-a95c-dedc9631d9d2/04697e67-66a4-469f-ae41-ac21dcbc6126-SIGAPRO-QA04-PLANTA-IMPLANTACAO-V2.pdf";
 const DECLARED_BYTES=16575;
+// Snapshot read from the canonical process_documents row in Neon QA on 2026-11-11.
+// This specific QA fixture MUST NOT be reported verified against different R2 bytes.
+export const NEON_QA04_DOCUMENT_SHA256="98e9cd82f61412b6c8677fa5e35ab6e80d2e2dbfe31d3d3bdb376e5ef30f5d3a";
 const MAX_BYTES=1024*1024;
 const normalize=(key:string)=>String(process.env[key]||"").replace(/^['"]|['"]$/g,"").trim();
 const reply=(res:ServerResponse,status:number,payload:unknown)=>{
@@ -60,6 +64,9 @@ export default async function handler(req:IncomingMessage,res:ServerResponse){
         wrongBytes=true; break;
       }
       const sha256=createHash("sha256").update(bytes).digest("hex");
+      try { verifyPersistedPdfIntegrity(bytes,NEON_QA04_DOCUMENT_SHA256,DECLARED_BYTES); }
+      catch { return reply(res,409,{status:"r2_neon_hash_mismatch",r2BytesVerified:true,
+        aiLocalReadVerified:false,processUpdated:false,documentIntegrityVerified:false}); }
       const storedHash=String(head.Metadata?.sha256||"").toLowerCase();
       if(storedHash && storedHash!==sha256){wrongBytes=true;break;}
       const reading=auditArchitecturalPdfPages(bytes,extractNativeArchitecturalPdf(bytes));
