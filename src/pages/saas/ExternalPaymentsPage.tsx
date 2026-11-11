@@ -120,6 +120,10 @@ export function ExternalPaymentsPage() {
     setBusyGuideAction({key:actionKey,action:"pix"});
     setStatusGuideKey(actionKey);
     setGuideActionStatus("");
+    // Reserve the PDF tab synchronously before awaiting the sandbox provider.
+    // The resulting frozen DAM is archived as soon as the QR is confirmed.
+    const pixWindow = window.open("", "_blank");
+    if (pixWindow) pixWindow.opener = null;
     try {
       let result: QaPixCharge;
       try {
@@ -151,8 +155,18 @@ export function ExternalPaymentsPage() {
       }
       setQaPixCharges(prev=>({...prev,[guide.code]:result}));
       await refreshRemoteStore();
-      setGuideActionStatus("PIX de TESTE emitido para esta guia. Visualize a guia para conferir o QR de homologação. NÃO PAGAR.");
+      // Do not leave a provider-approved sandbox order waiting for a second
+      // click to archive its immutable original. A bank webhook may arrive
+      // before the user manually opens the DAM.
+      if (pixWindow && !pixWindow.closed) {
+        const opened = await openExternalGuide(process,guide,pixWindow);
+        if (!opened) throw new Error("PIX de teste registrado, mas o PDF original ainda não foi arquivado. Reabra a guia, sem emitir outro PIX.");
+        setGuideActionStatus("PIX de TESTE emitido e DAM original arquivada no R2. A compensação exige webhook bancário assinado. NÃO PAGAR.");
+      } else {
+        setGuideActionStatus("PIX de TESTE emitido. Clique em Visualizar guia para arquivar o PDF original; NÃO PAGAR.");
+      }
     } catch(error) {
+      if(pixWindow && !pixWindow.closed)pixWindow.close();
       setGuideActionStatus(error instanceof Error ? error.message : "Falha na emissão do PIX de teste.");
     } finally {
       setBusyGuideAction(null);
@@ -197,8 +211,9 @@ export function ExternalPaymentsPage() {
   const openExternalGuide = async (
     process: ProcessRecord,
     guide: PaymentGuideEntry,
-  ) => {
-    if (!effectiveScopeId || busyGuideAction) return;
+    reservedWindow?: Window | null,
+  ): Promise<boolean> => {
+    if (!effectiveScopeId || (busyGuideAction && !reservedWindow)) return false;
 
     const actionKey=`${process.id}:${guide.code}`;
     setBusyGuideAction({key:actionKey,action:"guide"});
@@ -208,7 +223,7 @@ export function ExternalPaymentsPage() {
     // Reserve the output tab synchronously in both environments. An issued
     // QA PIX opens its immutable watermarked PDF; an unissued guide retains
     // the explicit NON-PAYABLE HTML preview using this same reserved tab.
-    const officialWindow = window.open("", "_blank");
+    const officialWindow = reservedWindow || window.open("", "_blank");
     if (officialWindow) officialWindow.opener = null;
     try {
       if (!officialWindow)
@@ -225,7 +240,7 @@ export function ExternalPaymentsPage() {
         // refresh boleto metadata. Reopen only the immutable original.
         if (!await openStoredGuide(persisted, officialWindow!))
           throw new Error("O original autorizado não foi localizado no armazenamento.");
-        return;
+        return true;
       }
       const banking = resolveGuideBankingData({
         settings: tenantSettings,
@@ -399,6 +414,7 @@ export function ExternalPaymentsPage() {
         // Never expose a live payable HTML facsimile as the official record.
         await archiveAndOpenGuide(effectiveScopeId, guideDocument, officialWindow!);
       }
+      return true;
     } catch (error) {
       if (officialWindow && !officialWindow.closed) officialWindow.close();
       setGuideActionStatus(
@@ -406,6 +422,7 @@ export function ExternalPaymentsPage() {
           ? error.message
           : "Não foi possível abrir a guia agora.",
       );
+      return false;
     } finally {
       setBusyGuideAction(null);
     }
