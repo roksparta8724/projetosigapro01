@@ -63,6 +63,7 @@ import {
   getMunicipalityLogoOpenUrl,
   getSignedUrlForObjectStrict,
   listRecoverableProcessFiles,
+  verifyRecoverableProcessFile,
   type RecoverableProcessFile,
 } from "@/integrations/r2/client";
 import { uploadFileToStorage } from "@/integrations/r2/storage";
@@ -2768,6 +2769,8 @@ export function ProcessDetailPage() {
     const ok = await runProcessAction(
       `recover-document-${document.id}`,
       async () => {
+        const recovered = await verifyRecoverableProcessFile({processId:process.id,objectKey:candidate.objectKey});
+        if(recovered.fileSizeBytes !== candidate.size)throw new Error("O arquivo mudou após a listagem. Refaça a busca.");
         const result = await appendProcessDocuments(
           process.id,
           [
@@ -2783,6 +2786,7 @@ export function ProcessDetailPage() {
               source: "profissional",
               fileName: candidate.fileName,
               filePath: candidate.objectKey,
+              fileHash: recovered.fileHash,
               mimeType: inferMimeType(candidate.fileName),
               sizeLabel: formatBytes(candidate.size),
               fileSizeBytes: candidate.size,
