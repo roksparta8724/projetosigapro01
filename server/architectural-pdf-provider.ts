@@ -4,6 +4,7 @@
  * independently, explicitly configured. Fixed HTTPS endpoints only.
  */
 import { normalizeArchitecturalPdfExtraction, type DrawingExtraction } from "../src/lib/architecturalPdfReadings.js";
+import { extractNativeSelectablePdfPages } from "./native-architectural-pdf.js";
 import {parseOnePdfReadingJson} from "../src/lib/aiStructuredJson.js";
 import { URBAN_METRICS } from "../src/lib/urbanPrecheck.js";
 import { resolveCloudflareAiConfig } from "./cloudflare-ai-provider.js";
@@ -187,41 +188,55 @@ async function extractCloudflarePdf(
   const startTime=Date.now();
   // This function never logs PDF bytes, file names, municipal IDs or API secrets.
   try {
-  // Official Workers AI Markdown Conversion REST endpoint accepts PDF
-  // multipart upload. It extracts TEXT, not reliable geometrical measurements.
-  const blobBytes = new ArrayBuffer(bytes.byteLength);
-  new Uint8Array(blobBytes).set(bytes);
-  const form = new FormData();
-  form.append("files", new Blob([blobBytes],{type:"application/pdf"}),fileName);
-  form.append("conversionOptions",JSON.stringify({pdf:{metadata:false}}));
-  const prefix = "https://api.cloudflare.com/client/v4/accounts/"+account+"/ai";
-  const auth = "Bearer "+provider.key;
-  const markdownResponse = await fetch(prefix+"/tomarkdown",{
-    method:"POST",headers:{Authorization:auth},body:form,
-    signal,redirect:"error",
-  });
-  if (!markdownResponse.ok) {
-    if (markdownResponse.status===429)throw new Error("AI_RATE_LIMIT");
-    if ([401,403].includes(markdownResponse.status))throw new Error("AI_PROVIDER_CREDENTIALS");
-    if ([400,413,422].includes(markdownResponse.status))throw new Error("CLOUDFLARE_PDF_CONVERSION_REJECTED");
-    throw new Error("CLOUDFLARE_PDF_CONVERSION_UNAVAILABLE");
+  // Prefer real, page-ordered selectable PDF text extracted in SIGAPRO.
+  // This avoids Cloudflare toMarkdown conversion errors and transmitting the
+  // whole file to a third party where selectable text already exists.
+  // The user has explicitly consented to the external text interpretation;
+  // no fallback silently changes the selected AI provider.
+  let nativePages:ReturnType<typeof extractNativeSelectablePdfPages>|null=null;
+  try{nativePages=extractNativeSelectablePdfPages(bytes);}
+  catch { /* No complete selectable text: use the explicitly selected converter. */ }
+  const prefix="https://api.cloudflare.com/client/v4/accounts/"+account+"/ai";
+  const auth="Bearer "+provider.key;
+  let markdown:string;
+  if(nativePages){
+    markdown=nativePages.map(page=>
+      "Página: "+page.page+"\n"+page.text
+    ).join("\n\n");
+  }else{
+    // Cloudflare toMarkdown is used only when native extraction cannot
+    // produce a complete, bounded, page-ordered textual representation.
+    // Official REST API: multipart files + optional conversionOptions.
+    const blobBytes=new ArrayBuffer(bytes.byteLength);
+    new Uint8Array(blobBytes).set(bytes);
+    const form=new FormData();
+    form.append("files",new Blob([blobBytes],{type:"application/pdf"}),fileName);
+    form.append("conversionOptions",JSON.stringify({pdf:{metadata:false}}));
+    const markdownResponse=await fetch(prefix+"/tomarkdown",{
+      method:"POST",headers:{Authorization:auth},body:form,
+      signal,redirect:"error",
+    });
+    if(!markdownResponse.ok){
+      if(markdownResponse.status===429)throw new Error("AI_RATE_LIMIT");
+      if([401,403].includes(markdownResponse.status))throw new Error("AI_PROVIDER_CREDENTIALS");
+      if([400,413,422].includes(markdownResponse.status))
+        throw new Error("CLOUDFLARE_PDF_CONVERSION_REJECTED");
+      throw new Error("CLOUDFLARE_PDF_CONVERSION_UNAVAILABLE");
+    }
+    const converted=await markdownResponse.json() as {
+      success?:boolean;result?:Array<{format?:string;data?:string;error?:string}>;
+    };
+    const source=converted.result?.find(
+      x=>x.format==="markdown"&&typeof x.data==="string");
+    const failedFile=converted.result?.some(x=>x.format==="error");
+    if(!converted.success||failedFile)
+      throw new Error("CLOUDFLARE_PDF_CONVERSION_FAILED");
+    if(!source?.data||source.data.trim().length<20)
+      throw new Error("CLOUDFLARE_PDF_TEXT_EMPTY");
+    markdown=source.data;
   }
-  const converted = await markdownResponse.json() as {
-    success?:boolean;result?:Array<{format?:string;data?:string;error?:string}>;
-  };
-  // Cloudflare returns format='error' for per-file conversion failures even when
-  // the envelope reports HTTP 200 / success:true. Keep the stage explicit.
-  const source=converted.result?.find(x=>x.format==="markdown"&&typeof x.data==="string");
-  const failedFile=converted.result?.some(x=>x.format==="error");
-  if(!converted.success||failedFile)throw new Error("CLOUDFLARE_PDF_CONVERSION_FAILED");
-  if(!source?.data||source.data.trim().length<20)
-    throw new Error("CLOUDFLARE_PDF_TEXT_EMPTY");
-  if(source.data.length>120000)throw new Error("CLOUDFLARE_PDF_TEXT_OVERSIZE");
-  // Never silently omit later pages. The model context was limited to 24k;
-  // splitting or retrying could create conflicting measurements or surprise fees.
-  // Reject safely until an explicitly paginated/full-document reader is enabled.
-  if(source.data.length>24000)throw new Error("CLOUDFLARE_PDF_TEXT_PARTIAL");
-  const markdown=source.data;
+  if(markdown.length>120000)throw new Error("CLOUDFLARE_PDF_TEXT_OVERSIZE");
+  if(markdown.length>24000)throw new Error("CLOUDFLARE_PDF_TEXT_PARTIAL");
   stage="interpretation";
   // A fixed free-eligible model handles the recovered text. Paid Kimi models
   // are NOT selected automatically; the Cloudflare chat config allow-lists
@@ -291,7 +306,13 @@ async function extractCloudflarePdf(
         const quote=typeof entry.quote==="string"?entry.quote.replace(/\s+/g," ").trim().toLowerCase():"";
         const invalidQuote=quote.length<8||!normalizedSource.includes(quote);
         const originalPage=Number(entry.page);
-        const unverifiedPage=!Number.isInteger(originalPage)||!pageMarkers.has(originalPage);
+        // Native mode has trustworthy page boundaries. A citation on the
+        // wrong page must be rejected even when the quote exists elsewhere.
+        const pageText=nativePages?.find(p=>p.page===originalPage)?.text
+          .replace(/\\s+/g," ").toLowerCase()||"";
+        const unverifiedPage=!Number.isInteger(originalPage)||
+          (nativePages?(!pageText||!pageText.includes(quote))
+            :!pageMarkers.has(originalPage));
         const isSetback=["front_setback_m","side_setback_m","rear_setback_m"].includes(String(entry.metric));
         if(invalidQuote||unverifiedPage||isSetback){
           entry.value=null;
