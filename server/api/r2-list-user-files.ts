@@ -7,7 +7,8 @@ import { resolveR2Endpoint } from "../r2-runtime.js";
  * mas não foram vinculados ao processo por versões antigas do fluxo.
  */
 
-import { ListObjectsV2Command, S3Client } from "@aws-sdk/client-s3";
+import { GetObjectCommand, HeadObjectCommand, ListObjectsV2Command, S3Client } from "@aws-sdk/client-s3";
+import { createHash } from "node:crypto";
 import {
   applyMunicipalBasePath,
   getDataApiUrl,
@@ -151,7 +152,7 @@ export default async function handler(req: Req, res: Res) {
     const secretAccessKey = readEnv("R2_SECRET_ACCESS_KEY");
     const bucket = readEnv("R2_BUCKET_DOCUMENTOS") || "sigapro-documentos";
 
-    const body = (await readJsonBody(req)) as { since?: unknown; processId?: unknown };
+    const body = (await readJsonBody(req)) as { since?: unknown; processId?: unknown; verifyObjectKey?: unknown };
     let since =
       typeof body.since === "string" && !Number.isNaN(Date.parse(body.since))
         ? new Date(body.since)
@@ -249,6 +250,35 @@ export default async function handler(req: Req, res: Res) {
           credentials: { accessKeyId, secretAccessKey },
         });
     const storageBucket = municipalTarget ? municipalTarget.bucket : bucket;
+
+    // An orphaned upload has no trustworthy digest in the old DB.
+    // Retrieve and hash its actual R2 bytes on demand; do not trust filenames
+    // or let the browser submit an arbitrary fileHash to the process ledger.
+    if (typeof body.verifyObjectKey === "string") {
+      const objectKey = body.verifyObjectKey.trim();
+      const permitted = objectKey.length <= 1024 && !objectKey.includes("..") &&
+        !objectKey.includes("\\") && !/[\r\n\0]/.test(objectKey) &&
+        principalIds.some((id) => objectKey.startsWith(`municipalities/${auth.municipalityId}/protocols/${id}/`));
+      if (!permitted) return json(res,403,{error:"Arquivo fora do escopo autorizado."});
+      const physicalKey = municipalTarget
+        ? applyMunicipalBasePath(municipalTarget.config.base_path,objectKey)
+        : objectKey;
+      const head = await client.send(new HeadObjectCommand({Bucket:storageBucket,Key:physicalKey}));
+      const size = Number(head.ContentLength || 0);
+      if (!Number.isSafeInteger(size) || size < 5 || size > 40 * 1024 * 1024)
+        return json(res,413,{error:"Arquivo excede o limite para conferência de integridade."});
+      const obj = await client.send(new GetObjectCommand({Bucket:storageBucket,Key:physicalKey}));
+      const bytes = await obj.Body?.transformToByteArray();
+      if (!bytes || bytes.byteLength !== size)
+        return json(res,409,{error:"Os bytes do arquivo não correspondem ao tamanho registrado no R2."});
+      const sha256 = createHash("sha256").update(bytes).digest("hex");
+      if (head.Metadata?.sha256 && head.Metadata.sha256.toLowerCase() !== sha256)
+        return json(res,409,{error:"A cópia arquivada não corresponde ao hash do R2."});
+      res.setHeader("Cache-Control","private, no-store");
+      json(res,200,{objectKey,fileHash:sha256,fileSizeBytes:size});
+      client.destroy();
+      return;
+    }
 
     const results = await Promise.all(
       principalIds.map((principalId) => {
