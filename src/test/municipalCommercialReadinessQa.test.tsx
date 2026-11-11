@@ -53,7 +53,7 @@ describe("SIGAPRO: one municipal commercial readiness evidence source",()=>{
     }));
     view();
     await screen.findByText(/Liberação comercial não certificada/);
-    expect(screen.getByText(/Registros anteriores de analista e diretoria/)).toBeInTheDocument();
+    expect(screen.getByText(/registros anteriores de analista e diretoria/i)).toBeInTheDocument();
     expect(screen.getByText(/auditoria independente dos bytes/)).toBeInTheDocument();
     expect(screen.getByText(/aceite formal da Prefeitura/)).toBeInTheDocument();
   });
