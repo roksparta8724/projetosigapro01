@@ -1,5 +1,6 @@
 import {afterEach,beforeEach,describe,expect,it,vi} from "vitest";
 import type {IncomingMessage,ServerResponse} from "node:http";
+import {createHash} from "node:crypto";
 import {createQa04ArchitecturalPdfBytes} from "@/lib/qa04ArchitecturalFixture";
 const mocked=vi.hoisted(()=>({send:vi.fn(),destroy:vi.fn(),endpoints:vi.fn()}));
 vi.mock("@aws-sdk/client-s3",()=>({
@@ -8,7 +9,7 @@ vi.mock("@aws-sdk/client-s3",()=>({
   S3Client:class{send=mocked.send;destroy=mocked.destroy},
 }));
 vi.mock("./r2-runtime.js",()=>({getR2EndpointCandidates:mocked.endpoints}));
-import handler,{qaR2ProofEnabled} from "./qa-r2-reading-proof";
+import handler,{qaR2ProofEnabled,NEON_QA04_DOCUMENT_SHA256} from "./qa-r2-reading-proof";
 const request=(method="GET")=>({method,headers:{host:"qa.vercel.app"}} as IncomingMessage);
 function response(){
  let body="";const res={statusCode:200,setHeader:vi.fn(),end:(v:string)=>{body=v}} as unknown as ServerResponse;
@@ -62,6 +63,10 @@ describe("SIGAPRO verified QA04 R2 read-only proof",()=>{
   if(pdf.byteLength!==16575){
     expect(x.res.statusCode).toBe(503);
     expect(x.body().status).toBe("r2_pdf_integrity_failure");
+  } else if(createHash("sha256").update(pdf).digest("hex")!==NEON_QA04_DOCUMENT_SHA256) {
+    expect(x.res.statusCode).toBe(409);
+    expect(x.body()).toMatchObject({status:"r2_neon_hash_mismatch",
+      r2BytesVerified:true,aiLocalReadVerified:false,processUpdated:false,documentIntegrityVerified:false});
   } else {
     expect(x.res.statusCode).toBe(200);
     expect(x.body()).toMatchObject({r2BytesVerified:true,aiLocalReadVerified:true,
