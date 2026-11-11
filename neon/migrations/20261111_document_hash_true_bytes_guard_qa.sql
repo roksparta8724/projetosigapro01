@@ -1,6 +1,4 @@
--- QA: canonical SHA-256 of actual uploaded bytes is mandatory.
--- Never synthesize a cryptographic digest from a filename, key or metadata.
--- No data updates or deletions; legacy records stay unchanged for forensic review.
+-- QA: canonical SHA-256 of bytes required for all new document registrations.
 -- SIGAPRO: protected process document sync. Cannot forge cross-tenant paths.
 -- Admin/master read-only; external professionals only their authorized stages.
 CREATE OR REPLACE FUNCTION public.sync_process_documents(_process_id uuid, _documents jsonb)
@@ -75,7 +73,12 @@ begin
     if _file_path is null then
       raise exception 'Documento "%" nao possui arquivo persistido no armazenamento oficial', _label;
     end if;
-    IF _provided_sha256 IS NULL OR _provided_sha256 !~ '^[a-f0-9]{64} (
+    IF _provided_sha256 IS NULL OR _provided_sha256 !~ '^[a-f0-9]{64}$' OR
+       _file_size_bytes <= 0 OR _file_size_bytes > 2147483648 THEN
+      RAISE EXCEPTION 'Hash SHA-256 real ou tamanho em bytes ausente: envie novamente o arquivo pelo R2';
+    END IF;
+    IF _role='profissional_externo' THEN
+      IF _file_path !~ (
           '^municipalities/'||coalesce(_municipality_id,_tenant_id)::text||
           '/(protocols|habite-se|attachments|analysis|documents|comunique-se)/'||
           _profile_id::text||'/[0-9a-f-]{36}-[A-Za-z0-9._-]{1,180}$'
@@ -130,107 +133,8 @@ begin
       IF EXISTS (SELECT 1 FROM public.process_documents d WHERE d.id=_existing_id AND
           (lower(coalesce(d.file_hash,'')) IS DISTINCT FROM _provided_sha256 OR
            d.file_size_bytes IS DISTINCT FROM _file_size_bytes)) THEN
-        RAISE EXCEPTION 'Arquivo já registrado possui identidade diferente; uma nova versão e chave R2 são obrigatórias';
+        RAISE EXCEPTION 'Arquivo registrado possui identidade diferente; envie nova versao e chave R2';
       END IF;
-      update public.process_documents
-         set title=_label,
-             file_name=coalesce(_file_name,file_name),
-             mime_type=coalesce(nullif(_doc->>'mimeType',''),mime_type),
-             size_label=coalesce(nullif(_doc->>'sizeLabel',''),size_label),
-             file_size_bytes=coalesce(nullif(_file_size_bytes,0),file_size_bytes),
-             source=coalesce(nullif(_doc->>'source',''),source),
-             is_required=coalesce(nullif(_doc->>'required','')::boolean,is_required),
-             is_valid=true,
-             invalidated_at=null,
-             review_status=case when review_status in ('aprovado','rejeitado') then review_status else coalesce(nullif(_doc->>'reviewStatus',''),'pendente') end,
-             annotations=coalesce(_doc->'annotations',annotations)
-       where id=_existing_id;
-      _updated := _updated + 1;
-    end if;
-    _synced := _synced + 1;
-  end loop;
-
-  select count(*)::integer into _stored
-  from public.process_documents d
-  where d.process_id=_process_id and d.is_valid=true and d.file_path is not null
-    and btrim(d.file_path) <> '' and d.file_path not like 'pending/%';
-
-  if _synced > 0 then
-    insert into public.process_audit_entries(
-      tenant_id,process_id,actor_user_id,actor_profile_id,
-      category,title,detail,visible_to_external,municipality_id
-    )
-    values(
-      _tenant_id,_process_id,_legacy_user_id,_profile_id,
-      'documento','Documentos sincronizados',
-      _synced::text||' documento(s) confirmados no armazenamento e no processo.',
-      true,coalesce(_municipality_id,_tenant_id)
-    );
-  end if;
-
-  return jsonb_build_object(
-    'process_id',_process_id,'synced',_synced,'inserted',_inserted,'updated',_updated,'stored',_stored
-  );
-end;
-$function$
-
- OR
-       _file_size_bytes <= 0 OR _file_size_bytes > 2147483648 THEN
-      RAISE EXCEPTION 'Hash SHA-256 real ou tamanho em bytes ausente: envie novamente o arquivo pelo R2';
-    END IF;
-    IF _role='profissional_externo' THEN
-      IF _file_path !~ (
-          '^municipalities/'||coalesce(_municipality_id,_tenant_id)::text||
-          '/(protocols|habite-se|attachments|analysis|documents|comunique-se)/'||
-          _profile_id::text||'/[0-9a-f-]{36}-[A-Za-z0-9._-]{1,180}$'
-        )
-        OR _file_size_bytes<=0 OR _file_size_bytes>2147483648
-        OR length(_label)>160 OR length(coalesce(_file_name,''))>180
-        OR coalesce(_doc->>'source','profissional')<>'profissional'
-        OR coalesce(_doc->>'reviewStatus','pendente')<>'pendente'
-        OR coalesce(_doc->'annotations','[]'::jsonb)<>'[]'::jsonb
-      THEN RAISE EXCEPTION 'Arquivo fora do perfil e município autorizado';
-      END IF;
-    END IF;
-
-    _existing_id := null;
-    select d.id into _existing_id
-    from public.process_documents d
-    where d.process_id=_process_id and d.file_path=_file_path
-    order by d.created_at desc limit 1;
-
-    IF _existing_id IS NOT NULL AND _role='profissional_externo' THEN
-      SELECT review_status INTO _existing_review
-      FROM public.process_documents WHERE id=_existing_id;
-      IF _existing_review IN ('aprovado','rejeitado') THEN
-        RAISE EXCEPTION 'Documento revisado é imutável. Envie uma nova versão.';
-      END IF;
-    END IF;
-
-    if _existing_id is null then
-      insert into public.process_documents(
-        tenant_id,municipality_id,process_id,
-        uploaded_by,uploaded_by_profile_id,
-        title,file_path,file_hash,version,source,
-        is_required,is_valid,file_name,mime_type,size_label,file_size_bytes,
-        preview_url,review_status,annotations
-      )
-      values(
-        _tenant_id,coalesce(_municipality_id,_tenant_id),_process_id,
-        _legacy_user_id,_profile_id,
-        _label,_file_path,
-        coalesce(nullif(_doc->>'fileHash',''),encode(extensions.digest(_file_path || '|' || coalesce(_file_name,''),'sha256'),'hex')),
-        greatest(coalesce(nullif(_doc->>'version','')::integer,1),1),
-        coalesce(nullif(_doc->>'source',''),'profissional'),
-        coalesce(nullif(_doc->>'required','')::boolean,true),
-        true,_file_name,nullif(_doc->>'mimeType',''),nullif(_doc->>'sizeLabel',''),
-        nullif(_file_size_bytes,0),
-        case when length(coalesce(_doc->>'previewUrl',''))>2000000 then null else nullif(_doc->>'previewUrl','') end,
-        coalesce(nullif(_doc->>'reviewStatus',''),'pendente'),
-        coalesce(_doc->'annotations','[]'::jsonb)
-      );
-      _inserted := _inserted + 1;
-    else
       update public.process_documents
          set title=_label,
              file_name=coalesce(_file_name,file_name),
@@ -272,6 +176,5 @@ $function$
   );
 end;
 $function$;
-
 REVOKE ALL ON FUNCTION public.sync_process_documents(uuid,jsonb) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.sync_process_documents(uuid,jsonb) TO authenticated;
