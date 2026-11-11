@@ -44,7 +44,9 @@ describe("SIGAPRO QA — upload real do navegador em partes sem chave R2", () =>
     const result = await uploadLargeProcessAttachment({
       bucket:"process-documents",objectKey,file:pdf as unknown as File,
     },auth);
-    expect(result).toEqual({bucket:"process-documents",objectKey,publicUrl:""});
+    expect(result).toEqual({bucket:"process-documents",objectKey,publicUrl:"",
+      sha256:createHash("sha256").update(pdf.sourceBytes).digest("hex"),
+      fileSizeBytes:pdf.size});
     expect(calls.map(c=>c.body.action)).toEqual(["chunk","chunk","finalize"]);
     for(const call of calls) {
       expect(call.url).toBe("/api/r2-process-proxy-upload");
