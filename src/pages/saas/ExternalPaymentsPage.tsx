@@ -36,7 +36,7 @@ import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { prepareGuideInstitutionalLogo } from "@/lib/guideAssets";
-import { ensureMercadoPagoGuideCharge, requestQaPixCharge, type QaPixCharge, type MercadoPagoGuideCharge, type BoletoPayerForm } from "@/lib/mercadoPagoGuide";
+import { ensureMercadoPagoGuideCharge, requestQaPixCharge, reconcileQaPixAfterPdf, type QaPixCharge, type MercadoPagoGuideCharge, type BoletoPayerForm } from "@/lib/mercadoPagoGuide";
 import { RealBoletoPayerDialog } from "@/components/platform/RealBoletoPayerDialog";
 import { normalizeOfficialBanking } from "@/lib/bankCodes";
 import { resolveGuideBankingData } from "@/lib/paymentCollection";
@@ -208,6 +208,23 @@ export function ExternalPaymentsPage() {
     } finally {setBusyGuideAction(null);}
   };
 
+  const reconcileArchivedQaPix = async (guideCode:string) => {
+    if(!isolatedQaMode||!effectiveScopeId)return;
+    try {
+      const outcome=await reconcileQaPixAfterPdf({municipalityId:effectiveScopeId,guideCode});
+      if(outcome.settled){
+        await refreshRemoteStore();
+        setGuideActionStatus("PIX de homologação compensado: recibo bancário assinado, valor e DAM original conferidos. NÃO PAGAR.");
+      } else {
+        setGuideActionStatus("DAM original arquivada. A baixa aguarda uma notificação bancária assinada e valor confirmado; não emita outra cobrança.");
+      }
+    } catch(error) {
+      // The original remains archived. Do not turn a timeout into a paid flag.
+      const reason=error instanceof Error?error.message:"Conciliação ainda indisponível.";
+      setGuideActionStatus("DAM original arquivada. Baixa ainda não confirmada: "+reason);
+    }
+  };
+
   const openExternalGuide = async (
     process: ProcessRecord,
     guide: PaymentGuideEntry,
@@ -240,6 +257,9 @@ export function ExternalPaymentsPage() {
         // refresh boleto metadata. Reopen only the immutable original.
         if (!await openStoredGuide(persisted, officialWindow!))
           throw new Error("O original autorizado não foi localizado no armazenamento.");
+        if(isolatedQaMode && persisted.payment_provider==="mercado_pago" &&
+           persisted.provider_environment==="test" && !isGuideSettled(persisted))
+          await reconcileArchivedQaPix(guide.code);
         return true;
       }
       const banking = resolveGuideBankingData({
@@ -398,7 +418,7 @@ export function ExternalPaymentsPage() {
         // not a synthetic QR or a production receivable. Freeze the exact
         // watermarked QA PDF before a signed webhook can finalize the test.
         await archiveAndOpenGuide(effectiveScopeId,guideDocument,officialWindow);
-        setGuideActionStatus("PDF original de PIX em homologação arquivado e reaberto. Pagamento ainda depende de notificação bancária assinada.");
+        await reconcileArchivedQaPix(guide.code);
       } else if (isolatedQa) {
         const opened = openGuiaRecolhimentoOficialWindow(guideDocument, {
           title: sandboxIssued
