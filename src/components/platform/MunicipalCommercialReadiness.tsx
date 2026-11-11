@@ -8,7 +8,7 @@ type Readiness = {
   municipalityId: string;
   checkedAt: string;
   financialProvider: {provider:string; environment:string; activeAndTestedForProduction:boolean};
-  municipalCollection: {mode:string;environment:string;active:boolean};
+  municipalCollection: {mode:string;environment:string;active:boolean;integrationType:string;controlledImportActive:boolean};
   bankAuthenticatedOriginalsProduction:number;
   officialLegalEvidenceCount:number;
   activatedNonFixtureUrbanRules:number;
@@ -57,16 +57,25 @@ export function MunicipalCommercialReadiness({municipalityId}:{
     return ()=>{requestGeneration.current+=1;};
   },[check]);
   const bank=readiness?.financialProvider.activeAndTestedForProduction===true;
+  const municipalImport=readiness?.municipalCollection.controlledImportActive===true;
   const payment=Number(readiness?.bankAuthenticatedOriginalsProduction||0)>0;
   const legal=Number(readiness?.officialLegalEvidenceCount||0)>0 &&
     Number(readiness?.activatedNonFixtureUrbanRules||0)>0;
   const signed=Number(readiness?.historicalAnalystSignatures||0)>0 &&
     Number(readiness?.historicalDirectorSignatures||0)>0;
   const milestones=[
-    {label:"Conta arrecadadora de produção",found:bank,
-      detail:bank?"Credencial municipal ativa e último teste técnico aprovado.":"Cadastre e teste a conta bancária da Prefeitura, em produção, com segredo de webhook."},
-    {label:"Cobrança autenticada e DAM registrada",found:payment,
-      detail:payment?"Há metadados de pagamento bancário autenticado e de PDF original; falta auditoria independente dos bytes.":"Comprove uma cobrança piloto com confirmação do banco e PDF imutável no R2."},
+    {label:municipalImport?"Importação controlada da Prefeitura":"Conta arrecadadora de produção",
+      found:bank||municipalImport,
+      detail:municipalImport
+        ?"Sistema municipal oficial em produção, com importação controlada. Não há emissão ou baixa automática no SIGAPRO."
+        :bank?"Credencial municipal ativa e último teste técnico aprovado."
+        :"Cadastre e teste a conta bancária da Prefeitura em produção ou habilite importação controlada de guias oficiais."},
+    {label:municipalImport?"Guia oficial e conferência da Tesouraria":"Cobrança autenticada e DAM registrada",
+      found:payment&&!municipalImport,
+      detail:municipalImport
+        ?"Importe o PDF realmente emitido pelo sistema municipal e confira a baixa com a Tesouraria; não existe webhook bancário automático nesta modalidade."
+        :payment?"Há metadados de pagamento bancário autenticado e de PDF original; falta auditoria independente dos bytes."
+        :"Comprove uma cobrança piloto com confirmação do banco e PDF imutável no R2."},
     {label:"Legislação e parâmetros municipais",found:legal,
       detail:legal?"Há evidências conferidas e regras ativas não fictícias; exige aceite da autoridade.":"A Prefeitura deve cadastrar as normas oficiais com artigo, página, vigência e zoneamento."},
     {label:"Histórico de assinaturas por perfil",found:signed,
