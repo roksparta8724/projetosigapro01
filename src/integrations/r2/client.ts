@@ -5,6 +5,8 @@ export type R2UploadResult = {
   bucket: string;
   objectKey: string;
   publicUrl: string;
+  sha256?: string;
+  fileSizeBytes?: number;
 };
 
 const apiBase = (import.meta.env.VITE_R2_API_BASE || "").toString().replace(/\/+$/, "");
@@ -336,7 +338,7 @@ async function uploadLargeLegalPdf(input: {bucket:string;objectKey:string;file:F
   const completed=await send({action:"finalize",fileSha256});
   if(completed.objectKey!==input.objectKey)
    throw Error("O servidor não confirmou o documento original no armazenamento.");
-  return {bucket:"process-documents",objectKey:input.objectKey,publicUrl:""} satisfies R2UploadResult;
+  return {bucket:"process-documents",objectKey:input.objectKey,publicUrl:"",sha256:fileSha256,fileSizeBytes:input.file.size} satisfies R2UploadResult;
  }catch(err){
   if(controller.signal.aborted)throw Error("Tempo limite ao enviar o PDF; o original foi preservado.");
   throw err;
@@ -407,6 +409,8 @@ export async function uploadFile(input: {
       objectKey: string;
       publicUrl: string;
       error?: string;
+      sha256?: string;
+      fileSizeBytes?: number;
     };
 
     if (!response.ok) {
@@ -418,6 +422,8 @@ export async function uploadFile(input: {
       bucket: payload.bucket,
       objectKey: payload.objectKey,
       publicUrl: payload.publicUrl,
+      sha256: payload.sha256,
+      fileSizeBytes: payload.fileSizeBytes,
     } satisfies R2UploadResult;
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") {
