@@ -92,11 +92,14 @@ if(process.env.VERCEL_ENV==="preview"&&process.env.VERCEL_GIT_COMMIT_REF===BRANC
   // Only local static checks; none of these routines call a real provider.
   run("typecheck",["node_modules/typescript/bin/tsc","-p","tsconfig.app.json","--noEmit"]);
   run("eslint",["node_modules/eslint/bin/eslint.js","."]);
-  run("proof-control-tests",["--test","scripts/qa-commercial-acceptance.test.mjs","scripts/qa-commercial-evidence-provenance.test.mjs","scripts/qa-r2-original-bytes.test.mjs"]);
+  run("proof-control-tests",["--test","scripts/qa-commercial-acceptance.test.mjs","scripts/qa-commercial-evidence-provenance.test.mjs","scripts/qa-r2-original-bytes.test.mjs","scripts/qa-r2-dam-exact-recovery.test.mjs"]);
   run("focused-tests",["node_modules/vitest/vitest.mjs","run",
       "--maxWorkers=2",...TESTS]);
   // Best-effort inspection; missing private credentials do not count as acceptance.
   // A concrete mismatch between stored PDF bytes and its immutable SHA fails closed.
+  // Restore a missing archived original only from an existing same-city PDF
+  // with the identical immutable SHA-256; never substitute a new PDF.
+  run("qa-original-dam-exact-sha-forensics",["scripts/qa-r2-dam-exact-recovery.mjs"]);
   run("read-only-r2-original-byte-integrity",["scripts/qa-r2-original-bytes.mjs"]);
   // Real isolated R2 PUT/HEAD/GET/sha256/DELETE on a disposable QA key.
   // Never writes into a municipal document prefix or production bucket.
