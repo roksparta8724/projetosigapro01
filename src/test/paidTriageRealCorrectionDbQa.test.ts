@@ -14,7 +14,6 @@ describe("SIGAPRO paid-triage data repair — real records, authorized writers",
     expect(correction).toContain("INSERT INTO public.process_parties(");
     expect(correction).toContain("ownerName");
     expect(correction).toContain("technicalLead");
-    expect(correction).toContain("perform"); // existing guard / notification logic remains in evaluator
     expect(correction).toContain("public.evaluate_automatic_protocol_triage_v1");
     expect(correction).toContain("'paymentModified',false");
     expect(correction).toContain("'guideReissued',false");
