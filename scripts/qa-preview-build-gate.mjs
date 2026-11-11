@@ -46,6 +46,7 @@ const TESTS=[
   "src/test/qaPixBankEndToEndBridge.test.ts",
   "src/test/paidTriageDocumentReturnFlow.test.ts",
   "src/test/paidTriageRealCorrectionDbQa.test.ts",
+  "src/test/qaRollbackFullPermitSecurity.test.ts",
   "server/govbr-ar-readonly.test.ts",
   "src/test/govbrArApiIsolationQa.test.ts",
   "server/bank-return-cnab240.test.ts",
