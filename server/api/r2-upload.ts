@@ -423,6 +423,8 @@ export default async function handler(req: Req, res: Res) {
     }
 
     const buffer = Buffer.from(base64, "base64");
+    // Hash the bytes actually received by the server, never a filename or URL.
+    const receivedSha256 = createHash("sha256").update(buffer).digest("hex");
     if (avatarUpload && !avatarUploadContentIsValid(contentType, buffer)) {
       json(res, 415, {
         error: "Foto inválida. Envie PNG, JPEG, GIF, WebP ou AVIF de até 12 MB.",
@@ -575,7 +577,8 @@ export default async function handler(req: Req, res: Res) {
         Key: municipalTarget.objectKey,
         Body: buffer,
         ContentType: resolvedContentType,
-        Metadata: damOriginalMetadata,
+        Metadata: bucket === (readEnv("R2_BUCKET_DOCUMENTOS") || "sigapro-documentos")
+          ? { ...damOriginalMetadata, sha256: receivedSha256 } : damOriginalMetadata,
         // Municipal S3 must preserve old document revisions as well.
         ...(isCreateOnlyDocumentBucket(bucket) ? { IfNoneMatch: "*" } : {}),
       })).catch(async (error) => {
@@ -612,6 +615,8 @@ export default async function handler(req: Req, res: Res) {
         objectKey,
         publicUrl: "",
         storageProvider: "municipal_s3",
+        sha256: receivedSha256,
+        fileSizeBytes: buffer.length,
       });
       return;
     }
@@ -625,7 +630,8 @@ export default async function handler(req: Req, res: Res) {
       objectKey,
       body: buffer,
       contentType: resolvedContentType,
-      metadata: damOriginalMetadata,
+      metadata: bucket === (readEnv("R2_BUCKET_DOCUMENTOS") || "sigapro-documentos")
+        ? { ...damOriginalMetadata, sha256: receivedSha256 } : damOriginalMetadata,
     });
 
     json(res, 200, {
@@ -634,6 +640,8 @@ export default async function handler(req: Req, res: Res) {
       objectKey,
       publicUrl: buildPublicUrl(bucket, objectKey),
       storageProvider: "sigapro_r2",
+      sha256: receivedSha256,
+      fileSizeBytes: buffer.length,
     });
   } catch (error) {
     // Conditional write conflicts must never overwrite signed originals.
