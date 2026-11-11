@@ -309,7 +309,7 @@ async function extractCloudflarePdf(
         // Native mode has trustworthy page boundaries. A citation on the
         // wrong page must be rejected even when the quote exists elsewhere.
         const pageText=nativePages?.find(p=>p.page===originalPage)?.text
-          .replace(/\\s+/g," ").toLowerCase()||"";
+          .replace(/\s+/g," ").toLowerCase()||"";
         const unverifiedPage=!Number.isInteger(originalPage)||
           (nativePages?(!pageText||!pageText.includes(quote))
             :!pageMarkers.has(originalPage));
