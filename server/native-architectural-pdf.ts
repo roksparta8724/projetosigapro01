@@ -171,6 +171,24 @@ const patterns:Array<{metric:string;pattern:RegExp}>=[
   {metric:"floor_area_ratio",pattern:/\b(?:ca|coeficiente\s+de\s+aproveitamento)(?:\s+(?:do\s+projeto|proposto))?\s*:\s*(\d{1,5}(?:[,.]\d{1,3})?)\b/},
 
 ];
+/**
+ * Canonical page-specific selectable text for the QA Cloudflare text mode.
+ * The bytes are parsed locally and pages come from the actual PDF page tree.
+ * Only complete, bounded text is returned. Scanned/encrypted/complex PDFs
+ * fail closed and must use a separately consented conversion/visual reader.
+ */
+export function extractNativeSelectablePdfPages(pdf:Uint8Array):
+  Array<{page:number;text:string}> {
+  const pages=contentStreams(pdf);
+  const result=pages.filter(page=>page.lines.length>0).map(page=>({
+    page:page.number,text:page.lines.join("\n"),
+  }));
+  const length=result.reduce((sum,page)=>sum+page.text.length+36,0);
+  if(!result.length || length<20)throw new Error("PDF_NATIVE_NO_SELECTABLE_TEXT");
+  if(length>23000)throw new Error("PDF_NATIVE_TEXT_EXCEEDS_MODEL_LIMIT");
+  return result;
+}
+
 export function extractNativeArchitecturalPdf(pdf:Uint8Array):DrawingExtraction {
   const pages=contentStreams(pdf);
   const lines=pages.flatMap(page=>page.lines.map(quote=>({
