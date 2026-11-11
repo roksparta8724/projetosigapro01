@@ -89,6 +89,6 @@ BEGIN
     'document_id',_new_document_id,'archived_document_id',_old.id,'version',2);
 END;
 $function$;
-REVOKE ALL ON FUNCTION public.upgrade_qa04_architectural_plan_v2(uuid,text,text,bigint) FROM PUBLIC, anon, authenticated;
-REVOKE ALL ON FUNCTION public.upgrade_qa04_architectural_plan_v2(uuid,text,text,bigint,text) FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.upgrade_qa04_architectural_plan_v2(uuid,text,text,bigint) FROM PUBLIC, anonymous, authenticated;
+REVOKE ALL ON FUNCTION public.upgrade_qa04_architectural_plan_v2(uuid,text,text,bigint,text) FROM PUBLIC, anonymous;
 GRANT EXECUTE ON FUNCTION public.upgrade_qa04_architectural_plan_v2(uuid,text,text,bigint,text) TO authenticated;
