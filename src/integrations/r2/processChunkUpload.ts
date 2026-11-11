@@ -78,7 +78,7 @@ async function postPart(body:Record<string,unknown>,token:string,timeoutMs=90000
 export async function uploadLargeProcessAttachment(
   input:{bucket:string;objectKey:string;file:File},
   authHeaders:()=>Promise<{Authorization?:string}>,
-):Promise<{bucket:string;objectKey:string;publicUrl:string;sha256:string}> {
+):Promise<{bucket:string;objectKey:string;publicUrl:string;sha256?:string;fileSizeBytes?:number}> {
   const mime = largeProcessAttachmentMime(input);
   if (!mime) throw new Error(
     "O arquivo grande não corresponde a um documento PDF ou imagem permitida desta Prefeitura.",
@@ -111,7 +111,7 @@ export async function uploadLargeProcessAttachment(
     const stored = await postPart({...base,action:"finalize",fileSha256},token,180000);
     if (stored.objectKey !== input.objectKey)
       throw new Error("O R2 não confirmou o arquivo no local de armazenamento esperado.");
-    return {bucket:"process-documents",objectKey:input.objectKey,publicUrl:"",sha256:fileSha256};
+    return {bucket:"process-documents",objectKey:input.objectKey,publicUrl:"",sha256:fileSha256,fileSizeBytes:input.file.size};
   } catch(error) {
     // Best effort staging cleanup; the server always rechecks identity.
     await postPart({...base,action:"abort"},token,15000).catch(()=>undefined);
