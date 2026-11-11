@@ -27,6 +27,8 @@ beforeEach(()=>{
   vi.clearAllMocks();
   root=mkdtempSync(join(tmpdir(),"sigapro-pix-"));
   vi.stubEnv("SIGAPRO_QA_TEST_HOME",root);
+  // This fixture tests isolated localhost file receipts, never the hosted Neon bank worker.
+  vi.stubEnv("VERCEL_ENV","development");
   vi.stubEnv("SIGAPRO_LOCAL_QA_LAUNCH","true");
   vi.stubEnv("SIGAPRO_LOCAL_QA_BLOCK_EXTERNAL_WRITES","true");
   vi.stubEnv("VITE_SIGAPRO_NEON_ISOLATED","true");
