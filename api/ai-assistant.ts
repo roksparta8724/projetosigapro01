@@ -3,6 +3,7 @@ import { callDataApiRpc, readBearer, readEnv } from "../server/municipal-storage
 import { resolvePrivateAiConfig } from "../server/private-ai-provider.js";
 import handleProjectExtract from "../server/ai-project-extract.js";
 import handleQaArchitecturalBenchmark from "../server/qa-architectural-benchmark.js";
+import handleQaR2ReadingProof from "../server/qa-r2-reading-proof.js";
 
 export const maxDuration = 60;
 import { resolveCloudflareAiConfig } from "../server/cloudflare-ai-provider.js";
@@ -78,6 +79,7 @@ export default async function handler(req: Req, res: Res) {
   const action = new URL(req.url || "/api/ai-assistant", "https://sigapro.local").searchParams.get("action");
   if (action === "project-extract") return handleProjectExtract(req, res);
   if (action === "qa-architectural-benchmark") return handleQaArchitecturalBenchmark(req, res);
+  if (action === "qa-r2-reading-proof") return handleQaR2ReadingProof(req, res);
   if (req.method !== "POST") return json(res,405,{error:"Método não permitido."});
   if (!sameOrigin(req)) return json(res,403,{error:"Origem de acesso não autorizada."});
   if (!readBearer(req)) return json(res,401,{error:"Entre novamente na sua conta SIGAPRO para usar o assistente."});
