@@ -8,7 +8,7 @@ vi.mock("@aws-sdk/client-s3",()=>({
   S3Client:class{send=mocked.send;destroy=mocked.destroy},
 }));
 vi.mock("./r2-runtime.js",()=>({getR2EndpointCandidates:mocked.endpoints}));
-import handler,{qaR2ProofEnabled} from "../api/qa-r2-reading-proof";
+import handler,{qaR2ProofEnabled} from "./qa-r2-reading-proof";
 const request=(method="GET")=>({method,headers:{host:"qa.vercel.app"}} as IncomingMessage);
 function response(){
  let body="";const res={statusCode:200,setHeader:vi.fn(),end:(v:string)=>{body=v}} as unknown as ServerResponse;
