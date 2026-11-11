@@ -1,5 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { GetObjectCommand, HeadObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { verifyPersistedPdfIntegrity } from "./document-pdf-integrity.js";
 import { getR2EndpointCandidates } from "./r2-runtime.js";
 import { callDataApiRpc, getDataApiUrl, readBearer, readEnv, resolveMunicipalDocumentTarget } from "./municipal-storage.js";
 import { extractVisualPdf, resolveVisualPdfProvider } from "./architectural-pdf-provider.js";
@@ -35,7 +36,7 @@ function productionPdfAiOptIn():boolean {
   return process.env.VERCEL_ENV==="production" &&
     readEnv("SIGAPRO_PDF_AI_PROD_ENABLED").trim().toLowerCase()==="true";
 }
-type DocumentRow = ArchitecturalDocumentRow;
+type DocumentRow = ArchitecturalDocumentRow & { file_hash?: string | null };
 
 function json(res:Res,status:number,body:unknown){
   res.statusCode=status;res.setHeader("Content-Type","application/json; charset=utf-8");
@@ -68,7 +69,7 @@ async function readBody(req:Req):Promise<Record<string,unknown>>{
 async function verifiedDocument(req:Req,tenant:string,processId:string,documentId:string){
   const query=new URLSearchParams({
     id:"eq."+documentId,
-    select:"id,process_id,municipality_id,tenant_id,title,file_name,file_path,mime_type,file_size_bytes,version,is_valid,invalidated_at",
+    select:"id,process_id,municipality_id,tenant_id,title,file_name,file_path,file_hash,mime_type,file_size_bytes,version,is_valid,invalidated_at",
     limit:"1",
   });
   const res=await fetch(getDataApiUrl()+"/process_documents?"+query.toString(),{
@@ -94,7 +95,7 @@ async function verifiedDocument(req:Req,tenant:string,processId:string,documentI
   });
   return allowed.ok&&allowed.payload===true?doc:null;
 }
-async function pdfBytes(req:Req,tenant:string,key:string):Promise<Uint8Array>{
+async function pdfBytes(req:Req,tenant:string,key:string,expectedHash:string|null|undefined,expectedSize:number|string|null|undefined):Promise<Uint8Array>{
   const bucket=readEnv("R2_BUCKET_DOCUMENTOS")||"sigapro-documentos";
   const owned=await resolveMunicipalDocumentTarget(req,tenant,bucket,key);
   const sources:{client:S3Client;bucket:string;key:string}[]=owned
@@ -113,9 +114,12 @@ async function pdfBytes(req:Req,tenant:string,key:string):Promise<Uint8Array>{
         const bytes=await pdf.Body?.transformToByteArray();
         if(!bytes||bytes.length<100||bytes.length>MAX_PDF_BYTES||
           Buffer.from(bytes.subarray(0,5)).toString("ascii")!=="%PDF-")throw new Error("PDF_INVALID");
+        // File size and SHA must match the persisted canonical document row.
+        // Reject changes BEFORE sharing any bytes with an external AI service.
+        verifyPersistedPdfIntegrity(bytes,expectedHash,expectedSize);
         return bytes;
       }catch(e){
-        if(e instanceof Error&&["PDF_LIMIT","PDF_INVALID"].includes(e.message))throw e;
+        if(e instanceof Error&&["PDF_LIMIT","PDF_INVALID","PDF_HASH_UNAVAILABLE","PDF_SIZE_MISMATCH","PDF_HASH_MISMATCH"].includes(e.message))throw e;
         if(owned)throw e;
       }
     }
@@ -250,7 +254,7 @@ export default async function handler(req:Req,res:Res){
     const territorialContext=await inspectProcessTerritory(req,tenant,processId);
     const baseline=await callDataApiRpc<unknown>(req,"get_urban_process_legal_baseline_v1",{_process_id:processId});
     const legalBaseline=baseline.ok?verifiedUrbanBaseline(baseline.payload,tenant):null;
-    const pdf=await pdfBytes(req,tenant,doc.file_path);
+    const pdf=await pdfBytes(req,tenant,doc.file_path,doc.file_hash,doc.file_size_bytes);
     if(geminiQaRequested&&!isSyntheticQa04Pdf(doc,pdf))return json(res,403,{
       code:"AI_QA_FIXTURE_MISMATCH",
       error:"Este PDF não contém os marcadores do ensaio fictício 04. Nenhum arquivo foi transmitido."
@@ -268,7 +272,7 @@ export default async function handler(req:Req,res:Res){
     // Recheck ownership and immutable object version after AI inference.
     const sameDocument=await verifiedDocument(req,tenant,processId,documentId);
     if(!sameDocument||sameDocument.file_path!==doc.file_path||
-      sameDocument.version!==doc.version)throw new Error("AI_DOCUMENT_REVISED");
+      (sameDocument.version!==doc.version||sameDocument.file_hash!==doc.file_hash||sameDocument.file_size_bytes!==doc.file_size_bytes))throw new Error("AI_DOCUMENT_REVISED");
     return json(res,200,{...audited,processId:doc.process_id,
       documentId:doc.id,documentVersion:doc.version,fileName:doc.file_name,
       legalConformity:"not_evaluated",humanReviewRequired:true,
@@ -279,6 +283,8 @@ export default async function handler(req:Req,res:Res){
     const code=e instanceof Error?e.message:"";
     if(code==="PDF_LIMIT")return json(res,413,{code,error:"PDF acima de 8 MB. Separe as pranchas."});
     if(code==="PDF_INVALID")return json(res,422,{code,error:"O PDF está incompleto ou inválido."});
+    if(["PDF_HASH_UNAVAILABLE","PDF_SIZE_MISMATCH","PDF_HASH_MISMATCH"].includes(code))return json(res,409,{code,
+      error:"A integridade do projeto arquivado não corresponde ao registro oficial. O documento precisa ser regularizado pela Prefeitura antes de qualquer leitura; nada foi enviado à IA ou gravado."});
     if(code.startsWith("PDF_NATIVE_"))return json(res,422,{code,error:
       code==="PDF_NATIVE_UNSUPPORTED_ENCODING"||code==="PDF_NATIVE_COMPLEX"
         ?"O PDF usa uma codificação de texto não suportada pela leitura local. Use uma leitura visual autorizada ou exporte a planta com texto selecionável."
