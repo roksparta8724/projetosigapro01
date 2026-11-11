@@ -13,15 +13,18 @@ import {S3Client,PutObjectCommand,GetObjectCommand,HeadObjectCommand,
   DeleteObjectCommand} from "@aws-sdk/client-s3";
 import {fileURLToPath} from "node:url";
 import {resolve} from "node:path";
+import {qaDatabaseEndpointMatches} from "./qa-r2-original-bytes.mjs";
 
 export function isIsolatedQaScope(env=process.env) {
-  const git=env.VERCEL_GIT_COMMIT_REF;
+  // Use the same pairwise QA Neon database/data-API attestation already
+  // proven by the read-only original-PDF inspector; absolute URL shape
+  // varies by Neon endpoint generation and must not falsely skip the test.
   return env.VERCEL_ENV==="preview" &&
-    git==="fix/qa-triagem-analise-pagamento-20261101" &&
-    env.VITE_SIGAPRO_NEON_ISOLATED==="true" &&
-    /^https:\/\/ep-[a-z0-9-]+\.apirest\.[^/]+\/?$/.test(
-      String(env.VITE_NEON_DATA_API_URL||"")) &&
-    !String(env.VITE_NEON_DATA_API_URL||"").includes("blue-cloud");
+    env.VERCEL_GIT_COMMIT_REF==="fix/qa-triagem-analise-pagamento-20261101" &&
+    qaDatabaseEndpointMatches(
+      String(env.SIGAPRO_QA_MP_WEBHOOK_DATABASE_URL||""),
+      String(env.VITE_NEON_DATA_API_URL||"")
+    );
 }
 export function makeQaPdf() {
   const objects=[
@@ -116,7 +119,7 @@ if(process.argv[1] && resolve(process.argv[1])===fileURLToPath(import.meta.url))
   try {
     const status=await checkR2QaRoundtrip();
     console.log("SIGAPRO_QA_R2_ROUNDTRIP "+status);
-    if(status.startsWith("FAIL"))process.exitCode=2;
+    if(status!=="PASS")process.exitCode=2;
   }catch {
     console.log("SIGAPRO_QA_R2_ROUNDTRIP FAIL_CLEANUP");
     process.exitCode=2;
