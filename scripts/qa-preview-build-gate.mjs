@@ -19,6 +19,7 @@ const TESTS=[
   "server/municipal-payment.test.ts",
   "src/test/qaArchitecturalLabUi.test.tsx",
   "src/test/qaArchitecturalLabEntryPoint.test.ts",
+  "server/qa-cloudflare-native-text-bridge.test.ts",
   "src/test/nativeArchitecturalPdfQa.test.ts",
   "src/test/nativeArchitecturalPdfExtendedCoverage.test.ts",
   "src/test/architecturalPdfPreflightQa.test.ts",
