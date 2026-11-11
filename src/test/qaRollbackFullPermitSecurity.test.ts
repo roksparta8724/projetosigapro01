@@ -37,5 +37,12 @@ describe("SIGAPRO QA rollback full logical journey and signature evidence",()=>{
     expect(migration).toContain("sb.municipality_id=_process.municipality_id");
     expect(migration).toContain("sb.tenant_id=_process.tenant_id");
     expect(journey).toContain("forged-signature-block-must-not-release-permit");
+    expect(journey).toContain("public-signature-verifier-rejects-forged-block");
+    const publicVerifier=read("neon/migrations/20261111_public_signature_verifier_requires_signed_proof_qa.sql");
+    expect(publicVerifier).toContain("from public.signatures sig");
+    expect(publicVerifier).toContain("sig.signature_block_id = public.signature_blocks.id");
+    expect(publicVerifier).toContain("sig.reauthenticated_at is not null");
+    expect(publicVerifier).toContain("sig.document_hash = public.signature_blocks.evidence_hash");
+    expect(publicVerifier).toContain("sig.tenant_id = public.signature_blocks.tenant_id");
   });
 });
