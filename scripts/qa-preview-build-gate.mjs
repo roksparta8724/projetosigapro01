@@ -48,6 +48,7 @@ const TESTS=[
   "src/test/paidTriageRealCorrectionDbQa.test.ts",
   "src/test/qaRollbackFullPermitSecurity.test.ts",
   "src/test/qaR2RoundtripBuildGate.test.ts",
+  "src/test/processDocumentCanonicalShaRegressionQa.test.ts",
   "server/document-pdf-integrity.test.ts",
   "server/qa-r2-reading-proof.test.ts",
   "server/govbr-ar-readonly.test.ts",
