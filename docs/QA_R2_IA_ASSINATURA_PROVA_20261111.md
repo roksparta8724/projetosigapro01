@@ -17,3 +17,7 @@
 - Só marcar IA PASS com saída do SIGAPRO para esses mesmos PDFs, confrontada com gabarito dos recuos e com evidências do endereço/zoneamento.
 - Só marcar assinatura PASS com trilha auditável de reautenticação e assinaturas do analista e diretor de homologação e alvará explicitamente não oficial.
 - Não promover para `main` por simples CI verde.
+
+## 11/11/2026 — Correção do gate de prova física
+
+O primeiro build de prova R2 sinalizou `NOT_VERIFIED_SCOPE` e mostrou que `vite build` ainda podia passar sem comprovação real. O gate foi alterado para reutilizar `qaDatabaseEndpointMatches`, que identifica a própria base Neon QA sem presumir formato fixo do hostname, e **qualquer resultado diferente de PASS impede a publicação**. A versão deve ser publicada com a marca de commit `[deploy-qa]` exigida pelo projeto e os logs do Vercel precisam mostrar `SIGAPRO_QA_R2_ROUNDTRIP PASS`. Até lá, R2 permanece NÃO COMPROVADO.
