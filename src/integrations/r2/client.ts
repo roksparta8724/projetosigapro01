@@ -441,6 +441,28 @@ export type RecoverableProcessFile = {
   size: number;
   lastModified: string | null;
 };
+/** Verify the actual object bytes in the same authorized municipal R2 scope.
+ * The returned hash is computed by the server and must not be inferred from
+ * the filename, object key, browser metadata, or the old Neon row.
+ */
+export async function verifyRecoverableProcessFile(input: {processId:string;objectKey:string}) {
+  const response = await fetch(buildApiUrl("/api/r2-list-user-files"), {
+    method:"POST",
+    headers:{"Content-Type":"application/json",...(await getAuthorizationHeaders())},
+    body:JSON.stringify({processId:input.processId,verifyObjectKey:input.objectKey}),
+    cache:"no-store",
+  });
+  const data = await response.json().catch(()=>({})) as {
+    objectKey?:string;fileHash?:string;fileSizeBytes?:number;error?:string;
+  };
+  if(!response.ok)throw Error(data.error||"Não foi possível conferir os bytes do upload anterior.");
+  if(data.objectKey!==input.objectKey ||
+      !/^[a-f0-9]{64}$/.test(String(data.fileHash||"")) ||
+      !Number.isSafeInteger(data.fileSizeBytes) || Number(data.fileSizeBytes)<=0)
+    throw Error("O R2 não comprovou a integridade do upload anterior.");
+  return {fileHash:data.fileHash!,fileSizeBytes:data.fileSizeBytes!};
+}
+
 
 export async function listRecoverableProcessFiles(input?: { since?: string; processId?: string }) {
   const response = await fetch(buildApiUrl("/api/r2-list-user-files"), {
