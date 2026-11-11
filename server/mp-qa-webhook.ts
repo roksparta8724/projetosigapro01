@@ -16,6 +16,8 @@ import {verifyMercadoPagoOrderWebhook,type MPOrderNotice} from "./mp-webhook-sig
 import {fetchMunicipalMpOrder} from "./mp-prod-order-observation.js";
 import {decryptPaymentAccessToken,decryptPaymentWebhookSecret} from "./municipal-payment.js";
 import {assertQaWorkerLeastPrivilege,MP_QA_WORKER_ROLE} from "./mp-webhook-worker-privilege.js";
+import {readStoredGuide} from "./guide-persistence.js";
+import {readBearer} from "./municipal-storage.js";
 
 type Req=IncomingMessage & {body?:unknown};
 type Res=ServerResponse;
@@ -214,6 +216,74 @@ async function handleSignedTestNotice(req:Req,res:Res){
  }
 }
 
+/**
+ * Resolve a real race: Mercado Pago test APRO can send an approved, signed
+ * event before the immutable DAM has been archived. The original handler
+ * correctly returns awaiting_original_pdf and must NOT settle then.
+ *
+ * After archiving, the authenticated municipal user may retry reconciliation:
+ * only a previously verified HMAC receipt is eligible. No spoofed body, bank
+ * status provided by a browser, or new Pix order is accepted.
+ */
+async function reconcileAfterQaPdf(req:Req,res:Res){
+ if(!readBearer(req))return respond(res,401,{ok:false,code:"AUTH_REQUIRED"});
+ let body:Record<string,unknown>;
+ try{body=await readJson(req,4096);}
+ catch{return respond(res,400,{ok:false,code:"INVALID_BODY"});}
+ const municipalityId=String(body.municipalityId||"");
+ const guideCode=String(body.guideCode||"");
+ if(!reqUuid.test(municipalityId)||!/^DAM-PRE-[A-Za-z0-9-]{8,100}$/.test(guideCode))
+   return respond(res,400,{ok:false,code:"INVALID_GUIDE"});
+ try{
+   // JWT scopes this guide to its municipality and entitled process actor.
+   const guide=await readStoredGuide(req,municipalityId,guideCode);
+   if(guide.municipality_id!==municipalityId ||
+      guide.guide_number!==guideCode || !guide.process_id ||
+      guide.payment_provider!=="mercado_pago" ||
+      guide.provider_environment!=="test" ||
+      guide.collection_mode_snapshot!=="sigapro" ||
+      !guide.bank_reference || !providerId.test(guide.bank_reference) ||
+      !guide.bank_payment_id || !providerId.test(guide.bank_payment_id))
+     return respond(res,403,{ok:false,code:"GUIDE_SCOPE_DENIED"});
+   if(!guide.original_pdf_key||!guide.original_pdf_sha256 ||
+      !/^[a-f0-9]{64}$/.test(guide.original_pdf_sha256) ||
+      !guide.document_snapshot)
+     return respond(res,409,{ok:false,code:"IMMUTABLE_ORIGINAL_REQUIRED"});
+   return await withQaWorker(async db=>{
+     const auth=await credentials(db,municipalityId);
+     if(!auth)return respond(res,503,{ok:false,code:"MUNICIPAL_QA_PROVIDER_NOT_ACTIVE"});
+     // This RPC never invents an event; its source must be a previously
+     // HMAC-verified webhook associated with this exact canonical order.
+     const prior=await db.query(
+       "SELECT public.mp_qa_webhook_signed_receipt_v1($1::uuid,$2::text) AS receipt",
+       [municipalityId,guide.bank_reference],
+     );
+     const signed=prior.rows[0]?.receipt as Record<string,unknown>|null|undefined;
+     const rid=String(signed?.request_id||"");
+     const notificationId=String(signed?.notification_id||"");
+     const digest=String(signed?.payload_sha256||"");
+     if(!requestId.test(rid)||!notificationId||notificationId.length>128 ||
+        !/^[a-f0-9]{64}$/.test(digest))
+       return respond(res,409,{ok:false,code:"SIGNED_BANK_EVENT_REQUIRED"});
+     let observation;
+     try{observation=await fetchMunicipalMpOrder(guide.bank_reference!,auth.token);}
+     catch{return respond(res,503,{ok:false,code:"BANK_FETCH_UNAVAILABLE"});}
+     if(!observation.fetched)
+       return respond(res,503,{ok:false,code:"BANK_FETCH_UNAVAILABLE"});
+     if(observation.paymentId!==guide.bank_payment_id)
+       return respond(res,409,{ok:false,code:"BANK_PAYMENT_MISMATCH"});
+     const outcome=await recordAndMaybeSettleQa(db,{
+       municipalityId,orderId:guide.bank_reference,requestId:rid,
+       notificationId,digest,observation,
+     });
+     return respond(res,outcome.http,{ok:outcome.http===200,
+       code:outcome.code,automaticallySettled:outcome.settled});
+   });
+ }catch{
+   return respond(res,503,{ok:false,code:"QA_RECONCILIATION_UNAVAILABLE"});
+ }
+}
+
 export default async function handleQaMpWebhook(req:Req,res:Res){
  if(!isQaMpWebhookEnvironment())
    return respond(res,503,{ok:false,code:"QA_PREVIEW_ONLY"});
@@ -230,5 +300,8 @@ export default async function handleQaMpWebhook(req:Req,res:Res){
  // never become an opaque timeout or silently fall back to production.
  if(!workerConfigured||!encryptionConfigured)
    return respond(res,503,{ok:false,code:"QA_WEBHOOK_CREDENTIALS_NOT_CONFIGURED"});
+ const route=new URL(req.url||"/","https://sigapro.qa.invalid");
+ if(route.searchParams.get("mode")==="post-archive-reconcile")
+   return reconcileAfterQaPdf(req,res);
  return handleSignedTestNotice(req,res);
 }
