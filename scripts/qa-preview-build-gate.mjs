@@ -47,6 +47,7 @@ const TESTS=[
   "src/test/paidTriageDocumentReturnFlow.test.ts",
   "src/test/paidTriageRealCorrectionDbQa.test.ts",
   "src/test/qaRollbackFullPermitSecurity.test.ts",
+  "src/test/qaR2RoundtripBuildGate.test.ts",
   "server/qa-r2-reading-proof.test.ts",
   "server/govbr-ar-readonly.test.ts",
   "src/test/govbrArApiIsolationQa.test.ts",
@@ -97,6 +98,9 @@ if(process.env.VERCEL_ENV==="preview"&&process.env.VERCEL_GIT_COMMIT_REF===BRANC
   // Best-effort inspection; missing private credentials do not count as acceptance.
   // A concrete mismatch between stored PDF bytes and its immutable SHA fails closed.
   run("read-only-r2-original-byte-integrity",["scripts/qa-r2-original-bytes.mjs"]);
+  // Real isolated R2 PUT/HEAD/GET/sha256/DELETE on a disposable QA key.
+  // Never writes into a municipal document prefix or production bucket.
+  run("live-qa-r2-byte-roundtrip-and-cleanup",["scripts/qa-r2-roundtrip.mjs"]);
   console.log("[SIGAPRO_QA_BUILD_GATE] PASS focused preview gate; "+
     "commercial E2E/official regulation/bank confirmation remain separately required.");
 }
