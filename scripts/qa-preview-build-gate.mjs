@@ -47,7 +47,7 @@ const TESTS=[
   "src/test/paidTriageDocumentReturnFlow.test.ts",
   "src/test/paidTriageRealCorrectionDbQa.test.ts",
   "src/test/qaRollbackFullPermitSecurity.test.ts",
-  "src/test/qaR2LiveReadProof.test.ts",
+  "server/qa-r2-reading-proof.test.ts",
   "server/govbr-ar-readonly.test.ts",
   "src/test/govbrArApiIsolationQa.test.ts",
   "server/bank-return-cnab240.test.ts",
