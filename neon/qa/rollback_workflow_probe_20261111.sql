@@ -134,6 +134,15 @@ BEGIN
     _details:=_details||jsonb_build_array(jsonb_build_object('stage',_stage,
         'revision',_result->>'revision'));
 
+    _stage:='prepare-fictional-construction-permit-draft';
+    _result:=public.save_construction_permit_draft_v1(
+      _id,'QA-E2E-FICTICIO-SEM-VALIDADE',
+      jsonb_build_object('qaOnly',true,'title','ALVARA FICTICIO - ENSAIO LOGICO',
+        'realIssuedPermit',false,'legalApproval',false)
+    );
+    _details:=_details||jsonb_build_array(jsonb_build_object('stage',_stage,
+      'status',_result->'permit'->>'status','realIssuedPermit',false));
+
     _stage:='verify-director-signature-will-not-be-forced';
     BEGIN
       PERFORM public.request_construction_permit_director_signature_v1(_id);
@@ -142,6 +151,26 @@ BEGIN
       IF SQLERRM LIKE 'UNSAFE:%' THEN RAISE; END IF;
       _details:=_details||jsonb_build_array(jsonb_build_object('stage',_stage,
         'blocked',true,'reason',left(SQLERRM,160)));
+    END;
+
+    _stage:='forged-signature-block-must-not-release-permit';
+    -- Insert a FALSE completed signature block only inside the rollback-only
+    -- subtransaction: absence of real reauth + signatures must still deny.
+    INSERT INTO public.signature_blocks(
+      tenant_id,municipality_id,process_id,title,status,
+      artifact_type,artifact_key,evidence_hash,evidence
+    ) VALUES (
+      _tenant,_tenant,_id,'FICHA FICTICIA SEM ASSINATURA','concluido',
+      'urban_analysis_checklist','urban-analysis-checklist',
+      repeat('a',64),'{"qaFake":true}'::jsonb
+    );
+    BEGIN
+      PERFORM public.request_construction_permit_director_signature_v1(_id);
+      RAISE EXCEPTION 'UNSAFE: forged completed block bypassed real technical signature';
+    EXCEPTION WHEN OTHERS THEN
+      IF SQLERRM LIKE 'UNSAFE:%' THEN RAISE; END IF;
+      _details:=_details||jsonb_build_array(jsonb_build_object('stage',_stage,
+        'forgedFlagRejected',true,'reason',left(SQLERRM,180)));
     END;
 
     _stage:='rollback-all-fixtures';
