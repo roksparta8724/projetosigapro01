@@ -185,9 +185,10 @@ export function extractNativeSelectablePdfPages(pdf:Uint8Array):
   }));
   // A blank page could contain the actual implantation image or a scanned
   // schedule. Never send a partial selection as the complete PDF.
+  if(!result.length)throw new Error("PDF_NATIVE_NO_SELECTABLE_TEXT");
   if(result.length!==pages.length)throw new Error("PDF_NATIVE_PARTIAL_TEXT");
   const length=result.reduce((sum,page)=>sum+page.text.length+36,0);
-  if(!result.length || length<20)throw new Error("PDF_NATIVE_NO_SELECTABLE_TEXT");
+  if(length<20)throw new Error("PDF_NATIVE_NO_SELECTABLE_TEXT");
   if(length>23000)throw new Error("PDF_NATIVE_TEXT_EXCEEDS_MODEL_LIMIT");
   return result;
 }
