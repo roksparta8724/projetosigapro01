@@ -183,6 +183,9 @@ export function extractNativeSelectablePdfPages(pdf:Uint8Array):
   const result=pages.filter(page=>page.lines.length>0).map(page=>({
     page:page.number,text:page.lines.join("\n"),
   }));
+  // A blank page could contain the actual implantation image or a scanned
+  // schedule. Never send a partial selection as the complete PDF.
+  if(result.length!==pages.length)throw new Error("PDF_NATIVE_PARTIAL_TEXT");
   const length=result.reduce((sum,page)=>sum+page.text.length+36,0);
   if(!result.length || length<20)throw new Error("PDF_NATIVE_NO_SELECTABLE_TEXT");
   if(length>23000)throw new Error("PDF_NATIVE_TEXT_EXCEEDS_MODEL_LIMIT");
