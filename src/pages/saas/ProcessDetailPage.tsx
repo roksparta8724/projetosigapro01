@@ -2841,6 +2841,7 @@ export function ProcessDetailPage() {
           source: "prefeitura",
           fileName: file.name,
           filePath: uploaded.path,
+          fileHash: uploaded.fileHash,
           mimeType: "application/pdf",
           fileSizeBytes: file.size,
           previewUrl: uploaded.publicUrl || undefined,
@@ -2867,7 +2868,7 @@ export function ProcessDetailPage() {
         folder: "qa-arquitetura",
       });
       const result = await upgradeRemoteQa04ArchitecturalPlanV2(
-        process.id, uploaded.path, file.name, file.size,
+        process.id, uploaded.path, file.name, file.size, uploaded.fileHash || "",
       );
       if (result.ok !== true) throw new Error("O ambiente de testes SIGAPRO não confirmou a revisão V2.");
     },
@@ -2943,6 +2944,7 @@ export function ProcessDetailPage() {
               source: isInternalRole(session.role) ? "prefeitura" : "profissional",
               fileName: selected.fileName,
               filePath: uploaded.path,
+          fileHash: uploaded.fileHash,
               mimeType: selected.mimeType,
               sizeLabel: selected.sizeLabel,
               fileSizeBytes: selected.file.size,
@@ -3000,6 +3002,7 @@ export function ProcessDetailPage() {
             source: isInternalRole(session.role) ? "prefeitura" : "profissional",
             fileName: selected.fileName,
             filePath: uploaded.path,
+          fileHash: uploaded.fileHash,
             mimeType: selected.mimeType,
             sizeLabel: selected.sizeLabel,
             fileSizeBytes: selected.file.size,
