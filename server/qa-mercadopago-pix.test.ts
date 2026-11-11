@@ -61,7 +61,7 @@ describe("isolated Mercado Pago PIX and existing boleto remain independent",()=>
     const body=JSON.parse(String(opts?.body));
     expect(body).toMatchObject({
       type:"online",external_reference:guideCode,total_amount:"35.24",
-      payer:{email:"test_payer@example.com"},
+      payer:{email:"test_payer@example.com",first_name:"APRO"},
       processing_mode:"automatic",
       transactions:{payments:[{amount:"35.24",payment_method:{id:"pix",type:"bank_transfer"}}]},
     });
