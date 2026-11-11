@@ -1268,9 +1268,11 @@ export function ProcessDetailPage() {
   // Older paid pre-protocols may have zero rows in process_documents.
   // Render the official checklist as *pending slots*, never as uploaded
   // or legally verified records, so the professional can submit them.
-  const documentSlots = process.documents.length
-    ? process.documents
-    : buildProcessDocuments(process.type, [], process.tenantId, effectiveScopeId);
+  // Always merge stored documents with every pending checklist slot. After
+  // the first upload, other missing slots must not disappear from the UI.
+  const documentSlots = buildProcessDocuments(
+    process.type, process.documents, process.tenantId, effectiveScopeId,
+  );
   const regularProcessDocuments = documentSlots.filter((document) => !verifiedArchiveIds.has(document.id));
   const uploadedCount = regularProcessDocuments.filter((document) => document.uploaded).length;
   const protocolGuide = visiblePaymentGuides.find((guide) => guide.kind === "protocolo");
