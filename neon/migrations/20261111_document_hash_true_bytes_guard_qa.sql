@@ -271,8 +271,7 @@ $function$
     'process_id',_process_id,'synced',_synced,'inserted',_inserted,'updated',_updated,'stored',_stored
   );
 end;
-$function$
-
+$function$;
 
 REVOKE ALL ON FUNCTION public.sync_process_documents(uuid,jsonb) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.sync_process_documents(uuid,jsonb) TO authenticated;
