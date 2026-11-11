@@ -71,11 +71,11 @@ const TESTS=[
   "src/test/prefeituraAdminDispatchFailClosedQa.test.ts",
   "src/test/qa04StoredPdfAudit.test.tsx",
 ];
-function run(label,args){
+function run(label,args,extraEnv={}){
   console.log("[SIGAPRO_QA_BUILD_GATE] START "+label);
   const result=spawnSync(process.execPath,args,{
     stdio:"inherit",cwd:process.cwd(),timeout:240000,
-    env:{...process.env,CI:"true"},
+    env:{...process.env,...extraEnv,CI:"true"},
   });
   if(result.error){
     console.error("[SIGAPRO_QA_BUILD_GATE] ERROR "+label+" "+result.error.message);
@@ -113,12 +113,10 @@ if(process.env.VERCEL_ENV==="preview"&&process.env.VERCEL_GIT_COMMIT_REF===BRANC
       cwd:process.cwd(),encoding:"utf8",
     }).stdout||"").includes("[visual-qa-once]");
   if(marked){
-    process.env.SIGAPRO_QA_REAL_VISUAL_PROBE_ONCE="true";
     run("single-real-Claude-vision-on-qa-synthetic-pdf",[
       "node_modules/vitest/vitest.mjs","run",
       "server/qa-live-visual-once.test.ts","--maxWorkers=1",
-    ]);
-    delete process.env.SIGAPRO_QA_REAL_VISUAL_PROBE_ONCE;
+    ],{SIGAPRO_QA_REAL_VISUAL_PROBE_ONCE:"true"});
   }
 
   console.log("[SIGAPRO_QA_BUILD_GATE] PASS focused preview gate; "+
