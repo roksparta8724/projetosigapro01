@@ -123,6 +123,20 @@ if(process.env.VERCEL_ENV==="preview"&&process.env.VERCEL_GIT_COMMIT_REF===BRANC
     ],{SIGAPRO_QA_REAL_VISUAL_PROBE_ONCE:"true"});
   }
 
+  // Explicitly opted-in, one-shot alternate free-eligible provider evidence.
+  // It may perform one real Workers AI PDF-text request only on a marker
+  // commit and a synthetic QA R2 object. It is NOT a CAD visual proof.
+  const cfMarked=String(process.env.VERCEL_GIT_COMMIT_MESSAGE||"").includes("[cf-text-qa-once]") ||
+    String(spawnSync("git",["log","-1","--pretty=%s"],{
+      cwd:process.cwd(),encoding:"utf8",
+    }).stdout||"").includes("[cf-text-qa-once]");
+  if(cfMarked){
+    run("single-real-Cloudflare-PDF-text-on-qa-synthetic-pdf",[
+      "node_modules/vitest/vitest.mjs","run",
+      "server/qa-live-cloudflare-text-once.test.ts","--maxWorkers=1",
+    ],{SIGAPRO_QA_REAL_CF_TEXT_PROBE_ONCE:"true"});
+  }
+
   console.log("[SIGAPRO_QA_BUILD_GATE] PASS focused preview gate; "+
     "commercial E2E/official regulation/bank confirmation remain separately required.");
 }
