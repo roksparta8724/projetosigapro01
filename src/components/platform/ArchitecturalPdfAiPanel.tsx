@@ -100,7 +100,7 @@ export function ArchitecturalPdfAiPanel({
       openaiVisualAlternativeAvailable:false,
       geminiQaFixture:false,geminiQaAvailable:false,
       nativeTextAvailable:false,
-      message:"Verificando provedor e liberação técnica do PDF na homologação..."});
+      message:"Verificando a integridade e a autorização de leitura do projeto..."});
     void (async()=>{
       const session=(await backendClient.auth.getSession()).data?.session;
       const jwt=session?.access_token||session?.accessToken||session?.token||"";
