@@ -183,6 +183,52 @@ html body #root [data-premium-design="institutional-v3"][data-layout-mode="inver
   -webkit-text-fill-color: #e6f3fc !important;
 }
 
+
+/* Eliminate grid-stretched blank sections and let records grow with content.
+   This is the structural counterpart to removing the old 117.647vh spacer. */
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell .sig-page-shell {
+  align-content: start !important;
+  grid-auto-rows: max-content !important;
+  min-height: 0 !important;
+}
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell .sig-main-grid {
+  align-items: start !important;
+}
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell :is(.sig-ui-card,.sig-section-card)[data-premium-surface="section"] {
+  height: auto !important;
+  min-height: 0 !important;
+}
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell :is(.sig-main-content,.sig-side-content) {
+  align-self: start;
+  min-height: 0;
+}
+
+/* Desktop sidebar remains reachable while scrolling long workspaces.
+   Native mobile menu keeps its existing fixed overlay; print/footer untouched. */
+@media (min-width: 1024px) {
+  html body #root [data-premium-design="institutional-v3"] .sig-content-frame > .sig-sidebar-shell {
+    position: sticky !important;
+    top: var(--sig-topbar-height, 68px) !important;
+    height: calc(100dvh - var(--sig-topbar-height, 68px)) !important;
+    min-height: 0 !important;
+    max-height: calc(100dvh - var(--sig-topbar-height, 68px)) !important;
+    align-self: flex-start !important;
+    overflow: hidden !important;
+  }
+  html body #root [data-premium-design="institutional-v3"] .sig-content-frame > .sig-sidebar-shell .sig-sidebar-panel {
+    height: 100% !important;
+    min-height: 0 !important;
+  }
+  html body #root [data-premium-design="institutional-v3"] .sig-content-frame > .sig-sidebar-shell .sig-sidebar-scroll {
+    height: auto !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    overscroll-behavior-y: contain;
+    scrollbar-width: thin;
+  }
+}
+
 /* Preserve user/system accessibility. No forced color changes for focus rings,
    controls, document-workspace canvases, status badges, logos or print output. */
 @media (prefers-reduced-motion: reduce) {
