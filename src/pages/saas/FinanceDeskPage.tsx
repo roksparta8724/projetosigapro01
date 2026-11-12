@@ -108,7 +108,7 @@ export function FinanceDeskPage() {
   const tenantSettings = institutionSettingsCompat ?? getInstitutionSettings(effectiveScopeId ?? session.tenantId);
   const issFeeConfigured = isIssFeeConfigured(tenantSettings);
   const finalFeeConfigured = isFinalApprovalFeeConfigured(tenantSettings);
-  const [section, setSection] = useState<FinanceSection>("visao-geral");
+  const [section, setSection] = useState<FinanceSection>("guias");
   const [feeStatus, setFeeStatus] = useState("");
   const [workflowStatus, setWorkflowStatus] = useState("");
   const [constructionGuideStatus, setConstructionGuideStatus] = useState("");
