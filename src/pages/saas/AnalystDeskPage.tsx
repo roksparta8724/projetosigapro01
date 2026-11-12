@@ -47,6 +47,7 @@ import {
   formatOfficialProcessTitle,
   getChecklistTemplate,
   getProcessPaymentGuides,
+  matchesOperationalScope,
   parseMarker,
   statusLabel,
   statusTone,
