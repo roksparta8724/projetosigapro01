@@ -10,10 +10,10 @@ export const MUNICIPAL_OVERVIEW_SUBPAGES: ReadonlyArray<{
   helper: string;
   path: string;
 }> = [
-  { key: "resumo", title: "Resumo", helper: "Indicadores essenciais", path: "/prefeitura" },
   { key: "processos", title: "Processos", helper: "Consulta paginada", path: "/prefeitura/visao-geral/processos" },
   { key: "pendencias", title: "Pendências", helper: "Prazos e atenção", path: "/prefeitura/visao-geral/pendencias" },
   { key: "atividades", title: "Atividades", helper: "Últimas movimentações", path: "/prefeitura/visao-geral/atividades" },
+  { key: "resumo", title: "Resumo", helper: "Indicadores essenciais", path: "/prefeitura/visao-geral/resumo" },
 ];
 
 export function municipalOverviewSubpageFromPath(pathname: string): MunicipalOverviewSubpage {
