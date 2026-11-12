@@ -247,3 +247,80 @@ html body #root [data-premium-design="institutional-v3"] .sig-main-shell
 .sig-module-summary-active .sig-main-grid {
   align-items: start !important;
 }
+
+
+/* SIGAPRO Premium V5 — resolve the empty municipal-processes panel by eliminating
+   its extra generic TableCard entirely. The toolbar and registry follow each other
+   in the normal document flow, never stretch to the viewport height. */
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell
+[data-sigapro-overview-processes="premium-v5"] {
+  display: block !important;
+  flex: none !important;
+  height: auto !important;
+  min-height: 0 !important;
+  align-self: flex-start !important;
+  align-content: start !important;
+  overflow: visible !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="default"] .sig-main-shell
+[data-sigapro-overview-processes="premium-v5"] {
+  background: #eaf3fa !important;
+  border-color: #bcd4e5 !important;
+  box-shadow: 0 9px 22px rgba(9,48,76,.085) !important;
+}
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell
+[data-sigapro-overview-processes="premium-v5"] :is([data-processes-toolbar],[data-processes-list]) {
+  display: block;
+  min-height: 0 !important;
+  height: auto !important;
+  flex: none !important;
+  margin-top: 0 !important;
+}
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell
+[data-sigapro-overview-processes="premium-v5"] [data-sei-process-registry="true"] {
+  min-height: 0 !important;
+  height: auto !important;
+  max-height: none !important;
+  margin-top: 0 !important;
+  background: #f8fbfe !important;
+  border-color: #c5d6e5 !important;
+  box-shadow: none !important;
+}
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell
+[data-sigapro-overview-processes="premium-v5"] [data-processes-toolbar] {
+  background: #f5fafe !important;
+  border-color: #c6d9e7 !important;
+}
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell
+[data-sigapro-overview-processes="premium-v5"] [data-processes-header-title] {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+}
+/* Organogram is a compact, real-data institutional header, never a tall empty
+   PageHero whose only apparent content is the Nova unidade button. */
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell
+[data-municipal-organization-hero="compact-v5"] {
+  display: block !important;
+  min-height: 0 !important;
+  height: auto !important;
+  background: linear-gradient(118deg,#102e46,#12516a) !important;
+  border-color: #32647d !important;
+  color: #f8fbff !important;
+}
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell
+[data-municipal-organization-hero="compact-v5"] :is(h1,strong) {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+}
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell
+[data-municipal-organization-hero="compact-v5"] p,
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell
+[data-municipal-organization-hero="compact-v5"] span:not(.sr-only) {
+  color: #cde9fa;
+}
+@media (max-width: 767px) {
+  html body #root [data-premium-design="institutional-v3"] .sig-main-shell
+  [data-municipal-organization-hero="compact-v5"] {
+    padding: 14px !important;
+  }
+}

@@ -1350,7 +1350,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false, compa
           "--sig-topbar-highlight": topbarHighlight,
           "--sig-topbar-depth": topbarDepth,
           "--sig-footer": footerFill,
-          "--sig-sidebar-stripe-width": sidebarExpanded ? "304px" : "96px",
+          "--sig-sidebar-stripe-width": sidebarExpanded ? "232px" : "76px",
           "--sig-sidebar-fill": sidebarFill,
           "--sig-inverse-accent-soft": withAlpha(accentColor, "0.08"),
           "--sig-inverse-accent-medium": withAlpha(accentColor, "0.16"),

@@ -1535,57 +1535,67 @@ export function TenantAdminPage() {
         ) : null}
 
 
+
         {workspaceView === "visao-geral" && overviewSubpage === "processos" ? (
-          <PageMainContent className="min-w-0 gap-4">
-            <TableCard title="Processos da Prefeitura"
-              description="Todos os processos visíveis neste município, organizados por prioridade. A lista é compacta e paginada, mesmo quando existem milhares de registros."
-              icon={ClipboardList}
-              actions={
-                <Button type="button" variant="outline"
-                  className="min-h-9 rounded-xl border-sky-200 bg-white text-sky-900 hover:bg-sky-50"
-                  onClick={() => navigate("/prefeitura/processos")}>
-                  Abrir gestão de processos
-                </Button>
-              }>
-              <div className="min-w-0 space-y-4">
-                <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-slate-600">
-                  <p className="font-medium">{overviewProcesses.length.toLocaleString("pt-BR")} registros encontrados</p>
-                  <span className="text-xs">25 por página · clique no número para consultar</span>
-                </div>
-                <div className="relative">
-                  <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-                  <Input aria-label="Pesquisar processos da Visão Geral"
-                    value={overviewProcessSearch} onChange={(event) => setOverviewProcessSearch(event.target.value)}
-                    placeholder="Número, assunto, interessado ou responsável"
-                    className="h-11 min-w-0 rounded-xl border-slate-300 bg-white pl-10 text-slate-900" />
-                </div>
-                <div role="group" aria-label="Filtrar situação dos processos" className="flex flex-wrap gap-2">
-                  {([
-                    ["todos", "Todos"],
-                    ["andamento", "Em andamento"],
-                    ["pendentes", "Com pendências"],
-                    ["concluidos", "Concluídos"],
-                  ] as const).map(([key, label]) => (
-                    <Button key={key} type="button" size="sm"
-                      aria-pressed={overviewProcessStatus === key}
-                      variant="outline" onClick={() => setOverviewProcessStatus(key)}
-                      className={overviewProcessStatus === key
-                        ? "rounded-xl border-sky-800 bg-sky-900 text-white hover:bg-sky-800 hover:text-white"
-                        : "rounded-xl border-slate-300 bg-white text-slate-800 hover:bg-slate-50"}>
-                      {label}
-                    </Button>
-                  ))}
-                </div>
-                <CompactProcessRegistry
-                  key={overviewProcessStatus + ":" + overviewProcessSearch + ":" + (effectiveScopeId || "")}
-                  processes={overviewProcesses}
-                  showArchiveAction={false}
-                  canDispatchProcess={() => false}
-                  emptyMessage="Não há processos para os filtros selecionados."
-                />
+          <section
+            data-sigapro-overview-processes="premium-v5"
+            aria-label="Consulta dos processos municipais"
+            className="min-w-0 rounded-[20px] border border-[#bfd4e4] bg-[#ecf4fa] p-3 shadow-[0_9px_28px_rgba(8,45,73,0.085)] sm:p-4"
+          >
+            <header className="mb-3 flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-xl border border-[#386f8d] bg-[linear-gradient(115deg,#0b344f,#104e6b)] px-3.5 py-3 text-white">
+              <div className="min-w-0">
+                <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#bfe7fa]">Consulta oficial • Prefeitura</p>
+                <h2 data-processes-header-title="true" className="mt-0.5 text-[17px] font-bold leading-tight text-white">Processos municipais</h2>
+                <p className="mt-1 text-xs text-sky-100">Pesquisa e situação atual sem painéis intermediários.</p>
               </div>
-            </TableCard>
-          </PageMainContent>
+              <Button type="button" size="sm" variant="outline"
+                className="h-9 shrink-0 rounded-lg border-sky-200 bg-white px-3 font-semibold !text-[#123650] hover:bg-sky-50"
+                onClick={() => navigate("/prefeitura/processos")}>
+                Abrir gestão de processos
+              </Button>
+            </header>
+
+            <div data-processes-toolbar="true" className="mb-3 flex min-w-0 flex-col gap-2.5 rounded-xl border border-[#c9dce9] bg-[#f6fafe] p-3">
+              <div className="flex min-w-0 flex-wrap items-center justify-between gap-1.5">
+                <p className="text-[13px] font-semibold text-[#193b54]">{overviewProcesses.length.toLocaleString("pt-BR")} processos encontrados</p>
+                <span className="text-[11px] text-[#516c7f]">25 por página · abra o número para consultar</span>
+              </div>
+              <div className="relative">
+                <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#59758c]" />
+                <Input aria-label="Pesquisar processos da Visão Geral"
+                  value={overviewProcessSearch} onChange={(event) => setOverviewProcessSearch(event.target.value)}
+                  placeholder="Número, assunto, interessado ou responsável"
+                  className="h-10 min-w-0 rounded-lg border-[#bcd2e1] bg-white pl-10 text-[#14344a]" />
+              </div>
+              <div role="group" aria-label="Filtrar situação dos processos" className="flex min-w-0 flex-wrap gap-1.5">
+                {([
+                  ["todos", "Todos"],
+                  ["andamento", "Em andamento"],
+                  ["pendentes", "Com pendências"],
+                  ["concluidos", "Concluídos"],
+                ] as const).map(([key, label]) => (
+                  <Button key={key} type="button" size="sm" variant="outline"
+                    aria-pressed={overviewProcessStatus === key}
+                    onClick={() => setOverviewProcessStatus(key)}
+                    className={overviewProcessStatus === key
+                      ? "h-8 rounded-lg border-sky-800 bg-sky-900 px-3 !text-white hover:bg-sky-800"
+                      : "h-8 rounded-lg border-[#c1d3df] bg-white px-3 text-[#1e435b] hover:bg-sky-50"}>
+                    {label}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            <div data-processes-list="true" className="min-w-0">
+              <CompactProcessRegistry
+                key={overviewProcessStatus + ":" + overviewProcessSearch + ":" + (effectiveScopeId || "")}
+                processes={overviewProcesses}
+                showArchiveAction={false}
+                canDispatchProcess={() => false}
+                emptyMessage="Não há processos para os filtros selecionados."
+              />
+            </div>
+          </section>
         ) : null}
 
         {workspaceView === "visao-geral" && overviewSubpage === "pendencias" ? (
