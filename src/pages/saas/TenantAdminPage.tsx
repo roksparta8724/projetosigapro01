@@ -1526,7 +1526,7 @@ export function TenantAdminPage() {
                   <p><strong>Fluxo:</strong> {receivedForCurrentUnit.length} recebidos · {generatedByCurrentUnit.length} gerados · {assignedMunicipal.length} atribuídos</p>
                   <Button type="button" size="sm" variant="outline" className="mt-2 h-9 w-full justify-center rounded-lg border-sky-300 bg-white !text-[#123650]"
                     onClick={() => navigate("/configuracoes?secao=branding")}>
-                    {coatOfArmsPreviewUrl ? "Identidade visual • brasão registrado" : "Identidade visual"}
+                    {coatOfArmsPreviewUrl ? "Identidade visual • brasão salvo" : "Identidade visual"}
                   </Button>
                 </div>
               </section>
