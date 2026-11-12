@@ -23,7 +23,10 @@ export function municipalOverviewSubpageFromPath(pathname: string): MunicipalOve
 }
 
 export function isMunicipalOverviewSubpagePath(pathname: string): boolean {
+  // Every dedicated overview URL, including the final Resumo subpage,
+  // belongs to the municipal overview. /prefeitura itself remains the
+  // operational entry, so it must NOT be mistaken for an open summary.
   return MUNICIPAL_OVERVIEW_SUBPAGES.some((page) =>
-    page.key !== "resumo" && page.path === (pathname.replace(/\/+$/, "") || "/"),
+    page.path !== "/prefeitura" && page.path === (pathname.replace(/\/+$/, "") || "/"),
   );
 }

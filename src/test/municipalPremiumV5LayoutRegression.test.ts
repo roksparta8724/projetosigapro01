@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
+import { isMunicipalOverviewSubpagePath } from "@/lib/municipalOverviewSubpages";
 
 const read = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
 const overview = read("src/pages/saas/TenantAdminPage.tsx");
@@ -52,6 +53,21 @@ describe("Premium V5: sem branco vazio, sidebar estreita e organograma real", ()
     expect(header).toContain("Nova unidade");
     expect(organogram).toContain("<MunicipalOrganizationChart");
     expect(organogram).not.toContain("<PageHero");
+  });
+
+  it("reconhece a URL direta do Resumo, mas preserva a Fila na entrada da Prefeitura", () => {
+    expect(isMunicipalOverviewSubpagePath("/prefeitura/visao-geral/resumo")).toBe(true);
+    expect(isMunicipalOverviewSubpagePath("/prefeitura/visao-geral/processos")).toBe(true);
+    expect(isMunicipalOverviewSubpagePath("/prefeitura")).toBe(false);
+    expect(isMunicipalOverviewSubpagePath("/prefeitura/financeiro")).toBe(false);
+  });
+
+  it("garante espaçamento dos controles sem esconder a lista", () => {
+    expect(css).toContain('[data-processes-toolbar] {');
+    expect(css).toContain('display: flex !important');
+    expect(css).toContain('gap: 10px !important');
+    expect(css).toContain('[data-processes-list] {');
+    expect(css).toContain('display: block !important');
   });
 
   it("não troca permissões, dados, dashboard ou documentos", () => {
