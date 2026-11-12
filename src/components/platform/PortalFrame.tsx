@@ -83,6 +83,7 @@ interface PortalFrameProps {
   eyebrow: string;
   children: React.ReactNode;
   focusMode?: boolean;
+  compactHeader?: boolean;
 }
 
 type LayoutThemeOverride = {
@@ -284,7 +285,7 @@ function resolveBrandingLogoUrl(
     : branding.headerLogoUrl ?? branding.logoUrl ?? "";
 }
 
-export function PortalFrame({ title, eyebrow, children, focusMode = false }: PortalFrameProps) {
+export function PortalFrame({ title, eyebrow, children, focusMode = false, compactHeader = false }: PortalFrameProps) {
   const [commandOpen, setCommandOpen] = useState(false);
   const [commandQuery, setCommandQuery] = useState("");
   const [sidebarExpanded, setSidebarExpanded] = useState(() => {
@@ -2439,7 +2440,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
               </div>
             </div> : null}
 
-            {!focusMode ? <header className="mb-6 border-b border-slate-200 pb-5">
+            {!focusMode ? <header data-sigapro-compact-header={compactHeader ? "true" : "false"} className={cn("mb-6 border-b border-slate-200 pb-5", compactHeader && "mb-3 pb-3")}>
               <div
                 className="overflow-hidden rounded-[24px] border shadow-[0_14px_32px_rgba(15,42,68,0.10)]"
                 style={{
@@ -2447,10 +2448,10 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                   background: `linear-gradient(135deg, ${darken(primaryColor, 2)} 0%, ${primaryColor} 44%, ${bannerMid} 100%)`,
                 }}
               >
-                <div className="border-b border-white/10 bg-[linear-gradient(90deg,rgba(255,255,255,0.10)_0%,rgba(255,255,255,0.04)_42%,rgba(255,255,255,0.02)_100%)] px-5 py-3.5 md:px-7 lg:px-8">
+                <div className={cn("border-b border-white/10 bg-[linear-gradient(90deg,rgba(255,255,255,0.10)_0%,rgba(255,255,255,0.04)_42%,rgba(255,255,255,0.02)_100%)] px-5 py-3.5 md:px-7 lg:px-8", compactHeader && "px-4 py-2.5 md:px-5 lg:px-6")}>
                   <div className="flex flex-wrap items-center gap-3">
                     <div
-                      className="flex h-11 w-11 items-center justify-center rounded-full border border-white/18 shadow-[0_12px_28px_rgba(2,6,23,0.18)]"
+                      className={cn("flex h-11 w-11 items-center justify-center rounded-full border border-white/18 shadow-[0_12px_28px_rgba(2,6,23,0.18)]", compactHeader && "h-9 w-9")}
                       style={{ background: `linear-gradient(180deg, ${withAlpha(accentColor, "0.24")} 0%, rgba(255,255,255,0.10) 100%)` }}
                     >
                       <SectionGlyph className="h-5 w-5 text-white" aria-hidden="true" />
@@ -2462,15 +2463,15 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                 </div>
                 </div>
 
-                <div className="px-5 pb-6 pt-5 md:px-7 lg:px-8">
-                  <div className="flex flex-col gap-5 md:flex-row md:items-center md:gap-6 lg:gap-7">
+                <div className={cn("px-5 pb-6 pt-5 md:px-7 lg:px-8", compactHeader && "px-4 pb-3 pt-3 md:px-5 lg:px-6")}>
+                  <div className={cn("flex flex-col gap-5 md:flex-row md:items-center md:gap-6 lg:gap-7", compactHeader && "flex-row items-center gap-3 md:gap-4")}>
                     <div className="shrink-0">
                       <InstitutionalLogo
                         branding={stableHeaderBranding}
                         fallbackLabel={institutionDisplayName}
                         variant="header"
                         contextScope={isMasterUser ? "master" : "municipality"}
-                        className="mx-auto md:mx-0"
+                        className={cn("mx-auto md:mx-0", compactHeader && "!h-[66px] !w-[110px] lg:!h-[66px] lg:!w-[110px]")}
                       />
                     </div>
 
@@ -2478,7 +2479,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                       <p className="sig-fit-title max-w-[64ch] text-[15px] font-semibold leading-[1.3] tracking-[-0.01em] text-white drop-shadow-[0_2px_10px_rgba(2,6,23,0.18)] md:text-base">
                         {institutionDisplayName}
                       </p>
-                      <p className="mt-2 max-w-[60ch] text-sm font-normal leading-5 text-[#DCEAF7] lg:text-sm">
+                      <p className={cn("mt-2 max-w-[60ch] text-sm font-normal leading-5 text-[#DCEAF7] lg:text-sm", compactHeader && "mt-1 text-xs leading-4")}>
                         {institutionDisplaySubtitle}
                       </p>
 
