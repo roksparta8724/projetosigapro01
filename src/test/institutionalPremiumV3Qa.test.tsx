@@ -80,6 +80,15 @@ describe("premium institutional v3, all internal pages", () => {
     expect(html).not.toContain('blocking="render"');
   });
 
+  it("renders error recovery with the actual V2 theme and no leaked technical details", () => {
+    const error = source("src/components/platform/AppErrorBoundary.tsx");
+    expect(error).toContain('window.localStorage.getItem("sigapro-layout-theme.v2")');
+    expect(error).toContain('bg-[#102a40]');
+    expect(error).not.toContain("sig-ui-card w-full max-w-xl");
+    expect(error).toContain("import.meta.env.DEV ? (");
+    expect(error).toContain("Não foi possível abrir esta página");
+  });
+
   it("does not create a giant white verification card during cold route load", () => {
     const { container } = render(<SecureRoutePending surface="route" />);
     const mainElement = screen.getByRole("status");
