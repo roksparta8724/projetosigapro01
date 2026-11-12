@@ -130,9 +130,9 @@ export default async function handler(req:Req,res:Res){
   if(req.method==="GET"){
     if(!sameOrigin(req))return json(res,403,{error:"Origem não autorizada."});
     if(!readBearer(req))return json(res,401,{error:"Entre na sua conta SIGAPRO."});
-    if(process.env.VERCEL_ENV!=="preview" && !productionPdfAiOptIn())return json(res,200,{
-      enabled:false,message:"Leitura de projetos desativada neste ambiente. Em produção depende de homologação e habilitação expressa."
-    });
+    // Local selectable-text extraction is safe to offer to municipal analysts
+    // in production: no external AI transfer and no legal decision. Keep all
+    // external/chargeable providers behind explicit production opt-in.
     const auth=await callDataApiRpc<Record<string,unknown>>(req,"get_current_profile_context",{});
     const user=auth.payload;
     if(!auth.ok||!user||user.account_status!=="active"||user.deleted_at||
@@ -140,7 +140,10 @@ export default async function handler(req:Req,res:Res){
       !["analista","prefeitura_supervisor"].includes(String(user.role||""))||
       (user.tenant_id&&user.tenant_id!==user.municipality_id))
       return json(res,403,{error:"Consulta reservada ao analista municipal."});
-    const available=resolveVisualPdfProvider(readEnv);
+    const externalAiDisabled=process.env.VERCEL_ENV!=="preview" && !productionPdfAiOptIn();
+    const available=externalAiDisabled
+      ?{enabled:false as const,provider:null,message:"Provedor externo não habilitado na produção."}
+      :resolveVisualPdfProvider(readEnv);
     // The fallback is an opt-in only for this QA preview and is text-only.
     // This check does not transmit the PDF, expose credentials or charge usage.
     const textAlternative=process.env.VERCEL_ENV==="preview"
@@ -191,23 +194,20 @@ export default async function handler(req:Req,res:Res){
           :"O documento ainda não está liberado para análise técnica. Confira a triagem, a versão válida e as permissões do analista.",
       message:available.enabled
         ?"SIGAPRO IA habilitado para o tipo de leitura configurado."
-        :"O módulo SIGAPRO IA não está configurado neste ambiente.",
+        :"Leitura Local disponível após validar a versão do PDF; análise visual externa ainda não habilitada.",
       providerConfiguredOnly:true,
       billingVerified:false,
       textAlternativeAvailable:textAlternative?.enabled===true,
       openaiVisualAlternativeAvailable:advancedVisual?.enabled===true,
       geminiQaFixture:geminiFixtureReady,
       geminiQaAvailable:geminiFixtureReady&&freeVisual?.enabled===true,
-      nativeTextAvailable:process.env.VERCEL_ENV==="preview"&&documentReady===true,
+      nativeTextAvailable:(process.env.VERCEL_ENV==="preview"||process.env.VERCEL_ENV==="production")&&documentReady===true,
       territorialContext,
       legalBaseline,
     });
   }
   if(req.method!=="POST")return json(res,405,{error:"Método não permitido."});
   if(!sameOrigin(req))return json(res,403,{error:"Origem não autorizada."});
-  if(process.env.VERCEL_ENV!=="preview" && !productionPdfAiOptIn())return json(res,403,{
-    code:"AI_ENV_DISABLED",error:"Leitura de projetos desativada neste ambiente até habilitação expressa."
-  });
   if(!readBearer(req))return json(res,401,{error:"É necessário entrar no SIGAPRO."});
   let body:Record<string,unknown>;
   try{body=await readBody(req);}
@@ -221,8 +221,16 @@ export default async function handler(req:Req,res:Res){
   const nativeTextRequested=body.readingMode==="native_text";
   if(body.readingMode!==undefined && !["visual","cloudflare_text","openai_visual","gemini_qa","native_text"].includes(String(body.readingMode)))
     return json(res,400,{error:"Modo de leitura não reconhecido."});
-  if((textRequested||openaiVisualRequested||geminiQaRequested||nativeTextRequested) && process.env.VERCEL_ENV!=="preview")
-    return json(res,403,{code:"AI_ENV_DISABLED",error:"Modalidades alternativas disponíveis somente em homologação."});
+  // Only native extraction can run in production without enabling a paid
+  // external provider. QA visual alternatives never receive real documents.
+  if(process.env.VERCEL_ENV!=="preview" && !productionPdfAiOptIn() && !nativeTextRequested)
+    return json(res,403,{code:"AI_ENV_DISABLED",
+      error:"IA externa ainda não homologada nesta Prefeitura. Use Leitura Local."});
+  if((textRequested||openaiVisualRequested||geminiQaRequested) && process.env.VERCEL_ENV!=="preview")
+    return json(res,403,{code:"AI_ENV_DISABLED",
+      error:"Estas modalidades externas são exclusivas da homologação."});
+  if(nativeTextRequested && !["preview","production"].includes(String(process.env.VERCEL_ENV)))
+    return json(res,403,{code:"AI_ENV_DISABLED",error:"Ambiente de leitura não autorizado."});
   if(typeof processId!=="string"||!UUID.test(processId)||
     typeof documentId!=="string"||!UUID.test(documentId)||body.confirmedTransfer!==true)
     return json(res,400,{error:"Selecione o projeto e confirme o envio para leitura assistida."});
