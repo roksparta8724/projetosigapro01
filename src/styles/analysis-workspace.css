@@ -101,6 +101,45 @@ header[data-sigapro-compact-header="true"] .sig-institution-logo-surface[data-lo
   list-style-position: inside;
 }
 
+
+/* Inverse-main é distinto da classe Tailwind dark; manter polaridade determinística. */
+[data-layout-mode="inverse-main"] [data-analysis-command-bar="true"],
+[data-layout-mode="inverse-main"] [data-analysis-process-panel="true"] {
+  background: #102638 !important;
+  border-color: #36526b !important;
+  color: #eaf3fc !important;
+}
+
+[data-layout-mode="inverse-main"] [data-analysis-command-bar="true"] h2,
+[data-layout-mode="inverse-main"] [data-analysis-process-panel="true"] h3 {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+[data-layout-mode="inverse-main"] [data-analysis-command-bar="true"] p,
+[data-layout-mode="inverse-main"] [data-analysis-process-panel="true"] header p,
+[data-layout-mode="inverse-main"] [data-analysis-queue-guide="true"] p {
+  color: #cfdeea !important;
+  -webkit-text-fill-color: #cfdeea !important;
+}
+
+[data-layout-mode="inverse-main"] [data-analysis-process-panel="true"] > header {
+  background: #172f46 !important;
+  border-color: #36526b !important;
+}
+
+[data-layout-mode="inverse-main"] [data-analysis-process-panel="true"] [data-analysis-filters="true"] input {
+  background: #091f32 !important;
+  border-color: #36526b !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+[data-layout-mode="inverse-main"] [data-analysis-process-panel="true"] [data-analysis-filters="true"] input::placeholder {
+  color: #b9ccdb !important;
+  opacity: 1;
+}
+
 @media (max-width: 640px) {
   .sig-analysis-tabs .sig-nav-item {
     min-height: 42px !important;
