@@ -74,6 +74,15 @@ describe("SIGAPRO: authoritative process sync and per-municipality analysis hist
     expect(result.departmentProcesses.map(x=>x.protocol)).toEqual(["PM-2026-00001"]);
   });
 
+  it("blocks historical access by blocked or inactive municipal accounts",()=>{
+    const archived=process("PM-2026-00003","deferido","Habite-se concluído");
+    for(const accountStatus of ["blocked","inactive"] as const){
+      const suspended={...analyst,accountStatus};
+      expect(buildAnalysisRegistry(suspended,municipality,[archived],true))
+        .toEqual({departmentProcesses:[],registry:[]});
+    }
+  });
+
   it("shows zero official results while same-account warm cache is not confirmed",()=>{
     const stale=process("PM-2026-00099","deferido","Habite-se concluído");
     expect(buildAnalysisRegistry(analyst,municipality,[stale],false))
