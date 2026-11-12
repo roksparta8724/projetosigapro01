@@ -123,7 +123,7 @@ describe("SIGAPRO QA — entrada rápida com autorização institucional real", 
       expect(src).not.toContain('import { '+name+' } from "@/pages/saas/');
     }
     expect(src).toContain('import { AcessoPage } from "@/pages/saas/AcessoPage";');
-    expect(src).toContain("<Suspense fallback={null}>");
+    expect(src).toContain("<Suspense fallback={<SecureRoutePending");
     // Do not create lazy component identities inside a render or navigation effect.
     expect(src.indexOf("const MasterAdminPage = lazy("))
       .toBeLessThan(src.indexOf("const App = () => {"));

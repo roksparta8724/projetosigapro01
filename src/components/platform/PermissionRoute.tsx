@@ -10,6 +10,7 @@ import { useTenant } from "@/hooks/useTenant";
 import { can, canAccessMunicipalArea, getRoleLandingPath, isInternalRole } from "@/lib/platform";
 import type { Permission, SessionUser, UserRole } from "@/lib/platform";
 import { hasValidRefreshContinuity } from "@/lib/refreshContinuity";
+import { SecureRoutePending } from "@/components/platform/SecureRoutePending";
 
 export function PermissionRoute({
   permission,
@@ -59,20 +60,25 @@ export function PermissionRoute({
       /\/processos\/[^/]+\/documentos\/[^/]+\/(visualizar|analisar)$/.exec(location.pathname);
 
     if (documentRoute) {
-      // Cold start da guia documental: mantenha somente o canvas neutro.
-      // A tela falsa de carregamento foi removida para que o usuário passe
-      // diretamente do processo para o PDF real quando a sessão terminar de validar.
+      // Um PDF restrito também deve dar feedback sem expor dados antes da autenticação.
       return (
-        <div
-          data-document-route-preboot="silent"
-          className="min-h-screen bg-[#2b3037]"
-          aria-hidden="true"
+        <SecureRoutePending
+          surface="document"
+          title="Preparando o documento oficial"
+          detail="Verificando se sua sessão tem autorização para abrir este documento."
         />
       );
     }
 
-    // Cold start real sem continuidade: não liberar conteúdo antes da identidade.
-    return null;
+    // A identidade continua bloqueando conteúdo, mas nunca exibir uma tela vazia.
+    return (
+      <SecureRoutePending
+        title={bootstrap.stage === "bootstrap_error" ? "Não foi possível validar o acesso" : "Validando o acesso municipal"}
+        detail={bootstrap.stage === "bootstrap_error"
+          ? "A autenticação não foi concluída. Use Recarregar ou volte ao acesso para tentar novamente."
+          : "Estamos verificando a sessão e o vínculo com a Prefeitura. Nenhum processo fica visível antes da confirmação."}
+      />
+    );
   }
 
 
