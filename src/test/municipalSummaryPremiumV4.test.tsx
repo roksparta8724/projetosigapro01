@@ -33,7 +33,7 @@ describe("SIGAPRO v4 — resumo sempre no fim, exceto no Dashboard", () => {
     const root = container.querySelector('[data-summary-position="last"]');
     expect(root).toBeInTheDocument();
     const buttons = within(root as HTMLElement).getAllByRole("button");
-    expect(buttons.map((node) => node.textContent?.split(" ")[0])).toEqual(["Fila", "Histórico", "Visão"]);
+    expect(buttons.map((node) => node.querySelector(".sig-nav-item-label")?.textContent)).toEqual(["Fila", "Histórico", "Visão geral"]);
     expect(buttons[0]).toHaveAttribute("data-nav-active", "true");
   });
 
