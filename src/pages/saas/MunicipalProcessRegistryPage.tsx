@@ -36,8 +36,16 @@ function isFinalProcess(process: ProcessRecord) {
 export function MunicipalProcessRegistryPage() {
   const { session } = usePlatformSession();
   const { municipality, scopeId } = useMunicipality();
-  const { processes: allProcesses, refreshRemoteStore } = usePlatformData();
-  const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
+  const {
+    processes: allProcesses,
+    refreshRemoteStore,
+    remoteSyncedForCurrentUser,
+    dataError: platformDataError,
+    loading: platformDataLoading,
+  } = usePlatformData();
+  // The signed-in account owns the municipal operational scope. A branding
+  // cache or old selected tenant must not override its current municipality.
+  const effectiveScopeId = session.municipalityId ?? session.tenantId ?? municipality?.id ?? scopeId ?? null;
   useLivePlatformRefresh(refreshRemoteStore, { intervalMs: 30000, refreshOnMount: false });
 
   const [search, setSearch] = useState("");
@@ -73,7 +81,7 @@ export function MunicipalProcessRegistryPage() {
 
   const municipalityProcesses = useMemo(
     () =>
-      allProcesses
+      (remoteSyncedForCurrentUser ? allProcesses : [])
         .filter(
           (process) =>
             process.isOfficial !== false &&
@@ -84,7 +92,7 @@ export function MunicipalProcessRegistryPage() {
           const bDate = Date.parse(b.timeline?.[0]?.at || b.analysis?.startedAt || "1970-01-01");
           return bDate - aDate;
         }),
-    [allProcesses, effectiveScopeId],
+    [allProcesses, effectiveScopeId, remoteSyncedForCurrentUser],
   );
 
   const activeCount = municipalityProcesses.filter((process) => !isFinalProcess(process)).length;
@@ -136,6 +144,28 @@ export function MunicipalProcessRegistryPage() {
           description="Visualize todos os processos da Prefeitura em uma lista compacta, alinhada e preparada para grande volume. As filas operacionais de cada setor continuam preservadas."
           icon={ScrollText}
         />
+
+        {!remoteSyncedForCurrentUser ? (
+          <div role={platformDataError ? "alert" : "status"}
+            data-municipal-registry-sync={platformDataError ? "error" : "pending"}
+            className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm text-slate-900">
+            <div className="min-w-0">
+              <p className="font-bold">
+                {platformDataError ? "Banco oficial ainda não sincronizado" : "Sincronizando o cadastro oficial de processos..."}
+              </p>
+              <p className="mt-1 text-xs leading-5 text-slate-700">
+                {platformDataError ||
+                  (platformDataLoading
+                    ? "Conferindo processos, guias e prefeitura com o Neon."
+                    : "Aguardando os registros do município. O cache do navegador não define o total oficial.")}
+              </p>
+            </div>
+            <Button type="button" variant="outline" className="border-slate-300 bg-white text-slate-900"
+              onClick={() => { void refreshRemoteStore().catch(() => undefined); }}>
+              Atualizar do banco
+            </Button>
+          </div>
+        ) : null}
 
         <PageStatsRow>
           <StatCard
@@ -221,7 +251,9 @@ export function MunicipalProcessRegistryPage() {
               emptyMessage={
                 showArchived
                   ? "Nenhum processo arquivado nesta lista."
-                  : "Nenhum processo corresponde aos filtros atuais."
+                  : remoteSyncedForCurrentUser
+                    ? "Nenhum processo corresponde aos filtros atuais."
+                    : "Aguardando sincronização oficial — os processos não foram excluídos."
               }
             />
           </div>

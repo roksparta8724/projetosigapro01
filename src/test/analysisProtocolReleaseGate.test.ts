@@ -121,7 +121,10 @@ describe("QA release gate: Protocolo -> Triagem -> Análise Urbanística", () =>
 
   it("impede que a fila técnica mostre processo prematuro por mera atribuição antiga", () => {
     const desk = readFileSync(resolve(process.cwd(), "src/pages/saas/AnalystDeskPage.tsx"), "utf8");
-    expect(desk).toContain(".filter(isProcessReleasedToUrbanAnalysis)");
-    expect(desk).toContain("if (!isProcessReleasedToUrbanAnalysis(item)) return false;");
+    const registry = readFileSync(resolve(process.cwd(), "src/lib/analysisRegistry.ts"), "utf8");
+    expect(desk).toContain("buildAnalysisRegistry(");
+    expect(registry).toContain(".filter(isProcessReleasedToUrbanAnalysis)");
+    expect(registry).toContain("if (!matchesOperationalScope(municipalityId, item)) return false;");
+    expect(registry).toContain("return currentIds.has(item.id) || wasAnalyzed;");
   });
 });

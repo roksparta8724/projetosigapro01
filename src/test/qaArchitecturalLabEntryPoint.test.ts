@@ -9,7 +9,8 @@ describe("SIGAPRO QA: isolated PDF laboratory is reachable outside process analy
   expect(view).toContain('session.role==="analista"||session.role==="prefeitura_supervisor"');
   expect(view).toContain('import.meta.env.VITE_SIGAPRO_NEON_ISOLATED==="true"');
   // The legitimate queue still uses the paid/triaged process guard independently.
-  expect(view).toContain(".filter(isProcessReleasedToUrbanAnalysis)");
+  const registry=readFileSync("src/lib/analysisRegistry.ts","utf8");
+  expect(registry).toContain(".filter(isProcessReleasedToUrbanAnalysis)");
  });
  it("uses no process identifier for test and preserves server-side auth",()=>{
   const lab=readFileSync("src/components/platform/QaArchitecturalLab.tsx","utf8");

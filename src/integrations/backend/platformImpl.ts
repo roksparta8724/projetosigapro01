@@ -486,7 +486,7 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
     processesResult,
     constructionPermitsResult,
     propertiesResult,
-    guidesResult,
+    initialGuidesResult,
     partiesResult,
     privatePartyDataResult,
     documentsResult,
@@ -589,6 +589,24 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
     } else {
       console.warn("[SIGAPRO][Processos] Fallback RPC indisponível, mantendo resultado vazio.", fallback.error);
     }
+  }
+
+  // Operational process visibility depends on the SAME authorized payment
+  // guide snapshot as triage/technical review. Previously a guide API failure
+  // was logged as non-critical and silently mapped paid records to "pendente",
+  // removing valid processes from the analysis queue.
+  let guidesResult = initialGuidesResult;
+  if (isNeonBackend && guidesResult.error && processRows.length > 0) {
+    const retryGuides = await db
+      .from("payment_guides")
+      .select("*")
+      .not("process_id", "is", null)
+      .order("created_at", { ascending: false });
+    if (!retryGuides.error) guidesResult = retryGuides;
+  }
+  if (processRows.length > 0 && guidesResult.error) {
+    console.error("[SIGAPRO][Sincronismo] Guias oficiais indisponíveis; estado operacional não confirmado.");
+    throw new Error("Não foi possível sincronizar as guias oficiais vinculadas aos processos. Tente atualizar novamente.");
   }
 
   const nonCriticalErrors = [
