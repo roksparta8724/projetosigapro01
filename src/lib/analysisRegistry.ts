@@ -19,7 +19,11 @@ export function buildAnalysisRegistry(
   allProcesses: ProcessRecord[],
   officialDataSynced: boolean,
 ): { departmentProcesses: ProcessRecord[]; registry: ProcessRecord[] } {
-  if (!officialDataSynced || !municipalityId) {
+  if (
+    !officialDataSynced || !municipalityId ||
+    session.accountStatus === "blocked" ||
+    session.accountStatus === "inactive"
+  ) {
     return { departmentProcesses: [], registry: [] };
   }
 
