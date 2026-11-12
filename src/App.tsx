@@ -16,6 +16,7 @@ import { LandingPage } from "@/pages/saas/LandingPage";
 import { RecuperarSenhaPage } from "@/pages/saas/RecuperarSenhaPage";
 import { CriarContaPage } from "@/pages/saas/CriarContaPage";
 import { AppErrorBoundary } from "@/components/platform/AppErrorBoundary";
+import { SecureRoutePending } from "@/components/platform/SecureRoutePending";
 import { TenantNotFoundPage } from "@/pages/saas/TenantNotFoundPage";
 import { shouldShowPublicLanding } from "@/lib/tenant";
 
@@ -92,8 +93,9 @@ const AiAssistantPage = lazy(() => import("@/pages/saas/AiAssistantPage").then((
 
 const App = () => {
   return (
-    <AppBootstrapProvider>
-      <AuthGatewayProvider>
+    <AppErrorBoundary>
+      <AppBootstrapProvider>
+        <AuthGatewayProvider>
         <PlatformDataProvider>
           <PlatformSessionProvider>
             <TenantProvider>
@@ -111,8 +113,9 @@ const App = () => {
             </TenantProvider>
           </PlatformSessionProvider>
         </PlatformDataProvider>
-      </AuthGatewayProvider>
-    </AppBootstrapProvider>
+        </AuthGatewayProvider>
+      </AppBootstrapProvider>
+    </AppErrorBoundary>
   );
 };
 
@@ -152,7 +155,7 @@ const AppRoutes = () => {
 
   // Nunca renderizar fallback full-screen no root: as rotas reais permanecem montadas no refresh.
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<SecureRoutePending title="Carregando a página solicitada" detail="O módulo está sendo preparado. Você pode continuar por esta rota quando o carregamento terminar." />}>
       <Routes>
         <Route
           path="/"
