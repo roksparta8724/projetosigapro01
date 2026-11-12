@@ -60,14 +60,11 @@ export function PermissionRoute({
       /\/processos\/[^/]+\/documentos\/[^/]+\/(visualizar|analisar)$/.exec(location.pathname);
 
     if (documentRoute) {
-      // Cold start da guia documental: mantenha somente o canvas neutro.
-      // A tela falsa de carregamento foi removida para que o usuário passe
-      // diretamente do processo para o PDF real quando a sessão terminar de validar.
+      // Um PDF restrito também deve dar feedback sem expor dados antes da autenticação.
       return (
-        <div
-          data-document-route-preboot="silent"
-          className="min-h-screen bg-[#2b3037]"
-          aria-hidden="true"
+        <SecureRoutePending
+          title="Preparando o documento oficial"
+          detail="Verificando se sua sessão tem autorização para abrir este documento."
         />
       );
     }
