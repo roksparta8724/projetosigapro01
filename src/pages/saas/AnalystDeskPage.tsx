@@ -129,9 +129,12 @@ export function AnalystDeskPage() {
   const tenantSettings = getInstitutionSettings(effectiveScopeId ?? session.tenantId);
   const [searchParams] = useSearchParams();
   const [search, setSearch] = useState("");
-  const [section, setSection] = useState<AnalystSection>(() =>
-    searchParams.get("secao") === "fila" ? "fila" : "visao-geral",
-  );
+  const [section, setSection] = useState<AnalystSection>(() => {
+    const requested = searchParams.get("secao");
+    return requested && ["visao-geral", "fila", "concluidos", "pendencias", "correcoes", "historico", "indicadores"].includes(requested)
+      ? requested as AnalystSection
+      : "fila";
+  });
   const [actionBusy, setActionBusy] = useState("");
   const [actionStatus, setActionStatus] = useState("");
   const [exportBusy, setExportBusy] = useState(false);
