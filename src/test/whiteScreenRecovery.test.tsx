@@ -20,6 +20,7 @@ describe("SIGAPRO — proteção contra tela branca", () => {
     const permissionRoute = source("src/components/platform/PermissionRoute.tsx");
     const planRoute = source("src/components/platform/PlanModuleRoute.tsx");
     const html = source("index.html");
+    const entry = source("src/main.tsx");
 
     expect(app).toContain("<Suspense fallback={<SecureRoutePending");
     expect(app).not.toContain("<Suspense fallback={null}>");
@@ -27,5 +28,11 @@ describe("SIGAPRO — proteção contra tela branca", () => {
     expect(planRoute).toContain('title="Conferindo o módulo contratado"');
     expect(html).toContain('id="sigapro-preboot-recovery"');
     expect(html).not.toContain('blocking="render"');
+    const failurePath = entry.slice(
+      entry.indexOf("function renderBootstrapFailure"),
+      entry.indexOf("function scheduleLocalCacheMaintenance"),
+    );
+    expect(failurePath).toContain('document.documentElement.removeAttribute("data-sigapro-initial-render")');
+    expect(failurePath).toContain('document.getElementById("sigapro-preboot-recovery")?.remove()');
   });
 });

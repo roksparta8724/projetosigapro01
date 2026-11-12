@@ -109,6 +109,9 @@ async function clearLocalDevelopmentCaches() {
 
 function renderBootstrapFailure(error: unknown) {
   console.error("[SIGAPRO][Bootstrap] Falha ao carregar a aplicacao.", error);
+  // O aviso HTML anterior ao React não deve esconder o diagnóstico de erro real.
+  document.documentElement.removeAttribute("data-sigapro-initial-render");
+  document.getElementById("sigapro-preboot-recovery")?.remove();
 
   const root = document.getElementById("root");
   if (!root) return;
