@@ -22,7 +22,6 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { AlertCard } from "@/components/platform/AlertCard";
 import { InternalTabs } from "@/components/platform/InternalTabs";
 import { PageHeader } from "@/components/platform/PageHeader";
-import { CompactProcessRegistry } from "@/components/platform/CompactProcessRegistry";
 import { MarkerSelector } from "@/components/platform/MarkerSelector";
 import { PortalFrame } from "@/components/platform/PortalFrame";
 import { QaArchitecturalLab } from "@/components/platform/QaArchitecturalLab";
@@ -1264,26 +1263,28 @@ export function AnalystDeskPage() {
             <div data-analysis-official-processes="true">
               <TableCard
                 title="Processos oficiais da Prefeitura"
-                description="Registro consultável por status real do processo, incluindo análise, processos assinados e concluídos. Marcadores de arquivo pessoal não ocultam processos nesta visão."
+                description="Registro do município com o status real de cada processo. Arquivamentos pessoais não escondem processos da visão principal. Os cinco primeiros aparecem abaixo."
                 icon={ListTodo}
+                actions={
+                  <Button type="button" variant="outline" className="rounded-full"
+                    onClick={() => setSection("fila")}>
+                    Abrir lista completa
+                  </Button>
+                }
               >
                 <p role="status" className="mb-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-800">
                   {remoteSyncedForCurrentUser
                     ? `Neon confirmou ${allProcesses.length} registro(s) acessível(is) à sessão e ${analysisRegistryBase.length} processo(s) nesta Análise.`
                     : "Aguardando confirmação dos processos no Neon; não é uma lista vazia definitiva."}
                 </p>
-                <CompactProcessRegistry
-                  processes={processRegistry}
-                  archivedProcessIds={archivedProcessIds}
-                  showArchiveAction={false}
-                  canDispatchProcess={() => false}
-                  detailPathSuffix="/analise"
-                  emptyMessage={remoteSyncedForCurrentUser
+                {renderQueue(
+                  processRegistry.slice(0, 5),
+                  remoteSyncedForCurrentUser
                     ? allProcesses.length > 0
-                      ? "Existem registros no banco, mas nenhum corresponde à Prefeitura e ao perfil desta Análise. Confira o município vinculado à sessão ou os filtros."
+                      ? "Existem registros no banco, mas nenhum corresponde à Prefeitura e ao perfil desta Análise. Confira município e filtros."
                       : "Nenhum processo retornou para esta conta na consulta oficial."
-                    : "A consulta oficial ainda está sincronizando. Nenhum processo foi excluído."}
-                />
+                    : "A consulta oficial ainda está sincronizando. Nenhum processo foi excluído.",
+                )}
               </TableCard>
             </div>
 
