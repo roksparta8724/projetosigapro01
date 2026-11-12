@@ -198,7 +198,7 @@ export async function createAnalysisQueuePdf(
       const isAlert = colIndex === 3 && row.breached;
       pdf.setFont("helvetica", colIndex === 0 ? "bold" : "normal");
       pdf.setFontSize(8.1);
-      pdf.setTextColor(...(isAlert ? [171, 55, 49] as const : [33, 52, 69] as const));
+      pdf.setTextColor(isAlert ? 171 : 33, isAlert ? 55 : 52, isAlert ? 49 : 69);
       pdf.text(lines, positions[colIndex] + 2, currentY + 5.4);
     });
     currentY += height;
