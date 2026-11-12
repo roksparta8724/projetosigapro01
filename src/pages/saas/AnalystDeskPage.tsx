@@ -47,9 +47,6 @@ import {
   formatOfficialProcessTitle,
   getChecklistTemplate,
   getProcessPaymentGuides,
-  isProcessReleasedToUrbanAnalysis,
-  getVisibleProcessesByScope,
-  matchesOperationalScope,
   parseMarker,
   statusLabel,
   statusTone,
@@ -57,6 +54,7 @@ import {
   URBAN_ANALYSIS_DEPARTMENT,
 } from "@/lib/platform";
 import { usePlatformData } from "@/hooks/usePlatformData";
+import { buildAnalysisRegistry } from "@/lib/analysisRegistry";
 import { resolveProcessDispatchAuthor } from "@/lib/dispatchActorIdentity";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
@@ -112,6 +110,9 @@ export function AnalystDeskPage() {
   const {
     processes: allProcesses,
     sessionUsers,
+    remoteSyncedForCurrentUser,
+    dataError: platformDataError,
+    loading: platformDataLoading,
     refreshRemoteStore,
     updateProcessStatus,
     startProcessAnalysis,
@@ -147,8 +148,9 @@ export function AnalystDeskPage() {
 
   // Somente processos oficialmente liberados entram na fila operacional.
   // A existência de atribuição antiga não supre pagamento ou triagem.
-  const departmentProcesses = getVisibleProcessesByScope(session, effectiveScopeId, allProcesses)
-    .filter(isProcessReleasedToUrbanAnalysis);
+  const { departmentProcesses, registry: analysisRegistryBase } = buildAnalysisRegistry(
+    session, effectiveScopeId, allProcesses, remoteSyncedForCurrentUser,
+  );
 
   const refreshRemoteStoreRef = useRef(refreshRemoteStore);
 
@@ -191,14 +193,6 @@ export function AnalystDeskPage() {
   // A fila operacional continua restrita ao setor atual, mas o registro da Análise
   // mantém os processos que já passaram pela mesa técnica, mesmo depois do envio
   // ao Financeiro ou a outra unidade.
-  const analysisRegistryBase = allProcesses.filter((item) => {
-    if (!matchesOperationalScope(effectiveScopeId, item)) return false;
-    if (!isProcessReleasedToUrbanAnalysis(item)) return false;
-    const isCurrentlyVisible = departmentProcesses.some((current) => current.id === item.id);
-    const wasAnalyzed = Boolean(item.analysis?.startedAt || item.analysis?.assignedTo || item.analysis?.assignedProfileId);
-    return isCurrentlyVisible || wasAnalyzed;
-  });
-
   const filterBySearch = (item: ProcessRecord) => {
     const haystack = `${formatOfficialProcessNumber(item.protocol)} ${item.externalProtocol} ${item.title} ${item.ownerName} ${item.property.iptu} ${item.address} ${item.analysis?.assignedTo || ""} ${item.processControl?.currentFolder || ""}`.toLowerCase();
     return haystack.includes(search.trim().toLowerCase());
@@ -644,7 +638,11 @@ export function AnalystDeskPage() {
     <div className="space-y-3.5">
       {items.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-sm leading-6 text-slate-600">
-          {emptyMessage}
+          {remoteSyncedForCurrentUser
+            ? emptyMessage
+            : platformDataError
+              ? "Não foi possível confirmar os processos no banco oficial. Confira o aviso de sincronização acima."
+              : "Aguardando a conferência dos processos no banco oficial..."}
         </div>
       ) : (
         items.map((process) => {
@@ -1177,6 +1175,7 @@ export function AnalystDeskPage() {
             <Button
               type="button"
               className="rounded-full bg-slate-950 hover:bg-slate-900"
+              disabled={!remoteSyncedForCurrentUser}
               onClick={() =>
                 downloadCsv("relatorio-analise.csv", [
                   ["Protocolo", "Projeto", "Status", "SLA", "Pendências", "Responsável"],
@@ -1196,6 +1195,33 @@ export function AnalystDeskPage() {
             </Button>
           }
         />
+
+        {!remoteSyncedForCurrentUser ? (
+          <div
+            role={platformDataError ? "alert" : "status"}
+            data-analysis-sync-state={platformDataError ? "error" : "pending"}
+            className={`mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-sm ${platformDataError
+              ? "border-amber-300 bg-amber-50 text-amber-950"
+              : "border-sky-200 bg-sky-50 text-slate-900"}`}
+          >
+            <div className="min-w-0">
+              <p className="font-bold">
+                {platformDataError ? "Sincronização oficial não confirmada" : "Sincronizando processos com o Neon..."}
+              </p>
+              <p className="mt-1 text-xs leading-5">
+                {platformDataError || (
+                  platformDataLoading
+                    ? "Consultando os protocolos, suas guias e a atribuição técnica."
+                    : "Aguardando validação da sessão e dos dados oficiais. Nenhum processo foi excluído."
+                )}
+              </p>
+            </div>
+            <Button type="button" variant="outline" className="shrink-0 border-slate-300 bg-white text-slate-900"
+              onClick={() => { void refreshRemoteStore().catch(() => undefined); }}>
+              Atualizar do banco
+            </Button>
+          </div>
+        ) : null}
 
         {actionStatus ? (
           <div
