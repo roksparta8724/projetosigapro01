@@ -390,7 +390,7 @@ export function TenantAdminPage() {
     message: string;
   }>({ tone: "idle", message: "" });
   const [savingUserId, setSavingUserId] = useState<string | null>(null);
-  const [workspaceView, setWorkspaceView] = useState<WorkspaceView>("visao-geral");
+  const [workspaceView, setWorkspaceView] = useState<WorkspaceView>("fila");
   const [queueSearch, setQueueSearch] = useState("");
   const [overviewProcessStatus, setOverviewProcessStatus] = useState<"todos" | "andamento" | "pendentes" | "concluidos">("todos");
   const [overviewProcessSearch, setOverviewProcessSearch] = useState("");
@@ -1363,8 +1363,10 @@ export function TenantAdminPage() {
           onChange={(value) => {
             const next = value as WorkspaceView;
             setWorkspaceView(next);
-            if (isNestedOverview) {
-              navigate(next === "visao-geral" ? "/prefeitura" : `/prefeitura?secao=${encodeURIComponent(next)}`);
+            if (next === "visao-geral") {
+              navigate("/prefeitura/visao-geral/processos");
+            } else if (isNestedOverview) {
+              navigate(`/prefeitura?secao=${encodeURIComponent(next)}`);
             }
           }}
           persistInUrl={!isNestedOverview}
