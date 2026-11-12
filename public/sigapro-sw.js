@@ -27,8 +27,8 @@ function safeAssetResponse(request, response) {
   // Cache-first MUST NOT preserve HTML under a JavaScript/CSS asset URL.
   if (!type || type.includes("text/html") || type.includes("application/xhtml+xml")) return false;
   const path = new URL(request.url).pathname.toLowerCase();
-  if (/\\.(?:m?js|cjs)$/.test(path)) return /javascript|ecmascript/.test(type);
-  if (/\\.css$/.test(path)) return type.includes("text/css");
+  if (/\.(?:m?js|cjs)$/.test(path)) return /javascript|ecmascript/.test(type);
+  if (/\.css$/.test(path)) return type.includes("text/css");
   return true;
 }
 
