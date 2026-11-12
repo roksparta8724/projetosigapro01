@@ -1501,10 +1501,11 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
       officializedAt: process.officialized_at ?? undefined,
       title: process.title,
       type: process.process_type,
-      status:
-        constructionPermit?.status === "signed"
-          ? "deferido"
-          : process.status,
+      // The process status is owned by the official workflow. A separately
+      // signed construction permit is evidence of a signed artifact, NOT
+      // authorization to silently rewrite a process still in technical review.
+      // Keep the permit's state in processControl.checkpoint instead.
+      status: process.status,
       ownerName: ownerProfile?.full_name ?? owner?.display_name ?? "Nao informado",
       ownerDocument:
         ownerPrivate?.document_number ??

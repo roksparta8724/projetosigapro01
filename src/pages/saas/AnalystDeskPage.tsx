@@ -322,7 +322,8 @@ export function AnalystDeskPage() {
   ] as const;
   const inReview = activeProcesses.filter((item) => item.status === "analise_tecnica");
   const completed = processes.filter((item) => ["deferido", "arquivado"].includes(item.status));
-  const visibleCompleted = completed.filter((item) => !archivedProcessIds.includes(item.id));
+  // Personal archive markers cannot erase official completed-process totals.
+  const visibleCompleted = completed;
   const correctionQueue = activeProcesses.filter(
     (item) => item.status === "reapresentacao" || item.status === "exigencia",
   );
@@ -341,11 +342,10 @@ export function AnalystDeskPage() {
       Boolean(item.analysis?.startedAt || item.analysis?.assignedTo || item.analysis?.assignedProfileId),
   );
   const processRegistry = [...analysisRegistryProcesses]
-    .filter((item) =>
-      showArchived
-        ? archivedProcessIds.includes(item.id)
-        : !archivedProcessIds.includes(item.id),
-    )
+    // Default is the full municipal record. Personal archived markers may
+    // highlight rows or constrain the explicit Archives view, never hide real
+    // official processes on the main screen.
+    .filter((item) => !showArchived || archivedProcessIds.includes(item.id))
     .sort((a, b) => {
       const aActive = analysisActiveStatuses.includes(a.status as (typeof analysisActiveStatuses)[number]) ? 1 : 0;
       const bActive = analysisActiveStatuses.includes(b.status as (typeof analysisActiveStatuses)[number]) ? 1 : 0;
@@ -1259,6 +1259,34 @@ export function AnalystDeskPage() {
               <StatCard label="SLA crítico" value={String(slaCritical.length)} description="Prazo curto ou vencido" icon={TimerReset} tone="rose" />
               <StatCard label="Concluídos" value={String(completed.length)} description="Decisões finalizadas" icon={CheckCircle2} tone="emerald" />
             </PageStatsRow>
+
+            <div data-analysis-official-processes="true">
+              <TableCard
+                title="Processos oficiais da Prefeitura"
+                description="Registro do município com o status real de cada processo. Arquivamentos pessoais não escondem processos da visão principal. Os cinco primeiros aparecem abaixo."
+                icon={ListTodo}
+                actions={
+                  <Button type="button" variant="outline" className="rounded-full"
+                    onClick={() => setSection("fila")}>
+                    Abrir lista completa
+                  </Button>
+                }
+              >
+                <p role="status" className="mb-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-800">
+                  {remoteSyncedForCurrentUser
+                    ? `Neon confirmou ${allProcesses.length} registro(s) acessível(is) à sessão e ${analysisRegistryBase.length} processo(s) nesta Análise.`
+                    : "Aguardando confirmação dos processos no Neon; não é uma lista vazia definitiva."}
+                </p>
+                {renderQueue(
+                  processRegistry.slice(0, 5),
+                  remoteSyncedForCurrentUser
+                    ? allProcesses.length > 0
+                      ? "Existem registros no banco, mas nenhum corresponde à Prefeitura e ao perfil desta Análise. Confira município e filtros."
+                      : "Nenhum processo retornou para esta conta na consulta oficial."
+                    : "A consulta oficial ainda está sincronizando. Nenhum processo foi excluído.",
+                )}
+              </TableCard>
+            </div>
 
             <PageMainGrid>
               <PageMainContent>
