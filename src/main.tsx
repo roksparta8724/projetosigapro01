@@ -6,6 +6,7 @@ import "./styles/surface-polarity.css";
 import "./styles/premium-navigation-contrast.css";
 import "./styles/institutional-premium-v3.css";
 import "./styles/municipal-executive-v4.css";
+import "./styles/dashboard-topbar-premium-v6.css";
 
 const CONTINUITY_KEY = "sigapro.refresh.continuity.v1";
 const PLATFORM_SESSION_CACHE_KEY = "sigapro.platform.session.v1";

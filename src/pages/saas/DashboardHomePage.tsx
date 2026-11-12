@@ -21,7 +21,6 @@ import {
 } from "lucide-react";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, XAxis, YAxis } from "recharts";
 import { PortalFrame } from "@/components/platform/PortalFrame";
-import { PageHero } from "@/components/platform/PageHero";
 import { PageMainContent, PageMainGrid, PageShell, PageSideContent, PageStatsRow } from "@/components/platform/PageShell";
 import { MetricCard } from "@/components/platform/MetricCard";
 import { SectionCard } from "@/components/platform/SectionCard";
@@ -732,14 +731,14 @@ export function DashboardHomePage() {
           <Button
             type="button"
             variant="outline"
-            className="rounded-full"
+            className="h-9 rounded-xl border-sky-200 bg-white px-3 font-semibold !text-[#123650] hover:bg-sky-50"
             onClick={() => navigate("/externo/controle")}
           >
             Controle de processos
           </Button>
           <Button
             type="button"
-            className="rounded-full bg-slate-950 hover:bg-slate-900 dark:bg-sky-500 dark:text-slate-950 dark:hover:bg-sky-400"
+            className="h-9 rounded-xl border-sky-400/40 bg-sky-500/15 px-3 font-semibold !text-white hover:bg-sky-500/25"
             onClick={() => navigate("/externo/pagamentos")}
           >
             Pagamentos
@@ -750,14 +749,14 @@ export function DashboardHomePage() {
           <Button
             type="button"
             variant="outline"
-            className="rounded-full"
+            className="h-9 rounded-xl border-sky-200 bg-white px-3 font-semibold !text-[#123650] hover:bg-sky-50"
             onClick={() => navigate("/dashboard/processos")}
           >
             Ver processos
           </Button>
           <Button
             type="button"
-            className="rounded-full bg-slate-950 hover:bg-slate-900 dark:bg-sky-500 dark:text-slate-950 dark:hover:bg-sky-400"
+            className="h-9 rounded-xl border-sky-400/40 bg-sky-500/15 px-3 font-semibold !text-white hover:bg-sky-500/25"
             onClick={() => navigate("/dashboard/operacional")}
           >
             Abrir leitura operacional
@@ -1184,9 +1183,41 @@ export function DashboardHomePage() {
   };
 
   return (
-    <PortalFrame eyebrow="DASHBOARD" title="Resumo institucional">
+    <PortalFrame eyebrow="DASHBOARD" title="Resumo institucional" compactHeader>
       <PageShell>
-        <PageHero eyebrow="Resumo executivo" title={headlineTitle} description={headlineDescription} icon={LayoutDashboard} actions={heroActions} />
+        <section
+          data-dashboard-hero="compact-v6"
+          aria-label="Painel executivo do Dashboard"
+          className="min-w-0 overflow-hidden rounded-[18px] border border-[#356982] bg-[linear-gradient(120deg,#0d3048_0%,#0d3854_57%,#10516b_100%)] p-4 text-white shadow-[0_12px_28px_rgba(5,35,57,0.16)] sm:p-5"
+        >
+          <div className="flex min-w-0 flex-wrap items-start justify-between gap-x-5 gap-y-3">
+            <div className="flex min-w-0 flex-1 items-start gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/15 bg-white/10 text-sky-100">
+                <LayoutDashboard className="h-5 w-5" aria-hidden="true" />
+              </span>
+              <div className="min-w-0">
+                <p data-dashboard-hero-eyebrow="true" className="text-[10px] font-bold uppercase tracking-[0.15em] text-sky-200">Dashboard • {institutionName}</p>
+                <h1 data-dashboard-hero-title="true" className="mt-1 text-lg font-extrabold leading-tight text-white sm:text-xl">{headlineTitle}</h1>
+                <p data-dashboard-hero-description="true" className="mt-1 max-w-[68ch] text-xs leading-5 text-sky-100">{headlineDescription}</p>
+              </div>
+            </div>
+            <div data-dashboard-hero-actions="true" className="shrink-0 self-start">{heroActions}</div>
+          </div>
+          <div data-dashboard-hero-facts="true" className="mt-3 grid min-w-0 grid-cols-1 gap-2 border-t border-white/15 pt-3 sm:grid-cols-3">
+            {[
+              { label: isMaster ? "Prefeituras ativas" : isExternal ? "Meus protocolos" : "Processos ativos",
+                value: isMaster ? masterMetrics.activeTenants : isExternal ? externalProcesses.length : inProgressCount },
+              { label: isMaster ? "Processos monitorados" : "Concluídos",
+                value: isMaster ? officialProcesses.length : completedCount },
+              { label: "Prazos vencidos", value: breachedCount },
+            ].map((item) => (
+              <div key={item.label} data-dashboard-hero-fact="true" className="flex min-w-0 items-center justify-between gap-3 rounded-lg border border-white/15 bg-white/[0.07] px-3 py-2">
+                <span className="truncate text-xs font-medium text-sky-100" title={item.label}>{item.label}</span>
+                <strong className="shrink-0 text-lg font-extrabold tabular-nums text-white">{item.value.toLocaleString("pt-BR")}</strong>
+              </div>
+            ))}
+          </div>
+        </section>
 
         {section === "visao-geral" && showPlanCapacity && !isMaster ? renderPlanCapacity() : null}
 

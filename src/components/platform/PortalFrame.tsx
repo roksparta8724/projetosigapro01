@@ -1351,6 +1351,8 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false, compa
           "--sig-topbar-depth": topbarDepth,
           "--sig-footer": footerFill,
           "--sig-sidebar-stripe-width": sidebarExpanded ? "232px" : "76px",
+          "--sig-topbar-height": "60px",
+          "--sig-topbar-height-mobile": "60px",
           "--sig-sidebar-fill": sidebarFill,
           "--sig-inverse-accent-soft": withAlpha(accentColor, "0.08"),
           "--sig-inverse-accent-medium": withAlpha(accentColor, "0.16"),
@@ -1379,7 +1381,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false, compa
           boxShadow: `inset 0 1px 0 rgba(255,255,255,0.12), inset 0 -1px 0 ${withAlpha(primaryColor, "0.24")}, 0 8px 24px ${withAlpha(primaryColor, "0.18")}`,
         }}
       >
-        <div className="sig-topbar-shell flex min-h-[60px] items-center gap-3 px-2.5 sm:px-3.5 lg:min-h-[68px] lg:gap-3.5 lg:px-5 2xl:px-7">
+        <div className="sig-topbar-shell flex min-h-[60px] items-center gap-2 px-2.5 sm:px-3 lg:min-h-[60px] lg:gap-2.5 lg:px-4 2xl:px-5">
           <div
             className="sig-topbar-brand-cluster flex min-w-0 items-center gap-3 pr-1 lg:hidden lg:pr-4"
             style={{ display: isDesktopTopbarViewport ? "none" : undefined }}
@@ -1517,7 +1519,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false, compa
           >
             <div className="sig-topbar-primary-group flex min-w-0 flex-1 items-center gap-4">
               <div className="sig-topbar-brand-cluster flex min-w-0 items-center gap-3.5 pr-1">
-                <div className="sig-topbar-brand-logo flex h-[54px] w-[54px] items-center justify-center">
+                <div className="sig-topbar-brand-logo flex h-[46px] w-[46px] items-center justify-center">
                   <div className="sig-topbar-brand-badge flex items-center justify-center">
                     <img src={getPublicAssetUrl("favicon-sigapro.svg")} alt="SIGAPRO" className="sig-topbar-brand-image" />
                   </div>
@@ -1536,11 +1538,11 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false, compa
               </div>
             </div>
 
-            <div className="sig-topbar-actions-wrap flex shrink-0 items-center gap-2.5 pr-1 2xl:pr-2">
+            <div className="sig-topbar-actions-wrap flex shrink-0 items-center gap-2 pr-0.5 2xl:pr-1">
               <button
                 type="button"
                 className={cn(
-                  "sig-topbar-menu-trigger inline-flex h-[40px] items-center gap-2.5 rounded-[15px] px-3.5 text-[12.5px] font-medium transition duration-200 hover:-translate-y-[1px]",
+                  "sig-topbar-menu-trigger inline-flex h-[38px] items-center gap-2 rounded-[13px] px-2.5 text-[12.5px] font-medium transition duration-200 hover:-translate-y-[1px]",
                   topbarGhostButton,
                 )}
                 onClick={() => {
@@ -1557,25 +1559,25 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false, compa
                 aria-label="Alternar menu lateral"
                 title="Menu"
               >
-                <span className="sig-topbar-menu-icon inline-flex h-[34px] w-[34px] items-center justify-center rounded-[12px]">
+                <span className="sig-topbar-menu-icon inline-flex h-[30px] w-[30px] items-center justify-center rounded-[10px]">
                   <Menu className="h-[18px] w-[18px]" />
                 </span>
                 <span className="hidden font-semibold tracking-[0.01em] xl:inline">Menu</span>
               </button>
 
-              <div className="sig-topbar-search-wrap relative w-[220px] xl:w-[300px] 2xl:w-[340px]">
+              <div className="sig-topbar-search-wrap relative w-[190px] xl:w-[240px] 2xl:w-[270px]">
                 <button
                   type="button"
                   onClick={() => setCommandOpen(true)}
                   className={cn(
-                    "sig-topbar-search sig-topbar-search-trigger group flex h-[42px] w-full items-center gap-3 rounded-[16px] px-3.5 transition duration-200 hover:-translate-y-[1px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40",
+                    "sig-topbar-search sig-topbar-search-trigger group flex h-[38px] w-full items-center gap-2 rounded-[13px] px-2.5 transition duration-200 hover:-translate-y-[1px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40",
                     topbarSearchButton,
                   )}
                   aria-label="Busca global"
                   title="Pesquisar"
                   data-search-surface={inverseMainTheme ? "light" : "dark"}
                 >
-                  <span className="sig-topbar-search-icon inline-flex h-[34px] w-[34px] items-center justify-center rounded-[12px] transition">
+                  <span className="sig-topbar-search-icon inline-flex h-[30px] w-[30px] items-center justify-center rounded-[10px] transition">
                     <Search className="h-[18px] w-[18px]" />
                   </span>
                   <span className="sig-topbar-search-label min-w-0 flex-1 truncate text-left text-[14px] font-semibold tracking-[0.01em]">
@@ -2047,7 +2049,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false, compa
 
             <div
               className={cn(
-                "sig-topbar-account-cluster relative flex h-[50px] shrink-0 items-center gap-1 rounded-[18px] border px-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]",
+                "sig-topbar-account-cluster relative flex h-[46px] shrink-0 items-center gap-0.5 rounded-[15px] border px-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]",
                 darkTopbar
                   ? "border-white/12 bg-white/[0.07]"
                   : "border-slate-200/90 bg-white/92",
@@ -2100,7 +2102,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false, compa
                   <button
                     type="button"
                     className={cn(
-                      "sig-topbar-profile-cluster flex h-[40px] items-center gap-2 rounded-[13px] px-1.5 pr-2 transition duration-150",
+                      "sig-topbar-profile-cluster flex h-[38px] items-center gap-1.5 rounded-[12px] px-1 pr-1.5 transition duration-150",
                       topbarProfileButton,
                     )}
                     aria-label="Abrir conta do usuário"
