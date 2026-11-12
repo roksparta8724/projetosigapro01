@@ -488,6 +488,14 @@ export function MasterAdminPage() {
     setSaving(true);
     setStatusMessage("");
     const normalizedSubdomain = normalizeSubdomainInput(form.subdomain || form.city || form.name);
+    // Never sell a qualified ICP-Brasil signature as operational merely
+    // because a value exists in tenant_settings. A verified provider, PDF
+    // cryptographic signature and chain validation are still required.
+    if (form.signatureMode === "icp_brasil") {
+      setStatusMessage("ICP-Brasil exige credenciamento, integração e homologação de assinatura qualificada. Selecione Assinatura Eletrônica ou Manual para a operação atual.");
+      setSaving(false);
+      return;
+    }
     if (!form.name.trim()) {
       setStatusMessage("Informe o nome institucional antes de salvar.");
       setSaving(false);
@@ -1084,9 +1092,17 @@ export function MasterAdminPage() {
                           <SelectContent>
                             <SelectItem value="eletronica">Eletrônica</SelectItem>
                             <SelectItem value="manual">Manual</SelectItem>
-                            <SelectItem value="icp_brasil">ICP Brasil</SelectItem>
+                            <SelectItem value="icp_brasil" disabled>ICP-Brasil · requer provedor credenciado</SelectItem>
                           </SelectContent>
                         </Select>
+                        <p role="note" data-icp-brazil-pending="true"
+                          className="mt-2 text-xs leading-5 text-slate-700">
+                          Assinaturas eletrônicas já funcionam conforme o perfil autorizado.
+                          ICP-Brasil é opcional, mas só poderá ser ativada após integrar e
+                          homologar um prestador que gere e valide assinaturas qualificadas
+                          com certificado, cadeia de confiança e PDF original verificável.
+                          A escolha cadastral não emite certificado ICP.
+                        </p>
                       </div>
                     </div>
                   <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-12">
