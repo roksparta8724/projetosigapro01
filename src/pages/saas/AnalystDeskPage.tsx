@@ -322,7 +322,8 @@ export function AnalystDeskPage() {
   ] as const;
   const inReview = activeProcesses.filter((item) => item.status === "analise_tecnica");
   const completed = processes.filter((item) => ["deferido", "arquivado"].includes(item.status));
-  const visibleCompleted = completed.filter((item) => !archivedProcessIds.includes(item.id));
+  // Personal archive markers cannot erase official completed-process totals.
+  const visibleCompleted = completed;
   const correctionQueue = activeProcesses.filter(
     (item) => item.status === "reapresentacao" || item.status === "exigencia",
   );
@@ -341,11 +342,10 @@ export function AnalystDeskPage() {
       Boolean(item.analysis?.startedAt || item.analysis?.assignedTo || item.analysis?.assignedProfileId),
   );
   const processRegistry = [...analysisRegistryProcesses]
-    .filter((item) =>
-      showArchived
-        ? archivedProcessIds.includes(item.id)
-        : !archivedProcessIds.includes(item.id),
-    )
+    // Default is the full municipal record. Personal archived markers may
+    // highlight rows or constrain the explicit Archives view, never hide real
+    // official processes on the main screen.
+    .filter((item) => !showArchived || archivedProcessIds.includes(item.id))
     .sort((a, b) => {
       const aActive = analysisActiveStatuses.includes(a.status as (typeof analysisActiveStatuses)[number]) ? 1 : 0;
       const bActive = analysisActiveStatuses.includes(b.status as (typeof analysisActiveStatuses)[number]) ? 1 : 0;
