@@ -197,7 +197,7 @@ export function ProtocolDeskPage() {
   const [protocolActionStatus, setProtocolActionStatus] = useState("");
   const [protocolActionBusy, setProtocolActionBusy] = useState("");
   const [markerFilter, setMarkerFilter] = useState("todos");
-  const [section, setSection] = useState<ProtocolSection>("visao-geral");
+  const [section, setSection] = useState<ProtocolSection>("fila");
   const [pendingPreprotocolPayments, setPendingPreprotocolPayments] = useState<
     PendingPreprotocolPayment[]
   >([]);
