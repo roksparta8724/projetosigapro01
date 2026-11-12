@@ -1241,7 +1241,7 @@ export function AnalystDeskPage() {
 
   return (
     <PortalFrame eyebrow="MESA TÉCNICA" title="Fila técnica, SLA e decisões" compactHeader>
-      <PageShell className="sig-analysis-page !flex !flex-col !gap-3 !pb-5">
+      <PageShell className={section === "visao-geral" ? "sig-analysis-page sig-module-summary-active !flex !flex-col !gap-3 !pb-5" : "sig-analysis-page !flex !flex-col !gap-3 !pb-5"}>
         <section data-analysis-command-bar="true"
           className="flex min-w-0 flex-col gap-4 rounded-[18px] border border-slate-200 bg-white px-4 py-4 shadow-[0_8px_22px_rgba(15,23,42,0.045)] dark:border-slate-700 dark:bg-slate-900 sm:px-5 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex min-w-0 items-center gap-3">
