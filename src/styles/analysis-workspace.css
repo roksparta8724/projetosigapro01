@@ -102,6 +102,42 @@ header[data-sigapro-compact-header="true"] .sig-institution-logo-surface[data-lo
 }
 
 
+
+/* The analysis desk follows the same enterprise design as all other modules. */
+[data-layout-mode="default"] [data-analysis-command-bar="true"] {
+  background: linear-gradient(125deg, #123b57, #0c304a 75%, #15516b) !important;
+  border-color: #356b86 !important;
+  box-shadow: 0 10px 28px rgba(9, 41, 64, .14) !important;
+}
+[data-layout-mode="default"] [data-analysis-command-bar="true"] :is(h2,p) {
+  color: #e2f2fa !important;
+  -webkit-text-fill-color: #e2f2fa !important;
+}
+[data-layout-mode="default"] [data-analysis-command-bar="true"] h2 {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+[data-layout-mode="default"] [data-analysis-command-bar="true"] > div:first-child > span:first-child {
+  background: rgba(255,255,255,.1) !important;
+  border: 1px solid rgba(191,226,243,.3);
+}
+[data-layout-mode="default"] [data-analysis-process-panel="true"] {
+  background: linear-gradient(180deg, #f8fbfe, #edf4fa) !important;
+  border-color: #c5d9e8 !important;
+}
+[data-layout-mode="default"] [data-analysis-process-panel="true"] > header {
+  background: #e3eef7 !important;
+  border-color: #c6d9e7 !important;
+}
+[data-layout-mode="default"] [data-analysis-process-panel="true"] > header h3 {
+  color: #123550 !important;
+  -webkit-text-fill-color: #123550 !important;
+}
+[data-layout-mode="default"] [data-analysis-process-panel="true"] > header p {
+  color: #526b80 !important;
+  -webkit-text-fill-color: #526b80 !important;
+}
+
 /* Inverse-main é distinto da classe Tailwind dark; manter polaridade determinística. */
 [data-layout-mode="inverse-main"] [data-analysis-command-bar="true"],
 [data-layout-mode="inverse-main"] [data-analysis-process-panel="true"] {
