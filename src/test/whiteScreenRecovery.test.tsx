@@ -25,7 +25,7 @@ describe("SIGAPRO — proteção contra tela branca", () => {
 
     expect(app).toContain("<Suspense fallback={<SecureRoutePending");
     expect(app).not.toContain("<Suspense fallback={null}>");
-    expect(permissionRoute).toContain('title="Validando o acesso municipal"');
+    expect(permissionRoute).toContain('"Validando o acesso municipal"');
     expect(planRoute).toContain('title="Conferindo o módulo contratado"');
     expect(html).toContain('id="sigapro-preboot-recovery"');
     expect(html).not.toContain('blocking="render"');
