@@ -17,7 +17,7 @@ export function CollectionSettingsPage() {
       Nenhuma cobrança de produção ou alvará oficial é liberado por esta tela.
       Ao trocar de 8080 para 8081, entre novamente neste ambiente.
     </div> : null}
-    {municipalityId && isolatedQa ? <MunicipalCommercialReadiness municipalityId={municipalityId}/> : null}
+    {municipalityId ? <MunicipalCommercialReadiness municipalityId={municipalityId}/> : null}
     {municipalityId?<MunicipalCollectionSettings municipalityId={municipalityId} municipalityName={name} readOnly={!canEdit}/>:<div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-900">Prefeitura não identificada.</div>}
   </PageShell></PortalFrame>;
 }
