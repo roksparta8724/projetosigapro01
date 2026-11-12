@@ -62,6 +62,24 @@ describe("premium institutional v3, all internal pages", () => {
     expect(app).not.toContain('title="Carregando a página solicitada"');
   });
 
+  it("does not add extra viewport height or lose desktop menu after scrolling", () => {
+    expect(frame).not.toContain('minHeight: "117.6470588235vh"');
+    expect(css).toContain('grid-auto-rows: max-content !important');
+    expect(css).toContain('position: sticky !important');
+    expect(css).toContain('top: var(--sig-topbar-height, 68px) !important');
+    expect(css).toContain('overflow-y: auto !important');
+    expect(css).toContain('height: auto !important');
+  });
+
+  it("does not flash the preboot recovery screen during successful reload", () => {
+    const html = source("index.html");
+    expect(html).toContain('data-sigapro-boot-slow');
+    expect(html).toContain('}, 2000);');
+    expect(html).toContain('display: none;');
+    expect(html).toContain('data-sigapro-initial-render="true"][data-sigapro-boot-slow="true"]');
+    expect(html).not.toContain('blocking="render"');
+  });
+
   it("does not create a giant white verification card during cold route load", () => {
     const { container } = render(<SecureRoutePending surface="route" />);
     const mainElement = screen.getByRole("status");
