@@ -1167,7 +1167,7 @@ export function ProtocolDeskPage() {
 
   return (
     <PortalFrame eyebrow="SETOR DE PROTOCOLO" title="Triagem municipal, atendimento e fluxo inicial">
-      <PageShell>
+      <PageShell className={section === "visao-geral" ? "sig-module-summary-active" : undefined}>
         <PageHeader
           eyebrow="Operação de protocolo"
           title="Recepção, conferência documental e despacho inicial"
