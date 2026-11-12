@@ -10,6 +10,7 @@ import { useTenant } from "@/hooks/useTenant";
 import { can, canAccessMunicipalArea, getRoleLandingPath, isInternalRole } from "@/lib/platform";
 import type { Permission, SessionUser, UserRole } from "@/lib/platform";
 import { hasValidRefreshContinuity } from "@/lib/refreshContinuity";
+import { SecureRoutePending } from "@/components/platform/SecureRoutePending";
 
 export function PermissionRoute({
   permission,
@@ -71,8 +72,15 @@ export function PermissionRoute({
       );
     }
 
-    // Cold start real sem continuidade: não liberar conteúdo antes da identidade.
-    return null;
+    // A identidade continua bloqueando conteúdo, mas nunca exibir uma tela vazia.
+    return (
+      <SecureRoutePending
+        title={bootstrap.stage === "bootstrap_error" ? "Não foi possível validar o acesso" : "Validando o acesso municipal"}
+        detail={bootstrap.stage === "bootstrap_error"
+          ? "A autenticação não foi concluída. Use Recarregar ou volte ao acesso para tentar novamente."
+          : "Estamos verificando a sessão e o vínculo com a Prefeitura. Nenhum processo fica visível antes da confirmação."}
+      />
+    );
   }
 
 
