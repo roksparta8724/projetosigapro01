@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { CompactProcessRegistry } from "@/components/platform/CompactProcessRegistry";
-import { statusLabel, type ProcessRecord } from "@/lib/platform";
+import { formatOfficialProcessNumber, statusLabel, type ProcessRecord } from "@/lib/platform";
 
 afterEach(()=>cleanup());
 
@@ -45,7 +45,7 @@ describe("SIGAPRO — actual DOM visibility for the 3 production process states"
     expect(container.querySelectorAll('[data-sei-process-row="true"]')).toHaveLength(3);
     expect(container.querySelectorAll('[data-sei-process-link="true"]')).toHaveLength(3);
     for(const process of records){
-      expect(screen.getByTitle("Abrir "+process.protocol)).toBeInTheDocument();
+      expect(screen.getByTitle("Abrir "+formatOfficialProcessNumber(process.protocol))).toBeInTheDocument();
     }
     expect(screen.getAllByText(statusLabel("analise_tecnica"))).toHaveLength(2);
     expect(screen.getAllByText(statusLabel("deferido"))).toHaveLength(1);
