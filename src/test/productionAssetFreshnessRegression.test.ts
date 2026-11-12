@@ -50,7 +50,9 @@ describe("entrega de ativos atuais no site oficial", () => {
   });
 
   it("invalida caches de versões anteriores sem afetar dados do Neon", () => {
-    expect(worker).toContain('CACHE_VERSION = "sigapro-enterprise-v6"');
+    expect(worker).toContain('CACHE_VERSION = "sigapro-enterprise-v7"');
+    expect(worker).toContain("safeAssetResponse(request, response)");
+    expect(worker).toContain('type.includes("text/html")');
     expect(worker).toContain('key.startsWith("sigapro-enterprise-")');
     expect(worker).toContain('event.respondWith(fetch(request, { cache: "no-store" }))');
     expect(worker).not.toContain("indexedDB");

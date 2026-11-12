@@ -132,6 +132,7 @@
 
         document.documentElement.style.zoom = initialAppZoom;
         document.documentElement.setAttribute("data-page-zoom", "100");
+        document.documentElement.setAttribute("data-sigapro-document-route", isFullDocumentRoute ? "true" : "false");
         document.documentElement.setAttribute("data-sigapro-initial-render", "true");
 
         // Atualiza o Service Worker mesmo quando o bundle da aplicação não inicia.
@@ -207,6 +208,23 @@
         border: 1px solid #e2e8f0;
         background: white;
         box-shadow: 0 24px 60px rgba(15, 23, 42, 0.10);
+      }
+      html[data-sigapro-document-route="true"] #sigapro-preboot-recovery {
+        background: #2b3037;
+        color: #f8fafc;
+      }
+      html[data-sigapro-document-route="true"] #sigapro-preboot-recovery > section {
+        background: #102637;
+        border-color: #475569;
+      }
+      html[data-sigapro-document-route="true"] #sigapro-preboot-recovery h1 {
+        color: #ffffff;
+      }
+      html[data-sigapro-document-route="true"] #sigapro-preboot-recovery p {
+        color: #cbd5e1;
+      }
+      html[data-sigapro-document-route="true"] #sigapro-preboot-recovery strong {
+        color: #bae6fd !important;
       }
       #sigapro-preboot-recovery h1 {
         margin: 10px 0 0;

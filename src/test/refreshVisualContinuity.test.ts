@@ -37,7 +37,8 @@ describe("F5, logout and topbar visual continuity", () => {
     expect(html).not.toContain("sigapro-soft-refresh");
     expect(html).toContain('type="module"');
     expect(html).toContain('src="/src/main.tsx"');
-    expect(html).toContain('blocking="render"');
+    expect(html).toContain('id="sigapro-preboot-recovery"');
+    expect(html).not.toContain('blocking="render"');
     expect(html).toContain('fetchpriority="high"');
     expect(main).toContain('import { flushSync } from "react-dom"');
     expect(main).toContain("flushSync(() =>");

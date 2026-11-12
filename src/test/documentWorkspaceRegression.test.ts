@@ -28,8 +28,10 @@ describe("document workspace continuity", () => {
     expect(html).toContain('var isFullDocumentRoute =');
     expect(html).toContain('initialBackground = isFullDocumentRoute ? "#2b3037"');
     expect(html).not.toContain('data-sigapro-document-preboot="true"');
-    expect(permission).toContain('data-document-route-preboot="silent"');
-    expect(permission).toContain('className="min-h-screen bg-[#2b3037]"');
+    expect(permission).toContain('surface="document"');
+    expect(permission).toContain('title="Preparando o documento oficial"');
+    expect(permission).not.toContain('data-document-route-preboot="silent"');
+    expect(html).toContain('html[data-sigapro-document-route="true"] #sigapro-preboot-recovery');
     expect(permission).not.toContain("<DocumentWorkspaceBoot");
   });
 

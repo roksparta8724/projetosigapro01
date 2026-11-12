@@ -63,6 +63,7 @@ export function PermissionRoute({
       // Um PDF restrito também deve dar feedback sem expor dados antes da autenticação.
       return (
         <SecureRoutePending
+          surface="document"
           title="Preparando o documento oficial"
           detail="Verificando se sua sessão tem autorização para abrir este documento."
         />

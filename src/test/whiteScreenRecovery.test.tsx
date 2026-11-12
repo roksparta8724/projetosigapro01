@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { SecureRoutePending } from "@/components/platform/SecureRoutePending";
@@ -14,14 +15,11 @@ describe("SIGAPRO — proteção contra tela branca", () => {
   });
 
   it("não volta a introduzir fallbacks silenciosos nos gates principais", () => {
-    const app = readFileSync(new URL("../App.tsx", import.meta.url), "utf8");
-    const permissionRoute = readFileSync(
-      new URL("../components/platform/PermissionRoute.tsx", import.meta.url), "utf8",
-    );
-    const planRoute = readFileSync(
-      new URL("../components/platform/PlanModuleRoute.tsx", import.meta.url), "utf8",
-    );
-    const html = readFileSync(new URL("../../index.html", import.meta.url), "utf8");
+    const source = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
+    const app = source("src/App.tsx");
+    const permissionRoute = source("src/components/platform/PermissionRoute.tsx");
+    const planRoute = source("src/components/platform/PlanModuleRoute.tsx");
+    const html = source("index.html");
 
     expect(app).toContain("<Suspense fallback={<SecureRoutePending");
     expect(app).not.toContain("<Suspense fallback={null}>");
