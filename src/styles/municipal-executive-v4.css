@@ -195,3 +195,55 @@ html body #root [data-premium-design="institutional-v3"] .sig-main-shell
     animation: none !important;
   }
 }
+
+
+/* Other modules: Resumo/Visão geral is the LAST tab and gets compact
+   institutional section headers. Forms, ordinary work queues and Dashboard
+   stay governed by their own existing styles. */
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="default"] .sig-main-shell
+.sig-module-summary-active :is(.sig-section-card,.sig-ui-card)[data-premium-surface="section"] {
+  height: auto !important;
+  background: linear-gradient(180deg,#edf5fb 0%,#e2eef7 100%) !important;
+  border-color: #bed5e6 !important;
+  box-shadow: 0 8px 21px rgba(12,45,69,.065) !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="default"] .sig-main-shell
+.sig-module-summary-active :is(.sig-section-card,.sig-ui-card)[data-premium-surface="section"] > div:first-child {
+  background: linear-gradient(119deg,#103851 0%,#0e2e47 100%) !important;
+  border: 1px solid #356781 !important;
+  border-radius: 12px !important;
+  padding: 10px 12px !important;
+  margin: 0 !important;
+  color: #f6fbff !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="default"] .sig-main-shell
+.sig-module-summary-active :is(.sig-section-card,.sig-ui-card)[data-premium-surface="section"] > div:first-child :is(.sig-section-title,.sig-subtitle) {
+  color: #f2f9ff !important;
+  -webkit-text-fill-color: #f2f9ff !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="default"] .sig-main-shell
+.sig-module-summary-active :is(.sig-section-card,.sig-ui-card)[data-premium-surface="section"] > div:first-child .sig-subtitle {
+  color: #cde4f3 !important;
+  -webkit-text-fill-color: #cde4f3 !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="default"] .sig-main-shell
+.sig-module-summary-active :is(.sig-section-card,.sig-ui-card)[data-premium-surface="section"] > div:first-child .sig-section-icon {
+  background: rgba(255,255,255,.10) !important;
+  border-color: rgba(189,225,243,.24) !important;
+  color: #ddf5ff !important;
+  box-shadow: none !important;
+}
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="default"] .sig-main-shell
+.sig-module-summary-active :is(.sig-section-card,.sig-ui-card)[data-premium-surface="section"] > div:first-child .sig-section-icon svg {
+  stroke: #ddf5ff !important;
+  color: #ddf5ff !important;
+}
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell
+.sig-module-summary-active :is(.sig-section-card,.sig-ui-card)[data-premium-surface="section"] > div:last-child {
+  min-height: 0 !important;
+  flex-grow: 0 !important;
+}
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell
+.sig-module-summary-active .sig-main-grid {
+  align-items: start !important;
+}
