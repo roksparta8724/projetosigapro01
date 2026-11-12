@@ -106,6 +106,6 @@ describe("SIGAPRO: one municipal commercial readiness evidence source",()=>{
     expect(sql).not.toMatch(/UPDATE\s+public\.|DELETE\s+FROM\s+public\.|INSERT\s+INTO\s+public\./i);
     expect(api).toContain('action === "commercial_readiness"');
     expect(api).toContain('"get_municipal_commercial_readiness_v1"');
-    expect(page).toContain("isolatedQa ? <MunicipalCommercialReadiness");
+    expect(page).toContain("municipalityId ? <MunicipalCommercialReadiness");
   });
 });
