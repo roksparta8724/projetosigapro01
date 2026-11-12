@@ -58,8 +58,10 @@ describe("SIGAPRO production diagnosis: 2 in review + 1 completed despite signed
     expect(desk).toContain("!showArchived || archivedProcessIds.includes(item.id)");
     expect(municipal).toContain("if (showArchived && !archived) return false;");
     expect(desk).toContain('data-analysis-official-processes="true"');
-    expect(desk).toContain("CompactProcessRegistry");
+    expect(desk).toContain("renderQueue(");
+    expect(desk).toContain("processRegistry.slice(0, 5)");
     expect(desk).toContain('title="Processos oficiais da Prefeitura"');
-    expect(desk).toContain("canDispatchProcess={() => false}");
+    expect(desk).toContain("Abrir lista completa");
+    expect(desk).toContain('data-process-premium-card="true"');
   });
 });
