@@ -22,6 +22,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { AlertCard } from "@/components/platform/AlertCard";
 import { InternalTabs } from "@/components/platform/InternalTabs";
 import { PageHeader } from "@/components/platform/PageHeader";
+import { CompactProcessRegistry } from "@/components/platform/CompactProcessRegistry";
 import { MarkerSelector } from "@/components/platform/MarkerSelector";
 import { PortalFrame } from "@/components/platform/PortalFrame";
 import { QaArchitecturalLab } from "@/components/platform/QaArchitecturalLab";
@@ -1259,6 +1260,32 @@ export function AnalystDeskPage() {
               <StatCard label="SLA crítico" value={String(slaCritical.length)} description="Prazo curto ou vencido" icon={TimerReset} tone="rose" />
               <StatCard label="Concluídos" value={String(completed.length)} description="Decisões finalizadas" icon={CheckCircle2} tone="emerald" />
             </PageStatsRow>
+
+            <div data-analysis-official-processes="true">
+              <TableCard
+                title="Processos oficiais da Prefeitura"
+                description="Registro consultável por status real do processo, incluindo análise, processos assinados e concluídos. Marcadores de arquivo pessoal não ocultam processos nesta visão."
+                icon={ListTodo}
+              >
+                <p role="status" className="mb-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-800">
+                  {remoteSyncedForCurrentUser
+                    ? `Neon confirmou ${allProcesses.length} registro(s) acessível(is) à sessão e ${analysisRegistryBase.length} processo(s) nesta Análise.`
+                    : "Aguardando confirmação dos processos no Neon; não é uma lista vazia definitiva."}
+                </p>
+                <CompactProcessRegistry
+                  processes={processRegistry}
+                  archivedProcessIds={archivedProcessIds}
+                  showArchiveAction={false}
+                  canDispatchProcess={() => false}
+                  detailPathSuffix="/analise"
+                  emptyMessage={remoteSyncedForCurrentUser
+                    ? allProcesses.length > 0
+                      ? "Existem registros no banco, mas nenhum corresponde à Prefeitura e ao perfil desta Análise. Confira o município vinculado à sessão ou os filtros."
+                      : "Nenhum processo retornou para esta conta na consulta oficial."
+                    : "A consulta oficial ainda está sincronizando. Nenhum processo foi excluído."}
+                />
+              </TableCard>
+            </div>
 
             <PageMainGrid>
               <PageMainContent>
