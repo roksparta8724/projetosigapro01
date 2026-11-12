@@ -1336,6 +1336,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false, compa
       )}
       data-focus-mode={focusMode ? "true" : "false"}
       data-layout-mode={inverseMainTheme ? "inverse-main" : "default"}
+      data-premium-design="institutional-v3"
       data-theme-family={inverseMainTheme ? "dark" : "light"}
       data-viewport={isMobileViewport ? "mobile" : "desktop"}
       style={
