@@ -21,7 +21,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { AlertCard } from "@/components/platform/AlertCard";
 import { InternalTabs } from "@/components/platform/InternalTabs";
-import { PageHeader } from "@/components/platform/PageHeader";
 import { MarkerSelector } from "@/components/platform/MarkerSelector";
 import { PortalFrame } from "@/components/platform/PortalFrame";
 import { QaArchitecturalLab } from "@/components/platform/QaArchitecturalLab";
@@ -57,6 +56,12 @@ import {
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { buildAnalysisRegistry } from "@/lib/analysisRegistry";
 import { paginateRegistry } from "@/lib/analysisRegistryPagination";
+import {
+  buildAnalysisQueueExportRows,
+  createAnalysisQueuePdf,
+  downloadAnalysisQueueCsv,
+  downloadAnalysisQueuePdf,
+} from "@/lib/analysisQueueReport";
 import { resolveProcessDispatchAuthor } from "@/lib/dispatchActorIdentity";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
@@ -70,16 +75,6 @@ type AnalystSection =
   | "correcoes"
   | "historico"
   | "indicadores";
-
-function downloadCsv(filename: string, rows: string[][]) {
-  const csv = rows
-    .map((row) => row.map((cell) => `"${String(cell).split('"').join('""')}"`).join(";"))
-    .join("\n");
-  const link = document.createElement("a");
-  link.href = `data:text/csv;charset=utf-8,${encodeURIComponent(csv)}`;
-  link.download = filename;
-  link.click();
-}
 
 function getPriorityBadge(process: { sla: { breached: boolean; hoursRemaining: number } }) {
   if (process.sla.breached) return "border-red-500/20 bg-red-500/10 text-red-600 dark:text-red-400";
@@ -138,6 +133,8 @@ export function AnalystDeskPage() {
   );
   const [actionBusy, setActionBusy] = useState("");
   const [actionStatus, setActionStatus] = useState("");
+  const [exportBusy, setExportBusy] = useState(false);
+  const [exportError, setExportError] = useState("");
   const [assignmentTargets, setAssignmentTargets] = useState<Record<string, string>>({});
   const [dispatchFor, setDispatchFor] = useState<string | null>(null);
   const [dispatchDestination, setDispatchDestination] = useState("Diretoria de Urbanismo");
@@ -884,12 +881,12 @@ export function AnalystDeskPage() {
                   </div>
                 </div>
               ) : null}
-              {process.dispatches.length > 0 ? (
-                <div className="mx-5 mb-3 rounded-xl border border-sky-400/20 bg-sky-400/5 p-3 text-xs text-slate-200">
-                  <p className="font-bold text-sky-200">Último despacho / encaminhamento</p>
+              {isExpanded && process.dispatches.length > 0 ? (
+                <div className="mx-5 mb-3 rounded-xl border border-sky-200 bg-sky-50 p-3 text-xs text-slate-800 dark:border-sky-800 dark:bg-slate-800 dark:text-slate-100">
+                  <p className="font-bold text-sky-900 dark:text-sky-200">Último despacho / encaminhamento</p>
                   <p className="mt-1 whitespace-pre-wrap">{process.dispatches[0].subject}</p>
-                  <p className="mt-1 text-slate-300">Destino: {process.dispatches[0].to}{process.dispatches[0].assignedTo ? ` · ${process.dispatches[0].assignedTo}` : ""}</p>
-                  <p className="mt-1 text-slate-300">Despachado por: <strong className="text-white">{resolveProcessDispatchAuthor(process.dispatches[0], sessionUsers) || "Identificação não registrada neste despacho"}</strong></p>
+                  <p className="mt-1 text-slate-700 dark:text-slate-300">Destino: {process.dispatches[0].to}{process.dispatches[0].assignedTo ? ` · ${process.dispatches[0].assignedTo}` : ""}</p>
+                  <p className="mt-1 text-slate-700 dark:text-slate-300">Despachado por: <strong className="text-slate-900 dark:text-white">{resolveProcessDispatchAuthor(process.dispatches[0], sessionUsers) || "Identificação não registrada neste despacho"}</strong></p>
                 </div>
               ) : null}
               {isExpanded ? (
@@ -1145,6 +1142,41 @@ export function AnalystDeskPage() {
     </div>
   );
 
+  const handleExportPdf = async () => {
+    if (!remoteSyncedForCurrentUser || exportBusy) return;
+    setExportBusy(true);
+    setExportError("");
+    try {
+      const issuedAt = new Date();
+      const exportRows = buildAnalysisQueueExportRows(processRegistry);
+      const report = await createAnalysisQueuePdf(exportRows, {
+        municipality: municipality?.name || "Prefeitura não identificada",
+        department: currentUnit,
+        generatedBy: session.name || "Usuário autenticado",
+        generatedAt: issuedAt,
+        filterDescription: [
+          showArchived ? "Arquivados do meu perfil" : "Registro oficial da análise",
+          search.trim() ? "Pesquisa: " + search.trim() : "Sem pesquisa",
+        ].join(" · "),
+      });
+      downloadAnalysisQueuePdf(report, issuedAt);
+    } catch {
+      setExportError("Não foi possível gerar o PDF. Confira os registros oficiais e tente novamente.");
+    } finally {
+      setExportBusy(false);
+    }
+  };
+
+  const handleExportCsv = () => {
+    if (!remoteSyncedForCurrentUser) return;
+    setExportError("");
+    try {
+      downloadAnalysisQueueCsv(buildAnalysisQueueExportRows(processRegistry));
+    } catch {
+      setExportError("Não foi possível gerar a planilha CSV. Tente novamente.");
+    }
+  };
+
   const renderProcessRegistry = () => (
     <div className="space-y-3" data-analysis-registry-state={remoteSyncedForCurrentUser ? "confirmed" : "pending"}>
       <p role="status" className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-semibold !text-slate-900">
@@ -1190,37 +1222,44 @@ export function AnalystDeskPage() {
   );
 
   return (
-    <PortalFrame eyebrow="MESA TÉCNICA" title="Fila técnica, SLA e decisões">
-      <PageShell>
-        <PageHeader
-          eyebrow="Análise Urbanística"
-          title="Fila técnica, prioridade e decisão"
-          description="Conduza a análise diária com foco em prazo, pendências e decisão técnica."
-          icon={Stamp}
-          actions={
-            <Button
-              type="button"
-              className="rounded-full bg-slate-950 hover:bg-slate-900"
+    <PortalFrame eyebrow="MESA TÉCNICA" title="Fila técnica, SLA e decisões" compactHeader>
+      <PageShell className="!flex !flex-col !gap-3 !pb-5">
+        <section data-analysis-command-bar="true"
+          className="flex min-w-0 flex-col gap-4 rounded-[18px] border border-slate-200 bg-white px-4 py-4 shadow-[0_8px_22px_rgba(15,23,42,0.045)] dark:border-slate-700 dark:bg-slate-900 sm:px-5 xl:flex-row xl:items-center xl:justify-between">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[13px] bg-slate-950 text-white dark:bg-sky-800">
+              <ListTodo className="h-5 w-5" aria-hidden="true" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-[10px] font-extrabold uppercase tracking-[0.14em] !text-sky-800 dark:!text-sky-200">Operação municipal · Análise técnica</p>
+              <h2 className="mt-0.5 text-lg font-extrabold tracking-tight !text-slate-950 dark:!text-white sm:text-xl">Mesa de processos</h2>
+              <p className="mt-0.5 text-xs !text-slate-600 dark:!text-slate-300">Fila, prazos, encaminhamentos e relatórios em um só lugar.</p>
+            </div>
+          </div>
+          <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center xl:w-auto">
+            <span className="hidden shrink-0 items-center gap-1.5 text-[11px] font-bold text-emerald-700 dark:text-emerald-300 2xl:inline-flex" role="status">
+              <span className={remoteSyncedForCurrentUser ? "h-2 w-2 rounded-full bg-emerald-500" : "h-2 w-2 rounded-full bg-amber-500"} />
+              {remoteSyncedForCurrentUser ? "Banco confirmado" : "Aguardando sincronização"}
+            </span>
+            <Button type="button" variant="outline"
+              className="h-10 w-full rounded-xl border-slate-300 bg-white px-4 text-xs font-bold text-slate-800 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-white sm:w-auto"
               disabled={!remoteSyncedForCurrentUser}
-              onClick={() =>
-                downloadCsv("relatorio-analise.csv", [
-                  ["Protocolo", "Projeto", "Status", "SLA", "Pendências", "Responsável"],
-                  ...processes.map((process) => [
-                    formatOfficialProcessNumber(process.protocol),
-                    formatOfficialProcessTitle({ title: process.title, type: process.type }),
-                    statusLabel(process.status),
-                    `${process.sla.currentStage} - ${process.sla.hoursRemaining}h`,
-                    String(getOpenRequirements(process).length),
-                    process.technicalLead,
-                  ]),
-                ])
-              }
-            >
-              <Download className="mr-2 h-4 w-4 text-sky-200" />
-              Exportar fila
+              onClick={handleExportCsv}
+              title="Exportar registros do filtro atual para planilha UTF-8">
+              <Download className="mr-1.5 h-4 w-4" aria-hidden="true" />
+              Planilha CSV
             </Button>
-          }
-        />
+            <Button type="button"
+              className="h-10 w-full rounded-xl bg-[#0c5275] px-5 text-xs font-extrabold !text-white shadow-[0_5px_14px_rgba(12,82,117,0.16)] hover:bg-[#063b58] sm:w-auto"
+              disabled={!remoteSyncedForCurrentUser || exportBusy}
+              onClick={() => void handleExportPdf()}
+              title="Relatório institucional paginado em PDF, com todos os registros do filtro atual">
+              <Download className="mr-1.5 h-4 w-4 !text-white" aria-hidden="true" />
+              {exportBusy ? "Gerando PDF…" : "Exportar fila em PDF"}
+            </Button>
+          </div>
+        </section>
+        {exportError ? <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-bold text-rose-800">{exportError}</p> : null}
 
         {!remoteSyncedForCurrentUser ? (
           <div
@@ -1262,6 +1301,7 @@ export function AnalystDeskPage() {
         ) : null}
 
         <InternalTabs
+          className="sig-analysis-tabs"
           items={navItems as unknown as Array<{ value: string; label: string; helper?: string }>}
           value={section}
           onChange={(value) => setSection(value as AnalystSection)}
@@ -1429,44 +1469,43 @@ export function AnalystDeskPage() {
 
         {section === "fila" && (
           <>
-            <TableCard
-            title="Processos da Análise"
-            description="Lista completa dos processos que passaram pela Análise Urbanística, inclusive os já encaminhados ou concluídos."
-            icon={ListTodo}
-            actions={
-              <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
-                <div className="relative w-full max-w-xl">
-                  <Search className="sig-search-icon sig-analysis-search-icon pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2" />
-                  <Input
-                    value={search}
-                    onChange={(event) => setSearch(event.target.value)}
-                    placeholder="Buscar processo, proprietário, endereço, IPTU ou analista"
-                    className="h-11 rounded-[14px] border-slate-200 bg-white pl-11 shadow-[0_4px_14px_rgba(15,23,42,0.04)] focus-visible:border-sky-300 focus-visible:ring-sky-100 dark:border-slate-700 dark:bg-slate-900"
-                  />
+            <section data-analysis-process-panel="true" className="min-w-0 overflow-hidden rounded-[19px] border border-slate-200 bg-white shadow-[0_8px_26px_rgba(15,23,42,0.045)] dark:border-slate-700 dark:bg-slate-900">
+              <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-slate-50/75 px-4 py-3 dark:border-slate-700 dark:bg-slate-800/80 sm:px-5">
+                <div className="flex min-w-0 items-center gap-3">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#dcebf4] text-[#075985] dark:bg-sky-950 dark:text-sky-200">
+                    <ListTodo className="h-4.5 w-4.5" aria-hidden="true" />
+                  </span>
+                  <div className="min-w-0">
+                    <h3 className="text-sm font-extrabold !text-slate-900 dark:!text-white sm:text-base">Processos da Análise</h3>
+                    <p className="text-[11px] !text-slate-600 dark:!text-slate-300">Ativos, encaminhados e concluídos. Abra um registro para consultar ou atuar.</p>
+                  </div>
                 </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="h-11 shrink-0 rounded-[14px] border-slate-200 bg-white px-4 font-semibold text-slate-700 shadow-[0_4px_14px_rgba(15,23,42,0.04)] hover:border-sky-200 hover:bg-sky-50 hover:text-sky-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
-                  onClick={() => setShowArchived((current) => !current)}
-                >
-                  {showArchived ? (
-                    <>
-                      <ListTodo className="mr-2 h-4 w-4" />
-                      Ver lista ativa
-                    </>
-                  ) : (
-                    <>
-                      <Archive className="mr-2 h-4 w-4" />
-                      Ver arquivados ({archivedProcessIds.length})
-                    </>
-                  )}
-                </Button>
+                <span className="rounded-lg border border-sky-200 bg-white px-3 py-1.5 text-xs font-extrabold text-[#075985] dark:border-sky-800 dark:bg-slate-900 dark:text-sky-200" role="status">
+                  {processRegistry.length} registro(s)
+                </span>
+              </header>
+              <div className="space-y-3 p-3 sm:p-4">
+                <div data-analysis-filters="true" className="flex min-w-0 flex-col gap-2 sm:flex-row">
+                  <div className="relative min-w-0 flex-1">
+                    <Search className="sig-search-icon pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" aria-hidden="true" />
+                    <Input
+                      value={search}
+                      onChange={(event) => setSearch(event.target.value)}
+                      placeholder="Buscar processo, proprietário, endereço, IPTU ou analista"
+                      aria-label="Pesquisar processos da análise"
+                      className="h-10 w-full rounded-xl border-slate-300 bg-white pl-10 text-sm text-slate-900 placeholder:text-slate-500 focus-visible:border-sky-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
+                    />
+                  </div>
+                  <Button type="button" variant="outline"
+                    className="h-10 shrink-0 rounded-xl border-slate-300 bg-white px-3 text-xs font-bold text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
+                    onClick={() => setShowArchived((current) => !current)}>
+                    {showArchived ? <ListTodo className="mr-2 h-4 w-4" /> : <Archive className="mr-2 h-4 w-4" />}
+                    {showArchived ? "Voltar à lista completa" : "Arquivados (" + archivedProcessIds.length + ")"}
+                  </Button>
+                </div>
+                {renderProcessRegistry()}
               </div>
-            }
-          >
-            {renderProcessRegistry()}
-          </TableCard>
+            </section>
 
             <details data-analysis-team-disclosure="true" className="mt-5 rounded-[22px] border border-slate-200 bg-slate-50 p-3 shadow-sm dark:border-slate-700 dark:bg-slate-900">
               <summary className="cursor-pointer rounded-xl px-3 py-2 text-sm font-bold text-slate-900 marker:text-sky-700 dark:text-slate-100">
