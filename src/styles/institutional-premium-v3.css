@@ -67,7 +67,7 @@ html body #root [data-premium-design="institutional-v3"][data-layout-mode="defau
   -webkit-text-fill-color: #ffffff !important;
   font-weight: 800 !important;
 }
-html body #root [data-premium-design="institutional-v3"][data-layout-mode="default"] .sig-main-shell :is(.sig-stat-card,.sig-metric-card)[data-premium-surface="metric"] :is(.sig-fit-title,.sig-metric-title) {
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="default"] .sig-main-shell :is(.sig-stat-card,.sig-metric-card)[data-premium-surface="metric"] :is(.sig-fit-title:not(.sig-stat-value),.sig-metric-title) {
   color: #c2e4f6 !important;
   -webkit-text-fill-color: #c2e4f6 !important;
 }
@@ -169,7 +169,7 @@ html body #root [data-premium-design="institutional-v3"][data-layout-mode="inver
   color: #ffffff !important;
   -webkit-text-fill-color: #ffffff !important;
 }
-html body #root [data-premium-design="institutional-v3"][data-layout-mode="inverse-main"] .sig-main-shell :is(.sig-stat-card,.sig-metric-card)[data-premium-surface="metric"] :is(.sig-fit-title,.sig-fit-copy,.sig-metric-title,.sig-metric-helper) {
+html body #root [data-premium-design="institutional-v3"][data-layout-mode="inverse-main"] .sig-main-shell :is(.sig-stat-card,.sig-metric-card)[data-premium-surface="metric"] :is(.sig-fit-title:not(.sig-stat-value),.sig-fit-copy,.sig-metric-title,.sig-metric-helper) {
   color: #d7e9f5 !important;
   -webkit-text-fill-color: #d7e9f5 !important;
 }
