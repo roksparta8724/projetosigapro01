@@ -26,8 +26,15 @@ export type AnalysisQueueReportContext = {
   logoDataUrl?: string;
 };
 
+function stripUnsafeControls(value: string): string {
+  return Array.from(value, (char) => {
+    const code = char.charCodeAt(0);
+    return code < 32 || code === 127 ? " " : char;
+  }).join("");
+}
+
 const normalizeText = (value: unknown, fallback = "Não informado") => {
-  const safe = String(value ?? "").replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim();
+  const safe = stripUnsafeControls(String(value ?? "")).replace(/\s+/g, " ").trim();
   return safe || fallback;
 };
 
@@ -54,7 +61,7 @@ export function buildAnalysisQueueExportRows(
 }
 
 function csvField(value: string | number): string {
-  const literal = String(value).replace(/[\u0000-\u001f\u007f]/g, " ").trim();
+  const literal = stripUnsafeControls(String(value)).trim();
   // Neutralize formula execution in Excel/LibreOffice from untrusted fields.
   const safe = /^[=+\-@]/.test(literal) ? "'" + literal : literal;
   return '"' + safe.replace(/"/g, '""') + '"';
