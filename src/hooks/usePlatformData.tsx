@@ -112,6 +112,8 @@ interface PlatformDataState {
   loading: boolean;
   dataError: string | null;
   dataReadyForCurrentUser: boolean;
+  /** True only after the official database revalidated this user and all required records. */
+  remoteSyncedForCurrentUser: boolean;
   refreshRemoteStore: (focusProcessRouteKey?: string | null) => Promise<void>;
   tenants: Tenant[];
   institutions: Institution[];
@@ -1803,11 +1805,21 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
       ),
     );
 
+    // A same-account warm cache is useful for F5 visual continuity, but it
+    // must never be counted as an authoritative bank refresh. In particular,
+    // an outage must not leave stale process counts labeled as current.
+    const remoteSyncedForCurrentUser = Boolean(
+      dataReadyForCurrentUser &&
+      !dataError &&
+      (!expectsRemoteStore || source === "remote")
+    );
+
     return {
       source,
       loading,
       dataError,
       dataReadyForCurrentUser,
+      remoteSyncedForCurrentUser,
       refreshRemoteStore,
       ...store,
       institutions: store.tenants,
