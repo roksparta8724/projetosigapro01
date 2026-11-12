@@ -1143,18 +1143,42 @@ export function AnalystDeskPage() {
     </div>
   );
 
+  const readVisibleOfficialLogo = () => {
+    const element = document.querySelector<HTMLImageElement>(
+      'header[data-sigapro-compact-header="true"] .sig-institution-logo-surface[data-logo-context="municipality"] img',
+    );
+    if (!element?.complete || element.naturalWidth <= 0 || element.naturalHeight <= 0) return undefined;
+    try {
+      const canvas = document.createElement("canvas");
+      const width = 256;
+      canvas.width = width;
+      canvas.height = Math.max(1, Math.round(width * element.naturalHeight / element.naturalWidth));
+      const context = canvas.getContext("2d");
+      if (!context) return undefined;
+      context.fillStyle = "#ffffff";
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      context.drawImage(element, 0, 0, canvas.width, canvas.height);
+      return canvas.toDataURL("image/png");
+    } catch {
+      // Imagens R2 que não oferecem CORS ainda aparecem na tela, mas não podem
+      // ser copiadas para canvas. Não substituir por brasão fictício.
+      return undefined;
+    }
+  };
+
   const handleExportPdf = async () => {
     if (!remoteSyncedForCurrentUser || exportBusy) return;
     setExportBusy(true);
     setExportError("");
     try {
       const issuedAt = new Date();
-      const exportRows = buildAnalysisQueueExportRows(processRegistry);
+      const exportRows = buildAnalysisQueueExportRows(processRegistry, resolveAssignedAnalystName);
       const report = await createAnalysisQueuePdf(exportRows, {
         municipality: municipality?.name || "Prefeitura não identificada",
         department: currentUnit,
         generatedBy: session.name || "Usuário autenticado",
         generatedAt: issuedAt,
+        logoDataUrl: readVisibleOfficialLogo(),
         filterDescription: [
           showArchived ? "Arquivados do meu perfil" : "Registro oficial da análise",
           search.trim() ? "Pesquisa: " + search.trim() : "Sem pesquisa",
@@ -1172,7 +1196,7 @@ export function AnalystDeskPage() {
     if (!remoteSyncedForCurrentUser) return;
     setExportError("");
     try {
-      downloadAnalysisQueueCsv(buildAnalysisQueueExportRows(processRegistry));
+      downloadAnalysisQueueCsv(buildAnalysisQueueExportRows(processRegistry, resolveAssignedAnalystName));
     } catch {
       setExportError("Não foi possível gerar a planilha CSV. Tente novamente.");
     }

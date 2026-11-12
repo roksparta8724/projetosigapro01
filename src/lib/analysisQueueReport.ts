@@ -22,6 +22,8 @@ export type AnalysisQueueReportContext = {
   generatedBy: string;
   generatedAt: Date;
   filterDescription: string;
+  /** Optional loaded official municipal crest (never a generated replacement). */
+  logoDataUrl?: string;
 };
 
 const normalizeText = (value: unknown, fallback = "Não informado") => {
@@ -29,7 +31,10 @@ const normalizeText = (value: unknown, fallback = "Não informado") => {
   return safe || fallback;
 };
 
-export function buildAnalysisQueueExportRows(processes: readonly ProcessRecord[]): AnalysisQueueExportRow[] {
+export function buildAnalysisQueueExportRows(
+  processes: readonly ProcessRecord[],
+  resolveAnalyst?: (process: ProcessRecord) => string,
+): AnalysisQueueExportRow[] {
   return processes.map((process) => {
     const remaining = Number(process.sla?.hoursRemaining);
     const breached = Boolean(process.sla?.breached);
@@ -43,7 +48,7 @@ export function buildAnalysisQueueExportRows(processes: readonly ProcessRecord[]
       requirements: process.requirements.filter((item) =>
         item.status === "aberta" || item.status === "respondida",
       ).length,
-      responsible: normalizeText(process.analysis?.assignedTo || process.technicalLead, "Não atribuído"),
+      responsible: normalizeText(resolveAnalyst?.(process) || process.analysis?.assignedTo, "Não atribuído"),
     };
   });
 }
@@ -72,7 +77,7 @@ export function downloadAnalysisQueueCsv(rows: readonly AnalysisQueueExportRow[]
   const url = window.URL.createObjectURL(file);
   const link = document.createElement("a");
   link.href = url;
-  link.download = "sigapro-fila-analise-" + date.toISOString().slice(0, 10) + ".csv";
+  link.download = "sigapro-fila-analise-" + date.toLocaleDateString("sv-SE", { timeZone: "America/Sao_Paulo" }) + ".csv";
   document.body.appendChild(link);
   link.click();
   link.remove();
@@ -84,7 +89,7 @@ export function analysisQueueReportMetrics(rows: readonly AnalysisQueueExportRow
     total: rows.length,
     critical: rows.filter((row) => row.breached || row.sla === "0 h").length,
     requirements: rows.reduce((sum, row) => sum + row.requirements, 0),
-    unassigned: rows.filter((row) => row.responsible === "Não atribuído").length,
+    unassigned: rows.filter((row) => ["Não atribuído", "Sem responsável"].includes(row.responsible)).length,
   };
 }
 
@@ -136,6 +141,24 @@ export async function createAnalysisQueuePdf(
     pdf.setFillColor(...teal);
     pdf.rect(0, 0, 4, 31, "F");
     textAt("SIGAPRO", L, 12, 15, [255, 255, 255], "bold");
+    if (context.logoDataUrl?.startsWith("data:image/png;base64,")) {
+      try {
+        const image = pdf.getImageProperties(context.logoDataUrl);
+        const ratio = image.width / image.height;
+        if (ratio > 0 && Number.isFinite(ratio)) {
+          const maxW = 28;
+          const maxH = 23;
+          const width = Math.min(maxW, maxH * ratio);
+          const height = width / ratio;
+          pdf.setFillColor(255, 255, 255);
+          pdf.roundedRect(102, 3, 30, 25, 2, 2, "F");
+          pdf.addImage(context.logoDataUrl, "PNG",
+            103 + (28 - width) / 2, 4 + (23 - height) / 2, width, height, undefined, "FAST");
+        }
+      } catch {
+        // Brasão visual é opcional; falha de imagem não pode invalidar o relatório.
+      }
+    }
     textAt("GESTÃO MUNICIPAL · ANÁLISE TÉCNICA", L, 19, 7.3, [191, 225, 240], "normal");
     const municipalLines: string[] = pdf.splitTextToSize(municipality, 143);
     textAt(municipalLines[0] || municipality, 136, 12, 11, [255, 255, 255], "bold");
@@ -179,7 +202,9 @@ export async function createAnalysisQueuePdf(
     ];
     const maxHeights = values.map((value, colIndex) => {
       pdf.setFontSize(8.1);
-      return (pdf.splitTextToSize(value, widths[colIndex] - 5) as string[]);
+      const lines = pdf.splitTextToSize(value, widths[colIndex] - 5) as string[];
+      // Evita que um campo enorme ultrapasse a margem inferior da página.
+      return lines.length > 14 ? [...lines.slice(0, 13), lines[13].slice(0, 36) + "…"] : lines;
     });
     const maxLines = Math.max(...maxHeights.map((lines) => lines.length));
     const height = Math.max(12, 4.1 * maxLines + 4.2);
@@ -220,7 +245,7 @@ export function downloadAnalysisQueuePdf(blob: Blob, date = new Date()) {
   const url = window.URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = "sigapro-relatorio-fila-analise-" + date.toISOString().slice(0, 10) + ".pdf";
+  link.download = "sigapro-relatorio-fila-analise-" + date.toLocaleDateString("sv-SE", { timeZone: "America/Sao_Paulo" }) + ".pdf";
   document.body.appendChild(link);
   link.click();
   link.remove();

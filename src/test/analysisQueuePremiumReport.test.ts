@@ -29,6 +29,12 @@ describe("relatório institucional da fila de análise", () => {
     expect(rows[0].requirements).toBe(2);
     expect(rows[0].sla).toBe("8 h");
     expect(rows[0].responsible).toBe("Analista de testes");
+    const withoutAnalyst = {
+      ...fixture,
+      analysis: { assignedTo: "" },
+      technicalLead: "Engenheiro externo",
+    } as unknown as ProcessRecord;
+    expect(buildAnalysisQueueExportRows([withoutAnalyst])[0].responsible).toBe("Não atribuído");
     expect(rows[0].status).toBeTruthy();
   });
 
@@ -102,7 +108,7 @@ describe("revisão visual da mesa técnica", () => {
   });
 
   it("exporta todos os registros do filtro atual e não somente a página visível", () => {
-    expect(page).toContain("buildAnalysisQueueExportRows(processRegistry)");
+    expect(page).toContain("buildAnalysisQueueExportRows(processRegistry, resolveAssignedAnalystName)");
     expect(page).not.toContain("buildAnalysisQueueExportRows(registryPagination.items)");
     expect(page).toContain('disabled={!remoteSyncedForCurrentUser || exportBusy}');
     expect(page).toContain("Exportar fila em PDF");
