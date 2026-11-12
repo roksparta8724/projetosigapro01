@@ -2380,13 +2380,6 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false, compa
           "sig-content-frame flex min-h-screen",
           focusMode && "h-auto min-h-0 overflow-visible",
         )}
-        style={
-          focusMode
-            ? undefined
-            : {
-                minHeight: "117.6470588235vh",
-              }
-        }
         data-refresh-layout-stable={focusMode ? "false" : "true"}
       >
         {(!focusMode || focusSidebarOpen) ? (
