@@ -24,7 +24,7 @@ function DashboardRouteHarness() {
 }
 
 function MasterTabHarness() {
-  const [value, setValue] = useState("visao-geral");
+  const [value, setValue] = useState("carteira");
   return (
     <div>
       <InternalTabs
@@ -36,7 +36,6 @@ function MasterTabHarness() {
         value={value}
         onChange={setValue}
         urlParam="secao"
-        summaryFirst
       />
       <output data-testid="master-section">{value}</output>
     </div>
@@ -88,27 +87,27 @@ describe("dashboard nav must not redirect away from Visão geral", () => {
       .toBeLessThan(dashboard.indexOf("<InternalSectionNav"));
   });
 
-  it("renders Visão geral as the first tab also on the Master dashboard", () => {
+  it("renders Visão geral last in Master (not Dashboard)", () => {
     render(<MemoryRouter initialEntries={["/master"]}><MasterTabHarness /></MemoryRouter>);
     const nav = screen.getByRole("button", { name: /visão geral/i }).closest("section");
-    expect(nav).toHaveAttribute("data-summary-first", "true");
-    expect(nav?.querySelector("button")?.textContent).toContain("Visão geral");
+    expect(nav).toHaveAttribute("data-summary-position", "last");
+    expect(nav?.querySelector("button")?.textContent).toContain("Carteira");
+    expect(nav?.querySelector("button:last-child")?.textContent).toContain("Visão geral");
   });
 
-  it("renders the first declared tab first even without the explicit summaryFirst prop", () => {
+  it("moves the summary tab to the end without the explicit summaryFirst prop", () => {
     render(<MemoryRouter initialEntries={["/master"]}><InternalTabs
       items={[{ value: "visao-geral", label: "Visão geral" }, { value: "fila", label: "Fila" }, { value: "historico", label: "Histórico" }]}
       value="visao-geral" onChange={() => {}} persistInUrl={false} /></MemoryRouter>);
     const buttons = screen.getAllByRole("button");
-    expect(buttons[0]).toHaveTextContent("Visão geral");
+    expect(buttons[0]).toHaveTextContent("Fila");
+    expect(buttons[buttons.length - 1]).toHaveTextContent("Visão geral");
   });
 
-  it("keeps the Master Visão geral open with no query parameter", () => {
+  it("keeps the Master Carteira open with no query parameter and permits its summary", () => {
     render(<MemoryRouter initialEntries={["/master"]}><MasterTabHarness /></MemoryRouter>);
-    expect(screen.getByTestId("master-section")).toHaveTextContent("visao-geral");
-    expect(screen.getByRole("button", { name: /visão geral/i })).toHaveAttribute("data-nav-active", "true");
-    fireEvent.click(screen.getByRole("button", { name: /carteira/i }));
     expect(screen.getByTestId("master-section")).toHaveTextContent("carteira");
+    expect(screen.getByRole("button", { name: /carteira/i })).toHaveAttribute("data-nav-active", "true");
     fireEvent.click(screen.getByRole("button", { name: /visão geral/i }));
     expect(screen.getByTestId("master-section")).toHaveTextContent("visao-geral");
   });
@@ -136,7 +135,8 @@ describe("dashboard nav must not redirect away from Visão geral", () => {
     expect(tenant).toContain("data-municipal-activity-card");
     expect(tenant).toContain("MunicipalActivityCard key=");
     expect(tenant).toContain("municipalActivityTitle(item.title)");
-    expect(tenant).toContain("min-[2150px]:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]");
+    expect(tenant).toContain('data-sigapro-overview-summary="premium-v4"');
+    expect(tenant).toContain('data-summary-dark-card="true"');
     expect(tenant).toContain('data-sigapro-overview-quickfacts="true"');
     expect(tenant).toContain('data-sigapro-overview-unit-summary="compact"');
     expect(tenant).toContain('mainQueue.slice(0, 3).map((process) => (');
