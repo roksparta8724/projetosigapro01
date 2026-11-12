@@ -166,9 +166,8 @@ begin
   if _role not in (
     'profissional_externo','professional_external','professional','profissional',
     'analista','analyst',
-    'prefeitura_supervisor','diretor','secretario',
+    'prefeitura_supervisor','diretor','secretario'
     -- Prefeitura Admin é somente leitura; não pode assinar atos/documentos por terceiro.
-    'fiscal'
   ) then
     raise exception 'Este perfil não possui permissão para assinar documentos.';
   end if;
