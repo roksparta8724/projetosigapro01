@@ -47,8 +47,12 @@ describe("SIGAPRO — actual DOM visibility for the 3 production process states"
     for(const process of records){
       expect(screen.getByTitle("Abrir "+formatOfficialProcessNumber(process.protocol))).toBeInTheDocument();
     }
-    expect(screen.getAllByText(statusLabel("analise_tecnica"))).toHaveLength(2);
-    expect(screen.getAllByText(statusLabel("deferido"))).toHaveLength(1);
+    // "Análise Urbanística" appears in both the status badge and the
+    // current-department label. Assert per process row, not global text count.
+    const processRows=Array.from(container.querySelectorAll('[data-sei-process-row="true"]'));
+    expect(processRows[0].textContent).toContain(statusLabel("analise_tecnica"));
+    expect(processRows[1].textContent).toContain(statusLabel("analise_tecnica"));
+    expect(processRows[2].textContent).toContain(statusLabel("deferido"));
   });
 
   it("personal archived markers do not erase process rows or enable dispatch privileges",()=>{
