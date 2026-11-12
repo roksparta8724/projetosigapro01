@@ -159,7 +159,8 @@ const AppRoutes = () => {
     return <TenantNotFoundPage />;
   }
 
-  // Nunca renderizar fallback full-screen no root: as rotas reais permanecem montadas no refresh.
+  // A rota lazy pode aguardar o bundle: o fallback é somente status invisível
+  // no refresh normal, sem tela cheia. As permissões continuam no gate.
   return (
     <Suspense fallback={<SecureRoutePending surface="route" title="Abrindo módulo do SIGAPRO" detail="Preparando o módulo solicitado." />}>
       <Routes location={displayedLocation}>

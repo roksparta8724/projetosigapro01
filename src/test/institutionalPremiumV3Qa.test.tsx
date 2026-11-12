@@ -74,7 +74,7 @@ describe("premium institutional v3, all internal pages", () => {
   it("does not flash the preboot recovery screen during successful reload", () => {
     const html = source("index.html");
     expect(html).toContain('data-sigapro-boot-slow');
-    expect(html).toContain('}, 2000);');
+    expect(html).toContain('}, 15000);');
     expect(html).toContain('display: none;');
     expect(html).toContain('data-sigapro-initial-render="true"][data-sigapro-boot-slow="true"]');
     expect(html).not.toContain('blocking="render"');
@@ -94,7 +94,8 @@ describe("premium institutional v3, all internal pages", () => {
     const mainElement = screen.getByRole("status");
     expect(mainElement).toHaveAttribute("data-sigapro-route-pending", "route");
     expect(container.querySelector(".bg-white")).toBeNull();
-    expect(screen.getByText("SIGAPRO")).toBeInTheDocument();
-    expect(screen.getByText("Abrindo módulo…")).toBeInTheDocument();
+    expect(mainElement).toHaveClass("sr-only");
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(container.querySelector("main")).toBeNull();
   });
 });
