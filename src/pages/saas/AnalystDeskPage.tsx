@@ -1138,7 +1138,12 @@ export function AnalystDeskPage() {
   );
 
   const renderProcessRegistry = () => (
-    <div className="space-y-3">
+    <div className="space-y-3" data-analysis-registry-state={remoteSyncedForCurrentUser ? "confirmed" : "pending"}>
+      <p role="status" className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-semibold !text-slate-900">
+        {remoteSyncedForCurrentUser
+          ? `Registros confirmados na Prefeitura: ${processes.length} · Exibidos nesta aba: ${processRegistry.length}`
+          : "Lista oficial em sincronização — registros em cache não são considerados confirmados."}
+      </p>
       <div data-analysis-queue-guide="true" className="flex items-start gap-3 rounded-[16px] border border-sky-400/25 bg-[linear-gradient(135deg,#0c2131_0%,#0b2538_100%)] px-4 py-3 shadow-[0_4px_14px_rgba(14,116,181,0.05)] dark:border-sky-500/25 dark:bg-[linear-gradient(135deg,#0c2131_0%,#0b2538_100%)]">
         <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-sky-700 text-white shadow-sm">
           <Workflow className="h-4 w-4" />
