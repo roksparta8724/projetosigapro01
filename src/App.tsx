@@ -1,5 +1,5 @@
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
-import { lazy, Suspense, useLayoutEffect } from "react";
+import { lazy, Suspense, useDeferredValue, useLayoutEffect } from "react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -124,6 +124,9 @@ export default App;
 const AppRoutes = () => {
   const bootstrap = useAppBootstrap();
   const location = useLocation();
+  // Preserve the previous authorized page while a lazy module is downloaded.
+  // A module load must not replace the entire municipal shell with a separate screen.
+  const deferredLocation = useDeferredValue(location);
   const canShowPublicLanding = shouldShowPublicLanding(bootstrap.resolution);
   const pathname = location.pathname;
 
@@ -142,6 +145,9 @@ const AppRoutes = () => {
     pathname.startsWith("/cliente/") ||
     pathname.startsWith("/v/") ||
     pathname === "/verificar-assinatura";
+  // Public access/logout pages always switch immediately: never keep restricted
+  // content mounted while the user returns to the login screen.
+  const displayedLocation = isPublicEntryPath ? location : deferredLocation;
   const canPromoteBootstrapScreen =
     bootstrap.isReady &&
     !bootstrap.loading &&
@@ -155,8 +161,8 @@ const AppRoutes = () => {
 
   // Nunca renderizar fallback full-screen no root: as rotas reais permanecem montadas no refresh.
   return (
-    <Suspense fallback={<SecureRoutePending title="Carregando a página solicitada" detail="O módulo está sendo preparado. Você pode continuar por esta rota quando o carregamento terminar." />}>
-      <Routes>
+    <Suspense fallback={<SecureRoutePending surface="route" title="Abrindo módulo do SIGAPRO" detail="Preparando o módulo solicitado." />}>
+      <Routes location={displayedLocation}>
         <Route
           path="/"
           element={canShowPublicLanding ? <LandingPage /> : <Navigate to="/acesso" replace />}
