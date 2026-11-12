@@ -66,6 +66,7 @@ import { resolveProcessDispatchAuthor } from "@/lib/dispatchActorIdentity";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { backendClient } from "@/integrations/backend/databaseClient";
+import "@/styles/analysis-workspace.css";
 
 type AnalystSection =
   | "visao-geral"
@@ -1179,26 +1180,16 @@ export function AnalystDeskPage() {
 
   const renderProcessRegistry = () => (
     <div className="space-y-3" data-analysis-registry-state={remoteSyncedForCurrentUser ? "confirmed" : "pending"}>
-      <p role="status" className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-semibold !text-slate-900">
-        {remoteSyncedForCurrentUser
-          ? `Registros confirmados na Prefeitura: ${processes.length} · Exibidos nesta aba: ${processRegistry.length}`
-          : "Lista oficial em sincronização — registros em cache não são considerados confirmados."}
-      </p>
-      <div data-analysis-queue-guide="true" className="flex items-start gap-3 rounded-[16px] border border-sky-400/25 bg-[linear-gradient(135deg,#0c2131_0%,#0b2538_100%)] px-4 py-3 shadow-[0_4px_14px_rgba(14,116,181,0.05)] dark:border-sky-500/25 dark:bg-[linear-gradient(135deg,#0c2131_0%,#0b2538_100%)]">
-        <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-sky-700 text-white shadow-sm">
-          <Workflow className="h-4 w-4" />
-        </div>
-        <div>
-          <p className="text-[11px] font-extrabold uppercase tracking-[0.08em] text-sky-100">
-            Navegação da fila técnica
-          </p>
-          <p className="mt-0.5 text-[11px] leading-5 text-sky-200/90">
-            Selecione um card para consultar os detalhes operacionais. O número do processo e a ação “Abrir processo” acessam diretamente o registro oficial.
-          </p>
-        </div>
+      <div data-analysis-queue-guide="true" className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-2.5 text-xs dark:border-slate-700">
+        <p role="status" className="font-semibold text-slate-700 dark:text-slate-200">
+          {remoteSyncedForCurrentUser
+            ? "Consulta oficial confirmada · " + registryPagination.total + " processo(s) nesta visualização"
+            : "Sincronização pendente — aguardando confirmação do banco"}
+        </p>
+        <p className="text-slate-500 dark:text-slate-400">Clique no número para abrir o processo.</p>
       </div>
 
-      <div data-analysis-registry-pagination="true" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
+      <div data-analysis-registry-pagination="true" className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600 dark:bg-slate-800 dark:text-slate-200">
         <p className="font-semibold">Exibindo {registryPagination.from}–{registryPagination.to} de {registryPagination.total} processos oficiais</p>
         {registryPagination.pages > 1 ? (
           <nav aria-label="Páginas dos processos oficiais" className="flex items-center gap-2">
@@ -1223,7 +1214,7 @@ export function AnalystDeskPage() {
 
   return (
     <PortalFrame eyebrow="MESA TÉCNICA" title="Fila técnica, SLA e decisões" compactHeader>
-      <PageShell className="!flex !flex-col !gap-3 !pb-5">
+      <PageShell className="sig-analysis-page !flex !flex-col !gap-3 !pb-5">
         <section data-analysis-command-bar="true"
           className="flex min-w-0 flex-col gap-4 rounded-[18px] border border-slate-200 bg-white px-4 py-4 shadow-[0_8px_22px_rgba(15,23,42,0.045)] dark:border-slate-700 dark:bg-slate-900 sm:px-5 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex min-w-0 items-center gap-3">
