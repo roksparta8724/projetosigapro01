@@ -1,4 +1,5 @@
 import { deleteFile, uploadFile } from "@/integrations/r2/client";
+import { prepareProfileAvatarForUpload } from "@/lib/profileAvatarUpload";
 
 type MunicipalityFileBucket = "process-documents" | "profile-assets" | "institutional-branding";
 
@@ -49,12 +50,16 @@ function sanitizeFileName(fileName: string) {
 export async function uploadFileToStorage(input: {
   bucket: MunicipalityFileBucket;
   tenantId?: string | null;
+  // Somente o Master autenticado pode solicitar este escopo; o servidor R2
+  // confirma novamente is_master antes de aceitar a gravação.
+  platformScope?: boolean;
   userId: string;
   file: File;
   folder: string;
 }) {
   const scopeId = normalizeUuid(input.tenantId);
-  if (!scopeId) {
+  const isPlatformAvatar = input.bucket === "profile-assets" && input.platformScope === true;
+  if (!scopeId && !isPlatformAvatar) {
     throw new Error("Escopo municipal invalido para upload.");
   }
 
@@ -63,9 +68,16 @@ export async function uploadFileToStorage(input: {
     throw new Error("Usuario invalido para upload.");
   }
 
-  const safeName = sanitizeFileName(input.file.name);
+  // Grandes fotos são otimizadas antes de entrar no payload JSON/base64.
+  // Nunca redimensionar documentos e PDFs assinados.
+  const uploadSource = input.bucket === "profile-assets"
+    ? await prepareProfileAvatarForUpload(input.file)
+    : input.file;
+  const safeName = sanitizeFileName(uploadSource.name);
   const folder = normalizeFolder(input.folder, input.bucket);
-  const objectKey = `municipalities/${scopeId}/${folder}/${safeUserId}/${crypto.randomUUID()}-${safeName}`;
+  const objectKey = isPlatformAvatar
+    ? `platform/profiles/avatars/${safeUserId}/${crypto.randomUUID()}-${safeName}`
+    : `municipalities/${scopeId}/${folder}/${safeUserId}/${crypto.randomUUID()}-${safeName}`;
   const bucket =
     input.bucket === "process-documents"
       ? "process-documents"
@@ -73,10 +85,17 @@ export async function uploadFileToStorage(input: {
         ? "profile-assets"
         : "institutional-branding";
 
-  const uploaded = await uploadFile({ bucket, objectKey, file: input.file });
+  const uploaded = await uploadFile({ bucket, objectKey, file: uploadSource });
+  if (bucket === "process-documents" &&
+      (!/^[a-f0-9]{64}$/i.test(String(uploaded.sha256 || "")) ||
+       (uploaded.fileSizeBytes != null && uploaded.fileSizeBytes !== uploadSource.size))) {
+    throw new Error("O armazenamento não confirmou o SHA-256 e o tamanho reais do documento. Registro bloqueado.");
+  }
   return {
     path: uploaded.objectKey,
     publicUrl: uploaded.publicUrl,
+    fileHash: uploaded.sha256,
+    fileSizeBytes: uploaded.fileSizeBytes ?? uploadSource.size,
     persistentRef: input.bucket === "profile-assets" ? `r2:${uploaded.objectKey}` : uploaded.publicUrl || `r2:${uploaded.objectKey}`,
   };
 }

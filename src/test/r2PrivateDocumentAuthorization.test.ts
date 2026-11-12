@@ -23,7 +23,7 @@ describe("R2 signed GET municipal document access", () => {
       .mockResolvedValueOnce({
         ok: true,
         status: 200,
-        json: async () => [{ id: "33333333-3333-4333-8333-333333333333", process_id: "44444444-4444-4444-8444-444444444444", municipality_id: municipalityA, tenant_id: municipalityA }],
+        json: async () => [{ id: "33333333-3333-4333-8333-333333333333", process_id: "44444444-4444-4444-8444-444444444444", municipality_id: municipalityA, tenant_id: municipalityA, file_path: objectKey, version: 1, is_valid: true, invalidated_at: null }],
       })
       .mockResolvedValueOnce({
         ok: true,
@@ -48,7 +48,7 @@ describe("R2 signed GET municipal document access", () => {
       .mockResolvedValueOnce({
         ok: true,
         status: 200,
-        json: async () => [{ id: "33333333-3333-4333-8333-333333333333", process_id: "44444444-4444-4444-8444-444444444444", municipality_id: municipalityA, tenant_id: municipalityA }],
+        json: async () => [{ id: "33333333-3333-4333-8333-333333333333", process_id: "44444444-4444-4444-8444-444444444444", municipality_id: municipalityA, tenant_id: municipalityA, file_path: objectKey, version: 1, is_valid: true, invalidated_at: null }],
       })
       .mockResolvedValueOnce({ ok: true, status: 200, json: async () => false });
     vi.stubGlobal("fetch", mock);
@@ -101,7 +101,7 @@ describe("R2 signed GET municipal document access", () => {
     expect(guard).toBeGreaterThan(-1);
     expect(municipal).toBeGreaterThan(guard);
     expect(signer).toBeGreaterThan(guard);
-    expect(src).toContain("!isPublicLegalDocumentKey(objectKey)");
+    expect(src).toContain("!isPublicLegislationPdfKey(objectKey)");
     expect(src).toContain("authorize_payment_guide_original_read_v1");
   });
   it("enforces create-once signed-analysis PDFs in both SIGAPRO R2 and municipal S3", async () => {

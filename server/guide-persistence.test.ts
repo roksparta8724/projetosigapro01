@@ -12,7 +12,11 @@ const guide: StoredGuide = {
   amount: 300, due_date: "2026-10-30", created_at: "2026-10-21T12:00:00Z", status: "pendente",
 };
 
-beforeEach(() => vi.resetAllMocks());
+beforeEach(() => {
+  vi.resetAllMocks();
+  // Isolated QA-only fixture; never use or expose real webhook secrets.
+  vi.stubEnv("SIGAPRO_BANK_CHARGE_SIGNING_SECRET", "ab".repeat(32));
+});
 
 describe("confirmed guide provider persistence", () => {
   it("never reports success for missing or inconsistent stored banking data", () => {

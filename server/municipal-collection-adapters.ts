@@ -1,3 +1,4 @@
+import { govbrArReadOnlyAdapter } from "./govbr-ar-readonly.js";
 export type MunicipalCollectionOperation = "issue" | "query" | "pdf" | "payment" | "reissue" | "cancel";
 
 export type MunicipalCollectionAdapterContext = {
@@ -15,9 +16,9 @@ export interface MunicipalCollectionAdapter {
   execute(operation: MunicipalCollectionOperation, context: MunicipalCollectionAdapterContext, payload: Record<string, unknown>): Promise<Record<string, unknown>>;
 }
 
-// Adaptadores reais são registrados aqui somente depois de homologação com o
-// fornecedor. Registro vazio é intencional: nunca simulamos uma API municipal.
-const adapters = new Map<string, MunicipalCollectionAdapter>();
+// GOVBR has a constrained GET-only onboarding connector. Other providers remain unimplemented.
+// Being installed NEVER permits issuing charges or confirming any payment.
+const adapters = new Map<string, MunicipalCollectionAdapter>([["govbr_ar", govbrArReadOnlyAdapter]]);
 
 export function getMunicipalCollectionAdapter(code: string) {
   return adapters.get(String(code || "").trim().toLowerCase()) ?? null;

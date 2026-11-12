@@ -7,6 +7,7 @@ import { UrbanLegalMatrixReviewPanel } from "@/components/platform/UrbanLegalMat
 import { UrbanQuadroIIWorkspacePanel } from "@/components/platform/UrbanQuadroIIWorkspacePanel";
 import { UrbanOfficialLegalSourcesPanel } from "@/components/platform/UrbanOfficialLegalSourcesPanel";
 import { UrbanAiReadinessPanel } from "@/components/platform/UrbanAiReadinessPanel";
+import { UrbanZoningMapManagerPanel } from "@/components/platform/UrbanZoningMapManagerPanel";
 import { UrbanRegulationEvidencePanel } from "@/components/platform/UrbanRegulationEvidencePanel";
 import type { MunicipalLegalFiles } from "@/lib/urbanAiReadiness";
 import type { PreparedUrbanMatrixDraft } from "@/lib/urbanMatrixDraftPreparation";
@@ -20,7 +21,11 @@ export function MunicipalUrbanRulesSettings({
 }: { municipalityId: string; canEdit: boolean; documentFiles?: MunicipalLegalFiles;
   documentRef?: string }) {
   const editorRef = useRef<HTMLDetailsElement>(null);
+  const effectiveFromRef = useRef<HTMLInputElement>(null);
   const [sourceContext, setSourceContext] = useState<string[]>([]);
+  const [documentarySource, setDocumentarySource] =
+    useState<PreparedUrbanMatrixDraft["documentarySource"]>(undefined);
+  const [simulationOnly, setSimulationOnly] = useState(false);
   const [versions, setVersions] = useState<UrbanRegulationVersion[]>([]);
   const officialActiveCount = versions.filter((version) =>
     version.status === "active" && !isUrbanTestFixtureRule(version),
@@ -34,17 +39,26 @@ export function MunicipalUrbanRulesSettings({
   const [loading, setLoading] = useState(false);
   const [notice, setNotice] = useState("");
   const [activeQuadro, setActiveQuadro] = useState<"I" | "II">("I");
+  const [auditRevision, setAuditRevision] = useState(0);
+  const [reviewCaveatFocus, setReviewCaveatFocus] = useState(0);
+  const openReviewQuadro = (quadro: "I" | "II") => {
+    setActiveQuadro(quadro);
+    if (quadro === "I") setReviewCaveatFocus((value) => value + 1);
+  };
+  const markAuditChanged = () => setAuditRevision((revision) => revision + 1);
 
   useEffect(() => {
     let active = true;
     setVersions([]);
     setDraft({});
+    setSimulationOnly(false);
     setZone("");
     setUsage("");
     setEffectiveFrom("");
     setNotice("");
     setActiveQuadro("I");
     setSourceContext([]);
+    setDocumentarySource(undefined);
     if (!municipalityId) return;
     setLoading(true);
     void listUrbanRegulations(municipalityId)
@@ -57,6 +71,7 @@ export function MunicipalUrbanRulesSettings({
   const reload = async () => {
     const updated = await listUrbanRegulations(municipalityId);
     setVersions(updated);
+    markAuditChanged();
   };
   const updateRule = (metric: UrbanMetric, field: keyof EditableValue, text: string) => {
     setDraft((previous) => ({
@@ -71,16 +86,32 @@ export function MunicipalUrbanRulesSettings({
     setEffectiveFrom("");
     setDraft(prepared.fields);
     setSourceContext(prepared.otherLegalFields);
-    if (editorRef.current) editorRef.current.open = true;
-    setNotice(prepared.warning + " Abra o cadastro jurídico de versões abaixo, confirme os índices e informe a vigência legal.");
+    setDocumentarySource(prepared.documentarySource);
+    setSimulationOnly(Boolean(prepared.simulationOnly));
+    if (editorRef.current) {
+      editorRef.current.open = true;
+      // This scroll is user-initiated via "Preencher campos para conferência".
+      // Route changes and background refreshes must never move the viewport.
+      window.requestAnimationFrame(() =>
+        editorRef.current?.scrollIntoView?.({ behavior: "smooth", block: "start" }));
+    }
+    setNotice(prepared.warning + " Os dados estão no formulário aberto. Confira a fonte, vigência e o status antes de qualquer gravação.");
   };
 
   const save = async () => {
     if (!canEdit || !municipalityId || busy) return;
+    // Provisional AIU2 = 1 is authorized for QA calculation only. It is never
+    // a juridical value, even if someone manually provides an effective date.
+    if (simulationOnly) {
+      setNotice("AIU (2): CA mínimo 1,00 é somente simulação técnica. Nenhuma versão legal foi gravada. Aguarde confirmação documental/CONCIDADE.");
+      return;
+    }
     // The date of registration is not the effective date of a municipal law.
     // Never quietly date a legal rule as "today".
     if (!/^\d{4}-\d{2}-\d{2}$/.test(effectiveFrom)) {
-      setNotice("Informe a data de início de vigência comprovada pela norma oficial; não use a data atual por padrão.");
+      setNotice("Informe a data de início de vigência comprovada pela norma oficial. Consulte a publicação e suas alterações; não use a data do cadastro.");
+      effectiveFromRef.current?.focus();
+      effectiveFromRef.current?.scrollIntoView?.({ behavior: "smooth", block: "center" });
       return;
     }
     const rules: UrbanRule[] = [];
@@ -104,8 +135,10 @@ export function MunicipalUrbanRulesSettings({
       await saveUrbanRegulationDraft(municipalityId, zone, usage, effectiveFrom, rules);
       await reload();
       setDraft({});
+      setSimulationOnly(false);
       setEffectiveFrom("");
       setSourceContext([]);
+      setDocumentarySource(undefined);
       setNotice("Nova versão registrada como RASCUNHO. Confira os artigos e ative quando validada.");
     } catch (error) {
       setNotice(String((error as Error)?.message || error));
@@ -143,7 +176,13 @@ export function MunicipalUrbanRulesSettings({
           Conferência humana obrigatória
         </span>
       </div>
-      <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-950 dark:border-amber-500/40 dark:bg-amber-950/40 dark:text-amber-100">
+      <details data-urban-legal-help="true"
+        className="mt-4 min-w-0 rounded-xl border border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-900">
+        <summary className="cursor-pointer px-4 py-3 text-xs font-extrabold text-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-500 dark:text-slate-100">
+          Orientações de preenchimento e segurança jurídica
+        </summary>
+        <div className="px-3 pb-3">
+      <div className="mt-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-950 dark:border-amber-500/40 dark:bg-amber-950/40 dark:text-amber-100">
         <ShieldAlert className="mr-1 inline h-4 w-4" />
         O upload de PDFs do acervo legal não cria regras automaticamente. Informe os parâmetros
         somente após leitura da legislação oficial; situações especiais exigem avaliação jurídica e urbanística.
@@ -163,12 +202,14 @@ export function MunicipalUrbanRulesSettings({
         </p>
       </div>
 
+        </div>
+      </details>
       <UrbanAiReadinessPanel municipalityId={municipalityId}
         documents={documentFiles ?? { usoSolo: "", zoneamento: "", planoDiretor: "", leisComplementares: "" }}
-        onOpenQuadro={setActiveQuadro} />
+        onOpenQuadro={openReviewQuadro} revision={auditRevision} />
       <UrbanOfficialLegalSourcesPanel municipalityId={municipalityId} />
 
-      <div className="mt-5 min-w-0" data-urban-quadros-workspace="true">
+      <div className="mt-5 min-w-0 scroll-mt-24" data-urban-quadros-workspace="true">
         <div role="group" aria-label="Escolher quadro da legislação urbanística"
           className="grid grid-cols-1 gap-2 rounded-2xl border border-slate-200 bg-slate-100/80 p-2 dark:border-slate-700 dark:bg-slate-900 sm:grid-cols-2">
           <button type="button" data-urban-quadro-tab="true" data-contrast-surface={activeQuadro === "I" ? "dark" : "light"}
@@ -189,18 +230,19 @@ export function MunicipalUrbanRulesSettings({
         {activeQuadro === "I" ? (
           <div id="sigapro-quadro-i-panel" role="region" aria-labelledby="sigapro-quadro-i-tab" className="min-w-0 pt-3">
             <UrbanLegalMatrixReviewPanel municipalityId={municipalityId} canView canEdit={canEdit}
-                onPrepareDraft={prepareFromMatrix} />
+                onPrepareDraft={prepareFromMatrix} onDataChanged={markAuditChanged}
+                focusRegisteredCaveats={reviewCaveatFocus} />
           </div>
         ) : (
           <div id="sigapro-quadro-ii-panel" role="region" aria-labelledby="sigapro-quadro-ii-tab" className="min-w-0 pt-3">
-            <UrbanQuadroIIWorkspacePanel municipalityId={municipalityId} canView canEdit={canEdit} />
+            <UrbanQuadroIIWorkspacePanel municipalityId={municipalityId} canView canEdit={canEdit} onDataChanged={markAuditChanged} />
           </div>
         )}
       </div>
       {canEdit && municipalityId ? (
         <>
           <details ref={editorRef} data-urban-legal-editor="true"
-            className="mt-6 min-w-0 rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-950">
+            className="mt-6 min-w-0 scroll-mt-24 rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-950">
             <summary className="cursor-pointer select-none rounded-2xl bg-slate-50 px-4 py-4 text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-500 dark:bg-slate-900 dark:text-white">
               <strong className="block text-sm">Cadastro jurídico de versões — etapa independente</strong>
               <span className="mt-1 block text-xs leading-5 text-slate-600 dark:text-slate-200">
@@ -208,6 +250,54 @@ export function MunicipalUrbanRulesSettings({
               </span>
             </summary>
             <div className="px-4 pb-5">
+              {simulationOnly ? (
+                <div data-urban-aiu2-autofill-preview="true"
+                  className="mt-3 flex flex-wrap items-start justify-between gap-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm leading-5 text-amber-950 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-100">
+                  <div className="min-w-0 flex-1">
+                    <strong className="block">AIU (2) — CA mínimo = 1,00 preenchido para teste</strong>
+                    <p className="mt-1 text-xs">
+                      Critério técnico provisório, pendente de CONCIDADE. O PDF original apresenta “01” e não comprova a vigência de 1,00.
+                      Os campos podem ser usados para simulação, mas o salvamento jurídico permanece bloqueado.
+                    </p>
+                  </div>
+                  <button type="button" onClick={() => {
+                    setSimulationOnly(false); setDraft({}); setZone(""); setUsage(""); setEffectiveFrom("");
+                    setSourceContext([]); setDocumentarySource(undefined);
+                    setNotice("Simulação descartada; nenhuma norma foi gravada.");
+                  }} className="min-h-9 rounded-lg border border-amber-300 bg-white px-3 py-2 text-xs font-bold text-amber-950 hover:bg-amber-100">
+                    Descartar simulação
+                  </button>
+                </div>
+              ) : null}
+              {documentarySource ? (
+                <div data-urban-verified-source-identification="true"
+                  className="mt-3 min-w-0 rounded-xl border border-sky-200 bg-sky-50 p-3 text-slate-900 dark:border-sky-700 dark:bg-slate-900 dark:text-white">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <strong className="block text-sm font-extrabold">
+                        Lote de leitura identificado pelo SHA-256
+                      </strong>
+                      <p className="mt-1 break-words text-xs font-bold leading-5">
+                        {documentarySource.label}
+                      </p>
+                      <p className="mt-1 break-all text-[11px] text-slate-600 dark:text-slate-300">
+                        Lote municipal: {documentarySource.documentSha256}
+                      </p>
+                    </div>
+                    <a href={documentarySource.pdfUrl + "#page=" + documentarySource.page}
+                      target="_blank" rel="noopener noreferrer"
+                      className="inline-flex min-h-10 items-center rounded-lg border border-sky-300 bg-white px-3 py-2 text-xs font-bold text-sky-900 hover:bg-sky-100 dark:border-sky-600 dark:bg-slate-950 dark:text-sky-100">
+                      Abrir página no PDF da Câmara
+                    </a>
+                  </div>
+                  <p className="mt-2 text-xs leading-5 text-amber-900 dark:text-amber-200">
+                    O SHA-256 identifica o arquivo importado para leitura na homologação,
+                    não certifica por si só o arquivo externo da Câmara nem seu cadastro no R2.
+                    A LC 379/2009 original NÃO comprova sozinha a vigência consolidada,
+                    o artigo aplicável ou a ausência de alterações posteriores.
+                  </p>
+                </div>
+              ) : null}
               {sourceContext.length > 0 ? (
                 <div data-urban-prepared-legal-context="true"
                   className="mt-3 rounded-xl border border-sky-200 bg-sky-50 p-3 text-xs leading-5 text-slate-900 dark:border-sky-700 dark:bg-slate-900 dark:text-white">
@@ -233,13 +323,21 @@ export function MunicipalUrbanRulesSettings({
             </label>
             <label className="text-xs font-bold text-slate-700 dark:text-slate-200">
               Vigência legal comprovada (obrigatória)
-              <Input aria-label="Início de vigência" className="mt-1" type="date" value={effectiveFrom}
+              <Input ref={effectiveFromRef} aria-label="Início de vigência"
+                aria-describedby={documentarySource ? "sigapro-legal-effective-date-help" : undefined}
+                className="mt-1" type="date" value={effectiveFrom}
                 onChange={(event) => setEffectiveFrom(event.target.value)} />
+              {documentarySource && !effectiveFrom ? (
+                <span id="sigapro-legal-effective-date-help" data-urban-effective-date-pending="true"
+                  className="mt-1 block text-[11px] font-semibold leading-4 text-amber-800 dark:text-amber-300">
+                  Sem data automática: o PDF original de 2009 não comprova sozinho a vigência consolidada.
+                </span>
+              ) : null}
             </label>
           </div>
           <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700">
             <div className="grid grid-cols-1 gap-2 bg-slate-100 p-3 text-xs font-bold text-slate-700 dark:bg-slate-900 dark:text-slate-200 md:grid-cols-[minmax(170px,1fr)_minmax(100px,0.45fr)_minmax(210px,1.6fr)]">
-              <span>Parâmetro</span><span>Limite legal</span><span>Lei, artigo e condição aplicável</span>
+              <span>Parâmetro</span><span>Limite extraído</span><span>Referência documental — revisar lei, artigo e vigência</span>
             </div>
             {URBAN_METRICS.map((metric) => (
               <div key={metric.key} className="grid gap-2 border-t border-slate-200 p-3 dark:border-slate-700 md:grid-cols-[minmax(170px,1fr)_minmax(100px,0.45fr)_minmax(210px,1.6fr)] md:items-center">
@@ -261,14 +359,14 @@ export function MunicipalUrbanRulesSettings({
               data-sigapro-urban-rules-save="true"
               aria-label="Salvar nova versão como rascunho"
               aria-busy={busy}
-              disabled={busy || loading}
+              disabled={busy || loading || simulationOnly}
               onClick={() => void save()}
               className="sig-force-dark-action sig-urban-rules-save-button inline-flex min-h-11 w-full max-w-full items-center justify-center gap-2 rounded-xl border border-slate-800 bg-slate-950 px-5 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 sm:w-auto"
             >
               {busy ? <Loader2 aria-hidden="true" className="h-4 w-4 shrink-0 animate-spin" /> :
                 <Save aria-hidden="true" className="h-4 w-4 shrink-0" />}
               <span data-sigapro-urban-rules-save-label="true" className="whitespace-normal text-center font-bold leading-5 text-white">
-                Salvar nova versão como rascunho
+                {simulationOnly ? "Simulação: salvamento jurídico bloqueado" : "Salvar nova versão como rascunho"}
               </span>
             </button>
           </div>
@@ -277,7 +375,9 @@ export function MunicipalUrbanRulesSettings({
         </>
       ) : null}
 
-      <div className="mt-6 border-t border-slate-200 pt-4 dark:border-slate-700">
+      <UrbanZoningMapManagerPanel municipalityId={municipalityId} canEdit={canEdit} />
+
+      <div data-urban-regulation-versions="true" className="mt-6 scroll-mt-24 border-t border-slate-200 pt-4 dark:border-slate-700">
         <h4 className="text-sm font-bold text-slate-950 dark:text-white">Versões cadastradas neste município</h4>
         {!loading && fixtureCount > 0 ? (
           <p data-urban-qa-fixtures="true" className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 font-semibold text-amber-950">
@@ -317,6 +417,7 @@ export function MunicipalUrbanRulesSettings({
               {!isUrbanTestFixtureRule(item) && (item.status === "draft" || item.status === "active") ? (
                 <UrbanRegulationEvidencePanel version={item} municipalityId={municipalityId}
                   canEdit={canEdit} sourceRef={documentRef}
+                  onDataChanged={markAuditChanged}
                   sourceFileName={documentFiles?.usoSolo}
                   onActivate={() => void activate(item.id)} />
               ) : null}

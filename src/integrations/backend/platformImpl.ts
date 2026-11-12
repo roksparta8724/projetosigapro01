@@ -5,6 +5,8 @@ import { buildMunicipalityPortalUrl } from "@/lib/publicDomain";
 import { hasPersistedProcessDocumentFile } from "@/lib/triageReadiness";
 import {
   buildProcessDocuments,
+  buildProcessRouteKey,
+  parseProcessIdentityRouteKey,
   isOccupancyPermitProcessType,
   serializeMarker,
   type ClientPlanAssignment,
@@ -436,11 +438,14 @@ async function loadProcessRowsForStore(focusProcessRouteKey?: string | null) {
     return activeResult;
   }
 
-  const uuid = normalizeUuid(routeKey);
+  // The visible route includes the municipality-local number and the UUID.
+  // Resolve by UUID first; the legacy number-only query remains for old links.
+  const identityKey = parseProcessIdentityRouteKey(routeKey);
+  const uuid = normalizeUuid(identityKey?.id ?? routeKey);
   const focusQuery = db.from("processes").select("*");
   const focusResult = uuid
     ? await focusQuery.eq("id", uuid).limit(1)
-    : await focusQuery.eq("protocol_number", routeKey).limit(1);
+    : await focusQuery.eq("protocol_number", routeKey).limit(2);
 
   if (activeResult.error) return activeResult;
   if (focusResult.error) return focusResult;
@@ -450,6 +455,11 @@ async function loadProcessRowsForStore(focusProcessRouteKey?: string | null) {
   for (const item of focusResult.data ?? []) {
     const id = String(item.id ?? "");
     if (!id || seen.has(id)) continue;
+    if (identityKey && (
+      id.toLowerCase() !== identityKey.id.toLowerCase() ||
+      buildProcessRouteKey(String(item.protocol_number ?? ""), id).toLocaleLowerCase("pt-BR") !==
+        identityKey.protocolKey.toLocaleLowerCase("pt-BR")
+    )) continue;
     seen.add(id);
     merged.unshift(item as DatabaseRow);
   }
@@ -2431,13 +2441,14 @@ async function callProcessRpc<T = Record<string, unknown>>(
 }
 
 export async function upgradeRemoteQa04ArchitecturalPlanV2(
-  processId: string, filePath: string, fileName: string, fileSizeBytes: number,
+  processId: string, filePath: string, fileName: string, fileSizeBytes: number, fileHash: string,
 ): Promise<{ ok: boolean; already_upgraded?: boolean; document_id: string; version: number }> {
   return callProcessRpc("upgrade_qa04_architectural_plan_v2", {
     _process_id: processId,
     _file_path: filePath,
     _file_name: fileName,
     _file_size_bytes: fileSizeBytes,
+    _file_hash: fileHash,
   });
 }
 

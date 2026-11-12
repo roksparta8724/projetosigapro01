@@ -1,5 +1,6 @@
 import { calculateUrbanMatrixBatchProgress } from "@/lib/urbanLegalMatrixReview";
-import { isUrbanTestFixtureRule, type UrbanRegulationVersion } from "@/lib/urbanPrecheck";
+import { compareCampoLimpoQuadroIOriginal, type OriginalQuadroIComparison } from "@/lib/compareCampoLimpoQuadroIOriginal";
+import { URBAN_METRICS, isUrbanTestFixtureRule, type UrbanRegulationVersion, type UrbanMetric } from "@/lib/urbanPrecheck";
 import { countCoveredUrbanMetrics, type UrbanLegalEvidenceScope } from "@/lib/urbanEvidenceCoverage";
 import type {
   UrbanMatrixBatchDetail, UrbanMatrixRowReadingAudit, UrbanQuadroIIWorkspace,
@@ -25,12 +26,18 @@ export type UrbanReadinessCheck = {
 export type UrbanReadinessSummary = {
   readyForHumanAssistedPrecheck: boolean;
   reading: { total: number; verified: number; needsCorrection: number; untreated: number };
+  originalComparison: OriginalQuadroIComparison | null;
   quadroII: { pages: number; draftEntries: number; machineProposals: number };
   counts: {
     versionedLaws: number; numericImports: number; useImports: number;
     verifiedEvidence: number; officialActive: number; evidencedActive: number; fictitiousQA: number;
   };
   checks: UrbanReadinessCheck[];
+  readingIssues: Array<{
+    line: number; page: number | null; zone: string;
+    status: "needs_correction" | "untreated"; reason: string;
+  }>;
+  metrics: Array<{ metric: UrbanMetric; label: string; unit: string; direction: "minimum" | "maximum"; legalScopesReady: number }>;
 };
 
 export const OTHER_REQUIRED_URBAN_FIELDS = [
@@ -59,10 +66,18 @@ export function assessUrbanAiReadiness(data: UrbanReadinessInput): UrbanReadines
     Boolean(row.id && row.metric)).length;
   // Do not mistake one unrelated citation for full legal coverage. Evidence
   // must match every metric of the same municipality, zone, use and period.
-  const evidencedActive = data.regulations.filter((version) =>
+  const fullyEvidencedVersions = data.regulations.filter((version) =>
     version.status === "active" && !isUrbanTestFixtureRule(version) &&
     version.rules.length > 0 &&
-    countCoveredUrbanMetrics(version, data.verifiedEvidence) === version.rules.length).length;
+    countCoveredUrbanMetrics(version, data.verifiedEvidence) === version.rules.length);
+  const evidencedActive = fullyEvidencedVersions.length;
+  const metrics = URBAN_METRICS.map((metric) => ({
+    metric: metric.key,
+    label: metric.label, unit: metric.unit, direction: metric.direction,
+    // A metric is legally available only inside a fully evidenced active version.
+    legalScopesReady: fullyEvidencedVersions.filter(version =>
+      version.rules.some(rule => rule.metric === metric.key)).length,
+  }));
   const pages = data.quadroII?.pages.length ?? 0;
   const draftEntries = data.quadroII?.entries.length ?? 0;
   const machineProposals = (data.quadroII?.pages ?? []).reduce(
@@ -73,6 +88,24 @@ export function assessUrbanAiReadiness(data: UrbanReadinessInput): UrbanReadines
     needsCorrection: progress?.needsCorrection ?? 0,
     untreated: progress?.untreated ?? 0,
   };
+  // Only cite rows from the current active source. A reservation, including
+  // AIU 2's provisional criterion, is NOT a legally validated parameter.
+  const readingIssues = (progress?.rows ?? [])
+    .filter((row) => row.needsCorrection || !row.readingReviewed)
+    .map((row) => {
+      const pageRaw = Number(row.source.pagina_pdf);
+      const sourceIssue = String(row.source.pendencias_de_leitura || "").trim();
+      const auditNote = String(row.review?.note || "").trim();
+      const rawReason = [sourceIssue, auditNote && auditNote !== sourceIssue ? auditNote : ""]
+        .filter(Boolean).join(" · ") || "Conferência documental pendente";
+      return {
+        line: row.index + 1,
+        page: Number.isInteger(pageRaw) && pageRaw > 0 ? pageRaw : null,
+        zone: String(row.source.zona_conforme_tabela || "Zona não identificada").slice(0, 70),
+        status: row.needsCorrection ? "needs_correction" as const : "untreated" as const,
+        reason: String(rawReason || "Conferência documental pendente").slice(0, 200),
+      };
+    });
   const checks: UrbanReadinessCheck[] = [
     {
       code: "pdf", title: "Fontes municipais anexadas",
@@ -96,7 +129,10 @@ export function assessUrbanAiReadiness(data: UrbanReadinessInput): UrbanReadines
     {
       code: "quadro-ii", title: "Quadro II — usos, vagas e condições",
       detail: pages + " página(s), " + machineProposals + " sugestão(ões) não verificadas e " +
-        draftEntries + " rascunho(s) registrado(s).",
+        draftEntries + " rascunho(s) registrado(s). " +
+        (data.quadroII?.legal_approval === true
+          ? "Homologação jurídica indicada pela fonte; verificar escopo das importações."
+          : "Sem homologação jurídica do Quadro II: rascunhos não autorizam usos por zona."),
       // Reviewed drafts are NOT a final approval of uses and exceptions.
       // The upstream Quadro II source explicitly reports legal_approval=false.
       passed: pages > 0 && draftEntries > 0 && useImports > 0 &&
@@ -123,6 +159,14 @@ export function assessUrbanAiReadiness(data: UrbanReadinessInput): UrbanReadines
   return {
     readyForHumanAssistedPrecheck: checks.every((step) => step.passed),
     reading,
+    originalComparison: data.source &&
+      String(data.source.source_municipality || "").normalize("NFKD")
+        .replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR")
+        .includes("campo limpo paulista")
+      ? compareCampoLimpoQuadroIOriginal(data.source)
+      : null,
+    readingIssues,
+    metrics,
     quadroII: { pages, draftEntries, machineProposals },
     counts: { versionedLaws: data.versionedLawCount, numericImports,
       useImports, verifiedEvidence, officialActive, evidencedActive, fictitiousQA },

@@ -130,11 +130,54 @@ export function buildProcessRouteKey(
   return normalized || String(fallbackId || "").trim();
 }
 
+const PROCESS_UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * The compact base-36 encoding is a reversible URL identifier, NOT an
+ * authorization secret. Every process access remains enforced by backend RLS.
+ * It avoids exposing raw UUID formatting and preserves the municipal number.
+ */
+function processIdentityToken(id: string): string | null {
+  if (!PROCESS_UUID_PATTERN.test(id)) return null;
+  return BigInt("0x" + id.replace(/-/g, "")).toString(36).padStart(25, "0");
+}
+
+function processUuidFromToken(token: string): string | null {
+  if (!/^[0-9a-z]{25}$/i.test(token)) return null;
+  let value = 0n;
+  for (const char of token.toLowerCase()) {
+    value = value * 36n + BigInt(parseInt(char, 36));
+  }
+  if (value >= (1n << 128n)) return null;
+  const hex = value.toString(16).padStart(32, "0");
+  return [
+    hex.slice(0, 8), hex.slice(8, 12), hex.slice(12, 16),
+    hex.slice(16, 20), hex.slice(20),
+  ].join("-");
+}
+
+/** Process numbers repeat in different municipalities: the URL must not. */
+export function buildProcessIdentityRouteKey(
+  process: Pick<ProcessRecord, "id" | "protocol">,
+) {
+  const normalized = buildProcessRouteKey(process.protocol, process.id);
+  const token = processIdentityToken(String(process.id || "").trim());
+  return normalized && token ? `${normalized}--${token}` : normalized;
+}
+
+/** Parse the immutable, formatted-UUID-free suffix. */
+export function parseProcessIdentityRouteKey(routeValue: string) {
+  const match = String(routeValue || "").match(/^(.+)--([0-9a-z]{25})$/i);
+  const id = match ? processUuidFromToken(match[2]) : null;
+  return match && id ? { protocolKey: match[1], id } : null;
+}
+
 export function buildProcessPath(
   process: Pick<ProcessRecord, "id" | "protocol">,
   tab?: string,
 ) {
-  const routeKey = buildProcessRouteKey(process.protocol, process.id);
+  const routeKey = buildProcessIdentityRouteKey(process);
   const search = tab ? `?aba=${encodeURIComponent(tab)}` : "";
   return `/processos/${encodeURIComponent(routeKey)}${search}`;
 }
@@ -155,14 +198,29 @@ export function resolveProcessRoute(
   const byId = getProcessById(decoded, processes);
   if (byId) return byId;
 
+  // New links are exact, even when two municipalities own identical numbers.
+  // Never match a process from another municipality on a guessed prefix.
+  const identityMatch = parseProcessIdentityRouteKey(decoded);
+  if (identityMatch) {
+    const { protocolKey: requestedNumber, id: requestedId } = identityMatch;
+    return processes.find((item) =>
+      String(item.id).toLowerCase() === requestedId.toLowerCase() &&
+      buildProcessRouteKey(item.protocol, item.id).toLocaleLowerCase("pt-BR") ===
+        requestedNumber.toLocaleLowerCase("pt-BR"),
+    );
+  }
+
+  // Historical number-only bookmarks work if unambiguous. In a Master view,
+  // a collision must fail closed rather than silently open another tenant.
   const normalized = decoded.toLocaleLowerCase("pt-BR");
-  return processes.find((item) => {
+  const matches = processes.filter((item) => {
     const protocol = String(item.protocol || "");
     return (
       protocol.toLocaleLowerCase("pt-BR") === normalized ||
       buildProcessRouteKey(protocol, item.id).toLocaleLowerCase("pt-BR") === normalized
     );
   });
+  return matches.length === 1 ? matches[0] : undefined;
 }
 
 export function formatProfessionalProcessType(type?: string | null) {
@@ -2118,10 +2176,13 @@ export const processTypeCatalog = [
   "Aprovação de Projeto de Condomínio",
 ];
 
+// The universal pre-protocol baseline has four compulsory technical records:
+ // architectural project, descriptive memorial, ART/RRT and title deed.
+ // Additional municipal obligations must be explicitly configured per city.
 const checklistPadraoProjeto = [
-  { id: "base-1", label: "RG ou CNH do proprietario", required: true },
-  { id: "base-2", label: "CPF do proprietario", required: true },
-  { id: "base-3", label: "IPTU", required: true },
+  { id: "base-1", label: "RG ou CNH do proprietario", required: false },
+  { id: "base-2", label: "CPF do proprietario", required: false },
+  { id: "base-3", label: "IPTU", required: false },
   { id: "base-4", label: "Matricula do imovel", required: true },
   { id: "base-5", label: "Projeto arquitetonico", required: true },
   { id: "base-6", label: "Memorial descritivo", required: true },
@@ -2162,9 +2223,9 @@ export const checklistTemplates: ChecklistTemplate[] = [
     tenantId: null,
     processType: "Aprovação de projeto residencial",
     items: [
-      { id: "res-1", label: "RG ou CNH do proprietario", required: true },
-      { id: "res-2", label: "CPF do proprietario", required: true },
-      { id: "res-3", label: "IPTU", required: true },
+      { id: "res-1", label: "RG ou CNH do proprietario", required: false },
+      { id: "res-2", label: "CPF do proprietario", required: false },
+      { id: "res-3", label: "IPTU", required: false },
       { id: "res-4", label: "Matricula do imovel", required: true },
       { id: "res-5", label: "Projeto arquitetonico", required: true },
       { id: "res-6", label: "Memorial descritivo", required: true },

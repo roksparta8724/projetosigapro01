@@ -9,6 +9,7 @@ import {
   type UrbanMatrixBatchSummary,
 } from "@/integrations/backend/urbanPrecheckClient";
 import { countCoveredUrbanMetrics, type UrbanLegalEvidenceScope } from "@/lib/urbanEvidenceCoverage";
+import { isUrbanMatrixBatchArchived } from "@/lib/urbanMatrixBatchStatus";
 import { URBAN_METRICS, type UrbanRegulationVersion } from "@/lib/urbanPrecheck";
 import { getLegislationOpenUrl } from "@/integrations/r2/client";
 
@@ -18,10 +19,11 @@ import { getLegislationOpenUrl } from "@/integrations/r2/client";
  * applicable index using the official Neon RPC.
  */
 export function UrbanRegulationEvidencePanel({
-  version, municipalityId, canEdit, sourceRef, sourceFileName, onActivate,
+  version, municipalityId, canEdit, sourceRef, sourceFileName, onActivate, onDataChanged,
 }: {
   version: UrbanRegulationVersion; municipalityId: string; canEdit: boolean;
   sourceRef?: string; sourceFileName?: string; onActivate: () => void;
+  onDataChanged?: () => void;
 }) {
   const [sources, setSources] = useState<UrbanMatrixBatchSummary[]>([]);
   const [evidences, setEvidences] = useState<UrbanLegalEvidenceScope[]>([]);
@@ -48,8 +50,7 @@ export function UrbanRegulationEvidencePanel({
       if (!alive) return;
       setSources(all.filter((batch) =>
         /^[a-f0-9]{64}$/i.test(batch.document_sha256) &&
-        !audit.batch_events.some((event) =>
-          event.batch_id === batch.id && event.action === "archive")));
+        !isUrbanMatrixBatchArchived(audit.batch_events, batch.id)));
       setEvidences(scopes);
     }).catch((reason: unknown) => {
       if (alive) setError("A consulta das evidências falhou. Nenhuma norma pode ser ativada: " +
@@ -94,6 +95,7 @@ export function UrbanRegulationEvidencePanel({
         throw new Error("O banco não confirmou a leitura posterior da evidência; não considere esta regra validada.");
       }
       setEvidences(next);
+      onDataChanged?.();
       setNotice("Evidência vinculada e confirmada no banco. A versão permanece em rascunho até a ativação humana.");
       setMetric(""); setPage(""); setExcerpt(""); setMethod(""); setConfirmed(false);
     } catch (cause) {

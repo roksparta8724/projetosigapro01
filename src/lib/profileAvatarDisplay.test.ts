@@ -30,6 +30,23 @@ describe("foto automática de todos os perfis SIGAPRO", () => {
       .toBe("https://legacy.example.test/avatar.png");
   });
 
+  it("reabre a foto já salva no Neon do Master sem exigir um município fictício", () => {
+    const masterKey =
+      "platform/profiles/avatars/2244ccaa-1111-4111-8111-123456abcdef/77aa2211-photo-master.png";
+    const result = resolveProfileAvatarDisplayUrl({
+      avatarUrl: "",
+      avatarStorageRef: `r2:${masterKey}`,
+      useAvatarInHeader: false,
+    });
+    expect(result).toBe(`/api/profile-avatar-open?objectKey=${encodeURIComponent(masterKey)}`);
+  });
+
+  it("não converte qualquer arquivo da plataforma em avatar público", () => {
+    expect(resolveProfileAvatarDisplayUrl({ avatarStorageRef: "r2:platform/branding/logo.png" })).toBe("");
+    expect(resolveProfileAvatarDisplayUrl({ avatarStorageRef: "r2:platform/profiles/avatars/../../secrets.env" })).toBe("");
+    expect(resolveProfileAvatarDisplayUrl({ avatarStorageRef: "r2:other-platform/profiles/avatars/id/file.png" })).toBe("");
+  });
+
   it("retorna iniciais quando a conta não possui foto ou sua referência é inválida", () => {
     expect(resolveProfileAvatarDisplayUrl(null)).toBe("");
     expect(resolveProfileAvatarDisplayUrl({ avatarUrl: "", avatarStorageRef: "" })).toBe("");

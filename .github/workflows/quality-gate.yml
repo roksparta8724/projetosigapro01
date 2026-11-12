@@ -25,7 +25,7 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm ci --legacy-peer-deps
+        run: npm ci --no-audit --no-fund
 
       # Enforce zero known npm vulnerabilities in both runtime and complete dependency tree.
       - name: Dependency security inventory
@@ -71,5 +71,26 @@ jobs:
       - name: Private AI gateway tests without GPU
         run: node --test infra/private-ai/gateway/gateway.test.mjs
 
+      - name: Commercial acceptance self-tests (pending evidence is NOT approval)
+        run: node --test scripts/qa-commercial-acceptance.test.mjs scripts/qa-commercial-evidence-provenance.test.mjs
+
+      - name: Commercial acceptance readiness (informational, not a release)
+        run: node scripts/qa-commercial-acceptance.mjs --report
+
+      # The Preview uses Vercel Deployment Protection. A raw GitHub runner
+      # receives Vercel 401 before the request reaches this application.
+      # Exercise scripts/qa-preview-live-smoke.mjs with a trusted, short-lived
+      # Vercel identity; never disable Preview protection to satisfy CI.
+      - name: Protected Preview live smoke is a separately verified gate
+        if: github.event_name == 'pull_request'
+        run: echo "::notice title=Vercel-protected QA::HTTP smoke requires a trusted Vercel identity. App route health is verified via the authorized Vercel connector, not raw GitHub runner access."
+
       - name: Production build
         run: npm run build
+
+      # Public login must never eagerly reload the 32 private dashboards.
+      # Inspect the actual generated JS asset; assertions on source are not enough.
+      - name: Public access bundle budget and regression
+        run: |
+          node --test scripts/qa-login-bundle-budget.test.mjs
+          node scripts/qa-login-bundle-budget.mjs

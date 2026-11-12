@@ -7,16 +7,48 @@ const read = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8"
 
 describe("SIGAPRO — official urban law reading catalog", () => {
   it("isolates sources to Campo Limpo Paulista instead of leaking across municipalities", () => {
-    expect(getMunicipalOfficialUrbanSources(CAMPO_LIMPO_PAULISTA_MUNICIPALITY_ID)).toHaveLength(9);
+    expect(getMunicipalOfficialUrbanSources(CAMPO_LIMPO_PAULISTA_MUNICIPALITY_ID)).toHaveLength(13);
     expect(getMunicipalOfficialUrbanSources("00000000-0000-4000-8000-000000000000")).toEqual([]);
     expect(getMunicipalOfficialUrbanSources(null)).toEqual([]);
   });
   it("keeps the original 2009 law, subsequent amendments and Plan Director independently", () => {
     const ids = CAMPO_LIMPO_OFFICIAL_URBAN_SOURCES.map((item) => item.id);
-    expect(ids).toEqual(expect.arrayContaining(["lc-379-2009", "lc-440-2011", "lc-473-2014", "lc-613-2023"]));
-    expect(CAMPO_LIMPO_OFFICIAL_URBAN_SOURCES.filter((item) => item.pdfUrl)).toHaveLength(8);
+    expect(ids).toEqual(expect.arrayContaining(["lc-379-2009", "lc-440-2011", "lc-473-2014", "lc-501-2016", "lc-507-2017", "lc-566-2022", "lc-613-2023"]));
+    expect(CAMPO_LIMPO_OFFICIAL_URBAN_SOURCES.filter((item) => item.pdfUrl)).toHaveLength(11);
     expect(CAMPO_LIMPO_OFFICIAL_URBAN_SOURCES.every((item) =>
       item.officialPageUrl.startsWith("https://"))).toBe(true);
+  });
+  it("registra a restauração legal de 2022 sem inventar vigência consolidada", () => {
+    const restoration=CAMPO_LIMPO_OFFICIAL_URBAN_SOURCES.find(item=>item.id==="lc-566-2022");
+    expect(restoration?.kind).toBe("restauracao_vigencia");
+    expect(restoration?.scopeNote).toContain("440/2011");
+    expect(restoration?.scopeNote).toContain("501/2016");
+    expect(restoration?.scopeNote).toContain("473/2014");
+    expect(restoration?.scopeNote).toContain("revogada pela LC 507/2017");
+    expect(CAMPO_LIMPO_OFFICIAL_URBAN_SOURCES.find(item=>item.id==="lc-501-2016")?.scopeNote)
+      .toContain("artigo 76");
+  });
+  it("registra que a LC 507/2017 revogou a LC 473/2014 sem promover regras antigas", () => {
+    const revoked=CAMPO_LIMPO_OFFICIAL_URBAN_SOURCES.find(item=>item.id==="lc-473-2014");
+    const revoker=CAMPO_LIMPO_OFFICIAL_URBAN_SOURCES.find(item=>item.id==="lc-507-2017");
+    expect(revoked?.kind).toBe("historica_revogada");
+    expect(revoker?.kind).toBe("revogacao");
+    expect(revoker?.scopeNote).toContain("revoga a LC 473/2014");
+    expect(revoker?.pdfUrl).toContain("/1965/");
+    const registry=read("src/components/platform/UrbanLegislationRegistryPanel.tsx");
+    expect(registry).toContain('source.kind !== "historica_revogada"');
+    expect(registry).toContain('source.id === "lc-507-2017" ? "revoga"');
+  });
+  it("mostra o número 379/2009 para análise sem inventar nova LPUOS promulgada", () => {
+    const library=read("src/lib/urbanOfficialLegalSources.ts");
+    const readiness=read("src/components/platform/UrbanAiReadinessPanel.tsx");
+    expect(library).toContain('baseLawNumber: "379/2009"');
+    expect(library).toContain('reviewStatus: "Aguardando sua análise"');
+    expect(library).toContain('checkedOn: "08/11/2026"');
+    expect(library).toContain("Não foi identificada nova LPUOS promulgada");
+    expect(readiness).toContain('data-urban-law-awaiting-review="true"');
+    expect(readiness).toContain("CAMPO_LIMPO_LPUOS_REVIEW.baseLawLabel");
+    expect(readiness).not.toContain("activateUrbanRegulation(");
   });
   it("keeps 2026 extraordinary regularization separate from ordinary building permits", () => {
     const exceptional = CAMPO_LIMPO_OFFICIAL_URBAN_SOURCES.filter((item) =>
@@ -31,6 +63,10 @@ describe("SIGAPRO — official urban law reading catalog", () => {
     const withdrawn = CAMPO_LIMPO_OFFICIAL_URBAN_SOURCES.find((item) => item.id === "plc-795-2024");
     expect(withdrawn?.kind).toBe("proposta_sem_vigencia");
     expect(withdrawn?.pdfUrl).toBeNull();
+    const draft2026 = CAMPO_LIMPO_OFFICIAL_URBAN_SOURCES.find(item=>item.id==="minuta-lpuos-2026");
+    expect(draft2026?.kind).toBe("proposta_sem_vigencia");
+    expect(draft2026?.pdfUrl).toBeNull();
+    expect(draft2026?.scopeNote).toContain("MINUTA 2026");
     const panel = read("src/components/platform/UrbanOfficialLegalSourcesPanel.tsx");
     expect(panel).toContain('item.kind === "proposta_sem_vigencia"');
     expect(panel).toContain("Não é lei vigente");

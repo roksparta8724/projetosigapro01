@@ -11461,3 +11461,52 @@ html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-master-pl
 html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-master-plans-page button[data-master-commercial-format-card="true"][data-selected="false"] [data-master-commercial-format-icon="true"] {
   color: #7dd3fc !important;
 }
+
+
+/* Dashboard SIGAPRO — cards de distribuicao fluem segundo a largura real do
+   card, nao segundo o viewport. Em tres colunas no desktop, o grid antigo
+   reservava 220px para a legenda e deixava o donut com cerca de 20px.
+   O detalhamento de hover agora fica dentro do proprio card, sem tooltip
+   flutuante recortado pelo overflow do painel. */
+.sig-dashboard-distribution-container {
+  width: 100%;
+  min-width: 0;
+  container-type: inline-size;
+}
+
+.sig-dashboard-distribution-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: center;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.sig-dashboard-distribution-chart {
+  width: min(100%, 272px);
+  margin-inline: auto;
+}
+
+.sig-dashboard-distribution-legend {
+  display: grid;
+  align-content: center;
+  gap: 0.625rem;
+  min-width: 0;
+}
+
+@container (min-width: 520px) {
+  .sig-dashboard-distribution-layout {
+    grid-template-columns: minmax(200px, 0.9fr) minmax(250px, 1.1fr);
+    column-gap: 1rem;
+  }
+
+  .sig-dashboard-distribution-chart {
+    width: min(100%, 244px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sig-dashboard-distribution-legend button {
+    transition-duration: 0ms;
+  }
+}

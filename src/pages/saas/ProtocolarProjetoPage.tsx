@@ -676,15 +676,15 @@ export function ProtocolarProjetoPage({
         required: item.required,
         ...describeDocument(item.label),
       })) ?? [
-        { label: "RG e CPF ou CNH do Proprietário", required: true, ...describeDocument("RG e CPF ou CNH do Proprietário") },
-        { label: "RG e CPF ou CNH do Responsável Técnico", required: true, ...describeDocument("RG e CPF ou CNH do Responsável Técnico") },
-        { label: "IPTU", required: true, ...describeDocument("IPTU") },
+        { label: "RG e CPF ou CNH do Proprietário", required: false, ...describeDocument("RG e CPF ou CNH do Proprietário") },
+        { label: "RG e CPF ou CNH do Responsável Técnico", required: false, ...describeDocument("RG e CPF ou CNH do Responsável Técnico") },
+        { label: "IPTU", required: false, ...describeDocument("IPTU") },
         { label: "Matrícula do Imóvel", required: true, ...describeDocument("Matrícula do Imóvel") },
         { label: "Procuração, quando houver", required: false, ...describeDocument("Procuração, quando houver") },
         { label: "ART ou RRT", required: true, ...describeDocument("ART ou RRT") },
         { label: "Projeto Arquitetônico", required: true, ...describeDocument("Projeto Arquitetônico") },
         { label: "Memorial Descritivo", required: true, ...describeDocument("Memorial Descritivo") },
-        { label: "Levantamento Planialtimétrico", required: true, ...describeDocument("Levantamento Planialtimétrico") },
+        { label: "Levantamento Planialtimétrico", required: false, ...describeDocument("Levantamento Planialtimétrico") },
         {
           label: "Documentos Ambientais e Anuências Complementares",
           required: false,
@@ -1532,8 +1532,8 @@ export function ProtocolarProjetoPage({
         <form className="sig-page-shell space-y-5" onSubmit={handleSubmit}>
           {import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true" ? (
             <div role="status" data-qa-protocol-sandbox="true" className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm font-semibold leading-6 text-amber-950">
-              HOMOLOGAÇÃO LOCAL — Os documentos anexados serão guardados somente neste computador, em armazenamento isolado do R2 oficial.
-              O pré-protocolo será registrado apenas no banco Neon de testes e a guia poderá ser visualizada como NÃO PAGÁVEL.
+              HOMOLOGAÇÃO LOCAL — Os documentos anexados serão guardados somente neste computador, em ambiente isolado do repositório oficial.
+              O pré-protocolo será registrado apenas no banco de testes SIGAPRO e a guia poderá ser visualizada como NÃO PAGÁVEL.
               Utilize documentos fictícios para os testes. Nenhum pagamento será cobrado ou confirmado.
             </div>
           ) : null}

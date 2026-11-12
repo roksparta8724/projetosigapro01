@@ -59,7 +59,8 @@ describe("municipal legislation assets", () => {
     expect(legislation).toContain('window.open(targetUrl, "_blank", "noopener,noreferrer")');
     expect(r2Client).toContain("getLegislationOpenUrl");
     expect(r2Client).toContain("/api/legislation-open?objectKey=");
-    expect(legislationOpenApi).toContain("isMunicipalLegislationObject");
+    expect(legislationOpenApi).toContain("isPublicLegislationPdfKey(objectKey)");
+    expect(legislationOpenApi).toContain("HeadObjectCommand");
     expect(legislationOpenApi).toContain("ResponseContentDisposition: \"inline\"");
     expect(legislationOpenApi).toContain('res.setHeader("Location", signedUrl)');
     expect(legislation).toContain("Abrir guia");
@@ -74,8 +75,11 @@ describe("municipal legislation assets", () => {
 
     expect(localOpen).toBeGreaterThanOrEqual(0);
     expect(postGuard).toBeGreaterThan(localOpen);
-    expect(viteConfig).toContain('ResponseContentDisposition: "inline"');
-    expect(viteConfig).toContain('res.setHeader("Location", signedUrl)');
+    // Local and hosted environments use the same audited API handler.
+    expect(viteConfig).toContain('import handleLegislationOpen from "./api/legislation-open"');
+    expect(viteConfig).toContain("await handleLegislationOpen(req, res)");
+    expect(legislationOpenApi).toContain('ResponseContentDisposition: "inline"');
+    expect(legislationOpenApi).toContain('res.setHeader("Location", signedUrl)');
   });
 
   it("shows the official zoning PDF in the zoning workspace", () => {

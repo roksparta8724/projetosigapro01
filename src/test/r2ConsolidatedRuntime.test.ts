@@ -3,6 +3,8 @@ import { getR2EndpointCandidates, resolveR2Endpoint } from "../../server/r2-runt
 import { authorizeR2LogoRead } from "../../server/api/r2-sign-get";
 import { getDataApiUrl } from "../../server/municipal-storage";
 import { readFileSync } from "node:fs";
+import { isR2AuthRequired as isR2UploadAuthRequired } from "../../server/api/r2-upload";
+import { isR2AuthRequired as isR2DeleteAuthRequired } from "../../server/api/r2-delete";
 const tenant = "11111111-1111-4111-8111-111111111111";
 const req = (token = "") =>
   ({ headers: token ? { authorization: `Bearer ${token}` } : {} } as Parameters<typeof authorizeR2LogoRead>[0]);
@@ -21,6 +23,21 @@ describe("SIGAPRO consolidated R2 runtime", () => {
     vi.stubEnv("R2_ACCOUNT_ID","safe");
     expect(resolveR2Endpoint()).toBe("https://safe.r2.cloudflarestorage.com");
   });
+  it("authenticates ALL remote R2 uploads and deletes even when legacy QA disables auth", () => {
+    for (const environment of ["preview", "production"]) {
+      vi.stubEnv("VERCEL_ENV", environment);
+      vi.stubEnv("R2_REQUIRE_AUTH", "false");
+      expect(isR2UploadAuthRequired()).toBe(true);
+      expect(isR2DeleteAuthRequired()).toBe(true);
+    }
+    vi.stubEnv("VERCEL_ENV", "development");
+    vi.stubEnv("R2_REQUIRE_AUTH", "");
+    expect(isR2UploadAuthRequired()).toBe(true);
+    expect(isR2DeleteAuthRequired()).toBe(true);
+    vi.stubEnv("R2_REQUIRE_AUTH", "false");
+    expect(isR2UploadAuthRequired()).toBe(false);
+    expect(isR2DeleteAuthRequired()).toBe(false);
+  });
   it("never uses QA Neon Data API on production even if legacy variables exist", () => {
     vi.stubEnv("VERCEL_ENV","production");
     vi.stubEnv("R2_AUTH_DATA_API_URL","https://stale-qa.example/rest/v1");
@@ -34,14 +51,39 @@ describe("SIGAPRO consolidated R2 runtime", () => {
       .toMatchObject({ok:false,status:401});
     expect(fetch).not.toHaveBeenCalled();
   });
-  it("applies tenant authorization before signing a private avatar", async () => {
-    vi.stubGlobal("fetch",vi.fn(async (_url:string,init:{body?:string}) => ({
-      ok:true,status:200,json:async()=> JSON.parse(String(init.body||"{}")).target_tenant===tenant
-    })));
-    expect(await authorizeR2LogoRead(req("session"),`municipalities/${tenant}/profiles/avatars/a/pic.png`))
-      .toEqual({ok:true});
-    expect(await authorizeR2LogoRead(req("session"),"municipalities/22222222-2222-4222-8222-222222222222/profiles/avatars/a/pic.png"))
+  it("requires owner identity or a verified city administrator to sign a private avatar", async () => {
+    const target = "2244ccaa-1111-4111-8111-123456abcdef";
+    const viewer = "1244ccaa-1111-4111-8111-123456abcdef";
+    const key = "municipalities/" + tenant + "/profiles/avatars/" + target + "/pic.png";
+    let currentProfile = viewer;
+    let isAdmin = false;
+    const fetchSpy = vi.fn(async (url:string,init:{body?:string}) => {
+      const fn = url.split("/rpc/")[1];
+      const input = JSON.parse(String(init.body||"{}"));
+      const payload =
+        fn === "current_profile_id" ? currentProfile :
+        fn === "is_master" ? false :
+        fn === "is_municipality_admin" ? isAdmin :
+        fn === "has_tenant_access" ? input.target_tenant === tenant :
+        false;
+      return {ok:true,status:200,json:async()=>payload};
+    });
+    vi.stubGlobal("fetch",fetchSpy);
+
+    // An unrelated ordinary member must not sign another profile's image.
+    expect(await authorizeR2LogoRead(req("session"),key))
       .toMatchObject({ok:false,status:403});
+    // Owner may read their own photo.
+    currentProfile = target;
+    expect(await authorizeR2LogoRead(req("session"),key)).toEqual({ok:true});
+    // An actual admin may inspect people registered in their own city only.
+    currentProfile = viewer;
+    isAdmin = true;
+    expect(await authorizeR2LogoRead(req("session"),key)).toEqual({ok:true});
+    expect(await authorizeR2LogoRead(req("session"),
+      "municipalities/22222222-2222-4222-8222-222222222222/profiles/avatars/" + target + "/pic.png"))
+      .toMatchObject({ok:false,status:403});
+    expect(fetchSpy).toHaveBeenCalled();
   });
   it("retains intentional public municipality and platform logos", async () => {
     expect(await authorizeR2LogoRead(req(),`municipalities/${tenant}/branding/logo.png`)).toEqual({ok:true});

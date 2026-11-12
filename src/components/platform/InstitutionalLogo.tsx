@@ -181,9 +181,23 @@ export function InstitutionalLogo({
   // 4) troca de tenant muda o contexto e impede reutilização entre Prefeituras;
   // 5) uma superfície municipal nunca aceita o logo SIGAPRO como cache/fallback.
   const displayUrl = stableLoadedUrl || safeCachedUrl || imageUrl;
+  // Ao navegar no Master, a busca assíncrona do R2 pode deixar requestedUrl
+  // temporariamente vazio. Se já há uma identidade personalizada validada
+  // neste mesmo contexto, NÃO substituir o logo pelo PNG genérico durante
+  // essa janela: isso fazia a imagem recolher e depois crescer novamente.
+  // A escolha explícita do logo padrão continua válida (requestedUrl definido).
+  const hasValidatedMasterImage =
+    isMaster &&
+    Boolean(stableLoadedUrl || safeCachedUrl) &&
+    !sameAssetResource(stableLoadedUrl || safeCachedUrl, SIGAPRO_OFFICIAL_LOGO);
+  const deferredMasterFallback =
+    hasValidatedMasterImage &&
+    !requestedUrl &&
+    sameAssetResource(imageUrl, SIGAPRO_OFFICIAL_LOGO);
   const pendingUrl =
     imageUrl &&
-    imageUrl !== displayUrl
+    imageUrl !== displayUrl &&
+    !deferredMasterFallback
       ? imageUrl
       : "";
 

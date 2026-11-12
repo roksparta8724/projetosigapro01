@@ -24,6 +24,7 @@ import { InternalTabs } from "@/components/platform/InternalTabs";
 import { PageHeader } from "@/components/platform/PageHeader";
 import { MarkerSelector } from "@/components/platform/MarkerSelector";
 import { PortalFrame } from "@/components/platform/PortalFrame";
+import { QaArchitecturalLab } from "@/components/platform/QaArchitecturalLab";
 import { SectionCard } from "@/components/platform/SectionCard";
 import { TableCard } from "@/components/platform/TableCard";
 import {
@@ -171,15 +172,18 @@ export function AnalystDeskPage() {
       void refreshAnalysisDesk();
     };
 
-    sync();
-    const timer = window.setInterval(sync, 5000);
+    // Initial data is loaded by PlatformDataProvider. A second full load on
+    // mount caused duplicate requests; data-change/focus still refresh now.
+    const timer = window.setInterval(sync, 30000);
     window.addEventListener("focus", sync);
+    window.addEventListener("sigapro:data-changed", sync);
     document.addEventListener("visibilitychange", sync);
 
     return () => {
       disposed = true;
       window.clearInterval(timer);
       window.removeEventListener("focus", sync);
+      window.removeEventListener("sigapro:data-changed", sync);
       document.removeEventListener("visibilitychange", sync);
     };
   }, [refreshAnalysisDesk]);
@@ -758,6 +762,17 @@ export function AnalystDeskPage() {
                 </div>
 
                 <div data-analysis-process-actions="true" className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
+                  {session.role === "analista" &&
+                    canAccessMunicipalArea(session, "analise") &&
+                    !hasAssignedAnalyst && !analysisStarted ? (
+                    <Button type="button" data-sigapro-assume-analysis-direct="true"
+                      className="min-h-10 max-w-full rounded-xl bg-[#075985] px-4 !text-white hover:bg-[#0c4a6e] [&_*]:!text-white"
+                      disabled={Boolean(actionBusy)}
+                      onClick={() => void handleStartAnalysis(process)}>
+                      <UserPlus className="mr-2 h-4 w-4" />
+                      {actionBusy === `start-${process.id}` ? "Iniciando..." : "Assumir análise e abrir editor"}
+                    </Button>
+                  ) : null}
                   {canEditAnalysis && analysisStarted ? (
                     <Button type="button" variant="outline" size="sm"
                       className="h-10 rounded-xl border-sky-400/25 bg-sky-400/10 px-3 text-xs font-semibold text-sky-100 hover:bg-sky-400/20"
@@ -1202,6 +1217,10 @@ export function AnalystDeskPage() {
 
         {section === "visao-geral" && (
           <>
+            {import.meta.env.VITE_SIGAPRO_NEON_ISOLATED==="true" &&
+              (session.role==="analista"||session.role==="prefeitura_supervisor") ? (
+                <QaArchitecturalLab municipalityId={effectiveScopeId} />
+              ) : null}
             <PageStatsRow>
               <StatCard label="Em análise" value={String(inReview.length)} description="Pareceres em andamento" icon={Stamp} tone="blue" />
               <StatCard label="Pendências" value={String(requirementsOpen)} description="Exigências abertas" icon={Clock3} tone="amber" />

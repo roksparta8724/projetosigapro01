@@ -18,6 +18,38 @@ import { resolveAssetUrl } from "@/lib/assetUrl";
 import { getInstitutionBranding } from "@/lib/institutionBranding";
 import { getMasterInstitutionBranding, loadMasterBranding, saveMasterBranding, updateMasterBranding } from "@/lib/masterBranding";
 
+// A barra institucional remonta durante a navegação entre rotas. Guardar a
+// última identificação oficial evita que o Master renderize escala local
+// provisória e depois salte para a escala remota em cada troca de página.
+// Compartilhar apenas em memória desta aba; nunca compartilhar entre tenants.
+type PlatformBrandingSnapshot = Awaited<ReturnType<typeof loadPlatformBranding>>;
+let lastMasterPlatformBranding: PlatformBrandingSnapshot | null = null;
+let lastMasterPlatformBrandingAt = 0;
+let pendingMasterPlatformBranding: Promise<PlatformBrandingSnapshot | null> | null = null;
+const MASTER_BRANDING_REVALIDATE_MS = 60_000;
+
+function loadStableMasterPlatformBranding(forceRefresh = false): Promise<PlatformBrandingSnapshot | null> {
+  if (
+    !forceRefresh &&
+    lastMasterPlatformBranding &&
+    Date.now() - lastMasterPlatformBrandingAt < MASTER_BRANDING_REVALIDATE_MS
+  ) {
+    return Promise.resolve(lastMasterPlatformBranding);
+  }
+  if (pendingMasterPlatformBranding) return pendingMasterPlatformBranding;
+  pendingMasterPlatformBranding = loadPlatformBranding()
+    .then((value) => {
+      if (value) {
+        lastMasterPlatformBranding = value;
+        lastMasterPlatformBrandingAt = Date.now();
+      }
+      return value;
+    })
+    .catch(() => null)
+    .finally(() => { pendingMasterPlatformBranding = null; });
+  return pendingMasterPlatformBranding;
+}
+
 const MASTER_SIGNED_CACHE_TTL_MS = 1000 * 60 * 15;
 let cachedMasterHeaderSignedUrl = "";
 let cachedMasterHeaderSignedAt = 0;
@@ -198,7 +230,7 @@ export function useInstitutionBranding(tenantId?: string | null) {
   const [resolvedMasterFooterLogoUrl, setResolvedMasterFooterLogoUrl] = useState<string>(
     () => getCachedMasterFooterUrl(),
   );
-  const [platformBranding, setPlatformBranding] = useState<Awaited<ReturnType<typeof loadPlatformBranding>> | null>(null);
+  const [platformBranding, setPlatformBranding] = useState<PlatformBrandingSnapshot | null>(() => lastMasterPlatformBranding);
   const stableTenantHeaderLogoRef = useRef<{ tenantId: string; url: string }>({ tenantId: "", url: "" });
   const stableTenantFooterLogoRef = useRef<{ tenantId: string; url: string }>({ tenantId: "", url: "" });
   const [resolvedTenantHeaderLogoState, setResolvedTenantHeaderLogo] = useState<{ tenantId: string; url: string }>({ tenantId: "", url: "" });
@@ -250,7 +282,11 @@ export function useInstitutionBranding(tenantId?: string | null) {
     const handler = () => {
       setMasterBrandingState(loadMasterBranding());
       if (shouldUseMasterBranding) {
-        loadPlatformBranding().then(setPlatformBranding).catch(() => setPlatformBranding(null));
+        // Após edição explícita no Master, recarrega a origem oficial sem
+        // voltar a um placeholder nem descartar a imagem anterior.
+        void loadStableMasterPlatformBranding(true).then((remote) => {
+          if (remote) setPlatformBranding(remote);
+        });
       }
     };
     window.addEventListener("sigapro-master-branding-updated", handler as EventListener);
@@ -260,18 +296,12 @@ export function useInstitutionBranding(tenantId?: string | null) {
   useEffect(() => {
     if (!shouldUseMasterBranding) return;
     let active = true;
-    const loadRemote = async () => {
-      try {
-        const remote = await loadPlatformBranding();
-        if (active) setPlatformBranding(remote);
-      } catch {
-        if (active) setPlatformBranding(null);
-      }
-    };
-    void loadRemote();
-    return () => {
-      active = false;
-    };
+    // A primeira montagem consulta o banco. As próximas rotas reutilizam o
+    // snapshot já validado; re-fetch não é necessário a cada clique.
+    void loadStableMasterPlatformBranding().then((remote) => {
+      if (active && remote) setPlatformBranding(remote);
+    });
+    return () => { active = false; };
   }, [shouldUseMasterBranding]);
 
   useEffect(() => {
@@ -301,6 +331,9 @@ export function useInstitutionBranding(tenantId?: string | null) {
 
   useEffect(() => {
     if (!shouldUseMasterBranding) return;
+    // Impedir respostas fora de ordem. Uma URL antiga pode chegar depois da
+    // nova, se o usuário mudar de página ou atualizar o logo enquanto assina R2.
+    let active = true;
     const bucket =
       (import.meta.env.VITE_R2_BUCKET_LOGOS as string | undefined) || "sigapro-logos";
     const resolveLogo = async (raw: string, setter: (value: string) => void) => {
@@ -357,6 +390,7 @@ export function useInstitutionBranding(tenantId?: string | null) {
       "";
 
     void resolveLogo(headerRaw, (value) => {
+      if (!active) return;
       if (value) {
         cachedMasterHeaderSignedUrl = value;
         cachedMasterHeaderSignedAt = Date.now();
@@ -367,6 +401,7 @@ export function useInstitutionBranding(tenantId?: string | null) {
       setResolvedMasterHeaderLogoUrl(value || getCachedMasterHeaderUrl());
     });
     void resolveLogo(footerRaw, (value) => {
+      if (!active) return;
       if (value) {
         cachedMasterFooterSignedUrl = value;
         cachedMasterFooterSignedAt = Date.now();
@@ -376,7 +411,14 @@ export function useInstitutionBranding(tenantId?: string | null) {
       }
       setResolvedMasterFooterLogoUrl(value || getCachedMasterFooterUrl());
     });
-  }, [masterBrandingState.logoUrl, platformBranding, shouldUseMasterBranding]);
+    return () => { active = false; };
+  }, [
+    masterBrandingState.logoUrl,
+    masterBrandingState.headerLogoUrl,
+    masterBrandingState.footerLogoUrl,
+    platformBranding,
+    shouldUseMasterBranding,
+  ]);
 
   useEffect(() => {
     if (shouldUseMasterBranding || !resolvedInstitutionId) {
@@ -460,9 +502,9 @@ export function useInstitutionBranding(tenantId?: string | null) {
       return {
         ...masterBranding,
         logoUrl: resolvedMasterHeaderLogoUrl || masterBranding.logoUrl,
-        ...(platformBranding?.headerLogoFileName.endsWith("-enquadrado.png")
-          ? { logoScale: 1, logoOffsetX: 0, logoOffsetY: 0 }
-          : {}),
+        // Nunca substituir o enquadramento salvo ao receber metadados remotos.
+        // A chegada assíncrona de "-enquadrado.png" fazia o logo do Master
+        // encolher durante a troca de páginas, apesar da fonte não mudar.
       };
     }
     const base = getInstitutionBranding(
@@ -528,7 +570,6 @@ export function useInstitutionBranding(tenantId?: string | null) {
     scopedMunicipality?.name,
     institutionSettings,
     masterBrandingState,
-    platformBranding?.headerLogoFileName,
     resolvedMasterHeaderLogoUrl,
     resolvedTenantHeaderLogoState,
     resolvedInstitutionId,
@@ -547,9 +588,8 @@ export function useInstitutionBranding(tenantId?: string | null) {
       return {
         ...masterBranding,
         logoUrl: resolvedMasterFooterLogoUrl || masterBranding.logoUrl,
-        ...(platformBranding?.footerLogoFileName.endsWith("-enquadrado.png")
-          ? { logoScale: 1, logoOffsetX: 0, logoOffsetY: 0 }
-          : {}),
+        // O rodapé segue o seu próprio enquadramento salvo; a atualização
+        // assíncrona do nome do arquivo não pode recalibrar sua escala.
       };
     }
     const base = getInstitutionBranding(
@@ -614,7 +654,6 @@ export function useInstitutionBranding(tenantId?: string | null) {
     scopedMunicipality?.name,
     institutionSettings,
     masterBrandingState,
-    platformBranding?.footerLogoFileName,
     resolvedMasterFooterLogoUrl,
     resolvedTenantFooterLogoState,
     resolvedInstitutionId,

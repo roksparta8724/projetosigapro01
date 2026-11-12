@@ -2,6 +2,8 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { callDataApiRpc, readBearer, readEnv } from "../server/municipal-storage.js";
 import { resolvePrivateAiConfig } from "../server/private-ai-provider.js";
 import handleProjectExtract from "../server/ai-project-extract.js";
+import handleQaArchitecturalBenchmark from "../server/qa-architectural-benchmark.js";
+import handleQaR2ReadingProof from "../server/qa-r2-reading-proof.js";
 
 export const maxDuration = 60;
 import { resolveCloudflareAiConfig } from "../server/cloudflare-ai-provider.js";
@@ -76,6 +78,8 @@ export function normalizeAssistantMessages(body: unknown): ChatMessage[] {
 export default async function handler(req: Req, res: Res) {
   const action = new URL(req.url || "/api/ai-assistant", "https://sigapro.local").searchParams.get("action");
   if (action === "project-extract") return handleProjectExtract(req, res);
+  if (action === "qa-architectural-benchmark") return handleQaArchitecturalBenchmark(req, res);
+  if (action === "qa-r2-reading-proof") return handleQaR2ReadingProof(req, res);
   if (req.method !== "POST") return json(res,405,{error:"Método não permitido."});
   if (!sameOrigin(req)) return json(res,403,{error:"Origem de acesso não autorizada."});
   if (!readBearer(req)) return json(res,401,{error:"Entre novamente na sua conta SIGAPRO para usar o assistente."});
@@ -123,7 +127,7 @@ export default async function handler(req: Req, res: Res) {
   }) : null;
   if (provider === "cloudflare" && !cloudflareConfig) return json(res,503,{
     code:"SIGAPRO_CLOUDFLARE_AI_NOT_CONFIGURED",
-    error:"A IA Cloudflare do SIGAPRO ainda não foi configurada. Confira as variáveis protegidas na Vercel.",
+    error:"O SIGAPRO IA · Assistente não está configurado neste ambiente. Solicite a verificação ao administrador técnico.",
   });
   if (provider !== "private" && provider !== "openai" && provider !== "cloudflare") return json(res,503,{
     code:"SIGAPRO_AI_PROVIDER_INVALID",
@@ -161,15 +165,15 @@ export default async function handler(req: Req, res: Res) {
     if (!response.ok) {
       if (provider === "cloudflare" && response.status === 429) return json(res,429,{
         code:"SIGAPRO_CLOUDFLARE_AI_LIMIT",
-        error:"A franquia diária ou a capacidade da IA Cloudflare foi atingida. Tente novamente mais tarde.",
+        error:"O limite diário ou a capacidade do SIGAPRO IA · Assistente foi atingido. Tente novamente mais tarde.",
       });
-      return json(res,502,{error:"O provedor de IA não respondeu corretamente. Consulte a configuração e tente novamente."});
+      return json(res,502,{error:"O SIGAPRO IA · Assistente não conseguiu concluir a resposta. Verifique a conexão e tente novamente."});
     }
     const payload = await response.json() as {choices?:Array<{message?:{content?:string}}>;usage?:unknown;model?:string};
     const content = payload.choices?.[0]?.message?.content;
     if (typeof content !== "string" || !content.trim())
-      return json(res,502,{error:"O provedor de IA retornou uma resposta vazia."});
-    return json(res,200,{message:content.trim(),model:payload.model||selectedModel});
+      return json(res,502,{error:"O SIGAPRO IA · Assistente não gerou uma resposta válida."});
+    return json(res,200,{message:content.trim()});
   } catch {
     return json(res,504,{error:"A consulta ao assistente expirou ou falhou. Nenhum processo foi modificado."});
   } finally {clearTimeout(timer);}

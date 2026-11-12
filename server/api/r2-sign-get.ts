@@ -1,4 +1,5 @@
 import { getR2EndpointCandidates, resolveR2Endpoint } from "../r2-runtime.js";
+import { isPublicLegislationPdfKey, isSafeR2ObjectKey, signedR2Ttl } from "../r2-object-key-validation.js";
 /**
  * api/r2-sign-get.ts — Vercel Serverless handler
  *
@@ -10,6 +11,8 @@ import { getR2EndpointCandidates, resolveR2Endpoint } from "../r2-runtime.js";
 import { GetObjectCommand, HeadObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { callDataApiRpc, getDataApiUrl, readBearer, resolveMunicipalDocumentTarget } from "../municipal-storage.js";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { authorizePrivateAvatarRead, isAvatarStoragePath } from "../avatar-access.js";
+import { assertStoredDamOriginal, DAM_ORIGINAL_KEY } from "../dam-original-integrity.js";
 
 type Req = import("http").IncomingMessage & { method?: string; body?: unknown };
 type Res = import("http").ServerResponse;
@@ -35,10 +38,39 @@ function resolveRequestedBucket(value: string) {
   return "";
 }
 
-// Only historical public legislation is intentionally readable without
-// a signed-in municipal session. Every process document is private.
-function isPublicLegalDocumentKey(objectKey: string) {
-  return /^municipalities\/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/legislation(?:[-/]|$)/i.test(objectKey);
+/**
+ * Pure secondary guard: SELECT under RLS and the document RPC are necessary
+ * but neither validates this exact object key, nor rejects a revoked revision.
+ * Only a current document belonging to its path's municipality can be signed.
+ */
+export type PrivateR2DocumentRow = {
+  id?: unknown;
+  process_id?: unknown;
+  municipality_id?: unknown;
+  tenant_id?: unknown;
+  file_path?: unknown;
+  version?: unknown;
+  is_valid?: unknown;
+  invalidated_at?: unknown;
+};
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export function isEligiblePrivateR2Document(
+  record: PrivateR2DocumentRow | null | undefined,
+  objectKey: string,
+  keyMunicipalityId: string,
+): boolean {
+  if (!record || !isSafeR2ObjectKey(objectKey) ||
+      !UUID.test(keyMunicipalityId) ||
+      !UUID.test(String(record.id || "")) ||
+      !UUID.test(String(record.process_id || "")) ||
+      record.file_path !== objectKey ||
+      record.is_valid !== true || record.invalidated_at !== null ||
+      !Number.isSafeInteger(record.version) || Number(record.version) < 1) return false;
+  const tenant = String(record.tenant_id || "").toLowerCase();
+  const municipality = record.municipality_id == null ? tenant :
+    String(record.municipality_id).toLowerCase();
+  return tenant === keyMunicipalityId.toLowerCase() &&
+    municipality === tenant;
 }
 
 /**
@@ -57,13 +89,14 @@ export async function authorizePrivateR2DocumentRead(
   try {
     const query = new URLSearchParams({
       file_path: `eq.${objectKey}`,
-      select: "id,process_id,municipality_id,tenant_id",
-      limit: "1",
+      select: "id,process_id,municipality_id,tenant_id,file_path,version,is_valid,invalidated_at",
+      limit: "2",
     });
     const result = await fetch(`${getDataApiUrl()}/process_documents?${query.toString()}`, {
       method: "GET",
       headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
       cache: "no-store",
+      redirect: "error",
     });
     if (!result.ok) {
       return {
@@ -73,20 +106,13 @@ export async function authorizePrivateR2DocumentRead(
       };
     }
     const rows: unknown = await result.json();
-    const document = Array.isArray(rows) ? rows[0] as
-      | { id?: unknown; process_id?: unknown; municipality_id?: unknown; tenant_id?: unknown }
-      | undefined : undefined;
-    if (!document) return { ok: false, status: 403, error: "Documento não disponível para este usuário." };
-    const documentMunicipalityId = String(document.municipality_id || document.tenant_id || "").toLowerCase();
-    if (keyMunicipalityId && documentMunicipalityId !== keyMunicipalityId.toLowerCase()) {
-      return { ok: false, status: 403, error: "Documento fora do município autorizado." };
-    }
-    // Fail closed on direct signed-URL requests, not merely on the UI.
-    // The RPC checks the viewer's role, process affiliation and technical release.
-    const documentId = String(document.id || "");
-    if (!/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(documentId) || !document.process_id) {
-      return { ok: false, status: 403, error: "Vínculo do documento com o processo não confirmado." };
-    }
+    // Duplicate keys are ambiguous and may refer to a revoked version.
+    // Never choose the first row and silently sign the other one.
+    const document = Array.isArray(rows) && rows.length === 1
+      ? rows[0] as PrivateR2DocumentRow | undefined : undefined;
+    if (!isEligiblePrivateR2Document(document, objectKey, keyMunicipalityId))
+      return { ok: false, status: 403, error: "Documento vigente não disponível para esta conta." };
+    const documentId = String(document?.id);
     const release = await callDataApiRpc<boolean>(req, "authorize_technical_document_signing_v1", {
       _document_id: documentId,
     });
@@ -109,6 +135,7 @@ export async function authorizePrivateR2DocumentRead(
 /** Authorization for a presigned identity asset; URLs are bearer credentials. */
 export async function authorizeR2LogoRead(req: Req, key: string) {
   // Logos are public; private avatars and other objects are not.
+  if (isAvatarStoragePath(key)) return authorizePrivateAvatarRead(req, key);
   const publicBrand =
     /^platform\/branding\/[a-zA-Z0-9/_-]+\.(?:png|webp|jpe?g)$/i.test(key) ||
     /^municipalities\/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/branding\/[a-zA-Z0-9/_ .()-]+\.(?:png|webp|jpe?g)$/i.test(key);
@@ -131,25 +158,57 @@ function setCors(res: Res) {
 function json(res: Res, status: number, body: unknown) {
   setCors(res);
   res.statusCode = status;
-  res.setHeader("Content-Type", "application/json");
+  res.setHeader("Content-Type", "application/json; charset=utf-8");
+  res.setHeader("Cache-Control", "private, no-store");
+  res.setHeader("X-Content-Type-Options", "nosniff");
   res.end(JSON.stringify(body));
 }
 
-async function readJsonBody(req: Req) {
-  if (req.body && typeof req.body === "object") return req.body;
-  return new Promise<Record<string, unknown>>((resolve, reject) => {
-    const chunks: Buffer[] = [];
-    req.on("data", (chunk) => chunks.push(Buffer.from(chunk)));
-    req.on("end", () => {
-      try {
-        const raw = Buffer.concat(chunks).toString("utf8");
-        resolve(raw ? (JSON.parse(raw) as Record<string, unknown>) : {});
-      } catch (error) {
-        reject(error);
-      }
-    });
-    req.on("error", reject);
-  });
+const MAX_SIGN_REQUEST_BYTES = 4096;
+async function readJsonBody(req: Req): Promise<Record<string, unknown>> {
+  const validate = (value: unknown): Record<string, unknown> => {
+    if (!value || typeof value !== "object" || Array.isArray(value))
+      throw new Error("R2_BODY_INVALID");
+    if (Buffer.byteLength(JSON.stringify(value), "utf8") > MAX_SIGN_REQUEST_BYTES)
+      throw new Error("R2_BODY_LIMIT");
+    return value as Record<string, unknown>;
+  };
+  if (req.body !== undefined) return validate(req.body);
+  const chunks: Buffer[] = []; let count = 0;
+  for await (const chunk of req) {
+    const data = Buffer.from(chunk);
+    count += data.length;
+    if (count > MAX_SIGN_REQUEST_BYTES) throw new Error("R2_BODY_LIMIT");
+    chunks.push(data);
+  }
+  try { return validate(JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}")); }
+  catch (error) {
+    if (error instanceof Error && error.message === "R2_BODY_LIMIT") throw error;
+    throw new Error("R2_BODY_INVALID");
+  }
+}
+
+/** Provider errors never become user-visible stack traces, URLs or secrets. */
+export function classifyR2SignFailure(error: unknown) {
+  const e = error as { name?: unknown; message?: unknown; $metadata?: { httpStatusCode?: number } } | null;
+  const name = String(e?.name || "");
+  const message = typeof e?.message === "string" ? e.message : "";
+  const status = e?.$metadata?.httpStatusCode;
+  if (/^R2_BODY_LIMIT$/.test(message)) return { status: 413, code: "R2_REQUEST_TOO_LARGE",
+    error: "Solicitação de acesso ao arquivo acima do limite permitido." };
+  if (/^R2_BODY_INVALID$/.test(message)) return { status: 400, code: "R2_REQUEST_INVALID",
+    error: "Dados do pedido de arquivo inválidos." };
+  if (/^R2_ENV_MISSING$/.test(message)) return { status: 503, code: "R2_CONFIG_UNAVAILABLE",
+    error: "Armazenamento municipal não configurado neste ambiente." };
+  if (status === 404 || /^(?:NoSuchKey|NotFound|NoSuchBucket)$/.test(name))
+    return { status: 404, code: "R2_OBJECT_NOT_FOUND",
+      error: "Arquivo não encontrado no armazenamento vinculado à Prefeitura." };
+  if (/SignatureDoesNotMatch|InvalidAccessKeyId|AccessDenied/i.test(name) ||
+      /signature.*does not match|invalid access key/i.test(message) || status === 403)
+    return { status: 503, code: "R2_STORAGE_AUTH_FAILED",
+      error: "O armazenamento não confirmou as credenciais de acesso. Nenhum link foi emitido." };
+  return { status: 503, code: "R2_UNAVAILABLE",
+    error: "O armazenamento não respondeu corretamente. Tente novamente sem criar uma nova guia ou documento." };
 }
 
 export default async function handler(req: Req, res: Res) {
@@ -171,13 +230,6 @@ export default async function handler(req: Req, res: Res) {
     const secretAccessKey = readEnv("R2_SECRET_ACCESS_KEY");
     const envOk = Boolean(endpoint && accessKeyId && secretAccessKey);
 
-    console.log("[ProdAudit][R2Sign] env", {
-      hasEndpoint: Boolean(endpoint),
-      hasAccessKeyId: Boolean(accessKeyId),
-      hasSecret: Boolean(secretAccessKey),
-      accessKeyLength: accessKeyId.length,
-    });
-
     const body = (await readJsonBody(req)) as {
       bucket?: unknown;
       objectKey?: unknown;
@@ -195,15 +247,17 @@ export default async function handler(req: Req, res: Res) {
       return;
     }
 
-    if (typeof objectKey !== "string" || !objectKey) {
+    if (!isSafeR2ObjectKey(objectKey)) {
       json(res, 400, { error: "Chave do objeto inválida." });
       return;
     }
 
-    const ttl =
-      typeof expiresIn === "number" && Number.isFinite(expiresIn)
-        ? Math.max(60, Math.min(expiresIn, 86400))
-        : 21600;
+    const documentsBucket = readEnv("R2_BUCKET_DOCUMENTOS") || "sigapro-documentos";
+    if (objectKey.includes("/dam-originals/") && bucket !== documentsBucket) {
+      json(res,400,{code:"DAM_WRONG_BUCKET",error:"Originais DAM somente no armazenamento privativo de documentos."});
+      return;
+    }
+    const ttl = signedR2Ttl(expiresIn, bucket === documentsBucket);
 
     const municipalityId = extractMunicipalityId(objectKey);
     if (objectKey.includes("/dam-originals/")) {
@@ -221,11 +275,14 @@ export default async function handler(req: Req, res: Res) {
       const permission = await authorizeR2LogoRead(req, objectKey);
       if (permission.ok === false) { json(res, permission.status, { error: permission.error }); return; }
     }
-    const documentsBucket = readEnv("R2_BUCKET_DOCUMENTOS") || "sigapro-documentos";
     // DAM originals have their own immutable-guide authorization RPC above.
     // A public municipal legal rule is the only other unregistered exception.
     const isGuideOriginal = objectKey.includes("/dam-originals/");
-    if (bucket === documentsBucket && !isGuideOriginal && !isPublicLegalDocumentKey(objectKey)) {
+    // An original is identified by the SHA in its canonical immutable key.
+    // Never rely on an HTTP 200 HEAD response as proof that the PDF still
+    // contains the exact signed bytes acknowledged by the municipal ledger.
+    const expectedDamSha = isGuideOriginal ? (DAM_ORIGINAL_KEY.exec(objectKey)?.[4] || "") : "";
+    if (bucket === documentsBucket && !isGuideOriginal && !isPublicLegislationPdfKey(objectKey)) {
       const permission = await authorizePrivateR2DocumentRead(req, objectKey, municipalityId);
       if (permission.ok === false) {
         json(res, permission.status, { error: permission.error });
@@ -238,26 +295,43 @@ export default async function handler(req: Req, res: Res) {
       : null;
 
     if (municipalTarget) {
-      const signedUrl = await getSignedUrl(
-        municipalTarget.client,
-        new GetObjectCommand({
+      try {
+        // BYOS credentials can sign a non-existent object offline. Check the
+        // original BEFORE reporting success to the PDF viewer.
+        const head = await municipalTarget.client.send(new HeadObjectCommand({
           Bucket: municipalTarget.bucket,
           Key: municipalTarget.objectKey,
-        }),
-        { expiresIn: ttl },
-      );
-      json(res, 200, {
-        signedUrl,
-        bucket: requestedBucket,
-        resolvedBucket: bucket,
-        objectKey,
-        storageProvider: "municipal_s3",
-      });
-      return;
+        }));
+        if (isGuideOriginal) {
+          await assertStoredDamOriginal(municipalTarget.client,{
+            bucket:municipalTarget.bucket,objectKey:municipalTarget.objectKey,
+            logicalObjectKey:objectKey,expectedSha256:expectedDamSha,
+            expectedBytes:Number(head.ContentLength||0),
+          });
+        }
+        const signedUrl = await getSignedUrl(
+          municipalTarget.client,
+          new GetObjectCommand({
+            Bucket: municipalTarget.bucket,
+            Key: municipalTarget.objectKey,
+          }),
+          { expiresIn: ttl },
+        );
+        json(res, 200, {
+          signedUrl,
+          bucket: requestedBucket,
+          resolvedBucket: bucket,
+          objectKey,
+          storageProvider: "municipal_s3",
+        });
+        return;
+      } finally {
+        municipalTarget.client.destroy();
+      }
     }
 
     if (!envOk) {
-      throw new Error("Variáveis R2 ausentes no ambiente.");
+      throw new Error("R2_ENV_MISSING");
     }
 
     let signedUrl = "";
@@ -277,12 +351,18 @@ export default async function handler(req: Req, res: Res) {
         // O upload já possui fallback entre endpoints. A leitura precisa localizar
         // fisicamente o MESMO objeto antes de assinar, ou uma URL válida pode
         // apontar para a conta errada e retornar 404 somente em produção.
-        await client.send(
+        const head = await client.send(
           new HeadObjectCommand({
             Bucket: bucket,
             Key: objectKey,
           }),
         );
+        if (isGuideOriginal) {
+          await assertStoredDamOriginal(client,{
+            bucket,objectKey,expectedSha256:expectedDamSha,
+            expectedBytes:Number(head.ContentLength||0),
+          });
+        }
 
         signedUrl = await getSignedUrl(
           client,
@@ -295,6 +375,8 @@ export default async function handler(req: Req, res: Res) {
         break;
       } catch (error) {
         lastError = error;
+      } finally {
+        client.destroy();
       }
     }
 
@@ -306,15 +388,13 @@ export default async function handler(req: Req, res: Res) {
 
     json(res, 200, { signedUrl, bucket: requestedBucket, resolvedBucket: bucket, objectKey, storageProvider: "sigapro_r2" });
   } catch (error) {
-    const rawMessage = error instanceof Error ? error.message : "Erro ao gerar link de leitura.";
-    const signatureMismatch = /signature.*does not match|SignatureDoesNotMatch/i.test(rawMessage);
-    const message = signatureMismatch
-      ? "Falha de autenticação no armazenamento R2. O endpoint e as credenciais precisam pertencer à mesma conta."
-      : rawMessage;
-    console.error("[SIGAPRO][R2] Falha no sign-get", { error: rawMessage });
-    json(res, 500, {
-      error: message,
-      code: signatureMismatch ? "R2_SIGNATURE_MISMATCH" : "R2_ERROR",
+    const failure = classifyR2SignFailure(error);
+    // One sanitized code is sufficient to correlate failures across R2,
+    // fallback endpoints and municipal S3. Never log tokens, signed URLs or
+    // provider response bodies here.
+    console.warn("[SIGAPRO][R2Sign] assinatura indisponível", {
+      code: failure.code,
     });
+    json(res, failure.status, { error: failure.error, code: failure.code });
   }
 }

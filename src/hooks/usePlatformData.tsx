@@ -2,6 +2,7 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { isConfirmedStoreIdentity } from "@/lib/confirmedStoreIdentity";
+import { IdentityScopedSingleFlight } from "@/lib/identityScopedSingleFlight";
 import {
   type AccountStatus,
   buildProcessDocuments,
@@ -997,6 +998,11 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
     () => initialStateRef.current?.contextUserId ?? null,
   );
   const lastFetchedUserId = useRef<string | null>(null);
+  // The 31-query store load must not multiply for multiple focus/change
+  // events, and an old account's request must never mutate the new account.
+  const refreshFlightsRef = useRef(new IdentityScopedSingleFlight());
+  const currentAuthIdentityRef = useRef(authenticatedUserId);
+  currentAuthIdentityRef.current = authenticatedUserId;
   const allowRemoteInLocal =
     isNeonBackend ||
     (import.meta.env.VITE_FORCE_REMOTE_STORE as string | undefined) === "true";
@@ -1329,8 +1335,12 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
       throw error;
     }
 
-    try {
-      const remote = await loadRemotePlatformStoreWithRetry(focusProcessRouteKey);
+    const identity = authenticatedUserId;
+    return refreshFlightsRef.current.run(identity, focusProcessRouteKey ?? "", async () => {
+      try {
+        const remote = await loadRemotePlatformStoreWithRetry(focusProcessRouteKey);
+        // Never apply a late response from a previously signed-in account.
+        if (currentAuthIdentityRef.current !== identity) return;
       let sanitized = buildSanitizedStore(remote, false);
       const authoritativeProfile = findUserProfile(
         sanitized.userProfiles,
@@ -1365,14 +1375,17 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
       setDataError(null);
       lastFetchedUserId.current = authenticatedUserId;
       setRemoteContextUserId(authenticatedUserId);
-    } catch (error) {
-      setDataError(
-        error instanceof Error && error.message
-          ? `Banco oficial indisponível: ${error.message}`
-          : "Banco oficial temporariamente indisponível.",
-      );
-      throw error;
-    }
+      } catch (error) {
+        if (currentAuthIdentityRef.current === identity) {
+          setDataError(
+            error instanceof Error && error.message
+              ? `Banco oficial indisponível: ${error.message}`
+              : "Banco oficial temporariamente indisponível.",
+          );
+        }
+        throw error;
+      }
+    });
   };
 
   // Revalidações periódicas/focus podem consultar o backend, mas nunca devem

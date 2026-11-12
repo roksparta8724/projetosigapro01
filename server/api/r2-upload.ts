@@ -6,9 +6,12 @@ import { getR2EndpointCandidates, resolveR2Endpoint } from "../r2-runtime.js";
  * Retorna { bucket, objectKey, publicUrl }
  */
 
-import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { HeadObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { createHash } from "node:crypto";
+import { assertStoredDamOriginal } from "../dam-original-integrity.js";
 import { getDataApiUrl, resolveMunicipalDocumentTarget } from "../municipal-storage.js";
+import { safeAvatarMime } from "./profile-avatar-open.js";
+import { authorizeProcessAttachmentWrite } from "../process-attachment-write-authorization.js";
 
 type Req = import("http").IncomingMessage & { method?: string; body?: unknown };
 type Res = import("http").ServerResponse;
@@ -27,6 +30,32 @@ function isR2CredentialError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error || "");
   return /SignatureDoesNotMatch|InvalidAccessKeyId|AccessDenied/i.test(name) ||
     /signature.*does not match|invalid access key|access denied/i.test(message);
+}
+
+/**
+ * A conditional 412 on an immutable DAM original is NOT a successful upload.
+ * Accept an idempotent retry only when the existing object has the expected
+ * immutable sha256, exact byte count and PDF MIME. Otherwise propagate 412.
+ */
+export async function verifyExistingDamOriginal(
+  client: S3Client,
+  input: {
+    bucket: string; objectKey: string; body: Buffer;
+    contentType: string; metadata?: Record<string, string>;
+  },
+): Promise<boolean> {
+  const expected = input.metadata?.sha256 || "";
+  if (!input.objectKey.includes("/dam-originals/") ||
+      !/^[a-f0-9]{64}$/.test(expected) ||
+      input.contentType !== "application/pdf") return false;
+  if (createHash("sha256").update(input.body).digest("hex") !== expected) return false;
+  try {
+    await assertStoredDamOriginal(client, {
+      bucket: input.bucket, objectKey: input.objectKey,
+      expectedSha256: expected, expectedBytes: input.body.length,
+    });
+    return true;
+  } catch { return false; }
 }
 
 export function isCreateOnlyDocumentBucket(bucket: string) {
@@ -65,9 +94,27 @@ async function putR2ObjectWithFallback(input: {
         // Every process document is create-once, including ordinary attachments.
         ...(isCreateOnlyDocumentBucket(input.bucket) ? { IfNoneMatch: "*" } : {}),
       }));
+      if (input.metadata?.sha256 && input.objectKey.includes("/dam-originals/")) {
+        // A successful PUT alone does not prove the archive was durably stored.
+        // HEAD + GET + actual bytes/hash are mandatory before returning HTTP 200.
+        await assertStoredDamOriginal(client, {
+          bucket: input.bucket, objectKey: input.objectKey,
+          expectedSha256: input.metadata.sha256, expectedBytes: input.body.length,
+        });
+      } else if (isCreateOnlyDocumentBucket(input.bucket)) {
+        // Every other municipal document must be physically readable, too.
+        const head = await client.send(new HeadObjectCommand({
+          Bucket: input.bucket, Key: input.objectKey,
+        }));
+        if (head.ContentLength !== input.body.length ||
+            String(head.ContentType || "").toLowerCase() !== input.contentType.toLowerCase()) {
+          throw new Error("R2_DOCUMENT_OBJECT_NOT_CONFIRMED");
+        }
+      }
       return;
     } catch (error) {
-      if (input.objectKey.includes("/dam-originals/") && (error as { $metadata?: { httpStatusCode?: number } })?.$metadata?.httpStatusCode === 412) return;
+      if ((error as { $metadata?: { httpStatusCode?: number } })?.$metadata?.httpStatusCode === 412 &&
+          await verifyExistingDamOriginal(client, input)) return;
       lastError = error;
       if (!isR2CredentialError(error)) throw error;
     }
@@ -79,9 +126,12 @@ async function putR2ObjectWithFallback(input: {
 }
 
 export function isR2AuthRequired() {
-  // Never allow a stale test override to disable auth in production.
-  if (readEnv("VERCEL_ENV").toLowerCase() === "production") return true;
-  return readEnv("R2_REQUIRE_AUTH").toLowerCase() === "true";
+  // A preview can share cloud credentials with production. NEVER let a
+  // legacy QA flag bypass authentication on a deployed environment.
+  // Local development may explicitly opt out using R2_REQUIRE_AUTH=false.
+  const deployedEnvironment = readEnv("VERCEL_ENV").toLowerCase();
+  if (deployedEnvironment === "production" || deployedEnvironment === "preview") return true;
+  return readEnv("R2_REQUIRE_AUTH").toLowerCase() !== "false";
 }
 
 function readBearer(req: Req) {
@@ -125,8 +175,8 @@ async function callDataApiRpc(req: Req, fn: string, body: Record<string, unknown
   }
 }
 
-async function requireAuthenticatedProfile(req: Req) {
-  if (!isR2AuthRequired()) {
+async function requireAuthenticatedProfile(req: Req, force = false) {
+  if (!force && !isR2AuthRequired()) {
     return { ok: true as const, profileId: null as string | null };
   }
 
@@ -177,10 +227,64 @@ function resolveRequestedBucket(value: string) {
   return "";
 }
 
+const PROFILE_AVATAR_PATH =
+  /^(?:platform|municipalities\/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\/profiles\/avatars\/([a-zA-Z0-9_-]+)\/([a-zA-Z0-9._-]+)$/i;
+const AVATAR_BYTES_MAX = 12 * 1024 * 1024;
+
+/**
+ * An authenticated municipality membership does not permit overwriting a
+ * different user's profile photo. Master avatars also require self-ownership.
+ */
+export function profileAvatarUploadAuthorized(
+  requestedBucket: string,
+  resolvedBucket: string,
+  objectKey: string,
+  profileId: string | null,
+): boolean {
+  const logosBucket = readEnv("R2_BUCKET_LOGOS") || "sigapro-logos";
+  const match = PROFILE_AVATAR_PATH.exec(objectKey);
+  return resolvedBucket === logosBucket &&
+    match !== null &&
+    typeof profileId === "string" &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(profileId) &&
+    match[1].toLowerCase() === profileId.toLowerCase() &&
+    /\.(?:png|jpe?g|gif|webp|avif)$/i.test(match[2]) &&
+    (requestedBucket === "profile-assets" ||
+      requestedBucket === "institutional-branding" ||
+      requestedBucket === logosBucket);
+}
+
+export function avatarUploadContentIsValid(
+  contentType: unknown,
+  bytes: Buffer,
+): boolean {
+  if (!bytes.length || bytes.length > AVATAR_BYTES_MAX) return false;
+  const claimed = typeof contentType === "string" ? contentType.trim().toLowerCase() : "";
+  return safeAvatarMime(bytes) === claimed;
+}
+
+/**
+ * Uploading your own avatar is NOT a municipal settings operation.
+ * Keep active-contract and storage-quota enforcement, but only institutional
+ * branding needs the "Configurações" module entitlement.
+ */
+export function getR2UploadEntitlement(
+  bucket: string,
+  bytes: number,
+  avatarUpload: boolean,
+): { capability: "storage_bytes" | "module:Configurações"; increment: number } {
+  const documentBucket = readEnv("R2_BUCKET_DOCUMENTOS") || "sigapro-documentos";
+  if (bucket === documentBucket || avatarUpload)
+    return { capability: "storage_bytes", increment: bytes };
+  return { capability: "module:Configurações", increment: 0 };
+}
+
 export function buildPublicUrl(bucket: string, objectKey: string) {
   // A configured public CDN for logos/legislation does not authorize publishing
   // payment originals, signed technical reports or private process attachments.
   const documentsBucket = readEnv("R2_BUCKET_DOCUMENTOS") || "sigapro-documentos";
+  // No public CDN URL for user avatars sharing the branding bucket.
+  if (/\/profiles\/avatars\//i.test(objectKey)) return "";
   const publicLegalKey =
     /^municipalities\/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/legislation(?:[-/]|$)/i.test(objectKey);
   if (bucket === documentsBucket && !publicLegalKey) return "";
@@ -205,21 +309,33 @@ function json(res: Res, status: number, body: unknown) {
   res.end(JSON.stringify(body));
 }
 
-async function readJsonBody(req: Req) {
-  if (req.body && typeof req.body === "object") return req.body;
-  return new Promise<Record<string, unknown>>((resolve, reject) => {
-    const chunks: Buffer[] = [];
-    req.on("data", (chunk) => chunks.push(Buffer.from(chunk)));
-    req.on("end", () => {
-      try {
-        const raw = Buffer.concat(chunks).toString("utf8");
-        resolve(raw ? (JSON.parse(raw) as Record<string, unknown>) : {});
-      } catch (error) {
-        reject(error);
-      }
-    });
-    req.on("error", reject);
-  });
+// Base64 increases payload by ~33%; keep below Vercel's ~4.5 MB request ceiling.
+const MAX_R2_UPLOAD_REQUEST_BYTES = 4 * 1024 * 1024;
+
+export function validateR2UploadJson(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== "object" || Array.isArray(value))
+    throw new Error("R2_BODY_INVALID");
+  if (Buffer.byteLength(JSON.stringify(value), "utf8") > MAX_R2_UPLOAD_REQUEST_BYTES)
+    throw new Error("R2_BODY_LIMIT");
+  return value as Record<string, unknown>;
+}
+
+async function readJsonBody(req: Req): Promise<Record<string, unknown>> {
+  if (req.body !== undefined) return validateR2UploadJson(req.body);
+  const chunks: Buffer[] = [];
+  let count = 0;
+  for await (const part of req) {
+    const data = Buffer.from(part as Uint8Array);
+    count += data.byteLength;
+    if (count > MAX_R2_UPLOAD_REQUEST_BYTES) throw new Error("R2_BODY_LIMIT");
+    chunks.push(data);
+  }
+  try {
+    return validateR2UploadJson(JSON.parse(Buffer.concat(chunks).toString("utf8")));
+  } catch (error) {
+    if (error instanceof Error && error.message === "R2_BODY_LIMIT") throw error;
+    throw new Error("R2_BODY_INVALID");
+  }
 }
 
 export default async function handler(req: Req, res: Res) {
@@ -247,13 +363,6 @@ export default async function handler(req: Req, res: Res) {
     const accessKeyId = readEnv("R2_ACCESS_KEY_ID");
     const secretAccessKey = readEnv("R2_SECRET_ACCESS_KEY");
     const envOk = Boolean(endpoint && accessKeyId && secretAccessKey);
-
-    console.log("[ProdAudit][R2Upload] env", {
-      hasEndpoint: Boolean(endpoint),
-      hasAccessKeyId: Boolean(accessKeyId),
-      hasSecret: Boolean(secretAccessKey),
-      accessKeyLength: accessKeyId.length,
-    });
 
     const body = (await readJsonBody(req)) as {
       bucket?: unknown;
@@ -291,8 +400,37 @@ export default async function handler(req: Req, res: Res) {
     }
 
     conflictObjectKey = objectKey;
-    const buffer = Buffer.from(base64, "base64");
     const municipalityId = extractMunicipalityId(objectKey);
+    // Require a real profile identity for every avatar upload, regardless
+    // of legacy QA's general R2_REQUIRE_AUTH setting or bucket alias.
+    const avatarUpload =
+      requestedBucket === "profile-assets" ||
+      /\/profiles\/avatars\//i.test(objectKey);
+    if (avatarUpload) {
+      const avatarIdentity = auth.profileId
+        ? auth
+        : await requireAuthenticatedProfile(req, true);
+      if (!avatarIdentity.ok) {
+        json(res, avatarIdentity.status, { error: avatarIdentity.error });
+        return;
+      }
+      if (!profileAvatarUploadAuthorized(
+        String(requestedBucket), bucket, objectKey, avatarIdentity.profileId,
+      )) {
+        json(res, 403, { error: "A foto de perfil só pode ser enviada pelo próprio usuário." });
+        return;
+      }
+    }
+
+    const buffer = Buffer.from(base64, "base64");
+    // Hash the bytes actually received by the server, never a filename or URL.
+    const receivedSha256 = createHash("sha256").update(buffer).digest("hex");
+    if (avatarUpload && !avatarUploadContentIsValid(contentType, buffer)) {
+      json(res, 415, {
+        error: "Foto inválida. Envie PNG, JPEG, GIF, WebP ou AVIF de até 12 MB.",
+      });
+      return;
+    }
     // Tenantless/legacy keys are never writable by ordinary municipal accounts.
     // This also prevents malformed municipality paths from bypassing tenant checks.
     if (!municipalityId) {
@@ -300,6 +438,20 @@ export default async function handler(req: Req, res: Res) {
       if (!platformPermission.ok || platformPermission.payload !== true) {
         json(res, platformPermission.status === 401 ? 401 : 403, {
           error: "Somente o administrador geral pode enviar arquivos sem identificação municipal.",
+        });
+        return;
+      }
+    }
+    // A municipality-admin or Master may consult a process but must not
+    // silently modify its files through the generic upload API.
+    // Official DAM originals and municipal legislation have separate gates.
+    if (bucket === (readEnv("R2_BUCKET_DOCUMENTOS") || "sigapro-documentos") &&
+        /^municipalities\/[a-f0-9-]{36}\/(?:protocols|habite-se|attachments|analysis|documents|comunique-se|qa-arquitetura)(?:\/|$)/i.test(objectKey)) {
+      const permission = await authorizeProcessAttachmentWrite(req, objectKey);
+      if (permission.ok === false) {
+        json(res, permission.status, {
+          code: permission.code,
+          error: "Este perfil não está autorizado a modificar anexos do processo.",
         });
         return;
       }
@@ -393,9 +545,8 @@ export default async function handler(req: Req, res: Res) {
       // Quando a Prefeitura usa armazenamento próprio, os bytes deixam de consumir
       // a franquia física do R2 do SIGAPRO. As demais regras contratuais continuam.
       if (!municipalTarget || bucket !== documentBucket) {
-        const capability =
-          bucket === documentBucket ? "storage_bytes" : "module:Configurações";
-        const increment = bucket === documentBucket ? buffer.byteLength : 0;
+        const { capability, increment } =
+          getR2UploadEntitlement(bucket, buffer.byteLength, avatarUpload);
         const entitlement = await callDataApiRpc(req, "assert_municipality_entitlement_v1", {
           _municipality_id: municipalityId,
           _capability: capability,
@@ -426,13 +577,37 @@ export default async function handler(req: Req, res: Res) {
         Key: municipalTarget.objectKey,
         Body: buffer,
         ContentType: resolvedContentType,
-        Metadata: damOriginalMetadata,
+        Metadata: bucket === (readEnv("R2_BUCKET_DOCUMENTOS") || "sigapro-documentos")
+          ? { ...damOriginalMetadata, sha256: receivedSha256 } : damOriginalMetadata,
         // Municipal S3 must preserve old document revisions as well.
         ...(isCreateOnlyDocumentBucket(bucket) ? { IfNoneMatch: "*" } : {}),
-      })).catch((error) => {
-        if (objectKey.includes("/dam-originals/") && error?.$metadata?.httpStatusCode === 412) return;
+      })).catch(async (error) => {
+        if (error?.$metadata?.httpStatusCode === 412 && damOriginalMetadata) {
+          // The BYOS physical key may include a protected municipal base path.
+          await assertStoredDamOriginal(municipalTarget.client, {
+            bucket: municipalTarget.bucket, objectKey: municipalTarget.objectKey,
+            logicalObjectKey: objectKey,
+            expectedSha256: damOriginalMetadata.sha256, expectedBytes: buffer.length,
+          });
+          return;
+        }
         throw error;
       });
+      if (damOriginalMetadata) {
+        await assertStoredDamOriginal(municipalTarget.client, {
+          bucket: municipalTarget.bucket, objectKey: municipalTarget.objectKey,
+          logicalObjectKey: objectKey,
+          expectedSha256: damOriginalMetadata.sha256, expectedBytes: buffer.length,
+        });
+      } else if (isCreateOnlyDocumentBucket(bucket)) {
+        const head = await municipalTarget.client.send(new HeadObjectCommand({
+          Bucket: municipalTarget.bucket, Key: municipalTarget.objectKey,
+        }));
+        if (head.ContentLength !== buffer.length ||
+            String(head.ContentType || "").toLowerCase() !== resolvedContentType.toLowerCase()) {
+          throw new Error("R2_DOCUMENT_OBJECT_NOT_CONFIRMED");
+        }
+      }
 
       json(res, 200, {
         bucket: requestedBucket,
@@ -440,6 +615,8 @@ export default async function handler(req: Req, res: Res) {
         objectKey,
         publicUrl: "",
         storageProvider: "municipal_s3",
+        sha256: receivedSha256,
+        fileSizeBytes: buffer.length,
       });
       return;
     }
@@ -453,7 +630,8 @@ export default async function handler(req: Req, res: Res) {
       objectKey,
       body: buffer,
       contentType: resolvedContentType,
-      metadata: damOriginalMetadata,
+      metadata: bucket === (readEnv("R2_BUCKET_DOCUMENTOS") || "sigapro-documentos")
+        ? { ...damOriginalMetadata, sha256: receivedSha256 } : damOriginalMetadata,
     });
 
     json(res, 200, {
@@ -462,6 +640,8 @@ export default async function handler(req: Req, res: Res) {
       objectKey,
       publicUrl: buildPublicUrl(bucket, objectKey),
       storageProvider: "sigapro_r2",
+      sha256: receivedSha256,
+      fileSizeBytes: buffer.length,
     });
   } catch (error) {
     // Conditional write conflicts must never overwrite signed originals.
@@ -474,15 +654,26 @@ export default async function handler(req: Req, res: Res) {
       }
       return;
     }
-    const rawMessage = error instanceof Error ? error.message : "Erro ao enviar o arquivo.";
+    const errorCode = error instanceof Error ? error.message : "";
+    if (errorCode === "R2_BODY_LIMIT") {
+      json(res, 413, { error: "Envio maior que o limite permitido. Use o fluxo de arquivo grande.", code: "R2_BODY_LIMIT" });
+      return;
+    }
+    if (errorCode === "R2_BODY_INVALID") {
+      json(res, 400, { error: "Corpo da solicitação inválido.", code: "R2_BODY_INVALID" });
+      return;
+    }
     const signatureMismatch = isR2CredentialError(error);
-    const message = signatureMismatch
-      ? "Falha de autenticação no armazenamento R2. O endpoint e as credenciais precisam pertencer à mesma conta."
-      : rawMessage;
-    console.error("[SIGAPRO][R2] Falha no upload", { error: rawMessage });
-    json(res, 500, {
-      error: message,
-      code: signatureMismatch ? "R2_SIGNATURE_MISMATCH" : "R2_ERROR",
+    // Never include raw S3/AWS errors, signed URLs, filenames, object keys or
+    // provider endpoint details in public responses and operational logs.
+    console.warn("[SIGAPRO][R2] upload_failed", {
+      code: signatureMismatch ? "R2_SIGNATURE_MISMATCH" : "R2_UNAVAILABLE",
+    });
+    json(res, 503, {
+      error: signatureMismatch
+        ? "O armazenamento de arquivos está temporariamente indisponível por autenticação."
+        : "Não foi possível completar o envio ao armazenamento. Tente novamente.",
+      code: signatureMismatch ? "R2_SIGNATURE_MISMATCH" : "R2_UNAVAILABLE",
     });
   }
 }

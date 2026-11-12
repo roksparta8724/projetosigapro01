@@ -2,6 +2,7 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Archive, BookOpenCheck, ExternalLink, FilePlus2, Loader2, RotateCcw, ShieldAlert } from "lucide-react";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { uploadFileToStorage } from "@/integrations/r2/storage";
+import { notifyUrbanLegalAuditInvalidation } from "@/lib/urbanLegalAuditEvents";
 import { getLegislationOpenUrl } from "@/integrations/r2/client";
 import { getMunicipalOfficialUrbanSources } from "@/lib/urbanOfficialLegalSources";
 import { canEditUrbanLegislationManagement, canViewUrbanLegislationManagement } from "@/lib/urbanLegislationAccess";
@@ -132,29 +133,34 @@ export function UrbanLegislationRegistryPanel({
   function prefillFromOfficialSource(id: string) {
     setReferenceChoice(id);
     const source = officialSources.find((entry) => entry.id === id);
-    if (!source) return;
+    if (!source || source.kind === "proposta_sem_vigencia" || source.kind === "historica_revogada") return;
     const tokens = /^(lc|decreto|plc)-([0-9]+)-([0-9]{4})$/.exec(source.id);
     const kind: LawKind = tokens?.[1] === "decreto" ? "decreto" :
       tokens?.[1] === "plc" ? "projeto_de_lei" : "lei_complementar";
-    const scope: LawScope = source.id === "lc-613-2023" ? "plano_diretor" :
+    const scope: LawScope = source.id === "lc-507-2017" ||
+      source.id === "lc-566-2022" ? "historico" :
+      source.id === "lc-613-2023" ? "plano_diretor" :
       source.id === "lc-655-2026" || source.id === "decreto-7548-2026"
         ? "direito_real_laje" :
       source.id === "lc-656-2026" || source.id === "decreto-7550-2026"
         ? "regularizacao" :
       kind === "projeto_de_lei" ? "historico" : "aprovacao_ordinaria";
-    const parentNumber = source.id === "lc-440-2011" || source.id === "lc-473-2014"
-      ? "379" : source.id === "decreto-7548-2026" ? "655" :
+    const parentNumber = source.id === "lc-440-2011" ? "379" :
+      source.id === "lc-507-2017" ? "473" :
+      source.id === "decreto-7548-2026" ? "655" :
         source.id === "decreto-7550-2026" ? "656" : "";
     const parent = records.find((entry) => !entry.archived &&
       entry.document_kind === "lei_complementar" &&
       entry.document_number === parentNumber &&
-      entry.document_year === (parentNumber === "379" ? 2009 : 2026));
+      entry.document_year === (parentNumber === "379" ? 2009 :
+        parentNumber === "473" ? 2014 : 2026));
     setDraft({
       kind, number: tokens?.[2] || "", year: tokens?.[3] || "",
       title: source.title, scope, sourceUrl: source.officialPageUrl,
       publication: "", effective: "",
       relatedId: parent?.id || "",
-      relationType: parent ? (kind === "decreto" ? "regulamenta" : "altera") : "",
+      relationType: parent ? (source.id === "lc-507-2017" ? "revoga" :
+        kind === "decreto" ? "regulamenta" : "altera") : "",
     });
     setFormOpen(true);
     setError("");
@@ -194,6 +200,7 @@ export function UrbanLegislationRegistryPanel({
       const result = await registerLaw(municipalityId, {
         ...sample, storageKey: uploaded.storageKey, sha256: uploaded.sha256,
       }, crypto.randomUUID());
+      notifyUrbanLegalAuditInvalidation(municipalityId);
       setNotice("PDF e cadastro registrados no Neon/R2, revisão " + result.revision +
         ". A norma continua pendente de conferência e NÃO está ativa para a IA.");
       pendingUpload.current = null;
@@ -219,6 +226,7 @@ export function UrbanLegislationRegistryPanel({
     try {
       await assertUrbanLegislationWriteAccess(municipalityId);
       await setLawArchived(municipalityId, item.id, !item.archived, reason);
+      notifyUrbanLegalAuditInvalidation(municipalityId);
       await refresh();
       setNotice("Registro " + (item.archived ? "restaurado" : "arquivado") +
         " com auditoria. O PDF original foi preservado.");
@@ -234,8 +242,8 @@ export function UrbanLegislationRegistryPanel({
   if (!municipalityId || !keyValid(municipalityId) || !canViewUrbanLegislationManagement(session.role)) return null;
 
   return (
-    <section data-urban-legislation-registry="true"
-      className="mt-5 w-full min-w-0 max-w-full overflow-hidden rounded-[22px] border border-sky-200 bg-white p-4 shadow-sm [overflow-wrap:anywhere] dark:border-sky-700 dark:bg-slate-950 md:p-5">
+    <section id="sigapro-urban-legislation-registry" data-urban-legislation-registry="true"
+      className="mt-5 w-full min-w-0 max-w-full scroll-mt-24 overflow-hidden rounded-[22px] border border-sky-200 bg-white p-4 shadow-sm [overflow-wrap:anywhere] dark:border-sky-700 dark:bg-slate-950 md:p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <h3 className="flex items-center gap-2 text-base font-extrabold text-slate-950 dark:text-white">
@@ -248,7 +256,7 @@ export function UrbanLegislationRegistryPanel({
           </p>
         </div>
         {canWrite ? (
-          <button type="button" disabled={saving}
+          <button type="button" data-urban-legislation-toggle="true" disabled={saving}
             onClick={() => setFormOpen((old) => !old)}
             className="sig-force-dark-action inline-flex min-h-11 items-center gap-2 rounded-xl bg-slate-950 px-4 py-2 text-sm font-bold !text-white hover:bg-slate-800">
             <FilePlus2 className="h-4 w-4" />
@@ -261,6 +269,23 @@ export function UrbanLegislationRegistryPanel({
         )}
       </div>
 
+      {canWrite && !loading && total === 0 && officialSources.some((source) => source.id === "lc-379-2009") ? (
+        <div data-urban-first-law-guidance="true"
+          className="mt-3 flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-slate-900 dark:border-sky-700 dark:bg-slate-900 dark:text-white">
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-extrabold">Primeiro documento: LC nº 379/2009</p>
+            <p className="mt-1 text-xs leading-5 text-slate-700 dark:text-slate-200">
+              Número, ano, título e endereço da Câmara podem ser preenchidos automaticamente.
+              Selecione o PDF oficial antes de registrar; nenhuma norma será ativada.
+            </p>
+          </div>
+          <button type="button" data-urban-register-base-law-action="true"
+            onClick={() => prefillFromOfficialSource("lc-379-2009")}
+            className="min-h-10 max-w-full rounded-xl bg-sky-900 px-4 py-2 text-xs font-bold text-white hover:bg-sky-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-500">
+            Preparar cadastro da LC 379/2009
+          </button>
+        </div>
+      ) : null}
       <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-950">
         <ShieldAlert className="mr-1 inline h-4 w-4" />
         Salvar documento não comprova vigência nem ativa regras para a IA.
@@ -285,13 +310,22 @@ export function UrbanLegislationRegistryPanel({
               <select className={fieldStyle} value={referenceChoice}
                 onChange={(event) => prefillFromOfficialSource(event.target.value)}>
                 <option value="">Escolha um documento para preencher os metadados</option>
-                {officialSources.map((source) => (
+                {officialSources.filter((source) =>
+                  source.kind !== "proposta_sem_vigencia" && source.kind !== "historica_revogada").map((source) => (
                   <option key={source.id} value={source.id}>{source.title}</option>
                 ))}
               </select>
               <span className={explainStyle}>
                 O preenchimento não importa nem confere o arquivo: selecione também o PDF oficial.
               </span>
+              {officialSources.find((source) => source.id === referenceChoice)?.pdfUrl ? (
+                <a data-urban-open-source-pdf="true"
+                  href={officialSources.find((source) => source.id === referenceChoice)?.pdfUrl || ""}
+                  target="_blank" rel="noopener noreferrer"
+                  className="mt-2 inline-flex min-h-9 items-center gap-2 rounded-lg border border-sky-200 bg-white px-3 py-2 text-xs font-bold text-sky-900 hover:bg-sky-100 dark:border-sky-700 dark:bg-slate-950 dark:text-sky-100">
+                  <ExternalLink className="h-4 w-4" /> Abrir PDF original para conferir
+                </a>
+              ) : null}
             </label>
           ) : null}
 

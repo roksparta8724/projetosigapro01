@@ -50,25 +50,27 @@ describe("QA 04 document fixture stays isolated", () => {
       "Projeto Arquitetônico", "Memorial Descritivo", "ART/RRT", "Escritura/Matrícula",
     ]);
   });
-  it("does not deadlock the only allowed role behind the generic municipal admin guard", () => {
+  it("keeps the QA fixture usable by platform master without admin privilege override", () => {
     const page = readFileSync(resolve(process.cwd(), "src/pages/saas/ProcessDetailPage.tsx"), "utf8");
     const begin = page.indexOf("const handleImportQa04ArchitecturalFixture =");
     const end = page.indexOf("const handleUploadMissingDocument =", begin);
     expect(begin).toBeGreaterThan(0);
     expect(end).toBeGreaterThan(begin);
     const qaHandler = page.slice(begin, end);
-    expect(qaHandler).toContain('allowMunicipalAdmin: true');
+    expect(qaHandler).not.toContain('allowMunicipalAdmin: true');
     expect(qaHandler).toContain('runProcessAction("qa04-import-project"');
     expect(qaHandler).toContain('canImportQa04Fixture');
     expect(page).toContain('processActionStatus ? (');
     expect(page).toContain('!text-white');
   });
 
-  it("only exposes the import to an admin on the exact isolated QA record", () => {
-    expect(isQa04ArchitecturalImportAllowed({ isolatedQa: true, role: "prefeitura_admin", process: fixture })).toBe(true);
-    expect(isQa04ArchitecturalImportAllowed({ isolatedQa: false, role: "prefeitura_admin", process: fixture })).toBe(false);
+  it("only exposes the test import to platform master for the exact isolated QA record", () => {
+    expect(isQa04ArchitecturalImportAllowed({ isolatedQa: true, role: "master_admin", process: fixture })).toBe(true);
+    expect(isQa04ArchitecturalImportAllowed({ isolatedQa: true, role: "master_ops", process: fixture })).toBe(true);
+    expect(isQa04ArchitecturalImportAllowed({ isolatedQa: true, role: "prefeitura_admin", process: fixture })).toBe(false);
+    expect(isQa04ArchitecturalImportAllowed({ isolatedQa: false, role: "master_admin", process: fixture })).toBe(false);
     expect(isQa04ArchitecturalImportAllowed({ isolatedQa: true, role: "analista", process: fixture })).toBe(false);
-    expect(isQa04ArchitecturalImportAllowed({ isolatedQa: true, role: "prefeitura_admin", process: { ...fixture, title: "Outra coisa" } })).toBe(false);
-    expect(isQa04ArchitecturalImportAllowed({ isolatedQa: true, role: "prefeitura_admin", process: { ...fixture, id: "other-id" } })).toBe(false);
+    expect(isQa04ArchitecturalImportAllowed({ isolatedQa: true, role: "master_admin", process: { ...fixture, title: "Outra coisa" } })).toBe(false);
+    expect(isQa04ArchitecturalImportAllowed({ isolatedQa: true, role: "master_admin", process: { ...fixture, id: "other-id" } })).toBe(false);
   });
 });

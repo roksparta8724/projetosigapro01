@@ -1351,15 +1351,23 @@ export function AppBootstrapProvider({ children }: { children: React.ReactNode }
 
         try {
           if (hasBackendEnv && backendClient) {
-            await Promise.race([
-              backendClient.auth.signOut(),
-              new Promise<void>((resolve) => {
-                setTimeout(() => {
-                  console.warn("[Logout] signOut timeout fallback");
-                  resolve();
-                }, 2500);
-              }),
-            ]);
+            // A timeout is an emergency fallback, not a successful logout
+            // signal. Clear it if the provider responds, otherwise a stale
+            // timer creates false "timeout" messages after leaving the page.
+            let timeoutId: ReturnType<typeof setTimeout> | null = null;
+            try {
+              await Promise.race([
+                backendClient.auth.signOut(),
+                new Promise<void>((resolve) => {
+                  timeoutId = setTimeout(() => {
+                    console.warn("[Logout] O servidor não confirmou o encerramento no prazo esperado.");
+                    resolve();
+                  }, 2500);
+                }),
+              ]);
+            } finally {
+              if (timeoutId !== null) clearTimeout(timeoutId);
+            }
           }
         } finally {
           // O estado local já foi concluído antes da rede. Aqui apenas liberamos

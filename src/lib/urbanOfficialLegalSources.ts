@@ -13,7 +13,7 @@ export const CAMPO_LIMPO_PAULISTA_MUNICIPALITY_ID =
 export type UrbanOfficialLegalSource = {
   id: string;
   title: string;
-  kind: "base" | "alteracao" | "procedimento_especial" | "proposta_sem_vigencia";
+  kind: "base" | "alteracao" | "revogacao" | "historica_revogada" | "restauracao_vigencia" | "procedimento_especial" | "proposta_sem_vigencia";
   documentLabel: string;
   pdfUrl: string | null;
   officialPageUrl: string;
@@ -39,18 +39,48 @@ export const CAMPO_LIMPO_OFFICIAL_URBAN_SOURCES: readonly UrbanOfficialLegalSour
     documentLabel: "PDF original da Câmara (11 páginas)",
     pdfUrl: "https://www.camaracampolimpo.sp.gov.br/legislacao/download-lei/1889/",
     officialPageUrl: "https://www.camaracampolimpo.sp.gov.br/legislacao/detalhe/1889/altera-a-lei-complementar-de-parcelamento-uso-e-ocupacao-do-solo-do-municipio-de-campo-limpo-paulista-instituida-pela-lei-complementar-n-379-de-24-de-novembro-de-2009-/",
-    scopeNote: "Altera artigos da lei de parcelamento, incluindo condições de declividade e parcelamento.",
+    scopeNote: "Altera parcelamento e inclui situações especiais: arts. 69-B/69-C (recuos de imóveis específicos) e 77-A (exceção de hierarquia viária sob análise municipal).",
     readingNote: "Não usar a redação original de artigo que foi alterado sem confrontar este PDF.",
   },
   {
     id: "lc-473-2014",
-    title: "LC 473/2014 — Outra alteração da LC 379/2009",
-    kind: "alteracao",
+    title: "LC 473/2014 — Histórico: revogada pela LC 507/2017",
+    kind: "historica_revogada",
     documentLabel: "PDF original da Câmara (7 páginas)",
     pdfUrl: "https://www.camaracampolimpo.sp.gov.br/legislacao/download-lei/1928/",
     officialPageUrl: "https://www.camaracampolimpo.sp.gov.br/legislacao/detalhe/1928/altera-a-lei-complementar-de-parcelamento-uso-e-ocupacao-do-solo-do-municipio-de-campo-limpo-paulista-instituida-pela-lei-complementar-n-379-de-24-de-novembro-de-2009-com-suas-alteracoes/",
-    scopeNote: "Altera definições e dispositivos sobre parcelamento e habitação de interesse social.",
-    readingNote: "Consolidar artigo por artigo; conferir ZEIS e condições específicas com o texto vigente.",
+    scopeNote: "Alterou regras de parcelamento e interesse social; REVOGADA expressamente pelo art. 1º da LC 507/2017.",
+    readingNote: "A LC 507/2017 restabeleceu a redação anterior da LC 379/2009 com alterações da LC 440/2011. Documento apenas histórico: não usar regras da LC 473/2014 como vigentes sem nova base expressa.",
+  },
+  {
+    id: "lc-501-2016",
+    title: "LC 501/2016 — Alteração do artigo 76 da LC 379/2009",
+    kind: "alteracao",
+    documentLabel: "PDF original da Câmara; alteração dos incisos I e II do artigo 76",
+    pdfUrl: "https://www.camaracampolimpo.sp.gov.br/public/legislacao/download-lei/1948/",
+    officialPageUrl: "https://www.camaracampolimpo.sp.gov.br/legislacao/detalhe/1948/altera-os-incisos-i-e-ii-do-artigo-76-da-lei-complementar-no-379-de-24-de-novembro-de-2009-que-instituiu-as-normas-de-parcelamento-uso-e-ocupacao-do-solo-de-campo-limpo-paulista/",
+    scopeNote: "Altera os incisos I e II do artigo 76 sobre loteamentos e controle de acesso.",
+    readingNote: "Aplicar somente ao dispositivo e modalidade pertinentes; não substituir índices do Quadro I.",
+  },
+  {
+    id: "lc-507-2017",
+    title: "LC 507/2017 — Revoga a LC 473/2014",
+    kind: "revogacao",
+    documentLabel: "PDF oficial da Câmara (1 página), art. 1º",
+    pdfUrl: "https://www.camaracampolimpo.sp.gov.br/legislacao/download-lei/1965/",
+    officialPageUrl: "https://www.camaracampolimpo.sp.gov.br/legislacao/detalhe/1965/revoga-a-lei-complementar-n-473-de-26-de-setembro-de-2014/",
+    scopeNote: "Art. 1º: revoga a LC 473/2014 e restabelece a redação da LC 379/2009 com alterações da LC 440/2011.",
+    readingNote: "Conferir a cronologia conjunta com a LC 501/2016 e a repristinação expressa na LC 566/2022. Não reativar dispositivos revogados.",
+  },
+  {
+    id: "lc-566-2022",
+    title: "LC 566/2022 — Revogação de 535/2019 e 548/2019 e restauração normativa",
+    kind: "restauracao_vigencia",
+    documentLabel: "PDF da Câmara; art. 1º sobre revogação e repristinação",
+    pdfUrl: "https://www.camaracampolimpo.sp.gov.br/legislacao/download-lei/2024/",
+    officialPageUrl: "https://www.camaracampolimpo.sp.gov.br/legislacao/detalhe/2024/revoga-a-lei-complementar-n-535-de-17-de-maio-de-2019-e-sua-alteracao-processada-pela-lei-complementar-n-548-de-13-de-dezembro-de-2019-que-institui-o-novo-plano-diretor-e-uso-e-ocupacao-do-solo-do-municipio-de-campo-limpo-paulista-nos-termos-do-artigo-182-da-constituicao-federal-e-do-ca/",
+    scopeNote: "Art. 1º revoga as LCs 535 e 548/2019 e restabelece expressamente a LC 379/2009 com LCs 440/2011 e 501/2016. A LC 473/2014 já havia sido revogada pela LC 507/2017.",
+    readingNote: "Usar para investigar a vigência histórica; não presumir redação consolidada ou eliminar a verificação da LC 613/2023.",
   },
   {
     id: "lc-613-2023",
@@ -103,6 +133,16 @@ export const CAMPO_LIMPO_OFFICIAL_URBAN_SOURCES: readonly UrbanOfficialLegalSour
     readingNote: "Não mudar os índices gerais e o workflow de aprovação ordinária por este decreto.",
   },
   {
+    id: "minuta-lpuos-2026",
+    title: "Minuta municipal 2026 — revisão proposta da LPUOS",
+    kind: "proposta_sem_vigencia",
+    documentLabel: "Minuta e quadros de revisão divulgados pela Prefeitura; sem lei promulgada comprovada.",
+    pdfUrl: null,
+    officialPageUrl: "https://www.campolimpopaulista.sp.gov.br/leis-urbanisticas",
+    scopeNote: "MATERIAL DE DISCUSSÃO: o portal municipal identifica expressamente como MINUTA 2026.",
+    readingNote: "Não utilizar quadros ou mapas desta minuta como índice legal vigente nem confundir com a LC 379/2009.",
+  },
+  {
     id: "plc-795-2024",
     title: "PLC 795/2024 — Revisão proposta da LC 379",
     kind: "proposta_sem_vigencia",
@@ -113,6 +153,24 @@ export const CAMPO_LIMPO_OFFICIAL_URBAN_SOURCES: readonly UrbanOfficialLegalSour
     readingNote: "Nunca converter os quadros, minuta ou mapas desta proposta em regras ativas.",
   },
 ] as const;
+
+/**
+ * Documentary reference offered to the municipal reviewer as of 08/11/2026.
+ * This does not create a registry record, certify current legal scope or approve
+ * any urban regulation. Future publications require a NEW verification.
+ */
+export const CAMPO_LIMPO_LPUOS_REVIEW = {
+  checkedOn: "08/11/2026",
+  baseLawNumber: "379/2009",
+  baseLawLabel: "LC nº 379/2009",
+  planLawLabel: "LC nº 613/2023",
+  reviewStatus: "Aguardando sua análise",
+  revisionStatus: "Não foi identificada nova LPUOS promulgada nas fontes oficiais consultadas.",
+  revisionDetail: "A revisão de 2026 segue apresentada pela Prefeitura como minuta, com previsão de encaminhamento à Câmara em 15/12/2026.",
+  amendmentChain: "LC 440/2011 · LC 501/2016 · LC 507/2017 (revogação da LC 473/2014) · LC 566/2022",
+  officialLawUrl: "https://camaracampolimpo.sp.gov.br/legislacao/detalhe/1830/institui-a-lei-complementar-de-parcelamento-uso-e-ocupacao-do-solo-de-campo-limpo-paulista/",
+  revisionPageUrl: "https://www.campolimpopaulista.sp.gov.br/leis-urbanisticas",
+} as const;
 
 export function getMunicipalOfficialUrbanSources(
   municipalityId: string | null | undefined,

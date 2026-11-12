@@ -10,6 +10,9 @@ import { PortalFrame } from "@/components/platform/PortalFrame";
 import { SectionCard } from "@/components/platform/SectionCard";
 import { TableCard } from "@/components/platform/TableCard";
 import { UserAvatar } from "@/components/platform/UserAvatar";
+import { CompactUserRegistry } from "@/components/platform/CompactUserRegistry";
+import { CompactPortfolioRegistry } from "@/components/platform/CompactPortfolioRegistry";
+import { paginateMunicipalItems } from "@/lib/municipalListPagination";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,6 +36,7 @@ import {
 } from "@/integrations/backend/platform";
 import { buildTenantFromMunicipalityBundle } from "@/lib/municipality";
 import { buildMunicipalityPortalUrl } from "@/lib/publicDomain";
+import { resolveProfileAvatarDisplayUrl } from "@/lib/profileAvatarDisplay";
 import { accessLevelLabels, roleLabels, roleSuggestedTitles, type AccountStatus, type Institution, type InstitutionAdminContact, type SessionUser, type UserRole } from "@/lib/platform";
 
 type SignatureMode = "eletronica" | "manual" | "icp_brasil";
@@ -145,6 +149,7 @@ export function MasterAdminPage() {
   const [saving, setSaving] = useState(false);
   const [savingUserId, setSavingUserId] = useState<string | null>(null);
   const [userSearch, setUserSearch] = useState("");
+  const [systemUserPage, setSystemUserPage] = useState(1);
   const [userStatusFilter, setUserStatusFilter] = useState<"todos" | AccountStatus>("todos");
   const [userRoleFilter, setUserRoleFilter] = useState<"todos" | UserRole>("todos");
   const [userGroup, setUserGroup] = useState<UserGroup>("todos");
@@ -159,6 +164,8 @@ export function MasterAdminPage() {
     phone: "",
   });
   const [assignmentUserId, setAssignmentUserId] = useState("");
+  const [assignmentUserSearch, setAssignmentUserSearch] = useState("");
+  const [contractCapacityPage, setContractCapacityPage] = useState(1);
   const [assignmentDepartmentId, setAssignmentDepartmentId] = useState("");
   const formRef = useRef<HTMLDivElement | null>(null);
 
@@ -199,6 +206,7 @@ export function MasterAdminPage() {
 
     return Array.from(merged.values()).sort((left, right) => left.name.localeCompare(right.name, "pt-BR"));
   }, [institutions, remoteInstitutions]);
+  const capacityPageData = paginateMunicipalItems(planCapacity.rows, contractCapacityPage, 2);
   const activeTenant = institutionCatalog.find((item) => item.id === selectedTenantId) ?? null;
   const activeCommercialPlans = useMemo(
     () => plans.filter((plan) => plan.isActive && plan.isVisibleInMaster),
@@ -208,6 +216,18 @@ export function MasterAdminPage() {
     () => sessionUsers.filter((user) => user.tenantId === selectedTenantId || user.municipalityId === selectedTenantId),
     [selectedTenantId, sessionUsers],
   );
+  const matchingAssignmentUsers = useMemo(() => {
+    const term = assignmentUserSearch.trim().toLocaleLowerCase("pt-BR");
+    const choices = activeTenantUsers
+      .filter((user) => !term || [user.name, user.email, user.title, user.department]
+        .some((value) => String(value || "").toLocaleLowerCase("pt-BR").includes(term)))
+      .slice(0, 50);
+    const selected = activeTenantUsers.find((user) => user.id === assignmentUserId);
+    return selected && !choices.some((user) => user.id === selected.id)
+      ? [selected, ...choices]
+      : choices;
+  }, [activeTenantUsers, assignmentUserId, assignmentUserSearch]);
+
   const activeMasterDepartments = useMemo(
     () => masterDepartments.filter((item) => item.isActive).sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, "pt-BR")),
     [masterDepartments],
@@ -284,9 +304,13 @@ export function MasterAdminPage() {
     return [
       { id: "suspended", title: "Contas suspensas", description: suspendedCount > 0 ? `${suspendedCount} prefeitura${suspendedCount > 1 ? "s" : ""} com status suspenso.` : "Nenhuma Prefeitura suspensa no momento.", tone: suspendedCount > 0 ? ("danger" as const) : ("success" as const) },
       { id: "without-admin", title: "Gestão sem administrador", description: withoutAdmin > 0 ? `${withoutAdmin} prefeitura${withoutAdmin > 1 ? "s" : ""} sem administrador principal vinculado.` : "Todas as prefeituras possuem gestor principal.", tone: withoutAdmin > 0 ? ("warning" as const) : ("success" as const) },
-      { id: "environment", title: "Ambiente da plataforma", description: hasBackendEnv ? "Neon conectado e persistência oficial ativa." : "Backend oficial indisponível; ambiente local de homologação ativo.", tone: hasBackendEnv ? ("success" as const) : ("default" as const) },
+      { id: "environment", title: "Ambiente da plataforma", description: hasBackendEnv ? "Banco SIGAPRO conectado e persistência ativa." : "Backend oficial indisponível; ambiente local de homologação ativo.", tone: hasBackendEnv ? ("success" as const) : ("default" as const) },
     ];
   }, [getInstitutionSettings, institutionCatalog, knownAdministrativeUsers]);
+
+  useEffect(() => {
+    setSystemUserPage(1);
+  }, [userSearch, userStatusFilter, userRoleFilter, userGroup]);
 
   const filteredSystemUsers = useMemo(() => {
     const term = userSearch.trim().toLowerCase();
@@ -770,7 +794,7 @@ export function MasterAdminPage() {
               const profile = getUserProfile(admin.id, admin.email);
               return (
                 <div key={admin.id} className="flex min-w-0 items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2">
-                  <UserAvatar name={admin.name} imageUrl={profile?.avatarUrl} crop={profile ? { scale: profile.avatarScale ?? 1, offsetX: profile.avatarOffsetX ?? 0, offsetY: profile.avatarOffsetY ?? 0, editorSize: 320 } : undefined} size="sm" />
+                  <UserAvatar name={admin.name} imageUrl={resolveProfileAvatarDisplayUrl(profile)} crop={profile ? { scale: profile.avatarScale ?? 1, offsetX: profile.avatarOffsetX ?? 0, offsetY: profile.avatarOffsetY ?? 0, editorSize: 320 } : undefined} size="sm" />
                   <div className="min-w-0">
                     <p className="sig-fit-title text-sm font-semibold text-slate-900" title={admin.name}>
                       {admin.name}
@@ -808,7 +832,7 @@ export function MasterAdminPage() {
 
   const renderUserCard = (user: SessionUser) => {
     const profile = getUserProfile(user.id, user.email);
-    return <div key={user.id} className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm"><div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between"><div className="flex min-w-0 items-start gap-3"><UserAvatar name={user.name} imageUrl={profile?.avatarUrl} crop={profile ? { scale: profile.avatarScale ?? 1, offsetX: profile.avatarOffsetX ?? 0, offsetY: profile.avatarOffsetY ?? 0, editorSize: 320 } : undefined} size="lg" /><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><p className="sig-fit-title text-lg font-semibold text-slate-950">{user.name}</p><Badge className={`rounded-full border ${getStatusTone(user.accountStatus)}`}>{getStatusLabel(user.accountStatus)}</Badge></div><p className="text-sm text-slate-600">{user.title || user.department || "Sem cargo definido"}</p><p className="mt-1 sig-fit-copy text-sm text-slate-500" title={user.email}>{user.email}</p></div></div><div className="flex w-full flex-wrap gap-2 lg:w-auto lg:justify-end"><Badge className="rounded-full bg-slate-950 text-white hover:bg-slate-950">{roleLabels[user.role]}</Badge><Badge variant="outline" className="rounded-full border-slate-300 text-slate-700">{accessLevelLabels[user.accessLevel]}</Badge></div></div><div className="mt-4 grid gap-3 lg:grid-cols-2 xl:grid-cols-4"><div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600"><span className="font-semibold text-slate-900">Setor:</span> {user.department || user.title || "Não informado"}</div><div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600"><span className="font-semibold text-slate-900">Tipo:</span> {user.userType || "Usuário"}</div><div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600"><span className="font-semibold text-slate-900">Criado em:</span> {user.createdAt || "Não informado"}</div><div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600"><span className="font-semibold text-slate-900">Último acesso:</span> {user.lastAccessAt || "Não registrado"}</div></div><div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap"><Button type="button" variant="outline" className="sig-dark-action-btn h-11 w-full rounded-full text-slate-50 sm:w-auto" onClick={() => handleMasterEdit(user)}><PencilLine className="mr-2 h-4 w-4 text-sky-200" />Editar</Button><Button type="button" variant="outline" className="sig-dark-action-btn h-11 w-full rounded-full text-slate-50 sm:w-auto" onClick={() => handleMasterStatusToggle(user)}>{user.accountStatus === "blocked" ? <><Undo2 className="mr-2 h-4 w-4 text-sky-200" />Desbloquear</> : <><ShieldAlert className="mr-2 h-4 w-4 text-sky-200" />Bloquear</>}</Button><Button type="button" variant="outline" className="sig-dark-action-btn h-11 w-full rounded-full text-slate-50 hover:text-slate-50 sm:w-auto" onClick={() => handleMasterDelete(user)}><UserX className="mr-2 h-4 w-4 text-rose-300" />Desativar</Button></div></div>;
+    return <div key={user.id} className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm"><div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between"><div className="flex min-w-0 items-start gap-3"><UserAvatar name={user.name} imageUrl={resolveProfileAvatarDisplayUrl(profile)} crop={profile ? { scale: profile.avatarScale ?? 1, offsetX: profile.avatarOffsetX ?? 0, offsetY: profile.avatarOffsetY ?? 0, editorSize: 320 } : undefined} size="lg" /><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><p className="sig-fit-title text-lg font-semibold text-slate-950">{user.name}</p><Badge className={`rounded-full border ${getStatusTone(user.accountStatus)}`}>{getStatusLabel(user.accountStatus)}</Badge></div><p className="text-sm text-slate-600">{user.title || user.department || "Sem cargo definido"}</p><p className="mt-1 sig-fit-copy text-sm text-slate-500" title={user.email}>{user.email}</p></div></div><div className="flex w-full flex-wrap gap-2 lg:w-auto lg:justify-end"><Badge className="rounded-full bg-slate-950 text-white hover:bg-slate-950">{roleLabels[user.role]}</Badge><Badge variant="outline" className="rounded-full border-slate-300 text-slate-700">{accessLevelLabels[user.accessLevel]}</Badge></div></div><div className="mt-4 grid gap-3 lg:grid-cols-2 xl:grid-cols-4"><div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600"><span className="font-semibold text-slate-900">Setor:</span> {user.department || user.title || "Não informado"}</div><div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600"><span className="font-semibold text-slate-900">Tipo:</span> {user.userType || "Usuário"}</div><div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600"><span className="font-semibold text-slate-900">Criado em:</span> {user.createdAt || "Não informado"}</div><div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600"><span className="font-semibold text-slate-900">Último acesso:</span> {user.lastAccessAt || "Não registrado"}</div></div><div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap"><Button type="button" variant="outline" className="sig-dark-action-btn h-11 w-full rounded-full text-slate-50 sm:w-auto" onClick={() => handleMasterEdit(user)}><PencilLine className="mr-2 h-4 w-4 text-sky-200" />Editar</Button><Button type="button" variant="outline" className="sig-dark-action-btn h-11 w-full rounded-full text-slate-50 sm:w-auto" onClick={() => handleMasterStatusToggle(user)}>{user.accountStatus === "blocked" ? <><Undo2 className="mr-2 h-4 w-4 text-sky-200" />Desbloquear</> : <><ShieldAlert className="mr-2 h-4 w-4 text-sky-200" />Bloquear</>}</Button><Button type="button" variant="outline" className="sig-dark-action-btn h-11 w-full rounded-full text-slate-50 hover:text-slate-50 sm:w-auto" onClick={() => handleMasterDelete(user)}><UserX className="mr-2 h-4 w-4 text-rose-300" />Desativar</Button></div></div>;
   };
   return (
     <PortalFrame eyebrow="Administrador Geral" title="Console executivo da plataforma">
@@ -835,7 +859,7 @@ export function MasterAdminPage() {
 
         {workspaceView === "visao-geral" || workspaceView === "carteira" ? (
           <SectionCard title="Capacidade e cadastros por Prefeitura"
-            description="Consumo real por município: plano atribuído, usuários internos, processos, departamentos e documentos. Valores atualizados diretamente do Neon.">
+            description="Consumo por município: plano, usuários internos, processos, departamentos e documentos. Dados atualizados pelo núcleo SIGAPRO.">
             {planCapacity.error ? <p role="alert" className="mb-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">{planCapacity.error}</p> : null}
             {!planCapacity.loaded ? (
               <p className="text-sm text-slate-600">Carregando consumo dos contratos...</p>
@@ -843,18 +867,50 @@ export function MasterAdminPage() {
               <p className="text-sm text-slate-600">Nenhuma prefeitura encontrada na consulta de planos.</p>
             ) : (
               <div className="grid gap-4 2xl:grid-cols-2">
-                {planCapacity.rows.map((row) => (
+                {(workspaceView === "visao-geral" ? planCapacity.rows.slice(0, 2) : capacityPageData.items).map((row) => (
                   <PlanCapacityCard key={row.municipalityId} row={row}
                     municipalityName={institutionCatalog.find((item) => item.id === row.municipalityId)?.name ?? "Prefeitura"} />
                 ))}
+                {workspaceView === "carteira" && planCapacity.rows.length > 2 ? (
+                  <nav aria-label="Paginação de contratos municipais"
+                    className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-600 2xl:col-span-2">
+                    <span>Contratos {capacityPageData.start + 1}–{capacityPageData.end} de {capacityPageData.total} · Página {capacityPageData.page} de {capacityPageData.totalPages}</span>
+                    <div className="flex gap-2">
+                      <Button type="button" size="sm" variant="outline" className="border-slate-300 bg-white"
+                        disabled={capacityPageData.page <= 1} onClick={() => setContractCapacityPage(capacityPageData.page - 1)}>Anterior</Button>
+                      <Button type="button" size="sm" variant="outline" className="border-slate-300 bg-white"
+                        disabled={capacityPageData.page >= capacityPageData.totalPages} onClick={() => setContractCapacityPage(capacityPageData.page + 1)}>Próxima</Button>
+                    </div>
+                  </nav>
+                ) : null}
+                {workspaceView === "visao-geral" && planCapacity.rows.length > 2 ? (
+                  <div className="flex min-w-0 items-center justify-between gap-3 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900 2xl:col-span-2">
+                    <span>Exibindo 2 de {planCapacity.rows.length} prefeituras. Os demais contratos continuam disponíveis na Carteira.</span>
+                    <Button type="button" variant="outline" className="shrink-0 rounded-xl border-sky-300 bg-white text-sky-900"
+                      onClick={() => setWorkspaceView("carteira")}>Ver todas</Button>
+                  </div>
+                ) : null}
               </div>
             )}
           </SectionCard>
         ) : null}
 
-        {workspaceView === "visao-geral" ? <><PageStatsRow className="xl:grid-cols-4"><MetricCard title="Prefeituras ativas" value={String(activeInstitutionCount)} helper="Carteira em operação" icon={Landmark} tone="blue" /><MetricCard title="Usuários ativos" value={String(activeUsersCount)} helper="Contas habilitadas" icon={Users2} tone="emerald" /><MetricCard title="Planos ativos" value={String(activePlansCount)} helper="Recorrência mensal" icon={CreditCard} tone="amber" /><MetricCard title="Receita mensal" value={formatCurrency(monthlyRevenue)} helper="Base institucional ativa" icon={Zap} tone="rose" valueTitle={monthlyRevenue.toString()} /></PageStatsRow><PageMainGrid><PageMainContent><TableCard title="Carteira institucional" description="Prefeituras prioritárias e leitura comercial da operação." icon={Building2}><div className="space-y-4">{overviewInstitutions.length === 0 ? <div className="rounded-[24px] border border-dashed border-slate-300 bg-slate-50 p-6 text-sm leading-6 text-slate-600">Nenhuma Prefeitura ativa cadastrada ainda. Use o cadastro para abrir a primeira conta institucional.</div> : null}{overviewInstitutions.map((tenant) => renderInstitutionCard(tenant))}</div></TableCard></PageMainContent><PageSideContent><SectionCard title="Painel master" description="Alertas, atividade curta e leitura comercial."><div className="space-y-4"><div className="space-y-3">{platformAlerts.slice(0, 3).map((alert) => <AlertCard key={alert.id} title={alert.title} description={alert.description} tone={alert.tone} />)}</div><div className="grid gap-3"><div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"><p className="text-xs uppercase tracking-[0.14em] text-slate-500">Base total</p><p className="mt-2 text-lg font-semibold text-slate-950">{institutionCatalog.length}</p></div><div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"><p className="text-xs uppercase tracking-[0.14em] text-slate-500">Receita média</p><p className="mt-2 text-lg font-semibold text-slate-950">{institutionCatalog.length > 0 ? formatCurrency(monthlyRevenue / institutionCatalog.length) : formatCurrency(0)}</p></div></div><div className="space-y-3">{recentActivity.slice(0, 3).map((user) => { const profile = getUserProfile(user.id, user.email); return <div key={user.id} className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-white p-3"><UserAvatar name={user.name} imageUrl={profile?.avatarUrl} crop={profile ? { scale: profile.avatarScale ?? 1, offsetX: profile.avatarOffsetX ?? 0, offsetY: profile.avatarOffsetY ?? 0, editorSize: 320 } : undefined} size="sm" /><div className="min-w-0"><p className="sig-fit-title text-sm font-semibold text-slate-950">{user.name}</p><p className="sig-fit-copy text-xs text-slate-500">{roleLabels[user.role]}</p></div></div>; })}</div></div></SectionCard></PageSideContent></PageMainGrid></> : null}
+        {workspaceView === "visao-geral" ? <><PageStatsRow className="xl:grid-cols-4"><MetricCard title="Prefeituras ativas" value={String(activeInstitutionCount)} helper="Carteira em operação" icon={Landmark} tone="blue" /><MetricCard title="Usuários ativos" value={String(activeUsersCount)} helper="Contas habilitadas" icon={Users2} tone="emerald" /><MetricCard title="Planos ativos" value={String(activePlansCount)} helper="Recorrência mensal" icon={CreditCard} tone="amber" /><MetricCard title="Receita mensal" value={formatCurrency(monthlyRevenue)} helper="Base institucional ativa" icon={Zap} tone="rose" valueTitle={monthlyRevenue.toString()} /></PageStatsRow><PageMainGrid><PageMainContent><TableCard title="Carteira institucional" description="Prefeituras prioritárias e leitura comercial da operação." icon={Building2}><div className="space-y-4">{overviewInstitutions.length === 0 ? <div className="rounded-[24px] border border-dashed border-slate-300 bg-slate-50 p-6 text-sm leading-6 text-slate-600">Nenhuma Prefeitura ativa cadastrada ainda. Use o cadastro para abrir a primeira conta institucional.</div> : null}{overviewInstitutions.map((tenant) => (
+  <div key={tenant.id} className="flex min-w-0 flex-col gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="min-w-0">
+      <p className="truncate text-sm font-semibold text-slate-950" title={tenant.name}>{tenant.name}</p>
+      <p className="mt-0.5 truncate text-xs text-slate-600">
+        {tenant.city || "Município"}{tenant.state ? " / " + tenant.state : ""} · Plano: {tenant.plan || "A definir"}
+      </p>
+    </div>
+    <Button type="button" variant="outline" className="shrink-0 rounded-xl border-slate-300 bg-white text-slate-800"
+      onClick={() => { setSelectedTenantId(tenant.id); setWorkspaceView("carteira"); }}>
+      Abrir carteira
+    </Button>
+  </div>
+))}</div></TableCard></PageMainContent><PageSideContent><SectionCard title="Painel master" description="Alertas, atividade curta e leitura comercial."><div className="space-y-4"><div className="space-y-3">{platformAlerts.slice(0, 3).map((alert) => <AlertCard key={alert.id} title={alert.title} description={alert.description} tone={alert.tone} />)}</div><div className="grid gap-3"><div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"><p className="text-xs uppercase tracking-[0.14em] text-slate-500">Base total</p><p className="mt-2 text-lg font-semibold text-slate-950">{institutionCatalog.length}</p></div><div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"><p className="text-xs uppercase tracking-[0.14em] text-slate-500">Receita média</p><p className="mt-2 text-lg font-semibold text-slate-950">{institutionCatalog.length > 0 ? formatCurrency(monthlyRevenue / institutionCatalog.length) : formatCurrency(0)}</p></div></div><div className="space-y-3">{recentActivity.slice(0, 3).map((user) => { const profile = getUserProfile(user.id, user.email); return <div key={user.id} className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-white p-3"><UserAvatar name={user.name} imageUrl={resolveProfileAvatarDisplayUrl(profile)} crop={profile ? { scale: profile.avatarScale ?? 1, offsetX: profile.avatarOffsetX ?? 0, offsetY: profile.avatarOffsetY ?? 0, editorSize: 320 } : undefined} size="sm" /><div className="min-w-0"><p className="sig-fit-title text-sm font-semibold text-slate-950">{user.name}</p><p className="sig-fit-copy text-xs text-slate-500">{roleLabels[user.role]}</p></div></div>; })}</div></div></SectionCard></PageSideContent></PageMainGrid></> : null}
 
-        {workspaceView === "carteira" ? <TableCard title="Prefeituras" description="Carteira municipal, contratos e ações de governança." icon={Building2}><div className="space-y-4">{institutionCatalog.length === 0 ? <div className="rounded-[24px] border border-dashed border-slate-300 bg-slate-50 p-6 text-sm leading-6 text-slate-600">Nenhuma Prefeitura cadastrada ainda. Use o cadastro para abrir a primeira conta institucional.</div> : null}{institutionCatalog.map((tenant) => renderInstitutionCard(tenant))}</div></TableCard> : null}
+        {workspaceView === "carteira" ? <TableCard title="Prefeituras" description="Carteira municipal, contratos e ações de governança." icon={Building2}><div className="space-y-4">{institutionCatalog.length === 0 ? <div className="rounded-[24px] border border-dashed border-slate-300 bg-slate-50 p-6 text-sm leading-6 text-slate-600">Nenhuma Prefeitura cadastrada ainda. Use o cadastro para abrir a primeira conta institucional.</div> : null}<CompactPortfolioRegistry institutions={institutionCatalog} renderDetails={renderInstitutionCard} /></div></TableCard> : null}
 
         {workspaceView === "cadastro" ? (
           <PageMainGrid>
@@ -1093,7 +1149,11 @@ export function MasterAdminPage() {
                               <Label>E-mail</Label>
                               <Input list={`admin-email-options-${admin.id}`} value={admin.email} onChange={(event) => updateAdminRow(admin.id, "email", event.target.value)} onBlur={(event) => applyKnownAdminEmail(admin.id, event.target.value)} className="sig-admin-input" />
                               <datalist id={`admin-email-options-${admin.id}`}>
-                                {availableKnownUsers.map((user) => (
+                                {availableKnownUsers
+                                  .filter((user) => !admin.email.trim() ||
+                                    user.email.toLocaleLowerCase("pt-BR").includes(admin.email.trim().toLocaleLowerCase("pt-BR")))
+                                  .slice(0, 25)
+                                  .map((user) => (
                                   <option key={user.id} value={user.email} />
                                 ))}
                               </datalist>
@@ -1164,7 +1224,7 @@ export function MasterAdminPage() {
                       <Workflow className="h-4 w-4 text-sky-200" />
                       Sincronização
                     </div>
-                    <p className="mt-3 text-sm leading-6 text-slate-500">{hasBackendEnv ? "Neon conectado para contas, branding e persistência comercial." : "Backend oficial indisponível; ambiente local de homologação ativo."}</p>
+                    <p className="mt-3 text-sm leading-6 text-slate-500">{hasBackendEnv ? "Núcleo de dados SIGAPRO conectado para contas, identidade visual e gestão comercial." : "Backend oficial indisponível; ambiente local de homologação ativo."}</p>
                   </div>
                 </div>
               </SectionCard>
@@ -1231,11 +1291,17 @@ export function MasterAdminPage() {
                   <div className="grid gap-3 lg:grid-cols-[1fr_1fr_auto] lg:items-end">
                     <div className="space-y-2">
                       <Label>Usuário</Label>
+                      <Input value={assignmentUserSearch}
+                        onChange={(event) => setAssignmentUserSearch(event.target.value)}
+                        placeholder="Pesquisar nome ou e-mail do servidor"
+                        aria-label="Pesquisar servidor para lotação"
+                        className="h-10 rounded-xl bg-white" />
+                      <p className="text-xs text-slate-500">{matchingAssignmentUsers.length} opção(ões) exibida(s) de {activeTenantUsers.length} usuários. Refine a pesquisa para localizar qualquer cadastro.</p>
                       <Select value={assignmentUserId || "__none"} onValueChange={(value) => setAssignmentUserId(value === "__none" ? "" : value)}>
                         <SelectTrigger className="h-11 rounded-2xl"><SelectValue placeholder="Escolha um usuário" /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="__none">Selecione</SelectItem>
-                          {activeTenantUsers.map((user) => <SelectItem key={user.id} value={user.id}>{user.name} • {user.email}</SelectItem>)}
+                          {matchingAssignmentUsers.map((user) => <SelectItem key={user.id} value={user.id}>{user.name} • {user.email}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     </div>
@@ -1317,7 +1383,10 @@ export function MasterAdminPage() {
           )
         ) : null}
 
-        {workspaceView === "usuarios" ? <PageMainContent className="gap-6"><SectionCard title="Governança de acessos" description="Leitura consolidada da base, dos acessos críticos e da saúde operacional da plataforma." icon={ShieldPlus} className="shadow-[0_14px_32px_rgba(15,23,42,0.06)]" contentClassName="space-y-0"><div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4"><div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4"><p className="text-xs uppercase tracking-[0.14em] text-slate-500">Base total</p><p className="mt-2 text-2xl font-semibold text-slate-950">{sessionUsers.length}</p><p className="mt-1 text-sm text-slate-500">Contas monitoradas na operação SaaS.</p></div><div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4"><p className="text-xs uppercase tracking-[0.14em] text-slate-500">Contas ativas</p><p className="mt-2 text-2xl font-semibold text-slate-950">{activeUsersCount}</p><p className="mt-1 text-sm text-slate-500">Acessos habilitados e em uso.</p></div><div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4"><p className="text-xs uppercase tracking-[0.14em] text-slate-500">Administradores</p><p className="mt-2 text-2xl font-semibold text-slate-950">{adminUsersCount}</p><p className="mt-1 text-sm text-slate-500">Perfis de governança ativos.</p></div><div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4"><p className="text-xs uppercase tracking-[0.14em] text-slate-500">Bloqueados</p><p className="mt-2 text-2xl font-semibold text-slate-950">{blockedUsersCount}</p><p className="mt-1 text-sm text-slate-500">Contas com restrição administrativa.</p></div></div></SectionCard><TableCard title="Usuários do sistema" description="Governança de contas, acessos e perfis da operação SaaS." icon={Users2} className="shadow-[0_14px_32px_rgba(15,23,42,0.06)]"><div className="space-y-5"><Tabs value={userGroup} onValueChange={(value) => setUserGroup(value as UserGroup)}><TabsList className="flex h-auto flex-wrap justify-start gap-2 rounded-2xl bg-slate-100 p-1.5"><TabsTrigger value="todos">Todos</TabsTrigger><TabsTrigger value="internos">Internos</TabsTrigger><TabsTrigger value="externos">Externos</TabsTrigger><TabsTrigger value="administradores">Administradores</TabsTrigger></TabsList></Tabs><div className="grid gap-3 xl:grid-cols-[minmax(0,1.35fr)_minmax(240px,0.8fr)_minmax(240px,0.8fr)] xl:items-center"><div className="relative"><Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><Input value={userSearch} onChange={(event) => setUserSearch(event.target.value)} placeholder="Buscar nome, e-mail, setor ou tipo" className="h-11 rounded-2xl pl-11" /></div><Select value={userStatusFilter} onValueChange={(value) => setUserStatusFilter(value as "todos" | AccountStatus)}><SelectTrigger className="h-11 rounded-2xl"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="todos">Todos os status</SelectItem><SelectItem value="active">Ativos</SelectItem><SelectItem value="blocked">Bloqueados</SelectItem><SelectItem value="inactive">Inativos</SelectItem></SelectContent></Select><Select value={userRoleFilter} onValueChange={(value) => setUserRoleFilter(value as "todos" | UserRole)}><SelectTrigger className="h-11 rounded-2xl"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="todos">Todos os perfis</SelectItem>{Object.entries(roleLabels).map(([role, label]) => <SelectItem key={role} value={role}>{label}</SelectItem>)}</SelectContent></Select></div><div className="space-y-4">{filteredSystemUsers.length === 0 ? <div className="rounded-[24px] border border-dashed border-slate-300 bg-slate-50 p-6 text-sm leading-6 text-slate-600">Nenhum usuário encontrado com os filtros atuais.</div> : null}{filteredSystemUsers.map((user) => renderUserCard(user))}</div></div></TableCard></PageMainContent> : null}
+        {workspaceView === "usuarios" ? <PageMainContent className="gap-6"><SectionCard title="Governança de acessos" description="Leitura consolidada da base, dos acessos críticos e da saúde operacional da plataforma." icon={ShieldPlus} className="shadow-[0_14px_32px_rgba(15,23,42,0.06)]" contentClassName="space-y-0"><div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4"><div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4"><p className="text-xs uppercase tracking-[0.14em] text-slate-500">Base total</p><p className="mt-2 text-2xl font-semibold text-slate-950">{sessionUsers.length}</p><p className="mt-1 text-sm text-slate-500">Contas monitoradas na operação SaaS.</p></div><div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4"><p className="text-xs uppercase tracking-[0.14em] text-slate-500">Contas ativas</p><p className="mt-2 text-2xl font-semibold text-slate-950">{activeUsersCount}</p><p className="mt-1 text-sm text-slate-500">Acessos habilitados e em uso.</p></div><div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4"><p className="text-xs uppercase tracking-[0.14em] text-slate-500">Administradores</p><p className="mt-2 text-2xl font-semibold text-slate-950">{adminUsersCount}</p><p className="mt-1 text-sm text-slate-500">Perfis de governança ativos.</p></div><div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4"><p className="text-xs uppercase tracking-[0.14em] text-slate-500">Bloqueados</p><p className="mt-2 text-2xl font-semibold text-slate-950">{blockedUsersCount}</p><p className="mt-1 text-sm text-slate-500">Contas com restrição administrativa.</p></div></div></SectionCard><TableCard title="Usuários do sistema" description="Governança de contas, acessos e perfis da operação SaaS." icon={Users2} className="shadow-[0_14px_32px_rgba(15,23,42,0.06)]"><div className="space-y-5"><Tabs value={userGroup} onValueChange={(value) => setUserGroup(value as UserGroup)}><TabsList className="flex h-auto flex-wrap justify-start gap-2 rounded-2xl bg-slate-100 p-1.5"><TabsTrigger value="todos">Todos</TabsTrigger><TabsTrigger value="internos">Internos</TabsTrigger><TabsTrigger value="externos">Externos</TabsTrigger><TabsTrigger value="administradores">Administradores</TabsTrigger></TabsList></Tabs><div className="grid gap-3 xl:grid-cols-[minmax(0,1.35fr)_minmax(240px,0.8fr)_minmax(240px,0.8fr)] xl:items-center"><div className="relative"><Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><Input value={userSearch} onChange={(event) => setUserSearch(event.target.value)} placeholder="Buscar nome, e-mail, setor ou tipo" className="h-11 rounded-2xl pl-11" /></div><Select value={userStatusFilter} onValueChange={(value) => setUserStatusFilter(value as "todos" | AccountStatus)}><SelectTrigger className="h-11 rounded-2xl"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="todos">Todos os status</SelectItem><SelectItem value="active">Ativos</SelectItem><SelectItem value="blocked">Bloqueados</SelectItem><SelectItem value="inactive">Inativos</SelectItem></SelectContent></Select><Select value={userRoleFilter} onValueChange={(value) => setUserRoleFilter(value as "todos" | UserRole)}><SelectTrigger className="h-11 rounded-2xl"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="todos">Todos os perfis</SelectItem>{Object.entries(roleLabels).map(([role, label]) => <SelectItem key={role} value={role}>{label}</SelectItem>)}</SelectContent></Select></div><CompactUserRegistry users={filteredSystemUsers} page={systemUserPage}
+          onPageChange={setSystemUserPage}
+          filterKey={[userSearch, userStatusFilter, userRoleFilter, userGroup].join(":")}
+          renderDetails={renderUserCard} label="Usuários da plataforma SIGAPRO" /></div></TableCard></PageMainContent> : null}
       </PageShell>
     </PortalFrame>
   );

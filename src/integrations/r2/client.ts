@@ -1,9 +1,12 @@
 import { backendClient } from "@/integrations/backend/databaseClient";
+import { largeProcessAttachmentMime, PROCESS_INLINE_MAX_BYTES, uploadLargeProcessAttachment } from "@/integrations/r2/processChunkUpload";
 
 export type R2UploadResult = {
   bucket: string;
   objectKey: string;
   publicUrl: string;
+  sha256?: string;
+  fileSizeBytes?: number;
 };
 
 const apiBase = (import.meta.env.VITE_R2_API_BASE || "").toString().replace(/\/+$/, "");
@@ -335,7 +338,7 @@ async function uploadLargeLegalPdf(input: {bucket:string;objectKey:string;file:F
   const completed=await send({action:"finalize",fileSha256});
   if(completed.objectKey!==input.objectKey)
    throw Error("O servidor não confirmou o documento original no armazenamento.");
-  return {bucket:"process-documents",objectKey:input.objectKey,publicUrl:""} satisfies R2UploadResult;
+  return {bucket:"process-documents",objectKey:input.objectKey,publicUrl:"",sha256:fileSha256,fileSizeBytes:input.file.size} satisfies R2UploadResult;
  }catch(err){
   if(controller.signal.aborted)throw Error("Tempo limite ao enviar o PDF; o original foi preservado.");
   throw err;
@@ -361,6 +364,18 @@ export async function uploadFile(input: {
   if (isDirectLegalPdfUpload(input.bucket, input.objectKey, input.file)) {
     return uploadLargeLegalPdf(input);
   }
+  // Avoid Vercel's ~4.5 MiB request limit: 2.5 MiB binary becomes 3.3 MiB
+  // base64. Mandatory project drawings must use the validated chunk path.
+  if (normalizeClientBucket(input.bucket) === "process-documents" &&
+      input.file.size > PROCESS_INLINE_MAX_BYTES) {
+    if (!largeProcessAttachmentMime({...input,bucket:"process-documents"})) {
+      throw new Error("Anexo grande deve ser PDF, PNG, JPEG ou WebP, com referência municipal válida.");
+    }
+    return uploadLargeProcessAttachment({...input,bucket:"process-documents"},async () => {
+      const headers = await getAuthorizationHeaders();
+      return headers;
+    });
+  }
   const controller = new AbortController();
   const timeout = window.setTimeout(() => {
     controller.abort();
@@ -371,15 +386,6 @@ export async function uploadFile(input: {
     if (!base64) {
       throw new Error("Arquivo inválido para upload.");
     }
-
-    console.warn("[SIGAPRO][R2] upload iniciado", {
-      endpoint: "/api/r2-upload",
-      bucket: normalizeClientBucket(input.bucket),
-      objectKey: input.objectKey,
-      fileName: input.file.name,
-      fileSize: input.file.size,
-      mimeType: input.file.type || "application/octet-stream",
-    });
 
     const response = await fetch(buildApiUrl("/api/r2-upload"), {
       method: "POST",
@@ -403,13 +409,9 @@ export async function uploadFile(input: {
       objectKey: string;
       publicUrl: string;
       error?: string;
+      sha256?: string;
+      fileSizeBytes?: number;
     };
-
-    console.warn("[SIGAPRO][R2] resposta upload", {
-      status: response.status,
-      ok: response.ok,
-      payload,
-    });
 
     if (!response.ok) {
       const message = payload?.error || "Falha ao enviar o arquivo.";
@@ -420,12 +422,13 @@ export async function uploadFile(input: {
       bucket: payload.bucket,
       objectKey: payload.objectKey,
       publicUrl: payload.publicUrl,
+      sha256: payload.sha256,
+      fileSizeBytes: payload.fileSizeBytes,
     } satisfies R2UploadResult;
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") {
       throw new Error("Tempo limite no upload para o R2.");
     }
-    console.error("[SIGAPRO][R2] falha no upload", error);
     throw error;
   } finally {
     window.clearTimeout(timeout);
@@ -438,6 +441,28 @@ export type RecoverableProcessFile = {
   size: number;
   lastModified: string | null;
 };
+/** Verify the actual object bytes in the same authorized municipal R2 scope.
+ * The returned hash is computed by the server and must not be inferred from
+ * the filename, object key, browser metadata, or the old Neon row.
+ */
+export async function verifyRecoverableProcessFile(input: {processId:string;objectKey:string}) {
+  const response = await fetch(buildApiUrl("/api/r2-list-user-files"), {
+    method:"POST",
+    headers:{"Content-Type":"application/json",...(await getAuthorizationHeaders())},
+    body:JSON.stringify({processId:input.processId,verifyObjectKey:input.objectKey}),
+    cache:"no-store",
+  });
+  const data = await response.json().catch(()=>({})) as {
+    objectKey?:string;fileHash?:string;fileSizeBytes?:number;error?:string;
+  };
+  if(!response.ok)throw Error(data.error||"Não foi possível conferir os bytes do upload anterior.");
+  if(data.objectKey!==input.objectKey ||
+      !/^[a-f0-9]{64}$/.test(String(data.fileHash||"")) ||
+      !Number.isSafeInteger(data.fileSizeBytes) || Number(data.fileSizeBytes)<=0)
+    throw Error("O R2 não comprovou a integridade do upload anterior.");
+  return {fileHash:data.fileHash!,fileSizeBytes:data.fileSizeBytes!};
+}
+
 
 export async function listRecoverableProcessFiles(input?: { since?: string; processId?: string }) {
   const response = await fetch(buildApiUrl("/api/r2-list-user-files"), {

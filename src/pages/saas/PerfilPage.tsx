@@ -37,6 +37,8 @@ import { formatDisplayText, humanizeRoleLabel } from "@/lib/displayText";
 import { cn } from "@/lib/utils";
 import { DEFAULT_AVATAR_EDITOR_DIAMETER } from "@/lib/avatarCropGeometry";
 import { resolveProfileAvatarDisplayUrl } from "@/lib/profileAvatarDisplay";
+import { useAuthorizedAvatarUrl } from "@/hooks/useAuthorizedAvatarUrl";
+import { resolveAuthorizedAvatarUrl } from "@/lib/privateAvatarRead";
 import { calculateMasterLogoCrop, findOpaqueWhiteFooterHeight } from "@/lib/masterLogoCrop";
 import type { InstitutionalLogoConfigVariant } from "@/lib/institutionBranding";
 import {
@@ -181,6 +183,16 @@ async function confirmSavedAvatarReadable(url: string): Promise<boolean> {
     return false;
   }
 
+  // The stable R2 path is never loaded anonymously or saved as a blob URL.
+  // Only this check creates a disposable, same-origin image URL.
+  let asset: Awaited<ReturnType<typeof resolveAuthorizedAvatarUrl>>;
+  try {
+    asset = await resolveAuthorizedAvatarUrl(url);
+  } catch {
+    return false;
+  }
+
+  try {
   for (let attempt = 0; attempt < 3; attempt += 1) {
     const readable = await new Promise<boolean>((resolve) => {
       const image = new Image();
@@ -196,13 +208,16 @@ async function confirmSavedAvatarReadable(url: string): Promise<boolean> {
       const timeout = window.setTimeout(() => complete(false), 8000);
       image.onload = () => complete(image.naturalWidth > 0 && image.naturalHeight > 0);
       image.onerror = () => complete(false);
-      image.src = url;
+      image.src = asset.url;
     });
     if (readable) return true;
     if (attempt < 2) await new Promise<void>((resolve) => window.setTimeout(resolve, 250 * (attempt + 1)));
   }
 
   return false;
+  } finally {
+    asset.revoke();
+  }
 }
 
 export function PerfilPage() {
@@ -491,14 +506,17 @@ export function PerfilPage() {
 
     if (avatarDraftDirty || avatarFrameDirtyRef.current || saving) return;
 
-    if (profile.avatarUrl) {
+    // O registro persistente no R2 é a fonte de verdade, inclusive quando
+    // avatar_url legado está vazio ou contém uma prévia temporária do navegador.
+    const savedAvatarDisplayUrl = resolveProfileAvatarDisplayUrl(profile);
+    if (savedAvatarDisplayUrl && !/^(?:blob:|data:)/i.test(savedAvatarDisplayUrl)) {
       setAvatarFiles([
         {
           id: "avatar-atual",
           fileName: "foto-perfil",
           mimeType: "image/*",
           sizeLabel: "imagem salva",
-          previewUrl: profile.avatarUrl,
+          previewUrl: savedAvatarDisplayUrl,
         },
       ]);
     } else {
@@ -998,21 +1016,35 @@ export function PerfilPage() {
 
       if (avatarUploadFile) {
         try {
-          setStatus("Enviando a foto ao armazenamento institucional R2...");
+          setStatus("Enviando a foto ao SIGAPRO Nuvem...");
           const uploaded = await uploadFileToStorage({
             bucket: "profile-assets",
             tenantId: activeInstitutionId,
+            platformScope: isMasterRole,
             userId,
             file: avatarUploadFile,
             folder: "avatars",
           });
           avatarStorageRef = uploaded.persistentRef;
-          avatarUrl = uploaded.publicUrl || effectiveAvatarFiles[0]?.previewUrl || form.avatarUrl;
+          // Nunca persistir blob:/data: do preview local como URL de foto.
+          // O backend não publica avatares no CDN; a referência R2 é estável.
+          avatarUrl = resolveProfileAvatarDisplayUrl({ avatarStorageRef });
+          if (!avatarUrl) {
+            throw new Error("Não foi possível validar a referência permanente da foto enviada.");
+          }
         } catch (error) {
-          setStatus(error instanceof Error ? error.message : "Falha ao enviar a foto para o R2.");
+          setStatus(error instanceof Error ? error.message : "Falha ao enviar a foto ao armazenamento SIGAPRO.");
           return;
         }
       }
+
+      // Recuperar também perfis históricos cujo avatar_url não foi preenchido,
+      // sem gravar outro blob temporário quando o usuário editar dados ou enquadramento.
+      if (!avatarUploadFile) {
+        const stableAvatarUrl = resolveProfileAvatarDisplayUrl({ avatarStorageRef });
+        if (stableAvatarUrl) avatarUrl = stableAvatarUrl;
+      }
+      if (/^(?:blob:|data:)/i.test(avatarUrl)) avatarUrl = "";
 
       const resolvedFullName = form.fullName.trim() || profile?.fullName || session.name || "Usuário autenticado";
       const resolvedEmail = normalizeProfileEmail(form.email || profile?.email || authenticatedEmail || session.email);
@@ -1062,9 +1094,12 @@ export function PerfilPage() {
         });
       }
 
-      setStatus("Confirmando foto e preferências no banco Neon...");
+      setStatus("Confirmando foto e preferências no SIGAPRO...");
       const savedProfile = await saveUserProfile(nextProfile);
-      const savedAvatarUrl = savedProfile.avatarUrl || avatarUrl;
+      const savedAvatarUrl = resolveProfileAvatarDisplayUrl({
+        avatarStorageRef: savedProfile.avatarStorageRef || avatarStorageRef,
+        avatarUrl: savedProfile.avatarUrl || avatarUrl,
+      });
       // Novo upload só é sucesso quando a imagem gravada volta a abrir, sem
       // usar blob local como prova. Alterações apenas do enquadramento não
       // precisam repetir a consulta da imagem.
@@ -1128,7 +1163,7 @@ export function PerfilPage() {
     { value: "historico", label: "Histórico", helper: "Ações recentes da conta" },
   ] as const;
 
-  const avatarPreviewUrl =
+  const avatarPreviewSourceUrl =
     avatarFiles[0]?.previewUrl ||
     (avatarDraftDirty
       ? ""
@@ -1136,6 +1171,7 @@ export function PerfilPage() {
           avatarUrl: form.avatarUrl,
           avatarStorageRef: profile?.avatarStorageRef,
         }));
+  const avatarPreviewUrl = useAuthorizedAvatarUrl(avatarPreviewSourceUrl);
   const avatarPreviewCrop = useMemo(
     () => ({
       scale: form.avatarScale,

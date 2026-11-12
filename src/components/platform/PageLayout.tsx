@@ -233,6 +233,7 @@ export function InternalSectionNav({
               onClick={() => { if (!active) onChange(item.value); }}
               data-nav-active={active ? "true" : "false"}
               data-premium-nav-active={active ? "true" : "false"}
+              aria-current={active ? "page" : undefined}
               className={cn(
                 "sig-nav-item flex min-h-[68px] min-w-[210px] snap-start flex-col items-start justify-center rounded-[16px] border px-4 py-3 text-left md:min-w-0 md:rounded-[18px]",
                 staticSelection ? "transition-none" : "transition-colors duration-150",

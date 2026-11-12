@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   Activity,
@@ -32,6 +32,9 @@ import { PlanModuleRoute } from "@/components/platform/PlanModuleRoute";
 import { Button } from "@/components/ui/button";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { PlanCapacityCard } from "@/components/platform/PlanCapacityCard";
+import { displayDashboardCategoryLabel } from "@/lib/dashboardPresentation";
+import {hasPrematureAnalysisStage,isAdministrativelyClosed,isVerifiedTechnicalAnalysis} from "@/lib/processOperationalIntegrity";
+import {isFinancialTestGuide,isPendingFinancialGuide,isBankVerifiedFinancialGuide,summarizeFinancialGuideEvidence} from "@/lib/qaPaymentEvidence";
 import { usePlanCapacityLive } from "@/hooks/usePlanCapacityLive";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
@@ -41,14 +44,14 @@ import { formatOfficialProcessNumber, formatOfficialProcessTitle, getProcessPaym
 const statusLabels: Record<ProcessStatus, string> = {
   rascunho: "Rascunho",
   triagem: "Triagem",
-  pendencia_documental: "Pendencia documental",
+  pendencia_documental: "Pendência documental",
   guia_emitida: "Guia emitida",
   pagamento_pendente: "Pagamento pendente",
   pagamento_confirmado: "Pagamento confirmado",
-  distribuicao: "Distribuicao",
-  analise_tecnica: "Analise tecnica",
+  distribuicao: "Distribuição",
+  analise_tecnica: "Análise técnica",
   despacho_intersetorial: "Despacho",
-  exigencia: "Exigencia",
+  exigencia: "Exigência",
   reapresentacao: "Reapresentacao",
   deferido: "Deferido",
   indeferido: "Indeferido",
@@ -69,7 +72,6 @@ const roleLabels: Record<string, string> = {
   proprietario_consulta: "Consulta do proprietario",
 };
 
-const completedStatuses = new Set<ProcessStatus>(["deferido", "indeferido", "arquivado"]);
 const attentionStatuses = new Set<ProcessStatus>(["pendencia_documental", "exigencia", "pagamento_pendente"]);
 const financeStatuses = new Set<ProcessStatus>(["guia_emitida", "pagamento_pendente", "pagamento_confirmado"]);
 const accentPalette = ["#60a5fa", "#34d399", "#fbbf24", "#fb7185", "#818cf8", "#22d3ee", "#f97316"];
@@ -112,15 +114,28 @@ function formatCompactDate(date: Date) {
 
 function buildStatusChart(processes: ProcessRecord[]) {
   const totals = new Map<ProcessStatus, number>();
-  processes.forEach((process) => totals.set(process.status, (totals.get(process.status) ?? 0) + 1));
-
-  return (Object.keys(statusLabels) as ProcessStatus[])
+  let divergentTriage = 0;
+  processes.forEach((process) => {
+    if (hasPrematureAnalysisStage(process)) {
+      divergentTriage += 1;
+      return;
+    }
+    totals.set(process.status, (totals.get(process.status) ?? 0) + 1);
+  });
+  const chart = (Object.keys(statusLabels) as ProcessStatus[])
     .map((status) => ({
       status,
       label: statusLabels[status],
       total: totals.get(status) ?? 0,
     }))
     .filter((item) => item.total > 0);
+  // Preserve the anomalous record, but keep it outside confirmed analysis.
+  if (divergentTriage > 0) chart.push({
+    status: "analise_tecnica",
+    label: "Conferir triagem",
+    total: divergentTriage,
+  });
+  return chart;
 }
 
 function buildGroupChart(values: string[], limit = 6) {
@@ -200,6 +215,7 @@ function pickRecent(processes: ProcessRecord[], count = 6) {
 function buildPriorityScore(process: ProcessRecord) {
   let score = 0;
   if (process.sla.breached) score += 5;
+  if (hasPrematureAnalysisStage(process)) score += 6;
   if (process.processControl?.onHold) score += 4;
   if (attentionStatuses.has(process.status)) score += 3;
   if (getOpenRequirements(process) > 0) score += 2;
@@ -211,6 +227,7 @@ function buildPriorityScore(process: ProcessRecord) {
 function buildPriorityReason(process: ProcessRecord) {
   if (process.sla.breached) return "SLA vencido";
   if (process.processControl?.onHold) return "Fluxo sobrestado";
+  if (hasPrematureAnalysisStage(process)) return "Inconsistência: análise sem triagem concluída";
   if (process.status === "pagamento_pendente") return "Pagamento aguardando compensacao";
   if (process.status === "pendencia_documental") return "Documentacao pendente";
   if (process.status === "exigencia") return "Exigencia em aberto";
@@ -316,7 +333,7 @@ function HealthBar({
   );
 }
 
-function DistributionCard({
+export function DistributionCard({
   title,
   description,
   icon,
@@ -327,36 +344,93 @@ function DistributionCard({
   icon: LucideIcon;
   data: Array<{ label: string; total: number }>;
 }) {
+  const [activeSegment, setActiveSegment] = useState<number | null>(null);
   const chartConfig = { total: { label: "Volume", color: "#60a5fa" } };
+  const totalVolume = data.reduce((sum, item) => sum + item.total, 0);
+  const activeDatum = activeSegment === null ? null : data[activeSegment] ?? null;
+  const activePercent = activeDatum && totalVolume > 0
+    ? Math.round((activeDatum.total / totalVolume) * 100)
+    : 0;
 
   return (
     <TableCard title={title} description={description} icon={icon}>
       {data.length === 0 ? (
-        <EmptyState title="Sem dados para distribuicao" description="Assim que houver volume suficiente, o grafico sera preenchido automaticamente." icon={AlertTriangle} />
+        <EmptyState title="Sem dados para distribuição" description="Assim que houver volume suficiente, o gráfico será preenchido automaticamente." icon={AlertTriangle} />
       ) : (
-        <div className="grid gap-5 xl:grid-cols-[minmax(0,0.95fr)_minmax(220px,0.85fr)] xl:items-center">
-          <div className="min-w-0">
-            <ChartContainer config={chartConfig} className="mx-auto w-full max-w-[320px]" ratio={1} minHeight={240} maxHeight={320}>
-              <PieChart>
-                <Pie data={data} dataKey="total" nameKey="label" innerRadius="52%" outerRadius="84%" paddingAngle={3}>
-                  {data.map((entry, index) => (
-                    <Cell key={entry.label} fill={accentPalette[index % accentPalette.length]} />
-                  ))}
-                </Pie>
-                <ChartTooltip content={<ChartTooltipContent hideLabel indicator="dot" />} cursor={false} />
-              </PieChart>
-            </ChartContainer>
-          </div>
-          <div className="min-w-0 space-y-3">
-            {data.map((item, index) => (
-              <div key={item.label} className="flex min-w-0 items-center justify-between gap-3 rounded-2xl border border-slate-200/70 bg-slate-50/80 px-4 py-3 dark:border-white/10 dark:bg-white/[0.03]">
-                <div className="flex min-w-0 items-center gap-3">
-                  <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: accentPalette[index % accentPalette.length] }} />
-                  <p className="min-w-0 break-words text-sm font-medium text-slate-700 dark:text-slate-100">{item.label}</p>
+        <div className="sig-dashboard-distribution-container">
+          <div className="sig-dashboard-distribution-layout">
+            <div className="min-w-0">
+              <div className="sig-dashboard-distribution-chart relative">
+                <ChartContainer config={chartConfig} className="mx-auto w-full" ratio={1} minHeight={200} maxHeight={272}>
+                  <PieChart>
+                    <Pie
+                      data={data}
+                      dataKey="total"
+                      nameKey="label"
+                      innerRadius="54%"
+                      outerRadius="84%"
+                      paddingAngle={3}
+                      onMouseEnter={(_, index) => setActiveSegment(index)}
+                      onMouseLeave={() => setActiveSegment(null)}
+                    >
+                      {data.map((entry, index) => (
+                        <Cell key={entry.label} fill={accentPalette[index % accentPalette.length]} />
+                      ))}
+                    </Pie>
+                    {/* Não usar tooltip flutuante aqui. Em cards estreitos, o Recharts
+                        comprimia palavras letra por letra e o overflow ocultava o balão.
+                        Os dados do hover aparecem no centro e na faixa fixa abaixo. */}
+                  </PieChart>
+                </ChartContainer>
+                <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center" aria-hidden="true">
+                  <span className="text-[clamp(1.125rem,2vw,1.5rem)] font-bold leading-none tabular-nums tracking-tight text-slate-950 dark:text-white">
+                    {(activeDatum?.total ?? totalVolume).toLocaleString("pt-BR")}
+                  </span>
+                  <span className="mt-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">
+                    {activeDatum ? "Selecionado" : "Total"}
+                  </span>
                 </div>
-                <p className="shrink-0 text-sm font-semibold text-slate-950 dark:text-white">{item.total}</p>
               </div>
-            ))}
+              <div
+                className="mt-2 flex h-[68px] min-w-0 flex-col items-center justify-center overflow-hidden rounded-xl border border-slate-200/70 bg-slate-50/70 px-3 py-2 text-center dark:border-white/10 dark:bg-white/[0.035]"
+                role="status"
+                aria-live="polite"
+                aria-atomic="true"
+              >
+                <p className="line-clamp-2 max-w-full break-words text-xs font-semibold leading-4 text-slate-700 dark:text-slate-100" title={activeDatum ? displayDashboardCategoryLabel(activeDatum.label) : "Total de registros"}>
+                  {activeDatum ? displayDashboardCategoryLabel(activeDatum.label) : "Todos os registros"}
+                </p>
+                <p className="mt-0.5 text-[11px] font-medium tabular-nums text-slate-500 dark:text-slate-300">
+                  {activeDatum
+                    ? `${activeDatum.total.toLocaleString("pt-BR")} de ${totalVolume.toLocaleString("pt-BR")} · ${activePercent}%`
+                    : `${totalVolume.toLocaleString("pt-BR")} registros no recorte`}
+                </p>
+              </div>
+            </div>
+            <div className="sig-dashboard-distribution-legend">
+              {data.map((item, index) => (
+                <button
+                  key={item.label}
+                  type="button"
+                  aria-pressed={activeSegment === index}
+                  aria-label={`${displayDashboardCategoryLabel(item.label)}: ${item.total.toLocaleString("pt-BR")} registros`}
+                  onMouseEnter={() => setActiveSegment(index)}
+                  onMouseLeave={() => setActiveSegment(null)}
+                  onFocus={() => setActiveSegment(index)}
+                  onBlur={() => setActiveSegment(null)}
+                  onClick={() => setActiveSegment(index)}
+                  className={`flex w-full min-w-0 items-center justify-between gap-2.5 rounded-xl border px-3 py-2.5 text-left transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/70 ${
+                    activeSegment === index
+                      ? "border-sky-400/60 bg-sky-50/90 dark:border-sky-400/45 dark:bg-sky-400/10"
+                      : "border-slate-200/70 bg-slate-50/80 hover:border-sky-300/60 hover:bg-sky-50/60 dark:border-white/10 dark:bg-white/[0.03] dark:hover:border-sky-400/35 dark:hover:bg-white/[0.075]"
+                  }`}
+                >
+                  <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: accentPalette[index % accentPalette.length] }} aria-hidden="true" />
+                  <span className="min-w-0 flex-1 break-words text-xs font-medium leading-4 text-slate-700 dark:text-slate-100">{displayDashboardCategoryLabel(item.label)}</span>
+                  <span className="shrink-0 text-xs font-semibold tabular-nums text-slate-950 dark:text-white">{item.total.toLocaleString("pt-BR")}</span>
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       )}
@@ -439,27 +513,34 @@ export function DashboardHomePage() {
   const institutionName =
     municipality?.name || institutions.find((institution) => institution.id === activeInstitutionId)?.name || "SIGAPRO";
 
-  const completedCount = displayProcesses.filter((process) => completedStatuses.has(process.status)).length;
+  const completedCount = displayProcesses.filter(isAdministrativelyClosed).length;
   const inProgressCount = displayProcesses.length - completedCount;
+  const inconsistentTriageCount = displayProcesses.filter(hasPrematureAnalysisStage).length;
   const breachedCount = displayProcesses.filter((process) => process.sla.breached).length;
   const processGuides = (process: ProcessRecord) =>
     getProcessPaymentGuides(
       process,
       getInstitutionSettings(process.municipalityId ?? process.tenantId),
     );
-  const pendingPayments = displayProcesses.filter((process) =>
-    processGuides(process).some((guide) => guide.status === "pendente"),
+  // Reuse one guide read per displayed process; never count synthetic QA money.
+  const processGuideRows = displayProcesses.map((process) => ({
+    process, guides:processGuides(process),
+  }));
+  const pendingPayments = processGuideRows.filter(({guides}) =>
+    guides.some(isPendingFinancialGuide),
   ).length;
   const openRequirements = displayProcesses.filter((process) => getOpenRequirements(process) > 0).length;
   const totalMessages = displayProcesses.reduce((sum, process) => sum + process.messages.length, 0);
   const totalDispatches = displayProcesses.reduce((sum, process) => sum + process.dispatches.length, 0);
-  const paymentVolume = displayProcesses.reduce(
-    (sum, process) => sum + processGuides(process).reduce((guideSum, guide) => guideSum + Number(guide.amount || 0), 0),
-    0,
-  );
-  const totalGuides = displayProcesses.reduce((sum, process) => sum + processGuides(process).length, 0);
-  const displayGuides = displayProcesses.flatMap((process) => processGuides(process));
-  const tenantGuides = tenantProcesses.flatMap((process) => processGuides(process));
+  const allDisplayGuides = processGuideRows.flatMap(({guides})=>guides);
+  const financialOverview = summarizeFinancialGuideEvidence(allDisplayGuides);
+  const simulatedGuideCount = financialOverview.synthetic.length;
+  const displayGuides = financialOverview.actual;
+  const tenantGuides = summarizeFinancialGuideEvidence(
+    tenantProcesses.flatMap((process) => processGuides(process)),
+  ).actual;
+  const paymentVolume = financialOverview.issuedAmount;
+  const totalGuides = financialOverview.issuedCount;
   const averageTimelineDepth =
     displayProcesses.length === 0
       ? 0
@@ -486,13 +567,13 @@ export function DashboardHomePage() {
   }, [institutions, sessionUsers.length, getInstitutionSettings]);
 
   const financeMetrics = {
-    pending: tenantGuides.filter((guide) => guide.status === "pendente").length,
-    confirmed: tenantGuides.filter((guide) => guide.status === "compensada").length,
+    pending: tenantGuides.filter(isPendingFinancialGuide).length,
+    verified: tenantGuides.filter(isBankVerifiedFinancialGuide).length,
     issued: tenantGuides.length,
   };
 
   const analystMetrics = useMemo(() => {
-    const inReview = tenantProcesses.filter((process) => process.status === "analise_tecnica").length;
+    const inReview = tenantProcesses.filter(isVerifiedTechnicalAnalysis).length;
     const pendingDocs = tenantProcesses.filter((process) => process.status === "pendencia_documental").length;
     const requirements = tenantProcesses.filter((process) => process.status === "exigencia").length;
     return { inReview, pendingDocs, requirements };
@@ -524,8 +605,9 @@ export function DashboardHomePage() {
     [scopedUsers.length, activeUsers, blockedUsers],
   );
   const financeSituationChart = [
-    { label: "Pendentes", total: displayGuides.filter((guide) => guide.status === "pendente").length },
-    { label: "Compensadas", total: displayGuides.filter((guide) => guide.status === "compensada").length },
+    { label: "Pendentes", total: displayGuides.filter(isPendingFinancialGuide).length },
+    { label: "Compensadas sem prova", total: financialOverview.unverifiedCompensatedCount },
+    { label: "Liquidadas no banco", total: financialOverview.bankVerifiedCount },
   ].filter((item) => item.total > 0);
 
   const chartConfig = { total: { label: "Volume", color: "#60a5fa" } };
@@ -703,8 +785,8 @@ export function DashboardHomePage() {
         ? [
             { title: "Guias pendentes", value: `${financeMetrics.pending}`, helper: "Aguardando compensacao.", icon: AlertTriangle, tone: "rose" as const },
             { title: "Guias emitidas", value: `${financeMetrics.issued}`, helper: "Guias geradas para contribuinte.", icon: Wallet, tone: "amber" as const },
-            { title: "Pagamentos confirmados", value: `${financeMetrics.confirmed}`, helper: "Guias compensadas no sistema.", icon: CheckCircle2, tone: "emerald" as const },
-            { title: "Volume financeiro", value: formatCurrency(paymentVolume), helper: "Montante financeiro do recorte.", icon: TrendingUp, tone: "blue" as const },
+            { title: "Liquidações bancárias", value: `${financeMetrics.verified}`, helper: "Baixas reais com evidência externa.", icon: CheckCircle2, tone: "emerald" as const },
+            { title: "Volume financeiro", value: formatCurrency(paymentVolume), helper: "Montante de guias não simuladas.", icon: TrendingUp, tone: "blue" as const },
           ]
         : isAnalyst
           ? [
@@ -715,14 +797,14 @@ export function DashboardHomePage() {
             ]
           : [
               { title: "Protocolos ativos", value: `${inProgressCount}`, helper: "Processos em acompanhamento na prefeitura.", icon: FileText, tone: "blue" as const },
-              { title: "Em analise", value: `${displayProcesses.filter((process) => process.status === "analise_tecnica").length}`, helper: "Processos aguardando parecer tecnico.", icon: Timer, tone: "amber" as const },
+              { title: "Em analise", value: `${displayProcesses.filter(isVerifiedTechnicalAnalysis).length}`, helper: "Processos aguardando parecer tecnico.", icon: Timer, tone: "amber" as const },
               { title: "Exigencias", value: `${displayProcesses.filter((process) => process.status === "exigencia").length}`, helper: "Pendencias em aberto.", icon: AlertTriangle, tone: "rose" as const },
               { title: "Concluidos", value: `${completedCount}`, helper: "Processos finalizados ou encerrados.", icon: CheckCircle2, tone: "emerald" as const },
             ];
 
   const renderPlanCapacity = () => (
         <SectionCard title={isMaster ? "Capacidade contratada por Prefeitura" : "Meu plano e utilização"}
-          description="Cadastros, processos, setores e armazenamento calculados pelo Neon. Atualiza quando o Master altera o plano, sem novo login."
+          description="Cadastros, processos, setores e armazenamento calculados pelo SIGAPRO. Atualiza quando o Master altera o plano, sem novo login."
           icon={Users2}>
           {planCapacity.error ? (
             <p role="alert" className="mb-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:bg-slate-800 dark:text-amber-200">
@@ -730,18 +812,25 @@ export function DashboardHomePage() {
             </p>
           ) : null}
           {!planCapacity.loaded ? (
-            <p className="text-sm text-slate-600 dark:text-slate-300">Consultando limites contratados no Neon...</p>
+            <p className="text-sm text-slate-600 dark:text-slate-300">Consultando limites contratados no SIGAPRO...</p>
           ) : planCapacity.rows.length === 0 ? (
             <p className="text-sm text-slate-600 dark:text-slate-300">Nenhum plano disponível para o contexto autenticado.</p>
           ) : (
             <div className={isMaster ? "grid gap-4 2xl:grid-cols-2" : "grid gap-4"}>
-              {planCapacity.rows.map((row) => (
+              {planCapacity.rows.slice(0, isMaster ? 2 : undefined).map((row) => (
                 <PlanCapacityCard key={row.municipalityId} row={row}
                   municipalityName={isMaster
                     ? institutions.find((item) => item.id === row.municipalityId)?.name ?? "Prefeitura"
                     : institutionName}
                 />
               ))}
+              {isMaster && planCapacity.rows.length > 2 ? (
+                <div className="flex min-w-0 flex-col gap-3 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900 sm:flex-row sm:items-center sm:justify-between 2xl:col-span-2">
+                  <span>2 de {planCapacity.rows.length} contratos em destaque. Consulte a carteira para ver todas as prefeituras.</span>
+                  <Button type="button" variant="outline" className="shrink-0 rounded-xl border-sky-300 bg-white text-sky-900"
+                    onClick={() => navigate("/master?secao=carteira")}>Ver carteira</Button>
+                </div>
+              ) : null}
             </div>
           )}
         </SectionCard>
@@ -750,16 +839,18 @@ export function DashboardHomePage() {
   const renderOverview = () => (
     <>
       {showPlanCapacity && isMaster ? renderPlanCapacity() : null}
-      <SectionCard
-        title="Panorama estrategico"
-        description={isMaster ? "Leitura consolidada da operacao SaaS, da base de clientes e da saude da plataforma." : `Resumo executivo do escopo atual em ${institutionName}, com foco em performance, risco e leitura institucional.`}
-        icon={Sparkles}
-        contentClassName="grid gap-4 md:grid-cols-2 xl:grid-cols-4"
-      >
+      <div data-sigapro-overview-strip="compact" aria-label="Panorama estratégico"
+        className="grid min-w-0 gap-2 sm:grid-cols-2 xl:grid-cols-4">
         {executiveSignals.map((item) => (
-          <ExecutiveSignal key={item.label} {...item} />
+          <div key={item.label} className="flex min-w-0 items-center justify-between gap-3 rounded-xl border border-slate-200/80 bg-white px-3 py-3 shadow-[0_6px_16px_rgba(15,23,42,0.035)] dark:border-white/10 dark:bg-slate-900/80">
+            <div className="min-w-0">
+              <p className="truncate text-xs font-semibold text-slate-800 dark:text-slate-100" title={item.label}>{item.label}</p>
+              <p className="mt-0.5 truncate text-[11px] text-slate-500 dark:text-slate-300" title={item.helper}>{item.helper}</p>
+            </div>
+            <span className="shrink-0 text-lg font-bold tabular-nums text-slate-950 dark:text-white">{item.value}</span>
+          </div>
         ))}
-      </SectionCard>
+      </div>
 
       <PageStatsRow>
         {overviewMetrics.map((item) => (
@@ -789,7 +880,7 @@ export function DashboardHomePage() {
                     <CartesianGrid vertical={false} stroke="rgba(148,163,184,0.16)" strokeDasharray="4 8" />
                     <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={12} />
                     <YAxis allowDecimals={false} tickLine={false} axisLine={false} tickMargin={10} />
-                    <ChartTooltip content={<ChartTooltipContent indicator="line" />} cursor={false} />
+                    <ChartTooltip content={<ChartTooltipContent indicator="line" />} cursor={false} position={{ x: 12, y: 12 }} />
                     <Area type="monotone" dataKey="total" stroke="#60a5fa" strokeWidth={3} fill="url(#sigapro-dashboard-area-overview)" activeDot={{ r: 5, fill: "#93c5fd" }} />
                   </AreaChart>
                 </ChartContainer>
@@ -797,16 +888,16 @@ export function DashboardHomePage() {
             )}
           </TableCard>
 
-          <div className="grid gap-6 2xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
+          <div className="grid min-w-0 gap-6 min-[2150px]:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
             <DistributionCard
-              title="Distribuicao por status"
+              title="Distribuição por status"
               description="Leitura sintetica do volume atual por etapa do fluxo."
               icon={BarChart3}
               data={statusChart}
             />
             <DistributionCard
-              title={isMaster ? "Volume por prefeitura" : "Distribuicao por tipo"}
-              description={isMaster ? "Clientes com maior concentracao de processos." : "Tipos de processo mais representativos no recorte atual."}
+              title={isMaster ? "Volume por prefeitura" : "Distribuição por tipo"}
+              description={isMaster ? "Clientes com maior concentração de processos." : "Tipos de processo mais representativos no recorte atual."}
               icon={TrendingUp}
               data={isMaster ? tenantVolumeChart : typeChart}
             />
@@ -815,7 +906,7 @@ export function DashboardHomePage() {
 
         <PageSideContent>
           <SectionCard
-            title="Saude operacional"
+            title="Saúde operacional"
             description="Leitura rapida de risco, prazo e equilibrio da carteira atual."
             icon={Activity}
             contentClassName="space-y-4"
@@ -859,7 +950,7 @@ export function DashboardHomePage() {
                         <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{buildPriorityReason(process)}</p>
                       </div>
                       <span className="rounded-full bg-slate-900 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-white dark:bg-sky-400/12 dark:text-sky-200">
-                        {statusLabels[process.status] ?? process.status}
+                        {hasPrematureAnalysisStage(process) ? "Conferir triagem" : statusLabels[process.status] ?? process.status}
                       </span>
                     </div>
                   </div>
@@ -876,19 +967,19 @@ export function DashboardHomePage() {
     <div className="space-y-6">
       <PageStatsRow>
         <MetricCard title="Em andamento" value={`${inProgressCount}`} helper="Processos ativos no fluxo atual." icon={FileText} tone="blue" />
-        <MetricCard title="Concluidos" value={`${completedCount}`} helper="Protocolos encerrados no recorte." icon={CheckCircle2} tone="emerald" />
-        <MetricCard title="Exigencias" value={`${displayProcesses.filter((process) => process.status === "exigencia").length}`} helper="Itens em exigencia formal." icon={AlertTriangle} tone="rose" />
-        <MetricCard title="Reapresentacao" value={`${displayProcesses.filter((process) => process.status === "reapresentacao").length}`} helper="Protocolos retornados para nova submissao." icon={ArrowRight} tone="amber" />
+        <MetricCard title="Concluídos" value={`${completedCount}`} helper="Protocolos encerrados no recorte." icon={CheckCircle2} tone="emerald" />
+        <MetricCard title="Exigências" value={`${displayProcesses.filter((process) => process.status === "exigencia").length}`} helper="Itens em exigencia formal." icon={AlertTriangle} tone="rose" />
+        <MetricCard title="Reapresentação" value={`${displayProcesses.filter((process) => process.status === "reapresentacao").length}`} helper="Protocolos retornados para nova submissao." icon={ArrowRight} tone="amber" />
       </PageStatsRow>
 
       <PageMainGrid className="xl:grid-cols-[minmax(0,1.65fr)_minmax(280px,0.82fr)]">
         <PageMainContent>
-          <div className="grid gap-6 2xl:grid-cols-2">
-            <DistributionCard title="Distribuicao por status" description="Volume atual por etapa macro do fluxo processual." icon={BarChart3} data={statusChart} />
-            <DistributionCard title="Distribuicao por tipo" description="Tipos mais frequentes na operacao atual." icon={LayoutDashboard} data={typeChart} />
+          <div className="grid min-w-0 gap-6 min-[2150px]:grid-cols-2">
+            <DistributionCard title="Distribuição por status" description="Volume atual por etapa macro do fluxo processual." icon={BarChart3} data={statusChart} />
+            <DistributionCard title="Distribuição por tipo" description="Tipos mais frequentes na operação atual." icon={LayoutDashboard} data={typeChart} />
           </div>
 
-          <TableCard title="Evolucao de movimentacoes" description="Ritmo recente da carteira de processos no escopo atual." icon={LineChartIcon}>
+          <TableCard title="Evolução de movimentações" description="Ritmo recente da carteira de processos no escopo atual." icon={LineChartIcon}>
             {activitySeries.every((item) => item.total === 0) ? (
               <EmptyState title="Sem evolucao registrada" description="Ainda nao ha eventos suficientes para compor a leitura temporal." icon={Activity} />
             ) : (
@@ -904,7 +995,7 @@ export function DashboardHomePage() {
                     <CartesianGrid vertical={false} stroke="rgba(148,163,184,0.16)" strokeDasharray="4 8" />
                     <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={12} />
                     <YAxis allowDecimals={false} tickLine={false} axisLine={false} tickMargin={10} />
-                    <ChartTooltip content={<ChartTooltipContent indicator="line" />} cursor={false} />
+                    <ChartTooltip content={<ChartTooltipContent indicator="line" />} cursor={false} position={{ x: 12, y: 12 }} />
                     <Area type="monotone" dataKey="total" stroke="#34d399" strokeWidth={3} fill="url(#sigapro-dashboard-area-processes)" activeDot={{ r: 5, fill: "#86efac" }} />
                   </AreaChart>
                 </ChartContainer>
@@ -914,7 +1005,7 @@ export function DashboardHomePage() {
         </PageMainContent>
 
         <PageSideContent>
-          <DistributionCard title="Concentracao por etapa critica" description="Etapas com maior peso no fluxo atual." icon={Timer} data={stageChart} />
+          <DistributionCard title="Concentração por etapa crítica" description="Etapas com maior peso no fluxo atual." icon={Timer} data={stageChart} />
           <SectionCard title="Movimentacoes recentes" description="Protocolos com atualizacoes mais recentes no escopo." icon={Activity}>
             {recentProcesses.length === 0 ? (
               <EmptyState title="Sem movimentacoes recentes" description="A lista sera preenchida conforme novos eventos forem registrados." icon={LineChartIcon} />
@@ -939,16 +1030,29 @@ export function DashboardHomePage() {
   const renderFinance = () => (
     <div className="space-y-6">
       <PageStatsRow>
-        <MetricCard title="Guias emitidas" value={`${displayProcesses.filter((process) => process.status === "guia_emitida").length}`} helper="Guias geradas no recorte atual." icon={Wallet} tone="amber" />
-        <MetricCard title="Pagamentos pendentes" value={`${pendingPayments}`} helper="Aguardando compensacao no sistema." icon={AlertTriangle} tone="rose" />
-        <MetricCard title="Pagamentos confirmados" value={`${displayProcesses.filter((process) => process.status === "pagamento_confirmado").length}`} helper="Guias compensadas e registradas." icon={CheckCircle2} tone="emerald" />
-        <MetricCard title="Volume financeiro" value={formatCurrency(paymentVolume)} helper="Montante financeiro total monitorado." icon={TrendingUp} tone="blue" />
+        <MetricCard title="Guias emitidas" value={`${totalGuides}`} helper="Guias não simuladas no recorte atual." icon={Wallet} tone="amber" />
+        <MetricCard title="Pagamentos pendentes" value={`${displayGuides.filter(isPendingFinancialGuide).length}`} helper="Guias não simuladas aguardando compensação." icon={AlertTriangle} tone="rose" />
+        <MetricCard title="Liquidadas pelo banco" value={`${financialOverview.bankVerifiedCount}`} helper="Apenas liquidações com evidência bancária." icon={CheckCircle2} tone="emerald" />
+        <MetricCard title="Volume financeiro" value={formatCurrency(paymentVolume)} helper="Montante de guias não simuladas." icon={TrendingUp} tone="blue" />
       </PageStatsRow>
+      {financialOverview.unverifiedCompensatedCount>0?(
+        <p data-dashboard-unverified-finance="true" className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-950 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-100">
+          {financialOverview.unverifiedCompensatedCount} guia(s) constam como compensadas no sistema,
+          mas ainda não possuem evidência de liquidação bancária.
+        </p>
+      ):null}
+      {simulatedGuideCount>0?(
+        <p data-dashboard-synthetic-finance="true"
+          className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs font-semibold text-sky-950 dark:border-sky-700 dark:bg-[#17344e] dark:text-sky-100">
+          {simulatedGuideCount} guia(s) de simulação QA não entram nos indicadores financeiros.
+          Compensação registrada ainda exige comprovação bancária.
+        </p>
+      ):null}
 
       <PageMainGrid className="xl:grid-cols-[minmax(0,1.58fr)_minmax(280px,0.88fr)]">
         <PageMainContent>
-          <div className="grid gap-6 2xl:grid-cols-2">
-            <DistributionCard title="Situacao financeira" description="Comparativo entre guias emitidas, pendentes e compensadas." icon={Wallet} data={financeSituationChart} />
+          <div className="grid min-w-0 gap-6 min-[2150px]:grid-cols-2">
+            <DistributionCard title="Situação financeira" description="Pendentes, compensadas sem prova bancária e liquidadas pelo banco." icon={Wallet} data={financeSituationChart} />
             <TableCard title="Comparativo de guias" description="Volume financeiro por situacao do fluxo de arrecadacao." icon={BarChart3}>
               {financeSituationChart.length === 0 ? (
                 <EmptyState title="Sem informacoes financeiras" description="Nao ha guias suficientes para compor o painel comparativo." icon={Wallet} />
@@ -959,7 +1063,7 @@ export function DashboardHomePage() {
                       <CartesianGrid vertical={false} stroke="rgba(148,163,184,0.16)" strokeDasharray="4 8" />
                       <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={12} minTickGap={10} />
                       <YAxis allowDecimals={false} tickLine={false} axisLine={false} tickMargin={10} />
-                      <ChartTooltip content={<ChartTooltipContent indicator="line" />} cursor={false} />
+                      <ChartTooltip content={<ChartTooltipContent indicator="line" />} cursor={false} position={{ x: 12, y: 12 }} />
                       <Bar dataKey="total" radius={[10, 10, 0, 0]}>
                         {financeSituationChart.map((entry, index) => (
                           <Cell key={entry.label} fill={accentPalette[index % accentPalette.length]} />
@@ -1004,7 +1108,7 @@ export function DashboardHomePage() {
   const renderUsers = () => (
     <div className="space-y-6">
       <PageStatsRow>
-        <MetricCard title="Usuarios monitorados" value={`${scopedUsers.length}`} helper="Contas disponiveis no escopo atual." icon={Users2} tone="blue" />
+        <MetricCard title="Usuários monitorados" value={`${scopedUsers.length}`} helper="Contas disponiveis no escopo atual." icon={Users2} tone="blue" />
         <MetricCard title="Ativos" value={`${activeUsers}`} helper="Usuarios com conta ativa." icon={ShieldCheck} tone="emerald" />
         <MetricCard title="Bloqueados" value={`${blockedUsers}`} helper="Contas com restricao operacional." icon={AlertTriangle} tone="rose" />
         <MetricCard title="Administradores" value={`${adminUsers}`} helper="Perfis com governanca elevada." icon={Building2} tone="amber" />
@@ -1012,9 +1116,9 @@ export function DashboardHomePage() {
 
       <PageMainGrid className="xl:grid-cols-[minmax(0,1.54fr)_minmax(280px,0.9fr)]">
         <PageMainContent>
-          <div className="grid gap-6 2xl:grid-cols-2">
-            <DistributionCard title="Distribuicao por perfil" description="Leitura dos perfis mais relevantes no recorte atual." icon={Users2} data={roleChart} />
-            <DistributionCard title="Situacao das contas" description="Usuarios ativos, bloqueados e inativos no escopo atual." icon={ShieldCheck} data={accountStatusChart} />
+          <div className="grid min-w-0 gap-6 min-[2150px]:grid-cols-2">
+            <DistributionCard title="Distribuição por perfil" description="Leitura dos perfis mais relevantes no recorte atual." icon={Users2} data={roleChart} />
+            <DistributionCard title="Situação das contas" description="Usuarios ativos, bloqueados e inativos no escopo atual." icon={ShieldCheck} data={accountStatusChart} />
           </div>
         </PageMainContent>
 
@@ -1033,7 +1137,7 @@ export function DashboardHomePage() {
     <div className="space-y-6">
       <PageStatsRow>
         <MetricCard title="Risco de SLA" value={`${breachedCount}`} helper="Processos com prazo vencido." icon={Timer} tone="amber" />
-        <MetricCard title="Exigencias abertas" value={`${openRequirements}`} helper="Pendencias formais aguardando acao." icon={AlertTriangle} tone="rose" />
+        <MetricCard title="Exigências abertas" value={`${openRequirements}`} helper="Pendencias formais aguardando acao." icon={AlertTriangle} tone="rose" />
         <MetricCard title="Despachos" value={`${totalDispatches}`} helper="Fluxos intersetoriais registrados." icon={ArrowRight} tone="blue" />
         <MetricCard title="Mensagens" value={`${totalMessages}`} helper="Interacoes trocadas no universo visivel." icon={Activity} tone="default" />
       </PageStatsRow>
@@ -1046,7 +1150,7 @@ export function DashboardHomePage() {
             ))}
           </SectionCard>
 
-          <DistributionCard title="Etapas com maior pressao" description="Concentracao atual por etapa operacional e de SLA." icon={BarChart3} data={stageChart} />
+          <DistributionCard title="Etapas com maior pressão" description="Concentracao atual por etapa operacional e de SLA." icon={BarChart3} data={stageChart} />
         </PageMainContent>
 
         <PageSideContent>
@@ -1084,7 +1188,7 @@ export function DashboardHomePage() {
       <PageShell>
         <PageHero eyebrow="Resumo executivo" title={headlineTitle} description={headlineDescription} icon={LayoutDashboard} actions={heroActions} />
 
-        {showPlanCapacity && !isMaster ? renderPlanCapacity() : null}
+        {section === "visao-geral" && showPlanCapacity && !isMaster ? renderPlanCapacity() : null}
 
         <InternalSectionNav
           items={tabs}
@@ -1093,6 +1197,14 @@ export function DashboardHomePage() {
           summaryFirst
           staticSelection
         />
+        {!isExternal && inconsistentTriageCount > 0 ? (
+          <p data-dashboard-triage-divergence="true"
+            className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-950 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-100">
+            {inconsistentTriageCount} registro(s) estão marcados como análise técnica sem triagem concluída.
+            Permanecem rastreáveis no histórico, mas não entram na contagem de análises regulares.
+            A regularização exige tramitação por perfil autorizado.
+          </p>
+        ) : null}
 
         {/* Keep the page shell, tabs and plan card mounted while switching modules.
             The corresponding module gate continues to enforce the contract. */}
