@@ -144,7 +144,7 @@ describe("dashboard nav must not redirect away from Visão geral", () => {
     expect(tenant).not.toContain("lg:grid-cols-[minmax(260px,1.55fr)");
     expect(cards).toContain("[overflow-wrap:anywhere]");
     expect(history).toContain("min-[2050px]:grid-cols-");
-    expect(externalTabs.indexOf('value: "visao"')).toBeLessThan(externalTabs.indexOf('value: "controle"'));
+    expect(externalTabs.indexOf('value: "visao"')).toBeGreaterThan(externalTabs.indexOf('value: "controle"'));
   });
 
   it("shows remaining places and remaining percentage together", () => {
