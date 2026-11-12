@@ -844,7 +844,7 @@ export function MasterAdminPage() {
   };
   return (
     <PortalFrame eyebrow="Administrador Geral" title="Console executivo da plataforma">
-      <PageShell>
+      <PageShell className={workspaceView === "visao-geral" ? "sig-module-summary-active" : undefined}>
         <PageHero
           eyebrow="Governança SaaS"
           title="Carteira institucional do SIGAPRO"
