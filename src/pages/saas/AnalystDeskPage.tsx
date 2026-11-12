@@ -56,6 +56,7 @@ import {
 } from "@/lib/platform";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { buildAnalysisRegistry } from "@/lib/analysisRegistry";
+import { paginateRegistry } from "@/lib/analysisRegistryPagination";
 import { resolveProcessDispatchAuthor } from "@/lib/dispatchActorIdentity";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
@@ -205,6 +206,11 @@ export function AnalystDeskPage() {
   const archiveStorageKey = `sigapro:analysis-archive:${session.id}:${effectiveScopeId || "default"}`;
   const [archivedProcessIds, setArchivedProcessIds] = useState<string[]>([]);
   const [showArchived, setShowArchived] = useState(false);
+  const [registryPage, setRegistryPage] = useState(1);
+
+  useEffect(() => {
+    setRegistryPage(1);
+  }, [search, showArchived, effectiveScopeId]);
   const [expandedProcessId, setExpandedProcessId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -354,6 +360,7 @@ export function AnalystDeskPage() {
       const bDate = Date.parse(b.analysis?.startedAt || b.timeline[0]?.at || "1970-01-01");
       return bDate - aDate;
     });
+  const registryPagination = paginateRegistry(processRegistry, registryPage, 15);
   const handedOffFromAnalysis = analysisTrackedProcesses.filter(
     (item) =>
       !analysisActiveStatuses.includes(item.status as (typeof analysisActiveStatuses)[number]) &&
@@ -717,12 +724,12 @@ export function AnalystDeskPage() {
                       {getPriorityLabel(process)}
                     </Badge>
                     {!hasAssignedAnalyst ? (
-                      <Badge variant="outline" className="border-amber-400/35 bg-amber-400/15 text-amber-100">
+                      <Badge variant="outline" className="border-amber-400/35 bg-amber-400/15 text-amber-800 dark:text-amber-200">
                         <UserPlus className="mr-1 h-3.5 w-3.5" />
                         Aguardando analista
                       </Badge>
                     ) : assignedToCurrentSession ? (
-                      <Badge variant="outline" className="border-emerald-400/30 bg-emerald-400/15 text-emerald-100">
+                      <Badge variant="outline" className="border-emerald-400/30 bg-emerald-400/15 text-emerald-800 dark:text-emerald-200">
                         <UserCheck className="mr-1 h-3.5 w-3.5" />
                         Minha análise
                       </Badge>
@@ -774,7 +781,7 @@ export function AnalystDeskPage() {
                   ) : null}
                   {canEditAnalysis && analysisStarted ? (
                     <Button type="button" variant="outline" size="sm"
-                      className="h-10 rounded-xl border-sky-400/25 bg-sky-400/10 px-3 text-xs font-semibold text-sky-100 hover:bg-sky-400/20"
+                      className="h-10 rounded-xl border-sky-400/25 bg-sky-400/10 px-3 text-xs font-semibold text-sky-800 hover:bg-sky-400/20 dark:text-sky-200"
                       onClick={() => { setDispatchFor((current) => current === process.id ? null : process.id); setDispatchNote(""); }}>
                       <Send className="mr-1.5 h-4 w-4" /> Encaminhar / despachar
                     </Button>
@@ -1159,8 +1166,21 @@ export function AnalystDeskPage() {
         </div>
       </div>
 
+      <div data-analysis-registry-pagination="true" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
+        <p className="font-semibold">Exibindo {registryPagination.from}–{registryPagination.to} de {registryPagination.total} processos oficiais</p>
+        {registryPagination.pages > 1 ? (
+          <nav aria-label="Páginas dos processos oficiais" className="flex items-center gap-2">
+            <Button type="button" variant="outline" size="sm" disabled={registryPagination.page <= 1}
+              onClick={() => setRegistryPage((current) => Math.max(1, current - 1))}>Anterior</Button>
+            <span className="min-w-20 text-center text-xs font-bold" aria-live="polite">Página {registryPagination.page} de {registryPagination.pages}</span>
+            <Button type="button" variant="outline" size="sm" disabled={registryPagination.page >= registryPagination.pages}
+              onClick={() => setRegistryPage((current) => Math.min(registryPagination.pages, current + 1))}>Próxima</Button>
+          </nav>
+        ) : null}
+      </div>
+
       {renderQueue(
-        processRegistry,
+        registryPagination.items,
         showArchived
           ? "Nenhum processo arquivado nesta lista."
           : "Nenhum processo da Análise encontrado com os filtros atuais.",
@@ -1409,6 +1429,49 @@ export function AnalystDeskPage() {
 
         {section === "fila" && (
           <>
+            <TableCard
+            title="Processos da Análise"
+            description="Lista completa dos processos que passaram pela Análise Urbanística, inclusive os já encaminhados ou concluídos."
+            icon={ListTodo}
+            actions={
+              <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+                <div className="relative w-full max-w-xl">
+                  <Search className="sig-search-icon sig-analysis-search-icon pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2" />
+                  <Input
+                    value={search}
+                    onChange={(event) => setSearch(event.target.value)}
+                    placeholder="Buscar processo, proprietário, endereço, IPTU ou analista"
+                    className="h-11 rounded-[14px] border-slate-200 bg-white pl-11 shadow-[0_4px_14px_rgba(15,23,42,0.04)] focus-visible:border-sky-300 focus-visible:ring-sky-100 dark:border-slate-700 dark:bg-slate-900"
+                  />
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-11 shrink-0 rounded-[14px] border-slate-200 bg-white px-4 font-semibold text-slate-700 shadow-[0_4px_14px_rgba(15,23,42,0.04)] hover:border-sky-200 hover:bg-sky-50 hover:text-sky-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+                  onClick={() => setShowArchived((current) => !current)}
+                >
+                  {showArchived ? (
+                    <>
+                      <ListTodo className="mr-2 h-4 w-4" />
+                      Ver lista ativa
+                    </>
+                  ) : (
+                    <>
+                      <Archive className="mr-2 h-4 w-4" />
+                      Ver arquivados ({archivedProcessIds.length})
+                    </>
+                  )}
+                </Button>
+              </div>
+            }
+          >
+            {renderProcessRegistry()}
+          </TableCard>
+
+            <details data-analysis-team-disclosure="true" className="mt-5 rounded-[22px] border border-slate-200 bg-slate-50 p-3 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+              <summary className="cursor-pointer rounded-xl px-3 py-2 text-sm font-bold text-slate-900 marker:text-sky-700 dark:text-slate-100">
+                Distribuição da equipe e carga de trabalho — expandir quando necessário
+              </summary>
             <div
               data-analysis-distribution-manager="true"
               className="mb-4 overflow-hidden rounded-[22px] border border-white/15 bg-[linear-gradient(180deg,#102637_0%,#0b1c2e_100%)] shadow-[0_12px_32px_rgba(0,0,0,0.22)]"
@@ -1416,7 +1479,7 @@ export function AnalystDeskPage() {
               <div className="flex flex-col gap-3 border-b border-white/10 bg-[linear-gradient(135deg,#132d42_0%,#102438_100%)] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <div className="flex items-center gap-2">
-                    <Users2 className="h-5 w-5 text-sky-700" />
+                    <Users2 className="h-5 w-5 text-sky-200" />
                     <h2 className="text-sm font-extrabold text-white">Gerenciador de distribuição da Análise</h2>
                   </div>
                   <p className="mt-1 text-xs leading-5 text-slate-300">
@@ -1473,44 +1536,8 @@ export function AnalystDeskPage() {
               ) : null}
             </div>
 
-            <TableCard
-            title="Processos da Análise"
-            description="Lista completa dos processos que passaram pela Análise Urbanística, inclusive os já encaminhados ou concluídos."
-            icon={ListTodo}
-            actions={
-              <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
-                <div className="relative w-full max-w-xl">
-                  <Search className="sig-search-icon sig-analysis-search-icon pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2" />
-                  <Input
-                    value={search}
-                    onChange={(event) => setSearch(event.target.value)}
-                    placeholder="Buscar processo, proprietário, endereço, IPTU ou analista"
-                    className="h-11 rounded-[14px] border-slate-200 bg-white pl-11 shadow-[0_4px_14px_rgba(15,23,42,0.04)] focus-visible:border-sky-300 focus-visible:ring-sky-100 dark:border-slate-700 dark:bg-slate-900"
-                  />
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="h-11 shrink-0 rounded-[14px] border-slate-200 bg-white px-4 font-semibold text-slate-700 shadow-[0_4px_14px_rgba(15,23,42,0.04)] hover:border-sky-200 hover:bg-sky-50 hover:text-sky-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
-                  onClick={() => setShowArchived((current) => !current)}
-                >
-                  {showArchived ? (
-                    <>
-                      <ListTodo className="mr-2 h-4 w-4" />
-                      Ver lista ativa
-                    </>
-                  ) : (
-                    <>
-                      <Archive className="mr-2 h-4 w-4" />
-                      Ver arquivados ({archivedProcessIds.length})
-                    </>
-                  )}
-                </Button>
-              </div>
-            }
-          >
-            {renderProcessRegistry()}
-          </TableCard>
+            </details>
+
           </>
         )}
 
