@@ -133,6 +133,25 @@
         document.documentElement.style.zoom = initialAppZoom;
         document.documentElement.setAttribute("data-page-zoom", "100");
         document.documentElement.setAttribute("data-sigapro-initial-render", "true");
+
+        // Atualiza o Service Worker mesmo quando o bundle da aplicação não inicia.
+        // Nunca apaga sessões, rascunhos ou dados e não força reload no usuário.
+        if ("serviceWorker" in navigator) {
+          window.addEventListener("load", function () {
+            navigator.serviceWorker.getRegistration()
+              .then(function (registration) {
+                if (registration) return registration.update();
+              })
+              .catch(function () {});
+          }, { once: true });
+        }
+
+        window.setTimeout(function () {
+          if (!document.documentElement.hasAttribute("data-sigapro-initial-render")) return;
+          var status = document.getElementById("sigapro-preboot-message");
+          if (status) status.textContent =
+            "O carregamento não foi concluído. Acesse novamente pelo botão abaixo ou atualize a página. O SIGAPRO não altera seus registros durante esta verificação.";
+        }, 10000);
       })();
     </script>
 
@@ -231,7 +250,7 @@
       <section>
         <strong style="color:#075985;font-size:12px;letter-spacing:.1em;text-transform:uppercase">SIGAPRO · Inicialização segura</strong>
         <h1>Carregando o sistema municipal</h1>
-        <p>Se a conexão ou o carregamento falhar, esta mensagem permanece visível. Seus processos e documentos não são alterados por esta etapa.</p>
+        <p id="sigapro-preboot-message">Se a conexão ou o carregamento falhar, esta mensagem permanece visível. Seus processos e documentos não são alterados por esta etapa.</p>
         <a href="/acesso">Ir para o acesso</a>
       </section>
     </div>
