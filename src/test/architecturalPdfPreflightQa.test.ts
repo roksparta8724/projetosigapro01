@@ -116,7 +116,7 @@ describe("SIGAPRO QA — preflight técnico do PDF com controle de custo e autor
     const api=file("server/ai-project-extract.ts");
     const ui=file("src/components/platform/ArchitecturalPdfAiPanel.tsx");
     expect(api).toContain('const textRequested=body.readingMode==="cloudflare_text"');
-    expect(api).toContain('if((textRequested||openaiVisualRequested||geminiQaRequested||nativeTextRequested) && process.env.VERCEL_ENV!=="preview")');
+    expect(api).toContain('if((textRequested||openaiVisualRequested||geminiQaRequested) && process.env.VERCEL_ENV!=="preview")');
     expect(api).toContain('body.confirmedTransfer!==true');
     expect(api).toContain('textAlternativeAvailable:textAlternative?.enabled===true');
     expect(api).toContain('geminiQaRequested?"gemini_qa":undefined');
@@ -182,7 +182,7 @@ describe("SIGAPRO QA — preflight técnico do PDF com controle de custo e autor
     const provider=file("server/architectural-pdf-provider.ts");
     const ui=file("src/components/platform/ArchitecturalPdfAiPanel.tsx");
     expect(api).toContain('const geminiQaRequested=body.readingMode==="gemini_qa"');
-    expect(api).toContain('geminiQaRequested||nativeTextRequested) && process.env.VERCEL_ENV!=="preview"');
+    expect(api).toContain('geminiQaRequested) && process.env.VERCEL_ENV!=="preview"');
     expect(api).toContain('doc.process_id!=="915e1c63-ebda-4cdd-8e95-34316d9e0089"');
     expect(api).toContain('doc.file_name!==QA_ARCHITECTURAL_FILENAME');
     expect(api).toContain('raw.includes("FICTICIO / QA")');
@@ -204,7 +204,7 @@ describe("SIGAPRO QA — preflight técnico do PDF com controle de custo e autor
     const panel=file("src/components/platform/ArchitecturalPdfAiPanel.tsx");
     const parser=file("server/native-architectural-pdf.ts");
     expect(api).toContain('const nativeTextRequested=body.readingMode==="native_text"');
-    expect(api).toContain('nativeTextAvailable:process.env.VERCEL_ENV==="preview"&&documentReady===true');
+    expect(api).toContain('nativeTextAvailable:(process.env.VERCEL_ENV==="preview"||process.env.VERCEL_ENV==="production")&&documentReady===true');
     expect(api).toContain("extractNativeArchitecturalPdf(pdf)");
     expect(api).toContain('aiProvider:nativeTextRequested?"sigapro_local"');
     expect(api).toContain("pdfSharedWithConfiguredAiProvider:!nativeTextRequested");
@@ -216,6 +216,21 @@ describe("SIGAPRO QA — preflight técnico do PDF com controle de custo e autor
     expect(parser).not.toContain("fetch(");
     expect(parser).toContain("normalizeArchitecturalPdfExtraction");
     expect(parser).toContain("contentStreams(pdf)");
+  });
+
+  it("libera somente a leitura local em produção e preserva os controles contra envio externo",()=>{
+    const api=file("server/ai-project-extract.ts");
+    expect(api).toContain('const externalAiDisabled=process.env.VERCEL_ENV!=="preview" && !productionPdfAiOptIn()');
+    expect(api).toContain('if(process.env.VERCEL_ENV!=="preview" && !productionPdfAiOptIn() && !nativeTextRequested)');
+    expect(api).toContain('if((textRequested||openaiVisualRequested||geminiQaRequested) && process.env.VERCEL_ENV!=="preview")');
+    expect(api).toContain('nativeTextAvailable:(process.env.VERCEL_ENV==="preview"||process.env.VERCEL_ENV==="production")&&documentReady===true');
+    expect(api).toContain('!["preview","production"].includes(String(process.env.VERCEL_ENV))');
+    expect(api).toContain('const doc=await verifiedDocument(req,tenant,processId,documentId)');
+    expect(api).toContain('verifyPersistedPdfIntegrity(bytes,expectedHash,expectedSize)');
+    expect(api).toContain('const sameDocument=await verifiedDocument(req,tenant,processId,documentId)');
+    expect(api).toContain('pdfSharedWithConfiguredAiProvider:!nativeTextRequested');
+    expect(api).toContain('legalConformity:"not_evaluated",humanReviewRequired:true');
+    expect(api).toContain('return json(res,403,{error:"Leitura reservada ao analista municipal autenticado."})');
   });
 
 });
