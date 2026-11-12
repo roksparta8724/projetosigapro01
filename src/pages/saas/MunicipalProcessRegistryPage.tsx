@@ -104,7 +104,9 @@ export function MunicipalProcessRegistryPage() {
 
     return municipalityProcesses.filter((process) => {
       const archived = archivedProcessIds.includes(process.id);
-      if (showArchived !== archived) return false;
+      // "Todos" is truly every official municipal process; personal archived
+      // markers only filter when the user explicitly opens Arquivados.
+      if (showArchived && !archived) return false;
       if (filter === "ativos" && isFinalProcess(process)) return false;
       if (filter === "concluidos" && !isFinalProcess(process)) return false;
 
@@ -231,7 +233,7 @@ export function MunicipalProcessRegistryPage() {
               >
                 <Archive className="mr-2 h-4 w-4" />
                 {showArchived
-                  ? "Voltar à lista ativa"
+                  ? "Voltar a todos os processos"
                   : `Arquivados (${archivedProcessIds.length})`}
               </Button>
             </div>
