@@ -15,20 +15,20 @@ afterEach(() => cleanup());
 
 describe("foto do topo não pisca durante revalidação", () => {
   it("preserva a MESMA imagem DOM quando a URL da conta fica vazia transitoriamente", () => {
-    const { rerender } = render(<UserAvatar authenticatedOwnerId="user-1" name="Ana" imageUrl={photoA} />);
+    const { rerender } = render(<UserAvatar authenticatedOwnerId="user-1" preservePhotoDuringRefresh name="Ana" imageUrl={photoA} />);
     const image = screen.getByRole("img", { name: "Ana" });
     expect(image.getAttribute("src")).toBe(photoA);
 
-    act(() => rerender(<UserAvatar authenticatedOwnerId="user-1" name="Ana" imageUrl={null} />));
+    act(() => rerender(<UserAvatar authenticatedOwnerId="user-1" preservePhotoDuringRefresh name="Ana" imageUrl={null} />));
     expect(screen.getByRole("img", { name: "Ana" })).toBe(image);
     expect(image.getAttribute("src")).toBe(photoA);
 
-    act(() => rerender(<UserAvatar authenticatedOwnerId="user-1" name="Ana" imageUrl={photoA} />));
+    act(() => rerender(<UserAvatar authenticatedOwnerId="user-1" preservePhotoDuringRefresh name="Ana" imageUrl={photoA} />));
     expect(screen.getByRole("img", { name: "Ana" })).toBe(image);
   });
 
   it("troca de conta remove imediatamente a foto da conta anterior", () => {
-    const { rerender } = render(<UserAvatar authenticatedOwnerId="user-1" name="Ana" imageUrl={photoA} />);
+    const { rerender } = render(<UserAvatar authenticatedOwnerId="user-1" preservePhotoDuringRefresh name="Ana" imageUrl={photoA} />);
     expect(screen.getByRole("img", { name: "Ana" })).toBeTruthy();
     act(() => rerender(<UserAvatar authenticatedOwnerId="user-2" name="Bruno" imageUrl={null} />));
     expect(screen.queryByRole("img", { name: "Ana" })).toBeNull();
