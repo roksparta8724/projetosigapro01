@@ -131,7 +131,7 @@ self.addEventListener("fetch", (event) => {
       !url.pathname.startsWith("/api/") &&
       !url.pathname.startsWith("/assets/") &&
       !url.pathname.startsWith("/.well-known/") &&
-      !/\\.(?:pdf|zip|xlsx?|docx?|csv|png|jpe?g|svg|webp|gif|json|xml|txt|m?js|css)$/i.test(url.pathname);
+      !/\.(?:pdf|zip|xlsx?|docx?|csv|png|jpe?g|svg|webp|gif|json|xml|txt|m?js|css)$/i.test(url.pathname);
     if (isAppRoute) event.respondWith(respondToNavigation(request, event));
     return;
   }
