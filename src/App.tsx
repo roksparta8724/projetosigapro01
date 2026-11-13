@@ -1,5 +1,5 @@
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
-import { lazy, Suspense, useLayoutEffect } from "react";
+import { lazy, Suspense, useDeferredValue, useLayoutEffect } from "react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -17,6 +17,7 @@ import { RecuperarSenhaPage } from "@/pages/saas/RecuperarSenhaPage";
 import { CriarContaPage } from "@/pages/saas/CriarContaPage";
 import { AppErrorBoundary } from "@/components/platform/AppErrorBoundary";
 import { SecureRoutePending } from "@/components/platform/SecureRoutePending";
+import { SeamlessRefreshGate } from "@/components/platform/SeamlessRefreshGate";
 import { TenantNotFoundPage } from "@/pages/saas/TenantNotFoundPage";
 import { shouldShowPublicLanding } from "@/lib/tenant";
 
@@ -91,6 +92,35 @@ const ClientePortalPage = lazy(() => import("@/pages/saas/ClientePortalPage").th
 const MasterPlansPage = lazy(() => import("@/pages/saas/MasterPlansPage").then((module) => ({ default: module.MasterPlansPage })));
 const AiAssistantPage = lazy(() => import("@/pages/saas/AiAssistantPage").then((module) => ({ default: module.AiAssistantPage })));
 
+// Eagerly request only the current private route chunk, in parallel with the
+// authenticated bootstrap. No protected React component is mounted by preload.
+// It prevents a second lazy download gap after the session has been resolved.
+function preloadCurrentInternalRoute(pathname: string): Promise<unknown> | null {
+  if (pathname.startsWith("/dashboard")) return import("@/pages/saas/DashboardHomePage");
+  if (pathname.startsWith("/master/planos")) return import("@/pages/saas/MasterPlansPage");
+  if (pathname.startsWith("/master")) return import("@/pages/saas/MasterAdminPage");
+  if (pathname.startsWith("/prefeitura/analise")) return import("@/pages/saas/AnalystDeskPage");
+  if (pathname.startsWith("/prefeitura/protocolos/novo")) return import("@/pages/saas/ProtocolarProjetoPage");
+  if (pathname.startsWith("/prefeitura/protocolos")) return import("@/pages/saas/ProtocolDeskPage");
+  if (pathname.startsWith("/prefeitura/financeiro/protocolos")) return import("@/pages/saas/FinanceProtocolsPage");
+  if (pathname.startsWith("/prefeitura/financeiro/iptu")) return import("@/pages/saas/IptuDeskPage");
+  if (pathname.startsWith("/prefeitura/financeiro")) return import("@/pages/saas/FinanceDeskPage");
+  if (pathname.startsWith("/prefeitura/organograma")) return import("@/pages/saas/MunicipalOrganizationPage");
+  if (pathname.startsWith("/prefeitura/processos")) return import("@/pages/saas/MunicipalProcessRegistryPage");
+  if (pathname.startsWith("/prefeitura")) return import("@/pages/saas/TenantAdminPage");
+  if (pathname.startsWith("/processos/")) return import("@/pages/saas/ProcessDetailPage");
+  if (pathname.startsWith("/externo")) return import("@/pages/saas/ExternalPortalPage");
+  if (pathname.startsWith("/configuracoes")) return import("@/pages/saas/ConfiguracoesPage");
+  if (pathname.startsWith("/perfil")) return import("@/pages/saas/PerfilPage");
+  return null;
+}
+
+if (typeof window !== "undefined") {
+  // Kick off route download during App module evaluation, before auth effects
+  // begin. Browser module caching deduplicates the subsequent React.lazy import.
+  void preloadCurrentInternalRoute(window.location.pathname)?.catch(() => undefined);
+}
+
 const App = () => {
   return (
     <AppErrorBoundary>
@@ -104,6 +134,8 @@ const App = () => {
                   <Toaster />
                   <Sonner />
                   <BrowserRouter>
+                    {/* Persistent, auth-gated F5 listener: outside lazy route trees. */}
+                    <SeamlessRefreshGate />
                     <AppErrorBoundary>
                       <AppRoutes />
                     </AppErrorBoundary>
@@ -124,6 +156,9 @@ export default App;
 const AppRoutes = () => {
   const bootstrap = useAppBootstrap();
   const location = useLocation();
+  // Preserve the previous authorized page while a lazy module is downloaded.
+  // A module load must not replace the entire municipal shell with a separate screen.
+  const deferredLocation = useDeferredValue(location);
   const canShowPublicLanding = shouldShowPublicLanding(bootstrap.resolution);
   const pathname = location.pathname;
 
@@ -142,6 +177,9 @@ const AppRoutes = () => {
     pathname.startsWith("/cliente/") ||
     pathname.startsWith("/v/") ||
     pathname === "/verificar-assinatura";
+  // Public access/logout pages always switch immediately: never keep restricted
+  // content mounted while the user returns to the login screen.
+  const displayedLocation = isPublicEntryPath ? location : deferredLocation;
   const canPromoteBootstrapScreen =
     bootstrap.isReady &&
     !bootstrap.loading &&
@@ -153,10 +191,11 @@ const AppRoutes = () => {
     return <TenantNotFoundPage />;
   }
 
-  // Nunca renderizar fallback full-screen no root: as rotas reais permanecem montadas no refresh.
+  // A rota lazy pode aguardar o bundle: o fallback é somente status invisível
+  // no refresh normal, sem tela cheia. As permissões continuam no gate.
   return (
-    <Suspense fallback={<SecureRoutePending title="Carregando a página solicitada" detail="O módulo está sendo preparado. Você pode continuar por esta rota quando o carregamento terminar." />}>
-      <Routes>
+    <Suspense fallback={<SecureRoutePending surface="route" title="Abrindo módulo do SIGAPRO" detail="Preparando o módulo solicitado." />}>
+      <Routes location={displayedLocation}>
         <Route
           path="/"
           element={canShowPublicLanding ? <LandingPage /> : <Navigate to="/acesso" replace />}

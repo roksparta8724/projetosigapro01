@@ -6,7 +6,7 @@ const read = (file: string) => readFileSync(file, "utf8");
 describe("SIGAPRO account-menu INP regression", () => {
   it("uses a non-modal profile dropdown without focus-trapping the full app on pointerdown", () => {
     const portal = read("src/components/platform/PortalFrame.tsx");
-    const start = portal.indexOf('"sig-topbar-profile-cluster flex h-[40px]');
+    const start = portal.indexOf('"sig-topbar-profile-cluster flex h-[');
     expect(start).toBeGreaterThan(0);
     expect(portal.slice(start - 500, start)).toContain("<DropdownMenu modal={false}>");
     expect(portal.slice(start, start + 1300)).toContain('aria-label="Abrir conta do usuário"');

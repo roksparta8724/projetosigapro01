@@ -4,6 +4,9 @@ import App from "./App.tsx";
 import "./index.css";
 import "./styles/surface-polarity.css";
 import "./styles/premium-navigation-contrast.css";
+import "./styles/institutional-premium-v3.css";
+import "./styles/municipal-executive-v4.css";
+import "./styles/dashboard-topbar-premium-v6.css";
 
 const CONTINUITY_KEY = "sigapro.refresh.continuity.v1";
 const PLATFORM_SESSION_CACHE_KEY = "sigapro.platform.session.v1";
@@ -163,9 +166,29 @@ function bootApplication() {
       root.render(<App />);
     });
 
-    window.requestAnimationFrame(() => {
+    // A React root can mount only the invisible access/loading status.
+    // Clearing the initial document palette on the first RAF made that
+    // status render over the light-green body (#f3faf7): the recorded flash.
+    // Clear the boot palette only when real UI (or a real error) is present.
+    // No mock shell and no privileged HTML snapshot is introduced.
+    let mountedObserver: MutationObserver | null = null;
+    const finishBootstrap = () => {
+      if (!document.documentElement.hasAttribute("data-sigapro-initial-render")) {
+        mountedObserver?.disconnect();
+        return;
+      }
+      // O status invisível é a resposta legítima do React ao gate de acesso.
+      // Desligar o preboot nesse commit evita duas camadas e qualquer canvas azul.
+      if (!rootElement.hasChildNodes()) return;
       document.documentElement.removeAttribute("data-sigapro-initial-render");
-    });
+      document.documentElement.removeAttribute("data-sigapro-boot-slow");
+      mountedObserver?.disconnect();
+    };
+
+    mountedObserver = new MutationObserver(finishBootstrap);
+    mountedObserver.observe(rootElement, { childList: true, subtree: true });
+    finishBootstrap();
+    window.requestAnimationFrame(finishBootstrap);
 
     scheduleLocalCacheMaintenance();
   } catch (error) {

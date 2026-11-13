@@ -122,9 +122,10 @@ describe("F5, logout and topbar visual continuity", () => {
     expect(portal).toContain('display: isDesktopTopbarViewport ? undefined : "none"');
   });
 
-  it("compensates the 85 percent app zoom so the footer logo cannot jump into the initial viewport", () => {
+  it("uses the real 100 percent viewport without a synthetic 117.647vh spacer", () => {
     expect(portal).toContain('data-refresh-layout-stable={focusMode ? "false" : "true"}');
-    expect(portal).toContain('minHeight: "117.6470588235vh"');
+    expect(portal).not.toContain('minHeight: "117.6470588235vh"');
+    expect(html).toContain('var initialAppZoom = "1"');
   });
 
   it("hydrates analysis checklist synchronously before first paint", () => {

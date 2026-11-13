@@ -1,17 +1,27 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { act, render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import { SecureRoutePending } from "@/components/platform/SecureRoutePending";
 
 describe("SIGAPRO — proteção contra tela branca", () => {
-  it("mostra estado legível com duas opções de recuperação em vez de root vazio", () => {
-    render(<SecureRoutePending title="Validando o acesso" detail="Verificando sua sessão." />);
-    expect(screen.getByRole("status")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Validando o acesso" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Recarregar" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Voltar ao acesso" })).toHaveAttribute("href", "/acesso");
-    expect(screen.getByText("Verificando sua sessão.")).toBeInTheDocument();
+  it("não mostra tela intermediária no F5; o aviso é apenas de falha prolongada", () => {
+    vi.useFakeTimers();
+    try {
+      const { container } = render(<SecureRoutePending title="Validando o acesso" detail="Verificando sua sessão." />);
+      const pending = screen.getByRole("status");
+      expect(pending).toHaveClass("sr-only");
+      expect(pending).toHaveAttribute("data-sigapro-route-pending", "standard");
+      expect(screen.queryByRole("alert")).toBeNull();
+      expect(container.querySelector("main")).toBeNull();
+      expect(container.querySelector('[class*="min-h-screen"]')).toBeNull();
+      act(() => vi.advanceTimersByTime(9001));
+      expect(screen.getByRole("alert")).toHaveAttribute("data-sigapro-recovery-notice", "compact");
+      expect(screen.getByRole("button", { name: "Recarregar" })).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: "Ir para o acesso" })).toHaveAttribute("href", "/acesso");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("não volta a introduzir fallbacks silenciosos nos gates principais", () => {
@@ -27,6 +37,9 @@ describe("SIGAPRO — proteção contra tela branca", () => {
     expect(permissionRoute).toContain('"Validando o acesso municipal"');
     expect(planRoute).toContain('title="Conferindo o módulo contratado"');
     expect(html).toContain('id="sigapro-preboot-recovery"');
+    expect(html).toContain('}, 15000);');
+    expect(html).toContain('inset: auto 16px 16px auto;');
+    expect(html).not.toContain('inset: 0;\n        z-index: 99999;');
     expect(html).not.toContain('blocking="render"');
     const failurePath = entry.slice(
       entry.indexOf("function renderBootstrapFailure"),

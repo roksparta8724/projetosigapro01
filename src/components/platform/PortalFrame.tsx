@@ -83,6 +83,7 @@ interface PortalFrameProps {
   eyebrow: string;
   children: React.ReactNode;
   focusMode?: boolean;
+  compactHeader?: boolean;
 }
 
 type LayoutThemeOverride = {
@@ -284,7 +285,7 @@ function resolveBrandingLogoUrl(
     : branding.headerLogoUrl ?? branding.logoUrl ?? "";
 }
 
-export function PortalFrame({ title, eyebrow, children, focusMode = false }: PortalFrameProps) {
+export function PortalFrame({ title, eyebrow, children, focusMode = false, compactHeader = false }: PortalFrameProps) {
   const [commandOpen, setCommandOpen] = useState(false);
   const [commandQuery, setCommandQuery] = useState("");
   const [sidebarExpanded, setSidebarExpanded] = useState(() => {
@@ -358,6 +359,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
     intervalMs: 20000,
     refreshOnMount: false,
   });
+
   const { isItemVisible } = useUserMenuPreferences();
   const planEntitlements = usePlanEntitlements();
   const { presets: markerPresets, addPreset, updatePreset, togglePresetActive, removePreset } = useMarkerPresets();
@@ -1022,6 +1024,8 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
     };
 
     try {
+      document.documentElement.style.setProperty("--sig-initial-bg", pageBackground);
+      document.documentElement.style.setProperty("--sig-bg", pageBackground);
       window.localStorage.setItem("sigapro.last-page-background.v2", pageBackground);
       window.localStorage.setItem("sigapro.effective-theme.v2", JSON.stringify(effectiveTheme));
       setEffectiveThemeCache(effectiveTheme);
@@ -1036,10 +1040,10 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
     if (typeof window === "undefined") return;
 
     try {
-      document.documentElement.style.setProperty(
-        "--sig-initial-bg",
-        normalizedTheme?.background || defaultSigaproThemePreset.background || "#f3faf7",
-      );
+      const updatedBackground =
+        normalizedTheme?.background || defaultSigaproThemePreset.background || "#f3faf7";
+      document.documentElement.style.setProperty("--sig-initial-bg", updatedBackground);
+      document.documentElement.style.setProperty("--sig-bg", updatedBackground);
       if (normalizedTheme?.primary || normalizedTheme?.accent || normalizedTheme?.background) {
         window.localStorage.setItem("sigapro-layout-theme.v2", JSON.stringify(normalizedTheme));
       } else {
@@ -1335,6 +1339,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
       )}
       data-focus-mode={focusMode ? "true" : "false"}
       data-layout-mode={inverseMainTheme ? "inverse-main" : "default"}
+      data-premium-design="institutional-v3"
       data-theme-family={inverseMainTheme ? "dark" : "light"}
       data-viewport={isMobileViewport ? "mobile" : "desktop"}
       style={
@@ -1348,7 +1353,9 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
           "--sig-topbar-highlight": topbarHighlight,
           "--sig-topbar-depth": topbarDepth,
           "--sig-footer": footerFill,
-          "--sig-sidebar-stripe-width": sidebarExpanded ? "304px" : "96px",
+          "--sig-sidebar-stripe-width": sidebarExpanded ? "232px" : "76px",
+          "--sig-topbar-height": "60px",
+          "--sig-topbar-height-mobile": "60px",
           "--sig-sidebar-fill": sidebarFill,
           "--sig-inverse-accent-soft": withAlpha(accentColor, "0.08"),
           "--sig-inverse-accent-medium": withAlpha(accentColor, "0.16"),
@@ -1377,7 +1384,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
           boxShadow: `inset 0 1px 0 rgba(255,255,255,0.12), inset 0 -1px 0 ${withAlpha(primaryColor, "0.24")}, 0 8px 24px ${withAlpha(primaryColor, "0.18")}`,
         }}
       >
-        <div className="sig-topbar-shell flex min-h-[60px] items-center gap-3 px-2.5 sm:px-3.5 lg:min-h-[68px] lg:gap-3.5 lg:px-5 2xl:px-7">
+        <div className="sig-topbar-shell flex min-h-[60px] items-center gap-2 px-2.5 sm:px-3 lg:min-h-[60px] lg:gap-2.5 lg:px-4 2xl:px-5">
           <div
             className="sig-topbar-brand-cluster flex min-w-0 items-center gap-3 pr-1 lg:hidden lg:pr-4"
             style={{ display: isDesktopTopbarViewport ? "none" : undefined }}
@@ -1515,7 +1522,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
           >
             <div className="sig-topbar-primary-group flex min-w-0 flex-1 items-center gap-4">
               <div className="sig-topbar-brand-cluster flex min-w-0 items-center gap-3.5 pr-1">
-                <div className="sig-topbar-brand-logo flex h-[54px] w-[54px] items-center justify-center">
+                <div className="sig-topbar-brand-logo flex h-[46px] w-[46px] items-center justify-center">
                   <div className="sig-topbar-brand-badge flex items-center justify-center">
                     <img src={getPublicAssetUrl("favicon-sigapro.svg")} alt="SIGAPRO" className="sig-topbar-brand-image" />
                   </div>
@@ -1534,11 +1541,11 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
               </div>
             </div>
 
-            <div className="sig-topbar-actions-wrap flex shrink-0 items-center gap-2.5 pr-1 2xl:pr-2">
+            <div className="sig-topbar-actions-wrap flex shrink-0 items-center gap-2 pr-0.5 2xl:pr-1">
               <button
                 type="button"
                 className={cn(
-                  "sig-topbar-menu-trigger inline-flex h-[40px] items-center gap-2.5 rounded-[15px] px-3.5 text-[12.5px] font-medium transition duration-200 hover:-translate-y-[1px]",
+                  "sig-topbar-menu-trigger inline-flex h-[38px] items-center gap-2 rounded-[13px] px-2.5 text-[12.5px] font-medium transition duration-200 hover:-translate-y-[1px]",
                   topbarGhostButton,
                 )}
                 onClick={() => {
@@ -1555,25 +1562,25 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                 aria-label="Alternar menu lateral"
                 title="Menu"
               >
-                <span className="sig-topbar-menu-icon inline-flex h-[34px] w-[34px] items-center justify-center rounded-[12px]">
+                <span className="sig-topbar-menu-icon inline-flex h-[30px] w-[30px] items-center justify-center rounded-[10px]">
                   <Menu className="h-[18px] w-[18px]" />
                 </span>
                 <span className="hidden font-semibold tracking-[0.01em] xl:inline">Menu</span>
               </button>
 
-              <div className="sig-topbar-search-wrap relative w-[220px] xl:w-[300px] 2xl:w-[340px]">
+              <div className="sig-topbar-search-wrap relative w-[190px] xl:w-[240px] 2xl:w-[270px]">
                 <button
                   type="button"
                   onClick={() => setCommandOpen(true)}
                   className={cn(
-                    "sig-topbar-search sig-topbar-search-trigger group flex h-[42px] w-full items-center gap-3 rounded-[16px] px-3.5 transition duration-200 hover:-translate-y-[1px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40",
+                    "sig-topbar-search sig-topbar-search-trigger group flex h-[38px] w-full items-center gap-2 rounded-[13px] px-2.5 transition duration-200 hover:-translate-y-[1px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40",
                     topbarSearchButton,
                   )}
                   aria-label="Busca global"
                   title="Pesquisar"
                   data-search-surface={inverseMainTheme ? "light" : "dark"}
                 >
-                  <span className="sig-topbar-search-icon inline-flex h-[34px] w-[34px] items-center justify-center rounded-[12px] transition">
+                  <span className="sig-topbar-search-icon inline-flex h-[30px] w-[30px] items-center justify-center rounded-[10px] transition">
                     <Search className="h-[18px] w-[18px]" />
                   </span>
                   <span className="sig-topbar-search-label min-w-0 flex-1 truncate text-left text-[14px] font-semibold tracking-[0.01em]">
@@ -2045,7 +2052,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
 
             <div
               className={cn(
-                "sig-topbar-account-cluster relative flex h-[50px] shrink-0 items-center gap-1 rounded-[18px] border px-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]",
+                "sig-topbar-account-cluster relative flex h-[46px] shrink-0 items-center gap-0.5 rounded-[15px] border px-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]",
                 darkTopbar
                   ? "border-white/12 bg-white/[0.07]"
                   : "border-slate-200/90 bg-white/92",
@@ -2098,7 +2105,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                   <button
                     type="button"
                     className={cn(
-                      "sig-topbar-profile-cluster flex h-[40px] items-center gap-2 rounded-[13px] px-1.5 pr-2 transition duration-150",
+                      "sig-topbar-profile-cluster flex h-[38px] items-center gap-1.5 rounded-[12px] px-1 pr-1.5 transition duration-150",
                       topbarProfileButton,
                     )}
                     aria-label="Abrir conta do usuário"
@@ -2378,13 +2385,6 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
           "sig-content-frame flex min-h-screen",
           focusMode && "h-auto min-h-0 overflow-visible",
         )}
-        style={
-          focusMode
-            ? undefined
-            : {
-                minHeight: "117.6470588235vh",
-              }
-        }
         data-refresh-layout-stable={focusMode ? "false" : "true"}
       >
         {(!focusMode || focusSidebarOpen) ? (
@@ -2439,7 +2439,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
               </div>
             </div> : null}
 
-            {!focusMode ? <header className="mb-6 border-b border-slate-200 pb-5">
+            {!focusMode ? <header data-sigapro-compact-header={compactHeader ? "true" : "false"} className={cn("mb-6 border-b border-slate-200 pb-5", compactHeader && "mb-3 pb-3")}>
               <div
                 className="overflow-hidden rounded-[24px] border shadow-[0_14px_32px_rgba(15,42,68,0.10)]"
                 style={{
@@ -2447,10 +2447,10 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                   background: `linear-gradient(135deg, ${darken(primaryColor, 2)} 0%, ${primaryColor} 44%, ${bannerMid} 100%)`,
                 }}
               >
-                <div className="border-b border-white/10 bg-[linear-gradient(90deg,rgba(255,255,255,0.10)_0%,rgba(255,255,255,0.04)_42%,rgba(255,255,255,0.02)_100%)] px-5 py-3.5 md:px-7 lg:px-8">
+                <div className={cn("border-b border-white/10 bg-[linear-gradient(90deg,rgba(255,255,255,0.10)_0%,rgba(255,255,255,0.04)_42%,rgba(255,255,255,0.02)_100%)] px-5 py-3.5 md:px-7 lg:px-8", compactHeader && "px-4 py-2.5 md:px-5 lg:px-6")}>
                   <div className="flex flex-wrap items-center gap-3">
                     <div
-                      className="flex h-11 w-11 items-center justify-center rounded-full border border-white/18 shadow-[0_12px_28px_rgba(2,6,23,0.18)]"
+                      className={cn("flex h-11 w-11 items-center justify-center rounded-full border border-white/18 shadow-[0_12px_28px_rgba(2,6,23,0.18)]", compactHeader && "h-9 w-9")}
                       style={{ background: `linear-gradient(180deg, ${withAlpha(accentColor, "0.24")} 0%, rgba(255,255,255,0.10) 100%)` }}
                     >
                       <SectionGlyph className="h-5 w-5 text-white" aria-hidden="true" />
@@ -2462,15 +2462,15 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                 </div>
                 </div>
 
-                <div className="px-5 pb-6 pt-5 md:px-7 lg:px-8">
-                  <div className="flex flex-col gap-5 md:flex-row md:items-center md:gap-6 lg:gap-7">
+                <div className={cn("px-5 pb-6 pt-5 md:px-7 lg:px-8", compactHeader && "px-4 pb-3 pt-3 md:px-5 lg:px-6")}>
+                  <div className={cn("flex flex-col gap-5 md:flex-row md:items-center md:gap-6 lg:gap-7", compactHeader && "flex-row items-center gap-3 md:gap-4")}>
                     <div className="shrink-0">
                       <InstitutionalLogo
                         branding={stableHeaderBranding}
                         fallbackLabel={institutionDisplayName}
                         variant="header"
                         contextScope={isMasterUser ? "master" : "municipality"}
-                        className="mx-auto md:mx-0"
+                        className={cn("mx-auto md:mx-0", compactHeader && "!h-[66px] !w-[110px] lg:!h-[66px] lg:!w-[110px]")}
                       />
                     </div>
 
@@ -2478,7 +2478,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                       <p className="sig-fit-title max-w-[64ch] text-[15px] font-semibold leading-[1.3] tracking-[-0.01em] text-white drop-shadow-[0_2px_10px_rgba(2,6,23,0.18)] md:text-base">
                         {institutionDisplayName}
                       </p>
-                      <p className="mt-2 max-w-[60ch] text-sm font-normal leading-5 text-[#DCEAF7] lg:text-sm">
+                      <p className={cn("mt-2 max-w-[60ch] text-sm font-normal leading-5 text-[#DCEAF7] lg:text-sm", compactHeader && "mt-1 text-xs leading-4")}>
                         {institutionDisplaySubtitle}
                       </p>
 

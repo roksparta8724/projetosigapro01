@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 import { Network, PencilLine, Plus, RotateCcw, Save, Trash2 } from "lucide-react";
 import { MunicipalOrganizationChart } from "@/components/platform/MunicipalOrganizationChart";
-import { PageHero } from "@/components/platform/PageHero";
 import { PortalFrame } from "@/components/platform/PortalFrame";
 import { PageShell } from "@/components/platform/PageShell";
 import { TableCard } from "@/components/platform/TableCard";
@@ -277,42 +276,68 @@ export function MunicipalOrganizationPage() {
   return (
     <PortalFrame eyebrow="Estrutura institucional" title="Organograma municipal">
       <PageShell>
-        <PageHero
-          eyebrow={municipalityName || municipality?.name || "Prefeitura"}
-          title="Estrutura da Prefeitura"
-          description="O organograma é a referência única de unidades e siglas em todo o SIGAPRO. Ele aparece nos departamentos, processos e destinos de despacho."
-          icon={Network}
-          actions={
-            canEdit ? (
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="rounded-full"
-                  onClick={() => startCreate()}
-                >
-                  <Plus className="mr-2 h-4 w-4" />
-                  Nova unidade
+        <section
+          data-municipal-organization-hero="compact-v5"
+          aria-label="Resumo do organograma oficial"
+          className="min-w-0 overflow-hidden rounded-[18px] border border-[#32647d] bg-[linear-gradient(120deg,#102e46,#12516a)] px-4 py-4 text-white shadow-[0_12px_28px_rgba(5,39,61,0.16)] sm:px-5"
+        >
+          <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
+            <div className="flex min-w-0 items-start gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/20 bg-white/10 text-sky-100">
+                <Network className="h-5 w-5" aria-hidden="true" />
+              </span>
+              <div className="min-w-0">
+                <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#b9e5f9]">
+                  {municipalityName || municipality?.name || "Prefeitura"} · estrutura oficial
+                </p>
+                <h1 data-organogram-headline="true" className="mt-1 text-xl font-extrabold leading-tight text-white">Estrutura da Prefeitura</h1>
+                <p className="mt-1 max-w-[72ch] text-xs leading-5 text-sky-100">
+                  Secretarias, diretorias e unidades que organizam os setores e os destinos dos despachos.
+                </p>
+              </div>
+            </div>
+            {canEdit ? (
+              <div className="flex shrink-0 flex-wrap gap-2">
+                <Button type="button" variant="outline" size="sm"
+                  className="h-9 rounded-xl border-white/20 bg-white font-bold !text-[#123650] hover:bg-sky-50"
+                  onClick={() => startCreate()}>
+                  <Plus className="mr-1.5 h-4 w-4" /> Nova unidade
                 </Button>
                 {localValidation && hasLocalOverride ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="rounded-full"
+                  <Button type="button" size="sm" variant="outline"
+                    className="h-9 rounded-xl border-sky-200/30 bg-white/10 !text-white hover:bg-white/20"
                     onClick={() => {
                       clearLocalOverride();
                       setEditorOpen(false);
                       setEditorStatus("Estrutura local removida. O SIGAPRO voltou ao organograma oficial carregado.");
-                    }}
-                  >
-                    <RotateCcw className="mr-2 h-4 w-4" />
-                    Restaurar oficial
+                    }}>
+                    <RotateCcw className="mr-1.5 h-4 w-4" /> Restaurar oficial
                   </Button>
                 ) : null}
               </div>
-            ) : undefined
-          }
-        />
+            ) : (
+              <span className="rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-xs font-semibold text-sky-100">
+                Consulta institucional
+              </span>
+            )}
+          </div>
+          <div data-organogram-real-counts="true" className="mt-3 grid grid-cols-1 gap-2 border-t border-white/15 pt-3 sm:grid-cols-3">
+            <div className="flex items-center justify-between rounded-lg border border-white/10 bg-white/[0.065] px-3 py-2">
+              <span className="text-xs text-sky-100">Unidades ativas</span>
+              <strong className="text-lg font-extrabold tabular-nums text-white">{activeCount}</strong>
+            </div>
+            <div className="flex items-center justify-between rounded-lg border border-white/10 bg-white/[0.065] px-3 py-2">
+              <span className="text-xs text-sky-100">Secretarias</span>
+              <strong className="text-lg font-extrabold tabular-nums text-white">
+                {departments.filter((unit) => unit.isActive && unit.unitType === "secretaria").length}
+              </strong>
+            </div>
+            <div className="flex items-center justify-between rounded-lg border border-white/10 bg-white/[0.065] px-3 py-2">
+              <span className="text-xs text-sky-100">Unidades ocultas</span>
+              <strong className="text-lg font-extrabold tabular-nums text-white">{departments.length - activeCount}</strong>
+            </div>
+          </div>
+        </section>
 
         {canEdit ? (
           <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">

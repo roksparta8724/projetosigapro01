@@ -17,9 +17,6 @@
     <link rel="shortcut icon" href="%BASE_URL%favicon-sigapro-v7.svg?v=7" />
     <link rel="apple-touch-icon" sizes="256x256" href="%BASE_URL%favicon.png?v=3" />
     <link rel="manifest" href="%BASE_URL%site.webmanifest?v=7" />
-    <link rel="stylesheet" href="/src/index.css" />
-    <link rel="stylesheet" href="/src/components/platform/ProcessIdentityPanel.css" />
-    <link rel="stylesheet" href="/src/components/platform/AnalysisReadinessPanel.css" />
     <link rel="preload" as="image" href="%BASE_URL%sigapro-logo.png" fetchpriority="high" />
 
     <meta property="og:type" content="website" />
@@ -47,7 +44,7 @@
         var authPaths = ["/acesso", "/criar-conta", "/recuperar-senha"];
         var isFullDocumentRoute =
           /\/processos\/[^/]+\/documentos\/[^/]+\/(visualizar|analisar)$/.test(path);
-        var initialBackground = isFullDocumentRoute ? "#2b3037" : "#f5f7fb";
+        var initialBackground = isFullDocumentRoute ? "#2b3037" : "#e8f0f7";
 
         if (isFullDocumentRoute) {
           initialBackground = "#2b3037";
@@ -75,11 +72,14 @@
               initialBackground = effectiveTheme.background.trim();
             }
           } catch (error) {
-            initialBackground = "#f5f7fb";
+            initialBackground = "#e8f0f7";
           }
         }
 
+        // O CSS de base define --sig-bg como branco. Alinhar as duas variáveis
+        // antes do carregamento do CSS evita uma tela toda branca ao atualizar.
         document.documentElement.style.setProperty("--sig-initial-bg", initialBackground);
+        document.documentElement.style.setProperty("--sig-bg", initialBackground);
 
         // Em uma rota interna já autenticada, preserve também a faixa visual do
         // topbar enquanto o bundle React executa. Isto não é um loading/shell:
@@ -134,6 +134,13 @@
         document.documentElement.setAttribute("data-page-zoom", "100");
         document.documentElement.setAttribute("data-sigapro-document-route", isFullDocumentRoute ? "true" : "false");
         document.documentElement.setAttribute("data-sigapro-initial-render", "true");
+        // A hard refresh must NEVER display a replacement full-screen page.
+        // Only a true prolonged boot failure may expose a small recovery notice.
+        window.setTimeout(function () {
+          if (document.documentElement.getAttribute("data-sigapro-initial-render") === "true") {
+            document.documentElement.setAttribute("data-sigapro-boot-slow", "true");
+          }
+        }, 15000);
 
         // Atualiza o Service Worker mesmo quando o bundle da aplicação não inicia.
         // Nunca apaga sessões, rascunhos ou dados e não força reload no usuário.
@@ -166,6 +173,9 @@
         background: var(--sig-initial-bg, #f5f7fb);
       }
 
+      /* Sem fundo artificial. A rota autenticada conserva apenas sua cor de
+         tema real até a montagem do React. Nenhum canvas azul ocupa a página. */
+
       html,
       body {
         min-height: 100vh;
@@ -188,26 +198,27 @@
       /* Status estático de recuperação: permanece se o bundle falhar antes do React. */
       #sigapro-preboot-recovery {
         position: fixed;
-        inset: 0;
+        inset: auto 16px 16px auto;
         z-index: 99999;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 24px;
-        background: #f5f7fb;
+        display: none;
+        width: min(350px, calc(100vw - 32px));
+        max-width: 100%;
+        padding: 0;
+        background: transparent;
         color: #0f172a;
         font-family: Inter, system-ui, sans-serif;
+        pointer-events: auto;
       }
-      html:not([data-sigapro-initial-render="true"]) #sigapro-preboot-recovery {
-        display: none;
+      html[data-sigapro-initial-render="true"][data-sigapro-boot-slow="true"] #sigapro-preboot-recovery {
+        display: flex;
       }
       #sigapro-preboot-recovery > section {
-        width: min(100%, 520px);
-        padding: 28px;
-        border-radius: 24px;
-        border: 1px solid #e2e8f0;
-        background: white;
-        box-shadow: 0 24px 60px rgba(15, 23, 42, 0.10);
+        width: 100%;
+        padding: 14px 16px;
+        border-radius: 14px;
+        border: 1px solid #cbd5e1;
+        background: #ffffff;
+        box-shadow: 0 10px 28px rgba(2, 14, 28, 0.22);
       }
       html[data-sigapro-document-route="true"] #sigapro-preboot-recovery {
         background: #2b3037;
@@ -228,21 +239,21 @@
       }
       #sigapro-preboot-recovery h1 {
         margin: 10px 0 0;
-        font-size: 22px;
+        font-size: 15px;
         line-height: 1.3;
         color: #0f172a;
       }
       #sigapro-preboot-recovery p {
         margin: 12px 0 0;
         color: #475569;
-        font-size: 14px;
-        line-height: 1.65;
+        font-size: 12px;
+        line-height: 1.5;
       }
       #sigapro-preboot-recovery a {
         display: inline-block;
-        margin-top: 20px;
-        padding: 12px 18px;
-        border-radius: 12px;
+        margin-top: 12px;
+        padding: 9px 13px;
+        border-radius: 9px;
         background: #075985;
         color: white;
         text-decoration: none;
@@ -258,7 +269,11 @@
       }
     </style>
 
-    <!-- O fallback estático já protege o primeiro paint, sem bloquear a apresentação. -->
+    <!-- Determinar a cor real da página antes da folha global, sem fundo de substituição. -->
+    <link rel="stylesheet" href="/src/index.css" />
+    <link rel="stylesheet" href="/src/components/platform/ProcessIdentityPanel.css" />
+    <link rel="stylesheet" href="/src/components/platform/AnalysisReadinessPanel.css" />
+
     <script type="module" src="/src/main.tsx" fetchpriority="high"></script>
   </head>
 
@@ -266,9 +281,9 @@
     <div id="root"></div>
     <div id="sigapro-preboot-recovery" role="status" aria-live="polite">
       <section>
-        <strong style="color:#075985;font-size:12px;letter-spacing:.1em;text-transform:uppercase">SIGAPRO · Inicialização segura</strong>
-        <h1>Carregando o sistema municipal</h1>
-        <p id="sigapro-preboot-message">Se a conexão ou o carregamento falhar, esta mensagem permanece visível. Seus processos e documentos não são alterados por esta etapa.</p>
+        <strong style="color:#075985;font-size:12px;letter-spacing:.1em;text-transform:uppercase">SIGAPRO · Recuperação de conexão</strong>
+        <h1>Falha prolongada de conexão</h1>
+        <p id="sigapro-preboot-message">Não foi possível iniciar a interface. Seus processos e documentos não são modificados por esta tentativa.</p>
         <a href="/acesso">Ir para o acesso</a>
       </section>
     </div>

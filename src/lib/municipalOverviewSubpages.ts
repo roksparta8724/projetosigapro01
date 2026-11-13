@@ -10,10 +10,10 @@ export const MUNICIPAL_OVERVIEW_SUBPAGES: ReadonlyArray<{
   helper: string;
   path: string;
 }> = [
-  { key: "resumo", title: "Resumo", helper: "Indicadores essenciais", path: "/prefeitura" },
   { key: "processos", title: "Processos", helper: "Consulta paginada", path: "/prefeitura/visao-geral/processos" },
   { key: "pendencias", title: "Pendências", helper: "Prazos e atenção", path: "/prefeitura/visao-geral/pendencias" },
   { key: "atividades", title: "Atividades", helper: "Últimas movimentações", path: "/prefeitura/visao-geral/atividades" },
+  { key: "resumo", title: "Resumo", helper: "Indicadores essenciais", path: "/prefeitura/visao-geral/resumo" },
 ];
 
 export function municipalOverviewSubpageFromPath(pathname: string): MunicipalOverviewSubpage {
@@ -23,7 +23,10 @@ export function municipalOverviewSubpageFromPath(pathname: string): MunicipalOve
 }
 
 export function isMunicipalOverviewSubpagePath(pathname: string): boolean {
+  // Every dedicated overview URL, including the final Resumo subpage,
+  // belongs to the municipal overview. /prefeitura itself remains the
+  // operational entry, so it must NOT be mistaken for an open summary.
   return MUNICIPAL_OVERVIEW_SUBPAGES.some((page) =>
-    page.key !== "resumo" && page.path === (pathname.replace(/\/+$/, "") || "/"),
+    page.path !== "/prefeitura" && page.path === (pathname.replace(/\/+$/, "") || "/"),
   );
 }

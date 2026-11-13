@@ -1,5 +1,5 @@
 ﻿import { FormEvent, useEffect, useMemo, useState } from "react";
-import { AlertTriangle, ArrowLeft, Building2, CheckCircle2, ClipboardList, Clock3, ChevronDown, FileText, Network, PencilLine, Plus, Search, ShieldAlert, ShieldCheck, Undo2, UserCog, UserRoundCog, UserX, Users2, Wallet } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Building2, CheckCircle2, ClipboardList, Clock3, ChevronDown, Network, PencilLine, Plus, Search, ShieldAlert, ShieldCheck, Undo2, UserCog, UserRoundCog, UserX, Users2, Wallet } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -7,7 +7,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertCard } from "@/components/platform/AlertCard";
 import { InternalTabs } from "@/components/platform/InternalTabs";
 import { PortalFrame } from "@/components/platform/PortalFrame";
 import { SectionCard } from "@/components/platform/SectionCard";
@@ -390,7 +389,7 @@ export function TenantAdminPage() {
     message: string;
   }>({ tone: "idle", message: "" });
   const [savingUserId, setSavingUserId] = useState<string | null>(null);
-  const [workspaceView, setWorkspaceView] = useState<WorkspaceView>("visao-geral");
+  const [workspaceView, setWorkspaceView] = useState<WorkspaceView>("fila");
   const [queueSearch, setQueueSearch] = useState("");
   const [overviewProcessStatus, setOverviewProcessStatus] = useState<"todos" | "andamento" | "pendentes" | "concluidos">("todos");
   const [overviewProcessSearch, setOverviewProcessSearch] = useState("");
@@ -1312,8 +1311,44 @@ export function TenantAdminPage() {
   return (
     <PortalFrame eyebrow="Administração da Prefeitura" title={municipalityName || activeInstitution?.name || "Administração da Prefeitura"}>
       <PageShell>
+        <InternalTabs
+          className="border-slate-200/90 shadow-[0_12px_30px_rgba(15,23,42,0.04)]"
+          value={workspaceView}
+          onChange={(value) => {
+            const next = value as WorkspaceView;
+            setWorkspaceView(next);
+            if (next === "visao-geral") {
+              navigate("/prefeitura/visao-geral/processos");
+            } else if (isNestedOverview) {
+              navigate(`/prefeitura?secao=${encodeURIComponent(next)}`);
+            }
+          }}
+          persistInUrl={!isNestedOverview}
+          items={[
+            { value: "visao-geral", label: "Visão geral", helper: "Resumo executivo" },
+            { value: "fila", label: "Fila operacional", helper: "Protocolos e prioridades" },
+            { value: "usuarios", label: "Usuários", helper: "Equipe e acessos" },
+            { value: "organograma", label: "Organograma", helper: "Estrutura e lotação" },
+            { value: "historico", label: "Histórico", helper: "Atividades recentes" },
+          ]}
+        />
+
+        {workspaceView === "visao-geral" ? (
+          <MunicipalOverviewSubnav active={overviewSubpage} counts={{
+            processos: tenantProcesses.length,
+            pendencias: actionRequired.length,
+            atividades: recentActivity.length,
+          }} />
+        ) : null}
+
+        {statusMessage ? (
+          <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-sm leading-6 text-emerald-700">
+            {statusMessage}
+          </div>
+        ) : null}
+
         {workspaceView === "visao-geral" && overviewSubpage === "resumo" ? (
-          <>
+          <div data-sigapro-municipal-stats="premium-v4" className="min-w-0 space-y-2">
         <PageStatsRow className="xl:grid-cols-4">
           {executiveCards.map((item) => (
             <StatCard
@@ -1355,276 +1390,212 @@ export function TenantAdminPage() {
             </div>
           </details>
         ) : null}
-          </>
-        ) : null}
-        <InternalTabs
-          className="border-slate-200/90 shadow-[0_12px_30px_rgba(15,23,42,0.04)]"
-          value={workspaceView}
-          onChange={(value) => {
-            const next = value as WorkspaceView;
-            setWorkspaceView(next);
-            if (isNestedOverview) {
-              navigate(next === "visao-geral" ? "/prefeitura" : `/prefeitura?secao=${encodeURIComponent(next)}`);
-            }
-          }}
-          persistInUrl={!isNestedOverview}
-          items={[
-            { value: "visao-geral", label: "Visão geral", helper: "Resumo executivo" },
-            { value: "fila", label: "Fila operacional", helper: "Protocolos e prioridades" },
-            { value: "usuarios", label: "Usuários", helper: "Equipe e acessos" },
-            { value: "organograma", label: "Organograma", helper: "Estrutura e lotação" },
-            { value: "historico", label: "Histórico", helper: "Atividades recentes" },
-          ]}
-        />
-
-        {workspaceView === "visao-geral" ? (
-          <MunicipalOverviewSubnav active={overviewSubpage} counts={{
-            processos: tenantProcesses.length,
-            pendencias: actionRequired.length,
-            atividades: recentActivity.length,
-          }} />
-        ) : null}
-
-        {statusMessage ? (
-          <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-sm leading-6 text-emerald-700">
-            {statusMessage}
           </div>
         ) : null}
 
         {workspaceView === "visao-geral" && overviewSubpage === "resumo" ? (
-          <PageMainGrid className="xl:grid-cols-[minmax(0,1.65fr)_minmax(300px,0.85fr)]">
-            <PageMainContent>
-              <SectionCard
-                title="Centro operacional da Prefeitura"
-                description="Somente as três prioridades principais. O histórico completo fica na subpágina Processos."
-                icon={ClipboardList}
-                actions={<Button type="button" variant="outline" size="sm"
-                  className="rounded-xl border-sky-200 bg-white text-sky-900"
-                  onClick={() => navigate("/prefeitura/visao-geral/processos")}>Ver processos</Button>}
-                className="shadow-[0_12px_30px_rgba(15,23,42,0.05)]"
-                contentClassName="space-y-5"
-              >
-                <div data-sigapro-overview-quickfacts="true" className="grid min-w-0 gap-2 border-b border-slate-200 pb-4 sm:grid-cols-3">
-                  {[
-                    { label: "Em análise", value: metrics.inAnalysis },
-                    { label: "Guias pendentes", value: metrics.pendingPayments },
-                    { label: "Concluídos", value: metrics.approved },
-                  ].map((item) => (
-                    <div key={item.label} className="flex min-w-0 items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2">
-                      <span className="truncate text-xs font-medium text-slate-600" title={item.label}>{item.label}</span>
-                      <span className="shrink-0 text-base font-bold tabular-nums text-slate-950">{item.value}</span>
-                    </div>
-                  ))}
+          <div data-sigapro-overview-summary="premium-v4" className="flex min-w-0 flex-col gap-3">
+            <section data-sigapro-summary-board="dark" className="min-w-0 overflow-hidden rounded-[20px] border border-sky-600/35 bg-[#0a263d] p-4 text-white shadow-[0_14px_32px_rgba(6,32,55,0.16)] sm:p-5">
+              <header className="flex flex-wrap items-center justify-between gap-3 border-b border-white/15 pb-3">
+                <div className="min-w-0">
+                  <p data-summary-muted="true" className="text-[10px] font-bold uppercase tracking-[0.16em] text-sky-200">Painel executivo • Prefeitura</p>
+                  <h2 data-summary-title="true" className="mt-1 text-lg font-bold text-white">Prioridades da operação municipal</h2>
+                  <p data-summary-muted="true" className="mt-1 text-xs text-slate-200">Visão sintética dos processos oficiais, sem duplicar toda a fila.</p>
                 </div>
-                <div className="space-y-4">
-                  {mainQueue.length === 0 ? (
-                    <div className="rounded-[24px] border border-dashed border-slate-300 bg-slate-50 p-6 text-sm leading-6 text-slate-600">
-                      Nenhum protocolo operacional encontrado para esta Prefeitura.
-                    </div>
-                  ) : (
-                    mainQueue.slice(0, 3).map((process) => (
-                      <div key={process.id} className="flex min-w-0 flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <Button type="button" size="sm" variant="outline"
+                  className="h-9 rounded-xl border-sky-200 bg-white px-3 font-semibold !text-[#123650] hover:bg-sky-50"
+                  onClick={() => navigate("/prefeitura/visao-geral/processos")}>
+                  Ver processos
+                </Button>
+              </header>
+              <div data-sigapro-overview-quickfacts="true" className="mt-3 grid min-w-0 gap-2 sm:grid-cols-3">
+                {[
+                  { label: "Em análise", value: metrics.inAnalysis },
+                  { label: "Guias pendentes", value: metrics.pendingPayments },
+                  { label: "Concluídos", value: metrics.approved },
+                ].map((item) => (
+                  <div key={item.label} data-summary-dark-card="true"
+                    className="flex min-w-0 items-center justify-between gap-3 rounded-xl border border-sky-300/20 bg-white/[0.065] px-3 py-2.5">
+                    <span data-summary-muted="true" className="truncate text-xs text-slate-200" title={item.label}>{item.label}</span>
+                    <span data-summary-value="true" className="shrink-0 text-lg font-extrabold tabular-nums text-white">{item.value}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-3 grid min-w-0 items-start gap-3 lg:grid-cols-[minmax(0,1.55fr)_minmax(260px,0.9fr)]">
+                <section data-summary-dark-card="true" className="min-w-0 rounded-2xl border border-sky-200/20 bg-white/[0.05] p-3">
+                  <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                    <h3 data-summary-title="true" className="text-sm font-bold text-white">Processos que precisam de atenção</h3>
+                    <span data-summary-muted="true" className="text-xs text-slate-200">Até 3 prioridades</span>
+                  </div>
+                  <div className="space-y-2">
+                    {mainQueue.length === 0 ? (
+                      <p data-summary-muted="true" className="rounded-xl border border-white/10 px-3 py-3 text-sm text-slate-200">
+                        Nenhum processo operacional encontrado.
+                      </p>
+                    ) : mainQueue.slice(0, 3).map((process) => (
+                      <div key={process.id} data-summary-process-row="true"
+                        className="flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-xl border border-white/15 bg-[#123b56] px-3 py-2.5">
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-xs font-semibold text-sky-900" title={process.protocol}>{process.protocol}</p>
-                          <p className="mt-0.5 truncate text-sm font-medium text-slate-900" title={process.title}>{process.title}</p>
+                          <p data-summary-label="true" className="truncate text-xs font-bold text-sky-100" title={process.protocol}>{process.protocol}</p>
+                          <p data-summary-title="true" className="mt-1 truncate text-sm font-semibold text-white" title={process.title}>{process.title}</p>
                         </div>
                         <div className="flex shrink-0 items-center gap-2">
                           <Badge variant="outline" className={getPriorityTone(process)}>
                             {process.sla.breached ? "Vencido" : process.sla.hoursRemaining <= 12 ? "Urgente" : "No prazo"}
                           </Badge>
                           <Button type="button" size="sm" variant="outline"
-                            className="rounded-lg border-slate-300 bg-white text-slate-900"
+                            className="h-8 rounded-lg border-white/25 bg-white !text-[#123650] hover:bg-sky-50"
                             onClick={() => openMunicipalProcess(process.id)}>Abrir</Button>
                         </div>
                       </div>
-                    ))
-                  )}
-                </div>
-              </SectionCard>
-
-              <div className="grid min-w-0 gap-5 min-[2150px]:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
-                <TableCard
-                  title="Atividade institucional recente"
-                  description="Últimos eventos. Clique em Ver detalhes para expandir a movimentação."
-                  icon={Clock3}
-                  actions={<Button type="button" variant="outline" className="rounded-xl border-sky-200 text-sky-800"
-                    onClick={() => navigate("/prefeitura/visao-geral/atividades")}>Todas as atividades</Button>}
-                >
-                  <div className="space-y-3">
-                    {recentActivity.length === 0 ? (
-                      <div className="rounded-[24px] border border-dashed border-slate-300 bg-slate-50 p-6 text-sm leading-6 text-slate-600">
-                        Nenhuma movimentação recente encontrada.
-                      </div>
-                    ) : (
-                      recentActivity.slice(0, 3).map((item, index) => (
-                        <MunicipalActivityCard key={`${item.processId}-${index}`} item={item}
-                          onOpenProcess={() => openMunicipalProcess(item.processId)} />
-                      ))
-                    )}
+                    ))}
                   </div>
-                </TableCard>
-
-                <SectionCard
-                  title="Fluxo institucional"
-                  description="Leitura curta da circulação atual entre unidade, despacho e acesso externo."
-                  icon={FileText}
-                  className="shadow-[0_12px_30px_rgba(15,23,42,0.05)]"
-                  contentClassName="space-y-3"
-                >
-                  <div data-sigapro-overview-unit-summary="compact" className="divide-y divide-slate-200 rounded-xl border border-slate-200 bg-slate-50">
-                    {unitSummary.map((item) => (
-                      <div key={item.label} className="flex min-w-0 items-center justify-between gap-3 px-4 py-3">
-                        <div className="min-w-0">
-                          <p className="text-sm font-semibold text-slate-900">{item.label}</p>
-                          <p className="truncate text-xs text-slate-500" title={item.helper}>{item.helper}</p>
-                        </div>
-                        <span className="shrink-0 text-lg font-semibold tabular-nums text-slate-950">{item.value}</span>
+                </section>
+                <section data-summary-dark-card="true" className="min-w-0 rounded-2xl border border-sky-200/20 bg-white/[0.05] p-3">
+                  <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                    <h3 data-summary-title="true" className="text-sm font-bold text-white">Pendências críticas</h3>
+                    <Button type="button" size="sm" variant="outline"
+                      className="h-8 rounded-lg border-white/20 bg-white/10 !text-white hover:bg-white/20"
+                      onClick={() => navigate("/prefeitura/visao-geral/pendencias")}>Ver todas</Button>
+                  </div>
+                  <div className="flex items-center justify-between rounded-xl border border-amber-300/25 bg-amber-300/10 px-3 py-2.5">
+                    <span data-summary-label="true" className="text-sm font-semibold text-amber-100">SLA crítico</span>
+                    <strong data-summary-value="true" className="text-lg tabular-nums text-white">{criticalAlerts.length}</strong>
+                  </div>
+                  {inconsistentTriageCount > 0 ? (
+                    <p data-municipal-triage-divergence="true" className="mt-2 rounded-lg border border-amber-200/30 bg-amber-300/10 p-2 text-xs text-amber-100">
+                      {inconsistentTriageCount} registro(s) com triagem divergente. A correção exige atuação autorizada.
+                    </p>
+                  ) : null}
+                  <div className="mt-2 space-y-1.5">
+                    {actionRequired.length === 0 ? (
+                      <p data-summary-muted="true" className="text-xs text-slate-200">Sem outras prioridades críticas.</p>
+                    ) : actionRequired.slice(0, 2).map((process) => (
+                      <div key={process.id} className="flex min-w-0 items-center justify-between gap-2 border-t border-white/10 py-1.5">
+                        <span data-summary-label="true" className="truncate text-xs text-slate-100" title={process.protocol}>{process.protocol}</span>
+                        <span data-summary-muted="true" className="shrink-0 text-[11px] text-amber-100">
+                          {process.sla.breached ? "Vencido" : process.sla.hoursRemaining <= 12 ? "Crítico" : "Atenção"}
+                        </span>
                       </div>
                     ))}
                   </div>
-                </SectionCard>
+                </section>
               </div>
-            </PageMainContent>
+            </section>
 
-            <PageSideContent>
-              <SectionCard title="Pendências críticas" description="Alertas e gargalos que exigem decisão imediata."
-                icon={AlertTriangle}
-                actions={<Button type="button" size="sm" variant="outline"
-                  className="rounded-xl border-sky-200 bg-white text-sky-900"
-                  onClick={() => navigate("/prefeitura/visao-geral/pendencias")}>Ver todas</Button>}>
-                <div className="space-y-4">
-                  <AlertCard
-                    title="SLA crítico"
-                    description={
-                      criticalAlerts.length > 0
-                        ? `${criticalAlerts.length} protocolo(s) com prazo vencido ou a menos de 12 horas.`
-                        : "Nenhum SLA crítico no momento."
-                    }
-                    tone={criticalAlerts.length > 0 ? "danger" : "success"}
-                  />
-                  {inconsistentTriageCount > 0 ? (
-                    <p data-municipal-triage-divergence="true"
-                      className="rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-950">
-                      {inconsistentTriageCount} processo(s) estão indicados como análise sem triagem concluída.
-                      Não são contados como análise regular; corrigir pelo fluxo municipal autorizado.
-                    </p>
-                  ) : null}
-                  {actionRequired.length === 0 ? (
-                    <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm leading-6 text-slate-600">
-                      Nenhuma prioridade crítica adicional encontrada.
-                    </div>
-                  ) : (
-                    actionRequired.slice(0, 2).map((process) => (
-                      <div key={process.id} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="sig-fit-title text-sm font-semibold text-slate-950">{process.protocol}</p>
-                            <p className="mt-1 line-clamp-2 text-sm text-slate-500">{process.title}</p>
-                          </div>
-                          <Badge variant="outline" className={getPriorityTone(process)}>
-                            {process.sla.breached ? "Vencido" : process.sla.hoursRemaining <= 12 ? "Crítico" : "No prazo"}
-                          </Badge>
-                        </div>
+            <div data-sigapro-summary-secondary="true" className="grid min-w-0 items-start gap-3 xl:grid-cols-[minmax(0,1.55fr)_minmax(280px,0.9fr)]">
+              <section data-summary-light-card="true" className="min-w-0 rounded-[18px] border border-[#c6d8e6] bg-[#edf4fa] p-4 shadow-sm">
+                <header className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <h3 data-summary-light-title="true" className="text-sm font-bold text-[#123650]">Atividade institucional recente</h3>
+                    <p data-summary-light-muted="true" className="mt-0.5 text-xs text-[#50677a]">Três movimentos; amplie apenas se precisar dos detalhes.</p>
+                  </div>
+                  <Button type="button" size="sm" variant="outline" className="h-9 rounded-lg border-sky-300 bg-white !text-[#123650]"
+                    onClick={() => navigate("/prefeitura/visao-geral/atividades")}>Ver histórico</Button>
+                </header>
+                <div className="space-y-2">
+                  {recentActivity.length === 0 ? (
+                    <p data-summary-light-muted="true" className="rounded-lg border border-dashed border-slate-300 p-3 text-sm text-slate-600">Nenhuma atividade registrada.</p>
+                  ) : recentActivity.slice(0, 3).map((item, index) => (
+                    <MunicipalActivityCard key={item.processId + "-" + index} item={item}
+                      onOpenProcess={() => openMunicipalProcess(item.processId)} />
+                  ))}
+                </div>
+              </section>
+              <section data-summary-light-card="true" className="min-w-0 rounded-[18px] border border-[#c6d8e6] bg-[#e5eff7] p-4 shadow-sm">
+                <div className="mb-3">
+                  <h3 data-summary-light-title="true" className="text-sm font-bold text-[#123650]">Fluxo institucional</h3>
+                  <p data-summary-light-muted="true" className="mt-0.5 text-xs text-[#50677a]">Unidades, encaminhamentos e equipe.</p>
+                </div>
+                <div data-sigapro-overview-unit-summary="compact" className="divide-y divide-[#c5d5e1] rounded-xl border border-[#c5d5e1] bg-white/55">
+                  {unitSummary.map((item) => (
+                    <div key={item.label} className="flex min-w-0 items-center justify-between gap-2 px-3 py-2.5">
+                      <div className="min-w-0">
+                        <p data-summary-light-title="true" className="truncate text-xs font-semibold text-[#123650]" title={item.label}>{item.label}</p>
+                        <p data-summary-light-muted="true" className="truncate text-[11px] text-[#52687a]" title={item.helper}>{item.helper}</p>
                       </div>
-                    ))
-                  )}
+                      <strong data-summary-light-title="true" className="shrink-0 text-base tabular-nums text-[#123650]">{item.value}</strong>
+                    </div>
+                  ))}
                 </div>
-              </SectionCard>
-
-              <SectionCard title="Ações rápidas" description="Atalhos para os próximos blocos operacionais." icon={CheckCircle2}>
-                <div className="space-y-3">
-                  <Button type="button" variant="outline" className="sig-dark-action-btn h-11 w-full justify-start rounded-2xl text-slate-50" onClick={() => setWorkspaceView("fila")}>
-                    <ClipboardList className="mr-2 h-4 w-4 text-sky-200" />
-                    Abrir fila operacional
-                  </Button>
-                  <Button type="button" variant="outline" className="sig-dark-action-btn h-11 w-full justify-start rounded-2xl text-slate-50" onClick={() => setWorkspaceView("usuarios")}>
-                    <Users2 className="mr-2 h-4 w-4 text-sky-200" />
-                    Gerenciar usuários
-                  </Button>
-
-                  <Button type="button" variant="outline" className="sig-dark-action-btn h-11 w-full justify-start rounded-2xl text-slate-50"
+                <div className="mt-3 space-y-1.5 text-xs text-[#34536b]">
+                  <p className="truncate" title={currentUnit}><strong>Unidade:</strong> {currentUnit}</p>
+                  <p className="truncate" title={pendingSectorItems.map((item) => item.label).join(" • ")}>
+                    <strong>Setores:</strong> {pendingSectorItems.map((item) => item.label + ": " + item.value).join(" • ")}
+                  </p>
+                  <p><strong>Fluxo:</strong> {receivedForCurrentUnit.length} recebidos · {generatedByCurrentUnit.length} gerados · {assignedMunicipal.length} atribuídos</p>
+                  <Button type="button" size="sm" variant="outline" className="mt-2 h-9 w-full justify-center rounded-lg border-sky-300 bg-white !text-[#123650]"
                     onClick={() => navigate("/configuracoes?secao=branding")}>
-                    <Building2 className="mr-2 h-4 w-4 text-sky-200" />{coatOfArmsPreviewUrl ? "Identidade visual • brasão salvo" : "Identidade visual"}
+                    {coatOfArmsPreviewUrl ? "Identidade visual • brasão salvo" : "Identidade visual"}
                   </Button>
                 </div>
-              </SectionCard>
-
-              <SectionCard title="Resumo institucional" description="Situação curta da unidade municipal." icon={ShieldCheck}>
-                <div className="space-y-3">
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                    <p className="text-xs uppercase tracking-[0.14em] text-slate-500">Recepção por setor</p>
-                    <p className="mt-2 text-sm font-semibold text-slate-900">
-                      {pendingSectorItems.map((item) => `${item.label}: ${item.value}`).join(" • ")}
-                    </p>
-                  </div>
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                    <p className="text-xs uppercase tracking-[0.14em] text-slate-500">Unidade atual</p>
-                    <p className="mt-2 text-sm font-semibold text-slate-900">{currentUnit}</p>
-                  </div>
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                    <p className="text-xs uppercase tracking-[0.14em] text-slate-500">Distribuição atual</p>
-                    <p className="mt-2 text-sm font-semibold text-slate-900">
-                      {receivedForCurrentUnit.length} recebidos • {generatedByCurrentUnit.length} gerados • {assignedMunicipal.length} atribuídos
-                    </p>
-                  </div>
-                </div>
-              </SectionCard>
-            </PageSideContent>
-          </PageMainGrid>
+              </section>
+            </div>
+          </div>
         ) : null}
 
 
+
         {workspaceView === "visao-geral" && overviewSubpage === "processos" ? (
-          <PageMainContent className="min-w-0 gap-4">
-            <TableCard title="Processos da Prefeitura"
-              description="Todos os processos visíveis neste município, organizados por prioridade. A lista é compacta e paginada, mesmo quando existem milhares de registros."
-              icon={ClipboardList}
-              actions={
-                <Button type="button" variant="outline"
-                  className="min-h-9 rounded-xl border-sky-200 bg-white text-sky-900 hover:bg-sky-50"
-                  onClick={() => navigate("/prefeitura/processos")}>
-                  Abrir gestão de processos
-                </Button>
-              }>
-              <div className="min-w-0 space-y-4">
-                <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-slate-600">
-                  <p className="font-medium">{overviewProcesses.length.toLocaleString("pt-BR")} registros encontrados</p>
-                  <span className="text-xs">25 por página · clique no número para consultar</span>
-                </div>
-                <div className="relative">
-                  <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-                  <Input aria-label="Pesquisar processos da Visão Geral"
-                    value={overviewProcessSearch} onChange={(event) => setOverviewProcessSearch(event.target.value)}
-                    placeholder="Número, assunto, interessado ou responsável"
-                    className="h-11 min-w-0 rounded-xl border-slate-300 bg-white pl-10 text-slate-900" />
-                </div>
-                <div role="group" aria-label="Filtrar situação dos processos" className="flex flex-wrap gap-2">
-                  {([
-                    ["todos", "Todos"],
-                    ["andamento", "Em andamento"],
-                    ["pendentes", "Com pendências"],
-                    ["concluidos", "Concluídos"],
-                  ] as const).map(([key, label]) => (
-                    <Button key={key} type="button" size="sm"
-                      aria-pressed={overviewProcessStatus === key}
-                      variant="outline" onClick={() => setOverviewProcessStatus(key)}
-                      className={overviewProcessStatus === key
-                        ? "rounded-xl border-sky-800 bg-sky-900 text-white hover:bg-sky-800 hover:text-white"
-                        : "rounded-xl border-slate-300 bg-white text-slate-800 hover:bg-slate-50"}>
-                      {label}
-                    </Button>
-                  ))}
-                </div>
-                <CompactProcessRegistry
-                  key={overviewProcessStatus + ":" + overviewProcessSearch + ":" + (effectiveScopeId || "")}
-                  processes={overviewProcesses}
-                  showArchiveAction={false}
-                  canDispatchProcess={() => false}
-                  emptyMessage="Não há processos para os filtros selecionados."
-                />
+          <section
+            data-sigapro-overview-processes="premium-v5"
+            aria-label="Consulta dos processos municipais"
+            className="min-w-0 rounded-[20px] border border-[#bfd4e4] bg-[#ecf4fa] p-3 shadow-[0_9px_28px_rgba(8,45,73,0.085)] sm:p-4"
+          >
+            <header className="mb-3 flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-xl border border-[#386f8d] bg-[linear-gradient(115deg,#0b344f,#104e6b)] px-3.5 py-3 text-white">
+              <div className="min-w-0">
+                <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#bfe7fa]">Consulta oficial • Prefeitura</p>
+                <h2 data-processes-header-title="true" className="mt-0.5 text-[17px] font-bold leading-tight text-white">Processos municipais</h2>
+                <p className="mt-1 text-xs text-sky-100">Pesquisa e situação atual sem painéis intermediários.</p>
               </div>
-            </TableCard>
-          </PageMainContent>
+              <Button type="button" size="sm" variant="outline"
+                className="h-9 shrink-0 rounded-lg border-sky-200 bg-white px-3 font-semibold !text-[#123650] hover:bg-sky-50"
+                onClick={() => navigate("/prefeitura/processos")}>
+                Abrir gestão de processos
+              </Button>
+            </header>
+
+            <div data-processes-toolbar="true" className="mb-3 flex min-w-0 flex-col gap-2.5 rounded-xl border border-[#c9dce9] bg-[#f6fafe] p-3">
+              <div className="flex min-w-0 flex-wrap items-center justify-between gap-1.5">
+                <p className="text-[13px] font-semibold text-[#193b54]">{overviewProcesses.length.toLocaleString("pt-BR")} processos encontrados</p>
+                <span className="text-[11px] text-[#516c7f]">25 por página · abra o número para consultar</span>
+              </div>
+              <div className="relative">
+                <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#59758c]" />
+                <Input aria-label="Pesquisar processos da Visão Geral"
+                  value={overviewProcessSearch} onChange={(event) => setOverviewProcessSearch(event.target.value)}
+                  placeholder="Número, assunto, interessado ou responsável"
+                  className="h-10 min-w-0 rounded-lg border-[#bcd2e1] bg-white pl-10 text-[#14344a]" />
+              </div>
+              <div role="group" aria-label="Filtrar situação dos processos" className="flex min-w-0 flex-wrap gap-1.5">
+                {([
+                  ["todos", "Todos"],
+                  ["andamento", "Em andamento"],
+                  ["pendentes", "Com pendências"],
+                  ["concluidos", "Concluídos"],
+                ] as const).map(([key, label]) => (
+                  <Button key={key} type="button" size="sm" variant="outline"
+                    aria-pressed={overviewProcessStatus === key}
+                    onClick={() => setOverviewProcessStatus(key)}
+                    className={overviewProcessStatus === key
+                      ? "h-8 rounded-lg border-sky-800 bg-sky-900 px-3 !text-white hover:bg-sky-800"
+                      : "h-8 rounded-lg border-[#c1d3df] bg-white px-3 text-[#1e435b] hover:bg-sky-50"}>
+                    {label}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            <div data-processes-list="true" className="min-w-0">
+              <CompactProcessRegistry
+                key={overviewProcessStatus + ":" + overviewProcessSearch + ":" + (effectiveScopeId || "")}
+                processes={overviewProcesses}
+                showArchiveAction={false}
+                canDispatchProcess={() => false}
+                emptyMessage="Não há processos para os filtros selecionados."
+              />
+            </div>
+          </section>
         ) : null}
 
         {workspaceView === "visao-geral" && overviewSubpage === "pendencias" ? (
