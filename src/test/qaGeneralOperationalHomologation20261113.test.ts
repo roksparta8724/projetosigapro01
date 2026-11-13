@@ -28,9 +28,18 @@ describe("SIGAPRO operational launch quality — 13 Nov 2026", () => {
     expect(payment).toContain("não significa conciliação automática");
   });
 
+  it("keeps the authenticated municipal scope authoritative and distinguishes linked users from staff", () => {
+    const page = source("src/pages/saas/TenantAdminPage.tsx");
+    expect(page).toContain("session.municipalityId ?? session.tenantId ?? municipality?.id");
+    expect(page).toContain('data-municipal-users-sync={platformDataError ? "error" : "pending"}');
+    expect(page).toContain("Equipe interna");
+    expect(page).toContain("Vínculos municipais");
+  });
+
   it("prefetches internal routes on navigation intent", () => {
     const app = source("src/App.tsx");
     expect(app).toContain('document.addEventListener("pointerover", prefetchLink');
     expect(app).toContain('document.addEventListener("focusin", prefetchLink)');
+    expect(app).toContain("warmUtilityRoutes");
   });
 });

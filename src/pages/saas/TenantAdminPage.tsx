@@ -340,8 +340,9 @@ export function TenantAdminPage() {
   const { session } = usePlatformSession();
   const planEntitlements = usePlanEntitlements();
   const { municipality, scopeId, name: municipalityName } = useMunicipality();
-  const { sessionUsers, institutions, createTenantUser, updateTenantUser, setUserAccountStatus, deleteUserAccount, processes, getUserProfile, getInstitutionSettings, refreshRemoteStore } = usePlatformData();
-  const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
+  const { sessionUsers, institutions, createTenantUser, updateTenantUser, setUserAccountStatus, deleteUserAccount, processes, getUserProfile, getInstitutionSettings, refreshRemoteStore, remoteSyncedForCurrentUser, dataError: platformDataError, loading: platformDataLoading } = usePlatformData();
+  // The authenticated municipality wins over a stale branding/selected tenant.
+  const effectiveScopeId = session.municipalityId ?? session.tenantId ?? municipality?.id ?? scopeId ?? null;
   const planMunicipalityId = session.municipalityId ?? session.tenantId ?? null;
   const planCapacity = usePlanCapacityLive(planMunicipalityId, {
     enabled: Boolean(planMunicipalityId) && session.role === "prefeitura_admin",
@@ -1748,8 +1749,20 @@ export function TenantAdminPage() {
 
         {workspaceView === "usuarios" ? (
           <PageMainContent className="min-w-0 gap-5">
-            <PageStatsRow className="md:grid-cols-3 [&>*]:min-w-0">
-              <StatCard label="Equipe" value={String(tenantUsers.length)} description="Usuários vinculados à Prefeitura" icon={Users2} tone="blue" />
+            {!remoteSyncedForCurrentUser ? (
+              <div role={platformDataError ? "alert" : "status"} data-municipal-users-sync={platformDataError ? "error" : "pending"}
+                className="flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm text-slate-900 dark:border-sky-700 dark:bg-sky-950/40 dark:text-white">
+                <div className="min-w-0">
+                  <p className="font-bold">{platformDataError ? "Não foi possível confirmar a lista oficial de usuários" : "Validando os usuários vinculados à Prefeitura..."}</p>
+                  <p className="mt-1 text-xs leading-5 text-slate-700 dark:text-slate-200">{platformDataError || (platformDataLoading ? "Conferindo os cadastros no banco oficial." : "Os números serão confirmados após sincronização; o cache não define o cadastro oficial.")}</p>
+                </div>
+                <Button type="button" variant="outline" className="rounded-xl border-slate-300 bg-white text-slate-900"
+                  onClick={() => { void refreshRemoteStore().catch(() => undefined); }}>Tentar sincronizar</Button>
+              </div>
+            ) : null}
+            <PageStatsRow className="md:grid-cols-4 [&>*]:min-w-0">
+              <StatCard label="Equipe interna" value={String(internalTenantUsers.length)} description="Servidores e contas operacionais internas" icon={Users2} tone="blue" />
+              <StatCard label="Vínculos municipais" value={String(tenantUsers.length)} description="Todos os perfis da Prefeitura, inclusive externos" icon={Users2} tone="default" />
               <StatCard label="Administradores" value={String(tenantUsers.filter((user) => user.role === "prefeitura_admin").length)} description="Perfis de gestão ativos" icon={ShieldCheck} tone="emerald" />
               <StatCard label="Bloqueados" value={String(tenantUsers.filter((user) => user.accountStatus === "blocked").length)} description="Contas com restrição" icon={ShieldAlert} tone="rose" />
             </PageStatsRow>

@@ -201,7 +201,17 @@ const AppRoutes = () => {
     };
     document.addEventListener("pointerover", prefetchLink, { passive: true });
     document.addEventListener("focusin", prefetchLink);
+    // Topbar buttons navigate programmatically, without a corresponding <a> href.
+    // Warm utility route chunks after the first paint, never protected data.
+    const warmUtilityRoutes = window.setTimeout(() => {
+      void Promise.allSettled([
+        import("@/pages/saas/NotificationsPage"),
+        import("@/pages/saas/MovementHistoryPage"),
+        import("@/pages/saas/GlobalSearchPage"),
+      ]);
+    }, 1800);
     return () => {
+      window.clearTimeout(warmUtilityRoutes);
       document.removeEventListener("pointerover", prefetchLink);
       document.removeEventListener("focusin", prefetchLink);
     };
