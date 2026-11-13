@@ -113,6 +113,47 @@
                 : "#0b3147";
             document.documentElement.style.setProperty("--sig-initial-topbar", initialTopbar);
             document.documentElement.setAttribute("data-sigapro-cached-internal", "true");
+
+            // Chrome Paint Holding: em um reload NATIVO da mesma rota e conta,
+            // não confirmar uma primeira pintura que contenha apenas #root
+            // vazio. Aguarda o layout REAL PortalFrame (sem screenshot ou
+            // cópia de dados privados). Abre automaticamente em até 1,8s caso
+            // a sessão falhe ou um módulo nunca monte a interface.
+            // Não é aplicado a primeira visita, login, PDF nem troca de conta.
+            var navigationEntries = window.performance &&
+              typeof window.performance.getEntriesByType === "function"
+              ? window.performance.getEntriesByType("navigation") : [];
+            var nativeReload = navigationEntries[0] &&
+              navigationEntries[0].type === "reload";
+            if (nativeReload && !isFullDocumentRoute &&
+              typeof HTMLLinkElement !== "undefined" &&
+              "blocking" in HTMLLinkElement.prototype) {
+              var rawContinuity = window.sessionStorage.getItem("sigapro.refresh.continuity.v1");
+              var continuity = rawContinuity ? JSON.parse(rawContinuity) : null;
+              var currentRoute = window.location.pathname + window.location.search + window.location.hash;
+              var sameVerifiedAccount =
+                continuity &&
+                continuity.host === window.location.host &&
+                continuity.location === currentRoute &&
+                continuity.userId === String(cachedSession.id) &&
+                typeof continuity.savedAt === "number" &&
+                Date.now() - continuity.savedAt >= 0 &&
+                Date.now() - continuity.savedAt < 300000;
+
+              if (sameVerifiedAccount) {
+                var firstPaintGate = document.createElement("link");
+                firstPaintGate.id = "sigapro-native-reload-render-gate";
+                firstPaintGate.rel = "expect";
+                firstPaintGate.href = "#sigapro-authenticated-route-ready";
+                firstPaintGate.setAttribute("blocking", "render");
+                document.head.appendChild(firstPaintGate);
+                // Nunca fazer uma sessão inválida depender de renderização
+                // autenticada para exibir a página de acesso/erro.
+                window.setTimeout(function () {
+                  firstPaintGate.remove();
+                }, 1800);
+              }
+            }
           }
         } catch (error) {
           // Continuidade visual é opcional; nunca bloquear a aplicação.
