@@ -9,7 +9,7 @@ const indexUrl = origin + "/index.html";
 const sw = readFileSync(resolve(process.cwd(), "public/sigapro-sw.js"), "utf8");
 
 function appHtml(release: string) {
-  return new Response("<!doctype html><html><body><div id='root'></div>" + release + "</body></html>", {
+  return new Response('<!doctype html><html><head><meta name="sigapro-static-app-document" content="v1" /></head><body><div id="root"></div>' + release + '</body></html>', {
     status: 200,
     headers: { "content-type": "text/html; charset=utf-8" },
   });
