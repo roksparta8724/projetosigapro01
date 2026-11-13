@@ -114,13 +114,15 @@ describe("SIGAPRO F5 — HTML público preparado pelo Service Worker", () => {
       "/api/guide-payments",
       "/api/e-sign-artifact",
     ];
-    for (const path of paths) {
-      let responded = false;
-      h.handlers.get("fetch")!({
-        request: { method: "GET", mode: "cors", url: origin + path },
-        respondWith: () => { responded = true; },
-      });
-      expect(responded).toBe(false);
+    for (const path of [...paths, "/file.pdf", "/assets/index.js", "/.well-known/security.txt"]) {
+      for (const mode of ["cors", "navigate"]) {
+        let responded = false;
+        h.handlers.get("fetch")!({
+          request: { method: "GET", mode, url: origin + path },
+          respondWith: () => { responded = true; },
+        });
+        expect(responded).toBe(false);
+      }
     }
     expect(cache.size).toBe(initialEntries);
     expect([...cache.keys()]).toEqual([indexUrl]);
