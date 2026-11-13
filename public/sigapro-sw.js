@@ -125,9 +125,14 @@ self.addEventListener("fetch", (event) => {
   if (url.origin !== self.location.origin) return;
 
   if (request.mode === "navigate") {
-    // Todas as rotas SPA recebem o MESMO HTML público. Nenhum documento,
-    // processo, dado municipal, endpoint /api ou token entra neste cache.
-    event.respondWith(respondToNavigation(request, event));
+    // Endpoints, PDFs, artefatos e arquivos não são páginas SPA. Em particular,
+    // abrir uma URL /api/ em outra aba NUNCA pode servir o index.html cacheado.
+    const isAppRoute =
+      !url.pathname.startsWith("/api/") &&
+      !url.pathname.startsWith("/assets/") &&
+      !url.pathname.startsWith("/.well-known/") &&
+      !/\\.(?:pdf|zip|xlsx?|docx?|csv|png|jpe?g|svg|webp|gif|json|xml|txt|m?js|css)$/i.test(url.pathname);
+    if (isAppRoute) event.respondWith(respondToNavigation(request, event));
     return;
   }
 
