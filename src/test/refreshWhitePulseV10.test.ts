@@ -37,9 +37,11 @@ describe("SIGAPRO F5 V10: no unprotected refresh listener gaps or bright boot ca
     expect(gate).not.toContain("localStorage");
   });
 
-  it("avoids the exact pastel-green full-viewport flash only before authorized React mount", () => {
-    expect(html).toContain('data-sigapro-initial-render="true"][data-sigapro-cached-internal="true"]');
-    expect(html).toContain("background-color: #153a52 !important;");
+  it("does not paint an artificial blue full-viewport replacement canvas", () => {
+    // O fundo azul artificial era a própria tela intermediária denunciada no vídeo.
+    expect(html).not.toContain("background-color: #153a52 !important;");
+    expect(html).not.toContain("inset: 0;\n        z-index: 99999;");
+    expect(html).toContain('document.documentElement.style.setProperty("--sig-bg", initialBackground)');
     expect(html).toContain('document.documentElement.setAttribute("data-sigapro-cached-internal", "true")');
     expect(html).toContain('document.documentElement.setAttribute("data-sigapro-initial-render", "true")');
     expect(read("src/main.tsx")).toContain('document.documentElement.removeAttribute("data-sigapro-initial-render")');
@@ -47,13 +49,13 @@ describe("SIGAPRO F5 V10: no unprotected refresh listener gaps or bright boot ca
     expect(html).not.toContain("<canvas");
   });
 
-  it("retains the safe first-paint palette until an authorized real page commits", () => {
+  it("removes preboot after React commits a real app or a hidden authorization status", () => {
     const entry = read("src/main.tsx");
-    expect(entry).toContain("new MutationObserver(finishWhenRealUiPainted)");
-    expect(entry).toContain('rootElement.querySelector(".sig-app-frame, main, form, [role=\'alert\']")');
-    expect(entry).toContain('!rootElement.querySelector("[data-sigapro-route-pending]")');
+    expect(entry).toContain("new MutationObserver(finishBootstrap)");
+    expect(entry).toContain("if (!rootElement.hasChildNodes()) return;");
+    expect(entry).toContain("finishBootstrap();");
     expect(entry).toContain('document.documentElement.removeAttribute("data-sigapro-initial-render")');
-    expect(entry).toContain("readyObserver?.disconnect()");
+    expect(entry).toContain("mountedObserver?.disconnect()");
     expect(entry).not.toContain('window.requestAnimationFrame(() => {\n      document.documentElement.removeAttribute("data-sigapro-initial-render");');
   });
 
