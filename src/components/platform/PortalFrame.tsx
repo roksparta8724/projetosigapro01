@@ -33,7 +33,7 @@
   Flag,
   X,
 } from "@/components/platform/PremiumIcons";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Network } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -68,6 +68,7 @@ import { useNotifications } from "@/hooks/useNotifications";
 import { useUserMenuPreferences, type MenuPreferenceKey } from "@/hooks/useUserMenuPreferences";
 import { usePlanEntitlements } from "@/hooks/usePlanEntitlements";
 import { useLivePlatformRefresh } from "@/hooks/useLivePlatformRefresh";
+import { installSeamlessInternalRefresh } from "@/lib/seamlessInternalRefresh";
 import { getPublicAssetUrl } from "@/lib/assetUrl";
 import { formatDisplayText, humanizeRoleLabel } from "@/lib/displayText";
 import { buildProcessPath, can, canAccessMunicipalArea,
@@ -359,6 +360,20 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false, compa
     intervalMs: 20000,
     refreshOnMount: false,
   });
+
+  // V9: F5/Ctrl+R/browser Refresh update official data WITHOUT unloading the
+  // authenticated app or replacing it with a white document. Navigation API
+  // handles the browser button; keyboard handling covers older browsers.
+  // An explicit Shift+F5 remains the escape hatch for an actual asset reload.
+  const seamlessRefreshRef = useRef(refreshRemoteStore);
+  seamlessRefreshRef.current = refreshRemoteStore;
+  useEffect(() => {
+    if (focusMode || session.id === "unknown" || !session.role) return;
+    return installSeamlessInternalRefresh({
+      isAuthenticated: () => true,
+      refresh: () => seamlessRefreshRef.current(),
+    });
+  }, [focusMode, session.id, session.role]);
   const { isItemVisible } = useUserMenuPreferences();
   const planEntitlements = usePlanEntitlements();
   const { presets: markerPresets, addPreset, updatePreset, togglePresetActive, removePreset } = useMarkerPresets();
