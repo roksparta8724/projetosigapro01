@@ -51,7 +51,7 @@ describe("entrega de ativos atuais no site oficial", () => {
 
   it("não salva fallback HTML sob caminhos de bundles JavaScript ou CSS", () => {
     const safe = runInNewContext(`${worker}\nsafeAssetResponse`, {
-      self: { addEventListener: () => undefined },
+      self: { location: { origin: "https://sigapromunicipal.com.br" }, addEventListener: () => undefined },
       URL,
     }) as (req: {url:string}, resp: {ok:boolean;type:string;headers:{get:(key:string)=>string}}) => boolean;
     const response = (mime: string) => ({
@@ -69,11 +69,13 @@ describe("entrega de ativos atuais no site oficial", () => {
   });
 
   it("invalida caches de versões anteriores sem afetar dados do Neon", () => {
-    expect(worker).toContain('CACHE_VERSION = "sigapro-enterprise-v7"');
+    expect(worker).toContain('CACHE_VERSION = "sigapro-enterprise-v8"');
     expect(worker).toContain("safeAssetResponse(request, response)");
     expect(worker).toContain('type.includes("text/html")');
     expect(worker).toContain('key.startsWith("sigapro-enterprise-")');
-    expect(worker).toContain('event.respondWith(fetch(request, { cache: "no-store" }))');
+    expect(worker).toContain("event.respondWith(respondToNavigation(request, event))");
+    expect(worker).toContain("isVerifiedPublicAppDocument");
+    expect(worker).toContain("DOCUMENT_SIGNATURE");
     expect(worker).not.toContain("indexedDB");
     expect(worker).not.toContain("localStorage");
   });
