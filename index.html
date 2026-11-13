@@ -125,7 +125,14 @@
               ? window.performance.getEntriesByType("navigation") : [];
             var nativeReload = navigationEntries[0] &&
               navigationEntries[0].type === "reload";
-            if (nativeReload && !isFullDocumentRoute &&
+            // Aplicar somente às áreas com PortalFrame comprovado. PDF,
+            // assinatura pública, acesso, landing e rotas desconhecidas
+            // nunca devem ter a pintura postergada.
+            var isWorkspaceRoute =
+              path === "/prefeitura" || path.indexOf("/prefeitura/") === 0 ||
+              path === "/dashboard" || path.indexOf("/dashboard/") === 0 ||
+              path === "/master" || path.indexOf("/master/") === 0;
+            if (nativeReload && isWorkspaceRoute && !isFullDocumentRoute &&
               typeof HTMLLinkElement !== "undefined" &&
               "blocking" in HTMLLinkElement.prototype) {
               var rawContinuity = window.sessionStorage.getItem("sigapro.refresh.continuity.v1");
