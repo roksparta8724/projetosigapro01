@@ -31,7 +31,8 @@ vi.mock("@/hooks/usePlatformData", () => ({
   usePlatformData: () => ({ refreshRemoteStore: state.refresh }),
 }));
 
-import { canRefreshMountedWorkspace, SeamlessRefreshGate } from "@/components/platform/SeamlessRefreshGate";
+import { SeamlessRefreshGate } from "@/components/platform/SeamlessRefreshGate";
+import { canRefreshMountedWorkspace } from "@/lib/workspaceRefreshEligibility";
 
 beforeEach(() => {
   state.auth = { authResolved: false, isAuthenticated: false, authenticatedUserId: null };
