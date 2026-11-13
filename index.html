@@ -173,18 +173,8 @@
         background: var(--sig-initial-bg, #f5f7fb);
       }
 
-      /* Only during the empty first document frame of a verified cached
-         private route. Chrome used to paint the light "claro-verde" background
-         (#f3faf7) across the entire viewport before React mounted, causing a
-         glaring white pulse on an unavoidable native hard refresh.
-         These rules disappear immediately after the real React commit.
-         No user data, fake shell, saved DOM or loading card is rendered. */
-      html[data-sigapro-initial-render="true"][data-sigapro-cached-internal="true"],
-      html[data-sigapro-initial-render="true"][data-sigapro-cached-internal="true"] body,
-      html[data-sigapro-initial-render="true"][data-sigapro-cached-internal="true"] #root {
-        background-color: #153a52 !important;
-        background-image: none !important;
-      }
+      /* Sem fundo artificial. A rota autenticada conserva apenas sua cor de
+         tema real até a montagem do React. Nenhum canvas azul ocupa a página. */
 
       html,
       body {
@@ -215,7 +205,7 @@
         max-width: 100%;
         padding: 0;
         background: transparent;
-        color: #f3f8fd;
+        color: #0f172a;
         font-family: Inter, system-ui, sans-serif;
         pointer-events: auto;
       }
@@ -226,8 +216,8 @@
         width: 100%;
         padding: 14px 16px;
         border-radius: 14px;
-        border: 1px solid #38556c;
-        background: #102a40;
+        border: 1px solid #cbd5e1;
+        background: #ffffff;
         box-shadow: 0 10px 28px rgba(2, 14, 28, 0.22);
       }
       html[data-sigapro-document-route="true"] #sigapro-preboot-recovery {
@@ -251,11 +241,11 @@
         margin: 10px 0 0;
         font-size: 15px;
         line-height: 1.3;
-        color: #f8fcff;
+        color: #0f172a;
       }
       #sigapro-preboot-recovery p {
         margin: 12px 0 0;
-        color: #c4d7e6;
+        color: #475569;
         font-size: 12px;
         line-height: 1.5;
       }
@@ -279,8 +269,7 @@
       }
     </style>
 
-    <!-- Determinar cores reais ANTES de iniciar estilos que travariam o primeiro paint.
-         Nada de shell fictício, snapshot de DOM ou overlay cobrindo a página. -->
+    <!-- Determinar a cor real da página antes da folha global, sem fundo de substituição. -->
     <link rel="stylesheet" href="/src/index.css" />
     <link rel="stylesheet" href="/src/components/platform/ProcessIdentityPanel.css" />
     <link rel="stylesheet" href="/src/components/platform/AnalysisReadinessPanel.css" />
@@ -292,7 +281,7 @@
     <div id="root"></div>
     <div id="sigapro-preboot-recovery" role="status" aria-live="polite">
       <section>
-        <strong style="color:#93ddf5;font-size:12px;letter-spacing:.1em;text-transform:uppercase">SIGAPRO · Recuperação de conexão</strong>
+        <strong style="color:#075985;font-size:12px;letter-spacing:.1em;text-transform:uppercase">SIGAPRO · Recuperação de conexão</strong>
         <h1>Falha prolongada de conexão</h1>
         <p id="sigapro-preboot-message">Não foi possível iniciar a interface. Seus processos e documentos não são modificados por esta tentativa.</p>
         <a href="/acesso">Ir para o acesso</a>
