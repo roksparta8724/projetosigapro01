@@ -14,6 +14,7 @@ const CACHE_VERSION = "sigapro-enterprise-v8";
 const ASSET_CACHE = `${CACHE_VERSION}:assets`;
 const NAVIGATION_CACHE = `${CACHE_VERSION}:public-html`;
 const DOCUMENT_URL = new URL("/index.html", self.location.origin).href;
+const DOCUMENT_SIGNATURE = 'name="sigapro-static-app-document"';
 
 // Durante a ativação do novo SW, preservar a última geração dos bundles
 // versionados: abas ainda abertas podem solicitar um chunk da release anterior.
@@ -28,11 +29,23 @@ function isPublicAppDocument(response) {
   return (response.headers.get("content-type") || "").toLowerCase().includes("text/html");
 }
 
+async function isVerifiedPublicAppDocument(response) {
+  if (!isPublicAppDocument(response)) return false;
+  try {
+    // Confere o marcador compilado e a raiz React. Rejeita páginas de login
+    // Vercel, proxies HTML e qualquer resposta personalizada.
+    const html = await response.clone().text();
+    return html.includes(DOCUMENT_SIGNATURE) && html.includes('id="root"');
+  } catch {
+    return false;
+  }
+}
+
 async function fetchCurrentPublicDocument() {
   // Não envia cookies ou Authorization: o HTML não deve mudar por identidade.
   return fetch(new Request(DOCUMENT_URL, {
     method: "GET",
-    credentials: "omit",
+    credentials: "same-origin",
     cache: "no-store",
     redirect: "follow",
   }));
@@ -41,7 +54,7 @@ async function fetchCurrentPublicDocument() {
 async function updatePublicDocumentCache() {
   try {
     const response = await fetchCurrentPublicDocument();
-    if (!isPublicAppDocument(response)) return;
+    if (!(await isVerifiedPublicAppDocument(response))) return;
     const cache = await caches.open(NAVIGATION_CACHE);
     await cache.put(DOCUMENT_URL, response.clone());
   } catch {
@@ -111,7 +124,7 @@ async function respondToNavigation(request, event) {
   // Primeira visita, SW desativado ou cache inválido: buscar o documento atual.
   // Nunca fazer fallback para HTML de login personalizado ou APIs.
   const response = await fetch(request, { cache: "no-store" });
-  if (isPublicAppDocument(response)) {
+  if (await isVerifiedPublicAppDocument(response)) {
     await cache.put(DOCUMENT_URL, response.clone());
   }
   return response;
