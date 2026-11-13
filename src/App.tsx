@@ -11,10 +11,10 @@ import { MunicipalityProvider } from "@/hooks/useMunicipality";
 import { TenantProvider } from "@/hooks/useTenant";
 import { PermissionRoute } from "@/components/platform/PermissionRoute";
 import { PlanModuleRoute } from "@/components/platform/PlanModuleRoute";
-import { AcessoPage } from "@/pages/saas/AcessoPage";
-import { LandingPage } from "@/pages/saas/LandingPage";
-import { RecuperarSenhaPage } from "@/pages/saas/RecuperarSenhaPage";
-import { CriarContaPage } from "@/pages/saas/CriarContaPage";
+
+
+
+
 import { AppErrorBoundary } from "@/components/platform/AppErrorBoundary";
 import { SecureRoutePending } from "@/components/platform/SecureRoutePending";
 import { SeamlessRefreshGate } from "@/components/platform/SeamlessRefreshGate";
@@ -53,9 +53,29 @@ import { URBAN_LEGISLATION_VIEW_ROLES } from "@/lib/urbanLegislationAccess";
 import { NotFoundPage } from "@/pages/saas/NotFoundPage";
 
 
-import { PublicPlansPage } from "@/pages/saas/PublicPlansPage";
-import { PublicSignatureVerificationPage } from "@/pages/saas/PublicSignatureVerificationPage";
 
+
+
+
+// Páginas de acesso/marketing não pertencem ao caminho crítico de um F5
+// em Prefeitura, Dashboard ou Mesa Técnica. Mantê-las no bundle inicial
+// atrasava o primeiro quadro do módulo real em cada recarga completa.
+const AcessoPage = lazy(() => import("@/pages/saas/AcessoPage").then((module) => ({ default: module.AcessoPage })));
+const LandingPage = lazy(() => import("@/pages/saas/LandingPage").then((module) => ({ default: module.LandingPage })));
+const RecuperarSenhaPage = lazy(() => import("@/pages/saas/RecuperarSenhaPage").then((module) => ({ default: module.RecuperarSenhaPage })));
+const CriarContaPage = lazy(() => import("@/pages/saas/CriarContaPage").then((module) => ({ default: module.CriarContaPage })));
+const PublicPlansPage = lazy(() => import("@/pages/saas/PublicPlansPage").then((module) => ({ default: module.PublicPlansPage })));
+const PublicSignatureVerificationPage = lazy(() => import("@/pages/saas/PublicSignatureVerificationPage").then((module) => ({ default: module.PublicSignatureVerificationPage })));
+
+function preloadCurrentPublicRoute(pathname: string): Promise<unknown> | null {
+  if (pathname === "/" || pathname === "/inicio" || pathname === "/apresentacao") return import("@/pages/saas/LandingPage");
+  if (pathname === "/acesso") return import("@/pages/saas/AcessoPage");
+  if (pathname === "/criar-conta") return import("@/pages/saas/CriarContaPage");
+  if (pathname === "/recuperar-senha") return import("@/pages/saas/RecuperarSenhaPage");
+  if (pathname === "/planos-publicos") return import("@/pages/saas/PublicPlansPage");
+  if (pathname === "/verificar-assinatura" || pathname.startsWith("/v/")) return import("@/pages/saas/PublicSignatureVerificationPage");
+  return null;
+}
 
 // Lazy import isolates heavy analytics, PDFs and operational pages from /acesso.
 // Component identity stays stable: never define lazy routes inside AppRoutes.
@@ -121,6 +141,7 @@ if (typeof window !== "undefined") {
   // Kick off route download during App module evaluation, before auth effects
   // begin. Browser module caching deduplicates the subsequent React.lazy import.
   void preloadCurrentInternalRoute(window.location.pathname)?.catch(() => undefined);
+  void preloadCurrentPublicRoute(window.location.pathname)?.catch(() => undefined);
 }
 
 const App = () => {
