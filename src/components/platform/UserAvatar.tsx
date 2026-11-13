@@ -11,6 +11,10 @@ interface UserAvatarProps {
   imageUrl?: string | null;
   /** Current authenticated account for safe reuse across routed pages. */
   authenticatedOwnerId?: string | null;
+  /** Keep last verified bitmap during same-account remote refresh (header only). */
+  preservePhotoDuringRefresh?: boolean;
+  /** Only the verified current account may explicitly confirm photo removal. */
+  photoRemovalConfirmed?: boolean;
   size?: UserAvatarSize;
   className?: string;
   imageClassName?: string;
@@ -129,6 +133,9 @@ export function UserAvatar(props: UserAvatarProps) {
 function UserAvatarPresentation({
   name,
   imageUrl,
+  authenticatedOwnerId,
+  preservePhotoDuringRefresh = false,
+  photoRemovalConfirmed = false,
   size = "md",
   className,
   imageClassName,
@@ -142,7 +149,6 @@ function UserAvatarPresentation({
   const [naturalSize, setNaturalSize] = useState(() => readCachedAvatarDimensions(imageUrl));
   const [recoveryImageUrl, setRecoveryImageUrl] = useState("");
   const attemptedRecoveryRef = useRef(new Set<string>());
-  const emptyClearTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     attemptedRecoveryRef.current.clear();
@@ -150,26 +156,21 @@ function UserAvatarPresentation({
   }, [imageUrl]);
 
   useEffect(() => {
-    if (emptyClearTimerRef.current) {
-      window.clearTimeout(emptyClearTimerRef.current);
-      emptyClearTimerRef.current = null;
-    }
-
     if (!imageUrl) {
-      // No avatar: return to initials. Brief hydration gaps are tolerated.
-      // This also covers null/undefined after deleting a previously saved
-      // photo, not only the empty string.
-      emptyClearTimerRef.current = window.setTimeout(() => {
-        setStableImageUrl("");
-        setFailedImageUrl("");
-        emptyClearTimerRef.current = null;
-      }, 1200);
-      return () => {
-        if (emptyClearTimerRef.current) {
-          window.clearTimeout(emptyClearTimerRef.current);
-          emptyClearTimerRef.current = null;
-        }
-      };
+      // The server can momentarily return a partial profile during background
+      // refresh. 1200ms was too short: after that threshold the header changed
+      // from the user's photo to initials, then back to the photo. Preserve the
+      // LAST VERIFIED bitmap for the SAME authenticated owner until the store
+      // confirms a genuine removal. Account changes still remount via the key.
+      const stableAccount = Boolean(authenticatedOwnerId && authenticatedOwnerId !== "unknown");
+      if (preservePhotoDuringRefresh && stableAccount && !photoRemovalConfirmed) {
+        return;
+      }
+
+      setStableImageUrl("");
+      setFailedImageUrl("");
+      setRecoveryImageUrl("");
+      return;
     }
 
     // A refresh may temporarily return no profile while the remote store is
@@ -209,15 +210,7 @@ function UserAvatarPresentation({
     return () => {
       cancelled = true;
     };
-  }, [imageUrl, stableImageUrl]);
-
-  useEffect(() => {
-    return () => {
-      if (emptyClearTimerRef.current) {
-        window.clearTimeout(emptyClearTimerRef.current);
-      }
-    };
-  }, []);
+  }, [imageUrl, stableImageUrl, authenticatedOwnerId, preservePhotoDuringRefresh, photoRemovalConfirmed]);
 
   const resolvedImageUrl = recoveryImageUrl || stableImageUrl || imageUrl || "";
   const showImage = Boolean(resolvedImageUrl) && failedImageUrl !== resolvedImageUrl;
