@@ -108,7 +108,7 @@ export function FinanceDeskPage() {
   const tenantSettings = institutionSettingsCompat ?? getInstitutionSettings(effectiveScopeId ?? session.tenantId);
   const issFeeConfigured = isIssFeeConfigured(tenantSettings);
   const finalFeeConfigured = isFinalApprovalFeeConfigured(tenantSettings);
-  const [section, setSection] = useState<FinanceSection>("visao-geral");
+  const [section, setSection] = useState<FinanceSection>("guias");
   const [feeStatus, setFeeStatus] = useState("");
   const [workflowStatus, setWorkflowStatus] = useState("");
   const [constructionGuideStatus, setConstructionGuideStatus] = useState("");
@@ -529,7 +529,7 @@ export function FinanceDeskPage() {
 
   return (
     <PortalFrame eyebrow="FINANCEIRO MUNICIPAL" title="Controle financeiro, guias e arrecadação">
-      <PageShell>
+      <PageShell className={section === "visao-geral" ? "sig-module-summary-active" : undefined}>
         <PageHeader
           eyebrow="Operação financeira"
           title="Guias, pagamentos e conciliação"

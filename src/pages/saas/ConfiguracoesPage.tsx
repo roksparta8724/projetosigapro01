@@ -732,7 +732,7 @@ export function ConfiguracoesPage({ legislationWorkspace = false }: { legislatio
     | "storage"
     | "platform"
   >(() => {
-    if (typeof window === "undefined") return "overview";
+    if (typeof window === "undefined") return "branding";
     const requested = new URLSearchParams(window.location.search).get("secao");
     const allowed = new Set([
       "overview",
@@ -760,7 +760,7 @@ export function ConfiguracoesPage({ legislationWorkspace = false }: { legislatio
           | "advanced"
           | "storage"
           | "platform")
-      : "overview";
+      : "branding";
   });
   // A arrecadação tem uma única tela administrativa. URLs antigas de
   // Configurações > Arrecadação redirecionam para o novo ponto de entrada.
