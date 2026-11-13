@@ -134,7 +134,9 @@ describe("SIGAPRO F5 — HTML público preparado pelo Service Worker", () => {
           request: { method: "GET", mode, url: origin + path },
           respondWith: () => { responded = true; },
         });
-        expect(responded, path + " / " + mode).toBe(false);
+        // Bundles públicos devem usar cache-first em fetch normal; acesso
+        // direto na barra de endereços não pode virar HTML de aplicação.
+        expect(responded, path + " / " + mode).toBe(path.startsWith("/assets/") && mode === "cors");
       }
     }
     expect([...cache.keys()]).toEqual([indexUrl]);
