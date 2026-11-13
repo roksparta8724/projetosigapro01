@@ -82,9 +82,13 @@ describe("dashboard nav must not redirect away from Visão geral", () => {
     const dashboard = read("src/pages/saas/DashboardHomePage.tsx");
     expect(dashboard).not.toContain("<InternalTabs");
     expect(dashboard).toContain("<InternalSectionNav");
-    expect(dashboard).toContain('section === "visao-geral" && showPlanCapacity && !isMaster ? renderPlanCapacity() : null');
-    expect(dashboard.indexOf("showPlanCapacity && !isMaster ? renderPlanCapacity()"))
-      .toBeLessThan(dashboard.indexOf("<InternalSectionNav"));
+    // O resumo não deve colocar o cartão de plano antes da fila operacional.
+    const overview = dashboard.split("const renderOverview = () => (")[1]?.split("const renderProcesses = () => (")[0] ?? "";
+    expect(overview).toContain("{renderMunicipalWorkQueue()}");
+    expect(overview).toContain("{showPlanCapacity && !isMaster ? renderPlanCapacity() : null}");
+    expect(overview.indexOf("{renderMunicipalWorkQueue()}"))
+      .toBeLessThan(overview.indexOf("{showPlanCapacity && !isMaster ? renderPlanCapacity() : null}"));
+    expect(dashboard).not.toContain('section === "visao-geral" && showPlanCapacity && !isMaster ? renderPlanCapacity() : null');
   });
 
   it("renders Visão geral last in Master (not Dashboard)", () => {
