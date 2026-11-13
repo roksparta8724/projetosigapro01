@@ -8,7 +8,7 @@
  * F5 / Ctrl+R / Cmd+R in all browsers that permit preventDefault.
  *
  * No HTML snapshots, no fake shell and no stale protected DOM storage.
- * Only install from an already mounted, authenticated PortalFrame.
+ * Install from the stable authenticated router gate, above lazy pages.
  * Shift+F5 / Ctrl+Shift+R always retain their native hard-reload meaning.
  *
  * Source: https://developer.mozilla.org/en-US/docs/Web/API/NavigateEvent/intercept
@@ -45,7 +45,6 @@ export function installSeamlessInternalRefresh(options: SeamlessRefreshOptions):
   const shouldHandle = () =>
     !disposed &&
     options.isAuthenticated() &&
-    document.visibilityState !== "hidden" &&
     !/\/processos\/[^/]+\/documentos\/[^/]+\/(visualizar|analisar)$/.test(window.location.pathname);
 
   const refreshInPlace = async () => {
@@ -69,22 +68,43 @@ export function installSeamlessInternalRefresh(options: SeamlessRefreshOptions):
       event.navigationType !== "reload" ||
       !event.canIntercept ||
       !event.intercept ||
-      // A programmatic location.reload() must still be allowed when the
-      // application deliberately requires a true reload after a code update.
-      event.userInitiated === false ||
-      event.destination?.url !== window.location.href
+      // Never suppress an intentional programmatic hard reload used by app
+      // recovery or a version update. Browser Reload/F5 is user initiated.
+      event.userInitiated === false
     ) return;
 
-    event.intercept({
-      focusReset: "manual",
-      scroll: "manual",
-      handler: refreshInPlace,
-    });
+    // The Navigation API uses a serialized URL; compare normalized URLs
+    // instead of a strict string (which can vary in encoding/hash notation).
+    let sameDocument = false;
+    try {
+      const to = new URL(event.destination?.url || "", window.location.href);
+      const from = new URL(window.location.href);
+      sameDocument =
+        to.origin === from.origin &&
+        to.pathname === from.pathname &&
+        to.search === from.search &&
+        to.hash === from.hash;
+    } catch {
+      return;
+    }
+    if (!sameDocument) return;
+
+    try {
+      event.intercept({
+        focusReset: "manual",
+        scroll: "manual",
+        handler: refreshInPlace,
+      });
+    } catch {
+      // A browser may decline interception even when its capability flag is
+      // true. Do not cancel native behavior or compromise the application.
+    }
   };
 
   const onKeyDown = (event: KeyboardEvent) => {
     if (
       !shouldHandle() ||
+      document.visibilityState === "hidden" ||
       event.repeat ||
       event.defaultPrevented ||
       event.shiftKey ||

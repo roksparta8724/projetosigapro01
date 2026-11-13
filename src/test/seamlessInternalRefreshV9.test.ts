@@ -95,12 +95,16 @@ describe("SIGAPRO V9: browser refresh without blank document", () => {
   it("does not intercept document-viewing routes or reveal data from cache", () => {
     const code = source("src/lib/seamlessInternalRefresh.ts");
     const frame = source("src/components/platform/PortalFrame.tsx");
+    const gate = source("src/components/platform/SeamlessRefreshGate.tsx");
+    const app = source("src/App.tsx");
     expect(code).toContain("documentos");
     expect(code).toContain("(visualizar|analisar)$");
     expect(code).toContain('event.navigationType !== "reload"');
     expect(code).toContain('event.userInitiated === false');
-    expect(frame).toContain("installSeamlessInternalRefresh({");
-    expect(frame).toContain('session.id === "unknown"');
+    expect(gate).toContain("installSeamlessInternalRefresh({");
+    expect(gate).toContain('session.id !== "unknown"');
+    expect(app).toContain("<SeamlessRefreshGate />");
+    expect(frame).not.toContain("installSeamlessInternalRefresh({");
     expect(code).not.toContain("sessionStorage");
     expect(code).not.toContain("innerHTML");
     expect(code).not.toContain("setTimeout");

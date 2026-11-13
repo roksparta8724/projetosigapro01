@@ -173,6 +173,19 @@
         background: var(--sig-initial-bg, #f5f7fb);
       }
 
+      /* Only during the empty first document frame of a verified cached
+         private route. Chrome used to paint the light "claro-verde" background
+         (#f3faf7) across the entire viewport before React mounted, causing a
+         glaring white pulse on an unavoidable native hard refresh.
+         These rules disappear immediately after the real React commit.
+         No user data, fake shell, saved DOM or loading card is rendered. */
+      html[data-sigapro-initial-render="true"][data-sigapro-cached-internal="true"],
+      html[data-sigapro-initial-render="true"][data-sigapro-cached-internal="true"] body,
+      html[data-sigapro-initial-render="true"][data-sigapro-cached-internal="true"] #root {
+        background-color: #153a52 !important;
+        background-image: none !important;
+      }
+
       html,
       body {
         min-height: 100vh;

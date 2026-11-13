@@ -17,6 +17,7 @@ import { RecuperarSenhaPage } from "@/pages/saas/RecuperarSenhaPage";
 import { CriarContaPage } from "@/pages/saas/CriarContaPage";
 import { AppErrorBoundary } from "@/components/platform/AppErrorBoundary";
 import { SecureRoutePending } from "@/components/platform/SecureRoutePending";
+import { SeamlessRefreshGate } from "@/components/platform/SeamlessRefreshGate";
 import { TenantNotFoundPage } from "@/pages/saas/TenantNotFoundPage";
 import { shouldShowPublicLanding } from "@/lib/tenant";
 
@@ -133,6 +134,8 @@ const App = () => {
                   <Toaster />
                   <Sonner />
                   <BrowserRouter>
+                    {/* Persistent, auth-gated F5 listener: outside lazy route trees. */}
+                    <SeamlessRefreshGate />
                     <AppErrorBoundary>
                       <AppRoutes />
                     </AppErrorBoundary>
