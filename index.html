@@ -17,9 +17,6 @@
     <link rel="shortcut icon" href="%BASE_URL%favicon-sigapro-v7.svg?v=7" />
     <link rel="apple-touch-icon" sizes="256x256" href="%BASE_URL%favicon.png?v=3" />
     <link rel="manifest" href="%BASE_URL%site.webmanifest?v=7" />
-    <link rel="stylesheet" href="/src/index.css" />
-    <link rel="stylesheet" href="/src/components/platform/ProcessIdentityPanel.css" />
-    <link rel="stylesheet" href="/src/components/platform/AnalysisReadinessPanel.css" />
     <link rel="preload" as="image" href="%BASE_URL%sigapro-logo.png" fetchpriority="high" />
 
     <meta property="og:type" content="website" />
@@ -47,7 +44,7 @@
         var authPaths = ["/acesso", "/criar-conta", "/recuperar-senha"];
         var isFullDocumentRoute =
           /\/processos\/[^/]+\/documentos\/[^/]+\/(visualizar|analisar)$/.test(path);
-        var initialBackground = isFullDocumentRoute ? "#2b3037" : "#f5f7fb";
+        var initialBackground = isFullDocumentRoute ? "#2b3037" : "#e8f0f7";
 
         if (isFullDocumentRoute) {
           initialBackground = "#2b3037";
@@ -75,11 +72,14 @@
               initialBackground = effectiveTheme.background.trim();
             }
           } catch (error) {
-            initialBackground = "#f5f7fb";
+            initialBackground = "#e8f0f7";
           }
         }
 
+        // O CSS de base define --sig-bg como branco. Alinhar as duas variáveis
+        // antes do carregamento do CSS evita uma tela toda branca ao atualizar.
         document.documentElement.style.setProperty("--sig-initial-bg", initialBackground);
+        document.documentElement.style.setProperty("--sig-bg", initialBackground);
 
         // Em uma rota interna já autenticada, preserve também a faixa visual do
         // topbar enquanto o bundle React executa. Isto não é um loading/shell:
@@ -266,7 +266,12 @@
       }
     </style>
 
-    <!-- O fallback estático já protege o primeiro paint, sem bloquear a apresentação. -->
+    <!-- Determinar cores reais ANTES de iniciar estilos que travariam o primeiro paint.
+         Nada de shell fictício, snapshot de DOM ou overlay cobrindo a página. -->
+    <link rel="stylesheet" href="/src/index.css" />
+    <link rel="stylesheet" href="/src/components/platform/ProcessIdentityPanel.css" />
+    <link rel="stylesheet" href="/src/components/platform/AnalysisReadinessPanel.css" />
+
     <script type="module" src="/src/main.tsx" fetchpriority="high"></script>
   </head>
 

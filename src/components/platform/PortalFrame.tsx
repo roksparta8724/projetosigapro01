@@ -1023,6 +1023,8 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false, compa
     };
 
     try {
+      document.documentElement.style.setProperty("--sig-initial-bg", pageBackground);
+      document.documentElement.style.setProperty("--sig-bg", pageBackground);
       window.localStorage.setItem("sigapro.last-page-background.v2", pageBackground);
       window.localStorage.setItem("sigapro.effective-theme.v2", JSON.stringify(effectiveTheme));
       setEffectiveThemeCache(effectiveTheme);
@@ -1037,10 +1039,10 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false, compa
     if (typeof window === "undefined") return;
 
     try {
-      document.documentElement.style.setProperty(
-        "--sig-initial-bg",
-        normalizedTheme?.background || defaultSigaproThemePreset.background || "#f3faf7",
-      );
+      const updatedBackground =
+        normalizedTheme?.background || defaultSigaproThemePreset.background || "#f3faf7";
+      document.documentElement.style.setProperty("--sig-initial-bg", updatedBackground);
+      document.documentElement.style.setProperty("--sig-bg", updatedBackground);
       if (normalizedTheme?.primary || normalizedTheme?.accent || normalizedTheme?.background) {
         window.localStorage.setItem("sigapro-layout-theme.v2", JSON.stringify(normalizedTheme));
       } else {

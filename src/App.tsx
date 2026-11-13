@@ -91,6 +91,35 @@ const ClientePortalPage = lazy(() => import("@/pages/saas/ClientePortalPage").th
 const MasterPlansPage = lazy(() => import("@/pages/saas/MasterPlansPage").then((module) => ({ default: module.MasterPlansPage })));
 const AiAssistantPage = lazy(() => import("@/pages/saas/AiAssistantPage").then((module) => ({ default: module.AiAssistantPage })));
 
+// Eagerly request only the current private route chunk, in parallel with the
+// authenticated bootstrap. No protected React component is mounted by preload.
+// It prevents a second lazy download gap after the session has been resolved.
+function preloadCurrentInternalRoute(pathname: string): Promise<unknown> | null {
+  if (pathname.startsWith("/dashboard")) return import("@/pages/saas/DashboardHomePage");
+  if (pathname.startsWith("/master/planos")) return import("@/pages/saas/MasterPlansPage");
+  if (pathname.startsWith("/master")) return import("@/pages/saas/MasterAdminPage");
+  if (pathname.startsWith("/prefeitura/analise")) return import("@/pages/saas/AnalystDeskPage");
+  if (pathname.startsWith("/prefeitura/protocolos/novo")) return import("@/pages/saas/ProtocolarProjetoPage");
+  if (pathname.startsWith("/prefeitura/protocolos")) return import("@/pages/saas/ProtocolDeskPage");
+  if (pathname.startsWith("/prefeitura/financeiro/protocolos")) return import("@/pages/saas/FinanceProtocolsPage");
+  if (pathname.startsWith("/prefeitura/financeiro/iptu")) return import("@/pages/saas/IptuDeskPage");
+  if (pathname.startsWith("/prefeitura/financeiro")) return import("@/pages/saas/FinanceDeskPage");
+  if (pathname.startsWith("/prefeitura/organograma")) return import("@/pages/saas/MunicipalOrganizationPage");
+  if (pathname.startsWith("/prefeitura/processos")) return import("@/pages/saas/MunicipalProcessRegistryPage");
+  if (pathname.startsWith("/prefeitura")) return import("@/pages/saas/TenantAdminPage");
+  if (pathname.startsWith("/processos/")) return import("@/pages/saas/ProcessDetailPage");
+  if (pathname.startsWith("/externo")) return import("@/pages/saas/ExternalPortalPage");
+  if (pathname.startsWith("/configuracoes")) return import("@/pages/saas/ConfiguracoesPage");
+  if (pathname.startsWith("/perfil")) return import("@/pages/saas/PerfilPage");
+  return null;
+}
+
+if (typeof window !== "undefined") {
+  // Kick off route download during App module evaluation, before auth effects
+  // begin. Browser module caching deduplicates the subsequent React.lazy import.
+  void preloadCurrentInternalRoute(window.location.pathname)?.catch(() => undefined);
+}
+
 const App = () => {
   return (
     <AppErrorBoundary>
