@@ -17,6 +17,7 @@ import { RecuperarSenhaPage } from "@/pages/saas/RecuperarSenhaPage";
 import { CriarContaPage } from "@/pages/saas/CriarContaPage";
 import { AppErrorBoundary } from "@/components/platform/AppErrorBoundary";
 import { SecureRoutePending } from "@/components/platform/SecureRoutePending";
+import { SeamlessRefreshGate } from "@/components/platform/SeamlessRefreshGate";
 import { TenantNotFoundPage } from "@/pages/saas/TenantNotFoundPage";
 import { shouldShowPublicLanding } from "@/lib/tenant";
 
@@ -105,6 +106,7 @@ const App = () => {
                   <Sonner />
                   <BrowserRouter>
                     <AppErrorBoundary>
+                      <SeamlessRefreshGate />
                       <AppRoutes />
                     </AppErrorBoundary>
                   </BrowserRouter>
@@ -155,7 +157,7 @@ const AppRoutes = () => {
 
   // Nunca renderizar fallback full-screen no root: as rotas reais permanecem montadas no refresh.
   return (
-    <Suspense fallback={<SecureRoutePending title="Carregando a página solicitada" detail="O módulo está sendo preparado. Você pode continuar por esta rota quando o carregamento terminar." />}>
+    <Suspense fallback={<SecureRoutePending surface="route" title="Abrindo módulo do SIGAPRO" detail="Aguardando validação da página solicitada." />}>
       <Routes>
         <Route
           path="/"
