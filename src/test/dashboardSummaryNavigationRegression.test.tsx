@@ -82,12 +82,14 @@ describe("dashboard nav must not redirect away from Visão geral", () => {
     const dashboard = read("src/pages/saas/DashboardHomePage.tsx");
     expect(dashboard).not.toContain("<InternalTabs");
     expect(dashboard).toContain("<InternalSectionNav");
-    // O resumo não deve colocar o cartão de plano antes da fila operacional.
+    // Operação municipal vem na primeira dobra da página, antes do hero;
+    // não deve duplicar filas dentro do resumo nem esconder o plano.
     const overview = dashboard.split("const renderOverview = () => (")[1]?.split("const renderProcesses = () => (")[0] ?? "";
-    expect(overview).toContain("{renderMunicipalWorkQueue()}");
+    const queueFirst = '{section === "visao-geral" ? renderMunicipalWorkQueue() : null}';
+    expect(dashboard).toContain(queueFirst);
+    expect(dashboard.indexOf(queueFirst)).toBeLessThan(dashboard.indexOf('data-dashboard-hero="compact-v6"'));
+    expect(overview).not.toContain("{renderMunicipalWorkQueue()}");
     expect(overview).toContain("{showPlanCapacity && !isMaster ? renderPlanCapacity() : null}");
-    expect(overview.indexOf("{renderMunicipalWorkQueue()}"))
-      .toBeLessThan(overview.indexOf("{showPlanCapacity && !isMaster ? renderPlanCapacity() : null}"));
     expect(dashboard).not.toContain('section === "visao-geral" && showPlanCapacity && !isMaster ? renderPlanCapacity() : null');
   });
 

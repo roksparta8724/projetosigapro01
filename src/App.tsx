@@ -1,5 +1,5 @@
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
-import { lazy, Suspense, useLayoutEffect } from "react";
+import { lazy, Suspense, useEffect, useLayoutEffect } from "react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -134,6 +134,9 @@ function preloadCurrentInternalRoute(pathname: string): Promise<unknown> | null 
   if (pathname.startsWith("/externo")) return import("@/pages/saas/ExternalPortalPage");
   if (pathname.startsWith("/configuracoes")) return import("@/pages/saas/ConfiguracoesPage");
   if (pathname.startsWith("/perfil")) return import("@/pages/saas/PerfilPage");
+  if (pathname.startsWith("/notificacoes")) return import("@/pages/saas/NotificationsPage");
+  if (pathname.startsWith("/historico")) return import("@/pages/saas/MovementHistoryPage");
+  if (pathname.startsWith("/buscar")) return import("@/pages/saas/GlobalSearchPage");
   return null;
 }
 
@@ -185,6 +188,33 @@ const AppRoutes = () => {
     document.documentElement.style.zoom = "1";
     document.body.style.zoom = "1";
     document.documentElement.dataset.pageZoom = "100";
+  }, []);
+
+  useEffect(() => {
+    // Navigation-prefetch avoids a blank Suspense window while switching to a lazy module.
+    // Only JavaScript chunks are requested; no protected data or auth decision is cached.
+    const prefetchLink = (event: Event) => {
+      if (!(event.target instanceof Element)) return;
+      const anchor = event.target.closest("a[href]");
+      if (!(anchor instanceof HTMLAnchorElement) || anchor.origin !== window.location.origin) return;
+      void preloadCurrentInternalRoute(anchor.pathname)?.catch(() => undefined);
+    };
+    document.addEventListener("pointerover", prefetchLink, { passive: true });
+    document.addEventListener("focusin", prefetchLink);
+    // Topbar buttons navigate programmatically, without a corresponding <a> href.
+    // Warm utility route chunks after the first paint, never protected data.
+    const warmUtilityRoutes = window.setTimeout(() => {
+      void Promise.allSettled([
+        import("@/pages/saas/NotificationsPage"),
+        import("@/pages/saas/MovementHistoryPage"),
+        import("@/pages/saas/GlobalSearchPage"),
+      ]);
+    }, 1800);
+    return () => {
+      window.clearTimeout(warmUtilityRoutes);
+      document.removeEventListener("pointerover", prefetchLink);
+      document.removeEventListener("focusin", prefetchLink);
+    };
   }, []);
   const isPublicEntryPath =
     pathname === "/" ||

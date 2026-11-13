@@ -889,7 +889,6 @@ export function DashboardHomePage() {
   const renderOverview = () => (
     <>
       {showPlanCapacity && isMaster ? renderPlanCapacity() : null}
-      {renderMunicipalWorkQueue()}
       {showPlanCapacity && !isMaster ? renderPlanCapacity() : null}
       <div data-sigapro-overview-strip="compact" aria-label="Panorama estratégico"
         className="grid min-w-0 gap-2 sm:grid-cols-2 xl:grid-cols-4">
@@ -1238,6 +1237,7 @@ export function DashboardHomePage() {
   return (
     <PortalFrame eyebrow="DASHBOARD" title="Resumo institucional" compactHeader>
       <PageShell>
+        {section === "visao-geral" ? renderMunicipalWorkQueue() : null}
         <section
           data-dashboard-hero="compact-v6"
           aria-label="Painel executivo do Dashboard"
