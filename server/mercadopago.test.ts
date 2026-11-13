@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { createMercadoPagoGuideBoleto } from "./mercadopago";
 
 const line = "23793388096060157364540663333335168400000300000";
-const barcode = "23795168400000300003388060157364506333333510";
+const barcode = "23791684000003000003388060601573644066333333";
 
 function successPayload(complete = true) {
   return {

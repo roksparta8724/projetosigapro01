@@ -1074,12 +1074,12 @@ export function MasterPlansPage() {
       storageMeta = { pdfUrl: uploaded.publicUrl, objectKey: uploaded.objectKey };
       setRemoteError("");
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Falha ao enviar o PDF para o R2.";
+      const message = error instanceof Error ? error.message : "Falha ao armazenar o PDF no repositório SIGAPRO.";
       setRemoteError(message);
     }
 
     await handleSaveCommercialMaterial(storageMeta);
-    setStatusMessage(storageMeta.pdfUrl ? "PDF gerado, enviado ao R2 e salvo no historico comercial." : "PDF gerado e salvo; envio ao R2 ficou pendente.");
+    setStatusMessage(storageMeta.pdfUrl ? "PDF gerado, arquivado no SIGAPRO e salvo no histórico comercial." : "PDF gerado e salvo; arquivamento no SIGAPRO pendente.");
   };
 
   const renderPlanCard = (rawPlan: PlanItem, editable = true) => {
@@ -1087,23 +1087,23 @@ export function MasterPlansPage() {
     const included = plan.featuresIncluded.length > 0 ? plan.featuresIncluded : ["Benefícios configuráveis pelo ambiente master."];
 
     return (
-      <article key={plan.id} className="sig-dark-panel flex h-full min-w-0 flex-col overflow-hidden rounded-[26px] border border-slate-200 bg-white p-5 shadow-[0_14px_32px_rgba(15,23,42,0.07)]">
+      <article key={plan.id} data-master-plan-card="true" className="sig-dark-panel flex h-full min-w-0 max-w-full flex-col overflow-hidden rounded-[26px] border border-slate-200 bg-white p-4 shadow-[0_14px_32px_rgba(15,23,42,0.07)] [overflow-wrap:anywhere] sm:p-5">
         <div className="flex min-w-0 items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <p className="sig-fit-title text-xl font-semibold text-slate-950" title={plan.name}>{plan.name}</p>
+              <p className="sig-fit-title max-w-full break-words text-xl font-semibold text-slate-950 [overflow-wrap:anywhere]" title={plan.name}>{plan.name}</p>
               {plan.badge ? <Badge className="sig-plan-dark-badge rounded-full bg-slate-950 px-3 py-1 !text-white hover:bg-slate-950">{plan.badge}</Badge> : null}
             </div>
             <p className="mt-1 sig-fit-copy text-sm leading-6 text-slate-500" title={plan.subtitle}>{plan.subtitle}</p>
           </div>
-          <Badge className={cn("rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em]", getPlanTone(plan))}>
+          <Badge data-master-plan-status={plan.isActive ? "active" : "inactive"} className={cn("max-w-full shrink-0 rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em]", getPlanTone(plan))}>
             {plan.isActive ? "Ativo" : "Inativo"}
           </Badge>
         </div>
 
-        <div className="mt-5 rounded-[22px] border border-slate-200 bg-slate-50 p-4">
+        <div data-master-plan-price-box="true" className="mt-5 min-w-0 rounded-[22px] border border-slate-200 bg-slate-50 p-4">
           <p className="text-[11px] uppercase tracking-[0.14em] text-slate-500">{plan.accountLevel}</p>
-          <p className="mt-2 text-3xl font-semibold tracking-[-0.04em] text-slate-950">{formatCurrency(plan.price)}</p>
+          <p className="mt-2 max-w-full break-words text-2xl font-semibold tracking-[-0.04em] text-slate-950 [overflow-wrap:anywhere] sm:text-3xl">{formatCurrency(plan.price)}</p>
           <p className="mt-1 text-sm text-slate-500">{billingLabels[plan.billingCycle]}</p>
         </div>
 
@@ -1118,7 +1118,7 @@ export function MasterPlansPage() {
           ))}
         </div>
 
-        <div className="mt-5 grid gap-2 rounded-[20px] border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600 sm:grid-cols-2">
+        <div data-master-plan-limits="true" className="mt-5 grid min-w-0 grid-cols-1 gap-2 rounded-[20px] border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600 [overflow-wrap:anywhere] sm:grid-cols-2">
           <span>Usuários: {plan.maxUsers ?? "Ilimitado"}</span>
           <span>Processos: {plan.maxProcesses ?? "Ilimitado"}</span>
           <span>Órgãos: {plan.maxDepartments ?? "Ilimitado"}</span>
@@ -1147,7 +1147,7 @@ export function MasterPlansPage() {
 
   return (
     <PortalFrame eyebrow="Administrador Geral" title="Planos e níveis de conta">
-      <PageShell>
+      <PageShell className="sig-master-plans-page min-w-0">
         <PageHero
           eyebrow="Comercial master"
           title="Planos, níveis e contratos do SIGAPRO"
@@ -1212,7 +1212,7 @@ export function MasterPlansPage() {
                       Nenhum plano configurado. Crie o primeiro plano para iniciar a carteira comercial.
                     </div>
                   ) : (
-                    <div className="grid gap-4 xl:grid-cols-2 2xl:grid-cols-3">
+                    <div className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-2 2xl:grid-cols-3">
                       {safePlans.filter((plan) => plan.isVisibleInMaster).slice(0, 6).map((plan) => renderPlanCard(plan))}
                     </div>
                   )}
@@ -1252,7 +1252,7 @@ export function MasterPlansPage() {
                 Nenhum plano cadastrado.
               </div>
             ) : (
-              <div className="grid gap-4 xl:grid-cols-2 2xl:grid-cols-3">
+              <div className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-2 2xl:grid-cols-3">
                 {safePlans.map((plan) => renderPlanCard(plan))}
               </div>
             )}
@@ -1360,7 +1360,7 @@ export function MasterPlansPage() {
           <PageMainGrid>
             <PageMainContent>
               <TableCard title="Prévia compartilhável" description="Planos ativos e públicos que aparecerão somente para quem receber o link." icon={Share2}>
-                <div className="grid gap-4 xl:grid-cols-2 2xl:grid-cols-3">
+                <div className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-2 2xl:grid-cols-3">
                   {publicPlans.length === 0 ? (
                     <div className="rounded-[24px] border border-dashed border-slate-300 bg-slate-50 p-6 text-sm leading-6 text-slate-600">
                       Nenhum plano público ativo. Marque pelo menos um plano como compartilhável.
@@ -1427,8 +1427,11 @@ export function MasterPlansPage() {
                         <button
                           key={plan.id}
                           type="button"
+                          data-master-commercial-plan-card="true"
+                          data-selected={selectedPlanIds.includes(plan.id) ? "true" : "false"}
+                          aria-pressed={selectedPlanIds.includes(plan.id)}
                           className={cn(
-                            "min-w-0 rounded-[24px] border p-4 text-left transition hover:-translate-y-0.5 hover:shadow-[0_16px_36px_rgba(15,23,42,0.10)]",
+                            "min-w-0 max-w-full rounded-[24px] border p-4 text-left transition [overflow-wrap:anywhere] hover:-translate-y-0.5 hover:shadow-[0_16px_36px_rgba(15,23,42,0.10)]",
                             selectedPlanIds.includes(plan.id) ? "border-sky-300 bg-sky-50" : "border-slate-200 bg-white",
                           )}
                           onClick={() => toggleCommercialPlan(plan.id)}
@@ -1464,15 +1467,18 @@ export function MasterPlansPage() {
                           <button
                             key={material.id}
                             type="button"
+                            data-master-commercial-format-card="true"
+                            data-selected={commercialMaterialType === material.id ? "true" : "false"}
+                            aria-pressed={commercialMaterialType === material.id}
                             className={cn(
-                              "min-w-0 rounded-[24px] border p-4 text-left transition hover:-translate-y-0.5",
+                              "min-w-0 max-w-full rounded-[24px] border p-4 text-left transition [overflow-wrap:anywhere] hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2",
                               commercialMaterialType === material.id ? "border-slate-950 bg-slate-950 text-white" : "border-slate-200 bg-white text-slate-950",
                             )}
                             onClick={() => setCommercialMaterialType(material.id)}
                           >
-                            <Icon className={cn("h-5 w-5", commercialMaterialType === material.id ? "text-sky-200" : "text-sky-600")} />
-                            <p className="mt-4 font-semibold">{material.title}</p>
-                            <p className={cn("mt-2 text-sm leading-5", commercialMaterialType === material.id ? "text-slate-300" : "text-slate-600")}>{material.description}</p>
+                            <Icon data-master-commercial-format-icon="true" className={cn("h-5 w-5", commercialMaterialType === material.id ? "text-sky-200" : "text-sky-600")} />
+                            <p data-master-commercial-format-title="true" className="mt-4 font-semibold">{material.title}</p>
+                            <p data-master-commercial-format-description="true" className={cn("mt-2 text-sm leading-5", commercialMaterialType === material.id ? "text-slate-300" : "text-slate-600")}>{material.description}</p>
                           </button>
                         );
                       })}
@@ -1584,20 +1590,20 @@ export function MasterPlansPage() {
 
             <PageSideContent>
               <SectionCard title="Preview premium" description="Visual de como o cliente recebera a proposta." icon={Presentation}>
-                  <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-[0_22px_56px_rgba(15,23,42,0.12)]">
-                    <div className="bg-[radial-gradient(circle_at_15%_0%,rgba(56,189,248,0.38),transparent_34%),linear-gradient(135deg,#07111f,#10243a_58%,#0f766e)] p-6 text-white">
+                  <div data-master-commercial-preview="true" className="min-w-0 max-w-full overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-[0_22px_56px_rgba(15,23,42,0.12)]">
+                    <div data-master-commercial-preview-hero="true" className="min-w-0 bg-[radial-gradient(circle_at_15%_0%,rgba(56,189,248,0.38),transparent_34%),linear-gradient(135deg,#07111f,#10243a_58%,#0f766e)] p-5 text-white [overflow-wrap:anywhere] sm:p-6">
                       <div className="flex items-center gap-3">
-                        <div className="grid h-11 w-11 place-items-center rounded-2xl bg-white text-sm font-black tracking-[-0.08em] text-emerald-700">S</div>
+                        <div data-master-preview-monogram="true" className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-white text-sm font-black tracking-[-0.08em] text-emerald-700">S</div>
                         <div>
                           <p className="text-xs font-bold uppercase tracking-[0.24em] text-sky-100">SIGAPRO</p>
                           <p className="text-xs text-slate-200">Material comercial inteligente</p>
                         </div>
                       </div>
-                      <h3 className="mt-8 text-3xl font-semibold tracking-[-0.06em] text-white">{commercialTitle}</h3>
-                      <p className="mt-3 text-sm leading-6 text-slate-100">{commercialSubtitle}</p>
+                      <h3 className="mt-7 max-w-full break-words text-2xl font-bold leading-tight tracking-[-0.04em] !text-white [overflow-wrap:anywhere] sm:text-3xl">{commercialTitle}</h3>
+                      <p className="mt-3 max-w-full break-words text-sm leading-6 !text-slate-100 [overflow-wrap:anywhere]">{commercialSubtitle}</p>
                     </div>
-                  <div className="grid gap-4 p-5">
-                    <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="grid min-w-0 gap-4 p-4 sm:p-5">
+                    <div className="grid min-w-0 grid-cols-1 gap-3 xl:grid-cols-2">
                       <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                         <p className="sig-label">Cliente</p>
                         <p className="mt-2 sig-fit-copy text-sm font-semibold text-slate-950">{customerName || "Cliente institucional"}</p>
@@ -1609,13 +1615,13 @@ export function MasterPlansPage() {
                     </div>
                     <div className="grid gap-3">
                       {(selectedCommercialPlans.length > 0 ? selectedCommercialPlans : safePlans.slice(0, 2)).map((plan) => (
-                        <div key={plan.id} className="rounded-[22px] border border-slate-200 bg-white p-4">
-                          <div className="flex min-w-0 items-start justify-between gap-3">
+                        <div key={plan.id} className="min-w-0 max-w-full rounded-[22px] border border-slate-200 bg-white p-4 [overflow-wrap:anywhere]">
+                          <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
                             <div className="min-w-0">
-                              <p className="sig-fit-title text-base font-semibold text-slate-950">{plan.name}</p>
-                              <p className="mt-1 sig-fit-copy text-sm text-slate-600">{plan.subtitle}</p>
+                              <p className="sig-fit-title max-w-full break-words text-base font-semibold text-slate-950 [overflow-wrap:anywhere]">{plan.name}</p>
+                              <p className="mt-1 sig-fit-copy max-w-full break-words text-sm text-slate-600 [overflow-wrap:anywhere]">{plan.subtitle}</p>
                             </div>
-                            <p className="shrink-0 text-sm font-semibold text-slate-950">{hideCommercialPrices ? "Sob consulta" : formatCurrency(plan.price)}</p>
+                            <p className="max-w-full break-words text-sm font-semibold text-slate-950 [overflow-wrap:anywhere]">{hideCommercialPrices ? "Sob consulta" : formatCurrency(plan.price)}</p>
                           </div>
                         </div>
                       ))}

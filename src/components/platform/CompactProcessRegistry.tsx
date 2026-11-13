@@ -9,6 +9,8 @@ import {
   Workflow,
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { paginateMunicipalItems } from "@/lib/municipalListPagination";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -64,6 +66,12 @@ export function CompactProcessRegistry({
   canDispatchProcess = () => true,
   detailPathSuffix = "",
 }: CompactProcessRegistryProps) {
+  const [page, setPage] = useState(1);
+  const pageData = useMemo(() => paginateMunicipalItems(processes, page, 25), [processes, page]);
+  useEffect(() => {
+    if (page !== pageData.page) setPage(pageData.page);
+  }, [page, pageData.page]);
+
   if (processes.length === 0) {
     return (
       <div className="rounded-[16px] border border-dashed border-slate-300 bg-slate-50/80 px-5 py-7 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-300">
@@ -77,8 +85,11 @@ export function CompactProcessRegistry({
       data-sei-process-registry="true"
       className="overflow-hidden rounded-[18px] border border-slate-200 bg-white shadow-[0_10px_26px_rgba(15,23,42,0.055)] dark:border-slate-700 dark:bg-slate-950/50"
     >
-      <div className="hidden min-h-9 grid-cols-[30px_minmax(165px,1.15fr)_minmax(190px,1.35fr)_minmax(145px,.85fr)_minmax(120px,.75fr)_104px_112px] items-center gap-2 border-b border-slate-200 bg-slate-50/95 px-3 text-[9px] font-black uppercase tracking-[0.11em] text-slate-500 lg:grid dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-400">
-        <span className="text-center">Marc.</span>
+      <div className="hidden min-h-9 grid-cols-[44px_minmax(165px,1.15fr)_minmax(190px,1.35fr)_minmax(145px,.85fr)_minmax(120px,.75fr)_104px_112px] items-center gap-2 border-b border-slate-200 bg-slate-50/95 px-3 text-[9px] font-black uppercase tracking-[0.11em] text-slate-500 xl:grid dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-400">
+        <span className="flex min-w-0 items-center justify-center" title="Marcador">
+          <Flag className="h-3.5 w-3.5" aria-hidden="true" />
+          <span className="sr-only">Marcador</span>
+        </span>
         <span>Processo</span>
         <span>Interessado / assunto</span>
         <span>Unidade atual</span>
@@ -88,7 +99,7 @@ export function CompactProcessRegistry({
       </div>
 
       <div className="divide-y divide-slate-200 dark:divide-slate-800">
-        {processes.map((process) => {
+        {pageData.items.map((process) => {
           const marker = process.tags?.[0] ? parseMarker(process.tags[0]) : null;
           const archived = archivedProcessIds.includes(process.id);
           const flow = currentFlowLabel(process);
@@ -100,17 +111,17 @@ export function CompactProcessRegistry({
               key={process.id}
               data-sei-process-row="true"
               className={cn(
-                "group grid gap-2 px-3 py-2.5 transition-colors hover:bg-sky-50/55 lg:grid-cols-[30px_minmax(165px,1.15fr)_minmax(190px,1.35fr)_minmax(145px,.85fr)_minmax(120px,.75fr)_104px_112px] lg:items-center dark:hover:bg-sky-950/15",
+                "group grid gap-2 px-3 py-2.5 transition-colors hover:bg-sky-50/55 xl:grid-cols-[44px_minmax(165px,1.15fr)_minmax(190px,1.35fr)_minmax(145px,.85fr)_minmax(120px,.75fr)_104px_112px] xl:items-center dark:hover:bg-sky-950/15",
                 archived && "bg-slate-50/70 opacity-80 dark:bg-slate-900/35",
               )}
             >
-              <div className="flex items-center gap-2 lg:justify-center">
-                <span className="lg:hidden text-[9px] font-bold uppercase tracking-[0.1em] text-slate-400">
+              <div className="flex min-w-0 items-center gap-2 xl:justify-center">
+                <span className="xl:hidden text-[9px] font-bold uppercase tracking-[0.1em] text-slate-400">
                   Marcador
                 </span>
                 {marker ? (
                   <span
-                    className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border"
+                    className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border shadow-sm"
                     style={{
                       borderColor: `${marker.color || "#2563eb"}42`,
                       backgroundColor: `${marker.color || "#2563eb"}10`,
@@ -118,7 +129,7 @@ export function CompactProcessRegistry({
                     title={marker.label}
                   >
                     <Flag
-                      className="h-3 w-3"
+                      className="h-4 w-4"
                       style={{
                         color: marker.color || "#2563eb",
                         fill: marker.color || "#2563eb",
@@ -127,10 +138,10 @@ export function CompactProcessRegistry({
                   </span>
                 ) : (
                   <span
-                    className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-600"
+                    className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-400 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-500"
                     title="Sem marcador"
                   >
-                    <Flag className="h-3 w-3" />
+                    <Flag className="h-4 w-4" />
                   </span>
                 )}
               </div>
@@ -144,11 +155,11 @@ export function CompactProcessRegistry({
                 >
                   {formatOfficialProcessNumber(process.protocol)}
                 </Link>
-                <div className="mt-1 flex min-w-0 items-center gap-1.5">
+                <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1.5">
                   <Badge
                     variant="outline"
                     className={cn(
-                      "h-[18px] shrink-0 rounded-full px-1.5 text-[8px] font-bold",
+                      "min-h-[24px] max-w-full min-w-0 truncate rounded-full px-2.5 text-[11px] font-bold",
                       statusTone(process.status),
                     )}
                   >
@@ -156,7 +167,7 @@ export function CompactProcessRegistry({
                   </Badge>
                   {marker ? (
                     <span
-                      className="max-w-[105px] truncate text-[9px] font-semibold"
+                      className="inline-block min-w-0 max-w-full truncate align-middle text-[12px] font-semibold"
                       style={{ color: marker.color || "#2563eb" }}
                       title={marker.label}
                     >
@@ -264,6 +275,26 @@ export function CompactProcessRegistry({
           );
         })}
       </div>
+      {pageData.totalPages > 1 ? (
+        <nav data-sigapro-process-pagination="true" aria-label="Paginação de processos"
+          className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-slate-50/80 px-4 py-3 text-xs text-slate-600 dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-300">
+          <span aria-live="polite">
+            Processos {pageData.start + 1}–{pageData.end} de {pageData.total.toLocaleString("pt-BR")} · Página {pageData.page} de {pageData.totalPages}
+          </span>
+          <div className="flex items-center gap-2">
+            <Button type="button" variant="outline" size="sm" disabled={pageData.page <= 1}
+              onClick={() => setPage(pageData.page - 1)}
+              className="rounded-lg border-slate-300 bg-white text-slate-900 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100">
+              Anterior
+            </Button>
+            <Button type="button" variant="outline" size="sm" disabled={pageData.page >= pageData.totalPages}
+              onClick={() => setPage(pageData.page + 1)}
+              className="rounded-lg border-slate-300 bg-white text-slate-900 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100">
+              Próxima
+            </Button>
+          </div>
+        </nav>
+      ) : null}
     </div>
   );
 }

@@ -2,8 +2,11 @@ import { databaseClient as db, neonAuthUrl } from "@/integrations/backend/databa
 import { isNeonBackend } from "@/integrations/backend/config";
 import { getLegacyProfileAvatarOpenUrl, getObjectKeyFromPublicUrl, uploadFile } from "@/integrations/r2/client";
 import { buildMunicipalityPortalUrl } from "@/lib/publicDomain";
+import { hasPersistedProcessDocumentFile } from "@/lib/triageReadiness";
 import {
   buildProcessDocuments,
+  buildProcessRouteKey,
+  parseProcessIdentityRouteKey,
   isOccupancyPermitProcessType,
   serializeMarker,
   type ClientPlanAssignment,
@@ -25,6 +28,9 @@ import {
 
 const PROFILE_ASSET_REF_PREFIX = "r2:";
 
+// Data API rows span independently versioned municipal schemas. Normalize each
+// public field at the read boundary; a dynamic value is necessary here.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type DatabaseRow = Record<string, any>;
 
 async function resolveStoredProfileAvatar(value: string | null | undefined) {
@@ -432,11 +438,14 @@ async function loadProcessRowsForStore(focusProcessRouteKey?: string | null) {
     return activeResult;
   }
 
-  const uuid = normalizeUuid(routeKey);
+  // The visible route includes the municipality-local number and the UUID.
+  // Resolve by UUID first; the legacy number-only query remains for old links.
+  const identityKey = parseProcessIdentityRouteKey(routeKey);
+  const uuid = normalizeUuid(identityKey?.id ?? routeKey);
   const focusQuery = db.from("processes").select("*");
   const focusResult = uuid
     ? await focusQuery.eq("id", uuid).limit(1)
-    : await focusQuery.eq("protocol_number", routeKey).limit(1);
+    : await focusQuery.eq("protocol_number", routeKey).limit(2);
 
   if (activeResult.error) return activeResult;
   if (focusResult.error) return focusResult;
@@ -446,6 +455,11 @@ async function loadProcessRowsForStore(focusProcessRouteKey?: string | null) {
   for (const item of focusResult.data ?? []) {
     const id = String(item.id ?? "");
     if (!id || seen.has(id)) continue;
+    if (identityKey && (
+      id.toLowerCase() !== identityKey.id.toLowerCase() ||
+      buildProcessRouteKey(String(item.protocol_number ?? ""), id).toLocaleLowerCase("pt-BR") !==
+        identityKey.protocolKey.toLocaleLowerCase("pt-BR")
+    )) continue;
     seen.add(id);
     merged.unshift(item as DatabaseRow);
   }
@@ -472,7 +486,7 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
     processesResult,
     constructionPermitsResult,
     propertiesResult,
-    guidesResult,
+    initialGuidesResult,
     partiesResult,
     privatePartyDataResult,
     documentsResult,
@@ -489,6 +503,8 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
     plansResult,
     planAssignmentsResult,
     lastAccessResult,
+    dispatchAuthorsResult,
+    eventAuthorsResult,
   ] = (await Promise.all([
     isNeonBackend
       ? Promise.resolve({ data: [], error: null })
@@ -535,7 +551,13 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
     isNeonBackend
       ? db.rpc("list_visible_user_last_access")
       : Promise.resolve({ data: [], error: null }),
-  ])) as any[];
+    isNeonBackend
+      ? db.rpc("list_visible_dispatch_authors_v1")
+      : Promise.resolve({ data: [], error: null }),
+    isNeonBackend
+      ? db.rpc("list_visible_process_event_authors_v1")
+      : Promise.resolve({ data: [], error: null }),
+  ])) as DatabaseRow[];
 
   if (profilesResult.error) {
     console.warn("SIGAPRO: falha ao carregar profiles.", profilesResult.error);
@@ -550,13 +572,13 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
   // Processos são o núcleo operacional. Se o SELECT REST falhar ou voltar vazio
   // por uma inconsistência transitória de schema/cache, consulta a RPC canônica
   // escopada pelo mesmo has_process_access usado nas políticas do banco.
-  let processRows = [...(processesResult.data ?? [])] as any[];
+  let processRows = [...(processesResult.data ?? [])] as DatabaseRow[];
   let processLoadError: unknown = processesResult.error ?? null;
 
   if (isNeonBackend && (processLoadError || processRows.length === 0)) {
     const fallback = await db.rpc("list_visible_processes_v1");
     if (!fallback.error) {
-      processRows = [...(fallback.data ?? [])] as any[];
+      processRows = [...(fallback.data ?? [])] as DatabaseRow[];
       processLoadError = null;
     } else if (processLoadError) {
       console.error("[SIGAPRO][Processos] SELECT e fallback RPC falharam.", {
@@ -567,6 +589,24 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
     } else {
       console.warn("[SIGAPRO][Processos] Fallback RPC indisponível, mantendo resultado vazio.", fallback.error);
     }
+  }
+
+  // Operational process visibility depends on the SAME authorized payment
+  // guide snapshot as triage/technical review. Previously a guide API failure
+  // was logged as non-critical and silently mapped paid records to "pendente",
+  // removing valid processes from the analysis queue.
+  let guidesResult = initialGuidesResult;
+  if (isNeonBackend && guidesResult.error && processRows.length > 0) {
+    const retryGuides = await db
+      .from("payment_guides")
+      .select("*")
+      .not("process_id", "is", null)
+      .order("created_at", { ascending: false });
+    if (!retryGuides.error) guidesResult = retryGuides;
+  }
+  if (processRows.length > 0 && guidesResult.error) {
+    console.error("[SIGAPRO][Sincronismo] Guias oficiais indisponíveis; estado operacional não confirmado.");
+    throw new Error("Não foi possível sincronizar as guias oficiais vinculadas aos processos. Tente atualizar novamente.");
   }
 
   const nonCriticalErrors = [
@@ -619,7 +659,7 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
   // SECURITY DEFINER, que valida o acesso de cada processo antes de retornar
   // o registro. Assim uma restricao de infraestrutura do Alvara nao derruba
   // todo o store oficial nem faz o fluxo visual regredir.
-  const constructionPermitRows = [...(constructionPermitsResult.data ?? [])] as any[];
+  const constructionPermitRows = [...(constructionPermitsResult.data ?? [])] as DatabaseRow[];
   if (isNeonBackend) {
     const visibleProcessIds = processRows
       .filter((process) => Boolean(process.officialized_at))
@@ -642,7 +682,7 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
             return null;
           }
 
-          const payload = (data ?? {}) as { permit?: any | null };
+          const payload = (data ?? {}) as { permit?: DatabaseRow | null };
           return payload.permit ?? null;
         }),
       );
@@ -662,6 +702,20 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
   const profileRows = municipalityResultData(profilesResult.data);
   const propertyRows = municipalityResultData(propertiesResult.data);
   const lastAccessRows = municipalityResultData(lastAccessResult.data);
+  // Scoped, server-verified names for colleagues hidden by profiles RLS.
+  // An unavailable migration degrades only this label, never the process store.
+  const scopedDispatchAuthorById = new Map<string, DatabaseRow>(
+    (dispatchAuthorsResult.data ?? []).map((entry: DatabaseRow) => [
+      String(entry.dispatch_id ?? ""),
+      entry,
+    ] as const),
+  );
+  const scopedEventAuthorById = new Map<string, DatabaseRow>(
+    (eventAuthorsResult.data ?? []).map((entry: DatabaseRow) => [
+      `${String(entry.event_kind ?? "")}:${String(entry.event_id ?? "")}`,
+      entry,
+    ] as const),
+  );
 
   const brandingByTenant = new Map<string, DatabaseRow>(
     brandingRows.map((item) => [String(item.tenant_id ?? ""), item] as const),
@@ -1447,10 +1501,11 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
       officializedAt: process.officialized_at ?? undefined,
       title: process.title,
       type: process.process_type,
-      status:
-        constructionPermit?.status === "signed"
-          ? "deferido"
-          : process.status,
+      // The process status is owned by the official workflow. A separately
+      // signed construction permit is evidence of a signed artifact, NOT
+      // authorization to silently rewrite a process still in technical review.
+      // Keep the permit's state in processControl.checkpoint instead.
+      status: process.status,
       ownerName: ownerProfile?.full_name ?? owner?.display_name ?? "Nao informado",
       ownerDocument:
         ownerPrivate?.document_number ??
@@ -1527,7 +1582,10 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
       reopenHistory: reopenEntries.map((entry) => ({
         id: entry.id,
         reason: entry.reason,
-        actor: (isNeonBackend ? entry.actor_profile_id : null) ?? entry.actor_user_id ?? "Sistema",
+        actor:
+          scopedEventAuthorById.get(`reopen:${entry.id}`)?.actor_name ||
+          (entry.actor_profile_id ? profileById.get(String(entry.actor_profile_id))?.full_name : undefined) ||
+          ((entry.actor_profile_id || entry.actor_user_id) ? "Identificação não registrada" : "Sistema"),
         at: new Date(entry.created_at).toLocaleString("pt-BR"),
       })),
       documents: buildProcessDocuments(
@@ -1536,15 +1594,22 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
           id: document.id,
           label: document.title,
           required: Boolean(document.is_required),
-          uploaded: true,
+          uploaded: hasPersistedProcessDocumentFile(document),
           signed: false,
           reviewStatus: (document.review_status ?? "pendente") as "pendente" | "aprovado" | "rejeitado",
-          reviewedBy: (isNeonBackend ? document.reviewed_by_profile_id : null) ?? document.reviewed_by ?? undefined,
+          // Identidade humana para exibicao; profile ID preservado separadamente para auditoria.
+          reviewedBy: document.reviewed_by_profile_id
+            ? (profileById.get(String(document.reviewed_by_profile_id))?.full_name ||
+               profileById.get(String(document.reviewed_by_profile_id))?.email ||
+               document.reviewed_by || undefined)
+            : (document.reviewed_by ?? undefined),
+          reviewedByProfileId: document.reviewed_by_profile_id ?? undefined,
           annotations: Array.isArray(document.annotations) ? document.annotations : [],
           version: document.version ?? 1,
           source: (document.source ?? "profissional") as "profissional" | "prefeitura" | "integracao",
           fileName: document.file_name ?? undefined,
           filePath: document.file_path ?? undefined,
+          fileHash: document.file_hash ?? undefined,
           mimeType: document.mime_type ?? undefined,
           sizeLabel: document.size_label ?? undefined,
           fileSizeBytes: document.file_size_bytes == null ? undefined : Number(document.file_size_bytes),
@@ -1570,13 +1635,14 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
         id: movement.id,
         title: movement.movement_type,
         detail: movement.description,
+        visibleToExternal: movement.visible_to_external === true,
         actor:
+          scopedEventAuthorById.get(`movement:${movement.id}`)?.actor_name ||
           (movement.actor_profile_id
             ? profileById.get(movement.actor_profile_id)?.full_name ??
               profileById.get(movement.actor_profile_id)?.email
-            : null) ??
-          movement.actor_user_id ??
-          "Sistema",
+            : null) ||
+          ((movement.actor_profile_id || movement.actor_user_id) ? "Identificação não registrada" : "Sistema"),
         at: new Date(movement.created_at).toLocaleString("pt-BR"),
       })),
       auditTrail: auditEntries.map((entry) => ({
@@ -1586,12 +1652,12 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
         detail: entry.detail,
         actorProfileId: entry.actor_profile_id ?? undefined,
         actor:
+          scopedEventAuthorById.get(`audit:${entry.id}`)?.actor_name ||
           (entry.actor_profile_id
             ? profileById.get(entry.actor_profile_id)?.full_name ??
               profileById.get(entry.actor_profile_id)?.email
-            : null) ??
-          entry.actor_user_id ??
-          "Sistema",
+            : null) ||
+          ((entry.actor_profile_id || entry.actor_user_id) ? "Identificação não registrada" : "Sistema"),
         visibleToExternal: Boolean(entry.visible_to_external),
         at: new Date(entry.created_at).toLocaleString("pt-BR"),
       })),
@@ -1610,7 +1676,32 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
         onHoldReason: process.hold_reason ?? undefined,
       },
       signatures: [],
-      dispatches: dispatches.map((dispatch) => ({
+      dispatches: dispatches.map((dispatch) => {
+        // The database may record the signer as a profile ID or a user ID.
+        // Resolve both against the official profile directory; do not infer
+        // the signer from the assigned analyst or current session.
+        const scopedAuthor = scopedDispatchAuthorById.get(String(dispatch.id));
+        const recordedActorId = String(
+          scopedAuthor?.author_profile_id ??
+          dispatch.created_by_profile_id ??
+          dispatch.created_by_user_id ??
+          dispatch.actor_profile_id ??
+          dispatch.actor_user_id ??
+          "",
+        ).trim();
+        const recordedActorProfile = recordedActorId
+          ? profileById.get(recordedActorId) ?? profileByUser.get(recordedActorId)
+          : undefined;
+        const recordedActorName = String(
+          scopedAuthor?.author_name ??
+          recordedActorProfile?.full_name ??
+          recordedActorProfile?.email ??
+          dispatch.requested_by_name ??
+          dispatch.created_by_name ??
+          "",
+        ).trim();
+
+        return {
         id: String(dispatch.id),
         from: String(dispatch.from_department ?? ""),
         to: String(dispatch.to_department ?? ""),
@@ -1635,17 +1726,14 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
             ? dispatch.priority
             : "media",
         assignedTo: dispatch.assigned_to ? String(dispatch.assigned_to) : undefined,
-        requestedByProfileId: dispatch.created_by_profile_id
-          ? String(dispatch.created_by_profile_id)
-          : undefined,
-        requestedBy: dispatch.created_by_profile_id
-          ? String(
-              profileById.get(dispatch.created_by_profile_id)?.full_name ??
-              profileById.get(dispatch.created_by_profile_id)?.email ??
-              "",
-            ) || undefined
-          : undefined,
-      })),
+        requestedByProfileId: scopedAuthor?.author_profile_id
+          ? String(scopedAuthor.author_profile_id)
+          : recordedActorProfile?.id
+            ? String(recordedActorProfile.id)
+            : (dispatch.created_by_profile_id ? String(dispatch.created_by_profile_id) : undefined),
+        requestedBy: recordedActorName || undefined,
+      };
+      }),
       messages: processMessages.map((message) => ({
         id: String(message.id),
         senderName: String(message.sender_name ?? "Usuário"),
@@ -1725,6 +1813,7 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
             digitableLine: guide.digitable_line ? String(guide.digitable_line) : undefined,
             bankReference: guide.bank_reference ? String(guide.bank_reference) : undefined,
             bankPaymentId: guide.bank_payment_id ? String(guide.bank_payment_id) : undefined,
+            ticketUrl: guide.ticket_url ? String(guide.ticket_url) : undefined,
             bankStatus: guide.bank_status ? String(guide.bank_status) : undefined,
             bankStatusDetail: guide.bank_status_detail ? String(guide.bank_status_detail) : undefined,
             bankAuthenticatedAt: guide.bank_authenticated_at ? String(guide.bank_authenticated_at) : undefined,
@@ -1845,7 +1934,7 @@ export async function createRemoteOwnerRequestByProtocol(input: {
 
   if (error) throw error;
 
-  const payload = data as Record<string, any> | null;
+  const payload = data as DatabaseRow | null;
   const row = payload?.request ?? null;
   const processRow = payload?.process ?? null;
   if (!row?.id) {
@@ -1897,7 +1986,7 @@ export async function respondRemoteOwnerRequest(input: {
     });
     if (error) throw error;
 
-    const payload = data as Record<string, any> | null;
+    const payload = data as DatabaseRow | null;
     const row = payload?.request ?? null;
     const linkRow = payload?.link ?? null;
     if (!row?.id) throw new Error("Falha ao atualizar solicitação de responsável.");
@@ -1945,7 +2034,7 @@ export async function respondRemoteOwnerRequest(input: {
   const requestRow = Array.isArray(requestData) ? requestData[0] : null;
   if (!requestRow) throw new Error("Falha ao atualizar solicitacao de responsavel.");
 
-  let linkData: Record<string, any> | null = null;
+  let linkData: DatabaseRow | null = null;
 
   if (input.status === "approved") {
     const { data, error } = await db
@@ -2007,7 +2096,7 @@ export async function setRemoteOwnerChatEnabled(input: {
     });
     if (error) throw error;
 
-    const row = data as Record<string, any> | null;
+    const row = data as DatabaseRow | null;
     if (!row?.id) throw new Error("Falha ao atualizar chat do responsável.");
 
     return {
@@ -2067,7 +2156,7 @@ export async function createRemoteOwnerMessage(input: {
     });
     if (error) throw error;
 
-    const row = data as Record<string, any> | null;
+    const row = data as DatabaseRow | null;
     if (!row?.id) throw new Error("Falha ao criar mensagem de responsável.");
 
     return {
@@ -2224,8 +2313,8 @@ export async function getRemoteExternalPreprotocolDraft(
     throw new Error(formatDatabaseError(error));
   }
 
-  const row = (data ?? {}) as Record<string, any>;
-  const guide = (row.guide ?? {}) as Record<string, any>;
+  const row = (data ?? {}) as DatabaseRow;
+  const guide = (row.guide ?? {}) as DatabaseRow;
 
   return {
     processId: String(row.process_id ?? ""),
@@ -2368,6 +2457,18 @@ async function callProcessRpc<T = Record<string, unknown>>(
   const { data, error } = await db.rpc(fn, args);
   if (error) throw new Error(formatDatabaseError(error));
   return data as T;
+}
+
+export async function upgradeRemoteQa04ArchitecturalPlanV2(
+  processId: string, filePath: string, fileName: string, fileSizeBytes: number, fileHash: string,
+): Promise<{ ok: boolean; already_upgraded?: boolean; document_id: string; version: number }> {
+  return callProcessRpc("upgrade_qa04_architectural_plan_v2", {
+    _process_id: processId,
+    _file_path: filePath,
+    _file_name: fileName,
+    _file_size_bytes: fileSizeBytes,
+    _file_hash: fileHash,
+  });
 }
 
 export async function appendRemoteProcessDocuments(
@@ -2582,6 +2683,13 @@ export async function setRemoteProcessTriage(input: {
     _process_id: input.processId,
     _triage_status: input.status,
     _notes: input.notes || null,
+  });
+}
+
+export async function reconcileRemoteProcessTriage(processId: string, reason: string) {
+  return callProcessRpc("reconcile_unreleased_process_triage_v1", {
+    _process_id: processId,
+    _reason: reason,
   });
 }
 

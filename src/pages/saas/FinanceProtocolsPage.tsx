@@ -1,3 +1,4 @@
+import { archiveAndOpenGuide, openLegacyGuideOriginal, openStoredGuide, readGuideOriginal } from "@/lib/guideOriginal";
 import {
   Building2,
   CalendarClock,
@@ -20,7 +21,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { openGuiaRecolhimentoOficialWindow } from "@/components/GuiaRecolhimentoOficial";
+import { reserveGuiaRecolhimentoOficialWindow } from "@/components/GuiaRecolhimentoOficial";
 import { PageHero } from "@/components/platform/PageHero";
 import { MarkerSelector } from "@/components/platform/MarkerSelector";
 import {
@@ -51,6 +52,7 @@ import {
 import { prepareGuideInstitutionalLogo } from "@/lib/guideAssets";
 import { ensureMercadoPagoGuideCharge } from "@/lib/mercadoPagoGuide";
 import { resolveGuideBankingData } from "@/lib/paymentCollection";
+import { summarizeFinancialGuideEvidence,isFinancialTestGuide,guideFinancialEvidenceLabel } from "@/lib/qaPaymentEvidence";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { useInstitutionBranding } from "@/hooks/useInstitutionBranding";
 import { getMunicipalityLogoOpenUrl } from "@/integrations/r2/client";
@@ -64,6 +66,8 @@ type ProcessLedger = {
   guides: PaymentGuideEntry[];
   totalIssued: number;
   totalPaid: number;
+  totalBankVerified: number;
+  bankVerifiedCount: number;
   totalPending: number;
   paidCount: number;
   pendingCount: number;
@@ -147,15 +151,18 @@ export function FinanceProtocolsPage() {
       scopedProcesses
         .map((process) => {
           const guides = getProcessPaymentGuides(process, tenantSettings);
-          const totalIssued = guides.reduce((sum, guide) => sum + guide.amount, 0);
-          const paidGuides = guides.filter((guide) => guide.status === "compensada");
-          const pendingGuides = guides.filter((guide) => guide.status === "pendente");
+          const financial = summarizeFinancialGuideEvidence(guides);
+          const totalIssued = financial.issuedAmount;
+          const paidGuides = financial.compensated;
+          const pendingGuides = financial.pending;
 
           return {
             process,
             guides,
             totalIssued,
             totalPaid: paidGuides.reduce((sum, guide) => sum + guide.amount, 0),
+            totalBankVerified: financial.bankVerifiedAmount,
+            bankVerifiedCount: financial.bankVerifiedCount,
             totalPending: pendingGuides.reduce((sum, guide) => sum + guide.amount, 0),
             paidCount: paidGuides.length,
             pendingCount: pendingGuides.length,
@@ -199,6 +206,7 @@ export function FinanceProtocolsPage() {
   const totalIssued = ledgers.reduce((sum, ledger) => sum + ledger.totalIssued, 0);
   const totalPending = ledgers.reduce((sum, ledger) => sum + ledger.totalPending, 0);
   const totalPaid = ledgers.reduce((sum, ledger) => sum + ledger.totalPaid, 0);
+  const totalBankVerified = ledgers.reduce((sum, ledger) => sum + ledger.totalBankVerified, 0);
 
   const visibleLedgers = useMemo(() => {
     const normalizedSearch = search.trim().toLocaleLowerCase("pt-BR");
@@ -277,9 +285,27 @@ export function FinanceProtocolsPage() {
     );
     if (!match) return;
 
+    const target = reserveGuiaRecolhimentoOficialWindow("Guia " + match.guide.code);
+    if (!target) { setFinancialStatus("Permita pop-ups para abrir o PDF original."); return; }
+    try {
+    if (await openLegacyGuideOriginal(match.process.documents, match.guide.code, target)) return;
+    const original = await readGuideOriginal(effectiveScopeId, match.guide.code);
+    if (await openStoredGuide(original, target)) return;
+    if (original.status === "compensada") throw new Error("Guia compensada sem PDF original arquivado. Não será recriada.");
+    if (original.document_snapshot) {
+      await archiveAndOpenGuide(effectiveScopeId, original.document_snapshot, target);
+      return;
+    }
+    const canonicalGuide = { ...match.guide, code: original.guide_number, amount: Number(original.amount),
+      issuedAt: original.created_at, dueDate: original.due_date, barcode: original.barcode,
+      digitableLine: original.digitable_line, pixPayload: original.pix_code,
+      providerEnvironment: original.provider_environment, bankReference: original.bank_reference,
+      bankPaymentId: original.bank_payment_id, bankStatus: original.bank_status,
+      bankStatusDetail: original.bank_status_detail, bankAuthenticatedAt: original.bank_authenticated_at };
+    if (!canonicalGuide.issuedAt) throw new Error("Data original da guia ausente nos registros SIGAPRO.");
     const banking = resolveGuideBankingData({
       settings: tenantSettings,
-      guide: match.guide,
+      guide: canonicalGuide,
       municipalityName,
       municipalityCity: tenantSettings?.pixMerchantCity,
     });
@@ -289,24 +315,25 @@ export function FinanceProtocolsPage() {
 
     if (!banking.barcode || !banking.digitableLine) {
       setGuideBillingBusyKey(billingKey);
-      setFinancialStatus("Gerando cobrança Mercado Pago para esta guia...");
+      setFinancialStatus("Preparando cobrança para esta guia...");
       try {
         providerCharge = await ensureMercadoPagoGuideCharge({
           municipalityId: effectiveScopeId,
-          guideCode: match.guide.code,
-          amount: match.guide.amount,
-          dueDate: match.guide.dueDate,
-          description: `${guideKindLabel(match.guide.kind)} · ${match.process.protocol}`,
+          guideCode: canonicalGuide.code,
+          amount: canonicalGuide.amount,
+          dueDate: canonicalGuide.dueDate,
+          description: `${guideKindLabel(canonicalGuide.kind)} · ${match.process.protocol}`,
         });
         setFinancialStatus(
-          "Cobrança Mercado Pago vinculada à própria guia do SIGAPRO. Linha digitável e código de barras foram incorporados à DAM.",
+          "Cobrança vinculada à guia oficial SIGAPRO. Linha digitável e código de barras incorporados à DAM.",
         );
       } catch (error) {
         const message =
           error instanceof Error
-            ? `Não foi possível obter a cobrança Mercado Pago desta guia: ${error.message}`
-            : "Não foi possível obter a cobrança Mercado Pago desta guia.";
+            ? `Não foi possível obter a cobrança desta guia: ${error.message}`
+            : "Não foi possível obter a cobrança desta guia.";
         setFinancialStatus(message);
+        target.close();
         return;
       } finally {
         setGuideBillingBusyKey("");
@@ -321,6 +348,7 @@ export function FinanceProtocolsPage() {
       const message =
         "A cobrança bancária não retornou linha digitável e código de barras completos. A DAM foi bloqueada para não emitir uma guia inválida.";
       setFinancialStatus(message);
+      target.close();
       return;
     }
 
@@ -336,7 +364,7 @@ export function FinanceProtocolsPage() {
       tenantSettings?.brasaoUrl,
     );
 
-    const openedGuide = openGuiaRecolhimentoOficialWindow(
+    await archiveAndOpenGuide(effectiveScopeId,
       {
         prefeitura: {
           nome:
@@ -360,27 +388,27 @@ export function FinanceProtocolsPage() {
             match.process.property.registration || match.process.protocol,
         },
         guia: {
-          numeroGuia: match.guide.code,
+          numeroGuia: canonicalGuide.code,
           exercicio: new Date(
-            match.guide.issuedAt || Date.now(),
+            canonicalGuide.issuedAt,
           )
             .getFullYear()
             .toString(),
-          dataDocumento: match.guide.issuedAt || new Date().toISOString(),
-          vencimento: match.guide.dueDate,
+          dataDocumento: canonicalGuide.issuedAt,
+          vencimento: canonicalGuide.dueDate,
           funcionarioResponsavel: session.name,
-          referencia: getGuideReference(match.guide.kind),
-          observacao: getGuideObservation(match.guide.kind),
-          valorDocumento: match.guide.amount,
+          referencia: getGuideReference(canonicalGuide.kind),
+          observacao: getGuideObservation(canonicalGuide.kind),
+          valorDocumento: canonicalGuide.amount,
           descontos: 0,
           outrosAcrescimos: 0,
-          valorCobrado: match.guide.amount,
+          valorCobrado: canonicalGuide.amount,
           linhaDigitavel: digitableLine,
           codigoBarras: barcode,
           qrCodePixUrl: "",
           pixPayload: banking.pixPayload,
           bankName: providerName,
-          bankEnvironment: providerCharge?.environment,
+          bankEnvironment: providerCharge?.environment || canonicalGuide.providerEnvironment,
           bankAgreement: banking.bankAgreement,
           bankInstructions: banking.bankInstructions,
           bankReference: providerCharge?.orderId || match?.guide?.bankReference,
@@ -397,32 +425,27 @@ export function FinanceProtocolsPage() {
         itens: [
           {
             ano: new Date(
-              match.guide.issuedAt || Date.now(),
+              canonicalGuide.issuedAt,
             )
               .getFullYear()
               .toString(),
-            divida: match.guide.label,
+            divida: canonicalGuide.label,
             tabela: tenantSettings?.guiaPrefixo || "DAM",
             sb: "",
             pc: "",
-            principal: match.guide.amount,
+            principal: canonicalGuide.amount,
             multa: 0,
             juros: 0,
             correcao: 0,
-            total: match.guide.amount,
+            total: canonicalGuide.amount,
           },
         ],
       },
-      {
-        title: `Guia ${match.guide.code}`,
-        autoPrint,
-      },
+      target,
     );
-
-    if (!openedGuide) {
-      setFinancialStatus(
-        "O navegador bloqueou a abertura da guia. Permita pop-ups para o localhost e tente novamente.",
-      );
+    } catch (error) {
+      target.close();
+      setFinancialStatus(error instanceof Error ? error.message : "Falha ao arquivar a guia original.");
     }
   };
 
@@ -481,20 +504,26 @@ export function FinanceProtocolsPage() {
             valueClassName="text-xl md:text-2xl"
           />
           <StatCard
-            label="Arrecadado"
-            value={formatCurrency(totalPaid)}
-            description="Valores já compensados"
+            label="Liquidado pelo banco"
+            value={formatCurrency(totalBankVerified)}
+            description="Apenas baixas com evidência bancária verificável"
             icon={Landmark}
             tone="emerald"
             valueClassName="text-xl md:text-2xl"
           />
         </PageStatsRow>
+        {totalPaid>totalBankVerified?(
+          <p data-finance-protocol-unverified="true" className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-xs font-semibold text-amber-950 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-100">
+            {formatCurrency(totalPaid-totalBankVerified)} constam como compensados no cadastro,
+            mas sem comprovante de liquidação bancária. O total arrecadado verificado não inclui esses registros.
+          </p>
+        ):null}
 
         <PageMainGrid className="grid-cols-1 xl:grid-cols-1">
           <PageMainContent>
             <SectionCard
               title="Controle financeiro por protocolo"
-              description="Cada processo possui sua própria conta: valores lançados, pagos, pendentes e guias vinculadas. Protocolos ativos aparecem mesmo antes de existir uma cobrança financeira."
+              description="Cada processo possui sua conta: valores emitidos, compensados no cadastro, conciliados com banco e pendentes. Protocolos ativos aparecem mesmo antes da cobrança."
             >
               <div className="mb-5 rounded-[22px] border border-slate-200 bg-[linear-gradient(135deg,#ffffff_0%,#f8fbff_100%)] p-4 shadow-sm dark:border-slate-700 dark:bg-none dark:bg-slate-950/45">
                 <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
@@ -695,10 +724,13 @@ export function FinanceProtocolsPage() {
                             </div>
                             <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4 dark:border-emerald-500/30 dark:bg-emerald-950/20">
                               <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-emerald-600 dark:text-emerald-300">
-                                Pago
+                                Compensado no cadastro
                               </p>
                               <p className="mt-2 text-xl font-black text-emerald-800 dark:text-emerald-100">
                                 {formatCurrency(ledger.totalPaid)}
+                              </p>
+                              <p className="mt-1 text-[11px] text-emerald-800 dark:text-emerald-200">
+                                Banco verificado: {formatCurrency(ledger.totalBankVerified)}
                               </p>
                             </div>
                             <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4 dark:border-amber-500/30 dark:bg-amber-950/20">
@@ -717,7 +749,7 @@ export function FinanceProtocolsPage() {
                                 {guides.length}
                               </p>
                               <p className="mt-1 text-[11px] text-sky-700 dark:text-sky-300">
-                                {ledger.paidCount} paga(s) · {ledger.pendingCount} pendente(s)
+                                {ledger.paidCount} compensada(s) · {ledger.bankVerifiedCount} com baixa bancária · {ledger.pendingCount} pendente(s)
                               </p>
                             </div>
                           </div>
@@ -791,12 +823,14 @@ export function FinanceProtocolsPage() {
                                             <Badge
                                               variant="outline"
                                               className={
-                                                guide.status === "compensada"
-                                                  ? "rounded-full border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-950/20 dark:text-emerald-300"
-                                                  : "rounded-full border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-950/20 dark:text-amber-300"
+                                                isFinancialTestGuide(guide)
+                                                  ? "rounded-full border-sky-200 bg-sky-50 text-sky-800 dark:border-sky-600 dark:bg-sky-950/30 dark:text-sky-200"
+                                                  : guide.status === "compensada"
+                                                    ? "rounded-full border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-950/20 dark:text-emerald-300"
+                                                    : "rounded-full border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-950/20 dark:text-amber-300"
                                               }
                                             >
-                                              {guide.status === "compensada" ? "Paga" : "Pendente"}
+                                              {guideFinancialEvidenceLabel(guide)}
                                             </Badge>
                                             {isProtocolGuide ? (
                                               <Badge

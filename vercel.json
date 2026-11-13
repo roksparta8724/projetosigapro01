@@ -8,6 +8,42 @@
           "value": "no-cache, no-store, must-revalidate"
         }
       ]
+    },
+    {
+      "source": "/",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/index.html",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/api/profile-avatar-open",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "private, no-store"
+        }
+      ]
+    },
+    {
+      "source": "/api/municipality-logo-open",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "private, no-store"
+        }
+      ]
     }
   ],
   "rewrites": [
@@ -18,6 +54,18 @@
     {
       "source": "/api/payment-connection",
       "destination": "/api/mercadopago?action=payment-connection"
+    },
+    {
+      "source": "/api/mp-qa-webhook",
+      "destination": "/api/mercadopago?action=qa-webhook"
+    },
+    {
+      "source": "/api/qa/mercadopago/guide-boleto",
+      "destination": "/api/mercadopago?action=qa-boleto"
+    },
+    {
+      "source": "/api/qa/mercadopago/guide-pix",
+      "destination": "/api/mercadopago?action=qa-pix"
     },
     {
       "source": "/api/mercadopago/health",
@@ -34,6 +82,10 @@
     {
       "source": "/api/r2-upload",
       "destination": "/api/r2?action=upload"
+    },
+    {
+      "source": "/api/r2-process-proxy-upload",
+      "destination": "/api/r2?action=process-proxy-upload"
     },
     {
       "source": "/api/r2-delete",
@@ -68,7 +120,14 @@
     "deploymentEnabled": {
       "workbench-sigapro-polish-no-deploy-20261009": false,
       "fix/analise-premium-cadastro-20261013": false,
-      "workbench/logo-preview-premium-no-deploy-20261016": false
+      "workbench/logo-preview-premium-no-deploy-20261016": false,
+      "work/analysis-sheet-official-persistence-local-only-20261020": false,
+      "fix/habite-se-alvara-summary-contrast-20261020": false,
+      "fix/vercel-serverless-esm-complete-no-deploy-20261020": false,
+      "workbench/sigapro-consolidacao-p3-no-deploy-20261029": false,
+      "fix/qa-triagem-analise-pagamento-20261101": false,
+      "fix/f5-navigation-document-cache-20261113": false,
+      "feat/qa-premium-visual-sync-20261113": false
     }
   }
 }

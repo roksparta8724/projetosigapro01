@@ -2,12 +2,19 @@ import { type CSSProperties, useEffect, useRef, useState } from "react";
 import { Avatar } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { DEFAULT_AVATAR_EDITOR_DIAMETER, resolveCircularAvatarGeometry } from "@/lib/avatarCropGeometry";
+import { useAuthorizedAvatarUrl } from "@/hooks/useAuthorizedAvatarUrl";
 
 type UserAvatarSize = "sm" | "md" | "lg" | "xl";
 
 interface UserAvatarProps {
   name?: string | null;
   imageUrl?: string | null;
+  /** Current authenticated account for safe reuse across routed pages. */
+  authenticatedOwnerId?: string | null;
+  /** Keep last verified bitmap during same-account remote refresh (header only). */
+  preservePhotoDuringRefresh?: boolean;
+  /** Only the verified current account may explicitly confirm photo removal. */
+  photoRemovalConfirmed?: boolean;
   size?: UserAvatarSize;
   className?: string;
   imageClassName?: string;
@@ -23,6 +30,42 @@ const sizeClasses: Record<UserAvatarSize, string> = {
   lg: "h-14 w-14 text-base",
   xl: "h-20 w-20 text-xl",
 };
+
+// Guarda somente dimensoes da imagem, nunca dados do perfil.
+function avatarDimensionsKey(url: string): string {
+  let hash = 2166136261;
+  for (let i = 0; i < url.length; i += 1) {
+    hash = Math.imul(hash ^ url.charCodeAt(i), 16777619);
+  }
+  return "sigapro.avatar.dimensions.v1:" + (hash >>> 0).toString(16);
+}
+
+function readCachedAvatarDimensions(url: string | null | undefined): { width: number; height: number } {
+  const fallback = { width: 0, height: 0 };
+  if (!url || typeof window === "undefined") return fallback;
+  try {
+    const stored = window.sessionStorage.getItem(avatarDimensionsKey(url));
+    if (!stored) return fallback;
+    const dimensions = stored.split("x").map(Number);
+    const width = dimensions[0];
+    const height = dimensions[1];
+    if (!Number.isInteger(width) || !Number.isInteger(height) ||
+        width < 1 || height < 1 ||
+        width > 20000 || height > 20000) return fallback;
+    return { width, height };
+  } catch { return fallback; }
+}
+
+function cacheAvatarDimensions(url: string, width: number, height: number): void {
+  if (!url || typeof window === "undefined" ||
+      width < 1 || height < 1) return;
+  try {
+    window.sessionStorage.setItem(
+      avatarDimensionsKey(url),
+      width + "x" + height
+    );
+  } catch { /* Cache visual opcional. */ }
+}
 
 function alternateLegacyAvatarUrl(value: string) {
   const raw = String(value || "").trim();
@@ -73,9 +116,26 @@ function userInitials(name?: string | null) {
   return `${first}${last}`.toLocaleUpperCase("pt-BR") || "?";
 }
 
-export function UserAvatar({
+export function UserAvatar(props: UserAvatarProps) {
+  const privateImageUrl = useAuthorizedAvatarUrl(props.imageUrl, props.authenticatedOwnerId);
+  // Uma URL temporariamente ausente durante o refresh do MESMO usuário não
+  // deve recriar o avatar: isso descartava a imagem visível e exibia as
+  // iniciais por um frame. A troca de conta continua isolada por identidade.
+  // Em listagens sem owner autenticado, manter chave por origem para não
+  // reaproveitar fotos entre registros diferentes.
+  const owner = String(props.authenticatedOwnerId || "").trim();
+  const presentationKey = owner && owner !== "unknown"
+    ? `account:${owner}`
+    : `source:${props.imageUrl || ""}`;
+  return <UserAvatarPresentation key={presentationKey} {...props} imageUrl={privateImageUrl} />;
+}
+
+function UserAvatarPresentation({
   name,
   imageUrl,
+  authenticatedOwnerId,
+  preservePhotoDuringRefresh = false,
+  photoRemovalConfirmed = false,
   size = "md",
   className,
   imageClassName,
@@ -86,10 +146,9 @@ export function UserAvatar({
 }: UserAvatarProps) {
   const [failedImageUrl, setFailedImageUrl] = useState("");
   const [stableImageUrl, setStableImageUrl] = useState(imageUrl ?? "");
-  const [naturalSize, setNaturalSize] = useState({ width: 0, height: 0 });
+  const [naturalSize, setNaturalSize] = useState(() => readCachedAvatarDimensions(imageUrl));
   const [recoveryImageUrl, setRecoveryImageUrl] = useState("");
   const attemptedRecoveryRef = useRef(new Set<string>());
-  const emptyClearTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     attemptedRecoveryRef.current.clear();
@@ -97,26 +156,21 @@ export function UserAvatar({
   }, [imageUrl]);
 
   useEffect(() => {
-    if (emptyClearTimerRef.current) {
-      window.clearTimeout(emptyClearTimerRef.current);
-      emptyClearTimerRef.current = null;
-    }
-
     if (!imageUrl) {
-      // No avatar: return to initials. Brief hydration gaps are tolerated.
-      // This also covers null/undefined after deleting a previously saved
-      // photo, not only the empty string.
-      emptyClearTimerRef.current = window.setTimeout(() => {
-        setStableImageUrl("");
-        setFailedImageUrl("");
-        emptyClearTimerRef.current = null;
-      }, 1200);
-      return () => {
-        if (emptyClearTimerRef.current) {
-          window.clearTimeout(emptyClearTimerRef.current);
-          emptyClearTimerRef.current = null;
-        }
-      };
+      // The server can momentarily return a partial profile during background
+      // refresh. 1200ms was too short: after that threshold the header changed
+      // from the user's photo to initials, then back to the photo. Preserve the
+      // LAST VERIFIED bitmap for the SAME authenticated owner until the store
+      // confirms a genuine removal. Account changes still remount via the key.
+      const stableAccount = Boolean(authenticatedOwnerId && authenticatedOwnerId !== "unknown");
+      if (preservePhotoDuringRefresh && stableAccount && !photoRemovalConfirmed) {
+        return;
+      }
+
+      setStableImageUrl("");
+      setFailedImageUrl("");
+      setRecoveryImageUrl("");
+      return;
     }
 
     // A refresh may temporarily return no profile while the remote store is
@@ -139,6 +193,7 @@ export function UserAvatar({
         width: preload.naturalWidth || 1,
         height: preload.naturalHeight || 1,
       });
+      cacheAvatarDimensions(imageUrl || "", preload.naturalWidth, preload.naturalHeight);
       setStableImageUrl(imageUrl);
       setFailedImageUrl("");
     };
@@ -155,15 +210,7 @@ export function UserAvatar({
     return () => {
       cancelled = true;
     };
-  }, [imageUrl, stableImageUrl]);
-
-  useEffect(() => {
-    return () => {
-      if (emptyClearTimerRef.current) {
-        window.clearTimeout(emptyClearTimerRef.current);
-      }
-    };
-  }, []);
+  }, [imageUrl, stableImageUrl, authenticatedOwnerId, preservePhotoDuringRefresh, photoRemovalConfirmed]);
 
   const resolvedImageUrl = recoveryImageUrl || stableImageUrl || imageUrl || "";
   const showImage = Boolean(resolvedImageUrl) && failedImageUrl !== resolvedImageUrl;
@@ -230,6 +277,7 @@ export function UserAvatar({
               if (nextWidth !== naturalSize.width || nextHeight !== naturalSize.height) {
                 setNaturalSize({ width: nextWidth, height: nextHeight });
               }
+              cacheAvatarDimensions(resolvedImageUrl, nextWidth, nextHeight);
             }}
             onError={() => {
               const alternate = alternateLegacyAvatarUrl(resolvedImageUrl);

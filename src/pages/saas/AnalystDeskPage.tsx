@@ -1,4 +1,4 @@
-﻿import {
+import {
   Archive,
   ArchiveRestore,
   CheckCircle2,
@@ -12,7 +12,6 @@
   Send,
   Stamp,
   TimerReset,
-  RefreshCw,
   UserCheck,
   UserPlus,
   Users2,
@@ -22,9 +21,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { AlertCard } from "@/components/platform/AlertCard";
 import { InternalTabs } from "@/components/platform/InternalTabs";
-import { PageHeader } from "@/components/platform/PageHeader";
 import { MarkerSelector } from "@/components/platform/MarkerSelector";
 import { PortalFrame } from "@/components/platform/PortalFrame";
+import { QaArchitecturalLab } from "@/components/platform/QaArchitecturalLab";
 import { SectionCard } from "@/components/platform/SectionCard";
 import { TableCard } from "@/components/platform/TableCard";
 import {
@@ -47,7 +46,6 @@ import {
   formatOfficialProcessTitle,
   getChecklistTemplate,
   getProcessPaymentGuides,
-  getVisibleProcessesByScope,
   matchesOperationalScope,
   parseMarker,
   statusLabel,
@@ -56,9 +54,19 @@ import {
   URBAN_ANALYSIS_DEPARTMENT,
 } from "@/lib/platform";
 import { usePlatformData } from "@/hooks/usePlatformData";
+import { buildAnalysisRegistry } from "@/lib/analysisRegistry";
+import { paginateRegistry } from "@/lib/analysisRegistryPagination";
+import {
+  buildAnalysisQueueExportRows,
+  createAnalysisQueuePdf,
+  downloadAnalysisQueueCsv,
+  downloadAnalysisQueuePdf,
+} from "@/lib/analysisQueueReport";
+import { resolveProcessDispatchAuthor } from "@/lib/dispatchActorIdentity";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { backendClient } from "@/integrations/backend/databaseClient";
+import "@/styles/analysis-workspace.css";
 
 type AnalystSection =
   | "visao-geral"
@@ -68,16 +76,6 @@ type AnalystSection =
   | "correcoes"
   | "historico"
   | "indicadores";
-
-function downloadCsv(filename: string, rows: string[][]) {
-  const csv = rows
-    .map((row) => row.map((cell) => `"${String(cell).split('"').join('""')}"`).join(";"))
-    .join("\n");
-  const link = document.createElement("a");
-  link.href = `data:text/csv;charset=utf-8,${encodeURIComponent(csv)}`;
-  link.download = filename;
-  link.click();
-}
 
 function getPriorityBadge(process: { sla: { breached: boolean; hoursRemaining: number } }) {
   if (process.sla.breached) return "border-red-500/20 bg-red-500/10 text-red-600 dark:text-red-400";
@@ -110,6 +108,9 @@ export function AnalystDeskPage() {
   const {
     processes: allProcesses,
     sessionUsers,
+    remoteSyncedForCurrentUser,
+    dataError: platformDataError,
+    loading: platformDataLoading,
     refreshRemoteStore,
     updateProcessStatus,
     startProcessAnalysis,
@@ -128,24 +129,31 @@ export function AnalystDeskPage() {
   const tenantSettings = getInstitutionSettings(effectiveScopeId ?? session.tenantId);
   const [searchParams] = useSearchParams();
   const [search, setSearch] = useState("");
-  const [section, setSection] = useState<AnalystSection>(() =>
-    searchParams.get("secao") === "fila" ? "fila" : "visao-geral",
-  );
+  const [section, setSection] = useState<AnalystSection>(() => {
+    const requested = searchParams.get("secao");
+    return requested && ["visao-geral", "fila", "concluidos", "pendencias", "correcoes", "historico", "indicadores"].includes(requested)
+      ? requested as AnalystSection
+      : "fila";
+  });
   const [actionBusy, setActionBusy] = useState("");
   const [actionStatus, setActionStatus] = useState("");
+  const [exportBusy, setExportBusy] = useState(false);
+  const [exportError, setExportError] = useState("");
   const [assignmentTargets, setAssignmentTargets] = useState<Record<string, string>>({});
   const [dispatchFor, setDispatchFor] = useState<string | null>(null);
   const [dispatchDestination, setDispatchDestination] = useState("Diretoria de Urbanismo");
   const [dispatchNote, setDispatchNote] = useState("");
   const [dispatchTargetAnalystId, setDispatchTargetAnalystId] = useState("");
-  const [liveSyncAt, setLiveSyncAt] = useState("");
-  const [liveSyncError, setLiveSyncError] = useState("");
   const currentUnit =
     session.role === "analista"
       ? session.department || session.title || URBAN_ANALYSIS_DEPARTMENT
       : URBAN_ANALYSIS_DEPARTMENT;
 
-  const departmentProcesses = getVisibleProcessesByScope(session, effectiveScopeId, allProcesses);
+  // Somente processos oficialmente liberados entram na fila operacional.
+  // A existência de atribuição antiga não supre pagamento ou triagem.
+  const { departmentProcesses, registry: analysisRegistryBase } = buildAnalysisRegistry(
+    session, effectiveScopeId, allProcesses, remoteSyncedForCurrentUser,
+  );
 
   const refreshRemoteStoreRef = useRef(refreshRemoteStore);
 
@@ -157,12 +165,8 @@ export function AnalystDeskPage() {
     if (!effectiveScopeId) return;
     try {
       await refreshRemoteStoreRef.current();
-      setLiveSyncAt((current) => current || new Date().toISOString());
-      setLiveSyncError((current) => (current ? "" : current));
     } catch (error) {
-      setLiveSyncError(
-        error instanceof Error ? error.message : "Não foi possível atualizar a fila técnica.",
-      );
+      console.warn("[SIGAPRO][Analise] Atualizacao automatica indisponivel", error);
     }
   }, [effectiveScopeId]);
 
@@ -173,15 +177,18 @@ export function AnalystDeskPage() {
       void refreshAnalysisDesk();
     };
 
-    sync();
-    const timer = window.setInterval(sync, 5000);
+    // Initial data is loaded by PlatformDataProvider. A second full load on
+    // mount caused duplicate requests; data-change/focus still refresh now.
+    const timer = window.setInterval(sync, 30000);
     window.addEventListener("focus", sync);
+    window.addEventListener("sigapro:data-changed", sync);
     document.addEventListener("visibilitychange", sync);
 
     return () => {
       disposed = true;
       window.clearInterval(timer);
       window.removeEventListener("focus", sync);
+      window.removeEventListener("sigapro:data-changed", sync);
       document.removeEventListener("visibilitychange", sync);
     };
   }, [refreshAnalysisDesk]);
@@ -189,13 +196,6 @@ export function AnalystDeskPage() {
   // A fila operacional continua restrita ao setor atual, mas o registro da Análise
   // mantém os processos que já passaram pela mesa técnica, mesmo depois do envio
   // ao Financeiro ou a outra unidade.
-  const analysisRegistryBase = allProcesses.filter((item) => {
-    if (!matchesOperationalScope(effectiveScopeId, item)) return false;
-    const isCurrentlyVisible = departmentProcesses.some((current) => current.id === item.id);
-    const wasAnalyzed = Boolean(item.analysis?.startedAt || item.analysis?.assignedTo || item.analysis?.assignedProfileId);
-    return isCurrentlyVisible || wasAnalyzed;
-  });
-
   const filterBySearch = (item: ProcessRecord) => {
     const haystack = `${formatOfficialProcessNumber(item.protocol)} ${item.externalProtocol} ${item.title} ${item.ownerName} ${item.property.iptu} ${item.address} ${item.analysis?.assignedTo || ""} ${item.processControl?.currentFolder || ""}`.toLowerCase();
     return haystack.includes(search.trim().toLowerCase());
@@ -207,6 +207,11 @@ export function AnalystDeskPage() {
   const archiveStorageKey = `sigapro:analysis-archive:${session.id}:${effectiveScopeId || "default"}`;
   const [archivedProcessIds, setArchivedProcessIds] = useState<string[]>([]);
   const [showArchived, setShowArchived] = useState(false);
+  const [registryPage, setRegistryPage] = useState(1);
+
+  useEffect(() => {
+    setRegistryPage(1);
+  }, [search, showArchived, effectiveScopeId]);
   const [expandedProcessId, setExpandedProcessId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -324,7 +329,8 @@ export function AnalystDeskPage() {
   ] as const;
   const inReview = activeProcesses.filter((item) => item.status === "analise_tecnica");
   const completed = processes.filter((item) => ["deferido", "arquivado"].includes(item.status));
-  const visibleCompleted = completed.filter((item) => !archivedProcessIds.includes(item.id));
+  // Personal archive markers cannot erase official completed-process totals.
+  const visibleCompleted = completed;
   const correctionQueue = activeProcesses.filter(
     (item) => item.status === "reapresentacao" || item.status === "exigencia",
   );
@@ -343,11 +349,10 @@ export function AnalystDeskPage() {
       Boolean(item.analysis?.startedAt || item.analysis?.assignedTo || item.analysis?.assignedProfileId),
   );
   const processRegistry = [...analysisRegistryProcesses]
-    .filter((item) =>
-      showArchived
-        ? archivedProcessIds.includes(item.id)
-        : !archivedProcessIds.includes(item.id),
-    )
+    // Default is the full municipal record. Personal archived markers may
+    // highlight rows or constrain the explicit Archives view, never hide real
+    // official processes on the main screen.
+    .filter((item) => !showArchived || archivedProcessIds.includes(item.id))
     .sort((a, b) => {
       const aActive = analysisActiveStatuses.includes(a.status as (typeof analysisActiveStatuses)[number]) ? 1 : 0;
       const bActive = analysisActiveStatuses.includes(b.status as (typeof analysisActiveStatuses)[number]) ? 1 : 0;
@@ -356,6 +361,7 @@ export function AnalystDeskPage() {
       const bDate = Date.parse(b.analysis?.startedAt || b.timeline[0]?.at || "1970-01-01");
       return bDate - aDate;
     });
+  const registryPagination = paginateRegistry(processRegistry, registryPage, 15);
   const handedOffFromAnalysis = analysisTrackedProcesses.filter(
     (item) =>
       !analysisActiveStatuses.includes(item.status as (typeof analysisActiveStatuses)[number]) &&
@@ -641,7 +647,11 @@ export function AnalystDeskPage() {
     <div className="space-y-3.5">
       {items.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-sm leading-6 text-slate-600">
-          {emptyMessage}
+          {remoteSyncedForCurrentUser
+            ? emptyMessage
+            : platformDataError
+              ? "Não foi possível confirmar os processos no banco oficial. Confira o aviso de sincronização acima."
+              : "Aguardando a conferência dos processos no banco oficial..."}
         </div>
       ) : (
         items.map((process) => {
@@ -715,12 +725,12 @@ export function AnalystDeskPage() {
                       {getPriorityLabel(process)}
                     </Badge>
                     {!hasAssignedAnalyst ? (
-                      <Badge variant="outline" className="border-amber-400/35 bg-amber-400/15 text-amber-100">
+                      <Badge variant="outline" className="border-amber-400/35 bg-amber-400/15 text-amber-800 dark:text-amber-200">
                         <UserPlus className="mr-1 h-3.5 w-3.5" />
                         Aguardando analista
                       </Badge>
                     ) : assignedToCurrentSession ? (
-                      <Badge variant="outline" className="border-emerald-400/30 bg-emerald-400/15 text-emerald-100">
+                      <Badge variant="outline" className="border-emerald-400/30 bg-emerald-400/15 text-emerald-800 dark:text-emerald-200">
                         <UserCheck className="mr-1 h-3.5 w-3.5" />
                         Minha análise
                       </Badge>
@@ -759,9 +769,20 @@ export function AnalystDeskPage() {
                 </div>
 
                 <div data-analysis-process-actions="true" className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
+                  {session.role === "analista" &&
+                    canAccessMunicipalArea(session, "analise") &&
+                    !hasAssignedAnalyst && !analysisStarted ? (
+                    <Button type="button" data-sigapro-assume-analysis-direct="true"
+                      className="min-h-10 max-w-full rounded-xl bg-[#075985] px-4 !text-white hover:bg-[#0c4a6e] [&_*]:!text-white"
+                      disabled={Boolean(actionBusy)}
+                      onClick={() => void handleStartAnalysis(process)}>
+                      <UserPlus className="mr-2 h-4 w-4" />
+                      {actionBusy === `start-${process.id}` ? "Iniciando..." : "Assumir análise e abrir editor"}
+                    </Button>
+                  ) : null}
                   {canEditAnalysis && analysisStarted ? (
                     <Button type="button" variant="outline" size="sm"
-                      className="h-10 rounded-xl border-sky-400/25 bg-sky-400/10 px-3 text-xs font-semibold text-sky-100 hover:bg-sky-400/20"
+                      className="h-10 rounded-xl border-sky-400/25 bg-sky-400/10 px-3 text-xs font-semibold text-sky-800 hover:bg-sky-400/20 dark:text-sky-200"
                       onClick={() => { setDispatchFor((current) => current === process.id ? null : process.id); setDispatchNote(""); }}>
                       <Send className="mr-1.5 h-4 w-4" /> Encaminhar / despachar
                     </Button>
@@ -864,12 +885,12 @@ export function AnalystDeskPage() {
                   </div>
                 </div>
               ) : null}
-              {process.dispatches.length > 0 ? (
-                <div className="mx-5 mb-3 rounded-xl border border-sky-400/20 bg-sky-400/5 p-3 text-xs text-slate-200">
-                  <p className="font-bold text-sky-200">Último despacho / encaminhamento</p>
-                  <p className="mt-1 whitespace-pre-wrap">{process.dispatches[process.dispatches.length - 1].subject}</p>
-                  <p className="mt-1 text-slate-300">Destino: {process.dispatches[process.dispatches.length - 1].to}{process.dispatches[process.dispatches.length - 1].assignedTo ? ` · ${process.dispatches[process.dispatches.length - 1].assignedTo}` : ""}</p>
-                  <p className="mt-1 text-slate-300">Despachado por: <strong className="text-white">{process.dispatches[process.dispatches.length - 1].requestedBy || "Autor não identificado"}</strong></p>
+              {isExpanded && process.dispatches.length > 0 ? (
+                <div className="mx-5 mb-3 rounded-xl border border-sky-200 bg-sky-50 p-3 text-xs text-slate-800 dark:border-sky-800 dark:bg-slate-800 dark:text-slate-100">
+                  <p className="font-bold text-sky-900 dark:text-sky-200">Último despacho / encaminhamento</p>
+                  <p className="mt-1 whitespace-pre-wrap">{process.dispatches[0].subject}</p>
+                  <p className="mt-1 text-slate-700 dark:text-slate-300">Destino: {process.dispatches[0].to}{process.dispatches[0].assignedTo ? ` · ${process.dispatches[0].assignedTo}` : ""}</p>
+                  <p className="mt-1 text-slate-700 dark:text-slate-300">Despachado por: <strong className="text-slate-900 dark:text-white">{resolveProcessDispatchAuthor(process.dispatches[0], sessionUsers) || "Identificação não registrada neste despacho"}</strong></p>
                 </div>
               ) : null}
               {isExpanded ? (
@@ -1125,24 +1146,91 @@ export function AnalystDeskPage() {
     </div>
   );
 
+  const readVisibleOfficialLogo = () => {
+    const element = document.querySelector<HTMLImageElement>(
+      'header[data-sigapro-compact-header="true"] .sig-institution-logo-surface[data-logo-context="municipality"] img',
+    );
+    if (!element?.complete || element.naturalWidth <= 0 || element.naturalHeight <= 0) return undefined;
+    try {
+      const canvas = document.createElement("canvas");
+      const width = 256;
+      canvas.width = width;
+      canvas.height = Math.max(1, Math.round(width * element.naturalHeight / element.naturalWidth));
+      const context = canvas.getContext("2d");
+      if (!context) return undefined;
+      context.fillStyle = "#ffffff";
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      context.drawImage(element, 0, 0, canvas.width, canvas.height);
+      return canvas.toDataURL("image/png");
+    } catch {
+      // Imagens R2 que não oferecem CORS ainda aparecem na tela, mas não podem
+      // ser copiadas para canvas. Não substituir por brasão fictício.
+      return undefined;
+    }
+  };
+
+  const handleExportPdf = async () => {
+    if (!remoteSyncedForCurrentUser || exportBusy) return;
+    setExportBusy(true);
+    setExportError("");
+    try {
+      const issuedAt = new Date();
+      const exportRows = buildAnalysisQueueExportRows(processRegistry, resolveAssignedAnalystName);
+      const report = await createAnalysisQueuePdf(exportRows, {
+        municipality: municipality?.name || "Prefeitura não identificada",
+        department: currentUnit,
+        generatedBy: session.name || "Usuário autenticado",
+        generatedAt: issuedAt,
+        logoDataUrl: readVisibleOfficialLogo(),
+        filterDescription: [
+          showArchived ? "Arquivados do meu perfil" : "Registro oficial da análise",
+          search.trim() ? "Pesquisa: " + search.trim() : "Sem pesquisa",
+        ].join(" · "),
+      });
+      downloadAnalysisQueuePdf(report, issuedAt);
+    } catch {
+      setExportError("Não foi possível gerar o PDF. Confira os registros oficiais e tente novamente.");
+    } finally {
+      setExportBusy(false);
+    }
+  };
+
+  const handleExportCsv = () => {
+    if (!remoteSyncedForCurrentUser) return;
+    setExportError("");
+    try {
+      downloadAnalysisQueueCsv(buildAnalysisQueueExportRows(processRegistry, resolveAssignedAnalystName));
+    } catch {
+      setExportError("Não foi possível gerar a planilha CSV. Tente novamente.");
+    }
+  };
+
   const renderProcessRegistry = () => (
-    <div className="space-y-3">
-      <div className="flex items-start gap-3 rounded-[16px] border border-sky-400/25 bg-[linear-gradient(135deg,#0c2131_0%,#0b2538_100%)] px-4 py-3 shadow-[0_4px_14px_rgba(14,116,181,0.05)] dark:border-sky-500/25 dark:bg-[linear-gradient(135deg,#0c2131_0%,#0b2538_100%)]">
-        <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-sky-700 text-white shadow-sm">
-          <Workflow className="h-4 w-4" />
-        </div>
-        <div>
-          <p className="text-[11px] font-extrabold uppercase tracking-[0.08em] text-sky-100">
-            Navegação da fila técnica
-          </p>
-          <p className="mt-0.5 text-[11px] leading-5 text-sky-200/90">
-            Selecione um card para consultar os detalhes operacionais. O número do processo e a ação “Abrir processo” acessam diretamente o registro oficial.
-          </p>
-        </div>
+    <div className="space-y-3" data-analysis-registry-state={remoteSyncedForCurrentUser ? "confirmed" : "pending"}>
+      <div data-analysis-queue-guide="true" className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-2.5 text-xs dark:border-slate-700">
+        <p role="status" className="font-semibold text-slate-700 dark:text-slate-200">
+          {remoteSyncedForCurrentUser
+            ? "Consulta oficial confirmada · " + registryPagination.total + " processo(s) nesta visualização"
+            : "Sincronização pendente — aguardando confirmação do banco"}
+        </p>
+        <p className="text-slate-500 dark:text-slate-400">Clique no número para abrir o processo.</p>
+      </div>
+
+      <div data-analysis-registry-pagination="true" className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600 dark:bg-slate-800 dark:text-slate-200">
+        <p className="font-semibold">Exibindo {registryPagination.from}–{registryPagination.to} de {registryPagination.total} processos oficiais</p>
+        {registryPagination.pages > 1 ? (
+          <nav aria-label="Páginas dos processos oficiais" className="flex items-center gap-2">
+            <Button type="button" variant="outline" size="sm" disabled={registryPagination.page <= 1}
+              onClick={() => setRegistryPage((current) => Math.max(1, current - 1))}>Anterior</Button>
+            <span className="min-w-20 text-center text-xs font-bold" aria-live="polite">Página {registryPagination.page} de {registryPagination.pages}</span>
+            <Button type="button" variant="outline" size="sm" disabled={registryPagination.page >= registryPagination.pages}
+              onClick={() => setRegistryPage((current) => Math.min(registryPagination.pages, current + 1))}>Próxima</Button>
+          </nav>
+        ) : null}
       </div>
 
       {renderQueue(
-        processRegistry,
+        registryPagination.items,
         showArchived
           ? "Nenhum processo arquivado nesta lista."
           : "Nenhum processo da Análise encontrado com os filtros atuais.",
@@ -1152,36 +1240,71 @@ export function AnalystDeskPage() {
   );
 
   return (
-    <PortalFrame eyebrow="MESA TÉCNICA" title="Fila técnica, SLA e decisões">
-      <PageShell>
-        <PageHeader
-          eyebrow="Análise Urbanística"
-          title="Fila técnica, prioridade e decisão"
-          description="Conduza a análise diária com foco em prazo, pendências e decisão técnica."
-          icon={Stamp}
-          actions={
-            <Button
-              type="button"
-              className="rounded-full bg-slate-950 hover:bg-slate-900"
-              onClick={() =>
-                downloadCsv("relatorio-analise.csv", [
-                  ["Protocolo", "Projeto", "Status", "SLA", "Pendências", "Responsável"],
-                  ...processes.map((process) => [
-                    formatOfficialProcessNumber(process.protocol),
-                    formatOfficialProcessTitle({ title: process.title, type: process.type }),
-                    statusLabel(process.status),
-                    `${process.sla.currentStage} - ${process.sla.hoursRemaining}h`,
-                    String(getOpenRequirements(process).length),
-                    process.technicalLead,
-                  ]),
-                ])
-              }
-            >
-              <Download className="mr-2 h-4 w-4 text-sky-200" />
-              Exportar fila
+    <PortalFrame eyebrow="MESA TÉCNICA" title="Fila técnica, SLA e decisões" compactHeader>
+      <PageShell className={section === "visao-geral" ? "sig-analysis-page sig-module-summary-active !flex !flex-col !gap-3 !pb-5" : "sig-analysis-page !flex !flex-col !gap-3 !pb-5"}>
+        <section data-analysis-command-bar="true"
+          className="flex min-w-0 flex-col gap-4 rounded-[18px] border border-slate-200 bg-white px-4 py-4 shadow-[0_8px_22px_rgba(15,23,42,0.045)] dark:border-slate-700 dark:bg-slate-900 sm:px-5 xl:flex-row xl:items-center xl:justify-between">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[13px] bg-slate-950 text-white dark:bg-sky-800">
+              <ListTodo className="h-5 w-5" aria-hidden="true" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-[10px] font-extrabold uppercase tracking-[0.14em] !text-sky-800 dark:!text-sky-200">Operação municipal · Análise técnica</p>
+              <h2 className="mt-0.5 text-lg font-extrabold tracking-tight !text-slate-950 dark:!text-white sm:text-xl">Mesa de processos</h2>
+              <p className="mt-0.5 text-xs !text-slate-600 dark:!text-slate-300">Fila, prazos, encaminhamentos e relatórios em um só lugar.</p>
+            </div>
+          </div>
+          <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center xl:w-auto">
+            <span className="hidden shrink-0 items-center gap-1.5 text-[11px] font-bold text-emerald-700 dark:text-emerald-300 2xl:inline-flex" role="status">
+              <span className={remoteSyncedForCurrentUser ? "h-2 w-2 rounded-full bg-emerald-500" : "h-2 w-2 rounded-full bg-amber-500"} />
+              {remoteSyncedForCurrentUser ? "Banco confirmado" : "Aguardando sincronização"}
+            </span>
+            <Button type="button" variant="outline"
+              className="h-10 w-full rounded-xl border-slate-300 bg-white px-4 text-xs font-bold text-slate-800 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-white sm:w-auto"
+              disabled={!remoteSyncedForCurrentUser}
+              onClick={handleExportCsv}
+              title="Exportar registros do filtro atual para planilha UTF-8">
+              <Download className="mr-1.5 h-4 w-4" aria-hidden="true" />
+              Planilha CSV
             </Button>
-          }
-        />
+            <Button type="button"
+              className="h-10 w-full rounded-xl bg-[#0c5275] px-5 text-xs font-extrabold !text-white shadow-[0_5px_14px_rgba(12,82,117,0.16)] hover:bg-[#063b58] sm:w-auto"
+              disabled={!remoteSyncedForCurrentUser || exportBusy}
+              onClick={() => void handleExportPdf()}
+              title="Relatório institucional paginado em PDF, com todos os registros do filtro atual">
+              <Download className="mr-1.5 h-4 w-4 !text-white" aria-hidden="true" />
+              {exportBusy ? "Gerando PDF…" : "Exportar fila em PDF"}
+            </Button>
+          </div>
+        </section>
+        {exportError ? <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-bold text-rose-800">{exportError}</p> : null}
+
+        {!remoteSyncedForCurrentUser ? (
+          <div
+            role={platformDataError ? "alert" : "status"}
+            data-analysis-sync-state={platformDataError ? "error" : "pending"}
+            className={`mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-sm ${platformDataError
+              ? "border-amber-300 bg-amber-50 text-amber-950"
+              : "border-sky-200 bg-sky-50 text-slate-900"}`}
+          >
+            <div className="min-w-0">
+              <p className="font-bold">
+                {platformDataError ? "Sincronização oficial não confirmada" : "Sincronizando processos com o Neon..."}
+              </p>
+              <p className="mt-1 text-xs leading-5">
+                {platformDataError || (
+                  platformDataLoading
+                    ? "Consultando os protocolos, suas guias e a atribuição técnica."
+                    : "Aguardando validação da sessão e dos dados oficiais. Nenhum processo foi excluído."
+                )}
+              </p>
+            </div>
+            <Button type="button" variant="outline" className="shrink-0 border-slate-300 bg-white text-slate-900"
+              onClick={() => { void refreshRemoteStore().catch(() => undefined); }}>
+              Atualizar do banco
+            </Button>
+          </div>
+        ) : null}
 
         {actionStatus ? (
           <div
@@ -1196,6 +1319,7 @@ export function AnalystDeskPage() {
         ) : null}
 
         <InternalTabs
+          className="sig-analysis-tabs"
           items={navItems as unknown as Array<{ value: string; label: string; helper?: string }>}
           value={section}
           onChange={(value) => setSection(value as AnalystSection)}
@@ -1203,12 +1327,44 @@ export function AnalystDeskPage() {
 
         {section === "visao-geral" && (
           <>
+            {import.meta.env.VITE_SIGAPRO_NEON_ISOLATED==="true" &&
+              (session.role==="analista"||session.role==="prefeitura_supervisor") ? (
+                <QaArchitecturalLab municipalityId={effectiveScopeId} />
+              ) : null}
             <PageStatsRow>
               <StatCard label="Em análise" value={String(inReview.length)} description="Pareceres em andamento" icon={Stamp} tone="blue" />
               <StatCard label="Pendências" value={String(requirementsOpen)} description="Exigências abertas" icon={Clock3} tone="amber" />
               <StatCard label="SLA crítico" value={String(slaCritical.length)} description="Prazo curto ou vencido" icon={TimerReset} tone="rose" />
               <StatCard label="Concluídos" value={String(completed.length)} description="Decisões finalizadas" icon={CheckCircle2} tone="emerald" />
             </PageStatsRow>
+
+            <div data-analysis-official-processes="true">
+              <TableCard
+                title="Processos oficiais da Prefeitura"
+                description="Registro do município com o status real de cada processo. Arquivamentos pessoais não escondem processos da visão principal. Os cinco primeiros aparecem abaixo."
+                icon={ListTodo}
+                actions={
+                  <Button type="button" variant="outline" className="rounded-full"
+                    onClick={() => setSection("fila")}>
+                    Abrir lista completa
+                  </Button>
+                }
+              >
+                <p role="status" className="mb-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-800">
+                  {remoteSyncedForCurrentUser
+                    ? `Neon confirmou ${allProcesses.length} registro(s) acessível(is) à sessão e ${analysisRegistryBase.length} processo(s) nesta Análise.`
+                    : "Aguardando confirmação dos processos no Neon; não é uma lista vazia definitiva."}
+                </p>
+                {renderQueue(
+                  processRegistry.slice(0, 5),
+                  remoteSyncedForCurrentUser
+                    ? allProcesses.length > 0
+                      ? "Existem registros no banco, mas nenhum corresponde à Prefeitura e ao perfil desta Análise. Confira município e filtros."
+                      : "Nenhum processo retornou para esta conta na consulta oficial."
+                    : "A consulta oficial ainda está sincronizando. Nenhum processo foi excluído.",
+                )}
+              </TableCard>
+            </div>
 
             <PageMainGrid>
               <PageMainContent>
@@ -1331,6 +1487,48 @@ export function AnalystDeskPage() {
 
         {section === "fila" && (
           <>
+            <section data-analysis-process-panel="true" className="min-w-0 overflow-hidden rounded-[19px] border border-slate-200 bg-white shadow-[0_8px_26px_rgba(15,23,42,0.045)] dark:border-slate-700 dark:bg-slate-900">
+              <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-slate-50/75 px-4 py-3 dark:border-slate-700 dark:bg-slate-800/80 sm:px-5">
+                <div className="flex min-w-0 items-center gap-3">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#dcebf4] text-[#075985] dark:bg-sky-950 dark:text-sky-200">
+                    <ListTodo className="h-4.5 w-4.5" aria-hidden="true" />
+                  </span>
+                  <div className="min-w-0">
+                    <h3 className="text-sm font-extrabold !text-slate-900 dark:!text-white sm:text-base">Processos da Análise</h3>
+                    <p className="text-[11px] !text-slate-600 dark:!text-slate-300">Ativos, encaminhados e concluídos. Abra um registro para consultar ou atuar.</p>
+                  </div>
+                </div>
+                <span className="rounded-lg border border-sky-200 bg-white px-3 py-1.5 text-xs font-extrabold text-[#075985] dark:border-sky-800 dark:bg-slate-900 dark:text-sky-200" role="status">
+                  {processRegistry.length} registro(s)
+                </span>
+              </header>
+              <div className="space-y-3 p-3 sm:p-4">
+                <div data-analysis-filters="true" className="flex min-w-0 flex-col gap-2 sm:flex-row">
+                  <div className="relative min-w-0 flex-1">
+                    <Search className="sig-search-icon pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" aria-hidden="true" />
+                    <Input
+                      value={search}
+                      onChange={(event) => setSearch(event.target.value)}
+                      placeholder="Buscar processo, proprietário, endereço, IPTU ou analista"
+                      aria-label="Pesquisar processos da análise"
+                      className="h-10 w-full rounded-xl border-slate-300 bg-white pl-10 text-sm text-slate-900 placeholder:text-slate-500 focus-visible:border-sky-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
+                    />
+                  </div>
+                  <Button type="button" variant="outline"
+                    className="h-10 shrink-0 rounded-xl border-slate-300 bg-white px-3 text-xs font-bold text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
+                    onClick={() => setShowArchived((current) => !current)}>
+                    {showArchived ? <ListTodo className="mr-2 h-4 w-4" /> : <Archive className="mr-2 h-4 w-4" />}
+                    {showArchived ? "Voltar à lista completa" : "Arquivados (" + archivedProcessIds.length + ")"}
+                  </Button>
+                </div>
+                {renderProcessRegistry()}
+              </div>
+            </section>
+
+            <details data-analysis-team-disclosure="true" className="mt-5 rounded-[22px] border border-slate-200 bg-slate-50 p-3 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+              <summary className="cursor-pointer rounded-xl px-3 py-2 text-sm font-bold text-slate-900 marker:text-sky-700 dark:text-slate-100">
+                Distribuição da equipe e carga de trabalho — expandir quando necessário
+              </summary>
             <div
               data-analysis-distribution-manager="true"
               className="mb-4 overflow-hidden rounded-[22px] border border-white/15 bg-[linear-gradient(180deg,#102637_0%,#0b1c2e_100%)] shadow-[0_12px_32px_rgba(0,0,0,0.22)]"
@@ -1338,40 +1536,17 @@ export function AnalystDeskPage() {
               <div className="flex flex-col gap-3 border-b border-white/10 bg-[linear-gradient(135deg,#132d42_0%,#102438_100%)] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <div className="flex items-center gap-2">
-                    <Users2 className="h-5 w-5 text-sky-700" />
-                    <h2 className="text-sm font-extrabold text-slate-950">Gerenciador de distribuição da Análise</h2>
+                    <Users2 className="h-5 w-5 text-sky-200" />
+                    <h2 className="text-sm font-extrabold text-white">Gerenciador de distribuição da Análise</h2>
                   </div>
                   <p className="mt-1 text-xs leading-5 text-slate-300">
                     Um processo sem responsável fica na fila comum. A atribuição define o responsável de referência para carga, SLA e auditoria, sem bloquear a colaboração técnica dos demais analistas da unidade.
                   </p>
                 </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className={`inline-flex items-center rounded-full border px-3 py-1.5 text-[10px] font-bold ${
-                    liveSyncError
-                      ? "border-amber-200 bg-amber-50 text-amber-800"
-                      : "border-emerald-200 bg-emerald-50 text-emerald-800"
-                  }`}>
-                    <span className={`mr-2 h-2 w-2 rounded-full ${liveSyncError ? "bg-amber-500" : "bg-emerald-500"}`} />
-                    {liveSyncError
-                      ? "Sincronização pendente"
-                      : liveSyncAt
-                        ? `Atualizado ${new Date(liveSyncAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}`
-                        : "Sincronização ativa"}
-                  </span>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="h-9 rounded-full"
-                    onClick={() => void refreshAnalysisDesk()}
-                  >
-                    <RefreshCw className="mr-2 h-4 w-4" />
-                    Atualizar agora
-                  </Button>
-                </div>
+
               </div>
 
-              <div className="grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-4">
+              <div data-analysis-distribution-grid="true" className="grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-4">
                 <div className="rounded-2xl border border-amber-400/25 bg-amber-400/10 p-4">
                   <p className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-amber-200">Aguardando distribuição</p>
                   <p className="mt-2 text-2xl font-black text-white">{unassignedAnalysis.length}</p>
@@ -1387,7 +1562,7 @@ export function AnalystDeskPage() {
                   <p className="mt-2 text-2xl font-black text-white">{teamAssignedAnalysis.length}</p>
                   <p className="mt-1 text-xs text-slate-300">Processos com responsável de referência; a equipe técnica da Análise pode colaborar quando necessário.</p>
                 </div>
-                <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
+                <div data-analysis-availability-card="true" className="rounded-2xl border border-slate-400/30 bg-[#20364b] p-4">
                   <p className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-slate-200">Equipe disponível</p>
                   <p className="mt-2 text-2xl font-black text-white">{analysisTeam.length}</p>
                   <p className="mt-1 text-xs text-slate-300">
@@ -1418,44 +1593,8 @@ export function AnalystDeskPage() {
               ) : null}
             </div>
 
-            <TableCard
-            title="Processos da Análise"
-            description="Lista completa dos processos que passaram pela Análise Urbanística, inclusive os já encaminhados ou concluídos."
-            icon={ListTodo}
-            actions={
-              <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
-                <div className="relative w-full max-w-xl">
-                  <Search className="sig-search-icon sig-analysis-search-icon pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2" />
-                  <Input
-                    value={search}
-                    onChange={(event) => setSearch(event.target.value)}
-                    placeholder="Buscar processo, proprietário, endereço, IPTU ou analista"
-                    className="h-11 rounded-[14px] border-slate-200 bg-white pl-11 shadow-[0_4px_14px_rgba(15,23,42,0.04)] focus-visible:border-sky-300 focus-visible:ring-sky-100 dark:border-slate-700 dark:bg-slate-900"
-                  />
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="h-11 shrink-0 rounded-[14px] border-slate-200 bg-white px-4 font-semibold text-slate-700 shadow-[0_4px_14px_rgba(15,23,42,0.04)] hover:border-sky-200 hover:bg-sky-50 hover:text-sky-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
-                  onClick={() => setShowArchived((current) => !current)}
-                >
-                  {showArchived ? (
-                    <>
-                      <ListTodo className="mr-2 h-4 w-4" />
-                      Ver lista ativa
-                    </>
-                  ) : (
-                    <>
-                      <Archive className="mr-2 h-4 w-4" />
-                      Ver arquivados ({archivedProcessIds.length})
-                    </>
-                  )}
-                </Button>
-              </div>
-            }
-          >
-            {renderProcessRegistry()}
-          </TableCard>
+            </details>
+
           </>
         )}
 

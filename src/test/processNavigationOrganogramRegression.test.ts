@@ -31,7 +31,8 @@ describe("process entry and organogram regression", () => {
   it("routes the Processos shortcut back to the operational analysis queue when applicable", () => {
     expect(portal).toContain('canAccessMunicipalArea(session, "analise")');
     expect(portal).toContain('"/prefeitura/analise?secao=fila"');
-    expect(analyst).toContain('searchParams.get("secao") === "fila"');
+    expect(analyst).toContain('const requested = searchParams.get("secao");');
+    expect(analyst).toContain('      : "fila";');
   });
 
   it("keeps the dispatch organogram hierarchical, grouped and selectable without flattening the Prefeitura structure", () => {

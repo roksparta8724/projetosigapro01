@@ -33,6 +33,9 @@ import {
   PageStatsRow,
 } from "@/components/platform/PageShell";
 import { PortalFrame } from "@/components/platform/PortalFrame";
+import { attachMunicipalCollectionGuide } from "@/lib/municipalCollectionBridge";
+import { GovbrArGuideBridge } from "@/components/platform/GovbrArGuideBridge";
+import { useEffectiveCollectionMode } from "@/hooks/useEffectiveCollectionMode";
 import { SectionCard } from "@/components/platform/SectionCard";
 import { StatCard } from "@/components/platform/StatCard";
 import { TableCard } from "@/components/platform/TableCard";
@@ -52,12 +55,15 @@ import {
   type ProcessRecord,
   URBAN_ANALYSIS_DEPARTMENT,
 } from "@/lib/platform";
+import { getMissingRequiredDocuments, getPendingTriageDocuments, hasCompensatedInitialGuide, isReadyForProtocolDispatch } from "@/lib/triageReadiness";
+import { isFinancialTestGuide, protocolPaymentEvidenceLabel } from "@/lib/qaPaymentEvidence";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { useMarkerPresets } from "@/hooks/useMarkerPresets";
 import {
   confirmRemotePreprotocolPayment,
+  reconcileRemoteProcessTriage,
   listRemotePendingPreprotocolPayments,
   type PendingPreprotocolPayment,
 } from "@/integrations/backend/platform";
@@ -77,18 +83,6 @@ function getOpeningDate(process: ProcessRecord) {
   return process.timeline[process.timeline.length - 1]?.at ?? process.payment.issuedAt ?? "-";
 }
 
-function getMissingRequiredDocuments(process: ProcessRecord) {
-  return process.documents.filter((document) => document.required && !document.uploaded).length;
-}
-
-function getPendingTriageDocuments(process: ProcessRecord) {
-  return process.documents.filter(
-    (document) =>
-      document.required &&
-      (!document.uploaded || document.reviewStatus !== "aprovado"),
-  ).length;
-}
-
 export function ProtocolDeskPage() {
   const { session } = usePlatformSession();
   const {
@@ -100,6 +94,7 @@ export function ProtocolDeskPage() {
     dispatchProcess,
     getUserProfile,
     refreshRemoteStore,
+    sendProcessMessage,
   } = usePlatformData();
   const { municipality, scopeId, institutionSettingsCompat } = useMunicipality();
   // Para funcionário municipal, a Prefeitura vinculada à conta é a fonte
@@ -111,6 +106,8 @@ export function ProtocolDeskPage() {
     municipality?.id ??
     scopeId ??
     null;
+
+  const { canImportMunicipalGuide, configuration: collectionConfig } = useEffectiveCollectionMode(effectiveScopeId);
 
   const userById = useMemo(
     () => new Map(sessionUsers.map((user) => [user.id, user])),
@@ -134,10 +131,21 @@ export function ProtocolDeskPage() {
     [allProcesses, effectiveScopeId],
   );
 
+  // A guia inicial do Cadastro Eventual pode nascer no pré-protocolo.
+  // Incluir o pré-protocolo apenas no seletor GOVBR, sem oficializar o
+  // livro de protocolos nem confirmar pagamento.
+  const govbrEligibleProcesses = useMemo(
+    () => allProcesses.filter((item) =>
+      Boolean(effectiveScopeId) && matchesOperationalScope(effectiveScopeId, item)),
+    [allProcesses, effectiveScopeId],
+  );
+
   const protocolQueueProcesses = useMemo(
     () =>
       processes.filter((item) => {
-        if (!isProcessOwnedBySessionDepartment(session, item)) return false;
+        // A Prefeitura Admin somente consulta. Operadores de Protocolo
+        // precisam possuir a pasta; nunca usar privilégio consultivo para despacho.
+        if (!isProcessOwnedBySessionDepartment(session, item) && session.role !== "prefeitura_admin") return false;
         const currentFolder = (item.processControl?.currentFolder || "").toLowerCase();
         if (currentFolder) {
           return (
@@ -162,15 +170,34 @@ export function ProtocolDeskPage() {
     [processes, session],
   );
 
+  const recoverableTriageCases = useMemo(() =>
+    processes.filter((item) =>
+      // Somente o Protocolo responsável ou Master podem acionar a correção
+      // formal; a RPC verifica escopo e autorização no Neon novamente.
+      session.role !== "prefeitura_admin" &&
+      (
+        ["master_admin", "master_ops"].includes(session.role) ||
+        isProcessOwnedBySessionDepartment(session, item)
+      ) &&
+      ["analise_tecnica", "distribuicao"].includes(item.status) &&
+      item.triage.status !== "concluido" &&
+      !(item.dispatches || []).some((d) => /urbanis|an[aá]lise/i.test(d.to))
+    ),
+    [processes, session],
+  );
+
   const tenantSettings =
     institutionSettingsCompat ?? getInstitutionSettings(effectiveScopeId ?? session.tenantId);
 
   const { presets: markerPresets } = useMarkerPresets();
   const [protocolQuery, setProtocolQuery] = useState("");
+  const [govbrProtocolQuery, setGovbrProtocolQuery] = useState("");
+  const [govbrProtocolId, setGovbrProtocolId] = useState("");
+  const [triageRecoveryReason, setTriageRecoveryReason] = useState("");
   const [protocolActionStatus, setProtocolActionStatus] = useState("");
   const [protocolActionBusy, setProtocolActionBusy] = useState("");
   const [markerFilter, setMarkerFilter] = useState("todos");
-  const [section, setSection] = useState<ProtocolSection>("visao-geral");
+  const [section, setSection] = useState<ProtocolSection>("fila");
   const [pendingPreprotocolPayments, setPendingPreprotocolPayments] = useState<
     PendingPreprotocolPayment[]
   >([]);
@@ -441,12 +468,11 @@ export function ProtocolDeskPage() {
   };
 
   const dispatchSelectedToUrbanism = async (sourceItems: ProcessRecord[]) => {
-    const selected = sourceItems.filter(
-      (process) =>
-        selectedProcessIds.has(process.id) &&
-        process.status === "pagamento_confirmado" &&
-        isProcessOwnedBySessionDepartment(session, process),
+    const chosen = sourceItems.filter(
+      (process) => selectedProcessIds.has(process.id) && isProcessOwnedBySessionDepartment(session, process),
     );
+    const selected = chosen.filter(isReadyForProtocolDispatch);
+    const awaitingRequirements = chosen.length - selected.length;
 
     if (selected.length === 0) {
       setProtocolActionStatus("Nenhum dos processos selecionados está liberado para despacho ao Urbanismo.");
@@ -456,28 +482,35 @@ export function ProtocolDeskPage() {
     setProtocolActionBusy("bulk-dispatch");
     setProtocolActionStatus("");
 
+    const completedIds: string[] = [];
+    const rejected: string[] = [];
     try {
       for (const process of selected) {
-        await dispatchProcess({
-          processId: process.id,
-          actor: session.name,
-          from: "Setor de Protocolo",
-          to: URBAN_ANALYSIS_DEPARTMENT,
-          subject: "Encaminhamento para análise urbanística",
-          dueDate: "",
-          visibility: "misto",
-          priority: "media",
-        });
+        try {
+          await dispatchProcess({
+            processId: process.id,
+            actor: session.name,
+            from: "Setor de Protocolo",
+            to: URBAN_ANALYSIS_DEPARTMENT,
+            subject: "Encaminhamento para análise urbanística",
+            dueDate: "",
+            visibility: "misto",
+            priority: "media",
+          });
+          completedIds.push(process.id);
+        } catch (error) {
+          rejected.push(
+            `${formatOfficialProcessNumber(process.protocol)}: ${error instanceof Error ? error.message : "falha no despacho"}`,
+          );
+        }
       }
-      setSelectedProcessIds(new Set());
+      // Preserve non-dispatched selections for review/retry, not the successful ones.
+      setSelectedProcessIds((current) => new Set(
+        [...current].filter((id) => !completedIds.includes(id)),
+      ));
       setProtocolActionStatus(
-        `${selected.length} processo(s) despachado(s) para ${URBAN_ANALYSIS_DEPARTMENT}.`,
-      );
-    } catch (error) {
-      setProtocolActionStatus(
-        error instanceof Error
-          ? `Não foi possível concluir o despacho em lote: ${error.message}`
-          : "Não foi possível concluir o despacho em lote.",
+        `${completedIds.length} processo(s) encaminhado(s). ${awaitingRequirements} aguardando guia, triagem ou documentos. ${rejected.length} falha(s).` +
+        (rejected.length ? ` Verificar: ${rejected.slice(0, 3).join("; ")}` : ""),
       );
     } finally {
       setProtocolActionBusy("");
@@ -571,7 +604,7 @@ export function ProtocolDeskPage() {
             {normalizedQuery ? "Nenhum processo encontrado para esta pesquisa." : emptyMessage}
           </div>
         ) : (
-          <div className="overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-[0_14px_36px_rgba(15,23,42,0.07)] dark:border-slate-700 dark:bg-slate-900 dark:shadow-[0_18px_44px_rgba(0,0,0,0.24)]">
+          <div data-sigapro-protocol-queue-list="true" className="min-w-0 max-w-full overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-[0_14px_36px_rgba(15,23,42,0.07)] dark:border-slate-700 dark:bg-slate-900 dark:shadow-[0_18px_44px_rgba(0,0,0,0.24)]">
             {visibleItems.map((process, index) => {
               const guides = getProcessPaymentGuides(process, tenantSettings);
               const protocolGuide = guides.find((guide) => guide.kind === "protocolo");
@@ -584,15 +617,16 @@ export function ProtocolDeskPage() {
                 (process.createdBy ? userById.get(process.createdBy) : undefined);
               const expanded = expandedProcessIds.has(process.id);
               const selected = selectedProcessIds.has(process.id);
-              const ownedByProtocol = isProcessOwnedBySessionDepartment(session, process);
+              const ownedByProtocol = isProcessOwnedBySessionDepartment(session, process) ||
+                (session.role === "prefeitura_admin" && protocolQueueProcesses.some((item) => item.id === process.id));
 
               return (
                 <div
                   key={process.id}
                   data-process-premium-card="true"
-                  className={`${index > 0 ? "border-t border-slate-200 dark:border-slate-700" : ""} ${selected ? "bg-sky-50/70 dark:bg-sky-950/30" : "bg-white dark:bg-slate-900"} transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/70`}
+                  className={`min-w-0 max-w-full ${index > 0 ? "border-t border-slate-200 dark:border-slate-700" : ""} ${selected ? "bg-sky-50/70 dark:bg-sky-950/30" : "bg-white dark:bg-slate-900"} transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/70`}
                 >
-                  <div className="flex min-h-[68px] items-center gap-3 px-4 py-3">
+                  <div className="flex min-h-[68px] flex-wrap items-center gap-3 px-4 py-3 sm:flex-nowrap">
                     <input
                       type="checkbox"
                       checked={selected}
@@ -604,16 +638,21 @@ export function ProtocolDeskPage() {
 
                     <button
                       type="button"
+                      data-sigapro-triage-actions-toggle="true"
+                      aria-expanded={expanded}
+                      aria-label={`${expanded ? "Fechar" : "Ver"} ações da triagem do ${formatOfficialProcessNumber(process.protocol)}`}
+                      title="Clique para ver as ações da triagem sem abrir o protocolo"
                       onClick={() => toggleProcessExpanded(process.id)}
-                      className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                      className="flex min-w-0 flex-[1_1_250px] items-center gap-2 text-left sm:gap-3"
                     >
-                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-500 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-sky-200 bg-sky-50 text-sky-800 shadow-sm dark:border-sky-700 dark:bg-sky-950 dark:text-sky-100">
                         {expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                       </span>
+                      <span className="hidden shrink-0 text-[11px] font-bold text-sky-900 dark:text-sky-200 md:inline">{expanded ? "Fechar ações" : "Ver ações"}</span>
 
                       <span className="min-w-0 flex-1">
                         <span className="flex flex-wrap items-center gap-2">
-                          <span className="font-semibold text-slate-950 dark:text-white">
+                          <span data-sigapro-contained-text="true" className="font-semibold text-slate-950 dark:text-white">
                             {formatOfficialProcessNumber(process.protocol)}
                           </span>
                           <Badge variant="outline" className={statusTone(process.status)}>
@@ -636,17 +675,17 @@ export function ProtocolDeskPage() {
                             </Badge>
                           ) : null}
                         </span>
-                        <span className="mt-1 block truncate text-sm font-medium text-slate-700">
+                        <span data-sigapro-contained-text="true" className="mt-1 block text-sm font-medium text-slate-700 dark:text-slate-200">
                           {formatOfficialProcessTitle({ title: process.title, type: process.type })}
                         </span>
-                        <span className="mt-0.5 block truncate text-xs text-slate-500">
+                        <span data-sigapro-contained-text="true" className="mt-0.5 block text-xs text-slate-500 dark:text-slate-300">
                           {process.ownerName} • {process.address} • {externalSubmission ? "Online — profissional externo" : isDeskFlow ? "Balcão" : "Online"}
                           {externalSubmission && creator?.name ? ` • Enviado por ${creator.name}` : ""}
                         </span>
                       </span>
                     </button>
 
-                    <Button asChild className="h-9 shrink-0 rounded-xl bg-[linear-gradient(135deg,#0b5e93_0%,#0f78b8_100%)] px-4 font-semibold !text-white shadow-[0_8px_20px_rgba(14,116,181,0.22)] hover:brightness-105 [&_*]:!text-white">
+                    <Button asChild className="ml-auto h-9 max-w-full shrink-0 rounded-xl bg-[linear-gradient(135deg,#0b5e93_0%,#0f78b8_100%)] px-4 font-semibold !text-white shadow-[0_8px_20px_rgba(14,116,181,0.22)] hover:brightness-105 [&_*]:!text-white">
                       <Link to={buildProcessPath(process)}>Abrir protocolo</Link>
                     </Button>
                   </div>
@@ -661,8 +700,8 @@ export function ProtocolDeskPage() {
                             size="sm"
                           />
                           <div className="min-w-0">
-                            <p className="font-medium text-slate-900">{process.ownerName}</p>
-                            <p className="truncate text-sm text-slate-500">{process.address}</p>
+                            <p data-sigapro-contained-text="true" className="font-medium text-slate-900 dark:text-slate-100">{process.ownerName}</p>
+                            <p data-sigapro-contained-text="true" className="text-sm text-slate-500 dark:text-slate-300">{process.address}</p>
                           </div>
                         </div>
 
@@ -679,14 +718,34 @@ export function ProtocolDeskPage() {
                               Acompanhamento
                             </span>
                           ) : null}
-                          {ownedByProtocol && process.status === "pagamento_confirmado" ? (
+                          {ownedByProtocol && process.triage.status === "recebido" ? (
+                            <Button type="button" variant="outline" data-sigapro-triage-action="start"
+                              className="min-h-10 max-w-full whitespace-normal break-words rounded-xl border-sky-300 bg-white px-4 text-sky-950 hover:bg-sky-50"
+                              disabled={Boolean(protocolActionBusy)}
+                              onClick={() => void handleTriageStatus(process, "em_triagem")}>
+                              {protocolActionBusy === `triage-em_triagem-${process.id}` ? "Iniciando..." : "Iniciar triagem"}
+                            </Button>
+                          ) : null}
+                          {ownedByProtocol && process.triage.status === "em_triagem" ? (
+                            <Button type="button" variant="outline" data-sigapro-triage-action="complete"
+                              className="min-h-10 max-w-full whitespace-normal break-words rounded-xl border-emerald-300 bg-emerald-50 px-4 text-emerald-950 hover:bg-emerald-100"
+                              disabled={Boolean(protocolActionBusy) || getPendingTriageDocuments(process) > 0}
+                              title={getPendingTriageDocuments(process) > 0 ? "Existem anexos obrigatórios não entregues" : "Registrar conferência da entrega documental"}
+                              onClick={() => void handleTriageStatus(process, "concluido")}>
+                              {protocolActionBusy === `triage-concluido-${process.id}` ? "Concluindo..." : "Concluir triagem documental"}
+                            </Button>
+                          ) : null}
+                          {ownedByProtocol && isReadyForProtocolDispatch(process) ? (
                             <Button
                               type="button"
-                              className="h-9 rounded-xl bg-sky-700 text-white hover:bg-sky-800"
+                              data-sigapro-triage-action="dispatch"
+                              className="min-h-10 max-w-full whitespace-normal break-words rounded-xl bg-sky-700 px-4 !text-white hover:bg-sky-800 [&_*]:!text-white"
                               disabled={protocolActionBusy === `dispatch-${process.id}`}
                               onClick={() => void handleDispatchToUrbanism(process)}
                             >
-                              {protocolActionBusy === `dispatch-${process.id}` ? "Despachando..." : "Despachar para Urbanismo"}
+                              <span data-sigapro-triage-dispatch-label="true">
+                                {protocolActionBusy === `dispatch-${process.id}` ? "Despachando..." : "Despachar para Urbanismo"}
+                              </span>
                             </Button>
                           ) : null}
                         </div>
@@ -695,22 +754,22 @@ export function ProtocolDeskPage() {
                       <div className="sig-responsive-data-grid mt-4">
                         <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-700 dark:bg-slate-900">
                           <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">Abertura</p>
-                          <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">{getOpeningDate(process)}</p>
+                          <p data-sigapro-contained-text="true" className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">{getOpeningDate(process)}</p>
                         </div>
                         <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-700 dark:bg-slate-900">
                           <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">Guia principal</p>
-                          <p className="mt-1 truncate text-sm font-semibold text-slate-900 dark:text-slate-100">{protocolGuide?.code || "Não emitida"}</p>
+                          <p data-sigapro-contained-text="true" className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">{protocolGuide?.code || "Não emitida"}</p>
                           <p className="mt-1 text-xs text-slate-500">{formatCurrency(protocolGuide?.amount || 0)}</p>
                         </div>
                         <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-700 dark:bg-slate-900">
                           <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">Pagamento</p>
-                          <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">
-                            {protocolGuide?.status === "compensada" ? "Confirmado" : "Pendente"}
+                          <p data-sigapro-contained-text="true" className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">
+                            {protocolPaymentEvidenceLabel(protocolGuide)}
                           </p>
                         </div>
                         <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-700 dark:bg-slate-900">
                           <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">Responsável</p>
-                          <p className="mt-1 truncate text-sm font-semibold text-slate-900 dark:text-slate-100">{process.technicalLead || "Não informado"}</p>
+                          <p data-sigapro-contained-text="true" className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">{process.technicalLead || "Não informado"}</p>
                         </div>
                         <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-700 dark:bg-slate-900">
                           <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">Fluxo atual</p>
@@ -738,7 +797,7 @@ export function ProtocolDeskPage() {
     const pendingReview = getPendingTriageDocuments(process);
     if (status === "concluido" && pendingReview > 0) {
       setProtocolActionStatus(
-        `A triagem não pode ser concluída: ${pendingReview} documento(s) obrigatório(s) ainda precisam ser enviados ou aprovados.`,
+        `A triagem não pode ser concluída: ${pendingReview} documento(s) obrigatório(s) ainda precisam ser enviados e conferidos quanto à presença do arquivo.`,
       );
       return;
     }
@@ -760,7 +819,15 @@ export function ProtocolDeskPage() {
       setProtocolActionStatus(
         status === "em_triagem"
           ? `Triagem iniciada para ${formatOfficialProcessNumber(process.protocol)}.`
-          : `Triagem concluída. Como a guia inicial já está compensada, o processo está pronto para despacho ao Urbanismo.`,
+          : getProcessPaymentGuides(process, tenantSettings).some(
+              (guide) => guide.kind === "protocolo" && guide.status === "compensada",
+            )
+            ? getProcessPaymentGuides(process, tenantSettings).some(
+                guide => guide.kind === "protocolo" &&
+                  isFinancialTestGuide(guide))
+              ? "Triagem concluída apenas para ensaio QA. A guia é fictícia e não comprova pagamento bancário."
+              : "Triagem concluída. Com a guia confirmada, o Protocolo pode despachar formalmente."
+            : "Triagem concluída. Aguarde a confirmação da guia antes do despacho formal.",
       );
     } catch (error) {
       setProtocolActionStatus(
@@ -813,18 +880,17 @@ export function ProtocolDeskPage() {
       return;
     }
 
-    if (process.triage.status !== "concluido") {
-      setProtocolActionStatus("Conclua a triagem documental antes de confirmar o pagamento do protocolo.");
-      return;
-    }
-
+    // A baixa financeira pode acontecer antes ou durante a triagem.
+    // Somente o despacho exige que ambas as etapas estejam concluídas.
     setProtocolActionBusy(`payment-${process.id}`);
     setProtocolActionStatus("");
 
     try {
       await markGuideAsPaid(process.id, session.name, "protocolo");
       setProtocolActionStatus(
-        "Pagamento confirmado. O processo continua no Protocolo e está pronto para despacho ao Urbanismo.",
+        process.triage.status === "concluido" && getPendingTriageDocuments(process) === 0
+          ? "Guia confirmada. Confira a atualização e faça o despacho formal ao Urbanismo."
+          : "Guia confirmada. O processo permanece no Protocolo até a conferência e conclusão da triagem.",
       );
     } catch (error) {
       setProtocolActionStatus(
@@ -837,9 +903,41 @@ export function ProtocolDeskPage() {
     }
   };
 
+  const handleRecoverPrematureAnalysis = async (process: ProcessRecord) => {
+    if (session.role === "prefeitura_admin" || !recoverableTriageCases.some((item) => item.id === process.id)) {
+      setProtocolActionStatus("Somente o setor de Protocolo responsável pode solicitar correção auditada da triagem.");
+      return;
+    }
+    const reason = triageRecoveryReason.trim();
+    if (reason.length < 15) {
+      setProtocolActionStatus("Informe uma justificativa de pelo menos 15 caracteres para a correção auditada.");
+      return;
+    }
+    const key = `reconcile-${process.id}`;
+    setProtocolActionBusy(key);
+    setProtocolActionStatus("");
+    try {
+      await reconcileRemoteProcessTriage(process.id, reason);
+      await refreshRemoteStore();
+      setTriageRecoveryReason("");
+      setProtocolActionStatus(`${formatOfficialProcessNumber(process.protocol)} retornou à Triagem com histórico preservado. Confira os anexos e conclua a triagem normalmente.`);
+    } catch (error) {
+      setProtocolActionStatus(error instanceof Error ? `Não foi possível reconciliar a etapa: ${error.message}` : "Não foi possível corrigir a etapa no SIGAPRO.");
+    } finally {
+      setProtocolActionBusy("");
+    }
+  };
   const handleDispatchToUrbanism = async (process: ProcessRecord) => {
-    if (process.status !== "pagamento_confirmado") {
-      setProtocolActionStatus("Confirme primeiro a guia inicial antes de despachar para o Urbanismo.");
+    if (process.triage.status !== "concluido") {
+      setProtocolActionStatus("Conclua a triagem documental antes do encaminhamento.");
+      return;
+    }
+    if (getPendingTriageDocuments(process) > 0) {
+      setProtocolActionStatus("Faltam anexos obrigatórios reais para a triagem. Consulte Documentos pendentes.");
+      return;
+    }
+    if (!hasCompensatedInitialGuide(process)) {
+      setProtocolActionStatus("A guia inicial ainda não está compensada. Confirme o pagamento antes do despacho.");
       return;
     }
 
@@ -915,7 +1013,9 @@ export function ProtocolDeskPage() {
                 (guide) => guide.kind === "protocolo",
               )?.status === "compensada" ? (
                 <div className="inline-flex min-h-10 items-center rounded-full border border-sky-200 bg-sky-50 px-4 text-sm font-medium text-sky-800">
-                  Encaminhado automaticamente para {URBAN_ANALYSIS_DEPARTMENT}
+                  {matchedProcess.dispatches.some((d) => /urbanis|an[aá]lise/i.test(d.to))
+                     ? `Encaminhado formalmente para ${URBAN_ANALYSIS_DEPARTMENT}`
+                     : "Guia compensada. Aguarda triagem concluída e despacho formal."}
                 </div>
               ) : null}
             </div>
@@ -974,10 +1074,12 @@ export function ProtocolDeskPage() {
                   <p className="mt-1 text-xs text-slate-500">Vencimento {guide.dueDate}</p>
                   <p
                     className={`mt-2 text-[11px] font-semibold uppercase tracking-[0.14em] ${
-                      guide.status === "compensada" ? "text-green-600 dark:text-green-400" : "text-amber-600 dark:text-amber-400"
+                      guide.status === "compensada" && !isFinancialTestGuide(guide)
+                         ? "text-green-600 dark:text-green-400"
+                         : "text-amber-600 dark:text-amber-400"
                     }`}
                   >
-                    {guide.status === "compensada" ? "Confirmado" : "Pendente"}
+                    {protocolPaymentEvidenceLabel(guide)}
                   </p>
                 </div>
               ))}
@@ -998,9 +1100,74 @@ export function ProtocolDeskPage() {
     </SectionCard>
   );
 
+  // Admin da Prefeitura é estritamente de acompanhamento: nenhuma ação
+  // de triagem, confirmação de guia, despacho, GOVBR, importação, marcador
+  // ou reconciliação pode ser montada neste perfil. As RPCs mantêm sua
+  // própria autorização; esta barreira é defesa adicional de interface.
+  if (["prefeitura_admin"].includes(session.role)) {
+    const query = processListQuery.trim().toLocaleLowerCase("pt-BR");
+    const visible = processes.filter((process) =>
+      !query || [
+        process.protocol,
+        process.externalProtocol,
+        process.title,
+        process.ownerName,
+        process.technicalLead,
+        process.address,
+      ].filter(Boolean).join(" ").toLocaleLowerCase("pt-BR").includes(query),
+    );
+    return (
+      <PortalFrame eyebrow="CONSULTA INSTITUCIONAL" title="Protocolos da Prefeitura — somente leitura">
+        <PageShell>
+          <PageHeader
+            eyebrow="Administração municipal"
+            title="Consulta de processos e protocolos"
+            description="Acompanhamento institucional. A triagem, os despachos, a baixa financeira e a regularização de processos são exclusivos dos setores operacionais autorizados."
+            icon={ClipboardList}
+          />
+          <SectionCard title="Livro de protocolos" description="Consulta sem permissão para alterar processos, documentos, guias ou etapas.">
+            <div data-sigapro-prefeitura-admin-readonly="true" className="space-y-3">
+              <Input
+                value={processListQuery}
+                onChange={(event) => setProcessListQuery(event.target.value)}
+                placeholder="Pesquisar por protocolo, projeto, proprietário ou endereço"
+                className="border-slate-300 bg-white text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+                aria-label="Pesquisar protocolos sem edição"
+              />
+              <p className="text-sm text-slate-600 dark:text-slate-300">
+                {visible.length} protocolo(s) encontrado(s). Exibindo até 75 resultados por consulta.
+              </p>
+              {visible.length === 0 ? (
+                <p className="rounded-xl border border-dashed border-slate-300 p-4 text-sm text-slate-600 dark:text-slate-300">
+                  Nenhum protocolo encontrado para os filtros informados.
+                </p>
+              ) : visible.slice(0, 75).map((process) => (
+                <div key={process.id} className="flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+                  <div className="min-w-0">
+                    <p data-sigapro-contained-text="true" className="font-semibold text-slate-950 dark:text-white">
+                      {formatOfficialProcessNumber(process.protocol)}
+                    </p>
+                    <p data-sigapro-contained-text="true" className="break-words text-sm text-slate-700 dark:text-slate-200">{process.title}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-300">{statusLabel(process.status)}</p>
+                  </div>
+                  <Link
+                    to={buildProcessPath(process)}
+                    className="inline-flex min-h-9 items-center rounded-xl border border-slate-300 px-3 text-sm font-semibold text-slate-800 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-100"
+                  >
+                    Consultar processo
+                  </Link>
+                </div>
+              ))}
+            </div>
+          </SectionCard>
+        </PageShell>
+      </PortalFrame>
+    );
+  }
+
   return (
     <PortalFrame eyebrow="SETOR DE PROTOCOLO" title="Triagem municipal, atendimento e fluxo inicial">
-      <PageShell>
+      <PageShell className={section === "visao-geral" ? "sig-module-summary-active" : undefined}>
         <PageHeader
           eyebrow="Operação de protocolo"
           title="Recepção, conferência documental e despacho inicial"
@@ -1021,6 +1188,29 @@ export function ProtocolDeskPage() {
           value={section}
           onChange={(value) => setSection(value as ProtocolSection)}
         />
+
+        {session.role !== "prefeitura_admin" && recoverableTriageCases.length > 0 ? (
+          <SectionCard title="Revisão de integridade da tramitação" description="Regularização auditada pelo Protocolo autorizado para processos que avançaram sem triagem concluída. Guias, arquivos e histórico são preservados.">
+            <div className="space-y-3">
+              <Input value={triageRecoveryReason} onChange={(event) => setTriageRecoveryReason(event.target.value)}
+                placeholder="Justificativa para retorno auditado à Triagem (mín. 15 caracteres)"
+                className="border-slate-300 bg-white text-slate-900 dark:bg-slate-900 dark:text-white" />
+              {recoverableTriageCases.map((process) => (
+                <div key={process.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-white p-4 dark:border-amber-700 dark:bg-slate-900">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900 dark:text-white">{formatOfficialProcessNumber(process.protocol)}</p>
+                    <p className="text-xs text-slate-600 dark:text-slate-300">Triagem: {process.triage.status} · Situação: {statusLabel(process.status)}. Guias e anexos não serão alterados.</p>
+                  </div>
+                  <Button type="button" variant="outline"
+                    disabled={triageRecoveryReason.trim().length < 15 || Boolean(protocolActionBusy)}
+                    onClick={() => void handleRecoverPrematureAnalysis(process)}>
+                    {protocolActionBusy === `reconcile-${process.id}` ? "Corrigindo..." : "Devolver à Triagem com auditoria"}
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </SectionCard>
+        ) : null}
 
         {section === "visao-geral" ? (
           <>
@@ -1365,6 +1555,66 @@ export function ProtocolDeskPage() {
         {section === "pagamentos" ? (
           <PageMainGrid>
             <PageMainContent>
+              {canImportMunicipalGuide ? <SectionCard
+                title="Recebimento direto de guia oficial municipal"
+                description="A guia continua sendo emitida no sistema escolhido pela Prefeitura. Depois, importe o PDF oficial diretamente no processo e comunique o profissional pelo SIGAPRO."
+              >
+                <div className="space-y-4">
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <div>
+                      <label htmlFor="govbr-protocol-search" className="text-xs font-bold uppercase tracking-[0.12em] text-slate-600 dark:text-slate-300">Localizar processo oficial</label>
+                      <Input id="govbr-protocol-search" className="mt-2 h-11" value={govbrProtocolQuery} onChange={(event) => setGovbrProtocolQuery(event.target.value)}
+                        placeholder="Número do processo ou proprietário" />
+                    </div>
+                    <div>
+                      <label htmlFor="govbr-protocol-select" className="text-xs font-bold uppercase tracking-[0.12em] text-slate-600 dark:text-slate-300">Processo para receber o PDF</label>
+                      <select id="govbr-protocol-select" className="mt-2 h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-950 dark:border-slate-600 dark:bg-slate-950 dark:text-white"
+                        value={govbrProtocolId} onChange={(event) => setGovbrProtocolId(event.target.value)}>
+                        <option value="">Selecione o processo</option>
+                        {govbrEligibleProcesses.filter((item) => {
+                          const q = govbrProtocolQuery.trim().toLocaleLowerCase("pt-BR");
+                          return !q || `${item.protocol} ${item.ownerName} ${item.externalProtocol}`.toLocaleLowerCase("pt-BR").includes(q);
+                        }).slice(0, 30).map((item) => (
+                          <option key={item.id} value={item.id}>{item.protocol} • {item.ownerName}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  {govbrEligibleProcesses.find((item) => item.id === govbrProtocolId) ? (() => {
+                    const selected = govbrEligibleProcesses.find((item) => item.id === govbrProtocolId)!;
+                    return <GovbrArGuideBridge
+                      scope="protocolo"
+                      supplierCode={collectionConfig.supplier_code || ""}
+                      supplierName={collectionConfig.supplier_name || "Sistema da Prefeitura"}
+                      process={selected}
+                      municipalityId={effectiveScopeId || selected.tenantId}
+                      actorId={session.id}
+                      actorName={session.name}
+                      canImport={session.role !== "prefeitura_admin" && session.id !== "unknown"}
+                      existingGuides={getProcessPaymentGuides(selected, tenantSettings)}
+                      onAppend={async (document, reference, guideKind) => {
+                        const result = await attachMunicipalCollectionGuide({
+                          municipalityId: effectiveScopeId || selected.tenantId,
+                          processId: selected.id, reference, guideKind, document,
+                        });
+                        await refreshRemoteStore();
+                        return result;
+                      }}
+                      onNotify={(message) => sendProcessMessage({
+                        processId: selected.id,
+                        senderName: session.name,
+                        senderRole: session.role,
+                        audience: "externo",
+                        message,
+                      })}
+                    />;
+                  })() : (
+                    <p className="rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm text-slate-700">
+                      Selecione um processo ou pré-protocolo já registrado no SIGAPRO. Importar a guia do GOVBR não confirma pagamento, não atribui número oficial e não altera a etapa da triagem.
+                    </p>
+                  )}
+                </div>
+              </SectionCard> : null}
               <TableCard
                 title="Pré-protocolos aguardando pagamento"
                 description="Antes da compensação existe somente o pré-protocolo e a guia inicial. Ao confirmar o pagamento, o SIGAPRO atribui o número oficial de forma atômica e abre o processo na Triagem de Protocolo."

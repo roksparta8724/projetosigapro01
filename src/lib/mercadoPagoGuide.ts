@@ -1,4 +1,5 @@
 import { backendClient } from "@/integrations/backend/databaseClient";
+import { normalizeOfficialBanking } from "@/lib/bankCodes";
 
 export type MercadoPagoGuideCharge = {
   ok: boolean;
@@ -19,12 +20,92 @@ export type MercadoPagoGuideCharge = {
   errorDetails?: string[];
 };
 
+export type QaPixCharge = {
+  ok: boolean;
+  sandboxOnly: true;
+  environment?: "test";
+  orderId?: string;
+  paymentId?: string;
+  qrCode?: string;
+  status?: string;
+  error?: string;
+};
+
+/** The browser NEVER receives Access Tokens or a raw municipal PIX key. */
+export async function requestQaPixCharge(input: {
+  municipalityId: string; guideCode: string; action: "issue" | "get";
+}): Promise<QaPixCharge> {
+  if (import.meta.env.VITE_SIGAPRO_NEON_ISOLATED !== "true")
+    throw new Error("PIX de homologação indisponível fora do ambiente isolado.");
+  const sessionResult=await backendClient.auth.getSession();
+  const session=sessionResult?.data?.session;
+  const token=session?.access_token || session?.accessToken || session?.token || "";
+  if(!token) throw new Error("Entre novamente para autenticar o teste PIX.");
+  const response=await fetch("/api/qa/mercadopago/guide-pix",{
+    method:"POST",
+    headers:{Accept:"application/json","Content-Type":"application/json",Authorization:`Bearer ${token}`},
+    body:JSON.stringify(input),
+  });
+  const result=(await response.json().catch(()=>null)) as QaPixCharge | null;
+  if(!response.ok || !result?.ok || !result.sandboxOnly){
+    if (input.action==="get" && result?.error?.includes("ainda não emitido"))
+      return {ok:false,sandboxOnly:true};
+    throw new Error(result?.error||"Não foi possível consultar o PIX de teste.");
+  }
+  return result;
+}
+
+/** Reconciliation is not a fake payment confirmation: the server requires
+ * an authenticated municipal guide, an archived original DAM, a previously
+ * HMAC-verified bank notification and a fresh provider GET with exact values.
+ * This never issues a new PIX order.
+ */
+export async function reconcileQaPixAfterPdf(input: {
+ municipalityId:string;guideCode:string;
+}):Promise<{code:string;settled:boolean}>{
+ if(import.meta.env.VITE_SIGAPRO_NEON_ISOLATED!=="true")
+   throw Error("Conciliação QA indisponível fora do ambiente isolado.");
+ const sessionResult=await backendClient.auth.getSession();
+ const session=sessionResult?.data?.session;
+ const token=session?.access_token||session?.accessToken||session?.token||"";
+ if(!token)throw Error("Entre novamente para conferir a conciliação do banco.");
+ const resp=await fetch("/api/mercadopago?action=qa-webhook&mode=post-archive-reconcile",{
+   method:"POST",
+   headers:{Accept:"application/json","Content-Type":"application/json",Authorization:"Bearer "+token},
+   body:JSON.stringify(input),
+   cache:"no-store",
+ });
+ const data=await resp.json().catch(()=>({})) as {
+   code?:string;automaticallySettled?:boolean;ok?:boolean;
+ };
+ if(resp.status===409 && data.code==="SIGNED_BANK_EVENT_REQUIRED")
+   return {code:"SIGNED_BANK_EVENT_REQUIRED",settled:false};
+ if(!resp.ok)throw Error(
+   data.code==="IMMUTABLE_ORIGINAL_REQUIRED"
+     ? "O PDF original da guia ainda não está arquivado com integridade."
+     : "Conciliação bancária não confirmada: "+String(data.code||resp.status),
+ );
+ return {code:String(data.code||"manual_review"),settled:data.automaticallySettled===true};
+}
+
+/** Collected explicitly by the payer; never cache or log these private fields. */
+export type BoletoPayerForm = {
+  email:string;
+  street_name:string;
+  street_number:string;
+  zip_code:string;
+  neighborhood:string;
+  city:string;
+  state:string;
+};
+
 export type MercadoPagoGuideChargeInput = {
   municipalityId?: string | null;
   guideCode: string;
   amount: number;
   dueDate?: string;
   description?: string;
+  payer?: BoletoPayerForm;
 };
 
 function cacheKey(input: MercadoPagoGuideChargeInput) {
@@ -115,11 +196,10 @@ async function refreshMercadoPagoGuideCharge(
 
 export async function ensureMercadoPagoGuideCharge(
   input: MercadoPagoGuideChargeInput,
+  options?: { isolatedSandboxOnly?: boolean },
 ): Promise<MercadoPagoGuideCharge> {
-  const cached = readCachedCharge(input);
-  if (cached) {
-    return await refreshMercadoPagoGuideCharge(input, cached);
-  }
+  // Always resolve the canonical Neon record. Browser storage is not proof
+  // of persistence and must never bypass a paid/original-guide check.
 
   let authorization = "";
   try {
@@ -134,7 +214,10 @@ export async function ensureMercadoPagoGuideCharge(
     authorization = "";
   }
 
-  const response = await fetch("/api/mercadopago/guide-boleto", {
+  const response = await fetch(
+    options?.isolatedSandboxOnly
+      ? "/api/qa/mercadopago/guide-boleto"
+      : "/api/mercadopago/guide-boleto", {
     method: "POST",
     headers: {
       Accept: "application/json",
@@ -148,14 +231,18 @@ export async function ensureMercadoPagoGuideCharge(
   if (!payload) {
     throw new Error(`Resposta inválida do Mercado Pago (HTTP ${response.status}).`);
   }
-  if (!payload.ok) {
+  if (!response.ok || !payload.ok) {
     throw new Error(payload.error || "Mercado Pago recusou a cobrança da guia.");
   }
-  if (!payload.digitableLine?.trim() || !payload.barcodeContent?.trim()) {
+  const banking = normalizeOfficialBanking(payload.barcodeContent, payload.digitableLine);
+  if (!banking.barcode || !banking.digitableLine) {
     throw new Error(
       "Mercado Pago criou a cobrança, mas não retornou linha digitável e código de barras completos.",
     );
   }
+
+  payload.barcodeContent = banking.barcode;
+  payload.digitableLine = banking.digitableLine;
 
   writeCachedCharge(input, payload);
   return payload;

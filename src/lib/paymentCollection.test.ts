@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   buildGuidePixPayload,
+  hasMunicipalBankAgreementConfigured,
   isBankBarcodeIntegrationReady,
   normalizeBankBarcode,
   normalizeDigitableLine,
@@ -31,6 +32,22 @@ const guide = {
 } as PaymentGuideEntry;
 
 describe("municipal payment collection", () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  it("does not expose an existing real PIX payment from copied municipality data on isolated QA", () => {
+    vi.stubEnv("VITE_SIGAPRO_NEON_ISOLATED", "true");
+    expect(buildGuidePixPayload({ settings, guide })).toBe("");
+    expect(buildGuidePixPayload({
+      settings, guide: { ...guide, pixPayload: "000201TEST-ALREADY-EXISTS" },
+    })).toBe("");
+  });
+
+  it("preserves a valid original PIX including lowercase email when settings change", () => {
+    const pixPayload = buildGuidePixPayload({ settings, guide });
+    const reopened = buildGuidePixPayload({ settings: { ...settings, chavePix: "changed@example.test" }, guide: { ...guide, pixPayload } });
+    expect(reopened).toBe(pixPayload);
+    expect(reopened).toContain("financeiro@prefeitura.gov.br");
+  });
   it("generates a valid EMV PIX payload from the municipal settings", () => {
     const payload = buildGuidePixPayload({
       settings,
@@ -73,22 +90,18 @@ describe("municipal payment collection", () => {
   it("never accepts an invented or malformed bank barcode", () => {
     expect(normalizeBankBarcode("123")).toBe("");
     expect(normalizeBankBarcode("1".repeat(44))).toBe("1".repeat(44));
-    expect(normalizeBankBarcode("2".repeat(48))).toBe("2".repeat(48));
+    expect(normalizeBankBarcode("2".repeat(48))).toBe("");
     expect(normalizeBankBarcode("3".repeat(47))).toBe("");
     expect(normalizeDigitableLine("2".repeat(47))).toBe("2".repeat(47));
     expect(normalizeDigitableLine("3".repeat(48))).toBe("3".repeat(48));
     expect(normalizeDigitableLine("4".repeat(44))).toBe("");
   });
 
-  it("only marks bank barcode integration ready with a bank and its agreement/API mode", () => {
-    expect(isBankBarcodeIntegrationReady(settings)).toBe(true);
-    expect(isBankBarcodeIntegrationReady({
-      ...settings,
-      bankAgreementCode: "",
-    })).toBe(false);
-    expect(isBankBarcodeIntegrationReady({
-      ...settings,
-      bankCollectionMode: "manual",
-    })).toBe(false);
+  it("distinguishes bank agreement registration from verified boleto issuing", () => {
+    expect(hasMunicipalBankAgreementConfigured(settings)).toBe(true);
+    expect(hasMunicipalBankAgreementConfigured({ ...settings, bankAgreementCode: "" })).toBe(false);
+    expect(hasMunicipalBankAgreementConfigured({ ...settings, bankCollectionMode: "manual" })).toBe(false);
+    expect(isBankBarcodeIntegrationReady(settings)).toBe(false);
+    expect(isBankBarcodeIntegrationReady({ ...settings, bankCollectionMode: "api" })).toBe(false);
   });
 });

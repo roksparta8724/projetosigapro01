@@ -47,10 +47,13 @@ describe("isolamento da identidade visual entre usuários e municípios", () => 
     expect(tenantAdmin).toContain("avatarOffsetY ?? 0");
   });
 
-  it("reinicia o avatar quando o usuário ou a Prefeitura mudam", () => {
+  it("reinicia o avatar na troca de conta sem remontá-lo ao trocar de Prefeitura", () => {
     expect(topbar).toContain("getUserProfile(authenticatedProfileId || session.id, authenticatedEmail || session.email)");
-    expect(topbar).toContain('key={`${authenticatedProfileId || session.id}:${activeInstitutionId || "global"}`}');
-    expect(topbar).toContain("const topbarAvatarImageUrl = resolveProfileAvatarDisplayUrl(userProfile) || null");
+    expect(topbar).toContain("key={authenticatedAvatarOwnerId || session.id}");
+    expect(topbar).toContain("authenticatedOwnerId={authenticatedAvatarOwnerId}");
+    expect(topbar).not.toContain('key={`${authenticatedProfileId || session.id}:${activeInstitutionId || "global"}`}');
+    expect(topbar).toContain("const topbarAvatarImageUrl = resolveProfileAvatarDisplayUrl(displayProfile) || null");
+    expect(topbar).toContain("readCachedProfileAvatar(signedInProfileId, authenticatedEmail)");
     expect(profile).toContain("getUserProfile(authenticatedProfileId || session.id, profileLookupEmail)");
   });
 });

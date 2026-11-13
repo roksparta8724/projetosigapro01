@@ -20,7 +20,9 @@ import { consumeDocumentWorkspaceAccessUrl } from "@/lib/documentWorkspaceAccess
 import { getSignedUrlForObjectStrict } from "@/integrations/r2/client";
 import {
   canAnalyzeProcessDocument,
-  canAccessProcess,
+  canAccessMunicipalArea,
+  canViewMunicipalProcessDocument,
+  isProcessReleasedToUrbanAnalysis,
   buildProcessPath,
   formatOfficialProcessNumber,
   resolveProcessRoute,
@@ -35,6 +37,20 @@ function inferMimeType(fileName?: string, mimeType?: string) {
   if (value.endsWith(".webp")) return "image/webp";
   if (value.endsWith(".gif")) return "image/gif";
   return "application/octet-stream";
+}
+
+function describeAnalysisStartError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error || "");
+  if (/Somente a equipe da Análise Urbanística|P0001/i.test(message)) {
+    return "Não foi possível registrar a atribuição. Verifique se seu perfil está vinculado à equipe de Análise Urbanística desta Prefeitura.";
+  }
+  if (/Sessão|autenticad|login|token|expirad/i.test(message)) {
+    return "Sua sessão precisa ser renovada. Entre novamente antes de assumir a análise.";
+  }
+  const detail = message.replace(/\s*\|\s*(?:P\d{4}|\d{3}).*$/i, "").trim();
+  return detail
+    ? `Não foi possível assumir a análise. ${detail.slice(0, 220)}`
+    : "Não foi possível assumir a análise. Confira seu acesso e tente novamente.";
 }
 
 function formatFileSize(value?: number) {
@@ -62,6 +78,7 @@ export function DocumentViewerPage() {
     processes,
     loading: platformDataLoading,
     dataReadyForCurrentUser,
+    startProcessAnalysis,
   } = usePlatformData();
   const { session } = usePlatformSession();
   const { municipality, scopeId } = useMunicipality();
@@ -79,6 +96,8 @@ export function DocumentViewerPage() {
     null;
   const [accessUrl, setAccessUrl] = useState(prefetchedDocumentAccessUrl);
   const [error, setError] = useState("");
+  const [assumingAnalysis, setAssumingAnalysis] = useState(false);
+  const [assumeAnalysisError, setAssumeAnalysisError] = useState("");
   const document = useMemo(
     () => process?.documents.find((item) => item.id === documentId),
     [documentId, process],
@@ -107,7 +126,7 @@ export function DocumentViewerPage() {
     process &&
       document &&
       document.uploaded &&
-      canAccessProcess(session, process, effectiveScopeId),
+      canViewMunicipalProcessDocument(session, process, effectiveScopeId),
   );
 
   const canAnalyzeDocument = Boolean(
@@ -131,6 +150,41 @@ export function DocumentViewerPage() {
         },
       },
     );
+  };
+
+  // Nunca dar permissão por visualização: o servidor registra a atribuição oficial.
+  // O atalho aparece somente para o analista da área, em processo liberado e sem responsável.
+  const canAssumeAnalysisFromViewer = Boolean(
+    allowed &&
+    process &&
+    document &&
+    session.role === "analista" &&
+    canAccessMunicipalArea(session, "analise") &&
+    isProcessReleasedToUrbanAnalysis(process) &&
+    !process.analysis?.assignedProfileId &&
+    !process.analysis?.assignedTo &&
+    !process.analysis?.startedAt,
+  );
+
+  const assumeAnalysisAndOpenEditor = async () => {
+    if (!process || !document || !canAssumeAnalysisFromViewer || assumingAnalysis) return;
+    setAssumingAnalysis(true);
+    setAssumeAnalysisError("");
+    try {
+      // Mesmo fluxo autorizado de "Assumir análise" da fila. Sem gravação direta em tabelas.
+      await startProcessAnalysis(process.id);
+      navigate(`${buildProcessPath(process)}/documentos/${document.id}/analisar?ferramenta=highlight`, {
+        replace: true,
+        state: {
+          documentAccessUrl: accessUrl || prefetchedDocumentAccessUrl,
+          returnTo: routeState.returnTo || buildProcessPath(process, "documentos"),
+        },
+      });
+    } catch (actionError) {
+      setAssumeAnalysisError(describeAnalysisStartError(actionError));
+    } finally {
+      setAssumingAnalysis(false);
+    }
   };
 
   const replaceAnalystViewerWithAnalysis = canAnalyzeDocument && Boolean(process && document);
@@ -308,6 +362,20 @@ export function DocumentViewerPage() {
               documentMarkers.removeMarker(process.id, document.id, tag)
             }
           />
+          {canAssumeAnalysisFromViewer ? (
+            <Button
+              type="button"
+              data-sigapro-assume-analysis-in-viewer="true"
+              disabled={assumingAnalysis}
+              onClick={() => void assumeAnalysisAndOpenEditor()}
+              className="h-auto min-h-10 max-w-full min-w-0 rounded-xl border border-sky-300/40 bg-[#075985] px-3 py-2 whitespace-normal break-words !text-white hover:bg-[#0c4a6e] [&_*]:!text-white"
+            >
+              <PenTool className="mr-2 h-4 w-4 shrink-0" />
+              <span className="min-w-0 max-w-full whitespace-normal break-words text-center leading-5 [overflow-wrap:anywhere]">
+                {assumingAnalysis ? "Assumindo análise..." : "Assumir análise e marcar PDF"}
+              </span>
+            </Button>
+          ) : null}
           {canAnalyzeDocument ? (
             <Button
               type="button"
@@ -321,6 +389,13 @@ export function DocumentViewerPage() {
 
         </div>
       </header>
+
+      {assumeAnalysisError ? (
+        <div data-sigapro-analysis-error-mobile="true" role="alert"
+          className="mx-3 mt-2 w-[calc(100%-1.5rem)] min-w-0 max-w-full shrink-0 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-semibold leading-5 text-rose-900 whitespace-normal break-words [overflow-wrap:anywhere] xl:hidden">
+          {assumeAnalysisError}
+        </div>
+      ) : null}
 
       <div className="flex min-h-[52px] shrink-0 items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 shadow-[0_4px_18px_rgba(15,23,42,0.05)]">
         <div className="flex min-w-0 items-center gap-2">
@@ -421,7 +496,7 @@ export function DocumentViewerPage() {
           </div>
         </section>
 
-        <aside className="hidden min-h-0 overflow-y-auto border-l border-slate-200 bg-white xl:block">
+        <aside data-sigapro-document-info-sidebar="true" className="hidden min-h-0 min-w-0 overflow-x-hidden overflow-y-auto border-l border-slate-200 bg-white xl:block">
           <div className="border-b border-slate-200 px-5 py-4">
             <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">
               Documento
@@ -429,8 +504,8 @@ export function DocumentViewerPage() {
             <p className="mt-1 text-sm font-semibold text-slate-950">{document.label}</p>
           </div>
 
-          <div className="space-y-4 p-5">
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+          <div className="min-w-0 space-y-4 p-4">
+            <div className="min-w-0 max-w-full rounded-2xl border border-slate-200 bg-slate-50 p-4">
               <div className="flex items-center gap-2">
                 <Info className="h-4 w-4 text-sky-700" />
                 <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">
@@ -440,11 +515,11 @@ export function DocumentViewerPage() {
               <dl className="mt-4 space-y-3 text-sm">
                 <div>
                   <dt className="text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-400">Arquivo</dt>
-                  <dd className="mt-1 break-words font-medium text-slate-800">{document.fileName || "Não informado"}</dd>
+                  <dd className="mt-1 min-w-0 break-words font-medium text-slate-800 [overflow-wrap:anywhere]">{document.fileName || "Não informado"}</dd>
                 </div>
                 <div>
                   <dt className="text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-400">Tipo</dt>
-                  <dd className="mt-1 font-medium text-slate-800">{mimeType}</dd>
+                  <dd className="mt-1 min-w-0 break-words font-medium text-slate-800 [overflow-wrap:anywhere]">{mimeType}</dd>
                 </div>
                 {fileSize ? (
                   <div>
@@ -550,6 +625,53 @@ export function DocumentViewerPage() {
                   <PenTool className="mr-2 h-4 w-4" />
                   Abrir mesa de análise
                 </Button>
+              ) : (session.role === "analista" || session.role === "prefeitura_supervisor") ? (
+                <div data-sigapro-analyst-viewer-readonly="true" role="note"
+                  className="mt-3 w-full min-w-0 max-w-full overflow-hidden rounded-2xl border border-amber-200 bg-[#fffaf0] p-3.5 text-amber-950 shadow-sm">
+                  <div className="min-w-0 space-y-1.5">
+                    <p className="break-words text-xs font-extrabold leading-5 [overflow-wrap:anywhere]">
+                      {process.analysis?.assignedProfileId || process.analysis?.assignedTo
+                        ? "Documento em acompanhamento"
+                        : "Pronto para atribuição técnica"}
+                    </p>
+                    <p className="break-words text-xs leading-5 text-slate-700 [overflow-wrap:anywhere]">
+                      {process.analysis?.assignedProfileId || process.analysis?.assignedTo
+                        ? "Este processo tem um analista responsável. Para editar, solicite redistribuição formal à Diretoria."
+                        : "O processo chegou ao Urbanismo, mas ainda não foi assumido ou distribuído. Assuma a análise para abrir o editor de marcações."}
+                    </p>
+                    <p className="break-words text-[11px] leading-5 text-slate-500 [overflow-wrap:anywhere]">
+                      Marcadores organizam arquivos. As correções da planta são feitas no editor.
+                    </p>
+                  </div>
+                  {canAssumeAnalysisFromViewer ? (
+                    <Button
+                      type="button"
+                      data-sigapro-assume-analysis-in-viewer-aside="true"
+                      disabled={assumingAnalysis}
+                      className="mt-3 flex h-auto min-h-11 w-full min-w-0 max-w-full items-center justify-center rounded-xl bg-[#075985] px-3 py-2.5 text-center leading-5 !text-white hover:bg-[#0c4a6e] [&_*]:!text-white"
+                      onClick={() => void assumeAnalysisAndOpenEditor()}
+                    >
+                      <span className="min-w-0 flex-1 whitespace-normal break-words text-center [overflow-wrap:anywhere]">
+                        {assumingAnalysis ? "Assumindo análise..." : "Assumir análise e abrir editor"}
+                      </span>
+                    </Button>
+                  ) : null}
+                  {assumeAnalysisError ? (
+                    <p role="alert" data-sigapro-analysis-error="true"
+                      className="mt-3 w-full min-w-0 max-w-full rounded-lg border border-rose-200 bg-rose-50 p-2.5 text-xs font-semibold leading-5 text-rose-900 whitespace-normal break-words [overflow-wrap:anywhere]">
+                      {assumeAnalysisError}
+                    </p>
+                  ) : null}
+                  <Button type="button" data-sigapro-go-analysis-assignment="true"
+                    variant="outline"
+                    className="mt-2.5 flex h-auto min-h-11 w-full min-w-0 max-w-full items-center justify-center rounded-xl border-slate-200 bg-white px-3 py-2.5 text-center leading-5 text-slate-800 hover:bg-slate-50 hover:text-slate-950"
+                    onClick={() => navigate("/prefeitura/analise?secao=fila")}
+                  >
+                    <span className="min-w-0 flex-1 whitespace-normal break-words text-center [overflow-wrap:anywhere]">
+                      Ir à fila de análise
+                    </span>
+                  </Button>
+                </div>
               ) : (
                 <p className="mt-3 text-xs leading-5 text-slate-500">
                   Quando houver apontamentos enviados pela Prefeitura, eles aparecerão acima com a página e a correção solicitada.

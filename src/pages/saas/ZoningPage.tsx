@@ -43,7 +43,7 @@ import { toast } from "@/components/ui/sonner";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
-import { getLegislationOpenUrl } from "@/integrations/r2/client";
+import { getLegislationOpenUrl, getStableMunicipalLegislationReference } from "@/integrations/r2/client";
 import { useZoningRules } from "@/hooks/useZoningRules";
 import {
   ZONING_TYPE_OPTIONS,
@@ -239,7 +239,7 @@ export function ZoningPage() {
   const openZoningDocument = () => {
     if (!zoningFileUrl) return;
 
-    const targetUrl = getLegislationOpenUrl(zoningFileUrl);
+    const targetUrl = getLegislationOpenUrl(getStableMunicipalLegislationReference(zoningFileUrl, effectiveScopeId));
     if (!targetUrl) return;
 
     const opened = window.open(targetUrl, "_blank", "noopener,noreferrer");

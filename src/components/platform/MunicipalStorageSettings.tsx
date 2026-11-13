@@ -69,7 +69,7 @@ async function storageRequest(
 
 function providerLabel(connection: StorageConnection | null) {
   if (!connection || connection.provider !== "s3_compatible" || connection.status !== "active") {
-    return "SIGAPRO Cloud · Cloudflare R2";
+    return "SIGAPRO Nuvem · Arquivos Oficiais";
   }
   return "Armazenamento próprio da Prefeitura";
 }
@@ -108,7 +108,7 @@ export function MunicipalStorageSettings({
       return "Conexão municipal com erro";
     }
     if (connection.provider === "s3_compatible") return "Conexão municipal preparada";
-    return "R2 do SIGAPRO ativo";
+    return "SIGAPRO Nuvem ativa";
   }, [connection, isMunicipalActive]);
 
   const load = async () => {
@@ -147,7 +147,7 @@ export function MunicipalStorageSettings({
       setConnection(next);
       setForm((current) => ({ ...current, accessKeyId: "", secretAccessKey: "" }));
       setMessage(
-        "Conexão salva. Os documentos continuam no R2 do SIGAPRO até o teste e a ativação do armazenamento municipal.",
+        "Conexão salva. Os documentos continuam no SIGAPRO Nuvem até o teste e a ativação do armazenamento municipal.",
       );
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Falha ao salvar a conexão.");
@@ -187,13 +187,13 @@ export function MunicipalStorageSettings({
     }
   };
 
-  const useSigapro = async () => {
+  const activateSigaproR2 = async () => {
     setBusy("sigapro");
     setMessage("");
     try {
       const next = await storageRequest(municipalityId, "use_sigapro");
       setConnection(next);
-      setMessage("Cloudflare R2 do SIGAPRO definido como armazenamento ativo.");
+      setMessage("SIGAPRO Nuvem definida como armazenamento ativo.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Não foi possível alterar o armazenamento.");
     } finally {
@@ -216,6 +216,18 @@ export function MunicipalStorageSettings({
                   ? `Os novos arquivos oficiais de ${municipalityName || "esta Prefeitura"} são armazenados no repositório municipal configurado.`
                   : "Por enquanto, os documentos permanecem no armazenamento privado do SIGAPRO. A Prefeitura pode migrar para sua própria nuvem ou servidor quando o contrato exigir."}
               </p>
+              {!isMunicipalActive ? (
+                <details data-sigapro-storage-infrastructure="true"
+                  className="mt-3 min-w-0 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-600">
+                  <summary className="cursor-pointer font-semibold text-slate-700">
+                    Informações da infraestrutura
+                  </summary>
+                  <p className="mt-2 break-words [overflow-wrap:anywhere]">
+                    O repositório contratado pelo SIGAPRO utiliza armazenamento Cloudflare R2.
+                    Os arquivos permanecem protegidos conforme as permissões do município.
+                  </p>
+                </details>
+              ) : null}
             </div>
             <div className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold ${
               isMunicipalActive
@@ -278,9 +290,9 @@ export function MunicipalStorageSettings({
               variant="outline"
               className="mt-5 w-full rounded-full"
               disabled={Boolean(busy)}
-              onClick={() => void useSigapro()}
+              onClick={() => void activateSigaproR2()}
             >
-              Voltar a usar R2 do SIGAPRO
+              Voltar ao SIGAPRO Nuvem
             </Button>
           ) : null}
         </div>
@@ -296,7 +308,7 @@ export function MunicipalStorageSettings({
               Conectar armazenamento S3 compatível
             </h3>
             <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-600">
-              Compatível com AWS S3, MinIO, Ceph, Cloudflare R2 próprio e outros serviços com API S3. O vínculo pode ficar preparado sem ser ativado.
+              Conecte o armazenamento da Prefeitura por meio do padrão S3 compatível. A conexão pode ser preparada e testada antes da ativação, sem mover documentos existentes.
             </p>
           </div>
           <KeyRound className="h-5 w-5 text-slate-400" />

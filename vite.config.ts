@@ -5,9 +5,14 @@ import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
 import { checkMercadoPagoConnection, createMercadoPagoGuideBoleto, getMercadoPagoGuideBoletoStatus } from "./server/mercadopago";
+import collectionConfigurationHandler from "./api/collection-configuration";
 import paymentConnectionHandler from "./api/payment-connection";
+import { handleQaDocumentRequest } from "./server/qa-document-store";
+import { qaMercadoPagoPix } from "./server/qa-mercadopago-pix";
+import { callDataApiRpc } from "./server/municipal-storage";
 import handleProfileAvatarOpen from "./server/api/profile-avatar-open";
-import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand, HeadBucketCommand } from "@aws-sdk/client-s3";
+import handleLegislationOpen from "./api/legislation-open";
+import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand, HeadBucketCommand, type GetObjectCommandOutput } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 dns.setDefaultResultOrder("verbatim");
@@ -85,7 +90,7 @@ function isR2CredentialError(error: unknown) {
     /signature.*does not match|invalid access key|access denied/i.test(message);
 }
 
-async function sendR2WithFallback<T>(command: any): Promise<T> {
+async function sendR2WithFallback<T = unknown>(command: PutObjectCommand | DeleteObjectCommand | GetObjectCommand | HeadBucketCommand): Promise<T> {
   const endpoints = getR2EndpointCandidates();
   if (endpoints.length === 0) {
     throw new Error("Endpoint R2 não configurado.");
@@ -181,12 +186,85 @@ function createR2DevApiPlugin(): Plugin {
       console.log(`  pasta : ${process.cwd()}`);
       console.log(`  branch: ${gitIdentity.branch}`);
       console.log(`  commit: ${gitIdentity.sha}`);
-      console.log("  porta : 8080 (strict)");
+      console.log("  porta : " + (process.env.SIGAPRO_LOCAL_QA_LAUNCH === "true" ? "8081 QA" : "8080 (strict)"));
       console.log("");
 
       server.middlewares.use(async (req, res, next) => {
         if (!req.url || !req.method || !req.url.startsWith("/api/")) {
           next();
+          return;
+        }
+
+        // Intercept only localhost:8081's isolated document repository.
+        // Uploads never use R2 credentials. Signed reads only access local QA files.
+        if (await handleQaDocumentRequest(req, res)) return;
+
+        // Independent PIX sandbox order, never a municipal PIX key and never
+        // the production payment endpoint. Both read and issue require auth.
+        if ((req.url || "").split("?")[0] === "/api/qa/mercadopago/guide-pix" && req.method === "POST") {
+          res.setHeader("Cache-Control", "no-store");
+          res.setHeader("Content-Type", "application/json; charset=utf-8");
+          try {
+            const body=await readJsonBody(req);
+            const result=await qaMercadoPagoPix(req,{
+              municipalityId:String(body.municipalityId||""),
+              guideCode:String(body.guideCode||""),
+              action:body.action==="get" ? "get" : "issue",
+            });
+            res.statusCode=result.ok?200:422;
+            res.end(JSON.stringify(result));
+          } catch(error) {
+            res.statusCode=400;
+            res.end(JSON.stringify({ok:false,sandboxOnly:true,error:error instanceof Error?error.message:"Falha no PIX de homologação."}));
+          }
+          return;
+        }
+
+        // Dedicated test-only billing endpoint. Unlike production billing,
+        // this allows ONLY a Mercado Pago TEST order for an existing Neon QA
+        // guide, with caller authorization and immutable guide amount.
+        if ((req.url || "").split("?")[0] === "/api/qa/mercadopago/guide-boleto" && req.method === "POST") {
+          res.setHeader("Cache-Control", "no-store");
+          res.setHeader("Content-Type", "application/json; charset=utf-8");
+          if (
+            process.env.SIGAPRO_LOCAL_QA_LAUNCH !== "true" ||
+            process.env.SIGAPRO_LOCAL_QA_BLOCK_EXTERNAL_WRITES !== "true" ||
+            process.env.VITE_SIGAPRO_NEON_ISOLATED !== "true"
+          ) {
+            res.statusCode = 403;
+            res.end(JSON.stringify({ok:false,error:"Emissão de teste indisponível fora do QA isolado."}));
+            return;
+          }
+          try {
+            const body = await readJsonBody(req);
+            const result = await createMercadoPagoGuideBoleto({
+              municipalityId: String(body.municipalityId || ""),
+              guideCode: String(body.guideCode || ""),
+              amount: Number(body.amount || 0),
+              description: "SIGAPRO — boleto de HOMOLOGAÇÃO (não efetuar pagamento)",
+            }, req, { isolatedSandboxOnly: true });
+            res.statusCode = result.ok ? 200 : 422;
+            res.end(JSON.stringify({ ...result, sandboxOnly:true }));
+          } catch (error) {
+            res.statusCode = 400;
+            res.end(JSON.stringify({
+              ok: false, sandboxOnly: true,
+              error: error instanceof Error ? error.message : "Falha na emissão do boleto de teste.",
+            }));
+          }
+          return;
+        }
+
+        // Explicit local QA may use copied municipal settings, but MUST NOT
+        // generate external charges, send a PIX to a provider, or write to a
+        // production R2 bucket with inherited local machine credentials.
+        if (process.env.SIGAPRO_LOCAL_QA_BLOCK_EXTERNAL_WRITES === "true" &&
+          ["/api/mercadopago/guide-boleto", "/api/mercadopago/guide-status", "/api/r2-upload",
+           "/api/r2-delete", "/api/r2-presign", "/api/e-sign-artifact"]
+            .some((blocked) => (req.url || "").startsWith(blocked))) {
+          res.statusCode = 403;
+          res.setHeader("Content-Type", "application/json; charset=utf-8");
+          res.end(JSON.stringify({ error: "Homologação isolada: envio ao R2, assinatura e emissão de cobrança externa bloqueados. Configure credenciais e bucket exclusivos de sandbox antes de testar transações." }));
           return;
         }
 
@@ -200,66 +278,26 @@ function createR2DevApiPlugin(): Plugin {
             branch: gitIdentity.branch,
             sha: gitIdentity.sha,
             pid: process.pid,
-            port: 8080,
+            port: process.env.SIGAPRO_LOCAL_QA_LAUNCH === "true" ? 8081 : 8080,
+            neonEnvironment: process.env.SIGAPRO_LOCAL_QA_LAUNCH === "true" ? "isolated-qa" : "official",
           }));
           return;
         }
 
         if (req.url.startsWith("/api/legislation-open") && req.method === "GET") {
-          try {
-            assertEnv();
-            const requestUrl = new URL(req.url, "http://localhost:8080");
-            const objectKey = String(requestUrl.searchParams.get("objectKey") || "")
-              .trim()
-              .replace(/^\/+/, "");
+          // No local-only copy of the signer: dev/QA and Vercel must enforce
+          // identical municipal keys, R2 failover, object existence and errors.
+          await handleLegislationOpen(req, res);
+          return;
+        }
 
-            const isMunicipalLegislationObject =
-              /^municipalities\/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/legislation(?:[-/]|$)/i.test(
-                objectKey,
-              );
+        if (req.url.startsWith("/api/payment-connection") && req.method === "POST") {
+          await paymentConnectionHandler(req, res);
+          return;
+        }
 
-            if (!objectKey || !isMunicipalLegislationObject) {
-              res.statusCode = 400;
-              res.setHeader("Content-Type", "text/plain; charset=utf-8");
-              res.setHeader("Cache-Control", "no-store");
-              res.end("Documento de legislação inválido.");
-              return;
-            }
-
-            const signClient = new S3Client({
-              region: "auto",
-              endpoint: resolveR2Endpoint(),
-              credentials: {
-                accessKeyId: readEnvValue("R2_ACCESS_KEY_ID"),
-                secretAccessKey: readEnvValue("R2_SECRET_ACCESS_KEY"),
-              },
-            });
-
-            const signedUrl = await getSignedUrl(
-              signClient,
-              new GetObjectCommand({
-                Bucket: readEnvValue("R2_BUCKET_DOCUMENTOS"),
-                Key: objectKey,
-                ResponseContentDisposition: "inline",
-                ResponseContentType: "application/pdf",
-              }),
-              { expiresIn: 900 },
-            );
-
-            res.statusCode = 302;
-            res.setHeader("Location", signedUrl);
-            res.setHeader("Cache-Control", "no-store, max-age=0");
-            res.end();
-          } catch (error) {
-            res.statusCode = 500;
-            res.setHeader("Content-Type", "text/plain; charset=utf-8");
-            res.setHeader("Cache-Control", "no-store");
-            res.end(
-              error instanceof Error
-                ? `Não foi possível abrir o documento: ${error.message}`
-                : "Não foi possível abrir o documento.",
-            );
-          }
+        if (req.url.startsWith("/api/collection-configuration") && req.method === "POST") {
+          await collectionConfigurationHandler(req, res);
           return;
         }
 
@@ -283,6 +321,8 @@ function createR2DevApiPlugin(): Plugin {
             dueDate: body.dueDate ? String(body.dueDate) : undefined,
             description: body.description ? String(body.description) : undefined,
           }, req);
+
+          // Persistência V13 centralizada em server/mercadopago.ts (local e API).
           res.statusCode = result.ok ? 201 : 400;
           res.setHeader("Content-Type", "application/json; charset=utf-8");
           res.setHeader("Cache-Control", "no-store");
@@ -298,6 +338,8 @@ function createR2DevApiPlugin(): Plugin {
             guideCode: String(body.guideCode || ""),
             amount: Number(body.amount || 0),
           }, req);
+
+          // Persistência V13 centralizada em server/mercadopago.ts (local e API).
           res.statusCode = result.ok ? 200 : 400;
           res.setHeader("Content-Type", "application/json; charset=utf-8");
           res.setHeader("Cache-Control", "no-store");
@@ -613,7 +655,7 @@ function createR2DevApiPlugin(): Plugin {
               res.end("Logo inválido.");
               return;
             }
-            const object = await sendR2WithFallback<any>(new GetObjectCommand({
+            const object = await sendR2WithFallback<GetObjectCommandOutput>(new GetObjectCommand({
               Bucket: readEnvValue("R2_BUCKET_LOGOS"),
               Key: objectKey,
             }));
@@ -662,10 +704,31 @@ function createR2DevApiPlugin(): Plugin {
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
+  // Keep the explicit, public QA Auth/Data pairing supplied by npm run dev:qa,
+  // even when the developer's .env contains older production settings.
+  const isolatedQa = process.env.SIGAPRO_LOCAL_QA_LAUNCH === "true";
+  const pinnedQa = isolatedQa ? {
+    VITE_BACKEND: "neon",
+    NODE_ENV: "development",
+    VERCEL_ENV: "development",
+    VITE_SIGAPRO_NEON_ISOLATED: process.env.VITE_SIGAPRO_NEON_ISOLATED,
+    VITE_NEON_AUTH_URL: process.env.VITE_NEON_AUTH_URL,
+    VITE_NEON_DATA_API_URL: process.env.VITE_NEON_DATA_API_URL,
+    VITE_SIGAPRO_QA_READINESS_BANNER: process.env.VITE_SIGAPRO_QA_READINESS_BANNER,
+    SIGAPRO_LOCAL_QA_BLOCK_EXTERNAL_WRITES: process.env.SIGAPRO_LOCAL_QA_BLOCK_EXTERNAL_WRITES,
+    // Re-pin the dedicated private QA encryption key after loadEnv: older
+    // production .env entries must never override it.
+    MUNICIPAL_PAYMENT_MASTER_KEY: process.env.MUNICIPAL_PAYMENT_MASTER_KEY,
+  } : null;
   const env = loadEnv(mode, process.cwd(), "");
   for (const [key, value] of Object.entries(env)) {
     if (value !== undefined) {
       process.env[key] = value;
+    }
+  }
+  if (pinnedQa) {
+    for (const [key, value] of Object.entries(pinnedQa)) {
+      if (value !== undefined) process.env[key] = value;
     }
   }
 

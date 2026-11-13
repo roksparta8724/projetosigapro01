@@ -39,7 +39,9 @@ describe("critical localhost x production parity", () => {
   });
 
   it("invalidates the old production asset cache and actively checks service-worker updates", () => {
-    expect(sw).toContain('const CACHE_VERSION = "sigapro-enterprise-v3"');
+    expect(sw).toContain('const CACHE_VERSION = "sigapro-enterprise-v8"');
+    expect(sw).toContain("safeAssetResponse");
+    expect(sw).not.toContain("AVATAR_CACHE");
     expect(main).toContain(".then((registration) => registration.update())");
   });
 });

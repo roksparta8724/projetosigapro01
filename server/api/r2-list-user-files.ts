@@ -1,3 +1,4 @@
+import { resolveR2Endpoint } from "../r2-runtime.js";
 /**
  * api/r2-list-user-files.ts
  *
@@ -6,11 +7,13 @@
  * mas não foram vinculados ao processo por versões antigas do fluxo.
  */
 
-import { ListObjectsV2Command, S3Client } from "@aws-sdk/client-s3";
+import { GetObjectCommand, HeadObjectCommand, ListObjectsV2Command, S3Client } from "@aws-sdk/client-s3";
+import { createHash } from "node:crypto";
 import {
   applyMunicipalBasePath,
+  getDataApiUrl,
   resolveMunicipalDocumentTarget,
-} from "../municipal-storage";
+} from "../municipal-storage.js";
 
 type Req = import("http").IncomingMessage & { method?: string; body?: unknown };
 type Res = import("http").ServerResponse;
@@ -20,30 +23,6 @@ function readEnv(key: string) {
   if (!raw) return "";
   return String(raw).replace(/^['"]|['"]$/g, "").trim();
 }
-
-function resolveR2Endpoint() {
-  const accountId = readEnv("R2_ACCOUNT_ID")
-    .replace(/^https?:\/\//i, "")
-    .replace(/\.r2\.cloudflarestorage\.com.*$/i, "")
-    .replace(/[^a-zA-Z0-9]/g, "");
-
-  if (accountId && !/^sua_?account_?id$/i.test(accountId)) {
-    return `https://${accountId}.r2.cloudflarestorage.com`;
-  }
-
-  const rawEndpoint = readEnv("R2_ENDPOINT");
-  if (!rawEndpoint) return "";
-
-  try {
-    const url = new URL(/^https?:\/\//i.test(rawEndpoint) ? rawEndpoint : `https://${rawEndpoint}`);
-    return `${url.protocol}//${url.host}`;
-  } catch {
-    return rawEndpoint.replace(/\/+$/, "");
-  }
-}
-
-const VALIDATED_NEON_DATA_API_URL =
-  "https://ep-blue-cloud-b4hhgb4t.apirest.c-6.us-east-2.aws.neon.tech/sigapro_migration_stage_20260923/rest/v1";
 
 function readBearer(req: Req) {
   const raw = req.headers.authorization || "";
@@ -87,11 +66,7 @@ async function resolveAuthenticatedScope(req: Req) {
     return { ok: false as const, status: 401, error: "Autenticação necessária." };
   }
 
-  const dataApiUrl = (
-    readEnv("R2_AUTH_DATA_API_URL") ||
-    readEnv("VITE_NEON_DATA_API_URL") ||
-    VALIDATED_NEON_DATA_API_URL
-  ).replace(/\/+$/, "");
+  const dataApiUrl = getDataApiUrl();
 
   try {
     const profileResponse = await fetch(`${dataApiUrl}/rpc/current_profile_id`, {
@@ -177,7 +152,7 @@ export default async function handler(req: Req, res: Res) {
     const secretAccessKey = readEnv("R2_SECRET_ACCESS_KEY");
     const bucket = readEnv("R2_BUCKET_DOCUMENTOS") || "sigapro-documentos";
 
-    const body = (await readJsonBody(req)) as { since?: unknown; processId?: unknown };
+    const body = (await readJsonBody(req)) as { since?: unknown; processId?: unknown; verifyObjectKey?: unknown };
     let since =
       typeof body.since === "string" && !Number.isNaN(Date.parse(body.since))
         ? new Date(body.since)
@@ -191,11 +166,7 @@ export default async function handler(req: Req, res: Res) {
     // When a municipal analyst is viewing a process, recover only uploads that
     // belong to the professional who created that same accessible process.
     if (processId) {
-      const dataApiUrl = (
-        readEnv("R2_AUTH_DATA_API_URL") ||
-        readEnv("VITE_NEON_DATA_API_URL") ||
-        VALIDATED_NEON_DATA_API_URL
-      ).replace(/\/+$/, "");
+      const dataApiUrl = getDataApiUrl();
       const token = readBearer(req);
 
       const processResponse = await fetch(
@@ -279,6 +250,35 @@ export default async function handler(req: Req, res: Res) {
           credentials: { accessKeyId, secretAccessKey },
         });
     const storageBucket = municipalTarget ? municipalTarget.bucket : bucket;
+
+    // An orphaned upload has no trustworthy digest in the old DB.
+    // Retrieve and hash its actual R2 bytes on demand; do not trust filenames
+    // or let the browser submit an arbitrary fileHash to the process ledger.
+    if (typeof body.verifyObjectKey === "string") {
+      const objectKey = body.verifyObjectKey.trim();
+      const permitted = objectKey.length <= 1024 && !objectKey.includes("..") &&
+        !objectKey.includes("\\") && !/[\r\n\0]/.test(objectKey) &&
+        principalIds.some((id) => objectKey.startsWith(`municipalities/${auth.municipalityId}/protocols/${id}/`));
+      if (!permitted) return json(res,403,{error:"Arquivo fora do escopo autorizado."});
+      const physicalKey = municipalTarget
+        ? applyMunicipalBasePath(municipalTarget.config.base_path,objectKey)
+        : objectKey;
+      const head = await client.send(new HeadObjectCommand({Bucket:storageBucket,Key:physicalKey}));
+      const size = Number(head.ContentLength || 0);
+      if (!Number.isSafeInteger(size) || size < 5 || size > 40 * 1024 * 1024)
+        return json(res,413,{error:"Arquivo excede o limite para conferência de integridade."});
+      const obj = await client.send(new GetObjectCommand({Bucket:storageBucket,Key:physicalKey}));
+      const bytes = await obj.Body?.transformToByteArray();
+      if (!bytes || bytes.byteLength !== size)
+        return json(res,409,{error:"Os bytes do arquivo não correspondem ao tamanho registrado no R2."});
+      const sha256 = createHash("sha256").update(bytes).digest("hex");
+      if (head.Metadata?.sha256 && head.Metadata.sha256.toLowerCase() !== sha256)
+        return json(res,409,{error:"A cópia arquivada não corresponde ao hash do R2."});
+      res.setHeader("Cache-Control","private, no-store");
+      json(res,200,{objectKey,fileHash:sha256,fileSizeBytes:size});
+      client.destroy();
+      return;
+    }
 
     const results = await Promise.all(
       principalIds.map((principalId) => {

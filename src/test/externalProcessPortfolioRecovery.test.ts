@@ -88,7 +88,7 @@ describe("external process portfolio recovery", () => {
 
   it("never copies the previous account store into the next professional session", () => {
     expect(dataHook).toContain("authenticatedProfileId || authenticatedUserId");
-    expect(dataHook).toContain("remoteContextUserId === authenticatedUserId");
+    expect(dataHook).toContain("isConfirmedStoreIdentity(remoteContextUserId, authenticatedUserId, authenticatedProfileId)");
     expect(dataHook).toContain("processes: []");
     expect(dataHook).toContain("ownerRequests: []");
     expect(dataHook).toContain("ownerLinks: []");

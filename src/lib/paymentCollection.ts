@@ -1,4 +1,5 @@
 import { buildPixPayload, isValidPixPayload } from "@/lib/pix";
+import { bankDigits, normalizeOfficialBanking } from "@/lib/bankCodes";
 import type { PaymentGuideEntry, TenantSettings } from "@/lib/platform";
 
 export function normalizeMunicipalPixKey(
@@ -66,10 +67,8 @@ export function validateMunicipalPixKey(
 }
 
 export function normalizeBankBarcode(value?: string | null) {
-  const digits = String(value || "").replace(/\D/g, "");
-  return digits.length >= 40 && digits.length <= 48 && digits.length % 2 === 0
-    ? digits
-    : "";
+  const digits = bankDigits(value);
+  return /^\d{44}$/.test(digits) ? digits : "";
 }
 
 export function normalizeDigitableLine(value?: string | null) {
@@ -95,18 +94,20 @@ export function isMunicipalBankIdentified(settings?: TenantSettings | null) {
   return Boolean(settings?.bankCode?.trim() && settings?.bankName?.trim());
 }
 
-export function isBankBarcodeIntegrationReady(settings?: TenantSettings | null) {
-  if (!settings) return false;
-  if (settings.bankCollectionMode === "api") {
-    return isMunicipalBankIdentified(settings);
-  }
-  if (settings.bankCollectionMode === "agreement") {
-    return Boolean(
-      isMunicipalBankIdentified(settings) &&
-        settings.bankAgreementCode?.trim(),
-    );
-  }
+/** Bank metadata is NOT proof that a registered boleto integration is usable. */
+export function isBankBarcodeIntegrationReady(_settings?: TenantSettings | null) {
+  // Readiness requires an authenticated, homologated provider response with
+  // an official barcode/line; that signal is resolved per guide, never here.
   return false;
+}
+
+/** Only a cadastral check: an agreement does not create registered charges. */
+export function hasMunicipalBankAgreementConfigured(settings?: TenantSettings | null) {
+  return Boolean(
+    settings?.bankCollectionMode === "agreement" &&
+    isMunicipalBankIdentified(settings) &&
+    settings.bankAgreementCode?.trim(),
+  );
 }
 
 function resolvePixTxid(guide: Pick<PaymentGuideEntry, "code">) {
@@ -124,6 +125,10 @@ export function buildGuidePixPayload(input: {
   municipalityName?: string | null;
   municipalityCity?: string | null;
 }) {
+  // The isolated QA database contains copied municipal settings. A static PIX
+  // key can still transfer REAL money even when the bank API is in sandbox.
+  // Never present any live merchant PIX from copied settings on localhost:8081.
+  if (import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true") return "";
   if (isValidPixPayload(input.guide.pixPayload)) {
     return input.guide.pixPayload!.trim();
   }
@@ -156,10 +161,11 @@ export function resolveGuideBankingData(input: {
   municipalityName?: string | null;
   municipalityCity?: string | null;
 }) {
+  const official = normalizeOfficialBanking(input.guide.barcode, input.guide.digitableLine);
   return {
     pixPayload: buildGuidePixPayload(input),
-    barcode: normalizeBankBarcode(input.guide.barcode),
-    digitableLine: normalizeDigitableLine(input.guide.digitableLine),
+    barcode: official.barcode,
+    digitableLine: official.digitableLine,
     bankName: input.settings?.bankName?.trim() || "",
     bankAgreement: input.settings?.bankAgreementCode?.trim() || "",
     bankInstructions: input.settings?.bankInstructions?.trim() || "",
