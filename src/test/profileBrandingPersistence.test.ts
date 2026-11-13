@@ -102,8 +102,9 @@ describe("profile and branding persistence regressions", () => {
     expect(userAvatar).toContain("resolvedImageUrl");
     expect(userAvatar).toContain("const preload = new Image()");
     expect(userAvatar).toContain("preload.onload");
-    expect(userAvatar).toContain("emptyClearTimerRef");
-    expect(userAvatar).toContain("1200");
+    expect(userAvatar).toContain("preservePhotoDuringRefresh && stableAccount && !photoRemovalConfirmed");
+    expect(userAvatar).toContain("photoRemovalConfirmed");
+    expect(userAvatar).not.toContain("emptyClearTimerRef");
     expect(imageFrameEditor).toContain("Stale-while-revalidate visual");
     expect(imageFrameEditor).not.toContain("setNaturalSize({ width: 0, height: 0 })");
     expect(userAvatar).toContain("const resolvedImageUrl = recoveryImageUrl || stableImageUrl || imageUrl ||");
