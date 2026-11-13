@@ -99,6 +99,8 @@ function preloadCurrentInternalRoute(pathname: string): Promise<unknown> | null 
   if (pathname.startsWith("/dashboard")) return import("@/pages/saas/DashboardHomePage");
   if (pathname.startsWith("/master/planos")) return import("@/pages/saas/MasterPlansPage");
   if (pathname.startsWith("/master")) return import("@/pages/saas/MasterAdminPage");
+  // The filmed screen /prefeitura/arrecadacao must prefetch its real chunk, not TenantAdminPage.
+  if (pathname.startsWith("/prefeitura/arrecadacao")) return import("@/pages/saas/CollectionSettingsPage");
   if (pathname.startsWith("/prefeitura/analise")) return import("@/pages/saas/AnalystDeskPage");
   if (pathname.startsWith("/prefeitura/protocolos/novo")) return import("@/pages/saas/ProtocolarProjetoPage");
   if (pathname.startsWith("/prefeitura/protocolos")) return import("@/pages/saas/ProtocolDeskPage");
