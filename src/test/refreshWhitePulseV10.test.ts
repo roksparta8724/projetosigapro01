@@ -47,6 +47,16 @@ describe("SIGAPRO F5 V10: no unprotected refresh listener gaps or bright boot ca
     expect(html).not.toContain("<canvas");
   });
 
+  it("retains the safe first-paint palette until an authorized real page commits", () => {
+    const entry = read("src/main.tsx");
+    expect(entry).toContain("new MutationObserver(finishWhenRealUiPainted)");
+    expect(entry).toContain('rootElement.querySelector(".sig-app-frame, main, form, [role=\'alert\']")');
+    expect(entry).toContain('!rootElement.querySelector("[data-sigapro-route-pending]")');
+    expect(entry).toContain('document.documentElement.removeAttribute("data-sigapro-initial-render")');
+    expect(entry).toContain("readyObserver?.disconnect()");
+    expect(entry).not.toContain('window.requestAnimationFrame(() => {\n      document.documentElement.removeAttribute("data-sigapro-initial-render");');
+  });
+
   it("does not change public login, printable documents, real data, or payment surfaces", () => {
     expect(html).toContain('publicPaths = ["/", "/inicio", "/apresentacao", "/planos-publicos"]');
     expect(html).toContain('authPaths = ["/acesso", "/criar-conta", "/recuperar-senha"]');

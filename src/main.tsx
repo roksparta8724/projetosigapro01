@@ -166,9 +166,33 @@ function bootApplication() {
       root.render(<App />);
     });
 
-    window.requestAnimationFrame(() => {
+    // A React root can mount only the invisible access/loading status.
+    // Clearing the initial document palette on the first RAF made that
+    // status render over the light-green body (#f3faf7): the recorded flash.
+    // Clear the boot palette only when real UI (or a real error) is present.
+    // No mock shell and no privileged HTML snapshot is introduced.
+    let readyObserver: MutationObserver | null = null;
+    const finishWhenRealUiPainted = () => {
+      if (!document.documentElement.hasAttribute("data-sigapro-initial-render")) {
+        readyObserver?.disconnect();
+        return;
+      }
+
+      const hasRealApp =
+        Boolean(rootElement.querySelector(".sig-app-frame, main, form, [role='alert']")) ||
+        (!isInternalPath(window.location.pathname) &&
+          Boolean(rootElement.textContent?.trim()) &&
+          !rootElement.querySelector("[data-sigapro-route-pending]"));
+
+      if (!hasRealApp) return;
       document.documentElement.removeAttribute("data-sigapro-initial-render");
-    });
+      document.documentElement.removeAttribute("data-sigapro-boot-slow");
+      readyObserver?.disconnect();
+    };
+
+    readyObserver = new MutationObserver(finishWhenRealUiPainted);
+    readyObserver.observe(rootElement, { childList: true, subtree: true });
+    window.requestAnimationFrame(finishWhenRealUiPainted);
 
     scheduleLocalCacheMaintenance();
   } catch (error) {
