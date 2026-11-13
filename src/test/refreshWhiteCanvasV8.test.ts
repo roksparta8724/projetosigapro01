@@ -27,6 +27,8 @@ describe("SIGAPRO F5 — root cause of white paint (V8)", () => {
   });
   it("preloads real protected module without rendering it before permission checks", () => {
     expect(app).toContain("function preloadCurrentInternalRoute(pathname: string)");
+    expect(app).toContain('if (pathname.startsWith("/prefeitura/arrecadacao")) return import("@/pages/saas/CollectionSettingsPage");');
+    expect(app.indexOf('pathname.startsWith("/prefeitura/arrecadacao")')).toBeLessThan(app.indexOf('pathname.startsWith("/prefeitura")) return import("@/pages/saas/TenantAdminPage")'));
     expect(app).toContain('void preloadCurrentInternalRoute(window.location.pathname)?.catch(() => undefined);');
     for (const route of ["/dashboard","/prefeitura/analise","/prefeitura/financeiro","/prefeitura/organograma","/prefeitura/protocolos","/prefeitura/processos"]) {
       expect(app).toContain('pathname.startsWith("'+route+'")');
