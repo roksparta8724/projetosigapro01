@@ -1022,6 +1022,10 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
     };
 
     try {
+      // O primeiro documento do F5 herda exatamente a mesma cor já aplicada
+      // pela página oficial, sem retornar ao verde do preset antigo.
+      document.documentElement.style.setProperty("--sig-initial-bg", pageBackground);
+      document.documentElement.style.setProperty("--sig-bg", pageBackground);
       window.localStorage.setItem("sigapro.last-page-background.v2", pageBackground);
       window.localStorage.setItem("sigapro.effective-theme.v2", JSON.stringify(effectiveTheme));
       setEffectiveThemeCache(effectiveTheme);
