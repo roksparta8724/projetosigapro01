@@ -149,7 +149,6 @@ function UserAvatarPresentation({
   const [naturalSize, setNaturalSize] = useState(() => readCachedAvatarDimensions(imageUrl));
   const [recoveryImageUrl, setRecoveryImageUrl] = useState("");
   const attemptedRecoveryRef = useRef(new Set<string>());
-  const emptyClearTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     attemptedRecoveryRef.current.clear();
@@ -157,11 +156,6 @@ function UserAvatarPresentation({
   }, [imageUrl]);
 
   useEffect(() => {
-    if (emptyClearTimerRef.current) {
-      window.clearTimeout(emptyClearTimerRef.current);
-      emptyClearTimerRef.current = null;
-    }
-
     if (!imageUrl) {
       // The server can momentarily return a partial profile during background
       // refresh. 1200ms was too short: after that threshold the header changed
@@ -217,14 +211,6 @@ function UserAvatarPresentation({
       cancelled = true;
     };
   }, [imageUrl, stableImageUrl, authenticatedOwnerId, preservePhotoDuringRefresh, photoRemovalConfirmed]);
-
-  useEffect(() => {
-    return () => {
-      if (emptyClearTimerRef.current) {
-        window.clearTimeout(emptyClearTimerRef.current);
-      }
-    };
-  }, []);
 
   const resolvedImageUrl = recoveryImageUrl || stableImageUrl || imageUrl || "";
   const showImage = Boolean(resolvedImageUrl) && failedImageUrl !== resolvedImageUrl;
