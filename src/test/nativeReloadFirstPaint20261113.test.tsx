@@ -62,6 +62,10 @@ describe("Chrome reload: first paint of real authorized workspace", () => {
     );
     expect(gate.isConnected).toBe(true);
     const image = document.createElement("img");
+    // JSDOM marks an IMG without src as complete (nothing to load); simulate
+    // an actual pending authenticated image request instead.
+    Object.defineProperty(image, "complete", { value: false, configurable: true });
+    image.src = "https://sigapro.local/private-avatar-pending.png";
     avatar.appendChild(image);
     await act(async () => { await Promise.resolve(); });
     expect(gate.isConnected).toBe(true);
