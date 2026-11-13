@@ -68,6 +68,7 @@ import { useNotifications } from "@/hooks/useNotifications";
 import { useUserMenuPreferences, type MenuPreferenceKey } from "@/hooks/useUserMenuPreferences";
 import { usePlanEntitlements } from "@/hooks/usePlanEntitlements";
 import { useLivePlatformRefresh } from "@/hooks/useLivePlatformRefresh";
+import { useNativeReloadFirstPaint } from "@/hooks/useNativeReloadFirstPaint";
 import { getPublicAssetUrl } from "@/lib/assetUrl";
 import { formatDisplayText, humanizeRoleLabel } from "@/lib/displayText";
 import { buildProcessPath, can, canAccessMunicipalArea,
@@ -814,6 +815,12 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false, compa
   // Cadastros antigos podem ter useAvatarInHeader=false mesmo com foto R2
   // válida; esse campo legado não deve ocultar uma imagem já salva.
   const topbarAvatarImageUrl = resolveProfileAvatarDisplayUrl(displayProfile) || null;
+  // No hard reload do mesmo usuário, aguardar a interface VERDADEIRA e a foto
+  // autorizada até a primeira pintura; o gate do HTML tem timeout de 1,8 s.
+  useNativeReloadFirstPaint(
+    Boolean(dataReadyForCurrentUser && session.id !== "unknown"),
+    topbarAvatarImageUrl,
+  );
   // Só uma leitura REMOTA já confirmada para a conta atual pode remover a
   // imagem existente. Lacunas de hidratação/refresh não equivalem a "foto
   // excluída" e não podem fazer o cabeçalho trocar para iniciais.
@@ -1363,6 +1370,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false, compa
 
   return (
     <div
+      id="sigapro-authenticated-route-ready"
       className={cn(
         "sig-app-frame min-h-screen text-foreground",
         focusMode && "sig-focus-workspace h-auto overflow-visible",
