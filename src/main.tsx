@@ -163,9 +163,24 @@ function bootApplication() {
       root.render(<App />);
     });
 
-    window.requestAnimationFrame(() => {
+    // A camada HTML permanece sempre oculta no carregamento normal.
+    // Desativar o fallback assim que o React realmente confirmar seu primeiro
+    // nó (inclusive o status não visual de autorização), não por um RAF vazio.
+    // Isso evita duas telas concorrentes quando a autenticação é demorada.
+    let mountedObserver: MutationObserver | null = null;
+    const finishBootstrap = () => {
+      if (!document.documentElement.hasAttribute("data-sigapro-initial-render")) {
+        mountedObserver?.disconnect();
+        return;
+      }
+      if (!rootElement.hasChildNodes()) return;
       document.documentElement.removeAttribute("data-sigapro-initial-render");
-    });
+      document.documentElement.removeAttribute("data-sigapro-boot-slow");
+      mountedObserver?.disconnect();
+    };
+    mountedObserver = new MutationObserver(finishBootstrap);
+    mountedObserver.observe(rootElement, { childList: true, subtree: true });
+    window.requestAnimationFrame(finishBootstrap);
 
     scheduleLocalCacheMaintenance();
   } catch (error) {
