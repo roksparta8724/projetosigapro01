@@ -1,0 +1,187 @@
+/*
+ * Análise Municipal — workspace operacional compacto.
+ * Escopo intencionalmente restrito à mesa técnica: nenhuma outra área é alterada.
+ * Mantém visíveis os processos no primeiro viewport sem empilhar cartões vazios.
+ */
+
+header[data-sigapro-compact-header="true"] .sig-institution-logo-surface[data-logo-variant="header"] {
+  width: 110px !important;
+  max-width: 110px !important;
+  height: 66px !important;
+  max-height: 66px !important;
+  border-radius: 13px !important;
+}
+
+.sig-analysis-page {
+  min-width: 0;
+  align-items: stretch;
+}
+
+.sig-analysis-page > :is(section, div) {
+  min-width: 0;
+  flex: none;
+}
+
+.sig-analysis-page .sig-ui-card,
+.sig-analysis-page .sig-section-card {
+  height: auto !important;
+  min-height: 0;
+}
+
+.sig-analysis-tabs {
+  padding: 6px !important;
+  border-radius: 15px !important;
+  overflow: hidden !important;
+  box-shadow: 0 3px 12px rgba(15, 23, 42, 0.035) !important;
+}
+
+.sig-analysis-tabs > div {
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  gap: 6px !important;
+  padding: 1px 1px 4px !important;
+  scroll-behavior: smooth;
+}
+
+.sig-analysis-tabs .sig-nav-item {
+  flex: 0 0 auto !important;
+  min-width: max-content !important;
+  min-height: 41px !important;
+  padding: 8px 12px !important;
+  border-radius: 10px !important;
+  align-items: center !important;
+  justify-content: center !important;
+  white-space: nowrap !important;
+}
+
+.sig-analysis-tabs .sig-nav-item-label {
+  font-size: 12px !important;
+  line-height: 18px !important;
+  text-wrap: nowrap !important;
+  overflow: visible !important;
+}
+
+.sig-analysis-tabs .sig-nav-item-helper {
+  display: none !important;
+}
+
+.sig-analysis-tabs .sig-nav-item[data-nav-active="true"] {
+  background: linear-gradient(135deg, #0c4868, #0876a3) !important;
+  border-color: #0c6489 !important;
+  color: white !important;
+  box-shadow: none !important;
+}
+
+.sig-analysis-tabs .sig-nav-item[data-nav-active="true"] .sig-nav-item-label {
+  color: white !important;
+  -webkit-text-fill-color: white !important;
+}
+
+[data-analysis-command-bar="true"],
+[data-analysis-process-panel="true"] {
+  min-height: 0 !important;
+  height: auto !important;
+}
+
+[data-analysis-process-panel="true"] [data-analysis-process-actions="true"] {
+  align-self: center;
+}
+
+[data-analysis-process-panel="true"] [data-process-premium-card="true"] {
+  min-height: 0;
+}
+
+[data-analysis-team-disclosure="true"] {
+  margin-top: 8px !important;
+}
+
+[data-analysis-team-disclosure="true"] > summary {
+  list-style-position: inside;
+}
+
+
+
+/* The analysis desk follows the same enterprise design as all other modules. */
+[data-layout-mode="default"] [data-analysis-command-bar="true"] {
+  background: linear-gradient(125deg, #123b57, #0c304a 75%, #15516b) !important;
+  border-color: #356b86 !important;
+  box-shadow: 0 10px 28px rgba(9, 41, 64, .14) !important;
+}
+[data-layout-mode="default"] [data-analysis-command-bar="true"] :is(h2,p) {
+  color: #e2f2fa !important;
+  -webkit-text-fill-color: #e2f2fa !important;
+}
+[data-layout-mode="default"] [data-analysis-command-bar="true"] h2 {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+[data-layout-mode="default"] [data-analysis-command-bar="true"] > div:first-child > span:first-child {
+  background: rgba(255,255,255,.1) !important;
+  border: 1px solid rgba(191,226,243,.3);
+}
+[data-layout-mode="default"] [data-analysis-process-panel="true"] {
+  background: linear-gradient(180deg, #f8fbfe, #edf4fa) !important;
+  border-color: #c5d9e8 !important;
+}
+[data-layout-mode="default"] [data-analysis-process-panel="true"] > header {
+  background: #e3eef7 !important;
+  border-color: #c6d9e7 !important;
+}
+[data-layout-mode="default"] [data-analysis-process-panel="true"] > header h3 {
+  color: #123550 !important;
+  -webkit-text-fill-color: #123550 !important;
+}
+[data-layout-mode="default"] [data-analysis-process-panel="true"] > header p {
+  color: #526b80 !important;
+  -webkit-text-fill-color: #526b80 !important;
+}
+
+/* Inverse-main é distinto da classe Tailwind dark; manter polaridade determinística. */
+[data-layout-mode="inverse-main"] [data-analysis-command-bar="true"],
+[data-layout-mode="inverse-main"] [data-analysis-process-panel="true"] {
+  background: #102638 !important;
+  border-color: #36526b !important;
+  color: #eaf3fc !important;
+}
+
+[data-layout-mode="inverse-main"] [data-analysis-command-bar="true"] h2,
+[data-layout-mode="inverse-main"] [data-analysis-process-panel="true"] h3 {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+[data-layout-mode="inverse-main"] [data-analysis-command-bar="true"] p,
+[data-layout-mode="inverse-main"] [data-analysis-process-panel="true"] header p,
+[data-layout-mode="inverse-main"] [data-analysis-queue-guide="true"] p {
+  color: #cfdeea !important;
+  -webkit-text-fill-color: #cfdeea !important;
+}
+
+[data-layout-mode="inverse-main"] [data-analysis-process-panel="true"] > header {
+  background: #172f46 !important;
+  border-color: #36526b !important;
+}
+
+[data-layout-mode="inverse-main"] [data-analysis-process-panel="true"] [data-analysis-filters="true"] input {
+  background: #091f32 !important;
+  border-color: #36526b !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+[data-layout-mode="inverse-main"] [data-analysis-process-panel="true"] [data-analysis-filters="true"] input::placeholder {
+  color: #b9ccdb !important;
+  opacity: 1;
+}
+
+@media (max-width: 640px) {
+  .sig-analysis-tabs .sig-nav-item {
+    min-height: 42px !important;
+    padding-inline: 10px !important;
+  }
+  [data-analysis-command-bar="true"] {
+    padding: 14px !important;
+  }
+}

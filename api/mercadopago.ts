@@ -14,6 +14,10 @@ import {
   testMercadoPagoToken,
 } from "../server/municipal-payment.js";
 import { callDataApiRpc } from "../server/municipal-storage.js";
+import handleQaMpWebhook from "../server/mp-qa-webhook.js";
+import {assertIsolatedQaBankRuntime} from "../server/qa-hosted-bank-guard.js";
+import {qaMercadoPagoPix} from "../server/qa-mercadopago-pix.js";
+import { assertMunicipalCredentialSave, assertMunicipalCredentialActivation } from "../server/municipal-payment-credential-validation.js";
 
 type Req = import("http").IncomingMessage & {
   method?: string;
@@ -69,6 +73,50 @@ export default async function handler(req: Req, res: Res) {
   const requestUrl = new URL(req.url || "/api/mercadopago", "https://sigapro.local");
   const action = requestUrl.searchParams.get("action") || "health";
 
+  // Reuse the existing Mercado Pago serverless function: the Vercel Hobby
+  // project has a 12-function limit. The QA callback retains its own
+  // fail-closed Preview/branch/role/HMAC gate in the isolated handler.
+  if (action === "qa-webhook") {
+    return handleQaMpWebhook(req, res);
+  }
+
+  if (action === "qa-pix") {
+    if(req.method!=="POST")return json(res,405,{ok:false,sandboxOnly:true,error:"Método não permitido."});
+    try{
+      assertIsolatedQaBankRuntime();
+      const body=await readJsonBody(req);
+      if(body.action!=="get"&&body.action!=="issue")
+        return json(res,400,{ok:false,sandboxOnly:true,error:"Ação PIX QA inválida."});
+      const result=await qaMercadoPagoPix(req,{
+        municipalityId:String(body.municipalityId||""),
+        guideCode:String(body.guideCode||""),
+        action:body.action,
+      });
+      return json(res,result.ok?200:422,result);
+    }catch(error){
+      return json(res,403,{ok:false,sandboxOnly:true,
+        error:error instanceof Error?error.message:"PIX de homologação não autorizado."});
+    }
+  }
+
+  if (action === "qa-boleto") {
+    if (req.method!=="POST") return json(res,405,{ok:false,sandboxOnly:true,error:"Método não permitido."});
+    try {
+      assertIsolatedQaBankRuntime();
+      const body=await readJsonBody(req);
+      const result=await createMercadoPagoGuideBoleto({
+        municipalityId:body.municipalityId?String(body.municipalityId):undefined,
+        guideCode:String(body.guideCode||""),
+        amount:Number(body.amount||0),
+        description:"SIGAPRO — boleto de HOMOLOGAÇÃO, NÃO PAGAR",
+      },req,{isolatedSandboxOnly:true});
+      return json(res,result.ok?200:422,{...result,sandboxOnly:true});
+    }catch(error){
+      return json(res,403,{ok:false,sandboxOnly:true,
+        error:error instanceof Error?error.message:"Emissão de boleto QA não autorizada."});
+    }
+  }
+
   if (action === "health") {
     if (req.method !== "GET") {
       json(res, 405, { ok: false, error: "Método não permitido." });
@@ -100,22 +148,9 @@ export default async function handler(req: Req, res: Res) {
         req,
       );
 
-      if (result.ok) {
-        await rpcOrThrow(req, "persist_payment_guide_provider_charge_v1", {
-          _guide_code: guideCode,
-          _order_id: result.orderId || null,
-          _payment_id: result.paymentId || null,
-          _status: result.status || null,
-          _status_detail: result.statusDetail || null,
-          _authenticated_at: result.authenticatedAt || null,
-          _payment_provider: "mercado_pago",
-          _provider_environment: result.environment || null,
-          _barcode: result.barcodeContent || null,
-          _digitable_line: result.digitableLine || null,
-          _ticket_url: result.ticketUrl || null,
-        });
-      }
-
+      // The provider helper has already validated and persisted this charge
+      // through the municipality-scoped signed v2 RPC. A second legacy v1
+      // write is unscoped, lacks bank attestation, and is forbidden in Neon.
       json(res, result.ok ? 200 : 400, result);
     } catch (error) {
       json(res, 400, {
@@ -152,13 +187,15 @@ export default async function handler(req: Req, res: Res) {
         const environment = String(body.environment || "test").trim();
         const accessToken = String(body.accessToken || "").trim();
         const webhookSecret = String(body.webhookSecret || "").trim();
-
-        if (!["mercado_pago", "bank_direct", "manual"].includes(provider)) {
-          throw new Error("Provedor de pagamento inválido.");
-        }
-        if (!["test", "production"].includes(environment)) {
-          throw new Error("Ambiente de pagamento inválido.");
-        }
+        if ((body.accessToken != null && typeof body.accessToken !== "string") ||
+            (body.webhookSecret != null && typeof body.webhookSecret !== "string"))
+          throw new Error("Credenciais inválidas: informe texto nos campos protegidos.");
+        // Read the scoped public status first; no secret is returned to the browser.
+        const saved = await rpcOrThrow<MunicipalPaymentConnection>(
+          req, "get_municipal_payment_connection_v1",
+          { _municipality_id: municipalityId },
+        );
+        assertMunicipalCredentialSave({provider,environment,accessToken,webhookSecret},saved);
 
         let accessCiphertext: string | null = null;
         let accessFingerprint: string | null = null;
@@ -236,6 +273,11 @@ export default async function handler(req: Req, res: Res) {
       }
 
       if (subaction === "activate") {
+        const prior = await rpcOrThrow<MunicipalPaymentConnection>(
+          req, "get_municipal_payment_connection_v1",
+          { _municipality_id: municipalityId },
+        );
+        assertMunicipalCredentialActivation(prior);
         const connection = await rpcOrThrow<MunicipalPaymentConnection>(
           req,
           "activate_municipal_payment_connection_v1",
@@ -270,26 +312,16 @@ export default async function handler(req: Req, res: Res) {
           amount: Number(body.amount || 0),
           dueDate: body.dueDate ? String(body.dueDate) : undefined,
           description: body.description ? String(body.description) : undefined,
+          // Treated as untrusted until the backend binds CPF/CNPJ and name
+          // to the canonical Neon guide, then validates email + address.
+          payer: body.payer,
         },
         req,
       );
 
-      if (result.ok) {
-        await rpcOrThrow(req, "persist_payment_guide_provider_charge_v1", {
-          _guide_code: guideCode,
-          _order_id: result.orderId || null,
-          _payment_id: result.paymentId || null,
-          _status: result.status || null,
-          _status_detail: result.statusDetail || null,
-          _authenticated_at: result.authenticatedAt || null,
-          _payment_provider: "mercado_pago",
-          _provider_environment: result.environment || null,
-          _barcode: result.barcodeContent || null,
-          _digitable_line: result.digitableLine || null,
-          _ticket_url: result.ticketUrl || null,
-        });
-      }
-
+      // The provider helper has already validated and persisted this charge
+      // through the municipality-scoped signed v2 RPC. A second legacy v1
+      // write is unscoped, lacks bank attestation, and is forbidden in Neon.
       json(res, result.ok ? 201 : 400, result);
     } catch (error) {
       json(res, 400, {

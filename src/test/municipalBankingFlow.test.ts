@@ -62,7 +62,10 @@ describe("municipal bank and payment guide flow", () => {
     expect(finance).toContain("resolveGuideBankingData");
     expect(processDetail).toContain("resolveGuideBankingData");
     expect(finance).toContain("ensureMercadoPagoGuideCharge");
-    expect(processDetail).toContain("ensureMercadoPagoGuideCharge");
+    expect(processDetail).not.toContain("await ensureMercadoPagoGuideCharge(");
+    const externalPage=read("src/pages/saas/ExternalPaymentsPage.tsx");
+    expect(externalPage).toContain("const issueRealBoleto = async");
+    expect(externalPage).toContain('data-prod-issue-boleto="true"');
     expect(mercadoPagoGuide).toContain('/api/mercadopago/guide-boleto');
     expect(mercadoPagoServer).toContain("createMercadoPagoGuideBoleto");
     expect(mercadoPagoServer).toContain("external_reference: externalReference");
@@ -96,7 +99,7 @@ describe("municipal bank and payment guide flow", () => {
 
   it("does not open a guide before Mercado Pago returns complete bank data", () => {
     expect(finance).toContain("if (!banking.barcode || !banking.digitableLine)");
-    expect(processDetail).toContain("banking.barcode && banking.digitableLine ? null");
+    expect(processDetail).toContain("const providerCharge = preparedGuideCharges[selectedGuide.code] || null");
     expect(processDetail).toContain("if (!paidGuide && (!barcode || !digitableLine))");
     expect(mercadoPagoGuide).toContain("!banking.digitableLine");
     expect(mercadoPagoGuide).toContain("!banking.barcode");
@@ -111,7 +114,7 @@ describe("municipal bank and payment guide flow", () => {
     expect(processDetail).toContain("if (!paidGuide && (!barcode || !digitableLine))");
     expect(mercadoPagoGuide).toContain("!banking.barcode || !banking.digitableLine");
     expect(finance).toContain("A DAM foi bloqueada para não emitir uma guia inválida");
-    expect(processDetail).toContain("A guia ainda está sendo preparada.");
+    expect(processDetail).toContain("É necessário emitir e registrar o boleto oficial antes de visualizar a guia.");
   });
 
   it("marks sandbox guides and never exposes copied live PIX as a payable QR", () => {
@@ -149,7 +152,7 @@ describe("municipal bank and payment guide flow", () => {
     expect(finance).toContain("(!barcode || !digitableLine)");
     expect(processDetail).toContain("(!barcode || !digitableLine)");
     expect(finance).toContain("A DAM foi bloqueada para não emitir uma guia inválida");
-    expect(processDetail).toContain("A guia ainda está sendo preparada. Aguarde a conclusão dos dados bancários antes de abrir.");
+    expect(processDetail).toContain("É necessário emitir e registrar o boleto oficial antes de visualizar a guia.");
     expect(mercadoPagoGuide).toContain("validLine");
     expect(mercadoPagoGuide).toContain("validBarcode");
     expect(mercadoPagoServer).toContain("hasCompleteGuideBankingData");
@@ -159,7 +162,7 @@ describe("municipal bank and payment guide flow", () => {
 
   it("requests provider banking data whenever the DAM has no barcode or digitable line", () => {
     expect(finance).toContain("if (!banking.barcode || !banking.digitableLine)");
-    expect(processDetail).toContain("banking.barcode && banking.digitableLine ? null");
+    expect(processDetail).toContain("const providerCharge = preparedGuideCharges[selectedGuide.code] || null");
     expect(finance).toContain("if (!barcode || !digitableLine)");
     expect(processDetail).toContain("if (!paidGuide && (!barcode || !digitableLine))");
     expect(finance).not.toContain('match.guide.status !== "compensada" &&');
@@ -178,11 +181,12 @@ describe("municipal bank and payment guide flow", () => {
   });
 
   it("binds DAM-ISS guides to the Mercado Pago order before rendering", () => {
-    expect(processDetail).toContain('ensureMercadoPagoGuideCharge({');
+    expect(processDetail).not.toContain('await ensureMercadoPagoGuideCharge({');
+    expect(processDetail).toContain("await archiveAndOpenGuide(effectiveScopeId, guideDocument, reservedGuideWindow)");
     expect(processDetail).toContain("preparedGuideCharges");
-    expect(processDetail).toContain("guideCode: selectedGuide.code");
-    expect(processDetail).toContain("amount: selectedGuide.amount");
-    expect(processDetail).toContain('description: selectedGuide.label + " · " + process.protocol');
+    expect(read("src/pages/saas/ExternalPaymentsPage.tsx")).toContain("guideCode:stored.guide_number");
+    expect(read("src/pages/saas/ExternalPaymentsPage.tsx")).toContain("amount:Number(stored.amount)");
+    expect(read("src/pages/saas/ExternalPaymentsPage.tsx")).toContain("description:");
     expect(processDetail).toContain('codigoBarras: barcode');
     expect(processDetail).toContain('linhaDigitavel: digitableLine');
     expect(mercadoPagoServer).toContain("normalizeGuideCode");

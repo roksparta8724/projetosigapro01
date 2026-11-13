@@ -3,6 +3,10 @@ import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 import "./styles/surface-polarity.css";
+import "./styles/premium-navigation-contrast.css";
+import "./styles/institutional-premium-v3.css";
+import "./styles/municipal-executive-v4.css";
+import "./styles/dashboard-topbar-premium-v6.css";
 
 const CONTINUITY_KEY = "sigapro.refresh.continuity.v1";
 const PLATFORM_SESSION_CACHE_KEY = "sigapro.platform.session.v1";
@@ -108,6 +112,9 @@ async function clearLocalDevelopmentCaches() {
 
 function renderBootstrapFailure(error: unknown) {
   console.error("[SIGAPRO][Bootstrap] Falha ao carregar a aplicacao.", error);
+  // O aviso HTML anterior ao React não deve esconder o diagnóstico de erro real.
+  document.documentElement.removeAttribute("data-sigapro-initial-render");
+  document.getElementById("sigapro-preboot-recovery")?.remove();
 
   const root = document.getElementById("root");
   if (!root) return;
@@ -159,9 +166,24 @@ function bootApplication() {
       root.render(<App />);
     });
 
-    window.requestAnimationFrame(() => {
+    // A camada HTML permanece sempre oculta no carregamento normal.
+    // Desativar o fallback assim que o React realmente confirmar seu primeiro
+    // nó (inclusive o status não visual de autorização), não por um RAF vazio.
+    // Isso evita duas telas concorrentes quando a autenticação é demorada.
+    let mountedObserver: MutationObserver | null = null;
+    const finishBootstrap = () => {
+      if (!document.documentElement.hasAttribute("data-sigapro-initial-render")) {
+        mountedObserver?.disconnect();
+        return;
+      }
+      if (!rootElement.hasChildNodes()) return;
       document.documentElement.removeAttribute("data-sigapro-initial-render");
-    });
+      document.documentElement.removeAttribute("data-sigapro-boot-slow");
+      mountedObserver?.disconnect();
+    };
+    mountedObserver = new MutationObserver(finishBootstrap);
+    mountedObserver.observe(rootElement, { childList: true, subtree: true });
+    window.requestAnimationFrame(finishBootstrap);
 
     scheduleLocalCacheMaintenance();
   } catch (error) {
@@ -197,11 +219,46 @@ persistRefreshContinuity();
 
 bootApplication();
 
+// Uma primeira visita carrega JS/CSS ANTES do Service Worker ser instalado.
+// Ao assumir a página, ele deve guardar também os bundles reais já carregados
+// (inclusive a rota atual) para que a PRÓXIMA atualização não dependa da rede.
+// É enviada apenas a lista de URLs estáticas em /assets/, nunca conteúdo,
+// cookies, histórico, documentos nem dados autenticados.
+function precacheLoadedPublicBundles() {
+  const worker = navigator.serviceWorker?.controller;
+  if (!worker || typeof performance === "undefined") return;
+
+  const urls: string[] = [];
+  for (const entry of performance.getEntriesByType("resource")) {
+    try {
+      const url = new URL(entry.name, window.location.href);
+      if (
+        url.origin === window.location.origin &&
+        url.pathname.startsWith("/assets/") &&
+        /\.(?:m?js|css)$/i.test(url.pathname)
+      ) {
+        urls.push(url.href);
+      }
+    } catch {
+      // Ignorar entradas de performance inválidas, sem bloquear a aplicação.
+    }
+  }
+
+  if (urls.length > 0) {
+    worker.postMessage({
+      type: "SIGAPRO_PRECACHE_USED_ASSETS",
+      urls: [...new Set(urls)].slice(-64),
+    });
+  }
+}
+
 if (import.meta.env.PROD && "serviceWorker" in navigator) {
   window.addEventListener("load", () => {
+    navigator.serviceWorker.addEventListener("controllerchange", precacheLoadedPublicBundles, { once: true });
     navigator.serviceWorker
       .register("/sigapro-sw.js", { updateViaCache: "none" })
       .then((registration) => registration.update())
       .catch(() => {});
+    precacheLoadedPublicBundles();
   });
 }

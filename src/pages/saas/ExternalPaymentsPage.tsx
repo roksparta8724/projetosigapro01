@@ -36,9 +36,12 @@ import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import { prepareGuideInstitutionalLogo } from "@/lib/guideAssets";
-import { ensureMercadoPagoGuideCharge, requestQaPixCharge, type QaPixCharge, type MercadoPagoGuideCharge } from "@/lib/mercadoPagoGuide";
+import { ensureMercadoPagoGuideCharge, requestQaPixCharge, reconcileQaPixAfterPdf, type QaPixCharge, type MercadoPagoGuideCharge, type BoletoPayerForm } from "@/lib/mercadoPagoGuide";
+import { RealBoletoPayerDialog } from "@/components/platform/RealBoletoPayerDialog";
 import { normalizeOfficialBanking } from "@/lib/bankCodes";
 import { resolveGuideBankingData } from "@/lib/paymentCollection";
+import { archiveAndOpenGuide, readGuideOriginal, openStoredGuide, isGuideSettled } from "@/lib/guideOriginal";
+import {isFinancialTestGuide,isPendingFinancialGuide,isReportedCompensatedGuide,summarizeFinancialGuideEvidence} from "@/lib/qaPaymentEvidence";
 
 const paymentStatusOptions = [
   { value: "todos", label: "Todos os status" },
@@ -48,7 +51,7 @@ const paymentStatusOptions = [
 ];
 
 function getGuideStatus(guide: { status: string; dueDate: string }) {
-  if (guide.status === "compensada") return "compensada";
+  if (isReportedCompensatedGuide(guide)) return "compensada";
   const due = new Date(guide.dueDate);
   if (!Number.isNaN(due.getTime()) && due.getTime() < Date.now()) return "vencida";
   return "pendente";
@@ -79,6 +82,8 @@ export function ExternalPaymentsPage() {
   const [guideActionStatus, setGuideActionStatus] = useState("");
   const [qaCharges, setQaCharges] = useState<Record<string, MercadoPagoGuideCharge>>({});
   const [qaPixCharges, setQaPixCharges] = useState<Record<string,QaPixCharge>>({});
+  const [realBoletoTarget,setRealBoletoTarget] = useState<{process:ProcessRecord;guide:PaymentGuideEntry}|null>(null);
+  const [realBoletoError,setRealBoletoError] = useState("");
   const isolatedQaMode = import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true";
   const activeTab = getExternalTabByPath(location.pathname);
 
@@ -100,7 +105,7 @@ export function ExternalPaymentsPage() {
         throw new Error("O provedor não confirmou uma order exclusiva do ambiente de testes.");
       }
       setQaCharges((prev) => ({ ...prev, [guide.code]: charge }));
-      setGuideActionStatus("Boleto de homologação registrado no Neon de testes. Clique em Visualizar guia para conferir os dados. NÃO PAGAR.");
+      setGuideActionStatus("Boleto de homologação registrado no ambiente de testes SIGAPRO. Clique em Visualizar guia para conferir os dados. NÃO PAGAR.");
       await refreshRemoteStore();
     } catch (error) {
       setGuideActionStatus(error instanceof Error ? error.message : "Erro na emissão bancária de homologação.");
@@ -115,6 +120,10 @@ export function ExternalPaymentsPage() {
     setBusyGuideAction({key:actionKey,action:"pix"});
     setStatusGuideKey(actionKey);
     setGuideActionStatus("");
+    // Reserve the PDF tab synchronously before awaiting the sandbox provider.
+    // The resulting frozen DAM is archived as soon as the QR is confirmed.
+    const pixWindow = window.open("", "_blank");
+    if (pixWindow) pixWindow.opener = null;
     try {
       let result: QaPixCharge;
       try {
@@ -145,26 +154,114 @@ export function ExternalPaymentsPage() {
         throw new Error("O Mercado Pago não retornou um QR PIX válido de homologação.");
       }
       setQaPixCharges(prev=>({...prev,[guide.code]:result}));
-      setGuideActionStatus("PIX de TESTE emitido para esta guia. Visualize a guia para conferir o QR de homologação. NÃO PAGAR.");
+      await refreshRemoteStore();
+      // Do not leave a provider-approved sandbox order waiting for a second
+      // click to archive its immutable original. A bank webhook may arrive
+      // before the user manually opens the DAM.
+      if (pixWindow && !pixWindow.closed) {
+        const opened = await openExternalGuide(process,guide,pixWindow);
+        if (!opened) throw new Error("PIX de teste registrado, mas o PDF original ainda não foi arquivado. Reabra a guia, sem emitir outro PIX.");
+        setGuideActionStatus("PIX de TESTE emitido e DAM original arquivada no R2. A compensação exige webhook bancário assinado. NÃO PAGAR.");
+      } else {
+        setGuideActionStatus("PIX de TESTE emitido. Clique em Visualizar guia para arquivar o PDF original; NÃO PAGAR.");
+      }
     } catch(error) {
+      if(pixWindow && !pixWindow.closed)pixWindow.close();
       setGuideActionStatus(error instanceof Error ? error.message : "Falha na emissão do PIX de teste.");
     } finally {
       setBusyGuideAction(null);
     }
   };
 
+  /** Real bank writes require the payer's explicit consent; PDF view is read-only. */
+  const issueRealBoleto = async (payer:BoletoPayerForm) => {
+    const selected=realBoletoTarget;
+    if (!selected || isolatedQaMode || !effectiveScopeId || busyGuideAction) return;
+    const {process,guide}=selected;
+    const actionKey=`${process.id}:${guide.code}`;
+    setBusyGuideAction({key:actionKey,action:"boleto"});
+    setStatusGuideKey(actionKey);
+    setRealBoletoError("");
+    setGuideActionStatus("");
+    try {
+      const stored=await readGuideOriginal(effectiveScopeId,guide.code);
+      if (isGuideSettled(stored))
+        throw new Error("Guia já quitada. Não será criada outra cobrança.");
+      if (stored.collection_mode_snapshot==="municipal_system" ||
+          (stored.payment_provider && stored.payment_provider!=="mercado_pago"))
+        throw new Error("Esta guia utiliza a arrecadação própria da Prefeitura; emissão pelo Mercado Pago bloqueada.");
+      if (stored.original_pdf_key)
+        throw new Error("Esta guia já possui um original arquivado. Utilize Visualizar guia.");
+      const result=await ensureMercadoPagoGuideCharge({
+        municipalityId:effectiveScopeId,guideCode:stored.guide_number,
+        amount:Number(stored.amount),dueDate:stored.due_date,
+        description:`${guide.label} · ${process.preProtocol||process.title}`,
+        payer,
+      });
+      if (result.environment!=="production" || !result.orderId)
+        throw new Error("O banco não confirmou uma ordem de produção associada à guia.");
+      await refreshRemoteStore();
+      setRealBoletoTarget(null);
+      setGuideActionStatus("Boleto oficial registrado. Utilize Visualizar guia para abrir o PDF arquivado.");
+    } catch(error) {
+      setRealBoletoError(error instanceof Error?error.message:"Falha na emissão bancária.");
+    } finally {setBusyGuideAction(null);}
+  };
+
+  const reconcileArchivedQaPix = async (guideCode:string) => {
+    if(!isolatedQaMode||!effectiveScopeId)return;
+    try {
+      const outcome=await reconcileQaPixAfterPdf({municipalityId:effectiveScopeId,guideCode});
+      if(outcome.settled){
+        await refreshRemoteStore();
+        setGuideActionStatus("PIX de homologação compensado: recibo bancário assinado, valor e DAM original conferidos. NÃO PAGAR.");
+      } else {
+        setGuideActionStatus("DAM original arquivada. A baixa aguarda uma notificação bancária assinada e valor confirmado; não emita outra cobrança.");
+      }
+    } catch(error) {
+      // The original remains archived. Do not turn a timeout into a paid flag.
+      const reason=error instanceof Error?error.message:"Conciliação ainda indisponível.";
+      setGuideActionStatus("DAM original arquivada. Baixa ainda não confirmada: "+reason);
+    }
+  };
+
   const openExternalGuide = async (
     process: ProcessRecord,
     guide: PaymentGuideEntry,
-  ) => {
-    if (!effectiveScopeId || busyGuideAction) return;
+    reservedWindow?: Window | null,
+  ): Promise<boolean> => {
+    if (!effectiveScopeId || (busyGuideAction && !reservedWindow)) return false;
 
     const actionKey=`${process.id}:${guide.code}`;
     setBusyGuideAction({key:actionKey,action:"guide"});
     setStatusGuideKey(actionKey);
     setGuideActionStatus("");
 
+    // Reserve the output tab synchronously in both environments. An issued
+    // QA PIX opens its immutable watermarked PDF; an unissued guide retains
+    // the explicit NON-PAYABLE HTML preview using this same reserved tab.
+    const officialWindow = reservedWindow || window.open("", "_blank");
+    if (officialWindow) officialWindow.opener = null;
     try {
+      if (!officialWindow)
+        throw new Error("O navegador bloqueou a guia. Permita a nova aba do SIGAPRO.");
+      // Both production and sandbox PDF issuance use the same canonical
+      // payment guide (never a client-side amount or an unsaved QR).
+      const persisted = await readGuideOriginal(effectiveScopeId, guide.code);
+      // A guide with paid=true MUST reopen its original. If missing, it
+      // cannot print a new or merely illustrative payable invoice.
+      if (persisted && isGuideSettled(persisted) && !persisted.original_pdf_key)
+        throw new Error("Guia quitada sem arquivo original recuperável. Encaminhe ao Financeiro; é proibido regenerá-la.");
+      if (persisted?.original_pdf_key) {
+        // Viewing an issued guide must not call the bank again, not even to
+        // refresh boleto metadata. Reopen only the immutable original.
+        if (!await openStoredGuide(persisted, officialWindow!))
+          throw new Error("O original autorizado não foi localizado no armazenamento.");
+        if(isolatedQaMode && persisted.payment_provider==="mercado_pago" &&
+           persisted.provider_environment==="test" && !isGuideSettled(persisted))
+          await reconcileArchivedQaPix(guide.code);
+        return true;
+      }
       const banking = resolveGuideBankingData({
         settings: tenantSettings,
         guide,
@@ -175,9 +272,30 @@ export function ExternalPaymentsPage() {
       // QA has two states: an unissued NON-PAYABLE administrative preview or
       // a VERIFIED, provider-issued TEST boleto. Never infer issuance from the
       // saved bank/PIX configuration. Test orders are initiated via explicit CTA.
-      const isolatedQa = import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true";
+      const isolatedQa = isolatedQaMode;
       const tested = qaCharges[guide.code];
       const candidate = normalizeOfficialBanking(tested?.barcodeContent, tested?.digitableLine);
+      // A previously issued QA PIX is read without creating a second order.
+      // It may only become an immutable QA PDF if both the bank ledger and
+      // the canonical Neon guide identify the same order, payment and QR.
+      let sandboxPix: QaPixCharge | undefined = qaPixCharges[guide.code];
+      if (isolatedQa && !sandboxPix?.ok) {
+        try {
+          const result = await requestQaPixCharge({
+            municipalityId:effectiveScopeId,guideCode:guide.code,action:"get",
+          });
+          if (result.ok) sandboxPix=result;
+        } catch { /* A non-payable preview must remain accessible. */ }
+      }
+      const qaPixBound = Boolean(isolatedQa &&
+        persisted.payment_provider === "mercado_pago" &&
+        persisted.provider_environment === "test" &&
+        persisted.bank_reference && persisted.bank_payment_id &&
+        persisted.pix_code && isValidPixPayload(persisted.pix_code) &&
+        sandboxPix?.ok && sandboxPix.environment === "test" &&
+        sandboxPix.qrCode === persisted.pix_code &&
+        sandboxPix.orderId === persisted.bank_reference &&
+        sandboxPix.paymentId === persisted.bank_payment_id);
       const savedSandbox = Boolean(
         isolatedQa && guide.providerEnvironment === "test" &&
         guide.paymentProvider === "mercado_pago" && guide.bankReference &&
@@ -187,42 +305,27 @@ export function ExternalPaymentsPage() {
         tested.environment === "test" && tested.orderId &&
         candidate.barcode && candidate.digitableLine);
       const sandboxIssued = savedSandbox || newlyIssued;
-      const charge = isolatedQa ? (newlyIssued ? tested : null) :
-        (banking.barcode && banking.digitableLine)
-          ? null
-          : await ensureMercadoPagoGuideCharge({
-              municipalityId: effectiveScopeId,
-              guideCode: guide.code,
-              amount: guide.amount,
-              dueDate: guide.dueDate,
-              description: `${guide.label} · ${process.preProtocol || process.title}`,
-            });
+      const charge = isolatedQa && newlyIssued ? tested : null;
+      const storedBank = normalizeOfficialBanking(persisted.barcode,persisted.digitable_line);
       const barcode = isolatedQa
         ? (sandboxIssued ? (charge?.barcodeContent || banking.barcode) : "")
-        : (charge?.barcodeContent || banking.barcode);
+        : storedBank.barcode;
       const digitableLine = isolatedQa
         ? (sandboxIssued ? (charge?.digitableLine || banking.digitableLine) : "")
-        : (charge?.digitableLine || banking.digitableLine);
-      const previewOnly = isolatedQa && !sandboxIssued;
+        : storedBank.digitableLine;
+      const previewOnly = isolatedQa && !sandboxIssued && !qaPixBound;
       if (!isolatedQa && (!barcode || !digitableLine)) {
-        throw new Error("A cobrança ainda não retornou código de barras e linha digitável válidos.");
-      }
-
-      // Read the independent PIX sandbox order without creating a charge on document open.
-      let sandboxPix: QaPixCharge | undefined = qaPixCharges[guide.code];
-      if (isolatedQa && !sandboxPix?.ok) {
-        try {
-          const result=await requestQaPixCharge({municipalityId:effectiveScopeId,guideCode:guide.code,action:"get"});
-          if (result.ok) sandboxPix=result;
-        } catch { /* The boleto PDF must stay available when PIX is unavailable. */ }
+        throw new Error("Primeiro emita o boleto oficial com os dados reais do pagador. Visualizar guia nunca cria uma cobrança.");
       }
       const logoUrl = await prepareGuideInstitutionalLogo(
         tenantSettings?.logoUrl,
         tenantSettings?.brasaoUrl,
       );
 
-      const issuedAt = guide.issuedAt || new Date().toISOString();
-      const year = new Date(issuedAt).getFullYear() || new Date().getFullYear();
+      const issuedAt = persisted.created_at;
+      if (!issuedAt || Number.isNaN(new Date(issuedAt).getTime()))
+        throw new Error("A guia oficial não possui data de emissão válida no Neon.");
+      const year = new Date(issuedAt).getFullYear();
 
       const guideDocument: GuiaRecolhimentoOficialProps = {
         prefeitura: {
@@ -247,20 +350,24 @@ export function ExternalPaymentsPage() {
             "Pré-protocolo",
         },
         guia: {
-          numeroGuia: guide.code,
+          numeroGuia: persisted.guide_number,
           nonPayablePreview: previewOnly,
           exercicio: year,
           dataDocumento: issuedAt,
-          vencimento: guide.dueDate,
+          vencimento: persisted.due_date || guide.dueDate,
           observacao: getGuideObservation(guide.kind),
           proprietario: guide.ownerName || process.ownerName,
           profissionalResponsavel:
             guide.professionalName || process.technicalLead,
-          codigoBarras: barcode,
-          linhaDigitavel: digitableLine,
-          pixPayload: isolatedQa ? "" : banking.pixPayload,
-          qaSandboxPixPayload: isolatedQa && sandboxPix?.ok && sandboxPix.environment==="test"
-            ? sandboxPix.qrCode || "" : "",
+          // PIX-only: preserve NULL rather than an invented empty barcode.
+          // The Neon freeze RPC compares exact nullable banking fields.
+          codigoBarras: qaPixBound ? (persisted.barcode || undefined) : barcode,
+          linhaDigitavel: qaPixBound ? (persisted.digitable_line || undefined) : digitableLine,
+          // Do not silently manufacture a payable PIX from institutional
+          // settings: this guide is archived as a registered boleto only.
+          // PIX Orders need their own verified, persisted provider payload.
+          pixPayload: qaPixBound ? persisted.pix_code || "" : "",
+          qaSandboxPixPayload: qaPixBound ? persisted.pix_code || "" : "",
           bankName: isolatedQa
             ? (sandboxIssued ? (charge?.financialInstitution || "Mercado Pago — teste") : "Mercado Pago (conexão de teste)")
             : charge?.financialInstitution || banking.bankName || "Mercado Pago",
@@ -277,20 +384,19 @@ export function ExternalPaymentsPage() {
               ? "BOLETO DE HOMOLOGAÇÃO — dados fornecidos pelo Mercado Pago em ambiente de TESTE. NÃO EFETUAR PAGAMENTO."
               : "HOMOLOGAÇÃO SIGAPRO — DOCUMENTO NÃO PAGÁVEL. Nenhuma cobrança foi registrada no banco.")
             : banking.bankInstructions,
-          bankReference: previewOnly ? undefined : (charge?.orderId || guide.bankReference),
-          bankPaymentId: previewOnly ? undefined : (charge?.paymentId || guide.bankPaymentId),
-          bankStatus: previewOnly ? undefined : (charge?.status || guide.bankStatus),
-          bankStatusDetail: previewOnly ? undefined : (charge?.statusDetail || guide.bankStatusDetail),
-          bankAuthenticatedAt: previewOnly ? undefined : (charge?.authenticatedAt || guide.bankAuthenticatedAt),
-          bankEnvironment: isolatedQa ? "test" : (charge?.environment || guide.providerEnvironment),
-          paymentProvider:
-            guide.paymentProvider ||
-            tenantSettings?.paymentProvider ||
-            "mercado_pago",
-          valorDocumento: guide.amount,
+          bankReference: previewOnly ? undefined : (qaPixBound ? persisted.bank_reference : (isolatedQa ? (charge?.orderId || guide.bankReference) : persisted.bank_reference)),
+          bankPaymentId: previewOnly ? undefined : (qaPixBound ? persisted.bank_payment_id : (isolatedQa ? (charge?.paymentId || guide.bankPaymentId) : persisted.bank_payment_id)),
+          bankStatus: previewOnly ? undefined : (qaPixBound ? persisted.bank_status : (isolatedQa ? (charge?.status || guide.bankStatus) : persisted.bank_status)),
+          bankStatusDetail: previewOnly ? undefined : (qaPixBound ? persisted.bank_status_detail : (isolatedQa ? (charge?.statusDetail || guide.bankStatusDetail) : persisted.bank_status_detail)),
+          bankAuthenticatedAt: previewOnly ? undefined : (isolatedQa ? undefined : persisted.bank_authenticated_at),
+          bankEnvironment: isolatedQa ? "test" : persisted.provider_environment,
+          paymentProvider: qaPixBound ? "mercado_pago" : (isolatedQa
+            ? (guide.paymentProvider || tenantSettings?.paymentProvider || "mercado_pago")
+            : persisted.payment_provider || "mercado_pago"),
+          valorDocumento: Number(persisted.amount),
           descontos: 0,
           outrosAcrescimos: 0,
-          valorCobrado: guide.amount,
+          valorCobrado: Number(persisted.amount),
           referencia: getGuideReference(guide.kind),
         },
         itens: [
@@ -298,31 +404,45 @@ export function ExternalPaymentsPage() {
             ano: year,
             divida: guide.label,
             tabela: tenantSettings?.guiaPrefixo || "DAM",
-            principal: guide.amount,
+            principal: Number(persisted.amount),
             multa: 0,
             juros: 0,
             correcao: 0,
-            total: guide.amount,
+            total: Number(persisted.amount),
           },
         ],
       };
 
-      const opened = openGuiaRecolhimentoOficialWindow(guideDocument, {
-        title: isolatedQa ? (sandboxIssued ? `BOLETO DE TESTE — NÃO PAGAR · ${guide.code}` : `PRÉVIA NÃO PAGÁVEL · ${guide.code}`) : `Guia ${guide.code}`,
-        autoPrint: false,
-      });
-
-      if (!opened) {
-        throw new Error(
-          "O navegador bloqueou a abertura da guia. Permita a nova guia do SIGAPRO e tente novamente.",
-        );
+      if (isolatedQa && qaPixBound) {
+        // This is a provider-issued sandbox QR with a matching Neon record,
+        // not a synthetic QR or a production receivable. Freeze the exact
+        // watermarked QA PDF before a signed webhook can finalize the test.
+        await archiveAndOpenGuide(effectiveScopeId,guideDocument,officialWindow);
+        await reconcileArchivedQaPix(guide.code);
+      } else if (isolatedQa) {
+        const opened = openGuiaRecolhimentoOficialWindow(guideDocument, {
+          title: sandboxIssued
+            ? `BOLETO DE TESTE — NÃO PAGAR · ${guide.code}`
+            : `PRÉVIA NÃO PAGÁVEL · ${guide.code}`,
+          autoPrint: false,
+        },officialWindow);
+        if (!opened)
+          throw new Error("O navegador bloqueou a prévia de homologação.");
+      } else {
+        // The only real-world viewing route: canonical Neon guide →
+        // immutable PDF bytes in R2/S3 → signed, municipality-authorized GET.
+        // Never expose a live payable HTML facsimile as the official record.
+        await archiveAndOpenGuide(effectiveScopeId, guideDocument, officialWindow!);
       }
+      return true;
     } catch (error) {
+      if (officialWindow && !officialWindow.closed) officialWindow.close();
       setGuideActionStatus(
         error instanceof Error
           ? error.message
           : "Não foi possível abrir a guia agora.",
       );
+      return false;
     } finally {
       setBusyGuideAction(null);
     }
@@ -338,7 +458,9 @@ export function ExternalPaymentsPage() {
       }
     };
 
-    const timer = window.setInterval(refresh, 8000);
+    // Payment status still refreshes when returning to this tab; this avoids
+    // re-fetching every operational table from every external session each 8s.
+    const timer = window.setInterval(refresh, 15000);
     window.addEventListener("focus", refresh);
     document.addEventListener("visibilitychange", refresh);
 
@@ -394,12 +516,14 @@ export function ExternalPaymentsPage() {
     });
   }, [guides, search, statusFilter]);
 
-  const pendingCount = guides.filter((item) => item.status === "pendente").length;
-  const overdueCount = guides.filter((item) => item.status === "vencida").length;
-  const paidCount = guides.filter((item) => item.status === "compensada").length;
-  const totalValue = guides.reduce((sum, item) => sum + item.guide.amount, 0);
+  const financialSnapshot=summarizeFinancialGuideEvidence(guides.map(item=>item.guide));
+  const pendingCount=guides.filter(item=>isPendingFinancialGuide(item.guide)).length;
+  const overdueCount=guides.filter(item=>item.status==="vencida"&&!isFinancialTestGuide(item.guide)).length;
+  const paidCount=financialSnapshot.compensatedCount;
+  const totalValue=financialSnapshot.issuedAmount;
 
   return (
+    <>
     <PortalFrame eyebrow="Acesso Externo" title="Pagamentos">
       <PageContainer>
         <PageIntro
@@ -417,7 +541,7 @@ export function ExternalPaymentsPage() {
         {import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true" ? (
           <div role="status" data-qa-payment-preview="true" className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm font-semibold leading-6 text-amber-950">
             HOMOLOGAÇÃO SIGAPRO — Utilize "Emitir boleto de TESTE" e "Gerar PIX de TESTE" para obter exclusivamente dados de cobrança simulada do Mercado Pago; depois clique em "Visualizar guia".
-            NÃO PAGAR. Nenhum PIX estático da Prefeitura é usado. R2 oficial, cobranças reais e baixas automáticas permanecem desativados.
+            NÃO PAGAR. Nenhum PIX estático da Prefeitura é usado. Arquivamento oficial, cobranças reais e baixas automáticas permanecem desativados.
           </div>
         ) : null}
         <InternalTabs
@@ -432,8 +556,8 @@ export function ExternalPaymentsPage() {
         <StatsCards>
           <MetricCard title="Pendentes" value={String(pendingCount)} helper="Guias aguardando" icon={Calendar} tone="amber" />
           <MetricCard title="Vencidas" value={String(overdueCount)} helper="Requer atenção" icon={Calendar} tone="rose" />
-          <MetricCard title="Compensadas" value={String(paidCount)} helper="Pagamentos confirmados" icon={CreditCard} tone="emerald" />
-          <MetricCard title="Total emitido" value={formatCurrency(totalValue)} helper="Guias vinculadas" icon={CreditCard} tone="blue" />
+          <MetricCard title="Compensadas no sistema" value={String(paidCount)} helper={`${financialSnapshot.bankVerifiedCount} com baixa bancária verificada; demais aguardam comprovante`} icon={CreditCard} tone="emerald" />
+          <MetricCard title="Total emitido" value={formatCurrency(totalValue)} helper="Montante de guias não simuladas" icon={CreditCard} tone="blue" />
         </StatsCards>
 
         <MainGrid>
@@ -544,14 +668,19 @@ export function ExternalPaymentsPage() {
                         <Badge
                           variant="outline"
                           className={`rounded-full px-3 py-1 text-[12px] ${
-                            status === "compensada"
-                              ? "border-emerald-200 bg-emerald-50 text-emerald-600"
+                            isFinancialTestGuide(guide)
+                               ? "border-sky-200 bg-sky-50 text-sky-800"
+                               : status === "compensada"
+                                 ? "border-emerald-200 bg-emerald-50 text-emerald-600"
                               : status === "vencida"
                                 ? "border-rose-200 bg-rose-50 text-rose-600"
                                 : "border-amber-200 bg-amber-50 text-amber-600"
                           }`}
                         >
-                          {status === "compensada" ? "Compensada" : status === "vencida" ? "Vencida" : "Pendente"}
+                          {isFinancialTestGuide(guide)
+                             ? "Simulação QA — sem pagamento bancário"
+                             : status === "compensada" ? "Compensada no sistema"
+                               : status === "vencida" ? "Vencida" : "Pendente"}
                         </Badge>
                       </div>
                       <div
@@ -602,6 +731,23 @@ export function ExternalPaymentsPage() {
                                 Gerar PIX de TESTE
                               </Button>
                             ) : null}
+                            {!isolatedQaMode && !isGuideSettled(guide) &&
+                            (guide.paymentProvider || tenantSettings?.paymentProvider || "mercado_pago")==="mercado_pago" ? (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                data-prod-issue-boleto="true"
+                                className="rounded-full border-sky-600 px-4 text-[12px] font-semibold text-sky-800 hover:bg-sky-50 dark:border-sky-500 dark:text-sky-200"
+                                disabled={Boolean(busyGuideAction)}
+                                onClick={()=>{
+                                  setRealBoletoError("");
+                                  setRealBoletoTarget({process,guide});
+                                }}
+                              >
+                                <CreditCard className="mr-1.5 size-3.5" />
+                                Emitir boleto oficial
+                              </Button>
+                            ) : null}
                             <Button
                               type="button"
                               data-preprotocol-guide-action="true"
@@ -618,9 +764,37 @@ export function ExternalPaymentsPage() {
                             </Button>
                           </>
                         ) : (
-                          <Button asChild variant="outline" className="rounded-full text-[13px]">
-                            <Link to={processTarget}>Ver processo</Link>
-                          </Button>
+                          <>
+                            <Button asChild variant="outline" className="rounded-full text-[13px]">
+                              <Link to={processTarget}>Ver processo</Link>
+                            </Button>
+                            {!isolatedQaMode && !isGuideSettled(guide) &&
+                            (guide.paymentProvider || tenantSettings?.paymentProvider || "mercado_pago")==="mercado_pago" ? (
+                              <Button
+                                type="button" variant="outline"
+                                data-prod-issue-boleto-official-process="true"
+                                className="rounded-full border-sky-600 px-4 text-[12px] font-semibold text-sky-800 dark:border-sky-500 dark:text-sky-200"
+                                disabled={Boolean(busyGuideAction)}
+                                onClick={()=>{setRealBoletoError("");setRealBoletoTarget({process,guide});}}
+                              >
+                                <CreditCard className="mr-1.5 size-3.5"/>
+                                Emitir boleto oficial
+                              </Button>
+                            ) : null}
+                            <Button
+                              type="button" variant="outline"
+                              data-official-guide-view="true"
+                              className="rounded-full px-4 text-[12px] font-semibold"
+                              disabled={Boolean(busyGuideAction)}
+                              onClick={()=>void openExternalGuide(process,guide)}
+                            >
+                              {busyGuideAction?.key===`${process.id}:${guide.code}` &&
+                               busyGuideAction.action==="guide"
+                                ? <Loader2 className="mr-1.5 size-3.5 animate-spin"/>
+                                : <Eye className="mr-1.5 size-3.5"/>}
+                              Visualizar guia
+                            </Button>
+                          </>
                         )}
                         {statusGuideKey === `${process.id}:${guide.code}` && guideActionStatus ? (
                           <div role="status" aria-live="polite"
@@ -693,5 +867,15 @@ export function ExternalPaymentsPage() {
         </MainGrid>
       </PageContainer>
     </PortalFrame>
+    <RealBoletoPayerDialog
+      open={Boolean(realBoletoTarget)}
+      onOpenChange={open=>{if(!open){setRealBoletoTarget(null);setRealBoletoError("");}}}
+      guideCode={realBoletoTarget?.guide.code||""}
+      payerName={realBoletoTarget?.process.ownerName||""}
+      busy={Boolean(busyGuideAction&&busyGuideAction.action==="boleto")}
+      error={realBoletoError}
+      onConfirm={issueRealBoleto}
+    />
+    </>
   );
 }

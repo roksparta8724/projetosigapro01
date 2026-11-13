@@ -6,6 +6,27 @@ import {
   type MunicipalWorkflowTransition,
 } from "@/lib/govtech";
 
+export type MunicipalWorkflowKind="aprovacao"|"habite_se";
+/**
+ * Two independent protocols: an approval does not automatically proceed into
+ * habite-se. Preserve a single registry of stage codes for existing adapters.
+ */
+export function buildMunicipalWorkflowForKind(kind:MunicipalWorkflowKind){
+  const included=new Set<import("@/lib/govtech").MunicipalStageCode>(
+    kind==="habite_se"
+      ?["protocol_initial","initial_fee","initial_settlement","document_screening","technical_analysis",
+        "formal_requirement","resubmission","habite_se_inspection","habite_se_fee","occupancy_permit","completed"]
+      :["protocol_initial","initial_fee","initial_settlement","document_screening","technical_analysis",
+         "formal_requirement","resubmission","approval","complementary_fee","completed"],
+  );
+  return {
+    stages:defaultMunicipalWorkflowStages.filter(s=>included.has(s.code))
+      .sort((a,b)=>a.orderIndex-b.orderIndex),
+    transitions:defaultMunicipalWorkflowTransitions.filter(
+      t=>included.has(t.fromStageCode)&&included.has(t.toStageCode)),
+  };
+}
+
 export interface WorkflowRuntimeContext {
   currentStageCode: MunicipalStageCode;
   completedRules: string[];
@@ -54,8 +75,12 @@ export function getWorkflowProgress(
 ): WorkflowProgressSnapshot {
   const orderedStages = [...stages].sort((a, b) => a.orderIndex - b.orderIndex);
   const currentIndex = orderedStages.findIndex((stage) => stage.code === currentStageCode);
-  const safeIndex = currentIndex >= 0 ? currentIndex : 0;
-  const current = orderedStages[safeIndex] ?? null;
+  // An unknown stage must never be disguised as a valid opening stage.
+  if(currentIndex<0)return {
+    current:null,completed:[],upcoming:orderedStages,progressPercent:0,
+  };
+  const safeIndex=currentIndex;
+  const current=orderedStages[safeIndex]??null;
   const completed = orderedStages.slice(0, safeIndex);
   const upcoming = orderedStages.slice(safeIndex + 1);
   const progressPercent = orderedStages.length > 1 ? Math.round((safeIndex / (orderedStages.length - 1)) * 100) : 0;

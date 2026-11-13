@@ -61,6 +61,7 @@ import {
   isIssFeeConfigured,
 } from "@/lib/platform";
 import { collectionModeLabel } from "@/lib/paymentCollection";
+import {isFinancialTestGuide,isPendingFinancialGuide,isReportedCompensatedGuide,isBankVerifiedFinancialGuide,guideFinancialEvidenceLabel,summarizeFinancialGuideEvidence} from "@/lib/qaPaymentEvidence";
 import { resolveProcessDispatchAuthor } from "@/lib/dispatchActorIdentity";
 import {
   type MunicipalFeeRule,
@@ -93,7 +94,7 @@ export function FinanceDeskPage() {
     markGuideAsPaid,
   } = usePlatformData();
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
-  useLivePlatformRefresh(refreshRemoteStore, { intervalMs: 8000 });
+  useLivePlatformRefresh(refreshRemoteStore, { intervalMs: 20000, refreshOnMount: false });
   const processes = getVisibleProcessesByScope(session, effectiveScopeId, allProcesses);
   const financeLedgerProcesses = useMemo(
     () =>
@@ -107,7 +108,7 @@ export function FinanceDeskPage() {
   const tenantSettings = institutionSettingsCompat ?? getInstitutionSettings(effectiveScopeId ?? session.tenantId);
   const issFeeConfigured = isIssFeeConfigured(tenantSettings);
   const finalFeeConfigured = isFinalApprovalFeeConfigured(tenantSettings);
-  const [section, setSection] = useState<FinanceSection>("visao-geral");
+  const [section, setSection] = useState<FinanceSection>("guias");
   const [feeStatus, setFeeStatus] = useState("");
   const [workflowStatus, setWorkflowStatus] = useState("");
   const [constructionGuideStatus, setConstructionGuideStatus] = useState("");
@@ -140,8 +141,12 @@ export function FinanceDeskPage() {
   const guides = controlGuides.filter(({ guide }) => guide.kind !== "protocolo");
   const issGuides = guides.filter(({ guide }) => guide.kind === "iss_obra");
   const approvalGuides = guides.filter(({ guide }) => guide.kind === "aprovacao_final");
-  const settledGuides = guides.filter(({ guide }) => guide.status === "compensada");
-  const pendingGuides = guides.filter(({ guide }) => guide.status === "pendente");
+  const settledGuides = guides.filter(({guide})=>isReportedCompensatedGuide(guide));
+  const pendingGuides = guides.filter(({guide})=>isPendingFinancialGuide(guide));
+  const controlFinancialSummary = summarizeFinancialGuideEvidence(
+    controlGuides.map(({guide})=>guide),
+  );
+  const simulatedGuideCount=controlFinancialSummary.synthetic.length;
   const pendingConstructionGuideProcesses = financeCanIssueConstructionGuide
     ? processes.filter((process) => {
         if (isOccupancyPermitProcessType(process.type)) return false;
@@ -309,24 +314,21 @@ export function FinanceDeskPage() {
     }
   };
 
-  const totalValue = guides.reduce((sum, { guide }) => sum + guide.amount, 0);
+  const totalValue = guides.filter(({guide})=>!isFinancialTestGuide(guide))
+    .reduce((sum, { guide }) => sum + guide.amount, 0);
   const settledValue = settledGuides.reduce((sum, { guide }) => sum + guide.amount, 0);
+  const settledBankVerifiedValue=settledGuides
+    .filter(({guide})=>isBankVerifiedFinancialGuide(guide))
+    .reduce((sum,{guide})=>sum+guide.amount,0);
   const openProcessCount = processes.filter(
     (process) => !["rascunho", "deferido", "indeferido", "arquivado"].includes(process.status),
   ).length;
-  const controlIssuedValue = controlGuides.reduce(
-    (sum, { guide }) => sum + guide.amount,
-    0,
-  );
-  const controlPendingValue = controlGuides
-    .filter(({ guide }) => guide.status === "pendente")
-    .reduce((sum, { guide }) => sum + guide.amount, 0);
-  const controlSettledValue = controlGuides
-    .filter(({ guide }) => guide.status === "compensada")
-    .reduce((sum, { guide }) => sum + guide.amount, 0);
+  const controlIssuedValue = controlFinancialSummary.issuedAmount;
+  const controlPendingValue = controlFinancialSummary.pendingAmount;
+  const controlSettledValue = controlFinancialSummary.compensatedAmount;
 
   const inconsistencyCount = guides.filter(({ process, guide }) => {
-    if (guide.status !== "pendente") return false;
+    if (!isPendingFinancialGuide(guide)) return false;
     return process.status === "deferido" || process.status === "arquivado";
   }).length;
 
@@ -527,7 +529,7 @@ export function FinanceDeskPage() {
 
   return (
     <PortalFrame eyebrow="FINANCEIRO MUNICIPAL" title="Controle financeiro, guias e arrecadação">
-      <PageShell>
+      <PageShell className={section === "visao-geral" ? "sig-module-summary-active" : undefined}>
         <PageHeader
           eyebrow="Operação financeira"
           title="Guias, pagamentos e conciliação"
@@ -579,14 +581,29 @@ export function FinanceDeskPage() {
                 valueClassName="text-xl md:text-2xl"
               />
               <StatCard
-                label="Arrecadado"
-                value={formatCurrency(controlSettledValue)}
-                description="Total já compensado"
+                label="Liquidado pelo banco"
+                value={formatCurrency(controlFinancialSummary.bankVerifiedAmount)}
+                description="Baixas com evidência externa; simulações e lançamentos manuais excluídos"
                 icon={Landmark}
                 tone="emerald"
                 valueClassName="text-xl md:text-2xl"
               />
             </PageStatsRow>
+            {controlFinancialSummary.unverifiedCompensatedCount>0?(
+              <p data-finance-unverified-settlement="true"
+                className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-950 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-100">
+                {controlFinancialSummary.unverifiedCompensatedCount} guia(s), no total de {formatCurrency(controlSettledValue-controlFinancialSummary.bankVerifiedAmount)},
+                estão compensadas no cadastro, mas sem comprovação de baixa bancária.
+                Esses valores não integram a arrecadação verificada.
+              </p>
+            ):null}
+            {simulatedGuideCount>0?(
+              <p data-finance-synthetic-guides="true"
+                className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs font-semibold text-sky-950 dark:border-sky-700 dark:bg-[#17344e] dark:text-sky-100">
+                {simulatedGuideCount} guia(s) de simulação QA permanecem no histórico,
+                mas não entram nos totais de compensação e arrecadação.
+              </p>
+            ):null}
 
             <PageMainGrid>
               <PageMainContent>
@@ -897,12 +914,14 @@ export function FinanceDeskPage() {
                               <Badge
                                 variant="outline"
                                 className={
-                                  guide.status === "compensada"
-                                    ? "h-5 shrink-0 rounded-full border-emerald-200 bg-emerald-50 px-2 text-[9px] font-bold text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-950/30 dark:text-emerald-300"
-                                    : "h-5 shrink-0 rounded-full border-amber-200 bg-amber-50 px-2 text-[9px] font-bold text-amber-700 dark:border-amber-500/30 dark:bg-amber-950/30 dark:text-amber-300"
+                                  isFinancialTestGuide(guide)
+                                    ? "h-5 shrink-0 rounded-full border-sky-200 bg-sky-50 px-2 text-[9px] font-bold text-sky-800 dark:border-sky-600 dark:bg-sky-950/40 dark:text-sky-200"
+                                    : isReportedCompensatedGuide(guide)
+                                      ? "h-5 shrink-0 rounded-full border-emerald-200 bg-emerald-50 px-2 text-[9px] font-bold text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-950/30 dark:text-emerald-300"
+                                      : "h-5 shrink-0 rounded-full border-amber-200 bg-amber-50 px-2 text-[9px] font-bold text-amber-700 dark:border-amber-500/30 dark:bg-amber-950/30 dark:text-amber-300"
                                 }
                               >
-                                {guide.status === "compensada" ? "Compensada" : "Pendente"}
+                                {guideFinancialEvidenceLabel(guide)}
                               </Badge>
                             </div>
                             <p className="mt-0.5 truncate text-[10px] font-medium text-slate-500 dark:text-slate-400" title={guide.label}>
@@ -1076,14 +1095,19 @@ export function FinanceDeskPage() {
                     tone={pendingGuides.length > 0 ? "warning" : "success"}
                   />
                   <AlertCard
-                    title="Confirmados"
-                    description={`${settledGuides.length} guia(s) já foram compensadas.`}
+                    title="Compensadas no sistema"
+                    description={`${settledGuides.length} guia(s) não simuladas compensadas; verificar recibos.`}
                     tone={settledGuides.length > 0 ? "success" : "default"}
                   />
                   <AlertCard
-                    title="Valor arrecadado"
-                    description={formatCurrency(settledValue)}
-                    tone="default"
+                    title="Liquidação bancária comprovada"
+                    description={formatCurrency(controlFinancialSummary.bankVerifiedAmount)}
+                    tone={controlFinancialSummary.bankVerifiedCount>0?"success":"default"}
+                  />
+                  <AlertCard
+                    title="Compensação sem comprovante bancário"
+                    description={formatCurrency(settledValue-settledBankVerifiedValue)}
+                    tone={settledGuides.length>controlFinancialSummary.bankVerifiedCount?"warning":"default"}
                   />
                 </div>
               </SectionCard>

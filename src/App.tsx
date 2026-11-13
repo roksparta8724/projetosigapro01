@@ -1,5 +1,5 @@
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
-import { useLayoutEffect } from "react";
+import { lazy, Suspense, useLayoutEffect } from "react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -11,53 +11,144 @@ import { MunicipalityProvider } from "@/hooks/useMunicipality";
 import { TenantProvider } from "@/hooks/useTenant";
 import { PermissionRoute } from "@/components/platform/PermissionRoute";
 import { PlanModuleRoute } from "@/components/platform/PlanModuleRoute";
-import { AcessoPage } from "@/pages/saas/AcessoPage";
-import { LandingPage } from "@/pages/saas/LandingPage";
-import { RecuperarSenhaPage } from "@/pages/saas/RecuperarSenhaPage";
-import { CriarContaPage } from "@/pages/saas/CriarContaPage";
+
+
+
+
 import { AppErrorBoundary } from "@/components/platform/AppErrorBoundary";
+import { SecureRoutePending } from "@/components/platform/SecureRoutePending";
+import { SeamlessRefreshGate } from "@/components/platform/SeamlessRefreshGate";
 import { TenantNotFoundPage } from "@/pages/saas/TenantNotFoundPage";
 import { shouldShowPublicLanding } from "@/lib/tenant";
-import { MasterAdminPage } from "@/pages/saas/MasterAdminPage";
-import { TenantAdminPage } from "@/pages/saas/TenantAdminPage";
-import { CollectionSettingsPage } from "@/pages/saas/CollectionSettingsPage";
-import { MunicipalOrganizationPage } from "@/pages/saas/MunicipalOrganizationPage";
-import { MunicipalProcessRegistryPage } from "@/pages/saas/MunicipalProcessRegistryPage";
-import { DashboardHomePage } from "@/pages/saas/DashboardHomePage";
-import { AnalystDeskPage } from "@/pages/saas/AnalystDeskPage";
-import { FinanceDeskPage } from "@/pages/saas/FinanceDeskPage";
-import { FinanceProtocolsPage } from "@/pages/saas/FinanceProtocolsPage";
-import { ProtocolDeskPage } from "@/pages/saas/ProtocolDeskPage";
-import { IptuDeskPage } from "@/pages/saas/IptuDeskPage";
-import { ExternalPortalPage } from "@/pages/saas/ExternalPortalPage";
-import { ExternalProcessControlPage } from "@/pages/saas/ExternalProcessControlPage";
-import { ExternalDraftsPage } from "@/pages/saas/ExternalDraftsPage";
-import { ExternalPaymentsPage } from "@/pages/saas/ExternalPaymentsPage";
-import { ExternalHistoryPage } from "@/pages/saas/ExternalHistoryPage";
-import { ExternalMessagesPage } from "@/pages/saas/ExternalMessagesPage";
-import { OwnerPortalPage } from "@/pages/saas/OwnerPortalPage";
-import { ProtocolarProjetoPage } from "@/pages/saas/ProtocolarProjetoPage";
-import { ProcessDetailPage } from "@/pages/saas/ProcessDetailPage";
-import { DocumentAnalysisPage } from "@/pages/saas/DocumentAnalysisPage";
-import { DocumentViewerPage } from "@/pages/saas/DocumentViewerPage";
-import { PerfilPage } from "@/pages/saas/PerfilPage";
-import { ConfiguracoesPage } from "@/pages/saas/ConfiguracoesPage";
-import { NotificationsPage } from "@/pages/saas/NotificationsPage";
-import { MovementHistoryPage } from "@/pages/saas/MovementHistoryPage";
-import { LegislationPage } from "@/pages/saas/LegislationPage";
-import { ZoningPage } from "@/pages/saas/ZoningPage";
-import { GlobalSearchPage } from "@/pages/saas/GlobalSearchPage";
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+import { URBAN_LEGISLATION_VIEW_ROLES } from "@/lib/urbanLegislationAccess";
+
+
 import { NotFoundPage } from "@/pages/saas/NotFoundPage";
-import { ClientePortalPage } from "@/pages/saas/ClientePortalPage";
-import { MasterPlansPage } from "@/pages/saas/MasterPlansPage";
-import { PublicPlansPage } from "@/pages/saas/PublicPlansPage";
-import { PublicSignatureVerificationPage } from "@/pages/saas/PublicSignatureVerificationPage";
-import { AiAssistantPage } from "@/pages/saas/AiAssistantPage";
+
+
+
+
+
+
+// Páginas de acesso/marketing não pertencem ao caminho crítico de um F5
+// em Prefeitura, Dashboard ou Mesa Técnica. Mantê-las no bundle inicial
+// atrasava o primeiro quadro do módulo real em cada recarga completa.
+const AcessoPage = lazy(() => import("@/pages/saas/AcessoPage").then((module) => ({ default: module.AcessoPage })));
+const LandingPage = lazy(() => import("@/pages/saas/LandingPage").then((module) => ({ default: module.LandingPage })));
+const RecuperarSenhaPage = lazy(() => import("@/pages/saas/RecuperarSenhaPage").then((module) => ({ default: module.RecuperarSenhaPage })));
+const CriarContaPage = lazy(() => import("@/pages/saas/CriarContaPage").then((module) => ({ default: module.CriarContaPage })));
+const PublicPlansPage = lazy(() => import("@/pages/saas/PublicPlansPage").then((module) => ({ default: module.PublicPlansPage })));
+const PublicSignatureVerificationPage = lazy(() => import("@/pages/saas/PublicSignatureVerificationPage").then((module) => ({ default: module.PublicSignatureVerificationPage })));
+
+function preloadCurrentPublicRoute(pathname: string): Promise<unknown> | null {
+  if (pathname === "/" || pathname === "/inicio" || pathname === "/apresentacao") return import("@/pages/saas/LandingPage");
+  if (pathname === "/acesso") return import("@/pages/saas/AcessoPage");
+  if (pathname === "/criar-conta") return import("@/pages/saas/CriarContaPage");
+  if (pathname === "/recuperar-senha") return import("@/pages/saas/RecuperarSenhaPage");
+  if (pathname === "/planos-publicos") return import("@/pages/saas/PublicPlansPage");
+  if (pathname === "/verificar-assinatura" || pathname.startsWith("/v/")) return import("@/pages/saas/PublicSignatureVerificationPage");
+  return null;
+}
+
+// Lazy import isolates heavy analytics, PDFs and operational pages from /acesso.
+// Component identity stays stable: never define lazy routes inside AppRoutes.
+const MasterAdminPage = lazy(() => import("@/pages/saas/MasterAdminPage").then((module) => ({ default: module.MasterAdminPage })));
+const TenantAdminPage = lazy(() => import("@/pages/saas/TenantAdminPage").then((module) => ({ default: module.TenantAdminPage })));
+const CollectionSettingsPage = lazy(() => import("@/pages/saas/CollectionSettingsPage").then((module) => ({ default: module.CollectionSettingsPage })));
+const MunicipalOrganizationPage = lazy(() => import("@/pages/saas/MunicipalOrganizationPage").then((module) => ({ default: module.MunicipalOrganizationPage })));
+const MunicipalProcessRegistryPage = lazy(() => import("@/pages/saas/MunicipalProcessRegistryPage").then((module) => ({ default: module.MunicipalProcessRegistryPage })));
+const DashboardHomePage = lazy(() => import("@/pages/saas/DashboardHomePage").then((module) => ({ default: module.DashboardHomePage })));
+const AnalystDeskPage = lazy(() => import("@/pages/saas/AnalystDeskPage").then((module) => ({ default: module.AnalystDeskPage })));
+const FinanceDeskPage = lazy(() => import("@/pages/saas/FinanceDeskPage").then((module) => ({ default: module.FinanceDeskPage })));
+const FinanceProtocolsPage = lazy(() => import("@/pages/saas/FinanceProtocolsPage").then((module) => ({ default: module.FinanceProtocolsPage })));
+const ProtocolDeskPage = lazy(() => import("@/pages/saas/ProtocolDeskPage").then((module) => ({ default: module.ProtocolDeskPage })));
+const IptuDeskPage = lazy(() => import("@/pages/saas/IptuDeskPage").then((module) => ({ default: module.IptuDeskPage })));
+const ExternalPortalPage = lazy(() => import("@/pages/saas/ExternalPortalPage").then((module) => ({ default: module.ExternalPortalPage })));
+const ExternalProcessControlPage = lazy(() => import("@/pages/saas/ExternalProcessControlPage").then((module) => ({ default: module.ExternalProcessControlPage })));
+const ExternalDraftsPage = lazy(() => import("@/pages/saas/ExternalDraftsPage").then((module) => ({ default: module.ExternalDraftsPage })));
+const ExternalPaymentsPage = lazy(() => import("@/pages/saas/ExternalPaymentsPage").then((module) => ({ default: module.ExternalPaymentsPage })));
+const ExternalHistoryPage = lazy(() => import("@/pages/saas/ExternalHistoryPage").then((module) => ({ default: module.ExternalHistoryPage })));
+const ExternalMessagesPage = lazy(() => import("@/pages/saas/ExternalMessagesPage").then((module) => ({ default: module.ExternalMessagesPage })));
+const OwnerPortalPage = lazy(() => import("@/pages/saas/OwnerPortalPage").then((module) => ({ default: module.OwnerPortalPage })));
+const ProtocolarProjetoPage = lazy(() => import("@/pages/saas/ProtocolarProjetoPage").then((module) => ({ default: module.ProtocolarProjetoPage })));
+const ProcessDetailPage = lazy(() => import("@/pages/saas/ProcessDetailPage").then((module) => ({ default: module.ProcessDetailPage })));
+const DocumentAnalysisPage = lazy(() => import("@/pages/saas/DocumentAnalysisPage").then((module) => ({ default: module.DocumentAnalysisPage })));
+const DocumentViewerPage = lazy(() => import("@/pages/saas/DocumentViewerPage").then((module) => ({ default: module.DocumentViewerPage })));
+const PerfilPage = lazy(() => import("@/pages/saas/PerfilPage").then((module) => ({ default: module.PerfilPage })));
+const ConfiguracoesPage = lazy(() => import("@/pages/saas/ConfiguracoesPage").then((module) => ({ default: module.ConfiguracoesPage })));
+const NotificationsPage = lazy(() => import("@/pages/saas/NotificationsPage").then((module) => ({ default: module.NotificationsPage })));
+const MovementHistoryPage = lazy(() => import("@/pages/saas/MovementHistoryPage").then((module) => ({ default: module.MovementHistoryPage })));
+const LegislationPage = lazy(() => import("@/pages/saas/LegislationPage").then((module) => ({ default: module.LegislationPage })));
+const ZoningPage = lazy(() => import("@/pages/saas/ZoningPage").then((module) => ({ default: module.ZoningPage })));
+const GlobalSearchPage = lazy(() => import("@/pages/saas/GlobalSearchPage").then((module) => ({ default: module.GlobalSearchPage })));
+const ClientePortalPage = lazy(() => import("@/pages/saas/ClientePortalPage").then((module) => ({ default: module.ClientePortalPage })));
+const MasterPlansPage = lazy(() => import("@/pages/saas/MasterPlansPage").then((module) => ({ default: module.MasterPlansPage })));
+const AiAssistantPage = lazy(() => import("@/pages/saas/AiAssistantPage").then((module) => ({ default: module.AiAssistantPage })));
+
+// Eagerly request only the current private route chunk, in parallel with the
+// authenticated bootstrap. No protected React component is mounted by preload.
+// It prevents a second lazy download gap after the session has been resolved.
+function preloadCurrentInternalRoute(pathname: string): Promise<unknown> | null {
+  if (pathname.startsWith("/dashboard")) return import("@/pages/saas/DashboardHomePage");
+  if (pathname.startsWith("/master/planos")) return import("@/pages/saas/MasterPlansPage");
+  if (pathname.startsWith("/master")) return import("@/pages/saas/MasterAdminPage");
+  // The filmed screen /prefeitura/arrecadacao must prefetch its real chunk, not TenantAdminPage.
+  if (pathname.startsWith("/prefeitura/arrecadacao")) return import("@/pages/saas/CollectionSettingsPage");
+  if (pathname.startsWith("/prefeitura/analise")) return import("@/pages/saas/AnalystDeskPage");
+  if (pathname.startsWith("/prefeitura/protocolos/novo")) return import("@/pages/saas/ProtocolarProjetoPage");
+  if (pathname.startsWith("/prefeitura/protocolos")) return import("@/pages/saas/ProtocolDeskPage");
+  if (pathname.startsWith("/prefeitura/financeiro/protocolos")) return import("@/pages/saas/FinanceProtocolsPage");
+  if (pathname.startsWith("/prefeitura/financeiro/iptu")) return import("@/pages/saas/IptuDeskPage");
+  if (pathname.startsWith("/prefeitura/financeiro")) return import("@/pages/saas/FinanceDeskPage");
+  if (pathname.startsWith("/prefeitura/organograma")) return import("@/pages/saas/MunicipalOrganizationPage");
+  if (pathname.startsWith("/prefeitura/processos")) return import("@/pages/saas/MunicipalProcessRegistryPage");
+  if (pathname.startsWith("/prefeitura")) return import("@/pages/saas/TenantAdminPage");
+  if (pathname.startsWith("/processos/")) return import("@/pages/saas/ProcessDetailPage");
+  if (pathname.startsWith("/externo")) return import("@/pages/saas/ExternalPortalPage");
+  if (pathname.startsWith("/configuracoes")) return import("@/pages/saas/ConfiguracoesPage");
+  if (pathname.startsWith("/perfil")) return import("@/pages/saas/PerfilPage");
+  return null;
+}
+
+if (typeof window !== "undefined") {
+  // Kick off route download during App module evaluation, before auth effects
+  // begin. Browser module caching deduplicates the subsequent React.lazy import.
+  void preloadCurrentInternalRoute(window.location.pathname)?.catch(() => undefined);
+  void preloadCurrentPublicRoute(window.location.pathname)?.catch(() => undefined);
+}
 
 const App = () => {
   return (
-    <AppBootstrapProvider>
-      <AuthGatewayProvider>
+    <AppErrorBoundary>
+      <AppBootstrapProvider>
+        <AuthGatewayProvider>
         <PlatformDataProvider>
           <PlatformSessionProvider>
             <TenantProvider>
@@ -67,6 +158,7 @@ const App = () => {
                   <Sonner />
                   <BrowserRouter>
                     <AppErrorBoundary>
+                      <SeamlessRefreshGate />
                       <AppRoutes />
                     </AppErrorBoundary>
                   </BrowserRouter>
@@ -75,8 +167,9 @@ const App = () => {
             </TenantProvider>
           </PlatformSessionProvider>
         </PlatformDataProvider>
-      </AuthGatewayProvider>
-    </AppBootstrapProvider>
+        </AuthGatewayProvider>
+      </AppBootstrapProvider>
+    </AppErrorBoundary>
   );
 };
 
@@ -116,6 +209,7 @@ const AppRoutes = () => {
 
   // Nunca renderizar fallback full-screen no root: as rotas reais permanecem montadas no refresh.
   return (
+    <Suspense fallback={<SecureRoutePending surface="route" title="Abrindo módulo do SIGAPRO" detail="Aguardando validação da página solicitada." />}>
       <Routes>
         <Route
           path="/"
@@ -134,49 +228,13 @@ const AppRoutes = () => {
         />
         <Route path="/inicio" element={<Navigate to="/" replace />} />
 
+        {/* One persistent dashboard route prevents chart/plan remounting on tab changes.
+            Contractual gates still protect restricted tab bodies in DashboardHomePage. */}
         <Route
-          path="/dashboard"
+          path="/dashboard/*"
           element={
             <PermissionRoute permission="manage_own_profile">
               <DashboardHomePage />
-            </PermissionRoute>
-          }
-        />
-        <Route
-          path="/dashboard/processos"
-          element={
-            <PermissionRoute permission="manage_own_profile">
-              <PlanModuleRoute module="Protocolo digital">
-                <DashboardHomePage />
-              </PlanModuleRoute>
-            </PermissionRoute>
-          }
-        />
-        <Route
-          path="/dashboard/financeiro"
-          element={
-            <PermissionRoute permission="manage_own_profile">
-              <PlanModuleRoute module="Financeiro">
-                <DashboardHomePage />
-              </PlanModuleRoute>
-            </PermissionRoute>
-          }
-        />
-        <Route
-          path="/dashboard/usuarios"
-          element={
-            <PermissionRoute permission="manage_own_profile">
-              <DashboardHomePage />
-            </PermissionRoute>
-          }
-        />
-        <Route
-          path="/dashboard/operacional"
-          element={
-            <PermissionRoute permission="manage_own_profile">
-              <PlanModuleRoute module="Protocolo digital">
-                <DashboardHomePage />
-              </PlanModuleRoute>
             </PermissionRoute>
           }
         />
@@ -198,6 +256,16 @@ const AppRoutes = () => {
         />
         <Route
           path="/prefeitura"
+          element={
+            <PermissionRoute permission="manage_tenant_users">
+              <PlanModuleRoute module="Configurações">
+                <TenantAdminPage />
+              </PlanModuleRoute>
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="/prefeitura/visao-geral/:subpage"
           element={
             <PermissionRoute permission="manage_tenant_users">
               <PlanModuleRoute module="Configurações">
@@ -320,6 +388,22 @@ const AppRoutes = () => {
           element={
             <PermissionRoute permission="manage_own_profile">
               <LegislationPage />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="/cadastro-gestao/legislacao"
+          element={
+            <PermissionRoute permission="manage_own_profile" allowedRoles={URBAN_LEGISLATION_VIEW_ROLES}>
+              <ConfiguracoesPage legislationWorkspace />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="/legislacao/gestao"
+          element={
+            <PermissionRoute permission="manage_own_profile" allowedRoles={URBAN_LEGISLATION_VIEW_ROLES}>
+              <Navigate to="/cadastro-gestao/legislacao" replace />
             </PermissionRoute>
           }
         />
@@ -471,5 +555,6 @@ const AppRoutes = () => {
         />
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
+    </Suspense>
   );
 };

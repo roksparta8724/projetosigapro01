@@ -11,7 +11,9 @@ export function useLivePlatformRefresh(
   },
 ) {
   const enabled = options?.enabled !== false;
-  const intervalMs = Math.max(1500, options?.intervalMs ?? 4000);
+  // Loading the operational store reads dozens of tables. Never poll it
+  // every 1-4 seconds: live actions/focus/data-changed remain immediate.
+  const intervalMs = Math.max(10000, options?.intervalMs ?? 30000);
   const refreshOnMount = options?.refreshOnMount !== false;
   const refreshRef = useRef(refreshRemoteStore);
   const inFlightRef = useRef(false);

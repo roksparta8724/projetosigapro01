@@ -2770,3 +2770,203 @@ html body #root [data-layout-mode="default"] .sig-main-shell
   overflow-wrap:anywhere;
 }
 /* HABITE-SE ALVARA SUMMARY CONTRAST V22 END */
+
+
+/* SIGAPRO URBAN MATRIX — local high-contrast contract (2026-11-03).
+   Scope exclusively to legal-reading review. Never recolor global buttons/cards.
+   Dark actions stay white-on-navy even while disabled; pale inputs stay dark-on-white.
+   A disabled action remains disabled (contrast does not bypass validation). */
+html body #root [data-urban-matrix-review="true"] button[data-urban-matrix-primary-action="true"],
+html body #root [data-urban-matrix-review="true"] button[data-urban-matrix-primary-action="true"]:hover,
+html body #root [data-urban-matrix-review="true"] button[data-urban-matrix-primary-action="true"]:focus-visible {
+  background: #0b2340 !important;
+  background-color: #0b2340 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  border-color: #0b2340 !important;
+  opacity: 1 !important;
+  filter: none !important;
+  mix-blend-mode: normal !important;
+  text-shadow: none !important;
+}
+html body #root [data-urban-matrix-review="true"] button[data-urban-matrix-primary-action="true"] :is(span,strong,svg) {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  opacity: 1 !important;
+  stroke: currentColor;
+}
+html body #root [data-urban-matrix-review="true"] button[data-urban-matrix-primary-action="true"]:disabled {
+  background: #475569 !important;
+  background-color: #475569 !important;
+  border-color: #475569 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  opacity: 1 !important;
+  cursor: not-allowed;
+}
+html body #root [data-urban-matrix-review="true"] [data-urban-matrix-reading-form="true"] {
+  background: #edf7ff !important;
+  background-color: #edf7ff !important;
+  color: #10243b !important;
+  -webkit-text-fill-color: #10243b !important;
+  border-color: #b5dfff !important;
+}
+html body #root [data-urban-matrix-review="true"] [data-urban-matrix-reading-form="true"] > :is(p,label) {
+  color: #10243b !important;
+  -webkit-text-fill-color: #10243b !important;
+}
+html body #root [data-urban-matrix-review="true"] [data-urban-matrix-reading-choice="true"],
+html body #root [data-urban-matrix-review="true"] [data-urban-matrix-reading-field="true"] {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  color: #172b45 !important;
+  -webkit-text-fill-color: #172b45 !important;
+  border-color: #cbd5e1 !important;
+  opacity: 1 !important;
+}
+html body #root [data-urban-matrix-review="true"] [data-urban-matrix-reading-field="true"]::placeholder {
+  color: #64748b !important;
+  -webkit-text-fill-color: #64748b !important;
+}
+html body #root [data-urban-matrix-review="true"] [data-urban-matrix-reading-choice="true"] input {
+  accent-color: #0369a1;
+}
+/* END SIGAPRO URBAN MATRIX HIGH CONTRAST */
+
+
+/* Final AI matrix contrast rule. Explicit text element prevents inherited disabled
+   button foreground (including theme-specific span overrides) from fading. */
+html body #root [data-urban-matrix-review="true"] button[data-urban-matrix-primary-action="true"]:disabled,
+html body #root [data-urban-matrix-review="true"] button[data-urban-matrix-primary-action="true"]:disabled > [data-urban-matrix-primary-label="true"],
+html body #root [data-urban-matrix-review="true"] button[data-urban-matrix-primary-action="true"] > [data-urban-matrix-primary-label="true"] {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  opacity: 1 !important;
+  filter: none !important;
+  text-shadow: none !important;
+  visibility: visible !important;
+}
+html body #root [data-urban-matrix-review="true"] button[data-urban-matrix-primary-action="true"]:disabled {
+  background: #334155 !important;
+  background-color: #334155 !important;
+  border: 1px dashed #94a3b8 !important;
+  cursor: not-allowed;
+}
+
+
+/* SIGAPRO PREMIUM TEXT CONTAINMENT QA V1 — scoped to process/triage cards.
+   No ellipsis or hiding essential operational content. */
+html body #root .sig-process-detail-premium [data-process-summary-card="true"],
+html body #root [data-sigapro-protocol-queue-list="true"] [data-process-premium-card="true"] {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+html body #root .sig-process-detail-premium [data-process-summary-card="true"]
+[data-sigapro-contained-text="true"],
+html body #root [data-sigapro-protocol-queue-list="true"] [data-process-premium-card="true"]
+[data-sigapro-contained-text="true"] {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: normal;
+  white-space: normal;
+  text-overflow: clip;
+}
+html body #root [data-sigapro-protocol-queue-list="true"] [data-process-premium-card="true"]
+[data-sigapro-triage-actions-toggle="true"] {
+  min-width: 0;
+  max-width: 100%;
+}
+/* END SIGAPRO PREMIUM TEXT CONTAINMENT QA V1 */
+
+
+/* SIGAPRO TRIAGE ACTION CONTRAST LOCK V1 — QA 2026-11-05.
+   Explicitly preserve readable labels under both municipal theme modes;
+   target only operational buttons inside triage, never the topbar. */
+html body #root [data-sigapro-protocol-queue-list="true"]
+[data-process-premium-card="true"] button[data-sigapro-triage-action] {
+  min-width: 0;
+  max-width: 100%;
+  min-height: 40px;
+  white-space: normal !important;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  opacity: 1 !important;
+  text-align: center;
+}
+html body #root [data-sigapro-protocol-queue-list="true"]
+[data-process-premium-card="true"] button[data-sigapro-triage-action="dispatch"],
+html body #root [data-sigapro-protocol-queue-list="true"]
+[data-process-premium-card="true"] button[data-sigapro-triage-action="dispatch"]
+[data-sigapro-triage-dispatch-label="true"] {
+  background-color: #075985 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  opacity: 1 !important;
+  text-shadow: none !important;
+}
+html body #root [data-sigapro-protocol-queue-list="true"]
+[data-process-premium-card="true"] button[data-sigapro-triage-action="dispatch"]:is(:hover,:focus-visible) {
+  background-color: #0c4a6e !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body #root [data-sigapro-protocol-queue-list="true"]
+[data-process-premium-card="true"] button[data-sigapro-triage-action="dispatch"]
+[data-sigapro-triage-dispatch-label="true"] {
+  background: transparent !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body #root [data-sigapro-protocol-queue-list="true"]
+[data-process-premium-card="true"] button[data-sigapro-triage-action="start"] {
+  background-color: #ffffff !important;
+  color: #0b3552 !important;
+  -webkit-text-fill-color: #0b3552 !important;
+  border-color: #7dd3fc !important;
+}
+html body #root [data-sigapro-protocol-queue-list="true"]
+[data-process-premium-card="true"] button[data-sigapro-triage-action="complete"] {
+  background-color: #ecfdf5 !important;
+  color: #064e3b !important;
+  -webkit-text-fill-color: #064e3b !important;
+  border-color: #86efac !important;
+}
+/* END SIGAPRO TRIAGE ACTION CONTRAST LOCK V1 */
+
+/* SIGAPRO IA PROJECT SHORTCUT CONTRAST LOCK V1 — 2026-11-06.
+   The document card's light/inverse theme typography rules have stronger
+   specificity than generic .text-white and can paint the label dark on blue.
+   Restrict this correction to the architectural PDF AI shortcut, preserving
+   all document cards, billing, navigation and municipal theme settings. */
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-process-document-card="true"][data-surface="adaptive-card"][data-force-card-contrast="adaptive"] button.sig-primary-document-action[data-sigapro-ai-review-shortcut="true"],
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-process-document-card="true"][data-surface="adaptive-card"][data-force-card-contrast="adaptive"] button.sig-primary-document-action[data-sigapro-ai-review-shortcut="true"]:is(:hover,:focus-visible,:active,:disabled) {
+  background: linear-gradient(135deg,#075985 0%,#0b76b2 100%) !important;
+  background-color: #075985 !important;
+  border-color: #0b6fa8 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  text-shadow: none !important;
+  mix-blend-mode: normal !important;
+}
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-process-document-card="true"][data-surface="adaptive-card"][data-force-card-contrast="adaptive"] button.sig-primary-document-action[data-sigapro-ai-review-shortcut="true"]
+:is([data-sigapro-ai-review-label="true"],[data-sigapro-ai-review-icon="true"],svg,svg *) {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  stroke: currentColor !important;
+  opacity: 1 !important;
+  filter: none !important;
+  mix-blend-mode: normal !important;
+}
+html body #root .sig-main-shell .sig-process-detail-premium
+[data-process-document-card="true"][data-surface="adaptive-card"][data-force-card-contrast="adaptive"] button.sig-primary-document-action[data-sigapro-ai-review-shortcut="true"]:disabled
+[data-sigapro-ai-review-label="true"] {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+/* END SIGAPRO IA PROJECT SHORTCUT CONTRAST LOCK V1 */

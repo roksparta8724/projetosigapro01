@@ -13,7 +13,13 @@ describe("tenant admin premium workspace", () => {
     expect(admin).toContain("Abrir processo");
     expect(admin).toContain("Etapa atual");
     expect(admin).toContain("Pendências");
-    expect(admin).toContain("lg:grid-cols-[minmax(260px,1.55fr)");
+    // Earlier five-column grid at laptop widths crushed process names and timestamps.
+    expect(admin).not.toContain("lg:grid-cols-[minmax(260px,1.55fr)");
+    expect(admin).toContain("sm:grid-cols-2");
+    expect(admin).toContain("min-[2050px]:grid-cols-");
+    expect(admin).toContain("[overflow-wrap:anywhere]");
+    expect(admin).toContain("MunicipalActivityCard");
+    expect(admin).toContain("municipalActivityTitle");
     expect(admin).toContain("navigate(buildProcessPath(process))");
   });
 

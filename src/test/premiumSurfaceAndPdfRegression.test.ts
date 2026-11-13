@@ -32,6 +32,35 @@ describe("premium process surface contract", () => {
     expect(polarity).toContain("background: linear-gradient(145deg,#0b4537 0%,#08745a 100%)");
   });
 
+  it("força branco no texto e no ícone do botão IA apesar das regras globais dos cards", () => {
+    const detail=read("src/pages/saas/ProcessDetailPage.tsx");
+    const css=read("src/styles/surface-polarity.css");
+    const anchor=detail.indexOf('data-sigapro-ai-review-shortcut="true"');
+    const end=detail.indexOf("</button>",anchor);
+    const button=detail.slice(anchor,end);
+    const key="SIGAPRO IA PROJECT SHORTCUT CONTRAST LOCK V1";
+    const start=css.lastIndexOf("/* "+key);
+    expect(anchor).toBeGreaterThan(0);
+    expect(button).toContain('data-primary-action="document"');
+    expect(button).toContain('sig-primary-document-action');
+    expect(button).toContain('data-sigapro-ai-review-icon="true"');
+    expect(button).toContain('data-sigapro-ai-review-label="true"');
+    expect(button).toContain("SIGAPRO IA · Ler projeto");
+    expect(start).toBeGreaterThan(0);
+    const rule=css.slice(start);
+    expect(rule).toContain('[data-process-document-card="true"][data-surface="adaptive-card"][data-force-card-contrast="adaptive"]');
+    expect(rule).toContain('button.sig-primary-document-action[data-sigapro-ai-review-shortcut="true"]');
+    expect(rule).toContain('[data-sigapro-ai-review-label="true"]');
+    expect(rule).toContain('[data-sigapro-ai-review-icon="true"]');
+    expect(rule).toContain('color: #ffffff !important;');
+    expect(rule).toContain('-webkit-text-fill-color: #ffffff !important;');
+    expect(rule).toContain('stroke: currentColor !important;');
+    // A regra especifica vem depois das regras de cores adaptativas por tema.
+    expect(start).toBeGreaterThan(css.indexOf('PRIMARY PROCESS/DOCUMENT ACTIONS'));
+    expect(rule).not.toContain(".sig-premium-topbar");
+    expect(rule).not.toContain(".sig-sidebar-shell");
+  });
+
   it("propagates the same contrast contract to process list cards", () => {
     const polarity = read("src/styles/surface-polarity.css");
     const analysis = read("src/pages/saas/AnalystDeskPage.tsx");
