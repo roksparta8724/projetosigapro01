@@ -235,7 +235,7 @@ function precacheLoadedPublicBundles() {
       if (
         url.origin === window.location.origin &&
         url.pathname.startsWith("/assets/") &&
-        /\\.(?:m?js|css)$/i.test(url.pathname)
+        /\.(?:m?js|css)$/i.test(url.pathname)
       ) {
         urls.push(url.href);
       }
