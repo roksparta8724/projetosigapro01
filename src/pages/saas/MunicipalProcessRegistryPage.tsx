@@ -54,6 +54,7 @@ export function MunicipalProcessRegistryPage() {
 
   const archiveStorageKey = `sigapro:municipal-process-registry:${session.id}:${effectiveScopeId || "default"}`;
   const [archivedProcessIds, setArchivedProcessIds] = useState<string[]>([]);
+  const [selectedProcessIds, setSelectedProcessIds] = useState<string[]>([]);
 
   useEffect(() => {
     try {
@@ -67,6 +68,11 @@ export function MunicipalProcessRegistryPage() {
     } catch {
       setArchivedProcessIds([]);
     }
+  }, [archiveStorageKey]);
+
+  useEffect(() => {
+    // Never carry a selection into another municipality or authenticated account.
+    setSelectedProcessIds([]);
   }, [archiveStorageKey]);
 
   const setProcessArchived = (processId: string, archived: boolean) => {
@@ -132,6 +138,27 @@ export function MunicipalProcessRegistryPage() {
       return haystack.includes(needle);
     });
   }, [archivedProcessIds, filter, municipalityProcesses, search, showArchived]);
+
+  const visibleIds = visibleProcesses.map((process) => process.id);
+  const selectedVisibleIds = visibleIds.filter((id) => selectedProcessIds.includes(id));
+  const allVisibleSelected = visibleIds.length > 0 && selectedVisibleIds.length === visibleIds.length;
+  const toggleVisibleSelection = (selected: boolean) => {
+    setSelectedProcessIds((current) => selected
+      ? Array.from(new Set([...current, ...visibleIds]))
+      : current.filter((id) => !visibleIds.includes(id)));
+  };
+  const archiveSelected = (archived: boolean) => {
+    if (selectedVisibleIds.length === 0) return;
+    const selected = new Set(selectedVisibleIds);
+    setArchivedProcessIds((current) => {
+      const next = archived
+        ? Array.from(new Set([...current, ...selectedVisibleIds]))
+        : current.filter((id) => !selected.has(id));
+      window.localStorage.setItem(archiveStorageKey, JSON.stringify(next));
+      return next;
+    });
+    setSelectedProcessIds((current) => current.filter((id) => !selected.has(id)));
+  };
 
   if (!isInternalRole(session.role)) {
     return <Navigate to="/" replace />;
@@ -239,6 +266,27 @@ export function MunicipalProcessRegistryPage() {
             </div>
           </div>
 
+          <div data-sei-bulk-selection="true" className="mt-4 flex min-w-0 flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-900">
+            <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-semibold text-slate-900 dark:text-slate-100">
+              <input type="checkbox" className="h-4 w-4 accent-sky-700" checked={allVisibleSelected}
+                onChange={(event) => toggleVisibleSelection(event.target.checked)} disabled={visibleIds.length === 0}
+                aria-label="Selecionar todos os resultados filtrados" />
+              Selecionar resultados
+            </label>
+            <span role="status" aria-live="polite" className="rounded-lg bg-white px-2.5 py-1.5 text-xs font-semibold tabular-nums text-slate-700 dark:bg-slate-800 dark:text-slate-100">
+              {selectedVisibleIds.length.toLocaleString("pt-BR")} selecionados
+            </span>
+            <Button type="button" variant="outline" size="sm" disabled={!selectedVisibleIds.length}
+              onClick={() => archiveSelected(true)} className="rounded-lg border-slate-300 bg-white text-slate-900">Arquivar da minha lista</Button>
+            <Button type="button" variant="outline" size="sm" disabled={!selectedVisibleIds.length}
+              onClick={() => archiveSelected(false)} className="rounded-lg border-slate-300 bg-white text-slate-900">Restaurar da minha lista</Button>
+            <Button type="button" variant="ghost" size="sm" disabled={!selectedVisibleIds.length}
+              onClick={() => setSelectedProcessIds([])} className="rounded-lg text-slate-700 dark:text-slate-100">Desmarcar</Button>
+            <p className="w-full text-xs leading-5 text-slate-600 dark:text-slate-300">
+              A seleção e o arquivamento são pessoais, sem alterar tramitação ou status oficial. Para despachar, assinar ou decidir, abra a ficha do processo com o perfil autorizado.
+            </p>
+          </div>
+
           <div className="mt-4 rounded-2xl border border-sky-200 bg-sky-50/70 px-4 py-3 text-xs leading-5 text-sky-900 dark:border-sky-500/30 dark:bg-sky-950/25 dark:text-sky-200">
             O número do processo é um link para a ficha completa. “Despachar” abre diretamente a área de movimentação do processo.
             O marcador exibido nesta lista é o mesmo marcador único gerenciado no topbar.
@@ -247,6 +295,10 @@ export function MunicipalProcessRegistryPage() {
           <div className="mt-4">
             <CompactProcessRegistry
               processes={visibleProcesses}
+              selectedProcessIds={selectedProcessIds}
+              onToggleSelection={(processId, selected) => setSelectedProcessIds((current) => selected
+                ? Array.from(new Set([...current, processId]))
+                : current.filter((id) => id !== processId))}
               archivedProcessIds={archivedProcessIds}
               onToggleArchive={setProcessArchived}
               canDispatchProcess={(process) => isProcessOwnedBySessionDepartment(session, process)}

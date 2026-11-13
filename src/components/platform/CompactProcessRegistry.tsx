@@ -32,6 +32,8 @@ type CompactProcessRegistryProps = {
   showArchiveAction?: boolean;
   canDispatchProcess?: (process: ProcessRecord) => boolean;
   detailPathSuffix?: string;
+  selectedProcessIds?: string[];
+  onToggleSelection?: (processId: string, selected: boolean) => void;
 };
 
 function formatDateTime(value?: string | null) {
@@ -65,6 +67,8 @@ export function CompactProcessRegistry({
   showArchiveAction = true,
   canDispatchProcess = () => true,
   detailPathSuffix = "",
+  selectedProcessIds = [],
+  onToggleSelection,
 }: CompactProcessRegistryProps) {
   const [page, setPage] = useState(1);
   const pageData = useMemo(() => paginateMunicipalItems(processes, page, 25), [processes, page]);
@@ -85,8 +89,9 @@ export function CompactProcessRegistry({
       data-sei-process-registry="true"
       className="overflow-hidden rounded-[18px] border border-slate-200 bg-white shadow-[0_10px_26px_rgba(15,23,42,0.055)] dark:border-slate-700 dark:bg-slate-950/50"
     >
-      <div className="hidden min-h-9 grid-cols-[44px_minmax(165px,1.15fr)_minmax(190px,1.35fr)_minmax(145px,.85fr)_minmax(120px,.75fr)_104px_112px] items-center gap-2 border-b border-slate-200 bg-slate-50/95 px-3 text-[9px] font-black uppercase tracking-[0.11em] text-slate-500 xl:grid dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-400">
-        <span className="flex min-w-0 items-center justify-center" title="Marcador">
+      <div className={cn("hidden min-h-9 items-center gap-2 border-b border-slate-200 bg-slate-50/95 px-3 text-[9px] font-black uppercase tracking-[0.11em] text-slate-500 xl:grid dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-400", onToggleSelection ? "xl:grid-cols-[88px_minmax(165px,1.15fr)_minmax(190px,1.35fr)_minmax(145px,.85fr)_minmax(120px,.75fr)_104px_112px]" : "xl:grid-cols-[44px_minmax(165px,1.15fr)_minmax(190px,1.35fr)_minmax(145px,.85fr)_minmax(120px,.75fr)_104px_112px]")}>
+        <span className="flex min-w-0 items-center justify-center gap-2" title={onToggleSelection ? "Seleção e marcador" : "Marcador"}>
+          {onToggleSelection ? <span className="text-[9px]">Seleção</span> : null}
           <Flag className="h-3.5 w-3.5" aria-hidden="true" />
           <span className="sr-only">Marcador</span>
         </span>
@@ -111,13 +116,24 @@ export function CompactProcessRegistry({
               key={process.id}
               data-sei-process-row="true"
               className={cn(
-                "group grid gap-2 px-3 py-2.5 transition-colors hover:bg-sky-50/55 xl:grid-cols-[44px_minmax(165px,1.15fr)_minmax(190px,1.35fr)_minmax(145px,.85fr)_minmax(120px,.75fr)_104px_112px] xl:items-center dark:hover:bg-sky-950/15",
+                "group grid min-w-0 gap-2 px-3 py-2.5 transition-colors hover:bg-sky-50/55 xl:items-center dark:hover:bg-sky-950/15",
+                onToggleSelection ? "xl:grid-cols-[88px_minmax(165px,1.15fr)_minmax(190px,1.35fr)_minmax(145px,.85fr)_minmax(120px,.75fr)_104px_112px]" : "xl:grid-cols-[44px_minmax(165px,1.15fr)_minmax(190px,1.35fr)_minmax(145px,.85fr)_minmax(120px,.75fr)_104px_112px]",
                 archived && "bg-slate-50/70 opacity-80 dark:bg-slate-900/35",
+                selectedProcessIds.includes(process.id) && "bg-sky-50/75 dark:bg-sky-950/25",
               )}
             >
               <div className="flex min-w-0 items-center gap-2 xl:justify-center">
+                {onToggleSelection ? (
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 shrink-0 cursor-pointer accent-sky-700"
+                    checked={selectedProcessIds.includes(process.id)}
+                    onChange={(event) => onToggleSelection(process.id, event.target.checked)}
+                    aria-label={`Selecionar processo ${formatOfficialProcessNumber(process.protocol)}`}
+                  />
+                ) : null}
                 <span className="xl:hidden text-[9px] font-bold uppercase tracking-[0.1em] text-slate-400">
-                  Marcador
+                  {onToggleSelection ? "Marcador / seleção" : "Marcador"}
                 </span>
                 {marker ? (
                   <span
