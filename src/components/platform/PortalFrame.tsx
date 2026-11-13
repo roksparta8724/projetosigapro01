@@ -285,7 +285,7 @@ function resolveBrandingLogoUrl(
     : branding.headerLogoUrl ?? branding.logoUrl ?? "";
 }
 
-export function PortalFrame({ title, eyebrow, children, focusMode = false, compactHeader = false }: PortalFrameProps) {
+export function PortalFrame({ title, eyebrow, children, focusMode = false, compactHeader = true }: PortalFrameProps) {
   const [commandOpen, setCommandOpen] = useState(false);
   const [commandQuery, setCommandQuery] = useState("");
   const [sidebarExpanded, setSidebarExpanded] = useState(() => {
