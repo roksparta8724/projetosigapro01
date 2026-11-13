@@ -16,7 +16,7 @@ function appHtml(release: string) {
 }
 
 function harness() {
-  const handlers = new Map<string, (event: any) => void>();
+  const handlers = new Map<string, (event: unknown) => void>();
   const stores = new Map<string, Map<string, Response>>();
   const opened: string[] = [];
   const removed: string[] = [];
@@ -45,7 +45,7 @@ function harness() {
   runInNewContext(sw, {
     self: {
       location: { origin },
-      addEventListener: (name: string, fn: (event: any) => void) => handlers.set(name, fn),
+      addEventListener: (name: string, fn: (event: unknown) => void) => handlers.set(name, fn),
       skipWaiting: async () => undefined,
       clients: { claim: async () => undefined },
     },
