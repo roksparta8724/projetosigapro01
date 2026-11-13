@@ -64,9 +64,19 @@ export function useNativeReloadFirstPaint(
 
     const observer = new MutationObserver(checkAvatar);
     observer.observe(frame, { childList: true, subtree: true });
+    // O HTML solta o bloqueio aos 1,8 s mesmo em falha de auth/rede.
+    // Não deixar um observer pendurado por toda a sessão após esse limite.
+    const observerWatchdog = window.setTimeout(() => {
+      observer.disconnect();
+      if (observedImage) {
+        observedImage.removeEventListener("load", removeGate);
+        observedImage.removeEventListener("error", removeGate);
+      }
+    }, 2000);
     checkAvatar();
 
     return () => {
+      window.clearTimeout(observerWatchdog);
       observer.disconnect();
       if (observedImage) {
         observedImage.removeEventListener("load", removeGate);
