@@ -1,4 +1,3 @@
-// @vitest-environment node
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { runInNewContext } from "node:vm";
@@ -6,21 +5,35 @@ import { describe, expect, it, vi } from "vitest";
 
 const origin = "https://sigapromunicipal.com.br";
 const indexUrl = origin + "/index.html";
-const sw = readFileSync(resolve(process.cwd(), "public/sigapro-sw.js"), "utf8");
+const source = readFileSync(resolve(process.cwd(), "public/sigapro-sw.js"), "utf8");
+
+// Um FetchEvent em Service Worker é testado isoladamente; não depende de
+// workers reais ou globais de rede ausentes no jsdom do Quality Gate.
+class TestRequest {
+  constructor(public url: string, public init?: Record<string, unknown>) {}
+}
+
+class TestResponse {
+  constructor(private body: string, private options: { status?: number; contentType?: string } = {}) {}
+  get ok() { return (this.options.status ?? 200) >= 200 && (this.options.status ?? 200) < 300; }
+  get type() { return "basic"; }
+  get redirected() { return false; }
+  get headers() { return { get: (name: string) => name.toLowerCase() === "content-type" ? (this.options.contentType ?? "text/html; charset=utf-8") : null }; }
+  clone() { return new TestResponse(this.body, this.options); }
+  async text() { return this.body; }
+}
 
 function appHtml(release: string) {
-  return new Response('<!doctype html><html><head><meta name="sigapro-static-app-document" content="v1" /></head><body><div id="root"></div>' + release + '</body></html>', {
-    status: 200,
-    headers: { "content-type": "text/html; charset=utf-8" },
-  });
+  return new TestResponse(
+    '<!doctype html><html><head><meta name="sigapro-static-app-document" content="v1" /></head><body><div id="root"></div>' + release + "</body></html>",
+  );
 }
 
 function harness() {
   const handlers = new Map<string, (event: unknown) => void>();
-  const stores = new Map<string, Map<string, Response>>();
-  const opened: string[] = [];
+  const stores = new Map<string, Map<string, TestResponse>>();
   const removed: string[] = [];
-  const fetcher = vi.fn(async (_request: Request | { url: string }) => appHtml("release-A"));
+  const fetcher = vi.fn(async (_request: TestRequest | { url: string }) => appHtml("release-A"));
 
   const cachesMock = {
     keys: async () => Array.from(stores.keys()),
@@ -29,20 +42,19 @@ function harness() {
       return stores.delete(name);
     },
     open: async (name: string) => {
-      opened.push(name);
       if (!stores.has(name)) stores.set(name, new Map());
       const cache = stores.get(name)!;
       return {
-        match: async (request: string | Request) => cache.get(typeof request === "string" ? request : request.url),
-        put: async (request: string | Request, response: Response) => {
+        match: async (request: string | TestRequest) => cache.get(typeof request === "string" ? request : request.url),
+        put: async (request: string | TestRequest, response: TestResponse) => {
           cache.set(typeof request === "string" ? request : request.url, response);
         },
-        delete: async (request: string | Request) => cache.delete(typeof request === "string" ? request : request.url),
+        delete: async (request: string | TestRequest) => cache.delete(typeof request === "string" ? request : request.url),
       };
     },
   };
 
-  runInNewContext(sw, {
+  runInNewContext(source, {
     self: {
       location: { origin },
       addEventListener: (name: string, fn: (event: unknown) => void) => handlers.set(name, fn),
@@ -52,8 +64,8 @@ function harness() {
     caches: cachesMock,
     fetch: fetcher,
     URL,
-    Request,
-    Response,
+    Request: TestRequest,
+    Response: TestResponse,
     Set,
     Promise,
   });
@@ -66,31 +78,31 @@ function harness() {
 
   async function navigate(url = origin + "/prefeitura") {
     const background: Promise<unknown>[] = [];
-    let reply: Promise<Response> | undefined;
+    let reply: Promise<TestResponse> | undefined;
     handlers.get("fetch")!({
       request: { method: "GET", mode: "navigate", url },
-      respondWith: (p: Promise<Response>) => { reply = p; },
+      respondWith: (p: Promise<TestResponse>) => { reply = p; },
       waitUntil: (p: Promise<unknown>) => background.push(p),
     });
     return { response: await reply!, background };
   }
 
-  return { install, navigate, fetcher, opened, removed, stores, handlers, cachesMock };
+  return { install, navigate, fetcher, removed, stores, handlers, cachesMock };
 }
 
 describe("SIGAPRO F5 — HTML público preparado pelo Service Worker", () => {
-  it("já armazena o documento público na instalação e entrega HTML sem aguardar a rede", async () => {
+  it("armazena na instalação e entrega o documento sem esperar a rede", async () => {
     const h = harness();
     await h.install();
     expect(h.stores.get("sigapro-enterprise-v8:public-html")?.has(indexUrl)).toBe(true);
     const count = h.fetcher.mock.calls.length;
-    h.fetcher.mockImplementation(async () => new Promise<Response>(() => undefined)); // rede travada
+    h.fetcher.mockImplementation(async () => new Promise<TestResponse>(() => undefined)); // rede travada
     const result = await h.navigate(origin + "/prefeitura");
     expect(await result.response.text()).toContain("release-A");
-    expect(h.fetcher).toHaveBeenCalledTimes(count + 1); // revalidação assíncrona
+    expect(h.fetcher).toHaveBeenCalledTimes(count + 1);
   });
 
-  it("atualiza o HTML público em background sem atrasar a visualização", async () => {
+  it("atualiza o HTML em background sem atrasar a visualização", async () => {
     const h = harness();
     await h.install();
     h.fetcher.mockImplementation(async () => appHtml("release-B"));
@@ -102,39 +114,43 @@ describe("SIGAPRO F5 — HTML público preparado pelo Service Worker", () => {
     await Promise.all(second.background);
   });
 
-  it("não intercepta endpoint protegido nem salva avatar, token, documento ou guia", async () => {
+  it("não intercepta URLs de APIs, PDFs, downloads ou assets diretos", async () => {
     const h = harness();
     await h.install();
     const cache = h.stores.get("sigapro-enterprise-v8:public-html")!;
-    const initialEntries = cache.size;
-    const paths = [
+    for (const path of [
       "/api/profile-avatar-open?user=1",
       "/api/municipality-logo-open?tenant=2",
       "/api/processes",
       "/api/guide-payments",
       "/api/e-sign-artifact",
-    ];
-    for (const path of [...paths, "/file.pdf", "/assets/index.js", "/.well-known/security.txt"]) {
+      "/file.pdf",
+      "/assets/index.js",
+      "/.well-known/security.txt",
+    ]) {
       for (const mode of ["cors", "navigate"]) {
         let responded = false;
         h.handlers.get("fetch")!({
           request: { method: "GET", mode, url: origin + path },
           respondWith: () => { responded = true; },
         });
-        expect(responded).toBe(false);
+        expect(responded, path + " / " + mode).toBe(false);
       }
     }
-    expect(cache.size).toBe(initialEntries);
     expect([...cache.keys()]).toEqual([indexUrl]);
   });
 
-  it("nunca guarda resposta HTML inválida nem expõe HTML individual no cache de /assets", async () => {
-    const h = harness();
-    h.fetcher.mockImplementation(async () => new Response("redirected", {
-      status: 302, headers: { location: "/acesso", "content-type": "text/html" },
-    }));
-    await h.install();
-    expect(h.stores.get("sigapro-enterprise-v8:public-html")?.size ?? 0).toBe(0);
+  it("nunca salva erro, redirecionamento ou HTML sem assinatura estática", async () => {
+    for (const response of [
+      new TestResponse("redirected", { status: 302 }),
+      new TestResponse('<html><div id="root"></div>sem marcador</html>'),
+      new TestResponse('{"fake":true}', { contentType: "application/json" }),
+    ]) {
+      const h = harness();
+      h.fetcher.mockImplementation(async () => response);
+      await h.install();
+      expect(h.stores.get("sigapro-enterprise-v8:public-html")?.size ?? 0).toBe(0);
+    }
   });
 
   it("preserva a geração anterior de chunks durante a ativação", async () => {
