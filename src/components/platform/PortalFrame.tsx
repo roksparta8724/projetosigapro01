@@ -427,10 +427,18 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false, compa
   // Route-level PortalFrame mounts must not blank the Master avatar while the
   // remote profile refresh is in progress. The fallback is bound to the
   // authenticated account, never to the municipality being viewed.
-  const cachedHeaderProfile = authenticatedAvatarOwnerId && !userProfile
+  // Uma resposta parcial do perfil pode chegar antes de avatarStorageRef.
+  // Enquanto a identidade for a MESMA conta, usar a última foto localmente
+  // conhecida em vez de substituí-la pelas iniciais. O cache fica vinculado
+  // ao userId/e-mail; uma foto explicitamente removida o invalida.
+  const cachedHeaderProfile = signedInProfileId
     ? readCachedProfileAvatar(signedInProfileId, authenticatedEmail)
     : null;
-  const displayProfile = userProfile || cachedHeaderProfile;
+  const profileHasAvatar = Boolean(resolveProfileAvatarDisplayUrl(userProfile));
+  const cachedHasAvatar = Boolean(resolveProfileAvatarDisplayUrl(cachedHeaderProfile));
+  const displayProfile = userProfile && (profileHasAvatar || !cachedHasAvatar)
+    ? userProfile
+    : cachedHeaderProfile;
   const canonicalSignedInUser =
     sessionUsers.find((item) => item.id === session.id) ??
     sessionUsers.find(
