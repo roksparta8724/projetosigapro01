@@ -42,7 +42,8 @@ async function isVerifiedPublicAppDocument(response) {
 }
 
 async function fetchCurrentPublicDocument() {
-  // Não envia cookies ou Authorization: o HTML não deve mudar por identidade.
+  // Permite o cookie SSO do domínio de homologação, mas nunca lê tokens do
+  // SIGAPRO: só armazenamos HTML Vite com assinatura pública comprovada.
   return fetch(new Request(DOCUMENT_URL, {
     method: "GET",
     credentials: "same-origin",
@@ -51,12 +52,13 @@ async function fetchCurrentPublicDocument() {
   }));
 }
 
-async function updatePublicDocumentCache() {
+async function updatePublicDocumentCache(prewarmBootAssets = false) {
   try {
     const response = await fetchCurrentPublicDocument();
     if (!(await isVerifiedPublicAppDocument(response))) return;
     const cache = await caches.open(NAVIGATION_CACHE);
     await cache.put(DOCUMENT_URL, response.clone());
+    if (prewarmBootAssets) await precacheBootAssets(await response.clone().text());
   } catch {
     // Sem internet, a cópia pública anteriormente validada continua disponível.
   }
@@ -65,7 +67,7 @@ async function updatePublicDocumentCache() {
 self.addEventListener("install", (event) => {
   event.waitUntil((async () => {
     // Preparar antes de controlar a aba evita a primeira navegação sem cache.
-    await updatePublicDocumentCache();
+    await updatePublicDocumentCache(true);
     await self.skipWaiting();
   })());
 });
@@ -109,6 +111,48 @@ async function cacheFirst(request, cacheName) {
   }
   return response;
 }
+
+
+// Preparar os bundles REAIS do HTML Vite ANTES do primeiro F5. Sem isso, o SW
+// registrado após window.load não viu os JS/CSS da primeira visita, e um F5
+// ainda precisava baixá-los pela rede antes de renderizar React.
+function collectPublicBootAssetUrls(html) {
+  const matches = html.matchAll(/(?:src|href)=["'](\/assets\/[^"'?#]+\.(?:m?js|css))(?:\?[^"']*)?["']/gi);
+  return [...new Set(Array.from(matches, (match) => new URL(match[1], self.location.origin).href))].slice(0, 24);
+}
+
+function isPublicVersionedAsset(url) {
+  try {
+    const parsed = new URL(url, self.location.origin);
+    return (
+      parsed.origin === self.location.origin &&
+      parsed.pathname.startsWith("/assets/") &&
+      /\.(?:m?js|css)$/i.test(parsed.pathname)
+    );
+  } catch {
+    return false;
+  }
+}
+
+async function precachePublicAssetUrls(urls) {
+  const safeUrls = Array.from(new Set(urls.filter(isPublicVersionedAsset))).slice(0, 64);
+  await Promise.allSettled(safeUrls.map((url) =>
+    cacheFirst(new Request(url, { credentials: "same-origin", cache: "no-store" }), ASSET_CACHE),
+  ));
+}
+
+async function precacheBootAssets(html) {
+  await precachePublicAssetUrls(collectPublicBootAssetUrls(html));
+}
+
+// A primeira visita carregou chunks antes da ativação do SW. Após claim(),
+// o cliente informa SOMENTE URLs JS/CSS de /assets/ já usadas naquela aba.
+// A solicitação não inclui credenciais, DOM, imagens, dados nem rotas privadas.
+self.addEventListener("message", (event) => {
+  if (!event.data || event.data.type !== "SIGAPRO_PRECACHE_USED_ASSETS") return;
+  const urls = Array.isArray(event.data.urls) ? event.data.urls.slice(0, 64) : [];
+  event.waitUntil(precachePublicAssetUrls(urls.filter((url) => typeof url === "string")));
+});
 
 async function respondToNavigation(request, event) {
   const cache = await caches.open(NAVIGATION_CACHE);
