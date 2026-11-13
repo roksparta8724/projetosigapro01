@@ -227,9 +227,13 @@ describe("F5, logout and topbar visual continuity", () => {
     expect(viteConfig).toContain('"./src/pages/saas/ProcessDetailPage.tsx"');
   });
 
-  it("loads critical process styles before the first React paint", () => {
-    expect(html).toContain('href="/src/components/platform/ProcessIdentityPanel.css"');
-    expect(html).toContain('href="/src/components/platform/AnalysisReadinessPanel.css"');
+  it("loads process-specific styles with their real panels without delaying unrelated F5 routes", () => {
+    expect(html).not.toContain('href="/src/components/platform/ProcessIdentityPanel.css"');
+    expect(html).not.toContain('href="/src/components/platform/AnalysisReadinessPanel.css"');
+    const identityPanel = readFileSync(resolve(process.cwd(), "src/components/platform/ProcessIdentityPanel.tsx"), "utf8");
+    const analysisPanel = readFileSync(resolve(process.cwd(), "src/components/platform/AnalysisReadinessPanel.tsx"), "utf8");
+    expect(identityPanel).toContain('import "./ProcessIdentityPanel.css";');
+    expect(analysisPanel).toContain('import "./AnalysisReadinessPanel.css";');
   });
 
   it("clears the local identity before navigation/network so account switching stays isolated", () => {
