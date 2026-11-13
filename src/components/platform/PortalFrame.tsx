@@ -814,6 +814,16 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false, compa
   // Cadastros antigos podem ter useAvatarInHeader=false mesmo com foto R2
   // válida; esse campo legado não deve ocultar uma imagem já salva.
   const topbarAvatarImageUrl = resolveProfileAvatarDisplayUrl(displayProfile) || null;
+  // Só uma leitura REMOTA já confirmada para a conta atual pode remover a
+  // imagem existente. Lacunas de hidratação/refresh não equivalem a "foto
+  // excluída" e não podem fazer o cabeçalho trocar para iniciais.
+  const topbarPhotoRemovalConfirmed = Boolean(
+    dataReadyForCurrentUser &&
+    source === "remote" &&
+    userProfile &&
+    !profileHasAvatar &&
+    !cachedHasAvatar
+  );
   const topbarAvatarCrop = useMemo(() => {
     if (!topbarAvatarImageUrl) return undefined;
     return {
@@ -1513,6 +1523,8 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false, compa
                     authenticatedOwnerId={authenticatedAvatarOwnerId}
                     name={displayUserName}
                     imageUrl={topbarAvatarImageUrl}
+                    preservePhotoDuringRefresh
+                    photoRemovalConfirmed={topbarPhotoRemovalConfirmed}
                     crop={topbarAvatarCrop}
                     size="sm"
                     className="sig-topbar-user-avatar"
