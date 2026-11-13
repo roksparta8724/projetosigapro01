@@ -22,6 +22,9 @@
 type ReloadNavigationEvent = {
   navigationType?: string;
   canIntercept?: boolean;
+  cancelable?: boolean;
+  defaultPrevented?: boolean;
+  preventDefault?: () => void;
   userInitiated?: boolean;
   destination?: { url?: string };
   intercept?: (options: {
@@ -72,10 +75,7 @@ export function installSeamlessInternalRefresh(options: SeamlessRefreshOptions):
     if (
       !shouldHandle() ||
       event.navigationType !== "reload" ||
-      !event.canIntercept ||
-      !event.intercept ||
-      // Never suppress an intentional programmatic hard reload used by app
-      // recovery or a version update. Browser Reload/F5 is user initiated.
+      // Nunca bloquear recarregamento deliberado do próprio aplicativo.
       event.userInitiated === false
     ) return;
 
@@ -95,15 +95,30 @@ export function installSeamlessInternalRefresh(options: SeamlessRefreshOptions):
     }
     if (!sameDocument) return;
 
-    try {
-      event.intercept({
-        focusReset: "manual",
-        scroll: "manual",
-        handler: refreshInPlace,
-      });
-    } catch {
-      // A browser may decline interception even when its capability flag is
-      // true. Do not cancel native behavior or compromise the application.
+    // Preferir interceptação de navegação sem reconstrução do documento.
+    if (event.canIntercept && event.intercept) {
+      try {
+        event.intercept({
+          focusReset: "manual",
+          scroll: "manual",
+          handler: refreshInPlace,
+        });
+        return;
+      } catch {
+        // Alguns navegadores recusam intercept() em recargas da toolbar.
+      }
+    }
+
+    // Se o navegador informar reload do usuário e permitir cancelar o evento,
+    // impedir a navegação completa e revalidar os dados na mesma página.
+    // Quando o evento não é cancelável, deixar o reload nativo acontecer.
+    if (event.cancelable && event.preventDefault) {
+      try {
+        event.preventDefault();
+        if (event.defaultPrevented) void refreshInPlace();
+      } catch {
+        // Jamais bloquear a navegação ou mostrar shell artificial por falha.
+      }
     }
   };
 
