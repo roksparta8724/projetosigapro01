@@ -3,9 +3,15 @@
  * during an explicit browser Refresh. Reloading a document destroys its DOM,
  * which makes the browser repaint the app's bare background for a frame.
  *
- * Navigation API intercept("reload") converts the browser refresh button to
- * a same-document update, where supported. Keyboard interception handles
- * F5 / Ctrl+R / Cmd+R in all browsers that permit preventDefault.
+ * Navigation API may intercept eligible same-document navigations, but
+ * the browser's own Reload button may initiate a new document before any
+ * page listener runs. F5 / Ctrl+R / Cmd+R are intercepted only if the browser
+ * dispatches a cancelable key event to this authenticated page.
+ *
+ * For a guaranteed uninterrupted update, use PortalFrame's "Atualizar dados"
+ * action, which revalidates remote data without replacing the document.
+ * Full browser reloads must use optimized first paint, not pretend the
+ * browser can be forced to preserve the old DOM.
  *
  * No HTML snapshots, no fake shell and no stale protected DOM storage.
  * Install from the stable authenticated router gate, above lazy pages.

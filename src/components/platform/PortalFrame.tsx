@@ -34,7 +34,7 @@
   X,
 } from "@/components/platform/PremiumIcons";
 import { useEffect, useMemo, useState } from "react";
-import { Network } from "lucide-react";
+import { Network, RefreshCw } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
@@ -351,6 +351,18 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
     addProcessMarkerWithColor,
     removeProcessMarker,
   } = usePlatformData();
+  const [refreshingVisibleData, setRefreshingVisibleData] = useState(false);
+  const refreshWithoutPageReload = async () => {
+    if (refreshingVisibleData || session.id === "unknown") return;
+    setRefreshingVisibleData(true);
+    try {
+      await refreshRemoteStore();
+    } catch (error) {
+      console.warn("[SIGAPRO] Não foi possível atualizar dados em memória.", error);
+    } finally {
+      setRefreshingVisibleData(false);
+    }
+  };
   // Revalidate permissions across logged-in devices after Master changes a contract.
   // This is a background refresh: never replace a visible page with a loading shell.
   useLivePlatformRefresh(refreshRemoteStore, {
@@ -1022,6 +1034,10 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
     };
 
     try {
+      // O primeiro documento do F5 herda exatamente a mesma cor já aplicada
+      // pela página oficial, sem retornar ao verde do preset antigo.
+      document.documentElement.style.setProperty("--sig-initial-bg", pageBackground);
+      document.documentElement.style.setProperty("--sig-bg", pageBackground);
       window.localStorage.setItem("sigapro.last-page-background.v2", pageBackground);
       window.localStorage.setItem("sigapro.effective-theme.v2", JSON.stringify(effectiveTheme));
       setEffectiveThemeCache(effectiveTheme);
@@ -1437,6 +1453,19 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                   <Network className="h-[18px] w-[18px] text-white/92" />
                 </button>
               ) : null}
+              <button
+                type="button"
+                onClick={() => void refreshWithoutPageReload()}
+                disabled={refreshingVisibleData}
+                aria-label="Atualizar dados sem recarregar a página"
+                title="Atualizar dados"
+                className={cn(
+                  "inline-flex h-[38px] w-[38px] items-center justify-center rounded-[14px] transition duration-200 disabled:opacity-60",
+                  topbarIconButton,
+                )}
+              >
+                <RefreshCw aria-hidden="true" className={cn("h-[18px] w-[18px] text-white/92", refreshingVisibleData && "animate-spin")} />
+              </button>
               <button
                 type="button"
                 onClick={() => navigate("/notificacoes")}
@@ -2051,6 +2080,22 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false }: Por
                   : "border-slate-200/90 bg-white/92",
               )}
             >
+              <button
+                type="button"
+                onClick={() => void refreshWithoutPageReload()}
+                disabled={refreshingVisibleData}
+                aria-label="Atualizar dados sem recarregar a página"
+                title="Atualizar dados — mantém a tela aberta"
+                className={cn(
+                  "inline-flex h-[38px] w-[38px] items-center justify-center rounded-[12px] transition duration-150 disabled:opacity-60",
+                  darkTopbar
+                    ? "text-slate-100 hover:bg-white/10"
+                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-950",
+                )}
+              >
+                <RefreshCw aria-hidden="true" className={cn("h-[18px] w-[18px]", refreshingVisibleData && "animate-spin")} />
+              </button>
+
               {can(session, "manage_tenant_branding") ? (
                 <button
                   type="button"
