@@ -2,6 +2,7 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { isConfirmedStoreIdentity } from "@/lib/confirmedStoreIdentity";
+import { IdentityScopedSingleFlight } from "@/lib/identityScopedSingleFlight";
 import {
   type AccountStatus,
   buildProcessDocuments,
@@ -111,6 +112,8 @@ interface PlatformDataState {
   loading: boolean;
   dataError: string | null;
   dataReadyForCurrentUser: boolean;
+  /** True only after the official database revalidated this user and all required records. */
+  remoteSyncedForCurrentUser: boolean;
   refreshRemoteStore: (focusProcessRouteKey?: string | null) => Promise<void>;
   tenants: Tenant[];
   institutions: Institution[];
@@ -997,6 +1000,11 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
     () => initialStateRef.current?.contextUserId ?? null,
   );
   const lastFetchedUserId = useRef<string | null>(null);
+  // The 31-query store load must not multiply for multiple focus/change
+  // events, and an old account's request must never mutate the new account.
+  const refreshFlightsRef = useRef(new IdentityScopedSingleFlight());
+  const currentAuthIdentityRef = useRef(authenticatedUserId);
+  currentAuthIdentityRef.current = authenticatedUserId;
   const allowRemoteInLocal =
     isNeonBackend ||
     (import.meta.env.VITE_FORCE_REMOTE_STORE as string | undefined) === "true";
@@ -1329,8 +1337,12 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
       throw error;
     }
 
-    try {
-      const remote = await loadRemotePlatformStoreWithRetry(focusProcessRouteKey);
+    const identity = authenticatedUserId;
+    return refreshFlightsRef.current.run(identity, focusProcessRouteKey ?? "", async () => {
+      try {
+        const remote = await loadRemotePlatformStoreWithRetry(focusProcessRouteKey);
+        // Never apply a late response from a previously signed-in account.
+        if (currentAuthIdentityRef.current !== identity) return;
       let sanitized = buildSanitizedStore(remote, false);
       const authoritativeProfile = findUserProfile(
         sanitized.userProfiles,
@@ -1365,14 +1377,17 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
       setDataError(null);
       lastFetchedUserId.current = authenticatedUserId;
       setRemoteContextUserId(authenticatedUserId);
-    } catch (error) {
-      setDataError(
-        error instanceof Error && error.message
-          ? `Banco oficial indisponível: ${error.message}`
-          : "Banco oficial temporariamente indisponível.",
-      );
-      throw error;
-    }
+      } catch (error) {
+        if (currentAuthIdentityRef.current === identity) {
+          setDataError(
+            error instanceof Error && error.message
+              ? `Banco oficial indisponível: ${error.message}`
+              : "Banco oficial temporariamente indisponível.",
+          );
+        }
+        throw error;
+      }
+    });
   };
 
   // Revalidações periódicas/focus podem consultar o backend, mas nunca devem
@@ -1594,6 +1609,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         };
       });
 
+      if (typeof window !== "undefined") window.dispatchEvent(new Event("sigapro:data-changed"));
       return nextPlan;
     };
 
@@ -1672,6 +1688,7 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
         return { ...current, planAssignments, tenants };
       });
 
+      if (typeof window !== "undefined") window.dispatchEvent(new Event("sigapro:data-changed"));
       return nextAssignment;
     };
 
@@ -1788,11 +1805,21 @@ export function PlatformDataProvider({ children }: { children: React.ReactNode }
       ),
     );
 
+    // A same-account warm cache is useful for F5 visual continuity, but it
+    // must never be counted as an authoritative bank refresh. In particular,
+    // an outage must not leave stale process counts labeled as current.
+    const remoteSyncedForCurrentUser = Boolean(
+      dataReadyForCurrentUser &&
+      !dataError &&
+      (!expectsRemoteStore || source === "remote")
+    );
+
     return {
       source,
       loading,
       dataError,
       dataReadyForCurrentUser,
+      remoteSyncedForCurrentUser,
       refreshRemoteStore,
       ...store,
       institutions: store.tenants,

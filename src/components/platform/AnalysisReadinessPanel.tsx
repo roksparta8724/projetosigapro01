@@ -1,3 +1,4 @@
+import "./AnalysisReadinessPanel.css";
 import { AlertTriangle, CheckCircle2, ClipboardCheck, Clock3, ShieldCheck } from "lucide-react";
 import type { ProcessRecord, UserProfile } from "@/lib/platform";
 import {

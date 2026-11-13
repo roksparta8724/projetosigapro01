@@ -1,7 +1,9 @@
-import { archiveAndOpenGuide, openLegacyGuideOriginal, openStoredGuide, readGuideOriginal } from "@/lib/guideOriginal";
-﻿import { FormEvent, MouseEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, ArrowRightLeft, Building2, CheckCircle2, Clock3, Download, Eye, FileBadge2, FileCheck2, FileKey2, FileStack, Landmark, LogOut, Maximize2, MessageSquareMore, PencilLine, Printer, ReceiptText, Route, ShieldAlert, Signature, UserRound, Wallet, Workflow, ZoomIn, ZoomOut } from "lucide-react";
-import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { archiveAndOpenGuide, openLegacyGuideOriginal, openStoredGuide, readGuideOriginal, isGuideSettled } from "@/lib/guideOriginal";
+import { completeHabiteSeProcess } from "@/integrations/permits/habiteSePermitClient";
+import { isSyntheticQaProtocolGuideCode, isFinancialTestGuide } from "@/lib/qaPaymentEvidence";
+import { FormEvent, MouseEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ArrowLeft, ArrowRightLeft, BrainCircuit, Building2, CheckCircle2, Clock3, Download, Eye, FileBadge2, FileCheck2, FileKey2, FileStack, Landmark, LogOut, Maximize2, MessageSquareMore, PencilLine, Printer, ReceiptText, Route, ShieldAlert, Signature, UserRound, Wallet, Workflow, ZoomIn, ZoomOut } from "lucide-react";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,7 +18,9 @@ import {
 import { FileDropZone, type UploadedFileItem } from "@/components/platform/FileDropZone";
 import { PageHero } from "@/components/platform/PageHero";
 import { PageShell, PageStatsRow } from "@/components/platform/PageShell";
+import { formatProcessSlaDeadline } from "@/lib/processSlaPresentation";
 import { PixQrCode } from "@/components/platform/PixQrCode";
+import { GuidePixShareCard } from "@/components/platform/GuidePixShareCard";
 import { PortalFrame } from "@/components/platform/PortalFrame";
 import { attachMunicipalCollectionGuide } from "@/lib/municipalCollectionBridge";
 import { GovbrArGuideBridge, isGovbrArGuideDocument } from "@/components/platform/GovbrArGuideBridge";
@@ -31,6 +35,7 @@ import { OccupancyPermitProcessPanel } from "@/components/platform/OccupancyPerm
 import { MarkerSelector } from "@/components/platform/MarkerSelector";
 import { MunicipalOrganogramBar } from "@/components/platform/MunicipalOrganogramBar";
 import { UrbanAnalysisChecklistPanel } from "@/components/platform/UrbanAnalysisChecklistPanel";
+import { UrbanPrecheckPanel } from "@/components/platform/UrbanPrecheckPanel";
 import { SignedAnalysisArchiveFolder } from "@/components/platform/SignedAnalysisArchiveFolder";
 import { isSignedAnalysisArchiveDocument } from "@/lib/signedAnalysisArchive";
 import { resolveProcessDispatchAuthor } from "@/lib/dispatchActorIdentity";
@@ -43,7 +48,6 @@ import {
 } from "@/lib/guideAssets";
 import { cacheDocumentWorkspaceAccessUrl } from "@/lib/documentWorkspaceAccess";
 import {
-  ensureMercadoPagoGuideCharge,
   type MercadoPagoGuideCharge,
 } from "@/lib/mercadoPagoGuide";
 import { buildGuidePixPayload, resolveGuideBankingData } from "@/lib/paymentCollection";
@@ -59,12 +63,16 @@ import {
   getMunicipalityLogoOpenUrl,
   getSignedUrlForObjectStrict,
   listRecoverableProcessFiles,
+  verifyRecoverableProcessFile,
   type RecoverableProcessFile,
 } from "@/integrations/r2/client";
 import { uploadFileToStorage } from "@/integrations/r2/storage";
+import { createQa04ArchitecturalPdf, createQa04DocumentKit, isQa04ArchitecturalImportAllowed, QA04_DOCUMENT_LABELS } from "@/lib/qa04ArchitecturalFixture";
+import { upgradeRemoteQa04ArchitecturalPlanV2 } from "@/integrations/backend/platformImpl";
 import {
   buildProcessPath,
-  buildProcessRouteKey,
+  buildProcessDocuments,
+  buildProcessIdentityRouteKey,
   calculateApprovalGuideBreakdown,
   calculateHabiteSeGuideBreakdown,
   calculateIssGuideAmount,
@@ -347,7 +355,7 @@ export function ProcessDetailPage() {
     () => refreshRemoteStore(processId ?? null),
     [processId, refreshRemoteStore],
   );
-  useLivePlatformRefresh(refreshCurrentProcessStore, { intervalMs: 1800 });
+  useLivePlatformRefresh(refreshCurrentProcessStore, { intervalMs: 30000, refreshOnMount: false });
 
   const liveProcess = resolveProcessRoute(processes, processId);
   const [cachedProcessVisual, setCachedProcessVisual] = useState<ProcessRecord | undefined>(() =>
@@ -525,7 +533,8 @@ export function ProcessDetailPage() {
     };
 
     void syncExactProcess();
-    const timer = window.setInterval(() => void syncExactProcess(), 1500);
+    // This query reads only the current process, not the entire municipal store.
+    const timer = window.setInterval(() => void syncExactProcess(), 8000);
     window.addEventListener("focus", syncExactProcess);
     window.addEventListener("pageshow", syncExactProcess);
     window.addEventListener("online", syncExactProcess);
@@ -715,6 +724,16 @@ export function ProcessDetailPage() {
   const [viewerZoom, setViewerZoom] = useState(1);
   const [documentAccessUrls, setDocumentAccessUrls] = useState<Record<string, string>>({});
   const [documentAccessErrors, setDocumentAccessErrors] = useState<Record<string, string>>({});
+  const [verifiedSignedArchive, setVerifiedSignedArchive] = useState<{ processId: string; ids: string[] }>({
+    processId: "", ids: [],
+  });
+  const updateVerifiedSignedArchive = useCallback((processId: string, ids: string[]) => {
+    setVerifiedSignedArchive((current) => {
+      if (current.processId === processId && current.ids.length === ids.length &&
+          current.ids.every((id, i) => id === ids[i])) return current;
+      return { processId, ids };
+    });
+  }, []);
   const [documentUploads, setDocumentUploads] = useState<Record<string, UploadedFileItem[]>>({});
   const [requirementUploads, setRequirementUploads] = useState<Record<string, UploadedFileItem[]>>({});
   const [recoverableFiles, setRecoverableFiles] = useState<RecoverableProcessFile[]>([]);
@@ -725,6 +744,9 @@ export function ProcessDetailPage() {
   const [annotationDraft, setAnnotationDraft] = useState("");
   const [annotationPoint, setAnnotationPoint] = useState<{ x: number; y: number } | null>(null);
   const [processActionStatus, setProcessActionStatus] = useState("");
+  const [triageCorrection, setTriageCorrection] = useState({
+    address: "", area: "", ownerName: "", technicalLead: "",
+  });
   const [processActionBusy, setProcessActionBusy] = useState("");
   const [supervisorActionStatus, setSupervisorActionStatus] = useState("");
   const [supervisorActionBusy, setSupervisorActionBusy] = useState(false);
@@ -840,6 +862,15 @@ export function ProcessDetailPage() {
   useEffect(() => {
     if (!process) return;
     setConstructionAreaInput(process.property.area > 0 ? String(process.property.area) : "");
+    setTriageCorrection({
+      address: process.address && !/^(?:não informado|nao informado|endereço não informado)$/i.test(process.address.trim())
+        ? process.address : "",
+      area: process.property.area > 0 ? String(process.property.area) : "",
+      ownerName: process.ownerName && !/^(?:não informado|nao informado)$/i.test(process.ownerName.trim())
+        ? process.ownerName : "",
+      technicalLead: process.technicalLead && !/^(?:não informado|nao informado)$/i.test(process.technicalLead.trim())
+        ? process.technicalLead : "",
+    });
     setConstructionUsageInput(process.property.usage || "");
     setWorkTypeInput(process.property.workType || "");
     setHabiteSeConstructionStandardInput(process.property.constructionStandard || "");
@@ -898,7 +929,7 @@ export function ProcessDetailPage() {
   useEffect(() => {
     if (!process || !processId) return;
 
-    const canonicalRouteKey = buildProcessRouteKey(process.protocol, process.id);
+    const canonicalRouteKey = buildProcessIdentityRouteKey(process);
     if (!canonicalRouteKey) return;
 
     let currentRouteKey = processId;
@@ -977,7 +1008,37 @@ export function ProcessDetailPage() {
     }
   }, [activeTab, isExternalSession, session.role]);
 
-  const canUploadProcessDocuments = session.role === "profissional_externo" && process?.status === "rascunho";
+  // Automatic triage returns a paid process to its professional for missing
+  // documents. A draft-only condition trapped the professional permanently:
+  // no upload => no recheck => no analyst dispatch. Keep this owner/scope-
+  // restricted and never reopen documents for unrelated or closed processes.
+  const canUploadProcessDocuments = session.role === "profissional_externo" &&
+    !!process &&
+    processBelongsToExternalProfessional(session, process) &&
+    matchesOperationalScope(effectiveScopeId, process) &&
+    (process.status === "rascunho" || process.status === "pendencia_documental");
+  const canImportQa04Fixture = isQa04ArchitecturalImportAllowed({
+    isolatedQa: import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true",
+    role: session.role,
+    process,
+  });
+  const qa04FixtureUploadedLabels = new Set(
+    (process?.documents ?? [])
+      .filter((document) => document.uploaded && document.filePath &&
+        document.fileName?.startsWith("SIGAPRO-QA04-"))
+      .map((document) => document.label),
+  );
+  const qa04MissingFixtureLabels = QA04_DOCUMENT_LABELS.filter(
+    (label) => !qa04FixtureUploadedLabels.has(label),
+  );
+  const qa04HasOutdatedPlan = (process?.documents ?? []).some((document) =>
+    document.label === "Projeto Arquitetônico" && document.uploaded &&
+    document.fileName === "SIGAPRO-QA04-PLANTA-FICTICIA.pdf" && Boolean(document.filePath),
+  );
+  const qa04HasRevisedPlan = (process?.documents ?? []).some((document) =>
+    document.label === "Projeto Arquitetônico" && document.uploaded &&
+    document.fileName === "SIGAPRO-QA04-PLANTA-IMPLANTACAO-V2.pdf" && Boolean(document.filePath),
+  );
   const canRecoverStoredDocuments =
     canUploadProcessDocuments ||
     (
@@ -1200,7 +1261,20 @@ export function ProcessDetailPage() {
   const constructionGuideSentExternally = issuedConstructionGuide
     ? isProcessPaymentGuideSharedExternally(process, issuedConstructionGuide)
     : false;
-  const regularProcessDocuments = process.documents.filter((document) => !isSignedAnalysisArchiveDocument(document));
+  // Only authenticated signature history can remove a PDF from the ordinary
+  // checklist. A filename or client-side signed flag is not legal evidence.
+  const verifiedArchiveIds = new Set(
+    verifiedSignedArchive.processId === process.id ? verifiedSignedArchive.ids : [],
+  );
+  // Older paid pre-protocols may have zero rows in process_documents.
+  // Render the official checklist as *pending slots*, never as uploaded
+  // or legally verified records, so the professional can submit them.
+  // Always merge stored documents with every pending checklist slot. After
+  // the first upload, other missing slots must not disappear from the UI.
+  const documentSlots = buildProcessDocuments(
+    process.type, process.documents, process.tenantId, effectiveScopeId,
+  );
+  const regularProcessDocuments = documentSlots.filter((document) => !verifiedArchiveIds.has(document.id));
   const uploadedCount = regularProcessDocuments.filter((document) => document.uploaded).length;
   const protocolGuide = visiblePaymentGuides.find((guide) => guide.kind === "protocolo");
   const pixPayload = protocolGuide
@@ -1285,7 +1359,7 @@ export function ProcessDetailPage() {
   const visibleDocumentRows =
     isProtocolTrackingOnly
       ? []
-      : isInternalRole(session.role)
+      : isInternalRole(session.role) || canUploadProcessDocuments
         ? regularProcessDocuments
         : regularProcessDocuments.filter((document) => document.uploaded);
   const approvedDocumentCount = regularProcessDocuments.filter(
@@ -1833,7 +1907,7 @@ export function ProcessDetailPage() {
   const showPrimaryDetailColumn = ["imovel", "documentos", "analise", "financeiro", "alvara", "historico"].includes(activeTab);
   const showSecondaryDetailColumn = ["analise", "financeiro"].includes(activeTab);
   const useSplitDetailLayout = false;
-  const cardShell = "sig-process-card min-w-0 rounded-[20px] border border-slate-200 bg-white shadow-[0_14px_34px_rgba(15,23,42,0.08)] dark:border-slate-700 dark:bg-slate-900";
+  const cardShell = "sig-process-card min-w-0 max-w-full rounded-[20px] border border-slate-200 bg-white shadow-[0_14px_34px_rgba(15,23,42,0.08)] dark:border-slate-700 dark:bg-slate-900";
   const printGuide = async (
     guideKind: PaymentGuideKind = "protocolo",
     autoPrint = true,
@@ -1846,6 +1920,68 @@ export function ProcessDetailPage() {
       visiblePaymentGuides.find((guide) => guide.kind === guideKind);
     if (!selectedGuide) return;
 
+    // A historical QA guide is an administrative fixture, not an actual bank
+    // claim. The old path tried get_payment_guide_original_v1 and rejected it as
+    // "compensada sem PDF original": there is deliberately no original or PIX.
+    // This view must never call banking/provider, freeze an original, or issue
+    // a charge. In production the branch is disabled by the isolated-QA flag.
+    if (import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true" &&
+        selectedGuide.kind === "protocolo" &&
+        isSyntheticQaProtocolGuideCode(selectedGuide.code) &&
+        Number(selectedGuide.amount) === 0) {
+      const issuedDate = selectedGuide.issuedAt || process.officializedAt || new Date().toISOString();
+      const preview: GuiaRecolhimentoOficialProps = {
+        prefeitura: {
+          nome: municipalityName || tenant?.name || "Prefeitura Municipal",
+          secretaria: tenantSettings?.secretariaResponsavel || "Secretaria responsável",
+          endereco: tenantSettings?.endereco || "",
+          telefone: tenantSettings?.telefone || "",
+          logoUrl: preparedGuideLogoUrl || getRenderedMunicipalityLogoDataUrl() ||
+            stableGuideLogoUrl || tenantSettings?.brasaoUrl || "",
+        },
+        contribuinte: {
+          nome: process.ownerName || "Não informado no cadastro",
+          cpfCnpj: process.ownerDocument || "",
+          endereco: process.address || "Não informado no cadastro",
+          numeroCadastro: process.property.registration || process.protocol,
+        },
+        guia: {
+          numeroGuia: selectedGuide.code,
+          exercicio: new Date(issuedDate).getFullYear(),
+          dataDocumento: issuedDate,
+          vencimento: selectedGuide.dueDate,
+          observacao: "DOCUMENTO FICTÍCIO DE HOMOLOGAÇÃO. NÃO É GUIA BANCÁRIA E NÃO DEVE SER PAGO.",
+          funcionarioResponsavel: selectedGuide.issuedBy || session.name,
+          proprietario: process.ownerName || "",
+          profissionalResponsavel: process.technicalLead || "",
+          areaObra: process.property.area || undefined,
+          usoObra: process.property.usage || "",
+          nonPayablePreview: true,
+          bankEnvironment: "test",
+          paymentProvider: "manual",
+          bankName: "",
+          codigoBarras: "",
+          linhaDigitavel: "",
+          pixPayload: "",
+          qrCodePixUrl: "",
+          valorDocumento: 0,
+          valorCobrado: 0,
+        },
+        itens: [{
+          ano: new Date(issuedDate).getFullYear(),
+          divida: "Protocolo administrativo - prévia de homologação sem cobrança",
+          tabela: "QA - NÃO PAGAR",
+          principal: 0,
+          multa: 0, juros: 0, correcao: 0, total: 0,
+        }],
+      };
+      const opened = openGuiaRecolhimentoOficialWindow(preview, {
+        title: "Prévia administrativa - sem cobrança - " + selectedGuide.code,
+        autoPrint,
+      });
+      if (!opened) setProcessActionStatus("O navegador bloqueou a prévia da guia. Permita a abertura de guias do SIGAPRO.");
+      return;
+    }
 
     const reservedGuideWindow = reserveGuiaRecolhimentoOficialWindow(
       "Guia " + selectedGuide.code,
@@ -1855,14 +1991,18 @@ export function ProcessDetailPage() {
       return;
     }
     try {
-    if (await openLegacyGuideOriginal(process.documents, selectedGuide.code, reservedGuideWindow)) return;
+    // Never open a legacy process attachment in place of a bank-issued DAM:
+    // the canonical Neon guide and permanent PDF always take precedence.
     const original = await readGuideOriginal(effectiveScopeId, selectedGuide.code);
     if (await openStoredGuide(original, reservedGuideWindow)) return;
-    if (original.status === "compensada") {
-      throw new Error("Guia compensada sem PDF original arquivado. A guia não será recriada nem cobrada novamente.");
+    if (isGuideSettled(original)) {
+      throw new Error("Guia quitada sem PDF original arquivado. Solicite recuperação ao Financeiro; a guia não será recriada.");
     }
     if (original.collection_mode_snapshot === "municipal_system") {
-      throw new Error("Esta guia pertence ao sistema próprio da Prefeitura. Receba ou abra o PDF oficial importado; o SIGAPRO não criará outra cobrança.");
+      // A municipality-owned collection may have one explicitly imported
+      // official PDF, but SIGAPRO cannot create a competing bank charge.
+      if (await openLegacyGuideOriginal(process.documents, selectedGuide.code, reservedGuideWindow)) return;
+      throw new Error("Esta guia pertence ao sistema próprio da Prefeitura. Importe o PDF oficial antes de exibir a cobrança.");
     }
     selectedGuide = { ...selectedGuide, code: original.guide_number, amount: Number(original.amount),
       issuedAt: original.created_at, dueDate: original.due_date,
@@ -1876,7 +2016,7 @@ export function ProcessDetailPage() {
     }
     const paidGuide = false;
     const issuedAt = selectedGuide.issuedAt;
-    if (!issuedAt) throw new Error("Data original da guia ausente no Neon.");
+    if (!issuedAt) throw new Error("Data original da guia ausente nos registros SIGAPRO.");
     const year = new Date(issuedAt).getFullYear().toString();
     const approvalBreakdown = !paidGuide && selectedGuide.kind === "aprovacao_final"
         ? calculateApprovalGuideBreakdown(
@@ -1972,10 +2112,9 @@ export function ProcessDetailPage() {
       municipalityName: municipalityName || tenant?.name,
       municipalityCity: tenantSettings?.pixMerchantCity || tenant?.city,
     });
-    const providerCharge = banking.barcode && banking.digitableLine ? null : await ensureMercadoPagoGuideCharge({
-      municipalityId: effectiveScopeId, guideCode: selectedGuide.code, amount: selectedGuide.amount,
-      dueDate: selectedGuide.dueDate, description: selectedGuide.label + " · " + process.protocol,
-    });
+    // Opening a guide is READ-ONLY. Issuing a financial order requires the
+    // explicit payer checkout in the external payments portal, never this view.
+    const providerCharge = preparedGuideCharges[selectedGuide.code] || null;
     const digitableLine = providerCharge?.digitableLine || banking.digitableLine;
     const barcode = providerCharge?.barcodeContent || banking.barcode;
 
@@ -1983,8 +2122,9 @@ export function ProcessDetailPage() {
       setProcessActionStatus(
         guidePreparationError
           ? `A guia não foi aberta porque os dados bancários ainda não estão válidos: ${guidePreparationError}`
-          : "A guia ainda está sendo preparada. Aguarde a conclusão dos dados bancários antes de abrir.",
+          : "É necessário emitir e registrar o boleto oficial antes de visualizar a guia. Use a tela Pagamentos.",
       );
+      reservedGuideWindow.close();
       return;
     }
 
@@ -2115,11 +2255,10 @@ export function ProcessDetailPage() {
     key: string,
     action: () => Promise<void>,
     successMessage: string,
-    options?: { allowMunicipalAdmin?: boolean },
   ) => {
-    if (session.role === "prefeitura_admin" && !options?.allowMunicipalAdmin) {
+    if (session.role === "prefeitura_admin") {
       setProcessActionStatus(
-        "Esta ação operacional pertence ao setor responsável. O Administrador da Prefeitura mantém governança do processo e pode executar o encaminhamento institucional quando necessário.",
+        "Esta ação operacional pertence ao setor responsável. O Administrador da Prefeitura acompanha os processos somente em consulta.",
       );
       return false;
     }
@@ -2487,6 +2626,10 @@ export function ProcessDetailPage() {
   };
   const handleDispatchSubmit = async (event: FormEvent) => {
     event.preventDefault();
+    if (session.role === "prefeitura_admin") {
+      setProcessActionStatus("O Administrador da Prefeitura pode consultar, mas não encaminhar ou modificar processos.");
+      return;
+    }
     if (isProtocolTrackingOnly) {
       setProcessActionStatus("O Protocolo está apenas acompanhando este processo e não pode despachá-lo nesta etapa.");
       return;
@@ -2524,7 +2667,6 @@ export function ProcessDetailPage() {
           visibility: dispatchVisibility,
         }),
       `Processo encaminhado com sucesso para ${selectedDestination.name}. A nova unidade já recebeu o trâmite no fluxo oficial.`,
-      { allowMunicipalAdmin: true },
     );
     if (ok) {
       setDispatchTo("");
@@ -2545,7 +2687,7 @@ export function ProcessDetailPage() {
       "Visibilidade de tramitação atualizada.",
     );
   };
-  const openDocumentWorkspace = (documentId: string, forceAnalysis = false) => {
+  const openDocumentWorkspace = (documentId: string, forceAnalysis = false, openAi = false) => {
     const selectedDocument = process.documents.find((item) => item.id === documentId);
     if (!selectedDocument || openingDocumentId) return;
 
@@ -2554,9 +2696,11 @@ export function ProcessDetailPage() {
     const shouldAnalyze = Boolean((forceAnalysis || canReviewDocuments) &&
       canAnalyzeProcessDocument(session, process, effectiveScopeId));
     const route = shouldAnalyze ? "analisar" : "visualizar";
-    const query = shouldAnalyze ? "?ferramenta=highlight" : "";
+    const query = shouldAnalyze
+      ? openAi ? "?ferramenta=navigate&painel=ia" : "?ferramenta=highlight"
+      : "";
     const workspaceUrl =
-      `${window.location.origin}${buildProcessPath(process)}/documentos/${documentId}/${route}${query}`;
+      `${window.location.origin}${buildProcessPath(process)}/documentos/${documentId}/${route}${query}${query ? "&" : "?"}janela=1`;
 
     setOpeningDocumentId(documentId);
     setProcessActionStatus("");
@@ -2625,6 +2769,8 @@ export function ProcessDetailPage() {
     const ok = await runProcessAction(
       `recover-document-${document.id}`,
       async () => {
+        const recovered = await verifyRecoverableProcessFile({processId:process.id,objectKey:candidate.objectKey});
+        if(recovered.fileSizeBytes !== candidate.size)throw new Error("O arquivo mudou após a listagem. Refaça a busca.");
         const result = await appendProcessDocuments(
           process.id,
           [
@@ -2640,6 +2786,7 @@ export function ProcessDetailPage() {
               source: "profissional",
               fileName: candidate.fileName,
               filePath: candidate.objectKey,
+              fileHash: recovered.fileHash,
               mimeType: inferMimeType(candidate.fileName),
               sizeLabel: formatBytes(candidate.size),
               fileSizeBytes: candidate.size,
@@ -2665,9 +2812,108 @@ export function ProcessDetailPage() {
     }
   };
 
+  const handleImportQa04ArchitecturalFixture = async () => {
+    if (!canImportQa04Fixture) {
+      setProcessActionStatus("Importação disponível apenas ao master no ambiente de testes SIGAPRO.");
+      return;
+    }
+    if (qa04MissingFixtureLabels.length === 0) {
+      setProcessActionStatus("Os quatro documentos fictícios já estão anexados ao processo.");
+      return;
+    }
+    await runProcessAction("qa04-import-project", async () => {
+      const kit = createQa04DocumentKit().filter((entry) =>
+        qa04MissingFixtureLabels.some((needed) => needed === entry.label),
+      );
+      for (const { label, file } of kit) {
+        const uploaded = await uploadFileToStorage({
+          bucket: "process-documents",
+          tenantId: effectiveScopeId,
+          userId: session.id,
+          file,
+          folder: "qa-arquitetura",
+        });
+        const result = await appendProcessDocuments(process.id, [{
+          id: `doc-${crypto.randomUUID()}`,
+          label,
+          required: true,
+          uploaded: true,
+          signed: false,
+          reviewStatus: "pendente",
+          annotations: [],
+          version: file.name === "SIGAPRO-QA04-PLANTA-IMPLANTACAO-V2.pdf" ? 2 : 1,
+          source: "prefeitura",
+          fileName: file.name,
+          filePath: uploaded.path,
+          fileHash: uploaded.fileHash,
+          mimeType: "application/pdf",
+          fileSizeBytes: file.size,
+          previewUrl: uploaded.publicUrl || undefined,
+        }], session.name);
+        if (Number(result.synced || 0) !== 1) {
+          throw new Error(`Falha ao vincular ${label}. A importação pode ser retomada sem duplicar os já anexados.`);
+        }
+      }
+    }, "Kit fictício importado: projeto arquitetônico e três placeholders sem validade. Confira na Triagem antes do despacho.");
+  };
+
+  const handleUpgradeQa04ArchitecturalPlan = async () => {
+    if (!canImportQa04Fixture || !qa04HasOutdatedPlan || qa04HasRevisedPlan) {
+      setProcessActionStatus("Planta V2 não permitida ou já anexada a este processo fictício.");
+      return;
+    }
+    const ok = await runProcessAction("qa04-upgrade-plan", async () => {
+      const file = createQa04ArchitecturalPdf();
+      const uploaded = await uploadFileToStorage({
+        bucket: "process-documents",
+        tenantId: effectiveScopeId,
+        userId: session.id,
+        file,
+        folder: "qa-arquitetura",
+      });
+      const result = await upgradeRemoteQa04ArchitecturalPlanV2(
+        process.id, uploaded.path, file.name, file.size, uploaded.fileHash || "",
+      );
+      if (result.ok !== true) throw new Error("O ambiente de testes SIGAPRO não confirmou a revisão V2.");
+    },
+    "Planta V2 com recuos cotados anexada. A V1 permanece no histórico e o novo documento aguarda conferência.",
+    );
+    if (ok) await refreshCurrentProcessStore();
+  };
+
+  const handleCorrectPaidTriageIdentity = async () => {
+    if (!canUploadProcessDocuments || process.status !== "pendencia_documental") {
+      setProcessActionStatus("Somente o profissional vinculado pode completar uma pendência documental.");
+      return;
+    }
+    const payload = {
+      address: triageCorrection.address.trim(),
+      area: triageCorrection.area.trim().replace(",", "."),
+      ownerName: triageCorrection.ownerName.trim(),
+      technicalLead: triageCorrection.technicalLead.trim(),
+    };
+    if (payload.address.length < 10 ||
+        !/^[0-9]{1,8}(?:\.[0-9]{1,2})?$/.test(payload.area) ||
+        Number(payload.area) <= 0 ||
+        payload.ownerName.length < 3 || payload.technicalLead.length < 3) {
+      setProcessActionStatus("Informe endereço completo, área positiva em m², proprietário e responsável técnico para reenviar à triagem.");
+      return;
+    }
+    const ok = await runProcessAction("correct-paid-triage", async () => {
+      const { data, error } = await backendClient.rpc("correct_paid_triage_identity_v1", {
+        _process_id: process.id,
+        _payload: payload,
+      });
+      if (error) throw new Error(error.message || "Falha ao gravar a complementação cadastral.");
+      if (!data || typeof data !== "object" || !("ok" in data) || data.ok !== true)
+        throw new Error("O banco não confirmou a atualização cadastral.");
+    }, "Dados cadastrais registrados e triagem reavaliada. Envie os anexos exigidos abaixo; nenhuma guia foi recriada.");
+    if (ok) await refreshCurrentProcessStore();
+  };
+
   const handleUploadMissingDocument = async (document: typeof process.documents[number]) => {
     if (!canUploadProcessDocuments) {
-      setProcessActionStatus("Somente o profissional externo pode enviar documentos para o processo.");
+      setProcessActionStatus("Somente o profissional responsável, em rascunho ou correção documental, pode enviar documentos.");
       return;
     }
     const selected = documentUploads[document.id]?.[0];
@@ -2702,6 +2948,7 @@ export function ProcessDetailPage() {
               source: isInternalRole(session.role) ? "prefeitura" : "profissional",
               fileName: selected.fileName,
               filePath: uploaded.path,
+          fileHash: uploaded.fileHash,
               mimeType: selected.mimeType,
               sizeLabel: selected.sizeLabel,
               fileSizeBytes: selected.file.size,
@@ -2759,6 +3006,7 @@ export function ProcessDetailPage() {
             source: isInternalRole(session.role) ? "prefeitura" : "profissional",
             fileName: selected.fileName,
             filePath: uploaded.path,
+          fileHash: uploaded.fileHash,
             mimeType: selected.mimeType,
             sizeLabel: selected.sizeLabel,
             fileSizeBytes: selected.file.size,
@@ -2854,7 +3102,7 @@ export function ProcessDetailPage() {
         <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900 dark:border-sky-500/30 dark:bg-sky-950/30 dark:text-sky-200">
           <p className="font-semibold">Governança administrativa da Prefeitura</p>
           <p className="mt-1 leading-6">
-            O Administrador acompanha todo o processo e pode realizar o encaminhamento institucional pelo organograma. Aprovação técnica, baixa financeira e demais atos especializados continuam restritos aos setores competentes.
+            O Administrador acompanha o processo em modo de consulta. Encaminhamentos, baixa financeira, análise, assinaturas e alterações do processo pertencem exclusivamente aos setores competentes.
           </p>
         </div>
       ) : null}
@@ -2984,12 +3232,12 @@ export function ProcessDetailPage() {
               <Badge variant="outline" className={statusTone(process.status)}>
                 {statusLabel(process.status)}
               </Badge>
-              <Badge variant="outline" className="rounded-full">
+              <Badge variant="outline" className="max-w-full whitespace-normal break-words rounded-full">
                 {process.type}
               </Badge>
             </div>
-            <p className="mt-4 text-sm leading-6 text-slate-600" title={process.address}>{process.address}</p>
-            <p className="mt-2 text-sm leading-6 text-slate-500" title={`Protocolo oficial ${process.externalProtocol} - ${officialMunicipalityLabel(tenant?.name || municipalityName)}`}>
+            <p data-sigapro-contained-text="true" className="mt-4 text-sm leading-6 text-slate-600" title={process.address}>{process.address}</p>
+            <p data-sigapro-contained-text="true" className="mt-2 text-sm leading-6 text-slate-500" title={`Protocolo oficial ${process.externalProtocol} - ${officialMunicipalityLabel(tenant?.name || municipalityName)}`}>
               Protocolo oficial {process.externalProtocol} - {officialMunicipalityLabel(tenant?.name || municipalityName)}
             </p>
           </CardContent>
@@ -3001,11 +3249,17 @@ export function ProcessDetailPage() {
                 ? "Guia de aprovação / Alvará"
                 : constructionGuide
                   ? "Guia de ISSQN / Projeto"
-                  : "Guia de protocolo"}
+                  : displayGuide && isSyntheticQaProtocolGuideCode(displayGuide.code) && import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true"
+                    ? "Prévia de protocolo — homologação"
+                    : "Guia de protocolo"}
             </p>
-            <p className="sig-fit-title mt-3 text-lg font-medium leading-7 text-slate-900" title={displayGuide?.code || "Sem guia"}>{displayGuide?.code || "Sem guia"}</p>
-            <p className="mt-2 text-base font-medium leading-6 text-slate-700">{displayGuide ? formatCurrency(displayGuide.amount) : "Não emitida"}</p>
-            <p className="sig-field-help sig-fit-copy mt-1" title={tenantSettings?.beneficiarioArrecadacao || tenant?.name || ""}>{tenantSettings?.beneficiarioArrecadacao || tenant?.name}</p>
+            <p data-sigapro-contained-text="true" className="sig-fit-title mt-3 text-lg font-medium leading-7 text-slate-900" title={displayGuide?.code || "Sem guia"}>{displayGuide?.code || "Sem guia"}</p>
+            <p className="mt-2 text-base font-medium leading-6 text-slate-700" data-sigapro-guide-qa-preview={displayGuide && isSyntheticQaProtocolGuideCode(displayGuide.code) && import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true" ? "true" : undefined}>
+              {displayGuide && isSyntheticQaProtocolGuideCode(displayGuide.code) && import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true"
+                ? "Prévia sem cobrança — não pagar"
+                : displayGuide ? formatCurrency(displayGuide.amount) : "Não emitida"}
+            </p>
+            <p data-sigapro-contained-text="true" className="sig-field-help sig-fit-copy mt-1" title={tenantSettings?.beneficiarioArrecadacao || tenant?.name || ""}>{tenantSettings?.beneficiarioArrecadacao || tenant?.name}</p>
             {displayGuide ? (
               <div className="mt-4 flex flex-wrap gap-2">
                 <Button
@@ -3020,7 +3274,7 @@ export function ProcessDetailPage() {
                                 ) : (
                                   <Eye className="mr-2 h-4 w-4" />
                                 )}
-                                {guideBillingBusyKey ? "Preparando guia..." : "Visualizar guia"}
+                                {guideBillingBusyKey ? "Preparando guia..." : displayGuide && isSyntheticQaProtocolGuideCode(displayGuide.code) && import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true" ? "Visualizar prévia" : "Visualizar guia"}
                 </Button>
                 <Button
                   type="button"
@@ -3034,7 +3288,7 @@ export function ProcessDetailPage() {
                                 ) : (
                                   <Printer className="mr-2 h-4 w-4" />
                                 )}
-                                {guideBillingBusyKey ? "Preparando guia..." : "Imprimir guia"}
+                                {guideBillingBusyKey ? "Preparando guia..." : displayGuide && isSyntheticQaProtocolGuideCode(displayGuide.code) && import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true" ? "Imprimir prévia" : "Imprimir guia"}
                 </Button>
               </div>
             ) : null}
@@ -3046,7 +3300,7 @@ export function ProcessDetailPage() {
             <p className="mt-3 text-lg font-medium leading-7 text-slate-900 dark:text-slate-100">
               {uploadedCount}/{regularProcessDocuments.length}
             </p>
-            <p className="sig-field-help mt-2">Checklist com versão, nome do arquivo e assinatura</p>
+            <p data-sigapro-contained-text="true" className="sig-field-help mt-2">Checklist com versão, nome do arquivo e assinatura</p>
           </CardContent>
         </Card>
 
@@ -3056,7 +3310,7 @@ export function ProcessDetailPage() {
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="sig-label">{isHabiteSeProcess ? "Habite-se" : "Alvará de Construção"}</p>
-                  <p className="mt-3 text-lg font-bold leading-7 text-slate-950 dark:text-white">
+                  <p data-sigapro-contained-text="true" className="mt-3 text-lg font-bold leading-7 text-slate-950 dark:text-white">
                     {isHabiteSeProcess
                       ? formatOfficialProcessNumber(process.protocol)
                       : constructionPermit?.permitNumber || "Em preparação"}
@@ -3108,8 +3362,8 @@ export function ProcessDetailPage() {
           <Card data-process-summary-card="true" data-summary-tone="amber" className={`${cardShell} sig-premium-summary-card sig-summary-amber h-full`}>
             <CardContent className="p-5">
               <p className="sig-label">SLA atual</p>
-              <p className="mt-3 text-lg font-medium leading-7 text-slate-900" title={effectiveSlaStage}>{effectiveSlaStage}</p>
-              <p className="sig-field-help mt-2" title={`Prazo ${process.sla.dueDate} - ${process.sla.hoursRemaining}h restantes`}>Prazo {process.sla.dueDate} - {process.sla.hoursRemaining}h restantes</p>
+              <p data-sigapro-contained-text="true" className="mt-3 text-lg font-medium leading-7 text-slate-900" title={effectiveSlaStage}>{effectiveSlaStage}</p>
+              <p data-sigapro-contained-text="true" data-sigapro-sla-date-consistency="true" className="sig-field-help mt-2" title={formatProcessSlaDeadline(process.sla.dueDate, process.sla.hoursRemaining)}>{formatProcessSlaDeadline(process.sla.dueDate, process.sla.hoursRemaining)}</p>
               {process.sla.breached ? <p className="mt-2 text-sm font-medium text-rose-600">Prazo estourado</p> : null}
             </CardContent>
           </Card>
@@ -3348,6 +3602,117 @@ export function ProcessDetailPage() {
               data-process-document-content="true"
               className="space-y-4 p-5 md:p-6"
             >
+              {canUploadProcessDocuments && process.status === "pendencia_documental" ? (
+                <section data-paid-triage-correction="true" className="space-y-4 rounded-2xl border border-sky-200 bg-sky-50 p-5 text-slate-900">
+                  <div>
+                    <h3 className="font-bold text-sky-950">Completar cadastro para liberar a triagem</h3>
+                    <p className="mt-1 text-sm leading-6 text-slate-700">
+                      Seu protocolo já foi criado. Complete os dados verdadeiros do imóvel e das partes;
+                      os documentos obrigatórios são enviados logo abaixo. Nenhum pagamento será refeito.
+                    </p>
+                  </div>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <label className="space-y-1.5 text-sm font-semibold" htmlFor="triage-property-address">
+                      Endereço completo do imóvel
+                      <Input id="triage-property-address" autoComplete="street-address"
+                        value={triageCorrection.address} maxLength={240}
+                        onChange={e=>setTriageCorrection(v=>({...v,address:e.target.value}))}
+                        placeholder="Rua, número, bairro e município" className="bg-white text-slate-950" />
+                    </label>
+                    <label className="space-y-1.5 text-sm font-semibold" htmlFor="triage-property-area">
+                      Área do imóvel/obra (m²)
+                      <Input id="triage-property-area" inputMode="decimal"
+                        value={triageCorrection.area} maxLength={12}
+                        onChange={e=>setTriageCorrection(v=>({...v,area:e.target.value}))}
+                        placeholder="Ex.: 250,50" className="bg-white text-slate-950" />
+                    </label>
+                    <label className="space-y-1.5 text-sm font-semibold" htmlFor="triage-owner-name">
+                      Nome completo do proprietário
+                      <Input id="triage-owner-name" autoComplete="name"
+                        value={triageCorrection.ownerName} maxLength={160}
+                        onChange={e=>setTriageCorrection(v=>({...v,ownerName:e.target.value}))}
+                        className="bg-white text-slate-950" />
+                    </label>
+                    <label className="space-y-1.5 text-sm font-semibold" htmlFor="triage-professional-name">
+                      Nome do responsável técnico
+                      <Input id="triage-professional-name"
+                        value={triageCorrection.technicalLead} maxLength={160}
+                        onChange={e=>setTriageCorrection(v=>({...v,technicalLead:e.target.value}))}
+                        className="bg-white text-slate-950" />
+                    </label>
+                  </div>
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <p className="max-w-xl text-xs text-slate-700">Depois de salvar, o sistema confere a documentação e encaminha à análise somente quando todos os requisitos estiverem atendidos.</p>
+                    <Button type="button" disabled={Boolean(processActionBusy)} onClick={()=>void handleCorrectPaidTriageIdentity()}
+                      className="rounded-full bg-sky-900 px-5 text-white hover:bg-sky-800">
+                      {processActionBusy==="correct-paid-triage" ? "Salvando e conferindo..." : "Salvar dados e revalidar triagem"}
+                    </Button>
+                  </div>
+                </section>
+              ) : null}
+              {(session.role === "analista" || session.role === "prefeitura_supervisor") &&
+               !canReviewDocuments ? (
+                <div data-sigapro-document-editor-locked="true" role="note"
+                  className="flex flex-wrap items-start justify-between gap-3 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-amber-950 dark:border-amber-600 dark:bg-amber-950/30 dark:text-amber-100">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-extrabold">Para editar e marcar o PDF, assuma ou distribua a análise</p>
+                    <p className="mt-1 text-xs leading-5">
+                      A entrega dos documentos está concluída, mas a mesa técnica exige um responsável autorizado.
+                      Abrir documento é somente visualização; Adicionar marcador não cria apontamentos no PDF.
+                    </p>
+                  </div>
+                  <Button type="button" data-sigapro-open-analyst-assignment="true"
+                    className="min-h-10 max-w-full rounded-xl bg-[#075985] px-4 !text-white hover:bg-[#0c4a6e] [&_*]:!text-white"
+                    onClick={() => navigate("/prefeitura/analise?secao=fila")}>
+                    Ir à fila para assumir análise
+                  </Button>
+                </div>
+              ) : null}
+              {canImportQa04Fixture ? (
+                <div className="rounded-2xl border border-sky-300 bg-sky-50 p-4 text-slate-900 dark:border-sky-600 dark:bg-slate-900 dark:text-slate-100">
+                  <p className="text-sm font-bold">Ensaio controlado de IA — Processo 04 fictício</p>
+                  <p className="mt-1 text-xs leading-5">Importa um projeto arquitetônico de ensaio e três placeholders manifestamente fictícios. Somente no ambiente de testes SIGAPRO; não aprova documentos, não altera pagamento e não libera a Análise automaticamente. Os arquivos permanecerão pendentes de análise técnica.</p>
+                  <Button
+                    type="button"
+                    className="mt-3 min-h-11 rounded-xl bg-[#075985] px-5 py-3 text-sm font-bold !text-white shadow-sm hover:bg-[#0369a1] hover:!text-white focus-visible:ring-2 focus-visible:ring-sky-500 disabled:cursor-not-allowed disabled:opacity-60 [&_*]:!text-white"
+                    disabled={qa04MissingFixtureLabels.length === 0 || Boolean(processActionBusy)}
+                    onClick={() => void handleImportQa04ArchitecturalFixture()}
+                  >
+                    {qa04MissingFixtureLabels.length === 0 ? "Kit fictício já anexado" : processActionBusy === "qa04-import-project" ? "Importando documentos..." : `Importar kit fictício (${qa04MissingFixtureLabels.length} arquivo(s))`}
+                  </Button>
+                  {qa04HasOutdatedPlan && !qa04HasRevisedPlan ? (
+                    <Button type="button" variant="outline"
+                      className="ml-2 mt-3 min-h-11 rounded-xl border-sky-700 bg-white px-5 py-3 text-sm font-bold text-sky-950 hover:bg-sky-100 dark:bg-slate-800 dark:text-white"
+                      disabled={Boolean(processActionBusy)}
+                      onClick={() => void handleUpgradeQa04ArchitecturalPlan()}
+                    >
+                      {processActionBusy === "qa04-upgrade-plan"
+                        ? "Atualizando implantação..."
+                        : "Atualizar planta com recuos (V2)"}
+                    </Button>
+                  ) : null}
+                  {qa04HasRevisedPlan ? (
+                    <p className="mt-2 text-sm font-semibold text-emerald-900 dark:text-emerald-200">
+                      Planta V2 disponível. Abra Projeto Arquitetônico para visualizar os recuos.
+                    </p>
+                  ) : null}
+                  {processActionBusy === "qa04-upgrade-plan" ? (
+                    <p role="status" aria-live="polite" className="mt-2 text-sm font-semibold text-sky-900 dark:text-sky-100">
+                      Armazenando a planta cotada no SIGAPRO Nuvem e registrando a revisão auditada nos testes...
+                    </p>
+                  ) : null}
+                  {processActionBusy === "qa04-import-project" ? (
+                    <p role="status" aria-live="polite" className="mt-2 text-sm font-semibold text-sky-900 dark:text-sky-100">
+                      Importando os documentos fictícios no SIGAPRO Nuvem e registrando nos testes...
+                    </p>
+                  ) : null}
+                  {processActionStatus ? (
+                    <p role="alert" className="mt-2 rounded-lg border border-sky-300 bg-white p-3 text-sm font-semibold text-slate-900 dark:border-sky-500 dark:bg-slate-800 dark:text-white">
+                      {processActionStatus}
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
               {(!canUploadProcessDocuments && pendingExternalDocumentCount > 0) || recoverableStatus ? (
                 <div className="grid gap-2 lg:grid-cols-2">
                   {!canUploadProcessDocuments && pendingExternalDocumentCount > 0 ? (
@@ -3437,6 +3802,7 @@ export function ProcessDetailPage() {
                   process={process}
                   onOpenPdf={openViewer}
                   onOpenAnalysis={() => setProcessTab("analise")}
+                  onVerifiedArchiveIds={updateVerifiedSignedArchive}
                 />
               )}
 
@@ -3581,6 +3947,26 @@ export function ProcessDetailPage() {
                           >
                             <Maximize2 className="h-4 w-4" />
                             {openingDocumentId === document.id ? "Abrindo..." : "Abrir documento"}
+                          </button>
+                        ) : null}
+                        {document.uploaded &&
+                          document.label === "Projeto Arquitetônico" &&
+                          canUseMunicipalChecklist &&
+                          canEditAnalysisChecklist &&
+                          stableAnalysisAccess ? (
+                          <button
+                            type="button"
+                            data-sigapro-ai-review-shortcut="true"
+                            data-primary-action="document"
+                            disabled={Boolean(openingDocumentId)}
+                            onClick={() => openDocumentWorkspace(document.id, true, true)}
+                            className="sig-primary-document-action inline-flex min-h-10 min-w-0 max-w-full items-center justify-center gap-2 rounded-full border border-sky-500 bg-[#075985] px-4 py-2 text-center text-xs font-bold !text-white shadow-sm transition-colors hover:bg-[#0c4a6e] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500 disabled:cursor-wait disabled:opacity-80 [&_*]:!text-white"
+                            title="Abrir esta planta na mesa de análise, com o painel SIGAPRO IA ao lado. Não envia o PDF automaticamente."
+                          >
+                            <BrainCircuit data-sigapro-ai-review-icon="true" className="h-4 w-4 shrink-0 !text-white" aria-hidden="true" />
+                            <span data-sigapro-ai-review-label="true" className="min-w-0 whitespace-normal break-words !text-white [overflow-wrap:anywhere]">
+                              SIGAPRO IA · Ler projeto
+                            </span>
                           </button>
                         ) : null}
                       </div>
@@ -3803,6 +4189,11 @@ export function ProcessDetailPage() {
                 municipalityEmail={tenantSettings?.email || ""}
                 departmentLabel={getOrganizationPath(currentFolder) || "Análise Urbanística"}
                 organogramTrail={currentOrganizationTrail}
+              />
+              <UrbanPrecheckPanel
+                process={process}
+                municipalityId={effectiveScopeId || process.tenantId}
+                readOnly={!canEditAnalysisChecklist}
               />
               {canReviewDocuments ? (
                 <AnalysisReadinessPanel
@@ -4166,14 +4557,12 @@ export function ProcessDetailPage() {
                 }
                 onProcessRefresh={() => refreshRemoteStore()}
                 onCompleteProcess={async () => {
-                  await updateProcessStatus({
-                    processId: process.id,
-                    status: "deferido",
-                    actor: session.name,
-                    title: "Processo de Habite-se concluído",
-                    detail:
-                      "Alvará de Habite-se emitido com assinatura eletrônica válida da Diretoria. Processo concluído administrativamente pelo responsável autorizado, permanecendo visível na pasta de concluídos e no histórico oficial.",
-                  });
+                  // Arquivamento real: autorização, Alvará, status e auditoria
+                  // ficam na mesma transação Neon, não no update genérico.
+                  const result = await completeHabiteSeProcess(process.id);
+                  if (!result.ok || result.status !== "arquivado") {
+                    throw new Error("O banco não confirmou o arquivamento do Habite-se.");
+                  }
                   await refreshRemoteStore(process.id);
                   window.dispatchEvent(new Event("sigapro:data-changed"));
                 }}
@@ -4509,12 +4898,16 @@ export function ProcessDetailPage() {
                             <Badge
                               variant="outline"
                               className={`rounded-full ${
-                                guide.status === "compensada"
-                                  ? "border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-500/40 dark:bg-emerald-950/40 dark:text-emerald-300"
+                                isFinancialTestGuide(guide)
+                                  ? "border-sky-300 bg-sky-50 text-sky-900 dark:border-sky-600 dark:bg-sky-950/40 dark:text-sky-200"
+                                  : guide.status === "compensada"
+                                    ? "border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-500/40 dark:bg-emerald-950/40 dark:text-emerald-300"
                                   : "border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-500/40 dark:bg-amber-950/40 dark:text-amber-300"
                               }`}
                             >
-                              {guide.status === "compensada" ? "Pago / compensado" : "Em aberto"}
+                              {isFinancialTestGuide(guide)
+                                ? "Simulação QA — não paga em banco"
+                                : guide.status === "compensada" ? "Compensada no sistema" : "Em aberto"}
                             </Badge>
                           </div>
                           <p className="mt-2 text-sm font-medium text-slate-700 dark:text-slate-200">
@@ -4550,6 +4943,7 @@ export function ProcessDetailPage() {
                           </Button>
                         </div>
                       </div>
+                      <GuidePixShareCard guide={guide} settings={tenantSettings} municipalityName={municipalityName || tenant?.name} municipalityCity={tenantSettings?.pixMerchantCity || tenant?.city} />
                     </div>
                   ))}
                 </div>
@@ -4560,6 +4954,10 @@ export function ProcessDetailPage() {
               )}
             </CardContent>
           </Card>
+          )}
+
+          {!isExternalProcessViewer && activeTab === "financeiro" && displayGuide && (
+            <GuidePixShareCard guide={displayGuide} settings={tenantSettings} municipalityName={municipalityName || tenant?.name} municipalityCity={tenantSettings?.pixMerchantCity || tenant?.city} />
           )}
 
           {!isExternalProcessViewer && activeTab === "financeiro" && requestedPaymentGuide && (
@@ -4644,14 +5042,17 @@ export function ProcessDetailPage() {
                 <Badge
                   variant="outline"
                   className={
-                    protocolGuide?.status === "compensada"
-                      ? "w-fit rounded-full border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-500/40 dark:bg-emerald-950/35 dark:text-emerald-300"
+                    protocolGuide && isFinancialTestGuide(protocolGuide)
+                      ? "w-fit rounded-full border-sky-300 bg-sky-50 text-sky-900 dark:border-sky-600 dark:bg-sky-950/40 dark:text-sky-200"
+                      : protocolGuide?.status === "compensada"
+                        ? "w-fit rounded-full border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-500/40 dark:bg-emerald-950/35 dark:text-emerald-300"
                       : "w-fit rounded-full border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-500/40 dark:bg-amber-950/35 dark:text-amber-300"
                   }
                 >
-                  {protocolGuide?.status === "compensada"
-                    ? "Protocolo pago"
-                    : "Pagamento inicial pendente"}
+                  {protocolGuide && isFinancialTestGuide(protocolGuide)
+                    ? "Protocolo de ensaio QA — sem baixa bancária"
+                    : protocolGuide?.status === "compensada"
+                      ? "Compensada no sistema" : "Pagamento inicial pendente"}
                 </Badge>
               </div>
             </CardHeader>
@@ -5575,7 +5976,7 @@ export function ProcessDetailPage() {
                 </div>
               ) : null}
 
-{isInternalRole(session.role) && ownsCurrentProcessStage && !isProtocolTrackingOnly ? (
+{isInternalRole(session.role) && session.role !== "prefeitura_admin" && ownsCurrentProcessStage && !isProtocolTrackingOnly ? (
                 <form
                   id="despacho"
                   data-dispatch-panel="true"

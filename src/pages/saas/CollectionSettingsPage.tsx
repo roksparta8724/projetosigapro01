@@ -1,6 +1,7 @@
 import { PortalFrame } from "@/components/platform/PortalFrame";
 import { PageShell } from "@/components/platform/PageShell";
 import { MunicipalCollectionSettings } from "@/components/platform/MunicipalCollectionSettings";
+import { MunicipalCommercialReadiness } from "@/components/platform/MunicipalCommercialReadiness";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 
@@ -11,10 +12,12 @@ export function CollectionSettingsPage() {
   const isolatedQa = import.meta.env.VITE_SIGAPRO_NEON_ISOLATED === "true";
   return <PortalFrame eyebrow="Administração da Prefeitura" title="Guias e arrecadação"><PageShell>
     {isolatedQa ? <div role="status" data-collection-qa-banner="true" className="rounded-2xl border border-sky-300 bg-sky-50 px-5 py-4 text-sm font-semibold text-sky-950">
-      <strong>HOMOLOGAÇÃO ISOLADA — Neon QA</strong> · Esta página usa o banco de testes da Prefeitura.
-      Cobranças externas, gravações no R2 e assinaturas estão bloqueadas no servidor local para proteger a produção.
+      <strong>SIGAPRO · AMBIENTE DE TESTES</strong> · Esta página usa o banco de testes da Prefeitura.
+      As cobranças de teste, os anexos R2 e as assinaturas de homologação são isolados dos registros oficiais.
+      Nenhuma cobrança de produção ou alvará oficial é liberado por esta tela.
       Ao trocar de 8080 para 8081, entre novamente neste ambiente.
     </div> : null}
+    {municipalityId ? <MunicipalCommercialReadiness municipalityId={municipalityId}/> : null}
     {municipalityId?<MunicipalCollectionSettings municipalityId={municipalityId} municipalityName={name} readOnly={!canEdit}/>:<div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-900">Prefeitura não identificada.</div>}
   </PageShell></PortalFrame>;
 }

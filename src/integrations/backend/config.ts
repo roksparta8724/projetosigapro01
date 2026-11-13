@@ -3,8 +3,9 @@ export type BackendMode = "supabase" | "neon";
 export function isNeonPreviewHostname(hostname: string) {
   const normalized = hostname.toLowerCase();
   return (
-    normalized.includes("projetosigapro01-git-neon-first-") &&
-    normalized.endsWith(".vercel.app")
+    normalized.endsWith(".vercel.app") &&
+    (normalized.includes("projetosigapro01-git-neon-first-") ||
+      /^projetosigapro01-[a-z0-9-]+\.vercel\.app$/.test(normalized))
   );
 }
 

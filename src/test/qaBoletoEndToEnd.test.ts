@@ -114,7 +114,7 @@ describe("one complete sandbox-only SIGAPRO bank issuance", () => {
 
   it("rejects any nonisolated launch before touching bank accounts", async () => {
     vi.stubEnv("SIGAPRO_LOCAL_QA_LAUNCH", "false");
-    await expect(createMercadoPagoGuideBoleto(input, req, opts)).rejects.toThrow(/localhost:8081 isolado/);
+    await expect(createMercadoPagoGuideBoleto(input, req, opts)).rejects.toThrow(/homologação SIGAPRO isolada/);
     expect(mocks.resolve).not.toHaveBeenCalled();
     expect(fetch).not.toHaveBeenCalled();
   });
@@ -126,7 +126,7 @@ describe("one complete sandbox-only SIGAPRO bank issuance", () => {
   });
 
   it("does not create a second charge when an order reference already exists", async () => {
-    mocks.read.mockResolvedValue({...original,bank_reference:"MP-ORDER-SANDBOX"});
+    mocks.read.mockResolvedValue({...original,bank_reference:"MP-ORDER-SANDBOX",payment_provider:"mercado_pago",provider_environment:"test"});
     mocks.sync.mockResolvedValue(undefined);
     mocks.write.mockImplementation(async (_req,_guide,charge)=>({...charge,ok:true}));
     const result=await createMercadoPagoGuideBoleto(input,req,opts);

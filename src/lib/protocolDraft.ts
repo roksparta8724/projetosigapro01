@@ -29,6 +29,28 @@ export interface ProtocolDraftForm {
   tipoProfissional: string;
   empresaProfissional: string;
   registro: string;
+  conselhoProfissional: string;
+  inscricaoMunicipalProfissional: string;
+  responsabilidadeProjeto: string;
+  responsabilidadeExecucao: string;
+  execucaoMesmoResponsavel: boolean;
+  execucaoNome: string;
+  execucaoDocumento: string;
+  execucaoTipoProfissional: string;
+  execucaoConselho: string;
+  execucaoRegistro: string;
+  execucaoInscricaoMunicipal: string;
+  execucaoTelefone: string;
+  execucaoEmail: string;
+  protocolanteMesmoResponsavel: boolean;
+  protocolanteNome: string;
+  protocolanteDocumento: string;
+  protocolanteTipoProfissional: string;
+  protocolanteConselho: string;
+  protocolanteRegistro: string;
+  protocolanteInscricaoMunicipal: string;
+  protocolanteTelefone: string;
+  protocolanteEmail: string;
   telefone: string;
   email: string;
 }
@@ -75,7 +97,7 @@ export const defaultProtocolDraftForm: ProtocolDraftForm = {
   uso: "",
   tipoEdificacao: "",
   tipoObra: "",
-  padraoConstrutivo: "medio",
+  padraoConstrutivo: "",
   processoAprovacao: "",
   numeroAlvara: "",
   dataConclusaoObra: "",
@@ -86,6 +108,28 @@ export const defaultProtocolDraftForm: ProtocolDraftForm = {
   tipoProfissional: "",
   empresaProfissional: "",
   registro: "",
+  conselhoProfissional: "",
+  inscricaoMunicipalProfissional: "",
+  responsabilidadeProjeto: "",
+  responsabilidadeExecucao: "",
+  execucaoMesmoResponsavel: true,
+  execucaoNome: "",
+  execucaoDocumento: "",
+  execucaoTipoProfissional: "",
+  execucaoConselho: "",
+  execucaoRegistro: "",
+  execucaoInscricaoMunicipal: "",
+  execucaoTelefone: "",
+  execucaoEmail: "",
+  protocolanteMesmoResponsavel: true,
+  protocolanteNome: "",
+  protocolanteDocumento: "",
+  protocolanteTipoProfissional: "",
+  protocolanteConselho: "",
+  protocolanteRegistro: "",
+  protocolanteInscricaoMunicipal: "",
+  protocolanteTelefone: "",
+  protocolanteEmail: "",
   telefone: "",
   email: "",
 };

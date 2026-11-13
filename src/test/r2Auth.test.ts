@@ -8,7 +8,7 @@ function makeReq(body: Record<string, unknown> = {}, authorization?: string) {
     method: "POST",
     body,
     headers: authorization ? { authorization } : {},
-  } as any;
+  } as unknown as Parameters<typeof signGetHandler>[0];
 }
 
 function makeRes() {
@@ -22,7 +22,7 @@ function makeRes() {
     end(value?: unknown) {
       payload = value == null ? "" : String(value);
     },
-  } as any;
+  } as unknown as Parameters<typeof signGetHandler>[1];
 
   return {
     res,

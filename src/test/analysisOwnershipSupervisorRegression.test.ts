@@ -45,6 +45,22 @@ const urbanismDirector: SessionUser = {
 };
 
 const ownedProcess = {
+  isOfficial: true,
+  triage: { status: "concluido" },
+  payment: {
+    guideNumber: "DAM-TESTE-PROTOCOLO",
+    amount: 1,
+    status: "compensada",
+    dueDate: "2026-11-01",
+    guides: [{
+      kind: "protocolo",
+      label: "Guia de Protocolo",
+      code: "DAM-TESTE-PROTOCOLO",
+      amount: 1,
+      status: "compensada",
+      dueDate: "2026-11-01",
+    }],
+  },
   id: "process-owned",
   tenantId: municipalityId,
   municipalityId,

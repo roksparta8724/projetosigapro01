@@ -41,57 +41,15 @@ const ChartContainer = React.forwardRef<
 >(({ id, className, children, config, ratio = 16 / 9, minHeight = 220, maxHeight, style, ...props }, ref) => {
   const uniqueId = React.useId();
   const chartId = `chart-${id || uniqueId.replace(/:/g, "")}`;
-  const hostRef = React.useRef<HTMLDivElement | null>(null);
-  const [containerKey, setContainerKey] = React.useState(0);
-
-  React.useLayoutEffect(() => {
-    const node = hostRef.current;
-    if (!node || typeof ResizeObserver === "undefined") return;
-
-    let frame = 0;
-    let lastWidth = 0;
-    let lastHeight = 0;
-
-    const observer = new ResizeObserver((entries) => {
-      const entry = entries[0];
-      if (!entry) return;
-
-      const width = Math.round(entry.contentRect.width);
-      const height = Math.round(entry.contentRect.height);
-
-      if (width <= 0 || height <= 0) return;
-      if (width === lastWidth && height === lastHeight) return;
-
-      lastWidth = width;
-      lastHeight = height;
-
-      window.cancelAnimationFrame(frame);
-      frame = window.requestAnimationFrame(() => {
-        setContainerKey((current) => current + 1);
-      });
-    });
-
-    observer.observe(node);
-
-    return () => {
-      observer.disconnect();
-      window.cancelAnimationFrame(frame);
-    };
-  }, []);
+  // ResponsiveContainer já observa as dimensões internamente. Remontá-lo
+  // com uma key a cada ResizeObserver provocava piscadas, perda de hover
+  // e recriação de SVGs em todos os Dashboards.
 
   return (
     <ChartContext.Provider value={{ config }}>
       <div
         data-chart={chartId}
-        ref={(node) => {
-          hostRef.current = node;
-
-          if (typeof ref === "function") {
-            ref(node);
-          } else if (ref) {
-            ref.current = node;
-          }
-        }}
+        ref={ref}
         className={cn(
           "sig-chart-surface relative flex w-full min-w-0 justify-center overflow-hidden text-xs [&_.recharts-cartesian-axis-tick_text]:fill-muted-foreground [&_.recharts-cartesian-grid_line[stroke='#ccc']]:stroke-border/50 [&_.recharts-curve.recharts-tooltip-cursor]:stroke-border [&_.recharts-dot[stroke='#fff']]:stroke-transparent [&_.recharts-layer]:outline-none [&_.recharts-legend-wrapper]:!inset-x-0 [&_.recharts-legend-wrapper]:!w-full [&_.recharts-polar-grid_[stroke='#ccc']]:stroke-border [&_.recharts-radial-bar-background-sector]:fill-muted [&_.recharts-rectangle.recharts-tooltip-cursor]:fill-muted [&_.recharts-reference-line_[stroke='#ccc']]:stroke-border [&_.recharts-sector[stroke='#fff']]:stroke-transparent [&_.recharts-sector]:outline-none [&_.recharts-surface]:outline-none [&_.recharts-wrapper]:!max-w-full [&_.recharts-wrapper]:!max-h-full",
           className,
@@ -105,7 +63,7 @@ const ChartContainer = React.forwardRef<
         {...props}
       >
         <ChartStyle id={chartId} config={config} />
-        <RechartsPrimitive.ResponsiveContainer key={containerKey} width="100%" height="100%" debounce={120}>
+        <RechartsPrimitive.ResponsiveContainer width="100%" height="100%" debounce={120}>
           {children}
         </RechartsPrimitive.ResponsiveContainer>
       </div>
@@ -210,7 +168,7 @@ const ChartTooltipContent = React.forwardRef<
       <div
         ref={ref}
         className={cn(
-          "sig-chart-tooltip grid min-w-[8rem] items-start gap-1.5 rounded-lg border border-border/50 bg-background px-2.5 py-1.5 text-xs shadow-xl",
+          "sig-chart-tooltip grid w-max min-w-[10rem] max-w-[min(17rem,calc(100vw-2rem))] items-start gap-1.5 rounded-xl border border-border/50 bg-background px-3 py-2 text-xs leading-5 shadow-xl [overflow-wrap:normal] [word-break:normal]",
           className,
         )}
       >
@@ -225,7 +183,7 @@ const ChartTooltipContent = React.forwardRef<
               <div
                 key={item.dataKey}
                 className={cn(
-                  "flex w-full flex-wrap items-stretch gap-2 [&>svg]:h-2.5 [&>svg]:w-2.5 [&>svg]:text-current [&>svg]:stroke-current",
+                  "flex min-w-0 w-full flex-nowrap items-stretch gap-2 [&>svg]:h-2.5 [&>svg]:w-2.5 [&>svg]:text-current [&>svg]:stroke-current",
                   indicator === "dot" && "items-center",
                 )}
               >
@@ -259,12 +217,12 @@ const ChartTooltipContent = React.forwardRef<
                         nestLabel ? "items-end" : "items-center",
                       )}
                     >
-                      <div className="grid gap-1.5">
+                      <div className="grid min-w-0 gap-1.5">
                         {nestLabel ? tooltipLabel : null}
-                        <span className="text-muted-foreground">{itemConfig?.label || item.name}</span>
+                        <span className="min-w-0 break-words text-muted-foreground">{itemConfig?.label || item.name}</span>
                       </div>
-                      {item.value && (
-                        <span className="font-mono font-medium tabular-nums text-foreground">
+                      {item.value !== undefined && item.value !== null && (
+                        <span className="shrink-0 whitespace-nowrap font-mono font-medium tabular-nums text-foreground">
                           {item.value.toLocaleString()}
                         </span>
                       )}

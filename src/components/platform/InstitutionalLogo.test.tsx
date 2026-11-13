@@ -147,20 +147,59 @@ describe("InstitutionalLogo", () => {
     });
     rerender(<InstitutionalLogo branding={{ ...framed, logoScale: 2 }} variant="footer" contextScope="municipality" />);
     expect(container.querySelector("img")).toHaveStyle({
-      transform: "translate(0%, 0%) scale(1)",
+      transform: `translate(0%, 0%) scale(${2 * (2 / 3)})`,
     });
   });
 
-  it("never crops the complete crest with a legacy 5.0x saved zoom", () => {
+  it("caps legacy 5.0x values at the correct, independent header/footer limits", () => {
     for (const variant of ["header", "footer"] as const) {
       const { container, unmount } = render(<InstitutionalLogo
         branding={{ ...branding, logoScale: 5, logoOffsetX: 400, logoOffsetY: -300 }}
         variant={variant} contextScope="municipality"
       />);
       expect(container.querySelector("img")).toHaveStyle({
-        transform: "translate(0%, 0%) scale(1)",
+        transform: variant === "header" ? "translate(0%, 0%) scale(1)" : "translate(0%, 0%) scale(2)",
       });
       unmount();
+    }
+  });
+
+  it("keeps the validated Master logo fixed while route remount hydrates branding", () => {
+    const activeMaster = { ...branding, tenantId: "master", logoUrl: "/platform/custom-master-logo.png" };
+    const initial = render(<InstitutionalLogo branding={activeMaster} variant="header" contextScope="master" />);
+    fireEvent.load(screen.getByRole("img", { name: "Logo da prefeitura A" }));
+    initial.unmount();
+
+    const originalImage = window.Image;
+    const preloads: Array<{ onload: (() => void) | null; onerror: (() => void) | null; src: string }> = [];
+    class ProbeImage {
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      src = "";
+      decoding = "auto";
+      complete = false;
+      naturalWidth = 0;
+      constructor() { preloads.push(this); }
+    }
+    Object.defineProperty(window, "Image", { configurable: true, writable: true, value: ProbeImage });
+    try {
+      const { rerender, container } = render(
+        <InstitutionalLogo branding={{ ...activeMaster, logoUrl: "" }} variant="header" contextScope="master" />,
+      );
+      expect(screen.getByRole("img", { name: "Logo da prefeitura A" }))
+        .toHaveAttribute("src", expect.stringContaining("/platform/custom-master-logo.png"));
+      // O fallback genérico não pode entrar na fila de pré-carga para
+      // sobrepor uma imagem institucional já validada na mesma sessão.
+      expect(preloads).toHaveLength(0);
+      expect(container.querySelectorAll("img")).toHaveLength(1);
+
+      // A URL oficial pode chegar depois sem trocar o que já está correto.
+      rerender(<InstitutionalLogo branding={activeMaster} variant="header" contextScope="master" />);
+      expect(screen.getByRole("img", { name: "Logo da prefeitura A" }))
+        .toHaveAttribute("src", expect.stringContaining("/platform/custom-master-logo.png"));
+      expect(preloads).toHaveLength(0);
+    } finally {
+      Object.defineProperty(window, "Image", { configurable: true, writable: true, value: originalImage });
     }
   });
 

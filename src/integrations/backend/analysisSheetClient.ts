@@ -15,15 +15,32 @@ export async function readOfficialAnalysisSheet(processId: string): Promise<Offi
   if (error) {
     throw new Error("Ficha oficial indisponível no banco: " + (error.message || String(error)));
   }
-  const result = (data || {}) as Partial<OfficialAnalysisSheetRead>;
-  const revision = Number(result.revision ?? 0);
+  // Database readback is authoritative: an incomplete response must never
+  // allow the browser cache to masquerade as a confirmed municipal revision.
+  const result = data as Partial<OfficialAnalysisSheetRead> | null;
+  if (!result || typeof result !== "object" || Array.isArray(result) ||
+      (result.found !== true && result.found !== false)) {
+    throw new Error("Resposta inválida do banco ao consultar a ficha oficial.");
+  }
+  const revision = Number(result.revision);
   if (!Number.isSafeInteger(revision) || revision < 0) {
     throw new Error("Revisão da ficha oficial inválida.");
   }
+  if (result.found) {
+    const payload = result.payload;
+    if (revision === 0 || !payload || typeof payload !== "object" || Array.isArray(payload) ||
+        payload.schema !== "sigapro.urban-analysis-checklist.v2" ||
+        payload.processId !== processId ||
+        !payload.items || typeof payload.items !== "object" || Array.isArray(payload.items)) {
+      throw new Error("Ficha oficial recebida sem conteúdo válido ou vinculada a outro processo.");
+    }
+  } else if (revision !== 0 || result.payload != null) {
+    throw new Error("Resposta inconsistente do banco: ficha ausente com revisão ou conteúdo.");
+  }
   return {
-    found: result.found === true,
+    found: result.found,
     revision,
-    payload: result.payload && typeof result.payload === "object" ? result.payload : null,
+    payload: result.found ? result.payload as Record<string, unknown> : null,
     updated_at: result.updated_at,
     updated_by_profile_id: result.updated_by_profile_id,
   };
