@@ -153,6 +153,53 @@ describe("SIGAPRO F5 — HTML público preparado pelo Service Worker", () => {
     }
   });
 
+  it("prepara JS/CSS reais antes do primeiro F5 e recusa URLs privadas enviadas por mensagem", async () => {
+    const h = harness();
+    h.fetcher.mockImplementation(async (request) => {
+      const url = request.url;
+      if (url.endsWith("/assets/start-a.js")) {
+        return new TestResponse("export const ok = true;", { contentType: "application/javascript" });
+      }
+      if (url.endsWith("/assets/start-b.css")) {
+        return new TestResponse(":root{color:#123}", { contentType: "text/css" });
+      }
+      if (url.endsWith("/assets/rota-c.js")) {
+        return new TestResponse("export const route = true;", { contentType: "application/javascript" });
+      }
+      return new TestResponse(
+        '<!doctype html><html><head><meta name="sigapro-static-app-document" content="v1" />' +
+        '<script type="module" src="/assets/start-a.js"></script><link rel="stylesheet" href="/assets/start-b.css">' +
+        '</head><body><div id="root"></div></body></html>',
+      );
+    });
+    await h.install();
+
+    const assets = h.stores.get("sigapro-enterprise-v8:assets")!;
+    expect([...assets.keys()]).toEqual([
+      origin + "/assets/start-a.js",
+      origin + "/assets/start-b.css",
+    ]);
+
+    const waits: Promise<unknown>[] = [];
+    h.handlers.get("message")!({
+      data: {
+        type: "SIGAPRO_PRECACHE_USED_ASSETS",
+        urls: [
+          origin + "/assets/rota-c.js",
+          origin + "/api/processes",
+          origin + "/api/guide-payments",
+          "https://outra-prefeitura.example.org/assets/roubo.js",
+          origin + "/arquivo.pdf",
+        ],
+      },
+      waitUntil: (p: Promise<unknown>) => waits.push(p),
+    });
+    await Promise.all(waits);
+    expect(assets.has(origin + "/assets/rota-c.js")).toBe(true);
+    expect([...assets.keys()].every((url) => url.startsWith(origin + "/assets/"))).toBe(true);
+    expect(assets.size).toBe(3);
+  });
+
   it("preserva a geração anterior de chunks durante a ativação", async () => {
     const h = harness();
     await h.cachesMock.open("sigapro-enterprise-v7:assets");
