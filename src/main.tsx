@@ -224,11 +224,41 @@ persistRefreshContinuity();
 
 bootApplication();
 
+function precacheLoadedPublicBundles() {
+  const worker = navigator.serviceWorker?.controller;
+  if (!worker || typeof performance === "undefined") return;
+
+  const urls: string[] = [];
+  for (const entry of performance.getEntriesByType("resource")) {
+    try {
+      const url = new URL(entry.name, window.location.href);
+      if (
+        url.origin === window.location.origin &&
+        url.pathname.startsWith("/assets/") &&
+        /\.(?:m?js|css)$/i.test(url.pathname)
+      ) {
+        urls.push(url.href);
+      }
+    } catch {
+      // Ignorar entradas de performance inválidas, sem bloquear a aplicação.
+    }
+  }
+
+  if (urls.length > 0) {
+    worker.postMessage({
+      type: "SIGAPRO_PRECACHE_USED_ASSETS",
+      urls: [...new Set(urls)].slice(-64),
+    });
+  }
+}
+
 if (import.meta.env.PROD && "serviceWorker" in navigator) {
   window.addEventListener("load", () => {
+    navigator.serviceWorker.addEventListener("controllerchange", precacheLoadedPublicBundles, { once: true });
     navigator.serviceWorker
       .register("/sigapro-sw.js", { updateViaCache: "none" })
       .then((registration) => registration.update())
       .catch(() => {});
+    precacheLoadedPublicBundles();
   });
 }
