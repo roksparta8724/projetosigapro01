@@ -21,7 +21,6 @@ import {
 } from "lucide-react";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, XAxis, YAxis } from "recharts";
 import { PortalFrame } from "@/components/platform/PortalFrame";
-import { PageHero } from "@/components/platform/PageHero";
 import { PageMainContent, PageMainGrid, PageShell, PageSideContent, PageStatsRow } from "@/components/platform/PageShell";
 import { MetricCard } from "@/components/platform/MetricCard";
 import { SectionCard } from "@/components/platform/SectionCard";
@@ -32,6 +31,7 @@ import { PlanModuleRoute } from "@/components/platform/PlanModuleRoute";
 import { Button } from "@/components/ui/button";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { PlanCapacityCard } from "@/components/platform/PlanCapacityCard";
+import { CompactProcessRegistry } from "@/components/platform/CompactProcessRegistry";
 import { displayDashboardCategoryLabel } from "@/lib/dashboardPresentation";
 import {hasPrematureAnalysisStage,isAdministrativelyClosed,isVerifiedTechnicalAnalysis} from "@/lib/processOperationalIntegrity";
 import {isFinancialTestGuide,isPendingFinancialGuide,isBankVerifiedFinancialGuide,summarizeFinancialGuideEvidence} from "@/lib/qaPaymentEvidence";
@@ -732,14 +732,14 @@ export function DashboardHomePage() {
           <Button
             type="button"
             variant="outline"
-            className="rounded-full"
+            className="h-9 rounded-xl border-sky-200 bg-white px-3 font-semibold !text-[#123650] hover:bg-sky-50"
             onClick={() => navigate("/externo/controle")}
           >
             Controle de processos
           </Button>
           <Button
             type="button"
-            className="rounded-full bg-slate-950 hover:bg-slate-900 dark:bg-sky-500 dark:text-slate-950 dark:hover:bg-sky-400"
+            className="h-9 rounded-xl border-sky-400/40 bg-sky-500/15 px-3 font-semibold !text-white hover:bg-sky-500/25"
             onClick={() => navigate("/externo/pagamentos")}
           >
             Pagamentos
@@ -750,14 +750,14 @@ export function DashboardHomePage() {
           <Button
             type="button"
             variant="outline"
-            className="rounded-full"
+            className="h-9 rounded-xl border-sky-200 bg-white px-3 font-semibold !text-[#123650] hover:bg-sky-50"
             onClick={() => navigate("/dashboard/processos")}
           >
             Ver processos
           </Button>
           <Button
             type="button"
-            className="rounded-full bg-slate-950 hover:bg-slate-900 dark:bg-sky-500 dark:text-slate-950 dark:hover:bg-sky-400"
+            className="h-9 rounded-xl border-sky-400/40 bg-sky-500/15 px-3 font-semibold !text-white hover:bg-sky-500/25"
             onClick={() => navigate("/dashboard/operacional")}
           >
             Abrir leitura operacional
@@ -836,9 +836,61 @@ export function DashboardHomePage() {
         </SectionCard>
   );
 
+  // Primeira dobra da página: os processos oficiais vêm antes de planos,
+  // gráficos e indicadores. O recorte utiliza a mesma lista autorizada que
+  // alimenta os demais módulos, sem duplicar nem modificar registros.
+  const renderMunicipalWorkQueue = () => {
+    if (isMaster || isExternal) return null;
+    return (
+      <section
+        data-dashboard-operational-first="true"
+        aria-label="Acesso rápido aos processos municipais"
+        className="min-w-0 overflow-hidden rounded-[20px] border border-sky-200 bg-white shadow-[0_9px_26px_rgba(9,48,76,0.09)] dark:border-slate-700 dark:bg-slate-950/70"
+      >
+        <header className="flex min-w-0 flex-wrap items-center justify-between gap-3 bg-[linear-gradient(110deg,#0b344f,#145878)] px-4 py-3.5 text-white sm:px-5">
+          <div className="min-w-0">
+            <p className="text-[10px] font-bold uppercase tracking-[0.13em] text-sky-200">
+              Operação municipal · dados oficiais
+            </p>
+            <h2 className="mt-0.5 text-base font-bold leading-tight text-white">
+              Processos em destaque
+            </h2>
+            <p className="mt-1 text-xs text-sky-100">
+              {displayProcesses.length.toLocaleString("pt-BR")} processos no seu escopo · 6 mais recentes nesta visão
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-9 shrink-0 rounded-lg border-sky-200 bg-white px-3 font-bold !text-[#123650] hover:bg-sky-50"
+            onClick={() => navigate(
+              session.role === "prefeitura_admin" || session.role === "prefeitura_supervisor"
+                ? "/prefeitura/visao-geral/processos"
+                : "/dashboard/processos"
+            )}
+          >
+            Consultar todos os processos
+            <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
+          </Button>
+        </header>
+        <div className="min-w-0 p-2.5 sm:p-3">
+          <CompactProcessRegistry
+            processes={recentProcesses}
+            showArchiveAction={false}
+            canDispatchProcess={() => false}
+            emptyMessage="Nenhum processo oficial encontrado no escopo autorizado."
+          />
+        </div>
+      </section>
+    );
+  };
+
   const renderOverview = () => (
     <>
       {showPlanCapacity && isMaster ? renderPlanCapacity() : null}
+      {renderMunicipalWorkQueue()}
+      {showPlanCapacity && !isMaster ? renderPlanCapacity() : null}
       <div data-sigapro-overview-strip="compact" aria-label="Panorama estratégico"
         className="grid min-w-0 gap-2 sm:grid-cols-2 xl:grid-cols-4">
         {executiveSignals.map((item) => (
@@ -1184,11 +1236,42 @@ export function DashboardHomePage() {
   };
 
   return (
-    <PortalFrame eyebrow="DASHBOARD" title="Resumo institucional">
+    <PortalFrame eyebrow="DASHBOARD" title="Resumo institucional" compactHeader>
       <PageShell>
-        <PageHero eyebrow="Resumo executivo" title={headlineTitle} description={headlineDescription} icon={LayoutDashboard} actions={heroActions} />
+        <section
+          data-dashboard-hero="compact-v6"
+          aria-label="Painel executivo do Dashboard"
+          className="min-w-0 overflow-hidden rounded-[18px] border border-[#356982] bg-[linear-gradient(120deg,#0d3048_0%,#0d3854_57%,#10516b_100%)] p-4 text-white shadow-[0_12px_28px_rgba(5,35,57,0.16)] sm:p-5"
+        >
+          <div className="flex min-w-0 flex-wrap items-start justify-between gap-x-5 gap-y-3">
+            <div className="flex min-w-0 flex-1 items-start gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/15 bg-white/10 text-sky-100">
+                <LayoutDashboard className="h-5 w-5" aria-hidden="true" />
+              </span>
+              <div className="min-w-0">
+                <p data-dashboard-hero-eyebrow="true" className="text-[10px] font-bold uppercase tracking-[0.15em] text-sky-200">Dashboard • {institutionName}</p>
+                <h1 data-dashboard-hero-title="true" className="mt-1 text-lg font-extrabold leading-tight text-white sm:text-xl">{headlineTitle}</h1>
+                <p data-dashboard-hero-description="true" className="mt-1 max-w-[68ch] text-xs leading-5 text-sky-100">{headlineDescription}</p>
+              </div>
+            </div>
+            <div data-dashboard-hero-actions="true" className="shrink-0 self-start">{heroActions}</div>
+          </div>
+          <div data-dashboard-hero-facts="true" className="mt-3 grid min-w-0 grid-cols-1 gap-2 border-t border-white/15 pt-3 sm:grid-cols-3">
+            {[
+              { label: isMaster ? "Prefeituras ativas" : isExternal ? "Meus protocolos" : "Processos ativos",
+                value: isMaster ? masterMetrics.activeTenants : isExternal ? externalProcesses.length : inProgressCount },
+              { label: isMaster ? "Processos monitorados" : "Concluídos",
+                value: isMaster ? officialProcesses.length : completedCount },
+              { label: "Prazos vencidos", value: breachedCount },
+            ].map((item) => (
+              <div key={item.label} data-dashboard-hero-fact="true" className="flex min-w-0 items-center justify-between gap-3 rounded-lg border border-white/15 bg-white/[0.07] px-3 py-2">
+                <span className="truncate text-xs font-medium text-sky-100" title={item.label}>{item.label}</span>
+                <strong className="shrink-0 text-lg font-extrabold tabular-nums text-white">{item.value.toLocaleString("pt-BR")}</strong>
+              </div>
+            ))}
+          </div>
+        </section>
 
-        {section === "visao-geral" && showPlanCapacity && !isMaster ? renderPlanCapacity() : null}
 
         <InternalSectionNav
           items={tabs}
