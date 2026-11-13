@@ -36,7 +36,7 @@ export function LegislationPage() {
   const { session } = usePlatformSession();
   const { municipality, scopeId, institutionSettingsCompat } = useMunicipality();
   const { getInstitutionSettings } = usePlatformData();
-  const [view, setView] = useState<LegislationView>("visao-geral");
+  const [view, setView] = useState<LegislationView>("plano-diretor");
   const effectiveScopeId = municipality?.id ?? scopeId ?? session.tenantId ?? null;
 
   const liveSettings = getInstitutionSettings(
