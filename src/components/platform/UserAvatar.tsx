@@ -114,9 +114,16 @@ function userInitials(name?: string | null) {
 
 export function UserAvatar(props: UserAvatarProps) {
   const privateImageUrl = useAuthorizedAvatarUrl(props.imageUrl, props.authenticatedOwnerId);
-  // A different profile must never display the preceding account's photo
-  // during authorization or asynchronous decoding.
-  return <UserAvatarPresentation key={props.imageUrl || ""} {...props} imageUrl={privateImageUrl} />;
+  // Uma URL temporariamente ausente durante o refresh do MESMO usuário não
+  // deve recriar o avatar: isso descartava a imagem visível e exibia as
+  // iniciais por um frame. A troca de conta continua isolada por identidade.
+  // Em listagens sem owner autenticado, manter chave por origem para não
+  // reaproveitar fotos entre registros diferentes.
+  const owner = String(props.authenticatedOwnerId || "").trim();
+  const presentationKey = owner && owner !== "unknown"
+    ? `account:${owner}`
+    : `source:${props.imageUrl || ""}`;
+  return <UserAvatarPresentation key={presentationKey} {...props} imageUrl={privateImageUrl} />;
 }
 
 function UserAvatarPresentation({
