@@ -94,6 +94,27 @@ function run(label,args,extraEnv={}){
   }
   console.log("[SIGAPRO_QA_BUILD_GATE] PASS "+label);
 }
+// The general process-control preview must validate real source, not only a
+// successful Vite asset build. These local checks are read-only and run solely
+// for this branch; bank settlement, invoices and R2 objects are not touched.
+const PREMIUM_PROCESS_BRANCH = "fix/homologacao-geral-sei-dashboard-bank-20261113";
+if (process.env.VERCEL_ENV === "preview" && process.env.VERCEL_GIT_COMMIT_REF === PREMIUM_PROCESS_BRANCH) {
+  run("process-ui-typecheck", ["node_modules/typescript/bin/tsc", "-p", "tsconfig.app.json", "--noEmit"]);
+  run("process-ui-eslint", ["node_modules/eslint/bin/eslint.js", "."]);
+  run("process-ui-regression-tests", ["node_modules/vitest/vitest.mjs", "run", "--maxWorkers=2",
+    "src/test/premiumUnifiedProcessControl20261116.test.tsx",
+    "src/components/platform/CompactProcessRegistry.test.tsx",
+    "src/test/municipalProcessRegistry.test.ts",
+    "src/test/municipalProcessRegistryAuthoritativeSync.test.ts",
+    "src/test/municipalAdminProtocolReadOnlyQa.test.ts",
+    "src/test/processPresentationRegression.test.ts",
+    "src/test/officialProcessRowsRender.test.tsx",
+    "src/test/municipalAdminAndProfessionalProcessRegression.test.ts",
+    "src/test/processCardContrastRegression.test.ts",
+    "src/test/processCardGeometryRegression.test.ts",
+  ]);
+  console.log("[SIGAPRO_QA_BUILD_GATE] PASS unified municipal process-control preview checks.");
+}
 if(process.env.VERCEL_ENV==="preview"&&process.env.VERCEL_GIT_COMMIT_REF===BRANCH){
   // Only local static checks; none of these routines call a real provider.
   run("typecheck",["node_modules/typescript/bin/tsc","-p","tsconfig.app.json","--noEmit"]);
