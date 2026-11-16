@@ -48,6 +48,9 @@ describe("SIGAPRO — recuperação sem shell de carregamento", () => {
     expect(failurePath).toContain('document.documentElement.removeAttribute("data-sigapro-initial-render")');
     expect(failurePath).toContain('document.getElementById("sigapro-preboot-recovery")?.remove()');
     expect(entry).toContain("new MutationObserver(finishBootstrap)");
-    expect(entry).toContain("if (!rootElement.hasChildNodes()) return;");
+    // A fallback acessível só com texto sr-only não pode ser confundida com
+    // a primeira tela real e liberar o CSS antes do conteúdo chegar.
+    expect(entry).toContain('rootElement.querySelector(".sig-app-frame, main, form');
+    expect(entry).not.toContain("if (!rootElement.hasChildNodes()) return;");
   });
 });
