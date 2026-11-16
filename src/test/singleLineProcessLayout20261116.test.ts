@@ -50,7 +50,7 @@ describe("SIGAPRO — controle de processos em uma linha na largura real da Pref
 
   it("conserva os textos completos acessíveis pelo título mesmo quando a célula reduz o texto visual", () => {
     expect(table).toContain('title={"Abrir " + number}');
-    expect(table).toContain("Interessado: \${process.ownerName}");
+    expect(table).toContain("Interessado: " + "${process.ownerName}");
     expect(table).toContain("statusLabel(process.status), visibleFlow");
     expect(table).toContain("markers.slice(0, 2)");
     expect(table).toContain("markers.length - 2");
