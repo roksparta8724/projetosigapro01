@@ -11,7 +11,7 @@ const css = readFileSync(resolve(root, "src/index.css"), "utf8");
 
 describe("process entry and organogram regression", () => {
   it("makes compact process-control the default while preserving detailed analysis actions", () => {
-    expect(analyst).toContain('import { CompactProcessRegistry }');
+    expect(analyst).toContain('import { PremiumProcessRegistry as CompactProcessRegistry } from "@/components/platform/PremiumProcessRegistry";');
     expect(analyst).toContain('processListView === "tabela"');
     expect(analyst).toContain("Ver ações detalhadas da Análise");
     expect(analyst).toContain("renderQueue(");
