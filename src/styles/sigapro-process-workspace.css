@@ -152,3 +152,110 @@
 .dark .sig-workspace-search input { color: #f8fafc; }
 .dark .sig-workspace-chip { background: #182f47; border-color: #3e5b73; color: #e2e8f0; }
 .dark .sig-workspace-chip.is-active { background: #2273a8; color: #fff; }
+
+
+/* 16/11 layout QA: 1366px viewport with 230px municipal sidebar leaves
+   roughly 1,000px of usable content. Keep filters and actions in ONE row.
+   Do not use viewport-based breakpoints or flex-wrap here. */
+@container sig-workspace (min-width: 940px) {
+  .sig-workspace-searchbar {
+    display: grid;
+    grid-template-columns: minmax(245px, .31fr) minmax(0, .69fr);
+    gap: 8px;
+    align-items: center;
+    flex-wrap: nowrap;
+  }
+  .sig-workspace-search {
+    min-width: 0;
+    width: 100%;
+    flex: none;
+    height: 38px;
+    padding-inline: 10px;
+  }
+  .sig-workspace-search input { font-size: 11px; }
+  .sig-workspace-filters {
+    min-width: 0;
+    flex: none;
+    display: flex;
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: 4px;
+    justify-content: flex-end;
+    overflow: hidden;
+  }
+  .sig-workspace-filters > span {
+    white-space: nowrap;
+    font-size: 10px;
+    margin-right: 2px;
+    flex: 0 0 auto;
+  }
+  .sig-workspace-chip {
+    white-space: nowrap;
+    flex: 0 1 auto;
+    min-width: 0;
+    min-height: 31px;
+    padding: 6px 6px;
+    gap: 3px;
+    font-size: 10px;
+    line-height: 16px;
+  }
+  .sig-workspace-chip svg { width: 13px; height: 13px; flex: 0 0 auto; }
+  .sig-workspace-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: nowrap;
+    min-height: 48px;
+    gap: 5px;
+    padding: 7px 8px;
+  }
+  .sig-workspace-select-all { gap: 2px; padding: 5px; }
+  .sig-workspace-selected { font-size: 11px; white-space: nowrap; }
+  .sig-workspace-actions-list {
+    display: flex;
+    flex: 1 1 auto;
+    min-width: 0;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 4px;
+  }
+  .sig-workspace-action {
+    display: inline-flex;
+    flex: 0 1 auto;
+    min-width: 0;
+    min-height: 32px;
+    height: 32px;
+    gap: 4px;
+    font-size: 10px !important;
+    padding-inline: 7px !important;
+    line-height: 1;
+    white-space: nowrap;
+  }
+  .sig-workspace-action svg {
+    width: 13px; height: 13px; flex-shrink: 0;
+  }
+  .sig-workspace-list-context { margin-top: -4px; }
+}
+
+/* At widths below desktop, toolbar remains a single line with a deliberate
+   scroll region rather than wrapping into an oversized second toolbar row. */
+@container sig-workspace (max-width: 939px) {
+  .sig-workspace-searchbar { flex-wrap: nowrap; }
+  .sig-workspace-search { min-width: 160px; flex-basis: 45%; }
+  .sig-workspace-filters {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: thin;
+    min-width: 0;
+    flex-basis: 55%;
+  }
+  .sig-workspace-chip { flex: 0 0 auto; }
+  .sig-workspace-actions { flex-wrap: nowrap; }
+  .sig-workspace-actions-list {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: thin;
+    justify-content: flex-start;
+  }
+  .sig-workspace-action { flex: 0 0 auto; }
+}

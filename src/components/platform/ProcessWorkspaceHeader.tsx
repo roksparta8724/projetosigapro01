@@ -134,7 +134,22 @@ export function ProcessWorkspaceHeader({
             { label: "Decisão", Icon: Gavel, dispatch: false },
             { label: "Etiquetas", Icon: Tag, dispatch: false },
           ] as const).map(({ label, Icon, dispatch }) => {
-            const enabled = Boolean(showSensitiveDetails && oneSelected && (!dispatch || canDispatch(oneSelected)));
+            // One "Encaminhar" control, never a second button that makes the
+            // approved single-line toolbar wrap when users select many rows.
+            // The supplied sector handler keeps its own permission checks.
+            const multipleDispatch = Boolean(dispatch && selectedCount > 1 && onBulkDispatch);
+            const enabled = Boolean(showSensitiveDetails && (
+              (oneSelected && (!dispatch || canDispatch(oneSelected))) ||
+              multipleDispatch
+            ));
+            if (multipleDispatch) {
+              return <Button key={label} size="sm" variant="outline" type="button"
+                disabled={!showSensitiveDetails || bulkBusy}
+                onClick={onBulkDispatch} className="sig-workspace-action"
+                title="Encaminhar os processos selecionados pelo fluxo autorizado">
+                <Icon className="h-4 w-4" />{label}<ChevronDown className="h-3.5 w-3.5" />
+              </Button>;
+            }
             return (
               <Button key={label} size="sm" variant="outline" type="button" asChild={enabled}
                 disabled={!enabled} className={"sig-workspace-action " + (label === "Decisão" ? "sig-workspace-action-green" : "")}
@@ -145,10 +160,6 @@ export function ProcessWorkspaceHeader({
               </Button>
             );
           })}
-          {onBulkDispatch && selectedCount > 0 ? (
-            <Button type="button" variant="outline" size="sm" className="sig-workspace-action"
-              onClick={onBulkDispatch}><Forward className="h-4 w-4" /> Encaminhar seleção</Button>
-          ) : null}
           <Button type="button" variant="outline" size="sm" className="sig-workspace-action" onClick={onExport}
             disabled={!filteredCount || !showSensitiveDetails}><Download className="h-4 w-4" /> Exportar <ChevronDown className="h-3.5 w-3.5" /></Button>
         </div>

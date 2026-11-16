@@ -227,3 +227,239 @@
 .dark .sig-process-registry .sig-process-flow-group,
 .dark .sig-process-registry .sig-process-actions { border-color: #334155; }
 .dark .sig-process-registry .sig-process-cell-label { color: #cbd5e1; }
+
+
+/*
+ * One-line operational registry at the actual available municipal width.
+ * Keep all eight columns together: the old 900–1389px rule nested
+ * stage/assignee/deadline in a two-row "flow" block. That caused the
+ * oversized 100px+ rows shown in QA at 1366px screen / 1000px workspace.
+ */
+@container sigapro-process-registry (min-width: 940px) and (max-width: 1389px) {
+  .sig-process-registry .sig-process-head { display: grid; }
+  .sig-process-registry .sig-process-head,
+  .sig-process-registry .sig-process-row {
+    grid-template-columns:
+      82px minmax(128px, 1.12fr) minmax(155px, 1.5fr)
+      minmax(116px, 1fr) minmax(100px, .82fr)
+      minmax(80px, .66fr) minmax(52px, .5fr) 151px;
+    grid-template-areas: "marker number subject stage owner deadline pending actions";
+    align-items: center;
+    gap: 6px;
+    padding: 8px 10px;
+  }
+  .sig-process-registry .sig-process-head {
+    min-height: 38px;
+    padding-block: 8px;
+    font-size: 10px;
+    letter-spacing: 0;
+  }
+  .sig-process-registry .sig-process-head-marker { grid-area: marker; }
+  .sig-process-registry .sig-process-head-number { grid-area: number; }
+  .sig-process-registry .sig-process-head-subject { grid-area: subject; }
+  .sig-process-registry .sig-process-head-stage { grid-area: stage; }
+  .sig-process-registry .sig-process-head-owner { grid-area: owner; }
+  .sig-process-registry .sig-process-head-deadline { grid-area: deadline; }
+  .sig-process-registry .sig-process-head-pending { grid-area: pending; }
+  .sig-process-registry .sig-process-head-actions { grid-area: actions; }
+  .sig-process-registry .sig-process-head-stage-wide { display: inline; }
+  .sig-process-registry .sig-process-head-stage-medium { display: none; }
+  .sig-process-registry .sig-process-head-owner,
+  .sig-process-registry .sig-process-head-deadline,
+  .sig-process-registry .sig-process-head-pending { display: block; }
+  .sig-process-registry .sig-process-flow-group { display: contents; }
+  .sig-process-registry .sig-process-stage { grid-area: stage; min-width: 0; }
+  .sig-process-registry .sig-process-responsible { grid-area: owner; min-width: 0; }
+  .sig-process-registry .sig-process-deadline { grid-area: deadline; min-width: 0; }
+  .sig-process-registry .sig-process-pending { grid-area: pending; min-width: 0; }
+  .sig-process-registry .sig-process-cell-label,
+  .sig-process-registry .sig-process-stage-description,
+  .sig-process-registry .sig-process-marker-label,
+  .sig-process-registry .sig-process-interested { display: none; }
+  .sig-process-registry .sig-process-marker {
+    flex-wrap: nowrap;
+    gap: 3px;
+    justify-content: flex-start;
+    overflow: hidden;
+  }
+  .sig-process-registry .sig-process-marker input { margin-right: 1px; }
+  .sig-process-registry .sig-process-marker > span {
+    width: 18px; height: 20px;
+    padding: 0; flex-shrink: 0;
+    font-size: 9px;
+  }
+  .sig-process-registry .sig-process-number-link,
+  .sig-process-registry .sig-process-subject-title,
+  .sig-process-registry .sig-process-responsible-name {
+    display: block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    word-break: normal;
+    line-clamp: unset;
+    -webkit-line-clamp: unset;
+    font-size: 11px;
+    line-height: 20px;
+  }
+  .sig-process-registry .sig-process-number-link { font-weight: 800; }
+  .sig-process-registry .sig-process-stage .sig-process-status {
+    display: flex;
+    flex-wrap: nowrap;
+    width: 100%;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    font-size: 10px;
+    min-height: 25px;
+    line-height: 14px;
+    padding: 3px 5px;
+    gap: 3px;
+  }
+  .sig-process-registry .sig-process-stage .sig-process-status svg {
+    width: 12px; height: 12px;
+    margin-right: 0;
+  }
+  .sig-process-registry .sig-process-due-chip {
+    width: 100%;
+    max-width: 100%;
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 3px;
+    min-height: 25px;
+    padding: 3px 4px;
+    font-size: 10px;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+  .sig-process-registry .sig-process-due-chip .sig-process-due-value {
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  .sig-process-registry .sig-process-pending {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 3px;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+  .sig-process-registry .sig-process-pending > span:not(.sig-process-cell-label) {
+    flex: 0 0 auto;
+    padding: 3px;
+    font-size: 9px;
+  }
+  .sig-process-registry .sig-process-pending > span svg { display: none; }
+  .sig-process-registry .sig-process-actions {
+    padding: 0;
+    margin: 0;
+    border: 0;
+    justify-content: flex-end;
+    flex-wrap: nowrap;
+    align-self: center;
+    gap: 4px;
+  }
+  .sig-process-registry .sig-process-open-btn {
+    min-width: 0;
+    width: 112px;
+    height: 31px;
+    padding-inline: 7px;
+    font-size: 10px;
+    white-space: nowrap;
+  }
+  .sig-process-registry .sig-process-open-btn svg { margin-right: 4px; }
+  .sig-process-registry .sig-process-more-btn { width: 31px; height: 31px; }
+}
+
+/* A narrower workstation keeps one record per line by reducing nonessential
+   cells; the full details remain in the authorized process page. */
+@container sigapro-process-registry (min-width: 600px) and (max-width: 939px) {
+  .sig-process-registry .sig-process-head,
+  .sig-process-registry .sig-process-row {
+    grid-template-columns: 52px minmax(118px, 1fr) minmax(135px, 1.4fr) minmax(110px, 1fr) 138px;
+    grid-template-areas: "marker number subject stage actions";
+    gap: 6px;
+    padding: 9px 10px;
+    align-items: center;
+  }
+  .sig-process-registry .sig-process-head {
+    display: grid;
+    min-height: 38px;
+    font-size: 10px;
+  }
+  .sig-process-registry .sig-process-head-marker { grid-area: marker; }
+  .sig-process-registry .sig-process-head-number { grid-area: number; }
+  .sig-process-registry .sig-process-head-subject { grid-area: subject; }
+  .sig-process-registry .sig-process-head-stage { grid-area: stage; }
+  .sig-process-registry .sig-process-head-actions { grid-area: actions; }
+  .sig-process-registry .sig-process-head-owner,
+  .sig-process-registry .sig-process-head-deadline,
+  .sig-process-registry .sig-process-head-pending { display: none; }
+  .sig-process-registry .sig-process-head-stage-medium { display: inline; }
+  .sig-process-registry .sig-process-head-stage-wide { display: none; }
+  .sig-process-registry .sig-process-flow-group { display: contents; }
+  .sig-process-registry .sig-process-stage { grid-area: stage; min-width: 0; }
+  .sig-process-registry .sig-process-responsible,
+  .sig-process-registry .sig-process-deadline,
+  .sig-process-registry .sig-process-pending,
+  .sig-process-registry .sig-process-stage-description,
+  .sig-process-registry .sig-process-marker-label,
+  .sig-process-registry .sig-process-interested { display: none; }
+  .sig-process-registry .sig-process-number-link,
+  .sig-process-registry .sig-process-subject-title {
+    display: block; max-width: 100%; overflow: hidden;
+    white-space: nowrap; text-overflow: ellipsis;
+    -webkit-line-clamp: unset; line-clamp: unset; font-size: 11px;
+  }
+  .sig-process-registry .sig-process-marker { flex-wrap: nowrap; overflow: hidden; gap: 2px; }
+  .sig-process-registry .sig-process-marker > span { width: 15px; height: 18px; }
+  .sig-process-registry .sig-process-cell-label { display: none; }
+  .sig-process-registry .sig-process-status {
+    display: flex; white-space: nowrap; flex-wrap: nowrap;
+    overflow: hidden; width: 100%; font-size: 10px;
+  }
+  .sig-process-registry .sig-process-actions {
+    padding: 0; border: 0; flex-wrap: nowrap; justify-content: flex-end; gap: 3px;
+  }
+  .sig-process-registry .sig-process-open-btn { width: 99px; min-width: 0; padding: 4px; font-size: 9px; height: 30px; }
+  .sig-process-registry .sig-process-more-btn { width: 30px; height: 30px; }
+}
+
+
+@container sigapro-process-registry (min-width: 1390px) {
+  .sig-process-registry .sig-process-row {
+    min-height: 52px;
+    padding-block: 8px;
+  }
+  .sig-process-registry .sig-process-marker { flex-wrap: nowrap; overflow: hidden; }
+  .sig-process-registry .sig-process-marker-label,
+  .sig-process-registry .sig-process-interested,
+  .sig-process-registry .sig-process-stage-description { display: none; }
+  .sig-process-registry .sig-process-number-link,
+  .sig-process-registry .sig-process-subject-title,
+  .sig-process-registry .sig-process-responsible-name {
+    display: block;
+    white-space: nowrap;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    -webkit-line-clamp: unset;
+    line-clamp: unset;
+  }
+  .sig-process-registry .sig-process-stage .sig-process-status,
+  .sig-process-registry .sig-process-due-chip {
+    white-space: nowrap;
+    flex-wrap: nowrap;
+    overflow: hidden;
+  }
+  .sig-process-registry .sig-process-due-value {
+    display: block;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .sig-process-registry .sig-process-pending { flex-wrap: nowrap; }
+}

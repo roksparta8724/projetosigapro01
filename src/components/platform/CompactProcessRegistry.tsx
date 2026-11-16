@@ -178,15 +178,15 @@ export function CompactProcessRegistry({
                         aria-label={"Selecionar processo " + number}
                         className="mr-1 h-4 w-4 shrink-0 cursor-pointer accent-sky-800" />
                     ) : null}
-                    {markers.slice(0, 3).map((item, markerIndex) => (
+                    {markers.slice(0, 2).map((item, markerIndex) => (
                       <span key={markerIndex} title={item.label} className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border"
                         style={{ color: item.color, borderColor: item.color + "66", backgroundColor: item.color + "16" }}>
                         <Flag className="h-3.5 w-3.5" fill="currentColor" />
                       </span>
                     ))}
-                    {markers.length > 3 ? (
+                    {markers.length > 2 ? (
                       <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-700 dark:bg-slate-800 dark:text-white" title="Marcadores adicionais">
-                        +{markers.length - 3}
+                        +{markers.length - 2}
                       </span>
                     ) : null}
                     {!marker && fact.urgent ? (
@@ -207,7 +207,7 @@ export function CompactProcessRegistry({
                   </div>
 
                   <div className="sig-process-subject min-w-0">
-                    <p title={title} className="sig-process-subject-title max-w-full text-[13px] font-semibold leading-5 text-slate-900 dark:text-white">{title}</p>
+                    <p title={showSensitiveDetails && process.ownerName ? `${title} · Interessado: ${process.ownerName}` : title} className="sig-process-subject-title max-w-full text-[13px] font-semibold leading-5 text-slate-900 dark:text-white">{title}</p>
                     {showSensitiveDetails ? (
                       <p title={process.ownerName} className="sig-process-interested mt-0.5 max-w-full text-[12px] leading-5 text-slate-500 dark:text-slate-400">
                         {process.ownerName || "Interessado não informado"}
@@ -218,7 +218,7 @@ export function CompactProcessRegistry({
                   <div className="sig-process-flow-group">
                     <div className="sig-process-stage min-w-0">
                       <span className="sig-process-cell-label">Etapa</span>
-                      <Badge variant="outline" className={cn("sig-process-status max-w-full rounded-full px-2 py-1 text-[11px] font-semibold", statusTone(process.status))} title={statusLabel(process.status)}>
+                      <Badge variant="outline" className={cn("sig-process-status max-w-full rounded-full px-2 py-1 text-[11px] font-semibold", statusTone(process.status))} title={[statusLabel(process.status), visibleFlow].filter((value, i, arr) => arr.indexOf(value) === i).join(" · ")}>
                       <Workflow className="mr-1 h-3 w-3 shrink-0" aria-hidden="true" />
                       {statusLabel(process.status)}
                     </Badge>
