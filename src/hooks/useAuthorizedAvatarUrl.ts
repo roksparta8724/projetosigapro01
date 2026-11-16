@@ -3,6 +3,7 @@ import { privateAvatarObjectKey, resolveAuthorizedAvatarUrl } from "@/lib/privat
 import {
   getAuthorizedAvatarRuntimeUrl, loadAuthorizedAvatarRuntimeUrl,
 } from "@/lib/authorizedAvatarRuntimeCache";
+import { readAvatarSessionThumbnail } from "@/lib/avatarSessionThumbnail";
 
 /**
  * Does not leak the private stable R2 URL to <img>. A valid session first
@@ -16,6 +17,9 @@ export function useAuthorizedAvatarUrl(
   const objectKey = privateAvatarObjectKey(raw);
   const owner = String(authenticatedOwnerId || "").trim();
   const cacheHit = owner && objectKey ? getAuthorizedAvatarRuntimeUrl(owner, raw) : "";
+  // A miniature is bound to the same authenticated browser session, user
+  // and exact R2 object reference. Never reuse a thumbnail for another account.
+  const previewHit = owner && objectKey && !cacheHit ? readAvatarSessionThumbnail(owner, raw) : "";
   const [loaded, setLoaded] = useState({ source: "", owner: "", url: "" });
 
   useEffect(() => {
@@ -57,6 +61,6 @@ export function useAuthorizedAvatarUrl(
   // For account-scoped images, only use the live cache. A blob revoked on
   // logout must never be returned from a stale React state.
   return objectKey
-    ? (owner ? cacheHit : (loaded.source === raw && loaded.owner === "" ? loaded.url : ""))
+    ? (owner ? (cacheHit || previewHit) : (loaded.source === raw && loaded.owner === "" ? loaded.url : ""))
     : raw;
 }

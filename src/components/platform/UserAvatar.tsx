@@ -3,6 +3,8 @@ import { Avatar } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { DEFAULT_AVATAR_EDITOR_DIAMETER, resolveCircularAvatarGeometry } from "@/lib/avatarCropGeometry";
 import { useAuthorizedAvatarUrl } from "@/hooks/useAuthorizedAvatarUrl";
+import { privateAvatarObjectKey } from "@/lib/privateAvatarRead";
+import { clearAvatarSessionThumbnailForOwner, rememberAvatarSessionThumbnail } from "@/lib/avatarSessionThumbnail";
 
 type UserAvatarSize = "sm" | "md" | "lg" | "xl";
 
@@ -118,6 +120,12 @@ function userInitials(name?: string | null) {
 
 export function UserAvatar(props: UserAvatarProps) {
   const privateImageUrl = useAuthorizedAvatarUrl(props.imageUrl, props.authenticatedOwnerId);
+  const privateSource = privateAvatarObjectKey(props.imageUrl);
+  const authenticatedOwner = String(props.authenticatedOwnerId || "").trim();
+  const rememberVerifiedImage = (image: HTMLImageElement) => {
+    if (!privateSource || !authenticatedOwner || !image.currentSrc.startsWith("blob:")) return;
+    rememberAvatarSessionThumbnail(authenticatedOwner, String(props.imageUrl || ""), image, props.crop, props.size || "md");
+  };
   // Uma URL temporariamente ausente durante o refresh do MESMO usuário não
   // deve recriar o avatar: isso descartava a imagem visível e exibia as
   // iniciais por um frame. A troca de conta continua isolada por identidade.
@@ -127,7 +135,12 @@ export function UserAvatar(props: UserAvatarProps) {
   const presentationKey = owner && owner !== "unknown"
     ? `account:${owner}`
     : `source:${props.imageUrl || ""}`;
-  return <UserAvatarPresentation key={presentationKey} {...props} imageUrl={privateImageUrl} />;
+  return <UserAvatarPresentation
+    key={presentationKey}
+    {...props}
+    imageUrl={privateImageUrl}
+    onVerifiedImageLoad={rememberVerifiedImage}
+  />;
 }
 
 function UserAvatarPresentation({
@@ -143,7 +156,8 @@ function UserAvatarPresentation({
   crop,
   fallbackClassName,
   title,
-}: UserAvatarProps) {
+  onVerifiedImageLoad,
+}: UserAvatarProps & { onVerifiedImageLoad?: (image: HTMLImageElement) => void }) {
   const [failedImageUrl, setFailedImageUrl] = useState("");
   const [stableImageUrl, setStableImageUrl] = useState(imageUrl ?? "");
   const [naturalSize, setNaturalSize] = useState(() => readCachedAvatarDimensions(imageUrl));
@@ -167,6 +181,9 @@ function UserAvatarPresentation({
         return;
       }
 
+      if (photoRemovalConfirmed && authenticatedOwnerId) {
+        clearAvatarSessionThumbnailForOwner(authenticatedOwnerId);
+      }
       setStableImageUrl("");
       setFailedImageUrl("");
       setRecoveryImageUrl("");
@@ -278,6 +295,7 @@ function UserAvatarPresentation({
                 setNaturalSize({ width: nextWidth, height: nextHeight });
               }
               cacheAvatarDimensions(resolvedImageUrl, nextWidth, nextHeight);
+              onVerifiedImageLoad?.(event.currentTarget);
             }}
             onError={() => {
               const alternate = alternateLegacyAvatarUrl(resolvedImageUrl);

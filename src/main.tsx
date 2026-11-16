@@ -176,7 +176,11 @@ function bootApplication() {
         mountedObserver?.disconnect();
         return;
       }
-      if (!rootElement.hasChildNodes()) return;
+      // A screen-reader-only route pending status is technically a DOM child,
+      // but it is not the page: clearing first-paint styling at that moment
+      // created a visible white/colour jump before the actual workspace loaded.
+      // Wait for genuine route content while leaving all permission gates intact.
+      if (!rootElement.querySelector(".sig-app-frame, main, form, [role='main'], [data-ui='page-shell']")) return;
       document.documentElement.removeAttribute("data-sigapro-initial-render");
       document.documentElement.removeAttribute("data-sigapro-boot-slow");
       mountedObserver?.disconnect();

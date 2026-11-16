@@ -2177,6 +2177,8 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false, compa
                     authenticatedOwnerId={authenticatedAvatarOwnerId}
                       name={displayUserName}
                       imageUrl={topbarAvatarImageUrl}
+                      preservePhotoDuringRefresh
+                      photoRemovalConfirmed={topbarPhotoRemovalConfirmed}
                       crop={topbarAvatarCrop}
                       size="md"
                       className="sig-topbar-user-avatar"
@@ -2213,6 +2215,8 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false, compa
                     authenticatedOwnerId={authenticatedAvatarOwnerId}
                           name={displayUserName}
                           imageUrl={topbarAvatarImageUrl}
+                          preservePhotoDuringRefresh
+                          photoRemovalConfirmed={topbarPhotoRemovalConfirmed}
                           crop={topbarAvatarCrop}
                           size="lg"
                           className={cn(
