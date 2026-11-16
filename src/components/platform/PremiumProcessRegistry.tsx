@@ -6,6 +6,7 @@ import {
 } from "@/components/platform/ProcessWorkspaceHeader";
 import { statusLabel, formatOfficialProcessNumber, formatOfficialProcessTitle, type ProcessRecord } from "@/lib/platform";
 import "@/styles/sigapro-process-workspace.css";
+import "@/styles/sigapro-reference-layout.css";
 
 type RegistryProps = ComponentProps<typeof CompactProcessRegistry>;
 type PremiumProcessRegistryProps = RegistryProps & {

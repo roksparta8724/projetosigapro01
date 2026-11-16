@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import {
   AlertTriangle, Archive, ArchiveRestore, CalendarClock, ChevronLeft,
   ChevronRight, Clock3, ExternalLink, FileWarning, Flag, History,
-  MoreHorizontal, Send, Workflow,
+  MoreHorizontal, Send, Workflow, Flame, Eye, MapPin, CheckCircle2, Layers3, AlertCircle, ClipboardCheck, Gavel, Tag, ArrowUpDown,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -62,6 +62,21 @@ function markersFor(process: ProcessRecord) {
   return (process.tags ?? []).map((tag) => parseMarker(tag));
 }
 
+/** Visual SEI-style glyph is derived only from the saved marker label.
+ * The underlying marker/color and audit record remain untouched. */
+function markerIcon(label: string) {
+  const value = label.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  if (/sla|urgente|critico|prioridade/.test(value)) return Flame;
+  if (/vistoria|localizacao|mapa|local/.test(value)) return MapPin;
+  if (/exigencia|pendencia|alerta/.test(value)) return AlertCircle;
+  if (/decisao|deferimento|assinatura/.test(value)) return Gavel;
+  if (/analise|projeto|avaliacao/.test(value)) return Layers3;
+  if (/visualizacao|acompanha|especial/.test(value)) return Eye;
+  if (/concluido|aprovado|recebido/.test(value)) return ClipboardCheck;
+  if (/validado|confirmado/.test(value)) return CheckCircle2;
+  return Tag;
+}
+
 /**
  * The same responsive process-control workspace is reused by dashboard,
  * municipality administration and process registry. It never fetches another
@@ -87,9 +102,28 @@ export function CompactProcessRegistry({
   const pageSizeControlId = useId();
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<number>(defaultPageSize);
+  const [sortOrder, setSortOrder] = useState<"default" | "number_asc" | "number_desc" | "deadline_asc" | "deadline_desc">("default");
+  const orderedProcesses = useMemo(() => {
+    if (sortOrder === "default") return processes;
+    const sorted = [...processes];
+    if (sortOrder.startsWith("number")) {
+      sorted.sort((a, b) => String(a.protocol || "").localeCompare(String(b.protocol || ""), "pt-BR", { numeric: true }));
+    } else {
+      const due = (item: ProcessRecord) => {
+        const value = String(item.sla?.dueDate || "");
+        const br = value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+        if (br) return Date.UTC(Number(br[3]), Number(br[2]) - 1, Number(br[1]));
+        const time = Date.parse(value);
+        return Number.isFinite(time) ? time : Number.POSITIVE_INFINITY;
+      };
+      sorted.sort((a, b) => due(a) - due(b));
+    }
+    if (sortOrder.endsWith("_desc")) sorted.reverse();
+    return sorted;
+  }, [processes, sortOrder]);
   const pageData = useMemo(
-    () => paginateMunicipalItems(processes, page, pageSize),
-    [processes, page, pageSize],
+    () => paginateMunicipalItems(orderedProcesses, page, pageSize),
+    [orderedProcesses, page, pageSize],
   );
   useEffect(() => {
     if (page !== pageData.page) setPage(pageData.page);
@@ -120,7 +154,7 @@ export function CompactProcessRegistry({
       className="sig-process-registry min-w-0 w-full overflow-hidden rounded-[20px] border border-slate-200 bg-white shadow-[0_14px_34px_rgba(15,23,42,0.075)] dark:border-slate-700 dark:bg-slate-950">
       <div className="sig-process-content min-w-0 w-full">
           <div className="sig-process-head min-h-11 items-center gap-2 border-b border-slate-200 bg-slate-50 px-3 text-[11px] font-bold uppercase tracking-[0.045em] text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
-            <div className="sig-process-head-marker flex min-w-0 items-center justify-center gap-2" title="Marcador">
+            <div className="sig-process-head-marker flex min-w-0 items-center justify-center gap-2" title="Marcadores">
               {selectable ? (
                 <input type="checkbox" checked={allPageSelected}
                   aria-label="Selecionar processos desta página"
@@ -129,12 +163,15 @@ export function CompactProcessRegistry({
               ) : null}
               <Flag className="h-4 w-4 shrink-0" aria-hidden="true" />
               <span className="sr-only">Marcador</span>
+              <span className="sig-reference-marker-heading" aria-hidden="true">Marcadores</span>
             </div>
-            <span className="sig-process-head-number">Nº do processo</span>
+            <button type="button" className="sig-process-head-number sig-reference-sort" onClick={() => { setSortOrder(current => current === "number_asc" ? "number_desc" : "number_asc"); setPage(1); }}
+              aria-label="Ordenar processos por número" aria-pressed={sortOrder.startsWith("number")}>Nº do processo <ArrowUpDown className="h-3 w-3" /></button>
             <span className="sig-process-head-subject">Assunto / interessado</span>
             <span className="sig-process-head-stage"><span className="sig-process-head-stage-medium">Andamento / equipe / prazos</span><span className="sig-process-head-stage-wide">Etapa atual</span></span>
             <span className="sig-process-head-owner">Responsável</span>
-            <span className="sig-process-head-deadline">Prazo</span>
+            <button type="button" className="sig-process-head-deadline sig-reference-sort" onClick={() => { setSortOrder(current => current === "deadline_asc" ? "deadline_desc" : "deadline_asc"); setPage(1); }}
+              aria-label="Ordenar processos por prazo" aria-pressed={sortOrder.startsWith("deadline")}>Prazo <ArrowUpDown className="h-3 w-3" /></button>
             <span className="sig-process-head-pending">Pendências</span>
             <span className="sig-process-head-actions text-right">Ações</span>
           </div>
@@ -161,6 +198,9 @@ export function CompactProcessRegistry({
               const detailPath = buildProcessPath(process) + detailPathSuffix;
               const number = formatOfficialProcessNumber(process.protocol);
               const title = formatOfficialProcessTitle({ title: process.title, type: process.type });
+              const compactNumber = String(process.protocol || "").trim().match(/^PM-\d{4}-\d+$/i)
+                ? String(process.protocol).trim()
+                : number.replace(/^Processo\s+n[º°]\s*/i, "");
               const selected = selectedSet.has(process.id);
               return (
                 <div role="listitem" key={process.id} data-sei-process-row="true"
@@ -178,12 +218,16 @@ export function CompactProcessRegistry({
                         aria-label={"Selecionar processo " + number}
                         className="mr-1 h-4 w-4 shrink-0 cursor-pointer accent-sky-800" />
                     ) : null}
-                    {markers.slice(0, 2).map((item, markerIndex) => (
-                      <span key={markerIndex} title={item.label} className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border"
-                        style={{ color: item.color, borderColor: item.color + "66", backgroundColor: item.color + "16" }}>
-                        <Flag className="h-3.5 w-3.5" fill="currentColor" />
-                      </span>
-                    ))}
+                    {markers.slice(0, 2).map((item, markerIndex) => {
+                      const MarkerIcon = markerIcon(item.label);
+                      return (
+                        <span key={markerIndex} title={item.label}
+                          className="sig-reference-marker inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-lg"
+                          style={{ color: item.color, backgroundColor: item.color + "12" }}>
+                          <MarkerIcon className="h-4 w-4" strokeWidth={2.6} />
+                        </span>
+                      );
+                    })}
                     {markers.length > 2 ? (
                       <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-700 dark:bg-slate-800 dark:text-white" title="Marcadores adicionais">
                         +{markers.length - 2}
@@ -200,7 +244,7 @@ export function CompactProcessRegistry({
                   <div className="sig-process-number min-w-0">
                     <Link to={detailPath} data-sei-process-link="true"
                       className="sig-process-number-link inline-block max-w-full align-middle text-[13px] font-extrabold leading-5 text-sky-900 underline decoration-sky-300 underline-offset-[3px] hover:text-sky-700 dark:text-sky-200"
-                      title={"Abrir " + number}>{number}</Link>
+                      title={"Abrir " + number}>{compactNumber}</Link>
                     {marker ? (
                       <p title={marker.label} className="sig-process-marker-label mt-1 max-w-full text-[11px] font-semibold text-slate-600 dark:text-slate-300">{marker.label}</p>
                     ) : null}
@@ -261,7 +305,7 @@ export function CompactProcessRegistry({
                   <div className="sig-process-actions flex min-w-0 items-center justify-end gap-1.5">
                     <Button asChild size="sm"
                       className="sig-process-open-btn h-9 shrink-0 rounded-lg bg-[#0b3e67] px-3 text-[11px] font-bold !text-white hover:bg-[#075985]">
-                      <Link to={detailPath} aria-label={"Abrir processo " + number}>
+                      <Link to={detailPath} aria-label={"Abrir processo " + compactNumber}>
                         <ExternalLink className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
                         Abrir processo
                       </Link>
@@ -301,14 +345,20 @@ export function CompactProcessRegistry({
           </div>
       </div>
 
-      <footer className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-slate-200 bg-slate-50/90 px-3 py-3 text-[11px] text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200">
+      <footer data-sigapro-process-footer="reference" className="sig-reference-footer flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-slate-200 bg-slate-50/90 px-3 py-3 text-[11px] text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200">
         <div className="flex flex-wrap items-center gap-2">
           <span aria-live="polite">
             Exibindo {pageData.start + 1}–{pageData.end} de {pageData.total.toLocaleString("pt-BR")} processos
           </span>
-          <span className="hidden sm:inline">· Marcadores: <Flag className="inline h-3 w-3 text-sky-700" /> Salvos</span>
-          <span className="hidden md:inline">· <AlertTriangle className="inline h-3 w-3 text-rose-600" /> SLA</span>
-          <span className="hidden md:inline">· <FileWarning className="inline h-3 w-3 text-amber-600" /> Exigência</span>
+          <div className="sig-reference-legend" aria-label="Legenda dos marcadores">
+            <span className="sig-reference-legend-label">Marcadores:</span>
+            <span className="sig-reference-legend-chip danger"><Flame className="h-3.5 w-3.5" /> SLA crítico</span>
+            <span className="sig-reference-legend-chip pending"><FileWarning className="h-3.5 w-3.5" /> Guia pendente</span>
+            <span className="sig-reference-legend-chip warning"><AlertCircle className="h-3.5 w-3.5" /> Exigência</span>
+            <span className="sig-reference-legend-chip blue"><Layers3 className="h-3.5 w-3.5" /> Análise</span>
+            <span className="sig-reference-legend-chip purple"><MapPin className="h-3.5 w-3.5" /> Vistoria</span>
+            <span className="sig-reference-legend-chip green"><Gavel className="h-3.5 w-3.5" /> Em decisão</span>
+          </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <label htmlFor={pageSizeControlId} className="font-medium">Itens por página:</label>
@@ -324,7 +374,24 @@ export function CompactProcessRegistry({
                 onClick={() => setPage(pageData.page - 1)}>
                 <ChevronLeft className="h-3.5 w-3.5" /> Anterior
               </Button>
-              <span className="min-w-[90px] text-center font-semibold" aria-live="polite">Página {pageData.page} de {pageData.totalPages}</span>
+              <span className="sig-reference-page-label min-w-[90px] text-center font-semibold" aria-live="polite">Página {pageData.page} de {pageData.totalPages}</span>
+              <div className="sig-reference-page-buttons">
+                {Array.from(new Set([
+                  1, Math.max(1, pageData.page - 1), pageData.page,
+                  Math.min(pageData.totalPages, pageData.page + 1),
+                  pageData.totalPages,
+                ])).sort((a, b) => a - b).map((pageNumber, index, pages) => (
+                  <span key={pageNumber} className="sig-reference-page-cluster">
+                    {index > 0 && pageNumber - pages[index - 1] > 1 ? <span className="sig-reference-ellipsis" aria-hidden="true">…</span> : null}
+                    <button type="button" aria-label={"Ir para página " + pageNumber}
+                      aria-current={pageData.page === pageNumber ? "page" : undefined}
+                      onClick={() => setPage(pageNumber)}
+                      className={"sig-reference-page-button " + (pageData.page === pageNumber ? "active" : "")}>
+                      {pageNumber}
+                    </button>
+                  </span>
+                ))}
+              </div>
               <Button type="button" size="sm" variant="outline" disabled={pageData.page >= pageData.totalPages}
                 className="h-8 rounded-lg border-slate-300 bg-white px-2 text-slate-800"
                 onClick={() => setPage(pageData.page + 1)}>

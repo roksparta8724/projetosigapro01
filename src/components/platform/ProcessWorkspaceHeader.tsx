@@ -77,6 +77,7 @@ export function ProcessWorkspaceHeader({
           <div key={key} className="sig-workspace-kpi" data-workspace-kpi={key}>
             <span className={"sig-workspace-kpi-icon " + tone}><Icon className="h-6 w-6" /></span>
             <span className="min-w-0"><strong className="tabular-nums">{count.toLocaleString("pt-BR")}</strong><small>{label}</small></span>
+            {key === "critical" ? <span className="sig-reference-kpi-alert" aria-hidden="true">SLA crítico</span> : null}
           </div>
         ))}
       </div>
