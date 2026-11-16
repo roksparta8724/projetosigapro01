@@ -71,7 +71,8 @@ describe("SIGAPRO QA — Visão Geral da Prefeitura com subpáginas reais", () =
     expect(page).toContain("const mainQueue = useMemo(() => orderedAllProcesses.filter");
     expect(page).toContain("overviewActivityPageData.items.map");
     expect(page).toContain("paginateMunicipalItems(recentActivity, overviewActivityPage, 15)");
-    expect(list).toContain("paginateMunicipalItems(processes, page, 25)");
+    expect(list).toContain("paginateMunicipalItems(processes, page, pageSize)");
+    expect(list).toContain("const pageSizes = [10, 25, 50]");
     expect(list).toContain("pageData.items.map((process)");
     expect(list).toContain("xl:grid-cols-[44px_");
     expect(list).not.toContain("lg:grid-cols-[44px_");

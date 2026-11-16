@@ -149,7 +149,8 @@ describe("dashboard nav must not redirect away from Visão geral", () => {
     expect(dashboard).toContain('data-sigapro-overview-strip="compact"');
     expect(tenant).not.toContain("lg:grid-cols-[minmax(260px,1.55fr)");
     expect(cards).toContain("[overflow-wrap:anywhere]");
-    expect(history).toContain("min-[2050px]:grid-cols-");
+    expect(history).toContain("renderQueueTable(filteredQueue)");
+    expect(history).toContain("<CompactProcessRegistry");
     expect(externalTabs.indexOf('value: "visao"')).toBeGreaterThan(externalTabs.indexOf('value: "controle"'));
   });
 

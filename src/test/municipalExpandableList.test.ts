@@ -17,17 +17,17 @@ describe("Municipal compact expandable listings", () => {
     expect(paginateMunicipalItems([1, 2, 3], 99, 2).items).toEqual([3]);
     expect(paginateMunicipalItems([1, 2, 3], Number.NaN, 2).page).toBe(1);
   });
-  it("renders compact disclosure links and paginated process and activity views", () => {
+  it("uses a paginated premium process table without the giant expandable queue cards", () => {
     const code = readFileSync(resolve(process.cwd(), "src/pages/saas/TenantAdminPage.tsx"), "utf8");
-    expect(code).toContain('data-municipal-queue-row="true"');
+    const list = readFileSync(resolve(process.cwd(), "src/components/platform/CompactProcessRegistry.tsx"), "utf8");
+    expect(code).not.toContain('data-municipal-queue-row="true"');
     expect(code).toContain('data-municipal-activity-card="true"');
-    expect(code).toContain("<details");
-    expect(code).toContain("<summary");
-    expect(code).toContain("Ver detalhes");
-    expect(code).toContain("Ocultar detalhes");
+    expect(code).toContain("renderQueueTable(filteredQueue)");
+    expect(code).toContain("<CompactProcessRegistry");
     expect(code).toContain('data-municipal-queue-paged="true"');
     expect(code).toContain('data-municipal-history-paged="true"');
-    expect(code).toContain("queuePageData.items.map");
+    expect(list).toContain("paginateMunicipalItems(processes, page, pageSize)");
+    expect(list).toContain("pageData.items.map((process");
     expect(code).toContain("historyPageData.items.map");
   });
 });

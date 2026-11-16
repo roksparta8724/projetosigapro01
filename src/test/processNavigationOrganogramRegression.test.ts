@@ -10,8 +10,10 @@ const permission = readFileSync(resolve(root, "src/components/platform/Permissio
 const css = readFileSync(resolve(root, "src/index.css"), "utf8");
 
 describe("process entry and organogram regression", () => {
-  it("restores premium analysis cards while keeping both direct process links", () => {
-    expect(analyst).not.toContain('import { CompactProcessRegistry }');
+  it("makes compact process-control the default while preserving detailed analysis actions", () => {
+    expect(analyst).toContain('import { CompactProcessRegistry }');
+    expect(analyst).toContain('processListView === "tabela"');
+    expect(analyst).toContain("Ver ações detalhadas da Análise");
     expect(analyst).toContain("renderQueue(");
     expect(analyst).toContain('data-primary-action="process"');
     expect(analyst).toContain("sm:w-[190px]");
