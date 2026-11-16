@@ -11,7 +11,7 @@ export function processIsCritical(p: ProcessRecord) {
 }
 export function processPendingGuideCount(p: ProcessRecord) {
   const guides = p.payment?.guides ?? [];
-  return guides.length ? guides.filter(g => g.status === "pendente" || g.status === "pending").length
+  return guides.length ? guides.filter(g => g.status === "pendente").length
     : (p.payment?.guideNumber && p.payment.status === "pendente" ? 1 : 0);
 }
 export function processHasRequirement(p: ProcessRecord) {
