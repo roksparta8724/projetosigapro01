@@ -31,7 +31,7 @@ import {
   PageStatsRow,
 } from "@/components/platform/PageShell";
 import { PortalFrame } from "@/components/platform/PortalFrame";
-import { CompactProcessRegistry } from "@/components/platform/CompactProcessRegistry";
+import { PremiumProcessRegistry as CompactProcessRegistry } from "@/components/platform/PremiumProcessRegistry";
 import { SectionCard } from "@/components/platform/SectionCard";
 import { StatCard } from "@/components/platform/StatCard";
 import {
@@ -588,7 +588,7 @@ export function FinanceProtocolsPage() {
                     </p>
                   </div>
                 ) : processListView === "tabela" ? (
-                  <CompactProcessRegistry processes={visibleLedgers.map((ledger) => ledger.process)}
+                  <CompactProcessRegistry operatorName={session.name} processes={visibleLedgers.map((ledger) => ledger.process)}
                     showArchiveAction={false} canDispatchProcess={() => false}
                     emptyMessage="Nenhum processo financeiro encontrado." />
                 ) : (

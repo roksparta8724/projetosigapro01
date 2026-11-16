@@ -30,6 +30,8 @@ type CompactProcessRegistryProps = {
   onToggleSelection?: (processId: string, selected: boolean) => void;
   /** A readonly view for a municipal administrator or external stakeholder. */
   showSensitiveDetails?: boolean;
+  defaultPageSize?: number;
+  onVisiblePageChange?: (ids: string[]) => void;
 };
 
 const pageSizes = [10, 25, 50] as const;
@@ -79,10 +81,12 @@ export function CompactProcessRegistry({
   selectedProcessIds = [],
   onToggleSelection,
   showSensitiveDetails = true,
+  defaultPageSize = 25,
+  onVisiblePageChange,
 }: CompactProcessRegistryProps) {
   const pageSizeControlId = useId();
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState<number>(25);
+  const [pageSize, setPageSize] = useState<number>(defaultPageSize);
   const pageData = useMemo(
     () => paginateMunicipalItems(processes, page, pageSize),
     [processes, page, pageSize],
@@ -90,6 +94,10 @@ export function CompactProcessRegistry({
   useEffect(() => {
     if (page !== pageData.page) setPage(pageData.page);
   }, [page, pageData.page]);
+  const visiblePageSignature = pageData.items.map(process => process.id).join("|");
+  useEffect(() => {
+    onVisiblePageChange?.(visiblePageSignature ? visiblePageSignature.split("|") : []);
+  }, [visiblePageSignature, onVisiblePageChange]);
 
   const selectable = Boolean(onToggleSelection);
   const currentPageIds = pageData.items.map((process) => process.id);

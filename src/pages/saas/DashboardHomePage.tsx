@@ -31,7 +31,7 @@ import { PlanModuleRoute } from "@/components/platform/PlanModuleRoute";
 import { Button } from "@/components/ui/button";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { PlanCapacityCard } from "@/components/platform/PlanCapacityCard";
-import { CompactProcessRegistry } from "@/components/platform/CompactProcessRegistry";
+import { PremiumProcessRegistry as CompactProcessRegistry } from "@/components/platform/PremiumProcessRegistry";
 import { displayDashboardCategoryLabel } from "@/lib/dashboardPresentation";
 import {hasPrematureAnalysisStage,isAdministrativelyClosed,isVerifiedTechnicalAnalysis} from "@/lib/processOperationalIntegrity";
 import {isFinancialTestGuide,isPendingFinancialGuide,isBankVerifiedFinancialGuide,summarizeFinancialGuideEvidence} from "@/lib/qaPaymentEvidence";
@@ -875,7 +875,7 @@ export function DashboardHomePage() {
           </Button>
         </header>
         <div className="min-w-0 p-2.5 sm:p-3">
-          <CompactProcessRegistry
+          <CompactProcessRegistry operatorName={session.name}
             processes={recentProcesses}
             showArchiveAction={false}
             canDispatchProcess={() => false}

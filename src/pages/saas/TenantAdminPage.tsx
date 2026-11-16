@@ -28,7 +28,7 @@ import { usePlanCapacityLive } from "@/hooks/usePlanCapacityLive";
 import { paginateMunicipalItems } from "@/lib/municipalListPagination";
 import {hasPrematureAnalysisStage,isAdministrativelyClosed,isVerifiedTechnicalAnalysis} from "@/lib/processOperationalIntegrity";
 import { CompactUserRegistry } from "@/components/platform/CompactUserRegistry";
-import { CompactProcessRegistry } from "@/components/platform/CompactProcessRegistry";
+import { PremiumProcessRegistry as CompactProcessRegistry } from "@/components/platform/PremiumProcessRegistry";
 import { MunicipalOverviewSubnav } from "@/components/platform/MunicipalOverviewSubnav";
 import { isMunicipalOverviewSubpagePath, municipalOverviewSubpageFromPath } from "@/lib/municipalOverviewSubpages";
 import { buildPlanCapacityMetrics } from "@/lib/planUsageDashboard";
@@ -391,7 +391,7 @@ export function TenantAdminPage() {
   }>({ tone: "idle", message: "" });
   const [savingUserId, setSavingUserId] = useState<string | null>(null);
   const [workspaceView, setWorkspaceView] = useState<WorkspaceView>("fila");
-  const [queueSearch, setQueueSearch] = useState("");
+  const [queueSearch] = useState("");
   const [overviewProcessStatus, setOverviewProcessStatus] = useState<"todos" | "andamento" | "pendentes" | "concluidos">("todos");
   const [overviewProcessSearch, setOverviewProcessSearch] = useState("");
   const [overviewActivityPage, setOverviewActivityPage] = useState(1);
@@ -891,7 +891,7 @@ export function TenantAdminPage() {
   // Single premium process table, not one expanding card per process.
   // Authoritative process data and the sector's permissions remain unchanged.
   const renderQueueTable = (items: ProcessRecord[]) => (
-    <CompactProcessRegistry
+    <CompactProcessRegistry operatorName={session.name}
       processes={items}
       showArchiveAction={false}
       canDispatchProcess={() => false}
@@ -1464,7 +1464,7 @@ export function TenantAdminPage() {
             </div>
 
             <div data-processes-list="true" className="min-w-0">
-              <CompactProcessRegistry
+              <CompactProcessRegistry operatorName={session.name}
                 key={overviewProcessStatus + ":" + overviewProcessSearch + ":" + (effectiveScopeId || "")}
                 processes={overviewProcesses}
                 showArchiveAction={false}
@@ -1504,7 +1504,7 @@ export function TenantAdminPage() {
                 <p className="text-xs text-slate-600" aria-live="polite">
                   {overviewPendingProcesses.length.toLocaleString("pt-BR")} processo(s) encontrados · 25 por página
                 </p>
-                <CompactProcessRegistry
+                <CompactProcessRegistry operatorName={session.name}
                   key={overviewPendingSearch + ":" + (effectiveScopeId || "")}
                   processes={overviewPendingProcesses}
                   showArchiveAction={false}
@@ -1589,25 +1589,11 @@ export function TenantAdminPage() {
         ) : null}
 
         {workspaceView === "fila" ? (
-          <TableCard title="Fila operacional" description="Consulte os processos por número, assunto ou responsável. Detalhes aparecem somente quando solicitados." icon={ClipboardList}>
-            <div className="space-y-4">
-              <div className="grid gap-3 sm:grid-cols-3">
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700"><strong className="block text-lg text-slate-950">{mainQueue.length}</strong> processos no município</div>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700"><strong className="block text-lg text-slate-950">{criticalAlerts.length}</strong> com atenção ao prazo</div>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700"><strong className="block text-lg text-slate-950">{metrics.pendingPayments}</strong> guias pendentes</div>
-              </div>
-              <div className="relative">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-                <Input aria-label="Pesquisar processos da fila" value={queueSearch}
-                  onChange={(event) => setQueueSearch(event.target.value)}
-                  placeholder="Pesquisar número, assunto, proprietário ou responsável"
-                  className="h-11 rounded-xl border-slate-300 bg-white pl-10 text-slate-900" />
-              </div>
-              <div data-municipal-queue-paged="true" className="min-w-0">
-                {renderQueueTable(filteredQueue)}
-              </div>
+          <div data-sigapro-queue-workspace="premium" className="min-w-0 w-full">
+            <div data-municipal-queue-paged="true" className="min-w-0">
+              {renderQueueTable(filteredQueue)}
             </div>
-          </TableCard>
+          </div>
         ) : null}
 
         {workspaceView === "usuarios" ? (

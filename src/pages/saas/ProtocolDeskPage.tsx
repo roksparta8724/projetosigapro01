@@ -25,7 +25,7 @@ import { AlertCard } from "@/components/platform/AlertCard";
 import { InternalTabs } from "@/components/platform/InternalTabs";
 import { PageHeader } from "@/components/platform/PageHeader";
 import { MarkerSelector } from "@/components/platform/MarkerSelector";
-import { CompactProcessRegistry } from "@/components/platform/CompactProcessRegistry";
+import { PremiumProcessRegistry as CompactProcessRegistry } from "@/components/platform/PremiumProcessRegistry";
 import {
   PageMainContent,
   PageMainGrid,
@@ -568,8 +568,9 @@ export function ProtocolDeskPage() {
             </div>
           </div>
           {protocolActionStatus ? <p role="status" className="rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm text-sky-900">{protocolActionStatus}</p> : null}
-          <CompactProcessRegistry
+          <CompactProcessRegistry operatorName={session.name}
             processes={visibleItems} emptyMessage={normalizedQuery ? "Nenhum processo corresponde à busca." : emptyMessage}
+            onBulkDispatch={() => { void dispatchSelectedToUrbanism(visibleItems); }}
             selectedProcessIds={Array.from(selectedProcessIds)}
             onToggleSelection={(id, selected) => {
               if (selectedProcessIds.has(id) !== selected) toggleProcessSelection(id);
@@ -1186,7 +1187,7 @@ export function ProtocolDeskPage() {
               ) : (
                 <>
                   <p className="sr-only">Consultar processo</p>
-                  <CompactProcessRegistry processes={visible} showArchiveAction={false}
+                  <CompactProcessRegistry operatorName={session.name} processes={visible} showArchiveAction={false}
                     canDispatchProcess={() => false}
                     emptyMessage="Nenhum protocolo encontrado para os filtros informados." />
                 </>

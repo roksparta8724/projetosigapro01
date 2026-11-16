@@ -6,7 +6,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Navigate } from "react-router-dom";
-import { CompactProcessRegistry } from "@/components/platform/CompactProcessRegistry";
+import { PremiumProcessRegistry as CompactProcessRegistry } from "@/components/platform/PremiumProcessRegistry";
 import { PageHeader } from "@/components/platform/PageHeader";
 import { PageShell, PageStatsRow } from "@/components/platform/PageShell";
 import { PortalFrame } from "@/components/platform/PortalFrame";
@@ -354,8 +354,12 @@ export function MunicipalProcessRegistryPage() {
           </div>
 
           <div className="mt-4">
-            <CompactProcessRegistry
+            <CompactProcessRegistry operatorName={session.name}
               processes={visibleProcesses}
+              markerOptions={presets.filter(preset => preset.active).map(preset => ({
+                label: formatMarkerLabel(preset), color: preset.color || "#2563eb",
+              }))}
+              onBulkMarker={async (_selected, marker) => applyMarkerToSelected(marker.label, marker.color)}
               selectedProcessIds={selectedProcessIds}
               onToggleSelection={(processId, selected) => setSelectedProcessIds((current) => selected
                 ? Array.from(new Set([...current, processId]))

@@ -17,7 +17,7 @@ import {
 import { InternalTabs } from "@/components/platform/InternalTabs";
 import { PageIntro } from "@/components/platform/PageIntro";
 import { PortalFrame } from "@/components/platform/PortalFrame";
-import { CompactProcessRegistry } from "@/components/platform/CompactProcessRegistry";
+import { PremiumProcessRegistry as CompactProcessRegistry } from "@/components/platform/PremiumProcessRegistry";
 import { SectionPanel } from "@/components/platform/SectionPanel";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
@@ -434,7 +434,7 @@ export function ExternalProcessControlPage() {
                 </Button>
               </div>
               {processListView === "tabela" && filteredProcesses.length > 0 ? (
-                <CompactProcessRegistry processes={filteredProcesses} showArchiveAction={false}
+                <CompactProcessRegistry operatorName={session.name} processes={filteredProcesses} showArchiveAction={false}
                   showSensitiveDetails={false} canDispatchProcess={() => false} />
               ) : processListView === "detalhes" ? (
                 <>

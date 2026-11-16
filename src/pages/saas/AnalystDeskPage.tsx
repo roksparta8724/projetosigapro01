@@ -22,7 +22,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { AlertCard } from "@/components/platform/AlertCard";
 import { InternalTabs } from "@/components/platform/InternalTabs";
 import { MarkerSelector } from "@/components/platform/MarkerSelector";
-import { CompactProcessRegistry } from "@/components/platform/CompactProcessRegistry";
+import { PremiumProcessRegistry as CompactProcessRegistry } from "@/components/platform/PremiumProcessRegistry";
 import { PortalFrame } from "@/components/platform/PortalFrame";
 import { QaArchitecturalLab } from "@/components/platform/QaArchitecturalLab";
 import { SectionCard } from "@/components/platform/SectionCard";
@@ -652,7 +652,7 @@ export function AnalystDeskPage() {
         <Button type="button" size="sm" variant="outline" className="rounded-lg border-slate-300 bg-white text-slate-900"
           onClick={() => setProcessListView("detalhes")}>Ver ações detalhadas da Análise</Button>
       </div>
-      <CompactProcessRegistry processes={items} showArchiveAction={false}
+      <CompactProcessRegistry operatorName={session.name} processes={items} showArchiveAction={false}
         canDispatchProcess={() => false} emptyMessage={emptyMessage} />
     </div>
   ) : (
