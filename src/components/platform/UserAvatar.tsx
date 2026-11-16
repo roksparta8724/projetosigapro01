@@ -140,6 +140,7 @@ export function UserAvatar(props: UserAvatarProps) {
     {...props}
     imageUrl={privateImageUrl}
     onVerifiedImageLoad={rememberVerifiedImage}
+    isPrivateAvatar={Boolean(privateSource)}
   />;
 }
 
@@ -157,7 +158,8 @@ function UserAvatarPresentation({
   fallbackClassName,
   title,
   onVerifiedImageLoad,
-}: UserAvatarProps & { onVerifiedImageLoad?: (image: HTMLImageElement) => void }) {
+  isPrivateAvatar = false,
+}: UserAvatarProps & { onVerifiedImageLoad?: (image: HTMLImageElement) => void; isPrivateAvatar?: boolean }) {
   const [failedImageUrl, setFailedImageUrl] = useState("");
   const [stableImageUrl, setStableImageUrl] = useState(imageUrl ?? "");
   const [naturalSize, setNaturalSize] = useState(() => readCachedAvatarDimensions(imageUrl));
@@ -234,7 +236,12 @@ function UserAvatarPresentation({
   const initials = userInitials(name);
   const sizePixels: Record<UserAvatarSize, number> = { sm: 32, md: 40, lg: 56, xl: 80 };
   const diameter = sizePixels[size];
-  const cropGeometry = crop
+  // The tiny same-tab preview is already cropped into the final avatar frame.
+  // Never apply the original R2 editor transform a second time: it would
+  // briefly zoom the face before the protected full resolution image arrives.
+  const isPreparedPrivatePreview = isPrivateAvatar &&
+    /^data:image\/(?:webp|jpeg);base64,/i.test(resolvedImageUrl);
+  const cropGeometry = crop && !isPreparedPrivatePreview
     ? resolveCircularAvatarGeometry({
         naturalWidth: naturalSize.width,
         naturalHeight: naturalSize.height,

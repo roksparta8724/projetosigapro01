@@ -81,6 +81,12 @@ describe("SIGAPRO — avatar sem flash em refresh e isolamento", () => {
     expect(screen.queryByRole("img", { name: "Perfil" })).toBeNull();
   });
 
+  it("não recorta duas vezes a miniatura já preparada do R2", () => {
+    const code = readFileSync("src/components/platform/UserAvatar.tsx", "utf8");
+    expect(code).toContain("isPreparedPrivatePreview");
+    expect(code).toContain("crop && !isPreparedPrivatePreview");
+  });
+
   it("aplica proteção de foto às três instâncias de topbar, incluindo desktop e menu", () => {
     const code = readFileSync("src/components/platform/PortalFrame.tsx", "utf8");
     const items = [...code.matchAll(/<UserAvatar[\s\S]*?\/>/g)].map((x) => x[0]);
