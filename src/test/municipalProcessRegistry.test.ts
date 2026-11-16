@@ -33,7 +33,8 @@ describe("municipal process registry", () => {
 
   it("renders every process in the dense premium table with an accessible open action", () => {
     expect(registry).toContain('data-sei-process-row="true"');
-    expect(registry).toContain("px-3 py-2.5");
+    expect(registry).toContain("sig-process-row");
+    expect(registry).toContain("sig-process-actions");
     expect(registry).toContain("Abrir processo");
     expect(registry).toContain('data-sigapro-process-control="premium-table"');
     expect(analyst).toContain("CompactProcessRegistry");

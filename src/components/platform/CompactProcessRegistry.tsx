@@ -16,6 +16,7 @@ import {
   parseMarker, statusLabel, statusTone, type ProcessRecord,
 } from "@/lib/platform";
 import { cn } from "@/lib/utils";
+import "@/styles/compact-process-registry.css";
 
 type CompactProcessRegistryProps = {
   processes: ProcessRecord[];
@@ -31,10 +32,6 @@ type CompactProcessRegistryProps = {
   showSensitiveDetails?: boolean;
 };
 
-const gridWithoutSelection =
-  "xl:grid-cols-[44px_minmax(130px,1.05fr)_minmax(160px,1.45fr)_minmax(125px,.95fr)_minmax(115px,.95fr)_100px_120px_144px]";
-const gridWithSelection =
-  "xl:grid-cols-[86px_minmax(130px,1.05fr)_minmax(160px,1.45fr)_minmax(125px,.95fr)_minmax(115px,.95fr)_100px_120px_144px]";
 const pageSizes = [10, 25, 50] as const;
 const openRequirementStates = new Set(["aberta", "respondida"]);
 const openGuideStates = new Set(["pendente", "pending"]);
@@ -68,8 +65,8 @@ function markersFor(process: ProcessRecord) {
  * municipality administration and process registry. It never fetches another
  * municipality, changes permissions or performs implicit bulk decisions.
  *
- * At small widths the record becomes a compact grid, while desktop uses one
- * dense fixed-alignment row with horizontal overflow only when necessary.
+ * Uses container queries instead of viewport breakpoints: no artificial
+ * min-width or clipped action column inside a municipal sidebar layout.
  */
 export function CompactProcessRegistry({
   processes,
@@ -99,7 +96,6 @@ export function CompactProcessRegistry({
   const selectedSet = useMemo(() => new Set(selectedProcessIds), [selectedProcessIds]);
   const checkedCount = currentPageIds.filter((id) => selectedSet.has(id)).length;
   const allPageSelected = currentPageIds.length > 0 && checkedCount === currentPageIds.length;
-  const grid = selectable ? gridWithSelection : gridWithoutSelection;
 
   if (processes.length === 0) {
     return (
@@ -112,14 +108,11 @@ export function CompactProcessRegistry({
 
   return (
     <section data-sei-process-registry="true" data-sigapro-process-control="premium-table"
-      className="min-w-0 overflow-hidden rounded-[20px] border border-slate-200 bg-white shadow-[0_14px_34px_rgba(15,23,42,0.075)] dark:border-slate-700 dark:bg-slate-950">
-      <div className="min-w-0 overflow-x-auto" tabIndex={0} aria-label="Tabela de processos; use a rolagem horizontal em telas pequenas">
-        <div className="min-w-[995px] xl:min-w-[1040px]">
-          <div className={cn(
-            "hidden min-h-11 items-center gap-2 border-b border-slate-200 bg-slate-50 px-3 text-[10px] font-bold uppercase tracking-[0.045em] text-slate-600 xl:grid dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300",
-            grid,
-          )}>
-            <div className="flex min-w-0 items-center justify-center gap-2" title="Marcador">
+      data-sigapro-responsive-layout="container" data-has-selection={selectable ? "true" : "false"}
+      className="sig-process-registry min-w-0 w-full overflow-hidden rounded-[20px] border border-slate-200 bg-white shadow-[0_14px_34px_rgba(15,23,42,0.075)] dark:border-slate-700 dark:bg-slate-950">
+      <div className="sig-process-content min-w-0 w-full">
+          <div className="sig-process-head min-h-11 items-center gap-2 border-b border-slate-200 bg-slate-50 px-3 text-[11px] font-bold uppercase tracking-[0.045em] text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
+            <div className="sig-process-head-marker flex min-w-0 items-center justify-center gap-2" title="Marcador">
               {selectable ? (
                 <input type="checkbox" checked={allPageSelected}
                   aria-label="Selecionar processos desta página"
@@ -129,13 +122,13 @@ export function CompactProcessRegistry({
               <Flag className="h-4 w-4 shrink-0" aria-hidden="true" />
               <span className="sr-only">Marcador</span>
             </div>
-            <span>Nº do processo</span>
-            <span>Assunto / interessado</span>
-            <span>Etapa atual</span>
-            <span>Responsável</span>
-            <span>Prazo</span>
-            <span>Pendências</span>
-            <span className="text-right">Ações</span>
+            <span className="sig-process-head-number">Nº do processo</span>
+            <span className="sig-process-head-subject">Assunto / interessado</span>
+            <span className="sig-process-head-stage"><span className="sig-process-head-stage-medium">Andamento / equipe / prazos</span><span className="sig-process-head-stage-wide">Etapa atual</span></span>
+            <span className="sig-process-head-owner">Responsável</span>
+            <span className="sig-process-head-deadline">Prazo</span>
+            <span className="sig-process-head-pending">Pendências</span>
+            <span className="sig-process-head-actions text-right">Ações</span>
           </div>
 
           <div className="divide-y divide-slate-200 dark:divide-slate-800" role="list" aria-label="Processos encontrados">
@@ -164,14 +157,13 @@ export function CompactProcessRegistry({
               return (
                 <div role="listitem" key={process.id} data-sei-process-row="true"
                   className={cn(
-                    "group grid min-w-0 gap-2 px-3 py-2.5 transition-colors xl:items-center",
-                    grid,
+                    "sig-process-row group min-w-0 transition-colors",
                     index % 2 === 0 ? "bg-white dark:bg-slate-950" : "bg-slate-50/55 dark:bg-slate-900/65",
                     "hover:bg-sky-50/80 dark:hover:bg-sky-950/30",
                     archived && "opacity-75",
                     selected && "bg-sky-100/70 dark:bg-sky-950/40",
                   )}>
-                  <div className="flex min-w-0 flex-wrap items-center justify-center gap-1" aria-label="Marcadores do processo">
+                  <div className="sig-process-marker flex min-w-0 flex-wrap items-center justify-center gap-1" aria-label="Marcadores do processo">
                     {selectable ? (
                       <input type="checkbox" checked={selected}
                         onChange={(event) => onToggleSelection?.(process.id, event.target.checked)}
@@ -197,47 +189,54 @@ export function CompactProcessRegistry({
                     ) : null}
                   </div>
 
-                  <div className="min-w-0">
+                  <div className="sig-process-number min-w-0">
                     <Link to={detailPath} data-sei-process-link="true"
-                      className="inline-block max-w-full truncate align-middle text-[12px] font-extrabold leading-5 text-sky-900 underline decoration-sky-300 underline-offset-[3px] hover:text-sky-700 dark:text-sky-200"
+                      className="sig-process-number-link inline-block max-w-full align-middle text-[13px] font-extrabold leading-5 text-sky-900 underline decoration-sky-300 underline-offset-[3px] hover:text-sky-700 dark:text-sky-200"
                       title={"Abrir " + number}>{number}</Link>
                     {marker ? (
-                      <p title={marker.label} className="mt-0.5 max-w-full truncate text-[10px] font-semibold text-slate-600 dark:text-slate-300">{marker.label}</p>
+                      <p title={marker.label} className="sig-process-marker-label mt-1 max-w-full text-[11px] font-semibold text-slate-600 dark:text-slate-300">{marker.label}</p>
                     ) : null}
                   </div>
 
-                  <div className="min-w-0">
-                    <p title={title} className="max-w-full truncate text-[12px] font-semibold leading-5 text-slate-900 dark:text-white">{title}</p>
+                  <div className="sig-process-subject min-w-0">
+                    <p title={title} className="sig-process-subject-title max-w-full text-[13px] font-semibold leading-5 text-slate-900 dark:text-white">{title}</p>
                     {showSensitiveDetails ? (
-                      <p title={process.ownerName} className="mt-0.5 max-w-full truncate text-[11px] leading-5 text-slate-500 dark:text-slate-400">
+                      <p title={process.ownerName} className="sig-process-interested mt-0.5 max-w-full text-[12px] leading-5 text-slate-500 dark:text-slate-400">
                         {process.ownerName || "Interessado não informado"}
                       </p>
                     ) : null}
                   </div>
 
-                  <div className="min-w-0">
-                    <Badge variant="outline" className={cn("max-w-full truncate rounded-full px-2 py-0.5 text-[10.5px] font-semibold", statusTone(process.status))} title={statusLabel(process.status)}>
+                  <div className="sig-process-flow-group">
+                    <div className="sig-process-stage min-w-0">
+                      <span className="sig-process-cell-label">Etapa</span>
+                      <Badge variant="outline" className={cn("sig-process-status max-w-full rounded-full px-2 py-1 text-[11px] font-semibold", statusTone(process.status))} title={statusLabel(process.status)}>
                       <Workflow className="mr-1 h-3 w-3 shrink-0" aria-hidden="true" />
                       {statusLabel(process.status)}
                     </Badge>
-                    <p title={visibleFlow} className="mt-1 max-w-full truncate text-[10px] text-slate-500 dark:text-slate-300">{visibleFlow}</p>
+                    {visibleFlow !== statusLabel(process.status) ? (
+                        <p title={visibleFlow} className="sig-process-stage-description mt-1 max-w-full text-[11px] text-slate-500 dark:text-slate-300">{visibleFlow}</p>
+                      ) : null}
                   </div>
 
-                  <div className="min-w-0">
-                    <p title={analyst} className="max-w-full truncate text-[11px] font-semibold leading-5 text-slate-700 dark:text-slate-200">{analyst}</p>
-                  </div>
+                    <div className="sig-process-responsible min-w-0">
+                      <span className="sig-process-cell-label">Responsável</span>
+                      <p title={analyst} className="sig-process-responsible-name max-w-full text-[12px] font-semibold leading-5 text-slate-700 dark:text-slate-200">{analyst}</p>
+                    </div>
 
-                  <div className="min-w-0">
-                    <span title={fact.due || "Prazo não informado"}
-                      className={cn("inline-flex max-w-full items-center gap-1 rounded-lg border px-1.5 py-1 text-[10px] font-semibold tabular-nums",
+                    <div className="sig-process-deadline min-w-0">
+                      <span className="sig-process-cell-label">Prazo</span>
+                      <span title={restrictedExternal ? "Prazo disponível na consulta do processo" : (fact.due || "Prazo não informado")}
+                      className={cn("sig-process-due-chip inline-flex max-w-full items-center gap-1 rounded-lg border px-2 py-1 text-[11px] font-semibold tabular-nums",
                         fact.urgent ? "border-rose-200 bg-rose-50 text-rose-800" : "border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200")}>
                       <CalendarClock className="h-3 w-3 shrink-0" aria-hidden="true" />
-                      <span className="truncate">{restrictedExternal ? "Consultar etapa" : (fact.due || "Sem prazo")}</span>
+                      <span className="sig-process-due-value">{restrictedExternal ? "Consultar etapa" : (fact.due || "Sem prazo")}</span>
                     </span>
                   </div>
 
-                  <div className="flex min-w-0 flex-wrap items-center gap-1">
-                    {visibleRequirements > 0 ? (
+                    <div className="sig-process-pending flex min-w-0 flex-wrap items-center gap-1">
+                      <span className="sig-process-cell-label">Pendências</span>
+                      {visibleRequirements > 0 ? (
                       <span title="Exigências em aberto" className="inline-flex items-center gap-1 rounded-lg border border-amber-200 bg-amber-50 px-1.5 py-1 text-[10px] font-semibold text-amber-900">
                         <FileWarning className="h-3 w-3 shrink-0" />{visibleRequirements} exig.
                       </span>
@@ -248,11 +247,12 @@ export function CompactProcessRegistry({
                       </span>
                     ) : null}
                     {visibleRequirements === 0 && visiblePendingGuides === 0 ? <span className="text-xs text-slate-400">—</span> : null}
+                    </div>
                   </div>
 
-                  <div className="flex min-w-0 items-center justify-end gap-1">
+                  <div className="sig-process-actions flex min-w-0 items-center justify-end gap-1.5">
                     <Button asChild size="sm"
-                      className="h-8 shrink-0 rounded-lg bg-[#0b3e67] px-2.5 text-[10px] font-bold !text-white hover:bg-[#075985]">
+                      className="sig-process-open-btn h-9 shrink-0 rounded-lg bg-[#0b3e67] px-3 text-[11px] font-bold !text-white hover:bg-[#075985]">
                       <Link to={detailPath} aria-label={"Abrir processo " + number}>
                         <ExternalLink className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
                         Abrir processo
@@ -260,7 +260,7 @@ export function CompactProcessRegistry({
                     </Button>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button type="button" variant="outline" size="icon" className="h-8 w-8 shrink-0 rounded-lg border-slate-300"
+                        <Button type="button" variant="outline" size="icon" className="sig-process-more-btn h-9 w-9 shrink-0 rounded-lg border-slate-300"
                           aria-label={"Mais ações do processo " + number}>
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
@@ -291,7 +291,6 @@ export function CompactProcessRegistry({
               );
             })}
           </div>
-        </div>
       </div>
 
       <footer className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-slate-200 bg-slate-50/90 px-3 py-3 text-[11px] text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200">

@@ -79,6 +79,26 @@ describe("SIGAPRO — controle premium real e consistente para todos os processo
     expect(container.querySelector('[data-sei-process-row]')).toBeTruthy();
   });
 
+  it("reorganiza as colunas dentro do espaço disponível e deixa as ações visíveis", () => {
+    const list = source("src/components/platform/CompactProcessRegistry.tsx");
+    const css = source("src/styles/compact-process-registry.css");
+    expect(list).toContain('data-sigapro-responsive-layout="container"');
+    expect(list).not.toContain("overflow-x-auto");
+    expect(list).not.toContain("min-w-[995px]");
+    expect(list).not.toContain("min-w-[1040px]");
+    expect(list).toContain("sig-process-number-link");
+    expect(list).toContain("sig-process-actions");
+    expect(css).toContain("container: sigapro-process-registry / inline-size");
+    expect(css).toContain("grid-area: actions;");
+    expect(css).toContain("min-width: 650px");
+    expect(css).toContain("min-width: 900px");
+    expect(css).toContain("min-width: 1390px");
+    expect(css).toContain('"marker number subject flow actions"');
+    expect(css).toContain('"marker number subject stage owner deadline pending actions"');
+    expect(css).toContain("white-space: normal;");
+    expect(css).toContain("overflow-wrap: anywhere;");
+  });
+
   it("não apresenta a versão detalhada como ação fictícia: ela permanece acessível em cada mesa", () => {
     expect(source("src/pages/saas/ProtocolDeskPage.tsx")).toContain("Ver ações de triagem");
     expect(source("src/pages/saas/AnalystDeskPage.tsx")).toContain("Ver ações detalhadas da Análise");
