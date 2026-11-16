@@ -154,7 +154,7 @@ export function CompactProcessRegistry({
       className="sig-process-registry min-w-0 w-full overflow-hidden rounded-[20px] border border-slate-200 bg-white shadow-[0_14px_34px_rgba(15,23,42,0.075)] dark:border-slate-700 dark:bg-slate-950">
       <div className="sig-process-content min-w-0 w-full">
           <div className="sig-process-head min-h-11 items-center gap-2 border-b border-slate-200 bg-slate-50 px-3 text-[11px] font-bold uppercase tracking-[0.045em] text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
-            <div className="sig-process-head-marker flex min-w-0 items-center justify-center gap-2" title="Marcadores">
+            <div className="sig-process-head-marker flex min-w-0 items-center justify-center gap-2" title="Marcador">
               {selectable ? (
                 <input type="checkbox" checked={allPageSelected}
                   aria-label="Selecionar processos desta página"

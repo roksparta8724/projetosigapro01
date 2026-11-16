@@ -26,7 +26,7 @@ describe("Municipal compact expandable listings", () => {
     expect(code).toContain("<CompactProcessRegistry");
     expect(code).toContain('data-municipal-queue-paged="true"');
     expect(code).toContain('data-municipal-history-paged="true"');
-    expect(list).toContain("paginateMunicipalItems(processes, page, pageSize)");
+    expect(list).toContain("paginateMunicipalItems(orderedProcesses, page, pageSize)");
     expect(list).toContain("pageData.items.map((process");
     expect(code).toContain("historyPageData.items.map");
   });
