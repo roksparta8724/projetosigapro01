@@ -396,7 +396,6 @@ export function TenantAdminPage() {
   const [overviewProcessSearch, setOverviewProcessSearch] = useState("");
   const [overviewActivityPage, setOverviewActivityPage] = useState(1);
   const [overviewPendingSearch, setOverviewPendingSearch] = useState("");
-  const [queuePage, setQueuePage] = useState(1);
   const [historyPage, setHistoryPage] = useState(1);
   const [segment, setSegment] = useState<UserSegment>("todos");
   const [userPage, setUserPage] = useState(1);
@@ -529,7 +528,6 @@ export function TenantAdminPage() {
   const overviewActivityPageData = paginateMunicipalItems(recentActivity, overviewActivityPage, 15);
   const planSnapshot = planCapacity.rows[0];
   const planUsersMetric = planSnapshot ? buildPlanCapacityMetrics(planSnapshot).find((item) => item.key === "users") : null;
-  const queuePageData = paginateMunicipalItems(filteredQueue, queuePage, 20);
   const historyPageData = paginateMunicipalItems(recentActivity, historyPage, 20);
   useEffect(() => {
     setOverviewActivityPage(1);
@@ -890,138 +888,16 @@ export function TenantAdminPage() {
     void runUserCommand(user.id, () => deleteUserAccount({ userId: user.id, actor: session.id, reason }), (updated) => `Conta de ${updated.name} marcada como inativa.`);
   };
 
-  const renderQueueCard = (process: ProcessRecord) => {
-    const pendingRequirements = process.requirements.filter(
-      (item) => item.status === "aberta" || item.status === "respondida",
-    );
-    const financialGuides = getProcessPaymentGuides(process, tenantSettings);
-    const pendingGuides = financialGuides.filter((guide) => guide.status === "pendente");
-    const protocolGuide = financialGuides.find((guide) => guide.kind === "protocolo");
-    const slaLabel = process.sla.breached
-      ? "Vencido"
-      : process.sla.hoursRemaining <= 12
-        ? "Crítico"
-        : "No prazo";
-
-    return (
-      <details key={process.id} data-municipal-queue-row="true"
-        className="group relative min-w-0 overflow-hidden rounded-[18px] border border-slate-200 bg-white shadow-sm open:border-sky-200">
-        <summary className="flex min-w-0 cursor-pointer flex-wrap items-center gap-2 px-4 py-3 pl-5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-600 [&::-webkit-details-marker]:hidden">
-          <span className="min-w-0 text-xs font-bold text-slate-950">{process.protocol}</span>
-          <Badge variant="outline" className={`${statusTone(process.status)} max-w-full whitespace-normal break-words`}>{statusLabel(process.status)}</Badge>
-          <span className="min-w-0 flex-1 truncate text-sm text-slate-700" title={process.title}>{process.title}</span>
-          <span className="ml-auto inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-sky-700 underline-offset-4 group-hover:underline">
-            <span className="group-open:hidden">Ver detalhes</span>
-            <span className="hidden group-open:inline">Ocultar detalhes</span>
-            <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
-          </span>
-        </summary>
-        <div className="border-t border-slate-200 bg-slate-50/70">
-        <div
-          className={`absolute inset-y-0 left-0 w-1 ${
-            process.sla.breached
-              ? "bg-rose-500"
-              : process.sla.hoursRemaining <= 12
-                ? "bg-amber-400"
-                : "bg-sky-500"
-          }`}
-          aria-hidden="true"
-        />
-
-        <div className="grid min-w-0 max-w-full grid-cols-1 gap-4 px-4 py-4 pl-5 sm:grid-cols-2 min-[1750px]:grid-cols-[minmax(0,1.35fr)_minmax(0,0.85fr)_minmax(0,0.82fr)] min-[2050px]:grid-cols-[minmax(0,1.5fr)_minmax(0,0.75fr)_minmax(0,0.75fr)_minmax(0,0.7fr)_auto] [overflow-wrap:anywhere]">
-          <div className="min-w-0">
-            <div className="flex min-w-0 flex-wrap items-center gap-2">
-              <p
-                className="min-w-0 max-w-full break-words text-sm font-black tracking-[-0.01em] text-slate-950 [overflow-wrap:anywhere]"
-                title={process.protocol}
-              >
-                {process.protocol}
-              </p>
-              <Badge variant="outline" className={`${statusTone(process.status)} max-w-full whitespace-normal break-words [overflow-wrap:anywhere]`}>
-                {statusLabel(process.status)}
-              </Badge>
-              <Badge className={`shrink-0 rounded-full border text-[10px] ${getPriorityTone(process)}`}>
-                SLA {slaLabel}
-              </Badge>
-            </div>
-            <p
-              className="mt-1.5 min-w-0 max-w-full break-words text-sm font-semibold text-slate-800 [overflow-wrap:anywhere]"
-              title={process.title}
-            >
-              {process.title}
-            </p>
-            <div className="mt-1 flex min-w-0 flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 [overflow-wrap:anywhere]">
-              <span className="min-w-0 max-w-full break-words [overflow-wrap:anywhere]" title={process.ownerName}>
-                {process.ownerName || "Responsável não informado"}
-              </span>
-              <span className="min-w-0 max-w-full break-words [overflow-wrap:anywhere]" title={process.property.iptu}>
-                IPTU {process.property.iptu || "não informado"}
-              </span>
-            </div>
-          </div>
-
-          <div className="min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-[0.13em] text-slate-400">
-              Etapa atual
-            </p>
-            <p
-              className="mt-1 max-w-full break-words text-xs font-semibold leading-5 text-slate-700 [overflow-wrap:anywhere]"
-              title={process.sla.currentStage}
-            >
-              {process.sla.currentStage || "Não informada"}
-            </p>
-          </div>
-
-          <div className="min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-[0.13em] text-slate-400">
-              Responsável
-            </p>
-            <p
-              className="mt-1 max-w-full break-words text-xs font-semibold text-slate-700 [overflow-wrap:anywhere]"
-              title={process.technicalLead}
-            >
-              {process.technicalLead || "Não atribuído"}
-            </p>
-            <p className="mt-1 max-w-full break-words text-[11px] text-slate-500 [overflow-wrap:anywhere]" title={process.sla.dueDate}>
-              Prazo: {process.sla.dueDate || "não informado"}
-            </p>
-          </div>
-
-          <div className="min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-[0.13em] text-slate-400">
-              Pendências
-            </p>
-            <div className="mt-1 flex flex-wrap gap-1.5">
-              <span className="rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-[10px] font-bold text-amber-800">
-                {pendingRequirements.length} exig.
-              </span>
-              <span className="rounded-lg border border-rose-200 bg-rose-50 px-2 py-1 text-[10px] font-bold text-rose-700">
-                {pendingGuides.length} guia(s)
-              </span>
-            </div>
-            <p
-              className="mt-1 max-w-full break-words text-[10px] text-slate-500 [overflow-wrap:anywhere]"
-              title={protocolGuide?.code || ""}
-            >
-              {protocolGuide?.code ? `Inicial ${protocolGuide.code}` : "Sem guia inicial"}
-            </p>
-          </div>
-
-          <div className="flex min-w-0 items-center justify-start sm:justify-end min-[1750px]:col-span-3 min-[2050px]:col-span-1">
-            <Button
-              type="button"
-              variant="outline"
-              className="h-auto min-h-9 min-w-0 max-w-full whitespace-normal break-words rounded-xl border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 [overflow-wrap:anywhere]"
-              onClick={() => navigate(buildProcessPath(process))}
-            >
-              Abrir processo
-            </Button>
-          </div>
-        </div>
-        </div>
-      </details>
-    );
-  };
+  // Single premium process table, not one expanding card per process.
+  // Authoritative process data and the sector's permissions remain unchanged.
+  const renderQueueTable = (items: ProcessRecord[]) => (
+    <CompactProcessRegistry
+      processes={items}
+      showArchiveAction={false}
+      canDispatchProcess={() => false}
+      emptyMessage="Nenhum processo corresponde aos filtros."
+    />
+  );
 
   const renderUserCard = (user: SessionUser) => {
     const profile = getUserProfile(user.id, user.email);
@@ -1723,26 +1599,13 @@ export function TenantAdminPage() {
               <div className="relative">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
                 <Input aria-label="Pesquisar processos da fila" value={queueSearch}
-                  onChange={(event) => { setQueueSearch(event.target.value); setQueuePage(1); }}
+                  onChange={(event) => setQueueSearch(event.target.value)}
                   placeholder="Pesquisar número, assunto, proprietário ou responsável"
                   className="h-11 rounded-xl border-slate-300 bg-white pl-10 text-slate-900" />
               </div>
-              {queuePageData.total === 0 ? (
-                <div className="rounded-xl border border-dashed border-slate-300 p-5 text-sm text-slate-600">Nenhum processo encontrado.</div>
-              ) : (
-                <>
-                  <div data-municipal-queue-paged="true" className="space-y-2">
-                    {queuePageData.items.map((process) => renderQueueCard(process))}
-                  </div>
-                  <nav aria-label="Paginação processos" className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-4">
-  <span className="text-xs text-slate-600">Exibindo {queuePageData.start + 1}–{queuePageData.end} de {queuePageData.total} processos · Página {queuePageData.page} de {queuePageData.totalPages}</span>
-  <div className="flex gap-2">
-    <Button type="button" size="sm" variant="outline" disabled={queuePageData.page <= 1} onClick={() => setQueuePage(queuePageData.page - 1)}>Anterior</Button>
-    <Button type="button" size="sm" variant="outline" disabled={queuePageData.page >= queuePageData.totalPages} onClick={() => setQueuePage(queuePageData.page + 1)}>Próxima</Button>
-  </div>
-</nav>
-                </>
-              )}
+              <div data-municipal-queue-paged="true" className="min-w-0">
+                {renderQueueTable(filteredQueue)}
+              </div>
             </div>
           </TableCard>
         ) : null}

@@ -31,6 +31,7 @@ import {
   PageStatsRow,
 } from "@/components/platform/PageShell";
 import { PortalFrame } from "@/components/platform/PortalFrame";
+import { CompactProcessRegistry } from "@/components/platform/CompactProcessRegistry";
 import { SectionCard } from "@/components/platform/SectionCard";
 import { StatCard } from "@/components/platform/StatCard";
 import {
@@ -201,6 +202,7 @@ export function FinanceProtocolsPage() {
   const [view, setView] = useState<FinanceView>("abertos");
   const [search, setSearch] = useState("");
   const [expandedProcessId, setExpandedProcessId] = useState<string | null>(null);
+  const [processListView, setProcessListView] = useState<"tabela" | "detalhes">("tabela");
 
   const openLedgers = ledgers.filter((ledger) => ledger.isOpen);
   const totalIssued = ledgers.reduce((sum, ledger) => sum + ledger.totalIssued, 0);
@@ -567,7 +569,14 @@ export function FinanceProtocolsPage() {
                 </div>
               </div>
 
-              <div className="space-y-5">
+              <div className="space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-900">
+                  <p className="text-xs font-semibold text-slate-600 dark:text-slate-200">Processos do Financeiro · {visibleLedgers.length.toLocaleString("pt-BR")} registro(s)</p>
+                  <Button type="button" variant="outline" size="sm" className="rounded-lg border-slate-300 bg-white text-slate-900"
+                    onClick={() => setProcessListView((current) => current === "tabela" ? "detalhes" : "tabela")}>
+                    {processListView === "tabela" ? "Ver guias e ações financeiras" : "Voltar à tabela"}
+                  </Button>
+                </div>
                 {visibleLedgers.length === 0 ? (
                   <div className="rounded-[22px] border border-dashed border-slate-300 bg-slate-50 p-8 text-center dark:border-slate-700 dark:bg-slate-950/40">
                     <FolderOpen className="mx-auto h-8 w-8 text-slate-400" />
@@ -578,6 +587,10 @@ export function FinanceProtocolsPage() {
                       Ajuste a pesquisa ou altere o filtro para visualizar o histórico.
                     </p>
                   </div>
+                ) : processListView === "tabela" ? (
+                  <CompactProcessRegistry processes={visibleLedgers.map((ledger) => ledger.process)}
+                    showArchiveAction={false} canDispatchProcess={() => false}
+                    emptyMessage="Nenhum processo financeiro encontrado." />
                 ) : (
                   visibleLedgers.map((ledger) => {
                     const { process, guides } = ledger;

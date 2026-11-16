@@ -12,6 +12,9 @@ import { PageShell, PageStatsRow } from "@/components/platform/PageShell";
 import { PortalFrame } from "@/components/platform/PortalFrame";
 import { StatCard } from "@/components/platform/StatCard";
 import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Flag, ChevronDown } from "lucide-react";
+import { useMarkerPresets, formatMarkerLabel } from "@/hooks/useMarkerPresets";
 import { Input } from "@/components/ui/input";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
@@ -42,7 +45,11 @@ export function MunicipalProcessRegistryPage() {
     remoteSyncedForCurrentUser,
     dataError: platformDataError,
     loading: platformDataLoading,
+    addProcessMarkerWithColor,
   } = usePlatformData();
+  const { presets } = useMarkerPresets();
+  const [bulkMarkerBusy, setBulkMarkerBusy] = useState(false);
+  const [bulkMarkerMessage, setBulkMarkerMessage] = useState("");
   // The signed-in account owns the municipal operational scope. A branding
   // cache or old selected tenant must not override its current municipality.
   const effectiveScopeId = session.municipalityId ?? session.tenantId ?? municipality?.id ?? scopeId ?? null;
@@ -147,6 +154,38 @@ export function MunicipalProcessRegistryPage() {
       ? Array.from(new Set([...current, ...visibleIds]))
       : current.filter((id) => !visibleIds.includes(id)));
   };
+  const applyMarkerToSelected = async (markerLabel: string, markerColor: string) => {
+    if (bulkMarkerBusy || !remoteSyncedForCurrentUser || !selectedVisibleIds.length) return;
+    if (selectedVisibleIds.length > 25) {
+      setBulkMarkerMessage("Selecione até 25 processos por aplicação, para preservar a rastreabilidade individual.");
+      return;
+    }
+    const ids = new Set(selectedVisibleIds);
+    const selectedProcesses = visibleProcesses.filter((process) => ids.has(process.id));
+    const canMarkAll = session.role !== "prefeitura_admin" &&
+      selectedProcesses.every((process) => isProcessOwnedBySessionDepartment(session, process));
+    if (!canMarkAll) {
+      setBulkMarkerMessage("A marcação exige atuação autorizada em todos os processos selecionados. Refine a seleção.");
+      return;
+    }
+
+    setBulkMarkerBusy(true);
+    setBulkMarkerMessage("");
+    let succeeded = 0;
+    try {
+      for (const process of selectedProcesses) {
+        await addProcessMarkerWithColor(process.id, markerLabel, markerColor, session.name);
+        succeeded += 1;
+      }
+      setSelectedProcessIds((current) => current.filter((id) => !ids.has(id)));
+      setBulkMarkerMessage(`Marcador aplicado a ${succeeded} processo(s) com registro individual.`);
+    } catch {
+      setBulkMarkerMessage(`Marcação interrompida: ${succeeded} de ${selectedProcesses.length} processo(s) confirmados. Confira os marcadores antes de repetir.`);
+    } finally {
+      setBulkMarkerBusy(false);
+    }
+  };
+
   const archiveSelected = (archived: boolean) => {
     if (selectedVisibleIds.length === 0) return;
     const selected = new Set(selectedVisibleIds);
@@ -276,12 +315,34 @@ export function MunicipalProcessRegistryPage() {
             <span role="status" aria-live="polite" className="rounded-lg bg-white px-2.5 py-1.5 text-xs font-semibold tabular-nums text-slate-700 dark:bg-slate-800 dark:text-slate-100">
               {selectedVisibleIds.length.toLocaleString("pt-BR")} selecionados
             </span>
+            {session.role !== "prefeitura_admin" ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button type="button" variant="outline" size="sm"
+                    disabled={!selectedVisibleIds.length || bulkMarkerBusy || !remoteSyncedForCurrentUser}
+                    className="rounded-lg border-sky-200 bg-sky-900 text-white hover:bg-sky-800 hover:text-white">
+                    <Flag className="mr-1.5 h-3.5 w-3.5" /> Marcar selecionados <ChevronDown className="ml-1.5 h-3.5 w-3.5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="min-w-[230px] border-slate-200 bg-white text-slate-900">
+                  {presets.filter((preset) => preset.active).map((preset) => (
+                    <DropdownMenuItem key={preset.id}
+                      onSelect={() => { void applyMarkerToSelected(formatMarkerLabel(preset), preset.color || "#2563eb"); }}>
+                      <Flag className="mr-2 h-4 w-4" style={{ color: preset.color || "#2563eb" }} />
+                      {preset.label}
+                    </DropdownMenuItem>
+                  ))}
+                  {presets.every((preset) => !preset.active) ? <DropdownMenuItem disabled>Nenhum marcador ativo</DropdownMenuItem> : null}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : null}
             <Button type="button" variant="outline" size="sm" disabled={!selectedVisibleIds.length}
               onClick={() => archiveSelected(true)} className="rounded-lg border-slate-300 bg-white text-slate-900">Arquivar da minha lista</Button>
             <Button type="button" variant="outline" size="sm" disabled={!selectedVisibleIds.length}
               onClick={() => archiveSelected(false)} className="rounded-lg border-slate-300 bg-white text-slate-900">Restaurar da minha lista</Button>
             <Button type="button" variant="ghost" size="sm" disabled={!selectedVisibleIds.length}
               onClick={() => setSelectedProcessIds([])} className="rounded-lg text-slate-700 dark:text-slate-100">Desmarcar</Button>
+            {bulkMarkerMessage ? <p role="status" className="w-full text-xs font-semibold text-sky-900 dark:text-sky-200">{bulkMarkerMessage}</p> : null}
             <p className="w-full text-xs leading-5 text-slate-600 dark:text-slate-300">
               A seleção e o arquivamento são pessoais, sem alterar tramitação ou status oficial. Para despachar, assinar ou decidir, abra a ficha do processo com o perfil autorizado.
             </p>

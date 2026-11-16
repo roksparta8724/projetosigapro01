@@ -22,6 +22,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { AlertCard } from "@/components/platform/AlertCard";
 import { InternalTabs } from "@/components/platform/InternalTabs";
 import { MarkerSelector } from "@/components/platform/MarkerSelector";
+import { CompactProcessRegistry } from "@/components/platform/CompactProcessRegistry";
 import { PortalFrame } from "@/components/platform/PortalFrame";
 import { QaArchitecturalLab } from "@/components/platform/QaArchitecturalLab";
 import { SectionCard } from "@/components/platform/SectionCard";
@@ -129,6 +130,7 @@ export function AnalystDeskPage() {
   const tenantSettings = getInstitutionSettings(effectiveScopeId ?? session.tenantId);
   const [searchParams] = useSearchParams();
   const [search, setSearch] = useState("");
+  const [processListView, setProcessListView] = useState<"tabela" | "detalhes">("tabela");
   const [section, setSection] = useState<AnalystSection>(() => {
     const requested = searchParams.get("secao");
     return requested && ["visao-geral", "fila", "concluidos", "pendencias", "correcoes", "historico", "indicadores"].includes(requested)
@@ -643,8 +645,22 @@ export function AnalystDeskPage() {
     items = queue,
     emptyMessage = "Nenhum processo encontrado com os filtros atuais.",
     allowArchiveAction = false,
-  ) => (
+  ) => processListView === "tabela" ? (
+    <div data-sigapro-analysis-process-table="true" className="min-w-0 space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs font-semibold text-slate-600 dark:text-slate-200">Tabela compacta · {items.length.toLocaleString("pt-BR")} processo(s) na fila</p>
+        <Button type="button" size="sm" variant="outline" className="rounded-lg border-slate-300 bg-white text-slate-900"
+          onClick={() => setProcessListView("detalhes")}>Ver ações detalhadas da Análise</Button>
+      </div>
+      <CompactProcessRegistry processes={items} showArchiveAction={false}
+        canDispatchProcess={() => false} emptyMessage={emptyMessage} />
+    </div>
+  ) : (
     <div className="space-y-3.5">
+      <div className="flex justify-end">
+        <Button type="button" size="sm" variant="outline" className="rounded-lg border-slate-300 bg-white text-slate-900"
+          onClick={() => setProcessListView("tabela")}>Voltar à tabela de processos</Button>
+      </div>
       {items.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-sm leading-6 text-slate-600">
           {remoteSyncedForCurrentUser

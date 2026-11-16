@@ -17,6 +17,7 @@ import {
 import { InternalTabs } from "@/components/platform/InternalTabs";
 import { PageIntro } from "@/components/platform/PageIntro";
 import { PortalFrame } from "@/components/platform/PortalFrame";
+import { CompactProcessRegistry } from "@/components/platform/CompactProcessRegistry";
 import { SectionPanel } from "@/components/platform/SectionPanel";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
@@ -130,6 +131,7 @@ export function ExternalProcessControlPage() {
   const [stageFilter, setStageFilter] = useState("todos");
   const [periodFilter, setPeriodFilter] = useState("todos");
   const [summaryOpen, setSummaryOpen] = useState(false);
+  const [processListView, setProcessListView] = useState<"tabela" | "detalhes">("tabela");
 
   const activeTab = getExternalTabByPath(location.pathname);
 
@@ -424,6 +426,18 @@ export function ExternalProcessControlPage() {
               }
               contentClassName="space-y-4"
             >
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">Meus processos · {filteredProcesses.length.toLocaleString("pt-BR")} registro(s)</p>
+                <Button type="button" variant="outline" size="sm" className="rounded-lg border-slate-300 bg-white text-slate-900"
+                  onClick={() => setProcessListView((current) => current === "tabela" ? "detalhes" : "tabela")}>
+                  {processListView === "tabela" ? "Ver pagamentos e detalhes" : "Voltar à tabela"}
+                </Button>
+              </div>
+              {processListView === "tabela" && filteredProcesses.length > 0 ? (
+                <CompactProcessRegistry processes={filteredProcesses} showArchiveAction={false}
+                  showSensitiveDetails={false} canDispatchProcess={() => false} />
+              ) : processListView === "detalhes" ? (
+                <>
               <div data-process-list-header="true" className="hidden rounded-[18px] border px-6 py-3.5 text-[11px] font-semibold uppercase tracking-[0.15em] shadow-sm 2xl:grid 2xl:grid-cols-[1.28fr_0.78fr_1.02fr_1.28fr_1.08fr] 2xl:gap-0">
                 <span>Processo</span>
                 <span>Status</span>
@@ -612,6 +626,8 @@ export function ExternalProcessControlPage() {
                   </article>
                 );
               })}
+                </>
+              ) : null}
 
               {filteredProcesses.length === 0 ? (
                 <div className="sig-dark-panel rounded-[18px] border border-dashed border-slate-300 p-8 text-center">

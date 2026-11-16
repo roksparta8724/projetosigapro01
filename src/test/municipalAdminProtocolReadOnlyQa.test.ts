@@ -13,7 +13,7 @@ describe("SIGAPRO QA — Admin Prefeitura não pode operar protocolo pela interf
     expect(readonlyBranch).toContain('data-sigapro-prefeitura-admin-readonly="true"');
     expect(readonlyBranch).toContain("Consultar processo");
     expect(readonlyBranch).toContain("return (");
-    expect(readonlyBranch).toContain('Exibindo até 75 resultados por consulta.');
+    expect(readonlyBranch).toContain("paginação automática, somente leitura.");
   });
 
   it("não oferece baixa, triagem, retorno auditado, despacho ou upload no ramo de consulta", () => {
@@ -38,7 +38,9 @@ describe("SIGAPRO QA — Admin Prefeitura não pode operar protocolo pela interf
     expect(code).toContain("matchesOperationalScope(effectiveScopeId, item)");
     expect(code).toContain("const processes = useMemo(");
     expect(readonlyBranch).toContain("processes.filter(");
-    expect(readonlyBranch).toContain("buildProcessPath(process)");
+    expect(readonlyBranch).toContain("CompactProcessRegistry");
+    expect(readonlyBranch).toContain("showArchiveAction={false}");
+    expect(readonlyBranch).toContain("canDispatchProcess={() => false}");
     expect(readonlyBranch).not.toContain("allProcesses.filter(");
   });
 });

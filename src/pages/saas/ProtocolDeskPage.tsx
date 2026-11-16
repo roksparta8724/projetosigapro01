@@ -25,6 +25,7 @@ import { AlertCard } from "@/components/platform/AlertCard";
 import { InternalTabs } from "@/components/platform/InternalTabs";
 import { PageHeader } from "@/components/platform/PageHeader";
 import { MarkerSelector } from "@/components/platform/MarkerSelector";
+import { CompactProcessRegistry } from "@/components/platform/CompactProcessRegistry";
 import {
   PageMainContent,
   PageMainGrid,
@@ -275,6 +276,7 @@ export function ProtocolDeskPage() {
     );
   }, [markerFilter, markerPresets, processes]);
   const [processListQuery, setProcessListQuery] = useState("");
+  const [processListView, setProcessListView] = useState<"tabela" | "detalhes">("tabela");
   const [expandedProcessIds, setExpandedProcessIds] = useState<Set<string>>(() => new Set());
   const [selectedProcessIds, setSelectedProcessIds] = useState<Set<string>>(() => new Set());
   const [finishedProcessIds, setFinishedProcessIds] = useState<Set<string>>(() => {
@@ -544,8 +546,48 @@ export function ProtocolDeskPage() {
       return haystack.includes(normalizedQuery);
     });
 
+    if (processListView === "tabela") {
+      return (
+        <section data-sigapro-protocol-process-table="true" className="min-w-0 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
+            <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">
+              Controle de processos · {visibleItems.length.toLocaleString("pt-BR")} registro(s) · {selectedProcessIds.size} selecionado(s)
+            </span>
+            <div className="flex flex-wrap gap-2">
+              {selectedProcessIds.size > 0 ? (
+                <>
+                  <Button type="button" variant="outline" size="sm" disabled={Boolean(protocolActionBusy)}
+                    onClick={() => void dispatchSelectedToUrbanism(visibleItems)}>Despachar selecionados</Button>
+                  <Button type="button" variant="outline" size="sm" onClick={finishSelectedInMyList}>
+                    Finalizar na minha lista
+                  </Button>
+                </>
+              ) : null}
+              <Button type="button" size="sm" variant="outline"
+                onClick={() => setProcessListView("detalhes")}>Ver ações de triagem</Button>
+            </div>
+          </div>
+          {protocolActionStatus ? <p role="status" className="rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm text-sky-900">{protocolActionStatus}</p> : null}
+          <CompactProcessRegistry
+            processes={visibleItems} emptyMessage={normalizedQuery ? "Nenhum processo corresponde à busca." : emptyMessage}
+            selectedProcessIds={Array.from(selectedProcessIds)}
+            onToggleSelection={(id, selected) => {
+              if (selectedProcessIds.has(id) !== selected) toggleProcessSelection(id);
+            }}
+            showArchiveAction={false}
+            canDispatchProcess={(process) => isProcessOwnedBySessionDepartment(session, process)}
+          />
+        </section>
+      );
+    }
+
     return (
       <div className="space-y-3">
+        <div className="flex justify-end">
+          <Button type="button" size="sm" variant="outline" onClick={() => setProcessListView("tabela")}>
+            Voltar à tabela de processos
+          </Button>
+        </div>
         <div className="sticky top-[72px] z-20 rounded-[20px] border border-slate-200 bg-white/95 p-3 shadow-[0_10px_28px_rgba(15,23,42,0.07)] backdrop-blur dark:border-slate-700 dark:bg-slate-900/95">
           <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
             <div className="relative min-w-0 flex-1">
@@ -1135,29 +1177,20 @@ export function ProtocolDeskPage() {
                 aria-label="Pesquisar protocolos sem edição"
               />
               <p className="text-sm text-slate-600 dark:text-slate-300">
-                {visible.length} protocolo(s) encontrado(s). Exibindo até 75 resultados por consulta.
+                {visible.length} protocolo(s) encontrado(s) · paginação automática, somente leitura.
               </p>
               {visible.length === 0 ? (
                 <p className="rounded-xl border border-dashed border-slate-300 p-4 text-sm text-slate-600 dark:text-slate-300">
                   Nenhum protocolo encontrado para os filtros informados.
                 </p>
-              ) : visible.slice(0, 75).map((process) => (
-                <div key={process.id} className="flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
-                  <div className="min-w-0">
-                    <p data-sigapro-contained-text="true" className="font-semibold text-slate-950 dark:text-white">
-                      {formatOfficialProcessNumber(process.protocol)}
-                    </p>
-                    <p data-sigapro-contained-text="true" className="break-words text-sm text-slate-700 dark:text-slate-200">{process.title}</p>
-                    <p className="text-xs text-slate-500 dark:text-slate-300">{statusLabel(process.status)}</p>
-                  </div>
-                  <Link
-                    to={buildProcessPath(process)}
-                    className="inline-flex min-h-9 items-center rounded-xl border border-slate-300 px-3 text-sm font-semibold text-slate-800 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-100"
-                  >
-                    Consultar processo
-                  </Link>
-                </div>
-              ))}
+              ) : (
+                <>
+                  <p className="sr-only">Consultar processo</p>
+                  <CompactProcessRegistry processes={visible} showArchiveAction={false}
+                    canDispatchProcess={() => false}
+                    emptyMessage="Nenhum protocolo encontrado para os filtros informados." />
+                </>
+              )}
             </div>
           </SectionCard>
         </PageShell>
