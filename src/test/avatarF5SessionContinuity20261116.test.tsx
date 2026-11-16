@@ -99,7 +99,7 @@ describe("SIGAPRO — avatar sem flash em refresh e isolamento", () => {
 
   it("não libera o estilo de primeiro quadro por um status de rota sem conteúdo", () => {
     const main = readFileSync("src/main.tsx", "utf8");
-    expect(main).toContain('rootElement.querySelector(".sig-app-frame, main, form');
+    expect(main).toContain('rootElement.querySelector(".sig-app-frame, main, form, h1, h2');
     expect(main).not.toContain('if (!rootElement.hasChildNodes()) return;');
   });
 });

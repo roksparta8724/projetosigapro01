@@ -50,7 +50,10 @@ describe("SIGAPRO — recuperação sem shell de carregamento", () => {
     expect(entry).toContain("new MutationObserver(finishBootstrap)");
     // A fallback acessível só com texto sr-only não pode ser confundida com
     // a primeira tela real e liberar o CSS antes do conteúdo chegar.
-    expect(entry).toContain('rootElement.querySelector(".sig-app-frame, main, form');
+    expect(entry).toContain('rootElement.querySelector(".sig-app-frame, main, form, h1, h2');
+    // Real heading-based error and public pages must not remain in preboot.
+    expect(source("src/pages/saas/TenantNotFoundPage.tsx")).toContain("<h1");
+    expect(source("src/pages/saas/NotFoundPage.tsx")).toContain("<h1");
     expect(entry).not.toContain("if (!rootElement.hasChildNodes()) return;");
   });
 });

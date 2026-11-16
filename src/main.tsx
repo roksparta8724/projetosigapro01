@@ -180,7 +180,10 @@ function bootApplication() {
       // but it is not the page: clearing first-paint styling at that moment
       // created a visible white/colour jump before the actual workspace loaded.
       // Wait for genuine route content while leaving all permission gates intact.
-      if (!rootElement.querySelector(".sig-app-frame, main, form, [role='main'], [data-ui='page-shell']")) return;
+      // Standalone public/error pages render a div containing a semantic
+      // heading rather than PortalFrame or <main>. Count the real heading,
+      // never the screen-reader-only Pending sentinel, as the first paint.
+      if (!rootElement.querySelector(".sig-app-frame, main, form, h1, h2, [role='main'], [data-ui='page-shell']")) return;
       document.documentElement.removeAttribute("data-sigapro-initial-render");
       document.documentElement.removeAttribute("data-sigapro-boot-slow");
       mountedObserver?.disconnect();
