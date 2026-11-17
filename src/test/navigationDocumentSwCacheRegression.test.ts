@@ -29,7 +29,7 @@ function appHtml(release: string) {
   );
 }
 
-function harness() {
+function harness(originOverride = origin) {
   const handlers = new Map<string, (event: unknown) => void>();
   const stores = new Map<string, Map<string, TestResponse>>();
   const removed: string[] = [];
@@ -56,7 +56,7 @@ function harness() {
 
   runInNewContext(source, {
     self: {
-      location: { origin },
+      location: { origin: originOverride, hostname: new URL(originOverride).hostname },
       addEventListener: (name: string, fn: (event: unknown) => void) => handlers.set(name, fn),
       skipWaiting: async () => undefined,
       clients: { claim: async () => undefined },
@@ -94,7 +94,7 @@ describe("SIGAPRO F5 — HTML público preparado pelo Service Worker", () => {
   it("armazena na instalação e entrega o documento sem esperar a rede", async () => {
     const h = harness();
     await h.install();
-    expect(h.stores.get("sigapro-enterprise-v8:public-html")?.has(indexUrl)).toBe(true);
+    expect(h.stores.get("sigapro-enterprise-v9:public-html")?.has(indexUrl)).toBe(true);
     const count = h.fetcher.mock.calls.length;
     h.fetcher.mockImplementation(async () => new Promise<TestResponse>(() => undefined)); // rede travada
     const result = await h.navigate(origin + "/prefeitura");
@@ -117,7 +117,7 @@ describe("SIGAPRO F5 — HTML público preparado pelo Service Worker", () => {
   it("não intercepta URLs de APIs, PDFs, downloads ou assets diretos", async () => {
     const h = harness();
     await h.install();
-    const cache = h.stores.get("sigapro-enterprise-v8:public-html")!;
+    const cache = h.stores.get("sigapro-enterprise-v9:public-html")!;
     for (const path of [
       "/api/profile-avatar-open?user=1",
       "/api/municipality-logo-open?tenant=2",
@@ -151,7 +151,7 @@ describe("SIGAPRO F5 — HTML público preparado pelo Service Worker", () => {
       const h = harness();
       h.fetcher.mockImplementation(async () => response);
       await h.install();
-      expect(h.stores.get("sigapro-enterprise-v8:public-html")?.size ?? 0).toBe(0);
+      expect(h.stores.get("sigapro-enterprise-v9:public-html")?.size ?? 0).toBe(0);
     }
   });
 
@@ -176,7 +176,7 @@ describe("SIGAPRO F5 — HTML público preparado pelo Service Worker", () => {
     });
     await h.install();
 
-    const assets = h.stores.get("sigapro-enterprise-v8:assets")!;
+    const assets = h.stores.get("sigapro-enterprise-v9:assets")!;
     expect([...assets.keys()]).toEqual([
       origin + "/assets/start-a.js",
       origin + "/assets/start-b.css",
@@ -202,8 +202,9 @@ describe("SIGAPRO F5 — HTML público preparado pelo Service Worker", () => {
     expect(assets.size).toBe(3);
   });
 
-  it("preserva a geração anterior de chunks durante a ativação", async () => {
+  it("preserva a geração imediatamente anterior de chunks na produção e invalida as antigas", async () => {
     const h = harness();
+    await h.cachesMock.open("sigapro-enterprise-v8:assets");
     await h.cachesMock.open("sigapro-enterprise-v7:assets");
     await h.cachesMock.open("sigapro-enterprise-v6:assets");
     await h.install();
@@ -211,7 +212,23 @@ describe("SIGAPRO F5 — HTML público preparado pelo Service Worker", () => {
     h.handlers.get("activate")!({ waitUntil: (p: Promise<unknown>) => waits.push(p) });
     await Promise.all(waits);
     expect(h.removed).toContain("sigapro-enterprise-v6:assets");
-    expect(h.removed).not.toContain("sigapro-enterprise-v7:assets");
-    expect(h.removed).not.toContain("sigapro-enterprise-v8:public-html");
+    expect(h.removed).toContain("sigapro-enterprise-v7:assets");
+    expect(h.removed).not.toContain("sigapro-enterprise-v8:assets");
+    expect(h.removed).not.toContain("sigapro-enterprise-v9:public-html");
+  });
+
+  it("preview de homologação ignora o documento em cache e carrega sempre a publicação atual", async () => {
+    const qaOrigin = "https://projetosigapro01-git-fix-homolog-53807b-roksparta8724s-projects.vercel.app";
+    const h = harness(qaOrigin);
+    await h.install();
+    const cache = h.stores.get("sigapro-enterprise-v9:public-html");
+    expect(cache?.get(qaOrigin + "/index.html")).toBeDefined();
+    h.fetcher.mockImplementation(async () => appHtml("release-B"));
+    const result = await h.navigate(qaOrigin + "/acesso");
+    expect(await result.response.text()).toContain("release-B");
+    await Promise.all(result.background);
+    const next = await h.navigate(qaOrigin + "/prefeitura");
+    expect(await next.response.text()).toContain("release-B");
+    await Promise.all(next.background);
   });
 });
