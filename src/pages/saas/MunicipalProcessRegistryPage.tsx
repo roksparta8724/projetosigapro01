@@ -1,11 +1,19 @@
-import { Archive, ArchiveRestore } from "lucide-react";
+import { Archive, ArchiveRestore, CheckCircle2, RotateCcw } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { PremiumProcessRegistry as CompactProcessRegistry } from "@/components/platform/PremiumProcessRegistry";
+import { CreateProcessMarkerDialog, type CreatedPersonalMarker } from "@/components/platform/CreateProcessMarkerDialog";
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
 import { PageShell } from "@/components/platform/PageShell";
 import { PortalFrame } from "@/components/platform/PortalFrame";
 import { Button } from "@/components/ui/button";
 import { useMarkerPresets, formatMarkerLabel } from "@/hooks/useMarkerPresets";
+import {
+  listMyUnitProcessCompletions, setMyUnitProcessCompletion,
+  type UnitProcessCompletion,
+} from "@/integrations/backend/processUnitCompletionClient";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import {
@@ -30,7 +38,16 @@ export function MunicipalProcessRegistryPage() {
     loading: platformDataLoading,
     addProcessMarkerWithColor,
   } = usePlatformData();
-  const { presets } = useMarkerPresets();
+  const { presets, addPreset } = useMarkerPresets();
+  const [createMarkerOpen, setCreateMarkerOpen] = useState(false);
+  const [unitView, setUnitView] = useState<"todos" | "abertos" | "concluidos">("todos");
+  const [unitCompletions, setUnitCompletions] = useState<Record<string, UnitProcessCompletion>>({});
+  const [unitSyncState, setUnitSyncState] = useState<"loading" | "ready" | "unavailable">("loading");
+  const [unitError, setUnitError] = useState("");
+  const [unitFeedback, setUnitFeedback] = useState("");
+  const [unitActionBusy, setUnitActionBusy] = useState(false);
+  const [pendingUnitAction, setPendingUnitAction] =
+    useState<{ processes: ProcessRecord[]; completed: boolean } | null>(null);
   const [bulkMarkerBusy, setBulkMarkerBusy] = useState(false);
   const [bulkMarkerMessage, setBulkMarkerMessage] = useState("");
   // The signed-in account owns the municipal operational scope. A branding
@@ -43,6 +60,8 @@ export function MunicipalProcessRegistryPage() {
   const archiveStorageKey = `sigapro:municipal-process-registry:${session.id}:${effectiveScopeId || "default"}`;
   const [archivedProcessIds, setArchivedProcessIds] = useState<string[]>([]);
   const [selectedProcessIds, setSelectedProcessIds] = useState<string[]>([]);
+  const mayOperate = isInternalRole(session.role) && session.role !== "prefeitura_admin";
+  const unitName = session.department?.trim() || session.title?.trim() || "unidade atual";
 
   useEffect(() => {
     try {
@@ -62,6 +81,27 @@ export function MunicipalProcessRegistryPage() {
     // Never carry a selection into another municipality or authenticated account.
     setSelectedProcessIds([]);
   }, [archiveStorageKey]);
+
+  useEffect(() => {
+    // Local completion is official Neon data. Never infer it from localStorage,
+    // process.status or a previous account's cached store.
+    setUnitCompletions({});
+    setUnitView("todos");
+    setUnitSyncState("loading");
+    setUnitError("");
+    if (!remoteSyncedForCurrentUser || !mayOperate || !effectiveScopeId) return;
+    let active = true;
+    void listMyUnitProcessCompletions().then(rows => {
+      if (!active) return;
+      setUnitCompletions(Object.fromEntries(rows.map(row => [row.process_id, row])));
+      setUnitSyncState("ready");
+    }).catch(error => {
+      if (!active) return;
+      setUnitSyncState("unavailable");
+      setUnitError(error instanceof Error ? error.message : "Não foi possível verificar as unidades.");
+    });
+    return () => { active = false; };
+  }, [archiveStorageKey, effectiveScopeId, mayOperate, remoteSyncedForCurrentUser]);
 
   const setProcessArchived = (processId: string, archived: boolean) => {
     setArchivedProcessIds((current) => {
@@ -89,14 +129,22 @@ export function MunicipalProcessRegistryPage() {
     [allProcesses, effectiveScopeId, remoteSyncedForCurrentUser],
   );
 
-  // One source for the municipal list. The premium workspace owns search,
-  // quick filters and pagination; no second search/filter or KPI bar is mounted.
-  const visibleProcesses = useMemo(
-    () => showArchived
-      ? municipalityProcesses.filter((process) => archivedProcessIds.includes(process.id))
-      : municipalityProcesses,
-    [municipalityProcesses, archivedProcessIds, showArchived],
-  );
+  // Unit views are distinct from the GLOBAL municipal process status.
+  // A local conclusion hides the process only from the active unit work queue.
+  const visibleProcesses = useMemo(() => {
+    const base = showArchived
+      ? municipalityProcesses.filter(process => archivedProcessIds.includes(process.id))
+      : municipalityProcesses;
+    if (unitSyncState !== "ready" || unitView === "todos") return base;
+    if (unitView === "concluidos") {
+      return base.filter(process => unitCompletions[process.id]?.status === "concluido");
+    }
+    return base.filter(process =>
+      isProcessOwnedBySessionDepartment(session, process) &&
+      unitCompletions[process.id]?.status !== "concluido"
+    );
+  }, [municipalityProcesses, archivedProcessIds, showArchived,
+      unitSyncState, unitView, unitCompletions, session]);
   const selectedVisibleIds = visibleProcesses
     .filter((process) => selectedProcessIds.includes(process.id))
     .map((process) => process.id);
@@ -155,6 +203,86 @@ export function MunicipalProcessRegistryPage() {
     }
   };
 
+
+  const createPersonalMarker = async (
+    marker: CreatedPersonalMarker, applyToSelection: boolean,
+  ) => {
+    if (!mayOperate) throw new Error("Somente profissionais internos podem criar marcadores.");
+    if (presets.some(preset => preset.label.trim().toLocaleLowerCase("pt-BR") ===
+        marker.label.trim().toLocaleLowerCase("pt-BR"))) {
+      throw new Error("Já existe um marcador com esse nome.");
+    }
+    const selected = visibleProcesses.filter(process => selectedProcessIds.includes(process.id));
+    const markerOption = { label: marker.label, color: marker.color, emoji: marker.emoji };
+    if (applyToSelection && selected.length > 0) {
+      // Preflight before the preset is created so a blocked fourth marker
+      // never appears to have been applied.
+      const label = composeProfessionalMarkerLabel(marker.label, marker.emoji);
+      if (selected.some(process => !isProcessOwnedBySessionDepartment(session, process) ||
+          !canApplyPersonalProcessMarker(process.tags ?? [], label))) {
+        throw new Error("Seleção fora da unidade ou com limite de três marcadores atingido.");
+      }
+    }
+    addPreset({
+      label: marker.label, colorId: marker.colorId, color: marker.color,
+      emoji: marker.emoji, active: true,
+    });
+    if (applyToSelection && selected.length > 0) {
+      try {
+        await applyMarkerToSelected(selected, markerOption);
+      } catch (error) {
+        setBulkMarkerMessage("Modelo criado na sua pasta. A aplicação não foi integralmente confirmada; confira cada processo.");
+        throw error;
+      }
+    }
+  };
+
+  const queueUnitCompletion = (selected: ProcessRecord[], completed: boolean) => {
+    if (!mayOperate || unitSyncState !== "ready" || unitActionBusy || !remoteSyncedForCurrentUser) {
+      setUnitError("A conclusão local exige acesso autorizado e sincronização com o banco.");
+      return;
+    }
+    const municipalIds = new Set(municipalityProcesses.map(process => process.id));
+    if (!selected.length || selected.length > 25 || selected.some(process => !municipalIds.has(process.id))) {
+      setUnitError("Selecione até 25 processos oficiais deste município.");
+      return;
+    }
+    if (selected.some(process => completed
+      ? (!isProcessOwnedBySessionDepartment(session, process) ||
+        unitCompletions[process.id]?.status === "concluido")
+      : unitCompletions[process.id]?.status !== "concluido")) {
+      setUnitError("Selecione somente processos da sua unidade no mesmo estado.");
+      return;
+    }
+    setUnitError("");
+    setPendingUnitAction({ processes: selected, completed });
+  };
+
+  const confirmUnitCompletion = async () => {
+    if (!pendingUnitAction || unitActionBusy || unitSyncState !== "ready") return;
+    const action = pendingUnitAction;
+    setUnitActionBusy(true);
+    setUnitError("");
+    setUnitFeedback("");
+    let succeeded = 0;
+    try {
+      for (const process of action.processes) {
+        const saved = await setMyUnitProcessCompletion(process.id, action.completed);
+        setUnitCompletions(current => ({ ...current, [process.id]: saved }));
+        succeeded += 1;
+      }
+      setSelectedProcessIds([]);
+      setPendingUnitAction(null);
+      setUnitFeedback(`${succeeded} processo(s) ${action.completed ? "concluído(s)" : "reaberto(s)"} apenas nesta unidade. O status municipal não foi alterado.`);
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : "Erro no banco.";
+      setUnitError(`${succeeded} de ${action.processes.length} confirmados. ${reason} Confira os registros antes de repetir.`);
+      setPendingUnitAction(null);
+    } finally {
+      setUnitActionBusy(false);
+    }
+  };
+
   const archiveSelected = (archived: boolean) => {
     if (selectedVisibleIds.length === 0) return;
     const selected = new Set(selectedVisibleIds);
@@ -194,9 +322,47 @@ export function MunicipalProcessRegistryPage() {
           </div>
         ) : null}
 
+        {mayOperate ? (
+          <div data-sigapro-unit-workspace="true"
+            className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white/90 px-3 py-2 text-xs dark:border-slate-700 dark:bg-slate-900">
+            <span className="min-w-0 font-semibold text-slate-700 dark:text-slate-200">
+              Unidade: {unitName}
+            </span>
+            <div className="flex flex-wrap gap-1" role="group" aria-label="Visualização dos processos da unidade">
+              {([
+                ["todos", "Todos no município"],
+                ["abertos", "Em andamento nesta unidade"],
+                ["concluidos", "Concluídos nesta unidade"],
+              ] as const).map(([value, label]) => (
+                <Button key={value} type="button" size="sm"
+                  variant={unitView === value ? "default" : "outline"}
+                  disabled={value !== "todos" && unitSyncState !== "ready"}
+                  aria-pressed={unitView === value}
+                  onClick={() => { setSelectedProcessIds([]); setUnitView(value); }}>
+                  {label}
+                </Button>
+              ))}
+            </div>
+          </div>
+        ) : null}
+        {unitError ? (
+          <div role="alert" className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900">
+            Conclusão da unidade indisponível: {unitError}
+          </div>
+        ) : null}
+        {unitFeedback ? (
+          <p role="status" className="mb-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-900">
+            {unitFeedback}
+          </p>
+        ) : null}
+
         <CompactProcessRegistry
           operatorName={session.name}
           processes={visibleProcesses}
+          onCreateMarker={mayOperate ? () => setCreateMarkerOpen(true) : undefined}
+          unitCompletedIds={Object.values(unitCompletions).filter(row => row.status === "concluido").map(row => row.process_id)}
+          unitDataReady={mayOperate && unitSyncState === "ready" && !unitActionBusy}
+          onUnitAction={mayOperate ? queueUnitCompletion : undefined}
           markerOptions={presets.filter((preset) => preset.active).map((preset) => ({
             label: formatMarkerLabel(preset), color: preset.color || "#2563eb", emoji: preset.emoji,
           }))}
@@ -216,6 +382,38 @@ export function MunicipalProcessRegistryPage() {
               : "Aguardando sincronização oficial — os processos não foram excluídos."}
         />
 
+        <CreateProcessMarkerDialog open={createMarkerOpen}
+          onOpenChange={setCreateMarkerOpen}
+          selectedCount={selectedVisibleIds.length}
+          existingNames={presets.map(preset => preset.label)}
+          onCreate={createPersonalMarker} />
+        <Dialog open={Boolean(pendingUnitAction)}
+          onOpenChange={open => { if (!open && !unitActionBusy) setPendingUnitAction(null); }}>
+          <DialogContent className="max-w-[490px] border-slate-200 bg-white text-slate-900 shadow-2xl dark:border-slate-700 dark:bg-slate-950 dark:text-white">
+            <DialogHeader>
+              <DialogTitle>
+                {pendingUnitAction?.completed ? "Concluir nesta unidade" : "Reabrir nesta unidade"}
+              </DialogTitle>
+              <DialogDescription>
+                {pendingUnitAction?.processes.length ?? 0} processo(s) selecionado(s) — {unitName}.
+              </DialogDescription>
+            </DialogHeader>
+            <p className="text-sm leading-6">
+              Esta ação registra somente o atendimento da sua unidade. Não encerra o processo municipal,
+              não altera a situação geral e não interfere nas demais unidades, guias ou alvarás.
+            </p>
+            <DialogFooter>
+              <Button type="button" variant="outline" disabled={unitActionBusy}
+                onClick={() => setPendingUnitAction(null)}>Cancelar</Button>
+              <Button type="button" disabled={unitActionBusy} onClick={() => { void confirmUnitCompletion(); }}>
+                {pendingUnitAction?.completed ? <CheckCircle2 className="mr-2 h-4 w-4" /> :
+                  <RotateCcw className="mr-2 h-4 w-4" />}
+                {unitActionBusy ? "Registrando..." :
+                  pendingUnitAction?.completed ? "Confirmar conclusão na unidade" : "Confirmar reabertura"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
         {bulkMarkerMessage ? (
           <p role="status" className="mt-2 text-xs font-semibold text-sky-900 dark:text-sky-200">
             {bulkMarkerMessage}
