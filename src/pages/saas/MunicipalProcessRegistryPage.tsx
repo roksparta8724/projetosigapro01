@@ -1,40 +1,19 @@
-import {
-  Archive,
-  ListChecks,
-  Search,
-  ScrollText,
-} from "lucide-react";
+import { Archive, ArchiveRestore } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { PremiumProcessRegistry as CompactProcessRegistry } from "@/components/platform/PremiumProcessRegistry";
-import { PageHeader } from "@/components/platform/PageHeader";
-import { PageShell, PageStatsRow } from "@/components/platform/PageShell";
+import { PageShell } from "@/components/platform/PageShell";
 import { PortalFrame } from "@/components/platform/PortalFrame";
-import { StatCard } from "@/components/platform/StatCard";
 import { Button } from "@/components/ui/button";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Flag, ChevronDown } from "lucide-react";
 import { useMarkerPresets, formatMarkerLabel } from "@/hooks/useMarkerPresets";
-import { Input } from "@/components/ui/input";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { useLivePlatformRefresh } from "@/hooks/useLivePlatformRefresh";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import {
-  isInternalRole,
-  isProcessOwnedBySessionDepartment,
-  matchesOperationalScope,
-  statusLabel,
+  isInternalRole, isProcessOwnedBySessionDepartment, matchesOperationalScope,
   type ProcessRecord,
 } from "@/lib/platform";
-
-type RegistryFilter = "todos" | "ativos" | "concluidos";
-
-const FINAL_STATUSES = new Set(["deferido", "indeferido", "cancelado", "arquivado"]);
-
-function isFinalProcess(process: ProcessRecord) {
-  return FINAL_STATUSES.has(String(process.status));
-}
 
 export function MunicipalProcessRegistryPage() {
   const { session } = usePlatformSession();
@@ -55,8 +34,6 @@ export function MunicipalProcessRegistryPage() {
   const effectiveScopeId = session.municipalityId ?? session.tenantId ?? municipality?.id ?? scopeId ?? null;
   useLivePlatformRefresh(refreshRemoteStore, { intervalMs: 30000, refreshOnMount: false });
 
-  const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<RegistryFilter>("todos");
   const [showArchived, setShowArchived] = useState(false);
 
   const archiveStorageKey = `sigapro:municipal-process-registry:${session.id}:${effectiveScopeId || "default"}`;
@@ -108,79 +85,52 @@ export function MunicipalProcessRegistryPage() {
     [allProcesses, effectiveScopeId, remoteSyncedForCurrentUser],
   );
 
-  const activeCount = municipalityProcesses.filter((process) => !isFinalProcess(process)).length;
-  const completedCount = municipalityProcesses.filter(isFinalProcess).length;
-  const markedCount = municipalityProcesses.filter((process) => (process.tags?.length || 0) > 0).length;
+  // One source for the municipal list. The premium workspace owns search,
+  // quick filters and pagination; no second search/filter or KPI bar is mounted.
+  const visibleProcesses = useMemo(
+    () => showArchived
+      ? municipalityProcesses.filter((process) => archivedProcessIds.includes(process.id))
+      : municipalityProcesses,
+    [municipalityProcesses, archivedProcessIds, showArchived],
+  );
+  const selectedVisibleIds = visibleProcesses
+    .filter((process) => selectedProcessIds.includes(process.id))
+    .map((process) => process.id);
 
-  const visibleProcesses = useMemo(() => {
-    const needle = search.trim().toLowerCase();
-
-    return municipalityProcesses.filter((process) => {
-      const archived = archivedProcessIds.includes(process.id);
-      // "Todos" is truly every official municipal process; personal archived
-      // markers only filter when the user explicitly opens Arquivados.
-      if (showArchived && !archived) return false;
-      if (filter === "ativos" && isFinalProcess(process)) return false;
-      if (filter === "concluidos" && !isFinalProcess(process)) return false;
-
-      if (!needle) return true;
-
-      const haystack = [
-        process.protocol,
-        process.externalProtocol,
-        process.title,
-        process.ownerName,
-        process.address,
-        process.property?.iptu,
-        process.analysis?.assignedTo,
-        process.processControl?.currentFolder,
-        process.sla?.currentStage,
-        statusLabel(process.status),
-        ...(process.tags || []),
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
-
-      return haystack.includes(needle);
-    });
-  }, [archivedProcessIds, filter, municipalityProcesses, search, showArchived]);
-
-  const visibleIds = visibleProcesses.map((process) => process.id);
-  const selectedVisibleIds = visibleIds.filter((id) => selectedProcessIds.includes(id));
-  const allVisibleSelected = visibleIds.length > 0 && selectedVisibleIds.length === visibleIds.length;
-  const toggleVisibleSelection = (selected: boolean) => {
-    setSelectedProcessIds((current) => selected
-      ? Array.from(new Set([...current, ...visibleIds]))
-      : current.filter((id) => !visibleIds.includes(id)));
-  };
-  const applyMarkerToSelected = async (markerLabel: string, markerColor: string) => {
-    if (bulkMarkerBusy || !remoteSyncedForCurrentUser || !selectedVisibleIds.length) return;
-    if (selectedVisibleIds.length > 25) {
-      setBulkMarkerMessage("Selecione até 25 processos por aplicação, para preservar a rastreabilidade individual.");
-      return;
+  const applyMarkerToSelected = async (
+    selected: ProcessRecord[], marker: { label: string; color: string },
+  ) => {
+    if (bulkMarkerBusy || !remoteSyncedForCurrentUser) {
+      throw new Error("Aguarde a sincronização oficial antes de marcar.");
     }
-    const ids = new Set(selectedVisibleIds);
-    const selectedProcesses = visibleProcesses.filter((process) => ids.has(process.id));
-    const canMarkAll = session.role !== "prefeitura_admin" &&
-      selectedProcesses.every((process) => isProcessOwnedBySessionDepartment(session, process));
-    if (!canMarkAll) {
-      setBulkMarkerMessage("A marcação exige atuação autorizada em todos os processos selecionados. Refine a seleção.");
-      return;
+    const scopedIds = new Set(visibleProcesses.map((process) => process.id));
+    const selectedIds = new Set(selected.map((process) => process.id));
+    if (selectedIds.size === 0 || selectedIds.size > 25 || selectedIds.size !== selected.length ||
+        selected.some((process) => !scopedIds.has(process.id))) {
+      setBulkMarkerMessage("Selecione até 25 processos válidos no município para aplicar marcadores.");
+      throw new Error("Seleção inválida ou fora do escopo.");
+    }
+    if (session.role === "prefeitura_admin" ||
+        !selected.every((process) => isProcessOwnedBySessionDepartment(session, process))) {
+      setBulkMarkerMessage("A marcação exige autorização setorial em todos os processos selecionados.");
+      throw new Error("Permissão insuficiente para marcação.");
     }
 
     setBulkMarkerBusy(true);
     setBulkMarkerMessage("");
     let succeeded = 0;
     try {
-      for (const process of selectedProcesses) {
-        await addProcessMarkerWithColor(process.id, markerLabel, markerColor, session.name);
+      for (const process of selected) {
+        await addProcessMarkerWithColor(process.id, marker.label, marker.color, session.name);
         succeeded += 1;
       }
-      setSelectedProcessIds((current) => current.filter((id) => !ids.has(id)));
+      setSelectedProcessIds((current) => current.filter((id) => !selectedIds.has(id)));
       setBulkMarkerMessage(`Marcador aplicado a ${succeeded} processo(s) com registro individual.`);
-    } catch {
-      setBulkMarkerMessage(`Marcação interrompida: ${succeeded} de ${selectedProcesses.length} processo(s) confirmados. Confira os marcadores antes de repetir.`);
+    } catch (error) {
+      setBulkMarkerMessage(
+        `Marcação interrompida: ${succeeded} de ${selected.length} processo(s) confirmados. Confira os registros antes de repetir.`,
+      );
+      throw error;
     } finally {
       setBulkMarkerBusy(false);
     }
@@ -204,179 +154,81 @@ export function MunicipalProcessRegistryPage() {
   }
 
   return (
-    <PortalFrame eyebrow="CONTROLE DE PROCESSOS" title="Processos da Prefeitura">
+    <PortalFrame eyebrow="CONTROLE DE PROCESSOS" title="Processos da Prefeitura" hideSectionHeader>
       <PageShell>
-        <PageHeader
-          eyebrow="Registro municipal"
-          title="Controle de Processos"
-          description="Visualize todos os processos da Prefeitura em uma lista compacta, alinhada e preparada para grande volume. As filas operacionais de cada setor continuam preservadas."
-          icon={ScrollText}
-        />
-
         {!remoteSyncedForCurrentUser ? (
           <div role={platformDataError ? "alert" : "status"}
             data-municipal-registry-sync={platformDataError ? "error" : "pending"}
-            className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm text-slate-900">
+            className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-slate-900">
             <div className="min-w-0">
-              <p className="font-bold">
-                {platformDataError ? "Banco oficial ainda não sincronizado" : "Sincronizando o cadastro oficial de processos..."}
-              </p>
-              <p className="mt-1 text-xs leading-5 text-slate-700">
-                {platformDataError ||
-                  (platformDataLoading
-                    ? "Conferindo processos, guias e prefeitura com o Neon."
-                    : "Aguardando os registros do município. O cache do navegador não define o total oficial.")}
+              <p className="font-bold">{platformDataError ? "Banco oficial ainda não sincronizado" : "Sincronizando o cadastro oficial de processos..."}</p>
+              <p className="mt-1 text-xs text-slate-700">
+                {platformDataError || (platformDataLoading
+                  ? "Conferindo processos, guias e prefeitura com o Neon."
+                  : "Aguardando os registros do município. O cache do navegador não define o total oficial.")}
               </p>
             </div>
-            <Button type="button" variant="outline" className="border-slate-300 bg-white text-slate-900"
+            <Button type="button" variant="outline"
               onClick={() => { void refreshRemoteStore().catch(() => undefined); }}>
               Atualizar do banco
             </Button>
           </div>
         ) : null}
 
-        <PageStatsRow>
-          <StatCard
-            label="Processos"
-            value={String(municipalityProcesses.length)}
-            description="Registros do município"
-            icon={ScrollText}
-          />
-          <StatCard
-            label="Em andamento"
-            value={String(activeCount)}
-            description="Fluxo operacional ativo"
-            icon={ListChecks}
-          />
-          <StatCard
-            label="Concluídos"
-            value={String(completedCount)}
-            description="Finalizados ou encerrados"
-            icon={ListChecks}
-          />
-          <StatCard
-            label="Com marcador"
-            value={String(markedCount)}
-            description="Marcador operacional único"
-            icon={ListChecks}
-          />
-        </PageStatsRow>
+        <CompactProcessRegistry
+          operatorName={session.name}
+          processes={visibleProcesses}
+          markerOptions={presets.filter((preset) => preset.active).map((preset) => ({
+            label: formatMarkerLabel(preset), color: preset.color || "#2563eb",
+          }))}
+          onBulkMarker={session.role === "prefeitura_admin" ? undefined : applyMarkerToSelected}
+          selectedProcessIds={selectedProcessIds}
+          onToggleSelection={(processId, selected) => setSelectedProcessIds((current) => selected
+            ? Array.from(new Set([...current, processId]))
+            : current.filter((id) => id !== processId))}
+          archivedProcessIds={archivedProcessIds}
+          onToggleArchive={setProcessArchived}
+          canDispatchProcess={(process) => session.role !== "prefeitura_admin" &&
+            isProcessOwnedBySessionDepartment(session, process)}
+          emptyMessage={showArchived
+            ? "Nenhum processo arquivado nesta lista."
+            : remoteSyncedForCurrentUser
+              ? "Nenhum processo corresponde aos filtros atuais."
+              : "Aguardando sincronização oficial — os processos não foram excluídos."}
+        />
 
-        <div className="rounded-[22px] border border-slate-200 bg-white p-4 shadow-[0_16px_38px_rgba(15,23,42,0.06)] dark:border-slate-700 dark:bg-slate-950/45">
-          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-            <div className="relative min-w-0 flex-1">
-              <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-              <Input
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="Buscar por processo, proprietário, endereço, IPTU, unidade, responsável ou marcador"
-                className="h-11 rounded-2xl border-slate-200 bg-white pl-11 text-slate-950 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
-              />
-            </div>
+        {bulkMarkerMessage ? (
+          <p role="status" className="mt-2 text-xs font-semibold text-sky-900 dark:text-sky-200">
+            {bulkMarkerMessage}
+          </p>
+        ) : null}
 
-            <div className="flex flex-wrap items-center gap-2">
-              {([
-                ["todos", "Todos"],
-                ["ativos", "Em andamento"],
-                ["concluidos", "Concluídos"],
-              ] as const).map(([value, label]) => (
-                <Button
-                  key={value}
-                  type="button"
-                  variant={filter === value ? "default" : "outline"}
-                  className="h-10 rounded-full"
-                  onClick={() => setFilter(value)}
-                >
-                  {label}
-                </Button>
-              ))}
-
-              <Button
-                type="button"
-                variant="outline"
-                className="h-10 rounded-full"
-                onClick={() => setShowArchived((current) => !current)}
-              >
-                <Archive className="mr-2 h-4 w-4" />
-                {showArchived
-                  ? "Voltar a todos os processos"
-                  : `Arquivados (${archivedProcessIds.length})`}
-              </Button>
-            </div>
-          </div>
-
-          <div data-sei-bulk-selection="true" className="mt-4 flex min-w-0 flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-900">
-            <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-semibold text-slate-900 dark:text-slate-100">
-              <input type="checkbox" className="h-4 w-4 accent-sky-700" checked={allVisibleSelected}
-                onChange={(event) => toggleVisibleSelection(event.target.checked)} disabled={visibleIds.length === 0}
-                aria-label="Selecionar todos os resultados filtrados" />
-              Selecionar resultados
-            </label>
-            <span role="status" aria-live="polite" className="rounded-lg bg-white px-2.5 py-1.5 text-xs font-semibold tabular-nums text-slate-700 dark:bg-slate-800 dark:text-slate-100">
-              {selectedVisibleIds.length.toLocaleString("pt-BR")} selecionados
+        {/* Archive tools remain available without duplicating the reference toolbar.
+            Personal archive never changes an official process or municipality data. */}
+        <details data-sei-personal-archive-controls="true"
+          className="mt-2 rounded-xl border border-slate-200 bg-white/80 px-3 py-2 text-xs text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
+          <summary className="cursor-pointer font-semibold">
+            Arquivo pessoal ({archivedProcessIds.length}) — organizar minha lista
+          </summary>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <Button type="button" variant="outline" size="sm" className="h-8"
+              onClick={() => { setShowArchived((current) => !current); setSelectedProcessIds([]); }}>
+              {showArchived ? <ArchiveRestore className="mr-1.5 h-3.5 w-3.5" /> : <Archive className="mr-1.5 h-3.5 w-3.5" />}
+              {showArchived ? "Voltar a todos os processos" : "Mostrar arquivados"}
+            </Button>
+            <Button type="button" variant="outline" size="sm" className="h-8"
+              disabled={!selectedVisibleIds.length} onClick={() => archiveSelected(true)}>
+              Arquivar da minha lista
+            </Button>
+            <Button type="button" variant="outline" size="sm" className="h-8"
+              disabled={!selectedVisibleIds.length} onClick={() => archiveSelected(false)}>
+              Restaurar da minha lista
+            </Button>
+            <span className="text-[11px] text-slate-500 dark:text-slate-300">
+              Seleção e arquivamento pessoais, sem alterar tramitação ou status oficial.
             </span>
-            {session.role !== "prefeitura_admin" ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button type="button" variant="outline" size="sm"
-                    disabled={!selectedVisibleIds.length || bulkMarkerBusy || !remoteSyncedForCurrentUser}
-                    className="rounded-lg border-sky-200 bg-sky-900 text-white hover:bg-sky-800 hover:text-white">
-                    <Flag className="mr-1.5 h-3.5 w-3.5" /> Marcar selecionados <ChevronDown className="ml-1.5 h-3.5 w-3.5" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="min-w-[230px] border-slate-200 bg-white text-slate-900">
-                  {presets.filter((preset) => preset.active).map((preset) => (
-                    <DropdownMenuItem key={preset.id}
-                      onSelect={() => { void applyMarkerToSelected(formatMarkerLabel(preset), preset.color || "#2563eb"); }}>
-                      <Flag className="mr-2 h-4 w-4" style={{ color: preset.color || "#2563eb" }} />
-                      {preset.label}
-                    </DropdownMenuItem>
-                  ))}
-                  {presets.every((preset) => !preset.active) ? <DropdownMenuItem disabled>Nenhum marcador ativo</DropdownMenuItem> : null}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            ) : null}
-            <Button type="button" variant="outline" size="sm" disabled={!selectedVisibleIds.length}
-              onClick={() => archiveSelected(true)} className="rounded-lg border-slate-300 bg-white text-slate-900">Arquivar da minha lista</Button>
-            <Button type="button" variant="outline" size="sm" disabled={!selectedVisibleIds.length}
-              onClick={() => archiveSelected(false)} className="rounded-lg border-slate-300 bg-white text-slate-900">Restaurar da minha lista</Button>
-            <Button type="button" variant="ghost" size="sm" disabled={!selectedVisibleIds.length}
-              onClick={() => setSelectedProcessIds([])} className="rounded-lg text-slate-700 dark:text-slate-100">Desmarcar</Button>
-            {bulkMarkerMessage ? <p role="status" className="w-full text-xs font-semibold text-sky-900 dark:text-sky-200">{bulkMarkerMessage}</p> : null}
-            <p className="w-full text-xs leading-5 text-slate-600 dark:text-slate-300">
-              A seleção e o arquivamento são pessoais, sem alterar tramitação ou status oficial. Para despachar, assinar ou decidir, abra a ficha do processo com o perfil autorizado.
-            </p>
           </div>
-
-          <div className="mt-4 rounded-2xl border border-sky-200 bg-sky-50/70 px-4 py-3 text-xs leading-5 text-sky-900 dark:border-sky-500/30 dark:bg-sky-950/25 dark:text-sky-200">
-            O número do processo é um link para a ficha completa. “Despachar” abre diretamente a área de movimentação do processo.
-            O marcador exibido nesta lista é o mesmo marcador único gerenciado no topbar.
-          </div>
-
-          <div className="mt-4">
-            <CompactProcessRegistry operatorName={session.name}
-              processes={visibleProcesses}
-              markerOptions={presets.filter(preset => preset.active).map(preset => ({
-                label: formatMarkerLabel(preset), color: preset.color || "#2563eb",
-              }))}
-              onBulkMarker={async (_selected, marker) => applyMarkerToSelected(marker.label, marker.color)}
-              selectedProcessIds={selectedProcessIds}
-              onToggleSelection={(processId, selected) => setSelectedProcessIds((current) => selected
-                ? Array.from(new Set([...current, processId]))
-                : current.filter((id) => id !== processId))}
-              archivedProcessIds={archivedProcessIds}
-              onToggleArchive={setProcessArchived}
-              canDispatchProcess={(process) => isProcessOwnedBySessionDepartment(session, process)}
-              emptyMessage={
-                showArchived
-                  ? "Nenhum processo arquivado nesta lista."
-                  : remoteSyncedForCurrentUser
-                    ? "Nenhum processo corresponde aos filtros atuais."
-                    : "Aguardando sincronização oficial — os processos não foram excluídos."
-              }
-            />
-          </div>
-        </div>
+        </details>
       </PageShell>
     </PortalFrame>
   );
