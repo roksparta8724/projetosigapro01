@@ -22,6 +22,10 @@ type PremiumProcessRegistryProps = RegistryProps & {
   canCompleteInUnit?: (process: ProcessRecord) => boolean;
   onToolbarAction?: (action: ProcessWorkspaceAction, selected: ProcessRecord[]) => void;
   exportScopeLabel?: string;
+  /** Removes duplicate hero/KPIs in a departmental card while keeping SEI actions. */
+  embedded?: boolean;
+  /** Use the department's existing search field when one is already available. */
+  hideSearchInput?: boolean;
 };
 
 export function PremiumProcessRegistry({
@@ -29,6 +33,7 @@ export function PremiumProcessRegistry({
   onBulkMarker, markerOptions = [], onBulkDispatch,
   onCreateMarker, unitCompletedIds = [], unitDataReady, onUnitAction, canCompleteInUnit,
   onToolbarAction, exportScopeLabel = "Processos municipais",
+  embedded = false, hideSearchInput = false,
   showSensitiveDetails = true, canDispatchProcess = () => false,
   ...rest
 }: PremiumProcessRegistryProps) {
@@ -138,8 +143,10 @@ export function PremiumProcessRegistry({
   }, [processes]);
 
   return (
-    <section className="sig-workspace-shell min-w-0 w-full" data-sigapro-process-workspace="approved-premium-mockup">
+    <section className="sig-workspace-shell min-w-0 w-full" data-sigapro-process-workspace="approved-premium-mockup"
+      data-workspace-density={embedded ? "embedded" : "standalone"}>
       <ProcessWorkspaceHeader
+        embedded={embedded} hideSearchInput={hideSearchInput}
         processes={processes} filteredCount={filtered.length}
         search={search} onSearch={setSearch}
         quickFilter={quickFilter} onFilter={setQuickFilter}
