@@ -768,7 +768,7 @@ export function DashboardHomePage() {
             type="button"
             variant="outline"
             className="h-9 rounded-xl border-sky-200 bg-white px-3 font-semibold !text-[#123650] hover:bg-sky-50"
-            onClick={() => navigate("/dashboard/processos")}
+            onClick={() => navigate(isMaster ? "/dashboard/processos" : "/prefeitura/processos")}
           >
             Ver processos
           </Button>
