@@ -646,13 +646,14 @@ export function AnalystDeskPage() {
     emptyMessage = "Nenhum processo encontrado com os filtros atuais.",
     allowArchiveAction = false,
   ) => processListView === "tabela" ? (
-    <div data-sigapro-analysis-process-table="true" className="min-w-0 space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs font-semibold text-slate-600 dark:text-slate-200">Tabela compacta · {items.length.toLocaleString("pt-BR")} processo(s) na fila</p>
-        <Button type="button" size="sm" variant="outline" className="rounded-lg border-slate-300 bg-white text-slate-900"
+    <div data-sigapro-analysis-process-table="true" className="min-w-0 space-y-2">
+      <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-xl border border-[#ccdae8] bg-[#f3f8fc] px-3 py-2 dark:border-slate-700 dark:bg-slate-900">
+        <p className="text-xs font-semibold text-[#204561] dark:text-slate-100">{items.length.toLocaleString("pt-BR")} processo(s) nesta pasta</p>
+        <Button type="button" size="sm" variant="outline"
+          className="h-9 rounded-lg border-[#9cbcd2] bg-white px-3 text-xs font-semibold !text-[#0c3d5d] hover:bg-sky-50 dark:border-slate-500 dark:bg-slate-800 dark:!text-white"
           onClick={() => setProcessListView("detalhes")}>Ver ações detalhadas da Análise</Button>
       </div>
-      <CompactProcessRegistry operatorName={session.name} processes={items} showArchiveAction={false}
+      <CompactProcessRegistry embedded hideSearchInput operatorName={session.name} processes={items} showArchiveAction={false}
         canDispatchProcess={() => false} emptyMessage={emptyMessage} />
     </div>
   ) : (
@@ -1261,17 +1262,17 @@ export function AnalystDeskPage() {
         <section data-analysis-command-bar="true"
           className="flex min-w-0 flex-col gap-4 rounded-[18px] border border-slate-200 bg-white px-4 py-4 shadow-[0_8px_22px_rgba(15,23,42,0.045)] dark:border-slate-700 dark:bg-slate-900 sm:px-5 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex min-w-0 items-center gap-3">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[13px] bg-slate-950 text-white dark:bg-sky-800">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[13px] border border-white/25 bg-white/10 text-white">
               <ListTodo className="h-5 w-5" aria-hidden="true" />
             </span>
             <div className="min-w-0">
-              <p className="text-[10px] font-extrabold uppercase tracking-[0.14em] !text-sky-800 dark:!text-sky-200">Operação municipal · Análise técnica</p>
-              <h2 className="mt-0.5 text-lg font-extrabold tracking-tight !text-slate-950 dark:!text-white sm:text-xl">Mesa de processos</h2>
-              <p className="mt-0.5 text-xs !text-slate-600 dark:!text-slate-300">Fila, prazos, encaminhamentos e relatórios em um só lugar.</p>
+              <p className="text-[10px] font-extrabold uppercase tracking-[0.08em] !text-sky-100">Operação municipal · Análise técnica</p>
+              <h2 className="mt-0.5 text-lg font-extrabold tracking-tight !text-white sm:text-xl">Mesa de processos</h2>
+              <p className="mt-0.5 text-xs !text-sky-100">Fila, prazos, encaminhamentos e relatórios em um só lugar.</p>
             </div>
           </div>
           <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center xl:w-auto">
-            <span className="hidden shrink-0 items-center gap-1.5 text-[11px] font-bold text-emerald-700 dark:text-emerald-300 2xl:inline-flex" role="status">
+            <span className="hidden shrink-0 items-center gap-1.5 text-[11px] font-bold !text-emerald-100 2xl:inline-flex" role="status">
               <span className={remoteSyncedForCurrentUser ? "h-2 w-2 rounded-full bg-emerald-500" : "h-2 w-2 rounded-full bg-amber-500"} />
               {remoteSyncedForCurrentUser ? "Banco confirmado" : "Aguardando sincronização"}
             </span>
