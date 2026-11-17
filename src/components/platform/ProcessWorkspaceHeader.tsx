@@ -5,7 +5,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { buildProcessPath, type ProcessRecord } from "@/lib/platform";
 
 export type ProcessQuickFilter = "todos" | "meus" | "criticos" | "pendencias" | "guias" | "exigencias" | "analise" | "vistoria" | "decisao";
-export type ProcessMarkerOption = { label: string; color: string };
+export type ProcessMarkerOption = { label: string; color: string; emoji?: string };
 export function processIsCritical(p: ProcessRecord) {
   return Boolean(p.sla?.breached || (typeof p.sla?.hoursRemaining === "number" && p.sla.hoursRemaining <= 12));
 }
@@ -137,7 +137,8 @@ export function ProcessWorkspaceHeader({
             <DropdownMenuContent align="start" className="bg-white text-slate-900">
               {onBulkMarker && markerOptions.length > 0 ? markerOptions.map((m, i) => (
                 <DropdownMenuItem key={i} onSelect={() => onBulkMarker(m)}>
-                  <Flag className="mr-2 h-4 w-4" style={{ color: m.color }} />{m.label}
+                  {m.emoji ? <span className="mr-2 text-base leading-none">{m.emoji}</span> :
+                    <Flag className="mr-2 h-4 w-4" style={{ color: m.color }} />}{m.label}
                 </DropdownMenuItem>
               )) : oneSelected ? (
                 <DropdownMenuItem asChild><Link to={buildProcessPath(oneSelected)}>Abrir ficha para administrar marcadores</Link></DropdownMenuItem>

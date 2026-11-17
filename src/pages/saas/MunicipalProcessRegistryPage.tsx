@@ -121,7 +121,12 @@ export function MunicipalProcessRegistryPage() {
     let succeeded = 0;
     try {
       for (const process of selected) {
-        await addProcessMarkerWithColor(process.id, marker.label, marker.color, session.name);
+        await addProcessMarkerWithColor(
+          process.id,
+          marker.emoji?.trim() ? marker.emoji.trim() + " " + marker.label : marker.label,
+          marker.color,
+          session.name,
+        );
         succeeded += 1;
       }
       setSelectedProcessIds((current) => current.filter((id) => !selectedIds.has(id)));
@@ -179,7 +184,7 @@ export function MunicipalProcessRegistryPage() {
           operatorName={session.name}
           processes={visibleProcesses}
           markerOptions={presets.filter((preset) => preset.active).map((preset) => ({
-            label: formatMarkerLabel(preset), color: preset.color || "#2563eb",
+            label: formatMarkerLabel(preset), color: preset.color || "#2563eb", emoji: preset.emoji,
           }))}
           onBulkMarker={session.role === "prefeitura_admin" ? undefined : applyMarkerToSelected}
           selectedProcessIds={selectedProcessIds}

@@ -978,3 +978,23 @@
     gap: 4px;
   }
 }
+
+/* Situation indicator and user-saved markers share the same one-line geometry,
+   but never share a semantic recoloring or synthetic professional badge. */
+.sig-workspace-shell .sig-reference-marker[data-marker-origin="automatic"] {
+  border-bottom: 2px solid currentColor;
+  border-radius: 5px;
+}
+.sig-workspace-shell .sig-reference-marker[data-marker-origin="saved"] {
+  border-bottom: 0;
+}
+.sig-workspace-shell .sig-reference-custom-emoji {
+  font-size: 16px;
+  line-height: 1;
+  font-family: "Segoe UI Emoji", "Apple Color Emoji", sans-serif;
+  white-space: nowrap;
+}
+.sig-workspace-shell .sig-reference-extra-count:focus-visible {
+  outline: 2px solid #247bc6;
+  outline-offset: 2px;
+}

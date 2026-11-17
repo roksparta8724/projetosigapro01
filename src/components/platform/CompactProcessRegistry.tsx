@@ -62,9 +62,9 @@ function markersFor(process: ProcessRecord) {
   return (process.tags ?? []).map((tag) => parseMarker(tag));
 }
 
-// The six operational indicators have a stable semantic palette. Custom
-// markers retain the user's palette choice; only known operational labels
-// receive the color shown in the workspace legend.
+// The automatic marker is exclusively the CURRENT process situation. Payment,
+// deadlines and requirements already have their own columns/KPIs; they must not
+// silently become extra markers or overwrite a professional's selection.
 const processMarkerColors = {
   sla: "#dc2626",
   guia: "#9333ea",
@@ -72,7 +72,11 @@ const processMarkerColors = {
   analise: "#2563eb",
   vistoria: "#7c3aed",
   decisao: "#15803d",
-  concluido: "#15803d",
+  concluido: "#16a34a",
+  indeferido: "#dc2626",
+  triagem: "#2563eb",
+  aguardando: "#64748b",
+  arquivado: "#64748b",
 } as const;
 type ProcessMarkerKind = keyof typeof processMarkerColors;
 
@@ -80,67 +84,77 @@ function normalizeMarkerName(value: string) {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
 }
 
-function knownMarkerKind(label: string): ProcessMarkerKind | null {
-  const name = normalizeMarkerName(label);
-  if (/sla critico|prazo critico/.test(name)) return "sla";
-  if (/guia pendente|pagamento pendente/.test(name)) return "guia";
-  if (/exigencia|pendencia documental/.test(name)) return "exigencia";
-  if (/vistoria/.test(name)) return "vistoria";
-  if (/em decisao|aguardando decisao/.test(name)) return "decisao";
-  if (/analise/.test(name)) return "analise";
-  if (/concluido|deferido/.test(name)) return "concluido";
-  return null;
-}
-
 type VisibleProcessMarker = {
   label: string;
   color: string;
   origin: "saved" | "automatic";
   kind: ProcessMarkerKind | "custom";
+  emoji?: string;
 };
+
+// Legacy markers have only a label and color. Newly applied marker presets
+// preserve their chosen emoji as a prefix in the existing label field, avoiding
+// a migration and making it visible to colleagues on other accounts.
+function parseProfessionalLabel(raw: string) {
+  const match = raw.match(/^(\S+)\s+(.+)$/u);
+  const isEmoji = Boolean(match && /[\p{Extended_Pictographic}\p{Regional_Indicator}]/u.test(match[1]));
+  return isEmoji && match
+    ? { label: match[2], emoji: match[1] }
+    : { label: raw, emoji: undefined };
+}
+
+function situationMarker(process: ProcessRecord, allowInternalStage: boolean): VisibleProcessMarker {
+  const result = (kind: ProcessMarkerKind, label: string): VisibleProcessMarker => ({
+    kind, label, origin: "automatic", color: processMarkerColors[kind],
+  });
+  // A final administrative act takes precedence over a stale stage caption.
+  if (process.status === "deferido") return result("concluido", "Deferido");
+  if (process.status === "indeferido") return result("indeferido", "Indeferido");
+  if (process.status === "arquivado") return result("arquivado", "Arquivado");
+
+  const stage = allowInternalStage ? normalizeMarkerName([
+    process.processControl?.currentFolder, process.sla?.currentStage,
+  ].filter(Boolean).join(" ")) : "";
+  if (process.status === "exigencia" || process.status === "pendencia_documental") {
+    return result("exigencia", "Exigência documental");
+  }
+  if (process.status === "guia_emitida" || process.status === "pagamento_pendente") {
+    return result("guia", "Pagamento pendente");
+  }
+  if (process.status === "rascunho") return result("aguardando", "Rascunho");
+  if (process.status === "triagem") return result("triagem", "Triagem");
+  if (process.status === "reapresentacao") return result("exigencia", "Reapresentação");
+  if (process.status === "pagamento_confirmado") return result("concluido", "Pagamento confirmado");
+
+  // The internal desk has explicit workflow stages beyond the canonical status
+  // (such as Vistoria and Em decisão). Never infer those from private data
+  // for property owners or external applicants.
+  if (/vistoria|fiscalizacao de obra/.test(stage)) return result("vistoria", "Vistoria");
+  if (/decisao|aguardando assinatura|diretor|secretario/.test(stage)) {
+    return result("decisao", "Em decisão");
+  }
+  if (process.status === "analise_tecnica" || /analise/.test(stage)) {
+    return result("analise", "Análise");
+  }
+  if (process.status === "despacho_intersetorial") return result("triagem", "Despacho intersetorial");
+  if (process.status === "distribuicao") return result("aguardando", "Distribuição");
+  return result("aguardando", statusLabel(process.status));
+}
 
 function visibleProcessMarkers(
   process: ProcessRecord,
-  facts: ReturnType<typeof processFacts>,
   canViewInternalDetails: boolean,
 ): VisibleProcessMarker[] {
-  const saved = markersFor(process).map((marker) => {
-    const kind = knownMarkerKind(marker.label);
+  const automatic = situationMarker(process, canViewInternalDetails);
+  const saved = markersFor(process).map((marker): VisibleProcessMarker => {
+    const { label, emoji } = parseProfessionalLabel(marker.label);
     return {
-      label: marker.label,
-      color: marker.color,
-      origin: "saved" as const,
-      kind: kind ?? ("custom" as const),
+      label, emoji, color: marker.color, origin: "saved", kind: "custom",
     };
   });
-  if (!canViewInternalDetails) return saved;
-
-  // Automatic indicators are visual only. Never write tags to the database,
-  // assume a process has been officially marked, or expose internal statuses
-  // in external/owner views.
-  const derived: VisibleProcessMarker[] = [];
-  const add = (kind: ProcessMarkerKind, label: string) =>
-    derived.push({ kind, label, color: processMarkerColors[kind], origin: "automatic" });
-  if (facts.urgent) add("sla", "SLA crítico");
-  if (facts.pendingGuides > 0) add("guia", "Guia pendente");
-  if (facts.requirements > 0 || ["pendencia_documental", "exigencia"].includes(process.status)) {
-    add("exigencia", "Exigência");
-  }
-  const currentStage = normalizeMarkerName([
-    process.sla?.currentStage, process.processControl?.currentFolder,
-  ].filter(Boolean).join(" "));
-  if (/vistoria|fiscalizacao de obra/.test(currentStage)) add("vistoria", "Vistoria");
-  if (/decisao|aguardando assinatura|diretor|secretario/.test(currentStage)) {
-    add("decisao", "Em decisão");
-  }
-  if (process.status === "deferido") {
-    add("concluido", "Concluído");
-  } else if (process.status === "analise_tecnica" || /analise/.test(currentStage)) {
-    add("analise", "Análise");
-  }
-
-  const persistedKinds = new Set(saved.map((marker) => marker.kind));
-  return [...saved, ...derived.filter((marker) => !persistedKinds.has(marker.kind))];
+  // One and only one automatic situation indicator; ALWAYS retain all saved
+  // professional markers regardless of their wording, color, or similarity.
+  return [automatic, ...saved];
 }
 
 /** Visual SEI-style glyph is derived only from the saved marker label.
@@ -265,7 +279,7 @@ export function CompactProcessRegistry({
             {pageData.items.map((process, index) => {
               const marker = process.tags?.[0] ? parseMarker(process.tags[0]) : null;
               const facts = processFacts(process);
-              const markers = visibleProcessMarkers(process, facts, showSensitiveDetails);
+              const markers = visibleProcessMarkers(process, showSensitiveDetails);
               const thirdMarker = markers[2];
               const ThirdMarkerIcon = thirdMarker ? markerIcon(thirdMarker.label) : null;
               const archived = archivedProcessIds.includes(process.id);
@@ -314,9 +328,12 @@ export function CompactProcessRegistry({
                           data-marker-origin={item.origin} data-marker-kind={item.kind}
                           className="sig-reference-marker inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-lg"
                           style={{ color: item.color }}>
-                          <MarkerIcon className="h-4 w-4" strokeWidth={2.6}
-                            style={{ color: item.color, stroke: item.color }}
-                            aria-hidden="true" />
+                          {item.emoji ? (
+                            <span className="sig-reference-custom-emoji" aria-hidden="true">{item.emoji}</span>
+                          ) : (
+                            <MarkerIcon className="h-4 w-4" strokeWidth={2.6}
+                              style={{ color: item.color, stroke: item.color }} aria-hidden="true" />
+                          )}
                         </span>
                       );
                     })}
@@ -326,16 +343,54 @@ export function CompactProcessRegistry({
                           title={thirdMarker.origin === "automatic" ? "Indicador automático: " + thirdMarker.label : thirdMarker.label}
                           data-marker-origin={thirdMarker.origin} data-marker-kind={thirdMarker.kind}
                           style={{ color: thirdMarker.color }}>
-                          <ThirdMarkerIcon className="h-4 w-4" strokeWidth={2.6}
-                            style={{ color: thirdMarker.color, stroke: thirdMarker.color }}
-                            aria-hidden="true" />
+                          {thirdMarker.emoji ? (
+                            <span className="sig-reference-custom-emoji" aria-hidden="true">{thirdMarker.emoji}</span>
+                          ) : (
+                            <ThirdMarkerIcon className="h-4 w-4" strokeWidth={2.6}
+                              style={{ color: thirdMarker.color, stroke: thirdMarker.color }} aria-hidden="true" />
+                          )}
                         </span>
-                        <span className="sig-reference-extra-count sig-reference-extra-count-narrow" title="Mais indicadores e marcadores">+{markers.length - 2}</span>
-                        {markers.length > 3 ? <span className="sig-reference-extra-count sig-reference-extra-count-wide"
-                          title="Outros indicadores e marcadores">+{markers.length - 3}</span> : null}
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button type="button" className="sig-reference-extra-count sig-reference-extra-count-narrow"
+                              aria-label={"Ver " + (markers.length - 2) + " marcador(es) adicional(is) do processo"}
+                              title="Ver todos os marcadores cadastrados">+{markers.length - 2}</button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="start" className="max-w-[290px] bg-white text-slate-900 dark:bg-slate-900 dark:text-white">
+                            {markers.slice(2).map((extra, n) => (
+                              <DropdownMenuItem key={n} disabled className="opacity-100 text-slate-900 dark:text-white">
+                                <span className="mr-2 inline-flex h-5 w-5 shrink-0 items-center justify-center"
+                                  style={{ color: extra.color }}>
+                                  {extra.emoji || <Tag className="h-4 w-4" />}
+                                </span>
+                                <span className="truncate">{extra.label}</span>
+                              </DropdownMenuItem>
+                            ))}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                        {markers.length > 3 ? (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <button type="button" className="sig-reference-extra-count sig-reference-extra-count-wide"
+                                aria-label={"Ver " + (markers.length - 3) + " marcador(es) adicional(is) do processo"}
+                                title="Ver todos os marcadores cadastrados">+{markers.length - 3}</button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="start" className="max-w-[290px] bg-white text-slate-900 dark:bg-slate-900 dark:text-white">
+                              {markers.slice(3).map((extra, n) => (
+                                <DropdownMenuItem key={n} disabled className="opacity-100 text-slate-900 dark:text-white">
+                                  <span className="mr-2 inline-flex h-5 w-5 shrink-0 items-center justify-center"
+                                    style={{ color: extra.color }}>
+                                    {extra.emoji || <Tag className="h-4 w-4" />}
+                                  </span>
+                                  <span className="truncate">{extra.label}</span>
+                                </DropdownMenuItem>
+                              ))}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        ) : null}
                       </>
                     ) : null}
-                    {markers.length === 0 ? <Flag className="h-4 w-4 shrink-0 text-slate-400" aria-label="Sem marcador" /> : null}
+                    {markers.length === 0 ? <Flag className="h-4 w-4 shrink-0 text-slate-400" aria-label="Situação não informada" /> : null}
                   </div>
 
                   <div className="sig-process-number min-w-0">
@@ -447,14 +502,14 @@ export function CompactProcessRegistry({
           <span aria-live="polite">
             Exibindo {pageData.start + 1}–{pageData.end} de {pageData.total.toLocaleString("pt-BR")} processos
           </span>
-          <div className="sig-reference-legend" aria-label="Legenda dos marcadores">
-            <span className="sig-reference-legend-label">Marcadores:</span>
-            <span className="sig-reference-legend-chip danger"><Flame className="h-3.5 w-3.5" /> SLA crítico</span>
-            <span className="sig-reference-legend-chip pending"><FileWarning className="h-3.5 w-3.5" /> Guia pendente</span>
+          <div className="sig-reference-legend" aria-label="Legenda da situação automática">
+            <span className="sig-reference-legend-label">Situação automática:</span>
+            <span className="sig-reference-legend-chip pending"><FileWarning className="h-3.5 w-3.5" /> Pagamento</span>
             <span className="sig-reference-legend-chip warning"><AlertCircle className="h-3.5 w-3.5" /> Exigência</span>
             <span className="sig-reference-legend-chip blue"><Layers3 className="h-3.5 w-3.5" /> Análise</span>
             <span className="sig-reference-legend-chip purple"><MapPin className="h-3.5 w-3.5" /> Vistoria</span>
             <span className="sig-reference-legend-chip green"><Gavel className="h-3.5 w-3.5" /> Em decisão</span>
+            <span className="text-[10px] text-slate-600 dark:text-slate-300">Demais símbolos: marcadores dos profissionais</span>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
