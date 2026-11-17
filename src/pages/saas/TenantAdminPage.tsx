@@ -891,7 +891,7 @@ export function TenantAdminPage() {
   // Single premium process table, not one expanding card per process.
   // Authoritative process data and the sector's permissions remain unchanged.
   const renderQueueTable = (items: ProcessRecord[]) => (
-    <CompactProcessRegistry operatorName={session.name}
+    <CompactProcessRegistry embedded operatorName={session.name}
       processes={items}
       showArchiveAction={false}
       canDispatchProcess={() => false}
@@ -1464,7 +1464,7 @@ export function TenantAdminPage() {
             </div>
 
             <div data-processes-list="true" className="min-w-0">
-              <CompactProcessRegistry operatorName={session.name}
+              <CompactProcessRegistry embedded operatorName={session.name}
                 key={overviewProcessStatus + ":" + overviewProcessSearch + ":" + (effectiveScopeId || "")}
                 processes={overviewProcesses}
                 showArchiveAction={false}
@@ -1504,7 +1504,7 @@ export function TenantAdminPage() {
                 <p className="text-xs text-slate-600" aria-live="polite">
                   {overviewPendingProcesses.length.toLocaleString("pt-BR")} processo(s) encontrados · 25 por página
                 </p>
-                <CompactProcessRegistry operatorName={session.name}
+                <CompactProcessRegistry embedded operatorName={session.name}
                   key={overviewPendingSearch + ":" + (effectiveScopeId || "")}
                   processes={overviewPendingProcesses}
                   showArchiveAction={false}
