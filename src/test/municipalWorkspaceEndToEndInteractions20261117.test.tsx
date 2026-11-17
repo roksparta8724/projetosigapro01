@@ -129,12 +129,12 @@ describe("SIGAPRO — integração REAL da barra ao Controle de Processos", () =
     expect(state.dispatch).not.toHaveBeenCalled();
   });
 
-  it("conclusão nesta unidade mostra motivo, sem alterar a conclusão municipal", async () => {
+  it("não oferece conclusão local a perfil somente consulta ou sem RPC oficial pronto", async () => {
     renderAndSelect();
     const button = actionButton("Concluir nesta unidade");
-    expect(button).toBeEnabled();
-    fireEvent.click(button);
-    expect(screen.getByText(/A conclusão local exige perfil operacional interno/)).toBeInTheDocument();
+    expect(button).toBeDisabled();
+    expect(button).toHaveAttribute("data-unit-candidate", "check-permissions");
+    expect(screen.getByText(/Perfil atual em modo consulta:/)).toBeInTheDocument();
     expect(state.setUnit).not.toHaveBeenCalled();
   });
 
