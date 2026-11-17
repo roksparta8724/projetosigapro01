@@ -1479,13 +1479,19 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
     const creatorProfile =
       (process.created_by_profile_id ? profileById.get(process.created_by_profile_id) : undefined) ??
       (process.created_by ? profileByUser.get(process.created_by) : undefined);
+    // A municipal clerk is not an external architect. Internal creators were
+    // previously copied into all professional IDs/emails and therefore every
+    // clerk-created record looked like an online external application.
+    const creatorIsExternalProfessional = [
+      "profissional_externo", "professional_external", "professional", "profissional",
+    ].includes(String(creatorProfile?.role ?? "").trim().toLowerCase());
     const ownerProfile =
       owner?.profile_id ? profileById.get(owner.profile_id) : undefined;
     const externalLeadProfile =
       (externalLead?.profile_id ? profileById.get(externalLead.profile_id) : undefined) ??
       (externalLead?.user_id ? profileByUser.get(externalLead.user_id) : undefined) ??
       (
-        process.created_by_profile_id
+        creatorIsExternalProfessional && process.created_by_profile_id
           ? profileById.get(process.created_by_profile_id)
           : undefined
       );
@@ -1522,16 +1528,18 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
       ownerProfileId: owner?.profile_id ?? undefined,
       technicalProfileId:
         externalLead?.profile_id ??
-        process.created_by_profile_id ??
-        undefined,
+        (creatorIsExternalProfessional ? process.created_by_profile_id : undefined),
       createdBy: (isNeonBackend ? process.created_by_profile_id : null) ?? process.created_by,
       createdByProfileId: process.created_by_profile_id ?? undefined,
       createdByUserId: process.created_by ?? creatorProfile?.user_id ?? undefined,
       createdByEmail: creatorProfile?.email ?? undefined,
       createdByRole: creatorProfile?.role ?? undefined,
-      professionalProfileId: externalLead?.profile_id ?? process.created_by_profile_id ?? undefined,
-      professionalUserId: externalLead?.user_id ?? process.created_by ?? creatorProfile?.user_id ?? undefined,
-      professionalEmail: externalLeadProfile?.email ?? creatorProfile?.email ?? undefined,
+      professionalProfileId: externalLead?.profile_id ??
+        (creatorIsExternalProfessional ? process.created_by_profile_id : undefined),
+      professionalUserId: externalLead?.user_id ??
+        (creatorIsExternalProfessional ? (process.created_by ?? creatorProfile?.user_id) : undefined),
+      professionalEmail: externalLeadProfile?.email ??
+        (creatorIsExternalProfessional ? creatorProfile?.email : undefined),
       tags: markers.map((marker) =>
         serializeMarker(String(marker.label ?? "Marcador"), String(marker.color ?? "#2563eb")),
       ),
