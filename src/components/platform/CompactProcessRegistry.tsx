@@ -162,6 +162,10 @@ function visibleProcessMarkers(
 function markerIcon(label: string) {
   const value = label.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
   if (/sla|urgente|critico|prioridade/.test(value)) return Flame;
+  if (/indeferido|reprovado/.test(value)) return AlertCircle;
+  if (/deferido|concluido|aprovado|recebido/.test(value)) return ClipboardCheck;
+  if (/arquivado/.test(value)) return Archive;
+  if (/triagem|distribuicao/.test(value)) return Workflow;
   if (/favorito|destaque/.test(value)) return Star;
   if (/retorno|devolutiva/.test(value)) return History;
   if (/prazo/.test(value)) return CalendarClock;

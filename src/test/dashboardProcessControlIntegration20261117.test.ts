@@ -59,7 +59,8 @@ describe("SIGAPRO — Controle de Processos único, conforme referência aprovad
     expect(municipality).toContain('session.role === "prefeitura_admin" ? undefined : applyMarkerToSelected');
     expect(municipality).toContain("isProcessOwnedBySessionDepartment(session, process)");
     expect(municipality).toContain("selectedIds.size > 25");
-    expect(municipality).toContain("await addProcessMarkerWithColor(process.id, marker.label, marker.color, session.name)");
+    expect(municipality).toContain("await addProcessMarkerWithColor(");
+    expect(municipality).toContain('marker.emoji?.trim() ? marker.emoji.trim() + " " + marker.label : marker.label');
     expect(municipality).toContain('data-sei-personal-archive-controls="true"');
     expect(municipality).toContain("sem alterar tramitação ou status oficial");
     expect(header).toContain("(oneSelected && canDispatch(oneSelected))");

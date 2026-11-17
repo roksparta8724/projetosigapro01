@@ -26,57 +26,93 @@ describe("SIGAPRO — marcadores com cores semânticas e layout real do controle
     expect(container.querySelector('[data-marker-origin="saved"]')).toBeNull();
   });
 
-  it("respeita prioridade de vermelho/roxo/âmbar com dados reais, sem criar tags", () => {
+  it("apresenta só um automático apesar de prazo crítico, guia e exigência simultâneos", () => {
     const record = item("2", {
       sla: { breached: true, currentStage: "Análise Urbanística" },
       payment: { status: "pendente", guides: [{ status: "pendente" }] },
       requirements: [{ status: "aberta", visibility: "interno" }],
     });
     const { container } = render(<MemoryRouter><CompactProcessRegistry processes={[record]} /></MemoryRouter>);
-    for (const [kind, color] of [["sla", "#dc2626"], ["guia", "#9333ea"], ["exigencia", "#d97706"]] as const) {
-      expect(container.querySelector('[data-marker-kind="' + kind + '"]')).toHaveStyle({ color });
-    }
+    const automatic = container.querySelectorAll('[data-marker-origin="automatic"]');
+    expect(automatic).toHaveLength(1);
+    expect(automatic[0]).toHaveAttribute("title", "Indicador automático: Análise");
+    expect(automatic[0]).toHaveStyle({ color: "#2563eb" });
+    expect(container.querySelectorAll('[data-marker-origin="saved"]')).toHaveLength(0);
+    expect(screen.getByText("1 exig.")).toBeInTheDocument();
+    expect(screen.getByText("1 guia(s)")).toBeInTheDocument();
     expect(record.tags).toHaveLength(0);
   });
 
-  it("respeita exatamente a cor salva no marcador, mesmo com nome de etapa", () => {
-    const record = item("3", { tags: ["Vistoria::blue", "Prioridade::orange"], sla: { currentStage: "Vistoria" } });
+  it("marcadores dos profissionais sempre mantêm texto, cor e ordem sem deduplicação", () => {
+    const record = item("3", {
+      status: "analise_tecnica",
+      tags: ["Vistoria::blue", "Prioridade::orange", "Análise::violet"],
+      sla: { currentStage: "Vistoria" },
+    });
     const { container } = render(<MemoryRouter><CompactProcessRegistry processes={[record]} /></MemoryRouter>);
-    expect(container.querySelector('[data-marker-origin="saved"][data-marker-kind="vistoria"]')).toHaveStyle({ color: "#2563eb" });
-    expect(container.querySelector('[data-marker-origin="saved"][data-marker-kind="custom"]')).toHaveStyle({ color: "#ea580c" });
+    expect(container.querySelectorAll('[data-marker-origin="automatic"]')).toHaveLength(1);
+    expect(container.querySelector('[data-marker-origin="automatic"]')).toHaveAttribute("title", "Indicador automático: Vistoria");
+    const saved = [...container.querySelectorAll<HTMLElement>('[data-marker-origin="saved"]')];
+    expect(saved).toHaveLength(3);
+    expect(saved.map(el => el.getAttribute("title"))).toEqual(["Vistoria", "Prioridade", "Análise"]);
+    expect(saved[0]).toHaveStyle({ color: "#2563eb" });
+    expect(saved[1]).toHaveStyle({ color: "#ea580c" });
+    expect(saved[2]).toHaveStyle({ color: "#7c3aed" });
+    expect(saved[0].querySelector("svg")).toHaveStyle({ stroke: "#2563eb" });
     expect(source("src/components/platform/CompactProcessRegistry.tsx")).toContain("markers.slice(0, 2)");
-    expect(source("src/components/platform/CompactProcessRegistry.tsx")).toContain("sig-reference-marker-third");
-    const icon = container.querySelector('[data-marker-origin="saved"][data-marker-kind="vistoria"] svg');
-    expect(icon).toHaveStyle({ color: "#2563eb", stroke: "#2563eb" });
-    const marker = container.querySelector('[data-marker-origin="saved"][data-marker-kind="vistoria"]');
-    expect(marker).not.toHaveStyle({ backgroundColor: "#2563eb19" });
   });
 
-  it("mantém a cor original de cada etiqueta real de banco sem sobrepor o significado pelo nome", () => {
+  it("cor exata dos registros reais não é substituída por cores semânticas", () => {
     const record = item("9", { tags: ["Concluído::green", "Retorno::red", "Prioridade::gold"] });
     const { container } = render(<MemoryRouter><CompactProcessRegistry processes={[record]} /></MemoryRouter>);
-    expect(container.querySelector('[data-marker-origin="saved"][data-marker-kind="concluido"]')).toHaveStyle({ color: "#16a34a" });
-    expect(container.querySelector('[data-marker-origin="saved"][data-marker-kind="custom"]')).toHaveStyle({ color: "#dc2626" });
+    const saved = container.querySelectorAll<HTMLElement>('[data-marker-origin="saved"]');
+    expect(saved).toHaveLength(3);
+    expect(saved[0]).toHaveStyle({ color: "#16a34a" });
+    expect(saved[1]).toHaveStyle({ color: "#dc2626" });
+    expect(saved[2]).toHaveStyle({ color: "#ca8a04" });
     expect(record.tags).toEqual(["Concluído::green", "Retorno::red", "Prioridade::gold"]);
   });
 
-  it("exibe todos os três marcadores oficiais com suas cores originais no desktop", () => {
-    const record = item("1", { tags: ["Pendência::gold", "Prioridade::gold", "em andamento::blue"] });
+  it("mantém símbolo profissional definido, inclusive para outra pessoa em outro computador", () => {
+    const record = item("15", { tags: ["⭐ Favorito::cyan", "📍 Vistoria::violet"] });
     const { container } = render(<MemoryRouter><CompactProcessRegistry processes={[record]} /></MemoryRouter>);
-    const saved = Array.from(container.querySelectorAll<HTMLElement>('[data-marker-origin="saved"]'));
-    expect(saved).toHaveLength(3);
-    expect(saved.map(el => el.getAttribute("title"))).toEqual(["Pendência", "Prioridade", "em andamento"]);
-    expect(saved[0]).toHaveStyle({ color: "#ca8a04" });
-    expect(saved[1]).toHaveStyle({ color: "#ca8a04" });
-    expect(saved[2]).toHaveStyle({ color: "#2563eb" });
-    expect(source("src/styles/sigapro-reference-layout.css")).toContain(".sig-reference-marker-third");
+    const saved = container.querySelectorAll<HTMLElement>('[data-marker-origin="saved"]');
+    expect(saved).toHaveLength(2);
+    expect(saved[0]).toHaveAttribute("title", "Favorito");
+    expect(saved[0]).toHaveStyle({ color: "#0891b2" });
+    expect(saved[0].querySelector(".sig-reference-custom-emoji")).toHaveTextContent("⭐");
+    expect(saved[1].querySelector(".sig-reference-custom-emoji")).toHaveTextContent("📍");
+    expect(record.tags).toEqual(["⭐ Favorito::cyan", "📍 Vistoria::violet"]);
   });
 
-  it("não divulga indicadores internos de prazo para visualização externa", () => {
+  it("para processo deferido, status final prevalece sobre informação antiga de etapa", () => {
+    const { container } = render(<MemoryRouter><CompactProcessRegistry processes={[item("16", {
+      status: "deferido", sla: { currentStage: "Análise Urbanística" },
+      tags: ["Prioridade::red"],
+    })]} /></MemoryRouter>);
+    expect(container.querySelectorAll('[data-marker-origin="automatic"]')).toHaveLength(1);
+    expect(container.querySelector('[data-marker-origin="automatic"]')).toHaveAttribute("title", "Indicador automático: Deferido");
+    expect(container.querySelector('[data-marker-origin="automatic"]')).toHaveStyle({ color: "#16a34a" });
+    expect(container.querySelector('[data-marker-origin="saved"]')).toHaveStyle({ color: "#dc2626" });
+  });
+
+  it("consulta externa recebe somente situação oficial, sem inferir prazo ou setor internos", () => {
     const { container } = render(<MemoryRouter><CompactProcessRegistry processes={[item("4", {
-      sla: { breached: true, currentStage: "Análise Urbanística" },
+      status: "distribuicao",
+      sla: { breached: true, currentStage: "Aguardando decisão do Diretor" },
     })]} showSensitiveDetails={false} /></MemoryRouter>);
-    expect(container.querySelector('[data-marker-origin="automatic"]')).toBeNull();
+    expect(container.querySelectorAll('[data-marker-origin="automatic"]')).toHaveLength(1);
+    expect(container.querySelector('[data-marker-origin="automatic"]')).toHaveAttribute("title", "Indicador automático: Distribuição");
+    expect(container.querySelector('[data-marker-kind="decisao"]')).toBeNull();
+  });
+
+  it("registros além da largura disponível continuam acessíveis em um menu", () => {
+    const record = item("8", { tags: ["Prioridade::red", "Retorno::blue", "Favorito::cyan", "Concluído::green"] });
+    const { container } = render(<MemoryRouter><CompactProcessRegistry processes={[record]} /></MemoryRouter>);
+    expect(container.querySelectorAll('[data-marker-origin="automatic"]')).toHaveLength(1);
+    expect(container.querySelectorAll('[data-marker-origin="saved"]')).toHaveLength(2);
+    expect(container.querySelectorAll('[aria-label^="Ver "][aria-label$=" do processo"]')).toHaveLength(2);
+    expect(record.tags).toHaveLength(4);
   });
 
   it("os filtros da referência trabalham com status, guias e etapas reais", () => {
