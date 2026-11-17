@@ -84,6 +84,8 @@ interface PortalFrameProps {
   children: React.ReactNode;
   focusMode?: boolean;
   compactHeader?: boolean;
+  /** Suppress the redundant institutional banner on purpose-built workspace pages. */
+  hideSectionHeader?: boolean;
 }
 
 type LayoutThemeOverride = {
@@ -285,7 +287,7 @@ function resolveBrandingLogoUrl(
     : branding.headerLogoUrl ?? branding.logoUrl ?? "";
 }
 
-export function PortalFrame({ title, eyebrow, children, focusMode = false, compactHeader = true }: PortalFrameProps) {
+export function PortalFrame({ title, eyebrow, children, focusMode = false, compactHeader = true, hideSectionHeader = false }: PortalFrameProps) {
   const [commandOpen, setCommandOpen] = useState(false);
   const [commandQuery, setCommandQuery] = useState("");
   const [sidebarExpanded, setSidebarExpanded] = useState(() => {
@@ -2486,7 +2488,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false, compa
               ),
             )}
           >
-            {!focusMode ? <div className="mb-4 sig-strong-card rounded-[20px] p-3 shadow-sm lg:hidden">
+            {!focusMode && !hideSectionHeader ? <div className="mb-4 sig-strong-card rounded-[20px] p-3 shadow-sm lg:hidden">
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <p className="sig-label sig-fit-title">{eyebrow}</p>
@@ -2504,7 +2506,7 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false, compa
               </div>
             </div> : null}
 
-            {!focusMode ? <header data-sigapro-compact-header={compactHeader ? "true" : "false"} className={cn("mb-6 border-b border-slate-200 pb-5", compactHeader && "mb-3 pb-3")}>
+            {!focusMode && !hideSectionHeader ? <header data-sigapro-compact-header={compactHeader ? "true" : "false"} className={cn("mb-6 border-b border-slate-200 pb-5", compactHeader && "mb-3 pb-3")}>
               <div
                 className="overflow-hidden rounded-[24px] border shadow-[0_14px_32px_rgba(15,42,68,0.10)]"
                 style={{
