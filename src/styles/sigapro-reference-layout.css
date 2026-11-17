@@ -1085,3 +1085,22 @@
   outline: 3px solid #73bfff;
   outline-offset: 2px;
 }
+
+/* Clear available operation affordance after row selection (SEI-style). */
+.sig-workspace-shell .sig-workspace-actions[data-has-selection="true"] .sig-workspace-action-operational:not(:disabled) {
+  color: #0b4776 !important;
+  background: #e8f4ff !important;
+  border-color: #7badd3 !important;
+  box-shadow: inset 0 1px rgba(255,255,255,.9), 0 1px 3px rgba(10,65,110,.09) !important;
+  opacity: 1 !important;
+  cursor: pointer;
+}
+.sig-workspace-shell .sig-workspace-actions[data-has-selection="true"] .sig-workspace-action-operational:not(:disabled):hover {
+  background: #d3ebff !important;
+  border-color: #357eb2 !important;
+}
+.sig-workspace-shell .sig-workspace-actions[data-has-selection="true"] .sig-workspace-action-green:not(:disabled) {
+  color: white !important;
+  background: linear-gradient(145deg,#119467,#076747) !important;
+  border-color: #076747 !important;
+}

@@ -519,9 +519,9 @@ export function MunicipalProcessRegistryPage() {
           onCreateMarker={mayOperate ? () => setCreateMarkerOpen(true) : undefined}
           unitCompletedIds={Object.values(unitCompletions).filter(row => row.status === "concluido").map(row => row.process_id)}
           unitDataReady={mayOperate && unitSyncState === "ready" && !unitActionBusy}
-          onUnitAction={mayOperate ? queueUnitCompletion : undefined}
+          onUnitAction={queueUnitCompletion}
           markerOptions={personalMarkerOptions}
-          onBulkMarker={session.role === "prefeitura_admin" ? undefined : applyMarkerToSelected}
+          onBulkMarker={mayOperate ? applyMarkerToSelected : undefined}
           selectedProcessIds={selectedProcessIds}
           onToggleSelection={(processId, selected) => setSelectedProcessIds((current) => selected
             ? Array.from(new Set([...current, processId]))
@@ -540,10 +540,12 @@ export function MunicipalProcessRegistryPage() {
         <ProcessBatchActionDialog
           action={activeBatchAction}
           selected={batchSelected}
-          canOperate={mayOperate && (
-            activeBatchAction === "prioridade" || activeBatchAction === "etiquetas" ||
-            batchSelected.every(item => isProcessOwnedBySessionDepartment(session, item))
-          )}
+          canOperate={mayOperate &&
+            (activeBatchAction !== "atribuir" || session.role === "prefeitura_supervisor") &&
+            (activeBatchAction === "prioridade" || activeBatchAction === "etiquetas" ||
+              activeBatchAction === "decisao" ||
+              batchSelected.every(item => isProcessOwnedBySessionDepartment(session, item))
+            )}
           analysts={availableAnalysts}
           departments={municipalDepartments}
           markers={personalMarkerOptions}

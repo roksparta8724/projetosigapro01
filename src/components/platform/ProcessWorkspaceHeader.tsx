@@ -154,9 +154,14 @@ export function ProcessWorkspaceHeader({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="bg-white text-slate-900">
               {!onBulkMarker ? (
-                <DropdownMenuItem disabled>Este perfil tem somente permissão de consulta</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => onToolbarAction?.("etiquetas")}>
+                  <Tag className="mr-2 h-4 w-4" />
+                  Perfil de consulta — entender permissões
+                </DropdownMenuItem>
               ) : markerOptions.length === 0 ? (
-                <DropdownMenuItem disabled>Sua pasta ainda não possui marcadores ativos</DropdownMenuItem>
+                <DropdownMenuItem onSelect={onCreateMarker} disabled={!onCreateMarker}>
+                  <Plus className="mr-2 h-4 w-4" /> Criar meu primeiro marcador
+                </DropdownMenuItem>
               ) : markerOptions.map((m, i) => (
                 <DropdownMenuItem key={i} onSelect={() => onBulkMarker(m)}>
                   {m.emoji ? <span className="mr-2 text-base leading-none">{m.emoji}</span> :
@@ -185,7 +190,7 @@ export function ProcessWorkspaceHeader({
             disabled={!onUnitAction || !showSensitiveDetails ||
               bulkBusy || selectedCount === 0}
             title={!unitDataReady
-              ? "Clique para consultar a disponibilidade de conclusão na sua unidade"
+              ? "Clique para consultar a disponibilidade de conclusão nesta unidade"
               : selectedMixedStates ? "Selecione processos no mesmo estado da unidade"
                 : "Ação somente da unidade atual, sem alterar o status municipal"}
             onClick={() => onUnitAction?.(!selectedAllCompleted)}
@@ -208,7 +213,9 @@ export function ProcessWorkspaceHeader({
               const key: ProcessWorkspaceAction =
                 label === "Decisão" ? "decisao" : label.toLowerCase() as ProcessWorkspaceAction;
               return <Button key={label} size="sm" variant="outline" type="button"
-                className={"sig-workspace-action " + (label === "Decisão" ? "sig-workspace-action-green" : "")}
+                className={"sig-workspace-action sig-workspace-action-operational " + (label === "Decisão" ? "sig-workspace-action-green" : "")}
+                data-operation={key}
+                data-selection-active={selectedCount > 0 ? "true" : "false"}
                 disabled={selectedCount === 0 || bulkBusy || !showSensitiveDetails}
                 onClick={() => onToolbarAction(key)}
                 title={selectedCount === 0 ? "Selecione pelo menos um processo" : "Abrir operação: " + label}>

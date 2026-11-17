@@ -36,6 +36,11 @@ export function PremiumProcessRegistry({
   const [pageIds, setPageIds] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState("");
+  useEffect(() => {
+    if (!feedback) return;
+    const timer = window.setTimeout(() => setFeedback(""), 5500);
+    return () => window.clearTimeout(timer);
+  }, [feedback]);
   const selectedIds = onToggleSelection ? selectedProcessIds ?? [] : internalSelection;
   const filtered = useMemo(() => {
     const needle = search.trim().toLocaleLowerCase("pt-BR");
@@ -139,7 +144,12 @@ export function PremiumProcessRegistry({
         onToolbarAction={onToolbarAction ? action => onToolbarAction(action, visibleSelected) : undefined}
         onExport={scope => { void exportWorkbook(scope); }}
       />
-      {feedback ? <p role="status" className="mb-3 rounded-xl border border-sky-200 bg-sky-50 p-3 text-xs font-medium text-sky-900">{feedback}</p> : null}
+      {feedback ? (
+        <p role="status" aria-live="polite"
+          className="pointer-events-none fixed bottom-5 right-5 z-[80] max-w-[min(440px,calc(100vw-32px))] rounded-xl border border-sky-200 bg-white px-4 py-3 text-xs font-semibold text-sky-950 shadow-xl dark:border-slate-600 dark:bg-slate-900 dark:text-sky-100">
+          {feedback}
+        </p>
+      ) : null}
       <CompactProcessRegistry
         {...rest}
         processes={filtered}

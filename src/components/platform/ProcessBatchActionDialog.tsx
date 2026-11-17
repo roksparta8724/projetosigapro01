@@ -104,7 +104,11 @@ export function ProcessBatchActionDialog({
         {!canOperate && action !== "decisao" ? (
           <div role="alert" className="flex gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-semibold text-amber-900">
             <CircleAlert className="h-4 w-4 shrink-0" />
-Este perfil não tem permissão para esta operação. Atribuição e despacho exigem a unidade responsável; o administrador municipal possui somente consulta. Nenhuma alteração foi realizada.
+{action === "atribuir"
+              ? "A atribuição exige o gestor autorizado da unidade de análise. O analista pode consultar, mas não redistribuir processos."
+              : action === "encaminhar"
+              ? "Este processo não pertence à unidade operacional desta conta ou o perfil está somente em consulta. Despachos exigem a unidade responsável."
+              : "O perfil atual está em modo de consulta. Apenas profissionais internos autorizados podem gravar marcadores e prioridades. Nenhuma alteração foi realizada."}
           </div>
         ) : null}
 
@@ -157,7 +161,7 @@ Este perfil não tem permissão para esta operação. Atribuição e despacho ex
                   </label>
                 ) : null}
                 {analysts.length === 0 ? <p role="alert" className="text-xs font-semibold text-amber-800">
-                  Nenhum analista ativo disponível neste município.
+                  Nenhum analista ativo disponível neste município. Verifique o cadastro de usuários e a unidade de análise.
                 </p> : null}
               </div>
             ) : null}
@@ -169,6 +173,11 @@ Este perfil não tem permissão para esta operação. Atribuição e despacho ex
                     {availableDepartments.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
                   </select>
                 </label>
+                {availableDepartments.length === 0 ? (
+                  <p role="alert" className="sm:col-span-2 text-xs font-semibold text-amber-800">
+                    Nenhuma unidade ativa foi carregada. Confira o organograma municipal antes de encaminhar.
+                  </p>
+                ) : null}
                 <label className={labelClass}>Prazo da tramitação
                   <Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} />
                 </label>
