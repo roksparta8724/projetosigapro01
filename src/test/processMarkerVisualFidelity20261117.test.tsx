@@ -48,6 +48,8 @@ describe("SIGAPRO — marcadores com cores semânticas e layout real do controle
     expect(source("src/components/platform/CompactProcessRegistry.tsx")).toContain("sig-reference-marker-third");
     const icon = container.querySelector('[data-marker-origin="saved"][data-marker-kind="vistoria"] svg');
     expect(icon).toHaveStyle({ color: "#2563eb", stroke: "#2563eb" });
+    const marker = container.querySelector('[data-marker-origin="saved"][data-marker-kind="vistoria"]');
+    expect(marker).not.toHaveStyle({ backgroundColor: "#2563eb19" });
   });
 
   it("mantém a cor original de cada etiqueta real de banco sem sobrepor o significado pelo nome", () => {

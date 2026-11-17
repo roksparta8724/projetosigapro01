@@ -914,3 +914,25 @@
 .dark .sig-workspace-shell .sig-process-registry .sig-process-responsible-name {
   color: #edf6ff;
 }
+
+/* True SEI-style marker glyphs: vibrant saved colors, without pastel boxes. */
+.sig-workspace-shell .sig-process-registry .sig-reference-marker {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+.sig-workspace-shell .sig-process-registry .sig-reference-marker svg {
+  width: 18px !important;
+  height: 18px !important;
+  stroke-width: 2.7;
+}
+.sig-workspace-shell .sig-process-registry .sig-process-marker {
+  gap: 4px;
+}
+@container sigapro-process-registry (min-width: 940px) {
+  .sig-workspace-shell .sig-process-registry .sig-process-marker input {
+    flex: 0 0 15px;
+    width: 15px;
+    height: 15px;
+  }
+}

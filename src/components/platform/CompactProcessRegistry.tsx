@@ -310,7 +310,7 @@ export function CompactProcessRegistry({
                           title={item.origin === "automatic" ? "Indicador automático: " + item.label : item.label}
                           data-marker-origin={item.origin} data-marker-kind={item.kind}
                           className="sig-reference-marker inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-lg"
-                          style={{ color: item.color, backgroundColor: item.color + "19", borderColor: item.color + "55" }}>
+                          style={{ color: item.color }}>
                           <MarkerIcon className="h-4 w-4" strokeWidth={2.6}
                             style={{ color: item.color, stroke: item.color }}
                             aria-hidden="true" />
@@ -322,7 +322,7 @@ export function CompactProcessRegistry({
                         <span className="sig-reference-marker sig-reference-marker-third inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-lg"
                           title={thirdMarker.origin === "automatic" ? "Indicador automático: " + thirdMarker.label : thirdMarker.label}
                           data-marker-origin={thirdMarker.origin} data-marker-kind={thirdMarker.kind}
-                          style={{ color: thirdMarker.color, backgroundColor: thirdMarker.color + "19", borderColor: thirdMarker.color + "55" }}>
+                          style={{ color: thirdMarker.color }}>
                           <ThirdMarkerIcon className="h-4 w-4" strokeWidth={2.6}
                             style={{ color: thirdMarker.color, stroke: thirdMarker.color }}
                             aria-hidden="true" />
