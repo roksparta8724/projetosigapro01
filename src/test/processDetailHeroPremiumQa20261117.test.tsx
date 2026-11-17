@@ -58,6 +58,8 @@ describe("SIGAPRO — cabeçalho premium de todos os processos", () => {
     expect(page).toContain("formatOfficialProcessTitle({ title: process.title, type: process.type })");
     expect(page).toContain("formatProcessSlaDeadline(process.sla?.dueDate, process.sla?.hoursRemaining)");
     expect(page).toContain("visiblePendingCount={visibleRequirements.length}");
+    expect(page).toContain('deadline={isFinalProcessStatus ? "Processo concluído"');
+    expect(page).toContain("compact={isFinalProcessStatus}");
     expect(page).toContain("navigate(processExitPath)");
     expect(component).toContain('data-process-detail-hero="premium"');
     expect(component).toContain('data-process-detail-hero-mini-card="unit"');

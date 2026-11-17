@@ -3076,7 +3076,7 @@ export function ProcessDetailPage() {
         assignedTo={isExternalProcessViewer || isProtocolTrackingOnly
           ? undefined
           : process.analysis?.assignedTo || process.technicalLead}
-        deadline={formatProcessSlaDeadline(process.sla?.dueDate, process.sla?.hoursRemaining)}
+        deadline={isFinalProcessStatus ? "Processo concluído" : formatProcessSlaDeadline(process.sla?.dueDate, process.sla?.hoursRemaining)}
         visiblePendingCount={visibleRequirements.length}
         restrictedView={isExternalProcessViewer || isProtocolTrackingOnly}
         actions={
@@ -3144,6 +3144,7 @@ export function ProcessDetailPage() {
       <MunicipalOrganogramBar
         municipalityId={effectiveScopeId}
         departmentHint={currentFolder}
+        compact={isFinalProcessStatus}
         title="Organograma do processo"
         description="A unidade atual aparece dentro da hierarquia oficial da Prefeitura. O mesmo organograma é usado para escolher o destino dos despachos."
         showLink={false}
