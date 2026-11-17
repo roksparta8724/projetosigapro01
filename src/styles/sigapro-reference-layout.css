@@ -1041,3 +1041,15 @@
 .dark .sig-workspace-shell .sig-reference-marker[data-marker-origin="automatic"] {
   background: #1c3654;
 }
+
+/* Professional marker glyph exactly matches the Phosphor Tag (weight=fill)
+   used in the personal Marcadores folder; names never change the chosen icon. */
+.sig-workspace-shell .sig-process-registry .sig-reference-marker[data-marker-origin="saved"] svg.sig-professional-marker-icon {
+  fill: currentColor !important;
+  stroke: none !important;
+  width: 17px !important;
+  height: 17px !important;
+}
+.sig-workspace-shell .sig-process-registry .sig-reference-marker[data-marker-origin="automatic"] svg {
+  fill: none;
+}

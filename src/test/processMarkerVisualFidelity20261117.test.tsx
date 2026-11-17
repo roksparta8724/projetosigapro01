@@ -60,7 +60,7 @@ describe("SIGAPRO — marcadores com cores semânticas e layout real do controle
     expect(saved[2]).toHaveStyle({ color: "#7c3aed" });
     expect(record.tags).toEqual(["Vistoria::blue", "Prioridade::orange", "Análise::violet"]);
     expect(container.querySelectorAll('[aria-label^="Ver "][aria-label$=" do processo"]')).toHaveLength(1);
-    expect(saved[0].querySelector("svg")).toHaveStyle({ stroke: "#2563eb" });
+    expect(saved[0].querySelector("svg.sig-professional-marker-icon")).toHaveStyle({ color: "#2563eb", fill: "#2563eb" });
     expect(source("src/components/platform/CompactProcessRegistry.tsx")).toContain("markers.slice(0, 2)");
   });
 
@@ -88,6 +88,23 @@ describe("SIGAPRO — marcadores com cores semânticas e layout real do controle
     expect(saved[0].querySelector(".sig-reference-custom-emoji")).toHaveTextContent("⭐");
     expect(saved[1].querySelector(".sig-reference-custom-emoji")).toHaveTextContent("📍");
     expect(record.tags).toEqual(["⭐ Favorito::cyan", "📍 Vistoria::violet"]);
+  });
+
+  it("mantém o símbolo original da pasta Marcadores mesmo para Favorito, Retorno e Prioridade", () => {
+    const record = item("22", { tags: ["Favorito::green", "Retorno::red", "Prioridade::gold"] });
+    const { container } = render(<MemoryRouter><CompactProcessRegistry processes={[record]} /></MemoryRouter>);
+    const automatic = container.querySelector('[data-marker-origin="automatic"]');
+    const personal = Array.from(container.querySelectorAll<HTMLElement>('[data-marker-origin="saved"]'));
+    expect(automatic).toBeInTheDocument();
+    expect(automatic?.querySelector(".sig-professional-marker-icon")).toBeNull();
+    expect(personal).toHaveLength(3);
+    for (const marker of personal) {
+      expect(marker.querySelector("svg.sig-professional-marker-icon.sig-flag-filled")).toBeInTheDocument();
+    }
+    expect(personal.map(el => el.getAttribute("title"))).toEqual(["Favorito", "Retorno", "Prioridade"]);
+    expect(personal[0].querySelector("svg")).toHaveStyle({ fill: "#16a34a" });
+    expect(personal[1].querySelector("svg")).toHaveStyle({ fill: "#dc2626" });
+    expect(personal[2].querySelector("svg")).toHaveStyle({ fill: "#ca8a04" });
   });
 
   it("para processo deferido, status final prevalece sobre informação antiga de etapa", () => {

@@ -1,4 +1,5 @@
-import { ChevronDown, ChevronRight, Download, FileText, FileWarning, Flame, FolderOpen, Forward, Gavel, Layers3, MapPin, Search, SlidersHorizontal, Tag, Timer, UserRound, UsersRound, Flag, X } from "lucide-react";
+import { ChevronDown, ChevronRight, Download, FileText, FileWarning, Flame, FolderOpen, Forward, Gavel, Layers3, MapPin, Search, SlidersHorizontal, Tag, Timer, UserRound, UsersRound, X } from "lucide-react";
+import { Flag as ProfessionalMarkerIcon } from "@/components/platform/PremiumIcons";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -138,7 +139,7 @@ export function ProcessWorkspaceHeader({
               {onBulkMarker && markerOptions.length > 0 ? markerOptions.map((m, i) => (
                 <DropdownMenuItem key={i} onSelect={() => onBulkMarker(m)}>
                   {m.emoji ? <span className="mr-2 text-base leading-none">{m.emoji}</span> :
-                    <Flag className="mr-2 h-4 w-4" style={{ color: m.color }} />}{m.label}
+                    <ProfessionalMarkerIcon className="mr-2 h-4 w-4 sig-flag-filled" style={{ color: m.color, fill: m.color }} />}{m.label}
                 </DropdownMenuItem>
               )) : oneSelected ? (
                 <DropdownMenuItem asChild><Link to={buildProcessPath(oneSelected)}>Abrir ficha para administrar marcadores</Link></DropdownMenuItem>

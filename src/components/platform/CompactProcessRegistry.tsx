@@ -6,6 +6,7 @@ import {
   MoreHorizontal, Send, Workflow, Flame, Eye, MapPin, CheckCircle2, Layers3, AlertCircle, ClipboardCheck, Gavel, Tag, ArrowUpDown, FileText, Star,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Flag as ProfessionalMarkerIcon } from "@/components/platform/PremiumIcons";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
@@ -147,8 +148,8 @@ function visibleProcessMarkers(
   return [automatic, ...saved];
 }
 
-/** Visual SEI-style glyph is derived only from the saved marker label.
- * The underlying marker/color and audit record remain untouched. */
+/** Only the official situation gets a semantic glyph. Professional markers
+ * always show the same Phosphor filled Tag as the personal marker folder. */
 function markerIcon(label: string) {
   const value = label.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
   if (/sla|urgente|critico|prioridade/.test(value)) return Flame;
@@ -276,8 +277,12 @@ export function CompactProcessRegistry({
               const markers = visibleProcessMarkers(process, showSensitiveDetails);
               const thirdMarker = markers[2];
               const fourthMarker = markers[3];
-              const ThirdMarkerIcon = thirdMarker ? markerIcon(thirdMarker.label) : null;
-              const FourthMarkerIcon = fourthMarker ? markerIcon(fourthMarker.label) : null;
+              const ThirdMarkerIcon = thirdMarker
+                ? thirdMarker.origin === "saved" ? ProfessionalMarkerIcon : markerIcon(thirdMarker.label)
+                : null;
+              const FourthMarkerIcon = fourthMarker
+                ? fourthMarker.origin === "saved" ? ProfessionalMarkerIcon : markerIcon(fourthMarker.label)
+                : null;
               const archived = archivedProcessIds.includes(process.id);
               const fact = facts;
               // External/owner views must not reveal internal ownership, folder,
@@ -317,7 +322,7 @@ export function CompactProcessRegistry({
                         className="mr-1 h-4 w-4 shrink-0 cursor-pointer accent-sky-800" />
                     ) : null}
                     {markers.slice(0, 2).map((item, markerIndex) => {
-                      const MarkerIcon = markerIcon(item.label);
+                      const MarkerIcon = item.origin === "saved" ? ProfessionalMarkerIcon : markerIcon(item.label);
                       return (
                         <span key={markerIndex}
                           title={item.origin === "automatic" ? "Indicador automático: " + item.label : item.label}
@@ -327,8 +332,10 @@ export function CompactProcessRegistry({
                           {item.emoji ? (
                             <span className="sig-reference-custom-emoji" aria-hidden="true">{item.emoji}</span>
                           ) : (
-                            <MarkerIcon className="h-4 w-4" strokeWidth={2.6}
-                              style={{ color: item.color, stroke: item.color }} aria-hidden="true" />
+                            <MarkerIcon className={item.origin === "saved" ? "h-4 w-4 sig-professional-marker-icon sig-flag-filled" : "h-4 w-4"}
+                              strokeWidth={item.origin === "saved" ? undefined : 2.6}
+                              style={item.origin === "saved" ? { color: item.color, fill: item.color } : { color: item.color, stroke: item.color }}
+                              aria-hidden="true" />
                           )}
                         </span>
                       );
@@ -342,8 +349,10 @@ export function CompactProcessRegistry({
                           {thirdMarker.emoji ? (
                             <span className="sig-reference-custom-emoji" aria-hidden="true">{thirdMarker.emoji}</span>
                           ) : (
-                            <ThirdMarkerIcon className="h-4 w-4" strokeWidth={2.6}
-                              style={{ color: thirdMarker.color, stroke: thirdMarker.color }} aria-hidden="true" />
+                            <ThirdMarkerIcon className={thirdMarker.origin === "saved" ? "h-4 w-4 sig-professional-marker-icon sig-flag-filled" : "h-4 w-4"}
+                              strokeWidth={thirdMarker.origin === "saved" ? undefined : 2.6}
+                              style={thirdMarker.origin === "saved" ? { color: thirdMarker.color, fill: thirdMarker.color } : { color: thirdMarker.color, stroke: thirdMarker.color }}
+                              aria-hidden="true" />
                           )}
                         </span>
                         {fourthMarker && FourthMarkerIcon ? (
@@ -354,8 +363,10 @@ export function CompactProcessRegistry({
                             {fourthMarker.emoji ? (
                               <span className="sig-reference-custom-emoji" aria-hidden="true">{fourthMarker.emoji}</span>
                             ) : (
-                              <FourthMarkerIcon className="h-4 w-4" strokeWidth={2.6}
-                                style={{ color: fourthMarker.color, stroke: fourthMarker.color }} aria-hidden="true" />
+                              <FourthMarkerIcon className={fourthMarker.origin === "saved" ? "h-4 w-4 sig-professional-marker-icon sig-flag-filled" : "h-4 w-4"}
+                                strokeWidth={fourthMarker.origin === "saved" ? undefined : 2.6}
+                                style={fourthMarker.origin === "saved" ? { color: fourthMarker.color, fill: fourthMarker.color } : { color: fourthMarker.color, stroke: fourthMarker.color }}
+                                aria-hidden="true" />
                             )}
                           </span>
                         ) : null}
@@ -370,7 +381,7 @@ export function CompactProcessRegistry({
                               <DropdownMenuItem key={n} disabled className="opacity-100 text-slate-900 dark:text-white">
                                 <span className="mr-2 inline-flex h-5 w-5 shrink-0 items-center justify-center"
                                   style={{ color: extra.color }}>
-                                  {extra.emoji || <Tag className="h-4 w-4" />}
+                                  {extra.emoji || <ProfessionalMarkerIcon className="h-4 w-4 sig-professional-marker-icon sig-flag-filled" style={{ color: extra.color, fill: extra.color }} aria-hidden="true" />}
                                 </span>
                                 <span className="truncate">{extra.label}</span>
                               </DropdownMenuItem>
@@ -389,7 +400,7 @@ export function CompactProcessRegistry({
                                 <DropdownMenuItem key={n} disabled className="opacity-100 text-slate-900 dark:text-white">
                                   <span className="mr-2 inline-flex h-5 w-5 shrink-0 items-center justify-center"
                                     style={{ color: extra.color }}>
-                                    {extra.emoji || <Tag className="h-4 w-4" />}
+                                    {extra.emoji || <ProfessionalMarkerIcon className="h-4 w-4 sig-professional-marker-icon sig-flag-filled" style={{ color: extra.color, fill: extra.color }} aria-hidden="true" />}
                                   </span>
                                   <span className="truncate">{extra.label}</span>
                                 </DropdownMenuItem>

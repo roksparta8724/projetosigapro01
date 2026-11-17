@@ -28,6 +28,18 @@ describe("SIGAPRO — até 3 marcadores individuais + 1 situação automática",
     expect(canApplyPersonalProcessMarker(current, "🎯 Novo marcador")).toBe(false);
   });
 
+  it("os marcadores individuais usam a mesma etiqueta preenchida da pasta pessoal", () => {
+    const selector = read("src/components/platform/MarkerSelector.tsx");
+    const registry = read("src/components/platform/CompactProcessRegistry.tsx");
+    const header = read("src/components/platform/ProcessWorkspaceHeader.tsx");
+    expect(selector).toContain('import { Check, Flag, X } from "@/components/platform/PremiumIcons"');
+    expect(registry).toContain('Flag as ProfessionalMarkerIcon');
+    expect(registry).toContain('item.origin === "saved" ? ProfessionalMarkerIcon : markerIcon(item.label)');
+    expect(registry).toContain('thirdMarker.origin === "saved" ? ProfessionalMarkerIcon');
+    expect(registry).toContain('fourthMarker.origin === "saved" ? ProfessionalMarkerIcon');
+    expect(header).toContain('Flag as ProfessionalMarkerIcon');
+  });
+
   it("identidade visual escolhida na pasta é conservada no texto persistido", () => {
     const text = composeProfessionalMarkerLabel("Favorito", "⭐");
     expect(text).toBe("⭐ Favorito");
