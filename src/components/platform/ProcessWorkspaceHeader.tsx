@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight, CircleAlert, Download, FileText, FileWarning, Flame, FolderOpen, Forward, Gavel, Layers3, MapPin, Search, SlidersHorizontal, Tag, Timer, UserRound, UsersRound, Flag, X } from "lucide-react";
+import { ChevronDown, ChevronRight, Download, FileText, FileWarning, Flame, FolderOpen, Forward, Gavel, Layers3, MapPin, Search, SlidersHorizontal, Tag, Timer, UserRound, UsersRound, Flag, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -11,7 +11,7 @@ export function processIsCritical(p: ProcessRecord) {
 }
 export function processPendingGuideCount(p: ProcessRecord) {
   const guides = p.payment?.guides ?? [];
-  return guides.length ? guides.filter(g => g.status === "pendente" || g.status === "pending").length
+  return guides.length ? guides.filter(g => ["pendente", "pending"].includes(String(g.status))).length
     : (p.payment?.guideNumber && p.payment.status === "pendente" ? 1 : 0);
 }
 export function processHasRequirement(p: ProcessRecord) {
