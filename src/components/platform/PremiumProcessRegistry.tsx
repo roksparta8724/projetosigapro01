@@ -5,7 +5,8 @@ import {
   ProcessWorkspaceHeader, processIsCritical, processHasRequirement, processPendingGuideCount,
   processAwaitsDecision, processIsUnderAnalysis, processAwaitsInspection, type ProcessQuickFilter, type ProcessMarkerOption, type ProcessWorkspaceAction,
 } from "@/components/platform/ProcessWorkspaceHeader";
-import { statusLabel, formatOfficialProcessNumber, formatOfficialProcessTitle, type ProcessRecord } from "@/lib/platform";
+import { statusLabel, formatOfficialProcessNumber, formatOfficialProcessTitle, type ProcessRecord, type SessionUser } from "@/lib/platform";
+import { hasOperationalUnit, isProcessInMyUnit, isProcessPersonallyLinked } from "@/lib/processPersonalScope";
 import "@/styles/sigapro-process-workspace.css";
 import "@/styles/sigapro-reference-layout.css";
 import "@/styles/sigapro-unified-process-workspace.css";
@@ -13,6 +14,8 @@ import "@/styles/sigapro-unified-process-workspace.css";
 type RegistryProps = ComponentProps<typeof CompactProcessRegistry>;
 type PremiumProcessRegistryProps = RegistryProps & {
   operatorName?: string;
+  /** Authenticated municipal employee; individual and unit filters require identity. */
+  operator?: SessionUser;
   onBulkMarker?: (selected: ProcessRecord[], marker: ProcessMarkerOption) => Promise<void>;
   markerOptions?: ProcessMarkerOption[];
   onBulkDispatch?: (selected: ProcessRecord[]) => void;
@@ -30,7 +33,7 @@ type PremiumProcessRegistryProps = RegistryProps & {
 };
 
 export function PremiumProcessRegistry({
-  processes, operatorName = "", selectedProcessIds, onToggleSelection,
+  processes, operatorName = "", operator, selectedProcessIds, onToggleSelection,
   onBulkMarker, markerOptions = [], onBulkDispatch,
   onCreateMarker, unitCompletedIds = [], unitDataReady, onUnitAction, canCompleteInUnit,
   onToolbarAction, exportScopeLabel = "Processos municipais",
@@ -53,7 +56,7 @@ export function PremiumProcessRegistry({
   const selectedIds = onToggleSelection ? selectedProcessIds ?? [] : internalSelection;
   const filtered = useMemo(() => {
     const needle = search.trim().toLocaleLowerCase("pt-BR");
-    const operator = operatorName.trim().toLocaleLowerCase("pt-BR");
+    const operatorLabel = (operator?.name || operatorName).trim();
     return processes.filter(process => {
       const searchable = [
         process.protocol, process.externalProtocol, process.title, process.ownerName,
@@ -68,12 +71,11 @@ export function PremiumProcessRegistry({
       if (quickFilter === "analise") return processIsUnderAnalysis(process);
       if (quickFilter === "vistoria") return processAwaitsInspection(process);
       if (quickFilter === "decisao") return processAwaitsDecision(process);
-      if (quickFilter === "meus") return Boolean(operator) && [
-        process.technicalLead, process.analysis?.assignedTo,
-      ].some(name => String(name ?? "").trim().toLocaleLowerCase("pt-BR") === operator);
+      if (quickFilter === "meus") return isProcessPersonallyLinked(process, operator, operatorLabel);
+      if (quickFilter === "unidade") return isProcessInMyUnit(process, operator);
       return true;
     });
-  }, [processes, search, quickFilter, operatorName]);
+  }, [processes, search, quickFilter, operator, operatorName]);
   const visibleSelected = useMemo(() => {
     const ids = new Set(selectedIds);
     return filtered.filter(p => ids.has(p.id));
@@ -151,7 +153,8 @@ export function PremiumProcessRegistry({
         processes={processes} filteredCount={filtered.length}
         search={search} onSearch={setSearch}
         quickFilter={quickFilter} onFilter={setQuickFilter}
-        operatorName={operatorName}
+        operatorName={operator?.name || operatorName}
+        canFilterUnit={hasOperationalUnit(operator)}
         selectedCount={visibleSelected.length}
         allPageSelected={allPageSelected} pageCount={pageIds.length}
         onTogglePage={checked => pageIds.forEach(id => toggleSelection(id, checked))}
@@ -189,6 +192,11 @@ export function PremiumProcessRegistry({
         onToggleSelection={showSensitiveDetails ? toggleSelection : undefined}
         canDispatchProcess={canDispatchProcess}
         showSensitiveDetails={showSensitiveDetails}
+        emptyMessage={quickFilter === "meus"
+          ? "Nenhum processo atribuído ou movimentado por esta conta. Para consultar a fila do departamento, selecione Minha unidade; para ver todos os processos acessíveis, selecione Todos."
+          : quickFilter === "unidade"
+            ? "Não há processos na unidade atual dentro desta lista. Confira a pasta ou use Todos para consultar os demais registros disponíveis."
+            : rest.emptyMessage}
         defaultPageSize={10}
         onVisiblePageChange={setPageIds}
       />
