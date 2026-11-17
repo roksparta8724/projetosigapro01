@@ -998,3 +998,46 @@
   outline: 2px solid #247bc6;
   outline-offset: 2px;
 }
+
+/* Four-column marker budget: 1 automatic situation + 3 chosen by the user.
+   Smaller process containers retain accessible overflow rather than clipping. */
+.sig-workspace-shell .sig-reference-marker-fourth { display: none !important; }
+@container sigapro-process-registry (min-width: 940px) {
+  .sig-workspace-shell .sig-reference-marker-fourth {
+    display: inline-flex !important;
+  }
+  .sig-workspace-shell .sig-process-registry .sig-process-marker {
+    gap: 2px;
+  }
+  .sig-workspace-shell .sig-process-registry .sig-reference-marker {
+    width: 19px !important;
+    height: 20px !important;
+    flex: 0 0 19px;
+  }
+}
+@container sigapro-process-registry (min-width: 940px) and (max-width: 1119px) {
+  .sig-workspace-shell .sig-process-registry .sig-process-head,
+  .sig-workspace-shell .sig-process-registry .sig-process-row {
+    grid-template-columns:
+      116px minmax(111px, 1fr) minmax(135px, 1.45fr)
+      minmax(111px, 1.16fr) minmax(91px, .96fr)
+      minmax(82px, .83fr) minmax(53px, .58fr) 143px;
+  }
+}
+@container sigapro-process-registry (min-width: 1120px) {
+  .sig-workspace-shell .sig-process-registry .sig-process-head,
+  .sig-workspace-shell .sig-process-registry .sig-process-row {
+    grid-template-columns:
+      128px minmax(122px, 1.1fr) minmax(155px, 1.6fr)
+      minmax(128px, 1.14fr) minmax(114px, 1fr)
+      minmax(88px, .82fr) minmax(80px, .8fr) 147px;
+  }
+}
+.sig-workspace-shell .sig-reference-marker[data-marker-origin="automatic"] {
+  background: #eaf2ff;
+  border-radius: 6px;
+  margin-right: 3px;
+}
+.dark .sig-workspace-shell .sig-reference-marker[data-marker-origin="automatic"] {
+  background: #1c3654;
+}

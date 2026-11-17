@@ -8,6 +8,10 @@ import { Button } from "@/components/ui/button";
 import { useMarkerPresets, formatMarkerLabel } from "@/hooks/useMarkerPresets";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
+import {
+  canApplyPersonalProcessMarker, composeProfessionalMarkerLabel,
+  PERSONAL_PROCESS_MARKER_LIMIT_ERROR,
+} from "@/lib/processMarkerLimits";
 import { useLivePlatformRefresh } from "@/hooks/useLivePlatformRefresh";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import {
@@ -116,6 +120,16 @@ export function MunicipalProcessRegistryPage() {
       throw new Error("Permissão insuficiente para marcação.");
     }
 
+    const actualLabel = composeProfessionalMarkerLabel(marker.label, marker.emoji);
+    const full = selected.filter(process =>
+      !canApplyPersonalProcessMarker(process.tags ?? [], actualLabel)
+    );
+    if (full.length > 0) {
+      const message = `${PERSONAL_PROCESS_MARKER_LIMIT_ERROR} ${full.length} processo(s) da seleção já atingiram o limite.`;
+      setBulkMarkerMessage(message);
+      throw new Error(message);
+    }
+
     setBulkMarkerBusy(true);
     setBulkMarkerMessage("");
     let succeeded = 0;
@@ -123,7 +137,7 @@ export function MunicipalProcessRegistryPage() {
       for (const process of selected) {
         await addProcessMarkerWithColor(
           process.id,
-          marker.emoji?.trim() ? marker.emoji.trim() + " " + marker.label : marker.label,
+          actualLabel,
           marker.color,
           session.name,
         );

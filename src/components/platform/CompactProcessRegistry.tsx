@@ -16,6 +16,7 @@ import {
   parseMarker, statusLabel, statusTone, type ProcessRecord,
 } from "@/lib/platform";
 import { cn } from "@/lib/utils";
+import { MAX_PERSONAL_PROCESS_MARKERS, parseProfessionalMarkerSymbol } from "@/lib/processMarkerLimits";
 import "@/styles/compact-process-registry.css";
 
 type CompactProcessRegistryProps = {
@@ -92,17 +93,6 @@ type VisibleProcessMarker = {
   emoji?: string;
 };
 
-// Legacy markers have only a label and color. Newly applied marker presets
-// preserve their chosen emoji as a prefix in the existing label field, avoiding
-// a migration and making it visible to colleagues on other accounts.
-function parseProfessionalLabel(raw: string) {
-  const match = raw.match(/^(\S+)\s+(.+)$/u);
-  const isEmoji = Boolean(match && /[\p{Extended_Pictographic}\p{Regional_Indicator}]/u.test(match[1]));
-  return isEmoji && match
-    ? { label: match[2], emoji: match[1] }
-    : { label: raw, emoji: undefined };
-}
-
 function situationMarker(process: ProcessRecord, allowInternalStage: boolean): VisibleProcessMarker {
   const result = (kind: ProcessMarkerKind, label: string): VisibleProcessMarker => ({
     kind, label, origin: "automatic", color: processMarkerColors[kind],
@@ -147,7 +137,7 @@ function visibleProcessMarkers(
 ): VisibleProcessMarker[] {
   const automatic = situationMarker(process, canViewInternalDetails);
   const saved = markersFor(process).map((marker): VisibleProcessMarker => {
-    const { label, emoji } = parseProfessionalLabel(marker.label);
+    const { label, emoji } = parseProfessionalMarkerSymbol(marker.label);
     return {
       label, emoji, color: marker.color, origin: "saved", kind: "custom",
     };
@@ -285,7 +275,9 @@ export function CompactProcessRegistry({
               const facts = processFacts(process);
               const markers = visibleProcessMarkers(process, showSensitiveDetails);
               const thirdMarker = markers[2];
+              const fourthMarker = markers[3];
               const ThirdMarkerIcon = thirdMarker ? markerIcon(thirdMarker.label) : null;
+              const FourthMarkerIcon = fourthMarker ? markerIcon(fourthMarker.label) : null;
               const archived = archivedProcessIds.includes(process.id);
               const fact = facts;
               // External/owner views must not reveal internal ownership, folder,
@@ -317,7 +309,7 @@ export function CompactProcessRegistry({
                     archived && "opacity-75",
                     selected && "bg-sky-100/70 dark:bg-sky-950/40",
                   )}>
-                  <div className="sig-process-marker flex min-w-0 flex-wrap items-center justify-center gap-1" aria-label="Marcadores do processo">
+                  <div className="sig-process-marker flex min-w-0 flex-wrap items-center justify-center gap-1" aria-label="Situação automática e até três marcadores individuais do processo">
                     {selectable ? (
                       <input type="checkbox" checked={selected}
                         onChange={(event) => onToggleSelection?.(process.id, event.target.checked)}
@@ -354,6 +346,19 @@ export function CompactProcessRegistry({
                               style={{ color: thirdMarker.color, stroke: thirdMarker.color }} aria-hidden="true" />
                           )}
                         </span>
+                        {fourthMarker && FourthMarkerIcon ? (
+                          <span className="sig-reference-marker sig-reference-marker-fourth inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-lg"
+                            title={fourthMarker.origin === "automatic" ? "Indicador automático: " + fourthMarker.label : fourthMarker.label}
+                            data-marker-origin={fourthMarker.origin} data-marker-kind={fourthMarker.kind}
+                            style={{ color: fourthMarker.color }}>
+                            {fourthMarker.emoji ? (
+                              <span className="sig-reference-custom-emoji" aria-hidden="true">{fourthMarker.emoji}</span>
+                            ) : (
+                              <FourthMarkerIcon className="h-4 w-4" strokeWidth={2.6}
+                                style={{ color: fourthMarker.color, stroke: fourthMarker.color }} aria-hidden="true" />
+                            )}
+                          </span>
+                        ) : null}
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <button type="button" className="sig-reference-extra-count sig-reference-extra-count-narrow"
@@ -372,15 +377,15 @@ export function CompactProcessRegistry({
                             ))}
                           </DropdownMenuContent>
                         </DropdownMenu>
-                        {markers.length > 3 ? (
+                        {markers.length > MAX_PERSONAL_PROCESS_MARKERS + 1 ? (
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <button type="button" className="sig-reference-extra-count sig-reference-extra-count-wide"
-                                aria-label={"Ver " + (markers.length - 3) + " marcador(es) adicional(is) do processo"}
-                                title="Ver todos os marcadores cadastrados">+{markers.length - 3}</button>
+                                aria-label={"Ver " + (markers.length - 4) + " marcador(es) adicional(is) do processo"}
+                                title="Ver todos os marcadores cadastrados">+{markers.length - 4}</button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="start" className="max-w-[290px] bg-white text-slate-900 dark:bg-slate-900 dark:text-white">
-                              {markers.slice(3).map((extra, n) => (
+                              {markers.slice(4).map((extra, n) => (
                                 <DropdownMenuItem key={n} disabled className="opacity-100 text-slate-900 dark:text-white">
                                   <span className="mr-2 inline-flex h-5 w-5 shrink-0 items-center justify-center"
                                     style={{ color: extra.color }}>
