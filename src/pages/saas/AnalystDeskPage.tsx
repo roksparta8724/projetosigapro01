@@ -1223,18 +1223,14 @@ export function AnalystDeskPage() {
   };
 
   const renderProcessRegistry = () => (
-    <div className="space-y-3" data-analysis-registry-state={remoteSyncedForCurrentUser ? "confirmed" : "pending"}>
-      <div data-analysis-queue-guide="true" className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-2.5 text-xs dark:border-slate-700">
-        <p role="status" className="font-semibold text-slate-700 dark:text-slate-200">
+    <div className="space-y-2" data-analysis-registry-state={remoteSyncedForCurrentUser ? "confirmed" : "pending"}>
+      <div data-analysis-registry-pagination="true"
+        className="flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-lg border border-[#d6e2ed] bg-[#f7fbfe] px-3 py-2 text-xs text-[#34536e] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100">
+        <p role="status" className="font-semibold">
           {remoteSyncedForCurrentUser
-            ? "Consulta oficial confirmada · " + registryPagination.total + " processo(s) nesta visualização"
+            ? `Exibindo ${registryPagination.from}–${registryPagination.to} de ${registryPagination.total} processos oficiais`
             : "Sincronização pendente — aguardando confirmação do banco"}
         </p>
-        <p className="text-slate-500 dark:text-slate-400">Clique no número para abrir o processo.</p>
-      </div>
-
-      <div data-analysis-registry-pagination="true" className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600 dark:bg-slate-800 dark:text-slate-200">
-        <p className="font-semibold">Exibindo {registryPagination.from}–{registryPagination.to} de {registryPagination.total} processos oficiais</p>
         {registryPagination.pages > 1 ? (
           <nav aria-label="Páginas dos processos oficiais" className="flex items-center gap-2">
             <Button type="button" variant="outline" size="sm" disabled={registryPagination.page <= 1}
