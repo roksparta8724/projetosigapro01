@@ -1534,8 +1534,8 @@ export function ProtocolDeskPage() {
               <div className="grid gap-6 xl:grid-cols-2">
                 <div className="sig-protocol-soft-card rounded-3xl border border-slate-200 p-5">
                   <div className="flex items-start gap-4">
-                    <div className="sig-protocol-soft-card flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-slate-200 text-sky-200">
-                      <Store className="h-4 w-4 text-sky-200" />
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#c8e1ec] bg-[#e6f3f9] text-[#1c7199]">
+                      <Store className="h-4 w-4 text-[#1c7199]" />
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-3">
@@ -1550,14 +1550,25 @@ export function ProtocolDeskPage() {
                     </div>
                   </div>
                   <div className="mt-5">
-                    {renderQueueList(deskProtocols.slice(0, 6), "Nenhuma entrada presencial disponível.")}
+                    {deskProtocols.length > 0
+                      ? renderQueueList(deskProtocols.slice(0, 6), "Nenhuma entrada presencial corresponde ao filtro.")
+                      : <div data-sigapro-protocol-empty-channel="balcao"
+                          className="rounded-lg border border-dashed border-[#c9dce8] bg-[#f6fafc] px-4 py-3">
+                          <p className="text-xs font-semibold text-[#284c66]">Sem entradas presenciais identificadas</p>
+                          <p className="mt-1 text-[11px] leading-4 text-[#5b7284]">
+                            Nenhum registro desta Prefeitura está identificado como atendimento presencial nesta lista.
+                          </p>
+                          <Button asChild size="sm" variant="outline" className="mt-3 h-8 rounded-lg border-[#a9c6d9] text-xs text-[#164b6e]">
+                            <Link to="/prefeitura/protocolos/novo">Novo atendimento</Link>
+                          </Button>
+                        </div>}
                   </div>
                 </div>
 
                 <div className="sig-protocol-soft-card rounded-3xl border border-slate-200 p-5">
                   <div className="flex items-start gap-4">
-                    <div className="sig-protocol-soft-card flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-slate-200 text-sky-200">
-                      <Globe2 className="h-4 w-4 text-sky-200" />
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#c8e1ec] bg-[#e6f3f9] text-[#1c7199]">
+                      <Globe2 className="h-4 w-4 text-[#1c7199]" />
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-3">
@@ -1572,31 +1583,21 @@ export function ProtocolDeskPage() {
                     </div>
                   </div>
                   <div className="mt-5">
-                    {renderQueueList(onlineProtocolItems.slice(0, 6), "Nenhuma entrada digital disponível.", { includeFinished: true })}
+                    {onlineProtocolItems.length > 0
+                      ? renderQueueList(onlineProtocolItems.slice(0, 6), "Nenhuma entrada digital corresponde ao filtro.", { includeFinished: true })
+                      : <div data-sigapro-protocol-empty-channel="online"
+                          className="rounded-lg border border-dashed border-[#c9dce8] bg-[#f6fafc] px-4 py-3">
+                          <p className="text-xs font-semibold text-[#284c66]">Nenhuma entrada digital nesta consulta</p>
+                          <p className="mt-1 text-[11px] leading-4 text-[#5b7284]">
+                            Os protocolos recebidos eletronicamente aparecerão quando houver registros oficiais identificados.
+                          </p>
+                        </div>}
                   </div>
                 </div>
               </div>
             </TableCard>
 
-            <SectionCard title="Leitura da recepção" description="Distribuição rápida das entradas atuais e situação operacional do setor.">
-              <div className="grid gap-4 lg:grid-cols-3">
-                <div className="sig-protocol-soft-card rounded-2xl border border-slate-200 p-5">
-                  <p className="sig-label">Balcão</p>
-                  <p className="mt-2 text-lg font-semibold text-slate-950">{deskProtocols.length}</p>
-                  <p className="mt-1 text-sm text-slate-500">Fluxo com atendimento assistido.</p>
-                </div>
-                <div className="sig-protocol-soft-card rounded-2xl border border-slate-200 p-5">
-                  <p className="sig-label">Online</p>
-                  <p className="mt-2 text-lg font-semibold text-slate-950">{onlineProtocolItems.length}</p>
-                  <p className="mt-1 text-sm text-slate-500">Recepção digital do sistema.</p>
-                </div>
-                <div className="sig-protocol-soft-card rounded-2xl border border-slate-200 p-5">
-                  <p className="sig-label">Novos registros</p>
-                  <p className="mt-2 text-lg font-semibold text-slate-950">{newProtocols.length}</p>
-                  <p className="mt-1 text-sm text-slate-500">Protocolos ainda na etapa inicial.</p>
-                </div>
-              </div>
-            </SectionCard>
+
           </>
         ) : null}
 
@@ -1934,8 +1935,16 @@ export function ProtocolDeskPage() {
             <PageMainContent>
               <TableCard title="Histórico operacional" description="Últimos registros de recepção, conferência, despacho e andamento do protocolo." icon={ClipboardList}>
                 <div className="space-y-3">
-                  {latestActivity.map((entry) => (
-                    <div key={entry.id} className="sig-protocol-soft-card rounded-2xl border border-slate-200 p-4">
+                  {latestActivity.length === 0 ? (
+                    <div data-sigapro-protocol-empty-history="true"
+                      className="rounded-lg border border-dashed border-[#c9dce8] bg-[#f6fafc] px-4 py-3">
+                      <p className="text-xs font-semibold text-[#284c66]">Sem movimentações registradas nesta consulta</p>
+                      <p className="mt-1 text-[11px] leading-4 text-[#5b7284]">
+                        Quando houver eventos oficiais de recepção, triagem ou despacho, eles aparecerão aqui.
+                      </p>
+                    </div>
+                  ) : latestActivity.map((entry) => (
+                    <div key={entry.id} className="sig-protocol-soft-card rounded-lg border border-[#d2e1eb] p-3">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <p className="text-sm font-semibold text-slate-950">{formatOfficialProcessNumber(entry.protocol)}</p>
