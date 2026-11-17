@@ -41,11 +41,11 @@ describe("SIGAPRO — Controle de Processos único, conforme referência aprovad
     expect(frame).toContain("!focusMode && !hideSectionHeader");
   });
 
-  it("segue a imagem: quatro indicadores, cinco filtros, ações e tabela em uma linha no desktop", () => {
+  it("segue a imagem: quatro indicadores, oito filtros, ações e tabela em uma linha no desktop", () => {
     expect(header).toContain("Controle de Processos");
     for (const label of ["Processos no município", "Com atenção ao prazo",
       "Guias pendentes", "Aguardando decisão", "Meus processos",
-      "SLA crítico", "Pendências", "Em decisão", "Todos", "Marcar",
+      "SLA crítico", "Guia pendente", "Exigência", "Análise", "Vistoria", "Em decisão", "Todos", "Marcar",
       "Prioridade", "Atribuir", "Encaminhar", "Decisão", "Etiquetas", "Exportar"]) {
       expect(header).toContain(label);
     }
