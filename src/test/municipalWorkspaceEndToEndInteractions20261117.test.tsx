@@ -59,6 +59,7 @@ vi.mock("@/hooks/useMarkerPresets", async (importOriginal) => {
 vi.mock("@/hooks/useMunicipalOrganogram", () => ({
   useMunicipalOrganogram: () => ({ departments: [
     { id: "department1", name: "Análise Urbanística", isActive: true },
+    { id: "department2", name: "Financeiro", isActive: true },
   ] }),
 }));
 vi.mock("@/hooks/useLivePlatformRefresh", () => ({
@@ -96,6 +97,11 @@ describe("SIGAPRO — integração REAL da barra ao Controle de Processos", () =
     state.dispatch.mockClear();
     state.setUnit.mockClear();
     state.refresh.mockClear();
+    state.listUnits.mockReset().mockRejectedValue(new Error("Conexão indisponível no perfil de consulta"));
+    state.setUnit.mockReset().mockResolvedValue({
+      process_id: process.id, status: "concluido", unit_name: "Análise Urbanística",
+      updated_at: "2026-11-17T15:00:00.000Z",
+    });
   });
 
   it("em conta somente consulta, cada ação abre diálogo e explica permissão; não grava atos", () => {
@@ -130,6 +136,48 @@ describe("SIGAPRO — integração REAL da barra ao Controle de Processos", () =
     fireEvent.click(button);
     expect(screen.getByText(/A conclusão local exige perfil operacional interno/)).toBeInTheDocument();
     expect(state.setUnit).not.toHaveBeenCalled();
+  });
+
+
+  it("encaminha processo de um analista e oferece concluir APENAS na unidade de origem", async () => {
+    state.role = "analista";
+    state.listUnits.mockResolvedValue([]);
+    renderAndSelect();
+    await waitFor(() => expect(state.listUnits).toHaveBeenCalled());
+    fireEvent.click(actionButton("Encaminhar"));
+    expect(screen.getByRole("heading", { name: "Encaminhar entre unidades" })).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Unidade de destino"), {
+      target: { value: "Financeiro" },
+    });
+    fireEvent.change(screen.getByLabelText("Prazo da tramitação"), {
+      target: { value: "2026-11-25" },
+    });
+    fireEvent.change(screen.getByLabelText("Assunto / motivação do encaminhamento"), {
+      target: { value: "Conferência financeira do processo" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar operação" }));
+    await waitFor(() => expect(state.dispatch).toHaveBeenCalledWith(expect.objectContaining({
+      processId: process.id, from: "Análise Urbanística",
+      to: "Financeiro", subject: "Conferência financeira do processo",
+    })));
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Concluir nesta unidade" })).toBeInTheDocument());
+    expect(screen.getByText(/não encerra o processo municipal/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar conclusão na unidade" }));
+    await waitFor(() => expect(state.setUnit).toHaveBeenCalledWith(process.id, true));
+  });
+
+  it("reabre atendimento apenas na unidade, sem alterar o status geral", async () => {
+    state.role = "analista";
+    state.listUnits.mockResolvedValue([{
+      process_id: process.id, status: "concluido",
+      unit_name: "Análise Urbanística", updated_at: "2026-11-17T15:00:00.000Z",
+    }]);
+    renderAndSelect();
+    await waitFor(() => expect(screen.getByRole("button", { name: "Reabrir na unidade" })).toBeEnabled());
+    fireEvent.click(screen.getByRole("button", { name: "Reabrir na unidade" }));
+    expect(screen.getByRole("heading", { name: "Reabrir nesta unidade" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar reabertura" }));
+    await waitFor(() => expect(state.setUnit).toHaveBeenCalledWith(process.id, false));
   });
 
   it("um analista autorizado abre prioridade e grava no serviço oficial", async () => {
