@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type ComponentProps } from "react";
 import { CompactProcessRegistry } from "@/components/platform/CompactProcessRegistry";
 import {
   ProcessWorkspaceHeader, processIsCritical, processHasRequirement, processPendingGuideCount,
-  processAwaitsDecision, processIsUnderAnalysis, processAwaitsInspection, type ProcessQuickFilter, type ProcessMarkerOption,
+  processAwaitsDecision, processIsUnderAnalysis, processAwaitsInspection, type ProcessQuickFilter, type ProcessMarkerOption, type ProcessWorkspaceAction,
 } from "@/components/platform/ProcessWorkspaceHeader";
 import { statusLabel, formatOfficialProcessNumber, formatOfficialProcessTitle, type ProcessRecord } from "@/lib/platform";
 import "@/styles/sigapro-process-workspace.css";
@@ -18,12 +18,15 @@ type PremiumProcessRegistryProps = RegistryProps & {
   unitCompletedIds?: string[];
   unitDataReady?: boolean;
   onUnitAction?: (selected: ProcessRecord[], completed: boolean) => void;
+  onToolbarAction?: (action: ProcessWorkspaceAction, selected: ProcessRecord[]) => void;
+  exportScopeLabel?: string;
 };
 
 export function PremiumProcessRegistry({
   processes, operatorName = "", selectedProcessIds, onToggleSelection,
   onBulkMarker, markerOptions = [], onBulkDispatch,
   onCreateMarker, unitCompletedIds = [], unitDataReady, onUnitAction,
+  onToolbarAction, exportScopeLabel = "Processos municipais",
   showSensitiveDetails = true, canDispatchProcess = () => false,
   ...rest
 }: PremiumProcessRegistryProps) {
@@ -72,26 +75,25 @@ export function PremiumProcessRegistry({
     if (onToggleSelection) selectedIds.forEach(id => onToggleSelection(id, false));
     else setInternalSelection([]);
   };
-  const exportCsv = () => {
-    if (!showSensitiveDetails || !filtered.length || typeof document === "undefined") return;
-    const cell = (value: unknown) => {
-      const str = String(value ?? "");
-      const protectedValue = /^\s*[=+@-]/.test(str) ? "'" + str : str;
-      return '"' + protectedValue.replace(/"/g, '""') + '"';
-    };
-    const rows = [
-      ["Processo", "Assunto", "Interessado", "Etapa", "Responsável", "Prazo", "Guias pendentes"].map(cell).join(";"),
-      ...filtered.map(p => [
-        formatOfficialProcessNumber(p.protocol),
-        formatOfficialProcessTitle({ title: p.title, type: p.type }),
-        p.ownerName, statusLabel(p.status), p.analysis?.assignedTo || p.technicalLead,
-        p.sla?.dueDate, processPendingGuideCount(p),
-      ].map(cell).join(";")),
-    ];
-    const url = URL.createObjectURL(new Blob(["\uFEFF", rows.join("\r\n")], { type: "text/csv;charset=utf-8" }));
-    const a = document.createElement("a");
-    a.href = url; a.download = "sigapro-processos.csv";
-    document.body.append(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+  const exportWorkbook = async (scope: "selected" | "filtered" = "filtered") => {
+    if (!showSensitiveDetails || busy) return;
+    const records = scope === "selected" ? visibleSelected : filtered;
+    if (!records.length) {
+      setFeedback("Selecione processos válidos ou use o resultado filtrado.");
+      return;
+    }
+    setBusy(true);
+    setFeedback("");
+    try {
+      // Actual XLSX: fixed columns, fonts, safe text, wrapped cells and filters.
+      const { downloadPremiumProcessWorkbook } = await import("@/lib/processPremiumExcelExport");
+      downloadPremiumProcessWorkbook(records, exportScopeLabel);
+      setFeedback(`Planilha Excel premium gerada: ${records.length} processo(s) — ${scope === "selected" ? "selecionados" : "filtro atual"}.`);
+    } catch (error) {
+      setFeedback(error instanceof Error ? error.message : "Falha ao gerar o Excel.");
+    } finally {
+      setBusy(false);
+    }
   };
   const markSelected = async (marker: ProcessMarkerOption) => {
     if (!onBulkMarker || !visibleSelected.length || busy) return;
@@ -134,7 +136,8 @@ export function PremiumProcessRegistry({
         unitDataReady={unitDataReady}
         onUnitAction={onUnitAction ? completed => onUnitAction(visibleSelected, completed) : undefined}
         onBulkDispatch={onBulkDispatch ? () => onBulkDispatch(visibleSelected) : undefined}
-        onExport={exportCsv}
+        onToolbarAction={onToolbarAction ? action => onToolbarAction(action, visibleSelected) : undefined}
+        onExport={scope => { void exportWorkbook(scope); }}
       />
       {feedback ? <p role="status" className="mb-3 rounded-xl border border-sky-200 bg-sky-50 p-3 text-xs font-medium text-sky-900">{feedback}</p> : null}
       <CompactProcessRegistry

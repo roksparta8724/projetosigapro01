@@ -7,6 +7,7 @@ import { buildProcessPath, type ProcessRecord } from "@/lib/platform";
 
 export type ProcessQuickFilter = "todos" | "meus" | "criticos" | "pendencias" | "guias" | "exigencias" | "analise" | "vistoria" | "decisao";
 export type ProcessMarkerOption = { label: string; color: string; emoji?: string };
+export type ProcessWorkspaceAction = "prioridade" | "atribuir" | "encaminhar" | "decisao" | "etiquetas";
 export function processIsCritical(p: ProcessRecord) {
   return Boolean(p.sla?.breached || (typeof p.sla?.hoursRemaining === "number" && p.sla.hoursRemaining <= 12));
 }
@@ -60,7 +61,8 @@ export type ProcessWorkspaceHeaderProps = {
   unitDataReady?: boolean;
   onUnitAction?: (completed: boolean) => void;
   onBulkDispatch?: () => void;
-  onExport: () => void;
+  onToolbarAction?: (action: ProcessWorkspaceAction) => void;
+  onExport: (scope?: "selected" | "filtered") => void;
 };
 
 const filterSpecs = [
@@ -79,7 +81,7 @@ export function ProcessWorkspaceHeader({
   selectedCount, allPageSelected, pageCount, onTogglePage, onClearSelection,
   oneSelected, canDispatch, showSensitiveDetails, bulkBusy, markerOptions,
   onBulkMarker, onCreateMarker, selectedProcesses = [], unitCompletedIds = [], unitDataReady = false,
-  onUnitAction, onBulkDispatch, onExport,
+  onUnitAction, onBulkDispatch, onToolbarAction, onExport,
 }: ProcessWorkspaceHeaderProps) {
   const stats = [
     { key: "total", label: "Processos no município", count: processes.length, Icon: FolderOpen, tone: "blue" },
@@ -188,6 +190,20 @@ export function ProcessWorkspaceHeader({
             { label: "Decisão", Icon: Gavel, dispatch: false },
             { label: "Etiquetas", Icon: Tag, dispatch: false },
           ] as const).map(({ label, Icon, dispatch }) => {
+            if (onToolbarAction) {
+              // A selected process always opens an action dialog. The dialog
+              // performs per-process authorization and never silently changes
+              // an official decision or bypasses departmental ownership.
+              const key = label.toLowerCase() as ProcessWorkspaceAction;
+              return <Button key={label} size="sm" variant="outline" type="button"
+                className={"sig-workspace-action " + (label === "Decisão" ? "sig-workspace-action-green" : "")}
+                disabled={selectedCount === 0 || bulkBusy || !showSensitiveDetails}
+                onClick={() => onToolbarAction(key)}
+                title={selectedCount === 0 ? "Selecione pelo menos um processo" : "Abrir operação: " + label}>
+                <Icon className="h-4 w-4" />{label}<ChevronDown className="h-3.5 w-3.5" />
+              </Button>;
+            }
+            // Legacy consumer: open a single authorized process record.
             // One "Encaminhar" control, never a second button that makes the
             // approved single-line toolbar wrap when users select many rows.
             // The supplied sector handler keeps its own permission checks.
@@ -216,8 +232,20 @@ export function ProcessWorkspaceHeader({
               </Button>
             );
           })}
-          <Button type="button" variant="outline" size="sm" className="sig-workspace-action" onClick={onExport}
-            disabled={!filteredCount || !showSensitiveDetails}><Download className="h-4 w-4" /> Exportar <ChevronDown className="h-3.5 w-3.5" /></Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button type="button" variant="outline" size="sm" className="sig-workspace-action"
+                disabled={!filteredCount || !showSensitiveDetails}>
+                <Download className="h-4 w-4" /> Excel <ChevronDown className="h-3.5 w-3.5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-[240px] bg-white text-slate-900 dark:bg-slate-900 dark:text-white">
+              <DropdownMenuItem disabled={selectedCount === 0}
+                onSelect={() => onExport("selected")}>Exportar selecionados ({selectedCount}) — .xlsx</DropdownMenuItem>
+              <DropdownMenuItem disabled={!filteredCount}
+                onSelect={() => onExport("filtered")}>Exportar resultados filtrados ({filteredCount}) — .xlsx</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
     </div>
