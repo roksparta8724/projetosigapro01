@@ -1,0 +1,141 @@
+/*
+ * SIGAPRO • Contraste institucional transversal
+ * Vale para os mesmos PageHeader, StatCard e MetricCard usados no Master,
+ * Prefeitura, Protocolo, Financeiro, Análise e direção.
+ * Não altera tabelas, campos brancos, badges de status ou regras de acesso.
+ * Última folha global: derrota estilos legados que reintroduzem texto escuro
+ * em superfícies azul-marinho, inclusive no tema claro.
+ */
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell
+[data-premium-role-blue="header"] {
+  background: linear-gradient(117deg, #0b334f 0%, #0b2b45 53%, #11516d 100%) !important;
+  background-color: #0b334f !important;
+  border: 1px solid rgba(138, 203, 229, .38) !important;
+  border-left: 4px solid #49afd0 !important;
+  color: #f7fbff !important;
+  -webkit-text-fill-color: #f7fbff !important;
+  box-shadow: 0 10px 26px rgba(7, 46, 75, .17) !important;
+  height: auto !important;
+  min-height: 112px !important;
+  padding: 18px 20px !important;
+}
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell
+[data-premium-role-blue="header"] :is(.sig-page-title, h1) {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  font-size: clamp(1.08rem, 1.45vw, 1.48rem);
+  line-height: 1.2 !important;
+  letter-spacing: -.025em !important;
+  font-weight: 780 !important;
+}
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell
+[data-premium-role-blue="header"] .sig-section-label {
+  color: #b9e6f7 !important;
+  -webkit-text-fill-color: #b9e6f7 !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  font-weight: 750;
+  letter-spacing: .065em !important;
+  line-height: 1.4;
+}
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell
+[data-premium-role-blue="header"] .sig-subtitle {
+  color: #deedf7 !important;
+  -webkit-text-fill-color: #deedf7 !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  font-weight: 500;
+  letter-spacing: 0 !important;
+  line-height: 1.5 !important;
+}
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell
+[data-premium-role-blue="header"] .sig-header-icon {
+  background: rgba(255,255,255,.105) !important;
+  color: #e6f6ff !important;
+  border-color: rgba(195,232,249,.34) !important;
+}
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell
+[data-premium-role-blue="header"] .sig-header-icon :is(svg, svg *) {
+  color: #e6f6ff !important;
+  stroke: currentColor !important;
+}
+/* Keep explicit white/outlined action buttons readable, not white-on-white. */
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell
+[data-premium-role-blue="header"] .sig-header-actions [data-variant="outline"],
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell
+[data-premium-role-blue="header"] .sig-header-actions .bg-white {
+  color: #123d5b !important;
+  -webkit-text-fill-color: #123d5b !important;
+  background: #fff !important;
+  border-color: #c2ddeb !important;
+}
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell
+[data-premium-role-blue="header"] .sig-header-actions .bg-white :is(svg,span) {
+  color: #123d5b !important;
+  -webkit-text-fill-color: #123d5b !important;
+}
+/* Shared KPIs in every role, including Master and director dashboards. */
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell
+[data-premium-role-blue="metric"] {
+  background: linear-gradient(142deg, #0c354f 0%, #092840 65%, #124965 100%) !important;
+  background-color: #0c354f !important;
+  border: 1px solid rgba(108, 185, 217, .46) !important;
+  border-top: 3px solid #5dc0d9 !important;
+  color: #f6fbff !important;
+  -webkit-text-fill-color: #f6fbff !important;
+  box-shadow: 0 8px 20px rgba(6, 37, 62, .13) !important;
+}
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell
+[data-premium-role-blue="metric"][data-tone="amber"] { border-top-color: #eec477 !important; }
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell
+[data-premium-role-blue="metric"][data-tone="emerald"] { border-top-color: #68d7b1 !important; }
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell
+[data-premium-role-blue="metric"][data-tone="rose"] { border-top-color: #efa1af !important; }
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell
+[data-premium-role-blue="metric"] :is(.sig-stat-value,.sig-metric-value) {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  line-height: 1.2 !important;
+}
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell
+[data-premium-role-blue="metric"] :is(.sig-fit-title:not(.sig-stat-value),.sig-metric-title) {
+  color: #c7eaf8 !important;
+  -webkit-text-fill-color: #c7eaf8 !important;
+  opacity: 1 !important;
+  letter-spacing: .035em !important;
+}
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell
+[data-premium-role-blue="metric"] :is(.sig-fit-copy,.sig-metric-helper) {
+  color: #dceaf6 !important;
+  -webkit-text-fill-color: #dceaf6 !important;
+  opacity: 1 !important;
+  letter-spacing: 0 !important;
+}
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell
+[data-premium-role-blue="metric"] .sig-stat-icon {
+  color: #e4f7ff !important;
+  background: rgba(255,255,255,.10) !important;
+  border-color: rgba(199,233,247,.31) !important;
+}
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell
+[data-premium-role-blue="metric"] .sig-stat-icon :is(svg, svg *) {
+  color: #e4f7ff !important;
+  stroke: currentColor !important;
+}
+@media (max-width: 640px) {
+  html body #root [data-premium-design="institutional-v3"] .sig-main-shell
+  [data-premium-role-blue="header"] {
+    min-height: 0 !important;
+    padding: 15px !important;
+    border-radius: 17px !important;
+  }
+}
+/* Respect light semantic areas nested below an institutional banner. */
+html body #root [data-premium-design="institutional-v3"] .sig-main-shell
+[data-premium-role-blue="header"] :is(input, textarea, select) {
+  -webkit-text-fill-color: initial;
+}
