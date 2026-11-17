@@ -146,19 +146,27 @@ export function ProcessWorkspaceHeader({
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button type="button" size="sm" className="sig-workspace-action sig-workspace-action-primary"
-                disabled={selectedCount === 0 || bulkBusy || !showSensitiveDetails || !onBulkMarker}>
+                disabled={selectedCount === 0 || bulkBusy || !showSensitiveDetails}>
                 <Tag className="h-4 w-4" /> Marcar <ChevronDown className="h-3.5 w-3.5" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="bg-white text-slate-900">
-              {onBulkMarker && markerOptions.length > 0 ? markerOptions.map((m, i) => (
+              {!onBulkMarker ? (
+                <DropdownMenuItem disabled>Este perfil tem somente permissão de consulta</DropdownMenuItem>
+              ) : markerOptions.length === 0 ? (
+                <DropdownMenuItem disabled>Sua pasta ainda não possui marcadores ativos</DropdownMenuItem>
+              ) : markerOptions.map((m, i) => (
                 <DropdownMenuItem key={i} onSelect={() => onBulkMarker(m)}>
                   {m.emoji ? <span className="mr-2 text-base leading-none">{m.emoji}</span> :
                     <ProfessionalMarkerIcon className="mr-2 h-4 w-4 sig-flag-filled" style={{ color: m.color, fill: m.color }} />}{m.label}
                 </DropdownMenuItem>
-              )) : oneSelected ? (
-                <DropdownMenuItem asChild><Link to={buildProcessPath(oneSelected)}>Abrir ficha para administrar marcadores</Link></DropdownMenuItem>
-              ) : <DropdownMenuItem disabled>Selecione um processo</DropdownMenuItem>}
+              ))}
+              {onCreateMarker ? <DropdownMenuItem onSelect={onCreateMarker}>
+                <Plus className="mr-2 h-4 w-4" />Criar marcador na minha pasta
+              </DropdownMenuItem> : null}
+              {onToolbarAction ? <DropdownMenuItem onSelect={() => onToolbarAction("etiquetas")}>
+                <Tag className="mr-2 h-4 w-4" />Gerenciar ou remover marcadores
+              </DropdownMenuItem> : null}
             </DropdownMenuContent>
           </DropdownMenu>
           {onCreateMarker ? (
@@ -172,13 +180,14 @@ export function ProcessWorkspaceHeader({
           <Button type="button" size="sm" variant="outline"
             className="sig-workspace-action sig-workspace-action-unit"
             data-unit-completion-action="true"
-            disabled={!onUnitAction || !unitDataReady || !showSensitiveDetails ||
-              bulkBusy || !canOperateInUnit}
+            disabled={!onUnitAction || !showSensitiveDetails ||
+              bulkBusy || selectedCount === 0}
             title={!unitDataReady
-              ? "Aguardando sincronização oficial das unidades"
-              : selectedMixedStates ? "Selecione apenas processos concluídos ou apenas processos em aberto na unidade"
-                : "Esta ação não altera o status geral nem conclui outras unidades"}
-            onClick={() => onUnitAction?.(!selectedAllCompleted)}>
+              ? "Clique para consultar a disponibilidade de conclusão na sua unidade"
+              : selectedMixedStates ? "Selecione processos no mesmo estado da unidade"
+                : "Ação somente da unidade atual, sem alterar o status municipal"}
+            onClick={() => onUnitAction?.(!selectedAllCompleted)}
+            data-unit-candidate={canOperateInUnit ? "authorized" : "check-permissions"}>
             {selectedAllCompleted ? <RotateCcw className="h-4 w-4" /> :
               <CheckCircle2 className="h-4 w-4" />}
             {selectedAllCompleted ? "Reabrir na unidade" : "Concluir nesta unidade"}

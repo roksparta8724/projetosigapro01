@@ -176,10 +176,12 @@ export function MunicipalProcessRegistryPage() {
       setBulkMarkerMessage("Selecione até 25 processos válidos no município para aplicar marcadores.");
       throw new Error("Seleção inválida ou fora do escopo.");
     }
-    if (session.role === "prefeitura_admin" ||
-        !selected.every((process) => isProcessOwnedBySessionDepartment(session, process))) {
-      setBulkMarkerMessage("A marcação exige autorização setorial em todos os processos selecionados.");
-      throw new Error("Permissão insuficiente para marcação.");
+    // Personal markers are not municipal dispatch/decision acts. An internal
+    // professional may organize any municipal process they can view. The RPC
+    // still checks the authenticated account, tenant and personal marker limit.
+    if (!mayOperate) {
+      setBulkMarkerMessage("Esta conta possui somente consulta. Utilize um perfil profissional interno autorizado.");
+      throw new Error("Perfil sem permissão para marcadores pessoais.");
     }
 
     const actualLabel = composeProfessionalMarkerLabel(marker.label, marker.emoji);
@@ -237,9 +239,14 @@ export function MunicipalProcessRegistryPage() {
     }
     const allowedIds = new Set(municipalityProcesses.map(item => item.id));
     if (batchSelected.length === 0 || batchSelected.length > 25 ||
-        batchSelected.some(item => !allowedIds.has(item.id) ||
-          !isProcessOwnedBySessionDepartment(session, item))) {
-      throw new Error("Seleção não autorizada. Verifique a unidade atual e limite de 25 processos.");
+        batchSelected.some(item => !allowedIds.has(item.id))) {
+      throw new Error("Seleção fora do município ou acima de 25 processos.");
+    }
+    // Only formal assignment/dispatch changes require the current unit to
+    // own the process. Personal markers/operational priority do not.
+    if ((action === "atribuir" || action === "encaminhar") &&
+        batchSelected.some(item => !isProcessOwnedBySessionDepartment(session, item))) {
+      throw new Error("A atribuição ou o encaminhamento exige que todos os processos pertençam à unidade responsável. Utilize a unidade correta.");
     }
 
     if (action === "atribuir") {
@@ -346,7 +353,7 @@ export function MunicipalProcessRegistryPage() {
       // Preflight before the preset is created so a blocked fourth marker
       // never appears to have been applied.
       const label = composeProfessionalMarkerLabel(marker.label, marker.emoji);
-      if (selected.some(process => !isProcessOwnedBySessionDepartment(session, process) ||
+      if (selected.some(process =>
           !canApplyPersonalProcessMarker(process.tags ?? [], label))) {
         throw new Error("Seleção fora da unidade ou com limite de três marcadores atingido.");
       }
@@ -368,8 +375,12 @@ export function MunicipalProcessRegistryPage() {
   };
 
   const queueUnitCompletion = (selected: ProcessRecord[], completed: boolean) => {
-    if (!mayOperate || unitSyncState !== "ready" || unitActionBusy || !remoteSyncedForCurrentUser) {
-      setUnitError("A conclusão local exige acesso autorizado e sincronização com o banco.");
+    if (!mayOperate) {
+      setUnitError("A conclusão local exige perfil operacional interno. O administrador municipal somente consulta.");
+      return;
+    }
+    if (unitSyncState !== "ready" || unitActionBusy || !remoteSyncedForCurrentUser) {
+      setUnitError("Concluir nesta unidade ainda não está disponível no banco oficial. A operação foi bloqueada para não alterar a situação geral indevidamente.");
       return;
     }
     const municipalIds = new Set(municipalityProcesses.map(process => process.id));
@@ -522,8 +533,10 @@ export function MunicipalProcessRegistryPage() {
         <ProcessBatchActionDialog
           action={activeBatchAction}
           selected={batchSelected}
-          canOperate={mayOperate && batchSelected.every(item =>
-            isProcessOwnedBySessionDepartment(session, item))}
+          canOperate={mayOperate && (
+            activeBatchAction === "prioridade" || activeBatchAction === "etiquetas" ||
+            batchSelected.every(item => isProcessOwnedBySessionDepartment(session, item))
+          )}
           analysts={availableAnalysts}
           departments={municipalDepartments}
           markers={personalMarkerOptions}

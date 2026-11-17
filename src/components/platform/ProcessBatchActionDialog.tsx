@@ -104,7 +104,7 @@ export function ProcessBatchActionDialog({
         {!canOperate && action !== "decisao" ? (
           <div role="alert" className="flex gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-semibold text-amber-900">
             <CircleAlert className="h-4 w-4 shrink-0" />
-            Somente a unidade responsável, com perfil operacional autorizado, pode executar esta alteração. O administrador municipal possui consulta, não autorização para alterar atos.
+Este perfil não tem permissão para esta operação. Atribuição e despacho exigem a unidade responsável; o administrador municipal possui somente consulta. Nenhuma alteração foi realizada.
           </div>
         ) : null}
 
