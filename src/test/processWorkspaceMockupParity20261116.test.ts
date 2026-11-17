@@ -27,11 +27,10 @@ describe("SIGAPRO — fidelidade visual ao modelo aprovado do Controle de Proces
     expect(wrapper).toContain("onBulkMarker");
   });
 
-  it("usa o mesmo painel em todas as mesas, sem componentes inertes", () => {
+  it("usa o painel nas mesas operacionais, sem duplicá-lo no Dashboard executivo", () => {
     for (const path of [
       "src/pages/saas/TenantAdminPage.tsx",
       "src/pages/saas/MunicipalProcessRegistryPage.tsx",
-      "src/pages/saas/DashboardHomePage.tsx",
       "src/pages/saas/ProtocolDeskPage.tsx",
       "src/pages/saas/AnalystDeskPage.tsx",
       "src/pages/saas/FinanceProtocolsPage.tsx",
@@ -39,6 +38,7 @@ describe("SIGAPRO — fidelidade visual ao modelo aprovado do Controle de Proces
     ]) {
       expect(file(path)).toContain('PremiumProcessRegistry as CompactProcessRegistry');
     }
+    expect(file("src/pages/saas/DashboardHomePage.tsx")).not.toContain("PremiumProcessRegistry as CompactProcessRegistry");
     expect(wrapper).toContain("<CompactProcessRegistry");
     expect(wrapper).toContain("defaultPageSize={10}");
     expect(wrapper).toContain("onVisiblePageChange={setPageIds}");

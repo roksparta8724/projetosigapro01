@@ -27,11 +27,10 @@ const process = {
 const source = (path: string) => readFileSync(path, "utf8");
 
 describe("SIGAPRO — controle premium real e consistente para todos os processos", () => {
-  it("mantém o mesmo componente de processos no município, dashboard, triagem, análise, finanças e externo", () => {
+  it("usa a tabela premium nas mesas operacionais, sem duplicá-la no Dashboard", () => {
     for (const path of [
       "src/pages/saas/TenantAdminPage.tsx",
       "src/pages/saas/MunicipalProcessRegistryPage.tsx",
-      "src/pages/saas/DashboardHomePage.tsx",
       "src/pages/saas/ProtocolDeskPage.tsx",
       "src/pages/saas/AnalystDeskPage.tsx",
       "src/pages/saas/FinanceProtocolsPage.tsx",
@@ -39,6 +38,7 @@ describe("SIGAPRO — controle premium real e consistente para todos os processo
     ]) {
       expect(source(path), path).toContain("<CompactProcessRegistry");
     }
+    expect(source("src/pages/saas/DashboardHomePage.tsx")).not.toContain("<CompactProcessRegistry");
     const tenant = source("src/pages/saas/TenantAdminPage.tsx");
     expect(tenant).not.toContain("renderQueueCard");
     expect(tenant).toContain("renderQueueTable(filteredQueue)");
