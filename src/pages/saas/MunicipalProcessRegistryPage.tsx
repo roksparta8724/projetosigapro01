@@ -613,7 +613,7 @@ export function MunicipalProcessRegistryPage() {
         ) : null}
 
         <CompactProcessRegistry
-          operatorName={session.name}
+          operatorName={session.name} operator={session}
           processes={visibleProcesses}
           exportScopeLabel={municipality?.name || "Processos oficiais da Prefeitura"}
           onToolbarAction={(action, selected) => {
