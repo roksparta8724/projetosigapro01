@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type ComponentProps } from "react";
+import { useNavigate } from "react-router-dom";
 import { CompactProcessRegistry } from "@/components/platform/CompactProcessRegistry";
 import {
   ProcessWorkspaceHeader, processIsCritical, processHasRequirement, processPendingGuideCount,
@@ -31,6 +32,7 @@ export function PremiumProcessRegistry({
   showSensitiveDetails = true, canDispatchProcess = () => false,
   ...rest
 }: PremiumProcessRegistryProps) {
+  const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [quickFilter, setQuickFilter] = useState<ProcessQuickFilter>("todos");
   const [internalSelection, setInternalSelection] = useState<string[]>([]);
@@ -73,6 +75,20 @@ export function PremiumProcessRegistry({
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
   const allPageSelected = pageIds.length > 0 && pageIds.every(id => selectedSet.has(id));
   const oneSelected = visibleSelected.length === 1 ? visibleSelected[0] : null;
+  // Shared registry appears in overview, analysis and protocol views without
+  // operational handlers. Carry a selected record to the ONE official workflow
+  // instead of leaving inert controls or implementing unsafe duplicate writes.
+  const handoffToMunicipalWorkflow = (action: ProcessWorkspaceAction | "concluir") => {
+    if (!visibleSelected.length) return;
+    navigate("/prefeitura/processos", {
+      state: {
+        sigaproProcessBatchRequest: {
+          action,
+          processIds: visibleSelected.slice(0, 25).map(process => process.id),
+        },
+      },
+    });
+  };
   const toggleSelection = (id: string, checked: boolean) => {
     if (onToggleSelection) onToggleSelection(id, checked);
     else setInternalSelection(current => checked ? Array.from(new Set([...current, id])) : current.filter(key => key !== id));
@@ -133,17 +149,23 @@ export function PremiumProcessRegistry({
         onTogglePage={checked => pageIds.forEach(id => toggleSelection(id, checked))}
         onClearSelection={clearSelection}
         oneSelected={oneSelected} canDispatch={canDispatchProcess}
-        canCompleteInUnit={canCompleteInUnit}
+        canCompleteInUnit={onUnitAction ? canCompleteInUnit : () => true}
         showSensitiveDetails={showSensitiveDetails} bulkBusy={busy}
         markerOptions={markerOptions}
         onBulkMarker={onBulkMarker ? marker => { void markSelected(marker); } : undefined}
         onCreateMarker={onCreateMarker}
         selectedProcesses={visibleSelected}
         unitCompletedIds={unitCompletedIds}
-        unitDataReady={unitDataReady}
-        onUnitAction={onUnitAction ? completed => onUnitAction(visibleSelected, completed) : undefined}
+        // A consultation view only requests the operation. The destination
+        // verifies account, unit, tenant and Neon capability before any write.
+        unitDataReady={onUnitAction ? unitDataReady : true}
+        onUnitAction={onUnitAction
+          ? completed => onUnitAction(visibleSelected, completed)
+          : () => handoffToMunicipalWorkflow("concluir")}
         onBulkDispatch={onBulkDispatch ? () => onBulkDispatch(visibleSelected) : undefined}
-        onToolbarAction={onToolbarAction ? action => onToolbarAction(action, visibleSelected) : undefined}
+        onToolbarAction={action => onToolbarAction
+          ? onToolbarAction(action, visibleSelected)
+          : handoffToMunicipalWorkflow(action)}
         onExport={scope => { void exportWorkbook(scope); }}
       />
       {feedback ? (
