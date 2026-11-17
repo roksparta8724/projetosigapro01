@@ -89,10 +89,15 @@ export function MunicipalProcessRegistryPage() {
     const ownArea = resolveSessionOperationalArea(session);
     return (process.dispatches ?? []).some(dispatch => {
       if (!dispatch.from?.trim()) return false;
-      if (ownDepartment) return normalize(dispatch.from) === normalize(ownDepartment);
-      return Boolean(ownArea) && resolveSessionOperationalArea({
+      if (ownDepartment && normalize(dispatch.from) === normalize(ownDepartment)) return true;
+      const dispatchArea = resolveSessionOperationalArea({
         ...session, department: dispatch.from, title: "",
-      }) === ownArea;
+      });
+      if (!ownArea || dispatchArea !== ownArea) return false;
+      // A department with another registered name is not automatically the
+      // same unit. Only the authenticated creator can close its own dispatch.
+      // The Neon RPC repeats this authorization before writing an audit entry.
+      return !ownDepartment || dispatch.requestedByProfileId === session.id;
     });
   };
 
