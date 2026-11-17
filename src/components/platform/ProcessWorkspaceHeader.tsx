@@ -64,6 +64,8 @@ export type ProcessWorkspaceHeaderProps = {
   onBulkDispatch?: () => void;
   onToolbarAction?: (action: ProcessWorkspaceAction) => void;
   onExport: (scope?: "selected" | "filtered") => void;
+  embedded?: boolean;
+  hideSearchInput?: boolean;
 };
 
 const filterSpecs = [
@@ -83,6 +85,7 @@ export function ProcessWorkspaceHeader({
   oneSelected, canDispatch, canCompleteInUnit, showSensitiveDetails, bulkBusy, markerOptions,
   onBulkMarker, onCreateMarker, selectedProcesses = [], unitCompletedIds = [], unitDataReady = false,
   onUnitAction, onBulkDispatch, onToolbarAction, onExport,
+  embedded = false, hideSearchInput = false,
 }: ProcessWorkspaceHeaderProps) {
   const stats = [
     { key: "total", label: "Processos no município", count: processes.length, Icon: FolderOpen, tone: "blue" },
@@ -98,7 +101,8 @@ export function ProcessWorkspaceHeader({
   const canOperateInUnit = selectedProcesses.length > 0 && !selectedMixedStates &&
     selectedProcesses.every(process => completedIds.has(process.id) || (canCompleteInUnit ?? canDispatch)(process));
   return (
-    <div data-sigapro-workspace-header="premium-model" className="sig-workspace-intro">
+    <div data-sigapro-workspace-header="premium-model" data-layout={embedded ? "embedded" : "standalone"} className="sig-workspace-intro">
+      {!embedded ? <>
       <div className="sig-workspace-breadcrumb">Prefeitura <ChevronRight className="h-3.5 w-3.5" /> <strong>Controle de Processos</strong></div>
       <div className="sig-workspace-hero">
         <span className="sig-workspace-hero-icon"><Layers3 className="h-6 w-6" /></span>
@@ -113,14 +117,15 @@ export function ProcessWorkspaceHeader({
           </div>
         ))}
       </div>
-      <div className="sig-workspace-searchbar">
-        <label className="sig-workspace-search">
+      </> : null}
+      <div className="sig-workspace-searchbar" data-search-hidden={hideSearchInput ? "true" : "false"}>
+        {!hideSearchInput ? <label className="sig-workspace-search">
           <Search className="h-5 w-5 shrink-0" />
           <span className="sr-only">Pesquisar processos</span>
           <input value={search} onChange={event => onSearch(event.target.value)}
             placeholder="Pesquisar processos (nº, assunto, interessado, responsável)..."
             aria-label="Pesquisar processos por número, assunto, interessado ou responsável" />
-        </label>
+        </label> : null}
         <div className="sig-workspace-filters" role="group" aria-label="Filtros rápidos" tabIndex={0}
           title="Use a rolagem horizontal quando os filtros não couberem na tela">
           <span>Filtros rápidos:</span>
