@@ -8,6 +8,7 @@ import {
 import { statusLabel, formatOfficialProcessNumber, formatOfficialProcessTitle, type ProcessRecord } from "@/lib/platform";
 import "@/styles/sigapro-process-workspace.css";
 import "@/styles/sigapro-reference-layout.css";
+import "@/styles/sigapro-unified-process-workspace.css";
 
 type RegistryProps = ComponentProps<typeof CompactProcessRegistry>;
 type PremiumProcessRegistryProps = RegistryProps & {
