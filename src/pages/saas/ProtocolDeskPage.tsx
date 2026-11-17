@@ -23,7 +23,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AlertCard } from "@/components/platform/AlertCard";
 import { InternalTabs } from "@/components/platform/InternalTabs";
-import { PageHeader } from "@/components/platform/PageHeader";
 import { MarkerSelector } from "@/components/platform/MarkerSelector";
 import { PremiumProcessRegistry as CompactProcessRegistry } from "@/components/platform/PremiumProcessRegistry";
 import {
@@ -1202,20 +1201,21 @@ export function ProtocolDeskPage() {
   return (
     <PortalFrame eyebrow="SETOR DE PROTOCOLO" title="Triagem municipal, atendimento e fluxo inicial">
       <PageShell className={section === "visao-geral" ? "sig-module-summary-active" : undefined}>
-        <PageHeader
-          eyebrow="Operação de protocolo"
-          title="Recepção, conferência documental e despacho inicial"
-          description="Receba pedidos, faça a triagem documental, protocole atendimentos e confirme a guia inicial antes do envio ao Urbanismo."
-          icon={ClipboardList}
-          actions={
-            <Button asChild className="rounded-full bg-slate-950 hover:bg-slate-900">
-              <Link to="/prefeitura/protocolos/novo">
-                <FilePlus2 className="mr-2 h-4 w-4 text-sky-200" />
-                Protocolar no balcão
-              </Link>
-            </Button>
-          }
-        />
+        <section data-sigapro-protocol-quick-actions="true"
+          className="flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-[15px] border border-[#c5d8e6] bg-[linear-gradient(180deg,#ffffff_0%,#f3f8fc_100%)] px-4 py-3 shadow-[0_4px_12px_rgba(18,54,83,0.05)]">
+          <div className="min-w-0">
+            <p className="text-[10px] font-bold uppercase tracking-[0.07em] text-[#416984]">Operação de protocolo</p>
+            <h2 className="mt-0.5 text-sm font-bold leading-snug text-[#173650]">
+              Recepção, conferência documental e despacho inicial
+            </h2>
+          </div>
+          <Button asChild className="h-9 shrink-0 rounded-lg bg-[#124c70] px-4 text-xs font-bold !text-white hover:bg-[#0b3957]">
+            <Link to="/prefeitura/protocolos/novo">
+              <FilePlus2 className="mr-2 h-4 w-4 text-sky-100" />
+              Protocolar no balcão
+            </Link>
+          </Button>
+        </section>
 
         <InternalTabs
           items={navItems as unknown as Array<{ value: string; label: string; helper?: string }>}
