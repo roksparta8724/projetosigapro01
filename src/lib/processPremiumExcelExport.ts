@@ -67,15 +67,19 @@ function worksheetXml(rows: readonly ProcessRecord[], generatedAt: Date, scope: 
   const end = Math.max(6, rows.length + 6);
   return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
     '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+    '<dimension ref="A1:K' + end + '"/>' +
     '<sheetViews><sheetView showGridLines="0" workbookViewId="0">' +
     '<pane ySplit="6" topLeftCell="A7" activePane="bottomLeft" state="frozen"/>' +
     '</sheetView></sheetViews>' +
     '<sheetFormatPr defaultRowHeight="19"/>' +
     '<cols>' + columns.map((c, i) => '<col min="' + (i+1) + '" max="' + (i+1) + '" width="' + c.width + '" customWidth="1"/>').join("") + '</cols>' +
     '<sheetData>' + rowXml.join("") + '</sheetData>' +
+    // OOXML worksheet element order is normative (ECMA-376):
+    // autoFilter must precede mergeCells. Older desktop Excel builds
+    // otherwise ask to recover the workbook and can discard the sheet.
+    '<autoFilter ref="A6:K' + end + '"/>' +
     '<mergeCells count="6"><mergeCell ref="A1:K2"/><mergeCell ref="A3:K3"/>' +
     '<mergeCell ref="A4:B4"/><mergeCell ref="C4:D4"/><mergeCell ref="E4:F4"/><mergeCell ref="G4:H4"/></mergeCells>' +
-    '<autoFilter ref="A6:K' + end + '"/>' +
     '<pageMargins left="0.3" right="0.3" top="0.55" bottom="0.55" header="0.2" footer="0.2"/>' +
     '<pageSetup orientation="landscape" fitToWidth="1"/>' +
     '</worksheet>';

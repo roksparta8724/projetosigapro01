@@ -57,6 +57,13 @@ describe("SIGAPRO — planilha Excel premium sem dados quebrados", () => {
     expect(sheet).toContain("=SUM(1+1)");
     expect(sheet).not.toContain("<f>");
     expect(sheet).toContain('autoFilter ref="A6:K8"');
+    // Older Excel rejects out-of-order worksheet elements and silently
+    // discards data during repair, despite a valid ZIP container.
+    expect(sheet.indexOf("<autoFilter ")).toBeLessThan(sheet.indexOf("<mergeCells "));
+    const parsed = new DOMParser().parseFromString(sheet, "application/xml");
+    expect(parsed.getElementsByTagName("parsererror")).toHaveLength(0);
+    expect(parsed.getElementsByTagName("row")).toHaveLength(6);
+    expect(sheet).toContain('dimension ref="A1:K8"');
     expect(sheet).toContain('ySplit="6"');
     expect(sheet).toContain('col min="2" max="2" width="43"');
     expect(sheet).toContain('r="A7" s="4"');
