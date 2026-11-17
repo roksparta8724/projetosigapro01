@@ -1532,9 +1532,9 @@ export function ProtocolDeskPage() {
               icon={ClipboardList}
             >
               <div className="grid gap-6 xl:grid-cols-2">
-                <div className="sig-dark-panel rounded-3xl border border-slate-200 p-5">
+                <div className="sig-protocol-soft-card rounded-3xl border border-slate-200 p-5">
                   <div className="flex items-start gap-4">
-                    <div className="sig-dark-panel flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-slate-200 text-sky-200">
+                    <div className="sig-protocol-soft-card flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-slate-200 text-sky-200">
                       <Store className="h-4 w-4 text-sky-200" />
                     </div>
                     <div className="min-w-0 flex-1">
@@ -1554,9 +1554,9 @@ export function ProtocolDeskPage() {
                   </div>
                 </div>
 
-                <div className="sig-dark-panel rounded-3xl border border-slate-200 p-5">
+                <div className="sig-protocol-soft-card rounded-3xl border border-slate-200 p-5">
                   <div className="flex items-start gap-4">
-                    <div className="sig-dark-panel flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-slate-200 text-sky-200">
+                    <div className="sig-protocol-soft-card flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-slate-200 text-sky-200">
                       <Globe2 className="h-4 w-4 text-sky-200" />
                     </div>
                     <div className="min-w-0 flex-1">
@@ -1580,17 +1580,17 @@ export function ProtocolDeskPage() {
 
             <SectionCard title="Leitura da recepção" description="Distribuição rápida das entradas atuais e situação operacional do setor.">
               <div className="grid gap-4 lg:grid-cols-3">
-                <div className="sig-dark-panel rounded-2xl border border-slate-200 p-5">
+                <div className="sig-protocol-soft-card rounded-2xl border border-slate-200 p-5">
                   <p className="sig-label">Balcão</p>
                   <p className="mt-2 text-lg font-semibold text-slate-950">{deskProtocols.length}</p>
                   <p className="mt-1 text-sm text-slate-500">Fluxo com atendimento assistido.</p>
                 </div>
-                <div className="sig-dark-panel rounded-2xl border border-slate-200 p-5">
+                <div className="sig-protocol-soft-card rounded-2xl border border-slate-200 p-5">
                   <p className="sig-label">Online</p>
                   <p className="mt-2 text-lg font-semibold text-slate-950">{onlineProtocolItems.length}</p>
                   <p className="mt-1 text-sm text-slate-500">Recepção digital do sistema.</p>
                 </div>
-                <div className="sig-dark-panel rounded-2xl border border-slate-200 p-5">
+                <div className="sig-protocol-soft-card rounded-2xl border border-slate-200 p-5">
                   <p className="sig-label">Novos registros</p>
                   <p className="mt-2 text-lg font-semibold text-slate-950">{newProtocols.length}</p>
                   <p className="mt-1 text-sm text-slate-500">Protocolos ainda na etapa inicial.</p>
@@ -1935,7 +1935,7 @@ export function ProtocolDeskPage() {
               <TableCard title="Histórico operacional" description="Últimos registros de recepção, conferência, despacho e andamento do protocolo." icon={ClipboardList}>
                 <div className="space-y-3">
                   {latestActivity.map((entry) => (
-                    <div key={entry.id} className="sig-dark-panel rounded-2xl border border-slate-200 p-4">
+                    <div key={entry.id} className="sig-protocol-soft-card rounded-2xl border border-slate-200 p-4">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <p className="text-sm font-semibold text-slate-950">{formatOfficialProcessNumber(entry.protocol)}</p>
