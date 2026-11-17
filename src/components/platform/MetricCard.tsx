@@ -23,6 +23,8 @@ export function MetricCard({
       data-ui="card"
       data-surface="adaptive-card"
       data-premium-surface="metric"
+      data-premium-role-blue="metric"
+      data-tone={tone}
       className={cn(
         "sig-metric-card group flex h-full min-h-[150px] min-w-0 flex-col overflow-hidden [overflow-wrap:anywhere] rounded-[22px] border border-slate-200/80 bg-white p-4.5 shadow-[0_12px_26px_rgba(15,23,42,0.075)] transition-[transform,box-shadow,border-color] duration-200",
       )}
