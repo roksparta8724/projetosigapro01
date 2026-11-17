@@ -139,8 +139,10 @@ export function ProcessWorkspaceHeader({
             // approved single-line toolbar wrap when users select many rows.
             // The supplied sector handler keeps its own permission checks.
             const multipleDispatch = Boolean(dispatch && selectedCount > 1 && onBulkDispatch);
+            // Every operational action must pass the process-level sector
+            // authorization; readonly municipal admins may inspect, not decide.
             const enabled = Boolean(showSensitiveDetails && (
-              (oneSelected && (!dispatch || canDispatch(oneSelected))) ||
+              (oneSelected && canDispatch(oneSelected)) ||
               multipleDispatch
             ));
             if (multipleDispatch) {
