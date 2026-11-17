@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { CreateProcessMarkerDialog } from "@/components/platform/CreateProcessMarkerDialog";
@@ -74,12 +74,43 @@ describe("SEI — marcadores pela mesa e conclusão restrita à unidade", () => 
     expect(action).toHaveBeenLastCalledWith([record], false);
   });
 
-  it("não habilita conclusão ou criação para administradores municipais somente leitura", () => {
-    const { container } = render(<MemoryRouter><PremiumProcessRegistry
-      processes={[record]} canDispatchProcess={() => false}
-      unitDataReady={false} /></MemoryRouter>);
-    expect(container.querySelector('[data-unit-completion-action="true"]')).toBeDisabled();
+  it.each([
+    ["Concluir nesta unidade", "concluir"],
+    ["Prioridade", "prioridade"],
+    ["Atribuir", "atribuir"],
+    ["Encaminhar", "encaminhar"],
+    ["Decisão", "decisao"],
+    ["Etiquetas", "etiquetas"],
+  ])("a tabela de consulta delega %s à gestão oficial sem criar botão inerte", (label, action) => {
+    function Landing() {
+      const location = useLocation();
+      const handoff = (location.state as {
+        sigaproProcessBatchRequest?: { action: string; processIds: string[] };
+      } | null)?.sigaproProcessBatchRequest;
+      return <pre data-testid="handoff">{JSON.stringify(handoff)}</pre>;
+    }
+    const { container } = render(
+      <MemoryRouter initialEntries={["/prefeitura/visao-geral/processos"]}>
+        <Routes>
+          <Route path="/prefeitura/visao-geral/processos" element={
+            <PremiumProcessRegistry processes={[record]} canDispatchProcess={() => false} />
+          } />
+          <Route path="/prefeitura/processos" element={<Landing />} />
+        </Routes>
+      </MemoryRouter>
+    );
+    const checkbox = container.querySelector<HTMLInputElement>(
+      '[data-sei-process-row="true"] input[type="checkbox"]'
+    );
+    expect(checkbox).not.toBeNull();
+    fireEvent.click(checkbox!);
     expect(screen.queryByRole("button", { name: "Novo marcador" })).toBeNull();
+    const button = screen.getByRole("button", { name: label });
+    expect(button).toBeEnabled();
+    fireEvent.click(button);
+    expect(screen.getByTestId("handoff")).toHaveTextContent(
+      JSON.stringify({ action, processIds: [record.id] })
+    );
   });
 
   it("a consulta e a gravação usam somente RPC autenticada, nunca localStorage", () => {
