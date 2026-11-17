@@ -1,11 +1,11 @@
-import { CheckCircle2, RotateCcw, Plus, ChevronDown, ChevronRight, Download, FileText, FileWarning, Flame, FolderOpen, Forward, Gavel, Layers3, MapPin, Search, SlidersHorizontal, Tag, Timer, UserRound, UsersRound, X } from "lucide-react";
+import { Building2, CheckCircle2, RotateCcw, Plus, ChevronDown, ChevronRight, Download, FileText, FileWarning, Flame, FolderOpen, Forward, Gavel, Layers3, MapPin, Search, SlidersHorizontal, Tag, Timer, UserRound, UsersRound, X } from "lucide-react";
 import { Flag as ProfessionalMarkerIcon } from "@/components/platform/PremiumIcons";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { buildProcessPath, type ProcessRecord } from "@/lib/platform";
 
-export type ProcessQuickFilter = "todos" | "meus" | "criticos" | "pendencias" | "guias" | "exigencias" | "analise" | "vistoria" | "decisao";
+export type ProcessQuickFilter = "todos" | "meus" | "unidade" | "criticos" | "pendencias" | "guias" | "exigencias" | "analise" | "vistoria" | "decisao";
 export type ProcessMarkerOption = { label: string; color: string; emoji?: string };
 export type ProcessWorkspaceAction = "prioridade" | "atribuir" | "encaminhar" | "decisao" | "etiquetas";
 export function processIsCritical(p: ProcessRecord) {
@@ -44,6 +44,7 @@ export type ProcessWorkspaceHeaderProps = {
   quickFilter: ProcessQuickFilter;
   onFilter: (value: ProcessQuickFilter) => void;
   operatorName?: string;
+  canFilterUnit?: boolean;
   selectedCount: number;
   allPageSelected: boolean;
   pageCount: number;
@@ -70,6 +71,7 @@ export type ProcessWorkspaceHeaderProps = {
 
 const filterSpecs = [
   { id: "meus", label: "Meus processos", Icon: UserRound },
+  { id: "unidade", label: "Minha unidade", Icon: Building2 },
   { id: "criticos", label: "SLA crítico", Icon: Flame },
   { id: "guias", label: "Guia pendente", Icon: FileText },
   { id: "exigencias", label: "Exigência", Icon: FileWarning },
@@ -80,7 +82,7 @@ const filterSpecs = [
 ] as const;
 
 export function ProcessWorkspaceHeader({
-  processes, filteredCount, search, onSearch, quickFilter, onFilter, operatorName,
+  processes, filteredCount, search, onSearch, quickFilter, onFilter, operatorName, canFilterUnit = false,
   selectedCount, allPageSelected, pageCount, onTogglePage, onClearSelection,
   oneSelected, canDispatch, canCompleteInUnit, showSensitiveDetails, bulkBusy, markerOptions,
   onBulkMarker, onCreateMarker, selectedProcesses = [], unitCompletedIds = [], unitDataReady = false,
@@ -131,9 +133,9 @@ export function ProcessWorkspaceHeader({
           <span>Filtros rápidos:</span>
           {filterSpecs.map(({ id, label, Icon }) => (
             <button key={id} type="button" data-filter={id} className={"sig-workspace-chip " + (quickFilter === id ? "is-active" : "")}
-              disabled={id === "meus" && !operatorName?.trim()}
+              disabled={(id === "meus" && !operatorName?.trim()) || (id === "unidade" && !canFilterUnit)}
               aria-pressed={quickFilter === id}
-              title={id === "meus" && !operatorName?.trim() ? "Nome do servidor não disponível" : undefined}
+              title={id === "meus" ? "Processos atribuídos a mim ou movimentados por esta conta" : id === "unidade" ? (canFilterUnit ? "Processos em tramitação no meu departamento" : "Esta conta não possui unidade operacional") : undefined}
               onClick={() => onFilter(id)}><Icon className="h-4 w-4" />{label}</button>
           ))}
         </div>
