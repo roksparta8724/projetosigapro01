@@ -108,8 +108,24 @@ BEGIN
     WHERE process_id=_process_id AND unit_key=_key FOR UPDATE;
   IF _completed THEN
     _stage_area := nullif(public.operational_area_from_label(_process.current_department),'');
-    IF _stage_area IS NOT NULL AND _stage_area IS DISTINCT FROM _area THEN
-      RAISE EXCEPTION 'Somente a unidade responsável pode concluir o processo nesta unidade.';
+    -- After an official dispatch, the originating unit must still be able
+    -- to close its OWN attendance. This is not a municipal conclusion.
+    -- Scope to the exact department for configured accounts; use the
+    -- operational area only for legacy staff without a department_id.
+    IF _stage_area IS NOT NULL AND _stage_area IS DISTINCT FROM _area
+       AND NOT EXISTS (
+         SELECT 1
+         FROM public.interdepartmental_dispatches d
+         WHERE d.process_id=_process_id
+           AND d.tenant_id=_process.tenant_id
+           AND (
+             (_profile.department_id IS NOT NULL
+               AND lower(btrim(d.from_department))=lower(btrim(_unit_name)))
+             OR (_profile.department_id IS NULL
+               AND public.operational_area_from_label(d.from_department)=_area)
+           )
+       ) THEN
+      RAISE EXCEPTION 'Esta unidade não é a responsável e não encaminhou este processo.';
     END IF;
   ELSIF _old.process_id IS NULL OR _old.status <> 'concluido' THEN
     RAISE EXCEPTION 'Este processo não está concluído na sua unidade.';

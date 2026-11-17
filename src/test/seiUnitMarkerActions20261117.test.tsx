@@ -92,6 +92,8 @@ describe("SEI — marcadores pela mesa e conclusão restrita à unidade", () => 
     expect(page).toContain('["concluidos", "Concluídos nesta unidade"]');
     expect(page).toContain("setMyUnitProcessCompletion(process.id, action.completed)");
     expect(page).toContain("setPendingUnitAction({ processes: selected, completed })");
+    expect(page).toContain("setPendingUnitAction({ processes: [...batchSelected], completed: true })");
+    expect(page).toContain("canCompleteInMyUnit(process)");
     expect(page).toContain("unitSyncState === \"ready\"");
   });
 
@@ -103,6 +105,9 @@ describe("SEI — marcadores pela mesa e conclusão restrita à unidade", () => 
     expect(sql).toContain("public.profile_operational_area(_profile_id)");
     expect(sql).toContain("public.profile_has_process_access(_process_id,_profile_id)");
     expect(sql).toContain("public.process_audit_entries");
+    expect(sql).toContain("public.interdepartmental_dispatches d");
+    expect(sql).toContain("d.from_department");
+    expect(sql).toContain("d.tenant_id=_process.tenant_id");
     expect(sql).toContain("municipality_id");
     expect(sql).toContain("REVOKE ALL ON public.process_unit_completions FROM PUBLIC,authenticated");
     expect(sql).not.toContain("PUBLIC,anon,authenticated");

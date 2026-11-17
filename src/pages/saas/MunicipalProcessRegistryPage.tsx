@@ -27,6 +27,7 @@ import { useLivePlatformRefresh } from "@/hooks/useLivePlatformRefresh";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import {
   isInternalRole, isProcessOwnedBySessionDepartment, matchesOperationalScope, parseMarker,
+  resolveSessionOperationalArea,
   type ProcessRecord,
 } from "@/lib/platform";
 
@@ -76,6 +77,24 @@ export function MunicipalProcessRegistryPage() {
   const [selectedProcessIds, setSelectedProcessIds] = useState<string[]>([]);
   const mayOperate = isInternalRole(session.role) && session.role !== "prefeitura_admin";
   const unitName = session.department?.trim() || session.title?.trim() || "unidade atual";
+  // SEI: after a dispatch the process leaves this unit's active queue, but
+  // its sender may still conclude that unit's own attendance. Backend RPC
+  // validates the exact unit/tenant and dispatch history before writing.
+  const canCompleteInMyUnit = (process: ProcessRecord) => {
+    if (isProcessOwnedBySessionDepartment(session, process)) return true;
+    if (!mayOperate) return false;
+    const normalize = (text: string) => text.normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "").trim().toLocaleLowerCase("pt-BR");
+    const ownDepartment = session.department?.trim();
+    const ownArea = resolveSessionOperationalArea(session);
+    return (process.dispatches ?? []).some(dispatch => {
+      if (!dispatch.from?.trim()) return false;
+      if (ownDepartment) return normalize(dispatch.from) === normalize(ownDepartment);
+      return Boolean(ownArea) && resolveSessionOperationalArea({
+        ...session, department: dispatch.from, title: "",
+      }) === ownArea;
+    });
+  };
 
   useEffect(() => {
     try {
@@ -336,6 +355,14 @@ export function MunicipalProcessRegistryPage() {
       throw new Error(`${succeeded} de ${batchSelected.length} processo(s) confirmados. ${detail} Confira o histórico antes de repetir para evitar duplicidade.`);
     }
     setBatchActionFeedback(`Operação ${action} confirmada em ${succeeded} processo(s) autorizado(s).`);
+    // After an official dispatch, offer SEI-style local closure as a distinct,
+    // explicitly confirmed act. Never close the municipality process.
+    if (action === "encaminhar" && unitSyncState === "ready") {
+      setPendingUnitAction({ processes: [...batchSelected], completed: true });
+      setBatchActionFeedback(
+        `Encaminhamento confirmado em ${succeeded} processo(s). Confirme, se desejar, a conclusão apenas da unidade de origem.`
+      );
+    }
     setSelectedProcessIds([]);
   };
 
@@ -389,7 +416,7 @@ export function MunicipalProcessRegistryPage() {
       return;
     }
     if (selected.some(process => completed
-      ? (!isProcessOwnedBySessionDepartment(session, process) ||
+      ? (!canCompleteInMyUnit(process) ||
         unitCompletions[process.id]?.status === "concluido")
       : unitCompletions[process.id]?.status !== "concluido")) {
       setUnitError("Selecione somente processos da sua unidade no mesmo estado.");
