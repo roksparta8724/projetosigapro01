@@ -4,11 +4,12 @@ import { readFileSync } from "node:fs";
 const source = (path: string) => readFileSync(path, "utf8");
 
 describe("SIGAPRO operational launch quality — 13 Nov 2026", () => {
-  it("puts the authenticated municipal queue before executive dashboard hero", () => {
+  it("keeps Dashboard exclusively executive, without duplicating municipal process control", () => {
     const page = source("src/pages/saas/DashboardHomePage.tsx");
-    const marker = 'section === "visao-geral" ? renderMunicipalWorkQueue() : null';
-    expect(page).toContain(marker);
-    expect(page.indexOf(marker)).toBeLessThan(page.indexOf('data-dashboard-hero="compact-v6"'));
+    expect(page).not.toContain("renderMunicipalWorkQueue");
+    expect(page).not.toContain("<CompactProcessRegistry");
+    expect(page).toContain('data-dashboard-hero="compact-v6"');
+    expect(page).toContain('navigate(isMaster ? "/dashboard/processos" : "/prefeitura/processos")');
   });
 
   it("provides controlled SEI-like selection and personal-only bulk actions", () => {
@@ -16,7 +17,8 @@ describe("SIGAPRO operational launch quality — 13 Nov 2026", () => {
     const page = source("src/pages/saas/MunicipalProcessRegistryPage.tsx");
     expect(registry).toContain("onToggleSelection");
     expect(registry).toContain('type="checkbox"');
-    expect(page).toContain("data-sei-bulk-selection");
+    expect(page).toContain('data-sei-personal-archive-controls="true"');
+    expect(source("src/components/platform/ProcessWorkspaceHeader.tsx")).toContain('data-sigapro-process-bulk-actions="true"');
     expect(page).toContain("Arquivar da minha lista");
     expect(page).toContain("sem alterar tramitação ou status oficial");
   });

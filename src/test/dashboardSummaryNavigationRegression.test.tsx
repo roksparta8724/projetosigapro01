@@ -82,13 +82,13 @@ describe("dashboard nav must not redirect away from Visão geral", () => {
     const dashboard = read("src/pages/saas/DashboardHomePage.tsx");
     expect(dashboard).not.toContain("<InternalTabs");
     expect(dashboard).toContain("<InternalSectionNav");
-    // Operação municipal vem na primeira dobra da página, antes do hero;
-    // não deve duplicar filas dentro do resumo nem esconder o plano.
+    // Dashboard is executive-only. The operational process table belongs to
+    // the dedicated municipal registry, not to the dashboard first fold.
     const overview = dashboard.split("const renderOverview = () => (")[1]?.split("const renderProcesses = () => (")[0] ?? "";
-    const queueFirst = '{section === "visao-geral" ? renderMunicipalWorkQueue() : null}';
-    expect(dashboard).toContain(queueFirst);
-    expect(dashboard.indexOf(queueFirst)).toBeLessThan(dashboard.indexOf('data-dashboard-hero="compact-v6"'));
-    expect(overview).not.toContain("{renderMunicipalWorkQueue()}");
+    expect(dashboard).not.toContain("renderMunicipalWorkQueue");
+    expect(dashboard).not.toContain("<CompactProcessRegistry");
+    expect(dashboard).toContain('data-dashboard-hero="compact-v6"');
+    expect(overview).not.toContain("renderMunicipalWorkQueue");
     expect(overview).toContain("{showPlanCapacity && !isMaster ? renderPlanCapacity() : null}");
     expect(dashboard).not.toContain('section === "visao-geral" && showPlanCapacity && !isMaster ? renderPlanCapacity() : null');
   });
