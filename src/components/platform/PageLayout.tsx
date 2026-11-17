@@ -43,6 +43,7 @@ export function PageHeader({
       data-ui="card"
       data-surface="adaptive-card"
       data-premium-surface="header"
+      data-premium-role-blue="header"
       className={cn(
         "sig-page-header relative overflow-hidden rounded-[24px] border border-slate-200/80 bg-white p-4 shadow-[0_12px_24px_rgba(15,23,42,0.06)] md:p-5",
         className,
