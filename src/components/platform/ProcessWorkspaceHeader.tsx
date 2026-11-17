@@ -51,6 +51,7 @@ export type ProcessWorkspaceHeaderProps = {
   onClearSelection: () => void;
   oneSelected: ProcessRecord | null;
   canDispatch: (process: ProcessRecord) => boolean;
+  canCompleteInUnit?: (process: ProcessRecord) => boolean;
   showSensitiveDetails: boolean;
   bulkBusy: boolean;
   markerOptions: ProcessMarkerOption[];
@@ -79,7 +80,7 @@ const filterSpecs = [
 export function ProcessWorkspaceHeader({
   processes, filteredCount, search, onSearch, quickFilter, onFilter, operatorName,
   selectedCount, allPageSelected, pageCount, onTogglePage, onClearSelection,
-  oneSelected, canDispatch, showSensitiveDetails, bulkBusy, markerOptions,
+  oneSelected, canDispatch, canCompleteInUnit, showSensitiveDetails, bulkBusy, markerOptions,
   onBulkMarker, onCreateMarker, selectedProcesses = [], unitCompletedIds = [], unitDataReady = false,
   onUnitAction, onBulkDispatch, onToolbarAction, onExport,
 }: ProcessWorkspaceHeaderProps) {
@@ -95,7 +96,7 @@ export function ProcessWorkspaceHeader({
   const selectedMixedStates = selectedProcesses.some(process => completedIds.has(process.id)) &&
     selectedProcesses.some(process => !completedIds.has(process.id));
   const canOperateInUnit = selectedProcesses.length > 0 && !selectedMixedStates &&
-    selectedProcesses.every(process => completedIds.has(process.id) || canDispatch(process));
+    selectedProcesses.every(process => completedIds.has(process.id) || (canCompleteInUnit ?? canDispatch)(process));
   return (
     <div data-sigapro-workspace-header="premium-model" className="sig-workspace-intro">
       <div className="sig-workspace-breadcrumb">Prefeitura <ChevronRight className="h-3.5 w-3.5" /> <strong>Controle de Processos</strong></div>
