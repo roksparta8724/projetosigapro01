@@ -191,4 +191,59 @@ describe("SIGAPRO — integração REAL da barra ao Controle de Processos", () =
       process.id, "Prioridade operacional", "#ca8a04", "Ana Técnica"
     );
   });
+  it("recebe da tabela compartilhada a seleção de Encaminhar e abre o diálogo real", async () => {
+    state.role = "analista";
+    state.listUnits.mockResolvedValue([]);
+    render(<MemoryRouter initialEntries={[{
+      pathname: "/prefeitura/processos",
+      state: { sigaproProcessBatchRequest: {
+        action: "encaminhar", processIds: [process.id],
+      } },
+    }]}><MunicipalProcessRegistryPage /></MemoryRouter>);
+    await waitFor(() => expect(screen.getByRole("heading", {
+      name: "Encaminhar entre unidades",
+    })).toBeInTheDocument());
+    expect(screen.getByText("1 selecionado(s)")).toBeInTheDocument();
+    expect(state.dispatch).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByLabelText("Unidade de destino"), {
+      target: { value: "Financeiro" },
+    });
+    fireEvent.change(screen.getByLabelText("Prazo da tramitação"), {
+      target: { value: "2026-11-26" },
+    });
+    fireEvent.change(screen.getByLabelText("Assunto / motivação do encaminhamento"), {
+      target: { value: "Encaminhamento autorizado por etapa" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar operação" }));
+    await waitFor(() => expect(state.dispatch).toHaveBeenCalledTimes(1));
+  });
+
+  it("recebe solicitação de conclusão e exige permissão e estado da unidade", async () => {
+    state.role = "analista";
+    state.listUnits.mockResolvedValue([]);
+    render(<MemoryRouter initialEntries={[{
+      pathname: "/prefeitura/processos",
+      state: { sigaproProcessBatchRequest: {
+        action: "concluir", processIds: [process.id],
+      } },
+    }]}><MunicipalProcessRegistryPage /></MemoryRouter>);
+    await waitFor(() => expect(screen.getByRole("heading", {
+      name: "Concluir nesta unidade",
+    })).toBeInTheDocument());
+    expect(state.setUnit).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar conclusão na unidade" }));
+    await waitFor(() => expect(state.setUnit).toHaveBeenCalledWith(process.id, true));
+  });
+
+  it("não converte link de consulta em ato oficial para prefeitura_admin", async () => {
+    render(<MemoryRouter initialEntries={[{
+      pathname: "/prefeitura/processos",
+      state: { sigaproProcessBatchRequest: {
+        action: "concluir", processIds: [process.id],
+      } },
+    }]}><MunicipalProcessRegistryPage /></MemoryRouter>);
+    await waitFor(() => expect(screen.getByText(/Este perfil é somente consulta/)).toBeInTheDocument());
+    expect(state.setUnit).not.toHaveBeenCalled();
+  });
+
 });
