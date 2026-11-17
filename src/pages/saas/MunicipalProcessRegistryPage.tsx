@@ -1,6 +1,6 @@
 import { Archive, ArchiveRestore, CheckCircle2, RotateCcw } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { PremiumProcessRegistry as CompactProcessRegistry } from "@/components/platform/PremiumProcessRegistry";
 import { CreateProcessMarkerDialog, type CreatedPersonalMarker } from "@/components/platform/CreateProcessMarkerDialog";
 import { ProcessBatchActionDialog, type ProcessBatchPayload } from "@/components/platform/ProcessBatchActionDialog";
@@ -32,6 +32,8 @@ import {
 } from "@/lib/platform";
 
 export function MunicipalProcessRegistryPage() {
+  const location = useLocation();
+  const navigate = useNavigate();
   const { session } = usePlatformSession();
   const { municipality, scopeId } = useMunicipality();
   const {
@@ -183,6 +185,77 @@ export function MunicipalProcessRegistryPage() {
     );
   }, [municipalityProcesses, archivedProcessIds, showArchived,
       unitSyncState, unitView, unitCompletions, session]);
+  // Restore selection/action handed off from the premium table in municipal
+  // overview, analyst desk or protocol desk. No act is executed by the
+  // originating consultation view. IDs are verified against the authenticated
+  // municipality, then the existing authorized dialog/RPC is used.
+  useEffect(() => {
+    const state = location.state as
+      | { sigaproProcessBatchRequest?: { action?: unknown; processIds?: unknown } }
+      | null;
+    const request = state?.sigaproProcessBatchRequest;
+    if (!request || !remoteSyncedForCurrentUser) return;
+    const action = request.action;
+    const knownActions: Array<ProcessWorkspaceAction | "concluir"> =
+      ["prioridade", "atribuir", "encaminhar", "decisao", "etiquetas", "concluir"];
+    const ids = request.processIds;
+    const validIds = Array.isArray(ids) && ids.length > 0 && ids.length <= 25 &&
+      ids.every(id => typeof id === "string" && id.length > 0) &&
+      new Set(ids).size === ids.length;
+    const validAction = knownActions.some(known => known === action);
+    if (validAction && validIds && action === "concluir" &&
+        mayOperate && unitSyncState === "loading") return;
+
+    const clearRequest = () => navigate(location.pathname + location.search, {
+      replace: true, state: null,
+    });
+    if (!validAction || !validIds) {
+      setBatchActionFeedback("A seleção recebida é inválida. Selecione os processos novamente.");
+      clearRequest();
+      return;
+    }
+
+    const selected = (ids as string[]).map(id =>
+      municipalityProcesses.find(process => process.id === id)
+    );
+    if (selected.some(process => !process)) {
+      setBatchActionFeedback(
+        "Um dos processos não está disponível neste município. A seleção não foi executada."
+      );
+      clearRequest();
+      return;
+    }
+    const selectedProcesses = selected as ProcessRecord[];
+    setSelectedProcessIds(ids as string[]);
+    if (action === "concluir") {
+      if (!mayOperate) {
+        setUnitError(
+          "Este perfil é somente consulta. Entre com a conta funcional da unidade para concluir o atendimento."
+        );
+      } else if (unitSyncState !== "ready") {
+        setUnitError(
+          "A conclusão da unidade não está disponível no banco. Verifique a sincronização oficial."
+        );
+      } else if (!selectedProcesses.every(canCompleteInMyUnit)) {
+        setUnitError(
+          "A conclusão exige vínculo com a unidade atual ou autoria comprovada do encaminhamento."
+        );
+      } else {
+        setUnitError("");
+        setPendingUnitAction({ processes: selectedProcesses, completed: true });
+      }
+    } else {
+      setBatchActionFeedback("");
+      setBatchSelected(selectedProcesses);
+      setActiveBatchAction(action as ProcessWorkspaceAction);
+    }
+    clearRequest();
+  // Clear router state before dialogs mutate local state; a new render must
+  // never reopen the same one-time request or submit a duplicate operation.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state, location.pathname, location.search, municipalityProcesses,
+      remoteSyncedForCurrentUser, mayOperate, unitSyncState, navigate]);
+
   const selectedVisibleIds = visibleProcesses
     .filter((process) => selectedProcessIds.includes(process.id))
     .map((process) => process.id);
