@@ -369,6 +369,12 @@ export function ProtocolDeskPage() {
       ) || null
     );
   }, [processes, protocolQuery, tenantSettings]);
+  // A guia não pode aparecer como "pendente" ou R$ 0 quando ainda não
+  // foi emitida. O resumo apresenta somente evidências de guia existentes.
+  const matchedProcessGuides = matchedProcess
+    ? getProcessPaymentGuides(matchedProcess, tenantSettings)
+    : [];
+
   const dispatchRows = useMemo(
     () =>
       processes.flatMap((process) =>
@@ -1076,7 +1082,7 @@ export function ProtocolDeskPage() {
         ) : null}
 
         {matchedProcess ? (
-          <div className="sig-dark-panel rounded-2xl border border-slate-200 p-5">
+          <div className="sig-protocol-soft-card rounded-2xl border border-slate-200 p-5">
             <div className="sig-responsive-data-grid">
               <div>
                 <p className="sig-label">Protocolo</p>
@@ -1085,28 +1091,38 @@ export function ProtocolDeskPage() {
               <div>
                 <p className="sig-label">Guia principal</p>
                 <p className="mt-2 sig-fit-title text-sm font-semibold text-slate-950">
-                  {getProcessPaymentGuides(matchedProcess, tenantSettings)[0]?.code}
+                  {matchedProcessGuides[0]?.code?.trim() || "Guia ainda não emitida"}
                 </p>
               </div>
               <div>
                 <p className="sig-label">Situação</p>
                 <p className="mt-2 text-sm font-semibold text-slate-950">
-                  {getProcessPaymentGuides(matchedProcess, tenantSettings)[0]?.status === "compensada"
-                    ? "Pagamento confirmado"
-                    : "Pagamento pendente"}
+                  {matchedProcessGuides.length === 0
+                    ? "Sem guia emitida"
+                    : matchedProcessGuides[0]?.status === "compensada"
+                      ? "Pagamento confirmado"
+                      : "Pagamento não confirmado"}
                 </p>
               </div>
               <div>
                 <p className="sig-label">Valor</p>
                 <p className="mt-2 text-sm font-semibold text-slate-950">
-                  {formatCurrency(getProcessPaymentGuides(matchedProcess, tenantSettings)[0]?.amount || 0)}
+                  {matchedProcessGuides.length > 0 ? formatCurrency(matchedProcessGuides[0].amount) : "Aguardando emissão"}
                 </p>
               </div>
             </div>
 
             <div className="mt-4 grid gap-3 lg:grid-cols-3">
-              {getProcessPaymentGuides(matchedProcess, tenantSettings).map((guide) => (
-                <div key={guide.kind} className="sig-dark-panel rounded-2xl border border-slate-200 p-4">
+              {matchedProcessGuides.length === 0 ? (
+                <div data-sigapro-protocol-guide-empty="true"
+                  className="col-span-full flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-lg border border-dashed border-[#c5d9e8] bg-[#f5fafd] px-4 py-3 text-xs text-[#49677e]">
+                  <span>Nenhuma guia registrada para este processo. A emissão depende da etapa e das regras oficiais da Prefeitura.</span>
+                  <Button type="button" size="sm" variant="outline" onClick={() => setSection("pagamentos")}>
+                    Conferir pagamentos
+                  </Button>
+                </div>
+              ) : matchedProcessGuides.map((guide) => (
+                <div key={guide.kind} className="sig-protocol-guide-entry rounded-lg border-l-[3px] border-l-[#83b4cf] bg-transparent px-3 py-2">
                   <p className="sig-fit-title text-sm font-semibold text-slate-950" title={guide.label}>
                     {guide.label}
                   </p>
@@ -1135,7 +1151,7 @@ export function ProtocolDeskPage() {
             Nenhum protocolo localizado com este número.
           </div>
         ) : (
-          <div className="sig-dark-panel rounded-2xl border border-dashed border-slate-200 px-4 py-6 text-sm text-slate-500">
+          <div className="sig-protocol-soft-card rounded-xl border border-dashed border-slate-300 px-4 py-4 text-sm text-[#4e677d]">
             {hint}
           </div>
         )}
