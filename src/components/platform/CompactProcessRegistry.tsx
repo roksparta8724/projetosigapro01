@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import {
   AlertTriangle, Archive, ArchiveRestore, CalendarClock, ChevronLeft,
   ChevronRight, Clock3, ExternalLink, FileWarning, Flag, History,
-  MoreHorizontal, Send, Workflow, Flame, Eye, MapPin, CheckCircle2, Layers3, AlertCircle, ClipboardCheck, Gavel, Tag, ArrowUpDown,
+  MoreHorizontal, Send, Workflow, Flame, Eye, MapPin, CheckCircle2, Layers3, AlertCircle, ClipboardCheck, Gavel, Tag, ArrowUpDown, FileText,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -62,11 +62,93 @@ function markersFor(process: ProcessRecord) {
   return (process.tags ?? []).map((tag) => parseMarker(tag));
 }
 
+// The six operational indicators have a stable semantic palette. Custom
+// markers retain the user's palette choice; only known operational labels
+// receive the color shown in the workspace legend.
+const processMarkerColors = {
+  sla: "#dc2626",
+  guia: "#9333ea",
+  exigencia: "#d97706",
+  analise: "#2563eb",
+  vistoria: "#7c3aed",
+  decisao: "#15803d",
+  concluido: "#15803d",
+} as const;
+type ProcessMarkerKind = keyof typeof processMarkerColors;
+
+function normalizeMarkerName(value: string) {
+  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+}
+
+function knownMarkerKind(label: string): ProcessMarkerKind | null {
+  const name = normalizeMarkerName(label);
+  if (/sla critico|prazo critico/.test(name)) return "sla";
+  if (/guia pendente|pagamento pendente/.test(name)) return "guia";
+  if (/exigencia|pendencia documental/.test(name)) return "exigencia";
+  if (/vistoria/.test(name)) return "vistoria";
+  if (/em decisao|aguardando decisao/.test(name)) return "decisao";
+  if (/analise/.test(name)) return "analise";
+  if (/concluido|deferido/.test(name)) return "concluido";
+  return null;
+}
+
+type VisibleProcessMarker = {
+  label: string;
+  color: string;
+  origin: "saved" | "automatic";
+  kind: ProcessMarkerKind | "custom";
+};
+
+function visibleProcessMarkers(
+  process: ProcessRecord,
+  facts: ReturnType<typeof processFacts>,
+  canViewInternalDetails: boolean,
+): VisibleProcessMarker[] {
+  const saved = markersFor(process).map((marker) => {
+    const kind = knownMarkerKind(marker.label);
+    return {
+      label: marker.label,
+      color: kind ? processMarkerColors[kind] : marker.color,
+      origin: "saved" as const,
+      kind: kind ?? ("custom" as const),
+    };
+  });
+  if (!canViewInternalDetails) return saved;
+
+  // Automatic indicators are visual only. Never write tags to the database,
+  // assume a process has been officially marked, or expose internal statuses
+  // in external/owner views.
+  const derived: VisibleProcessMarker[] = [];
+  const add = (kind: ProcessMarkerKind, label: string) =>
+    derived.push({ kind, label, color: processMarkerColors[kind], origin: "automatic" });
+  if (facts.urgent) add("sla", "SLA crítico");
+  if (facts.pendingGuides > 0) add("guia", "Guia pendente");
+  if (facts.requirements > 0 || ["pendencia_documental", "exigencia"].includes(process.status)) {
+    add("exigencia", "Exigência");
+  }
+  const currentStage = normalizeMarkerName([
+    process.sla?.currentStage, process.processControl?.currentFolder,
+  ].filter(Boolean).join(" "));
+  if (/vistoria|fiscalizacao de obra/.test(currentStage)) add("vistoria", "Vistoria");
+  if (/decisao|aguardando assinatura|diretor|secretario/.test(currentStage)) {
+    add("decisao", "Em decisão");
+  }
+  if (process.status === "deferido") {
+    add("concluido", "Concluído");
+  } else if (process.status === "analise_tecnica" || /analise/.test(currentStage)) {
+    add("analise", "Análise");
+  }
+
+  const persistedKinds = new Set(saved.map((marker) => marker.kind));
+  return [...saved, ...derived.filter((marker) => !persistedKinds.has(marker.kind))];
+}
+
 /** Visual SEI-style glyph is derived only from the saved marker label.
  * The underlying marker/color and audit record remain untouched. */
 function markerIcon(label: string) {
   const value = label.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
   if (/sla|urgente|critico|prioridade/.test(value)) return Flame;
+  if (/guia|pagamento pendente/.test(value)) return FileText;
   if (/vistoria|localizacao|mapa|local/.test(value)) return MapPin;
   if (/exigencia|pendencia|alerta/.test(value)) return AlertCircle;
   if (/decisao|deferimento|assinatura/.test(value)) return Gavel;
@@ -179,9 +261,10 @@ export function CompactProcessRegistry({
           <div className="divide-y divide-slate-200 dark:divide-slate-800" role="list" aria-label="Processos encontrados">
             {pageData.items.map((process, index) => {
               const marker = process.tags?.[0] ? parseMarker(process.tags[0]) : null;
-              const markers = markersFor(process);
+              const facts = processFacts(process);
+              const markers = visibleProcessMarkers(process, facts, showSensitiveDetails);
               const archived = archivedProcessIds.includes(process.id);
-              const fact = processFacts(process);
+              const fact = facts;
               // External/owner views must not reveal internal ownership, folder,
               // requirements or bank metadata through a generic table.
               const restrictedExternal = !showSensitiveDetails &&
@@ -218,27 +301,24 @@ export function CompactProcessRegistry({
                         aria-label={"Selecionar processo " + number}
                         className="mr-1 h-4 w-4 shrink-0 cursor-pointer accent-sky-800" />
                     ) : null}
-                    {markers.slice(0, 2).map((item, markerIndex) => {
+                    {markers.slice(0, 3).map((item, markerIndex) => {
                       const MarkerIcon = markerIcon(item.label);
                       return (
-                        <span key={markerIndex} title={item.label}
+                        <span key={markerIndex}
+                          title={item.origin === "automatic" ? "Indicador automático: " + item.label : item.label}
+                          data-marker-origin={item.origin} data-marker-kind={item.kind}
                           className="sig-reference-marker inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-lg"
-                          style={{ color: item.color, backgroundColor: item.color + "12" }}>
-                          <MarkerIcon className="h-4 w-4" strokeWidth={2.6} />
+                          style={{ color: item.color, backgroundColor: item.color + "13", borderColor: item.color + "33" }}>
+                          <MarkerIcon className="h-4 w-4" strokeWidth={2.5} aria-hidden="true" />
                         </span>
                       );
                     })}
-                    {markers.length > 2 ? (
-                      <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-700 dark:bg-slate-800 dark:text-white" title="Marcadores adicionais">
-                        +{markers.length - 2}
+                    {markers.length > 3 ? (
+                      <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-700 dark:bg-slate-800 dark:text-white" title="Outros indicadores e marcadores">
+                        +{markers.length - 3}
                       </span>
                     ) : null}
-                    {!marker && fact.urgent ? (
-                      <AlertTriangle className="h-4 w-4 shrink-0 text-rose-600" aria-label="Prazo crítico" />
-                    ) : null}
-                    {!marker && !fact.urgent ? (
-                      <Flag className="h-4 w-4 shrink-0 text-slate-400" aria-label="Sem marcador" />
-                    ) : null}
+                    {markers.length === 0 ? <Flag className="h-4 w-4 shrink-0 text-slate-400" aria-label="Sem marcador" /> : null}
                   </div>
 
                   <div className="sig-process-number min-w-0">
@@ -294,7 +374,7 @@ export function CompactProcessRegistry({
                       </span>
                     ) : null}
                     {visiblePendingGuides > 0 ? (
-                      <span title="Guias cadastradas com status pendente; não representa liquidação bancária" className="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-1.5 py-1 text-[10px] font-semibold text-rose-800">
+                      <span title="Guias cadastradas com status pendente; não representa liquidação bancária" className="inline-flex items-center gap-1 rounded-lg border border-violet-200 bg-violet-50 px-1.5 py-1 text-[10px] font-semibold text-violet-800">
                         <Clock3 className="h-3 w-3 shrink-0" />{visiblePendingGuides} guia(s)
                       </span>
                     ) : null}

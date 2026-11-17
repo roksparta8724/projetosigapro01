@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight, CircleAlert, Download, FileText, Flame, FolderOpen, Forward, Gavel, Layers3, Search, SlidersHorizontal, Tag, Timer, UserRound, UsersRound, Flag, X, Rows3 } from "lucide-react";
+import { ChevronDown, ChevronRight, CircleAlert, Download, FileText, Flame, FolderOpen, Forward, Gavel, Layers3, Search, SlidersHorizontal, Tag, Timer, UserRound, UsersRound, Flag, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -92,7 +92,7 @@ export function ProcessWorkspaceHeader({
         <div className="sig-workspace-filters" role="group" aria-label="Filtros rápidos">
           <span>Filtros rápidos:</span>
           {filterSpecs.map(({ id, label, Icon }) => (
-            <button key={id} type="button" className={"sig-workspace-chip " + (quickFilter === id ? "is-active" : "")}
+            <button key={id} type="button" data-filter={id} className={"sig-workspace-chip " + (quickFilter === id ? "is-active" : "")}
               disabled={id === "meus" && !operatorName?.trim()}
               aria-pressed={quickFilter === id}
               title={id === "meus" && !operatorName?.trim() ? "Nome do servidor não disponível" : undefined}
@@ -167,7 +167,6 @@ export function ProcessWorkspaceHeader({
             disabled={!filteredCount || !showSensitiveDetails}><Download className="h-4 w-4" /> Exportar <ChevronDown className="h-3.5 w-3.5" /></Button>
         </div>
       </div>
-      <div className="sig-workspace-list-context" aria-live="polite"><Rows3 className="h-4 w-4" />{filteredCount.toLocaleString("pt-BR")} processos encontrados</div>
     </div>
   );
 }
