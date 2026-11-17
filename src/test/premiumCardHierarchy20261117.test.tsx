@@ -30,10 +30,11 @@ describe("SIGAPRO — um só cabeçalho institucional, sem cards azuis aninhados
     expect(protocol).toContain('data-sigapro-protocol-quick-actions="true"');
     expect(protocol).toContain('data-sigapro-protocol-live-summary="true"');
     expect(protocol).toContain('Protocolo e triagem');
-    expect(protocol).toContain('{processes.length}');
-    expect(protocol).toContain('{queueItems.length}');
-    expect(protocol).toContain('{incompleteProtocols.length}');
-    expect(protocol).toContain('{pendingProtocolPayments.length + pendingPreprotocolPayments.length}');
+    expect(protocol).toContain('remoteSyncedForCurrentUser ? processes.length : "—"');
+    expect(protocol).toContain('remoteSyncedForCurrentUser ? queueItems.length : "—"');
+    expect(protocol).toContain('remoteSyncedForCurrentUser ? incompleteProtocols.length : "—"');
+    expect(protocol).toContain('preprotocolPaymentsLoading || Boolean(preprotocolPaymentsError)');
+    expect(protocol).toContain('pendingProtocolPayments.length + pendingPreprotocolPayments.length');
     for (const tab of ["todos","fila","documentos","pagamentos"]) {
       expect(protocol).toContain(`onClick={() => setSection("${tab}")}`);
     }
