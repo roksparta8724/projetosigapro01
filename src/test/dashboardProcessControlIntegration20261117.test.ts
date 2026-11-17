@@ -56,7 +56,7 @@ describe("SIGAPRO — Controle de Processos único, conforme referência aprovad
   });
 
   it("isola operações oficiais de usuários readonly e conserva arquivo pessoal", () => {
-    expect(municipality).toContain('session.role === "prefeitura_admin" ? undefined : applyMarkerToSelected');
+    expect(municipality).toContain("onBulkMarker={mayOperate ? applyMarkerToSelected : undefined}");
     expect(municipality).toContain("isProcessOwnedBySessionDepartment(session, process)");
     expect(municipality).toContain("selectedIds.size > 25");
     expect(municipality).toContain("await addProcessMarkerWithColor(");

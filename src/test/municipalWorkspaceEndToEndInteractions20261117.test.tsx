@@ -47,12 +47,15 @@ vi.mock("@/hooks/usePlatformData", () => ({
     reassignProcessAnalysis: state.assign, dispatchProcess: state.dispatch,
   }),
 }));
-vi.mock("@/hooks/useMarkerPresets", () => ({
-  formatMarkerLabel: (preset: { label: string }) => preset.label,
-  useMarkerPresets: () => ({ presets: [
-    { id: "tag1", label: "Retorno", colorId: "red", color: "#dc2626", emoji: "", active: true },
-  ], addPreset: vi.fn() }),
-}));
+vi.mock("@/hooks/useMarkerPresets", async (importOriginal) => {
+  const real = await importOriginal<typeof import("@/hooks/useMarkerPresets")>();
+  return {
+    ...real,
+    useMarkerPresets: () => ({ presets: [
+      { id: "tag1", label: "Retorno", colorId: "red", color: "#dc2626", emoji: "", active: true },
+    ], addPreset: vi.fn() }),
+  };
+});
 vi.mock("@/hooks/useMunicipalOrganogram", () => ({
   useMunicipalOrganogram: () => ({ departments: [
     { id: "department1", name: "Análise Urbanística", isActive: true },
