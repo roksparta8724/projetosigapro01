@@ -194,7 +194,8 @@ export function ProcessWorkspaceHeader({
               // A selected process always opens an action dialog. The dialog
               // performs per-process authorization and never silently changes
               // an official decision or bypasses departmental ownership.
-              const key = label.toLowerCase() as ProcessWorkspaceAction;
+              const key: ProcessWorkspaceAction =
+                label === "Decisão" ? "decisao" : label.toLowerCase() as ProcessWorkspaceAction;
               return <Button key={label} size="sm" variant="outline" type="button"
                 className={"sig-workspace-action " + (label === "Decisão" ? "sig-workspace-action-green" : "")}
                 disabled={selectedCount === 0 || bulkBusy || !showSensitiveDetails}
