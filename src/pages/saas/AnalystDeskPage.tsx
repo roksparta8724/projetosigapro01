@@ -1273,7 +1273,7 @@ export function AnalystDeskPage() {
               {remoteSyncedForCurrentUser ? "Banco confirmado" : "Aguardando sincronização"}
             </span>
             <Button type="button" variant="outline"
-              className="h-10 w-full rounded-xl border-slate-300 bg-white px-4 text-xs font-bold text-slate-800 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-white sm:w-auto"
+              className="sig-premium-light-control h-10 w-full rounded-xl border-slate-300 bg-white px-4 text-xs font-bold text-slate-800 hover:bg-slate-100 sm:w-auto"
               disabled={!remoteSyncedForCurrentUser}
               onClick={handleExportCsv}
               title="Exportar registros do filtro atual para planilha UTF-8">
