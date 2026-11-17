@@ -53,10 +53,11 @@ describe("SIGAPRO — marcadores com cores semânticas e layout real do controle
     expect(container.querySelectorAll('[data-marker-origin="automatic"]')).toHaveLength(1);
     expect(container.querySelector('[data-marker-origin="automatic"]')).toHaveAttribute("title", "Indicador automático: Vistoria");
     const saved = [...container.querySelectorAll<HTMLElement>('[data-marker-origin="saved"]')];
-    expect(saved).toHaveLength(2);
-    expect(saved.map(el => el.getAttribute("title"))).toEqual(["Vistoria", "Prioridade"]);
+    expect(saved).toHaveLength(3);
+    expect(saved.map(el => el.getAttribute("title"))).toEqual(["Vistoria", "Prioridade", "Análise"]);
     expect(saved[0]).toHaveStyle({ color: "#2563eb" });
     expect(saved[1]).toHaveStyle({ color: "#ea580c" });
+    expect(saved[2]).toHaveStyle({ color: "#7c3aed" });
     expect(record.tags).toEqual(["Vistoria::blue", "Prioridade::orange", "Análise::violet"]);
     expect(container.querySelectorAll('[aria-label^="Ver "][aria-label$=" do processo"]')).toHaveLength(2);
     expect(saved[0].querySelector("svg")).toHaveStyle({ stroke: "#2563eb" });
@@ -67,9 +68,10 @@ describe("SIGAPRO — marcadores com cores semânticas e layout real do controle
     const record = item("9", { tags: ["Concluído::green", "Retorno::red", "Prioridade::gold"] });
     const { container } = render(<MemoryRouter><CompactProcessRegistry processes={[record]} /></MemoryRouter>);
     const saved = container.querySelectorAll<HTMLElement>('[data-marker-origin="saved"]');
-    expect(saved).toHaveLength(2);
+    expect(saved).toHaveLength(3);
     expect(saved[0]).toHaveStyle({ color: "#16a34a" });
     expect(saved[1]).toHaveStyle({ color: "#dc2626" });
+    expect(saved[2]).toHaveStyle({ color: "#ca8a04" });
     // The third saved color remains in the record and in the overflow menu;
     // responsive presentation does not delete or recolor the marker.
     expect(source("src/components/platform/CompactProcessRegistry.tsx")).toContain("style={{ color: extra.color }}");
@@ -113,9 +115,25 @@ describe("SIGAPRO — marcadores com cores semânticas e layout real do controle
     const record = item("8", { tags: ["Prioridade::red", "Retorno::blue", "Favorito::cyan", "Concluído::green"] });
     const { container } = render(<MemoryRouter><CompactProcessRegistry processes={[record]} /></MemoryRouter>);
     expect(container.querySelectorAll('[data-marker-origin="automatic"]')).toHaveLength(1);
-    expect(container.querySelectorAll('[data-marker-origin="saved"]')).toHaveLength(2);
+    expect(container.querySelectorAll('[data-marker-origin="saved"]')).toHaveLength(3);
     expect(container.querySelectorAll('[aria-label^="Ver "][aria-label$=" do processo"]')).toHaveLength(2);
     expect(record.tags).toHaveLength(4);
+  });
+
+  it("exibe 1 situação automática e 3 individuais — quatro símbolos em uma linha", () => {
+    const record = item("21", {
+      status: "analise_tecnica",
+      tags: ["Retorno::gold", "⭐ Favorito::cyan", "📍 Vistoria::violet"],
+    });
+    const { container } = render(<MemoryRouter><CompactProcessRegistry processes={[record]} /></MemoryRouter>);
+    const automatic = container.querySelectorAll('[data-marker-origin="automatic"]');
+    const individual = container.querySelectorAll('[data-marker-origin="saved"]');
+    expect(automatic).toHaveLength(1);
+    expect(individual).toHaveLength(3);
+    expect(container.querySelector(".sig-reference-marker-fourth")).toHaveAttribute("title", "Vistoria");
+    expect(individual[0]).toHaveStyle({ color: "#ca8a04" });
+    expect(individual[1].querySelector(".sig-reference-custom-emoji")).toHaveTextContent("⭐");
+    expect(individual[2].querySelector(".sig-reference-custom-emoji")).toHaveTextContent("📍");
   });
 
   it("os filtros da referência trabalham com status, guias e etapas reais", () => {
