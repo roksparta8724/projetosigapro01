@@ -60,6 +60,18 @@ describe("SIGAPRO — marcadores com cores semânticas e layout real do controle
     expect(record.tags).toEqual(["Concluído::green", "Retorno::red", "Prioridade::gold"]);
   });
 
+  it("exibe todos os três marcadores oficiais com suas cores originais no desktop", () => {
+    const record = item("1", { tags: ["Pendência::gold", "Prioridade::gold", "em andamento::blue"] });
+    const { container } = render(<MemoryRouter><CompactProcessRegistry processes={[record]} /></MemoryRouter>);
+    const saved = Array.from(container.querySelectorAll<HTMLElement>('[data-marker-origin="saved"]'));
+    expect(saved).toHaveLength(3);
+    expect(saved.map(el => el.getAttribute("title"))).toEqual(["Pendência", "Prioridade", "em andamento"]);
+    expect(saved[0]).toHaveStyle({ color: "#ca8a04" });
+    expect(saved[1]).toHaveStyle({ color: "#ca8a04" });
+    expect(saved[2]).toHaveStyle({ color: "#2563eb" });
+    expect(source("src/styles/sigapro-reference-layout.css")).toContain(".sig-reference-marker-third");
+  });
+
   it("não divulga indicadores internos de prazo para visualização externa", () => {
     const { container } = render(<MemoryRouter><CompactProcessRegistry processes={[item("4", {
       sla: { breached: true, currentStage: "Análise Urbanística" },

@@ -936,3 +936,45 @@
     height: 15px;
   }
 }
+
+/* At ~1,000px usable width, use the marker column for all three saved
+   colors rather than replacing the third with a grey '+1' badge. */
+@container sigapro-process-registry (min-width: 940px) and (max-width: 1119px) {
+  .sig-workspace-shell .sig-process-registry .sig-process-head,
+  .sig-workspace-shell .sig-process-registry .sig-process-row {
+    grid-template-columns:
+      96px minmax(116px, 1fr) minmax(145px, 1.45fr)
+      minmax(116px, 1.16fr) minmax(94px, .96fr)
+      minmax(86px, .83fr) minmax(56px, .58fr) 146px;
+  }
+  .sig-workspace-shell .sig-process-registry .sig-process-marker {
+    gap: 2px;
+  }
+  .sig-workspace-shell .sig-process-registry .sig-reference-marker {
+    width: 19px !important;
+    height: 21px !important;
+  }
+  .sig-workspace-shell .sig-process-registry .sig-reference-marker svg {
+    width: 17px !important;
+    height: 17px !important;
+  }
+  .sig-workspace-shell .sig-reference-marker-third,
+  .sig-workspace-shell .sig-reference-extra-count-wide {
+    display: inline-flex !important;
+  }
+  .sig-workspace-shell .sig-reference-extra-count-narrow {
+    display: none !important;
+  }
+}
+@container sigapro-process-registry (min-width: 1120px) {
+  .sig-workspace-shell .sig-process-registry .sig-process-head,
+  .sig-workspace-shell .sig-process-registry .sig-process-row {
+    grid-template-columns:
+      108px minmax(125px, 1.1fr) minmax(165px, 1.6fr)
+      minmax(135px, 1.14fr) minmax(120px, 1fr)
+      minmax(92px, .82fr) minmax(90px, .8fr) 147px;
+  }
+  .sig-workspace-shell .sig-process-registry .sig-process-marker {
+    gap: 4px;
+  }
+}

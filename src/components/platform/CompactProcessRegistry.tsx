@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import {
   Archive, ArchiveRestore, CalendarClock, ChevronLeft,
   ChevronRight, Clock3, ExternalLink, FileWarning, Flag, History,
-  MoreHorizontal, Send, Workflow, Flame, Eye, MapPin, CheckCircle2, Layers3, AlertCircle, ClipboardCheck, Gavel, Tag, ArrowUpDown, FileText,
+  MoreHorizontal, Send, Workflow, Flame, Eye, MapPin, CheckCircle2, Layers3, AlertCircle, ClipboardCheck, Gavel, Tag, ArrowUpDown, FileText, Star,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -148,11 +148,14 @@ function visibleProcessMarkers(
 function markerIcon(label: string) {
   const value = label.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
   if (/sla|urgente|critico|prioridade/.test(value)) return Flame;
+  if (/favorito|destaque/.test(value)) return Star;
+  if (/retorno|devolutiva/.test(value)) return History;
+  if (/prazo/.test(value)) return CalendarClock;
   if (/guia|pagamento pendente/.test(value)) return FileText;
   if (/vistoria|localizacao|mapa|local/.test(value)) return MapPin;
   if (/exigencia|pendencia|alerta/.test(value)) return AlertCircle;
   if (/decisao|deferimento|assinatura/.test(value)) return Gavel;
-  if (/analise|projeto|avaliacao/.test(value)) return Layers3;
+  if (/analise|projeto|avaliacao|andamento/.test(value)) return Layers3;
   if (/visualizacao|acompanha|especial/.test(value)) return Eye;
   if (/concluido|aprovado|recebido/.test(value)) return ClipboardCheck;
   if (/validado|confirmado/.test(value)) return CheckCircle2;
