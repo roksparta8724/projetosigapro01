@@ -30,7 +30,8 @@ describe("SIGAPRO — um só cabeçalho institucional, sem cards azuis aninhados
     expect(protocol).toContain('data-sigapro-protocol-quick-actions="true"');
     expect(protocol).toContain('Recepção, conferência documental e despacho inicial');
     expect(protocol).toContain('Protocolar no balcão');
-    expect(protocol).not.toContain('<PageHeader');
+    expect(protocol).not.toContain('<PageHeader\n          eyebrow="Operação de protocolo"');
+    expect(protocol).toContain('<PageHeader\n            eyebrow="Administração municipal"');
     expect(roleCss).toContain('[data-sigapro-protocol-quick-actions="true"]');
   });
 
