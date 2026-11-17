@@ -32,6 +32,7 @@ import {
   PageSideContent,
   PageStatsRow,
 } from "@/components/platform/PageShell";
+import { PageHeader } from "@/components/platform/PageHeader";
 import { PortalFrame } from "@/components/platform/PortalFrame";
 import { attachMunicipalCollectionGuide } from "@/lib/municipalCollectionBridge";
 import { GovbrArGuideBridge } from "@/components/platform/GovbrArGuideBridge";
