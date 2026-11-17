@@ -14,11 +14,16 @@ type PremiumProcessRegistryProps = RegistryProps & {
   onBulkMarker?: (selected: ProcessRecord[], marker: ProcessMarkerOption) => Promise<void>;
   markerOptions?: ProcessMarkerOption[];
   onBulkDispatch?: (selected: ProcessRecord[]) => void;
+  onCreateMarker?: () => void;
+  unitCompletedIds?: string[];
+  unitDataReady?: boolean;
+  onUnitAction?: (selected: ProcessRecord[], completed: boolean) => void;
 };
 
 export function PremiumProcessRegistry({
   processes, operatorName = "", selectedProcessIds, onToggleSelection,
   onBulkMarker, markerOptions = [], onBulkDispatch,
+  onCreateMarker, unitCompletedIds = [], unitDataReady, onUnitAction,
   showSensitiveDetails = true, canDispatchProcess = () => false,
   ...rest
 }: PremiumProcessRegistryProps) {
@@ -123,6 +128,11 @@ export function PremiumProcessRegistry({
         showSensitiveDetails={showSensitiveDetails} bulkBusy={busy}
         markerOptions={markerOptions}
         onBulkMarker={onBulkMarker ? marker => { void markSelected(marker); } : undefined}
+        onCreateMarker={onCreateMarker}
+        selectedProcesses={visibleSelected}
+        unitCompletedIds={unitCompletedIds}
+        unitDataReady={unitDataReady}
+        onUnitAction={onUnitAction ? completed => onUnitAction(visibleSelected, completed) : undefined}
         onBulkDispatch={onBulkDispatch ? () => onBulkDispatch(visibleSelected) : undefined}
         onExport={exportCsv}
       />

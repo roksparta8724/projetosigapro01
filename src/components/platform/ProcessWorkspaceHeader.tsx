@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight, Download, FileText, FileWarning, Flame, FolderOpen, Forward, Gavel, Layers3, MapPin, Search, SlidersHorizontal, Tag, Timer, UserRound, UsersRound, X } from "lucide-react";
+import { CheckCircle2, RotateCcw, Plus, ChevronDown, ChevronRight, Download, FileText, FileWarning, Flame, FolderOpen, Forward, Gavel, Layers3, MapPin, Search, SlidersHorizontal, Tag, Timer, UserRound, UsersRound, X } from "lucide-react";
 import { Flag as ProfessionalMarkerIcon } from "@/components/platform/PremiumIcons";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -54,6 +54,11 @@ export type ProcessWorkspaceHeaderProps = {
   bulkBusy: boolean;
   markerOptions: ProcessMarkerOption[];
   onBulkMarker?: (marker: ProcessMarkerOption) => void;
+  onCreateMarker?: () => void;
+  selectedProcesses?: ProcessRecord[];
+  unitCompletedIds?: string[];
+  unitDataReady?: boolean;
+  onUnitAction?: (completed: boolean) => void;
   onBulkDispatch?: () => void;
   onExport: () => void;
 };
@@ -73,7 +78,8 @@ export function ProcessWorkspaceHeader({
   processes, filteredCount, search, onSearch, quickFilter, onFilter, operatorName,
   selectedCount, allPageSelected, pageCount, onTogglePage, onClearSelection,
   oneSelected, canDispatch, showSensitiveDetails, bulkBusy, markerOptions,
-  onBulkMarker, onBulkDispatch, onExport,
+  onBulkMarker, onCreateMarker, selectedProcesses = [], unitCompletedIds = [], unitDataReady = false,
+  onUnitAction, onBulkDispatch, onExport,
 }: ProcessWorkspaceHeaderProps) {
   const stats = [
     { key: "total", label: "Processos no município", count: processes.length, Icon: FolderOpen, tone: "blue" },
@@ -81,6 +87,13 @@ export function ProcessWorkspaceHeader({
     { key: "guides", label: "Guias pendentes", count: processes.reduce((v, p) => v + processPendingGuideCount(p), 0), Icon: FileText, tone: "violet" },
     { key: "decision", label: "Aguardando decisão", count: processes.filter(processAwaitsDecision).length, Icon: Gavel, tone: "green" },
   ] as const;
+  const completedIds = new Set(unitCompletedIds);
+  const selectedAllCompleted = selectedProcesses.length > 0 &&
+    selectedProcesses.every(process => completedIds.has(process.id));
+  const selectedMixedStates = selectedProcesses.some(process => completedIds.has(process.id)) &&
+    selectedProcesses.some(process => !completedIds.has(process.id));
+  const canOperateInUnit = selectedProcesses.length > 0 && !selectedMixedStates &&
+    selectedProcesses.every(process => completedIds.has(process.id) || canDispatch(process));
   return (
     <div data-sigapro-workspace-header="premium-model" className="sig-workspace-intro">
       <div className="sig-workspace-breadcrumb">Prefeitura <ChevronRight className="h-3.5 w-3.5" /> <strong>Controle de Processos</strong></div>
@@ -146,6 +159,27 @@ export function ProcessWorkspaceHeader({
               ) : <DropdownMenuItem disabled>Selecione um processo</DropdownMenuItem>}
             </DropdownMenuContent>
           </DropdownMenu>
+          {onCreateMarker ? (
+            <Button type="button" size="sm" variant="outline"
+              className="sig-workspace-action sig-workspace-action-create-marker"
+              onClick={onCreateMarker} title="Criar marcador pessoal, como no SEI">
+              <Plus className="h-4 w-4" /> Novo marcador
+            </Button>
+          ) : null}
+          <Button type="button" size="sm" variant="outline"
+            className="sig-workspace-action sig-workspace-action-unit"
+            data-unit-completion-action="true"
+            disabled={!onUnitAction || !unitDataReady || !showSensitiveDetails ||
+              bulkBusy || !canOperateInUnit}
+            title={!unitDataReady
+              ? "Aguardando sincronização oficial das unidades"
+              : selectedMixedStates ? "Selecione apenas processos concluídos ou apenas processos em aberto na unidade"
+                : "Esta ação não altera o status geral nem conclui outras unidades"}
+            onClick={() => onUnitAction?.(!selectedAllCompleted)}>
+            {selectedAllCompleted ? <RotateCcw className="h-4 w-4" /> :
+              <CheckCircle2 className="h-4 w-4" />}
+            {selectedAllCompleted ? "Reabrir na unidade" : "Concluir nesta unidade"}
+          </Button>
           {([
             { label: "Prioridade", Icon: SlidersHorizontal, dispatch: false },
             { label: "Atribuir", Icon: UsersRound, dispatch: false },
