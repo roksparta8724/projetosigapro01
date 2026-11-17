@@ -142,4 +142,23 @@ describe("SEI — marcadores pela mesa e conclusão restrita à unidade", () => 
     expect(sql).not.toMatch(/DELETE\\s+FROM\\s+public\\.processes/i);
   });
 
+
+  it("habilita conclusão à unidade remetente após despacho mesmo sem poder encaminhar novamente", () => {
+    const action = vi.fn();
+    const { container } = render(<MemoryRouter><PremiumProcessRegistry
+      processes={[record]} canDispatchProcess={() => false}
+      canCompleteInUnit={() => true} unitDataReady
+      onUnitAction={action}
+    /></MemoryRouter>);
+    const checkbox = container.querySelector<HTMLInputElement>(
+      '[data-sei-process-row="true"] input[type="checkbox"]'
+    );
+    expect(checkbox).not.toBeNull();
+    fireEvent.click(checkbox!);
+    const button = screen.getByRole("button", { name: "Concluir nesta unidade" });
+    expect(button).toBeEnabled();
+    fireEvent.click(button);
+    expect(action).toHaveBeenCalledWith([record], true);
+  });
+
 });
