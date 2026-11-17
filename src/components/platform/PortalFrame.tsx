@@ -2506,48 +2506,56 @@ export function PortalFrame({ title, eyebrow, children, focusMode = false, compa
               </div>
             </div> : null}
 
-            {!focusMode && !hideSectionHeader ? (
-              <header data-sigapro-compact-header={compactHeader ? "true" : "false"}
-                data-sigapro-institutional-header="single"
-                className={cn("mb-4", compactHeader && "mb-3")}>
-                <div className="flex min-w-0 flex-col gap-3 rounded-[19px] border px-4 py-3 shadow-[0_8px_24px_rgba(6,37,63,0.13)] lg:flex-row lg:items-center lg:justify-between lg:gap-6 lg:px-5"
-                  style={{
-                    borderColor: withAlpha(primaryColor, "0.24"),
-                    background: `linear-gradient(115deg, ${darken(primaryColor, 2)} 0%, ${primaryColor} 54%, ${bannerMid} 100%)`,
-                  }}>
-                  <div className="flex min-w-0 items-center gap-3">
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/20 bg-white/10 text-sky-50">
+            {!focusMode && !hideSectionHeader ? <header data-sigapro-compact-header={compactHeader ? "true" : "false"} className={cn("mb-6 border-b border-slate-200 pb-5", compactHeader && "mb-3 pb-3")}>
+              <div
+                className="overflow-hidden rounded-[24px] border shadow-[0_14px_32px_rgba(15,42,68,0.10)]"
+                style={{
+                  borderColor: withAlpha(primaryColor, "0.26"),
+                  background: `linear-gradient(135deg, ${darken(primaryColor, 2)} 0%, ${primaryColor} 44%, ${bannerMid} 100%)`,
+                }}
+              >
+                <div className={cn("border-b border-white/10 bg-[linear-gradient(90deg,rgba(255,255,255,0.10)_0%,rgba(255,255,255,0.04)_42%,rgba(255,255,255,0.02)_100%)] px-5 py-3.5 md:px-7 lg:px-8", compactHeader && "px-4 py-2.5 md:px-5 lg:px-6")}>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div
+                      className={cn("flex h-11 w-11 items-center justify-center rounded-full border border-white/18 shadow-[0_12px_28px_rgba(2,6,23,0.18)]", compactHeader && "h-9 w-9")}
+                      style={{ background: `linear-gradient(180deg, ${withAlpha(accentColor, "0.24")} 0%, rgba(255,255,255,0.10) 100%)` }}
+                    >
                       <SectionGlyph className="h-5 w-5 text-white" aria-hidden="true" />
-                    </span>
-                    <div className="min-w-0">
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.08em] !text-[#c7eaf8]">{eyebrow}</p>
-                      <h1 className="sig-fit-title mt-0.5 max-w-[60ch] text-[16px] font-bold leading-snug !text-white sm:text-[17px]">
-                        {title}
-                      </h1>
                     </div>
-                  </div>
-                  <div className="flex min-w-0 items-center gap-3 border-t border-white/15 pt-2.5 lg:max-w-[43%] lg:border-l lg:border-t-0 lg:py-0 lg:pl-4">
-                    <InstitutionalLogo
-                      branding={stableHeaderBranding}
-                      fallbackLabel={institutionDisplayName}
-                      variant="header"
-                      contextScope={isMasterUser ? "master" : "municipality"}
-                      className={cn("!m-0 !shrink-0",
-                        isMasterUser ? "!h-[66px] !w-[66px] lg:!h-[66px] lg:!w-[66px]"
-                          : "!h-[66px] !w-[110px] lg:!h-[66px] lg:!w-[110px]")}
-                    />
                     <div className="min-w-0">
-                      <p className="sig-fit-title max-w-full text-[12px] font-bold leading-snug !text-white sm:text-[13px]">
+                    <p className="text-[11px] font-normal uppercase tracking-[0.1em] text-[#D8E9F5]">{eyebrow}</p>
+                    <h1 className="mt-1 sig-fit-title max-w-[56ch] text-lg font-medium leading-tight text-[#FFFFFF] md:text-[1.0625rem] lg:text-[1.125rem]">{title}</h1>
+                  </div>
+                </div>
+                </div>
+
+                <div className={cn("px-5 pb-6 pt-5 md:px-7 lg:px-8", compactHeader && "px-4 pb-3 pt-3 md:px-5 lg:px-6")}>
+                  <div className={cn("flex flex-col gap-5 md:flex-row md:items-center md:gap-6 lg:gap-7", compactHeader && "flex-row items-center gap-3 md:gap-4")}>
+                    <div className="shrink-0">
+                      <InstitutionalLogo
+                        branding={stableHeaderBranding}
+                        fallbackLabel={institutionDisplayName}
+                        variant="header"
+                        contextScope={isMasterUser ? "master" : "municipality"}
+                        className={cn("mx-auto md:mx-0", compactHeader && "!h-[66px] !w-[110px] lg:!h-[66px] lg:!w-[110px]")}
+                      />
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <p className="sig-fit-title max-w-[64ch] text-[15px] font-semibold leading-[1.3] tracking-[-0.01em] text-white drop-shadow-[0_2px_10px_rgba(2,6,23,0.18)] md:text-base">
                         {institutionDisplayName}
                       </p>
-                      <p className="mt-0.5 line-clamp-2 text-[11px] leading-snug !text-[#d7eaf5]">
+                      <p className={cn("mt-2 max-w-[60ch] text-sm font-normal leading-5 text-[#DCEAF7] lg:text-sm", compactHeader && "mt-1 text-xs leading-4")}>
                         {institutionDisplaySubtitle}
                       </p>
+
+                      {/* chip do usuario removido conforme solicitado */}
                     </div>
                   </div>
                 </div>
-              </header>
-            ) : null}
+              </div>
+
+            </header> : null}
 
             {showBlockingOfficialDataError ? (
               <div className="mx-4 mb-4 rounded-[18px] border border-amber-300 bg-amber-50 px-4 py-3 text-amber-950 shadow-sm sm:mx-6 lg:mx-8">
