@@ -1280,7 +1280,7 @@ export function TenantAdminPage() {
                   <p data-summary-muted="true" className="mt-1 text-xs text-slate-200">Visão sintética dos processos oficiais, sem duplicar toda a fila.</p>
                 </div>
                 <Button type="button" size="sm" variant="outline"
-                  className="h-9 rounded-xl border-sky-200 bg-white px-3 font-semibold !text-[#123650] hover:bg-sky-50"
+                  className="sig-premium-light-control h-9 rounded-xl border-sky-200 bg-white px-3 font-semibold !text-[#123650] hover:bg-sky-50"
                   onClick={() => navigate("/prefeitura/visao-geral/processos")}>
                   Ver processos
                 </Button>
@@ -1321,7 +1321,7 @@ export function TenantAdminPage() {
                             {process.sla.breached ? "Vencido" : process.sla.hoursRemaining <= 12 ? "Urgente" : "No prazo"}
                           </Badge>
                           <Button type="button" size="sm" variant="outline"
-                            className="h-8 rounded-lg border-white/25 bg-white !text-[#123650] hover:bg-sky-50"
+                            className="sig-premium-light-control h-8 rounded-lg border-white/25 bg-white !text-[#123650] hover:bg-sky-50"
                             onClick={() => openMunicipalProcess(process.id)}>Abrir</Button>
                         </div>
                       </div>
@@ -1426,7 +1426,7 @@ export function TenantAdminPage() {
                 <p className="mt-1 text-xs text-sky-100">Pesquisa e situação atual sem painéis intermediários.</p>
               </div>
               <Button type="button" size="sm" variant="outline"
-                className="h-9 shrink-0 rounded-lg border-sky-200 bg-white px-3 font-semibold !text-[#123650] hover:bg-sky-50"
+                className="sig-premium-light-control h-9 shrink-0 rounded-lg border-sky-200 bg-white px-3 font-semibold !text-[#123650] hover:bg-sky-50"
                 onClick={() => navigate("/prefeitura/processos")}>
                 Abrir gestão de processos
               </Button>
