@@ -56,7 +56,7 @@ BEGIN
   WHERE c.unit_key=_key
     AND p.tenant_id=c.tenant_id
     AND coalesce(p.municipality_id,p.tenant_id)=_profile.municipality_id
-    AND public.has_process_access(p.id);
+    AND public.profile_has_process_access(p.id,_profile_id);
   RETURN _result;
 END;
 $$;
@@ -101,7 +101,7 @@ BEGIN
   IF _process.id IS NULL OR _process.tenant_id IS NULL
      OR coalesce(_process.municipality_id,_process.tenant_id)
          IS DISTINCT FROM _profile.municipality_id
-     OR NOT public.has_process_access(_process_id) THEN
+     OR NOT public.profile_has_process_access(_process_id,_profile_id) THEN
     RAISE EXCEPTION 'Processo fora do município ou sem acesso.';
   END IF;
   SELECT * INTO _old FROM public.process_unit_completions

@@ -101,7 +101,7 @@ describe("SEI — marcadores pela mesa e conclusão restrita à unidade", () => 
     expect(sql).toContain("PRIMARY KEY (process_id,unit_key)");
     expect(sql).toContain("public.current_profile_id()");
     expect(sql).toContain("public.profile_operational_area(_profile_id)");
-    expect(sql).toContain("public.has_process_access(_process_id)");
+    expect(sql).toContain("public.profile_has_process_access(_process_id,_profile_id)");
     expect(sql).toContain("public.process_audit_entries");
     expect(sql).toContain("municipality_id");
     expect(sql).toContain("REVOKE ALL ON public.process_unit_completions FROM PUBLIC,anon,authenticated");
