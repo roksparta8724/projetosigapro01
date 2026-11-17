@@ -58,6 +58,7 @@ import {
 } from "@/lib/platform";
 import { getMissingRequiredDocuments, getPendingTriageDocuments, hasCompensatedInitialGuide, isReadyForProtocolDispatch } from "@/lib/triageReadiness";
 import { isFinancialTestGuide, protocolPaymentEvidenceLabel } from "@/lib/qaPaymentEvidence";
+import { classifyProtocolRegistrationSource } from "@/lib/protocolRegistrationSource";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
@@ -328,16 +329,14 @@ export function ProtocolDeskPage() {
   const urgentProtocols = queueItems.filter(
     (item) => item.sla.breached || item.sla.hoursRemaining <= 8,
   );
+  // Origem baseada na autoria do cadastro, não no trâmite ou no técnico.
   const deskProtocols = processes.filter((item) =>
-    item.dispatches.some(
-      (dispatch) =>
-        dispatch.from === "Setor de protocolo" || dispatch.to === "Setor de protocolo",
-    ),
-  );
+    classifyProtocolRegistrationSource(item) === "internal");
   const deskProtocolIds = new Set(deskProtocols.map((item) => item.id));
-  const onlineProtocolItems = processes.filter(
-    (item) => isExternalProfessionalSubmission(item) || !deskProtocolIds.has(item.id),
-  );
+  const onlineProtocolItems = processes.filter((item) =>
+    classifyProtocolRegistrationSource(item) === "external");
+  const unidentifiedOriginProtocols = processes.filter((item) =>
+    classifyProtocolRegistrationSource(item) === "unknown");
 
   const latestActivity = useMemo(
     () =>
@@ -1507,16 +1506,16 @@ export function ProtocolDeskPage() {
           <>
             <PageStatsRow className="xl:grid-cols-3">
               <StatCard
-                label="Balcão"
+                label="Cadastro interno"
                 value={String(deskProtocols.length)}
-                description="Entradas com atendimento presencial"
+                description="Registros iniciados pela equipe municipal"
                 icon={Store}
                 tone="blue"
               />
               <StatCard
-                label="Online"
+                label="Portal externo"
                 value={String(onlineProtocolItems.length)}
-                description="Recepção digital disponível"
+                description="Registros de profissionais externos"
                 icon={Globe2}
                 tone="emerald"
               />
@@ -1530,10 +1529,20 @@ export function ProtocolDeskPage() {
             </PageStatsRow>
 
             <TableCard
-              title="Entradas por canal"
-              description="Recepção municipal organizada por origem, com leitura clara entre atendimento presencial e entrada digital."
+              title="Entradas por origem identificada"
+              description="Origem determinada pelo perfil que registrou o processo, sem inferir atendimento presencial apenas pelos despachos."
               icon={ClipboardList}
             >
+              {unidentifiedOriginProtocols.length > 0 ? (
+                <div data-sigapro-protocol-unidentified-origin="true"
+                  className="mb-3 flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5">
+                  <p className="text-xs leading-5 text-amber-900">
+                    {unidentifiedOriginProtocols.length} registro(s) sem perfil de origem confirmado. Não foram atribuídos automaticamente a Balcão ou Portal externo.
+                  </p>
+                  <Button type="button" size="sm" variant="outline" className="h-8 border-amber-300 bg-white text-xs text-amber-950"
+                    onClick={() => setSection("todos")}>Ver no livro oficial</Button>
+                </div>
+              ) : null}
               <div className="grid gap-6 xl:grid-cols-2">
                 <div className="sig-protocol-soft-card rounded-3xl border border-slate-200 p-5">
                   <div className="flex items-start gap-4">
@@ -1543,8 +1552,8 @@ export function ProtocolDeskPage() {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-3">
                         <div className="min-w-0">
-                          <p className="text-sm font-semibold text-slate-950">Atendimento balcão</p>
-                          <p className="mt-1 text-sm text-slate-500">Protocolos com apoio presencial do setor.</p>
+                          <p className="text-sm font-semibold text-slate-950">Cadastro interno</p>
+                          <p className="mt-1 text-sm text-slate-500">Registros iniciados pela equipe municipal, inclusive atendimentos no balcão.</p>
                         </div>
                         <span className="sig-theme-chip shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-700">
                           {deskProtocols.length} entrada{deskProtocols.length === 1 ? "" : "s"}
@@ -1559,7 +1568,7 @@ export function ProtocolDeskPage() {
                           className="rounded-lg border border-dashed border-[#c9dce8] bg-[#f6fafc] px-4 py-3">
                           <p className="text-xs font-semibold text-[#284c66]">Sem entradas presenciais identificadas</p>
                           <p className="mt-1 text-[11px] leading-4 text-[#5b7284]">
-                            Nenhum registro desta Prefeitura está identificado como atendimento presencial nesta lista.
+                            Nenhum registro desta Prefeitura possui autoria interna identificada nesta lista.
                           </p>
                           <Button asChild size="sm" variant="outline" className="mt-3 h-8 rounded-lg border-[#a9c6d9] text-xs text-[#164b6e]">
                             <Link to="/prefeitura/protocolos/novo">Novo atendimento</Link>
@@ -1576,8 +1585,8 @@ export function ProtocolDeskPage() {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-3">
                         <div className="min-w-0">
-                          <p className="text-sm font-semibold text-slate-950">Atendimento online</p>
-                          <p className="mt-1 text-sm text-slate-500">Entradas digitais prontas para conferência.</p>
+                          <p className="text-sm font-semibold text-slate-950">Portal externo</p>
+                          <p className="mt-1 text-sm text-slate-500">Registros enviados por profissionais externos.</p>
                         </div>
                         <span className="sig-theme-chip shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-700">
                           {onlineProtocolItems.length} entrada{onlineProtocolItems.length === 1 ? "" : "s"}
@@ -1592,7 +1601,7 @@ export function ProtocolDeskPage() {
                           className="rounded-lg border border-dashed border-[#c9dce8] bg-[#f6fafc] px-4 py-3">
                           <p className="text-xs font-semibold text-[#284c66]">Nenhuma entrada digital nesta consulta</p>
                           <p className="mt-1 text-[11px] leading-4 text-[#5b7284]">
-                            Os protocolos recebidos eletronicamente aparecerão quando houver registros oficiais identificados.
+                            Os registros criados por profissionais externos aparecerão quando houver origem confirmada.
                           </p>
                         </div>}
                   </div>
