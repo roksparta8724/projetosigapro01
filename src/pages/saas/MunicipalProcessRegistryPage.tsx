@@ -230,7 +230,7 @@ export function MunicipalProcessRegistryPage() {
     if (applyToSelection && selected.length > 0) {
       try {
         await applyMarkerToSelected(selected, markerOption);
-      } catch (error) {
+      } catch {
         setBulkMarkerMessage("Modelo criado na sua pasta, mas a aplicação não foi integralmente confirmada. Confira as marcações dos processos.");
         // The preset really exists; close the creation dialog normally and
         // surface partial application in the operational feedback instead.
