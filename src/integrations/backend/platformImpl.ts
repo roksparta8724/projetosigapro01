@@ -1522,8 +1522,8 @@ export async function loadRemotePlatformStore(focusProcessRouteKey?: string | nu
       ownerEmail: ownerPrivate?.email ?? "",
       technicalLead:
         externalLeadProfile?.full_name ??
-        creatorProfile?.full_name ??
         externalLead?.display_name ??
+        (creatorIsExternalProfessional ? creatorProfile?.full_name : undefined) ??
         "Nao informado",
       ownerProfileId: owner?.profile_id ?? undefined,
       technicalProfileId:
