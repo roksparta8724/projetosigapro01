@@ -54,6 +54,29 @@ describe("SIGAPRO — contrato de contraste das superfícies azuis", () => {
     expect(css).not.toMatch(/\[data-premium-blue-surface="true"\] \*\s*\{/);
   });
 
+  it("garante a hierarquia de contraste compartilhada entre Master, Prefeitura, Protocolo, Financeiro e Diretor", () => {
+    const roleCss = source("src/styles/sigapro-role-blue-contrast.css");
+    const layout = source("src/components/platform/PageLayout.tsx");
+    const stat = source("src/components/platform/StatCard.tsx");
+    const metric = source("src/components/platform/MetricCard.tsx");
+    const main = source("src/main.tsx");
+    expect(layout).toContain('data-premium-role-blue="header"');
+    expect(stat).toContain('data-premium-role-blue="metric"');
+    expect(metric).toContain('data-premium-role-blue="metric"');
+    expect(roleCss).toContain('.sig-page-header[data-premium-surface="header"][data-premium-role-blue="header"]');
+    expect(roleCss).toContain('[data-premium-role-blue="metric"]');
+    expect(main.indexOf('import "./styles/sigapro-role-blue-contrast.css"'))
+      .toBeGreaterThan(main.indexOf('import "./styles/dashboard-topbar-premium-v6.css"'));
+  });
+
+  it("valida contraste AA dos dois tons de texto claro nos cards azul-institucionais", () => {
+    for (const background of ["#0b334f", "#0b2b45", "#11516d", "#124965"]) {
+      for (const foreground of ["#ffffff", "#c7eaf8", "#dceaf6", "#deedf7", "#b9e6f7"]) {
+        expect(contrast(foreground, background)).toBeGreaterThanOrEqual(4.5);
+      }
+    }
+  });
+
   it("azul do organograma mantém texto branco e não altera os cards claros", () => {
     const organogram = source("src/components/platform/MunicipalOrganizationChart.tsx");
     expect(organogram).toContain('data-organogram-code-surface="blue"');
