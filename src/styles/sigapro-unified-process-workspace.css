@@ -436,3 +436,26 @@ html body #root [data-organogram-code-surface="blue"][data-contrast-surface="dar
   color: #ffffff !important;
   stroke: #ffffff !important;
 }
+
+/* Personal vs municipal-unit filters are different and must stay readable
+   even when older positional nth-child color rules are present. */
+.sig-workspace-shell .sig-workspace-chip[data-filter="unidade"]:not(.is-active) {
+  color: #174d6b !important;
+  background: #e9f4fb !important;
+  border-color: #b5d5e7 !important;
+}
+.sig-workspace-shell .sig-workspace-chip[data-filter="unidade"].is-active {
+  color: #fff !important;
+  background: #0c597f !important;
+  border-color: #0c597f !important;
+}
+.sig-workspace-shell .sig-workspace-chip[data-filter="criticos"]:not(.is-active) {
+  color: #a8213d !important;
+  background: #fff0f2 !important;
+  border-color: #f2c1cb !important;
+}
+.sig-workspace-shell .sig-workspace-chip[data-filter="criticos"].is-active {
+  color: #fff !important;
+  background: #a7213b !important;
+  border-color: #a7213b !important;
+}
