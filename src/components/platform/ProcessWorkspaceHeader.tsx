@@ -161,9 +161,10 @@ export function ProcessWorkspaceHeader({
           </DropdownMenu>
           {onCreateMarker ? (
             <Button type="button" size="sm" variant="outline"
-              className="sig-workspace-action sig-workspace-action-create-marker"
-              onClick={onCreateMarker} title="Criar marcador pessoal, como no SEI">
-              <Plus className="h-4 w-4" /> Novo marcador
+              className="sig-workspace-action sig-workspace-action-create-marker w-9 shrink-0 !px-0"
+              onClick={onCreateMarker} title="Criar novo marcador pessoal, como no SEI"
+              aria-label="Novo marcador">
+              <Plus className="h-4 w-4" />
             </Button>
           ) : null}
           <Button type="button" size="sm" variant="outline"
