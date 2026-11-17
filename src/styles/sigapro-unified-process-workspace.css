@@ -329,3 +329,110 @@
     transition: none;
   }
 }
+
+
+/* 17/11/2026 — Dark-blue contrast contract across municipal departments.
+   Avoid blanket "*" color overrides: white buttons and pale badges retain
+   their own dark foreground, while blue cards have legible, explicit ink.
+   High specificity defeats legacy adaptive-card/theme rules without
+   changing the semantic colors of warnings, dates or payment statuses. */
+html body #root [data-premium-blue-surface="true"] {
+  color: #f5fbff !important;
+  border-color: rgba(150, 208, 236, .28);
+  box-shadow: 0 10px 26px rgba(7, 42, 68, .16);
+}
+html body #root [data-premium-blue-surface="true"] :is(h1,h2,h3,h4) {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  opacity: 1 !important;
+}
+html body #root [data-analysis-command-bar="true"] > div:first-child > div:last-child > p:first-child {
+  color: #bfe8fa !important;
+  -webkit-text-fill-color: #bfe8fa !important;
+  letter-spacing: .035em !important;
+  opacity: 1 !important;
+}
+html body #root [data-analysis-command-bar="true"] > div:first-child > div:last-child > h2 {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  letter-spacing: -.02em !important;
+  opacity: 1 !important;
+}
+html body #root [data-analysis-command-bar="true"] > div:first-child > div:last-child > p:last-child {
+  color: #dfedf6 !important;
+  -webkit-text-fill-color: #dfedf6 !important;
+  letter-spacing: 0 !important;
+  opacity: 1 !important;
+}
+html body #root [data-analysis-command-bar="true"] [role="status"] {
+  color: #dcffed !important;
+  -webkit-text-fill-color: #dcffed !important;
+}
+html body #root [data-analysis-command-bar="true"] > div:first-child > span,
+html body #root [data-analysis-command-bar="true"] > div:first-child > span svg {
+  color: #e6f5ff !important;
+  stroke: currentColor !important;
+}
+html body #root [data-analysis-distribution-manager="true"] > div:first-child p,
+html body #root [data-analysis-distribution-manager="true"] [data-analysis-distribution-grid="true"] p {
+  color: #dceaf6 !important;
+  -webkit-text-fill-color: #dceaf6 !important;
+  opacity: 1 !important;
+  letter-spacing: 0;
+}
+html body #root [data-analysis-distribution-manager="true"] [data-analysis-distribution-grid="true"] p.text-2xl {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body #root [data-analysis-distribution-manager="true"] [data-analysis-distribution-grid="true"] p:first-child {
+  color: #dceeff !important;
+  -webkit-text-fill-color: #dceeff !important;
+  letter-spacing: .025em !important;
+}
+html body #root [data-sigapro-summary-board="dark"] :is([data-summary-title="true"],[data-summary-value="true"]) {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  opacity: 1 !important;
+}
+html body #root [data-sigapro-summary-board="dark"] :is([data-summary-muted="true"],[data-summary-label="true"]) {
+  color: #dcecf7 !important;
+  -webkit-text-fill-color: #dcecf7 !important;
+  opacity: 1 !important;
+}
+html body #root [data-sigapro-summary-board="dark"] [data-summary-dark-card="true"] {
+  border-color: rgba(180, 220, 243, .2) !important;
+}
+html body #root [data-sigapro-overview-processes="premium-v5"] > header :is(p,h2) {
+  color: #f2faff !important;
+  -webkit-text-fill-color: #f2faff !important;
+  opacity: 1 !important;
+}
+html body #root [data-sigapro-overview-processes="premium-v5"] > header > div > p:first-child {
+  color: #bce7f8 !important;
+  -webkit-text-fill-color: #bce7f8 !important;
+}
+html body #root [data-premium-blue-surface="true"] .sig-premium-light-control {
+  background: #ffffff !important;
+  border-color: #cee0eb !important;
+  color: #153b58 !important;
+  -webkit-text-fill-color: #153b58 !important;
+  box-shadow: 0 2px 7px rgba(5, 34, 58, .12) !important;
+}
+html body #root [data-premium-blue-surface="true"] .sig-premium-light-control :is(svg,span) {
+  color: #153b58 !important;
+  -webkit-text-fill-color: #153b58 !important;
+}
+html body #root [data-premium-blue-surface="true"] .sig-premium-light-control:hover:not(:disabled) {
+  background: #eff8fd !important;
+  border-color: #96c7df !important;
+}
+html body #root [data-organogram-code-surface="blue"][data-contrast-surface="dark"],
+html body #root [data-organogram-code-surface="blue"][data-contrast-surface="dark"] [data-organogram-code-text="true"] {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  opacity: 1 !important;
+}
+html body #root [data-organogram-code-surface="blue"][data-contrast-surface="dark"] svg {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+}
