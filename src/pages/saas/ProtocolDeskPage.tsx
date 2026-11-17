@@ -1203,14 +1203,50 @@ export function ProtocolDeskPage() {
     <PortalFrame eyebrow="SETOR DE PROTOCOLO" title="Triagem municipal, atendimento e fluxo inicial">
       <PageShell className={section === "visao-geral" ? "sig-module-summary-active" : undefined}>
         <section data-sigapro-protocol-quick-actions="true"
-          className="flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-[15px] border border-[#c5d8e6] bg-[linear-gradient(180deg,#ffffff_0%,#f3f8fc_100%)] px-4 py-3 shadow-[0_4px_12px_rgba(18,54,83,0.05)]">
-          <div className="min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-[0.07em] text-[#416984]">Operação de protocolo</p>
+          aria-label="Situação operacional do Protocolo"
+          className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-3 rounded-[15px] border border-[#c5d8e6] bg-white px-4 py-3 shadow-[0_4px_12px_rgba(18,54,83,0.05)]">
+          <div className="min-w-[180px] flex-1">
+            <p className="text-[10px] font-bold uppercase tracking-[0.07em] text-[#416984]">Painel operacional</p>
             <h2 className="mt-0.5 text-sm font-bold leading-snug text-[#173650]">
-              Recepção, conferência documental e despacho inicial
+              Protocolo e triagem
             </h2>
+            <p className="mt-1 text-[11px] leading-4 text-[#526c80]">
+              {!effectiveScopeId
+                ? "Prefeitura não identificada para esta consulta."
+                : processes.length === 0
+                  ? "Sem protocolos oficiais recebidos nesta Prefeitura."
+                  : "Informações oficiais da Prefeitura vinculada."}
+            </p>
           </div>
-          <Button asChild className="h-9 shrink-0 rounded-lg bg-[#124c70] px-4 text-xs font-bold !text-white hover:bg-[#0b3957]">
+          <div data-sigapro-protocol-live-summary="true"
+            className="flex min-w-0 flex-[2_1_410px] flex-wrap items-center gap-x-0 gap-y-2"
+            aria-label="Indicadores de trabalho atuais">
+            <button type="button" onClick={() => setSection("todos")}
+              className="group flex min-w-[95px] flex-1 flex-col items-start border-r border-[#d6e3ed] px-3 py-1 text-left transition-colors hover:bg-[#eef6fb] focus-visible:rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-600"
+              title="Abrir o livro de todos os protocolos">
+              <span className="text-lg font-extrabold leading-5 tabular-nums text-[#113e5b]">{processes.length}</span>
+              <span className="mt-1 text-[11px] font-semibold leading-4 text-[#4d657a]">Registrados</span>
+            </button>
+            <button type="button" onClick={() => setSection("fila")}
+              className="group flex min-w-[95px] flex-1 flex-col items-start border-r border-[#d6e3ed] px-3 py-1 text-left transition-colors hover:bg-[#eef6fb] focus-visible:rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-600"
+              title="Abrir a fila de triagem">
+              <span className="text-lg font-extrabold leading-5 tabular-nums text-[#113e5b]">{queueItems.length}</span>
+              <span className="mt-1 text-[11px] font-semibold leading-4 text-[#4d657a]">Na unidade</span>
+            </button>
+            <button type="button" onClick={() => setSection("documentos")}
+              className="group flex min-w-[95px] flex-1 flex-col items-start border-r border-[#d6e3ed] px-3 py-1 text-left transition-colors hover:bg-[#eef6fb] focus-visible:rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-600"
+              title="Consultar pendências documentais">
+              <span className="text-lg font-extrabold leading-5 tabular-nums text-[#113e5b]">{incompleteProtocols.length}</span>
+              <span className="mt-1 text-[11px] font-semibold leading-4 text-[#4d657a]">Pendências</span>
+            </button>
+            <button type="button" onClick={() => setSection("pagamentos")}
+              className="group flex min-w-[95px] flex-1 flex-col items-start px-3 py-1 text-left transition-colors hover:bg-[#eef6fb] focus-visible:rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-600"
+              title="Consultar pagamentos de protocolo pendentes">
+              <span className="text-lg font-extrabold leading-5 tabular-nums text-[#113e5b]">{pendingProtocolPayments.length + pendingPreprotocolPayments.length}</span>
+              <span className="mt-1 text-[11px] font-semibold leading-4 text-[#4d657a]">Guias pendentes</span>
+            </button>
+          </div>
+          <Button asChild className="h-10 shrink-0 rounded-lg bg-[#124c70] px-4 text-xs font-bold !text-white hover:bg-[#0b3957]">
             <Link to="/prefeitura/protocolos/novo">
               <FilePlus2 className="mr-2 h-4 w-4 text-sky-100" />
               Protocolar no balcão
