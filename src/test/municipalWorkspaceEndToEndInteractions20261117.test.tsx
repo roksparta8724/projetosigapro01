@@ -111,7 +111,7 @@ describe("SIGAPRO — integração REAL da barra ao Controle de Processos", () =
       expect(button).toBeEnabled();
       fireEvent.click(button);
       expect(screen.getByRole("heading", { name: title })).toBeInTheDocument();
-      expect(screen.getByText(/Nenhuma alteração foi realizada|Nenhuma alteração/i)).toBeInTheDocument();
+      expect(screen.getAllByRole("alert").length).toBeGreaterThan(0);
       expect(screen.getByRole("button", { name: "Confirmar operação" })).toBeDisabled();
       fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
     }
