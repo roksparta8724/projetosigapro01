@@ -11,11 +11,14 @@ describe("SIGAPRO — homologação premium integrada ao código oficial", () =>
     expect(code).toContain('label: "Fila operacional"');
     expect(code).toContain('data-sigapro-overview-summary="premium-v4"');
   });
-  it("Dashboard mostra processos reais no primeiro quadro", () => {
+  it("Dashboard mantém os resumos executivos, sem duplicar o Controle de Processos", () => {
     const code=read("src/pages/saas/DashboardHomePage.tsx");
-    expect(code).toContain('data-dashboard-operational-first="true"');
-    expect(code).toContain("CompactProcessRegistry");
-    expect(code).toContain("renderMunicipalWorkQueue");
+    const registry=read("src/pages/saas/MunicipalProcessRegistryPage.tsx");
+    expect(code).toContain('data-dashboard-hero="compact-v6"');
+    expect(code).not.toContain('data-dashboard-operational-first="true"');
+    expect(code).not.toContain("CompactProcessRegistry");
+    expect(code).not.toContain("renderMunicipalWorkQueue");
+    expect(registry).toContain("<CompactProcessRegistry");
   });
   it("Organograma e Mesa Técnica têm layout compacto e relatório no mesmo pacote", () => {
     expect(read("src/pages/saas/MunicipalOrganizationPage.tsx")).toContain('data-municipal-organization-hero="compact-v5"');
