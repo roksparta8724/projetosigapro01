@@ -64,7 +64,9 @@ describe("SIGAPRO — Controle de Processos único, conforme referência aprovad
     expect(municipality).toContain('data-sei-personal-archive-controls="true"');
     expect(municipality).toContain("sem alterar tramitação ou status oficial");
     expect(header).toContain("(oneSelected && canDispatch(oneSelected))");
-    expect(header).toContain("!showSensitiveDetails || !onBulkMarker");
+    expect(header).toContain('data-has-selection={selectedCount > 0 ? "true" : "false"}');
+    expect(header).toContain("Este perfil tem somente permissão de consulta");
+    expect(header).toContain('onSelect={() => onToolbarAction("etiquetas")}');
     expect(header).not.toContain("!dispatch || canDispatch(oneSelected)");
   });
 });

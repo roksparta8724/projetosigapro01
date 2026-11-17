@@ -132,7 +132,9 @@ export function ProcessWorkspaceHeader({
           ))}
         </div>
       </div>
-      <div data-sigapro-process-bulk-actions="true" className="sig-workspace-actions">
+      <div data-sigapro-process-bulk-actions="true"
+        data-has-selection={selectedCount > 0 ? "true" : "false"}
+        className="sig-workspace-actions">
         {showSensitiveDetails ? (
           <label className="sig-workspace-select-all">
             <input type="checkbox" checked={allPageSelected} disabled={!pageCount} onChange={e => onTogglePage(e.target.checked)}

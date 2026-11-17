@@ -1053,3 +1053,35 @@
 .sig-workspace-shell .sig-process-registry .sig-reference-marker[data-marker-origin="automatic"] svg {
   fill: none;
 }
+
+/* Premium SEI action-state clarity. Selection visibly activates controls
+   rather than leaving all commands looking permanently disabled. */
+.sig-workspace-shell .sig-workspace-actions[data-has-selection="true"] {
+  border-color: #91b8d8;
+  box-shadow: 0 5px 18px rgba(12, 77, 127, .12);
+}
+.sig-workspace-shell .sig-workspace-actions[data-has-selection="true"] .sig-workspace-action:not(:disabled) {
+  background: #eef6ff !important;
+  border-color: #9fc5e2 !important;
+  color: #0b4169 !important;
+  box-shadow: 0 1px 5px rgba(20, 75, 125, .11);
+  cursor: pointer;
+}
+.sig-workspace-shell .sig-workspace-actions[data-has-selection="true"] .sig-workspace-action:not(:disabled):hover {
+  background: #dceeff !important;
+  border-color: #448ec1 !important;
+}
+.sig-workspace-shell .sig-workspace-actions[data-has-selection="true"] .sig-workspace-action-primary:not(:disabled) {
+  background: linear-gradient(135deg, #115e91, #073a65) !important;
+  border-color: #0d5481 !important;
+  color: #fff !important;
+}
+.sig-workspace-shell .sig-workspace-actions[data-has-selection="true"] .sig-workspace-action-green:not(:disabled) {
+  background: linear-gradient(135deg, #139269, #08684c) !important;
+  border-color: #097a59 !important;
+  color: #fff !important;
+}
+.sig-workspace-shell .sig-workspace-actions[data-has-selection="true"] .sig-workspace-action:focus-visible {
+  outline: 3px solid #73bfff;
+  outline-offset: 2px;
+}
