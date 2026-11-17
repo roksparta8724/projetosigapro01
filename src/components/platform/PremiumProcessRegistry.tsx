@@ -18,6 +18,7 @@ type PremiumProcessRegistryProps = RegistryProps & {
   unitCompletedIds?: string[];
   unitDataReady?: boolean;
   onUnitAction?: (selected: ProcessRecord[], completed: boolean) => void;
+  canCompleteInUnit?: (process: ProcessRecord) => boolean;
   onToolbarAction?: (action: ProcessWorkspaceAction, selected: ProcessRecord[]) => void;
   exportScopeLabel?: string;
 };
@@ -25,7 +26,7 @@ type PremiumProcessRegistryProps = RegistryProps & {
 export function PremiumProcessRegistry({
   processes, operatorName = "", selectedProcessIds, onToggleSelection,
   onBulkMarker, markerOptions = [], onBulkDispatch,
-  onCreateMarker, unitCompletedIds = [], unitDataReady, onUnitAction,
+  onCreateMarker, unitCompletedIds = [], unitDataReady, onUnitAction, canCompleteInUnit,
   onToolbarAction, exportScopeLabel = "Processos municipais",
   showSensitiveDetails = true, canDispatchProcess = () => false,
   ...rest
@@ -132,6 +133,7 @@ export function PremiumProcessRegistry({
         onTogglePage={checked => pageIds.forEach(id => toggleSelection(id, checked))}
         onClearSelection={clearSelection}
         oneSelected={oneSelected} canDispatch={canDispatchProcess}
+        canCompleteInUnit={canCompleteInUnit}
         showSensitiveDetails={showSensitiveDetails} bulkBusy={busy}
         markerOptions={markerOptions}
         onBulkMarker={onBulkMarker ? marker => { void markSelected(marker); } : undefined}
