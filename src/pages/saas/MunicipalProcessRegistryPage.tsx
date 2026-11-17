@@ -98,7 +98,7 @@ export function MunicipalProcessRegistryPage() {
     .map((process) => process.id);
 
   const applyMarkerToSelected = async (
-    selected: ProcessRecord[], marker: { label: string; color: string },
+    selected: ProcessRecord[], marker: { label: string; color: string; emoji?: string },
   ) => {
     if (bulkMarkerBusy || !remoteSyncedForCurrentUser) {
       throw new Error("Aguarde a sincronização oficial antes de marcar.");
