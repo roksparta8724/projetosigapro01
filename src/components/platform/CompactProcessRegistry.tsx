@@ -1,7 +1,7 @@
 import { useEffect, useId, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
-  AlertTriangle, Archive, ArchiveRestore, CalendarClock, ChevronLeft,
+  Archive, ArchiveRestore, CalendarClock, ChevronLeft,
   ChevronRight, Clock3, ExternalLink, FileWarning, Flag, History,
   MoreHorizontal, Send, Workflow, Flame, Eye, MapPin, CheckCircle2, Layers3, AlertCircle, ClipboardCheck, Gavel, Tag, ArrowUpDown, FileText,
 } from "lucide-react";
@@ -263,6 +263,8 @@ export function CompactProcessRegistry({
               const marker = process.tags?.[0] ? parseMarker(process.tags[0]) : null;
               const facts = processFacts(process);
               const markers = visibleProcessMarkers(process, facts, showSensitiveDetails);
+              const thirdMarker = markers[2];
+              const ThirdMarkerIcon = thirdMarker ? markerIcon(thirdMarker.label) : null;
               const archived = archivedProcessIds.includes(process.id);
               const fact = facts;
               // External/owner views must not reveal internal ownership, folder,
@@ -301,7 +303,7 @@ export function CompactProcessRegistry({
                         aria-label={"Selecionar processo " + number}
                         className="mr-1 h-4 w-4 shrink-0 cursor-pointer accent-sky-800" />
                     ) : null}
-                    {markers.slice(0, 3).map((item, markerIndex) => {
+                    {markers.slice(0, 2).map((item, markerIndex) => {
                       const MarkerIcon = markerIcon(item.label);
                       return (
                         <span key={markerIndex}
@@ -313,10 +315,18 @@ export function CompactProcessRegistry({
                         </span>
                       );
                     })}
-                    {markers.length > 3 ? (
-                      <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-700 dark:bg-slate-800 dark:text-white" title="Outros indicadores e marcadores">
-                        +{markers.length - 3}
-                      </span>
+                    {thirdMarker && ThirdMarkerIcon ? (
+                      <>
+                        <span className="sig-reference-marker sig-reference-marker-third inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-lg"
+                          title={thirdMarker.origin === "automatic" ? "Indicador automático: " + thirdMarker.label : thirdMarker.label}
+                          data-marker-origin={thirdMarker.origin} data-marker-kind={thirdMarker.kind}
+                          style={{ color: thirdMarker.color, backgroundColor: thirdMarker.color + "13", borderColor: thirdMarker.color + "33" }}>
+                          <ThirdMarkerIcon className="h-4 w-4" strokeWidth={2.5} aria-hidden="true" />
+                        </span>
+                        <span className="sig-reference-extra-count sig-reference-extra-count-narrow" title="Mais indicadores e marcadores">+{markers.length - 2}</span>
+                        {markers.length > 3 ? <span className="sig-reference-extra-count sig-reference-extra-count-wide"
+                          title="Outros indicadores e marcadores">+{markers.length - 3}</span> : null}
+                      </>
                     ) : null}
                     {markers.length === 0 ? <Flag className="h-4 w-4 shrink-0 text-slate-400" aria-label="Sem marcador" /> : null}
                   </div>

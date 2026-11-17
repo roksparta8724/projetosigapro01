@@ -44,6 +44,8 @@ describe("SIGAPRO — marcadores com cores semânticas e layout real do controle
     const { container } = render(<MemoryRouter><CompactProcessRegistry processes={[record]} /></MemoryRouter>);
     expect(container.querySelector('[data-marker-origin="saved"][data-marker-kind="vistoria"]')).toHaveStyle({ color: "#7c3aed" });
     expect(container.querySelector('[data-marker-origin="saved"][data-marker-kind="custom"]')).toHaveStyle({ color: "#ea580c" });
+    expect(source("src/components/platform/CompactProcessRegistry.tsx")).toContain("markers.slice(0, 2)");
+    expect(source("src/components/platform/CompactProcessRegistry.tsx")).toContain("sig-reference-marker-third");
   });
 
   it("não divulga indicadores internos de prazo para visualização externa", () => {

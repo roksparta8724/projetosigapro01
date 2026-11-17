@@ -684,3 +684,38 @@
 .dark .sig-workspace-shell .sig-reference-marker {
   box-shadow: inset 0 0 0 1px rgba(255,255,255,.08);
 }
+
+/* Third marker is visible only when the real table container can fit it. */
+.sig-workspace-shell .sig-process-registry .sig-reference-marker {
+  width: 20px !important;
+  height: 20px !important;
+}
+.sig-workspace-shell .sig-reference-marker-third,
+.sig-workspace-shell .sig-reference-extra-count-wide {
+  display: none !important;
+}
+.sig-workspace-shell .sig-reference-extra-count {
+  flex: 0 0 auto;
+  min-width: 14px;
+  border-radius: 5px;
+  background: #e9f0f8;
+  color: #30516c;
+  font-size: 9px;
+  font-weight: 800;
+  text-align: center;
+}
+@container sigapro-process-registry (min-width: 1120px) {
+  .sig-workspace-shell .sig-process-registry .sig-reference-marker {
+    width: 22px !important;
+    height: 22px !important;
+  }
+  .sig-workspace-shell .sig-reference-marker-third {
+    display: inline-flex !important;
+  }
+  .sig-workspace-shell .sig-reference-extra-count-narrow {
+    display: none !important;
+  }
+  .sig-workspace-shell .sig-reference-extra-count-wide {
+    display: inline-flex !important;
+  }
+}
