@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   Activity,
@@ -31,7 +31,6 @@ import { PlanModuleRoute } from "@/components/platform/PlanModuleRoute";
 import { Button } from "@/components/ui/button";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { PlanCapacityCard } from "@/components/platform/PlanCapacityCard";
-import { PremiumProcessRegistry as CompactProcessRegistry } from "@/components/platform/PremiumProcessRegistry";
 import { displayDashboardCategoryLabel } from "@/lib/dashboardPresentation";
 import {hasPrematureAnalysisStage,isAdministrativelyClosed,isVerifiedTechnicalAnalysis} from "@/lib/processOperationalIntegrity";
 import {isFinancialTestGuide,isPendingFinancialGuide,isBankVerifiedFinancialGuide,summarizeFinancialGuideEvidence} from "@/lib/qaPaymentEvidence";
@@ -39,8 +38,7 @@ import { usePlanCapacityLive } from "@/hooks/usePlanCapacityLive";
 import { useMunicipality } from "@/hooks/useMunicipality";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
-import { formatMarkerLabel, useMarkerPresets } from "@/hooks/useMarkerPresets";
-import { formatOfficialProcessNumber, formatOfficialProcessTitle, getProcessPaymentGuides, getVisibleProcessesByScope, isExternalProfessionalRole, isProcessOwnedBySessionDepartment, matchesOperationalScope, normalizeOwnerDocument, type ProcessRecord, type ProcessStatus, type SessionUser } from "@/lib/platform";
+import { formatOfficialProcessNumber, formatOfficialProcessTitle, getProcessPaymentGuides, getVisibleProcessesByScope, isExternalProfessionalRole, matchesOperationalScope, normalizeOwnerDocument, type ProcessRecord, type ProcessStatus, type SessionUser } from "@/lib/platform";
 
 const statusLabels: Record<ProcessStatus, string> = {
   rascunho: "Rascunho",
@@ -443,15 +441,7 @@ export function DashboardHomePage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { session } = usePlatformSession();
-  const {
-    processes, institutions, sessionUsers, getInstitutionSettings, getUserProfile,
-    remoteSyncedForCurrentUser, dataError: processDataError, refreshRemoteStore,
-    addProcessMarkerWithColor,
-  } = usePlatformData();
-  const { presets: markerPresets } = useMarkerPresets();
-  const [dashboardSelectedProcessIds, setDashboardSelectedProcessIds] = useState<string[]>([]);
-  const [dashboardMarkerBusy, setDashboardMarkerBusy] = useState(false);
-  const [dashboardMarkerFeedback, setDashboardMarkerFeedback] = useState("");
+  const { processes, institutions, sessionUsers, getInstitutionSettings, getUserProfile } = usePlatformData();
   const { municipality, scopeId } = useMunicipality();
   const isMaster = session.role === "master_admin" || session.role === "master_ops";
   const isExternalProfessional = isExternalProfessionalRole(session.role);
@@ -464,11 +454,6 @@ export function DashboardHomePage() {
   const activeInstitutionId = isMaster
     ? municipality?.id ?? scopeId ?? session.tenantId ?? null
     : session.municipalityId ?? session.tenantId ?? municipality?.id ?? scopeId ?? null;
-  useEffect(() => {
-    // Never carry selected municipal processes across authenticated accounts.
-    setDashboardSelectedProcessIds([]);
-    setDashboardMarkerFeedback("");
-  }, [session.id, activeInstitutionId]);
   const showPlanCapacity = isMaster || session.role === "prefeitura_admin";
   const planMunicipalityId = session.municipalityId ?? session.tenantId ?? null;
   const planCapacity = usePlanCapacityLive(isMaster ? null : planMunicipalityId, {
@@ -853,113 +838,6 @@ export function DashboardHomePage() {
         </SectionCard>
   );
 
-  // A fila da primeira dobra usa o mesmo controle funcional da Prefeitura,
-  // sempre com os registros oficiais sincronizados e escopo da sessão.
-  // Paginação e filtros são locais à visualização; não alteram o banco.
-  const applyDashboardMarker = async (
-    selected: ProcessRecord[],
-    marker: { label: string; color: string },
-  ) => {
-    if (dashboardMarkerBusy) throw new Error("Marcação já em andamento.");
-    const authorizedIds = new Set(tenantProcesses.map((process) => process.id));
-    if (
-      !remoteSyncedForCurrentUser ||
-      session.role === "prefeitura_admin" ||
-      selected.length === 0 ||
-      selected.length > 25 ||
-      selected.some((process) =>
-        !authorizedIds.has(process.id) ||
-        !isProcessOwnedBySessionDepartment(session, process)
-      )
-    ) {
-      setDashboardMarkerFeedback(
-        "A marcação exige sincronização oficial, até 25 processos e permissão em todos os itens selecionados.",
-      );
-      throw new Error("Sem autorização para a seleção.");
-    }
-    setDashboardMarkerBusy(true);
-    setDashboardMarkerFeedback("");
-    let confirmed = 0;
-    try {
-      for (const process of selected) {
-        await addProcessMarkerWithColor(process.id, marker.label, marker.color, session.name);
-        confirmed += 1;
-      }
-      setDashboardMarkerFeedback(
-        `Marcador registrado individualmente em ${confirmed} processo(s).`,
-      );
-    } catch (error) {
-      setDashboardMarkerFeedback(
-        `Marcação interrompida: ${confirmed} de ${selected.length} processo(s) confirmados. Confira o histórico antes de repetir.`,
-      );
-      throw error;
-    } finally {
-      setDashboardMarkerBusy(false);
-    }
-  };
-
-  const renderMunicipalWorkQueue = () => {
-    if (isMaster || isExternal) return null;
-    return (
-      <section
-        data-dashboard-operational-first="true"
-        aria-label="Controle de processos municipais"
-        className="min-w-0 w-full"
-      >
-        <div className="mb-3 flex min-w-0 flex-wrap items-center justify-between gap-3">
-          <p className="min-w-0 text-xs font-medium text-slate-600 dark:text-slate-300">
-            Operação municipal · dados oficiais · {remoteSyncedForCurrentUser
-              ? `${tenantProcesses.length.toLocaleString("pt-BR")} processo(s) no escopo autorizado`
-              : "aguardando sincronização do banco"}
-          </p>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-9 shrink-0 rounded-lg border-sky-300 bg-white px-3 font-bold !text-[#123650] hover:bg-sky-50"
-            onClick={() => navigate("/prefeitura/processos")}
-          >
-            Abrir controle em tela completa
-            <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
-          </Button>
-        </div>
-        {!remoteSyncedForCurrentUser ? (
-          <div role={processDataError ? "alert" : "status"} data-dashboard-process-sync="pending"
-            className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-xs text-slate-900">
-            <span>{processDataError || "Sincronizando processos oficiais. O cache local não representa o cadastro do município."}</span>
-            <Button type="button" size="sm" variant="outline"
-              onClick={() => { void refreshRemoteStore().catch(() => undefined); }}>
-              Atualizar do banco
-            </Button>
-          </div>
-        ) : null}
-        {dashboardMarkerFeedback ? (
-          <p role="status" className="mb-3 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-xs font-semibold text-sky-900 dark:border-sky-600 dark:bg-slate-900 dark:text-sky-200">
-            {dashboardMarkerFeedback}
-          </p>
-        ) : null}
-        <CompactProcessRegistry
-          operatorName={session.name}
-          processes={remoteSyncedForCurrentUser ? tenantProcesses : []}
-          selectedProcessIds={dashboardSelectedProcessIds}
-          onToggleSelection={(processId, checked) => setDashboardSelectedProcessIds((current) =>
-            checked ? Array.from(new Set([...current, processId])) : current.filter((id) => id !== processId))}
-          markerOptions={markerPresets.filter((preset) => preset.active).map((preset) => ({
-            label: formatMarkerLabel(preset), color: preset.color || "#2563eb",
-          }))}
-          onBulkMarker={session.role === "prefeitura_admin" ? undefined : applyDashboardMarker}
-          showArchiveAction={false}
-          canDispatchProcess={(process) =>
-            session.role !== "prefeitura_admin" &&
-            isProcessOwnedBySessionDepartment(session, process)}
-          emptyMessage={remoteSyncedForCurrentUser
-            ? "Nenhum processo oficial encontrado no escopo autorizado."
-            : "Aguardando sincronização oficial — os processos existentes não foram excluídos."}
-        />
-      </section>
-    );
-  };
-
   const renderOverview = () => (
     <>
       {showPlanCapacity && isMaster ? renderPlanCapacity() : null}
@@ -1311,7 +1189,6 @@ export function DashboardHomePage() {
   return (
     <PortalFrame eyebrow="DASHBOARD" title="Resumo institucional" compactHeader>
       <PageShell>
-        {section === "visao-geral" ? renderMunicipalWorkQueue() : null}
         <section
           data-dashboard-hero="compact-v6"
           aria-label="Painel executivo do Dashboard"
