@@ -187,11 +187,12 @@ export function ProcessWorkspaceHeader({
           <Button type="button" size="sm" variant="outline"
             className="sig-workspace-action sig-workspace-action-unit"
             data-unit-completion-action="true"
-            disabled={!onUnitAction || !showSensitiveDetails ||
-              bulkBusy || selectedCount === 0}
+            disabled={!onUnitAction || !showSensitiveDetails || !unitDataReady ||
+              !canOperateInUnit || bulkBusy || selectedCount === 0}
             title={!unitDataReady
-              ? "Clique para consultar a disponibilidade de conclusão nesta unidade"
+              ? "A conclusão local depende de sincronização e autorização confirmadas no Neon"
               : selectedMixedStates ? "Selecione processos no mesmo estado da unidade"
+                : !canOperateInUnit ? "A seleção inclui processo sem vínculo com esta unidade"
                 : "Ação somente da unidade atual, sem alterar o status municipal"}
             onClick={() => onUnitAction?.(!selectedAllCompleted)}
             data-unit-candidate={canOperateInUnit ? "authorized" : "check-permissions"}>
