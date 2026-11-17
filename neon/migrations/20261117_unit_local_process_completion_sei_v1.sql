@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS public.process_unit_completions (
 CREATE INDEX IF NOT EXISTS process_unit_completions_scoped_idx
   ON public.process_unit_completions(tenant_id,unit_key,status);
 ALTER TABLE public.process_unit_completions ENABLE ROW LEVEL SECURITY;
-REVOKE ALL ON public.process_unit_completions FROM PUBLIC,anon,authenticated;
+REVOKE ALL ON public.process_unit_completions FROM PUBLIC,authenticated;
 
 CREATE OR REPLACE FUNCTION public.list_my_process_unit_completions_v1()
 RETURNS jsonb
@@ -115,7 +115,7 @@ BEGIN
     RAISE EXCEPTION 'Este processo não está concluído na sua unidade.';
   END IF;
   IF _old.process_id IS NOT NULL
-    AND _old.status = CASE WHEN _completed THEN 'concluido' ELSE 'reaberto' END THEN
+    AND _old.status = (CASE WHEN _completed THEN 'concluido' ELSE 'reaberto' END) THEN
     RETURN jsonb_build_object('process_id',_old.process_id,'status',_old.status,
       'unit_name',_old.unit_name,'updated_at',_old.updated_at,'unchanged',true);
   END IF;

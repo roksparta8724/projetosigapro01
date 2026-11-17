@@ -104,7 +104,9 @@ describe("SEI — marcadores pela mesa e conclusão restrita à unidade", () => 
     expect(sql).toContain("public.profile_has_process_access(_process_id,_profile_id)");
     expect(sql).toContain("public.process_audit_entries");
     expect(sql).toContain("municipality_id");
-    expect(sql).toContain("REVOKE ALL ON public.process_unit_completions FROM PUBLIC,anon,authenticated");
+    expect(sql).toContain("REVOKE ALL ON public.process_unit_completions FROM PUBLIC,authenticated");
+    expect(sql).not.toContain("PUBLIC,anon,authenticated");
+    expect(sql).toContain("_old.status = (CASE WHEN _completed THEN 'concluido' ELSE 'reaberto' END) THEN");
     expect(sql).not.toMatch(/UPDATE\s+public\.processes\s+SET/i);
     expect(sql).not.toMatch(/DELETE\s+FROM\s+public\.processes/i);
     expect(sql).not.toMatch(/ALTER\s+TABLE\s+public\.processes/i);
