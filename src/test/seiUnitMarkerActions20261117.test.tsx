@@ -49,7 +49,7 @@ describe("SEI — marcadores pela mesa e conclusão restrita à unidade", () => 
   it("só permite concluir na unidade quando selecionado e autorizado", () => {
     const action = vi.fn();
     const create = vi.fn();
-    const { rerender } = render(<MemoryRouter><PremiumProcessRegistry
+    const { container, rerender } = render(<MemoryRouter><PremiumProcessRegistry
       processes={[record]} onCreateMarker={create} onUnitAction={action}
       unitDataReady unitCompletedIds={[]}
       canDispatchProcess={() => true} /></MemoryRouter>);
@@ -57,7 +57,11 @@ describe("SEI — marcadores pela mesa e conclusão restrita à unidade", () => 
     expect(localAction).toBeDisabled();
     fireEvent.click(screen.getByRole("button", { name: "Novo marcador" }));
     expect(create).toHaveBeenCalledOnce();
-    fireEvent.click(screen.getByRole("checkbox", { name: /Selecionar processo/ }));
+    const rowCheckbox = container.querySelector<HTMLInputElement>(
+      '[data-sei-process-row="true"] input[type="checkbox"]'
+    );
+    expect(rowCheckbox).not.toBeNull();
+    fireEvent.click(rowCheckbox!);
     expect(screen.getByRole("button", { name: "Concluir nesta unidade" })).toBeEnabled();
     fireEvent.click(screen.getByRole("button", { name: "Concluir nesta unidade" }));
     expect(action).toHaveBeenCalledWith([record], true);
