@@ -16,7 +16,7 @@ import {
   reserveGuiaRecolhimentoOficialWindow,
 } from "@/components/GuiaRecolhimentoOficial";
 import { FileDropZone, type UploadedFileItem } from "@/components/platform/FileDropZone";
-import { PageHero } from "@/components/platform/PageHero";
+import { ProcessDetailHero } from "@/components/platform/ProcessDetailHero";
 import { PageShell, PageStatsRow } from "@/components/platform/PageShell";
 import { formatProcessSlaDeadline } from "@/lib/processSlaPresentation";
 import { PixQrCode } from "@/components/platform/PixQrCode";
@@ -1183,7 +1183,15 @@ export function ProcessDetailPage() {
       return (
         <PortalFrame eyebrow="Processo" title="Carregando processo">
           <PageShell className="sig-process-detail-premium !max-w-none !px-3 sm:!px-4 lg:!px-5 2xl:!px-6">
-            <div className="min-h-[420px]" aria-hidden="true" />
+            <section aria-label="Preparando dados do processo" className="rounded-[20px] border border-sky-200 bg-[linear-gradient(120deg,#0c304c,#0e526e)] px-5 py-5 text-white shadow-lg">
+              <p className="text-xs font-bold uppercase tracking-[0.12em] text-sky-200">SIGAPRO · Processo municipal</p>
+              <h1 className="mt-2 text-xl font-bold text-white">Carregando informações do processo</h1>
+              <p className="mt-1 text-sm text-sky-100">Consultando os dados autorizados desta prefeitura.</p>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2" aria-hidden="true">
+                <div className="h-16 animate-pulse rounded-xl border border-white/15 bg-white/10" />
+                <div className="h-16 animate-pulse rounded-xl border border-white/15 bg-white/10" />
+              </div>
+            </section>
           </PageShell>
         </PortalFrame>
       );
@@ -3057,29 +3065,36 @@ export function ProcessDetailPage() {
       focusMode
     >
       <PageShell className="sig-process-detail-premium !max-w-none !px-3 sm:!px-4 lg:!px-5 2xl:!px-6">
-      <PageHero
-        eyebrow="Painel do processo"
-        title={formatOfficialProcessLabel({ protocol: process.protocol, type: process.type })}
-        description={
-          isExternalProcessViewer
-            ? "Acompanhe seu protocolo, seus documentos, exigências, pagamentos liberados e o andamento público do processo."
-            : "Acompanhe situação, documentos, comunicações, análise técnica e financeiro em um único painel institucional."
-        }
-        icon={Workflow}
+      <ProcessDetailHero
+        protocol={formatOfficialProcessNumber(process.protocol)}
+        subject={formatOfficialProcessTitle({ title: process.title, type: process.type })}
+        municipality={officialMunicipalityLabel(tenant?.name || municipalityName)}
+        processType={formatProfessionalProcessType(process.type)}
+        currentStage={currentFlowStatusLabel}
+        ownerName={isProtocolTrackingOnly ? undefined : process.ownerName}
+        responsibleUnit={displayOrganizationPath}
+        assignedTo={isExternalProcessViewer || isProtocolTrackingOnly
+          ? undefined
+          : process.analysis?.assignedTo || process.technicalLead}
+        deadline={formatProcessSlaDeadline(process.sla?.dueDate, process.sla?.hoursRemaining)}
+        visiblePendingCount={visibleRequirements.length}
+        restrictedView={isExternalProcessViewer || isProtocolTrackingOnly}
         actions={
-          <div className="flex flex-wrap items-center gap-2">
-            <MarkerSelector
-              processId={process.id}
-              tags={process.tags}
-              actor={session.name}
-              subjectLabel="processo"
-              triggerClassName="h-9"
-            />
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            {!isExternalProcessViewer && !isProtocolTrackingOnly ? (
+              <MarkerSelector
+                processId={process.id}
+                tags={process.tags}
+                actor={session.name}
+                subjectLabel="processo"
+                triggerClassName="h-9"
+              />
+            ) : null}
             {isExternalProcessViewer ? (
               <Button
                 type="button"
                 variant="outline"
-                className="rounded-full"
+                className="rounded-xl border-white/30 bg-white px-3 text-slate-800 hover:bg-slate-100"
                 onClick={() => navigate(-1)}
               >
                 <ArrowLeft className="mr-2 h-4 w-4" />
@@ -3089,7 +3104,7 @@ export function ProcessDetailPage() {
             <Button
               type="button"
               variant="outline"
-              className="rounded-full border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+              className="rounded-xl border-white/30 bg-white px-3 text-slate-800 hover:bg-slate-100"
               onClick={() => navigate(processExitPath)}
             >
               <LogOut className="mr-2 h-4 w-4" />

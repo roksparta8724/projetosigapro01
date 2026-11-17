@@ -1,0 +1,245 @@
+/*
+ * SIGAPRO | Process detail hero, fixed-dark institutional surface.
+ * Scoped away from generic .sig-page-header, adaptive-card and theme remaps.
+ * Inline facts have real values; never reserve a blank fixed-height banner.
+ */
+.sig-process-detail-premium .sig-detail-hero {
+  display: block;
+  position: relative;
+  isolation: isolate;
+  width: 100%;
+  min-width: 0;
+  height: auto;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid rgba(116, 195, 232, .45);
+  border-left: 4px solid #39aedb;
+  border-radius: 22px;
+  padding: clamp(16px, 1.85vw, 24px);
+  background: linear-gradient(119deg, #092944 0%, #0c3c5b 57%, #0f526b 100%);
+  box-shadow: 0 15px 34px rgba(6, 38, 67, .16), inset 0 1px rgba(255, 255, 255, .10);
+  color: #fff !important;
+  -webkit-text-fill-color: #fff;
+}
+.sig-process-detail-premium .sig-detail-hero::before {
+  position: absolute;
+  content: "";
+  inset: 0 0 auto;
+  height: 80px;
+  background: linear-gradient(180deg, rgba(255,255,255,.065), transparent);
+  pointer-events: none;
+  z-index: -1;
+}
+.sig-process-detail-premium .sig-detail-hero-main {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  width: 100%;
+  min-width: 0;
+}
+.sig-process-detail-premium .sig-detail-hero-heading {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: flex-start;
+  min-width: 0;
+  gap: 14px;
+}
+.sig-process-detail-premium .sig-detail-hero-icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  border-radius: 13px;
+  color: #d7f3ff !important;
+  background: rgba(127, 211, 251, .14);
+  border: 1px solid rgba(191, 236, 255, .22);
+}
+.sig-process-detail-premium .sig-detail-hero-copy { min-width: 0; }
+.sig-process-detail-premium .sig-detail-hero-overline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  color: #cbe8f8 !important;
+  -webkit-text-fill-color: #cbe8f8 !important;
+  font-size: 11px;
+  line-height: 1.4;
+  font-weight: 680;
+}
+.sig-process-detail-premium .sig-detail-hero-overline > span:first-child {
+  display: inline-flex; align-items: center; gap: 5px;
+}
+.sig-process-detail-premium .sig-detail-hero-number {
+  padding: 3px 9px;
+  border: 1px solid rgba(165, 220, 246, .28);
+  border-radius: 999px;
+  background: rgba(255,255,255,.10);
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  font-weight: 800;
+  letter-spacing: .01em;
+  overflow-wrap: anywhere;
+}
+.sig-process-detail-premium .sig-detail-hero-eyebrow {
+  margin: 10px 0 3px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: #abd8f4 !important;
+  -webkit-text-fill-color: #abd8f4 !important;
+}
+.sig-process-detail-premium .sig-detail-hero-title {
+  display: block !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  width: 100%;
+  max-width: 100%;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  font-size: clamp(20px, 1.85vw, 29px) !important;
+  font-weight: 780 !important;
+  line-height: 1.22 !important;
+  letter-spacing: -.024em;
+  opacity: 1 !important;
+  visibility: visible !important;
+  white-space: normal !important;
+  word-break: normal !important;
+  overflow-wrap: anywhere !important;
+  overflow: visible !important;
+  -webkit-line-clamp: unset !important;
+}
+.sig-process-detail-premium .sig-detail-hero-subline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  align-items: center;
+  margin-top: 12px;
+}
+.sig-process-detail-premium .sig-detail-hero-stage,
+.sig-process-detail-premium .sig-detail-hero-owner {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 5px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(196, 239, 255, .25);
+  background: rgba(255,255,255,.085);
+  color: #e4f4ff !important;
+  -webkit-text-fill-color: #e4f4ff !important;
+  font-size: 11px;
+  font-weight: 660;
+  line-height: 1.45;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.sig-process-detail-premium .sig-detail-hero-stage svg,
+.sig-process-detail-premium .sig-detail-hero-owner svg { flex: 0 0 auto; }
+.sig-process-detail-premium .sig-detail-hero-actions {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  max-width: 100%;
+  gap: 7px;
+}
+.sig-process-detail-premium .sig-detail-hero-actions button {
+  min-height: 35px;
+  font-size: 11px;
+  font-weight: 730;
+  border-radius: 10px;
+}
+.sig-process-detail-premium .sig-detail-hero-facts {
+  display: grid;
+  grid-template-columns: repeat(2,minmax(0,1fr));
+  align-items: stretch;
+  gap: 11px;
+  margin-top: 18px;
+  min-width: 0;
+}
+.sig-process-detail-premium .sig-detail-hero-fact {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  min-width: 0;
+  padding: 13px 15px;
+  border-radius: 14px;
+  border: 1px solid rgba(194,229,247,.25);
+  background: rgba(209,239,255,.085);
+  box-shadow: inset 0 1px rgba(255,255,255,.045);
+}
+.sig-process-detail-premium .sig-detail-hero-fact-icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  flex: 0 0 36px;
+  background: rgba(143,215,255,.12);
+  border: 1px solid rgba(189,237,255,.18);
+  color: #d7efff !important;
+}
+.sig-process-detail-premium .sig-detail-hero-fact-copy { min-width: 0; flex: 1 1 auto; }
+.sig-process-detail-premium .sig-detail-hero-fact-label {
+  margin: 0 0 4px !important;
+  color: #afd7f2 !important;
+  -webkit-text-fill-color: #afd7f2 !important;
+  text-transform: uppercase;
+  font-size: 10px !important;
+  font-weight: 800 !important;
+  letter-spacing: .07em;
+  line-height: 1.3;
+}
+.sig-process-detail-premium .sig-detail-hero-fact-value {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  margin: 0 !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  font-size: 14px !important;
+  font-weight: 760 !important;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  word-break: normal;
+  white-space: normal;
+}
+.sig-process-detail-premium .sig-detail-hero-fact-value svg { flex: 0 0 auto; }
+.sig-process-detail-premium .sig-detail-hero-fact-help {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 5px 0 0 !important;
+  color: #cee6f6 !important;
+  -webkit-text-fill-color: #cee6f6 !important;
+  font-size: 11px !important;
+  font-weight: 580;
+  line-height: 1.45;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.sig-process-detail-premium .sig-detail-hero-fact-help svg { flex: 0 0 auto; }
+@media (max-width: 1060px) {
+  .sig-process-detail-premium .sig-detail-hero-main { flex-wrap: wrap; gap: 13px; }
+  .sig-process-detail-premium .sig-detail-hero-actions { justify-content: flex-start; width: 100%; }
+}
+@media (max-width: 660px) {
+  .sig-process-detail-premium .sig-detail-hero { padding: 15px; border-radius: 17px; }
+  .sig-process-detail-premium .sig-detail-hero-heading { gap: 9px; }
+  .sig-process-detail-premium .sig-detail-hero-icon { width: 36px; height: 36px; flex-basis: 36px; }
+  .sig-process-detail-premium .sig-detail-hero-facts { grid-template-columns: minmax(0,1fr); gap: 9px; margin-top: 13px; }
+  .sig-process-detail-premium .sig-detail-hero-title { font-size: 20px !important; }
+  .sig-process-detail-premium .sig-detail-hero-actions > div { max-width: 100%; }
+}
+/* Theme remaps have no authority over this fixed dark hero. */
+[data-layout-mode="default"] .sig-process-detail-premium .sig-detail-hero :is(h1,p,span,strong,small),
+[data-layout-mode="inverse-main"] .sig-process-detail-premium .sig-detail-hero :is(h1,p,span,strong,small) {
+  opacity: 1 !important;
+  visibility: visible !important;
+}

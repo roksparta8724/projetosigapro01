@@ -54,10 +54,13 @@ describe("premium process presentation", () => {
 describe("process guide placement and organogram regression", () => {
   it("keeps guide actions inside the guide card instead of the page hero", () => {
     const detail = readFileSync(resolve(process.cwd(), "src/pages/saas/ProcessDetailPage.tsx"), "utf8");
-    const heroStart = detail.indexOf("<PageHero");
-    const heroEnd = detail.indexOf("/>", heroStart);
-    const hero = detail.slice(heroStart, heroEnd + 2);
+    const heroStart = detail.indexOf("<ProcessDetailHero");
+    const heroEnd = detail.indexOf('      {session.role === "prefeitura_admin" ? (', heroStart);
+    const hero = detail.slice(heroStart, heroEnd);
 
+    expect(heroStart).toBeGreaterThan(-1);
+    expect(hero).toContain("Sair do processo");
+    expect(hero).toContain("visiblePendingCount={visibleRequirements.length}");
     expect(hero).not.toContain('printGuide("protocolo"');
     expect(detail).toContain('onClick={() => void printGuide("protocolo", false)}');
     expect(detail).toContain('onClick={() => void printGuide("protocolo", true)}');
