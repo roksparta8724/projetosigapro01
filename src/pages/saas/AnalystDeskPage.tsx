@@ -1255,8 +1255,8 @@ export function AnalystDeskPage() {
   return (
     <PortalFrame eyebrow="MESA TÉCNICA" title="Fila técnica, SLA e decisões" compactHeader>
       <PageShell className={section === "visao-geral" ? "sig-analysis-page sig-module-summary-active !flex !flex-col !gap-3 !pb-5" : "sig-analysis-page !flex !flex-col !gap-3 !pb-5"}>
-        <section data-analysis-command-bar="true"
-          className="flex min-w-0 flex-col gap-4 rounded-[18px] border border-slate-200 bg-white px-4 py-4 shadow-[0_8px_22px_rgba(15,23,42,0.045)] dark:border-slate-700 dark:bg-slate-900 sm:px-5 xl:flex-row xl:items-center xl:justify-between">
+        <section data-analysis-command-bar="true" data-premium-blue-surface="true"
+          className="flex min-w-0 flex-col gap-4 rounded-[18px] border border-sky-500/30 bg-[linear-gradient(115deg,#0b314c,#155b74)] px-4 py-4 text-white shadow-[0_8px_22px_rgba(11,49,76,0.16)] sm:px-5 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex min-w-0 items-center gap-3">
             <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[13px] border border-white/25 bg-white/10 text-white">
               <ListTodo className="h-5 w-5" aria-hidden="true" />
@@ -1543,7 +1543,7 @@ export function AnalystDeskPage() {
                 Distribuição da equipe e carga de trabalho — expandir quando necessário
               </summary>
             <div
-              data-analysis-distribution-manager="true"
+              data-analysis-distribution-manager="true" data-premium-blue-surface="true"
               className="mb-4 overflow-hidden rounded-[22px] border border-white/15 bg-[linear-gradient(180deg,#102637_0%,#0b1c2e_100%)] shadow-[0_12px_32px_rgba(0,0,0,0.22)]"
             >
               <div className="flex flex-col gap-3 border-b border-white/10 bg-[linear-gradient(135deg,#132d42_0%,#102438_100%)] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
@@ -1575,7 +1575,7 @@ export function AnalystDeskPage() {
                   <p className="mt-2 text-2xl font-black text-white">{teamAssignedAnalysis.length}</p>
                   <p className="mt-1 text-xs text-slate-300">Processos com responsável de referência; a equipe técnica da Análise pode colaborar quando necessário.</p>
                 </div>
-                <div data-analysis-availability-card="true" className="rounded-2xl border border-slate-400/30 bg-[#20364b] p-4">
+                <div data-analysis-availability-card="true" data-premium-blue-surface="true" className="rounded-2xl border border-slate-400/30 bg-[#20364b] p-4">
                   <p className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-slate-200">Equipe disponível</p>
                   <p className="mt-2 text-2xl font-black text-white">{analysisTeam.length}</p>
                   <p className="mt-1 text-xs text-slate-300">
