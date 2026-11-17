@@ -63,6 +63,7 @@ describe("SIGAPRO — Controle de Processos único, conforme referência aprovad
     expect(municipality).toContain('data-sei-personal-archive-controls="true"');
     expect(municipality).toContain("sem alterar tramitação ou status oficial");
     expect(header).toContain("(oneSelected && canDispatch(oneSelected))");
+    expect(header).toContain("!showSensitiveDetails || !onBulkMarker");
     expect(header).not.toContain("!dispatch || canDispatch(oneSelected)");
   });
 });
