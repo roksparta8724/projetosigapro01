@@ -1272,7 +1272,7 @@ export function TenantAdminPage() {
 
         {workspaceView === "visao-geral" && overviewSubpage === "resumo" ? (
           <div data-sigapro-overview-summary="premium-v4" className="flex min-w-0 flex-col gap-3">
-            <section data-sigapro-summary-board="dark" className="min-w-0 overflow-hidden rounded-[20px] border border-sky-600/35 bg-[#0a263d] p-4 text-white shadow-[0_14px_32px_rgba(6,32,55,0.16)] sm:p-5">
+            <section data-sigapro-summary-board="dark" data-premium-blue-surface="true" className="min-w-0 overflow-hidden rounded-[20px] border border-sky-600/35 bg-[#0a263d] p-4 text-white shadow-[0_14px_32px_rgba(6,32,55,0.16)] sm:p-5">
               <header className="flex flex-wrap items-center justify-between gap-3 border-b border-white/15 pb-3">
                 <div className="min-w-0">
                   <p data-summary-muted="true" className="text-[10px] font-bold uppercase tracking-[0.16em] text-sky-200">Painel executivo • Prefeitura</p>
@@ -1419,7 +1419,7 @@ export function TenantAdminPage() {
             aria-label="Consulta dos processos municipais"
             className="min-w-0 rounded-[20px] border border-[#bfd4e4] bg-[#ecf4fa] p-3 shadow-[0_9px_28px_rgba(8,45,73,0.085)] sm:p-4"
           >
-            <header className="mb-3 flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-xl border border-[#386f8d] bg-[linear-gradient(115deg,#0b344f,#104e6b)] px-3.5 py-3 text-white">
+            <header data-premium-blue-surface="true" className="mb-3 flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-xl border border-[#386f8d] bg-[linear-gradient(115deg,#0b344f,#104e6b)] px-3.5 py-3 text-white">
               <div className="min-w-0">
                 <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#bfe7fa]">Consulta oficial • Prefeitura</p>
                 <h2 data-processes-header-title="true" className="mt-0.5 text-[17px] font-bold leading-tight text-white">Processos municipais</h2>
