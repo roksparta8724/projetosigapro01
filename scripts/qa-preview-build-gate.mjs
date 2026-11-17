@@ -103,6 +103,9 @@ if (process.env.VERCEL_ENV === "preview" && process.env.VERCEL_GIT_COMMIT_REF ==
   run("process-ui-eslint", ["node_modules/eslint/bin/eslint.js", "."]);
   run("process-ui-regression-tests", ["node_modules/vitest/vitest.mjs", "run", "--maxWorkers=2",
     "src/test/premiumUnifiedProcessControl20261116.test.tsx",
+    "src/test/premiumBlueContrast20261117.test.ts",
+    "src/test/processPersonalUnitFilters20261117.test.tsx",
+    "src/test/unifiedMunicipalProcessWorkspace20261117.test.tsx",
     "src/components/platform/CompactProcessRegistry.test.tsx",
     "src/test/municipalProcessRegistry.test.ts",
     "src/test/municipalProcessRegistryAuthoritativeSync.test.ts",
