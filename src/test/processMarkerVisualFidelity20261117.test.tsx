@@ -69,11 +69,11 @@ describe("SIGAPRO — marcadores com cores semânticas e layout real do controle
     const records = [
       item("10", { payment: { status: "pendente", guides: [{ status: "pending" }] } }),
       item("11", { requirements: [{ status: "aberta" }] }),
-      item("12", { sla: { currentStage: "Vistoria", hoursRemaining: 40, breached: false } }),
-      item("13", { sla: { currentStage: "Aguardando decisão do Diretor", hoursRemaining: 40, breached: false } }),
+      item("12", { status: "triagem", sla: { currentStage: "Vistoria", hoursRemaining: 40, breached: false } }),
+      item("13", { status: "distribuicao", sla: { currentStage: "Aguardando decisão do Diretor", hoursRemaining: 40, breached: false } }),
     ];
     const { container } = render(<MemoryRouter><PremiumProcessRegistry processes={records} operatorName="Analista" /></MemoryRouter>);
-    for (const [filter, count] of [["guias", 1], ["exigencias", 1], ["vistoria", 1], ["decisao", 1], ["analise", 3]] as const) {
+    for (const [filter, count] of [["guias", 1], ["exigencias", 1], ["vistoria", 1], ["decisao", 1], ["analise", 2]] as const) {
       const button = container.querySelector<HTMLButtonElement>('[data-filter="' + filter + '"]');
       expect(button, filter).not.toBeNull();
       fireEvent.click(button!);
