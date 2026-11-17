@@ -23,9 +23,9 @@ function safeLabel(value: string | null | undefined, fallback: string) {
 }
 
 /**
- * Separate from generic PageHeader on purpose: the institutional blue surface
- * owns its typography, geometry and two real process fact cards. No fixed height,
- * blank skeleton, or cross-theme page-title selectors.
+ * A compact light process summary distinct from the single blue institutional
+ * masthead. The two process facts are borderless editorial columns, NOT nested
+ * cards; ownership, deadline and restricted views stay fully data-driven.
  */
 export function ProcessDetailHero({
   protocol, subject, municipality, processType, currentStage,
