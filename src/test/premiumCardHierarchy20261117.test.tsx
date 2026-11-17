@@ -19,20 +19,41 @@ describe("SIGAPRO — um só cabeçalho institucional, sem cards azuis aninhados
   const frame = read("src/components/platform/PortalFrame.tsx");
   const protocol = read("src/pages/saas/ProtocolDeskPage.tsx");
 
-  it("mantém exatamente um banner institucional com identidade e brasão na mesma faixa", () => {
-    expect(frame).toContain('data-sigapro-institutional-header="single"');
-    expect(frame).toContain('lg:flex-row lg:items-center lg:justify-between');
-    expect(frame).not.toContain('border-b border-white/10 bg-[linear-gradient(90deg');
+  it("PRESERVA o cabeçalho institucional superior original, sem redesenhá-lo", () => {
+    expect(frame).toContain('data-sigapro-compact-header={compactHeader ? "true" : "false"}');
+    expect(frame).toContain('border-b border-white/10 bg-[linear-gradient(90deg');
     expect(frame).toContain('InstitutionalLogo');
+    expect(frame).not.toContain('data-sigapro-institutional-header="single"');
   });
 
-  it("substitui o segundo grande card azul do Protocolo por uma barra clara de ação", () => {
+  it("preenche o CARD INFERIOR do Protocolo com dados reais e ações de navegação", () => {
     expect(protocol).toContain('data-sigapro-protocol-quick-actions="true"');
-    expect(protocol).toContain('Recepção, conferência documental e despacho inicial');
+    expect(protocol).toContain('data-sigapro-protocol-live-summary="true"');
+    expect(protocol).toContain('Protocolo e triagem');
+    expect(protocol).toContain('{processes.length}');
+    expect(protocol).toContain('{queueItems.length}');
+    expect(protocol).toContain('{incompleteProtocols.length}');
+    expect(protocol).toContain('{pendingProtocolPayments.length + pendingPreprotocolPayments.length}');
+    for (const tab of ["todos","fila","documentos","pagamentos"]) {
+      expect(protocol).toContain(`onClick={() => setSection("${tab}")}`);
+    }
     expect(protocol).toContain('Protocolar no balcão');
     expect(protocol).not.toContain('<PageHeader\n          eyebrow="Operação de protocolo"');
     expect(protocol).toContain('<PageHeader\n            eyebrow="Administração municipal"');
     expect(roleCss).toContain('[data-sigapro-protocol-quick-actions="true"]');
+  });
+
+  it("não cria cards de origem falsos, resumo duplicado ou guia fictícia", () => {
+    expect(protocol).not.toContain('title="Leitura da recepção"');
+    expect(protocol).not.toContain("sig-dark-panel");
+    expect(protocol).toContain('data-sigapro-protocol-empty-channel="balcao"');
+    expect(protocol).toContain('data-sigapro-protocol-empty-channel="online"');
+    expect(protocol).toContain('data-sigapro-protocol-empty-history="true"');
+    expect(protocol).toContain('data-sigapro-protocol-guide-empty="true"');
+    expect(protocol).toContain('Guia ainda não emitida');
+    expect(protocol).toContain('Sem guia emitida');
+    expect(protocol).toContain('Aguardando emissão');
+    expect(protocol).not.toContain('formatCurrency(getProcessPaymentGuides(matchedProcess, tenantSettings)[0]?.amount || 0)');
   });
 
   it("usa superfície CLARA, com texto escuro, nas métricas e cabeçalhos secundários", () => {
