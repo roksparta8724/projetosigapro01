@@ -3,6 +3,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { PremiumProcessRegistry as CompactProcessRegistry } from "@/components/platform/PremiumProcessRegistry";
 import { CreateProcessMarkerDialog, type CreatedPersonalMarker } from "@/components/platform/CreateProcessMarkerDialog";
+import { ProcessBatchActionDialog, type ProcessBatchPayload } from "@/components/platform/ProcessBatchActionDialog";
+import type { ProcessWorkspaceAction } from "@/components/platform/ProcessWorkspaceHeader";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
@@ -15,6 +17,7 @@ import {
   type UnitProcessCompletion,
 } from "@/integrations/backend/processUnitCompletionClient";
 import { useMunicipality } from "@/hooks/useMunicipality";
+import { useMunicipalOrganogram } from "@/hooks/useMunicipalOrganogram";
 import { usePlatformData } from "@/hooks/usePlatformData";
 import {
   canApplyPersonalProcessMarker, composeProfessionalMarkerLabel,
@@ -23,7 +26,7 @@ import {
 import { useLivePlatformRefresh } from "@/hooks/useLivePlatformRefresh";
 import { usePlatformSession } from "@/hooks/usePlatformSession";
 import {
-  isInternalRole, isProcessOwnedBySessionDepartment, matchesOperationalScope,
+  isInternalRole, isProcessOwnedBySessionDepartment, matchesOperationalScope, parseMarker,
   type ProcessRecord,
 } from "@/lib/platform";
 
@@ -37,8 +40,19 @@ export function MunicipalProcessRegistryPage() {
     dataError: platformDataError,
     loading: platformDataLoading,
     addProcessMarkerWithColor,
+    removeProcessMarker,
+    sessionUsers,
+    assignProcessAnalysis,
+    reassignProcessAnalysis,
+    dispatchProcess,
   } = usePlatformData();
   const { presets, addPreset } = useMarkerPresets();
+  const { departments: municipalDepartments } = useMunicipalOrganogram(
+    session.municipalityId ?? session.tenantId ?? municipality?.id ?? scopeId ?? null
+  );
+  const [activeBatchAction, setActiveBatchAction] = useState<ProcessWorkspaceAction | null>(null);
+  const [batchSelected, setBatchSelected] = useState<ProcessRecord[]>([]);
+  const [batchActionFeedback, setBatchActionFeedback] = useState("");
   const [createMarkerOpen, setCreateMarkerOpen] = useState(false);
   const [unitView, setUnitView] = useState<"todos" | "abertos" | "concluidos">("todos");
   const [unitCompletions, setUnitCompletions] = useState<Record<string, UnitProcessCompletion>>({});
@@ -204,6 +218,120 @@ export function MunicipalProcessRegistryPage() {
   };
 
 
+  const personalMarkerOptions = presets.filter(preset => preset.active).map(preset => ({
+    label: formatMarkerLabel(preset),
+    color: preset.color || "#2563eb",
+    emoji: preset.emoji,
+  }));
+  const availableAnalysts = sessionUsers.filter(user =>
+    user.accountStatus === "active" &&
+    user.role === "analista" &&
+    matchesOperationalScope(effectiveScopeId, user)
+  ).sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+
+  const submitBatchAction = async (payload: ProcessBatchPayload) => {
+    const action = activeBatchAction;
+    if (!action || action === "decisao") throw new Error("Selecione uma operação válida.");
+    if (!mayOperate || !remoteSyncedForCurrentUser || bulkMarkerBusy) {
+      throw new Error("O perfil ou a unidade não possuem autorização operacional sincronizada.");
+    }
+    const allowedIds = new Set(municipalityProcesses.map(item => item.id));
+    if (batchSelected.length === 0 || batchSelected.length > 25 ||
+        batchSelected.some(item => !allowedIds.has(item.id) ||
+          !isProcessOwnedBySessionDepartment(session, item))) {
+      throw new Error("Seleção não autorizada. Verifique a unidade atual e limite de 25 processos.");
+    }
+
+    if (action === "atribuir") {
+      if (session.role !== "prefeitura_supervisor") {
+        throw new Error("Somente o gestor da unidade de análise pode distribuir a análise técnica.");
+      }
+      if (!availableAnalysts.some(user => user.id === payload.analystProfileId)) {
+        throw new Error("Selecione um analista ativo da sua prefeitura.");
+      }
+      if (batchSelected.some(p => p.status === "arquivado" || p.status === "deferido" ||
+        p.status === "indeferido")) {
+        throw new Error("Processos finalizados não podem ser redistribuídos por esta operação.");
+      }
+    }
+
+    if (action === "encaminhar") {
+      if (!municipalDepartments.some(d => d.isActive && d.name === payload.destination)) {
+        throw new Error("Selecione uma unidade ativa do organograma municipal.");
+      }
+      if (!payload.subject || payload.subject.trim().length < 8 || !payload.dueDate) {
+        throw new Error("Informe um assunto válido e um prazo para o despacho.");
+      }
+      if (batchSelected.some(p => p.processControl?.currentFolder === payload.destination)) {
+        throw new Error("O destino precisa ser diferente da unidade de origem.");
+      }
+    }
+
+    const marker =
+      action === "prioridade" ? {
+        label: "Prioridade operacional",
+        color: payload.priority === "critica" ? "#dc2626" : payload.priority === "alta"
+          ? "#ca8a04" : "#2563eb",
+        emoji: "",
+      } : payload.marker;
+    const markerLabel = marker ? composeProfessionalMarkerLabel(marker.label, marker.emoji) : "";
+    if ((action === "prioridade" || (action === "etiquetas" && payload.markerOperation !== "remove"))
+        && (!marker || batchSelected.some(p =>
+          !canApplyPersonalProcessMarker(p.tags ?? [], markerLabel)))) {
+      throw new Error(PERSONAL_PROCESS_MARKER_LIMIT_ERROR);
+    }
+    if (action === "etiquetas" && !marker) throw new Error("Escolha um marcador.");
+
+    let succeeded = 0;
+    try {
+      for (const process of batchSelected) {
+        if (action === "prioridade") {
+          await addProcessMarkerWithColor(process.id, markerLabel, marker!.color, session.name);
+        } else if (action === "etiquetas") {
+          if (payload.markerOperation === "remove") {
+            const exists = (process.tags ?? []).some(tag =>
+              parseMarker(tag).label.trim().toLocaleLowerCase("pt-BR") ===
+              markerLabel.toLocaleLowerCase("pt-BR")
+            );
+            if (!exists) throw new Error("Marcador não presente em " + process.protocol + ".");
+            await removeProcessMarker(process.id, markerLabel, session.name);
+          } else {
+            await addProcessMarkerWithColor(process.id, markerLabel, marker!.color, session.name);
+          }
+        } else if (action === "atribuir") {
+          const alreadyAssigned = Boolean(process.analysis?.assignedTo || process.analysis?.assignedProfileId);
+          if (alreadyAssigned) {
+            if (!payload.reason || payload.reason.trim().length < 8) {
+              throw new Error("Redistribuição exige justificativa de pelo menos oito caracteres.");
+            }
+            await reassignProcessAnalysis({ processId: process.id,
+              targetProfileId: payload.analystProfileId!, reason: payload.reason });
+          } else {
+            await assignProcessAnalysis({
+              processId: process.id, targetProfileId: payload.analystProfileId!,
+            });
+          }
+        } else if (action === "encaminhar") {
+          const origin = process.processControl?.currentFolder ||
+            process.dispatches?.[0]?.to || session.department || "";
+          if (!origin.trim()) throw new Error("Origem oficial não identificada: " + process.protocol);
+          await dispatchProcess({
+            processId: process.id, actor: session.name, from: origin,
+            to: payload.destination!, subject: payload.subject!,
+            dueDate: payload.dueDate!, priority: payload.dispatchPriority || "media",
+            visibility: "interno",
+          });
+        }
+        succeeded += 1;
+      }
+    } catch (cause) {
+      const detail = cause instanceof Error ? cause.message : "Erro de gravação.";
+      throw new Error(`${succeeded} de ${batchSelected.length} processo(s) confirmados. ${detail} Confira o histórico antes de repetir para evitar duplicidade.`);
+    }
+    setBatchActionFeedback(`Operação ${action} confirmada em ${succeeded} processo(s) autorizado(s).`);
+    setSelectedProcessIds([]);
+  };
+
   const createPersonalMarker = async (
     marker: CreatedPersonalMarker, applyToSelection: boolean,
   ) => {
@@ -364,13 +492,17 @@ export function MunicipalProcessRegistryPage() {
         <CompactProcessRegistry
           operatorName={session.name}
           processes={visibleProcesses}
+          exportScopeLabel={municipality?.name || "Processos oficiais da Prefeitura"}
+          onToolbarAction={(action, selected) => {
+            setBatchActionFeedback("");
+            setBatchSelected(selected);
+            setActiveBatchAction(action);
+          }}
           onCreateMarker={mayOperate ? () => setCreateMarkerOpen(true) : undefined}
           unitCompletedIds={Object.values(unitCompletions).filter(row => row.status === "concluido").map(row => row.process_id)}
           unitDataReady={mayOperate && unitSyncState === "ready" && !unitActionBusy}
           onUnitAction={mayOperate ? queueUnitCompletion : undefined}
-          markerOptions={presets.filter((preset) => preset.active).map((preset) => ({
-            label: formatMarkerLabel(preset), color: preset.color || "#2563eb", emoji: preset.emoji,
-          }))}
+          markerOptions={personalMarkerOptions}
           onBulkMarker={session.role === "prefeitura_admin" ? undefined : applyMarkerToSelected}
           selectedProcessIds={selectedProcessIds}
           onToggleSelection={(processId, selected) => setSelectedProcessIds((current) => selected
@@ -387,6 +519,23 @@ export function MunicipalProcessRegistryPage() {
               : "Aguardando sincronização oficial — os processos não foram excluídos."}
         />
 
+        <ProcessBatchActionDialog
+          action={activeBatchAction}
+          selected={batchSelected}
+          canOperate={mayOperate && batchSelected.every(item =>
+            isProcessOwnedBySessionDepartment(session, item))}
+          analysts={availableAnalysts}
+          departments={municipalDepartments}
+          markers={personalMarkerOptions}
+          onClose={() => { setActiveBatchAction(null); setBatchSelected([]); }}
+          onCreateMarker={() => setCreateMarkerOpen(true)}
+          onSubmit={submitBatchAction}
+        />
+        {batchActionFeedback ? (
+          <p role="status" className="my-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-900">
+            {batchActionFeedback}
+          </p>
+        ) : null}
         <CreateProcessMarkerDialog open={createMarkerOpen}
           onOpenChange={setCreateMarkerOpen}
           selectedCount={selectedVisibleIds.length}
