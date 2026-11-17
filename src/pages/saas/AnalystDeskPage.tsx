@@ -653,7 +653,7 @@ export function AnalystDeskPage() {
           className="h-9 rounded-lg border-[#9cbcd2] bg-white px-3 text-xs font-semibold !text-[#0c3d5d] hover:bg-sky-50 dark:border-slate-500 dark:bg-slate-800 dark:!text-white"
           onClick={() => setProcessListView("detalhes")}>Ver ações detalhadas da Análise</Button>
       </div>
-      <CompactProcessRegistry embedded hideSearchInput operatorName={session.name} processes={items} showArchiveAction={false}
+      <CompactProcessRegistry embedded hideSearchInput operatorName={session.name} operator={session} processes={items} showArchiveAction={false}
         canDispatchProcess={() => false} emptyMessage={emptyMessage} />
     </div>
   ) : (
