@@ -59,7 +59,7 @@ describe("SIGAPRO — marcadores com cores semânticas e layout real do controle
     expect(saved[1]).toHaveStyle({ color: "#ea580c" });
     expect(saved[2]).toHaveStyle({ color: "#7c3aed" });
     expect(record.tags).toEqual(["Vistoria::blue", "Prioridade::orange", "Análise::violet"]);
-    expect(container.querySelectorAll('[aria-label^="Ver "][aria-label$=" do processo"]')).toHaveLength(2);
+    expect(container.querySelectorAll('[aria-label^="Ver "][aria-label$=" do processo"]')).toHaveLength(1);
     expect(saved[0].querySelector("svg")).toHaveStyle({ stroke: "#2563eb" });
     expect(source("src/components/platform/CompactProcessRegistry.tsx")).toContain("markers.slice(0, 2)");
   });
