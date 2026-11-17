@@ -552,6 +552,7 @@ export function MunicipalProcessRegistryPage() {
           unitCompletedIds={Object.values(unitCompletions).filter(row => row.status === "concluido").map(row => row.process_id)}
           unitDataReady={mayOperate && unitSyncState === "ready" && !unitActionBusy}
           onUnitAction={queueUnitCompletion}
+          canCompleteInUnit={canCompleteInMyUnit}
           markerOptions={personalMarkerOptions}
           onBulkMarker={mayOperate ? applyMarkerToSelected : undefined}
           selectedProcessIds={selectedProcessIds}
