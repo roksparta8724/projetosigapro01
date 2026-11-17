@@ -231,8 +231,10 @@ export function MunicipalProcessRegistryPage() {
       try {
         await applyMarkerToSelected(selected, markerOption);
       } catch (error) {
-        setBulkMarkerMessage("Modelo criado na sua pasta. A aplicação não foi integralmente confirmada; confira cada processo.");
-        throw error;
+        setBulkMarkerMessage("Modelo criado na sua pasta, mas a aplicação não foi integralmente confirmada. Confira as marcações dos processos.");
+        // The preset really exists; close the creation dialog normally and
+        // surface partial application in the operational feedback instead.
+        return;
       }
     }
   };
@@ -273,6 +275,9 @@ export function MunicipalProcessRegistryPage() {
       }
       setSelectedProcessIds([]);
       setPendingUnitAction(null);
+      // SEI-like behavior: concluding removes it from the active unit queue,
+      // but keeps the record searchable in the municipal overview.
+      setUnitView(action.completed ? "abertos" : "todos");
       setUnitFeedback(`${succeeded} processo(s) ${action.completed ? "concluído(s)" : "reaberto(s)"} apenas nesta unidade. O status municipal não foi alterado.`);
     } catch (error) {
       const reason = error instanceof Error ? error.message : "Erro no banco.";
