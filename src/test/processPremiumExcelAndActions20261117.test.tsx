@@ -68,6 +68,13 @@ describe("SIGAPRO — planilha Excel premium sem dados quebrados", () => {
     expect(sheet).toContain('col min="2" max="2" width="43"');
     expect(sheet).toContain('r="A7" s="4"');
     expect(sheet).toContain('r="A8" s="5"');
+    // Every OOXML part must parse, not only the worksheet ZIP magic bytes.
+    const contents = zipEntries(bytes).contents;
+    for (const [name, contentsXml] of Object.entries(contents)) {
+      if (!name.endsWith(".xml") && !name.endsWith(".rels")) continue;
+      const doc = new DOMParser().parseFromString(contentsXml, "application/xml");
+      expect(doc.getElementsByTagName("parsererror").length, name).toBe(0);
+    }
   });
 });
 

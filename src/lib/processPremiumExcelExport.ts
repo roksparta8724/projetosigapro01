@@ -61,8 +61,16 @@ function worksheetXml(rows: readonly ProcessRecord[], generatedAt: Date, scope: 
   rows.forEach((record, index) => {
     const y = index + 7;
     const style = index % 2 === 0 ? 4 : 5;
-    rowXml.push('<row r="' + y + '" ht="35" customHeight="1">' +
-      columns.map((c, i) => cell(i, y, c.text(record), style)).join("") + '</row>');
+    // Estimate wrapped lines by column width so long titles/names are
+    // visible instead of clipped by the previous fixed 35pt row height.
+    const values = columns.map(c => c.text(record));
+    const maxLines = Math.max(...columns.map((c, i) =>
+      String(values[i]).split("\n").reduce((total, line) =>
+        total + Math.max(1, Math.ceil(line.length / Math.max(9, c.width - 3))), 0)
+    ));
+    const height = Math.max(35, Math.min(186, 16 * maxLines + 12));
+    rowXml.push('<row r="' + y + '" ht="' + height + '" customHeight="1">' +
+      values.map((value, i) => cell(i, y, value, style)).join("") + '</row>');
   });
   const end = Math.max(6, rows.length + 6);
   return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
