@@ -10,18 +10,19 @@
  * previamente verificada é entregue de imediato, e revalidada em segundo plano.
  * Recargas que ignoram o Service Worker continuam sendo recargas nativas.
  */
-const CACHE_VERSION = "sigapro-enterprise-v8";
+const CACHE_VERSION = "sigapro-enterprise-v9";
 const ASSET_CACHE = `${CACHE_VERSION}:assets`;
 const NAVIGATION_CACHE = `${CACHE_VERSION}:public-html`;
 const DOCUMENT_URL = new URL("/index.html", self.location.origin).href;
 const DOCUMENT_SIGNATURE = 'name="sigapro-static-app-document"';
+const IS_SIGAPRO_PREVIEW = /^projetosigapro01-[a-z0-9-]+\.vercel\.app$/i.test(self.location.hostname);
 
 // Durante a ativação do novo SW, preservar a última geração dos bundles
 // versionados: abas ainda abertas podem solicitar um chunk da release anterior.
 const KEEP_CACHES = new Set([
   ASSET_CACHE,
   NAVIGATION_CACHE,
-  "sigapro-enterprise-v7:assets",
+  ...(IS_SIGAPRO_PREVIEW ? [] : ["sigapro-enterprise-v8:assets"]),
 ]);
 
 function isPublicAppDocument(response) {
@@ -156,17 +157,42 @@ self.addEventListener("message", (event) => {
 
 async function respondToNavigation(request, event) {
   const cache = await caches.open(NAVIGATION_CACHE);
-  const cached = await cache.match(DOCUMENT_URL);
+  const path = new URL(request.url).pathname;
+  const isIdentityRoute = path === "/acesso" || path === "/recuperar-senha" || path === "/criar-conta";
 
-  if (isPublicAppDocument(cached)) {
-    // Esta resposta é HTML estático público, NÃO snapshot de DOM autenticado.
-    // Como o navegador não espera pela rede, reduz a janela sem interface no F5.
+  // CRITICAL: A preview is not a pinned offline release. The old cache-first
+  // handler could keep serving yesterday's Vite HTML and its embedded Neon
+  // Auth/Data endpoints after a READY deployment, making real login fail even
+  // when Vercel and Neon settings were correct. Always fetch the CURRENT
+  // app document for previews and for identity flows.
+  if (IS_SIGAPRO_PREVIEW || isIdentityRoute) {
+    try {
+      const response = await fetch(request, { cache: "no-store", credentials: "same-origin" });
+      if (await isVerifiedPublicAppDocument(response)) {
+        const documentCopy = response.clone();
+        event.waitUntil(
+          cache.put(DOCUMENT_URL, documentCopy).catch(() => {}),
+        );
+      }
+      // Never persist Vercel SSO, redirects, error HTML or app responses.
+      return response;
+    } catch {
+      // Preview auth must fail closed instead of displaying a stale bundle
+      // pointing at a different database branch. On the official domain,
+      // offline access may still display a verified public shell.
+      if (IS_SIGAPRO_PREVIEW) return Response.error();
+      const cachedOffline = await cache.match(DOCUMENT_URL);
+      if (await isVerifiedPublicAppDocument(cachedOffline)) return cachedOffline;
+      return Response.error();
+    }
+  }
+
+  const cached = await cache.match(DOCUMENT_URL);
+  if (await isVerifiedPublicAppDocument(cached)) {
+    // In production keep the fast offline shell; refresh HTML in the background.
     event.waitUntil(updatePublicDocumentCache());
     return cached;
   }
-
-  // Primeira visita, SW desativado ou cache inválido: buscar o documento atual.
-  // Nunca fazer fallback para HTML de login personalizado ou APIs.
   const response = await fetch(request, { cache: "no-store" });
   if (await isVerifiedPublicAppDocument(response)) {
     await cache.put(DOCUMENT_URL, response.clone());

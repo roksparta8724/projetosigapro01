@@ -121,6 +121,7 @@ if (process.env.VERCEL_ENV === "preview" && process.env.VERCEL_GIT_COMMIT_REF ==
     "src/test/singleLineProcessLayout20261116.test.ts",
     "src/test/referenceProcessLayoutFidelity20261116.test.tsx",
     "src/test/processDetailHeroPremiumQa20261117.test.tsx",
+    "src/test/publicLoginVersionAuthQa20261117.test.ts",
   ]);
   console.log("[SIGAPRO_QA_BUILD_GATE] PASS unified municipal process-control preview checks.");
 }
