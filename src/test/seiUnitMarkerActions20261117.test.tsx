@@ -116,4 +116,30 @@ describe("SEI — marcadores pela mesa e conclusão restrita à unidade", () => 
     expect(sql).not.toMatch(/DELETE\s+FROM\s+public\.processes/i);
     expect(sql).not.toMatch(/ALTER\s+TABLE\s+public\.processes/i);
   });
+
+  it("não oferece conclusão quando a unidade ainda não foi confirmada pelo Neon", () => {
+    const action = vi.fn();
+    const { container } = render(<MemoryRouter><PremiumProcessRegistry
+      processes={[record]} canDispatchProcess={() => true}
+      onUnitAction={action} unitDataReady={false}
+    /></MemoryRouter>);
+    const checkbox = container.querySelector<HTMLInputElement>(
+      '[data-sei-process-row="true"] input[type="checkbox"]'
+    );
+    expect(checkbox).not.toBeNull();
+    fireEvent.click(checkbox!);
+    expect(screen.getByRole("button", { name: "Concluir nesta unidade" })).toBeDisabled();
+    expect(action).not.toHaveBeenCalled();
+  });
+
+  it("exige autoria do despacho para encerrar a unidade de origem com nome alternativo", () => {
+    const page = file("src/pages/saas/MunicipalProcessRegistryPage.tsx");
+    const sql = file("neon/migrations/20261117_unit_sender_alias_fix_v2.sql");
+    expect(page).toContain("dispatch.requestedByProfileId === session.id");
+    expect(sql).toContain("d.created_by_profile_id=_profile_id");
+    expect(sql).toContain("public.operational_area_from_label(d.from_department)=_area");
+    expect(sql).not.toMatch(/UPDATE\\s+public\\.processes\\s+SET/i);
+    expect(sql).not.toMatch(/DELETE\\s+FROM\\s+public\\.processes/i);
+  });
+
 });
