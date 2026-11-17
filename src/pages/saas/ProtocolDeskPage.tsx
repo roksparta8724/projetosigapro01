@@ -43,7 +43,6 @@ import { TableCard } from "@/components/platform/TableCard";
 import { UserAvatar } from "@/components/platform/UserAvatar";
 import {
   buildProcessPath,
-  isExternalProfessionalProcess,
   isProcessOwnedBySessionDepartment,
   formatCurrency,
   formatOfficialProcessNumber,
@@ -116,9 +115,6 @@ export function ProtocolDeskPage() {
     () => new Map(sessionUsers.map((user) => [user.id, user])),
     [sessionUsers],
   );
-
-  const isExternalProfessionalSubmission = (process: ProcessRecord) =>
-    isExternalProfessionalProcess(process);
 
   // "Todos os protocolos" é o livro de registro da Prefeitura:
   // depois que um protocolo é criado, ele nunca desaparece só porque mudou de setor.
@@ -660,7 +656,7 @@ export function ProtocolDeskPage() {
               const missingRequired = getMissingRequiredDocuments(process);
               const isUrgent = process.sla.breached || process.sla.hoursRemaining <= 8;
               const isDeskFlow = deskProtocolIds.has(process.id);
-              const externalSubmission = isExternalProfessionalSubmission(process);
+              const externalSubmission = classifyProtocolRegistrationSource(process) === "external";
               const creator =
                 (process.createdByProfileId ? userById.get(process.createdByProfileId) : undefined) ??
                 (process.createdBy ? userById.get(process.createdBy) : undefined);
