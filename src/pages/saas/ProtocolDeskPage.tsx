@@ -568,7 +568,7 @@ export function ProtocolDeskPage() {
             </div>
           </div>
           {protocolActionStatus ? <p role="status" className="rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm text-sky-900">{protocolActionStatus}</p> : null}
-          <CompactProcessRegistry embedded hideSearchInput operatorName={session.name}
+          <CompactProcessRegistry embedded hideSearchInput operatorName={session.name} operator={session}
             processes={visibleItems} emptyMessage={normalizedQuery ? "Nenhum processo corresponde à busca." : emptyMessage}
             onBulkDispatch={() => { void dispatchSelectedToUrbanism(visibleItems); }}
             selectedProcessIds={Array.from(selectedProcessIds)}
@@ -1187,7 +1187,7 @@ export function ProtocolDeskPage() {
               ) : (
                 <>
                   <p className="sr-only">Consultar processo</p>
-                  <CompactProcessRegistry embedded hideSearchInput operatorName={session.name} processes={visible} showArchiveAction={false}
+                  <CompactProcessRegistry embedded hideSearchInput operatorName={session.name} operator={session} processes={visible} showArchiveAction={false}
                     canDispatchProcess={() => false}
                     emptyMessage="Nenhum protocolo encontrado para os filtros informados." />
                 </>
