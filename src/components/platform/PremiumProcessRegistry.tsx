@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type ComponentProps } from "react";
 import { CompactProcessRegistry } from "@/components/platform/CompactProcessRegistry";
 import {
   ProcessWorkspaceHeader, processIsCritical, processHasRequirement, processPendingGuideCount,
-  processAwaitsDecision, type ProcessQuickFilter, type ProcessMarkerOption,
+  processAwaitsDecision, processIsUnderAnalysis, processAwaitsInspection, type ProcessQuickFilter, type ProcessMarkerOption,
 } from "@/components/platform/ProcessWorkspaceHeader";
 import { statusLabel, formatOfficialProcessNumber, formatOfficialProcessTitle, type ProcessRecord } from "@/lib/platform";
 import "@/styles/sigapro-process-workspace.css";
@@ -41,6 +41,10 @@ export function PremiumProcessRegistry({
       if (needle && !searchable.includes(needle)) return false;
       if (quickFilter === "criticos") return processIsCritical(process);
       if (quickFilter === "pendencias") return processHasRequirement(process) || processPendingGuideCount(process) > 0;
+      if (quickFilter === "guias") return processPendingGuideCount(process) > 0;
+      if (quickFilter === "exigencias") return processHasRequirement(process);
+      if (quickFilter === "analise") return processIsUnderAnalysis(process);
+      if (quickFilter === "vistoria") return processAwaitsInspection(process);
       if (quickFilter === "decisao") return processAwaitsDecision(process);
       if (quickFilter === "meus") return Boolean(operator) && [
         process.technicalLead, process.analysis?.assignedTo,

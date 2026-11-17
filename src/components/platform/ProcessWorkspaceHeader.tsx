@@ -1,21 +1,33 @@
-import { ChevronDown, ChevronRight, CircleAlert, Download, FileText, Flame, FolderOpen, Forward, Gavel, Layers3, Search, SlidersHorizontal, Tag, Timer, UserRound, UsersRound, Flag, X } from "lucide-react";
+import { ChevronDown, ChevronRight, CircleAlert, Download, FileText, FileWarning, Flame, FolderOpen, Forward, Gavel, Layers3, MapPin, Search, SlidersHorizontal, Tag, Timer, UserRound, UsersRound, Flag, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { buildProcessPath, type ProcessRecord } from "@/lib/platform";
 
-export type ProcessQuickFilter = "todos" | "meus" | "criticos" | "pendencias" | "decisao";
+export type ProcessQuickFilter = "todos" | "meus" | "criticos" | "pendencias" | "guias" | "exigencias" | "analise" | "vistoria" | "decisao";
 export type ProcessMarkerOption = { label: string; color: string };
 export function processIsCritical(p: ProcessRecord) {
   return Boolean(p.sla?.breached || (typeof p.sla?.hoursRemaining === "number" && p.sla.hoursRemaining <= 12));
 }
 export function processPendingGuideCount(p: ProcessRecord) {
   const guides = p.payment?.guides ?? [];
-  return guides.length ? guides.filter(g => g.status === "pendente").length
+  return guides.length ? guides.filter(g => g.status === "pendente" || g.status === "pending").length
     : (p.payment?.guideNumber && p.payment.status === "pendente" ? 1 : 0);
 }
 export function processHasRequirement(p: ProcessRecord) {
-  return (p.requirements ?? []).some(r => r.status === "aberta" || r.status === "respondida");
+  return p.status === "exigencia" || p.status === "pendencia_documental" ||
+    (p.requirements ?? []).some(r => r.status === "aberta" || r.status === "respondida");
+}
+export function processIsUnderAnalysis(p: ProcessRecord) {
+  if (p.status === "analise_tecnica") return true;
+  const stage = [p.sla?.currentStage, p.processControl?.currentFolder]
+    .filter(Boolean).join(" ").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  return /analise/.test(stage);
+}
+export function processAwaitsInspection(p: ProcessRecord) {
+  const stage = [p.sla?.currentStage, p.processControl?.currentFolder]
+    .filter(Boolean).join(" ").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  return /vistoria|fiscalizacao de obra/.test(stage);
 }
 export function processAwaitsDecision(p: ProcessRecord) {
   const raw = [p.status, p.sla?.currentStage, p.processControl?.currentFolder].join(" ")
@@ -48,7 +60,10 @@ export type ProcessWorkspaceHeaderProps = {
 const filterSpecs = [
   { id: "meus", label: "Meus processos", Icon: UserRound },
   { id: "criticos", label: "SLA crítico", Icon: Flame },
-  { id: "pendencias", label: "Pendências", Icon: CircleAlert },
+  { id: "guias", label: "Guia pendente", Icon: FileText },
+  { id: "exigencias", label: "Exigência", Icon: FileWarning },
+  { id: "analise", label: "Análise", Icon: Layers3 },
+  { id: "vistoria", label: "Vistoria", Icon: MapPin },
   { id: "decisao", label: "Em decisão", Icon: Gavel },
   { id: "todos", label: "Todos", Icon: Layers3 },
 ] as const;
@@ -89,7 +104,8 @@ export function ProcessWorkspaceHeader({
             placeholder="Pesquisar processos (nº, assunto, interessado, responsável)..."
             aria-label="Pesquisar processos por número, assunto, interessado ou responsável" />
         </label>
-        <div className="sig-workspace-filters" role="group" aria-label="Filtros rápidos">
+        <div className="sig-workspace-filters" role="group" aria-label="Filtros rápidos" tabIndex={0}
+          title="Use a rolagem horizontal quando os filtros não couberem na tela">
           <span>Filtros rápidos:</span>
           {filterSpecs.map(({ id, label, Icon }) => (
             <button key={id} type="button" data-filter={id} className={"sig-workspace-chip " + (quickFilter === id ? "is-active" : "")}

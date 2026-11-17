@@ -18,7 +18,7 @@ describe("SIGAPRO — fidelidade visual ao modelo aprovado do Controle de Proces
   });
 
   it("inclui pesquisa, filtros rápidos, seleção e ações para a ficha oficial", () => {
-    for (const text of ["Meus processos", "SLA crítico", "Pendências", "Em decisão", "Todos", "Marcar", "Prioridade", "Atribuir", "Encaminhar", "Decisão", "Etiquetas", "Exportar"]) {
+    for (const text of ["Meus processos", "SLA crítico", "Guia pendente", "Exigência", "Análise", "Vistoria", "Em decisão", "Todos", "Marcar", "Prioridade", "Atribuir", "Encaminhar", "Decisão", "Etiquetas", "Exportar"]) {
       expect(header).toContain(text);
     }
     expect(header).toContain("Selecionar todos os processos desta página");

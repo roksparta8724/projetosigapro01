@@ -108,7 +108,7 @@ function visibleProcessMarkers(
     const kind = knownMarkerKind(marker.label);
     return {
       label: marker.label,
-      color: kind ? processMarkerColors[kind] : marker.color,
+      color: marker.color,
       origin: "saved" as const,
       kind: kind ?? ("custom" as const),
     };
@@ -310,8 +310,10 @@ export function CompactProcessRegistry({
                           title={item.origin === "automatic" ? "Indicador automático: " + item.label : item.label}
                           data-marker-origin={item.origin} data-marker-kind={item.kind}
                           className="sig-reference-marker inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-lg"
-                          style={{ color: item.color, backgroundColor: item.color + "13", borderColor: item.color + "33" }}>
-                          <MarkerIcon className="h-4 w-4" strokeWidth={2.5} aria-hidden="true" />
+                          style={{ color: item.color, backgroundColor: item.color + "19", borderColor: item.color + "55" }}>
+                          <MarkerIcon className="h-4 w-4" strokeWidth={2.6}
+                            style={{ color: item.color, stroke: item.color }}
+                            aria-hidden="true" />
                         </span>
                       );
                     })}
@@ -320,8 +322,10 @@ export function CompactProcessRegistry({
                         <span className="sig-reference-marker sig-reference-marker-third inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-lg"
                           title={thirdMarker.origin === "automatic" ? "Indicador automático: " + thirdMarker.label : thirdMarker.label}
                           data-marker-origin={thirdMarker.origin} data-marker-kind={thirdMarker.kind}
-                          style={{ color: thirdMarker.color, backgroundColor: thirdMarker.color + "13", borderColor: thirdMarker.color + "33" }}>
-                          <ThirdMarkerIcon className="h-4 w-4" strokeWidth={2.5} aria-hidden="true" />
+                          style={{ color: thirdMarker.color, backgroundColor: thirdMarker.color + "19", borderColor: thirdMarker.color + "55" }}>
+                          <ThirdMarkerIcon className="h-4 w-4" strokeWidth={2.6}
+                            style={{ color: thirdMarker.color, stroke: thirdMarker.color }}
+                            aria-hidden="true" />
                         </span>
                         <span className="sig-reference-extra-count sig-reference-extra-count-narrow" title="Mais indicadores e marcadores">+{markers.length - 2}</span>
                         {markers.length > 3 ? <span className="sig-reference-extra-count sig-reference-extra-count-wide"

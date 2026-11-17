@@ -719,3 +719,198 @@
     display: inline-flex !important;
   }
 }
+
+/* SIGAPRO — referência operacional, novembro/2026.
+   Marker colors come from saved process data, not from a CSS label palette. */
+.sig-workspace-shell .sig-process-registry .sig-reference-marker {
+  color: var(--marker-color, inherit);
+  border-radius: 7px;
+  box-shadow: none;
+}
+.sig-workspace-shell .sig-process-registry .sig-reference-marker svg {
+  stroke: currentColor;
+  stroke-width: 2.6;
+  fill: none;
+  width: 17px !important;
+  height: 17px !important;
+}
+.sig-workspace-shell .sig-process-registry .sig-process-row {
+  border-bottom: 1px solid #e3eaf2;
+}
+.sig-workspace-shell .sig-process-registry .sig-process-row:nth-child(even) {
+  background: #f0f6fc;
+}
+.sig-workspace-shell .sig-process-registry .sig-process-row:hover {
+  background: #e5f1ff;
+}
+.sig-workspace-shell .sig-process-registry .sig-process-head {
+  background: linear-gradient(180deg, #f8fbff 0%, #e9f2fb 100%);
+  border-bottom: 1px solid #d6e1ee;
+  font-weight: 800;
+}
+.sig-workspace-shell .sig-process-registry .sig-process-number-link {
+  font-size: 12px;
+  font-weight: 850;
+  color: #064d91;
+}
+.sig-workspace-shell .sig-process-registry .sig-process-subject-title {
+  font-size: 12px;
+  font-weight: 650;
+  color: #162b43;
+}
+.sig-workspace-shell .sig-process-registry .sig-process-responsible-name {
+  color: #253c54;
+  font-size: 11.5px;
+}
+.sig-workspace-shell .sig-process-registry .sig-process-open-btn {
+  background: linear-gradient(180deg, #0d588a, #053759);
+  border-radius: 8px;
+  box-shadow: 0 2px 5px rgba(4, 46, 74, .22);
+  font-size: 11px;
+}
+.sig-workspace-shell .sig-process-registry .sig-process-more-btn {
+  background: #fff;
+  border-color: #c4d4e5;
+}
+.sig-workspace-shell .sig-reference-footer {
+  background: #f8fbff;
+  color: #243c55;
+  font-size: 11px;
+}
+.sig-workspace-shell .sig-reference-legend-chip {
+  padding: 5px 7px;
+  font-size: 10.5px;
+  font-weight: 750;
+}
+.sig-workspace-shell .sig-workspace-chip[data-filter="guias"] {
+  background: #f6efff; color: #702ab8; border-color: #e2ccfc;
+}
+.sig-workspace-shell .sig-workspace-chip[data-filter="exigencias"] {
+  background: #fff5df; color: #955906; border-color: #efd9a5;
+}
+.sig-workspace-shell .sig-workspace-chip[data-filter="analise"] {
+  background: #eaf4ff; color: #125fc1; border-color: #c0daf9;
+}
+.sig-workspace-shell .sig-workspace-chip[data-filter="vistoria"] {
+  background: #f2edff; color: #6532c4; border-color: #d8c5ff;
+}
+.sig-workspace-shell .sig-workspace-chip[data-filter="guias"].is-active {
+  background: #7135ba; color: #fff; border-color: #7135ba;
+}
+.sig-workspace-shell .sig-workspace-chip[data-filter="exigencias"].is-active {
+  background: #ac6908; color: #fff; border-color: #ac6908;
+}
+.sig-workspace-shell .sig-workspace-chip[data-filter="analise"].is-active {
+  background: #145ec4; color: #fff; border-color: #145ec4;
+}
+.sig-workspace-shell .sig-workspace-chip[data-filter="vistoria"].is-active {
+  background: #6b3ac5; color: #fff; border-color: #6b3ac5;
+}
+/* A 1,000px municipal workstation must not shrink every filter to 9px. */
+@container sig-workspace (min-width: 830px) {
+  .sig-workspace-shell .sig-workspace-searchbar {
+    grid-template-columns: minmax(245px, .36fr) minmax(0, .64fr);
+    gap: 10px;
+  }
+  .sig-workspace-shell .sig-workspace-search {
+    min-height: 40px;
+  }
+  .sig-workspace-shell .sig-workspace-search input {
+    font-size: 12px;
+  }
+  .sig-workspace-shell .sig-workspace-filters {
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: #b2c8da transparent;
+    justify-content: flex-start;
+    padding-block: 3px;
+    scroll-padding-inline: 10px;
+    scroll-snap-type: x proximity;
+  }
+  .sig-workspace-shell .sig-workspace-chip {
+    flex: 0 0 auto;
+    font-size: 10.5px;
+    min-height: 33px;
+    padding: 6px 9px;
+    scroll-snap-align: start;
+  }
+  .sig-workspace-shell .sig-workspace-actions {
+    min-height: 51px;
+    padding: 8px 10px;
+  }
+  .sig-workspace-shell .sig-workspace-action {
+    min-height: 34px;
+    height: 34px;
+    font-size: 11px !important;
+    padding-inline: 8px !important;
+  }
+  .sig-workspace-shell .sig-workspace-selected {
+    font-size: 11.5px;
+  }
+  .sig-workspace-shell .sig-workspace-action svg {
+    width: 14px;
+    height: 14px;
+  }
+}
+@container sigapro-process-registry (min-width: 940px) and (max-width: 1389px) {
+  .sig-workspace-shell .sig-process-registry .sig-process-head,
+  .sig-workspace-shell .sig-process-registry .sig-process-row {
+    grid-template-columns:
+      75px minmax(116px, 1fr) minmax(145px, 1.45fr)
+      minmax(116px, 1.16fr) minmax(94px, .96fr)
+      minmax(86px, .83fr) minmax(56px, .58fr) 146px;
+    column-gap: 6px;
+    padding: 9px 10px;
+  }
+  .sig-workspace-shell .sig-process-registry .sig-process-head {
+    min-height: 42px;
+    font-size: 10px;
+  }
+  .sig-workspace-shell .sig-process-registry .sig-reference-marker-heading {
+    display: inline;
+    font-size: 9px;
+  }
+  .sig-workspace-shell .sig-process-registry .sig-process-head-marker > svg {
+    display: none;
+  }
+  .sig-workspace-shell .sig-process-registry .sig-process-number-link,
+  .sig-workspace-shell .sig-process-registry .sig-process-subject-title {
+    font-size: 11.5px;
+  }
+  .sig-workspace-shell .sig-process-registry .sig-process-responsible-name {
+    font-size: 11px;
+  }
+  .sig-workspace-shell .sig-process-registry .sig-process-open-btn {
+    width: 111px;
+    height: 32px;
+  }
+  .sig-workspace-shell .sig-process-registry .sig-process-more-btn {
+    width: 31px;
+    height: 32px;
+  }
+}
+@container sigapro-process-registry (min-width: 1120px) {
+  .sig-workspace-shell .sig-process-registry .sig-reference-marker-heading {
+    font-size: 10px;
+  }
+  .sig-workspace-shell .sig-process-registry .sig-process-open-btn {
+    width: 119px;
+  }
+}
+/* Dark mode: preserve contrast without changing saved marker colors. */
+.dark .sig-workspace-shell .sig-process-registry .sig-process-head {
+  background: #182b41;
+  border-color: #33465f;
+}
+.dark .sig-workspace-shell .sig-process-registry .sig-process-row:nth-child(even) {
+  background: #112d44;
+}
+.dark .sig-workspace-shell .sig-process-registry .sig-process-row:hover {
+  background: #174468;
+}
+.dark .sig-workspace-shell .sig-process-registry .sig-process-number-link,
+.dark .sig-workspace-shell .sig-process-registry .sig-process-subject-title,
+.dark .sig-workspace-shell .sig-process-registry .sig-process-responsible-name {
+  color: #edf6ff;
+}

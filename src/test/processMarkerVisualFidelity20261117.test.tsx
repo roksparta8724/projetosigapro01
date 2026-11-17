@@ -39,13 +39,23 @@ describe("SIGAPRO — marcadores com cores semânticas e layout real do controle
     expect(record.tags).toHaveLength(0);
   });
 
-  it("corrige Vistoria salva com cor legada, mas preserva marcador personalizado", () => {
+  it("respeita exatamente a cor salva no marcador, mesmo com nome de etapa", () => {
     const record = item("3", { tags: ["Vistoria::blue", "Prioridade::orange"], sla: { currentStage: "Vistoria" } });
     const { container } = render(<MemoryRouter><CompactProcessRegistry processes={[record]} /></MemoryRouter>);
-    expect(container.querySelector('[data-marker-origin="saved"][data-marker-kind="vistoria"]')).toHaveStyle({ color: "#7c3aed" });
+    expect(container.querySelector('[data-marker-origin="saved"][data-marker-kind="vistoria"]')).toHaveStyle({ color: "#2563eb" });
     expect(container.querySelector('[data-marker-origin="saved"][data-marker-kind="custom"]')).toHaveStyle({ color: "#ea580c" });
     expect(source("src/components/platform/CompactProcessRegistry.tsx")).toContain("markers.slice(0, 2)");
     expect(source("src/components/platform/CompactProcessRegistry.tsx")).toContain("sig-reference-marker-third");
+    const icon = container.querySelector('[data-marker-origin="saved"][data-marker-kind="vistoria"] svg');
+    expect(icon).toHaveStyle({ color: "#2563eb", stroke: "#2563eb" });
+  });
+
+  it("mantém a cor original de cada etiqueta real de banco sem sobrepor o significado pelo nome", () => {
+    const record = item("9", { tags: ["Concluído::green", "Retorno::red", "Prioridade::gold"] });
+    const { container } = render(<MemoryRouter><CompactProcessRegistry processes={[record]} /></MemoryRouter>);
+    expect(container.querySelector('[data-marker-origin="saved"][data-marker-kind="concluido"]')).toHaveStyle({ color: "#16a34a" });
+    expect(container.querySelector('[data-marker-origin="saved"][data-marker-kind="custom"]')).toHaveStyle({ color: "#dc2626" });
+    expect(record.tags).toEqual(["Concluído::green", "Retorno::red", "Prioridade::gold"]);
   });
 
   it("não divulga indicadores internos de prazo para visualização externa", () => {
@@ -53,6 +63,25 @@ describe("SIGAPRO — marcadores com cores semânticas e layout real do controle
       sla: { breached: true, currentStage: "Análise Urbanística" },
     })]} showSensitiveDetails={false} /></MemoryRouter>);
     expect(container.querySelector('[data-marker-origin="automatic"]')).toBeNull();
+  });
+
+  it("os filtros da referência trabalham com status, guias e etapas reais", () => {
+    const records = [
+      item("10", { payment: { status: "pendente", guides: [{ status: "pending" }] } }),
+      item("11", { requirements: [{ status: "aberta" }] }),
+      item("12", { sla: { currentStage: "Vistoria", hoursRemaining: 40, breached: false } }),
+      item("13", { sla: { currentStage: "Aguardando decisão do Diretor", hoursRemaining: 40, breached: false } }),
+    ];
+    const { container } = render(<MemoryRouter><PremiumProcessRegistry processes={records} operatorName="Analista" /></MemoryRouter>);
+    for (const [filter, count] of [["guias", 1], ["exigencias", 1], ["vistoria", 1], ["decisao", 1], ["analise", 3]] as const) {
+      const button = container.querySelector<HTMLButtonElement>('[data-filter="' + filter + '"]');
+      expect(button, filter).not.toBeNull();
+      fireEvent.click(button!);
+      expect(container.querySelectorAll('[data-sei-process-row="true"]'), filter).toHaveLength(count);
+    }
+    for (const label of ["Meus processos", "SLA crítico", "Guia pendente", "Exigência", "Análise", "Vistoria", "Em decisão", "Todos"]) {
+      expect(container.querySelector(".sig-workspace-filters")?.textContent).toContain(label);
+    }
   });
 
   it("mantém os filtros cromáticos funcionais e a tabela com uma linha por processo", () => {
