@@ -210,3 +210,98 @@ html body #root [data-premium-design="institutional-v3"] .sig-main-shell
     flex: 1 1 auto !important;
   }
 }
+
+/*
+ * Other departments still using the generic InternalTabs receive the same
+ * readable behavior already proved in Protocol and Finance: no flex-1 card
+ * compression, semantic selection, visible focus, and horizontal access.
+ * Their onChange, URL parameter, order, and role scopes are unchanged.
+ */
+html body #root .sig-main-shell .sig-section-nav:not(.sig-protocol-section-nav):not(.sig-finance-section-nav) {
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  background: #f0f6fa !important;
+  border: 1px solid #c9dce7 !important;
+  border-radius: 16px !important;
+  padding: 8px !important;
+  box-shadow: 0 5px 15px rgba(14, 59, 91, .06) !important;
+}
+html body #root .sig-main-shell .sig-section-nav:not(.sig-protocol-section-nav):not(.sig-finance-section-nav) > div {
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  justify-content: flex-start !important;
+  gap: 9px !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  scroll-snap-type: x proximity;
+  padding: 1px 1px 9px !important;
+  min-width: 0;
+  scrollbar-width: thin;
+  scrollbar-color: #97b9cc #eef5fa;
+}
+html body #root .sig-main-shell .sig-section-nav:not(.sig-protocol-section-nav):not(.sig-finance-section-nav) .sig-nav-item {
+  display: flex !important;
+  flex: 0 0 176px !important;
+  width: 176px !important;
+  min-width: 176px !important;
+  max-width: 176px !important;
+  min-height: 92px !important;
+  height: auto !important;
+  align-items: flex-start !important;
+  justify-content: flex-start !important;
+  flex-direction: column !important;
+  text-align: left !important;
+  border: 1px solid #cddfe9 !important;
+  border-radius: 12px !important;
+  padding: 12px !important;
+  background: #ffffff !important;
+  color: #1a3a52 !important;
+  -webkit-text-fill-color: #1a3a52 !important;
+  box-shadow: 0 2px 7px rgba(18, 61, 91, .04) !important;
+  scroll-snap-align: start;
+}
+html body #root .sig-main-shell .sig-section-nav:not(.sig-protocol-section-nav):not(.sig-finance-section-nav) .sig-nav-item[data-nav-active="true"] {
+  border-color: #5798b9 !important;
+  background: linear-gradient(140deg, #e5f4fc 0%, #dceef8 100%) !important;
+  color: #153e5a !important;
+  -webkit-text-fill-color: #153e5a !important;
+  box-shadow: inset 0 3px 0 #1680a8, 0 4px 12px rgba(18, 74, 112, .1) !important;
+}
+html body #root .sig-main-shell .sig-section-nav:not(.sig-protocol-section-nav):not(.sig-finance-section-nav) .sig-nav-item[data-nav-active="false"]:hover {
+  border-color: #84b8d2 !important;
+  background: #f5fbff !important;
+}
+html body #root .sig-main-shell .sig-section-nav:not(.sig-protocol-section-nav):not(.sig-finance-section-nav) .sig-nav-item :is(.sig-nav-item-label,.sig-nav-item-helper) {
+  display: -webkit-box !important;
+  -webkit-box-orient: vertical !important;
+  -webkit-line-clamp: 2;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden !important;
+  text-overflow: clip !important;
+  white-space: normal !important;
+  word-break: normal !important;
+  overflow-wrap: break-word !important;
+  hyphens: none !important;
+  letter-spacing: 0 !important;
+  opacity: 1 !important;
+}
+html body #root .sig-main-shell .sig-section-nav:not(.sig-protocol-section-nav):not(.sig-finance-section-nav) .sig-nav-item .sig-nav-item-label {
+  font-size: 13px !important;
+  font-weight: 740 !important;
+  line-height: 1.34 !important;
+  color: #173d56 !important;
+  -webkit-text-fill-color: #173d56 !important;
+}
+html body #root .sig-main-shell .sig-section-nav:not(.sig-protocol-section-nav):not(.sig-finance-section-nav) .sig-nav-item .sig-nav-item-helper {
+  margin-top: 6px !important;
+  font-size: 11.4px !important;
+  line-height: 1.42 !important;
+  color: #516d81 !important;
+  -webkit-text-fill-color: #516d81 !important;
+}
+html body #root .sig-main-shell .sig-section-nav:not(.sig-protocol-section-nav):not(.sig-finance-section-nav) .sig-nav-item:focus-visible {
+  outline: 3px solid #3f9dc9 !important;
+  outline-offset: -3px !important;
+}
