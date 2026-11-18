@@ -30,9 +30,13 @@ describe("process entry and organogram regression", () => {
     expect(permission).not.toContain('location.pathname.startsWith("/prefeitura/organograma") ||');
   });
 
-  it("routes the Processos shortcut back to the operational analysis queue when applicable", () => {
-    expect(portal).toContain('canAccessMunicipalArea(session, "analise")');
-    expect(portal).toContain('"/prefeitura/analise?secao=fila"');
+  it("routes the topbar Processos shortcut into the municipal registry, preserving separate analysis deep links", () => {
+    const destination = readFileSync(resolve(root, "src/lib/topbarProcessDestination.ts"), "utf8");
+    expect(portal).toContain("resolveTopbarProcessDestination(session.role)");
+    expect(portal).toContain('data-topbar-process-shortcut="mobile"');
+    expect(portal).toContain('data-topbar-process-shortcut="desktop"');
+    expect(destination).toContain('return "/prefeitura/processos";');
+    expect(destination).toContain('return "/dashboard/processos";');
     expect(analyst).toContain('const requested = searchParams.get("secao");');
     expect(analyst).toContain('      : "fila";');
   });
