@@ -10,6 +10,7 @@ import { hasOperationalUnit, isProcessInMyUnit, isProcessPersonallyLinked } from
 import "@/styles/sigapro-process-workspace.css";
 import "@/styles/sigapro-reference-layout.css";
 import "@/styles/sigapro-unified-process-workspace.css";
+import "@/styles/sigapro-process-table-legibility.css";
 
 type RegistryProps = ComponentProps<typeof CompactProcessRegistry>;
 type PremiumProcessRegistryProps = RegistryProps & {
