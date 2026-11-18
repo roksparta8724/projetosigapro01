@@ -8,6 +8,7 @@ import "./styles/institutional-premium-v3.css";
 import "./styles/municipal-executive-v4.css";
 import "./styles/dashboard-topbar-premium-v6.css";
 import "./styles/sigapro-role-blue-contrast.css";
+import "./styles/sigapro-premium-footer.css";
 
 const CONTINUITY_KEY = "sigapro.refresh.continuity.v1";
 const PLATFORM_SESSION_CACHE_KEY = "sigapro.platform.session.v1";
