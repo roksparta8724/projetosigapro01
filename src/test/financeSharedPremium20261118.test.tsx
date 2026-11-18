@@ -80,22 +80,35 @@ describe("SIGAPRO — cabeçalhos e navegação premium compartilhados", () => {
     expect(financeDesk).toContain('to="/prefeitura/financeiro/protocolos"');
   });
 
-  it("as guias oficiais só usam oito colunas quando há largura e mantêm a referência completa", () => {
-    expect(financeDesk).toContain('data-finance-guide-list="premium-v2"');
+  it("reconstrói o livro de guias com referência íntegra, evidência e valor destacados", () => {
+    expect(financeDesk).toContain('data-finance-guide-list="premium-v3"');
     expect(financeDesk).toContain('data-finance-guide-row="true"');
-    expect(financeDesk).toContain("2xl:grid-cols-[54px_minmax(220px,1.2fr)");
-    expect(financeDesk).toContain("2xl:hidden");
-    expect(financeDesk).toContain("2xl:block");
+    expect(financeDesk).toContain('sig-finance-ledger__reference');
+    expect(financeDesk).toContain('sig-finance-ledger__value');
+    expect(financeDesk).toContain('sig-finance-ledger__status');
+    expect(financeDesk).toContain("guideFinancialEvidenceLabel(guide)");
     expect(financeDesk).toContain("getPaymentGuideDisplayReference");
-    expect(financeDesk).toContain("buildProcessPath(process, \"financeiro\")");
-    expect(financeCss).toContain("overflow-wrap: anywhere");
-    expect(financeCss).toContain('[data-finance-guide-list="premium-v2"]');
-    // A sidebar may make the content narrow even at a 2xl viewport.
-    expect(financeCss).toContain("container: sigapro-finance-guide-ledger / inline-size");
-    expect(financeCss).toContain("@container sigapro-finance-guide-ledger (max-width: 1159px)");
-    expect(financeDesk).toContain('data-finance-guide-header="wide"');
-    expect(financeDesk).toContain('data-finance-guide-compact-metadata="true"');
-    expect(financeDesk.match(/data-finance-guide-wide-only="true"/g)).toHaveLength(5);
+    expect(financeDesk).toContain('data-official-sequence={sequence ? "true" : "false"}');
+    expect(financeDesk).toContain('buildProcessPath(process, "financeiro")');
+    expect(financeDesk).toContain('keepsOriginalPreprotocolCode');
+    expect(financeCss).toContain("container: sigapro-guide-ledger / inline-size");
+    expect(financeCss).toContain("@container sigapro-guide-ledger (max-width: 740px)");
+    expect(financeCss).toContain("html.dark body #root .sig-main-shell .sig-finance-ledger__row");
+    expect(financeDesk).not.toContain('data-finance-guide-header="wide"');
+  });
+
+  it("inclui busca e paginação sem filtrar município nem modificar situação financeira", () => {
+    expect(financeDesk).toContain('aria-label="Buscar guia ou processo"');
+    expect(financeDesk).toContain("filteredIssuedGuideRows");
+    expect(financeDesk).toContain("paginatedIssuedGuideRows");
+    expect(financeDesk).toContain("currentGuidePage * 12");
+    expect(financeDesk).toContain("setGuidePage(1)");
+    expect(financeDesk).toContain('aria-label="Paginação das guias financeiras"');
+    expect(financeDesk).toContain('onClick={() => setGuidePage(Math.max(1, currentGuidePage - 1))}');
+    expect(financeDesk).toContain('onClick={() => setGuidePage(Math.min(guidePageCount, currentGuidePage + 1))}');
+    expect(financeDesk).toContain("getVisibleProcessesByScope");
+    expect(financeDesk).toContain("financeLedgerProcesses");
+    expect(financeDesk).toContain("markGuideAsPaid");
   });
 
   it("corrige tipografia de indicadores e amplia o padrão aos demais departamentos sem alterar fluxos", () => {
