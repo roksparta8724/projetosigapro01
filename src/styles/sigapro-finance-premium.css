@@ -530,3 +530,277 @@ html.dark body #root .sig-main-shell .sig-finance-ledger__status[data-finance-ev
 @media (prefers-reduced-motion: reduce) {
   html body #root .sig-main-shell .sig-finance-ledger__row { transition:none; }
 }
+
+
+/* SIGAPRO FINANCE CONTRAST CONTRACT v5 */
+/* Effective hierarchy: selected navigation uses navy + light ink, unselected
+ * uses ivory + dark ink. This explicitly overrides the generic active-tab
+ * text rule and the legacy finance light-active-card background. */
+html body #root .sig-main-shell .sig-section-nav.sig-finance-section-nav .sig-nav-item[data-nav-active="true"],
+html body #root .sig-main-shell .sig-section-nav.sig-finance-section-nav .sig-nav-item[data-nav-active="true"]:hover,
+html body #root .sig-main-shell .sig-section-nav.sig-finance-section-nav .sig-nav-item[data-nav-active="true"]:focus-visible {
+  background: linear-gradient(135deg,#104f75 0%,#0c567c 100%) !important;
+  background-color: #104f75 !important;
+  border-color: #0c567c !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  box-shadow: inset 0 2px 0 rgba(255,255,255,.25),0 7px 16px rgba(7,54,83,.18) !important;
+}
+html body #root .sig-main-shell .sig-section-nav.sig-finance-section-nav .sig-nav-item[data-nav-active="true"] .sig-nav-item-label {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  opacity: 1 !important;
+}
+html body #root .sig-main-shell .sig-section-nav.sig-finance-section-nav .sig-nav-item[data-nav-active="true"] .sig-nav-item-helper {
+  color: #eaf6ff !important;
+  -webkit-text-fill-color: #eaf6ff !important;
+  opacity: 1 !important;
+}
+html body #root .sig-main-shell .sig-section-nav.sig-finance-section-nav .sig-nav-item[data-nav-active="false"] {
+  background: #f7fbff !important;
+  border-color: #c5d8e5 !important;
+  color: #15364d !important;
+  -webkit-text-fill-color: #15364d !important;
+}
+html body #root .sig-main-shell .sig-section-nav.sig-finance-section-nav .sig-nav-item[data-nav-active="false"] .sig-nav-item-label {
+  color: #15364d !important;
+  -webkit-text-fill-color: #15364d !important;
+}
+html body #root .sig-main-shell .sig-section-nav.sig-finance-section-nav .sig-nav-item[data-nav-active="false"] .sig-nav-item-helper {
+  color: #435e73 !important;
+  -webkit-text-fill-color: #435e73 !important;
+}
+html body #root .sig-main-shell .sig-section-nav.sig-finance-section-nav .sig-nav-item[data-nav-active="false"]:hover {
+  background: #eaf5fc !important;
+  border-color: #6facca !important;
+  box-shadow: 0 5px 13px rgba(9,76,108,.10) !important;
+}
+html body #root .sig-main-shell .sig-section-nav.sig-finance-section-nav .sig-nav-item:focus-visible {
+  outline: 3px solid #2080ad !important;
+  outline-offset: 2px !important;
+}
+/* Card hierarchy: light finance KPIs remain readable in both themes. A hover
+ * may elevate borders/shadows, but never turn a light card dark under dark ink. */
+html body #root .sig-main-shell .sig-finance-workspace .sig-stat-card[data-premium-surface="metric"][data-premium-role-blue="metric"] {
+  background: linear-gradient(180deg,#ffffff 0%,#f4f9fc 100%) !important;
+  border-color: #c4d8e6 !important;
+  color: #15364d !important;
+  -webkit-text-fill-color: #15364d !important;
+  box-shadow: 0 7px 20px rgba(15,58,90,.075) !important;
+}
+html body #root .sig-main-shell .sig-finance-workspace .sig-stat-card[data-premium-surface="metric"][data-premium-role-blue="metric"]:hover {
+  background: linear-gradient(180deg,#ffffff 0%,#f4f9fc 100%) !important;
+  border-color: #80b5d2 !important;
+  box-shadow: 0 11px 23px rgba(15,58,90,.13) !important;
+}
+html body #root .sig-main-shell .sig-finance-workspace .sig-stat-card[data-premium-role-blue="metric"] .sig-stat-value {
+  color: #15364d !important;
+  -webkit-text-fill-color: #15364d !important;
+}
+html body #root .sig-main-shell .sig-finance-workspace .sig-stat-card[data-premium-role-blue="metric"] .sig-fit-title:not(.sig-stat-value) {
+  color: #315c79 !important;
+  -webkit-text-fill-color: #315c79 !important;
+}
+html body #root .sig-main-shell .sig-finance-workspace .sig-stat-card[data-premium-role-blue="metric"] .sig-fit-copy {
+  color: #435e73 !important;
+  -webkit-text-fill-color: #435e73 !important;
+}
+/* The finance ledger uses light-on-dark ONLY in inverse mode. Section heading
+ * and metric ink are scoped to their own card, not inherited by nested badges. */
+html body #root [data-layout-mode="default"] .sig-main-shell .sig-finance-workspace :is(.sig-ui-card,.sig-section-card)[data-premium-surface="section"] {
+  border-color: #c4d8e6 !important;
+  color: #15364d !important;
+}
+html body #root [data-layout-mode="default"] .sig-main-shell .sig-finance-workspace :is(.sig-ui-card,.sig-section-card)[data-premium-surface="section"] :is(.sig-section-title,.sig-subtitle) {
+  color: #15364d !important;
+  -webkit-text-fill-color: #15364d !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-workspace :is(.sig-ui-card,.sig-section-card)[data-premium-surface="section"] {
+  background: linear-gradient(180deg,#102a3f 0%,#0c2234 100%) !important;
+  border-color: #3e6076 !important;
+  color: #edf8ff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-workspace :is(.sig-ui-card,.sig-section-card)[data-premium-surface="section"] :is(.sig-section-title,.sig-subtitle) {
+  color: #edf8ff !important;
+  -webkit-text-fill-color: #edf8ff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-workspace .sig-section-icon {
+  border-color: #53758b !important;
+  background: #1b4760 !important;
+  color: #edf8ff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-workspace .sig-section-icon svg {
+  color: #edf8ff !important;
+  stroke: currentColor !important;
+}
+/* Selected filters: override legacy -webkit-text-fill-color in nested chips.
+ * The same blue/white combination is used in both light and inverse themes. */
+html body #root .sig-main-shell .sig-finance-ledger__filter[data-active="true"],
+html body #root .sig-main-shell .sig-finance-ledger__filter[data-active="true"]:hover,
+html body #root .sig-main-shell .sig-finance-ledger__filter[data-active="true"]:focus-visible,
+html.dark body #root .sig-main-shell .sig-finance-ledger__filter[data-active="true"],
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__filter[data-active="true"] {
+  background: #0c567c !important;
+  border-color: #0c567c !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body #root .sig-main-shell .sig-finance-ledger__filter[data-active="true"] > span,
+html.dark body #root .sig-main-shell .sig-finance-ledger__filter[data-active="true"] > span,
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__filter[data-active="true"] > span {
+  background: #1d6384 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body #root .sig-main-shell .sig-finance-ledger__filter[data-active="false"] {
+  color: #15364d !important;
+  -webkit-text-fill-color: #15364d !important;
+}
+html body #root .sig-main-shell .sig-finance-ledger__filter[data-active="false"] > span {
+  color: #435e73 !important;
+  -webkit-text-fill-color: #435e73 !important;
+}
+/* Rows: selectable state and hover remain readable even when the selected row
+ * gains a stronger blue surface. No blending or opacity reduction to text. */
+html body #root .sig-main-shell .sig-finance-ledger__row[data-selected="true"],
+html body #root .sig-main-shell .sig-finance-ledger__row[data-selected="true"]:hover {
+  background: #d9ebf6 !important;
+  box-shadow: inset 3px 0 #116e99 !important;
+}
+html body #root .sig-main-shell .sig-finance-ledger__row:is(:hover,[data-selected="true"])
+  :is(.sig-finance-ledger__reference,.sig-finance-ledger__value,.sig-finance-ledger__process-column strong) {
+  color: #15364d !important;
+  -webkit-text-fill-color: #15364d !important;
+}
+html body #root .sig-main-shell .sig-finance-ledger__status[data-finance-evidence="reported"] {
+  background: #e7f5ec !important; color: #1c6742 !important;
+  -webkit-text-fill-color: #1c6742 !important;
+}
+html body #root .sig-main-shell .sig-finance-ledger__status[data-finance-evidence="simulation"] {
+  background: #eaf3fa !important; color: #225978 !important;
+  -webkit-text-fill-color: #225978 !important;
+}
+html body #root .sig-main-shell .sig-finance-ledger__status[data-finance-evidence="pending"] {
+  background: #fff5df !important; color: #7b5417 !important;
+  -webkit-text-fill-color: #7b5417 !important;
+}
+html body #root .sig-main-shell .sig-finance-ledger__unit-action:not(:disabled) {
+  background: #104f75 !important; border-color: #104f75 !important;
+  color: #ffffff !important; -webkit-text-fill-color: #ffffff !important;
+}
+html body #root .sig-main-shell .sig-finance-ledger__unit-action:not(:disabled):hover {
+  background: #0c567c !important; border-color: #0c567c !important;
+}
+html body #root .sig-main-shell .sig-finance-ledger__unit-action:not(:disabled) :is(span,svg),
+html body #root .sig-main-shell .sig-finance-ledger__unit-action:not(:disabled):hover :is(span,svg) {
+  color: #ffffff !important; -webkit-text-fill-color: #ffffff !important;
+  stroke: currentColor !important;
+}
+html body #root .sig-main-shell .sig-finance-ledger__archive-action,
+html body #root .sig-main-shell .sig-finance-ledger__archive-action:hover {
+  color: #15364d !important; -webkit-text-fill-color: #15364d !important;
+}
+html body #root .sig-main-shell .sig-finance-ledger__archive-action svg { stroke: currentColor !important; }
+/* Inverse layouts do not necessarily set html.dark, so support both contracts. */
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger,
+html.dark body #root .sig-main-shell .sig-finance-ledger {
+  background: #0f2d43 !important;
+  color: #edf8ff !important;
+  -webkit-text-fill-color: #edf8ff !important;
+  border-color: #41637a !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__header,
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__toolbar,
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__actions,
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__pagination {
+  background: #17384d !important;
+  border-color: #40627b !important;
+  color: #edf8ff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__row,
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__row:nth-child(even),
+html.dark body #root .sig-main-shell .sig-finance-ledger__row {
+  background: #153043 !important;
+  border-color: #39576d !important;
+  color: #edf8ff !important;
+  -webkit-text-fill-color: #edf8ff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__row:hover,
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__row[data-selected="true"],
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__row[data-selected="true"]:hover,
+html.dark body #root .sig-main-shell .sig-finance-ledger__row[data-selected="true"] {
+  background: #204d66 !important;
+  box-shadow: inset 3px 0 #75c7ec !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__row
+  :is(.sig-finance-ledger__reference,.sig-finance-ledger__value,.sig-finance-ledger__process-column strong,.sig-finance-ledger__dates-column strong),
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__row:is(:hover,[data-selected="true"])
+  :is(.sig-finance-ledger__reference,.sig-finance-ledger__value,.sig-finance-ledger__process-column strong),
+html.dark body #root .sig-main-shell .sig-finance-ledger__row:is(:hover,[data-selected="true"])
+  :is(.sig-finance-ledger__reference,.sig-finance-ledger__value,.sig-finance-ledger__process-column strong) {
+  color: #f5fbff !important;
+  -webkit-text-fill-color: #f5fbff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__row
+  :is(.sig-finance-ledger__guide-type,.sig-finance-ledger__responsibility,.sig-finance-ledger__dates-column span,.sig-finance-ledger__process-column span,.sig-finance-ledger__mobile-details),
+html.dark body #root .sig-main-shell .sig-finance-ledger__row
+  :is(.sig-finance-ledger__guide-type,.sig-finance-ledger__responsibility,.sig-finance-ledger__dates-column span,.sig-finance-ledger__process-column span,.sig-finance-ledger__mobile-details) {
+  color: #bfd9e8 !important;
+  -webkit-text-fill-color: #bfd9e8 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__filter[data-active="false"],
+html.dark body #root .sig-main-shell .sig-finance-ledger__filter[data-active="false"] {
+  background: #173b50 !important; color: #edf8ff !important;
+  -webkit-text-fill-color: #edf8ff !important; border-color: #58798d !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__filter[data-active="false"] > span,
+html.dark body #root .sig-main-shell .sig-finance-ledger__filter[data-active="false"] > span {
+  background: #28516a !important; color: #edf8ff !important;
+  -webkit-text-fill-color: #edf8ff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__status[data-finance-evidence="reported"],
+html.dark body #root .sig-main-shell .sig-finance-ledger__status[data-finance-evidence="reported"] {
+  background: #174431 !important; color: #d1ffe6 !important;
+  -webkit-text-fill-color: #d1ffe6 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__status[data-finance-evidence="simulation"],
+html.dark body #root .sig-main-shell .sig-finance-ledger__status[data-finance-evidence="simulation"] {
+  background: #173f57 !important; color: #d6efff !important;
+  -webkit-text-fill-color: #d6efff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__status[data-finance-evidence="pending"],
+html.dark body #root .sig-main-shell .sig-finance-ledger__status[data-finance-evidence="pending"] {
+  background: #57421c !important; color: #fff0c8 !important;
+  -webkit-text-fill-color: #fff0c8 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__unit-action:not(:disabled),
+html.dark body #root .sig-main-shell .sig-finance-ledger__unit-action:not(:disabled) {
+  background: #104f75 !important; border-color: #80bddc !important;
+  color: #ffffff !important; -webkit-text-fill-color: #ffffff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__archive-action,
+html.dark body #root .sig-main-shell .sig-finance-ledger__archive-action {
+  background: #234d65 !important; border-color: #6f98af !important;
+  color: #edf8ff !important; -webkit-text-fill-color: #edf8ff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__page-controls select {
+  background: #10283a !important; border-color: #62869f !important;
+  color: #edf8ff !important; -webkit-text-fill-color: #edf8ff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__search input {
+  background: #10283a !important; border-color: #62869f !important;
+  color: #edf8ff !important; -webkit-text-fill-color: #edf8ff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__search input::placeholder {
+  color: #bfd9e8 !important; -webkit-text-fill-color: #bfd9e8 !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__table-head,
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__notice {
+  background: #213f53 !important; border-color: #45677d !important;
+  color: #edf8ff !important; -webkit-text-fill-color: #edf8ff !important;
+}
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__column-titles,
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__pagination,
+html body #root [data-layout-mode="inverse-main"] .sig-main-shell .sig-finance-ledger__select-all {
+  color: #edf8ff !important; -webkit-text-fill-color: #edf8ff !important;
+}

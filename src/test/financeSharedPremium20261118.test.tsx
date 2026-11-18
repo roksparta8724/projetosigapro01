@@ -140,6 +140,34 @@ describe("SIGAPRO — cabeçalhos e navegação premium compartilhados", () => {
     expect(financeDesk).not.toContain('setMyUnitProcessCompletion(');
   });
 
+
+  it("mantém tinta branca nos cards Financeiro ativos e escura nos inativos, inclusive em hover", () => {
+    const v5 = financeCss.split("/* SIGAPRO FINANCE CONTRAST CONTRACT v5 */")[1];
+    expect(v5).toBeTruthy();
+    expect(v5).toContain('.sig-nav-item[data-nav-active="true"]:hover');
+    expect(v5).toContain('.sig-nav-item[data-nav-active="true"] .sig-nav-item-label');
+    expect(v5).toContain('.sig-nav-item[data-nav-active="true"] .sig-nav-item-helper');
+    expect(v5).toContain("background: linear-gradient(135deg,#104f75 0%,#0c567c 100%) !important");
+    expect(v5).toContain("-webkit-text-fill-color: #ffffff !important");
+    expect(v5).toContain('.sig-nav-item[data-nav-active="false"] .sig-nav-item-label');
+    expect(v5).toContain('.sig-nav-item[data-nav-active="false"] .sig-nav-item-helper');
+    expect(v5).toContain("background: #f7fbff !important");
+  });
+
+  it("impede cards/linhas selecionados com fundo escuro e letras escuras, nos dois temas", () => {
+    const v5 = financeCss.split("/* SIGAPRO FINANCE CONTRAST CONTRACT v5 */")[1];
+    expect(v5).toContain('.sig-finance-ledger__row[data-selected="true"]:hover');
+    expect(v5).toContain("background: #d9ebf6 !important");
+    expect(v5).toContain('[data-layout-mode="inverse-main"]');
+    expect(v5).toContain("background: #204d66 !important");
+    expect(v5).toContain("-webkit-text-fill-color: #f5fbff !important");
+    expect(v5).toContain('.sig-finance-ledger__status[data-finance-evidence="pending"]');
+    expect(v5).toContain('.sig-finance-ledger__status[data-finance-evidence="reported"]');
+    expect(v5).toContain('.sig-finance-ledger__status[data-finance-evidence="simulation"]');
+    expect(v5).toContain('.sig-finance-ledger__filter[data-active="true"] > span');
+    expect(v5).toContain('.sig-finance-ledger__unit-action:not(:disabled)');
+  });
+
   it("corrige tipografia de indicadores e amplia o padrão aos demais departamentos sem alterar fluxos", () => {
     expect(financeDesk).toContain("sig-finance-workspace");
     expect(financeLedger).toContain("sig-finance-workspace sig-finance-protocols-workspace");
