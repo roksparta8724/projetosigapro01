@@ -34,6 +34,7 @@ function harness(originOverride = origin) {
   const stores = new Map<string, Map<string, TestResponse>>();
   const removed: string[] = [];
   const fetcher = vi.fn(async (_request: TestRequest | { url: string }) => appHtml("release-A"));
+  const navigationPreloadEnable = vi.fn(async () => undefined);
 
   const cachesMock = {
     keys: async () => Array.from(stores.keys()),
@@ -60,6 +61,7 @@ function harness(originOverride = origin) {
       addEventListener: (name: string, fn: (event: unknown) => void) => handlers.set(name, fn),
       skipWaiting: async () => undefined,
       clients: { claim: async () => undefined },
+      registration: { navigationPreload: { enable: navigationPreloadEnable } },
     },
     caches: cachesMock,
     fetch: fetcher,
@@ -76,18 +78,24 @@ function harness(originOverride = origin) {
     await Promise.all(waits);
   }
 
-  async function navigate(url = origin + "/prefeitura") {
+  async function navigate(url = origin + "/prefeitura", preloadResponse?: Promise<TestResponse>) {
     const background: Promise<unknown>[] = [];
     let reply: Promise<TestResponse> | undefined;
     handlers.get("fetch")!({
       request: { method: "GET", mode: "navigate", url },
+      preloadResponse,
       respondWith: (p: Promise<TestResponse>) => { reply = p; },
       waitUntil: (p: Promise<unknown>) => background.push(p),
     });
     return { response: await reply!, background };
   }
+  async function activate() {
+    const background: Promise<unknown>[] = [];
+    handlers.get("activate")!({ waitUntil: (p: Promise<unknown>) => background.push(p) });
+    await Promise.all(background);
+  }
 
-  return { install, navigate, fetcher, removed, stores, handlers, cachesMock };
+  return { install, activate, navigate, fetcher, navigationPreloadEnable, removed, stores, handlers, cachesMock };
 }
 
 describe("SIGAPRO F5 — HTML público preparado pelo Service Worker", () => {

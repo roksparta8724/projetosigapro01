@@ -264,12 +264,22 @@ function precacheLoadedPublicBundles() {
 }
 
 if (import.meta.env.PROD && "serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.addEventListener("controllerchange", precacheLoadedPublicBundles, { once: true });
-    navigator.serviceWorker
-      .register("/sigapro-sw.js", { updateViaCache: "none" })
-      .then((registration) => registration.update())
-      .catch(() => {});
-    precacheLoadedPublicBundles();
-  });
+  // Register just after React's initial paint, not after ALL logo/avatar/chart
+  // images finish loading. A slow image used to postpone SW installation until
+  // after a user's first F5, forcing an uncached network document.
+  const prepareWorkerAfterFirstPaint = () => {
+    window.requestAnimationFrame(() => {
+      navigator.serviceWorker.addEventListener("controllerchange", precacheLoadedPublicBundles, { once: true });
+      navigator.serviceWorker
+        .register("/sigapro-sw.js", { updateViaCache: "none" })
+        .then((registration) => registration.update())
+        .catch(() => {});
+      precacheLoadedPublicBundles();
+    });
+  };
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", prepareWorkerAfterFirstPaint, { once: true });
+  } else {
+    prepareWorkerAfterFirstPaint();
+  }
 }

@@ -15,7 +15,12 @@ const ASSET_CACHE = `${CACHE_VERSION}:assets`;
 const NAVIGATION_CACHE = `${CACHE_VERSION}:public-html`;
 const DOCUMENT_URL = new URL("/index.html", self.location.origin).href;
 const DOCUMENT_SIGNATURE = 'name="sigapro-static-app-document"';
-const IS_SIGAPRO_PREVIEW = /^projetosigapro01-[a-z0-9-]+\.vercel\.app$/i.test(self.location.hostname);
+const IS_SIGAPRO_PREVIEW = /^projetosigapro01-[a-z0-9-]+\\.vercel\\.app$/i.test(self.location.hostname);
+// Only a branch alias (git-*) changes its content after a new Vercel deploy.
+// Immutable deployment hostnames are pinned to one build; their verified
+// public HTML is safe to serve from the local cache on F5.
+const IS_MUTABLE_PREVIEW_ALIAS = IS_SIGAPRO_PREVIEW &&
+  /^projetosigapro01-git-/i.test(self.location.hostname);
 
 // Durante a ativação do novo SW, preservar a última geração dos bundles
 // versionados: abas ainda abertas podem solicitar um chunk da release anterior.
@@ -83,7 +88,19 @@ self.addEventListener("activate", (event) => {
             .map((key) => caches.delete(key)),
         ),
       )
-      .then(() => self.clients.claim()),
+      .then(async () => {
+        // Navigation Preload begins the fresh HTML request while Chrome boots
+        // the Service Worker. The moving preview alias MUST remain network-
+        // first to avoid reusing a previous deploy's Neon/Auth configuration.
+        if (IS_MUTABLE_PREVIEW_ALIAS) {
+          try {
+            await self.registration?.navigationPreload?.enable?.();
+          } catch {
+            // No navigation preload in this browser: ordinary fetch remains safe.
+          }
+        }
+        return self.clients.claim();
+      }),
   );
 });
 
@@ -165,9 +182,19 @@ async function respondToNavigation(request, event) {
   // Auth/Data endpoints after a READY deployment, making real login fail even
   // when Vercel and Neon settings were correct. Always fetch the CURRENT
   // app document for previews and for identity flows.
-  if (IS_SIGAPRO_PREVIEW || isIdentityRoute) {
+  if (IS_MUTABLE_PREVIEW_ALIAS || isIdentityRoute) {
     try {
-      const response = await fetch(request, { cache: "no-store", credentials: "same-origin" });
+      // A browser-provided preload is the CURRENT network response; never a
+      // cached document from a previous commit. It avoids a second serialized
+      // wait while the worker starts during F5 / Chrome toolbar refresh.
+      let preloaded;
+      try {
+        preloaded = await event.preloadResponse;
+      } catch {
+        preloaded = undefined;
+      }
+      const response = preloaded ||
+        await fetch(request, { cache: "no-store", credentials: "same-origin" });
       if (await isVerifiedPublicAppDocument(response)) {
         const documentCopy = response.clone();
         event.waitUntil(
@@ -189,7 +216,9 @@ async function respondToNavigation(request, event) {
 
   const cached = await cache.match(DOCUMENT_URL);
   if (await isVerifiedPublicAppDocument(cached)) {
-    // In production keep the fast offline shell; refresh HTML in the background.
+    // A pinned Vercel preview is immutable, so its verified public HTML is
+    // safe to deliver immediately. Mutable branch aliases never use this path.
+    // In production keep the fast offline HTML; refresh in the background.
     event.waitUntil(updatePublicDocumentCache());
     return cached;
   }

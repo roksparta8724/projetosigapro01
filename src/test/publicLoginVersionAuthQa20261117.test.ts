@@ -9,7 +9,8 @@ describe("SIGAPRO — login sempre no build correto e autenticacao isolada", () 
     const navigation = sw.split("async function respondToNavigation(request, event) {")[1];
     expect(sw).toContain('sigapro-enterprise-v9');
     expect(sw).toContain("const IS_SIGAPRO_PREVIEW =");
-    expect(navigation).toContain("if (IS_SIGAPRO_PREVIEW || isIdentityRoute)");
+    expect(sw).toContain("const IS_MUTABLE_PREVIEW_ALIAS =");
+    expect(navigation).toContain("if (IS_MUTABLE_PREVIEW_ALIAS || isIdentityRoute)");
     expect(navigation).toContain('fetch(request, { cache: "no-store", credentials: "same-origin" })');
     expect(navigation).toContain("if (IS_SIGAPRO_PREVIEW) return Response.error()");
     expect(navigation).toContain("await isVerifiedPublicAppDocument(response)");
