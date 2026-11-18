@@ -147,6 +147,7 @@ if (process.env.VERCEL_ENV === "preview" && process.env.VERCEL_GIT_COMMIT_REF ==
     "src/test/processDetailHeroPremiumQa20261117.test.tsx",
     "src/test/publicLoginVersionAuthQa20261117.test.ts",
     "src/test/navigationDocumentSwCacheRegression.test.ts",
+    "src/test/previewF5NavigationPreload20261118.test.ts",
     "src/test/serviceWorker.test.ts",
     "src/test/productionAssetFreshnessRegression.test.ts",
     "src/test/productionParityCriticalRegression.test.ts",
